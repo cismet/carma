@@ -209,83 +209,83 @@ const Hitzekarte = () => {
               />
             </div>
           </Control>
-        </ControlLayout>
-      </div>
-      <TopicMapComponent
-        backgroundlayers={backgrounds[validBackgroundIndex].layerkey}
-        applicationMenuIconname="info"
-        // backgroundlayers="empty"
-        infoBox={
-          <ControlInfoBox
-            pixelwidth={350}
-            selectedSimulations={selectedSimulations}
-            simulations={simulations}
-            simulationLabels={simulationLabels}
-            backgrounds={backgrounds}
-            selectedBackgroundIndex={selectedBackgroundIndex}
-            setBackgroundIndex={(index) => {
-              setSelectedBackgroundIndex(index);
+          <TopicMapComponent
+            backgroundlayers={backgrounds[validBackgroundIndex].layerkey}
+            applicationMenuIconname="info"
+            // backgroundlayers="empty"
+            infoBox={
+              <ControlInfoBox
+                pixelwidth={350}
+                selectedSimulations={selectedSimulations}
+                simulations={simulations}
+                simulationLabels={simulationLabels}
+                backgrounds={backgrounds}
+                selectedBackgroundIndex={selectedBackgroundIndex}
+                setBackgroundIndex={(index) => {
+                  setSelectedBackgroundIndex(index);
 
-              history.push(
-                modifyQueryPart(history.location.search, { bg: index })
-              );
-            }}
-            minified={minifiedInfoBox}
-            minify={(minified) => setMinifiedInfoBox(minified)}
-            legendObject={legend}
-            featureInfoModeActivated={false}
-            setFeatureInfoModeActivation={() => {}}
-            featureInfoValue={undefined}
-            showModalMenu={(section) => {
-              setAppMenuVisible(true);
-              setAppMenuActiveMenuSection(section);
-            }}
-            mapClickListener={() => {}}
-            mapRef={undefined}
-            mapCursor={undefined}
-          />
-        }
-        modalMenu={
-          <GenericModalApplicationMenu
-            {...getCollabedHelpComponentConfig({
-              versionString: version,
-              reactCismapRHMVersion: "",
-            })}
-          />
-        }
-        locatorControl={false}
-        fullScreenControl={false}
-        zoomControls={false}
-        gazetteerSearchControl={true}
-        gazetteerSearchComponent={EmptySearchComponent}
-        applicationMenuTooltipString={tooltipText}
-      >
-        <TopicMapSelectionContent />
+                  history.push(
+                    modifyQueryPart(history.location.search, { bg: index })
+                  );
+                }}
+                minified={minifiedInfoBox}
+                minify={(minified) => setMinifiedInfoBox(minified)}
+                legendObject={legend}
+                featureInfoModeActivated={false}
+                setFeatureInfoModeActivation={() => {}}
+                featureInfoValue={undefined}
+                showModalMenu={(section) => {
+                  setAppMenuVisible(true);
+                  setAppMenuActiveMenuSection(section);
+                }}
+                mapClickListener={() => {}}
+                mapRef={undefined}
+                mapCursor={undefined}
+              />
+            }
+            modalMenu={
+              <GenericModalApplicationMenu
+                {...getCollabedHelpComponentConfig({
+                  versionString: version,
+                  reactCismapRHMVersion: "",
+                })}
+              />
+            }
+            locatorControl={false}
+            fullScreenControl={false}
+            zoomControls={false}
+            gazetteerSearchControl={true}
+            gazetteerSearchComponent={EmptySearchComponent}
+            applicationMenuTooltipString={tooltipText}
+          >
+            <TopicMapSelectionContent />
 
-        {/* <TileLayer
+            {/* <TileLayer
         maxNativeZoom={20}
         maxZoom={22}
         url={`https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_light&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}`}
       /> */}
-        {selectedSimulations.map((simulationIndex) => {
-          const selSimString = JSON.stringify(selectedSimulations);
-          return (
-            <CismapLayer
-              {...{
-                key: "heatmodellayer." + simulationIndex,
-                type: "vector",
-                style: simulations[simulationIndex].layer,
-                pane: "additionalLayers" + simulationIndex,
-                opacity: simulations[simulationIndex].opacity,
+            {selectedSimulations.map((simulationIndex) => {
+              const selSimString = JSON.stringify(selectedSimulations);
+              return (
+                <CismapLayer
+                  {...{
+                    key: "heatmodellayer." + simulationIndex,
+                    type: "vector",
+                    style: simulations[simulationIndex].layer,
+                    pane: "additionalLayers" + simulationIndex,
+                    opacity: simulations[simulationIndex].opacity,
 
-                // onLayerClick: (e) => {
-                //   console.log("xxx onLayerClick", e);
-                // },
-              }}
-            />
-          );
-        })}
-      </TopicMapComponent>
+                    // onLayerClick: (e) => {
+                    //   console.log("xxx onLayerClick", e);
+                    // },
+                  }}
+                />
+              );
+            })}
+          </TopicMapComponent>
+        </ControlLayout>
+      </div>
     </div>
   );
 };

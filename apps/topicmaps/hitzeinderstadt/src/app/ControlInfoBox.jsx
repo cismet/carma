@@ -5,7 +5,8 @@ import PropTypes from "prop-types";
 import React from "react";
 import CollapsibleWell from "react-cismap/commons/CollapsibleWell";
 import Legend from "./Legend";
-import ResponsiveInfoBox from "react-cismap/topicmaps/ResponsiveInfoBox";
+import { ResponsiveInfoBox } from "@carma-apps/portals";
+// import ResponsiveInfoBox from "react-cismap/topicmaps/ResponsiveInfoBox";
 
 /* eslint-disable jsx-a11y/anchor-is-valid */
 
