@@ -9,11 +9,41 @@ import {
 import { useTestMeshViewer } from "../hooks/usePersistentViewer";
 import useNivPPoints, { type ElevationStandard } from "../hooks/useNivPPoints";
 import useSceneClick from "../hooks/useSceneClick";
-import useMeasurement from "../hooks/useMeasurement";
 import PointControls from "../components/PointControls";
 import InfoPanel, { type InfoData } from "../components/InfoPanel";
 import HomeButton from "../components/HomeButton";
 import { cesiumConstructorOptions } from "../config";
+import {
+  CesiumMeasurementsProvider,
+  useCesiumMeasurements,
+} from "../contexts/CesiumMeasurementsContext";
+
+interface SceneClickHandlerProps {
+  viewer: ReturnType<typeof useTestMeshViewer>["viewer"];
+  enableTerrainClick: boolean;
+  nivPEntities: ReturnType<typeof useNivPPoints>["entities"];
+  searchRadius: number;
+  handleShowInfo: (data: InfoData) => void;
+}
+
+/* eslint-disable react/prop-types */ // Disable prop-types linting for this helper component
+const SceneClickHandler: React.FC<SceneClickHandlerProps> = ({
+  viewer,
+  enableTerrainClick,
+  nivPEntities,
+  searchRadius,
+  handleShowInfo,
+}) => {
+  const { enableMeasurement } = useCesiumMeasurements();
+  useSceneClick(
+    viewer,
+    enableTerrainClick && !enableMeasurement,
+    nivPEntities,
+    searchRadius,
+    handleShowInfo
+  );
+  return null;
+};
 
 const TestMeshElevations: React.FC = () => {
   const [showNivPPoints, setShowNivPPoints] = useState(true);
@@ -22,7 +52,6 @@ const TestMeshElevations: React.FC = () => {
   const [includeHistoric, setIncludeHistoric] = useState(false);
   const [enableTerrainClick, setEnableTerrainClick] = useState(true);
   const [searchRadius, setSearchRadius] = useState(10);
-  const [enableMeasurement, setEnableMeasurement] = useState(false);
   const [infoData, setInfoData] = useState<InfoData | null>(null);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -59,54 +88,41 @@ const TestMeshElevations: React.FC = () => {
     includeHistoric
   );
 
-  useSceneClick(
-    viewer,
-    enableTerrainClick && !enableMeasurement,
-    nivPEntities,
-    searchRadius,
-    handleShowInfo
-  );
-
-  const { clearMeasurements, measurementCount, hasAnyMeasurementEntities } =
-    useMeasurement(viewer, enableMeasurement);
-
   return (
     <>
       <CesiumErrorToErrorBoundaryForwarder />
+      <CesiumMeasurementsProvider viewer={viewer}>
+        <div style={{ position: "relative", width: "100%", height: "100vh" }}>
+          <div ref={containerRef} style={{ width: "100%", height: "100%" }} />
+          <HomeButton onHomeClick={zoomToTileset} />
+          <SceneClickHandler
+            viewer={viewer}
+            enableTerrainClick={enableTerrainClick}
+            nivPEntities={nivPEntities}
+            searchRadius={searchRadius}
+            handleShowInfo={handleShowInfo}
+          />
+        </div>
 
-      <div style={{ position: "relative", width: "100%", height: "100vh" }}>
-        <div ref={containerRef} style={{ width: "100%", height: "100%" }} />
-        <HomeButton onHomeClick={zoomToTileset} />
-      </div>
+        <PointControls
+          showNivPPoints={showNivPPoints}
+          onShowNivPPointsChange={setShowNivPPoints}
+          elevationStandard={elevationStandard}
+          onElevationStandardChange={(v) => {
+            setElevationStandard(v);
+            cesiumSafeRequestRender(viewer);
+          }}
+          includeHistoric={includeHistoric}
+          onIncludeHistoricChange={setIncludeHistoric}
+          enableTerrainClick={enableTerrainClick}
+          onEnableTerrainClickChange={setEnableTerrainClick}
+          searchRadius={searchRadius}
+          onSearchRadiusChange={setSearchRadius}
+          pointCount={pointCount}
+        />
 
-      <PointControls
-        showNivPPoints={showNivPPoints}
-        onShowNivPPointsChange={setShowNivPPoints}
-        elevationStandard={elevationStandard}
-        onElevationStandardChange={(v) => {
-          setElevationStandard(v);
-          cesiumSafeRequestRender(viewer);
-        }}
-        includeHistoric={includeHistoric}
-        onIncludeHistoricChange={setIncludeHistoric}
-        enableTerrainClick={enableTerrainClick}
-        onEnableTerrainClickChange={setEnableTerrainClick}
-        searchRadius={searchRadius}
-        onSearchRadiusChange={setSearchRadius}
-        pointCount={pointCount}
-        enableMeasurement={enableMeasurement}
-        onEnableMeasurementChange={(enabled) => {
-          setEnableMeasurement(enabled);
-          if (enabled && enableTerrainClick) {
-            setEnableTerrainClick(false);
-          }
-        }}
-        onClearMeasurements={clearMeasurements}
-        measurementCount={measurementCount}
-        hasAnyMeasurementEntities={hasAnyMeasurementEntities}
-      />
-
-      <InfoPanel data={infoData} onClose={handleCloseInfo} />
+        <InfoPanel data={infoData} onClose={handleCloseInfo} />
+      </CesiumMeasurementsProvider>
     </>
   );
 };

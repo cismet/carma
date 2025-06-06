@@ -21,7 +21,7 @@
 .panel-top-right {
   top: 1rem;
   right: 1rem;
-  width: 350px;
+  width: 450px; /* Adjusted width */
   max-width: 90vw;
 }
 
@@ -41,7 +41,7 @@
 .panel-info {
   top: 1rem;
   right: 1rem;
-  width: 350px;
+  width: 450px; /* Adjusted width */
   max-width: 90vw;
 }
 

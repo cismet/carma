@@ -1,0 +1,155 @@
+import React, { useState, useMemo } from "react";
+import { Radio, Table, Typography } from "antd";
+import type { Cartesian3, Viewer } from "cesium";
+import { Math as CesiumMath } from "cesium";
+import { PROJ4_CONVERTERS } from "@carma-commons/utils";
+
+const { Title } = Typography;
+
+type CoordinateDisplayMode = "cartesian" | "cartographic" | "utm32";
+
+interface MeasurementTableProps {
+  activeMeasurementPoints: Cartesian3[];
+  viewer: Viewer | null;
+}
+
+interface TableRecord {
+  key: string;
+  index: number;
+  val1: string; // X, Lon, Easting
+  val2: string; // Y, Lat, Northing
+  val3: string; // Z, Height, Ellipsoidal Height
+}
+
+const MeasurementTable: React.FC<MeasurementTableProps> = ({
+  activeMeasurementPoints,
+  viewer,
+}) => {
+  const [coordinateDisplayMode, setCoordinateDisplayMode] =
+    useState<CoordinateDisplayMode>("cartesian");
+
+  const tableDataSource = useMemo((): TableRecord[] => {
+    if (!viewer) return [];
+    return activeMeasurementPoints.map((point, index) => {
+      let val1: string, val2: string, val3: string;
+
+      switch (coordinateDisplayMode) {
+        case "cartographic": {
+          const cartographic =
+            viewer.scene.globe.ellipsoid.cartesianToCartographic(point);
+          val1 = CesiumMath.toDegrees(cartographic.longitude).toFixed(6);
+          val2 = CesiumMath.toDegrees(cartographic.latitude).toFixed(6);
+          val3 = cartographic.height.toFixed(2);
+          break;
+        }
+        case "utm32": {
+          const cartographic =
+            viewer.scene.globe.ellipsoid.cartesianToCartographic(point);
+          const lon = CesiumMath.toDegrees(cartographic.longitude);
+          const lat = CesiumMath.toDegrees(cartographic.latitude);
+          try {
+            const [easting, northing] = PROJ4_CONVERTERS.CRS25832.forward([
+              lon,
+              lat,
+            ]);
+            val1 = easting.toFixed(2);
+            val2 = northing.toFixed(2);
+            val3 = cartographic.height.toFixed(2);
+          } catch (error) {
+            console.error("Error converting to UTM32:", error);
+            val1 = "Error";
+            val2 = "Error";
+            val3 = "Error";
+          }
+          break;
+        }
+        case "cartesian":
+        default:
+          val1 = point.x.toFixed(2);
+          val2 = point.y.toFixed(2);
+          val3 = point.z.toFixed(2);
+          break;
+      }
+      return {
+        key: index.toString(),
+        index: index + 1,
+        val1,
+        val2,
+        val3,
+      };
+    });
+  }, [activeMeasurementPoints, viewer, coordinateDisplayMode]);
+
+  const columns = useMemo(() => {
+    let col1Title = "X";
+    let col2Title = "Y";
+    let col3Title = "Z";
+
+    if (coordinateDisplayMode === "cartographic") {
+      col1Title = "Lon (°)";
+      col2Title = "Lat (°)";
+      col3Title = "Höhe über NHN in m*";
+    } else if (coordinateDisplayMode === "utm32") {
+      col1Title = "Rechtswert (m)";
+      col2Title = "Hochwert (m)";
+      col3Title = "Höhe über NHN in m*";
+    }
+
+    return [
+      { title: "#", dataIndex: "index", key: "index", width: 50 },
+      { title: col1Title, dataIndex: "val1", key: "val1" },
+      { title: col2Title, dataIndex: "val2", key: "val2" },
+      { title: col3Title, dataIndex: "val3", key: "val3" },
+    ];
+  }, [coordinateDisplayMode]);
+
+  if (!activeMeasurementPoints.length) {
+    return <Typography.Text>Noch keine Punkte gemessen</Typography.Text>;
+  }
+
+  return (
+    <div style={{ marginBottom: "1rem" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "0.5rem",
+        }}
+      >
+        <Title level={5} style={{ margin: 0, fontSize: "12px" }}>
+          Gemessene Punkte:
+        </Title>
+        <Radio.Group
+          value={coordinateDisplayMode}
+          onChange={(e) =>
+            setCoordinateDisplayMode(e.target.value as CoordinateDisplayMode)
+          }
+          size="small"
+        >
+          <Radio.Button value="cartesian">XYZ</Radio.Button>
+          <Radio.Button value="cartographic">Lat/Lon</Radio.Button>
+          <Radio.Button value="utm32">UTM32</Radio.Button>
+        </Radio.Group>
+      </div>
+      <Table
+        columns={columns}
+        dataSource={tableDataSource}
+        pagination={false}
+        size="small"
+        bordered
+        scroll={{ y: 200 }} // Add scroll for longer lists, adjust as needed
+      />
+      {coordinateDisplayMode === "utm32" && (
+        <Typography.Text
+          type="secondary"
+          style={{ fontSize: "10px", display: "block", textAlign: "right" }}
+        >
+          *GCG2016/DHHN2016 +/- 0.2m
+        </Typography.Text>
+      )}
+    </div>
+  );
+};
+
+export default MeasurementTable;

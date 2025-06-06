@@ -20,6 +20,9 @@ const useMeasurement = (viewer: Viewer | null, enabled: boolean = false) => {
   const currentPointsRef = useRef<Cartesian3[]>([]);
   const isActiveRef = useRef<boolean>(false);
   const [measurementCount, setMeasurementCount] = useState<number>(0);
+  const [activeMeasurementPoints, setActiveMeasurementPoints] = useState<
+    Cartesian3[]
+  >([]); // New state for active points
   const completedMeasurementsRef = useRef<number>(0);
 
   // Update measurement count based on completed measurements only
@@ -76,6 +79,7 @@ const useMeasurement = (viewer: Viewer | null, enabled: boolean = false) => {
     currentPointsRef.current = [];
     isActiveRef.current = false;
     completedMeasurementsRef.current = 0;
+    setActiveMeasurementPoints([]); // Clear active points
     updateMeasurementCount();
 
     cesiumSafeRequestRender(viewer);
@@ -232,6 +236,7 @@ const useMeasurement = (viewer: Viewer | null, enabled: boolean = false) => {
     // Reset for next measurement
     currentPointsRef.current = [];
     isActiveRef.current = false;
+    setActiveMeasurementPoints([]); // Clear active points
 
     cesiumSafeRequestRender(viewer);
     console.debug(
@@ -264,6 +269,7 @@ const useMeasurement = (viewer: Viewer | null, enabled: boolean = false) => {
       }
 
       currentPointsRef.current.push(pickedPosition);
+      setActiveMeasurementPoints([...currentPointsRef.current]); // Update active points
 
       // Calculate cumulative distance up to this point
       let currentCumulativeDistance = 0;
@@ -384,6 +390,7 @@ const useMeasurement = (viewer: Viewer | null, enabled: boolean = false) => {
     isActive: isActiveRef.current,
     measurementCount,
     hasAnyMeasurementEntities: hasAnyMeasurementEntities(),
+    activeMeasurementPoints, // Expose active points
   };
 };
 

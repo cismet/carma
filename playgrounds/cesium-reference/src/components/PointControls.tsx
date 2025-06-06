@@ -11,6 +11,7 @@ import {
 } from "antd";
 import type { ElevationStandard } from "../hooks/useNivPPoints";
 import "../styles/cesium-ref-styles.css";
+import { useCesiumMeasurements } from "../contexts/CesiumMeasurementsContext";
 
 const { Title, Paragraph } = Typography;
 
@@ -26,15 +27,9 @@ interface PointControlsProps {
   searchRadius: number;
   onSearchRadiusChange: (radius: number) => void;
   pointCount: number;
-  // Measurement props
-  enableMeasurement: boolean;
-  onEnableMeasurementChange: (enabled: boolean) => void;
-  onClearMeasurements: () => void;
-  measurementCount: number;
-  hasAnyMeasurementEntities: boolean;
 }
 
-/* eslint-disable react/prop-types */
+/* eslint-disable react/prop-types */ // Ensure this comment is correctly placed
 const PointControls: React.FC<PointControlsProps> = ({
   showNivPPoints,
   onShowNivPPointsChange,
@@ -47,13 +42,15 @@ const PointControls: React.FC<PointControlsProps> = ({
   searchRadius,
   onSearchRadiusChange,
   pointCount,
-  // Measurement props
-  enableMeasurement,
-  onEnableMeasurementChange,
-  onClearMeasurements,
-  measurementCount,
-  hasAnyMeasurementEntities,
 }) => {
+  const {
+    enableMeasurement,
+    setEnableMeasurement,
+    clearMeasurements,
+    measurementCount,
+    hasAnyMeasurementEntities,
+  } = useCesiumMeasurements();
+
   const getActiveTab = () => {
     if (enableMeasurement) return "measurement";
     if (enableTerrainClick) return "elevation";
@@ -61,17 +58,15 @@ const PointControls: React.FC<PointControlsProps> = ({
   };
 
   const handleTabChange = (activeKey: string) => {
-    // Disable all interactive modes first
     onEnableTerrainClickChange(false);
-    onEnableMeasurementChange(false);
+    setEnableMeasurement(false);
 
-    // Enable the selected mode
     switch (activeKey) {
       case "elevation":
         onEnableTerrainClickChange(true);
         break;
       case "measurement":
-        onEnableMeasurementChange(true);
+        setEnableMeasurement(true);
         break;
     }
   };
@@ -121,7 +116,7 @@ const PointControls: React.FC<PointControlsProps> = ({
               type="primary"
               danger
               size="small"
-              onClick={onClearMeasurements}
+              onClick={clearMeasurements}
               disabled={!hasAnyMeasurementEntities}
             >
               Clear Measurements
@@ -145,7 +140,6 @@ const PointControls: React.FC<PointControlsProps> = ({
       }}
     >
       <div className="panel-base panel-top-left">
-        {/* Elevation Control Points Section - Always visible at top */}
         <div style={{ marginBottom: "1rem" }}>
           <Title
             level={3}
@@ -197,7 +191,6 @@ const PointControls: React.FC<PointControlsProps> = ({
           }}
         />
 
-        {/* Interactive Tools Section - Tabbed interface */}
         <div>
           <Tabs
             activeKey={getActiveTab()}
