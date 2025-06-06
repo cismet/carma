@@ -22,6 +22,11 @@ const STORAGE_KEY = "cesium-reference-camera-state";
  * Extracts camera state from a Cesium viewer
  */
 export const extractCameraState = (viewer: Viewer): CameraPersistenceState => {
+  // Add HMR robustness - check if viewer is valid
+  if (!viewer || viewer.isDestroyed()) {
+    throw new Error("Viewer is not available or has been destroyed");
+  }
+
   const camera = viewer.camera;
   const position = camera.positionCartographic;
 
@@ -52,13 +57,12 @@ export const extractCameraState = (viewer: Viewer): CameraPersistenceState => {
  */
 export const applyCameraState = (
   viewer: Viewer,
-  state: CameraPersistenceState,
-  options: {
-    duration?: number;
-    animate?: boolean;
-  } = {}
+  state: CameraPersistenceState
 ): void => {
-  const { duration = 0, animate = false } = options;
+  // Add HMR robustness - check if viewer is valid
+  if (!viewer || viewer.isDestroyed()) {
+    throw new Error("Viewer is not available or has been destroyed");
+  }
 
   const destination = Cartesian3.fromRadians(
     state.position.longitude,
@@ -72,18 +76,10 @@ export const applyCameraState = (
     roll: state.orientation.roll,
   };
 
-  if (animate && duration > 0) {
-    viewer.camera.flyTo({
-      destination,
-      orientation,
-      duration: duration / 1000, // Convert to seconds
-    });
-  } else {
-    viewer.camera.setView({
-      destination,
-      orientation,
-    });
-  }
+  viewer.camera.setView({
+    destination,
+    orientation,
+  });
 
   // Apply FOV if available and camera has a perspective frustum
   if (state.fov && viewer.camera.frustum instanceof PerspectiveFrustum) {
@@ -135,19 +131,12 @@ export const clearCameraState = (): void => {
 };
 
 /**
- * Checks if a camera state is valid and not too old
+ * Checks if a camera state is valid
  */
 export const isValidCameraState = (
-  state: CameraPersistenceState | null,
-  maxAgeMs: number = 24 * 60 * 60 * 1000 // 24 hours
+  state: CameraPersistenceState | null
 ): boolean => {
   if (!state) return false;
-
-  const age = Date.now() - state.timestamp;
-  if (age > maxAgeMs) {
-    console.debug("Camera state is too old, ignoring", { age, maxAgeMs });
-    return false;
-  }
 
   // Basic validation of position values
   const { longitude, latitude, height } = state.position;

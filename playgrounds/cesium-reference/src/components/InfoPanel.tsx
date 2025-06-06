@@ -13,7 +13,6 @@ export interface InfoData {
   type: "terrain" | "nivp";
   heightDifference?: number; // Height difference between terrain and NivP point (if applicable)
   nivpData?: {
-    // Complete NivP point data for comprehensive display
     laufende_nummer: string;
     messungsjahr: number;
     lagebezeichnung: string;
@@ -46,7 +45,7 @@ const InfoPanel: React.FC<InfoPanelProps> = ({ data, onClose }) => {
         algorithm: theme.darkAlgorithm,
       }}
     >
-      <div className="panel-base panel-info">
+      <div className="panel-base panel-top-right">
         <div
           style={{
             display: "flex",

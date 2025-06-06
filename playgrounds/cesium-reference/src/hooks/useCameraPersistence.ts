@@ -17,13 +17,6 @@ interface UseCameraPersistenceOptions {
   saveDelay?: number;
   /** Whether to automatically restore camera state on initialization */
   autoRestore?: boolean;
-  /** Animation options for camera restoration */
-  restoreOptions?: {
-    animate?: boolean;
-    duration?: number;
-  };
-  /** Maximum age of stored camera state in milliseconds */
-  maxAge?: number;
 }
 
 /**
@@ -33,52 +26,75 @@ export const useCameraPersistence = (
   viewer: Viewer | null,
   options: UseCameraPersistenceOptions = {}
 ) => {
-  const {
-    autoSave = true,
-    saveDelay = 1000,
-    autoRestore = true,
-    restoreOptions = { animate: false, duration: 0 },
-    maxAge = 24 * 60 * 60 * 1000, // 24 hours
-  } = options;
+  const { autoSave = true, saveDelay = 1000, autoRestore = true } = options;
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const hasRestoredRef = useRef(false);
-  const wasRestoredRef = useRef(false); // Track if we successfully restored
+  const wasRestoredRef = useRef(false);
 
-  // Check if valid camera state exists synchronously
   const hasValidSavedState = () => {
     const savedState = loadCameraState();
-    return isValidCameraState(savedState, maxAge);
+    return isValidCameraState(savedState);
   };
 
   // Auto-restore camera state when viewer is ready
   useEffect(() => {
     if (!viewer || !autoRestore || hasRestoredRef.current) return;
 
-    const savedState = loadCameraState();
-    if (isValidCameraState(savedState, maxAge)) {
-      applyCameraState(viewer, savedState!, restoreOptions);
+    if (viewer.isDestroyed()) {
+      console.debug(
+        "[useCameraPersistence] Viewer is destroyed, skipping restore"
+      );
+      return;
+    }
+
+    try {
+      const savedState = loadCameraState();
+      if (isValidCameraState(savedState)) {
+        applyCameraState(viewer, savedState!);
+        hasRestoredRef.current = true;
+        wasRestoredRef.current = true;
+        console.debug("[useCameraPersistence] Camera state restored");
+      } else {
+        hasRestoredRef.current = true; // Mark as processed even if not restored
+        wasRestoredRef.current = false;
+      }
+    } catch (error) {
+      console.warn(
+        "[useCameraPersistence] Failed to restore camera state:",
+        error
+      );
       hasRestoredRef.current = true;
-      wasRestoredRef.current = true;
-      console.debug("[useCameraPersistence] Camera state restored");
-    } else {
-      hasRestoredRef.current = true; // Mark as processed even if not restored
       wasRestoredRef.current = false;
     }
-  }, [viewer, autoRestore, maxAge, restoreOptions]);
+  }, [viewer, autoRestore]);
 
   // Auto-save camera state on movement
   useEffect(() => {
     if (!viewer || !autoSave) return;
 
+    if (viewer.isDestroyed()) {
+      console.debug(
+        "[useCameraPersistence] Viewer is destroyed, skipping auto-save setup"
+      );
+      return;
+    }
+
     const handleCameraChange = () => {
-      // Clear existing timeout
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
       }
 
       // Set new timeout to debounce rapid camera movements
       saveTimeoutRef.current = setTimeout(() => {
+        // Add additional check before saving - viewer might be destroyed during timeout
+        if (!viewer || viewer.isDestroyed()) {
+          console.debug(
+            "[useCameraPersistence] Viewer destroyed during save timeout, skipping save"
+          );
+          return;
+        }
+
         try {
           const currentState = extractCameraState(viewer);
           saveCameraState(currentState);
@@ -91,21 +107,37 @@ export const useCameraPersistence = (
       }, saveDelay);
     };
 
-    // Listen to camera movement events
-    const removeListener =
-      viewer.camera.changed.addEventListener(handleCameraChange);
+    let removeListener: (() => void) | null = null;
+    try {
+      removeListener =
+        viewer.camera.changed.addEventListener(handleCameraChange);
+    } catch (error) {
+      console.warn(
+        "[useCameraPersistence] Failed to add camera change listener:",
+        error
+      );
+      return;
+    }
 
     return () => {
-      removeListener();
+      if (removeListener) {
+        try {
+          removeListener();
+        } catch (error) {
+          console.warn(
+            "[useCameraPersistence] Failed to remove camera change listener:",
+            error
+          );
+        }
+      }
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
       }
     };
   }, [viewer, autoSave, saveDelay]);
 
-  // Manual save/restore functions
   const saveCurrentState = () => {
-    if (!viewer) return null;
+    if (!viewer || viewer.isDestroyed()) return null;
     try {
       const state = extractCameraState(viewer);
       saveCameraState(state);
@@ -120,18 +152,25 @@ export const useCameraPersistence = (
   };
 
   const restoreState = (state?: CameraPersistenceState) => {
-    if (!viewer) return false;
+    if (!viewer || viewer.isDestroyed()) return false;
 
-    const stateToRestore = state || loadCameraState();
-    if (isValidCameraState(stateToRestore, maxAge)) {
-      applyCameraState(viewer, stateToRestore!, restoreOptions);
-      return true;
+    try {
+      const stateToRestore = state || loadCameraState();
+      if (isValidCameraState(stateToRestore)) {
+        applyCameraState(viewer, stateToRestore!);
+        return true;
+      }
+    } catch (error) {
+      console.warn(
+        "[useCameraPersistence] Failed to restore camera state:",
+        error
+      );
     }
     return false;
   };
 
   const getCurrentState = (): CameraPersistenceState | null => {
-    if (!viewer) return null;
+    if (!viewer || viewer.isDestroyed()) return null;
     try {
       return extractCameraState(viewer);
     } catch (error) {

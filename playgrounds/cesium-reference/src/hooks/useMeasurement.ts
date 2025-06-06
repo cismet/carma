@@ -10,6 +10,7 @@ import {
   CallbackProperty,
 } from "cesium";
 
+import { cesiumSafeRequestRender } from "@carma-mapping/cesium-engine";
 import { LABEL_FONT, SCALE_BY_DISTANCE } from "./useNivPPoints";
 
 const useMeasurement = (viewer: Viewer | null, enabled: boolean = false) => {
@@ -21,16 +22,14 @@ const useMeasurement = (viewer: Viewer | null, enabled: boolean = false) => {
   const [measurementCount, setMeasurementCount] = useState<number>(0);
 
   const clearMeasurements = useCallback(() => {
-    if (!viewer) return;
+    if (!viewer || viewer.isDestroyed()) return;
 
-    // Remove all measurement entities
     measurementEntitiesRef.current.forEach((entity) => {
       viewer.entities.remove(entity);
     });
     measurementEntitiesRef.current = [];
     setMeasurementCount(0);
 
-    // Clear current polyline and points
     if (currentPolylineRef.current) {
       viewer.entities.remove(currentPolylineRef.current);
       currentPolylineRef.current = null;
@@ -38,7 +37,7 @@ const useMeasurement = (viewer: Viewer | null, enabled: boolean = false) => {
     currentPointsRef.current = [];
     isActiveRef.current = false;
 
-    viewer.scene.requestRender();
+    cesiumSafeRequestRender(viewer);
     console.debug("[Measurement] Cleared all measurements");
   }, [viewer]);
 
@@ -57,14 +56,12 @@ const useMeasurement = (viewer: Viewer | null, enabled: boolean = false) => {
       segmentDistance: number,
       totalDistance: number
     ): Entity => {
-      // Calculate midpoint for label placement
       const midpoint = Cartesian3.midpoint(
         startPoint,
         endPoint,
         new Cartesian3()
       );
 
-      // Format: "10.12m (5.33m)" - total distance (segment distance)
       const labelText = `${formatDistance(totalDistance)} (${formatDistance(
         segmentDistance
       )})`;
@@ -78,7 +75,7 @@ const useMeasurement = (viewer: Viewer | null, enabled: boolean = false) => {
           showBackground: true,
           backgroundColor: Color.BLACK.withAlpha(0.7),
           backgroundPadding: new Cartesian2(8, 4),
-          style: 0, // FILL_AND_OUTLINE
+          style: 0,
           pixelOffset: new Cartesian2(0, -20),
           scaleByDistance: SCALE_BY_DISTANCE,
           disableDepthTestDistance: Number.POSITIVE_INFINITY,
@@ -112,7 +109,7 @@ const useMeasurement = (viewer: Viewer | null, enabled: boolean = false) => {
   );
 
   const finishMeasurement = useCallback(() => {
-    if (!viewer || currentPointsRef.current.length < 2) return;
+    if (!viewer || viewer.isDestroyed() || currentPointsRef.current.length < 2) return;
 
     // Calculate total distance
     let totalDistance = 0;
@@ -145,7 +142,7 @@ const useMeasurement = (viewer: Viewer | null, enabled: boolean = false) => {
     currentPointsRef.current = [];
     isActiveRef.current = false;
 
-    viewer.scene.requestRender();
+    cesiumSafeRequestRender(viewer);
     console.debug(
       `[Measurement] Finished measurement: ${formatDistance(totalDistance)}`
     );
@@ -238,7 +235,7 @@ const useMeasurement = (viewer: Viewer | null, enabled: boolean = false) => {
         );
       }
 
-      viewer.scene.requestRender();
+      cesiumSafeRequestRender(viewer);
     }, ScreenSpaceEventType.LEFT_CLICK);
 
     // Right click or double click to finish measurement

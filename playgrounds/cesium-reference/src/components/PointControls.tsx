@@ -52,11 +52,10 @@ const PointControls: React.FC<PointControlsProps> = ({
   onClearMeasurements,
   measurementCount,
 }) => {
-  // Determine which tab should be active based on enabled modes (only for the two interactive modes)
   const getActiveTab = () => {
     if (enableMeasurement) return "measurement";
     if (enableTerrainClick) return "elevation";
-    return "elevation"; // Default to elevation tab
+    return "elevation";
   };
 
   const handleTabChange = (activeKey: string) => {
@@ -142,7 +141,7 @@ const PointControls: React.FC<PointControlsProps> = ({
         algorithm: theme.darkAlgorithm,
       }}
     >
-      <div className="panel-base panel-controls">
+      <div className="panel-base panel-top-left">
         {/* Elevation Control Points Section - Always visible at top */}
         <div style={{ marginBottom: "1rem" }}>
           <Title

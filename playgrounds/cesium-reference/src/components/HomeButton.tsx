@@ -9,7 +9,7 @@ interface HomeButtonProps {
 
 const HomeButton: React.FC<HomeButtonProps> = ({ onHomeClick }) => {
   return (
-    <div className="home-button-container">
+    <div className="panel-base panel-bottom-right">
       <ConfigProvider theme={{ algorithm: theme.darkAlgorithm }}>
         <Button
           type="default"

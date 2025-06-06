@@ -47,16 +47,23 @@ export const useTestMeshViewer = (
 
   // Initialize viewer
   useEffect(() => {
+    // Check for existing viewer and clean up if needed
     if (viewerRef.current) {
-      console.debug("[useTestMeshViewer] Viewer already exists");
-      return;
+      if (viewerRef.current.isDestroyed()) {
+        console.debug("[useTestMeshViewer] Existing viewer is destroyed, cleaning up reference");
+        viewerRef.current = null;
+        setIsViewerReady(false);
+      } else {
+        console.debug("[useTestMeshViewer] Viewer already exists and is valid");
+        return;
+      }
     }
 
     const initialize = async () => {
       try {
         if (containerRef.current) {
           const viewer = new Viewer(containerRef.current, {
-            infoBox: false, // Default to false for custom InfoPanel
+            infoBox: false,
             ...cesiumOptions,
           });
           viewerRef.current = viewer;
@@ -68,6 +75,7 @@ export const useTestMeshViewer = (
           "[useTestMeshViewer] Viewer initialization error:",
           error
         );
+        setIsViewerReady(false);
       }
     };
 
@@ -78,23 +86,22 @@ export const useTestMeshViewer = (
         if (viewerRef.current && !viewerRef.current.isDestroyed()) {
           console.debug("[useTestMeshViewer] Destroying viewer");
           viewerRef.current.destroy();
-          viewerRef.current = null;
-          setIsViewerReady(false);
         }
       } catch (error) {
         console.error("[useTestMeshViewer] Error destroying viewer:", error);
+      } finally {
+        viewerRef.current = null;
+        setIsViewerReady(false);
       }
     };
   }, [containerRef, cesiumOptions]);
 
-  // Load tileset
   const { tilesetRef, tilesetReady } = useTileset(
     tilesetUrl,
     viewerRef,
     tilesetOptions
   );
 
-  // Camera persistence
   const { wasRestored, hasValidSavedState } = useCameraPersistence(
     viewerRef.current,
     {
@@ -106,7 +113,6 @@ export const useTestMeshViewer = (
     }
   );
 
-  // Conditional zoom (only if camera wasn't restored)
   const shouldZoom = !hasValidSavedState() && !wasRestored;
   console.debug("[useTestMeshViewer] Camera state check:", {
     hasValidSavedState: hasValidSavedState(),
@@ -122,20 +128,13 @@ export const useTestMeshViewer = (
   );
 
   return {
-    // Viewer state
     viewer: viewerRef.current,
     viewerRef,
     isViewerReady,
-
-    // Tileset state
     tileset: tilesetRef.current,
     tilesetRef,
     tilesetReady,
-
-    // Camera functions
     zoomToTileset,
-
-    // Camera state
     wasRestored,
     hasValidSavedState,
   };
