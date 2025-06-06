@@ -147,17 +147,15 @@ const FuzzySearchWrapper = ({
     />
   );
   return (
-    <div className="custom-left-control">
-      <LibFuzzySearch
-        onSelection={onGazetteerSelection}
-        pixelwidth={
-          responsiveState === "normal" ? "300px" : windowSize.width - gap
-        }
-        placeholder="B-Plan-Nr. | Adresse | POI"
-        icon={searchIcon}
-        ifIconDisabled={!mapSearchAllowed}
-      />
-    </div>
+    <LibFuzzySearch
+      onSelection={onGazetteerSelection}
+      pixelwidth={
+        responsiveState === "normal" ? "300px" : windowSize.width - gap
+      }
+      placeholder="B-Plan-Nr. | Adresse | POI"
+      icon={searchIcon}
+      ifIconDisabled={!mapSearchAllowed}
+    />
   );
 };
 
