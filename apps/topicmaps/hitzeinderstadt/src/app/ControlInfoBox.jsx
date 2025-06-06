@@ -189,7 +189,12 @@ const InfoBox = ({
                       setBackgroundIndex(index);
                     }}
                   >
-                    <img alt="" style={style} width="36px" src={item.src} />
+                    <img
+                      alt=""
+                      style={{ ...style, display: "inline" }}
+                      width="36px"
+                      src={item.src}
+                    />
                   </a>
                 );
               })}
