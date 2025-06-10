@@ -1,15 +1,24 @@
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faMinus, faPlus } from "@fortawesome/free-solid-svg-icons";
-import { useLeafletZoomControls } from "@carma-mapping/utils";
+import {
+  useLeafletZoomControls,
+  useLibreZoomControls,
+} from "@carma-mapping/utils";
 
-export const ZoomControl = () => {
+interface ZoomControlProps {
+  mapEngine: "leaflet" | "maplibre" | "cesium";
+  libreMap?: maplibregl.Map | null;
+}
+
+export const ZoomControl = ({ mapEngine, libreMap }: ZoomControlProps) => {
   const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
+  const { zoomInLibre, zoomOutLibre } = useLibreZoomControls({ map: libreMap });
 
   return (
     <div data-test-id="zoom-control" className="flex flex-col">
       <ControlButtonStyler
-        onClick={zoomInLeaflet}
+        onClick={mapEngine === "leaflet" ? zoomInLeaflet : zoomInLibre}
         className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
         dataTestId="zoom-in-control"
         title="Vergrößern"
@@ -17,7 +26,7 @@ export const ZoomControl = () => {
         <FontAwesomeIcon icon={faPlus} className="text-base" />
       </ControlButtonStyler>
       <ControlButtonStyler
-        onClick={zoomOutLeaflet}
+        onClick={mapEngine === "leaflet" ? zoomOutLeaflet : zoomOutLibre}
         className="!rounded-t-none !border-t-[1px]"
         dataTestId="zoom-out-control"
         title="Verkleinern"

@@ -25,6 +25,7 @@ interface CarmaMapProps {
   zoomControls?: boolean;
   contactButtonEnabled?: boolean;
   infoBox?: React.ReactNode;
+  vectorStyles?: string[];
   children?: React.ReactNode;
 }
 
@@ -43,6 +44,7 @@ export const CarmaMap = (props: CarmaMapProps) => {
     typeof ResponsiveTopicMapContext
   >(ResponsiveTopicMapContext);
   const [map, setMap] = useState(<></>);
+  const [libreMap, setLibreMap] = useState<maplibregl.Map | null>(null);
 
   useEffect(() => {
     if (mapEngine === "leaflet") {
@@ -60,7 +62,9 @@ export const CarmaMap = (props: CarmaMapProps) => {
     }
 
     if (mapEngine === "maplibre") {
-      setMap(<LibreMap />);
+      setMap(
+        <LibreMap vectorStyles={props.vectorStyles} setLibreMap={setLibreMap} />
+      );
     }
   }, [mapEngine]);
 
@@ -68,7 +72,7 @@ export const CarmaMap = (props: CarmaMapProps) => {
     <div>
       {zoomControls && (
         <Control position="topleft" order={10}>
-          <ZoomControl />
+          <ZoomControl mapEngine={mapEngine} libreMap={libreMap} />
         </Control>
       )}
 
