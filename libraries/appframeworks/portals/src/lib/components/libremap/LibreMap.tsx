@@ -5,7 +5,14 @@ import { useEffect, useRef } from "react";
 import { getHashParams } from "@carma-commons/utils";
 
 import "./map.css";
-export const LibreMap = () => {
+import { vectorStylesToMapLibreStyle } from "./libremap.utils";
+
+interface LibreMapProps {
+  vectorStyles?: string[];
+  setLibreMap: (map: maplibregl.Map) => void;
+}
+
+export const LibreMap = ({ vectorStyles, setLibreMap }: LibreMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
 
@@ -56,6 +63,7 @@ export const LibreMap = () => {
         zoom: defaultZoom,
       });
       map.current = mapInstance;
+      setLibreMap(mapInstance);
     }
 
     return () => {
@@ -65,6 +73,21 @@ export const LibreMap = () => {
       }
     };
   }, []);
+
+  useEffect(() => {
+    if (!map.current || !vectorStyles) return;
+
+    const updateMapStyle = async () => {
+      try {
+        const style = await vectorStylesToMapLibreStyle(vectorStyles);
+        map.current?.setStyle(style);
+      } catch (error) {
+        console.error("Error updating map style:", error);
+      }
+    };
+
+    updateMapStyle();
+  }, [vectorStyles]);
 
   return (
     <div className="map-wrap">
