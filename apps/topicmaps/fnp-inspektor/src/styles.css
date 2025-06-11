@@ -57,3 +57,9 @@ div.leaflet-top.leaflet-right > .leaflet-control {
   left: 50% !important;
   transform: translateX(-50%) !important;
 }
+
+.leaflet-container .leaflet-marker-icon,
+.leaflet-container .leaflet-mouse-marker,
+.leaflet-container .leaflet-zoom-animated {
+  pointer-events: none !important;
+}
