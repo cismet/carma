@@ -42,6 +42,7 @@ import {
   RoutedMapLocateControl,
   ZoomControl,
 } from "@carma-mapping/components";
+import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
 
 // import consolere from "console-remote-client";
 
@@ -82,9 +83,6 @@ function PotenzialflaechenOnlineMap({
   const { responsiveState, gap, windowSize } = useContext(
     ResponsiveTopicMapContext
   );
-
-  const pixelwidth =
-    responsiveState === "normal" ? "300px" : windowSize.width - gap;
 
   const { gazData } = useGazData();
   const { setSelection } = useSelection();
@@ -148,122 +146,109 @@ function PotenzialflaechenOnlineMap({
   };
 
   return (
-    <>
-      <div
-        className="controls-container"
-        style={{
-          position: "absolute",
-          top: "0px",
-          left: "0px",
-          bottom: "0px",
-          zIndex: 600,
-        }}
-      >
-        <ControlLayout ifStorybook={false}>
-          <Control position="topleft" order={10}>
-            <ZoomControl />
-          </Control>
+    <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
+      <ControlLayout ifStorybook={false}>
+        <Control position="topleft" order={10}>
+          <ZoomControl />
+        </Control>
 
-          <Control position="topleft" order={50}>
-            <FullscreenControl />
-          </Control>
-          <Control position="topleft" order={60} title="Mein Standort">
-            <RoutedMapLocateControl
-              tourRefLabels={null}
-              disabled={false}
-              nativeTooltip={true}
+        <Control position="topleft" order={50}>
+          <FullscreenControl />
+        </Control>
+        <Control position="topleft" order={60} title="Mein Standort">
+          <RoutedMapLocateControl
+            tourRefLabels={null}
+            disabled={false}
+            nativeTooltip={true}
+          />
+        </Control>
+        <Control position="bottomleft" order={10}>
+          <div data-test-id="fuzzy-search" style={{ marginTop: "4px" }}>
+            <LibFuzzySearch
+              key={"PotenzialflaechenOnlineMap" + allGAazData.length}
+              gazData={allGAazData}
+              onSelection={onGazetteerSelection}
+              pixelwidth={
+                responsiveState === "normal" ? "300px" : windowSize.width - gap
+              }
+              placeholder={searchTextPlaceholder}
+              priorityTypes={[
+                "gewerbe",
+                "wohnbau",
+                "wiedernutzung",
+                "baulucke",
+                "brachflache",
+                "restpot",
+                "adressen",
+                "streets",
+                "bezirke",
+                "quartiere",
+                "pois",
+                "poisAlternativeNames",
+                "schulen",
+                "kitas",
+              ]}
+              typeInference={{
+                ...defaultTypeInference,
+                potflaechegazdata: (item) => {
+                  if (item.overlay === "G") {
+                    return "gewerbe";
+                  } else if (item.overlay === "W") {
+                    return "wohnbau";
+                  } else if (item.overlay === "N") {
+                    return "wiedernutzung";
+                  } else if (item.overlay === "L") {
+                    return "baulucke";
+                  } else if (item.overlay === "B") {
+                    return "brachflache";
+                  } else {
+                    return "restpot";
+                  }
+                },
+              }}
             />
-          </Control>
-          <Control position="bottomleft" order={10}>
-            <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
-              <LibFuzzySearch
-                key={"PotenzialflaechenOnlineMap" + allGAazData.length}
-                gazData={allGAazData}
-                onSelection={onGazetteerSelection}
-                pixelwidth={
-                  responsiveState === "normal"
-                    ? "300px"
-                    : windowSize.width - gap
-                }
-                placeholder={searchTextPlaceholder}
-                priorityTypes={[
-                  "gewerbe",
-                  "wohnbau",
-                  "wiedernutzung",
-                  "baulucke",
-                  "brachflache",
-                  "restpot",
-                  "adressen",
-                  "streets",
-                  "bezirke",
-                  "quartiere",
-                  "pois",
-                  "poisAlternativeNames",
-                  "schulen",
-                  "kitas",
-                ]}
-                typeInference={{
-                  ...defaultTypeInference,
-                  potflaechegazdata: (item) => {
-                    if (item.overlay === "G") {
-                      return "gewerbe";
-                    } else if (item.overlay === "W") {
-                      return "wohnbau";
-                    } else if (item.overlay === "N") {
-                      return "wiedernutzung";
-                    } else if (item.overlay === "L") {
-                      return "baulucke";
-                    } else if (item.overlay === "B") {
-                      return "brachflache";
-                    } else {
-                      return "restpot";
-                    }
+          </div>
+        </Control>
+        <TopicMapComponent
+          mapStyle={{ backgroundColor: "white" }}
+          applicationMenuTooltipString={<MenuTooltip />}
+          homeZoom={13}
+          maxZoom={22}
+          locatorControl={false}
+          fullScreenControl={false}
+          zoomControls={false}
+          gazetteerSearchControl={true}
+          gazetteerSearchComponent={EmptySearchComponent}
+          modalMenu={<MyMenu />}
+          infoBox={
+            <InfoBox
+              pixelwidth={350}
+              config={{
+                displaySecondaryInfoAction: true,
+                city: "Wuppertal",
+                navigator: {
+                  noun: {
+                    singular: "Potenzialfläche",
+                    plural: "Potenzialflächen",
                   },
-                }}
-              />
-            </div>
-          </Control>
-          <TopicMapComponent
-            mapStyle={{ backgroundColor: "white" }}
-            applicationMenuTooltipString={<MenuTooltip />}
-            homeZoom={13}
-            maxZoom={22}
-            locatorControl={false}
-            fullScreenControl={false}
-            zoomControls={false}
-            gazetteerSearchControl={true}
-            gazetteerSearchComponent={EmptySearchComponent}
-            modalMenu={<MyMenu />}
-            infoBox={
-              <InfoBox
-                pixelwidth={350}
-                config={{
-                  displaySecondaryInfoAction: true,
-                  city: "Wuppertal",
-                  navigator: {
-                    noun: {
-                      singular: "Potenzialfläche",
-                      plural: "Potenzialflächen",
-                    },
-                  },
-                  noCurrentFeatureTitle: <InfoBoxTextTitle />,
-                  noCurrentFeatureContent: <InfoBoxTextContent />,
-                }}
-              />
-            }
-            secondaryInfo={<InfoPanel />}
-          >
-            <TopicMapSelectionContent />
-            <FeatureCollection
-              jwt={jwt}
-              setJWT={setJWT}
-              setLoginInfo={setLoginInfo}
+                },
+                noCurrentFeatureTitle: <InfoBoxTextTitle />,
+                noCurrentFeatureContent: <InfoBoxTextContent />,
+              }}
             />
-            {/* <LogSelection /> */}
-          </TopicMapComponent>
-        </ControlLayout>
-      </div>
-    </>
+          }
+          secondaryInfo={<InfoPanel />}
+        >
+          <TopicMapSelectionContent />
+          <FeatureCollection
+            jwt={jwt}
+            setJWT={setJWT}
+            setLoginInfo={setLoginInfo}
+          />
+          {/* <LogSelection /> */}
+        </TopicMapComponent>
+      </ControlLayout>
+    </div>
   );
 }
 
