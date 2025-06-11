@@ -3,10 +3,11 @@ import {
   FeatureCollectionContext,
   FeatureCollectionDispatchContext,
 } from "react-cismap/contexts/FeatureCollectionContextProvider";
-import GenericInfoBoxFromFeature from "react-cismap/topicmaps/GenericInfoBoxFromFeature";
+// import GenericInfoBoxFromFeature from "react-cismap/topicmaps/GenericInfoBoxFromFeature";
 import InfoBoxHeader from "react-cismap/topicmaps/InfoBoxHeader";
 import itemFilterFunction from "../utils/filterFunction";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+import { GenericInfoBoxFromFeature } from "@carma-apps/portals";
 const InfoBox = (props) => {
   const featureCollectionContext = useContext(FeatureCollectionContext);
   const { setSelectedFeatureByPredicate } = useContext(

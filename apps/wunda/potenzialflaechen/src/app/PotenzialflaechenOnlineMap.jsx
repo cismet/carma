@@ -223,46 +223,46 @@ function PotenzialflaechenOnlineMap({
               />
             </div>
           </Control>
+          <TopicMapComponent
+            mapStyle={{ backgroundColor: "white" }}
+            applicationMenuTooltipString={<MenuTooltip />}
+            homeZoom={13}
+            maxZoom={22}
+            locatorControl={false}
+            fullScreenControl={false}
+            zoomControls={false}
+            gazetteerSearchControl={true}
+            gazetteerSearchComponent={EmptySearchComponent}
+            modalMenu={<MyMenu />}
+            infoBox={
+              <InfoBox
+                pixelwidth={350}
+                config={{
+                  displaySecondaryInfoAction: true,
+                  city: "Wuppertal",
+                  navigator: {
+                    noun: {
+                      singular: "Potenzialfläche",
+                      plural: "Potenzialflächen",
+                    },
+                  },
+                  noCurrentFeatureTitle: <InfoBoxTextTitle />,
+                  noCurrentFeatureContent: <InfoBoxTextContent />,
+                }}
+              />
+            }
+            secondaryInfo={<InfoPanel />}
+          >
+            <TopicMapSelectionContent />
+            <FeatureCollection
+              jwt={jwt}
+              setJWT={setJWT}
+              setLoginInfo={setLoginInfo}
+            />
+            {/* <LogSelection /> */}
+          </TopicMapComponent>
         </ControlLayout>
       </div>
-      <TopicMapComponent
-        mapStyle={{ backgroundColor: "white" }}
-        applicationMenuTooltipString={<MenuTooltip />}
-        homeZoom={13}
-        maxZoom={22}
-        locatorControl={false}
-        fullScreenControl={false}
-        zoomControls={false}
-        gazetteerSearchControl={true}
-        gazetteerSearchComponent={EmptySearchComponent}
-        modalMenu={<MyMenu />}
-        infoBox={
-          <InfoBox
-            pixelwidth={350}
-            config={{
-              displaySecondaryInfoAction: true,
-              city: "Wuppertal",
-              navigator: {
-                noun: {
-                  singular: "Potenzialfläche",
-                  plural: "Potenzialflächen",
-                },
-              },
-              noCurrentFeatureTitle: <InfoBoxTextTitle />,
-              noCurrentFeatureContent: <InfoBoxTextContent />,
-            }}
-          />
-        }
-        secondaryInfo={<InfoPanel />}
-      >
-        <TopicMapSelectionContent />
-        <FeatureCollection
-          jwt={jwt}
-          setJWT={setJWT}
-          setLoginInfo={setLoginInfo}
-        />
-        {/* <LogSelection /> */}
-      </TopicMapComponent>
     </>
   );
 }
