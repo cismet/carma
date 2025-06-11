@@ -42,6 +42,7 @@ import {
   ZoomControl,
 } from "@carma-mapping/components";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
+import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
 
 const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 
@@ -229,7 +230,10 @@ function UmweltalarmMap({ loggedOut, initialised }) {
 
   const searchInWholeWindowEnabled = currentZoom && currentZoom >= 16;
   return (
-    <div key={initialised != null ? initialised : "init"}>
+    <div
+      key={initialised != null ? initialised : "init"}
+      className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}
+    >
       <Crosshair />
       <ControlLayout ifStorybook={false}>
         <Control position="topleft" order={10}>
@@ -288,7 +292,7 @@ function UmweltalarmMap({ loggedOut, initialised }) {
         </Control>
 
         <Control position="bottomleft" order={10}>
-          <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
+          <div data-test-id="fuzzy-search" style={{ marginTop: "4px" }}>
             <LibFuzzySearch
               gazData={gazData}
               onSelection={onGazetteerSelection}
