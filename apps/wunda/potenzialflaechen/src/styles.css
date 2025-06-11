@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+html,
+body {
+  overscroll-behavior: contain;
+}
+
 .leaflet-control * img {
   display: initial;
 }
@@ -26,17 +31,15 @@ ul {
   padding-inline-start: 40px;
   unicode-bidi: isolate;
 }
-/* You can add global styles to this file, and also import other style files */
-.custom-left-control {
-  position: absolute;
-  z-index: 1000;
-  left: 0;
-  bottom: 0;
-  margin-left: 14px;
-  margin-bottom: 5px;
-}
 
 .modal-content svg,
 .modal-content img {
   display: inline;
+}
+
+/* Menu */
+div.leaflet-top.leaflet-right > .leaflet-control {
+  position: fixed;
+  right: max(10px, env(safe-area-inset-right));
+  margin-right: 0 !important;
 }
