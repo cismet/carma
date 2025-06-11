@@ -46,6 +46,7 @@ const Title = ({ logout, jwt }) => {
 
   return (
     <table
+      className="mode-container-switcher"
       style={{
         width: (windowSize?.width || 300) - 54 - 12 - 38 - 12 + "px",
         height: "30px",
