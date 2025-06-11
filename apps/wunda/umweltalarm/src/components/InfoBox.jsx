@@ -1,3 +1,4 @@
+import { ResponsiveInfoBox } from "@carma-apps/portals";
 import {
   faCity,
   faExclamationCircle,
@@ -14,7 +15,7 @@ import {
   UIContext,
   UIDispatchContext,
 } from "react-cismap/contexts/UIContextProvider";
-import ResponsiveInfoBox from "react-cismap/topicmaps/ResponsiveInfoBox";
+// import ResponsiveInfoBox from "react-cismap/topicmaps/ResponsiveInfoBox";
 import Loadable from "react-loading-overlay";
 
 export const modes = {

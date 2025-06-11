@@ -297,57 +297,56 @@ function UmweltalarmMap({ loggedOut, initialised }) {
             />
           </div>
         </Control>
-      </ControlLayout>
-      <TopicMapComponent
-        gazData={gazData}
-        modalMenu={<MyMenu />}
-        // gazetteerSearchPlaceholder={searchTextPlaceholder}
-        gazetteerSearchControl={true}
-        gazetteerSearchComponent={EmptySearchComponent}
-        homeZoom={13}
-        maxZoom={22}
-        applicationMenuTooltipString={tooltipText}
-        secondaryInfo={windowSize && <InfoPanel hits={hits} />}
-        locatorControl={false}
-        fullScreenControl={false}
-        zoomControls={false}
-        mappingBoundsChanged={(boundingBox) => {
-          setHits(undefined);
-          let bbox = [
-            boundingBox.left,
-            boundingBox.bottom,
-            boundingBox.right,
-            boundingBox.top,
-          ];
-          let bbPoly = bboxPolygon(bbox);
+        <TopicMapComponent
+          gazData={gazData}
+          modalMenu={<MyMenu />}
+          // gazetteerSearchPlaceholder={searchTextPlaceholder}
+          gazetteerSearchControl={true}
+          gazetteerSearchComponent={EmptySearchComponent}
+          homeZoom={13}
+          maxZoom={22}
+          applicationMenuTooltipString={tooltipText}
+          secondaryInfo={windowSize && <InfoPanel hits={hits} />}
+          locatorControl={false}
+          fullScreenControl={false}
+          zoomControls={false}
+          mappingBoundsChanged={(boundingBox) => {
+            setHits(undefined);
+            let bbox = [
+              boundingBox.left,
+              boundingBox.bottom,
+              boundingBox.right,
+              boundingBox.top,
+            ];
+            let bbPoly = bboxPolygon(bbox);
 
-          //   console.log("xxx mappingBoundsChanged", center);
-          let center = turfCenter(bbPoly);
+            //   console.log("xxx mappingBoundsChanged", center);
+            let center = turfCenter(bbPoly);
 
-          searchForFeatures(db, daqKeys, center).then((hits) => {
-            setSearchMode(modes.CENTER);
-            setHits(hits);
-            setBBPoly(bbPoly);
-          });
-        }}
-      >
-        <TopicMapSelectionContent />
+            searchForFeatures(db, daqKeys, center).then((hits) => {
+              setSearchMode(modes.CENTER);
+              setHits(hits);
+              setBBPoly(bbPoly);
+            });
+          }}
+        >
+          <TopicMapSelectionContent />
 
-        {!loggedOut && (
-          <InfoBox
-            mode={searchMode}
-            isFeatureCollectionVisible={isFeatureCollectionVisible}
-            setFeatureCollectionVisible={setFeatureCollectionVisible}
-            hits={hits}
-          />
-        )}
-        {isFeatureCollectionVisible && (
-          <FeatureCollectionDisplay
-            style={style}
-            featureCollection={featureCollection}
-          />
-        )}
-        {/* 
+          {!loggedOut && (
+            <InfoBox
+              mode={searchMode}
+              isFeatureCollectionVisible={isFeatureCollectionVisible}
+              setFeatureCollectionVisible={setFeatureCollectionVisible}
+              hits={hits}
+            />
+          )}
+          {isFeatureCollectionVisible && (
+            <FeatureCollectionDisplay
+              style={style}
+              featureCollection={featureCollection}
+            />
+          )}
+          {/* 
         <TransitiveControl className="leaflet-bar" position={"topleft"}>
           <button
             title="Objekte im Kartenfenster suchen"
@@ -378,7 +377,8 @@ function UmweltalarmMap({ loggedOut, initialised }) {
             </span>
           </button>
         </TransitiveControl> */}
-      </TopicMapComponent>
+        </TopicMapComponent>
+      </ControlLayout>
     </div>
   );
 }
