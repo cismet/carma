@@ -215,6 +215,7 @@ const Map = () => {
   let title = <></>;
   title = (
     <table
+      className="mode-container-switcher"
       style={{
         width: width - 54 - 12 - 38 - 12 + "px",
         height: "30px",
