@@ -28,9 +28,13 @@ const AppLayout = () => {
       style={{
         background: "#F1F1F1",
       }}
-      className="w-full overflow-clip"
+      className="w-full overflow-clip h-dvh"
     >
-      <div className="flex h-screen" style={{ paddingRight: "16px" }}>
+      <div
+        // className="flex h-[calc(100%-16px)]"
+        className="flex h-full"
+        style={{ paddingRight: "16px" }}
+      >
         <div className="h-full">
           <SidebarMenu parametersForLink={parametersForLink} />
         </div>
@@ -38,13 +42,20 @@ const AppLayout = () => {
           className="flex-1 w-[calc(100%-341px)] flex flex-col justify-between gap-2"
           style={{ paddingLeft: "16px" }}
         >
-          <div className="h-[32px]" style={{ paddingTop: "8px" }}>
+          <div
+            className="h-[32px]"
+            style={{
+              // paddingTop: "8px"
+              paddingTop: "max(8px, env(safe-area-inset-top))",
+            }}
+          >
             <UserBar />
           </div>
 
           <div
             className="h-[calc(100%-50px)] w-full"
-            style={{ paddingBottom: "8px" }}
+            // style={{ paddingBottom: "8px" }}
+            style={{ paddingBottom: "max(8px, env(safe-area-inset-bottom))" }}
           >
             <Outlet />
           </div>
