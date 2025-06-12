@@ -2,6 +2,11 @@
 @tailwind components;
 @tailwind utilities;
 
+html,
+body {
+  overscroll-behavior: contain;
+}
+
 ::-webkit-scrollbar {
   background-color: #fff;
   width: 12px;
