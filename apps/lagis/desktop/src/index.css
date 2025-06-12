@@ -116,3 +116,8 @@ button:focus-visible {
   margin-left: 14px;
   margin-bottom: 5px;
 }
+
+.adaptive-full-screen {
+  height: 100vh;
+  height: 100dvh;
+}
