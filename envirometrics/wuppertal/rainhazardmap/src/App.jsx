@@ -81,7 +81,7 @@ function App() {
           top: "45px",
           left: "-2px",
           bottom: "0px",
-          zIndex: 600,
+          zIndex: 500,
         }}
       >
         <ControlLayout ifStorybook={false}>
