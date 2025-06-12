@@ -5,7 +5,10 @@ import { md5FetchJSON } from "react-cismap/tools/fetching";
 import CrossTabCommunicationControl from "react-cismap/CrossTabCommunicationControl";
 import config from "./config";
 import versionData from "./version.json";
-import { getApplicationVersion } from "@carma-commons/utils";
+import {
+  getApplicationVersion,
+  TAILWIND_CLASSNAMES_FULLSCREEN_FIXED,
+} from "@carma-commons/utils";
 import NotesDisplay from "./NotesDisplay";
 import { getCollabedHelpComponentConfig } from "@carma-collab/wuppertal/starkregengefahrenkarte";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
@@ -70,13 +73,13 @@ function App() {
   }, []);
 
   return (
-    <>
+    <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
       <div
         className="controls-container"
         style={{
           position: "absolute",
           top: "45px",
-          left: "0px",
+          left: "-2px",
           bottom: "0px",
           zIndex: 600,
         }}
@@ -197,7 +200,7 @@ function App() {
         <NotesDisplay hinweisData={hinweisData} />
         <CrossTabCommunicationControl hideWhenNoSibblingIsPresent={true} />
       </EnviroMetricMap>
-    </>
+    </div>
   );
 }
 
