@@ -340,14 +340,16 @@ function App({ sync = false }: { sync?: boolean }) {
             {/* </Tooltip> */}
           </Control>
           <Control position="bottomleft" order={10}>
-            <LibFuzzySearch
-              gazData={gazData}
-              //referenceSystem={referenceSystem}
-              //referenceSystemDefinition={referenceSystemDefinition}
-              pixelwidth={pixelwidth}
-              onSelection={onGazetteerSelection}
-              placeholder="Stadtteil | Adresse | POI | GEP"
-            />
+            <div className="pl-1">
+              <LibFuzzySearch
+                gazData={gazData}
+                //referenceSystem={referenceSystem}
+                //referenceSystemDefinition={referenceSystemDefinition}
+                pixelwidth={pixelwidth}
+                onSelection={onGazetteerSelection}
+                placeholder="Stadtteil | Adresse | POI | GEP"
+              />
+            </div>
           </Control>
         </ControlLayout>
       </div>
