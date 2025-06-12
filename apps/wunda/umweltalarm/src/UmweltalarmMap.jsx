@@ -256,7 +256,7 @@ function UmweltalarmMap({ loggedOut, initialised }) {
           title="Objekte im Kartenfenster suchen"
         >
           <ControlButtonStyler title="Objekte im Kartenfenster suchen">
-            <span
+            {/* <span
               // title="Objekte im Kartenfenster suchen"
               disabled={!searchInWholeWindowEnabled}
               onClick={() => {
@@ -268,26 +268,37 @@ function UmweltalarmMap({ loggedOut, initialised }) {
                   setHits(hits);
                 });
               }}
+            > */}
+            <span
+              style={{
+                color: searchInWholeWindowEnabled ? "#444444" : "#bbbbbb",
+                fontSize: "20px",
+                position: "relative",
+              }}
+              className="fa-layers fa-fw"
             >
-              <span
+              <FontAwesomeIcon
+                // transform="grow-9"
+                icon={faSearch}
+                // size="lg"
                 style={{
-                  color: searchInWholeWindowEnabled ? "#444444" : "#bbbbbb",
-                  fontSize: "14px",
+                  position: "absolute",
+                  left: 3,
                 }}
-                className="fa-layers fa-fw "
-              >
-                <FontAwesomeIcon
-                  transform="grow-9"
-                  icon={faSearch}
-                  // size="lg"
-                />
-                <FontAwesomeIcon
-                  transform="shrink-8 up-2 left-2.3"
-                  icon={faSquare}
-                  // size="lg"
-                />
-              </span>
+              />
+              <FontAwesomeIcon
+                // transform="shrink-8 up-2 left-2.3"
+                style={{
+                  position: "absolute",
+                  left: -0,
+                  top: -3,
+                  fontSize: "5px",
+                }}
+                icon={faSquare}
+                // size="lg"
+              />
             </span>
+            {/* </span> */}
           </ControlButtonStyler>
         </Control>
 
