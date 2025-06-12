@@ -152,7 +152,13 @@ function ControlRenderer({ controls }: ControlRendererProps) {
       {(bottomLeftControls.length > 0 ||
         bottomRightControls.length > 0 ||
         bottomCenterControls.length > 0) && (
-        <div style={BOTTOM_CONTROLS_CONTAINER_STYLE}>
+        <div
+          style={{
+            ...BOTTOM_CONTROLS_CONTAINER_STYLE,
+            justifyContent:
+              bottomLeftControls.length > 0 ? "space-between" : "flex-end",
+          }}
+        >
           {bottomLeftControls.length > 0 && (
             <div style={bottomLeftStyle}>
               {bottomLeftControls.map((control, index) => (
