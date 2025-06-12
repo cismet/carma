@@ -1,20 +1,19 @@
 import React, { useRef } from "react";
 import { useImmer } from "use-immer";
-import FeatureCollectionContextProvider from "./FeatureCollectionContextProvider";
-import ResponsiveTopicMapContextProvider from "./ResponsiveTopicMapContextProvider";
-import TopicMapStylingContextProvider from "./TopicMapStylingContextProvider";
-import LightBoxContextProvider from "./LightBoxContextProvider";
 
-import UIContextProvider from "./UIContextProvider";
 import proj4 from "proj4";
-import { projectionData } from "../constants/gis";
 import { createHashHistory } from "history";
 import localforage from "localforage";
 import { getType } from "@turf/invariant";
 import envelope from "@turf/envelope";
-import { convertBBox2Bounds } from "../tools/gisHelper";
-import { MappingConstants } from "..";
-import { OfflineLayerCacheContextProvider } from "./OfflineLayerCacheContextProvider";
+import TopicMapStylingContextProvider from "react-cismap/contexts/TopicMapStylingContextProvider";
+import ResponsiveTopicMapContextProvider from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+import { crs25832, crs3857, projectionData } from "../utils/constants";
+import { convertBBox2Bounds } from "../utils/gisHelper";
+import OfflineLayerCacheContextProvider from "./OfflineLayerCacheContextProvider";
+import UIContextProvider from "./UIContextProvider";
+import LightBoxContextProvider from "./LightBoxContextProvider";
+import FeatureCollectionContextProvider from "./FeatureCollectionContextProvider";
 
 const defaultState = {
   location: undefined,
@@ -23,12 +22,12 @@ const defaultState = {
   titleFactory: undefined,
 };
 
-const StateContext = React.createContext();
-const DispatchContext = React.createContext();
+const StateContext = React.createContext(defaultState);
+const DispatchContext = React.createContext(defaultState);
 const history = createHashHistory();
 
 const TopicMapContextProvider = ({
-  referenceSystem = MappingConstants.crs3857,
+  referenceSystem = crs3857,
   referenceSystemDefinition = projectionData[3857].def,
   mapEPSGCode = "3857",
   maskingPolygon,
@@ -120,9 +119,7 @@ const TopicMapContextProvider = ({
     referenceSystemDefinition,
     maskingPolygon:
       maskingPolygon ||
-      (referenceSystem === MappingConstants.crs25832
-        ? maskingPolygon25832
-        : maskingPolygon3857),
+      (referenceSystem === crs25832 ? maskingPolygon25832 : maskingPolygon3857),
     mapEPSGCode,
     appMode,
   });
@@ -149,8 +146,8 @@ const TopicMapContextProvider = ({
   };
 
   const convenienceFunctions = {
-    setBoundingBox: set("boundingBox"),
-    setLocation: set("location"),
+    setBoundingBox: set("boundingBox", true),
+    setLocation: set("location", true),
     setRoutedMapRef: set("routedMapRef", true),
     setAppMode: set("appMode", true),
   };
@@ -173,7 +170,7 @@ const TopicMapContextProvider = ({
           ...convenienceFunctions,
           zoomToFeature: (feature) => {
             let zoomlevel;
-            if (referenceSystem === MappingConstants.crs25832) {
+            if (referenceSystem === crs25832) {
               zoomlevel = 15;
             } else {
               zoomlevel = 18;

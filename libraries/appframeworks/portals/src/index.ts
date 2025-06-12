@@ -20,6 +20,11 @@ export { ContactMailButton } from "./lib/components/ContactMailButton.tsx";
 export { FeatureInfobox } from "./lib/components/FeatureInfobox.tsx";
 export { InfoBoxHeader } from "./lib/components/InfoBoxHeader.tsx";
 export { CarmaMap } from "./lib/components/CarmaMap.tsx";
+export { TopicMapContextProvider } from "./lib/contexts/TopicMapContextProvider.tsx";
+export { FeatureCollectionContext } from "./lib/contexts/FeatureCollectionContextProvider.tsx";
+export { FeatureCollectionDispatchContext } from "./lib/contexts/FeatureCollectionContextProvider.tsx";
+export { UIContext } from "./lib/contexts/UIContextProvider.tsx";
+export { UIDispatchContext } from "./lib/contexts/UIContextProvider.tsx";
 
 export { GazDataProvider, useGazData } from "./lib/components/GazDataProvider";
 

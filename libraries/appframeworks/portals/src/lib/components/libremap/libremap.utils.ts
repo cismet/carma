@@ -4,7 +4,10 @@ import WMSCapabilities from "wms-capabilities";
 import { VectorStyle } from "../CarmaMap";
 import { getAllLeafLayers } from "@carma-mapping/layers";
 import { extractCarmaConfig } from "@carma-commons/utils";
+// import type { Layer, Layer2, Layer3 } from "wms-capabilities";
 
+// TODO: fix interface
+// @ts-expect-error tbd
 const parser = new WMSCapabilities();
 
 const getPaintProperty = (layerStyle: LayerSpecification) => {
@@ -168,10 +171,14 @@ export const getVectorMapping = async (vectorStyles: VectorStyle[]) => {
           if (!fetchedCapabilities) {
             return;
           }
+
+          console.log("xxx", fetchedCapabilities);
           const allLayers = getAllLeafLayers(fetchedCapabilities);
           const targetLayer = allLayers.find(
             (l) => l.Name === capabilitiesLayer
           );
+
+          console.log("xxx", targetLayer);
 
           if (targetLayer) {
             const extractedCarmaConf = extractCarmaConfig(

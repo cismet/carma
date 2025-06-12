@@ -6,6 +6,21 @@ import envelope from "@turf/envelope";
 import L from "leaflet";
 import { sandboxedEvalExternal } from "../components/SandboxedEvalProvider";
 import { LeafletMap } from "@carma-mapping/engines/leaflet";
+import localforage from "localforage";
+
+export const setFromLocalforage = async (
+  lfKey,
+  setter,
+  fallbackValue,
+  forceFallback
+) => {
+  const value = await localforage.getItem(lfKey);
+  if (value !== undefined && value !== null) {
+    setter(value);
+  } else if (fallbackValue !== undefined || forceFallback === true) {
+    setter(fallbackValue);
+  }
+};
 
 export const parseDescription = (description: string) => {
   const result = { inhalt: "", sichtbarkeit: "", nutzung: "" };
