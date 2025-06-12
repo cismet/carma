@@ -13,6 +13,13 @@ import {
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import LibreMap from "./libremap/LibreMap";
 
+export type VectorStyle = {
+  name: string;
+  style: string;
+  layer?: string;
+  infoboxMapping?: string[];
+};
+
 interface CarmaMapProps {
   mapEngine?: "leaflet" | "maplibre" | "cesium";
   onClick: () => void;
@@ -25,7 +32,7 @@ interface CarmaMapProps {
   zoomControls?: boolean;
   contactButtonEnabled?: boolean;
   infoBox?: React.ReactNode;
-  vectorStyles?: string[];
+  vectorStyles?: VectorStyle[];
   children?: React.ReactNode;
 }
 

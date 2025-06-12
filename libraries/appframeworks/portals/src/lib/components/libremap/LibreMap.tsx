@@ -1,20 +1,34 @@
 import type { StyleSpecification } from "maplibre-gl";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getHashParams } from "@carma-commons/utils";
 
 import "./map.css";
-import { vectorStylesToMapLibreStyle } from "./libremap.utils";
+import {
+  createFeature,
+  getVectorMapping,
+  vectorStylesToMapLibreStyle,
+} from "./libremap.utils";
+import { VectorStyle } from "../CarmaMap";
+import LibreFeatureInfoBox from "./LibreFeatureInfoBox";
 
 interface LibreMapProps {
-  vectorStyles?: string[];
+  vectorStyles?: VectorStyle[];
   setLibreMap: (map: maplibregl.Map) => void;
 }
 
 export const LibreMap = ({ vectorStyles, setLibreMap }: LibreMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
+  const selectedFeatures: Set<{
+    source: string;
+    sourceLayer?: string;
+    id?: string | number;
+    selectionLayerId?: string;
+  }> = new Set();
+  const mappingRef = useRef({});
+  const [selectedFeature, setSelectedFeature] = useState({});
 
   const defaultLng = 7.150764;
   const defaultLat = 51.256;
@@ -64,6 +78,76 @@ export const LibreMap = ({ vectorStyles, setLibreMap }: LibreMapProps) => {
       });
       map.current = mapInstance;
       setLibreMap(mapInstance);
+
+      mapInstance.on("click", (e) => {
+        const point = mapInstance.project([e.lngLat.lng, e.lngLat.lat]);
+        const hits = mapInstance.queryRenderedFeatures(point);
+        let filteredHits = hits.filter((hit) => {
+          return !hit.layer.id.includes("selection");
+        });
+
+        selectedFeatures.forEach((feature) => {
+          try {
+            // If we have a selection layer ID, reset its filter
+            if (
+              feature.selectionLayerId &&
+              map.current?.getLayer(feature.selectionLayerId)
+            ) {
+              // Set a filter that won't match any features
+              map.current.setFilter(feature.selectionLayerId, [
+                "==",
+                "__selected__",
+                "true",
+              ]);
+            } else {
+              map.current?.setFeatureState(
+                {
+                  source: feature.source,
+                  sourceLayer: feature.sourceLayer,
+                  id: feature.id,
+                },
+                { selected: false }
+              );
+            }
+          } catch (error) {
+            console.error("Error clearing building selection:", error);
+          }
+        });
+
+        selectedFeatures.clear();
+        setSelectedFeature({});
+        if (filteredHits.length > 0) {
+          const selectedVectorFeature = filteredHits[0];
+
+          const layerId = selectedVectorFeature.layer?.metadata?.["layer-id"];
+
+          const layerMapping = mappingRef.current[layerId];
+
+          let feature;
+          if (layerMapping) {
+            feature = createFeature(selectedVectorFeature, layerMapping);
+          }
+
+          if (feature) {
+            if (layerMapping) {
+              mapInstance.setFeatureState(
+                {
+                  source: selectedVectorFeature.source,
+                  sourceLayer: selectedVectorFeature.sourceLayer,
+                  id: selectedVectorFeature.id,
+                },
+                { selected: true }
+              );
+              selectedFeatures.add({
+                source: selectedVectorFeature.source,
+                sourceLayer: selectedVectorFeature.sourceLayer,
+                id: selectedVectorFeature.id,
+              });
+            }
+            setSelectedFeature(feature);
+          }
+        }
+      });
     }
 
     return () => {
@@ -81,6 +165,8 @@ export const LibreMap = ({ vectorStyles, setLibreMap }: LibreMapProps) => {
       try {
         const style = await vectorStylesToMapLibreStyle(vectorStyles);
         map.current?.setStyle(style);
+        const mapping = await getVectorMapping(vectorStyles);
+        mappingRef.current = mapping;
       } catch (error) {
         console.error("Error updating map style:", error);
       }
@@ -92,6 +178,10 @@ export const LibreMap = ({ vectorStyles, setLibreMap }: LibreMapProps) => {
   return (
     <div className="map-wrap">
       <div ref={mapContainer} className="map" />
+      <LibreFeatureInfoBox
+        selectedFeature={selectedFeature}
+        libreMap={map.current}
+      />
     </div>
   );
 };
