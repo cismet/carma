@@ -169,37 +169,38 @@ function App() {
           </Control>
         </ControlLayout>
       </div>
+      <div className="mode-container-switcher">
+        <EnviroMetricMap
+          applicationMenuTooltipString="Anleitung | Hintergrund"
+          appMenu={
+            <GenericModalApplicationMenu
+              {...getCollabedHelpComponentConfig({
+                versionString: version,
+                reactCismapRHMVersion: "_",
 
-      <EnviroMetricMap
-        applicationMenuTooltipString="Anleitung | Hintergrund"
-        appMenu={
-          <GenericModalApplicationMenu
-            {...getCollabedHelpComponentConfig({
-              versionString: version,
-              reactCismapRHMVersion: "_",
-
-              email,
-            })}
-          />
-        }
-        contactButtonEnabled={false}
-        locatorControl={false}
-        fullScreenControl={false}
-        zoomControls={false}
-        gazetteerSearchControl={true}
-        gazetteerSearchComponent={EmptySearchComponent}
-        emailaddress={email}
-        initialState={config.initialState}
-        config={config.config}
-        homeZoom={18}
-        homeCenter={[51.27202324060668, 7.20162372978018]}
-        modeSwitcherTitle="Starkregengefahrenkarte"
-        documentTitle="Starkregengefahrenkarte Wuppertal"
-      >
-        <TopicMapSelectionContent />
-        <NotesDisplay hinweisData={hinweisData} />
-        <CrossTabCommunicationControl hideWhenNoSibblingIsPresent={true} />
-      </EnviroMetricMap>
+                email,
+              })}
+            />
+          }
+          contactButtonEnabled={false}
+          locatorControl={false}
+          fullScreenControl={false}
+          zoomControls={false}
+          gazetteerSearchControl={true}
+          gazetteerSearchComponent={EmptySearchComponent}
+          emailaddress={email}
+          initialState={config.initialState}
+          config={config.config}
+          homeZoom={18}
+          homeCenter={[51.27202324060668, 7.20162372978018]}
+          modeSwitcherTitle="Starkregengefahrenkarte"
+          documentTitle="Starkregengefahrenkarte Wuppertal"
+        >
+          <TopicMapSelectionContent />
+          <NotesDisplay hinweisData={hinweisData} />
+          <CrossTabCommunicationControl hideWhenNoSibblingIsPresent={true} />
+        </EnviroMetricMap>
+      </div>
     </div>
   );
 }
