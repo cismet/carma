@@ -5,6 +5,7 @@ import FooterSection from "../components/navigation/FooterSection";
 import { Outlet } from "react-router-dom";
 import { useSearchParams } from "react-router-dom";
 import useUrlSyncGemarkunFlurFlurstueckHook from "../hooks/useUrlSyncGemarkunFlurFlurstueckHook";
+import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
 const AppLayout = () => {
   const [urlParams, setUrlParams] = useSearchParams();
   const [parametersForLink, setParametersForLink] = useState();
@@ -28,7 +29,8 @@ const AppLayout = () => {
       style={{
         background: "#F1F1F1",
       }}
-      className="w-full overflow-clip adaptive-full-screen"
+      // className="w-full overflow-clip adaptive-full-screen"
+      className={`${TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}`}
     >
       <div
         // className="flex h-[calc(100%-16px)]"
