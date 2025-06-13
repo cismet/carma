@@ -28,11 +28,16 @@ const SearchLandparcelByFileNumber = ({ collapsed, setCollapsed }) => {
   };
   return (
     <div
-      className="p-2 mt-auto flex flex-col gap-2 mb-1"
+      className="mt-auto flex flex-col gap-2"
       style={{
-        width: !collapsed ? "222px" : "100%",
+        width: "100%",
         maxHeight:
           !contractFlurstucke || !mipaFlurstucke || collapsed ? "10%" : "40%",
+        paddingTop: "max(8px, env(safe-area-inset-top))",
+        paddingBottom: "max(8px, env(safe-area-inset-bottom))",
+        paddingRight: "max(8px, env(safe-area-inset-right))",
+        paddingLeft: "max(8px, env(safe-area-inset-left))",
+        marginBottom: "max(4px, env(safe-area-inset-bottom))",
       }}
     >
       <Tooltip title="Aktenzeichen-Suche öffnen">
