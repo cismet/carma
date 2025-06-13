@@ -1,4 +1,7 @@
-/* You can add global styles to this file, and also import other style files */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 .gradient-bg-for-cards {
   background-image: linear-gradient(to bottom, #e8e8e8 0, #f5f5f5 100%);
   background-repeat: repeat-x;

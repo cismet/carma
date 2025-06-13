@@ -35,7 +35,7 @@ export const CyclingControl = ({
           <img
             src={baseUrl + backgrounds[mapping.selectedBackgroundIndex].src}
             width="28"
-            height="28"
+            height="30"
           />
         </div>
       </ControlButtonStyler>
