@@ -57,6 +57,8 @@ import { removeQueryPart } from "../../utils/routingHelper";
 import sysend from "sysend";
 import type { UnknownAction } from "redux";
 import type { CSSProperties, ReactElement } from "react";
+import { MobileWarningMessage } from "@carma-mapping/components";
+import { mobileInfo } from "@carma-collab/wuppertal/verdis-online";
 
 const KassenzeichenViewer = () => {
   const kassenzeichen = useSelector(getKassenzeichen);
@@ -480,6 +482,12 @@ const KassenzeichenViewer = () => {
 
   return (
     <div>
+      <MobileWarningMessage
+        headerText={mobileInfo.headerText}
+        bodyText={mobileInfo.bodyText}
+        confirmButtonText={mobileInfo.confirmButtonText}
+        isHardMode={mobileInfo.isHardMode}
+      />
       <Navbar />
       <Waiting
         key={
