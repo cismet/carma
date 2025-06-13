@@ -101,6 +101,9 @@
       "@carma-collab/wuppertal/verdis-online": [
         "libraries/collaboration/carma-wuppertal-collab/src/verdis-online/index.ts"
       ],
+      "@carma-collab/wuppertal/verdis-desktop": [
+        "libraries/collaboration/carma-wuppertal-collab/src/verdis-desktop/index.ts"
+      ],
       "@carma-collab/wuppertal/x-and-ride": [
         "libraries/collaboration/carma-wuppertal-collab/src/x-and-ride/index.ts"
       ],
