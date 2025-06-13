@@ -75,7 +75,6 @@ const KassenzeichenViewer = () => {
     const changeRequestMenuVisible =
       uiState.changeRequestsMenuVisible === true &&
       uiState.applicationMenuVisible === false;
-
     if (changeRequestMenuVisible) {
       navigate(
         {

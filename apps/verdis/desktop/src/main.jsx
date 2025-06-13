@@ -2,7 +2,6 @@ import { Button, ConfigProvider, Result } from "antd";
 import "antd/dist/reset.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
-
 import locale from "antd/locale/de_DE";
 import React, { useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";

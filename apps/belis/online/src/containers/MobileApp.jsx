@@ -57,6 +57,8 @@ import BelisMap from "./BelisMap";
 import BottomNavbar from "./BottomNavbar";
 import SideBar from "./SideBar";
 import TopNavbar from "./TopNavbar";
+import { mobileInfo } from "@carma-collab/wuppertal/belis-online";
+import { MobileWarningMessage } from "@carma-mapping/components";
 
 //---
 
@@ -298,6 +300,12 @@ const View = () => {
 
   return (
     <div ref={refApp}>
+      <MobileWarningMessage
+        headerText={mobileInfo.headerText}
+        bodyText={mobileInfo.bodyText}
+        confirmButtonText={mobileInfo.confirmButtonText}
+        isHardMode={mobileInfo.isHardMode}
+      />
       <PhotoLightBox
         reactModalStyleOverride={{ overlay: { zIndex: 60000000 } }}
       />

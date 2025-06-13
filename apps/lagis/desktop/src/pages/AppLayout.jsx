@@ -59,7 +59,6 @@ const AppLayout = () => {
 
             <div
               className="h-[calc(100%-50px)] w-full"
-              // style={{ paddingBottom: "8px" }}
               style={{ paddingBottom: "max(8px, env(safe-area-inset-bottom))" }}
             >
               <Outlet />
