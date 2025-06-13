@@ -5,12 +5,14 @@ type MobileWarningMessageProps = {
   headerText?: string;
   confirmButtonText?: string;
   bodyText: string;
+  isHardMode?: boolean;
 };
 
 export const MobileWarningMessage = ({
   headerText = "Hinweis",
   confirmButtonText = "Verstanden",
   bodyText,
+  isHardMode = false,
 }: MobileWarningMessageProps) => {
   const [isModalOpen, setIsModalOpen] = useState(true);
   const isMobile = window.innerWidth < 600;
@@ -25,6 +27,7 @@ export const MobileWarningMessage = ({
           key="confirm"
           type="primary"
           onClick={() => setIsModalOpen(false)}
+          disabled={isHardMode}
         >
           {confirmButtonText}
         </Button>,

@@ -75,6 +75,7 @@ const AppLayout = () => {
         headerText={mobileInfo.headerText}
         bodyText={mobileInfo.bodyText}
         confirmButtonText={mobileInfo.confirmButtonText}
+        isHardMode={mobileInfo.isHardMode}
       />
     </>
   );
