@@ -50,6 +50,8 @@ import AlkisLandparcelPage from "./pages/AlkisLandparcelPage";
 import AlkisBookingSheetPage from "./pages/AlkisBookingSheetPage";
 import { AlkisNav } from "@carma-apps/alkis-renderer";
 import { gazDataConfig } from "./config/gazData";
+import { mobileInfo } from "@carma-collab/wuppertal/verdis-desktop";
+import { MobileWarningMessage } from "@carma-mapping/components";
 
 const logoSrc = "/logo.svg";
 const urlPrefix = window.location.origin + window.location.pathname;
@@ -88,6 +90,12 @@ const NavBarWrapper = () => {
       <ConfigProvider componentDisabled={readOnly}>
         <Outlet />
         {showChat ? <Chat /> : <></>}
+        <MobileWarningMessage
+          headerText={mobileInfo.headerText}
+          bodyText={mobileInfo.bodyText}
+          confirmButtonText={mobileInfo.confirmButtonText}
+          isHardMode={mobileInfo.isHardMode}
+        />
       </ConfigProvider>
     </div>
   );
