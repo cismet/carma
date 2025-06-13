@@ -79,6 +79,9 @@
       "@carma-collab/wuppertal/lagis-desktop": [
         "libraries/collaboration/carma-wuppertal-collab/src/lagis-desktop/index.ts"
       ],
+      "@carma-collab/wuppertal/belis-online": [
+        "libraries/collaboration/carma-wuppertal-collab/src/belis-online/index.ts"
+      ],
       "@carma-collab/wuppertal/luftmessstationen": [
         "libraries/collaboration/carma-wuppertal-collab/src/luftmessstationen/index.ts"
       ],
