@@ -21,7 +21,8 @@ export function App() {
     <TopicMapContextProvider
       appKey="VorhabenkarteWuppertal2025"
       featureItemsURL={
-        import.meta.env.VITE_WUPP_ASSET_BASEURL + "/data/baeder.data.json"
+        import.meta.env.VITE_WUPP_ASSET_BASEURL +
+        "/data/vorhabenkarte.data.json"
       }
       referenceSystemDefinition={MappingConstants.proj4crs25832def}
       mapEPSGCode="25832"
@@ -29,9 +30,9 @@ export function App() {
       getFeatureStyler={getFeatureStyler}
       featureTooltipFunction={(feature) => feature?.text}
       convertItemToFeature={convertItemToFeature}
-      clusteringOptions={{
-        iconCreateFunction: getPoiClusterIconCreatorFunction({ svgSize: 24 }),
-      }}
+      // clusteringOptions={{
+      //   iconCreateFunction: getPoiClusterIconCreatorFunction({ svgSize: 24 }),
+      // }}
     >
       <Map />
     </TopicMapContextProvider>

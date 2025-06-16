@@ -122,7 +122,7 @@ const Map = () => {
           }
         >
           <TopicMapSelectionContent />
-          {/* <FeatureCollection></FeatureCollection> */}
+          <FeatureCollection></FeatureCollection>
         </TopicMapComponent>
       </ControlLayout>
     </div>
