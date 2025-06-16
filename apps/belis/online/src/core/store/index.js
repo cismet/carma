@@ -91,7 +91,7 @@ if (stateLoggingEnabled === true) {
 const appStateConfig = {
   key: "@" + appKey + "." + storagePostfix + ".app.state",
   storage: localForage,
-  whitelist: ["connectionMode"],
+  whitelist: ["connectionMode", "isMobileWarningShown"],
 };
 const authConfig = {
   key: "@" + appKey + "." + storagePostfix + ".app.auth",

@@ -15,6 +15,8 @@ import {
   CONNECTIONMODE,
   getConnectionMode,
   getDialog,
+  getIsMobileWarningShown,
+  setIsMobileWarningShown,
 } from "../core/store/slices/app";
 import {
   getJWT,
@@ -70,6 +72,7 @@ const View = () => {
   const dexieW = useSelector(getWorker);
   const jwt = useSelector(getJWT);
   const isLoginFormRequested = useSelector(isLoginRequested);
+  const isMobileWarningShown = useSelector(getIsMobileWarningShown);
 
   let refRoutedMap = useRef(null);
   let refApp = useRef(null);
@@ -306,7 +309,8 @@ const View = () => {
         confirmButtonText={mobileInfo.confirmButtonText}
         isHardMode={mobileInfo.isHardMode}
         messageWidth={993}
-        hasBeenShown={false}
+        hasBeenShown={isMobileWarningShown}
+        onConfirm={() => dispatch(setIsMobileWarningShown(true))}
       />
       <PhotoLightBox
         reactModalStyleOverride={{ overlay: { zIndex: 60000000 } }}
