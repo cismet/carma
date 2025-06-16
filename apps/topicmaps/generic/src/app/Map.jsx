@@ -89,7 +89,7 @@ function renderCismapLayers(
           }
           const cl_key =
             "cismapLayer." +
-            md5(JSON.stringify(style + "")) +
+            md5(JSON.stringify(style || { noStyle: true })) +
             "." +
             (layer.id || index);
 
