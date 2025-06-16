@@ -256,7 +256,7 @@ const handlePolygonSelection = (
   );
 
   const fullViewDistance = getFullViewDistance(viewer, boundingSphere);
-  console.log(
+  console.debug(
     "GAZETTEER: [2D3D|CESIUM|CAMERA] flyTo BoundingSphere",
     boundingSphere.radius,
     boundingSphere.center,
@@ -271,7 +271,7 @@ const handlePolygonSelection = (
     complete: () => {
       shouldFlyToRef.current = false;
       console.debug(
-        "GAZETTEER: [2D3D|CESIUM|CAMERA] flyTo complete, adding marker"
+        "GAZETTEER: [2D3D|CESIUM|CAMERA] flyToBoundingSphere completed"
       );
     },
   });
@@ -302,7 +302,6 @@ export const cesiumHandleSelection = async (
     markerAsset,
     markerAnchorHeight,
   } = mapOptions;
-  console.debug("applying hit trigger to cesium", viewer);
 
   // cleanup previous selection
   // todo only remove polygons, try to update existing entities for marker and polylines
@@ -318,7 +317,7 @@ export const cesiumHandleSelection = async (
     surfaceProviderRef.current ?? terrainProviderRef.current;
 
   if (!terrainProvider) {
-    console.debug(
+    console.warn(
       "no terrain provider found, cant place marker without elevation"
     );
     return;
@@ -353,9 +352,7 @@ export const cesiumHandleSelection = async (
       cesiumLookAtPoint(viewer, groundPosition, zoom, mapOptions, {
         onComplete: () => {
           shouldFlyToRef.current = false;
-          console.debug(
-            "GAZETTEER: [2D3D|CESIUM|CAMERA] flyTo complete, adding marker"
-          );
+          console.debug("GAZETTEER: [2D3D|CESIUM|CAMERA] flyTo Point complete");
         },
         //onComplete: delayedMarker,
         durationFactor,

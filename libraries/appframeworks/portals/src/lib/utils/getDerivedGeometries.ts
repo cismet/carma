@@ -44,23 +44,23 @@ export const getDerivedGeometries = (
 ): DerivedGeometries => {
   const crs = hitObject.crs ?? DEFAULT_PROJ;
   const polygonCrsString = hitObject.more?.g?.crs?.properties.name;
-  const polygonCrs = polygonCrsString?.split(":")[1] ?? crs;
+  const polygonCrs = polygonCrsString?.split(":")[1] ?? crs; // e.g. change "EPSG:4326" -> "4326" to use common format
 
   let refSystemConverter = proj4ConverterLookup[crs];
   if (!refSystemConverter && crs !== undefined) {
-    console.log("create new proj4 converter for", crs);
+    console.debug("create new proj4 converter for", crs);
     refSystemConverter = proj4(`EPSG:${crs}`);
     proj4ConverterLookup[crs] = refSystemConverter;
   }
 
   let polygonRefSystemConverter = proj4ConverterLookup[polygonCrs];
   if (!polygonRefSystemConverter && polygonCrs !== undefined) {
-    console.log("create new proj4 converter for polygon", polygonCrs);
-    polygonRefSystemConverter = proj4(`${polygonCrs}`); // empirically have the "EPSG:XXXX" prefix and format
+    console.debug("create new proj4 converter for polygon", polygonCrs);
+    polygonRefSystemConverter = proj4(`EPSG:${polygonCrs}`);
     proj4ConverterLookup[polygonCrs] = polygonRefSystemConverter;
   }
 
-  const pos = getPosInWGS84(hitObject, refSystemConverter); //console.log(pos)
+  const pos = getPosInWGS84(hitObject, refSystemConverter);
   const zoom = hitObject.more.zl ?? DEFAULT_ZOOM_LEVEL;
 
   let polygon: number[][][] | undefined = undefined;
@@ -73,11 +73,10 @@ export const getDerivedGeometries = (
       getRingInWGS84(ring, polygonRefSystemConverter)
     );
   }
-  console.info(
+  console.debug(
     "hitObject crs",
     crs,
     polygonCrs,
-    refSystemConverter,
     hitObject.more.zl,
     hitObject.more.g?.type,
     hitObject.more.g?.crs,
