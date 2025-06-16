@@ -10,7 +10,7 @@ import {
 } from "@carma-mapping/cesium-engine";
 
 import { useSelection } from "../components/SelectionProvider";
-import { carmaHitTrigger } from "../utils/carmaHitTrigger";
+import { cesiumHitTrigger } from "../utils/cesiumHitTrigger";
 
 export const SELECTED_POLYGON_ID = "searchgaz-highlight-polygon";
 export const INVERTED_SELECTED_POLYGON_ID = "searchgaz-inverted-polygon";
@@ -38,7 +38,9 @@ const cleanUpCesium = (
 export const useSelectionCesium = (
   isActive: boolean,
   cesiumOptions: CesiumOptions,
-  useCameraHeight: boolean = false
+  useCameraHeight: boolean = false,
+  duration: number = 3,
+  durationFactor: number = 0.2
 ) => {
   const { viewerRef } = useCesiumContext();
 
@@ -52,7 +54,7 @@ export const useSelectionCesium = (
   // Ref to store the previous selection
 
   useEffect(() => {
-    if (!isActive || !viewerRef) {
+    if (!isActive || !viewerRef.current) {
       return;
     }
 
@@ -82,14 +84,21 @@ export const useSelectionCesium = (
 
       const options = {
         mapOptions: cesiumOptions,
-        selectedCesiumEntityData,
-        setSelectedCesiumEntityData,
         selectedPolygonId: SELECTED_POLYGON_ID,
         invertedSelectedPolygonId: INVERTED_SELECTED_POLYGON_ID,
         useCameraHeight,
+        duration,
+        durationFactor,
       };
 
-      carmaHitTrigger([selection], viewerRef, shouldFlyToRef, options);
+      cesiumHitTrigger(
+        [selection],
+        viewerRef,
+        shouldFlyToRef,
+        selectedCesiumEntityData,
+        setSelectedCesiumEntityData,
+        options
+      );
     } else {
       lastSelectionKey.current = null;
       shouldFlyToRef.current = false;
@@ -105,6 +114,8 @@ export const useSelectionCesium = (
     viewerRef,
     isActive,
     cesiumOptions,
+    duration,
+    durationFactor,
     setSelectedCesiumEntityData,
     selectedCesiumEntityData,
   ]);

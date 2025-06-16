@@ -1,20 +1,23 @@
+interface PolygonGeometryData {
+  type: "Polygon";
+  crs?: {
+    type: "name";
+    properties: {
+      name: string;
+    };
+  };
+  coordinates: number[][][];
+}
+
 interface MoreData {
   zl: number;
-  pid: number;
+  pid?: number;
   kid?: number;
   v?: string;
-  g?: {
-    type: "Polygon";
-    crs?: {
-      type: "name";
-      properties: {
-        name: string;
-      };
-    };
-    coordinates: number[][][];
-  };
+  g?: PolygonGeometryData;
 }
 export interface SearchResultItem {
+  crs: string;
   sorter: number;
   string: string;
   glyph: string;
