@@ -33,7 +33,7 @@ export function App() {
       titleFactory={titleFactory}
       convertItemToFeature={convertItemToFeature}
       clusteringOptions={{
-        iconCreateFunction: getPoiClusterIconCreatorFunction(35),
+        iconCreateFunction: getPoiClusterIconCreatorFunction({ svgSize: 24 }),
       }}
       // itemFilterFunction={itemFilterFunction}
       // filterState={{
