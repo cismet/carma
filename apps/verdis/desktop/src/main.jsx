@@ -94,6 +94,7 @@ const NavBarWrapper = () => {
           bodyText={mobileInfo.bodyText}
           confirmButtonText={mobileInfo.confirmButtonText}
           isHardMode={mobileInfo.isHardMode}
+          messageWidth={900}
         />
       </ConfigProvider>
     </div>
