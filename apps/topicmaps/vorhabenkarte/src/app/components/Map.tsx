@@ -34,13 +34,8 @@ import {
   ZoomControl,
 } from "@carma-mapping/components";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
-import { getApplicationVersion } from "@carma-commons/utils";
-import versionData from "../../version.json";
 import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
 import { GenericInfoBoxFromFeature } from "@carma-apps/portals";
-
-import SIMComponentDictionary from "@carma-collab/wuppertal/secondary-info-modals";
-const SecondaryInfoModal = SIMComponentDictionary["ebikesSIM"];
 
 const Map = () => {
   const { setClusteringOptions } = useContext<
@@ -49,16 +44,13 @@ const Map = () => {
   const { markerSymbolSize } = useContext<typeof TopicMapStylingContext>(
     TopicMapStylingContext
   );
-  const { clusteringOptions, selectedFeature } = useContext<
-    typeof FeatureCollectionContext
-  >(FeatureCollectionContext);
-  const { secondaryInfoVisible } = useContext<typeof UIContext>(UIContext);
+  const { clusteringOptions } = useContext<typeof FeatureCollectionContext>(
+    FeatureCollectionContext
+  );
   const { responsiveState, gap, windowSize } = useContext<
     typeof ResponsiveTopicMapContext
   >(ResponsiveTopicMapContext);
   useSelectionTopicMap();
-  const { setSecondaryInfoVisible } =
-    useContext<typeof UIDispatchContext>(UIDispatchContext);
 
   useEffect(() => {
     if (markerSymbolSize) {
@@ -110,29 +102,27 @@ const Map = () => {
             <GenericInfoBoxFromFeature
               pixelwidth={350}
               config={{
-                displaySecondaryInfoAction: true,
+                displaySecondaryInfoAction: false,
                 city: "Wuppertal",
                 navigator: {
                   noun: {
-                    singular: "Sation",
-                    plural: "Stationen",
+                    singular: "Bad",
+                    plural: "Bäder",
                   },
                 },
-                noFeatureTitle: <InfoBoxTextTitle />,
-                noCurrentFeatureContent: <InfoBoxTextContent />,
+                noCurrentFeatureTitle: "Keine Bäder gefunden",
+                noCurrentFeatureContent: (
+                  <span>
+                    Für mehr Bäder Ansicht mit verkleinern oder mit dem
+                    untenstehenden Link auf das komplette Stadtgebiet zoomen.
+                  </span>
+                ),
               }}
             />
           }
         >
-          {secondaryInfoVisible && (
-            <SecondaryInfoModal
-              versionString={getApplicationVersion(versionData)}
-              feature={selectedFeature}
-              setOpen={setSecondaryInfoVisible}
-            />
-          )}
           <TopicMapSelectionContent />
-          <FeatureCollection></FeatureCollection>
+          {/* <FeatureCollection></FeatureCollection> */}
         </TopicMapComponent>
       </ControlLayout>
     </div>
