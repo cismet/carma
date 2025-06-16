@@ -13,33 +13,33 @@ const getSignature = (properties) => {
 const convertItemToFeature = async (itemIn, poiColors) => {
   let clonedItem = JSON.parse(JSON.stringify(itemIn));
 
-  let item = await addSVGToProps(clonedItem, (i) => getSignature(i));
-  const headerColor = Color(getColorForProperties(item));
+  let item = clonedItem;
+  // const headerColor = Color(getColorForProperties(item));
 
-  const info = {
-    header: `${item?.more?.typ} (${item?.more?.betreiber}), ${item?.more?.zugang}`,
-    title: item.name,
-    additionalInfo: itemIn.info,
-    subtitle: item.adresse,
-  };
-  item.info = info;
+  // const info = {
+  //   header: `${item?.more?.typ} (${item?.more?.betreiber}), ${item?.more?.zugang}`,
+  //   title: item.name,
+  //   additionalInfo: itemIn.info,
+  //   subtitle: item.adresse,
+  // };
+  // item.info = info;
 
-  item.color = headerColor;
+  // item.color = headerColor;
   const id = item.id;
   const type = "Feature";
   const selected = false;
   const geometry = item.geojson;
-  const text = item.name;
+  const text = item.titel;
 
-  if (item.more.coursemanager) {
-    item.genericLinks = [
-      {
-        url: item.more.coursemanager,
-        tooltip: "Kurs buchen",
-        iconname: "calendar",
-      },
-    ];
-  }
+  // if (item.more.coursemanager) {
+  //   item.genericLinks = [
+  //     {
+  //       url: item.more.coursemanager,
+  //       tooltip: "Kurs buchen",
+  //       iconname: "calendar",
+  //     },
+  //   ];
+  // }
 
   return {
     id,
