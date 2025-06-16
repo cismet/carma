@@ -306,6 +306,7 @@ const View = () => {
         confirmButtonText={mobileInfo.confirmButtonText}
         isHardMode={mobileInfo.isHardMode}
         messageWidth={993}
+        hasBeenShown={false}
       />
       <PhotoLightBox
         reactModalStyleOverride={{ overlay: { zIndex: 60000000 } }}

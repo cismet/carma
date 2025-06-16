@@ -7,6 +7,8 @@ type MobileWarningMessageProps = {
   bodyText: string;
   isHardMode?: boolean;
   messageWidth?: number;
+  hasBeenShown?: boolean;
+  onConfirm: () => void;
 };
 
 export const MobileWarningMessage = ({
@@ -15,20 +17,27 @@ export const MobileWarningMessage = ({
   bodyText,
   isHardMode = false,
   messageWidth = 600,
+  hasBeenShown = false,
+  onConfirm = () => {},
 }: MobileWarningMessageProps) => {
   const [isModalOpen, setIsModalOpen] = useState(true);
   const isMobile = window.innerWidth < messageWidth;
+
+  const handleClick = () => {
+    setIsModalOpen(false);
+    onConfirm();
+  };
   return (
     <Modal
       title={headerText}
-      open={isModalOpen && isMobile}
+      open={isModalOpen && isMobile && !hasBeenShown}
       closable={false}
       closeIcon={false}
       footer={[
         <Button
           key="confirm"
           type="primary"
-          onClick={() => setIsModalOpen(false)}
+          onClick={handleClick}
           disabled={isHardMode}
         >
           {confirmButtonText}
