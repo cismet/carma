@@ -1,5 +1,5 @@
 import { Modal, Button } from "antd";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 type MobileWarningMessageProps = {
   headerText?: string;
@@ -21,18 +21,30 @@ export const MobileWarningMessage = ({
   onConfirm = () => {},
 }: MobileWarningMessageProps) => {
   const [isModalOpen, setIsModalOpen] = useState(true);
-  const isMobile = window.innerWidth < messageWidth;
+  const [innerWidth, setInnerWidth] = useState(() => window.innerWidth);
+
+  useEffect(() => {
+    const handleResize = () => {
+      setInnerWidth(window.innerWidth);
+    };
+    window.addEventListener("resize", handleResize);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
+
+  const isMobile = innerWidth < messageWidth;
 
   const handleClick = () => {
     setIsModalOpen(false);
     onConfirm();
   };
+
   return (
     <Modal
       title={headerText}
       open={isModalOpen && isMobile && !hasBeenShown}
       closable={false}
-      closeIcon={false}
       footer={[
         <Button
           key="confirm"
