@@ -126,6 +126,7 @@ const initialState = {
   hintVisible: true,
   drawMode: "default" as DrawMode,
   navbarHight: 40,
+  isMobileWarningShown: false,
 };
 
 const slice = createSlice({
@@ -237,6 +238,9 @@ const slice = createSlice({
     setNavbarHight(state, action) {
       state.navbarHight = action.payload;
     },
+    setIsMobileWarningShown(state, action) {
+      state.isMobileWarningShown = action.payload;
+    },
   },
 });
 
@@ -268,6 +272,7 @@ export const {
   setWaitingType,
   setDrawMode,
   setNavbarHight,
+  setIsMobileWarningShown,
 } = slice.actions;
 
 export const getConfData = (state) => {
@@ -285,6 +290,8 @@ export const getHeight = (state) => {
 export const getNavbarHeight = (state) => {
   return state.ui.navbarHight;
 };
+
+export const getIsMobileWarningShown = (state) => state.ui.isMobileWarningShown;
 
 export const getDrawMode = (state) => {
   return state.ui.drawMode;

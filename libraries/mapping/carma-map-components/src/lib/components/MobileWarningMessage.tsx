@@ -8,7 +8,7 @@ type MobileWarningMessageProps = {
   isHardMode?: boolean;
   messageWidth?: number;
   hasBeenShown?: boolean;
-  onConfirm: () => void;
+  onConfirm?: () => void;
 };
 
 export const MobileWarningMessage = ({
@@ -42,6 +42,7 @@ export const MobileWarningMessage = ({
 
   return (
     <Modal
+      zIndex={9999}
       title={headerText}
       open={isModalOpen && isMobile && !hasBeenShown}
       closable={false}

@@ -41,6 +41,8 @@ import {
   toggleInfoElements,
   setHintVisible,
   showInfoWithError,
+  getIsMobileWarningShown,
+  setIsMobileWarningShown,
 } from "../../store/slices/ui";
 import { fitAll, getMapping } from "../../store/slices/mapping";
 import HelpAndSettings from "../components/helpandsettings/Menu00MainComponent";
@@ -67,6 +69,8 @@ const KassenzeichenViewer = () => {
   const mapping = useSelector(getMapping);
   const stac = useSelector(getStac);
   const login = useSelector(getSuccesfullLogin);
+  const isMobileWarningShown = useSelector(getIsMobileWarningShown);
+
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useDispatch();
@@ -486,6 +490,9 @@ const KassenzeichenViewer = () => {
         bodyText={mobileInfo.bodyText}
         confirmButtonText={mobileInfo.confirmButtonText}
         isHardMode={mobileInfo.isHardMode}
+        messageWidth={900}
+        hasBeenShown={isMobileWarningShown}
+        onConfirm={() => dispatch(setIsMobileWarningShown(true))}
       />
       <Navbar />
       <Waiting
