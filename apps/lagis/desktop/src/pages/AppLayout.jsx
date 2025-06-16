@@ -75,6 +75,7 @@ const AppLayout = () => {
         bodyText={mobileInfo.bodyText}
         confirmButtonText={mobileInfo.confirmButtonText}
         isHardMode={mobileInfo.isHardMode}
+        messageWidth={993}
       />
     </>
   );
