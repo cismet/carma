@@ -24,14 +24,15 @@ const cleanUpCesium = (
 ) => {
   console.debug("HOOK: cleanUpCesium", selectedCesiumEntityData);
   const viewer = viewerRef.current;
-  if (!viewer) return;
-  if (selectedCesiumEntityData) {
-    removeCesiumMarker(viewer, selectedCesiumEntityData);
-    setSelectedCesiumEntityData(null);
+  if (viewer && !viewer.isDestroyed() && !viewer.scene.isDestroyed()) {
+    if (selectedCesiumEntityData) {
+      removeCesiumMarker(viewer, selectedCesiumEntityData);
+      setSelectedCesiumEntityData(null);
+    }
+    viewer.entities.removeById(SELECTED_POLYGON_ID);
+    removeGroundPrimitiveById(viewer, INVERTED_SELECTED_POLYGON_ID);
+    viewer.scene.requestRender(); // explicit render for requestRenderMode;
   }
-  viewer.entities.removeById(SELECTED_POLYGON_ID);
-  removeGroundPrimitiveById(viewer, INVERTED_SELECTED_POLYGON_ID);
-  viewer.scene.requestRender(); // explicit render for requestRenderMode;
 };
 
 export const useSelectionCesium = (
@@ -40,7 +41,9 @@ export const useSelectionCesium = (
   useCameraHeight: boolean = false
 ) => {
   const { viewerRef } = useCesiumContext();
+
   const { selection } = useSelection();
+  const shouldFlyToRef = useRef<boolean>(false);
   const lastSelectionKey = useRef<number | null>(null);
   const lastSelectionTimestamp = useRef<number | null>(null);
   const [selectedCesiumEntityData, setSelectedCesiumEntityData] =
@@ -69,11 +72,16 @@ export const useSelectionCesium = (
           Date.now() - selection.selectionTimestamp < NEW_SELECTION_TIMEOUT
       );
 
+      if (isNewSelection) {
+        shouldFlyToRef.current = true;
+      } else {
+        shouldFlyToRef.current = false;
+      }
+
       console.debug("HOOK: useSelectionCesium", selection, isActive);
 
       const options = {
         mapOptions: cesiumOptions,
-        doFlyTo: isNewSelection,
         selectedCesiumEntityData,
         setSelectedCesiumEntityData,
         selectedPolygonId: SELECTED_POLYGON_ID,
@@ -81,9 +89,10 @@ export const useSelectionCesium = (
         useCameraHeight,
       };
 
-      carmaHitTrigger([selection], viewerRef, options);
+      carmaHitTrigger([selection], viewerRef, shouldFlyToRef, options);
     } else {
       lastSelectionKey.current = null;
+      shouldFlyToRef.current = false;
       cleanUpCesium(
         viewerRef,
         selectedCesiumEntityData,

@@ -1,5 +1,3 @@
-import { type Feature } from "geojson";
-import { type SearchResultItem } from "@carma-commons/types";
 import {
   createContext,
   useCallback,
@@ -7,6 +5,9 @@ import {
   useMemo,
   useState,
 } from "react";
+import type { Feature } from "geojson";
+
+import { type SearchResultItem } from "@carma-commons/types";
 
 export type SelectionMetaData = {
   selectionTimestamp: number | null;

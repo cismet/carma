@@ -11,7 +11,9 @@ import {
   Entity,
   GeometryInstance,
   GroundPrimitive,
+  HeadingPitchRange,
   HeightReference,
+  PerspectiveFrustum,
   PolygonGeometry,
   sampleTerrainMostDetailed,
   Scene,
@@ -41,6 +43,8 @@ import { PROJ4_CONVERTERS } from "@carma-commons/utils";
 
 const proj4ConverterLookup = {};
 const DEFAULT_ZOOM_LEVEL = 16;
+const DEFAULT_BOUNDINGSPHERE_ELEVATION = 200; // meters, default elevation for bounding sphere in GeoJSON Polygon
+const DEFAULT_BOUNDINGSPHERE_VIEW_MARGIN = 0.2; // 20% margin
 const DEFAULT_CESIUM_MARKER_ANCHOR_HEIGHT = 10; // in METERS
 const DEFAULT_CESIUM_PITCH_ADJUST_HEIGHT = 1500; // meters
 const MAX_FLYTO_DURATION = 10; // seconds
@@ -52,6 +56,7 @@ type LeafletMapActions = {
   setZoom: (map: L.Map, zoom: number) => void;
   fitBounds: (map: L.Map, bounds: L.LatLngBoundsExpression) => void;
 };
+// TODO CLEAN THIS UP and REMOVE or SIMPLIFY
 type CesiumMapActions = {
   lookAt: (
     viewer: Viewer,
@@ -60,12 +65,12 @@ type CesiumMapActions = {
     cesiumConfig: { pitchAdjustHeight?: number },
     options?: {
       onComplete?: Function;
-      durationFactor?: number;
+      maxDuration?: number; // maximum duration for the flyTo animation
+      durationFactor?: number; // dynamic flyTo duration factor
       useCameraHeight?: boolean;
     }
   ) => void;
   setZoom: (scene: Scene, zoom: number) => void;
-  fitBoundingSphere: (scene: Scene, bounds: BoundingSphere) => void;
 };
 
 type MapActions = Partial<LeafletMapActions> | Partial<CesiumMapActions>;
@@ -86,6 +91,7 @@ const CesiumMapActions = {
     cesiumConfig: { pitchAdjustHeight?: number } = {},
     options: {
       onComplete?: Function;
+      maxDuration?: number;
       durationFactor?: number;
       useCameraHeight?: boolean;
     } = {}
@@ -95,7 +101,9 @@ const CesiumMapActions = {
       const currentCenterPos = pickViewerCanvasCenter(viewer).scenePosition;
       const center = Cartographic.toCartesian(targetPosition);
 
-      let duration = 4;
+      const maxDuration = options.maxDuration ?? MAX_FLYTO_DURATION;
+
+      let duration = maxDuration;
 
       if (!currentCenterPos) {
         return;
@@ -125,13 +133,13 @@ const CesiumMapActions = {
         distanceTargets
       );
 
-      if (duration > MAX_FLYTO_DURATION) {
+      if (duration > maxDuration) {
         console.info(
           "[CESIUM|ANIMATION] FlytoBoundingSphere duration too long, clamped to",
           duration,
-          MAX_FLYTO_DURATION
+          maxDuration
         );
-        duration = MAX_FLYTO_DURATION;
+        duration = maxDuration;
       }
 
       //TODO optional add responsive duration based on distance of target
@@ -153,8 +161,6 @@ const CesiumMapActions = {
     }
   },
   setZoom: (scene: Scene, zoom: number) => scene && scene.camera.zoomIn(zoom),
-  fitBoundingSphere: (scene: Scene, bounds: BoundingSphere) =>
-    scene && scene.camera.flyToBoundingSphere(bounds),
 };
 
 const getPosInWGS84 = ({ x, y }, refSystem: proj4.Converter) => {
@@ -177,8 +183,44 @@ const getRingInWGS84 = (
     )
     .map((coord) => PROJ4_CONVERTERS.CRS4326.forward(refSystem.inverse(coord)));
 
+const getFullViewDistance = (
+  viewer: Viewer,
+  boundingSphere: BoundingSphere,
+  margin: number = DEFAULT_BOUNDINGSPHERE_VIEW_MARGIN
+): number => {
+  const fovY =
+    viewer.camera.frustum instanceof PerspectiveFrustum
+      ? viewer.camera.frustum.fov ?? 1
+      : 1;
+
+  const aspectRatio = viewer.canvas.clientWidth / viewer.canvas.clientHeight;
+
+  const tanHalfFovY = Math.tan(fovY / 2.0);
+  const tanHalfFovX = tanHalfFovY / aspectRatio;
+
+  // The narrowest dimension corresponds to the smaller FOV angle.
+  // the smaller angle will have the smaller tangent.
+  const tanHalfNarrowestFov = Math.min(tanHalfFovX, tanHalfFovY);
+
+  // To add a margin, make the sphere larger.
+  const effectiveRadius = boundingSphere.radius * (1 + margin);
+
+  const distance = effectiveRadius / tanHalfNarrowestFov;
+
+  return distance;
+};
+
+const getBoundingSphereFromCoordinatesAndHeight = (
+  coordinates: [number, number, number?][],
+  height: number = DEFAULT_BOUNDINGSPHERE_ELEVATION
+): BoundingSphere => {
+  const points = coordinates.map((coord) =>
+    Cartesian3.fromDegrees(coord[0], coord[1], coord[2] ?? height)
+  );
+  return BoundingSphere.fromPoints(points);
+};
+
 export type GazetteerOptions = {
-  doFlyTo: boolean;
   mapActions?: MapActions;
   mapOptions: CesiumOptions;
   selectedCesiumEntityData?: null | EntityData;
@@ -186,11 +228,14 @@ export type GazetteerOptions = {
   selectedPolygonId: string;
   invertedSelectedPolygonId: string;
   useCameraHeight?: boolean;
+  duration: number; // duration for flyTo
+  durationFactor?: number; // dynamic flyTo duration factor
 };
 
 export const carmaHitTrigger = async (
   hit,
   mapRef: MutableRefObject<Viewer | null> | MutableRefObject<L.Map | null>,
+  shouldFlyToRef: MutableRefObject<boolean>,
   options: GazetteerOptions
 ) => {
   if (hit !== undefined && hit.length !== undefined && hit.length > 0) {
@@ -236,13 +281,14 @@ export const carmaHitTrigger = async (
       const { scene } = viewer;
 
       const {
-        doFlyTo,
         mapActions,
         mapOptions,
         selectedCesiumEntityData,
         setSelectedCesiumEntityData,
         selectedPolygonId,
         invertedSelectedPolygonId,
+        duration,
+        durationFactor = 0.2,
       } = options;
 
       const cAction = {
@@ -330,7 +376,36 @@ export const carmaHitTrigger = async (
         scene.groundPrimitives.add(invertedGroundPrimitive);
         viewer.entities.add(polygonEntity);
         //viewer.entities.add(invertedPolygonEntity);
-        doFlyTo && viewer.flyTo(polygonEntity);
+
+        const boundingSphere = getBoundingSphereFromCoordinatesAndHeight(
+          polygon[0],
+          groundPosition?.height
+        );
+
+        const fullViewDistance = getFullViewDistance(viewer, boundingSphere);
+        console.log(
+          "GAZETTEER: [2D3D|CESIUM|CAMERA] flyTo BoundingSphere",
+          boundingSphere.radius,
+          boundingSphere.center,
+          groundPosition?.height,
+          fullViewDistance,
+          (viewer.camera.frustum as any).fov
+        );
+
+        viewer.camera.flyToBoundingSphere(boundingSphere, {
+          duration,
+          offset: new HeadingPitchRange(
+            0,
+            viewer.camera.pitch,
+            fullViewDistance
+          ),
+          complete: () => {
+            shouldFlyToRef.current = false;
+            console.debug(
+              "GAZETTEER: [2D3D|CESIUM|CAMERA] flyTo complete, adding marker"
+            );
+          },
+        });
       } else if (defined(groundPosition)) {
         const updateMarkerPosition = async () => {
           const anchorHeightOffset =
@@ -364,10 +439,18 @@ export const carmaHitTrigger = async (
         if (markerAsset) {
           updateMarkerPosition();
         }
-        doFlyTo &&
+
+        shouldFlyToRef.current &&
           cAction.lookAt(viewer, groundPosition, zoom, mapOptions, {
+            onComplete: () => {
+              shouldFlyToRef.current = false;
+              console.debug(
+                "GAZETTEER: [2D3D|CESIUM|CAMERA] flyTo complete, adding marker"
+              );
+            },
             //onComplete: delayedMarker,
-            durationFactor: 0.2,
+            durationFactor,
+            maxDuration: duration,
             useCameraHeight: options.useCameraHeight,
           });
         console.debug(
