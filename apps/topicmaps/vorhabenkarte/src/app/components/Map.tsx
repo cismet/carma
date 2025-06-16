@@ -94,12 +94,11 @@ const Map = () => {
               pixelwidth={
                 responsiveState === "normal" ? "300px" : windowSize.width - gap
               }
-              placeholder={searchTextPlaceholder}
             />
           </div>
         </Control>
         <TopicMapComponent
-          modalMenu={<Menu />}
+          // modalMenu={<Menu />}
           locatorControl={false}
           fullScreenControl={false}
           zoomControls={false}

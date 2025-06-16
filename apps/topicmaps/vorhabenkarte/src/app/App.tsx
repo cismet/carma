@@ -21,7 +21,7 @@ export function App() {
   }, []);
   return (
     <TopicMapContextProvider
-      appKey="EBikeKarteWuppertal2022"
+      appKey="VorhabenkarteWuppertal2025"
       featureItemsURL={
         import.meta.env.VITE_WUPP_ASSET_BASEURL + "/data/ebikes.data.json"
       }
@@ -35,14 +35,14 @@ export function App() {
       clusteringOptions={{
         iconCreateFunction: getPoiClusterIconCreatorFunction(35),
       }}
-      itemFilterFunction={itemFilterFunction}
-      filterState={{
-        stationsart: ["Ladestation", "Verleihstation"],
-        nur_online: false,
-        immer_offen: false,
-        gruener_strom: false,
-        ladebox_zu: false,
-      }}
+      // itemFilterFunction={itemFilterFunction}
+      // filterState={{
+      //   stationsart: ["Ladestation", "Verleihstation"],
+      //   nur_online: false,
+      //   immer_offen: false,
+      //   gruener_strom: false,
+      //   ladebox_zu: false,
+      // }}
     >
       <Map />
     </TopicMapContextProvider>
