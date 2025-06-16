@@ -11,7 +11,10 @@ interface ZoomControlProps {
   libreMap?: maplibregl.Map | null;
 }
 
-export const ZoomControl = ({ mapEngine, libreMap }: ZoomControlProps) => {
+export const ZoomControl = ({
+  mapEngine = "leaflet",
+  libreMap,
+}: ZoomControlProps) => {
   const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
   const { zoomInLibre, zoomOutLibre } = useLibreZoomControls({ map: libreMap });
 

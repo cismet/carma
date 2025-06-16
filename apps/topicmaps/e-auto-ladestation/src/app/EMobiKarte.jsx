@@ -1,19 +1,19 @@
 import { useContext, useEffect } from "react";
+
+import FeatureCollection from "react-cismap/FeatureCollection";
+
+import Menu from "./Menu";
+import { getPoiClusterIconCreatorFunction } from "./helper/styler";
+import { defaultLayerConf } from "react-cismap/tools/layerFactory";
 import {
   FeatureCollectionContext,
   FeatureCollectionDispatchContext,
-} from "react-cismap/contexts/FeatureCollectionContextProvider";
-import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
-import FeatureCollection from "react-cismap/FeatureCollection";
-import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
-import Menu from "./Menu";
-import { getPoiClusterIconCreatorFunction } from "./helper/styler";
-import {
+  ResponsiveTopicMapContext,
+  TopicMapComponent,
+  TopicMapSelectionContent,
+  TopicMapStylingContext,
   UIContext,
   UIDispatchContext,
-} from "react-cismap/contexts/UIContextProvider";
-import {
-  TopicMapSelectionContent,
   useSelectionTopicMap,
   useUrlFeatureSelection,
 } from "@carma-appframeworks/portals";
@@ -28,7 +28,7 @@ import {
   RoutedMapLocateControl,
   ZoomControl,
 } from "@carma-mapping/components";
-import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+
 import { getApplicationVersion } from "@carma-commons/utils";
 import versionData from "../version.json";
 import SIMComponentDictionary from "@carma-collab/wuppertal/secondary-info-modals";
@@ -81,7 +81,7 @@ const EMobiKarte = () => {
         <Control position="topleft" order={50}>
           <FullscreenControl />
         </Control>
-        <Control position="topleft" order={60} title="Mein Standort">
+        {/* <Control position="topleft" order={60} title="Mein Standort">
           <RoutedMapLocateControl
             tourRefLabels={null}
             disabled={false}
@@ -109,40 +109,41 @@ const EMobiKarte = () => {
               placeholder="Ladestation | Stadtteil | Adresse | POI"
             />
           </div>
-        </Control>
+        </Control> */}
         <TopicMapComponent
           locatorControl={false}
           fullScreenControl={false}
           zoomControls={false}
-          modalMenu={<Menu />}
+          modalMenu={<></>}
+          // baseLayerConf={defaultLayerConf}
           gazetteerSearchControl={true}
           gazetteerSearchComponent={EmptySearchComponent}
-          infoBox={
-            <GenericInfoBoxFromFeature
-              pixelwidth={350}
-              config={{
-                displaySecondaryInfoAction: true,
-                city: "Wuppertal",
-                navigator: {
-                  noun: {
-                    singular: "Ladestation",
-                    plural: "Ladestationen",
-                  },
-                },
-                noCurrentFeatureTitle: "Keine Ladestationen gefunden",
-                noCurrentFeatureContent: (
-                  <span>
-                    Für mehr Ladestationen Ansicht mit verkleinern oder mit dem
-                    untenstehenden Link auf das komplette Stadtgebiet zoomen.
-                  </span>
-                ),
-              }}
-            />
-          }
+          // infoBox={
+          //   <GenericInfoBoxFromFeature
+          //     pixelwidth={350}
+          //     config={{
+          //       displaySecondaryInfoAction: true,
+          //       city: "Wuppertal",
+          //       navigator: {
+          //         noun: {
+          //           singular: "Ladestation",
+          //           plural: "Ladestationen",
+          //         },
+          //       },
+          //       noCurrentFeatureTitle: "Keine Ladestationen gefunden",
+          //       noCurrentFeatureContent: (
+          //         <span>
+          //           Für mehr Ladestationen Ansicht mit verkleinern oder mit dem
+          //           untenstehenden Link auf das komplette Stadtgebiet zoomen.
+          //         </span>
+          //       ),
+          //     }}
+          //   />
+          // }
         >
-          <TopicMapSelectionContent />
+          {/* <TopicMapSelectionContent /> */}
 
-          <FeatureCollection></FeatureCollection>
+          {/* <FeatureCollection></FeatureCollection> */}
           {secondaryInfoVisible && (
             <SecondaryInfoModal
               feature={selectedFeature}

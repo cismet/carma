@@ -2,7 +2,6 @@ import React from "react";
 import { useEffect } from "react";
 import { useState } from "react";
 import { MappingConstants } from "react-cismap";
-import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
 
 import convertItemToFeature from "./helper/convertItemToFeature";
 
@@ -60,6 +59,7 @@ function App() {
         additionalStylingInfo={{ poiColors }}
         convertItemToFeatureProgressCallback={handleProgressUpdate}
         backgroundConfigurations={backgroundConfWithFastOrtho2024}
+        baseLayerConf={defaultLayerConf}
       >
         <ProgressIndicator progress={progress} show={showProgress} />
         <EMobiKarte />
