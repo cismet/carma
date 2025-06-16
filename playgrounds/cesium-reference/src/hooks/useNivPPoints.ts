@@ -10,6 +10,7 @@ import {
 } from "cesium";
 
 import { PROJ4_CONVERTERS } from "@carma-commons/utils";
+import { useCesiumViewer } from "../contexts/CesiumViewerContext";
 
 export type ElevationStandard = "nhn2016" | "nhn" | "nn";
 export interface NivPPoint {
@@ -80,11 +81,11 @@ const getElevationLabel = (standard: ElevationStandard): string => {
 };
 
 const useNivPPoints = (
-  viewer: Viewer | null,
   elevationStandard: ElevationStandard = "nhn",
   uri: string,
   includeHistoric: boolean = false
 ) => {
+  const { viewerRef, isViewerReady } = useCesiumViewer();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [allPoints, setAllPoints] = useState<TransformedNivPPoint[]>([]); // Session permanent objects
@@ -93,10 +94,15 @@ const useNivPPoints = (
   );
   const [entities, setEntities] = useState<Entity[]>([]);
   const currentEntitiesRef = useRef<Entity[]>([]);
+  const prevFilteredPointsRef = useRef<TransformedNivPPoint[]>([]);
 
   // Load and transform data once per session
   useEffect(() => {
-    if (!viewer) return;
+    const viewer = viewerRef.current;
+    if (!viewer || !isViewerReady) {
+      console.debug("[NIVP] Viewer not ready yet, waiting...");
+      return;
+    }
 
     const loadNivPData = async () => {
       setIsLoading(true);
@@ -170,7 +176,7 @@ const useNivPPoints = (
     };
 
     loadNivPData();
-  }, [viewer, uri, elevationStandard]); // Include elevationStandard for initial transformation
+  }, [viewerRef, uri, elevationStandard, isViewerReady]); // Include isViewerReady
 
   // Filter points based on historic toggle and elevation standard
   useEffect(() => {
@@ -189,8 +195,6 @@ const useNivPPoints = (
         !isNaN(currentElevation) &&
         currentElevation !== 0
       );
-
-      // Update cartesian position based on new elevation standard
       const cartesian = hasValidElevation
         ? Cartesian3.fromDegrees(
             point.longitude,
@@ -198,7 +202,6 @@ const useNivPPoints = (
             currentElevation
           )
         : Cartesian3.fromDegrees(point.longitude, point.latitude, 0);
-
       return {
         ...point,
         cartesian,
@@ -208,22 +211,33 @@ const useNivPPoints = (
       };
     });
 
-    console.debug(
-      `[NIVP] Filtered to ${updatedPoints.length} points (includeHistoric: ${includeHistoric}, elevationStandard: ${elevationStandard})`
-    );
-
-    const validElevationCount = updatedPoints.filter(
-      (p) => p.hasValidElevation
-    ).length;
-    const invalidElevationCount = updatedPoints.length - validElevationCount;
-    console.debug(
-      `[NIVP] Valid elevation points: ${validElevationCount}, Invalid elevation points: ${invalidElevationCount}`
-    );
-
-    setFilteredPoints(updatedPoints);
+    // Only update state if changed (avoid rerender loop)
+    const prev = prevFilteredPointsRef.current;
+    const changed =
+      prev.length !== updatedPoints.length ||
+      prev.some((p, i) => p.id !== updatedPoints[i].id);
+    if (changed) {
+      setFilteredPoints(updatedPoints);
+      prevFilteredPointsRef.current = updatedPoints;
+    }
   }, [allPoints, includeHistoric, elevationStandard]);
+
   useEffect(() => {
-    if (!viewer || filteredPoints.length === 0) return;
+    const viewer = viewerRef.current;
+    if (!viewer || !isViewerReady) {
+      console.debug(
+        "[NIVP] Viewer not ready for entity creation, waiting..."
+      );
+      return;
+    }
+    if (filteredPoints.length === 0) {
+      console.warn("[NIVP] No filtered points to add as entities");
+      return;
+    }
+    if (viewer.isDestroyed()) {
+      console.warn("[NIVP] Viewer is destroyed, cannot add entities");
+      return;
+    }
 
     console.debug(`[NIVP] Creating ${filteredPoints.length} point entities...`);
 
@@ -362,7 +376,6 @@ const useNivPPoints = (
 
     // Add entities to viewer
     newEntities.forEach((entity) => {
-      // Add HMR robustness - check if viewer is not destroyed
       if (viewer && !viewer.isDestroyed()) {
         viewer.entities.add(entity);
       }
@@ -376,9 +389,7 @@ const useNivPPoints = (
     return () => {
       console.debug("[NIVP] Cleaning up point entities...");
       try {
-        // Clean up the entities that were tracked in the ref
         currentEntitiesRef.current.forEach((entity) => {
-          // Add HMR robustness - check if viewer is not destroyed
           if (viewer && !viewer.isDestroyed()) {
             viewer.entities.remove(entity);
           }
@@ -388,7 +399,7 @@ const useNivPPoints = (
         console.error("[useNivPPoints] Error during cleanup:", error);
       }
     };
-  }, [viewer, filteredPoints, elevationStandard]);
+  }, [viewerRef, filteredPoints, elevationStandard, isViewerReady]);
 
   return {
     isLoading,

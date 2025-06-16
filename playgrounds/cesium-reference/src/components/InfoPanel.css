@@ -1,0 +1,32 @@
+.info-panel {
+  width: fit-content;
+  max-width: 320px;
+}
+
+.info-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.info-panel-title {
+  margin: 0;
+}
+
+.info-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.info-row-full {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 8px;
+}
+
+.info-panel .ant-typography {
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+}

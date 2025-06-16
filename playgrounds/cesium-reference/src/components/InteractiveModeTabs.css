@@ -1,0 +1,19 @@
+.interactive-tabs {
+  width: fit-content;
+  max-width: 320px;
+}
+
+.interactive-tabs-content {
+  width: 100%;
+}
+
+.tab-paragraph {
+  margin-bottom: 0.5rem;
+}
+
+.measurement-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}

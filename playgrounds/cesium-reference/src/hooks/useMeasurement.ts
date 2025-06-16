@@ -11,9 +11,11 @@ import {
 } from "cesium";
 
 import { cesiumSafeRequestRender } from "@carma-mapping/cesium-engine";
-import { LABEL_FONT, SCALE_BY_DISTANCE } from "./useNivPPoints";
+import { LABEL_FONT, SCALE_BY_DISTANCE } from "./useNivPEntities";
+import { useCesiumViewer } from "../contexts/CesiumViewerContext";
 
-const useMeasurement = (viewer: Viewer | null, enabled: boolean = false) => {
+const useMeasurement = (enabled: boolean = false) => {
+  const { viewerRef } = useCesiumViewer();
   const handlerRef = useRef<ScreenSpaceEventHandler | null>(null);
   const measurementEntitiesRef = useRef<Entity[]>([]);
   const currentPolylineRef = useRef<Entity | null>(null);
@@ -40,6 +42,8 @@ const useMeasurement = (viewer: Viewer | null, enabled: boolean = false) => {
       currentPolylineRef.current !== null
     );
   }, []);
+
+  const viewer = viewerRef.current;
 
   const clearMeasurements = useCallback(() => {
     if (!viewer || viewer.isDestroyed()) return;

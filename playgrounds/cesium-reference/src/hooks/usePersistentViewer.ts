@@ -5,7 +5,7 @@ import { useCameraPersistence } from "./useCameraPersistence";
 import { useZoomToTilesetOnReady } from "./useZoomToTilesetOnReady";
 import useTileset from "./useTileset";
 
-interface UseTestMeshViewerOptions {
+interface usePersistentViewerOptions {
   /** Cesium viewer constructor options */
   cesiumOptions?: Record<string, unknown>;
   /** Tileset URL */
@@ -17,10 +17,6 @@ interface UseTestMeshViewerOptions {
     autoSave?: boolean;
     saveDelay?: number;
     autoRestore?: boolean;
-    restoreOptions?: {
-      animate?: boolean;
-      duration?: number;
-    };
   };
 }
 
@@ -31,9 +27,9 @@ interface UseTestMeshViewerOptions {
  * - Camera persistence
  * - Conditional zoom to tileset
  */
-export const useTestMeshViewer = (
+export const usePersistentViewer = (
   containerRef: React.MutableRefObject<HTMLDivElement | null>,
-  options: UseTestMeshViewerOptions
+  options: usePersistentViewerOptions
 ) => {
   const {
     cesiumOptions = {},
@@ -110,7 +106,6 @@ export const useTestMeshViewer = (
       autoSave: true,
       saveDelay: 1000,
       autoRestore: true,
-      restoreOptions: { animate: false, duration: 0 },
       ...cameraPersistence,
     }
   );
@@ -141,3 +136,5 @@ export const useTestMeshViewer = (
     hasValidSavedState,
   };
 };
+
+export default usePersistentViewer;

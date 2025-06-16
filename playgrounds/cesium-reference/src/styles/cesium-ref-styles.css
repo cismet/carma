@@ -1,56 +1,19 @@
-/* Cesium Reference Playground Styles */
-
-/* Panel base styling - shared across all panels */
 .panel-base {
   background: rgba(42, 42, 42, 0.9);
   border-radius: 8px;
   backdrop-filter: blur(4px);
-  z-index: 1000;
-  position: fixed;
-  padding: 1rem;
-}
-
-/* Panel positioning variants */
-.panel-top-left {
-  top: 1rem;
-  left: 1rem;
-  min-width: 320px;
-  max-width: 600px;
-}
-
-.panel-top-right {
-  top: 1rem;
-  right: 1rem;
-  width: 450px; /* Adjusted width */
-  max-width: 90vw;
-}
-
-.panel-bottom-right {
-  bottom: 1rem;
-  right: 1rem;
-}
-
-/* Legacy class names for backwards compatibility */
-.panel-controls {
-  top: 1rem;
-  left: 1rem;
-  min-width: 320px;
-  max-width: 600px;
-}
-
-.panel-info {
-  top: 1rem;
-  right: 1rem;
-  width: 450px; /* Adjusted width */
-  max-width: 90vw;
+  padding: 0.75rem;
+  box-sizing: border-box;
+  border-color: transparent;
 }
 
 .home-button-container {
+  position: fixed;
   bottom: 1rem;
   right: 1rem;
+  z-index: 1050;
 }
 
-/* Info panel content styling */
 .info-row {
   display: flex;
   justify-content: space-between;

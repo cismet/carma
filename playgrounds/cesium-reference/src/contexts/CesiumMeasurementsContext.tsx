@@ -1,6 +1,7 @@
 import type { Viewer, Cartesian3 } from "cesium";
 import React, { createContext, useContext, useState, useMemo } from "react";
 import useMeasurement from "../hooks/useMeasurement";
+import { useCesiumViewer } from "./CesiumViewerContext";
 
 interface CesiumMeasurementsContextType {
   enableMeasurement: boolean;
@@ -18,20 +19,21 @@ const CesiumMeasurementsContext =
 
 interface CesiumMeasurementsProviderProps {
   children: React.ReactNode;
-  viewer: Viewer | null;
 }
 
 export const CesiumMeasurementsProvider: React.FC<
   CesiumMeasurementsProviderProps
-> = ({ children, viewer }) => {
+> = ({ children }) => {
   const [enableMeasurement, setEnableMeasurement] = useState(false);
+  const { viewerRef } = useCesiumViewer();
+  
   const {
     clearMeasurements,
     measurementCount,
     hasAnyMeasurementEntities,
-    isMeasurementActive,
     activeMeasurementPoints,
-  } = useMeasurement(viewer, enableMeasurement);
+    isActive,
+  } = useMeasurement(enableMeasurement);
 
   const contextValue = useMemo(
     () => ({
@@ -40,9 +42,9 @@ export const CesiumMeasurementsProvider: React.FC<
       clearMeasurements,
       measurementCount,
       hasAnyMeasurementEntities,
-      isMeasurementActive,
       activeMeasurementPoints,
-      viewer, // Provide viewer through context
+      isMeasurementActive: isActive,
+      viewer: viewerRef.current,
     }),
     [
       enableMeasurement,
@@ -50,9 +52,9 @@ export const CesiumMeasurementsProvider: React.FC<
       clearMeasurements,
       measurementCount,
       hasAnyMeasurementEntities,
-      isMeasurementActive,
       activeMeasurementPoints,
-      viewer, // Add viewer to dependency array
+      isActive,
+      viewerRef.current,
     ]
   );
 

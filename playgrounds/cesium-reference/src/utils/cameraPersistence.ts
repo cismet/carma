@@ -97,7 +97,7 @@ export const applyCameraState = (
 export const saveCameraState = (state: CameraPersistenceState): void => {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    console.debug("Camera state saved to localStorage", state);
+    //console.debug("Camera state saved to localStorage", state);
   } catch (error) {
     console.warn("Failed to save camera state to localStorage:", error);
   }

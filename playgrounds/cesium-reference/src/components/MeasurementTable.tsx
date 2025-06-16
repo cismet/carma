@@ -3,6 +3,7 @@ import { Radio, Table, Typography } from "antd";
 import type { Cartesian3, Viewer } from "cesium";
 import { Math as CesiumMath } from "cesium";
 import { PROJ4_CONVERTERS } from "@carma-commons/utils";
+import "./MeasurementTable.css";
 
 const { Title } = Typography;
 
@@ -88,11 +89,11 @@ const MeasurementTable: React.FC<MeasurementTableProps> = ({
     if (coordinateDisplayMode === "cartographic") {
       col1Title = "Lon (°)";
       col2Title = "Lat (°)";
-      col3Title = "Höhe über NHN in m*";
+      col3Title = "Höhe in m*";
     } else if (coordinateDisplayMode === "utm32") {
       col1Title = "Rechtswert (m)";
       col2Title = "Hochwert (m)";
-      col3Title = "Höhe über NHN in m*";
+      col3Title = "Höhe in m*";
     }
 
     return [
@@ -108,15 +109,8 @@ const MeasurementTable: React.FC<MeasurementTableProps> = ({
   }
 
   return (
-    <div style={{ marginBottom: "1rem" }}>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: "0.5rem",
-        }}
-      >
+    <div className="measurement-table-container">
+      <div className="measurement-table-header">
         <Title level={5} style={{ margin: 0, fontSize: "12px" }}>
           Gemessene Punkte:
         </Title>
@@ -133,19 +127,20 @@ const MeasurementTable: React.FC<MeasurementTableProps> = ({
         </Radio.Group>
       </div>
       <Table
+        className="measurement-table"
         columns={columns}
         dataSource={tableDataSource}
         pagination={false}
         size="small"
         bordered
-        scroll={{ y: 200 }} // Add scroll for longer lists, adjust as needed
+        scroll={{ y: 200 }}
       />
-      {coordinateDisplayMode === "utm32" && (
+      {coordinateDisplayMode !== "cartesian" && (
         <Typography.Text
           type="secondary"
-          style={{ fontSize: "10px", display: "block", textAlign: "right" }}
+          className="measurement-table-footnote"
         >
-          *GCG2016/DHHN2016 +/- 0.2m
+          *Höhe über NHN (Normalhöhennull) GCG2016/DHHN2016 +/- 0.2m
         </Typography.Text>
       )}
     </div>
