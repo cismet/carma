@@ -50,6 +50,8 @@ import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import "./index.css";
 
+import { MobileWarningMessage } from "@carma-mapping/components";
+
 if (typeof global === "undefined") {
   window.global = window;
 }
@@ -90,7 +92,12 @@ function App({ published }: { published?: boolean }) {
                 {!published && <TopNavbar />}
                 <MapMeasurement />
                 <MapWrapper />
-                <Modal
+                <MobileWarningMessage
+                  headerText={mobileInfo.headerText}
+                  bodyText={mobileInfo.bodyText}
+                  confirmButtonText={mobileInfo.confirmButtonText}
+                />
+                {/* <Modal
                   title={mobileInfo.headerText}
                   open={isModalOpen && isMobile}
                   closable={false}
@@ -106,7 +113,7 @@ function App({ published }: { published?: boolean }) {
                   ]}
                 >
                   <p>{mobileInfo.bodyText}</p>
-                </Modal>
+                </Modal> */}
               </div>
             </ErrorBoundary>
           </ObliqueProvider>
