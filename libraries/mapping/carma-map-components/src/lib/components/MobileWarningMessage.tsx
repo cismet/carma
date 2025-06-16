@@ -6,6 +6,7 @@ type MobileWarningMessageProps = {
   confirmButtonText?: string;
   bodyText: string;
   isHardMode?: boolean;
+  messageWidth?: number;
 };
 
 export const MobileWarningMessage = ({
@@ -13,9 +14,10 @@ export const MobileWarningMessage = ({
   confirmButtonText = "Verstanden",
   bodyText,
   isHardMode = false,
+  messageWidth = 600,
 }: MobileWarningMessageProps) => {
   const [isModalOpen, setIsModalOpen] = useState(true);
-  const isMobile = window.innerWidth < 600;
+  const isMobile = window.innerWidth < messageWidth;
   return (
     <Modal
       title={headerText}
