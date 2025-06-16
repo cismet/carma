@@ -46,8 +46,8 @@ const defaultState = {
   initializingFeatures: false,
 };
 
-const StateContext = React.createContext();
-const DispatchContext = React.createContext();
+const StateContext = React.createContext(defaultState);
+const DispatchContext = React.createContext(defaultState);
 
 const getItems = async ({
   setItems,
@@ -324,90 +324,90 @@ const FeatureCollectionContextProvider = ({
   //   console.log("xxx FeatureCollectionContextProvider items", state?.shownFeatures);
   // }
   // effect when items are changed
-  useEffect(() => {
-    //async start
-    (async () => {
-      if (state.filteredItems) {
-        set("initializingFeatures")(true);
+  // useEffect(() => {
+  //   //async start
+  //   (async () => {
+  //     if (state.filteredItems) {
+  //       set("initializingFeatures")(true);
 
-        const points = [];
-        const others = [];
-        let current = 0;
-        let id = 0;
+  //       const points = [];
+  //       const others = [];
+  //       let current = 0;
+  //       let id = 0;
 
-        // Calculate at which items we should fire callbacks
-        const totalItems = state.filteredItems.length;
-        const stepSize = Math.floor(
-          totalItems *
-            (convertItemToFeatureProgressCallbackPercentageSteps / 100)
-        );
+  //       // Calculate at which items we should fire callbacks
+  //       const totalItems = state.filteredItems.length;
+  //       const stepSize = Math.floor(
+  //         totalItems *
+  //           (convertItemToFeatureProgressCallbackPercentageSteps / 100)
+  //       );
 
-        // Initial progress callback
-        convertItemToFeatureProgressCallback({
-          current: 0,
-          total: 100,
-          inProgress: true,
-        });
+  //       // Initial progress callback
+  //       convertItemToFeatureProgressCallback({
+  //         current: 0,
+  //         total: 100,
+  //         inProgress: true,
+  //       });
 
-        for (const item of state.filteredItems || []) {
-          const f = await convertItemToFeature(item);
-          // check if it is an array of features
-          const doFeature = (f) => {
-            f.selected = false;
-            f.id = id++;
-            if (f?.geometry?.type === "Point") {
-              points.push(f);
-            } else {
-              others.push(f);
-            }
-            return f;
-          };
+  //       for (const item of state.filteredItems || []) {
+  //         const f = await convertItemToFeature(item);
+  //         // check if it is an array of features
+  //         const doFeature = (f) => {
+  //           f.selected = false;
+  //           f.id = id++;
+  //           if (f?.geometry?.type === "Point") {
+  //             points.push(f);
+  //           } else {
+  //             others.push(f);
+  //           }
+  //           return f;
+  //         };
 
-          if (Array.isArray(f)) {
-            for (const subfeature of f) {
-              doFeature(subfeature);
-            }
-          } else {
-            doFeature(f);
-          }
+  //         if (Array.isArray(f)) {
+  //           for (const subfeature of f) {
+  //             doFeature(subfeature);
+  //           }
+  //         } else {
+  //           doFeature(f);
+  //         }
 
-          // Fire callback at specific intervals
-          if (stepSize > 0 && current > 0 && current % stepSize === 0) {
-            const progressPercentage = Math.floor((current / totalItems) * 100);
-            convertItemToFeatureProgressCallback({
-              current: progressPercentage,
-              total: 100,
-              inProgress: true,
-            });
-          }
-          current++;
-        }
+  //         // Fire callback at specific intervals
+  //         if (stepSize > 0 && current > 0 && current % stepSize === 0) {
+  //           const progressPercentage = Math.floor((current / totalItems) * 100);
+  //           convertItemToFeatureProgressCallback({
+  //             current: progressPercentage,
+  //             total: 100,
+  //             inProgress: true,
+  //           });
+  //         }
+  //         current++;
+  //       }
 
-        setX.setAllFeatures([...points, ...others]);
-        setX.setPointFeatures(points);
-        setX.setOtherFeatures(others);
+  //       setX.setAllFeatures([...points, ...others]);
+  //       setX.setPointFeatures(points);
+  //       setX.setOtherFeatures(others);
 
-        // points
-        setX.setPointFeatureIndex(
-          new KDBush(
-            points,
-            (p) => p.geometry.coordinates[0],
-            (p) => p.geometry.coordinates[1]
-          )
-        );
-        // other geometries
-        const polyindex = createFlatbushIndex(others);
-        setX.setPolyFeatureIndex(polyindex);
-        set("initializingFeatures")(false);
-        convertItemToFeatureProgressCallback({
-          current: 100,
-          total: 100,
-          inProgress: false,
-        });
-      }
-    })();
-    //async end
-  }, [state.filteredItems]);
+  //       // points
+  //       setX.setPointFeatureIndex(
+  //         new KDBush(
+  //           points,
+  //           (p) => p.geometry.coordinates[0],
+  //           (p) => p.geometry.coordinates[1]
+  //         )
+  //       );
+  //       // other geometries
+  //       const polyindex = createFlatbushIndex(others);
+  //       setX.setPolyFeatureIndex(polyindex);
+  //       set("initializingFeatures")(false);
+  //       convertItemToFeatureProgressCallback({
+  //         current: 100,
+  //         total: 100,
+  //         inProgress: false,
+  //       });
+  //     }
+  //   })();
+  //   //async end
+  // }, [state.filteredItems]);
 
   // effect on filter change
   useEffect(() => {

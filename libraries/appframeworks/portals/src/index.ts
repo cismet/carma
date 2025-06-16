@@ -25,6 +25,11 @@ export { FeatureCollectionContext } from "./lib/contexts/FeatureCollectionContex
 export { FeatureCollectionDispatchContext } from "./lib/contexts/FeatureCollectionContextProvider.tsx";
 export { UIContext } from "./lib/contexts/UIContextProvider.tsx";
 export { UIDispatchContext } from "./lib/contexts/UIContextProvider.tsx";
+export { TopicMapStylingContext } from "./lib/contexts/TopicMapStylingContextProvider.tsx";
+export { ResponsiveTopicMapContext } from "./lib/contexts/ResponsiveTopicMapContextProvider.tsx";
+export { TopicMapContext } from "./lib/contexts/TopicMapContextProvider.tsx";
+
+export { TopicMapComponent } from "./lib/components/react-cismap/TopicMapComponent.tsx";
 
 export { GazDataProvider, useGazData } from "./lib/components/GazDataProvider";
 

@@ -6,14 +6,14 @@ import { createHashHistory } from "history";
 import localforage from "localforage";
 import { getType } from "@turf/invariant";
 import envelope from "@turf/envelope";
-import TopicMapStylingContextProvider from "react-cismap/contexts/TopicMapStylingContextProvider";
-import ResponsiveTopicMapContextProvider from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { crs25832, crs3857, projectionData } from "../utils/constants";
 import { convertBBox2Bounds } from "../utils/gisHelper";
 import OfflineLayerCacheContextProvider from "./OfflineLayerCacheContextProvider";
 import UIContextProvider from "./UIContextProvider";
 import LightBoxContextProvider from "./LightBoxContextProvider";
 import FeatureCollectionContextProvider from "./FeatureCollectionContextProvider";
+import TopicMapStylingContextProvider from "./TopicMapStylingContextProvider";
+import ResponsiveTopicMapContextProvider from "./ResponsiveTopicMapContextProvider";
 
 const defaultState = {
   location: undefined,
