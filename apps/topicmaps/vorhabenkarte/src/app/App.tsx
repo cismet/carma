@@ -12,8 +12,6 @@ import {
   getFeatureStyler,
   getPoiClusterIconCreatorFunction,
 } from "../helper/styler";
-import itemFilterFunction from "../helper/filter";
-import titleFactory from "../helper/titleFactory";
 
 export function App() {
   useEffect(() => {
@@ -23,26 +21,17 @@ export function App() {
     <TopicMapContextProvider
       appKey="VorhabenkarteWuppertal2025"
       featureItemsURL={
-        import.meta.env.VITE_WUPP_ASSET_BASEURL + "/data/ebikes.data.json"
+        import.meta.env.VITE_WUPP_ASSET_BASEURL + "/data/baeder.data.json"
       }
       referenceSystemDefinition={MappingConstants.proj4crs25832def}
       mapEPSGCode="25832"
       referenceSystem={MappingConstants.crs25832}
       getFeatureStyler={getFeatureStyler}
       featureTooltipFunction={(feature) => feature?.text}
-      titleFactory={titleFactory}
       convertItemToFeature={convertItemToFeature}
       clusteringOptions={{
         iconCreateFunction: getPoiClusterIconCreatorFunction({ svgSize: 24 }),
       }}
-      // itemFilterFunction={itemFilterFunction}
-      // filterState={{
-      //   stationsart: ["Ladestation", "Verleihstation"],
-      //   nur_online: false,
-      //   immer_offen: false,
-      //   gruener_strom: false,
-      //   ladebox_zu: false,
-      // }}
     >
       <Map />
     </TopicMapContextProvider>
