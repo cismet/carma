@@ -9,16 +9,20 @@ import { Radio } from "antd";
 import { layerMap } from "../../config";
 import LayerSelection from "./LayerSelection";
 import { useState } from "react";
+import { useMapStyle } from "@carma-apps/portals";
+import { MapStyleKeys } from "../../constants/MapStyleKeys";
 
 const BaseLayerSelection = () => {
   const [hovered, setHovered] = useState(false);
   const dispatch = useDispatch();
 
+  const { setCurrentStyle } = useMapStyle();
   const selectedMapLayer = useSelector(getSelectedMapLayer);
   const backgroundLayer = useSelector(getBackgroundLayer);
 
   const handleRadioClick = (e) => {
     if (backgroundLayer.id !== "karte") {
+      setCurrentStyle(MapStyleKeys.TOPO);
       dispatch(
         setBackgroundLayer({
           id: "karte",
