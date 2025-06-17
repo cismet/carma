@@ -41,6 +41,7 @@ const convertItemToFeature = async (itemIn, poiColors) => {
   //   ];
   // }
 
+  // const headerColor = item.thema.farbe + item.thema.fuellung;
   const headerColor = item.thema.farbe;
   if (item.fotos && item.fotos.length > 0) {
     item.foto =
