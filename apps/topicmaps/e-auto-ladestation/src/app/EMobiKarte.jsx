@@ -1,11 +1,10 @@
 import { useContext, useEffect } from "react";
 
-import FeatureCollection from "react-cismap/FeatureCollection";
-
 import Menu from "./Menu";
 import { getPoiClusterIconCreatorFunction } from "./helper/styler";
 import { defaultLayerConf } from "react-cismap/tools/layerFactory";
 import {
+  FeatureCollection,
   FeatureCollectionContext,
   FeatureCollectionDispatchContext,
   ResponsiveTopicMapContext,
@@ -115,7 +114,6 @@ const EMobiKarte = () => {
           fullScreenControl={false}
           zoomControls={false}
           modalMenu={<></>}
-          // baseLayerConf={defaultLayerConf}
           gazetteerSearchControl={true}
           gazetteerSearchComponent={EmptySearchComponent}
           // infoBox={
@@ -143,7 +141,7 @@ const EMobiKarte = () => {
         >
           {/* <TopicMapSelectionContent /> */}
 
-          {/* <FeatureCollection></FeatureCollection> */}
+          <FeatureCollection></FeatureCollection>
           {secondaryInfoVisible && (
             <SecondaryInfoModal
               feature={selectedFeature}
