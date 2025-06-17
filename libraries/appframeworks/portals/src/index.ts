@@ -29,6 +29,9 @@ export { TopicMapStylingContext } from "./lib/contexts/TopicMapStylingContextPro
 export { ResponsiveTopicMapContext } from "./lib/contexts/ResponsiveTopicMapContextProvider.tsx";
 export { TopicMapContext } from "./lib/contexts/TopicMapContextProvider.tsx";
 export { FeatureCollection } from "./lib/components/react-cismap/FeatureCollection.tsx";
+export { ModalApplicationMenu } from "./lib/components/react-cismap/ModalApplicationMenu.tsx";
+export { Section } from "./lib/components/react-cismap/Section.tsx";
+export { DefaultSettingsPanel } from "./lib/components/react-cismap/DefaultSettingsPanel.tsx";
 
 export { TopicMapComponent } from "./lib/components/react-cismap/TopicMapComponent.tsx";
 

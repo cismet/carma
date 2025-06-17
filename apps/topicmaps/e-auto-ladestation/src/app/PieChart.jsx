@@ -1,5 +1,8 @@
 import { useContext } from "react";
-import { FeatureCollectionContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
+// import { FeatureCollectionContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
+import { FeatureCollectionContext } from "@carma-apps/portals";
+import { Doughnut } from "react-chartjs-2";
+import "chart.js/auto";
 import { getColorForProperties } from "./helper/styler";
 import { PieChart } from "@carma-appframeworks/portals";
 

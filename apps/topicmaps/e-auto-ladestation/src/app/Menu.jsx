@@ -1,9 +1,9 @@
 import React, { useContext, useMemo } from "react";
 import CustomizationContextProvider from "react-cismap/contexts/CustomizationContextProvider";
 
-import ModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
-import Section from "react-cismap/topicmaps/menu/Section";
-import DefaultSettingsPanel from "react-cismap/topicmaps/menu/DefaultSettingsPanel";
+// import ModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
+// import Section from "react-cismap/topicmaps/menu/Section";
+// import DefaultSettingsPanel from "react-cismap/topicmaps/menu/DefaultSettingsPanel";
 import FilterUI from "./FilterUI";
 import { getSymbolSVG } from "./helper/helper";
 import {
@@ -17,8 +17,11 @@ import { GenericDigitalTwinReferenceSection } from "@carma-collab/wuppertal/comm
 import versionData from "../version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
 import {
+  DefaultSettingsPanel,
   FeatureCollectionContext,
   FeatureCollectionDispatchContext,
+  ModalApplicationMenu,
+  Section,
   UIDispatchContext,
 } from "@carma-apps/portals";
 

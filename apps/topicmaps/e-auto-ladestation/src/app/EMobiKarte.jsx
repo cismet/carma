@@ -86,7 +86,7 @@ const EMobiKarte = () => {
             disabled={false}
             nativeTooltip={true}
           />
-        </Control>
+        </Control> */}
         <Control position="bottomleft" order={10}>
           <div style={{ marginTop: "4px" }}>
             <LibFuzzySearch
@@ -108,36 +108,36 @@ const EMobiKarte = () => {
               placeholder="Ladestation | Stadtteil | Adresse | POI"
             />
           </div>
-        </Control> */}
+        </Control>
         <TopicMapComponent
           locatorControl={false}
           fullScreenControl={false}
           zoomControls={false}
-          modalMenu={<></>}
+          modalMenu={<Menu />}
           gazetteerSearchControl={true}
           gazetteerSearchComponent={EmptySearchComponent}
-          // infoBox={
-          //   <GenericInfoBoxFromFeature
-          //     pixelwidth={350}
-          //     config={{
-          //       displaySecondaryInfoAction: true,
-          //       city: "Wuppertal",
-          //       navigator: {
-          //         noun: {
-          //           singular: "Ladestation",
-          //           plural: "Ladestationen",
-          //         },
-          //       },
-          //       noCurrentFeatureTitle: "Keine Ladestationen gefunden",
-          //       noCurrentFeatureContent: (
-          //         <span>
-          //           Für mehr Ladestationen Ansicht mit verkleinern oder mit dem
-          //           untenstehenden Link auf das komplette Stadtgebiet zoomen.
-          //         </span>
-          //       ),
-          //     }}
-          //   />
-          // }
+          infoBox={
+            <GenericInfoBoxFromFeature
+              pixelwidth={350}
+              config={{
+                displaySecondaryInfoAction: true,
+                city: "Wuppertal",
+                navigator: {
+                  noun: {
+                    singular: "Ladestation",
+                    plural: "Ladestationen",
+                  },
+                },
+                noCurrentFeatureTitle: "Keine Ladestationen gefunden",
+                noCurrentFeatureContent: (
+                  <span>
+                    Für mehr Ladestationen Ansicht mit verkleinern oder mit dem
+                    untenstehenden Link auf das komplette Stadtgebiet zoomen.
+                  </span>
+                ),
+              }}
+            />
+          }
         >
           {/* <TopicMapSelectionContent /> */}
 
