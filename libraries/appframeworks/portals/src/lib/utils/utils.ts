@@ -149,7 +149,7 @@ export const parseToMapLayer = async (
           ),
           layerName: layer.name,
           capabilitiesUrl:
-            layer.props.url +
+            layer?.props?.url +
             "service=WMS&request=GetCapabilities&version=1.1.1",
         },
       };
@@ -184,7 +184,7 @@ export const parseToMapLayer = async (
               ),
               layerName: layer.name,
               capabilitiesUrl:
-                layer.props.url +
+                layer?.props?.url +
                 "service=WMS&request=GetCapabilities&version=1.1.1",
             },
           };
@@ -218,7 +218,7 @@ export const parseToMapLayer = async (
               ),
               layerName: layer.name,
               capabilitiesUrl:
-                layer.props.url +
+                layer?.props?.url +
                 "service=WMS&request=GetCapabilities&version=1.1.1",
             },
           };
