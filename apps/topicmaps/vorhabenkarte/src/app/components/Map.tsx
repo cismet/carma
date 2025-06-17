@@ -106,11 +106,11 @@ const Map = () => {
                 city: "Wuppertal",
                 navigator: {
                   noun: {
-                    singular: "Bad",
-                    plural: "Bäder",
+                    singular: "Item",
+                    plural: "Items",
                   },
                 },
-                noCurrentFeatureTitle: "Keine Bäder gefunden",
+                noCurrentFeatureTitle: "Keine Data gefunden",
                 noCurrentFeatureContent: (
                   <span>
                     Für mehr Bäder Ansicht mit verkleinern oder mit dem

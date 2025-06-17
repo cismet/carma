@@ -25,208 +25,232 @@ export const getColorForProperties = (properties) => {
   }
 };
 
-export const getPoiClusterIconCreatorFunction = ({
-  svgSize = 24,
-  colorizer = getColorForProperties,
-}) => {
-  //return a function because the functionCall of the iconCreateFunction cannot be manipulated
-  return (cluster) => {
-    var childCount = cluster.getChildCount();
-    const values = [];
-    const colors = [];
+// export const getPoiClusterIconCreatorFunction = ({
+//   svgSize = 24,
+//   colorizer = getColorForProperties,
+// }) => {
+//   //return a function because the functionCall of the iconCreateFunction cannot be manipulated
+//   return (cluster) => {
+//     var childCount = cluster.getChildCount();
+//     const values = [];
+//     const colors = [];
 
-    const r = svgSize / 1.5;
-    // Pie with default colors
-    let childMarkers = cluster.getAllChildMarkers();
+//     const r = svgSize / 1.5;
+//     // Pie with default colors
+//     let childMarkers = cluster.getAllChildMarkers();
 
-    let containsSelection = false;
-    let inCart = false;
-    for (let marker of childMarkers) {
-      values.push(1);
-      colors.push(Color(colorizer(marker.feature.properties)));
-      if (marker.feature.selected === true) {
-        containsSelection = true;
-      }
-    }
+//     let containsSelection = false;
+//     let inCart = false;
+//     for (let marker of childMarkers) {
+//       values.push(1);
+//       colors.push(Color(colorizer(marker.feature.properties)));
+//       if (marker.feature.selected === true) {
+//         containsSelection = true;
+//       }
+//     }
 
-    const pie = createSVGPie(values, r, colors);
+//     const pie = createSVGPie(values, r, colors);
 
-    let canvasSize = (svgSize / 3.0) * 5.0;
+//     let canvasSize = (svgSize / 3.0) * 5.0;
 
-    let background = createElement("svg", {
-      width: canvasSize,
-      height: canvasSize,
-      viewBox: `0 0 ${canvasSize} ${canvasSize}`,
-    });
+//     let background = createElement("svg", {
+//       width: canvasSize,
+//       height: canvasSize,
+//       viewBox: `0 0 ${canvasSize} ${canvasSize}`,
+//     });
 
-    //Kleiner Kreis in der Mitte
-    // (blau wenn selektion)
-    let innerCircleColor = "#ffffff";
-    if (containsSelection) {
-      innerCircleColor = "rgb(67, 149, 254)";
-    }
+//     //Kleiner Kreis in der Mitte
+//     // (blau wenn selektion)
+//     let innerCircleColor = "#ffffff";
+//     if (containsSelection) {
+//       innerCircleColor = "rgb(67, 149, 254)";
+//     }
 
-    //inner circle
-    pie.appendChild(
-      createElement("circle", {
-        cx: r,
-        cy: r,
-        r: svgSize / 3.0,
-        "stroke-width": 0,
-        opacity: "0.5",
-        fill: innerCircleColor,
-      })
-    );
+//     //inner circle
+//     pie.appendChild(
+//       createElement("circle", {
+//         cx: r,
+//         cy: r,
+//         r: svgSize / 3.0,
+//         "stroke-width": 0,
+//         opacity: "0.5",
+//         fill: innerCircleColor,
+//       })
+//     );
 
-    background.appendChild(pie);
+//     background.appendChild(pie);
 
-    // Umrandung
-    background.appendChild(
-      createElement("circle", {
-        cx: canvasSize / 2.0,
-        cy: canvasSize / 2.0,
-        r: r,
-        "stroke-width": 2,
-        stroke: "#000000",
-        opacity: "0.5",
-        fill: "none",
-      })
-    );
+//     // Umrandung
+//     background.appendChild(
+//       createElement("circle", {
+//         cx: canvasSize / 2.0,
+//         cy: canvasSize / 2.0,
+//         r: r,
+//         "stroke-width": 2,
+//         stroke: "#000000",
+//         opacity: "0.5",
+//         fill: "none",
+//       })
+//     );
 
-    if (inCart) {
-      background
-        .appendChild(
-          createElement("text", {
-            x: "50%",
-            y: "50%",
-            "text-anchor": "middle",
-            "font-family": "FontAwesome",
-            fill: "#fff",
-            "font-size": "26",
-            dy: ".4em",
-            opacity: "0.5",
-          })
-        )
-        .appendChild(document.createTextNode("\uf005"));
-    }
+//     if (inCart) {
+//       background
+//         .appendChild(
+//           createElement("text", {
+//             x: "50%",
+//             y: "50%",
+//             "text-anchor": "middle",
+//             "font-family": "FontAwesome",
+//             fill: "#fff",
+//             "font-size": "26",
+//             dy: ".4em",
+//             opacity: "0.5",
+//           })
+//         )
+//         .appendChild(document.createTextNode("\uf005"));
+//     }
 
-    background
-      .appendChild(
-        createElement("text", {
-          x: "50%",
-          y: "50%",
-          "text-anchor": "middle",
-          dy: ".3em",
-        })
-      )
-      .appendChild(document.createTextNode(childCount));
+//     background
+//       .appendChild(
+//         createElement("text", {
+//           x: "50%",
+//           y: "50%",
+//           "text-anchor": "middle",
+//           dy: ".3em",
+//         })
+//       )
+//       .appendChild(document.createTextNode(childCount));
 
-    pie.setAttribute("x", (canvasSize - r * 2) / 2.0);
-    pie.setAttribute("y", (canvasSize - r * 2) / 2.0);
+//     pie.setAttribute("x", (canvasSize - r * 2) / 2.0);
+//     pie.setAttribute("y", (canvasSize - r * 2) / 2.0);
 
-    var divIcon = L.divIcon({
-      className: "leaflet-data-marker",
-      html:
-        background.outerHTML ||
-        new XMLSerializer().serializeToString(background), //IE11 Compatibility
-      iconAnchor: [canvasSize / 2.0, canvasSize / 2.0],
-      iconSize: [canvasSize, canvasSize],
-    });
-    return divIcon;
-  };
-};
+//     var divIcon = L.divIcon({
+//       className: "leaflet-data-marker",
+//       html:
+//         background.outerHTML ||
+//         new XMLSerializer().serializeToString(background), //IE11 Compatibility
+//       iconAnchor: [canvasSize / 2.0, canvasSize / 2.0],
+//       iconSize: [canvasSize, canvasSize],
+//     });
+//     return divIcon;
+//   };
+// };
+
+// export const getFeatureStyler = (
+//   svgSize = 24,
+//   colorizer = getColorForProperties
+// ) => {
+//   return (feature) => {
+//     var color = Color(colorizer(feature.properties));
+//     let radius = svgSize / 2; //needed for the Tooltip Positioning
+//     let canvasSize = svgSize;
+//     if (feature.selected) {
+//       canvasSize = svgSize + 12;
+//     }
+
+//     let selectionBox = canvasSize - 6;
+//     let badge = feature.properties.svgBadge || fallbackSVG; //|| `<image x="${(svgSize - 20) / 2}" y="${(svgSize - 20) / 2}" width="20" height="20" xlink:href="/pois/signaturen/`+getSignatur(feature.properties)+`" />`;
+
+//     let svg = `<svg id="badgefor_${
+//       feature.id
+//     }" height="${canvasSize}" width="${canvasSize}">
+//                     <style>
+//                     /* <![CDATA[ */
+//                         #badgefor_${feature.id} .bg-fill  {
+//                             fill: ${colorizer(feature.properties)};
+//                         }
+//                         #badgefor_${feature.id} .bg-stroke  {
+//                             stroke: ${colorizer(feature.properties)};
+//                         }
+//                         #badgefor_${feature.id} .fg-fill  {
+//                             fill: white;
+//                         }
+//                         #badgefor_${feature.id} .fg-stroke  {
+//                             stroke: white;
+//                         }
+//                     /* ]]> */
+//                     </style>
+//                 <svg x="${svgSize / 12}" y="${svgSize / 12}"  width="${
+//       svgSize - (2 * svgSize) / 12
+//     }" height="${svgSize - (2 * svgSize) / 12}" viewBox="0 0 ${
+//       feature.properties.svgBadgeDimension.width
+//     } ${feature.properties.svgBadgeDimension.height}">
+//                     ${badge}
+//                 </svg>
+//                 </svg>  `;
+
+//     if (feature.selected) {
+//       let selectionOffset = (canvasSize - selectionBox) / 2;
+
+//       let badgeDimension = svgSize - (2 * svgSize) / 12;
+//       let innerBadgeOffset = (selectionBox - badgeDimension) / 2;
+
+//       svg =
+//         `<svg id="badgefor_${
+//           feature.id
+//         }" height="${canvasSize}" width="${canvasSize}">
+//                     <style>
+//                     /* <![CDATA[ */
+//                         #badgefor_${feature.id} .bg-fill  {
+//                             fill: ${colorizer(feature.properties)};
+//                         }
+//                         #badgefor_${feature.id} .bg-stroke  {
+//                             stroke: ${colorizer(feature.properties)};
+//                         }
+//                         #badgefor_${feature.id} .fg-fill  {
+//                             fill: white;
+//                         }
+//                         #badgefor_${feature.id} .fg-stroke  {
+//                             stroke: white;
+//                         }
+//                     /* ]]> */
+//                     </style>
+//                 <rect x="${selectionOffset}" y="${selectionOffset}" rx="8" ry="8" width="${selectionBox}" height="${selectionBox}" fill="rgba(67, 149, 254, 0.8)" stroke-width="0"/>
+//                 <svg x="${selectionOffset + innerBadgeOffset}" y="${
+//           selectionOffset + innerBadgeOffset
+//         }" width="${badgeDimension}" height="${badgeDimension}" viewBox="0 0 ` +
+//         feature.properties.svgBadgeDimension.width +
+//         ` ` +
+//         feature.properties.svgBadgeDimension.height +
+//         `">
+//                 ${badge}
+
+//                 </svg>
+//                 </svg>`;
+//     }
+
+//     const style = {
+//       radius,
+//       fillColor: color,
+//       color: color.darken(0.5),
+//       opacity: 1,
+//       fillOpacity: 0.8,
+//       svg,
+//       svgSize: canvasSize,
+//     };
+//     return style;
+//   };
+// };
+const selectionColor = new Color("#2664D8");
 
 export const getFeatureStyler = (
   svgSize = 24,
   colorizer = getColorForProperties
 ) => {
   return (feature) => {
-    var color = Color(colorizer(feature.properties));
-    let radius = svgSize / 2; //needed for the Tooltip Positioning
-    let canvasSize = svgSize;
-    if (feature.selected) {
-      canvasSize = svgSize + 12;
+    // const c = new Color(feature.properties.color);
+    const c = feature.properties.thema.farbe;
+    let borderColor, fillOpacity;
+    if (feature.selected === true) {
+      fillOpacity = 0.85;
+      borderColor = selectionColor;
     }
-
-    let selectionBox = canvasSize - 6;
-    let badge = feature.properties.svgBadge || fallbackSVG; //|| `<image x="${(svgSize - 20) / 2}" y="${(svgSize - 20) / 2}" width="20" height="20" xlink:href="/pois/signaturen/`+getSignatur(feature.properties)+`" />`;
-
-    let svg = `<svg id="badgefor_${
-      feature.id
-    }" height="${canvasSize}" width="${canvasSize}"> 
-                    <style>
-                    /* <![CDATA[ */
-                        #badgefor_${feature.id} .bg-fill  {
-                            fill: ${colorizer(feature.properties)};
-                        }
-                        #badgefor_${feature.id} .bg-stroke  {
-                            stroke: ${colorizer(feature.properties)};
-                        }
-                        #badgefor_${feature.id} .fg-fill  {
-                            fill: white;
-                        }
-                        #badgefor_${feature.id} .fg-stroke  {
-                            stroke: white;
-                        }
-                    /* ]]> */
-                    </style>
-                <svg x="${svgSize / 12}" y="${svgSize / 12}"  width="${
-      svgSize - (2 * svgSize) / 12
-    }" height="${svgSize - (2 * svgSize) / 12}" viewBox="0 0 ${
-      feature.properties.svgBadgeDimension.width
-    } ${feature.properties.svgBadgeDimension.height}">       
-                    ${badge}
-                </svg>
-                </svg>  `;
-
-    if (feature.selected) {
-      let selectionOffset = (canvasSize - selectionBox) / 2;
-
-      let badgeDimension = svgSize - (2 * svgSize) / 12;
-      let innerBadgeOffset = (selectionBox - badgeDimension) / 2;
-
-      svg =
-        `<svg id="badgefor_${
-          feature.id
-        }" height="${canvasSize}" width="${canvasSize}">
-                    <style>
-                    /* <![CDATA[ */
-                        #badgefor_${feature.id} .bg-fill  {
-                            fill: ${colorizer(feature.properties)};
-                        }
-                        #badgefor_${feature.id} .bg-stroke  {
-                            stroke: ${colorizer(feature.properties)};
-                        }
-                        #badgefor_${feature.id} .fg-fill  {
-                            fill: white;
-                        }
-                        #badgefor_${feature.id} .fg-stroke  {
-                            stroke: white;
-                        }
-                    /* ]]> */
-                    </style>
-                <rect x="${selectionOffset}" y="${selectionOffset}" rx="8" ry="8" width="${selectionBox}" height="${selectionBox}" fill="rgba(67, 149, 254, 0.8)" stroke-width="0"/>
-                <svg x="${selectionOffset + innerBadgeOffset}" y="${
-          selectionOffset + innerBadgeOffset
-        }" width="${badgeDimension}" height="${badgeDimension}" viewBox="0 0 ` +
-        feature.properties.svgBadgeDimension.width +
-        ` ` +
-        feature.properties.svgBadgeDimension.height +
-        `">
-                ${badge}
-
-                </svg>
-                </svg>`;
-    }
-
     const style = {
-      radius,
-      fillColor: color,
-      color: color.darken(0.5),
-      opacity: 1,
-      fillOpacity: 0.8,
-      svg,
-      svgSize: canvasSize,
+      color: borderColor,
+      weight: 2,
+      opacity: 0.7,
+      fillColor: c,
+      fillOpacity,
     };
     return style;
   };
