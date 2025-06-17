@@ -10,7 +10,7 @@ import Map from "./components/Map";
 import convertItemToFeature from "../helper/convertItemToFeature";
 import {
   getFeatureStyler,
-  getPoiClusterIconCreatorFunction,
+  // getPoiClusterIconCreatorFunction,
 } from "../helper/styler";
 
 export function App() {
