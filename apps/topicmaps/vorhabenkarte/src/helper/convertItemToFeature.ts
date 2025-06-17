@@ -59,9 +59,10 @@ const convertItemToFeature = async (itemIn, poiColors) => {
     properties: {
       ...item,
       info: {
-        title: item.thema.name,
+        title: text,
         // subtitle: item.beschreibung,
         subtitle: "auf 100 Zeichen gekürzt",
+        header: item.thema.name,
       },
       tel: item.kontakt.telefon,
       email: item.kontakt.mail,
