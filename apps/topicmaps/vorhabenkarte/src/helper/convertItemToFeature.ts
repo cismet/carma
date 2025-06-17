@@ -14,15 +14,19 @@ const convertItemToFeature = async (itemIn, poiColors) => {
   let clonedItem = JSON.parse(JSON.stringify(itemIn));
   // console.log("xxx clonedItem", clonedItem);
 
-  let item = clonedItem;
+  let item = await addSVGToProps(
+    clonedItem,
+    (i) => getSignature(i),
+    import.meta.env.VITE_WUPP_ASSET_BASEURL + "/poi-signaturen/vorhaben/"
+  );
 
-  if (item.geojson.type === "Point") {
-    item = await addSVGToProps(
-      clonedItem,
-      (i) => getSignature(i),
-      import.meta.env.VITE_WUPP_ASSET_BASEURL + "/poi-signaturen/vorhaben/"
-    );
-  }
+  // if (item.geojson.type === "Point") {
+  //   item = await addSVGToProps(
+  //     clonedItem,
+  //     (i) => getSignature(i),
+  //     import.meta.env.VITE_WUPP_ASSET_BASEURL + "/poi-signaturen/vorhaben/"
+  //   );
+  // }
 
   const id = item.id;
   const type = "Feature";
@@ -39,6 +43,7 @@ const convertItemToFeature = async (itemIn, poiColors) => {
   }
 
   item.color = headerColor;
+
   return {
     id,
     text,

@@ -10,7 +10,7 @@ import Map from "./components/Map";
 import convertItemToFeature from "../helper/convertItemToFeature";
 import {
   getFeatureStyler,
-  // getPoiClusterIconCreatorFunction,
+  getPoiClusterIconCreatorFunction,
 } from "../helper/styler";
 
 export function App() {
@@ -30,9 +30,9 @@ export function App() {
       getFeatureStyler={getFeatureStyler}
       featureTooltipFunction={(feature) => feature?.text}
       convertItemToFeature={convertItemToFeature}
-      // clusteringOptions={{
-      //   iconCreateFunction: getPoiClusterIconCreatorFunction({ svgSize: 24 }),
-      // }}
+      clusteringOptions={{
+        iconCreateFunction: getPoiClusterIconCreatorFunction({ svgSize: 24 }),
+      }}
     >
       <Map />
     </TopicMapContextProvider>
