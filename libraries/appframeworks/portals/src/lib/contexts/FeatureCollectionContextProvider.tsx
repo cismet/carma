@@ -383,7 +383,6 @@ const FeatureCollectionContextProvider = ({
           }
           current++;
         }
-        console.log("xxx points", points);
 
         setX.setAllFeatures([...points, ...others]);
         setX.setPointFeatures(points);
