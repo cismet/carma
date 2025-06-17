@@ -3,43 +3,32 @@ import Color from "color";
 import { getColorForProperties } from "./styler";
 
 const getSignature = (properties) => {
-  if (properties.signatur) {
-    return properties.signatur;
-  } else {
-    return "Icon_Freibad_farbig.svg";
+  if (properties.thema.signatur === "Icon_Verkehr.svg") {
+    return "Icon_Mobilitaet.svg";
   }
+
+  return properties.thema.signatur;
 };
 
 const convertItemToFeature = async (itemIn, poiColors) => {
   let clonedItem = JSON.parse(JSON.stringify(itemIn));
+  // console.log("xxx clonedItem", clonedItem);
 
   let item = clonedItem;
-  // const headerColor = Color(getColorForProperties(item));
 
-  // const info = {
-  //   header: `${item?.more?.typ} (${item?.more?.betreiber}), ${item?.more?.zugang}`,
-  //   title: item.name,
-  //   additionalInfo: itemIn.info,
-  //   subtitle: item.adresse,
-  // };
-  // item.info = info;
+  if (item.geojson.type === "Point") {
+    item = await addSVGToProps(
+      clonedItem,
+      (i) => getSignature(i),
+      import.meta.env.VITE_WUPP_ASSET_BASEURL + "/poi-signaturen/vorhaben/"
+    );
+  }
 
-  // item.color = headerColor;
   const id = item.id;
   const type = "Feature";
   const selected = false;
   const geometry = item.geojson;
   const text = item.titel;
-
-  // if (item.more.coursemanager) {
-  //   item.genericLinks = [
-  //     {
-  //       url: item.more.coursemanager,
-  //       tooltip: "Kurs buchen",
-  //       iconname: "calendar",
-  //     },
-  //   ];
-  // }
 
   // const headerColor = item.thema.farbe + item.thema.fuellung;
   const headerColor = item.thema.farbe;
