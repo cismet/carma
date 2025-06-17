@@ -40,7 +40,10 @@ const convertItemToFeature = async (itemIn, poiColors) => {
   //     },
   //   ];
   // }
+
+  const headerColor = item.thema.farbe;
   console.log("xxx item", item);
+  item.color = headerColor;
   return {
     id,
     text,
