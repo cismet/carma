@@ -42,7 +42,12 @@ const convertItemToFeature = async (itemIn, poiColors) => {
   // }
 
   const headerColor = item.thema.farbe;
-  // console.log("xxx item", item);
+  if (item.fotos && item.fotos.length > 0) {
+    item.foto =
+      "https://www.wuppertal.de/geoportal/vorhabenkarte/fotos/" +
+      item.fotos[item.fotos.length - 1].url;
+  }
+
   item.color = headerColor;
   return {
     id,
