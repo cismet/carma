@@ -114,8 +114,7 @@ const EMobiKarte = () => {
           fullScreenControl={false}
           zoomControls={false}
           modalMenu={<Menu />}
-          gazetteerSearchControl={true}
-          gazetteerSearchComponent={EmptySearchComponent}
+          gazetteerSearchControl={false}
           infoBox={
             <GenericInfoBoxFromFeature
               pixelwidth={350}
