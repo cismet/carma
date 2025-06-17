@@ -117,7 +117,6 @@
     "wms-capabilities": "^0.6.0"
   },
   "devDependencies": {
-    "@chromatic-com/storybook": "^3.2.4",
     "@nx-tools/container-metadata": "^6.1.1",
     "@nx-tools/nx-container": "^6.2.0",
     "@nx/cypress": "20.4.0",
