@@ -40,7 +40,7 @@ const convertItemToFeature = async (itemIn, poiColors) => {
   //     },
   //   ];
   // }
-
+  console.log("xxx item", item);
   return {
     id,
     text,
@@ -57,6 +57,7 @@ const convertItemToFeature = async (itemIn, poiColors) => {
       ...item,
       info: {
         title: text,
+        subtitle: item.beschreibung,
       },
     },
   };
