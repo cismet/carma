@@ -34,6 +34,8 @@ import {
 } from "@carma-mapping/fuzzy-search";
 import { isAreaType } from "@carma-commons/resources";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+import InfoBoxFotoPreview from "react-cismap/topicmaps/InfoBoxFotoPreview";
+import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
 
 const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 
@@ -159,6 +161,7 @@ const Map = ({ layers, vectorStyles }) => {
   const { responsiveState, gap, windowSize } = useContext(
     ResponsiveTopicMapContext
   );
+  const lightBoxDispatchContext = useContext(LightBoxDispatchContext);
 
   const pixelwidth =
     responsiveState === "normal" ? "300px" : windowSize.width - gap;
@@ -223,6 +226,12 @@ const Map = ({ layers, vectorStyles }) => {
               noCurrentFeatureTitle="nix da"
               noCurrentFeatureContent="nix da"
               links={links}
+              secondaryInfoBoxElements={[
+                <InfoBoxFotoPreview
+                  currentFeature={selectedFeature}
+                  lightBoxDispatchContext={lightBoxDispatchContext}
+                />,
+              ]}
             />
           )
         }
