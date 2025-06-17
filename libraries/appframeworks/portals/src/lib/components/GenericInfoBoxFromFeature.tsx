@@ -105,8 +105,6 @@ export const GenericInfoBoxFromFeature = (props) => {
   };
 
   if (currentFeature !== undefined) {
-    console.log("xxx currentFeature", currentFeature);
-
     links = getActionLinksForFeature(currentFeature, {
       entityClassName: config.navigator.noun.singular,
       displayZoomToFeature: true,
@@ -128,6 +126,9 @@ export const GenericInfoBoxFromFeature = (props) => {
       currentFeature?.properties?.info?.additionalInfo
     );
   }
+
+  console.log("xxx headerColor", links);
+  console.log("xxx currentFeature", currentFeature);
 
   const minified = undefined;
   const minify = undefined;

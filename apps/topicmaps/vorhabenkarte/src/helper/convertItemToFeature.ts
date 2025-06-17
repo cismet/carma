@@ -62,6 +62,7 @@ const convertItemToFeature = async (itemIn, poiColors) => {
       },
       tel: item.kontakt.telefon,
       email: item.kontakt.mail,
+      genericLinks: [],
     },
   };
 };
