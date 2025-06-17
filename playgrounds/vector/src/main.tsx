@@ -41,6 +41,10 @@ const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement
 );
 
+if (typeof global === "undefined") {
+  window.global = window;
+}
+
 const RootComponent = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const navigate = useNavigate();
