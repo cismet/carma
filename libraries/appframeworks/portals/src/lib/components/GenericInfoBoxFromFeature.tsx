@@ -127,9 +127,6 @@ export const GenericInfoBoxFromFeature = (props) => {
     );
   }
 
-  console.log("xxx headerColor", links);
-  console.log("xxx currentFeature", currentFeature);
-
   const minified = undefined;
   const minify = undefined;
   const { getNumberOfShownFeatures, getTotalNumberOfItems } = config;
