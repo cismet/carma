@@ -59,6 +59,8 @@ const convertItemToFeature = async (itemIn, poiColors) => {
         title: text,
         subtitle: item.beschreibung,
       },
+      tel: item.kontakt.telefon,
+      email: item.kontakt.mail,
     },
   };
 };
