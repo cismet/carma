@@ -10,7 +10,7 @@ import {
 } from "react-cismap/contexts/UIContextProvider";
 import FeatureCollection from "react-cismap/FeatureCollection";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
-import { getPoiClusterIconCreatorFunction } from "../../helper/styler";
+// import { getPoiClusterIconCreatorFunction } from "../../helper/styler";
 import Menu from "./Menu";
 import {
   InfoBoxTextContent,
@@ -56,7 +56,7 @@ const Map = () => {
     if (markerSymbolSize) {
       setClusteringOptions({
         ...clusteringOptions,
-        iconCreateFunction: getPoiClusterIconCreatorFunction,
+        // iconCreateFunction: getPoiClusterIconCreatorFunction,
       });
     }
   }, [markerSymbolSize]);
