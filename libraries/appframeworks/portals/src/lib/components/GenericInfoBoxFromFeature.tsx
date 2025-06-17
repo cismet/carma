@@ -127,6 +127,8 @@ export const GenericInfoBoxFromFeature = (props) => {
     );
   }
 
+  console.log("xxx currentFeature", currentFeature);
+
   const minified = undefined;
   const minify = undefined;
   const { getNumberOfShownFeatures, getTotalNumberOfItems } = config;
