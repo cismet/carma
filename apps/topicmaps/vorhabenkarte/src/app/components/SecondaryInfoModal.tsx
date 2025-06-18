@@ -12,6 +12,7 @@ import { Button, Modal, Accordion, Card, Table } from "react-bootstrap";
 import { SecondaryInfoFooter } from "@carma-collab/wuppertal/e-bikes";
 import versionData from "../../version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
+import { formatIsoString } from "../../helper/styler";
 
 const SecondaryInfoModal = ({ feature, setOpen }) => {
   const close = () => {
@@ -147,7 +148,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
             <div>
               <b>Letzte Aktualisierung:</b>
             </div>
-            <div>{plan.letzte_aktualisierung}</div>
+            <div>{formatIsoString(plan.letzte_aktualisierung)}</div>
             <br />
             <div>
               <b>Weitere Informationen:</b>
