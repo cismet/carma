@@ -138,6 +138,8 @@ export const getPoiClusterIconCreatorFunction = ({
   };
 };
 
+const selectionColor = new Color("#2664D8");
+
 export const getFeatureStyler = (
   svgSize = 24,
   colorizer = getColorForProperties
@@ -149,7 +151,8 @@ export const getFeatureStyler = (
     if (feature.selected) {
       canvasSize = svgSize + 12;
     }
-
+    const offset = 0.3;
+    const transparency = feature.properties.thema.fuellung / 100 + offset;
     let selectionBox = canvasSize - 6;
     let badge = feature.properties.svgBadge || fallbackSVG; //|| `<image x="${(svgSize - 20) / 2}" y="${(svgSize - 20) / 2}" width="20" height="20" xlink:href="/pois/signaturen/`+getSignatur(feature.properties)+`" />`;
 
@@ -224,16 +227,15 @@ export const getFeatureStyler = (
     const style = {
       radius,
       fillColor: color,
-      color: color.darken(0.5),
+      color: feature.selected === true ? selectionColor : color.darken(0.5),
       opacity: 1,
-      fillOpacity: 0.8,
+      fillOpacity: transparency,
       svg,
       svgSize: canvasSize,
     };
     return style;
   };
 };
-const selectionColor = new Color("#2664D8");
 
 // export const getFeatureStyler = (
 //   svgSize = 24,

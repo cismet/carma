@@ -10,6 +10,14 @@ const getSignature = (properties) => {
   return properties.thema.signatur;
 };
 
+const adjustFeatureColors = (color) => {
+  if (color === "#de0000") {
+    return "#CF4647";
+  }
+
+  return color;
+};
+
 const convertItemToFeature = async (itemIn, poiColors) => {
   let clonedItem = JSON.parse(JSON.stringify(itemIn));
 
@@ -26,10 +34,11 @@ const convertItemToFeature = async (itemIn, poiColors) => {
   const text = item.titel;
 
   // const headerColor = item.thema.farbe + item.thema.fuellung;
-  const headerColor = item.thema.farbe;
+  const headerColor = adjustFeatureColors(item.thema.farbe);
   if (item.fotos && item.fotos.length > 0 && item.fotos[0].url.includes(".")) {
     item.foto =
-      "https://www.wuppertal.de/geoportal/vorhabenkarte/fotos/" +
+      // "https://www.wuppertal.de/geoportal/vorhabenkarte/fotos/" +
+      "https://wunda-geoportal-docs.cismet.de/vorhabenkarte/fotos/" +
       item.fotos[0].url;
   }
 
