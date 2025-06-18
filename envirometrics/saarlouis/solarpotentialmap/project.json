@@ -6,11 +6,13 @@
   "tags": [],
   "targets": {
     "build": {
-      "executor": "@nx/vite:build",
-      "outputs": ["{options.outputPath}"],
+      "outputs": [
+        "{projectRoot}/{options.outDir}",
+        "{workspaceRoot}/dist/envirometrics/saarlouis/solarpotentialmap"
+      ],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "dist/envirometrics/saarlouis/solarpotentialmap"
+        "outDir": "../../../dist/envirometrics/saarlouis/solarpotentialmap"
       },
       "configurations": {
         "development": {
@@ -22,28 +24,14 @@
       }
     },
     "serve": {
-      "executor": "@nx/vite:dev-server",
       "defaultConfiguration": "development",
-      "options": {
-        "buildTarget": "solarpotentialmap-saarlouis:build"
-      },
       "configurations": {
-        "development": {
-          "buildTarget": "solarpotentialmap-saarlouis:build:development",
-          "hmr": true
-        },
-        "production": {
-          "buildTarget": "solarpotentialmap-saarlouis:build:production",
-          "hmr": false
-        }
+        "development": {},
+        "production": {}
       }
     },
     "preview": {
-      "executor": "@nx/vite:preview-server",
       "defaultConfiguration": "development",
-      "options": {
-        "buildTarget": "solarpotentialmap-saarlouis:build"
-      },
       "configurations": {
         "development": {
           "buildTarget": "solarpotentialmap-saarlouis:build:development"
@@ -57,14 +45,14 @@
     "lint": {
       "executor": "@nx/eslint:lint"
     },
-       "container": {
+    "container": {
       "executor": "@nx-tools/nx-container:build",
       "dependsOn": ["build"],
       "options": {
         "engine": "docker",
         "platforms": ["linux/amd64", "linux/arm64"],
         "push": true
-      }
+      },
     }
   }
 }

@@ -4,9 +4,6 @@
   "sourceRoot": "libraries/mapping/carma-map-layers/src",
   "projectType": "library",
   "tags": [],
-  "targets": {
-    "lint": {
-      "executor": "@nx/eslint:lint"
-    }
-  }
+  "// targets": "to see all targets run: nx show project carma-map-layers --web",
+  "targets": {}
 }

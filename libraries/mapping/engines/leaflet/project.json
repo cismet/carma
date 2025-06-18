@@ -6,21 +6,23 @@
   "tags": [],
   "targets": {
     "build": {
-      "executor": "@nx/vite:build",
-      "outputs": ["{options.outputPath}"],
+      "outputs": [
+        "{projectRoot}/{options.outDir}",
+        "{workspaceRoot}/dist/libraries/mapping/engines/leaflet"
+      ],
       "options": {
-        "outputPath": "dist/libraries/mapping/engines/leaflet"
+        "outDir": "../../../../dist/libraries/mapping/engines/leaflet"
       }
     },
     "test": {
-      "executor": "@nx/vite:test",
-      "outputs": ["{options.reportsDirectory}"],
+      "outputs": [
+        "{projectRoot}/{options.coverage.reportsDirectory}",
+        "{workspaceRoot}/coverage/libraries/mapping/engines/leaflet"
+      ],
       "options": {
-        "reportsDirectory": "../../../../coverage/libraries/mapping/engines/leaflet"
+        "passWithNoTests": true,
+        "coverage.reportsDirectory": "../../../../coverage/libraries/mapping/engines/leaflet"
       }
-    },
-    "lint": {
-      "executor": "@nx/eslint:lint"
     }
   }
 }

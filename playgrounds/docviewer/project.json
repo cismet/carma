@@ -6,11 +6,13 @@
   "tags": [],
   "targets": {
     "build": {
-      "executor": "@nx/vite:build",
-      "outputs": ["{options.outputPath}"],
+      "outputs": [
+        "{projectRoot}/{options.outDir}",
+        "{workspaceRoot}/dist/playgrounds/docviewer"
+      ],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "dist/playgrounds/docviewer"
+        "outDir": "../../dist/playgrounds/docviewer"
       },
       "configurations": {
         "development": {
@@ -22,40 +24,21 @@
       }
     },
     "serve": {
-      "executor": "@nx/vite:dev-server",
       "defaultConfiguration": "development",
       "options": {
-        "buildTarget": "docviewer-playground:build",
         "host": "0.0.0.0"
       },
       "configurations": {
-        "development": {
-          "buildTarget": "docviewer-playground:build:development",
-          "hmr": true
-        },
-        "production": {
-          "buildTarget": "docviewer-playground:build:production",
-          "hmr": false
-        }
+        "development": {},
+        "production": {}
       }
     },
     "preview": {
-      "executor": "@nx/vite:preview-server",
       "defaultConfiguration": "development",
-      "options": {
-        "buildTarget": "docviewer-playground:build"
-      },
       "configurations": {
-        "development": {
-          "buildTarget": "docviewer-playground:build:development"
-        },
-        "production": {
-          "buildTarget": "docviewer-playground:build:production"
-        }
+        "development": {},
+        "production": {}
       }
-    },
-    "lint": {
-      "executor": "@nx/eslint:lint"
     }
   }
 }

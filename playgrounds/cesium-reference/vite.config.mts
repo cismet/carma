@@ -4,6 +4,17 @@ import react from "@vitejs/plugin-react";
 import { nxViteTsPaths } from "@nx/vite/plugins/nx-tsconfig-paths.plugin";
 import { viteStaticCopy } from "vite-plugin-static-copy";
 
+// These options were migrated by @nx/vite:convert-to-inferred from the project.json file.
+const configValues = { default: {}, development: {}, production: {} };
+
+// Determine the correct configValue to use based on the configuration
+const nxConfiguration = process.env.NX_TASK_TARGET_CONFIGURATION ?? "default";
+
+const options = {
+  ...configValues.default,
+  ...(configValues[nxConfiguration] ?? {}),
+};
+
 const CESIUM_PATHNAME = "__cesium__";
 
 export default defineConfig({

@@ -7,20 +7,9 @@
   "implicitDependencies": ["potenzialflaechen-online"],
   "targets": {
     "e2e": {
-      "executor": "@nx/cypress:cypress",
       "options": {
-        "cypressConfig": "e2e/wunda/potenzialflaechen/cypress.config.ts",
-        "devServerTarget": "potenzialflaechen-online:serve:development",
-        "testingType": "e2e"
-      },
-      "configurations": {
-        "production": {
-          "devServerTarget": "potenzialflaechen-online:serve:production"
-        }
+        "config-file": "./cypress.config.ts"
       }
-    },
-    "lint": {
-      "executor": "@nx/eslint:lint"
     }
   }
 }

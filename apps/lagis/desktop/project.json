@@ -6,11 +6,13 @@
   "tags": [],
   "targets": {
     "build": {
-      "executor": "@nx/vite:build",
-      "outputs": ["{options.outputPath}"],
+      "outputs": [
+        "{projectRoot}/{options.outDir}",
+        "{workspaceRoot}/dist/apps/lagis/desktop"
+      ],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "dist/apps/lagis/desktop"
+        "outDir": "../../../dist/apps/lagis/desktop"
       },
       "configurations": {
         "development": {
@@ -22,47 +24,28 @@
       }
     },
     "serve": {
-      "executor": "@nx/vite:dev-server",
       "defaultConfiguration": "development",
-      "options": {
-        "buildTarget": "lagis-desktop:build"
-      },
       "configurations": {
-        "development": {
-          "buildTarget": "lagis-desktop:build:development",
-          "hmr": true
-        },
-        "production": {
-          "buildTarget": "lagis-desktop:build:production",
-          "hmr": false
-        }
+        "development": {},
+        "production": {}
       }
     },
     "preview": {
-      "executor": "@nx/vite:preview-server",
       "defaultConfiguration": "development",
-      "options": {
-        "buildTarget": "lagis-desktop:build"
-      },
       "configurations": {
-        "development": {
-          "buildTarget": "lagis-desktop:build:development"
-        },
-        "production": {
-          "buildTarget": "lagis-desktop:build:production"
-        }
-      },
-      "dependsOn": ["build"]
-    },
-    "test": {
-      "executor": "@nx/vite:test",
-      "outputs": ["{options.reportsDirectory}"],
-      "options": {
-        "reportsDirectory": "../../../coverage/apps/lagis/desktop"
+        "development": {},
+        "production": {}
       }
     },
-    "lint": {
-      "executor": "@nx/eslint:lint"
+    "test": {
+      "outputs": [
+        "{projectRoot}/{options.coverage.reportsDirectory}",
+        "{workspaceRoot}/coverage/apps/lagis/desktop"
+      ],
+      "options": {
+        "passWithNoTests": true,
+        "coverage.reportsDirectory": "../../../coverage/apps/lagis/desktop"
+      }
     },
     "serve-static": {
       "executor": "@nx/web:file-server",

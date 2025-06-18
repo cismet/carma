@@ -1,5 +1,16 @@
 import type { StorybookConfig } from "@storybook/react-vite";
 
+// These options were migrated by @nx/storybook:convert-to-inferred from the project.json file.
+const configValues = { default: {}, ci: {} };
+
+// Determine the correct configValue to use based on the configuration
+const nxConfiguration = process.env.NX_TASK_TARGET_CONFIGURATION ?? "default";
+
+const options = {
+  ...configValues.default,
+  ...(configValues[nxConfiguration] ?? {}),
+};
+
 const config: StorybookConfig = {
   stories: ["../src/app/**/*.stories.@(js|jsx|ts|tsx)"],
   addons: ["@storybook/addon-docs"],
@@ -8,7 +19,7 @@ const config: StorybookConfig = {
     name: "@storybook/react-vite",
     options: {
       builder: {
-        viteConfigPath: "playgrounds/map-control-playground/vite.config.mts",
+        viteConfigPath: "./vite.config.mts",
       },
     },
   },

@@ -6,11 +6,13 @@
   "tags": [],
   "targets": {
     "build": {
-      "executor": "@nx/vite:build",
-      "outputs": ["{options.outputPath}"],
+      "outputs": [
+        "{projectRoot}/{options.outDir}",
+        "{workspaceRoot}/dist/apps/topicmaps/fnp-inspektor"
+      ],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "dist/apps/topicmaps/fnp-inspektor"
+        "outDir": "../../../dist/apps/topicmaps/fnp-inspektor"
       },
       "configurations": {
         "development": {
@@ -22,42 +24,22 @@
       }
     },
     "serve": {
-      "executor": "@nx/vite:dev-server",
       "defaultConfiguration": "development",
-      "options": {
-        "buildTarget": "fnp-inspektor:build"
-      },
       "configurations": {
         "development": {
-          "buildTarget": "fnp-inspektor:build:development",
-          "hmr": true,
           "host": "0.0.0.0"
         },
         "production": {
-          "buildTarget": "fnp-inspektor:build:production",
-          "hmr": false,
           "host": "0.0.0.0"
         }
       }
     },
     "preview": {
-      "executor": "@nx/vite:preview-server",
       "defaultConfiguration": "development",
-      "options": {
-        "buildTarget": "fnp-inspektor:build"
-      },
       "configurations": {
-        "development": {
-          "buildTarget": "fnp-inspektor:build:development"
-        },
-        "production": {
-          "buildTarget": "fnp-inspektor:build:production"
-        }
-      },
-      "dependsOn": ["build"]
-    },
-    "lint": {
-      "executor": "@nx/eslint:lint"
+        "development": {},
+        "production": {}
+      }
     }
   }
 }

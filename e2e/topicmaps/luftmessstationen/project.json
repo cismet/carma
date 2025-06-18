@@ -7,20 +7,9 @@
   "implicitDependencies": ["luftmessstationen"],
   "targets": {
     "e2e": {
-      "executor": "@nx/cypress:cypress",
       "options": {
-        "cypressConfig": "e2e/topicmaps/luftmessstationen/cypress.config.ts",
-        "devServerTarget": "luftmessstationen:serve:development",
-        "testingType": "e2e"
-      },
-      "configurations": {
-        "production": {
-          "devServerTarget": "luftmessstationen:serve:production"
-        }
+        "config-file": "./cypress.config.ts"
       }
-    },
-    "lint": {
-      "executor": "@nx/eslint:lint"
     }
   }
 }

@@ -6,11 +6,13 @@
   "tags": [],
   "targets": {
     "build": {
-      "executor": "@nx/vite:build",
-      "outputs": ["{options.outputPath}"],
+      "outputs": [
+        "{projectRoot}/{options.outDir}",
+        "{workspaceRoot}/dist/envirometrics/wuppertal/floodingmap"
+      ],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "dist/envirometrics/wuppertal/floodingmap"
+        "outDir": "../../../dist/envirometrics/wuppertal/floodingmap"
       },
       "configurations": {
         "development": {
@@ -22,49 +24,32 @@
       }
     },
     "serve": {
-      "executor": "@nx/vite:dev-server",
       "defaultConfiguration": "development",
-      "options": {
-        "buildTarget": "floodingmap-wuppertal:build"
-      },
       "configurations": {
         "development": {
-          "buildTarget": "floodingmap-wuppertal:build:development",
-          "host":"0.0.0.0" , 
-          "hmr": true
+          "host": "0.0.0.0"
         },
         "production": {
-          "buildTarget": "floodingmap-wuppertal:build:production",
-          "host":"0.0.0.0" ,
-          "hmr": false
+          "host": "0.0.0.0"
         }
       }
     },
     "preview": {
-      "executor": "@nx/vite:preview-server",
       "defaultConfiguration": "development",
-      "options": {
-        "buildTarget": "floodingmap-wuppertal:build"
-      },
       "configurations": {
-        "development": {
-          "buildTarget": "floodingmap-wuppertal:build:development"
-        },
-        "production": {
-          "buildTarget": "floodingmap-wuppertal:build:production"
-        }
-      },
-      "dependsOn": ["build"]
-    },
-    "test": {
-      "executor": "@nx/vite:test",
-      "outputs": ["{options.reportsDirectory}"],
-      "options": {
-        "reportsDirectory": "../../../coverage/envirometrics/wuppertal/floodingmap"
+        "development": {},
+        "production": {}
       }
     },
-    "lint": {
-      "executor": "@nx/eslint:lint"
+    "test": {
+      "outputs": [
+        "{projectRoot}/{options.coverage.reportsDirectory}",
+        "{workspaceRoot}/coverage/envirometrics/wuppertal/floodingmap"
+      ],
+      "options": {
+        "passWithNoTests": true,
+        "coverage.reportsDirectory": "../../../coverage/envirometrics/wuppertal/floodingmap"
+      }
     }
   }
 }

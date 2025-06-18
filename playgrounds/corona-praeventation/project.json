@@ -6,11 +6,13 @@
   "tags": [],
   "targets": {
     "build": {
-      "executor": "@nx/vite:build",
-      "outputs": ["{options.outputPath}"],
+      "outputs": [
+        "{projectRoot}/{options.outDir}",
+        "{workspaceRoot}/dist/playgrounds/corona-praeventation"
+      ],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "dist/playgrounds/corona-praeventation"
+        "outDir": "../../dist/playgrounds/corona-praeventation"
       },
       "configurations": {
         "development": {
@@ -22,40 +24,18 @@
       }
     },
     "serve": {
-      "executor": "@nx/vite:dev-server",
       "defaultConfiguration": "development",
-      "options": {
-        "buildTarget": "corona-praeventation:build"
-      },
       "configurations": {
-        "development": {
-          "buildTarget": "corona-praeventation:build:development",
-          "hmr": true
-        },
-        "production": {
-          "buildTarget": "corona-praeventation:build:production",
-          "hmr": false
-        }
+        "development": {},
+        "production": {}
       }
     },
     "preview": {
-      "executor": "@nx/vite:preview-server",
       "defaultConfiguration": "development",
-      "options": {
-        "buildTarget": "corona-praeventation:build"
-      },
       "configurations": {
-        "development": {
-          "buildTarget": "corona-praeventation:build:development"
-        },
-        "production": {
-          "buildTarget": "corona-praeventation:build:production"
-        }
-      },
-      "dependsOn": ["build"]
-    },
-    "lint": {
-      "executor": "@nx/eslint:lint"
+        "development": {},
+        "production": {}
+      }
     }
   }
 }

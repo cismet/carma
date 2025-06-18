@@ -6,11 +6,13 @@
   "tags": [],
   "targets": {
     "build": {
-      "executor": "@nx/vite:build",
-      "outputs": ["{options.outputPath}"],
+      "outputs": [
+        "{projectRoot}/{options.outDir}",
+        "{workspaceRoot}/dist/apps/topicmaps/generic"
+      ],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "dist/apps/topicmaps/generic"
+        "outDir": "../../../dist/apps/topicmaps/generic"
       },
       "configurations": {
         "development": {
@@ -22,47 +24,21 @@
       }
     },
     "serve": {
-      "executor": "@nx/vite:dev-server",
       "defaultConfiguration": "development",
       "options": {
-        "buildTarget": "generic-topicmap:build"
+        "host": "0.0.0.0"
       },
       "configurations": {
-        "development": {
-          "buildTarget": "generic-topicmap:build:development",
-          "hmr": true
-        },
-        "production": {
-          "buildTarget": "generic-topicmap:build:production",
-          "hmr": false
-        }
+        "development": {},
+        "production": {}
       }
     },
     "preview": {
-      "executor": "@nx/vite:preview-server",
       "defaultConfiguration": "development",
-      "options": {
-        "buildTarget": "generic-topicmap:build"
-      },
       "configurations": {
-        "development": {
-          "buildTarget": "generic-topicmap:build:development"
-        },
-        "production": {
-          "buildTarget": "generic-topicmap:build:production"
-        }
-      },
-      "dependsOn": ["build"]
-    },
-    "test": {
-      "executor": "@nx/vite:test",
-      "outputs": ["{options.reportsDirectory}"],
-      "options": {
-        "reportsDirectory": "../../../coverage/apps/topicmaps/generic"
+        "development": {},
+        "production": {}
       }
-    },
-    "lint": {
-      "executor": "@nx/eslint:lint"
     }
   }
 }

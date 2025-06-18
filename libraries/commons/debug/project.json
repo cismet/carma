@@ -5,15 +5,14 @@
   "projectType": "library",
   "tags": [],
   "targets": {
-    "lint": {
-      "executor": "@nx/eslint:lint"
-    },
     "build": {
-      "executor": "@nx/vite:build",
-      "outputs": ["{options.outputPath}"],
+      "outputs": [
+        "{projectRoot}/{options.outDir}",
+        "{workspaceRoot}/dist/libraries/debug"
+      ],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "dist/libraries/commons/debug"
+        "outDir": "../../../dist/libraries/commons/debug"
       },
       "configurations": {
         "development": {

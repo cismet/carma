@@ -6,11 +6,13 @@
   "tags": [],
   "targets": {
     "build": {
-      "executor": "@nx/vite:build",
-      "outputs": ["{options.outputPath}"],
+      "outputs": [
+        "{projectRoot}/{options.outDir}",
+        "{workspaceRoot}/dist/apps/topicmaps/x-and-ride"
+      ],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "dist/apps/topicmaps/x-and-ride"
+        "outDir": "../../../dist/apps/topicmaps/x-and-ride"
       },
       "configurations": {
         "development": {
@@ -22,47 +24,28 @@
       }
     },
     "serve": {
-      "executor": "@nx/vite:dev-server",
       "defaultConfiguration": "development",
-      "options": {
-        "buildTarget": "x-and-ride:build"
-      },
       "configurations": {
-        "development": {
-          "buildTarget": "x-and-ride:build:development",
-          "hmr": true
-        },
-        "production": {
-          "buildTarget": "x-and-ride:build:production",
-          "hmr": false
-        }
+        "development": {},
+        "production": {}
       }
     },
     "preview": {
-      "executor": "@nx/vite:preview-server",
       "defaultConfiguration": "development",
-      "options": {
-        "buildTarget": "x-and-ride:build"
-      },
       "configurations": {
-        "development": {
-          "buildTarget": "x-and-ride:build:development"
-        },
-        "production": {
-          "buildTarget": "x-and-ride:build:production"
-        }
-      },
-      "dependsOn": ["build"]
-    },
-    "test": {
-      "executor": "@nx/vite:test",
-      "outputs": ["{options.reportsDirectory}"],
-      "options": {
-        "reportsDirectory": "../../../coverage/apps/topicmaps/x-and-ride"
+        "development": {},
+        "production": {}
       }
     },
-    "lint": {
-      "executor": "@nx/eslint:lint"
+    "test": {
+      "outputs": [
+        "{projectRoot}/{options.coverage.reportsDirectory}",
+        "{workspaceRoot}/coverage/apps/topicmaps/x-and-ride"
+      ],
+      "options": {
+        "passWithNoTests": true,
+        "coverage.reportsDirectory": "../../../coverage/apps/topicmaps/x-and-ride"
+      }
     }
   }
 }

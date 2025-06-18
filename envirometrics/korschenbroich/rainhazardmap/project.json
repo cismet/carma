@@ -6,11 +6,13 @@
   "tags": [],
   "targets": {
     "build": {
-      "executor": "@nx/vite:build",
-      "outputs": ["{options.outputPath}"],
+      "outputs": [
+        "{projectRoot}/{options.outDir}",
+        "{workspaceRoot}/dist/envirometrics/korschenbroich/rainhazardmap"
+      ],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "dist/envirometrics/korschenbroich/rainhazardmap"
+        "outDir": "../../../dist/envirometrics/korschenbroich/rainhazardmap"
       },
       "configurations": {
         "development": {
@@ -22,47 +24,28 @@
       }
     },
     "serve": {
-      "executor": "@nx/vite:dev-server",
       "defaultConfiguration": "development",
-      "options": {
-        "buildTarget": "rainhazardmap-korschenbroich:build"
-      },
       "configurations": {
-        "development": {
-          "buildTarget": "rainhazardmap-korschenbroich:build:development",
-          "hmr": true
-        },
-        "production": {
-          "buildTarget": "rainhazardmap-korschenbroich:build:production",
-          "hmr": false
-        }
+        "development": {},
+        "production": {}
       }
     },
     "preview": {
-      "executor": "@nx/vite:preview-server",
       "defaultConfiguration": "development",
-      "options": {
-        "buildTarget": "rainhazardmap-korschenbroich:build"
-      },
       "configurations": {
-        "development": {
-          "buildTarget": "rainhazardmap-korschenbroich:build:development"
-        },
-        "production": {
-          "buildTarget": "rainhazardmap-korschenbroich:build:production"
-        }
-      },
-      "dependsOn": ["build"]
-    },
-    "test": {
-      "executor": "@nx/vite:test",
-      "outputs": ["{options.reportsDirectory}"],
-      "options": {
-        "reportsDirectory": "../../../coverage/envirometrics/korschenbroich/rainhazardmap"
+        "development": {},
+        "production": {}
       }
     },
-    "lint": {
-      "executor": "@nx/eslint:lint"
+    "test": {
+      "outputs": [
+        "{projectRoot}/{options.coverage.reportsDirectory}",
+        "{workspaceRoot}/coverage/envirometrics/korschenbroich/rainhazardmap"
+      ],
+      "options": {
+        "passWithNoTests": true,
+        "coverage.reportsDirectory": "../../../coverage/envirometrics/korschenbroich/rainhazardmap"
+      }
     },
     "container": {
       "executor": "@nx-tools/nx-container:build",

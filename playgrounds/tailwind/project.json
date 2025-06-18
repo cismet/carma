@@ -6,11 +6,13 @@
   "tags": [],
   "targets": {
     "build": {
-      "executor": "@nx/vite:build",
-      "outputs": ["{options.outputPath}"],
+      "outputs": [
+        "{projectRoot}/{options.outDir}",
+        "{workspaceRoot}/dist/playgrounds/tailwind"
+      ],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "dist/playgrounds/tailwind"
+        "outDir": "../../dist/playgrounds/tailwind"
       },
       "configurations": {
         "development": {
@@ -22,47 +24,28 @@
       }
     },
     "serve": {
-      "executor": "@nx/vite:dev-server",
       "defaultConfiguration": "development",
-      "options": {
-        "buildTarget": "tailwind-playground:build"
-      },
       "configurations": {
-        "development": {
-          "buildTarget": "tailwind-playground:build:development",
-          "hmr": true
-        },
-        "production": {
-          "buildTarget": "tailwind-playground:build:production",
-          "hmr": false
-        }
+        "development": {},
+        "production": {}
       }
     },
     "preview": {
-      "executor": "@nx/vite:preview-server",
       "defaultConfiguration": "development",
-      "options": {
-        "buildTarget": "tailwind-playground:build"
-      },
       "configurations": {
-        "development": {
-          "buildTarget": "tailwind-playground:build:development"
-        },
-        "production": {
-          "buildTarget": "tailwind-playground:build:production"
-        }
-      },
-      "dependsOn": ["build"]
-    },
-    "test": {
-      "executor": "@nx/vite:test",
-      "outputs": ["{options.reportsDirectory}"],
-      "options": {
-        "reportsDirectory": "../../coverage/playgrounds/tailwind"
+        "development": {},
+        "production": {}
       }
     },
-    "lint": {
-      "executor": "@nx/eslint:lint"
+    "test": {
+      "outputs": [
+        "{projectRoot}/{options.coverage.reportsDirectory}",
+        "{workspaceRoot}/coverage/playgrounds/tailwind"
+      ],
+      "options": {
+        "passWithNoTests": true,
+        "coverage.reportsDirectory": "../../coverage/playgrounds/tailwind"
+      }
     },
     "serve-static": {
       "executor": "@nx/web:file-server",

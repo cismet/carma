@@ -4,9 +4,6 @@
   "sourceRoot": "libraries/appframeworks/portals/src",
   "projectType": "library",
   "tags": [],
-  "targets": {
-    "lint": {
-      "executor": "@nx/eslint:lint"
-    }
-  }
+  "// targets": "to see all targets run: nx show project carma-apps-portals --web",
+  "targets": {}
 }

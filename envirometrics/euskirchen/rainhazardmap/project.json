@@ -6,11 +6,13 @@
   "tags": [],
   "targets": {
     "build": {
-      "executor": "@nx/vite:build",
-      "outputs": ["{options.outputPath}"],
+      "outputs": [
+        "{projectRoot}/{options.outDir}",
+        "{workspaceRoot}/dist/envirometrics/euskirchen/rainhazardmap"
+      ],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "dist/envirometrics/euskirchen/rainhazardmap"
+        "outDir": "../../../dist/envirometrics/euskirchen/rainhazardmap"
       },
       "configurations": {
         "development": {
@@ -22,47 +24,28 @@
       }
     },
     "serve": {
-      "executor": "@nx/vite:dev-server",
       "defaultConfiguration": "development",
-      "options": {
-        "buildTarget": "rainhazardmap-euskirchen:build"
-      },
       "configurations": {
-        "development": {
-          "buildTarget": "rainhazardmap-euskirchen:build:development",
-          "hmr": true
-        },
-        "production": {
-          "buildTarget": "rainhazardmap-euskirchen:build:production",
-          "hmr": false
-        }
+        "development": {},
+        "production": {}
       }
     },
     "preview": {
-      "executor": "@nx/vite:preview-server",
       "defaultConfiguration": "development",
-      "options": {
-        "buildTarget": "rainhazardmap-euskirchen:build"
-      },
       "configurations": {
-        "development": {
-          "buildTarget": "rainhazardmap-euskirchen:build:development"
-        },
-        "production": {
-          "buildTarget": "rainhazardmap-euskirchen:build:production"
-        }
-      },
-      "dependsOn": ["build"]
-    },
-    "test": {
-      "executor": "@nx/vite:test",
-      "outputs": ["{options.reportsDirectory}"],
-      "options": {
-        "reportsDirectory": "../../../coverage/envirometrics/euskirchen/rainhazardmap"
+        "development": {},
+        "production": {}
       }
     },
-    "lint": {
-      "executor": "@nx/eslint:lint"
+    "test": {
+      "outputs": [
+        "{projectRoot}/{options.coverage.reportsDirectory}",
+        "{workspaceRoot}/coverage/envirometrics/euskirchen/rainhazardmap"
+      ],
+      "options": {
+        "passWithNoTests": true,
+        "coverage.reportsDirectory": "../../../coverage/envirometrics/euskirchen/rainhazardmap"
+      }
     }
   }
 }

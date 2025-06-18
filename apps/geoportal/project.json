@@ -6,11 +6,13 @@
   "tags": [],
   "targets": {
     "build": {
-      "executor": "@nx/vite:build",
-      "outputs": ["{options.outputPath}"],
+      "outputs": [
+        "{projectRoot}/{options.outDir}",
+        "{workspaceRoot}/dist/apps/geoportal"
+      ],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "dist/apps/geoportal"
+        "outDir": "../../dist/apps/geoportal"
       },
       "configurations": {
         "development": {
@@ -22,48 +24,31 @@
       }
     },
     "serve": {
-      "executor": "@nx/vite:dev-server",
       "defaultConfiguration": "development",
       "options": {
-        "buildTarget": "geoportal:build",
         "host": "0.0.0.0"
       },
       "configurations": {
-        "development": {
-          "buildTarget": "geoportal:build:development",
-          "hmr": true
-        },
-        "production": {
-          "buildTarget": "geoportal:build:production",
-          "hmr": false
-        }
+        "development": {},
+        "production": {}
       }
     },
     "preview": {
-      "executor": "@nx/vite:preview-server",
       "defaultConfiguration": "development",
-      "options": {
-        "buildTarget": "geoportal:build"
-      },
       "configurations": {
-        "development": {
-          "buildTarget": "geoportal:build:development"
-        },
-        "production": {
-          "buildTarget": "geoportal:build:production"
-        }
-      },
-      "dependsOn": ["build"]
-    },
-    "test": {
-      "executor": "@nx/vite:test",
-      "outputs": ["{options.reportsDirectory}"],
-      "options": {
-        "reportsDirectory": "../../coverage/apps/geoportal"
+        "development": {},
+        "production": {}
       }
     },
-    "lint": {
-      "executor": "@nx/eslint:lint"
+    "test": {
+      "outputs": [
+        "{projectRoot}/{options.coverage.reportsDirectory}",
+        "{workspaceRoot}/coverage/apps/geoportal"
+      ],
+      "options": {
+        "passWithNoTests": true,
+        "coverage.reportsDirectory": "../../coverage/apps/geoportal"
+      }
     }
   }
 }

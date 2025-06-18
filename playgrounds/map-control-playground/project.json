@@ -6,11 +6,13 @@
   "tags": [],
   "targets": {
     "build": {
-      "executor": "@nx/vite:build",
-      "outputs": ["{options.outputPath}"],
+      "outputs": [
+        "{projectRoot}/{options.outDir}",
+        "{workspaceRoot}/dist/playgrounds/generic-topicmaps"
+      ],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "dist/playgrounds/map-control-playground"
+        "outDir": "../../dist/playgrounds/map-control-playground"
       },
       "configurations": {
         "development": {
@@ -22,59 +24,41 @@
       }
     },
     "serve": {
-      "executor": "@nx/vite:dev-server",
       "defaultConfiguration": "development",
-      "options": {
-        "buildTarget": "map-control-playground:build"
-      },
       "configurations": {
-        "development": {
-          "buildTarget": "map-control-playground:build:development",
-          "hmr": true
-        },
-        "production": {
-          "buildTarget": "map-control-playground:build:production",
-          "hmr": false
-        }
+        "development": {},
+        "production": {}
       }
     },
     "preview": {
-      "executor": "@nx/vite:preview-server",
       "defaultConfiguration": "development",
-      "options": {
-        "buildTarget": "map-control-playground:build"
-      },
       "configurations": {
-        "development": {
-          "buildTarget": "map-control-playground:build:development"
-        },
-        "production": {
-          "buildTarget": "map-control-playground:build:production"
-        }
-      },
-      "dependsOn": ["build"]
-    },
-    "lint": {
-      "executor": "@nx/eslint:lint"
+        "development": {},
+        "production": {}
+      }
     },
     "storybook": {
-      "executor": "@nx/storybook:storybook",
       "options": {
         "port": 4400,
-        "configDir": "playgrounds/map-control-playground/.storybook"
+        "config-dir": ".storybook"
       },
       "configurations": {
         "ci": {
-          "quiet": true
+          "args": ["--quiet"]
         }
       }
     },
     "build-storybook": {
-      "executor": "@nx/storybook:build",
-      "outputs": ["{options.outputDir}"],
+      "outputs": [
+        "{projectRoot}/{options.output-dir}",
+        "{projectRoot}/storybook-static",
+        "{options.output-dir}",
+        "{options.outputDir}",
+        "{options.o}"
+      ],
       "options": {
-        "outputDir": "dist/storybook/map-control-playground",
-        "configDir": "playgrounds/map-control-playground/.storybook"
+        "config-dir": ".storybook",
+        "output-dir": "../../dist/storybook/map-control-playground"
       },
       "configurations": {
         "ci": {

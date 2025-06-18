@@ -1,0 +1,8 @@
+{
+  "name": "test-vite-canonical",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/test-vite-canonical/src",
+  "projectType": "application",
+  "tags": [],
+  "targets": {}
+}

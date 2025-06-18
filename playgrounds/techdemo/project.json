@@ -6,11 +6,13 @@
   "tags": [],
   "targets": {
     "build": {
-      "executor": "@nx/vite:build",
-      "outputs": ["{options.outputPath}"],
+      "outputs": [
+        "{projectRoot}/{options.outDir}",
+        "{workspaceRoot}/dist/playgrounds/techdemo"
+      ],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "dist/playgrounds/techdemo"
+        "outDir": "../../dist/playgrounds/techdemo"
       },
       "configurations": {
         "development": {
@@ -22,40 +24,18 @@
       }
     },
     "serve": {
-      "executor": "@nx/vite:dev-server",
       "defaultConfiguration": "development",
-      "options": {
-        "buildTarget": "techdemo:build"
-      },
       "configurations": {
-        "development": {
-          "buildTarget": "techdemo:build:development",
-          "hmr": true
-        },
-        "production": {
-          "buildTarget": "techdemo:build:production",
-          "hmr": false
-        }
+        "development": {},
+        "production": {}
       }
     },
     "preview": {
-      "executor": "@nx/vite:preview-server",
       "defaultConfiguration": "development",
-      "options": {
-        "buildTarget": "techdemo:build"
-      },
       "configurations": {
-        "development": {
-          "buildTarget": "techdemo:build:development"
-        },
-        "production": {
-          "buildTarget": "techdemo:build:production"
-        }
-      },
-      "dependsOn": ["build"]
-    },
-    "lint": {
-      "executor": "@nx/eslint:lint"
+        "development": {},
+        "production": {}
+      }
     }
   }
 }
