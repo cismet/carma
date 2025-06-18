@@ -1,6 +1,8 @@
 import {
   faBicycle,
   faChargingStation,
+  faEnvelope,
+  faPhone,
   faPhoneFlip,
   faQuestion,
   faSquareArrowUpRight,
@@ -31,7 +33,8 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
   const sortedResolutions = resolutions.sort((a, b) =>
     b.datum.localeCompare(a.datum)
   );
-
+  const email = plan?.kontakt?.mail || null;
+  const phone = plan?.kontakt?.telefon || null;
   console.log("xxx plan", sortedResolutions);
   let links: any = [];
 
@@ -232,7 +235,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
           </Card>
         </Accordion>
         <Accordion style={{ marginBottom: 6 }} defaultActiveKey={"0"}>
-          <Card style={{ backgroundColor: "#d6e9c6" }}>
+          <Card style={{ backgroundColor: "#fff3cd" }}>
             <Card.Header>
               <Accordion.Toggle as={Button} variant="link" eventKey="1">
                 Anhang
@@ -251,6 +254,37 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
                     );
                   })}
                 </ul>
+              </Card.Body>
+            </Accordion.Collapse>
+          </Card>
+        </Accordion>
+        <Accordion style={{ marginBottom: 6 }} defaultActiveKey="0">
+          <Card style={{ backgroundColor: "#d6e9c6" }}>
+            <Card.Header>
+              <Accordion.Toggle as={Button} variant="link" eventKey="2">
+                Kontakt
+              </Accordion.Toggle>
+            </Card.Header>
+            <Accordion.Collapse eventKey="2">
+              <Card.Body style={{ backgroundColor: "white" }}>
+                <div className="flex flex-col gap-4">
+                  {phone && (
+                    <a
+                      href={`tel:${phone}`}
+                      className="flex items-center gap-2 text-inherit"
+                    >
+                      <FontAwesomeIcon icon={faPhone} /> {phone}
+                    </a>
+                  )}
+                  {email && (
+                    <a
+                      href={`mailto:${email}`}
+                      className="flex items-center gap-2 text-inherit"
+                    >
+                      <FontAwesomeIcon icon={faEnvelope} /> <span>{email}</span>
+                    </a>
+                  )}
+                </div>
               </Card.Body>
             </Accordion.Collapse>
           </Card>
