@@ -26,7 +26,8 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
   const locationDescription = plan?.ortsbeschreibung || null;
   const focusRoom = plan?.stek || [];
   const resolutions = plan?.beschluesse ? [...plan.beschluesse] : [];
-
+  const documents = plan?.dokumente ? [...plan.dokumente] : [];
+  const docsPrefix = "/dokumente/";
   const sortedResolutions = resolutions.sort((a, b) =>
     b.datum.localeCompare(a.datum)
   );
@@ -226,6 +227,30 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
                     );
                   })}
                 </div>
+              </Card.Body>
+            </Accordion.Collapse>
+          </Card>
+        </Accordion>
+        <Accordion style={{ marginBottom: 6 }} defaultActiveKey={"0"}>
+          <Card style={{ backgroundColor: "#d6e9c6" }}>
+            <Card.Header>
+              <Accordion.Toggle as={Button} variant="link" eventKey="1">
+                Anhang
+              </Accordion.Toggle>
+            </Card.Header>
+            <Accordion.Collapse eventKey="1">
+              <Card.Body style={{ backgroundColor: "white" }}>
+                <ul>
+                  {documents.map((res, idx) => {
+                    return (
+                      <li key={idx}>
+                        <a href={res.url + docsPrefix} target="_blank">
+                          {res?.anzeige ? res?.anzeige : res.url}
+                        </a>
+                      </li>
+                    );
+                  })}
+                </ul>
               </Card.Body>
             </Accordion.Collapse>
           </Card>
