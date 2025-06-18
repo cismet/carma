@@ -34,8 +34,8 @@ export const getPoiClusterIconCreatorFunction = ({
   //return a function because the functionCall of the iconCreateFunction cannot be manipulated
   return (cluster) => {
     var childCount = cluster.getChildCount();
-    const values = [];
-    const colors = [];
+    const values: number[] = [];
+    const colors: Color[] = [];
 
     const r = svgSize / 1.5;
     // Pie with default colors
