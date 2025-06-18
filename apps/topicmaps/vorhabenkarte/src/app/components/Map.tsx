@@ -107,7 +107,7 @@ const Map = () => {
             <GenericInfoBoxFromFeature
               pixelwidth={350}
               config={{
-                displaySecondaryInfoAction: false,
+                displaySecondaryInfoAction: true,
                 city: "Wuppertal",
                 navigator: {
                   noun: {
