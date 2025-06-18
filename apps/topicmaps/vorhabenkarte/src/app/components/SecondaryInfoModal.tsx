@@ -13,6 +13,7 @@ import { SecondaryInfoFooter } from "@carma-collab/wuppertal/e-bikes";
 import versionData from "../../version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
 import { changeUnreadableColor, formatIsoString } from "../../helper/styler";
+import { MenuFooter } from "@carma-collab/wuppertal/commons";
 
 const SecondaryInfoModal = ({ feature, setOpen }) => {
   const close = () => {
@@ -24,9 +25,9 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
   const street = plan?.strasse || null;
   const locationDescription = plan?.ortsbeschreibung || null;
   const focusRoom = plan?.stek || [];
-  // console.log('xxx plan',  letzte_aktualisierung);
+  const resolutions = plan?.beschluesse ? [...plan.beschluesse] : [];
 
-  const sortedResolutions = [...plan.beschluesse].sort((a, b) =>
+  const sortedResolutions = resolutions.sort((a, b) =>
     b.datum.localeCompare(a.datum)
   );
 
@@ -231,10 +232,20 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
         </Accordion>
       </Modal.Body>
       <Modal.Footer>
-        <SecondaryInfoFooter
+        {/* <SecondaryInfoFooter
           close={close}
           version={getApplicationVersion(versionData)}
-        />
+        /> */}
+        <div className="flex gap-3">
+          <MenuFooter
+            title="Vorhabenkarte Wuppertal"
+            version={"0.0.1"}
+            skipHintergrundkarten={true}
+          />
+          <Button className="self-center" onClick={close}>
+            Ok
+          </Button>
+        </div>
       </Modal.Footer>
     </Modal>
   );
