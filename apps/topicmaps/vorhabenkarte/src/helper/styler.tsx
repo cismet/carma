@@ -24,7 +24,7 @@ export const getColorForProperties = (properties) => {
   //   return "#194761";
   // }
 
-  return "#107FC9";
+  return properties;
 };
 
 export const getPoiClusterIconCreatorFunction = ({
@@ -145,14 +145,15 @@ export const getFeatureStyler = (
   colorizer = getColorForProperties
 ) => {
   return (feature) => {
-    var color = Color(colorizer(feature.properties));
+    const offset = 0.3;
+    const transparency = feature.properties.thema.fuellung / 100 + offset;
+    var color = Color(colorizer(feature.properties)).alpha(transparency);
     let radius = svgSize / 2; //needed for the Tooltip Positioning
     let canvasSize = svgSize;
     if (feature.selected) {
       canvasSize = svgSize + 12;
     }
-    const offset = 0.3;
-    const transparency = feature.properties.thema.fuellung / 100 + offset;
+
     let selectionBox = canvasSize - 6;
     let badge = feature.properties.svgBadge || fallbackSVG; //|| `<image x="${(svgSize - 20) / 2}" y="${(svgSize - 20) / 2}" width="20" height="20" xlink:href="/pois/signaturen/`+getSignatur(feature.properties)+`" />`;
 
@@ -229,7 +230,7 @@ export const getFeatureStyler = (
       fillColor: color,
       color: feature.selected === true ? selectionColor : color.darken(0.5),
       opacity: 1,
-      fillOpacity: transparency,
+      fillOpacity: 1,
       svg,
       svgSize: canvasSize,
     };
