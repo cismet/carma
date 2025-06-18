@@ -49,7 +49,7 @@ export const ObliqueImageInfo: React.FC<ObliqueImageInfoProps> = ({
       key: "1",
       label: "Image Info",
       children: (
-        <div 
+        <div
           style={{
             ...infoCardStyle,
             border: "none",

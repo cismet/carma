@@ -1,4 +1,11 @@
-import { useCallback, useRef, useState, useEffect, useMemo, type CSSProperties } from "react";
+import {
+  useCallback,
+  useRef,
+  useState,
+  useEffect,
+  useMemo,
+  type CSSProperties,
+} from "react";
 import { useSelector } from "react-redux";
 
 import { debounce } from "lodash";
@@ -76,7 +83,6 @@ const debugComponentsContainerLeftStyle: CSSProperties = {
   gap: "5px",
   zIndex: 1000,
 };
-
 
 const activeButtonClass = "!bg-blue-100 !border-blue-400";
 
