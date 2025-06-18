@@ -271,3 +271,14 @@ export const formatIsoString = (isoString: string): string => {
   const year = date.getFullYear();
   return `${day}.${month}.${year}`;
 };
+
+export const changeUnreadableColor = (colorHex: string): string => {
+  const hex = colorHex.toLowerCase();
+
+  switch (hex) {
+    case "#ffffff":
+      return "#de0000";
+    default:
+      return colorHex;
+  }
+};

@@ -12,7 +12,7 @@ import { Button, Modal, Accordion, Card, Table } from "react-bootstrap";
 import { SecondaryInfoFooter } from "@carma-collab/wuppertal/e-bikes";
 import versionData from "../../version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
-import { formatIsoString } from "../../helper/styler";
+import { changeUnreadableColor, formatIsoString } from "../../helper/styler";
 
 const SecondaryInfoModal = ({ feature, setOpen }) => {
   const close = () => {
@@ -22,6 +22,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
   const plan = feature.properties;
   const district = plan?.kst_stadtbezirk?.name || "stadtweites Vorhaben";
   const street = plan?.strasse || null;
+  const locationDescription = plan?.ortsbeschreibung || null;
   const focusRoom = plan?.stek || [];
   // console.log('xxx plan',  letzte_aktualisierung);
 
@@ -140,7 +141,16 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
       <Modal.Header>
         <Modal.Title>
           <FontAwesomeIcon icon={faSquareEnvelope} />
-          {` Datenblatt: ${plan.info.title}`}
+          {` Datenblatt: `}
+          <span
+            style={{
+              color: plan.abgeschlossen
+                ? changeUnreadableColor(plan.color)
+                : "inherit",
+            }}
+          >
+            {plan.info.title}
+          </span>
         </Modal.Title>
       </Modal.Header>
       <Modal.Body id="myMenu" key={"prbr.secondaryInfo"}>
@@ -156,12 +166,24 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
               <div>{district}</div>
             </div>
             {street && (
-              <div>
-                <b>Adresse:</b>
+              <>
+                <br />
                 <div>
-                  {street} {plan?.hausnummer ? plan?.hausnummer : ""}
+                  <b>Adresse:</b>
+                  <div>
+                    {street} {plan?.hausnummer ? plan?.hausnummer : ""}
+                  </div>
                 </div>
-              </div>
+              </>
+            )}
+            {locationDescription && (
+              <>
+                <br />
+                <div>
+                  <b>Ortsbeschreibung:</b>
+                  <div>{street}</div>
+                </div>
+              </>
             )}
             <br />
             <div>
