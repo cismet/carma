@@ -37,6 +37,9 @@
       "@carma-collab/wuppertal/baederkarte": [
         "libraries/collaboration/carma-wuppertal-collab/src/baederkarte/index.ts"
       ],
+      "@carma-collab/wuppertal/belis-online": [
+        "libraries/collaboration/carma-wuppertal-collab/src/belis-online/index.ts"
+      ],
       "@carma-collab/wuppertal/bplan-auskunft": [
         "libraries/collaboration/carma-wuppertal-collab/src/bplan-auskunft/index.ts"
       ],
@@ -54,6 +57,9 @@
       ],
       "@carma-collab/wuppertal/fnp-inspektor": [
         "libraries/collaboration/carma-wuppertal-collab/src/fnp-inspektor/index.ts"
+      ],
+      "@carma-collab/wuppertal/generic-topicmap": [
+        "libraries/collaboration/carma-wuppertal-collab/src/generic-topicmap/index.ts"
       ],
       "@carma-collab/wuppertal/geoportal": [
         "libraries/collaboration/carma-wuppertal-collab/src/geoportal/index.tsx"
@@ -79,18 +85,17 @@
       "@carma-collab/wuppertal/lagis-desktop": [
         "libraries/collaboration/carma-wuppertal-collab/src/lagis-desktop/index.ts"
       ],
-      "@carma-collab/wuppertal/belis-online": [
-        "libraries/collaboration/carma-wuppertal-collab/src/belis-online/index.ts"
-      ],
       "@carma-collab/wuppertal/luftmessstationen": [
         "libraries/collaboration/carma-wuppertal-collab/src/luftmessstationen/index.ts"
       ],
-       "@carma-collab/wuppertal/luftmessstationen/*": [
+      "@carma-collab/wuppertal/luftmessstationen/*": [
         "libraries/collaboration/carma-wuppertal-collab/src/luftmessstationen/*"
       ],
-
       "@carma-collab/wuppertal/potenzialflaechen-online": [
         "libraries/collaboration/carma-wuppertal-collab/src/potenzialflaechen-online/index.ts"
+      ],
+      "@carma-collab/wuppertal/secondary-info-modals": [
+        "libraries/collaboration/carma-wuppertal-collab/src/secondary-info-modals/index.ts"
       ],
       "@carma-collab/wuppertal/stadtplan": [
         "libraries/collaboration/carma-wuppertal-collab/src/stadtplan/index.ts"
@@ -101,20 +106,14 @@
       "@carma-collab/wuppertal/umweltalarm": [
         "libraries/collaboration/carma-wuppertal-collab/src/umweltalarm/index.tsx"
       ],
-      "@carma-collab/wuppertal/verdis-online": [
-        "libraries/collaboration/carma-wuppertal-collab/src/verdis-online/index.ts"
-      ],
       "@carma-collab/wuppertal/verdis-desktop": [
         "libraries/collaboration/carma-wuppertal-collab/src/verdis-desktop/index.ts"
       ],
+      "@carma-collab/wuppertal/verdis-online": [
+        "libraries/collaboration/carma-wuppertal-collab/src/verdis-online/index.ts"
+      ],
       "@carma-collab/wuppertal/x-and-ride": [
         "libraries/collaboration/carma-wuppertal-collab/src/x-and-ride/index.ts"
-      ],
-      "@carma-collab/wuppertal/generic-topicmap": [
-        "libraries/collaboration/carma-wuppertal-collab/src/generic-topicmap/index.ts"
-      ],
-       "@carma-collab/wuppertal/secondary-info-modals": [
-        "libraries/collaboration/carma-wuppertal-collab/src/secondary-info-modals/index.ts"
       ],
       "@carma-commons/debug": ["libraries/commons/debug/src/index.ts"],
       "@carma-commons/document-viewer": [
@@ -142,7 +141,9 @@
       "@carma-mapping/fuzzy-search": [
         "libraries/mapping/fuzzy-search/src/index.ts"
       ],
-      "@carma-mapping/fuzzy-search/*":["libraries/mapping/fuzzy-search/src/lib/*"],
+      "@carma-mapping/fuzzy-search/*": [
+        "libraries/mapping/fuzzy-search/src/lib/*"
+      ],
       "@carma-mapping/layers": [
         "libraries/mapping/carma-map-layers/src/index.ts"
       ],
@@ -152,11 +153,11 @@
       "@carma-mapping/map-controls-layout": [
         "libraries/mapping/carma-map-control-layout/src/index.ts"
       ],
-      "@carma-mapping/test-controls-layout": [
-        "libraries/mapping/test-control-layout/src/index.ts"
-      ],
       "@carma-mapping/maplibre-engine": [
         "libraries/mapping/engines/maplibre/src/index.ts"
+      ],
+      "@carma-mapping/test-controls-layout": [
+        "libraries/mapping/test-control-layout/src/index.ts"
       ],
       "@carma-mapping/utils": [
         "libraries/mapping/carma-map-utils/src/index.ts"

@@ -105,6 +105,5 @@
     }
   },
   "useInferencePlugins": false,
-  "defaultBase": "dev",
-  "useLegacyCache": true
+  "defaultBase": "dev"
 }

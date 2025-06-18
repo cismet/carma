@@ -1,3 +1,6 @@
+// For more info, see https://github.com/storybookjs/eslint-plugin-storybook#configuration-flat-config-format
+import storybook from "eslint-plugin-storybook";
+
 const nx = require("@nx/eslint-plugin");
 const tseslint = require("typescript-eslint");
 const a11y = require("eslint-plugin-jsx-a11y");
@@ -50,10 +53,11 @@ const baseConfig = {
     "@typescript-eslint/no-unused-vars": "warn",
     "jsx-a11y/anchor-is-valid": "warn",
     "jsx-a11y/alt-text": "warn",
-    "jsx-a11y/aria-role": ["warn",
+    "jsx-a11y/aria-role": [
+      "warn",
       {
-        "allowedInvalidRoles": ["sync"], // TODO update react-cismap to use other name for role prop
-      }
+        allowedInvalidRoles: ["sync"], // TODO update react-cismap to use other name for role prop
+      },
     ],
     "jsx-a11y/click-events-have-key-events": "warn",
     "jsx-a11y/interactive-supports-focus": "warn",
@@ -70,11 +74,7 @@ const baseConfig = {
     "react/no-unescaped-entities": "off", // TODO discuss template format
     "react/prop-types": "warn",
     "react/react-in-jsx-scope": "off", // not needed with jsx since react 17
-    "react-hooks/exhaustive-deps": [
-      "warn",
-
-
-    ],
+    "react-hooks/exhaustive-deps": ["warn"],
     "react-refresh/only-export-components": [
       "warn",
       { allowConstantExport: true },
@@ -120,4 +120,10 @@ const cypressConfig = {
 };
 
 // order here specific to least specific
-module.exports = [baseConfig, cypressConfig];
+module.exports = [
+  baseConfig,
+  cypressConfig,
+  {
+    ignores: ["**/vite.config.*.timestamp*", "**/vitest.config.*.timestamp*"],
+  },
+];
