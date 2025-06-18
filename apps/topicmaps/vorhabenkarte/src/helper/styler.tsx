@@ -24,7 +24,7 @@ export const getColorForProperties = (properties) => {
   //   return "#194761";
   // }
 
-  return properties;
+  return "#194761";
 };
 
 export const getPoiClusterIconCreatorFunction = ({
