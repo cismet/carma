@@ -138,7 +138,8 @@ export const getPoiClusterIconCreatorFunction = ({
   };
 };
 
-const selectionColor = new Color("#2664D8");
+// const selectionColor = new Color("#2664D8");
+const selectionColor = new Color("#3b82f6");
 
 export const getFeatureStyler = (
   svgSize = 24,
