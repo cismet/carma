@@ -1,6 +1,13 @@
 import { addSVGToProps } from "react-cismap/tools/svgHelper";
-import Color from "color";
-import { getColorForProperties } from "./styler";
+// import Color from "color";
+// import { getColorForProperties } from "./styler";
+
+const shortenText = (text: string, maxChars = 100): string => {
+  if (typeof text !== "string") {
+    text = String(text);
+  }
+  return text.length <= maxChars ? text : text.slice(0, maxChars) + "…";
+};
 
 const getSignature = (properties) => {
   if (properties.thema.signatur === "Icon_Verkehr.svg") {
@@ -62,7 +69,7 @@ const convertItemToFeature = async (itemIn, poiColors) => {
       info: {
         title: text,
         // subtitle: item.beschreibung,
-        subtitle: "auf 100 Zeichen gekürzt",
+        subtitle: shortenText(item.beschreibung),
         header: item.thema.name,
       },
       tel: item.kontakt.telefon,
