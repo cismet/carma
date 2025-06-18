@@ -69,7 +69,9 @@ const convertItemToFeature = async (itemIn, poiColors) => {
       info: {
         title: text,
         // subtitle: item.beschreibung,
-        subtitle: shortenText(item.beschreibung),
+        subtitle: item.buergerbeteiligung
+          ? "Das Vorhaben wird mit Bürgerbeteiligung umgesetzt"
+          : shortenText(item.beschreibung),
         header: item.thema.name,
       },
       tel: item.kontakt.telefon,
