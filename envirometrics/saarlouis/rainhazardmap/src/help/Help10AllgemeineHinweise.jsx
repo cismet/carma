@@ -79,7 +79,7 @@ const Component = () => {
             Der untere Grenzwert für die farbige Anzeige einer
             Fließgeschwindigkeit liegt bei 0,2 m/s.
           </p>
-          <p>
+          {/* <p>
             Zusätzlich zu den maximalen Wassertiefen und zu den maximalen
             Fließgeschwindigkeiten informiert die Starkregengefahrenkarte über
             das <strong>Gefährdungspotenzial der Gebäude</strong> in Saarlouis.
@@ -92,7 +92,7 @@ const Component = () => {
               <li>1,0 m – orange </li>
               <li>&gt; 1,0 m – rot</li>
             </ul>
-          </p>
+          </p> */}
 
           <p>
             Die Starkregengefahrenkarte der Stadt Saarlouis wurde im Rahmen des

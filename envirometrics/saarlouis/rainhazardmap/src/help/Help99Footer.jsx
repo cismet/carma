@@ -9,7 +9,7 @@ const Comp = ({
   hintergrundkartenText = "DOP © RVR | Stadtkarte 2.0 © RVR | WebAtlasDE © BKG",
   taglineModelling = (
     <div>
-      <b>Modellierung und AIS Starkregenvorsorge</b> (Version 1.0 | 04/2021):{" "}
+      <b>Modellierung und AIS Starkregenvorsorge</b> (Version 2.0 | 11/2023):{" "}
       <a target="_wsw" href="https://cismet.de/">
         cismet GmbH
       </a>{" "}

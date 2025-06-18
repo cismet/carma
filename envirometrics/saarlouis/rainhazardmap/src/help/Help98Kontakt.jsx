@@ -1,7 +1,7 @@
 import React from "react";
 import GenericModalMenuSection from "react-cismap/topicmaps/menu/Section";
 import cismetLogo from "./assets/cismetSignet2k.png";
-import izesLogo from "./assets/IZESgGmbH_logo_1024.png";
+import izesLogo from "./assets/IZESgGmbH_logo.png";
 
 import customerLogo from "./assets/logo-saarlouis.jpg";
 /* eslint-disable jsx-a11y/anchor-is-valid */
