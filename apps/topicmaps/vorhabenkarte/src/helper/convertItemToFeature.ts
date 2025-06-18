@@ -27,7 +27,11 @@ const convertItemToFeature = async (itemIn, poiColors) => {
 
   // const headerColor = item.thema.farbe + item.thema.fuellung;
   const headerColor = item.thema.farbe;
-  if (item.fotos && item.fotos.length > 0) {
+  if (
+    item.fotos &&
+    item.fotos.length > 0 &&
+    item.fotos[item.fotos.length - 1].url.includes(".")
+  ) {
     item.foto =
       "https://www.wuppertal.de/geoportal/vorhabenkarte/fotos/" +
       item.fotos[item.fotos.length - 1].url;
