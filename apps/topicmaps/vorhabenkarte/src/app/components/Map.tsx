@@ -36,6 +36,7 @@ import {
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
 import { GenericInfoBoxFromFeature } from "@carma-apps/portals";
+import SecondaryInfoModal from "./SecondaryInfoModal";
 
 const Map = () => {
   const { setClusteringOptions } = useContext<
@@ -44,12 +45,16 @@ const Map = () => {
   const { markerSymbolSize } = useContext<typeof TopicMapStylingContext>(
     TopicMapStylingContext
   );
-  const { clusteringOptions } = useContext<typeof FeatureCollectionContext>(
-    FeatureCollectionContext
-  );
+  const { clusteringOptions, selectedFeature } = useContext<
+    typeof FeatureCollectionContext
+  >(FeatureCollectionContext);
+  const { secondaryInfoVisible } = useContext<typeof UIContext>(UIContext);
   const { responsiveState, gap, windowSize } = useContext<
     typeof ResponsiveTopicMapContext
   >(ResponsiveTopicMapContext);
+  const { setSecondaryInfoVisible } =
+    useContext<typeof UIDispatchContext>(UIDispatchContext);
+
   useSelectionTopicMap();
 
   useEffect(() => {
@@ -121,6 +126,13 @@ const Map = () => {
             />
           }
         >
+          {secondaryInfoVisible && (
+            <SecondaryInfoModal
+              // versionString={getApplicationVersion(versionData)}
+              feature={selectedFeature}
+              setOpen={setSecondaryInfoVisible}
+            />
+          )}
           <TopicMapSelectionContent />
           <FeatureCollection></FeatureCollection>
         </TopicMapComponent>
