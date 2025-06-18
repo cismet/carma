@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { Math as CesiumMath } from "cesium";
 import { useCesiumContext } from "@carma-mapping/cesium-engine";
-import { styled } from "styled-components";
 import { Collapse } from "antd";
 
 import { useOblique } from "../../hooks/useOblique";
@@ -12,12 +11,6 @@ import { useObliqueNearestImage } from "../../hooks/useObliqueNearestImage";
 import { CAMERA_ID_TO_UP_VECTOR_MATRIX_MAPPING } from "../../config";
 import { ObliqueControlPanel } from "./ObliqueControlPanel";
 import { computeDerivedExteriorOrientation } from "../../utils/transformExteriorOrientation";
-
-const ControlPanelContainer = styled.div`
-  position: absolute;
-  top: 4rem;
-  left: 1rem;
-`;
 
 export const ObliqueDebugSvg = () => {
   // UI state variables
@@ -401,7 +394,7 @@ export const ObliqueDebugSvg = () => {
         }}
       >
         {/* Image Controls Panel - Overlay on top of SVG */}
-        <ControlPanelContainer>
+        <div style={{ position: "absolute", top: "4rem", left: "1rem" }}>
           <ObliqueControlPanel
             isCollapsed={isControlsCollapsed}
             onToggleCollapse={() =>
@@ -424,7 +417,7 @@ export const ObliqueDebugSvg = () => {
             imageRotation={imageRotation}
             onImageRotationChange={setImageRotation}
           />
-        </ControlPanelContainer>
+        </div>
         <svg
           width={`${svgWidth}px`}
           height={`${svgHeight}px`}

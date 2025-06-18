@@ -1,4 +1,11 @@
-import { useCallback, useRef, useState, useEffect, useMemo } from "react";
+import {
+  useCallback,
+  useRef,
+  useState,
+  useEffect,
+  useMemo,
+  type CSSProperties,
+} from "react";
 import { useSelector } from "react-redux";
 
 import { debounce } from "lodash";
@@ -26,10 +33,6 @@ import { ObliqueDebugSvg } from "./debugUI/ObliqueDebugSvg";
 import { ObliqueImagePreview } from "./ObliqueImagePreview";
 import { ObliqueImageInfo } from "./debugUI/ObliqueImageInfo";
 import { CameraVectorControls } from "./debugUI/CameraVectorControls";
-import {
-  DebugComponentsContainerLeft,
-  DebugComponentsContainerRight,
-} from "./debugUI/StyledComponents";
 
 import { useExteriorOrientation } from "../hooks/useExteriorOrientation";
 import { useFootprints } from "../hooks/useFootprints";
@@ -57,6 +60,29 @@ interface ObliqueControlsProps {
   headingOffset?: number;
   isObliqueMode?: boolean;
 }
+
+// Reusable styles
+const debugComponentsContainerRightStyle: CSSProperties = {
+  position: "absolute",
+  top: "10px",
+  right: "10px",
+  width: "450px",
+  maxWidth: "calc(100vw - 20px)",
+  display: "flex",
+  flexDirection: "column",
+  gap: "5px",
+  zIndex: 1000,
+};
+
+const debugComponentsContainerLeftStyle: CSSProperties = {
+  position: "absolute",
+  top: "10px",
+  left: "60px",
+  display: "flex",
+  flexDirection: "column",
+  gap: "5px",
+  zIndex: 1000,
+};
 
 const activeButtonClass = "!bg-blue-100 !border-blue-400";
 
@@ -224,12 +250,12 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   return (
     <>
       {isDebugMode && (
-        <DebugComponentsContainerLeft>
+        <div style={debugComponentsContainerLeftStyle}>
           <ObliqueDebugSvg />
-        </DebugComponentsContainerLeft>
+        </div>
       )}
       {isDebugMode && nearestImage && (
-        <DebugComponentsContainerRight>
+        <div style={debugComponentsContainerRightStyle}>
           <CameraVectorControls
             photoId={photoId}
             exteriorOrientation={derivedExteriorOrientationRef.current}
@@ -243,7 +269,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
             setUpVector={() => {}}
           />
           <ObliqueImageInfo imageRecord={nearestImage} />
-        </DebugComponentsContainerRight>
+        </div>
       )}
       {nearestImage && photoId && (
         <ObliqueImagePreview

@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, type CSSProperties } from "react";
 import Icon from "react-cismap/commons/Icon";
 import type { Doc } from "../document-viewer";
 import { useNavigate, useParams } from "react-router-dom";
@@ -11,9 +11,32 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { ProgressBar } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
-import styled from "styled-components";
 
 export const SIDEBAR_BACKGROUND_COLOR = "#ffffff";
+
+const INDENTATION_PER_LEVEL = 10; // pixels per level
+const BASE_PADDING = 6; // base padding in pixels
+const BASE_MARGIN = 10;
+
+// Style function for hover div
+const getHoverDivStyle = (
+  isSelected: boolean,
+  isHovered: boolean
+): CSSProperties => ({
+  background: isSelected
+    ? "rgba(58, 124, 235, 0.1)"
+    : isHovered
+    ? "#f8f8f8"
+    : "#ffffff",
+  height: "100%",
+  padding: `${BASE_PADDING}px`,
+  marginBottom: "8px",
+  cursor: "pointer",
+  color: "#333",
+  position: "relative",
+  borderRadius: isSelected ? "6px" : "0",
+  transition: "background-color 0.2s ease",
+});
 
 interface SidebarProps {
   docs: Doc[];
@@ -28,7 +51,6 @@ interface SidebarProps {
   isNarrowScreen?: boolean;
   onToggle: () => void;
 }
-
 export default function Sidebar({
   docs,
   index,
@@ -46,6 +68,7 @@ export default function Sidebar({
   const navigate = useNavigate();
   const sidebarRef = useRef<HTMLDivElement>(null);
   const selectedItemRef = useRef<HTMLDivElement>(null);
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(
     new Set()
   );
@@ -114,10 +137,6 @@ export default function Sidebar({
       return next;
     });
   }, [index, docs, page]);
-
-  const INDENTATION_PER_LEVEL = 10; // pixels per level
-  const BASE_PADDING = 6; // base padding in pixels
-  const BASE_MARGIN = 10;
 
   const SIDEBAR_FILENAME_SHORTENER = {
     bplaene: (original: string) => {
@@ -438,29 +457,6 @@ export default function Sidebar({
     </>
   );
 
-  interface HoverDivProps {
-    isSelected: boolean;
-  }
-
-  const HoverDiv = styled.div<HoverDivProps>`
-    background: ${(props) =>
-      props.isSelected ? "rgba(58, 124, 235, 0.1)" : "#ffffff"};
-    height: 100%;
-    padding: ${BASE_PADDING + 0}px;
-    margin-bottom: 8px;
-
-    cursor: pointer;
-    color: #333;
-    position: relative;
-    border-radius: ${(props) => (props.isSelected ? "6px" : "0")};
-    transition: background-color 0.2s ease;
-
-    &:hover {
-      background-color: ${(props) =>
-        props.isSelected ? "rgba(58, 124, 235, 0.1)" : "#f8f8f8"};
-    }
-  `;
-
   return (
     <div ref={sidebarRef} style={{ backgroundColor: SIDEBAR_BACKGROUND_COLOR }}>
       <div style={{ marginBottom: 8 }}>
@@ -485,6 +481,7 @@ export default function Sidebar({
                     if (!shouldShowStructureLevel(doc, level)) return null;
 
                     return (
+                      // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
                       <div
                         key={`structure-${i}-${level}`}
                         style={{
@@ -514,6 +511,7 @@ export default function Sidebar({
                         {!compactView && (
                           <>
                             {collapsible && (
+                              // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
                               <div
                                 style={{
                                   position: "absolute",
@@ -551,6 +549,7 @@ export default function Sidebar({
                 {showDocument &&
                   shouldShowPrefixHeader(doc, i, docs) &&
                   documentPrefix && (
+                    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
                     <div
                       style={{
                         padding: "4px 8px",
@@ -582,10 +581,11 @@ export default function Sidebar({
                     </div>
                   )}
                 {showDocument && (
-                  <HoverDiv
+                  // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
+                  <div
                     ref={index - 1 === i ? selectedItemRef : null}
-                    isSelected={index - 1 === i}
                     style={{
+                      ...getHoverDivStyle(index - 1 === i, hoveredIndex === i),
                       marginLeft:
                         (doc.structure
                           ? getIndentationLevel(doc.structure) *
@@ -596,6 +596,8 @@ export default function Sidebar({
                           : 0),
                       position: "relative",
                     }}
+                    onMouseEnter={() => setHoveredIndex(i)}
+                    onMouseLeave={() => setHoveredIndex(null)}
                     onClick={() => navigate(`/docs/${docPackageId}/${i + 1}/1`)}
                   >
                     <VerticalLines
@@ -726,7 +728,7 @@ export default function Sidebar({
                         )}
                       </>
                     )}
-                  </HoverDiv>
+                  </div>
                 )}
               </div>
             );

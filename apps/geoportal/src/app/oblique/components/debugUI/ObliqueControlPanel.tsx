@@ -1,4 +1,4 @@
-import React from "react";
+import { type CSSProperties } from "react";
 import { Slider, Collapse } from "antd";
 import type { CollapseProps } from "antd";
 
@@ -23,66 +23,38 @@ interface ControlPanelProps {
   onToggleCollapse: () => void;
 }
 
-// Styled components for internal elements
-import { styled } from "styled-components";
+// Reusable styles
+const sliderGroupStyle: CSSProperties = {
+  marginBottom: "15px",
+  paddingTop: "5px",
+};
 
-const SliderGroup = styled.div`
-  margin-bottom: 15px;
-  padding-top: 5px;
+const sliderLabelStyle: CSSProperties = {
+  color: "#333",
+  marginBottom: "5px",
+  display: "flex",
+  justifyContent: "space-between",
+  fontWeight: "500",
+};
 
-  .ant-slider-track {
-    background-color: #1890ff;
-  }
+const sliderValueStyle: CSSProperties = {
+  color: "#1890ff",
+  fontWeight: "bold",
+};
 
-  .ant-slider-handle {
-    border-color: #1890ff;
-  }
-`;
-
-const SliderLabel = styled.div`
-  color: #333;
-  margin-bottom: 5px;
-  display: flex;
-  justify-content: space-between;
-  font-weight: 500;
-`;
-
-const SliderValue = styled.span`
-  color: #1890ff;
-  font-weight: bold;
-`;
-
-interface ControlButtonProps {
-  primary?: boolean;
-}
-
-const ControlButton = styled.button<ControlButtonProps>`
-  background: ${(props) => (props.primary ? "#1890ff" : "white")};
-  color: ${(props) => (props.primary ? "white" : "#333")};
-  border: 1px solid #d9d9d9;
-  border-radius: 4px;
-  padding: 4px 8px;
-  margin-right: 8px;
-  margin-bottom: 8px;
-  cursor: pointer;
-  font-size: 12px;
-  transition: all 0.3s ease;
-  box-shadow: 0 2px 0 rgba(0, 0, 0, 0.015);
-
-  &:hover {
-    background: ${(props) => (props.primary ? "#40a9ff" : "#f5f5f5")};
-    border-color: ${(props) => (props.primary ? "#40a9ff" : "#d9d9d9")};
-  }
-
-  &:active {
-    background: ${(props) => (props.primary ? "#096dd9" : "#e6e6e6")};
-  }
-`;
-
-const ButtonRow = styled.div`
-  display: flex;
-  margin-bottom: 10px;
-`;
+const getControlButtonStyle = (primary?: boolean): CSSProperties => ({
+  background: primary ? "#1890ff" : "white",
+  color: primary ? "white" : "#333",
+  border: "1px solid #d9d9d9",
+  borderRadius: "4px",
+  padding: "4px 8px",
+  marginRight: "8px",
+  marginBottom: "8px",
+  cursor: "pointer",
+  fontSize: "12px",
+  transition: "all 0.3s ease",
+  boxShadow: "0 2px 0 rgba(0, 0, 0, 0.015)",
+});
 
 export const ObliqueControlPanel: React.FC<ControlPanelProps> = ({
   showImages,
@@ -111,79 +83,85 @@ export const ObliqueControlPanel: React.FC<ControlPanelProps> = ({
       label: "Image Controls",
       children: (
         <>
-          <ButtonRow>
-            <ControlButton primary={showImages} onClick={onToggleImages}>
+          <div style={{ display: "flex", marginBottom: "10px" }}>
+            <button
+              style={getControlButtonStyle(showImages)}
+              onClick={onToggleImages}
+            >
               {showImages ? "Hide Images" : "Show Images"}
-            </ControlButton>
-            <ControlButton primary={showLabels} onClick={onToggleLabels}>
+            </button>
+            <button
+              style={getControlButtonStyle(showLabels)}
+              onClick={onToggleLabels}
+            >
               {showLabels ? "Hide Labels" : "Show Labels"}
-            </ControlButton>
-            <ControlButton
-              primary={offsetImages}
+            </button>
+            <button
+              style={getControlButtonStyle(offsetImages)}
               onClick={onToggleOffsetImages}
             >
               {offsetImages
                 ? "Center on Ground Points"
                 : "Center on Capture Points"}
-            </ControlButton>
-          </ButtonRow>
+            </button>
+          </div>
 
-          <SliderGroup>
-            <SliderLabel>
+          <div style={sliderGroupStyle}>
+            <div style={sliderLabelStyle}>
               <span>Image Width</span>
-              <SliderValue>{imageWidth}px</SliderValue>
-            </SliderLabel>
+              <span style={sliderValueStyle}>{imageWidth}px</span>
+            </div>
             <Slider
               min={64}
               max={400}
               value={imageWidth}
               onChange={(value) => onImageWidthChange(value as number)}
             />
-          </SliderGroup>
+          </div>
 
-          <SliderGroup>
-            <SliderLabel>
+          <div style={sliderGroupStyle}>
+            <div style={sliderLabelStyle}>
               <span>Image Height</span>
-              <SliderValue>{imageHeight}px</SliderValue>
-            </SliderLabel>
+              <span style={sliderValueStyle}>{imageHeight}px</span>
+            </div>
             <Slider
               min={64}
               max={400}
               value={imageHeight}
               onChange={(value) => onImageHeightChange(value as number)}
             />
-          </SliderGroup>
+          </div>
 
-          <SliderGroup>
-            <SliderLabel>
+          <div style={sliderGroupStyle}>
+            <div style={sliderLabelStyle}>
               <span>Crop Width Factor</span>
-              <SliderValue>{cropWidthFactor}%</SliderValue>
-            </SliderLabel>
+              <span style={sliderValueStyle}>{cropWidthFactor}%</span>
+            </div>
             <Slider
               min={100}
               max={800}
               value={cropWidthFactor}
               onChange={(value) => onCropWidthFactorChange(value as number)}
             />
-          </SliderGroup>
+          </div>
 
-          <SliderGroup>
-            <SliderLabel>
+          <div style={sliderGroupStyle}>
+            <div style={sliderLabelStyle}>
               <span>Crop Height Factor</span>
-              <SliderValue>{cropHeightFactor}%</SliderValue>
-            </SliderLabel>
+              <span style={sliderValueStyle}>{cropHeightFactor}%</span>
+            </div>
             <Slider
               min={100}
               max={800}
               value={cropHeightFactor}
               onChange={(value) => onCropHeightFactorChange(value as number)}
             />
-          </SliderGroup>
+          </div>
 
           <div style={{ marginTop: "15px", marginBottom: "5px" }}>
-            <SliderLabel>
+            <div style={sliderLabelStyle}>
               <span>Image Rotation</span>
-            </SliderLabel>
+            </div>
 
             <div
               style={{
