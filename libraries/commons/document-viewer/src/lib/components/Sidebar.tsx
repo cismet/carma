@@ -14,6 +14,30 @@ import "bootstrap/dist/css/bootstrap.min.css";
 
 export const SIDEBAR_BACKGROUND_COLOR = "#ffffff";
 
+const INDENTATION_PER_LEVEL = 10; // pixels per level
+const BASE_PADDING = 6; // base padding in pixels
+const BASE_MARGIN = 10;
+
+// Style function for hover div
+const getHoverDivStyle = (
+  isSelected: boolean,
+  isHovered: boolean
+): CSSProperties => ({
+  background: isSelected
+    ? "rgba(58, 124, 235, 0.1)"
+    : isHovered
+    ? "#f8f8f8"
+    : "#ffffff",
+  height: "100%",
+  padding: `${BASE_PADDING}px`,
+  marginBottom: "8px",
+  cursor: "pointer",
+  color: "#333",
+  position: "relative",
+  borderRadius: isSelected ? "6px" : "0",
+  transition: "background-color 0.2s ease",
+});
+
 interface SidebarProps {
   docs: Doc[];
   index: number;
@@ -27,7 +51,6 @@ interface SidebarProps {
   isNarrowScreen?: boolean;
   onToggle: () => void;
 }
-
 export default function Sidebar({
   docs,
   index,
@@ -114,10 +137,6 @@ export default function Sidebar({
       return next;
     });
   }, [index, docs, page]);
-
-  const INDENTATION_PER_LEVEL = 10; // pixels per level
-  const BASE_PADDING = 6; // base padding in pixels
-  const BASE_MARGIN = 10;
 
   const SIDEBAR_FILENAME_SHORTENER = {
     bplaene: (original: string) => {
@@ -438,23 +457,6 @@ export default function Sidebar({
     </>
   );
 
-  // Style function for hover div
-  const getHoverDivStyle = (isSelected: boolean): CSSProperties => ({
-    background: isSelected ? "rgba(58, 124, 235, 0.1)" : "#ffffff",
-    height: "100%",
-    padding: `${BASE_PADDING}px`,
-    marginBottom: "8px",
-    cursor: "pointer",
-    color: "#333",
-    position: "relative",
-    borderRadius: isSelected ? "6px" : "0",
-    transition: "background-color 0.2s ease",
-  });
-
-  const getHoverDivHoverStyle = (isSelected: boolean): CSSProperties => ({
-    backgroundColor: isSelected ? "rgba(58, 124, 235, 0.1)" : "#f8f8f8",
-  });
-
   return (
     <div ref={sidebarRef} style={{ backgroundColor: SIDEBAR_BACKGROUND_COLOR }}>
       <div style={{ marginBottom: 8 }}>
@@ -479,6 +481,7 @@ export default function Sidebar({
                     if (!shouldShowStructureLevel(doc, level)) return null;
 
                     return (
+                      // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
                       <div
                         key={`structure-${i}-${level}`}
                         style={{
@@ -508,6 +511,7 @@ export default function Sidebar({
                         {!compactView && (
                           <>
                             {collapsible && (
+                              // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
                               <div
                                 style={{
                                   position: "absolute",
@@ -545,6 +549,7 @@ export default function Sidebar({
                 {showDocument &&
                   shouldShowPrefixHeader(doc, i, docs) &&
                   documentPrefix && (
+                    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
                     <div
                       style={{
                         padding: "4px 8px",
@@ -576,11 +581,11 @@ export default function Sidebar({
                     </div>
                   )}
                 {showDocument && (
+                  // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
                   <div
                     ref={index - 1 === i ? selectedItemRef : null}
                     style={{
-                      ...getHoverDivStyle(index - 1 === i),
-                      ...(hoveredIndex === i ? getHoverDivHoverStyle(index - 1 === i) : {}),
+                      ...getHoverDivStyle(index - 1 === i, hoveredIndex === i),
                       marginLeft:
                         (doc.structure
                           ? getIndentationLevel(doc.structure) *
