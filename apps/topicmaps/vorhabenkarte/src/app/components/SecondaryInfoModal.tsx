@@ -21,6 +21,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
 
   const plan = feature.properties;
   const district = plan?.kst_stadtbezirk?.name || "stadtweites Vorhaben";
+  const street = plan?.strasse || null;
   const focusRoom = plan?.stek || [];
   // console.log('xxx plan',  letzte_aktualisierung);
 
@@ -151,9 +152,17 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
             <div>{formatIsoString(plan.letzte_aktualisierung)}</div>
             <br />
             <div>
-              <b>Weitere Informationen:</b>
+              <b>Stadtbezirk:</b>
               <div>{district}</div>
             </div>
+            {street && (
+              <div>
+                <b>Adresse:</b>
+                <div>
+                  {street} {plan?.hausnummer ? plan?.hausnummer : ""}
+                </div>
+              </div>
+            )}
             <br />
             <div>
               <b>Thema:</b>
