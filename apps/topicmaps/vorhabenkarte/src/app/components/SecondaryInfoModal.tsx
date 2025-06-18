@@ -22,13 +22,12 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
   const district = plan?.kst_stadtbezirk?.name || "stadtweites Vorhaben";
   const focusRoom = plan?.stek || [];
   // console.log('xxx plan',  letzte_aktualisierung);
-  console.log("xxx plan", plan);
-  // const isVerleih = ladestation.typ === "Verleihstation";
-  // let foto;
-  // if (ladestation.foto !== undefined) {
-  //   foto = ladestation.foto;
-  // }
 
+  const sortedResolutions = [...plan.beschluesse].sort((a, b) =>
+    b.datum.localeCompare(a.datum)
+  );
+
+  console.log("xxx plan", sortedResolutions);
   let links: any = [];
 
   // if (ladestation.betreiber) {
@@ -174,6 +173,30 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
             )}
           </div>
         </div>
+        <Accordion style={{ marginBottom: 6 }} defaultActiveKey={"0"}>
+          <Card style={{ backgroundColor: "#bce8f1" }}>
+            <Card.Header>
+              <Accordion.Toggle as={Button} variant="link" eventKey="0">
+                Politische Beschlüsse
+              </Accordion.Toggle>
+            </Card.Header>
+            <Accordion.Collapse eventKey="0">
+              <Card.Body style={{ backgroundColor: "white" }}>
+                <div>
+                  {sortedResolutions.map((res, idx) => {
+                    return (
+                      <p key={idx}>
+                        <a href={res.url} target="_blank">
+                          {res.anzeige}
+                        </a>
+                      </p>
+                    );
+                  })}
+                </div>
+              </Card.Body>
+            </Accordion.Collapse>
+          </Card>
+        </Accordion>
       </Modal.Body>
       <Modal.Footer>
         <SecondaryInfoFooter
