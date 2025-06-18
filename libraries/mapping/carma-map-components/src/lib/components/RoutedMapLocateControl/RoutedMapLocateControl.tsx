@@ -1,38 +1,53 @@
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import { faLocationArrow } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { createGlobalStyle } from "styled-components";
+import { useEffect } from "react";
 import { Tooltip } from "antd";
 import { isDesktop } from "react-device-detect";
 
 import { useRoutedMapLocateControl } from "./hooks/useRoutedMapLocateControl";
+import "./leaflet-locate-overrides.css";
 
 type RouteMapControlProps = {
   disabled: boolean;
   tourRefLabels: any;
   nativeTooltip?: boolean;
+  backgroundColor?: string;
 };
 
-const GlobalLocatorStyle = createGlobalStyle<{ backgroundColor?: string }>`
-.dont-show {
-  display: none !important;
-}
+// Function to set CSS custom property for dynamic background color
+const setLeafletBackgroundColor = (backgroundColor: string) => {
+  document.documentElement.style.setProperty(
+    "--leaflet-bg-color",
+    backgroundColor
+  );
 
-.leaflet-control-locate {
-  visibility: hidden !important;
-}
-
-.leaflet-container {
-  background: ${({ backgroundColor = "white" }) => backgroundColor};
-}`;
+  // Also set the data attribute for containers that exist
+  const containers = document.querySelectorAll(".leaflet-container");
+  containers.forEach((container) => {
+    (container as HTMLElement).setAttribute("data-bg-color", "true");
+    (container as HTMLElement).style.setProperty(
+      "--leaflet-bg-color",
+      backgroundColor
+    );
+  });
+};
 
 export const RoutedMapLocateControl = ({
   disabled = false,
   tourRefLabels,
   nativeTooltip = false,
+  backgroundColor = "white",
 }: RouteMapControlProps) => {
   const { isLocationActive, hasMapMoved, setIsLocationActive } =
     useRoutedMapLocateControl();
+
+  // Set background color using CSS custom properties
+  useEffect(() => {
+    if (backgroundColor) {
+      setLeafletBackgroundColor(backgroundColor);
+    }
+  }, [backgroundColor]);
 
   console.debug("isLocationActive RENDER LOCATOR", isLocationActive);
 
@@ -66,7 +81,6 @@ export const RoutedMapLocateControl = ({
 
   return (
     <>
-      <GlobalLocatorStyle />
       {nativeTooltip ? (
         cbs
       ) : (

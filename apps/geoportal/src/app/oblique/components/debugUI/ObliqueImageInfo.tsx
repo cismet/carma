@@ -1,7 +1,6 @@
-import React, { useState } from "react";
-import { Card, Collapse } from "antd";
+import React, { useState, type CSSProperties } from "react";
+import { Collapse } from "antd";
 import type { CollapseProps } from "antd";
-import { styled } from "styled-components";
 import type {
   NearestObliqueImageRecord,
   ObliqueImageRecord,
@@ -11,31 +10,28 @@ interface ObliqueImageInfoProps {
   imageRecord: ObliqueImageRecord | NearestObliqueImageRecord | null;
 }
 
-const InfoCard = styled(Card)`
-  width: 100%;
-  padding: 0;
-  margin: 0;
-  border-radius: 4px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  overflow: hidden;
+// Reusable styles
+const infoCardStyle: CSSProperties = {
+  width: "100%",
+  padding: 0,
+  margin: 0,
+  borderRadius: "4px",
+  boxShadow: "0 2px 8px rgba(0, 0, 0, 0.15)",
+  overflow: "hidden",
+};
 
-  .ant-card-body {
-    padding: 6px;
-  }
-`;
-
-const JsonDisplay = styled.pre`
-  font-family: monospace;
-  font-size: 12px;
-  background-color: #f5f5f5;
-  padding: 8px;
-  border-radius: 4px;
-  overflow: auto;
-  max-height: 60vh;
-  white-space: pre-wrap;
-  margin-top: 4px;
-  margin-bottom: 0;
-`;
+const jsonDisplayStyle: CSSProperties = {
+  fontFamily: "monospace",
+  fontSize: "12px",
+  backgroundColor: "#f5f5f5",
+  padding: "8px",
+  borderRadius: "4px",
+  overflow: "auto",
+  maxHeight: "60vh",
+  whiteSpace: "pre-wrap",
+  marginTop: "4px",
+  marginBottom: 0,
+};
 
 export const ObliqueImageInfo: React.FC<ObliqueImageInfoProps> = ({
   imageRecord,
@@ -53,9 +49,18 @@ export const ObliqueImageInfo: React.FC<ObliqueImageInfoProps> = ({
       key: "1",
       label: "Image Info",
       children: (
-        <InfoCard bordered={false}>
-          <JsonDisplay>{JSON.stringify(imageRecord, null, 2)}</JsonDisplay>
-        </InfoCard>
+        <div 
+          style={{
+            ...infoCardStyle,
+            border: "none",
+          }}
+        >
+          <div style={{ padding: "6px" }}>
+            <pre style={jsonDisplayStyle}>
+              {JSON.stringify(imageRecord, null, 2)}
+            </pre>
+          </div>
+        </div>
       ),
     },
   ];

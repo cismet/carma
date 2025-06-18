@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, type CSSProperties } from "react";
 import Icon from "react-cismap/commons/Icon";
 import type { Doc } from "../document-viewer";
 import { useNavigate, useParams } from "react-router-dom";
@@ -11,7 +11,6 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { ProgressBar } from "react-bootstrap";
 import "bootstrap/dist/css/bootstrap.min.css";
-import styled from "styled-components";
 
 export const SIDEBAR_BACKGROUND_COLOR = "#ffffff";
 
@@ -46,6 +45,7 @@ export default function Sidebar({
   const navigate = useNavigate();
   const sidebarRef = useRef<HTMLDivElement>(null);
   const selectedItemRef = useRef<HTMLDivElement>(null);
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   const [collapsedFolders, setCollapsedFolders] = useState<Set<string>>(
     new Set()
   );
@@ -438,28 +438,22 @@ export default function Sidebar({
     </>
   );
 
-  interface HoverDivProps {
-    isSelected: boolean;
-  }
+  // Style function for hover div
+  const getHoverDivStyle = (isSelected: boolean): CSSProperties => ({
+    background: isSelected ? "rgba(58, 124, 235, 0.1)" : "#ffffff",
+    height: "100%",
+    padding: `${BASE_PADDING}px`,
+    marginBottom: "8px",
+    cursor: "pointer",
+    color: "#333",
+    position: "relative",
+    borderRadius: isSelected ? "6px" : "0",
+    transition: "background-color 0.2s ease",
+  });
 
-  const HoverDiv = styled.div<HoverDivProps>`
-    background: ${(props) =>
-      props.isSelected ? "rgba(58, 124, 235, 0.1)" : "#ffffff"};
-    height: 100%;
-    padding: ${BASE_PADDING + 0}px;
-    margin-bottom: 8px;
-
-    cursor: pointer;
-    color: #333;
-    position: relative;
-    border-radius: ${(props) => (props.isSelected ? "6px" : "0")};
-    transition: background-color 0.2s ease;
-
-    &:hover {
-      background-color: ${(props) =>
-        props.isSelected ? "rgba(58, 124, 235, 0.1)" : "#f8f8f8"};
-    }
-  `;
+  const getHoverDivHoverStyle = (isSelected: boolean): CSSProperties => ({
+    backgroundColor: isSelected ? "rgba(58, 124, 235, 0.1)" : "#f8f8f8",
+  });
 
   return (
     <div ref={sidebarRef} style={{ backgroundColor: SIDEBAR_BACKGROUND_COLOR }}>
@@ -582,10 +576,11 @@ export default function Sidebar({
                     </div>
                   )}
                 {showDocument && (
-                  <HoverDiv
+                  <div
                     ref={index - 1 === i ? selectedItemRef : null}
-                    isSelected={index - 1 === i}
                     style={{
+                      ...getHoverDivStyle(index - 1 === i),
+                      ...(hoveredIndex === i ? getHoverDivHoverStyle(index - 1 === i) : {}),
                       marginLeft:
                         (doc.structure
                           ? getIndentationLevel(doc.structure) *
@@ -596,6 +591,8 @@ export default function Sidebar({
                           : 0),
                       position: "relative",
                     }}
+                    onMouseEnter={() => setHoveredIndex(i)}
+                    onMouseLeave={() => setHoveredIndex(null)}
                     onClick={() => navigate(`/docs/${docPackageId}/${i + 1}/1`)}
                   >
                     <VerticalLines
@@ -726,7 +723,7 @@ export default function Sidebar({
                         )}
                       </>
                     )}
-                  </HoverDiv>
+                  </div>
                 )}
               </div>
             );

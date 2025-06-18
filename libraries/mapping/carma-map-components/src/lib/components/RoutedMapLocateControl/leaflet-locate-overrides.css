@@ -1,0 +1,19 @@
+/* Global styles for RoutedMapLocateControl */
+/* TODO: remove duplication with apps/geoportal/src/app/components/leaflet.css */
+
+.dont-show {
+  display: none !important;
+}
+
+.leaflet-control-locate {
+  visibility: hidden !important;
+}
+
+.leaflet-container {
+  background: white; /* Default background, can be overridden via CSS custom properties */
+}
+
+/* CSS custom property support for dynamic background */
+.leaflet-container[data-bg-color] {
+  background: var(--leaflet-bg-color, white);
+}

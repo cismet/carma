@@ -1,4 +1,4 @@
-import { StrictMode } from "react";
+import { StrictMode, useState, type CSSProperties } from "react";
 import * as ReactDOM from "react-dom/client";
 import {
   RouterProvider,
@@ -7,7 +7,6 @@ import {
   Link,
 } from "react-router-dom";
 import { DocumentViewer } from "@carma-commons/document-viewer";
-import styled from "@emotion/styled";
 
 import docs468 from "./assets/468.json";
 import docs827 from "./assets/827.json";
@@ -34,74 +33,118 @@ console.error = (message, ...args) => {
   }
 };
 
-const Container = styled.div`
-  min-height: 100vh;
-  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  padding: 2rem;
-`;
+// Reusable styles
+const containerStyle: CSSProperties = {
+  minHeight: "100vh",
+  background: "linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)",
+  display: "flex",
+  justifyContent: "center",
+  alignItems: "center",
+  padding: "2rem",
+};
 
-const Card = styled.div`
-  background: white;
-  padding: 2rem;
-  border-radius: 15px;
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
-  max-width: 600px;
-  width: 100%;
-`;
+const cardStyle: CSSProperties = {
+  background: "white",
+  padding: "2rem",
+  borderRadius: "15px",
+  boxShadow: "0 10px 20px rgba(0, 0, 0, 0.1)",
+  maxWidth: "600px",
+  width: "100%",
+};
 
-const Title = styled.h1`
-  color: #2c3e50;
-  margin-bottom: 1.5rem;
-  text-align: center;
-`;
+const titleStyle: CSSProperties = {
+  color: "#2c3e50",
+  marginBottom: "1.5rem",
+  textAlign: "center",
+};
 
-const IntroText = styled.p`
-  text-align: center;
-  color: #7f8c8d;
-  margin-bottom: 2rem;
-  line-height: 1.6;
-`;
+const introTextStyle: CSSProperties = {
+  textAlign: "center",
+  color: "#7f8c8d",
+  marginBottom: "2rem",
+  lineHeight: 1.6,
+};
 
-const LinksGrid = styled.div`
-  display: grid;
-  gap: 1rem;
-`;
+const linksGridStyle: CSSProperties = {
+  display: "grid",
+  gap: "1rem",
+};
 
-const StyledLink = styled(Link)`
-  background: #3498db;
-  color: white;
-  padding: 1rem;
-  text-decoration: none;
-  border-radius: 8px;
-  transition: transform 0.2s, background 0.2s;
-  text-align: center;
+const linkStyle: CSSProperties = {
+  background: "#3498db",
+  color: "white",
+  padding: "1rem",
+  textDecoration: "none",
+  borderRadius: "8px",
+  transition: "transform 0.2s, background 0.2s",
+  textAlign: "center",
+  display: "block",
+};
 
-  &:hover {
-    transform: translateY(-2px);
-    background: #2980b9;
-  }
-`;
+const linkHoverStyle: CSSProperties = {
+  transform: "translateY(-2px)",
+  background: "#2980b9",
+};
 
 function Landing() {
+  const [hoveredLink, setHoveredLink] = useState<string | null>(null);
+
   return (
-    <Container>
-      <Card>
-        <Title>DocViewer Demos</Title>
-        <IntroText>
+    <div style={containerStyle}>
+      <div style={cardStyle}>
+        <h1 style={titleStyle}>DocViewer Demos</h1>
+        <p style={introTextStyle}>
           Willkommen bei unserer DocViewer-Demo-Sammlung! Hier finden Sie
           verschiedene Beispieldokumente zum Testen.
-        </IntroText>
-        <LinksGrid>
-          <StyledLink to="/docs/468/1/1">BPlan 468</StyledLink>
-          <StyledLink to="/docs/827/1/1">BPlan 827</StyledLink>
-          <StyledLink to="/docs/1202/1/1">BPlan 1202</StyledLink>
-          <StyledLink to="/docs/1223/1/1">BPlan 1223</StyledLink>
-        </LinksGrid>
-      </Card>
-    </Container>
+        </p>
+        <div style={linksGridStyle}>
+          <Link
+            to="/docs/468/1/1"
+            style={{
+              ...linkStyle,
+              ...(hoveredLink === "468" ? linkHoverStyle : {}),
+            }}
+            onMouseEnter={() => setHoveredLink("468")}
+            onMouseLeave={() => setHoveredLink(null)}
+          >
+            BPlan 468
+          </Link>
+          <Link
+            to="/docs/827/1/1"
+            style={{
+              ...linkStyle,
+              ...(hoveredLink === "827" ? linkHoverStyle : {}),
+            }}
+            onMouseEnter={() => setHoveredLink("827")}
+            onMouseLeave={() => setHoveredLink(null)}
+          >
+            BPlan 827
+          </Link>
+          <Link
+            to="/docs/1202/1/1"
+            style={{
+              ...linkStyle,
+              ...(hoveredLink === "1202" ? linkHoverStyle : {}),
+            }}
+            onMouseEnter={() => setHoveredLink("1202")}
+            onMouseLeave={() => setHoveredLink(null)}
+          >
+            BPlan 1202
+          </Link>
+          <Link
+            to="/docs/1223/1/1"
+            style={{
+              ...linkStyle,
+              ...(hoveredLink === "1223" ? linkHoverStyle : {}),
+            }}
+            onMouseEnter={() => setHoveredLink("1223")}
+            onMouseLeave={() => setHoveredLink(null)}
+          >
+            BPlan 1223
+          </Link>
+        </div>
+      </div>
+    </div>
   );
 }
 
