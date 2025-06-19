@@ -1,40 +1,11 @@
-/// <reference types='vitest' />
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import { nxViteTsPaths } from "@nx/vite/plugins/nx-tsconfig-paths.plugin";
 import { viteStaticCopy } from "vite-plugin-static-copy";
 
-// These options were migrated by @nx/vite:convert-to-inferred from the project.json file.
-const configValues = { default: {}, development: {}, production: {} };
-
-// Determine the correct configValue to use based on the configuration
-const nxConfiguration = process.env.NX_TASK_TARGET_CONFIGURATION ?? "default";
-
-const options = {
-  ...configValues.default,
-  ...(configValues[nxConfiguration] ?? {}),
-};
-
 const CESIUM_PATHNAME = "__cesium__";
 
-export default defineConfig({
-  root: __dirname,
-  cacheDir: "../../node_modules/.vite/playgrounds/cesium-reference",
-
-  server: {
-    port: 4200,
-    host: "localhost",
-    fs: {
-      allow: ["../.."],
-    },
-  },
-
-  preview: {
-    port: 4300,
-    host: "localhost",
-    cors: true,
-  },
-
+export default defineConfig(() => ({
   plugins: [
     react(),
     nxViteTsPaths(),
@@ -48,31 +19,4 @@ export default defineConfig({
       silent: false,
     }),
   ],
-
-  worker: {
-    plugins: () => [nxViteTsPaths()],
-  },
-
-  build: {
-    outDir: "../../dist/playgrounds/cesium-reference",
-    reportCompressedSize: true,
-    commonjsOptions: {
-      transformMixedEsModules: true,
-    },
-  },
-
-  test: {
-    globals: true,
-    cache: {
-      dir: "../../node_modules/.vitest",
-    },
-    environment: "jsdom",
-    include: ["src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
-
-    reporters: ["default"],
-    coverage: {
-      reportsDirectory: "../../coverage/playgrounds/cesium-reference",
-      provider: "v8",
-    },
-  },
-});
+}));
