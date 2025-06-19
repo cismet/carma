@@ -13,7 +13,6 @@ const options = {
 
 const config: StorybookConfig = {
   stories: ["../src/app/**/*.stories.@(js|jsx|ts|tsx)"],
-  addons: ["@storybook/addon-docs"],
 
   framework: {
     name: "@storybook/react-vite",
