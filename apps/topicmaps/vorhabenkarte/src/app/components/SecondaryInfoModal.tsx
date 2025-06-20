@@ -24,7 +24,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
 
   const plan = feature.properties;
   const district = plan?.kst_stadtbezirk?.name || "stadtweites Vorhaben";
-  const street = plan?.strasse || null;
+  const street = plan?.adresse.strasse || null;
   const locationDescription = plan?.ortsbeschreibung || null;
   const focusRoom = plan?.stek || [];
   const resolutions = plan?.beschluesse ? [...plan.beschluesse] : [];
@@ -33,9 +33,9 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
   const sortedResolutions = resolutions.sort((a, b) =>
     b.datum.localeCompare(a.datum)
   );
+  const completion = plan?.ende_quartal || null;
   const email = plan?.kontakt?.mail || null;
   const phone = plan?.kontakt?.telefon || null;
-  console.log("xxx plan", sortedResolutions);
   let links: any = [];
 
   // if (ladestation.betreiber) {
@@ -176,7 +176,8 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
                 <div>
                   <b>Adresse:</b>
                   <div>
-                    {street} {plan?.hausnummer ? plan?.hausnummer : ""}
+                    {street}{" "}
+                    {plan?.adresse?.hausnummer ? plan?.adresse?.hausnummer : ""}
                   </div>
                 </div>
               </>
@@ -209,6 +210,30 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
               </>
             )}
           </div>
+          {street && (
+            <>
+              <br />
+              <div>
+                <b>Adresse:</b>
+                <div>
+                  {street}{" "}
+                  {plan?.adresse?.hausnummer ? plan?.adresse?.hausnummer : ""}
+                </div>
+              </div>
+            </>
+          )}
+          {completion && (
+            <>
+              <br />
+              <div>
+                <b>Voraussichtlicher Abschluss:</b>
+                <div>
+                  {completion}{" "}
+                  {plan?.ende_jahr ? `Quartal ${plan?.ende_jahr}` : ""}
+                </div>
+              </div>
+            </>
+          )}
         </div>
         <Accordion style={{ marginBottom: 6 }} defaultActiveKey={"0"}>
           <Card style={{ backgroundColor: "#bce8f1" }}>
