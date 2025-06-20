@@ -7,7 +7,20 @@ import {
   faQuestion,
   faSquareArrowUpRight,
   faSquareEnvelope,
+  faCalendarDays,
+  faUserTimes,
+  faCalendarTimes,
+  faLocation,
+  faLocationDot,
+  faMapLocation,
+  faMapLocationDot,
+  faTag,
+  faCalendarPlus,
+  faMagnifyingGlass,
+  faCalendarMinus,
 } from "@fortawesome/free-solid-svg-icons";
+import { Tag } from "antd";
+
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Tooltip } from "antd";
 import { Button, Modal, Accordion, Card, Table } from "react-bootstrap";
@@ -96,7 +109,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
     >
       <Modal.Header>
         <Modal.Title>
-          <FontAwesomeIcon icon={faSquareEnvelope} />
+          {/* <FontAwesomeIcon icon={faSquareEnvelope} /> */}
           {` Datenblatt: `}
           <span
             style={{
@@ -112,19 +125,22 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
       <Modal.Body id="myMenu" key={"prbr.secondaryInfo"}>
         <div style={{ width: "100%", minHeight: 250 }}>
           <div style={styles.container}>
-            <div style={styles.row}>
-              <b style={styles.label}>Letzte Aktualisierung:</b>
+            <div className="flex items-center gap-2">
+              <FontAwesomeIcon icon={faCalendarPlus} />
+              <b>Letzte Aktualisierung:</b>
               <span style={styles.value}>
                 {formatIsoString(plan.letzte_aktualisierung)}
               </span>
             </div>
-            <div style={styles.row}>
+            <div className="flex items-center gap-2">
+              <FontAwesomeIcon icon={faMapLocation} />
               <b style={styles.label}>Stadtbezirk:</b>
               <span style={styles.value}>{district}</span>
             </div>
             {street && (
-              <div style={styles.row}>
-                <b style={styles.label}>Adresse:</b>
+              <div className="flex items-center gap-2">
+                <FontAwesomeIcon icon={faLocationDot} />
+                <span style={styles.label}>Adresse:</span>
                 <span style={styles.value}>
                   {street}{" "}
                   {plan?.adresse?.hausnummer ? plan?.adresse?.hausnummer : ""}
@@ -132,17 +148,36 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
               </div>
             )}
             {locationDescription && (
-              <div style={styles.row}>
+              <div className="flex items-center gap-2">
+                <FontAwesomeIcon icon={faMapLocationDot} />
+
                 <b style={styles.label}>Ortsbeschreibung:</b>
                 <span style={styles.value}>{locationDescription}</span>
               </div>
             )}
-            <div style={styles.row}>
+            <div className="flex items-center gap-2">
+              <FontAwesomeIcon icon={faTag} />
               <b style={styles.label}>Thema:</b>
               <span style={styles.value}>{plan.thema.name}</span>
             </div>
+            {focusRoom.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2">
+                  <FontAwesomeIcon icon={faMagnifyingGlass} />
+
+                  <b style={styles.label}>Fokusraum STEK:</b>
+                  <div style={styles.focusRoomValues}>
+                    {focusRoom.map((i, idx) => (
+                      <Tag key={idx}>{i}</Tag>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
             {completion && (
               <div style={styles.row}>
+                <FontAwesomeIcon icon={faCalendarMinus} />
+
                 <b style={styles.label}>Voraussichtlicher Abschluss:</b>
                 <span style={styles.value}>
                   {completion}{" "}
@@ -150,36 +185,22 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
                 </span>
               </div>
             )}
-            {focusRoom.length > 0 && (
-              <div style={styles.focusRoomContainer}>
-                <div style={styles.row}>
-                  <b style={styles.label}>Fokusraum STEK:</b>
-                </div>
-                <ul style={styles.focusRoomValues}>
-                  {focusRoom.map((i, idx) => (
-                    <li key={idx} className="ml-2">
-                      {i}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
           </div>
         </div>
         <div className="px-[10px]">
-          <hr />
           <div className="py-[10px]">
-            <b style={styles.label}>Beschreibung: </b>
-            <span>{shortenText(plan.beschreibung, false)} </span>
-            <a href="/" target="_blank">
-              Mehr Informatione
-            </a>
+            <b className="text-[16px]">Beschreibung: </b>
+            <div className="mt-1">
+              <span>{shortenText(plan.beschreibung, false)} </span>
+              <a href="/" target="_blank">
+                Mehr Informationen…
+              </a>
+            </div>
           </div>
-          <hr />
 
           {photos && (
             <div className="py-[10px]">
-              <b>Foto-Galerie:</b>
+              <b className="text-[16px]">Foto-Galerie:</b>
               <div className="flex gap-2 mt-3">
                 {photos.map((photo, idx) => (
                   <div key={idx} className="flex gap-2">
@@ -198,7 +219,6 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
               </div>
             </div>
           )}
-          <hr />
 
           <br />
           <Accordion style={{ marginBottom: 6 }} defaultActiveKey={"0"}>
