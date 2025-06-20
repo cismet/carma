@@ -16,6 +16,7 @@ import versionData from "../../version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
 import { changeUnreadableColor, formatIsoString } from "../../helper/styler";
 import { MenuFooter } from "@carma-collab/wuppertal/commons";
+import { shortenText } from "../../helper/convertItemToFeature";
 
 const SecondaryInfoModal = ({ feature, setOpen }) => {
   const close = () => {
@@ -235,6 +236,15 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
             </>
           )}
         </div>
+        <hr />
+        <div>
+          <b>Beschreibung: </b>
+          <span>{shortenText(plan.beschreibung, false)} </span>
+          <a href="/" target="_blank">
+            Mehr Informationen…
+          </a>
+        </div>
+        <br />
         <Accordion style={{ marginBottom: 6 }} defaultActiveKey={"0"}>
           <Card style={{ backgroundColor: "#bce8f1" }}>
             <Card.Header>
