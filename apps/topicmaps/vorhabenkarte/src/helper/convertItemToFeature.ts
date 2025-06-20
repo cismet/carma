@@ -1,6 +1,5 @@
 import { addSVGToProps } from "react-cismap/tools/svgHelper";
-// import Color from "color";
-// import { getColorForProperties } from "./styler";
+import * as turf from "@turf/turf";
 
 export const shortenText = (
   text: string,
@@ -41,11 +40,24 @@ const convertItemToFeature = async (itemIn, poiColors) => {
     import.meta.env.VITE_WUPP_ASSET_BASEURL + "/poi-signaturen/vorhaben/"
   );
 
+  console.log(
+    "xxx base url",
+    import.meta.env.VITE_WUPP_ASSET_BASEURL + "/poi-signaturen/vorhaben/"
+  );
+
   const id = item.id;
   const type = "Feature";
   const selected = false;
-  const geometry = item.geojson;
+  // const geometry = item.geojson;
+  let geometry = item.geojson;
   const text = item.titel;
+
+  if (geometry?.type === "Polygon" || geometry?.type === "MultiPolygon") {
+    const centroid = turf.centroid(geometry);
+    geometry = centroid.geometry;
+    // Store original geometry for reference
+    item.originalGeometry = item.geojson;
+  }
 
   // const headerColor = item.thema.farbe + item.thema.fuellung;
   const headerColor = adjustFeatureColors(item.thema.farbe);
