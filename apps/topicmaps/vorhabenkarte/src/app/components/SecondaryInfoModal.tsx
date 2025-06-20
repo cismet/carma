@@ -95,7 +95,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
   const completion = plan?.ende_quartal || "completion Quartal";
   const email = plan?.kontakt?.mail || "buergerbeteiligungstadt.wuppertal.de";
   const phone = plan?.kontakt?.telefon || null;
-  const photos = plan?.fotos || null;
+  const photos = plan?.originalPhotos || null;
   const citizenText = plan?.bb_text || "some citizen text text ";
   const citizenUrl = plan?.bb_url || "/";
 

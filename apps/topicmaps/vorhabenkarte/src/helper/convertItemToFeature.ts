@@ -54,6 +54,15 @@ const convertItemToFeature = async (itemIn, poiColors) => {
       // "https://www.wuppertal.de/geoportal/vorhabenkarte/fotos/" +
       "https://wunda-geoportal-docs.cismet.de/vorhabenkarte/fotos/" +
       item.fotos[0].url;
+    item.originalPhotos = item.fotos;
+  }
+
+  if (item.fotos && item.fotos.length > 0) {
+    item.fotos = item.fotos.map(
+      (photo) =>
+        "https://wunda-geoportal-docs.cismet.de/vorhabenkarte/fotos/" +
+        photo.url
+    );
   }
 
   // item.color = headerColor + item.thema.fuellung;
