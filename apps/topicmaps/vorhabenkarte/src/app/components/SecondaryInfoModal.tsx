@@ -18,6 +18,9 @@ import {
   faCalendarPlus,
   faMagnifyingGlass,
   faCalendarMinus,
+  faClockRotateLeft,
+  faMagnifyingGlassLocation,
+  faBullseye,
 } from "@fortawesome/free-solid-svg-icons";
 import { Tag } from "antd";
 
@@ -126,7 +129,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
         <div style={{ width: "100%", minHeight: 250 }}>
           <div style={styles.container}>
             <div className="flex items-center gap-2">
-              <FontAwesomeIcon icon={faCalendarPlus} />
+              <FontAwesomeIcon icon={faClockRotateLeft} />
               <b>Letzte Aktualisierung:</b>
               <span style={styles.value}>
                 {formatIsoString(plan.letzte_aktualisierung)}
@@ -149,7 +152,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
             )}
             {locationDescription && (
               <div className="flex items-center gap-2">
-                <FontAwesomeIcon icon={faMapLocationDot} />
+                <FontAwesomeIcon icon={faMagnifyingGlassLocation} />
 
                 <b style={styles.label}>Ortsbeschreibung:</b>
                 <span style={styles.value}>{locationDescription}</span>
@@ -163,7 +166,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
             {focusRoom.length > 0 && (
               <div>
                 <div className="flex items-center gap-2">
-                  <FontAwesomeIcon icon={faMagnifyingGlass} />
+                  <FontAwesomeIcon icon={faBullseye} />
 
                   <b style={styles.label}>Fokusraum STEK:</b>
                   <div style={styles.focusRoomValues}>
