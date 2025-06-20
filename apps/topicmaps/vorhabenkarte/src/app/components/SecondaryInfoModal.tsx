@@ -25,21 +25,31 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
 
   const plan = feature.properties;
   const district = plan?.kst_stadtbezirk?.name || "stadtweites Vorhaben";
-  const street = plan?.adresse.strasse || null;
-  const locationDescription = plan?.ortsbeschreibung || null;
-  const focusRoom = plan?.stek || [];
-  const resolutions = plan?.beschluesse ? [...plan.beschluesse] : [];
-  const documents = plan?.dokumente ? [...plan.dokumente] : [];
+  const street = plan?.adresse?.strasse || "some street name";
+  const locationDescription = plan?.ortsbeschreibung || "ortsbeschreibung";
+  const focusRoom = plan?.stek || ["Wuppertal – urbane Lebensader"];
+  const resolutions = plan?.beschluesse
+    ? [...plan.beschluesse]
+    : [
+        {
+          datum: "2022-08-10",
+          anzeige: "RIS",
+          url: "https://ris.wuppertal.de/vo0050.asp?__kvonr=27655",
+        },
+      ];
+  const documents = plan?.dokumente
+    ? [...plan.dokumente]
+    : [{ url: "Test.docx", anzeige: "Test" }];
   const docsPrefix = "/dokumente/";
   const sortedResolutions = resolutions.sort((a, b) =>
     b.datum.localeCompare(a.datum)
   );
-  const completion = plan?.ende_quartal || null;
-  const email = plan?.kontakt?.mail || null;
+  const completion = plan?.ende_quartal || "completion Quartal";
+  const email = plan?.kontakt?.mail || "buergerbeteiligungstadt.wuppertal.de";
   const phone = plan?.kontakt?.telefon || null;
   const photos = plan?.fotos || null;
-  const citizenText = plan?.bb_text || null;
-  const citizenUrl = plan?.bb_url || null;
+  const citizenText = plan?.bb_text || "some citizen text text ";
+  const citizenUrl = plan?.bb_url || "/";
 
   // if (ladestation.betreiber) {
   //   if (ladestation?.betreiber?.telefon) {
@@ -212,19 +222,19 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
                 </div>
               </>
             )}
-          </div>
-          {completion && (
-            <>
-              <br />
-              <div>
-                <b>Voraussichtlicher Abschluss:</b>
+            {completion && (
+              <>
+                <br />
                 <div>
-                  {completion}{" "}
-                  {plan?.ende_jahr ? `Quartal ${plan?.ende_jahr}` : ""}
+                  <b>Voraussichtlicher Abschluss:</b>
+                  <div>
+                    {completion}{" "}
+                    {plan?.ende_jahr ? `Quartal ${plan?.ende_jahr}` : ""}
+                  </div>
                 </div>
-              </div>
-            </>
-          )}
+              </>
+            )}
+          </div>
         </div>
         <hr />
         <div>
