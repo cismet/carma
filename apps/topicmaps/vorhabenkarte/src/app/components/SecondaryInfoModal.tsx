@@ -109,6 +109,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
       show={true}
       onHide={close}
       keyboard={false}
+      dialogClassName="modal-dialog-scrollable"
     >
       <Modal.Header>
         <Modal.Title>
@@ -194,12 +195,39 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
           <div className="py-[10px]">
             <b className="text-[16px]">Beschreibung: </b>
             <div className="mt-1">
-              <span>{shortenText(plan.beschreibung, false)} </span>
-              <a href="/" target="_blank">
-                Mehr Informationen…
-              </a>
+              <span>{shortenText(plan.beschreibung, true)} </span>
+              <div>
+                <a href="/" target="_blank">
+                  Mehr Informationen…
+                </a>
+              </div>
             </div>
           </div>
+
+          {phone ||
+            (email && (
+              <div className="py-[10px]">
+                <b className="text-[16px] mb-5">Kontakt:</b>
+                <div className="flex flex-col gap-4 mt-1">
+                  {phone && (
+                    <a
+                      href={`tel:${phone}`}
+                      className="flex items-center gap-2 text-inherit"
+                    >
+                      <FontAwesomeIcon icon={faPhone} /> {phone}
+                    </a>
+                  )}
+                  {email && (
+                    <a
+                      href={`mailto:${email}`}
+                      className="flex items-center gap-2 text-inherit"
+                    >
+                      <FontAwesomeIcon icon={faEnvelope} /> <span>{email}</span>
+                    </a>
+                  )}
+                </div>
+              </div>
+            ))}
 
           {photos && (
             <div className="py-[10px]">
@@ -249,14 +277,14 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
             </Card>
           </Accordion>
           {citizenText && citizenUrl && (
-            <Accordion style={{ marginBottom: 6 }} defaultActiveKey={"0"}>
+            <Accordion style={{ marginBottom: 6 }} defaultActiveKey={"1"}>
               <Card style={{ backgroundColor: "#f8f9fa" }}>
                 <Card.Header>
-                  <Accordion.Toggle as={Button} variant="link" eventKey="0">
+                  <Accordion.Toggle as={Button} variant="link" eventKey="1">
                     Bürger­beteiligung
                   </Accordion.Toggle>
                 </Card.Header>
-                <Accordion.Collapse eventKey="0">
+                <Accordion.Collapse eventKey="1">
                   <Card.Body style={{ backgroundColor: "white" }}>
                     <a href={citizenUrl}>{citizenText}</a>
                   </Card.Body>
@@ -264,14 +292,14 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
               </Card>
             </Accordion>
           )}
-          <Accordion style={{ marginBottom: 6 }} defaultActiveKey={"1"}>
+          <Accordion style={{ marginBottom: 6 }} defaultActiveKey={"2"}>
             <Card style={{ backgroundColor: "#fff3cd" }}>
               <Card.Header>
-                <Accordion.Toggle as={Button} variant="link" eventKey="1">
+                <Accordion.Toggle as={Button} variant="link" eventKey="2">
                   Anhang
                 </Accordion.Toggle>
               </Card.Header>
-              <Accordion.Collapse eventKey="1">
+              <Accordion.Collapse eventKey="2">
                 <Card.Body style={{ backgroundColor: "white" }}>
                   <ul>
                     {documents.map((res, idx) => {
@@ -288,7 +316,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
               </Accordion.Collapse>
             </Card>
           </Accordion>
-          <Accordion style={{ marginBottom: 6 }} defaultActiveKey="2">
+          {/* <Accordion style={{ marginBottom: 6 }} defaultActiveKey="2">
             <Card style={{ backgroundColor: "#d6e9c6" }}>
               <Card.Header>
                 <Accordion.Toggle as={Button} variant="link" eventKey="2">
@@ -319,7 +347,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
                 </Card.Body>
               </Accordion.Collapse>
             </Card>
-          </Accordion>
+          </Accordion> */}
         </div>
       </Modal.Body>
       <Modal.Footer>
