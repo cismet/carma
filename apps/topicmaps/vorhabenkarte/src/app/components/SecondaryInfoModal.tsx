@@ -38,6 +38,8 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
   const email = plan?.kontakt?.mail || null;
   const phone = plan?.kontakt?.telefon || null;
   const photos = plan?.fotos || null;
+  const citizenText = plan?.bb_text || null;
+  const citizenUrl = plan?.bb_url || null;
 
   // if (ladestation.betreiber) {
   //   if (ladestation?.betreiber?.telefon) {
@@ -283,7 +285,23 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
             </Accordion.Collapse>
           </Card>
         </Accordion>
-        <Accordion style={{ marginBottom: 6 }} defaultActiveKey={"0"}>
+        {citizenText && citizenUrl && (
+          <Accordion style={{ marginBottom: 6 }} defaultActiveKey={"0"}>
+            <Card style={{ backgroundColor: "#bce8f1" }}>
+              <Card.Header>
+                <Accordion.Toggle as={Button} variant="link" eventKey="0">
+                  Bürger­beteiligung
+                </Accordion.Toggle>
+              </Card.Header>
+              <Accordion.Collapse eventKey="0">
+                <Card.Body style={{ backgroundColor: "white" }}>
+                  <a href={citizenUrl}>{citizenText}</a>
+                </Card.Body>
+              </Accordion.Collapse>
+            </Card>
+          </Accordion>
+        )}
+        <Accordion style={{ marginBottom: 6 }} defaultActiveKey={"1"}>
           <Card style={{ backgroundColor: "#fff3cd" }}>
             <Card.Header>
               <Accordion.Toggle as={Button} variant="link" eventKey="1">
@@ -307,7 +325,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
             </Accordion.Collapse>
           </Card>
         </Accordion>
-        <Accordion style={{ marginBottom: 6 }} defaultActiveKey="0">
+        <Accordion style={{ marginBottom: 6 }} defaultActiveKey="2">
           <Card style={{ backgroundColor: "#d6e9c6" }}>
             <Card.Header>
               <Accordion.Toggle as={Button} variant="link" eventKey="2">
