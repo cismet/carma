@@ -211,18 +211,6 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
               </>
             )}
           </div>
-          {street && (
-            <>
-              <br />
-              <div>
-                <b>Adresse:</b>
-                <div>
-                  {street}{" "}
-                  {plan?.adresse?.hausnummer ? plan?.adresse?.hausnummer : ""}
-                </div>
-              </div>
-            </>
-          )}
           {completion && (
             <>
               <br />
