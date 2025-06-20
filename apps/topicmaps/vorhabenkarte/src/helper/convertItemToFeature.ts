@@ -2,11 +2,18 @@ import { addSVGToProps } from "react-cismap/tools/svgHelper";
 // import Color from "color";
 // import { getColorForProperties } from "./styler";
 
-const shortenText = (text: string, maxChars = 100): string => {
+export const shortenText = (
+  text: string,
+  showDots = true,
+  maxChars = 100
+): string => {
   if (typeof text !== "string") {
     text = String(text);
   }
-  return text.length <= maxChars ? text : text.slice(0, maxChars) + "…";
+
+  return text.length <= maxChars
+    ? text
+    : text.slice(0, maxChars) + (showDots ? "…" : "");
 };
 
 const getSignature = (properties) => {
