@@ -1,4 +1,4 @@
-import { useState, useLayoutEffect } from "react";
+import { useState, useLayoutEffect, useEffect } from "react";
 import { OptionsOverlayHelper, OverlayHelperConfig, Secondary } from "../..";
 import { useOverlayTourContext } from "../components/OverlayTourProvider";
 import { isElementHidden } from "../utils/helper";
@@ -6,6 +6,7 @@ import { useWindowSize } from "@uidotdev/usehooks";
 
 export const useOverlayHelper = (options: OptionsOverlayHelper) => {
   const [ref, setRef] = useState<HTMLElement | null>(null);
+  const [isVisible, setIsVisible] = useState<boolean>(false);
   const { addConfig, removeConfig } = useOverlayTourContext();
   const size = useWindowSize();
 
@@ -30,10 +31,41 @@ export const useOverlayHelper = (options: OptionsOverlayHelper) => {
     secondary = options.secondary;
   }
 
+  useEffect(() => {
+    if (!ref) return;
+    
+    const checkVisibility = () => {
+      const isHidden = isElementHidden(ref);
+      setIsVisible(!isHidden);
+    };
+    
+    checkVisibility();
+    
+    // Set up a mutation observer to detect changes in the DOM that might affect visibility
+    const observer = new MutationObserver(checkVisibility);
+    observer.observe(document.body, { 
+      attributes: true, 
+      childList: true, 
+      subtree: true,
+      attributeFilter: ['style', 'class', 'hidden']
+    });
+    
+    // Also set up a resize observer to detect size changes of the element
+    const resizeObserver = new ResizeObserver(checkVisibility);
+    resizeObserver.observe(ref);
+    
+    return () => {
+      observer.disconnect();
+      resizeObserver.disconnect();
+    };
+  }, [ref, size.width, size.height]);
+
   useLayoutEffect(() => {
+    if (!ref) return;
+    
     let config: OverlayHelperConfig = {
       key,
-      el: ref ? ref : undefined,
+      el: ref,
       content,
       containerPos,
       contentPos,
@@ -42,19 +74,21 @@ export const useOverlayHelper = (options: OptionsOverlayHelper) => {
       ...(secondary && { secondary }),
     };
 
-    if (
-      ((!ref || isElementHidden(ref)) && !options.primary.position) ||
-      (size.width && minWindowSize && size.width < minWindowSize)
-    ) {
-      return;
-    }
+    const shouldShowOverlay = 
+      isVisible && 
+      (options.primary.position || !isElementHidden(ref)) && 
+      !(size.width && minWindowSize && size.width < minWindowSize);
 
-    addConfig(config);
+    if (shouldShowOverlay) {
+      addConfig(config);
+    } else {
+      removeConfig(config);
+    }
 
     return () => {
       removeConfig(config);
     };
-  }, [ref]);
+  }, [ref, isVisible, size.width, size.height]);
 
   return setRef;
 };
