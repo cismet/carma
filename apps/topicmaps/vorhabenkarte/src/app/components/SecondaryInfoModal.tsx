@@ -30,6 +30,7 @@ const styles = {
     display: "flex",
     gap: "8px",
     alignItems: "baseline",
+    // justifyContent: "space-between",
   },
   label: {
     fontSize: "14px",
@@ -133,7 +134,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
             {locationDescription && (
               <div style={styles.row}>
                 <b style={styles.label}>Ortsbeschreibung:</b>
-                <span style={styles.value}>{street}</span>
+                <span style={styles.value}>{locationDescription}</span>
               </div>
             )}
             <div style={styles.row}>
