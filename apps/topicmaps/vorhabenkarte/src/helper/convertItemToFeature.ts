@@ -40,11 +40,6 @@ const convertItemToFeature = async (itemIn, poiColors) => {
     import.meta.env.VITE_WUPP_ASSET_BASEURL + "/poi-signaturen/vorhaben/"
   );
 
-  console.log(
-    "xxx base url",
-    import.meta.env.VITE_WUPP_ASSET_BASEURL + "/poi-signaturen/vorhaben/"
-  );
-
   const id = item.id;
   const type = "Feature";
   const selected = false;
