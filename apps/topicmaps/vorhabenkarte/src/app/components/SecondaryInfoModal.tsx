@@ -37,7 +37,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
   const completion = plan?.ende_quartal || null;
   const email = plan?.kontakt?.mail || null;
   const phone = plan?.kontakt?.telefon || null;
-  let links: any = [];
+  const photos = plan?.fotos || null;
 
   // if (ladestation.betreiber) {
   //   if (ladestation?.betreiber?.telefon) {
@@ -232,6 +232,32 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
             Mehr Informationen…
           </a>
         </div>
+        <br />
+        {photos && (
+          <>
+            <br />
+            <div>
+              <b>Foto-Galerie:</b>
+              <div className="flex gap-2">
+                {photos.map((photo, idx) => (
+                  <div key={idx} className="flex gap-2">
+                    <img
+                      src={
+                        "https://wunda-geoportal-docs.cismet.de/vorhabenkarte/fotos/" +
+                        photo.url
+                      }
+                      alt={photo.anzeige}
+                      style={{
+                        width: 250,
+                      }}
+                    />
+                  </div>
+                ))}
+                <br />
+              </div>
+            </div>
+          </>
+        )}
         <br />
         <Accordion style={{ marginBottom: 6 }} defaultActiveKey={"0"}>
           <Card style={{ backgroundColor: "#bce8f1" }}>
