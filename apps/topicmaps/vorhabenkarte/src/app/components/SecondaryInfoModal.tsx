@@ -214,7 +214,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
                       }
                       alt={photo.anzeige}
                       style={{
-                        width: 180,
+                        width: 150,
                       }}
                     />
                   </div>
@@ -250,7 +250,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
           </Accordion>
           {citizenText && citizenUrl && (
             <Accordion style={{ marginBottom: 6 }} defaultActiveKey={"0"}>
-              <Card style={{ backgroundColor: "#bce8f1" }}>
+              <Card style={{ backgroundColor: "#f8f9fa" }}>
                 <Card.Header>
                   <Accordion.Toggle as={Button} variant="link" eventKey="0">
                     Bürger­beteiligung
