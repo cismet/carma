@@ -18,6 +18,37 @@ import { changeUnreadableColor, formatIsoString } from "../../helper/styler";
 import { MenuFooter } from "@carma-collab/wuppertal/commons";
 import { shortenText } from "../../helper/convertItemToFeature";
 
+const styles = {
+  container: {
+    padding: "10px 10px 0 10px",
+    paddingTop: "0px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "12px",
+  },
+  row: {
+    display: "flex",
+    gap: "8px",
+    alignItems: "baseline",
+  },
+  label: {
+    fontSize: "14px",
+    fontWeight: "bold",
+  },
+  value: {
+    fontSize: "14px",
+  },
+  focusRoomContainer: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "4px",
+  },
+  focusRoomValues: {
+    paddingLeft: "8px",
+    fontSize: "14px",
+  },
+} as const;
+
 const SecondaryInfoModal = ({ feature, setOpen }) => {
   const close = () => {
     setOpen(false);
@@ -51,100 +82,6 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
   const citizenText = plan?.bb_text || "some citizen text text ";
   const citizenUrl = plan?.bb_url || "/";
 
-  // if (ladestation.betreiber) {
-  //   if (ladestation?.betreiber?.telefon) {
-  //     links.push(
-  //       <a
-  //         title="Beitreiber anrufen"
-  //         href={"tel:" + ladestation?.betreiber?.telefon}
-  //       >
-  //         <FontAwesomeIcon
-  //           icon={faPhoneFlip}
-  //           style={{ color: "grey", width: "26px", textAlign: "center" }}
-  //           size="2x"
-  //         />
-  //       </a>
-  //     );
-  //   }
-  //   if (ladestation?.betreiber?.email || ladestation.email) {
-  //     const mail = ladestation?.betreiber?.email
-  //       ? ladestation?.betreiber?.email
-  //       : ladestation.email;
-  //     links.push(
-  //       <a
-  //         title="E-Mail an den Betreiber schreiben"
-  //         href={"mailto:" + mail}
-  //         target="_blank"
-  //       >
-  //         <FontAwesomeIcon
-  //           icon={faSquareEnvelope}
-  //           style={{ color: "grey", width: "26px", textAlign: "center" }}
-  //           size="2x"
-  //         />
-  //       </a>
-  //     );
-  //   }
-  //   if (ladestation?.betreiber?.web) {
-  //     links.push(
-  //       <a
-  //         title="Betreiberwebseite"
-  //         href={ladestation?.betreiber?.web}
-  //         target="_blank"
-  //       >
-  //         <FontAwesomeIcon
-  //           icon={faSquareArrowUpRight}
-  //           style={{ color: "grey", width: "26px", textAlign: "center" }}
-  //           size="2x"
-  //         />
-  //       </a>
-  //     );
-  //   }
-  // } else {
-  //   if (ladestation.telefon) {
-  //     links.push(
-  //       <a title="Beitreiber anrufen" href={"tel:" + ladestation?.telefon}>
-  //         <FontAwesomeIcon
-  //           icon={faPhoneFlip}
-  //           style={{ color: "grey", width: "26px", textAlign: "center" }}
-  //           size="2x"
-  //         />
-  //       </a>
-  //     );
-  //   }
-
-  //   if (ladestation.email) {
-  //     links.push(
-  //       <a
-  //         title="E-Mail an den Betreiber schreiben"
-  //         href={"mailto:" + ladestation?.email}
-  //         target="_blank"
-  //       >
-  //         <FontAwesomeIcon
-  //           icon={faSquareEnvelope}
-  //           style={{ color: "grey", width: "26px", textAlign: "center" }}
-  //           size="2x"
-  //         />
-  //       </a>
-  //     );
-  //   }
-
-  //   if (ladestation.homepage) {
-  //     links.push(
-  //       <a
-  //         title="Betreiberwebseite"
-  //         href={ladestation?.homepage}
-  //         target="_blank"
-  //       >
-  //         <FontAwesomeIcon
-  //           icon={faSquareArrowUpRight}
-  //           style={{ color: "grey", width: "26px", textAlign: "center" }}
-  //           size="2x"
-  //         />
-  //       </a>
-  //     );
-  //   }
-  // }
-
   return (
     <Modal
       style={{
@@ -173,84 +110,76 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
       </Modal.Header>
       <Modal.Body id="myMenu" key={"prbr.secondaryInfo"}>
         <div style={{ width: "100%", minHeight: 250 }}>
-          <div style={{ fontSize: "115%", padding: "10px", paddingTop: "0px" }}>
-            <div>
-              <b>Letzte Aktualisierung:</b>
+          <div style={styles.container}>
+            <div style={styles.row}>
+              <b style={styles.label}>Letzte Aktualisierung:</b>
+              <span style={styles.value}>
+                {formatIsoString(plan.letzte_aktualisierung)}
+              </span>
             </div>
-            <div>{formatIsoString(plan.letzte_aktualisierung)}</div>
-            <br />
-            <div>
-              <b>Stadtbezirk:</b>
-              <div>{district}</div>
+            <div style={styles.row}>
+              <b style={styles.label}>Stadtbezirk:</b>
+              <span style={styles.value}>{district}</span>
             </div>
             {street && (
-              <>
-                <br />
-                <div>
-                  <b>Adresse:</b>
-                  <div>
-                    {street}{" "}
-                    {plan?.adresse?.hausnummer ? plan?.adresse?.hausnummer : ""}
-                  </div>
-                </div>
-              </>
+              <div style={styles.row}>
+                <b style={styles.label}>Adresse:</b>
+                <span style={styles.value}>
+                  {street}{" "}
+                  {plan?.adresse?.hausnummer ? plan?.adresse?.hausnummer : ""}
+                </span>
+              </div>
             )}
             {locationDescription && (
-              <>
-                <br />
-                <div>
-                  <b>Ortsbeschreibung:</b>
-                  <div>{street}</div>
-                </div>
-              </>
+              <div style={styles.row}>
+                <b style={styles.label}>Ortsbeschreibung:</b>
+                <span style={styles.value}>{street}</span>
+              </div>
             )}
-            <br />
-            <div>
-              <b>Thema:</b>
-              <div>{plan.thema.name}</div>
+            <div style={styles.row}>
+              <b style={styles.label}>Thema:</b>
+              <span style={styles.value}>{plan.thema.name}</span>
             </div>
-            {focusRoom.length > 0 && (
-              <>
-                <br />
-                <div>
-                  <b>Fokusraum STEK:</b>
-                  <ul>
-                    {focusRoom.map((i, idx) => (
-                      <li key={idx}>{i}</li>
-                    ))}
-                  </ul>
-                </div>
-              </>
-            )}
             {completion && (
-              <>
-                <br />
-                <div>
-                  <b>Voraussichtlicher Abschluss:</b>
-                  <div>
-                    {completion}{" "}
-                    {plan?.ende_jahr ? `Quartal ${plan?.ende_jahr}` : ""}
-                  </div>
+              <div style={styles.row}>
+                <b style={styles.label}>Voraussichtlicher Abschluss:</b>
+                <span style={styles.value}>
+                  {completion}{" "}
+                  {plan?.ende_jahr ? `Quartal ${plan?.ende_jahr}` : ""}
+                </span>
+              </div>
+            )}
+            {focusRoom.length > 0 && (
+              <div style={styles.focusRoomContainer}>
+                <div style={styles.row}>
+                  <b style={styles.label}>Fokusraum STEK:</b>
                 </div>
-              </>
+                <ul style={styles.focusRoomValues}>
+                  {focusRoom.map((i, idx) => (
+                    <li key={idx} className="ml-2">
+                      {i}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
           </div>
         </div>
-        <hr />
-        <div>
-          <b>Beschreibung: </b>
-          <span>{shortenText(plan.beschreibung, false)} </span>
-          <a href="/" target="_blank">
-            Mehr Informationen…
-          </a>
-        </div>
-        <br />
-        {photos && (
-          <>
-            <br />
-            <div>
+        <div className="px-[10px]">
+          <hr />
+          <div className="py-[10px]">
+            <b style={styles.label}>Beschreibung: </b>
+            <span>{shortenText(plan.beschreibung, false)} </span>
+            <a href="/" target="_blank">
+              Mehr Informatione
+            </a>
+          </div>
+          <hr />
+
+          {photos && (
+            <div className="py-[10px]">
               <b>Foto-Galerie:</b>
-              <div className="flex gap-2">
+              <div className="flex gap-2 mt-3">
                 {photos.map((photo, idx) => (
                   <div key={idx} className="flex gap-2">
                     <img
@@ -260,112 +189,114 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
                       }
                       alt={photo.anzeige}
                       style={{
-                        width: 250,
+                        width: 180,
                       }}
                     />
                   </div>
                 ))}
-                <br />
               </div>
             </div>
-          </>
-        )}
-        <br />
-        <Accordion style={{ marginBottom: 6 }} defaultActiveKey={"0"}>
-          <Card style={{ backgroundColor: "#bce8f1" }}>
-            <Card.Header>
-              <Accordion.Toggle as={Button} variant="link" eventKey="0">
-                Politische Beschlüsse
-              </Accordion.Toggle>
-            </Card.Header>
-            <Accordion.Collapse eventKey="0">
-              <Card.Body style={{ backgroundColor: "white" }}>
-                <div>
-                  {sortedResolutions.map((res, idx) => {
-                    return (
-                      <p key={idx}>
-                        <a href={res.url} target="_blank">
-                          {res.anzeige}
-                        </a>
-                      </p>
-                    );
-                  })}
-                </div>
-              </Card.Body>
-            </Accordion.Collapse>
-          </Card>
-        </Accordion>
-        {citizenText && citizenUrl && (
+          )}
+          <hr />
+
+          <br />
           <Accordion style={{ marginBottom: 6 }} defaultActiveKey={"0"}>
             <Card style={{ backgroundColor: "#bce8f1" }}>
               <Card.Header>
                 <Accordion.Toggle as={Button} variant="link" eventKey="0">
-                  Bürger­beteiligung
+                  Politische Beschlüsse
                 </Accordion.Toggle>
               </Card.Header>
               <Accordion.Collapse eventKey="0">
                 <Card.Body style={{ backgroundColor: "white" }}>
-                  <a href={citizenUrl}>{citizenText}</a>
+                  <div>
+                    {sortedResolutions.map((res, idx) => {
+                      return (
+                        <p key={idx}>
+                          <a href={res.url} target="_blank">
+                            {res.anzeige}
+                          </a>
+                        </p>
+                      );
+                    })}
+                  </div>
                 </Card.Body>
               </Accordion.Collapse>
             </Card>
           </Accordion>
-        )}
-        <Accordion style={{ marginBottom: 6 }} defaultActiveKey={"1"}>
-          <Card style={{ backgroundColor: "#fff3cd" }}>
-            <Card.Header>
-              <Accordion.Toggle as={Button} variant="link" eventKey="1">
-                Anhang
-              </Accordion.Toggle>
-            </Card.Header>
-            <Accordion.Collapse eventKey="1">
-              <Card.Body style={{ backgroundColor: "white" }}>
-                <ul>
-                  {documents.map((res, idx) => {
-                    return (
-                      <li key={idx}>
-                        <a href={res.url + docsPrefix} target="_blank">
-                          {res?.anzeige ? res?.anzeige : res.url}
-                        </a>
-                      </li>
-                    );
-                  })}
-                </ul>
-              </Card.Body>
-            </Accordion.Collapse>
-          </Card>
-        </Accordion>
-        <Accordion style={{ marginBottom: 6 }} defaultActiveKey="2">
-          <Card style={{ backgroundColor: "#d6e9c6" }}>
-            <Card.Header>
-              <Accordion.Toggle as={Button} variant="link" eventKey="2">
-                Kontakt
-              </Accordion.Toggle>
-            </Card.Header>
-            <Accordion.Collapse eventKey="2">
-              <Card.Body style={{ backgroundColor: "white" }}>
-                <div className="flex flex-col gap-4">
-                  {phone && (
-                    <a
-                      href={`tel:${phone}`}
-                      className="flex items-center gap-2 text-inherit"
-                    >
-                      <FontAwesomeIcon icon={faPhone} /> {phone}
-                    </a>
-                  )}
-                  {email && (
-                    <a
-                      href={`mailto:${email}`}
-                      className="flex items-center gap-2 text-inherit"
-                    >
-                      <FontAwesomeIcon icon={faEnvelope} /> <span>{email}</span>
-                    </a>
-                  )}
-                </div>
-              </Card.Body>
-            </Accordion.Collapse>
-          </Card>
-        </Accordion>
+          {citizenText && citizenUrl && (
+            <Accordion style={{ marginBottom: 6 }} defaultActiveKey={"0"}>
+              <Card style={{ backgroundColor: "#bce8f1" }}>
+                <Card.Header>
+                  <Accordion.Toggle as={Button} variant="link" eventKey="0">
+                    Bürger­beteiligung
+                  </Accordion.Toggle>
+                </Card.Header>
+                <Accordion.Collapse eventKey="0">
+                  <Card.Body style={{ backgroundColor: "white" }}>
+                    <a href={citizenUrl}>{citizenText}</a>
+                  </Card.Body>
+                </Accordion.Collapse>
+              </Card>
+            </Accordion>
+          )}
+          <Accordion style={{ marginBottom: 6 }} defaultActiveKey={"1"}>
+            <Card style={{ backgroundColor: "#fff3cd" }}>
+              <Card.Header>
+                <Accordion.Toggle as={Button} variant="link" eventKey="1">
+                  Anhang
+                </Accordion.Toggle>
+              </Card.Header>
+              <Accordion.Collapse eventKey="1">
+                <Card.Body style={{ backgroundColor: "white" }}>
+                  <ul>
+                    {documents.map((res, idx) => {
+                      return (
+                        <li key={idx}>
+                          <a href={res.url + docsPrefix} target="_blank">
+                            {res?.anzeige ? res?.anzeige : res.url}
+                          </a>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </Card.Body>
+              </Accordion.Collapse>
+            </Card>
+          </Accordion>
+          <Accordion style={{ marginBottom: 6 }} defaultActiveKey="2">
+            <Card style={{ backgroundColor: "#d6e9c6" }}>
+              <Card.Header>
+                <Accordion.Toggle as={Button} variant="link" eventKey="2">
+                  Kontakt
+                </Accordion.Toggle>
+              </Card.Header>
+              <Accordion.Collapse eventKey="2">
+                <Card.Body style={{ backgroundColor: "white" }}>
+                  <div className="flex flex-col gap-4">
+                    {phone && (
+                      <a
+                        href={`tel:${phone}`}
+                        className="flex items-center gap-2 text-inherit"
+                      >
+                        <FontAwesomeIcon icon={faPhone} /> {phone}
+                      </a>
+                    )}
+                    {email && (
+                      <a
+                        href={`mailto:${email}`}
+                        className="flex items-center gap-2 text-inherit"
+                      >
+                        <FontAwesomeIcon icon={faEnvelope} />{" "}
+                        <span>{email}</span>
+                      </a>
+                    )}
+                  </div>
+                </Card.Body>
+              </Accordion.Collapse>
+            </Card>
+          </Accordion>
+        </div>
       </Modal.Body>
       <Modal.Footer>
         {/* <SecondaryInfoFooter
