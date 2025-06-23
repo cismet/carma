@@ -1,4 +1,4 @@
-import type { Meta, StoryObj } from "@storybook/react";
+import type { Meta, StoryObj } from "@storybook/react-vite";
 // import { MapControl } from './map-control';
 import Control from "./components/Control";
 import ControlLayoutCanvas from "./components/ControlLayoutCanvas.js";
