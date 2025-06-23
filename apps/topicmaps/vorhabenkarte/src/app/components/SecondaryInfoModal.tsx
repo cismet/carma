@@ -106,251 +106,254 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
   }
 
   return (
-    <Modal
-      style={{
-        zIndex: 999,
-      }}
-      height="100%"
-      size="lg"
-      show={true}
-      onHide={close}
-      keyboard={false}
-      dialogClassName="modal-dialog-scrollable"
-    >
-      <Modal.Header>
-        <Modal.Title>
-          {/* <FontAwesomeIcon icon={faSquareEnvelope} /> */}
-          {` Datenblatt: `}
-          <span
-            style={{
-              color: plan.abgeschlossen
-                ? changeUnreadableColor(plan.color)
-                : "inherit",
-            }}
-          >
-            {plan.info.title}
-          </span>
-        </Modal.Title>
-      </Modal.Header>
-      <Modal.Body id="myMenu" key={"prbr.secondaryInfo"}>
-        <div style={{ width: "100%", marginBottom: "20px" }}>
-          <div style={styles.container}>
-            <div className="flex items-center gap-2">
-              <FontAwesomeIcon icon={faClockRotateLeft} />
-              <b>Letzte Aktualisierung:</b>
-              <span style={styles.value}>
-                {formatIsoString(plan.letzte_aktualisierung)}
-              </span>
-            </div>
-            <div className="flex items-center gap-2">
-              <FontAwesomeIcon icon={faMapLocation} />
-              <b style={styles.label}>Stadtbezirk:</b>
-              <span style={styles.value}>{district}</span>
-            </div>
-            {street && (
+    <div className="secondary-modal-wrapper">
+      <Modal
+        style={{
+          zIndex: 999,
+        }}
+        height="100%"
+        size="lg"
+        show={true}
+        onHide={close}
+        keyboard={false}
+        dialogClassName="modal-dialog-scrollable"
+      >
+        <Modal.Header>
+          <Modal.Title>
+            {/* <FontAwesomeIcon icon={faSquareEnvelope} /> */}
+            {` Datenblatt: `}
+            <span
+              style={{
+                color: plan.abgeschlossen
+                  ? changeUnreadableColor(plan.color)
+                  : "inherit",
+              }}
+            >
+              {plan.info.title}
+            </span>
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body id="myMenu" key={"prbr.secondaryInfo"}>
+          <div style={{ width: "100%", marginBottom: "20px" }}>
+            <div style={styles.container}>
               <div className="flex items-center gap-2">
-                <FontAwesomeIcon icon={faLocationDot} />
-                <span style={styles.label}>Adresse:</span>
+                <FontAwesomeIcon icon={faClockRotateLeft} />
+                <b>Letzte Aktualisierung:</b>
                 <span style={styles.value}>
-                  {street}{" "}
-                  {plan?.adresse?.hausnummer ? plan?.adresse?.hausnummer : ""}
+                  {formatIsoString(plan.letzte_aktualisierung)}
                 </span>
               </div>
-            )}
-            {locationDescription && (
               <div className="flex items-center gap-2">
-                <FontAwesomeIcon icon={faMagnifyingGlassLocation} />
-
-                <b style={styles.label}>Ortsbeschreibung:</b>
-                <span style={styles.value}>{locationDescription}</span>
+                <FontAwesomeIcon icon={faMapLocation} />
+                <b style={styles.label}>Stadtbezirk:</b>
+                <span style={styles.value}>{district}</span>
               </div>
-            )}
-            <div className="flex items-center gap-2">
-              <FontAwesomeIcon icon={faTag} />
-              <b style={styles.label}>Thema:</b>
-              <span style={styles.value}>{plan.thema.name}</span>
-            </div>
-            {focusRoom.length > 0 && (
-              <div>
+              {street && (
                 <div className="flex items-center gap-2">
-                  <FontAwesomeIcon icon={faBullseye} />
-
-                  <b style={styles.label}>Fokusraum STEK:</b>
-                  <div style={styles.focusRoomValues}>
-                    {focusRoom.map((i, idx) => (
-                      <Tag key={idx}>{i}</Tag>
-                    ))}
-                  </div>
+                  <FontAwesomeIcon icon={faLocationDot} />
+                  <span style={styles.label}>Adresse:</span>
+                  <span style={styles.value}>
+                    {street}{" "}
+                    {plan?.adresse?.hausnummer ? plan?.adresse?.hausnummer : ""}
+                  </span>
                 </div>
-              </div>
-            )}
-            {completion && (
-              <div style={styles.row}>
-                <FontAwesomeIcon icon={faCalendarMinus} />
+              )}
+              {locationDescription && (
+                <div className="flex items-center gap-2">
+                  <FontAwesomeIcon icon={faMagnifyingGlassLocation} />
 
-                <b style={styles.label}>Voraussichtlicher Abschluss:</b>
-                <span style={styles.value}>
-                  {completion}{" "}
-                  {plan?.ende_jahr ? `Quartal ${plan?.ende_jahr}` : ""}
-                </span>
-              </div>
-            )}
-          </div>
-        </div>
-        <div className="px-[10px]">
-          <div className="py-[12px]">
-            <b className="text-[16px]">Beschreibung: </b>
-            <div className="mt-1">
-              <span>{shortenText(plan.beschreibung, true)} </span>
-              <div>
-                <a href="/" target="_blank">
-                  Mehr Informationen…
-                </a>
-              </div>
-            </div>
-          </div>
-
-          {phone ||
-            (email && (
-              <div className="py-[12px]">
-                <b className="text-[16px] mb-5">Kontakt:</b>
-                <div className="flex flex-col gap-4 mt-1">
-                  {phone && (
-                    <a
-                      href={`tel:${phone}`}
-                      className="flex items-center gap-2 text-inherit"
-                    >
-                      <FontAwesomeIcon icon={faPhone} /> {phone}
-                    </a>
-                  )}
-                  {email && (
-                    <a
-                      href={`mailto:${email}`}
-                      className="flex items-center gap-2 text-inherit"
-                    >
-                      <FontAwesomeIcon icon={faEnvelope} /> <span>{email}</span>
-                    </a>
-                  )}
+                  <b style={styles.label}>Ortsbeschreibung:</b>
+                  <span style={styles.value}>{locationDescription}</span>
                 </div>
+              )}
+              <div className="flex items-center gap-2">
+                <FontAwesomeIcon icon={faTag} />
+                <b style={styles.label}>Thema:</b>
+                <span style={styles.value}>{plan.thema.name}</span>
               </div>
-            ))}
+              {focusRoom.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2">
+                    <FontAwesomeIcon icon={faBullseye} />
 
-          {photos && (
-            <div className="py-[10px]">
-              <b className="text-[16px]">Foto-Galerie:</b>
-              <div className="flex gap-2 mt-3">
-                {photos.map((photo, idx) => (
-                  <div key={idx} className="cursor-pointer">
-                    <img
-                      onClick={() => {
-                        lightBoxDispatchContext.setIndex(idx);
-                        lightBoxDispatchContext.setTitle(plan.info.title);
-                        lightBoxDispatchContext.setVisible(true);
-                      }}
-                      src={
-                        "https://wunda-geoportal-docs.cismet.de/vorhabenkarte/fotos/" +
-                        photo.url
-                      }
-                      alt={photo.anzeige}
-                      style={{
-                        width: 150,
-                      }}
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <br />
-          {sortedResolutions.length > 0 && (
-            <Accordion style={{ marginBottom: 6 }} defaultActiveKey={"0"}>
-              <Card style={{ backgroundColor: "#bce8f1" }}>
-                <Card.Header>
-                  <Accordion.Toggle as={Button} variant="link" eventKey="0">
-                    Politische Beschlüsse
-                  </Accordion.Toggle>
-                </Card.Header>
-                <Accordion.Collapse eventKey="0">
-                  <Card.Body style={{ backgroundColor: "white" }}>
-                    <div>
-                      {sortedResolutions.map((res, idx) => {
-                        return (
-                          <p key={idx}>
-                            <a href={res.url} target="_blank">
-                              {res.anzeige}
-                            </a>
-                          </p>
-                        );
-                      })}
+                    <b style={styles.label}>Fokusraum STEK:</b>
+                    <div style={styles.focusRoomValues}>
+                      {focusRoom.map((i, idx) => (
+                        <Tag key={idx}>{i}</Tag>
+                      ))}
                     </div>
-                  </Card.Body>
-                </Accordion.Collapse>
-              </Card>
-            </Accordion>
-          )}
+                  </div>
+                </div>
+              )}
+              {completion && (
+                <div style={styles.row}>
+                  <FontAwesomeIcon icon={faCalendarMinus} />
 
-          {citizenText && citizenUrl && (
-            <Accordion style={{ marginBottom: 6 }} defaultActiveKey={"1"}>
-              <Card style={{ backgroundColor: "#f8f9fa" }}>
-                <Card.Header>
-                  <Accordion.Toggle as={Button} variant="link" eventKey="1">
-                    Bürger­beteiligung
-                  </Accordion.Toggle>
-                </Card.Header>
-                <Accordion.Collapse eventKey="1">
-                  <Card.Body style={{ backgroundColor: "white" }}>
-                    <a href={citizenUrl}>{citizenText}</a>
-                  </Card.Body>
-                </Accordion.Collapse>
-              </Card>
-            </Accordion>
-          )}
-          {documents.length > 0 && (
-            <Accordion style={{ marginBottom: 6 }} defaultActiveKey={"2"}>
-              <Card style={{ backgroundColor: "#fff3cd" }}>
-                <Card.Header>
-                  <Accordion.Toggle as={Button} variant="link" eventKey="2">
-                    Anhang
-                  </Accordion.Toggle>
-                </Card.Header>
-                <Accordion.Collapse eventKey="2">
-                  <Card.Body style={{ backgroundColor: "white" }}>
-                    <ul>
-                      {documents.map((res, idx) => {
-                        return (
-                          <li key={idx}>
-                            <a href={res.url + docsPrefix} target="_blank">
-                              {res?.anzeige ? res?.anzeige : res.url}
-                            </a>
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  </Card.Body>
-                </Accordion.Collapse>
-              </Card>
-            </Accordion>
-          )}
-        </div>
-      </Modal.Body>
-      <Modal.Footer>
-        {/* <SecondaryInfoFooter
+                  <b style={styles.label}>Voraussichtlicher Abschluss:</b>
+                  <span style={styles.value}>
+                    {completion}{" "}
+                    {plan?.ende_jahr ? `Quartal ${plan?.ende_jahr}` : ""}
+                  </span>
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="px-[10px]">
+            <div className="py-[12px]">
+              <b className="text-[16px]">Beschreibung: </b>
+              <div className="mt-1">
+                <span>{shortenText(plan.beschreibung, true)} </span>
+                <div>
+                  <a href="/" target="_blank">
+                    Mehr Informationen…
+                  </a>
+                </div>
+              </div>
+            </div>
+
+            {phone ||
+              (email && (
+                <div className="py-[12px]">
+                  <b className="text-[16px] mb-5">Kontakt:</b>
+                  <div className="flex flex-col gap-4 mt-1">
+                    {phone && (
+                      <a
+                        href={`tel:${phone}`}
+                        className="flex items-center gap-2 text-inherit"
+                      >
+                        <FontAwesomeIcon icon={faPhone} /> {phone}
+                      </a>
+                    )}
+                    {email && (
+                      <a
+                        href={`mailto:${email}`}
+                        className="flex items-center gap-2 text-inherit"
+                      >
+                        <FontAwesomeIcon icon={faEnvelope} />{" "}
+                        <span>{email}</span>
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))}
+
+            {photos && (
+              <div className="py-[10px]">
+                <b className="text-[16px]">Foto-Galerie:</b>
+                <div className="flex gap-2 mt-3">
+                  {photos.map((photo, idx) => (
+                    <div key={idx} className="cursor-pointer">
+                      <img
+                        onClick={() => {
+                          lightBoxDispatchContext.setIndex(idx);
+                          lightBoxDispatchContext.setTitle(plan.info.title);
+                          lightBoxDispatchContext.setVisible(true);
+                        }}
+                        src={
+                          "https://wunda-geoportal-docs.cismet.de/vorhabenkarte/fotos/" +
+                          photo.url
+                        }
+                        alt={photo.anzeige}
+                        style={{
+                          width: 150,
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <br />
+            {sortedResolutions.length > 0 && (
+              <Accordion style={{ marginBottom: 6 }} defaultActiveKey={"0"}>
+                <Card style={{ backgroundColor: "#bce8f1" }}>
+                  <Card.Header>
+                    <Accordion.Toggle as={Button} variant="link" eventKey="0">
+                      Politische Beschlüsse
+                    </Accordion.Toggle>
+                  </Card.Header>
+                  <Accordion.Collapse eventKey="0">
+                    <Card.Body style={{ backgroundColor: "white" }}>
+                      <div>
+                        {sortedResolutions.map((res, idx) => {
+                          return (
+                            <p key={idx}>
+                              <a href={res.url} target="_blank">
+                                {res.anzeige}
+                              </a>
+                            </p>
+                          );
+                        })}
+                      </div>
+                    </Card.Body>
+                  </Accordion.Collapse>
+                </Card>
+              </Accordion>
+            )}
+
+            {citizenText && citizenUrl && (
+              <Accordion style={{ marginBottom: 6 }} defaultActiveKey={"1"}>
+                <Card style={{ backgroundColor: "#f8f9fa" }}>
+                  <Card.Header>
+                    <Accordion.Toggle as={Button} variant="link" eventKey="1">
+                      Bürger­beteiligung
+                    </Accordion.Toggle>
+                  </Card.Header>
+                  <Accordion.Collapse eventKey="1">
+                    <Card.Body style={{ backgroundColor: "white" }}>
+                      <a href={citizenUrl}>{citizenText}</a>
+                    </Card.Body>
+                  </Accordion.Collapse>
+                </Card>
+              </Accordion>
+            )}
+            {documents.length > 0 && (
+              <Accordion style={{ marginBottom: 6 }} defaultActiveKey={"2"}>
+                <Card style={{ backgroundColor: "#fff3cd" }}>
+                  <Card.Header>
+                    <Accordion.Toggle as={Button} variant="link" eventKey="2">
+                      Anhang
+                    </Accordion.Toggle>
+                  </Card.Header>
+                  <Accordion.Collapse eventKey="2">
+                    <Card.Body style={{ backgroundColor: "white" }}>
+                      <ul>
+                        {documents.map((res, idx) => {
+                          return (
+                            <li key={idx}>
+                              <a href={res.url + docsPrefix} target="_blank">
+                                {res?.anzeige ? res?.anzeige : res.url}
+                              </a>
+                            </li>
+                          );
+                        })}
+                      </ul>
+                    </Card.Body>
+                  </Accordion.Collapse>
+                </Card>
+              </Accordion>
+            )}
+          </div>
+        </Modal.Body>
+        <Modal.Footer>
+          {/* <SecondaryInfoFooter
           close={close}
           version={getApplicationVersion(versionData)}
         /> */}
-        <div className="flex gap-3">
-          <MenuFooter
-            title="Vorhabenkarte Wuppertal"
-            version={"0.0.1"}
-            skipHintergrundkarten={true}
-          />
-          <Button className="self-center" onClick={close}>
-            Ok
-          </Button>
-        </div>
-      </Modal.Footer>
-    </Modal>
+          <div className="flex gap-3">
+            <MenuFooter
+              title="Vorhabenkarte Wuppertal"
+              version={"0.0.1"}
+              skipHintergrundkarten={true}
+            />
+            <Button className="self-center" onClick={close}>
+              Ok
+            </Button>
+          </div>
+        </Modal.Footer>
+      </Modal>
+    </div>
   );
 };
 
