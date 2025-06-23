@@ -1,5 +1,4 @@
 import { addSVGToProps } from "react-cismap/tools/svgHelper";
-import * as turf from "@turf/turf";
 
 export const shortenText = (
   text: string,
@@ -44,16 +43,8 @@ const convertItemToFeature = async (itemIn, poiColors) => {
   const type = "Feature";
   const selected = false;
   const geometry = item.geojson;
-  // let geometry = item.geojson;
   const text = item.titel;
 
-  // if (geometry?.type === "Polygon" || geometry?.type === "MultiPolygon") {
-  //   const centroid = turf.centroid(geometry);
-  //   geometry = centroid.geometry;
-  //   item.originalGeometry = item.geojson;
-  // }
-
-  // const headerColor = item.thema.farbe + item.thema.fuellung;
   const headerColor = adjustFeatureColors(item.thema.farbe);
   if (item.fotos && item.fotos.length > 0 && item.fotos[0].url.includes(".")) {
     item.foto =
@@ -71,7 +62,6 @@ const convertItemToFeature = async (itemIn, poiColors) => {
     );
   }
 
-  // item.color = headerColor + item.thema.fuellung;
   item.color = headerColor;
 
   return {
