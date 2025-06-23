@@ -34,6 +34,7 @@ import { MenuFooter } from "@carma-collab/wuppertal/commons";
 import { shortenText } from "../../helper/convertItemToFeature";
 import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
 import { useContext } from "react";
+import Panel from "react-cismap/commons/Panel";
 
 const styles = {
   container: {
@@ -267,71 +268,52 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
             <br />
             {sortedResolutions.length > 0 && (
               <Accordion style={{ marginBottom: 6 }} defaultActiveKey={"0"}>
-                <Card style={{ backgroundColor: "#bce8f1" }}>
-                  <Card.Header>
-                    <Accordion.Toggle as={Button} variant="link" eventKey="0">
-                      Politische Beschlüsse
-                    </Accordion.Toggle>
-                  </Card.Header>
-                  <Accordion.Collapse eventKey="0">
-                    <Card.Body style={{ backgroundColor: "white" }}>
-                      <div>
-                        {sortedResolutions.map((res, idx) => {
-                          return (
-                            <p key={idx}>
-                              <a href={res.url} target="_blank">
-                                {res.anzeige}
-                              </a>
-                            </p>
-                          );
-                        })}
-                      </div>
-                    </Card.Body>
-                  </Accordion.Collapse>
-                </Card>
+                <Panel
+                  header="Politische Beschlüsse"
+                  eventKey="0"
+                  bsStyle="primary"
+                >
+                  <div>
+                    {sortedResolutions.map((res, idx) => {
+                      return (
+                        <p key={idx}>
+                          <a href={res.url} target="_blank">
+                            {res.anzeige}
+                          </a>
+                        </p>
+                      );
+                    })}
+                  </div>
+                </Panel>
               </Accordion>
             )}
 
             {citizenText && citizenUrl && (
               <Accordion style={{ marginBottom: 6 }} defaultActiveKey={"1"}>
-                <Card style={{ backgroundColor: "#f8f9fa" }}>
-                  <Card.Header>
-                    <Accordion.Toggle as={Button} variant="link" eventKey="1">
-                      Bürger­beteiligung
-                    </Accordion.Toggle>
-                  </Card.Header>
-                  <Accordion.Collapse eventKey="1">
-                    <Card.Body style={{ backgroundColor: "white" }}>
-                      <a href={citizenUrl}>{citizenText}</a>
-                    </Card.Body>
-                  </Accordion.Collapse>
-                </Card>
+                <Panel
+                  header="Bürger­beteiligung"
+                  eventKey="1"
+                  bsStyle="success"
+                >
+                  <a href={citizenUrl}>{citizenText}</a>
+                </Panel>
               </Accordion>
             )}
             {documents.length > 0 && (
               <Accordion style={{ marginBottom: 6 }} defaultActiveKey={"2"}>
-                <Card style={{ backgroundColor: "#fff3cd" }}>
-                  <Card.Header>
-                    <Accordion.Toggle as={Button} variant="link" eventKey="2">
-                      Anhang
-                    </Accordion.Toggle>
-                  </Card.Header>
-                  <Accordion.Collapse eventKey="2">
-                    <Card.Body style={{ backgroundColor: "white" }}>
-                      <ul>
-                        {documents.map((res, idx) => {
-                          return (
-                            <li key={idx}>
-                              <a href={res.url + docsPrefix} target="_blank">
-                                {res?.anzeige ? res?.anzeige : res.url}
-                              </a>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </Card.Body>
-                  </Accordion.Collapse>
-                </Card>
+                <Panel header="Anhang" eventKey="2" bsStyle="warning">
+                  <ul>
+                    {documents.map((res, idx) => {
+                      return (
+                        <li key={idx}>
+                          <a href={res.url + docsPrefix} target="_blank">
+                            {res?.anzeige ? res?.anzeige : res.url}
+                          </a>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </Panel>
               </Accordion>
             )}
           </div>
