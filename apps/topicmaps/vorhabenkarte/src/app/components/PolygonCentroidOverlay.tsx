@@ -4,12 +4,12 @@ import { FeatureCollectionContext } from "react-cismap/contexts/FeatureCollectio
 import centroid from "@turf/centroid";
 import L from "leaflet";
 
-const svgBadge = `
-  <svg width="24" height="24" viewBox="0 0 24 24">
-    <circle cx="12" cy="12" r="10" fill="#CF4647" />
-    <text x="12" y="16" text-anchor="middle" fill="#fff" font-size="12">P</text>
-  </svg>
-`;
+// const svgBadge = `
+//   <svg width="24" height="24" viewBox="0 0 24 24">
+//     <circle cx="12" cy="12" r="10" fill="#CF4647" />
+//     <text x="12" y="16" text-anchor="middle" fill="#fff" font-size="12">P</text>
+//   </svg>
+// `;
 
 export function PolygonCentroidOverlay() {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
@@ -32,7 +32,7 @@ export function PolygonCentroidOverlay() {
           .coordinates;
         const latlng = map.options.crs.projection.unproject(L.point(x, y));
         const icon = new L.DivIcon({
-          html: svgBadge,
+          html: f.properties.svgBadge,
           iconSize: [24, 24],
           iconAnchor: [12, 12],
         });
