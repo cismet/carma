@@ -73,26 +73,16 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
 
   const plan = feature.properties;
   const district = plan?.kst_stadtbezirk?.name || "stadtweites Vorhaben";
-  const street = plan?.adresse?.strasse || "some street name";
-  const locationDescription = plan?.ortsbeschreibung || "ortsbeschreibung";
-  const focusRoom = plan?.stek || ["Wuppertal – urbane Lebensader"];
-  const resolutions = plan?.beschluesse
-    ? [...plan.beschluesse]
-    : [
-        {
-          datum: "2022-08-10",
-          anzeige: "RIS",
-          url: "https://ris.wuppertal.de/vo0050.asp?__kvonr=27655",
-        },
-      ];
-  const documents = plan?.dokumente
-    ? [...plan.dokumente]
-    : [{ url: "Test.docx", anzeige: "Test" }];
+  const street = plan?.adresse?.strasse || null;
+  const locationDescription = plan?.ortsbeschreibung || null;
+  const focusRoom = plan?.stek || [];
+  const resolutions = plan?.beschluesse ? [...plan.beschluesse] : [];
+  const documents = plan?.dokumente ? [...plan.dokumente] : [];
   const docsPrefix = "/dokumente/";
   const sortedResolutions = resolutions.sort((a, b) =>
     b.datum.localeCompare(a.datum)
   );
-  const completion = plan?.ende_quartal || "completion Quartal";
+  const completion = plan?.ende_quartal || null;
   const email = plan?.kontakt?.mail || "buergerbeteiligungstadt.wuppertal.de";
   const phone = plan?.kontakt?.telefon || null;
   const photos = plan?.originalPhotos || null;
@@ -252,30 +242,33 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
           )}
 
           <br />
-          <Accordion style={{ marginBottom: 6 }} defaultActiveKey={"0"}>
-            <Card style={{ backgroundColor: "#bce8f1" }}>
-              <Card.Header>
-                <Accordion.Toggle as={Button} variant="link" eventKey="0">
-                  Politische Beschlüsse
-                </Accordion.Toggle>
-              </Card.Header>
-              <Accordion.Collapse eventKey="0">
-                <Card.Body style={{ backgroundColor: "white" }}>
-                  <div>
-                    {sortedResolutions.map((res, idx) => {
-                      return (
-                        <p key={idx}>
-                          <a href={res.url} target="_blank">
-                            {res.anzeige}
-                          </a>
-                        </p>
-                      );
-                    })}
-                  </div>
-                </Card.Body>
-              </Accordion.Collapse>
-            </Card>
-          </Accordion>
+          {sortedResolutions.length > 0 && (
+            <Accordion style={{ marginBottom: 6 }} defaultActiveKey={"0"}>
+              <Card style={{ backgroundColor: "#bce8f1" }}>
+                <Card.Header>
+                  <Accordion.Toggle as={Button} variant="link" eventKey="0">
+                    Politische Beschlüsse
+                  </Accordion.Toggle>
+                </Card.Header>
+                <Accordion.Collapse eventKey="0">
+                  <Card.Body style={{ backgroundColor: "white" }}>
+                    <div>
+                      {sortedResolutions.map((res, idx) => {
+                        return (
+                          <p key={idx}>
+                            <a href={res.url} target="_blank">
+                              {res.anzeige}
+                            </a>
+                          </p>
+                        );
+                      })}
+                    </div>
+                  </Card.Body>
+                </Accordion.Collapse>
+              </Card>
+            </Accordion>
+          )}
+
           {citizenText && citizenUrl && (
             <Accordion style={{ marginBottom: 6 }} defaultActiveKey={"1"}>
               <Card style={{ backgroundColor: "#f8f9fa" }}>
@@ -292,62 +285,32 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
               </Card>
             </Accordion>
           )}
-          <Accordion style={{ marginBottom: 6 }} defaultActiveKey={"2"}>
-            <Card style={{ backgroundColor: "#fff3cd" }}>
-              <Card.Header>
-                <Accordion.Toggle as={Button} variant="link" eventKey="2">
-                  Anhang
-                </Accordion.Toggle>
-              </Card.Header>
-              <Accordion.Collapse eventKey="2">
-                <Card.Body style={{ backgroundColor: "white" }}>
-                  <ul>
-                    {documents.map((res, idx) => {
-                      return (
-                        <li key={idx}>
-                          <a href={res.url + docsPrefix} target="_blank">
-                            {res?.anzeige ? res?.anzeige : res.url}
-                          </a>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                </Card.Body>
-              </Accordion.Collapse>
-            </Card>
-          </Accordion>
-          {/* <Accordion style={{ marginBottom: 6 }} defaultActiveKey="2">
-            <Card style={{ backgroundColor: "#d6e9c6" }}>
-              <Card.Header>
-                <Accordion.Toggle as={Button} variant="link" eventKey="2">
-                  Kontakt
-                </Accordion.Toggle>
-              </Card.Header>
-              <Accordion.Collapse eventKey="2">
-                <Card.Body style={{ backgroundColor: "white" }}>
-                  <div className="flex flex-col gap-4">
-                    {phone && (
-                      <a
-                        href={`tel:${phone}`}
-                        className="flex items-center gap-2 text-inherit"
-                      >
-                        <FontAwesomeIcon icon={faPhone} /> {phone}
-                      </a>
-                    )}
-                    {email && (
-                      <a
-                        href={`mailto:${email}`}
-                        className="flex items-center gap-2 text-inherit"
-                      >
-                        <FontAwesomeIcon icon={faEnvelope} />{" "}
-                        <span>{email}</span>
-                      </a>
-                    )}
-                  </div>
-                </Card.Body>
-              </Accordion.Collapse>
-            </Card>
-          </Accordion> */}
+          {documents.length > 0 && (
+            <Accordion style={{ marginBottom: 6 }} defaultActiveKey={"2"}>
+              <Card style={{ backgroundColor: "#fff3cd" }}>
+                <Card.Header>
+                  <Accordion.Toggle as={Button} variant="link" eventKey="2">
+                    Anhang
+                  </Accordion.Toggle>
+                </Card.Header>
+                <Accordion.Collapse eventKey="2">
+                  <Card.Body style={{ backgroundColor: "white" }}>
+                    <ul>
+                      {documents.map((res, idx) => {
+                        return (
+                          <li key={idx}>
+                            <a href={res.url + docsPrefix} target="_blank">
+                              {res?.anzeige ? res?.anzeige : res.url}
+                            </a>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </Card.Body>
+                </Accordion.Collapse>
+              </Card>
+            </Accordion>
+          )}
         </div>
       </Modal.Body>
       <Modal.Footer>
