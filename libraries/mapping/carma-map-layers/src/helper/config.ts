@@ -699,32 +699,32 @@ export const topicMapsConfig: Config = {
 
 export const partianTwinConfig = {
   TopicMaps: topicMapsConfig,
-  ArcGISOnline: {
-    Title: "ArcGIS Online",
-    id: "wuppArcGisOnline",
-    layers: [
-      {
-        id: "wuppArcGisOnline_seilbahn",
-        path: "ArcGIS Online",
-        name: "wuppArcGisOnline_seilbahn",
-        title: "Seilbahnplanung BUGA 2031",
-        description: `Beschreibung: 3D-Visualisierung der für die Bundesgartenschau 2031 geplanten Seilbahn zwischen dem Wuppertaler Zoo und der Königshöhe, Planungsstand 05/2025.`,
-        tags: [
-          "ArcGIS Online",
-          "BUGA 2031",
-          "Bundesgartenschau",
-          "Kernareal",
-          "Seilbahn",
-          "Zoo",
-          "Planung",
-        ],
-        type: "link",
-        thumbnail: seilbahnThumb,
-        url: "https://experience.arcgis.com/experience/a78e9ce521df42f5a0ac98389e90bca6?draft=true",
-        serviceName: "wuppArcGisOnline",
-      },
-    ],
-  },
+  // ArcGISOnline: {
+  //   Title: "ArcGIS Online",
+  //   id: "wuppArcGisOnline",
+  //   layers: [
+  //     {
+  //       id: "wuppArcGisOnline_seilbahn",
+  //       path: "ArcGIS Online",
+  //       name: "wuppArcGisOnline_seilbahn",
+  //       title: "Seilbahnplanung BUGA 2031",
+  //       description: `Beschreibung: 3D-Visualisierung der für die Bundesgartenschau 2031 geplanten Seilbahn zwischen dem Wuppertaler Zoo und der Königshöhe, Planungsstand 05/2025.`,
+  //       tags: [
+  //         "ArcGIS Online",
+  //         "BUGA 2031",
+  //         "Bundesgartenschau",
+  //         "Kernareal",
+  //         "Seilbahn",
+  //         "Zoo",
+  //         "Planung",
+  //       ],
+  //       type: "link",
+  //       thumbnail: seilbahnThumb,
+  //       url: "https://experience.arcgis.com/experience/a78e9ce521df42f5a0ac98389e90bca6?draft=true",
+  //       serviceName: "wuppArcGisOnline",
+  //     },
+  //   ],
+  // },
 };
 
 const vectorBaseUrl = "https://tiles.cismet.de/";
