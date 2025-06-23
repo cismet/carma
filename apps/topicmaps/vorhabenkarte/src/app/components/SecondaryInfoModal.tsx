@@ -27,12 +27,13 @@ import { Tag } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Tooltip } from "antd";
 import { Button, Modal, Accordion, Card, Table } from "react-bootstrap";
-import { SecondaryInfoFooter } from "@carma-collab/wuppertal/e-bikes";
 import versionData from "../../version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
 import { changeUnreadableColor, formatIsoString } from "../../helper/styler";
 import { MenuFooter } from "@carma-collab/wuppertal/commons";
 import { shortenText } from "../../helper/convertItemToFeature";
+import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
+import { useContext } from "react";
 
 const styles = {
   container: {
@@ -66,7 +67,18 @@ const styles = {
   },
 } as const;
 
+type LightboxDispatch = {
+  setPhotoUrls: (urls: string[]) => void;
+  setIndex: (i: number) => void;
+  setTitle: (t: string) => void;
+  setVisible: (v: boolean) => void;
+};
+
 const SecondaryInfoModal = ({ feature, setOpen }) => {
+  const lightBoxDispatchContext = useContext(
+    LightBoxDispatchContext
+  ) as LightboxDispatch;
+
   const close = () => {
     setOpen(false);
   };
@@ -89,10 +101,14 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
   const citizenText = plan?.bb_text || null;
   const citizenUrl = plan?.bb_url || null;
 
+  if (photos && photos.length > 0) {
+    lightBoxDispatchContext.setPhotoUrls(plan.fotos);
+  }
+
   return (
     <Modal
       style={{
-        zIndex: 2900000000,
+        zIndex: 999,
       }}
       height="100%"
       size="lg"
@@ -224,8 +240,13 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
               <b className="text-[16px]">Foto-Galerie:</b>
               <div className="flex gap-2 mt-3">
                 {photos.map((photo, idx) => (
-                  <div key={idx} className="flex gap-2">
+                  <div key={idx} className="cursor-pointer">
                     <img
+                      onClick={() => {
+                        lightBoxDispatchContext.setIndex(idx);
+                        lightBoxDispatchContext.setTitle(plan.info.title);
+                        lightBoxDispatchContext.setVisible(true);
+                      }}
                       src={
                         "https://wunda-geoportal-docs.cismet.de/vorhabenkarte/fotos/" +
                         photo.url
