@@ -35,6 +35,7 @@ export function PolygonCentroidOverlay() {
           html: f.properties.svgBadge,
           iconSize: [24, 24],
           iconAnchor: [12, 12],
+          className: "transparent-marker",
         });
         const m = L.marker(latlng, {
           icon,
