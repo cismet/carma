@@ -130,8 +130,8 @@
     "@nx/vite": "21.2.1",
     "@nx/web": "21.2.1",
     "@nx/workspace": "21.2.1",
-    "@storybook/react-vite": "9.0.9",
-    "@storybook/test-runner": "0.22.1",
+    "@storybook/react-vite": "9.0.12",
+    "@storybook/test-runner": "0.23.0",
     "@swc-node/register": "~1.10.9",
     "@swc/cli": "0.6.0",
     "@swc/core": "1.10.12",
@@ -158,11 +158,11 @@
     "eslint": "8.57.0",
     "eslint-import-resolver-typescript": "^3.7.0",
     "eslint-plugin-cypress": "^3.3.0",
-    "eslint-plugin-import": "2.31.0",
-    "eslint-plugin-jsx-a11y": "6.10.1",
-    "eslint-plugin-react": "^7.37.4",
-    "eslint-plugin-react-hooks": "5.0.0",
-    "eslint-plugin-react-refresh": "^0.4.18",
+    "eslint-plugin-import": "2.32.0",
+    "eslint-plugin-jsx-a11y": "6.10.2",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.20",
     "jiti": "2.4.2",
     "jsdom": "^26.0.0",
     "nx": "21.2.1",
@@ -174,6 +174,7 @@
     "vite": "6.3.5",
     "vite-plugin-comlink": "^5.1.0",
     "vite-plugin-dts": "4.5.4",
-    "vite-plugin-static-copy": "^3.0.2"
+    "vite-plugin-static-copy": "^3.0.2",
+    "eslint-plugin-storybook": "9.0.12"
   }
 }
