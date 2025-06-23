@@ -15,6 +15,8 @@ export {
 
 export { suppressReactCismapErrors } from "./lib/log-react-cismap-errors";
 
+export { normalizeOptions } from "./lib/normalizeOptions";
+
 export { clampToToleranceRange } from "./lib/numbers";
 
 export {

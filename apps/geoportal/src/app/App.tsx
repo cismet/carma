@@ -52,7 +52,6 @@ import {
   MIN_MOBILE_WIDTH,
 } from "./config/app.config";
 import { featureFlagConfig } from "./config/featureFlags";
-import { hashStateConfig } from "./config/hashState";
 
 import { OBLIQUE_CONFIG, CAMERA_ID_TO_DIRECTION } from "./oblique/config";
 
@@ -101,8 +100,6 @@ function App({ published }: { published?: boolean }) {
             background: backgroundSettings,
           }}
           mapStyleConfig={geoportalMapStyleConfig}
-          hashKeyAliases={hashStateConfig.aliases}
-          hashCodecs={hashStateConfig.codecs}
         >
           <ObliqueProvider
             config={OBLIQUE_CONFIG}

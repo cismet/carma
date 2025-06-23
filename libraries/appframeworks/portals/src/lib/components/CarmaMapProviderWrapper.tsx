@@ -8,9 +8,11 @@ import {
   MapStyleProvider,
   type MapStyleConfig,
 } from "../contexts/MapStyleProvider";
-import { GazDataConfig } from "@carma-commons/utils";
+import { GazDataConfig, normalizeOptions } from "@carma-commons/utils";
 import { defaultGazDataConfig } from "@carma-commons/resources";
 import { HashCodecs, HashStateProvider } from "../contexts/HashStateProvider";
+import { defaultHashCodecs, defaultHashKeyAliases } from "../utils/hashState";
+import { useMemo } from "react";
 
 type CarmaMapProviderWrapperProps = {
   children: React.ReactNode;
@@ -34,6 +36,15 @@ export const CarmaMapProviderWrapper = ({
   const { background } = overlayOptions;
   const { transparency, color } = background;
 
+  const aliases = useMemo(
+    () => normalizeOptions(hashKeyAliases, defaultHashKeyAliases),
+    [hashKeyAliases]
+  );
+  const codecs = useMemo(
+    () => normalizeOptions(hashCodecs, defaultHashCodecs),
+    [hashCodecs]
+  );
+
   if (gazDataConfig.crs !== "3857") {
     console.warn(
       "Gazetteer data CRS is not supported, it should be 3857, Spherical Mercator"
@@ -41,7 +52,7 @@ export const CarmaMapProviderWrapper = ({
   }
 
   return (
-    <HashStateProvider keyAliases={hashKeyAliases} hashCodecs={hashCodecs}>
+    <HashStateProvider keyAliases={aliases} hashCodecs={codecs}>
       <GazDataProvider config={gazDataConfig}>
         <SelectionProvider>
           <MapStyleProvider config={mapStyleConfig}>

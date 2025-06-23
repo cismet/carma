@@ -354,11 +354,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       return;
     }
     updateHash(
-      {
-        lat,
-        lng,
-        zoom,
-      },
+      { lat, lng, zoom },
       {
         clearKeys: cesiumClearParamKeys,
         debugLabel: "GPM:TopicMap:locationChangedHandler",

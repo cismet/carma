@@ -1,21 +1,22 @@
 import React, { createContext, useCallback, useContext, useRef } from "react";
 import { getHashParams, updateHashHistoryState } from "@carma-commons/utils";
 import { useLocation } from "react-router-dom";
+import { normalizeOptions } from "../../../../../commons/utils/src/lib/normalizeOptions";
 
 interface HashUpdateOptions {
   clearKeys?: string[];
   debugLabel?: string;
 }
-export type HashCodec = {
+export type HashCodec<T = unknown> = {
   name?: string;
-  decode: (value: string | undefined) => unknown;
-  encode: (value: unknown) => string | undefined;
+  decode: (value: string | undefined) => T;
+  encode: (value: T) => string | undefined;
 };
 
 export type HashCodecs = Record<string, HashCodec>;
 export type HashKeyAliases = Record<string, string>;
 
-const hashUpdateDefaults: HashUpdateOptions = {
+const hashUpdateDefaults: Required<HashUpdateOptions> = {
   clearKeys: [],
   debugLabel: "unspecified",
 };
@@ -59,13 +60,14 @@ export const HashStateProvider: React.FC<{
       params: Record<string, unknown> | undefined,
       options?: HashUpdateOptions
     ) => {
-      const { clearKeys, debugLabel } = {
-        ...hashUpdateDefaults,
-        ...(options ?? {}),
-      };
+      const { clearKeys, debugLabel } = normalizeOptions(
+        options,
+        hashUpdateDefaults
+      );
       // build new params object with aliases applied
       const newParams = {};
       const currentParams = getHashParams();
+      const undefinedKeys: string[] = [];
       if (params) {
         for (const [key, value] of Object.entries(params)) {
           const newValue =
@@ -74,12 +76,22 @@ export const HashStateProvider: React.FC<{
               : value;
           const newKey =
             keyAliases && keyAliases[key] !== undefined ? keyAliases[key] : key;
-          newParams[newKey] = newValue;
+
+          if (newValue === undefined) {
+            undefinedKeys.push(newKey);
+          } else {
+            newParams[newKey] = newValue;
+          }
         }
       }
 
       const merged = { ...currentParams, ...newParams };
-      updateHashHistoryState(merged, location.pathname, clearKeys, debugLabel);
+      updateHashHistoryState(
+        merged,
+        location.pathname,
+        [...clearKeys, ...undefinedKeys],
+        debugLabel
+      );
     },
     [location.pathname, keyAliases, hashCodecs]
   );
