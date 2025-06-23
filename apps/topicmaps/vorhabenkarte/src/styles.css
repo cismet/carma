@@ -42,3 +42,11 @@ div.leaflet-top.leaflet-right > .leaflet-control {
 .modal-backdrop {
   z-index: 800 !important;
 }
+
+.transparent-marker {
+  background: none !important;
+  /* border: none !important; */
+  border: 2px solid white;
+  padding: 0;
+  line-height: 0;
+}
