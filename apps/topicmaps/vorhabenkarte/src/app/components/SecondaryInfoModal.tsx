@@ -86,8 +86,8 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
   const email = plan?.kontakt?.mail || "buergerbeteiligungstadt.wuppertal.de";
   const phone = plan?.kontakt?.telefon || null;
   const photos = plan?.originalPhotos || null;
-  const citizenText = plan?.bb_text || "some citizen text text ";
-  const citizenUrl = plan?.bb_url || "/";
+  const citizenText = plan?.bb_text || null;
+  const citizenUrl = plan?.bb_url || null;
 
   return (
     <Modal
@@ -117,7 +117,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
         </Modal.Title>
       </Modal.Header>
       <Modal.Body id="myMenu" key={"prbr.secondaryInfo"}>
-        <div style={{ width: "100%", minHeight: 250 }}>
+        <div style={{ width: "100%", marginBottom: "20px" }}>
           <div style={styles.container}>
             <div className="flex items-center gap-2">
               <FontAwesomeIcon icon={faClockRotateLeft} />
@@ -182,7 +182,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
           </div>
         </div>
         <div className="px-[10px]">
-          <div className="py-[10px]">
+          <div className="py-[12px]">
             <b className="text-[16px]">Beschreibung: </b>
             <div className="mt-1">
               <span>{shortenText(plan.beschreibung, true)} </span>
@@ -196,7 +196,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
 
           {phone ||
             (email && (
-              <div className="py-[10px]">
+              <div className="py-[12px]">
                 <b className="text-[16px] mb-5">Kontakt:</b>
                 <div className="flex flex-col gap-4 mt-1">
                   {phone && (
