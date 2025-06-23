@@ -43,27 +43,13 @@ const convertItemToFeature = async (itemIn, poiColors) => {
   const id = item.id;
   const type = "Feature";
   const selected = false;
-  // const geometry = item.geojson;
-  let geometry = item.geojson;
   const text = item.titel;
 
-  if (geometry?.type === "Polygon" || geometry?.type === "MultiPolygon") {
-    const centroid = turf.centroid(geometry);
-    geometry = centroid.geometry;
-    // Store original geometry for reference
-    item.originalGeometry = item.geojson;
-  }
-
-  // const headerColor = item.thema.farbe + item.thema.fuellung;
+  // Handle colors
   const headerColor = adjustFeatureColors(item.thema.farbe);
-  if (item.fotos && item.fotos.length > 0 && item.fotos[0].url.includes(".")) {
-    item.foto =
-      // "https://www.wuppertal.de/geoportal/vorhabenkarte/fotos/" +
-      "https://wunda-geoportal-docs.cismet.de/vorhabenkarte/fotos/" +
-      item.fotos[0].url;
-    item.originalPhotos = item.fotos;
-  }
+  item.color = headerColor;
 
+  // Handle photos
   if (item.fotos && item.fotos.length > 0) {
     item.fotos = item.fotos.map(
       (photo) =>
@@ -72,12 +58,65 @@ const convertItemToFeature = async (itemIn, poiColors) => {
     );
   }
 
-  // item.color = headerColor + item.thema.fuellung;
-  item.color = headerColor;
+  // Create base properties
+  const baseProperties = {
+    ...item,
+    info: {
+      title: text,
+      subtitle: item.buergerbeteiligung
+        ? "Das Vorhaben wird mit Bürgerbeteiligung umgesetzt"
+        : shortenText(item.beschreibung),
+      header: item.thema.name,
+    },
+    tel: item.kontakt.telefon,
+    email: item.kontakt.mail,
+    genericLinks: [],
+  };
 
+  // If it's a polygon, create two features
+  if (item.geojson?.type === "Polygon" || item.geojson?.type === "MultiPolygon") {
+    const centroid = turf.centroid(item.geojson);
+    
+    // Return array of features - polygon and point
+    return [
+      {
+        id: id + "_polygon",
+        type,
+        selected,
+        geometry: item.geojson,
+        properties: {
+          ...baseProperties,
+          isPolygon: true
+        },
+        crs: {
+          type: "name",
+          properties: {
+            name: "urn:ogc:def:crs:EPSG::25832",
+          },
+        },
+      },
+      {
+        id: id + "_point",
+        type,
+        selected,
+        geometry: centroid.geometry,
+        properties: {
+          ...baseProperties,
+          isPoint: true
+        },
+        crs: {
+          type: "name",
+          properties: {
+            name: "urn:ogc:def:crs:EPSG::25832",
+          },
+        },
+      }
+    ];
+  }
+
+  // For non-polygon features, return single feature
   return {
     id,
-    text,
     type,
     selected,
     geometry,
