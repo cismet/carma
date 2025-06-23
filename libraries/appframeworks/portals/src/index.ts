@@ -24,6 +24,11 @@ export { GenericInfoBoxFromFeature } from "./lib/components/GenericInfoBoxFromFe
 export { GazDataProvider, useGazData } from "./lib/components/GazDataProvider";
 
 export {
+  HashStateProvider,
+  useHashState,
+} from "./lib/contexts/HashStateProvider";
+export {
+  MapStyleProvider,
   useMapStyle,
   type MapStyleConfig,
 } from "./lib/contexts/MapStyleProvider";
@@ -37,8 +42,8 @@ export {
   type SelectionItem,
 } from "./lib/components/SelectionProvider";
 
-export { TopicMapSelectionContent } from "./lib/components/TopicMapSelectionContent";
 export { LibreMapSelectionContent } from "./lib/components/LibreMapSelectionContent";
+export { TopicMapSelectionContent } from "./lib/components/TopicMapSelectionContent";
 
 export { useSelectionTopicMap } from "./lib/hooks/useSelectionTopicMap";
 export { useSelectionCesium } from "./lib/hooks/useSelectionCesium";
