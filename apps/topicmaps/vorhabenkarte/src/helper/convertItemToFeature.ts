@@ -1,4 +1,5 @@
 import { addSVGToProps } from "react-cismap/tools/svgHelper";
+import Panel from "react-cismap/commons/Panel";
 
 export const shortenText = (
   text: string,
