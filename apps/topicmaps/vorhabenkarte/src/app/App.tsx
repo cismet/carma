@@ -12,6 +12,7 @@ import {
   getFeatureStyler,
   getPoiClusterIconCreatorFunction,
 } from "../helper/styler";
+import { PolygonCentroidOverlay } from "./components/PolygonCentroidOverlay";
 
 export function App() {
   useEffect(() => {
@@ -35,6 +36,7 @@ export function App() {
       }}
     >
       <Map />
+      <PolygonCentroidOverlay />
     </TopicMapContextProvider>
   );
 }
