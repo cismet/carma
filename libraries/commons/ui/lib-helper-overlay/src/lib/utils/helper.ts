@@ -94,7 +94,7 @@ export function getElementPosition(
   return styleElement;
 }
 
-export const isElementHidden = (element: HTMLElement | null): boolean => {
+export const isElementHidden = (element: HTMLElement | undefined): boolean => {
   if (!element) return true;
 
   const style = window.getComputedStyle(element);

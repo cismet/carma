@@ -5,7 +5,7 @@ import { isElementHidden } from "../utils/helper";
 import { useWindowSize } from "@uidotdev/usehooks";
 
 export const useOverlayHelper = (options: OptionsOverlayHelper) => {
-  const [ref, setRef] = useState<HTMLElement | null>(null);
+  const [ref, setRef] = useState<HTMLElement | undefined>(undefined);
   const [isVisible, setIsVisible] = useState<boolean>(false);
   const { addConfig, removeConfig } = useOverlayTourContext();
   const size = useWindowSize();
