@@ -3,7 +3,8 @@
   "version": "0.9.3",
   "license": "MIT",
   "scripts": {
-    "update-all": "git fetch --all && git rebase origin/dev && git submodule update --init --recursive --remote --checkout --force && nx reset && npm install"
+    "update": "git fetch --all && git rebase origin/dev && git submodule update --init --recursive --remote --checkout --force && npm install",
+    "update-force": "git fetch --all && git rebase origin/dev && git submodule update --init --recursive --remote --checkout --force && nx reset && rm -rf node_modules && npm install"
   },
   "private": true,
   "dependencies": {
