@@ -4,7 +4,7 @@ export { isNumberArrayEqual } from "./lib/arrays";
 
 export { extractCarmaConfig } from "./lib/carmaConfig";
 
-export { md5FetchText } from "./lib/fetching";
+export { md5FetchText, md5ActionFetchDAQ } from "./lib/fetching";
 
 export {
   getGazData,
