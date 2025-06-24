@@ -31,35 +31,52 @@ export function PolygonCentroidOverlay() {
     if (!map) return;
     const markers: L.Marker[] = [];
 
-    shownFeatures
-      .filter(
-        (f) =>
-          f.geometry.type === "Polygon" || f.geometry.type === "MultiPolygon"
-      )
-      .forEach((f) => {
-        const [x, y] = (centroid(f.geometry as any).geometry as GeoJSON.Point)
-          .coordinates;
+    shownFeatures.forEach((feature) => {
+      const geom = feature.geometry;
+
+      // helper to drop one icon at the centroid of any geometry
+      const dropMarkerAt = (g: GeoJSON.Polygon | GeoJSON.MultiPolygon) => {
+        const c = centroid(g as any).geometry as GeoJSON.Point;
+        const [x, y] = c.coordinates;
         const latlng = map.options.crs.projection.unproject(L.point(x, y));
-        const { svg: html, svgSize: size } = styleFn(f);
+
+        const { svg: html, svgSize: size } = styleFn(feature);
         const icon = new L.DivIcon({
           html,
           iconSize: [size, size],
           iconAnchor: [size / 2, size / 2],
           className: "transparent-marker",
         });
-        const marker = L.marker(latlng, {
+
+        const m = L.marker(latlng, {
           icon,
           interactive: true,
           zIndexOffset: 1000,
         }).addTo(map);
 
-        marker.on("click", () => {
+        m.on("click", () => {
           setSelectedFeatureByPredicate(
-            (feature) => feature.properties.id === f.properties.id
+            (f) => f.properties.id === feature.properties.id
           );
         });
-        markers.push(marker);
-      });
+
+        markers.push(m);
+      };
+
+      if (geom.type === "Polygon") {
+        dropMarkerAt(geom);
+      } else if (geom.type === "MultiPolygon") {
+        // one marker per sub-polygon
+        (geom.coordinates as GeoJSON.Position[][][]).forEach((coords) => {
+          // build a temporary Polygon geometry for this ring
+          const subPoly: GeoJSON.Polygon = {
+            type: "Polygon",
+            coordinates: coords,
+          };
+          dropMarkerAt(subPoly);
+        });
+      }
+    });
 
     return () => markers.forEach((m) => map.removeLayer(m));
   }, [routedMapRef, shownFeatures]);

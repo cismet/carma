@@ -31,6 +31,25 @@ const adjustFeatureColors = (color) => {
   return color;
 };
 
+const MULTI_POLY_COORDS: GeoJSON.MultiPolygon = [
+  [
+    [
+      [376149.8829, 5681869.9617],
+      [376137.9509, 5681848.3526],
+      [376097.1671, 5681858.0553],
+      [376149.8829, 5681869.9617],
+    ],
+  ],
+  [
+    [
+      [378149.8829, 5683869.9617],
+      [378137.9509, 5683848.3526],
+      [378097.1671, 5683858.0553],
+      [378149.8829, 5683869.9617],
+    ],
+  ],
+];
+
 const convertItemToFeature = async (itemIn, poiColors) => {
   let clonedItem = JSON.parse(JSON.stringify(itemIn));
 
@@ -43,7 +62,7 @@ const convertItemToFeature = async (itemIn, poiColors) => {
   const id = item.id;
   const type = "Feature";
   const selected = false;
-  const geometry = item.geojson;
+  let geometry = item.geojson;
   const text = item.titel;
 
   const headerColor = adjustFeatureColors(item.thema.farbe);
@@ -61,6 +80,15 @@ const convertItemToFeature = async (itemIn, poiColors) => {
         "https://wunda-geoportal-docs.cismet.de/vorhabenkarte/fotos/" +
         photo.url
     );
+  }
+
+  if (itemIn.id === 2) {
+    console.log("xxx multi");
+    geometry = {
+      type: "MultiPolygon",
+      crs: item.crs,
+      coordinates: MULTI_POLY_COORDS,
+    } as GeoJSON.MultiPolygon;
   }
 
   item.color = headerColor;
