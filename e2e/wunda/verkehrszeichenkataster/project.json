@@ -7,23 +7,9 @@
   "implicitDependencies": ["verkehrszeichenkataster"],
   "targets": {
     "e2e": {
-      "executor": "@nx/cypress:cypress",
       "options": {
-        "cypressConfig": "e2e/wunda/verkehrszeichenkataster/cypress.config.ts",
-        "devServerTarget": "verkehrszeichenkataster:serve:development",
-        "testingType": "e2e"
-      },
-      "configurations": {
-        "production": {
-          "devServerTarget": "verkehrszeichenkataster:serve:production"
-        },
-        "ci": {
-          "devServerTarget": "verkehrszeichenkataster:serve-static"
-        }
+        "config-file": "./cypress.config.ts"
       }
-    },
-    "lint": {
-      "executor": "@nx/eslint:lint"
     }
   }
 }

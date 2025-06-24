@@ -6,11 +6,13 @@
   "tags": [],
   "targets": {
     "build": {
-      "executor": "@nx/vite:build",
-      "outputs": ["{options.outputPath}"],
+      "outputs": [
+        "{projectRoot}/{options.outDir}",
+        "{workspaceRoot}/dist/apps/belis/online"
+      ],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "dist/apps/belis/online"
+        "outDir": "../../../dist/apps/belis/online"
       },
       "configurations": {
         "development": {
@@ -22,40 +24,18 @@
       }
     },
     "serve": {
-      "executor": "@nx/vite:dev-server",
       "defaultConfiguration": "development",
-      "options": {
-        "buildTarget": "belis-online:build"
-      },
       "configurations": {
-        "development": {
-          "buildTarget": "belis-online:build:development",
-          "hmr": true
-        },
-        "production": {
-          "buildTarget": "belis-online:build:production",
-          "hmr": false
-        }
+        "development": {},
+        "production": {}
       }
     },
     "preview": {
-      "executor": "@nx/vite:preview-server",
       "defaultConfiguration": "development",
-      "options": {
-        "buildTarget": "belis-online:build"
-      },
       "configurations": {
-        "development": {
-          "buildTarget": "belis-online:build:development"
-        },
-        "production": {
-          "buildTarget": "belis-online:build:production"
-        }
-      },
-      "dependsOn": ["build"]
-    },
-    "lint": {
-      "executor": "@nx/eslint:lint"
+        "development": {},
+        "production": {}
+      }
     }
   }
 }

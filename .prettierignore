@@ -22,12 +22,6 @@ cypress.config.ts
 eslint.config.cjs
 eslint.config.ts
 
-jest.config.cjs
-jest.config.ts
-
-jest.preset.cjs
-jest.preset.ts
-
 postcss.config.cjs
 postcss.config.ts
 

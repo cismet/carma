@@ -7,20 +7,9 @@
   "implicitDependencies": ["klimaorte"],
   "targets": {
     "e2e": {
-      "executor": "@nx/cypress:cypress",
       "options": {
-        "cypressConfig": "e2e/topicmaps/klimaorte/cypress.config.ts",
-        "devServerTarget": "klimaorte:serve:development",
-        "testingType": "e2e"
-      },
-      "configurations": {
-        "production": {
-          "devServerTarget": "klimaorte:serve:production"
-        }
+        "config-file": "./cypress.config.ts"
       }
-    },
-    "lint": {
-      "executor": "@nx/eslint:lint"
     }
   }
 }

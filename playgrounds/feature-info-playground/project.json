@@ -6,11 +6,13 @@
   "tags": [],
   "targets": {
     "build": {
-      "executor": "@nx/vite:build",
-      "outputs": ["{options.outputPath}"],
+      "outputs": [
+        "{projectRoot}/{options.outDir}",
+        "{workspaceRoot}/dist/playgrounds/feature-info-playground"
+      ],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "dist/playgrounds/feature-info-playground"
+        "outDir": "../../dist/playgrounds/feature-info-playground"
       },
       "configurations": {
         "development": {
@@ -22,48 +24,28 @@
       }
     },
     "serve": {
-      "executor": "@nx/vite:dev-server",
       "defaultConfiguration": "development",
-      "options": {
-        "buildTarget": "feature-info-playground:build"
-      },
       "configurations": {
-        "development": {
-          "buildTarget": "feature-info-playground:build:development",
-          "hmr": true
-        },
-        "production": {
-          "buildTarget": "feature-info-playground:build:production",
-          "hmr": false
-        }
+        "development": {},
+        "production": {}
       }
     },
     "preview": {
-      "executor": "@nx/vite:preview-server",
       "defaultConfiguration": "development",
-      "options": {
-        "buildTarget": "feature-info-playground:build"
-      },
       "configurations": {
-        "development": {
-          "buildTarget": "feature-info-playground:build:development"
-        },
-        "production": {
-          "buildTarget": "feature-info-playground:build:production"
-        }
-      },
-      "dependsOn": ["build"]
-    },
-    "test": {
-      "executor": "@nx/vite:test",
-      "outputs": ["{options.reportsDirectory}"],
-      "options": {
-        "reportsDirectory": "../../coverage/playgrounds/feature-info-playground"
+        "development": {},
+        "production": {}
       }
     },
-    "lint": {
-      "executor": "@nx/eslint:lint",
-      "outputs": ["{options.outputFile}"]
+    "test": {
+      "outputs": [
+        "{projectRoot}/{options.coverage.reportsDirectory}",
+        "{workspaceRoot}/coverage/playgrounds/feature-info-playground"
+      ],
+      "options": {
+        "passWithNoTests": true,
+        "coverage.reportsDirectory": "../../coverage/playgrounds/feature-info-playground"
+      }
     }
   }
 }

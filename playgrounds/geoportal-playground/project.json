@@ -6,11 +6,13 @@
   "tags": [],
   "targets": {
     "build": {
-      "executor": "@nx/vite:build",
-      "outputs": ["{options.outputPath}"],
+      "outputs": [
+        "{projectRoot}/{options.outDir}",
+        "{workspaceRoot}/dist/playgrounds/geoportal-playground"
+      ],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "dist/playgrounds/geoportal-playground"
+        "outDir": "../../dist/playgrounds/geoportal-playground"
       },
       "configurations": {
         "development": {
@@ -22,48 +24,21 @@
       }
     },
     "serve": {
-      "executor": "@nx/vite:dev-server",
       "defaultConfiguration": "development",
       "options": {
-        "buildTarget": "geoportal-playground:build",
         "host": "0.0.0.0"
       },
       "configurations": {
-        "development": {
-          "buildTarget": "geoportal-playground:build:development",
-          "hmr": true
-        },
-        "production": {
-          "buildTarget": "geoportal-playground:build:production",
-          "hmr": false
-        }
+        "development": {},
+        "production": {}
       }
     },
     "preview": {
-      "executor": "@nx/vite:preview-server",
       "defaultConfiguration": "development",
-      "options": {
-        "buildTarget": "geoportal-playground:build"
-      },
       "configurations": {
-        "development": {
-          "buildTarget": "geoportal-playground:build:development"
-        },
-        "production": {
-          "buildTarget": "geoportal-playground:build:production"
-        }
-      },
-      "dependsOn": ["build"]
-    },
-    "test": {
-      "executor": "@nx/vite:test",
-      "outputs": ["{options.reportsDirectory}"],
-      "options": {
-        "reportsDirectory": "../../coverage/playgrounds/geoportal-playground"
+        "development": {},
+        "production": {}
       }
-    },
-    "lint": {
-      "executor": "@nx/eslint:lint"
     }
   }
 }

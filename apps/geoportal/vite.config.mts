@@ -6,7 +6,7 @@ import { viteStaticCopy } from "vite-plugin-static-copy";
 
 const CESIUM_PATHNAME = "__cesium__";
 
-export default defineConfig({
+export default defineConfig(() => ({
   root: __dirname,
   cacheDir: "../../node_modules/.vite/apps/geoportal",
 
@@ -44,24 +44,26 @@ export default defineConfig({
 
   build: {
     outDir: "../../dist/apps/geoportal",
+    emptyOutDir: true,
     reportCompressedSize: true,
     commonjsOptions: {
       transformMixedEsModules: true,
     },
   },
 
+  define: {
+    "import.meta.vitest": undefined,
+  },
+
   test: {
+    watch: false,
     globals: true,
-    cache: {
-      dir: "../../node_modules/.vitest",
-    },
     environment: "jsdom",
     include: ["src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
-
     reporters: ["default"],
     coverage: {
       reportsDirectory: "../../coverage/apps/geoportal",
-      provider: "v8",
+      provider: "v8" as const,
     },
   },
-});
+}));

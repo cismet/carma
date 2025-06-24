@@ -6,11 +6,13 @@
   "tags": [],
   "targets": {
     "build": {
-      "executor": "@nx/vite:build",
-      "outputs": ["{options.outputPath}"],
+      "outputs": [
+        "{projectRoot}/{options.outDir}",
+        "{workspaceRoot}/dist/libraries/collaboration/carma-pecher-collab"
+      ],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "dist/libraries/collaboration/carma-pecher-collab"
+        "outDir": "../../../dist/libraries/collaboration/carma-pecher-collab"
       },
       "configurations": {
         "development": {
@@ -20,16 +22,6 @@
           "mode": "production"
         }
       }
-    },
-    "test": {
-      "executor": "@nx/vite:test",
-      "outputs": ["{options.reportsDirectory}"],
-      "options": {
-        "reportsDirectory": "../../../coverage/libraries/collaboration/carma-pecher-collab"
-      }
-    },
-    "lint": {
-      "executor": "@nx/eslint:lint"
     }
   }
 }

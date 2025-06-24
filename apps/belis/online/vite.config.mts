@@ -1,33 +1,43 @@
 /// <reference types='vitest' />
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
-import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
-import { comlink } from 'vite-plugin-comlink';
-import { viteStaticCopy } from 'vite-plugin-static-copy'
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import { nxViteTsPaths } from "@nx/vite/plugins/nx-tsconfig-paths.plugin";
+import { comlink } from "vite-plugin-comlink";
+import { viteStaticCopy } from "vite-plugin-static-copy";
+
+// These options were migrated by @nx/vite:convert-to-inferred from the project.json file.
+const configValues = { default: {}, development: {}, production: {} };
+
+// Determine the correct configValue to use based on the configuration
+const nxConfiguration = process.env.NX_TASK_TARGET_CONFIGURATION ?? "default";
+
+const options = {
+  ...configValues.default,
+  ...(configValues[nxConfiguration] ?? {}),
+};
 
 export default defineConfig({
   root: __dirname,
-  cacheDir: '../../../node_modules/.vite/apps/belis/online',
+  cacheDir: "../../../node_modules/.vite/apps/belis/online",
 
   server: {
     port: 4200,
-    host: 'localhost',
+    host: "localhost",
     fs: {
-      allow: ['../../..'],
+      allow: ["../../.."],
     },
   },
 
   preview: {
     port: 4300,
-    host: 'localhost',
+    host: "localhost",
   },
-
 
   plugins: [react(), nxViteTsPaths(), comlink()],
 
   // plugins: [
-  //   react(), 
-  //   nxViteTsPaths(), 
+  //   react(),
+  //   nxViteTsPaths(),
   //   comlink(),
   //   viteStaticCopy({
   //     targets: [
@@ -52,7 +62,7 @@ export default defineConfig({
   },
 
   build: {
-    outDir: '../../../dist/apps/belis/online',
+    outDir: "../../../dist/apps/belis/online",
     reportCompressedSize: true,
     commonjsOptions: {
       transformMixedEsModules: true,
@@ -60,7 +70,6 @@ export default defineConfig({
   },
 
   define: {
-    'import.meta.vitest': undefined,
+    "import.meta.vitest": undefined,
   },
-
 });

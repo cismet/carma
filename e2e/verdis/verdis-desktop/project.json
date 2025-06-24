@@ -7,23 +7,9 @@
   "implicitDependencies": ["verdis-desktop"],
   "targets": {
     "e2e": {
-      "executor": "@nx/cypress:cypress",
       "options": {
-        "cypressConfig": "e2e/verdis/verdis-desktop/cypress.config.ts",
-        "devServerTarget": "verdis-desktop:serve:development",
-        "testingType": "e2e"
-      },
-      "configurations": {
-        "production": {
-          "devServerTarget": "verdis-desktop:serve:production"
-        },
-        "ci": {
-          "devServerTarget": "verdis-desktop:serve-static"
-        }
+        "config-file": "./cypress.config.ts"
       }
-    },
-    "lint": {
-      "executor": "@nx/eslint:lint"
     }
   }
 }

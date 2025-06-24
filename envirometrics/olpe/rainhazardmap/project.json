@@ -6,11 +6,13 @@
   "tags": [],
   "targets": {
     "build": {
-      "executor": "@nx/vite:build",
-      "outputs": ["{options.outputPath}"],
+      "outputs": [
+        "{projectRoot}/{options.outDir}",
+        "{workspaceRoot}/dist/envirometrics/olpe/rainhazardmap"
+      ],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "dist/envirometrics/olpe/rainhazardmap"
+        "outDir": "../../../dist/envirometrics/olpe/rainhazardmap"
       },
       "configurations": {
         "development": {
@@ -22,47 +24,28 @@
       }
     },
     "serve": {
-      "executor": "@nx/vite:dev-server",
       "defaultConfiguration": "development",
-      "options": {
-        "buildTarget": "rainhazardmap-olpe:build"
-      },
       "configurations": {
-        "development": {
-          "buildTarget": "rainhazardmap-olpe:build:development",
-          "hmr": true
-        },
-        "production": {
-          "buildTarget": "rainhazardmap-olpe:build:production",
-          "hmr": false
-        }
+        "development": {},
+        "production": {}
       }
     },
     "preview": {
-      "executor": "@nx/vite:preview-server",
       "defaultConfiguration": "development",
-      "options": {
-        "buildTarget": "rainhazardmap-olpe:build"
-      },
       "configurations": {
-        "development": {
-          "buildTarget": "rainhazardmap-olpe:build:development"
-        },
-        "production": {
-          "buildTarget": "rainhazardmap-olpe:build:production"
-        }
-      },
-      "dependsOn": ["build"]
-    },
-    "test": {
-      "executor": "@nx/vite:test",
-      "outputs": ["{options.reportsDirectory}"],
-      "options": {
-        "reportsDirectory": "../../../coverage/envirometrics/olpe/rainhazardmap"
+        "development": {},
+        "production": {}
       }
     },
-    "lint": {
-      "executor": "@nx/eslint:lint"
+    "test": {
+      "outputs": [
+        "{projectRoot}/{options.coverage.reportsDirectory}",
+        "{workspaceRoot}/coverage/envirometrics/olpe/rainhazardmap"
+      ],
+      "options": {
+        "passWithNoTests": true,
+        "coverage.reportsDirectory": "../../../coverage/envirometrics/olpe/rainhazardmap"
+      }
     }
   }
 }

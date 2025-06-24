@@ -6,11 +6,13 @@
   "tags": [],
   "targets": {
     "build": {
-      "executor": "@nx/vite:build",
-      "outputs": ["{options.outputPath}"],
+      "outputs": [
+        "{projectRoot}/{options.outDir}",
+        "{workspaceRoot}/dist/envirometrics/tholey/rainhazardmap"
+      ],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "dist/envirometrics/tholey/rainhazardmap"
+        "outDir": "../../../dist/envirometrics/tholey/rainhazardmap"
       },
       "configurations": {
         "development": {
@@ -22,47 +24,28 @@
       }
     },
     "serve": {
-      "executor": "@nx/vite:dev-server",
       "defaultConfiguration": "development",
-      "options": {
-        "buildTarget": "rainhazardmap-tholey:build"
-      },
       "configurations": {
-        "development": {
-          "buildTarget": "rainhazardmap-tholey:build:development",
-          "hmr": true
-        },
-        "production": {
-          "buildTarget": "rainhazardmap-tholey:build:production",
-          "hmr": false
-        }
+        "development": {},
+        "production": {}
       }
     },
     "preview": {
-      "executor": "@nx/vite:preview-server",
       "defaultConfiguration": "development",
-      "options": {
-        "buildTarget": "rainhazardmap-tholey:build"
-      },
       "configurations": {
-        "development": {
-          "buildTarget": "rainhazardmap-tholey:build:development"
-        },
-        "production": {
-          "buildTarget": "rainhazardmap-tholey:build:production"
-        }
-      },
-      "dependsOn": ["build"]
-    },
-    "test": {
-      "executor": "@nx/vite:test",
-      "outputs": ["{options.reportsDirectory}"],
-      "options": {
-        "reportsDirectory": "../../../coverage/envirometrics/tholey/rainhazardmap"
+        "development": {},
+        "production": {}
       }
     },
-    "lint": {
-      "executor": "@nx/eslint:lint"
+    "test": {
+      "outputs": [
+        "{projectRoot}/{options.coverage.reportsDirectory}",
+        "{workspaceRoot}/coverage/envirometrics/tholey/rainhazardmap"
+      ],
+      "options": {
+        "passWithNoTests": true,
+        "coverage.reportsDirectory": "../../../coverage/envirometrics/tholey/rainhazardmap"
+      }
     }
   }
 }

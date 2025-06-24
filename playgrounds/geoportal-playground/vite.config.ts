@@ -1,23 +1,34 @@
 /// <reference types='vitest' />
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
-import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
+import { defineConfig } from "vite";
+import react from "@vitejs/plugin-react";
+import { nxViteTsPaths } from "@nx/vite/plugins/nx-tsconfig-paths.plugin";
+
+// These options were migrated by @nx/vite:convert-to-inferred from the project.json file.
+const configValues = { default: {}, development: {}, production: {} };
+
+// Determine the correct configValue to use based on the configuration
+const nxConfiguration = process.env.NX_TASK_TARGET_CONFIGURATION ?? "default";
+
+const options = {
+  ...configValues.default,
+  ...(configValues[nxConfiguration] ?? {}),
+};
 
 export default defineConfig({
   root: __dirname,
-  cacheDir: '../../node_modules/.vite/playgrounds/geoportal-playground',
+  cacheDir: "../../node_modules/.vite/playgrounds/geoportal-playground",
 
   server: {
     port: 4200,
-    host: 'localhost',
+    host: "localhost",
     fs: {
-      allow: ['../../..'],
+      allow: ["../../.."],
     },
   },
 
   preview: {
     port: 4300,
-    host: 'localhost',
+    host: "localhost",
   },
 
   plugins: [react(), nxViteTsPaths()],
@@ -28,7 +39,7 @@ export default defineConfig({
   // },
 
   build: {
-    outDir: '../../dist/playgrounds/geoportal-playground',
+    outDir: "../../dist/playgrounds/geoportal-playground",
     reportCompressedSize: true,
     commonjsOptions: {
       transformMixedEsModules: true,
@@ -38,15 +49,15 @@ export default defineConfig({
   test: {
     globals: true,
     cache: {
-      dir: '../../node_modules/.vitest',
+      dir: "../../node_modules/.vitest",
     },
-    environment: 'jsdom',
-    include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+    environment: "jsdom",
+    include: ["src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}"],
 
-    reporters: ['default'],
+    reporters: ["default"],
     coverage: {
-      reportsDirectory: '../../coverage/playgrounds/geoportal-playground',
-      provider: 'v8',
+      reportsDirectory: "../../coverage/playgrounds/geoportal-playground",
+      provider: "v8",
     },
   },
 });

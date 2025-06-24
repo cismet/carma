@@ -6,11 +6,19 @@
   "tags": [],
   "targets": {
     "build": {
-      "executor": "@nx/vite:build",
-      "outputs": ["{options.outputPath}"],
+      "inputs": [
+        "default",
+        {
+          "env": "VITE_CIDS_SERVICE"
+        }
+      ],
+      "outputs": [
+        "{projectRoot}/{options.outDir}",
+        "{workspaceRoot}/dist/apps/verdis/online"
+      ],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "dist/apps/verdis/online"
+        "outDir": "../../../dist/apps/verdis/online"
       },
       "configurations": {
         "development": {
@@ -19,56 +27,33 @@
         "production": {
           "mode": "production"
         }
-      },
-      "inputs": [
-        "default", 
-        { "env": "VITE_CIDS_SERVICE" }
-      ]  
+      }
     },
     "serve": {
-      "executor": "@nx/vite:dev-server",
       "defaultConfiguration": "development",
-      "options": {
-        "buildTarget": "verdis-online:build"
-      },
       "configurations": {
-        "development": {
-          "buildTarget": "verdis-online:build:development",
-          "hmr": true
-        },
-        "production": {
-          "buildTarget": "verdis-online:build:production",
-          "hmr": false
-        }
+        "development": {},
+        "production": {}
       }
     },
     "preview": {
-      "executor": "@nx/vite:preview-server",
       "defaultConfiguration": "development",
-      "options": {
-        "buildTarget": "verdis-online:build"
-      },
       "configurations": {
-        "development": {
-          "buildTarget": "verdis-online:build:development"
-        },
-        "production": {
-          "buildTarget": "verdis-online:build:production"
-        }
-      },
-      "dependsOn": ["build"]
-    },
-    "test": {
-      "executor": "@nx/vite:test",
-      "outputs": ["{options.reportsDirectory}"],
-      "options": {
-        "reportsDirectory": "../../../coverage/apps/verdis/online"
+        "development": {},
+        "production": {}
       }
     },
-    "lint": {
-      "executor": "@nx/eslint:lint"
+    "test": {
+      "outputs": [
+        "{projectRoot}/{options.coverage.reportsDirectory}",
+        "{workspaceRoot}/coverage/apps/verdis/online"
+      ],
+      "options": {
+        "passWithNoTests": true,
+        "coverage.reportsDirectory": "../../../coverage/apps/verdis/online"
+      }
     },
-     "container": {
+    "container": {
       "executor": "@nx-tools/nx-container:build",
       "dependsOn": ["build"],
       "options": {
@@ -77,9 +62,11 @@
         "push": true
       },
       "inputs": [
-        "default", 
-        { "env": "VITE_CIDS_SERVICE" }
-      ]  
+        "default",
+        {
+          "env": "VITE_CIDS_SERVICE"
+        }
+      ]
     }
   }
 }

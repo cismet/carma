@@ -4,9 +4,6 @@
   "sourceRoot": "libraries/commons/document-viewer/src",
   "projectType": "library",
   "tags": [],
-  "targets": {
-    "lint": {
-      "executor": "@nx/eslint:lint"
-    }
-  }
+  "// targets": "to see all targets run: nx show project document-viewer --web",
+  "targets": {}
 }

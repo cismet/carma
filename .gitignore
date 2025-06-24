@@ -41,7 +41,15 @@ testem.log
 .DS_Store
 Thumbs.db
 
+# nx
 .nx
+nx-cloud.env
+.cursor/rules/nx-rules.mdc
+.github/instructions/nx.instructions.md
+migrations.json
+
+# Storybook
+storybook-migration-summary.md
 
 # Dev Secrets
 **/devSecrets.json
@@ -54,7 +62,6 @@ report-cy/
 
 dispatch.*.event
 .github/workflows/test.yml
-nx-cloud.env
 
 .npmrc
 deployment-config copy.json

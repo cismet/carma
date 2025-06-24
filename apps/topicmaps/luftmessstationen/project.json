@@ -6,11 +6,13 @@
   "tags": [],
   "targets": {
     "build": {
-      "executor": "@nx/vite:build",
-      "outputs": ["{options.outputPath}"],
+      "outputs": [
+        "{projectRoot}/{options.outDir}",
+        "{workspaceRoot}/dist/apps/topicmaps/luftmessstationen"
+      ],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "dist/apps/topicmaps/luftmessstationen"
+        "outDir": "../../../dist/apps/topicmaps/luftmessstationen"
       },
       "configurations": {
         "development": {
@@ -22,47 +24,28 @@
       }
     },
     "serve": {
-      "executor": "@nx/vite:dev-server",
       "defaultConfiguration": "development",
-      "options": {
-        "buildTarget": "luftmessstationen:build"
-      },
       "configurations": {
-        "development": {
-          "buildTarget": "luftmessstationen:build:development",
-          "hmr": true
-        },
-        "production": {
-          "buildTarget": "luftmessstationen:build:production",
-          "hmr": false
-        }
+        "development": {},
+        "production": {}
       }
     },
     "preview": {
-      "executor": "@nx/vite:preview-server",
       "defaultConfiguration": "development",
-      "options": {
-        "buildTarget": "luftmessstationen:build"
-      },
       "configurations": {
-        "development": {
-          "buildTarget": "luftmessstationen:build:development"
-        },
-        "production": {
-          "buildTarget": "luftmessstationen:build:production"
-        }
-      },
-      "dependsOn": ["build"]
-    },
-    "test": {
-      "executor": "@nx/vite:test",
-      "outputs": ["{options.reportsDirectory}"],
-      "options": {
-        "reportsDirectory": "../../../coverage/apps/topicmaps/luftmessstationen"
+        "development": {},
+        "production": {}
       }
     },
-    "lint": {
-      "executor": "@nx/eslint:lint"
+    "test": {
+      "outputs": [
+        "{projectRoot}/{options.coverage.reportsDirectory}",
+        "{workspaceRoot}/coverage/apps/topicmaps/luftmessstationen"
+      ],
+      "options": {
+        "passWithNoTests": true,
+        "coverage.reportsDirectory": "../../../coverage/apps/topicmaps/luftmessstationen"
+      }
     }
   }
 }

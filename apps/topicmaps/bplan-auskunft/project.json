@@ -6,14 +6,14 @@
   "tags": [],
   "targets": {
     "build": {
-      "executor": "@nx/vite:build",
-      "outputs": ["{options.outputPath}"],
+      "outputs": [
+        "{projectRoot}/{options.outDir}",
+        "{workspaceRoot}/dist/apps/topicmaps/bplan-auskunft"
+      ],
       "defaultConfiguration": "production",
       "options": {
         "logLevel": "info",
-        "buildLibsFromSource": true,
-        "skipTypeCheck": true,
-        "outputPath": "dist/apps/topicmaps/bplan-auskunft"
+        "outDir": "../../../dist/apps/topicmaps/bplan-auskunft"
       },
       "configurations": {
         "development": {
@@ -25,47 +25,28 @@
       }
     },
     "serve": {
-      "executor": "@nx/vite:dev-server",
       "defaultConfiguration": "development",
-      "options": {
-        "buildTarget": "bplan-auskunft:build"
-      },
       "configurations": {
-        "development": {
-          "buildTarget": "bplan-auskunft:build:development",
-          "hmr": true
-        },
-        "production": {
-          "buildTarget": "bplan-auskunft:build:production",
-          "hmr": false
-        }
+        "development": {},
+        "production": {}
       }
     },
     "preview": {
-      "executor": "@nx/vite:preview-server",
       "defaultConfiguration": "development",
-      "options": {
-        "buildTarget": "bplan-auskunft:build"
-      },
       "configurations": {
-        "development": {
-          "buildTarget": "bplan-auskunft:build:development"
-        },
-        "production": {
-          "buildTarget": "bplan-auskunft:build:production"
-        }
-      },
-      "dependsOn": ["build"]
-    },
-    "test": {
-      "executor": "@nx/vite:test",
-      "outputs": ["{options.reportsDirectory}"],
-      "options": {
-        "reportsDirectory": "../../../coverage/apps/topicmaps/bplan-auskunft"
+        "development": {},
+        "production": {}
       }
     },
-    "lint": {
-      "executor": "@nx/eslint:lint"
+    "test": {
+      "outputs": [
+        "{projectRoot}/{options.coverage.reportsDirectory}",
+        "{workspaceRoot}/coverage/apps/topicmaps/bplan-auskunft"
+      ],
+      "options": {
+        "passWithNoTests": true,
+        "coverage.reportsDirectory": "../../../coverage/apps/topicmaps/bplan-auskunft"
+      }
     },
     "serve-static": {
       "executor": "@nx/web:file-server",

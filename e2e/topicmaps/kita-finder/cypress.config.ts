@@ -1,9 +1,17 @@
-import { defineConfig } from 'cypress';
-import { nxE2EPreset } from '@nx/cypress/plugins/cypress-preset';
+import { defineConfig } from "cypress";
+import { nxE2EPreset } from "@nx/cypress/plugins/cypress-preset";
 
 export default defineConfig({
   e2e: {
-    ...nxE2EPreset(__dirname),
-    screenshotsFolder: './report-cy/screenshots',
+    ...nxE2EPreset(__dirname, {
+      webServerCommands: {
+        default: "npx nx run kita-finder:serve:development",
+        production: "npx nx run kita-finder:serve:production",
+      },
+    }),
+    screenshotsFolder: "./report-cy/screenshots",
+    // Please ensure you use `cy.origin()` when navigating between domains and remove this option.
+    // See https://docs.cypress.io/app/references/migration-guide#Changes-to-cyorigin
+    injectDocumentDomain: true,
   },
 });

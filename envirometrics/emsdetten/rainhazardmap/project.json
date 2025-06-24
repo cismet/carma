@@ -6,11 +6,13 @@
   "tags": [],
   "targets": {
     "build": {
-      "executor": "@nx/vite:build",
-      "outputs": ["{options.outputPath}"],
+      "outputs": [
+        "{projectRoot}/{options.outDir}",
+        "{workspaceRoot}/dist/envirometrics/emsdetten/rainhazardmap"
+      ],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "dist/envirometrics/emsdetten/rainhazardmap"
+        "outDir": "../../../dist/envirometrics/emsdetten/rainhazardmap"
       },
       "configurations": {
         "development": {
@@ -22,47 +24,28 @@
       }
     },
     "serve": {
-      "executor": "@nx/vite:dev-server",
       "defaultConfiguration": "development",
-      "options": {
-        "buildTarget": "rainhazard-emsdetten:build"
-      },
       "configurations": {
-        "development": {
-          "buildTarget": "rainhazard-emsdetten:build:development",
-          "hmr": true
-        },
-        "production": {
-          "buildTarget": "rainhazard-emsdetten:build:production",
-          "hmr": false
-        }
+        "development": {},
+        "production": {}
       }
     },
     "preview": {
-      "executor": "@nx/vite:preview-server",
       "defaultConfiguration": "development",
-      "options": {
-        "buildTarget": "rainhazard-emsdetten:build"
-      },
       "configurations": {
-        "development": {
-          "buildTarget": "rainhazard-emsdetten:build:development"
-        },
-        "production": {
-          "buildTarget": "rainhazard-emsdetten:build:production"
-        }
-      },
-      "dependsOn": ["build"]
-    },
-    "test": {
-      "executor": "@nx/vite:test",
-      "outputs": ["{options.reportsDirectory}"],
-      "options": {
-        "reportsDirectory": "../../../coverage/envirometrics/emsdetten/rainhazardmap"
+        "development": {},
+        "production": {}
       }
     },
-    "lint": {
-      "executor": "@nx/eslint:lint"
+    "test": {
+      "outputs": [
+        "{projectRoot}/{options.coverage.reportsDirectory}",
+        "{workspaceRoot}/coverage/envirometrics/emsdetten/rainhazardmap"
+      ],
+      "options": {
+        "passWithNoTests": true,
+        "coverage.reportsDirectory": "../../../coverage/envirometrics/emsdetten/rainhazardmap"
+      }
     }
   }
 }
