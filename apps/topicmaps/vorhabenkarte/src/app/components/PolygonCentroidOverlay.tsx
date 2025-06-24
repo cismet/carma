@@ -1,6 +1,9 @@
 import React, { useContext, useEffect } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
-import { FeatureCollectionContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
+import {
+  FeatureCollectionContext,
+  FeatureCollectionDispatchContext,
+} from "react-cismap/contexts/FeatureCollectionContextProvider";
 import centroid from "@turf/centroid";
 import L from "leaflet";
 import { getFeatureStyler } from "../../helper/styler";
@@ -17,8 +20,11 @@ export function PolygonCentroidOverlay() {
   const { shownFeatures = [] } = useContext<typeof FeatureCollectionContext>(
     FeatureCollectionContext
   );
+  const { setSelectedFeatureByPredicate } = useContext<
+    typeof FeatureCollectionContext
+  >(FeatureCollectionDispatchContext);
 
-  const styleFn = getFeatureStyler(24, (props) => props.thema.farbe);
+  const styleFn = getFeatureStyler(44, (props) => props.thema.farbe);
 
   useEffect(() => {
     const map = routedMapRef?.leafletMap?.leafletElement;
@@ -41,12 +47,18 @@ export function PolygonCentroidOverlay() {
           iconAnchor: [size / 2, size / 2],
           className: "transparent-marker",
         });
-        const m = L.marker(latlng, {
+        const marker = L.marker(latlng, {
           icon,
-          interactive: false,
+          interactive: true,
           zIndexOffset: 1000,
         }).addTo(map);
-        markers.push(m);
+
+        marker.on("click", () => {
+          setSelectedFeatureByPredicate(
+            (feature) => feature.properties.id === f.properties.id
+          );
+        });
+        markers.push(marker);
       });
 
     return () => markers.forEach((m) => map.removeLayer(m));
