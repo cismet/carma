@@ -90,6 +90,15 @@ import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../leaflet.css";
+import LoginForm from "../LoginForm.tsx";
+import { Button } from "antd";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faArrowRightFromBracket,
+  faKey,
+  faUser,
+} from "@fortawesome/free-solid-svg-icons";
+import { getJWT, setJWT } from "../../store/slices/auth.ts";
 
 interface MapProps {
   height: number;
@@ -123,6 +132,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const showHamburgerMenu = useSelector(getShowHamburgerMenu);
   const selectedFeature = useSelector(getSelectedFeature);
   const loadingFeatureInfo = useSelector(getLoading);
+  const jwt = useSelector(getJWT);
 
   const { getLeafletZoom } = useLeafletZoomControls();
   const showPrimaryTileset = useSelector(selectShowPrimaryTileset);
@@ -159,6 +169,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     useContext<typeof UIDispatchContext>(UIDispatchContext);
   const { setSecondaryWithKey, showOverlayHandler } = useOverlayTourContext();
 
+  const [isLoginFormVisible, setIsLoginFormVisible] = useState(false);
   const [marker, setMarker] = useState(undefined);
   const [markerAccent, setMarkerAccent] = useState(undefined);
   const [pos, setPos] = useState<[number, number] | null>(null);
@@ -406,6 +417,33 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
               {...getCollabedHelpComponentConfig({
                 versionString: version,
                 showOverlayFromOutside,
+                loginFormToggle: () =>
+                  setIsLoginFormVisible(!isLoginFormVisible),
+                isLoginFormVisible,
+                loginForm: (
+                  <LoginForm
+                    onSuccess={() => {
+                      setIsLoginFormVisible(false);
+                      setAppMenuVisible(false);
+                    }}
+                    closeLoginForm={() => setIsLoginFormVisible(false)}
+                  />
+                ),
+                loginFormTrigger: (
+                  <Button
+                    type="text"
+                    onClick={() =>
+                      jwt
+                        ? dispatch(setJWT(null))
+                        : setIsLoginFormVisible(!isLoginFormVisible)
+                    }
+                  >
+                    <FontAwesomeIcon
+                      icon={jwt ? faArrowRightFromBracket : faKey}
+                      size="lg"
+                    />
+                  </Button>
+                ),
               })}
             />
           }

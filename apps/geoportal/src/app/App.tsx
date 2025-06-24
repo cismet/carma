@@ -1,5 +1,5 @@
 // Built-in Modules
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 // 3rd party Modules
 import { Button, Modal } from "antd";
@@ -51,18 +51,40 @@ import "react-cismap/topicMaps.css";
 import "./index.css";
 
 import { MobileWarningMessage } from "@carma-mapping/components";
+import { useDispatch, useSelector } from "react-redux";
+import { getJWT, setJWT } from "./store/slices/auth";
+import { md5ActionFetchDAQ } from "@carma-commons/utils/fetching.ts";
+import LoginForm from "./components/LoginForm";
 
 if (typeof global === "undefined") {
   window.global = window;
 }
 function App({ published }: { published?: boolean }) {
-  const [isModalOpen, setIsModalOpen] = useState(true);
-  const isMobile = window.innerWidth < MIN_MOBILE_WIDTH;
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const jwt = useSelector(getJWT);
+  const dispatch = useDispatch();
+
+  const apiUrl = "https://wunda-cloud-api.cismet.de";
+  const appKey = "Geoportal.Online.Wuppertal";
 
   const isLoadingConfig = useAppConfig(CONFIG_BASE_URL, layerMap);
   useManageLayers(layerMap);
   const syncToken = useSyncToken();
   useKeyboardShortcuts();
+
+  useEffect(() => {
+    if (jwt) {
+      md5ActionFetchDAQ(appKey, apiUrl, jwt, "gp_entdecken")
+        .then((problem) => {})
+        .catch((e) => {
+          if (e.status === 401) {
+            dispatch(setJWT(undefined));
+            setShowLoginModal(true);
+          }
+          console.error("Error fetching gp_entdecken: ", e);
+        });
+    }
+  }, [jwt]);
 
   const content = (
     <FeatureFlagProvider config={featureFlagConfig}>
@@ -97,6 +119,26 @@ function App({ published }: { published?: boolean }) {
                   bodyText={mobileInfo.bodyText}
                   confirmButtonText={mobileInfo.confirmButtonText}
                 />
+
+                <Modal
+                  open={showLoginModal}
+                  closable={false}
+                  footer={null}
+                  styles={{
+                    content: {
+                      padding: "0px",
+                      width: window.innerWidth < 600 ? "100%" : "450px",
+                    },
+                  }}
+                >
+                  <LoginForm
+                    onSuccess={() => setShowLoginModal(false)}
+                    closeLoginForm={() => setShowLoginModal(false)}
+                    showHelpText={false}
+                    style={{ padding: "20px" }}
+                  />
+                </Modal>
+
                 {/* <Modal
                   title={mobileInfo.headerText}
                   open={isModalOpen && isMobile}
