@@ -2,6 +2,7 @@ import { HashCodec, HashCodecs } from "../contexts/HashStateProvider";
 
 export const defaultHashKeyAliases = {
   mapStyle: "m",
+  isOblique: "oblq",
 };
 
 // TODO move to a shared location

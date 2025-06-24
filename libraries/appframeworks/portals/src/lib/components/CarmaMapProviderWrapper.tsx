@@ -44,6 +44,7 @@ export const CarmaMapProviderWrapper = ({
     "roll",
     "fov",
     "m",
+    "isOblique",
   ],
 }: CarmaMapProviderWrapperProps) => {
   const { background } = overlayOptions;

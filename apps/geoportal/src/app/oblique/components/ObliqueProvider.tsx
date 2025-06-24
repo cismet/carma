@@ -6,14 +6,11 @@ import React, {
   useCallback,
   useMemo,
 } from "react";
-import { useLocation } from "react-router-dom";
 import debounce from "lodash/debounce";
 
 import type { FeatureCollection, Polygon } from "geojson";
-import {
-  updateHashHistoryState,
-  deleteHashParamsFromHistoryState,
-} from "@carma-commons/utils";
+
+import { useHashState } from "@carma-apps/portals";
 
 import type {
   ExteriorOrientations,
@@ -32,7 +29,7 @@ import { CardinalDirectionEnum } from "../utils/orientationUtils";
 import { FootprintProperties } from "../utils/footprintUtils";
 import { RBushBySectorBlocks } from "../utils/spatialIndexing";
 
-import { OBLIQUE_PREVIEW_QUALITY, OBLIQUE_STATE_KEYS } from "../constants";
+import { OBLIQUE_PREVIEW_QUALITY } from "../constants";
 import { createConverter } from "../utils/crsUtils";
 
 const DEBOUNCE_MS = 250; // time in milliseconds
@@ -93,7 +90,12 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
   config,
   fallbackDirectionConfig,
 }) => {
-  const [isObliqueMode, setIsObliqueMode] = useState<boolean>(false);
+  const { updateHash, getHashValues } = useHashState();
+  // Read initial oblique mode from hash only once on mount
+  const [isObliqueMode, setIsObliqueMode] = useState<boolean>(() => {
+    const { isOblique } = getHashValues();
+    return isOblique === "1";
+  });
   const [lockFootprint, setLockFootprint] = useState(false);
   const [nearestImage, setNearestImage] =
     useState<NearestObliqueImageRecord | null>(null);
@@ -119,8 +121,6 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     imagePreviewStyle,
   } = config;
 
-  const { pathname } = useLocation();
-
   // Store when data has been previously loaded to prevent duplicate loads
 
   const converter = useMemo(() => createConverter(crs, "EPSG:4326"), [crs]);
@@ -145,20 +145,10 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
   const performToggleAction = useCallback(() => {
     setIsObliqueMode((prevMode: boolean) => {
       const newMode = !prevMode;
-      if (newMode) {
-        updateHashHistoryState(
-          { [OBLIQUE_STATE_KEYS.isOblique]: "1" },
-          pathname
-        );
-      } else {
-        deleteHashParamsFromHistoryState(
-          [OBLIQUE_STATE_KEYS.isOblique],
-          pathname
-        );
-      }
+      updateHash && updateHash({ isOblique: newMode ? "1" : undefined });
       return newMode;
     });
-  }, [pathname, setIsObliqueMode]); // setIsObliqueMode is stable
+  }, [setIsObliqueMode, updateHash]); // setIsObliqueMode is stable
 
   const toggleObliqueMode = useMemo(
     () => debounce(performToggleAction, DEBOUNCE_MS, DEBOUNCE_LEADING_EDGE),

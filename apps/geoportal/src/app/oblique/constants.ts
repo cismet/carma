@@ -19,7 +19,3 @@ export const AVIF_LEVELS = [
   OBLIQUE_PREVIEW_QUALITY.LEVEL_2_HQ_AVIF,
   OBLIQUE_PREVIEW_QUALITY.LEVEL_3_HQ_AVIF,
 ];
-
-export const OBLIQUE_STATE_KEYS: Record<string, string> = {
-  isOblique: "oblq",
-};
