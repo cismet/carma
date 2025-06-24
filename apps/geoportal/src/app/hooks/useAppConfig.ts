@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
-import { useLocation } from "react-router-dom";
 
 import {
+  useHashState,
   type LayerMap,
   type SelectionItem,
   type Settings,
@@ -18,10 +18,6 @@ import {
 } from "../store/slices/mapping";
 
 import { AppDispatch } from "../store";
-import {
-  deleteHashParamsFromHistoryState,
-  getHashParams,
-} from "@carma-commons/utils";
 
 type View = {
   center: string[];
@@ -78,11 +74,11 @@ const onLoadedConfig = (
 
 export const useAppConfig = (configBaseUrl: string, layerMap: LayerMap) => {
   const dispatch = useDispatch();
-  const { pathname } = useLocation();
+  const { updateHash, getHash } = useHashState();
   const [isLoadingConfig, setIsLoadingConfig] = useState(false);
 
   useEffect(() => {
-    const hashParams = getHashParams();
+    const hashParams = getHash();
     const config = hashParams[CONFIG_KEY];
     if (!config) return;
     setIsLoadingConfig(true);
@@ -93,11 +89,10 @@ export const useAppConfig = (configBaseUrl: string, layerMap: LayerMap) => {
       .then((newConfig: Config) => {
         onLoadedConfig(newConfig, layerMap, dispatch);
         setIsLoadingConfig(false);
-        deleteHashParamsFromHistoryState(
-          [CONFIG_KEY],
-          pathname,
-          "remove config postinit"
-        );
+        updateHash(undefined, {
+          clearKeys: [CONFIG_KEY],
+          label: "remove config postinit",
+        });
       })
       .catch((error) => {
         if (error.name === "AbortError") return;
