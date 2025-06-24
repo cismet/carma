@@ -31,14 +31,10 @@ export function PolygonCentroidOverlay() {
     const map = routedMapRef?.leafletMap?.leafletElement;
     if (!map) return;
     const markers: L.Marker[] = [];
-    console.log(
-      "🚀 shownFeatures:",
-      shownFeatures.map((f) => `${f.properties.id}:${f.geometry.type}`)
-    );
 
     // helper to drop one icon at the centroid of any geometry
     const dropMarkerAt = (
-      g: GeoJSON.Polygon | GeoJSON.MultiPolygon,
+      g: GeoJSON.Geometry | GeoJSON.MultiPolygon,
       feature
     ) => {
       const c = centroid(g as any).geometry as GeoJSON.Point;
@@ -73,9 +69,7 @@ export function PolygonCentroidOverlay() {
       if (geom.type === "Polygon") {
         dropMarkerAt(geom, feature);
       } else if (geom.type === "MultiPolygon") {
-        // one marker per sub-polygon
-        (geom.coordinates as GeoJSON.Position[][][]).forEach((coords) => {
-          // build a temporary Polygon geometry for this ring
+        geom.coordinates.forEach((coords) => {
           const subPoly: GeoJSON.Polygon = {
             type: "Polygon",
             coordinates: coords,
@@ -83,8 +77,15 @@ export function PolygonCentroidOverlay() {
           dropMarkerAt(subPoly, feature);
         });
       } else if (geom.type === "LineString") {
-        // dropMarkerAtLine(geom, feature);
         dropMarkerAt(geom, feature);
+      } else if (geom.type === "MultiLineString") {
+        geom.coordinates.forEach((coords) => {
+          const subPoly: GeoJSON.LineString = {
+            type: "LineString",
+            coordinates: coords,
+          };
+          dropMarkerAt(subPoly, feature);
+        });
       }
     });
 
