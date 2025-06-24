@@ -23,6 +23,7 @@ export const BASEMAP_METROPOLRUHR_WMS_EXTRALIGHT = {
 };
 
 // Stadtplanwerk 2
+// only these layers provide a web mercator tile matrix set
 const SPW2_WEBMERCATOR_LAYERS: Omit<WMSLayerDetails, "url">[] = [
   { id: "spw2_orange", name: "SPW2 Orange" },
   { id: "spw2_light", name: "SPW2 Light" },
@@ -42,6 +43,23 @@ export const METROPOLERUHR_WMTS_SPW2_WEBMERCATOR = {
         id,
         name,
         url: `https://geodaten.metropoleruhr.de/spw2/service/wmts?layer=${id}&style=default&tilematrixset=${tileMatrixSet}&Service=WMTS&Request=GetTile&Version=1.0.0&Format=image/png&TileMatrix={z}&TileCol={x}&TileRow={y}`,
+      };
+      return acc;
+    },
+    {}
+  ),
+};
+
+export const METROPOLERUHR_WMTS_SPW2_WEBMERCATOR_HQ = {
+  serviceUrl:
+    "https://geodaten.metropoleruhr.de/spw2?&service=WMTS&request=GetCapabilities",
+  type: "WMTS",
+  layers: SPW2_WEBMERCATOR_LAYERS.reduce<WMSLayerMap>(
+    (acc, { id, name }: Omit<WMSLayerDetails, "url">) => {
+      acc[id] = {
+        id,
+        name,
+        url: `https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=${id}&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}`,
       };
       return acc;
     },

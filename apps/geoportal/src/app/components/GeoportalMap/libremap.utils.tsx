@@ -9,6 +9,7 @@ import {
   objectToFeature,
 } from "../feature-info/featureInfoHelper";
 import { defaultLayerConfig } from "../../config";
+import { LibreGeoportalMapOptions } from "./LibreGeoportalMap";
 
 const getPaintProperty = (layerStyle: LayerSpecification) => {
   const type = layerStyle.type;
@@ -24,6 +25,45 @@ const getPaintProperty = (layerStyle: LayerSpecification) => {
     default:
       return "icon-opacity";
   }
+};
+
+// proper relation would be log2 of tilesize / 256 but this is a fixed relation for maplibre and leaflet
+// const zoomDelta = Math.log2(tilesize / 256);
+
+export const zoom512as256 = (zoom512: number) => {
+  return zoom512 + 1;
+};
+
+export const zoom256as512 = (zoom256: number) => {
+  return zoom256 - 1;
+};
+
+export const getParamsMapLibre = (
+  mapInstance: maplibregl.Map,
+  defaultMapOptions: Required<LibreGeoportalMapOptions>
+) => {
+  const { lng, lat } = mapInstance.getCenter();
+  const zoom512 = mapInstance.getZoom();
+  const zoom = zoom512as256(zoom512);
+  const pitch = mapInstance.getPitch();
+  const bearing = mapInstance.getBearing();
+  const params = {
+    lng,
+    lat,
+    zoom,
+    pitch,
+    bearing,
+  };
+
+  // trigger removal of params if they are equal to the default values
+  if (defaultMapOptions.bearing === bearing) {
+    params.bearing = undefined;
+  }
+  if (defaultMapOptions.pitch === pitch) {
+    params.pitch = undefined;
+  }
+
+  return params;
 };
 
 export const changeWmsVisibility = (

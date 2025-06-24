@@ -4,7 +4,7 @@
   height: 100vh; /* Use full viewport height */
 }
 
-.map {
+.maplibre-map-container {
   position: absolute;
   width: 100%;
   height: 100%;

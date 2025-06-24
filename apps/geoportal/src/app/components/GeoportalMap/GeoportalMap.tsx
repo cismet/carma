@@ -357,7 +357,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       { lat, lng, zoom },
       {
         clearKeys: cesiumClearParamKeys,
-        debugLabel: "GPM:TopicMap:locationChangedHandler",
+        label: "GPM:TopicMap:locationChangedHandler",
       }
     );
     dispatch(setLayersIdle(false));
@@ -370,7 +370,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       );
       return;
     }
-    updateHash(e.hashParams, { clearKeys: ["zoom"], debugLabel: "GPM:3D" });
+    updateHash(e.hashParams, { clearKeys: ["zoom"], label: "GPM:3D" });
   };
 
   // TODO Move out Controls to own component

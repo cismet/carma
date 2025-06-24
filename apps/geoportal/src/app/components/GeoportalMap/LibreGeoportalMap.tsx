@@ -1,59 +1,124 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+
 import type {
   FilterSpecification,
   MapGeoJSONFeature,
+  MapOptions,
   StyleSpecification,
 } from "maplibre-gl";
 import maplibregl from "maplibre-gl";
 import proj4 from "proj4";
-import "maplibre-gl/dist/maplibre-gl.css";
-import { useEffect, useRef, useState } from "react";
 
-import { useDispatch, useSelector } from "react-redux";
-
-import { getHashParams, updateHashHistoryState } from "@carma-commons/utils";
+import {
+  ENDPOINT,
+  isAreaType,
+  METROPOLERUHR_WMTS_SPW2_WEBMERCATOR_HQ,
+} from "@carma-commons/resources";
+import { normalizeOptions } from "@carma-commons/utils";
 import {
   LibreMapSelectionContent,
   SelectionItem,
+  useHashState,
   useSelectionLibreMap,
 } from "@carma-apps/portals";
 
+import { proj4crs3857def, proj4crs4326def } from "../../helper/gisHelper.js";
+
+import store from "../../store";
+import {
+  getSelectedFeature,
+  setSelectedFeature,
+} from "../../store/slices/features";
 import {
   getBackgroundLayer,
   getLayers,
   setLibreMapRef,
 } from "../../store/slices/mapping";
+import { getUIMode, UIMode } from "../../store/slices/ui";
+
+import LibreFeatureInfoBox from "../feature-info/LibreFeatureInfoBox";
+import {
+  addMarkerToMap,
+  changeWmsVisibility,
+  createFeature,
+  getParamsMapLibre,
+  layersToMapLibreStyle,
+  zoom256as512,
+} from "./libremap.utils";
 import {
   cancelOngoingRequests,
   getCoordinates,
   onClickTopicMap,
   onSelectionChangedVector,
 } from "./topicmap.utils";
-import {
-  getSelectedFeature,
-  setSelectedFeature,
-} from "../../store/slices/features";
-import store from "../../store";
-import {
-  addMarkerToMap,
-  changeWmsVisibility,
-  createFeature,
-  layersToMapLibreStyle,
-} from "./libremap.utils";
-import "./LibreGeoportalMap.css";
-import { useLocation } from "react-router-dom";
-import { getUIMode, UIMode } from "../../store/slices/ui";
-import LibreFeatureInfoBox from "../feature-info/LibreFeatureInfoBox";
-import { ENDPOINT, isAreaType } from "@carma-commons/resources";
-import { proj4crs3857def, proj4crs4326def } from "../../helper/gisHelper.js";
 
-const LibreGeoportalMap = () => {
+import "maplibre-gl/dist/maplibre-gl.css";
+import "./LibreGeoportalMap.css";
+
+type ConfigurableMapOptionKeys =
+  | "style"
+  | "center"
+  | "hash"
+  | "zoom"
+  | "minZoom"
+  | "maxZoom"
+  | "bearing"
+  | "pitch"
+  | "maxPitch";
+
+export type LibreGeoportalMapOptions = Partial<
+  Pick<MapOptions, ConfigurableMapOptionKeys>
+>;
+
+const defaultBackgroundStyle: StyleSpecification = {
+  version: 8,
+  sources: {
+    "source-amtlich": {
+      type: "raster",
+      tiles: [METROPOLERUHR_WMTS_SPW2_WEBMERCATOR_HQ.layers.spw2_light.url],
+      //tileSize: 512,
+    },
+  },
+  layers: [
+    {
+      id: "layer-amtlich",
+      type: "raster",
+      source: "source-amtlich",
+      paint: { "raster-opacity": 0.9 },
+    },
+  ],
+};
+
+const defaultMapOptions: Required<LibreGeoportalMapOptions> = {
+  style: defaultBackgroundStyle,
+  center: { lat: 51.256, lng: 7.150764 },
+  zoom: 15,
+  minZoom: 9,
+  maxZoom: 21,
+  maxPitch: 85,
+  bearing: 0,
+  pitch: 0,
+  hash: false, // Disable builtin hash updater by default
+};
+
+const LibreGeoportalMap = ({
+  mapOptions,
+}: {
+  mapOptions?: LibreGeoportalMapOptions;
+}) => {
+  const { updateHash, getHashValues } = useHashState();
+  const normalizedMapOptions = useMemo(
+    () => normalizeOptions(mapOptions, defaultMapOptions),
+    [mapOptions]
+  );
+
   const [globalHits, setGlobalHits] = useState({});
   const [foundFeatures, setFoundFeatures] = useState({});
   const [pos, setPos] = useState<[number, number]>([0, 0]);
   const isIdleRef = useRef(false);
 
   const dispatch = useDispatch();
-  const { pathname } = useLocation();
   const selectedFeature = useSelector(getSelectedFeature);
   const selectedVectorFeaturesRef = useRef<Set<MapGeoJSONFeature>>(new Set());
   const [selectedVectorFeatures, setSelectedVectorFeatures] = useState<
@@ -71,7 +136,7 @@ const LibreGeoportalMap = () => {
     positionRef.current = pos;
   }, [pos]);
 
-  const mapContainer = useRef<HTMLDivElement>(null);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const featureInfoMarkerRef = useRef<maplibregl.Marker | null>(null);
   const selectedFeatures: Set<{
@@ -167,65 +232,29 @@ const LibreGeoportalMap = () => {
     });
   };
 
-  const defaultLng = 7.150764;
-  const defaultLat = 51.256;
-  const defaultZoom = 15;
-
-  const backgroundStyle: StyleSpecification = {
-    version: 8,
-    sources: {
-      "source-amtlich": {
-        type: "raster",
-        tiles: [
-          "https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_light&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
-        ],
-        tileSize: 256,
-      },
-    },
-    layers: [
-      {
-        id: "layer-amtlich",
-        type: "raster",
-        source: "source-amtlich",
-        paint: { "raster-opacity": 0.9 },
-      },
-    ],
-  };
-
   useEffect(() => {
     if (map.current) return; // initialize map only once
 
-    const hashParams = getHashParams();
+    if (mapContainerRef.current) {
+      const { lng, lat, zoom, bearing, pitch } = getHashValues();
+      const mapOptionsFromHash = {
+        center:
+          typeof lng === "number" && typeof lat === "number"
+            ? { lng, lat }
+            : undefined,
+        zoom: typeof zoom === "number" ? zoom256as512(zoom) : undefined,
+        bearing: typeof bearing === "number" ? bearing : undefined,
+        pitch: typeof pitch === "number" ? pitch : undefined,
+      };
 
-    if (mapContainer.current) {
-      const lng =
-        hashParams["lng"] !== undefined
-          ? parseFloat(hashParams["lng"])
-          : defaultLng;
+      const appliedMapOptions = normalizeOptions(
+        mapOptionsFromHash,
+        normalizedMapOptions
+      );
 
-      const lat =
-        hashParams["lat"] !== undefined
-          ? parseFloat(hashParams["lat"])
-          : defaultLat;
       map.current = new maplibregl.Map({
-        container: mapContainer.current,
-        style: backgroundStyle,
-        center: [lng, lat],
-        zoom:
-          hashParams["zoom"] !== undefined
-            ? parseFloat(hashParams["zoom"]) - 1
-            : defaultZoom,
-        maxZoom: 21,
-        minZoom: 9,
-        pitch:
-          hashParams["pitch"] !== undefined
-            ? parseFloat(hashParams["pitch"])
-            : 0,
-        bearing:
-          hashParams["heading"] !== undefined
-            ? parseFloat(hashParams["heading"])
-            : 0,
-        maxPitch: 85,
+        container: mapContainerRef.current,
+        ...appliedMapOptions,
       });
 
       dispatch(setLibreMapRef(map));
@@ -562,32 +591,18 @@ const LibreGeoportalMap = () => {
 
   useEffect(() => {
     const mapInstance = map.current;
-    if (!mapInstance) return;
-
+    if (!mapInstance || typeof updateHash !== "function") return;
     const handleMoveEnd = () => {
       if (!mapInstance) return;
-
-      const center = mapInstance.getCenter();
-      const zoom = mapInstance.getZoom();
-      const pitch = mapInstance.getPitch();
-      const bearing = mapInstance.getBearing();
-
-      const newParams = {
-        lng: center.lng.toFixed(8),
-        lat: center.lat.toFixed(8),
-        zoom: (zoom + 1).toFixed(0),
-        pitch: pitch.toFixed(2),
-        heading: bearing.toFixed(1),
-      };
-      updateHashHistoryState(newParams, pathname, { label: "MapLibre" });
+      updateHash(getParamsMapLibre(mapInstance, defaultMapOptions), {
+        label: "MapLibre",
+      });
     };
-
     mapInstance.on("moveend", handleMoveEnd);
-
     return () => {
-      mapInstance.off("moveend", handleMoveEnd);
+      mapInstance && mapInstance.off("moveend", handleMoveEnd);
     };
-  }, [pathname]);
+  }, [updateHash]);
 
   useEffect(() => {
     if (!map.current) return;
@@ -678,7 +693,7 @@ const LibreGeoportalMap = () => {
       <LibreFeatureInfoBox pos={pos} libreMap={map.current} />
       <LibreMapSelectionContent map={map.current} />
       <div className="map-wrap">
-        <div ref={mapContainer} className="map" />
+        <div ref={mapContainerRef} className="maplibre-map-container" />
       </div>
     </>
   );
