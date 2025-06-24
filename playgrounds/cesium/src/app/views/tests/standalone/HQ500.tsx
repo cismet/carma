@@ -168,12 +168,10 @@ export const HQ500 = () => {
                 "[GEOPORTALMAP|HASH|SCENE|CESIUM]cesium scene changed",
                 e
               );
-              updateHashHistoryState(
-                e.hashParams,
-                location.pathname,
-                ["zoom"],
-                "app/hq500:3D"
-              );
+              updateHashHistoryState(e.hashParams, location.pathname, {
+                removeKeys: ["zoom"],
+                label: "app/hq500:3D",
+              });
             }}
           ></CustomViewer>
         </div>

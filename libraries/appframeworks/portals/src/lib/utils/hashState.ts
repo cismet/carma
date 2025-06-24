@@ -2,7 +2,6 @@ import { HashCodec, HashCodecs } from "../contexts/HashStateProvider";
 
 export const defaultHashKeyAliases = {
   mapStyle: "m",
-  cesiumMapStyle: "m",
 };
 
 // TODO move to a shared location
@@ -11,16 +10,9 @@ enum MapStyleKeys {
   AERIAL = "luftbild",
 }
 
-type cesiumKeys = "primary" | "secondary";
-
 const mapStyleShortNames: Record<MapStyleKeys, string> = {
   [MapStyleKeys.TOPO]: "0",
   [MapStyleKeys.AERIAL]: "1",
-};
-
-const cesiumMapStyleShortNames: Record<cesiumKeys, string> = {
-  primary: "0",
-  secondary: "1",
 };
 
 const getStringLookupCodec = <T extends string>(
@@ -39,6 +31,10 @@ const getStringLookupCodec = <T extends string>(
 
 const getNumberCodec = (fixed?: number, trailingZeros = false): HashCodec => ({
   encode: (value: unknown) => {
+    if (typeof value === "string" && value.length > 0) {
+      return value; // Allow preformatted string values to pass through as is
+    }
+
     if (typeof value === "number") {
       if (isNaN(value) || !isFinite(value)) {
         return undefined;
@@ -57,7 +53,6 @@ const getNumberCodec = (fixed?: number, trailingZeros = false): HashCodec => ({
 
 export const defaultHashCodecs: HashCodecs = Object.freeze({
   mapStyle: getStringLookupCodec(mapStyleShortNames),
-  cesiumMapStyle: getStringLookupCodec(cesiumMapStyleShortNames),
   lat: getNumberCodec(7),
   lng: getNumberCodec(7),
   zoom: getNumberCodec(2),

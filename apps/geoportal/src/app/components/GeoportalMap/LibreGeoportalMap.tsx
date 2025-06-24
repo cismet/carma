@@ -579,7 +579,7 @@ const LibreGeoportalMap = () => {
         pitch: pitch.toFixed(2),
         heading: bearing.toFixed(1),
       };
-      updateHashHistoryState(newParams, pathname, [], "MapLibre");
+      updateHashHistoryState(newParams, pathname, { label: "MapLibre" });
     };
 
     mapInstance.on("moveend", handleMoveEnd);

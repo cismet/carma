@@ -22,6 +22,7 @@ type CarmaMapProviderWrapperProps = {
   mapStyleConfig: MapStyleConfig;
   hashKeyAliases?: Record<string, string>;
   hashCodecs?: HashCodecs;
+  keyOrder?: string[];
 };
 
 export const CarmaMapProviderWrapper = ({
@@ -32,6 +33,17 @@ export const CarmaMapProviderWrapper = ({
   mapStyleConfig,
   hashKeyAliases,
   hashCodecs,
+  keyOrder = [
+    "lat",
+    "lng",
+    "zoom",
+    "h",
+    "heading",
+    "pitch",
+    "roll",
+    "fov",
+    "m",
+  ],
 }: CarmaMapProviderWrapperProps) => {
   const { background } = overlayOptions;
   const { transparency, color } = background;
@@ -52,7 +64,11 @@ export const CarmaMapProviderWrapper = ({
   }
 
   return (
-    <HashStateProvider keyAliases={aliases} hashCodecs={codecs}>
+    <HashStateProvider
+      keyAliases={aliases}
+      hashCodecs={codecs}
+      keyOrder={keyOrder}
+    >
       <GazDataProvider config={gazDataConfig}>
         <SelectionProvider>
           <MapStyleProvider config={mapStyleConfig}>

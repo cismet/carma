@@ -174,7 +174,10 @@ function App({ sync = false }: { sync?: boolean }) {
   const onCesiumSceneChange = (e) => {
     isMode2d
       ? undefined
-      : updateHashHistoryState(e.hashParams, "/", ["zoom"], "app/hgk:3D");
+      : updateHashHistoryState(e.hashParams, "/", {
+          removeKeys: ["zoom"],
+          label: "app/hgk:3D",
+        });
   };
 
   useSelectionTopicMap();

@@ -38,7 +38,8 @@ export const HashStateProvider: React.FC<{
   children: React.ReactNode;
   keyAliases?: Record<string, string>;
   hashCodecs?: HashCodecs;
-}> = ({ children, keyAliases, hashCodecs }) => {
+  keyOrder?: string[];
+}> = ({ children, keyAliases, hashCodecs, keyOrder }) => {
   const location = useLocation();
   const getHash = useCallback(() => getHashParams(), []);
   const getHashValues = useCallback(() => {
@@ -68,6 +69,7 @@ export const HashStateProvider: React.FC<{
       const newParams = {};
       const currentParams = getHashParams();
       const undefinedKeys: string[] = [];
+
       if (params) {
         for (const [key, value] of Object.entries(params)) {
           const newValue =
@@ -85,13 +87,15 @@ export const HashStateProvider: React.FC<{
         }
       }
 
+      const clearAndUndefinedKeys = [...clearKeys, ...undefinedKeys];
+
       const merged = { ...currentParams, ...newParams };
-      updateHashHistoryState(
-        merged,
-        location.pathname,
-        [...clearKeys, ...undefinedKeys],
-        debugLabel
-      );
+
+      updateHashHistoryState(merged, location.pathname, {
+        removeKeys: clearAndUndefinedKeys,
+        keyOrder,
+        label: debugLabel || "unspecified",
+      });
     },
     [location.pathname, keyAliases, hashCodecs]
   );
