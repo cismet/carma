@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
+import { useLocation } from "react-router-dom";
 
 import {
-  useHashState,
   type LayerMap,
   type SelectionItem,
   type Settings,
@@ -18,6 +18,7 @@ import {
 } from "../store/slices/mapping";
 
 import { AppDispatch } from "../store";
+import { updateHashHistoryState, getHashParams } from "@carma-commons/utils";
 
 type View = {
   center: string[];
@@ -33,6 +34,7 @@ type Config = {
 };
 
 const CONFIG_KEY = "config";
+const APP_KEY = "appKey";
 
 const onLoadedConfig = (
   config: Config,
@@ -74,11 +76,11 @@ const onLoadedConfig = (
 
 export const useAppConfig = (configBaseUrl: string, layerMap: LayerMap) => {
   const dispatch = useDispatch();
-  const { updateHash, getHash } = useHashState();
+  const { pathname } = useLocation();
   const [isLoadingConfig, setIsLoadingConfig] = useState(false);
 
   useEffect(() => {
-    const hashParams = getHash();
+    const hashParams = getHashParams();
     const config = hashParams[CONFIG_KEY];
     if (!config) return;
     setIsLoadingConfig(true);
@@ -89,8 +91,8 @@ export const useAppConfig = (configBaseUrl: string, layerMap: LayerMap) => {
       .then((newConfig: Config) => {
         onLoadedConfig(newConfig, layerMap, dispatch);
         setIsLoadingConfig(false);
-        updateHash(undefined, {
-          clearKeys: [CONFIG_KEY],
+        updateHashHistoryState({}, pathname, {
+          removeKeys: [CONFIG_KEY, APP_KEY],
           label: "remove config postinit",
         });
       })
