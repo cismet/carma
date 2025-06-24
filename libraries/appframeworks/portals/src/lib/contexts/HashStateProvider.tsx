@@ -1,7 +1,10 @@
 import React, { createContext, useCallback, useContext, useRef } from "react";
-import { getHashParams, updateHashHistoryState } from "@carma-commons/utils";
+import {
+  getHashParams,
+  normalizeOptions,
+  updateHashHistoryState,
+} from "@carma-commons/utils";
 import { useLocation } from "react-router-dom";
-import { normalizeOptions } from "../../../../../commons/utils/src/lib/normalizeOptions";
 
 interface HashUpdateOptions {
   clearKeys?: string[];
@@ -97,7 +100,7 @@ export const HashStateProvider: React.FC<{
         label: debugLabel || "unspecified",
       });
     },
-    [location.pathname, keyAliases, hashCodecs]
+    [location.pathname, keyAliases, hashCodecs, keyOrder]
   );
 
   const value = useRef<HashStateContextType>({

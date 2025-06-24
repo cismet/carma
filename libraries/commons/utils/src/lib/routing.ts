@@ -1,7 +1,4 @@
 // Using a singleton pattern to store the current hash parameters
-
-import { a } from "vitest/dist/suite-IbNSsUWN.js";
-
 // We use a WeakMap with window as key to ensure it's garbage collected if needed
 const hashStore: WeakMap<Window, Record<string, string>> = new WeakMap();
 
