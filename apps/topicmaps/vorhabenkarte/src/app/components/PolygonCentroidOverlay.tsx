@@ -3,6 +3,7 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { FeatureCollectionContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
 import centroid from "@turf/centroid";
 import L from "leaflet";
+import { getFeatureStyler } from "../../helper/styler";
 
 // const svgBadge = `
 //   <svg width="24" height="24" viewBox="0 0 24 24">
@@ -16,6 +17,8 @@ export function PolygonCentroidOverlay() {
   const { shownFeatures = [] } = useContext<typeof FeatureCollectionContext>(
     FeatureCollectionContext
   );
+
+  const styleFn = getFeatureStyler(24, (props) => props.thema.farbe);
 
   useEffect(() => {
     const map = routedMapRef?.leafletMap?.leafletElement;
@@ -31,10 +34,11 @@ export function PolygonCentroidOverlay() {
         const [x, y] = (centroid(f.geometry as any).geometry as GeoJSON.Point)
           .coordinates;
         const latlng = map.options.crs.projection.unproject(L.point(x, y));
+        const { svg: html, svgSize: size } = styleFn(f);
         const icon = new L.DivIcon({
-          html: f.properties.svgBadge,
-          iconSize: [24, 24],
-          iconAnchor: [12, 12],
+          html,
+          iconSize: [size, size],
+          iconAnchor: [size / 2, size / 2],
           className: "transparent-marker",
         });
         const m = L.marker(latlng, {

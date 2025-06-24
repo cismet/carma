@@ -46,7 +46,7 @@ div.leaflet-top.leaflet-right > .leaflet-control {
 .transparent-marker {
   background: none !important;
   /* border: none !important; */
-  border: 2px solid white;
+  /* border: 2px solid white; */
   padding: 0;
   line-height: 0;
 }
