@@ -5,6 +5,7 @@ import {
   FeatureCollectionDispatchContext,
 } from "react-cismap/contexts/FeatureCollectionContextProvider";
 import centroid from "@turf/centroid";
+import midpoint from "@turf/midpoint";
 import L from "leaflet";
 import { getFeatureStyler } from "../../helper/styler";
 
@@ -30,6 +31,10 @@ export function PolygonCentroidOverlay() {
     const map = routedMapRef?.leafletMap?.leafletElement;
     if (!map) return;
     const markers: L.Marker[] = [];
+    console.log(
+      "🚀 shownFeatures:",
+      shownFeatures.map((f) => `${f.properties.id}:${f.geometry.type}`)
+    );
 
     // helper to drop one icon at the centroid of any geometry
     const dropMarkerAt = (
@@ -77,6 +82,9 @@ export function PolygonCentroidOverlay() {
           };
           dropMarkerAt(subPoly, feature);
         });
+      } else if (geom.type === "LineString") {
+        // dropMarkerAtLine(geom, feature);
+        dropMarkerAt(geom, feature);
       }
     });
 
