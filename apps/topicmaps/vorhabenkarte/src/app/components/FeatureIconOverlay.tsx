@@ -15,7 +15,7 @@ import { getFeatureStyler } from "../../helper/styler";
 //   </svg>
 // `;
 
-export function PolygonCentroidOverlay() {
+export const FeatureIconOverlay = () => {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const { shownFeatures = [] } = useContext<typeof FeatureCollectionContext>(
     FeatureCollectionContext
@@ -86,4 +86,4 @@ export function PolygonCentroidOverlay() {
   }, [routedMapRef, shownFeatures]);
 
   return null;
-}
+};
