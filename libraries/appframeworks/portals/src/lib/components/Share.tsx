@@ -13,6 +13,8 @@ export type ShareProps = {
   layerState: LayerState;
   selection?: SelectionItem;
   closePopover?: () => void;
+  showExtendedSharing?: boolean;
+  jwt?: string;
 };
 
 export const SHORTENER_URL =
@@ -104,7 +106,13 @@ export const useShareUrl = () => {
   return { copyShareUrl, contextHolder };
 };
 
-export const Share = ({ layerState, closePopover, selection }: ShareProps) => {
+export const Share = ({
+  layerState,
+  closePopover,
+  selection,
+  showExtendedSharing,
+  jwt,
+}: ShareProps) => {
   const { layers, backgroundLayer } = layerState;
   const { copyShareUrl, contextHolder } = useShareUrl();
   const [, copyToClipboard] = useCopyToClipboard();
@@ -120,7 +128,45 @@ export const Share = ({ layerState, closePopover, selection }: ShareProps) => {
 
   const flags = useFeatureFlags();
 
-  const extendedSharing = flags.extendedSharing;
+  const extendedSharing = flags.extendedSharing || showExtendedSharing;
+
+  const addItemToDb = async (data) => {
+    const apiUrl = "https://wunda-cloud-api.cismet.de";
+    const taskParameters = {
+      parameters: {
+        className: "gp_entdecken",
+        data: JSON.stringify({
+          id: -1,
+          name: "test3",
+          config: JSON.stringify(data),
+        }),
+      },
+    };
+
+    console.log("xxx", taskParameters);
+    const fd = new FormData();
+    fd.append(
+      "taskparams",
+      new Blob([JSON.stringify(taskParameters)], {
+        type: "application/json",
+      })
+    );
+    const response = await fetch(
+      apiUrl +
+        "/actions/WUNDA_BLAU.SaveObject/tasks?resultingInstanceType=result",
+      {
+        method: "POST",
+        // method: "GET",
+        headers: {
+          Authorization: "Bearer " + jwt, // "Content-Type": "application/json",
+          // Accept: "application/json",
+        },
+        body: fd,
+      }
+    );
+
+    console.log("xxx", response);
+  };
 
   return (
     <div className="p-2 flex flex-col gap-3">
@@ -130,7 +176,13 @@ export const Share = ({ layerState, closePopover, selection }: ShareProps) => {
         <h4 className="mb-0">Karte teilen</h4>
       </div>
       {extendedSharing ? (
-        <>
+        <div
+          style={{
+            background: "#155A5F20",
+            padding: "1rem",
+            borderRadius: "0.5rem",
+          }}
+        >
           <Radio.Group value={mode} onChange={(e) => setMode(e.target.value)}>
             <div className="flex items-center gap-1">
               <Radio value={""}>Geoportal Konfiguration</Radio>
@@ -193,7 +245,7 @@ export const Share = ({ layerState, closePopover, selection }: ShareProps) => {
               3D Modus
             </Checkbox>
           </div>
-        </>
+        </div>
       ) : (
         <hr className="my-0" />
       )}
@@ -234,6 +286,7 @@ export const Share = ({ layerState, closePopover, selection }: ShareProps) => {
                 };
                 try {
                   copyToClipboard(JSON.stringify(newConfig));
+                  addItemToDb(newConfig);
                   messageApi.open({
                     type: "success",
                     content: `Konfiguration wurde in die Zwischenablage gespeichert.`,
