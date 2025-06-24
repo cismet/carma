@@ -24,7 +24,7 @@ export const FeatureIconOverlay = () => {
     typeof FeatureCollectionContext
   >(FeatureCollectionDispatchContext);
 
-  const styleFn = getFeatureStyler(44, (props) => props.thema.farbe);
+  const styleFn = getFeatureStyler(36, (props) => props.thema.farbe);
 
   useEffect(() => {
     const map = routedMapRef?.leafletMap?.leafletElement;
