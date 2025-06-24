@@ -10,7 +10,11 @@ import type {
 import maplibregl from "maplibre-gl";
 import proj4 from "proj4";
 
-import { ENDPOINT, isAreaType } from "@carma-commons/resources";
+import {
+  ENDPOINT,
+  isAreaType,
+  METROPOLERUHR_WMTS_SPW2_WEBMERCATOR_HQ,
+} from "@carma-commons/resources";
 import { normalizeOptions } from "@carma-commons/utils";
 import {
   LibreMapSelectionContent,
@@ -63,7 +67,7 @@ type ConfigurableMapOptionKeys =
   | "pitch"
   | "maxPitch";
 
-type LibreGeoportalMapOptions = Partial<
+export type LibreGeoportalMapOptions = Partial<
   Pick<MapOptions, ConfigurableMapOptionKeys>
 >;
 
@@ -72,10 +76,8 @@ const defaultBackgroundStyle: StyleSpecification = {
   sources: {
     "source-amtlich": {
       type: "raster",
-      tiles: [
-        "https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_light&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
-      ],
-      tileSize: 256,
+      tiles: [METROPOLERUHR_WMTS_SPW2_WEBMERCATOR_HQ.layers.spw2_light.url],
+      //tileSize: 512,
     },
   },
   layers: [
@@ -592,7 +594,9 @@ const LibreGeoportalMap = ({
     if (!mapInstance || typeof updateHash !== "function") return;
     const handleMoveEnd = () => {
       if (!mapInstance) return;
-      updateHash(getParamsMapLibre(mapInstance), { label: "MapLibre" });
+      updateHash(getParamsMapLibre(mapInstance, defaultMapOptions), {
+        label: "MapLibre",
+      });
     };
     mapInstance.on("moveend", handleMoveEnd);
     return () => {
