@@ -31,40 +31,42 @@ export function PolygonCentroidOverlay() {
     if (!map) return;
     const markers: L.Marker[] = [];
 
+    // helper to drop one icon at the centroid of any geometry
+    const dropMarkerAt = (
+      g: GeoJSON.Polygon | GeoJSON.MultiPolygon,
+      feature
+    ) => {
+      const c = centroid(g as any).geometry as GeoJSON.Point;
+      const [x, y] = c.coordinates;
+      const latlng = map.options.crs.projection.unproject(L.point(x, y));
+
+      const { svg: html, svgSize: size } = styleFn(feature);
+      const icon = new L.DivIcon({
+        html,
+        iconSize: [size, size],
+        iconAnchor: [size / 2, size / 2],
+        className: "transparent-marker",
+      });
+
+      const m = L.marker(latlng, {
+        icon,
+        interactive: true,
+        zIndexOffset: 1000,
+      }).addTo(map);
+
+      m.on("click", () => {
+        setSelectedFeatureByPredicate(
+          (f) => f.properties.id === feature.properties.id
+        );
+      });
+
+      markers.push(m);
+    };
+
     shownFeatures.forEach((feature) => {
       const geom = feature.geometry;
-
-      // helper to drop one icon at the centroid of any geometry
-      const dropMarkerAt = (g: GeoJSON.Polygon | GeoJSON.MultiPolygon) => {
-        const c = centroid(g as any).geometry as GeoJSON.Point;
-        const [x, y] = c.coordinates;
-        const latlng = map.options.crs.projection.unproject(L.point(x, y));
-
-        const { svg: html, svgSize: size } = styleFn(feature);
-        const icon = new L.DivIcon({
-          html,
-          iconSize: [size, size],
-          iconAnchor: [size / 2, size / 2],
-          className: "transparent-marker",
-        });
-
-        const m = L.marker(latlng, {
-          icon,
-          interactive: true,
-          zIndexOffset: 1000,
-        }).addTo(map);
-
-        m.on("click", () => {
-          setSelectedFeatureByPredicate(
-            (f) => f.properties.id === feature.properties.id
-          );
-        });
-
-        markers.push(m);
-      };
-
       if (geom.type === "Polygon") {
-        dropMarkerAt(geom);
+        dropMarkerAt(geom, feature);
       } else if (geom.type === "MultiPolygon") {
         // one marker per sub-polygon
         (geom.coordinates as GeoJSON.Position[][][]).forEach((coords) => {
@@ -73,7 +75,7 @@ export function PolygonCentroidOverlay() {
             type: "Polygon",
             coordinates: coords,
           };
-          dropMarkerAt(subPoly);
+          dropMarkerAt(subPoly, feature);
         });
       }
     });
