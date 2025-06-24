@@ -1,11 +1,10 @@
-import React, { useContext, useEffect } from "react";
+import { useContext, useEffect } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import {
   FeatureCollectionContext,
   FeatureCollectionDispatchContext,
 } from "react-cismap/contexts/FeatureCollectionContextProvider";
 import centroid from "@turf/centroid";
-import midpoint from "@turf/midpoint";
 import L from "leaflet";
 import { getFeatureStyler } from "../../helper/styler";
 
@@ -66,22 +65,16 @@ export function PolygonCentroidOverlay() {
 
     shownFeatures.forEach((feature) => {
       const geom = feature.geometry;
-      if (geom.type === "Polygon") {
+      if (geom.type === "Polygon" || geom.type === "LineString") {
         dropMarkerAt(geom, feature);
-      } else if (geom.type === "MultiPolygon") {
+      } else if (
+        geom.type === "MultiPolygon" ||
+        geom.type === "MultiLineString"
+      ) {
         geom.coordinates.forEach((coords) => {
-          const subPoly: GeoJSON.Polygon = {
-            type: "Polygon",
-            coordinates: coords,
-          };
-          dropMarkerAt(subPoly, feature);
-        });
-      } else if (geom.type === "LineString") {
-        dropMarkerAt(geom, feature);
-      } else if (geom.type === "MultiLineString") {
-        geom.coordinates.forEach((coords) => {
-          const subPoly: GeoJSON.LineString = {
-            type: "LineString",
+          const fType = geom.type === "MultiPolygon" ? "Polygon" : "LineString";
+          const subPoly: GeoJSON.Polygon | GeoJSON.LineString = {
+            type: fType,
             coordinates: coords,
           };
           dropMarkerAt(subPoly, feature);

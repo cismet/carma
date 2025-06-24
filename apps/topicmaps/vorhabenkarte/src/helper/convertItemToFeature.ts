@@ -1,5 +1,4 @@
 import { addSVGToProps } from "react-cismap/tools/svgHelper";
-import Panel from "react-cismap/commons/Panel";
 
 export const shortenText = (
   text: string,
@@ -47,6 +46,19 @@ const adjustFeatureColors = (color) => {
 //       [378097.1671, 5683858.0553],
 //       [378149.8829, 5683869.9617],
 //     ],
+//   ],
+// ];
+
+// const MULTI_LINE_FOR_3: GeoJSON.MultiLineString = [
+//   [
+//     [369000, 5679000],
+//     [369500, 5679050],
+//     [370000, 5679100],
+//   ],
+//   [
+//     [369200, 5679200],
+//     [369700, 5679250],
+//     [370200, 5679300],
 //   ],
 // ];
 
@@ -101,6 +113,14 @@ const convertItemToFeature = async (itemIn, poiColors) => {
   //       [372000, 5677200],
   //     ],
   //   } as GeoJSON.LineString;
+  // }
+
+  // if (itemIn.id === 3) {
+  //   geometry = {
+  //     type: "MultiLineString",
+  //     crs: item.crs,
+  //     coordinates: MULTI_LINE_FOR_3,
+  //   } as GeoJSON.MultiLineString;
   // }
 
   item.color = headerColor;
