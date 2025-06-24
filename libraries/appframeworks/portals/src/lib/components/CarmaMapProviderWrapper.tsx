@@ -39,6 +39,7 @@ export const CarmaMapProviderWrapper = ({
     "zoom",
     "h",
     "heading",
+    "bearing",
     "pitch",
     "roll",
     "fov",

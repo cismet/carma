@@ -56,4 +56,7 @@ export const defaultHashCodecs: HashCodecs = Object.freeze({
   lat: getNumberCodec(7),
   lng: getNumberCodec(7),
   zoom: getNumberCodec(2),
+  heading: getNumberCodec(2),
+  bearing: getNumberCodec(2), // bearing is used by maplibre
+  pitch: getNumberCodec(2),
 });

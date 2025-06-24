@@ -97,7 +97,7 @@ const defaultMapOptions: Required<LibreGeoportalMapOptions> = {
   maxPitch: 85,
   bearing: 0,
   pitch: 0,
-  hash: true,
+  hash: false, // Disable builtin hash updater by default
 };
 
 const LibreGeoportalMap = ({
@@ -234,15 +234,15 @@ const LibreGeoportalMap = ({
     if (map.current) return; // initialize map only once
 
     if (mapContainerRef.current) {
-      const { lng, lat, zoom, heading, bearing } = getHashValues();
+      const { lng, lat, zoom, bearing, pitch } = getHashValues();
       const mapOptionsFromHash = {
         center:
           typeof lng === "number" && typeof lat === "number"
             ? { lng, lat }
             : undefined,
         zoom: typeof zoom === "number" ? zoom256as512(zoom) : undefined,
-        heading: typeof heading === "number" ? heading : undefined,
         bearing: typeof bearing === "number" ? bearing : undefined,
+        pitch: typeof pitch === "number" ? pitch : undefined,
       };
 
       const appliedMapOptions = normalizeOptions(
