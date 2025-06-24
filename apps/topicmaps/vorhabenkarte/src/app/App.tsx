@@ -13,6 +13,7 @@ import {
   getPoiClusterIconCreatorFunction,
 } from "../helper/styler";
 import { FeatureIconOverlay } from "./components/FeatureIconOverlay";
+import itemFilterFunction from "../helper/filter";
 
 export function App() {
   useEffect(() => {
@@ -30,6 +31,7 @@ export function App() {
       referenceSystem={MappingConstants.crs25832}
       getFeatureStyler={getFeatureStyler}
       featureTooltipFunction={(feature) => feature?.text}
+      itemFilterFunction={itemFilterFunction}
       convertItemToFeature={convertItemToFeature}
       clusteringOptions={{
         iconCreateFunction: getPoiClusterIconCreatorFunction({ svgSize: 24 }),
