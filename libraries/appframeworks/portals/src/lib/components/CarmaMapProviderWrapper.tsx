@@ -8,8 +8,11 @@ import {
   MapStyleProvider,
   type MapStyleConfig,
 } from "../contexts/MapStyleProvider";
-import { GazDataConfig } from "@carma-commons/utils";
+import { GazDataConfig, normalizeOptions } from "@carma-commons/utils";
 import { defaultGazDataConfig } from "@carma-commons/resources";
+import { HashCodecs, HashStateProvider } from "../contexts/HashStateProvider";
+import { defaultHashCodecs, defaultHashKeyAliases } from "../utils/hashState";
+import { useMemo } from "react";
 
 type CarmaMapProviderWrapperProps = {
   children: React.ReactNode;
@@ -17,6 +20,9 @@ type CarmaMapProviderWrapperProps = {
   cesiumOptions: { providerConfig: any; tilesetConfigs: any };
   gazDataConfig?: GazDataConfig;
   mapStyleConfig: MapStyleConfig;
+  hashKeyAliases?: Record<string, string>;
+  hashCodecs?: HashCodecs;
+  keyOrder?: string[];
 };
 
 export const CarmaMapProviderWrapper = ({
@@ -25,9 +31,31 @@ export const CarmaMapProviderWrapper = ({
   cesiumOptions,
   gazDataConfig = defaultGazDataConfig,
   mapStyleConfig,
+  hashKeyAliases,
+  hashCodecs,
+  keyOrder = [
+    "lat",
+    "lng",
+    "zoom",
+    "h",
+    "heading",
+    "pitch",
+    "roll",
+    "fov",
+    "m",
+  ],
 }: CarmaMapProviderWrapperProps) => {
   const { background } = overlayOptions;
   const { transparency, color } = background;
+
+  const aliases = useMemo(
+    () => normalizeOptions(hashKeyAliases, defaultHashKeyAliases),
+    [hashKeyAliases]
+  );
+  const codecs = useMemo(
+    () => normalizeOptions(hashCodecs, defaultHashCodecs),
+    [hashCodecs]
+  );
 
   if (gazDataConfig.crs !== "3857") {
     console.warn(
@@ -36,24 +64,30 @@ export const CarmaMapProviderWrapper = ({
   }
 
   return (
-    <GazDataProvider config={gazDataConfig}>
-      <SelectionProvider>
-        <MapStyleProvider config={mapStyleConfig}>
-          <TopicMapContextProvider infoBoxPixelWidth={350}>
-            <OverlayTourProvider transparency={transparency} color={color}>
-              <CesiumContextProvider
-                //initialViewerState={defaultCesiumState}
-                // TODO move these to store/slice setup ?
-                providerConfig={cesiumOptions.providerConfig}
-                tilesetConfigs={cesiumOptions.tilesetConfigs}
-              >
-                {children}
-              </CesiumContextProvider>
-            </OverlayTourProvider>
-          </TopicMapContextProvider>
-        </MapStyleProvider>
-      </SelectionProvider>
-    </GazDataProvider>
+    <HashStateProvider
+      keyAliases={aliases}
+      hashCodecs={codecs}
+      keyOrder={keyOrder}
+    >
+      <GazDataProvider config={gazDataConfig}>
+        <SelectionProvider>
+          <MapStyleProvider config={mapStyleConfig}>
+            <TopicMapContextProvider infoBoxPixelWidth={350}>
+              <OverlayTourProvider transparency={transparency} color={color}>
+                <CesiumContextProvider
+                  //initialViewerState={defaultCesiumState}
+                  // TODO move these to store/slice setup ?
+                  providerConfig={cesiumOptions.providerConfig}
+                  tilesetConfigs={cesiumOptions.tilesetConfigs}
+                >
+                  {children}
+                </CesiumContextProvider>
+              </OverlayTourProvider>
+            </TopicMapContextProvider>
+          </MapStyleProvider>
+        </SelectionProvider>
+      </GazDataProvider>
+    </HashStateProvider>
   );
 };
 

@@ -2,7 +2,6 @@ import L from "leaflet";
 import proj4 from "proj4";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { useLocation } from "react-router-dom";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
@@ -13,6 +12,7 @@ import {
   TopicMapSelectionContent,
   useFeatureFlags,
   useGazData,
+  useHashState,
   useSelectionCesium,
   useSelectionTopicMap,
 } from "@carma-apps/portals";
@@ -29,23 +29,17 @@ import {
   useOverlayHelper,
   useOverlayTourContext,
 } from "@carma-commons/ui/lib-helper-overlay";
-import {
-  getApplicationVersion,
-  getHashParams,
-  updateHashHistoryState,
-} from "@carma-commons/utils";
+import { getApplicationVersion } from "@carma-commons/utils";
 
 import {
   cesiumClearParamKeys,
   CustomViewer,
-  selectCurrentSceneStyle,
   selectShowPrimaryTileset,
   selectViewerIsMode2d,
   selectViewerModels,
   setCurrentSceneStyle,
   useCesiumContext,
   useCesiumInitialCameraFromSearchParams,
-  VIEWERSTATE_KEYS,
 } from "@carma-mapping/cesium-engine";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 
@@ -110,9 +104,9 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const dispatch = useDispatch();
 
   // Contexts
-  const { pathname } = useLocation();
   const { viewerRef, terrainProviderRef, surfaceProviderRef } =
     useCesiumContext();
+  const { updateHash } = useHashState();
 
   const rerenderCountRef = useRef(0);
   const lastRenderTimeStampRef = useRef(Date.now());
@@ -136,7 +130,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
 
   const { getLeafletZoom } = useLeafletZoomControls();
   const showPrimaryTileset = useSelector(selectShowPrimaryTileset);
-  const currentSceneStyle = useSelector(selectCurrentSceneStyle);
 
   const infoBoxOverlay = addCssToOverlayHelperItem(
     getCollabedHelpElementsConfig("INFOBOX", geoElements),
@@ -345,11 +338,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shouldUpdateFeatureInfo]);
 
-  /** TODO:
-      move url request to own hook something like
-      shouldUpdateLocationHash on only set the TopicMapLocation to some ref or state
-      same for onSceneChange with cesium so we can centrally handle and debounce url updates
-  **/
   const topicMapLocationChangedHandler = ({
     lat,
     lng,
@@ -365,27 +353,12 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       );
       return;
     }
-
-    const currentParams = getHashParams();
-
-    const latTruncated = lat.toFixed(8);
-    const lngTruncated = lng.toFixed(8);
-    const zoomString = parseFloat(zoom.toFixed(2)).toString();
-    const sceneStyle = currentSceneStyle === "primary" ? "1" : "0";
-
-    const newParams = {
-      ...currentParams,
-      [VIEWERSTATE_KEYS.mapStyle]: sceneStyle,
-      lat: latTruncated,
-      lng: lngTruncated,
-      zoom: zoomString,
-    };
-
-    updateHashHistoryState(
-      newParams,
-      pathname,
-      cesiumClearParamKeys,
-      "GPM:TopicMap:locationChangedHandler"
+    updateHash(
+      { lat, lng, zoom },
+      {
+        clearKeys: cesiumClearParamKeys,
+        debugLabel: "GPM:TopicMap:locationChangedHandler",
+      }
     );
     dispatch(setLayersIdle(false));
   };
@@ -397,7 +370,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       );
       return;
     }
-    updateHashHistoryState(e.hashParams, pathname, ["zoom"], "GPM:3D");
+    updateHash(e.hashParams, { clearKeys: ["zoom"], debugLabel: "GPM:3D" });
   };
 
   // TODO Move out Controls to own component
