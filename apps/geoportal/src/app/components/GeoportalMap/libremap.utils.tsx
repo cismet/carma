@@ -26,6 +26,33 @@ const getPaintProperty = (layerStyle: LayerSpecification) => {
   }
 };
 
+// proper relation would be log2 of tilesize / 256 but this is a fixed relation for maplibre and leaflet
+// const zoomDelta = Math.log2(tilesize / 256);
+
+export const zoom512as256 = (zoom512: number) => {
+  return zoom512 + 1;
+};
+
+export const zoom256as512 = (zoom256: number) => {
+  return zoom256 - 1;
+};
+
+export const getParamsMapLibre = (mapInstance: maplibregl.Map) => {
+  const { lng, lat } = mapInstance.getCenter();
+  const zoom512 = mapInstance.getZoom();
+  const zoom = zoom512as256(zoom512);
+  const pitch = mapInstance.getPitch();
+  const bearing = mapInstance.getBearing();
+  const params = {
+    lng,
+    lat,
+    zoom,
+    pitch,
+    bearing,
+  };
+  return params;
+};
+
 export const changeWmsVisibility = (
   map: maplibregl.Map,
   layers: Layer[],

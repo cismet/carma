@@ -33,7 +33,7 @@ export const MapStyleProvider = ({
 
   useEffect(() => {
     // Update the hash state when the current style changes
-    updateHash({ mapStyle: currentStyle }, { debugLabel: "MapStyleProvider" });
+    updateHash({ mapStyle: currentStyle }, { label: "MapStyleProvider" });
   }, [currentStyle, updateHash]);
 
   const value: MapStyleContextType = {

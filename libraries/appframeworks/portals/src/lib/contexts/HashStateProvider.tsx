@@ -8,7 +8,7 @@ import { useLocation } from "react-router-dom";
 
 interface HashUpdateOptions {
   clearKeys?: string[];
-  debugLabel?: string;
+  label?: string;
 }
 export type HashCodec<T = unknown> = {
   name?: string;
@@ -21,7 +21,7 @@ export type HashKeyAliases = Record<string, string>;
 
 const hashUpdateDefaults: Required<HashUpdateOptions> = {
   clearKeys: [],
-  debugLabel: "unspecified",
+  label: "unspecified",
 };
 
 interface HashStateContextType {
@@ -64,7 +64,7 @@ export const HashStateProvider: React.FC<{
       params: Record<string, unknown> | undefined,
       options?: HashUpdateOptions
     ) => {
-      const { clearKeys, debugLabel } = normalizeOptions(
+      const { clearKeys, label } = normalizeOptions(
         options,
         hashUpdateDefaults
       );
@@ -97,7 +97,7 @@ export const HashStateProvider: React.FC<{
       updateHashHistoryState(merged, location.pathname, {
         removeKeys: clearAndUndefinedKeys,
         keyOrder,
-        label: debugLabel || "unspecified",
+        label: label || "unspecified",
       });
     },
     [location.pathname, keyAliases, hashCodecs, keyOrder]
