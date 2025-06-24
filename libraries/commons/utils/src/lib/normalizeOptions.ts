@@ -6,18 +6,18 @@ const removeUndefined = <T extends object>(obj: T): T => {
 
 export function normalizeOptions<T extends object>(
   options: Partial<T> | undefined,
-  defaults: Partial<T>
+  defaults: Required<T>,
+  allowUndefinedAsValue?: boolean
 ): Required<T>;
 export function normalizeOptions<T extends object>(
   options: Partial<T> | undefined,
-  defaults: Required<T>
-): Required<T>;
+  defaults: Partial<T>,
+  allowUndefinedAsValue?: boolean
+): Partial<T>;
 export function normalizeOptions<T extends object>(
   options: Partial<T> | undefined = {},
   defaults: Required<T> | Partial<T>,
-  {
-    allowUndefined: allowUndefinedAsValue = false,
-  }: { allowUndefined?: boolean } = {}
+  allowUndefinedAsValue: boolean = false
 ): Required<T> | Partial<T> {
   const normalized = {
     ...defaults,
