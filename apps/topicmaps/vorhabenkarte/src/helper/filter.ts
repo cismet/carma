@@ -1,3 +1,10 @@
+export const stek = [
+  "Wuppertals innovatives Technologieband",
+  "Wuppertals lebendige Zentrenvielfalt",
+  "Wuppertals neue grüne Stadtlandschaft",
+  "Wuppertal – urbane Lebensader",
+];
+
 const itemFilterFunction = ({ filterState }) => {
   return (item) => {
     let result = false;
