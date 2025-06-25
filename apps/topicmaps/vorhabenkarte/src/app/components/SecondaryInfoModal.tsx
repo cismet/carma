@@ -180,12 +180,15 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
                   <div className="flex items-center gap-2">
                     <FontAwesomeIcon icon={faBullseye} />
 
-                    <b style={styles.label}>Fokusraum STEK:</b>
+                    <b style={styles.label}>
+                      {" "}
+                      <a href={focusRoomLink} target="_blank">
+                        Fokusraum STEK:
+                      </a>
+                    </b>
                     <div style={styles.focusRoomValues}>
                       {focusRoom.map((i, idx) => (
-                        <a href={focusRoomLink} target="_blank">
-                          <Tag key={idx}>{i}</Tag>
-                        </a>
+                        <Tag key={idx}>{i}</Tag>
                       ))}
                     </div>
                   </div>
