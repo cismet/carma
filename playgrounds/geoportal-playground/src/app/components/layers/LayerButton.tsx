@@ -12,7 +12,7 @@ import {
   faX,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-// import { faCircle } from '@fortawesome/free-regular-svg-icons';
+import { FontAwesomeLikeIcon } from "@carma-apps/portals";
 
 import type { Layer } from "@carma-commons/types";
 import { cn } from "@carma-commons/utils";
@@ -125,21 +125,17 @@ const LayerButton = ({
         )}
       >
         {iconName ? (
-          <div style={{ height: 14, width: 14 }}>
-            <img
-              src={urlPrefix + `icons/${iconName}.svg`}
-              alt="icon"
-              className="h-full"
-            />
-          </div>
+          <FontAwesomeLikeIcon
+            src={`${urlPrefix}icons/${iconName}.svg`}
+            alt={iconName}
+            className="text-base"
+          />
         ) : icon === "ortho" ? (
-          <div style={{ height: 14, width: 14 }}>
-            <img
-              src={urlPrefix + "images/ortho.png"}
-              alt="Ortho"
-              className="h-full"
-            />
-          </div>
+          <FontAwesomeLikeIcon
+            src={`${urlPrefix}images/ortho.png`}
+            alt="Ortho"
+            className="text-base"
+          />
         ) : (
           <FontAwesomeIcon
             icon={icon ? iconMap[icon] : faLayerGroup}

@@ -6,6 +6,7 @@ import type { Layer } from "@carma-commons/types";
 
 import { ICON_PREFIX } from "../../config/app.config";
 import { iconColorMap, iconMap } from "./items";
+import { FontAwesomeLikeIcon } from "@carma-apps/portals";
 
 interface LayerIconProps {
   layer: Layer;
@@ -32,13 +33,12 @@ const LayerIcon = ({ layer, fallbackIcon, isBaseLayer }: LayerIconProps) => {
   return (
     <>
       {iconName && !imgError ? (
-        <div style={{ height: 14, width: 14 }}>
-          <img
-            src={ICON_PREFIX + `${iconName}.png`}
-            alt="Icon"
-            className="h-full"
-          />
-        </div>
+        <FontAwesomeLikeIcon
+          src={ICON_PREFIX + `${iconName}.png`}
+          alt="Layer Icon"
+          className="text-base"
+          id="icon"
+        />
       ) : (
         <FontAwesomeIcon
           icon={

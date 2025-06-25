@@ -10,6 +10,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
+import { FontAwesomeLikeIcon } from "@carma-apps/portals";
 import { Layer } from "@carma-commons/types";
 
 import { changeOpacity, changeVisibility } from "../../store/slices/mapping";
@@ -53,13 +54,11 @@ const LayerRow = ({ layer, id }: LayerRowProps) => {
           <FontAwesomeIcon icon={faGripVertical} />
         </button>
         {icon === "ortho" ? (
-          <div style={{ height: 14, width: 14 }}>
-            <img
-              src={urlPrefix + "images/ortho.png"}
-              alt="Ortho"
-              className="h-full"
-            />
-          </div>
+          <FontAwesomeLikeIcon
+            src={urlPrefix + "images/ortho.png"}
+            alt="Ortho"
+            className="text-base"
+          />
         ) : (
           <FontAwesomeIcon
             icon={icon ? iconMap[icon] : faLayerGroup}

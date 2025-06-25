@@ -15,6 +15,7 @@ import type { SliderSingleProps } from "antd";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
+import { FontAwesomeLikeIcon } from "@carma-apps/portals";
 import { cn } from "@carma-commons/utils";
 
 import {
@@ -118,13 +119,11 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
           <div className="flex items-center h-8 gap-6">
             <div className="w-1/4 min-w-max truncate flex items-center gap-2">
               {icon === "ortho" ? (
-                <div style={{ height: 14, width: 14 }}>
-                  <img
-                    src={urlPrefix + "images/ortho.png"}
-                    alt="Ortho"
-                    className="h-full"
-                  />
-                </div>
+                <FontAwesomeLikeIcon
+                  src={urlPrefix + "images/ortho.png"}
+                  alt="Ortho"
+                  className="text-base"
+                />
               ) : (
                 <FontAwesomeIcon
                   icon={icon ? iconMap[icon] : faLayerGroup}
