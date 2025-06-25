@@ -116,12 +116,7 @@ const Map = () => {
                   },
                 },
                 noCurrentFeatureTitle: "Keine Data gefunden",
-                noCurrentFeatureContent: (
-                  <span>
-                    Für mehr Bäder Ansicht mit verkleinern oder mit dem
-                    untenstehenden Link auf das komplette Stadtgebiet zoomen.
-                  </span>
-                ),
+                noCurrentFeatureContent: <span></span>,
               }}
             />
           }

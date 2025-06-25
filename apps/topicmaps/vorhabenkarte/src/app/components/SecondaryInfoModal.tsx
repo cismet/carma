@@ -182,9 +182,14 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
 
                     <b style={styles.label}>
                       {" "}
-                      <a href={focusRoomLink} target="_blank">
-                        Fokusraum STEK:
-                      </a>
+                      Fokusraum STEK{" "}
+                      <span>
+                        {" "}
+                        <a href={focusRoomLink} target="_blank">
+                          (?)
+                        </a>
+                      </span>
+                      :
                     </b>
                     <div style={styles.focusRoomValues}>
                       {focusRoom.map((i, idx) => (

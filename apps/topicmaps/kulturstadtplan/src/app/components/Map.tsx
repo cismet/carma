@@ -62,6 +62,8 @@ const Map = () => {
     }
   }, [markerSymbolSize]);
 
+  console.log("xxx itemsDictionary", itemsDictionary);
+
   useEffect(() => {
     const einrichtungen = getAllEinrichtungen().map(
       (einrichtung) => einrichtung
