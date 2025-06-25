@@ -21,6 +21,10 @@ const itemFilterFunction = ({ filterState }) => {
       result = doneDate >= sixMonthsAgo;
     }
 
+    if (item.stek) {
+      result = item.stek.some((s) => filterState.stek.includes(s));
+    }
+
     return result;
   };
 };
