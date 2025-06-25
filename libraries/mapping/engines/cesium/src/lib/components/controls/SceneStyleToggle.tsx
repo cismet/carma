@@ -14,7 +14,7 @@ import {
 
 type SceneStyleToggleProps = {
   children?: ReactNode;
-  initialStyle?: keyof SceneStyles;
+  defaultStyle?: keyof SceneStyles;
   onToggle?: (isToPrimary: boolean) => void;
 };
 

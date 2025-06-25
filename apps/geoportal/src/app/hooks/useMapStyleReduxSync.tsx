@@ -11,6 +11,13 @@ import {
 } from "../store/slices/mapping";
 import type { RootState } from "../store";
 
+/**
+ * Custom hook to determine map layers from map styles and and layer selection
+ * It updates the background layer and current scene style based on
+ * - the current mapStyle from the MapStyleProvider
+ * - the selected layer for each mapStyle from the Redux store.
+ */
+
 export const useMapStyleReduxSync = () => {
   const dispatch = useDispatch();
   const { currentStyle } = useMapStyle();
