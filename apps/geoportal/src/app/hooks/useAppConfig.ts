@@ -34,7 +34,6 @@ type Config = {
 };
 
 const CONFIG_KEY = "config";
-const APP_KEY = "appKey";
 
 const onLoadedConfig = (
   config: Config,
@@ -92,7 +91,7 @@ export const useAppConfig = (configBaseUrl: string, layerMap: LayerMap) => {
         onLoadedConfig(newConfig, layerMap, dispatch);
         setIsLoadingConfig(false);
         updateHashHistoryState({}, pathname, {
-          removeKeys: [CONFIG_KEY, APP_KEY],
+          removeKeys: [CONFIG_KEY],
           label: "remove config postinit",
         });
       })
