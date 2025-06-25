@@ -37,7 +37,6 @@ const LayerIcon = ({ layer, fallbackIcon, isBaseLayer }: LayerIconProps) => {
           src={ICON_PREFIX + `${iconName}.png`}
           alt="Layer Icon"
           className="text-base"
-          id="icon"
         />
       ) : (
         <FontAwesomeIcon
@@ -50,7 +49,6 @@ const LayerIcon = ({ layer, fallbackIcon, isBaseLayer }: LayerIconProps) => {
           }
           className="text-base"
           style={{ color: iconColorMap[fallbackIcon] }}
-          id="icon"
         />
       )}
     </>

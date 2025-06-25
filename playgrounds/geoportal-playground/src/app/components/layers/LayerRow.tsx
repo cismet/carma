@@ -64,7 +64,6 @@ const LayerRow = ({ layer, id }: LayerRowProps) => {
             icon={icon ? iconMap[icon] : faLayerGroup}
             className="text-base"
             style={{ color: iconColorMap[icon] }}
-            id="icon"
           />
         )}
         <p className="mb-0 text-lg truncate">{layer.title}</p>

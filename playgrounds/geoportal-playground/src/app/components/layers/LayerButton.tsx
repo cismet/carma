@@ -1,3 +1,5 @@
+/* eslint-disable jsx-a11y/no-static-element-interactions */
+/* eslint-disable jsx-a11y/click-events-have-key-events */
 import { useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { useInView } from "react-intersection-observer";
@@ -141,7 +143,6 @@ const LayerButton = ({
             icon={icon ? iconMap[icon] : faLayerGroup}
             className="text-base"
             style={{ color: iconColorMap[icon] }}
-            id="icon"
           />
         )}
         <span className="text-base sm:hidden">{layersLength} Layer</span>

@@ -1,3 +1,5 @@
+/* eslint-disable jsx-a11y/no-noninteractive-element-interactions */
+/* eslint-disable jsx-a11y/click-events-have-key-events */
 import { useDispatch, useSelector } from "react-redux";
 
 import { useSortable } from "@dnd-kit/sortable";
