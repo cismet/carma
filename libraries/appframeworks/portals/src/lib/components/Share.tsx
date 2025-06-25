@@ -1,7 +1,7 @@
 import { faShareNodes } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useCopyToClipboard } from "@uidotdev/usehooks";
-import { Button, Checkbox, Radio, Tooltip, message } from "antd";
+import { Button, Checkbox, Input, Radio, Select, Tooltip, message } from "antd";
 import { useEffect, useState } from "react";
 import type { LayerState, Settings } from "../types";
 import { faCopy } from "@fortawesome/free-regular-svg-icons";
@@ -113,6 +113,21 @@ export const Share = ({
   showExtendedSharing,
   jwt,
 }: ShareProps) => {
+  // form states
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [usage, setUsage] = useState("");
+  const [service, setService] = useState("discoverPoi");
+
+  const serviceOptions = [
+    { value: "discoverPoi", label: "POI" },
+    { value: "discoverPlanung", label: "Planung" },
+    { value: "discoverVerkehr", label: "Verkehr" },
+    { value: "discoverUmwelt", label: "Umwelt" },
+    { value: "discoverInfra", label: "Infrastruktur" },
+    { value: "discoverImmo", label: "Immobilien" },
+  ];
+
   const { layers, backgroundLayer } = layerState;
   const { copyShareUrl, contextHolder } = useShareUrl();
   const [, copyToClipboard] = useCopyToClipboard();
@@ -137,13 +152,12 @@ export const Share = ({
         className: "gp_entdecken",
         data: JSON.stringify({
           id: -1,
-          name: "test3",
+          name: title,
           config: JSON.stringify(data),
         }),
       },
     };
 
-    console.log("xxx", taskParameters);
     const fd = new FormData();
     fd.append(
       "taskparams",
@@ -164,8 +178,30 @@ export const Share = ({
         body: fd,
       }
     );
+    if (response.status === 200) {
+      messageApi.open({
+        type: "success",
+        content: `Karte wurde publiziert.`,
+        duration: 0.8,
+      });
+      closePopover?.();
+    }
+  };
 
-    console.log("xxx", response);
+  const createShare = (e) => {
+    e.preventDefault();
+    const newConfig = {
+      description: `Inhalt: ${content} Verwendungszweck: ${usage}`,
+      title,
+      type: "collection",
+      thumbnail: "",
+      path: serviceOptions.find((option) => option.value === service)?.label,
+      serviceName: service,
+      backgroundLayer,
+      layers,
+    };
+
+    addItemToDb(newConfig);
   };
 
   return (
@@ -183,68 +219,43 @@ export const Share = ({
             borderRadius: "0.5rem",
           }}
         >
-          <Radio.Group value={mode} onChange={(e) => setMode(e.target.value)}>
-            <div className="flex items-center gap-1">
-              <Radio value={""}>Geoportal Konfiguration</Radio>
-              <Radio value={"publish/"}>Map Publishing</Radio>
+          <form style={{ width: "100%" }} onSubmit={createShare}>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "0.5rem",
+                minWidth: "24rem",
+              }}
+            >
+              <Select
+                options={serviceOptions}
+                onChange={(value) => setService(value)}
+                value={service}
+              />
+              <label htmlFor="title">Titel</label>
+              <Input
+                id="title"
+                onChange={(e) => setTitle(e.target.value)}
+                value={title}
+              />
+              <label htmlFor="content">Inhalt</label>
+              <Input.TextArea
+                id="content"
+                onChange={(e) => setContent(e.target.value)}
+                value={content}
+              />
+              <label htmlFor="usage">Verwendungszweck</label>
+              <Input.TextArea
+                id="usage"
+                onChange={(e) => setUsage(e.target.value)}
+                value={usage}
+              />
+              <Button type="primary" htmlType="submit">
+                Publizieren
+              </Button>
             </div>
-          </Radio.Group>
-          <hr className="my-0" />
-          <h5 className="-mb-1 text-lg">Einstellungen:</h5>
-          <h5 className="mb-0">Layer</h5>
-          <div className="flex items-center gap-2">
-            <Checkbox
-              checked={settings.showLayerButtons}
-              onChange={(e) =>
-                setSettings({ ...settings, showLayerButtons: e.target.checked })
-              }
-              disabled={mode === ""}
-            >
-              Layer Buttons anzeigen
-            </Checkbox>
-          </div>
-          <h5 className="mb-0">Karte</h5>
-          <div className="flex items-center gap-2">
-            <Checkbox
-              checked={settings.showFullscreen}
-              onChange={(e) =>
-                setSettings({ ...settings, showFullscreen: e.target.checked })
-              }
-              disabled={mode === ""}
-            >
-              Fullscreen
-            </Checkbox>
-            <Checkbox
-              checked={settings.showLocator}
-              onChange={(e) =>
-                setSettings({ ...settings, showLocator: e.target.checked })
-              }
-              disabled={mode === ""}
-            >
-              Navigator
-            </Checkbox>
-            <Checkbox
-              checked={settings.showMeasurement}
-              onChange={(e) =>
-                setSettings({ ...settings, showMeasurement: e.target.checked })
-              }
-              disabled={mode === ""}
-            >
-              Messung
-            </Checkbox>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <Checkbox
-              checked={settings.add3dMode}
-              onChange={(e) =>
-                setSettings({ ...settings, add3dMode: e.target.checked })
-              }
-              disabled={mode === ""}
-            >
-              3D Modus
-            </Checkbox>
-          </div>
+          </form>
         </div>
       ) : (
         <hr className="my-0" />
