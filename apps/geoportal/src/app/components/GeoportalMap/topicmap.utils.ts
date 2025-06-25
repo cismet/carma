@@ -732,6 +732,7 @@ export const createCismapLayers = (
             additionalLayerUniquePane: layer.id,
             additionalLayersFreeZOrder: i,
             opacity: layer.opacity.toFixed(1) || 0.7,
+            // type: "wmts-nt", //globally disable tiling
             type: "wmts",
           });
         case "vector":
