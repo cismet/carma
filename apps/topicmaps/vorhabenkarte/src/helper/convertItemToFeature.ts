@@ -16,6 +16,14 @@ export const shortenText = (
 };
 
 const getSignature = (properties) => {
+  if (properties.stadtweit) {
+    properties.thema.signatur = `Stadtweit_${
+      properties.thema.signatur === "Icon_Verkehr.svg"
+        ? "Icon_Mobilitaet.svg"
+        : properties.thema.signatur
+    }`;
+    return properties.thema.signatur;
+  }
   if (properties.thema.signatur === "Icon_Verkehr.svg") {
     return "Icon_Mobilitaet.svg";
   }
