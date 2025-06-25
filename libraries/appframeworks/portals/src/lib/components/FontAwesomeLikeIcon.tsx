@@ -6,6 +6,7 @@ interface FontAwesomeLikeIconProps {
   alt?: string;
   className?: string;
   style?: React.CSSProperties;
+  blendMode?: "darken" | "multiply" | "normal";
 }
 
 /**
@@ -17,6 +18,7 @@ export const FontAwesomeLikeIcon: React.FC<FontAwesomeLikeIconProps> = ({
   id,
   alt = "Icon",
   className = "",
+  blendMode = "multiply",
   style = {},
 }) => {
   return (
@@ -30,6 +32,7 @@ export const FontAwesomeLikeIcon: React.FC<FontAwesomeLikeIconProps> = ({
         height: "1em",
         objectFit: "contain",
         verticalAlign: "middle",
+        mixBlendMode: blendMode,
         ...style,
       }}
     />
