@@ -13,6 +13,7 @@ import { defaultGazDataConfig } from "@carma-commons/resources";
 import { HashCodecs, HashStateProvider } from "../contexts/HashStateProvider";
 import { defaultHashCodecs, defaultHashKeyAliases } from "../utils/hashState";
 import { useMemo } from "react";
+import { AuthProvider } from "./AuthProvider";
 
 type CarmaMapProviderWrapperProps = {
   children: React.ReactNode;
@@ -71,24 +72,26 @@ export const CarmaMapProviderWrapper = ({
       hashCodecs={codecs}
       keyOrder={keyOrder}
     >
-      <GazDataProvider config={gazDataConfig}>
-        <SelectionProvider>
-          <MapStyleProvider config={mapStyleConfig}>
-            <TopicMapContextProvider infoBoxPixelWidth={350}>
-              <OverlayTourProvider transparency={transparency} color={color}>
-                <CesiumContextProvider
-                  //initialViewerState={defaultCesiumState}
-                  // TODO move these to store/slice setup ?
-                  providerConfig={cesiumOptions.providerConfig}
-                  tilesetConfigs={cesiumOptions.tilesetConfigs}
-                >
-                  {children}
-                </CesiumContextProvider>
-              </OverlayTourProvider>
-            </TopicMapContextProvider>
-          </MapStyleProvider>
-        </SelectionProvider>
-      </GazDataProvider>
+      <AuthProvider>
+        <GazDataProvider config={gazDataConfig}>
+          <SelectionProvider>
+            <MapStyleProvider config={mapStyleConfig}>
+              <TopicMapContextProvider infoBoxPixelWidth={350}>
+                <OverlayTourProvider transparency={transparency} color={color}>
+                  <CesiumContextProvider
+                    //initialViewerState={defaultCesiumState}
+                    // TODO move these to store/slice setup ?
+                    providerConfig={cesiumOptions.providerConfig}
+                    tilesetConfigs={cesiumOptions.tilesetConfigs}
+                  >
+                    {children}
+                  </CesiumContextProvider>
+                </OverlayTourProvider>
+              </TopicMapContextProvider>
+            </MapStyleProvider>
+          </SelectionProvider>
+        </GazDataProvider>
+      </AuthProvider>
     </HashStateProvider>
   );
 };

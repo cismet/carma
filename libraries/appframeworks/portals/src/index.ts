@@ -24,6 +24,8 @@ export { GenericInfoBoxFromFeature } from "./lib/components/GenericInfoBoxFromFe
 
 export { GazDataProvider, useGazData } from "./lib/components/GazDataProvider";
 
+export { useAuth } from "./lib/components/AuthProvider";
+
 export {
   HashStateProvider,
   useHashState,
