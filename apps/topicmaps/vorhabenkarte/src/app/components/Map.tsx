@@ -95,7 +95,7 @@ const Map = () => {
           </div>
         </Control>
         <TopicMapComponent
-          // modalMenu={<Menu />}
+          modalMenu={<Menu />}
           locatorControl={false}
           fullScreenControl={false}
           zoomControls={false}
