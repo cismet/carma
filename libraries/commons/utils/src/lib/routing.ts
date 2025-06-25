@@ -104,17 +104,6 @@ export const updateHashHistoryState = (
 };
 
 /**
- * Replaces the current URL hash with a new one, preserving the existing parameters
- */
-export const deleteHashParamsFromHistoryState = (
-  removeKeys: string[],
-  routedPath: string,
-  label: string = "N/A" // for tracing debugging only
-): void => {
-  updateHashHistoryState({}, routedPath, { removeKeys, label });
-};
-
-/**
  * Synchronizes the internal parameter store with the current URL
  * Call this when you know the URL has been changed externally (e.g., by user navigation)
  */

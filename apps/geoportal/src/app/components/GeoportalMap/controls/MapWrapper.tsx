@@ -1,5 +1,4 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
-import { useLocation } from "react-router-dom";
 import { isMobile } from "react-device-detect";
 import { useDispatch, useSelector } from "react-redux";
 
@@ -25,6 +24,7 @@ import {
   SelectionMetaData,
   useFeatureFlags,
   useGazData,
+  useHashState,
   useSelection,
 } from "@carma-apps/portals";
 
@@ -35,10 +35,7 @@ import type {
   FullScreenHTMLElement,
   SearchResultItem,
 } from "@carma-commons/types";
-import {
-  deleteHashParamsFromHistoryState,
-  detectWebGLContext,
-} from "@carma-commons/utils";
+import { detectWebGLContext } from "@carma-commons/utils";
 
 import {
   cesiumClearParamKeys,
@@ -119,8 +116,6 @@ window.addEventListener("load", testGPU, false);
 
 const MapWrapper = () => {
   const dispatch = useDispatch();
-  const { pathname } = useLocation();
-
   const flags = useFeatureFlags();
 
   const showLibreMap = flags.featureFlagLibreMap;
@@ -211,6 +206,8 @@ const MapWrapper = () => {
   const [zenButtonHidden, setZenButtonHidden] = useState(false);
   const [isHoveringZenButton, setIsHoveringZenButton] = useState(false);
 
+  const { updateHash } = useHashState();
+
   useEffect(() => {
     if (routedMap?.leafletMap) {
       const map = routedMap.leafletMap.leafletElement;
@@ -265,12 +262,11 @@ const MapWrapper = () => {
   const { width, height } = useWindowSize(wrapperRef);
 
   const clear3dHashParams = () => {
-    console.debug("[CESIUM|DEBUG] MapTypeSwitcher: 2D mode, clear hash params");
-    deleteHashParamsFromHistoryState(
-      cesiumClearParamKeys,
-      pathname,
-      "MapTypeSwitcher Clear"
-    );
+    updateHash &&
+      updateHash(undefined, {
+        clearKeys: cesiumClearParamKeys,
+        label: "MapTypeSwitcher Clear",
+      });
   };
 
   const handleToggleMeasurement = () => {

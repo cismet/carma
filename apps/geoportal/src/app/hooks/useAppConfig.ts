@@ -18,10 +18,7 @@ import {
 } from "../store/slices/mapping";
 
 import { AppDispatch } from "../store";
-import {
-  deleteHashParamsFromHistoryState,
-  getHashParams,
-} from "@carma-commons/utils";
+import { updateHashHistoryState, getHashParams } from "@carma-commons/utils";
 
 type View = {
   center: string[];
@@ -93,11 +90,10 @@ export const useAppConfig = (configBaseUrl: string, layerMap: LayerMap) => {
       .then((newConfig: Config) => {
         onLoadedConfig(newConfig, layerMap, dispatch);
         setIsLoadingConfig(false);
-        deleteHashParamsFromHistoryState(
-          [CONFIG_KEY],
-          pathname,
-          "remove config postinit"
-        );
+        updateHashHistoryState({}, pathname, {
+          removeKeys: [CONFIG_KEY],
+          label: "remove config postinit",
+        });
       })
       .catch((error) => {
         if (error.name === "AbortError") return;

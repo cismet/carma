@@ -25,11 +25,7 @@ export {
   convertBBox2Bounds,
 } from "./lib/proj4helpers";
 
-export {
-  updateHashHistoryState,
-  deleteHashParamsFromHistoryState,
-  getHashParams,
-} from "./lib/routing.ts";
+export { updateHashHistoryState, getHashParams } from "./lib/routing.ts";
 
 export { generateRandomString } from "./lib/strings";
 
