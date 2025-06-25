@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
-import { utils } from "@carma-apps/portals";
+import { useAuth, utils } from "@carma-apps/portals";
 import type { Item, Layer } from "@carma-commons/types";
 import { LayerLib } from "@carma-mapping/layers";
 
@@ -44,7 +44,8 @@ const ResourceModal = () => {
   const favorites = useSelector(getFavorites);
   const savedLayerConfigs = useSelector(getSavedLayerConfigs);
   const showResourceModal = useSelector(getUIShowResourceModal);
-  const jwt = useSelector(getJWT);
+  // const jwt = useSelector(getJWT);
+  const { jwt } = useAuth();
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
@@ -245,6 +246,7 @@ const ResourceModal = () => {
           dispatch(updateFavorite(layer));
         }}
         discoverItems={discoverItems}
+        jwt={jwt}
       />
     </>
   );

@@ -3,8 +3,8 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Button } from "antd";
 import "./login.css";
 import { useRef, useState, useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
-import { getUser, setJWT, setUser } from "../store/slices/auth";
+import { useDispatch } from "react-redux";
+import { useAuth } from "@carma-apps/portals";
 
 interface LoginFormProps {
   helpText?: string;
@@ -21,7 +21,7 @@ const LoginForm = ({
   showHelpText = true,
   style,
 }: LoginFormProps) => {
-  const user = useSelector(getUser);
+  const { user, setJWT, setUser } = useAuth();
   const [userName, setUserName] = useState(user || "");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -63,8 +63,8 @@ const LoginForm = ({
             const jwt = responseWithJWT.jwt;
 
             setTimeout(() => {
-              dispatch(setJWT(jwt));
-              dispatch(setUser(userName));
+              setJWT(jwt);
+              setUser(userName);
             }, 500);
             setTimeout(() => {
               onSuccess?.();

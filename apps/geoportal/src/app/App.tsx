@@ -66,11 +66,6 @@ if (typeof global === "undefined") {
 }
 function App({ published }: { published?: boolean }) {
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const jwt = useSelector(getJWT);
-  const dispatch = useDispatch();
-
-  const apiUrl = "https://wunda-cloud-api.cismet.de";
-  const appKey = "Geoportal.Online.Wuppertal";
 
   const isLoadingConfig = useAppConfig(CONFIG_BASE_URL, layerMap);
   useManageLayers(layerMap);
