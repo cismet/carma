@@ -89,6 +89,8 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
   const street = plan?.adresse?.strasse || null;
   const locationDescription = plan?.ortsbeschreibung || null;
   const focusRoom = plan?.stek || [];
+  const focusRoomLink =
+    "https://www.wuppertal.de/wirtschaft-stadtentwicklung/stadtentwicklung/stadtentwicklungskonzept.php";
   const resolutions = plan?.beschluesse ? [...plan.beschluesse] : [];
   const documents = plan?.dokumente ? [...plan.dokumente] : [];
   const docsPrefix = "/dokumente/";
@@ -180,7 +182,9 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
                     <b style={styles.label}>Fokusraum STEK:</b>
                     <div style={styles.focusRoomValues}>
                       {focusRoom.map((i, idx) => (
-                        <Tag key={idx}>{i}</Tag>
+                        <a href={focusRoomLink}>
+                          <Tag key={idx}>{i}</Tag>
+                        </a>
                       ))}
                     </div>
                   </div>
@@ -205,7 +209,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
               <div className="mt-1">
                 <span>{shortenText(plan.beschreibung, true)} </span>
                 <div>
-                  <a href="/" target="_blank">
+                  <a href={plan?.link ? plan.link : "/"} target="_blank">
                     Mehr Informationen…
                   </a>
                 </div>
