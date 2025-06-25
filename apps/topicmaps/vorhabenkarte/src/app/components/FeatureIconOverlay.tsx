@@ -15,7 +15,7 @@ import { getFeatureStyler } from "../../helper/styler";
 //   </svg>
 // `;
 
-export const FeatureIconOverlay = () => {
+export const FeatureIconOverlay = ({ zoomLevel = 12 }) => {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const { shownFeatures = [] } = useContext<typeof FeatureCollectionContext>(
     FeatureCollectionContext
@@ -29,8 +29,15 @@ export const FeatureIconOverlay = () => {
   useEffect(() => {
     const map = routedMapRef?.leafletMap?.leafletElement;
     if (!map) return;
-    const markers: L.Marker[] = [];
+    const updateOverlayVisibility = () => {
+      const zoom = map.getZoom();
+      map.getPane("overlayPane")!.style.display =
+        zoom < zoomLevel ? "none" : "";
+    };
+    map.on("zoomend", updateOverlayVisibility);
+    updateOverlayVisibility();
 
+    const markers: L.Marker[] = [];
     // helper to drop one icon at the centroid of any geometry
     const dropMarkerAt = (
       g: GeoJSON.Geometry | GeoJSON.MultiPolygon,

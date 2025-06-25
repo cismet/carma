@@ -38,7 +38,7 @@ export function App() {
       }}
     >
       <Map />
-      <FeatureIconOverlay />
+      <FeatureIconOverlay zoomLevel={11} />
     </TopicMapContextProvider>
   );
 }
