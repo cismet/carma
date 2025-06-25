@@ -43,18 +43,18 @@ const Menu = () => {
     <CustomizationContextProvider customizations={{}}>
       <ModalApplicationMenu
         menuIcon={"bars"}
-        menuTitle={<MenuTitle />}
-        menuFooter={
-          <Footer
-            version={getApplicationVersion(versionData)}
-            setAppMenuActiveMenuSection={setAppMenuActiveMenuSection}
-          />
-        }
-        menuIntroduction={
-          <MenuIntroduction
-            setAppMenuActiveMenuSection={setAppMenuActiveMenuSection}
-          />
-        }
+        // menuTitle={<MenuTitle />}
+        // menuFooter={
+        //   <Footer
+        //     version={getApplicationVersion(versionData)}
+        //     setAppMenuActiveMenuSection={setAppMenuActiveMenuSection}
+        //   />
+        // }
+        // menuIntroduction={
+        //   <MenuIntroduction
+        //     setAppMenuActiveMenuSection={setAppMenuActiveMenuSection}
+        //   />
+        // }
         menuSections={[
           <Section
             key="filter"
@@ -66,13 +66,13 @@ const Menu = () => {
             sectionBsStyle={FilterStyle}
             sectionContent={<FilterUI />}
           />,
-          <DefaultSettingsPanel
-            key="settings"
-            checkBoxSettingsSectionTitle="Einstellungen Lade- und Verleihstationen:"
-            checkBoxTextClustering="Stationen maßstabsabhängig zusammenfassen"
-          />,
-          <KompaktanleitungSection />,
-          <GenericDigitalTwinReferenceSection />,
+          // <DefaultSettingsPanel
+          //   key="settings"
+          //   checkBoxSettingsSectionTitle="Einstellungen Lade- und Verleihstationen:"
+          //   checkBoxTextClustering="Stationen maßstabsabhängig zusammenfassen"
+          // />,
+          // <KompaktanleitungSection />,
+          // <GenericDigitalTwinReferenceSection />,
         ]}
       />
     </CustomizationContextProvider>
