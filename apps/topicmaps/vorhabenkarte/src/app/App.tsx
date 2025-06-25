@@ -32,6 +32,9 @@ export function App() {
       getFeatureStyler={getFeatureStyler}
       featureTooltipFunction={(feature) => feature?.text}
       itemFilterFunction={itemFilterFunction}
+      filterState={{
+        stek: [],
+      }}
       convertItemToFeature={convertItemToFeature}
       clusteringOptions={{
         iconCreateFunction: getPoiClusterIconCreatorFunction({ svgSize: 24 }),
