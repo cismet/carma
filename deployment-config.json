@@ -135,6 +135,33 @@
       },
       "projectPath": "./dist/apps/topicmaps/e-bikes"
     },
+    "vorhabenkarte": {
+      "deployment": {
+        "manual": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "topicmaps-vorhabenkarte-wuppertal"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "topicmaps-vorhabenkarte-wuppertal"
+            }
+          }
+        },
+        "auto": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "topicmaps-vorhabenkarte-wuppertal"
+            }
+          }
+        }
+      },
+      "projectPath": "./dist/apps/topicmaps/vorhabenkarte"
+    },
     "fnp-inspektor": {
       "deployment": {
         "manual": {
