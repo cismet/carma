@@ -18,6 +18,7 @@ import {
   faClock,
   faLeaf,
   faToggleOn,
+  faUser,
 } from "@fortawesome/free-solid-svg-icons";
 import { stek } from "../../../helper/filter";
 
@@ -76,7 +77,8 @@ const FilterUI = () => {
       <table border={0} width="100%">
         <tbody>
           <tr>
-            <td valign="middle" style={{ width: "330px" }}>
+            <td style={{ width: "330px", verticalAlign: "top" }}>
+              <h4>Filtern nach</h4>
               <Form>
                 <label
                   style={{
@@ -98,47 +100,61 @@ const FilterUI = () => {
                     }}
                   />{" "}
                 </label>
-                <br />
-                {stek.map((item, idx) => {
-                  return (
-                    <>
-                      <Form.Check
-                        readOnly={true}
-                        key={"filter.vorhabenkarte.stek." + idx}
-                        onClick={(e) => {
-                          setFilterValue(
-                            "stek",
-                            item,
-                            // @ts-expect-error legacy codebase exception
-                            e.target.checked
-                          );
-                        }}
-                        checked={filterState["stek"]?.indexOf(item) !== -1}
-                        inline
-                        label={item}
-                      />
-                      <br />
-                    </>
-                  );
-                })}
+                <div className="flex gap-5 mb-2 mt-1 text-[#0175ff]">
+                  <a>alle</a> <a>keine</a>
+                </div>
+                <div className="mb-2">
+                  {stek.map((item, idx) => {
+                    return (
+                      <>
+                        <Form.Check
+                          readOnly={true}
+                          key={"filter.vorhabenkarte.stek." + idx}
+                          onClick={(e) => {
+                            setFilterValue(
+                              "stek",
+                              item,
+                              // @ts-expect-error legacy codebase exception
+                              e.target.checked
+                            );
+                          }}
+                          checked={filterState["stek"]?.indexOf(item) !== -1}
+                          inline
+                          label={item}
+                        />
+                        <br />
+                      </>
+                    );
+                  })}
+                </div>
+                <label
+                  style={{
+                    display: "inline-block",
+                    maxWidth: "100%",
+                    marginBottom: "5px",
+                    fontWeight: 700,
+                  }}
+                >
+                  Bürgerbeteiligung
+                  {"  "}
+                  <FontAwesomeIcon
+                    icon={faUser}
+                    size="2x"
+                    style={{
+                      color: "grey",
+                      width: "30px",
+                      textAlign: "center",
+                    }}
+                  />{" "}
+                </label>
+                <Form.Check
+                  type="switch"
+                  id="custom-switch"
+                  label="nur Vorhaben mit Bürgerbeteiligung"
+                />
               </Form>
               <br />
               <br />
-              <p>
-                <Button
-                  onClick={() => {
-                    setFilterState({
-                      stationsart: ["Ladestation", "Verleihstation"],
-                      nur_online: false,
-                      immer_offen: false,
-                      gruener_strom: false,
-                      ladebox_zu: false,
-                    });
-                  }}
-                >
-                  Filter zurücksetzen (alle Anlagen anzeigen)
-                </Button>
-              </p>
             </td>
             {widePieChartPlaceholder}
           </tr>
