@@ -1,5 +1,5 @@
 import { message } from "antd";
-import { useContext, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
@@ -32,8 +32,11 @@ import {
   getUIShowResourceModal,
   setShowResourceModal,
 } from "../../store/slices/ui";
-
+import { getJWT, setJWT } from "../../store/slices/auth";
+import { md5ActionFetchDAQ } from "@carma-commons/utils/fetching.ts";
 const ResourceModal = () => {
+  const [discoverItems, setDiscoverItems] = useState([]);
+
   const dispatch = useDispatch();
 
   const activeLayers = useSelector(getLayers);
@@ -41,9 +44,13 @@ const ResourceModal = () => {
   const favorites = useSelector(getFavorites);
   const savedLayerConfigs = useSelector(getSavedLayerConfigs);
   const showResourceModal = useSelector(getUIShowResourceModal);
+  const jwt = useSelector(getJWT);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
+
+  const apiUrl = "https://wunda-cloud-api.cismet.de";
+  const appKey = "Geoportal.Online.Wuppertal";
 
   const { routedMapRef: routedMap } =
     useContext<typeof TopicMapContext>(TopicMapContext);
@@ -139,6 +146,23 @@ const ResourceModal = () => {
     }
   };
 
+  useEffect(() => {
+    if (jwt) {
+      md5ActionFetchDAQ(appKey, apiUrl, jwt, "gp_entdecken")
+        .then((result) => {
+          setDiscoverItems(result.data);
+          console.log("xxx", result.data);
+        })
+        .catch((e) => {
+          if (e.status === 401) {
+            dispatch(setJWT(undefined));
+            // setShowLoginModal(true);
+          }
+          console.error("Error fetching gp_entdecken: ", e);
+        });
+    }
+  }, [jwt]);
+
   return (
     <>
       {contextHolder}
@@ -220,6 +244,7 @@ const ResourceModal = () => {
         updateFavorite={(layer) => {
           dispatch(updateFavorite(layer));
         }}
+        discoverItems={discoverItems}
       />
     </>
   );

@@ -77,20 +77,6 @@ function App({ published }: { published?: boolean }) {
   const syncToken = useSyncToken();
   useKeyboardShortcuts();
 
-  useEffect(() => {
-    if (jwt) {
-      md5ActionFetchDAQ(appKey, apiUrl, jwt, "gp_entdecken")
-        .then((problem) => {})
-        .catch((e) => {
-          if (e.status === 401) {
-            dispatch(setJWT(undefined));
-            setShowLoginModal(true);
-          }
-          console.error("Error fetching gp_entdecken: ", e);
-        });
-    }
-  }, [jwt]);
-
   const content = (
     <FeatureFlagProvider config={featureFlagConfig}>
       <TweakpaneProvider>
