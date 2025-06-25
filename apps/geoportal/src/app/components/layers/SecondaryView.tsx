@@ -157,6 +157,8 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
     };
   }, [dispatch, selectedLayerIndex]);
 
+  const iconId = `secview-icon-${layer.id}`;
+
   return (
     <div
       onClick={() => {
@@ -202,8 +204,12 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
                 layer={layer}
                 fallbackIcon={icon}
                 isBaseLayer={isBaseLayer}
+                id={iconId}
               />
-              <label className="mb-0 text-base w-full truncate" htmlFor="icon">
+              <label
+                className="mb-0 text-base w-full truncate"
+                htmlFor={iconId}
+              >
                 {isBaseLayer ? "Hintergrund" : layer.title}
               </label>
             </div>

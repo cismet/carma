@@ -1,3 +1,5 @@
+/* eslint-disable jsx-a11y/no-static-element-interactions */
+/* eslint-disable jsx-a11y/click-events-have-key-events */
 import { forwardRef, useContext, useEffect, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -15,6 +17,7 @@ import type { SliderSingleProps } from "antd";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
+import { FontAwesomeLikeIcon } from "@carma-apps/portals";
 import { cn } from "@carma-commons/utils";
 
 import {
@@ -40,6 +43,7 @@ type Ref = HTMLDivElement;
 
 interface SecondaryViewProps {}
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const formatter: NonNullable<
   SliderSingleProps["tooltip"]
 >["formatter"] = (value) => `${value * 100}%`;
@@ -64,6 +68,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
     ? "gärten"
     : undefined;
   const background = selectedLayerIndex === -1;
+  const iconId = `secview-icon-${layer.id}`;
 
   useEffect(() => {
     const handleOutsideClick = (event: MouseEvent) => {
@@ -78,6 +83,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
   }, []);
 
   return (
+    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
     <div
       onClick={() => {
         dispatch(setSelectedLayerIndex(-2));
@@ -118,22 +124,24 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
           <div className="flex items-center h-8 gap-6">
             <div className="w-1/4 min-w-max truncate flex items-center gap-2">
               {icon === "ortho" ? (
-                <div style={{ height: 14, width: 14 }}>
-                  <img
-                    src={urlPrefix + "images/ortho.png"}
-                    alt="Ortho"
-                    className="h-full"
-                  />
-                </div>
+                <FontAwesomeLikeIcon
+                  src={urlPrefix + "images/ortho.png"}
+                  alt="Ortho"
+                  className="text-base"
+                  id={iconId}
+                />
               ) : (
                 <FontAwesomeIcon
                   icon={icon ? iconMap[icon] : faLayerGroup}
                   className="text-base"
                   style={{ color: iconColorMap[icon] }}
-                  id="icon"
+                  id={iconId}
                 />
               )}
-              <label className="mb-0 text-base font-medium pt-1" htmlFor="icon">
+              <label
+                className="mb-0 text-base font-medium pt-1"
+                htmlFor={iconId}
+              >
                 {layer.title}
               </label>
             </div>

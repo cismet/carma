@@ -6,14 +6,21 @@ import type { Layer } from "@carma-commons/types";
 
 import { ICON_PREFIX } from "../../config/app.config";
 import { iconColorMap, iconMap } from "./items";
+import { FontAwesomeLikeIcon } from "@carma-apps/portals";
 
 interface LayerIconProps {
   layer: Layer;
   fallbackIcon?: string;
   isBaseLayer?: boolean;
+  id?: string;
 }
 
-const LayerIcon = ({ layer, fallbackIcon, isBaseLayer }: LayerIconProps) => {
+const LayerIcon = ({
+  layer,
+  fallbackIcon,
+  isBaseLayer,
+  id,
+}: LayerIconProps) => {
   const [imgError, setImgError] = useState(!layer.other?.icon);
 
   const iconName =
@@ -32,13 +39,12 @@ const LayerIcon = ({ layer, fallbackIcon, isBaseLayer }: LayerIconProps) => {
   return (
     <>
       {iconName && !imgError ? (
-        <div style={{ height: 14, width: 14 }}>
-          <img
-            src={ICON_PREFIX + `${iconName}.png`}
-            alt="Icon"
-            className="h-full"
-          />
-        </div>
+        <FontAwesomeLikeIcon
+          src={ICON_PREFIX + `${iconName}.png`}
+          alt="Layer Icon"
+          className="text-base"
+          id={id}
+        />
       ) : (
         <FontAwesomeIcon
           icon={
@@ -50,7 +56,7 @@ const LayerIcon = ({ layer, fallbackIcon, isBaseLayer }: LayerIconProps) => {
           }
           className="text-base"
           style={{ color: iconColorMap[fallbackIcon] }}
-          id="icon"
+          id={id}
         />
       )}
     </>
