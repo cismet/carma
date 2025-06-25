@@ -1,4 +1,5 @@
 import { addSVGToProps } from "react-cismap/tools/svgHelper";
+import { assetsBaseUrl } from "../constants/constants";
 
 export const shortenText = (
   text: string,
@@ -83,16 +84,13 @@ const convertItemToFeature = async (itemIn, poiColors) => {
   if (item.fotos && item.fotos.length > 0 && item.fotos[0].url.includes(".")) {
     item.foto =
       // "https://www.wuppertal.de/geoportal/vorhabenkarte/fotos/" +
-      "https://wunda-geoportal-docs.cismet.de/vorhabenkarte/fotos/" +
-      item.fotos[0].url;
+      assetsBaseUrl + "fotos/" + item.fotos[0].url;
     item.originalPhotos = item.fotos;
   }
 
   if (item.fotos && item.fotos.length > 0) {
     item.fotos = item.fotos.map(
-      (photo) =>
-        "https://wunda-geoportal-docs.cismet.de/vorhabenkarte/fotos/" +
-        photo.url
+      (photo) => assetsBaseUrl + "fotos/" + photo.url
     );
   }
 

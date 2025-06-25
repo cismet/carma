@@ -35,6 +35,7 @@ import { shortenText } from "../../helper/convertItemToFeature";
 import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
 import { useContext } from "react";
 import Panel from "react-cismap/commons/Panel";
+import { assetsBaseUrl } from "../../constants/constants";
 
 const styles = {
   container: {
@@ -209,9 +210,11 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
               <div className="mt-1">
                 <span>{shortenText(plan.beschreibung, true)} </span>
                 <div>
-                  <a href={plan?.link ? plan.link : "/"} target="_blank">
-                    Mehr Informationen…
-                  </a>
+                  {plan?.link && (
+                    <a href={plan.link} target="_blank">
+                      Mehr Informationen…
+                    </a>
+                  )}
                 </div>
               </div>
             </div>
@@ -310,7 +313,10 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
                     {documents.map((res, idx) => {
                       return (
                         <li key={idx}>
-                          <a href={res.url + docsPrefix} target="_blank">
+                          <a
+                            href={assetsBaseUrl + docsPrefix + res.url}
+                            target="_blank"
+                          >
                             {res?.anzeige ? res?.anzeige : res.url}
                           </a>
                         </li>
