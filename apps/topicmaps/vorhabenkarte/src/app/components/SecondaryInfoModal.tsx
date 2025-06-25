@@ -275,7 +275,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
                 <Panel
                   header="Politische Beschlüsse"
                   eventKey="0"
-                  bsStyle="primary"
+                  bsStyle="info"
                 >
                   <div>
                     {sortedResolutions.map((res, idx) => {
