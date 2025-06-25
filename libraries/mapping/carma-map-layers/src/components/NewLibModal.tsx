@@ -64,6 +64,7 @@ export interface LibModalProps {
   customCategories: LayerCategories[];
   updateActiveLayer: (layer: Layer) => void;
   removeLastLayer?: () => void;
+  discoverItems?: any[];
 }
 
 const sidebarElements = [
@@ -87,6 +88,7 @@ export const NewLibModal = ({
   updateActiveLayer,
   removeLastLayer,
   updateFavorite,
+  discoverItems,
 }: LibModalProps) => {
   const [preview, setPreview] = useState(false);
   const [layers, setLayers] = useState<any[]>([]);
@@ -363,17 +365,38 @@ export const NewLibModal = ({
         { id: "partialTwins", categories: partialTwinsCategories },
       ];
     });
+  }, []);
 
-    // Discover Category
+  useEffect(() => {
+    if (discoverItems?.length === 0) {
+      return;
+    }
     const discoverCategories: {
       Title: string;
       id: string;
       layers: SavedLayerConfig[];
     }[] = [];
-
     for (let key in discoverConfig) {
-      discoverCategories.push(discoverConfig[key]);
+      let layers = [];
+      // discoverCategories.push(discoverConfig[key]);
+      const filteredItems = discoverItems?.filter((item) => {
+        return JSON.parse(item.config).serviceName === discoverConfig[key].id;
+      });
+      layers.push(
+        ...filteredItems?.map((item) => {
+          return { ...JSON.parse(item.config), id: item.id.toString() };
+        })
+      );
+
+      console.log("xxx", layers);
+
+      discoverCategories.push({
+        ...discoverConfig[key],
+        layers,
+      });
     }
+
+    console.log("xxx", discoverCategories);
 
     setShownCategories((prev) => {
       if (prev.find((item) => item.id === "discover")) {
@@ -394,7 +417,7 @@ export const NewLibModal = ({
       }
       return [...prev, { id: "discover", categories: discoverCategories }];
     });
-  }, []);
+  }, [discoverItems]);
 
   useEffect(() => {
     if (getNumOfCustomLayers() === 0) {
