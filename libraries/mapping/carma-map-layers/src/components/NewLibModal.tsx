@@ -53,6 +53,15 @@ type LayerCategories = {
   id?: string;
 };
 
+type DiscoverResult = {
+  time: string | null;
+  data: {
+    config: string;
+    id: number;
+    name: string;
+  }[];
+};
+
 export interface LibModalProps {
   open: boolean;
   setOpen: (open: boolean) => void;
@@ -131,20 +140,13 @@ export const NewLibModal = ({
       setLoadingData(true);
       const { appKey, apiUrl, daqKey } = discoverProps;
       md5ActionFetchDAQ(appKey, apiUrl, jwt, daqKey)
-        .then(
-          (result: {
-            time: string | null;
-            data: {
-              config: string;
-              id: number;
-              name: string;
-            }[];
-          }) => {
-            setDiscoverItems(result.data);
-            setLoadingData(false);
-            setTriggerRefetch(false);
-          }
-        )
+        .then((result) => {
+          // Use type assertion to force the result to be the expected type
+          const typedResult = result as DiscoverResult;
+          setDiscoverItems(typedResult.data);
+          setLoadingData(false);
+          setTriggerRefetch(false);
+        })
         .catch((e) => {
           if (e.status === 401) {
             setJWT("");
@@ -421,7 +423,7 @@ export const NewLibModal = ({
       layers: SavedLayerConfig[];
     }[] = [];
     for (let key in discoverConfig) {
-      let layers = [];
+      let layers: Item[] = [];
       // discoverCategories.push(discoverConfig[key]);
       const filteredItems = discoverItems?.filter((item) => {
         return JSON.parse(item.config).serviceName === discoverConfig[key].id;
