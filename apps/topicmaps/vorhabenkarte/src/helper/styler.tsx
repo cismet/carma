@@ -30,16 +30,22 @@ export const getColorForProperties = (properties) => {
 export const getColorForFilter = (stek) => {
   let color;
   switch (stek) {
-    case "Wuppertals innovatives Technologieband":
-      color = "#1d599e";
-      break;
-    case "Wuppertals lebendige Zentrenvielfalt":
+    case "Umwelt und Grünflächen":
       color = "#8A9B0F";
       break;
-    case "Wuppertals neue grüne Stadtlandschaft":
+    case "Verkehr und Mobilität":
+      color = "#1d599e";
+      break;
+    case "Bildung und Kultur":
       color = "#490A3D";
       break;
-    case "Wuppertal – urbane Lebensader":
+    case "Stadtentwicklung & Sicherheit":
+      color = "#BD1550";
+      break;
+    case "Sonstiges":
+      color = "#AAAAAA";
+      break;
+    case "Sport und Freizeit":
       color = "#E97F02";
       break;
     default:

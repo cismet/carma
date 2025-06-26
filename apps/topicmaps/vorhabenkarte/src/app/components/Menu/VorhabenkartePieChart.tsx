@@ -19,21 +19,23 @@ const VorhabenkartePieChart = ({ visible = true }) => {
     let piechartColor: any = [];
 
     for (let obj of filteredItems) {
-      if (obj.stek) {
-        obj.stek.forEach((group) => {
-          if (stats[group] === undefined) {
-            stats[group] = 1;
-            colormodel[group] = getColorForFilter(group);
-          } else {
-            stats[group] += 1;
-          }
-        });
-      }
-      // if (stats[group] === undefined) {
-      //   stats[group] = 1;
-      // } else {
-      //   stats[group] += 1;
+      const topicName = obj.thema.name;
+      // if (obj.stek) {
+      //   obj.stek.forEach((group) => {
+      //     if (stats[group] === undefined) {
+      //       stats[group] = 1;
+      //       colormodel[group] = getColorForFilter(group);
+      //     } else {
+      //       stats[group] += 1;
+      //     }
+      //   });
       // }
+      if (stats[topicName] === undefined) {
+        stats[topicName] = 1;
+        colormodel[topicName] = getColorForFilter(topicName);
+      } else {
+        stats[topicName] += 1;
+      }
     }
 
     for (let key in stats) {
