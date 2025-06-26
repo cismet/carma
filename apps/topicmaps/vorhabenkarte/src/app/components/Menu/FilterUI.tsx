@@ -74,6 +74,18 @@ const FilterUI = () => {
     setFilterState(newFilterState);
   };
 
+  const clearFilter = (kind) => {
+    const newFilterState = { ...filterState };
+    newFilterState[kind] = [];
+    setFilterState(newFilterState);
+  };
+
+  const setAllFilter = (kind) => {
+    const newFilterState = { ...filterState };
+    newFilterState[kind] = stek;
+    setFilterState(newFilterState);
+  };
+
   return (
     <div>
       <table border={0} width="100%">
@@ -103,7 +115,8 @@ const FilterUI = () => {
                   />{" "}
                 </label>
                 <div className="flex gap-5 mb-2 mt-1 text-[#0175ff]">
-                  <a>alle</a> <a>keine</a>
+                  <a onClick={() => setAllFilter("stek")}>alle</a>{" "}
+                  <a onClick={() => clearFilter("stek")}>keine</a>
                 </div>
                 <div className="mb-3">
                   {stek.map((item, idx) => {
