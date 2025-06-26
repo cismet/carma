@@ -191,16 +191,20 @@ export const md5ActionFetchDAQ = async (
       });
     });
   } else {
+    let headers = {};
+    if (jwt) {
+      headers = {
+        Authorization: "Bearer " + jwt,
+      };
+    }
+
     const response = await fetch(
       apiUrl +
         "/actions/WUNDA_BLAU.dataAquisition/tasks?resultingInstanceType=result",
       {
         method: "POST",
         // method: "GET",
-        headers: {
-          Authorization: "Bearer " + jwt, // "Content-Type": "application/json",
-          // Accept: "application/json",
-        },
+        headers: headers,
         body: fd,
       }
     );
@@ -267,6 +271,7 @@ export const md5ActionFetchDAQ = async (
         });
       });
     } else {
+      console.error("unknown status", response);
       return new Promise((resolve, reject) => {
         reject({
           status: response.status,

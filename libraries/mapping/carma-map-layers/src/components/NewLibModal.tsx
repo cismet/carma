@@ -136,10 +136,10 @@ export const NewLibModal = ({
   const { jwt, setJWT } = useAuth();
 
   const fetchDiscoverItems = () => {
-    if (jwt && discoverProps) {
+    if (discoverProps) {
       setLoadingData(true);
       const { appKey, apiUrl, daqKey } = discoverProps;
-      md5ActionFetchDAQ(appKey, apiUrl, jwt, daqKey)
+      md5ActionFetchDAQ(appKey, apiUrl, jwt || "", daqKey)
         .then((result) => {
           // Use type assertion to force the result to be the expected type
           const typedResult = result as DiscoverResult;
@@ -160,7 +160,7 @@ export const NewLibModal = ({
     if (open || triggerRefetch) {
       fetchDiscoverItems();
     }
-  }, [open, triggerRefetch]);
+  }, [open, triggerRefetch, jwt]);
 
   const getNumOfCustomLayers = () => {
     return customCategories.reduce((acc, category) => {
@@ -1071,6 +1071,7 @@ export const NewLibModal = ({
                   isSearch={selectedNavItemIndex === 5}
                   setTriggerRefetch={setTriggerRefetch}
                   loadingData={loadingData}
+                  discoverProps={discoverProps}
                 />
               )}
 
