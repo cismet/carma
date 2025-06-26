@@ -23,6 +23,7 @@ import {
 } from "@carma-collab/wuppertal/geoportal";
 
 import InfoCard from "./InfoCard";
+import { useAuth } from "@carma-apps/portals";
 
 interface LayerItemProps {
   setAdditionalLayers: any;
@@ -37,6 +38,11 @@ interface LayerItemProps {
   showWithoutThumbnail?: boolean;
   setTriggerRefetch: (value: boolean) => void;
   loadingData: boolean;
+  discoverProps?: {
+    appKey: string;
+    apiUrl: string;
+    daqKey: string;
+  };
 }
 
 const LayerItem = ({
@@ -52,8 +58,10 @@ const LayerItem = ({
   showWithoutThumbnail,
   setTriggerRefetch,
   loadingData,
+  discoverProps,
 }: LayerItemProps) => {
   const [hovered, setHovered] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [isActiveLayer, setIsActiveLayer] = useState(false);
   const isFavorite = favorites
     ? favorites.some(
@@ -81,6 +89,8 @@ const LayerItem = ({
   const carmaConf = extractCarmaConfig(layer.keywords);
 
   const [isLoading, setIsLoading] = useState(true);
+
+  const { jwt } = useAuth();
 
   const handleLayerClick = (
     e: React.MouseEvent<HTMLElement, MouseEvent>,
@@ -147,6 +157,52 @@ const LayerItem = ({
       document.removeEventListener("keyup", onKeyUp);
     };
   }, []);
+
+  const deleteDiscoverItem = async () => {
+    setLoading(true);
+    const apiUrl = discoverProps?.apiUrl || "https://wunda-cloud-api.cismet.de";
+    const taskParameters = {
+      parameters: {
+        className: discoverProps?.daqKey || "gp_entdecken",
+        data: JSON.stringify({
+          id: layer.id,
+        }),
+      },
+    };
+
+    const fd = new FormData();
+    fd.append(
+      "taskparams",
+      new Blob([JSON.stringify(taskParameters)], {
+        type: "application/json",
+      })
+    );
+
+    const response = await fetch(
+      apiUrl +
+        "/actions/WUNDA_BLAU.DeleteObject/tasks?resultingInstanceType=result",
+      {
+        method: "POST",
+        // method: "GET",
+        headers: {
+          Authorization: "Bearer " + jwt, // "Content-Type": "application/json",
+          // Accept: "application/json",
+        },
+        body: fd,
+      }
+    );
+    if (response.status === 200) {
+      setTriggerRefetch(true);
+      const waitForLoadingToFinish = async () => {
+        while (loadingData) {
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+        setLoading(false);
+      };
+
+      waitForLoadingToFinish();
+    }
+  };
 
   return (
     <>
@@ -406,9 +462,14 @@ const LayerItem = ({
               </Button>
               <Button
                 danger
+                loading={loading}
                 onClick={() => {
                   setOpenDeleteModal(false);
-                  setAdditionalLayers(layer, true);
+                  if (layer.serviceName.includes("discover")) {
+                    deleteDiscoverItem();
+                  } else {
+                    setAdditionalLayers(layer, true);
+                  }
                 }}
               >
                 Löschen
