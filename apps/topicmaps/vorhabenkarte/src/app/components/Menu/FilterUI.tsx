@@ -30,7 +30,6 @@ const FilterUI = () => {
     FeatureCollectionContext
   );
 
-  console.log("xxx filterState", filterState);
   const { setFilterState } = useContext<
     typeof FeatureCollectionDispatchContext
   >(FeatureCollectionDispatchContext);
@@ -94,7 +93,6 @@ const FilterUI = () => {
           <tr>
             <td style={{ width: "330px", verticalAlign: "top" }}>
               <h4 className="mb-6">Filtern nach</h4>
-              <Form></Form>
               <Form>
                 <label
                   style={{
