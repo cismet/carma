@@ -50,11 +50,13 @@ const Menu = () => {
         //     setAppMenuActiveMenuSection={setAppMenuActiveMenuSection}
         //   />
         // }
-        // menuIntroduction={
-        //   <MenuIntroduction
-        //     setAppMenuActiveMenuSection={setAppMenuActiveMenuSection}
-        //   />
-        // }
+        menuIntroduction={
+          <div>
+            Über Einstellungen können Sie die Darstellung der Hintergrundkarte
+            und der Objekte an Ihre Vorlieben anpassen. Wählen Sie
+            Kompaktanleitung für detailliertere Bedienungsinformationen.
+          </div>
+        }
         menuSections={[
           <Section
             key="filter"
@@ -66,13 +68,13 @@ const Menu = () => {
             sectionBsStyle={FilterStyle}
             sectionContent={<FilterUI />}
           />,
-          // <DefaultSettingsPanel
-          //   key="settings"
-          //   checkBoxSettingsSectionTitle="Einstellungen Lade- und Verleihstationen:"
-          //   checkBoxTextClustering="Stationen maßstabsabhängig zusammenfassen"
-          // />,
+          <DefaultSettingsPanel
+            key="settings"
+            // checkBoxSettingsSectionTitle="Einstellungen"
+            checkBoxTextClustering="Vorhaben maßstabsabhängig zusammenfassen"
+          />,
           // <KompaktanleitungSection />,
-          // <GenericDigitalTwinReferenceSection />,
+          <GenericDigitalTwinReferenceSection />,
         ]}
       />
     </CustomizationContextProvider>
