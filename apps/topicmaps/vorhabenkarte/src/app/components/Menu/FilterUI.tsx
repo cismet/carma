@@ -21,6 +21,7 @@ import {
   faUser,
 } from "@fortawesome/free-solid-svg-icons";
 import { stek } from "../../../helper/filter";
+import Icon from "react-cismap/commons/Icon";
 
 const FilterUI = () => {
   const { filterState } = useContext<typeof FeatureCollectionContext>(
@@ -120,7 +121,19 @@ const FilterUI = () => {
                           }}
                           checked={filterState["stek"]?.indexOf(item) !== -1}
                           inline
-                          label={item}
+                          label={
+                            <>
+                              {item}
+                              <Icon
+                                style={{
+                                  color: "#8A9B0F",
+                                  width: "30px",
+                                  textAlign: "center",
+                                }}
+                                name={"circle"}
+                              />
+                            </>
+                          }
                         />
                         <br />
                       </>
