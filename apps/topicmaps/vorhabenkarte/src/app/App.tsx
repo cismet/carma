@@ -8,11 +8,7 @@ import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import Map from "./components/Map";
 import convertItemToFeature from "../helper/convertItemToFeature";
-import {
-  getFeatureStyler,
-  getPoiClusterIconCreatorFunction,
-} from "../helper/styler";
-import { FeatureIconOverlay } from "./components/FeatureIconOverlay";
+import { getFeatureStyler } from "../helper/styler";
 import itemFilterFunction, { stek, topics } from "../helper/filter";
 
 export function App() {
@@ -43,7 +39,6 @@ export function App() {
       // }}
     >
       <Map />
-      <FeatureIconOverlay zoomLevel={11} />
     </TopicMapContextProvider>
   );
 }

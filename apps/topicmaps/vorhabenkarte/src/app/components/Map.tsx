@@ -12,12 +12,7 @@ import FeatureCollection from "react-cismap/FeatureCollection";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 // import { getPoiClusterIconCreatorFunction } from "../../helper/styler";
 import Menu from "./Menu";
-import {
-  InfoBoxTextContent,
-  InfoBoxTextTitle,
-  MenuTooltip,
-  searchTextPlaceholder,
-} from "@carma-collab/wuppertal/e-bikes";
+import { MenuTooltip } from "@carma-collab/wuppertal/e-bikes";
 import {
   TopicMapSelectionContent,
   useSelectionTopicMap,
@@ -37,6 +32,7 @@ import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopic
 import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
 import { GenericInfoBoxFromFeature } from "@carma-apps/portals";
 import SecondaryInfoModal from "./SecondaryInfoModal";
+import { FeatureIconOverlay } from "./FeatureIconOverlay";
 
 const Map = () => {
   const { setClusteringOptions } = useContext<
@@ -132,6 +128,7 @@ const Map = () => {
           <FeatureCollection></FeatureCollection>
         </TopicMapComponent>
       </ControlLayout>
+      <FeatureIconOverlay zoomLevel={11} markerSymbolSize={markerSymbolSize} />
     </div>
   );
 };

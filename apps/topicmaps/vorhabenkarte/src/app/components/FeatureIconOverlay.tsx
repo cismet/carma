@@ -16,7 +16,10 @@ import { getFeatureStyler } from "../../helper/styler";
 //   </svg>
 // `;
 
-export const FeatureIconOverlay = ({ zoomLevel = 12 }) => {
+export const FeatureIconOverlay = ({
+  zoomLevel = 12,
+  markerSymbolSize = 36,
+}) => {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const { shownFeatures = [] } = useContext<typeof FeatureCollectionContext>(
     FeatureCollectionContext
@@ -25,7 +28,10 @@ export const FeatureIconOverlay = ({ zoomLevel = 12 }) => {
     typeof FeatureCollectionContext
   >(FeatureCollectionDispatchContext);
 
-  const styleFn = getFeatureStyler(36, (props) => props.thema.farbe);
+  const styleFn = getFeatureStyler(
+    markerSymbolSize,
+    (props) => props.thema.farbe
+  );
 
   useEffect(() => {
     const map = routedMapRef?.leafletMap?.leafletElement;
@@ -91,7 +97,7 @@ export const FeatureIconOverlay = ({ zoomLevel = 12 }) => {
     });
 
     return () => markers.forEach((m) => map.removeLayer(m));
-  }, [routedMapRef, shownFeatures]);
+  }, [routedMapRef, shownFeatures, markerSymbolSize]);
 
   return null;
 };
