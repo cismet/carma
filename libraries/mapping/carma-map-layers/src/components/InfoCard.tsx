@@ -35,6 +35,8 @@ interface InfoCardProps {
   setPreview: (preview: boolean) => void;
   links: { url: string; text: string }[];
   deleteCollection: () => void;
+  setTriggerRefetch: (value: boolean) => void;
+  loadingData: boolean;
 }
 
 const InfoCard = ({
@@ -47,8 +49,9 @@ const InfoCard = ({
   setPreview,
   links,
   deleteCollection,
+  setTriggerRefetch,
+  loadingData,
 }: InfoCardProps) => {
-  console.log("xxx", layer);
   const { title, description, tags } = layer;
 
   const [editCollection, setEditCollection] = useState(false);
@@ -56,6 +59,7 @@ const InfoCard = ({
   const [editedDescriptions, setEditedDescriptions] = useState<{
     [key: string]: string;
   }>({});
+  const [loading, setLoading] = useState(false);
 
   // Function to reconstruct the original description format from edited descriptions
   const reconstructDescription = () => {
@@ -94,6 +98,7 @@ const InfoCard = ({
   const copyright = layer.copyright;
 
   const updateItem = async () => {
+    setLoading(true);
     const apiUrl = "https://wunda-cloud-api.cismet.de";
     const taskParameters = {
       parameters: {
@@ -131,7 +136,16 @@ const InfoCard = ({
       }
     );
     if (response.status === 200) {
-      setEditCollection(false);
+      setTriggerRefetch(true);
+      const waitForLoadingToFinish = async () => {
+        while (loadingData) {
+          await new Promise((resolve) => setTimeout(resolve, 100));
+        }
+        setLoading(false);
+        setEditCollection(false);
+      };
+
+      waitForLoadingToFinish();
     }
   };
 
@@ -214,14 +228,16 @@ const InfoCard = ({
                     onClick={() => {
                       if (editCollection) {
                         updateItem();
+                      } else {
+                        setEditCollection(true);
                       }
-                      setEditCollection(!editCollection);
                     }}
                     icon={
                       <FontAwesomeIcon
                         icon={editCollection ? faSave : faEdit}
                       />
                     }
+                    loading={loading}
                   >
                     <span className="!hidden sm:!inline-block">
                       {editCollection ? "Speichern" : "Bearbeiten"}

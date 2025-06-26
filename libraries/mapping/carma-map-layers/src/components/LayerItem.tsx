@@ -35,6 +35,8 @@ interface LayerItemProps {
   setSelectedLayerId: (id: string | null) => void;
   setPreview: (preview: boolean) => void;
   showWithoutThumbnail?: boolean;
+  setTriggerRefetch: (value: boolean) => void;
+  loadingData: boolean;
 }
 
 const LayerItem = ({
@@ -48,6 +50,8 @@ const LayerItem = ({
   setSelectedLayerId,
   setPreview,
   showWithoutThumbnail,
+  setTriggerRefetch,
+  loadingData,
 }: LayerItemProps) => {
   const [hovered, setHovered] = useState(false);
   const [isActiveLayer, setIsActiveLayer] = useState(false);
@@ -432,6 +436,8 @@ const LayerItem = ({
           deleteCollection={() => {
             setOpenDeleteModal(true);
           }}
+          setTriggerRefetch={setTriggerRefetch}
+          loadingData={loadingData}
         />
       )}
     </>

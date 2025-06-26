@@ -15,7 +15,7 @@ export function LayerLib({
   updateActiveLayer,
   removeLastLayer,
   updateFavorite,
-  discoverItems,
+  discoverProps,
 }: LibModalProps) {
   return (
     <NewLibModal
@@ -30,7 +30,7 @@ export function LayerLib({
       updateActiveLayer={updateActiveLayer}
       removeLastLayer={removeLastLayer}
       updateFavorite={updateFavorite}
-      discoverItems={discoverItems}
+      discoverProps={discoverProps}
     />
   );
 }

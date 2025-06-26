@@ -147,33 +147,6 @@ const ResourceModal = () => {
     }
   };
 
-  const fetchDiscoverItems = () => {
-    md5ActionFetchDAQ(appKey, apiUrl, jwt, "gp_entdecken")
-      .then((result) => {
-        setDiscoverItems(result.data);
-        console.log("xxx", result.data);
-      })
-      .catch((e) => {
-        if (e.status === 401) {
-          dispatch(setJWT(undefined));
-          // setShowLoginModal(true);
-        }
-        console.error("Error fetching gp_entdecken: ", e);
-      });
-  };
-
-  useEffect(() => {
-    if (jwt && showResourceModal) {
-      fetchDiscoverItems();
-    }
-  }, [jwt, showResourceModal]);
-
-  useEffect(() => {
-    if (jwt) {
-      fetchDiscoverItems();
-    }
-  }, [jwt]);
-
   return (
     <>
       {contextHolder}
@@ -255,7 +228,11 @@ const ResourceModal = () => {
         updateFavorite={(layer) => {
           dispatch(updateFavorite(layer));
         }}
-        discoverItems={discoverItems}
+        discoverProps={{
+          appKey: "Geoportal.Online.Wuppertal",
+          apiUrl: "https://wunda-cloud-api.cismet.de",
+          daqKey: "gp_entdecken",
+        }}
       />
     </>
   );

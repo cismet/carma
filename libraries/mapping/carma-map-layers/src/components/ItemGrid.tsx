@@ -15,6 +15,8 @@ interface ItemGridProps {
   setSelectedLayerId: any;
   setPreview: any;
   isSearch?: boolean;
+  setTriggerRefetch: (value: boolean) => void;
+  loadingData: boolean;
 }
 
 const ItemGrid = ({
@@ -28,6 +30,8 @@ const ItemGrid = ({
   setSelectedLayerId,
   setPreview,
   isSearch,
+  setTriggerRefetch,
+  loadingData,
 }: ItemGridProps) => {
   if (!categories || categories.length === 0) {
     return null;
@@ -84,6 +88,8 @@ const ItemGrid = ({
                               selectedLayerId={selectedLayerId}
                               setSelectedLayerId={setSelectedLayerId}
                               setPreview={setPreview}
+                              setTriggerRefetch={setTriggerRefetch}
+                              loadingData={loadingData}
                               key={`${subCategory.Title}_layer_${i}_${layer.id}`}
                             />
                           );
@@ -121,6 +127,8 @@ const ItemGrid = ({
                         selectedLayerId={selectedLayerId}
                         setSelectedLayerId={setSelectedLayerId}
                         setPreview={setPreview}
+                        setTriggerRefetch={setTriggerRefetch}
+                        loadingData={loadingData}
                         key={`${category.Title}_layer_${i}_${layer.id}`}
                       />
                     );

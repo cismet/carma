@@ -17,7 +17,7 @@ import { Button, Input, Modal } from "antd";
 import Fuse from "fuse.js";
 import WMSCapabilities from "wms-capabilities";
 import type { Item, Layer, SavedLayerConfig } from "@carma-commons/types";
-import { utils } from "@carma-apps/portals";
+import { useAuth, utils } from "@carma-apps/portals";
 
 import {
   baseConfig as config,
@@ -39,6 +39,7 @@ import { discoverConfig } from "../helper/discover";
 
 import "./input.css";
 import "./modal.css";
+import { md5ActionFetchDAQ } from "@carma-commons/utils/fetching.ts";
 
 const { Search } = Input;
 
@@ -64,7 +65,11 @@ export interface LibModalProps {
   customCategories: LayerCategories[];
   updateActiveLayer: (layer: Layer) => void;
   removeLastLayer?: () => void;
-  discoverItems?: any[];
+  discoverProps?: {
+    appKey: string;
+    apiUrl: string;
+    daqKey: string;
+  };
 }
 
 const sidebarElements = [
@@ -88,7 +93,7 @@ export const NewLibModal = ({
   updateActiveLayer,
   removeLastLayer,
   updateFavorite,
-  discoverItems,
+  discoverProps,
 }: LibModalProps) => {
   const [preview, setPreview] = useState(false);
   const [layers, setLayers] = useState<any[]>([]);
@@ -114,7 +119,46 @@ export const NewLibModal = ({
   const [currentShownCategory, setCurrentShownCategory] = useState(
     shownCategories[0]?.id
   );
+  const [discoverItems, setDiscoverItems] = useState<any[]>([]);
+  const [loadingData, setLoadingData] = useState(false);
+  const [triggerRefetch, setTriggerRefetch] = useState(false);
   const debouncedSearchTerm = useDebounce(searchValue, 300);
+
+  const { jwt, setJWT } = useAuth();
+
+  const fetchDiscoverItems = () => {
+    if (jwt && discoverProps) {
+      setLoadingData(true);
+      const { appKey, apiUrl, daqKey } = discoverProps;
+      md5ActionFetchDAQ(appKey, apiUrl, jwt, daqKey)
+        .then(
+          (result: {
+            time: string | null;
+            data: {
+              config: string;
+              id: number;
+              name: string;
+            }[];
+          }) => {
+            setDiscoverItems(result.data);
+            setLoadingData(false);
+            setTriggerRefetch(false);
+          }
+        )
+        .catch((e) => {
+          if (e.status === 401) {
+            setJWT("");
+          }
+          console.error("Error fetching gp_entdecken: ", e);
+        });
+    }
+  };
+
+  useEffect(() => {
+    if (open || triggerRefetch) {
+      fetchDiscoverItems();
+    }
+  }, [open, triggerRefetch]);
 
   const getNumOfCustomLayers = () => {
     return customCategories.reduce((acc, category) => {
@@ -1023,6 +1067,8 @@ export const NewLibModal = ({
                   setSelectedLayerId={setSelectedLayerId}
                   setPreview={setPreview}
                   isSearch={selectedNavItemIndex === 5}
+                  setTriggerRefetch={setTriggerRefetch}
+                  loadingData={loadingData}
                 />
               )}
 
