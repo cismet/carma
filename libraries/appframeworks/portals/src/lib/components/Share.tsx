@@ -8,6 +8,7 @@ import { faCopy } from "@fortawesome/free-regular-svg-icons";
 import { useFeatureFlags } from "./FeatureFlagProvider";
 import { SelectionItem } from "./SelectionProvider";
 import { getHashParams } from "@carma-commons/utils";
+import { serviceOptions } from "@carma-mapping/layers";
 
 export type ShareProps = {
   layerState: LayerState;
@@ -120,15 +121,6 @@ export const Share = ({
   const [service, setService] = useState("discoverPoi");
   const [thumbUrl, setThumbUrl] = useState("");
 
-  const serviceOptions = [
-    { value: "discoverPoi", label: "POI" },
-    { value: "discoverPlanung", label: "Planung" },
-    { value: "discoverVerkehr", label: "Verkehr" },
-    { value: "discoverUmwelt", label: "Umwelt" },
-    { value: "discoverInfra", label: "Infrastruktur" },
-    { value: "discoverImmo", label: "Immobilien" },
-  ];
-
   const { layers, backgroundLayer } = layerState;
   const { copyShareUrl, contextHolder } = useShareUrl();
   const [, copyToClipboard] = useCopyToClipboard();
@@ -238,34 +230,40 @@ export const Share = ({
                 minWidth: "24rem",
               }}
             >
+              <label htmlFor="service">Kategorie</label>
               <Select
                 options={serviceOptions}
                 onChange={(value) => setService(value)}
                 value={service}
+                id="service"
               />
               <label htmlFor="title">Titel</label>
               <Input
                 id="title"
                 onChange={(e) => setTitle(e.target.value)}
                 value={title}
+                className="bg-white"
               />
               <label htmlFor="thumbUrl">Vorschaubild</label>
               <Input
                 id="thumbUrl"
                 onChange={(e) => setThumbUrl(e.target.value)}
                 value={thumbUrl}
+                className="bg-white"
               />
               <label htmlFor="content">Inhalt</label>
               <Input.TextArea
                 id="content"
                 onChange={(e) => setContent(e.target.value)}
                 value={content}
+                className="bg-white"
               />
               <label htmlFor="usage">Verwendungszweck</label>
               <Input.TextArea
                 id="usage"
                 onChange={(e) => setUsage(e.target.value)}
                 value={usage}
+                className="bg-white"
               />
               <Button type="primary" htmlType="submit">
                 Publizieren
