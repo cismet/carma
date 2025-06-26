@@ -176,8 +176,15 @@ const FilterUI = () => {
                 </label>
                 <Form.Check
                   type="switch"
+                  onClick={(e) => {
+                    const newFilterState = { ...filterState };
+                    // @ts-expect-error legacy codebase exception
+                    newFilterState.citizen = e.target.checked;
+                    setFilterState(newFilterState);
+                  }}
                   id="custom-switch"
                   label="nur Vorhaben mit Bürgerbeteiligung"
+                  checked={filterState.citizen}
                 />
               </Form>
               <br />
