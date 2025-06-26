@@ -1,10 +1,12 @@
-import { Button } from "antd";
+import { Button, Input } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCircleMinus,
   faCirclePlus,
+  faEdit,
   faExternalLink,
   faMap,
+  faSave,
   faSquareUpRight,
   faStar,
   faTrash,
@@ -15,6 +17,8 @@ import { Item } from "@carma-commons/types";
 import { extractCarmaConfig } from "@carma-commons/utils";
 
 import { parseDescription } from "../helper/layerHelper";
+import { useState } from "react";
+import { useAuth } from "@carma-apps/portals";
 
 interface InfoCardProps {
   layer: Item;
@@ -44,7 +48,38 @@ const InfoCard = ({
   links,
   deleteCollection,
 }: InfoCardProps) => {
+  console.log("xxx", layer);
   const { title, description, tags } = layer;
+
+  const [editCollection, setEditCollection] = useState(false);
+  const [updatedTitle, setUpdatedTitle] = useState(title);
+  const [editedDescriptions, setEditedDescriptions] = useState<{
+    [key: string]: string;
+  }>({});
+
+  // Function to reconstruct the original description format from edited descriptions
+  const reconstructDescription = () => {
+    if (Object.keys(editedDescriptions).length === 0) {
+      return description; // Return original if no edits were made
+    }
+
+    let newDescription = "";
+
+    // Use the parsed descriptions to maintain the original order
+    parsedDescriptions.forEach((section) => {
+      const content =
+        editedDescriptions[section.title] !== undefined
+          ? editedDescriptions[section.title]
+          : section.description;
+
+      newDescription += `${section.title}: ${content}\n\n`;
+    });
+
+    return newDescription.trim();
+  };
+
+  const { jwt } = useAuth();
+
   const legends = (layer as unknown as any).props?.Style?.[0]?.LegendURL; // TODO: fix type
   const parsedDescriptions = parseDescription(description);
   const carmaConf = extractCarmaConfig(layer.keywords);
@@ -52,10 +87,53 @@ const InfoCard = ({
   const canFavoriteItem =
     layer.type !== "collection" ||
     (layer.type === "collection" && layer.serviceName.includes("discover"));
+  const isDiscoverItem = layer.serviceName.includes("discover");
   const isGenericTopicMap = layer?.name?.startsWith("wuppGenericTopicMaps_");
   const isTopicMap = layer?.name?.startsWith("wuppTopicMaps_");
   const isArcGisOnline = layer?.name?.startsWith("wuppArcGisOnline_");
   const copyright = layer.copyright;
+
+  const updateItem = async () => {
+    const apiUrl = "https://wunda-cloud-api.cismet.de";
+    const taskParameters = {
+      parameters: {
+        className: "gp_entdecken",
+        data: JSON.stringify({
+          id: layer.id,
+          name: updatedTitle,
+          config: JSON.stringify({
+            ...layer,
+            description: reconstructDescription(),
+            title: updatedTitle,
+          }),
+        }),
+      },
+    };
+
+    const fd = new FormData();
+    fd.append(
+      "taskparams",
+      new Blob([JSON.stringify(taskParameters)], {
+        type: "application/json",
+      })
+    );
+    const response = await fetch(
+      apiUrl +
+        "/actions/WUNDA_BLAU.SaveObject/tasks?resultingInstanceType=result",
+      {
+        method: "POST",
+        // method: "GET",
+        headers: {
+          Authorization: "Bearer " + jwt, // "Content-Type": "application/json",
+          // Accept: "application/json",
+        },
+        body: fd,
+      }
+    );
+    if (response.status === 200) {
+      setEditCollection(false);
+    }
+  };
 
   return (
     <div
@@ -65,9 +143,19 @@ const InfoCard = ({
       <div className="flex h-full flex-col justify-between">
         <div className="relative pb-4">
           <div className="flex flex-wrap gap-4 items-center pr-8">
-            <h3 className="mb-0 truncate leading-10 text-xl sm:text-2xl">
-              {title}
-            </h3>
+            {editCollection ? (
+              <Input
+                value={updatedTitle}
+                onChange={(e) => {
+                  setUpdatedTitle(e.target.value);
+                }}
+                className="w-fit bg-white"
+              />
+            ) : (
+              <h3 className="mb-0 truncate leading-10 text-xl sm:text-2xl">
+                {title}
+              </h3>
+            )}
             <div className="flex flex-wrap items-center gap-4">
               {layer.type === "layer" && (
                 <Button
@@ -120,6 +208,34 @@ const InfoCard = ({
                   </span>
                 </Button>
               )}
+              {jwt && isDiscoverItem && (
+                <>
+                  <Button
+                    onClick={() => {
+                      if (editCollection) {
+                        updateItem();
+                      }
+                      setEditCollection(!editCollection);
+                    }}
+                    icon={
+                      <FontAwesomeIcon
+                        icon={editCollection ? faSave : faEdit}
+                      />
+                    }
+                  >
+                    <span className="!hidden sm:!inline-block">
+                      {editCollection ? "Speichern" : "Bearbeiten"}
+                    </span>
+                  </Button>
+                  <Button
+                    type="primary"
+                    danger
+                    icon={<FontAwesomeIcon icon={faTrash} />}
+                  >
+                    Löschen
+                  </Button>
+                </>
+              )}
               {layer.type === "layer" && (
                 <Button
                   onClick={(e) => {
@@ -152,12 +268,29 @@ const InfoCard = ({
                     <h5 className="font-semibold text-lg">
                       {description.title}
                     </h5>
-                    <p
-                      className="text-base text-gray-600"
-                      dangerouslySetInnerHTML={{
-                        __html: description.description,
-                      }}
-                    />
+                    {editCollection ? (
+                      <Input.TextArea
+                        value={
+                          editedDescriptions[description.title] !== undefined
+                            ? editedDescriptions[description.title]
+                            : description.description
+                        }
+                        onChange={(e) => {
+                          setEditedDescriptions((prev) => ({
+                            ...prev,
+                            [description.title]: e.target.value,
+                          }));
+                        }}
+                        className="bg-white"
+                      />
+                    ) : (
+                      <p
+                        className="text-base text-gray-600"
+                        dangerouslySetInnerHTML={{
+                          __html: description.description,
+                        }}
+                      />
+                    )}
                   </>
                 );
               })}
