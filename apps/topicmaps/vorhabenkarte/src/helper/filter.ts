@@ -5,6 +5,15 @@ export const stek = [
   "Wuppertal – urbane Lebensader",
 ];
 
+export const topic = [
+  "Umwelt und Grünflächen",
+  "Verkehr und Mobilität",
+  "Bildung und Kultur",
+  "Stadtentwicklung & Sicherheit",
+  "Sonstiges",
+  "Sport und Freizeit",
+];
+
 const itemFilterFunction = ({ filterState }) => {
   return (item) => {
     let result = false;
