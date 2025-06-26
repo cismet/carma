@@ -129,7 +129,7 @@ const FilterUI = () => {
                           key={"filter.vorhabenkarte.topic." + idx}
                           onClick={(e) => {
                             setFilterValue(
-                              "stek",
+                              "topic",
                               item,
                               // @ts-expect-error legacy codebase exception
                               e.target.checked
@@ -142,8 +142,7 @@ const FilterUI = () => {
                               {item}
                               <Icon
                                 style={{
-                                  // color: getColorForFilter(item),
-                                  color: "red",
+                                  color: getColorForFilter(item),
                                   width: "30px",
                                   textAlign: "center",
                                 }}
