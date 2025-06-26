@@ -17,6 +17,8 @@ import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 import { GenericDigitalTwinReferenceSection } from "@carma-collab/wuppertal/commons";
 import versionData from "../../version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
+import { MenuFooter } from "@carma-collab/wuppertal/commons";
+import { Button } from "react-bootstrap";
 
 const Menu = () => {
   const { filteredItems, shownFeatures } = useContext<
@@ -44,12 +46,13 @@ const Menu = () => {
       <ModalApplicationMenu
         menuIcon={"bars"}
         // menuTitle={<MenuTitle />}
-        // menuFooter={
-        //   <Footer
-        //     version={getApplicationVersion(versionData)}
-        //     setAppMenuActiveMenuSection={setAppMenuActiveMenuSection}
-        //   />
-        // }
+        menuFooter={
+          <MenuFooter
+            title="Vorhabenkarte Wuppertal"
+            version={"0.0.1"}
+            skipHintergrundkarten={false}
+          />
+        }
         menuIntroduction={
           <div>
             Über Einstellungen können Sie die Darstellung der Hintergrundkarte
