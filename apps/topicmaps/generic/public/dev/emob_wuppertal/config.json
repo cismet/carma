@@ -1,0 +1,27 @@
+{
+  "tm": {
+    "noFeatureCollection": true,
+    "vectorLayers": [
+      {
+        "name": "Ladestationen für E-Autos",
+        "layer": "emobil_auto@https://maps.wuppertal.de/verkehr?service=WMS&request=GetCapabilities&version=1.1.1",
+        "addMetaInfoToHelp": true,
+        "layerType": "vector",
+        "style": "https://tiles.cismet.de/ladestationen_eauto/style.json",
+        "opacity": 1,
+        "infoboxMapping": [
+          "header:p.header",
+          "headerColor:p.header_color",
+          "title:p.standort",
+          "additionalInfo:p.bemerkung",
+          "subtitle:p.adresse",
+          "url:p.betreiberhomepage",
+          "tel:p.betreibertelefon",
+          "email:p.betreiberemail",
+          "foto: p.foto",
+          "modal:'eMobSIM'"
+          ]
+      }
+    ]
+  }
+}
