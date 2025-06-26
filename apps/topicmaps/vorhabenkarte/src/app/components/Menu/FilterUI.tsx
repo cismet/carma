@@ -21,7 +21,7 @@ import {
   faToggleOn,
   faUser,
 } from "@fortawesome/free-solid-svg-icons";
-import { stek, topic } from "../../../helper/filter";
+import { stek, topics } from "../../../helper/filter";
 import Icon from "react-cismap/commons/Icon";
 import { getColorForFilter } from "../../../helper/styler";
 
@@ -121,7 +121,7 @@ const FilterUI = () => {
                   <a onClick={() => clearFilter("stek")}>keine</a>
                 </div>
                 <div className="mb-3">
-                  {topic.map((item, idx) => {
+                  {topics.map((item, idx) => {
                     return (
                       <>
                         <Form.Check
@@ -129,13 +129,13 @@ const FilterUI = () => {
                           key={"filter.vorhabenkarte.topic." + idx}
                           onClick={(e) => {
                             setFilterValue(
-                              "topic",
+                              "topics",
                               item,
                               // @ts-expect-error legacy codebase exception
                               e.target.checked
                             );
                           }}
-                          checked={filterState["topic"]?.indexOf(item) !== -1}
+                          checked={filterState["topics"]?.indexOf(item) !== -1}
                           inline
                           label={
                             <>

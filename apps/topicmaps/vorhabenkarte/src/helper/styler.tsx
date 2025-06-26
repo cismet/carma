@@ -27,9 +27,9 @@ export const getColorForProperties = (properties) => {
   return "#1d599e";
 };
 
-export const getColorForFilter = (stek) => {
+export const getColorForFilter = (topic) => {
   let color;
-  switch (stek) {
+  switch (topic) {
     case "Umwelt und Grünflächen":
       color = "#8A9B0F";
       break;
