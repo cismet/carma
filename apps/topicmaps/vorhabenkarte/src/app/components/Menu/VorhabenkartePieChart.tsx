@@ -9,18 +9,6 @@ const VorhabenkartePieChart = ({ visible = true }) => {
     FeatureCollectionContext
   );
 
-  const groupingFunction = (obj) => {
-    let groupString = obj.typ;
-    if (groupString === "Ladestation") {
-      if (obj.online === true) {
-        groupString = groupString + " (online)";
-      } else {
-        groupString = groupString + " (offline)";
-      }
-    }
-    return groupString;
-  };
-
   if (visible && filteredItems) {
     let stats = {};
     let colormodel = {};
@@ -28,13 +16,21 @@ const VorhabenkartePieChart = ({ visible = true }) => {
     let piechartColor: any = [];
 
     for (let obj of filteredItems) {
-      let group = groupingFunction(obj);
-      if (stats[group] === undefined) {
-        stats[group] = 1;
-        colormodel[group] = getColorForProperties(obj);
-      } else {
-        stats[group] += 1;
+      if (obj.stek) {
+        obj.stek.forEach((group) => {
+          if (stats[group] === undefined) {
+            stats[group] = 1;
+            colormodel[group] = getColorForProperties(obj);
+          } else {
+            stats[group] += 1;
+          }
+        });
       }
+      // if (stats[group] === undefined) {
+      //   stats[group] = 1;
+      // } else {
+      //   stats[group] += 1;
+      // }
     }
 
     for (let key in stats) {
