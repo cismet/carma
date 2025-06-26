@@ -21,9 +21,11 @@ const itemFilterFunction = ({ filterState }) => {
     }
 
     if (item.stek) {
-      console.log("xxx filter function");
-
       result = item.stek.some((s) => filterState.stek.includes(s));
+    }
+
+    if (filterState.citizen) {
+      result = item.buergerbeteiligung;
     }
 
     return result;

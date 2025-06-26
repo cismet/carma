@@ -34,6 +34,7 @@ export function App() {
       itemFilterFunction={itemFilterFunction}
       filterState={{
         stek: [],
+        citizen: false,
       }}
       convertItemToFeature={convertItemToFeature}
       clusteringOptions={{
