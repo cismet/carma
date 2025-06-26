@@ -83,7 +83,7 @@ const FilterUI = () => {
 
   const setAllFilter = (kind) => {
     const newFilterState = { ...filterState };
-    newFilterState[kind] = stek;
+    newFilterState[kind] = kind === "topics" ? topics : stek;
     setFilterState(newFilterState);
   };
 
@@ -117,8 +117,8 @@ const FilterUI = () => {
                   />{" "}
                 </label>
                 <div className="flex gap-5 mb-2 mt-1 text-[#0175ff]">
-                  <a onClick={() => setAllFilter("stek")}>alle</a>{" "}
-                  <a onClick={() => clearFilter("stek")}>keine</a>
+                  <a onClick={() => setAllFilter("topics")}>alle</a>{" "}
+                  <a onClick={() => clearFilter("topics")}>keine</a>
                 </div>
                 <div className="mb-3">
                   {topics.map((item, idx) => {
