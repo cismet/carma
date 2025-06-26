@@ -118,6 +118,7 @@ export const Share = ({
   const [content, setContent] = useState("");
   const [usage, setUsage] = useState("");
   const [service, setService] = useState("discoverPoi");
+  const [thumbUrl, setThumbUrl] = useState("");
 
   const serviceOptions = [
     { value: "discoverPoi", label: "POI" },
@@ -144,6 +145,14 @@ export const Share = ({
   const flags = useFeatureFlags();
 
   const extendedSharing = flags.extendedSharing || showExtendedSharing;
+
+  const clearStates = () => {
+    setTitle("");
+    setContent("");
+    setUsage("");
+    setService("discoverPoi");
+    setThumbUrl("");
+  };
 
   const addItemToDb = async (data) => {
     const apiUrl = "https://wunda-cloud-api.cismet.de";
@@ -185,6 +194,7 @@ export const Share = ({
         duration: 0.8,
       });
       closePopover?.();
+      clearStates();
     }
   };
 
@@ -194,7 +204,7 @@ export const Share = ({
       description: `Inhalt: ${content} Verwendungszweck: ${usage}`,
       title,
       type: "collection",
-      thumbnail: "",
+      thumbnail: thumbUrl,
       path: serviceOptions.find((option) => option.value === service)?.label,
       serviceName: service,
       backgroundLayer,
@@ -238,6 +248,12 @@ export const Share = ({
                 id="title"
                 onChange={(e) => setTitle(e.target.value)}
                 value={title}
+              />
+              <label htmlFor="thumbUrl">Vorschaubild</label>
+              <Input
+                id="thumbUrl"
+                onChange={(e) => setThumbUrl(e.target.value)}
+                value={thumbUrl}
               />
               <label htmlFor="content">Inhalt</label>
               <Input.TextArea
