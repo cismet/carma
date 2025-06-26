@@ -94,6 +94,7 @@ const FilterUI = () => {
           <tr>
             <td style={{ width: "330px", verticalAlign: "top" }}>
               <h4 className="mb-6">Filtern nach</h4>
+              <Form></Form>
               <Form>
                 <label
                   style={{
@@ -136,27 +137,26 @@ const FilterUI = () => {
                           }}
                           checked={filterState["topic"]?.indexOf(item) !== -1}
                           inline
-                          // label={
-                          //   <>
-                          //     {item}
-                          //     <Icon
-                          //       style={{
-                          //         color: getColorForFilter(item),
-                          //         width: "30px",
-                          //         textAlign: "center",
-                          //       }}
-                          //       name={"circle"}
-                          //     />
-                          //   </>
-                          // }
+                          label={
+                            <>
+                              {item}
+                              <Icon
+                                style={{
+                                  // color: getColorForFilter(item),
+                                  color: "red",
+                                  width: "30px",
+                                  textAlign: "center",
+                                }}
+                                name={"circle"}
+                              />
+                            </>
+                          }
                         />
                         <br />
                       </>
                     );
                   })}
                 </div>
-              </Form>
-              <Form>
                 <label
                   style={{
                     display: "inline-block",
@@ -198,19 +198,7 @@ const FilterUI = () => {
                           }}
                           checked={filterState["stek"]?.indexOf(item) !== -1}
                           inline
-                          label={
-                            <>
-                              {item}
-                              <Icon
-                                style={{
-                                  color: getColorForFilter(item),
-                                  width: "30px",
-                                  textAlign: "center",
-                                }}
-                                name={"circle"}
-                              />
-                            </>
-                          }
+                          label={item}
                         />
                         <br />
                       </>
