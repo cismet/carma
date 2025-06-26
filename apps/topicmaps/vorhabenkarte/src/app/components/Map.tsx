@@ -111,8 +111,8 @@ const Map = () => {
                 city: "Wuppertal",
                 navigator: {
                   noun: {
-                    singular: "Item",
-                    plural: "Items",
+                    singular: "Vorhaben",
+                    plural: "Vorhaben",
                   },
                 },
                 noCurrentFeatureTitle: "Keine Data gefunden",
