@@ -388,15 +388,11 @@ export const NewLibModal = ({
         })
       );
 
-      console.log("xxx", layers);
-
       discoverCategories.push({
         ...discoverConfig[key],
         layers,
       });
     }
-
-    console.log("xxx", discoverCategories);
 
     setShownCategories((prev) => {
       if (prev.find((item) => item.id === "discover")) {
