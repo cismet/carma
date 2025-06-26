@@ -1,4 +1,4 @@
-import { Button, Input } from "antd";
+import { Button, Input, Select } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faCircleMinus,
@@ -16,7 +16,7 @@ import {
 import { Item } from "@carma-commons/types";
 import { extractCarmaConfig } from "@carma-commons/utils";
 
-import { parseDescription } from "../helper/layerHelper";
+import { parseDescription, serviceOptions } from "../helper/layerHelper";
 import { useState } from "react";
 import { useAuth } from "@carma-apps/portals";
 
@@ -59,6 +59,8 @@ const InfoCard = ({
   const [editedDescriptions, setEditedDescriptions] = useState<{
     [key: string]: string;
   }>({});
+  const [updatedService, setUpdatedService] = useState("discoverPoi");
+  const [updatedThumbnail, setUpdatedThumbnail] = useState(layer.thumbnail);
   const [loading, setLoading] = useState(false);
 
   // Function to reconstruct the original description format from edited descriptions
@@ -110,6 +112,8 @@ const InfoCard = ({
             ...layer,
             description: reconstructDescription(),
             title: updatedTitle,
+            thumbnail: updatedThumbnail,
+            serviceName: updatedService,
           }),
         }),
       },
@@ -143,6 +147,7 @@ const InfoCard = ({
         }
         setLoading(false);
         setEditCollection(false);
+        closeInfoCard();
       };
 
       waitForLoadingToFinish();
@@ -310,6 +315,37 @@ const InfoCard = ({
                   </>
                 );
               })}
+              {editCollection && (
+                <>
+                  <label
+                    htmlFor="service"
+                    className="font-semibold text-lg pt-1"
+                  >
+                    Kategorie
+                  </label>
+                  <br />
+                  <Select
+                    options={serviceOptions}
+                    onChange={(value) => setUpdatedService(value)}
+                    value={updatedService}
+                    className="w-40"
+                    id="service"
+                  />
+                  <br />
+                  <label
+                    htmlFor="thumbnail"
+                    className="font-semibold text-lg pt-1"
+                  >
+                    Vorschaubild
+                  </label>
+                  <Input
+                    className="bg-white"
+                    value={updatedThumbnail}
+                    onChange={(e) => setUpdatedThumbnail(e.target.value)}
+                    id="thumbnail"
+                  />
+                </>
+              )}
               {isGenericTopicMap && (
                 <>
                   <h5 className="font-semibold text-lg">Implementierung</h5>
