@@ -103,7 +103,7 @@ const FilterUI = () => {
                 <div className="flex gap-5 mb-2 mt-1 text-[#0175ff]">
                   <a>alle</a> <a>keine</a>
                 </div>
-                <div className="mb-4">
+                <div className="mb-3">
                   {stek.map((item, idx) => {
                     return (
                       <>
