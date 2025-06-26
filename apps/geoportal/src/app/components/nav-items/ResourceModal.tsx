@@ -32,8 +32,7 @@ import {
   getUIShowResourceModal,
   setShowResourceModal,
 } from "../../store/slices/ui";
-import { getJWT, setJWT } from "../../store/slices/auth";
-import { md5ActionFetchDAQ } from "@carma-commons/utils/fetching.ts";
+import { apiUrl } from "../../constants/discover";
 const ResourceModal = () => {
   const [discoverItems, setDiscoverItems] = useState([]);
 
@@ -49,9 +48,6 @@ const ResourceModal = () => {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
-
-  const apiUrl = "https://wunda-cloud-api.cismet.de";
-  const appKey = "Geoportal.Online.Wuppertal";
 
   const { routedMapRef: routedMap } =
     useContext<typeof TopicMapContext>(TopicMapContext);
@@ -230,7 +226,7 @@ const ResourceModal = () => {
         }}
         discoverProps={{
           appKey: "Geoportal.Online.Wuppertal",
-          apiUrl: "https://wunda-cloud-api.cismet.de",
+          apiUrl: apiUrl,
           daqKey: "gp_entdecken",
         }}
       />
