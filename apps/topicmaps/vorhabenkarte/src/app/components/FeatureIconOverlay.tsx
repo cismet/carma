@@ -4,7 +4,8 @@ import {
   FeatureCollectionContext,
   FeatureCollectionDispatchContext,
 } from "react-cismap/contexts/FeatureCollectionContextProvider";
-import centroid from "@turf/centroid";
+// import centroid from "@turf/centroid";
+import pointOnFeature from "@turf/point-on-feature";
 import L from "leaflet";
 import { getFeatureStyler } from "../../helper/styler";
 
@@ -43,7 +44,7 @@ export const FeatureIconOverlay = ({ zoomLevel = 12 }) => {
       g: GeoJSON.Geometry | GeoJSON.MultiPolygon,
       feature
     ) => {
-      const c = centroid(g as any).geometry as GeoJSON.Point;
+      const c = pointOnFeature(g as any).geometry as GeoJSON.Point;
       const [x, y] = c.coordinates;
       const latlng = map.options.crs.projection.unproject(L.point(x, y));
 
