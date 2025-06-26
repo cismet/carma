@@ -17,10 +17,11 @@ import {
   faChargingStation,
   faClock,
   faLeaf,
+  faTag,
   faToggleOn,
   faUser,
 } from "@fortawesome/free-solid-svg-icons";
-import { stek } from "../../../helper/filter";
+import { stek, topic } from "../../../helper/filter";
 import Icon from "react-cismap/commons/Icon";
 import { getColorForFilter } from "../../../helper/styler";
 
@@ -93,6 +94,68 @@ const FilterUI = () => {
           <tr>
             <td style={{ width: "330px", verticalAlign: "top" }}>
               <h4 className="mb-6">Filtern nach</h4>
+              <Form>
+                <label
+                  style={{
+                    display: "inline-block",
+                    maxWidth: "100%",
+                    marginBottom: "5px",
+                    fontWeight: 700,
+                  }}
+                >
+                  Thema des Vorhabens
+                  {"  "}
+                  <FontAwesomeIcon
+                    icon={faTag}
+                    size="2x"
+                    style={{
+                      color: "grey",
+                      width: "30px",
+                      textAlign: "center",
+                    }}
+                  />{" "}
+                </label>
+                <div className="flex gap-5 mb-2 mt-1 text-[#0175ff]">
+                  <a onClick={() => setAllFilter("stek")}>alle</a>{" "}
+                  <a onClick={() => clearFilter("stek")}>keine</a>
+                </div>
+                <div className="mb-3">
+                  {topic.map((item, idx) => {
+                    return (
+                      <>
+                        <Form.Check
+                          readOnly={true}
+                          key={"filter.vorhabenkarte.topic." + idx}
+                          onClick={(e) => {
+                            setFilterValue(
+                              "stek",
+                              item,
+                              // @ts-expect-error legacy codebase exception
+                              e.target.checked
+                            );
+                          }}
+                          checked={filterState["topic"]?.indexOf(item) !== -1}
+                          inline
+                          // label={
+                          //   <>
+                          //     {item}
+                          //     <Icon
+                          //       style={{
+                          //         color: getColorForFilter(item),
+                          //         width: "30px",
+                          //         textAlign: "center",
+                          //       }}
+                          //       name={"circle"}
+                          //     />
+                          //   </>
+                          // }
+                        />
+                        <br />
+                      </>
+                    );
+                  })}
+                </div>
+              </Form>
               <Form>
                 <label
                   style={{
