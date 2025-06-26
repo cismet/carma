@@ -5,20 +5,15 @@ import ModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMe
 import Section from "react-cismap/topicmaps/menu/Section";
 import DefaultSettingsPanel from "react-cismap/topicmaps/menu/DefaultSettingsPanel";
 import FilterUI from "./Menu/FilterUI";
-import {
-  KompaktanleitungSection,
-  MenuIntroduction,
-  MenuTitle,
-  Footer,
-  getFilterHeader,
-  FilterStyle,
-} from "@carma-collab/wuppertal/e-bikes";
+import { getFilterHeader, FilterStyle } from "@carma-collab/wuppertal/e-bikes";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 import { GenericDigitalTwinReferenceSection } from "@carma-collab/wuppertal/commons";
-import versionData from "../../version.json";
-import { getApplicationVersion } from "@carma-commons/utils";
 import { MenuFooter } from "@carma-collab/wuppertal/commons";
-import { Button } from "react-bootstrap";
+import ConfigurableDocBlocks from "react-cismap/topicmaps/ConfigurableDocBlocks";
+// @ts-ignore
+import { getSimpleHelpForTM } from "react-cismap/tools/uiHelper";
+
+let simpleHelp = "";
 
 const Menu = () => {
   const { filteredItems, shownFeatures } = useContext<
@@ -76,7 +71,20 @@ const Menu = () => {
             // checkBoxSettingsSectionTitle="Einstellungen"
             checkBoxTextClustering="Vorhaben maßstabsabhängig zusammenfassen"
           />,
-          // <KompaktanleitungSection />,
+          <Section
+            key="help"
+            sectionKey="HelpSection"
+            sectionTitle="Kompaktanleitung"
+            sectionBsStyle="default"
+            sectionContent={
+              <ConfigurableDocBlocks
+                configs={getSimpleHelpForTM(
+                  "Vorhabenkarte Wuppertal",
+                  simpleHelp
+                )}
+              />
+            }
+          />,
           <GenericDigitalTwinReferenceSection />,
         ]}
       />
