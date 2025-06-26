@@ -13,7 +13,7 @@ import {
   getPoiClusterIconCreatorFunction,
 } from "../helper/styler";
 import { FeatureIconOverlay } from "./components/FeatureIconOverlay";
-import itemFilterFunction from "../helper/filter";
+import itemFilterFunction, { stek, topics } from "../helper/filter";
 
 export function App() {
   useEffect(() => {
@@ -33,7 +33,8 @@ export function App() {
       featureTooltipFunction={(feature) => feature?.text}
       itemFilterFunction={itemFilterFunction}
       filterState={{
-        stek: [],
+        stek: stek,
+        topics: topics,
         citizen: false,
       }}
       convertItemToFeature={convertItemToFeature}

@@ -5,7 +5,7 @@ export const stek = [
   "Wuppertal – urbane Lebensader",
 ];
 
-export const topic = [
+export const topics = [
   "Umwelt und Grünflächen",
   "Verkehr und Mobilität",
   "Bildung und Kultur",
