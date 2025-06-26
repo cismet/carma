@@ -29,6 +29,10 @@ const itemFilterFunction = ({ filterState }) => {
       result = doneDate >= sixMonthsAgo;
     }
 
+    if (item.thema.name) {
+      result = filterState.topics.includes(item.thema.name);
+    }
+
     if (item.stek) {
       result = item.stek.some((s) => filterState.stek.includes(s));
     }
