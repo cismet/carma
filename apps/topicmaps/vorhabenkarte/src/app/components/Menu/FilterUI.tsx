@@ -9,7 +9,7 @@ import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopic
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 
 import "url-search-params-polyfill";
-import EBikesPieChart from "./EBikesPieChart";
+import VorhabenkartePieChart from "./VorhabenkartePieChart";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faBicycle,
@@ -43,7 +43,7 @@ const FilterUI = () => {
   let widePieChartPlaceholder: any = null;
   let narrowPieChartPlaceholder: any = null;
 
-  let pieChart = <EBikesPieChart />;
+  let pieChart = <VorhabenkartePieChart />;
 
   if (width < 995) {
     narrowPieChartPlaceholder = (
@@ -78,7 +78,7 @@ const FilterUI = () => {
         <tbody>
           <tr>
             <td style={{ width: "330px", verticalAlign: "top" }}>
-              <h4>Filtern nach</h4>
+              <h4 className="mb-6">Filtern nach</h4>
               <Form>
                 <label
                   style={{
@@ -103,7 +103,7 @@ const FilterUI = () => {
                 <div className="flex gap-5 mb-2 mt-1 text-[#0175ff]">
                   <a>alle</a> <a>keine</a>
                 </div>
-                <div className="mb-2">
+                <div className="mb-4">
                   {stek.map((item, idx) => {
                     return (
                       <>

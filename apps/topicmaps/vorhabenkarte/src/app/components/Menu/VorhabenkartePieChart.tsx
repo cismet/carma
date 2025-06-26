@@ -4,7 +4,7 @@ import { getColorForProperties } from "../../../helper/styler";
 import { Doughnut } from "react-chartjs-2";
 import "chart.js/auto";
 
-const EBikesPieChart = ({ visible = true }) => {
+const VorhabenkartePieChart = ({ visible = true }) => {
   const { filteredItems } = useContext<typeof FeatureCollectionContext>(
     FeatureCollectionContext
   );
@@ -97,4 +97,4 @@ const EBikesPieChart = ({ visible = true }) => {
   }
 };
 
-export default EBikesPieChart;
+export default VorhabenkartePieChart;
