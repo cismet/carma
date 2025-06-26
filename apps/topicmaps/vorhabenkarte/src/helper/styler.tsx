@@ -27,6 +27,28 @@ export const getColorForProperties = (properties) => {
   return "#1d599e";
 };
 
+export const getColorForFilter = (stek) => {
+  let color;
+  switch (stek) {
+    case "Wuppertals innovatives Technologieband":
+      color = "#1d599e";
+      break;
+    case "Wuppertals lebendige Zentrenvielfalt":
+      color = "#8A9B0F";
+      break;
+    case "Wuppertals neue grüne Stadtlandschaft":
+      color = "#490A3D";
+      break;
+    case "Wuppertal – urbane Lebensader":
+      color = "#E97F02";
+      break;
+    default:
+      color = "#8A9B0F";
+  }
+
+  return color;
+};
+
 export const getPoiClusterIconCreatorFunction = ({
   svgSize = 24,
   colorizer = getColorForProperties,

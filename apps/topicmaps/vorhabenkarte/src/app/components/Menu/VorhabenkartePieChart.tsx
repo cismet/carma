@@ -1,6 +1,9 @@
 import { useContext } from "react";
 import { FeatureCollectionContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
-import { getColorForProperties } from "../../../helper/styler";
+import {
+  getColorForFilter,
+  getColorForProperties,
+} from "../../../helper/styler";
 import { Doughnut } from "react-chartjs-2";
 import "chart.js/auto";
 
@@ -20,7 +23,7 @@ const VorhabenkartePieChart = ({ visible = true }) => {
         obj.stek.forEach((group) => {
           if (stats[group] === undefined) {
             stats[group] = 1;
-            colormodel[group] = getColorForProperties(obj);
+            colormodel[group] = getColorForFilter(group);
           } else {
             stats[group] += 1;
           }

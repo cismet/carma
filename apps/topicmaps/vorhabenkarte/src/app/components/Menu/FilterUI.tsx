@@ -22,6 +22,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { stek } from "../../../helper/filter";
 import Icon from "react-cismap/commons/Icon";
+import { getColorForFilter } from "../../../helper/styler";
 
 const FilterUI = () => {
   const { filterState } = useContext<typeof FeatureCollectionContext>(
@@ -126,7 +127,7 @@ const FilterUI = () => {
                               {item}
                               <Icon
                                 style={{
-                                  color: "#8A9B0F",
+                                  color: getColorForFilter(item),
                                   width: "30px",
                                   textAlign: "center",
                                 }}
