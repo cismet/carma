@@ -32,6 +32,11 @@ ul {
   unicode-bidi: isolate;
 }
 
+.modal-content svg,
+.modal-content img {
+  display: inline;
+}
+
 /* Menu */
 div.leaflet-top.leaflet-right > .leaflet-control {
   position: fixed;
