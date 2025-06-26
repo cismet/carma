@@ -37,6 +37,11 @@ interface InfoCardProps {
   deleteCollection: () => void;
   setTriggerRefetch: (value: boolean) => void;
   loadingData: boolean;
+  discoverProps?: {
+    appKey: string;
+    apiUrl: string;
+    daqKey: string;
+  };
 }
 
 const InfoCard = ({
@@ -51,6 +56,7 @@ const InfoCard = ({
   deleteCollection,
   setTriggerRefetch,
   loadingData,
+  discoverProps,
 }: InfoCardProps) => {
   const { title, description, tags } = layer;
 
@@ -101,10 +107,10 @@ const InfoCard = ({
 
   const updateItem = async () => {
     setLoading(true);
-    const apiUrl = "https://wunda-cloud-api.cismet.de";
+    const apiUrl = discoverProps?.apiUrl || "https://wunda-cloud-api.cismet.de";
     const taskParameters = {
       parameters: {
-        className: "gp_entdecken",
+        className: discoverProps?.daqKey || "gp_entdecken",
         data: JSON.stringify({
           id: layer.id,
           name: updatedTitle,
@@ -252,6 +258,7 @@ const InfoCard = ({
                     type="primary"
                     danger
                     icon={<FontAwesomeIcon icon={faTrash} />}
+                    onClick={() => deleteCollection()}
                   >
                     Löschen
                   </Button>

@@ -17,6 +17,11 @@ interface ItemGridProps {
   isSearch?: boolean;
   setTriggerRefetch: (value: boolean) => void;
   loadingData: boolean;
+  discoverProps?: {
+    appKey: string;
+    apiUrl: string;
+    daqKey: string;
+  };
 }
 
 const ItemGrid = ({
@@ -32,6 +37,7 @@ const ItemGrid = ({
   isSearch,
   setTriggerRefetch,
   loadingData,
+  discoverProps,
 }: ItemGridProps) => {
   if (!categories || categories.length === 0) {
     return null;
@@ -90,6 +96,7 @@ const ItemGrid = ({
                               setPreview={setPreview}
                               setTriggerRefetch={setTriggerRefetch}
                               loadingData={loadingData}
+                              discoverProps={discoverProps}
                               key={`${subCategory.Title}_layer_${i}_${layer.id}`}
                             />
                           );
@@ -129,6 +136,7 @@ const ItemGrid = ({
                         setPreview={setPreview}
                         setTriggerRefetch={setTriggerRefetch}
                         loadingData={loadingData}
+                        discoverProps={discoverProps}
                         key={`${category.Title}_layer_${i}_${layer.id}`}
                       />
                     );
