@@ -8,7 +8,6 @@ export const stek = [
 const itemFilterFunction = ({ filterState }) => {
   return (item) => {
     let result = false;
-
     const sixMonthsAgo = new Date();
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
@@ -22,6 +21,8 @@ const itemFilterFunction = ({ filterState }) => {
     }
 
     if (item.stek) {
+      console.log("xxx filter function");
+
       result = item.stek.some((s) => filterState.stek.includes(s));
     }
 
