@@ -14,7 +14,6 @@ import uiReducer from "./slices/ui";
 import measurementsReducer from "./slices/measurements";
 import featuresReducer from "./slices/features";
 import printReducer from "./slices/print";
-import authReducer from "./slices/auth";
 
 console.info("store initializing ....");
 
@@ -111,12 +110,6 @@ const printConfig = {
   whitelist: ["orientation", "dpi", "scale"],
 };
 
-const authConfig = {
-  key: "@" + APP_KEY + "." + STORAGE_PREFIX + ".app.auth",
-  storage: localForage,
-  whitelist: ["jwt"],
-};
-
 const store = configureStore({
   reducer: {
     mapping: persistReducer(mappingConfig, mappingReducer),
@@ -129,7 +122,6 @@ const store = configureStore({
       cesiumReducer
     ),
     print: persistReducer(printConfig, printReducer),
-    auth: persistReducer(authConfig, authReducer),
   },
   preloadedState: {
     cesium: defaultCesiumState,
