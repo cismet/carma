@@ -127,6 +127,9 @@
       ],
       "@carma-commons/utils": ["libraries/commons/utils/src/index.ts"],
       "@carma-commons/utils/*": ["libraries/commons/utils/src/lib/*"],
+      "@carma-commons/ui/tag-selection": [
+        "libraries/commons/ui/tag-selection/src/index.ts"
+      ],
       "@carma-mapping/cesium-engine": [
         "libraries/mapping/engines/cesium/src/index.ts"
       ],

@@ -8,6 +8,7 @@ import {
   Input,
   Radio,
   Select,
+  Tag,
   Tooltip,
   message,
 } from "antd";
@@ -18,6 +19,7 @@ import { useFeatureFlags } from "./FeatureFlagProvider";
 import { SelectionItem } from "./SelectionProvider";
 import { getHashParams } from "@carma-commons/utils";
 import { serviceOptions } from "@carma-mapping/layers";
+import { TagSelector } from "@carma-commons/ui/tag-selection";
 
 export type ShareProps = {
   layerState: LayerState;
@@ -129,6 +131,7 @@ export const Share = ({
   const [usage, setUsage] = useState("");
   const [service, setService] = useState("discoverPoi");
   const [thumbUrl, setThumbUrl] = useState("");
+  const [keywords, setKeywords] = useState<string[]>([]);
 
   const { layers, backgroundLayer } = layerState;
   const { copyShareUrl, contextHolder } = useShareUrl();
@@ -208,6 +211,7 @@ export const Share = ({
       thumbnail: thumbUrl,
       path: serviceOptions.find((option) => option.value === service)?.label,
       serviceName: service,
+      tags: keywords,
       backgroundLayer,
       layers,
     };
@@ -236,7 +240,8 @@ export const Share = ({
                 display: "flex",
                 flexDirection: "column",
                 gap: "0.5rem",
-                minWidth: "24rem",
+                width: "24rem",
+                maxWidth: "24rem",
               }}
             >
               <label htmlFor="service">Kategorie</label>
@@ -278,7 +283,11 @@ export const Share = ({
                 className="bg-white"
                 required
               />
-              <Button type="primary" htmlType="submit">
+              <label htmlFor="keywords">Schlüsselwörter</label>
+              <div className="flex flex-wrap gap-1 gap-y-2">
+                <TagSelector keywords={keywords} setKeywords={setKeywords} />
+              </div>
+              <Button type="primary" htmlType="submit" className="mt-2">
                 Publizieren
               </Button>
             </div>

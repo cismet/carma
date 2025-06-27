@@ -20,6 +20,7 @@ import { extractCarmaConfig } from "@carma-commons/utils";
 import { parseDescription, serviceOptions } from "../helper/layerHelper";
 import { useState } from "react";
 import { useAuth } from "@carma-apps/portals";
+import { TagSelector } from "@carma-commons/ui/tag-selection";
 
 interface InfoCardProps {
   layer: Item;
@@ -70,6 +71,7 @@ const InfoCard = ({
     layer.serviceName || "discoverPoi"
   );
   const [updatedThumbnail, setUpdatedThumbnail] = useState(layer.thumbnail);
+  const [updatedTags, setUpdatedTags] = useState(tags || []);
   const [loading, setLoading] = useState(false);
 
   // Function to reconstruct the original description format from edited descriptions
@@ -123,6 +125,7 @@ const InfoCard = ({
             title: updatedTitle,
             thumbnail: updatedThumbnail,
             serviceName: updatedService,
+            tags: updatedTags,
           }),
         }),
       },
@@ -444,23 +447,29 @@ const InfoCard = ({
             </>
           )}
         </div>
-        <p
-          style={{ color: "rgba(0,0,0,0.5)", fontSize: "0.875rem" }}
-          className="mb-0"
-        >
-          {tags?.map((tag, i) => (
-            <span key={"tag_" + tag + "_" + i}>
-              <span>{tag}</span>
-              {i + 1 < tags.length && <span> · </span>}
-            </span>
-          ))}
-          {isVectorLayer && (
-            <span>
-              {tags.length > 0 && <span> · </span>}
-              <span>Vektorlayer</span>
-            </span>
-          )}
-        </p>
+        {editCollection ? (
+          <div className="pt-2">
+            <TagSelector keywords={updatedTags} setKeywords={setUpdatedTags} />
+          </div>
+        ) : (
+          <p
+            style={{ color: "rgba(0,0,0,0.5)", fontSize: "0.875rem" }}
+            className="mb-0"
+          >
+            {tags?.map((tag, i) => (
+              <span key={"tag_" + tag + "_" + i}>
+                <span>{tag}</span>
+                {i + 1 < tags.length && <span> · </span>}
+              </span>
+            ))}
+            {isVectorLayer && (
+              <span>
+                {tags.length > 0 && <span> · </span>}
+                <span>Vektorlayer</span>
+              </span>
+            )}
+          </p>
+        )}
       </div>
     </div>
   );
