@@ -1,7 +1,3 @@
-// Using a singleton pattern to store the current hash parameters
-// We use a WeakMap with window as key to ensure it's garbage collected if needed
-const hashStore: WeakMap<Window, Record<string, string>> = new WeakMap();
-
 const sortArrayByKeys = (
   arr: [string, unknown][],
   keyOrder: string[],
@@ -32,12 +28,6 @@ export const getHashParams = (
   hash = window.location.hash.split("?")[1] || ""
 ): Record<string, string> => {
   try {
-    // Check if we have stored parameters first
-    if (hashStore.has(window)) {
-      return { ...hashStore.get(window) };
-    }
-
-    // Fallback to parsing from URL
     return Object.fromEntries(new URLSearchParams(hash));
   } catch (error) {
     console.debug("Error parsing hash parameters:", error);
@@ -72,9 +62,6 @@ export const updateHashHistoryState = (
     }
   });
 
-  // Store the combined parameters in our WeakMap
-  hashStore.set(window, { ...combinedParams });
-
   const combinedSearchParams = new URLSearchParams();
   const sortedAllPairs = sortArrayByKeys(
     Object.entries(combinedParams),
@@ -101,26 +88,4 @@ export const updateHashHistoryState = (
     `[Routing] Hash parameters updated (${label}):`,
     combinedParams
   );
-};
-
-/**
- * Synchronizes the internal parameter store with the current URL
- * Call this when you know the URL has been changed externally (e.g., by user navigation)
- */
-export const syncParamsWithUrl = (): void => {
-  const urlParams = Object.fromEntries(
-    new URLSearchParams(window.location.hash.split("?")[1] || "")
-  );
-  hashStore.set(window, urlParams);
-  console.debug("[Routing] Parameters synced from URL:", urlParams);
-};
-
-/**
- * Clears the stored parameters, forcing fallback to URL parsing
- */
-export const clearStoredParams = (): void => {
-  if (hashStore.has(window)) {
-    hashStore.delete(window);
-    console.debug("[Routing] Cleared stored parameters");
-  }
 };
