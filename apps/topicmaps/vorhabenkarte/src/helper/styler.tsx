@@ -310,3 +310,8 @@ export const changeUnreadableColor = (colorHex: string): string => {
       return colorHex;
   }
 };
+
+export function formatDatum(datumIso) {
+  const [year, month, day] = datumIso.split("-");
+  return `${day}.${month}.${year}`;
+}

@@ -29,7 +29,11 @@ import { Tooltip } from "antd";
 import { Button, Modal, Accordion, Card, Table } from "react-bootstrap";
 import versionData from "../../version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
-import { changeUnreadableColor, formatIsoString } from "../../helper/styler";
+import {
+  changeUnreadableColor,
+  formatDatum,
+  formatIsoString,
+} from "../../helper/styler";
 import { MenuFooter } from "@carma-collab/wuppertal/commons";
 import { shortenText } from "../../helper/convertItemToFeature";
 import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
@@ -218,8 +222,8 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
             <div className="py-[12px]">
               <b className="text-[16px]">Beschreibung: </b>
               <div className="mt-1">
-                <span>{shortenText(plan.beschreibung, true)} </span>
-                <div>
+                <span>{plan.beschreibung} </span>
+                <div className="mt-1">
                   {plan?.link && (
                     <a href={plan.link} target="_blank">
                       Mehr Informationen…
@@ -228,33 +232,6 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
                 </div>
               </div>
             </div>
-
-            {phone ||
-              (email && (
-                <div className="py-[12px]">
-                  <b className="text-[16px] mb-5">Kontakt:</b>
-                  <div className="flex flex-col gap-4 mt-1">
-                    {phone && (
-                      <a
-                        href={`tel:${phone}`}
-                        className="flex items-center gap-2 text-inherit"
-                      >
-                        <FontAwesomeIcon icon={faPhone} /> {phone}
-                      </a>
-                    )}
-                    {email && (
-                      <a
-                        href={`mailto:${email}`}
-                        className="flex items-center gap-2 text-inherit"
-                      >
-                        <FontAwesomeIcon icon={faEnvelope} />{" "}
-                        <span>{email}</span>
-                      </a>
-                    )}
-                  </div>
-                </div>
-              ))}
-
             {photos && (
               <div className="py-[10px]">
                 <b className="text-[16px]">Foto-Galerie:</b>
@@ -276,6 +253,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
                           width: 150,
                         }}
                       />
+                      <div className="mt-2 ml-1">{photo.anzeige}</div>
                     </div>
                   ))}
                 </div>
@@ -297,6 +275,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
                           <a href={res.url} target="_blank">
                             {res.anzeige}
                           </a>
+                          <span> ({formatDatum(res.datum)})</span>
                         </p>
                       );
                     })}
@@ -336,6 +315,31 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
                 </Panel>
               </Accordion>
             )}
+            {phone ||
+              (email && (
+                <div className="py-[12px]">
+                  <b className="text-[16px] mb-5">Kontakt:</b>
+                  <div className="flex flex-col gap-4 mt-1">
+                    {phone && (
+                      <a
+                        href={`tel:${phone}`}
+                        className="flex items-center gap-2 text-inherit"
+                      >
+                        <FontAwesomeIcon icon={faPhone} /> {phone}
+                      </a>
+                    )}
+                    {email && (
+                      <a
+                        href={`mailto:${email}`}
+                        className="flex items-center gap-2 text-inherit"
+                      >
+                        <FontAwesomeIcon icon={faEnvelope} />{" "}
+                        <span>{email}</span>
+                      </a>
+                    )}
+                  </div>
+                </div>
+              ))}
           </div>
         </Modal.Body>
         <Modal.Footer>
