@@ -259,14 +259,14 @@
             "pages": {
               "org": "carma-dev-deployments",
               "prj": "geoportal",
-              "envs": "VITE_MAMOTO_SITE_ID=3"
+              "envs": ["VITE_MATOMO_SITE_ID=3"]
             }
           },
           "live": {
             "pages": {
               "org": "digital-twin-wuppertal-live",
               "prj": "geoportal",
-              "envs": "VITE_MAMOTO_SITE_ID=4"
+              "envs": ["VITE_MATOMO_SITE_ID=4"]
             }
           }
         },
@@ -275,7 +275,7 @@
             "pages": {
               "org": "carma-dev-deployments",
               "prj": "geoportal",
-              "envs": "VITE_MAMOTO_SITE_ID=3"
+              "envs": ["VITE_MATOMO_SITE_ID=3"]
             }
           }
         }
