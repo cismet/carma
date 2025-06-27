@@ -1,6 +1,7 @@
 import { Button, Input, Select } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
+  faBan,
   faCircleMinus,
   faCirclePlus,
   faEdit,
@@ -256,14 +257,23 @@ const InfoCard = ({
                       {editCollection ? "Speichern" : "Bearbeiten"}
                     </span>
                   </Button>
-                  <Button
-                    type="primary"
-                    danger
-                    icon={<FontAwesomeIcon icon={faTrash} />}
-                    onClick={() => deleteCollection()}
-                  >
-                    Löschen
-                  </Button>
+                  {editCollection ? (
+                    <Button
+                      icon={<FontAwesomeIcon icon={faBan} />}
+                      onClick={() => setEditCollection(false)}
+                    >
+                      Abbrechen
+                    </Button>
+                  ) : (
+                    <Button
+                      type="primary"
+                      danger
+                      icon={<FontAwesomeIcon icon={faTrash} />}
+                      onClick={() => deleteCollection()}
+                    >
+                      Löschen
+                    </Button>
+                  )}
                 </>
               )}
               {layer.type === "layer" && (
