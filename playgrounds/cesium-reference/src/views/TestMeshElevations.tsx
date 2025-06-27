@@ -1,19 +1,110 @@
 import { useRef, useState, useCallback } from "react";
+import { Flex } from "antd";
 
 import { FESTPUNKTE_WUPPERTAL, WUPP_MESH_2024 } from "@carma-commons/resources";
-import {
-  CesiumErrorToErrorBoundaryForwarder,
-  cesiumSafeRequestRender,
-} from "@carma-mapping/cesium-engine";
+import { CesiumErrorToErrorBoundaryForwarder } from "@carma-mapping/cesium-engine";
 
-import { useTestMeshViewer } from "../hooks/usePersistentViewer";
-import useNivPPoints, { type ElevationStandard } from "../hooks/useNivPPoints";
+import {
+  CesiumViewerProvider,
+  useCesiumViewer,
+} from "../contexts/CesiumViewerContext";
+import {
+  CesiumMeasurementsProvider,
+  useCesiumMeasurements,
+} from "../contexts/CesiumMeasurementsContext";
 import useSceneClick from "../hooks/useSceneClick";
-import useMeasurement from "../hooks/useMeasurement";
-import PointControls from "../components/PointControls";
-import InfoPanel, { type InfoData } from "../components/InfoPanel";
-import HomeButton from "../components/HomeButton";
+import useNivPPoints, { type ElevationStandard } from "../hooks/useNivPPoints";
+import InfoPanel from "../components/InfoPanel";
+import PointQueryInfo, {
+  type PointQueryData,
+} from "../components/PointQueryInfo";
+import InteractiveModeTabs from "../components/InteractiveModeTabs";
+import ScreenLayout from "../components/ScreenLayout";
 import { cesiumConstructorOptions } from "../config";
+
+// Inner component that has access to contexts
+const InnerMeshElevations: React.FC<{
+  showNivPPoints: boolean;
+  elevationStandard: ElevationStandard;
+  includeHistoric: boolean;
+  enableTerrainClick: boolean;
+  setEnableTerrainClick: (value: boolean) => void;
+  searchRadius: number;
+  setSearchRadius: (value: number) => void;
+}> = ({
+  showNivPPoints,
+  elevationStandard,
+  includeHistoric,
+  enableTerrainClick,
+  setEnableTerrainClick,
+  searchRadius,
+  setSearchRadius,
+}) => {
+  const { viewerRef, zoomToTileset } = useCesiumViewer();
+  const {
+    enableMeasurement,
+    setEnableMeasurement,
+    clearMeasurements,
+    hasAnyMeasurementEntities,
+    measurementCount,
+  } = useCesiumMeasurements();
+
+  const { entities: nivPEntities } = useNivPPoints(
+    showNivPPoints ? viewerRef.current : null,
+    elevationStandard,
+    FESTPUNKTE_WUPPERTAL,
+    includeHistoric
+  );
+
+  const [infoData, setInfoData] = useState<PointQueryData | null>(null);
+
+  const handleShowInfo = useCallback((data: PointQueryData) => {
+    setInfoData(data);
+  }, []);
+
+  const handleCloseInfo = useCallback(() => {
+    setInfoData(null);
+  }, []);
+
+  useSceneClick(
+    viewerRef.current,
+    enableTerrainClick && !enableMeasurement,
+    nivPEntities,
+    searchRadius,
+    handleShowInfo
+  );
+
+  const TopRightPanel: React.FC = () => {
+    return (
+      <Flex vertical gap={2}>
+        <InteractiveModeTabs
+          enableTerrainClick={enableTerrainClick}
+          setEnableTerrainClick={setEnableTerrainClick}
+          enableMeasurement={enableMeasurement}
+          setEnableMeasurement={setEnableMeasurement}
+          searchRadius={searchRadius}
+          onSearchRadiusChange={setSearchRadius}
+          clearMeasurements={clearMeasurements}
+          hasAnyMeasurementEntities={hasAnyMeasurementEntities}
+          measurementCount={measurementCount}
+        />
+        <InfoPanel onClose={infoData ? handleCloseInfo : undefined}>
+          {infoData ? (
+            <PointQueryInfo data={infoData} />
+          ) : (
+            "Im Viewer für eine neue Abfrage auf die Karte klicken."
+          )}
+        </InfoPanel>
+      </Flex>
+    );
+  };
+
+  return (
+    <>
+      <ScreenLayout topRight={<TopRightPanel />} />
+    </>
+  );
+};
 
 const TestMeshElevations: React.FC = () => {
   const [showNivPPoints, setShowNivPPoints] = useState(true);
@@ -22,91 +113,48 @@ const TestMeshElevations: React.FC = () => {
   const [includeHistoric, setIncludeHistoric] = useState(false);
   const [enableTerrainClick, setEnableTerrainClick] = useState(true);
   const [searchRadius, setSearchRadius] = useState(10);
-  const [enableMeasurement, setEnableMeasurement] = useState(false);
-  const [infoData, setInfoData] = useState<InfoData | null>(null);
-
   const containerRef = useRef<HTMLDivElement | null>(null);
-
-  const { viewer, zoomToTileset } = useTestMeshViewer(containerRef, {
-    cesiumOptions: cesiumConstructorOptions,
-    tilesetUrl: WUPP_MESH_2024.url,
-    tilesetOptions: {
-      skipLevelOfDetail: true,
-      immediatelyLoadDesiredLevelOfDetail: true,
-      maximumScreenSpaceError: 1,
-      show: true,
-    },
-    cameraPersistence: {
-      autoSave: true,
-      saveDelay: 1000,
-      autoRestore: true,
-      restoreOptions: { animate: false, duration: 0 },
-    },
-  });
-
-  const handleShowInfo = useCallback((data: InfoData) => {
-    setInfoData(data);
-  }, []);
-
-  const handleCloseInfo = useCallback(() => {
-    setInfoData(null);
-  }, []);
-
-  const { entities: nivPEntities, pointCount } = useNivPPoints(
-    showNivPPoints ? viewer : null,
-    elevationStandard,
-    FESTPUNKTE_WUPPERTAL,
-    includeHistoric
-  );
-
-  useSceneClick(
-    viewer,
-    enableTerrainClick && !enableMeasurement,
-    nivPEntities,
-    searchRadius,
-    handleShowInfo
-  );
-
-  const { clearMeasurements, measurementCount, hasAnyMeasurementEntities } =
-    useMeasurement(viewer, enableMeasurement);
 
   return (
     <>
       <CesiumErrorToErrorBoundaryForwarder />
-
-      <div style={{ position: "relative", width: "100%", height: "100vh" }}>
-        <div ref={containerRef} style={{ width: "100%", height: "100%" }} />
-        <HomeButton onHomeClick={zoomToTileset} />
-      </div>
-
-      <PointControls
-        showNivPPoints={showNivPPoints}
-        onShowNivPPointsChange={setShowNivPPoints}
-        elevationStandard={elevationStandard}
-        onElevationStandardChange={(v) => {
-          setElevationStandard(v);
-          cesiumSafeRequestRender(viewer);
+      <div
+        ref={containerRef}
+        style={{
+          width: "100%",
+          height: "100vh",
         }}
-        includeHistoric={includeHistoric}
-        onIncludeHistoricChange={setIncludeHistoric}
-        enableTerrainClick={enableTerrainClick}
-        onEnableTerrainClickChange={setEnableTerrainClick}
-        searchRadius={searchRadius}
-        onSearchRadiusChange={setSearchRadius}
-        pointCount={pointCount}
-        enableMeasurement={enableMeasurement}
-        onEnableMeasurementChange={(enabled) => {
-          setEnableMeasurement(enabled);
-          if (enabled && enableTerrainClick) {
-            setEnableTerrainClick(false);
-          }
-        }}
-        onClearMeasurements={clearMeasurements}
-        measurementCount={measurementCount}
-        hasAnyMeasurementEntities={hasAnyMeasurementEntities}
       />
-
-      <InfoPanel data={infoData} onClose={handleCloseInfo} />
+      <CesiumViewerProvider
+        containerRef={containerRef}
+        options={{
+          cesiumOptions: cesiumConstructorOptions,
+          tilesetUrl: WUPP_MESH_2024.url,
+          tilesetOptions: {
+            skipLevelOfDetail: true,
+            immediatelyLoadDesiredLevelOfDetail: true,
+            maximumScreenSpaceError: 1,
+            show: true,
+          },
+          cameraPersistence: {
+            autoSave: true,
+            saveDelay: 1000,
+            autoRestore: true,
+          },
+        }}
+      >
+        <CesiumMeasurementsProvider>
+          <InnerMeshElevations
+            showNivPPoints={showNivPPoints}
+            elevationStandard={elevationStandard}
+            includeHistoric={includeHistoric}
+            enableTerrainClick={enableTerrainClick}
+            setEnableTerrainClick={setEnableTerrainClick}
+            searchRadius={searchRadius}
+            setSearchRadius={setSearchRadius}
+          />
+        </CesiumMeasurementsProvider>
+      </CesiumViewerProvider>
     </>
   );
 };

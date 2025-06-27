@@ -1,5 +1,4 @@
 import { useEffect, useRef, useCallback, useState } from "react";
-import type { Viewer } from "cesium";
 import {
   Cartesian2,
   Cartesian3,
@@ -12,14 +11,19 @@ import {
 
 import { cesiumSafeRequestRender } from "@carma-mapping/cesium-engine";
 import { LABEL_FONT, SCALE_BY_DISTANCE } from "./useNivPPoints";
+import { useCesiumViewer } from "../contexts/CesiumViewerContext";
 
-const useMeasurement = (viewer: Viewer | null, enabled: boolean = false) => {
+const useMeasurement = (enabled: boolean = false) => {
+  const { viewerRef } = useCesiumViewer();
+  const viewer = viewerRef.current;
+
   const handlerRef = useRef<ScreenSpaceEventHandler | null>(null);
   const measurementEntitiesRef = useRef<Entity[]>([]);
   const currentPolylineRef = useRef<Entity | null>(null);
   const currentPointsRef = useRef<Cartesian3[]>([]);
   const isActiveRef = useRef<boolean>(false);
   const [measurementCount, setMeasurementCount] = useState<number>(0);
+  const [activeMeasurementPoints, setActiveMeasurementPoints] = useState<Cartesian3[]>([]);
   const completedMeasurementsRef = useRef<number>(0);
 
   // Update measurement count based on completed measurements only
@@ -76,6 +80,7 @@ const useMeasurement = (viewer: Viewer | null, enabled: boolean = false) => {
     currentPointsRef.current = [];
     isActiveRef.current = false;
     completedMeasurementsRef.current = 0;
+    setActiveMeasurementPoints([]);
     updateMeasurementCount();
 
     cesiumSafeRequestRender(viewer);
@@ -232,6 +237,7 @@ const useMeasurement = (viewer: Viewer | null, enabled: boolean = false) => {
     // Reset for next measurement
     currentPointsRef.current = [];
     isActiveRef.current = false;
+    setActiveMeasurementPoints([]);
 
     cesiumSafeRequestRender(viewer);
     console.debug(
@@ -264,6 +270,7 @@ const useMeasurement = (viewer: Viewer | null, enabled: boolean = false) => {
       }
 
       currentPointsRef.current.push(pickedPosition);
+      setActiveMeasurementPoints(currentPointsRef.current);
 
       // Calculate cumulative distance up to this point
       let currentCumulativeDistance = 0;
@@ -384,6 +391,7 @@ const useMeasurement = (viewer: Viewer | null, enabled: boolean = false) => {
     isActive: isActiveRef.current,
     measurementCount,
     hasAnyMeasurementEntities: hasAnyMeasurementEntities(),
+    activeMeasurementPoints,
   };
 };
 

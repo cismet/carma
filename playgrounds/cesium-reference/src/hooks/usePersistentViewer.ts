@@ -5,7 +5,7 @@ import { useCameraPersistence } from "./useCameraPersistence";
 import { useZoomToTilesetOnReady } from "./useZoomToTilesetOnReady";
 import useTileset from "./useTileset";
 
-interface UseTestMeshViewerOptions {
+interface UsePersistentViewerOptions {
   /** Cesium viewer constructor options */
   cesiumOptions?: Record<string, unknown>;
   /** Tileset URL */
@@ -17,10 +17,6 @@ interface UseTestMeshViewerOptions {
     autoSave?: boolean;
     saveDelay?: number;
     autoRestore?: boolean;
-    restoreOptions?: {
-      animate?: boolean;
-      duration?: number;
-    };
   };
 }
 
@@ -31,9 +27,9 @@ interface UseTestMeshViewerOptions {
  * - Camera persistence
  * - Conditional zoom to tileset
  */
-export const useTestMeshViewer = (
+export const usePersistentViewer = (
   containerRef: React.MutableRefObject<HTMLDivElement | null>,
-  options: UseTestMeshViewerOptions
+  options: UsePersistentViewerOptions
 ) => {
   const {
     cesiumOptions = {},
@@ -51,12 +47,12 @@ export const useTestMeshViewer = (
     if (viewerRef.current) {
       if (viewerRef.current.isDestroyed()) {
         console.debug(
-          "[useTestMeshViewer] Existing viewer is destroyed, cleaning up reference"
+          "[usePersistentViewer] Existing viewer is destroyed, cleaning up reference"
         );
         viewerRef.current = null;
         setIsViewerReady(false);
       } else {
-        console.debug("[useTestMeshViewer] Viewer already exists and is valid");
+        console.debug("[usePersistentViewer] Viewer already exists and is valid");
         return;
       }
     }
@@ -70,11 +66,11 @@ export const useTestMeshViewer = (
           });
           viewerRef.current = viewer;
           setIsViewerReady(true);
-          console.debug("[useTestMeshViewer] Viewer initialized");
+          console.debug("[usePersistentViewer] Viewer initialized");
         }
       } catch (error) {
         console.error(
-          "[useTestMeshViewer] Viewer initialization error:",
+          "[usePersistentViewer] Viewer initialization error:",
           error
         );
         setIsViewerReady(false);
@@ -86,11 +82,11 @@ export const useTestMeshViewer = (
     return () => {
       try {
         if (viewerRef.current && !viewerRef.current.isDestroyed()) {
-          console.debug("[useTestMeshViewer] Destroying viewer");
+          console.debug("[usePersistentViewer] Destroying viewer");
           viewerRef.current.destroy();
         }
       } catch (error) {
-        console.error("[useTestMeshViewer] Error destroying viewer:", error);
+        console.error("[usePersistentViewer] Error destroying viewer:", error);
       } finally {
         viewerRef.current = null;
         setIsViewerReady(false);
@@ -110,13 +106,12 @@ export const useTestMeshViewer = (
       autoSave: true,
       saveDelay: 1000,
       autoRestore: true,
-      restoreOptions: { animate: false, duration: 0 },
       ...cameraPersistence,
     }
   );
 
   const shouldZoom = !hasValidSavedState() && !wasRestored;
-  console.debug("[useTestMeshViewer] Camera state check:", {
+  console.debug("[usePersistentViewer] Camera state check:", {
     hasValidSavedState: hasValidSavedState(),
     wasRestored,
     shouldZoom,
