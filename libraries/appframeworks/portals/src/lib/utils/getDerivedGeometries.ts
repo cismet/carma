@@ -1,18 +1,19 @@
 import proj4 from "proj4";
+import type { Converter } from "proj4/dist/lib/core";
 
 import { PROJ4_CONVERTERS } from "@carma-commons/utils";
 
 import { DEFAULT_PROJ } from "@carma-commons/resources";
 import { SearchResultItem } from "@carma-commons/types";
 
-const proj4ConverterLookup: Record<string, proj4.Converter> = {};
+const proj4ConverterLookup: Record<string, Converter> = {};
 const DEFAULT_ZOOM_LEVEL = 16;
 
 const HITOBJECT_POLYGON_TYPE = "Polygon";
 
 const getPosInWGS84 = (
   { x, y }: { x: number; y: number },
-  refSystem: proj4.Converter
+  refSystem: Converter
 ) => {
   const coords = PROJ4_CONVERTERS.CRS4326.forward(refSystem.inverse([x, y]));
   return {
@@ -21,10 +22,7 @@ const getPosInWGS84 = (
   };
 };
 
-const getRingInWGS84 = (
-  coords: (string | number)[][],
-  refSystem: proj4.Converter
-) =>
+const getRingInWGS84 = (coords: (string | number)[][], refSystem: Converter) =>
   coords
     .map((c) => c.map((v) => (typeof v === "string" ? parseFloat(v) : v)))
     .filter(

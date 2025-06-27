@@ -1,4 +1,5 @@
 import { OBLIQUE_PREVIEW_QUALITY } from "./constants";
+import type { Converter } from "proj4/dist/lib/core";
 
 export type ExteriorPosition = {
   x: number;

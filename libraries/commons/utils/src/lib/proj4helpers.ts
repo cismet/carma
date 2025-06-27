@@ -1,4 +1,8 @@
 import proj4 from "proj4";
+import type { Converter } from "proj4/dist/lib/core";
+
+// Export proj4 with correct typing from proj4 package
+export default proj4;
 
 export const PROJ4_CONVERTERS = {
   CRS3857: proj4("EPSG:3857"),
@@ -13,7 +17,7 @@ export const isProj4Converter = (
         inverse?: unknown;
       }
     | string
-): obj is proj4.Converter => {
+): obj is Converter => {
   return (
     typeof obj !== "string" &&
     typeof obj.forward === "function" &&

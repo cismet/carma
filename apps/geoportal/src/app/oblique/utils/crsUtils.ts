@@ -1,4 +1,4 @@
-import proj4, { type Converter } from "proj4";
+import proj4 from "proj4";
 import { ExteriorPosition, Proj4Converter } from "../types";
 
 /**
