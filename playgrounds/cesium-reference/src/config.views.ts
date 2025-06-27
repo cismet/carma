@@ -5,7 +5,7 @@ import ViewShed from "./views/ViewShed";
 import ObliqueAndMesh from "./views/ObliqueAndMesh";
 import NavigationControlView from "./views/NavigationControl";
 import TestMesh from "./views/TestMesh";
-import TestMeshElevations from "./views/TestMeshElevations";
+import Measurements from "./views/Measurements";
 
 export const views = [
   { path: "/minimal-mesh", name: "Minimal Mesh", component: MinimalMesh },
@@ -23,5 +23,6 @@ export const views = [
     component: NavigationControlView,
   },
   { path: "/test-mesh", name: "Test Mesh", component: TestMesh },
-  { path: "/elevation", name: "Elevation", component: TestMeshElevations },
+  { path: "/elevation", name: "Measurements", component: Measurements },
+  { path: "/measurements", name: "Measurements", component: Measurements },
 ];

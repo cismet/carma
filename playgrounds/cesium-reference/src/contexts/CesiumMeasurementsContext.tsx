@@ -1,7 +1,8 @@
 import type { Viewer, Cartesian3 } from "cesium";
 import React, { createContext, useContext, useState, useMemo } from "react";
-import useMeasurement from "../hooks/useMeasurement";
+import { useMeasurement, MeasurementMode } from "../hooks/useMeasurement";
 import { useCesiumViewer } from "./CesiumViewerContext";
+import { PointInfoData } from "../components/measurements/PointMeasurementPanel";
 
 interface CesiumMeasurementsContextType {
   enableMeasurement: boolean;
@@ -12,10 +13,17 @@ interface CesiumMeasurementsContextType {
   isMeasurementActive: boolean;
   activeMeasurementPoints: Cartesian3[];
   viewer: Viewer | null; // Added viewer to context
+  searchRadius: number;
+  setSearchRadius: (radius: number) => void;
+  measurementMode: MeasurementMode;
+  setMeasurementMode: (mode: MeasurementMode) => void;
+  pointData: PointInfoData | null; // Added pointData to context
+  setPointData: (data: PointInfoData | null) => void; // Added
 }
 
-const CesiumMeasurementsContext =
-  createContext<CesiumMeasurementsContextType | undefined>(undefined);
+const CesiumMeasurementsContext = createContext<
+  CesiumMeasurementsContextType | undefined
+>(undefined);
 
 interface CesiumMeasurementsProviderProps {
   children: React.ReactNode;
@@ -25,14 +33,21 @@ export const CesiumMeasurementsProvider: React.FC<
   CesiumMeasurementsProviderProps
 > = ({ children }) => {
   const [enableMeasurement, setEnableMeasurement] = useState(false);
+
   const { viewerRef } = useCesiumViewer();
-  
+
   const {
     clearMeasurements,
     measurementCount,
     hasAnyMeasurementEntities,
     activeMeasurementPoints,
     isActive,
+    measurementMode,
+    setMeasurementMode,
+    setSearchRadius,
+    searchRadius,
+    pointData,
+    setPointData,
   } = useMeasurement(enableMeasurement);
 
   const contextValue = useMemo(
@@ -45,6 +60,12 @@ export const CesiumMeasurementsProvider: React.FC<
       activeMeasurementPoints,
       isMeasurementActive: isActive,
       viewer: viewerRef.current,
+      searchRadius,
+      setSearchRadius,
+      measurementMode,
+      setMeasurementMode,
+      pointData,
+      setPointData,
     }),
     [
       enableMeasurement,
@@ -54,7 +75,14 @@ export const CesiumMeasurementsProvider: React.FC<
       hasAnyMeasurementEntities,
       activeMeasurementPoints,
       isActive,
-      viewerRef.current,    ]
+      viewerRef,
+      searchRadius,
+      setSearchRadius,
+      measurementMode,
+      setMeasurementMode,
+      pointData,
+      setPointData,
+    ]
   );
 
   return (

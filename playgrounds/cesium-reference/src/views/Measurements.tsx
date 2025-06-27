@@ -1,0 +1,151 @@
+import React, { useState, useCallback, useRef } from "react";
+import { Flex } from "antd";
+
+import { WUPP_MESH_2024 } from "@carma-commons/resources";
+import { CesiumErrorToErrorBoundaryForwarder } from "@carma-mapping/cesium-engine";
+
+import {
+  CesiumViewerProvider,
+  useCesiumViewer,
+} from "../contexts/CesiumViewerContext";
+import {
+  CesiumMeasurementsProvider,
+  useCesiumMeasurements,
+} from "../contexts/CesiumMeasurementsContext";
+import useSceneClick from "../hooks/useSceneClick";
+import useNivPPoints, { type ElevationStandard } from "../hooks/useNivPPoints";
+import ScreenLayout from "../components/ScreenLayout";
+import PointMeasurementPanel, {
+  PointInfoData,
+} from "../components/measurements/PointMeasurementPanel";
+import DistanceMeasurementPanel from "../components/measurements/DistanceMeasurementPanel";
+import { InteractiveModeTabs } from "../components/measurements/InteractiveModeTabs";
+
+import { cesiumConstructorOptions } from "../config";
+import PointControls from "../components/measurements/PointControls";
+import { MeasurementMode } from "../hooks/useMeasurement";
+
+// Inner component that has access to contexts
+const InnerMeshElevations: React.FC<{
+  coordinateDisplayMode: "cartesian" | "cartographic" | "utm32";
+  onCoordinateDisplayModeChange: (
+    value: "cartesian" | "cartographic" | "utm32"
+  ) => void;
+}> = ({ coordinateDisplayMode, onCoordinateDisplayModeChange }) => {
+  const [showNivPPoints, setShowNivPPoints] = useState(true);
+  const [elevationStandard, setElevationStandard] =
+    useState<ElevationStandard>("nhn");
+  const [includeHistoric, setIncludeHistoric] = useState(false);
+
+  const { viewerRef } = useCesiumViewer();
+  const {
+    measurementCount,
+    measurementMode,
+    searchRadius,
+    pointData,
+    setPointData,
+  } = useCesiumMeasurements();
+
+  const { entities: nivPEntities } = useNivPPoints(
+    showNivPPoints ? viewerRef.current : null,
+    elevationStandard,
+    WUPP_MESH_2024,
+    includeHistoric
+  );
+
+  const handleShowInfo = useCallback(
+    (data: PointInfoData) => {
+      setPointData(data);
+    },
+    [setPointData]
+  );
+
+  useSceneClick(
+    viewerRef.current,
+    measurementMode === MeasurementMode.PointQuery,
+    nivPEntities,
+    searchRadius,
+    handleShowInfo
+  );
+
+  const TopRightPanel: React.FC = () => {
+    return (
+      <Flex vertical gap={2}>
+        <InteractiveModeTabs
+          coordinateDisplayMode={coordinateDisplayMode}
+          onCoordinateDisplayModeChange={onCoordinateDisplayModeChange}
+        />
+        <PointMeasurementPanel />
+        <DistanceMeasurementPanel
+          coordinateDisplayMode={coordinateDisplayMode}
+        />
+      </Flex>
+    );
+  };
+
+  return (
+    <>
+      <ScreenLayout
+        topLeft={
+          <PointControls
+            showNivPPoints={showNivPPoints}
+            onShowNivPPointsChange={setShowNivPPoints}
+            elevationStandard={elevationStandard}
+            onElevationStandardChange={setElevationStandard}
+            includeHistoric={includeHistoric}
+            onIncludeHistoricChange={setIncludeHistoric}
+            pointCount={0}
+          />
+        }
+        topRight={<TopRightPanel />}
+      />
+    </>
+  );
+};
+
+const TestMeshElevations: React.FC = () => {
+  const [coordinateDisplayMode, setCoordinateDisplayMode] = useState<
+    "cartesian" | "cartographic" | "utm32"
+  >("cartesian");
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  return (
+    <>
+      <CesiumErrorToErrorBoundaryForwarder />
+      <div
+        ref={containerRef}
+        style={{
+          width: "100%",
+          height: "100vh",
+        }}
+      />
+      <CesiumViewerProvider
+        containerRef={containerRef}
+        options={{
+          cesiumOptions: cesiumConstructorOptions,
+          tilesetUrl: WUPP_MESH_2024.url,
+          tilesetOptions: {
+            skipLevelOfDetail: true,
+            immediatelyLoadDesiredLevelOfDetail: true,
+            maximumScreenSpaceError: 1,
+            show: true,
+          },
+          cameraPersistence: {
+            autoSave: true,
+            saveDelay: 1000,
+            autoRestore: true,
+          },
+        }}
+      >
+        <CesiumMeasurementsProvider>
+          <InnerMeshElevations
+            coordinateDisplayMode={coordinateDisplayMode}
+            onCoordinateDisplayModeChange={setCoordinateDisplayMode}
+          />
+        </CesiumMeasurementsProvider>
+      </CesiumViewerProvider>
+    </>
+  );
+};
+
+export default TestMeshElevations;

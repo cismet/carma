@@ -12,8 +12,15 @@ import {
 import { cesiumSafeRequestRender } from "@carma-mapping/cesium-engine";
 import { LABEL_FONT, SCALE_BY_DISTANCE } from "./useNivPPoints";
 import { useCesiumViewer } from "../contexts/CesiumViewerContext";
+import { PointInfoData } from "../components/measurements/PointMeasurementPanel";
 
-const useMeasurement = (enabled: boolean = false) => {
+export enum MeasurementMode {
+  PointQuery = "point",
+  Distance = "distance",
+  Elevation = "elevation",
+}
+
+export const useMeasurement = (enabled: boolean = false) => {
   const { viewerRef } = useCesiumViewer();
   const viewer = viewerRef.current;
 
@@ -25,6 +32,11 @@ const useMeasurement = (enabled: boolean = false) => {
   const [measurementCount, setMeasurementCount] = useState<number>(0);
   const [activeMeasurementPoints, setActiveMeasurementPoints] = useState<Cartesian3[]>([]);
   const completedMeasurementsRef = useRef<number>(0);
+  const [measurementMode, setMeasurementMode] = useState(MeasurementMode.PointQuery);
+  const [searchRadius, setSearchRadius] = useState(10);
+  const [pointData, setPointData] = useState<PointInfoData | null>(null);
+
+
 
   // Update measurement count based on completed measurements only
   const updateMeasurementCount = useCallback(() => {
@@ -392,6 +404,12 @@ const useMeasurement = (enabled: boolean = false) => {
     measurementCount,
     hasAnyMeasurementEntities: hasAnyMeasurementEntities(),
     activeMeasurementPoints,
+    measurementMode,
+    setMeasurementMode,
+    setSearchRadius,
+    pointData,
+    setPointData,
+    searchRadius,
   };
 };
 
