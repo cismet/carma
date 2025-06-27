@@ -3,9 +3,7 @@ import {
   INFO_DOC_DATEINAMEN_NAME,
   INFO_DOC_DATEINAMEN_URL,
 } from "../../constants/bplaene";
-import booleanDisjoint from "@turf/boolean-disjoint";
-import bboxPolygon from "@turf/bbox-polygon";
-import center from "@turf/center";
+import { booleanDisjoint, bboxPolygon, center } from "@turf/turf";
 
 export interface BplaeneState {
   data: any;

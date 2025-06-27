@@ -1,0 +1,19 @@
+onlyBuiltDependencies:
+  - '@fortawesome/fontawesome-common-types'
+  - '@fortawesome/fontawesome-free'
+  - '@fortawesome/fontawesome-svg-core'
+  - '@fortawesome/free-brands-svg-icons'
+  - '@fortawesome/free-regular-svg-icons'
+  - '@fortawesome/free-solid-svg-icons'
+  - '@parcel/watcher'
+  - '@scarf/scarf'
+  - '@swc/core'
+  - core-js
+  - core-js-pure
+  - cypress
+  - esbuild
+  - fsevents
+  - nx
+  - protobufjs
+  - rxdb
+  - unrs-resolver

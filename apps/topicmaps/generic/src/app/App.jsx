@@ -7,7 +7,7 @@ import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import { md5FetchText } from "react-cismap/tools/fetching";
 import { getGazDataForTopicIds } from "react-cismap/tools/gazetteerHelper";
-import { pointOnFeature } from "@turf/point-on-feature";
+import { pointOnFeature } from "@turf/turf";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
 import { getClusterIconCreatorFunction } from "react-cismap/tools/uiHelper";
 import { getSimpleHelpForGenericTM } from "react-cismap/tools/genericTopicMapHelper";

@@ -29,11 +29,25 @@ Welcome to CARMA, a monolithic repository (monorepo) powered by Nx, designed to 
    cd carma
    ```
 
-2. npm install
+
+2. Install dependencies using pnpm:
+
+   If you don't have `pnpm` installed, you can use `corepack` to manage it:
+
+   ```bash
+   npm install --global corepack@latest
+   corepack enable pnpm
+   ```
+
+   Then, install the dependencies:
+
+   ```bash
+   pnpm install
+   ```
 
 3. on dev branch you can also run the custom script
 
-   `npm run update-all`
+   `pnpm run update-all`
 
 to refresh the repo and update all submodules
 
@@ -49,21 +63,21 @@ Before committing, ensure that the following conditions are met:
 
 if only project is affected, run nx build before pushing.
 
-`npx nx build my-project-name`
+`pnpm nx build my-project-name`
 
 for the whole monorepot run,
 
-`npx nx run-many -t build --nxBail`
+`pnpm nx run-many -t build --nxBail`
 
 to check that all projects build before committing.
 
 Some possible additional Checks:
 
-`npx nx run-many -t lint  --nxBail`
+`pnpm nx run-many -t lint  --nxBail`
 
-`npx nx run-many -t build-storybook --nxBail`
+`pnpm nx run-many -t build-storybook --nxBail`
 
-`npx nx run-many -t test --nxBail`
+`pnpm nx run-many -t test --nxBail`
 
 ### Submodules
 
@@ -139,7 +153,7 @@ uses eslint flat config in
 
 can be run per project with
 
-`npx nx run [projectname]:lint `
+`pnpm nx run [projectname]:lint `
 
 Default ruleset is `tseslint.configs.strictTypeChecked.`
 with some custom react and a11y rules.
@@ -148,11 +162,11 @@ desirable should be 0 warnings for added code.
 
 for nx to register changes to the file, one might need to clear the cache with
 
-`npx nx reset`
+`pnpm nx reset`
 
 or run with skip cache option
 
-`npx nx run [projectname]:lint --skipNxCache`
+`pnpm nx run [projectname]:lint --skipNxCache`
 
 ## Updating the Monorepo
 
@@ -160,7 +174,9 @@ or run with skip cache option
 
 Always do nx updates with the provided migrate utility.
 
--- `npx nx migrate nx@latest`
+-- `pnpm nx migrate nx@latest`
+
+### (Section needs to be updated for pnpm)
 
 (prerequisites: have `npm-check-updates` installed globally with `npm install -g npm-check-updates`)
 

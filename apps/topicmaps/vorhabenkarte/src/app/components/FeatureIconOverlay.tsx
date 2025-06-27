@@ -5,7 +5,7 @@ import {
   FeatureCollectionDispatchContext,
 } from "react-cismap/contexts/FeatureCollectionContextProvider";
 // import centroid from "@turf/centroid";
-import pointOnFeature from "@turf/point-on-feature";
+import { pointOnFeature } from "@turf/turf";
 import L from "leaflet";
 import { getFeatureStyler } from "../../helper/styler";
 

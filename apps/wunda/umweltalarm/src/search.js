@@ -1,8 +1,7 @@
 import Flatbush from "flatbush";
 import { getBoundsFromArea } from "./md5Fetching";
 import booleanIntersects from "@turf/boolean-intersects";
-import turfDistance from "@turf/distance";
-import turfCenter from "@turf/center";
+import {center as turfCenter, distance as turfDistance} from "@turf/turf";
 import proj4 from "proj4";
 
 export const nameMapping = {};

@@ -1,20 +1,18 @@
-import defaultValue from "@cesium/engine/Source/Core/defaultValue";
-import Color from "@cesium/engine/Source/Core/Color";
-import Camera from "@cesium/engine/Source/Scene/Camera";
-import PerspectiveFrustum from "@cesium/engine/Source/Core/PerspectiveFrustum";
-import CesiumMath from "@cesium/engine/Source/Core/Math";
-import ShadowMap from "@cesium/engine/Source/Scene/ShadowMap";
 import {
-  PositionProperty,
-  ConstantPositionProperty,
+  defaultValue,
+  Camera,
   Cartesian2,
   Cartesian3,
   Cartesian4,
+  Math as CesiumMath,
+  Color,
+  ConstantPositionProperty,
   EllipsoidTerrainProvider,
-} from "@cesium/engine";
-import PostProcessStage from "@cesium/engine/Source/Scene/PostProcessStage";
+  PerspectiveFrustum,
+  PostProcessStage,
+  ShadowMap,
+} from "cesium";
 import fsShader from "./SensorShadow.fragment.shader.glsl";
-import DeveloperError from "@cesium/engine/Source/Core/DeveloperError";
 
 const defaultValues = {
   cameraPosition: new ConstantPositionProperty(),

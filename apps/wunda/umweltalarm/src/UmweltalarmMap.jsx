@@ -1,7 +1,7 @@
 import { faSearch, faSquare } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import bboxPolygon from "@turf/bbox-polygon";
-import turfCenter from "@turf/center";
+import {center as turfCenter} from "@turf/turf";
 import "bootstrap/dist/css/bootstrap.min.css";
 import Color from "color";
 import "leaflet/dist/leaflet.css";

@@ -1,6 +1,6 @@
 import { createSlice } from "@reduxjs/toolkit";
 import bboxPolygon from "@turf/bbox-polygon";
-import booleanDisjoint from "@turf/boolean-disjoint";
+import { booleanDisjoint } from "@turf/turf";
 import { getAEVByNr, getAEVsByNrs } from "./aenderungsverfahren";
 import { setFeatureCollection, setSelectedFeatureIndex } from "./mapping";
 import { md5FetchJSON } from "@carma-commons/utils/fetching";

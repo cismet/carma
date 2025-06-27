@@ -106,5 +106,8 @@
   },
   "useInferencePlugins": false,
   "defaultBase": "dev",
+  "cliOptions": {
+    "packageManager": "pnpm"
+  },
   "useLegacyCache": true
 }

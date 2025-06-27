@@ -1,7 +1,9 @@
 name: Deployment
 
 run-name: >
-  ${{ (contains(github.event.head_commit.message, 'skip-deploy')||contains(github.event.head_commit.message, 'no-deploy')) && '💤💤💤 ' ||''}}
+  ${{ (contains(github.event.head_commit.message, 'skip-deploy') || contains(github.event.head_commit.message, 'no-deploy') || github.event.inputs.skip-deploy) && '💤💤💤 ' || '' }}
+  ${{ github.event.inputs.skip-cache && 'noCache' || '' }}
+  ${{ github.event.inputs.use-pnpm && 'pnpm' || '' }}
   ${{ github.event_name == 'workflow_dispatch' && '👨🏽‍💼 ' || github.event_name == 'repository_dispatch' && '🤖 ' || github.event_name == 'push' && '👨‍💻 ' }}
   ${{ github.event_name == 'repository_dispatch' && '(' || ''}}${{ github.event.client_payload.actor }}${{ github.event_name == 'repository_dispatch' && ')' || ''}} 
   :
@@ -29,6 +31,18 @@ on:
       create-docker-image:
         type: boolean
         description: Create a Docker image? 🐳
+      skip-cache:
+        type: boolean
+        description: Skip dependency cache (always fresh install)
+        required: false
+      skip-deploy:
+        type: boolean
+        description: Skip deployment steps (builds and containers will still run)
+        required: false
+      use-pnpm:
+        type: boolean
+        description: Use pnpm as package manager
+        required: false
 
   push:
     branches:
@@ -38,7 +52,7 @@ on:
 
 jobs:
   determine_projects:
-    if: "(github.event.inputs['project-name'] || github.event.client_payload['project-name']) == '' && !contains(github.event.head_commit.message, 'skip-deploy') && !contains(github.event.head_commit.message, 'no-deploy')"
+    if: "(github.event.inputs['project-name'] || github.event.client_payload['project-name']) == '' && !contains(github.event.head_commit.message, 'skip-deploy') && !contains(github.event.head_commit.message, 'no-deploy') && !github.event.inputs.skip-deploy"
     runs-on: ubuntu-latest
     outputs:
       project_list: ${{ steps.set_up_matrix.outputs.project_list }}
@@ -69,14 +83,33 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: "npm"
+          cache: ${{ github.event.inputs.skip-cache && 'false' || (github.event.inputs.use-pnpm && 'pnpm' || 'npm') }}
       - name: add cismet-dev registry secret to .npmrc
         shell: bash
         run: |
           touch .npmrc
           echo "${{ secrets.CISMET_DEV_REGISTRY_SECRET_4_DOT_NPMRC }}" >> .npmrc
+      - name: Check lock file for selected package manager
+        run: |
+          if [ "${{ github.event.inputs.use-pnpm }}" = "true" ]; then
+            if [ ! -f pnpm-lock.yaml ]; then
+              echo "[ERROR] pnpm-lock.yaml is missing." >&2
+              exit 1
+            fi
+          else
+            if [ ! -f package-lock.json ]; then
+              echo "[ERROR] package-lock.json is missing." >&2
+              exit 1
+            fi
+          fi
       - name: Install dependencies
-        run: npm install
+        run: |
+          if [ "${{ github.event.inputs.use-pnpm }}" ]; then
+            corepack enable pnpm
+            pnpm install
+          else
+            npm install
+          fi
 
       - name: Set Directory as Safe
         run: |
@@ -207,7 +240,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: "npm"
+          cache: ${{ github.event.inputs.skip-cache && 'false' || (github.event.inputs.use-pnpm && 'pnpm' || 'npm') }}
       - name: Read project config
         id: read_project_config
         run: echo "::set-output name=config::$(cat deployment-config.json)"
@@ -250,8 +283,16 @@ jobs:
           srcPath=".${projectPath#./dist}/src"
           echo "srcPath: $srcPath"  # Debugging
 
-          srcMD5="$(echo -n $(find $srcPath -type f -exec md5sum {} \; | sort -k 2 | md5sum | cut -f 1 -d ' ')$(md5sum package.json package-lock.json | md5sum | cut -f 1 -d ' ') | md5sum | cut -f 1 -d ' ')"
-          srcMD5short="${srcMD5:0:4}"
+          # Calculate a single package_hash for reproducibility
+          package_hash=""
+          if [ -f pnpm-lock.yaml ]; then
+            package_hash=$(md5sum package.json pnpm-lock.yaml | md5sum | cut -f 1 -d ' ')
+          elif [ -f package-lock.json ]; then
+            package_hash=$(md5sum package.json package-lock.json | md5sum | cut -f 1 -d ' ')
+          fi
+          src_files_hash="$(find "$srcPath" -type f -exec md5sum {} \; | sort -k 2 | md5sum | cut -f 1 -d ' ')"
+          srcMD5="$(echo -n "${src_files_hash}${package_hash}" | md5sum | cut -f 1 -d ' ')"
+          srcMD5short="${src_files_hash:0:2}${package_hash:0:2}"
 
           # Debugging
           # echo "deploymentManual: $deploymentManual"
@@ -364,8 +405,13 @@ jobs:
           echo "${{ secrets.CISMET_DEV_REGISTRY_SECRET_4_DOT_NPMRC }}" >> .npmrc
 
       - name: Install Dependencies
-        run: npm install
-
+        run: |
+          if [ "${{ github.event.inputs.use-pnpm }}" ]; then
+            corepack enable pnpm
+            pnpm install
+          else
+            npm install
+          fi
       - name: Build project
         run: |
           ${{ env.ADDITIONAL_ENVS }} npx nx run ${{ matrix.project }}:build --configuration=production --base="${{ env.BASE_URL }}" --output-style=stream-without-prefixes
@@ -437,8 +483,16 @@ jobs:
           srcPath=".${projectPath#./dist}/src"
 
           # Generate MD5 hash for versioning
-          srcMD5="$(echo -n $(find $srcPath -type f -exec md5sum {} \; | sort -k 2 | md5sum | cut -f 1 -d ' ')$(md5sum package.json package-lock.json | md5sum | cut -f 1 -d ' '))"
-          srcMD5short="${srcMD5:0:4}"
+          src_files_hash="$(find "$srcPath" -type f -exec md5sum {} \; | sort -k 2 | md5sum | cut -f 1 -d ' ')"
+          # Calculate a single package_hash for reproducibility
+          package_hash=""
+          if [ -f pnpm-lock.yaml ]; then
+            package_hash=$(md5sum package.json pnpm-lock.yaml | md5sum | cut -f 1 -d ' ')
+          elif [ -f package-lock.json ]; then
+            package_hash=$(md5sum package.json package-lock.json | md5sum | cut -f 1 -d ' ')
+          fi
+          srcMD5="$(echo -n "${src_files_hash}${package_hash}" | md5sum | cut -f 1 -d ' ')"
+          srcMD5short="${src_files_hash:0:2}${package_hash:0:2}"
 
           # Fetch container image from the deployment configuration
           containerImage=$(echo "$config" | jq -r --arg project "$project_name" --arg target "$target" '.projects[$project].deployment.manual[$target].container.image // "null"')
@@ -548,7 +602,7 @@ jobs:
       - name: Debug version.json
         run: |
           cat $SRC_PATH/version.json
-      - name: Set version (deprecated)
+      - name: Set version (deprectated)
         run: |
           if [[ -f "$SRC_PATH/version.js" ]]; then
             sed -i "s/%APPLICATION_VERSION%/$SRC_MD5_SHORT/" $SRC_PATH/version.js
@@ -581,14 +635,19 @@ jobs:
           echo "${{ secrets.CISMET_DEV_REGISTRY_SECRET_4_DOT_NPMRC }}" >> .npmrc
 
       - name: Install Dependencies
-        run: npm install
-
+        run: |
+          if [ "${{ github.event.inputs.use-pnpm }}" ]; then
+            corepack enable pnpm
+            pnpm install
+          else
+            npm install
+          fi
       - name: Build project
         run: |
-          ${{ env.ADDITIONAL_ENVS }} npx nx run ${{ github.event.inputs['project-name'] || github.event.client_payload['project-name'] }}:build --configuration=production --base="${{ env.BASE_URL }}"
+          ${{ env.ADDITIONAL_ENVS }} npx nx run ${{ matrix.project }}:build --configuration=production --base="${{ env.BASE_URL }}"
         shell: bash
       - name: Deploy
-        if: env.EXTERNAL_REPO != 'null' && env.EXTERNAL_REPO != '' && env.EXTERNAL_REPO != 'null/null'
+        if: env.EXTERNAL_REPO != 'null' && env.EXTERNAL_REPO != '' && env.EXTERNAL_REPO != 'null/null' && !github.event.inputs.skip-deploy
         uses: peaceiris/actions-gh-pages@v3
         with:
           personal_token: ${{ secrets.CISMET_CI_DEPLOY_PAT }}
@@ -606,7 +665,7 @@ jobs:
           INPUT_PLATFORMS="linux/amd64" INPUT_TAGS="${{ env.CONTAINER_IMAGE }}${{ env.SRC_MD5_SHORT }},${{ env.CONTAINER_IMAGE }}dev-latest" ${{ env.ADDITIONAL_ENVS }} npx nx run ${{ github.event.inputs['project-name'] || github.event.client_payload['project-name'] }}:container
         shell: bash
       - name: Build container if container image is set (live)
-        if: env.CONTAINER_IMAGE != 'null' && env.CONTAINER_IMAGE != '' && env.TARGET == 'live'
+        if: env.CONTAINER_IMAGE != 'null' && env.CONTAINER_IMAGE != '' && env.TARGET == 'live' && !github.event.inputs.skip_deploy
         run: |
           INPUT_PLATFORMS="linux/amd64" INPUT_TAGS="${{ env.CONTAINER_IMAGE }}${{ env.SRC_MD5_SHORT }},${{ env.CONTAINER_IMAGE }}latest,${{ env.CONTAINER_IMAGE }}${{ env.VERSION}}" ${{ env.ADDITIONAL_ENVS }} npx nx run ${{ github.event.inputs['project-name'] || github.event.client_payload['project-name'] }}:container
         shell: bash
@@ -679,8 +738,16 @@ jobs:
           srcPath=".${projectPath#./dist}/src"
 
           # Generate MD5 hash for versioning
-          srcMD5="$(echo -n $(find $srcPath -type f -exec md5sum {} \; | sort -k 2 | md5sum | cut -f 1 -d ' ')$(md5sum package.json package-lock.json | md5sum | cut -f 1 -d ' '))"
-          srcMD5short="${srcMD5:0:4}"
+          src_files_hash="$(find "$srcPath" -type f -exec md5sum {} \; | sort -k 2 | md5sum | cut -f 1 -d ' ')"
+          # Calculate a single package_hash for reproducibility
+          package_hash=""
+          if [ -f pnpm-lock.yaml ]; then
+            package_hash=$(md5sum package.json pnpm-lock.yaml | md5sum | cut -f 1 -d ' ')
+          elif [ -f package-lock.json ]; then
+            package_hash=$(md5sum package.json package-lock.json | md5sum | cut -f 1 -d ' ')
+          fi
+          srcMD5="$(echo -n "${src_files_hash}${package_hash}" | md5sum | cut -f 1 -d ' ')"
+          srcMD5short="${src_files_hash:0:2}${package_hash:0:2}"
 
           # Fetch container image from the deployment configuration
           containerImage=$(echo "$config" | jq -r --arg project "$project_name" --arg target "$target" '.projects[$project].deployment.manual[$target].container.image // "null"')
@@ -828,8 +895,13 @@ jobs:
           touch .npmrc
           echo "${{ secrets.CISMET_DEV_REGISTRY_SECRET_4_DOT_NPMRC }}" >> .npmrc
       - name: Install Dependencies
-        run: npm install
-
+        run: |
+          if [ "${{ github.event.inputs.use-pnpm }}" ]; then
+            corepack enable pnpm
+            pnpm install
+          else
+            npm install
+          fi
       - name: Build project
         run: |
           ${{ env.ADDITIONAL_ENVS }} npx nx run ${{ matrix.project }}:build --configuration=production --base="${{ env.BASE_URL }}"

@@ -1,6 +1,5 @@
 import { createSlice } from "@reduxjs/toolkit";
-import bboxPolygon from "@turf/bbox-polygon";
-import booleanDisjoint from "@turf/boolean-disjoint";
+import { bboxPolygon, booleanDisjoint } from "@turf/turf";
 import { setFeatureCollection, setSelectedFeatureIndex } from "./mapping";
 import { md5FetchJSON } from "@carma-commons/utils/fetching";
 
