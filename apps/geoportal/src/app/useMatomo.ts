@@ -42,17 +42,12 @@ export const useMatomo = (
   
   // Determine tracking mode based on feature flags
   const trackingEnabled = flags.featureFlagTracking;
-  let currentMatomoMode: MatomoModeType = MATOMO_MODE.CONSOLE;
-  
-  if (trackingEnabled) {
-    currentMatomoMode = MATOMO_MODE.ONLINE;
-  }
+  let currentMatomoMode: MatomoModeType = trackingEnabled ? MATOMO_MODE.ONLINE : MATOMO_MODE.CONSOLE;
 
   // Function to track page views in Matomo
   const trackPageView = useCallback(() => {
-    if (currentMatomoMode === MATOMO_MODE.DISABLED) {
-      return;
-    }
+    // We only need to check for CONSOLE or ONLINE modes since those are the only ones we use
+    // DISABLED mode is kept in the enum for future extensibility
 
     const currentUrl = window.location.href;
     const currentTitle = document.title;
@@ -82,9 +77,8 @@ export const useMatomo = (
 
   // Function to track events in Matomo
   const trackEvent = useCallback((category: string, action: string, name?: string, value?: number) => {
-    if (currentMatomoMode === MATOMO_MODE.DISABLED) {
-      return;
-    }
+    // We only need to check for CONSOLE or ONLINE modes since those are the only ones we use
+    // DISABLED mode is kept in the enum for future extensibility
 
     if (currentMatomoMode === MATOMO_MODE.CONSOLE) {
       console.log(`📈 CONSOLE MODE - Would track event: category=${category}, action=${action}, name=${name}, value=${value}`);
@@ -99,9 +93,7 @@ export const useMatomo = (
 
   // Initialize Matomo
   useEffect(() => {
-    if (currentMatomoMode === MATOMO_MODE.DISABLED) {
-      return;
-    }
+    // Always initialize since we're only using CONSOLE or ONLINE modes
 
     // Initialize _paq array if it doesn't exist
     window._paq = window._paq || [];
@@ -146,9 +138,7 @@ export const useMatomo = (
 
   // Track URL changes via hashchange event
   useEffect(() => {
-    if (currentMatomoMode === MATOMO_MODE.DISABLED) {
-      return;
-    }
+    // Always track URL changes since we're only using CONSOLE or ONLINE modes
 
     // Keep track of the last URL to avoid duplicate tracking
     let lastUrl = window.location.href;
@@ -179,11 +169,11 @@ export const useMatomo = (
 
   // Track React Router location changes
   useEffect(() => {
-    if (location && currentMatomoMode !== MATOMO_MODE.DISABLED) {
+    if (location) {
       console.log("📈 React Router location changed");
       trackPageView();
     }
-  }, [location, currentMatomoMode, trackPageView]);
+  }, [location, trackPageView]);
 
   return {
     currentMatomoMode,
