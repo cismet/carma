@@ -1,7 +1,16 @@
 import { faShareNodes } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useCopyToClipboard } from "@uidotdev/usehooks";
-import { Button, Checkbox, Input, Radio, Select, Tooltip, message } from "antd";
+import {
+  Alert,
+  Button,
+  Checkbox,
+  Input,
+  Radio,
+  Select,
+  Tooltip,
+  message,
+} from "antd";
 import { useEffect, useState } from "react";
 import type { LayerState, Settings } from "../types";
 import { faCopy } from "@fortawesome/free-regular-svg-icons";
@@ -243,6 +252,7 @@ export const Share = ({
                 onChange={(e) => setTitle(e.target.value)}
                 value={title}
                 className="bg-white"
+                required
               />
               <label htmlFor="thumbUrl">Vorschaubild</label>
               <Input
@@ -250,6 +260,7 @@ export const Share = ({
                 onChange={(e) => setThumbUrl(e.target.value)}
                 value={thumbUrl}
                 className="bg-white"
+                required
               />
               <label htmlFor="content">Inhalt</label>
               <Input.TextArea
@@ -257,6 +268,7 @@ export const Share = ({
                 onChange={(e) => setContent(e.target.value)}
                 value={content}
                 className="bg-white"
+                required
               />
               <label htmlFor="usage">Verwendungszweck</label>
               <Input.TextArea
@@ -264,6 +276,7 @@ export const Share = ({
                 onChange={(e) => setUsage(e.target.value)}
                 value={usage}
                 className="bg-white"
+                required
               />
               <Button type="primary" htmlType="submit">
                 Publizieren
