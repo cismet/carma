@@ -65,7 +65,9 @@ const InfoCard = ({
   const [editedDescriptions, setEditedDescriptions] = useState<{
     [key: string]: string;
   }>({});
-  const [updatedService, setUpdatedService] = useState("discoverPoi");
+  const [updatedService, setUpdatedService] = useState(
+    layer.serviceName || "discoverPoi"
+  );
   const [updatedThumbnail, setUpdatedThumbnail] = useState(layer.thumbnail);
   const [loading, setLoading] = useState(false);
 
