@@ -20,19 +20,15 @@ import {
   mobileInfo,
 } from "@carma-collab/wuppertal/geoportal";
 import { TweakpaneProvider } from "@carma-commons/debug";
-import {
-  TAILWIND_CLASSNAMES_FULLSCREEN_FIXED,
-  md5ActionFetchDAQ,
-} from "@carma-commons/utils";
-
+import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
 import { MobileWarningMessage } from "@carma-mapping/components";
 
 // Local Modules
 import AppErrorFallback from "./components/AppErrorFallback";
 import MapWrapper from "./components/GeoportalMap/controls/MapWrapper";
+import LoginForm from "./components/LoginForm";
 
 import MapMeasurement from "./components/map-measure/MapMeasurement";
-import LoginForm from "./components/LoginForm";
 import TopNavbar from "./components/TopNavbar";
 import { ObliqueProvider } from "./oblique/components/ObliqueProvider";
 
@@ -43,8 +39,6 @@ import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 
 import { layerMap } from "./config";
 import { geoportalMapStyleConfig } from "./config/mapStyleConfig";
-
-import { getJWT, setJWT } from "./store/slices/auth";
 
 import {
   CESIUM_CONFIG,
