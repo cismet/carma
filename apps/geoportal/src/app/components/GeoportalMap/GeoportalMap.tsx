@@ -10,6 +10,7 @@ import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplic
 
 import {
   TopicMapSelectionContent,
+  useAuth,
   useFeatureFlags,
   useGazData,
   useHashState,
@@ -92,7 +93,6 @@ import {
   faKey,
   faUser,
 } from "@fortawesome/free-solid-svg-icons";
-import { getJWT, setJWT } from "../../store/slices/auth.ts";
 
 interface MapProps {
   height: number;
@@ -126,7 +126,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const showHamburgerMenu = useSelector(getShowHamburgerMenu);
   const selectedFeature = useSelector(getSelectedFeature);
   const loadingFeatureInfo = useSelector(getLoading);
-  const jwt = useSelector(getJWT);
+  const { jwt, setJWT } = useAuth();
 
   const { getLeafletZoom } = useLeafletZoomControls();
   const showPrimaryTileset = useSelector(selectShowPrimaryTileset);
@@ -407,7 +407,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
                     type="text"
                     onClick={() =>
                       jwt
-                        ? dispatch(setJWT(null))
+                        ? setJWT(null)
                         : setIsLoginFormVisible(!isLoginFormVisible)
                     }
                   >
