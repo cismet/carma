@@ -11,11 +11,11 @@ interface MatomoTrackerProps {
  * Component that initializes Matomo tracking and provides tracking functions to children
  * This component should be rendered inside the FeatureFlagProvider
  */
-export const mamoto_site_id = import.meta.env.VITE_MAMOTO_SITE_ID || "2";
+export const matomo_site_id = import.meta.env.VITE_MATOMO_SITE_ID || "2";
 
 export const MatomoTracker = ({
   children,
-  siteId = mamoto_site_id,
+  siteId = matomo_site_id,
   trackerUrl = "https://wupptomo.cismet.de/matomo.php",
 }: MatomoTrackerProps) => {
   // Initialize Matomo tracking
