@@ -86,7 +86,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
   };
 
   const plan = feature.properties;
-  const district = plan?.kst_stadtbezirk?.name || "stadtweites Vorhaben";
+  const district = plan?.kst_stadtbezirk?.name || "Stadtweites Vorhaben";
   const street = plan?.adresse?.strasse || null;
   const locationDescription = plan?.ortsbeschreibung || null;
   const focusRoom = plan?.stek || [];
@@ -147,11 +147,13 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
                   {formatIsoString(plan.letzte_aktualisierung)}
                 </span>
               </div>
-              <div className="flex items-center gap-2">
-                <FontAwesomeIcon icon={faMapLocation} />
-                <b style={styles.label}>Stadtbezirk:</b>
-                <span style={styles.value}>{district}</span>
-              </div>
+              {plan.stadtweit && (
+                <div className="flex items-center gap-2">
+                  <FontAwesomeIcon icon={faMapLocation} />
+                  <b style={styles.label}>{district}</b>
+                  <span style={styles.value}></span>
+                </div>
+              )}
               {street && (
                 <div className="flex items-center gap-2">
                   <FontAwesomeIcon icon={faLocationDot} />
