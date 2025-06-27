@@ -22,4 +22,8 @@ export const featureFlagConfig: FeatureFlagConfig = {
     default: false,
     alias: "debugTileBoundaries",
   },
+  featureFlagTracking: {
+    default: false,
+    alias: "tracking",
+  },
 };

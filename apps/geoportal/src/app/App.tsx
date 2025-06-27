@@ -1,5 +1,5 @@
 // Built-in Modules
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 // 3rd party Modules
@@ -31,6 +31,7 @@ import LoginForm from "./components/LoginForm";
 import MapMeasurement from "./components/map-measure/MapMeasurement";
 import TopNavbar from "./components/TopNavbar";
 import { ObliqueProvider } from "./oblique/components/ObliqueProvider";
+import { MatomoTracker } from "./MatomoTracker";
 
 import { useAppConfig } from "./hooks/useAppConfig";
 import { useManageLayers } from "./hooks/useManageLayers";
@@ -55,12 +56,17 @@ import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import "./index.css";
 
+declare global {
+  interface Window {
+    global?: typeof window;
+  }
+}
+
 if (typeof global === "undefined") {
   window.global = window;
 }
 function App({ published }: { published?: boolean }) {
   const [showLoginModal, setShowLoginModal] = useState(false);
-
   const isLoadingConfig = useAppConfig(CONFIG_BASE_URL, layerMap);
   useManageLayers(layerMap);
   const syncToken = useSyncToken();
@@ -68,7 +74,8 @@ function App({ published }: { published?: boolean }) {
 
   const content = (
     <FeatureFlagProvider config={featureFlagConfig}>
-      <TweakpaneProvider>
+      <MatomoTracker>
+        <TweakpaneProvider>
         <CarmaMapProviderWrapper
           cesiumOptions={CESIUM_CONFIG}
           overlayOptions={{
@@ -140,7 +147,8 @@ function App({ published }: { published?: boolean }) {
             </ErrorBoundary>
           </ObliqueProvider>
         </CarmaMapProviderWrapper>
-      </TweakpaneProvider>
+        </TweakpaneProvider>
+      </MatomoTracker>
     </FeatureFlagProvider>
   );
 
