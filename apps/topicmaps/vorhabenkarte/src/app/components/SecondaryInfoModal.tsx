@@ -228,8 +228,8 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
 
                   <b style={styles.label}>Voraussichtlicher Abschluss:</b>
                   <span style={styles.value}>
-                    {completion}{" "}
-                    {plan?.ende_jahr ? `Quartal ${plan?.ende_jahr}` : ""}
+                    {completion} {" Quartal"}
+                    {plan?.ende_jahr ? ` ${plan?.ende_jahr}` : ""}
                   </span>
                 </div>
               )}
