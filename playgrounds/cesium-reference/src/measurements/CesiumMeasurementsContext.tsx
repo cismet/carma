@@ -1,8 +1,8 @@
 import type { Viewer, Cartesian3 } from "cesium";
 import React, { createContext, useContext, useState, useMemo } from "react";
-import { useMeasurement, MeasurementMode } from "../hooks/useMeasurement";
-import { useCesiumViewer } from "./CesiumViewerContext";
-import { PointInfoData } from "../components/measurements/PointMeasurementPanel";
+import { useMeasurement, MeasurementMode } from "./hooks/useMeasurement";
+import { useCesiumViewer } from "../contexts/CesiumViewerContext";
+import { PointInfoData } from "./types/MeasurementTypes";
 
 interface CesiumMeasurementsContextType {
   enableMeasurement: boolean;

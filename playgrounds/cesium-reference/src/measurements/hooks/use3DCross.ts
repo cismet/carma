@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from "react";
-import type { Viewer, Cartesian3, Entity } from "cesium";
+import { Cartesian3, type Entity } from "cesium";
 import { create3DCross } from "../utils/cesium3DCross";
-import { useCesiumViewer } from "../contexts/CesiumViewerContext";
+import { useCesiumViewer } from "../../contexts/CesiumViewerContext";
 
 const use3DCross = () => {
   const { viewerRef } = useCesiumViewer();
@@ -10,7 +10,11 @@ const use3DCross = () => {
   // Create the cross entities once
   useEffect(() => {
     const viewer = viewerRef.current;
-    if (!viewer || viewer.isDestroyed() || crossEntitiesRef.current.length > 0) {
+    if (
+      !viewer ||
+      viewer.isDestroyed() ||
+      crossEntitiesRef.current.length > 0
+    ) {
       return;
     }
 
@@ -45,21 +49,25 @@ const use3DCross = () => {
     crossEntitiesRef.current.forEach((entity) => (entity.show = false));
   }, []);
 
-  const updatePosition = useCallback((position: Cartesian3) => {
-    const viewer = viewerRef.current;
-    if (!viewer || viewer.isDestroyed()) return;
+  const updatePosition = useCallback(
+    (position: Cartesian3) => {
+      const viewer = viewerRef.current;
+      if (!viewer || viewer.isDestroyed()) return;
 
-    // For simplicity, we are recreating the cross here. 
-    // A more optimized version would update the positions of the existing polylines.
-    hide();
-    crossEntitiesRef.current.forEach(entity => viewer.entities.remove(entity));
+      // For simplicity, we are recreating the cross here.
+      // A more optimized version would update the positions of the existing polylines.
+      hide();
+      crossEntitiesRef.current.forEach((entity) =>
+        viewer.entities.remove(entity)
+      );
 
-    const newCrossEntities = create3DCross({ position, radius: 10 });
-    newCrossEntities.forEach(entity => viewer.entities.add(entity));
-    crossEntitiesRef.current = newCrossEntities;
-    show();
-
-  }, [viewerRef, hide, show]);
+      const newCrossEntities = create3DCross({ position, radius: 10 });
+      newCrossEntities.forEach((entity) => viewer.entities.add(entity));
+      crossEntitiesRef.current = newCrossEntities;
+      show();
+    },
+    [viewerRef, hide, show]
+  );
 
   return { show, hide, updatePosition };
 };

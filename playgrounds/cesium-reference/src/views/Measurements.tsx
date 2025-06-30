@@ -11,19 +11,18 @@ import {
 import {
   CesiumMeasurementsProvider,
   useCesiumMeasurements,
-} from "../contexts/CesiumMeasurementsContext";
-import useSceneClick from "../hooks/useSceneClick";
-import useNivPPoints, { type ElevationStandard } from "../hooks/useNivPPoints";
+} from "../measurements/CesiumMeasurementsContext";
+import useSceneClick from "../measurements/hooks/useSceneClick";
+import useNivPPoints from "../measurements/hooks/useNivPPoints";
 import ScreenLayout from "../components/ScreenLayout";
-import PointMeasurementPanel, {
-  PointInfoData,
-} from "../components/measurements/PointMeasurementPanel";
-import DistanceMeasurementPanel from "../components/measurements/DistanceMeasurementPanel";
-import { InteractiveModeTabs } from "../components/measurements/InteractiveModeTabs";
+import PointMeasurementPanel from "../measurements/components/PointMeasurementPanel";
+import DistanceMeasurementPanel from "../measurements/components/DistanceMeasurementPanel";
+import { InteractiveModeTabs } from "../measurements/components/InteractiveModeTabs";
 
 import { cesiumConstructorOptions } from "../config";
-import PointControls from "../components/measurements/PointControls";
-import { MeasurementMode } from "../hooks/useMeasurement";
+import PointControls from "../measurements/components/PointControls";
+import { ElevationStandard, PointInfoData } from "../measurements/types/MeasurementTypes";
+import { MeasurementMode } from "../measurements/hooks/useMeasurement";
 
 // Inner component that has access to contexts
 const InnerMeshElevations: React.FC<{
@@ -49,7 +48,7 @@ const InnerMeshElevations: React.FC<{
   const { entities: nivPEntities } = useNivPPoints(
     showNivPPoints ? viewerRef.current : null,
     elevationStandard,
-    WUPP_MESH_2024,
+    WUPP_MESH_2024.url,
     includeHistoric
   );
 

@@ -23,6 +23,5 @@ export const views = [
     component: NavigationControlView,
   },
   { path: "/test-mesh", name: "Test Mesh", component: TestMesh },
-  { path: "/elevation", name: "Measurements", component: Measurements },
   { path: "/measurements", name: "Measurements", component: Measurements },
 ];

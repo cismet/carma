@@ -11,14 +11,14 @@ import {
 
 import { create3DCrossGroup } from "../utils/cesium3DCross";
 import { LABEL_FONT, SCALE_BY_DISTANCE } from "./useNivPPoints";
-import type { InfoData } from "../components/InfoPanel";
+import { PointInfoData } from "../types/MeasurementTypes";
 
 const useSceneClick = (
   viewer: Viewer | null,
   enabled: boolean = true,
   nivPEntities?: Entity[],
   searchRadius: number = 10, // Default search radius to 10m, same as cross3D visual
-  onShowInfo?: (info: InfoData) => void // Callback to show custom info panel
+  onShowInfo?: (info: PointInfoData) => void // Callback to show custom info panel
 ) => {
   const handlerRef = useRef<ScreenSpaceEventHandler | null>(null);
   const terrainEntityRef = useRef<Entity | null>(null);

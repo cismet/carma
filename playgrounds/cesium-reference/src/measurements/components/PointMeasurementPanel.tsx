@@ -1,32 +1,7 @@
 import React from "react";
 import { Card } from "antd";
 import PointQueryInfo from "./PointQueryInfo";
-
-export interface PointInfoData {
-  title: string;
-  elevation?: number;
-  longitude?: number;
-  latitude?: number;
-  additionalInfo?: Record<string, string | number>;
-  type: "terrain" | "nivp";
-  heightDifference?: number; // Height difference between terrain and NivP point (if applicable)
-  nivpData?: {
-    laufende_nummer: string;
-    messungsjahr: number;
-    lagebezeichnung: string;
-    punktnummer_nrw: string | null;
-    bemerkung: string | null;
-    festlegungsart: number;
-    lagegenauigkeit: number;
-    dgk_blattnummer: string;
-    historisch: boolean;
-    hoehe_ueber_nn: number;
-    hoehe_ueber_nhn: number;
-    hoehe_ueber_nhn2016: number;
-    x: number;
-    y: number;
-  };
-}
+import type { PointInfoData } from "../types/MeasurementTypes";
 
 interface PointMeasurementPanelProps {
   data?: PointInfoData;

@@ -10,8 +10,8 @@ import {
 } from "antd";
 import type { InputNumberProps } from "antd";
 import { AimOutlined, LineChartOutlined } from "@ant-design/icons";
-import { MeasurementMode } from "../../hooks/useMeasurement";
-import { useCesiumMeasurements } from "../../contexts/CesiumMeasurementsContext";
+import { MeasurementMode } from "../hooks/useMeasurement";
+import { useCesiumMeasurements } from "../CesiumMeasurementsContext";
 
 const PointQuerySettingsComponent: React.FC<{
   minSearchRadius?: number;

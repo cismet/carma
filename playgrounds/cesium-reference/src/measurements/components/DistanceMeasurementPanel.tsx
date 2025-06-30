@@ -1,7 +1,7 @@
 import React from "react";
 import { Card, Typography } from "antd";
 import { CloseOutlined } from "@ant-design/icons";
-import { useCesiumMeasurements } from "../../contexts/CesiumMeasurementsContext";
+import { useCesiumMeasurements } from "../CesiumMeasurementsContext";
 import MeasurementTable from "./MeasurementTable";
 
 const { Text } = Typography;

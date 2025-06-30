@@ -1,7 +1,6 @@
 import { Checkbox, Radio, Typography, Space, Card } from "antd";
-import type { ElevationStandard } from "../hooks/useNivPPoints";
+import { ElevationStandard } from "../types/MeasurementTypes";
 
-const { Title } = Typography;
 
 interface PointControlsProps {
   showNivPPoints: boolean;

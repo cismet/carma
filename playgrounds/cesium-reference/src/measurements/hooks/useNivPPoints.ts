@@ -10,40 +10,7 @@ import {
 } from "cesium";
 
 import { PROJ4_CONVERTERS } from "@carma-commons/utils";
-
-export type ElevationStandard = "nhn2016" | "nhn" | "nn";
-export interface NivPPoint {
-  hoehe_ueber_nn: number;
-  festlegungsart: number;
-  lagegenauigkeit: number;
-  laufende_nummer: string;
-  dgk_blattnummer: string;
-  messungsjahr: number;
-  lagebezeichnung: string;
-  geometrie: number;
-  id: number;
-  punktnummer_nrw: string | null;
-  bemerkung: string | null;
-  historisch: boolean;
-  hoehe_ueber_nhn2016: number;
-  hoehe_ueber_nhn: number;
-  x: number;
-  y: number;
-  geojson: {
-    type: "Point";
-    crs: { type: "name"; properties: { name: "EPSG:25832" } };
-    coordinates: [number, number];
-  };
-}
-
-export interface TransformedNivPPoint extends NivPPoint {
-  longitude: number;
-  latitude: number;
-  cartesian: Cartesian3;
-  currentElevation: number;
-  elevationStandard: ElevationStandard;
-  hasValidElevation: boolean;
-}
+import { ElevationStandard, NivPPoint, TransformedNivPPoint } from "../types/MeasurementTypes";
 
 export const SCALE_BY_DISTANCE = new NearFarScalar(0, 1, 5000, 0.0);
 export const SCALE_BY_DISTANCE_POINTS = new NearFarScalar(0, 1, 5000, 0.5);
