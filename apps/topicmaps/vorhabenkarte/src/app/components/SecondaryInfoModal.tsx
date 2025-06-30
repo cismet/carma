@@ -90,7 +90,12 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
   };
 
   const plan = feature.properties;
-  const district = plan?.kst_stadtbezirk?.name || "Stadtweites Vorhaben";
+  const districtNames =
+    plan?.stadtbezirke && plan?.stadtbezirke.length > 0
+      ? plan?.stadtbezirke.join(", ")
+      : [];
+  const district =
+    districtNames.length > 0 ? "Stadtbezirk:" : "Stadtweites Vorhaben";
   const street = plan?.adresse?.strasse || null;
   const locationDescription = plan?.ortsbeschreibung || null;
   const focusRoom = plan?.stek || [];
@@ -155,7 +160,9 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
                 <div className="flex items-center gap-2">
                   <FontAwesomeIcon icon={faMapLocation} />
                   <b style={styles.label}>{district}</b>
-                  <span style={styles.value}></span>
+                  {districtNames.length > 0 && (
+                    <span style={styles.value}>{districtNames}</span>
+                  )}
                 </div>
               )}
               {street && (
