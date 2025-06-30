@@ -76,8 +76,8 @@ const LayerInfo = ({ description, legend, zoomLevels }: LayerInfoProps) => {
   }, [metadataUrl]);
 
   return (
-    <div className="flex flex-col gap-1 overflow-y-hidden h-full">
-      <div className="flex gap-2 w-full h-[94%]">
+    <div className="flex flex-col gap-1 h-full">
+      <div className="flex gap-2 w-full h-full overflow-y-hidden">
         <div className="h-full flex flex-col gap-2 w-[80%]">
           {parsedDescription && (
             <div>
@@ -118,12 +118,14 @@ const LayerInfo = ({ description, legend, zoomLevels }: LayerInfoProps) => {
           </div>
         </div>
       </div>
-      <hr className="h-px my-0 bg-gray-300 border-0 w-full absolute bottom-9 left-0" />
-      <p className="my-0 pt-2.5 text-gray-400 text-base truncate">
-        {layerType}{" "}
-        {(zoom >= zoomLevels.maxZoom || zoom <= zoomLevels.minZoom) &&
-          "| keine Anzeige im aktuellen Maßstab"}
-      </p>
+      <div className="h-[74px]">
+        <hr className="h-px my-0 bg-gray-300 border-0 w-full absolute bottom-9 left-0" />
+        <p className="my-0 pt-2.5 text-gray-400 text-base truncate">
+          {layerType}{" "}
+          {(zoom >= zoomLevels.maxZoom || zoom <= zoomLevels.minZoom) &&
+            "| keine Anzeige im aktuellen Maßstab"}
+        </p>
+      </div>
     </div>
   );
 };
