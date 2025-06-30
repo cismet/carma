@@ -31,14 +31,21 @@ const itemFilterFunction = ({ filterState }) => {
 
     if (item.thema.name) {
       result = filterState.topics.includes(item.thema.name);
-    }
 
-    if (item.stek) {
-      result = item.stek.some((s) => filterState.stek.includes(s));
-    }
+      if (filterState.stek.length > 0 && result) {
+        if (item?.stek) {
+          result = item.stek.some((s) => filterState.stek.includes(s));
+        } else {
+          result = false;
+        }
+        if (filterState.citizen && result) {
+          result = item.buergerbeteiligung;
+        }
+      }
 
-    if (filterState.citizen) {
-      result = item.buergerbeteiligung;
+      if (result && filterState.stek.length === 0 && filterState.citizen) {
+        result = item.buergerbeteiligung;
+      }
     }
 
     return result;
