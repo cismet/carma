@@ -1,25 +1,15 @@
+import { TagSelector } from "@carma-commons/ui/tag-selection";
+import { getHashParams } from "@carma-commons/utils";
+import { serviceOptions } from "@carma-mapping/layers";
+import { faCopy } from "@fortawesome/free-regular-svg-icons";
 import { faShareNodes } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useCopyToClipboard } from "@uidotdev/usehooks";
-import {
-  Alert,
-  Button,
-  Checkbox,
-  Input,
-  Radio,
-  Select,
-  Tag,
-  Tooltip,
-  message,
-} from "antd";
-import { useEffect, useState } from "react";
+import { Button, Input, Select, Tooltip, message } from "antd";
+import { useState } from "react";
 import type { LayerState, Settings } from "../types";
-import { faCopy } from "@fortawesome/free-regular-svg-icons";
 import { useFeatureFlags } from "./FeatureFlagProvider";
 import { SelectionItem } from "./SelectionProvider";
-import { getHashParams } from "@carma-commons/utils";
-import { serviceOptions } from "@carma-mapping/layers";
-import { TagSelector } from "@carma-commons/ui/tag-selection";
 
 export type ShareProps = {
   layerState: LayerState;
@@ -134,9 +124,9 @@ export const Share = ({
   const [keywords, setKeywords] = useState<string[]>([]);
 
   const { layers, backgroundLayer } = layerState;
-  const { copyShareUrl, contextHolder } = useShareUrl();
+  const { copyShareUrl } = useShareUrl();
   const [, copyToClipboard] = useCopyToClipboard();
-  const [messageApi] = message.useMessage();
+  const [messageApi, contextHolder] = message.useMessage();
   const [mode, setMode] = useState("");
   const [settings, setSettings] = useState<Settings>({
     showLayerButtons: true,
