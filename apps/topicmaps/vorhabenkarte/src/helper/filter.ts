@@ -29,26 +29,28 @@ const itemFilterFunction = ({ filterState }) => {
       result = doneDate >= sixMonthsAgo;
     }
 
+    let themaResult;
+    let stekResult;
+    let citizenResult;
+
     if (item.thema.name) {
-      result = filterState.topics.includes(item.thema.name);
+      themaResult = filterState.topics.includes(item.thema.name);
 
       if (filterState.stek.length > 0 && result) {
         if (item?.stek) {
-          result = item.stek.some((s) => filterState.stek.includes(s));
+          stekResult = item.stek.some((s) => filterState.stek.includes(s));
         } else {
-          result = false;
-        }
-        if (filterState.citizen && result) {
-          result = item.buergerbeteiligung;
+          stekResult = false;
         }
       }
-
-      if (result && filterState.stek.length === 0 && filterState.citizen) {
-        result = item.buergerbeteiligung;
+      if (filterState.citizen && result) {
+        citizenResult = item.buergerbeteiligung;
+      } else {
+        citizenResult = true;
       }
     }
 
-    return result;
+    return (themaResult || stekResult) && citizenResult;
   };
 };
 export default itemFilterFunction;
