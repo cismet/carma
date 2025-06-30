@@ -166,6 +166,15 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
                   )}
                 </div>
               )}
+              {plan.stadtweit && (
+                <div className="flex items-center gap-2">
+                  <FontAwesomeIcon icon={faMapLocation} />
+                  <b style={styles.label}>stadtweites Vorhaben</b>
+                  {/* {districtNames.length > 0 && (
+                    <span style={styles.value}>{districtNames}</span>
+                  )} */}
+                </div>
+              )}
               {street && (
                 <div className="flex items-center gap-2">
                   <FontAwesomeIcon icon={faLocationDot} />
