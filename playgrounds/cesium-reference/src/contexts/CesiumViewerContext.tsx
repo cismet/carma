@@ -9,7 +9,9 @@ interface CesiumViewerContextType {
   isViewerReady: boolean;
 }
 
-const CesiumViewerContext = createContext<CesiumViewerContextType | undefined>(undefined);
+const CesiumViewerContext = createContext<CesiumViewerContextType | undefined>(
+  undefined
+);
 
 interface CesiumViewerProviderOptions {
   cesiumOptions?: Record<string, unknown>;
@@ -31,19 +33,22 @@ interface CesiumViewerProviderProps {
 export const CesiumViewerProvider: React.FC<CesiumViewerProviderProps> = ({
   containerRef,
   options,
-  children 
+  children,
 }) => {
-  const { viewerRef, isViewerReady, zoomToTileset } = usePersistentViewer(containerRef, options);
-  
+  const { viewerRef, isViewerReady, zoomToTileset } = usePersistentViewer(
+    containerRef,
+    options
+  );
+
   const contextValue = {
     viewerRef,
     zoomToTileset,
-    isViewerReady
+    isViewerReady,
   };
-  
+
   return (
     <CesiumViewerContext.Provider value={contextValue}>
-      {typeof children === 'function' ? children(contextValue) : children}
+      {typeof children === "function" ? children(contextValue) : children}
     </CesiumViewerContext.Provider>
   );
 };
@@ -51,7 +56,9 @@ export const CesiumViewerProvider: React.FC<CesiumViewerProviderProps> = ({
 export const useCesiumViewer = (): CesiumViewerContextType => {
   const context = useContext(CesiumViewerContext);
   if (context === undefined) {
-    throw new Error("useCesiumViewer must be used within a CesiumViewerProvider");
+    throw new Error(
+      "useCesiumViewer must be used within a CesiumViewerProvider"
+    );
   }
   return context;
 };

@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useRef } from "react";
 import { Flex } from "antd";
 
-import { WUPP_MESH_2024 } from "@carma-commons/resources";
+import { FESTPUNKTE_WUPPERTAL, WUPP_MESH_2024 } from "@carma-commons/resources";
 import { CesiumErrorToErrorBoundaryForwarder } from "@carma-mapping/cesium-engine";
 
 import {
@@ -21,8 +21,12 @@ import { InteractiveModeTabs } from "../measurements/components/InteractiveModeT
 
 import { cesiumConstructorOptions } from "../config";
 import PointControls from "../measurements/components/PointControls";
-import { ElevationStandard, PointInfoData } from "../measurements/types/MeasurementTypes";
+import {
+  ElevationStandard,
+  PointInfoData,
+} from "../measurements/types/MeasurementTypes";
 import { MeasurementMode } from "../measurements/hooks/useMeasurement";
+import HomeButton from "../components/HomeButton";
 
 // Inner component that has access to contexts
 const InnerMeshElevations: React.FC<{
@@ -36,7 +40,7 @@ const InnerMeshElevations: React.FC<{
     useState<ElevationStandard>("nhn");
   const [includeHistoric, setIncludeHistoric] = useState(false);
 
-  const { viewerRef } = useCesiumViewer();
+  const { viewerRef, zoomToTileset } = useCesiumViewer();
   const {
     measurementCount,
     measurementMode,
@@ -48,12 +52,13 @@ const InnerMeshElevations: React.FC<{
   const { entities: nivPEntities } = useNivPPoints(
     showNivPPoints ? viewerRef.current : null,
     elevationStandard,
-    WUPP_MESH_2024.url,
+    FESTPUNKTE_WUPPERTAL,
     includeHistoric
   );
 
   const handleShowInfo = useCallback(
     (data: PointInfoData) => {
+      console.log("[Measurements] Point clicked:", data);
       setPointData(data);
     },
     [setPointData]
@@ -97,6 +102,7 @@ const InnerMeshElevations: React.FC<{
           />
         }
         topRight={<TopRightPanel />}
+        bottomCenter={<HomeButton onHomeClick={zoomToTileset} />}
       />
     </>
   );

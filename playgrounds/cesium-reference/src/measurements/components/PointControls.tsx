@@ -1,7 +1,6 @@
 import { Checkbox, Radio, Typography, Space, Card } from "antd";
 import { ElevationStandard } from "../types/MeasurementTypes";
 
-
 interface PointControlsProps {
   showNivPPoints: boolean;
   onShowNivPPointsChange: (checked: boolean) => void;

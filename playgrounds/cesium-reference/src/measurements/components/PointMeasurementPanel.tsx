@@ -2,14 +2,16 @@ import React from "react";
 import { Card } from "antd";
 import PointQueryInfo from "./PointQueryInfo";
 import type { PointInfoData } from "../types/MeasurementTypes";
+import { useCesiumMeasurements } from "../CesiumMeasurementsContext";
 
 interface PointMeasurementPanelProps {
   data?: PointInfoData;
 }
 
-const PointMeasurementPanel: React.FC<PointMeasurementPanelProps> = ({
-  data,
-}) => {
+const PointMeasurementPanel: React.FC<PointMeasurementPanelProps> = () => {
+  const { pointData } = useCesiumMeasurements();
+  const data = pointData;
+  console.log("[PointMeasurementPanel] Point data:", data);
   return (
     <Card size="small" title={data ? "Punktmessung" : undefined}>
       {data && (

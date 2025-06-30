@@ -52,7 +52,9 @@ export const usePersistentViewer = (
         viewerRef.current = null;
         setIsViewerReady(false);
       } else {
-        console.debug("[usePersistentViewer] Viewer already exists and is valid");
+        console.debug(
+          "[usePersistentViewer] Viewer already exists and is valid"
+        );
         return;
       }
     }

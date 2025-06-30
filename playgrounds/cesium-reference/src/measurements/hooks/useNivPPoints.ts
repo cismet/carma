@@ -10,7 +10,11 @@ import {
 } from "cesium";
 
 import { PROJ4_CONVERTERS } from "@carma-commons/utils";
-import { ElevationStandard, NivPPoint, TransformedNivPPoint } from "../types/MeasurementTypes";
+import {
+  ElevationStandard,
+  NivPPoint,
+  TransformedNivPPoint,
+} from "../types/MeasurementTypes";
 
 export const SCALE_BY_DISTANCE = new NearFarScalar(0, 1, 5000, 0.0);
 export const SCALE_BY_DISTANCE_POINTS = new NearFarScalar(0, 1, 5000, 0.5);

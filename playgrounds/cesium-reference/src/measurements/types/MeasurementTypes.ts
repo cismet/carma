@@ -44,7 +44,3 @@ export interface PointInfoData {
   heightDifference?: number;
   nivpData?: NivPPoint;
 }
-
-
-
-

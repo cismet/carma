@@ -1,13 +1,5 @@
 import React from "react";
-import {
-  Tabs,
-  Row,
-  Col,
-  InputNumber,
-  Card,
-  Radio,
-  Slider,
-} from "antd";
+import { Tabs, Row, Col, InputNumber, Card, Radio, Slider } from "antd";
 import type { InputNumberProps } from "antd";
 import { AimOutlined, LineChartOutlined } from "@ant-design/icons";
 import { MeasurementMode } from "../hooks/useMeasurement";
@@ -69,8 +61,13 @@ export const InteractiveModeTabs: React.FC<InteractiveModeTabsProps> = ({
   coordinateDisplayMode,
   onCoordinateDisplayModeChange,
 }) => {
-  const { measurementMode, setMeasurementMode, searchRadius, setSearchRadius, measurementCount } =
-    useCesiumMeasurements();
+  const {
+    measurementMode,
+    setMeasurementMode,
+    searchRadius,
+    setSearchRadius,
+    measurementCount,
+  } = useCesiumMeasurements();
 
   const handleTabChange = (activeKey: MeasurementMode) => {
     setMeasurementMode(activeKey);
