@@ -258,7 +258,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
                       <img
                         onClick={() => {
                           lightBoxDispatchContext.setIndex(idx);
-                          lightBoxDispatchContext.setTitle(plan.info.title);
+                          lightBoxDispatchContext.setTitle(photo.anzeige);
                           lightBoxDispatchContext.setVisible(true);
                         }}
                         src={
