@@ -301,14 +301,19 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
               </Accordion>
             )}
 
-            {citizenText && citizenUrl && (
+            {citizenText && (
               <Accordion style={{ marginBottom: 6 }} defaultActiveKey={"1"}>
                 <Panel
                   header="Bürger­beteiligung"
                   eventKey="1"
                   bsStyle="success"
                 >
-                  <a href={citizenUrl}>{citizenText}</a>
+                  <div className="mb-1 ">{citizenText}</div>
+                  {citizenUrl && (
+                    <a href={citizenUrl} target="_blank">
+                      Mehr Informationen
+                    </a>
+                  )}
                 </Panel>
               </Accordion>
             )}
