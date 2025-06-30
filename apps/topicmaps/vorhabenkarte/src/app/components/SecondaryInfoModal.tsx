@@ -92,7 +92,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
   const plan = feature.properties;
   const districtNames =
     plan?.stadtbezirke && plan?.stadtbezirke.length > 0
-      ? plan?.stadtbezirke.join(", ")
+      ? plan?.stadtbezirke.map((s) => s.replace(/^\d+\s*-\s*/, "")).join(", ")
       : [];
   // const district =
   //   districtNames.length > 0 ? "Stadtbezirk:" : "Stadtweites Vorhaben";
