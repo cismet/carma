@@ -94,8 +94,9 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
     plan?.stadtbezirke && plan?.stadtbezirke.length > 0
       ? plan?.stadtbezirke.join(", ")
       : [];
-  const district =
-    districtNames.length > 0 ? "Stadtbezirk:" : "Stadtweites Vorhaben";
+  // const district =
+  //   districtNames.length > 0 ? "Stadtbezirk:" : "Stadtweites Vorhaben";
+  const district = "Stadtbezirk:";
   const street = plan?.adresse?.strasse || null;
   const locationDescription = plan?.ortsbeschreibung || null;
   const focusRoom = plan?.stek || [];
@@ -156,7 +157,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
                   {formatIsoString(plan.letzte_aktualisierung)}
                 </span>
               </div>
-              {plan.stadtweit && (
+              {!plan.stadtweit && districtNames.length > 0 && (
                 <div className="flex items-center gap-2">
                   <FontAwesomeIcon icon={faMapLocation} />
                   <b style={styles.label}>{district}</b>
