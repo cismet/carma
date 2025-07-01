@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useMemo } from "react";
 import { useCesiumViewer } from "../contexts/CesiumViewerContext";
 import {
+  isPointMeasurementEntry,
   MeasurementCollection,
   MeasurementMode,
 } from "./types/MeasurementTypes";
@@ -9,6 +10,7 @@ import { normalizeOptions } from "@carma-commons/utils";
 import useCesiumPointQuery from "./hooks/useCesiumPointQuery";
 import useNivPPoints from "./hooks/useNivPPoints";
 import { FESTPUNKTE_WUPPERTAL } from "@carma-commons/resources";
+import useCesiumPointVisualizer from "./hooks/useCesiumPointVisualizer";
 
 interface CesiumMeasurementsContextType {
   measurementMode: MeasurementMode;
@@ -76,7 +78,7 @@ export const CesiumMeasurementsProvider: React.FC<
     heightReference
   );
 
-  const { clearPoints, showPoints, hidePoints } = useCesiumPointQuery(
+  useCesiumPointQuery(
     viewer,
     measurementMode === MeasurementMode.PointQuery,
     setMeasurements,
@@ -85,16 +87,17 @@ export const CesiumMeasurementsProvider: React.FC<
     soloMode
   );
 
+  useCesiumPointVisualizer(
+    viewer,
+    measurements.filter(isPointMeasurementEntry)
+  );
+
   const clearAllMeasurements = () => {
     setMeasurements([]);
-    clearPoints();
   };
 
   const clearPointMeasurements = () => {
-    setMeasurements((prev) =>
-      prev.filter((m) => m.type !== MeasurementMode.PointQuery)
-    );
-    clearPoints();
+    setMeasurements((prev) => prev.filter((m) => !isPointMeasurementEntry(m)));
   };
 
   const contextValue = useMemo(
