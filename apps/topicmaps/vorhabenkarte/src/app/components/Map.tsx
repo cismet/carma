@@ -151,7 +151,12 @@ const Map = () => {
                   },
                 },
                 noCurrentFeatureTitle: "Keine Data gefunden",
-                noCurrentFeatureContent: <span></span>,
+                noCurrentFeatureContent: (
+                  <span>
+                    Für mehr Vorhaben Ansicht mit verkleinern oder mit dem
+                    untenstehenden Link auf das komplette Stadtgebiet zoomen
+                  </span>
+                ),
               }}
             />
           }
