@@ -2,15 +2,18 @@ import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 
 import { Item } from "@carma-commons/types";
 import type { RootState } from "..";
+import { FeatureFlagConfig } from "@carma-apps/portals";
 
 export type LayersState = {
   favorites: Item[];
   thumbnails: any[];
+  customFeatureFlags: FeatureFlagConfig;
 };
 
 const initialState: LayersState = {
   favorites: [],
   thumbnails: [],
+  customFeatureFlags: {},
 };
 
 const slice = createSlice({
@@ -63,15 +66,26 @@ const slice = createSlice({
       }
       return state;
     },
+    setCustomFeatureFlags(state, action: PayloadAction<FeatureFlagConfig>) {
+      state.customFeatureFlags = action.payload;
+      return state;
+    },
   },
 });
 
-export const { addFavorite, removeFavorite, updateFavorite, setThumbnail } =
-  slice.actions;
+export const {
+  addFavorite,
+  removeFavorite,
+  updateFavorite,
+  setThumbnail,
+  setCustomFeatureFlags,
+} = slice.actions;
 
 export const getFavorites = (state: RootState): Item[] =>
   state.layers.favorites;
 export const getThumbnails = (state: RootState): Item[] =>
   state.layers.thumbnails;
+export const getCustomFeatureFlags = (state: RootState): FeatureFlagConfig =>
+  state.layers.customFeatureFlags;
 
 export default slice.reducer;

@@ -14,6 +14,7 @@ import {
   getFavorites,
   getThumbnails,
   removeFavorite,
+  setCustomFeatureFlags,
   updateFavorite,
 } from "../../store/slices/layers";
 import {
@@ -228,6 +229,9 @@ const ResourceModal = () => {
           appKey: "Geoportal.Online.Wuppertal",
           apiUrl: apiUrl,
           daqKey: "gp_entdecken",
+        }}
+        setFeatureFlags={(flags) => {
+          dispatch(setCustomFeatureFlags(flags));
         }}
       />
     </>

@@ -16,6 +16,7 @@ export function LayerLib({
   removeLastLayer,
   updateFavorite,
   discoverProps,
+  setFeatureFlags,
 }: LibModalProps) {
   return (
     <NewLibModal
@@ -31,6 +32,7 @@ export function LayerLib({
       removeLastLayer={removeLastLayer}
       updateFavorite={updateFavorite}
       discoverProps={discoverProps}
+      setFeatureFlags={setFeatureFlags}
     />
   );
 }

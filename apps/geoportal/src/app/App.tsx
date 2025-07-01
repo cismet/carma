@@ -55,6 +55,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import "./index.css";
+import { getCustomFeatureFlags } from "./store/slices/layers";
 
 declare global {
   interface Window {
@@ -77,9 +78,12 @@ function App({ published }: { published?: boolean }) {
     console.debug("[CONFIG] APP - Waiting for config loading state...");
     return null;
   }
+  const customFeatureFlags = useSelector(getCustomFeatureFlags);
 
   const content = (
-    <FeatureFlagProvider config={featureFlagConfig}>
+    <FeatureFlagProvider
+      config={{ ...featureFlagConfig, ...customFeatureFlags }}
+    >
       <MatomoTracker>
         <TweakpaneProvider>
           <CarmaMapProviderWrapper

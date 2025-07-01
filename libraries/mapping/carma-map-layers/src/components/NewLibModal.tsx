@@ -17,7 +17,12 @@ import { Button, Input, Modal } from "antd";
 import Fuse from "fuse.js";
 import WMSCapabilities from "wms-capabilities";
 import type { Item, Layer, SavedLayerConfig } from "@carma-commons/types";
-import { useAuth, utils } from "@carma-apps/portals";
+import {
+  FeatureFlagConfig,
+  useAuth,
+  useFeatureFlags,
+  utils,
+} from "@carma-apps/portals";
 
 import {
   baseConfig as config,
@@ -79,6 +84,7 @@ export interface LibModalProps {
     apiUrl: string;
     daqKey: string;
   };
+  setFeatureFlags?: (flags: FeatureFlagConfig) => void;
 }
 
 const sidebarElements = [
@@ -106,6 +112,7 @@ export const NewLibModal = ({
   removeLastLayer,
   updateFavorite,
   discoverProps,
+  setFeatureFlags,
 }: LibModalProps) => {
   const [preview, setPreview] = useState(false);
   const [layers, setLayers] = useState<any[]>([]);
@@ -137,6 +144,8 @@ export const NewLibModal = ({
   const [triggerRefetch, setTriggerRefetch] = useState(false);
   const debouncedSearchTerm = useDebounce(searchValue, 300);
 
+  const flags = useFeatureFlags();
+
   const { jwt, setJWT } = useAuth();
 
   const fetchDiscoverItems = () => {
@@ -163,7 +172,18 @@ export const NewLibModal = ({
     fetch(additionalConfigUrl)
       .then((response) => response.json())
       .then((data) => {
-        console.log("xxx", data);
+        data.forEach((config) => {
+          config.layers.forEach((layer) => {
+            if (layer.ff as string) {
+              setFeatureFlags?.({
+                [layer.ff]: {
+                  default: false,
+                  alias: layer.ff,
+                },
+              });
+            }
+          });
+        });
         setAdditionalConfig(data);
       })
       .catch((error) => {
@@ -484,14 +504,25 @@ export const NewLibModal = ({
   useEffect(() => {
     if (additionalConfig.length > 0) {
       additionalConfig.forEach((config) => {
+        let layers = config.layers.filter((layer) => {
+          if (layer.ff) {
+            const ff = layer.ff as string;
+            return flags[ff];
+          }
+          return true;
+        });
+
+        if (layers.length === 0) {
+          return;
+        }
         if (config.Title) {
           addItemToCategory(
             "mapLayers",
             { id: config.serviceName, Title: config.Title },
-            config.layers
+            layers
           );
         } else {
-          config.layers.forEach((layer) => {
+          layers.forEach((layer) => {
             addItemToCategory(
               "mapLayers",
               { id: layer.serviceName, Title: layer.path },
@@ -501,7 +532,7 @@ export const NewLibModal = ({
         }
       });
     }
-  }, [additionalConfig]);
+  }, [additionalConfig, flags]);
 
   useEffect(() => {
     if (getNumOfCustomLayers() === 0) {
