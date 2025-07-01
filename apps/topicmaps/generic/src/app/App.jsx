@@ -64,7 +64,6 @@ function getUrlSearchParamsForHash(_hash) {
       query = hashParts.slice(1).join("?");
     }
 
-    console.log("xxx query", query);
     const params = new URLSearchParams(query);
     return params;
   } catch (e) {
@@ -98,24 +97,23 @@ function App({ name }) {
   const [showCopied, setShowCopied] = useState(false);
   const [geoportalConfig, setGeoportalConfig] = useState();
   const [starterConfig, setStarterConfig] = useState(defaultStarterConfig);
+  const [showLinkInput, setShowLinkInput] = useState(false);
+  const [geoportalLinkInput, setGeoportalLinkInput] = useState("");
 
   // Listen for URL changes and update geoportalLink accordingly
   useEffect(() => {
     const onUrlChange = () => {
-      console.log("xxx urlchange");
       if (!window.location.hash.includes("geoportalLink=")) {
         return;
       } else {
         const geoportalLink = window.location.hash.split("geoportalLink=")[1];
 
-        console.log("xxx geoportalLink", geoportalLink);
         let config;
         if (geoportalLink.startsWith("http")) {
           const params = new URLSearchParams(
             getUrlSearchParamsForHash(geoportalLink)
           );
           config = params.get("config");
-          console.log("xxx config", config);
           const hash = window.location.hash;
           const newHash = hash.replace(geoportalLink, config);
           window.location.replace(
@@ -125,7 +123,6 @@ function App({ name }) {
           config = geoportalLink;
         }
 
-        console.log("xxx config", config);
         setGeoportalConfig(config);
       }
     };
@@ -189,7 +186,6 @@ function App({ name }) {
 
             return layerObj;
           });
-          console.log("xxx vectorLayers (legacy config)", vectorLayers);
           setStarterConfig(
             JSON.stringify(
               {
@@ -495,7 +491,7 @@ function App({ name }) {
               layer.styleManipulation = func;
             } catch (e) {
               log(
-                `xxx Failed to fetch/parse styleManipulation for layer ${
+                `Failed to fetch/parse styleManipulation for layer ${
                   layer.name || layer.id
                 }: ${e}`
               );
@@ -648,8 +644,6 @@ function App({ name }) {
   }, [slugName, name]);
 
   useEffect(() => {
-    console.log("xxx layerInformation", layerInformation);
-
     const vectorLayers = Array.isArray(config?.tm?.vectorLayers)
       ? config.tm.vectorLayers
       : Array.isArray(config?.tm?.vectorLayers)
@@ -772,7 +766,7 @@ function App({ name }) {
                       ? `Starter for ${
                           slugName.charAt(0).toUpperCase() + slugName.slice(1)
                         }`
-                      : "Probleme beim Laden der Konfigurationsdateien"}
+                      : "Problems loading configuration files"}
                   </h2>
                 </div>
                 <div
@@ -792,6 +786,125 @@ function App({ name }) {
                 >
                   {faultLog.join("\n")}
                 </div>
+                {!getGeoportalLinkFromUrl() && (
+                  <div style={{ marginBottom: 20 }}>
+                    <button
+                      onClick={() => setShowLinkInput(true)}
+                      style={{
+                        padding: "8px 16px",
+                        backgroundColor: "#007bff",
+                        color: "white",
+                        border: "none",
+                        borderRadius: 4,
+                        cursor: "pointer",
+                        fontSize: 14,
+                        fontWeight: "bold",
+                      }}
+                    >
+                      <FontAwesomeIcon
+                        icon="share-alt"
+                        style={{ marginRight: 8 }}
+                      />{" "}
+                      I have a geoportal share link
+                    </button>
+
+                    {showLinkInput && (
+                      <div
+                        style={{
+                          marginTop: 16,
+                          padding: 16,
+                          backgroundColor: "#f0f0f0",
+                          borderRadius: 4,
+                          border: "1px solid #ddd",
+                        }}
+                      >
+                        <div style={{ marginBottom: 10, fontWeight: "bold" }}>
+                          Insert geoportal link:
+                        </div>
+                        <div style={{ display: "flex" }}>
+                          <input
+                            type="text"
+                            value={geoportalLinkInput}
+                            onChange={(e) =>
+                              setGeoportalLinkInput(e.target.value)
+                            }
+                            placeholder="Geoportal Link"
+                            style={{
+                              flex: 1,
+                              padding: "8px 12px",
+                              fontSize: 14,
+                              border: "1px solid #ccc",
+                              borderRadius: 4,
+                              marginRight: 8,
+                            }}
+                          />
+                          <button
+                            onClick={() => {
+                              if (geoportalLinkInput) {
+                                // Get the current URL
+                                let currentUrl = window.location.href;
+
+                                // Remove any existing geoportalLink parameter
+                                if (currentUrl.includes("geoportalLink=")) {
+                                  // Simple string replacement to remove the parameter
+                                  currentUrl = currentUrl.replace(
+                                    /[&?]geoportalLink=[^&]*(&|$)/,
+                                    function (match, p1) {
+                                      return p1 === "&" ? "&" : "";
+                                    }
+                                  );
+                                }
+
+                                // Add the separator
+                                const separator = currentUrl.includes("?")
+                                  ? "&"
+                                  : "?";
+
+                                // Add the geoportalLink parameter
+                                const newUrl = `${currentUrl}${separator}geoportalLink=${geoportalLinkInput}`;
+
+                                // Reset the input field
+                                setGeoportalLinkInput("");
+
+                                // Close the input section
+                                setShowLinkInput(false);
+
+                                // Navigate to the new URL
+                                window.location.href = newUrl;
+                              }
+                            }}
+                            style={{
+                              padding: "8px 16px",
+                              backgroundColor: "#28a745",
+                              color: "white",
+                              border: "none",
+                              borderRadius: 4,
+                              cursor: "pointer",
+                              fontSize: 14,
+                            }}
+                          >
+                            Apply
+                          </button>
+                          <button
+                            onClick={() => setShowLinkInput(false)}
+                            style={{
+                              padding: "8px 16px",
+                              backgroundColor: "#6c757d",
+                              color: "white",
+                              border: "none",
+                              borderRadius: 4,
+                              cursor: "pointer",
+                              fontSize: 14,
+                              marginLeft: 8,
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
                 {getGeoportalLinkFromUrl() && (
                   <>
                     <div style={{ marginBottom: 12 }}>
@@ -902,6 +1015,124 @@ function App({ name }) {
                           basicSetup={{ lineNumbers: false }}
                         />
                       </div>
+                    </div>
+
+                    <div style={{ marginTop: 20, marginBottom: 20 }}>
+                      <button
+                        onClick={() => setShowLinkInput(true)}
+                        style={{
+                          padding: "8px 16px",
+                          backgroundColor: "#007bff",
+                          color: "white",
+                          border: "none",
+                          borderRadius: 4,
+                          cursor: "pointer",
+                          fontSize: 14,
+                          fontWeight: "bold",
+                        }}
+                      >
+                        <FontAwesomeIcon
+                          icon="share-alt"
+                          style={{ marginRight: 8 }}
+                        />{" "}
+                        I have a another geoportal share link
+                      </button>
+
+                      {showLinkInput && (
+                        <div
+                          style={{
+                            marginTop: 16,
+                            padding: 16,
+                            backgroundColor: "#f0f0f0",
+                            borderRadius: 4,
+                            border: "1px solid #ddd",
+                          }}
+                        >
+                          <div style={{ marginBottom: 10, fontWeight: "bold" }}>
+                            Insert geoportal link:
+                          </div>
+                          <div style={{ display: "flex" }}>
+                            <input
+                              type="text"
+                              value={geoportalLinkInput}
+                              onChange={(e) =>
+                                setGeoportalLinkInput(e.target.value)
+                              }
+                              placeholder="Geoportal Link"
+                              style={{
+                                flex: 1,
+                                padding: "8px 12px",
+                                fontSize: 14,
+                                border: "1px solid #ccc",
+                                borderRadius: 4,
+                                marginRight: 8,
+                              }}
+                            />
+                            <button
+                              onClick={() => {
+                                if (geoportalLinkInput) {
+                                  // Get the current URL
+                                  let currentUrl = window.location.href;
+
+                                  // Remove any existing geoportalLink parameter
+                                  if (currentUrl.includes("geoportalLink=")) {
+                                    // Simple string replacement to remove the parameter
+                                    currentUrl = currentUrl.replace(
+                                      /[&?]geoportalLink=[^&]*(&|$)/,
+                                      function (match, p1) {
+                                        return p1 === "&" ? "&" : "";
+                                      }
+                                    );
+                                  }
+
+                                  // Add the separator
+                                  const separator = currentUrl.includes("?")
+                                    ? "&"
+                                    : "?";
+
+                                  // Add the geoportalLink parameter
+                                  const newUrl = `${currentUrl}${separator}geoportalLink=${geoportalLinkInput}`;
+
+                                  // Reset the input field
+                                  setGeoportalLinkInput("");
+
+                                  // Close the input section
+                                  setShowLinkInput(false);
+
+                                  // Navigate to the new URL
+                                  window.location.href = newUrl;
+                                }
+                              }}
+                              style={{
+                                padding: "8px 16px",
+                                backgroundColor: "#28a745",
+                                color: "white",
+                                border: "none",
+                                borderRadius: 4,
+                                cursor: "pointer",
+                                fontSize: 14,
+                              }}
+                            >
+                              Apply
+                            </button>
+                            <button
+                              onClick={() => setShowLinkInput(false)}
+                              style={{
+                                padding: "8px 16px",
+                                backgroundColor: "#6c757d",
+                                color: "white",
+                                border: "none",
+                                borderRadius: 4,
+                                cursor: "pointer",
+                                fontSize: 14,
+                                marginLeft: 8,
+                              }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </>
                 )}
