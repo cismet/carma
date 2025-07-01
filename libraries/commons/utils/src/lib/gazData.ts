@@ -113,6 +113,9 @@ export const getGazDataFromSources = (
             g.string = n;
             g.glyph = more.id?.startsWith("V") ? "bicycle" : "charging-station";
             break;
+          case "vorhabenkarte":
+            g.string = n;
+            break;
           case "emob":
             g.string = n;
             break;
