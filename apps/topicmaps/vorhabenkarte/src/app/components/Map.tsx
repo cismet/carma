@@ -16,6 +16,7 @@ import { MenuTooltip } from "@carma-collab/wuppertal/e-bikes";
 import {
   TopicMapSelectionContent,
   useSelectionTopicMap,
+  useSelection,
 } from "@carma-apps/portals";
 import {
   EmptySearchComponent,
@@ -33,9 +34,11 @@ import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
 import { GenericInfoBoxFromFeature } from "@carma-apps/portals";
 import SecondaryInfoModal from "./SecondaryInfoModal";
 import { FeatureIconOverlay } from "./FeatureIconOverlay";
+import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextProvider";
+import { isAreaType } from "@carma-commons/resources";
 
 const Map = () => {
-  const { setClusteringOptions } = useContext<
+  const { setClusteringOptions, setSelectedFeatureByPredicate } = useContext<
     typeof FeatureCollectionDispatchContext
   >(FeatureCollectionDispatchContext);
   const { markerSymbolSize } = useContext<typeof TopicMapStylingContext>(
@@ -50,8 +53,42 @@ const Map = () => {
   >(ResponsiveTopicMapContext);
   const { setSecondaryInfoVisible } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
+  const { zoomToFeature } = useContext<typeof TopicMapDispatchContext>(
+    TopicMapDispatchContext
+  );
 
+  const { setSelection } = useSelection();
   useSelectionTopicMap();
+
+  const onGazetteerSelection = (selection) => {
+    if (!selection) {
+      setSelection(null);
+      return;
+    }
+    const selectionMetaData = {
+      selectedFrom: "gazetteer",
+      selectionTimestamp: Date.now(),
+      isAreaSelection: isAreaType(selection.type),
+    };
+    setSelection(Object.assign({}, selection, selectionMetaData));
+
+    setTimeout(() => {
+      const gazId = selection.more?.id;
+      if (gazId) {
+        setSelectedFeatureByPredicate((feature) => {
+          try {
+            const check = parseInt(feature.properties.id) === selection.more.id;
+            if (check === true) {
+              zoomToFeature(feature);
+            }
+            return check;
+          } catch (e) {
+            return false;
+          }
+        });
+      }
+    }, 100);
+  };
 
   useEffect(() => {
     if (markerSymbolSize) {
@@ -83,7 +120,7 @@ const Map = () => {
           <div data-test-id="fuzzy-search" style={{ marginTop: "4px" }}>
             <LibFuzzySearch
               typeInference={defaultTypeInference}
-              // onSelection={()=> {}}
+              onSelection={onGazetteerSelection}
               pixelwidth={
                 responsiveState === "normal" ? "300px" : windowSize.width - gap
               }

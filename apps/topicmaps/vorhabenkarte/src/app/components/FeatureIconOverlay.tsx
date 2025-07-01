@@ -65,7 +65,7 @@ export const FeatureIconOverlay = ({
       const m = L.marker(latlng, {
         icon,
         interactive: true,
-        zIndexOffset: 1000,
+        zIndexOffset: 497,
       }).addTo(map);
 
       m.on("click", () => {
