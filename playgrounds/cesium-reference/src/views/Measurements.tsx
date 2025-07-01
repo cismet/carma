@@ -1,19 +1,14 @@
-import React, { useState, useCallback, useRef } from "react";
+import React, { useState, useRef } from "react";
 import { Flex } from "antd";
 
-import { FESTPUNKTE_WUPPERTAL, WUPP_MESH_2024 } from "@carma-commons/resources";
+import { WUPP_MESH_2024 } from "@carma-commons/resources";
 import { CesiumErrorToErrorBoundaryForwarder } from "@carma-mapping/cesium-engine";
 
 import {
   CesiumViewerProvider,
   useCesiumViewer,
 } from "../contexts/CesiumViewerContext";
-import {
-  CesiumMeasurementsProvider,
-  useCesiumMeasurements,
-} from "../measurements/CesiumMeasurementsContext";
-import useCesiumPointQuery from "../measurements/hooks/useCesiumPointQuery";
-import useNivPPoints from "../measurements/hooks/useNivPPoints";
+import { CesiumMeasurementsProvider } from "../measurements/CesiumMeasurementsContext";
 import ScreenLayout from "../components/ScreenLayout";
 import PointMeasurementPanel from "../measurements/components/PointMeasurementPanel";
 import DistanceMeasurementPanel from "../measurements/components/DistanceMeasurementPanel";
@@ -21,16 +16,11 @@ import { InteractiveModeTabs } from "../measurements/components/InteractiveModeT
 
 import { cesiumConstructorOptions } from "../config";
 import PointControls from "../measurements/components/PointControls";
-import {
-  ElevationStandard,
-  PointInfoData,
-} from "../measurements/types/MeasurementTypes";
-import { MeasurementMode } from "../measurements/hooks/useMeasurement";
+import { ElevationStandard } from "../measurements/types/MeasurementTypes";
 import HomeButton from "../components/HomeButton";
-import { useCesiumDistanceMeasurement } from "../measurements/hooks/useCesiumDistanceMeasurement";
 
 // Inner component that has access to contexts
-const InnerMeshElevations: React.FC<{
+const ContextAwareApp: React.FC<{
   coordinateDisplayMode: "cartesian" | "cartographic" | "utm32";
   onCoordinateDisplayModeChange: (
     value: "cartesian" | "cartographic" | "utm32"
@@ -41,42 +31,7 @@ const InnerMeshElevations: React.FC<{
     useState<ElevationStandard>("nhn");
   const [includeHistoric, setIncludeHistoric] = useState(false);
 
-  const { viewerRef, zoomToTileset } = useCesiumViewer();
-  const {
-    measurementCount,
-    measurementMode,
-    searchRadius,
-    pointData,
-    setPointData,
-  } = useCesiumMeasurements();
-
-  const { entities: nivPEntities } = useNivPPoints(
-    showNivPPoints ? viewerRef.current : null,
-    elevationStandard,
-    FESTPUNKTE_WUPPERTAL,
-    includeHistoric
-  );
-
-  const handleShowInfo = useCallback(
-    (data: PointInfoData) => {
-      console.log("[Measurements] Point clicked:", data);
-      setPointData(data);
-    },
-    [setPointData]
-  );
-
-  useCesiumPointQuery(
-    viewerRef.current,
-    measurementMode === MeasurementMode.PointQuery,
-    nivPEntities,
-    searchRadius,
-    handleShowInfo
-  );
-
-  useCesiumDistanceMeasurement(
-    measurementMode === MeasurementMode.Distance,
-    coordinateDisplayMode
-  );
+  const { zoomToTileset } = useCesiumViewer();
 
   const TopRightPanel: React.FC = () => {
     return (
@@ -149,7 +104,7 @@ const TestMeshElevations: React.FC = () => {
         }}
       >
         <CesiumMeasurementsProvider>
-          <InnerMeshElevations
+          <ContextAwareApp
             coordinateDisplayMode={coordinateDisplayMode}
             onCoordinateDisplayModeChange={setCoordinateDisplayMode}
           />

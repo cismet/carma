@@ -2,8 +2,11 @@ import React from "react";
 import { Tabs, Row, Col, InputNumber, Card, Radio, Slider } from "antd";
 import type { InputNumberProps } from "antd";
 import { AimOutlined, LineChartOutlined } from "@ant-design/icons";
-import { MeasurementMode } from "../hooks/useMeasurement";
-import { useCesiumMeasurements } from "../CesiumMeasurementsContext";
+import {
+  MeasurementMode,
+  useCesiumMeasurements,
+} from "../CesiumMeasurementsContext";
+import { ModelAsset } from "../../../../../libraries/mapping/engines/cesium/src/index";
 
 const PointQuerySettingsComponent: React.FC<{
   minSearchRadius?: number;
@@ -66,11 +69,11 @@ export const InteractiveModeTabs: React.FC<InteractiveModeTabsProps> = ({
     setMeasurementMode,
     searchRadius,
     setSearchRadius,
-    measurementCount,
+    measurements,
   } = useCesiumMeasurements();
 
-  const handleTabChange = (activeKey: MeasurementMode) => {
-    setMeasurementMode(activeKey);
+  const handleTabChange = (mode: MeasurementMode) => {
+    setMeasurementMode(mode);
   };
 
   const items = [
@@ -94,7 +97,7 @@ export const InteractiveModeTabs: React.FC<InteractiveModeTabsProps> = ({
       label: (
         <span>
           <LineChartOutlined />
-          Distanzmessung ({measurementCount})
+          Distanzmessung ({measurements.length})
         </span>
       ),
       children: (

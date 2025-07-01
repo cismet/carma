@@ -3,12 +3,14 @@ import React, { createContext, useContext, useState, useMemo } from "react";
 import { useCesiumViewer } from "../contexts/CesiumViewerContext";
 import { PointInfoData } from "./types/MeasurementTypes";
 import { useCesiumDistanceMeasurement } from "./hooks/useCesiumDistanceMeasurement";
-import { type } from "../../../../libraries/appframeworks/portals/src/index";
-import { P } from "vitest/dist/reporters-yx5ZTtEV.js";
+import { normalizeOptions } from "@carma-commons/utils";
+import useCesiumPointQuery from "./hooks/useCesiumPointQuery";
+import useNivPPoints from "./hooks/useNivPPoints";
+import { FESTPUNKTE_WUPPERTAL } from "@carma-commons/resources";
 
 export enum MeasurementMode {
-  NONE = null,
-  PointQuery = "point",
+  NONE = "none",
+  PointQuery = "point_query",
   Distance = "distance",
   Elevation = "elevation",
 }
@@ -30,90 +32,90 @@ export type MeasurementEntry = {
 export type MeasurementCollection = MeasurementEntry[];
 
 interface CesiumMeasurementsContextType {
-  clearMeasurements: () => void;
-  isMeasurementActive: boolean;
-  measurementCount: number;
-  hasAnyMeasurementEntities: boolean;
-  activeMeasurementPoints: Cartesian3[];
   measurementMode: MeasurementMode;
   setMeasurementMode: (mode: MeasurementMode) => void;
   searchRadius: number;
   setSearchRadius: (radius: number) => void;
-  pointData: PointInfoData | null;
-  setPointData: (data: PointInfoData | null) => void;
+  measurements: MeasurementCollection;
+  setMeasurements: (measurements: MeasurementCollection) => void;
 }
 
 const CesiumMeasurementsContext = createContext<
   CesiumMeasurementsContextType | undefined
 >(undefined);
 
+export type MeasurementProviderOptions = {
+  pointQueries?: {
+    enabled?: boolean;
+    searchRadius?: number;
+  };
+};
+
+const defaultPointQueryOptions: MeasurementProviderOptions["pointQueries"] = {
+  enabled: true,
+  searchRadius: 10,
+};
+
 interface CesiumMeasurementsProviderProps {
   children: React.ReactNode;
+  verticalDatum?: "nhn2016" | "nhn" | "nn";
+  options?: MeasurementProviderOptions;
 }
 
 export const CesiumMeasurementsProvider: React.FC<
   CesiumMeasurementsProviderProps
-> = ({ children }) => {
+> = ({ children, verticalDatum, options }) => {
   const { viewerRef } = useCesiumViewer();
-  const viewer = viewerRef.current;
 
-  const [measurementMode, setMeasurementMode] = useState(
+  const queryOptions = normalizeOptions(
+    options?.pointQueries,
+    defaultPointQueryOptions
+  );
+
+  const heightReference = verticalDatum ?? "nhn2016";
+
+  const [measurementMode, setMeasurementMode] = useState<MeasurementMode>(
     MeasurementMode.PointQuery
   );
-  const [searchRadius, setSearchRadius] = useState(10);
-  const [pointData, setPointData] = useState<PointInfoData | null>(null);
-  const [measurementCollection, setMeasurementCollection] = useState<
-    MeasurementEntry[]
-  >([]);
+  const [searchRadius, setSearchRadius] = useState(queryOptions.searchRadius);
+  const [measurements, setMeasurements] = useState<MeasurementEntry[]>([]);
 
-  const measurementCount = measurementCollection.length;
+  const measurementCount = measurements.length;
+  const showNivPoints = true;
 
-  const {
-    clearMeasurements,
-    isActive,
-    hasAnyMeasurementEntities,
-    activeMeasurementPoints,
-  } = useCesiumDistanceMeasurement(
-    viewer,
-    measurementMode === MeasurementMode.Distance
+  const { entities } = useNivPPoints(
+    viewerRef,
+    FESTPUNKTE_WUPPERTAL,
+    showNivPoints,
+    heightReference
   );
 
-  const {
-    clearMeasurements,
-    isActive,
-    hasAnyMeasurementEntities,
-    activeMeasurementPoints,
-  } = useCesiumPointQuery(
-    viewerRef.current,
+  const { clearPoints, showPoints, hidePoints } = useCesiumPointQuery(
+    viewerRef,
     measurementMode === MeasurementMode.PointQuery,
-    nivPEntities,
+    setMeasurements,
     searchRadius,
-    handleShowInfo
+    entities
   );
 
   const contextValue = useMemo(
     () => ({
-      clearMeasurements,
-      isMeasurementActive: isActive,
-      measurementCount,
-      hasAnyMeasurementEntities,
-      activeMeasurementPoints,
       measurementMode,
       setMeasurementMode,
+      clearPoints,
+      measurementCount,
       searchRadius,
       setSearchRadius,
-      pointData,
-      setPointData,
+      measurements,
+      setMeasurements,
     }),
     [
-      clearMeasurements,
-      isActive,
+      clearPoints,
+      measurements,
+      setMeasurements,
       measurementCount,
-      hasAnyMeasurementEntities,
-      activeMeasurementPoints,
       measurementMode,
       searchRadius,
-      pointData,
     ]
   );
 

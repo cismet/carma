@@ -2,40 +2,49 @@ import React from "react";
 import { Card } from "antd";
 import PointQueryInfo from "./PointQueryInfo";
 import type { PointInfoData } from "../types/MeasurementTypes";
-import { useCesiumMeasurements } from "../CesiumMeasurementsContext";
+import {
+  MeasurementMode,
+  useCesiumMeasurements,
+} from "../CesiumMeasurementsContext";
 
 interface PointMeasurementPanelProps {
   data?: PointInfoData;
 }
 
 const PointMeasurementPanel: React.FC<PointMeasurementPanelProps> = () => {
-  const { pointData } = useCesiumMeasurements();
-  const data = pointData;
-  console.log("[PointMeasurementPanel] Point data:", data);
+  const { measurements } = useCesiumMeasurements();
+  const lastPoint = measurements
+    .filter((m) => m.type === MeasurementMode.PointQuery)
+    .slice(-1)[0];
+  const data = lastPoint;
+  console.log("[PointMeasurementPanel] Point data:", data, measurements);
   return (
     <Card size="small" title={data ? "Punktmessung" : undefined}>
       {data && (
         <PointQueryInfo
           data={{
-            elevation: data.elevation,
-            longitude: data.longitude,
-            latitude: data.latitude,
-            additionalInfo: data.additionalInfo
+            elevation: data.geometryWGS84.height,
+            longitude: data.geometryWGS84.longitude,
+            latitude: data.geometryWGS84.latitude,
+            additionalInfo: data.metadata
               ? Object.fromEntries(
-                  Object.entries(data.additionalInfo).map(([key, value]) => [
+                  Object.entries(data.metadata).map(([key, value]) => [
                     key,
                     value.toString(),
                   ])
                 )
               : undefined,
-            heightDifference: data.heightDifference,
-            nivpData: data.nivpData
+            heightDifference: data.metadata.heightDifference,
+            nivpData: data.metadata
               ? {
-                  ...data.nivpData,
-                  festlegungsart: data.nivpData.festlegungsart.toString(),
-                  lagegenauigkeit: data.nivpData.lagegenauigkeit.toString(),
-                  punktnummer_nrw: data.nivpData.punktnummer_nrw || undefined,
-                  bemerkung: data.nivpData.bemerkung || undefined,
+                  ...data.metadata.nivpData,
+                  festlegungsart:
+                    data.metadata.nivpData.festlegungsart.toString(),
+                  lagegenauigkeit:
+                    data.metadata.nivpData.lagegenauigkeit.toString(),
+                  punktnummer_nrw:
+                    data.metadata.nivpData.punktnummer_nrw || undefined,
+                  bemerkung: data.metadata.nivpData.bemerkung || undefined,
                 }
               : undefined,
           }}

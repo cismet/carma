@@ -1,4 +1,10 @@
-import { Dispatch, SetStateAction, useEffect, useRef } from "react";
+import {
+  Dispatch,
+  MutableRefObject,
+  SetStateAction,
+  useEffect,
+  useRef,
+} from "react";
 import type { Viewer } from "cesium";
 import {
   Cartesian2,
@@ -18,16 +24,15 @@ import {
 } from "../CesiumMeasurementsContext";
 
 const useCesiumPointQuery = (
-  viewer: Viewer | null,
+  viewerRef: MutableRefObject<Viewer | null>,
   enabled: boolean = true,
-  collection: MeasurementCollection,
   setCollection: Dispatch<SetStateAction<MeasurementCollection>>,
   // custom measurement type settings
-  nivPEntities?: Entity[],
-  searchRadius: number = 10 // Default search radius to 10m, same as cross3D visual
+  searchRadius: number = 10, // Default search radius to 10m, same as cross3D visual
+  nivPEntities?: Entity[]
 ) => {
   const handlerRef = useRef<ScreenSpaceEventHandler | null>(null);
-  const terrainEntityRef = useRef<Entity | null>(null);
+  const pointOnMeshEntityRef = useRef<Entity | null>(null);
   const cross3DRef = useRef<{
     entities: Entity[];
     cleanup: (viewer: {
@@ -39,15 +44,16 @@ const useCesiumPointQuery = (
   } | null>(null);
 
   useEffect(() => {
+    const viewer = viewerRef.current;
     if (!viewer || viewer.isDestroyed() || !enabled) {
       // Clean up if disabled
       if (handlerRef.current) {
         handlerRef.current.destroy();
         handlerRef.current = null;
       }
-      if (terrainEntityRef.current && viewer) {
-        viewer.entities.remove(terrainEntityRef.current);
-        terrainEntityRef.current = null;
+      if (pointOnMeshEntityRef.current && viewer) {
+        viewer.entities.remove(pointOnMeshEntityRef.current);
+        pointOnMeshEntityRef.current = null;
       }
       if (cross3DRef.current && viewer) {
         cross3DRef.current.cleanup(viewer);
@@ -63,12 +69,12 @@ const useCesiumPointQuery = (
 
     handler.setInputAction((event: { position: Cartesian2 }) => {
       // Hide existing cross and terrain entity before picking to avoid interference
-      const previousTerrainEntity = terrainEntityRef.current;
+      const previousTerrainEntity = pointOnMeshEntityRef.current;
       const previousCross3D = cross3DRef.current;
 
       if (previousTerrainEntity) {
         viewer.entities.remove(previousTerrainEntity);
-        terrainEntityRef.current = null;
+        pointOnMeshEntityRef.current = null;
       }
 
       if (previousCross3D) {
@@ -149,7 +155,7 @@ const useCesiumPointQuery = (
 
       // Add entity to viewer and store reference
       viewer.entities.add(pointOnMeshEntity);
-      terrainEntityRef.current = pointOnMeshEntity;
+      pointOnMeshEntityRef.current = pointOnMeshEntity;
 
       // Add 3D cross to viewer
       cross3D.addToViewer(viewer);
@@ -202,12 +208,16 @@ const useCesiumPointQuery = (
                     // Calculate height difference between terrain click point and NivP point
                     const heightDifference = height - elevation;
 
+                    const timestamp = new Date().getTime();
+
                     const measurement: MeasurementEntry = {
                       type: MeasurementMode.PointQuery, // Assuming PointQuery is the mode for this
-                      id: `nivp-${nivpData.id}-${Date.now()}`,
+                      id: `nivp-${nivpData.id}-${timestamp}`,
+                      timestamp,
                       name: `NivP Point ${
                         nivpData.lagebezeichnung || nivpData.id
                       }`,
+
                       geometryECEF: position,
                       geometryWGS84: {
                         longitude,
@@ -281,9 +291,9 @@ const useCesiumPointQuery = (
         handlerRef.current.destroy();
         handlerRef.current = null;
       }
-      if (terrainEntityRef.current && viewer) {
-        viewer.entities.remove(terrainEntityRef.current);
-        terrainEntityRef.current = null;
+      if (pointOnMeshEntityRef.current && viewer) {
+        viewer.entities.remove(pointOnMeshEntityRef.current);
+        pointOnMeshEntityRef.current = null;
       }
       if (cross3DRef.current && viewer) {
         cross3DRef.current.cleanup(viewer);
@@ -291,11 +301,32 @@ const useCesiumPointQuery = (
       }
       console.debug("[SceneClick] Terrain click handler cleaned up");
     };
-  }, [viewer, enabled, nivPEntities, searchRadius, onShowInfo]);
+  }, [viewerRef, enabled, nivPEntities, searchRadius]);
 
   return {
-    // Could expose additional functionality here if needed
-    terrainEntity: terrainEntityRef.current,
+    showPoints: (ids?: string[]) => {
+      // This function could be used to toggle visibility of specific point types
+      // For now, we just log the points to show
+      console.debug("[CesiumPointQuery] Showing points:", ids);
+    },
+    hidePoints: (ids?: string[]) => {
+      // This function could be used to toggle visibility of specific point types
+      // For now, we just log the points to hide
+      console.debug("[CesiumPointQuery] Hiding points:", ids);
+    },
+    clearPoints: (ids?: string[]) => {
+      // Could expose additional functionality here if needed
+      setCollection((prevCollection: MeasurementCollection) => {
+        const clearAll = !ids;
+        // Filter out points based on ids or type
+        return prevCollection.filter((measurement) =>
+          clearAll
+            ? !ids.includes(measurement.id)
+            : measurement.type !== MeasurementMode.PointQuery
+        );
+      });
+      console.debug("[CesiumPointQuery] Clearing points:", ids);
+    },
   };
 };
 

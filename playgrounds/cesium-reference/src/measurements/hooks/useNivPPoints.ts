@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, MutableRefObject } from "react";
 import type { Viewer } from "cesium";
 import {
   Cartesian2,
@@ -51,9 +51,10 @@ const getElevationLabel = (standard: ElevationStandard): string => {
 };
 
 const useNivPPoints = (
-  viewer: Viewer | null,
-  elevationStandard: ElevationStandard = "nhn",
+  viewerRef: MutableRefObject<Viewer | null>,
   uri: string,
+  enabled: boolean = true,
+  elevationStandard: ElevationStandard = "nhn",
   includeHistoric: boolean = false
 ) => {
   const [isLoading, setIsLoading] = useState(false);
@@ -67,7 +68,8 @@ const useNivPPoints = (
 
   // Load and transform data once per session
   useEffect(() => {
-    if (!viewer) return;
+    const viewer = viewerRef.current;
+    if (!viewer || !enabled) return;
 
     const loadNivPData = async () => {
       setIsLoading(true);
@@ -141,7 +143,7 @@ const useNivPPoints = (
     };
 
     loadNivPData();
-  }, [viewer, uri, elevationStandard]); // Include elevationStandard for initial transformation
+  }, [viewerRef, uri, elevationStandard, enabled]); // Include elevationStandard for initial transformation
 
   // Filter points based on historic toggle and elevation standard
   useEffect(() => {
@@ -193,8 +195,10 @@ const useNivPPoints = (
 
     setFilteredPoints(updatedPoints);
   }, [allPoints, includeHistoric, elevationStandard]);
+
   useEffect(() => {
-    if (!viewer || filteredPoints.length === 0) return;
+    const viewer = viewerRef.current;
+    if (!viewer || !enabled || filteredPoints.length === 0) return;
 
     console.debug(`[NIVP] Creating ${filteredPoints.length} point entities...`);
 
@@ -268,7 +272,7 @@ const useNivPPoints = (
         console.error("[useNivPPoints] Error during cleanup:", error);
       }
     };
-  }, [viewer, filteredPoints, elevationStandard]);
+  }, [viewerRef, filteredPoints, elevationStandard, enabled]);
 
   return {
     isLoading,
