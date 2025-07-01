@@ -23,6 +23,7 @@ import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextPr
 import { useContext } from "react";
 import Panel from "react-cismap/commons/Panel";
 import { assetsBaseUrl } from "../../constants/constants";
+import PhotoGallery from "./PhotoGallery";
 
 const styles = {
   container: {
@@ -96,6 +97,12 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
   const photos = plan?.originalPhotos || null;
   const citizenText = plan?.bb_text || null;
   const citizenUrl = plan?.bb_url || null;
+
+  const handleImgClick = (idx) => {
+    lightBoxDispatchContext.setIndex(idx);
+    lightBoxDispatchContext.setTitle(plan.info.title);
+    lightBoxDispatchContext.setVisible(true);
+  };
 
   return (
     <div className="secondary-modal-wrapper">
@@ -227,26 +234,10 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
               <div className="py-[10px]">
                 <b className="text-[16px]">Foto-Galerie:</b>
                 <div className="flex gap-2 mt-3">
-                  {photos.map((photo, idx) => (
-                    <div key={idx} className="cursor-pointer">
-                      <img
-                        onClick={() => {
-                          lightBoxDispatchContext.setIndex(idx);
-                          lightBoxDispatchContext.setTitle(plan.info.title);
-                          lightBoxDispatchContext.setVisible(true);
-                        }}
-                        src={
-                          "https://wunda-geoportal-docs.cismet.de/vorhabenkarte/fotos/" +
-                          photo.url
-                        }
-                        alt={photo.anzeige}
-                        style={{
-                          width: 150,
-                        }}
-                      />
-                      <div className="mt-2 ml-1">{photo.anzeige}</div>
-                    </div>
-                  ))}
+                  <PhotoGallery
+                    photos={photos}
+                    handleImgClick={handleImgClick}
+                  />
                 </div>
               </div>
             )}
