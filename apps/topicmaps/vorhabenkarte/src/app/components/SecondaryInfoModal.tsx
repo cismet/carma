@@ -77,6 +77,7 @@ type LightboxDispatch = {
   setPhotoUrls: (urls: string[]) => void;
   setIndex: (i: number) => void;
   setTitle: (t: string) => void;
+  setCaptions: (t: string[]) => void;
   setVisible: (v: boolean) => void;
 };
 
@@ -116,7 +117,9 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
   const citizenUrl = plan?.bb_url || null;
 
   if (photos && photos.length > 0) {
+    const titleArr = photos.map((p) => p.anzeige);
     lightBoxDispatchContext.setPhotoUrls(plan.fotos);
+    lightBoxDispatchContext.setCaptions(titleArr);
   }
 
   return (
@@ -258,7 +261,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
                       <img
                         onClick={() => {
                           lightBoxDispatchContext.setIndex(idx);
-                          lightBoxDispatchContext.setTitle(photo.anzeige);
+                          lightBoxDispatchContext.setTitle(plan.info.title);
                           lightBoxDispatchContext.setVisible(true);
                         }}
                         src={
