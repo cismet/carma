@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { Dispatch, SetStateAction, useEffect, useRef } from "react";
 import type { Viewer } from "cesium";
 import {
   Cartesian2,
@@ -11,14 +11,20 @@ import {
 
 import { create3DCrossGroup } from "../utils/cesium3DCross";
 import { LABEL_FONT, SCALE_BY_DISTANCE } from "./useNivPPoints";
-import { PointInfoData } from "../types/MeasurementTypes";
+import {
+  MeasurementCollection,
+  MeasurementEntry,
+  MeasurementMode,
+} from "../CesiumMeasurementsContext";
 
-const useSceneClick = (
+const useCesiumPointQuery = (
   viewer: Viewer | null,
   enabled: boolean = true,
+  collection: MeasurementCollection,
+  setCollection: Dispatch<SetStateAction<MeasurementCollection>>,
+  // custom measurement type settings
   nivPEntities?: Entity[],
-  searchRadius: number = 10, // Default search radius to 10m, same as cross3D visual
-  onShowInfo?: (info: PointInfoData) => void // Callback to show custom info panel
+  searchRadius: number = 10 // Default search radius to 10m, same as cross3D visual
 ) => {
   const handlerRef = useRef<ScreenSpaceEventHandler | null>(null);
   const terrainEntityRef = useRef<Entity | null>(null);
@@ -50,6 +56,7 @@ const useSceneClick = (
       return;
     }
 
+    console.debug("[SceneClick] Enabling terrain click handler");
     // Create click handler
     const handler = new ScreenSpaceEventHandler(viewer.scene.canvas);
     handlerRef.current = handler;
@@ -91,9 +98,9 @@ const useSceneClick = (
       const height = cartographic.height;
 
       // Create new entity at clicked position (for the label only - no description for InfoBox)
-      const terrainEntity = new Entity({
-        id: "terrain-click-point",
-        name: "Terrain Elevation Point",
+      const pointOnMeshEntity = new Entity({
+        id: "mesh-click-point",
+        name: "Mesh Elevation Point",
         position: pickedPosition,
         label: {
           text: height.toFixed(2),
@@ -109,16 +116,25 @@ const useSceneClick = (
         },
       });
 
-      // Show custom info panel if callback provided
-      if (onShowInfo) {
-        onShowInfo({
-          title: "Terrain Elevation Point",
-          elevation: height,
+      const measurement: MeasurementEntry = {
+        type: MeasurementMode.PointQuery, // Assuming PointQuery is the mode for this
+        id: `point-${Date.now()}`,
+        name: `Point at ${height.toFixed(2)}m`,
+        geometryECEF: pickedPosition,
+        geometryWGS84: {
           longitude,
           latitude,
-          type: "terrain",
-        });
-      }
+          height,
+        },
+        timestamp: new Date().getTime(),
+        metadata: null, // No additional metadata for point query
+      };
+
+      // Add measurement to collection
+      setCollection((prevCollection: MeasurementCollection) => [
+        ...prevCollection,
+        measurement,
+      ]);
 
       // Create 3D cross visualization (link size to search radius)
       const cross3D = create3DCrossGroup({
@@ -132,8 +148,8 @@ const useSceneClick = (
       });
 
       // Add entity to viewer and store reference
-      viewer.entities.add(terrainEntity);
-      terrainEntityRef.current = terrainEntity;
+      viewer.entities.add(pointOnMeshEntity);
+      terrainEntityRef.current = pointOnMeshEntity;
 
       // Add 3D cross to viewer
       cross3D.addToViewer(viewer);
@@ -163,7 +179,7 @@ const useSceneClick = (
               // Use the first entity within range (typically there won't be multiple very close)
               if (distance <= searchRadius) {
                 // Show custom info panel for NivP entity if callback provided
-                if (onShowInfo && entity.properties) {
+                if (entity.properties) {
                   // Extract position from entity
                   const position = entity.position?.getValue(
                     viewer.clock.currentTime
@@ -186,15 +202,25 @@ const useSceneClick = (
                     // Calculate height difference between terrain click point and NivP point
                     const heightDifference = height - elevation;
 
-                    onShowInfo({
-                      title: entity.name || "NivP Point",
-                      elevation,
-                      longitude,
-                      latitude,
-                      heightDifference,
-                      nivpData,
-                      type: "nivp",
-                    });
+                    const measurement: MeasurementEntry = {
+                      type: MeasurementMode.PointQuery, // Assuming PointQuery is the mode for this
+                      id: `nivp-${nivpData.id}-${Date.now()}`,
+                      name: `NivP Point ${
+                        nivpData.lagebezeichnung || nivpData.id
+                      }`,
+                      geometryECEF: position,
+                      geometryWGS84: {
+                        longitude,
+                        latitude,
+                        height: elevation,
+                      },
+                      metadata: { ...nivpData, heightDifference },
+                    };
+
+                    setCollection((prevCollection: MeasurementCollection) => [
+                      ...prevCollection,
+                      measurement,
+                    ]);
                   }
                 } else {
                   // Fallback to setting selected entity for InfoBox (if no custom callback)
@@ -273,4 +299,4 @@ const useSceneClick = (
   };
 };
 
-export default useSceneClick;
+export default useCesiumPointQuery;

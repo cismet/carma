@@ -44,14 +44,11 @@ const DistanceMeasurementPanel: React.FC<DistanceMeasurementPanelProps> = ({
         ) : undefined
       }
     >
-      {/* Display active measurement points if measurement is active */}
-      {isMeasurementPanelActive && (
-        <MeasurementTable
-          activeMeasurementPoints={activeMeasurementPoints}
-          viewer={viewer}
-          coordinateDisplayMode={coordinateDisplayMode}
-        />
-      )}
+      <MeasurementTable
+        activeMeasurementPoints={activeMeasurementPoints}
+        viewer={viewer}
+        coordinateDisplayMode={coordinateDisplayMode}
+      />
 
       {/* Display placeholder text when measurement mode is active but no measurements */}
       {enableMeasurement && activeMeasurementPoints.length === 0 && (

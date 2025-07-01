@@ -12,7 +12,7 @@ import {
   CesiumMeasurementsProvider,
   useCesiumMeasurements,
 } from "../measurements/CesiumMeasurementsContext";
-import useSceneClick from "../measurements/hooks/useSceneClick";
+import useCesiumPointQuery from "../measurements/hooks/useCesiumPointQuery";
 import useNivPPoints from "../measurements/hooks/useNivPPoints";
 import ScreenLayout from "../components/ScreenLayout";
 import PointMeasurementPanel from "../measurements/components/PointMeasurementPanel";
@@ -27,6 +27,7 @@ import {
 } from "../measurements/types/MeasurementTypes";
 import { MeasurementMode } from "../measurements/hooks/useMeasurement";
 import HomeButton from "../components/HomeButton";
+import { useCesiumDistanceMeasurement } from "../measurements/hooks/useCesiumDistanceMeasurement";
 
 // Inner component that has access to contexts
 const InnerMeshElevations: React.FC<{
@@ -64,12 +65,17 @@ const InnerMeshElevations: React.FC<{
     [setPointData]
   );
 
-  useSceneClick(
+  useCesiumPointQuery(
     viewerRef.current,
     measurementMode === MeasurementMode.PointQuery,
     nivPEntities,
     searchRadius,
     handleShowInfo
+  );
+
+  useCesiumDistanceMeasurement(
+    measurementMode === MeasurementMode.Distance,
+    coordinateDisplayMode
   );
 
   const TopRightPanel: React.FC = () => {
