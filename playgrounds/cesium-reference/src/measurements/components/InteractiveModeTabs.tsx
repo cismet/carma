@@ -8,9 +8,12 @@ import {
   Radio,
   Slider,
   Checkbox,
+  Button,
 } from "antd";
-import type { InputNumberProps } from "antd";
 import { AimOutlined, LineChartOutlined } from "@ant-design/icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faTrash } from "@fortawesome/free-solid-svg-icons";
+import type { InputNumberProps } from "antd";
 import { useCesiumMeasurements } from "../CesiumMeasurementsContext";
 import { MeasurementMode } from "../types/MeasurementTypes";
 
@@ -76,8 +79,10 @@ export const InteractiveModeTabs: React.FC<InteractiveModeTabsProps> = ({
     searchRadius,
     setSearchRadius,
     measurements,
+    setMeasurements,
     soloMode,
     setSoloMode,
+    clearAllMeasurements,
   } = useCesiumMeasurements();
 
   const handleTabChange = (mode: MeasurementMode) => {
@@ -123,19 +128,36 @@ export const InteractiveModeTabs: React.FC<InteractiveModeTabsProps> = ({
   ];
 
   return (
-    <Card size="small">
+    <Card
+      size="small"
+      title="Messwerkzeuge"
+      extra={
+        <>
+          <Checkbox
+            checked={soloMode}
+            onChange={(e) => setSoloMode(e.target.checked)}
+            style={{ marginTop: 12 }}
+          >
+            Solo
+          </Checkbox>
+
+          {measurements.length > 0 && (
+            <Button
+              icon={<FontAwesomeIcon icon={faTrash} />}
+              size="small"
+              onClick={clearAllMeasurements}
+              aria-label="Alle Messungen löschen"
+            />
+          )}
+        </>
+      }
+    >
       <Tabs
         activeKey={measurementMode}
         items={items}
         onChange={handleTabChange}
         size="small"
       />
-      <Checkbox
-        checked={soloMode}
-        onChange={(e) => setSoloMode(e.target.checked)}
-      >
-        Solo
-      </Checkbox>
     </Card>
   );
 };

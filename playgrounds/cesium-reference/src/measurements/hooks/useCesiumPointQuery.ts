@@ -157,7 +157,7 @@ const useCesiumPointQuery = (
       const measurement: PointMeasurementEntry = {
         type: MeasurementMode.PointQuery, // Assuming PointQuery is the mode for this
         id: `point-${Date.now()}`,
-        name: `Point at ${height.toFixed(2)}m`,
+        name: `P h${height.toFixed(1)}m`,
         geometryECEF: pickedPosition,
         geometryWGS84: {
           longitude,
