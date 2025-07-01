@@ -149,6 +149,7 @@ export type Item = {
   serviceName: string;
   path?: string;
   isDraft?: boolean;
+  vectorStyle?: string;
 } & (tmpLayer | Link | Feature | Collection);
 
 export type XMLLayer = {

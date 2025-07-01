@@ -98,12 +98,12 @@ export const parseToMapLayer = async (
 
   const carmaConf = extractCarmaConfig(layer.keywords);
   if (layer.type === "layer") {
-    if (carmaConf?.vectorStyle && !forceWMS) {
+    if ((carmaConf?.vectorStyle && !forceWMS) || layer.vectorStyle) {
       let zoom = {
         minzoom: 9,
         maxzoom: 24,
       };
-      if (!isJson(carmaConf.vectorStyle)) {
+      if (carmaConf && !isJson(carmaConf.vectorStyle)) {
         zoom = await fetch(carmaConf.vectorStyle as string)
           .then((response) => {
             return response.json();
@@ -119,6 +119,14 @@ export const parseToMapLayer = async (
             return parsedZoom;
           });
       }
+      let vectorStyle = "";
+      if (carmaConf?.vectorStyle) {
+        vectorStyle = isJson(carmaConf.vectorStyle)
+          ? JSON.parse(carmaConf.vectorStyle as string)
+          : carmaConf.vectorStyle;
+      } else if (layer.vectorStyle) {
+        vectorStyle = layer.vectorStyle;
+      }
 
       newLayer = {
         title: layer.title,
@@ -126,7 +134,7 @@ export const parseToMapLayer = async (
         layerType: "vector",
         opacity: opacity || 1.0,
         description: layer.description,
-        conf: carmaConf,
+        conf: carmaConf ?? undefined,
         queryable: isNaN(layer.queryable)
           ? layer?.keywords?.some((keyword) =>
               keyword.includes("carmaconf://infoBoxMapping")
@@ -135,11 +143,9 @@ export const parseToMapLayer = async (
         useInFeatureInfo: true,
         visible: visible,
         props: {
-          style: isJson(carmaConf.vectorStyle)
-            ? JSON.parse(carmaConf.vectorStyle as string)
-            : carmaConf.vectorStyle,
-          minZoom: Number(carmaConf.minZoom) || zoom?.minzoom,
-          maxZoom: Number(carmaConf.maxZoom) || zoom?.maxzoom,
+          style: vectorStyle,
+          minZoom: Number(carmaConf?.minZoom) || zoom?.minzoom,
+          maxZoom: Number(carmaConf?.maxZoom) || zoom?.maxzoom,
           legend: layer?.props?.Style[0].LegendURL,
           metaData: layer?.props?.MetadataURL,
         },
