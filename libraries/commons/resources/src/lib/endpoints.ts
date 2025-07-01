@@ -18,6 +18,7 @@ export enum ENDPOINT {
   NO2 = "no2",
   QUARTIERE = "quartiere",
   POIS = "pois",
+  VORHABEN = "vorhabenkarte",
 }
 
 export type NamedCategory = Record<ENDPOINT, string>;
@@ -49,6 +50,7 @@ export const DEFAULT_GAZ_SOURCES: ENDPOINT[] = [
   ENDPOINT.QUARTIERE,
   ENDPOINT.POIS,
   ENDPOINT.KITAS,
+  ENDPOINT.VORHABEN,
 ];
 
 export const DEFAULT_HOST = import.meta.env.VITE_WUPP_ASSET_BASEURL;
