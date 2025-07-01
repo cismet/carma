@@ -90,6 +90,9 @@ const sidebarElements = [
   { icon: faSearch, text: "Suchergebnisse", id: "searchResults" },
 ];
 
+const additionalConfigUrl =
+  "https://wupp-digitaltwin-assets.cismet.de/data/additionalLayerConfig.json";
+
 export const NewLibModal = ({
   open,
   setOpen,
@@ -129,6 +132,7 @@ export const NewLibModal = ({
     shownCategories[0]?.id
   );
   const [discoverItems, setDiscoverItems] = useState<any[]>([]);
+  const [additionalConfig, setAdditionalConfig] = useState<any[]>([]);
   const [loadingData, setLoadingData] = useState(false);
   const [triggerRefetch, setTriggerRefetch] = useState(false);
   const debouncedSearchTerm = useDebounce(searchValue, 300);
@@ -155,9 +159,22 @@ export const NewLibModal = ({
     }
   };
 
+  const fetchAdditionalConfig = () => {
+    fetch(additionalConfigUrl)
+      .then((response) => response.json())
+      .then((data) => {
+        console.log("xxx", data);
+        setAdditionalConfig(data);
+      })
+      .catch((error) => {
+        console.error("Error fetching additional config:", error);
+      });
+  };
+
   useEffect(() => {
     if (open || triggerRefetch) {
       fetchDiscoverItems();
+      fetchAdditionalConfig();
     }
   }, [open, triggerRefetch, jwt]);
 
@@ -463,6 +480,32 @@ export const NewLibModal = ({
       return [...prev, { id: "discover", categories: discoverCategories }];
     });
   }, [discoverItems]);
+
+  useEffect(() => {
+    if (additionalConfig.length > 0) {
+      additionalConfig.forEach((config) => {
+        if (config.Title) {
+          setTimeout(() => {
+            addItemToCategory(
+              "mapLayers",
+              { id: config.serviceName, Title: config.Title },
+              config.layers
+            );
+          }, 1000);
+        } else {
+          config.layers.forEach((layer) => {
+            setTimeout(() => {
+              addItemToCategory(
+                "mapLayers",
+                { id: layer.serviceName, Title: layer.path },
+                layer
+              );
+            }, 1000);
+          });
+        }
+      });
+    }
+  }, [additionalConfig]);
 
   useEffect(() => {
     if (getNumOfCustomLayers() === 0) {
