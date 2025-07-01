@@ -17,8 +17,8 @@ interface CesiumMeasurementsContextType {
   setSearchRadius: (radius: number) => void;
   measurements: MeasurementCollection;
   setMeasurements: (measurements: MeasurementCollection) => void;
-  singleMode: boolean;
-  setSingleMode: (singleMode: boolean) => void;
+  soloMode: boolean;
+  setSoloMode: (solo: boolean) => void;
 }
 
 const CesiumMeasurementsContext = createContext<
@@ -26,7 +26,7 @@ const CesiumMeasurementsContext = createContext<
 >(undefined);
 
 export type MeasurementProviderOptions = {
-  singleMode?: boolean;
+  soloMode?: boolean;
   pointQueries?: {
     enabled?: boolean;
     searchRadius?: number;
@@ -54,7 +54,7 @@ export const CesiumMeasurementsProvider: React.FC<
     defaultPointQueryOptions
   );
 
-  const singleModeDefault = options?.singleMode ?? true;
+  const soloModeInit = options?.soloMode ?? true;
 
   const heightReference = verticalDatum ?? "nhn2016";
 
@@ -62,7 +62,7 @@ export const CesiumMeasurementsProvider: React.FC<
     MeasurementMode.PointQuery
   );
   const [searchRadius, setSearchRadius] = useState(queryOptions.searchRadius);
-  const [singleMode, setSingleMode] = useState(singleModeDefault);
+  const [soloMode, setSoloMode] = useState(soloModeInit);
   const [measurements, setMeasurements] = useState<MeasurementCollection>([]);
 
   const showNivPoints = true;
@@ -80,7 +80,7 @@ export const CesiumMeasurementsProvider: React.FC<
     setMeasurements,
     searchRadius,
     entities,
-    singleMode
+    soloMode
   );
 
   const contextValue = useMemo(
@@ -91,8 +91,8 @@ export const CesiumMeasurementsProvider: React.FC<
       setMeasurementMode,
       searchRadius,
       setSearchRadius,
-      singleMode,
-      setSingleMode,
+      soloMode,
+      setSoloMode,
       clearPoints,
     }),
     [
@@ -100,8 +100,8 @@ export const CesiumMeasurementsProvider: React.FC<
       setMeasurements,
       measurementMode,
       setMeasurementMode,
-      singleMode,
-      setSingleMode,
+      soloMode,
+      setSoloMode,
       searchRadius,
       setSearchRadius,
       clearPoints,

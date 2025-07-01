@@ -42,9 +42,9 @@ const updateLast =
 const updateCollection = (
   setCollection: Dispatch<SetStateAction<MeasurementCollection>>,
   measurement: PointMeasurementEntry,
-  singleMode: boolean
+  soloMode: boolean
 ) => {
-  if (singleMode) {
+  if (soloMode) {
     // If in single point mode, clear previous points
     setCollection(updateLast(measurement));
   } else {
@@ -62,7 +62,7 @@ const useCesiumPointQuery = (
   // custom measurement type settings
   searchRadius: number = 10, // Default search radius to 10m, same as cross3D visual
   nivPEntities?: Entity[],
-  singleMode: boolean = false
+  soloMode: boolean = false
 ) => {
   const handlerRef = useRef<ScreenSpaceEventHandler | null>(null);
   const pointOnMeshEntityRef = useRef<Entity | null>(null);
@@ -168,7 +168,7 @@ const useCesiumPointQuery = (
         metadata: null, // No additional metadata for point query
       };
 
-      updateCollection(setCollection, measurement, singleMode);
+      updateCollection(setCollection, measurement, soloMode);
 
       // Create 3D cross visualization (link size to search radius)
       const cross3D = create3DCrossGroup({
@@ -253,7 +253,7 @@ const useCesiumPointQuery = (
                       metadata: { nivp, heightDifference },
                     };
 
-                    updateCollection(setCollection, measurement, singleMode);
+                    updateCollection(setCollection, measurement, soloMode);
                   }
                 } else {
                   // Fallback to setting selected entity for InfoBox (if no custom callback)
@@ -324,7 +324,7 @@ const useCesiumPointQuery = (
       }
       console.debug("[SceneClick] Terrain click handler cleaned up");
     };
-  }, [viewer, enabled, nivPEntities, searchRadius, singleMode]);
+  }, [viewer, enabled, nivPEntities, searchRadius, soloMode]);
 
   return {
     showPoints: (ids?: string[]) => {

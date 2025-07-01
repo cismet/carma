@@ -76,8 +76,8 @@ export const InteractiveModeTabs: React.FC<InteractiveModeTabsProps> = ({
     searchRadius,
     setSearchRadius,
     measurements,
-    singleMode,
-    setSingleMode,
+    soloMode,
+    setSoloMode,
   } = useCesiumMeasurements();
 
   const handleTabChange = (mode: MeasurementMode) => {
@@ -131,8 +131,8 @@ export const InteractiveModeTabs: React.FC<InteractiveModeTabsProps> = ({
         size="small"
       />
       <Checkbox
-        checked={singleMode}
-        onChange={(e) => setSingleMode(e.target.checked)}
+        checked={soloMode}
+        onChange={(e) => setSoloMode(e.target.checked)}
       >
         Solo
       </Checkbox>
