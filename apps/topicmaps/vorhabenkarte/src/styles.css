@@ -50,4 +50,5 @@ div.leaflet-top.leaflet-right > .leaflet-control {
 
 .transparent-marker {
   background: none !important;
+  z-index: 400 !important;
 }
