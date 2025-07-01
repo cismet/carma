@@ -485,22 +485,18 @@ export const NewLibModal = ({
     if (additionalConfig.length > 0) {
       additionalConfig.forEach((config) => {
         if (config.Title) {
-          setTimeout(() => {
-            addItemToCategory(
-              "mapLayers",
-              { id: config.serviceName, Title: config.Title },
-              config.layers
-            );
-          }, 1000);
+          addItemToCategory(
+            "mapLayers",
+            { id: config.serviceName, Title: config.Title },
+            config.layers
+          );
         } else {
           config.layers.forEach((layer) => {
-            setTimeout(() => {
-              addItemToCategory(
-                "mapLayers",
-                { id: layer.serviceName, Title: layer.path },
-                layer
-              );
-            }, 1000);
+            addItemToCategory(
+              "mapLayers",
+              { id: layer.serviceName, Title: layer.path },
+              layer
+            );
           });
         }
       });
@@ -585,23 +581,15 @@ export const NewLibModal = ({
       }
     }
 
-    setTmpAllCategories((prev) => {
-      if (prev.find((item) => item.id === "mapLayers")) {
-        prev.splice(
-          prev.findIndex((item) => item.id === "mapLayers"),
-          1
-        );
-      }
-      return [
-        ...prev,
-        {
-          id: "mapLayers",
-          categories: allLayers,
-        },
-      ];
+    allLayers.reverse().forEach((layers) => {
+      addItemToCategory(
+        "mapLayers",
+        { id: layers.id, Title: layers.Title },
+        layers.layers
+      );
     });
 
-    setShownCategories((prev) => {
+    setTmpAllCategories((prev) => {
       if (prev.find((item) => item.id === "mapLayers")) {
         prev.splice(
           prev.findIndex((item) => item.id === "mapLayers"),
@@ -643,6 +631,13 @@ export const NewLibModal = ({
   ) => {
     setShownCategories((prev) => {
       const newCategories = [...prev];
+      const categoryExists = newCategories.find((cat) => cat.id === categoryId);
+      if (!categoryExists) {
+        newCategories.push({
+          id: categoryId,
+          categories: [],
+        });
+      }
       newCategories.map((cat) => {
         if (cat.id === categoryId) {
           let subCats = cat.categories;
