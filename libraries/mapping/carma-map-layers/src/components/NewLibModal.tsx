@@ -655,6 +655,11 @@ export const NewLibModal = ({
               } else {
                 newSubCat.layers.push(item);
               }
+              newSubCat.layers = newSubCat.layers.filter(
+                (layer, index) =>
+                  newSubCat?.layers.findIndex((l) => l.id === layer.id) ===
+                  index
+              );
             }
           });
           if (!newSubCat) {
@@ -671,6 +676,11 @@ export const NewLibModal = ({
                 layers: [item],
               });
             }
+
+            cat.categories = cat.categories.filter(
+              (layer, index) =>
+                cat?.categories.findIndex((l) => l.id === layer.id) === index
+            );
           } else {
             return newSubCat;
           }
