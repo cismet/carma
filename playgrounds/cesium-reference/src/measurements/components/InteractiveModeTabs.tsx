@@ -9,25 +9,29 @@ import {
   Slider,
   Checkbox,
   Button,
+  Space,
 } from "antd";
-import { AimOutlined, LineChartOutlined } from "@ant-design/icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faTrash } from "@fortawesome/free-solid-svg-icons";
+import {
+  faArrowsToDot,
+  faTrash,
+  faRulerCombined,
+} from "@fortawesome/free-solid-svg-icons";
 import type { InputNumberProps } from "antd";
 import { useCesiumMeasurements } from "../CesiumMeasurementsContext";
 import { MeasurementMode } from "../types/MeasurementTypes";
 
 const PointQuerySettingsComponent: React.FC<{
-  minSearchRadius?: number;
-  maxSearchRadius?: number;
-  stepSearchRadius?: number;
-  searchRadius?: number;
+  minPointRadius?: number;
+  maxPointRadius?: number;
+  stepPointRadius?: number;
+  pointRadius?: number;
   onChange?: (value: number) => void;
 }> = ({
-  minSearchRadius = 1,
-  maxSearchRadius = 100,
-  stepSearchRadius = 1,
-  searchRadius = 5,
+  minPointRadius = 1,
+  maxPointRadius = 100,
+  stepPointRadius = 1,
+  pointRadius = 5,
   onChange,
 }) => {
   const onValueChange: InputNumberProps["onChange"] = (newDisplayValue) => {
@@ -38,10 +42,10 @@ const PointQuerySettingsComponent: React.FC<{
     <Row gutter={24}>
       <Col span={14}>
         <InputNumber
-          min={minSearchRadius}
-          max={maxSearchRadius}
-          step={stepSearchRadius}
-          value={searchRadius}
+          min={minPointRadius}
+          max={maxPointRadius}
+          step={stepPointRadius}
+          value={pointRadius}
           onChange={onValueChange}
           addonAfter={"m"}
           addonBefore={"Suchradius"}
@@ -51,10 +55,10 @@ const PointQuerySettingsComponent: React.FC<{
       </Col>
       <Col span={10}>
         <Slider
-          min={minSearchRadius}
-          max={maxSearchRadius}
-          step={stepSearchRadius}
-          value={searchRadius}
+          min={minPointRadius}
+          max={maxPointRadius}
+          step={stepPointRadius}
+          value={pointRadius}
           onChange={onValueChange}
         />
       </Col>
@@ -76,10 +80,9 @@ export const InteractiveModeTabs: React.FC<InteractiveModeTabsProps> = ({
   const {
     measurementMode,
     setMeasurementMode,
-    searchRadius,
-    setSearchRadius,
+    pointRadius: pointRadius,
+    setPointRadius: setPointRadius,
     measurements,
-    setMeasurements,
     soloMode,
     setSoloMode,
     clearAllMeasurements,
@@ -92,27 +95,20 @@ export const InteractiveModeTabs: React.FC<InteractiveModeTabsProps> = ({
   const items = [
     {
       key: MeasurementMode.PointQuery,
-      label: (
-        <span>
-          <AimOutlined />
-          3D Punktabfrage
-        </span>
-      ),
+      label: "3D Punktabfrage",
+      icon: <FontAwesomeIcon icon={faArrowsToDot} />,
       children: (
         <PointQuerySettingsComponent
-          searchRadius={searchRadius}
-          onChange={(value) => setSearchRadius(value)}
+          pointRadius={pointRadius}
+          onChange={(value) => setPointRadius(value)}
         />
       ),
     },
     {
       key: MeasurementMode.Distance,
-      label: (
-        <span>
-          <LineChartOutlined />
-          Distanzmessung ({measurements.length})
-        </span>
-      ),
+      disabled: true,
+      label: "Distanzmessung",
+      icon: <FontAwesomeIcon icon={faRulerCombined} />,
       children: (
         <Radio.Group
           value={coordinateDisplayMode}
@@ -132,24 +128,20 @@ export const InteractiveModeTabs: React.FC<InteractiveModeTabsProps> = ({
       size="small"
       title="Messwerkzeuge"
       extra={
-        <>
+        <Space>
           <Checkbox
             checked={soloMode}
             onChange={(e) => setSoloMode(e.target.checked)}
-            style={{ marginTop: 12 }}
           >
             Solo
           </Checkbox>
-
-          {measurements.length > 0 && (
-            <Button
-              icon={<FontAwesomeIcon icon={faTrash} />}
-              size="small"
-              onClick={clearAllMeasurements}
-              aria-label="Alle Messungen löschen"
-            />
-          )}
-        </>
+          <Button
+            icon={<FontAwesomeIcon icon={faTrash} />}
+            size="small"
+            onClick={clearAllMeasurements}
+            aria-label="Alle Messungen löschen"
+          />
+        </Space>
       }
     >
       <Tabs

@@ -2,7 +2,6 @@ import { Dispatch, SetStateAction, useEffect, useRef } from "react";
 import type { Viewer } from "cesium";
 import {
   Cartesian2,
-  Entity,
   ScreenSpaceEventType,
   ScreenSpaceEventHandler,
 } from "cesium";
@@ -51,8 +50,7 @@ const useCesiumPointQuery = (
   enabled: boolean = true,
   setCollection: Dispatch<SetStateAction<MeasurementCollection>>,
   // custom measurement type settings
-  searchRadius: number = 10, // Default search radius to 10m, same as cross3D visual
-  nivPEntities?: Entity[],
+  radius: number = 10, // Default search radius to 10m, same as cross3D visual
   soloMode: boolean = false
 ) => {
   const handlerRef = useRef<ScreenSpaceEventHandler | null>(null);
@@ -105,6 +103,7 @@ const useCesiumPointQuery = (
           height,
         },
         timestamp: new Date().getTime(),
+        radius,
         metadata: null, // No additional metadata for point query
       };
 
@@ -125,7 +124,7 @@ const useCesiumPointQuery = (
       }
       console.debug("[SceneClick] Terrain click handler cleaned up");
     };
-  }, [viewer, enabled, nivPEntities, searchRadius, soloMode]);
+  }, [viewer, enabled, radius, soloMode]);
 
   return {};
 };

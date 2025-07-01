@@ -8,15 +8,13 @@ import {
 import { useCesiumDistanceMeasurement } from "./hooks/useCesiumDistanceMeasurement";
 import { normalizeOptions } from "@carma-commons/utils";
 import useCesiumPointQuery from "./hooks/useCesiumPointQuery";
-import useNivPPoints from "./hooks/useNivPPoints";
-import { FESTPUNKTE_WUPPERTAL } from "@carma-commons/resources";
 import useCesiumPointVisualizer from "./hooks/useCesiumPointVisualizer";
 
 interface CesiumMeasurementsContextType {
   measurementMode: MeasurementMode;
   setMeasurementMode: (mode: MeasurementMode) => void;
-  searchRadius: number;
-  setSearchRadius: (radius: number) => void;
+  pointRadius: number;
+  setPointRadius: (radius: number) => void;
   measurements: MeasurementCollection;
   setMeasurements: (measurements: MeasurementCollection) => void;
   soloMode: boolean;
@@ -34,57 +32,44 @@ export type MeasurementProviderOptions = {
   soloMode?: boolean;
   pointQueries?: {
     enabled?: boolean;
-    searchRadius?: number;
+    radius?: number;
   };
 };
 
 const defaultPointQueryOptions: MeasurementProviderOptions["pointQueries"] = {
   enabled: true,
-  searchRadius: 10,
+  radius: 10,
 };
 
 interface CesiumMeasurementsProviderProps {
   children: React.ReactNode;
-  verticalDatum?: "nhn2016" | "nhn" | "nn";
   options?: MeasurementProviderOptions;
 }
 
 export const CesiumMeasurementsProvider: React.FC<
   CesiumMeasurementsProviderProps
-> = ({ children, verticalDatum, options }) => {
+> = ({ children, options }) => {
   const { viewer } = useCesiumViewer();
 
-  const queryOptions = normalizeOptions(
+  const pointQueryOptions = normalizeOptions(
     options?.pointQueries,
     defaultPointQueryOptions
   );
 
   const soloModeInit = options?.soloMode ?? true;
 
-  const heightReference = verticalDatum ?? "nhn2016";
-
   const [measurementMode, setMeasurementMode] = useState<MeasurementMode>(
     MeasurementMode.PointQuery
   );
-  const [searchRadius, setSearchRadius] = useState(queryOptions.searchRadius);
+  const [pointRadius, setPointRadius] = useState(pointQueryOptions.radius);
   const [soloMode, setSoloMode] = useState(soloModeInit);
   const [measurements, setMeasurements] = useState<MeasurementCollection>([]);
-
-  const showNivPoints = true;
-
-  const { entities } = useNivPPoints(
-    viewer,
-    FESTPUNKTE_WUPPERTAL,
-    showNivPoints,
-    heightReference
-  );
 
   useCesiumPointQuery(
     viewer,
     measurementMode === MeasurementMode.PointQuery,
     setMeasurements,
-    searchRadius,
-    entities,
+    pointRadius,
     soloMode
   );
 
@@ -102,9 +87,7 @@ export const CesiumMeasurementsProvider: React.FC<
   };
 
   const clearMeasurementsByIds = (ids: string[]) => {
-    setMeasurements((prev) =>
-      prev.filter((m) => !ids.includes(m.id))
-    );
+    setMeasurements((prev) => prev.filter((m) => !ids.includes(m.id)));
   };
 
   const contextValue = useMemo(
@@ -113,8 +96,8 @@ export const CesiumMeasurementsProvider: React.FC<
       setMeasurements,
       measurementMode,
       setMeasurementMode,
-      searchRadius,
-      setSearchRadius,
+      pointRadius,
+      setPointRadius,
       soloMode,
       setSoloMode,
       clearAllMeasurements,
@@ -128,8 +111,8 @@ export const CesiumMeasurementsProvider: React.FC<
       setMeasurementMode,
       soloMode,
       setSoloMode,
-      searchRadius,
-      setSearchRadius,
+      pointRadius,
+      setPointRadius,
       clearAllMeasurements,
       clearPointMeasurements,
       clearMeasurementsByIds,

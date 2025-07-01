@@ -5,42 +5,14 @@ import {
   isPointMeasurementEntry,
   PointMeasurementEntry,
   type MeasurementEntry,
-  type PointInfoData,
 } from "../types/MeasurementTypes";
 import { useCesiumMeasurements } from "../CesiumMeasurementsContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faTrash } from "@fortawesome/free-solid-svg-icons";
 
 interface PointMeasurementPanelProps {
-  data?: PointInfoData;
+  data?: PointMeasurementEntry;
 }
-
-const transformPointData = (data: PointMeasurementEntry) => {
-  const nivp = data.metadata?.nivp;
-  return {
-    elevation: data.geometryWGS84.height,
-    longitude: data.geometryWGS84.longitude,
-    latitude: data.geometryWGS84.latitude,
-    additionalInfo: data.metadata
-      ? Object.fromEntries(
-          Object.entries(data.metadata).map(([key, value]) => [
-            key,
-            value.toString(),
-          ])
-        )
-      : undefined,
-    heightDifference: data.metadata?.heightDifference,
-    nivpData: nivp
-      ? {
-          ...nivp,
-          festlegungsart: nivp.festlegungsart.toString(),
-          lagegenauigkeit: nivp.lagegenauigkeit.toString(),
-          punktnummer_nrw: nivp.punktnummer_nrw || undefined,
-          bemerkung: nivp.bemerkung || undefined,
-        }
-      : undefined,
-  };
-};
 
 const PointMeasurementPanel: React.FC<PointMeasurementPanelProps> = () => {
   const { measurements, clearPointMeasurements, clearMeasurementsByIds } =
@@ -83,7 +55,7 @@ const PointMeasurementPanel: React.FC<PointMeasurementPanelProps> = () => {
           Zum Messen auf das Stadtmodell klicken
         </Typography.Text>
       ) : pointMeasurements.length === 1 ? (
-        <PointQueryInfo data={transformPointData(pointMeasurements[0])} />
+        <PointQueryInfo data={pointMeasurements[0]} />
       ) : (
         <Collapse
           accordion={pointMeasurements.length > 1}
@@ -95,7 +67,7 @@ const PointMeasurementPanel: React.FC<PointMeasurementPanelProps> = () => {
               label: `Punkt ${pointMeasurements.length - idx} ${
                 data.name || ""
               } (${data.id})`,
-              children: <PointQueryInfo data={transformPointData(data)} />,
+              children: <PointQueryInfo data={data} />,
               extra: (
                 <Button
                   type="text"

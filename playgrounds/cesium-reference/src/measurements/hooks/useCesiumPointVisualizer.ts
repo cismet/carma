@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { type Viewer, Entity, Cartesian2, Color } from "cesium";
 import { create3DCrossGroup } from "../utils/cesium3DCross";
-import { LABEL_FONT, SCALE_BY_DISTANCE } from "./useNivPPoints";
+import { LABEL_FONT, SCALE_BY_DISTANCE } from "./useNivPoints";
 import { PointMeasurementEntry } from "../types/MeasurementTypes";
 
 const useCesiumPointVisualizer = (

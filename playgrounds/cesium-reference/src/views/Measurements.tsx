@@ -15,9 +15,12 @@ import DistanceMeasurementPanel from "../measurements/components/DistanceMeasure
 import { InteractiveModeTabs } from "../measurements/components/InteractiveModeTabs";
 
 import { cesiumConstructorOptions } from "../config";
-import PointControls from "../measurements/components/PointControls";
-import { ElevationStandard } from "../measurements/types/MeasurementTypes";
+import { NivPointControls } from "../measurements/components/NivPointControls";
+import { NivPointPanel } from "../measurements/components/NivPointPanel";
+
 import HomeButton from "../components/HomeButton";
+import { VerticalDatum } from "../measurements/types/VerticalDatumTypes";
+import { CesiumNivPointProvider } from "../measurements/CesiumNivPointContext";
 
 // Inner component that has access to contexts
 const ContextAwareApp: React.FC<{
@@ -26,11 +29,6 @@ const ContextAwareApp: React.FC<{
     value: "cartesian" | "cartographic" | "utm32"
   ) => void;
 }> = ({ coordinateDisplayMode, onCoordinateDisplayModeChange }) => {
-  const [showNivPPoints, setShowNivPPoints] = useState(true);
-  const [elevationStandard, setElevationStandard] =
-    useState<ElevationStandard>("nhn");
-  const [includeHistoric, setIncludeHistoric] = useState(false);
-
   const { zoomToTileset } = useCesiumViewer();
 
   const TopRightPanel: React.FC = () => {
@@ -52,15 +50,10 @@ const ContextAwareApp: React.FC<{
     <>
       <ScreenLayout
         topLeft={
-          <PointControls
-            showNivPPoints={showNivPPoints}
-            onShowNivPPointsChange={setShowNivPPoints}
-            elevationStandard={elevationStandard}
-            onElevationStandardChange={setElevationStandard}
-            includeHistoric={includeHistoric}
-            onIncludeHistoricChange={setIncludeHistoric}
-            pointCount={0}
-          />
+          <Flex vertical gap={2} style={{ maxWidth: "24rem" }}>
+            <NivPointControls />
+            <NivPointPanel />
+          </Flex>
         }
         topRight={<TopRightPanel />}
         bottomCenter={<HomeButton onHomeClick={zoomToTileset} />}
@@ -104,10 +97,12 @@ const TestMeshElevations: React.FC = () => {
         }}
       >
         <CesiumMeasurementsProvider>
-          <ContextAwareApp
-            coordinateDisplayMode={coordinateDisplayMode}
-            onCoordinateDisplayModeChange={setCoordinateDisplayMode}
-          />
+          <CesiumNivPointProvider>
+            <ContextAwareApp
+              coordinateDisplayMode={coordinateDisplayMode}
+              onCoordinateDisplayModeChange={setCoordinateDisplayMode}
+            />
+          </CesiumNivPointProvider>
         </CesiumMeasurementsProvider>
       </CesiumViewerProvider>
     </>

@@ -8,7 +8,7 @@ import {
   ScreenSpaceEventHandler,
   CallbackProperty,
 } from "cesium";
-import { LABEL_FONT, SCALE_BY_DISTANCE } from "./useNivPPoints";
+import { LABEL_FONT, SCALE_BY_DISTANCE } from "./useNivPoints";
 import { formatDistance } from "../../utils/formatters";
 import { MeasurementCollection } from "../types/MeasurementTypes";
 
