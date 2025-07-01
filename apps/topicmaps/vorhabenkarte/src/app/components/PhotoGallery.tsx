@@ -4,11 +4,13 @@ const PhotoGallery = ({ photos, handleImgClick }) => {
   const MAX_DISPLAY = 5;
   const hasMore = photos.length > MAX_DISPLAY;
   const displayed = photos.slice(0, MAX_DISPLAY);
+  const extraCount = photos.length - MAX_DISPLAY;
+  const extraLabel = extraCount === 1 ? "weiteres Foto" : "weitere Fotos";
 
   return (
     <div className="py-[10px]">
       <b className="text-[16px]">Foto-Galerie:</b>
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-3 justify-center">
+      <div className="grid grid-cols-3 md:grid-cols-5 gap-4 mt-3 justify-center">
         {displayed.map((photo, idx) => (
           <div key={idx} className="cursor-pointer w-full max-w-[150px]">
             <img
@@ -22,25 +24,14 @@ const PhotoGallery = ({ photos, handleImgClick }) => {
         ))}
 
         {hasMore && (
-          <div
-            className="cursor-pointer w-full max-w-[150px] flex items-center justify-center bg-gray-100 text-gray-600 text-sm font-medium h-[150px]"
-            onClick={() => handleImgClick(0)}
+          <a
+            className="cursor-pointer min-w-[150px] flex items-center pl-1"
+            onClick={() => handleImgClick(MAX_DISPLAY)}
           >
-            +{photos.length - MAX_DISPLAY} more
-          </div>
+            +{photos.length - MAX_DISPLAY} {extraLabel}
+          </a>
         )}
       </div>
-
-      {hasMore && (
-        <div className="mt-4">
-          <button
-            onClick={() => handleImgClick(0)}
-            className="text-blue-600 hover:underline"
-          >
-            See all photos
-          </button>
-        </div>
-      )}
     </div>
   );
 };

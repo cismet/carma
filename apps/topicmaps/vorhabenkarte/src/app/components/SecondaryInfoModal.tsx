@@ -104,6 +104,53 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
     lightBoxDispatchContext.setVisible(true);
   };
 
+  // const photos = [
+  //   {
+  //     url: "akzenta_barmen.jpg",
+  //     anzeige: "Akzenta Barmen 1",
+  //   },
+  //   {
+  //     url: "akzenta_steinbeck.jpg",
+  //     anzeige: "Akzenta Steinbeck 2",
+  //   },
+  //   {
+  //     url: "akzenta_barmen.jpg",
+  //     anzeige: "Akzenta Barmen 3",
+  //   },
+  //   {
+  //     url: "akzenta_steinbeck.jpg",
+  //     anzeige: "Akzenta Steinbeck 4",
+  //   },
+  //   {
+  //     url: "akzenta_barmen.jpg",
+  //     anzeige: "Akzenta Barmen 5",
+  //   },
+  //   {
+  //     url: "akzenta_steinbeck.jpg",
+  //     anzeige: "Akzenta Steinbeck 6",
+  //   },
+  //   {
+  //     url: "akzenta_barmen.jpg",
+  //     anzeige: "Akzenta Barmen 7",
+  //   },
+  //   {
+  //     url: "akzenta_steinbeck.jpg",
+  //     anzeige: "Akzenta Steinbeck 8",
+  //   },
+  //   {
+  //     url: "akzenta_barmen.jpg",
+  //     anzeige: "Akzenta Barmen 9",
+  //   },
+  //   {
+  //     url: "akzenta_steinbeck.jpg",
+  //     anzeige: "Akzenta Steinbeck 10",
+  //   },
+  //   {
+  //     url: "akzenta_barmen.jpg",
+  //     anzeige: "Akzenta Barmen 11",
+  //   },
+  // ];
+
   return (
     <div className="secondary-modal-wrapper">
       <Modal
@@ -231,15 +278,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
               </div>
             </div>
             {photos && (
-              <div className="py-[10px]">
-                <b className="text-[16px]">Foto-Galerie:</b>
-                <div className="flex gap-2 mt-3">
-                  <PhotoGallery
-                    photos={photos}
-                    handleImgClick={handleImgClick}
-                  />
-                </div>
-              </div>
+              <PhotoGallery photos={photos} handleImgClick={handleImgClick} />
             )}
 
             <br />
