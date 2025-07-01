@@ -121,6 +121,8 @@ const Map = () => {
             <LibFuzzySearch
               typeInference={defaultTypeInference}
               onSelection={onGazetteerSelection}
+              priorityTypes={["vorhabenkarte", "adressen", "pois"]}
+              placeholder="Vorhaben | Adressen | POI"
               pixelwidth={
                 responsiveState === "normal" ? "300px" : windowSize.width - gap
               }
