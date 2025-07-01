@@ -1,22 +1,9 @@
 import {
-  faBicycle,
-  faChargingStation,
   faEnvelope,
   faPhone,
-  faPhoneFlip,
-  faQuestion,
-  faSquareArrowUpRight,
-  faSquareEnvelope,
-  faCalendarDays,
-  faUserTimes,
-  faCalendarTimes,
-  faLocation,
   faLocationDot,
   faMapLocation,
-  faMapLocationDot,
   faTag,
-  faCalendarPlus,
-  faMagnifyingGlass,
   faCalendarMinus,
   faClockRotateLeft,
   faMagnifyingGlassLocation,
@@ -25,17 +12,13 @@ import {
 import { Tag } from "antd";
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { Tooltip } from "antd";
 import { Button, Modal, Accordion, Card, Table } from "react-bootstrap";
-import versionData from "../../version.json";
-import { getApplicationVersion } from "@carma-commons/utils";
 import {
   changeUnreadableColor,
   formatDatum,
   formatIsoString,
 } from "../../helper/styler";
 import { MenuFooter } from "@carma-collab/wuppertal/commons";
-import { shortenText } from "../../helper/convertItemToFeature";
 import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
 import { useContext } from "react";
 import Panel from "react-cismap/commons/Panel";
@@ -53,7 +36,6 @@ const styles = {
     display: "flex",
     gap: "8px",
     alignItems: "baseline",
-    // justifyContent: "space-between",
   },
   label: {
     fontSize: "14px",
@@ -73,7 +55,7 @@ const styles = {
   },
 } as const;
 
-type LightboxDispatch = {
+export type LightboxDispatch = {
   setPhotoUrls: (urls: string[]) => void;
   setIndex: (i: number) => void;
   setTitle: (t: string) => void;
@@ -95,8 +77,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
     plan?.stadtbezirke && plan?.stadtbezirke.length > 0
       ? plan?.stadtbezirke.map((s) => s.replace(/^\d+\s*-\s*/, "")).join(", ")
       : [];
-  // const district =
-  //   districtNames.length > 0 ? "Stadtbezirk:" : "Stadtweites Vorhaben";
+
   const district = "Stadtbezirk:";
   const street = plan?.adresse?.strasse || null;
   const locationDescription = plan?.ortsbeschreibung || null;
@@ -116,12 +97,6 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
   const citizenText = plan?.bb_text || null;
   const citizenUrl = plan?.bb_url || null;
 
-  if (photos && photos.length > 0) {
-    const titleArr = photos.map((p) => p.anzeige);
-    lightBoxDispatchContext.setPhotoUrls(plan.fotos);
-    lightBoxDispatchContext.setCaptions(titleArr);
-  }
-
   return (
     <div className="secondary-modal-wrapper">
       <Modal
@@ -137,7 +112,6 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
       >
         <Modal.Header>
           <Modal.Title>
-            {/* <FontAwesomeIcon icon={faSquareEnvelope} /> */}
             {` Datenblatt: `}
             <span
               style={{
@@ -173,9 +147,6 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
                 <div className="flex items-center gap-2">
                   <FontAwesomeIcon icon={faMapLocation} />
                   <b style={styles.label}>stadtweites Vorhaben</b>
-                  {/* {districtNames.length > 0 && (
-                    <span style={styles.value}>{districtNames}</span>
-                  )} */}
                 </div>
               )}
               {street && (

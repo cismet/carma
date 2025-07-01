@@ -32,10 +32,11 @@ import {
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
 import { GenericInfoBoxFromFeature } from "@carma-apps/portals";
-import SecondaryInfoModal from "./SecondaryInfoModal";
+import SecondaryInfoModal, { LightboxDispatch } from "./SecondaryInfoModal";
 import { FeatureIconOverlay } from "./FeatureIconOverlay";
 import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { isAreaType } from "@carma-commons/resources";
+import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
 
 const Map = () => {
   const { setClusteringOptions, setSelectedFeatureByPredicate } = useContext<
@@ -47,6 +48,9 @@ const Map = () => {
   const { clusteringOptions, selectedFeature } = useContext<
     typeof FeatureCollectionContext
   >(FeatureCollectionContext);
+  const lightBoxDispatchContext = useContext(
+    LightBoxDispatchContext
+  ) as LightboxDispatch;
   const { secondaryInfoVisible } = useContext<typeof UIContext>(UIContext);
   const { responsiveState, gap, windowSize } = useContext<
     typeof ResponsiveTopicMapContext
@@ -94,10 +98,24 @@ const Map = () => {
     if (markerSymbolSize) {
       setClusteringOptions({
         ...clusteringOptions,
-        // iconCreateFunction: getPoiClusterIconCreatorFunction,
       });
     }
   }, [markerSymbolSize]);
+
+  useEffect(() => {
+    if (
+      selectedFeature &&
+      selectedFeature.properties.originalPhotos &&
+      selectedFeature.properties.originalPhotos.length > 0
+    ) {
+      const photos = selectedFeature.properties.originalPhotos;
+      const urls = selectedFeature.properties.fotos;
+      const titleArr = photos.map((p) => p.anzeige);
+      lightBoxDispatchContext.setPhotoUrls(urls);
+      lightBoxDispatchContext.setCaptions(titleArr);
+      lightBoxDispatchContext.setIndex(0);
+    }
+  }, [selectedFeature]);
 
   return (
     <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
