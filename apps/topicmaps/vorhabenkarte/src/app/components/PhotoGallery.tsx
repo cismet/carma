@@ -1,7 +1,7 @@
 import React from "react";
 
 const PhotoGallery = ({ photos, handleImgClick }) => {
-  const MAX_DISPLAY = 5;
+  const MAX_DISPLAY = 4;
   const hasMore = photos.length > MAX_DISPLAY;
   const displayed = photos.slice(0, MAX_DISPLAY);
   const extraCount = photos.length - MAX_DISPLAY;
@@ -10,7 +10,7 @@ const PhotoGallery = ({ photos, handleImgClick }) => {
   return (
     <div className="py-[10px]">
       <b className="text-[16px]">Foto-Galerie:</b>
-      <div className="grid grid-cols-3 md:grid-cols-5 gap-4 mt-3 justify-center">
+      <div className="grid grid-cols-3 sm:grid-cols-3 md:grid-cols-5 gap-4 mt-3 justify-center">
         {displayed.map((photo, idx) => (
           <div key={idx} className="cursor-pointer w-full max-w-[150px]">
             <img
@@ -25,7 +25,7 @@ const PhotoGallery = ({ photos, handleImgClick }) => {
 
         {hasMore && (
           <a
-            className="cursor-pointer min-w-[150px] flex items-center pl-1"
+            className="cursor-pointer flex items-center pl-1"
             onClick={() => handleImgClick(MAX_DISPLAY)}
           >
             +{photos.length - MAX_DISPLAY} {extraLabel}

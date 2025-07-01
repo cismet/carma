@@ -94,7 +94,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
   const completion = plan?.ende_quartal || null;
   const email = plan?.kontakt?.mail || "buergerbeteiligungstadt.wuppertal.de";
   const phone = plan?.kontakt?.telefon || null;
-  const photos = plan?.originalPhotos || null;
+  // const photos = plan?.originalPhotos || null;
   const citizenText = plan?.bb_text || null;
   const citizenUrl = plan?.bb_url || null;
 
@@ -104,52 +104,52 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
     lightBoxDispatchContext.setVisible(true);
   };
 
-  // const photos = [
-  //   {
-  //     url: "akzenta_barmen.jpg",
-  //     anzeige: "Akzenta Barmen 1",
-  //   },
-  //   {
-  //     url: "akzenta_steinbeck.jpg",
-  //     anzeige: "Akzenta Steinbeck 2",
-  //   },
-  //   {
-  //     url: "akzenta_barmen.jpg",
-  //     anzeige: "Akzenta Barmen 3",
-  //   },
-  //   {
-  //     url: "akzenta_steinbeck.jpg",
-  //     anzeige: "Akzenta Steinbeck 4",
-  //   },
-  //   {
-  //     url: "akzenta_barmen.jpg",
-  //     anzeige: "Akzenta Barmen 5",
-  //   },
-  //   {
-  //     url: "akzenta_steinbeck.jpg",
-  //     anzeige: "Akzenta Steinbeck 6",
-  //   },
-  //   {
-  //     url: "akzenta_barmen.jpg",
-  //     anzeige: "Akzenta Barmen 7",
-  //   },
-  //   {
-  //     url: "akzenta_steinbeck.jpg",
-  //     anzeige: "Akzenta Steinbeck 8",
-  //   },
-  //   {
-  //     url: "akzenta_barmen.jpg",
-  //     anzeige: "Akzenta Barmen 9",
-  //   },
-  //   {
-  //     url: "akzenta_steinbeck.jpg",
-  //     anzeige: "Akzenta Steinbeck 10",
-  //   },
-  //   {
-  //     url: "akzenta_barmen.jpg",
-  //     anzeige: "Akzenta Barmen 11",
-  //   },
-  // ];
+  const photos = [
+    {
+      url: "akzenta_barmen.jpg",
+      anzeige: "Akzenta Barmen 1",
+    },
+    {
+      url: "akzenta_steinbeck.jpg",
+      anzeige: "Akzenta Steinbeck 2",
+    },
+    {
+      url: "akzenta_barmen.jpg",
+      anzeige: "Akzenta Barmen 3",
+    },
+    {
+      url: "akzenta_steinbeck.jpg",
+      anzeige: "Akzenta Steinbeck 4",
+    },
+    {
+      url: "akzenta_barmen.jpg",
+      anzeige: "Akzenta Barmen 5",
+    },
+    {
+      url: "akzenta_steinbeck.jpg",
+      anzeige: "Akzenta Steinbeck 6",
+    },
+    {
+      url: "akzenta_barmen.jpg",
+      anzeige: "Akzenta Barmen 7",
+    },
+    {
+      url: "akzenta_steinbeck.jpg",
+      anzeige: "Akzenta Steinbeck 8",
+    },
+    {
+      url: "akzenta_barmen.jpg",
+      anzeige: "Akzenta Barmen 9",
+    },
+    {
+      url: "akzenta_steinbeck.jpg",
+      anzeige: "Akzenta Steinbeck 10",
+    },
+    {
+      url: "akzenta_barmen.jpg",
+      anzeige: "Akzenta Barmen 11",
+    },
+  ];
 
   return (
     <div className="secondary-modal-wrapper">
