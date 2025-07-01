@@ -23,6 +23,7 @@ interface CesiumMeasurementsContextType {
   setSoloMode: (solo: boolean) => void;
   clearAllMeasurements: () => void;
   clearPointMeasurements: () => void;
+  clearMeasurementsByIds: (ids: string[]) => void;
 }
 
 const CesiumMeasurementsContext = createContext<
@@ -100,6 +101,12 @@ export const CesiumMeasurementsProvider: React.FC<
     setMeasurements((prev) => prev.filter((m) => !isPointMeasurementEntry(m)));
   };
 
+  const clearMeasurementsByIds = (ids: string[]) => {
+    setMeasurements((prev) =>
+      prev.filter((m) => !ids.includes(m.id))
+    );
+  };
+
   const contextValue = useMemo(
     () => ({
       measurements,
@@ -112,6 +119,7 @@ export const CesiumMeasurementsProvider: React.FC<
       setSoloMode,
       clearAllMeasurements,
       clearPointMeasurements,
+      clearMeasurementsByIds,
     }),
     [
       measurements,
@@ -124,6 +132,7 @@ export const CesiumMeasurementsProvider: React.FC<
       setSearchRadius,
       clearAllMeasurements,
       clearPointMeasurements,
+      clearMeasurementsByIds,
     ]
   );
 

@@ -61,7 +61,6 @@ const InfoRow: React.FC<{
 
 const PointQueryInfo: React.FC<PointQueryInfoProps> = ({ data }) => {
   const nivp = data?.nivpData;
-
   return (
     <>
       {data.elevation !== undefined && (

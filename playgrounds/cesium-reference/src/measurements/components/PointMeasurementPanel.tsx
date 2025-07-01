@@ -43,7 +43,8 @@ const transformPointData = (data: PointMeasurementEntry) => {
 };
 
 const PointMeasurementPanel: React.FC<PointMeasurementPanelProps> = () => {
-  const { measurements, clearPointMeasurements } = useCesiumMeasurements();
+  const { measurements, clearPointMeasurements, clearMeasurementsByIds } =
+    useCesiumMeasurements();
   const pointMeasurements = measurements
     .filter((m: MeasurementEntry) => isPointMeasurementEntry(m))
     .reverse();
@@ -95,6 +96,16 @@ const PointMeasurementPanel: React.FC<PointMeasurementPanelProps> = () => {
                 data.name || ""
               } (${data.id})`,
               children: <PointQueryInfo data={transformPointData(data)} />,
+              extra: (
+                <Button
+                  type="text"
+                  size="small"
+                  onClick={() => clearMeasurementsByIds([data.id])}
+                  aria-label={`Messung ${data.id} löschen`}
+                >
+                  <FontAwesomeIcon icon={faTrash} />
+                </Button>
+              ),
             };
           })}
         />
