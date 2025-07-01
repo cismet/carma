@@ -44,3 +44,58 @@ export interface PointInfoData {
   heightDifference?: number;
   nivpData?: NivPPoint;
 }
+
+export enum MeasurementMode {
+  NONE = "none",
+  PointQuery = "point_query",
+  Distance = "distance",
+  Elevation = "elevation",
+}
+
+type GeomPoint = {
+  longitude: number;
+  latitude: number;
+  height: number;
+};
+
+type GeomPolyline = GeomPoint[];
+
+export type MeasurementEntry = {
+  id: string;
+  type: MeasurementMode;
+  timestamp: number;
+  name?: string;
+  geometryECEF: Cartesian3[] | Cartesian3;
+  geometryWGS84: GeomPoint | GeomPolyline;
+  metadata?: {
+    pointInfo?: PointInfoData;
+    nivp?: NivPPoint;
+    heightDifference?: number;
+  };
+};
+
+export type PointMeasurementEntry = MeasurementEntry & {
+  type: MeasurementMode.PointQuery;
+  geometryECEF: Cartesian3;
+  geometryWGS84: GeomPoint;
+};
+
+export function isPointMeasurementEntry(
+  entry: MeasurementEntry
+): entry is PointMeasurementEntry {
+  return entry.type === MeasurementMode.PointQuery;
+}
+
+export type DistanceMeasurementEntry = MeasurementEntry & {
+  type: MeasurementMode.Distance;
+  geometryECEF: Cartesian3[];
+  geometryWGS84: GeomPolyline;
+};
+
+export function isDistanceMeasurementEntry(
+  entry: MeasurementEntry
+): entry is DistanceMeasurementEntry {
+  return entry.type === MeasurementMode.Distance;
+}
+
+export type MeasurementCollection = MeasurementEntry[];

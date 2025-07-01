@@ -1,35 +1,17 @@
 import type { Viewer, Cartesian3 } from "cesium";
 import React, { createContext, useContext, useState, useMemo } from "react";
 import { useCesiumViewer } from "../contexts/CesiumViewerContext";
-import { PointInfoData } from "./types/MeasurementTypes";
+import {
+  MeasurementCollection,
+  MeasurementEntry,
+  MeasurementMode,
+  PointInfoData,
+} from "./types/MeasurementTypes";
 import { useCesiumDistanceMeasurement } from "./hooks/useCesiumDistanceMeasurement";
 import { normalizeOptions } from "@carma-commons/utils";
 import useCesiumPointQuery from "./hooks/useCesiumPointQuery";
 import useNivPPoints from "./hooks/useNivPPoints";
 import { FESTPUNKTE_WUPPERTAL } from "@carma-commons/resources";
-
-export enum MeasurementMode {
-  NONE = "none",
-  PointQuery = "point_query",
-  Distance = "distance",
-  Elevation = "elevation",
-}
-
-export type MeasurementEntry = {
-  id: string;
-  type: MeasurementMode;
-  timestamp: number;
-  name: string;
-  geometryECEF: Cartesian3[] | Cartesian3;
-  geometryWGS84: {
-    longitude: number;
-    latitude: number;
-    height: number;
-  };
-  metadata: PointInfoData | null;
-};
-
-export type MeasurementCollection = MeasurementEntry[];
 
 interface CesiumMeasurementsContextType {
   measurementMode: MeasurementMode;
@@ -65,7 +47,7 @@ interface CesiumMeasurementsProviderProps {
 export const CesiumMeasurementsProvider: React.FC<
   CesiumMeasurementsProviderProps
 > = ({ children, verticalDatum, options }) => {
-  const { viewerRef } = useCesiumViewer();
+  const { viewer } = useCesiumViewer();
 
   const queryOptions = normalizeOptions(
     options?.pointQueries,
@@ -78,20 +60,20 @@ export const CesiumMeasurementsProvider: React.FC<
     MeasurementMode.PointQuery
   );
   const [searchRadius, setSearchRadius] = useState(queryOptions.searchRadius);
-  const [measurements, setMeasurements] = useState<MeasurementEntry[]>([]);
+  const [measurements, setMeasurements] = useState<MeasurementCollection>([]);
 
   const measurementCount = measurements.length;
   const showNivPoints = true;
 
   const { entities } = useNivPPoints(
-    viewerRef,
+    viewer,
     FESTPUNKTE_WUPPERTAL,
     showNivPoints,
     heightReference
   );
 
   const { clearPoints, showPoints, hidePoints } = useCesiumPointQuery(
-    viewerRef,
+    viewer,
     measurementMode === MeasurementMode.PointQuery,
     setMeasurements,
     searchRadius,

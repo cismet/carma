@@ -1,14 +1,11 @@
 import React from "react";
 import { Card, Typography } from "antd";
 import { CloseOutlined } from "@ant-design/icons";
-import {
-  MeasurementCollection,
-  MeasurementMode,
-  useCesiumMeasurements,
-} from "../CesiumMeasurementsContext";
+import { useCesiumMeasurements } from "../CesiumMeasurementsContext";
 import MeasurementTable from "./MeasurementTable";
 import { useCesiumViewer } from "../../contexts/CesiumViewerContext";
 import { Cartesian3 } from "cesium";
+import { MeasurementMode } from "../types/MeasurementTypes";
 
 const { Text } = Typography;
 
@@ -21,7 +18,7 @@ const DistanceMeasurementPanel: React.FC<DistanceMeasurementPanelProps> = ({
 }) => {
   const { setMeasurements, measurements, measurementMode } =
     useCesiumMeasurements();
-  const { viewerRef } = useCesiumViewer();
+  const { viewer } = useCesiumViewer();
 
   const enabled = measurementMode === MeasurementMode.Distance;
 
@@ -53,14 +50,18 @@ const DistanceMeasurementPanel: React.FC<DistanceMeasurementPanelProps> = ({
         ) : undefined
       }
     >
-      <MeasurementTable
-        activeMeasurementPoints={activeMeasurement.geometryECEF as Cartesian3[]}
-        viewer={viewerRef?.current}
-        coordinateDisplayMode={coordinateDisplayMode}
-      />
+      {activeMeasurement && (
+        <MeasurementTable
+          activeMeasurementPoints={
+            activeMeasurement.geometryECEF as Cartesian3[]
+          }
+          viewer={viewer}
+          coordinateDisplayMode={coordinateDisplayMode}
+        />
+      )}
 
-      {/* Display placeholder text when measurement mode is active but no measurements */}
       {enabled &&
+        activeMeasurement &&
         (activeMeasurement.geometryECEF as Cartesian3[]).length === 0 && (
           <Text type="secondary" style={{ fontStyle: "italic" }}>
             Klicken Sie, um Entfernungen zu messen

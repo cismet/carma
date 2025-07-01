@@ -19,7 +19,7 @@ const MinimalLod2: FC = () => {
   const viewerRef = useRef<Viewer | null>(null);
   const { tilesetRef, tilesetReady } = useTileset(
     WUPP_LOD2_TILESET.url,
-    viewerRef
+    viewerRef.current
   );
 
   useEffect(() => {
@@ -56,7 +56,7 @@ const MinimalLod2: FC = () => {
     };
   }, []);
 
-  useZoomToTilesetOnReady(viewerRef, tilesetRef, tilesetReady);
+  useZoomToTilesetOnReady(viewerRef.current, tilesetRef, tilesetReady);
   return <div ref={containerRef} style={{ width: "100%", height: "100vh" }} />;
 };
 

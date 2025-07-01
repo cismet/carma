@@ -10,7 +10,7 @@ const MinimalMesh: React.FC = () => {
   const viewerRef = useRef<Viewer | null>(null);
   const { tilesetRef, tilesetReady } = useTileset(
     WUPP_MESH_2024.url,
-    viewerRef
+    viewerRef.current
   );
 
   useEffect(() => {
@@ -36,7 +36,7 @@ const MinimalMesh: React.FC = () => {
       }
     };
   }, []);
-  useZoomToTilesetOnReady(viewerRef, tilesetRef, tilesetReady);
+  useZoomToTilesetOnReady(viewerRef.current, tilesetRef, tilesetReady);
   return <div ref={containerRef} style={{ width: "100%", height: "100vh" }} />;
 };
 

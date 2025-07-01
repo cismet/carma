@@ -1,14 +1,14 @@
 import React from "react";
-import { Typography, Divider } from "antd";
+import { Typography, Divider, Space } from "antd";
 
 const { Text } = Typography;
 
 // Generic text formatter for long text fields
-const formatLongText = (text: string): string => {
+const formatLongText = (text: string, maxLength = 32): string => {
   return text
     .replace(/,\s*/g, "\n") // Replace commas with newlines
     .replace(/\s+/g, " ") // Normalize whitespace
-    .replace(/(.{20,}?)\s+/g, "$1\n") // Add line breaks after ~20 chars at word boundaries
+    .replace(new RegExp(`(.{${maxLength},}?)\\s+`, "g"), "$1\n") // Add line breaks after ~20 chars at word boundaries
     .trim();
 };
 
@@ -40,241 +40,121 @@ interface PointQueryInfoProps {
   data: PointQueryData;
 }
 
+const InfoRow: React.FC<{
+  label: string;
+  value: React.ReactNode;
+  type?: "danger" | "success";
+}> = ({ label, value, type }) => (
+  <Space
+    style={{
+      width: "100%",
+      justifyContent: "space-between",
+      marginBottom: 8,
+    }}
+  >
+    <Text strong style={{ whiteSpace: "nowrap" }}>
+      {label}
+    </Text>
+    <Text type={type}>{value}</Text>
+  </Space>
+);
+
 const PointQueryInfo: React.FC<PointQueryInfoProps> = ({ data }) => {
+  const nivp = data?.nivpData;
+
   return (
     <>
       {data.elevation !== undefined && (
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            marginBottom: "8px",
-          }}
-        >
-          <Text strong>Höhe:</Text>
-          <Text>{data.elevation.toFixed(3)} m</Text>
-        </div>
+        <InfoRow label="Höhe:" value={`${data.elevation.toFixed(3)} m`} />
       )}
 
       {data.longitude !== undefined && data.latitude !== undefined && (
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "space-between",
-            marginBottom: "8px",
-          }}
-        >
-          <Text strong>Koordinaten:</Text>
-          <Text>
-            {data.latitude.toFixed(6)}°, {data.longitude.toFixed(6)}°
-          </Text>
-        </div>
+        <InfoRow
+          label="Koordinaten:"
+          value={`${data.latitude.toFixed(6)}°, ${data.longitude.toFixed(6)}°`}
+        />
       )}
 
-      {data.nivpData && (
+      {nivp && (
         <>
-          <Divider orientation="left" orientationMargin="0">
+          <Divider orientation="left" orientationMargin={0}>
             <Text
               type="secondary"
-              style={{ fontSize: "11px", textTransform: "uppercase" }}
+              style={{ fontSize: 11, textTransform: "uppercase" }}
             >
               Nächster Höhenfestpunkt
             </Text>
           </Divider>
 
+          <InfoRow
+            label="Lagebezeichnung:"
+            value={formatLongText(nivp.lagebezeichnung)}
+          />
+
           {data.heightDifference !== undefined && (
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                marginBottom: "8px",
-              }}
-            >
-              <Text strong>Höhendifferenz:</Text>
-              <Text type={data.heightDifference > 0 ? "danger" : "success"}>
-                {data.heightDifference > 0 ? "+" : ""}
-                {data.heightDifference.toFixed(3)} m
-              </Text>
-            </div>
+            <InfoRow
+              label="Höhendifferenz:"
+              value={`${
+                data.heightDifference > 0 ? "+" : ""
+              }${data.heightDifference.toFixed(3)} m`}
+              type={data.heightDifference > 0 ? "danger" : "success"}
+            />
           )}
 
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: "8px",
-            }}
-          >
-            <Text strong>Blatt / Nr.:</Text>
-            <Text>
-              {data.nivpData.dgk_blattnummer} / {data.nivpData.laufende_nummer}
-            </Text>
-          </div>
+          <InfoRow
+            label="Blatt / Nr.:"
+            value={`${nivp.dgk_blattnummer} / ${nivp.laufende_nummer}`}
+          />
 
-          {data.nivpData.punktnummer_nrw && (
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                marginBottom: "8px",
-              }}
-            >
-              <Text strong>Punktnummer NRW:</Text>
-              <Text>{data.nivpData.punktnummer_nrw}</Text>
-            </div>
+          {nivp.punktnummer_nrw && (
+            <InfoRow label="Punktnummer NRW:" value={nivp.punktnummer_nrw} />
           )}
 
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: "8px",
-            }}
-          >
-            <Text strong>Messungsjahr:</Text>
-            <Text>{data.nivpData.messungsjahr}</Text>
-          </div>
+          <InfoRow label="Messungsjahr:" value={nivp.messungsjahr} />
+          <InfoRow
+            label="Historisch:"
+            value={nivp.historisch ? "Ja" : "Nein"}
+          />
+          <InfoRow label="Festlegungsart:" value={nivp.festlegungsart} />
+          <InfoRow label="Lagegenauigkeit:" value={nivp.lagegenauigkeit} />
+          <InfoRow
+            label="UTM32:"
+            value={`${nivp.x.toFixed(2)}, ${nivp.y.toFixed(2)} m`}
+          />
+          <InfoRow
+            label="Höhe über NN:"
+            value={`${nivp.hoehe_ueber_nn.toFixed(3)} m`}
+          />
+          <InfoRow
+            label="Höhe über NHN:"
+            value={`${nivp.hoehe_ueber_nhn.toFixed(3)} m`}
+          />
+          <InfoRow
+            label="Höhe über NHN2016:"
+            value={`${nivp.hoehe_ueber_nhn2016.toFixed(3)} m`}
+          />
 
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: "8px",
-            }}
-          >
-            <Text strong>Historisch:</Text>
-            <Text>{data.nivpData.historisch ? "Ja" : "Nein"}</Text>
-          </div>
-
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: "8px",
-            }}
-          >
-            <Text strong>Festlegungsart:</Text>
-            <Text>{data.nivpData.festlegungsart}</Text>
-          </div>
-
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: "8px",
-            }}
-          >
-            <Text strong>Lagegenauigkeit:</Text>
-            <Text>{data.nivpData.lagegenauigkeit}</Text>
-          </div>
-
-          <Divider />
-
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: "8px",
-            }}
-          >
-            <Text strong>Lagebezeichnung:</Text>
-            <Text
-              style={{
-                wordBreak: "break-word",
-                lineHeight: "1.4",
-                whiteSpace: "pre-line",
-              }}
-            >
-              {formatLongText(data.nivpData.lagebezeichnung)}
-            </Text>
-          </div>
-
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: "8px",
-            }}
-          >
-            <Text strong>UTM32:</Text>
-            <Text>
-              {data.nivpData.x.toFixed(2)}, {data.nivpData.y.toFixed(2)} m
-            </Text>
-          </div>
-
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: "8px",
-            }}
-          >
-            <Text strong>Höhe über NN:</Text>
-            <Text>{data.nivpData.hoehe_ueber_nn.toFixed(3)} m</Text>
-          </div>
-
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: "8px",
-            }}
-          >
-            <Text strong>Höhe über NHN:</Text>
-            <Text>{data.nivpData.hoehe_ueber_nhn.toFixed(3)} m</Text>
-          </div>
-
-          <div
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: "8px",
-            }}
-          >
-            <Text strong>Höhe über NHN2016:</Text>
-            <Text>{data.nivpData.hoehe_ueber_nhn2016.toFixed(3)} m</Text>
-          </div>
-
-          {data.nivpData.bemerkung && data.nivpData.bemerkung.trim() && (
+          {nivp.bemerkung && nivp.bemerkung.trim() && (
             <>
               <Divider />
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  marginBottom: "8px",
-                }}
-              >
-                <Text strong>Bemerkung:</Text>
-                <Text
-                  style={{
-                    wordBreak: "break-word",
-                    lineHeight: "1.4",
-                    whiteSpace: "pre-line",
-                  }}
-                >
-                  {formatLongText(data.nivpData.bemerkung)}
-                </Text>
-              </div>
+              <InfoRow
+                label="Bemerkung:"
+                value={
+                  <span
+                    style={{
+                      wordBreak: "break-word",
+                      lineHeight: 1.4,
+                      whiteSpace: "pre-line",
+                    }}
+                  >
+                    {formatLongText(nivp.bemerkung)}
+                  </span>
+                }
+              />
             </>
           )}
         </>
       )}
-
-      {data.additionalInfo &&
-        Object.entries(data.additionalInfo).map(([key, value]) => (
-          <div
-            key={key}
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              marginBottom: "8px",
-            }}
-          >
-            <Text strong>{key}:</Text>
-            <Text>{value}</Text>
-          </div>
-        ))}
     </>
   );
 };

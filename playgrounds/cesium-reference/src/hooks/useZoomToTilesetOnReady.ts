@@ -3,7 +3,7 @@ import { Cesium3DTileset, Viewer } from "cesium";
 
 // zoom on load to tileset bounds, with optional conditional behavior
 export const useZoomToTilesetOnReady = (
-  viewerRef: React.MutableRefObject<Viewer | null>,
+  viewer: Viewer | null,
   tilesetRef: React.MutableRefObject<Cesium3DTileset | null>,
   tilesetReady: boolean,
   shouldZoom = true // Optional parameter for conditional zoom behavior
@@ -13,7 +13,7 @@ export const useZoomToTilesetOnReady = (
 
   useEffect(() => {
     if (
-      viewerRef.current &&
+      viewer &&
       tilesetRef.current &&
       tilesetReady &&
       shouldZoom &&
@@ -21,8 +21,8 @@ export const useZoomToTilesetOnReady = (
     ) {
       try {
         // Add HMR robustness - check if viewer is not destroyed
-        if (!viewerRef.current.isDestroyed()) {
-          viewerRef.current.zoomTo(tilesetRef.current);
+        if (!viewer.isDestroyed()) {
+          viewer.zoomTo(tilesetRef.current);
           hasProcessedZoomRef.current = true;
           console.debug("[useZoomToTilesetOnReady] Zoomed to tileset");
         }
@@ -33,7 +33,7 @@ export const useZoomToTilesetOnReady = (
         );
       }
     }
-  }, [tilesetReady, viewerRef, tilesetRef, shouldZoom]);
+  }, [tilesetReady, viewer, tilesetRef, shouldZoom]);
 
   // Reset the processed flag when shouldZoom changes from false to true
   useEffect(() => {
@@ -44,13 +44,9 @@ export const useZoomToTilesetOnReady = (
 
   // Manual zoom function for home button or programmatic use
   const zoomToTileset = () => {
-    if (
-      viewerRef.current &&
-      tilesetRef.current &&
-      !viewerRef.current.isDestroyed()
-    ) {
+    if (viewer && tilesetRef.current && !viewer.isDestroyed()) {
       try {
-        viewerRef.current.zoomTo(tilesetRef.current);
+        viewer.zoomTo(tilesetRef.current);
         console.debug("[useZoomToTilesetOnReady] Manual zoom to tileset");
       } catch (error) {
         console.error(

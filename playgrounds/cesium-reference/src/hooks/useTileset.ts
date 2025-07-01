@@ -7,7 +7,7 @@ const defaultConstructorOptions: Cesium3DTileset.ConstructorOptions = {
 
 function useTileset(
   url: string,
-  viewerRef: React.MutableRefObject<Viewer | null>,
+  viewer: Viewer | null,
   constructorOptions?: Cesium3DTileset.ConstructorOptions
 ) {
   const tilesetRef = useRef<Cesium3DTileset | null>(null);
@@ -46,15 +46,11 @@ function useTileset(
   }, [url, constructorOptions]);
 
   useEffect(() => {
-    if (viewerRef.current && tilesetRef.current && tilesetReady) {
+    if (viewer && tilesetRef.current && tilesetReady) {
       // Add additional null checks for HMR robustness
       try {
-        if (
-          viewerRef.current.scene &&
-          !viewerRef.current.isDestroyed() &&
-          viewerRef.current.scene.primitives
-        ) {
-          viewerRef.current.scene.primitives.add(tilesetRef.current);
+        if (viewer.scene && !viewer.isDestroyed() && viewer.scene.primitives) {
+          viewer.scene.primitives.add(tilesetRef.current);
           console.debug("[useTileset] Added tileset to scene");
         } else {
           console.warn(
@@ -65,7 +61,7 @@ function useTileset(
         console.error("[useTileset] Error adding tileset to scene:", error);
       }
     }
-  }, [viewerRef, tilesetReady]);
+  }, [viewer, tilesetReady]);
 
   return { tilesetRef, error, loading, tilesetReady };
 }

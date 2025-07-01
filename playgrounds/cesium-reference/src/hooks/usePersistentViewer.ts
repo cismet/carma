@@ -39,7 +39,7 @@ export const usePersistentViewer = (
   } = options;
 
   const viewerRef = useRef<Viewer | null>(null);
-  const [isViewerReady, setIsViewerReady] = useState(false);
+  const [viewer, setViewer] = useState<Viewer | null>(null);
 
   // Initialize viewer
   useEffect(() => {
@@ -50,7 +50,7 @@ export const usePersistentViewer = (
           "[usePersistentViewer] Existing viewer is destroyed, cleaning up reference"
         );
         viewerRef.current = null;
-        setIsViewerReady(false);
+        setViewer(null);
       } else {
         console.debug(
           "[usePersistentViewer] Viewer already exists and is valid"
@@ -67,7 +67,7 @@ export const usePersistentViewer = (
             ...cesiumOptions,
           });
           viewerRef.current = viewer;
-          setIsViewerReady(true);
+          setViewer(viewer);
           console.debug("[usePersistentViewer] Viewer initialized");
         }
       } catch (error) {
@@ -75,7 +75,7 @@ export const usePersistentViewer = (
           "[usePersistentViewer] Viewer initialization error:",
           error
         );
-        setIsViewerReady(false);
+        setViewer(null);
       }
     };
 
@@ -91,26 +91,23 @@ export const usePersistentViewer = (
         console.error("[usePersistentViewer] Error destroying viewer:", error);
       } finally {
         viewerRef.current = null;
-        setIsViewerReady(false);
+        setViewer(null);
       }
     };
   }, [containerRef, cesiumOptions]);
 
   const { tilesetRef, tilesetReady } = useTileset(
     tilesetUrl,
-    viewerRef,
+    viewer,
     tilesetOptions
   );
 
-  const { wasRestored, hasValidSavedState } = useCameraPersistence(
-    viewerRef.current,
-    {
-      autoSave: true,
-      saveDelay: 1000,
-      autoRestore: true,
-      ...cameraPersistence,
-    }
-  );
+  const { wasRestored, hasValidSavedState } = useCameraPersistence(viewer, {
+    autoSave: true,
+    saveDelay: 1000,
+    autoRestore: true,
+    ...cameraPersistence,
+  });
 
   const shouldZoom = !hasValidSavedState() && !wasRestored;
   console.debug("[usePersistentViewer] Camera state check:", {
@@ -120,16 +117,14 @@ export const usePersistentViewer = (
   });
 
   const { zoomToTileset } = useZoomToTilesetOnReady(
-    viewerRef,
+    viewer,
     tilesetRef,
     tilesetReady,
     shouldZoom
   );
 
   return {
-    viewer: viewerRef.current,
-    viewerRef,
-    isViewerReady,
+    viewer,
     tileset: tilesetRef.current,
     tilesetRef,
     tilesetReady,

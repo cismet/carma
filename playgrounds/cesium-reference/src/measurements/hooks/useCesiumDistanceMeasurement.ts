@@ -10,7 +10,7 @@ import {
 } from "cesium";
 import { LABEL_FONT, SCALE_BY_DISTANCE } from "./useNivPPoints";
 import { formatDistance } from "../../utils/formatters";
-import { MeasurementCollection } from "../CesiumMeasurementsContext";
+import { MeasurementCollection } from "../types/MeasurementTypes";
 
 const createPointEntity = (
   position: Cartesian3,

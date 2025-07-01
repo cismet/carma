@@ -51,7 +51,7 @@ const getElevationLabel = (standard: ElevationStandard): string => {
 };
 
 const useNivPPoints = (
-  viewerRef: MutableRefObject<Viewer | null>,
+  viewer: Viewer | null,
   uri: string,
   enabled: boolean = true,
   elevationStandard: ElevationStandard = "nhn",
@@ -68,7 +68,6 @@ const useNivPPoints = (
 
   // Load and transform data once per session
   useEffect(() => {
-    const viewer = viewerRef.current;
     if (!viewer || !enabled) return;
 
     const loadNivPData = async () => {
@@ -143,7 +142,7 @@ const useNivPPoints = (
     };
 
     loadNivPData();
-  }, [viewerRef, uri, elevationStandard, enabled]); // Include elevationStandard for initial transformation
+  }, [viewer, uri, elevationStandard, enabled]); // Include elevationStandard for initial transformation
 
   // Filter points based on historic toggle and elevation standard
   useEffect(() => {
@@ -197,7 +196,6 @@ const useNivPPoints = (
   }, [allPoints, includeHistoric, elevationStandard]);
 
   useEffect(() => {
-    const viewer = viewerRef.current;
     if (!viewer || !enabled || filteredPoints.length === 0) return;
 
     console.debug(`[NIVP] Creating ${filteredPoints.length} point entities...`);
@@ -272,7 +270,7 @@ const useNivPPoints = (
         console.error("[useNivPPoints] Error during cleanup:", error);
       }
     };
-  }, [viewerRef, filteredPoints, elevationStandard, enabled]);
+  }, [viewer, filteredPoints, elevationStandard, enabled]);
 
   return {
     isLoading,

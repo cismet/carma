@@ -18,13 +18,14 @@ import {
 import { create3DCrossGroup } from "../utils/cesium3DCross";
 import { LABEL_FONT, SCALE_BY_DISTANCE } from "./useNivPPoints";
 import {
+  isPointMeasurementEntry,
   MeasurementCollection,
-  MeasurementEntry,
   MeasurementMode,
-} from "../CesiumMeasurementsContext";
+  PointMeasurementEntry,
+} from "../types/MeasurementTypes";
 
 const useCesiumPointQuery = (
-  viewerRef: MutableRefObject<Viewer | null>,
+  viewer: Viewer | null,
   enabled: boolean = true,
   setCollection: Dispatch<SetStateAction<MeasurementCollection>>,
   // custom measurement type settings
@@ -44,7 +45,6 @@ const useCesiumPointQuery = (
   } | null>(null);
 
   useEffect(() => {
-    const viewer = viewerRef.current;
     if (!viewer || viewer.isDestroyed() || !enabled) {
       // Clean up if disabled
       if (handlerRef.current) {
@@ -122,7 +122,7 @@ const useCesiumPointQuery = (
         },
       });
 
-      const measurement: MeasurementEntry = {
+      const measurement: PointMeasurementEntry = {
         type: MeasurementMode.PointQuery, // Assuming PointQuery is the mode for this
         id: `point-${Date.now()}`,
         name: `Point at ${height.toFixed(2)}m`,
@@ -201,7 +201,7 @@ const useCesiumPointQuery = (
                     const elevation = cartographic.height;
 
                     // Get the stored NivP data from entity properties
-                    const nivpData = entity.properties.nivpData?.getValue(
+                    const nivp = entity.properties.nivpData?.getValue(
                       viewer.clock.currentTime
                     );
 
@@ -210,13 +210,11 @@ const useCesiumPointQuery = (
 
                     const timestamp = new Date().getTime();
 
-                    const measurement: MeasurementEntry = {
+                    const measurement: PointMeasurementEntry = {
                       type: MeasurementMode.PointQuery, // Assuming PointQuery is the mode for this
-                      id: `nivp-${nivpData.id}-${timestamp}`,
+                      id: `nivp-${nivp.id}-${timestamp}`,
                       timestamp,
-                      name: `NivP Point ${
-                        nivpData.lagebezeichnung || nivpData.id
-                      }`,
+                      name: `NivP Point ${nivp.lagebezeichnung || nivp.id}`,
 
                       geometryECEF: position,
                       geometryWGS84: {
@@ -224,7 +222,7 @@ const useCesiumPointQuery = (
                         latitude,
                         height: elevation,
                       },
-                      metadata: { ...nivpData, heightDifference },
+                      metadata: { nivp, heightDifference },
                     };
 
                     setCollection((prevCollection: MeasurementCollection) => [
@@ -301,7 +299,7 @@ const useCesiumPointQuery = (
       }
       console.debug("[SceneClick] Terrain click handler cleaned up");
     };
-  }, [viewerRef, enabled, nivPEntities, searchRadius]);
+  }, [viewer, enabled, nivPEntities, searchRadius]);
 
   return {
     showPoints: (ids?: string[]) => {
@@ -317,12 +315,12 @@ const useCesiumPointQuery = (
     clearPoints: (ids?: string[]) => {
       // Could expose additional functionality here if needed
       setCollection((prevCollection: MeasurementCollection) => {
-        const clearAll = !ids;
+        const clearAll = ids === undefined || ids.length === 0;
         // Filter out points based on ids or type
         return prevCollection.filter((measurement) =>
           clearAll
             ? !ids.includes(measurement.id)
-            : measurement.type !== MeasurementMode.PointQuery
+            : !isPointMeasurementEntry(measurement)
         );
       });
       console.debug("[CesiumPointQuery] Clearing points:", ids);

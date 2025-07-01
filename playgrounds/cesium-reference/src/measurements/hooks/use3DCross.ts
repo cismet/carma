@@ -4,12 +4,11 @@ import { create3DCross } from "../utils/cesium3DCross";
 import { useCesiumViewer } from "../../contexts/CesiumViewerContext";
 
 const use3DCross = () => {
-  const { viewerRef } = useCesiumViewer();
+  const { viewer } = useCesiumViewer();
   const crossEntitiesRef = useRef<Entity[]>([]);
 
   // Create the cross entities once
   useEffect(() => {
-    const viewer = viewerRef.current;
     if (
       !viewer ||
       viewer.isDestroyed() ||
@@ -39,7 +38,7 @@ const use3DCross = () => {
         crossEntitiesRef.current = [];
       }
     };
-  }, [viewerRef]);
+  }, [viewer]);
 
   const show = useCallback(() => {
     crossEntitiesRef.current.forEach((entity) => (entity.show = true));
@@ -51,7 +50,6 @@ const use3DCross = () => {
 
   const updatePosition = useCallback(
     (position: Cartesian3) => {
-      const viewer = viewerRef.current;
       if (!viewer || viewer.isDestroyed()) return;
 
       // For simplicity, we are recreating the cross here.
@@ -66,7 +64,7 @@ const use3DCross = () => {
       crossEntitiesRef.current = newCrossEntities;
       show();
     },
-    [viewerRef, hide, show]
+    [viewer, hide, show]
   );
 
   return { show, hide, updatePosition };

@@ -52,7 +52,7 @@ const ObliqueAndMesh: React.FC = () => {
   const viewerRef = useRef<Viewer | null>(null);
   const { tilesetRef, tilesetReady } = useTileset(
     WUPP_MESH_2024.url,
-    viewerRef
+    viewerRef.current
   );
 
   const [meshQuality, setMeshQuality] = useState<number>(1);

@@ -35,7 +35,7 @@ const ContextAwareApp: React.FC<{
 
   const TopRightPanel: React.FC = () => {
     return (
-      <Flex vertical gap={2}>
+      <Flex vertical gap={2} style={{ maxWidth: "24rem" }}>
         <InteractiveModeTabs
           coordinateDisplayMode={coordinateDisplayMode}
           onCoordinateDisplayModeChange={onCoordinateDisplayModeChange}

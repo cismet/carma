@@ -4,9 +4,8 @@ import { Viewer } from "cesium";
 import { usePersistentViewer } from "../hooks/usePersistentViewer";
 
 interface CesiumViewerContextType {
-  viewerRef: React.MutableRefObject<Viewer | null>;
+  viewer: Viewer | null;
   zoomToTileset?: () => void;
-  isViewerReady: boolean;
 }
 
 const CesiumViewerContext = createContext<CesiumViewerContextType | undefined>(
@@ -35,15 +34,11 @@ export const CesiumViewerProvider: React.FC<CesiumViewerProviderProps> = ({
   options,
   children,
 }) => {
-  const { viewerRef, isViewerReady, zoomToTileset } = usePersistentViewer(
-    containerRef,
-    options
-  );
+  const { viewer, zoomToTileset } = usePersistentViewer(containerRef, options);
 
   const contextValue = {
-    viewerRef,
+    viewer,
     zoomToTileset,
-    isViewerReady,
   };
 
   return (
