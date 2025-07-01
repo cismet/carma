@@ -1,5 +1,14 @@
 import React from "react";
-import { Tabs, Row, Col, InputNumber, Card, Radio, Slider } from "antd";
+import {
+  Tabs,
+  Row,
+  Col,
+  InputNumber,
+  Card,
+  Radio,
+  Slider,
+  Checkbox,
+} from "antd";
 import type { InputNumberProps } from "antd";
 import { AimOutlined, LineChartOutlined } from "@ant-design/icons";
 import { useCesiumMeasurements } from "../CesiumMeasurementsContext";
@@ -67,6 +76,8 @@ export const InteractiveModeTabs: React.FC<InteractiveModeTabsProps> = ({
     searchRadius,
     setSearchRadius,
     measurements,
+    singleMode,
+    setSingleMode,
   } = useCesiumMeasurements();
 
   const handleTabChange = (mode: MeasurementMode) => {
@@ -119,6 +130,12 @@ export const InteractiveModeTabs: React.FC<InteractiveModeTabsProps> = ({
         onChange={handleTabChange}
         size="small"
       />
+      <Checkbox
+        checked={singleMode}
+        onChange={(e) => setSingleMode(e.target.checked)}
+      >
+        Solo
+      </Checkbox>
     </Card>
   );
 };

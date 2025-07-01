@@ -1,11 +1,8 @@
-import type { Viewer, Cartesian3 } from "cesium";
 import React, { createContext, useContext, useState, useMemo } from "react";
 import { useCesiumViewer } from "../contexts/CesiumViewerContext";
 import {
   MeasurementCollection,
-  MeasurementEntry,
   MeasurementMode,
-  PointInfoData,
 } from "./types/MeasurementTypes";
 import { useCesiumDistanceMeasurement } from "./hooks/useCesiumDistanceMeasurement";
 import { normalizeOptions } from "@carma-commons/utils";
@@ -20,6 +17,8 @@ interface CesiumMeasurementsContextType {
   setSearchRadius: (radius: number) => void;
   measurements: MeasurementCollection;
   setMeasurements: (measurements: MeasurementCollection) => void;
+  singleMode: boolean;
+  setSingleMode: (singleMode: boolean) => void;
 }
 
 const CesiumMeasurementsContext = createContext<
@@ -27,6 +26,7 @@ const CesiumMeasurementsContext = createContext<
 >(undefined);
 
 export type MeasurementProviderOptions = {
+  singleMode?: boolean;
   pointQueries?: {
     enabled?: boolean;
     searchRadius?: number;
@@ -54,15 +54,17 @@ export const CesiumMeasurementsProvider: React.FC<
     defaultPointQueryOptions
   );
 
+  const singleModeDefault = options?.singleMode ?? true;
+
   const heightReference = verticalDatum ?? "nhn2016";
 
   const [measurementMode, setMeasurementMode] = useState<MeasurementMode>(
     MeasurementMode.PointQuery
   );
   const [searchRadius, setSearchRadius] = useState(queryOptions.searchRadius);
+  const [singleMode, setSingleMode] = useState(singleModeDefault);
   const [measurements, setMeasurements] = useState<MeasurementCollection>([]);
 
-  const measurementCount = measurements.length;
   const showNivPoints = true;
 
   const { entities } = useNivPPoints(
@@ -77,27 +79,32 @@ export const CesiumMeasurementsProvider: React.FC<
     measurementMode === MeasurementMode.PointQuery,
     setMeasurements,
     searchRadius,
-    entities
+    entities,
+    singleMode
   );
 
   const contextValue = useMemo(
     () => ({
+      measurements,
+      setMeasurements,
       measurementMode,
       setMeasurementMode,
-      clearPoints,
-      measurementCount,
       searchRadius,
       setSearchRadius,
-      measurements,
-      setMeasurements,
+      singleMode,
+      setSingleMode,
+      clearPoints,
     }),
     [
-      clearPoints,
       measurements,
       setMeasurements,
-      measurementCount,
       measurementMode,
+      setMeasurementMode,
+      singleMode,
+      setSingleMode,
       searchRadius,
+      setSearchRadius,
+      clearPoints,
     ]
   );
 

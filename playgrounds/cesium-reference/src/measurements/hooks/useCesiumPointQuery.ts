@@ -1,10 +1,4 @@
-import {
-  Dispatch,
-  MutableRefObject,
-  SetStateAction,
-  useEffect,
-  useRef,
-} from "react";
+import { Dispatch, SetStateAction, useEffect, useRef } from "react";
 import type { Viewer } from "cesium";
 import {
   Cartesian2,
@@ -23,6 +17,43 @@ import {
   MeasurementMode,
   PointMeasurementEntry,
 } from "../types/MeasurementTypes";
+import { s } from "node_modules/vite/dist/node/types.d-aGj9QkWt";
+
+const updateLast =
+  (measurement: PointMeasurementEntry) => (prev: MeasurementCollection) => {
+    // only add if not pointMeasurement already exists, otherwise replace the last one
+    const existingIndex = prev
+      .reverse()
+      .findIndex(
+        (m) =>
+          isPointMeasurementEntry(m) && m.type === MeasurementMode.PointQuery
+      );
+    if (existingIndex !== -1) {
+      // Replace the last point measurement
+      const newCollection = [...prev];
+      const forwardIndex = prev.length - 1 - existingIndex;
+      newCollection[forwardIndex] = measurement;
+      return newCollection;
+    }
+    // Otherwise, add the new measurement
+    return [...prev, measurement];
+  };
+
+const updateCollection = (
+  setCollection: Dispatch<SetStateAction<MeasurementCollection>>,
+  measurement: PointMeasurementEntry,
+  singleMode: boolean
+) => {
+  if (singleMode) {
+    // If in single point mode, clear previous points
+    setCollection(updateLast(measurement));
+  } else {
+    setCollection((prevCollection: MeasurementCollection) => [
+      ...prevCollection,
+      measurement,
+    ]);
+  }
+};
 
 const useCesiumPointQuery = (
   viewer: Viewer | null,
@@ -30,7 +61,8 @@ const useCesiumPointQuery = (
   setCollection: Dispatch<SetStateAction<MeasurementCollection>>,
   // custom measurement type settings
   searchRadius: number = 10, // Default search radius to 10m, same as cross3D visual
-  nivPEntities?: Entity[]
+  nivPEntities?: Entity[],
+  singleMode: boolean = false
 ) => {
   const handlerRef = useRef<ScreenSpaceEventHandler | null>(null);
   const pointOnMeshEntityRef = useRef<Entity | null>(null);
@@ -136,11 +168,7 @@ const useCesiumPointQuery = (
         metadata: null, // No additional metadata for point query
       };
 
-      // Add measurement to collection
-      setCollection((prevCollection: MeasurementCollection) => [
-        ...prevCollection,
-        measurement,
-      ]);
+      updateCollection(setCollection, measurement, singleMode);
 
       // Create 3D cross visualization (link size to search radius)
       const cross3D = create3DCrossGroup({
@@ -225,10 +253,7 @@ const useCesiumPointQuery = (
                       metadata: { nivp, heightDifference },
                     };
 
-                    setCollection((prevCollection: MeasurementCollection) => [
-                      ...prevCollection,
-                      measurement,
-                    ]);
+                    updateCollection(setCollection, measurement, singleMode);
                   }
                 } else {
                   // Fallback to setting selected entity for InfoBox (if no custom callback)
@@ -299,7 +324,7 @@ const useCesiumPointQuery = (
       }
       console.debug("[SceneClick] Terrain click handler cleaned up");
     };
-  }, [viewer, enabled, nivPEntities, searchRadius]);
+  }, [viewer, enabled, nivPEntities, searchRadius, singleMode]);
 
   return {
     showPoints: (ids?: string[]) => {
