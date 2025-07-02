@@ -128,7 +128,7 @@ export const Share = ({
     setThumbUrl("");
   };
 
-  const addItemToDb = async (data) => {
+  const addItemToDb = async (data, isDraft: boolean) => {
     const apiUrl = "https://wunda-cloud-api.cismet.de";
     const taskParameters = {
       parameters: {
@@ -136,6 +136,7 @@ export const Share = ({
         data: JSON.stringify({
           id: -1,
           name: title,
+          draft: isDraft,
           config: JSON.stringify(data),
         }),
       },
@@ -164,7 +165,7 @@ export const Share = ({
     if (response.status === 200) {
       messageApi.open({
         type: "success",
-        content: `Karte wurde publiziert.`,
+        content: `Karte wurde ${isDraft ? "gespeichert" : "publiziert"}.`,
         duration: 0.8,
       });
       closePopover?.();
@@ -172,7 +173,7 @@ export const Share = ({
     }
   };
 
-  const createShare = (e) => {
+  const createShare = (e, isDraft: boolean) => {
     e.preventDefault();
     const newConfig = {
       description: `Inhalt: ${content} Verwendungszweck: ${usage}`,
@@ -186,7 +187,7 @@ export const Share = ({
       layers,
     };
 
-    addItemToDb(newConfig);
+    addItemToDb(newConfig, isDraft);
   };
 
   return (
@@ -204,7 +205,10 @@ export const Share = ({
             borderRadius: "0.5rem",
           }}
         >
-          <form style={{ width: "100%" }} onSubmit={createShare}>
+          <form
+            style={{ width: "100%" }}
+            onSubmit={(e) => createShare(e, false)}
+          >
             <div
               style={{
                 display: "flex",
@@ -257,6 +261,9 @@ export const Share = ({
               <div className="flex flex-wrap gap-1 gap-y-2">
                 <TagSelector keywords={keywords} setKeywords={setKeywords} />
               </div>
+              <Button onClick={(e) => createShare(e, true)} className="mt-2">
+                Zwischenspeichern
+              </Button>
               <Button type="primary" htmlType="submit" className="mt-2">
                 Publizieren
               </Button>

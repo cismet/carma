@@ -141,7 +141,6 @@ export const NewLibModal = ({
       const { appKey, apiUrl, daqKey } = discoverProps;
       md5ActionFetchDAQ(appKey, apiUrl, jwt || "", daqKey)
         .then((result) => {
-          // Use type assertion to force the result to be the expected type
           const typedResult = result as DiscoverResult;
           setDiscoverItems(typedResult.data);
           setLoadingData(false);
@@ -430,7 +429,11 @@ export const NewLibModal = ({
       });
       layers.push(
         ...filteredItems?.map((item) => {
-          return { ...JSON.parse(item.config), id: item.id.toString() };
+          return {
+            ...JSON.parse(item.config),
+            id: item.id.toString(),
+            isDraft: item.draft ? true : false,
+          };
         })
       );
 

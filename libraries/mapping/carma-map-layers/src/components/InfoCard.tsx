@@ -11,6 +11,7 @@ import {
   faSquareUpRight,
   faStar,
   faTrash,
+  faUpload,
   faX,
 } from "@fortawesome/free-solid-svg-icons";
 
@@ -110,7 +111,7 @@ const InfoCard = ({
   const isArcGisOnline = layer?.name?.startsWith("wuppArcGisOnline_");
   const copyright = layer.copyright;
 
-  const updateItem = async () => {
+  const updateItem = async (publish?: boolean) => {
     setLoading(true);
     const apiUrl = discoverProps?.apiUrl || "https://wunda-cloud-api.cismet.de";
     const taskParameters = {
@@ -119,6 +120,7 @@ const InfoCard = ({
         data: JSON.stringify({
           id: layer.id,
           name: updatedTitle,
+          draft: publish ? !publish : layer.isDraft,
           config: JSON.stringify({
             ...layer,
             description: reconstructDescription(),
@@ -241,6 +243,14 @@ const InfoCard = ({
               )}
               {jwt && isDiscoverItem && (
                 <>
+                  {layer.isDraft && (
+                    <Button
+                      icon={<FontAwesomeIcon icon={faUpload} />}
+                      onClick={() => updateItem(true)}
+                    >
+                      Publizieren
+                    </Button>
+                  )}
                   <Button
                     onClick={() => {
                       if (editCollection) {

@@ -221,6 +221,11 @@ const LayerItem = ({
         data-test-id="card-layer-prev"
       >
         <div className="relative overflow-hidden bg-white isolate rounded-md flex justify-center items-center w-full aspect-[1.7777/1]">
+          {layer.isDraft && (
+            <div className="absolute bottom-5 -right-6 bg-red-500 text-white py-1 px-5 transform rotate-[-45deg] translate-x-[15%] translate-y-[30%] shadow-md z-50">
+              Entwurf
+            </div>
+          )}
           {isLoading && !showWithoutThumbnail && (
             <div style={{ position: "absolute", left: "50%" }}>
               <Spin />
