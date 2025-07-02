@@ -61,7 +61,7 @@ const Map = () => {
   const { zoomToFeature } = useContext<typeof TopicMapDispatchContext>(
     TopicMapDispatchContext
   );
-  const [gazDataWithProjects, setGazDataWithProjects] = useState();
+  const [gazDataWithProjects, setGazDataWithProjects] = useState([]);
 
   const { gazData } = useGazData();
 
@@ -122,18 +122,20 @@ const Map = () => {
   }, [selectedFeature]);
 
   useEffect(() => {
-    const gazDataWithFixedProjects = gazData
-      .filter((item) => item.type === "vorhabenkarte")
-      .map((i) => {
-        return {
-          ...i,
-          modifiedSearchData: i.string.slice(0, 10),
-        };
-      });
+    if (gazData && gazDataWithProjects.length === 0) {
+      const gazDataWithFixedProjects = gazData
+        .filter((item) => item.type === "vorhabenkarte")
+        .map((i) => {
+          return {
+            ...i,
+            modifiedSearchData: i.string.slice(0, 10),
+          };
+        });
 
-    console.log("xxx gazDataWithOriginalProjects", gazData.length);
+      console.log("xxx gazDataWithOriginalProjects", gazData.length);
 
-    setGazDataWithProjects([...gazData, ...gazDataWithFixedProjects]);
+      setGazDataWithProjects([...gazData, ...gazDataWithFixedProjects]);
+    }
   }, [gazData]);
 
   return (
