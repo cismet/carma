@@ -14,7 +14,12 @@ export type MatomoModeType = (typeof MATOMO_MODE)[keyof typeof MATOMO_MODE];
 // Create a context to expose tracking functions to other components
 interface MatomoContextType {
   trackPageView: () => void;
-  trackEvent: (category: string, action: string, name?: string, value?: number) => void;
+  trackEvent: (
+    category: string,
+    action: string,
+    name?: string,
+    value?: number
+  ) => void;
   currentMatomoMode: MatomoModeType;
 }
 
@@ -39,10 +44,12 @@ export const useMatomo = (
 ) => {
   const flags = useFeatureFlags();
   const location = useLocation();
-  
+
   // Determine tracking mode based on feature flags
   const trackingEnabled = flags.featureFlagTracking;
-  let currentMatomoMode: MatomoModeType = trackingEnabled ? MATOMO_MODE.ONLINE : MATOMO_MODE.CONSOLE;
+  let currentMatomoMode: MatomoModeType = trackingEnabled
+    ? MATOMO_MODE.ONLINE
+    : MATOMO_MODE.CONSOLE;
 
   // Function to track page views in Matomo
   const trackPageView = useCallback(() => {
@@ -76,20 +83,27 @@ export const useMatomo = (
   }, [currentMatomoMode]);
 
   // Function to track events in Matomo
-  const trackEvent = useCallback((category: string, action: string, name?: string, value?: number) => {
-    // We only need to check for CONSOLE or ONLINE modes since those are the only ones we use
-    // DISABLED mode is kept in the enum for future extensibility
+  const trackEvent = useCallback(
+    (category: string, action: string, name?: string, value?: number) => {
+      // We only need to check for CONSOLE or ONLINE modes since those are the only ones we use
+      // DISABLED mode is kept in the enum for future extensibility
 
-    if (currentMatomoMode === MATOMO_MODE.CONSOLE) {
-      console.log(`📈 CONSOLE MODE - Would track event: category=${category}, action=${action}, name=${name}, value=${value}`);
-      return;
-    }
+      if (currentMatomoMode === MATOMO_MODE.CONSOLE) {
+        console.log(
+          `📈 CONSOLE MODE - Would track event: category=${category}, action=${action}, name=${name}, value=${value}`
+        );
+        return;
+      }
 
-    if (window._paq) {
-      console.log(`📈 ONLINE MODE - Tracking event: category=${category}, action=${action}, name=${name}, value=${value}`);
-      window._paq.push(["trackEvent", category, action, name, value]);
-    }
-  }, [currentMatomoMode]);
+      if (window._paq) {
+        console.log(
+          `📈 ONLINE MODE - Tracking event: category=${category}, action=${action}, name=${name}, value=${value}`
+        );
+        window._paq.push(["trackEvent", category, action, name, value]);
+      }
+    },
+    [currentMatomoMode]
+  );
 
   // Initialize Matomo
   useEffect(() => {
@@ -129,7 +143,9 @@ export const useMatomo = (
     // Cleanup
     return () => {
       // Remove the script when the component unmounts
-      const existingScript = document.querySelector('script[src="https://wupptomo.cismet.de/matomo.js"]');
+      const existingScript = document.querySelector(
+        'script[src="https://wupptomo.cismet.de/matomo.js"]'
+      );
       if (existingScript && existingScript.parentNode) {
         existingScript.parentNode.removeChild(existingScript);
       }
@@ -178,7 +194,7 @@ export const useMatomo = (
   return {
     currentMatomoMode,
     trackPageView,
-    trackEvent
+    trackEvent,
   };
 };
 

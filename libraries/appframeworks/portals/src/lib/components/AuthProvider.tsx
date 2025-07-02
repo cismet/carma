@@ -34,17 +34,24 @@ interface AuthProviderProps {
   storagePrefix?: string;
 }
 
-export function AuthProvider({ children, storagePrefix = 'auth' }: AuthProviderProps) {
+export function AuthProvider({
+  children,
+  storagePrefix = "auth",
+}: AuthProviderProps) {
   const [auth, setAuth] = useState<AuthState>(initialState);
 
   // Initialize from localforage when component mounts
   useEffect(() => {
     async function loadFromStorage() {
-      if (typeof window !== 'undefined') {
+      if (typeof window !== "undefined") {
         try {
-          const storedJwt = await localforage.getItem<string>(`${storagePrefix}_jwt`);
-          const storedUser = await localforage.getItem<string>(`${storagePrefix}_user`);
-          
+          const storedJwt = await localforage.getItem<string>(
+            `${storagePrefix}_jwt`
+          );
+          const storedUser = await localforage.getItem<string>(
+            `${storagePrefix}_user`
+          );
+
           if (storedJwt || storedUser) {
             setAuth({
               jwt: storedJwt || undefined,
@@ -52,28 +59,28 @@ export function AuthProvider({ children, storagePrefix = 'auth' }: AuthProviderP
             });
           }
         } catch (error) {
-          console.error('Error loading auth from localforage:', error);
+          console.error("Error loading auth from localforage:", error);
         }
       }
     }
-    
+
     loadFromStorage();
   }, []);
 
   const setJWT = useCallback((jwt: string) => {
     setAuth((prev) => ({ ...prev, jwt }));
-    if (typeof window !== 'undefined') {
-      localforage.setItem(`${storagePrefix}_jwt`, jwt).catch(error => {
-        console.error('Error saving JWT to localforage:', error);
+    if (typeof window !== "undefined") {
+      localforage.setItem(`${storagePrefix}_jwt`, jwt).catch((error) => {
+        console.error("Error saving JWT to localforage:", error);
       });
     }
   }, []);
 
   const setUser = useCallback((user: string) => {
     setAuth((prev) => ({ ...prev, user }));
-    if (typeof window !== 'undefined') {
-      localforage.setItem(`${storagePrefix}_user`, user).catch(error => {
-        console.error('Error saving user to localforage:', error);
+    if (typeof window !== "undefined") {
+      localforage.setItem(`${storagePrefix}_user`, user).catch((error) => {
+        console.error("Error saving user to localforage:", error);
       });
     }
   }, []);

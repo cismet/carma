@@ -76,57 +76,57 @@ function App({ published }: { published?: boolean }) {
     <FeatureFlagProvider config={featureFlagConfig}>
       <MatomoTracker>
         <TweakpaneProvider>
-        <CarmaMapProviderWrapper
-          cesiumOptions={CESIUM_CONFIG}
-          overlayOptions={{
-            background: backgroundSettings,
-          }}
-          mapStyleConfig={geoportalMapStyleConfig}
-        >
-          <ObliqueProvider
-            config={OBLIQUE_CONFIG}
-            fallbackDirectionConfig={CAMERA_ID_TO_DIRECTION}
+          <CarmaMapProviderWrapper
+            cesiumOptions={CESIUM_CONFIG}
+            overlayOptions={{
+              background: backgroundSettings,
+            }}
+            mapStyleConfig={geoportalMapStyleConfig}
           >
-            <ErrorBoundary FallbackComponent={AppErrorFallback}>
-              <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
-                {isLoadingConfig && (
-                  <div
-                    id="loading"
-                    className="absolute flex flex-col items-center text-white justify-center h-screen w-full bg-black/50 z-[9999999999999]"
-                  >
-                    <h2>Lade Konfiguration</h2>
-                    <FontAwesomeIcon size="2x" icon={faSpinner} spin />
-                  </div>
-                )}
-                {!published && <TopNavbar />}
-                <MapMeasurement />
-                <MapWrapper />
-                <MobileWarningMessage
-                  headerText={mobileInfo.headerText}
-                  bodyText={mobileInfo.bodyText}
-                  confirmButtonText={mobileInfo.confirmButtonText}
-                />
-
-                <Modal
-                  open={showLoginModal}
-                  closable={false}
-                  footer={null}
-                  styles={{
-                    content: {
-                      padding: "0px",
-                      width: window.innerWidth < 600 ? "100%" : "450px",
-                    },
-                  }}
-                >
-                  <LoginForm
-                    onSuccess={() => setShowLoginModal(false)}
-                    closeLoginForm={() => setShowLoginModal(false)}
-                    showHelpText={false}
-                    style={{ padding: "20px" }}
+            <ObliqueProvider
+              config={OBLIQUE_CONFIG}
+              fallbackDirectionConfig={CAMERA_ID_TO_DIRECTION}
+            >
+              <ErrorBoundary FallbackComponent={AppErrorFallback}>
+                <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
+                  {isLoadingConfig && (
+                    <div
+                      id="loading"
+                      className="absolute flex flex-col items-center text-white justify-center h-screen w-full bg-black/50 z-[9999999999999]"
+                    >
+                      <h2>Lade Konfiguration</h2>
+                      <FontAwesomeIcon size="2x" icon={faSpinner} spin />
+                    </div>
+                  )}
+                  {!published && <TopNavbar />}
+                  <MapMeasurement />
+                  <MapWrapper />
+                  <MobileWarningMessage
+                    headerText={mobileInfo.headerText}
+                    bodyText={mobileInfo.bodyText}
+                    confirmButtonText={mobileInfo.confirmButtonText}
                   />
-                </Modal>
 
-                {/* <Modal
+                  <Modal
+                    open={showLoginModal}
+                    closable={false}
+                    footer={null}
+                    styles={{
+                      content: {
+                        padding: "0px",
+                        width: window.innerWidth < 600 ? "100%" : "450px",
+                      },
+                    }}
+                  >
+                    <LoginForm
+                      onSuccess={() => setShowLoginModal(false)}
+                      closeLoginForm={() => setShowLoginModal(false)}
+                      showHelpText={false}
+                      style={{ padding: "20px" }}
+                    />
+                  </Modal>
+
+                  {/* <Modal
                   title={mobileInfo.headerText}
                   open={isModalOpen && isMobile}
                   closable={false}
@@ -143,10 +143,10 @@ function App({ published }: { published?: boolean }) {
                 >
                   <p>{mobileInfo.bodyText}</p>
                 </Modal> */}
-              </div>
-            </ErrorBoundary>
-          </ObliqueProvider>
-        </CarmaMapProviderWrapper>
+                </div>
+              </ErrorBoundary>
+            </ObliqueProvider>
+          </CarmaMapProviderWrapper>
         </TweakpaneProvider>
       </MatomoTracker>
     </FeatureFlagProvider>
