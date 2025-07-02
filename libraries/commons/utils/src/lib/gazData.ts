@@ -106,7 +106,7 @@ export const getGazDataFromSources = (
               g.string += " " + z;
             }
             break;
-          case "bplaene":
+          case "bplaene.v2":
             g.overlay = "B";
             break;
           case "ebikes":
