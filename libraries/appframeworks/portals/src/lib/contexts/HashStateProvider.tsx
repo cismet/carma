@@ -90,7 +90,6 @@ export const HashStateProvider: React.FC<{
       );
       // build new params object with aliases applied
       const newParams = {};
-      const currentParams = getHashParams();
       const undefinedKeys: string[] = [];
 
       if (params) {
@@ -112,9 +111,7 @@ export const HashStateProvider: React.FC<{
 
       const clearAndUndefinedKeys = [...clearKeys, ...undefinedKeys];
 
-      const merged = { ...currentParams, ...newParams };
-
-      updateHashHistoryState(merged, location.pathname, {
+      updateHashHistoryState(newParams, location.pathname, {
         removeKeys: clearAndUndefinedKeys,
         keyOrder,
         label: label || "unspecified",

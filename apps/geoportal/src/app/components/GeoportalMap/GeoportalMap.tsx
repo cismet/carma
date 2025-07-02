@@ -440,6 +440,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
             // console.debug('xxx bbox', createWMSBbox(boundingbox));
           }}
           locationChangedHandler={topicMapLocationChangedHandler}
+          outerLocationChangedHandlerExclusive={true}
           onclick={(e) => {
             const map = routedMap?.leafletMap?.leafletElement;
             if (!map) return;

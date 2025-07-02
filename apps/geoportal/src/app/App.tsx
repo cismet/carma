@@ -72,6 +72,12 @@ function App({ published }: { published?: boolean }) {
   const syncToken = useSyncToken();
   useKeyboardShortcuts();
 
+  if (isLoadingConfig === null) {
+    // wait for the loading state to be determined to prevent rendering
+    console.debug("[CONFIG] APP - Waiting for config loading state...");
+    return null;
+  }
+
   const content = (
     <FeatureFlagProvider config={featureFlagConfig}>
       <MatomoTracker>

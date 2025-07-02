@@ -24,11 +24,27 @@ const sortArrayByKeys = (
 /**
  * Get the stored parameters or parse them from the URL as fallback
  */
-export const getHashParams = (
-  hash = window.location.hash.split("?")[1] || ""
-): Record<string, string> => {
+export const getHashParams = (hash?: string): Record<string, string> => {
+  const locationHash = hash ?? window.location.hash.split("?")[1] ?? "";
+
+  let caller = "";
+  const stack = new Error().stack;
+  if (stack) {
+    const lines = stack.split("\n");
+    if (lines.length > 2) {
+      // The second line is the caller
+      caller = lines[2].trim();
+    }
+  }
+
+  console.debug(
+    `[Routing] getHashParams ${caller}:`,
+    ...locationHash.split("&"),
+    window.history
+  );
+
   try {
-    return Object.fromEntries(new URLSearchParams(hash));
+    return Object.fromEntries(new URLSearchParams(locationHash));
   } catch (error) {
     console.debug("Error parsing hash parameters:", error);
     return {};
@@ -84,8 +100,5 @@ export const updateHashHistoryState = (
   const newUrl = `${currentUrl.origin}${currentUrl.pathname}${fullHashState}`;
 
   window.history.replaceState(null, "", newUrl);
-  console.debug(
-    `[Routing] Hash parameters updated (${label}):`,
-    combinedParams
-  );
+  console.debug(`[Routing][window.history] (${label}): State Replace`, newUrl);
 };
