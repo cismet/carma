@@ -225,7 +225,9 @@ export const Share = ({
                 value={service}
                 id="service"
               />
-              <label htmlFor="title">Titel</label>
+              <label htmlFor="title">
+                Titel <span className="text-red-500">*</span>
+              </label>
               <Input
                 id="title"
                 onChange={(e) => setTitle(e.target.value)}
@@ -233,7 +235,9 @@ export const Share = ({
                 className="bg-white"
                 required
               />
-              <label htmlFor="thumbUrl">Vorschaubild</label>
+              <label htmlFor="thumbUrl">
+                Vorschaubild <span className="text-red-500">*</span>
+              </label>
               <Input
                 id="thumbUrl"
                 onChange={(e) => setThumbUrl(e.target.value)}
@@ -241,7 +245,9 @@ export const Share = ({
                 className="bg-white"
                 required
               />
-              <label htmlFor="content">Inhalt</label>
+              <label htmlFor="content">
+                Inhalt <span className="text-red-500">*</span>
+              </label>
               <Input.TextArea
                 id="content"
                 onChange={(e) => setContent(e.target.value)}
@@ -249,7 +255,9 @@ export const Share = ({
                 className="bg-white"
                 required
               />
-              <label htmlFor="usage">Verwendungszweck</label>
+              <label htmlFor="usage">
+                Verwendungszweck <span className="text-red-500">*</span>
+              </label>
               <Input.TextArea
                 id="usage"
                 onChange={(e) => setUsage(e.target.value)}
