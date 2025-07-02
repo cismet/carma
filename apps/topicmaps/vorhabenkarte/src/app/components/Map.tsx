@@ -1,4 +1,4 @@
-import { useContext, useEffect } from "react";
+import { useContext, useEffect, useState } from "react";
 import {
   FeatureCollectionContext,
   FeatureCollectionDispatchContext,
@@ -61,20 +61,9 @@ const Map = () => {
   const { zoomToFeature } = useContext<typeof TopicMapDispatchContext>(
     TopicMapDispatchContext
   );
+  const [gazDataWithProjects, setGazDataWithProjects] = useState();
 
   const { gazData } = useGazData();
-  const gazDataWithOriginalProjects = [];
-
-  const gazDataWithFixedProjects = gazData
-    .filter((item) => item.type === "vorhabenkarte")
-    .map((i) => {
-      return {
-        ...i,
-        modifiedSearchData: i.string.slice(0, 10),
-      };
-    });
-
-  console.log("xxx gazDataWithOriginalProjects", gazDataWithFixedProjects);
 
   const { setSelection } = useSelection();
   useSelectionTopicMap();
@@ -132,6 +121,21 @@ const Map = () => {
     }
   }, [selectedFeature]);
 
+  useEffect(() => {
+    const gazDataWithFixedProjects = gazData
+      .filter((item) => item.type === "vorhabenkarte")
+      .map((i) => {
+        return {
+          ...i,
+          modifiedSearchData: i.string.slice(0, 10),
+        };
+      });
+
+    console.log("xxx gazDataWithOriginalProjects", gazDataWithFixedProjects);
+
+    setGazDataWithProjects(gazDataWithFixedProjects);
+  }, [gazData]);
+
   return (
     <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
       <ControlLayout ifStorybook={false}>
@@ -152,7 +156,7 @@ const Map = () => {
         <Control position="bottomleft" order={10}>
           <div data-test-id="fuzzy-search" style={{ marginTop: "4px" }}>
             <LibFuzzySearch
-              gazData={[...gazData, ...gazDataWithFixedProjects]}
+              gazData={gazDataWithProjects}
               typeInference={defaultTypeInference}
               onSelection={onGazetteerSelection}
               priorityTypes={["vorhabenkarte", "adressen", "pois"]}
