@@ -122,7 +122,7 @@ const Map = () => {
   }, [selectedFeature]);
 
   useEffect(() => {
-    if (gazData && gazDataWithProjects.length === 0) {
+    if (gazData && gazData.length > 0 && gazDataWithProjects.length === 0) {
       const gazDataWithFixedProjects = gazData
         .filter((item) => item.type === "vorhabenkarte")
         .map((i) => {
@@ -132,7 +132,7 @@ const Map = () => {
           };
         });
 
-      console.log("xxx gazDataWithOriginalProjects", gazData.length);
+      console.log("xxx gazData.length", gazData.length);
 
       setGazDataWithProjects([...gazData, ...gazDataWithFixedProjects]);
     }
