@@ -131,9 +131,9 @@ const Map = () => {
         };
       });
 
-    console.log("xxx gazDataWithOriginalProjects", gazDataWithFixedProjects);
+    console.log("xxx gazDataWithOriginalProjects", gazData.length);
 
-    setGazDataWithProjects(gazDataWithFixedProjects);
+    setGazDataWithProjects([...gazData, ...gazDataWithFixedProjects]);
   }, [gazData]);
 
   return (
