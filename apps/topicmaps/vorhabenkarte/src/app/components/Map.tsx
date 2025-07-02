@@ -38,6 +38,62 @@ import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextPr
 import { isAreaType } from "@carma-commons/resources";
 import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
 
+export const photos = [
+  {
+    url: "akzenta_barmen.jpg",
+    anzeige: "Akzenta Barmen 1",
+  },
+  {
+    url: "akzenta_steinbeck.jpg",
+    anzeige: "Akzenta Steinbeck 2",
+  },
+  {
+    url: "akzenta_barmen.jpg",
+    anzeige: "Akzenta Barmen 3",
+  },
+  {
+    url: "akzenta_steinbeck.jpg",
+    anzeige: "Akzenta Steinbeck 4",
+  },
+  {
+    url: "akzenta_barmen.jpg",
+    anzeige: "Akzenta Barmen 5",
+  },
+  {
+    url: "akzenta_steinbeck.jpg",
+    anzeige: "Akzenta Steinbeck 6",
+  },
+  {
+    url: "akzenta_barmen.jpg",
+    anzeige: "Akzenta Barmen 7",
+  },
+  {
+    url: "akzenta_steinbeck.jpg",
+    anzeige: "Akzenta Steinbeck 8",
+  },
+  {
+    url: "akzenta_barmen.jpg",
+    anzeige: "Akzenta Barmen 9",
+  },
+  {
+    url: "akzenta_steinbeck.jpg",
+    anzeige: "Akzenta Steinbeck 10",
+  },
+];
+
+const urls = [
+  "https://wunda-geoportal-docs.cismet.de/vorhabenkarte/fotos/akzenta_barmen.jpg",
+  "https://wunda-geoportal-docs.cismet.de/vorhabenkarte/fotos/akzenta_steinbeck.jpg",
+  "https://wunda-geoportal-docs.cismet.de/vorhabenkarte/fotos/akzenta_barmen.jpg",
+  "https://wunda-geoportal-docs.cismet.de/vorhabenkarte/fotos/akzenta_steinbeck.jpg",
+  "https://wunda-geoportal-docs.cismet.de/vorhabenkarte/fotos/akzenta_barmen.jpg",
+  "https://wunda-geoportal-docs.cismet.de/vorhabenkarte/fotos/akzenta_steinbeck.jpg",
+  "https://wunda-geoportal-docs.cismet.de/vorhabenkarte/fotos/akzenta_barmen.jpg",
+  "https://wunda-geoportal-docs.cismet.de/vorhabenkarte/fotos/akzenta_steinbeck.jpg",
+  "https://wunda-geoportal-docs.cismet.de/vorhabenkarte/fotos/akzenta_barmen.jpg",
+  "https://wunda-geoportal-docs.cismet.de/vorhabenkarte/fotos/akzenta_steinbeck.jpg",
+];
+
 const Map = () => {
   const { setClusteringOptions, setSelectedFeatureByPredicate } = useContext<
     typeof FeatureCollectionDispatchContext
@@ -108,8 +164,8 @@ const Map = () => {
       selectedFeature.properties.originalPhotos &&
       selectedFeature.properties.originalPhotos.length > 0
     ) {
-      const photos = selectedFeature.properties.originalPhotos;
-      const urls = selectedFeature.properties.fotos;
+      // const photos = selectedFeature.properties.originalPhotos;
+      // const urls = selectedFeature.properties.fotos;
       const titleArr = photos.map((p) => p.anzeige);
       lightBoxDispatchContext.setPhotoUrls(urls);
       lightBoxDispatchContext.setCaptions(titleArr);

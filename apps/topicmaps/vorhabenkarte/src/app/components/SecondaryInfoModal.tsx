@@ -24,6 +24,7 @@ import { useContext } from "react";
 import Panel from "react-cismap/commons/Panel";
 import { assetsBaseUrl } from "../../constants/constants";
 import PhotoGallery from "./PhotoGallery";
+import { photos } from "./Map";
 
 const styles = {
   container: {
@@ -103,53 +104,6 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
     lightBoxDispatchContext.setTitle(plan.info.title);
     lightBoxDispatchContext.setVisible(true);
   };
-
-  const photos = [
-    {
-      url: "akzenta_barmen.jpg",
-      anzeige: "Akzenta Barmen 1",
-    },
-    {
-      url: "akzenta_steinbeck.jpg",
-      anzeige: "Akzenta Steinbeck 2",
-    },
-    {
-      url: "akzenta_barmen.jpg",
-      anzeige: "Akzenta Barmen 3",
-    },
-    {
-      url: "akzenta_steinbeck.jpg",
-      anzeige: "Akzenta Steinbeck 4",
-    },
-    {
-      url: "akzenta_barmen.jpg",
-      anzeige: "Akzenta Barmen 5",
-    },
-    {
-      url: "akzenta_steinbeck.jpg",
-      anzeige: "Akzenta Steinbeck 6",
-    },
-    {
-      url: "akzenta_barmen.jpg",
-      anzeige: "Akzenta Barmen 7",
-    },
-    {
-      url: "akzenta_steinbeck.jpg",
-      anzeige: "Akzenta Steinbeck 8",
-    },
-    {
-      url: "akzenta_barmen.jpg",
-      anzeige: "Akzenta Barmen 9",
-    },
-    {
-      url: "akzenta_steinbeck.jpg",
-      anzeige: "Akzenta Steinbeck 10",
-    },
-    {
-      url: "akzenta_barmen.jpg",
-      anzeige: "Akzenta Barmen 11",
-    },
-  ];
 
   return (
     <div className="secondary-modal-wrapper">
