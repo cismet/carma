@@ -1,13 +1,12 @@
 import { TagSelector } from "@carma-commons/ui/tag-selection";
 import { getHashParams } from "@carma-commons/utils";
 import { serviceOptions } from "@carma-mapping/layers";
-import { faCopy } from "@fortawesome/free-regular-svg-icons";
 import { faShareNodes } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useCopyToClipboard } from "@uidotdev/usehooks";
-import { Button, Input, Select, Tooltip, message } from "antd";
+import { Button, Input, Select, message } from "antd";
 import { useState } from "react";
-import type { LayerState, Settings } from "../types";
+import type { LayerState } from "../types";
 import { useFeatureFlags } from "./FeatureFlagProvider";
 import { SelectionItem } from "./SelectionProvider";
 
@@ -30,14 +29,10 @@ export const useShareUrl = () => {
     layerState,
     closePopover = () => {},
     selection,
-    mode = "",
-    settings,
   }: {
     layerState: LayerState;
     closePopover?: () => void;
     selection?: SelectionItem;
-    mode?: string;
-    settings?: Settings;
   }) => {
     const { layers, backgroundLayer, selectedLuftbildLayer, selectedMapLayer } =
       layerState;
@@ -61,16 +56,6 @@ export const useShareUrl = () => {
             : selectedMapLayer.id,
       },
       layers,
-      settings:
-        mode === "publish/"
-          ? settings
-          : {
-              showLayerButtons: true,
-              showFullscreen: true,
-              showLocator: true,
-              showMeasurement: true,
-              add3dMode: true,
-            },
       view,
       selection,
     };
@@ -130,15 +115,6 @@ export const Share = ({
 
   const { layers, backgroundLayer } = layerState;
   const { copyShareUrl, contextHolder, messageApi } = useShareUrl();
-  const [, copyToClipboard] = useCopyToClipboard();
-  const [mode, setMode] = useState("");
-  const [settings, setSettings] = useState<Settings>({
-    showLayerButtons: true,
-    showFullscreen: true,
-    showLocator: true,
-    showMeasurement: true,
-    add3dMode: true,
-  });
 
   const flags = useFeatureFlags();
 
@@ -299,50 +275,11 @@ export const Share = ({
               layerState,
               closePopover,
               selection,
-              mode,
-              settings,
             });
           }}
         >
           Link kopieren
         </Button>
-        {extendedSharing && (
-          <Tooltip title="Konfiguration in Zwischenablage speichern">
-            <Button
-              onClick={() => {
-                const newConfig = {
-                  backgroundLayer,
-                  layers,
-                  settings:
-                    mode === "publish/"
-                      ? settings
-                      : {
-                          showLayerButtons: true,
-                          showLayerHideButtons: false,
-                          showFullscreen: true,
-                          showLocator: true,
-                          showMeasurement: true,
-                          showHamburgerMenu: false,
-                        },
-                };
-                try {
-                  copyToClipboard(JSON.stringify(newConfig));
-                  addItemToDb(newConfig);
-                  messageApi.open({
-                    type: "success",
-                    content: `Konfiguration wurde in die Zwischenablage gespeichert.`,
-                  });
-                } catch {
-                  messageApi.open({
-                    type: "error",
-                    content: `Es gab einen Fehler beim speichern der Konfiguration.`,
-                  });
-                }
-              }}
-              icon={<FontAwesomeIcon icon={faCopy} />}
-            />
-          </Tooltip>
-        )}
       </div>
     </div>
   );
