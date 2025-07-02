@@ -193,7 +193,9 @@ export function prepareGazData(data, prepoHandling, typeInference) {
     const gazElement = {
       ...item,
       // type: item.glyph === "graduation-cap" ? "schulen" : item.type,
-      xSearchData: joinNumberLetter(stringWithoutStopWords),
+      xSearchData: item.modifiedSearchData
+        ? item.modifiedSearchData
+        : joinNumberLetter(stringWithoutStopWords),
     };
 
     return gazElement;
