@@ -177,7 +177,7 @@ export const Share = ({
     e.preventDefault();
     const newConfig = {
       description: `Inhalt: ${content} Verwendungszweck: ${usage}`,
-      title,
+      title: title ? title : "Unbenannte Karte",
       type: "collection",
       thumbnail: thumbUrl,
       path: serviceOptions.find((option) => option.value === service)?.label,
