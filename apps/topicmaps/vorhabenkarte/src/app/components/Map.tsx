@@ -37,6 +37,7 @@ import { FeatureIconOverlay } from "./FeatureIconOverlay";
 import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { isAreaType } from "@carma-commons/resources";
 import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
+import { useGazData } from "@carma-apps/portals";
 
 const Map = () => {
   const { setClusteringOptions, setSelectedFeatureByPredicate } = useContext<
@@ -60,6 +61,20 @@ const Map = () => {
   const { zoomToFeature } = useContext<typeof TopicMapDispatchContext>(
     TopicMapDispatchContext
   );
+
+  const { gazData } = useGazData();
+  const gazDataWithOriginalProjects = [];
+
+  const gazDataWithFixedProjects = gazData
+    .filter((item) => item.type === "vorhabenkarte")
+    .map((i) => {
+      return {
+        ...i,
+        modifiedSearchData: i.string.slice(0, 10),
+      };
+    });
+
+  console.log("xxx gazDataWithOriginalProjects", gazDataWithFixedProjects);
 
   const { setSelection } = useSelection();
   useSelectionTopicMap();
@@ -137,6 +152,7 @@ const Map = () => {
         <Control position="bottomleft" order={10}>
           <div data-test-id="fuzzy-search" style={{ marginTop: "4px" }}>
             <LibFuzzySearch
+              gazData={[...gazData, ...gazDataWithFixedProjects]}
               typeInference={defaultTypeInference}
               onSelection={onGazetteerSelection}
               priorityTypes={["vorhabenkarte", "adressen", "pois"]}
