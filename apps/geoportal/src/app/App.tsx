@@ -73,7 +73,7 @@ function App({ published }: { published?: boolean }) {
   useKeyboardShortcuts();
 
   if (isLoadingConfig === null) {
-    // wait for the loading state to be determined to prevent rendering
+    // wait for the loading state to be determined to prevent re-rendering
     console.debug("[CONFIG] APP - Waiting for config loading state...");
     return null;
   }

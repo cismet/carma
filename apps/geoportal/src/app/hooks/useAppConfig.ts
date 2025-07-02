@@ -80,20 +80,30 @@ export const useAppConfig = (
 ) => {
   const dispatch = useDispatch();
   const { pathname } = useLocation();
-  const [isLoadingConfig, setIsLoadingConfig] = useState(null); // initially null to indicate undetermined state
+  const [isLoadingConfig, setIsLoadingConfig] = useState<boolean | null>(null); // initially null to indicate undetermined state
 
   useEffect(() => {
     const hashParams = getHashParams();
     const config = hashParams[configKey];
-    if (!config) {
+    if (config === undefined) {
       setIsLoadingConfig(false);
-      console.info("[CONFIG] No config provided in hash parameters.");
+      console.info("[CONFIG] No config key provided in hash parameters.");
       return;
     }
-    // already removed from hash, so we can safely ignore it
     updateHashHistoryState({ [configKey]: undefined }, pathname, {
-      label: "remove config postinit",
+      label: "remove config search parameter",
     });
+
+    if (config === null || config === "") {
+      setIsLoadingConfig(false);
+      console.info("[CONFIG] Empty config key provided in hash parameters.");
+
+      return;
+    }
+
+    console.info("[CONFIG] config  provided in hash parameters.");
+    // already removed from hash, so we can safely ignore it
+
     setIsLoadingConfig(true);
     const controller = new AbortController();
 
