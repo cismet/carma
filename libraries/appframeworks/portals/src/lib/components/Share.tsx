@@ -110,7 +110,7 @@ export const useShareUrl = () => {
     closePopover?.();
   };
 
-  return { copyShareUrl, contextHolder };
+  return { copyShareUrl, contextHolder, messageApi };
 };
 
 export const Share = ({
@@ -129,9 +129,8 @@ export const Share = ({
   const [keywords, setKeywords] = useState<string[]>([]);
 
   const { layers, backgroundLayer } = layerState;
-  const { copyShareUrl } = useShareUrl();
+  const { copyShareUrl, contextHolder, messageApi } = useShareUrl();
   const [, copyToClipboard] = useCopyToClipboard();
-  const [messageApi, contextHolder] = message.useMessage();
   const [mode, setMode] = useState("");
   const [settings, setSettings] = useState<Settings>({
     showLayerButtons: true,
