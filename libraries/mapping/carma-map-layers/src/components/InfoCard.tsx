@@ -74,6 +74,7 @@ const InfoCard = ({
   const [updatedThumbnail, setUpdatedThumbnail] = useState(layer.thumbnail);
   const [updatedTags, setUpdatedTags] = useState(tags || []);
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
 
   // Function to reconstruct the original description format from edited descriptions
   const reconstructDescription = () => {
@@ -111,7 +112,40 @@ const InfoCard = ({
   const isArcGisOnline = layer?.name?.startsWith("wuppArcGisOnline_");
   const copyright = layer.copyright;
 
+  const checkForRequiredFields = (config: Item) => {
+    setErrorMessage("");
+    const updatedParsedDescription = parseDescription(config.description);
+    let descriptionEmpty = false;
+    updatedParsedDescription.forEach((section) => {
+      if (
+        (section.title === "Inhalt" || section.title === "Verwendungszweck") &&
+        !section.description
+      ) {
+        descriptionEmpty = true;
+      }
+    });
+    if (!config.title || !config.thumbnail || descriptionEmpty) {
+      return "Bitte alle Pflichtfelder ausfüllen.";
+    }
+    return "";
+  };
+
   const updateItem = async (publish?: boolean) => {
+    const config = {
+      ...layer,
+      description: reconstructDescription(),
+      title: updatedTitle,
+      thumbnail: updatedThumbnail,
+      serviceName: updatedService,
+      tags: updatedTags,
+    };
+    if (!(!publish && layer.isDraft)) {
+      const error = checkForRequiredFields(config);
+      if (error) {
+        setErrorMessage(error);
+        return;
+      }
+    }
     setLoading(true);
     const apiUrl = discoverProps?.apiUrl || "https://wunda-cloud-api.cismet.de";
     const taskParameters = {
@@ -121,14 +155,7 @@ const InfoCard = ({
           id: layer.id,
           name: updatedTitle,
           draft: publish ? !publish : layer.isDraft,
-          config: JSON.stringify({
-            ...layer,
-            description: reconstructDescription(),
-            title: updatedTitle,
-            thumbnail: updatedThumbnail,
-            serviceName: updatedService,
-            tags: updatedTags,
-          }),
+          config: JSON.stringify(config),
         }),
       },
     };
@@ -273,7 +300,10 @@ const InfoCard = ({
                   {editCollection ? (
                     <Button
                       icon={<FontAwesomeIcon icon={faBan} />}
-                      onClick={() => setEditCollection(false)}
+                      onClick={() => {
+                        setEditCollection(false);
+                        setErrorMessage("");
+                      }}
                     >
                       Abbrechen
                     </Button>
@@ -312,6 +342,9 @@ const InfoCard = ({
         <div className="flex flex-col sm:flex-row gap-2 w-full h-full overflow-hidden">
           <div className="w-full flex flex-col justify-between overflow-auto">
             <div>
+              {errorMessage && (
+                <div className="text-red-500">{errorMessage}</div>
+              )}
               {parsedDescriptions.map((description, i) => {
                 if (description.title === "Sichtbarkeit") {
                   return null;
