@@ -1,6 +1,6 @@
 import { Doc } from "@carma-commons/document-viewer";
 
-const tileservice = "https://resources.cismet.de/tiles/";
+const tileservice = "https://resources-wuppertal.cismet.de/tiles/";
 
 const createTitleForFilenameForAdditionalDocuments = (
   filename: string

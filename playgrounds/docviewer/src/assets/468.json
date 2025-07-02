@@ -4,7 +4,7 @@
     "file": "B468.pdf",
     "url": "https://wunda-geoportal-docs.cismet.de/bplaene/rechtswirksam/B468.pdf",
     "docTitle": "B-Plan 468",
-    "layer": "https://resources.cismet.de/tiles/bplaene/rechtswirksam/B468.pdf/{z}/{x}/{y}.png",
+    "layer": "https://resources-wuppertal.cismet.de/tiles/bplaene/rechtswirksam/B468.pdf/{z}/{x}/{y}.png",
     "meta": {
       "layer0": {
         "x": 12733,
@@ -22,7 +22,7 @@
     "file": "B468_DBA.pdf",
     "url": "https://wunda-geoportal-docs.cismet.de/bplaene/rechtswirksam/B468_DBA.pdf",
     "docTitle": "B-Plan 468",
-    "layer": "https://resources.cismet.de/tiles/bplaene/rechtswirksam/B468_DBA.pdf/{z}/{x}/{y}.png",
+    "layer": "https://resources-wuppertal.cismet.de/tiles/bplaene/rechtswirksam/B468_DBA.pdf/{z}/{x}/{y}.png",
     "meta": {
       "layer0": {
         "x": 12402,
@@ -39,7 +39,7 @@
     "file": "B468_AUF.pdf",
     "url": "https://wunda-geoportal-docs.cismet.de/bplaene/verfahren/B468_AUF.pdf",
     "docTitle": "B-Plan 468",
-    "layer": "https://resources.cismet.de/tiles/bplaene/verfahren/B468_AUF.pdf/{z}/{x}/{y}.png",
+    "layer": "https://resources-wuppertal.cismet.de/tiles/bplaene/verfahren/B468_AUF.pdf/{z}/{x}/{y}.png",
     "meta": {
       "layer0": {
         "x": 1029,
@@ -56,8 +56,8 @@
     "group": "Zusatzdokumente",
     "file": "Info_BPlan-Zusatzdokumente_WUP.pdf",
     "url": "https://wunda-geoportal-docs.cismet.de/bplaene_dokumente/Info_BPlan-Zusatzdokumente_WUP.pdf",
-    "layer": "https://resources.cismet.de/tiles/bplaene_dokumente/Info_BPlan-Zusatzdokumente_WUP.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles/bplaene_dokumente/Info_BPlan-Zusatzdokumente_WUP.pdf/meta.json",
+    "layer": "https://resources-wuppertal.cismet.de/tiles/bplaene_dokumente/Info_BPlan-Zusatzdokumente_WUP.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources-wuppertal.cismet.de/tiles/bplaene_dokumente/Info_BPlan-Zusatzdokumente_WUP.pdf/meta.json",
     "meta": {
       "layer0": {
         "x": 2481,
@@ -95,8 +95,8 @@
     "structure": "/3. Änderung (im Verfahren)/Frühzeitige Beteiligungen",
     "file": "BPL_n0468_3And_FB_TOEB_07-2024_Artenschutzpruefung.pdf",
     "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_FB_TOEB_07-2024_Artenschutzpruefung.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_FB_TOEB_07-2024_Artenschutzpruefung.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_FB_TOEB_07-2024_Artenschutzpruefung.pdf/meta.json",
+    "layer": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_FB_TOEB_07-2024_Artenschutzpruefung.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_FB_TOEB_07-2024_Artenschutzpruefung.pdf/meta.json",
     "meta": {
       "layer0": {
         "x": 2481,
@@ -240,8 +240,8 @@
     "structure": "/3. Änderung (im Verfahren)/Frühzeitige Beteiligungen",
     "file": "BPL_n0468_3And_FB_TOEB_07-2024_Entwaesserungskonzept.pdf",
     "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_FB_TOEB_07-2024_Entwaesserungskonzept.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_FB_TOEB_07-2024_Entwaesserungskonzept.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_FB_TOEB_07-2024_Entwaesserungskonzept.pdf/meta.json",
+    "layer": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_FB_TOEB_07-2024_Entwaesserungskonzept.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_FB_TOEB_07-2024_Entwaesserungskonzept.pdf/meta.json",
     "meta": {
       "layer0": {
         "x": 2481,
@@ -285,8 +285,8 @@
     "structure": "/3. Änderung (im Verfahren)/Frühzeitige Beteiligungen",
     "file": "BPL_n0468_3And_FB_TOEB_07-2024_Geltungsbereich.pdf",
     "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_FB_TOEB_07-2024_Geltungsbereich.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_FB_TOEB_07-2024_Geltungsbereich.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_FB_TOEB_07-2024_Geltungsbereich.pdf/meta.json",
+    "layer": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_FB_TOEB_07-2024_Geltungsbereich.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_FB_TOEB_07-2024_Geltungsbereich.pdf/meta.json",
     "meta": {
       "layer0": {
         "x": 3508,
@@ -305,8 +305,8 @@
     "structure": "/3. Änderung (im Verfahren)/Frühzeitige Beteiligungen",
     "file": "BPL_n0468_3And_FB_TOEB_07-2024_Kurzbegruendung.pdf",
     "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_FB_TOEB_07-2024_Kurzbegruendung.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_FB_TOEB_07-2024_Kurzbegruendung.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_FB_TOEB_07-2024_Kurzbegruendung.pdf/meta.json",
+    "layer": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_FB_TOEB_07-2024_Kurzbegruendung.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_FB_TOEB_07-2024_Kurzbegruendung.pdf/meta.json",
     "meta": {
       "layer0": {
         "x": 2481,
@@ -395,8 +395,8 @@
     "structure": "/3. Änderung (im Verfahren)/Frühzeitige Beteiligungen",
     "file": "BPL_n0468_3And_FB_TOEB_07-2024_Projektskizze.pdf",
     "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_FB_TOEB_07-2024_Projektskizze.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_FB_TOEB_07-2024_Projektskizze.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_FB_TOEB_07-2024_Projektskizze.pdf/meta.json",
+    "layer": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_FB_TOEB_07-2024_Projektskizze.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_FB_TOEB_07-2024_Projektskizze.pdf/meta.json",
     "meta": {
       "layer0": {
         "x": 4961,
@@ -440,8 +440,8 @@
     "structure": "/3. Änderung (im Verfahren)/Aufstellungsbeschlüsse",
     "file": "BPL_n0468_3And_AB_Drs_11-2019.pdf",
     "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_AB_Drs_11-2019.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_AB_Drs_11-2019.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_AB_Drs_11-2019.pdf/meta.json",
+    "layer": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_AB_Drs_11-2019.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_AB_Drs_11-2019.pdf/meta.json",
     "meta": {
       "layer0": {
         "x": 2481,
@@ -465,8 +465,8 @@
     "structure": "/3. Änderung (im Verfahren)/Aufstellungsbeschlüsse",
     "file": "BPL_n0468_3And_AB_Drs_11-2019_Geltungsbereich.pdf",
     "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_AB_Drs_11-2019_Geltungsbereich.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_AB_Drs_11-2019_Geltungsbereich.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_AB_Drs_11-2019_Geltungsbereich.pdf/meta.json",
+    "layer": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_AB_Drs_11-2019_Geltungsbereich.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_AB_Drs_11-2019_Geltungsbereich.pdf/meta.json",
     "meta": {
       "layer0": {
         "x": 3508,
@@ -485,8 +485,8 @@
     "structure": "/3. Änderung (im Verfahren)/Aufstellungsbeschlüsse",
     "file": "BPL_n0468_3And_AB_Drs_11-2019_Projektskizze.pdf",
     "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_AB_Drs_11-2019_Projektskizze.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_AB_Drs_11-2019_Projektskizze.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_AB_Drs_11-2019_Projektskizze.pdf/meta.json",
+    "layer": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_AB_Drs_11-2019_Projektskizze.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/im_Verfahren/BPL_n0468_3And_AB_Drs_11-2019_Projektskizze.pdf/meta.json",
     "meta": {
       "layer0": {
         "x": 4961,
@@ -530,8 +530,8 @@
     "structure": "/2. Änderung (rechtskräftig)/Satzungsbeschlüsse",
     "file": "BPL_0468_2And_PB_Drs_01-2011_Bekanntmachung.pdf",
     "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_01-2011_Bekanntmachung.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_01-2011_Bekanntmachung.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_01-2011_Bekanntmachung.pdf/meta.json",
+    "layer": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_01-2011_Bekanntmachung.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_01-2011_Bekanntmachung.pdf/meta.json",
     "meta": {
       "layer0": {
         "x": 2479,
@@ -555,8 +555,8 @@
     "structure": "/2. Änderung (rechtskräftig)/Satzungsbeschlüsse",
     "file": "BPL_0468_2And_PB_Drs_09-2010_Abwaegung.pdf",
     "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Abwaegung.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Abwaegung.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Abwaegung.pdf/meta.json",
+    "layer": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Abwaegung.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Abwaegung.pdf/meta.json",
     "meta": {
       "layer0": {
         "x": 2479,
@@ -580,8 +580,8 @@
     "structure": "/2. Änderung (rechtskräftig)/Satzungsbeschlüsse",
     "file": "BPL_0468_2And_PB_Drs_09-2010_Aenderungsbereich.pdf",
     "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Aenderungsbereich.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Aenderungsbereich.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Aenderungsbereich.pdf/meta.json",
+    "layer": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Aenderungsbereich.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Aenderungsbereich.pdf/meta.json",
     "meta": {
       "layer0": {
         "x": 3455,
@@ -600,8 +600,8 @@
     "structure": "/2. Änderung (rechtskräftig)/Satzungsbeschlüsse",
     "file": "BPL_0468_2And_PB_Drs_09-2010_Anregungen.pdf",
     "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Anregungen.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Anregungen.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Anregungen.pdf/meta.json",
+    "layer": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Anregungen.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Anregungen.pdf/meta.json",
     "meta": {
       "layer0": {
         "x": 2479,
@@ -624,8 +624,8 @@
     "structure": "/2. Änderung (rechtskräftig)/Satzungsbeschlüsse",
     "file": "BPL_0468_2And_PB_Drs_09-2010_Begruendung.pdf",
     "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Begruendung.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Begruendung.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Begruendung.pdf/meta.json",
+    "layer": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Begruendung.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Begruendung.pdf/meta.json",
     "meta": {
       "layer0": {
         "x": 2479,
@@ -674,8 +674,8 @@
     "structure": "/2. Änderung (rechtskräftig)/Satzungsbeschlüsse",
     "file": "BPL_0468_2And_PB_Drs_09-2010_Bekanntmachung.pdf",
     "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Bekanntmachung.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Bekanntmachung.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Bekanntmachung.pdf/meta.json",
+    "layer": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Bekanntmachung.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Bekanntmachung.pdf/meta.json",
     "meta": {
       "layer0": {
         "x": 2480,
@@ -704,8 +704,8 @@
     "structure": "/2. Änderung (rechtskräftig)/Satzungsbeschlüsse",
     "file": "BPL_0468_2And_PB_Drs_09-2010.pdf",
     "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010.pdf/meta.json",
+    "layer": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010.pdf/meta.json",
     "meta": {
       "layer0": {
         "x": 2479,
@@ -729,8 +729,8 @@
     "structure": "/2. Änderung (rechtskräftig)/Satzungsbeschlüsse",
     "file": "BPL_0468_2And_PB_Drs_09-2010_Textliche-Festsetzungen.pdf",
     "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Textliche-Festsetzungen.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Textliche-Festsetzungen.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Textliche-Festsetzungen.pdf/meta.json",
+    "layer": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Textliche-Festsetzungen.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Textliche-Festsetzungen.pdf/meta.json",
     "meta": {
       "layer0": {
         "x": 2555,
@@ -749,8 +749,8 @@
     "structure": "/2. Änderung (rechtskräftig)/Satzungsbeschlüsse",
     "file": "BPL_0468_2And_PB_Drs_09-2010_Vergroesserung.pdf",
     "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Vergroesserung.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Vergroesserung.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Vergroesserung.pdf/meta.json",
+    "layer": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Vergroesserung.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_09-2010_Vergroesserung.pdf/meta.json",
     "meta": {
       "layer0": {
         "x": 2275,
@@ -769,8 +769,8 @@
     "structure": "/2. Änderung (rechtskräftig)/Satzungsbeschlüsse",
     "file": "BPL_0468_2And_PB_Drs_01-2010_Altlastgutachten.pdf",
     "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_01-2010_Altlastgutachten.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_01-2010_Altlastgutachten.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_01-2010_Altlastgutachten.pdf/meta.json",
+    "layer": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_01-2010_Altlastgutachten.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_2And_PB_Drs_01-2010_Altlastgutachten.pdf/meta.json",
     "meta": {
       "layer0": {
         "x": 2479,
@@ -1354,8 +1354,8 @@
     "structure": "/1. Änderung (rechtskräftig)/Satzungsbeschlüsse",
     "file": "BPL_0468_1And_PB_Drs_01-1981_Bekanntmachung.pdf",
     "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_1And_PB_Drs_01-1981_Bekanntmachung.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_1And_PB_Drs_01-1981_Bekanntmachung.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_1And_PB_Drs_01-1981_Bekanntmachung.pdf/meta.json",
+    "layer": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_1And_PB_Drs_01-1981_Bekanntmachung.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_1And_PB_Drs_01-1981_Bekanntmachung.pdf/meta.json",
     "meta": {
       "layer0": {
         "x": 2480,
@@ -1379,8 +1379,8 @@
     "structure": "/1. Änderung (rechtskräftig)/Satzungsbeschlüsse",
     "file": "BPL_0468_1And_PB_Drs_12-1980.pdf",
     "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_1And_PB_Drs_12-1980.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_1And_PB_Drs_12-1980.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_1And_PB_Drs_12-1980.pdf/meta.json",
+    "layer": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_1And_PB_Drs_12-1980.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_1And_PB_Drs_12-1980.pdf/meta.json",
     "meta": {
       "layer0": {
         "x": 2480,
@@ -1414,8 +1414,8 @@
     "structure": "/Ursprungsplan (rechtskräftig)/Satzungsbeschlüsse",
     "file": "BPL_0468_0_PB_Drs_05-1982_Beitrittsbeschluss.pdf",
     "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_05-1982_Beitrittsbeschluss.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_05-1982_Beitrittsbeschluss.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_05-1982_Beitrittsbeschluss.pdf/meta.json",
+    "layer": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_05-1982_Beitrittsbeschluss.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_05-1982_Beitrittsbeschluss.pdf/meta.json",
     "meta": {
       "layer0": {
         "x": 2480,
@@ -1449,8 +1449,8 @@
     "structure": "/Ursprungsplan (rechtskräftig)/Satzungsbeschlüsse",
     "file": "BPL_0468_0_PB_Drs_05-1982_Bekanntmachung.pdf",
     "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_05-1982_Bekanntmachung.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_05-1982_Bekanntmachung.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_05-1982_Bekanntmachung.pdf/meta.json",
+    "layer": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_05-1982_Bekanntmachung.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_05-1982_Bekanntmachung.pdf/meta.json",
     "meta": {
       "layer0": {
         "x": 2480,
@@ -1474,8 +1474,8 @@
     "structure": "/Ursprungsplan (rechtskräftig)/Satzungsbeschlüsse",
     "file": "BPL_0468_0_PB_Drs_06-1979_Begruendung.pdf",
     "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_06-1979_Begruendung.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_06-1979_Begruendung.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_06-1979_Begruendung.pdf/meta.json",
+    "layer": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_06-1979_Begruendung.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_06-1979_Begruendung.pdf/meta.json",
     "meta": {
       "layer0": {
         "x": 2480,
@@ -1569,8 +1569,8 @@
     "structure": "/Ursprungsplan (rechtskräftig)/Satzungsbeschlüsse",
     "file": "BPL_0468_0_PB_Drs_06-1979_Drucksache.pdf",
     "url": "https://wunda-geoportal-docs.cismet.de//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_06-1979_Drucksache.pdf",
-    "layer": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_06-1979_Drucksache.pdf/{z}/{x}/{y}.png",
-    "metaUrl": "https://resources.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_06-1979_Drucksache.pdf/meta.json",
+    "layer": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_06-1979_Drucksache.pdf/{z}/{x}/{y}.png",
+    "metaUrl": "https://resources-wuppertal.cismet.de/tiles//bplaene_dokumente/rechtsverbindlich/BPL_0468_0_PB_Drs_06-1979_Drucksache.pdf/meta.json",
     "meta": {
       "layer0": {
         "x": 2480,
