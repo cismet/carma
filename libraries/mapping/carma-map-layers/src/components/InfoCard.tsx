@@ -353,6 +353,9 @@ const InfoCard = ({
                   <>
                     <h5 className="font-semibold text-lg">
                       {description.title}
+                      {editCollection && (
+                        <span className="text-red-500"> *</span>
+                      )}
                     </h5>
                     {editCollection ? (
                       <Input.TextArea
@@ -387,6 +390,7 @@ const InfoCard = ({
                     className="font-semibold text-lg pt-1"
                   >
                     Kategorie
+                    {editCollection && <span className="text-red-500"> *</span>}
                   </label>
                   <br />
                   <Select
@@ -402,6 +406,7 @@ const InfoCard = ({
                     className="font-semibold text-lg pt-1"
                   >
                     Vorschaubild
+                    {editCollection && <span className="text-red-500"> *</span>}
                   </label>
                   <Input
                     className="bg-white"
