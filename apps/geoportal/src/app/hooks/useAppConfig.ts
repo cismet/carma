@@ -8,6 +8,7 @@ import {
   type Settings,
 } from "@carma-apps/portals";
 import type { BackgroundLayer, Layer } from "@carma-commons/types";
+import { updateHashHistoryState, getHashParams } from "@carma-commons/utils";
 
 import {
   setBackgroundLayer,
@@ -18,7 +19,6 @@ import {
 } from "../store/slices/mapping";
 
 import { AppDispatch } from "../store";
-import { updateHashHistoryState, getHashParams } from "@carma-commons/utils";
 
 type View = {
   center: string[];
@@ -33,7 +33,7 @@ type Config = {
   selection?: SelectionItem;
 };
 
-const CONFIG_KEY = "config";
+const DEFAULT_CONFIG_KEY = "config";
 
 const onLoadedConfig = (
   config: Config,
@@ -73,15 +73,37 @@ const onLoadedConfig = (
   }
 };
 
-export const useAppConfig = (configBaseUrl: string, layerMap: LayerMap) => {
+export const useAppConfig = (
+  configBaseUrl: string,
+  layerMap: LayerMap,
+  configKey = DEFAULT_CONFIG_KEY
+) => {
   const dispatch = useDispatch();
   const { pathname } = useLocation();
-  const [isLoadingConfig, setIsLoadingConfig] = useState(false);
+  const [isLoadingConfig, setIsLoadingConfig] = useState<boolean | null>(null); // initially null to indicate undetermined state
 
   useEffect(() => {
     const hashParams = getHashParams();
-    const config = hashParams[CONFIG_KEY];
-    if (!config) return;
+    const config = hashParams[configKey];
+    if (config === undefined) {
+      setIsLoadingConfig(false);
+      console.info("[CONFIG] No config key provided in hash parameters.");
+      return;
+    }
+    updateHashHistoryState({ [configKey]: undefined }, pathname, {
+      label: "remove config search parameter",
+    });
+
+    if (config === null || config === "") {
+      setIsLoadingConfig(false);
+      console.info("[CONFIG] Empty config key provided in hash parameters.");
+
+      return;
+    }
+
+    console.info("[CONFIG] config  provided in hash parameters.");
+    // already removed from hash, so we can safely ignore it
+
     setIsLoadingConfig(true);
     const controller = new AbortController();
 
@@ -90,10 +112,6 @@ export const useAppConfig = (configBaseUrl: string, layerMap: LayerMap) => {
       .then((newConfig: Config) => {
         onLoadedConfig(newConfig, layerMap, dispatch);
         setIsLoadingConfig(false);
-        updateHashHistoryState({}, pathname, {
-          removeKeys: [CONFIG_KEY],
-          label: "remove config postinit",
-        });
       })
       .catch((error) => {
         if (error.name === "AbortError") return;
