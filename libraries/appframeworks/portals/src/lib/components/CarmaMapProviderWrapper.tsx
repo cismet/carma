@@ -14,22 +14,30 @@ import { HashCodecs, HashStateProvider } from "../contexts/HashStateProvider";
 import { defaultHashCodecs, defaultHashKeyAliases } from "../utils/hashState";
 import { useMemo } from "react";
 import { AuthProvider } from "./AuthProvider";
+import { StoreInterfaceProvider } from "../contexts/StoreInterfaceProvider";
+import { AppConfigProvider } from "../contexts/AppConfigProvider";
 
 type CarmaMapProviderWrapperProps = {
   children: React.ReactNode;
   overlayOptions: { background: { transparency: number; color: string } };
   cesiumOptions: { providerConfig: any; tilesetConfigs: any };
+  layerMap: Record<string, unknown>;
+  configBaseUrl: string;
   gazDataConfig?: GazDataConfig;
   mapStyleConfig: MapStyleConfig;
   hashKeyAliases?: Record<string, string>;
   hashCodecs?: HashCodecs;
   keyOrder?: string[];
+  storeSliceConfigs?: any[];
 };
 
 export const CarmaMapProviderWrapper = ({
   children,
+  storeSliceConfigs,
   overlayOptions,
   cesiumOptions,
+  layerMap,
+  configBaseUrl,
   gazDataConfig = defaultGazDataConfig,
   mapStyleConfig,
   hashKeyAliases,
@@ -46,6 +54,7 @@ export const CarmaMapProviderWrapper = ({
     "fov",
     "m",
     "isOblique",
+    "appKey",
   ],
 }: CarmaMapProviderWrapperProps) => {
   const { background } = overlayOptions;
@@ -67,32 +76,39 @@ export const CarmaMapProviderWrapper = ({
   }
 
   return (
-    <HashStateProvider
-      keyAliases={aliases}
-      hashCodecs={codecs}
-      keyOrder={keyOrder}
-    >
-      <AuthProvider>
-        <GazDataProvider config={gazDataConfig}>
-          <SelectionProvider>
-            <MapStyleProvider config={mapStyleConfig}>
-              <TopicMapContextProvider infoBoxPixelWidth={350}>
-                <OverlayTourProvider transparency={transparency} color={color}>
-                  <CesiumContextProvider
-                    //initialViewerState={defaultCesiumState}
-                    // TODO move these to store/slice setup ?
-                    providerConfig={cesiumOptions.providerConfig}
-                    tilesetConfigs={cesiumOptions.tilesetConfigs}
-                  >
-                    {children}
-                  </CesiumContextProvider>
-                </OverlayTourProvider>
-              </TopicMapContextProvider>
-            </MapStyleProvider>
-          </SelectionProvider>
-        </GazDataProvider>
-      </AuthProvider>
-    </HashStateProvider>
+    <StoreInterfaceProvider sliceConfigs={storeSliceConfigs}>
+      <HashStateProvider
+        keyAliases={aliases}
+        hashCodecs={codecs}
+        keyOrder={keyOrder}
+      >
+        <AppConfigProvider configBaseUrl={configBaseUrl} layerMap={layerMap}>
+          <AuthProvider>
+            <GazDataProvider config={gazDataConfig}>
+              <SelectionProvider>
+                <MapStyleProvider config={mapStyleConfig}>
+                  <TopicMapContextProvider infoBoxPixelWidth={350}>
+                    <OverlayTourProvider
+                      transparency={transparency}
+                      color={color}
+                    >
+                      <CesiumContextProvider
+                        //initialViewerState={defaultCesiumState}
+                        // TODO move these to store/slice setup ?
+                        providerConfig={cesiumOptions.providerConfig}
+                        tilesetConfigs={cesiumOptions.tilesetConfigs}
+                      >
+                        {children}
+                      </CesiumContextProvider>
+                    </OverlayTourProvider>
+                  </TopicMapContextProvider>
+                </MapStyleProvider>
+              </SelectionProvider>
+            </GazDataProvider>
+          </AuthProvider>
+        </AppConfigProvider>
+      </HashStateProvider>
+    </StoreInterfaceProvider>
   );
 };
 

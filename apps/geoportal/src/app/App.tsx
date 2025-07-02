@@ -1,5 +1,5 @@
 // Built-in Modules
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 // 3rd party Modules
@@ -14,6 +14,7 @@ import { CrossTabCommunicationContextProvider } from "react-cismap/contexts/Cros
 import {
   CarmaMapProviderWrapper,
   FeatureFlagProvider,
+  useAppConfig,
 } from "@carma-apps/portals";
 import {
   backgroundSettings,
@@ -33,7 +34,6 @@ import TopNavbar from "./components/TopNavbar";
 import { ObliqueProvider } from "./oblique/components/ObliqueProvider";
 import { MatomoTracker } from "./MatomoTracker";
 
-import { useAppConfig } from "./hooks/useAppConfig";
 import { useManageLayers } from "./hooks/useManageLayers";
 import { useSyncToken } from "./hooks/useSyncToken";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
@@ -55,6 +55,8 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import "./index.css";
+import * as mappingSlice from "./store/slices/mapping";
+import * as uiSlice from "./store/slices/ui";
 
 declare global {
   interface Window {
@@ -65,9 +67,29 @@ declare global {
 if (typeof global === "undefined") {
   window.global = window;
 }
+
+const LoadingPlaceholder = () => {
+  const { isLoadingConfig } = useAppConfig();
+
+  if (!isLoadingConfig) return null;
+  return (
+    <div
+      id="loading"
+      className="absolute flex flex-col items-center text-white justify-center h-screen w-full bg-black/50 z-[9999999999999]"
+    >
+      <h2>Lade Konfiguration</h2>
+      <FontAwesomeIcon size="2x" icon={faSpinner} spin />
+    </div>
+  );
+};
+
+const sliceConfigs = [
+  { name: "mapping", slice: mappingSlice },
+  { name: "ui", slice: uiSlice },
+];
+
 function App({ published }: { published?: boolean }) {
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const isLoadingConfig = useAppConfig(CONFIG_BASE_URL, layerMap);
   useManageLayers(layerMap);
   const syncToken = useSyncToken();
   useKeyboardShortcuts();
@@ -76,57 +98,52 @@ function App({ published }: { published?: boolean }) {
     <FeatureFlagProvider config={featureFlagConfig}>
       <MatomoTracker>
         <TweakpaneProvider>
-        <CarmaMapProviderWrapper
-          cesiumOptions={CESIUM_CONFIG}
-          overlayOptions={{
-            background: backgroundSettings,
-          }}
-          mapStyleConfig={geoportalMapStyleConfig}
-        >
-          <ObliqueProvider
-            config={OBLIQUE_CONFIG}
-            fallbackDirectionConfig={CAMERA_ID_TO_DIRECTION}
+          <CarmaMapProviderWrapper
+            storeSliceConfigs={sliceConfigs}
+            configBaseUrl={CONFIG_BASE_URL}
+            layerMap={layerMap}
+            cesiumOptions={CESIUM_CONFIG}
+            overlayOptions={{
+              background: backgroundSettings,
+            }}
+            mapStyleConfig={geoportalMapStyleConfig}
           >
-            <ErrorBoundary FallbackComponent={AppErrorFallback}>
-              <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
-                {isLoadingConfig && (
-                  <div
-                    id="loading"
-                    className="absolute flex flex-col items-center text-white justify-center h-screen w-full bg-black/50 z-[9999999999999]"
-                  >
-                    <h2>Lade Konfiguration</h2>
-                    <FontAwesomeIcon size="2x" icon={faSpinner} spin />
-                  </div>
-                )}
-                {!published && <TopNavbar />}
-                <MapMeasurement />
-                <MapWrapper />
-                <MobileWarningMessage
-                  headerText={mobileInfo.headerText}
-                  bodyText={mobileInfo.bodyText}
-                  confirmButtonText={mobileInfo.confirmButtonText}
-                />
-
-                <Modal
-                  open={showLoginModal}
-                  closable={false}
-                  footer={null}
-                  styles={{
-                    content: {
-                      padding: "0px",
-                      width: window.innerWidth < 600 ? "100%" : "450px",
-                    },
-                  }}
-                >
-                  <LoginForm
-                    onSuccess={() => setShowLoginModal(false)}
-                    closeLoginForm={() => setShowLoginModal(false)}
-                    showHelpText={false}
-                    style={{ padding: "20px" }}
+            <ObliqueProvider
+              config={OBLIQUE_CONFIG}
+              fallbackDirectionConfig={CAMERA_ID_TO_DIRECTION}
+            >
+              <ErrorBoundary FallbackComponent={AppErrorFallback}>
+                <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
+                  <LoadingPlaceholder />
+                  {!published && <TopNavbar />}
+                  <MapMeasurement />
+                  <MapWrapper />
+                  <MobileWarningMessage
+                    headerText={mobileInfo.headerText}
+                    bodyText={mobileInfo.bodyText}
+                    confirmButtonText={mobileInfo.confirmButtonText}
                   />
-                </Modal>
 
-                {/* <Modal
+                  <Modal
+                    open={showLoginModal}
+                    closable={false}
+                    footer={null}
+                    styles={{
+                      content: {
+                        padding: "0px",
+                        width: window.innerWidth < 600 ? "100%" : "450px",
+                      },
+                    }}
+                  >
+                    <LoginForm
+                      onSuccess={() => setShowLoginModal(false)}
+                      closeLoginForm={() => setShowLoginModal(false)}
+                      showHelpText={false}
+                      style={{ padding: "20px" }}
+                    />
+                  </Modal>
+
+                  {/* <Modal
                   title={mobileInfo.headerText}
                   open={isModalOpen && isMobile}
                   closable={false}
@@ -143,10 +160,10 @@ function App({ published }: { published?: boolean }) {
                 >
                   <p>{mobileInfo.bodyText}</p>
                 </Modal> */}
-              </div>
-            </ErrorBoundary>
-          </ObliqueProvider>
-        </CarmaMapProviderWrapper>
+                </div>
+              </ErrorBoundary>
+            </ObliqueProvider>
+          </CarmaMapProviderWrapper>
         </TweakpaneProvider>
       </MatomoTracker>
     </FeatureFlagProvider>

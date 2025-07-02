@@ -2,18 +2,22 @@ import { useEffect } from "react";
 import { useDispatch } from "react-redux";
 
 import { setIsMode2d, VIEWERSTATE_KEYS } from "@carma-mapping/cesium-engine";
-import { getHashParams } from "@carma-commons/utils";
 
 import { useMapStyle } from "./useGeoportalMapStyle";
 import { MapStyleKeys } from "../constants/MapStyleKeys";
+import { useHashState } from "@carma-apps/portals";
 
 export const useAppSearchParams = () => {
   const dispatch = useDispatch();
   const { setCurrentStyle } = useMapStyle();
+  const { getHash } = useHashState();
 
   useEffect(() => {
-    const hashParams = getHashParams();
-    console.debug("useAppSearchParams - hashParams:", hashParams);
+    const hashParams = getHash();
+    console.debug(
+      "[ROUTE][LOCATION] useAppSearchParams - hashParams:",
+      hashParams
+    );
 
     // Handle 3D mode parameter
     if (hashParams[VIEWERSTATE_KEYS.is3d] !== undefined) {

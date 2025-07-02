@@ -24,6 +24,11 @@ export { GenericInfoBoxFromFeature } from "./lib/components/GenericInfoBoxFromFe
 
 export { GazDataProvider, useGazData } from "./lib/components/GazDataProvider";
 
+export {
+  AppConfigProvider,
+  useAppConfig,
+} from "./lib/contexts/AppConfigProvider";
+
 export { useAuth } from "./lib/components/AuthProvider";
 
 export {
@@ -35,6 +40,11 @@ export {
   useMapStyle,
   type MapStyleConfig,
 } from "./lib/contexts/MapStyleProvider";
+
+export {
+  StoreInterfaceProvider,
+  useStoreInterface,
+} from "./lib/contexts/StoreInterfaceProvider";
 
 export { MessageOverlay } from "./lib/components/MessageOverlay";
 

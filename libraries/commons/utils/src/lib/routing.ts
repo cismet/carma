@@ -84,8 +84,5 @@ export const updateHashHistoryState = (
   const newUrl = `${currentUrl.origin}${currentUrl.pathname}${fullHashState}`;
 
   window.history.replaceState(null, "", newUrl);
-  console.debug(
-    `[Routing] Hash parameters updated (${label}):`,
-    combinedParams
-  );
+  console.debug(`[Routing] History replaced [${label}] :`, newUrl);
 };
