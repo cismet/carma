@@ -75,7 +75,8 @@ export const CesiumMeasurementsProvider: React.FC<
 
   useCesiumPointVisualizer(
     viewer,
-    measurements.filter(isPointMeasurementEntry)
+    measurements.filter(isPointMeasurementEntry),
+    pointRadius
   );
 
   const clearAllMeasurements = () => {

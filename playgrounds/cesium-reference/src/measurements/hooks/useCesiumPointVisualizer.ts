@@ -3,10 +3,12 @@ import { type Viewer, Entity, Cartesian2, Color } from "cesium";
 import { create3DCrossGroup } from "../utils/cesium3DCross";
 import { LABEL_FONT, SCALE_BY_DISTANCE } from "./useNivPoints";
 import { PointMeasurementEntry } from "../types/MeasurementTypes";
+import { vi } from "vitest";
 
 const useCesiumPointVisualizer = (
   viewer: Viewer | null,
-  measurements: PointMeasurementEntry[] = []
+  points: PointMeasurementEntry[] = [],
+  radius: number
 ) => {
   const entityRefs = useRef<Record<string, Entity>>({});
   const cross3DRefs = useRef<Record<string, any>>({});
@@ -14,7 +16,7 @@ const useCesiumPointVisualizer = (
 
   useEffect(() => {
     if (!viewer || viewer.isDestroyed()) return;
-    const currentIds = new Set(measurements.map((m) => m.id));
+    const currentIds = new Set(points.map((m) => m.id));
     // Remove entities/crosses that are no longer present
     prevIdsRef.current.forEach((id) => {
       if (!currentIds.has(id)) {
@@ -29,16 +31,16 @@ const useCesiumPointVisualizer = (
       }
     });
     // Add entities/crosses for new measurements only
-    measurements.forEach((m) => {
+    points.forEach((m, i) => {
       if (!entityRefs.current[m.id]) {
         const entity = new Entity({
           id: m.id,
           name: m.name,
           position: m.geometryECEF,
           label: {
-            text: m.geometryWGS84.height.toFixed(2),
+            text: `P${i + 1} ${m.geometryWGS84.height.toFixed(2)}`,
             font: LABEL_FONT,
-            fillColor: Color.ORANGE,
+            fillColor: Color.WHITESMOKE,
             showBackground: true,
             backgroundColor: Color.BLACK.withAlpha(0.5),
             backgroundPadding: new Cartesian2(12, 6),
@@ -52,7 +54,7 @@ const useCesiumPointVisualizer = (
         entityRefs.current[m.id] = entity;
         const cross3D = create3DCrossGroup({
           position: m.geometryECEF,
-          radius: 10,
+          radius,
           color: Color.ORANGE,
           width: 2,
           id: `debugMarker-${m.id}`,
@@ -64,6 +66,7 @@ const useCesiumPointVisualizer = (
       }
     });
     prevIdsRef.current = currentIds;
+    viewer.scene.requestRender(); // Ensure scene updates after changes
     return () => {
       Object.values(entityRefs.current).forEach((entity) =>
         viewer.entities.remove(entity)
@@ -75,7 +78,7 @@ const useCesiumPointVisualizer = (
       cross3DRefs.current = {};
       prevIdsRef.current = new Set();
     };
-  }, [viewer, measurements]);
+  }, [viewer, points]);
 };
 
 export default useCesiumPointVisualizer;

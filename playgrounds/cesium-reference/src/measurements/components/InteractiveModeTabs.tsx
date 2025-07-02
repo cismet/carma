@@ -138,6 +138,7 @@ export const InteractiveModeTabs: React.FC<InteractiveModeTabsProps> = ({
           <Button
             icon={<FontAwesomeIcon icon={faTrash} />}
             size="small"
+            disabled={measurements.length === 0}
             onClick={clearAllMeasurements}
             aria-label="Alle Messungen löschen"
           />

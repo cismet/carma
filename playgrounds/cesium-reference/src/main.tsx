@@ -24,7 +24,7 @@ const root = ReactDOM.createRoot(
 );
 root.render(
   <ErrorBoundary FallbackComponent={ErrorFallback}>
-    <ConfigProvider theme={{ algorithm: theme.darkAlgorithm }}>
+    <ConfigProvider theme={{ algorithm: theme.compactAlgorithm }}>
       <Router>
         <Routes>
           <Route path="/" element={<Home />} />
