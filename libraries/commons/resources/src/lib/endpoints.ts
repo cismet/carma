@@ -8,7 +8,7 @@ export enum ENDPOINT {
   AENDERUNGSV = "aenderungsv",
   BEZIRKE = "bezirke",
   BPKLIMASTANDORTE = "bpklimastandorte",
-  BPLAENE = "bplaene",
+  BPLAENE = "bplaene.v2",
   EBIKES = "ebikes",
   EMOB = "emob",
   GEPS = "geps",
