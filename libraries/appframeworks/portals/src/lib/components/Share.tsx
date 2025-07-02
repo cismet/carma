@@ -47,7 +47,6 @@ export const useShareUrl = () => {
     const zoom = currentParams.zoom || 18;
 
     const newSearchParams = new URLSearchParams(currentParams);
-    const combinedHash = newSearchParams.toString();
 
     const view = {
       center: [lat, lng],
@@ -78,6 +77,12 @@ export const useShareUrl = () => {
     const jsonString = JSON.stringify(newConfig);
     try {
       const baseUrl = window.location.origin + window.location.pathname;
+      let combinedHash = "";
+      newSearchParams.forEach((value, key) => {
+        if (key !== "config" && key !== "appKey") {
+          combinedHash += `${key}=${value}&`;
+        }
+      });
 
       const response = await fetch(SHORTENER_URL, {
         method: "POST",
