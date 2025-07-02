@@ -24,7 +24,6 @@ import { useContext } from "react";
 import Panel from "react-cismap/commons/Panel";
 import { assetsBaseUrl } from "../../constants/constants";
 import PhotoGallery from "./PhotoGallery";
-import { photos } from "./Map";
 
 const styles = {
   container: {
@@ -95,7 +94,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
   const completion = plan?.ende_quartal || null;
   const email = plan?.kontakt?.mail || "buergerbeteiligungstadt.wuppertal.de";
   const phone = plan?.kontakt?.telefon || null;
-  // const photos = plan?.originalPhotos || null;
+  const photos = plan?.originalPhotos || null;
   const citizenText = plan?.bb_text || null;
   const citizenUrl = plan?.bb_url || null;
 
