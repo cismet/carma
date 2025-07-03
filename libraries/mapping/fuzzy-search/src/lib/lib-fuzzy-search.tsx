@@ -30,7 +30,7 @@ import { stopwords as stopwordsDe } from "./config/stopwords.de-de";
 import "./fuzzy-search.css";
 import { useGazData } from "@carma-apps/portals";
 
-interface FuseWithOption<T> extends Fuse<T> {
+export interface FuseWithOption<T> extends Fuse<T> {
   options?: IFuseOptions<T>;
 }
 
@@ -119,8 +119,8 @@ export function LibFuzzySearch({
     if (allGazeteerData.length > 0 && fuseInstance) {
       const removeStopWords = removeStopwords(value, stopwords, prepoHandling);
       const result = fuseInstance.search(removeStopWords);
-      const clinedFromDoubledRes = removedDoubledSearchRes(result);
-      let resultWithRoundScore = clinedFromDoubledRes.map((r) => {
+      const cleanedFromDoubledRes = removedDoubledSearchRes(result);
+      let resultWithRoundScore = cleanedFromDoubledRes.map((r) => {
         if (r.score) {
           return {
             ...r,

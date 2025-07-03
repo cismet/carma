@@ -38,6 +38,7 @@ import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextPr
 import { isAreaType } from "@carma-commons/resources";
 import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
 import { useGazData } from "@carma-apps/portals";
+import { type GazDataItem } from "@carma-commons/utils";
 
 const Map = () => {
   const { setClusteringOptions, setSelectedFeatureByPredicate } = useContext<
@@ -61,7 +62,9 @@ const Map = () => {
   const { zoomToFeature } = useContext<typeof TopicMapDispatchContext>(
     TopicMapDispatchContext
   );
-  const [gazDataWithProjects, setGazDataWithProjects] = useState([]);
+  const [gazDataWithProjects, setGazDataWithProjects] = useState<GazDataItem[]>(
+    []
+  );
 
   const { gazData } = useGazData();
 

@@ -26,6 +26,7 @@ export interface SearchResultItem {
   more: MoreData;
   type: string;
   xSearchData: string;
+  modifiedSearchData?: string;
   glyphPrefix?: string;
   overlay?: string;
 }

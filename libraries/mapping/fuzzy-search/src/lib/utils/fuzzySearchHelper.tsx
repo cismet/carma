@@ -14,6 +14,7 @@ import {
   SearchResultItemWithScore,
 } from "../..";
 import { type SearchResultItem } from "@carma-commons/types";
+import { type FuseWithOption } from "../lib-fuzzy-search";
 
 import Icon from "react-cismap/commons/Icon";
 
@@ -46,9 +47,7 @@ export const renderItem = (
     category
   );
   return {
-    key: searchResultItem.sorter
-      ? searchResultItem.modifiedSearchData
-      : searchResultItem.string,
+    key: searchResultItem.sorter,
     value:
       searchResultItem.string +
       "." +
@@ -525,8 +524,10 @@ export const defaultTypeInference = {
   },
 };
 
-export const removedDoubledSearchRes = (resData) => {
-  const cleanRes = [];
+export const removedDoubledSearchRes = (
+  resData: SearchResult<SearchResultItem>[]
+) => {
+  const cleanRes: SearchResult<SearchResultItem>[] = [];
   const seen = new Set();
 
   for (const entry of resData) {
