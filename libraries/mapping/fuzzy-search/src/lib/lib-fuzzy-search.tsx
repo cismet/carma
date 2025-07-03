@@ -179,7 +179,6 @@ export function LibFuzzySearch({
 
   useEffect(() => {
     if (_gazData) {
-      console.log("xxx _gazData", _gazData);
       const allModifiedData = prepareGazData(
         _gazData,
         prepoHandling,
@@ -197,6 +196,7 @@ export function LibFuzzySearch({
         useExtendedSearch: true,
         keys: ["xSearchData"],
         includeScore: true,
+        ignoreLocation: true,
       };
 
       const fuse = new Fuse(allGazeteerData, fuseAddressesOptions);
