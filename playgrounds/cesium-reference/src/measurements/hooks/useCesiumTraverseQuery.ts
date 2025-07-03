@@ -40,7 +40,7 @@ export function useCesiumTraverseQuery(
 
   const completedMeasurementsRef = useRef<number>(0);
 
-  const clearMeasurements = useCallback(() => {
+  const clearTraverseQuery = useCallback(() => {
     if (!viewer || viewer.isDestroyed()) return;
     traverseEntiesRef.current.forEach((entity) => {
       try {
@@ -55,6 +55,8 @@ export function useCesiumTraverseQuery(
       currentPolylineRef.current = null;
     }
     activeTraversePointsRef.current = [];
+    activeTraverseSegmentsLengthsRef.current = [0];
+    activeTraverseSegmentsLengthsCumulativeRef.current = [0];
     isActiveTraverseRef.current = false;
     completedMeasurementsRef.current = 0;
   }, [viewer]);
@@ -97,7 +99,7 @@ export function useCesiumTraverseQuery(
         handlerRef.current.destroy();
         handlerRef.current = null;
       }
-      clearMeasurements();
+      clearTraverseQuery();
       return;
     }
     const handler = new ScreenSpaceEventHandler(viewer.scene.canvas);
@@ -305,14 +307,14 @@ export function useCesiumTraverseQuery(
   }, [
     viewer,
     enabled,
-    clearMeasurements,
+    clearTraverseQuery,
     finishMeasurement,
     setCollection,
     soloMode,
   ]);
 
   return {
-    clearMeasurements,
+    clearTraverseQuery,
     isActive: isActiveTraverseRef.current,
   };
 }

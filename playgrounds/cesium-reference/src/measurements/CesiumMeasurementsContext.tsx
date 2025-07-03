@@ -81,7 +81,7 @@ export const CesiumMeasurementsProvider: React.FC<
     pointRadius
   );
 
-  useCesiumTraverseQuery(
+  const { clearTraverseQuery } = useCesiumTraverseQuery(
     viewer,
     measurementMode === MeasurementMode.Traverse,
     setMeasurements,
@@ -96,7 +96,8 @@ export const CesiumMeasurementsProvider: React.FC<
 
   const clearAllMeasurements = useCallback(() => {
     setMeasurements([]);
-  }, [setMeasurements]);
+    clearTraverseQuery();
+  }, [setMeasurements, clearTraverseQuery]);
 
   const clearPointMeasurements = useCallback(() => {
     setMeasurements((prev) => prev.filter((m) => !isPointMeasurementEntry(m)));
@@ -104,9 +105,10 @@ export const CesiumMeasurementsProvider: React.FC<
 
   const clearTraverseMeasurements = useCallback(() => {
     setMeasurements((prev) =>
-      prev.filter((m) => isTraverseMeasurementEntry(m))
+      prev.filter((m) => !isTraverseMeasurementEntry(m))
     );
-  }, [setMeasurements]);
+    clearTraverseQuery();
+  }, [setMeasurements, clearTraverseQuery]);
 
   const clearMeasurementsByIds = useCallback(
     (ids: string[]) => {
