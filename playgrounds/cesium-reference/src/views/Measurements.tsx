@@ -10,7 +10,7 @@ import {
 } from "../contexts/CesiumViewerContext";
 import { CesiumMeasurementsProvider } from "../measurements/CesiumMeasurementsContext";
 import ScreenLayout from "../components/ScreenLayout";
-import PointMeasurementPanel from "../measurements/components/PointMeasurementPanel";
+import MeasurementPanel from "../measurements/components/MeasurementPanel";
 import DistanceMeasurementPanel from "../measurements/components/DistanceMeasurementPanel";
 import { InteractiveModeTabs } from "../measurements/components/InteractiveModeTabs";
 
@@ -38,10 +38,8 @@ const ContextAwareApp: React.FC<{
           coordinateDisplayMode={coordinateDisplayMode}
           onCoordinateDisplayModeChange={onCoordinateDisplayModeChange}
         />
-        <PointMeasurementPanel />
-        <DistanceMeasurementPanel
-          coordinateDisplayMode={coordinateDisplayMode}
-        />
+        <MeasurementPanel />
+
       </Flex>
     );
   };
