@@ -3,14 +3,15 @@ import { Table, Typography } from "antd";
 import type { Cartesian3, Viewer } from "cesium";
 import { Math as CesiumMath } from "cesium";
 import { PROJ4_CONVERTERS } from "@carma-commons/utils";
-import "./MeasurementTable.css";
+import "./TraverseTable.css";
+import { TraverseMeasurementEntry } from '../types/MeasurementTypes';
 
 const { Title } = Typography;
 
 type CoordinateDisplayMode = "cartesian" | "cartographic" | "utm32";
 
-interface MeasurementTableProps {
-  activeMeasurementPoints: Cartesian3[];
+interface TraverseTableProps {
+  traverse: TraverseMeasurementEntry;
   viewer: Viewer | null;
   coordinateDisplayMode: CoordinateDisplayMode;
 }
@@ -23,14 +24,14 @@ interface TableRecord {
   val3: string; // Z, Height, Ellipsoidal Height
 }
 
-const MeasurementTable: React.FC<MeasurementTableProps> = ({
-  activeMeasurementPoints,
+const TraverseTable: React.FC<TraverseTableProps> = ({
+  traverse,
   viewer,
   coordinateDisplayMode,
 }) => {
   const tableDataSource = useMemo((): TableRecord[] => {
     if (!viewer) return [];
-    return activeMeasurementPoints.map((point, index) => {
+    return traverse.geometryECEF.map((point, index) => {
       let val1: string, val2: string, val3: string;
 
       switch (coordinateDisplayMode) {
@@ -78,7 +79,7 @@ const MeasurementTable: React.FC<MeasurementTableProps> = ({
         val3,
       };
     });
-  }, [activeMeasurementPoints, viewer, coordinateDisplayMode]);
+  }, [traverse, viewer, coordinateDisplayMode]);
 
   const columns = useMemo(() => {
     let col1Title = "X";
@@ -103,7 +104,7 @@ const MeasurementTable: React.FC<MeasurementTableProps> = ({
     ];
   }, [coordinateDisplayMode]);
 
-  if (!activeMeasurementPoints.length) {
+  if (!traverse.geometryECEF.length) {
     return <Typography.Text>Noch keine Punkte gemessen</Typography.Text>;
   }
 
@@ -124,10 +125,7 @@ const MeasurementTable: React.FC<MeasurementTableProps> = ({
         scroll={{ y: 200 }}
       />
       {coordinateDisplayMode !== "cartesian" && (
-        <Typography.Text
-          type="secondary"
-          className="measurement-table-footnote"
-        >
+        <Typography.Text type="secondary">
           *Höhe über NHN (Normalhöhennull) GCG2016/DHHN2016 +/- 0.2m
         </Typography.Text>
       )}
@@ -135,4 +133,4 @@ const MeasurementTable: React.FC<MeasurementTableProps> = ({
   );
 };
 
-export default MeasurementTable;
+export default TraverseTable;
