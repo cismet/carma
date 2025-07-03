@@ -8,6 +8,7 @@ import type { LayerState } from "../types";
 import { useFeatureFlags } from "./FeatureFlagProvider";
 import { SelectionItem } from "./SelectionProvider";
 import { useShareUrl } from "../hooks/useShareUrl";
+import FileUploader from "./FileUploader";
 
 export type ShareProps = {
   layerState: LayerState;
@@ -157,13 +158,28 @@ export const Share = ({
               <label htmlFor="thumbUrl">
                 Vorschaubild <span className="text-red-500">*</span>
               </label>
-              <Input
-                id="thumbUrl"
-                onChange={(e) => setThumbUrl(e.target.value)}
-                value={thumbUrl}
-                className="bg-white"
-                required
+              <Tabs
+                items={[
+                  {
+                    key: "1",
+                    label: "URL",
+                    children: (
+                      <Input
+                        id="thumbUrl"
+                        onChange={(e) => setThumbUrl(e.target.value)}
+                        value={thumbUrl}
+                        className="bg-white"
+                      />
+                    ),
+                  },
+                  {
+                    key: "2",
+                    label: "Datei",
+                    children: <FileUploader />,
+                  },
+                ]}
               />
+
               <label htmlFor="content">
                 Inhalt <span className="text-red-500">*</span>
               </label>
