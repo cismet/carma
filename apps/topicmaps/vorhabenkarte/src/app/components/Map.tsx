@@ -132,8 +132,6 @@ const Map = () => {
           };
         });
 
-      console.log("xxx gazData.length", gazData.length);
-
       setGazDataWithProjects([...gazData, ...gazDataWithFixedProjects]);
     }
   }, [gazData]);

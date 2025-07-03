@@ -119,6 +119,8 @@ export function LibFuzzySearch({
       const removeStopWords = removeStopwords(value, stopwords, prepoHandling);
       const result = fuseInstance.search(removeStopWords);
 
+      console.log("xxx search result", result);
+
       let resultWithRoundScore = result.map((r) => {
         if (r.score) {
           return {
@@ -178,6 +180,7 @@ export function LibFuzzySearch({
 
   useEffect(() => {
     if (_gazData) {
+      console.log("xxx _gazData", _gazData);
       const allModifiedData = prepareGazData(
         _gazData,
         prepoHandling,

@@ -46,7 +46,10 @@ export const renderItem = (
     category
   );
   return {
-    key: searchResultItem.sorter,
+    key:
+      searchResultItem.sorter + searchResultItem.modifiedSearchData
+        ? searchResultItem.modifiedSearchData
+        : searchResultItem.string,
     value:
       searchResultItem.string +
       "." +
@@ -341,7 +344,7 @@ export const mapDataWithCategory = (
     prepareOptions.push(optionItem);
   });
 
-  // console.log("xxx prepareOptions", prepareOptions);
+  console.log("xxx prepareOptions", prepareOptions);
 
   return prepareOptions;
 };
