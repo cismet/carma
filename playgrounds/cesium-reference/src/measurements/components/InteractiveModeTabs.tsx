@@ -10,6 +10,7 @@ import {
   Checkbox,
   Button,
   Space,
+  Switch,
 } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -19,7 +20,10 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import type { InputNumberProps } from "antd";
 import { useCesiumMeasurements } from "../CesiumMeasurementsContext";
-import { MeasurementMode } from "../types/MeasurementTypes";
+import {
+  CoordinateDisplayMode,
+  MeasurementMode,
+} from "../types/MeasurementTypes";
 
 const PointQuerySettingsComponent: React.FC<{
   minPointRadius?: number;
@@ -66,17 +70,7 @@ const PointQuerySettingsComponent: React.FC<{
   );
 };
 
-type CoordinateDisplayMode = "cartesian" | "cartographic" | "utm32";
-
-interface InteractiveModeTabsProps {
-  coordinateDisplayMode: CoordinateDisplayMode;
-  onCoordinateDisplayModeChange: (mode: CoordinateDisplayMode) => void;
-}
-
-export const InteractiveModeTabs: React.FC<InteractiveModeTabsProps> = ({
-  coordinateDisplayMode,
-  onCoordinateDisplayModeChange,
-}) => {
+export const InteractiveModeTabs: FC = () => {
   const {
     measurementMode,
     setMeasurementMode,
@@ -86,6 +80,8 @@ export const InteractiveModeTabs: React.FC<InteractiveModeTabsProps> = ({
     soloMode,
     setSoloMode,
     clearAllMeasurements,
+    coordinateDisplayMode,
+    setCoordinateDisplayMode,
   } = useCesiumMeasurements();
 
   const handleTabChange = (mode: MeasurementMode) => {
@@ -108,17 +104,6 @@ export const InteractiveModeTabs: React.FC<InteractiveModeTabsProps> = ({
       key: MeasurementMode.Traverse,
       label: "Polygonzug",
       icon: <FontAwesomeIcon icon={faRulerCombined} />,
-      children: (
-        <Radio.Group
-          value={coordinateDisplayMode}
-          onChange={(e) => onCoordinateDisplayModeChange(e.target.value)}
-          size="small"
-        >
-          <Radio.Button value="cartesian">XYZ</Radio.Button>
-          <Radio.Button value="cartographic">Lat/Lon</Radio.Button>
-          <Radio.Button value="utm32">UTM32</Radio.Button>
-        </Radio.Group>
-      ),
     },
   ];
 
@@ -128,12 +113,26 @@ export const InteractiveModeTabs: React.FC<InteractiveModeTabsProps> = ({
       title="Messwerkzeuge"
       extra={
         <Space>
-          <Checkbox
+          <Switch
+            checked={coordinateDisplayMode === CoordinateDisplayMode.Geographic}
+            onChange={(e) =>
+              setCoordinateDisplayMode(
+                e.valueOf()
+                  ? CoordinateDisplayMode.Geographic
+                  : CoordinateDisplayMode.UTM32
+              )
+            }
+            checkedChildren="WGS84"
+            unCheckedChildren="UTM32"
+            size="small"
+          />
+          <Switch
             checked={soloMode}
-            onChange={(e) => setSoloMode(e.target.checked)}
-          >
-            Solo
-          </Checkbox>
+            onChange={(e) => setSoloMode(e.valueOf())}
+            checkedChildren="Solo"
+            unCheckedChildren="Multi"
+            size="small"
+          />
           <Button
             icon={<FontAwesomeIcon icon={faTrash} />}
             size="small"

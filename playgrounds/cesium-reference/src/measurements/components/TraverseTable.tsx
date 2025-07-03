@@ -4,16 +4,17 @@ import type { Cartesian3, Viewer } from "cesium";
 import { Math as CesiumMath } from "cesium";
 import { PROJ4_CONVERTERS } from "@carma-commons/utils";
 import "./TraverseTable.css";
-import { TraverseMeasurementEntry } from '../types/MeasurementTypes';
+import {
+  CoordinateDisplayMode,
+  TraverseMeasurementEntry,
+} from "../types/MeasurementTypes";
+import { useCesiumMeasurements } from "../CesiumMeasurementsContext";
 
 const { Title } = Typography;
-
-type CoordinateDisplayMode = "cartesian" | "cartographic" | "utm32";
 
 interface TraverseTableProps {
   traverse: TraverseMeasurementEntry;
   viewer: Viewer | null;
-  coordinateDisplayMode: CoordinateDisplayMode;
 }
 
 interface TableRecord {
@@ -24,18 +25,15 @@ interface TableRecord {
   val3: string; // Z, Height, Ellipsoidal Height
 }
 
-const TraverseTable: React.FC<TraverseTableProps> = ({
-  traverse,
-  viewer,
-  coordinateDisplayMode,
-}) => {
+const TraverseTable: React.FC<TraverseTableProps> = ({ traverse, viewer }) => {
+  const { coordinateDisplayMode } = useCesiumMeasurements();
   const tableDataSource = useMemo((): TableRecord[] => {
     if (!viewer) return [];
     return traverse.geometryECEF.map((point, index) => {
       let val1: string, val2: string, val3: string;
 
       switch (coordinateDisplayMode) {
-        case "cartographic": {
+        case CoordinateDisplayMode.Geographic: {
           const cartographic =
             viewer.scene.globe.ellipsoid.cartesianToCartographic(point);
           val1 = CesiumMath.toDegrees(cartographic.longitude).toFixed(6);
@@ -43,7 +41,7 @@ const TraverseTable: React.FC<TraverseTableProps> = ({
           val3 = cartographic.height.toFixed(2);
           break;
         }
-        case "utm32": {
+        case CoordinateDisplayMode.UTM32: {
           const cartographic =
             viewer.scene.globe.ellipsoid.cartesianToCartographic(point);
           const lon = CesiumMath.toDegrees(cartographic.longitude);
@@ -64,7 +62,7 @@ const TraverseTable: React.FC<TraverseTableProps> = ({
           }
           break;
         }
-        case "cartesian":
+        case CoordinateDisplayMode.Cartesian:
         default:
           val1 = point.x.toFixed(2);
           val2 = point.y.toFixed(2);
@@ -86,11 +84,11 @@ const TraverseTable: React.FC<TraverseTableProps> = ({
     let col2Title = "Y";
     let col3Title = "Z";
 
-    if (coordinateDisplayMode === "cartographic") {
+    if (coordinateDisplayMode === CoordinateDisplayMode.Geographic) {
       col1Title = "Lon (°)";
       col2Title = "Lat (°)";
       col3Title = "Höhe in m*";
-    } else if (coordinateDisplayMode === "utm32") {
+    } else if (coordinateDisplayMode === CoordinateDisplayMode.UTM32) {
       col1Title = "Rechtswert (m)";
       col2Title = "Hochwert (m)";
       col3Title = "Höhe in m*";
@@ -107,14 +105,8 @@ const TraverseTable: React.FC<TraverseTableProps> = ({
   if (!traverse.geometryECEF.length) {
     return <Typography.Text>Noch keine Punkte gemessen</Typography.Text>;
   }
-
   return (
     <div className="measurement-table-container">
-      <div className="measurement-table-header">
-        <Title level={5} style={{ margin: 0, fontSize: "12px" }}>
-          Gemessene Punkte:
-        </Title>
-      </div>
       <Table
         className="measurement-table"
         columns={columns}
@@ -124,7 +116,7 @@ const TraverseTable: React.FC<TraverseTableProps> = ({
         bordered
         scroll={{ y: 200 }}
       />
-      {coordinateDisplayMode !== "cartesian" && (
+      {coordinateDisplayMode !== CoordinateDisplayMode.Cartesian && (
         <Typography.Text type="secondary">
           *Höhe über NHN (Normalhöhennull) GCG2016/DHHN2016 +/- 0.2m
         </Typography.Text>

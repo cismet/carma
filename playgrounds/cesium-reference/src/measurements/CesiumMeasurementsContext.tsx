@@ -7,6 +7,7 @@ import React, {
 } from "react";
 import { useCesiumViewer } from "../contexts/CesiumViewerContext";
 import {
+  CoordinateDisplayMode,
   isPointMeasurementEntry,
   isTraverseMeasurementEntry,
   MeasurementCollection,
@@ -30,6 +31,8 @@ interface CesiumMeasurementsContextType {
   clearPointMeasurements: () => void;
   clearTraverseMeasurements: () => void;
   clearMeasurementsByIds: (ids: string[]) => void;
+  coordinateDisplayMode: CoordinateDisplayMode;
+  setCoordinateDisplayMode: (mode: CoordinateDisplayMode) => void;
 }
 
 const CesiumMeasurementsContext = createContext<
@@ -65,6 +68,9 @@ export const CesiumMeasurementsProvider: React.FC<
   );
 
   const soloModeInit = options?.soloMode ?? true;
+
+  const [coordinateDisplayMode, setCoordinateDisplayMode] =
+    useState<CoordinateDisplayMode>(CoordinateDisplayMode.UTM32);
 
   const [measurementMode, setMeasurementMode] = useState<MeasurementMode>(
     MeasurementMode.Traverse
@@ -131,6 +137,8 @@ export const CesiumMeasurementsProvider: React.FC<
       clearPointMeasurements,
       clearTraverseMeasurements,
       clearMeasurementsByIds,
+      coordinateDisplayMode,
+      setCoordinateDisplayMode,
     }),
     [
       measurements,
@@ -145,6 +153,8 @@ export const CesiumMeasurementsProvider: React.FC<
       clearPointMeasurements,
       clearTraverseMeasurements,
       clearMeasurementsByIds,
+      coordinateDisplayMode,
+      setCoordinateDisplayMode,
     ]
   );
 

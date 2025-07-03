@@ -1,12 +1,15 @@
 import React, { useState, useEffect, FC, useMemo } from "react";
 import { Button, Card, Collapse, List, theme, Typography } from "antd";
 import { PointQueryInfo } from "./PointQueryInfo";
+import TraverseTable from "./TraverseTable";
+import { useCesiumViewer } from "../../contexts/CesiumViewerContext";
 import {
   isPointMeasurementEntry,
   isTraverseMeasurementEntry,
   type PointMeasurementEntry,
   type MeasurementEntry,
   MeasurementMode,
+  type TraverseMeasurementEntry,
 } from "../types/MeasurementTypes";
 import { useCesiumMeasurements } from "../CesiumMeasurementsContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -38,25 +41,37 @@ const renderPointItem = (
   </List.Item>
 );
 
-const renderGenericItem = (
-  data: MeasurementEntry,
+const renderTraverseItem = (
+  data: TraverseMeasurementEntry,
   idx: number,
-  clearMeasurementsByIds: (ids: string[]) => void
-) => ({
-  key: data.id,
-  label: `${data.name || ""} (${data.id.slice(-6, -2)})`,
-  children: <PointQueryInfo data={data} />, // Adjust as needed for other measurement types
-  extra: (
-    <Button
-      type="text"
-      size="small"
-      onClick={() => clearMeasurementsByIds([data.id])}
-      aria-label={`Messung ${data.id} löschen`}
-    >
-      <FontAwesomeIcon icon={faTrash} />
-    </Button>
-  ),
-});
+  clearMeasurementsByIds: (ids: string[]) => void,
+  viewer: any,
+  coordinateDisplayMode: string
+) => (
+  <List.Item key={data.id} style={{ paddingRight: "0.5rem" }}>
+    <List.Item.Meta
+      title={
+        <>
+          {`${data.derived?.totalLength?.toFixed(2) || "0"}m`}
+          <Button
+            icon={<FontAwesomeIcon icon={faCircleXmark} />}
+            type="text"
+            size="small"
+            onClick={() => clearMeasurementsByIds([data.id])}
+            aria-label={`Polygonzug ${data.id} löschen`}
+          />
+        </>
+      }
+      description={
+        <TraverseTable
+          traverse={data}
+          viewer={viewer}
+          coordinateDisplayMode={coordinateDisplayMode as any}
+        />
+      }
+    />
+  </List.Item>
+);
 
 const MeasurementPanel: FC = () => {
   const {
@@ -66,8 +81,10 @@ const MeasurementPanel: FC = () => {
     clearMeasurementsByIds,
     measurementMode,
   } = useCesiumMeasurements();
-
+  const { viewer } = useCesiumViewer();
   const { token } = theme.useToken();
+
+  const [coordinateDisplayMode] = useState("cartographic");
 
   const pointMeasurements = useMemo(
     () =>
@@ -97,6 +114,15 @@ const MeasurementPanel: FC = () => {
   const renderItem = (data: MeasurementEntry, idx: number) => {
     if (isPointMeasurementEntry(data)) {
       return renderPointItem(data, idx, clearMeasurementsByIds);
+    }
+    if (isTraverseMeasurementEntry(data)) {
+      return renderTraverseItem(
+        data as TraverseMeasurementEntry,
+        idx,
+        clearMeasurementsByIds,
+        viewer,
+        coordinateDisplayMode
+      );
     }
     return null;
   };

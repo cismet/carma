@@ -11,7 +11,6 @@ import {
 import { CesiumMeasurementsProvider } from "../measurements/CesiumMeasurementsContext";
 import ScreenLayout from "../components/ScreenLayout";
 import MeasurementPanel from "../measurements/components/MeasurementPanel";
-import DistanceMeasurementPanel from "../measurements/components/DistanceMeasurementPanel";
 import { InteractiveModeTabs } from "../measurements/components/InteractiveModeTabs";
 
 import { cesiumConstructorOptions } from "../config";
@@ -19,25 +18,16 @@ import { NivPointControls } from "../measurements/components/NivPointControls";
 import { NivPointPanel } from "../measurements/components/NivPointPanel";
 
 import HomeButton from "../components/HomeButton";
-import { VerticalDatum } from "../measurements/types/VerticalDatumTypes";
 import { CesiumNivPointProvider } from "../measurements/CesiumNivPointContext";
 
 // Inner component that has access to contexts
-const ContextAwareApp: React.FC<{
-  coordinateDisplayMode: "cartesian" | "cartographic" | "utm32";
-  onCoordinateDisplayModeChange: (
-    value: "cartesian" | "cartographic" | "utm32"
-  ) => void;
-}> = ({ coordinateDisplayMode, onCoordinateDisplayModeChange }) => {
+const ContextAwareApp: React.FC<{}> = () => {
   const { zoomToTileset } = useCesiumViewer();
 
   const TopRightPanel: React.FC = () => {
     return (
       <Flex vertical gap={2} style={{ maxWidth: "24rem" }}>
-        <InteractiveModeTabs
-          coordinateDisplayMode={coordinateDisplayMode}
-          onCoordinateDisplayModeChange={onCoordinateDisplayModeChange}
-        />
+        <InteractiveModeTabs />
         <MeasurementPanel />
       </Flex>
     );
@@ -60,9 +50,6 @@ const ContextAwareApp: React.FC<{
 };
 
 const TestMeshElevations: React.FC = () => {
-  const [coordinateDisplayMode, setCoordinateDisplayMode] = useState<
-    "cartesian" | "cartographic" | "utm32"
-  >("cartesian");
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   return (
@@ -95,10 +82,7 @@ const TestMeshElevations: React.FC = () => {
       >
         <CesiumMeasurementsProvider>
           <CesiumNivPointProvider>
-            <ContextAwareApp
-              coordinateDisplayMode={coordinateDisplayMode}
-              onCoordinateDisplayModeChange={setCoordinateDisplayMode}
-            />
+            <ContextAwareApp />
           </CesiumNivPointProvider>
         </CesiumMeasurementsProvider>
       </CesiumViewerProvider>
