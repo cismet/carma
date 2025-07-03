@@ -1,35 +1,10 @@
-.measurement-table-container {
-  margin-bottom: 1rem;
-  width: fit-content;
-  max-width: 320px;
-}
-
-.measurement-table-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.5rem;
-  width: 100%;
-}
-
-.measurement-table {
-  width: fit-content;
-}
-
 .measurement-table .ant-table-cell {
-  padding: 4px 8px !important;
   white-space: nowrap;
 }
 
 .measurement-table .ant-table-thead > tr > th,
 .measurement-table .ant-table-tbody > tr > td {
-  max-width: 100px;
+  width: fit-content;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.measurement-table-footnote {
-  font-size: 10px;
-  display: block;
-  text-align: right;
 }

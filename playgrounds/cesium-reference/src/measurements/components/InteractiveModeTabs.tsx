@@ -1,13 +1,11 @@
-import React from "react";
+import React, { FC } from "react";
 import {
   Tabs,
   Row,
   Col,
   InputNumber,
   Card,
-  Radio,
   Slider,
-  Checkbox,
   Button,
   Space,
   Switch,

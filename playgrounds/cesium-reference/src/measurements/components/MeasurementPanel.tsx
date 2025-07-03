@@ -14,6 +14,7 @@ import {
 import { useCesiumMeasurements } from "../CesiumMeasurementsContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCircleXmark, faTrash } from "@fortawesome/free-solid-svg-icons";
+import { Viewer } from "cesium";
 
 const renderPointItem = (
   data: PointMeasurementEntry,
@@ -45,8 +46,7 @@ const renderTraverseItem = (
   data: TraverseMeasurementEntry,
   idx: number,
   clearMeasurementsByIds: (ids: string[]) => void,
-  viewer: any,
-  coordinateDisplayMode: string
+  viewer: Viewer
 ) => (
   <List.Item key={data.id} style={{ paddingRight: "0.5rem" }}>
     <List.Item.Meta
@@ -62,13 +62,7 @@ const renderTraverseItem = (
           />
         </>
       }
-      description={
-        <TraverseTable
-          traverse={data}
-          viewer={viewer}
-          coordinateDisplayMode={coordinateDisplayMode as any}
-        />
-      }
+      description={<TraverseTable traverse={data} viewer={viewer} />}
     />
   </List.Item>
 );
@@ -83,8 +77,6 @@ const MeasurementPanel: FC = () => {
   } = useCesiumMeasurements();
   const { viewer } = useCesiumViewer();
   const { token } = theme.useToken();
-
-  const [coordinateDisplayMode] = useState("cartographic");
 
   const pointMeasurements = useMemo(
     () =>
@@ -120,8 +112,7 @@ const MeasurementPanel: FC = () => {
         data as TraverseMeasurementEntry,
         idx,
         clearMeasurementsByIds,
-        viewer,
-        coordinateDisplayMode
+        viewer
       );
     }
     return null;
@@ -140,7 +131,7 @@ const MeasurementPanel: FC = () => {
         </Card>
       ) : (
         <Collapse
-          style={{ backgroundColor: token.colorBgContainer }}
+          style={{ backgroundColor: token.colorBgContainer, minWidth: "24rem" }}
           activeKey={activePanel}
           collapsible="header"
           onChange={(key) => setActivePanel(Array.isArray(key) ? key : [key])}

@@ -106,7 +106,7 @@ const TraverseTable: React.FC<TraverseTableProps> = ({ traverse, viewer }) => {
     return <Typography.Text>Noch keine Punkte gemessen</Typography.Text>;
   }
   return (
-    <div className="measurement-table-container">
+    <>
       <Table
         className="measurement-table"
         columns={columns}
@@ -121,7 +121,7 @@ const TraverseTable: React.FC<TraverseTableProps> = ({ traverse, viewer }) => {
           *Höhe über NHN (Normalhöhennull) GCG2016/DHHN2016 +/- 0.2m
         </Typography.Text>
       )}
-    </div>
+    </>
   );
 };
 

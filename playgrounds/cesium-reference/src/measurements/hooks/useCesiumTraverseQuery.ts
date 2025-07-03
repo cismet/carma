@@ -8,7 +8,8 @@ import {
   ScreenSpaceEventHandler,
   CallbackProperty,
   Viewer,
-  ConstantProperty, // Added import
+  ConstantProperty,
+  ConstantPositionProperty,
 } from "cesium";
 import { LABEL_FONT, SCALE_BY_DISTANCE } from "./useNivPoints";
 import {
@@ -241,7 +242,7 @@ export function useCesiumTraverseQuery(
           traverseEntiesRef.current.push(previewLabel);
         } else {
           // Update label position and text
-          previewLabel.position = new ConstantProperty(
+          previewLabel.position = new ConstantPositionProperty(
             Cartesian3.midpoint(lastClicked, movePosition, new Cartesian3())
           );
           if (previewLabel.label) {
