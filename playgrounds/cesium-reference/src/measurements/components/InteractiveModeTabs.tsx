@@ -106,7 +106,7 @@ export const InteractiveModeTabs: React.FC<InteractiveModeTabsProps> = ({
     },
     {
       key: MeasurementMode.Traverse,
-      label: "Distanzmessung",
+      label: "Polygonzug",
       icon: <FontAwesomeIcon icon={faRulerCombined} />,
       children: (
         <Radio.Group

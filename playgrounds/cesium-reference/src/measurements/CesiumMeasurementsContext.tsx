@@ -28,6 +28,7 @@ interface CesiumMeasurementsContextType {
   setSoloMode: (solo: boolean) => void;
   clearAllMeasurements: () => void;
   clearPointMeasurements: () => void;
+  clearTraverseMeasurements: () => void;
   clearMeasurementsByIds: (ids: string[]) => void;
 }
 
@@ -66,7 +67,7 @@ export const CesiumMeasurementsProvider: React.FC<
   const soloModeInit = options?.soloMode ?? true;
 
   const [measurementMode, setMeasurementMode] = useState<MeasurementMode>(
-    MeasurementMode.PointQuery
+    MeasurementMode.Traverse
   );
   const [pointRadius, setPointRadius] = useState(pointQueryOptions.radius);
   const [soloMode, setSoloMode] = useState(soloModeInit);
@@ -101,7 +102,7 @@ export const CesiumMeasurementsProvider: React.FC<
     setMeasurements((prev) => prev.filter((m) => !isPointMeasurementEntry(m)));
   }, [setMeasurements]);
 
-  const clearTraversalMeasurements = useCallback(() => {
+  const clearTraverseMeasurements = useCallback(() => {
     setMeasurements((prev) =>
       prev.filter((m) => isTraverseMeasurementEntry(m))
     );
@@ -126,7 +127,7 @@ export const CesiumMeasurementsProvider: React.FC<
       setSoloMode,
       clearAllMeasurements,
       clearPointMeasurements,
-      clearTraversalMeasurements,
+      clearTraverseMeasurements,
       clearMeasurementsByIds,
     }),
     [
@@ -140,7 +141,7 @@ export const CesiumMeasurementsProvider: React.FC<
       setPointRadius,
       clearAllMeasurements,
       clearPointMeasurements,
-      clearTraversalMeasurements,
+      clearTraverseMeasurements,
       clearMeasurementsByIds,
     ]
   );

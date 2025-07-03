@@ -62,7 +62,7 @@ const MeasurementPanel: FC = () => {
   const {
     measurements,
     clearPointMeasurements,
-    clearTraversalMeasurements,
+    clearTraverseMeasurements,
     clearMeasurementsByIds,
     measurementMode,
   } = useCesiumMeasurements();
@@ -166,7 +166,7 @@ const MeasurementPanel: FC = () => {
                 <Button
                   icon={<FontAwesomeIcon icon={faTrash} />}
                   size="small"
-                  onClick={clearTraversalMeasurements}
+                  onClick={clearTraverseMeasurements}
                   aria-label="Alle Polygonzüge löschen"
                 />
               ),
@@ -182,6 +182,26 @@ const MeasurementPanel: FC = () => {
           className="measurement-panel-collapse"
         />
       )}
+      <Collapse
+        items={[
+          {
+            key: "json-debug",
+            label: "Messungen (JSON)",
+            children: (
+              <Typography.Paragraph
+                style={{
+                  whiteSpace: "pre-wrap",
+                  fontFamily: "monospace",
+                  fontSize: 12,
+                  margin: 0,
+                }}
+              >
+                {JSON.stringify(measurements, null, 1)}
+              </Typography.Paragraph>
+            ),
+          },
+        ]}
+      />
     </>
   );
 };

@@ -16,8 +16,14 @@ export const updateLastOfMeasurementType =
     if (existingIndex !== undefined) {
       const newCollection = [...prev];
       newCollection[existingIndex] = measurement;
+      console.debug(
+        `[updateLastOfMeasurementType] Updated existing measurement of type ${type} at index ${existingIndex}`
+      );
       return newCollection;
     }
+    console.debug(
+      `[updateLastOfMeasurementType] Adding new measurement of type ${type}`
+    );
     return [...prev, measurement];
   };
 

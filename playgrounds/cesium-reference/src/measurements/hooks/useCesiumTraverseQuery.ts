@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback, useState } from "react";
+import { useEffect, useRef, useCallback } from "react";
 import {
   Cartesian2,
   Cartesian3,
@@ -8,9 +8,13 @@ import {
   ScreenSpaceEventHandler,
   CallbackProperty,
   Viewer,
+  ConstantProperty, // Added import
 } from "cesium";
 import { LABEL_FONT, SCALE_BY_DISTANCE } from "./useNivPoints";
-import { MeasurementMode, TraverseMeasurementEntry } from "../types/MeasurementTypes";
+import {
+  MeasurementMode,
+  TraverseMeasurementEntry,
+} from "../types/MeasurementTypes";
 import { updateCollection } from "../utils/measurementCollection";
 import {
   createPointEntity,
@@ -22,7 +26,7 @@ import { formatDistance } from "../../utils/formatters";
 export function useCesiumTraverseQuery(
   viewer: Viewer,
   enabled: boolean,
-  setCollection: (entry: any, finished: boolean) => void,
+  setCollection: (collection: TraverseMeasurementEntry[]) => void,
   soloMode: boolean = true // Solo mode to replace existing measurements of the same type
 ) {
   const handlerRef = useRef<ScreenSpaceEventHandler | null>(null);
@@ -129,12 +133,6 @@ export function useCesiumTraverseQuery(
         const lastSum =
           activeTraverseSegmentsLengthsCumulativeRef.current[prevIndex];
         currentTotal = lastSum + segmentLength;
-        console.log(
-          `Segment length: ${segmentLength}`,
-          currentTotal,
-          lastSum,
-          activeTraverseSegmentsLengthsCumulativeRef.current
-        );
 
         activeTraverseSegmentsLengthsRef.current[currentIndex] = segmentLength;
         activeTraverseSegmentsLengthsCumulativeRef.current[currentIndex] =
@@ -202,7 +200,9 @@ export function useCesiumTraverseQuery(
         }),
         derived: {
           segmentLengths: [...activeTraverseSegmentsLengthsRef.current],
-          segmentLengthsCumulative: [...activeTraverseSegmentsLengthsCumulativeRef.current],
+          segmentLengthsCumulative: [
+            ...activeTraverseSegmentsLengthsCumulativeRef.current,
+          ],
           totalLength: currentTotal,
         },
       };
@@ -239,13 +239,13 @@ export function useCesiumTraverseQuery(
           traverseEntiesRef.current.push(previewLabel);
         } else {
           // Update label position and text
-          previewLabel.position = Cartesian3.midpoint(
-            lastClicked,
-            movePosition,
-            new Cartesian3()
+          previewLabel.position = new ConstantProperty(
+            Cartesian3.midpoint(lastClicked, movePosition, new Cartesian3())
           );
           if (previewLabel.label) {
-            previewLabel.label.text = formatDistance(segmentDistance);
+            previewLabel.label.text = new ConstantProperty(
+              formatDistance(segmentDistance)
+            );
           }
         }
         // Update polyline preview (show last clicked + cursor)
@@ -267,7 +267,8 @@ export function useCesiumTraverseQuery(
           timestamp: Date.now(),
           geometryECEF: [...activeTraversePointsRef.current],
           geometryWGS84: activeTraversePointsRef.current.map((p) => {
-            const carto = viewer.scene.globe.ellipsoid.cartesianToCartographic(p);
+            const carto =
+              viewer.scene.globe.ellipsoid.cartesianToCartographic(p);
             return {
               longitude: carto.longitude * (180 / Math.PI),
               latitude: carto.latitude * (180 / Math.PI),
@@ -276,10 +277,21 @@ export function useCesiumTraverseQuery(
           }),
           derived: {
             segmentLengths: [...activeTraverseSegmentsLengthsRef.current],
-            segmentLengthsCumulative: [...activeTraverseSegmentsLengthsCumulativeRef.current],
-            totalLength: activeTraverseSegmentsLengthsCumulativeRef.current[activeTraverseSegmentsLengthsCumulativeRef.current.length - 1] || 0,
+            segmentLengthsCumulative: [
+              ...activeTraverseSegmentsLengthsCumulativeRef.current,
+            ],
+            totalLength:
+              activeTraverseSegmentsLengthsCumulativeRef.current[
+                activeTraverseSegmentsLengthsCumulativeRef.current.length - 1
+              ] || 0,
           },
         };
+        console.debug(
+          `[CesiumTraverseQuery] Finalizing measurement with ${
+            activeTraversePointsRef.current.length
+          } points and total length: ${entry.derived.totalLength.toFixed(2)}m`,
+          entry
+        );
         updateCollection(setCollection, entry, soloMode);
         finishMeasurement();
       }
@@ -290,7 +302,14 @@ export function useCesiumTraverseQuery(
         handlerRef.current = null;
       }
     };
-  }, [viewer, enabled, clearMeasurements, finishMeasurement]);
+  }, [
+    viewer,
+    enabled,
+    clearMeasurements,
+    finishMeasurement,
+    setCollection,
+    soloMode,
+  ]);
 
   return {
     clearMeasurements,
