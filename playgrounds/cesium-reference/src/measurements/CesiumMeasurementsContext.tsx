@@ -1,14 +1,21 @@
-import React, { createContext, useContext, useState, useMemo } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useMemo,
+  useCallback,
+} from "react";
 import { useCesiumViewer } from "../contexts/CesiumViewerContext";
 import {
   isPointMeasurementEntry,
+  isDistanceMeasurementEntry,
   MeasurementCollection,
   MeasurementMode,
 } from "./types/MeasurementTypes";
 import { useCesiumDistanceMeasurement } from "./hooks/useCesiumDistanceMeasurement";
 import { normalizeOptions } from "@carma-commons/utils";
-import useCesiumPointQuery from "./hooks/useCesiumPointQuery";
-import useCesiumPointVisualizer from "./hooks/useCesiumPointVisualizer";
+import { useCesiumPointQuery } from "./hooks/useCesiumPointQuery";
+import { useCesiumPointVisualizer } from "./hooks/useCesiumPointVisualizer";
 
 interface CesiumMeasurementsContextType {
   measurementMode: MeasurementMode;
@@ -69,7 +76,14 @@ export const CesiumMeasurementsProvider: React.FC<
     viewer,
     measurementMode === MeasurementMode.PointQuery,
     setMeasurements,
-    pointRadius,
+    soloMode,
+    pointRadius
+  );
+
+  useCesiumDistanceMeasurement(
+    viewer,
+    measurementMode === MeasurementMode.Distance,
+    setMeasurements,
     soloMode
   );
 
@@ -79,17 +93,20 @@ export const CesiumMeasurementsProvider: React.FC<
     pointRadius
   );
 
-  const clearAllMeasurements = () => {
+  const clearAllMeasurements = useCallback(() => {
     setMeasurements([]);
-  };
+  }, [setMeasurements]);
 
-  const clearPointMeasurements = () => {
+  const clearPointMeasurements = useCallback(() => {
     setMeasurements((prev) => prev.filter((m) => !isPointMeasurementEntry(m)));
-  };
+  }, [setMeasurements]);
 
-  const clearMeasurementsByIds = (ids: string[]) => {
-    setMeasurements((prev) => prev.filter((m) => !ids.includes(m.id)));
-  };
+  const clearMeasurementsByIds = useCallback(
+    (ids: string[]) => {
+      setMeasurements((prev) => prev.filter((m) => !ids.includes(m.id)));
+    },
+    [setMeasurements]
+  );
 
   const contextValue = useMemo(
     () => ({

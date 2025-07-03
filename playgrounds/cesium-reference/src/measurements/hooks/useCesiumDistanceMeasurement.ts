@@ -50,8 +50,8 @@ const createPointEntity = (
 export function useCesiumDistanceMeasurement(
   viewer: any,
   enabled: boolean,
-  collection: MeasurementCollection,
-  setCollection: (collection: MeasurementCollection) => void
+  setCollection: (collection: MeasurementCollection) => void,
+  soloMode: boolean = true // Solo mode to replace existing measurements of the same type
 ) {
   const handlerRef = useRef<ScreenSpaceEventHandler | null>(null);
   const measurementEntitiesRef = useRef<Entity[]>([]);

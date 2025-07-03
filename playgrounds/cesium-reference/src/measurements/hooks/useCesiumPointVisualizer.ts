@@ -3,9 +3,8 @@ import { type Viewer, Entity, Cartesian2, Color } from "cesium";
 import { create3DCrossGroup } from "../utils/cesium3DCross";
 import { LABEL_FONT, SCALE_BY_DISTANCE } from "./useNivPoints";
 import { PointMeasurementEntry } from "../types/MeasurementTypes";
-import { vi } from "vitest";
 
-const useCesiumPointVisualizer = (
+export const useCesiumPointVisualizer = (
   viewer: Viewer | null,
   points: PointMeasurementEntry[] = [],
   radius: number
@@ -30,7 +29,6 @@ const useCesiumPointVisualizer = (
         }
       }
     });
-    // Add entities/crosses for new measurements only
     points.forEach((m, i) => {
       if (!entityRefs.current[m.id]) {
         const entity = new Entity({
@@ -78,7 +76,7 @@ const useCesiumPointVisualizer = (
       cross3DRefs.current = {};
       prevIdsRef.current = new Set();
     };
-  }, [viewer, points]);
+  }, [viewer, points, radius]);
 };
 
 export default useCesiumPointVisualizer;

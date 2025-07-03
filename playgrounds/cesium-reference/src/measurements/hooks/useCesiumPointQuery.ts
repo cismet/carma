@@ -6,52 +6,18 @@ import {
   ScreenSpaceEventHandler,
 } from "cesium";
 import {
-  isPointMeasurementEntry,
   MeasurementCollection,
   MeasurementMode,
   PointMeasurementEntry,
 } from "../types/MeasurementTypes";
+import { updateCollection } from "../utils/measurementCollection";
 
-const updateLast =
-  (measurement: PointMeasurementEntry) => (prev: MeasurementCollection) => {
-    const existingIndex = prev
-      .map((m, i) => ({ m, i }))
-      .filter(
-        ({ m }) =>
-          isPointMeasurementEntry(m) && m.type === MeasurementMode.PointQuery
-      )
-      .map(({ i }) => i)
-      .pop();
-    if (existingIndex !== undefined) {
-      const newCollection = [...prev];
-      newCollection[existingIndex] = measurement;
-      return newCollection;
-    }
-    return [...prev, measurement];
-  };
-
-const updateCollection = (
-  setCollection: Dispatch<SetStateAction<MeasurementCollection>>,
-  measurement: PointMeasurementEntry,
-  soloMode: boolean
-) => {
-  if (soloMode) {
-    setCollection(updateLast(measurement));
-  } else {
-    setCollection((prevCollection: MeasurementCollection) => [
-      ...prevCollection,
-      measurement,
-    ]);
-  }
-};
-
-const useCesiumPointQuery = (
+export const useCesiumPointQuery = (
   viewer: Viewer | null,
   enabled: boolean = true,
   setCollection: Dispatch<SetStateAction<MeasurementCollection>>,
-  // custom measurement type settings
-  radius: number = 10, // Default search radius to 10m, same as cross3D visual
-  soloMode: boolean = false
+  soloMode: boolean = true,
+  radius: number = 10
 ) => {
   const handlerRef = useRef<ScreenSpaceEventHandler | null>(null);
 
@@ -93,7 +59,7 @@ const useCesiumPointQuery = (
       const height = cartographic.height;
 
       const measurement: PointMeasurementEntry = {
-        type: MeasurementMode.PointQuery, // Assuming PointQuery is the mode for this
+        type: MeasurementMode.PointQuery,
         id: `point-${Date.now()}`,
         name: `P h${height.toFixed(1)}m`,
         geometryECEF: pickedPosition,
@@ -104,7 +70,7 @@ const useCesiumPointQuery = (
         },
         timestamp: new Date().getTime(),
         radius,
-        metadata: null, // No additional metadata for point query
+        metadata: null,
       };
 
       updateCollection(setCollection, measurement, soloMode);
@@ -116,7 +82,6 @@ const useCesiumPointQuery = (
 
     console.debug("[SceneClick] Terrain click handler enabled");
 
-    // Cleanup function
     return () => {
       if (handlerRef.current) {
         handlerRef.current.destroy();
@@ -124,7 +89,7 @@ const useCesiumPointQuery = (
       }
       console.debug("[SceneClick] Terrain click handler cleaned up");
     };
-  }, [viewer, enabled, radius, soloMode]);
+  }, [viewer, enabled, radius, soloMode, setCollection]);
 
   return {};
 };

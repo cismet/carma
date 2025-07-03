@@ -66,7 +66,7 @@ const PointMeasurementPanel: React.FC<PointMeasurementPanelProps> = () => {
               key: data.id,
               label: `Punkt ${pointMeasurements.length - idx} ${
                 data.name || ""
-              } (${data.id})`,
+              } (${data.id.slice(-6, -2)})`,
               children: <PointQueryInfo data={data} />,
               extra: (
                 <Button

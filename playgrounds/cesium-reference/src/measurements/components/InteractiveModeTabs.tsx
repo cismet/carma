@@ -106,7 +106,6 @@ export const InteractiveModeTabs: React.FC<InteractiveModeTabsProps> = ({
     },
     {
       key: MeasurementMode.Distance,
-      disabled: true,
       label: "Distanzmessung",
       icon: <FontAwesomeIcon icon={faRulerCombined} />,
       children: (
