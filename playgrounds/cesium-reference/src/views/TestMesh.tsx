@@ -42,7 +42,7 @@ const TestMesh: React.FC = () => {
   const uiTopRightRef = useRef<HTMLDivElement | null>(null);
   const { tilesetRef, tilesetReady } = useTileset(
     tilesetUrl,
-    viewerRef,
+    viewerRef.current,
     useMemo(
       () => ({
         skipLevelOfDetail: true,
@@ -119,7 +119,7 @@ const TestMesh: React.FC = () => {
     }
   }, [showTileInspector]);
 
-  useZoomToTilesetOnReady(viewerRef, tilesetRef, tilesetReady);
+  useZoomToTilesetOnReady(viewerRef.current, tilesetRef, tilesetReady);
 
   return (
     <>

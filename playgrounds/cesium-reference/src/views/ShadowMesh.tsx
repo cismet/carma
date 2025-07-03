@@ -16,7 +16,7 @@ const ShadowMesh: FC = () => {
   const [shadowsEnabled, setShadowsEnabled] = useState(true);
   const { tilesetRef, tilesetReady } = useTileset(
     WUPP_MESH_2024.url,
-    viewerRef
+    viewerRef.current
   );
 
   useEffect(() => {
@@ -42,7 +42,7 @@ const ShadowMesh: FC = () => {
     };
   }, []);
 
-  useZoomToTilesetOnReady(viewerRef, tilesetRef, tilesetReady);
+  useZoomToTilesetOnReady(viewerRef.current, tilesetRef, tilesetReady);
 
   useEffect(() => {
     if (viewerRef.current) {

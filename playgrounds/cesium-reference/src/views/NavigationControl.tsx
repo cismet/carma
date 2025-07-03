@@ -40,7 +40,7 @@ const NavigationControlView: FC = () => {
 
   const { tilesetRef, tilesetReady } = useTileset(
     WUPP_LOD2_TILESET.url,
-    viewerRef
+    viewerRef.current
   );
 
   useEffect(() => {
@@ -77,7 +77,7 @@ const NavigationControlView: FC = () => {
     };
   }, []);
 
-  useZoomToTilesetOnReady(viewerRef, tilesetRef, tilesetReady);
+  useZoomToTilesetOnReady(viewerRef.current, tilesetRef, tilesetReady);
   const { handleZoomIn, handleZoomOut } = useZoomControls(
     viewerRef,
     viewerAnimationMapRef

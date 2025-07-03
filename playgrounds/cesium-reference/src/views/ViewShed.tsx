@@ -31,7 +31,7 @@ const ViewShed: React.FC = () => {
   const sensorRef = useRef<SensorShadow | null>(null);
   const { tilesetRef, tilesetReady } = useTileset(
     WUPP_MESH_2024.url,
-    viewerRef
+    viewerRef.current
   );
 
   const targetPointRef = useRef<Entity | null>(null);

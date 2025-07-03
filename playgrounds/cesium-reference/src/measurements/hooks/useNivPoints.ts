@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, MutableRefObject } from "react";
 import type { Viewer } from "cesium";
 import {
   Cartesian2,
@@ -10,40 +10,17 @@ import {
 } from "cesium";
 
 import { PROJ4_CONVERTERS } from "@carma-commons/utils";
-
-export type ElevationStandard = "nhn2016" | "nhn" | "nn";
-export interface NivPPoint {
-  hoehe_ueber_nn: number;
-  festlegungsart: number;
-  lagegenauigkeit: number;
-  laufende_nummer: string;
-  dgk_blattnummer: string;
-  messungsjahr: number;
-  lagebezeichnung: string;
-  geometrie: number;
-  id: number;
-  punktnummer_nrw: string | null;
-  bemerkung: string | null;
-  historisch: boolean;
-  hoehe_ueber_nhn2016: number;
-  hoehe_ueber_nhn: number;
-  x: number;
-  y: number;
-  geojson: {
-    type: "Point";
-    crs: { type: "name"; properties: { name: "EPSG:25832" } };
-    coordinates: [number, number];
-  };
-}
-
-export interface TransformedNivPPoint extends NivPPoint {
-  longitude: number;
-  latitude: number;
-  cartesian: Cartesian3;
-  currentElevation: number;
-  elevationStandard: ElevationStandard;
-  hasValidElevation: boolean;
-}
+import {
+  VerticalDatum,
+  NivPoint,
+  TransformedNivPoint,
+} from "../types/VerticalDatumTypes";
+import {
+  isPointMeasurementEntry,
+  PointMeasurementEntry,
+} from "../types/MeasurementTypes";
+import { useCesiumMeasurements } from "../CesiumMeasurementsContext";
+import { getLastMeasurement } from "../../../../../dist/libraries/collaboration/carma-wuppertal-collab/luftmessstationen/helper";
 
 export const SCALE_BY_DISTANCE = new NearFarScalar(0, 1, 5000, 0.0);
 export const SCALE_BY_DISTANCE_POINTS = new NearFarScalar(0, 1, 5000, 0.5);
@@ -51,8 +28,8 @@ export const SCALE_BY_DISTANCE_POINTS = new NearFarScalar(0, 1, 5000, 0.5);
 export const LABEL_FONT = "bold 20px Univers, Verdana Pro, sans-serif";
 
 const getElevationValue = (
-  point: NivPPoint,
-  standard: ElevationStandard
+  point: NivPoint,
+  standard: VerticalDatum
 ): number => {
   switch (standard) {
     case "nhn2016":
@@ -66,7 +43,7 @@ const getElevationValue = (
   }
 };
 
-const getElevationLabel = (standard: ElevationStandard): string => {
+const getElevationLabel = (standard: VerticalDatum): string => {
   switch (standard) {
     case "nhn2016":
       return "NHN2016";
@@ -79,24 +56,28 @@ const getElevationLabel = (standard: ElevationStandard): string => {
   }
 };
 
-const useNivPPoints = (
+export const useNivPoints = (
   viewer: Viewer | null,
-  elevationStandard: ElevationStandard = "nhn",
   uri: string,
+  enabled: boolean = true,
+  verticalDatum: VerticalDatum = "nhn",
   includeHistoric: boolean = false
 ) => {
+  const { measurements, pointRadius } = useCesiumMeasurements();
+
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [allPoints, setAllPoints] = useState<TransformedNivPPoint[]>([]); // Session permanent objects
-  const [filteredPoints, setFilteredPoints] = useState<TransformedNivPPoint[]>(
+  const [allPoints, setAllPoints] = useState<TransformedNivPoint[]>([]); // Session permanent objects
+  const [filteredPoints, setFilteredPoints] = useState<TransformedNivPoint[]>(
     []
   );
   const [entities, setEntities] = useState<Entity[]>([]);
+  const [nearestNivPoint, setNearestNivPoint] = useState<Entity | null>(null);
   const currentEntitiesRef = useRef<Entity[]>([]);
 
   // Load and transform data once per session
   useEffect(() => {
-    if (!viewer) return;
+    if (!viewer || !enabled) return;
 
     const loadNivPData = async () => {
       setIsLoading(true);
@@ -110,10 +91,10 @@ const useNivPPoints = (
           throw new Error(`Failed to load ${uri}: ${response.status}`);
         }
 
-        const rawData: NivPPoint[] = await response.json();
+        const rawData: NivPoint[] = await response.json();
 
         // Transform all points to session permanent objects
-        const transformedPoints: TransformedNivPPoint[] = rawData.map(
+        const transformedPoints: TransformedNivPoint[] = rawData.map(
           (point) => {
             // Transform UTM32 ETRS89 (EPSG:25832) to WGS84 (EPSG:4326)
             const [longitude, latitude] = PROJ4_CONVERTERS.CRS25832.inverse([
@@ -122,10 +103,7 @@ const useNivPPoints = (
             ]);
 
             // Get elevation based on the selected standard
-            const currentElevation = getElevationValue(
-              point,
-              elevationStandard
-            );
+            const currentElevation = getElevationValue(point, verticalDatum);
 
             // Check if elevation is valid
             const hasValidElevation = !!(
@@ -146,7 +124,7 @@ const useNivPPoints = (
               latitude,
               cartesian,
               currentElevation: currentElevation || 0,
-              elevationStandard,
+              verticalDatum,
               hasValidElevation,
             };
           }
@@ -170,7 +148,7 @@ const useNivPPoints = (
     };
 
     loadNivPData();
-  }, [viewer, uri, elevationStandard]); // Include elevationStandard for initial transformation
+  }, [viewer, uri, verticalDatum, enabled]); // Include verticalDatum for initial transformation
 
   // Filter points based on historic toggle and elevation standard
   useEffect(() => {
@@ -183,7 +161,7 @@ const useNivPPoints = (
 
     // Update elevation data based on current standard
     const updatedPoints = filtered.map((point) => {
-      const currentElevation = getElevationValue(point, elevationStandard);
+      const currentElevation = getElevationValue(point, verticalDatum);
       const hasValidElevation = !!(
         currentElevation &&
         !isNaN(currentElevation) &&
@@ -203,13 +181,13 @@ const useNivPPoints = (
         ...point,
         cartesian,
         currentElevation: currentElevation || 0,
-        elevationStandard,
+        verticalDatum,
         hasValidElevation,
       };
     });
 
     console.debug(
-      `[NIVP] Filtered to ${updatedPoints.length} points (includeHistoric: ${includeHistoric}, elevationStandard: ${elevationStandard})`
+      `[NIVP] Filtered to ${updatedPoints.length} points (includeHistoric: ${includeHistoric}, verticalDatum: ${verticalDatum})`
     );
 
     const validElevationCount = updatedPoints.filter(
@@ -221,107 +199,17 @@ const useNivPPoints = (
     );
 
     setFilteredPoints(updatedPoints);
-  }, [allPoints, includeHistoric, elevationStandard]);
+  }, [allPoints, includeHistoric, verticalDatum]);
+
   useEffect(() => {
-    if (!viewer || filteredPoints.length === 0) return;
+    if (!viewer || !enabled || filteredPoints.length === 0) return;
 
     console.debug(`[NIVP] Creating ${filteredPoints.length} point entities...`);
 
     const newEntities: Entity[] = filteredPoints.map((point) => {
-      const elevationLabel = getElevationLabel(elevationStandard);
-
       const entity = new Entity({
         id: `nivp-point-${point.id}`,
         name: `NivP Point ${point.laufende_nummer}`,
-        description: `
-          <h3>NivP Point ${point.laufende_nummer}</h3>
-          <table>
-            <tr>
-              <td><strong>Höhenbezug:</strong></td>
-              <td><strong>${elevationLabel}</strong></td>
-            </tr>
-            <tr>
-              <td><strong>Aktuelle Höhe:</strong></td>
-              <td>${
-                point.hasValidElevation
-                  ? `${point.currentElevation.toFixed(3)} m`
-                  : `Keine gültigen Höhenangaben`
-              }</td>
-            </tr>
-            <tr>
-              <td><strong>ID:</strong></td>
-              <td>${point.id}</td>
-            </tr>
-            <tr>
-              <td><strong>Punktnummer NRW:</strong></td>
-              <td>${point.punktnummer_nrw || "nicht verfügbar"}</td>
-            </tr>
-            <tr>
-              <td><strong>Lagebezeichnung:</strong></td>
-              <td>${point.lagebezeichnung}</td>
-            </tr>
-            <tr>
-              <td><strong>Höhe über NN:</strong></td>
-              <td>${point.hoehe_ueber_nn.toFixed(3)} m</td>
-            </tr>
-            <tr>
-              <td><strong>Höhe über NHN2016:</strong></td>
-              <td>${point.hoehe_ueber_nhn2016.toFixed(3)} m</td>
-            </tr>
-            <tr>
-              <td><strong>Höhe über NHN:</strong></td>
-              <td>${point.hoehe_ueber_nhn.toFixed(3)} m</td>
-            </tr>
-            <tr>
-              <td><strong>Bemerkung:</strong></td>
-              <td>${point.bemerkung || "keine"}</td>
-            </tr>
-            <tr>
-              <td><strong>Festlegungsart:</strong></td>
-              <td>${point.festlegungsart}</td>
-            </tr>
-            <tr>
-              <td><strong>Lagegenauigkeit:</strong></td>
-              <td>${point.lagegenauigkeit}</td>
-            </tr>
-            <tr>
-              <td><strong>Laufende Nummer:</strong></td>
-              <td>${point.laufende_nummer}</td>
-            </tr>
-            <tr>
-              <td><strong>DGK Blatt:</strong></td>
-              <td>${point.dgk_blattnummer}</td>
-            </tr>
-            <tr>
-              <td><strong>Messungsjahr:</strong></td>
-              <td>${point.messungsjahr}</td>
-            </tr>
-            <tr>
-              <td><strong>Geometrie:</strong></td>
-              <td>${point.geometrie}</td>
-            </tr>
-            <tr>
-              <td><strong>Historisch:</strong></td>
-              <td>${point.historisch ? "Ja" : "Nein"}</td>
-            </tr>
-            <tr>
-              <td><strong>UTM32 X:</strong></td>
-              <td>${point.x.toFixed(2)} m</td>
-            </tr>
-            <tr>
-              <td><strong>UTM32 Y:</strong></td>
-              <td>${point.y.toFixed(2)} m</td>
-            </tr>
-            <tr>
-              <td><strong>Longitude:</strong></td>
-              <td>${point.longitude.toFixed(6)}°</td>
-            </tr>
-            <tr>
-              <td><strong>Latitude:</strong></td>
-              <td>${point.latitude.toFixed(6)}°</td>
-            </tr>
-          </table>
-        `,
         // Store the original point data for access in useSceneClick
         properties: {
           nivpData: point,
@@ -385,10 +273,47 @@ const useNivPPoints = (
         });
         currentEntitiesRef.current = [];
       } catch (error) {
-        console.error("[useNivPPoints] Error during cleanup:", error);
+        console.error("[useNivPoints] Error during cleanup:", error);
       }
     };
-  }, [viewer, filteredPoints, elevationStandard]);
+  }, [viewer, filteredPoints, verticalDatum, enabled]);
+
+  useEffect(() => {
+    if (!entities || !measurements || measurements.length < 1) return;
+
+    const pointMeasurements = measurements.filter(isPointMeasurementEntry);
+
+    const lastPoint = pointMeasurements[pointMeasurements.length - 1];
+
+    let distance = Infinity;
+    let entityIndex = 0;
+
+    while (
+      distance > pointRadius &&
+      entityIndex < entities.length &&
+      lastPoint
+    ) {
+      const entity = entities[entityIndex];
+      const entityDistance = Cartesian3.distance(
+        lastPoint.geometryECEF,
+        entity.position.getValue(viewer.clock.currentTime)
+      );
+      if (entityDistance < distance) {
+        distance = entityDistance;
+      }
+      entityIndex++;
+    }
+
+    if (distance <= pointRadius && lastPoint) {
+      const nearestPoint = entities[entityIndex - 1];
+      setNearestNivPoint(nearestPoint);
+      console.debug(
+        `[NIVP] Nearest point found: ${nearestPoint.id} at distance ${distance}`
+      );
+    } else {
+      setNearestNivPoint(null);
+    }
+  }, [measurements, entities, pointRadius]);
 
   return {
     isLoading,
@@ -396,8 +321,9 @@ const useNivPPoints = (
     points: filteredPoints,
     entities,
     pointCount: filteredPoints.length,
-    elevationStandard,
+    verticalDatum,
+    nearestNivPoint,
   };
 };
 
-export default useNivPPoints;
+export default useNivPoints;

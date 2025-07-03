@@ -1,0 +1,66 @@
+import { Cartesian3 } from "cesium";
+
+export enum MeasurementMode {
+  NONE = "none",
+  PointQuery = "point_query",
+  Traverse = "traverse",
+  Elevation = "elevation",
+}
+
+export enum CoordinateDisplayMode {
+  Cartesian = "cartesian",
+  Geographic = "geographic", // WGS84
+  Cartographic = "cartographic", // generic cartographic coordinates
+  UTM32 = "utm32",
+}
+
+type GeomPoint = {
+  longitude: number;
+  latitude: number;
+  height: number;
+};
+
+type GeomPolyline = GeomPoint[];
+
+export type MeasurementEntry = {
+  id: string;
+  type: MeasurementMode;
+  timestamp: number;
+  name?: string;
+  geometryECEF: Cartesian3[] | Cartesian3;
+  geometryWGS84: GeomPoint | GeomPolyline;
+  metadata?: unknown;
+  derived?: unknown;
+};
+
+export type PointMeasurementEntry = MeasurementEntry & {
+  type: MeasurementMode.PointQuery;
+  geometryECEF: Cartesian3;
+  geometryWGS84: GeomPoint;
+  radius?: number; // Radius in meters for point query
+};
+
+export function isPointMeasurementEntry(
+  entry: MeasurementEntry
+): entry is PointMeasurementEntry {
+  return entry.type === MeasurementMode.PointQuery;
+}
+
+export type TraverseMeasurementEntry = MeasurementEntry & {
+  type: MeasurementMode.Traverse;
+  geometryECEF: Cartesian3[];
+  geometryWGS84: GeomPolyline;
+  derived?: {
+    segmentLengths: number[];
+    segmentLengthsCumulative: number[];
+    totalLength: number;
+  };
+};
+
+export function isTraverseMeasurementEntry(
+  entry: MeasurementEntry
+): entry is TraverseMeasurementEntry {
+  return entry.type === MeasurementMode.Traverse;
+}
+
+export type MeasurementCollection = MeasurementEntry[];

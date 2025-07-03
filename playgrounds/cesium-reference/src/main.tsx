@@ -1,5 +1,6 @@
 import * as ReactDOM from "react-dom/client";
 import { HashRouter as Router, Routes, Route } from "react-router-dom";
+import { ConfigProvider, theme } from "antd";
 
 import Home from "./Home";
 import { APP_BASE_PATH, CESIUM_PATHNAME } from "./config";
@@ -23,17 +24,24 @@ const root = ReactDOM.createRoot(
 );
 root.render(
   <ErrorBoundary FallbackComponent={ErrorFallback}>
-    <Router>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        {views.map((view) => (
-          <Route
-            key={view.path}
-            path={view.path}
-            element={<view.component />}
-          />
-        ))}
-      </Routes>
-    </Router>
+    <ConfigProvider
+      theme={{
+        algorithm: theme.compactAlgorithm,
+        components: { Collapse: { contentPadding: 0 } },
+      }}
+    >
+      <Router>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          {views.map((view) => (
+            <Route
+              key={view.path}
+              path={view.path}
+              element={<view.component />}
+            />
+          ))}
+        </Routes>
+      </Router>
+    </ConfigProvider>
   </ErrorBoundary>
 );
