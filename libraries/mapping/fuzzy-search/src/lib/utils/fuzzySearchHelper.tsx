@@ -344,8 +344,6 @@ export const mapDataWithCategory = (
     prepareOptions.push(optionItem);
   });
 
-  console.log("xxx prepareOptions", prepareOptions);
-
   return prepareOptions;
 };
 
@@ -526,4 +524,19 @@ export const defaultTypeInference = {
       return "pois";
     }
   },
+};
+
+export const removedDoubledSearchRes = (resData) => {
+  const cleanRes = [];
+  const seen = new Set();
+
+  for (const entry of resData) {
+    const sorter = entry.item.sorter;
+    if (!seen.has(sorter)) {
+      seen.add(sorter);
+      cleanRes.push(entry);
+    }
+  }
+
+  return cleanRes;
 };
