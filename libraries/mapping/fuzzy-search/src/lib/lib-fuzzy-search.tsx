@@ -119,8 +119,8 @@ export function LibFuzzySearch({
     if (allGazeteerData.length > 0 && fuseInstance) {
       const removeStopWords = removeStopwords(value, stopwords, prepoHandling);
       const result = fuseInstance.search(removeStopWords);
-      const cleanedFromDoubledRes = removedDoubledSearchRes(result);
-      let resultWithRoundScore = result.map((r) => {
+      const clinedFromDoubledRes = removedDoubledSearchRes(result);
+      let resultWithRoundScore = clinedFromDoubledRes.map((r) => {
         if (r.score) {
           return {
             ...r,
@@ -142,7 +142,7 @@ export function LibFuzzySearch({
       if (showCategories) {
         const priority = priorityTypes ? priorityTypes : null;
         const dataWithCategory = mapDataWithCategory(
-          cleanedFromDoubledRes,
+          resultWithRoundScore,
           ifShowScore === undefined ? false : ifShowScore,
           priority
         );
@@ -179,6 +179,7 @@ export function LibFuzzySearch({
 
   useEffect(() => {
     if (_gazData) {
+      console.log("xxx _gazData", _gazData);
       const allModifiedData = prepareGazData(
         _gazData,
         prepoHandling,

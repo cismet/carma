@@ -2,8 +2,7 @@ import { createConfig, ENDPOINT } from "@carma-commons/resources";
 
 const prefix = "GazDataForHochwasserkarteByCismet";
 
-// const endpoints = [ENDPOINT.ADRESSEN, ENDPOINT.POIS, ENDPOINT.VORHABEN];
-const endpoints = [ENDPOINT.VORHABEN];
+const endpoints = [ENDPOINT.ADRESSEN, ENDPOINT.POIS, ENDPOINT.VORHABEN];
 
 const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 const crs = "25832";
