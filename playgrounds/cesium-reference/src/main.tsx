@@ -24,7 +24,12 @@ const root = ReactDOM.createRoot(
 );
 root.render(
   <ErrorBoundary FallbackComponent={ErrorFallback}>
-    <ConfigProvider theme={{ algorithm: theme.compactAlgorithm }}>
+    <ConfigProvider
+      theme={{
+        algorithm: theme.compactAlgorithm,
+        components: { Collapse: { contentPadding: 0 } },
+      }}
+    >
       <Router>
         <Routes>
           <Route path="/" element={<Home />} />

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, FC, useMemo } from "react";
-import { Button, Card, Collapse, List, Typography } from "antd";
+import { Button, Card, Collapse, List, theme, Typography } from "antd";
 import { PointQueryInfo } from "./PointQueryInfo";
 import {
   isPointMeasurementEntry,
@@ -8,7 +8,8 @@ import {
 } from "../types/MeasurementTypes";
 import { useCesiumMeasurements } from "../CesiumMeasurementsContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faTrash } from "@fortawesome/free-solid-svg-icons";
+import { faCircleXmark, faTrash } from "@fortawesome/free-solid-svg-icons";
+import { MeasurementMode } from "../types/MeasurementTypes";
 
 const renderPointItem = (
   data: PointMeasurementEntry,
@@ -17,16 +18,16 @@ const renderPointItem = (
 ) => (
   <List.Item
     key={data.id}
+    style={{ paddingRight: "0.5rem" }}
     title={`${data.name || ""} (${data.id.slice(-6, -2)})`}
     extra={
       <Button
+        icon={<FontAwesomeIcon icon={faCircleXmark} />}
         type="text"
         size="small"
         onClick={() => clearMeasurementsByIds([data.id])}
         aria-label={`Messung ${data.id} löschen`}
-      >
-        <FontAwesomeIcon icon={faTrash} />
-      </Button>
+      />
     }
   >
     <List.Item.Meta
@@ -57,61 +58,84 @@ const renderGenericItem = (
 });
 
 const MeasurementPanel: FC = () => {
-  const { measurements, clearPointMeasurements, clearMeasurementsByIds } =
-    useCesiumMeasurements();
+  const {
+    measurements,
+    clearPointMeasurements,
+    clearMeasurementsByIds,
+    measurementMode,
+  } = useCesiumMeasurements();
 
-  const pointMeasurements = measurements
-    .filter((m: MeasurementEntry) => isPointMeasurementEntry(m))
-    .reverse();
+  const { token } = theme.useToken();
 
-  const [activeKey, setActiveKey] = useState<string[]>(
-    pointMeasurements.length > 0
-      ? [pointMeasurements[0].id]
-      : pointMeasurements.map((m) => m.id)
+  const pointMeasurements = useMemo(
+    () =>
+      measurements
+        .filter((m: MeasurementEntry) => isPointMeasurementEntry(m))
+        .reverse(),
+    [measurements]
+  );
+
+  const [activePanel, setActivePanel] = useState<string[]>(
+    measurementMode === MeasurementMode.PointQuery ? ["points"] : []
   );
 
   useEffect(() => {
-    if (pointMeasurements.length === 0) {
-      setActiveKey([]);
-    } else {
-      // Always expand all items, including new ones
-      setActiveKey(pointMeasurements.map((m) => m.id));
-    }
-  }, [pointMeasurements]);
+    setActivePanel(
+      measurementMode === MeasurementMode.PointQuery ? ["points"] : []
+    );
+  }, [measurementMode]);
 
   const renderItem = (data: MeasurementEntry, idx: number) => {
     if (isPointMeasurementEntry(data)) {
       return renderPointItem(data, idx, clearMeasurementsByIds);
     }
-    // Optionally handle other measurement types here
     return null;
   };
 
-  return (
-    <Card
-      size="small"
-      title={pointMeasurements.length > 0 ? "Punktmessungen" : undefined}
-      extra={
-        pointMeasurements.length > 0 && (
-          <Button
-            icon={<FontAwesomeIcon icon={faTrash} />}
-            size="small"
-            onClick={clearPointMeasurements}
-            aria-label="Alle Messungen löschen"
-          />
-        )
-      }
-    >
-      {pointMeasurements.length === 0 ? (
+  if (
+    measurementMode === MeasurementMode.PointQuery &&
+    pointMeasurements.length === 0
+  ) {
+    return (
+      <Card size="small">
         <Typography.Text type="secondary">
           Keine Punktmessungen vorhanden.
           <br />
           Zum Messen auf das Stadtmodell klicken
         </Typography.Text>
-      ) : (
-        <List dataSource={pointMeasurements} renderItem={renderItem} />
-      )}
-    </Card>
+      </Card>
+    );
+  }
+
+  return (
+    <Collapse
+      style={{ backgroundColor: token.colorBgContainer }}
+      activeKey={activePanel}
+      collapsible="header"
+      onChange={(key) => setActivePanel(Array.isArray(key) ? key : [key])}
+      items={[
+        {
+          key: "points",
+          label: `Punktmessungen (${pointMeasurements.length})`,
+          extra: (
+            <Button
+              icon={<FontAwesomeIcon icon={faTrash} />}
+              size="small"
+              onClick={clearPointMeasurements}
+              aria-label="Alle Punktmessungen löschen"
+            />
+          ),
+          children: (
+            <List
+              dataSource={pointMeasurements}
+              renderItem={renderItem}
+              size="small"
+            />
+          ),
+        },
+      ]}
+      className="measurement-panel-collapse"
+    />
   );
 };
 

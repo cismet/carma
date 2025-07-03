@@ -39,7 +39,6 @@ const ContextAwareApp: React.FC<{
           onCoordinateDisplayModeChange={onCoordinateDisplayModeChange}
         />
         <MeasurementPanel />
-
       </Flex>
     );
   };
