@@ -3,13 +3,14 @@ import { Button, Card, Collapse, List, theme, Typography } from "antd";
 import { PointQueryInfo } from "./PointQueryInfo";
 import {
   isPointMeasurementEntry,
-  PointMeasurementEntry,
+  isTraverseMeasurementEntry,
+  type PointMeasurementEntry,
   type MeasurementEntry,
+  MeasurementMode,
 } from "../types/MeasurementTypes";
 import { useCesiumMeasurements } from "../CesiumMeasurementsContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCircleXmark, faTrash } from "@fortawesome/free-solid-svg-icons";
-import { MeasurementMode } from "../types/MeasurementTypes";
 
 const renderPointItem = (
   data: PointMeasurementEntry,
@@ -61,6 +62,7 @@ const MeasurementPanel: FC = () => {
   const {
     measurements,
     clearPointMeasurements,
+    clearTraversalMeasurements,
     clearMeasurementsByIds,
     measurementMode,
   } = useCesiumMeasurements();
@@ -71,6 +73,13 @@ const MeasurementPanel: FC = () => {
     () =>
       measurements
         .filter((m: MeasurementEntry) => isPointMeasurementEntry(m))
+        .reverse(),
+    [measurements]
+  );
+  const traverseMeasurements = useMemo(
+    () =>
+      measurements
+        .filter((m: MeasurementEntry) => isTraverseMeasurementEntry(m))
         .reverse(),
     [measurements]
   );
@@ -92,50 +101,88 @@ const MeasurementPanel: FC = () => {
     return null;
   };
 
-  if (
-    measurementMode === MeasurementMode.PointQuery &&
-    pointMeasurements.length === 0
-  ) {
-    return (
-      <Card size="small">
-        <Typography.Text type="secondary">
-          Keine Punktmessungen vorhanden.
-          <br />
-          Zum Messen auf das Stadtmodell klicken
-        </Typography.Text>
-      </Card>
-    );
-  }
-
   return (
-    <Collapse
-      style={{ backgroundColor: token.colorBgContainer }}
-      activeKey={activePanel}
-      collapsible="header"
-      onChange={(key) => setActivePanel(Array.isArray(key) ? key : [key])}
-      items={[
-        {
-          key: "points",
-          label: `Punktmessungen (${pointMeasurements.length})`,
-          extra: (
-            <Button
-              icon={<FontAwesomeIcon icon={faTrash} />}
-              size="small"
-              onClick={clearPointMeasurements}
-              aria-label="Alle Punktmessungen löschen"
-            />
-          ),
-          children: (
-            <List
-              dataSource={pointMeasurements}
-              renderItem={renderItem}
-              size="small"
-            />
-          ),
-        },
-      ]}
-      className="measurement-panel-collapse"
-    />
+    <>
+      {measurementMode === MeasurementMode.PointQuery &&
+      pointMeasurements.length === 0 ? (
+        <Card size="small">
+          <Typography.Text type="secondary">
+            Keine Punktmessungen vorhanden.
+            <br />
+            Zum Messen auf das Stadtmodell klicken
+          </Typography.Text>
+        </Card>
+      ) : (
+        <Collapse
+          style={{ backgroundColor: token.colorBgContainer }}
+          activeKey={activePanel}
+          collapsible="header"
+          onChange={(key) => setActivePanel(Array.isArray(key) ? key : [key])}
+          items={[
+            {
+              key: "points",
+              label: `Punktmessungen (${pointMeasurements.length})`,
+              extra: (
+                <Button
+                  icon={<FontAwesomeIcon icon={faTrash} />}
+                  size="small"
+                  onClick={clearPointMeasurements}
+                  aria-label="Alle Punktmessungen löschen"
+                />
+              ),
+              children: (
+                <List
+                  dataSource={pointMeasurements}
+                  renderItem={renderItem}
+                  size="small"
+                />
+              ),
+            },
+          ]}
+          className="measurement-panel-collapse"
+        />
+      )}
+      {measurementMode === MeasurementMode.Traverse &&
+      traverseMeasurements.length === 0 ? (
+        <Card size="small">
+          <Typography.Text type="secondary">
+            Keine Polygonzüge vorhanden.
+            <br />
+            Zum Messen auf das Stadtmodell klicken, zum abschließen der Messung
+            rechts klicken
+          </Typography.Text>
+        </Card>
+      ) : (
+        <Collapse
+          style={{ backgroundColor: token.colorBgContainer }}
+          activeKey={activePanel}
+          collapsible="header"
+          onChange={(key) => setActivePanel(Array.isArray(key) ? key : [key])}
+          items={[
+            {
+              key: "traversal",
+              label: `Polygonzüge (${traverseMeasurements.length})`,
+              extra: (
+                <Button
+                  icon={<FontAwesomeIcon icon={faTrash} />}
+                  size="small"
+                  onClick={clearTraversalMeasurements}
+                  aria-label="Alle Polygonzüge löschen"
+                />
+              ),
+              children: (
+                <List
+                  dataSource={traverseMeasurements}
+                  renderItem={renderItem}
+                  size="small"
+                />
+              ),
+            },
+          ]}
+          className="measurement-panel-collapse"
+        />
+      )}
+    </>
   );
 };
 

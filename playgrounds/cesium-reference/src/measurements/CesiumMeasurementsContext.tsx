@@ -8,6 +8,7 @@ import React, {
 import { useCesiumViewer } from "../contexts/CesiumViewerContext";
 import {
   isPointMeasurementEntry,
+  isTraverseMeasurementEntry,
   MeasurementCollection,
   MeasurementMode,
 } from "./types/MeasurementTypes";
@@ -100,6 +101,12 @@ export const CesiumMeasurementsProvider: React.FC<
     setMeasurements((prev) => prev.filter((m) => !isPointMeasurementEntry(m)));
   }, [setMeasurements]);
 
+  const clearTraversalMeasurements = useCallback(() => {
+    setMeasurements((prev) =>
+      prev.filter((m) => isTraverseMeasurementEntry(m))
+    );
+  }, [setMeasurements]);
+
   const clearMeasurementsByIds = useCallback(
     (ids: string[]) => {
       setMeasurements((prev) => prev.filter((m) => !ids.includes(m.id)));
@@ -119,6 +126,7 @@ export const CesiumMeasurementsProvider: React.FC<
       setSoloMode,
       clearAllMeasurements,
       clearPointMeasurements,
+      clearTraversalMeasurements,
       clearMeasurementsByIds,
     }),
     [
@@ -132,6 +140,7 @@ export const CesiumMeasurementsProvider: React.FC<
       setPointRadius,
       clearAllMeasurements,
       clearPointMeasurements,
+      clearTraversalMeasurements,
       clearMeasurementsByIds,
     ]
   );

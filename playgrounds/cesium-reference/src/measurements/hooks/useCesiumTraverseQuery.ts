@@ -10,7 +10,8 @@ import {
   Viewer,
 } from "cesium";
 import { LABEL_FONT, SCALE_BY_DISTANCE } from "./useNivPoints";
-import { MeasurementCollection } from "../types/MeasurementTypes";
+import { MeasurementMode, TraverseMeasurementEntry } from "../types/MeasurementTypes";
+import { updateCollection } from "../utils/measurementCollection";
 import {
   createPointEntity,
   createSegmentLabel,
@@ -21,7 +22,7 @@ import { formatDistance } from "../../utils/formatters";
 export function useCesiumTraverseQuery(
   viewer: Viewer,
   enabled: boolean,
-  setCollection: (collection: MeasurementCollection) => void,
+  setCollection: (entry: any, finished: boolean) => void,
   soloMode: boolean = true // Solo mode to replace existing measurements of the same type
 ) {
   const handlerRef = useRef<ScreenSpaceEventHandler | null>(null);
@@ -184,6 +185,28 @@ export function useCesiumTraverseQuery(
         viewer.entities.add(segmentLabel);
         traverseEntiesRef.current.push(segmentLabel);
       }
+
+      // Compose TraverseMeasurementEntry
+      const entry: TraverseMeasurementEntry = {
+        id: `traverse-${Date.now()}`,
+        type: MeasurementMode.Traverse,
+        timestamp: Date.now(),
+        geometryECEF: [...points],
+        geometryWGS84: points.map((p) => {
+          const carto = viewer.scene.globe.ellipsoid.cartesianToCartographic(p);
+          return {
+            longitude: carto.longitude * (180 / Math.PI),
+            latitude: carto.latitude * (180 / Math.PI),
+            height: carto.height,
+          };
+        }),
+        derived: {
+          segmentLengths: [...activeTraverseSegmentsLengthsRef.current],
+          segmentLengthsCumulative: [...activeTraverseSegmentsLengthsCumulativeRef.current],
+          totalLength: currentTotal,
+        },
+      };
+      updateCollection(setCollection, entry, soloMode);
     }, ScreenSpaceEventType.LEFT_CLICK);
 
     // Live update: mouse move
@@ -238,6 +261,26 @@ export function useCesiumTraverseQuery(
 
     handler.setInputAction(() => {
       if (isActiveTraverseRef.current) {
+        const entry: TraverseMeasurementEntry = {
+          id: `traverse-${Date.now()}`,
+          type: MeasurementMode.Traverse,
+          timestamp: Date.now(),
+          geometryECEF: [...activeTraversePointsRef.current],
+          geometryWGS84: activeTraversePointsRef.current.map((p) => {
+            const carto = viewer.scene.globe.ellipsoid.cartesianToCartographic(p);
+            return {
+              longitude: carto.longitude * (180 / Math.PI),
+              latitude: carto.latitude * (180 / Math.PI),
+              height: carto.height,
+            };
+          }),
+          derived: {
+            segmentLengths: [...activeTraverseSegmentsLengthsRef.current],
+            segmentLengthsCumulative: [...activeTraverseSegmentsLengthsCumulativeRef.current],
+            totalLength: activeTraverseSegmentsLengthsCumulativeRef.current[activeTraverseSegmentsLengthsCumulativeRef.current.length - 1] || 0,
+          },
+        };
+        updateCollection(setCollection, entry, soloMode);
         finishMeasurement();
       }
     }, ScreenSpaceEventType.RIGHT_CLICK);
