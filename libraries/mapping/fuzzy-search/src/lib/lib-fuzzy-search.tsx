@@ -196,7 +196,7 @@ export function LibFuzzySearch({
         useExtendedSearch: true,
         keys: ["xSearchData"],
         includeScore: true,
-        ignoreLocation: true,
+        // ignoreLocation: true,
       };
 
       const fuse = new Fuse(allGazeteerData, fuseAddressesOptions);
