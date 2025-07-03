@@ -20,6 +20,7 @@ import {
   getCategoryNameInFirstSearchItem,
   smoothCategoriesTransition,
   useCreateGazetteerSelectorForLeaflet,
+  removedDoubledSearchRes,
 } from "./utils/fuzzySearchHelper";
 import { type SearchResultItem } from "@carma-commons/types";
 
@@ -118,9 +119,7 @@ export function LibFuzzySearch({
     if (allGazeteerData.length > 0 && fuseInstance) {
       const removeStopWords = removeStopwords(value, stopwords, prepoHandling);
       const result = fuseInstance.search(removeStopWords);
-
-      console.log("xxx search result", result);
-
+      const cleanedFromDoubledRes = removedDoubledSearchRes(result);
       let resultWithRoundScore = result.map((r) => {
         if (r.score) {
           return {
@@ -143,7 +142,7 @@ export function LibFuzzySearch({
       if (showCategories) {
         const priority = priorityTypes ? priorityTypes : null;
         const dataWithCategory = mapDataWithCategory(
-          resultWithRoundScore,
+          cleanedFromDoubledRes,
           ifShowScore === undefined ? false : ifShowScore,
           priority
         );
@@ -180,7 +179,6 @@ export function LibFuzzySearch({
 
   useEffect(() => {
     if (_gazData) {
-      console.log("xxx _gazData", _gazData);
       const allModifiedData = prepareGazData(
         _gazData,
         prepoHandling,
