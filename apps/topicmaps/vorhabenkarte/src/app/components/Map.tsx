@@ -164,6 +164,7 @@ const Map = () => {
               pixelwidth={
                 responsiveState === "normal" ? "300px" : windowSize.width - gap
               }
+              config={{ distance: 300 }}
             />
           </div>
         </Control>
