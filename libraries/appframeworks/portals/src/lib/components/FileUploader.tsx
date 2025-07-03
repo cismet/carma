@@ -1,10 +1,13 @@
 import { faX } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { Input, InputRef } from "antd";
-import { useRef, useState } from "react";
+import { useRef } from "react";
 
-const FileUploader = () => {
-  const [file, setFile] = useState<File | null>(null);
+interface FileUploaderProps {
+  file: File | null;
+  setFile: (file: File | null) => void;
+}
+
+const FileUploader = ({ file, setFile }: FileUploaderProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {

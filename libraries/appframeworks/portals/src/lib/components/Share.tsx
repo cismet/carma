@@ -32,6 +32,7 @@ export const Share = ({
   const [service, setService] = useState("discoverPoi");
   const [thumbUrl, setThumbUrl] = useState("");
   const [keywords, setKeywords] = useState<string[]>([]);
+  const [file, setFile] = useState<File | null>(null);
 
   const { layers, backgroundLayer } = layerState;
   const { copyShareUrl, contextHolder, messageApi } = useShareUrl();
@@ -175,7 +176,7 @@ export const Share = ({
                   {
                     key: "2",
                     label: "Datei",
-                    children: <FileUploader />,
+                    children: <FileUploader file={file} setFile={setFile} />,
                   },
                 ]}
               />
