@@ -15,11 +15,10 @@ import {
   createPointEntity,
   createSegmentLabel,
   createTotalLabel,
-} from "../utils/cesiumMeasurmentMarkersDistance";
-import { pick } from "resium";
-import { point } from "leaflet";
+} from "../utils/cesiumTraverseEntities";
+import { formatDistance } from "../../utils/formatters";
 
-export function useCesiumDistanceMeasurement(
+export function useCesiumTraverseQuery(
   viewer: Viewer,
   enabled: boolean,
   setCollection: (collection: MeasurementCollection) => void,
@@ -30,7 +29,7 @@ export function useCesiumDistanceMeasurement(
   const currentPolylineRef = useRef<Entity | null>(null);
   const activeTraversePointsRef = useRef<Cartesian3[]>([]);
   const activeTraverseSegmentsLengthsRef = useRef<number[]>([0]);
-  const activeTraverseSegmentsLengthsCumulativeRef = useRef<number[]>([]);
+  const activeTraverseSegmentsLengthsCumulativeRef = useRef<number[]>([0]);
 
   const isActiveTraverseRef = useRef<boolean>(false);
 
@@ -102,25 +101,48 @@ export function useCesiumDistanceMeasurement(
       if (!enabled) return;
       let points = activeTraversePointsRef.current;
       let currentIndex = activeTraversePointsRef.current.length;
+      let currentTotal = 0;
       const pickedPosition = viewer.scene.pickPosition(event.position);
       if (!pickedPosition) return;
+      // Remove preview label if present before locking in the new point
+      if (
+        traverseEntiesRef.current.length > 0 &&
+        traverseEntiesRef.current[traverseEntiesRef.current.length - 1].name ===
+          "__previewLabel"
+      ) {
+        const previewLabel = traverseEntiesRef.current.pop();
+        if (previewLabel) {
+          try {
+            viewer.entities.remove(previewLabel);
+          } catch {}
+        }
+      }
       points[currentIndex] = pickedPosition;
-      let currentCumulativeDistance = 0;
       if (currentIndex > 0) {
         const prevIndex = currentIndex - 1;
         const segmentLength = Cartesian3.distance(
           pickedPosition,
           points[prevIndex]
         );
+        // Update lengths
+        const lastSum =
+          activeTraverseSegmentsLengthsCumulativeRef.current[prevIndex];
+        currentTotal = lastSum + segmentLength;
+        console.log(
+          `Segment length: ${segmentLength}`,
+          currentTotal,
+          lastSum,
+          activeTraverseSegmentsLengthsCumulativeRef.current
+        );
+
         activeTraverseSegmentsLengthsRef.current[currentIndex] = segmentLength;
         activeTraverseSegmentsLengthsCumulativeRef.current[currentIndex] =
-          activeTraverseSegmentsLengthsCumulativeRef.current[prevIndex] +
-          activeTraverseSegmentsLengthsRef.current[currentIndex];
+          currentTotal;
       }
       const pointEntity = createPointEntity(
         pickedPosition,
-        activeTraversePointsRef.current.length - 1,
-        currentCumulativeDistance
+        currentIndex,
+        currentTotal
       );
       viewer.entities.add(pointEntity);
       traverseEntiesRef.current.push(pointEntity);
@@ -163,6 +185,57 @@ export function useCesiumDistanceMeasurement(
         traverseEntiesRef.current.push(segmentLabel);
       }
     }, ScreenSpaceEventType.LEFT_CLICK);
+
+    // Live update: mouse move
+    handler.setInputAction((event: { endPosition: Cartesian2 }) => {
+      if (!enabled) return;
+      if (!isActiveTraverseRef.current) return;
+      const movePosition = viewer.scene.pickPosition(event.endPosition);
+      if (!movePosition) return;
+      const points = activeTraversePointsRef.current;
+      if (points.length > 0) {
+        // Update or create preview segment label from last clicked point to cursor
+        const lastClicked = points[points.length - 1];
+        const segmentDistance = Cartesian3.distance(lastClicked, movePosition);
+        let previewLabel =
+          traverseEntiesRef.current.length > 0 &&
+          traverseEntiesRef.current[traverseEntiesRef.current.length - 1]
+            .name === "__previewLabel"
+            ? traverseEntiesRef.current[traverseEntiesRef.current.length - 1]
+            : null;
+        if (!previewLabel) {
+          previewLabel = createSegmentLabel(
+            lastClicked,
+            movePosition,
+            segmentDistance,
+            LABEL_FONT,
+            SCALE_BY_DISTANCE
+          );
+          previewLabel.name = "__previewLabel";
+          viewer.entities.add(previewLabel);
+          traverseEntiesRef.current.push(previewLabel);
+        } else {
+          // Update label position and text
+          previewLabel.position = Cartesian3.midpoint(
+            lastClicked,
+            movePosition,
+            new Cartesian3()
+          );
+          if (previewLabel.label) {
+            previewLabel.label.text = formatDistance(segmentDistance);
+          }
+        }
+        // Update polyline preview (show last clicked + cursor)
+        if (currentPolylineRef.current) {
+          currentPolylineRef.current.polyline!.positions = new CallbackProperty(
+            () => [lastClicked, movePosition],
+            false
+          );
+        }
+        viewer.scene.requestRender();
+      }
+    }, ScreenSpaceEventType.MOUSE_MOVE);
+
     handler.setInputAction(() => {
       if (isActiveTraverseRef.current) {
         finishMeasurement();

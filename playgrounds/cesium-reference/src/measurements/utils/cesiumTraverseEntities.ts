@@ -7,8 +7,6 @@ import {
   Property,
 } from "cesium";
 import { formatDistance } from "../../utils/formatters";
-import * as L from "leaflet";
-import { scaleOptions } from "../../../../../apps/geoportal/src/app/helper/print";
 
 export const createPointEntity = (
   position: Cartesian3,

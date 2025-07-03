@@ -3,7 +3,7 @@ import { Cartesian3 } from "cesium";
 export enum MeasurementMode {
   NONE = "none",
   PointQuery = "point_query",
-  Distance = "distance",
+  Traverse = "traverse",
   Elevation = "elevation",
 }
 
@@ -22,9 +22,8 @@ export type MeasurementEntry = {
   name?: string;
   geometryECEF: Cartesian3[] | Cartesian3;
   geometryWGS84: GeomPoint | GeomPolyline;
-  metadata?: {
-    heightDifference?: number;
-  };
+  metadata?: unknown;
+  derived?: unknown;
 };
 
 export type PointMeasurementEntry = MeasurementEntry & {
@@ -40,16 +39,21 @@ export function isPointMeasurementEntry(
   return entry.type === MeasurementMode.PointQuery;
 }
 
-export type DistanceMeasurementEntry = MeasurementEntry & {
-  type: MeasurementMode.Distance;
+export type TraverseMeasurementEntry = MeasurementEntry & {
+  type: MeasurementMode.Traverse;
   geometryECEF: Cartesian3[];
   geometryWGS84: GeomPolyline;
+  derived?: {
+    segmentLengths: number[];
+    segmentLengthsCumulative: number[];
+    totalLength: number;
+  };
 };
 
-export function isDistanceMeasurementEntry(
+export function isTraverseMeasurementEntry(
   entry: MeasurementEntry
-): entry is DistanceMeasurementEntry {
-  return entry.type === MeasurementMode.Distance;
+): entry is TraverseMeasurementEntry {
+  return entry.type === MeasurementMode.Traverse;
 }
 
 export type MeasurementCollection = MeasurementEntry[];

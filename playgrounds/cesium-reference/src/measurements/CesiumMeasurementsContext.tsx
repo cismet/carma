@@ -8,14 +8,13 @@ import React, {
 import { useCesiumViewer } from "../contexts/CesiumViewerContext";
 import {
   isPointMeasurementEntry,
-  isDistanceMeasurementEntry,
   MeasurementCollection,
   MeasurementMode,
 } from "./types/MeasurementTypes";
-import { useCesiumDistanceMeasurement } from "./hooks/useCesiumDistanceMeasurement";
 import { normalizeOptions } from "@carma-commons/utils";
 import { useCesiumPointQuery } from "./hooks/useCesiumPointQuery";
 import { useCesiumPointVisualizer } from "./hooks/useCesiumPointVisualizer";
+import { useCesiumTraverseQuery } from "./hooks/useCesiumTraverseQuery";
 
 interface CesiumMeasurementsContextType {
   measurementMode: MeasurementMode;
@@ -80,9 +79,9 @@ export const CesiumMeasurementsProvider: React.FC<
     pointRadius
   );
 
-  useCesiumDistanceMeasurement(
+  useCesiumTraverseQuery(
     viewer,
-    measurementMode === MeasurementMode.Distance,
+    measurementMode === MeasurementMode.Traverse,
     setMeasurements,
     soloMode
   );

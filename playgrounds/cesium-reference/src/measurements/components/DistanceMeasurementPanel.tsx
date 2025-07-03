@@ -20,10 +20,10 @@ const DistanceMeasurementPanel: React.FC<DistanceMeasurementPanelProps> = ({
     useCesiumMeasurements();
   const { viewer } = useCesiumViewer();
 
-  const enabled = measurementMode === MeasurementMode.Distance;
+  const enabled = measurementMode === MeasurementMode.Traverse;
 
   const isMeasurementPanelActive =
-    measurementMode === MeasurementMode.Distance && measurements.length > 0;
+    measurementMode === MeasurementMode.Traverse && measurements.length > 0;
 
   const handleClose = () => {
     if (isMeasurementPanelActive) {
@@ -32,7 +32,7 @@ const DistanceMeasurementPanel: React.FC<DistanceMeasurementPanelProps> = ({
   };
 
   const activeMeasurement = measurements.filter(
-    (m) => m.type === MeasurementMode.Distance
+    (m) => m.type === MeasurementMode.Traverse
   )[0];
 
   if (!enabled) return null;
