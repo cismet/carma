@@ -1,7 +1,7 @@
 import React, { FC } from "react";
 import { Divider, Typography } from "antd";
 import { NivPoint } from "../types/VerticalDatumTypes";
-import InfoRow from "../../components/InfoRow";
+import { InfoRow } from "../../components/InfoRow";
 
 const { Text } = Typography;
 

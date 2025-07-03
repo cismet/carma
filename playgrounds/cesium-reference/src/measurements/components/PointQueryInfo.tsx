@@ -1,6 +1,6 @@
 import React from "react";
 import { PointMeasurementEntry } from "../types/MeasurementTypes";
-import InfoRow from "../../components/InfoRow";
+import { InfoRow } from "../../components/InfoRow";
 
 interface PointQueryInfoProps {
   data: PointMeasurementEntry;

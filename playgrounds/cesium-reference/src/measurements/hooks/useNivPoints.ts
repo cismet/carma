@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef, MutableRefObject } from "react";
+import { useEffect, useState, useRef } from "react";
 import type { Viewer } from "cesium";
 import {
   Cartesian2,
@@ -15,12 +15,8 @@ import {
   NivPoint,
   TransformedNivPoint,
 } from "../types/VerticalDatumTypes";
-import {
-  isPointMeasurementEntry,
-  PointMeasurementEntry,
-} from "../types/MeasurementTypes";
+import { isPointMeasurementEntry } from "../types/MeasurementTypes";
 import { useCesiumMeasurements } from "../CesiumMeasurementsContext";
-import { getLastMeasurement } from "../../../../../dist/libraries/collaboration/carma-wuppertal-collab/luftmessstationen/helper";
 
 export const SCALE_BY_DISTANCE = new NearFarScalar(0, 1, 5000, 0.0);
 export const SCALE_BY_DISTANCE_POINTS = new NearFarScalar(0, 1, 5000, 0.5);
