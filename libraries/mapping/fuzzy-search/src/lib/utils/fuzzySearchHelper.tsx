@@ -46,10 +46,9 @@ export const renderItem = (
     category
   );
   return {
-    key:
-      searchResultItem.sorter + searchResultItem.modifiedSearchData
-        ? searchResultItem.modifiedSearchData
-        : searchResultItem.string,
+    key: searchResultItem.sorter
+      ? searchResultItem.modifiedSearchData
+      : searchResultItem.string,
     value:
       searchResultItem.string +
       "." +
