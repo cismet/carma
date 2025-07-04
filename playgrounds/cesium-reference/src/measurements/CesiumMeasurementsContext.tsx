@@ -8,8 +8,6 @@ import React, {
 import { useCesiumViewer } from "../contexts/CesiumViewerContext";
 import {
   CoordinateDisplayMode,
-  isPointMeasurementEntry,
-  isTraverseMeasurementEntry,
   MeasurementCollection,
   MeasurementMode,
 } from "./types/MeasurementTypes";
@@ -21,18 +19,20 @@ import { useCesiumTraverseQuery } from "./hooks/useCesiumTraverseQuery";
 interface CesiumMeasurementsContextType {
   measurementMode: MeasurementMode;
   setMeasurementMode: (mode: MeasurementMode) => void;
-  pointRadius: number;
-  setPointRadius: (radius: number) => void;
   measurements: MeasurementCollection;
   setMeasurements: (measurements: MeasurementCollection) => void;
-  soloMode: boolean;
-  setSoloMode: (solo: boolean) => void;
+  // utility functions
   clearAllMeasurements: () => void;
-  clearPointMeasurements: () => void;
-  clearTraverseMeasurements: () => void;
   clearMeasurementsByIds: (ids: string[]) => void;
+  clearMeasurementsByType: (type: MeasurementMode) => void;
+  // generic options
   coordinateDisplayMode: CoordinateDisplayMode;
   setCoordinateDisplayMode: (mode: CoordinateDisplayMode) => void;
+  soloMode: boolean;
+  setSoloMode: (solo: boolean) => void;
+  // per measurement type options
+  pointRadius: number;
+  setPointRadius: (radius: number) => void;
 }
 
 const CesiumMeasurementsContext = createContext<
@@ -68,7 +68,6 @@ export const CesiumMeasurementsProvider: React.FC<
   );
 
   const soloModeInit = options?.soloMode ?? true;
-
   const [coordinateDisplayMode, setCoordinateDisplayMode] =
     useState<CoordinateDisplayMode>(CoordinateDisplayMode.UTM32);
 
@@ -79,6 +78,8 @@ export const CesiumMeasurementsProvider: React.FC<
   const [soloMode, setSoloMode] = useState(soloModeInit);
   const [measurements, setMeasurements] = useState<MeasurementCollection>([]);
 
+  // point query hooks
+
   useCesiumPointQuery(
     viewer,
     measurementMode === MeasurementMode.PointQuery,
@@ -87,6 +88,8 @@ export const CesiumMeasurementsProvider: React.FC<
     pointRadius
   );
 
+  useCesiumPointVisualizer(viewer, measurements, pointRadius);
+
   const { clearTraverseQuery } = useCesiumTraverseQuery(
     viewer,
     measurementMode === MeasurementMode.Traverse,
@@ -94,27 +97,20 @@ export const CesiumMeasurementsProvider: React.FC<
     soloMode
   );
 
-  useCesiumPointVisualizer(
-    viewer,
-    measurements.filter(isPointMeasurementEntry),
-    pointRadius
-  );
-
   const clearAllMeasurements = useCallback(() => {
     setMeasurements([]);
     clearTraverseQuery();
   }, [setMeasurements, clearTraverseQuery]);
 
-  const clearPointMeasurements = useCallback(() => {
-    setMeasurements((prev) => prev.filter((m) => !isPointMeasurementEntry(m)));
-  }, [setMeasurements]);
-
-  const clearTraverseMeasurements = useCallback(() => {
-    setMeasurements((prev) =>
-      prev.filter((m) => !isTraverseMeasurementEntry(m))
-    );
-    clearTraverseQuery();
-  }, [setMeasurements, clearTraverseQuery]);
+  const clearMeasurementsByType = useCallback(
+    (type: MeasurementMode) => {
+      setMeasurements((prev) => prev.filter((m) => m.type !== type));
+      if (type === MeasurementMode.Traverse) {
+        clearTraverseQuery();
+      }
+    },
+    [setMeasurements, clearTraverseQuery]
+  );
 
   const clearMeasurementsByIds = useCallback(
     (ids: string[]) => {
@@ -125,36 +121,34 @@ export const CesiumMeasurementsProvider: React.FC<
 
   const contextValue = useMemo(
     () => ({
-      measurements,
-      setMeasurements,
       measurementMode,
       setMeasurementMode,
-      pointRadius,
-      setPointRadius,
-      soloMode,
-      setSoloMode,
+      measurements,
+      setMeasurements,
       clearAllMeasurements,
-      clearPointMeasurements,
-      clearTraverseMeasurements,
       clearMeasurementsByIds,
+      clearMeasurementsByType,
       coordinateDisplayMode,
       setCoordinateDisplayMode,
+      soloMode,
+      setSoloMode,
+      pointRadius,
+      setPointRadius,
     }),
     [
-      measurements,
-      setMeasurements,
       measurementMode,
       setMeasurementMode,
+      measurements,
+      setMeasurements,
+      clearAllMeasurements,
+      clearMeasurementsByIds,
+      clearMeasurementsByType,
+      coordinateDisplayMode,
+      setCoordinateDisplayMode,
       soloMode,
       setSoloMode,
       pointRadius,
       setPointRadius,
-      clearAllMeasurements,
-      clearPointMeasurements,
-      clearTraverseMeasurements,
-      clearMeasurementsByIds,
-      coordinateDisplayMode,
-      setCoordinateDisplayMode,
     ]
   );
 
@@ -165,6 +159,7 @@ export const CesiumMeasurementsProvider: React.FC<
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useCesiumMeasurements = (): CesiumMeasurementsContextType => {
   const context = useContext(CesiumMeasurementsContext);
   if (context === undefined) {

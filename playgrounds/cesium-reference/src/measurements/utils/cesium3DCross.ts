@@ -24,6 +24,13 @@ export interface Cross3DOptions {
   id?: string;
 }
 
+export interface Cross3DGroup {
+  id: string;
+  entities: Entity[];
+  cleanup: (viewer: Viewer) => void; // Function to clean up the entities
+  addToViewer: (viewer: Viewer) => void; // Function to add the entities
+}
+
 /**
  * Creates a 3D cross visualization using three polylines extending in X, Y, and Z directions
  * Similar to Cesium's debug entities but as a reusable utility
@@ -165,7 +172,7 @@ export const create3DCross = (options: Cross3DOptions): Entity[] => {
  * Creates a 3D cross entity group with all three axes combined
  * Returns an object with the entities for easier management
  */
-export const create3DCrossGroup = (options: Cross3DOptions) => {
+export const create3DCrossGroup = (options: Cross3DOptions): Cross3DGroup => {
   const crossEntities = create3DCross(options);
   const { id = "3d-cross" } = options;
 
@@ -182,7 +189,7 @@ export const create3DCrossGroup = (options: Cross3DOptions) => {
       setTimeout(() => {
         viewer.scene.requestRender();
       }, 200); // Delay to ensure entities are added before selection
-      viewer.selectedEntity = crossEntities[0];
+      //viewer.selectedEntity = crossEntities[0];
     },
   };
 };

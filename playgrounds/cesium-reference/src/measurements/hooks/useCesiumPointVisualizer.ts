@@ -1,21 +1,32 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { type Viewer, Entity, Cartesian2, Color } from "cesium";
-import { create3DCrossGroup } from "../utils/cesium3DCross";
+import { create3DCrossGroup, Cross3DGroup } from "../utils/cesium3DCross";
 import { LABEL_FONT, SCALE_BY_DISTANCE } from "./useNivPoints";
-import { PointMeasurementEntry } from "../types/MeasurementTypes";
+import {
+  isPointMeasurementEntry,
+  MeasurementCollection,
+  PointMeasurementEntry,
+} from "../types/MeasurementTypes";
 
 export const useCesiumPointVisualizer = (
   viewer: Viewer | null,
-  points: PointMeasurementEntry[] = [],
+  measurements: MeasurementCollection = [],
   radius: number
 ) => {
   const entityRefs = useRef<Record<string, Entity>>({});
-  const cross3DRefs = useRef<Record<string, any>>({});
+  const cross3DRefs = useRef<Record<string, Cross3DGroup>>({});
   const prevIdsRef = useRef<Set<string>>(new Set());
+
+  const [points, currentIds]: [PointMeasurementEntry[], Set<string>] =
+    useMemo(() => {
+      // memoize derived values of measurements
+      const points = measurements.filter(isPointMeasurementEntry);
+      const currentIds = new Set(points.map((m) => m.id));
+      return [points, currentIds];
+    }, [measurements]);
 
   useEffect(() => {
     if (!viewer || viewer.isDestroyed()) return;
-    const currentIds = new Set(points.map((m) => m.id));
     // Remove entities/crosses that are no longer present
     prevIdsRef.current.forEach((id) => {
       if (!currentIds.has(id)) {
@@ -76,7 +87,7 @@ export const useCesiumPointVisualizer = (
       cross3DRefs.current = {};
       prevIdsRef.current = new Set();
     };
-  }, [viewer, points, radius]);
+  }, [viewer, points, radius, currentIds]);
 };
 
 export default useCesiumPointVisualizer;
