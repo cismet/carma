@@ -8,17 +8,13 @@ import FilterUI from "./Menu/FilterUI";
 import { getFilterHeader, FilterStyle } from "@carma-collab/wuppertal/e-bikes";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 import { GenericDigitalTwinReferenceSection } from "@carma-collab/wuppertal/commons";
-import { MenuFooter } from "@carma-collab/wuppertal/commons";
-import ConfigurableDocBlocks from "react-cismap/topicmaps/ConfigurableDocBlocks";
-// @ts-ignore
-import { getSimpleHelpForTM } from "react-cismap/tools/uiHelper";
 import {
   KompaktanleitungSection,
   MenuIntroduction,
   Footer,
 } from "@carma-collab/wuppertal/vorhabenkarte";
-
-let simpleHelp = "";
+import versionData from "../../version.json";
+import { getApplicationVersion } from "@carma-commons/utils";
 
 const Menu = () => {
   const { filteredItems, shownFeatures } = useContext<
@@ -33,10 +29,9 @@ const Menu = () => {
         menuIcon={"bars"}
         // menuTitle={<MenuTitle />}
         menuFooter={
-          <MenuFooter
-            title="Vorhabenkarte Wuppertal"
-            version={"0.0.1"}
-            skipHintergrundkarten={false}
+          <Footer
+            version={getApplicationVersion(versionData)}
+            setAppMenuActiveMenuSection={setAppMenuActiveMenuSection}
           />
         }
         menuIntroduction={
@@ -57,7 +52,6 @@ const Menu = () => {
           />,
           <DefaultSettingsPanel
             key="settings"
-            // checkBoxSettingsSectionTitle="Einstellungen"
             checkBoxTextClustering="Vorhaben maßstabsabhängig zusammenfassen"
           />,
           <KompaktanleitungSection />,

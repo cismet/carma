@@ -10,9 +10,13 @@ import {
 } from "react-cismap/contexts/UIContextProvider";
 import FeatureCollection from "react-cismap/FeatureCollection";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
-// import { getPoiClusterIconCreatorFunction } from "../../helper/styler";
+import {
+  InfoBoxTextTitle,
+  InfoBoxTextContent,
+  searchTextPlaceholder,
+  MenuTooltip,
+} from "@carma-collab/wuppertal/vorhabenkarte";
 import Menu from "./Menu";
-import { MenuTooltip } from "@carma-collab/wuppertal/e-bikes";
 import {
   TopicMapSelectionContent,
   useSelectionTopicMap,
@@ -30,7 +34,10 @@ import {
   ZoomControl,
 } from "@carma-mapping/components";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
-import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
+import {
+  getApplicationVersion,
+  TAILWIND_CLASSNAMES_FULLSCREEN_FIXED,
+} from "@carma-commons/utils";
 import { GenericInfoBoxFromFeature } from "@carma-apps/portals";
 import SecondaryInfoModal, { LightboxDispatch } from "./SecondaryInfoModal";
 import { FeatureIconOverlay } from "./FeatureIconOverlay";
@@ -39,6 +46,7 @@ import { isAreaType } from "@carma-commons/resources";
 import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
 import { useGazData } from "@carma-apps/portals";
 import { type GazDataItem } from "@carma-commons/utils";
+import versionData from "../../version.json";
 
 const Map = () => {
   const { setClusteringOptions, setSelectedFeatureByPredicate } = useContext<
@@ -163,7 +171,7 @@ const Map = () => {
               typeInference={defaultTypeInference}
               onSelection={onGazetteerSelection}
               priorityTypes={["vorhabenkarte", "adressen", "pois"]}
-              placeholder="Vorhaben | Adressen | POI"
+              placeholder={searchTextPlaceholder}
               pixelwidth={
                 responsiveState === "normal" ? "300px" : windowSize.width - gap
               }
@@ -192,20 +200,15 @@ const Map = () => {
                     plural: "Vorhaben",
                   },
                 },
-                noCurrentFeatureTitle: "Keine Data gefunden",
-                noCurrentFeatureContent: (
-                  <span>
-                    Für mehr Vorhaben Ansicht mit verkleinern oder mit dem
-                    untenstehenden Link auf das komplette Stadtgebiet zoomen
-                  </span>
-                ),
+                noFeatureTitle: <InfoBoxTextTitle />,
+                noCurrentFeatureContent: <InfoBoxTextContent />,
               }}
             />
           }
         >
           {secondaryInfoVisible && (
             <SecondaryInfoModal
-              // versionString={getApplicationVersion(versionData)}
+              versionString={getApplicationVersion(versionData)}
               feature={selectedFeature}
               setOpen={setSecondaryInfoVisible}
             />

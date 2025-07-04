@@ -24,6 +24,7 @@ import { useContext } from "react";
 import Panel from "react-cismap/commons/Panel";
 import { assetsBaseUrl } from "../../constants/constants";
 import PhotoGallery from "./PhotoGallery";
+import { SecondaryInfoFooter } from "@carma-collab/wuppertal/vorhabenkarte";
 
 const styles = {
   container: {
@@ -64,7 +65,7 @@ export type LightboxDispatch = {
   setVisible: (v: boolean) => void;
 };
 
-const SecondaryInfoModal = ({ feature, setOpen }) => {
+const SecondaryInfoModal = ({ feature, setOpen, versionString }) => {
   const lightBoxDispatchContext = useContext(
     LightBoxDispatchContext
   ) as LightboxDispatch;
@@ -322,20 +323,7 @@ const SecondaryInfoModal = ({ feature, setOpen }) => {
           </div>
         </Modal.Body>
         <Modal.Footer>
-          {/* <SecondaryInfoFooter
-          close={close}
-          version={getApplicationVersion(versionData)}
-        /> */}
-          <div className="flex gap-3">
-            <MenuFooter
-              title="Vorhabenkarte Wuppertal"
-              version={"0.0.1"}
-              skipHintergrundkarten={true}
-            />
-            <Button className="self-center" onClick={close}>
-              Ok
-            </Button>
-          </div>
+          <SecondaryInfoFooter close={close} version={versionString} />
         </Modal.Footer>
       </Modal>
     </div>
