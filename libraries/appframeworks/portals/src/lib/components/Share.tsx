@@ -26,6 +26,7 @@ export const Share = ({
   showExtendedSharing,
   jwt,
 }: ShareProps) => {
+  const [loading, setLoading] = useState(false);
   // form states
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -53,6 +54,7 @@ export const Share = ({
   };
 
   const addItemToDb = async (data, isDraft: boolean) => {
+    setLoading(true);
     const apiUrl = "https://wunda-cloud-api.cismet.de";
     const taskParameters = {
       parameters: {
@@ -95,11 +97,13 @@ export const Share = ({
       closePopover?.();
       clearStates();
     }
+    setLoading(false);
   };
 
   const uploadFile = async () => {
     if (!file) return;
     let fileUrl = "";
+    setLoading(true);
     await fetch(
       "https://wunda-cloud-api.cismet.de/configattributes/geoportal.files",
       {
@@ -137,6 +141,7 @@ export const Share = ({
             console.log("xxx", error);
           });
       });
+    setLoading(false);
     return fileUrl;
   };
 
@@ -257,10 +262,21 @@ export const Share = ({
               <div className="flex flex-wrap gap-1 gap-y-2">
                 <TagSelector keywords={keywords} setKeywords={setKeywords} />
               </div>
-              <Button onClick={(e) => createShare(e, true)} className="mt-2">
+              <Button
+                onClick={(e) => createShare(e, true)}
+                className="mt-2"
+                disabled={loading}
+                loading={loading}
+              >
                 Zwischenspeichern
               </Button>
-              <Button type="primary" htmlType="submit" className="mt-2">
+              <Button
+                type="primary"
+                htmlType="submit"
+                className="mt-2"
+                disabled={loading}
+                loading={loading}
+              >
                 Publizieren
               </Button>
             </div>
