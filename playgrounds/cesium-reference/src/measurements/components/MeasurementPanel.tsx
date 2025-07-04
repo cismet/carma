@@ -163,7 +163,7 @@ function MeasurementSection({
           extra: (
             <Flex gap={2}>
               <Button
-                icon={<FontAwesomeIcon icon={isHidden ? faEyeSlash : faEye} />}
+                icon={<FontAwesomeIcon icon={isHidden ? faEye : faEyeSlash} />}
                 size="small"
                 onClick={toggleVisibility}
                 aria-label={`Alle ${title} ${
@@ -173,7 +173,7 @@ function MeasurementSection({
               <Button
                 icon={
                   <FontAwesomeIcon
-                    icon={isLabelHidden ? faTextSlash : faFont}
+                    icon={isLabelHidden ? faFont : faTextSlash}
                   />
                 }
                 size="small"
