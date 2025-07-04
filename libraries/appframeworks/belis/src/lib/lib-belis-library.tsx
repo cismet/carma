@@ -29,6 +29,7 @@ interface BelisMapProps {
   background: any;
   initIndex: () => void;
   handleSelectedFeature: (f: any) => void;
+  MODES: any;
 }
 
 export const CONNECTIONMODE = { FROMCACHE: "FROMCACHE", ONLINE: "ONLINE" };
@@ -55,6 +56,7 @@ export function BelisMap({
   background,
   initIndex,
   handleSelectedFeature,
+  MODES,
 }: BelisMapProps) {
   const mapRef = refRoutedMap?.current?.leafletMap?.leafletElement;
   const blockingTime = 1000;

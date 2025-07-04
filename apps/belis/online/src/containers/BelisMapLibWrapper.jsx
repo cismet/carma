@@ -72,6 +72,7 @@ const BelisMapLibWrapper = ({ refRoutedMap, width, height, jwt }) => {
       background={background}
       inPaleMode={handleInitIndexObjects}
       handleSelectedFeature={handleSelectedFeature}
+      MODES={MODES}
     />
   );
 };

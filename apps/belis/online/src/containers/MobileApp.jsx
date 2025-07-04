@@ -55,7 +55,7 @@ import {
   resyncDb,
 } from "../core/store/slices/offlineActionDb";
 import { getTeam } from "../core/store/slices/team";
-import BelisMapLibWrapper from "./BelisMap";
+import BelisMapLibWrapper from "./BelisMapLibWrapper";
 import BottomNavbar from "./BottomNavbar";
 import SideBar from "./SideBar";
 import TopNavbar from "./TopNavbar";
