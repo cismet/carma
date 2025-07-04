@@ -27,6 +27,9 @@
       "@carma-apps/alkis-renderer": [
         "libraries/appframeworks/alkis/src/index.ts"
       ],
+      "@carma-apps/belis-library": [
+        "libraries/appframeworks/belis/src/index.ts"
+      ],
       "@carma-apps/envirometrics": [
         "libraries/appframeworks/envirometrics/src/index.ts"
       ],
