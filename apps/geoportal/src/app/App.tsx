@@ -72,13 +72,13 @@ function App({ published }: { published?: boolean }) {
   useManageLayers(layerMap);
   const syncToken = useSyncToken();
   useKeyboardShortcuts();
+  const customFeatureFlags = useSelector(getCustomFeatureFlags);
 
   if (isLoadingConfig === null) {
     // wait for the loading state to be determined to prevent re-rendering
     console.debug("[CONFIG] APP - Waiting for config loading state...");
     return null;
   }
-  const customFeatureFlags = useSelector(getCustomFeatureFlags);
 
   const content = (
     <FeatureFlagProvider
