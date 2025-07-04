@@ -9,12 +9,12 @@ import {
   TraverseMeasurementEntry,
 } from "../types/MeasurementTypes";
 import { useCesiumMeasurements } from "../CesiumMeasurementsContext";
+import { useCesiumViewer } from "../../contexts/CesiumViewerContext";
 
 const { Title } = Typography;
 
 interface TraverseTableProps {
   traverse: TraverseMeasurementEntry;
-  viewer: Viewer | null;
 }
 
 interface TableRecord {
@@ -25,8 +25,9 @@ interface TableRecord {
   val3: string; // Z, Height, Ellipsoidal Height
 }
 
-const TraverseTable: React.FC<TraverseTableProps> = ({ traverse, viewer }) => {
+const TraverseTable: React.FC<TraverseTableProps> = ({ traverse }) => {
   const { coordinateDisplayMode } = useCesiumMeasurements();
+  const { viewer } = useCesiumViewer();
   const tableDataSource = useMemo((): TableRecord[] => {
     if (!viewer) return [];
     return traverse.geometryECEF.map((point, index) => {

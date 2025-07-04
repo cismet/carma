@@ -1,8 +1,7 @@
-import React, { useState, useEffect, FC, useMemo } from "react";
+import React, { useState, FC, useMemo } from "react";
 import { Button, Card, Collapse, List, theme, Typography } from "antd";
 import { PointQueryInfo } from "./PointQueryInfo";
 import TraverseTable from "./TraverseTable";
-import { useCesiumViewer } from "../../contexts/CesiumViewerContext";
 import {
   isPointMeasurementEntry,
   isTraverseMeasurementEntry,
@@ -14,7 +13,6 @@ import {
 import { useCesiumMeasurements } from "../CesiumMeasurementsContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCircleXmark, faTrash } from "@fortawesome/free-solid-svg-icons";
-import { Viewer } from "cesium";
 
 const renderPointItem = (
   data: PointMeasurementEntry,
@@ -45,8 +43,7 @@ const renderPointItem = (
 const renderTraverseItem = (
   data: TraverseMeasurementEntry,
   idx: number,
-  clearMeasurementsByIds: (ids: string[]) => void,
-  viewer: Viewer
+  clearMeasurementsByIds: (ids: string[]) => void
 ) => (
   <List.Item key={data.id} style={{ paddingRight: "0.5rem" }}>
     <List.Item.Meta
@@ -62,12 +59,30 @@ const renderTraverseItem = (
           />
         </>
       }
-      description={<TraverseTable traverse={data} viewer={viewer} />}
+      description={<TraverseTable traverse={data} />}
     />
   </List.Item>
 );
 
-const MeasurementPanel: FC = () => {
+const renderItem = (
+  data: MeasurementEntry,
+  idx: number,
+  clearMeasurementsByIds: (ids: string[]) => void
+) => {
+  if (isPointMeasurementEntry(data)) {
+    return renderPointItem(data, idx, clearMeasurementsByIds);
+  }
+  if (isTraverseMeasurementEntry(data)) {
+    return renderTraverseItem(
+      data as TraverseMeasurementEntry,
+      idx,
+      clearMeasurementsByIds
+    );
+  }
+  return null;
+};
+
+export const MeasurementPanel: FC = () => {
   const {
     measurements,
     clearPointMeasurements,
@@ -75,8 +90,9 @@ const MeasurementPanel: FC = () => {
     clearMeasurementsByIds,
     measurementMode,
   } = useCesiumMeasurements();
-  const { viewer } = useCesiumViewer();
   const { token } = theme.useToken();
+  const [activePanel, setActivePanel] =
+    useState<MeasurementMode>(measurementMode);
 
   const pointMeasurements = useMemo(
     () =>
@@ -92,31 +108,6 @@ const MeasurementPanel: FC = () => {
         .reverse(),
     [measurements]
   );
-
-  const [activePanel, setActivePanel] = useState<string[]>(
-    measurementMode === MeasurementMode.PointQuery ? ["points"] : []
-  );
-
-  useEffect(() => {
-    setActivePanel(
-      measurementMode === MeasurementMode.PointQuery ? ["points"] : []
-    );
-  }, [measurementMode]);
-
-  const renderItem = (data: MeasurementEntry, idx: number) => {
-    if (isPointMeasurementEntry(data)) {
-      return renderPointItem(data, idx, clearMeasurementsByIds);
-    }
-    if (isTraverseMeasurementEntry(data)) {
-      return renderTraverseItem(
-        data as TraverseMeasurementEntry,
-        idx,
-        clearMeasurementsByIds,
-        viewer
-      );
-    }
-    return null;
-  };
 
   return (
     <>
@@ -134,7 +125,7 @@ const MeasurementPanel: FC = () => {
           style={{ backgroundColor: token.colorBgContainer, minWidth: "24rem" }}
           activeKey={activePanel}
           collapsible="header"
-          onChange={(key) => setActivePanel(Array.isArray(key) ? key : [key])}
+          onChange={(key: MeasurementMode) => setActivePanel(key)}
           items={[
             {
               key: "points",
@@ -150,7 +141,9 @@ const MeasurementPanel: FC = () => {
               children: (
                 <List
                   dataSource={pointMeasurements}
-                  renderItem={renderItem}
+                  renderItem={(item, idx) =>
+                    renderItem(item, idx, clearMeasurementsByIds)
+                  }
                   size="small"
                 />
               ),
@@ -174,7 +167,7 @@ const MeasurementPanel: FC = () => {
           style={{ backgroundColor: token.colorBgContainer }}
           activeKey={activePanel}
           collapsible="header"
-          onChange={(key) => setActivePanel(Array.isArray(key) ? key : [key])}
+          onChange={(key: MeasurementMode) => setActivePanel(key)}
           items={[
             {
               key: "traversal",
@@ -190,7 +183,9 @@ const MeasurementPanel: FC = () => {
               children: (
                 <List
                   dataSource={traverseMeasurements}
-                  renderItem={renderItem}
+                  renderItem={(item, idx) =>
+                    renderItem(item, idx, clearMeasurementsByIds)
+                  }
                   size="small"
                 />
               ),
