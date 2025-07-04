@@ -34,9 +34,6 @@ export function App() {
         citizen: false,
       }}
       convertItemToFeature={convertItemToFeature}
-      // clusteringOptions={{
-      //   iconCreateFunction: getPoiClusterIconCreatorFunction({ svgSize: 24 }),
-      // }}
     >
       <Map />
     </TopicMapContextProvider>

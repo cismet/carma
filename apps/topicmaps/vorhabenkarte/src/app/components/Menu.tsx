@@ -5,13 +5,14 @@ import ModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMe
 import Section from "react-cismap/topicmaps/menu/Section";
 import DefaultSettingsPanel from "react-cismap/topicmaps/menu/DefaultSettingsPanel";
 import FilterUI from "./Menu/FilterUI";
-import { getFilterHeader, FilterStyle } from "@carma-collab/wuppertal/e-bikes";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 import { GenericDigitalTwinReferenceSection } from "@carma-collab/wuppertal/commons";
 import {
   KompaktanleitungSection,
   MenuIntroduction,
   Footer,
+  getFilterHeader,
+  FilterStyle,
 } from "@carma-collab/wuppertal/vorhabenkarte";
 import versionData from "../../version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
