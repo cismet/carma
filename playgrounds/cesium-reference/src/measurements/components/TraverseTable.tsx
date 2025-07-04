@@ -51,7 +51,7 @@ const TraverseTable: React.FC<TraverseTableProps> = ({ traverse }) => {
             val2 = northing.toFixed(2);
             val3 = height.toFixed(2);
           } catch (error) {
-            console.error("Error converting to UTM32:", error);
+            console.error("Error converting to Cartographic CRS", error);
             val1 = "Error";
             val2 = "Error";
             val3 = "Error";

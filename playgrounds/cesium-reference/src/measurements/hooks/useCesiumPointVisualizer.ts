@@ -11,7 +11,6 @@ import {
   MeasurementCollection,
   PointMeasurementEntry,
 } from "../types/MeasurementTypes";
-import { c } from "node_modules/vite/dist/node/types.d-aGj9QkWt";
 
 export const useCesiumPointVisualizer = (
   viewer: Viewer | null,
@@ -115,7 +114,7 @@ export const useCesiumPointVisualizer = (
       labelRefs.current = {};
       prevIdsRef.current = new Set();
     };
-  }, [viewer, points, radius, currentIds, showLabels]);
+  }, [viewer, points, currentIds, showLabels]);
 };
 
 export default useCesiumPointVisualizer;
