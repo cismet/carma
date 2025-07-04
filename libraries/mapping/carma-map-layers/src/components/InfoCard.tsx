@@ -19,7 +19,7 @@ import { Item } from "@carma-commons/types";
 import { extractCarmaConfig } from "@carma-commons/utils";
 
 import { parseDescription, serviceOptions } from "../helper/layerHelper";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { useAuth } from "@carma-apps/portals";
 import { TagSelector } from "@carma-commons/ui/tag-selection";
 
@@ -350,7 +350,7 @@ const InfoCard = ({
                   return null;
                 }
                 return (
-                  <>
+                  <Fragment key={`description_${i}`}>
                     <h5 className="font-semibold text-lg">
                       {description.title}
                       {editCollection && (
@@ -380,7 +380,7 @@ const InfoCard = ({
                         }}
                       />
                     )}
-                  </>
+                  </Fragment>
                 );
               })}
               {editCollection && (
