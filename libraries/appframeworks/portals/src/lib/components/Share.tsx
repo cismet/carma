@@ -10,6 +10,7 @@ import { SelectionItem } from "./SelectionProvider";
 import { useShareUrl } from "../hooks/useShareUrl";
 import FileUploader from "./FileUploader";
 import "./tabs.css";
+import { uploadImage } from "../utils/fileUpload";
 
 export type ShareProps = {
   layerState: LayerState;
@@ -100,56 +101,11 @@ export const Share = ({
     setLoading(false);
   };
 
-  const uploadFile = async () => {
-    if (!file) return;
-    let fileUrl = "";
-    setLoading(true);
-    await fetch(
-      "https://wunda-cloud-api.cismet.de/configattributes/geoportal.files",
-      {
-        method: "GET",
-        headers: {
-          Authorization: "Bearer " + jwt,
-        },
-      }
-    )
-      .then((response) => {
-        return response.text();
-      })
-      .then(async (data) => {
-        const geoportalFiles = JSON.parse(data)["geoportal.files"];
-        const uploadData = JSON.parse(geoportalFiles);
-
-        const form = new FormData();
-        form.append("dateifeld", file);
-
-        const newFileName = `${Date.now()}-${file.name}`;
-
-        await fetch(uploadData.url + `/${newFileName}`, {
-          method: "PUT",
-          headers: {
-            Authorization:
-              "Basic " + btoa(uploadData.user + ":" + uploadData.password),
-          },
-          body: file,
-        })
-          .then((response) => {
-            console.log("xxx", response);
-            fileUrl = response.url;
-          })
-          .catch((error) => {
-            console.log("xxx", error);
-          });
-      });
-    setLoading(false);
-    return fileUrl;
-  };
-
   const createShare = async (e, isDraft: boolean) => {
     e.preventDefault();
     let fileUrl;
     if (file) {
-      fileUrl = await uploadFile();
+      fileUrl = await uploadImage(file, jwt);
       if (!fileUrl) return;
     }
 
