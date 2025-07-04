@@ -12,13 +12,12 @@ import {
 import { Tag } from "antd";
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { Button, Modal, Accordion, Card, Table } from "react-bootstrap";
+import { Modal, Accordion } from "react-bootstrap";
 import {
   changeUnreadableColor,
   formatDatum,
   formatIsoString,
 } from "../../helper/styler";
-import { MenuFooter } from "@carma-collab/wuppertal/commons";
 import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
 import { useContext } from "react";
 import Panel from "react-cismap/commons/Panel";

@@ -13,6 +13,7 @@ import {
   Footer,
   getFilterHeader,
   FilterStyle,
+  MenuTitle,
 } from "@carma-collab/wuppertal/vorhabenkarte";
 import versionData from "../../version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
@@ -28,7 +29,7 @@ const Menu = () => {
     <CustomizationContextProvider customizations={{}}>
       <ModalApplicationMenu
         menuIcon={"bars"}
-        // menuTitle={<MenuTitle />}
+        menuTitle={<MenuTitle />}
         menuFooter={
           <Footer
             version={getApplicationVersion(versionData)}
