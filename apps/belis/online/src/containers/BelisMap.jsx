@@ -406,12 +406,12 @@ const BelisMap = ({ refRoutedMap, width, height, jwt }) => {
             />
           </Control>
         </ControlLayout>
-        <BelisMapLib
+        {/* <BelisMapLib
           refRoutedMap={refRoutedMap}
           width={width}
           height={height}
           jwt={jwt}
-        />
+        /> */}
       </div>
     </RoutedMap>
   );
