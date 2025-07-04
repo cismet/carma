@@ -7,13 +7,6 @@ export enum MeasurementMode {
   Elevation = "elevation",
 }
 
-export enum CoordinateDisplayMode {
-  Cartesian = "cartesian",
-  Geographic = "geographic", // WGS84
-  Cartographic = "cartographic", // generic cartographic coordinates
-  UTM32 = "utm32",
-}
-
 type GeomPoint = {
   longitude: number;
   latitude: number;

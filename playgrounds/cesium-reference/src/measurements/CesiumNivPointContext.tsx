@@ -10,8 +10,6 @@ interface CesiumNivPointContextType {
   setShowNivPoints: (show: boolean) => void;
   showHistoricNivPoints?: boolean;
   setShowHistoricNivPoints: (show: boolean) => void;
-  verticalDatum: "nhn2016" | "nhn" | "nn";
-  setVerticalDatum: (datum: "nhn2016" | "nhn" | "nn") => void;
   nearestNivPoint?: Entity;
 }
 
@@ -21,20 +19,12 @@ const CesiumNivPointContext = createContext<
 
 interface CesiumNivPointProviderProps {
   children: React.ReactNode;
-  verticalDatum?: "nhn2016" | "nhn" | "nn";
 }
 
 export const CesiumNivPointProvider: React.FC<CesiumNivPointProviderProps> = ({
   children,
-  verticalDatum: verticalDatumProp,
 }) => {
   const { viewer } = useCesiumViewer();
-
-  const verticalDatumInit = verticalDatumProp ?? "nhn2016";
-
-  const [verticalDatum, setVerticalDatum] = useState<"nhn2016" | "nhn" | "nn">(
-    verticalDatumInit
-  );
 
   const [showNivPoints, setShowNivPoints] = useState(true);
   const [showHistoricNivPoints, setShowHistoricNivPoints] = useState(false);
@@ -43,7 +33,6 @@ export const CesiumNivPointProvider: React.FC<CesiumNivPointProviderProps> = ({
     viewer,
     FESTPUNKTE_WUPPERTAL,
     showNivPoints,
-    verticalDatum,
     showHistoricNivPoints
   );
 
@@ -55,8 +44,6 @@ export const CesiumNivPointProvider: React.FC<CesiumNivPointProviderProps> = ({
       showHistoricNivPoints,
       setShowHistoricNivPoints,
       nearestNivPoint,
-      verticalDatum,
-      setVerticalDatum,
     }),
     [
       showNivPoints,
@@ -64,9 +51,7 @@ export const CesiumNivPointProvider: React.FC<CesiumNivPointProviderProps> = ({
       setShowNivPoints,
       showHistoricNivPoints,
       setShowHistoricNivPoints,
-      verticalDatum,
       nearestNivPoint,
-      setVerticalDatum,
     ]
   );
 
@@ -77,6 +62,7 @@ export const CesiumNivPointProvider: React.FC<CesiumNivPointProviderProps> = ({
   );
 };
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useCesiumNivPoints = (): CesiumNivPointContextType => {
   const context = useContext(CesiumNivPointContext);
   if (context === undefined) {

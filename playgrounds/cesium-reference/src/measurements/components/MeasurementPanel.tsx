@@ -1,11 +1,8 @@
-import React, { useState, useEffect, FC, useMemo } from "react";
-import { Button, Card, Collapse, List, theme, Typography } from "antd";
+import React, { useState, FC, useCallback, useMemo, useEffect } from "react";
+import { Button, Card, Collapse, Flex, List, theme, Typography } from "antd";
 import { PointQueryInfo } from "./PointQueryInfo";
 import TraverseTable from "./TraverseTable";
-import { useCesiumViewer } from "../../contexts/CesiumViewerContext";
 import {
-  isPointMeasurementEntry,
-  isTraverseMeasurementEntry,
   type PointMeasurementEntry,
   type MeasurementEntry,
   MeasurementMode,
@@ -13,8 +10,15 @@ import {
 } from "../types/MeasurementTypes";
 import { useCesiumMeasurements } from "../CesiumMeasurementsContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCircleXmark, faTrash } from "@fortawesome/free-solid-svg-icons";
-import { Viewer } from "cesium";
+import {
+  faCircleXmark,
+  faEye,
+  faEyeSlash,
+  faFont,
+  faTextSlash,
+  faTrash,
+} from "@fortawesome/free-solid-svg-icons";
+import { InteractiveModeTabs } from "./InteractiveModeTabs";
 
 const renderPointItem = (
   data: PointMeasurementEntry,
@@ -45,8 +49,7 @@ const renderPointItem = (
 const renderTraverseItem = (
   data: TraverseMeasurementEntry,
   idx: number,
-  clearMeasurementsByIds: (ids: string[]) => void,
-  viewer: Viewer
+  clearMeasurementsByIds: (ids: string[]) => void
 ) => (
   <List.Item key={data.id} style={{ paddingRight: "0.5rem" }}>
     <List.Item.Meta
@@ -62,143 +65,194 @@ const renderTraverseItem = (
           />
         </>
       }
-      description={<TraverseTable traverse={data} viewer={viewer} />}
+      description={<TraverseTable traverse={data} />}
     />
   </List.Item>
 );
 
-const MeasurementPanel: FC = () => {
+interface MeasurementSectionProps {
+  type: MeasurementMode;
+  active: boolean;
+  title: string;
+  placeholder: React.ReactNode;
+  itemRenderer: (
+    item: MeasurementEntry,
+    idx: number,
+    clear: (ids: string[]) => void
+  ) => React.ReactNode;
+  setActive: (key: MeasurementMode) => void;
+}
+
+const toggleTypeInSet = (
+  type: MeasurementMode,
+  prev: Set<MeasurementMode>
+): Set<MeasurementMode> => {
+  const newSet = new Set(prev);
+  if (prev.has(type)) {
+    newSet.delete(type);
+  } else {
+    newSet.add(type);
+  }
+  return newSet;
+};
+
+function MeasurementSection({
+  type,
+  active,
+  title,
+  placeholder,
+  itemRenderer,
+  setActive,
+}: MeasurementSectionProps) {
   const {
-    measurements,
-    clearPointMeasurements,
-    clearTraverseMeasurements,
     clearMeasurementsByIds,
-    measurementMode,
+    clearMeasurementsByType,
+    measurements,
+    hideMeasurementsOfType,
+    setHideMeasurementsOfType,
+    hideLabelsOfType,
+    setHideLabelsOfType,
   } = useCesiumMeasurements();
-  const { viewer } = useCesiumViewer();
   const { token } = theme.useToken();
 
-  const pointMeasurements = useMemo(
-    () =>
-      measurements
-        .filter((m: MeasurementEntry) => isPointMeasurementEntry(m))
-        .reverse(),
-    [measurements]
+  const items = useMemo(
+    () => measurements.filter((m) => m.type === type),
+    [measurements, type]
   );
-  const traverseMeasurements = useMemo(
-    () =>
-      measurements
-        .filter((m: MeasurementEntry) => isTraverseMeasurementEntry(m))
-        .reverse(),
-    [measurements]
-  );
+  const clearAll = useCallback(() => {
+    clearMeasurementsByType(type);
+    //setActive(MeasurementMode.NONE);
+  }, [clearMeasurementsByType, type]);
 
-  const [activePanel, setActivePanel] = useState<string[]>(
-    measurementMode === MeasurementMode.PointQuery ? ["points"] : []
-  );
+  const toggleVisibility = useCallback(() => {
+    setHideMeasurementsOfType((prev: Set<MeasurementMode>) => {
+      console.debug(`[MeasurementSection] Toggling visibility for ${type}`);
+      return toggleTypeInSet(type, prev);
+    });
+  }, [type, setHideMeasurementsOfType]);
 
-  useEffect(() => {
-    setActivePanel(
-      measurementMode === MeasurementMode.PointQuery ? ["points"] : []
-    );
-  }, [measurementMode]);
-
-  const renderItem = (data: MeasurementEntry, idx: number) => {
-    if (isPointMeasurementEntry(data)) {
-      return renderPointItem(data, idx, clearMeasurementsByIds);
-    }
-    if (isTraverseMeasurementEntry(data)) {
-      return renderTraverseItem(
-        data as TraverseMeasurementEntry,
-        idx,
-        clearMeasurementsByIds,
-        viewer
+  const toggleLabelVisibility = useCallback(() => {
+    setHideLabelsOfType((prev: Set<MeasurementMode>) => {
+      console.debug(
+        `[MeasurementSection] Toggling label visibility for ${type}`
       );
-    }
-    return null;
-  };
+      return toggleTypeInSet(type, prev);
+    });
+  }, [type, setHideLabelsOfType]);
+
+  // if not active and no items, return null
+  // if active and no items, return placeholder
+  if (items.length === 0) {
+    return active ? (
+      <Card size="small">
+        <Typography.Text type="secondary">{placeholder}</Typography.Text>
+      </Card>
+    ) : null;
+  }
+
+  const isHidden = hideMeasurementsOfType.has(type);
+  const isLabelHidden = hideLabelsOfType.has(type);
 
   return (
-    <>
-      {measurementMode === MeasurementMode.PointQuery &&
-      pointMeasurements.length === 0 ? (
-        <Card size="small">
-          <Typography.Text type="secondary">
+    <Collapse
+      style={{ backgroundColor: token.colorBgContainer, minWidth: "24rem" }}
+      activeKey={type}
+      collapsible="header"
+      //onChange={setActivePanel}
+      items={[
+        {
+          key: type,
+          label: title,
+          extra: (
+            <Flex gap={2}>
+              <Button
+                icon={<FontAwesomeIcon icon={isHidden ? faEye : faEyeSlash} />}
+                size="small"
+                onClick={toggleVisibility}
+                aria-label={`Alle ${title} ${
+                  isHidden ? "anzeigen" : "verstecken"
+                }`}
+              />
+              <Button
+                icon={
+                  <FontAwesomeIcon
+                    icon={isLabelHidden ? faFont : faTextSlash}
+                  />
+                }
+                size="small"
+                onClick={toggleLabelVisibility}
+                aria-label={`Alle ${title} Beschriftungen ${
+                  isLabelHidden ? "anzeigen" : "verstecken"
+                }`}
+              />
+              <Button
+                icon={<FontAwesomeIcon icon={faTrash} />}
+                size="small"
+                onClick={clearAll}
+                aria-label={`Alle ${title} löschen`}
+              />
+            </Flex>
+          ),
+          children: (
+            <List
+              dataSource={items}
+              renderItem={(item, idx) =>
+                itemRenderer(item, idx, clearMeasurementsByIds)
+              }
+              size="small"
+            />
+          ),
+        },
+      ]}
+      className="measurement-panel-collapse"
+    />
+  );
+}
+
+export const MeasurementPanel: FC = () => {
+  const { measurements, measurementMode } = useCesiumMeasurements();
+  const [activePanel, setActivePanel] =
+    useState<MeasurementMode>(measurementMode);
+
+  useEffect(() => {
+    // change active panel when measurement mode changes
+    if (measurementMode !== activePanel) {
+      setActivePanel(measurementMode);
+    }
+  }, [measurementMode, activePanel]);
+
+  return (
+    <Flex vertical gap={2} style={{ maxWidth: "44rem" }}>
+      <InteractiveModeTabs />
+      <MeasurementSection
+        type={MeasurementMode.PointQuery}
+        active={activePanel === MeasurementMode.PointQuery}
+        title={`Punktmessungen`}
+        placeholder={
+          <>
             Keine Punktmessungen vorhanden.
             <br />
             Zum Messen auf das Stadtmodell klicken
-          </Typography.Text>
-        </Card>
-      ) : (
-        <Collapse
-          style={{ backgroundColor: token.colorBgContainer, minWidth: "24rem" }}
-          activeKey={activePanel}
-          collapsible="header"
-          onChange={(key) => setActivePanel(Array.isArray(key) ? key : [key])}
-          items={[
-            {
-              key: "points",
-              label: `Punktmessungen (${pointMeasurements.length})`,
-              extra: (
-                <Button
-                  icon={<FontAwesomeIcon icon={faTrash} />}
-                  size="small"
-                  onClick={clearPointMeasurements}
-                  aria-label="Alle Punktmessungen löschen"
-                />
-              ),
-              children: (
-                <List
-                  dataSource={pointMeasurements}
-                  renderItem={renderItem}
-                  size="small"
-                />
-              ),
-            },
-          ]}
-          className="measurement-panel-collapse"
-        />
-      )}
-      {measurementMode === MeasurementMode.Traverse &&
-      traverseMeasurements.length === 0 ? (
-        <Card size="small">
-          <Typography.Text type="secondary">
+          </>
+        }
+        itemRenderer={renderPointItem}
+        setActive={setActivePanel}
+      />
+      <MeasurementSection
+        type={MeasurementMode.Traverse}
+        title={`Polygonzüge`}
+        active={activePanel === MeasurementMode.Traverse}
+        placeholder={
+          <>
             Keine Polygonzüge vorhanden.
             <br />
             Zum Messen auf das Stadtmodell klicken, zum abschließen der Messung
             rechts klicken
-          </Typography.Text>
-        </Card>
-      ) : (
-        <Collapse
-          style={{ backgroundColor: token.colorBgContainer }}
-          activeKey={activePanel}
-          collapsible="header"
-          onChange={(key) => setActivePanel(Array.isArray(key) ? key : [key])}
-          items={[
-            {
-              key: "traversal",
-              label: `Polygonzüge (${traverseMeasurements.length})`,
-              extra: (
-                <Button
-                  icon={<FontAwesomeIcon icon={faTrash} />}
-                  size="small"
-                  onClick={clearTraverseMeasurements}
-                  aria-label="Alle Polygonzüge löschen"
-                />
-              ),
-              children: (
-                <List
-                  dataSource={traverseMeasurements}
-                  renderItem={renderItem}
-                  size="small"
-                />
-              ),
-            },
-          ]}
-          className="measurement-panel-collapse"
-        />
-      )}
+          </>
+        }
+        itemRenderer={renderTraverseItem}
+        setActive={setActivePanel}
+      />
       <Collapse
         items={[
           {
@@ -219,7 +273,7 @@ const MeasurementPanel: FC = () => {
           },
         ]}
       />
-    </>
+    </Flex>
   );
 };
 

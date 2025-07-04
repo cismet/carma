@@ -12,6 +12,7 @@ import {
 } from "cesium";
 
 export interface Cross3DOptions {
+  show?: boolean; // Whether to show the cross
   position: Cartesian3;
   radius?: number;
   color?: Color;
@@ -22,6 +23,13 @@ export interface Cross3DOptions {
   colorCircle?: Color; // Color for the XY circle plane
   width?: number;
   id?: string;
+}
+
+export interface Cross3DGroup {
+  id: string;
+  entities: Entity[];
+  cleanup: (viewer: Viewer) => void; // Function to clean up the entities
+  addToViewer: (viewer: Viewer) => void; // Function to add the entities
 }
 
 /**
@@ -165,7 +173,7 @@ export const create3DCross = (options: Cross3DOptions): Entity[] => {
  * Creates a 3D cross entity group with all three axes combined
  * Returns an object with the entities for easier management
  */
-export const create3DCrossGroup = (options: Cross3DOptions) => {
+export const create3DCrossGroup = (options: Cross3DOptions): Cross3DGroup => {
   const crossEntities = create3DCross(options);
   const { id = "3d-cross" } = options;
 
@@ -182,7 +190,16 @@ export const create3DCrossGroup = (options: Cross3DOptions) => {
       setTimeout(() => {
         viewer.scene.requestRender();
       }, 200); // Delay to ensure entities are added before selection
-      viewer.selectedEntity = crossEntities[0];
+      //viewer.selectedEntity = crossEntities[0];
     },
   };
+};
+
+export const update3dCrossVisibility = (
+  crossGroup: Cross3DGroup,
+  show: boolean
+): void => {
+  crossGroup.entities.forEach((entity) => {
+    entity.show = show;
+  });
 };

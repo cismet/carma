@@ -18,10 +18,8 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import type { InputNumberProps } from "antd";
 import { useCesiumMeasurements } from "../CesiumMeasurementsContext";
-import {
-  CoordinateDisplayMode,
-  MeasurementMode,
-} from "../types/MeasurementTypes";
+import { MeasurementMode } from "../types/MeasurementTypes";
+import { CoordinateDisplayMode, useCRS } from "../CRSContext";
 
 const PointQuerySettingsComponent: React.FC<{
   minPointRadius?: number;
@@ -78,9 +76,14 @@ export const InteractiveModeTabs: FC = () => {
     soloMode,
     setSoloMode,
     clearAllMeasurements,
+  } = useCesiumMeasurements();
+
+  const {
     coordinateDisplayMode,
     setCoordinateDisplayMode,
-  } = useCesiumMeasurements();
+    cartographicCRSLabel,
+    geographicCRSLabel,
+  } = useCRS();
 
   const handleTabChange = (mode: MeasurementMode) => {
     setMeasurementMode(mode);
@@ -117,11 +120,11 @@ export const InteractiveModeTabs: FC = () => {
               setCoordinateDisplayMode(
                 e.valueOf()
                   ? CoordinateDisplayMode.Geographic
-                  : CoordinateDisplayMode.UTM32
+                  : CoordinateDisplayMode.Cartographic
               )
             }
-            checkedChildren="WGS84"
-            unCheckedChildren="UTM32"
+            checkedChildren={geographicCRSLabel}
+            unCheckedChildren={cartographicCRSLabel}
             size="small"
           />
           <Switch

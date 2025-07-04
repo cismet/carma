@@ -10,13 +10,10 @@ import {
 } from "cesium";
 
 import { PROJ4_CONVERTERS } from "@carma-commons/utils";
-import {
-  VerticalDatum,
-  NivPoint,
-  TransformedNivPoint,
-} from "../types/VerticalDatumTypes";
+import { NivPoint, TransformedNivPoint } from "../types/NivPointTypes";
 import { isPointMeasurementEntry } from "../types/MeasurementTypes";
 import { useCesiumMeasurements } from "../CesiumMeasurementsContext";
+import { useCRS, VerticalDatum } from "../CRSContext";
 
 export const SCALE_BY_DISTANCE = new NearFarScalar(0, 1, 5000, 0.0);
 export const SCALE_BY_DISTANCE_POINTS = new NearFarScalar(0, 1, 5000, 0.5);
@@ -28,27 +25,14 @@ const getElevationValue = (
   standard: VerticalDatum
 ): number => {
   switch (standard) {
-    case "nhn2016":
+    case VerticalDatum.NHN2016:
       return point.hoehe_ueber_nhn2016;
-    case "nhn":
+    case VerticalDatum.NHN:
       return point.hoehe_ueber_nhn;
-    case "nn":
+    case VerticalDatum.NN:
       return point.hoehe_ueber_nn;
     default:
       return point.hoehe_ueber_nhn;
-  }
-};
-
-const getElevationLabel = (standard: VerticalDatum): string => {
-  switch (standard) {
-    case "nhn2016":
-      return "NHN2016";
-    case "nhn":
-      return "NHN";
-    case "nn":
-      return "NN";
-    default:
-      return "NHN";
   }
 };
 
@@ -56,9 +40,9 @@ export const useNivPoints = (
   viewer: Viewer | null,
   uri: string,
   enabled: boolean = true,
-  verticalDatum: VerticalDatum = "nhn",
   includeHistoric: boolean = false
 ) => {
+  const { verticalDatum } = useCRS();
   const { measurements, pointRadius } = useCesiumMeasurements();
 
   const [isLoading, setIsLoading] = useState(false);
