@@ -8,7 +8,7 @@ interface FileUploaderProps {
   setFile: (file: File | null) => void;
 }
 
-const FileUploader = ({ file, setFile }: FileUploaderProps) => {
+export const FileUploader = ({ file, setFile }: FileUploaderProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {

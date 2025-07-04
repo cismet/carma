@@ -1,4 +1,4 @@
-import { Button, Input, Select } from "antd";
+import { Button, Input, Select, Tabs } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faBan,
@@ -20,7 +20,7 @@ import { extractCarmaConfig } from "@carma-commons/utils";
 
 import { parseDescription, serviceOptions } from "../helper/layerHelper";
 import { Fragment, useState } from "react";
-import { useAuth } from "@carma-apps/portals";
+import { FileUploader, uploadImage, useAuth } from "@carma-apps/portals";
 import { TagSelector } from "@carma-commons/ui/tag-selection";
 
 interface InfoCardProps {
@@ -73,6 +73,7 @@ const InfoCard = ({
   );
   const [updatedThumbnail, setUpdatedThumbnail] = useState(layer.thumbnail);
   const [updatedTags, setUpdatedTags] = useState(tags || []);
+  const [updatedFile, setUpdatedFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -131,11 +132,17 @@ const InfoCard = ({
   };
 
   const updateItem = async (publish?: boolean) => {
+    let fileUrl;
+    if (updatedFile) {
+      fileUrl = await uploadImage(updatedFile, jwt);
+      if (!fileUrl) return;
+    }
+
     const config = {
       ...layer,
       description: reconstructDescription(),
       title: updatedTitle,
-      thumbnail: updatedThumbnail,
+      thumbnail: fileUrl || updatedThumbnail,
       serviceName: updatedService,
       tags: updatedTags,
     };
@@ -406,14 +413,39 @@ const InfoCard = ({
                     className="font-semibold text-lg pt-1"
                   >
                     Vorschaubild
-                    {editCollection && <span className="text-red-500"> *</span>}
+                    <span className="text-red-500"> *</span>
                   </label>
-                  <Input
-                    className="bg-white"
-                    value={updatedThumbnail}
-                    onChange={(e) => setUpdatedThumbnail(e.target.value)}
-                    id="thumbnail"
-                  />
+                  <div className="w-1/2">
+                    <Tabs
+                      defaultActiveKey="1"
+                      items={[
+                        {
+                          key: "1",
+                          label: "URL",
+                          children: (
+                            <Input
+                              className="bg-white"
+                              value={updatedThumbnail}
+                              onChange={(e) =>
+                                setUpdatedThumbnail(e.target.value)
+                              }
+                              id="thumbnail"
+                            />
+                          ),
+                        },
+                        {
+                          key: "2",
+                          label: "Datei",
+                          children: (
+                            <FileUploader
+                              file={updatedFile}
+                              setFile={setUpdatedFile}
+                            />
+                          ),
+                        },
+                      ]}
+                    />
+                  </div>
                 </>
               )}
               {isGenericTopicMap && (

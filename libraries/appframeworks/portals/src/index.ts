@@ -16,6 +16,7 @@ export {
 
 export { Save } from "./lib/components/Save.tsx";
 export { Share } from "./lib/components/Share.tsx";
+export { FileUploader } from "./lib/components/FileUploader.tsx";
 export { CarmaMapProviderWrapper } from "./lib/components/CarmaMapProviderWrapper.tsx";
 export { FontAwesomeLikeIcon } from "./lib/components/FontAwesomeLikeIcon.tsx";
 export { InfoBox } from "./lib/components/InfoBox.tsx";
@@ -52,3 +53,4 @@ export { useSelectionTopicMap } from "./lib/hooks/useSelectionTopicMap";
 export { useSelectionCesium } from "./lib/hooks/useSelectionCesium";
 export { useSelectionLibreMap } from "./lib/hooks/useSelectionLibreMap";
 export { useShareUrl, SHORTENER_URL } from "./lib/hooks/useShareUrl";
+export { uploadImage } from "./lib/utils/fileUpload";
