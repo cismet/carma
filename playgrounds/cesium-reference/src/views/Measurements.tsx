@@ -18,6 +18,7 @@ import { NivPointPanel } from "../measurements/components/NivPointPanel";
 
 import HomeButton from "../components/HomeButton";
 import { CesiumNivPointProvider } from "../measurements/CesiumNivPointContext";
+import { CRSContextProvider } from "../measurements/CRSContext";
 
 // Inner component that has access to contexts
 const ContextAwareApp: React.FC<{}> = () => {
@@ -50,30 +51,32 @@ const TestMeshElevations: React.FC = () => {
           height: "100vh",
         }}
       />
-      <CesiumViewerProvider
-        containerRef={containerRef}
-        options={{
-          cesiumOptions: cesiumConstructorOptions,
-          tilesetUrl: WUPP_MESH_2024.url,
-          tilesetOptions: {
-            skipLevelOfDetail: true,
-            immediatelyLoadDesiredLevelOfDetail: true,
-            maximumScreenSpaceError: 1,
-            show: true,
-          },
-          cameraPersistence: {
-            autoSave: true,
-            saveDelay: 1000,
-            autoRestore: true,
-          },
-        }}
-      >
-        <CesiumMeasurementsProvider>
-          <CesiumNivPointProvider>
-            <ContextAwareApp />
-          </CesiumNivPointProvider>
-        </CesiumMeasurementsProvider>
-      </CesiumViewerProvider>
+      <CRSContextProvider>
+        <CesiumViewerProvider
+          containerRef={containerRef}
+          options={{
+            cesiumOptions: cesiumConstructorOptions,
+            tilesetUrl: WUPP_MESH_2024.url,
+            tilesetOptions: {
+              skipLevelOfDetail: true,
+              immediatelyLoadDesiredLevelOfDetail: true,
+              maximumScreenSpaceError: 1,
+              show: true,
+            },
+            cameraPersistence: {
+              autoSave: true,
+              saveDelay: 1000,
+              autoRestore: true,
+            },
+          }}
+        >
+          <CesiumMeasurementsProvider>
+            <CesiumNivPointProvider>
+              <ContextAwareApp />
+            </CesiumNivPointProvider>
+          </CesiumMeasurementsProvider>
+        </CesiumViewerProvider>
+      </CRSContextProvider>
     </>
   );
 };

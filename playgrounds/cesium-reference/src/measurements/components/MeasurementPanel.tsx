@@ -83,7 +83,10 @@ interface MeasurementSectionProps {
   setActive: (key: MeasurementMode) => void;
 }
 
-const toggleTypeInSet = (type: MeasurementMode, prev: Set<MeasurementMode>) => {
+const toggleTypeInSet = (
+  type: MeasurementMode,
+  prev: Set<MeasurementMode>
+): Set<MeasurementMode> => {
   const newSet = new Set(prev);
   if (prev.has(type)) {
     newSet.delete(type);

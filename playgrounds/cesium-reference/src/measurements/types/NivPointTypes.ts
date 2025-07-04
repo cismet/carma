@@ -1,7 +1,5 @@
 import { Cartesian3 } from "cesium";
-
-export type VerticalDatum = "nhn2016" | "nhn" | "nn";
-
+import { VerticalDatum } from "../CRSContext";
 export interface NivPoint {
   hoehe_ueber_nn: number;
   festlegungsart: number;

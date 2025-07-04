@@ -5,43 +5,43 @@ import React, {
   useMemo,
   useCallback,
   Dispatch,
+  SetStateAction,
 } from "react";
-import { useCesiumViewer } from "../contexts/CesiumViewerContext";
-import {
-  CoordinateDisplayMode,
-  MeasurementCollection,
-  MeasurementMode,
-} from "./types/MeasurementTypes";
+
 import { normalizeOptions } from "@carma-commons/utils";
+
+import { useCesiumViewer } from "../contexts/CesiumViewerContext";
+
 import { useCesiumPointQuery } from "./hooks/useCesiumPointQuery";
 import { useCesiumPointVisualizer } from "./hooks/useCesiumPointVisualizer";
 import { useCesiumTraverseQuery } from "./hooks/useCesiumTraverseQuery";
-import { s } from "node_modules/vite/dist/node/types.d-aGj9QkWt";
 
+import {
+  type MeasurementCollection,
+  MeasurementMode,
+} from "./types/MeasurementTypes";
 interface CesiumMeasurementsContextType {
   measurementMode: MeasurementMode;
-  setMeasurementMode: (mode: MeasurementMode) => void;
+  setMeasurementMode: Dispatch<SetStateAction<MeasurementMode>>;
   measurements: MeasurementCollection;
-  setMeasurements: (measurements: MeasurementCollection) => void;
+  setMeasurements: Dispatch<SetStateAction<MeasurementCollection>>;
   // utility functions
   clearAllMeasurements: () => void;
   clearMeasurementsByIds: (ids: string[]) => void;
   clearMeasurementsByType: (type: MeasurementMode) => void;
   // visibility options
   showLabels: boolean;
-  setShowLabels: Dispatch<boolean>;
+  setShowLabels: Dispatch<SetStateAction<boolean>>;
   hideMeasurementsOfType: Set<MeasurementMode>;
-  setHideMeasurementsOfType: Dispatch<Set<MeasurementMode>>;
+  setHideMeasurementsOfType: Dispatch<SetStateAction<Set<MeasurementMode>>>;
   hideLabelsOfType: Set<MeasurementMode>;
-  setHideLabelsOfType: Dispatch<Set<MeasurementMode>>;
+  setHideLabelsOfType: Dispatch<SetStateAction<Set<MeasurementMode>>>;
   // generic options
-  coordinateDisplayMode: CoordinateDisplayMode;
-  setCoordinateDisplayMode: Dispatch<CoordinateDisplayMode>;
   soloMode: boolean;
-  setSoloMode: Dispatch<boolean>;
+  setSoloMode: Dispatch<SetStateAction<boolean>>;
   // per measurement type options
   pointRadius: number;
-  setPointRadius: Dispatch<number>;
+  setPointRadius: Dispatch<SetStateAction<number>>;
 }
 
 const CesiumMeasurementsContext = createContext<
@@ -54,6 +54,7 @@ export type MeasurementProviderOptions = {
     enabled?: boolean;
     radius?: number;
   };
+  cartographicCRS?: "string";
 };
 
 const defaultPointQueryOptions: MeasurementProviderOptions["pointQueries"] = {
@@ -86,8 +87,6 @@ export const CesiumMeasurementsProvider: React.FC<
   );
 
   const soloModeInit = options?.soloMode ?? true;
-  const [coordinateDisplayMode, setCoordinateDisplayMode] =
-    useState<CoordinateDisplayMode>(CoordinateDisplayMode.UTM32);
 
   const [measurementMode, setMeasurementMode] = useState<MeasurementMode>(
     MeasurementMode.PointQuery
@@ -187,8 +186,6 @@ export const CesiumMeasurementsProvider: React.FC<
       setHideMeasurementsOfType,
       hideLabelsOfType,
       setHideLabelsOfType,
-      coordinateDisplayMode,
-      setCoordinateDisplayMode,
       soloMode,
       setSoloMode,
       pointRadius,
@@ -208,8 +205,6 @@ export const CesiumMeasurementsProvider: React.FC<
       setHideMeasurementsOfType,
       hideLabelsOfType,
       setHideLabelsOfType,
-      coordinateDisplayMode,
-      setCoordinateDisplayMode,
       soloMode,
       setSoloMode,
       pointRadius,

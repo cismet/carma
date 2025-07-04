@@ -1,6 +1,7 @@
 import { FC } from "react";
 import { Checkbox, Radio, Space, Card } from "antd";
 import { useCesiumNivPoints } from "../CesiumNivPointContext";
+import { useCRS } from "../CRSContext";
 
 export const NivPointControls: FC = () => {
   const {
@@ -9,9 +10,8 @@ export const NivPointControls: FC = () => {
     setShowNivPoints,
     showHistoricNivPoints,
     setShowHistoricNivPoints,
-    verticalDatum,
-    setVerticalDatum,
   } = useCesiumNivPoints();
+  const { verticalDatum, setVerticalDatum } = useCRS();
   const pointCount = nivPointEntities ? nivPointEntities.length : 0;
   return (
     <Card size="small" title="Höhenfestpunkte">
