@@ -188,6 +188,12 @@ function createInfoBoxInfo(p) {
     requestLayers();
   }, []);
 
+  useEffect(() => {
+    if (vectorOutput) {
+      applyCode();
+    }
+  }, [vectorOutput]);
+
   const renderTitle = (title: string) => (
     <span className="text-lg font-semibold text-black">{title}</span>
   );
