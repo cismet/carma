@@ -504,13 +504,20 @@ export const NewLibModal = ({
   useEffect(() => {
     if (additionalConfig.length > 0) {
       additionalConfig.forEach((config) => {
-        let layers = config.layers.filter((layer) => {
-          if (layer.ff) {
-            const ff = layer.ff as string;
-            return flags[ff];
-          }
-          return true;
-        });
+        let layers = config.layers
+          .filter((layer) => {
+            if (layer.ff) {
+              const ff = layer.ff as string;
+              return flags[ff];
+            }
+            return true;
+          })
+          .map((layer) => {
+            return {
+              ...layer,
+              serviceName: config.serviceName || layer.serviceName,
+            };
+          });
 
         if (layers.length === 0) {
           return;
