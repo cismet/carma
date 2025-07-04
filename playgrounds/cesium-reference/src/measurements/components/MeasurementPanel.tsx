@@ -1,5 +1,5 @@
 import React, { useState, FC, useCallback, useMemo, useEffect } from "react";
-import { Button, Card, Collapse, List, theme, Typography } from "antd";
+import { Button, Card, Collapse, Flex, List, theme, Typography } from "antd";
 import { PointQueryInfo } from "./PointQueryInfo";
 import TraverseTable from "./TraverseTable";
 import {
@@ -10,7 +10,15 @@ import {
 } from "../types/MeasurementTypes";
 import { useCesiumMeasurements } from "../CesiumMeasurementsContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faCircleXmark, faTrash } from "@fortawesome/free-solid-svg-icons";
+import {
+  faCircleXmark,
+  faEye,
+  faEyeSlash,
+  faFont,
+  faTextSlash,
+  faTrash,
+} from "@fortawesome/free-solid-svg-icons";
+import { InteractiveModeTabs } from "./InteractiveModeTabs";
 
 const renderPointItem = (
   data: PointMeasurementEntry,
@@ -75,6 +83,16 @@ interface MeasurementSectionProps {
   setActive: (key: MeasurementMode) => void;
 }
 
+const toggleTypeInSet = (type: MeasurementMode, prev: Set<MeasurementMode>) => {
+  const newSet = new Set(prev);
+  if (prev.has(type)) {
+    newSet.delete(type);
+  } else {
+    newSet.add(type);
+  }
+  return newSet;
+};
+
 function MeasurementSection({
   type,
   active,
@@ -83,8 +101,15 @@ function MeasurementSection({
   itemRenderer,
   setActive,
 }: MeasurementSectionProps) {
-  const { clearMeasurementsByIds, clearMeasurementsByType, measurements } =
-    useCesiumMeasurements();
+  const {
+    clearMeasurementsByIds,
+    clearMeasurementsByType,
+    measurements,
+    hideMeasurementsOfType,
+    setHideMeasurementsOfType,
+    hideLabelsOfType,
+    setHideLabelsOfType,
+  } = useCesiumMeasurements();
   const { token } = theme.useToken();
 
   const items = useMemo(
@@ -96,6 +121,22 @@ function MeasurementSection({
     //setActive(MeasurementMode.NONE);
   }, [clearMeasurementsByType, type]);
 
+  const toggleVisibility = useCallback(() => {
+    setHideMeasurementsOfType((prev: Set<MeasurementMode>) => {
+      console.debug(`[MeasurementSection] Toggling visibility for ${type}`);
+      return toggleTypeInSet(type, prev);
+    });
+  }, [type, setHideMeasurementsOfType]);
+
+  const toggleLabelVisibility = useCallback(() => {
+    setHideLabelsOfType((prev: Set<MeasurementMode>) => {
+      console.debug(
+        `[MeasurementSection] Toggling label visibility for ${type}`
+      );
+      return toggleTypeInSet(type, prev);
+    });
+  }, [type, setHideLabelsOfType]);
+
   // if not active and no items, return null
   // if active and no items, return placeholder
   if (items.length === 0) {
@@ -105,6 +146,9 @@ function MeasurementSection({
       </Card>
     ) : null;
   }
+
+  const isHidden = hideMeasurementsOfType.has(type);
+  const isLabelHidden = hideLabelsOfType.has(type);
 
   return (
     <Collapse
@@ -117,12 +161,34 @@ function MeasurementSection({
           key: type,
           label: title,
           extra: (
-            <Button
-              icon={<FontAwesomeIcon icon={faTrash} />}
-              size="small"
-              onClick={clearAll}
-              aria-label={`Alle ${title} löschen`}
-            />
+            <Flex gap={2}>
+              <Button
+                icon={<FontAwesomeIcon icon={isHidden ? faEyeSlash : faEye} />}
+                size="small"
+                onClick={toggleVisibility}
+                aria-label={`Alle ${title} ${
+                  isHidden ? "anzeigen" : "verstecken"
+                }`}
+              />
+              <Button
+                icon={
+                  <FontAwesomeIcon
+                    icon={isLabelHidden ? faTextSlash : faFont}
+                  />
+                }
+                size="small"
+                onClick={toggleLabelVisibility}
+                aria-label={`Alle ${title} Beschriftungen ${
+                  isLabelHidden ? "anzeigen" : "verstecken"
+                }`}
+              />
+              <Button
+                icon={<FontAwesomeIcon icon={faTrash} />}
+                size="small"
+                onClick={clearAll}
+                aria-label={`Alle ${title} löschen`}
+              />
+            </Flex>
           ),
           children: (
             <List
@@ -153,7 +219,8 @@ export const MeasurementPanel: FC = () => {
   }, [measurementMode, activePanel]);
 
   return (
-    <>
+    <Flex vertical gap={2} style={{ maxWidth: "44rem" }}>
+      <InteractiveModeTabs />
       <MeasurementSection
         type={MeasurementMode.PointQuery}
         active={activePanel === MeasurementMode.PointQuery}
@@ -203,7 +270,7 @@ export const MeasurementPanel: FC = () => {
           },
         ]}
       />
-    </>
+    </Flex>
   );
 };
 

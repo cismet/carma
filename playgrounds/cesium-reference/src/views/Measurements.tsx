@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useRef } from "react";
 import { Flex } from "antd";
 
 import { WUPP_MESH_2024 } from "@carma-commons/resources";
@@ -10,8 +10,7 @@ import {
 } from "../contexts/CesiumViewerContext";
 import { CesiumMeasurementsProvider } from "../measurements/CesiumMeasurementsContext";
 import ScreenLayout from "../components/ScreenLayout";
-import MeasurementPanel from "../measurements/components/MeasurementPanel";
-import { InteractiveModeTabs } from "../measurements/components/InteractiveModeTabs";
+import { MeasurementPanel } from "../measurements/components/MeasurementPanel";
 
 import { cesiumConstructorOptions } from "../config";
 import { NivPointControls } from "../measurements/components/NivPointControls";
@@ -24,28 +23,17 @@ import { CesiumNivPointProvider } from "../measurements/CesiumNivPointContext";
 const ContextAwareApp: React.FC<{}> = () => {
   const { zoomToTileset } = useCesiumViewer();
 
-  const TopRightPanel: React.FC = () => {
-    return (
-      <Flex vertical gap={2} style={{ maxWidth: "44rem" }}>
-        <InteractiveModeTabs />
-        <MeasurementPanel />
-      </Flex>
-    );
-  };
-
   return (
-    <>
-      <ScreenLayout
-        topLeft={
-          <Flex vertical gap={2} style={{ maxWidth: "24rem" }}>
-            <NivPointControls />
-            <NivPointPanel />
-          </Flex>
-        }
-        topRight={<TopRightPanel />}
-        bottomCenter={<HomeButton onHomeClick={zoomToTileset} />}
-      />
-    </>
+    <ScreenLayout
+      topLeft={
+        <Flex vertical gap={2} style={{ maxWidth: "24rem" }}>
+          <NivPointControls />
+          <NivPointPanel />
+        </Flex>
+      }
+      topRight={<MeasurementPanel />}
+      bottomCenter={<HomeButton onHomeClick={zoomToTileset} />}
+    />
   );
 };
 

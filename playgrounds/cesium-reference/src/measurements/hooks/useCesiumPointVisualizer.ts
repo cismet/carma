@@ -1,19 +1,26 @@
 import { useEffect, useMemo, useRef } from "react";
 import { type Viewer, Entity, Cartesian2, Color } from "cesium";
-import { create3DCrossGroup, Cross3DGroup } from "../utils/cesium3DCross";
+import {
+  create3DCrossGroup,
+  Cross3DGroup,
+  update3dCrossVisibility,
+} from "../utils/cesium3DCross";
 import { LABEL_FONT, SCALE_BY_DISTANCE } from "./useNivPoints";
 import {
   isPointMeasurementEntry,
   MeasurementCollection,
   PointMeasurementEntry,
 } from "../types/MeasurementTypes";
+import { c } from "node_modules/vite/dist/node/types.d-aGj9QkWt";
 
 export const useCesiumPointVisualizer = (
   viewer: Viewer | null,
   measurements: MeasurementCollection = [],
+  showMarkers: boolean = true,
+  showLabels: boolean = false,
   radius: number
 ) => {
-  const entityRefs = useRef<Record<string, Entity>>({});
+  const labelRefs = useRef<Record<string, Entity>>({});
   const cross3DRefs = useRef<Record<string, Cross3DGroup>>({});
   const prevIdsRef = useRef<Set<string>>(new Set());
 
@@ -26,27 +33,63 @@ export const useCesiumPointVisualizer = (
     }, [measurements]);
 
   useEffect(() => {
+    // render markers
     if (!viewer || viewer.isDestroyed()) return;
-    // Remove entities/crosses that are no longer present
-    prevIdsRef.current.forEach((id) => {
-      if (!currentIds.has(id)) {
-        if (entityRefs.current[id]) {
-          viewer.entities.remove(entityRefs.current[id]);
-          delete entityRefs.current[id];
-        }
-        if (cross3DRefs.current[id]) {
-          cross3DRefs.current[id].cleanup(viewer);
-          delete cross3DRefs.current[id];
-        }
+    const crosses = cross3DRefs.current;
+
+    points.forEach(({ id, geometryECEF }) => {
+      if (!crosses[id]) {
+        const cross3D = create3DCrossGroup({
+          position: geometryECEF,
+          radius,
+          color: Color.ORANGE,
+          width: 2,
+          id: `debugMarker-${id}`,
+          xyCirclePlane: true,
+          colorCircle: Color.WHITE.withAlpha(0.3),
+        });
+        update3dCrossVisibility(cross3D, showMarkers);
+        cross3D.addToViewer(viewer);
+        crosses[id] = cross3D;
+      } else {
+        console.debug(
+          `[CesiumPointVisualizer] Updating visibility for cross3D ${id}`
+        );
+        update3dCrossVisibility(crosses[id], showMarkers);
       }
     });
+    // Remove refs for points that no longer exist
+    Object.keys(crosses).forEach((id) => {
+      if (!currentIds.has(id)) {
+        crosses[id].cleanup(viewer);
+        delete crosses[id];
+      }
+    });
+    prevIdsRef.current = currentIds;
+    viewer.scene.requestRender(); // Ensure scene updates after changes
+    return () => {
+      // Only cleanup entities that are not in the next render
+      Object.keys(crosses).forEach((id) => {
+        if (!currentIds.has(id)) {
+          crosses[id].cleanup(viewer);
+          delete crosses[id];
+        }
+      });
+      prevIdsRef.current = new Set();
+    };
+  }, [viewer, points, radius, currentIds, showMarkers]);
+
+  useEffect(() => {
+    // render Labels
+    if (!viewer || viewer.isDestroyed()) return;
     points.forEach((m, i) => {
-      if (!entityRefs.current[m.id]) {
+      if (!labelRefs.current[m.id]) {
         const entity = new Entity({
           id: m.id,
           name: m.name,
           position: m.geometryECEF,
           label: {
+            show: showLabels,
             text: `P${i + 1} ${m.geometryWGS84.height.toFixed(2)}`,
             font: LABEL_FONT,
             fillColor: Color.WHITESMOKE,
@@ -60,34 +103,19 @@ export const useCesiumPointVisualizer = (
           },
         });
         viewer.entities.add(entity);
-        entityRefs.current[m.id] = entity;
-        const cross3D = create3DCrossGroup({
-          position: m.geometryECEF,
-          radius,
-          color: Color.ORANGE,
-          width: 2,
-          id: `debugMarker-${m.id}`,
-          xyCirclePlane: true,
-          colorCircle: Color.WHITE.withAlpha(0.3),
-        });
-        cross3D.addToViewer(viewer);
-        cross3DRefs.current[m.id] = cross3D;
+        labelRefs.current[m.id] = entity;
       }
     });
     prevIdsRef.current = currentIds;
     viewer.scene.requestRender(); // Ensure scene updates after changes
     return () => {
-      Object.values(entityRefs.current).forEach((entity) =>
+      Object.values(labelRefs.current).forEach((entity) =>
         viewer.entities.remove(entity)
       );
-      Object.values(cross3DRefs.current).forEach((cross3D) =>
-        cross3D.cleanup(viewer)
-      );
-      entityRefs.current = {};
-      cross3DRefs.current = {};
+      labelRefs.current = {};
       prevIdsRef.current = new Set();
     };
-  }, [viewer, points, radius, currentIds]);
+  }, [viewer, points, radius, currentIds, showLabels]);
 };
 
 export default useCesiumPointVisualizer;

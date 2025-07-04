@@ -12,6 +12,7 @@ import {
 } from "cesium";
 
 export interface Cross3DOptions {
+  show?: boolean; // Whether to show the cross
   position: Cartesian3;
   radius?: number;
   color?: Color;
@@ -192,4 +193,13 @@ export const create3DCrossGroup = (options: Cross3DOptions): Cross3DGroup => {
       //viewer.selectedEntity = crossEntities[0];
     },
   };
+};
+
+export const update3dCrossVisibility = (
+  crossGroup: Cross3DGroup,
+  show: boolean
+): void => {
+  crossGroup.entities.forEach((entity) => {
+    entity.show = show;
+  });
 };
