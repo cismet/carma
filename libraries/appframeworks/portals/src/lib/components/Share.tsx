@@ -94,8 +94,51 @@ export const Share = ({
     }
   };
 
+  const uploadFile = async () => {
+    if (!file) return;
+    fetch(
+      "https://wunda-cloud-api.cismet.de/configattributes/geoportal.files",
+      {
+        method: "GET",
+        headers: {
+          Authorization: "Bearer " + jwt,
+        },
+      }
+    )
+      .then((response) => {
+        return response.text();
+      })
+      .then((data) => {
+        const geoportalFiles = JSON.parse(data)["geoportal.files"];
+        const uploadData = JSON.parse(geoportalFiles);
+        console.log("xxx", uploadData);
+
+        const form = new FormData();
+        form.append("dateifeld", file);
+
+        fetch(uploadData.url + `/${file.name}`, {
+          method: "PUT",
+          headers: {
+            Authorization:
+              "Basic " + btoa(uploadData.user + ":" + uploadData.password),
+          },
+          body: file,
+        })
+          .then((response) => {
+            console.log("xxx", response);
+          })
+          .catch((error) => {
+            console.log("xxx", error);
+          });
+      });
+  };
+
   const createShare = (e, isDraft: boolean) => {
     e.preventDefault();
+    if (file) {
+      uploadFile();
+    }
+
     const newConfig = {
       description: `Inhalt: ${content} Verwendungszweck: ${usage}`,
       title: title ? title : "Unbenannte Karte",
