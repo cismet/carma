@@ -9,6 +9,7 @@ import { useFeatureFlags } from "./FeatureFlagProvider";
 import { SelectionItem } from "./SelectionProvider";
 import { useShareUrl } from "../hooks/useShareUrl";
 import FileUploader from "./FileUploader";
+import "./tabs.css";
 
 export type ShareProps = {
   layerState: LayerState;
