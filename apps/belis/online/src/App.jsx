@@ -28,6 +28,10 @@ import { getBelisHash, getBelisVersion } from "./constants/versions";
 import { GazDataProvider, SelectionProvider } from "@carma-apps/portals";
 import { gazDataConfig } from "./config/gazData";
 
+if (typeof global === "undefined") {
+  window.global = window;
+}
+
 let persistor = persistStore(store);
 
 const baseLayerConf = { ...defaultLayerConf };
