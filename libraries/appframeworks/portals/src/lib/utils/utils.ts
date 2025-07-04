@@ -103,8 +103,16 @@ export const parseToMapLayer = async (
         minzoom: 9,
         maxzoom: 24,
       };
-      if (carmaConf && !isJson(carmaConf.vectorStyle)) {
-        zoom = await fetch(carmaConf.vectorStyle as string)
+      let vectorStyle = "";
+      if (carmaConf?.vectorStyle) {
+        vectorStyle = isJson(carmaConf.vectorStyle)
+          ? JSON.parse(carmaConf.vectorStyle as string)
+          : carmaConf.vectorStyle;
+      } else if (layer.vectorStyle) {
+        vectorStyle = layer.vectorStyle;
+      }
+      if (vectorStyle) {
+        zoom = await fetch(vectorStyle)
           .then((response) => {
             return response.json();
           })
@@ -118,14 +126,6 @@ export const parseToMapLayer = async (
             );
             return parsedZoom;
           });
-      }
-      let vectorStyle = "";
-      if (carmaConf?.vectorStyle) {
-        vectorStyle = isJson(carmaConf.vectorStyle)
-          ? JSON.parse(carmaConf.vectorStyle as string)
-          : carmaConf.vectorStyle;
-      } else if (layer.vectorStyle) {
-        vectorStyle = layer.vectorStyle;
       }
 
       newLayer = {
