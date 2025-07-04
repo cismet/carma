@@ -138,6 +138,7 @@ export const Share = ({
             padding: "1rem",
             borderRadius: "0.5rem",
           }}
+          className="overflow-y-auto max-h-[500px]"
         >
           <form
             style={{ width: "100%" }}
