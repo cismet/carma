@@ -213,9 +213,7 @@ export function BelisMap({
         // console.log("should i initialize index in CONNECTIONMODE.FROMCACHE: yes will do");
         if (indexInitializationRequested === false) {
           setIndexInitializationRequested(true);
-          initIndex(() => {
-            setIndexInitialized(true);
-          });
+          initIndex(setIndexInitialized);
         }
       } else {
         // console.log(

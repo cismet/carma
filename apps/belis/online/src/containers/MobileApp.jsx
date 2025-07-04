@@ -55,7 +55,7 @@ import {
   resyncDb,
 } from "../core/store/slices/offlineActionDb";
 import { getTeam } from "../core/store/slices/team";
-import BelisMap from "./BelisMap";
+import BelisMapLibWrapper from "./BelisMap";
 import BottomNavbar from "./BottomNavbar";
 import SideBar from "./SideBar";
 import TopNavbar from "./TopNavbar";
@@ -345,7 +345,13 @@ const View = () => {
         width={windowWidth}
         height={windowHeight}
       />
-      <BelisMap
+      {/* <BelisMap
+        refRoutedMap={refRoutedMap}
+        width={mapStyle.width}
+        height={mapStyle.height}
+        jwt={storedJWT}
+      /> */}
+      <BelisMapLibWrapper
         refRoutedMap={refRoutedMap}
         width={mapStyle.width}
         height={mapStyle.height}
