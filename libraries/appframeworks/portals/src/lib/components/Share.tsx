@@ -48,6 +48,8 @@ export const Share = ({
     setUsage("");
     setService("discoverPoi");
     setThumbUrl("");
+    setFile(null);
+    setKeywords([]);
   };
 
   const addItemToDb = async (data, isDraft: boolean) => {
@@ -97,7 +99,8 @@ export const Share = ({
 
   const uploadFile = async () => {
     if (!file) return;
-    fetch(
+    let fileUrl = "";
+    await fetch(
       "https://wunda-cloud-api.cismet.de/configattributes/geoportal.files",
       {
         method: "GET",
@@ -109,15 +112,16 @@ export const Share = ({
       .then((response) => {
         return response.text();
       })
-      .then((data) => {
+      .then(async (data) => {
         const geoportalFiles = JSON.parse(data)["geoportal.files"];
         const uploadData = JSON.parse(geoportalFiles);
-        console.log("xxx", uploadData);
 
         const form = new FormData();
         form.append("dateifeld", file);
 
-        fetch(uploadData.url + `/${file.name}`, {
+        const newFileName = `${Date.now()}-${file.name}`;
+
+        await fetch(uploadData.url + `/${newFileName}`, {
           method: "PUT",
           headers: {
             Authorization:
@@ -127,24 +131,28 @@ export const Share = ({
         })
           .then((response) => {
             console.log("xxx", response);
+            fileUrl = response.url;
           })
           .catch((error) => {
             console.log("xxx", error);
           });
       });
+    return fileUrl;
   };
 
-  const createShare = (e, isDraft: boolean) => {
+  const createShare = async (e, isDraft: boolean) => {
     e.preventDefault();
+    let fileUrl;
     if (file) {
-      uploadFile();
+      fileUrl = await uploadFile();
+      if (!fileUrl) return;
     }
 
     const newConfig = {
       description: `Inhalt: ${content} Verwendungszweck: ${usage}`,
       title: title ? title : "Unbenannte Karte",
       type: "collection",
-      thumbnail: thumbUrl,
+      thumbnail: fileUrl || thumbUrl,
       path: serviceOptions.find((option) => option.value === service)?.label,
       serviceName: service,
       tags: keywords,
