@@ -168,6 +168,7 @@ export const Share = ({
                 onChange={(e) => setTitle(e.target.value)}
                 value={title}
                 className="bg-white"
+                placeholder="Titel eingeben"
                 required
               />
               <label htmlFor="thumbUrl">
@@ -184,6 +185,7 @@ export const Share = ({
                         onChange={(e) => setThumbUrl(e.target.value)}
                         value={thumbUrl}
                         className="bg-white"
+                        placeholder="Url eingeben"
                       />
                     ),
                   },
@@ -203,6 +205,7 @@ export const Share = ({
                 onChange={(e) => setContent(e.target.value)}
                 value={content}
                 className="bg-white"
+                placeholder="Inhalt eingeben"
                 required
               />
               <label htmlFor="usage">
@@ -213,6 +216,7 @@ export const Share = ({
                 onChange={(e) => setUsage(e.target.value)}
                 value={usage}
                 className="bg-white"
+                placeholder="Verwendungszweck eingeben"
                 required
               />
               <label htmlFor="keywords">Schlüsselwörter</label>
