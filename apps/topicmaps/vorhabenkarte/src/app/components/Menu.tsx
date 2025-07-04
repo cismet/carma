@@ -12,6 +12,11 @@ import { MenuFooter } from "@carma-collab/wuppertal/commons";
 import ConfigurableDocBlocks from "react-cismap/topicmaps/ConfigurableDocBlocks";
 // @ts-ignore
 import { getSimpleHelpForTM } from "react-cismap/tools/uiHelper";
+import {
+  KompaktanleitungSection,
+  MenuIntroduction,
+  Footer,
+} from "@carma-collab/wuppertal/vorhabenkarte";
 
 let simpleHelp = "";
 
@@ -21,20 +26,6 @@ const Menu = () => {
   >(FeatureCollectionContext);
   const { setAppMenuActiveMenuSection } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
-  // const getFilterHeader = () => {
-  //   const count = filteredItems?.length || 0;
-
-  //   let term;
-  //   if (count === 1) {
-  //     term = "Angebot";
-  //   } else {
-  //     term = "Angebote";
-  //   }
-
-  //   return `Filter (${count} ${term} gefunden, davon ${
-  //     shownFeatures?.length || "0"
-  //   } in der Karte)`;
-  // };
 
   return (
     <CustomizationContextProvider customizations={{}}>
@@ -49,11 +40,9 @@ const Menu = () => {
           />
         }
         menuIntroduction={
-          <div>
-            Über Einstellungen können Sie die Darstellung der Hintergrundkarte
-            und der Objekte an Ihre Vorlieben anpassen. Wählen Sie
-            Kompaktanleitung für detailliertere Bedienungsinformationen.
-          </div>
+          <MenuIntroduction
+            setAppMenuActiveMenuSection={setAppMenuActiveMenuSection}
+          />
         }
         menuSections={[
           <Section
@@ -71,20 +60,7 @@ const Menu = () => {
             // checkBoxSettingsSectionTitle="Einstellungen"
             checkBoxTextClustering="Vorhaben maßstabsabhängig zusammenfassen"
           />,
-          <Section
-            key="help"
-            sectionKey="HelpSection"
-            sectionTitle="Kompaktanleitung"
-            sectionBsStyle="default"
-            sectionContent={
-              <ConfigurableDocBlocks
-                configs={getSimpleHelpForTM(
-                  "Vorhabenkarte Wuppertal",
-                  simpleHelp
-                )}
-              />
-            }
-          />,
+          <KompaktanleitungSection />,
           <GenericDigitalTwinReferenceSection />,
         ]}
       />
