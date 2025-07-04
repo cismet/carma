@@ -8,6 +8,10 @@ module.exports = {
       __dirname,
       "../../libraries/mapping/carma-map-layers/src/**/*.{js,ts,jsx,tsx}",
     ),
+    path.join(
+      __dirname,
+      "../../libraries/appframeworks/portals/src/**/*.{js,ts,jsx,tsx}",
+    ),
   ],
   theme: {
     extend: {
