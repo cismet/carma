@@ -11,6 +11,7 @@ import {
 } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 import NavBar from "./components/commons/NavBar";
+import Login from "./components/pages/Login";
 
 const NavBarWrapper = () => {
   // const dispatch = useDispatch();
@@ -55,7 +56,7 @@ const router = createHashRouter(
     },
     {
       path: "/login",
-      element: <div>Login</div>,
+      element: <Login />,
     },
   ],
   {}
