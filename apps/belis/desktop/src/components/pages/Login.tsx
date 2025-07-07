@@ -110,7 +110,9 @@ const Login = () => {
   };
 
   const baseUrl = window.location.origin + window.location.pathname;
-
+  const onFinish = (values) => {
+    // login(values.username, values.password);
+  };
   return (
     <div
       style={{
@@ -148,11 +150,11 @@ const Login = () => {
         <div
           style={{
             minHeight: 21,
-            color: loginInfo?.color || "black",
+            // color: loginInfo?.color || "black",
             marginRight: 10,
           }}
         >
-          {loginInfo?.text || ""}
+          {/* {loginInfo?.text || ""} */}
         </div>
         <Form
           form={form}
@@ -195,19 +197,6 @@ const Login = () => {
           </Form.Item>
           <div style={{ width: "100%" }}>
             <Form.Item style={{ float: "right" }}>
-              {isCacheFullyUsable === true && (
-                <Button
-                  style={{ marginRight: 15 }}
-                  type="secondary"
-                  onClick={() => {
-                    dispatch(setConnectionMode(CONNECTIONMODE.FROMCACHE));
-                    dispatch(setLoginRequested(false));
-                    navigate("/app" + browserlocation.search);
-                  }}
-                >
-                  Offline arbeiten
-                </Button>
-              )}
               <Button type="primary" htmlType="submit">
                 Login
               </Button>

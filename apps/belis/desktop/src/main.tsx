@@ -9,9 +9,14 @@ import {
   createHashRouter,
   useLocation,
 } from "react-router-dom";
-import { useDispatch, useSelector } from "react-redux";
+import { Provider, useDispatch, useSelector } from "react-redux";
 import NavBar from "./components/commons/NavBar";
 import Login from "./components/pages/Login";
+import store from "./store";
+import persistStore from "redux-persist/es/persistStore";
+import { PersistGate } from "redux-persist/integration/react";
+
+const persistor = persistStore(store);
 
 const NavBarWrapper = () => {
   // const dispatch = useDispatch();
@@ -68,10 +73,14 @@ const root = ReactDOM.createRoot(
 
 root.render(
   <StrictMode>
-    <GazDataProvider>
-      <SelectionProvider>
-        <RouterProvider router={router} />
-      </SelectionProvider>
-    </GazDataProvider>
+    <Provider store={store}>
+      <GazDataProvider>
+        <SelectionProvider>
+          <PersistGate loading={null} persistor={persistor}>
+            <RouterProvider router={router} />
+          </PersistGate>
+        </SelectionProvider>
+      </GazDataProvider>
+    </Provider>
   </StrictMode>
 );
