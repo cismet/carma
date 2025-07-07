@@ -327,7 +327,7 @@ const LayerItem = ({
             <a
               className="absolute left-1 top-1 text-3xl cursor-pointer z-50 text-white drop-shadow-[0_1.2px_1.2px_rgba(0,0,0,1)]"
               href={layer.url}
-              target="topicMaps"
+              target="_blank"
             >
               <FontAwesomeIcon icon={faExternalLinkAlt} />
             </a>
@@ -368,7 +368,7 @@ const LayerItem = ({
                 <a
                   className="w-36 bg-gray-100 hover:no-underline text-black hover:text-neutral-600 hover:bg-gray-50 rounded-md py-2 flex text-center items-center px-2"
                   href={layer.url}
-                  target="_topicMaps"
+                  target="_blank"
                 >
                   <>
                     <FontAwesomeIcon
