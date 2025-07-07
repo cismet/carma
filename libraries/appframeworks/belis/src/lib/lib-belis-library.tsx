@@ -15,7 +15,7 @@ import {
   ZoomControl,
 } from "@carma-mapping/components";
 import PaleOverlay from "react-cismap/PaleOverlay";
-
+import type { ReactNode } from "react";
 import type { LatLngBounds, Point, Map as LeafletMap } from "leaflet";
 
 type BoundsAndSize = {
@@ -63,6 +63,7 @@ interface BelisMapProps {
     TASKLISTS: "TASKLISTS";
     PROTOCOLS: "PROTOCOLS";
   };
+  children?: ReactNode;
 }
 
 export const CONNECTIONMODE = { FROMCACHE: "FROMCACHE", ONLINE: "ONLINE" };
@@ -90,6 +91,7 @@ export function BelisMap({
   initIndex,
   handleSelectedFeature,
   MODES,
+  children,
 }: BelisMapProps) {
   const mapRef = refRoutedMap?.current?.leafletMap?.leafletElement;
   const blockingTime = 1000;
@@ -351,6 +353,8 @@ export function BelisMap({
           mapHeight={mapStyle.height}
         />
         {inPaleMode && <PaleOverlay opacity={0.8} />}
+
+        {children}
         <TopicMapSelectionContent />
 
         <div

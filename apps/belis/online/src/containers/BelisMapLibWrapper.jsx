@@ -19,6 +19,7 @@ import { getLoadingState, initIndex } from "../core/store/slices/spatialIndex";
 import { getConnectionMode } from "../core/store/slices/app";
 import { getBackground } from "../core/store/slices/background";
 import { isPaleModeActive } from "../core/store/slices/paleMode";
+import InfoBox from "../components/commons/InfoBox";
 
 const BelisMapLibWrapper = ({ refRoutedMap, width, height, jwt }) => {
   const featureCollection = useSelector(getFeatureCollection);
@@ -55,6 +56,7 @@ const BelisMapLibWrapper = ({ refRoutedMap, width, height, jwt }) => {
   const handleSelectedFeature = () => {
     dispatch(setSelectedFeature(null));
   };
+
   return (
     <BelisMap
       refRoutedMap={refRoutedMap}
@@ -78,7 +80,13 @@ const BelisMapLibWrapper = ({ refRoutedMap, width, height, jwt }) => {
       zoom={zoom}
       fcMode={featureCollectionMode}
       initIndex={handleInitIndexObjects}
-    />
+    >
+      {selectedFeature !== undefined && selectedFeature !== null ? (
+        <InfoBox refRoutedMap={refRoutedMap} />
+      ) : (
+        <></>
+      )}
+    </BelisMap>
   );
 };
 
