@@ -149,8 +149,8 @@ export const Share = ({
                 display: "flex",
                 flexDirection: "column",
                 gap: "0.5rem",
-                width: "24rem",
-                maxWidth: "24rem",
+                width: "34rem",
+                maxWidth: "34rem",
               }}
             >
               <label htmlFor="service">Kategorie</label>
@@ -168,7 +168,7 @@ export const Share = ({
                 onChange={(e) => setTitle(e.target.value)}
                 value={title}
                 className="bg-white"
-                placeholder="Titel eingeben"
+                placeholder="Unter welchem Namen soll die Karte angeboten werden?"
                 required
               />
               <label htmlFor="thumbUrl">
@@ -190,7 +190,7 @@ export const Share = ({
                         onChange={(e) => setThumbUrl(e.target.value)}
                         value={thumbUrl}
                         className="bg-white"
-                        placeholder="Url eingeben"
+                        placeholder="Unter welcher URL ist ein geeignetes Vorschaubild verfügbar?"
                       />
                     ),
                   },
@@ -205,7 +205,7 @@ export const Share = ({
                 onChange={(e) => setContent(e.target.value)}
                 value={content}
                 className="bg-white"
-                placeholder="Inhalt eingeben"
+                placeholder="Welche Kartenebenen und/oder Objektkategorien umfasst die Karte? Welche Hintergrundkarte wird verwendet?"
                 required
               />
               <label htmlFor="usage">
@@ -216,7 +216,7 @@ export const Share = ({
                 onChange={(e) => setUsage(e.target.value)}
                 value={usage}
                 className="bg-white"
-                placeholder="Verwendungszweck eingeben"
+                placeholder="Für welche Zielgruppe und/oder welchen spezifischen Informationsbedarf ist die Karte bestimmt?"
                 required
               />
               <label htmlFor="keywords">Schlüsselwörter</label>
