@@ -148,19 +148,21 @@ export const Share = ({
               style={{
                 display: "flex",
                 flexDirection: "column",
-                gap: "0.5rem",
+                gap: "0.75rem",
                 width: "34rem",
                 maxWidth: "34rem",
               }}
             >
-              <label htmlFor="service">Kategorie</label>
+              <label htmlFor="service" className="-mb-1">
+                Kategorie
+              </label>
               <Select
                 options={serviceOptions}
                 onChange={(value) => setService(value)}
                 value={service}
                 id="service"
               />
-              <label htmlFor="title">
+              <label htmlFor="title" className="-mb-1">
                 Titel <span className="text-red-500">*</span>
               </label>
               <Input
@@ -171,7 +173,7 @@ export const Share = ({
                 placeholder="Unter welchem Namen soll die Karte angeboten werden?"
                 required
               />
-              <label htmlFor="thumbUrl">
+              <label htmlFor="thumbUrl" className="-mb-1">
                 Vorschaubild <span className="text-red-500">*</span>
               </label>
               <Tabs
@@ -197,7 +199,7 @@ export const Share = ({
                 ]}
               />
 
-              <label htmlFor="content">
+              <label htmlFor="content" className="-mb-1">
                 Inhalt <span className="text-red-500">*</span>
               </label>
               <Input.TextArea
@@ -208,7 +210,7 @@ export const Share = ({
                 placeholder="Welche Kartenebenen und/oder Objektkategorien umfasst die Karte? Welche Hintergrundkarte wird verwendet?"
                 required
               />
-              <label htmlFor="usage">
+              <label htmlFor="usage" className="-mb-1">
                 Verwendungszweck <span className="text-red-500">*</span>
               </label>
               <Input.TextArea
@@ -219,7 +221,9 @@ export const Share = ({
                 placeholder="Für welche Zielgruppe und/oder welchen spezifischen Informationsbedarf ist die Karte bestimmt?"
                 required
               />
-              <label htmlFor="keywords">Schlüsselwörter</label>
+              <label htmlFor="keywords" className="-mb-1">
+                Schlüsselwörter
+              </label>
               <div className="flex flex-wrap gap-1 gap-y-2">
                 <TagSelector keywords={keywords} setKeywords={setKeywords} />
               </div>
