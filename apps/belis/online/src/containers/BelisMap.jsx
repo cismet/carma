@@ -40,7 +40,6 @@ import {
   ZoomControl,
 } from "@carma-mapping/components";
 import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextProvider";
-import { BelisMap as BelisMapLib } from "@carma-apps/belis-library";
 //---
 
 //---
@@ -406,12 +405,6 @@ const BelisMap = ({ refRoutedMap, width, height, jwt }) => {
             />
           </Control>
         </ControlLayout>
-        {/* <BelisMapLib
-          refRoutedMap={refRoutedMap}
-          width={width}
-          height={height}
-          jwt={jwt}
-        /> */}
       </div>
     </RoutedMap>
   );

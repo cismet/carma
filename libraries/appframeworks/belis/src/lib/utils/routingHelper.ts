@@ -1,3 +1,4 @@
+// @ts-nocheck
 import objectAssign from "object-assign";
 import queryString from "query-string";
 

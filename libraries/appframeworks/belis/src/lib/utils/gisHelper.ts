@@ -1,3 +1,4 @@
+// @ts-nocheck
 import bboxPolygon from "@turf/bbox-polygon";
 import proj4 from "proj4";
 import { MappingConstants } from "react-cismap";

@@ -6,6 +6,12 @@ import { convertBounds2BBox } from "./utils/gisHelper";
 import { MappingConstants, RoutedMap } from "react-cismap";
 import { modifyQueryPart } from "./utils/routingHelper";
 import { BelisFeatureCollection } from "./components/BelisFeatureCollection";
+import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
+import {
+  FullscreenControl,
+  RoutedMapLocateControl,
+  ZoomControl,
+} from "@carma-mapping/components";
 import type { LatLngBounds, Point, Map as LeafletMap } from "leaflet";
 type BoundsAndSize = {
   mapBounds: LatLngBounds;
@@ -268,71 +274,101 @@ export function BelisMap({
 
   console.log("BelisMap");
   return (
-    <RoutedMap
-      editable={false}
-      zoomControlEnabled={false}
-      style={mapStyle}
-      key={"leafletRoutedMap"}
-      referenceSystem={MappingConstants.crs3857}
-      referenceSystemDefinition={MappingConstants.proj4crs3857def}
-      ref={refRoutedMap}
-      layers=""
-      doubleClickZoom={false}
-      onclick={(e) => {}}
-      ondblclick={(e) => {
-        try {
-          const classesString = e.originalEvent.path[0].getAttribute("class");
+    <>
+      <RoutedMap
+        editable={false}
+        zoomControlEnabled={false}
+        style={mapStyle}
+        key={"leafletRoutedMap"}
+        referenceSystem={MappingConstants.crs3857}
+        referenceSystemDefinition={MappingConstants.proj4crs3857def}
+        ref={refRoutedMap}
+        layers=""
+        doubleClickZoom={false}
+        onclick={(e) => {}}
+        ondblclick={(e) => {
+          try {
+            const classesString = e.originalEvent.path[0].getAttribute("class");
 
-          if (classesString) {
-            const classes = classesString.split(" ");
+            if (classesString) {
+              const classes = classesString.split(" ");
 
-            if (
-              classes.includes("leaflet-gl-layer") ||
-              classes.includes("leaflet-container")
-            ) {
-              handleSelectedFeature(null);
-            } else {
-              // console.log("classes", classesString);
+              if (
+                classes.includes("leaflet-gl-layer") ||
+                classes.includes("leaflet-container")
+              ) {
+                handleSelectedFeature(null);
+              } else {
+                // console.log("classes", classesString);
+              }
             }
+          } catch (e) {
+            console.log("error in dbl click", e);
           }
-        } catch (e) {
-          console.log("error in dbl click", e);
-        }
-      }}
-      // autoFitProcessedHandler={() =>
-      //   this.props.mappingActions.setAutoFit(false)
-      // }
-      backgroundlayers={_backgroundLayers}
-      urlSearchParams={urlSearchParams}
-      fullScreenControlEnabled={false}
-      locateControlEnabled={false}
-      minZoom={11}
-      maxZoom={22}
-      zoomSnap={0.5}
-      zoomDelta={0.5}
-      fallbackPosition={{
-        lat: 51.272399,
-        lng: 7.199712,
-      }}
-      fallbackZoom={18}
-      locationChangedHandler={(location) => {
-        navigate(
-          browserlocation.pathname +
-            modifyQueryPart(browserlocation.search, location)
-        );
-      }}
-      boundingBoxChangedHandler={(boundingBox) => {
-        // console.log("xxx boundingBox Changed", boundingBox);
-      }}
-    >
-      <BelisFeatureCollection
-        // style={{ zIndex: 600 }}
-        featureCollection={featureCollection}
-        fgColor={symbolColor}
-        selectedFeature={selectedFeature}
-        handleSelectedFeature={handleSelectedFeature}
-      ></BelisFeatureCollection>
-      {/* <DebugFeature feature={focusBoundingBox} /> */}
-    </RoutedMap>
+        }}
+        // autoFitProcessedHandler={() =>
+        //   this.props.mappingActions.setAutoFit(false)
+        // }
+        backgroundlayers={_backgroundLayers}
+        urlSearchParams={urlSearchParams}
+        fullScreenControlEnabled={false}
+        locateControlEnabled={false}
+        minZoom={11}
+        maxZoom={22}
+        zoomSnap={0.5}
+        zoomDelta={0.5}
+        fallbackPosition={{
+          lat: 51.272399,
+          lng: 7.199712,
+        }}
+        fallbackZoom={18}
+        locationChangedHandler={(location) => {
+          navigate(
+            browserlocation.pathname +
+              modifyQueryPart(browserlocation.search, location)
+          );
+        }}
+        boundingBoxChangedHandler={(boundingBox) => {
+          // console.log("xxx boundingBox Changed", boundingBox);
+        }}
+      >
+        <BelisFeatureCollection
+          // style={{ zIndex: 600 }}
+          featureCollection={featureCollection}
+          fgColor={symbolColor}
+          selectedFeature={selectedFeature}
+          handleSelectedFeature={handleSelectedFeature}
+        ></BelisFeatureCollection>
+        {/* <DebugFeature feature={focusBoundingBox} /> */}
+        <div
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            bottom: "0px",
+            zIndex: 600,
+            width: "100%",
+            pointerEvents: "none",
+          }}
+        >
+          <ControlLayout ifStorybook={false}>
+            <Control position="topleft" order={10}>
+              <ZoomControl />
+            </Control>
+
+            <Control position="topleft" order={50}>
+              <FullscreenControl />
+            </Control>
+            <Control position="topleft" order={60} title="Mein Standort">
+              <RoutedMapLocateControl
+                tourRefLabels={null}
+                disabled={false}
+                nativeTooltip={true}
+              />
+            </Control>
+          </ControlLayout>
+        </div>
+      </RoutedMap>
+    </>
   );
 }
