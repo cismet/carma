@@ -178,6 +178,11 @@ export const Share = ({
                 items={[
                   {
                     key: "1",
+                    label: "Datei",
+                    children: <FileUploader file={file} setFile={setFile} />,
+                  },
+                  {
+                    key: "2",
                     label: "URL",
                     children: (
                       <Input
@@ -188,11 +193,6 @@ export const Share = ({
                         placeholder="Url eingeben"
                       />
                     ),
-                  },
-                  {
-                    key: "2",
-                    label: "Datei",
-                    children: <FileUploader file={file} setFile={setFile} />,
                   },
                 ]}
               />
