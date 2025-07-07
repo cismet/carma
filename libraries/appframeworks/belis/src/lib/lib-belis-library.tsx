@@ -6,22 +6,31 @@ import { convertBounds2BBox } from "./utils/gisHelper";
 import { MappingConstants, RoutedMap } from "react-cismap";
 import { modifyQueryPart } from "./utils/routingHelper";
 import { BelisFeatureCollection } from "./components/BelisFeatureCollection";
-import type { LatLngBounds, Map as LeafletMap } from "leaflet";
-import type { CSSProperties } from "react";
-import type { RoutedMapProps } from "react-cismap";
+import type { LatLngBounds, Point, Map as LeafletMap } from "leaflet";
+type BoundsAndSize = {
+  mapBounds: LatLngBounds;
+  mapSize: Point;
+};
+interface LeafletPane extends HTMLElement {
+  _leaflet_pos?: { x: number; y: number };
+}
+
+interface RoutedMapWithLeaflet extends RoutedMap {
+  leafletMap: { leafletElement: L.Map };
+}
 
 interface BelisMapProps {
-  refRoutedMap: React.RefObject<RoutedMap>;
+  refRoutedMap: React.RefObject<RoutedMapWithLeaflet>;
   width: number;
   height: number;
   jwt: string;
   setBounds: (mapBounds: LatLngBounds) => void;
   setMapRef: (mapRef: LeafletMap) => void;
-  setZoom: (z: number) => void;
+  setZoom: (z: string | null) => void;
   loadObjects: (opts: {
-    boundingBox: [number, number, number, number];
+    boundingBox: any;
     inFocusMode: boolean;
-    zoom: number | string;
+    zoom: string | null;
     jwt: string;
     force?: boolean;
   }) => void;
@@ -33,7 +42,7 @@ interface BelisMapProps {
   featureCollectionMode: string;
   loadingState: boolean;
   connectionMode: "FROMCACHE" | "ONLINE";
-  zoom: number;
+  zoom: number | null;
   inPaleMode: boolean;
   background: string;
   initIndex: (done: (initialized: boolean) => void) => void;
@@ -75,7 +84,9 @@ export function BelisMap({
   const blockingTime = 1000;
   const [blockLoading, setBlockLoading] = useState<boolean>(false);
   const [indexInitialized, setIndexInitialized] = useState<boolean>(false);
-  const [mapBoundsAndSize, setMapBoundsAndSize] = useState();
+  const [mapBoundsAndSize, setMapBoundsAndSize] = useState<
+    BoundsAndSize | undefined
+  >(undefined);
 
   const [indexInitializationRequested, setIndexInitializationRequested] =
     useState<boolean>(false);
@@ -85,7 +96,7 @@ export function BelisMap({
   const { setRoutedMapRef } = useContext<typeof TopicMapDispatchContext>(
     TopicMapDispatchContext
   );
-  const timeoutHandlerRef = useRef(null);
+  const timeoutHandlerRef = useRef<number | undefined>(undefined);
   const navigate = useNavigate();
   const browserlocation = useLocation();
 
@@ -139,7 +150,8 @@ export function BelisMap({
       let next = old;
 
       try {
-        const pane = mapRef.getPane && mapRef.getPane("mapPane");
+        const pane =
+          mapRef.getPane && (mapRef.getPane("mapPane") as LeafletPane);
         if (!pane || !pane._leaflet_pos) {
           return old;
         }
