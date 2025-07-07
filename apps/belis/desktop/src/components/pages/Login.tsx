@@ -1,12 +1,18 @@
-import { Button, Form, Input, Popover } from "antd";
-import React, { useEffect } from "react";
+import { Button, Form, Input } from "antd";
+import React, { useEffect, useState } from "react";
 
-// import "antd/dist/antd.min.css";
 import { useWindowSize } from "@react-hook/window-size";
 import { useDispatch, useSelector } from "react-redux";
 import { useLocation, useNavigate } from "react-router-dom";
+import { storeJWT, storeLogin } from "../../store/slices/auth";
+import { DOMAIN, REST_SERVICE } from "../../constants/belis";
 
 export const background = "belis_background_iStock-139701369_blurred.jpg";
+
+interface LoginInfo {
+  color: string;
+  text: string;
+}
 
 const Login = () => {
   const windowSize = useWindowSize();
@@ -14,96 +20,12 @@ const Login = () => {
   const browserlocation = useLocation();
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const [loginInfo, setLoginInfo] = useState<LoginInfo | null>(null);
 
-  //   const jwt = useSelector(getJWT);
-
-  const productionMode = process.env.NODE_ENV === "production";
   const windowHeight = windowSize[1];
-  //   useEffect(() => {
-  //   }, [jwt, dispatch]);
-
-  //   useEffect(() => {
-  //     (async () => {
-  //       try {
-  //         if (!productionMode) {
-  //           const result = await fetch("devSecrets.json");
-  //           const cheats = await result.json();
-  //           console.log("devSecrets.json found");
-
-  //           let values = {};
-  //           if (cheats.cheatingUser) {
-  //             // setUser(cheats.cheatingUser);
-  //             values.user = cheats.cheatingUser;
-  //           }
-  //           if (cheats.cheatingPassword) {
-  //             // setPw(cheats.cheatingPassword);
-  //             values.password = cheats.cheatingPassword;
-  //           }
-
-  //           form.setFieldsValue({
-  //             username: values.user,
-  //             password: values.password,
-  //           });
-  //         } else {
-  //           form.setFieldsValue({ username: lastSuccesfulUser });
-  //         }
-  //       } catch (e) {
-  //         console.log("no devSecrets.json found");
-  //       }
-  //     })();
-  //   }, [productionMode]);
 
   const loginPanelWidth = 450;
   const loginPanelHeight = 300;
-  //   const onFinish = (values) => {
-  //     login(values.username, values.password);
-  //   };
-  /*eslint no-useless-concat: "off"*/
-  //   const login = (user, pw) => {
-  //     fetch(REST_SERVICE + "/users", {
-  //       method: "GET",
-  //       headers: {
-  //         Authorization: "Basic " + btoa(user + "@" + DOMAIN + ":" + pw),
-  //         "Content-Type": "application/json",
-  //       },
-  //     })
-  //       .then(function (response) {
-  //         if (response.status >= 200 && response.status < 300) {
-  //           response.json().then(function (responseWithJWT) {
-  //             const jwt = responseWithJWT.jwt;
-  //             setLoginInfo({
-  //               color: "#038643",
-  //               text: "Anmeldung erfolgreich. Daten werden geladen.",
-  //             });
-  //             setTimeout(() => {
-  //               navigate("/app" + browserlocation.search);
-  //               dispatch(storeJWT(jwt));
-  //               dispatch(storeLogin(user));
-  //               dispatch(setHealthState({ jwt, healthState: HEALTHSTATUS.OK }));
-  //               setLoginInfo();
-  //               dispatch(forceRefresh());
-  //             }, 500);
-  //           });
-  //         } else {
-  //           setLoginInfo({
-  //             color: "#703014",
-  //             text: "Bei der Anmeldung ist ein Fehler aufgetreten.",
-  //           });
-  //           setTimeout(() => {
-  //             setLoginInfo();
-  //           }, 2500);
-  //         }
-  //       })
-  //       .catch(function (err) {
-  //         setLoginInfo({
-  //           color: "#703014",
-  //           text: "Bei der Anmeldung ist ein Fehler aufgetreten.",
-  //         });
-  //         setTimeout(() => {
-  //           setLoginInfo();
-  //         }, 2500);
-  //       });
-  //   };
 
   const onFinishFailed = (errorInfo) => {
     console.log("Failed:", errorInfo);
@@ -111,7 +33,46 @@ const Login = () => {
 
   const baseUrl = window.location.origin + window.location.pathname;
   const onFinish = (values) => {
-    // login(values.username, values.password);
+    login(values.username, values.password);
+  };
+
+  const login = (user, pw) => {
+    fetch(REST_SERVICE + "/users", {
+      method: "GET",
+      headers: {
+        Authorization: "Basic " + btoa(user + "@" + DOMAIN + ":" + pw),
+        "Content-Type": "application/json",
+      },
+    })
+      .then(function (response) {
+        if (response.status >= 200 && response.status < 300) {
+          response.json().then(function (responseWithJWT) {
+            const jwt = responseWithJWT.jwt;
+            setTimeout(() => {
+              navigate("/" + browserlocation.search);
+              dispatch(storeJWT(jwt));
+              dispatch(storeLogin(user));
+            }, 500);
+          });
+        } else {
+          setLoginInfo({
+            color: "#703014",
+            text: "Bei der Anmeldung ist ein Fehler aufgetreten.",
+          });
+          setTimeout(() => {
+            setLoginInfo(null);
+          }, 2500);
+        }
+      })
+      .catch(function (err) {
+        setLoginInfo({
+          color: "#703014",
+          text: "Bei der Anmeldung ist ein Fehler aufgetreten.",
+        });
+        setTimeout(() => {
+          setLoginInfo(null);
+        }, 2500);
+      });
   };
   return (
     <div
@@ -150,11 +111,11 @@ const Login = () => {
         <div
           style={{
             minHeight: 21,
-            // color: loginInfo?.color || "black",
+            color: loginInfo?.color || "black",
             marginRight: 10,
           }}
         >
-          {/* {loginInfo?.text || ""} */}
+          {loginInfo?.text || ""}
         </div>
         <Form
           form={form}
