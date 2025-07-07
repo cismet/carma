@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+.leaflet-control * img {
+  display: initial;
+}
+
+.ant-tooltip-arrow {
+  display: none !important;
+}
+
+.modal-footer img[alt="Logo DigiTal Zwilling"] {
+  max-height: 60px;
+}
+
+/* Make lists look good again */
+ul {
+  list-style: disc !important;
+  display: block;
+  list-style-type: disc;
+  margin-block-start: 1em;
+  margin-block-end: 1em;
+  margin-inline-start: 0px;
+  margin-inline-end: 0px;
+  padding-inline-start: 40px;
+  unicode-bidi: isolate;
+}
+/* You can add global styles to this file, and also import other style files */
+.custom-left-control {
+  position: absolute;
+  z-index: 1000;
+  left: 0;
+  bottom: 0;
+  margin-left: 14px;
+  margin-bottom: 5px;
+}
+
+.modal-content svg,
+.modal-content img {
+  display: inline;
+}

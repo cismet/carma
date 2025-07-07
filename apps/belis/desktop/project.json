@@ -1,0 +1,61 @@
+{
+  "name": "belis-desktop",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/belis/desktop//src",
+  "projectType": "application",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/vite:build",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "outputPath": "dist/apps/belis/desktop"
+      },
+      "configurations": {
+        "development": {
+          "mode": "development"
+        },
+        "production": {
+          "mode": "production"
+        }
+      }
+    },
+    "serve": {
+      "executor": "@nx/vite:dev-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "belis-desktop:build"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "belis-desktop:build:development",
+          "hmr": true
+        },
+        "production": {
+          "buildTarget": "belis-desktop:build:production",
+          "hmr": false
+        }
+      }
+    },
+    "preview": {
+      "executor": "@nx/vite:preview-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "belis-desktop:build"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "belis-desktop:build:development"
+        },
+        "production": {
+          "buildTarget": "belis-desktop:build:production"
+        }
+      },
+      "dependsOn": ["build"]
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  }
+}

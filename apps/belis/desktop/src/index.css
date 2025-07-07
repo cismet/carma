@@ -1,0 +1,188 @@
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen",
+    "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue",
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, "Courier New",
+    monospace;
+}
+
+.modal-backdrop {
+  position: static;
+}
+
+.selectedfeature {
+  background-color: #7aa8f666;
+  /* opacity: 0.2; */
+  border-radius: 8px;
+  width: 28px;
+  height: 28px;
+}
+
+.brightMode {
+  border-color: rgb(0, 0, 0, 0.75);
+}
+.darkMode {
+  border-color: rgb(255, 255, 255, 0.75) !important;
+}
+.belisiconclass_tdta_leuchten {
+  border: 2px solid;
+  border-radius: 100%;
+  position: relative;
+  width: 14px;
+  height: 14px;
+  transform: translate(7px, 7px); /*28-14=14 ; 14/2=7*/
+}
+
+.belisiconclass_tdta_standort_mast {
+  border: 2px solid;
+  border-radius: 100%;
+  position: relative;
+  width: 12px;
+  height: 12px;
+  transform: translate(8px, 8px); /*28-12=16 ; 16/2=8 */
+}
+
+.belisiconclass_tdta_leuchten::before {
+  content: "";
+  display: block;
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgb(0, 0, 0, 0.5);
+  border-radius: 100%;
+}
+
+.belisiconclass_mauerlasche {
+  border: 1px solid;
+  position: relative;
+  width: 8px;
+  height: 8px;
+  transform: translate(10px, 10px); /*28-8=20 ; 20/2=10*/
+}
+
+.belisiconclass_abzweigdose {
+  border: 1px solid;
+  position: relative;
+  width: 8px;
+  height: 8px;
+  transform: translate(10px, 10px); /*28-8=20 ; 20/2=10*/
+}
+
+.belisiconclass_abzweigdose::before {
+  content: "";
+  display: block;
+  border-top: 2px solid;
+  position: absolute;
+  left: -6px;
+  top: 2px;
+  width: 6px;
+  height: 0px;
+}
+
+.belisiconclass_abzweigdose_inner {
+  border-left: 2px solid;
+  position: absolute;
+  left: 2px;
+  top: 6px;
+  width: 6px;
+  height: 5px;
+}
+
+.belisiconclass_abzweigdose::after {
+  content: "";
+  display: block;
+  border-top: 2px solid;
+  position: absolute;
+  left: 6px;
+  top: 2px;
+  width: 6px;
+  height: 0px;
+  transform: translate(0%, 0%);
+}
+
+.belisiconclass_schaltstelle {
+  border: 3px solid;
+  position: relative;
+  width: 12px;
+  height: 12px;
+  transform: translate(8px, 8px); /*28-12=16 ; 16/2=8*/
+}
+
+.belisiconclass_schaltstelle::before {
+  content: "";
+  display: block;
+  position: absolute;
+  border-left: 3px solid;
+  width: 3px;
+  height: 9px;
+  left: 50%;
+  transform: translate(-50%, 0%);
+}
+
+.marquee {
+  margin: 0 auto;
+  white-space: nowrap;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.marquee span {
+  display: inline-block;
+  padding-left: 10%;
+  padding-right: 90%;
+  animation: marquee 2s linear infinite;
+  -webkit-animation: marquee 2s linear infinite alternate;
+}
+
+@-webkit-keyframes marquee {
+  0% {
+    transform: translate(0%, 0);
+  }
+  100% {
+    transform: translate(-50%, 0);
+  }
+}
+
+@keyframes marquee {
+  0% {
+    transform: translate(0%, 0);
+  }
+  100% {
+    transform: translate(-50%, 0);
+  }
+}
+/* 
+iframe {
+  display: none;
+} */
+
+.ant-select-dropdown {
+  z-index: 40000000 !important;
+}
+
+.ant-picker-dropdown {
+  z-index: 40000000 !important;
+}
+.belis-custom-marker {
+  /* background: red; */
+  z-index: 1 !important;
+}
+
+.custom-left-control {
+  position: absolute;
+  z-index: 1000;
+  left: 0;
+  bottom: 0;
+  margin-left: 14px;
+  margin-bottom: 5px;
+  text-align: left !important;
+}
