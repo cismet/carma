@@ -28,7 +28,7 @@ const BelisMapLibWrapper = ({ refRoutedMap, width, height, jwt }) => {
   const connectionMode = useSelector(getConnectionMode);
   const zoom = useSelector(getZoom);
   const background = useSelector(getBackground);
-  console.log("xxx map wrapper");
+
   const dispatch = useDispatch();
   const handleSetBounds = (mapBounds) => {
     dispatch(setBounds(mapBounds));
@@ -73,6 +73,8 @@ const BelisMapLibWrapper = ({ refRoutedMap, width, height, jwt }) => {
       inPaleMode={handleInitIndexObjects}
       handleSelectedFeature={handleSelectedFeature}
       MODES={MODES}
+      zoom={zoom}
+      fcMode={featureCollectionMode}
     />
   );
 };

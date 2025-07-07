@@ -6,6 +6,7 @@ import { convertBounds2BBox } from "./utils/gisHelper";
 import { MappingConstants, RoutedMap } from "react-cismap";
 import { modifyQueryPart } from "./utils/routingHelper";
 import { BelisFeatureCollection } from "./components/BelisFeatureCollection";
+import { FocusRectangle } from "./components/FocusRectangle";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import {
   FullscreenControl,
@@ -340,6 +341,11 @@ export function BelisMap({
           handleSelectedFeature={handleSelectedFeature}
         ></BelisFeatureCollection>
         {/* <DebugFeature feature={focusBoundingBox} /> */}
+        <FocusRectangle
+          inFocusMode={inFocusMode && fcMode === MODES.OBJECTS}
+          mapWidth={mapStyle.width}
+          mapHeight={mapStyle.height}
+        />
         <div
           style={{
             position: "absolute",
