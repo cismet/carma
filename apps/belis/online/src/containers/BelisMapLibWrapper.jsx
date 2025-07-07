@@ -18,6 +18,7 @@ import {
 import { getLoadingState, initIndex } from "../core/store/slices/spatialIndex";
 import { getConnectionMode } from "../core/store/slices/app";
 import { getBackground } from "../core/store/slices/background";
+import { isPaleModeActive } from "../core/store/slices/paleMode";
 
 const BelisMapLibWrapper = ({ refRoutedMap, width, height, jwt }) => {
   const featureCollection = useSelector(getFeatureCollection);
@@ -27,6 +28,7 @@ const BelisMapLibWrapper = ({ refRoutedMap, width, height, jwt }) => {
   const loadingState = useSelector(getLoadingState);
   const connectionMode = useSelector(getConnectionMode);
   const zoom = useSelector(getZoom);
+  const inPaleMode = useSelector(isPaleModeActive);
   const background = useSelector(getBackground);
 
   const dispatch = useDispatch();
@@ -70,11 +72,12 @@ const BelisMapLibWrapper = ({ refRoutedMap, width, height, jwt }) => {
       featureCollectionMode={featureCollectionMode}
       connectionMode={connectionMode}
       background={background}
-      inPaleMode={handleInitIndexObjects}
+      inPaleMode={inPaleMode}
       handleSelectedFeature={handleSelectedFeature}
       MODES={MODES}
       zoom={zoom}
       fcMode={featureCollectionMode}
+      initIndex={handleInitIndexObjects}
     />
   );
 };
