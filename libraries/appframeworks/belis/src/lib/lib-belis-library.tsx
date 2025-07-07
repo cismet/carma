@@ -8,12 +8,16 @@ import { modifyQueryPart } from "./utils/routingHelper";
 import { BelisFeatureCollection } from "./components/BelisFeatureCollection";
 import { FocusRectangle } from "./components/FocusRectangle";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
+import { TopicMapSelectionContent } from "@carma-apps/portals";
 import {
   FullscreenControl,
   RoutedMapLocateControl,
   ZoomControl,
 } from "@carma-mapping/components";
+import PaleOverlay from "react-cismap/PaleOverlay";
+
 import type { LatLngBounds, Point, Map as LeafletMap } from "leaflet";
+
 type BoundsAndSize = {
   mapBounds: LatLngBounds;
   mapSize: Point;
@@ -346,6 +350,9 @@ export function BelisMap({
           mapWidth={mapStyle.width}
           mapHeight={mapStyle.height}
         />
+        {inPaleMode && <PaleOverlay opacity={0.8} />}
+        <TopicMapSelectionContent />
+
         <div
           style={{
             position: "absolute",
