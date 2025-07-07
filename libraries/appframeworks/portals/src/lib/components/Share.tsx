@@ -138,8 +138,11 @@ export const Share = ({
             padding: "1rem",
             borderRadius: "0.5rem",
           }}
-          className="overflow-y-auto max-h-[500px]"
+          className="overflow-y-auto max-h-[500px] relative"
         >
+          <div className="absolute top-1 right-3 text-red-500">
+            * Pflichtfelder
+          </div>
           <form
             style={{ width: "100%" }}
             onSubmit={(e) => createShare(e, false)}
@@ -153,7 +156,7 @@ export const Share = ({
                 maxWidth: "34rem",
               }}
             >
-              <label htmlFor="service" className="-mb-1">
+              <label htmlFor="service" className="-mb-1 font-semibold">
                 Kategorie
               </label>
               <Select
@@ -162,7 +165,7 @@ export const Share = ({
                 value={service}
                 id="service"
               />
-              <label htmlFor="title" className="-mb-1">
+              <label htmlFor="title" className="-mb-1 font-semibold">
                 Titel <span className="text-red-500">*</span>
               </label>
               <Input
@@ -173,7 +176,7 @@ export const Share = ({
                 placeholder="Unter welchem Namen soll die Karte angeboten werden?"
                 required
               />
-              <label htmlFor="thumbUrl" className="-mb-1">
+              <label htmlFor="thumbUrl" className="-mb-1 font-semibold">
                 Vorschaubild <span className="text-red-500">*</span>
               </label>
               <Tabs
@@ -199,7 +202,7 @@ export const Share = ({
                 ]}
               />
 
-              <label htmlFor="content" className="-mb-1">
+              <label htmlFor="content" className="-mb-1 font-semibold">
                 Inhalt <span className="text-red-500">*</span>
               </label>
               <Input.TextArea
@@ -210,7 +213,7 @@ export const Share = ({
                 placeholder="Welche Kartenebenen und/oder Objektkategorien umfasst die Karte? Welche Hintergrundkarte wird verwendet?"
                 required
               />
-              <label htmlFor="usage" className="-mb-1">
+              <label htmlFor="usage" className="-mb-1 font-semibold">
                 Verwendungszweck <span className="text-red-500">*</span>
               </label>
               <Input.TextArea
@@ -221,7 +224,7 @@ export const Share = ({
                 placeholder="Für welche Zielgruppe und/oder welchen spezifischen Informationsbedarf ist die Karte bestimmt?"
                 required
               />
-              <label htmlFor="keywords" className="-mb-1">
+              <label htmlFor="keywords" className="-mb-1 font-semibold">
                 Schlüsselwörter
               </label>
               <div className="flex flex-wrap gap-1 gap-y-2">
