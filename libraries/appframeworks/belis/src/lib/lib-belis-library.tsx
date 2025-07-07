@@ -6,30 +6,43 @@ import { convertBounds2BBox } from "./utils/gisHelper";
 import { MappingConstants, RoutedMap } from "react-cismap";
 import { modifyQueryPart } from "./utils/routingHelper";
 import { BelisFeatureCollection } from "./components/BelisFeatureCollection";
+import type { LatLngBounds, Map as LeafletMap } from "leaflet";
+import type { CSSProperties } from "react";
+import type { RoutedMapProps } from "react-cismap";
 
 interface BelisMapProps {
-  refRoutedMap: any;
+  refRoutedMap: React.RefObject<RoutedMap>;
   width: number;
   height: number;
   jwt: string;
-  setBounds: (mapBounds: any) => void;
-  setMapRef: (mapRef: any) => void;
-  setZoom: (z: any) => void;
-  loadObjects: (l: any) => void;
-  featureCollection: any;
-  inFocusMode: any;
-  fcMode: any;
-  secondaryInfoVisible: any;
+  setBounds: (mapBounds: LatLngBounds) => void;
+  setMapRef: (mapRef: LeafletMap) => void;
+  setZoom: (z: number) => void;
+  loadObjects: (opts: {
+    boundingBox: [number, number, number, number];
+    inFocusMode: boolean;
+    zoom: number | string;
+    jwt: string;
+    force?: boolean;
+  }) => void;
+  featureCollection: any[];
+  inFocusMode: boolean;
+  fcMode: string;
+  secondaryInfoVisible: boolean;
   selectedFeature: any;
-  featureCollectionMode: any;
-  loadingState: any;
-  connectionMode: any;
-  zoom: any;
-  inPaleMode: any;
-  background: any;
-  initIndex: () => void;
+  featureCollectionMode: string;
+  loadingState: boolean;
+  connectionMode: "FROMCACHE" | "ONLINE";
+  zoom: number;
+  inPaleMode: boolean;
+  background: string;
+  initIndex: (done: (initialized: boolean) => void) => void;
   handleSelectedFeature: (f: any) => void;
-  MODES: any;
+  MODES: {
+    OBJECTS: "OBJECTS";
+    TASKLISTS: "TASKLISTS";
+    PROTOCOLS: "PROTOCOLS";
+  };
 }
 
 export const CONNECTIONMODE = { FROMCACHE: "FROMCACHE", ONLINE: "ONLINE" };
