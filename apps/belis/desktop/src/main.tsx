@@ -15,6 +15,8 @@ import Login from "./components/pages/Login";
 import store from "./store";
 import persistStore from "redux-persist/es/persistStore";
 import { PersistGate } from "redux-persist/integration/react";
+import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
+import MainPage from "./components/MainPage";
 
 const persistor = persistStore(store);
 
@@ -55,7 +57,7 @@ const router = createHashRouter(
       children: [
         {
           path: "/",
-          element: <div>Main</div>,
+          element: <MainPage />,
         },
       ],
     },
@@ -77,7 +79,35 @@ root.render(
       <GazDataProvider>
         <SelectionProvider>
           <PersistGate loading={null} persistor={persistor}>
-            <RouterProvider router={router} />
+            <TopicMapContextProvider
+              appKey="belis-desktop.map"
+              //  backgroundModes={backgroundModes}
+              //  backgroundConfigurations={backgroundConfigurations}
+              //  baseLayerConf={baseLayerConf}
+              //  offlineCacheConfig={offlineConfig}
+              //  persistenceSettings={{
+              //    ui: [
+              //      "appMenuVisible",
+              //      "appMenuActiveMenuSection",
+              //      "collapsedInfoBox",
+              //    ],
+              //    featureCollection: [
+              //      "filterState",
+              //      "filterMode",
+              //      "clusteringEnabled",
+              //    ],
+              //    responsive: [],
+              //    styling: [
+              //      "activeAdditionalLayerKeys",
+              //      "namedMapStyle",
+              //      "selectedBackground",
+              //      "markerSymbolSize",
+              //    ],
+              //    offlinelayers: ["vectorLayerOfflineEnabled"],
+              //  }}
+            >
+              <RouterProvider router={router} />
+            </TopicMapContextProvider>
           </PersistGate>
         </SelectionProvider>
       </GazDataProvider>
