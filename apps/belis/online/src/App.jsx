@@ -16,7 +16,6 @@ import {
   offlineConfig,
 } from "./constants/belis";
 import MobileApp from "./containers/MobileApp";
-import Test from "./containers/Test";
 import store from "./core/store";
 import { appKey, storagePostfix } from "./Keys";
 
