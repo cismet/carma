@@ -49,7 +49,7 @@ interface BelisMapProps {
   featureCollection: any[];
   inFocusMode: boolean;
   fcMode: string;
-  secondaryInfoVisible: boolean;
+  // secondaryInfoVisible: boolean;
   selectedFeature: any;
   featureCollectionMode: string;
   loadingState: boolean;
@@ -82,7 +82,7 @@ export function BelisMap({
   featureCollection,
   inFocusMode,
   fcMode,
-  secondaryInfoVisible,
+  // secondaryInfoVisible,
   selectedFeature,
   featureCollectionMode,
   loadingState,

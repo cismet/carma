@@ -1,6 +1,10 @@
-import { BelisMap } from "@carma-apps/belis-library";
+import { BelisMap, MODES } from "@carma-apps/belis-library";
 import { useDispatch, useSelector } from "react-redux";
-
+const MODES = {
+  OBJECTS: "OBJECTS",
+  TASKLISTS: "TASKLISTS",
+  PROTOCOLS: "PROTOCOLS",
+} as const;
 const BelisMapLibWrapper = ({ refRoutedMap, width, height, jwt }) => {
   //   const featureCollection = useSelector(getFeatureCollection);
   //   const inFocusMode = useSelector(isInFocusMode);
@@ -13,11 +17,6 @@ const BelisMapLibWrapper = ({ refRoutedMap, width, height, jwt }) => {
   //   const background = useSelector(getBackground);
 
   const dispatch = useDispatch();
-  const MODES = {
-    OBJECTS: "OBJECTS",
-    TASKLISTS: "TASKLISTS",
-    PROTOCOLS: "PROTOCOLS",
-  };
 
   return (
     <BelisMap
