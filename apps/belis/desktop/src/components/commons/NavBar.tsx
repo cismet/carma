@@ -1,8 +1,17 @@
+import { Menu } from "antd";
+import { Outlet } from "react-router-dom";
+
 const NavBar = () => {
   return (
-    <header className="flex items-center justify-between bg-white p-2 gap-3">
-      <div className="md:flex hidden items-center gap-3">Navbar!</div>
-    </header>
+    <div className="flex justify-between gap-3">
+      <div className="w-[200px]">Left side</div>
+      <div className="bg-[#F1F1F1]">
+        <div>Top Navigation</div>
+        <div className="ml-3">
+          <Outlet />
+        </div>
+      </div>
+    </div>
   );
 };
 

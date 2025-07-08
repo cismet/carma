@@ -4,7 +4,6 @@ import { GazDataProvider, SelectionProvider } from "@carma-apps/portals";
 import App from "./App";
 import {
   Navigate,
-  Outlet,
   RouterProvider,
   createHashRouter,
   useLocation,
@@ -30,9 +29,8 @@ const NavBarWrapper = () => {
     // dispatch(loadGazeteerEntries());
   }, []);
   return (
-    <div>
+    <div className="flex items-stretch overflow-clip bg-white min-h-screen p-2">
       <NavBar />
-      <Outlet />
     </div>
   );
 };
