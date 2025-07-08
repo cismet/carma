@@ -3,6 +3,7 @@ import { useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faGear } from "@fortawesome/free-solid-svg-icons";
+import Settings from "./Settings";
 const SettingsUi = () => {
   const dispatch = useDispatch();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -22,7 +23,7 @@ const SettingsUi = () => {
         onClose={() => setDrawerOpen(false)}
         size="default"
       >
-        {/* <Settings /> */}
+        <Settings />
       </Drawer>
     </>
   );
