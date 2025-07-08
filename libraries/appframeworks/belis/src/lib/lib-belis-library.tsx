@@ -66,6 +66,7 @@ interface BelisMapProps {
   };
   children?: ReactNode;
   activeBackgroundLayer?: string | null;
+  backgroundLayerOpacities?: any;
 }
 
 export const CONNECTIONMODE = { FROMCACHE: "FROMCACHE", ONLINE: "ONLINE" };
@@ -95,6 +96,7 @@ export function BelisMap({
   MODES,
   children,
   activeBackgroundLayer = null,
+  backgroundLayerOpacities = {},
 }: BelisMapProps) {
   const mapRef = refRoutedMap?.current?.leafletMap?.leafletElement;
   const blockingTime = 1000;
@@ -345,23 +347,8 @@ export function BelisMap({
           <>
             <BackgroundLayers
               activeBackgroundLayer={activeBackgroundLayer}
-              opacities={1}
+              opacities={backgroundLayerOpacities}
             />
-            {/* <AdditionalLayers
-                jwt={jwt}
-                mapRef={refRoutedMap}
-                activeLayers={activeAdditionalLayers}
-                opacities={additionalLayerOpacities}
-                onGraphqlLayerStatus={(status) => {
-                  dispatch(setGraphqlLayerStatus(status));
-                  if (status === "NOT_ALLOWED") {
-                    dispatch(setHoveredLandparcel(""));
-                  }
-                }}
-                onHoverUpdate={(feature) => {
-                  dispatch(setHoveredLandparcel(landparcelToString(feature)));
-                }}
-              /> */}
           </>
         )}
 

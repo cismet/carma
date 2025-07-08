@@ -20,8 +20,8 @@ const BelisMapLibWrapper = ({ refRoutedMap, width, height, jwt }) => {
   //   const inPaleMode = useSelector(isPaleModeActive);
   //   const background = useSelector(getBackground);
 
-  const backgroundLayerOpacities = useSelector(getActiveBackgroundLayer);
-  const activeBackgroundLayer = useSelector(getBackgroundLayerOpacities);
+  const backgroundLayerOpacities = useSelector(getBackgroundLayerOpacities);
+  const activeBackgroundLayer = useSelector(getActiveBackgroundLayer);
 
   const dispatch = useDispatch();
 
@@ -48,7 +48,8 @@ const BelisMapLibWrapper = ({ refRoutedMap, width, height, jwt }) => {
       zoom={15}
       fcMode="OBJECTS"
       initIndex={() => {}}
-      activeBackgroundLayer={backgroundLayerOpacities}
+      activeBackgroundLayer={activeBackgroundLayer}
+      backgroundLayerOpacities={backgroundLayerOpacities}
     >
       <></>
     </BelisMap>
