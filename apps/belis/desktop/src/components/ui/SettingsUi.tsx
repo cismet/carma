@@ -20,7 +20,7 @@ const SettingsUi = () => {
         placement="right"
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        size="small"
+        size="default"
       >
         {/* <Settings /> */}
       </Drawer>
