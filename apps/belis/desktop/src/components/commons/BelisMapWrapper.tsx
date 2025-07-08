@@ -1,5 +1,9 @@
 import { BelisMap } from "@carma-apps/belis-library";
 import { useDispatch, useSelector } from "react-redux";
+import {
+  getActiveBackgroundLayer,
+  getBackgroundLayerOpacities,
+} from "../../store/slices/mapSettings";
 const MODES = {
   OBJECTS: "OBJECTS",
   TASKLISTS: "TASKLISTS",
@@ -15,6 +19,9 @@ const BelisMapLibWrapper = ({ refRoutedMap, width, height, jwt }) => {
   //   const zoom = useSelector(getZoom);
   //   const inPaleMode = useSelector(isPaleModeActive);
   //   const background = useSelector(getBackground);
+
+  const backgroundLayerOpacities = useSelector(getActiveBackgroundLayer);
+  const activeBackgroundLayer = useSelector(getBackgroundLayerOpacities);
 
   const dispatch = useDispatch();
 
@@ -41,7 +48,7 @@ const BelisMapLibWrapper = ({ refRoutedMap, width, height, jwt }) => {
       zoom={15}
       fcMode="OBJECTS"
       initIndex={() => {}}
-      activeBackgroundLayer="stadtplanGrau"
+      activeBackgroundLayer={backgroundLayerOpacities}
     >
       <></>
     </BelisMap>

@@ -6,113 +6,7 @@ import {
   setActiveBackgroundLayer,
   setBackgroundLayerOpacities,
 } from "../../store/slices/mapSettings";
-
-const backgroundLayerConfigurations = {
-  liegenschaftskarteGrau: {
-    title: "Liegenschaftskarte (grau)",
-    conf: {
-      type: "wmts",
-      url: "http://s10221.wuppertal-intra.de:7098/alkis/services",
-      layers: "alkomgw",
-      styles: "default",
-      version: "1.1.1",
-      tileSize: 256,
-      maxZoom: 26,
-
-      transparent: true,
-      format: "image/png",
-    },
-  },
-  liegenschaftskarteBunt: {
-    title: "Liegenschaftskarte (bunt)",
-    conf: {
-      type: "wmts",
-      url: "http://s10221.wuppertal-intra.de:7098/alkis/services",
-      layers: "alkomf",
-      styles: "default",
-      version: "1.1.1",
-      tileSize: 256,
-      transparent: true,
-      format: "image/png",
-    },
-  },
-  trueOrtho: {
-    title: "True Orthofoto",
-    conf: {
-      type: "wms",
-      url: "https://geo.udsp.wuppertal.de/geoserver-cloud/ows",
-      layers: "GIS-102:trueortho2024",
-      // url: "https://maps.wuppertal.de/karten",
-      // layers: "R102:trueortho2024",
-      tileSize: 256,
-      transparent: true,
-      pane: "backgroundLayers",
-      maxZoom: 26,
-      format: "image/png",
-    },
-  },
-  lbk: {
-    title: "Luftbildkarte",
-    conf: [
-      {
-        type: "wmts",
-        url: "https://geodaten.metropoleruhr.de/spw2/service",
-        layers: "spw2_light_grundriss",
-        version: "1.3.0",
-        pane: "backgroundvectorLayers",
-        transparent: true,
-        format: "image/png",
-        maxZoom: 26,
-
-        tiled: false,
-      },
-      {
-        type: "wms",
-        url: "https://geo.udsp.wuppertal.de/geoserver-cloud/ows",
-        layers: "GIS-102:trueortho2024",
-        // url: "https://maps.wuppertal.de/karten",
-        // layers: "R102:trueortho2024",
-        tileSize: 256,
-        transparent: true,
-        pane: "backgroundLayers",
-        maxZoom: 26,
-        opacityFunction: (opacity) => opacity * 0.75,
-        format: "image/png",
-      },
-      {
-        type: "wmts",
-        url: "https://geodaten.metropoleruhr.de/dop/dop_overlay?language=ger",
-        layers: "dop_overlay",
-        version: "1.3.0",
-        tiled: false,
-        format: "image/png",
-        transparent: true,
-        maxZoom: 26,
-        pane: "additionalLayers0",
-      },
-    ],
-  },
-  stadtplanGrau: {
-    title: "Stadtplan (grau)",
-    conf: {
-      type: "vector",
-      style: "https://omt.map-hosting.de/styles/cismet-light/style.json",
-      //   offlineAvailable: true,
-      //   offlineDataStoreKey: "wuppBasemap",
-      pane: "backgroundvectorLayers",
-    },
-  },
-  stadtplan: {
-    title: "Stadtplan (bunt)",
-    conf: {
-      type: "vector",
-      style: "https://omt.map-hosting.de/styles/osm-bright-grey/style.json",
-      //   offlineAvailable: true,
-      //   offlineDataStoreKey: "wuppBasemap",
-      pane: "backgroundvectorLayers",
-    },
-  },
-};
+import { backgroundLayerConfigurations } from "@carma-apps/belis-library";
 
 const BackgroundLayerRow = ({
   layerkey,
@@ -138,7 +32,7 @@ const BackgroundLayerRow = ({
 const Settings = () => {
   const dispatch = useDispatch();
   const backgroundLayerOpacities = useSelector(getBackgroundLayerOpacities);
-  const activebBackgroundLayer = useSelector(getActiveBackgroundLayer);
+  const activeBackgroundLayer = useSelector(getActiveBackgroundLayer);
 
   return (
     <div className="flex flex-col gap-10">
@@ -150,7 +44,7 @@ const Settings = () => {
             onChange={(e) => {
               dispatch(setActiveBackgroundLayer(e.target.value));
             }}
-            value={activebBackgroundLayer}
+            value={activeBackgroundLayer}
           >
             <div className="flex flex-col gap-2 p-1">
               {Object.keys(backgroundLayerConfigurations).map(
@@ -164,7 +58,7 @@ const Settings = () => {
                       opacityChanged={(layerkey, opacity) => {
                         const opacities = { ...backgroundLayerOpacities };
                         opacities[layerkey] = opacity;
-                        // dispatch(setBackgroundLayerOpacities(opacities));
+                        dispatch(setBackgroundLayerOpacities(opacities));
                       }}
                     />
                   );
