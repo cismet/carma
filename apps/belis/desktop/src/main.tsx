@@ -16,18 +16,17 @@ import persistStore from "redux-persist/es/persistStore";
 import { PersistGate } from "redux-persist/integration/react";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
 import MainPage from "./components/MainPage";
+import { getJWT } from "./store/slices/auth";
 
 const persistor = persistStore(store);
 
 const NavBarWrapper = () => {
-  // const dispatch = useDispatch();
-  // const jwt = useSelector(getJWT);
-  // if (!jwt) {
-  //   return <Navigate to="/login" />;
-  // }
-  useEffect(() => {
-    // dispatch(loadGazeteerEntries());
-  }, []);
+  const dispatch = useDispatch();
+  const jwt = useSelector(getJWT);
+  if (!jwt) {
+    return <Navigate to="/login" />;
+  }
+
   return <NavBar />;
 };
 
