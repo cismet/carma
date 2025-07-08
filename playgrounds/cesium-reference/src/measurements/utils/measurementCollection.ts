@@ -4,17 +4,21 @@ import {
   MeasurementEntry,
 } from "../types/MeasurementTypes";
 
+type EntryOrConstructor =
+  | MeasurementEntry
+  | ((prev: MeasurementCollection) => MeasurementEntry);
+
+const isConstructor = (
+  entryOrConstructor?: EntryOrConstructor
+): entryOrConstructor is (prev: MeasurementCollection) => MeasurementEntry =>
+  typeof entryOrConstructor === "function";
+
 export const updateLastOfMeasurementType =
-  (
-    entryOrConstructor?:
-      | MeasurementEntry
-      | ((prev: MeasurementCollection) => MeasurementEntry)
-  ) =>
+  (entryOrConstructor?: EntryOrConstructor) =>
   (prev: MeasurementCollection) => {
-    const measurement =
-      typeof entryOrConstructor === "function"
-        ? entryOrConstructor(prev)
-        : entryOrConstructor;
+    const measurement = isConstructor(entryOrConstructor)
+      ? entryOrConstructor(prev)
+      : entryOrConstructor;
     const type = measurement.type;
     const existingIndex = prev
       .map((m, i) => ({ m, i }))
@@ -35,17 +39,20 @@ export const updateLastOfMeasurementType =
     return [...prev, measurement];
   };
 
-export const updateCollection = <T extends MeasurementEntry>(
+export const updateCollection = (
   setCollection: Dispatch<SetStateAction<MeasurementCollection>>,
-  entryConstructor: (prev: MeasurementCollection) => MeasurementEntry,
+  entryOrConstructor: EntryOrConstructor,
   soloMode: boolean
 ) => {
   if (soloMode) {
-    setCollection(updateLastOfMeasurementType(entryConstructor));
+    setCollection(updateLastOfMeasurementType(entryOrConstructor));
   } else {
+    // no push because this is still react were in here. Changes to the collection should cause a rerender
     setCollection((prevCollection: MeasurementCollection) => [
       ...prevCollection,
-      entryConstructor(prevCollection),
+      isConstructor(entryOrConstructor)
+        ? entryOrConstructor(prevCollection)
+        : entryOrConstructor,
     ]);
   }
 };
