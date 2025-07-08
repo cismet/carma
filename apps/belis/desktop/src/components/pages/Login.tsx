@@ -106,7 +106,7 @@ const Login = () => {
             paddingBottom: 4,
           }}
         >
-          BelIS-Online
+          BelIS-Desktop
         </h1>
         <div
           style={{
