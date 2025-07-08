@@ -542,7 +542,7 @@ export const NewLibModal = ({
   }, [additionalConfig, flags]);
 
   useEffect(() => {
-    if (getNumOfCustomLayers() === 0) {
+    if (getNumOfCustomLayers() === 0 && selectedNavItemIndex === 0) {
       setSelectedNavItemIndex(3);
     }
 
