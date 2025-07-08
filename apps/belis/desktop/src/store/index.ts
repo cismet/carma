@@ -3,6 +3,7 @@ import { createLogger } from "redux-logger";
 import { persistReducer } from "redux-persist";
 import localForage from "localforage";
 import authSlice from "./slices/auth";
+import mapSettings from "./slices/mapSettings";
 
 console.log("store initializing ....");
 
@@ -50,9 +51,16 @@ const authConfig = {
   whitelist: ["jwt", "login"],
 };
 
+const mapSettingsConfig = {
+  key: "@belis-desktop.1.app.ui",
+  storage: localForage,
+  whitelist: ["activeBackgroundLayer", "backgroundLayerOpacities"],
+};
+
 export default configureStore({
   reducer: {
     auth: persistReducer(authConfig, authSlice.reducer),
+    mapSettings: persistReducer(mapSettingsConfig, mapSettings.reducer),
   },
   devTools: devToolsEnabled === true && inProduction === false,
   middleware,
