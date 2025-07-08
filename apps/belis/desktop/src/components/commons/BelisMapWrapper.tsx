@@ -42,6 +42,7 @@ const BelisMapLibWrapper = ({ refRoutedMap, width, height, jwt }) => {
       zoom={15}
       fcMode={""}
       initIndex={() => {}}
+      activeBackgroundLayer="stadtplanGrau"
     >
       <></>
     </BelisMap>

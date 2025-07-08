@@ -79,33 +79,7 @@ root.render(
       <GazDataProvider>
         <SelectionProvider>
           <PersistGate loading={null} persistor={persistor}>
-            <TopicMapContextProvider
-              appKey="belis-desktop.map"
-              //  backgroundModes={backgroundModes}
-              //  backgroundConfigurations={backgroundConfigurations}
-              //  baseLayerConf={baseLayerConf}
-              //  offlineCacheConfig={offlineConfig}
-              //  persistenceSettings={{
-              //    ui: [
-              //      "appMenuVisible",
-              //      "appMenuActiveMenuSection",
-              //      "collapsedInfoBox",
-              //    ],
-              //    featureCollection: [
-              //      "filterState",
-              //      "filterMode",
-              //      "clusteringEnabled",
-              //    ],
-              //    responsive: [],
-              //    styling: [
-              //      "activeAdditionalLayerKeys",
-              //      "namedMapStyle",
-              //      "selectedBackground",
-              //      "markerSymbolSize",
-              //    ],
-              //    offlinelayers: ["vectorLayerOfflineEnabled"],
-              //  }}
-            >
+            <TopicMapContextProvider appKey="belis-desktop.map">
               <RouterProvider router={router} />
             </TopicMapContextProvider>
           </PersistGate>

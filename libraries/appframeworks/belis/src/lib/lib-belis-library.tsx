@@ -6,6 +6,7 @@ import { convertBounds2BBox } from "./utils/gisHelper";
 import { MappingConstants, RoutedMap } from "react-cismap";
 import { modifyQueryPart } from "./utils/routingHelper";
 import { BelisFeatureCollection } from "./components/BelisFeatureCollection";
+import { BackgroundLayers } from "./components/BackgroundLayers";
 import { FocusRectangle } from "./components/FocusRectangle";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import { TopicMapSelectionContent } from "@carma-apps/portals";
@@ -64,6 +65,7 @@ interface BelisMapProps {
     PROTOCOLS: "PROTOCOLS";
   };
   children?: ReactNode;
+  activeBackgroundLayer?: string | null;
 }
 
 export const CONNECTIONMODE = { FROMCACHE: "FROMCACHE", ONLINE: "ONLINE" };
@@ -92,6 +94,7 @@ export function BelisMap({
   handleSelectedFeature,
   MODES,
   children,
+  activeBackgroundLayer = null,
 }: BelisMapProps) {
   const mapRef = refRoutedMap?.current?.leafletMap?.leafletElement;
   const blockingTime = 1000;
@@ -100,7 +103,6 @@ export function BelisMap({
   const [mapBoundsAndSize, setMapBoundsAndSize] = useState<
     BoundsAndSize | undefined
   >(undefined);
-
   const [indexInitializationRequested, setIndexInitializationRequested] =
     useState<boolean>(false);
   const { selectedBackground, backgroundConfigurations } = useContext<
@@ -195,14 +197,6 @@ export function BelisMap({
   }, [refRoutedMap]);
 
   useEffect(() => {
-    // console.log("xxx go for it", {
-    //   mapBounds,
-    //   mapSize,
-    //   blockLoading,
-    //   indexInitialized,
-    //   connectionMode,
-    // });
-
     if (
       blockLoading === false &&
       (indexInitialized || connectionMode !== CONNECTIONMODE.FROMCACHE)
@@ -244,13 +238,8 @@ export function BelisMap({
   ]);
 
   useEffect(() => {
-    // console.log("should i initialize index?");
-
     if (connectionMode === CONNECTIONMODE.FROMCACHE) {
-      // console.log("should i initialize index in CONNECTIONMODE.FROMCACHE");
-
       if (loadingState === undefined || indexInitialized === false) {
-        // console.log("should i initialize index in CONNECTIONMODE.FROMCACHE: yes will do");
         if (indexInitializationRequested === false) {
           setIndexInitializationRequested(true);
           initIndex(setIndexInitialized);
@@ -278,8 +267,6 @@ export function BelisMap({
   } else {
     symbolColor = "#000000";
   }
-
-  console.log("BelisMap");
   return (
     <>
       <RoutedMap
@@ -316,8 +303,8 @@ export function BelisMap({
         // autoFitProcessedHandler={() =>
         //   this.props.mappingActions.setAutoFit(false)
         // }
-        backgroundlayers={_backgroundLayers}
         urlSearchParams={urlSearchParams}
+        backgroundlayers={!activeBackgroundLayer ? _backgroundLayers : null}
         fullScreenControlEnabled={false}
         locateControlEnabled={false}
         minZoom={11}
@@ -353,6 +340,30 @@ export function BelisMap({
           mapHeight={mapStyle.height}
         />
         {inPaleMode && <PaleOverlay opacity={0.8} />}
+
+        {activeBackgroundLayer && (
+          <>
+            <BackgroundLayers
+              activeBackgroundLayer={activeBackgroundLayer}
+              opacities={1}
+            />
+            {/* <AdditionalLayers
+                jwt={jwt}
+                mapRef={refRoutedMap}
+                activeLayers={activeAdditionalLayers}
+                opacities={additionalLayerOpacities}
+                onGraphqlLayerStatus={(status) => {
+                  dispatch(setGraphqlLayerStatus(status));
+                  if (status === "NOT_ALLOWED") {
+                    dispatch(setHoveredLandparcel(""));
+                  }
+                }}
+                onHoverUpdate={(feature) => {
+                  dispatch(setHoveredLandparcel(landparcelToString(feature)));
+                }}
+              /> */}
+          </>
+        )}
 
         {children}
         <TopicMapSelectionContent />
