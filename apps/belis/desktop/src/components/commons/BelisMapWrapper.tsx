@@ -1,4 +1,4 @@
-import { BelisMap, MODES } from "@carma-apps/belis-library";
+import { BelisMap } from "@carma-apps/belis-library";
 import { useDispatch, useSelector } from "react-redux";
 const MODES = {
   OBJECTS: "OBJECTS",
