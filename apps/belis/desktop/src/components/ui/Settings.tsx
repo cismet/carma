@@ -1,24 +1,13 @@
 import { useDispatch, useSelector } from "react-redux";
-import { Checkbox, Radio, Slider, Switch } from "antd";
+import { Radio, Slider } from "antd";
+import {
+  getActiveBackgroundLayer,
+  getBackgroundLayerOpacities,
+  setActiveBackgroundLayer,
+  setBackgroundLayerOpacities,
+} from "../../store/slices/mapSettings";
 
-// import {
-//   getSyncLandparcel,
-//   setSyncLandparcel,
-//   getBackgroundLayerOpacities,
-//   getActiveBackgroundLayer,
-//   getActiveAdditionalLayers,
-//   setActiveBackgroundLayer,
-//   setBackgroundLayerOpacities,
-//   setActiveAdditionaLayers,
-//   setAdditionalLayerOpacities,
-//   getAdditionalLayerOpacities,
-// } from "../../store/slices/ui";
-// import { configuration as additionalLayerConfigurations } from "./AdditionalLayers";
-// import { configuration as backgroundLayerConfigurations } from "./BackgroundLayers";
-// import { Checkbox, Radio, Slider, Switch } from "antd";
-// import { drawerTextsHelper } from "@carma-collab/wuppertal/lagis-desktop";
-
-export const backgroundLayerConfigurations = {
+const backgroundLayerConfigurations = {
   liegenschaftskarteGrau: {
     title: "Liegenschaftskarte (grau)",
     conf: {
@@ -125,63 +114,11 @@ export const backgroundLayerConfigurations = {
   },
 };
 
-const SettingsRow = ({ onClick, title, children }) => {
-  return (
-    <div
-      className="flex items-center justify-between hover:bg-zinc-100 p-1 cursor-pointer"
-      onClick={onClick}
-    >
-      <span>{title}</span>
-      {children}
-    </div>
-  );
-};
-
-const AdditionalLayerRow = ({
-  layerkey,
-  title,
-  active,
-  opacity = 1,
-  activeChanged = (layerkey) => {
-    console.log(" activeChanged", layerkey);
-  },
-
-  opacityChanged = (key, opacity) => {
-    console.log(" opacityChanged", key, opacity);
-  },
-}) => {
-  return (
-    <div
-      key={"div." + layerkey}
-      className="flex items-center gap-2 hover:bg-zinc-100 p-1"
-    >
-      <Checkbox
-        className="w-7"
-        checked={active}
-        onClick={() => activeChanged(layerkey)}
-      />
-      <span
-        className="w-[calc(90%-10px)] cursor-pointer"
-        onClick={() => activeChanged(layerkey)}
-      >
-        {title}
-      </span>
-
-      <Slider
-        defaultValue={opacity * 100}
-        disabled={false}
-        className="w-full"
-        onAfterChange={(value) => opacityChanged(layerkey, value / 100)}
-      />
-    </div>
-  );
-};
-
 const BackgroundLayerRow = ({
   layerkey,
   title,
   opacity = 1,
-  opacityChanged = (e) => {},
+  opacityChanged = (layerkey: string, value: number) => {},
 }) => {
   return (
     <div className="flex items-center gap-2 hover:bg-zinc-100 p-1">
@@ -200,10 +137,8 @@ const BackgroundLayerRow = ({
 
 const Settings = () => {
   const dispatch = useDispatch();
-  //   const backgroundLayerOpacities = useSelector(getBackgroundLayerOpacities);
-  //   const additionalLayerOpacities = useSelector(getAdditionalLayerOpacities);
-  //   const activebBackgroundLayer = useSelector(getActiveBackgroundLayer);
-  //   const activeAdditionalLayers = useSelector(getActiveAdditionalLayers);
+  const backgroundLayerOpacities = useSelector(getBackgroundLayerOpacities);
+  const activebBackgroundLayer = useSelector(getActiveBackgroundLayer);
 
   return (
     <div className="flex flex-col gap-10">
@@ -213,9 +148,9 @@ const Settings = () => {
           <h4 className="text-lg font-medium">Hintergrund</h4>
           <Radio.Group
             onChange={(e) => {
-              // dispatch(setActiveBackgroundLayer(e.target.value));
+              dispatch(setActiveBackgroundLayer(e.target.value));
             }}
-            //   value={activebBackgroundLayer}
+            value={activebBackgroundLayer}
           >
             <div className="flex flex-col gap-2 p-1">
               {Object.keys(backgroundLayerConfigurations).map(
@@ -225,12 +160,11 @@ const Settings = () => {
                     <BackgroundLayerRow
                       layerkey={layerConfKey}
                       title={layerConf.title}
-                      //   opacity={backgroundLayerOpacities[layerConfKey]}
-                      opacity={1}
+                      opacity={backgroundLayerOpacities[layerConfKey]}
                       opacityChanged={(layerkey, opacity) => {
                         const opacities = { ...backgroundLayerOpacities };
                         opacities[layerkey] = opacity;
-                        //   dispatch(setBackgroundLayerOpacities(opacities));
+                        // dispatch(setBackgroundLayerOpacities(opacities));
                       }}
                     />
                   );

@@ -26,8 +26,8 @@ export const { setActiveBackgroundLayer, setBackgroundLayerOpacities } =
   slice.actions;
 
 export const getActiveBackgroundLayer = (state) => {
-  return state.ui.activeBackgroundLayer;
+  return state.mapSettings.activeBackgroundLayer;
 };
 export const getBackgroundLayerOpacities = (state) => {
-  return state.ui.backgroundLayerOpacities;
+  return state.mapSettings.backgroundLayerOpacities;
 };
