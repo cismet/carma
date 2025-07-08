@@ -11,16 +11,13 @@ const MainPage = () => {
 
   useEffect(() => {
     const updateSize = () => {
-      if (parentRef.current) {
-        setDimensions({
-          width: parentRef.current.clientWidth,
-          height: parentRef.current.clientHeight,
-        });
-      }
+      const gutter = 230;
+      setDimensions({
+        width: window.innerWidth - gutter,
+        height: window.innerHeight - 116,
+      });
     };
-
     updateSize();
-
     window.addEventListener("resize", updateSize);
     return () => window.removeEventListener("resize", updateSize);
   }, []);
