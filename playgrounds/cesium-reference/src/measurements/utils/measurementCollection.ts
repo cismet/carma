@@ -5,8 +5,16 @@ import {
 } from "../types/MeasurementTypes";
 
 export const updateLastOfMeasurementType =
-  <T extends MeasurementEntry>(measurement: T) =>
+  (
+    entryOrConstructor?:
+      | MeasurementEntry
+      | ((prev: MeasurementCollection) => MeasurementEntry)
+  ) =>
   (prev: MeasurementCollection) => {
+    const measurement =
+      typeof entryOrConstructor === "function"
+        ? entryOrConstructor(prev)
+        : entryOrConstructor;
     const type = measurement.type;
     const existingIndex = prev
       .map((m, i) => ({ m, i }))
@@ -29,15 +37,15 @@ export const updateLastOfMeasurementType =
 
 export const updateCollection = <T extends MeasurementEntry>(
   setCollection: Dispatch<SetStateAction<MeasurementCollection>>,
-  measurement: T,
+  entryConstructor: (prev: MeasurementCollection) => MeasurementEntry,
   soloMode: boolean
 ) => {
   if (soloMode) {
-    setCollection(updateLastOfMeasurementType(measurement));
+    setCollection(updateLastOfMeasurementType(entryConstructor));
   } else {
     setCollection((prevCollection: MeasurementCollection) => [
       ...prevCollection,
-      measurement,
+      entryConstructor(prevCollection),
     ]);
   }
 };

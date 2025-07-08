@@ -6,9 +6,10 @@ import {
   ScreenSpaceEventHandler,
 } from "cesium";
 import {
+  isPointMeasurementEntry,
   MeasurementCollection,
+  MeasurementEntry,
   MeasurementMode,
-  PointMeasurementEntry,
 } from "../types/MeasurementTypes";
 import { updateCollection } from "../utils/measurementCollection";
 
@@ -58,22 +59,27 @@ export const useCesiumPointQuery = (
       const latitude = cartographic.latitude * (180 / Math.PI);
       const height = cartographic.height;
 
-      const measurement: PointMeasurementEntry = {
-        type: MeasurementMode.PointQuery,
-        id: `point-${Date.now()}`,
-        name: `P h${height.toFixed(1)}m`,
-        geometryECEF: pickedPosition,
-        geometryWGS84: {
-          longitude,
-          latitude,
-          height,
-        },
-        timestamp: new Date().getTime(),
-        radius,
-        metadata: null,
+      const measurementConstructor = (
+        prev?: MeasurementCollection
+      ): MeasurementEntry => {
+        const insertionIndex =
+          prev?.filter(isPointMeasurementEntry).length || 0;
+        return {
+          type: MeasurementMode.PointQuery,
+          id: `point-${Date.now()}`,
+          index: insertionIndex,
+          name: `Messpunkt ${insertionIndex + 1} (${height.toFixed(1)}m)`,
+          geometryECEF: pickedPosition,
+          geometryWGS84: {
+            longitude,
+            latitude,
+            height,
+          },
+          timestamp: new Date().getTime(),
+        };
       };
 
-      updateCollection(setCollection, measurement, soloMode);
+      updateCollection(setCollection, measurementConstructor, soloMode);
 
       console.debug(
         `[SceneClick] Created terrain point at elevation: ${height.toFixed(3)}m`

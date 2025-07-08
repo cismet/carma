@@ -108,8 +108,8 @@ export const useCesiumPointVisualizer = (
     prevIdsRef.current = currentIds;
     viewer.scene.requestRender(); // Ensure scene updates after changes
     return () => {
-      Object.values(labelRefs.current).forEach((entity) =>
-        viewer.entities.remove(entity)
+      Object.values(labelRefs.current).forEach(
+        (entity) => viewer && viewer.entities.remove(entity)
       );
       labelRefs.current = {};
       prevIdsRef.current = new Set();
