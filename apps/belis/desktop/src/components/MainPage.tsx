@@ -27,7 +27,7 @@ const MainPage = () => {
 
   let refRoutedMap = useRef(null);
   return (
-    <div ref={parentRef} className="mx-3 mt-3 h-[calc(91%-20px)]">
+    <div ref={parentRef} className="mx-3 mt-1 h-[calc(91%-20px)]">
       <CustomCard title="Karte" style={{ marginBottom: "1rem" }}>
         <BelisMapLibWrapper
           refRoutedMap={refRoutedMap}
