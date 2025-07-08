@@ -232,7 +232,7 @@ export const Share = ({
                   onChange={(e) => setKeywordInput(e.target.value)}
                   value={keywordInput}
                   className="bg-white"
-                  placeholder="Schlüsselwort hinzufügen"
+                  placeholder="Mit welchen Suchbegriffen soll die Karte gefunden werden?"
                 />
                 <Button
                   onClick={() => {
