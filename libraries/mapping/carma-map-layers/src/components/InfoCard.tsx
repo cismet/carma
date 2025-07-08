@@ -7,6 +7,7 @@ import {
   faEdit,
   faExternalLink,
   faMap,
+  faPlus,
   faSave,
   faSquareUpRight,
   faStar,
@@ -72,8 +73,11 @@ const InfoCard = ({
     layer.serviceName || "discoverPoi"
   );
   const [updatedThumbnail, setUpdatedThumbnail] = useState(layer.thumbnail);
-  const [updatedTags, setUpdatedTags] = useState(tags || []);
-  const [updatedFile, setUpdatedFile] = useState<File | null>(null);
+  const [updatedKeywords, setUpdatedKeywords] = useState(tags || []);
+  const [updatedFile, setUpdatedFile] = useState<File | string | null>(
+    layer.thumbnail || null
+  );
+  const [keywordInput, setKeywordInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
 
@@ -133,7 +137,7 @@ const InfoCard = ({
 
   const updateItem = async (publish?: boolean) => {
     let fileUrl;
-    if (updatedFile) {
+    if (updatedFile && updatedFile instanceof File) {
       fileUrl = await uploadImage(updatedFile, jwt);
       if (!fileUrl) return;
     }
@@ -144,7 +148,7 @@ const InfoCard = ({
       title: updatedTitle,
       thumbnail: fileUrl || updatedThumbnail,
       serviceName: updatedService,
-      tags: updatedTags,
+      tags: updatedKeywords,
     };
     if (!(!publish && layer.isDraft)) {
       const error = checkForRequiredFields(config);
@@ -415,12 +419,22 @@ const InfoCard = ({
                     Vorschaubild
                     <span className="text-red-500"> *</span>
                   </label>
-                  <div className="w-1/2">
+                  <div className="w-1/3">
                     <Tabs
                       defaultActiveKey="1"
                       items={[
                         {
                           key: "1",
+                          label: "Datei",
+                          children: (
+                            <FileUploader
+                              file={updatedFile}
+                              setFile={setUpdatedFile}
+                            />
+                          ),
+                        },
+                        {
+                          key: "2",
                           label: "URL",
                           children: (
                             <Input
@@ -433,18 +447,26 @@ const InfoCard = ({
                             />
                           ),
                         },
-                        {
-                          key: "2",
-                          label: "Datei",
-                          children: (
-                            <FileUploader
-                              file={updatedFile}
-                              setFile={setUpdatedFile}
-                            />
-                          ),
-                        },
                       ]}
                     />
+                  </div>
+                  <label htmlFor="tags">Schlüsselwörter</label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      onChange={(e) => setKeywordInput(e.target.value)}
+                      value={keywordInput}
+                      className="bg-white"
+                      placeholder="Schlüsselwort hinzufügen"
+                    />
+                    <Button
+                      onClick={() => {
+                        setUpdatedKeywords([...updatedKeywords, keywordInput]);
+                        setKeywordInput("");
+                      }}
+                      icon={<FontAwesomeIcon icon={faPlus} />}
+                    >
+                      Hinzufügen
+                    </Button>
                   </div>
                 </>
               )}
@@ -529,7 +551,11 @@ const InfoCard = ({
         </div>
         {editCollection ? (
           <div className="pt-2">
-            <TagSelector keywords={updatedTags} setKeywords={setUpdatedTags} />
+            <TagSelector
+              keywords={updatedKeywords}
+              setKeywords={setUpdatedKeywords}
+              showAddButton={false}
+            />
           </div>
         ) : (
           <p

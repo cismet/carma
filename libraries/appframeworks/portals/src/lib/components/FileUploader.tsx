@@ -4,7 +4,7 @@ import { Button } from "antd";
 import { useRef } from "react";
 
 interface FileUploaderProps {
-  file: File | null;
+  file: File | string | null;
   setFile: (file: File | null) => void;
 }
 
@@ -43,7 +43,7 @@ export const FileUploader = ({ file, setFile }: FileUploaderProps) => {
           </Button>
           <img
             className={`object-cover relative h-full overflow-clip w-[calc(130%+7.2px)]`}
-            src={URL.createObjectURL(file)}
+            src={file instanceof File ? URL.createObjectURL(file) : file}
             alt="Preview"
           />
         </div>

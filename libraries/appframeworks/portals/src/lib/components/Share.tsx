@@ -1,6 +1,6 @@
 import { TagSelector } from "@carma-commons/ui/tag-selection";
 import { serviceOptions } from "@carma-mapping/layers";
-import { faShareNodes } from "@fortawesome/free-solid-svg-icons";
+import { faPlus, faShareNodes } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Button, Input, Select, Tabs } from "antd";
 import { useState } from "react";
@@ -36,6 +36,7 @@ export const Share = ({
   const [thumbUrl, setThumbUrl] = useState("");
   const [keywords, setKeywords] = useState<string[]>([]);
   const [file, setFile] = useState<File | null>(null);
+  const [keywordInput, setKeywordInput] = useState("");
 
   const { layers, backgroundLayer } = layerState;
   const { copyShareUrl, contextHolder, messageApi } = useShareUrl();
@@ -201,7 +202,6 @@ export const Share = ({
                   },
                 ]}
               />
-
               <label htmlFor="content" className="-mb-1 font-semibold">
                 Inhalt <span className="text-red-500">*</span>
               </label>
@@ -227,8 +227,29 @@ export const Share = ({
               <label htmlFor="keywords" className="-mb-1 font-semibold">
                 Schlüsselwörter
               </label>
+              <div className="flex items-center gap-2">
+                <Input
+                  onChange={(e) => setKeywordInput(e.target.value)}
+                  value={keywordInput}
+                  className="bg-white"
+                  placeholder="Schlüsselwort hinzufügen"
+                />
+                <Button
+                  onClick={() => {
+                    setKeywords([...keywords, keywordInput]);
+                    setKeywordInput("");
+                  }}
+                  icon={<FontAwesomeIcon icon={faPlus} />}
+                >
+                  Hinzufügen
+                </Button>
+              </div>
               <div className="flex flex-wrap gap-1 gap-y-2">
-                <TagSelector keywords={keywords} setKeywords={setKeywords} />
+                <TagSelector
+                  keywords={keywords}
+                  setKeywords={setKeywords}
+                  showAddButton={false}
+                />
               </div>
               <Button
                 onClick={(e) => createShare(e, true)}

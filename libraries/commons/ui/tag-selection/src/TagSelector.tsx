@@ -6,9 +6,14 @@ import { faPlus } from "@fortawesome/free-solid-svg-icons";
 export interface TagSelectorProps {
   keywords: string[];
   setKeywords: (keywords: string[]) => void;
+  showAddButton?: boolean;
 }
 
-export const TagSelector = ({ keywords, setKeywords }: TagSelectorProps) => {
+export const TagSelector = ({
+  keywords,
+  setKeywords,
+  showAddButton = true,
+}: TagSelectorProps) => {
   const [keywordInput, setKeywordInput] = useState("");
   const [showKeywordInput, setShowKeywordInput] = useState(false);
   const [selectedKeywordIndex, setSelectedKeywordIndex] = useState<
@@ -73,43 +78,44 @@ export const TagSelector = ({ keywords, setKeywords }: TagSelectorProps) => {
           </Tag>
         )
       )}
-      {showKeywordInput ? (
-        <Input
-          type="text"
-          size="small"
-          onPressEnter={() => {
-            setShowKeywordInput(false);
-            handleAddKeyword(keywordInput);
-            setKeywordInput("");
-          }}
-          style={{
-            width: "64px",
-            height: "22px",
-            marginInlineEnd: 8,
-            verticalAlign: "top",
-            background: "white",
-          }}
-          value={keywordInput}
-          onChange={(e) => setKeywordInput(e.target.value)}
-          autoFocus
-        />
-      ) : (
-        <Tag
-          style={{
-            height: "22px",
-            borderStyle: "dashed",
-            background: "white",
-          }}
-          icon={<FontAwesomeIcon icon={faPlus} />}
-          onClick={() => {
-            setShowKeywordInput(true);
-            setSelectedKeywordIndex(null);
-            setKeywordInput("");
-          }}
-        >
-          <span style={{ marginInlineStart: 8 }}>Neu</span>
-        </Tag>
-      )}
+      {showAddButton &&
+        (showKeywordInput ? (
+          <Input
+            type="text"
+            size="small"
+            onPressEnter={() => {
+              setShowKeywordInput(false);
+              handleAddKeyword(keywordInput);
+              setKeywordInput("");
+            }}
+            style={{
+              width: "64px",
+              height: "22px",
+              marginInlineEnd: 8,
+              verticalAlign: "top",
+              background: "white",
+            }}
+            value={keywordInput}
+            onChange={(e) => setKeywordInput(e.target.value)}
+            autoFocus
+          />
+        ) : (
+          <Tag
+            style={{
+              height: "22px",
+              borderStyle: "dashed",
+              background: "white",
+            }}
+            icon={<FontAwesomeIcon icon={faPlus} />}
+            onClick={() => {
+              setShowKeywordInput(true);
+              setSelectedKeywordIndex(null);
+              setKeywordInput("");
+            }}
+          >
+            <span style={{ marginInlineStart: 8 }}>Neu</span>
+          </Tag>
+        ))}
     </div>
   );
 };
