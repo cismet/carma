@@ -28,11 +28,7 @@ const NavBarWrapper = () => {
   useEffect(() => {
     // dispatch(loadGazeteerEntries());
   }, []);
-  return (
-    <div className="flex items-stretch overflow-clip bg-white min-h-screen p-2">
-      <NavBar />
-    </div>
-  );
+  return <NavBar />;
 };
 
 const router = createHashRouter(
