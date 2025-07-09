@@ -49,12 +49,10 @@ export async function fetchGraphQL(
   jwt,
   forceSkipLogging = false,
   apiPrefix = "",
-  REST_SERVICE = "https://belis-cloud-api.cismet.de",
-  DOMAIN = "BELIS2"
+  REST_SERVICE,
+  DOMAIN
 ) {
   //check if there is a query param with the name logGQL
-  console.log("xxx fetchGraph REST_SERVICE", REST_SERVICE);
-  console.log("xxx fetchGraph DOMAIN", DOMAIN);
   const logGQLFromSearch = new URLSearchParams(window.location.search).get(
     "logGQL"
   );
@@ -411,7 +409,6 @@ export const loadObjectsIntoFeatureCollection = (
       const convertedBoundingBox = convertBoundingBox(boundingBox);
       const state = getState();
       let queryparts = "";
-
       for (const filterKey of Object.keys(filter)) {
         if (filter[filterKey].enabled === true) {
           const qp = onlineQueryParts[filterKey];
@@ -429,9 +426,11 @@ export const loadObjectsIntoFeatureCollection = (
         const response = await fetchGraphQL(
           gqlQuery,
           queryParameter,
-          jwt
-          // REST_SERVICE,
-          // DOMAIN
+          jwt,
+          false,
+          "",
+          REST_SERVICE,
+          DOMAIN
         );
         console.timeEnd("query returned");
 
@@ -451,8 +450,8 @@ export const loadObjectsIntoFeatureCollection = (
           throw new Error("Error in fetchGraphQL (" + response.status + ")");
         }
       } catch (e) {
-        console.log("xxx error was thrown", e);
-        console.log("xxx errorneous query", { gqlQuery, queryParameter, jwt });
+        console.log("error was thrown", e);
+        console.log("errorneous query", { gqlQuery, queryParameter, jwt });
         // dispatch(setRequestBasis(undefined));
         // dispatch(setHealthState({ jwt, healthState: HEALTHSTATUS.ERROR }));
       }
