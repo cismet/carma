@@ -1,3 +1,6 @@
 export * from "./lib/lib-belis-library";
 export { backgroundLayerConfigurations } from "./lib/components/BackgroundLayers";
-export { loadObjectsIntoFeatureCollection } from "./lib/utils/fetchingHelper";
+export {
+  loadObjectsIntoFeatureCollection,
+  featuresFilter,
+} from "./lib/utils/fetchingHelper";

@@ -1,3 +1,4 @@
+import { featuresFilter } from "@carma-apps/belis-library";
 import { createSlice } from "@reduxjs/toolkit";
 
 const focusedSearchMinimumZoomThreshhold = 18;
@@ -32,6 +33,7 @@ const featureCollectionSlice = createSlice({
     features: [],
     selectedFeature: null,
     mode: MODES.OBJECTS,
+    filter: featuresFilter,
   },
   reducers: {
     setFeatureCollection: (state, action) => {
@@ -39,6 +41,9 @@ const featureCollectionSlice = createSlice({
     },
     setSelectedFeature: (state, action) => {
       state.selectedFeature = action.payload;
+    },
+    setFilter: (state, action) => {
+      state.filter = action.payload;
     },
   },
 });
@@ -55,3 +60,5 @@ export const getFeatureCollection = (state) => {
 export const getSelectedFeature = (state) => {
   return state.featureCollection.selectedFeature;
 };
+
+export const getFilter = (state) => state.featureCollection.filter;

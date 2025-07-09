@@ -8,7 +8,7 @@ import { MappingConstants } from "react-cismap";
 import { proj4crs3857def } from "react-cismap/constants/gis";
 import onlineQueryParts, { geomFactories } from "../queries/online";
 
-export const filter = {
+export const featuresFilter = {
   tdta_leuchten: { title: "Leuchten", enabled: true },
   tdta_standort_mast: { title: "Masten (ohne Leuchten)", enabled: true },
   mauerlasche: { title: "Mauerlaschen", enabled: true },
@@ -402,7 +402,8 @@ export const loadObjectsIntoFeatureCollection = (
   },
   REST_SERVICE,
   DOMAIN,
-  setFeatureCollection
+  setFeatureCollection,
+  filter = featuresFilter
 ) => {
   if (boundingBox) {
     return async (dispatch, getState) => {
