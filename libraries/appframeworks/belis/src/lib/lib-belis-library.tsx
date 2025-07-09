@@ -208,8 +208,6 @@ export function BelisMap({
 
         const z = urlSearchParams.get("zoom");
 
-        // console.log("xxx boundingBox", boundingBox);
-        // console.log("xxx z", z);
         if (zoom !== z) {
           setZoom(z);
         }

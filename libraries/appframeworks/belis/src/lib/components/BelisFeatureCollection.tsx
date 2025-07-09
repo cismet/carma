@@ -1,5 +1,4 @@
 import L from "leaflet";
-import React from "react";
 import { FeatureCollectionDisplay } from "react-cismap";
 
 import "leaflet-extra-markers/dist/css/leaflet.extra-markers.min.css";
@@ -29,6 +28,8 @@ export const BelisFeatureCollection = ({
     arbeitsauftrag: "#ff6b6b",
     geom: "#FFFFE7",
   };
+
+  console.log("xxx featureCollection", featureCollection);
 
   return (
     <div>
