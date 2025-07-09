@@ -1,6 +1,8 @@
 // @ts-nocheck
 
 import bboxPolygon from "@turf/bbox-polygon";
+// import onlineQueryParts, { geomFactories } from "../../../queries/online";
+import onlineQueryParts, { geomFactories } from "../queries/online";
 
 export const filter = {
   tdta_leuchten: { title: "Leuchten", enabled: true },
