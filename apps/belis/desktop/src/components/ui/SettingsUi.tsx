@@ -12,7 +12,7 @@ const SettingsUi = () => {
       <Tooltip title="Einstellungen" placement="right">
         <FontAwesomeIcon
           icon={faGear}
-          className="cursor-pointer hover:text-slate-400 text-lg hidden md:block"
+          className="cursor-pointer hover:text-slate-400 text-lg"
           onClick={() => setDrawerOpen(true)}
         />
       </Tooltip>

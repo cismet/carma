@@ -12,7 +12,7 @@ const UserBar = () => {
 
   return (
     <div className="flex items-center h-[calc(5%-20px)] mx-3">
-      <div className="ml-auto flex items-center gap-2 justify-between">
+      <div className="ml-auto flex items-center gap-2">
         <Tooltip title="Ausloggen" placement="right">
           <LogoutOutlined
             className="text-sm cursor-pointer"
