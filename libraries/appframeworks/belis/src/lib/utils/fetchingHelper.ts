@@ -1,7 +1,11 @@
 // @ts-nocheck
 
 import bboxPolygon from "@turf/bbox-polygon";
-// import onlineQueryParts, { geomFactories } from "../../../queries/online";
+import { MappingConstants } from "react-cismap";
+import bboxPolygon from "@turf/bbox-polygon";
+import proj4 from "proj4";
+import { MappingConstants } from "react-cismap";
+import { proj4crs3857def } from "react-cismap/constants/gis";
 import onlineQueryParts, { geomFactories } from "../queries/online";
 
 export const filter = {
@@ -270,17 +274,38 @@ const enrichAndSetFeatures = (
   );
 };
 
-export const loadObjectsIntoFeatureCollection = ({
-  boundingBox,
-  _inFocusMode,
-  _zoom,
-  _overridingFilterState,
-  jwt,
-  onlineDataForcing = false,
-}) => {
+export function convertBoundingBox(
+  bbox,
+  refDefIn = MappingConstants.proj4crs3857def,
+  refDefOut = MappingConstants.proj4crs25832def
+) {
+  if (bbox) {
+    const [left, top] = proj4(refDefIn, refDefOut, [bbox.left, bbox.top]);
+    const [right, bottom] = proj4(refDefIn, refDefOut, [
+      bbox.right,
+      bbox.bottom,
+    ]);
+    return { left, top, right, bottom };
+  }
+}
+
+export const loadObjectsIntoFeatureCollection = (
+  {
+    boundingBox,
+    _inFocusMode,
+    _zoom,
+    _overridingFilterState,
+    jwt,
+    onlineDataForcing = false,
+  },
+  REST_SERVICE,
+  DOMAIN
+) => {
   if (boundingBox) {
+    console.log("xxx fetching start");
     //const boundingBox=
     return async (dispatch, getState) => {
+      const convertedBoundingBox = convertBoundingBox(boundingBox);
       let queryparts = "";
 
       for (const filterKey of Object.keys(filter)) {
@@ -297,7 +322,13 @@ export const loadObjectsIntoFeatureCollection = ({
       try {
         console.time("query returned");
         // online query
-        const response = await fetchGraphQL(gqlQuery, queryParameter, jwt);
+        const response = await fetchGraphQL(
+          gqlQuery,
+          queryParameter,
+          jwt,
+          REST_SERVICE,
+          REST_SERVICE
+        );
         console.timeEnd("query returned");
 
         if (response?.ok) {
@@ -309,13 +340,16 @@ export const loadObjectsIntoFeatureCollection = ({
               featureCollection.push(feature);
             }
           }
+
+          console.log("xxx featureCollection", featureCollection);
+
           enrichAndSetFeatures(dispatch, state, featureCollection, true);
         } else {
           throw new Error("Error in fetchGraphQL (" + response.status + ")");
         }
       } catch (e) {
-        console.log("error was thrown", e);
-        console.log("errorneous query", { gqlQuery, queryParameter, jwt });
+        console.log("xxx error was thrown", e);
+        console.log("xxx errorneous query", { gqlQuery, queryParameter, jwt });
         // dispatch(setRequestBasis(undefined));
         // dispatch(setHealthState({ jwt, healthState: HEALTHSTATUS.ERROR }));
       }

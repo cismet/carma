@@ -32,12 +32,14 @@ const MainPage = () => {
     if (storedJWT) {
       dispatch(
         loadObjectsIntoFeatureCollection(
-          testBb,
-          false,
-          10,
-          null,
-          storedJWT,
-          false,
+          {
+            boundingBox: testBb,
+            _inFocusMode: false,
+            _zoom: 10,
+            _overridingFilterState: null,
+            jwt: storedJWT,
+            onlineDataForcing: false,
+          },
           REST_SERVICE,
           DOMAIN
         )
