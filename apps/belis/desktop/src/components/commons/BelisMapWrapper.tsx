@@ -14,6 +14,8 @@ import {
 import { AppDispatch } from "../../store";
 import { getJWT } from "../../store/slices/auth";
 import { DOMAIN, REST_SERVICE } from "../../constants/belis";
+import type { UnknownAction } from "redux";
+
 const MODES = {
   OBJECTS: "OBJECTS",
   TASKLISTS: "TASKLISTS",
@@ -60,7 +62,7 @@ const BelisMapLibWrapper = ({ refRoutedMap, width, height, jwt }) => {
         REST_SERVICE,
         DOMAIN,
         setFeatureCollection
-      )
+      ) as unknown as UnknownAction
     );
   };
 
