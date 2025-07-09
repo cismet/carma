@@ -1,15 +1,48 @@
 import { useEffect, useRef, useState } from "react";
 import BelisMapLibWrapper from "./commons/BelisMapWrapper";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import { getJWT } from "../store/slices/auth";
 import { CustomCard } from "./commons/CustomCard";
+import { loadObjectsIntoFeatureCollection } from "@carma-apps/belis-library";
+import { DOMAIN, REST_SERVICE } from "../constants/belis";
+
+const testBb = {
+  bbPoly: {
+    type: "Polygon",
+    coordinates: [
+      [
+        [374315.3967299071, 5681617.287973755],
+        [374634.6955785103, 5681617.287973755],
+        [374634.6955785103, 5681446.4647464035],
+        [374315.3967299071, 5681446.4647464035],
+        [374315.3967299071, 5681617.287973755],
+      ],
+    ],
+    crs: { type: "name", properties: { name: "urn:ogc:def:crs:EPSG::25832" } },
+  },
+};
 
 const MainPage = () => {
+  const dispatch = useDispatch();
   const storedJWT = useSelector(getJWT);
   const parentRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
   useEffect(() => {
+    if (storedJWT) {
+      dispatch(
+        loadObjectsIntoFeatureCollection(
+          testBb,
+          false,
+          10,
+          null,
+          storedJWT,
+          false,
+          REST_SERVICE,
+          DOMAIN
+        )
+      );
+    }
     const updateSize = () => {
       const gutter = 230;
       setDimensions({
@@ -20,7 +53,7 @@ const MainPage = () => {
     updateSize();
     window.addEventListener("resize", updateSize);
     return () => window.removeEventListener("resize", updateSize);
-  }, []);
+  }, [storedJWT]);
 
   let refRoutedMap = useRef(null);
   return (
