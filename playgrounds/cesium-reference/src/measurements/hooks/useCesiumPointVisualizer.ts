@@ -5,12 +5,12 @@ import {
   Cross3DGroup,
   update3dCrossVisibility,
 } from "../utils/cesium3DCross";
-import { LABEL_FONT, SCALE_BY_DISTANCE } from "./useNivPoints";
 import {
   isPointMeasurementEntry,
   MeasurementCollection,
   PointMeasurementEntry,
 } from "../types/MeasurementTypes";
+import { createLabelEntity } from "../utils/cesiumLabels";
 
 export const useCesiumPointVisualizer = (
   viewer: Viewer | null,
@@ -83,23 +83,9 @@ export const useCesiumPointVisualizer = (
     if (!viewer || viewer.isDestroyed()) return;
     points.forEach((m, i) => {
       if (!labelRefs.current[m.id]) {
-        const entity = new Entity({
-          id: m.id,
-          name: m.name,
-          position: m.geometryECEF,
-          label: {
-            show: showLabels,
-            text: `P${i + 1} ${m.geometryWGS84.height.toFixed(2)}`,
-            font: LABEL_FONT,
-            fillColor: Color.WHITESMOKE,
-            showBackground: true,
-            backgroundColor: Color.BLACK.withAlpha(0.5),
-            backgroundPadding: new Cartesian2(12, 6),
-            style: 0,
-            pixelOffset: new Cartesian2(0, 40),
-            scaleByDistance: SCALE_BY_DISTANCE,
-            disableDepthTestDistance: Number.POSITIVE_INFINITY,
-          },
+        const entity = createLabelEntity(m, undefined, {
+          show: showLabels,
+          text: `P${i + 1} ${m.geometryWGS84.height.toFixed(2)}`,
         });
         viewer.entities.add(entity);
         labelRefs.current[m.id] = entity;

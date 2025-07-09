@@ -1,24 +1,17 @@
 import { useEffect, useState, useRef } from "react";
 import type { Viewer } from "cesium";
-import {
-  Cartesian2,
-  Cartesian3,
-  Color,
-  Entity,
-  HeightReference,
-  NearFarScalar,
-} from "cesium";
+import { Cartesian2, Cartesian3, Color, Entity, HeightReference } from "cesium";
 
 import { PROJ4_CONVERTERS } from "@carma-commons/utils";
 import { NivPoint, TransformedNivPoint } from "../types/NivPointTypes";
 import { isPointMeasurementEntry } from "../types/MeasurementTypes";
 import { useCesiumMeasurements } from "../CesiumMeasurementsContext";
 import { useCRS, VerticalDatum } from "../CRSContext";
-
-export const SCALE_BY_DISTANCE = new NearFarScalar(0, 1, 5000, 0.0);
-export const SCALE_BY_DISTANCE_POINTS = new NearFarScalar(0, 1, 5000, 0.5);
-
-export const LABEL_FONT = "bold 20px Univers, Verdana Pro, sans-serif";
+import {
+  LABEL_FONT,
+  SCALE_BY_DISTANCE,
+  SCALE_BY_DISTANCE_POINTS,
+} from "../utils/cesiumLabels";
 
 const getElevationValue = (
   point: NivPoint,
@@ -276,7 +269,7 @@ export const useNivPoints = (
       const entity = entities[entityIndex];
       const entityDistance = Cartesian3.distance(
         lastPoint.geometryECEF,
-        entity.position.getValue(viewer.clock.currentTime)
+        entity.position.getValue()
       );
       if (entityDistance < distance) {
         distance = entityDistance;

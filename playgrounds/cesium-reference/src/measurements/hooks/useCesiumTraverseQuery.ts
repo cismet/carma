@@ -11,18 +11,14 @@ import {
   ConstantProperty,
   ConstantPositionProperty,
 } from "cesium";
-import { LABEL_FONT, SCALE_BY_DISTANCE } from "./useNivPoints";
 import {
   MeasurementMode,
   TraverseMeasurementEntry,
 } from "../types/MeasurementTypes";
 import { updateCollection } from "../utils/measurementCollection";
-import {
-  createPointEntity,
-  createSegmentLabel,
-  createTotalLabel,
-} from "../utils/cesiumTraverseEntities";
+import { createPointEntity } from "../utils/cesiumTraverseEntities";
 import { formatDistance } from "../../utils/formatters";
+import { createSegmentLabel, createTotalLabel } from "../utils/cesiumLabels";
 
 export function useCesiumTraverseQuery(
   viewer: Viewer,
@@ -79,9 +75,7 @@ export function useCesiumTraverseQuery(
     }
     const totalLabel = createTotalLabel(
       activeTraversePointsRef.current,
-      totalDistance,
-      LABEL_FONT,
-      SCALE_BY_DISTANCE
+      totalDistance
     );
     viewer.entities.add(totalLabel);
     traverseEntiesRef.current.push(totalLabel);
@@ -179,9 +173,7 @@ export function useCesiumTraverseQuery(
         const segmentLabel = createSegmentLabel(
           lastTwoPoints[0],
           lastTwoPoints[1],
-          segmentDistance,
-          LABEL_FONT,
-          SCALE_BY_DISTANCE
+          segmentDistance
         );
         viewer.entities.add(segmentLabel);
         traverseEntiesRef.current.push(segmentLabel);
@@ -233,9 +225,7 @@ export function useCesiumTraverseQuery(
           previewLabel = createSegmentLabel(
             lastClicked,
             movePosition,
-            segmentDistance,
-            LABEL_FONT,
-            SCALE_BY_DISTANCE
+            segmentDistance
           );
           previewLabel.name = "__previewLabel";
           viewer.entities.add(previewLabel);
