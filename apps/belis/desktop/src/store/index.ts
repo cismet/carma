@@ -4,6 +4,7 @@ import { persistReducer } from "redux-persist";
 import localForage from "localforage";
 import authSlice from "./slices/auth";
 import mapSettings from "./slices/mapSettings";
+import featureCollectionSlice from "./slices/featureCollection";
 
 console.log("store initializing ....");
 
@@ -61,6 +62,7 @@ export default configureStore({
   reducer: {
     auth: persistReducer(authConfig, authSlice.reducer),
     mapSettings: persistReducer(mapSettingsConfig, mapSettings.reducer),
+    featureCollection: featureCollectionSlice.reducer,
   },
   devTools: devToolsEnabled === true && inProduction === false,
   middleware,

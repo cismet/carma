@@ -403,13 +403,15 @@ export const loadObjectsIntoFeatureCollection = (
     onlineDataForcing = false,
   },
   REST_SERVICE,
-  DOMAIN
+  DOMAIN,
+  setFeatureCollection
 ) => {
   if (boundingBox) {
     console.log("xxx boundingBox", boundingBox);
     //const boundingBox=
     return async (dispatch, getState) => {
       const convertedBoundingBox = convertBoundingBox(boundingBox);
+      const state = getState();
       let queryparts = "";
 
       for (const filterKey of Object.keys(filter)) {
@@ -446,7 +448,7 @@ export const loadObjectsIntoFeatureCollection = (
           }
 
           console.log("xxx featureCollection", featureCollection);
-
+          dispatch(setFeatureCollection(featureCollection));
           enrichAndSetFeatures(dispatch, state, featureCollection, true);
         } else {
           throw new Error("Error in fetchGraphQL (" + response.status + ")");

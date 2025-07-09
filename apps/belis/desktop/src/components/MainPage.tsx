@@ -5,6 +5,7 @@ import { getJWT } from "../store/slices/auth";
 import { CustomCard } from "./commons/CustomCard";
 import { loadObjectsIntoFeatureCollection } from "@carma-apps/belis-library";
 import { DOMAIN, REST_SERVICE } from "../constants/belis";
+import { setFeatureCollection } from "../store/slices/featureCollection";
 
 // const testBb = {
 //   bbPoly: {
@@ -48,7 +49,8 @@ const MainPage = () => {
             onlineDataForcing: false,
           },
           REST_SERVICE,
-          DOMAIN
+          DOMAIN,
+          setFeatureCollection
         )
       );
     }

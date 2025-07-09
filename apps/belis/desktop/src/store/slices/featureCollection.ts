@@ -43,6 +43,8 @@ const featureCollectionSlice = createSlice({
   },
 });
 
+export default featureCollectionSlice;
+
 export const { setFeatureCollection, setSelectedFeature } =
   featureCollectionSlice.actions;
 
