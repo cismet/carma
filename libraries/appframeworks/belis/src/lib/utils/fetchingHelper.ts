@@ -290,6 +290,109 @@ export function convertBoundingBox(
   }
 }
 
+const addDmsUrl = (docs, dmsUrl, caption) => {
+  if (dmsUrl?.url?.object_name) {
+    try {
+      docs.push({
+        caption: caption,
+        doc: dmsUrl.url.object_name,
+        description: dmsUrl?.description,
+      });
+    } catch (e) {
+      console.log("error" + e, dmsUrl);
+    }
+  }
+};
+
+const addDokumenteArrayOfDmsUrls = (docs, dArray, caption) => {
+  for (const doc of dArray || []) {
+    addDmsUrl(docs, doc.dms_url, caption);
+  }
+};
+export const getDocs = (feature) => {
+  const docs = [];
+
+  let type, item;
+  if (feature.featuretype === "arbeitsprotokoll") {
+    addDokumenteArrayOfDmsUrls(
+      docs,
+      feature?.properties?.veranlassung?.ar_dokumenteArray,
+      "Veranlassung"
+    );
+
+    //add intermediate docs of veranlassung
+    for (const doc of feature?.properties?.veranlassung?.docs || []) {
+      docs.push(doc);
+    }
+
+    type = feature.fachobjekttype;
+    item = feature.properties.fachobjekt;
+  } else {
+    type = feature.featuretype;
+    item = feature.properties;
+  }
+
+  switch (type) {
+    case "tdta_leuchten":
+      addDokumenteArrayOfDmsUrls(docs, item?.dokumenteArray, "Leuchte");
+      addDokumenteArrayOfDmsUrls(
+        docs,
+        item?.fk_standort?.dokumenteArray,
+        "Standort"
+      );
+      addDmsUrl(docs, item?.fk_leuchttyp?.dms_url, "Leuchtentyp");
+      addDokumenteArrayOfDmsUrls(
+        docs,
+        item?.fk_leuchttyp?.dokumenteArray,
+        "Leuchtentyp"
+      );
+      addDmsUrl(docs, item?.fk_standort?.tkey_masttyp?.dms_url, "Masttyp");
+      addDokumenteArrayOfDmsUrls(
+        docs,
+        item?.fk_standort?.tkey_masttyp?.dokumenteArray,
+        "Masttyp"
+      );
+      return docs;
+    case "Leitung":
+    case "leitung":
+      addDokumenteArrayOfDmsUrls(docs, item?.dokumenteArray, "Leitung");
+      return docs;
+    case "mauerlasche":
+      addDokumenteArrayOfDmsUrls(docs, item?.dokumenteArray, "Mauerlasche");
+      return docs;
+    case "schaltstelle":
+      addDokumenteArrayOfDmsUrls(docs, item?.dokumenteArray, "Schaltstelle");
+      addDmsUrl(
+        docs,
+        item?.rundsteuerempfaenger?.dms_url,
+        "Rundsteuerempfänger"
+      );
+      return docs;
+    case "abzweigdose":
+      addDokumenteArrayOfDmsUrls(docs, item?.dokumenteArray, "Abzweigdose");
+      return docs;
+    case "tdta_standort_mast":
+      addDokumenteArrayOfDmsUrls(docs, item?.dokumenteArray, "Standort");
+      addDmsUrl(docs, item?.tkey_masttyp?.dms_url, "Masttyp");
+      addDokumenteArrayOfDmsUrls(
+        docs,
+        item?.tkey_masttyp?.dokumenteArray,
+        "Masttyp"
+      );
+      return docs;
+    case "arbeitsprotokoll":
+      return docs;
+    case "arbeitsauftrag":
+      return docs;
+    case "geom":
+    case "geometrie":
+      return docs;
+    default:
+      console.log("unknown featuretype. this should not happen", type);
+      return docs;
+  }
+};
+
 export const loadObjectsIntoFeatureCollection = (
   {
     boundingBox,
@@ -303,10 +406,7 @@ export const loadObjectsIntoFeatureCollection = (
   DOMAIN
 ) => {
   if (boundingBox) {
-    console.log("xxx fetching start");
     console.log("xxx boundingBox", boundingBox);
-    console.log("xxx REST_SERVICE", REST_SERVICE);
-    console.log("xxx DOMAIN", DOMAIN);
     //const boundingBox=
     return async (dispatch, getState) => {
       const convertedBoundingBox = convertBoundingBox(boundingBox);
