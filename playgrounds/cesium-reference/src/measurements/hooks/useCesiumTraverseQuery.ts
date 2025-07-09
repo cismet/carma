@@ -19,6 +19,7 @@ import { updateCollection } from "../utils/measurementCollection";
 import { createPointEntity } from "../utils/cesiumTraverseEntities";
 import { formatDistance } from "../../utils/formatters";
 import { createSegmentLabel, createTotalLabel } from "../utils/cesiumLabels";
+import { toGeographicDegrees } from "../utils/geo";
 
 export function useCesiumTraverseQuery(
   viewer: Viewer,
@@ -32,6 +33,12 @@ export function useCesiumTraverseQuery(
   const activeTraversePointsRef = useRef<Cartesian3[]>([]);
   const activeTraverseSegmentsLengthsRef = useRef<number[]>([0]);
   const activeTraverseSegmentsLengthsCumulativeRef = useRef<number[]>([0]);
+  const toGeographic = useCallback(
+    (p: Cartesian3) => {
+      return toGeographicDegrees(p, viewer.scene.globe.ellipsoid);
+    },
+    [viewer]
+  );
 
   const isActiveTraverseRef = useRef<boolean>(false);
 
@@ -185,14 +192,7 @@ export function useCesiumTraverseQuery(
         type: MeasurementMode.Traverse,
         timestamp: Date.now(),
         geometryECEF: [...points],
-        geometryWGS84: points.map((p) => {
-          const carto = viewer.scene.globe.ellipsoid.cartesianToCartographic(p);
-          return {
-            longitude: carto.longitude * (180 / Math.PI),
-            latitude: carto.latitude * (180 / Math.PI),
-            height: carto.height,
-          };
-        }),
+        geometryWGS84: points.map(toGeographic),
         derived: {
           segmentLengths: [...activeTraverseSegmentsLengthsRef.current],
           segmentLengthsCumulative: [
@@ -259,15 +259,7 @@ export function useCesiumTraverseQuery(
           type: MeasurementMode.Traverse,
           timestamp: Date.now(),
           geometryECEF: [...activeTraversePointsRef.current],
-          geometryWGS84: activeTraversePointsRef.current.map((p) => {
-            const carto =
-              viewer.scene.globe.ellipsoid.cartesianToCartographic(p);
-            return {
-              longitude: carto.longitude * (180 / Math.PI),
-              latitude: carto.latitude * (180 / Math.PI),
-              height: carto.height,
-            };
-          }),
+          geometryWGS84: activeTraversePointsRef.current.map(toGeographic),
           derived: {
             segmentLengths: [...activeTraverseSegmentsLengthsRef.current],
             segmentLengthsCumulative: [
@@ -302,6 +294,7 @@ export function useCesiumTraverseQuery(
     finishMeasurement,
     setCollection,
     soloMode,
+    toGeographic,
   ]);
 
   return {
