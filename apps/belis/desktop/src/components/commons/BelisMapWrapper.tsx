@@ -4,13 +4,14 @@ import {
   getActiveBackgroundLayer,
   getBackgroundLayerOpacities,
 } from "../../store/slices/mapSettings";
+import { getFeatureCollection } from "../../store/slices/featureCollection";
 const MODES = {
   OBJECTS: "OBJECTS",
   TASKLISTS: "TASKLISTS",
   PROTOCOLS: "PROTOCOLS",
 } as const;
 const BelisMapLibWrapper = ({ refRoutedMap, width, height, jwt }) => {
-  //   const featureCollection = useSelector(getFeatureCollection);
+  const featureCollection = useSelector(getFeatureCollection);
   //   const inFocusMode = useSelector(isInFocusMode);
   //   const selectedFeature = useSelector(getSelectedFeature);
   //   const featureCollectionMode = useSelector(getFeatureCollectionMode);
@@ -35,7 +36,7 @@ const BelisMapLibWrapper = ({ refRoutedMap, width, height, jwt }) => {
       setMapRef={() => {}}
       setZoom={() => {}}
       loadObjects={() => {}}
-      featureCollection={[]}
+      featureCollection={featureCollection}
       inFocusMode={false}
       selectedFeature={{}}
       loadingState={false}
