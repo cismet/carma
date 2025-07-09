@@ -638,7 +638,7 @@ export const NewLibModal = ({
         ...prev,
         {
           id: "mapLayers",
-          categories: allLayers,
+          categories: allLayers.reverse(),
         },
       ];
     });
