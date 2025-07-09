@@ -12,6 +12,7 @@ import {
   MeasurementMode,
 } from "../types/MeasurementTypes";
 import { updateCollection } from "../utils/measurementCollection";
+import { toGeographicDegrees } from "../utils/geo";
 
 export const useCesiumPointQuery = (
   viewer: Viewer | null,
@@ -46,18 +47,11 @@ export const useCesiumPointQuery = (
         return;
       }
 
-      // Get cartographic coordinates
-      const cartographic =
-        viewer.scene.globe.ellipsoid.cartesianToCartographic(pickedPosition);
-      if (!cartographic) {
-        console.debug("[SceneClick] Could not convert to cartographic");
-        return;
-      }
-
-      // Convert to degrees for display
-      const longitude = cartographic.longitude * (180 / Math.PI);
-      const latitude = cartographic.latitude * (180 / Math.PI);
-      const height = cartographic.height;
+      const geometryWGS84 = toGeographicDegrees(
+        pickedPosition,
+        viewer.scene.globe.ellipsoid
+      );
+      const { height } = geometryWGS84;
 
       const measurementConstructor = (
         prev?: MeasurementCollection
@@ -70,11 +64,7 @@ export const useCesiumPointQuery = (
           index: insertionIndex,
           name: `Messpunkt ${insertionIndex + 1} (${height.toFixed(1)}m)`,
           geometryECEF: pickedPosition,
-          geometryWGS84: {
-            longitude,
-            latitude,
-            height,
-          },
+          geometryWGS84,
           timestamp: new Date().getTime(),
         };
       };
