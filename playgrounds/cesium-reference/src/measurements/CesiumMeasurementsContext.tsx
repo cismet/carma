@@ -39,8 +39,8 @@ interface CesiumMeasurementsContextType {
   hideLabelsOfType: Set<MeasurementMode>;
   setHideLabelsOfType: Dispatch<SetStateAction<Set<MeasurementMode>>>;
   // generic options
-  soloMode: boolean;
-  setSoloMode: Dispatch<SetStateAction<boolean>>;
+  temporaryMode: boolean;
+  setTemporaryMode: Dispatch<SetStateAction<boolean>>;
   // per measurement type options
   pointRadius: number;
   setPointRadius: Dispatch<SetStateAction<number>>;
@@ -51,12 +51,18 @@ const CesiumMeasurementsContext = createContext<
 >(undefined);
 
 export type MeasurementProviderOptions = {
-  soloMode?: boolean;
+  temporary?: boolean;
   pointQueries?: {
     enabled?: boolean;
     radius?: number;
   };
   cartographicCRS?: "string";
+  mode?: MeasurementMode;
+};
+
+const defaultOptions: MeasurementProviderOptions = {
+  temporary: false,
+  mode: MeasurementMode.Traverse,
 };
 
 const defaultPointQueryOptions: MeasurementProviderOptions["pointQueries"] = {
@@ -88,13 +94,15 @@ export const CesiumMeasurementsProvider: React.FC<
     defaultPointQueryOptions
   );
 
-  const soloModeInit = options?.soloMode ?? true;
+  const normalizedOptions = normalizeOptions(options, defaultOptions);
+  const { mode: initialMeasurementMode, temporary: initialTemporary } =
+    normalizedOptions;
 
   const [measurementMode, setMeasurementMode] = useState<MeasurementMode>(
-    MeasurementMode.PointQuery
+    initialMeasurementMode
   );
   const [pointRadius, setPointRadius] = useState(pointQueryOptions.radius);
-  const [soloMode, setSoloMode] = useState(soloModeInit);
+  const [temporaryMode, setTemporaryMode] = useState(initialTemporary);
   const [measurements, setMeasurements] = useState<MeasurementCollection>([]);
   const [showLabels, setShowLabels] = useState<boolean>(true);
   const [hideMeasurementsOfType, setHideMeasurementsOfType] = useState<
@@ -110,7 +118,7 @@ export const CesiumMeasurementsProvider: React.FC<
     viewer,
     measurementMode === MeasurementMode.PointQuery,
     setMeasurements,
-    soloMode,
+    temporaryMode,
     pointRadius
   );
 
@@ -128,12 +136,13 @@ export const CesiumMeasurementsProvider: React.FC<
     pointRadius
   );
 
-  const { clearTraverseQuery } = useCesiumTraverseQuery(
-    viewer,
-    measurementMode === MeasurementMode.Traverse,
-    setMeasurements,
-    soloMode
-  );
+  const { clearTraverseQuery, isActiveTraverse, currentTraverseId } =
+    useCesiumTraverseQuery(
+      viewer,
+      measurementMode === MeasurementMode.Traverse,
+      setMeasurements,
+      temporaryMode
+    );
 
   const mousePosition = useCesiumMousePosition(
     viewer,
@@ -151,7 +160,9 @@ export const CesiumMeasurementsProvider: React.FC<
     measurements,
     showTraverse,
     showTraverseLabels,
-    mousePosition
+    mousePosition,
+    isActiveTraverse,
+    currentTraverseId
   );
 
   const clearAllMeasurements = useCallback(() => {
@@ -199,8 +210,8 @@ export const CesiumMeasurementsProvider: React.FC<
       setHideMeasurementsOfType,
       hideLabelsOfType,
       setHideLabelsOfType,
-      soloMode,
-      setSoloMode,
+      temporaryMode,
+      setTemporaryMode,
       pointRadius,
       setPointRadius,
     }),
@@ -218,8 +229,8 @@ export const CesiumMeasurementsProvider: React.FC<
       setHideMeasurementsOfType,
       hideLabelsOfType,
       setHideLabelsOfType,
-      soloMode,
-      setSoloMode,
+      temporaryMode,
+      setTemporaryMode,
       pointRadius,
       setPointRadius,
     ]

@@ -22,11 +22,14 @@ export function useCesiumTraverseVisualizer(
   measurements: MeasurementCollection = [],
   showTraverse: boolean = true,
   showLabels: boolean = true,
-  mousePosition: Cartesian3 | null = null
+  mousePosition: Cartesian3 | null = null,
+  isActiveTraverse: boolean = false,
+  currentTraverseId: string | null = null
 ) {
   const traverseEntiesRef = useRef<Entity[]>([]);
   const currentPolylineRef = useRef<Entity | null>(null);
   const prevIdsRef = useRef<Set<string>>(new Set());
+  const renderedTraversesRef = useRef<Map<string, number>>(new Map());
   const requestRender = useRequestRender(viewer);
 
   const [traverses, currentIds]: [TraverseMeasurementEntry[], Set<string>] =
@@ -45,6 +48,7 @@ export function useCesiumTraverseVisualizer(
       } catch {}
     });
     traverseEntiesRef.current = [];
+    renderedTraversesRef.current.clear();
 
     if (currentPolylineRef.current) {
       try {
@@ -61,12 +65,17 @@ export function useCesiumTraverseVisualizer(
     const entitiesToRemove: Entity[] = [];
     traverseEntiesRef.current.forEach((entity) => {
       if (entity.id) {
-        const baseId = entity.id.replace(
-          /^(point|segment|total|polyline)-/,
-          "traverse-"
+        // Extract traverse ID from entity ID
+        // Entity IDs are like: "point-traverse-123456789-0", "segment-traverse-123456789-1", etc.
+        // We want to extract: "traverse-123456789"
+        const match = entity.id.match(
+          /^(point|segment|total|polyline)-(traverse-\d+)/
         );
-        if (!currentIds.has(baseId)) {
-          entitiesToRemove.push(entity);
+        if (match) {
+          const traverseId = match[2]; // "traverse-123456789"
+          if (!currentIds.has(traverseId)) {
+            entitiesToRemove.push(entity);
+          }
         }
       }
     });
@@ -81,13 +90,52 @@ export function useCesiumTraverseVisualizer(
       }
     });
 
+    // Remove IDs of deleted traverses from rendered set
+    renderedTraversesRef.current.forEach((timestamp, traverseId) => {
+      if (!currentIds.has(traverseId)) {
+        renderedTraversesRef.current.delete(traverseId);
+      }
+    });
+
     if (!showTraverse) {
       clearVisualizations();
+      renderedTraversesRef.current.clear();
       return;
     }
 
-    // Render completed traverses
+    // Only render new or updated traverses
     traverses.forEach((traverse) => {
+      const lastRenderedTimestamp = renderedTraversesRef.current.get(
+        traverse.id
+      );
+
+      // Skip if this traverse is already fully rendered and hasn't changed
+      if (
+        lastRenderedTimestamp &&
+        lastRenderedTimestamp >= traverse.timestamp
+      ) {
+        return;
+      }
+
+      // Remove existing entities for this traverse before re-rendering (only if it needs updating)
+      if (lastRenderedTimestamp) {
+        const entitiesToRemove = traverseEntiesRef.current.filter((entity) => {
+          if (entity.id) {
+            return entity.id.includes(traverse.id);
+          }
+          return false;
+        });
+
+        entitiesToRemove.forEach((entity) => {
+          try {
+            viewer.entities.remove(entity);
+          } catch {}
+          const index = traverseEntiesRef.current.indexOf(entity);
+          if (index > -1) {
+            traverseEntiesRef.current.splice(index, 1);
+          }
+        });
+      }
       // Point markers
       traverse.geometryECEF.forEach((point, index) => {
         const pointId = `point-${traverse.id}-${index}`;
@@ -155,6 +203,9 @@ export function useCesiumTraverseVisualizer(
         viewer.entities.add(polylineEntity);
         traverseEntiesRef.current.push(polylineEntity);
       }
+
+      // Mark this traverse as fully rendered
+      renderedTraversesRef.current.set(traverse.id, traverse.timestamp);
     });
 
     prevIdsRef.current = currentIds;
@@ -171,18 +222,14 @@ export function useCesiumTraverseVisualizer(
 
   // Handle live preview for active traverse measurement
   useEffect(() => {
-    if (!viewer || viewer.isDestroyed() || !mousePosition) return;
-
-    // Find the currently active traverse (incomplete one)
-    const activeTraverse = traverses.find((traverse) => {
-      // A traverse is "active" if it has at least one point but isn't finished yet
-      // We can determine this by checking if it was recently updated
-      const isRecent = Date.now() - traverse.timestamp < 5000; // 5 second window
-      return isRecent && traverse.geometryECEF.length > 0;
-    });
-
-    if (!activeTraverse || activeTraverse.geometryECEF.length === 0) {
-      // Clean up preview entities
+    if (
+      !viewer ||
+      viewer.isDestroyed() ||
+      !mousePosition ||
+      !isActiveTraverse ||
+      !currentTraverseId
+    ) {
+      // Clean up preview entities when no active traverse
       const previewEntities = traverseEntiesRef.current.filter(
         (entity) =>
           entity.name === "__previewLabel" || entity.name === "__previewLine"
@@ -196,6 +243,15 @@ export function useCesiumTraverseVisualizer(
           traverseEntiesRef.current.splice(index, 1);
         }
       });
+      return;
+    }
+
+    // Find the currently active traverse by ID
+    const activeTraverse = traverses.find(
+      (traverse) => traverse.id === currentTraverseId
+    );
+
+    if (!activeTraverse || activeTraverse.geometryECEF.length === 0) {
       return;
     }
 
@@ -218,11 +274,16 @@ export function useCesiumTraverseVisualizer(
       viewer.entities.add(previewLabel);
       traverseEntiesRef.current.push(previewLabel);
     } else {
-      previewLabel.position = new ConstantPositionProperty(
-        Cartesian3.midpoint(lastPoint, mousePosition, new Cartesian3())
+      const midpoint = Cartesian3.midpoint(
+        lastPoint,
+        mousePosition,
+        new Cartesian3()
       );
-      if (previewLabel.label) {
-        previewLabel.label.text = new ConstantProperty(
+      if (previewLabel.position) {
+        (previewLabel.position as ConstantPositionProperty).setValue(midpoint);
+      }
+      if (previewLabel.label && previewLabel.label.text) {
+        (previewLabel.label.text as ConstantProperty).setValue(
           formatDistance(segmentDistance)
         );
       }
@@ -237,7 +298,7 @@ export function useCesiumTraverseVisualizer(
       previewLine = new Entity({
         name: "__previewLine",
         polyline: {
-          positions: [lastPoint, mousePosition],
+          positions: new ConstantProperty([lastPoint, mousePosition]),
           width: 2,
           material: Color.YELLOW.withAlpha(0.7),
           clampToGround: false,
@@ -246,8 +307,8 @@ export function useCesiumTraverseVisualizer(
       viewer.entities.add(previewLine);
       traverseEntiesRef.current.push(previewLine);
     } else {
-      if (previewLine.polyline) {
-        previewLine.polyline.positions = new ConstantProperty([
+      if (previewLine.polyline && previewLine.polyline.positions) {
+        (previewLine.polyline.positions as ConstantProperty).setValue([
           lastPoint,
           mousePosition,
         ]);
@@ -255,7 +316,16 @@ export function useCesiumTraverseVisualizer(
     }
 
     requestRender();
-  }, [viewer, mousePosition, traverses, requestRender]);
+    // Force immediate render for smooth preview updates
+    viewer.scene.requestRender();
+  }, [
+    viewer,
+    mousePosition,
+    traverses,
+    requestRender,
+    isActiveTraverse,
+    currentTraverseId,
+  ]);
 
   // Cleanup on unmount
   useEffect(() => {

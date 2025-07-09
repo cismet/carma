@@ -18,7 +18,7 @@ export const useCesiumPointQuery = (
   viewer: Viewer | null,
   enabled: boolean = true,
   setCollection: Dispatch<SetStateAction<MeasurementCollection>>,
-  soloMode: boolean = true,
+  temporaryMode: boolean = true,
   radius: number = 10
 ) => {
   const handlerRef = useRef<ScreenSpaceEventHandler | null>(null);
@@ -69,7 +69,7 @@ export const useCesiumPointQuery = (
         };
       };
 
-      updateCollection(setCollection, measurementConstructor, soloMode);
+      updateCollection(setCollection, measurementConstructor, temporaryMode);
 
       console.debug(
         `[SceneClick] Created terrain point at elevation: ${height.toFixed(3)}m`
@@ -85,7 +85,7 @@ export const useCesiumPointQuery = (
       }
       console.debug("[SceneClick] Terrain click handler cleaned up");
     };
-  }, [viewer, enabled, radius, soloMode, setCollection]);
+  }, [viewer, enabled, radius, temporaryMode, setCollection]);
 
   return {};
 };

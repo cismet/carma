@@ -2,6 +2,7 @@ import {
   useEffect,
   useRef,
   useCallback,
+  useState,
   Dispatch,
   SetStateAction,
 } from "react";
@@ -24,14 +25,16 @@ export function useCesiumTraverseQuery(
   viewer: Viewer | null,
   enabled: boolean,
   setCollection: Dispatch<SetStateAction<MeasurementCollection>>,
-  soloMode: boolean = true
+  temporaryMode: boolean = true
 ) {
   const handlerRef = useRef<ScreenSpaceEventHandler | null>(null);
   const activeTraversePointsRef = useRef<Cartesian3[]>([]);
   const activeTraverseSegmentsLengthsRef = useRef<number[]>([0]);
   const activeTraverseSegmentsLengthsCumulativeRef = useRef<number[]>([0]);
-  const isActiveTraverseRef = useRef<boolean>(false);
-  const currentTraverseIdRef = useRef<string | null>(null);
+  const [isActiveTraverse, setIsActiveTraverse] = useState<boolean>(false);
+  const [currentTraverseId, setCurrentTraverseId] = useState<string | null>(
+    null
+  );
 
   const toGeographic = useCallback(
     (p: Cartesian3) => {
@@ -45,15 +48,15 @@ export function useCesiumTraverseQuery(
     activeTraversePointsRef.current = [];
     activeTraverseSegmentsLengthsRef.current = [0];
     activeTraverseSegmentsLengthsCumulativeRef.current = [0];
-    isActiveTraverseRef.current = false;
-    currentTraverseIdRef.current = null;
+    setIsActiveTraverse(false);
+    setCurrentTraverseId(null);
   }, []);
 
   const finishMeasurement = useCallback(() => {
     if (activeTraversePointsRef.current.length < 2) return;
 
     const entry: TraverseMeasurementEntry = {
-      id: currentTraverseIdRef.current!,
+      id: currentTraverseId!,
       type: MeasurementMode.Traverse,
       timestamp: Date.now(),
       geometryECEF: [...activeTraversePointsRef.current],
@@ -70,9 +73,15 @@ export function useCesiumTraverseQuery(
       },
     };
 
-    updateCollection(setCollection, entry, soloMode);
+    updateCollection(setCollection, entry, temporaryMode);
     clearTraverseQuery();
-  }, [toGeographic, setCollection, soloMode, clearTraverseQuery]);
+  }, [
+    toGeographic,
+    setCollection,
+    temporaryMode,
+    clearTraverseQuery,
+    currentTraverseId,
+  ]);
 
   useEffect(() => {
     if (!viewer || viewer.isDestroyed() || !enabled) {
@@ -115,13 +124,15 @@ export function useCesiumTraverseQuery(
       }
 
       // Start a new traverse if none is active
+      let traverseId = currentTraverseId;
       if (currentIndex === 0) {
-        isActiveTraverseRef.current = true;
-        currentTraverseIdRef.current = `traverse-${Date.now()}`;
+        traverseId = `traverse-${Date.now()}`;
+        setIsActiveTraverse(true);
+        setCurrentTraverseId(traverseId);
       }
 
       const entry: TraverseMeasurementEntry = {
-        id: currentTraverseIdRef.current!,
+        id: traverseId!,
         type: MeasurementMode.Traverse,
         timestamp: Date.now(),
         geometryECEF: [...points],
@@ -135,11 +146,11 @@ export function useCesiumTraverseQuery(
         },
       };
 
-      updateCollection(setCollection, entry, soloMode);
+      updateCollection(setCollection, entry, temporaryMode);
     }, ScreenSpaceEventType.LEFT_CLICK);
 
     handler.setInputAction(() => {
-      if (isActiveTraverseRef.current) {
+      if (isActiveTraverse) {
         finishMeasurement();
       }
     }, ScreenSpaceEventType.RIGHT_CLICK);
@@ -155,12 +166,16 @@ export function useCesiumTraverseQuery(
     enabled,
     finishMeasurement,
     setCollection,
-    soloMode,
+    temporaryMode,
     toGeographic,
     clearTraverseQuery,
+    currentTraverseId,
+    isActiveTraverse,
   ]);
 
   return {
     clearTraverseQuery,
+    isActiveTraverse,
+    currentTraverseId,
   };
 }

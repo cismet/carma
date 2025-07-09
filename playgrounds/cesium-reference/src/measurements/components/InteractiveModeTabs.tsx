@@ -73,8 +73,8 @@ export const InteractiveModeTabs: FC = () => {
     pointRadius: pointRadius,
     setPointRadius: setPointRadius,
     measurements,
-    soloMode,
-    setSoloMode,
+    temporaryMode,
+    setTemporaryMode,
     clearAllMeasurements,
   } = useCesiumMeasurements();
 
@@ -128,10 +128,10 @@ export const InteractiveModeTabs: FC = () => {
             size="small"
           />
           <Switch
-            checked={soloMode}
-            onChange={(e) => setSoloMode(e.valueOf())}
-            checkedChildren="Solo"
-            unCheckedChildren="Multi"
+            checked={temporaryMode}
+            onChange={(e) => setTemporaryMode(e.valueOf())}
+            checkedChildren="temporär"
+            unCheckedChildren="permanent"
             size="small"
           />
           <Button
