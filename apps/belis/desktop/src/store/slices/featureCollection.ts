@@ -1,8 +1,6 @@
 import { featuresFilter } from "@carma-apps/belis-library";
 import { createSlice } from "@reduxjs/toolkit";
 
-const focusedSearchMinimumZoomThreshhold = 18;
-const searchMinimumZoomThreshhold = 19;
 export const MODES = {
   OBJECTS: "OBJECTS",
   TASKLISTS: "TASKLISTS",
@@ -16,15 +14,6 @@ export const initialFilter = {
   leitung: { title: "Leitungen", enabled: true },
   schaltstelle: { title: "Schaltstellen", enabled: true },
   abzweigdose: { title: "Abzweigdosen", enabled: true },
-};
-const initialInFocusMode = false;
-
-const initForModes = (initionalizationValue) => {
-  const ret = {};
-  for (const mode of Object.values(MODES)) {
-    ret[mode] = initionalizationValue;
-  }
-  return ret;
 };
 
 const featureCollectionSlice = createSlice({
@@ -50,7 +39,7 @@ const featureCollectionSlice = createSlice({
 
 export default featureCollectionSlice;
 
-export const { setFeatureCollection, setSelectedFeature } =
+export const { setFeatureCollection, setSelectedFeature, setFilter } =
   featureCollectionSlice.actions;
 
 export const getFeatureCollection = (state) => {

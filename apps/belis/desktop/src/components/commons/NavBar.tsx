@@ -9,7 +9,6 @@ const NavBar = () => {
         <span className="ml-2">Belis-desktop</span>
       </div>
       <div className="grow">
-        {/* <div className="mx-3 mt-2">Top navbar</div> */}
         <UserBar />
         <Outlet />
       </div>

@@ -4,6 +4,7 @@ import { getLogin, storeJWT, storeLogin } from "../../store/slices/auth";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import SettingsUi from "../ui/SettingsUi";
+import Filter from "../ui/Filter";
 
 const UserBar = () => {
   const dispatch = useDispatch();
@@ -11,7 +12,8 @@ const UserBar = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="flex items-center h-[calc(5%-20px)] mx-3">
+    <div className="flex items-center  mx-3 my-4">
+      <Filter />
       <div className="ml-auto flex items-center gap-2">
         <Tooltip title="Ausloggen" placement="right">
           <LogoutOutlined

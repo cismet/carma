@@ -42,7 +42,7 @@ const MainPage = () => {
       const gutter = 230;
       setDimensions({
         width: window.innerWidth - gutter,
-        height: window.innerHeight - 116,
+        height: window.innerHeight - 136,
       });
     };
     updateSize();
@@ -51,8 +51,9 @@ const MainPage = () => {
   }, [storedJWT]);
 
   let refRoutedMap = useRef(null);
+  // h-[calc(90%-20px)]
   return (
-    <div ref={parentRef} className="mx-3 mt-1 h-[calc(91%-20px)]">
+    <div ref={parentRef} className="mx-3 mt-1">
       <CustomCard title="Karte" style={{ marginBottom: "1rem" }}>
         <BelisMapLibWrapper
           refRoutedMap={refRoutedMap}
