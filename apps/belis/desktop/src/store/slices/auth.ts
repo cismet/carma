@@ -1,5 +1,5 @@
 import { createSlice } from "@reduxjs/toolkit";
-// import { DOMAIN, SERVICE } from "../../constants/cids";
+import { ENDPOINT, jwtTestQuery } from "../../constants/belis";
 
 const initialState = {
   jwt: undefined,
@@ -55,4 +55,33 @@ export const getLoginFromJWT = (jwt) => {
 
     return JSON.parse(jsonPayload).sub;
   }
+};
+
+export const checkJWTValidation = () => {
+  return async (dispatch, getState) => {
+    const jwt = getState().auth.jwt;
+
+    fetch(ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${jwt}`,
+      },
+      body: JSON.stringify({
+        query: jwtTestQuery,
+      }),
+    })
+      .then((result) => {
+        if (result.status === 401) {
+          dispatch(storeJWT(undefined));
+          dispatch(storeLogin(undefined));
+        }
+      })
+      .catch((error) => {
+        console.error(
+          "There was a problem with the fetch operation:",
+          error.message
+        );
+      });
+  };
 };
