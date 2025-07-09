@@ -1,16 +1,27 @@
-import { BelisMap } from "@carma-apps/belis-library";
+import {
+  BelisMap,
+  loadObjectsIntoFeatureCollection,
+} from "@carma-apps/belis-library";
 import { useDispatch, useSelector } from "react-redux";
 import {
   getActiveBackgroundLayer,
   getBackgroundLayerOpacities,
 } from "../../store/slices/mapSettings";
-import { getFeatureCollection } from "../../store/slices/featureCollection";
+import {
+  getFeatureCollection,
+  setFeatureCollection,
+} from "../../store/slices/featureCollection";
+import { AppDispatch } from "../../store";
+import { getJWT } from "../../store/slices/auth";
+import { DOMAIN, REST_SERVICE } from "../../constants/belis";
 const MODES = {
   OBJECTS: "OBJECTS",
   TASKLISTS: "TASKLISTS",
   PROTOCOLS: "PROTOCOLS",
 } as const;
 const BelisMapLibWrapper = ({ refRoutedMap, width, height, jwt }) => {
+  const dispatch: AppDispatch = useDispatch();
+  const storedJWT = useSelector(getJWT);
   const featureCollection = useSelector(getFeatureCollection);
   //   const inFocusMode = useSelector(isInFocusMode);
   //   const selectedFeature = useSelector(getSelectedFeature);
@@ -24,7 +35,34 @@ const BelisMapLibWrapper = ({ refRoutedMap, width, height, jwt }) => {
   const backgroundLayerOpacities = useSelector(getBackgroundLayerOpacities);
   const activeBackgroundLayer = useSelector(getActiveBackgroundLayer);
 
-  const dispatch = useDispatch();
+  // if (storedJWT) {
+  //   dispatch(
+  //     loadObjectsIntoFeatureCollection(
+  //       {
+  //         boundingBox: testBb,
+  //         _inFocusMode: true,
+  //         _zoom: 19,
+  //         _overridingFilterState: null,
+  //         jwt: storedJWT,
+  //         onlineDataForcing: false,
+  //       },
+  //       REST_SERVICE,
+  //       DOMAIN,
+  //       setFeatureCollection
+  //     )
+  //   );
+  // }
+
+  const handleLoadObjects = (settings) => {
+    dispatch(
+      loadObjectsIntoFeatureCollection(
+        settings,
+        REST_SERVICE,
+        DOMAIN,
+        setFeatureCollection
+      )
+    );
+  };
 
   return (
     <BelisMap
@@ -35,12 +73,12 @@ const BelisMapLibWrapper = ({ refRoutedMap, width, height, jwt }) => {
       setBounds={() => {}}
       setMapRef={() => {}}
       setZoom={() => {}}
-      loadObjects={() => {}}
+      loadObjects={handleLoadObjects}
       featureCollection={featureCollection}
       inFocusMode={false}
       selectedFeature={{}}
       loadingState={false}
-      featureCollectionMode={""}
+      featureCollectionMode={"OBJECTS"}
       connectionMode={"ONLINE"}
       background={""}
       inPaleMode={false}

@@ -205,7 +205,6 @@ export function BelisMap({
     ) {
       if (mapBounds && mapSize) {
         const boundingBox = convertBounds2BBox(mapBounds);
-
         const z = urlSearchParams.get("zoom");
 
         if (zoom !== z) {

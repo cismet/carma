@@ -6,6 +6,7 @@ import { CustomCard } from "./commons/CustomCard";
 import { loadObjectsIntoFeatureCollection } from "@carma-apps/belis-library";
 import { DOMAIN, REST_SERVICE } from "../constants/belis";
 import { setFeatureCollection } from "../store/slices/featureCollection";
+import { AppDispatch } from "../store";
 
 // const testBb = {
 //   bbPoly: {
@@ -31,29 +32,12 @@ const testBb = {
 };
 
 const MainPage = () => {
-  const dispatch = useDispatch();
+  const dispatch: AppDispatch = useDispatch();
   const storedJWT = useSelector(getJWT);
   const parentRef = useRef<HTMLDivElement>(null);
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
   useEffect(() => {
-    if (storedJWT) {
-      dispatch(
-        loadObjectsIntoFeatureCollection(
-          {
-            boundingBox: testBb,
-            _inFocusMode: true,
-            _zoom: 19,
-            _overridingFilterState: null,
-            jwt: storedJWT,
-            onlineDataForcing: false,
-          },
-          REST_SERVICE,
-          DOMAIN,
-          setFeatureCollection
-        )
-      );
-    }
     const updateSize = () => {
       const gutter = 230;
       setDimensions({
