@@ -35,6 +35,14 @@ export function useCesiumTraverseQuery(
   const [currentTraverseId, setCurrentTraverseId] = useState<string | null>(
     null
   );
+  const temporaryMeasurementIdRef = useRef<string | null>(null);
+
+  // Reset temporary measurement tracking when temporary mode is disabled
+  useEffect(() => {
+    if (!temporaryMode) {
+      temporaryMeasurementIdRef.current = null;
+    }
+  }, [temporaryMode]);
 
   const toGeographic = useCallback(
     (p: Cartesian3) => {
@@ -73,7 +81,15 @@ export function useCesiumTraverseQuery(
       },
     };
 
-    updateCollection(setCollection, entry, temporaryMode);
+    updateCollection(
+      setCollection,
+      entry,
+      temporaryMode,
+      temporaryMeasurementIdRef.current,
+      (newId: string) => {
+        temporaryMeasurementIdRef.current = newId;
+      }
+    );
     clearTraverseQuery();
   }, [
     toGeographic,
@@ -129,6 +145,14 @@ export function useCesiumTraverseQuery(
         traverseId = `traverse-${Date.now()}`;
         setIsActiveTraverse(true);
         setCurrentTraverseId(traverseId);
+
+        // Track the first measurement created in temporary mode
+        if (temporaryMode && temporaryMeasurementIdRef.current === null) {
+          temporaryMeasurementIdRef.current = traverseId;
+          console.debug(
+            `[TraverseQuery] Temporary mode: Tracking measurement ${traverseId} as the temporary measurement`
+          );
+        }
       }
 
       const entry: TraverseMeasurementEntry = {
@@ -146,7 +170,15 @@ export function useCesiumTraverseQuery(
         },
       };
 
-      updateCollection(setCollection, entry, temporaryMode);
+      updateCollection(
+        setCollection,
+        entry,
+        temporaryMode,
+        temporaryMeasurementIdRef.current,
+        (newId: string) => {
+          temporaryMeasurementIdRef.current = newId;
+        }
+      );
     }, ScreenSpaceEventType.LEFT_CLICK);
 
     handler.setInputAction(() => {

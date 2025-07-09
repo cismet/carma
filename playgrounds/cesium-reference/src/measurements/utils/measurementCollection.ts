@@ -42,7 +42,9 @@ export const updateLastOfMeasurementType =
 export const updateCollection = (
   setCollection: Dispatch<SetStateAction<MeasurementCollection>>,
   entryOrConstructor: EntryOrConstructor,
-  temporaryMode: boolean
+  temporaryMode: boolean,
+  temporaryMeasurementId?: string | null,
+  updateTemporaryMeasurementId?: (id: string) => void
 ) => {
   setCollection((prevCollection: MeasurementCollection) => {
     const measurement = isConstructor(entryOrConstructor)
@@ -64,15 +66,40 @@ export const updateCollection = (
       return newCollection;
     } else {
       // Adding a new entry (new ID - starting new measurement)
-      if (temporaryMode) {
-        // In temporary mode, remove the last measurement of the same type when starting a new one
-        const filteredCollection = prevCollection.filter(
-          (m) => m.type !== measurement.type
+      if (temporaryMode && temporaryMeasurementId) {
+        // In temporary mode, replace only the specific measurement that was created after temporary mode was enabled
+        const temporaryMeasurementIndex = prevCollection.findIndex(
+          (m) => m.id === temporaryMeasurementId
         );
+
+        let newCollection = [...prevCollection];
+
+        if (temporaryMeasurementIndex !== -1) {
+          // Replace the temporary measurement
+          newCollection[temporaryMeasurementIndex] = measurement;
+          console.debug(
+            `[updateCollection] Temporary mode: Replaced temporary measurement ${temporaryMeasurementId} with ${measurement.id} at index ${temporaryMeasurementIndex}`
+          );
+
+          // Update the temporary measurement ID to the new one
+          if (updateTemporaryMeasurementId) {
+            updateTemporaryMeasurementId(measurement.id);
+          }
+        } else {
+          // The temporary measurement doesn't exist anymore, just add the new one
+          newCollection.push(measurement);
+          console.debug(
+            `[updateCollection] Temporary mode: Temporary measurement ${temporaryMeasurementId} not found, added new measurement ${measurement.id}`
+          );
+        }
+
+        return newCollection;
+      } else if (temporaryMode) {
+        // In temporary mode but no specific temporary measurement ID yet, just add
         console.debug(
-          `[updateCollection] Temporary mode: Replaced measurement of type ${measurement.type} with new measurement ${measurement.id}`
+          `[updateCollection] Temporary mode: Added first measurement ${measurement.id}`
         );
-        return [...filteredCollection, measurement];
+        return [...prevCollection, measurement];
       } else {
         // In permanent mode, just add the new measurement
         console.debug(

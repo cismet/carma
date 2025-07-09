@@ -22,6 +22,14 @@ export const useCesiumPointQuery = (
   radius: number = 10
 ) => {
   const handlerRef = useRef<ScreenSpaceEventHandler | null>(null);
+  const temporaryMeasurementIdRef = useRef<string | null>(null);
+
+  // Reset temporary measurement tracking when temporary mode is disabled
+  useEffect(() => {
+    if (!temporaryMode) {
+      temporaryMeasurementIdRef.current = null;
+    }
+  }, [temporaryMode]);
 
   useEffect(() => {
     if (!viewer || viewer.isDestroyed() || !enabled) {
@@ -53,6 +61,8 @@ export const useCesiumPointQuery = (
       );
       const { height } = geometryWGS84;
 
+      const measurementId = `point-${Date.now()}`;
+
       const measurementConstructor = (
         prev?: MeasurementCollection
       ): MeasurementEntry => {
@@ -60,7 +70,7 @@ export const useCesiumPointQuery = (
           prev?.filter(isPointMeasurementEntry).length || 0;
         return {
           type: MeasurementMode.PointQuery,
-          id: `point-${Date.now()}`,
+          id: measurementId,
           index: insertionIndex,
           name: `Messpunkt ${insertionIndex + 1} (${height.toFixed(1)}m)`,
           geometryECEF: pickedPosition,
@@ -69,7 +79,23 @@ export const useCesiumPointQuery = (
         };
       };
 
-      updateCollection(setCollection, measurementConstructor, temporaryMode);
+      // Track the first measurement created in temporary mode
+      if (temporaryMode && temporaryMeasurementIdRef.current === null) {
+        temporaryMeasurementIdRef.current = measurementId;
+        console.debug(
+          `[PointQuery] Temporary mode: Tracking measurement ${measurementId} as the temporary measurement`
+        );
+      }
+
+      updateCollection(
+        setCollection,
+        measurementConstructor,
+        temporaryMode,
+        temporaryMeasurementIdRef.current,
+        (newId: string) => {
+          temporaryMeasurementIdRef.current = newId;
+        }
+      );
 
       console.debug(
         `[SceneClick] Created terrain point at elevation: ${height.toFixed(3)}m`
