@@ -47,12 +47,31 @@ export const updateCollection = (
   if (soloMode) {
     setCollection(updateLastOfMeasurementType(entryOrConstructor));
   } else {
-    // no push because this is still react were in here. Changes to the collection should cause a rerender
-    setCollection((prevCollection: MeasurementCollection) => [
-      ...prevCollection,
-      isConstructor(entryOrConstructor)
+    setCollection((prevCollection: MeasurementCollection) => {
+      const measurement = isConstructor(entryOrConstructor)
         ? entryOrConstructor(prevCollection)
-        : entryOrConstructor,
-    ]);
+        : entryOrConstructor;
+
+      // Check if an entry with the same ID already exists
+      const existingIndex = prevCollection.findIndex(
+        (m) => m.id === measurement.id
+      );
+
+      if (existingIndex !== -1) {
+        // Update existing entry
+        const newCollection = [...prevCollection];
+        newCollection[existingIndex] = measurement;
+        console.debug(
+          `[updateCollection] Updated existing measurement ${measurement.id} at index ${existingIndex}`
+        );
+        return newCollection;
+      } else {
+        // Add new entry
+        console.debug(
+          `[updateCollection] Adding new measurement ${measurement.id}`
+        );
+        return [...prevCollection, measurement];
+      }
+    });
   }
 };

@@ -15,6 +15,8 @@ import { useCesiumViewer } from "../contexts/CesiumViewerContext";
 import { useCesiumPointQuery } from "./hooks/useCesiumPointQuery";
 import { useCesiumPointVisualizer } from "./hooks/useCesiumPointVisualizer";
 import { useCesiumTraverseQuery } from "./hooks/useCesiumTraverseQuery";
+import { useCesiumTraverseVisualizer } from "./hooks/useCesiumTraverseVisualizer";
+import { useCesiumMousePosition } from "./hooks/useCesiumMousePosition";
 
 import {
   type MeasurementCollection,
@@ -118,14 +120,6 @@ export const CesiumMeasurementsProvider: React.FC<
     showLabels &&
     !hideLabelsOfType.has(MeasurementMode.PointQuery);
 
-  console.debug(
-    "xxx",
-    showPoints,
-    showPointLabels,
-    hideMeasurementsOfType,
-    hideLabelsOfType
-  );
-
   useCesiumPointVisualizer(
     viewer,
     measurements,
@@ -139,6 +133,25 @@ export const CesiumMeasurementsProvider: React.FC<
     measurementMode === MeasurementMode.Traverse,
     setMeasurements,
     soloMode
+  );
+
+  const mousePosition = useCesiumMousePosition(
+    viewer,
+    measurementMode === MeasurementMode.Traverse
+  );
+
+  const showTraverse = !hideMeasurementsOfType.has(MeasurementMode.Traverse);
+  const showTraverseLabels =
+    showTraverse &&
+    showLabels &&
+    !hideLabelsOfType.has(MeasurementMode.Traverse);
+
+  useCesiumTraverseVisualizer(
+    viewer,
+    measurements,
+    showTraverse,
+    showTraverseLabels,
+    mousePosition
   );
 
   const clearAllMeasurements = useCallback(() => {

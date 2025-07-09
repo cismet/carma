@@ -52,12 +52,13 @@ export const createSegmentLabel = (
   endPoint: Cartesian3,
   segmentDistance: number,
   labelFont = LABEL_FONT,
-  scaleByDistance = SCALE_BY_DISTANCE
+  scaleByDistance = SCALE_BY_DISTANCE,
+  id?: string
 ): Entity => {
   const midpoint = Cartesian3.midpoint(startPoint, endPoint, new Cartesian3());
   const labelText = formatDistance(segmentDistance);
   return new Entity({
-    id: `measurement-segment-${Date.now()}-${Math.random()}`,
+    id: id || `measurement-segment-${Date.now()}-${Math.random()}`,
     position: midpoint,
     label: {
       text: labelText,
@@ -78,11 +79,12 @@ export const createTotalLabel = (
   points: Cartesian3[],
   totalDistance: number,
   labelFont = LABEL_FONT,
-  scaleByDistance = SCALE_BY_DISTANCE
+  scaleByDistance = SCALE_BY_DISTANCE,
+  id?: string
 ): Entity => {
   const lastPoint = points[points.length - 1];
   return new Entity({
-    id: `measurement-total-${Date.now()}`,
+    id: id || `measurement-total-${Date.now()}`,
     position: lastPoint,
     label: {
       text: `Total: ${formatDistance(totalDistance)}`,

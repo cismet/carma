@@ -4,14 +4,15 @@ import { formatDistance } from "../../utils/formatters";
 export const createPointEntity = (
   position: Cartesian3,
   pointIndex: number,
-  cumulativeDistance: number
+  cumulativeDistance: number,
+  id?: string
 ): Entity => {
   const pointLabelText =
     pointIndex === 0 // For the first point, don't show distance, just "1"
       ? "1"
       : `${pointIndex + 1}\n${formatDistance(cumulativeDistance)}`; // Subsequent points: "Index\nCumulativeDist"
   return new Entity({
-    id: `measurement-point-${Date.now()}-${pointIndex}`,
+    id: id || `measurement-point-${Date.now()}-${pointIndex}`,
     position: position,
     point: {
       pixelSize: 8,
