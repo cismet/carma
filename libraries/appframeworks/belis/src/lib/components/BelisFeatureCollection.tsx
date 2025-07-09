@@ -29,8 +29,6 @@ export const BelisFeatureCollection = ({
     geom: "#FFFFE7",
   };
 
-  console.log("xxx featureCollection", featureCollection);
-
   return (
     <div>
       {DEBUGGING && (
@@ -104,7 +102,6 @@ export const BelisFeatureCollection = ({
             opacity: 1,
             weight: 4,
             fillOpacity: 0.8,
-
             customMarker,
           };
         }}

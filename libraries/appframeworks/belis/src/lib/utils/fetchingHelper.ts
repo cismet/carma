@@ -407,8 +407,6 @@ export const loadObjectsIntoFeatureCollection = (
   setFeatureCollection
 ) => {
   if (boundingBox) {
-    console.log("xxx boundingBox", boundingBox);
-    //const boundingBox=
     return async (dispatch, getState) => {
       const convertedBoundingBox = convertBoundingBox(boundingBox);
       const state = getState();
@@ -447,9 +445,8 @@ export const loadObjectsIntoFeatureCollection = (
             }
           }
 
-          console.log("xxx featureCollection", featureCollection);
           dispatch(setFeatureCollection(featureCollection));
-          enrichAndSetFeatures(dispatch, state, featureCollection, true);
+          // enrichAndSetFeatures(dispatch, state, featureCollection, true);
         } else {
           throw new Error("Error in fetchGraphQL (" + response.status + ")");
         }
