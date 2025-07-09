@@ -6,20 +6,27 @@ import { CustomCard } from "./commons/CustomCard";
 import { loadObjectsIntoFeatureCollection } from "@carma-apps/belis-library";
 import { DOMAIN, REST_SERVICE } from "../constants/belis";
 
+// const testBb = {
+//   bbPoly: {
+//     type: "Polygon",
+//     coordinates: [
+//       [
+//         [374315.3967299071, 5681617.287973755],
+//         [374634.6955785103, 5681617.287973755],
+//         [374634.6955785103, 5681446.4647464035],
+//         [374315.3967299071, 5681446.4647464035],
+//         [374315.3967299071, 5681617.287973755],
+//       ],
+//     ],
+//     crs: { type: "name", properties: { name: "urn:ogc:def:crs:EPSG::25832" } },
+//   },
+// };
+
 const testBb = {
-  bbPoly: {
-    type: "Polygon",
-    coordinates: [
-      [
-        [374315.3967299071, 5681617.287973755],
-        [374634.6955785103, 5681617.287973755],
-        [374634.6955785103, 5681446.4647464035],
-        [374315.3967299071, 5681446.4647464035],
-        [374315.3967299071, 5681617.287973755],
-      ],
-    ],
-    crs: { type: "name", properties: { name: "urn:ogc:def:crs:EPSG::25832" } },
-  },
+  left: 801426.7152987025,
+  top: 6669646.369240411,
+  right: 801600.7886873365,
+  bottom: 6669401.233302045,
 };
 
 const MainPage = () => {
@@ -34,8 +41,8 @@ const MainPage = () => {
         loadObjectsIntoFeatureCollection(
           {
             boundingBox: testBb,
-            _inFocusMode: false,
-            _zoom: 10,
+            _inFocusMode: true,
+            _zoom: 19,
             _overridingFilterState: null,
             jwt: storedJWT,
             onlineDataForcing: false,

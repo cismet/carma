@@ -49,11 +49,12 @@ export async function fetchGraphQL(
   jwt,
   forceSkipLogging = false,
   apiPrefix = "",
-  REST_SERVICE,
-  DOMAIN
+  REST_SERVICE = "https://belis-cloud-api.cismet.de",
+  DOMAIN = "BELIS2"
 ) {
   //check if there is a query param with the name logGQL
-
+  console.log("xxx fetchGraph REST_SERVICE", REST_SERVICE);
+  console.log("xxx fetchGraph DOMAIN", DOMAIN);
   const logGQLFromSearch = new URLSearchParams(window.location.search).get(
     "logGQL"
   );
@@ -303,6 +304,9 @@ export const loadObjectsIntoFeatureCollection = (
 ) => {
   if (boundingBox) {
     console.log("xxx fetching start");
+    console.log("xxx boundingBox", boundingBox);
+    console.log("xxx REST_SERVICE", REST_SERVICE);
+    console.log("xxx DOMAIN", DOMAIN);
     //const boundingBox=
     return async (dispatch, getState) => {
       const convertedBoundingBox = convertBoundingBox(boundingBox);
@@ -325,9 +329,9 @@ export const loadObjectsIntoFeatureCollection = (
         const response = await fetchGraphQL(
           gqlQuery,
           queryParameter,
-          jwt,
-          REST_SERVICE,
-          REST_SERVICE
+          jwt
+          // REST_SERVICE,
+          // DOMAIN
         );
         console.timeEnd("query returned");
 
