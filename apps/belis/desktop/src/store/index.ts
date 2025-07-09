@@ -58,7 +58,7 @@ const mapSettingsConfig = {
   whitelist: ["activeBackgroundLayer", "backgroundLayerOpacities"],
 };
 
-export default configureStore({
+const store = configureStore({
   reducer: {
     auth: persistReducer(authConfig, authSlice.reducer),
     mapSettings: persistReducer(mapSettingsConfig, mapSettings.reducer),
@@ -67,3 +67,8 @@ export default configureStore({
   devTools: devToolsEnabled === true && inProduction === false,
   middleware,
 });
+
+export type AppStore = typeof store;
+export type RootState = ReturnType<AppStore["getState"]>;
+export type AppDispatch = AppStore["dispatch"];
+export default store;
