@@ -404,10 +404,12 @@ export const loadObjectsIntoFeatureCollection = (
   REST_SERVICE,
   DOMAIN,
   setFeatureCollection,
-  filter = featuresFilter
+  filter = featuresFilter,
+  setDone
 ) => {
   if (boundingBox) {
     return async (dispatch, getState) => {
+      dispatch(setDone(false));
       const convertedBoundingBox = convertBoundingBox(boundingBox);
       const state = getState();
       let queryparts = "";
@@ -456,6 +458,8 @@ export const loadObjectsIntoFeatureCollection = (
         console.log("errorneous query", { gqlQuery, queryParameter, jwt });
         // dispatch(setRequestBasis(undefined));
         // dispatch(setHealthState({ jwt, healthState: HEALTHSTATUS.ERROR }));
+      } finally {
+        dispatch(setDone(true));
       }
     };
   }
