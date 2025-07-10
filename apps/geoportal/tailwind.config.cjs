@@ -11,7 +11,9 @@ module.exports = {
     path.join(
       __dirname,
       "../../libraries/appframeworks/portals/src/**/*.{js,ts,jsx,tsx}",
+      
     ),
+    path.join("libraries/**/src/**/*.{js,ts,jsx,tsx}"),
   ],
   theme: {
     extend: {
