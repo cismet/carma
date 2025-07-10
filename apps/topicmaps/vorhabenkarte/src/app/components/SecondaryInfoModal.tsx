@@ -127,7 +127,7 @@ const SecondaryInfoModal = ({ feature, setOpen, versionString }) => {
                   : "inherit",
               }}
             >
-              {plan.info.title}
+              {plan.info.title} {plan.abgeschlossen ? "(abgeschlossen)" : ""}
             </span>
           </Modal.Title>
         </Modal.Header>
