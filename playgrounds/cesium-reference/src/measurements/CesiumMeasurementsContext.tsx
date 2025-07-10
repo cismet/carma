@@ -44,6 +44,8 @@ interface CesiumMeasurementsContextType {
   // per measurement type options
   pointRadius: number;
   setPointRadius: Dispatch<SetStateAction<number>>;
+  heightOffset: number;
+  setHeightOffset: Dispatch<SetStateAction<number>>;
 }
 
 const CesiumMeasurementsContext = createContext<
@@ -55,6 +57,9 @@ export type MeasurementProviderOptions = {
   pointQueries?: {
     enabled?: boolean;
     radius?: number;
+  };
+  traverse?: {
+    heightOffset?: number;
   };
   cartographicCRS?: "string";
   mode?: MeasurementMode;
@@ -68,6 +73,10 @@ const defaultOptions: MeasurementProviderOptions = {
 const defaultPointQueryOptions: MeasurementProviderOptions["pointQueries"] = {
   enabled: true,
   radius: 10,
+};
+
+const defaultTraverseOptions: MeasurementProviderOptions["traverse"] = {
+  heightOffset: 1.5,
 };
 
 interface CesiumMeasurementsProviderProps {
@@ -94,6 +103,11 @@ export const CesiumMeasurementsProvider: React.FC<
     defaultPointQueryOptions
   );
 
+  const traverseOptions = normalizeOptions(
+    options?.traverse,
+    defaultTraverseOptions
+  );
+
   const normalizedOptions = normalizeOptions(options, defaultOptions);
   const { mode: initialMeasurementMode, temporary: initialTemporary } =
     normalizedOptions;
@@ -102,6 +116,9 @@ export const CesiumMeasurementsProvider: React.FC<
     initialMeasurementMode
   );
   const [pointRadius, setPointRadius] = useState(pointQueryOptions.radius);
+  const [heightOffset, setHeightOffset] = useState(
+    traverseOptions.heightOffset
+  );
   const [temporaryMode, setTemporaryMode] = useState(initialTemporary);
   const [measurements, setMeasurements] = useState<MeasurementCollection>([]);
   const [showLabels, setShowLabels] = useState<boolean>(true);
@@ -141,7 +158,8 @@ export const CesiumMeasurementsProvider: React.FC<
       viewer,
       measurementMode === MeasurementMode.Traverse,
       setMeasurements,
-      temporaryMode
+      temporaryMode,
+      heightOffset
     );
 
   const mousePosition = useCesiumMousePosition(
@@ -214,6 +232,8 @@ export const CesiumMeasurementsProvider: React.FC<
       setTemporaryMode,
       pointRadius,
       setPointRadius,
+      heightOffset,
+      setHeightOffset,
     }),
     [
       measurementMode,
@@ -233,6 +253,8 @@ export const CesiumMeasurementsProvider: React.FC<
       setTemporaryMode,
       pointRadius,
       setPointRadius,
+      heightOffset,
+      setHeightOffset,
     ]
   );
 

@@ -45,6 +45,7 @@ export type TraverseMeasurementEntry = MeasurementEntry & {
   type: MeasurementMode.Traverse;
   geometryECEF: Cartesian3[];
   geometryWGS84: GeomPolyline;
+  heightOffset?: number; // Height offset in meters for visualization
   derived?: {
     segmentLengths: number[];
     segmentLengthsCumulative: number[];

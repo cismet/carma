@@ -6,6 +6,10 @@ import {
   Viewer,
   ConstantProperty,
   ConstantPositionProperty,
+  Transforms,
+  Matrix4,
+  Ellipsoid,
+  Cartesian4,
 } from "cesium";
 import {
   isTraverseMeasurementEntry,
@@ -19,6 +23,34 @@ import {
   createSegmentNodeLabel,
 } from "../utils/cesiumLabels";
 import { useRequestRender } from "./useRequestRender";
+
+const getLocalElevatedPoint = (
+  position: Cartesian3,
+  heightOffset: number,
+  ellipsoid: Ellipsoid = Ellipsoid.WGS84
+): Cartesian3 => {
+  if (heightOffset === 0) return position;
+
+  // Get the local up direction at this position
+  const localToFixedFrame = Transforms.eastNorthUpToFixedFrame(
+    position,
+    ellipsoid
+  );
+  const localUp = Matrix4.getColumn(localToFixedFrame, 2, new Cartesian4());
+
+  // Convert to Cartesian3 (ignore w component)
+  const upVector = new Cartesian3(localUp.x, localUp.y, localUp.z);
+
+  // Scale the up vector by the height offset
+  const offsetVector = Cartesian3.multiplyByScalar(
+    upVector,
+    heightOffset,
+    new Cartesian3()
+  );
+
+  // Add the offset to the original position
+  return Cartesian3.add(position, offsetVector, new Cartesian3());
+};
 
 export function useCesiumTraverseVisualizer(
   viewer: Viewer | null,
@@ -69,7 +101,7 @@ export function useCesiumTraverseVisualizer(
     traverseEntiesRef.current.forEach((entity) => {
       if (entity.id) {
         const match = entity.id.match(
-          /^(point-marker|point-label|segment|polyline)-(traverse-\d+)/
+          /^(point-marker|point-label|segment|polyline|vertical-line)-(traverse-\d+)/
         );
         if (match) {
           const traverseId = match[2];
@@ -140,11 +172,37 @@ export function useCesiumTraverseVisualizer(
       traverse.geometryECEF.forEach((point, index) => {
         const pointMarkerId = `point-marker-${traverse.id}-${index}`;
         const pointLabelId = `point-label-${traverse.id}-${index}`;
+        const verticalLineId = `vertical-line-${traverse.id}-${index}`;
+
+        // Get heightOffset from measurement data, default to 0 if not set
+        const heightOffset = traverse.heightOffset || 0;
+
+        // Create elevated point for visualization if heightOffset > 0
+        const visualizationPoint =
+          heightOffset > 0 ? getLocalElevatedPoint(point, heightOffset) : point;
 
         if (!viewer.entities.getById(pointMarkerId)) {
-          const pointMarker = createPointMarker(point, pointMarkerId);
+          const pointMarker = createPointMarker(
+            visualizationPoint,
+            pointMarkerId
+          );
           viewer.entities.add(pointMarker);
           traverseEntiesRef.current.push(pointMarker);
+        }
+
+        // Add vertical line from ground to elevated point if heightOffset > 0
+        if (heightOffset > 0 && !viewer.entities.getById(verticalLineId)) {
+          const verticalLine = new Entity({
+            id: verticalLineId,
+            polyline: {
+              positions: [point, visualizationPoint],
+              width: 2,
+              material: Color.WHITE.withAlpha(0.8),
+              clampToGround: false,
+            },
+          });
+          viewer.entities.add(verticalLine);
+          traverseEntiesRef.current.push(verticalLine);
         }
 
         if (!viewer.entities.getById(pointLabelId)) {
@@ -152,7 +210,7 @@ export function useCesiumTraverseVisualizer(
             traverse.derived.segmentLengthsCumulative[index] || 0;
           const isSingleSegment = traverse.geometryECEF.length === 2;
           const pointLabel = createSegmentNodeLabel(
-            point,
+            visualizationPoint,
             index,
             cumulativeLength,
             pointLabelId,
@@ -165,13 +223,21 @@ export function useCesiumTraverseVisualizer(
 
       // Segment labels
       if (showLabels) {
+        const heightOffset = traverse.heightOffset || 0;
+        const elevatedPoints =
+          heightOffset > 0
+            ? traverse.geometryECEF.map((point) =>
+                getLocalElevatedPoint(point, heightOffset)
+              )
+            : traverse.geometryECEF;
+
         for (let i = 1; i < traverse.geometryECEF.length; i++) {
           const segmentId = `segment-${traverse.id}-${i}`;
           if (!viewer.entities.getById(segmentId)) {
             const segmentDistance = traverse.derived.segmentLengths[i] || 0;
             const segmentLabel = createSegmentLabel(
-              traverse.geometryECEF[i - 1],
-              traverse.geometryECEF[i],
+              elevatedPoints[i - 1],
+              elevatedPoints[i],
               segmentDistance,
               segmentId
             );
@@ -184,10 +250,18 @@ export function useCesiumTraverseVisualizer(
       // Polyline
       const polylineId = `polyline-${traverse.id}`;
       if (!viewer.entities.getById(polylineId)) {
+        const heightOffset = traverse.heightOffset || 0;
+        const polylinePositions =
+          heightOffset > 0
+            ? traverse.geometryECEF.map((point) =>
+                getLocalElevatedPoint(point, heightOffset)
+              )
+            : traverse.geometryECEF;
+
         const polylineEntity = new Entity({
           id: polylineId,
           polyline: {
-            positions: traverse.geometryECEF,
+            positions: polylinePositions,
             width: 3,
             material: Color.LIGHTYELLOW,
             clampToGround: false,
@@ -225,7 +299,9 @@ export function useCesiumTraverseVisualizer(
       // Clean up preview entities when no active traverse
       const previewEntities = traverseEntiesRef.current.filter(
         (entity) =>
-          entity.name === "__previewLabel" || entity.name === "__previewLine"
+          entity.name === "__previewLabel" ||
+          entity.name === "__previewLine" ||
+          entity.name === "__previewStem"
       );
       previewEntities.forEach((entity) => {
         try {
@@ -250,6 +326,18 @@ export function useCesiumTraverseVisualizer(
 
     const lastPoint =
       activeTraverse.geometryECEF[activeTraverse.geometryECEF.length - 1];
+    const heightOffset = activeTraverse.heightOffset || 0;
+
+    // Apply height offset for visualization
+    const elevatedLastPoint =
+      heightOffset > 0
+        ? getLocalElevatedPoint(lastPoint, heightOffset)
+        : lastPoint;
+    const elevatedMousePosition =
+      heightOffset > 0
+        ? getLocalElevatedPoint(mousePosition, heightOffset)
+        : mousePosition;
+
     const segmentDistance = Cartesian3.distance(lastPoint, mousePosition);
 
     // Update or create preview segment label
@@ -259,8 +347,8 @@ export function useCesiumTraverseVisualizer(
 
     if (!previewLabel) {
       previewLabel = createSegmentLabel(
-        lastPoint,
-        mousePosition,
+        elevatedLastPoint,
+        elevatedMousePosition,
         segmentDistance
       );
       previewLabel.name = "__previewLabel";
@@ -268,8 +356,8 @@ export function useCesiumTraverseVisualizer(
       traverseEntiesRef.current.push(previewLabel);
     } else {
       const midpoint = Cartesian3.midpoint(
-        lastPoint,
-        mousePosition,
+        elevatedLastPoint,
+        elevatedMousePosition,
         new Cartesian3()
       );
       if (previewLabel.position) {
@@ -291,7 +379,10 @@ export function useCesiumTraverseVisualizer(
       previewLine = new Entity({
         name: "__previewLine",
         polyline: {
-          positions: new ConstantProperty([lastPoint, mousePosition]),
+          positions: new ConstantProperty([
+            elevatedLastPoint,
+            elevatedMousePosition,
+          ]),
           width: 2,
           material: Color.YELLOW.withAlpha(0.7),
           clampToGround: false,
@@ -302,9 +393,49 @@ export function useCesiumTraverseVisualizer(
     } else {
       if (previewLine.polyline && previewLine.polyline.positions) {
         (previewLine.polyline.positions as ConstantProperty).setValue([
-          lastPoint,
-          mousePosition,
+          elevatedLastPoint,
+          elevatedMousePosition,
         ]);
+      }
+    }
+
+    // Add preview stem line for mouse position if heightOffset > 0
+    let previewStem = traverseEntiesRef.current.find(
+      (entity) => entity.name === "__previewStem"
+    );
+
+    if (heightOffset > 0) {
+      if (!previewStem) {
+        previewStem = new Entity({
+          name: "__previewStem",
+          polyline: {
+            positions: new ConstantProperty([
+              mousePosition,
+              elevatedMousePosition,
+            ]),
+            width: 2,
+            material: Color.WHITE.withAlpha(0.6),
+            clampToGround: false,
+          },
+        });
+        viewer.entities.add(previewStem);
+        traverseEntiesRef.current.push(previewStem);
+      } else {
+        if (previewStem.polyline && previewStem.polyline.positions) {
+          (previewStem.polyline.positions as ConstantProperty).setValue([
+            mousePosition,
+            elevatedMousePosition,
+          ]);
+        }
+      }
+    } else if (previewStem) {
+      // Remove stem if heightOffset is 0
+      try {
+        viewer.entities.remove(previewStem);
+      } catch {}
+      const index = traverseEntiesRef.current.indexOf(previewStem);
+      if (index > -1) {
+        traverseEntiesRef.current.splice(index, 1);
       }
     }
 

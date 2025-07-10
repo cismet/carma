@@ -28,7 +28,8 @@ export function useCesiumTraverseQuery(
   viewer: Viewer | null,
   enabled: boolean,
   setCollection: Dispatch<SetStateAction<MeasurementCollection>>,
-  temporaryMode: boolean = true
+  temporaryMode: boolean = true,
+  heightOffset: number = 1.5
 ) {
   const handlerRef = useRef<ScreenSpaceEventHandler | null>(null);
   const activeTraversePointsRef = useRef<Cartesian3[]>([]);
@@ -77,6 +78,7 @@ export function useCesiumTraverseQuery(
       timestamp: Date.now(),
       geometryECEF: [...activeTraversePointsRef.current],
       geometryWGS84: activeTraversePointsRef.current.map(toGeographic),
+      heightOffset,
       derived: {
         segmentLengths: [...activeTraverseSegmentsLengthsRef.current],
         segmentLengthsCumulative: [
@@ -97,6 +99,7 @@ export function useCesiumTraverseQuery(
     temporaryMode,
     clearTraverseQuery,
     currentTraverseId,
+    heightOffset,
   ]);
 
   useEffect(() => {
@@ -153,6 +156,7 @@ export function useCesiumTraverseQuery(
         timestamp: Date.now(),
         geometryECEF: [...points],
         geometryWGS84: points.map(toGeographic),
+        heightOffset,
         derived: {
           segmentLengths: [...activeTraverseSegmentsLengthsRef.current],
           segmentLengthsCumulative: [
@@ -187,6 +191,7 @@ export function useCesiumTraverseQuery(
     clearTraverseQuery,
     currentTraverseId,
     isActiveTraverse,
+    heightOffset,
   ]);
 
   return {
