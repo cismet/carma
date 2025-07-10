@@ -1,13 +1,18 @@
 import {
   Cartesian2,
   Cartesian3,
+  Cartesian4,
   Color,
   Entity,
   HorizontalOrigin,
   LabelGraphics,
   LabelStyle,
+  Matrix4,
   NearFarScalar,
   VerticalOrigin,
+  type Viewer,
+  SceneTransforms,
+  Transforms,
 } from "cesium";
 import { MeasurementEntry } from "../types/MeasurementTypes";
 import { normalizeOptions } from "@carma-commons/utils";
@@ -101,8 +106,8 @@ export const createSegmentLabel = (
   segmentDistance: number,
   id?: string
 ): Entity => {
-  const midpoint = Cartesian3.midpoint(startPoint, endPoint, new Cartesian3());
   const labelText = formatDistance(segmentDistance);
+  const midpoint = Cartesian3.midpoint(startPoint, endPoint, new Cartesian3());
 
   const measurementEntry = {
     id: id || `measurement-segment-${Date.now()}-${Math.random()}`,
@@ -144,4 +149,146 @@ export const createSegmentNodeLabel = (
   };
 
   return createLabelEntity(measurementEntry, position, labelOptions);
+};
+
+/**
+ * Calculates the screen-space distance between two world positions.
+ * Returns null if either position is not visible or viewer is not available.
+ */
+const calculateScreenSpaceDistance = (
+  viewer: Viewer | null,
+  startPoint: Cartesian3,
+  endPoint: Cartesian3
+): number | null => {
+  if (!viewer || viewer.isDestroyed()) return null;
+
+  try {
+    const startScreen = SceneTransforms.worldToWindowCoordinates(
+      viewer.scene,
+      startPoint
+    );
+    const endScreen = SceneTransforms.worldToWindowCoordinates(
+      viewer.scene,
+      endPoint
+    );
+
+    if (!startScreen || !endScreen) return null;
+
+    return Cartesian2.distance(startScreen, endScreen);
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * Estimates the pixel width of a text label based on character count.
+ * This is a rough approximation based on typical font metrics.
+ */
+const estimateLabelWidth = (text: string): number => {
+  // Average character width in pixels for our label font at 20px
+  const avgCharWidth = 9;
+  return text.length * avgCharWidth;
+};
+
+/**
+ * Determines if a segment label should be shown based on visual length.
+ * Returns true if the screen-space segment is long enough to accommodate the label.
+ */
+export const shouldShowSegmentLabel = (
+  viewer: Viewer | null,
+  startPoint: Cartesian3,
+  endPoint: Cartesian3,
+  labelText: string
+): boolean => {
+  const screenDistance = calculateScreenSpaceDistance(viewer, startPoint, endPoint);
+  if (screenDistance === null) return false;
+
+  const labelWidth = estimateLabelWidth(labelText);
+  const minSegmentLength = labelWidth * 2.0; // Much more aggressive: 2x the label width
+
+  return screenDistance >= minSegmentLength;
+};
+
+/**
+ * Determines if a node label should be shown based on the segment length to the previous point.
+ * Always shows labels for the first and last points.
+ * Returns true if the segment from previous point is long enough to accommodate the label.
+ */
+export const shouldShowNodeLabel = (
+  viewer: Viewer | null,
+  currentPoint: Cartesian3,
+  previousPoint: Cartesian3 | null,
+  pointIndex: number,
+  isLastPoint: boolean,
+  labelText: string
+): boolean => {
+  // Always show first and last point labels
+  if (pointIndex === 0 || isLastPoint) return true;
+  
+  // If no previous point, show the label
+  if (!previousPoint) return true;
+
+  const screenDistance = calculateScreenSpaceDistance(viewer, previousPoint, currentPoint);
+  if (screenDistance === null) return true; // Show if we can't calculate
+
+  const labelWidth = estimateLabelWidth(labelText);
+  const minSegmentLength = labelWidth * 1.5; // 1.5x the label width for node labels
+
+  return screenDistance >= minSegmentLength;
+};
+
+/**
+ * Updates the visibility of traverse labels based on current camera position.
+ * This should be called on camera move events to dynamically show/hide labels
+ * based on the visual length of segments.
+ * Only updates visibility when labels should be shown (respects showLabels prop).
+ */
+export const updateTraverseLabelVisibility = (
+  viewer: Viewer | null,
+  traverseEntities: Entity[],
+  traverse: { geometryECEF: Cartesian3[]; heightOffset?: number }
+): void => {
+  if (!viewer || viewer.isDestroyed() || !traverse.geometryECEF) return;
+
+  const heightOffset = traverse.heightOffset || 0;
+  const elevatedPoints = heightOffset > 0 
+    ? traverse.geometryECEF.map((point) => {
+        const localToFixedFrame = Transforms.eastNorthUpToFixedFrame(point);
+        const localUp = Matrix4.getColumn(localToFixedFrame, 2, new Cartesian4());
+        const upVector = new Cartesian3(localUp.x, localUp.y, localUp.z);
+        const offsetVector = Cartesian3.multiplyByScalar(upVector, heightOffset, new Cartesian3());
+        return Cartesian3.add(point, offsetVector, new Cartesian3());
+      })
+    : traverse.geometryECEF;
+
+  traverseEntities.forEach((entity) => {
+    if (!entity.id || !entity.label) return;
+
+    // Handle segment labels
+    const segmentMatch = entity.id.match(/^segment-(.+)-(\d+)$/);
+    if (segmentMatch) {
+      const segmentIndex = parseInt(segmentMatch[2], 10);
+      if (segmentIndex > 0 && segmentIndex < elevatedPoints.length) {
+        const startPoint = elevatedPoints[segmentIndex - 1];
+        const endPoint = elevatedPoints[segmentIndex];
+        const labelText = entity.label.text?.getValue(viewer.clock.currentTime) || '';
+        
+        const shouldShow = shouldShowSegmentLabel(viewer, startPoint, endPoint, labelText);
+        entity.show = shouldShow;
+      }
+    }
+
+    // Handle point labels
+    const pointMatch = entity.id.match(/^point-label-(.+)-(\d+)$/);
+    if (pointMatch) {
+      const pointIndex = parseInt(pointMatch[2], 10);
+      const isLastPoint = pointIndex === elevatedPoints.length - 1;
+      const previousPoint = pointIndex > 0 ? elevatedPoints[pointIndex - 1] : null;
+      const currentPoint = elevatedPoints[pointIndex];
+      const labelText = entity.label.text?.getValue(viewer.clock.currentTime) || '';
+      
+      const shouldShow = shouldShowNodeLabel(viewer, currentPoint, previousPoint, pointIndex, isLastPoint, labelText);
+      entity.show = shouldShow;
+    }
+  });
 };

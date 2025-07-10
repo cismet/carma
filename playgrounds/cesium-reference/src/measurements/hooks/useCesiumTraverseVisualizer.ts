@@ -21,6 +21,7 @@ import { formatDistance } from "../../utils/formatters";
 import {
   createSegmentLabel,
   createSegmentNodeLabel,
+  updateTraverseLabelVisibility,
 } from "../utils/cesiumLabels";
 import { useRequestRender } from "./useRequestRender";
 
@@ -450,6 +451,43 @@ export function useCesiumTraverseVisualizer(
     isActiveTraverse,
     currentTraverseId,
   ]);
+
+  // Handle camera drag/zoom end events to update label visibility
+  useEffect(() => {
+    if (!viewer || viewer.isDestroyed()) return;
+
+    const handleCameraChange = () => {
+      traverses.forEach((traverse) => {
+        const traverseEntities = traverseEntiesRef.current.filter((entity) => {
+          return entity.id?.includes(traverse.id);
+        });
+
+        if (traverseEntities.length > 0) {
+          if (showLabels) {
+            updateTraverseLabelVisibility(viewer, traverseEntities, traverse);
+          } else {
+            // Hide all labels when showLabels is false
+            traverseEntities.forEach((entity) => {
+              if (entity.id?.includes('label') || entity.id?.includes('segment')) {
+                entity.show = false;
+              }
+            });
+          }
+        }
+      });
+      requestRender();
+    };
+
+    // Add camera event listeners - only on end events for better performance
+    const removeMoveEndListener = viewer.camera.moveEnd.addEventListener(handleCameraChange);
+
+    // Initial label visibility update
+    handleCameraChange();
+
+    return () => {
+      removeMoveEndListener();
+    };
+  }, [viewer, traverses, showLabels, requestRender]);
 
   // Cleanup on unmount
   useEffect(() => {
