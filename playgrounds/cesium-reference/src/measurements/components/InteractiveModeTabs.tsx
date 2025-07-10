@@ -183,8 +183,8 @@ export const InteractiveModeTabs: FC = () => {
           <Switch
             checked={temporaryMode}
             onChange={(e) => setTemporaryMode(e.valueOf())}
-            checkedChildren="temporär"
-            unCheckedChildren="permanent"
+            checkedChildren="Temporär"
+            unCheckedChildren="Permanent"
             size="small"
           />
           <Button

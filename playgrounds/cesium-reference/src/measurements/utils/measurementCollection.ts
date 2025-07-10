@@ -63,20 +63,20 @@ export const updateCollection = (
       ? entryOrConstructor(prevCollection)
       : entryOrConstructor;
 
-    // Set temporary flag based on mode
-    measurement.temporary = temporaryMode;
+    // Create updated measurement with temporary flag (preserve immutability)
+    const updatedMeasurement = { ...measurement, temporary: temporaryMode };
 
     // Check if an entry with the same ID already exists
     const existingIndex = prevCollection.findIndex(
-      (m) => m.id === measurement.id
+      (m) => m.id === updatedMeasurement.id
     );
 
     if (existingIndex !== -1) {
       // Update existing entry (same ID - continuing same measurement)
       const newCollection = [...prevCollection];
-      newCollection[existingIndex] = measurement;
+      newCollection[existingIndex] = updatedMeasurement;
       console.debug(
-        `[updateCollection] Updated existing measurement ${measurement.id} at index ${existingIndex}`
+        `[updateCollection] Updated existing measurement ${updatedMeasurement.id} at index ${existingIndex}`
       );
       return newCollection;
     } else {
@@ -86,21 +86,21 @@ export const updateCollection = (
       if (temporaryMode) {
         // Remove any existing temporary measurement of the same type
         const existingTemporaryIndex = newCollection.findIndex(
-          (m) => m.type === measurement.type && m.temporary
+          (m) => m.type === updatedMeasurement.type && m.temporary
         );
 
         if (existingTemporaryIndex !== -1) {
           newCollection.splice(existingTemporaryIndex, 1);
           console.debug(
-            `[updateCollection] Temporary mode: Removed existing temporary measurement of type ${measurement.type}`
+            `[updateCollection] Temporary mode: Removed existing temporary measurement of type ${updatedMeasurement.type}`
           );
         }
       }
 
       // Add the new measurement
-      newCollection.push(measurement);
+      newCollection.push(updatedMeasurement);
       console.debug(
-        `[updateCollection] Added new measurement ${measurement.id}${
+        `[updateCollection] Added new measurement ${updatedMeasurement.id}${
           temporaryMode ? " (temporary)" : ""
         }`
       );
