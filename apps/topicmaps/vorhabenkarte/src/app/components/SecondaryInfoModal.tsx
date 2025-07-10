@@ -198,14 +198,16 @@ const SecondaryInfoModal = ({ feature, setOpen, versionString }) => {
                     </b>
                     <div style={styles.focusRoomValues}>
                       {focusRoom.map((i, idx) => (
-                        <Tag key={idx}>{i}</Tag>
+                        <Tag className="my-1" key={idx}>
+                          {i}
+                        </Tag>
                       ))}
                     </div>
                   </div>
                 </div>
               )}
               {completion && (
-                <div style={styles.row}>
+                <div style={styles.row} className="ml-[2px]">
                   <FontAwesomeIcon icon={faCalendarMinus} />
 
                   <b style={styles.label}>Voraussichtlicher Abschluss:</b>
