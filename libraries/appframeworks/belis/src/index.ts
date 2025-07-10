@@ -1,5 +1,6 @@
 export * from "./lib/lib-belis-library";
 export { backgroundLayerConfigurations } from "./lib/components/BackgroundLayers";
+export { MapBlocker } from "./lib/components/MapBlocker";
 export {
   loadObjectsIntoFeatureCollection,
   featuresFilter,
