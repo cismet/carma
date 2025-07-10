@@ -37,24 +37,6 @@ const BelisMapLibWrapper = ({ refRoutedMap, width, height, jwt }) => {
   const backgroundLayerOpacities = useSelector(getBackgroundLayerOpacities);
   const activeBackgroundLayer = useSelector(getActiveBackgroundLayer);
 
-  // if (storedJWT) {
-  //   dispatch(
-  //     loadObjectsIntoFeatureCollection(
-  //       {
-  //         boundingBox: testBb,
-  //         _inFocusMode: true,
-  //         _zoom: 19,
-  //         _overridingFilterState: null,
-  //         jwt: storedJWT,
-  //         onlineDataForcing: false,
-  //       },
-  //       REST_SERVICE,
-  //       DOMAIN,
-  //       setFeatureCollection
-  //     )
-  //   );
-  // }
-
   const handleLoadObjects = (settings) => {
     dispatch(
       loadObjectsIntoFeatureCollection(

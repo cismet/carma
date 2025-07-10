@@ -7,8 +7,9 @@ import proj4 from "proj4";
 import { MappingConstants } from "react-cismap";
 import { proj4crs3857def } from "react-cismap/constants/gis";
 import onlineQueryParts, { geomFactories } from "../queries/online";
+import { FilterState } from "../..";
 
-export const featuresFilter = {
+export const featuresFilter: FilterState = {
   tdta_leuchten: { title: "Leuchten", enabled: true },
   tdta_standort_mast: { title: "Masten (ohne Leuchten)", enabled: true },
   mauerlasche: { title: "Mauerlaschen", enabled: true },
