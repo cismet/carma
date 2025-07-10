@@ -8,7 +8,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { useNavigate, useLocation } from "react-router-dom";
 
 import LoginForm from "../components/app/LoginForm";
-import MapBlocker from "../components/app/MapBlocker";
+// import MapBlocker from "../components/app/MapBlocker";
 import Menu from "../components/app/menu/Menu";
 import { DB_VERSION } from "../constants/belis";
 import {
@@ -61,6 +61,7 @@ import SideBar from "./SideBar";
 import TopNavbar from "./TopNavbar";
 import { mobileInfo } from "@carma-collab/wuppertal/belis-online";
 import { MobileWarningMessage } from "@carma-mapping/components";
+import { MapBlocker } from "@carma-apps/belis-library";
 
 //---
 
@@ -301,6 +302,10 @@ const View = () => {
   //   reactModalStyle: { overlay: { zIndex: 60000000 } },
   // }}
 
+  const setDoneHandler = (done) => {
+    dispatch(setDone(done));
+  };
+
   return (
     <div ref={refApp}>
       <MobileWarningMessage
@@ -344,7 +349,14 @@ const View = () => {
         visible={true || connectionMode === CONNECTIONMODE.ONLINE}
         width={windowWidth}
         height={windowHeight}
+        setDone={setDoneHandler}
       />
+      {/* <MapBlocker
+        blocking={fcIsDone === false}
+        visible={true || connectionMode === CONNECTIONMODE.ONLINE}
+        width={windowWidth}
+        height={windowHeight}
+      /> */}
       {/* <BelisMap
         refRoutedMap={refRoutedMap}
         width={mapStyle.width}
