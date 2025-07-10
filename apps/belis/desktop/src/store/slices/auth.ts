@@ -82,6 +82,9 @@ export const checkJWTValidation = () => {
           "There was a problem with the fetch operation:",
           error.message
         );
+
+        dispatch(storeJWT(undefined));
+        dispatch(storeLogin(undefined));
       });
   };
 };

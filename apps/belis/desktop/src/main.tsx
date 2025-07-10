@@ -1,4 +1,4 @@
-import { StrictMode, useEffect } from "react";
+import { StrictMode, useEffect, useState } from "react";
 import * as ReactDOM from "react-dom/client";
 import { GazDataProvider, SelectionProvider } from "@carma-apps/portals";
 import App from "./App";
@@ -24,13 +24,22 @@ const persistor = persistStore(store);
 const NavBarWrapper = () => {
   const dispatch = useDispatch();
   const jwt = useSelector(getJWT);
-  if (!jwt) {
-    return <Navigate to="/login" />;
-  }
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
+    setIsLoading(true);
+
     dispatch(checkJWTValidation() as unknown as UnknownAction);
+    setIsLoading(false);
   }, []);
+
+  if (isLoading) {
+    return <></>;
+  }
+
+  if (jwt === undefined) {
+    return <Navigate to="/login" />;
+  }
 
   return <NavBar />;
 };
