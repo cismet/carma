@@ -28,11 +28,12 @@ export const useRoutedMapLocateControl = () => {
         }, 300);
       };
 
-      map.on("move", handleMapMove);
+      map.on("dragend zoomend", handleMapMove);
       map.on("locationfound", handleLocationFound);
 
       return () => {
-        map.off("move", handleMapMove);
+        map.off("dragend", handleMapMove);
+        map.off("zoomend", handleMapMove);
         map.off("locationfound", handleLocationFound);
       };
     }
