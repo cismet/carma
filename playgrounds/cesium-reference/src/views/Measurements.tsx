@@ -20,6 +20,9 @@ import HomeButton from "../components/HomeButton";
 import { CesiumNivPointProvider } from "../measurements/CesiumNivPointContext";
 import { CRSContextProvider } from "../measurements/CRSContext";
 
+// check if we are in developer mode
+const isDeveloperMode = process.env.NODE_ENV === "development";
+
 // Inner component that has access to contexts
 const ContextAwareApp: React.FC<{}> = () => {
   const { zoomToTileset } = useCesiumViewer();
@@ -58,9 +61,11 @@ const TestMeshElevations: React.FC = () => {
             cesiumOptions: cesiumConstructorOptions,
             tilesetUrl: WUPP_MESH_2024.url,
             tilesetOptions: {
-              skipLevelOfDetail: true,
-              immediatelyLoadDesiredLevelOfDetail: true,
-              maximumScreenSpaceError: 1,
+              skipLevelOfDetail: isDeveloperMode ? true : undefined,
+              immediatelyLoadDesiredLevelOfDetail: isDeveloperMode
+                ? true
+                : undefined,
+              maximumScreenSpaceError: isDeveloperMode ? 0 : 2,
               show: true,
             },
             cameraPersistence: {
