@@ -23,11 +23,13 @@ const itemFilterFunction = ({ filterState }) => {
     if (!item.veroeffentlicht) {
       return false;
     } else if (item.abgeschlossen) {
-      return false;
-    } else if (item.abgeschlossen_am) {
-      const doneDate = new Date(item.abgeschlossen_am);
+      if (item.abgeschlossen_am) {
+        const doneDate = new Date(item.abgeschlossen_am);
 
-      if (doneDate >= sixMonthsAgo) {
+        if (doneDate < sixMonthsAgo) {
+          return false;
+        }
+      } else {
         return false;
       }
     }
