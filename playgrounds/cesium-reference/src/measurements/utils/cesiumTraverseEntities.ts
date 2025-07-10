@@ -1,37 +1,18 @@
-import { Cartesian2, Cartesian3, Color, Entity } from "cesium";
-import { formatDistance } from "../../utils/formatters";
+import { Cartesian3, Color, Entity } from "cesium";
 
-export const createPointEntity = (
+export const createPointMarker = (
   position: Cartesian3,
-  pointIndex: number,
-  cumulativeDistance: number,
   id?: string
 ): Entity => {
-  const pointLabelText =
-    pointIndex === 0 // For the first point, don't show distance, just "1"
-      ? "1"
-      : `${pointIndex + 1}\n${formatDistance(cumulativeDistance)}`; // Subsequent points: "Index\nCumulativeDist"
   return new Entity({
-    id: id || `measurement-point-${Date.now()}-${pointIndex}`,
+    id: id || `measurement-point-marker-${Date.now()}`,
     position: position,
     point: {
       pixelSize: 8,
       color: Color.LIGHTYELLOW,
       outlineColor: Color.BLACK,
       outlineWidth: 2,
-      heightReference: 0, // NONE
-      disableDepthTestDistance: Number.POSITIVE_INFINITY,
-    },
-    label: {
-      text: pointLabelText,
-      font: "bold 16px Arial",
-      fillColor: Color.WHITE,
-      showBackground: true,
-      backgroundColor: Color.BLACK.withAlpha(0.7),
-      backgroundPadding: new Cartesian2(4, 4),
-      style: 0,
-      pixelOffset: new Cartesian2(0, -25),
-      scale: 1,
+      heightReference: 0,
       disableDepthTestDistance: Number.POSITIVE_INFINITY,
     },
   });

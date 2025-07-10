@@ -10,7 +10,10 @@ import {
   MeasurementCollection,
   PointMeasurementEntry,
 } from "../types/MeasurementTypes";
-import { createLabelEntity } from "../utils/cesiumLabels";
+import {
+  createLabelEntity,
+  formatNumberToEnclosed,
+} from "../utils/cesiumLabels";
 
 export const useCesiumPointVisualizer = (
   viewer: Viewer | null,
@@ -85,7 +88,9 @@ export const useCesiumPointVisualizer = (
       if (!labelRefs.current[m.id]) {
         const entity = createLabelEntity(m, undefined, {
           show: showLabels,
-          text: `P${i + 1} ${m.geometryWGS84.height.toFixed(2)}`,
+          text: `${formatNumberToEnclosed(
+            i + 1
+          )} ${m.geometryWGS84.height.toFixed(2)}`,
         });
         viewer.entities.add(entity);
         labelRefs.current[m.id] = entity;

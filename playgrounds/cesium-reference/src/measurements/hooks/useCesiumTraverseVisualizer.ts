@@ -12,9 +12,12 @@ import {
   MeasurementCollection,
   TraverseMeasurementEntry,
 } from "../types/MeasurementTypes";
-import { createPointEntity } from "../utils/cesiumTraverseEntities";
+import { createPointMarker } from "../utils/cesiumTraverseEntities";
 import { formatDistance } from "../../utils/formatters";
-import { createSegmentLabel, createTotalLabel } from "../utils/cesiumLabels";
+import {
+  createSegmentLabel,
+  createSegmentNodeLabel,
+} from "../utils/cesiumLabels";
 import { useRequestRender } from "./useRequestRender";
 
 export function useCesiumTraverseVisualizer(
@@ -65,14 +68,11 @@ export function useCesiumTraverseVisualizer(
     const entitiesToRemove: Entity[] = [];
     traverseEntiesRef.current.forEach((entity) => {
       if (entity.id) {
-        // Extract traverse ID from entity ID
-        // Entity IDs are like: "point-traverse-123456789-0", "segment-traverse-123456789-1", etc.
-        // We want to extract: "traverse-123456789"
         const match = entity.id.match(
-          /^(point|segment|total|polyline)-(traverse-\d+)/
+          /^(point-marker|point-label|segment|polyline)-(traverse-\d+)/
         );
         if (match) {
-          const traverseId = match[2]; // "traverse-123456789"
+          const traverseId = match[2];
           if (!currentIds.has(traverseId)) {
             entitiesToRemove.push(entity);
           }
@@ -136,24 +136,34 @@ export function useCesiumTraverseVisualizer(
           }
         });
       }
-      // Point markers
+      // Point markers and labels
       traverse.geometryECEF.forEach((point, index) => {
-        const pointId = `point-${traverse.id}-${index}`;
-        if (!viewer.entities.getById(pointId)) {
+        const pointMarkerId = `point-marker-${traverse.id}-${index}`;
+        const pointLabelId = `point-label-${traverse.id}-${index}`;
+
+        if (!viewer.entities.getById(pointMarkerId)) {
+          const pointMarker = createPointMarker(point, pointMarkerId);
+          viewer.entities.add(pointMarker);
+          traverseEntiesRef.current.push(pointMarker);
+        }
+
+        if (!viewer.entities.getById(pointLabelId)) {
           const cumulativeLength =
             traverse.derived.segmentLengthsCumulative[index] || 0;
-          const pointEntity = createPointEntity(
+          const isSingleSegment = traverse.geometryECEF.length === 2;
+          const pointLabel = createSegmentNodeLabel(
             point,
             index,
             cumulativeLength,
-            pointId
+            pointLabelId,
+            isSingleSegment
           );
-          viewer.entities.add(pointEntity);
-          traverseEntiesRef.current.push(pointEntity);
+          viewer.entities.add(pointLabel);
+          traverseEntiesRef.current.push(pointLabel);
         }
       });
 
-      // Segment and total labels
+      // Segment labels
       if (showLabels) {
         for (let i = 1; i < traverse.geometryECEF.length; i++) {
           const segmentId = `segment-${traverse.id}-${i}`;
@@ -169,21 +179,6 @@ export function useCesiumTraverseVisualizer(
             );
             viewer.entities.add(segmentLabel);
             traverseEntiesRef.current.push(segmentLabel);
-          }
-        }
-
-        if (traverse.geometryECEF.length >= 2) {
-          const totalId = `total-${traverse.id}`;
-          if (!viewer.entities.getById(totalId)) {
-            const totalLabel = createTotalLabel(
-              traverse.geometryECEF,
-              traverse.derived.totalLength,
-              undefined,
-              undefined,
-              totalId
-            );
-            viewer.entities.add(totalLabel);
-            traverseEntiesRef.current.push(totalLabel);
           }
         }
       }
