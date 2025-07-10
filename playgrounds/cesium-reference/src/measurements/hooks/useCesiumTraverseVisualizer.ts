@@ -173,8 +173,6 @@ export function useCesiumTraverseVisualizer(
               traverse.geometryECEF[i - 1],
               traverse.geometryECEF[i],
               segmentDistance,
-              undefined,
-              undefined,
               segmentId
             );
             viewer.entities.add(segmentLabel);

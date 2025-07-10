@@ -3,9 +3,11 @@ import {
   Cartesian3,
   Color,
   Entity,
+  HorizontalOrigin,
   LabelGraphics,
   LabelStyle,
   NearFarScalar,
+  VerticalOrigin,
 } from "cesium";
 import { MeasurementEntry } from "../types/MeasurementTypes";
 import { normalizeOptions } from "@carma-commons/utils";
@@ -43,16 +45,18 @@ const defaultLabelOptions: LabelOptions = {
   show: true,
   text: "n/a",
   font: LABEL_FONT,
-  fillColor: Color.WHITESMOKE,
+  fillColor: Color.BLACK,
   showBackground: false,
-  backgroundColor: Color.BLACK.withAlpha(0.5),
+  backgroundColor: Color.DARKSLATEGREY.withAlpha(0.5),
   backgroundPadding: new Cartesian2(12, 6),
-  outlineColor: Color.BLACK.withAlpha(0.9),
-  outlineWidth: 3,
+  outlineColor: Color.WHITE.withAlpha(0.75),
+  outlineWidth: 5,
   style: LabelStyle.FILL_AND_OUTLINE,
   pixelOffset: new Cartesian2(0, 40),
-  scaleByDistance: SCALE_BY_DISTANCE,
+  //scaleByDistance: SCALE_BY_DISTANCE,
   disableDepthTestDistance: Number.POSITIVE_INFINITY,
+  horizontalOrigin: HorizontalOrigin.CENTER,
+  verticalOrigin: VerticalOrigin.BASELINE,
 };
 
 export const createLabelEntity = (
@@ -75,32 +79,23 @@ export const createSegmentLabel = (
   startPoint: Cartesian3,
   endPoint: Cartesian3,
   segmentDistance: number,
-  labelFont = LABEL_FONT,
-  scaleByDistance = SCALE_BY_DISTANCE,
   id?: string
 ): Entity => {
   const midpoint = Cartesian3.midpoint(startPoint, endPoint, new Cartesian3());
   const labelText = formatDistance(segmentDistance);
-  return new Entity({
+
+  const measurementEntry = {
     id: id || `measurement-segment-${Date.now()}-${Math.random()}`,
-    position: midpoint,
-    label: {
-      text: labelText,
-      font: labelFont,
-      fillColor: Color.LIGHTYELLOW,
-      showBackground: false,
-      //backgroundColor: Color.BLACK.withAlpha(0.7),
-      //backgroundPadding: new Cartesian2(8, 4),
-      outlineColor: Color.BLACK.withAlpha(0.9),
-      outlineWidth: 3,
-      style: LabelStyle.FILL_AND_OUTLINE,
-      pixelOffset: new Cartesian2(0, -20),
-      scaleByDistance,
-      disableDepthTestDistance: Number.POSITIVE_INFINITY,
-      horizontalOrigin: 0,
-      verticalOrigin: 0,
-    },
-  });
+    name: `Segment ${labelText}`,
+    geometryECEF: midpoint,
+  } as MeasurementEntry;
+
+  const labelOptions: LabelOptions = {
+    text: labelText,
+    pixelOffset: new Cartesian2(0, -20),
+  };
+
+  return createLabelEntity(measurementEntry, midpoint, labelOptions);
 };
 
 export const createSegmentNodeLabel = (
@@ -116,20 +111,17 @@ export const createSegmentNodeLabel = (
       : `${formatNumberToEnclosed(pointIndex + 1)} ${formatDistance(
           cumulativeDistance
         )}`;
-  return new Entity({
+
+  const measurementEntry = {
     id: id || `measurement-point-label-${Date.now()}`,
-    position: position,
-    label: {
-      text: pointLabelText,
-      font: "bold 16px Arial",
-      fillColor: Color.WHITE,
-      outlineColor: Color.BLACK.withAlpha(0.9),
-      outlineWidth: 3,
-      showBackground: false,
-      pixelOffset: new Cartesian2(0, -25),
-      scale: 1,
-      disableDepthTestDistance: Number.POSITIVE_INFINITY,
-      style: LabelStyle.FILL_AND_OUTLINE,
-    },
-  });
+    name: `Point ${pointIndex + 1}`,
+    geometryECEF: position,
+  } as MeasurementEntry;
+
+  const labelOptions: LabelOptions = {
+    text: pointLabelText,
+    pixelOffset: new Cartesian2(0, -25),
+  };
+
+  return createLabelEntity(measurementEntry, position, labelOptions);
 };

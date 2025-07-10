@@ -1,6 +1,13 @@
 import { useEffect, useState, useRef } from "react";
 import type { Viewer } from "cesium";
-import { Cartesian2, Cartesian3, Color, Entity, HeightReference } from "cesium";
+import {
+  Cartesian2,
+  Cartesian3,
+  Color,
+  Entity,
+  HeightReference,
+  LabelStyle,
+} from "cesium";
 
 import { PROJ4_CONVERTERS } from "@carma-commons/utils";
 import { NivPoint, TransformedNivPoint } from "../types/NivPointTypes";
@@ -85,18 +92,35 @@ export const useNivPoints = (
               currentElevation !== 0
             );
 
-            // Create Cesium Cartesian3 position
-            // For valid elevation, use absolute position; for invalid, use ground level (will be clamped)
-            const cartesian = hasValidElevation
-              ? Cartesian3.fromDegrees(longitude, latitude, currentElevation)
-              : Cartesian3.fromDegrees(longitude, latitude, 0);
+            let cartesian: Cartesian3;
+            let finalElevation = currentElevation || 0;
+
+            if (hasValidElevation) {
+              // Use the valid elevation data
+              cartesian = Cartesian3.fromDegrees(
+                longitude,
+                latitude,
+                currentElevation
+              );
+            } else if (point.historisch) {
+              // For historical points without height, place them 0.5m above ground level
+              finalElevation = 0.5;
+              cartesian = Cartesian3.fromDegrees(
+                longitude,
+                latitude,
+                finalElevation
+              );
+            } else {
+              // For non-historical points without height, use ground level
+              cartesian = Cartesian3.fromDegrees(longitude, latitude, 0);
+            }
 
             return {
               ...point,
               longitude,
               latitude,
               cartesian,
-              currentElevation: currentElevation || 0,
+              currentElevation: finalElevation,
               verticalDatum,
               hasValidElevation,
             };
@@ -141,19 +165,33 @@ export const useNivPoints = (
         currentElevation !== 0
       );
 
-      // Update cartesian position based on new elevation standard
-      const cartesian = hasValidElevation
-        ? Cartesian3.fromDegrees(
-            point.longitude,
-            point.latitude,
-            currentElevation
-          )
-        : Cartesian3.fromDegrees(point.longitude, point.latitude, 0);
+      let cartesian: Cartesian3;
+      let finalElevation = currentElevation || 0;
+
+      if (hasValidElevation) {
+        // Use the valid elevation data
+        cartesian = Cartesian3.fromDegrees(
+          point.longitude,
+          point.latitude,
+          currentElevation
+        );
+      } else if (point.historisch) {
+        // For historical points without height, place them 0.5m above ground level
+        finalElevation = 0.5;
+        cartesian = Cartesian3.fromDegrees(
+          point.longitude,
+          point.latitude,
+          finalElevation
+        );
+      } else {
+        // For non-historical points without height, use ground level
+        cartesian = Cartesian3.fromDegrees(point.longitude, point.latitude, 0);
+      }
 
       return {
         ...point,
         cartesian,
-        currentElevation: currentElevation || 0,
+        currentElevation: finalElevation,
         verticalDatum,
         hasValidElevation,
       };
@@ -180,10 +218,12 @@ export const useNivPoints = (
     console.debug(`[NIVP] Creating ${filteredPoints.length} point entities...`);
 
     const newEntities: Entity[] = filteredPoints.map((point) => {
+      // Historical points without valid elevation are positioned at 0.5m above ground
+      const isClampedHistorical = point.historisch && !point.hasValidElevation;
+
       const entity = new Entity({
         id: `nivp-point-${point.id}`,
         name: `NivP Point ${point.laufende_nummer}`,
-        // Store the original point data for access in useSceneClick
         properties: {
           nivpData: point,
         },
@@ -191,10 +231,14 @@ export const useNivPoints = (
         point: {
           pixelSize: 5,
           scaleByDistance: SCALE_BY_DISTANCE_POINTS,
-          color: point.hasValidElevation ? Color.WHITE : Color.LIGHTGRAY,
+          color: point.hasValidElevation
+            ? Color.WHITE
+            : isClampedHistorical
+            ? Color.YELLOW
+            : Color.LIGHTGRAY,
           outlineColor: Color.BLACK.withAlpha(0.8),
           outlineWidth: 1,
-          // Use NONE for valid elevation (absolute position) and CLAMP_TO_3D_TILE for invalid
+          // Use CLAMP_TO_3D_TILE to add the 0.5m offset to whatever surface is below
           heightReference: point.hasValidElevation
             ? HeightReference.NONE
             : HeightReference.CLAMP_TO_3D_TILE,
@@ -203,12 +247,19 @@ export const useNivPoints = (
         label: {
           text: point.hasValidElevation
             ? `${point.currentElevation.toFixed(2)}`
+            : isClampedHistorical
+            ? `~${point.currentElevation.toFixed(1)}m+`
             : "No Data",
           font: LABEL_FONT,
-          fillColor: point.hasValidElevation ? Color.WHITE : Color.LIGHTGRAY,
-          showBackground: true,
-          backgroundColor: Color.BLACK.withAlpha(0.5),
-          backgroundPadding: new Cartesian2(12, 6),
+          fillColor: point.hasValidElevation
+            ? Color.WHITE
+            : isClampedHistorical
+            ? Color.YELLOW
+            : Color.LIGHTGRAY,
+          showBackground: false,
+          outlineColor: Color.BLACK.withAlpha(0.9),
+          outlineWidth: 2,
+          style: LabelStyle.FILL_AND_OUTLINE,
           pixelOffset: new Cartesian2(0, -30),
           scaleByDistance: SCALE_BY_DISTANCE,
           disableDepthTestDistance: 200,

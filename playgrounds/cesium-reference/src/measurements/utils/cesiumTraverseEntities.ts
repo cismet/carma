@@ -1,4 +1,4 @@
-import { Cartesian3, Color, Entity } from "cesium";
+import { Cartesian3, Color, Entity, HeightReference } from "cesium";
 
 export const createPointMarker = (
   position: Cartesian3,
@@ -12,7 +12,7 @@ export const createPointMarker = (
       color: Color.LIGHTYELLOW,
       outlineColor: Color.BLACK,
       outlineWidth: 2,
-      heightReference: 0,
+      heightReference: HeightReference.NONE,
       disableDepthTestDistance: Number.POSITIVE_INFINITY,
     },
   });
