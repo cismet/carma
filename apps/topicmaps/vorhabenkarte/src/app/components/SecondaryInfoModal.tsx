@@ -24,6 +24,7 @@ import Panel from "react-cismap/commons/Panel";
 import { assetsBaseUrl } from "../../constants/constants";
 import PhotoGallery from "./PhotoGallery";
 import { SecondaryInfoFooter } from "@carma-collab/wuppertal/vorhabenkarte";
+import Contacts from "./Contacts";
 
 const styles = {
   container: {
@@ -92,7 +93,7 @@ const SecondaryInfoModal = ({ feature, setOpen, versionString }) => {
     b.datum.localeCompare(a.datum)
   );
   const completion = plan?.ende_quartal || null;
-  const email = plan?.kontakt?.mail || "buergerbeteiligungstadt.wuppertal.de";
+  const email = plan?.kontakt?.mail || null;
   const phone = plan?.kontakt?.telefon || null;
   const photos = plan?.originalPhotos || null;
   const citizenText = plan?.bb_text || null;
@@ -305,31 +306,7 @@ const SecondaryInfoModal = ({ feature, setOpen, versionString }) => {
                 </Panel>
               </Accordion>
             )}
-            {phone ||
-              (email && (
-                <div className="py-[12px]">
-                  <b className="text-[16px] mb-5">Kontakt:</b>
-                  <div className="flex flex-col gap-4 mt-1">
-                    {phone && (
-                      <a
-                        href={`tel:${phone}`}
-                        className="flex items-center gap-2 text-inherit"
-                      >
-                        <FontAwesomeIcon icon={faPhone} /> {phone}
-                      </a>
-                    )}
-                    {email && (
-                      <a
-                        href={`mailto:${email}`}
-                        className="flex items-center gap-2 text-inherit"
-                      >
-                        <FontAwesomeIcon icon={faEnvelope} />{" "}
-                        <span>{email}</span>
-                      </a>
-                    )}
-                  </div>
-                </div>
-              ))}
+            {(phone || email) && <Contacts phone={phone} email={email} />}
           </div>
         </Modal.Body>
         <Modal.Footer>
