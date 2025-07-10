@@ -58,7 +58,7 @@ const BelisMapLibWrapper = ({ refRoutedMap, width, height, jwt }) => {
   };
 
   return (
-    <>
+    <div className="relative">
       <MapBlocker
         blocking={fcIsDone === false}
         visible={true}
@@ -94,7 +94,7 @@ const BelisMapLibWrapper = ({ refRoutedMap, width, height, jwt }) => {
       >
         <></>
       </BelisMap>
-    </>
+    </div>
   );
 };
 
