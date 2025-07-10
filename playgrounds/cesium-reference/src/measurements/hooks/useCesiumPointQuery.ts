@@ -11,16 +11,33 @@ import {
   MeasurementEntry,
   MeasurementMode,
 } from "../types/MeasurementTypes";
-import { updateCollection } from "../utils/measurementCollection";
+import {
+  updateCollection,
+  makeTemporaryMeasurementsPermanent,
+} from "../utils/measurementCollection";
+import { toGeographicDegrees } from "../utils/geo";
 
 export const useCesiumPointQuery = (
   viewer: Viewer | null,
   enabled: boolean = true,
   setCollection: Dispatch<SetStateAction<MeasurementCollection>>,
-  soloMode: boolean = true,
+  temporaryMode: boolean = true,
   radius: number = 10
 ) => {
   const handlerRef = useRef<ScreenSpaceEventHandler | null>(null);
+  const prevTemporaryModeRef = useRef(temporaryMode);
+
+  // Handle temporary-to-permanent conversion when temporary mode is turned off
+  useEffect(() => {
+    if (prevTemporaryModeRef.current && !temporaryMode) {
+      // Temporary mode was turned off, make all temporary measurements permanent
+      makeTemporaryMeasurementsPermanent(setCollection);
+      console.debug(
+        "[PointQuery] Converted temporary measurements to permanent"
+      );
+    }
+    prevTemporaryModeRef.current = temporaryMode;
+  }, [temporaryMode, setCollection]);
 
   useEffect(() => {
     if (!viewer || viewer.isDestroyed() || !enabled) {
@@ -46,40 +63,32 @@ export const useCesiumPointQuery = (
         return;
       }
 
-      // Get cartographic coordinates
-      const cartographic =
-        viewer.scene.globe.ellipsoid.cartesianToCartographic(pickedPosition);
-      if (!cartographic) {
-        console.debug("[SceneClick] Could not convert to cartographic");
-        return;
-      }
+      const geometryWGS84 = toGeographicDegrees(
+        pickedPosition,
+        viewer.scene.globe.ellipsoid
+      );
+      const { height } = geometryWGS84;
 
-      // Convert to degrees for display
-      const longitude = cartographic.longitude * (180 / Math.PI);
-      const latitude = cartographic.latitude * (180 / Math.PI);
-      const height = cartographic.height;
+      const measurementId = `point-${Date.now()}`;
 
       const measurementConstructor = (
         prev?: MeasurementCollection
       ): MeasurementEntry => {
-        const insertionIndex =
-          prev?.filter(isPointMeasurementEntry).length || 0;
+        const insertionIndex = temporaryMode
+          ? 0
+          : prev?.filter(isPointMeasurementEntry).length || 0;
         return {
           type: MeasurementMode.PointQuery,
-          id: `point-${Date.now()}`,
+          id: measurementId,
           index: insertionIndex,
           name: `Messpunkt ${insertionIndex + 1} (${height.toFixed(1)}m)`,
           geometryECEF: pickedPosition,
-          geometryWGS84: {
-            longitude,
-            latitude,
-            height,
-          },
+          geometryWGS84,
           timestamp: new Date().getTime(),
         };
       };
 
-      updateCollection(setCollection, measurementConstructor, soloMode);
+      updateCollection(setCollection, measurementConstructor, temporaryMode);
 
       console.debug(
         `[SceneClick] Created terrain point at elevation: ${height.toFixed(3)}m`
@@ -95,7 +104,7 @@ export const useCesiumPointQuery = (
       }
       console.debug("[SceneClick] Terrain click handler cleaned up");
     };
-  }, [viewer, enabled, radius, soloMode, setCollection]);
+  }, [viewer, enabled, radius, temporaryMode, setCollection]);
 
   return {};
 };

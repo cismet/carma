@@ -15,6 +15,8 @@ import { useCesiumViewer } from "../contexts/CesiumViewerContext";
 import { useCesiumPointQuery } from "./hooks/useCesiumPointQuery";
 import { useCesiumPointVisualizer } from "./hooks/useCesiumPointVisualizer";
 import { useCesiumTraverseQuery } from "./hooks/useCesiumTraverseQuery";
+import { useCesiumTraverseVisualizer } from "./hooks/useCesiumTraverseVisualizer";
+import { useCesiumMousePosition } from "./hooks/useCesiumMousePosition";
 
 import {
   type MeasurementCollection,
@@ -37,11 +39,13 @@ interface CesiumMeasurementsContextType {
   hideLabelsOfType: Set<MeasurementMode>;
   setHideLabelsOfType: Dispatch<SetStateAction<Set<MeasurementMode>>>;
   // generic options
-  soloMode: boolean;
-  setSoloMode: Dispatch<SetStateAction<boolean>>;
+  temporaryMode: boolean;
+  setTemporaryMode: Dispatch<SetStateAction<boolean>>;
   // per measurement type options
   pointRadius: number;
   setPointRadius: Dispatch<SetStateAction<number>>;
+  heightOffset: number;
+  setHeightOffset: Dispatch<SetStateAction<number>>;
 }
 
 const CesiumMeasurementsContext = createContext<
@@ -49,17 +53,30 @@ const CesiumMeasurementsContext = createContext<
 >(undefined);
 
 export type MeasurementProviderOptions = {
-  soloMode?: boolean;
+  temporary?: boolean;
   pointQueries?: {
     enabled?: boolean;
     radius?: number;
   };
+  traverse?: {
+    heightOffset?: number;
+  };
   cartographicCRS?: "string";
+  mode?: MeasurementMode;
+};
+
+const defaultOptions: MeasurementProviderOptions = {
+  temporary: false,
+  mode: MeasurementMode.Traverse,
 };
 
 const defaultPointQueryOptions: MeasurementProviderOptions["pointQueries"] = {
   enabled: true,
   radius: 10,
+};
+
+const defaultTraverseOptions: MeasurementProviderOptions["traverse"] = {
+  heightOffset: 1.5,
 };
 
 interface CesiumMeasurementsProviderProps {
@@ -86,13 +103,23 @@ export const CesiumMeasurementsProvider: React.FC<
     defaultPointQueryOptions
   );
 
-  const soloModeInit = options?.soloMode ?? true;
+  const traverseOptions = normalizeOptions(
+    options?.traverse,
+    defaultTraverseOptions
+  );
+
+  const normalizedOptions = normalizeOptions(options, defaultOptions);
+  const { mode: initialMeasurementMode, temporary: initialTemporary } =
+    normalizedOptions;
 
   const [measurementMode, setMeasurementMode] = useState<MeasurementMode>(
-    MeasurementMode.PointQuery
+    initialMeasurementMode
   );
   const [pointRadius, setPointRadius] = useState(pointQueryOptions.radius);
-  const [soloMode, setSoloMode] = useState(soloModeInit);
+  const [heightOffset, setHeightOffset] = useState(
+    traverseOptions.heightOffset
+  );
+  const [temporaryMode, setTemporaryMode] = useState(initialTemporary);
   const [measurements, setMeasurements] = useState<MeasurementCollection>([]);
   const [showLabels, setShowLabels] = useState<boolean>(true);
   const [hideMeasurementsOfType, setHideMeasurementsOfType] = useState<
@@ -108,7 +135,7 @@ export const CesiumMeasurementsProvider: React.FC<
     viewer,
     measurementMode === MeasurementMode.PointQuery,
     setMeasurements,
-    soloMode,
+    temporaryMode,
     pointRadius
   );
 
@@ -118,14 +145,6 @@ export const CesiumMeasurementsProvider: React.FC<
     showLabels &&
     !hideLabelsOfType.has(MeasurementMode.PointQuery);
 
-  console.debug(
-    "xxx",
-    showPoints,
-    showPointLabels,
-    hideMeasurementsOfType,
-    hideLabelsOfType
-  );
-
   useCesiumPointVisualizer(
     viewer,
     measurements,
@@ -134,11 +153,34 @@ export const CesiumMeasurementsProvider: React.FC<
     pointRadius
   );
 
-  const { clearTraverseQuery } = useCesiumTraverseQuery(
+  const { clearTraverseQuery, isActiveTraverse, currentTraverseId } =
+    useCesiumTraverseQuery(
+      viewer,
+      measurementMode === MeasurementMode.Traverse,
+      setMeasurements,
+      temporaryMode,
+      heightOffset
+    );
+
+  const mousePosition = useCesiumMousePosition(
     viewer,
-    measurementMode === MeasurementMode.Traverse,
-    setMeasurements,
-    soloMode
+    measurementMode === MeasurementMode.Traverse
+  );
+
+  const showTraverse = !hideMeasurementsOfType.has(MeasurementMode.Traverse);
+  const showTraverseLabels =
+    showTraverse &&
+    showLabels &&
+    !hideLabelsOfType.has(MeasurementMode.Traverse);
+
+  useCesiumTraverseVisualizer(
+    viewer,
+    measurements,
+    showTraverse,
+    showTraverseLabels,
+    mousePosition,
+    isActiveTraverse,
+    currentTraverseId
   );
 
   const clearAllMeasurements = useCallback(() => {
@@ -186,10 +228,12 @@ export const CesiumMeasurementsProvider: React.FC<
       setHideMeasurementsOfType,
       hideLabelsOfType,
       setHideLabelsOfType,
-      soloMode,
-      setSoloMode,
+      temporaryMode,
+      setTemporaryMode,
       pointRadius,
       setPointRadius,
+      heightOffset,
+      setHeightOffset,
     }),
     [
       measurementMode,
@@ -205,10 +249,12 @@ export const CesiumMeasurementsProvider: React.FC<
       setHideMeasurementsOfType,
       hideLabelsOfType,
       setHideLabelsOfType,
-      soloMode,
-      setSoloMode,
+      temporaryMode,
+      setTemporaryMode,
       pointRadius,
       setPointRadius,
+      heightOffset,
+      setHeightOffset,
     ]
   );
 

@@ -66,15 +66,62 @@ const PointQuerySettingsComponent: React.FC<{
   );
 };
 
+const TraverseSettingsComponent: React.FC<{
+  minHeightOffset?: number;
+  maxHeightOffset?: number;
+  stepHeightOffset?: number;
+  heightOffset?: number;
+  onChange?: (value: number) => void;
+}> = ({
+  minHeightOffset = 0,
+  maxHeightOffset = 10,
+  stepHeightOffset = 0.1,
+  heightOffset = 1.5,
+  onChange,
+}) => {
+  const onValueChange: InputNumberProps["onChange"] = (newDisplayValue) => {
+    onChange && onChange(newDisplayValue as number);
+  };
+
+  return (
+    <Row gutter={24}>
+      <Col span={14}>
+        <InputNumber
+          min={minHeightOffset}
+          max={maxHeightOffset}
+          step={stepHeightOffset}
+          value={heightOffset}
+          onChange={onValueChange}
+          addonAfter={"m"}
+          addonBefore={"Höhenversatz"}
+          formatter={(value) => `${value}`}
+          parser={(value) => value!.replace(/[^\d.]/g, "")}
+        />
+      </Col>
+      <Col span={10}>
+        <Slider
+          min={minHeightOffset}
+          max={maxHeightOffset}
+          step={stepHeightOffset}
+          value={heightOffset}
+          onChange={onValueChange}
+        />
+      </Col>
+    </Row>
+  );
+};
+
 export const InteractiveModeTabs: FC = () => {
   const {
     measurementMode,
     setMeasurementMode,
     pointRadius: pointRadius,
     setPointRadius: setPointRadius,
+    heightOffset,
+    setHeightOffset,
     measurements,
-    soloMode,
-    setSoloMode,
+    temporaryMode,
+    setTemporaryMode,
     clearAllMeasurements,
   } = useCesiumMeasurements();
 
@@ -105,6 +152,12 @@ export const InteractiveModeTabs: FC = () => {
       key: MeasurementMode.Traverse,
       label: "Polygonzug",
       icon: <FontAwesomeIcon icon={faRulerCombined} />,
+      children: (
+        <TraverseSettingsComponent
+          heightOffset={heightOffset}
+          onChange={(value) => setHeightOffset(value)}
+        />
+      ),
     },
   ];
 
@@ -128,10 +181,10 @@ export const InteractiveModeTabs: FC = () => {
             size="small"
           />
           <Switch
-            checked={soloMode}
-            onChange={(e) => setSoloMode(e.valueOf())}
-            checkedChildren="Solo"
-            unCheckedChildren="Multi"
+            checked={temporaryMode}
+            onChange={(e) => setTemporaryMode(e.valueOf())}
+            checkedChildren="Temporär"
+            unCheckedChildren="Permanent"
             size="small"
           />
           <Button
