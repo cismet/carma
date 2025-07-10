@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
-import { type Viewer, Entity, Cartesian2, Color } from "cesium";
+import { type Viewer, Entity, Color } from "cesium";
 import {
   create3DCrossGroup,
   Cross3DGroup,

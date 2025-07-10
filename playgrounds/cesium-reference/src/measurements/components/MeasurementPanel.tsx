@@ -80,7 +80,6 @@ interface MeasurementSectionProps {
     idx: number,
     clear: (ids: string[]) => void
   ) => React.ReactNode;
-  setActive: (key: MeasurementMode) => void;
 }
 
 const toggleTypeInSet = (
@@ -102,7 +101,6 @@ function MeasurementSection({
   title,
   placeholder,
   itemRenderer,
-  setActive,
 }: MeasurementSectionProps) {
   const {
     clearMeasurementsByIds,
@@ -236,7 +234,6 @@ export const MeasurementPanel: FC = () => {
           </>
         }
         itemRenderer={renderPointItem}
-        setActive={setActivePanel}
       />
       <MeasurementSection
         type={MeasurementMode.Traverse}
@@ -251,7 +248,6 @@ export const MeasurementPanel: FC = () => {
           </>
         }
         itemRenderer={renderTraverseItem}
-        setActive={setActivePanel}
       />
       <Collapse
         items={[
