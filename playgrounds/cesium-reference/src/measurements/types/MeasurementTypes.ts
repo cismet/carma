@@ -19,12 +19,13 @@ export type MeasurementEntry = {
   id: string;
   type: MeasurementMode;
   timestamp: number;
-  index?: number; // Fixed insertion index for stable order
+  index?: number;
   name?: string;
   geometryECEF: Cartesian3[] | Cartesian3;
   geometryWGS84: GeomPoint | GeomPolyline;
   metadata?: unknown;
   derived?: unknown;
+  temporary?: boolean;
 };
 
 export type PointMeasurementEntry = MeasurementEntry & {

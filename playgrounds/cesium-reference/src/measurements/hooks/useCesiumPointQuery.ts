@@ -11,7 +11,10 @@ import {
   MeasurementEntry,
   MeasurementMode,
 } from "../types/MeasurementTypes";
-import { updateCollection } from "../utils/measurementCollection";
+import {
+  updateCollection,
+  makeTemporaryMeasurementsPermanent,
+} from "../utils/measurementCollection";
 import { toGeographicDegrees } from "../utils/geo";
 
 export const useCesiumPointQuery = (
@@ -22,14 +25,19 @@ export const useCesiumPointQuery = (
   radius: number = 10
 ) => {
   const handlerRef = useRef<ScreenSpaceEventHandler | null>(null);
-  const temporaryMeasurementIdRef = useRef<string | null>(null);
+  const prevTemporaryModeRef = useRef(temporaryMode);
 
-  // Reset temporary measurement tracking when temporary mode is disabled
+  // Handle temporary-to-permanent conversion when temporary mode is turned off
   useEffect(() => {
-    if (!temporaryMode) {
-      temporaryMeasurementIdRef.current = null;
+    if (prevTemporaryModeRef.current && !temporaryMode) {
+      // Temporary mode was turned off, make all temporary measurements permanent
+      makeTemporaryMeasurementsPermanent(setCollection);
+      console.debug(
+        "[PointQuery] Converted temporary measurements to permanent"
+      );
     }
-  }, [temporaryMode]);
+    prevTemporaryModeRef.current = temporaryMode;
+  }, [temporaryMode, setCollection]);
 
   useEffect(() => {
     if (!viewer || viewer.isDestroyed() || !enabled) {
@@ -66,8 +74,9 @@ export const useCesiumPointQuery = (
       const measurementConstructor = (
         prev?: MeasurementCollection
       ): MeasurementEntry => {
-        const insertionIndex =
-          prev?.filter(isPointMeasurementEntry).length || 0;
+        const insertionIndex = temporaryMode
+          ? 0
+          : prev?.filter(isPointMeasurementEntry).length || 0;
         return {
           type: MeasurementMode.PointQuery,
           id: measurementId,
@@ -79,23 +88,7 @@ export const useCesiumPointQuery = (
         };
       };
 
-      // Track the first measurement created in temporary mode
-      if (temporaryMode && temporaryMeasurementIdRef.current === null) {
-        temporaryMeasurementIdRef.current = measurementId;
-        console.debug(
-          `[PointQuery] Temporary mode: Tracking measurement ${measurementId} as the temporary measurement`
-        );
-      }
-
-      updateCollection(
-        setCollection,
-        measurementConstructor,
-        temporaryMode,
-        temporaryMeasurementIdRef.current,
-        (newId: string) => {
-          temporaryMeasurementIdRef.current = newId;
-        }
-      );
+      updateCollection(setCollection, measurementConstructor, temporaryMode);
 
       console.debug(
         `[SceneClick] Created terrain point at elevation: ${height.toFixed(3)}m`

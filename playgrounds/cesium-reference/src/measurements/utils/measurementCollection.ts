@@ -39,17 +39,32 @@ export const updateLastOfMeasurementType =
     return [...prev, measurement];
   };
 
+export const clearTemporaryMeasurements = (
+  setCollection: Dispatch<SetStateAction<MeasurementCollection>>
+) => {
+  setCollection((prev) => prev.filter((m) => !m.temporary));
+};
+
+export const makeTemporaryMeasurementsPermanent = (
+  setCollection: Dispatch<SetStateAction<MeasurementCollection>>
+) => {
+  setCollection((prev) =>
+    prev.map((m) => (m.temporary ? { ...m, temporary: false } : m))
+  );
+};
+
 export const updateCollection = (
   setCollection: Dispatch<SetStateAction<MeasurementCollection>>,
   entryOrConstructor: EntryOrConstructor,
-  temporaryMode: boolean,
-  temporaryMeasurementId?: string | null,
-  updateTemporaryMeasurementId?: (id: string) => void
+  temporaryMode: boolean
 ) => {
   setCollection((prevCollection: MeasurementCollection) => {
     const measurement = isConstructor(entryOrConstructor)
       ? entryOrConstructor(prevCollection)
       : entryOrConstructor;
+
+    // Set temporary flag based on mode
+    measurement.temporary = temporaryMode;
 
     // Check if an entry with the same ID already exists
     const existingIndex = prevCollection.findIndex(
@@ -66,47 +81,31 @@ export const updateCollection = (
       return newCollection;
     } else {
       // Adding a new entry (new ID - starting new measurement)
-      if (temporaryMode && temporaryMeasurementId) {
-        // In temporary mode, replace only the specific measurement that was created after temporary mode was enabled
-        const temporaryMeasurementIndex = prevCollection.findIndex(
-          (m) => m.id === temporaryMeasurementId
+      let newCollection = [...prevCollection];
+
+      if (temporaryMode) {
+        // Remove any existing temporary measurement of the same type
+        const existingTemporaryIndex = newCollection.findIndex(
+          (m) => m.type === measurement.type && m.temporary
         );
 
-        let newCollection = [...prevCollection];
-
-        if (temporaryMeasurementIndex !== -1) {
-          // Replace the temporary measurement
-          newCollection[temporaryMeasurementIndex] = measurement;
+        if (existingTemporaryIndex !== -1) {
+          newCollection.splice(existingTemporaryIndex, 1);
           console.debug(
-            `[updateCollection] Temporary mode: Replaced temporary measurement ${temporaryMeasurementId} with ${measurement.id} at index ${temporaryMeasurementIndex}`
-          );
-
-          // Update the temporary measurement ID to the new one
-          if (updateTemporaryMeasurementId) {
-            updateTemporaryMeasurementId(measurement.id);
-          }
-        } else {
-          // The temporary measurement doesn't exist anymore, just add the new one
-          newCollection.push(measurement);
-          console.debug(
-            `[updateCollection] Temporary mode: Temporary measurement ${temporaryMeasurementId} not found, added new measurement ${measurement.id}`
+            `[updateCollection] Temporary mode: Removed existing temporary measurement of type ${measurement.type}`
           );
         }
-
-        return newCollection;
-      } else if (temporaryMode) {
-        // In temporary mode but no specific temporary measurement ID yet, just add
-        console.debug(
-          `[updateCollection] Temporary mode: Added first measurement ${measurement.id}`
-        );
-        return [...prevCollection, measurement];
-      } else {
-        // In permanent mode, just add the new measurement
-        console.debug(
-          `[updateCollection] Adding new measurement ${measurement.id}`
-        );
-        return [...prevCollection, measurement];
       }
+
+      // Add the new measurement
+      newCollection.push(measurement);
+      console.debug(
+        `[updateCollection] Added new measurement ${measurement.id}${
+          temporaryMode ? " (temporary)" : ""
+        }`
+      );
+
+      return newCollection;
     }
   });
 };

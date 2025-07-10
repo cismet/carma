@@ -103,9 +103,6 @@ export const CesiumMeasurementsProvider: React.FC<
   );
   const [pointRadius, setPointRadius] = useState(pointQueryOptions.radius);
   const [temporaryMode, setTemporaryMode] = useState(initialTemporary);
-  const [temporaryModeEnabledAt, setTemporaryModeEnabledAt] = useState<number>(
-    initialTemporary ? Date.now() : 0
-  );
   const [measurements, setMeasurements] = useState<MeasurementCollection>([]);
   const [showLabels, setShowLabels] = useState<boolean>(true);
   const [hideMeasurementsOfType, setHideMeasurementsOfType] = useState<
