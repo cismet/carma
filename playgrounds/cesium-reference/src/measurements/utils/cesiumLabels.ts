@@ -21,7 +21,7 @@ import { formatDistance } from "../../utils/formatters";
 export const SCALE_BY_DISTANCE = new NearFarScalar(0, 1, 5000, 0.0);
 export const SCALE_BY_DISTANCE_POINTS = new NearFarScalar(0, 1, 5000, 0.5);
 
-export const LABEL_FONT = "bold 20px Univers, Verdana Pro, sans-serif";
+export const LABEL_FONT = '12px "Helvetica Neue", Arial, Helvetica, sans-serif';
 
 const ENCLOSED_GLYPHS =
   "⓪①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳㉑㉒㉓㉔㉕㉖㉗㉘㉙㉚㉛㉜㉝㉞㉟㊱㊲㊳㊴㊵㊶㊷㊸㊹㊺㊻㊼㊽㊾㊿";
@@ -72,9 +72,9 @@ const defaultLabelOptions: LabelOptions = {
   font: LABEL_FONT,
   fillColor: Color.BLACK,
   showBackground: false,
-  backgroundColor: Color.DARKSLATEGREY.withAlpha(0.5),
-  backgroundPadding: new Cartesian2(12, 6),
-  outlineColor: Color.WHITE.withAlpha(0.75),
+  //backgroundColor: Color.BLACK.withAlpha(0.5),
+  //backgroundPadding: new Cartesian2(12, 6),
+  outlineColor: Color.WHITE,
   outlineWidth: 5,
   style: LabelStyle.FILL_AND_OUTLINE,
   pixelOffset: new Cartesian2(0, 40),
@@ -186,7 +186,7 @@ const calculateScreenSpaceDistance = (
  */
 const estimateLabelWidth = (text: string): number => {
   // Average character width in pixels for our label font at 20px
-  const avgCharWidth = 9;
+  const avgCharWidth = 6;
   return text.length * avgCharWidth;
 };
 
@@ -200,7 +200,11 @@ export const shouldShowSegmentLabel = (
   endPoint: Cartesian3,
   labelText: string
 ): boolean => {
-  const screenDistance = calculateScreenSpaceDistance(viewer, startPoint, endPoint);
+  const screenDistance = calculateScreenSpaceDistance(
+    viewer,
+    startPoint,
+    endPoint
+  );
   if (screenDistance === null) return false;
 
   const labelWidth = estimateLabelWidth(labelText);
@@ -224,11 +228,15 @@ export const shouldShowNodeLabel = (
 ): boolean => {
   // Always show first and last point labels
   if (pointIndex === 0 || isLastPoint) return true;
-  
+
   // If no previous point, show the label
   if (!previousPoint) return true;
 
-  const screenDistance = calculateScreenSpaceDistance(viewer, previousPoint, currentPoint);
+  const screenDistance = calculateScreenSpaceDistance(
+    viewer,
+    previousPoint,
+    currentPoint
+  );
   if (screenDistance === null) return true; // Show if we can't calculate
 
   const labelWidth = estimateLabelWidth(labelText);
@@ -251,15 +259,24 @@ export const updateTraverseLabelVisibility = (
   if (!viewer || viewer.isDestroyed() || !traverse.geometryECEF) return;
 
   const heightOffset = traverse.heightOffset || 0;
-  const elevatedPoints = heightOffset > 0 
-    ? traverse.geometryECEF.map((point) => {
-        const localToFixedFrame = Transforms.eastNorthUpToFixedFrame(point);
-        const localUp = Matrix4.getColumn(localToFixedFrame, 2, new Cartesian4());
-        const upVector = new Cartesian3(localUp.x, localUp.y, localUp.z);
-        const offsetVector = Cartesian3.multiplyByScalar(upVector, heightOffset, new Cartesian3());
-        return Cartesian3.add(point, offsetVector, new Cartesian3());
-      })
-    : traverse.geometryECEF;
+  const elevatedPoints =
+    heightOffset > 0
+      ? traverse.geometryECEF.map((point) => {
+          const localToFixedFrame = Transforms.eastNorthUpToFixedFrame(point);
+          const localUp = Matrix4.getColumn(
+            localToFixedFrame,
+            2,
+            new Cartesian4()
+          );
+          const upVector = new Cartesian3(localUp.x, localUp.y, localUp.z);
+          const offsetVector = Cartesian3.multiplyByScalar(
+            upVector,
+            heightOffset,
+            new Cartesian3()
+          );
+          return Cartesian3.add(point, offsetVector, new Cartesian3());
+        })
+      : traverse.geometryECEF;
 
   traverseEntities.forEach((entity) => {
     if (!entity.id || !entity.label) return;
@@ -271,9 +288,15 @@ export const updateTraverseLabelVisibility = (
       if (segmentIndex > 0 && segmentIndex < elevatedPoints.length) {
         const startPoint = elevatedPoints[segmentIndex - 1];
         const endPoint = elevatedPoints[segmentIndex];
-        const labelText = entity.label.text?.getValue(viewer.clock.currentTime) || '';
-        
-        const shouldShow = shouldShowSegmentLabel(viewer, startPoint, endPoint, labelText);
+        const labelText =
+          entity.label.text?.getValue(viewer.clock.currentTime) || "";
+
+        const shouldShow = shouldShowSegmentLabel(
+          viewer,
+          startPoint,
+          endPoint,
+          labelText
+        );
         entity.show = shouldShow;
       }
     }
@@ -283,11 +306,20 @@ export const updateTraverseLabelVisibility = (
     if (pointMatch) {
       const pointIndex = parseInt(pointMatch[2], 10);
       const isLastPoint = pointIndex === elevatedPoints.length - 1;
-      const previousPoint = pointIndex > 0 ? elevatedPoints[pointIndex - 1] : null;
+      const previousPoint =
+        pointIndex > 0 ? elevatedPoints[pointIndex - 1] : null;
       const currentPoint = elevatedPoints[pointIndex];
-      const labelText = entity.label.text?.getValue(viewer.clock.currentTime) || '';
-      
-      const shouldShow = shouldShowNodeLabel(viewer, currentPoint, previousPoint, pointIndex, isLastPoint, labelText);
+      const labelText =
+        entity.label.text?.getValue(viewer.clock.currentTime) || "";
+
+      const shouldShow = shouldShowNodeLabel(
+        viewer,
+        currentPoint,
+        previousPoint,
+        pointIndex,
+        isLastPoint,
+        labelText
+      );
       entity.show = shouldShow;
     }
   });
