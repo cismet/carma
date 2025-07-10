@@ -290,6 +290,17 @@ const SecondaryInfoModal = ({ feature, setOpen, versionString }) => {
                         </li>
                       );
                     })}
+
+                    {plan.links &&
+                      plan.links.map((res, idx) => {
+                        return (
+                          <li key={idx}>
+                            <a href={res.url} target="_blank">
+                              {res?.anzeige ? res?.anzeige : res.url}
+                            </a>
+                          </li>
+                        );
+                      })}
                   </ul>
                 </Panel>
               </Accordion>
