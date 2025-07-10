@@ -48,7 +48,10 @@ import {
   useHomeControl,
   useZoomControls as useZoomControlsCesium,
 } from "@carma-mapping/cesium-engine";
-import { LibrePitchingCompass } from "@carma-mapping/components";
+import {
+  LibrePitchingCompass,
+  RoutedMapLocateControl,
+} from "@carma-mapping/components";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import {
   Control,
@@ -61,7 +64,6 @@ import { GeoportalMap } from "../GeoportalMap.tsx";
 import LibreGeoportalMap from "../LibreGeoportalMap.tsx";
 import { ObliqueControls } from "../../../oblique/components/ObliqueControls.tsx";
 import LayerWrapper from "../../layers/LayerWrapper.tsx";
-import LocateControlComponent from "../controls/LocateControlComponent.tsx";
 
 import useLeafletZoomControls from "../../../hooks/leaflet/useLeafletZoomControls.ts";
 import { useAppSearchParams } from "../../../hooks/useAppSearchParams";
@@ -472,34 +474,11 @@ const MapWrapper = () => {
           </Control>
           {showLocatorButton && isMobile && (
             <Control position="topleft" order={30}>
-              <Tooltip
-                title={
-                  isLocationActive
-                    ? "Standortanzeige ausschalten"
-                    : "Standortanzeige einschalten"
-                }
-                placement="right"
-              >
-                <ControlButtonStyler
-                  ref={tourRefLabels.navigator}
-                  onClick={() => setIsLocationActive((prev) => !prev)}
-                  dataTestId="location-control"
-                  disabled={isMode2d && showLibreMap}
-                  useDisabledStyle={isMode2d && showLibreMap}
-                >
-                  <FontAwesomeIcon
-                    icon={faLocationArrow}
-                    className={`text-2xl ${
-                      isLocationActive
-                        ? hasMapMoved
-                          ? "text-blue-500"
-                          : "text-orange-500"
-                        : ""
-                    }`}
-                  />
-                </ControlButtonStyler>
-              </Tooltip>
-              <LocateControlComponent isActive={isLocationActive} />
+              <RoutedMapLocateControl
+                tourRefLabels={null}
+                disabled={false}
+                nativeTooltip={true}
+              />
             </Control>
           )}
           <Control position="topleft" order={40}>
