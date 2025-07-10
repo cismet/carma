@@ -9,6 +9,7 @@ import {
 } from "../../store/slices/mapSettings";
 import {
   getFeatureCollection,
+  getFilter,
   setFeatureCollection,
 } from "../../store/slices/featureCollection";
 import { AppDispatch } from "../../store";
@@ -23,8 +24,9 @@ const MODES = {
 } as const;
 const BelisMapLibWrapper = ({ refRoutedMap, width, height, jwt }) => {
   const dispatch: AppDispatch = useDispatch();
-  const storedJWT = useSelector(getJWT);
   const featureCollection = useSelector(getFeatureCollection);
+  const filter = useSelector(getFilter);
+
   //   const inFocusMode = useSelector(isInFocusMode);
   //   const selectedFeature = useSelector(getSelectedFeature);
   //   const featureCollectionMode = useSelector(getFeatureCollectionMode);
@@ -43,7 +45,8 @@ const BelisMapLibWrapper = ({ refRoutedMap, width, height, jwt }) => {
         settings,
         REST_SERVICE,
         DOMAIN,
-        setFeatureCollection
+        setFeatureCollection,
+        filter
       ) as unknown as UnknownAction
     );
   };
@@ -73,6 +76,7 @@ const BelisMapLibWrapper = ({ refRoutedMap, width, height, jwt }) => {
       initIndex={() => {}}
       activeBackgroundLayer={activeBackgroundLayer}
       backgroundLayerOpacities={backgroundLayerOpacities}
+      filter={filter}
     >
       <></>
     </BelisMap>

@@ -18,6 +18,7 @@ import {
 import PaleOverlay from "react-cismap/PaleOverlay";
 import type { ReactNode } from "react";
 import type { LatLngBounds, Point, Map as LeafletMap } from "leaflet";
+import { featuresFilter, FilterState } from "..";
 
 type BoundsAndSize = {
   mapBounds: LatLngBounds;
@@ -67,6 +68,7 @@ interface BelisMapProps {
   children?: ReactNode;
   activeBackgroundLayer?: string | null;
   backgroundLayerOpacities?: any;
+  filter?: FilterState;
 }
 
 export const CONNECTIONMODE = { FROMCACHE: "FROMCACHE", ONLINE: "ONLINE" };
@@ -97,6 +99,7 @@ export function BelisMap({
   children,
   activeBackgroundLayer = null,
   backgroundLayerOpacities = {},
+  filter = featuresFilter,
 }: BelisMapProps) {
   const mapRef = refRoutedMap?.current?.leafletMap?.leafletElement;
   const blockingTime = 1000;
@@ -237,6 +240,7 @@ export function BelisMap({
     indexInitialized,
     connectionMode,
     featureCollectionMode,
+    filter,
   ]);
 
   useEffect(() => {
