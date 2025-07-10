@@ -246,10 +246,10 @@ const SecondaryInfoModal = ({ feature, setOpen, versionString }) => {
                     {sortedResolutions.map((res, idx) => {
                       return (
                         <p key={idx}>
+                          <span> ({formatDatum(res.datum)}) </span>
                           <a href={res.url} target="_blank">
                             {res.anzeige}
                           </a>
-                          <span> ({formatDatum(res.datum)})</span>
                         </p>
                       );
                     })}
