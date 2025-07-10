@@ -21,12 +21,15 @@ const itemFilterFunction = ({ filterState }) => {
     sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
     if (!item.veroeffentlicht) {
-      result = false;
-    } else if (!item.abgeschlossen) {
-      result = true;
+      return false;
+    } else if (item.abgeschlossen) {
+      return false;
     } else if (item.abgeschlossen_am) {
       const doneDate = new Date(item.abgeschlossen_am);
-      result = doneDate >= sixMonthsAgo;
+
+      if (doneDate >= sixMonthsAgo) {
+        return false;
+      }
     }
 
     let themaResult;
