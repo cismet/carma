@@ -12,7 +12,7 @@ const UserBar = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="flex items-center  mx-3 my-4">
+    <div className="flex items-center  mx-3 mb-4 mt-2">
       <Filter />
       <div className="ml-auto flex items-center gap-2">
         <Tooltip title="Ausloggen" placement="right">
