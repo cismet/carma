@@ -6,7 +6,9 @@ import {
   Color,
   Entity,
   HeightReference,
+  HorizontalOrigin,
   LabelStyle,
+  VerticalOrigin,
 } from "cesium";
 
 import { PROJ4_CONVERTERS } from "@carma-commons/utils";
@@ -260,7 +262,9 @@ export const useNivPoints = (
           outlineColor: Color.BLACK.withAlpha(0.9),
           outlineWidth: 2,
           style: LabelStyle.FILL_AND_OUTLINE,
-          pixelOffset: new Cartesian2(0, -30),
+          pixelOffset: new Cartesian2(5, -8),
+          horizontalOrigin: HorizontalOrigin.LEFT,
+          verticalOrigin: VerticalOrigin.BASELINE,
           scaleByDistance: SCALE_BY_DISTANCE,
           disableDepthTestDistance: 200,
         },

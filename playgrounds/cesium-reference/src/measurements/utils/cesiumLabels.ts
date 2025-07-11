@@ -17,6 +17,7 @@ import {
 import { MeasurementEntry } from "../types/MeasurementTypes";
 import { normalizeOptions } from "@carma-commons/utils";
 import { formatDistance } from "../../utils/formatters";
+import * as L from "leaflet";
 
 export const SCALE_BY_DISTANCE = new NearFarScalar(0, 1, 5000, 0.0);
 export const SCALE_BY_DISTANCE_POINTS = new NearFarScalar(0, 1, 5000, 0.5);
@@ -79,10 +80,10 @@ const defaultLabelOptions: LabelOptions = {
   outlineColor: Color.WHITE,
   outlineWidth: 5,
   style: LabelStyle.FILL_AND_OUTLINE,
-  pixelOffset: new Cartesian2(0, 40),
+  pixelOffset: new Cartesian2(5, -8),
   //scaleByDistance: SCALE_BY_DISTANCE,
   //disableDepthTestDistance: Number.POSITIVE_INFINITY,
-  horizontalOrigin: HorizontalOrigin.CENTER,
+  horizontalOrigin: HorizontalOrigin.LEFT,
   verticalOrigin: VerticalOrigin.BASELINE,
 };
 
@@ -149,9 +150,6 @@ export const createSegmentNodeLabel = (
 
   const labelOptions: LabelOptions = {
     text: pointLabelText,
-    pixelOffset: new Cartesian2(10, -10), // Above the point
-    verticalOrigin: VerticalOrigin.BASELINE,
-    horizontalOrigin: HorizontalOrigin.LEFT,
   };
 
   return createLabelEntity(measurementEntry, position, labelOptions);
