@@ -28,7 +28,6 @@ const NavBarWrapper = () => {
 
   useEffect(() => {
     setIsLoading(true);
-
     dispatch(checkJWTValidation() as unknown as UnknownAction);
     setIsLoading(false);
   }, []);

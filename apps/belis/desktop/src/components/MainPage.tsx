@@ -39,7 +39,7 @@ const MainPage = () => {
 
   useEffect(() => {
     const updateSize = () => {
-      const gutter = 230;
+      const gutter = 310;
       setDimensions({
         width: window.innerWidth - gutter,
         height: window.innerHeight - 136,
