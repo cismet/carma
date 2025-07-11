@@ -17,8 +17,6 @@ import {
 import { MeasurementEntry } from "../types/MeasurementTypes";
 import { normalizeOptions } from "@carma-commons/utils";
 import { formatDistance } from "../../utils/formatters";
-import * as L from "leaflet";
-
 export const SCALE_BY_DISTANCE = new NearFarScalar(0, 1, 5000, 0.0);
 export const SCALE_BY_DISTANCE_POINTS = new NearFarScalar(0, 1, 5000, 0.5);
 
