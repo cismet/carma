@@ -68,6 +68,23 @@ const convertItemToFeature = async (itemIn, poiColors) => {
 
   item.color = headerColor;
 
+  // const sixMonthsAgo = new Date();
+  // sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+
+  // if (!item.veroeffentlicht) {
+  //   return null;
+  // } else if (item.abgeschlossen) {
+  //   if (item.abgeschlossen_am) {
+  //     const doneDate = new Date(item.abgeschlossen_am);
+
+  //     if (doneDate < sixMonthsAgo) {
+  //       return null;
+  //     }
+  //   } else {
+  //     return null;
+  //   }
+  // }
+
   return {
     id,
     text,

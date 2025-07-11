@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import {
   FeatureCollectionContext,
   FeatureCollectionDispatchContext,
@@ -49,13 +49,18 @@ import { type GazDataItem } from "@carma-commons/utils";
 import versionData from "../../version.json";
 
 const Map = () => {
-  const { setClusteringOptions, setSelectedFeatureByPredicate } = useContext<
-    typeof FeatureCollectionDispatchContext
-  >(FeatureCollectionDispatchContext);
+  const {
+    setClusteringOptions,
+    setSelectedFeatureByPredicate,
+    setAllFeatures,
+    setShownFeatures,
+  } = useContext<typeof FeatureCollectionDispatchContext>(
+    FeatureCollectionDispatchContext
+  );
   const { markerSymbolSize } = useContext<typeof TopicMapStylingContext>(
     TopicMapStylingContext
   );
-  const { clusteringOptions, selectedFeature } = useContext<
+  const { clusteringOptions, selectedFeature, allFeatures } = useContext<
     typeof FeatureCollectionContext
   >(FeatureCollectionContext);
   const lightBoxDispatchContext = useContext(
@@ -73,6 +78,8 @@ const Map = () => {
   const [gazDataWithProjects, setGazDataWithProjects] = useState<GazDataItem[]>(
     []
   );
+
+  const filteredFlag = useRef(null);
 
   const { gazData } = useGazData();
 
@@ -116,6 +123,19 @@ const Map = () => {
       });
     }
   }, [markerSymbolSize]);
+
+  useEffect(() => {
+    console.log("xxx !testFlag.current", filteredFlag.current);
+    if (allFeatures && !filteredFlag.current) {
+      const filteredItems = allFeatures.filter((i) => {
+        console.log("xxx i", i.properties.id);
+        return i.properties.id !== 7;
+      });
+      console.log("xxx filteredItems", filteredItems);
+      setAllFeatures(filteredItems);
+      filteredFlag.current = "test";
+    }
+  }, [allFeatures]);
 
   useEffect(() => {
     if (
