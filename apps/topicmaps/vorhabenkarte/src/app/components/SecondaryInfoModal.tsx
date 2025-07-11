@@ -45,6 +45,7 @@ const styles = {
   },
   value: {
     fontSize: "14px",
+    whiteSpace: "pre-line",
   },
   focusRoomContainer: {
     display: "flex",
@@ -223,7 +224,9 @@ const SecondaryInfoModal = ({ feature, setOpen, versionString }) => {
             <div className="py-[12px]">
               <b className="text-[16px]">Beschreibung: </b>
               <div className="mt-1">
-                <span>{plan.beschreibung} </span>
+                <span style={{ whiteSpace: "pre-line" }}>
+                  {plan.beschreibung}{" "}
+                </span>
                 <div className="mt-1">
                   {plan?.link && (
                     <a href={plan.link} target="_blank">
@@ -268,10 +271,12 @@ const SecondaryInfoModal = ({ feature, setOpen, versionString }) => {
                   eventKey="1"
                   bsStyle="success"
                 >
-                  <div className="mb-1 ">{citizenText}</div>
+                  <div className="mb-1" style={{ whiteSpace: "pre-line" }}>
+                    {citizenText}
+                  </div>
                   {citizenUrl && (
                     <a href={citizenUrl} target="_blank">
-                      Mehr Informationen
+                      Mehr Informationen...
                     </a>
                   )}
                 </Panel>
