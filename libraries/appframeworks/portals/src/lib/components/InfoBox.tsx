@@ -71,7 +71,6 @@ export const InfoBox = ({
   colorizer = (props) => ((props || {}).properties || {}).color, //
   defaultContextValues = {},
 }: InfoBoxProps) => {
-  console.log("xxx subtitle", subtitle);
   const featureCollectionContext =
     useContext<typeof FeatureCollectionContext>(FeatureCollectionContext) ||
     defaultContextValues;

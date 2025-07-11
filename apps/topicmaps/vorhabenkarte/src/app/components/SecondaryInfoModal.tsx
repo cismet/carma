@@ -285,7 +285,7 @@ const SecondaryInfoModal = ({ feature, setOpen, versionString }) => {
             {documents.length > 0 && (
               <Accordion style={{ marginBottom: 6 }} defaultActiveKey={"2"}>
                 <Panel header="Anhang" eventKey="2" bsStyle="warning">
-                  <ul>
+                  <ul className="ml-[-22px]">
                     {documents.map((res, idx) => {
                       return (
                         <li key={idx}>
