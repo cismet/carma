@@ -17,22 +17,22 @@ export const topics = [
 const itemFilterFunction = ({ filterState }) => {
   return (item) => {
     let result = false;
-    const sixMonthsAgo = new Date();
-    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+    // const sixMonthsAgo = new Date();
+    // sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
 
-    if (!item.veroeffentlicht) {
-      return false;
-    } else if (item.abgeschlossen) {
-      if (item.abgeschlossen_am) {
-        const doneDate = new Date(item.abgeschlossen_am);
+    // if (!item.veroeffentlicht) {
+    //   return false;
+    // } else if (item.abgeschlossen) {
+    //   if (item.abgeschlossen_am) {
+    //     const doneDate = new Date(item.abgeschlossen_am);
 
-        if (doneDate < sixMonthsAgo) {
-          return false;
-        }
-      } else {
-        return false;
-      }
-    }
+    //     if (doneDate < sixMonthsAgo) {
+    //       return false;
+    //     }
+    //   } else {
+    //     return false;
+    //   }
+    // }
 
     let themaResult;
     let stekResult;
