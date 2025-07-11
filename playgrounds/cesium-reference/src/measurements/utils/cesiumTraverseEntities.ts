@@ -8,12 +8,12 @@ export const createPointMarker = (
     id: id || `measurement-point-marker-${Date.now()}`,
     position: position,
     point: {
-      pixelSize: 8,
-      color: Color.LIGHTYELLOW,
+      pixelSize: 11,
+      color: Color.WHITESMOKE,
       outlineColor: Color.BLACK,
-      outlineWidth: 2,
+      outlineWidth: 0,
       heightReference: HeightReference.NONE,
-      disableDepthTestDistance: Number.POSITIVE_INFINITY,
+      //disableDepthTestDistance: Number.POSITIVE_INFINITY,
     },
   });
 };

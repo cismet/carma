@@ -10,6 +10,9 @@ import {
   Matrix4,
   Ellipsoid,
   Cartesian4,
+  PolylineDashMaterialProperty,
+  PolylineArrowMaterialProperty,
+  PolylineGlowMaterialProperty,
 } from "cesium";
 import {
   isTraverseMeasurementEntry,
@@ -21,9 +24,58 @@ import { formatDistance } from "../../utils/formatters";
 import {
   createSegmentLabel,
   createSegmentNodeLabel,
+  createNodeNumberLabel,
   updateTraverseLabelVisibility,
 } from "../utils/cesiumLabels";
 import { useRequestRender } from "./useRequestRender";
+
+const STEMLINE_MIN_OFFSET = 0.1; // meters
+
+type PolylineMaterial =
+  | Color
+  | PolylineDashMaterialProperty
+  | PolylineArrowMaterialProperty
+  | PolylineGlowMaterialProperty;
+
+type TraverseStyleConfig = {
+  lineWidth?: number;
+  lineMaterial?: PolylineMaterial;
+  stemLineWidth?: number;
+  stemLineMaterial?: PolylineMaterial;
+  previewLineWidth?: number;
+  previewLineMaterial?: PolylineMaterial;
+};
+
+// rgba(38, 123, 220, 0.83) as in geoportal leaflet-draw-guide-dash
+// too dark vs mesh dominant colors
+//const PREVIEWLINE_COLOR = Color.fromCssColorString("rgba(38, 123, 220, 0.83)");
+const PREVIEWLINE_COLOR = Color.fromCssColorString("rgba(153, 238, 255, 0.83)");
+
+// expose later if this should be configurable
+const defaultTraverseStyleConfig: Readonly<TraverseStyleConfig> = {
+  lineWidth: 2,
+  lineMaterial: Color.WHITE,
+  stemLineWidth: 0.25,
+  stemLineMaterial: Color.WHITE,
+  previewLineWidth: 5,
+  previewLineMaterial: new PolylineDashMaterialProperty({
+    color: PREVIEWLINE_COLOR,
+    dashLength: 20.0,
+    dashPattern: 15, // 8 bit binary
+  }),
+};
+
+enum PREVIEW_NAMES {
+  LABEL = "__previewLabel",
+  LINE = "__previewLine",
+  STEM = "__previewStem",
+}
+
+const previewNameValues = Object.freeze(Object.values(PREVIEW_NAMES));
+
+const isPreviewName = (name: string): name is PREVIEW_NAMES => {
+  return previewNameValues.includes(name as PREVIEW_NAMES);
+};
 
 const getLocalElevatedPoint = (
   position: Cartesian3,
@@ -68,6 +120,8 @@ export function useCesiumTraverseVisualizer(
   const renderedTraversesRef = useRef<Map<string, number>>(new Map());
   const requestRender = useRequestRender(viewer);
 
+  const config = defaultTraverseStyleConfig;
+
   const [traverses, currentIds]: [TraverseMeasurementEntry[], Set<string>] =
     useMemo(() => {
       const traverses = measurements.filter(isTraverseMeasurementEntry);
@@ -102,7 +156,7 @@ export function useCesiumTraverseVisualizer(
     traverseEntiesRef.current.forEach((entity) => {
       if (entity.id) {
         const match = entity.id.match(
-          /^(point-marker|point-label|segment|polyline|vertical-line)-(traverse-\d+)/
+          /^(point-marker|point-label|point-number|segment|polyline|vertical-line)-(traverse-\d+)/
         );
         if (match) {
           const traverseId = match[2];
@@ -173,7 +227,7 @@ export function useCesiumTraverseVisualizer(
       traverse.geometryECEF.forEach((point, index) => {
         const pointMarkerId = `point-marker-${traverse.id}-${index}`;
         const pointLabelId = `point-label-${traverse.id}-${index}`;
-        const verticalLineId = `vertical-line-${traverse.id}-${index}`;
+        const stemLineId = `vertical-line-${traverse.id}-${index}`;
 
         // Get heightOffset from measurement data, default to 0 if not set
         const heightOffset = traverse.heightOffset || 0;
@@ -192,24 +246,29 @@ export function useCesiumTraverseVisualizer(
         }
 
         // Add vertical line from ground to elevated point if heightOffset > 0
-        if (heightOffset > 0 && !viewer.entities.getById(verticalLineId)) {
-          const verticalLine = new Entity({
-            id: verticalLineId,
+        if (
+          heightOffset > STEMLINE_MIN_OFFSET &&
+          !viewer.entities.getById(stemLineId)
+        ) {
+          const stemLine = new Entity({
+            id: stemLineId,
             polyline: {
               positions: [point, visualizationPoint],
-              width: 2,
-              material: Color.WHITE.withAlpha(0.8),
+              width: config.stemLineWidth,
+              material: config.stemLineMaterial,
               clampToGround: false,
             },
           });
-          viewer.entities.add(verticalLine);
-          traverseEntiesRef.current.push(verticalLine);
+          viewer.entities.add(stemLine);
+          traverseEntiesRef.current.push(stemLine);
         }
 
         if (!viewer.entities.getById(pointLabelId)) {
           const cumulativeLength =
             traverse.derived.segmentLengthsCumulative[index] || 0;
           const isSingleSegment = traverse.geometryECEF.length === 2;
+
+          // Create distance label (offset from point)
           const pointLabel = createSegmentNodeLabel(
             visualizationPoint,
             index,
@@ -219,6 +278,18 @@ export function useCesiumTraverseVisualizer(
           );
           viewer.entities.add(pointLabel);
           traverseEntiesRef.current.push(pointLabel);
+        }
+
+        // Create number label directly on the point
+        const pointNumberId = `point-number-${traverse.id}-${index}`;
+        if (!viewer.entities.getById(pointNumberId)) {
+          const numberLabel = createNodeNumberLabel(
+            visualizationPoint,
+            index,
+            pointNumberId
+          );
+          viewer.entities.add(numberLabel);
+          traverseEntiesRef.current.push(numberLabel);
         }
       });
 
@@ -263,8 +334,8 @@ export function useCesiumTraverseVisualizer(
           id: polylineId,
           polyline: {
             positions: polylinePositions,
-            width: 3,
-            material: Color.LIGHTYELLOW,
+            width: config.lineWidth,
+            material: config.lineMaterial,
             clampToGround: false,
           },
         });
@@ -278,6 +349,8 @@ export function useCesiumTraverseVisualizer(
 
     prevIdsRef.current = currentIds;
     requestRender();
+    // configs are static,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     viewer,
     traverses,
@@ -298,11 +371,8 @@ export function useCesiumTraverseVisualizer(
       !currentTraverseId
     ) {
       // Clean up preview entities when no active traverse
-      const previewEntities = traverseEntiesRef.current.filter(
-        (entity) =>
-          entity.name === "__previewLabel" ||
-          entity.name === "__previewLine" ||
-          entity.name === "__previewStem"
+      const previewEntities = traverseEntiesRef.current.filter((entity) =>
+        isPreviewName(entity.name)
       );
       previewEntities.forEach((entity) => {
         try {
@@ -343,7 +413,7 @@ export function useCesiumTraverseVisualizer(
 
     // Update or create preview segment label
     let previewLabel = traverseEntiesRef.current.find(
-      (entity) => entity.name === "__previewLabel"
+      (entity) => entity.name === PREVIEW_NAMES.LABEL
     );
 
     if (!previewLabel) {
@@ -352,7 +422,7 @@ export function useCesiumTraverseVisualizer(
         elevatedMousePosition,
         segmentDistance
       );
-      previewLabel.name = "__previewLabel";
+      previewLabel.name = PREVIEW_NAMES.LABEL;
       viewer.entities.add(previewLabel);
       traverseEntiesRef.current.push(previewLabel);
     } else {
@@ -373,19 +443,19 @@ export function useCesiumTraverseVisualizer(
 
     // Update or create preview line
     let previewLine = traverseEntiesRef.current.find(
-      (entity) => entity.name === "__previewLine"
+      (entity) => entity.name === PREVIEW_NAMES.LINE
     );
 
     if (!previewLine) {
       previewLine = new Entity({
-        name: "__previewLine",
+        name: PREVIEW_NAMES.LINE,
         polyline: {
           positions: new ConstantProperty([
             elevatedLastPoint,
             elevatedMousePosition,
           ]),
-          width: 2,
-          material: Color.YELLOW.withAlpha(0.7),
+          width: config.previewLineWidth,
+          material: config.previewLineMaterial,
           clampToGround: false,
         },
       });
@@ -400,22 +470,22 @@ export function useCesiumTraverseVisualizer(
       }
     }
 
-    // Add preview stem line for mouse position if heightOffset > 0
+    // Add preview stem line for mouse position if heightOffset > min height
     let previewStem = traverseEntiesRef.current.find(
-      (entity) => entity.name === "__previewStem"
+      (entity) => entity.name === PREVIEW_NAMES.STEM
     );
 
-    if (heightOffset > 0) {
+    if (heightOffset > STEMLINE_MIN_OFFSET) {
       if (!previewStem) {
         previewStem = new Entity({
-          name: "__previewStem",
+          name: PREVIEW_NAMES.STEM,
           polyline: {
             positions: new ConstantProperty([
               mousePosition,
               elevatedMousePosition,
             ]),
-            width: 2,
-            material: Color.WHITE.withAlpha(0.6),
+            width: config.stemLineWidth,
+            material: config.stemLineMaterial,
             clampToGround: false,
           },
         });
@@ -443,6 +513,8 @@ export function useCesiumTraverseVisualizer(
     requestRender();
     // Force immediate render for smooth preview updates
     viewer.scene.requestRender();
+    // config properties are static constants
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     viewer,
     mousePosition,
@@ -468,7 +540,11 @@ export function useCesiumTraverseVisualizer(
           } else {
             // Hide all labels when showLabels is false
             traverseEntities.forEach((entity) => {
-              if (entity.id?.includes('label') || entity.id?.includes('segment')) {
+              if (
+                entity.id?.includes("label") ||
+                entity.id?.includes("segment") ||
+                entity.id?.includes("number")
+              ) {
                 entity.show = false;
               }
             });
@@ -479,7 +555,8 @@ export function useCesiumTraverseVisualizer(
     };
 
     // Add camera event listeners - only on end events for better performance
-    const removeMoveEndListener = viewer.camera.moveEnd.addEventListener(handleCameraChange);
+    const removeMoveEndListener =
+      viewer.camera.moveEnd.addEventListener(handleCameraChange);
 
     // Initial label visibility update
     handleCameraChange();
