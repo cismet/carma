@@ -3,6 +3,7 @@ import * as ReactDOM from "react-dom/client";
 import { GazDataProvider, SelectionProvider } from "@carma-apps/portals";
 import App from "./app/App";
 import { gazDataConfig } from "./config/gazData";
+import { addTitleFlag } from "./helper/urlHelper";
 
 const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement
@@ -10,6 +11,7 @@ const root = ReactDOM.createRoot(
 if (typeof global === "undefined") {
   window.global = window;
 }
+
 root.render(
   <StrictMode>
     <GazDataProvider config={gazDataConfig}>

@@ -10,10 +10,12 @@ import Map from "./components/Map";
 import convertItemToFeature from "../helper/convertItemToFeature";
 import { getFeatureStyler } from "../helper/styler";
 import itemFilterFunction, { stek, topics } from "../helper/filter";
+import { addTitleFlag } from "../helper/urlHelper";
 
 export function App() {
   useEffect(() => {
     document.title = "Vorhabenkarte Wuppertal";
+    addTitleFlag();
   }, []);
   return (
     <TopicMapContextProvider
