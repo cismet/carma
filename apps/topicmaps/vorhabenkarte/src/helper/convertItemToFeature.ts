@@ -39,40 +39,6 @@ const adjustFeatureColors = (color) => {
   return color;
 };
 
-// const MULTI_POLY_COORDS: GeoJSON.MultiPolygon = [
-//   [
-//     [
-//       [376097.1671, 5681848.3526],
-//       [376149.8829, 5681848.3526],
-//       [376149.8829, 5681869.9617],
-//       [376097.1671, 5681869.9617],
-//       [376097.1671, 5681848.3526],
-//     ],
-//   ],
-//   [
-//     [
-//       [376197.1671, 5681848.3526],
-//       [376249.8829, 5681848.3526],
-//       [376249.8829, 5681869.9617],
-//       [376197.1671, 5681869.9617],
-//       [376197.1671, 5681848.3526],
-//     ],
-//   ],
-// ];
-
-// const MULTI_LINE_FOR_3: GeoJSON.MultiLineString = [
-//   [
-//     [369000, 5679000],
-//     [369500, 5679050],
-//     [370000, 5679100],
-//   ],
-//   [
-//     [369200, 5679200],
-//     [369700, 5679250],
-//     [370200, 5679300],
-//   ],
-// ];
-
 const convertItemToFeature = async (itemIn, poiColors) => {
   let clonedItem = JSON.parse(JSON.stringify(itemIn));
 
@@ -90,9 +56,7 @@ const convertItemToFeature = async (itemIn, poiColors) => {
 
   const headerColor = adjustFeatureColors(item.thema.farbe);
   if (item.fotos && item.fotos.length > 0 && item.fotos[0].url.includes(".")) {
-    item.foto =
-      // "https://www.wuppertal.de/geoportal/vorhabenkarte/fotos/" +
-      assetsBaseUrl + "fotos/" + item.fotos[0].url;
+    item.foto = assetsBaseUrl + "fotos/" + item.fotos[0].url;
     item.originalPhotos = item.fotos;
   }
 
@@ -101,34 +65,6 @@ const convertItemToFeature = async (itemIn, poiColors) => {
       (photo) => assetsBaseUrl + "fotos/" + photo.url
     );
   }
-
-  // if (itemIn.id === 2) {
-  //   geometry = {
-  //     type: "MultiPolygon",
-  //     crs: item.crs,
-  //     coordinates: MULTI_POLY_COORDS,
-  //   } as GeoJSON.MultiPolygon;
-  // }
-
-  // if (itemIn.id === 4) {
-  //   geometry = {
-  //     type: "LineString",
-  //     crs: item.crs,
-  //     coordinates: [
-  //       [370000, 5677000],
-  //       [371000, 5677100],
-  //       [372000, 5677200],
-  //     ],
-  //   } as GeoJSON.LineString;
-  // }
-
-  // if (itemIn.id === 3) {
-  //   geometry = {
-  //     type: "MultiLineString",
-  //     crs: item.crs,
-  //     coordinates: MULTI_LINE_FOR_3,
-  //   } as GeoJSON.MultiLineString;
-  // }
 
   item.color = headerColor;
 
@@ -148,10 +84,10 @@ const convertItemToFeature = async (itemIn, poiColors) => {
       ...item,
       info: {
         title: text,
-        // subtitle: item.beschreibung,
         subtitle: item.buergerbeteiligung
           ? shortenText(item.beschreibung) +
-            " Das Vorhaben wird mit Bürgerbeteiligung umgesetzt"
+            "\n" +
+            "Das Vorhaben wird mit Bürgerbeteiligung umgesetzt"
           : shortenText(item.beschreibung),
         header: item.thema.name,
       },
