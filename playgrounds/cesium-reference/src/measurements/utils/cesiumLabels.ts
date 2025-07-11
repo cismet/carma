@@ -17,11 +17,12 @@ import {
 import { MeasurementEntry } from "../types/MeasurementTypes";
 import { normalizeOptions } from "@carma-commons/utils";
 import { formatDistance } from "../../utils/formatters";
-
 export const SCALE_BY_DISTANCE = new NearFarScalar(0, 1, 5000, 0.0);
 export const SCALE_BY_DISTANCE_POINTS = new NearFarScalar(0, 1, 5000, 0.5);
 
-export const LABEL_FONT = '12px "Helvetica Neue", Arial, Helvetica, sans-serif';
+const LABEL_FONT_FAMILY = '"Helvetica Neue", Arial, Helvetica, sans-serif';
+export const LABEL_FONT = `10px ${LABEL_FONT_FAMILY}`;
+const LABEL_FONT_LARGER = `12px ${LABEL_FONT_FAMILY}`;
 
 const ENCLOSED_GLYPHS =
   "⓪①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳㉑㉒㉓㉔㉕㉖㉗㉘㉙㉚㉛㉜㉝㉞㉟㊱㊲㊳㊴㊵㊶㊷㊸㊹㊺㊻㊼㊽㊾㊿";
@@ -77,10 +78,10 @@ const defaultLabelOptions: LabelOptions = {
   outlineColor: Color.WHITE,
   outlineWidth: 5,
   style: LabelStyle.FILL_AND_OUTLINE,
-  pixelOffset: new Cartesian2(0, 40),
+  pixelOffset: new Cartesian2(5, -8),
   //scaleByDistance: SCALE_BY_DISTANCE,
-  disableDepthTestDistance: Number.POSITIVE_INFINITY,
-  horizontalOrigin: HorizontalOrigin.CENTER,
+  //disableDepthTestDistance: Number.POSITIVE_INFINITY,
+  horizontalOrigin: HorizontalOrigin.LEFT,
   verticalOrigin: VerticalOrigin.BASELINE,
 };
 
@@ -117,7 +118,10 @@ export const createSegmentLabel = (
 
   const labelOptions: LabelOptions = {
     text: labelText,
-    pixelOffset: new Cartesian2(0, -20),
+    pixelOffset: new Cartesian2(0, 20), // Above the segment midpoint
+    verticalOrigin: VerticalOrigin.CENTER,
+    horizontalOrigin: HorizontalOrigin.CENTER,
+    eyeOffset: new Cartesian3(0, 0, 0), // Default depth
   };
 
   return createLabelEntity(measurementEntry, midpoint, labelOptions);
@@ -130,12 +134,11 @@ export const createSegmentNodeLabel = (
   id?: string,
   isSingleSegment: boolean = false
 ): Entity => {
+  // Only show distance text for non-first points and non-single segments
   const pointLabelText =
     pointIndex === 0 || isSingleSegment
-      ? formatNumberToEnclosed(pointIndex + 1)
-      : `${formatNumberToEnclosed(pointIndex + 1)} ${formatDistance(
-          cumulativeDistance
-        )}`;
+      ? ""
+      : formatDistance(cumulativeDistance);
 
   const measurementEntry = {
     id: id || `measurement-point-label-${Date.now()}`,
@@ -145,7 +148,32 @@ export const createSegmentNodeLabel = (
 
   const labelOptions: LabelOptions = {
     text: pointLabelText,
-    pixelOffset: new Cartesian2(0, -25),
+  };
+
+  return createLabelEntity(measurementEntry, position, labelOptions);
+};
+
+export const createNodeNumberLabel = (
+  position: Cartesian3,
+  pointIndex: number,
+  id?: string
+): Entity => {
+  const numberText = formatNumberToEnclosed(pointIndex + 1);
+
+  const measurementEntry = {
+    id: id || `measurement-point-number-${Date.now()}`,
+    name: `Point Number ${pointIndex + 1}`,
+    geometryECEF: position,
+  } as MeasurementEntry;
+
+  const labelOptions: LabelOptions = {
+    text: numberText,
+    font: LABEL_FONT_LARGER,
+    pixelOffset: new Cartesian2(0, -1), // Centered on the point
+    outlineWidth: 0,
+    verticalOrigin: VerticalOrigin.CENTER,
+    horizontalOrigin: HorizontalOrigin.CENTER,
+    eyeOffset: new Cartesian3(0, 0, -0.5), // Closest to camera to ensure it renders above point markers and other labels
   };
 
   return createLabelEntity(measurementEntry, position, labelOptions);
@@ -321,6 +349,12 @@ export const updateTraverseLabelVisibility = (
         labelText
       );
       entity.show = shouldShow;
+    }
+
+    // Handle point number labels - always show when labels are enabled
+    const numberMatch = entity.id.match(/^point-number-(.+)-(\d+)$/);
+    if (numberMatch) {
+      entity.show = true; // Always show number labels when labels are enabled
     }
   });
 };

@@ -71,7 +71,7 @@ export const DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS: Viewer.ConstructorOptions = {
   sceneMode: SceneMode.SCENE3D,
   selectionIndicator: false,
   targetFrameRate: CESIUM_TARGET_FRAME_RATE,
-  useBrowserRecommendedResolution: true,
+  useBrowserRecommendedResolution: false,
   contextOptions: {
     webgl: {
       alpha: true,
