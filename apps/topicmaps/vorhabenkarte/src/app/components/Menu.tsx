@@ -54,6 +54,8 @@ const Menu = () => {
           />,
           <DefaultSettingsPanel
             key="settings"
+            skipFilterTitleSettings={false}
+            itemFilterFunction={() => true}
             checkBoxTextClustering="Vorhaben maßstabsabhängig zusammenfassen"
           />,
           <KompaktanleitungSection />,
