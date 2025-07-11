@@ -2,6 +2,13 @@ import { DashboardOutlined, MenuOutlined } from "@ant-design/icons";
 import { NavLink } from "react-router-dom";
 import { Menu } from "antd";
 import { useState } from "react";
+import {
+  getIsMenuCollapsed,
+  setIsMenuCollapsed,
+  setMenuWidth,
+} from "../../store/slices/ui";
+import { useDispatch, useSelector } from "react-redux";
+import { AppDispatch } from "../../store";
 function getItem(label, key, icon) {
   return {
     key,
@@ -10,12 +17,15 @@ function getItem(label, key, icon) {
   };
 }
 const SidebarMenu = () => {
-  const [collapsed, setCollapsed] = useState(false);
+  const dispatch: AppDispatch = useDispatch();
+  const collapsed = useSelector(getIsMenuCollapsed);
+  //   const [collapsed, setCollapsed] = useState(false);
   const items = [
     getItem(<NavLink to="/">Übersicht</NavLink>, "/", <DashboardOutlined />),
   ];
   const toggleCollapsed = () => {
-    setCollapsed(!collapsed);
+    dispatch(setIsMenuCollapsed(!collapsed));
+    // setMenuWidth()
   };
   return (
     <div className="bg-white pl-1 pt-2">
