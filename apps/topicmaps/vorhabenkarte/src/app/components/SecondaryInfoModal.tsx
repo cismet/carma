@@ -186,10 +186,10 @@ const SecondaryInfoModal = ({ feature, setOpen, versionString }) => {
               </div>
               {focusRoom.length > 0 && (
                 <div>
-                  <div className="flex items-center gap-2">
-                    <FontAwesomeIcon icon={faBullseye} />
+                  <div className="flex gap-2">
+                    <FontAwesomeIcon icon={faBullseye} className="mt-[8px]" />
 
-                    <b style={styles.label}>
+                    <b style={styles.label} className="mt-[5px]">
                       {" "}
                       Fokusraum STEK{" "}
                       <span>
