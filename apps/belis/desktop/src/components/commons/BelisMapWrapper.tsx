@@ -12,7 +12,6 @@ import {
   getDone,
   getFeatureCollection,
   getFilter,
-  getSelectedFeature,
   setDone,
   setFeatureCollection,
   setSelectedFeature,
@@ -32,14 +31,6 @@ const BelisMapLibWrapper = ({ refRoutedMap, jwt, mapSizes }) => {
   const featureCollection = useSelector(getFeatureCollection);
   const filter = useSelector(getFilter);
   const fcIsDone = useSelector(getDone);
-  // const mapSizes = useSelector(getMenuWidth);
-  //   const inFocusMode = useSelector(isInFocusMode);
-  const selectedFeature = useSelector(getSelectedFeature);
-  //   const featureCollectionMode = useSelector(getFeatureCollectionMode);
-  //   const loadingState = useSelector(getLoadingState);
-  //   const connectionMode = useSelector(getConnectionMode);
-  //   const zoom = useSelector(getZoom);
-  //   const inPaleMode = useSelector(isPaleModeActive);
   const handleSelectedFeature = (feature) => {
     dispatch(setSelectedFeature(feature));
   };

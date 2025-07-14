@@ -1,13 +1,7 @@
 import { StrictMode, useEffect, useState } from "react";
 import * as ReactDOM from "react-dom/client";
 import { GazDataProvider, SelectionProvider } from "@carma-apps/portals";
-import App from "./App";
-import {
-  Navigate,
-  RouterProvider,
-  createHashRouter,
-  useLocation,
-} from "react-router-dom";
+import { Navigate, RouterProvider, createHashRouter } from "react-router-dom";
 import { Provider, useDispatch, useSelector } from "react-redux";
 import NavBar from "./components/commons/NavBar";
 import Login from "./components/pages/Login";

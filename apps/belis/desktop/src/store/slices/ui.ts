@@ -13,21 +13,13 @@ const slice = createSlice({
       state.isMenuCollapsed = action.payload;
       return state;
     },
-    setMenuWidth(state, action) {
-      state.overviewMapSizes = action.payload;
-      return state;
-    },
   },
 });
 
 export default slice;
 
-export const { setIsMenuCollapsed, setMenuWidth } = slice.actions;
+export const { setIsMenuCollapsed } = slice.actions;
 
 export const getIsMenuCollapsed = (state) => {
   return state.ui.isMenuCollapsed;
-};
-
-export const getMenuWidth = (state) => {
-  return state.ui.overviewMapSizes;
 };
