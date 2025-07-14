@@ -53,8 +53,8 @@ const BelisMapLibWrapper = ({ refRoutedMap, width, height, jwt }) => {
     );
   };
 
-  const handleSelectedFeature = () => {
-    dispatch(setSelectedFeature(null));
+  const handleSelectedFeature = (feature) => {
+    dispatch(setSelectedFeature(feature));
   };
 
   return (

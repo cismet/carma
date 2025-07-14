@@ -12,8 +12,10 @@ import {
   getDone,
   getFeatureCollection,
   getFilter,
+  getSelectedFeature,
   setDone,
   setFeatureCollection,
+  setSelectedFeature,
 } from "../../store/slices/featureCollection";
 import { AppDispatch } from "../../store";
 import { getJWT } from "../../store/slices/auth";
@@ -31,13 +33,16 @@ const BelisMapLibWrapper = ({ refRoutedMap, width, height, jwt }) => {
   const filter = useSelector(getFilter);
   const fcIsDone = useSelector(getDone);
   //   const inFocusMode = useSelector(isInFocusMode);
-  //   const selectedFeature = useSelector(getSelectedFeature);
+  const selectedFeature = useSelector(getSelectedFeature);
   //   const featureCollectionMode = useSelector(getFeatureCollectionMode);
   //   const loadingState = useSelector(getLoadingState);
   //   const connectionMode = useSelector(getConnectionMode);
   //   const zoom = useSelector(getZoom);
   //   const inPaleMode = useSelector(isPaleModeActive);
-  //   const background = useSelector(getBackground);
+  const handleSelectedFeature = (feature) => {
+    console.log("xxx feature", feature);
+    dispatch(setSelectedFeature(feature));
+  };
 
   const backgroundLayerOpacities = useSelector(getBackgroundLayerOpacities);
   const activeBackgroundLayer = useSelector(getActiveBackgroundLayer);
@@ -83,7 +88,7 @@ const BelisMapLibWrapper = ({ refRoutedMap, width, height, jwt }) => {
         connectionMode={"ONLINE"}
         background={""}
         inPaleMode={false}
-        handleSelectedFeature={() => {}}
+        handleSelectedFeature={handleSelectedFeature}
         MODES={MODES}
         zoom={15}
         fcMode="OBJECTS"
