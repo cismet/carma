@@ -15,7 +15,7 @@ const MainPage = () => {
 
   useEffect(() => {
     const updateSize = () => {
-      const gutter = collapsed ? 280 : 68;
+      const gutter = !collapsed ? 253 : 168;
       setDimensions({
         width: window.innerWidth - gutter,
         height: window.innerHeight - 136,
@@ -30,8 +30,9 @@ const MainPage = () => {
   // h-[calc(90%-20px)]
   return (
     <div ref={parentRef} className="mx-3 mt-1">
-      <CustomCard title="Karte" style={{ marginBottom: "1rem" }}>
+      <CustomCard title="Karte" style={{ marginBottom: "8px" }}>
         <BelisMapLibWrapper
+          key={`Belis-Desktop-Map-${dimensions.width}-${dimensions.height}`}
           refRoutedMap={refRoutedMap}
           width={dimensions.width}
           height={dimensions.height}

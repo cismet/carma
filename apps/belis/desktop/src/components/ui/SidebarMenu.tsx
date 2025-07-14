@@ -48,7 +48,7 @@ const SidebarMenu = () => {
         </span>
       </div>
       <Menu
-        style={{ border: 0, width: !collapsed ? "280px" : "68px" }}
+        style={{ border: 0, width: !collapsed ? "200px" : "68px" }}
         defaultSelectedKeys={["/"]}
         selectedKeys={["/"]}
         items={items}
