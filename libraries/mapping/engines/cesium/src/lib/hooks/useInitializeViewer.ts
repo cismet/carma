@@ -99,10 +99,6 @@ export const useInitializeViewer = (
         const viewer = new Viewer(containerRef.current, options);
         viewerRef.current = viewer;
 
-        // Set resolution scale to match device pixel ratio for high-DPI displays
-        // This ensures crisp rendering on devices with high pixel density
-        viewer.resolutionScale = window.devicePixelRatio;
-
         const handlePostRender = () => {
           if (
             viewerRef.current &&
