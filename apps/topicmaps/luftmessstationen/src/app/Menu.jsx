@@ -429,45 +429,45 @@ NO₂-Messwerte von ca. vier Wochen.
           />
         }
         menuSections={[
-          <Section
-            key="filter"
-            sectionKey="filter"
-            sectionTitle={getFilterHeader(
-              filteredItems?.length,
-              shownFeatures?.length
-            )}
-            sectionBsStyle={FilterStyle}
-            sectionContent={
-              <div>
-                {/* <div>
-                  Die Filterung bezieht sich auf die Angaben zu einer Messstation im letzten
-                  Kalendermonat (letzte monatliche Datenerhebung). Wenn Sie weitergehende
-                  Informationen wünschen, können Sie eine Auswahl von Messwerten/Jahresmittelwerten
-                  im Datenblatt einer Messstation einsehen oder vollständigen Datenzugriff im
-                  Open-Data-Portal der Stadt Wuppertal erhalten. Die entsprechenden Links finden Sie
-                  im Abschnitt <a className='renderWithoutHref'>Datengrundlage</a> im Abschnitt
-                  Kompaktanleitung.
-                </div> */}
-                <FilterPanel filterConfiguration={filterConfiguration} />
-                <div>
-                  Die Filterung bezieht sich auf die Angaben zu einer
-                  Messstation im letzten Kalendermonat (letzte monatliche
-                  Datenerhebung). Wenn Sie weitergehende Informationen wünschen,
-                  können Sie eine Auswahl von Messwerten/Jahresmittelwerten im
-                  Datenblatt einer Messstation einsehen oder vollständigen
-                  Datenzugriff im Open-Data-Portal der Stadt Wuppertal erhalten.
-                  Die entsprechenden Links finden Sie im Abschnitt{" "}
-                  <a
-                    className="renderWithoutHref"
-                    onClick={() => setAppMenuActiveMenuSection("help")}
-                  >
-                    Datengrundlage
-                  </a>{" "}
-                  im Abschnitt Kompaktanleitung.
-                </div>
-              </div>
-            }
-          />,
+          // <Section
+          //   key="filter"
+          //   sectionKey="filter"
+          //   sectionTitle={getFilterHeader(
+          //     filteredItems?.length,
+          //     shownFeatures?.length
+          //   )}
+          //   sectionBsStyle={FilterStyle}
+          //   sectionContent={
+          //     <div>
+          //       {/* <div>
+          //         Die Filterung bezieht sich auf die Angaben zu einer Messstation im letzten
+          //         Kalendermonat (letzte monatliche Datenerhebung). Wenn Sie weitergehende
+          //         Informationen wünschen, können Sie eine Auswahl von Messwerten/Jahresmittelwerten
+          //         im Datenblatt einer Messstation einsehen oder vollständigen Datenzugriff im
+          //         Open-Data-Portal der Stadt Wuppertal erhalten. Die entsprechenden Links finden Sie
+          //         im Abschnitt <a className='renderWithoutHref'>Datengrundlage</a> im Abschnitt
+          //         Kompaktanleitung.
+          //       </div> */}
+          //       <FilterPanel filterConfiguration={filterConfiguration} />
+          //       <div>
+          //         Die Filterung bezieht sich auf die Angaben zu einer
+          //         Messstation im letzten Kalendermonat (letzte monatliche
+          //         Datenerhebung). Wenn Sie weitergehende Informationen wünschen,
+          //         können Sie eine Auswahl von Messwerten/Jahresmittelwerten im
+          //         Datenblatt einer Messstation einsehen oder vollständigen
+          //         Datenzugriff im Open-Data-Portal der Stadt Wuppertal erhalten.
+          //         Die entsprechenden Links finden Sie im Abschnitt{" "}
+          //         <a
+          //           className="renderWithoutHref"
+          //           onClick={() => setAppMenuActiveMenuSection("help")}
+          //         >
+          //           Datengrundlage
+          //         </a>{" "}
+          //         im Abschnitt Kompaktanleitung.
+          //       </div>
+          //     </div>
+          //   }
+          // />,
           <DefaultSettingsPanel
             previewMapPosition="lat=51.2607860760692&lng=7.164304562911684&title&zoom=9"
             previewMapClusteringOptions={undefined}
