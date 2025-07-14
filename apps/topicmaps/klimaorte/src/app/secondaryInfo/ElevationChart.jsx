@@ -1,7 +1,7 @@
 import React, { useContext, useRef } from "react";
 import { Chart as ChartJS, registerables } from "chart.js";
-import { Chart } from "react-chartjs-2";
-import zoomPlugin from "chartjs-plugin-zoom";
+// import { Chart } from "react-chartjs-2";
+// import zoomPlugin from "chartjs-plugin-zoom";
 
 import SecondaryInfoPanelSection from "./SecondaryInfoPanelSection";
 import { faMagnifyingGlassMinus } from "@fortawesome/free-solid-svg-icons";
@@ -21,7 +21,7 @@ import { FeatureCollectionContext } from "react-cismap/contexts/FeatureCollectio
 //   Legend
 // );
 
-ChartJS.register(...registerables, zoomPlugin);
+ChartJS.register(...registerables);
 
 export default function ElevationChart({ revertedOrder }) {
   const { selectedFeature } = useContext(FeatureCollectionContext);
@@ -282,12 +282,12 @@ export default function ElevationChart({ revertedOrder }) {
       //   ></FontAwesomeIcon>
       // }
     >
-      <Chart
+      {/* <Chart
         ref={chartRef}
         style={{ maxHeight: 200 }}
         options={options}
         data={data}
-      />
+      /> */}
 
       <FontAwesomeIcon
         title="Zoom zurücksetzen"

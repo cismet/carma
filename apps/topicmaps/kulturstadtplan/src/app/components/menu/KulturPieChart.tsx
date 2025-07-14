@@ -6,8 +6,8 @@ import {
   getColorFromMainlocationTypeName,
   textConversion,
 } from "../../../helper/styler";
-import { Doughnut } from "react-chartjs-2";
-import "chart.js/auto";
+// import { Doughnut } from "react-chartjs-2";
+// import "chart.js/auto";
 
 const KulturPieChart = ({ visible = true }) => {
   const { filteredItems } = useContext<typeof FeatureCollectionContext>(
@@ -63,7 +63,7 @@ const KulturPieChart = ({ visible = true }) => {
         }}
       >
         <div style={{ width: "40%" }}>
-          <Doughnut
+          {/* <Doughnut
             data={data}
             options={{
               plugins: {
@@ -81,7 +81,7 @@ const KulturPieChart = ({ visible = true }) => {
                 },
               },
             }}
-          />
+          /> */}
         </div>
       </td>
     );

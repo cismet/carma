@@ -1,8 +1,8 @@
 import { useContext } from "react";
 import { FeatureCollectionContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
 import { getColorForProperties } from "../../../helper/styler";
-import { Doughnut } from "react-chartjs-2";
-import "chart.js/auto";
+// import { Doughnut } from "react-chartjs-2";
+// import "chart.js/auto";
 
 const EBikesPieChart = ({ visible = true }) => {
   const { filteredItems } = useContext<typeof FeatureCollectionContext>(
@@ -70,7 +70,7 @@ const EBikesPieChart = ({ visible = true }) => {
         }}
       >
         <div style={{ width: "40%" }}>
-          <Doughnut
+          {/* <Doughnut
             data={data}
             options={{
               plugins: {
@@ -88,7 +88,7 @@ const EBikesPieChart = ({ visible = true }) => {
                 },
               },
             }}
-          />
+          /> */}
         </div>
       </td>
     );

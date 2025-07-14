@@ -4,8 +4,8 @@ import {
   getColorForFilter,
   getColorForProperties,
 } from "../../../helper/styler";
-import { Doughnut } from "react-chartjs-2";
-import "chart.js/auto";
+// import { Doughnut } from "react-chartjs-2";
+// import "chart.js/auto";
 
 const VorhabenkartePieChart = ({ visible = true }) => {
   const { filteredItems } = useContext<typeof FeatureCollectionContext>(
@@ -71,7 +71,7 @@ const VorhabenkartePieChart = ({ visible = true }) => {
         }}
       >
         <div style={{ width: "40%" }}>
-          <Doughnut
+          {/* <Doughnut
             data={data}
             options={{
               plugins: {
@@ -89,7 +89,7 @@ const VorhabenkartePieChart = ({ visible = true }) => {
                 },
               },
             }}
-          />
+          /> */}
         </div>
       </td>
     );

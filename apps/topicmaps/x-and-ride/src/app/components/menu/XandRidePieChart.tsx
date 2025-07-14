@@ -1,7 +1,7 @@
 import { useContext } from "react";
 import { FeatureCollectionContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
-import { Doughnut } from "react-chartjs-2";
-import "chart.js/auto";
+// import { Doughnut } from "react-chartjs-2";
+// import "chart.js/auto";
 import { getColorForProperties } from "../../../helper/styler";
 
 const XandRidePieChart = ({ visible = true }) => {
@@ -66,7 +66,7 @@ const XandRidePieChart = ({ visible = true }) => {
         }}
       >
         <div style={{ width: "40%" }}>
-          <Doughnut
+          {/* <Doughnut
             data={data}
             options={{
               plugins: {
@@ -84,7 +84,7 @@ const XandRidePieChart = ({ visible = true }) => {
                 },
               },
             }}
-          />
+          /> */}
         </div>
       </td>
     );
