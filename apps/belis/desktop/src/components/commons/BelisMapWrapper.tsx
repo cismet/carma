@@ -18,9 +18,10 @@ import {
   setSelectedFeature,
 } from "../../store/slices/featureCollection";
 import { AppDispatch } from "../../store";
-import { getJWT } from "../../store/slices/auth";
+import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import { DOMAIN, REST_SERVICE } from "../../constants/belis";
 import type { UnknownAction } from "redux";
+import { GenericInfoBoxFromFeature, InfoBox } from "@carma-apps/portals";
 
 const MODES = {
   OBJECTS: "OBJECTS",
@@ -62,6 +63,8 @@ const BelisMapLibWrapper = ({ refRoutedMap, width, height, jwt }) => {
     );
   };
 
+  const header = <span>{selectedFeature.id}</span>;
+
   return (
     <div className="relative">
       <MapBlocker
@@ -97,7 +100,28 @@ const BelisMapLibWrapper = ({ refRoutedMap, width, height, jwt }) => {
         backgroundLayerOpacities={backgroundLayerOpacities}
         filter={filter}
       >
-        <></>
+        {selectedFeature !== undefined && selectedFeature !== null ? (
+          <ControlLayout ifStorybook={false}>
+            <InfoBox
+              isCollapsible={false}
+              infoStyle={{}}
+              // colorizer={{}}
+              currentFeature={selectedFeature}
+              featureCollection={[]}
+              pixelwidth={350}
+              header={header}
+              hideNavigator={true}
+              // headerColor={headerColor}
+              // links={links}
+              // title={title}
+              // next={config.next}
+              // previous={config.previous}
+              // subtitle={subtitle}
+            />
+          </ControlLayout>
+        ) : (
+          <></>
+        )}
       </BelisMap>
     </div>
   );
