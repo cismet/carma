@@ -164,13 +164,13 @@ const Menu = () => {
           />
         }
         menuSections={[
-          // <Section
-          //   key="filter"
-          //   sectionKey="filter"
-          //   sectionTitle={getFilterHeader()}
-          //   sectionBsStyle="primary"
-          //   sectionContent={<FilterUI />}
-          // />,
+          <Section
+            key="filter"
+            sectionKey="filter"
+            sectionTitle={getFilterHeader()}
+            sectionBsStyle="primary"
+            sectionContent={<FilterUI />}
+          />,
           <DefaultSettingsPanel key="settings" />,
           <KompaktanleitungSection />,
           <GenericDigitalTwinReferenceSection />,
