@@ -3,7 +3,7 @@ import BelisMapLibWrapper from "./commons/BelisMapWrapper";
 import { useSelector } from "react-redux";
 import { getJWT } from "../store/slices/auth";
 import { CustomCard } from "./commons/CustomCard";
-import UserBar from "./commons/UserBar";
+import TopNavbar from "./commons/TopNavbar";
 import useComponentSize from "@rehooks/component-size";
 import { useWindowSize } from "@react-hook/window-size";
 import { getIsMenuCollapsed } from "../store/slices/ui";
@@ -28,7 +28,7 @@ const MainPage = () => {
 
   return (
     <>
-      <UserBar innerRef={refUpperToolbar} />
+      <TopNavbar innerRef={refUpperToolbar} />
       <div className="mx-3 mt-1">
         <CustomCard title="Karte" style={{ marginBottom: "8px" }}>
           <BelisMapLibWrapper

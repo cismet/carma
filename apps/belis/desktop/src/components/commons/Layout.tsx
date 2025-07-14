@@ -1,7 +1,7 @@
 import { Outlet } from "react-router-dom";
 import SidebarMenu from "../ui/SidebarMenu";
 
-const NavBar = () => {
+const Layout = () => {
   return (
     <div className="bg-[#F1F1F1] flex justify-between w-full h-full min-h-screen overflow-clip">
       <SidebarMenu />
@@ -12,4 +12,4 @@ const NavBar = () => {
   );
 };
 
-export default NavBar;
+export default Layout;

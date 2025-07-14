@@ -6,7 +6,7 @@ import { useNavigate } from "react-router-dom";
 import SettingsUi from "../ui/SettingsUi";
 import Filter from "../ui/Filter";
 
-const UserBar = ({ innerRef }) => {
+const TopNavbar = ({ innerRef }) => {
   const dispatch = useDispatch();
   const userLogin = useSelector(getLogin);
   const navigate = useNavigate();
@@ -30,4 +30,4 @@ const UserBar = ({ innerRef }) => {
     </div>
   );
 };
-export default UserBar;
+export default TopNavbar;

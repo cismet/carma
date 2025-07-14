@@ -3,7 +3,7 @@ import * as ReactDOM from "react-dom/client";
 import { GazDataProvider, SelectionProvider } from "@carma-apps/portals";
 import { Navigate, RouterProvider, createHashRouter } from "react-router-dom";
 import { Provider, useDispatch, useSelector } from "react-redux";
-import NavBar from "./components/commons/NavBar";
+import Layout from "./components/commons/Layout";
 import Login from "./components/pages/Login";
 import store from "./store";
 import persistStore from "redux-persist/es/persistStore";
@@ -34,7 +34,7 @@ const NavBarWrapper = () => {
     return <Navigate to="/login" />;
   }
 
-  return <NavBar />;
+  return <Layout />;
 };
 
 const router = createHashRouter(
