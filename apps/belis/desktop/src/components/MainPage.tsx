@@ -6,19 +6,22 @@ import { CustomCard } from "./commons/CustomCard";
 import UserBar from "./commons/UserBar";
 import useComponentSize from "@rehooks/component-size";
 import { useWindowSize } from "@react-hook/window-size";
+import { getIsMenuCollapsed } from "../store/slices/ui";
 
 const MainPage = () => {
   const storedJWT = useSelector(getJWT);
+  const isCollapsed = useSelector(getIsMenuCollapsed);
   let refUpperToolbar = useRef(null);
   let sizeU = useComponentSize(refUpperToolbar);
   const [windowWidth, windowHeight] = useWindowSize();
   useComponentSize(refUpperToolbar);
   let refRoutedMap = useRef(null);
-  // h-[calc(90%-20px)]
+  const menuWidth = !isCollapsed ? 204 : 72;
+  const cardGaps = 24 + 24 + 1;
 
   const mapStyle = {
     height: windowHeight - sizeU.height - 76 - 20,
-    width: sizeU.width - 36,
+    width: windowWidth - menuWidth - cardGaps,
     cursor: "pointer",
     clear: "both",
   };
@@ -26,7 +29,7 @@ const MainPage = () => {
   return (
     <>
       <UserBar innerRef={refUpperToolbar} />
-      <div className="mx-3 mt-1 overflow-clip">
+      <div className="mx-3 mt-1">
         <CustomCard title="Karte" style={{ marginBottom: "8px" }}>
           <BelisMapLibWrapper
             refRoutedMap={refRoutedMap}
