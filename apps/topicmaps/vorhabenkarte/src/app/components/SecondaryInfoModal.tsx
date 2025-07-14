@@ -169,8 +169,11 @@ const SecondaryInfoModal = ({ feature, setOpen, versionString }) => {
                 </div>
               )}
               {locationDescription && (
-                <div className="flex items-center gap-2">
-                  <FontAwesomeIcon icon={faMagnifyingGlassLocation} />
+                <div className="flex gap-2">
+                  <FontAwesomeIcon
+                    icon={faMagnifyingGlassLocation}
+                    style={{ marginTop: "4px" }}
+                  />
 
                   <b style={styles.label}>Ortsbeschreibung:</b>
                   <span style={styles.value}>{locationDescription}</span>
