@@ -21,17 +21,19 @@ import { AppDispatch } from "../../store";
 import { DOMAIN, REST_SERVICE } from "../../constants/belis";
 import type { UnknownAction } from "redux";
 import InfoBoxWrapper from "../ui/InfoBoxWrapper";
+import { getMenuWidth } from "../../store/slices/ui";
 
 const MODES = {
   OBJECTS: "OBJECTS",
   TASKLISTS: "TASKLISTS",
   PROTOCOLS: "PROTOCOLS",
 } as const;
-const BelisMapLibWrapper = ({ refRoutedMap, width, height, jwt }) => {
+const BelisMapLibWrapper = ({ refRoutedMap, jwt }) => {
   const dispatch: AppDispatch = useDispatch();
   const featureCollection = useSelector(getFeatureCollection);
   const filter = useSelector(getFilter);
   const fcIsDone = useSelector(getDone);
+  const mapSizes = useSelector(getMenuWidth);
   //   const inFocusMode = useSelector(isInFocusMode);
   const selectedFeature = useSelector(getSelectedFeature);
   //   const featureCollectionMode = useSelector(getFeatureCollectionMode);
@@ -66,14 +68,14 @@ const BelisMapLibWrapper = ({ refRoutedMap, width, height, jwt }) => {
       <MapBlocker
         blocking={fcIsDone === false}
         visible={true}
-        width={width}
-        height={height}
+        width={mapSizes.width}
+        height={mapSizes.height}
         setDone={setDoneHandler}
       />
       <BelisMap
         refRoutedMap={refRoutedMap}
-        width={width}
-        height={height}
+        width={mapSizes.width}
+        height={mapSizes.height}
         jwt={jwt}
         setBounds={() => {}}
         setMapRef={() => {}}

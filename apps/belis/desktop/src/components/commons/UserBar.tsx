@@ -6,13 +6,13 @@ import { useNavigate } from "react-router-dom";
 import SettingsUi from "../ui/SettingsUi";
 import Filter from "../ui/Filter";
 
-const UserBar = () => {
+const UserBar = ({ innerRef }) => {
   const dispatch = useDispatch();
   const userLogin = useSelector(getLogin);
   const navigate = useNavigate();
 
   return (
-    <div className="flex items-center  mx-3 mb-4 mt-2">
+    <div className="flex items-center  mx-3 mb-4 mt-2" ref={innerRef}>
       <Filter />
       <div className="ml-auto flex items-center gap-2">
         <Tooltip title="Ausloggen" placement="right">

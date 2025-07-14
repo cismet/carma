@@ -2,7 +2,7 @@ import { createSlice } from "@reduxjs/toolkit";
 
 const initialState = {
   isMenuCollapsed: false,
-  menuWidth: 280,
+  overviewMapSizes: 280,
 };
 
 const slice = createSlice({
@@ -14,7 +14,7 @@ const slice = createSlice({
       return state;
     },
     setMenuWidth(state, action) {
-      state.menuWidth = action.payload;
+      state.overviewMapSizes = action.payload;
       return state;
     },
   },
@@ -29,5 +29,5 @@ export const getIsMenuCollapsed = (state) => {
 };
 
 export const getMenuWidth = (state) => {
-  return state.ui.menuWidth;
+  return state.ui.overviewMapSizes;
 };
