@@ -12,15 +12,15 @@ const NavBar = () => {
   let refUpperToolbar = useRef(null);
   let sizeU = useComponentSize(refUpperToolbar);
   const [windowWidth, windowHeight] = useWindowSize();
+
   useEffect(() => {
-    console.log("xxx sizeU", sizeU);
     dispatch(
       setMenuWidth({
-        width: sizeU.width - 26,
+        width: sizeU.width - 27,
         height: windowHeight - sizeU.height - 76 - 20,
       })
     );
-  }, [sizeU.width, windowHeight, windowWidth]);
+  }, [sizeU, windowHeight, windowWidth]);
   return (
     <div className="bg-[#F1F1F1] flex justify-between w-full h-full min-h-screen overflow-clip">
       <SidebarMenu />
