@@ -15,7 +15,6 @@ const LineAndWaypointSelector = ({
   waypointsDataSource: GeoJsonDataSource;
   setId: (id: string) => void;
 }) => {
-  if (!waypointsDataSource) return;
   const [lineOptions, setLineOptions] = useState<
     { label: string; value: string }[]
   >([]);
@@ -81,6 +80,10 @@ const LineAndWaypointSelector = ({
       setWaypointOptions(waypointOpts);
     }
   }, [selectedLine, waypointsDataSource]);
+
+  if (!waypointsDataSource) {
+    return null;
+  }
 
   const handleLineIncrement = (increment: number) => {
     const currentIndex = lineOptions.findIndex(
