@@ -21,19 +21,18 @@ import { AppDispatch } from "../../store";
 import { DOMAIN, REST_SERVICE } from "../../constants/belis";
 import type { UnknownAction } from "redux";
 import InfoBoxWrapper from "../ui/InfoBoxWrapper";
-import { getMenuWidth } from "../../store/slices/ui";
 
 const MODES = {
   OBJECTS: "OBJECTS",
   TASKLISTS: "TASKLISTS",
   PROTOCOLS: "PROTOCOLS",
 } as const;
-const BelisMapLibWrapper = ({ refRoutedMap, jwt }) => {
+const BelisMapLibWrapper = ({ refRoutedMap, jwt, mapSizes }) => {
   const dispatch: AppDispatch = useDispatch();
   const featureCollection = useSelector(getFeatureCollection);
   const filter = useSelector(getFilter);
   const fcIsDone = useSelector(getDone);
-  const mapSizes = useSelector(getMenuWidth);
+  // const mapSizes = useSelector(getMenuWidth);
   //   const inFocusMode = useSelector(isInFocusMode);
   const selectedFeature = useSelector(getSelectedFeature);
   //   const featureCollectionMode = useSelector(getFeatureCollectionMode);

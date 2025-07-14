@@ -8,24 +8,24 @@ import { setMenuWidth } from "../../store/slices/ui";
 import { useWindowSize } from "@react-hook/window-size";
 
 const NavBar = () => {
-  const dispatch = useDispatch();
-  let refUpperToolbar = useRef(null);
-  let sizeU = useComponentSize(refUpperToolbar);
-  const [windowWidth, windowHeight] = useWindowSize();
+  // const dispatch = useDispatch();
+  // let refUpperToolbar = useRef(null);
+  // let sizeU = useComponentSize(refUpperToolbar);
+  // const [windowWidth, windowHeight] = useWindowSize();
 
-  useEffect(() => {
-    dispatch(
-      setMenuWidth({
-        width: sizeU.width - 27,
-        height: windowHeight - sizeU.height - 76 - 20,
-      })
-    );
-  }, [sizeU, windowHeight, windowWidth]);
+  // useEffect(() => {
+  //   dispatch(
+  //     setMenuWidth({
+  //       width: sizeU.width - 27,
+  //       height: windowHeight - sizeU.height - 76 - 20,
+  //     })
+  //   );
+  // }, [sizeU, windowHeight, windowWidth]);
   return (
     <div className="bg-[#F1F1F1] flex justify-between w-full h-full min-h-screen overflow-clip">
       <SidebarMenu />
       <div className="grow">
-        <UserBar innerRef={refUpperToolbar} />
+        {/* <UserBar innerRef={refUpperToolbar} /> */}
         <Outlet />
       </div>
     </div>
