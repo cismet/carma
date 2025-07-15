@@ -112,7 +112,7 @@ const Login = () => {
           style={{
             minHeight: 21,
             color: loginInfo?.color || "black",
-            marginRight: 10,
+            marginLeft: 26,
           }}
         >
           {loginInfo?.text || ""}
