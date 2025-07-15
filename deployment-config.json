@@ -1099,6 +1099,33 @@
       },
       "projectPath": "./dist/apps/belis/online"
     },
+    "belis-desktop": {
+      "deployment": {
+        "manual": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "belis-desktop"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "belis-desktop"
+            }
+          }
+        },
+        "auto": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "belis-desktop"
+            }
+          }
+        }
+      },
+      "projectPath": "./dist/apps/belis/desktop"
+    },
     "rainhazardmap-tholey": {
       "deployment": {
         "manual": {
