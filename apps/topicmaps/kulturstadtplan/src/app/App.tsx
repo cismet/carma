@@ -16,8 +16,11 @@ import {
 import titleFactory from "../helper/titleFactory";
 import createItemsDictionary from "../helper/createDictionary";
 import itemFilterFunction from "../helper/filter";
+import { ProgressIndicator, useProgress } from "@carma-apps/portals";
 
 export function App() {
+  const { progress, showProgress, handleProgressUpdate } = useProgress();
+
   useEffect(() => {
     document.title = "Kulturstadtplan Wuppertal";
   }, []);
@@ -39,6 +42,7 @@ export function App() {
       clusteringOptions={{
         iconCreateFunction: getPoiClusterIconCreatorFunction(35),
       }}
+      convertItemToFeatureProgressCallback={handleProgressUpdate}
       itemFilterFunction={itemFilterFunction}
       filterState={{
         einrichtung: [],
@@ -46,6 +50,7 @@ export function App() {
         mode: "einrichtungen",
       }}
     >
+      <ProgressIndicator progress={progress} show={showProgress} />
       <Map />
     </TopicMapContextProvider>
   );
