@@ -16,7 +16,11 @@ import {
 import titleFactory from "../helper/titleFactory";
 import createItemsDictionary from "../helper/createDictionary";
 import itemFilterFunction from "../helper/filter";
-import { ProgressIndicator, useProgress } from "@carma-apps/portals";
+import {
+  backgroundConfWithFastOrtho2024,
+  ProgressIndicator,
+  useProgress,
+} from "@carma-apps/portals";
 
 export function App() {
   const { progress, showProgress, handleProgressUpdate } = useProgress();
@@ -49,6 +53,7 @@ export function App() {
         veranstaltung: [],
         mode: "einrichtungen",
       }}
+      backgroundConfigurations={backgroundConfWithFastOrtho2024}
     >
       <ProgressIndicator progress={progress} show={showProgress} />
       <Map />

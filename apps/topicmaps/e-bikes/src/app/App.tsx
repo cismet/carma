@@ -14,7 +14,12 @@ import {
 } from "../helper/styler";
 import itemFilterFunction from "../helper/filter";
 import titleFactory from "../helper/titleFactory";
-import { ProgressIndicator, useProgress } from "@carma-apps/portals";
+import {
+  backgroundConfWithFastOrtho2024,
+  ProgressIndicator,
+  useProgress,
+} from "@carma-apps/portals";
+import { defaultLayerConf } from "react-cismap/tools/layerFactory";
 
 export function App() {
   const { progress, showProgress, handleProgressUpdate } = useProgress();
@@ -46,6 +51,7 @@ export function App() {
         ladebox_zu: false,
       }}
       convertItemToFeatureProgressCallback={handleProgressUpdate}
+      backgroundConfigurations={backgroundConfWithFastOrtho2024}
     >
       <ProgressIndicator progress={progress} show={showProgress} />
       <Map />

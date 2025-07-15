@@ -21,7 +21,11 @@ import "leaflet/dist/leaflet.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import { createItemsDictionary } from "./helper/createItemsDictionary";
-import { ProgressIndicator, useProgress } from "@carma-apps/portals";
+import {
+  backgroundConfWithFastOrtho2024,
+  ProgressIndicator,
+  useProgress,
+} from "@carma-apps/portals";
 if (typeof global === "undefined") {
   window.global = window;
 }
@@ -55,6 +59,7 @@ function App() {
         itemFilterFunction={itemFilterFunction}
         additionalStylingInfo={{ poiColors }}
         convertItemToFeatureProgressCallback={handleProgressUpdate}
+        backgroundConfigurations={backgroundConfWithFastOrtho2024}
       >
         <ProgressIndicator progress={progress} show={showProgress} />
         <EMobiKarte />

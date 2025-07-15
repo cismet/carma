@@ -23,7 +23,11 @@ import { getGazData } from "./helper/getGazData";
 import titleFactory from "./helper/titleFactory";
 import { MappingConstants } from "react-cismap";
 import Luftmessstationskarte from "./Luftmessstationskarte";
-import { ProgressIndicator, useProgress } from "@carma-apps/portals";
+import {
+  backgroundConfWithFastOrtho2024,
+  ProgressIndicator,
+  useProgress,
+} from "@carma-apps/portals";
 
 function App() {
   const [gazData, setGazData] = useState([]);
@@ -73,6 +77,7 @@ function App() {
       classKeyFunction={(item) => LOOKUP[getStatus(item)].title}
       getColorFromProperties={(item) => LOOKUP[getStatus(item)].color}
       convertItemToFeatureProgressCallback={handleProgressUpdate}
+      backgroundConfigurations={backgroundConfWithFastOrtho2024}
     >
       <ProgressIndicator progress={progress} show={showProgress} />
       <Luftmessstationskarte />

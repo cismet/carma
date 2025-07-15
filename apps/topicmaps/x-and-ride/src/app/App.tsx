@@ -17,7 +17,11 @@ import titleFactory from "../helper/titleFactory";
 import itemFilterFunction from "../helper/filter";
 import { FeatureCollectionDisplayWithTooltipLabels } from "react-cismap";
 import uwz from "./components/UWZ";
-import { ProgressIndicator, useProgress } from "@carma-apps/portals";
+import {
+  backgroundConfWithFastOrtho2024,
+  ProgressIndicator,
+  useProgress,
+} from "@carma-apps/portals";
 
 export function App() {
   const { progress, showProgress, handleProgressUpdate } = useProgress();
@@ -85,6 +89,7 @@ export function App() {
         },
       }}
       convertItemToFeatureProgressCallback={handleProgressUpdate}
+      backgroundConfigurations={backgroundConfWithFastOrtho2024}
     >
       <ProgressIndicator progress={progress} show={showProgress} />
       <Map />

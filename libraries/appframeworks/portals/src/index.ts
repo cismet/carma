@@ -56,3 +56,7 @@ export { useSelectionLibreMap } from "./lib/hooks/useSelectionLibreMap";
 export { useShareUrl, SHORTENER_URL } from "./lib/hooks/useShareUrl";
 export { useProgress } from "./lib/hooks/useProgress";
 export { uploadImage } from "./lib/utils/fileUpload";
+export {
+  defaultBackgroundConfigurations,
+  backgroundConfWithFastOrtho2024,
+} from "./lib/utils/topicmapConfigs";

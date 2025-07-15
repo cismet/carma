@@ -19,7 +19,11 @@ import "react-cismap/topicMaps.css";
 import { useSelector } from "react-redux";
 import { getFeatureRenderingOption } from "./store/slices/ui";
 import convertItemToFeature from "./helper/convertItemToFeature";
-import { ProgressIndicator, useProgress } from "@carma-apps/portals";
+import {
+  backgroundConfWithFastOrtho2024,
+  ProgressIndicator,
+  useProgress,
+} from "@carma-apps/portals";
 if (typeof global === "undefined") {
   window.global = window;
 }
@@ -60,6 +64,7 @@ function App() {
         // getColorFromProperties={getColorForProperties}
         featureTooltipFunction={(feature) => feature?.properties?.kurzname}
         convertItemToFeatureProgressCallback={handleProgressUpdate}
+        backgroundConfigurations={backgroundConfWithFastOrtho2024}
       >
         <ProgressIndicator progress={progress} show={showProgress} />
         <KitaKarte />
