@@ -172,6 +172,7 @@ export const CesiumMeasurementsProvider: React.FC<
     useCesiumTraverseQuery(
       viewer,
       measurementMode === MeasurementMode.Traverse,
+      measurements,
       setMeasurements,
       temporaryMode,
       heightOffset

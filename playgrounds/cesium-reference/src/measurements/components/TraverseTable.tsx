@@ -1,13 +1,20 @@
-import React, { useMemo } from "react";
+import React, { Dispatch, useMemo } from "react";
 import { Button, Table, Typography } from "antd";
-import { Math as CesiumMath } from "cesium";
+import { Math as CesiumMath, Cartesian3 } from "cesium";
 import "./TraverseTable.css";
-import { TraverseMeasurementEntry } from "../types/MeasurementTypes";
+import {
+  isTraverseMeasurementEntry,
+  MeasurementCollection,
+  TraverseMeasurementEntry,
+} from "../types/MeasurementTypes";
 import { useCesiumViewer } from "../../contexts/CesiumViewerContext";
 import { CoordinateDisplayMode, useCRS } from "../CRSContext";
 import { useCesiumMeasurements } from "../CesiumMeasurementsContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faArrowsToDot } from "@fortawesome/free-solid-svg-icons";
+import {
+  faArrowsToDot,
+  faCircleXmark,
+} from "@fortawesome/free-solid-svg-icons";
 
 interface TraverseTableProps {
   traverse: TraverseMeasurementEntry;
@@ -21,9 +28,68 @@ interface TableRecord {
   val3: string; // Z, Height, Ellipsoidal Height
 }
 
+// Helper function to recalculate segment lengths from points
+const calculateSegmentLengths = (
+  points: Cartesian3[]
+): {
+  segmentLengths: number[];
+  segmentLengthsCumulative: number[];
+  totalLength: number;
+} => {
+  const segmentLengths: number[] = [0]; // First point has no segment
+  const segmentLengthsCumulative: number[] = [0];
+  let totalLength = 0;
+
+  for (let i = 1; i < points.length; i++) {
+    const segmentLength = Cartesian3.distance(points[i], points[i - 1]);
+    segmentLengths[i] = segmentLength;
+    totalLength += segmentLength;
+    segmentLengthsCumulative[i] = totalLength;
+  }
+
+  return { segmentLengths, segmentLengthsCumulative, totalLength };
+};
+
+const removeNodeFromTraverseByTraverseId = (
+  setMeasurements: Dispatch<React.SetStateAction<MeasurementCollection>>,
+  id: string,
+  nodeIndex: number
+) => {
+  setMeasurements((prev: MeasurementCollection) => {
+    return prev.map((measurement) => {
+      if (measurement.id === id && isTraverseMeasurementEntry(measurement)) {
+        const newGeometry = [...measurement.geometryECEF];
+        newGeometry.splice(nodeIndex, 1);
+
+        // Recalculate derived data for the modified traverse
+        const { segmentLengths, segmentLengthsCumulative, totalLength } =
+          calculateSegmentLengths(newGeometry);
+
+        // Update geographic coordinates by removing the corresponding point
+        const newGeographicPoints = [...measurement.geometryWGS84];
+        newGeographicPoints.splice(nodeIndex, 1);
+
+        return {
+          ...measurement,
+          geometryECEF: newGeometry,
+          geometryWGS84: newGeographicPoints,
+          derived: {
+            segmentLengths,
+            segmentLengthsCumulative,
+            totalLength,
+          },
+          shouldRebuildEntry: true, // Flag to indicate entry needs to be rebuilt
+          timestamp: Date.now(), // Update timestamp to trigger re-rendering
+        };
+      }
+      return measurement;
+    });
+  });
+};
+
 const TraverseTable: React.FC<TraverseTableProps> = ({ traverse }) => {
   const { coordinateDisplayMode, toCartographic } = useCRS();
-  const { setReferencePoint } = useCesiumMeasurements();
+  const { setReferencePoint, setMeasurements } = useCesiumMeasurements();
   const { viewer } = useCesiumViewer();
   const tableDataSource = useMemo((): TableRecord[] => {
     if (!viewer) return [];
@@ -71,18 +137,34 @@ const TraverseTable: React.FC<TraverseTableProps> = ({ traverse }) => {
       }
 
       const extras = (
-        <Button
-          icon={<FontAwesomeIcon icon={faArrowsToDot} />}
-          type="text"
-          size="small"
-          onClick={() => {
-            console.debug(
-              `[TraverseTable] Setting reference point for ${traverse.id}`
-            );
-            setReferencePoint(point);
-          }}
-          aria-label={`Polygonzug Referenzpunkt`}
-        />
+        <>
+          <Button
+            icon={<FontAwesomeIcon icon={faArrowsToDot} />}
+            type="text"
+            size="small"
+            onClick={() => {
+              console.debug(
+                `[TraverseTable] Setting reference point for ${traverse.id}`
+              );
+              setReferencePoint(point);
+            }}
+            aria-label={`Polygonzug Referenzpunkt`}
+          />
+          <Button
+            icon={<FontAwesomeIcon icon={faCircleXmark} />}
+            type="text"
+            size="small"
+            onClick={() => {
+              console.debug(`[TraverseTable] Deleting point in ${traverse.id}`);
+              removeNodeFromTraverseByTraverseId(
+                setMeasurements,
+                traverse.id,
+                index
+              );
+            }}
+            aria-label={`Polygonzug ${traverse.id} löschen`}
+          />
+        </>
       );
 
       return {
@@ -94,7 +176,14 @@ const TraverseTable: React.FC<TraverseTableProps> = ({ traverse }) => {
         extras,
       };
     });
-  }, [traverse, viewer, coordinateDisplayMode, toCartographic]);
+  }, [
+    traverse,
+    viewer,
+    coordinateDisplayMode,
+    toCartographic,
+    setMeasurements,
+    setReferencePoint,
+  ]);
 
   const columns = useMemo(() => {
     let col1Title = "X";
@@ -112,11 +201,11 @@ const TraverseTable: React.FC<TraverseTableProps> = ({ traverse }) => {
     }
 
     return [
-      { title: "#", dataIndex: "index", key: "index", width: 50 },
+      { title: "#", dataIndex: "index", key: "index", width: "25px" },
       { title: col1Title, dataIndex: "val1", key: "val1" },
       { title: col2Title, dataIndex: "val2", key: "val2" },
-      { title: col3Title, dataIndex: "val3", key: "val3" },
-      { title: "", dataIndex: "extras", key: "extras", width: 20 },
+      { title: col3Title, dataIndex: "val3", key: "val3", width: "50px" },
+      { title: "", dataIndex: "extras", key: "extras" },
     ];
   }, [coordinateDisplayMode]);
 

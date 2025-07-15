@@ -46,6 +46,7 @@ export type TraverseMeasurementEntry = MeasurementEntry & {
   geometryECEF: Cartesian3[];
   geometryWGS84: GeomPolyline;
   heightOffset?: number; // Height offset in meters for visualization
+  shouldRebuildEntry?: boolean; // Flag to indicate entry needs to be rebuilt/recomputed
   derived?: {
     segmentLengths: number[];
     segmentLengthsCumulative: number[];
