@@ -1,5 +1,5 @@
 import { Dispatch, SetStateAction, useEffect, useRef } from "react";
-import type { Viewer } from "cesium";
+import type { Cartesian3, Viewer } from "cesium";
 import {
   Cartesian2,
   ScreenSpaceEventType,
@@ -81,7 +81,7 @@ export const useCesiumPointQuery = (
           type: MeasurementMode.PointQuery,
           id: measurementId,
           index: insertionIndex,
-          name: `Messpunkt ${insertionIndex + 1} (${height.toFixed(1)}m)`,
+          name: `Messpunkt ${insertionIndex + 1}`,
           geometryECEF: pickedPosition,
           geometryWGS84,
           timestamp: new Date().getTime(),

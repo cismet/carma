@@ -29,6 +29,7 @@ export const useCameraPersistence = (
   const { autoSave = true, saveDelay = 1000, autoRestore = true } = options;
 
   const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isFirstSaveRef = useRef(true);
   const [wasRestored, setWasRestored] = useState(false);
 
   const hasValidSavedState = () => {
@@ -71,7 +72,7 @@ export const useCameraPersistence = (
         clearTimeout(saveTimeoutRef.current);
       }
 
-      saveTimeoutRef.current = setTimeout(() => {
+      const saveCamera = () => {
         if (!viewer || viewer.isDestroyed()) {
           console.debug(
             "[useCameraPersistence] Viewer destroyed during save timeout, skipping save"
@@ -88,7 +89,15 @@ export const useCameraPersistence = (
             error
           );
         }
-      }, saveDelay);
+      };
+
+      // First save happens immediately, subsequent saves are throttled
+      if (isFirstSaveRef.current) {
+        isFirstSaveRef.current = false;
+        saveCamera();
+      } else {
+        saveTimeoutRef.current = setTimeout(saveCamera, saveDelay);
+      }
     };
 
     let removeListener: (() => void) | null = null;

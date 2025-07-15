@@ -20,7 +20,8 @@ export const useCesiumPointVisualizer = (
   measurements: MeasurementCollection = [],
   showMarkers: boolean = true,
   showLabels: boolean = false,
-  radius: number
+  radius: number,
+  referenceElevation: number = 0
 ) => {
   const labelRefs = useRef<Record<string, Entity>>({});
   const cross3DRefs = useRef<Record<string, Cross3DGroup>>({});
@@ -88,9 +89,9 @@ export const useCesiumPointVisualizer = (
       if (!labelRefs.current[m.id]) {
         const entity = createLabelEntity(m, undefined, {
           show: showLabels,
-          text: `${formatNumberToEnclosed(
-            i + 1
-          )} ${m.geometryWGS84.height.toFixed(2)}`,
+          text: `${formatNumberToEnclosed(i + 1)} ${(
+            m.geometryWGS84.height - referenceElevation
+          ).toFixed(2)}m`,
         });
         viewer.entities.add(entity);
         labelRefs.current[m.id] = entity;
@@ -105,7 +106,7 @@ export const useCesiumPointVisualizer = (
       labelRefs.current = {};
       prevIdsRef.current = new Set();
     };
-  }, [viewer, points, currentIds, showLabels]);
+  }, [viewer, points, currentIds, showLabels, referenceElevation]);
 };
 
 export default useCesiumPointVisualizer;

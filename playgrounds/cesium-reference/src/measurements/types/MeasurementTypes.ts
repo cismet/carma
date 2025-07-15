@@ -1,4 +1,4 @@
-import { Cartesian3 } from "cesium";
+import { Cartesian3, Cartographic } from "cesium";
 
 export enum MeasurementMode {
   NONE = "none",
@@ -7,7 +7,7 @@ export enum MeasurementMode {
   Elevation = "elevation",
 }
 
-type GeomPoint = {
+export type GeomPoint = Partial<Cartographic> & {
   longitude: number;
   latitude: number;
   height: number;
@@ -38,7 +38,7 @@ export type PointMeasurementEntry = MeasurementEntry & {
 export function isPointMeasurementEntry(
   entry: MeasurementEntry
 ): entry is PointMeasurementEntry {
-  return entry.type === MeasurementMode.PointQuery;
+  return entry && entry.type === MeasurementMode.PointQuery;
 }
 
 export type TraverseMeasurementEntry = MeasurementEntry & {
@@ -46,6 +46,7 @@ export type TraverseMeasurementEntry = MeasurementEntry & {
   geometryECEF: Cartesian3[];
   geometryWGS84: GeomPolyline;
   heightOffset?: number; // Height offset in meters for visualization
+  shouldRebuildEntry?: boolean; // Flag to indicate entry needs to be rebuilt/recomputed
   derived?: {
     segmentLengths: number[];
     segmentLengthsCumulative: number[];
@@ -56,7 +57,7 @@ export type TraverseMeasurementEntry = MeasurementEntry & {
 export function isTraverseMeasurementEntry(
   entry: MeasurementEntry
 ): entry is TraverseMeasurementEntry {
-  return entry.type === MeasurementMode.Traverse;
+  return entry && entry.type === MeasurementMode.Traverse;
 }
 
 export type MeasurementCollection = MeasurementEntry[];

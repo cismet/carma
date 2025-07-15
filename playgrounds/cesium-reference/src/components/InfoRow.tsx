@@ -1,24 +1,27 @@
-import React, { FC, ReactNode } from "react";
-import { Typography, Space } from "antd";
+import { FC, ReactNode } from "react";
+import { Typography, Flex } from "antd";
 const { Text } = Typography;
 
 export const InfoRow: FC<{
   label: string;
-  value: ReactNode;
+  value?: ReactNode;
+  values?: ReactNode[];
   type?: "danger" | "success";
-}> = ({ label, value, type }) => (
-  <Space
-    style={{
-      width: "100%",
-      justifyContent: "space-between",
-      marginBottom: 8,
-    }}
-  >
+}> = ({ label, value, values, type }) => (
+  <Flex justify="space-between" gap={4}>
     <Text strong style={{ whiteSpace: "nowrap" }}>
       {label}
     </Text>
-    <Text type={type}>{value}</Text>
-  </Space>
+    {values ? (
+      values.map((val, index) => (
+        <Text key={index} type={type}>
+          {val}
+        </Text>
+      ))
+    ) : (
+      <Text type={type}>{value}</Text>
+    )}
+  </Flex>
 );
 
 export default InfoRow;

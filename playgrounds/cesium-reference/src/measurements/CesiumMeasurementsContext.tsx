@@ -6,7 +6,9 @@ import React, {
   useCallback,
   Dispatch,
   SetStateAction,
+  useEffect,
 } from "react";
+import { type Cartesian3 } from "cesium";
 
 import { normalizeOptions } from "@carma-commons/utils";
 
@@ -17,8 +19,11 @@ import { useCesiumPointVisualizer } from "./hooks/useCesiumPointVisualizer";
 import { useCesiumTraverseQuery } from "./hooks/useCesiumTraverseQuery";
 import { useCesiumTraverseVisualizer } from "./hooks/useCesiumTraverseVisualizer";
 import { useCesiumMousePosition } from "./hooks/useCesiumMousePosition";
+import { useMeasurementPersistence } from "./hooks/useMeasurementPersistence";
 
 import {
+  isPointMeasurementEntry,
+  isTraverseMeasurementEntry,
   type MeasurementCollection,
   MeasurementMode,
 } from "./types/MeasurementTypes";
@@ -46,6 +51,9 @@ interface CesiumMeasurementsContextType {
   setPointRadius: Dispatch<SetStateAction<number>>;
   heightOffset: number;
   setHeightOffset: Dispatch<SetStateAction<number>>;
+  referencePoint: Cartesian3 | null;
+  setReferencePoint: Dispatch<SetStateAction<Cartesian3 | null>>;
+  referenceElevation: number; // derived from referencePoint
 }
 
 const CesiumMeasurementsContext = createContext<
@@ -121,6 +129,11 @@ export const CesiumMeasurementsProvider: React.FC<
   );
   const [temporaryMode, setTemporaryMode] = useState(initialTemporary);
   const [measurements, setMeasurements] = useState<MeasurementCollection>([]);
+
+  // Add measurement persistence (auto-save only, manual restore)
+  useMeasurementPersistence(measurements, setMeasurements);
+
+  const [referencePoint, setReferencePoint] = useState<Cartesian3 | null>(null);
   const [showLabels, setShowLabels] = useState<boolean>(true);
   const [hideMeasurementsOfType, setHideMeasurementsOfType] = useState<
     Set<MeasurementMode>
@@ -129,8 +142,14 @@ export const CesiumMeasurementsProvider: React.FC<
     Set<MeasurementMode>
   >(new Set());
 
-  // point query hooks
+  const referenceElevation = useMemo(() => {
+    if (!referencePoint || !viewer) return 0;
+    const cartographic =
+      viewer.scene.globe.ellipsoid.cartesianToCartographic(referencePoint);
+    return cartographic?.height ?? 0;
+  }, [referencePoint, viewer]);
 
+  // point query hooks
   useCesiumPointQuery(
     viewer,
     measurementMode === MeasurementMode.PointQuery,
@@ -150,13 +169,15 @@ export const CesiumMeasurementsProvider: React.FC<
     measurements,
     showPoints,
     showPointLabels,
-    pointRadius
+    pointRadius,
+    referenceElevation
   );
 
   const { clearTraverseQuery, isActiveTraverse, currentTraverseId } =
     useCesiumTraverseQuery(
       viewer,
       measurementMode === MeasurementMode.Traverse,
+      measurements,
       setMeasurements,
       temporaryMode,
       heightOffset
@@ -180,7 +201,8 @@ export const CesiumMeasurementsProvider: React.FC<
     showTraverseLabels,
     mousePosition,
     isActiveTraverse,
-    currentTraverseId
+    currentTraverseId,
+    referenceElevation
   );
 
   const clearAllMeasurements = useCallback(() => {
@@ -213,6 +235,24 @@ export const CesiumMeasurementsProvider: React.FC<
     [setMeasurements]
   );
 
+  useEffect(() => {
+    if (referencePoint !== null) return;
+    // if more than one point measurement is present, set the reference point to the first one
+    // this includes transverse and area measurements with at least two points too.
+    if (isPointMeasurementEntry(measurements[0]) && measurements.length > 1) {
+      setReferencePoint(measurements[0].geometryECEF);
+    } else if (
+      isTraverseMeasurementEntry(measurements[0]) &&
+      measurements[0].geometryECEF.length > 1
+    ) {
+      setReferencePoint(measurements[0].geometryECEF[0]);
+    }
+    console.debug(
+      "[CesiumMeasurementsContext] Setting reference point to first measurement point",
+      measurements[0]?.geometryECEF
+    );
+  }, [measurements, setReferencePoint, referencePoint]);
+
   const contextValue = useMemo(
     () => ({
       measurementMode,
@@ -234,6 +274,9 @@ export const CesiumMeasurementsProvider: React.FC<
       setPointRadius,
       heightOffset,
       setHeightOffset,
+      referencePoint,
+      setReferencePoint,
+      referenceElevation,
     }),
     [
       measurementMode,
@@ -255,6 +298,9 @@ export const CesiumMeasurementsProvider: React.FC<
       setPointRadius,
       heightOffset,
       setHeightOffset,
+      referencePoint,
+      setReferencePoint,
+      referenceElevation,
     ]
   );
 

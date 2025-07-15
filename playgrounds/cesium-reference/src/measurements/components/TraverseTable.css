@@ -8,3 +8,16 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Override Antd's intrinsic table paddings */
+.ant-list-item {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+}
+
+div.ant-table-header,
+div.ant-table-container {
+  border-radius: 0 !important;
+  border-top-left-radius: 0 !important;
+  border-top-right-radius: 0 !important;
+}

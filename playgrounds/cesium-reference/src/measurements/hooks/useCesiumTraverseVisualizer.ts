@@ -26,6 +26,7 @@ import {
   createSegmentNodeLabel,
   createNodeNumberLabel,
   updateTraverseLabelVisibility,
+  createPointLabelText,
 } from "../utils/cesiumLabels";
 import { useRequestRender } from "./useRequestRender";
 
@@ -112,12 +113,15 @@ export function useCesiumTraverseVisualizer(
   showLabels: boolean = true,
   mousePosition: Cartesian3 | null = null,
   isActiveTraverse: boolean = false,
-  currentTraverseId: string | null = null
+  currentTraverseId: string | null = null,
+  referenceElevation: number = 0
 ) {
   const traverseEntiesRef = useRef<Entity[]>([]);
   const currentPolylineRef = useRef<Entity | null>(null);
   const prevIdsRef = useRef<Set<string>>(new Set());
-  const renderedTraversesRef = useRef<Map<string, number>>(new Map());
+  const renderedTraversesRef = useRef<
+    Map<string, { timestamp: number; referenceElevation: number }>
+  >(new Map());
   const requestRender = useRequestRender(viewer);
 
   const config = defaultTraverseStyleConfig;
@@ -178,7 +182,7 @@ export function useCesiumTraverseVisualizer(
     });
 
     // Remove IDs of deleted traverses from rendered set
-    renderedTraversesRef.current.forEach((timestamp, traverseId) => {
+    renderedTraversesRef.current.forEach((renderInfo, traverseId) => {
       if (!currentIds.has(traverseId)) {
         renderedTraversesRef.current.delete(traverseId);
       }
@@ -192,20 +196,19 @@ export function useCesiumTraverseVisualizer(
 
     // Only render new or updated traverses
     traverses.forEach((traverse) => {
-      const lastRenderedTimestamp = renderedTraversesRef.current.get(
-        traverse.id
-      );
+      const lastRenderedInfo = renderedTraversesRef.current.get(traverse.id);
 
       // Skip if this traverse is already fully rendered and hasn't changed
       if (
-        lastRenderedTimestamp &&
-        lastRenderedTimestamp >= traverse.timestamp
+        lastRenderedInfo &&
+        lastRenderedInfo.timestamp >= traverse.timestamp &&
+        lastRenderedInfo.referenceElevation === referenceElevation
       ) {
         return;
       }
 
       // Remove existing entities for this traverse before re-rendering (only if it needs updating)
-      if (lastRenderedTimestamp) {
+      if (lastRenderedInfo) {
         const entitiesToRemove = traverseEntiesRef.current.filter((entity) => {
           if (entity.id) {
             return entity.id.includes(traverse.id);
@@ -228,6 +231,8 @@ export function useCesiumTraverseVisualizer(
         const pointMarkerId = `point-marker-${traverse.id}-${index}`;
         const pointLabelId = `point-label-${traverse.id}-${index}`;
         const stemLineId = `vertical-line-${traverse.id}-${index}`;
+
+        const pointGeographic = traverse.geometryWGS84[index];
 
         // Get heightOffset from measurement data, default to 0 if not set
         const heightOffset = traverse.heightOffset || 0;
@@ -263,7 +268,8 @@ export function useCesiumTraverseVisualizer(
           traverseEntiesRef.current.push(stemLine);
         }
 
-        if (!viewer.entities.getById(pointLabelId)) {
+        const existingLabel = viewer.entities.getById(pointLabelId);
+        if (!existingLabel) {
           const cumulativeLength =
             traverse.derived.segmentLengthsCumulative[index] || 0;
           const isSingleSegment = traverse.geometryECEF.length === 2;
@@ -271,13 +277,34 @@ export function useCesiumTraverseVisualizer(
           // Create distance label (offset from point)
           const pointLabel = createSegmentNodeLabel(
             visualizationPoint,
+            pointGeographic,
             index,
             cumulativeLength,
             pointLabelId,
-            isSingleSegment
+            isSingleSegment,
+            referenceElevation
           );
           viewer.entities.add(pointLabel);
           traverseEntiesRef.current.push(pointLabel);
+        } else {
+          // Update existing label text with new reference elevation
+          const cumulativeLength =
+            traverse.derived.segmentLengthsCumulative[index] || 0;
+          const isSingleSegment = traverse.geometryECEF.length === 2;
+
+          const pointLabelText = createPointLabelText(
+            pointGeographic,
+            index,
+            cumulativeLength,
+            isSingleSegment,
+            referenceElevation
+          );
+
+          if (existingLabel.label && existingLabel.label.text) {
+            (existingLabel.label.text as ConstantProperty).setValue(
+              pointLabelText
+            );
+          }
         }
 
         // Create number label directly on the point
@@ -344,7 +371,10 @@ export function useCesiumTraverseVisualizer(
       }
 
       // Mark this traverse as fully rendered
-      renderedTraversesRef.current.set(traverse.id, traverse.timestamp);
+      renderedTraversesRef.current.set(traverse.id, {
+        timestamp: traverse.timestamp,
+        referenceElevation,
+      });
     });
 
     prevIdsRef.current = currentIds;
@@ -359,6 +389,7 @@ export function useCesiumTraverseVisualizer(
     showLabels,
     clearVisualizations,
     requestRender,
+    referenceElevation,
   ]);
 
   // Handle live preview for active traverse measurement

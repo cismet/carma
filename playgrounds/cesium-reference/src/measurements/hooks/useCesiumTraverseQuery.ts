@@ -17,7 +17,9 @@ import {
   MeasurementMode,
   TraverseMeasurementEntry,
   MeasurementCollection,
+  isTraverseMeasurementEntry,
 } from "../types/MeasurementTypes";
+import { calculateSegmentLengths } from "../utils/cesiumTraverseEntities";
 import {
   updateCollection,
   makeTemporaryMeasurementsPermanent,
@@ -27,6 +29,7 @@ import { toGeographicDegrees } from "../utils/geo";
 export function useCesiumTraverseQuery(
   viewer: Viewer | null,
   enabled: boolean,
+  collection: MeasurementCollection,
   setCollection: Dispatch<SetStateAction<MeasurementCollection>>,
   temporaryMode: boolean = true,
   heightOffset: number = 1.5
@@ -68,6 +71,59 @@ export function useCesiumTraverseQuery(
     setIsActiveTraverse(false);
     setCurrentTraverseId(null);
   }, []);
+
+  // Helper to update refs with points (used by both user clicks and external modifications)
+  const updateActiveTraverseRefs = useCallback((points: Cartesian3[]) => {
+    activeTraversePointsRef.current = [...points];
+    const { segmentLengths, segmentLengthsCumulative } =
+      calculateSegmentLengths(points);
+    activeTraverseSegmentsLengthsRef.current = segmentLengths;
+    activeTraverseSegmentsLengthsCumulativeRef.current =
+      segmentLengthsCumulative;
+  }, []);
+
+  // Handle external modifications to active traverse
+  useEffect(() => {
+    if (!currentTraverseId || !isActiveTraverse) return;
+
+    const activeTraverse = collection
+      .filter(isTraverseMeasurementEntry)
+      .find((m) => m.id === currentTraverseId);
+
+    if (
+      activeTraverse &&
+      activeTraverse.type === MeasurementMode.Traverse &&
+      activeTraverse.shouldRebuildEntry
+    ) {
+      // remove if no points are left
+      if (activeTraverse.geometryECEF.length === 0) {
+        console.debug(
+          "[CesiumTraverseQuery] Active traverse has no points, clearing query and removing from collection"
+        );
+        // Remove the empty traverse from the collection
+        setCollection((prev) => prev.filter((m) => m.id !== currentTraverseId));
+        clearTraverseQuery();
+        return;
+      }
+
+      // Update refs as if user clicked all points
+      updateActiveTraverseRefs(activeTraverse.geometryECEF);
+
+      // Clear the flag
+      setCollection((prev) =>
+        prev.map((m) =>
+          m.id === currentTraverseId ? { ...m, shouldRebuildEntry: false } : m
+        )
+      );
+    }
+  }, [
+    collection,
+    currentTraverseId,
+    isActiveTraverse,
+    setCollection,
+    updateActiveTraverseRefs,
+    clearTraverseQuery,
+  ]);
 
   const finishMeasurement = useCallback(() => {
     if (activeTraversePointsRef.current.length < 2) return;

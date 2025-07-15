@@ -1,5 +1,14 @@
-import React, { useState, FC, useCallback, useMemo, useEffect } from "react";
-import { Button, Card, Collapse, Flex, List, theme, Typography } from "antd";
+import React, {
+  useState,
+  FC,
+  useCallback,
+  useMemo,
+  useRef,
+  Dispatch,
+  SetStateAction,
+} from "react";
+import { Cartesian3 } from "cesium";
+import { Button, Collapse, Flex, List, theme, Typography } from "antd";
 import { PointQueryInfo } from "./PointQueryInfo";
 import TraverseTable from "./TraverseTable";
 import {
@@ -11,6 +20,7 @@ import {
 import { useCesiumMeasurements } from "../CesiumMeasurementsContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
+  faArrowsToDot,
   faCircleXmark,
   faEye,
   faEyeSlash,
@@ -19,28 +29,45 @@ import {
   faTrash,
 } from "@fortawesome/free-solid-svg-icons";
 import { InteractiveModeTabs } from "./InteractiveModeTabs";
+import "./MeasurementPanel.css";
 
 const renderPointItem = (
   data: PointMeasurementEntry,
   idx: number,
-  clearMeasurementsByIds: (ids: string[]) => void
+  clearMeasurementsByIds: (ids: string[]) => void,
+  setReferencePoint: Dispatch<SetStateAction<Cartesian3 | null>>
 ) => (
   <List.Item
     key={data.id}
     style={{ paddingRight: "0.5rem" }}
     title={`${data.name || ""} (${data.id.slice(-6, -2)})`}
-    extra={
-      <Button
-        icon={<FontAwesomeIcon icon={faCircleXmark} />}
-        type="text"
-        size="small"
-        onClick={() => clearMeasurementsByIds([data.id])}
-        aria-label={`Messung ${data.id} löschen`}
-      />
-    }
   >
     <List.Item.Meta
-      title={`${data.name || ""} (${data.id.slice(-6, -2)})`}
+      title={
+        <span style={{ padding: "0 0.3rem" }}>
+          <Button
+            icon={<FontAwesomeIcon icon={faCircleXmark} />}
+            type="text"
+            size="small"
+            onClick={() => clearMeasurementsByIds([data.id])}
+            aria-label={`Messung ${data.id} löschen`}
+          />
+          <Button
+            icon={<FontAwesomeIcon icon={faArrowsToDot} />}
+            type="text"
+            size="small"
+            onClick={() => {
+              console.debug(
+                `[MeasurementPanel] Setting reference point for ${data.id}`
+              );
+              setReferencePoint(data.geometryECEF);
+            }}
+            aria-label={`Punktreferenz`}
+          />
+
+          {`${data?.name ?? ""}`}
+        </span>
+      }
       description={<PointQueryInfo data={data} />}
     />
   </List.Item>
@@ -51,11 +78,10 @@ const renderTraverseItem = (
   idx: number,
   clearMeasurementsByIds: (ids: string[]) => void
 ) => (
-  <List.Item key={data.id} style={{ paddingRight: "0.5rem" }}>
+  <List.Item key={data.id}>
     <List.Item.Meta
       title={
-        <>
-          {`${data.derived?.totalLength?.toFixed(2) || "0"}m`}
+        <span style={{ padding: "0 0.3rem" }}>
           <Button
             icon={<FontAwesomeIcon icon={faCircleXmark} />}
             type="text"
@@ -63,7 +89,8 @@ const renderTraverseItem = (
             onClick={() => clearMeasurementsByIds([data.id])}
             aria-label={`Polygonzug ${data.id} löschen`}
           />
-        </>
+          {`Polygonzug ${data.derived?.totalLength?.toFixed(2) || "0"}m`}
+        </span>
       }
       description={<TraverseTable traverse={data} />}
     />
@@ -78,7 +105,8 @@ interface MeasurementSectionProps {
   itemRenderer: (
     item: MeasurementEntry,
     idx: number,
-    clear: (ids: string[]) => void
+    clear: (ids: string[]) => void,
+    setReferencePoint?: Dispatch<SetStateAction<Cartesian3 | null>>
   ) => React.ReactNode;
 }
 
@@ -110,8 +138,17 @@ function MeasurementSection({
     setHideMeasurementsOfType,
     hideLabelsOfType,
     setHideLabelsOfType,
+    setReferencePoint,
   } = useCesiumMeasurements();
   const { token } = theme.useToken();
+  const [expanded, setExpanded] = useState(true);
+  const prevActiveRef = useRef(active);
+
+  // Check if active just became true and expand if so
+  if (active && !prevActiveRef.current) {
+    setExpanded(true);
+  }
+  prevActiveRef.current = active;
 
   const items = useMemo(
     () => measurements.filter((m) => m.type === type),
@@ -119,7 +156,6 @@ function MeasurementSection({
   );
   const clearAll = useCallback(() => {
     clearMeasurementsByType(type);
-    //setActive(MeasurementMode.NONE);
   }, [clearMeasurementsByType, type]);
 
   const toggleVisibility = useCallback(() => {
@@ -142,9 +178,25 @@ function MeasurementSection({
   // if active and no items, return placeholder
   if (items.length === 0) {
     return active ? (
-      <Card size="small">
-        <Typography.Text type="secondary">{placeholder}</Typography.Text>
-      </Card>
+      <Collapse
+        style={{ backgroundColor: token.colorBgContainer }}
+        activeKey={expanded ? [type] : []}
+        onChange={(keys) => setExpanded(keys.includes(type))}
+        items={[
+          {
+            key: type,
+            label: title,
+            children: (
+              <div style={{ padding: "0.5rem" }}>
+                <Typography.Text type="secondary">
+                  {placeholder}
+                </Typography.Text>
+              </div>
+            ),
+          },
+        ]}
+        className="measurement-panel-collapse"
+      />
     ) : null;
   }
 
@@ -153,10 +205,9 @@ function MeasurementSection({
 
   return (
     <Collapse
-      style={{ backgroundColor: token.colorBgContainer, minWidth: "24rem" }}
-      activeKey={type}
-      collapsible="header"
-      //onChange={setActivePanel}
+      style={{ backgroundColor: token.colorBgContainer }}
+      activeKey={expanded ? [type] : []}
+      onChange={(keys) => setExpanded(keys.includes(type))}
       items={[
         {
           key: type,
@@ -195,7 +246,12 @@ function MeasurementSection({
             <List
               dataSource={items}
               renderItem={(item, idx) =>
-                itemRenderer(item, idx, clearMeasurementsByIds)
+                itemRenderer(
+                  item,
+                  idx,
+                  clearMeasurementsByIds,
+                  setReferencePoint
+                )
               }
               size="small"
             />
@@ -208,23 +264,14 @@ function MeasurementSection({
 }
 
 export const MeasurementPanel: FC = () => {
-  const { measurements, measurementMode } = useCesiumMeasurements();
-  const [activePanel, setActivePanel] =
-    useState<MeasurementMode>(measurementMode);
-
-  useEffect(() => {
-    // change active panel when measurement mode changes
-    if (measurementMode !== activePanel) {
-      setActivePanel(measurementMode);
-    }
-  }, [measurementMode, activePanel]);
+  const { measurementMode } = useCesiumMeasurements();
 
   return (
-    <Flex vertical gap={2} style={{ maxWidth: "44rem" }}>
+    <Flex vertical gap={2} align="end">
       <InteractiveModeTabs />
       <MeasurementSection
         type={MeasurementMode.PointQuery}
-        active={activePanel === MeasurementMode.PointQuery}
+        active={measurementMode === MeasurementMode.PointQuery}
         title={`Punktmessungen`}
         placeholder={
           <>
@@ -238,36 +285,17 @@ export const MeasurementPanel: FC = () => {
       <MeasurementSection
         type={MeasurementMode.Traverse}
         title={`Polygonzüge`}
-        active={activePanel === MeasurementMode.Traverse}
+        active={measurementMode === MeasurementMode.Traverse}
         placeholder={
           <>
             Keine Polygonzüge vorhanden.
             <br />
-            Zum Messen auf das Stadtmodell klicken, zum abschließen der Messung
-            rechts klicken
+            Zum Messen auf das Stadtmodell klicken,
+            <br />
+            zum Abschließen der Messung rechts klicken
           </>
         }
         itemRenderer={renderTraverseItem}
-      />
-      <Collapse
-        items={[
-          {
-            key: "json-debug",
-            label: "Messungen (JSON)",
-            children: (
-              <Typography.Paragraph
-                style={{
-                  whiteSpace: "pre-wrap",
-                  fontFamily: "monospace",
-                  fontSize: 12,
-                  margin: 0,
-                }}
-              >
-                {JSON.stringify(measurements, null, 1)}
-              </Typography.Paragraph>
-            ),
-          },
-        ]}
       />
     </Flex>
   );
