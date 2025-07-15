@@ -19,6 +19,7 @@ const SettingsUi = () => {
       <Drawer
         title="Einstellungen"
         placement="right"
+        zIndex={2000}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         size="default"
