@@ -4,9 +4,10 @@ const { Text } = Typography;
 
 export const InfoRow: FC<{
   label: string;
-  value: ReactNode;
+  value?: ReactNode;
+  values?: ReactNode[];
   type?: "danger" | "success";
-}> = ({ label, value, type }) => (
+}> = ({ label, value, values, type }) => (
   <Space
     style={{
       width: "100%",
@@ -17,7 +18,17 @@ export const InfoRow: FC<{
     <Text strong style={{ whiteSpace: "nowrap" }}>
       {label}
     </Text>
-    <Text type={type}>{value}</Text>
+    {values ? (
+      <Space>
+        {values.map((val, index) => (
+          <Text key={index} type={type}>
+            {val}
+          </Text>
+        ))}
+      </Space>
+    ) : (
+      <Text type={type}>{value}</Text>
+    )}
   </Space>
 );
 

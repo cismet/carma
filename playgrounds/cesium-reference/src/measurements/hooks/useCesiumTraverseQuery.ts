@@ -28,7 +28,6 @@ export function useCesiumTraverseQuery(
   viewer: Viewer | null,
   enabled: boolean,
   setCollection: Dispatch<SetStateAction<MeasurementCollection>>,
-  setReferencePoint: Dispatch<SetStateAction<Cartesian3 | null>>,
   temporaryMode: boolean = true,
   heightOffset: number = 1.5
 ) {
@@ -68,8 +67,7 @@ export function useCesiumTraverseQuery(
     activeTraverseSegmentsLengthsCumulativeRef.current = [0];
     setIsActiveTraverse(false);
     setCurrentTraverseId(null);
-    setReferencePoint(null);
-  }, [setReferencePoint]);
+  }, []);
 
   const finishMeasurement = useCallback(() => {
     if (activeTraversePointsRef.current.length < 2) return;
@@ -150,7 +148,6 @@ export function useCesiumTraverseQuery(
         traverseId = `traverse-${Date.now()}`;
         setIsActiveTraverse(true);
         setCurrentTraverseId(traverseId);
-        setReferencePoint(prev => prev === null ? pickedPosition : prev);
       }
 
       const entry: TraverseMeasurementEntry = {
@@ -195,7 +192,6 @@ export function useCesiumTraverseQuery(
     currentTraverseId,
     isActiveTraverse,
     heightOffset,
-    setReferencePoint,
   ]);
 
   return {

@@ -6,6 +6,7 @@ import React, {
   useCallback,
   Dispatch,
   SetStateAction,
+  useEffect,
 } from "react";
 import { type Cartesian3 } from "cesium";
 
@@ -20,6 +21,8 @@ import { useCesiumTraverseVisualizer } from "./hooks/useCesiumTraverseVisualizer
 import { useCesiumMousePosition } from "./hooks/useCesiumMousePosition";
 
 import {
+  isPointMeasurementEntry,
+  isTraverseMeasurementEntry,
   type MeasurementCollection,
   MeasurementMode,
 } from "./types/MeasurementTypes";
@@ -148,7 +151,6 @@ export const CesiumMeasurementsProvider: React.FC<
     viewer,
     measurementMode === MeasurementMode.PointQuery,
     setMeasurements,
-    setReferencePoint,
     temporaryMode,
     pointRadius
   );
@@ -172,7 +174,6 @@ export const CesiumMeasurementsProvider: React.FC<
       viewer,
       measurementMode === MeasurementMode.Traverse,
       setMeasurements,
-      setReferencePoint,
       temporaryMode,
       heightOffset
     );
@@ -227,6 +228,19 @@ export const CesiumMeasurementsProvider: React.FC<
     },
     [setMeasurements]
   );
+
+  useEffect (() => {  
+    if (referencePoint !== null)
+      return;
+    // if more than one point measurement is present, set the reference point to the first one
+    // this includes transverse and area measurements with at least two points too.
+    if (isPointMeasurementEntry(measurements[0]) && measurements.length > 1) {
+      setReferencePoint(measurements[0].geometryECEF);
+    } else if (isTraverseMeasurementEntry(measurements[0]) && measurements[0].geometryECEF.length > 1) {
+      setReferencePoint(measurements[0].geometryECEF[0]);
+    }
+    console.debug("[CesiumMeasurementsContext] Setting reference point to first measurement point", measurements[0]?.geometryECEF);
+  }, [measurements, setReferencePoint, referencePoint]);
 
   const contextValue = useMemo(
     () => ({

@@ -1,4 +1,12 @@
-import React, { useState, FC, useCallback, useMemo, useEffect } from "react";
+import React, {
+  useState,
+  FC,
+  useCallback,
+  useMemo,
+  useEffect,
+  Dispatch,
+  SetStateAction,
+} from "react";
 import { Button, Card, Collapse, Flex, List, theme, Typography } from "antd";
 import { PointQueryInfo } from "./PointQueryInfo";
 import TraverseTable from "./TraverseTable";
@@ -11,6 +19,7 @@ import {
 import { useCesiumMeasurements } from "../CesiumMeasurementsContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
+  faArrowsToDot,
   faCircleXmark,
   faEye,
   faEyeSlash,
@@ -19,28 +28,44 @@ import {
   faTrash,
 } from "@fortawesome/free-solid-svg-icons";
 import { InteractiveModeTabs } from "./InteractiveModeTabs";
+import { Cartesian3 } from "cesium";
 
 const renderPointItem = (
   data: PointMeasurementEntry,
   idx: number,
-  clearMeasurementsByIds: (ids: string[]) => void
+  clearMeasurementsByIds: (ids: string[]) => void,
+  setReferencePoint: Dispatch<SetStateAction<Cartesian3 | null>>
 ) => (
   <List.Item
     key={data.id}
     style={{ paddingRight: "0.5rem" }}
     title={`${data.name || ""} (${data.id.slice(-6, -2)})`}
     extra={
-      <Button
-        icon={<FontAwesomeIcon icon={faCircleXmark} />}
-        type="text"
-        size="small"
-        onClick={() => clearMeasurementsByIds([data.id])}
-        aria-label={`Messung ${data.id} löschen`}
-      />
+      <>
+        <Button
+          icon={<FontAwesomeIcon icon={faArrowsToDot} />}
+          type="text"
+          size="small"
+          onClick={() => {
+            console.debug(
+              `[MeasurementPanel] Setting reference point for ${data.id}`
+            );
+            setReferencePoint(data.geometryECEF);
+          }}
+          aria-label={`Punktreferenz`}
+        />
+        <Button
+          icon={<FontAwesomeIcon icon={faCircleXmark} />}
+          type="text"
+          size="small"
+          onClick={() => clearMeasurementsByIds([data.id])}
+          aria-label={`Messung ${data.id} löschen`}
+        />
+      </>
     }
   >
     <List.Item.Meta
-      title={`${data.name || ""} (${data.id.slice(-6, -2)})`}
+      title={`${data?.name ?? ""}`}
       description={<PointQueryInfo data={data} />}
     />
   </List.Item>
@@ -78,7 +103,8 @@ interface MeasurementSectionProps {
   itemRenderer: (
     item: MeasurementEntry,
     idx: number,
-    clear: (ids: string[]) => void
+    clear: (ids: string[]) => void,
+    setReferencePoint?: Dispatch<SetStateAction<Cartesian3 | null>>
   ) => React.ReactNode;
 }
 
@@ -110,6 +136,8 @@ function MeasurementSection({
     setHideMeasurementsOfType,
     hideLabelsOfType,
     setHideLabelsOfType,
+    referencePoint,
+    setReferencePoint,
   } = useCesiumMeasurements();
   const { token } = theme.useToken();
 
@@ -195,7 +223,12 @@ function MeasurementSection({
             <List
               dataSource={items}
               renderItem={(item, idx) =>
-                itemRenderer(item, idx, clearMeasurementsByIds)
+                itemRenderer(
+                  item,
+                  idx,
+                  clearMeasurementsByIds,
+                  setReferencePoint
+                )
               }
               size="small"
             />
