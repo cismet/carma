@@ -70,7 +70,7 @@ export const PointQueryInfo: React.FC<PointQueryInfoProps> = ({ data }) => {
     : null;
 
   return (
-    <>
+    <div style={{ padding: "0 0.5rem" }}>
       <InfoRow label="Koordinaten" values={[val1, val2, `${val3} m`]} />
       {relativeRows && (
         <InfoRow
@@ -83,7 +83,7 @@ export const PointQueryInfo: React.FC<PointQueryInfoProps> = ({ data }) => {
           ]}
         />
       )}
-    </>
+    </div>
   );
 };
 

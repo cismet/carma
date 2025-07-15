@@ -7,6 +7,7 @@ import React, {
   Dispatch,
   SetStateAction,
 } from "react";
+import { Cartesian3 } from "cesium";
 import { Button, Card, Collapse, Flex, List, theme, Typography } from "antd";
 import { PointQueryInfo } from "./PointQueryInfo";
 import TraverseTable from "./TraverseTable";
@@ -28,7 +29,6 @@ import {
   faTrash,
 } from "@fortawesome/free-solid-svg-icons";
 import { InteractiveModeTabs } from "./InteractiveModeTabs";
-import { Cartesian3 } from "cesium";
 
 const renderPointItem = (
   data: PointMeasurementEntry,
@@ -40,32 +40,33 @@ const renderPointItem = (
     key={data.id}
     style={{ paddingRight: "0.5rem" }}
     title={`${data.name || ""} (${data.id.slice(-6, -2)})`}
-    extra={
-      <>
-        <Button
-          icon={<FontAwesomeIcon icon={faArrowsToDot} />}
-          type="text"
-          size="small"
-          onClick={() => {
-            console.debug(
-              `[MeasurementPanel] Setting reference point for ${data.id}`
-            );
-            setReferencePoint(data.geometryECEF);
-          }}
-          aria-label={`Punktreferenz`}
-        />
-        <Button
-          icon={<FontAwesomeIcon icon={faCircleXmark} />}
-          type="text"
-          size="small"
-          onClick={() => clearMeasurementsByIds([data.id])}
-          aria-label={`Messung ${data.id} löschen`}
-        />
-      </>
-    }
   >
     <List.Item.Meta
-      title={`${data?.name ?? ""}`}
+      title={
+        <span style={{ padding: "0 0.3rem" }}>
+          <Button
+            icon={<FontAwesomeIcon icon={faCircleXmark} />}
+            type="text"
+            size="small"
+            onClick={() => clearMeasurementsByIds([data.id])}
+            aria-label={`Messung ${data.id} löschen`}
+          />
+          <Button
+            icon={<FontAwesomeIcon icon={faArrowsToDot} />}
+            type="text"
+            size="small"
+            onClick={() => {
+              console.debug(
+                `[MeasurementPanel] Setting reference point for ${data.id}`
+              );
+              setReferencePoint(data.geometryECEF);
+            }}
+            aria-label={`Punktreferenz`}
+          />
+
+          {`${data?.name ?? ""}`}
+        </span>
+      }
       description={<PointQueryInfo data={data} />}
     />
   </List.Item>
@@ -74,14 +75,12 @@ const renderPointItem = (
 const renderTraverseItem = (
   data: TraverseMeasurementEntry,
   idx: number,
-  clearMeasurementsByIds: (ids: string[]) => void,
-  setReferencePoint: Dispatch<SetStateAction<Cartesian3 | null>>
+  clearMeasurementsByIds: (ids: string[]) => void
 ) => (
-  <List.Item key={data.id} style={{ paddingRight: "0.5rem" }}>
+  <List.Item key={data.id}>
     <List.Item.Meta
       title={
-        <>
-          {`${data.derived?.totalLength?.toFixed(2) || "0"}m`}
+        <span style={{ padding: "0 0.3rem" }}>
           <Button
             icon={<FontAwesomeIcon icon={faCircleXmark} />}
             type="text"
@@ -89,7 +88,8 @@ const renderTraverseItem = (
             onClick={() => clearMeasurementsByIds([data.id])}
             aria-label={`Polygonzug ${data.id} löschen`}
           />
-        </>
+          {`Polygonzug ${data.derived?.totalLength?.toFixed(2) || "0"}m`}
+        </span>
       }
       description={<TraverseTable traverse={data} />}
     />
@@ -282,26 +282,6 @@ export const MeasurementPanel: FC = () => {
           </>
         }
         itemRenderer={renderTraverseItem}
-      />
-      <Collapse
-        items={[
-          {
-            key: "json-debug",
-            label: "Messungen (JSON)",
-            children: (
-              <Typography.Paragraph
-                style={{
-                  whiteSpace: "pre-wrap",
-                  fontFamily: "monospace",
-                  fontSize: 12,
-                  margin: 0,
-                }}
-              >
-                {JSON.stringify(measurements, null, 1)}
-              </Typography.Paragraph>
-            ),
-          },
-        ]}
       />
     </Flex>
   );
