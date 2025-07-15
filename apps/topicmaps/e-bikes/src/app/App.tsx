@@ -14,8 +14,10 @@ import {
 } from "../helper/styler";
 import itemFilterFunction from "../helper/filter";
 import titleFactory from "../helper/titleFactory";
+import { ProgressIndicator, useProgress } from "@carma-apps/portals";
 
 export function App() {
+  const { progress, showProgress, handleProgressUpdate } = useProgress();
   useEffect(() => {
     document.title = "E-Fahrrad-Karte Wuppertal";
   }, []);
@@ -43,7 +45,9 @@ export function App() {
         gruener_strom: false,
         ladebox_zu: false,
       }}
+      convertItemToFeatureProgressCallback={handleProgressUpdate}
     >
+      <ProgressIndicator progress={progress} show={showProgress} />
       <Map />
     </TopicMapContextProvider>
   );

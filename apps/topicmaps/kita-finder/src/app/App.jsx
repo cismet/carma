@@ -19,12 +19,14 @@ import "react-cismap/topicMaps.css";
 import { useSelector } from "react-redux";
 import { getFeatureRenderingOption } from "./store/slices/ui";
 import convertItemToFeature from "./helper/convertItemToFeature";
+import { ProgressIndicator, useProgress } from "@carma-apps/portals";
 if (typeof global === "undefined") {
   window.global = window;
 }
 
 function App() {
   const featureRenderingOption = useSelector(getFeatureRenderingOption);
+  const { progress, showProgress, handleProgressUpdate } = useProgress();
 
   const filters = {};
   traegertypMap.forEach((traeger) => {
@@ -57,7 +59,9 @@ function App() {
         additionalStylingInfo={{ featureRenderingOption }}
         // getColorFromProperties={getColorForProperties}
         featureTooltipFunction={(feature) => feature?.properties?.kurzname}
+        convertItemToFeatureProgressCallback={handleProgressUpdate}
       >
+        <ProgressIndicator progress={progress} show={showProgress} />
         <KitaKarte />
       </TopicMapContextProvider>
     );

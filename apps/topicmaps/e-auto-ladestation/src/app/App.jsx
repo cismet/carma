@@ -21,12 +21,14 @@ import "leaflet/dist/leaflet.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import { createItemsDictionary } from "./helper/createItemsDictionary";
+import { ProgressIndicator, useProgress } from "@carma-apps/portals";
 if (typeof global === "undefined") {
   window.global = window;
 }
 
 function App() {
   const [poiColors, setPoiColors] = useState();
+  const { progress, showProgress, handleProgressUpdate } = useProgress();
 
   useEffect(() => {
     getPOIColors(setPoiColors);
@@ -52,7 +54,9 @@ function App() {
         titleFactory={titleFactory}
         itemFilterFunction={itemFilterFunction}
         additionalStylingInfo={{ poiColors }}
+        convertItemToFeatureProgressCallback={handleProgressUpdate}
       >
+        <ProgressIndicator progress={progress} show={showProgress} />
         <EMobiKarte />
       </TopicMapContextProvider>
     );

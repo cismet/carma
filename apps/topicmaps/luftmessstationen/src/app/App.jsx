@@ -23,9 +23,11 @@ import { getGazData } from "./helper/getGazData";
 import titleFactory from "./helper/titleFactory";
 import { MappingConstants } from "react-cismap";
 import Luftmessstationskarte from "./Luftmessstationskarte";
+import { ProgressIndicator, useProgress } from "@carma-apps/portals";
 
 function App() {
   const [gazData, setGazData] = useState([]);
+  const { progress, showProgress, handleProgressUpdate } = useProgress();
   useEffect(() => {
     getGazData(setGazData);
     document.title = "Luftmessstationskarte Wuppertal";
@@ -70,7 +72,9 @@ function App() {
       itemFilterFunction={itemFilterFunction}
       classKeyFunction={(item) => LOOKUP[getStatus(item)].title}
       getColorFromProperties={(item) => LOOKUP[getStatus(item)].color}
+      convertItemToFeatureProgressCallback={handleProgressUpdate}
     >
+      <ProgressIndicator progress={progress} show={showProgress} />
       <Luftmessstationskarte />
     </TopicMapContextProvider>
   );

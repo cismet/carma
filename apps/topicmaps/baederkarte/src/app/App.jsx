@@ -15,11 +15,14 @@ import {
   getPoiClusterIconCreatorFunction,
 } from "./helper/styler";
 import "./index.css";
+import { ProgressIndicator, useProgress } from "@carma-apps/portals";
 if (typeof global === "undefined") {
   window.global = window;
 }
 
 function App() {
+  const { progress, showProgress, handleProgressUpdate } = useProgress();
+
   useEffect(() => {
     document.title = "Bäderkarte Wuppertal";
   }, []);
@@ -39,7 +42,9 @@ function App() {
       clusteringOptions={{
         iconCreateFunction: getPoiClusterIconCreatorFunction({ svgSize: 24 }),
       }}
+      convertItemToFeatureProgressCallback={handleProgressUpdate}
     >
+      <ProgressIndicator progress={progress} show={showProgress} />
       <Baederkarte />
     </TopicMapContextProvider>
   );
