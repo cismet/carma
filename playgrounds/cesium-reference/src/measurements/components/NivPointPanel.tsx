@@ -17,7 +17,9 @@ export const NivPointPanel: FC = () => {
         <NivPointInfo nivp={nivp} />
       ) : (
         <Text type="secondary" style={{ fontSize: 11 }}>
-          Kein Höhenfestpunkt gefunden, bitte 3D-Punktabfrage auswählen.
+          Kein Höhenfestpunkt gefunden,
+          <br />
+          bitte 3D-Punktabfrage auswählen.
           <br />
           Dann auf das Stadtmodell klicken
         </Text>

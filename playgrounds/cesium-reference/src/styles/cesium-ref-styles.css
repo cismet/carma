@@ -14,51 +14,14 @@
 .panel-top-left {
   top: 1rem;
   left: 1rem;
-  min-width: 320px;
-  max-width: 600px;
 }
 
 .panel-top-right {
   top: 1rem;
   right: 1rem;
-  width: 350px;
-  max-width: 90vw;
 }
 
 .panel-bottom-right {
   bottom: 1rem;
   right: 1rem;
-}
-
-/* Legacy class names for backwards compatibility */
-.panel-controls {
-  top: 1rem;
-  left: 1rem;
-  min-width: 320px;
-  max-width: 600px;
-}
-
-.panel-info {
-  top: 1rem;
-  right: 1rem;
-  width: 350px;
-  max-width: 90vw;
-}
-
-.home-button-container {
-  bottom: 1rem;
-  right: 1rem;
-}
-
-/* Info panel content styling */
-.info-row {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 8px;
-}
-
-.info-row-full {
-  display: flex;
-  flex-direction: column;
-  margin-bottom: 8px;
 }

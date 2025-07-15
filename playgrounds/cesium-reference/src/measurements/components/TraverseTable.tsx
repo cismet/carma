@@ -231,13 +231,13 @@ const TraverseTable: FC<TraverseTableProps> = ({ traverse }) => {
     let col3Title = "Z";
 
     if (coordinateDisplayMode === CoordinateDisplayMode.Geographic) {
-      col1Title = "Lon (°)";
-      col2Title = "Lat (°)";
-      col3Title = "Höhe (m)";
+      col1Title = "Lon °";
+      col2Title = "Lat °";
+      col3Title = "Höhe m";
     } else if (coordinateDisplayMode === CoordinateDisplayMode.Cartographic) {
-      col1Title = "RW (m)";
-      col2Title = "HW (m)";
-      col3Title = "Höhe (m)";
+      col1Title = "RW m";
+      col2Title = "HW m";
+      col3Title = "Höhe m";
     }
 
     return [
@@ -256,24 +256,24 @@ const TraverseTable: FC<TraverseTableProps> = ({ traverse }) => {
       },
       { title: "#", dataIndex: "index", key: "index" },
 
-      { title: "Δs (m)", dataIndex: "distance", key: "distance" },
+      { title: "Δs m", dataIndex: "distance", key: "distance" },
       {
-        title: "Σs (m)",
+        title: "Σs m",
         dataIndex: "cumulativeDistance",
         key: "cumulativeDistance",
       },
       {
-        title: "Δh (m)",
+        title: "Δh m",
         dataIndex: "elevationChangeFromPrevious",
         key: "elevationChangeFromPrevious",
       },
       {
-        title: "Σh (m)",
+        title: "Σh m",
         dataIndex: "elevationChangeFromFirst",
         key: "elevationChangeFromFirst",
       },
       {
-        title: "Δhᵣ (m)",
+        title: "Δhᵣ m",
         dataIndex: "elevationChangeFromReference",
         key: "elevationChangeFromReference",
       },
@@ -295,7 +295,6 @@ const TraverseTable: FC<TraverseTableProps> = ({ traverse }) => {
         pagination={false}
         size="small"
         bordered
-        scroll={{ y: 200 }}
         tableLayout="auto"
       />
       <Modal

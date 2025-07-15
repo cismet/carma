@@ -8,7 +8,7 @@ import React, {
   SetStateAction,
 } from "react";
 import { Cartesian3 } from "cesium";
-import { Button, Card, Collapse, Flex, List, theme, Typography } from "antd";
+import { Button, Collapse, Flex, List, theme, Typography } from "antd";
 import { PointQueryInfo } from "./PointQueryInfo";
 import TraverseTable from "./TraverseTable";
 import {
@@ -29,6 +29,7 @@ import {
   faTrash,
 } from "@fortawesome/free-solid-svg-icons";
 import { InteractiveModeTabs } from "./InteractiveModeTabs";
+import "./MeasurementPanel.css";
 
 const renderPointItem = (
   data: PointMeasurementEntry,
@@ -171,9 +172,25 @@ function MeasurementSection({
   // if active and no items, return placeholder
   if (items.length === 0) {
     return active ? (
-      <Card size="small">
-        <Typography.Text type="secondary">{placeholder}</Typography.Text>
-      </Card>
+      <Collapse
+        style={{ backgroundColor: token.colorBgContainer }}
+        activeKey={type}
+        collapsible="disabled"
+        items={[
+          {
+            key: type,
+            label: title,
+            children: (
+              <div style={{ padding: "0.5rem" }}>
+                <Typography.Text type="secondary">
+                  {placeholder}
+                </Typography.Text>
+              </div>
+            ),
+          },
+        ]}
+        className="measurement-panel-collapse"
+      />
     ) : null;
   }
 
@@ -182,7 +199,7 @@ function MeasurementSection({
 
   return (
     <Collapse
-      style={{ backgroundColor: token.colorBgContainer, minWidth: "24rem" }}
+      style={{ backgroundColor: token.colorBgContainer }}
       activeKey={type}
       collapsible="header"
       //onChange={setActivePanel}
@@ -254,7 +271,7 @@ export const MeasurementPanel: FC = () => {
   }, [measurementMode, activePanel]);
 
   return (
-    <Flex vertical gap={2} style={{ maxWidth: "44rem" }}>
+    <Flex vertical gap={2} align="end">
       <InteractiveModeTabs />
       <MeasurementSection
         type={MeasurementMode.PointQuery}
@@ -277,8 +294,9 @@ export const MeasurementPanel: FC = () => {
           <>
             Keine Polygonzüge vorhanden.
             <br />
-            Zum Messen auf das Stadtmodell klicken, zum abschließen der Messung
-            rechts klicken
+            Zum Messen auf das Stadtmodell klicken,
+            <br />
+            zum Abschließen der Messung rechts klicken
           </>
         }
         itemRenderer={renderTraverseItem}

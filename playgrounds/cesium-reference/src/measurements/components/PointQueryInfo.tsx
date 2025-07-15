@@ -21,9 +21,9 @@ export const PointQueryInfo: React.FC<PointQueryInfoProps> = ({ data }) => {
 
   switch (coordinateDisplayMode) {
     case CoordinateDisplayMode.Geographic: {
-      val1 = longitude !== undefined ? longitude.toFixed(6) : "";
-      val2 = latitude !== undefined ? latitude.toFixed(6) : "";
-      val3 = height !== undefined ? height.toFixed(2) : "";
+      val1 = longitude !== undefined ? `𝑁 ${longitude.toFixed(6)}°` : "";
+      val2 = latitude !== undefined ? `𝑂 ${latitude.toFixed(6)}°` : "";
+      val3 = height !== undefined ? `𝘩 ${height.toFixed(2)}m` : "";
       break;
     }
     case CoordinateDisplayMode.Cartographic: {
@@ -33,21 +33,21 @@ export const PointQueryInfo: React.FC<PointQueryInfoProps> = ({ data }) => {
             longitude,
             latitude,
           ]);
-          val1 = easting.toFixed(2);
-          val2 = northing.toFixed(2);
+          val1 = `𝘙 ${easting.toFixed(2)}`;
+          val2 = `𝘏 ${northing.toFixed(2)}`;
         } catch {
           val1 = val2 = "Error";
         }
       }
-      val3 = height !== undefined ? height.toFixed(2) : "";
+      val3 = height !== undefined ? `𝘩 ${height.toFixed(2)}m` : "";
       break;
     }
     case CoordinateDisplayMode.Cartesian:
     default:
       if (data.geometryECEF) {
-        val1 = data.geometryECEF.x.toFixed(2);
-        val2 = data.geometryECEF.y.toFixed(2);
-        val3 = data.geometryECEF.z.toFixed(2);
+        val1 = `X ${data.geometryECEF.x.toFixed(2)}m`;
+        val2 = `Y ${data.geometryECEF.y.toFixed(2)}m`;
+        val3 = `Z ${data.geometryECEF.z.toFixed(2)}m`;
       }
       break;
   }
@@ -71,12 +71,13 @@ export const PointQueryInfo: React.FC<PointQueryInfoProps> = ({ data }) => {
 
   return (
     <div style={{ padding: "0 0.5rem" }}>
-      <InfoRow label="Koordinaten" values={[val1, val2, `${val3} m`]} />
+      <InfoRow label="Koordinaten" values={[val1, val2, val3]} />
       {relativeRows && (
         <InfoRow
           label="Relativ"
           values={[
-            `𝘥 ${relativeRows.distance} m (${relativeRows.bearing}°) `,
+            `𝘥 ${relativeRows.distance} m`,
+            `⦨ ${relativeRows.bearing}°`,
             // only makes sense if we allow for rotation of local grid.
             //`(𝛥𝘙 ${relativeRows.east} m 𝛥𝘏 ${relativeRows.north}m) `,
             `𝛥𝘩 ${relativeRows.up}m`,
