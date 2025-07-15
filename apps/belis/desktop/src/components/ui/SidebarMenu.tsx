@@ -40,7 +40,7 @@ const SidebarMenu = () => {
             onClick={toggleCollapsed}
             // style={{ textAlign: "left" }}
           />
-          {!collapsed && <span className="ml-2">Belis-desktop</span>}
+          {!collapsed && <span className="ml-2">BelISDesktop</span>}
         </span>
       </div>
       <Menu
