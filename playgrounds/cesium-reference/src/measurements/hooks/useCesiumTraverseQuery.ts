@@ -19,33 +19,12 @@ import {
   MeasurementCollection,
   isTraverseMeasurementEntry,
 } from "../types/MeasurementTypes";
+import { calculateSegmentLengths } from "../utils/cesiumTraverseEntities";
 import {
   updateCollection,
   makeTemporaryMeasurementsPermanent,
 } from "../utils/measurementCollection";
 import { toGeographicDegrees } from "../utils/geo";
-
-// Helper function to recalculate segment lengths from points
-const calculateSegmentLengths = (
-  points: Cartesian3[]
-): {
-  segmentLengths: number[];
-  segmentLengthsCumulative: number[];
-  totalLength: number;
-} => {
-  const segmentLengths: number[] = [0]; // First point has no segment
-  const segmentLengthsCumulative: number[] = [0];
-  let totalLength = 0;
-
-  for (let i = 1; i < points.length; i++) {
-    const segmentLength = Cartesian3.distance(points[i], points[i - 1]);
-    segmentLengths[i] = segmentLength;
-    totalLength += segmentLength;
-    segmentLengthsCumulative[i] = totalLength;
-  }
-
-  return { segmentLengths, segmentLengthsCumulative, totalLength };
-};
 
 export function useCesiumTraverseQuery(
   viewer: Viewer | null,

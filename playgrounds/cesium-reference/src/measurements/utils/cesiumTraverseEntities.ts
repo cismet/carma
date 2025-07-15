@@ -63,8 +63,7 @@ export const removeNodeFromTraverseByTraverseId = (
   });
 };
 
-// Helper function to recalculate segment lengths from points
-const calculateSegmentLengths = (
+export const calculateSegmentLengths = (
   points: Cartesian3[]
 ): {
   segmentLengths: number[];
