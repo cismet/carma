@@ -19,6 +19,7 @@ import { useCesiumPointVisualizer } from "./hooks/useCesiumPointVisualizer";
 import { useCesiumTraverseQuery } from "./hooks/useCesiumTraverseQuery";
 import { useCesiumTraverseVisualizer } from "./hooks/useCesiumTraverseVisualizer";
 import { useCesiumMousePosition } from "./hooks/useCesiumMousePosition";
+import { useMeasurementPersistence } from "./hooks/useMeasurementPersistence";
 
 import {
   isPointMeasurementEntry,
@@ -128,6 +129,10 @@ export const CesiumMeasurementsProvider: React.FC<
   );
   const [temporaryMode, setTemporaryMode] = useState(initialTemporary);
   const [measurements, setMeasurements] = useState<MeasurementCollection>([]);
+
+  // Add measurement persistence (auto-save only, manual restore)
+  useMeasurementPersistence(measurements, setMeasurements);
+
   const [referencePoint, setReferencePoint] = useState<Cartesian3 | null>(null);
   const [showLabels, setShowLabels] = useState<boolean>(true);
   const [hideMeasurementsOfType, setHideMeasurementsOfType] = useState<
