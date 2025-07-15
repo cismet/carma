@@ -74,7 +74,8 @@ const renderPointItem = (
 const renderTraverseItem = (
   data: TraverseMeasurementEntry,
   idx: number,
-  clearMeasurementsByIds: (ids: string[]) => void
+  clearMeasurementsByIds: (ids: string[]) => void,
+  setReferencePoint: Dispatch<SetStateAction<Cartesian3 | null>>
 ) => (
   <List.Item key={data.id} style={{ paddingRight: "0.5rem" }}>
     <List.Item.Meta

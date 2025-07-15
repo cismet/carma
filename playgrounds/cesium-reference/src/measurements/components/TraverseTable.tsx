@@ -1,10 +1,13 @@
 import React, { useMemo } from "react";
-import { Table, Typography } from "antd";
+import { Button, Table, Typography } from "antd";
 import { Math as CesiumMath } from "cesium";
 import "./TraverseTable.css";
 import { TraverseMeasurementEntry } from "../types/MeasurementTypes";
 import { useCesiumViewer } from "../../contexts/CesiumViewerContext";
 import { CoordinateDisplayMode, useCRS } from "../CRSContext";
+import { useCesiumMeasurements } from "../CesiumMeasurementsContext";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faArrowsToDot } from "@fortawesome/free-solid-svg-icons";
 
 interface TraverseTableProps {
   traverse: TraverseMeasurementEntry;
@@ -20,6 +23,7 @@ interface TableRecord {
 
 const TraverseTable: React.FC<TraverseTableProps> = ({ traverse }) => {
   const { coordinateDisplayMode, toCartographic } = useCRS();
+  const { setReferencePoint } = useCesiumMeasurements();
   const { viewer } = useCesiumViewer();
   const tableDataSource = useMemo((): TableRecord[] => {
     if (!viewer) return [];
@@ -65,12 +69,29 @@ const TraverseTable: React.FC<TraverseTableProps> = ({ traverse }) => {
           val3 = point.z.toFixed(2);
           break;
       }
+
+      const extras = (
+        <Button
+          icon={<FontAwesomeIcon icon={faArrowsToDot} />}
+          type="text"
+          size="small"
+          onClick={() => {
+            console.debug(
+              `[TraverseTable] Setting reference point for ${traverse.id}`
+            );
+            setReferencePoint(point);
+          }}
+          aria-label={`Polygonzug Referenzpunkt`}
+        />
+      );
+
       return {
         key: index.toString(),
         index: index + 1,
         val1,
         val2,
         val3,
+        extras,
       };
     });
   }, [traverse, viewer, coordinateDisplayMode, toCartographic]);
@@ -95,6 +116,7 @@ const TraverseTable: React.FC<TraverseTableProps> = ({ traverse }) => {
       { title: col1Title, dataIndex: "val1", key: "val1" },
       { title: col2Title, dataIndex: "val2", key: "val2" },
       { title: col3Title, dataIndex: "val3", key: "val3" },
+      { title: "", dataIndex: "extras", key: "extras", width: 20 },
     ];
   }, [coordinateDisplayMode]);
 
