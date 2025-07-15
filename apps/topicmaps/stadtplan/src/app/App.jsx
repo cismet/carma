@@ -21,14 +21,15 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "leaflet/dist/leaflet.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
+import { ProgressIndicator, useProgress } from "@carma-apps/portals";
 if (typeof global === "undefined") {
   window.global = window;
 }
 
 function App() {
   const [poiColors, setPoiColors] = useState();
-  const [progress, setProgress] = useState(0);
-  const [showProgress, setShowProgress] = useState(false);
+  const { progress, showProgress, handleProgressUpdate } = useProgress();
+
   useEffect(() => {
     getPOIColors(setPoiColors);
     document.title = "Online-Stadtplan Wuppertal";
@@ -52,11 +53,7 @@ function App() {
             poiColors,
           }),
         }}
-        convertItemToFeatureProgressCallback={(e) => {
-          const newProgress = Math.round((e.current / e.total) * 100);
-          setProgress(newProgress);
-          setShowProgress(newProgress < 100);
-        }}
+        convertItemToFeatureProgressCallback={handleProgressUpdate}
         mapEPSGCode="25832"
         referenceSystem={MappingConstants.crs25832}
         additionalStylingInfo={{ poiColors }}
@@ -64,49 +61,7 @@ function App() {
           return feature?.text;
         }}
       >
-        {showProgress && (
-          <div
-            style={{
-              position: "absolute",
-              zIndex: 1000,
-              top: "50%",
-              left: "50%",
-              transform: "translate(-50%, -50%)",
-              backgroundColor: "rgba(255, 255, 255, 0.65)",
-              padding: "25px 30px",
-              borderRadius: "12px",
-              boxShadow:
-                "0 10px 25px rgba(0,0,0,0.1), 0 5px 10px rgba(0,0,0,0.05)",
-              width: "350px",
-              border: "1px solid rgba(0,0,0,0.1)",
-              backdropFilter: "blur(5px)",
-            }}
-          >
-            <div
-              style={{
-                fontSize: "14px",
-                marginBottom: "12px",
-                color: "#666",
-                display: "flex",
-                alignItems: "center",
-                gap: "8px",
-              }}
-            >
-              Daten werden geladen und gecached ...
-            </div>
-            <ProgressBar
-              now={progress}
-              // label={`${progress}%`}
-              style={{
-                height: "20px",
-                borderRadius: "10px",
-                overflow: "hidden",
-              }}
-              variant="secondary"
-              animated
-            />
-          </div>
-        )}
+        <ProgressIndicator progress={progress} show={showProgress} />
         <Stadtplankarte poiColors={poiColors} />
       </TopicMapContextProvider>
     );
