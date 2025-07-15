@@ -41,6 +41,14 @@ ul {
   display: inline;
 }
 
+.selectedfeature {
+  background-color: #7aa8f666;
+  /* opacity: 0.2; */
+  border-radius: 8px;
+  width: 28px;
+  height: 28px;
+}
+
 .brightMode {
   border-color: rgb(0, 0, 0, 0.75);
 }
@@ -149,4 +157,53 @@ ul {
   height: 9px;
   left: 50%;
   transform: translate(-50%, 0%);
+}
+
+.marquee {
+  margin: 0 auto;
+  white-space: nowrap;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+.marquee span {
+  display: inline-block;
+  padding-left: 10%;
+  padding-right: 90%;
+  animation: marquee 2s linear infinite;
+  -webkit-animation: marquee 2s linear infinite alternate;
+}
+
+@-webkit-keyframes marquee {
+  0% {
+    transform: translate(0%, 0);
+  }
+  100% {
+    transform: translate(-50%, 0);
+  }
+}
+
+@keyframes marquee {
+  0% {
+    transform: translate(0%, 0);
+  }
+  100% {
+    transform: translate(-50%, 0);
+  }
+}
+/* 
+iframe {
+  display: none;
+} */
+
+.ant-select-dropdown {
+  z-index: 40000000 !important;
+}
+
+.ant-picker-dropdown {
+  z-index: 40000000 !important;
+}
+.belis-custom-marker {
+  /* background: red; */
+  z-index: 1 !important;
 }

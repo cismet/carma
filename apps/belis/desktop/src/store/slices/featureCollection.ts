@@ -10,8 +10,8 @@ export const MODES = {
 const featureCollectionSlice = createSlice({
   name: "featureCollection",
   initialState: {
-    features: [],
-    selectedFeature: null,
+    features: [] as any,
+    selectedFeature: null as any,
     mode: MODES.OBJECTS,
     filter: featuresFilter,
     done: true,
@@ -21,6 +21,11 @@ const featureCollectionSlice = createSlice({
       state.features = action.payload;
     },
     setSelectedFeature: (state, action) => {
+      const pickedId = action.payload.id;
+      state.features = state.features.map((f) => ({
+        ...f,
+        selected: f.id === pickedId,
+      }));
       state.selectedFeature = action.payload;
     },
     setFilter: (state, action) => {

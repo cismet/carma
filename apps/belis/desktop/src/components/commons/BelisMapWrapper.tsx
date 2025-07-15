@@ -12,6 +12,7 @@ import {
   getDone,
   getFeatureCollection,
   getFilter,
+  getSelectedFeature,
   setDone,
   setFeatureCollection,
   setSelectedFeature,
@@ -29,10 +30,15 @@ const MODES = {
 const BelisMapLibWrapper = ({ refRoutedMap, jwt, mapSizes }) => {
   const dispatch: AppDispatch = useDispatch();
   const featureCollection = useSelector(getFeatureCollection);
+  const selectedFeature = useSelector(getSelectedFeature);
+
   const filter = useSelector(getFilter);
   const fcIsDone = useSelector(getDone);
   const handleSelectedFeature = (feature) => {
-    dispatch(setSelectedFeature(feature));
+    if (feature) {
+      const updatedFeature = { ...feature, selected: true };
+      dispatch(setSelectedFeature(updatedFeature));
+    }
   };
 
   const backgroundLayerOpacities = useSelector(getBackgroundLayerOpacities);
@@ -73,7 +79,7 @@ const BelisMapLibWrapper = ({ refRoutedMap, jwt, mapSizes }) => {
         loadObjects={handleLoadObjects}
         featureCollection={featureCollection}
         inFocusMode={false}
-        selectedFeature={{}}
+        selectedFeature={selectedFeature}
         loadingState={false}
         featureCollectionMode={"OBJECTS"}
         connectionMode={"ONLINE"}

@@ -2,11 +2,7 @@ import { DashboardOutlined, MenuOutlined } from "@ant-design/icons";
 import { NavLink } from "react-router-dom";
 import { Menu } from "antd";
 import { useState } from "react";
-import {
-  getIsMenuCollapsed,
-  setIsMenuCollapsed,
-  setMenuWidth,
-} from "../../store/slices/ui";
+import { getIsMenuCollapsed, setIsMenuCollapsed } from "../../store/slices/ui";
 import { useDispatch, useSelector } from "react-redux";
 import { AppDispatch } from "../../store";
 function getItem(label, key, icon) {
