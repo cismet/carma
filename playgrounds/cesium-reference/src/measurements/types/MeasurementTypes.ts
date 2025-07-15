@@ -1,4 +1,4 @@
-import { Cartesian3 } from "cesium";
+import { Cartesian3, Cartographic } from "cesium";
 
 export enum MeasurementMode {
   NONE = "none",
@@ -7,7 +7,7 @@ export enum MeasurementMode {
   Elevation = "elevation",
 }
 
-type GeomPoint = {
+export type GeomPoint = Partial<Cartographic> & {
   longitude: number;
   latitude: number;
   height: number;
@@ -56,7 +56,7 @@ export type TraverseMeasurementEntry = MeasurementEntry & {
 export function isTraverseMeasurementEntry(
   entry: MeasurementEntry
 ): entry is TraverseMeasurementEntry {
-  return entry &&entry.type === MeasurementMode.Traverse;
+  return entry && entry.type === MeasurementMode.Traverse;
 }
 
 export type MeasurementCollection = MeasurementEntry[];

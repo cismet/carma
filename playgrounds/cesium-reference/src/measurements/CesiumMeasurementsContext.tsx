@@ -137,12 +137,10 @@ export const CesiumMeasurementsProvider: React.FC<
     Set<MeasurementMode>
   >(new Set());
 
-
   const referenceElevation = useMemo(() => {
     if (!referencePoint || !viewer) return 0;
-    const cartographic = viewer.scene.globe.ellipsoid.cartesianToCartographic(
-      referencePoint
-    );
+    const cartographic =
+      viewer.scene.globe.ellipsoid.cartesianToCartographic(referencePoint);
     return cartographic?.height ?? 0;
   }, [referencePoint, viewer]);
 
@@ -166,7 +164,8 @@ export const CesiumMeasurementsProvider: React.FC<
     measurements,
     showPoints,
     showPointLabels,
-    pointRadius
+    pointRadius,
+    referenceElevation
   );
 
   const { clearTraverseQuery, isActiveTraverse, currentTraverseId } =
@@ -196,7 +195,8 @@ export const CesiumMeasurementsProvider: React.FC<
     showTraverseLabels,
     mousePosition,
     isActiveTraverse,
-    currentTraverseId
+    currentTraverseId,
+    referenceElevation
   );
 
   const clearAllMeasurements = useCallback(() => {
@@ -229,17 +229,22 @@ export const CesiumMeasurementsProvider: React.FC<
     [setMeasurements]
   );
 
-  useEffect (() => {  
-    if (referencePoint !== null)
-      return;
+  useEffect(() => {
+    if (referencePoint !== null) return;
     // if more than one point measurement is present, set the reference point to the first one
     // this includes transverse and area measurements with at least two points too.
     if (isPointMeasurementEntry(measurements[0]) && measurements.length > 1) {
       setReferencePoint(measurements[0].geometryECEF);
-    } else if (isTraverseMeasurementEntry(measurements[0]) && measurements[0].geometryECEF.length > 1) {
+    } else if (
+      isTraverseMeasurementEntry(measurements[0]) &&
+      measurements[0].geometryECEF.length > 1
+    ) {
       setReferencePoint(measurements[0].geometryECEF[0]);
     }
-    console.debug("[CesiumMeasurementsContext] Setting reference point to first measurement point", measurements[0]?.geometryECEF);
+    console.debug(
+      "[CesiumMeasurementsContext] Setting reference point to first measurement point",
+      measurements[0]?.geometryECEF
+    );
   }, [measurements, setReferencePoint, referencePoint]);
 
   const contextValue = useMemo(

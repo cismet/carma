@@ -14,7 +14,7 @@ import {
   SceneTransforms,
   Transforms,
 } from "cesium";
-import { MeasurementEntry } from "../types/MeasurementTypes";
+import { GeomPoint, MeasurementEntry } from "../types/MeasurementTypes";
 import { normalizeOptions } from "@carma-commons/utils";
 import { formatDistance } from "../../utils/formatters";
 export const SCALE_BY_DISTANCE = new NearFarScalar(0, 1, 5000, 0.0);
@@ -129,16 +129,20 @@ export const createSegmentLabel = (
 
 export const createSegmentNodeLabel = (
   position: Cartesian3,
+  positionGeographic: GeomPoint,
   pointIndex: number,
   cumulativeDistance: number,
   id?: string,
-  isSingleSegment: boolean = false
+  isSingleSegment: boolean = false,
+  referenceElevation: number = 0
 ): Entity => {
-  // Only show distance text for non-first points and non-single segments
-  const pointLabelText =
-    pointIndex === 0 || isSingleSegment
-      ? ""
-      : formatDistance(cumulativeDistance);
+  const pointLabelText = createPointLabelText(
+    positionGeographic,
+    pointIndex,
+    cumulativeDistance,
+    isSingleSegment,
+    referenceElevation
+  );
 
   const measurementEntry = {
     id: id || `measurement-point-label-${Date.now()}`,
@@ -216,6 +220,21 @@ const estimateLabelWidth = (text: string): number => {
   // Average character width in pixels for our label font at 20px
   const avgCharWidth = 6;
   return text.length * avgCharWidth;
+};
+
+export const createPointLabelText = (
+  pointGeographic: { height: number },
+  pointIndex: number,
+  cumulativeDistance: number,
+  isSingleSegment: boolean,
+  referenceElevation: number
+): string => {
+  const elevationDelta = pointGeographic.height - referenceElevation;
+  const elevationFmt = `𝛥𝘩${formatDistance(elevationDelta)}`;
+
+  return pointIndex === 0 || isSingleSegment
+    ? elevationFmt
+    : `${formatDistance(cumulativeDistance)} ${elevationFmt}`;
 };
 
 /**
