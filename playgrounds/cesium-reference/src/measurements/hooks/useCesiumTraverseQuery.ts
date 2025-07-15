@@ -17,6 +17,7 @@ import {
   MeasurementMode,
   TraverseMeasurementEntry,
   MeasurementCollection,
+  isTraverseMeasurementEntry,
 } from "../types/MeasurementTypes";
 import {
   updateCollection,
@@ -106,16 +107,28 @@ export function useCesiumTraverseQuery(
   useEffect(() => {
     if (!currentTraverseId || !isActiveTraverse) return;
 
-    const activeTraverse = collection.find((m) => m.id === currentTraverseId);
+    const activeTraverse = collection
+      .filter(isTraverseMeasurementEntry)
+      .find((m) => m.id === currentTraverseId);
+
     if (
       activeTraverse &&
       activeTraverse.type === MeasurementMode.Traverse &&
-      (activeTraverse as TraverseMeasurementEntry).shouldRebuildEntry
+      activeTraverse.shouldRebuildEntry
     ) {
-      const traverse = activeTraverse as TraverseMeasurementEntry;
+      // remove if no points are left
+      if (activeTraverse.geometryECEF.length === 0) {
+        console.debug(
+          "[CesiumTraverseQuery] Active traverse has no points, clearing query and removing from collection"
+        );
+        // Remove the empty traverse from the collection
+        setCollection((prev) => prev.filter((m) => m.id !== currentTraverseId));
+        clearTraverseQuery();
+        return;
+      }
 
       // Update refs as if user clicked all points
-      updateActiveTraverseRefs(traverse.geometryECEF);
+      updateActiveTraverseRefs(activeTraverse.geometryECEF);
 
       // Clear the flag
       setCollection((prev) =>
@@ -130,6 +143,7 @@ export function useCesiumTraverseQuery(
     isActiveTraverse,
     setCollection,
     updateActiveTraverseRefs,
+    clearTraverseQuery,
   ]);
 
   const finishMeasurement = useCallback(() => {
