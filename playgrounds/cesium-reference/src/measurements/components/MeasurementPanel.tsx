@@ -3,7 +3,7 @@ import React, {
   FC,
   useCallback,
   useMemo,
-  useEffect,
+  useRef,
   Dispatch,
   SetStateAction,
 } from "react";
@@ -138,10 +138,17 @@ function MeasurementSection({
     setHideMeasurementsOfType,
     hideLabelsOfType,
     setHideLabelsOfType,
-    referencePoint,
     setReferencePoint,
   } = useCesiumMeasurements();
   const { token } = theme.useToken();
+  const [expanded, setExpanded] = useState(true);
+  const prevActiveRef = useRef(active);
+
+  // Check if active just became true and expand if so
+  if (active && !prevActiveRef.current) {
+    setExpanded(true);
+  }
+  prevActiveRef.current = active;
 
   const items = useMemo(
     () => measurements.filter((m) => m.type === type),
@@ -149,7 +156,6 @@ function MeasurementSection({
   );
   const clearAll = useCallback(() => {
     clearMeasurementsByType(type);
-    //setActive(MeasurementMode.NONE);
   }, [clearMeasurementsByType, type]);
 
   const toggleVisibility = useCallback(() => {
@@ -174,8 +180,8 @@ function MeasurementSection({
     return active ? (
       <Collapse
         style={{ backgroundColor: token.colorBgContainer }}
-        activeKey={type}
-        collapsible="disabled"
+        activeKey={expanded ? [type] : []}
+        onChange={(keys) => setExpanded(keys.includes(type))}
         items={[
           {
             key: type,
@@ -200,9 +206,8 @@ function MeasurementSection({
   return (
     <Collapse
       style={{ backgroundColor: token.colorBgContainer }}
-      activeKey={type}
-      collapsible="header"
-      //onChange={setActivePanel}
+      activeKey={expanded ? [type] : []}
+      onChange={(keys) => setExpanded(keys.includes(type))}
       items={[
         {
           key: type,
@@ -259,23 +264,14 @@ function MeasurementSection({
 }
 
 export const MeasurementPanel: FC = () => {
-  const { measurements, measurementMode } = useCesiumMeasurements();
-  const [activePanel, setActivePanel] =
-    useState<MeasurementMode>(measurementMode);
-
-  useEffect(() => {
-    // change active panel when measurement mode changes
-    if (measurementMode !== activePanel) {
-      setActivePanel(measurementMode);
-    }
-  }, [measurementMode, activePanel]);
+  const { measurementMode } = useCesiumMeasurements();
 
   return (
     <Flex vertical gap={2} align="end">
       <InteractiveModeTabs />
       <MeasurementSection
         type={MeasurementMode.PointQuery}
-        active={activePanel === MeasurementMode.PointQuery}
+        active={measurementMode === MeasurementMode.PointQuery}
         title={`Punktmessungen`}
         placeholder={
           <>
@@ -289,7 +285,7 @@ export const MeasurementPanel: FC = () => {
       <MeasurementSection
         type={MeasurementMode.Traverse}
         title={`Polygonzüge`}
-        active={activePanel === MeasurementMode.Traverse}
+        active={measurementMode === MeasurementMode.Traverse}
         placeholder={
           <>
             Keine Polygonzüge vorhanden.
