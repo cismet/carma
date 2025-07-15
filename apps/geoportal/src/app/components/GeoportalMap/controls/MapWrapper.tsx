@@ -475,7 +475,7 @@ const MapWrapper = () => {
           {showLocatorButton && isMobile && (
             <Control position="topleft" order={30}>
               <RoutedMapLocateControl
-                tourRefLabels={null}
+                tourRefLabels={tourRefLabels}
                 disabled={false}
                 nativeTooltip={true}
               />
