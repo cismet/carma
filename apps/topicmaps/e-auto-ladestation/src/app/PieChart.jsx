@@ -1,9 +1,10 @@
 import { useContext } from "react";
 import { FeatureCollectionContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
-// import { Doughnut } from "react-chartjs-2";
-// import "chart.js/auto";
 import { getColorForProperties } from "./helper/styler";
+import ReactChartkick, { PieChart } from "react-chartkick";
+import { Chart } from "chart.js";
 
+ReactChartkick.addAdapter(Chart);
 const ChartComp = ({ visible = true }) => {
   const { filteredItems } = useContext(FeatureCollectionContext);
 
@@ -37,24 +38,6 @@ const ChartComp = ({ visible = true }) => {
       piechartColor.push(colormodel[key]);
     }
 
-    const labels = piechartData.map((data) => {
-      return data[0];
-    });
-
-    const tmpData = piechartData.map((data) => {
-      return data[1];
-    });
-
-    const data = {
-      labels: labels,
-      datasets: [
-        {
-          data: tmpData,
-          backgroundColor: piechartColor,
-        },
-      ],
-    };
-
     return (
       <td
         style={{
@@ -65,27 +48,13 @@ const ChartComp = ({ visible = true }) => {
           justifyContent: "center",
         }}
       >
-        <div style={{ width: "40%" }}>
-          {/* <Doughnut
-            data={data}
-            options={{
-              plugins: {
-                legend: {
-                  display: false,
-                },
-                title: {
-                  display: true,
-                  text: "Verteilung",
-                  font: {
-                    weight: "bold",
-                    size: 20,
-                  },
-                  color: "black",
-                },
-              },
-            }}
-          /> */}
-        </div>
+        <PieChart
+          data={piechartData}
+          donut={true}
+          title="Verteilung"
+          legend={false}
+          colors={piechartColor}
+        />
       </td>
     );
   } else {
