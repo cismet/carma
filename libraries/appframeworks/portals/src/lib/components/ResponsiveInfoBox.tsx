@@ -84,6 +84,7 @@ export const ResponsiveInfoBox = ({
     <div>
       <Control position="bottomright" order={11}>
         <div
+          data-test-id="info-box"
           style={{
             ...infoBoxStyle,
             marginBottom: infoBoxBottomMargin,
