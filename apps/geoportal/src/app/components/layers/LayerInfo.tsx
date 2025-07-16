@@ -78,7 +78,7 @@ const LayerInfo = ({ description, legend, zoomLevels }: LayerInfoProps) => {
   return (
     <div className="flex flex-col gap-1 h-[calc(100%-28px)]">
       <div className="flex gap-2 w-full h-full overflow-y-hidden">
-        <div className="h-full flex flex-col gap-2 w-[80%]">
+        <div className="h-full flex flex-col gap-2 w-[80%] hide-tabs">
           {parsedDescription && (
             <div>
               <h5 className="font-semibold">Inhalt</h5>

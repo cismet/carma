@@ -8,3 +8,9 @@
   height: 100%;
   overflow: auto;
 }
+
+.hide-tabs {
+  .ant-tabs-nav-operations {
+    display: none !important;
+  }
+}
