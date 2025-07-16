@@ -7,7 +7,7 @@ export const ZoomControl = () => {
   const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
 
   return (
-    <div className="flex flex-col">
+    <div data-test-id="zoom-control" className="flex flex-col">
       <ControlButtonStyler
         onClick={zoomInLeaflet}
         className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
