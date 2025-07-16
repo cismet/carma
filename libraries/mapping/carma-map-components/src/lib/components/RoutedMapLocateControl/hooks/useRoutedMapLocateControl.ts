@@ -28,13 +28,19 @@ export const useRoutedMapLocateControl = () => {
         }, 300);
       };
 
+      const handleError = () => {
+        setIsLocationActive(false);
+      };
+
       map.on("dragend zoomend", handleMapMove);
       map.on("locationfound", handleLocationFound);
+      map.on("locationerror", handleError);
 
       return () => {
         map.off("dragend", handleMapMove);
         map.off("zoomend", handleMapMove);
         map.off("locationfound", handleLocationFound);
+        map.off("locationerror", handleError);
       };
     }
   }, [routedMap, isLocationActive, hasFoundLocation]);
@@ -65,7 +71,6 @@ export const useRoutedMapLocateControl = () => {
           },
           showCompass: true,
           setView: "untilPan",
-          keepCurrentZoomLevel: "true",
           flyTo: false,
           drawCircle: true,
         })
