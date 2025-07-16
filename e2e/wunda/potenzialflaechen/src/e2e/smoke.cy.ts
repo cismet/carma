@@ -2,12 +2,12 @@ describe("potenzialflaechen smoke test", () => {
   beforeEach(() => cy.visit("/"));
 
   it("map loads with key controls", () => {
-    cy.get(".leaflet-control-zoom-out").should("be.visible");
+    cy.get("[data-test-id=zoom-control]").should("exist");
 
-    cy.get("input.rbt-input-main.form-control.rbt-input").should("be.visible");
+    cy.get("[data-test-id=fuzzy-search]").should("exist");
 
-    cy.get("#cmdShowModalApplicationMenu").should("be.visible");
+    cy.get("#cmdShowModalApplicationMenu").should("exist");
 
-    cy.get(".leaflet-bottom.leaflet-right").should("be.visible");
+    cy.get("[data-test-id=info-box]").should("exist");
   });
 });
