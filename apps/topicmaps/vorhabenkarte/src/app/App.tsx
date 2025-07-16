@@ -31,7 +31,6 @@ export function App() {
       featureTooltipFunction={(feature) => feature?.text}
       itemFilterFunction={itemFilterFunction}
       filterState={{
-        // stek: [stek],
         topics: topics,
         citizen: false,
       }}
