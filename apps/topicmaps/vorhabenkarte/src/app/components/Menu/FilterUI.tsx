@@ -162,54 +162,6 @@ const FilterUI = () => {
                     fontWeight: 700,
                   }}
                 >
-                  Fokusraum(e) STEK
-                  {"  "}
-                  <FontAwesomeIcon
-                    icon={faBullseye}
-                    size="2x"
-                    style={{
-                      color: "grey",
-                      width: "30px",
-                      textAlign: "center",
-                    }}
-                  />{" "}
-                </label>
-                <div className="flex gap-5 mb-2 mt-1 text-[#0175ff]">
-                  <a onClick={() => setAllFilter("stek")}>alle</a>{" "}
-                  <a onClick={() => clearFilter("stek")}>keine</a>
-                </div>
-                <div className="mb-3">
-                  {stek.map((item, idx) => {
-                    return (
-                      <>
-                        <Form.Check
-                          readOnly={true}
-                          key={"filter.vorhabenkarte.stek." + idx}
-                          onClick={(e) => {
-                            setFilterValue(
-                              "stek",
-                              item,
-                              // @ts-expect-error legacy codebase exception
-                              e.target.checked
-                            );
-                          }}
-                          checked={filterState["stek"]?.indexOf(item) !== -1}
-                          inline
-                          label={item}
-                        />
-                        <br />
-                      </>
-                    );
-                  })}
-                </div>
-                <label
-                  style={{
-                    display: "inline-block",
-                    maxWidth: "100%",
-                    marginBottom: "5px",
-                    fontWeight: 700,
-                  }}
-                >
                   Bürgerbeteiligung
                   {"  "}
                   <FontAwesomeIcon

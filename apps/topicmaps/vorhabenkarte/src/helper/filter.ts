@@ -35,19 +35,11 @@ const itemFilterFunction = ({ filterState }) => {
     // }
 
     let themaResult;
-    let stekResult;
     let citizenResult;
 
     if (item.thema.name) {
       themaResult = filterState.topics.includes(item.thema.name);
 
-      if (filterState.stek.length > 0 && result) {
-        if (item?.stek) {
-          stekResult = item.stek.some((s) => filterState.stek.includes(s));
-        } else {
-          stekResult = false;
-        }
-      }
       if (filterState.citizen && result) {
         citizenResult = item.buergerbeteiligung;
       } else {
@@ -55,7 +47,7 @@ const itemFilterFunction = ({ filterState }) => {
       }
     }
 
-    return (themaResult || stekResult) && citizenResult;
+    return themaResult && citizenResult;
   };
 };
 export default itemFilterFunction;
