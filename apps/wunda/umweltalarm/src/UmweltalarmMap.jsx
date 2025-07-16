@@ -303,7 +303,7 @@ function UmweltalarmMap({ loggedOut, initialised }) {
         </Control>
 
         <Control position="bottomleft" order={10}>
-          <div data-test-id="fuzzy-search" style={{ marginTop: "4px" }}>
+          <div style={{ marginTop: "4px" }}>
             <LibFuzzySearch
               gazData={gazData}
               onSelection={onGazetteerSelection}

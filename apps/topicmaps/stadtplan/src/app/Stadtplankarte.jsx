@@ -71,7 +71,7 @@ const Stadtplankarte = ({ poiColors }) => {
           />
         </Control>
         <Control position="bottomleft" order={10}>
-          <div data-test-id="fuzzy-search" style={{ marginTop: "4px" }}>
+          <div style={{ marginTop: "4px" }}>
             <LibFuzzySearch
               pixelwidth={
                 responsiveState === "normal" ? "300px" : windowSize.width - gap

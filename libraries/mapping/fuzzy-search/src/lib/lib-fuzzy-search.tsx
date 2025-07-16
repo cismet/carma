@@ -328,6 +328,7 @@ export function LibFuzzySearch({
   return (
     <div
       // ref={divWrapperRef}
+      data-test-id="fuzzy-search"
       style={{
         width: pixelwidth,
         display: "flex",

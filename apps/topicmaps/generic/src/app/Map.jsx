@@ -247,7 +247,7 @@ const Map = ({
           )}
           {config?.tm?.gazetteerSearchBox && (
             <Control position="bottomleft" order={10}>
-              <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
+              <div className="h-full w-full pl-2">
                 <FuzzySearchWrapper
                   featureGazData={featureGazData}
                   placeholder={config.tm.gazetteerSearchBoxPlaceholdertext}

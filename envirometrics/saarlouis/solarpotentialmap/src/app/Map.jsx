@@ -180,7 +180,7 @@ const SolarPotentialMap = () => {
             />
           </Control>
           <Control position="bottomleft" order={10}>
-            <div data-test-id="fuzzy-search" className="h-full w-full pl-2">
+            <div className="h-full w-full pl-2">
               <LibFuzzySearch
                 gazData={gazData}
                 onSelection={onGazetteerSelection}

@@ -616,11 +616,7 @@ const MapWrapper = () => {
             {isMode2d && <LayerWrapper />}
           </Control>
           <Control position="bottomleft" order={10}>
-            <div
-              ref={tourRefLabels.gazetteer}
-              data-test-id="fuzzy-search"
-              className={`h-full w-full`}
-            >
+            <div ref={tourRefLabels.gazetteer} className={`h-full w-full`}>
               <LibFuzzySearch
                 gazData={gazData}
                 onSelection={onGazetteerSelection}

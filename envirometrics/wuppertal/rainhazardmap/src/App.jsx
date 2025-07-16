@@ -163,9 +163,7 @@ function App() {
             </ControlButtonStyler>
           </Control>
           <Control position="bottomleft" order={10}>
-            <div data-test-id="fuzzy-search">
-              <FuzzySearch />
-            </div>
+            <FuzzySearch />
           </Control>
         </ControlLayout>
       </div>

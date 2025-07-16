@@ -475,7 +475,7 @@ export const CarmaMap = ({
         </Control>
       )}
       <Control position="bottomleft" order={10}>
-        <div data-test-id="fuzzy-search" className="h-full w-full">
+        <div className="h-full w-full">
           <LibFuzzySearch
             gazData={gazData}
             //referenceSystem={referenceSystem}

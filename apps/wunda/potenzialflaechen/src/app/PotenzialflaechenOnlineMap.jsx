@@ -163,7 +163,7 @@ function PotenzialflaechenOnlineMap({
           />
         </Control>
         <Control position="bottomleft" order={10}>
-          <div data-test-id="fuzzy-search" style={{ marginTop: "4px" }}>
+          <div style={{ marginTop: "4px" }}>
             <LibFuzzySearch
               key={"PotenzialflaechenOnlineMap" + allGAazData.length}
               gazData={allGAazData}
