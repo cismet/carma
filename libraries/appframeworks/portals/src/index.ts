@@ -22,6 +22,7 @@ export { FontAwesomeLikeIcon } from "./lib/components/FontAwesomeLikeIcon.tsx";
 export { InfoBox } from "./lib/components/InfoBox.tsx";
 export { ResponsiveInfoBox } from "./lib/components/ResponsiveInfoBox.tsx";
 export { GenericInfoBoxFromFeature } from "./lib/components/GenericInfoBoxFromFeature.tsx";
+export { PieChart } from "./lib/components/PieChart.tsx";
 
 export { GazDataProvider, useGazData } from "./lib/components/GazDataProvider";
 
