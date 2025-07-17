@@ -1,7 +1,5 @@
-import ReactChartkick, { PieChart as ReactPieChart } from "react-chartkick";
-import { Chart } from "chart.js";
-
-ReactChartkick.addAdapter(Chart);
+import { Doughnut } from "react-chartjs-2";
+import "chart.js/auto";
 
 type ChartDataItem = [string, number];
 
@@ -16,6 +14,24 @@ export const PieChart = ({
   colors,
   title = "Verteilung",
 }: PieChartProps) => {
+  const labels = data.map((data) => {
+    return data[0];
+  });
+
+  const tmpData = data.map((data) => {
+    return data[1];
+  });
+
+  const pieChartData = {
+    labels: labels,
+    datasets: [
+      {
+        data: tmpData,
+        backgroundColor: colors,
+      },
+    ],
+  };
+
   return (
     <td
       style={{
@@ -26,13 +42,27 @@ export const PieChart = ({
         justifyContent: "center",
       }}
     >
-      <ReactPieChart
-        data={data}
-        donut={true}
-        title={title}
-        legend={false}
-        colors={colors}
-      />
+      <div style={{ width: "40%" }}>
+        <Doughnut
+          data={pieChartData}
+          options={{
+            plugins: {
+              legend: {
+                display: false,
+              },
+              title: {
+                display: true,
+                text: title,
+                font: {
+                  weight: "bold",
+                  size: 20,
+                },
+                color: "black",
+              },
+            },
+          }}
+        />
+      </div>
     </td>
   );
 };
