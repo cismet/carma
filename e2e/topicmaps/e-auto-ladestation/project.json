@@ -1,0 +1,26 @@
+{
+  "name": "e2e-e-auto-ladestation",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "e2e/topicmaps/e-auto-ladestation/src",
+  "projectType": "application",
+  "tags": [],
+  "implicitDependencies": ["e-auto-ladestation"],
+  "targets": {
+    "e2e": {
+      "executor": "@nx/cypress:cypress",
+      "options": {
+        "cypressConfig": "e2e/topicmaps/e-auto-ladestation/cypress.config.ts",
+        "devServerTarget": "e-auto-ladestation:serve:development",
+        "testingType": "e2e"
+      },
+      "configurations": {
+        "production": {
+          "devServerTarget": "e-auto-ladestation:serve:production"
+        }
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  }
+}
