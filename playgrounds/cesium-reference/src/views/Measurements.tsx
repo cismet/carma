@@ -1,5 +1,5 @@
 import React, { useRef } from "react";
-import { Flex } from "antd";
+import { Flex, Collapse, theme, Switch, Typography } from "antd";
 
 import { WUPP_MESH_2024 } from "@carma-commons/resources";
 import { CesiumErrorToErrorBoundaryForwarder } from "@carma-mapping/cesium-engine";
@@ -23,17 +23,58 @@ import { CRSContextProvider } from "../measurements/CRSContext";
 // check if we are in developer mode
 const isDeveloperMode = process.env.NODE_ENV === "development";
 
+const { Text } = Typography;
+
 // Inner component that has access to contexts
 const ContextAwareApp: React.FC<{}> = () => {
-  const { zoomToTileset } = useCesiumViewer();
+  const { zoomToTileset, setHQMode, hqMode } = useCesiumViewer();
+  const { token } = theme.useToken();
+
+  const handleHQModeChange = (checked: boolean) => {
+    setHQMode?.(checked);
+  };
+
+  const collapseItems = [
+    {
+      key: "settings",
+      label: "Einstellungen",
+      children: (
+        <>
+          <Switch
+            checked={hqMode}
+            onChange={handleHQModeChange}
+            checkedChildren="HQ"
+            unCheckedChildren="LQ"
+          />
+          <Text type="secondary" style={{ marginLeft: 8, fontSize: "12px" }}>
+            {hqMode
+              ? "Native Auflösung"
+              : `Auflösung 1/${window.devicePixelRatio}`}
+          </Text>
+        </>
+      ),
+    },
+    {
+      key: "nivpoint",
+      label: "Höhenfestpunkte",
+      children: (
+        <Flex vertical gap={2}>
+          <NivPointControls />
+          <NivPointPanel />
+        </Flex>
+      ),
+    },
+  ];
 
   return (
     <ScreenLayout
       topLeft={
-        <Flex vertical gap={2} style={{ maxWidth: "24rem" }}>
-          <NivPointControls />
-          <NivPointPanel />
-        </Flex>
+        <Collapse
+          style={{ backgroundColor: token.colorBgContainer }}
+          items={collapseItems}
+          size="small"
+          defaultActiveKey={[]}
+        />
       }
       topRight={<MeasurementPanel />}
       bottomCenter={<HomeButton onHomeClick={zoomToTileset} />}

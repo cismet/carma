@@ -1,5 +1,5 @@
 import { FC } from "react";
-import { Checkbox, Radio, Space, Card } from "antd";
+import { Checkbox, Radio } from "antd";
 import { useCesiumNivPoints } from "../CesiumNivPointContext";
 import { useCRS } from "../CRSContext";
 
@@ -14,17 +14,15 @@ export const NivPointControls: FC = () => {
   const { verticalDatum, setVerticalDatum } = useCRS();
   const pointCount = nivPointEntities ? nivPointEntities.length : 0;
   return (
-    <Card size="small" title="Höhenfestpunkte">
+    <>
       <Checkbox
         checked={showNivPoints}
         onChange={(e) => setShowNivPoints(e.target.checked)}
       >
         Zeige Höhenfestpunkte ({pointCount > 0 ? pointCount : "Laden..."})
       </Checkbox>
-      <br />
-
       {showNivPoints && (
-        <Space direction="vertical" size="middle">
+        <>
           <Checkbox
             checked={showHistoricNivPoints}
             onChange={(e) => setShowHistoricNivPoints(e.target.checked)}
@@ -40,9 +38,9 @@ export const NivPointControls: FC = () => {
             <Radio.Button value="nhn2016">NHN 2016</Radio.Button>
             <Radio.Button value="nn">NN</Radio.Button>
           </Radio.Group>
-        </Space>
+        </>
       )}
-    </Card>
+    </>
   );
 };
 
