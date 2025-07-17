@@ -4,6 +4,7 @@
   // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
   "version": "0.2.0",
   "configurations": [
+
     {
       "type": "chrome",
       "request": "launch",
@@ -52,6 +53,16 @@
       "webRoot": "${workspaceFolder}",
       "sourceMapPathOverrides": {
         "http://localhost:4200/src/*": "${workspaceFolder}/apps/topicmaps/generic/src/*"
+      }
+    },
+    {
+      "type": "chrome",
+      "request": "launch",
+      "name": "Cesium Reference orig:4200",
+      "url": "http://localhost:4200/#/measurements",
+      "webRoot": "${workspaceFolder}",
+      "sourceMapPathOverrides": {
+        "http://localhost:4200/src/*": "${workspaceFolder}/playgrounds/cesium-reference/src/*"
       }
     }
   ]
