@@ -47,8 +47,13 @@ import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextPr
 import { useGazData } from "@carma-apps/portals";
 import { type GazDataItem } from "@carma-commons/utils";
 import versionData from "../../version.json";
+import { Topic } from "../App";
 
-const Map = () => {
+interface MapProps {
+  topicsWitColors: Topic[];
+}
+
+const Map = ({ topicsWitColors }: MapProps) => {
   const { setClusteringOptions, setSelectedFeatureByPredicate } = useContext<
     typeof FeatureCollectionDispatchContext
   >(FeatureCollectionDispatchContext);
@@ -180,7 +185,7 @@ const Map = () => {
           </div>
         </Control>
         <TopicMapComponent
-          modalMenu={<Menu />}
+          modalMenu={<Menu topicsWitColors={topicsWitColors} />}
           locatorControl={false}
           fullScreenControl={false}
           zoomControls={false}

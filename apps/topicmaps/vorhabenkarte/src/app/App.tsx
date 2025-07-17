@@ -9,7 +9,7 @@ import "react-cismap/topicMaps.css";
 import Map from "./components/Map";
 import convertItemToFeature from "../helper/convertItemToFeature";
 import { getFeatureStyler } from "../helper/styler";
-import itemFilterFunction, { stek, topics } from "../helper/filter";
+import itemFilterFunction from "../helper/filter";
 import { addTitleFlag } from "../helper/urlHelper";
 import { getTopics } from "../helper/getTopics";
 
@@ -56,7 +56,7 @@ export function App() {
       }}
       convertItemToFeature={convertItemToFeature}
     >
-      <Map />
+      <Map topicsWitColors={topicsWithColor} />
     </TopicMapContextProvider>
   );
 }

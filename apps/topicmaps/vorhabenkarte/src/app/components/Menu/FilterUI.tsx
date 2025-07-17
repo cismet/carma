@@ -1,5 +1,5 @@
-import React, { useContext, useState } from "react";
-import { Button, Form } from "react-bootstrap";
+import { useContext } from "react";
+import { Form } from "react-bootstrap";
 
 import {
   FeatureCollectionContext,
@@ -11,21 +11,14 @@ import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingCon
 import "url-search-params-polyfill";
 import VorhabenkartePieChart from "./VorhabenkartePieChart";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faBicycle,
-  faBullseye,
-  faChargingStation,
-  faClock,
-  faLeaf,
-  faTag,
-  faToggleOn,
-  faUser,
-} from "@fortawesome/free-solid-svg-icons";
-import { stek, topics } from "../../../helper/filter";
+import { faTag, faUser } from "@fortawesome/free-solid-svg-icons";
 import Icon from "react-cismap/commons/Icon";
-import { getColorForFilter } from "../../../helper/styler";
+import { Topic } from "../../App";
 
-const FilterUI = () => {
+interface FilterUIProps {
+  topicsWitColors: Topic[];
+}
+const FilterUI = ({ topicsWitColors }: FilterUIProps) => {
   const { filterState } = useContext<typeof FeatureCollectionContext>(
     FeatureCollectionContext
   );
@@ -83,7 +76,7 @@ const FilterUI = () => {
 
   const setAllFilter = (kind) => {
     const newFilterState = { ...filterState };
-    newFilterState[kind] = kind === "topics" ? topics : stek;
+    newFilterState["topics"] = topicsWitColors.map((t) => t.name);
     setFilterState(newFilterState);
   };
 
@@ -120,7 +113,7 @@ const FilterUI = () => {
                   <a onClick={() => clearFilter("topics")}>keine</a>
                 </div>
                 <div className="mb-3">
-                  {topics.map((item, idx) => {
+                  {topicsWitColors.map((item, idx) => {
                     return (
                       <>
                         <Form.Check
@@ -129,19 +122,21 @@ const FilterUI = () => {
                           onClick={(e) => {
                             setFilterValue(
                               "topics",
-                              item,
+                              item.name,
                               // @ts-expect-error legacy codebase exception
                               e.target.checked
                             );
                           }}
-                          checked={filterState["topics"]?.indexOf(item) !== -1}
+                          checked={
+                            filterState["topics"]?.indexOf(item.name) !== -1
+                          }
                           inline
                           label={
                             <>
-                              {item}
+                              {item.name}
                               <Icon
                                 style={{
-                                  color: getColorForFilter(item),
+                                  color: item.farbe,
                                   width: "30px",
                                   textAlign: "center",
                                 }}
