@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 import { Button, Form } from "react-bootstrap";
 
 import {
@@ -41,6 +41,7 @@ const FilterUI = () => {
   );
 
   const width = windowSize?.width || 500;
+  const isShowHint = filterState.topics.length === 0;
 
   let widePieChartPlaceholder: any = null;
   let narrowPieChartPlaceholder: any = null;
@@ -149,10 +150,17 @@ const FilterUI = () => {
                             </>
                           }
                         />
+
                         <br />
                       </>
                     );
                   })}
+                  {isShowHint && (
+                    <div className="mt-2 text-gray-600">
+                      Wenn kein Thema selektiert ist, dann wird auch nichts
+                      angezeigt
+                    </div>
+                  )}
                 </div>
                 <label
                   style={{
