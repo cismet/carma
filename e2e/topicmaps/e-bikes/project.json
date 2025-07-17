@@ -1,0 +1,26 @@
+{
+  "name": "e2e-e-bikes",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "e2e/topicmaps/e-bikes/src",
+  "projectType": "application",
+  "tags": [],
+  "implicitDependencies": ["e-bikes"],
+  "targets": {
+    "e2e": {
+      "executor": "@nx/cypress:cypress",
+      "options": {
+        "cypressConfig": "e2e/topicmaps/e-bikes/cypress.config.ts",
+        "devServerTarget": "e-bikes:serve:development",
+        "testingType": "e2e"
+      },
+      "configurations": {
+        "production": {
+          "devServerTarget": "e-bikes:serve:production"
+        }
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  }
+}
