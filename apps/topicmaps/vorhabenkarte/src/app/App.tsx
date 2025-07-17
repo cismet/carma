@@ -11,11 +11,19 @@ import convertItemToFeature from "../helper/convertItemToFeature";
 import { getFeatureStyler } from "../helper/styler";
 import itemFilterFunction, { stek, topics } from "../helper/filter";
 import { addTitleFlag } from "../helper/urlHelper";
+import { getTopics } from "../helper/getTopics";
 
 export function App() {
   useEffect(() => {
     document.title = "Vorhabenkarte Wuppertal";
     addTitleFlag();
+    const fetchTopics = async (url) => {
+      const res = await getTopics(url);
+    };
+
+    fetchTopics(
+      import.meta.env.VITE_WUPP_ASSET_BASEURL + "/data/vk_thema.data.json"
+    );
   }, []);
   return (
     <TopicMapContextProvider
