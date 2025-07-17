@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
 import { MappingConstants } from "react-cismap";
 
@@ -13,12 +13,24 @@ import itemFilterFunction, { stek, topics } from "../helper/filter";
 import { addTitleFlag } from "../helper/urlHelper";
 import { getTopics } from "../helper/getTopics";
 
+export type Topic = {
+  id: number;
+  name: string;
+  farbe: string;
+  fuellung: number;
+  signatur: string;
+};
+
 export function App() {
+  const [topicsWithColor, setTopicsWithColor] = useState<Topic[]>([]);
   useEffect(() => {
     document.title = "Vorhabenkarte Wuppertal";
     addTitleFlag();
     const fetchTopics = async (url) => {
       const res = await getTopics(url);
+      if (res) {
+        setTopicsWithColor(res);
+      }
     };
 
     fetchTopics(
@@ -39,7 +51,7 @@ export function App() {
       featureTooltipFunction={(feature) => feature?.text}
       itemFilterFunction={itemFilterFunction}
       filterState={{
-        topics: topics,
+        topics: topicsWithColor.map((t) => t.name),
         citizen: false,
       }}
       convertItemToFeature={convertItemToFeature}

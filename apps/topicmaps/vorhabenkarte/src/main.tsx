@@ -3,7 +3,6 @@ import * as ReactDOM from "react-dom/client";
 import { GazDataProvider, SelectionProvider } from "@carma-apps/portals";
 import App from "./app/App";
 import { gazDataConfig } from "./config/gazData";
-import { addTitleFlag } from "./helper/urlHelper";
 
 const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement
