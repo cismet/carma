@@ -18,6 +18,7 @@ import {
   isTraverseMeasurementEntry,
   MeasurementCollection,
   TraverseMeasurementEntry,
+  MeasurementMode,
 } from "../types/MeasurementTypes";
 import { createPointMarker } from "../utils/cesiumTraverseEntities";
 import { formatDistance } from "../../utils/formatters";
@@ -29,6 +30,7 @@ import {
   createPointLabelText,
 } from "../utils/cesiumLabels";
 import { useRequestRender } from "./useRequestRender";
+import { registerEntityForSelection } from "./useCesiumPointSelection";
 
 const STEMLINE_MIN_OFFSET = 0.1; // meters
 
@@ -248,6 +250,30 @@ export function useCesiumTraverseVisualizer(
           );
           viewer.entities.add(pointMarker);
           traverseEntiesRef.current.push(pointMarker);
+          
+          // Create transparent clickable point for easier selection
+          const clickablePoint = new Entity({
+            id: `clickable-point-${traverse.id}-${index}`,
+            name: `Clickable Traverse Point ${index + 1}`,
+            position: visualizationPoint,
+            point: {
+              pixelSize: 20,
+              color: Color.BLACK.withAlpha(0.005),
+              show: true,
+              disableDepthTestDistance: Number.POSITIVE_INFINITY, // Always on top
+            },
+          });
+          
+          viewer.entities.add(clickablePoint);
+          traverseEntiesRef.current.push(clickablePoint);
+          
+          // Register the clickable point for selection
+          registerEntityForSelection(
+            clickablePoint,
+            traverse.id,
+            MeasurementMode.Traverse,
+            index
+          );
         }
 
         // Add vertical line from ground to elevated point if heightOffset > 0

@@ -20,6 +20,7 @@ import { useCesiumTraverseQuery } from "./hooks/useCesiumTraverseQuery";
 import { useCesiumTraverseVisualizer } from "./hooks/useCesiumTraverseVisualizer";
 import { useCesiumMousePosition } from "./hooks/useCesiumMousePosition";
 import { useMeasurementPersistence } from "./hooks/useMeasurementPersistence";
+import { useCesiumPointSelection } from "./hooks/useCesiumPointSelection";
 
 import {
   isPointMeasurementEntry,
@@ -27,6 +28,7 @@ import {
   type MeasurementCollection,
   MeasurementMode,
 } from "./types/MeasurementTypes";
+
 interface CesiumMeasurementsContextType {
   measurementMode: MeasurementMode;
   setMeasurementMode: Dispatch<SetStateAction<MeasurementMode>>;
@@ -54,6 +56,9 @@ interface CesiumMeasurementsContextType {
   referencePoint: Cartesian3 | null;
   setReferencePoint: Dispatch<SetStateAction<Cartesian3 | null>>;
   referenceElevation: number; // derived from referencePoint
+  // selection functions
+  toggleMeasurementSelection: (id: string, pointIndex?: number) => void;
+  clearSelection: () => void;
 }
 
 const CesiumMeasurementsContext = createContext<
@@ -75,7 +80,7 @@ export type MeasurementProviderOptions = {
 
 const defaultOptions: MeasurementProviderOptions = {
   temporary: false,
-  mode: MeasurementMode.Traverse,
+  mode: MeasurementMode.PointQuery,
 };
 
 const defaultPointQueryOptions: MeasurementProviderOptions["pointQueries"] = {
@@ -142,6 +147,42 @@ export const CesiumMeasurementsProvider: React.FC<
     Set<MeasurementMode>
   >(new Set());
 
+  // Selection functions
+  const toggleMeasurementSelection = useCallback((id: string, pointIndex?: number) => {
+    setMeasurements(prev => prev.map(measurement => {
+      if (measurement.id === id) {
+        const isCurrentlySelected = measurement.isSelected;
+        const isSamePointIndex = measurement.selectedPointIndex === pointIndex;
+        
+        // If it's a traverse and we're selecting a different point, update the selection
+        if (pointIndex !== undefined && !isCurrentlySelected) {
+          return { ...measurement, isSelected: true, selectedPointIndex: pointIndex };
+        }
+        
+        // If it's the same point or a point measurement, toggle selection
+        if (isSamePointIndex || pointIndex === undefined) {
+          return { 
+            ...measurement, 
+            isSelected: !isCurrentlySelected,
+            selectedPointIndex: isCurrentlySelected ? undefined : pointIndex
+          };
+        }
+        
+        // Different point in traverse - select this point
+        return { ...measurement, isSelected: true, selectedPointIndex: pointIndex };
+      }
+      return measurement;
+    }));
+  }, [setMeasurements]);
+
+  const clearSelection = useCallback(() => {
+    setMeasurements(prev => prev.map(measurement => ({
+      ...measurement,
+      isSelected: false,
+      selectedPointIndex: undefined
+    })));
+  }, [setMeasurements]);
+
   const referenceElevation = useMemo(() => {
     if (!referencePoint || !viewer) return 0;
     const cartographic =
@@ -149,7 +190,7 @@ export const CesiumMeasurementsProvider: React.FC<
     return cartographic?.height ?? 0;
   }, [referencePoint, viewer]);
 
-  // point query hooks
+  // point query hooks - disabled in Selection mode
   useCesiumPointQuery(
     viewer,
     measurementMode === MeasurementMode.PointQuery,
@@ -176,7 +217,7 @@ export const CesiumMeasurementsProvider: React.FC<
   const { clearTraverseQuery, isActiveTraverse, currentTraverseId } =
     useCesiumTraverseQuery(
       viewer,
-      measurementMode === MeasurementMode.Traverse,
+      measurementMode === MeasurementMode.Traverse, // disabled in Selection mode
       measurements,
       setMeasurements,
       temporaryMode,
@@ -185,7 +226,7 @@ export const CesiumMeasurementsProvider: React.FC<
 
   const mousePosition = useCesiumMousePosition(
     viewer,
-    measurementMode === MeasurementMode.Traverse
+    measurementMode === MeasurementMode.Traverse // disabled in Selection mode
   );
 
   const showTraverse = !hideMeasurementsOfType.has(MeasurementMode.Traverse);
@@ -203,6 +244,14 @@ export const CesiumMeasurementsProvider: React.FC<
     isActiveTraverse,
     currentTraverseId,
     referenceElevation
+  );
+
+  // Enable point selection - always enabled, but most effective in Selection mode
+  useCesiumPointSelection(
+    viewer,
+    true, // Always enabled for entity selection
+    measurements,
+    toggleMeasurementSelection
   );
 
   const clearAllMeasurements = useCallback(() => {
@@ -277,6 +326,8 @@ export const CesiumMeasurementsProvider: React.FC<
       referencePoint,
       setReferencePoint,
       referenceElevation,
+      toggleMeasurementSelection,
+      clearSelection,
     }),
     [
       measurementMode,
@@ -301,6 +352,8 @@ export const CesiumMeasurementsProvider: React.FC<
       referencePoint,
       setReferencePoint,
       referenceElevation,
+      toggleMeasurementSelection,
+      clearSelection,
     ]
   );
 

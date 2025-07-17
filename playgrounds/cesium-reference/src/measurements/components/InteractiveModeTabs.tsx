@@ -9,12 +9,14 @@ import {
   Button,
   Space,
   Switch,
+  Typography,
 } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faArrowsToDot,
   faTrash,
   faRulerCombined,
+  faHandPointer,
 } from "@fortawesome/free-solid-svg-icons";
 import type { InputNumberProps } from "antd";
 import { useCesiumMeasurements } from "../CesiumMeasurementsContext";
@@ -137,6 +139,18 @@ export const InteractiveModeTabs: FC = () => {
   };
 
   const items = [
+    {
+      key: MeasurementMode.Selection,
+      label: "Auswahl",
+      icon: <FontAwesomeIcon icon={faHandPointer} />,
+      children: (
+        <div style={{ padding: "0.5rem" }}>
+          <Typography.Text type="secondary">
+            für Auswahl auf Messobjekte klicken
+          </Typography.Text>
+        </div>
+      ),
+    },
     {
       key: MeasurementMode.PointQuery,
       label: "3D Punktabfrage",

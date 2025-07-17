@@ -5,6 +5,7 @@ export enum MeasurementMode {
   PointQuery = "point_query",
   Traverse = "traverse",
   Elevation = "elevation",
+  Selection = "selection",
 }
 
 export type GeomPoint = Partial<Cartographic> & {
@@ -26,6 +27,8 @@ export type MeasurementEntry = {
   metadata?: unknown;
   derived?: unknown;
   temporary?: boolean;
+  isSelected?: boolean; // Selection state
+  selectedPointIndex?: number; // For traverse points - which point is selected
 };
 
 export type PointMeasurementEntry = MeasurementEntry & {

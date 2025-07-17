@@ -39,7 +39,12 @@ const renderPointItem = (
 ) => (
   <List.Item
     key={data.id}
-    style={{ paddingRight: "0.5rem" }}
+    style={{ 
+      paddingRight: "0.5rem",
+      backgroundColor: data.isSelected ? "#e6f4ff" : "transparent",
+      borderRadius: data.isSelected ? "4px" : "0px",
+      border: data.isSelected ? "1px solid #1890ff" : "1px solid transparent",
+    }}
     title={`${data.name || ""} (${data.id.slice(-6, -2)})`}
   >
     <List.Item.Meta
@@ -78,7 +83,14 @@ const renderTraverseItem = (
   idx: number,
   clearMeasurementsByIds: (ids: string[]) => void
 ) => (
-  <List.Item key={data.id}>
+  <List.Item 
+    key={data.id}
+    style={{ 
+      backgroundColor: data.isSelected ? "#e6f4ff" : "transparent",
+      borderRadius: data.isSelected ? "4px" : "0px",
+      border: data.isSelected ? "1px solid #1890ff" : "1px solid transparent",
+    }}
+  >
     <List.Item.Meta
       title={
         <span style={{ padding: "0 0.3rem" }}>

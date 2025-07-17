@@ -9,11 +9,13 @@ import {
   isPointMeasurementEntry,
   MeasurementCollection,
   PointMeasurementEntry,
+  MeasurementMode,
 } from "../types/MeasurementTypes";
 import {
   createLabelEntity,
   formatNumberToEnclosed,
 } from "../utils/cesiumLabels";
+import { registerEntityForSelection } from "./useCesiumPointSelection";
 
 export const useCesiumPointVisualizer = (
   viewer: Viewer | null,
@@ -25,6 +27,7 @@ export const useCesiumPointVisualizer = (
 ) => {
   const labelRefs = useRef<Record<string, Entity>>({});
   const cross3DRefs = useRef<Record<string, Cross3DGroup>>({});
+  const clickableSphereRefs = useRef<Record<string, Entity>>({});
   const prevIdsRef = useRef<Set<string>>(new Set());
 
   const [points, currentIds]: [PointMeasurementEntry[], Set<string>] =
@@ -39,6 +42,7 @@ export const useCesiumPointVisualizer = (
     // render markers
     if (!viewer || viewer.isDestroyed()) return;
     const crosses = cross3DRefs.current;
+    const clickableSpheres = clickableSphereRefs.current;
 
     points.forEach(({ id, geometryECEF }) => {
       if (!crosses[id]) {
@@ -54,6 +58,29 @@ export const useCesiumPointVisualizer = (
         update3dCrossVisibility(cross3D, showMarkers);
         cross3D.addToViewer(viewer);
         crosses[id] = cross3D;
+        
+        // Create transparent clickable point for easier selection
+        const clickablePoint = new Entity({
+          id: `clickable-point-${id}`,
+          name: `Clickable Point ${id}`,
+          position: geometryECEF,
+          point: {
+            pixelSize: 20,
+            color: Color.BLACK.withAlpha(0.005),
+            show: true,
+            disableDepthTestDistance: Number.POSITIVE_INFINITY, // Always on top
+          },
+        });
+        
+        viewer.entities.add(clickablePoint);
+        clickableSpheres[id] = clickablePoint;
+        
+        // Register the clickable point for selection
+        registerEntityForSelection(
+          clickablePoint, 
+          id, 
+          MeasurementMode.PointQuery
+        );
       } else {
         console.debug(
           `[CesiumPointVisualizer] Updating visibility for cross3D ${id}`
@@ -61,6 +88,7 @@ export const useCesiumPointVisualizer = (
         update3dCrossVisibility(crosses[id], showMarkers);
       }
     });
+    
     // Remove refs for points that no longer exist
     Object.keys(crosses).forEach((id) => {
       if (!currentIds.has(id)) {
@@ -68,8 +96,18 @@ export const useCesiumPointVisualizer = (
         delete crosses[id];
       }
     });
+    
+    // Remove clickable spheres that no longer exist
+    Object.keys(clickableSpheres).forEach((id) => {
+      if (!currentIds.has(id)) {
+        viewer.entities.remove(clickableSpheres[id]);
+        delete clickableSpheres[id];
+      }
+    });
+    
     prevIdsRef.current = currentIds;
     viewer.scene.requestRender(); // Ensure scene updates after changes
+    
     return () => {
       // Only cleanup entities that are not in the next render
       Object.keys(crosses).forEach((id) => {
@@ -78,6 +116,14 @@ export const useCesiumPointVisualizer = (
           delete crosses[id];
         }
       });
+      
+      Object.keys(clickableSpheres).forEach((id) => {
+        if (!currentIds.has(id)) {
+          viewer.entities.remove(clickableSpheres[id]);
+          delete clickableSpheres[id];
+        }
+      });
+      
       prevIdsRef.current = new Set();
     };
   }, [viewer, points, radius, currentIds, showMarkers]);
