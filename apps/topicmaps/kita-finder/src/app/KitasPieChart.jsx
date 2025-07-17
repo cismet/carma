@@ -4,10 +4,7 @@ import { useContext } from "react";
 import { FeatureCollectionContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
 import { useSelector } from "react-redux";
 import { getFeatureRenderingOption } from "./store/slices/ui";
-import ReactChartkick, { PieChart } from "react-chartkick";
-import { Chart } from "chart.js";
-
-ReactChartkick.addAdapter(Chart);
+import { PieChart } from "@carma-apps/portals";
 
 const KitasPieChart = ({ visible = true }) => {
   const { filteredItems } = useContext(FeatureCollectionContext);
@@ -55,25 +52,7 @@ const KitasPieChart = ({ visible = true }) => {
       piechartColor.push(colormodel[key]);
     }
 
-    return (
-      <td
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          alignContent: "center",
-          justifyContent: "center",
-        }}
-      >
-        <PieChart
-          data={piechartData}
-          donut={true}
-          title="Verteilung"
-          legend={false}
-          colors={piechartColor}
-        />
-      </td>
-    );
+    return <PieChart data={piechartData} colors={piechartColor} />;
   } else {
     return null;
   }

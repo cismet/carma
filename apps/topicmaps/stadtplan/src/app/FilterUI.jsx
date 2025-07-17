@@ -1,10 +1,8 @@
 import { faThumbsDown, faThumbsUp } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { Chart } from "chart.js";
 import React, { useEffect, useMemo, useState } from "react";
 import { useContext } from "react";
 import { Badge, Button, Form } from "react-bootstrap";
-import ReactChartkick, { PieChart } from "react-chartkick";
 import {
   FeatureCollectionContext,
   FeatureCollectionDispatchContext,
@@ -23,8 +21,7 @@ import { getColorFromLebenslagenCombination } from "./helper/styler";
 import MultiToggleButton from "./MultiToggleButton";
 
 import "url-search-params-polyfill";
-
-ReactChartkick.addAdapter(Chart);
+import { PieChart } from "@carma-apps/portals";
 
 const FilterUI = ({ apps = crossLinkApps }) => {
   const { itemsDictionary, filteredItems, filterState } = useContext(
@@ -88,15 +85,7 @@ const FilterUI = ({ apps = crossLinkApps }) => {
     piechartColor.push(getColorFromLebenslagenCombination(key, poiColors));
   }
 
-  let pieChart = (
-    <PieChart
-      data={piechartData}
-      donut={true}
-      title="Verteilung"
-      legend={false}
-      colors={piechartColor}
-    />
-  );
+  let pieChart = <PieChart data={piechartData} colors={piechartColor} />;
 
   if (width < 995) {
     narrowPieChartPlaceholder = (
