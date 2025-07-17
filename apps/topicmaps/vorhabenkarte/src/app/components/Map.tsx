@@ -54,13 +54,17 @@ interface MapProps {
 }
 
 const Map = ({ topicsWitColors }: MapProps) => {
-  const { setClusteringOptions, setSelectedFeatureByPredicate } = useContext<
-    typeof FeatureCollectionDispatchContext
-  >(FeatureCollectionDispatchContext);
+  const {
+    setClusteringOptions,
+    setSelectedFeatureByPredicate,
+    setFilterState,
+  } = useContext<typeof FeatureCollectionDispatchContext>(
+    FeatureCollectionDispatchContext
+  );
   const { markerSymbolSize } = useContext<typeof TopicMapStylingContext>(
     TopicMapStylingContext
   );
-  const { clusteringOptions, selectedFeature } = useContext<
+  const { clusteringOptions, selectedFeature, filterState } = useContext<
     typeof FeatureCollectionContext
   >(FeatureCollectionContext);
   const lightBoxDispatchContext = useContext(
@@ -121,6 +125,16 @@ const Map = ({ topicsWitColors }: MapProps) => {
       });
     }
   }, [markerSymbolSize]);
+
+  useEffect(() => {
+    if (topicsWitColors.length > 0) {
+      const topics = topicsWitColors.map((t) => t.name);
+      const newFilterState = { ...filterState };
+      newFilterState["topics"] = topics;
+
+      setFilterState(newFilterState);
+    }
+  }, []);
 
   useEffect(() => {
     if (

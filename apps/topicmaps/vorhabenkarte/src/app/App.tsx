@@ -23,6 +23,7 @@ export type Topic = {
 
 export function App() {
   const [topicsWithColor, setTopicsWithColor] = useState<Topic[]>([]);
+  const topics = topicsWithColor.map((t) => t.name);
   useEffect(() => {
     document.title = "Vorhabenkarte Wuppertal";
     addTitleFlag();
@@ -51,7 +52,7 @@ export function App() {
       featureTooltipFunction={(feature) => feature?.text}
       itemFilterFunction={itemFilterFunction}
       filterState={{
-        topics: topicsWithColor.map((t) => t.name),
+        topics: [],
         citizen: false,
       }}
       convertItemToFeature={convertItemToFeature}
