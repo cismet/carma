@@ -1,0 +1,26 @@
+{
+  "name": "e2e-baederkarte",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "e2e/topicmaps/baederkarte/src",
+  "projectType": "application",
+  "tags": [],
+  "implicitDependencies": ["baederkarte"],
+  "targets": {
+    "e2e": {
+      "executor": "@nx/cypress:cypress",
+      "options": {
+        "cypressConfig": "e2e/topicmaps/baederkarte/cypress.config.ts",
+        "devServerTarget": "baederkarte:serve:development",
+        "testingType": "e2e"
+      },
+      "configurations": {
+        "production": {
+          "devServerTarget": "baederkarte:serve:production"
+        }
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  }
+}
