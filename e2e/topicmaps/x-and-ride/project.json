@@ -1,0 +1,26 @@
+{
+  "name": "e2e-x-and-ride",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "e2e/topicmaps/x-and-ride/src",
+  "projectType": "application",
+  "tags": [],
+  "implicitDependencies": ["x-and-ride"],
+  "targets": {
+    "e2e": {
+      "executor": "@nx/cypress:cypress",
+      "options": {
+        "cypressConfig": "e2e/topicmaps/x-and-ride/cypress.config.ts",
+        "devServerTarget": "x-and-ride:serve:development",
+        "testingType": "e2e"
+      },
+      "configurations": {
+        "production": {
+          "devServerTarget": "x-and-ride:serve:production"
+        }
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  }
+}
