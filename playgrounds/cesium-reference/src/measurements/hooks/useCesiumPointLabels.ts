@@ -1,4 +1,7 @@
 import { useMemo, useState, useEffect } from "react";
+
+import { defined, Cartesian3 } from "cesium";
+
 import { usePointLabels, type PointLabelData } from "../../overlay";
 import { useCesiumViewer } from "../../contexts/CesiumViewerContext";
 import { PointMeasurementEntry } from "../types/MeasurementTypes";
@@ -7,7 +10,6 @@ import {
   isPointOccluded,
   isPointInViewport,
 } from "../utils/occlusionDetection";
-import { defined, Cartesian3 } from "cesium";
 
 // Viewport padding constants for smooth label transitions
 const VIEWPORT_PADDING_HORIZONTAL = 100; // pixels

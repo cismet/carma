@@ -9,7 +9,9 @@ import React, {
   useMemo,
 } from "react";
 import { createRoot, Root } from "react-dom/client";
+
 import { defined } from "cesium";
+
 import { useCesiumViewer } from "../../contexts/CesiumViewerContext";
 import type {
   OverlayElement,
