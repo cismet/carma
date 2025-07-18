@@ -26,6 +26,7 @@ export type MeasurementEntry = {
   metadata?: unknown;
   derived?: unknown;
   temporary?: boolean;
+  isSelected?: boolean;
 };
 
 export type PointMeasurementEntry = MeasurementEntry & {

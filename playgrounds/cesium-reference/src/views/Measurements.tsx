@@ -9,6 +9,7 @@ import {
   useCesiumViewer,
 } from "../contexts/CesiumViewerContext";
 import { CesiumMeasurementsProvider } from "../measurements/CesiumMeasurementsContext";
+import { CesiumOverlayProvider } from "../overlay";
 import ScreenLayout from "../components/ScreenLayout";
 import { MeasurementPanel } from "../measurements/components/MeasurementPanel";
 
@@ -116,11 +117,13 @@ const TestMeshElevations: React.FC = () => {
             },
           }}
         >
-          <CesiumMeasurementsProvider>
-            <CesiumNivPointProvider>
-              <ContextAwareApp />
-            </CesiumNivPointProvider>
-          </CesiumMeasurementsProvider>
+          <CesiumOverlayProvider>
+            <CesiumMeasurementsProvider>
+              <CesiumNivPointProvider>
+                <ContextAwareApp />
+              </CesiumNivPointProvider>
+            </CesiumMeasurementsProvider>
+          </CesiumOverlayProvider>
         </CesiumViewerProvider>
       </CRSContextProvider>
     </>
