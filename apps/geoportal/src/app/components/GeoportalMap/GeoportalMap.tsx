@@ -86,7 +86,7 @@ import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../leaflet.css";
 import LoginForm from "../LoginForm.tsx";
-import { Button } from "antd";
+import { Button, Tooltip } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faArrowRightFromBracket,
@@ -403,19 +403,24 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
                   />
                 ),
                 loginFormTrigger: (
-                  <Button
-                    type="text"
-                    onClick={() =>
-                      jwt
-                        ? setJWT(null)
-                        : setIsLoginFormVisible(!isLoginFormVisible)
-                    }
+                  <Tooltip
+                    title={jwt ? "Abmeldung" : "Anmeldung"}
+                    zIndex={99999999}
                   >
-                    <FontAwesomeIcon
-                      icon={jwt ? faArrowRightFromBracket : faKey}
-                      size="lg"
-                    />
-                  </Button>
+                    <Button
+                      type="text"
+                      onClick={() =>
+                        jwt
+                          ? setJWT(null)
+                          : setIsLoginFormVisible(!isLoginFormVisible)
+                      }
+                    >
+                      <FontAwesomeIcon
+                        icon={jwt ? faArrowRightFromBracket : faKey}
+                        size="lg"
+                      />
+                    </Button>
+                  </Tooltip>
                 ),
               })}
             />
