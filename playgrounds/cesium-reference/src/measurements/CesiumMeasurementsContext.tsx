@@ -168,7 +168,9 @@ export const CesiumMeasurementsProvider: React.FC<
     viewer,
     measurements,
     showPoints,
+    false,
     showPointLabels,
+    false,
     pointRadius,
     referenceElevation
   );

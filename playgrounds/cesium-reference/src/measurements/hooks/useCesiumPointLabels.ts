@@ -1,4 +1,4 @@
-import { useMemo, useState, useCallback, useEffect } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { usePointLabels, type PointLabelData } from "../../overlay";
 import { useCesiumViewer } from "../../contexts/CesiumViewerContext";
 import { PointMeasurementEntry } from "../types/MeasurementTypes";
@@ -21,6 +21,7 @@ export const useCesiumPointLabels = (
   const [hiddenResults, setHiddenResults] = useState<Record<string, boolean>>(
     {}
   );
+  const [cameraPitch, setCameraPitch] = useState<number>(0);
 
   // Cesium-specific visibility and occlusion detection
   useEffect(() => {
@@ -29,6 +30,13 @@ export const useCesiumPointLabels = (
     const checkVisibilityAndOcclusion = () => {
       const newOcclusionResults: Record<string, boolean> = {};
       const newHiddenResults: Record<string, boolean> = {};
+
+      // Track camera pitch changes to trigger label position updates
+      const currentPitch = viewer.scene.camera.pitch;
+      if (Math.abs(currentPitch - cameraPitch) > 0.01) {
+        // 0.01 radian threshold
+        setCameraPitch(currentPitch);
+      }
 
       points.forEach((point) => {
         // Convert 3D position to screen coordinates
@@ -119,7 +127,14 @@ export const useCesiumPointLabels = (
         removeListener();
       }
     };
-  }, [viewer, points, showLabels, occlusionResults, hiddenResults]);
+  }, [
+    viewer,
+    points,
+    showLabels,
+    occlusionResults,
+    hiddenResults,
+    cameraPitch,
+  ]);
 
   // Transform measurement points to point label data
   const pointLabelData: PointLabelData[] = useMemo(
@@ -136,41 +151,11 @@ export const useCesiumPointLabels = (
             ? { x: canvasPosition.x, y: canvasPosition.y }
             : null;
         },
-        getLocalUpVector: () => {
-          // Calculate local up vector in screen space
-          if (!viewer || viewer.isDestroyed()) return null;
-          
-          // Get the local up vector at this point (normal to ellipsoid surface)
-          const ellipsoid = viewer.scene.globe.ellipsoid;
-          const localUp = ellipsoid.geodeticSurfaceNormal(point.geometryECEF);
-          
-          // Create a point slightly above the original point using the up vector
-          const upPoint = Cartesian3.add(
-            point.geometryECEF, 
-            Cartesian3.multiplyByScalar(localUp, 10.0, new Cartesian3()), 
-            new Cartesian3()
-          );
-          
-          // Project both points to screen space
-          const baseCanvasPos = viewer.scene.cartesianToCanvasCoordinates(point.geometryECEF);
-          const upCanvasPos = viewer.scene.cartesianToCanvasCoordinates(upPoint);
-          
-          if (!defined(baseCanvasPos) || !defined(upCanvasPos)) return null;
-          
-          // Calculate the screen space up vector (normalized)
-          const screenUpVector = {
-            x: upCanvasPos.x - baseCanvasPos.x,
-            y: upCanvasPos.y - baseCanvasPos.y
-          };
-          
-          // Normalize the vector
-          const length = Math.sqrt(screenUpVector.x * screenUpVector.x + screenUpVector.y * screenUpVector.y);
-          if (length === 0) return { x: 0, y: -1 }; // Default up if calculation fails
-          
-          return {
-            x: screenUpVector.x / length,
-            y: screenUpVector.y / length
-          };
+        getCameraPitch: () => {
+          // Just return camera pitch directly
+          if (!viewer || viewer.isDestroyed()) return 0;
+          console.log(viewer.scene.camera.pitch);
+          return viewer.scene.camera.pitch; // in radians
         },
         text: `${formatNumberToEnclosed(index + 1)} ${(
           point.geometryWGS84.height - referenceElevation
@@ -180,7 +165,14 @@ export const useCesiumPointLabels = (
         isOccluded: occlusionResults[point.id] || false,
         isHidden: hiddenResults[point.id] || false, // Hidden (outside viewport) vs occluded (behind geometry)
       })),
-    [points, referenceElevation, occlusionResults, hiddenResults, viewer]
+    [
+      points,
+      referenceElevation,
+      occlusionResults,
+      hiddenResults,
+      viewer,
+      cameraPitch,
+    ]
   );
 
   // Use the built-in point labels hook

@@ -32,14 +32,13 @@ export const CesiumOverlayProvider: React.FC<CesiumOverlayProviderProps> = ({
   const [overlayElements, setOverlayElements] = useState<
     Map<string, OverlayElement>
   >(new Map());
+  const [cameraPitch, setCameraPitch] = useState<number>(0);
 
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-
-  // Create overlay container with canvas layer
+  // Create overlay container
   useEffect(() => {
     if (!viewer || viewer.isDestroyed()) return;
     const cesiumContainer = viewer.container;
-    
+
     // Create overlay div
     const overlayDiv = document.createElement("div");
     overlayDiv.id = "cesium-overlay";
@@ -53,25 +52,8 @@ export const CesiumOverlayProvider: React.FC<CesiumOverlayProviderProps> = ({
     overlayDiv.style.overflow = "hidden"; // Prevent page resize from labels extending outside
     overlayDiv.style.clipPath = "inset(0)"; // Additional clipping for better performance
 
-    // Create canvas for custom rendering (dots, lines, etc.)
-    const canvas = document.createElement("canvas");
-    canvas.style.position = "absolute";
-    canvas.style.top = "0";
-    canvas.style.left = "0";
-    canvas.style.width = "100%";
-    canvas.style.height = "100%";
-    canvas.style.pointerEvents = "none";
-    canvas.style.zIndex = "1";
-    
-    // Set canvas size to match container
-    canvas.width = viewer.canvas.clientWidth;
-    canvas.height = viewer.canvas.clientHeight;
-    
-    overlayDiv.appendChild(canvas);
     cesiumContainer.appendChild(overlayDiv);
-    
     overlayRef.current = overlayDiv;
-    canvasRef.current = canvas;
 
     return () => {
       if (overlayDiv && cesiumContainer.contains(overlayDiv)) {
@@ -91,13 +73,13 @@ export const CesiumOverlayProvider: React.FC<CesiumOverlayProviderProps> = ({
 
     const updatePositions = () => {
       const overlayContainer = overlayRef.current;
-      const canvas = canvasRef.current;
-      if (!overlayContainer || !canvas) return;
+      if (!overlayContainer) return;
 
-      // Clear canvas for fresh rendering
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // Track camera pitch changes to force React component re-renders
+      const currentPitch = viewer.scene.camera.pitch;
+      if (Math.abs(currentPitch - cameraPitch) > 0.01) {
+        // 0.01 radian threshold
+        setCameraPitch(currentPitch);
       }
 
       overlayElementsRef.current.forEach((element, id) => {
@@ -119,32 +101,11 @@ export const CesiumOverlayProvider: React.FC<CesiumOverlayProviderProps> = ({
           : null;
 
         if (canvasPosition && element.visible !== false) {
-          // Get local up vector if available
-          const upVector = element.getLocalUpVector ? element.getLocalUpVector() : null;
-          
-          // Call custom rendering function if provided
-          if (element.renderCustom && ctx) {
-            element.renderCustom(ctx, canvasPosition, upVector || undefined);
-          }
-          
-          // Calculate label position (default or from custom rendering)
-          let labelPosition = canvasPosition;
-          if (upVector && element.renderCustom) {
-            // Position label using up vector + offset (matching the custom rendering logic)
-            const labelOffset = {
-              x: upVector.x * 30 + 20,
-              y: upVector.y * 30 - 20
-            };
-            labelPosition = {
-              x: canvasPosition.x + labelOffset.x,
-              y: canvasPosition.y + labelOffset.y
-            };
-          }
-
+          // Position the element at the anchor point - PointLabel handles its own offset
           elementDiv.style.position = "absolute";
-          elementDiv.style.left = `${labelPosition.x}px`;
-          elementDiv.style.top = `${labelPosition.y}px`;
-          elementDiv.style.transform = "translate(0%, -100%)";
+          elementDiv.style.left = `${canvasPosition.x}px`;
+          elementDiv.style.top = `${canvasPosition.y}px`;
+          elementDiv.style.transform = "translate(-50%, -50%)";
           elementDiv.style.display = "block";
         } else {
           elementDiv.style.display = "none";
@@ -160,7 +121,7 @@ export const CesiumOverlayProvider: React.FC<CesiumOverlayProviderProps> = ({
         removeListener();
       }
     };
-  }, [viewer]); // Removed overlayElements dependency to prevent rerender loop
+  }, [viewer, cameraPitch]); // Added cameraPitch dependency for proper tracking
 
   // Keep track of React roots for proper cleanup
   const reactRootsRef = useRef<Map<string, Root>>(new Map());
@@ -202,12 +163,18 @@ export const CesiumOverlayProvider: React.FC<CesiumOverlayProviderProps> = ({
         overlayContainer.appendChild(elementDiv);
       }
 
-      // Update content only if needed (check if content changed)
+      // Update content only if needed (check if content changed or camera pitch changed)
       const currentContent = elementDiv.getAttribute("data-content-hash");
-      const newContentHash =
+      const contentProps =
         typeof element.content === "string"
           ? element.content
-          : JSON.stringify(element.content?.props || {});
+          : React.isValidElement(element.content)
+          ? element.content.props
+          : {};
+      const newContentHash = JSON.stringify({
+        content: contentProps,
+        cameraPitch: cameraPitch.toFixed(3), // Include camera pitch in hash to force re-renders
+      });
 
       if (currentContent !== newContentHash) {
         elementDiv.setAttribute("data-content-hash", newContentHash);
@@ -228,7 +195,7 @@ export const CesiumOverlayProvider: React.FC<CesiumOverlayProviderProps> = ({
         }
       }
     });
-  }, [overlayElements]);
+  }, [overlayElements, cameraPitch]);
 
   const addOverlayElement = useCallback((element: OverlayElement) => {
     setOverlayElements((prev) => new Map(prev.set(element.id, element)));

@@ -20,7 +20,9 @@ export const useCesiumPointVisualizer = (
   viewer: Viewer | null,
   measurements: MeasurementCollection = [],
   showMarkers: boolean = true,
+  showCesiumMarkers: boolean = false,
   showLabels: boolean = false,
+  showCesiumLabels: boolean = false,
   radius: number,
   referenceElevation: number = 0
 ) => {
@@ -37,11 +39,11 @@ export const useCesiumPointVisualizer = (
     }, [measurements]);
 
   // Use overlay labels instead of Cesium entity labels
-  useCesiumPointLabels(points, true, referenceElevation);
+  useCesiumPointLabels(points, showLabels, referenceElevation);
 
   useEffect(() => {
     // render markers
-    if (!viewer || viewer.isDestroyed()) return;
+    if (!showCesiumMarkers || !viewer || viewer.isDestroyed()) return;
     const crosses = cross3DRefs.current;
 
     points.forEach(({ id, geometryECEF }) => {
@@ -92,7 +94,7 @@ export const useCesiumPointVisualizer = (
     points.forEach((m, i) => {
       if (!labelRefs.current[m.id]) {
         const entity = createLabelEntity(m, undefined, {
-          show: showLabels,
+          show: showCesiumLabels,
           text: `${formatNumberToEnclosed(i + 1)} ${(
             m.geometryWGS84.height - referenceElevation
           ).toFixed(2)}m`,
@@ -107,13 +109,15 @@ export const useCesiumPointVisualizer = (
       if (!viewer || viewer.isDestroyed()) {
         return;
       }
-      Object.values(labelRefs.current).forEach(
-        (entity) => viewer && viewer.entities.remove(entity)
-      );
+      labelRefs.current &&
+        viewer.entities &&
+        Object.values(labelRefs.current).forEach(
+          (entity) => viewer && viewer.entities.remove(entity)
+        );
       labelRefs.current = {};
       prevIdsRef.current = new Set();
     };
-  }, [viewer, points, currentIds, showLabels, referenceElevation]);
+  }, [viewer, points, currentIds, showCesiumLabels, referenceElevation]);
 };
 
 export default useCesiumPointVisualizer;
