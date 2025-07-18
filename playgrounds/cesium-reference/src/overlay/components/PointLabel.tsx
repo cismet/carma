@@ -47,7 +47,7 @@ export const PointLabel = React.memo(
     lineWidth = 1,
     markerStyle = MarkerStyle.CIRCLE,
     markerSize = 16,
-    markerStrokeWidth = 0.5,
+    markerStrokeWidth = 1,
   }: PointLabelProps) => {
     // Calculate label offset based on camera pitch
     const pitch = getCameraPitch ? getCameraPitch() : 0;
@@ -66,7 +66,7 @@ export const PointLabel = React.memo(
         style={{
           position: "relative",
           mixBlendMode: "exclusion",
-          opacity: isOccluded ? 0.5 : 1,
+          opacity: isOccluded ? 0.75 : 1,
         }}
       >
         {/* Measurement dot at anchor position */}
@@ -77,9 +77,9 @@ export const PointLabel = React.memo(
             top: "0px",
             width: `${markerSize}px`,
             height: `${markerSize}px`,
-            border: `${markerStrokeWidth}px solid ${
-              selected ? "#1890ff" : "#fff"
-            }`,
+            border: `${markerStrokeWidth}px ${
+              isOccluded ? "dashed" : "solid"
+            } ${selected ? "#1890ff" : "#fff"}`,
             borderRadius: "50%",
             transform: "translate(-50%, -50%)",
             pointerEvents: "none",
@@ -96,7 +96,9 @@ export const PointLabel = React.memo(
               labelOffset.x * labelOffset.x + labelOffset.y * labelOffset.y
             ),
             height: `${lineWidth}px`,
-            backgroundColor: lineColor,
+            borderBottom: `${lineWidth}px ${
+              isOccluded ? "dashed" : "solid"
+            } ${lineColor}`,
             transformOrigin: "0 0",
             transform: `rotate(${Math.atan2(labelOffset.y, labelOffset.x)}rad)`,
             pointerEvents: "none",
@@ -107,7 +109,9 @@ export const PointLabel = React.memo(
         <div
           style={{
             ...baseStyles,
-            borderBottom: `${lineWidth}px solid ${lineColor}`,
+            borderBottom: `${lineWidth}px ${
+              isOccluded ? "dashed" : "solid"
+            } ${lineColor}`,
             fontSize,
             backgroundColor: textBackgroundColor,
             color: textColor,

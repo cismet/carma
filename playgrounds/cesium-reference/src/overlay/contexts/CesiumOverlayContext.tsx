@@ -72,14 +72,26 @@ export const CesiumOverlayProvider: React.FC<CesiumOverlayProviderProps> = ({
     if (!viewer || viewer.isDestroyed() || !overlayRef.current) return;
 
     const updatePositions = () => {
+      // Safety checks for hot reload scenarios
+      if (!viewer || viewer.isDestroyed() || !overlayRef.current) return;
+
       const overlayContainer = overlayRef.current;
       if (!overlayContainer) return;
 
-      // Track camera pitch changes to force React component re-renders
-      const currentPitch = viewer.scene.camera.pitch;
-      if (Math.abs(currentPitch - cameraPitch) > 0.01) {
-        // 0.01 radian threshold
-        setCameraPitch(currentPitch);
+      try {
+        // Track camera pitch changes to force React component re-renders
+        // Add safety check for camera and scene
+        if (viewer.scene && viewer.scene.camera) {
+          const currentPitch = viewer.scene.camera.pitch;
+          if (Math.abs(currentPitch - cameraPitch) > 0.01) {
+            // 0.01 radian threshold
+            setCameraPitch(currentPitch);
+          }
+        }
+      } catch (error) {
+        // Silently handle errors during hot reload or viewer destruction
+        console.warn("Camera pitch update failed during hot reload:", error);
+        return;
       }
 
       overlayElementsRef.current.forEach((element, id) => {
