@@ -127,7 +127,9 @@ const TestMeshElevations: React.FC = () => {
             cesiumOptions: cesiumConstructorOptions,
             tilesetUrl: WUPP_MESH_2024.url,
             tilesetOptions: {
-              maximumScreenSpaceError: 2,
+              maximumScreenSpaceError: 4,
+              cacheBytes: 4 * 1024 * 1024 * 1024, // 4GB
+              maximumCacheOverflowBytes: 2 * 1024 * 1024 * 1024, // 2GB overflow
               show: true,
             },
             cameraPersistence: {

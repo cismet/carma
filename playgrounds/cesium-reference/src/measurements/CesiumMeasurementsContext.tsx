@@ -104,7 +104,7 @@ const deleteFromHideMeasurementsOfType =
 export const CesiumMeasurementsProvider: React.FC<
   CesiumMeasurementsProviderProps
 > = ({ children, options }) => {
-  const { viewer } = useCesiumViewer();
+  const { viewer, tilesetReady } = useCesiumViewer();
 
   const pointQueryOptions = normalizeOptions(
     options?.pointQueries,
@@ -130,8 +130,8 @@ export const CesiumMeasurementsProvider: React.FC<
   const [temporaryMode, setTemporaryMode] = useState(initialTemporary);
   const [measurements, setMeasurements] = useState<MeasurementCollection>([]);
 
-  // Add measurement persistence (auto-save only, manual restore)
-  useMeasurementPersistence(measurements, setMeasurements);
+  // Add measurement persistence (auto-save only, manual restore after tileset ready)
+  useMeasurementPersistence(measurements, setMeasurements, tilesetReady);
 
   const [referencePoint, setReferencePoint] = useState<Cartesian3 | null>(null);
   const [showLabels, setShowLabels] = useState<boolean>(true);

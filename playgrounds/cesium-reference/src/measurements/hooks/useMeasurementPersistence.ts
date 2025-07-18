@@ -11,22 +11,51 @@ import {
  */
 export const useMeasurementPersistence = (
   measurements: MeasurementCollection,
-  setMeasurements: (measurements: MeasurementCollection) => void
+  setMeasurements: (measurements: MeasurementCollection) => void,
+  tilesetReady: boolean = false
 ) => {
   const lastSavedRef = useRef<string | null>(null);
   const hasRestoredRef = useRef(false);
 
-  // One-time restore on mount
+  // Debug: Log when tileset becomes ready
   useEffect(() => {
-    if (!hasRestoredRef.current) {
+    if (tilesetReady) {
+      console.debug(
+        "[MeasurementPersistence] Tileset is ready for measurement restoration"
+      );
+    }
+  }, [tilesetReady]);
+
+  // One-time restore on mount, but only after tileset is ready
+  useEffect(() => {
+    if (!hasRestoredRef.current && tilesetReady) {
       const savedMeasurements = loadMeasurements();
       if (savedMeasurements && savedMeasurements.length > 0) {
-        setMeasurements(savedMeasurements);
-        console.debug("Measurements restored from localStorage");
+        console.debug(
+          `[MeasurementPersistence] Restoring ${savedMeasurements.length} measurements from localStorage (tileset ready: ${tilesetReady})`
+        );
+
+        // Log measurement types for debugging
+        const measurementTypes = savedMeasurements.reduce((acc, m) => {
+          acc[m.type] = (acc[m.type] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>);
+        console.debug(
+          "[MeasurementPersistence] Measurement types:",
+          measurementTypes
+        );
+
+        // Small delay to ensure tileset is fully ready and rendering
+        setTimeout(() => {
+          setMeasurements(savedMeasurements);
+          console.debug(
+            "[MeasurementPersistence] Measurements restored from localStorage"
+          );
+        }, 250);
       }
       hasRestoredRef.current = true;
     }
-  }, [setMeasurements]);
+  }, [setMeasurements, tilesetReady]);
 
   // Auto-save measurements immediately when they change, but only if different
   useEffect(() => {

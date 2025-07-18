@@ -6,6 +6,9 @@ import Home from "./Home";
 import { APP_BASE_PATH, CESIUM_PATHNAME } from "./config";
 import { views } from "./config.views";
 
+// Import storage debugging utilities
+import "./utils/storageDebug";
+
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "antd/dist/reset.css";
 import { ErrorBoundary } from "react-error-boundary";
