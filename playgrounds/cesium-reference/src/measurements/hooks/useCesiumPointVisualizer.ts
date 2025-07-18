@@ -63,9 +63,7 @@ export const useCesiumPointVisualizer = (
         cross3D.addToViewer(viewer);
         crosses[id] = cross3D;
       } else {
-        console.debug(
-          `[CesiumPointVisualizer] Updating visibility for cross3D ${id}`
-        );
+        //console.debug(`[CesiumPointVisualizer] Updating visibility for cross3D ${id}`);
         update3dCrossVisibility(crosses[id], showMarkers);
       }
     });
