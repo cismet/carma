@@ -31,7 +31,7 @@ const PointQuerySettingsComponent: React.FC<{
   minPointRadius = 1,
   maxPointRadius = 100,
   stepPointRadius = 1,
-  pointRadius = 5,
+  pointRadius = 1,
   onChange,
 }) => {
   const onValueChange: InputNumberProps["onChange"] = (newDisplayValue) => {

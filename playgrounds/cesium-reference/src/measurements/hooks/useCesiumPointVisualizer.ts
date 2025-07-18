@@ -24,7 +24,8 @@ export const useCesiumPointVisualizer = (
   showLabels: boolean = false,
   showCesiumLabels: boolean = false,
   radius: number,
-  referenceElevation: number = 0
+  referenceElevation: number = 0,
+  debug: boolean = false
 ) => {
   const labelRefs = useRef<Record<string, Entity>>({});
   const cross3DRefs = useRef<Record<string, Cross3DGroup>>({});
@@ -51,11 +52,12 @@ export const useCesiumPointVisualizer = (
         const cross3D = create3DCrossGroup({
           position: geometryECEF,
           radius,
-          color: Color.ORANGE,
-          width: 2,
+          width: 1,
           id: `debugMarker-${id}`,
           xyCirclePlane: true,
           colorCircle: Color.WHITE.withAlpha(0.3),
+          show: showMarkers,
+          showAxes: debug,
         });
         update3dCrossVisibility(cross3D, showMarkers);
         cross3D.addToViewer(viewer);
@@ -94,7 +96,15 @@ export const useCesiumPointVisualizer = (
         console.warn("Cross3D cleanup failed:", error);
       }
     };
-  }, [viewer, points, radius, currentIds, showMarkers, showCesiumMarkers]);
+  }, [
+    viewer,
+    points,
+    radius,
+    currentIds,
+    showMarkers,
+    showCesiumMarkers,
+    debug,
+  ]);
 
   useEffect(() => {
     // render Labels

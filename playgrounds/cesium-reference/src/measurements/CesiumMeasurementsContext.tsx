@@ -80,7 +80,7 @@ const defaultOptions: MeasurementProviderOptions = {
 
 const defaultPointQueryOptions: MeasurementProviderOptions["pointQueries"] = {
   enabled: true,
-  radius: 10,
+  radius: 1,
 };
 
 const defaultTraverseOptions: MeasurementProviderOptions["traverse"] = {
