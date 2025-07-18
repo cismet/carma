@@ -136,6 +136,42 @@ export const useCesiumPointLabels = (
             ? { x: canvasPosition.x, y: canvasPosition.y }
             : null;
         },
+        getLocalUpVector: () => {
+          // Calculate local up vector in screen space
+          if (!viewer || viewer.isDestroyed()) return null;
+          
+          // Get the local up vector at this point (normal to ellipsoid surface)
+          const ellipsoid = viewer.scene.globe.ellipsoid;
+          const localUp = ellipsoid.geodeticSurfaceNormal(point.geometryECEF);
+          
+          // Create a point slightly above the original point using the up vector
+          const upPoint = Cartesian3.add(
+            point.geometryECEF, 
+            Cartesian3.multiplyByScalar(localUp, 10.0, new Cartesian3()), 
+            new Cartesian3()
+          );
+          
+          // Project both points to screen space
+          const baseCanvasPos = viewer.scene.cartesianToCanvasCoordinates(point.geometryECEF);
+          const upCanvasPos = viewer.scene.cartesianToCanvasCoordinates(upPoint);
+          
+          if (!defined(baseCanvasPos) || !defined(upCanvasPos)) return null;
+          
+          // Calculate the screen space up vector (normalized)
+          const screenUpVector = {
+            x: upCanvasPos.x - baseCanvasPos.x,
+            y: upCanvasPos.y - baseCanvasPos.y
+          };
+          
+          // Normalize the vector
+          const length = Math.sqrt(screenUpVector.x * screenUpVector.x + screenUpVector.y * screenUpVector.y);
+          if (length === 0) return { x: 0, y: -1 }; // Default up if calculation fails
+          
+          return {
+            x: screenUpVector.x / length,
+            y: screenUpVector.y / length
+          };
+        },
         text: `${formatNumberToEnclosed(index + 1)} ${(
           point.geometryWGS84.height - referenceElevation
         ).toFixed(2)}m`,

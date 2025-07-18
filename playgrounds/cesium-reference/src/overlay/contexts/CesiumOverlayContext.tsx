@@ -33,10 +33,13 @@ export const CesiumOverlayProvider: React.FC<CesiumOverlayProviderProps> = ({
     Map<string, OverlayElement>
   >(new Map());
 
-  // Create overlay container
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  // Create overlay container with canvas layer
   useEffect(() => {
     if (!viewer || viewer.isDestroyed()) return;
     const cesiumContainer = viewer.container;
+    
     // Create overlay div
     const overlayDiv = document.createElement("div");
     overlayDiv.id = "cesium-overlay";
@@ -50,8 +53,25 @@ export const CesiumOverlayProvider: React.FC<CesiumOverlayProviderProps> = ({
     overlayDiv.style.overflow = "hidden"; // Prevent page resize from labels extending outside
     overlayDiv.style.clipPath = "inset(0)"; // Additional clipping for better performance
 
+    // Create canvas for custom rendering (dots, lines, etc.)
+    const canvas = document.createElement("canvas");
+    canvas.style.position = "absolute";
+    canvas.style.top = "0";
+    canvas.style.left = "0";
+    canvas.style.width = "100%";
+    canvas.style.height = "100%";
+    canvas.style.pointerEvents = "none";
+    canvas.style.zIndex = "1";
+    
+    // Set canvas size to match container
+    canvas.width = viewer.canvas.clientWidth;
+    canvas.height = viewer.canvas.clientHeight;
+    
+    overlayDiv.appendChild(canvas);
     cesiumContainer.appendChild(overlayDiv);
+    
     overlayRef.current = overlayDiv;
+    canvasRef.current = canvas;
 
     return () => {
       if (overlayDiv && cesiumContainer.contains(overlayDiv)) {
@@ -71,7 +91,14 @@ export const CesiumOverlayProvider: React.FC<CesiumOverlayProviderProps> = ({
 
     const updatePositions = () => {
       const overlayContainer = overlayRef.current;
-      if (!overlayContainer) return;
+      const canvas = canvasRef.current;
+      if (!overlayContainer || !canvas) return;
+
+      // Clear canvas for fresh rendering
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      }
 
       overlayElementsRef.current.forEach((element, id) => {
         const elementDiv = overlayContainer.querySelector(
@@ -92,9 +119,31 @@ export const CesiumOverlayProvider: React.FC<CesiumOverlayProviderProps> = ({
           : null;
 
         if (canvasPosition && element.visible !== false) {
+          // Get local up vector if available
+          const upVector = element.getLocalUpVector ? element.getLocalUpVector() : null;
+          
+          // Call custom rendering function if provided
+          if (element.renderCustom && ctx) {
+            element.renderCustom(ctx, canvasPosition, upVector || undefined);
+          }
+          
+          // Calculate label position (default or from custom rendering)
+          let labelPosition = canvasPosition;
+          if (upVector && element.renderCustom) {
+            // Position label using up vector + offset (matching the custom rendering logic)
+            const labelOffset = {
+              x: upVector.x * 30 + 20,
+              y: upVector.y * 30 - 20
+            };
+            labelPosition = {
+              x: canvasPosition.x + labelOffset.x,
+              y: canvasPosition.y + labelOffset.y
+            };
+          }
+
           elementDiv.style.position = "absolute";
-          elementDiv.style.left = `${canvasPosition.x}px`;
-          elementDiv.style.top = `${canvasPosition.y}px`;
+          elementDiv.style.left = `${labelPosition.x}px`;
+          elementDiv.style.top = `${labelPosition.y}px`;
           elementDiv.style.transform = "translate(0%, -100%)";
           elementDiv.style.display = "block";
         } else {
