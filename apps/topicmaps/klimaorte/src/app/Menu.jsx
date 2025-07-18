@@ -7,7 +7,7 @@ import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 import { getSimpleHelpForTM } from "react-cismap/tools/uiHelper";
 import ModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 import Section from "react-cismap/topicmaps/menu/Section";
-import FilterPanel from "react-cismap/topicmaps/menu/FilterPanel";
+import { FilterPanel } from "@carma-commons/cismap";
 import DefaultSettingsPanel from "react-cismap/topicmaps/menu/DefaultSettingsPanel";
 import CustomizationContextProvider from "react-cismap/contexts/CustomizationContextProvider";
 import {
