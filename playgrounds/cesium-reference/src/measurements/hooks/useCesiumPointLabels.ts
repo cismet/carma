@@ -3,6 +3,10 @@ import { usePointLabels, type PointLabelData } from "../../overlay";
 import { useCesiumViewer } from "../../contexts/CesiumViewerContext";
 import { PointMeasurementEntry } from "../types/MeasurementTypes";
 import { formatNumberToEnclosed } from "../utils/cesiumLabels";
+import {
+  isPointOccluded,
+  isPointInViewport,
+} from "../utils/occlusionDetection";
 import { defined, Cartesian3 } from "cesium";
 
 // Viewport padding constants for smooth label transitions
@@ -52,15 +56,15 @@ export const useCesiumPointLabels = (
         }
 
         // Check if point is within viewport bounds with padding for smooth transitions
-        const isInViewport =
-          canvasPosition.x >= -VIEWPORT_PADDING_HORIZONTAL &&
-          canvasPosition.x <=
-            viewer.canvas.clientWidth + VIEWPORT_PADDING_HORIZONTAL &&
-          canvasPosition.y >= -VIEWPORT_PADDING_VERTICAL &&
-          canvasPosition.y <=
-            viewer.canvas.clientHeight + VIEWPORT_PADDING_VERTICAL;
+        const inViewport = isPointInViewport(
+          canvasPosition,
+          viewer.canvas.clientWidth,
+          viewer.canvas.clientHeight,
+          VIEWPORT_PADDING_HORIZONTAL,
+          VIEWPORT_PADDING_VERTICAL
+        );
 
-        if (!isInViewport) {
+        if (!inViewport) {
           // Point is outside viewport - mark as hidden (no DOM updates)
           newHiddenResults[point.id] = true;
           newOcclusionResults[point.id] = false; // Not occluded, just hidden
@@ -70,35 +74,13 @@ export const useCesiumPointLabels = (
         // Point is in viewport, not hidden
         newHiddenResults[point.id] = false;
 
-        // Use Cesium's scene.pick to test visibility against depth buffer
-        const pickedObject = viewer.scene.pick(canvasPosition);
-
-        if (defined(pickedObject)) {
-          // Get the depth of the picked object
-          const pickedCartesian = viewer.scene.pickPosition(canvasPosition);
-
-          if (defined(pickedCartesian)) {
-            // Calculate distances from camera
-            const cameraPosition = viewer.scene.camera.position;
-            const pointDistance = Cartesian3.distance(
-              cameraPosition,
-              point.geometryECEF
-            );
-            const pickedDistance = Cartesian3.distance(
-              cameraPosition,
-              pickedCartesian
-            );
-
-            // Point is occluded if something is closer to the camera
-            const tolerance = 1.0; // 1 meter tolerance
-            newOcclusionResults[point.id] =
-              pickedDistance < pointDistance - tolerance;
-          } else {
-            newOcclusionResults[point.id] = false;
-          }
-        } else {
-          newOcclusionResults[point.id] = false;
-        }
+        // Check if point is occluded by terrain or other geometry
+        newOcclusionResults[point.id] = isPointOccluded(
+          viewer,
+          point.geometryECEF,
+          canvasPosition,
+          1.0 // 1 meter tolerance
+        );
       });
 
       // Only update state if results changed
