@@ -15,7 +15,13 @@ export function useCesiumMousePosition(
   const handlerRef = useRef<ScreenSpaceEventHandler | null>(null);
 
   useEffect(() => {
-    if (!viewer || viewer.isDestroyed() || !viewer.scene || viewer.scene.isDestroyed() || !enabled) {
+    if (
+      !viewer ||
+      viewer.isDestroyed() ||
+      !viewer.scene ||
+      viewer.scene.isDestroyed() ||
+      !enabled
+    ) {
       if (handlerRef.current) {
         handlerRef.current.destroy();
         handlerRef.current = null;

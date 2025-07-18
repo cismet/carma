@@ -86,19 +86,16 @@ export const CesiumOverlayProvider: React.FC<CesiumOverlayProviderProps> = ({
           return; // Skip position updates for hidden elements
         }
 
-        // For visible elements, update position
-        const canvasPosition = viewer.scene.cartesianToCanvasCoordinates(
-          element.position
-        );
+        // For visible elements, get fresh screen coordinates via callback
+        const canvasPosition = element.getCanvasPosition
+          ? element.getCanvasPosition()
+          : null;
 
-        // Check if position is visible (not behind camera and within viewport)
-        const isPositionVisible = defined(canvasPosition);
-
-        if (isPositionVisible && element.visible !== false) {
+        if (canvasPosition && element.visible !== false) {
           elementDiv.style.position = "absolute";
           elementDiv.style.left = `${canvasPosition.x}px`;
           elementDiv.style.top = `${canvasPosition.y}px`;
-          elementDiv.style.transform = "translate(-50%, -50%)";
+          elementDiv.style.transform = "translate(0%, -100%)";
           elementDiv.style.display = "block";
         } else {
           elementDiv.style.display = "none";

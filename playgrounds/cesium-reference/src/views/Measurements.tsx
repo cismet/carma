@@ -21,7 +21,6 @@ import HomeButton from "../components/HomeButton";
 import { CesiumNivPointProvider } from "../measurements/CesiumNivPointContext";
 import { CRSContextProvider } from "../measurements/CRSContext";
 
-
 const { Text } = Typography;
 
 // Inner component that has access to contexts

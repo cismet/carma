@@ -3,7 +3,7 @@ import { Cartesian3 } from "cesium";
 
 export interface OverlayElement {
   id: string;
-  position: Cartesian3;
+  getCanvasPosition?: () => { x: number; y: number } | null; // Callback to get fresh screen coordinates
   content: ReactNode;
   visible?: boolean;
   isHidden?: boolean; // Hidden (outside viewport) - don't update DOM position

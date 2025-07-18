@@ -18,7 +18,9 @@ export const useCesiumPointLabels = (
   const [occlusionResults, setOcclusionResults] = useState<
     Record<string, boolean>
   >({});
-  const [hiddenResults, setHiddenResults] = useState<Record<string, boolean>>({});
+  const [hiddenResults, setHiddenResults] = useState<Record<string, boolean>>(
+    {}
+  );
 
   // Cesium-specific visibility and occlusion detection
   useEffect(() => {
@@ -36,7 +38,6 @@ export const useCesiumPointLabels = (
 
         if (!defined(canvasPosition)) {
           // Point is behind camera or outside frustum - mark as hidden
-          //console.log(`Point ${point.id} is undefined (behind camera or outside frustum)`);
           newHiddenResults[point.id] = true;
           newOcclusionResults[point.id] = false; // Not occluded, just hidden
           return;
@@ -53,7 +54,6 @@ export const useCesiumPointLabels = (
 
         if (!isInViewport) {
           // Point is outside viewport - mark as hidden (no DOM updates)
-          //console.log(`Point ${point.id} is outside viewport`);
           newHiddenResults[point.id] = true;
           newOcclusionResults[point.id] = false; // Not occluded, just hidden
           return;
@@ -95,8 +95,7 @@ export const useCesiumPointLabels = (
 
       // Only update state if results changed
       const occlusionChanged = points.some(
-        (point) =>
-          occlusionResults[point.id] !== newOcclusionResults[point.id]
+        (point) => occlusionResults[point.id] !== newOcclusionResults[point.id]
       );
       const hiddenChanged = points.some(
         (point) => hiddenResults[point.id] !== newHiddenResults[point.id]
@@ -127,7 +126,16 @@ export const useCesiumPointLabels = (
     () =>
       points.map((point, index) => ({
         id: point.id,
-        position: point.geometryECEF,
+        getCanvasPosition: () => {
+          // Fresh screen coordinate calculation at render time
+          if (!viewer || viewer.isDestroyed()) return null;
+          const canvasPosition = viewer.scene.cartesianToCanvasCoordinates(
+            point.geometryECEF
+          );
+          return defined(canvasPosition)
+            ? { x: canvasPosition.x, y: canvasPosition.y }
+            : null;
+        },
         text: `${formatNumberToEnclosed(index + 1)} ${(
           point.geometryWGS84.height - referenceElevation
         ).toFixed(2)}m`,
@@ -136,7 +144,7 @@ export const useCesiumPointLabels = (
         isOccluded: occlusionResults[point.id] || false,
         isHidden: hiddenResults[point.id] || false, // Hidden (outside viewport) vs occluded (behind geometry)
       })),
-    [points, referenceElevation, occlusionResults, hiddenResults]
+    [points, referenceElevation, occlusionResults, hiddenResults, viewer]
   );
 
   // Use the built-in point labels hook
