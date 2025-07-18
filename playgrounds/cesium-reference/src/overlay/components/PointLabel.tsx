@@ -4,6 +4,7 @@ interface PointLabelProps {
   text: string;
   selected?: boolean;
   fontSize?: number;
+  isOccluded?: boolean;
 }
 
 // Stable style objects created outside render to prevent recalculation
@@ -26,13 +27,18 @@ const selectedStyles: React.CSSProperties = {
   border: "2px solid #1890ff",
 };
 
+const occludedStyles: React.CSSProperties = {
+  opacity: 0.4,
+};
+
 // Memoized PointLabel component to prevent unnecessary rerenders
 export const PointLabel: React.FC<PointLabelProps> = React.memo(
-  ({ text, selected = false, fontSize = 12 }) => (
+  ({ text, selected = false, fontSize = 12, isOccluded = false }) => (
     <div
       style={{
         ...baseStyles,
         ...(selected ? selectedStyles : {}),
+        ...(isOccluded ? occludedStyles : {}),
         fontSize,
       }}
     >

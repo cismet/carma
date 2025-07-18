@@ -75,7 +75,7 @@ export type MeasurementProviderOptions = {
 
 const defaultOptions: MeasurementProviderOptions = {
   temporary: false,
-  mode: MeasurementMode.Traverse,
+  mode: MeasurementMode.PointQuery,
 };
 
 const defaultPointQueryOptions: MeasurementProviderOptions["pointQueries"] = {

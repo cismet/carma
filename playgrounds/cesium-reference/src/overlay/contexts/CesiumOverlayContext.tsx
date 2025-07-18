@@ -47,6 +47,8 @@ export const CesiumOverlayProvider: React.FC<CesiumOverlayProviderProps> = ({
     overlayDiv.style.height = "100%";
     overlayDiv.style.pointerEvents = "none";
     overlayDiv.style.zIndex = "1000";
+    overlayDiv.style.overflow = "hidden"; // Prevent page resize from labels extending outside
+    overlayDiv.style.clipPath = "inset(0)"; // Additional clipping for better performance
 
     cesiumContainer.appendChild(overlayDiv);
     overlayRef.current = overlayDiv;
@@ -77,17 +79,20 @@ export const CesiumOverlayProvider: React.FC<CesiumOverlayProviderProps> = ({
         ) as HTMLElement;
         if (!elementDiv) return;
 
+        // Check if element is hidden (outside viewport) - don't update position at all
+        if (element.isHidden === true) {
+          // Hidden elements: keep DOM element but don't update position, just hide
+          elementDiv.style.display = "none";
+          return; // Skip position updates for hidden elements
+        }
+
+        // For visible elements, update position
         const canvasPosition = viewer.scene.cartesianToCanvasCoordinates(
           element.position
         );
 
         // Check if position is visible (not behind camera and within viewport)
-        const isPositionVisible =
-          defined(canvasPosition) &&
-          canvasPosition.x >= 0 &&
-          canvasPosition.x <= viewer.canvas.clientWidth &&
-          canvasPosition.y >= 0 &&
-          canvasPosition.y <= viewer.canvas.clientHeight;
+        const isPositionVisible = defined(canvasPosition);
 
         if (isPositionVisible && element.visible !== false) {
           elementDiv.style.position = "absolute";

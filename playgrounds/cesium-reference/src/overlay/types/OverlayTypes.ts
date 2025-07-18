@@ -6,6 +6,7 @@ export interface OverlayElement {
   position: Cartesian3;
   content: ReactNode;
   visible?: boolean;
+  isHidden?: boolean; // Hidden (outside viewport) - don't update DOM position
 }
 
 export interface CesiumOverlayContextType {

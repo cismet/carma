@@ -9,6 +9,8 @@ export interface PointLabelData {
   text: string;
   selected?: boolean;
   visible?: boolean;
+  isOccluded?: boolean;
+  isHidden?: boolean; // Hidden (outside viewport) vs occluded (behind geometry)
 }
 
 export const usePointLabels = (
@@ -17,9 +19,9 @@ export const usePointLabels = (
 ) => {
   const { addOverlayElement, removeOverlayElement, clearOverlayElements } = useCesiumOverlay();
 
-  // Create a stable reference for selection and visibility state
+  // Create a stable reference for selection, visibility, occlusion, and hidden state
   const stateSignature = useMemo(() => 
-    points.map(p => `${p.id}:${p.text}:${p.selected}:${p.visible}`).join('|'), 
+    points.map(p => `${p.id}:${p.text}:${p.selected}:${p.visible}:${p.isOccluded}:${p.isHidden}`).join('|'), 
     [points]
   );
 
@@ -39,8 +41,10 @@ export const usePointLabels = (
         content: React.createElement(PointLabel, {
           text: point.text,
           selected: point.selected,
+          isOccluded: point.isOccluded,
         }),
         visible: point.visible !== false,
+        isHidden: point.isHidden, // Pass hidden state to overlay
       });
     });
 
