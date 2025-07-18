@@ -46,7 +46,7 @@ export const PointLabel = React.memo(
     lineColor = "white",
     lineWidth = 1,
     markerStyle = MarkerStyle.CIRCLE,
-    markerSize = 16,
+    markerSize = 10,
     markerStrokeWidth = 1,
   }: PointLabelProps) => {
     // Calculate label offset based on camera pitch
@@ -56,10 +56,18 @@ export const PointLabel = React.memo(
 
     // Simple offset calculation - labels go to the right and slightly up
     // Adjust vertical offset based on camera pitch for better visibility
-    const labelOffset = {
-      x: 20, // Always to the right
-      y: -20 * Math.abs(Math.cos(pitch)), // More upward offset when not in nadir
-    };
+
+    const labelDistance = 30;
+    const labelAngleRad = -Math.abs(Math.cos(pitch));
+
+    const radius = markerSize / 2;
+    const halfLineWidth = lineWidth / 2;
+
+    const xComponent = Math.cos(labelAngleRad);
+    const yComponent = Math.sin(labelAngleRad);
+
+    const labelOffsetX = xComponent * labelDistance;
+    const labelOffsetY = yComponent * labelDistance;
 
     return (
       <div
@@ -86,21 +94,19 @@ export const PointLabel = React.memo(
           }}
         />
 
-        {/* Hairline from anchor to label bottom left anchor */}
+        {/* Hairline from circle edge to label bottom left anchor */}
         <div
           style={{
             position: "absolute",
-            left: "0px",
-            top: `${-lineWidth / 2}px`,
-            width: Math.sqrt(
-              labelOffset.x * labelOffset.x + labelOffset.y * labelOffset.y
-            ),
+            left: `${radius * xComponent}px`, // Start from circle edge
+            top: `${radius * yComponent}px`, // Start from circle edge
+            width: labelDistance - radius + lineWidth, // Subtract circle radius from total length
             height: `${lineWidth}px`,
             borderBottom: `${lineWidth}px ${
               isOccluded ? "dashed" : "solid"
             } ${lineColor}`,
             transformOrigin: "0 0",
-            transform: `rotate(${Math.atan2(labelOffset.y, labelOffset.x)}rad)`,
+            transform: `rotate(${labelAngleRad}rad)`,
             pointerEvents: "none",
           }}
         />
@@ -116,8 +122,8 @@ export const PointLabel = React.memo(
             backgroundColor: textBackgroundColor,
             color: textColor,
             position: "absolute",
-            left: `${labelOffset.x}px`,
-            top: `${labelOffset.y + lineWidth / 2}px`, // Adjust by half line width to align with hairline center
+            left: `${labelOffsetX}px`,
+            top: `${labelOffsetY + lineWidth}px`, // Adjust by half line width to align with hairline center
             transform: "translate(0%, -100%)", // Position so bottom-left corner is at the hairline end
           }}
         >

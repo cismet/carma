@@ -77,16 +77,24 @@ export const useCesiumPointVisualizer = (
     prevIdsRef.current = currentIds;
     viewer.scene.requestRender(); // Ensure scene updates after changes
     return () => {
-      // Only cleanup entities that are not in the next render
-      Object.keys(crosses).forEach((id) => {
-        if (!currentIds.has(id)) {
-          crosses[id].cleanup(viewer);
-          delete crosses[id];
-        }
-      });
-      prevIdsRef.current = new Set();
+      if (!viewer || viewer.isDestroyed()) {
+        return;
+      }
+
+      try {
+        // Only cleanup entities that are not in the next render
+        Object.keys(crosses).forEach((id) => {
+          if (!currentIds.has(id)) {
+            crosses[id].cleanup(viewer);
+            delete crosses[id];
+          }
+        });
+        prevIdsRef.current = new Set();
+      } catch (error) {
+        console.warn("Cross3D cleanup failed:", error);
+      }
     };
-  }, [viewer, points, radius, currentIds, showMarkers]);
+  }, [viewer, points, radius, currentIds, showMarkers, showCesiumMarkers]);
 
   useEffect(() => {
     // render Labels
@@ -109,13 +117,21 @@ export const useCesiumPointVisualizer = (
       if (!viewer || viewer.isDestroyed()) {
         return;
       }
-      labelRefs.current &&
-        viewer.entities &&
-        Object.values(labelRefs.current).forEach(
-          (entity) => viewer && viewer.entities.remove(entity)
-        );
-      labelRefs.current = {};
-      prevIdsRef.current = new Set();
+
+      try {
+        // Additional safety checks for entities collection
+        if (labelRefs.current && viewer.entities) {
+          Object.values(labelRefs.current).forEach((entity) => {
+            if (viewer && viewer.entities) {
+              viewer.entities.remove(entity);
+            }
+          });
+        }
+        labelRefs.current = {};
+        prevIdsRef.current = new Set();
+      } catch (error) {
+        console.warn("Label entity cleanup failed", error);
+      }
     };
   }, [viewer, points, currentIds, showCesiumLabels, referenceElevation]);
 };

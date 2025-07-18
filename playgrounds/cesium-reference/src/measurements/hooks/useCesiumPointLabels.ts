@@ -152,9 +152,7 @@ export const useCesiumPointLabels = (
             : null;
         },
         getCameraPitch: () => {
-          // Just return camera pitch directly
           if (!viewer || viewer.isDestroyed()) return 0;
-          console.log(viewer.scene.camera.pitch);
           return viewer.scene.camera.pitch; // in radians
         },
         text: `${formatNumberToEnclosed(index + 1)} ${(
