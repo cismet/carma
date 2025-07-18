@@ -1,6 +1,6 @@
 import { useMemo, useState, useEffect } from "react";
 
-import { defined, Cartesian3 } from "cesium";
+import { defined } from "cesium";
 
 import { usePointLabels, type PointLabelData } from "../../overlay";
 import { useCesiumViewer } from "../../contexts/CesiumViewerContext";
@@ -27,7 +27,7 @@ export const useCesiumPointLabels = (
   const [hiddenResults, setHiddenResults] = useState<Record<string, boolean>>(
     {}
   );
-  const [cameraPitch, setCameraPitch] = useState<number>(0);
+  const [cameraPitch, setCameraPitch] = useState<number>(-Math.PI / 4);
 
   // Cesium-specific visibility and occlusion detection
   useEffect(() => {
@@ -37,7 +37,7 @@ export const useCesiumPointLabels = (
       const newOcclusionResults: Record<string, boolean> = {};
       const newHiddenResults: Record<string, boolean> = {};
 
-      // Track camera pitch changes to trigger label position updates
+      // Get current camera pitch once per frame for all points
       const currentPitch = viewer.scene.camera.pitch;
       if (Math.abs(currentPitch - cameraPitch) > 0.01) {
         // 0.01 radian threshold
@@ -135,10 +135,7 @@ export const useCesiumPointLabels = (
             ? { x: canvasPosition.x, y: canvasPosition.y }
             : null;
         },
-        getCameraPitch: () => {
-          if (!viewer || viewer.isDestroyed()) return 0;
-          return viewer.scene.camera.pitch; // in radians
-        },
+        pitch: cameraPitch, // Use current camera pitch
         text: `${formatNumberToEnclosed(index + 1)} ${(
           point.geometryWGS84.height - referenceElevation
         ).toFixed(2)}m`,

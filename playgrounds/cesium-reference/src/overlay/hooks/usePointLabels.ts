@@ -1,12 +1,12 @@
 import React, { useEffect, useMemo } from "react";
-import { Cartesian3 } from "cesium";
-import { useCesiumOverlay } from "../contexts/CesiumOverlayContext";
+
+import { useOverlay } from "../contexts/OverlayContext";
 import { PointLabel } from "../components/PointLabel";
 
 export interface PointLabelData {
   id: string;
   getCanvasPosition?: () => { x: number; y: number } | null; // Callback to get fresh screen coordinates
-  getCameraPitch?: () => number; // Camera pitch in radians
+  pitch?: number; // Camera pitch in radians
   text: string;
   selected?: boolean;
   visible?: boolean;
@@ -16,10 +16,11 @@ export interface PointLabelData {
 
 export const usePointLabels = (
   points: PointLabelData[],
-  showLabels: boolean = true
+  showLabels: boolean = true,
+  getPitch?: () => number
 ) => {
   const { addOverlayElement, removeOverlayElement, clearOverlayElements } =
-    useCesiumOverlay();
+    useOverlay();
 
   // Create a stable reference for selection, visibility, occlusion, and hidden state
   const stateSignature = useMemo(
@@ -27,7 +28,7 @@ export const usePointLabels = (
       points
         .map(
           (p) =>
-            `${p.id}:${p.text}:${p.selected}:${p.visible}:${p.isOccluded}:${p.isHidden}`
+            `${p.id}:${p.text}:${p.selected}:${p.visible}:${p.isOccluded}:${p.isHidden}:${p.pitch}`
         )
         .join("|"),
     [points]
@@ -43,15 +44,17 @@ export const usePointLabels = (
     points.forEach((point) => {
       const labelId = `point-label-${point.id}`;
 
+      // Use pitch from point data or fallback to getPitch callback
+      const pitch = point.pitch ?? (getPitch ? getPitch() : -Math.PI / 4);
+
       addOverlayElement({
         id: labelId,
         getCanvasPosition: point.getCanvasPosition,
-        getCameraPitch: point.getCameraPitch,
         content: React.createElement(PointLabel, {
+          pitch,
           text: point.text,
           selected: point.selected,
           isOccluded: point.isOccluded,
-          getCameraPitch: point.getCameraPitch,
         }),
         visible: point.visible !== false,
         isHidden: point.isHidden, // Pass hidden state to overlay
@@ -70,5 +73,6 @@ export const usePointLabels = (
     addOverlayElement,
     removeOverlayElement,
     clearOverlayElements,
+    getPitch,
   ]);
 };

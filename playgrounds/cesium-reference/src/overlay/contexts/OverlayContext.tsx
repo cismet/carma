@@ -7,43 +7,39 @@ import React, {
   ReactNode,
   useCallback,
   useMemo,
+  RefObject,
 } from "react";
 import { createRoot, Root } from "react-dom/client";
 
-import { defined } from "cesium";
+import type { OverlayElement, OverlayContextType } from "../types/OverlayTypes";
 
-import { useCesiumViewer } from "../../contexts/CesiumViewerContext";
-import type {
-  OverlayElement,
-  CesiumOverlayContextType,
-} from "../types/OverlayTypes";
+const OverlayContext = createContext<OverlayContextType | undefined>(undefined);
 
-const CesiumOverlayContext = createContext<
-  CesiumOverlayContextType | undefined
->(undefined);
-
-interface CesiumOverlayProviderProps {
+interface OverlayProviderProps {
   children: ReactNode;
+  containerRef?: RefObject<HTMLElement>;
+  requestUpdateCallback?: (updateFn: () => void) => void;
 }
 
-export const CesiumOverlayProvider: React.FC<CesiumOverlayProviderProps> = ({
+export const OverlayProvider: React.FC<OverlayProviderProps> = ({
   children,
+  containerRef,
+  requestUpdateCallback,
 }) => {
-  const { viewer } = useCesiumViewer();
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const [overlayElements, setOverlayElements] = useState<
     Map<string, OverlayElement>
   >(new Map());
-  const [cameraPitch, setCameraPitch] = useState<number>(0);
 
   // Create overlay container
   useEffect(() => {
-    if (!viewer || viewer.isDestroyed()) return;
-    const cesiumContainer = viewer.container;
+    // If no containerRef is provided, create overlay in document body
+    const container = containerRef?.current || document.body;
+    if (!container) return;
 
     // Create overlay div
     const overlayDiv = document.createElement("div");
-    overlayDiv.id = "cesium-overlay";
+    overlayDiv.id = "overlay-container";
     overlayDiv.style.position = "absolute";
     overlayDiv.style.top = "0";
     overlayDiv.style.left = "0";
@@ -54,44 +50,30 @@ export const CesiumOverlayProvider: React.FC<CesiumOverlayProviderProps> = ({
     overlayDiv.style.overflow = "hidden";
     overlayDiv.style.clipPath = "inset(0)";
 
-    cesiumContainer.appendChild(overlayDiv);
+    container.appendChild(overlayDiv);
     overlayRef.current = overlayDiv;
 
     return () => {
-      if (overlayDiv && cesiumContainer.contains(overlayDiv)) {
-        cesiumContainer.removeChild(overlayDiv);
+      if (overlayDiv && container.contains(overlayDiv)) {
+        container.removeChild(overlayDiv);
       }
     };
-  }, [viewer]);
+  }, [containerRef]);
 
   // Create stable reference to overlay elements for position updates
   const overlayElementsRef =
     useRef<Map<string, OverlayElement>>(overlayElements);
   overlayElementsRef.current = overlayElements;
 
-  // Update overlay elements positions
+  // Update overlay elements positions using external update requests
   useEffect(() => {
-    if (!viewer || viewer.isDestroyed() || !overlayRef.current) return;
+    if (!overlayRef.current) return;
 
     const updatePositions = () => {
-      if (!viewer || viewer.isDestroyed() || !overlayRef.current) return;
+      if (!overlayRef.current) return;
 
       const overlayContainer = overlayRef.current;
       if (!overlayContainer) return;
-
-      try {
-        // Track camera pitch changes to force React component re-renders
-        if (viewer.scene && viewer.scene.camera) {
-          const currentPitch = viewer.scene.camera.pitch;
-          if (Math.abs(currentPitch - cameraPitch) > 0.01) {
-            // 0.01 radian threshold
-            setCameraPitch(currentPitch);
-          }
-        }
-      } catch (error) {
-        console.warn("Camera pitch update failed during hot reload:", error);
-        return;
-      }
 
       overlayElementsRef.current.forEach((element, id) => {
         const elementDiv = overlayContainer.querySelector(
@@ -101,9 +83,8 @@ export const CesiumOverlayProvider: React.FC<CesiumOverlayProviderProps> = ({
 
         // Check if element is hidden (outside viewport) - don't update position at all
         if (element.isHidden === true) {
-          // Hidden elements: keep DOM element but don't update position, just hide
           elementDiv.style.display = "none";
-          return; // Skip position updates for hidden elements
+          return;
         }
 
         // For visible elements, get fresh screen coordinates via callback
@@ -112,7 +93,6 @@ export const CesiumOverlayProvider: React.FC<CesiumOverlayProviderProps> = ({
           : null;
 
         if (canvasPosition && element.visible !== false) {
-          // Position the element at the anchor point - PointLabel handles its own offset
           elementDiv.style.position = "absolute";
           elementDiv.style.left = `${canvasPosition.x}px`;
           elementDiv.style.top = `${canvasPosition.y}px`;
@@ -124,15 +104,27 @@ export const CesiumOverlayProvider: React.FC<CesiumOverlayProviderProps> = ({
       });
     };
 
-    const removeListener =
-      viewer.scene.preRender.addEventListener(updatePositions);
+    // Register update function with external callback system
+    if (requestUpdateCallback) {
+      requestUpdateCallback(updatePositions);
+    } else {
+      // Fallback to requestAnimationFrame if no callback provided
+      let animationFrameId: number;
 
-    return () => {
-      if (removeListener) {
-        removeListener();
-      }
-    };
-  }, [viewer, cameraPitch]);
+      const animationLoop = () => {
+        updatePositions();
+        animationFrameId = requestAnimationFrame(animationLoop);
+      };
+
+      animationFrameId = requestAnimationFrame(animationLoop);
+
+      return () => {
+        if (animationFrameId) {
+          cancelAnimationFrame(animationFrameId);
+        }
+      };
+    }
+  }, [requestUpdateCallback]);
 
   // Keep track of React roots for proper cleanup
   const reactRootsRef = useRef<Map<string, Root>>(new Map());
@@ -173,7 +165,7 @@ export const CesiumOverlayProvider: React.FC<CesiumOverlayProviderProps> = ({
         overlayContainer.appendChild(elementDiv);
       }
 
-      // Update content only if needed (check if content changed or camera pitch changed)
+      // Update content only if needed
       const currentContent = elementDiv.getAttribute("data-content-hash");
       const contentProps =
         typeof element.content === "string"
@@ -181,10 +173,7 @@ export const CesiumOverlayProvider: React.FC<CesiumOverlayProviderProps> = ({
           : React.isValidElement(element.content)
           ? element.content.props
           : {};
-      const newContentHash = JSON.stringify({
-        content: contentProps,
-        cameraPitch: cameraPitch.toFixed(3), // Include camera pitch in hash to force re-renders
-      });
+      const newContentHash = JSON.stringify({ content: contentProps });
 
       if (currentContent !== newContentHash) {
         elementDiv.setAttribute("data-content-hash", newContentHash);
@@ -205,7 +194,7 @@ export const CesiumOverlayProvider: React.FC<CesiumOverlayProviderProps> = ({
         }
       }
     });
-  }, [overlayElements, cameraPitch]);
+  }, [overlayElements]);
 
   const addOverlayElement = useCallback((element: OverlayElement) => {
     setOverlayElements((prev) => new Map(prev.set(element.id, element)));
@@ -237,7 +226,7 @@ export const CesiumOverlayProvider: React.FC<CesiumOverlayProviderProps> = ({
     setOverlayElements(new Map());
   }, []);
 
-  const contextValue: CesiumOverlayContextType = useMemo(
+  const contextValue: OverlayContextType = useMemo(
     () => ({
       addOverlayElement,
       removeOverlayElement,
@@ -253,18 +242,16 @@ export const CesiumOverlayProvider: React.FC<CesiumOverlayProviderProps> = ({
   );
 
   return (
-    <CesiumOverlayContext.Provider value={contextValue}>
+    <OverlayContext.Provider value={contextValue}>
       {children}
-    </CesiumOverlayContext.Provider>
+    </OverlayContext.Provider>
   );
 };
 
-export const useCesiumOverlay = (): CesiumOverlayContextType => {
-  const context = useContext(CesiumOverlayContext);
+export const useOverlay = (): OverlayContextType => {
+  const context = useContext(OverlayContext);
   if (context === undefined) {
-    throw new Error(
-      "useCesiumOverlay must be used within a CesiumOverlayProvider"
-    );
+    throw new Error("useOverlay must be used within an OverlayProvider");
   }
   return context;
 };

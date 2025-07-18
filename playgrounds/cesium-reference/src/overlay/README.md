@@ -11,18 +11,16 @@ The overlay system provides a way to render HTML content (labels, tooltips, UI e
 
 ### Setup
 
-Wrap your Cesium application with the `CesiumOverlayProvider`:
+Wrap your Application with the `OverlayProvider`:
 
 ```tsx
-import { CesiumOverlayProvider } from './overlay';
+import { OverlayProvider } from './overlay';
 
 function App() {
   return (
-    <CesiumViewerProvider>
-      <CesiumOverlayProvider>
+      <OverlayProvider>
         <YourCesiumApp />
-      </CesiumOverlayProvider>
-    </CesiumViewerProvider>
+      </OverlayProvider>
   );
 }
 ```

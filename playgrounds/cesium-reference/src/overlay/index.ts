@@ -1,12 +1,6 @@
 // Main exports for the overlay system
-export {
-  CesiumOverlayProvider,
-  useCesiumOverlay,
-} from "./contexts/CesiumOverlayContext";
-export type {
-  OverlayElement,
-  CesiumOverlayContextType,
-} from "./types/OverlayTypes";
+export { OverlayProvider, useOverlay } from "./contexts/OverlayContext";
+export type { OverlayElement, OverlayContextType } from "./types/OverlayTypes";
 
 // Built-in components and hooks
 export { PointLabel } from "./components/PointLabel";

@@ -10,7 +10,7 @@ interface PointLabelProps {
   selected?: boolean;
   fontSize?: string;
   isOccluded?: boolean;
-  getCameraPitch?: () => number; // Callback to get camera pitch in radians
+  pitch?: number; //camera pitch in radians
   textColor?: string;
   textBackgroundColor?: string;
   lineWidth?: number;
@@ -34,6 +34,12 @@ const baseStyles: React.CSSProperties = {
   margin: 0,
 };
 
+const defaultPitch = -Math.PI / 4;
+// pitch is 0 near horizon -pi/2 in nadir
+
+// Simple offset calculation - labels go to the right and slightly up
+// Adjust vertical offset based on camera pitch for better visibility
+
 // Memoized PointLabel component to prevent unnecessary rerenders
 export const PointLabel = React.memo(
   ({
@@ -43,7 +49,7 @@ export const PointLabel = React.memo(
     textColor = "black",
     textBackgroundColor = "rgba(200, 200, 200, 0.7)",
     isOccluded = false,
-    getCameraPitch,
+    pitch = defaultPitch,
     lineColor = "white",
     lineWidth = 1,
     markerStyle = MarkerStyle.CIRCLE,
@@ -51,13 +57,6 @@ export const PointLabel = React.memo(
     markerStrokeWidth = 1,
     labelDistance = 20,
   }: PointLabelProps) => {
-    const pitch = getCameraPitch ? getCameraPitch() : 0;
-
-    // pitch is 0 near horizon -pi/2 in nadir
-
-    // Simple offset calculation - labels go to the right and slightly up
-    // Adjust vertical offset based on camera pitch for better visibility
-
     const labelAngleRad = -Math.abs(Math.cos(pitch));
     const xComponent = Math.cos(labelAngleRad);
     const yComponent = Math.sin(labelAngleRad);

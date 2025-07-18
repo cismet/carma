@@ -1,4 +1,5 @@
 import React, { FC } from "react";
+
 import {
   Tabs,
   Row,
@@ -10,13 +11,14 @@ import {
   Space,
   Switch,
 } from "antd";
+import type { InputNumberProps } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faArrowsToDot,
   faTrash,
   faRulerCombined,
 } from "@fortawesome/free-solid-svg-icons";
-import type { InputNumberProps } from "antd";
+
 import { useCesiumMeasurements } from "../CesiumMeasurementsContext";
 import { MeasurementMode } from "../types/MeasurementTypes";
 import { CoordinateDisplayMode, useCRS } from "../CRSContext";
