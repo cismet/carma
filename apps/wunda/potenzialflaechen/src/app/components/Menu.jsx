@@ -6,7 +6,6 @@ import {
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 import ConfigurableDocBlocks from "react-cismap/topicmaps/ConfigurableDocBlocks";
 import DefaultSettingsPanel from "react-cismap/topicmaps/menu/DefaultSettingsPanel";
-import FilterPanel from "react-cismap/topicmaps/menu/FilterPanel";
 import ModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 import Section from "react-cismap/topicmaps/menu/Section";
 import {
@@ -20,6 +19,7 @@ import {
 import { GenericDigitalTwinReferenceTextComponent } from "@carma-collab/wuppertal/commons";
 import versionData from "../../version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
+import { FilterPanel } from "@carma-commons/cismap";
 
 const MyMenu = () => {
   const { setAppMenuActiveMenuSection } = useContext(UIDispatchContext);
