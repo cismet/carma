@@ -8,6 +8,7 @@ interface CesiumViewerContextType {
   zoomToTileset?: () => void;
   setHQMode?: (enabled: boolean) => void;
   hqMode: boolean;
+  tilesetReady: boolean;
 }
 
 const CesiumViewerContext = createContext<CesiumViewerContextType | undefined>(
@@ -50,7 +51,7 @@ export const CesiumViewerProvider = ({
     };
   }, [options]);
 
-  const { viewer, zoomToTileset } = usePersistentViewer(
+  const { viewer, zoomToTileset, tilesetReady } = usePersistentViewer(
     containerRef,
     normalizedOptions
   );
@@ -75,6 +76,7 @@ export const CesiumViewerProvider = ({
     zoomToTileset,
     setHQMode,
     hqMode,
+    tilesetReady,
   };
 
   return (
