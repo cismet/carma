@@ -130,6 +130,7 @@
       "@carma-commons/ui/lib-helper-overlay": [
         "libraries/commons/ui/lib-helper-overlay/src/index.ts"
       ],
+      "@carma-commons/cismap": ["libraries/commons/cismap/src/index.ts"],
       "@carma-commons/utils": ["libraries/commons/utils/src/index.ts"],
       "@carma-commons/utils/*": ["libraries/commons/utils/src/lib/*"],
       "@carma-commons/ui/tag-selection": [
