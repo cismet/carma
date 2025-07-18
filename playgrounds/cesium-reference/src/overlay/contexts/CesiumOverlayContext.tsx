@@ -80,7 +80,6 @@ export const CesiumOverlayProvider: React.FC<CesiumOverlayProviderProps> = ({
 
       try {
         // Track camera pitch changes to force React component re-renders
-        // Add safety check for camera and scene
         if (viewer.scene && viewer.scene.camera) {
           const currentPitch = viewer.scene.camera.pitch;
           if (Math.abs(currentPitch - cameraPitch) > 0.01) {
@@ -133,7 +132,7 @@ export const CesiumOverlayProvider: React.FC<CesiumOverlayProviderProps> = ({
         removeListener();
       }
     };
-  }, [viewer, cameraPitch]); // Added cameraPitch dependency for proper tracking
+  }, [viewer, cameraPitch]);
 
   // Keep track of React roots for proper cleanup
   const reactRootsRef = useRef<Map<string, Root>>(new Map());

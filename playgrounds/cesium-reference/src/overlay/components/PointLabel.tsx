@@ -51,7 +51,6 @@ export const PointLabel = React.memo(
     markerStrokeWidth = 1,
     labelDistance = 20,
   }: PointLabelProps) => {
-    // Calculate label offset based on camera pitch
     const pitch = getCameraPitch ? getCameraPitch() : 0;
 
     // pitch is 0 near horizon -pi/2 in nadir
