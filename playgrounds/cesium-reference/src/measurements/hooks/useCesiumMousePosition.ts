@@ -15,16 +15,20 @@ export function useCesiumMousePosition(
   const handlerRef = useRef<ScreenSpaceEventHandler | null>(null);
 
   useEffect(() => {
-    if (!viewer || viewer.isDestroyed() || !enabled) {
+    if (
+      !viewer ||
+      viewer.isDestroyed() ||
+      !viewer.scene ||
+      viewer.scene.isDestroyed() ||
+      !enabled
+    ) {
       if (handlerRef.current) {
         handlerRef.current.destroy();
         handlerRef.current = null;
       }
       setMousePosition(null);
       // Reset cursor
-      if (viewer?.scene?.canvas) {
-        viewer.scene.canvas.style.cursor = "";
-      }
+      //if (viewer.scene?.canvas) {viewer.scene.canvas.style.cursor = ""; }
       return;
     }
 
@@ -45,7 +49,7 @@ export function useCesiumMousePosition(
         handlerRef.current = null;
       }
       // Reset cursor when cleaning up
-      if (viewer?.scene?.canvas) {
+      if (viewer && viewer.scene?.canvas) {
         viewer.scene.canvas.style.cursor = "";
       }
     };

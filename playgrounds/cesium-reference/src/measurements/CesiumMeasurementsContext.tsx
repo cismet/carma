@@ -75,12 +75,12 @@ export type MeasurementProviderOptions = {
 
 const defaultOptions: MeasurementProviderOptions = {
   temporary: false,
-  mode: MeasurementMode.Traverse,
+  mode: MeasurementMode.PointQuery,
 };
 
 const defaultPointQueryOptions: MeasurementProviderOptions["pointQueries"] = {
   enabled: true,
-  radius: 10,
+  radius: 1,
 };
 
 const defaultTraverseOptions: MeasurementProviderOptions["traverse"] = {
@@ -168,7 +168,9 @@ export const CesiumMeasurementsProvider: React.FC<
     viewer,
     measurements,
     showPoints,
+    true,
     showPointLabels,
+    false,
     pointRadius,
     referenceElevation
   );

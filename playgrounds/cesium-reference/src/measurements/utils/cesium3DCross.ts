@@ -6,6 +6,7 @@ import {
   PolylineGraphics,
   PolygonGraphics,
   PolygonHierarchy,
+  PointGraphics,
   Transforms,
   Matrix4,
   Viewer,
@@ -23,6 +24,7 @@ export interface Cross3DOptions {
   colorCircle?: Color; // Color for the XY circle plane
   width?: number;
   id?: string;
+  showAxes?: boolean; // If false, only shows the disc without the axes
 }
 
 export interface Cross3DGroup {
@@ -47,6 +49,7 @@ export const create3DCross = (options: Cross3DOptions): Entity[] => {
     colorCircle = Color.WHITE.withAlpha(0.33), // 33% opacity white
     width = 1,
     id = "3d-cross",
+    showAxes = true, // Default to showing axes for backward compatibility
   } = options;
 
   // Create transformation matrix for the position to get local coordinate system
@@ -82,50 +85,74 @@ export const create3DCross = (options: Cross3DOptions): Entity[] => {
   const zPositive = Cartesian3.add(position, zAxis, new Cartesian3());
   const zNegative = Cartesian3.subtract(position, zAxis, new Cartesian3());
 
-  // Create three entities for the three axes
-  const xAxisEntity = new Entity({
-    id: `${id}-x-axis`,
-    name: "3D Cross X-Axis",
+  const entities: Entity[] = [];
+
+  // Always add a white center dot
+  const centerDotEntity = new Entity({
+    id: `${id}-center-dot`,
+    name: "3D Cross Center Dot",
+    position: position,
     properties: {
       _drillPickIgnore: true, // Mark to ignore in drill pick operations
     },
-    polyline: new PolylineGraphics({
-      positions: [xNegative, xPositive],
-      width,
-      material: colorX,
-      clampToGround: false,
+    point: new PointGraphics({
+      pixelSize: 1, // Small white dot
+      color: Color.WHITE,
+      outlineColor: Color.WHITE,
+      outlineWidth: 0,
+      heightReference: undefined, // Don't clamp to ground
     }),
   });
 
-  const yAxisEntity = new Entity({
-    id: `${id}-y-axis`,
-    name: "3D Cross Y-Axis",
-    properties: {
-      _drillPickIgnore: true, // Mark to ignore in drill pick operations
-    },
-    polyline: new PolylineGraphics({
-      positions: [yNegative, yPositive],
-      width,
-      material: colorY,
-      clampToGround: false,
-    }),
-  });
+  entities.push(centerDotEntity);
 
-  const zAxisEntity = new Entity({
-    id: `${id}-z-axis`,
-    name: "3D Cross Z-Axis",
-    properties: {
-      _drillPickIgnore: true, // Mark to ignore in drill pick operations
-    },
-    polyline: new PolylineGraphics({
-      positions: [zNegative, zPositive],
-      width,
-      material: colorZ,
-      clampToGround: false,
-    }),
-  });
+  // Only create axis entities if showAxes is true
+  if (showAxes) {
+    // Create three entities for the three axes
+    const xAxisEntity = new Entity({
+      id: `${id}-x-axis`,
+      name: "3D Cross X-Axis",
+      properties: {
+        _drillPickIgnore: true, // Mark to ignore in drill pick operations
+      },
+      polyline: new PolylineGraphics({
+        positions: [xNegative, xPositive],
+        width,
+        material: colorX,
+        clampToGround: false,
+      }),
+    });
 
-  const entities = [xAxisEntity, yAxisEntity, zAxisEntity];
+    const yAxisEntity = new Entity({
+      id: `${id}-y-axis`,
+      name: "3D Cross Y-Axis",
+      properties: {
+        _drillPickIgnore: true, // Mark to ignore in drill pick operations
+      },
+      polyline: new PolylineGraphics({
+        positions: [yNegative, yPositive],
+        width,
+        material: colorY,
+        clampToGround: false,
+      }),
+    });
+
+    const zAxisEntity = new Entity({
+      id: `${id}-z-axis`,
+      name: "3D Cross Z-Axis",
+      properties: {
+        _drillPickIgnore: true, // Mark to ignore in drill pick operations
+      },
+      polyline: new PolylineGraphics({
+        positions: [zNegative, zPositive],
+        width,
+        material: colorZ,
+        clampToGround: false,
+      }),
+    });
+
+    entities.push(xAxisEntity, yAxisEntity, zAxisEntity);
+  }
 
   // Add circular plane in XY plane if requested
   if (xyCirclePlane) {
@@ -189,7 +216,7 @@ export const create3DCrossGroup = (options: Cross3DOptions): Cross3DGroup => {
       // Optionally set the viewer's selected entity to the first cross entity
       setTimeout(() => {
         viewer.scene.requestRender();
-      }, 200); // Delay to ensure entities are added before selection
+      }, 200);
       //viewer.selectedEntity = crossEntities[0];
     },
   };

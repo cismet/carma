@@ -1,10 +1,12 @@
 import { Dispatch, SetStateAction, useEffect, useRef } from "react";
+
 import type { Cartesian3, Viewer } from "cesium";
 import {
   Cartesian2,
   ScreenSpaceEventType,
   ScreenSpaceEventHandler,
 } from "cesium";
+
 import {
   isPointMeasurementEntry,
   MeasurementCollection,
@@ -16,6 +18,7 @@ import {
   makeTemporaryMeasurementsPermanent,
 } from "../utils/measurementCollection";
 import { toGeographicDegrees } from "../utils/geo";
+import { useCesiumMousePosition } from "./useCesiumMousePosition";
 
 export const useCesiumPointQuery = (
   viewer: Viewer | null,
@@ -26,6 +29,9 @@ export const useCesiumPointQuery = (
 ) => {
   const handlerRef = useRef<ScreenSpaceEventHandler | null>(null);
   const prevTemporaryModeRef = useRef(temporaryMode);
+
+  // Use mouse position hook to track cursor and show crosshair
+  const mousePosition = useCesiumMousePosition(viewer, enabled);
 
   // Handle temporary-to-permanent conversion when temporary mode is turned off
   useEffect(() => {
@@ -106,7 +112,9 @@ export const useCesiumPointQuery = (
     };
   }, [viewer, enabled, radius, temporaryMode, setCollection]);
 
-  return {};
+  return {
+    mousePosition, // Current mouse position in 3D space
+  };
 };
 
 export default useCesiumPointQuery;

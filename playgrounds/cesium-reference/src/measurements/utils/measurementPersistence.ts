@@ -9,7 +9,7 @@ export const saveMeasurements = (measurements: MeasurementCollection): void => {
   try {
     // Simple serialization - just store the measurements as-is
     localStorage.setItem(STORAGE_KEY, JSON.stringify(measurements));
-    console.debug("Measurements saved to localStorage", measurements.length);
+    //console.debug("Measurements saved to localStorage", measurements.length);
   } catch (error) {
     console.warn("Failed to save measurements to localStorage:", error);
   }

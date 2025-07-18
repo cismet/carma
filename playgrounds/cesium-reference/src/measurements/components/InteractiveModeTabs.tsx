@@ -1,4 +1,5 @@
 import React, { FC } from "react";
+
 import {
   Tabs,
   Row,
@@ -10,13 +11,14 @@ import {
   Space,
   Switch,
 } from "antd";
+import type { InputNumberProps } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faArrowsToDot,
   faTrash,
   faRulerCombined,
 } from "@fortawesome/free-solid-svg-icons";
-import type { InputNumberProps } from "antd";
+
 import { useCesiumMeasurements } from "../CesiumMeasurementsContext";
 import { MeasurementMode } from "../types/MeasurementTypes";
 import { CoordinateDisplayMode, useCRS } from "../CRSContext";
@@ -31,7 +33,7 @@ const PointQuerySettingsComponent: React.FC<{
   minPointRadius = 1,
   maxPointRadius = 100,
   stepPointRadius = 1,
-  pointRadius = 5,
+  pointRadius = 1,
   onChange,
 }) => {
   const onValueChange: InputNumberProps["onChange"] = (newDisplayValue) => {
