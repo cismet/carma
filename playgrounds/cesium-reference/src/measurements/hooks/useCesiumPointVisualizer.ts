@@ -82,7 +82,6 @@ export const useCesiumPointVisualizer = (
       }
 
       try {
-        // Only cleanup entities that are not in the next render
         Object.keys(crosses).forEach((id) => {
           if (!currentIds.has(id)) {
             crosses[id].cleanup(viewer);
@@ -127,7 +126,6 @@ export const useCesiumPointVisualizer = (
       }
 
       try {
-        // Additional safety checks for entities collection
         if (labelRefs.current && viewer.entities) {
           Object.values(labelRefs.current).forEach((entity) => {
             if (viewer && viewer.entities) {

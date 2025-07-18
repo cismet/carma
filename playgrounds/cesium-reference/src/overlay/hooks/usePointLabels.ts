@@ -58,7 +58,6 @@ export const usePointLabels = (
       });
     });
 
-    // Cleanup function to remove labels when component unmounts or points change
     return () => {
       points.forEach((point) => {
         removeOverlayElement(`point-label-${point.id}`);

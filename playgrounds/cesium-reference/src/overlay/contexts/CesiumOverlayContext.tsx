@@ -49,8 +49,8 @@ export const CesiumOverlayProvider: React.FC<CesiumOverlayProviderProps> = ({
     overlayDiv.style.height = "100%";
     overlayDiv.style.pointerEvents = "none";
     overlayDiv.style.zIndex = "1000";
-    overlayDiv.style.overflow = "hidden"; // Prevent page resize from labels extending outside
-    overlayDiv.style.clipPath = "inset(0)"; // Additional clipping for better performance
+    overlayDiv.style.overflow = "hidden";
+    overlayDiv.style.clipPath = "inset(0)";
 
     cesiumContainer.appendChild(overlayDiv);
     overlayRef.current = overlayDiv;
@@ -72,7 +72,6 @@ export const CesiumOverlayProvider: React.FC<CesiumOverlayProviderProps> = ({
     if (!viewer || viewer.isDestroyed() || !overlayRef.current) return;
 
     const updatePositions = () => {
-      // Safety checks for hot reload scenarios
       if (!viewer || viewer.isDestroyed() || !overlayRef.current) return;
 
       const overlayContainer = overlayRef.current;
@@ -88,7 +87,6 @@ export const CesiumOverlayProvider: React.FC<CesiumOverlayProviderProps> = ({
           }
         }
       } catch (error) {
-        // Silently handle errors during hot reload or viewer destruction
         console.warn("Camera pitch update failed during hot reload:", error);
         return;
       }
@@ -137,7 +135,6 @@ export const CesiumOverlayProvider: React.FC<CesiumOverlayProviderProps> = ({
   // Keep track of React roots for proper cleanup
   const reactRootsRef = useRef<Map<string, Root>>(new Map());
 
-  // Render overlay elements - only update what changed, don't recreate everything
   useEffect(() => {
     if (!overlayRef.current) return;
 

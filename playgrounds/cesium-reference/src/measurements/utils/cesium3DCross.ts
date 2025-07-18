@@ -49,7 +49,7 @@ export const create3DCross = (options: Cross3DOptions): Entity[] => {
     colorCircle = Color.WHITE.withAlpha(0.33), // 33% opacity white
     width = 1,
     id = "3d-cross",
-    showAxes = false, // Default to showing axes for backward compatibility
+    showAxes = true, // Default to showing axes for backward compatibility
   } = options;
 
   // Create transformation matrix for the position to get local coordinate system
@@ -216,7 +216,7 @@ export const create3DCrossGroup = (options: Cross3DOptions): Cross3DGroup => {
       // Optionally set the viewer's selected entity to the first cross entity
       setTimeout(() => {
         viewer.scene.requestRender();
-      }, 200); // Delay to ensure entities are added before selection
+      }, 200);
       //viewer.selectedEntity = crossEntities[0];
     },
   };
