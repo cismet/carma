@@ -482,7 +482,7 @@ const MapWrapper = () => {
             </Control>
           )}
           <Control position="topleft" order={40}>
-            <Tooltip title="Auf Ausgangspunkt positionieren" placement="right">
+            <Tooltip title="Auf Rathaus Barmen positionieren" placement="right">
               <ControlButtonStyler
                 ref={tourRefLabels.home}
                 onClick={() => {
