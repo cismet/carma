@@ -13,6 +13,7 @@ import itemFilterFunction from "../helper/filter";
 import { addTitleFlag } from "../helper/urlHelper";
 import { getTopics } from "../helper/getTopics";
 import titleFactory from "../helper/titleFactory";
+import createItemsDictionary from "../helper/createItemsDictionary";
 
 export type Topic = {
   id: number;
@@ -46,6 +47,7 @@ export function App() {
         import.meta.env.VITE_WUPP_ASSET_BASEURL +
         "/data/vorhabenkarte.data.json"
       }
+      createFeatureItemsDictionary={createItemsDictionary}
       referenceSystemDefinition={MappingConstants.proj4crs25832def}
       mapEPSGCode="25832"
       referenceSystem={MappingConstants.crs25832}

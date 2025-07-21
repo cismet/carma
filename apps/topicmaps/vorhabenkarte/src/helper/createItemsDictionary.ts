@@ -1,10 +1,34 @@
-import { predicateBy } from "react-cismap/tools/stringHelper";
+interface Thema {
+  id: number;
+  name: string;
+  farbe: string;
+  signatur: string;
+  fuellung: number;
+}
 
-const createItemsDictionary = (items) => {
-  //   const topicsSet = new Set();
-  const topicsSet = ["test", "test 1", "test 2"];
+interface Item {
+  thema: Thema;
+}
 
-  return { topicsSet };
+interface Topic {
+  name: string;
+  farbe: string;
+}
+
+const createItemsDictionary = (items: Item[]) => {
+  const seenNames = new Set();
+  const topics: Topic[] = [];
+
+  for (const item of items) {
+    const { name, farbe } = item.thema;
+
+    if (!seenNames.has(name)) {
+      seenNames.add(name);
+      topics.push({ name, farbe });
+    }
+  }
+
+  return { topics };
 };
 
 export default createItemsDictionary;

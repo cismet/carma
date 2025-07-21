@@ -1,5 +1,6 @@
 const factory = ({ featureCollectionContext }) => {
-  const { filterState } = featureCollectionContext;
+  const { filterState, itemsDictionary } = featureCollectionContext;
+  console.log("xxx itemsDictionary", itemsDictionary);
   let themenText;
   if (filterState.topics.length === 1) {
     themenText = filterState.topics.length + " Thema";
