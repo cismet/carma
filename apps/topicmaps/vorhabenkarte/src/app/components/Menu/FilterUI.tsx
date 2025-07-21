@@ -19,9 +19,9 @@ interface FilterUIProps {
   topicsWitColors: Topic[];
 }
 const FilterUI = ({ topicsWitColors }: FilterUIProps) => {
-  const { filterState } = useContext<typeof FeatureCollectionContext>(
-    FeatureCollectionContext
-  );
+  const { filterState, itemsDictionary } = useContext<
+    typeof FeatureCollectionContext
+  >(FeatureCollectionContext);
 
   const { setFilterState } = useContext<
     typeof FeatureCollectionDispatchContext
@@ -40,6 +40,8 @@ const FilterUI = ({ topicsWitColors }: FilterUIProps) => {
   let narrowPieChartPlaceholder: any = null;
 
   let pieChart = <VorhabenkartePieChart />;
+
+  console.log("xxx itemsDictionary", itemsDictionary);
 
   if (width < 995) {
     narrowPieChartPlaceholder = (
@@ -76,7 +78,9 @@ const FilterUI = ({ topicsWitColors }: FilterUIProps) => {
 
   const setAllFilter = (kind) => {
     const newFilterState = { ...filterState };
-    newFilterState["topics"] = topicsWitColors.map((t) => t.name);
+    newFilterState["topics"] = itemsDictionary?.topics
+      ? itemsDictionary.topics.map((t) => t.name)
+      : [];
     setFilterState(newFilterState);
   };
 
@@ -113,43 +117,44 @@ const FilterUI = ({ topicsWitColors }: FilterUIProps) => {
                   <a onClick={() => clearFilter("topics")}>keine</a>
                 </div>
                 <div className="mb-3">
-                  {topicsWitColors.map((item, idx) => {
-                    return (
-                      <>
-                        <Form.Check
-                          readOnly={true}
-                          key={"filter.vorhabenkarte.topic." + idx}
-                          onClick={(e) => {
-                            setFilterValue(
-                              "topics",
-                              item.name,
-                              // @ts-expect-error legacy codebase exception
-                              e.target.checked
-                            );
-                          }}
-                          checked={
-                            filterState["topics"]?.indexOf(item.name) !== -1
-                          }
-                          inline
-                          label={
-                            <>
-                              {item.name}
-                              <Icon
-                                style={{
-                                  color: item.farbe,
-                                  width: "30px",
-                                  textAlign: "center",
-                                }}
-                                name={"circle"}
-                              />
-                            </>
-                          }
-                        />
+                  {itemsDictionary?.topics &&
+                    itemsDictionary.topics.map((item, idx) => {
+                      return (
+                        <>
+                          <Form.Check
+                            readOnly={true}
+                            key={"filter.vorhabenkarte.topic." + idx}
+                            onClick={(e) => {
+                              setFilterValue(
+                                "topics",
+                                item.name,
+                                // @ts-expect-error legacy codebase exception
+                                e.target.checked
+                              );
+                            }}
+                            checked={
+                              filterState["topics"]?.indexOf(item.name) !== -1
+                            }
+                            inline
+                            label={
+                              <>
+                                {item.name}
+                                <Icon
+                                  style={{
+                                    color: item.farbe,
+                                    width: "30px",
+                                    textAlign: "center",
+                                  }}
+                                  name={"circle"}
+                                />
+                              </>
+                            }
+                          />
 
-                        <br />
-                      </>
-                    );
-                  })}
+                          <br />
+                        </>
+                      );
+                    })}
                   {isShowHint && (
                     <div className="mt-2 text-gray-600">
                       Wenn kein Thema selektiert ist, dann wird auch nichts
