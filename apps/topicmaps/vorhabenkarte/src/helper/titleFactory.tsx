@@ -1,11 +1,18 @@
 const factory = ({ featureCollectionContext }) => {
   const { filterState } = featureCollectionContext;
-  let themenstadtplanDesc;
-  console.log("xxx filterState", filterState.topics.length);
+  let themenText;
+  if (filterState.topics.length === 1) {
+    themenText = filterState.topics.length + " Thema";
+  } else {
+    themenText = filterState.topics.length + " Themen";
+  }
+
+  if (filterState.citizen) {
+    themenText += " (nur Vorhaben mit Bürgerbeteiligung)";
+  }
   return (
     <div>
-      <b>Meine Themenvorhaben: </b> {filterState.topics.length}{" "}
-      {filterState.topics.length === 1 ? "Thema" : "Themen"}
+      <b>Meine Themenvorhaben: </b> {themenText}
     </div>
   );
 };
