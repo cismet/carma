@@ -58,6 +58,7 @@ const Map = ({ topicsWitColors }: MapProps) => {
     setClusteringOptions,
     setSelectedFeatureByPredicate,
     setFilterState,
+    itemsDictionary,
   } = useContext<typeof FeatureCollectionDispatchContext>(
     FeatureCollectionDispatchContext
   );
@@ -127,14 +128,18 @@ const Map = ({ topicsWitColors }: MapProps) => {
   }, [markerSymbolSize]);
 
   useEffect(() => {
-    if (topicsWitColors.length > 0) {
-      const topics = topicsWitColors.map((t) => t.name);
+    if (
+      itemsDictionary &&
+      itemsDictionary.topics &&
+      itemsDictionary.topics.length > 0
+    ) {
+      const topics = itemsDictionary.topics.map((t) => t.name);
       const newFilterState = { ...filterState };
       newFilterState["topics"] = topics;
 
       setFilterState(newFilterState);
     }
-  }, []);
+  }, [itemsDictionary]);
 
   useEffect(() => {
     if (
