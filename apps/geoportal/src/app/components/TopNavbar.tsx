@@ -208,7 +208,7 @@ const TopNavbar = () => {
             )}
           </div>
 
-          <Tooltip title="Kompaktanleitung öffnen | An-/Abmeldung">
+          <Tooltip title="Kompaktanleitung | Login">
             <Button
               onClick={() => {
                 setAppMenuVisible(true);
