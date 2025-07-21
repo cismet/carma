@@ -29,6 +29,7 @@ import {
   createPointLabelText,
 } from "../utils/cesiumLabels";
 import { useRequestRender } from "./useRequestRender";
+import { useCesiumTraverseLabels } from "./useCesiumTraverseLabels";
 
 const STEMLINE_MIN_OFFSET = 0.1; // meters
 
@@ -54,7 +55,7 @@ const PREVIEWLINE_COLOR = Color.fromCssColorString("rgba(153, 238, 255, 0.83)");
 
 // expose later if this should be configurable
 const defaultTraverseStyleConfig: Readonly<TraverseStyleConfig> = {
-  lineWidth: 2,
+  lineWidth: 1.5,
   lineMaterial: Color.WHITE,
   stemLineWidth: 0.25,
   stemLineMaterial: Color.WHITE,
@@ -111,6 +112,7 @@ export function useCesiumTraverseVisualizer(
   measurements: MeasurementCollection = [],
   showTraverse: boolean = true,
   showLabels: boolean = true,
+  showCesiumLabels: boolean = false,
   mousePosition: Cartesian3 | null = null,
   isActiveTraverse: boolean = false,
   currentTraverseId: string | null = null,
@@ -132,6 +134,9 @@ export function useCesiumTraverseVisualizer(
       const currentIds = new Set(traverses.map((m) => m.id));
       return [traverses, currentIds];
     }, [measurements]);
+
+  // Use overlay labels instead of Cesium entity labels
+  useCesiumTraverseLabels(traverses, showLabels, referenceElevation);
 
   const clearVisualizations = useCallback(() => {
     if (!viewer || viewer.isDestroyed()) return;
@@ -194,6 +199,29 @@ export function useCesiumTraverseVisualizer(
       return;
     }
 
+    // Remove all Cesium label entities when showCesiumLabels is false
+    if (!showCesiumLabels) {
+      const labelEntitiesToRemove = traverseEntiesRef.current.filter(
+        (entity) => {
+          return (
+            entity.id?.includes("label") ||
+            entity.id?.includes("segment") ||
+            entity.id?.includes("number")
+          );
+        }
+      );
+
+      labelEntitiesToRemove.forEach((entity) => {
+        try {
+          viewer.entities.remove(entity);
+        } catch {}
+        const index = traverseEntiesRef.current.indexOf(entity);
+        if (index > -1) {
+          traverseEntiesRef.current.splice(index, 1);
+        }
+      });
+    }
+
     // Only render new or updated traverses
     traverses.forEach((traverse) => {
       const lastRenderedInfo = renderedTraversesRef.current.get(traverse.id);
@@ -244,7 +272,8 @@ export function useCesiumTraverseVisualizer(
         if (!viewer.entities.getById(pointMarkerId)) {
           const pointMarker = createPointMarker(
             visualizationPoint,
-            pointMarkerId
+            pointMarkerId,
+            showCesiumLabels ? 11 : 4
           );
           viewer.entities.add(pointMarker);
           traverseEntiesRef.current.push(pointMarker);
@@ -253,7 +282,8 @@ export function useCesiumTraverseVisualizer(
         // Add vertical line from ground to elevated point if heightOffset > 0
         if (
           heightOffset > STEMLINE_MIN_OFFSET &&
-          !viewer.entities.getById(stemLineId)
+          !viewer.entities.getById(stemLineId) &&
+          showCesiumLabels
         ) {
           const stemLine = new Entity({
             id: stemLineId,
@@ -267,61 +297,65 @@ export function useCesiumTraverseVisualizer(
           viewer.entities.add(stemLine);
           traverseEntiesRef.current.push(stemLine);
         }
+        // Only create Cesium entity labels if showCesiumLabels is true and derived data is available
+        if (showCesiumLabels && traverse.derived) {
+          const existingLabel = viewer.entities.getById(pointLabelId);
+          if (!existingLabel) {
+            const cumulativeLength =
+              traverse.derived.segmentLengthsCumulative[index] || 0;
+            const isSingleSegment = traverse.geometryECEF.length === 2;
 
-        const existingLabel = viewer.entities.getById(pointLabelId);
-        if (!existingLabel) {
-          const cumulativeLength =
-            traverse.derived.segmentLengthsCumulative[index] || 0;
-          const isSingleSegment = traverse.geometryECEF.length === 2;
-
-          // Create distance label (offset from point)
-          const pointLabel = createSegmentNodeLabel(
-            visualizationPoint,
-            pointGeographic,
-            index,
-            cumulativeLength,
-            pointLabelId,
-            isSingleSegment,
-            referenceElevation
-          );
-          viewer.entities.add(pointLabel);
-          traverseEntiesRef.current.push(pointLabel);
-        } else {
-          // Update existing label text with new reference elevation
-          const cumulativeLength =
-            traverse.derived.segmentLengthsCumulative[index] || 0;
-          const isSingleSegment = traverse.geometryECEF.length === 2;
-
-          const pointLabelText = createPointLabelText(
-            pointGeographic,
-            index,
-            cumulativeLength,
-            isSingleSegment,
-            referenceElevation
-          );
-
-          if (existingLabel.label && existingLabel.label.text) {
-            (existingLabel.label.text as ConstantProperty).setValue(
-              pointLabelText
+            // Create distance label (offset from point)
+            const pointLabel = createSegmentNodeLabel(
+              visualizationPoint,
+              pointGeographic,
+              index,
+              cumulativeLength,
+              pointLabelId,
+              isSingleSegment,
+              referenceElevation
             );
+            viewer.entities.add(pointLabel);
+            traverseEntiesRef.current.push(pointLabel);
+          } else {
+            // Update existing label text with new reference elevation
+            const cumulativeLength =
+              traverse.derived.segmentLengthsCumulative[index] || 0;
+            const isSingleSegment = traverse.geometryECEF.length === 2;
+
+            const pointLabelText = createPointLabelText(
+              pointGeographic,
+              index,
+              cumulativeLength,
+              isSingleSegment,
+              referenceElevation
+            );
+
+            if (existingLabel.label && existingLabel.label.text) {
+              (existingLabel.label.text as ConstantProperty).setValue(
+                pointLabelText
+              );
+            }
           }
         }
 
-        // Create number label directly on the point
-        const pointNumberId = `point-number-${traverse.id}-${index}`;
-        if (!viewer.entities.getById(pointNumberId)) {
-          const numberLabel = createNodeNumberLabel(
-            visualizationPoint,
-            index,
-            pointNumberId
-          );
-          viewer.entities.add(numberLabel);
-          traverseEntiesRef.current.push(numberLabel);
+        // Create number label directly on the point (only for Cesium entity labels)
+        if (showCesiumLabels) {
+          const pointNumberId = `point-number-${traverse.id}-${index}`;
+          if (!viewer.entities.getById(pointNumberId)) {
+            const numberLabel = createNodeNumberLabel(
+              visualizationPoint,
+              index,
+              pointNumberId
+            );
+            viewer.entities.add(numberLabel);
+            traverseEntiesRef.current.push(numberLabel);
+          }
         }
       });
 
-      // Segment labels
-      if (showLabels) {
+      // Segment labels (only for Cesium entity labels)
+      if (showCesiumLabels) {
         const heightOffset = traverse.heightOffset || 0;
         const elevatedPoints =
           heightOffset > 0
@@ -387,6 +421,7 @@ export function useCesiumTraverseVisualizer(
     currentIds,
     showTraverse,
     showLabels,
+    showCesiumLabels,
     clearVisualizations,
     requestRender,
     referenceElevation,
@@ -566,10 +601,10 @@ export function useCesiumTraverseVisualizer(
         });
 
         if (traverseEntities.length > 0) {
-          if (showLabels) {
+          if (showCesiumLabels) {
             updateTraverseLabelVisibility(viewer, traverseEntities, traverse);
           } else {
-            // Hide all labels when showLabels is false
+            // Hide all Cesium entity labels when showCesiumLabels is false
             traverseEntities.forEach((entity) => {
               if (
                 entity.id?.includes("label") ||
@@ -595,7 +630,7 @@ export function useCesiumTraverseVisualizer(
     return () => {
       removeMoveEndListener();
     };
-  }, [viewer, traverses, showLabels, requestRender]);
+  }, [viewer, traverses, showCesiumLabels, requestRender]);
 
   // Cleanup on unmount
   useEffect(() => {

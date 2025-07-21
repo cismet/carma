@@ -6,15 +6,17 @@ import {
 
 export const createPointMarker = (
   position: Cartesian3,
-  id?: string
+  id?: string,
+  pixelSize: number = 11,
+  color: Color = Color.WHITE
 ): Entity => {
   return new Entity({
     id: id || `measurement-point-marker-${Date.now()}`,
     position: position,
     point: {
-      pixelSize: 11,
-      color: Color.WHITESMOKE,
-      outlineColor: Color.BLACK,
+      pixelSize,
+      color,
+      outlineColor: color,
       outlineWidth: 0,
       heightReference: HeightReference.NONE,
       //disableDepthTestDistance: Number.POSITIVE_INFINITY,

@@ -12,6 +12,7 @@ export interface PointLabelData {
   visible?: boolean;
   isOccluded?: boolean;
   isHidden?: boolean; // Hidden (outside viewport) vs occluded (behind geometry)
+  markerStyle?: number; // MarkerStyle enum value
 }
 
 export const usePointLabels = (
@@ -55,6 +56,7 @@ export const usePointLabels = (
           text: point.text,
           selected: point.selected,
           isOccluded: point.isOccluded,
+          markerStyle: point.markerStyle,
         }),
         visible: point.visible !== false,
         isHidden: point.isHidden, // Pass hidden state to overlay

@@ -201,6 +201,7 @@ export const CesiumMeasurementsProvider: React.FC<
     measurements,
     showTraverse,
     showTraverseLabels,
+    false,
     mousePosition,
     isActiveTraverse,
     currentTraverseId,

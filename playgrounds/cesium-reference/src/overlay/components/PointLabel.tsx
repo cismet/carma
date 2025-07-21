@@ -1,8 +1,10 @@
 import React from "react";
+import { ConnectingLine } from "./ConnectingLine";
 
-enum MarkerStyle {
+export enum MarkerStyle {
   CROSS,
   CIRCLE,
+  LINE, // No marker, just line to label
 }
 
 interface PointLabelProps {
@@ -73,48 +75,34 @@ export const PointLabel = React.memo(
           opacity: isOccluded ? 0.75 : 1,
         }}
       >
-        {/* Measurement dot at anchor position */}
-        <div
-          style={{
-            position: "absolute",
-            left: "0px",
-            top: "0px",
-            width: `${markerSize}px`,
-            height: `${markerSize}px`,
-            border: `${markerStrokeWidth}px ${
-              isOccluded ? "dashed" : "solid"
-            } ${selected ? "#1890ff" : "#fff"}`,
-            borderRadius: "50%",
-            transform: "translate(-50%, -50%)",
-            pointerEvents: "none",
-          }}
-        />
-
-        {/* Transform container for hairline rotation */}
-        <div
-          style={{
-            position: "absolute",
-            left: "0px", // Start from center
-            top: "0px", // Start from center
-            transformOrigin: "0 0",
-            transform: `rotate(${labelAngleRad}rad)`,
-            pointerEvents: "none",
-          }}
-        >
-          {/* Hairline from circle edge to label */}
+        {/* Measurement dot at anchor position (only for CIRCLE marker style) */}
+        {markerStyle === MarkerStyle.CIRCLE && (
           <div
             style={{
               position: "absolute",
-              left: `${radius}px`, // Start from circle edge
-              top: `${-halfLineWidth}px`, // Center the line vertically
-              width: `${labelDistance - radius}px`, // Distance from circle edge to label
-              height: `${lineWidth}px`,
-              borderBottom: `${lineWidth}px ${
+              left: "0px",
+              top: "0px",
+              width: `${markerSize}px`,
+              height: `${markerSize}px`,
+              border: `${markerStrokeWidth}px ${
                 isOccluded ? "dashed" : "solid"
-              } ${lineColor}`,
+              } ${selected ? "#1890ff" : "#fff"}`,
+              borderRadius: "50%",
+              transform: "translate(-50%, -50%)",
+              pointerEvents: "none",
             }}
           />
-        </div>
+        )}
+
+        {/* Connecting line using the reusable ConnectingLine component */}
+        <ConnectingLine
+          startPoint={{ x: 0, y: 0 }}
+          endPoint={{ x: labelOffsetX, y: labelOffsetY }}
+          color={lineColor}
+          width={lineWidth}
+          dashed={isOccluded}
+          startOffset={markerStyle === MarkerStyle.LINE ? 0 : radius} // No offset for LINE style
+        />
 
         {/* Label positioned at the end of the hairline */}
         <div
