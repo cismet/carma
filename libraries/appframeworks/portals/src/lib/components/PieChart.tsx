@@ -50,6 +50,17 @@ export const PieChart = ({
               legend: {
                 display: false,
               },
+              tooltip: {
+                displayColors: false,
+                callbacks: {
+                  title: function() {
+                    return '';
+                  },
+                  label: function(context) {
+                    return `${context.label}: ${context.formattedValue}`;
+                  }
+                }
+              },
               title: {
                 display: true,
                 text: title,
