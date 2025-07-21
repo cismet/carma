@@ -12,6 +12,7 @@ import { getFeatureStyler } from "../helper/styler";
 import itemFilterFunction from "../helper/filter";
 import { addTitleFlag } from "../helper/urlHelper";
 import { getTopics } from "../helper/getTopics";
+import titleFactory from "../helper/titleFactory";
 
 export type Topic = {
   id: number;
@@ -48,6 +49,7 @@ export function App() {
       referenceSystemDefinition={MappingConstants.proj4crs25832def}
       mapEPSGCode="25832"
       referenceSystem={MappingConstants.crs25832}
+      titleFactory={titleFactory}
       getFeatureStyler={getFeatureStyler}
       featureTooltipFunction={(feature) => feature?.text}
       itemFilterFunction={itemFilterFunction}
