@@ -1,6 +1,5 @@
 const factory = ({ featureCollectionContext }) => {
   const { filterState, itemsDictionary } = featureCollectionContext;
-  console.log("xxx itemsDictionary", itemsDictionary);
   let themenText;
   if (filterState.topics.length === 1) {
     themenText = filterState.topics.length + " Thema";
@@ -11,11 +10,18 @@ const factory = ({ featureCollectionContext }) => {
   if (filterState.citizen) {
     themenText += " (nur Vorhaben mit Bürgerbeteiligung)";
   }
-  return (
-    <div>
-      <b>Meine Themenvorhaben: </b> {themenText}
-    </div>
-  );
+
+  if (
+    (itemsDictionary?.topics.length &&
+      filterState.topics?.length !== itemsDictionary?.topics.length) ||
+    filterState.citizen
+  ) {
+    return (
+      <div>
+        <b>Meine Themenvorhaben: </b> {themenText}
+      </div>
+    );
+  }
 };
 
 export default factory;
