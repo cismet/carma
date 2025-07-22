@@ -66,7 +66,6 @@ export const useRoutedMapLocateControl = () => {
             outsideMapBoundsMsg:
               "Sie befinden sich außerhalb der Kartengrenzen.",
           },
-          setView: "untilPan",
           flyTo: false,
           drawCircle: true,
         })
