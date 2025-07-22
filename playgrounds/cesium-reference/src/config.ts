@@ -36,6 +36,7 @@ export const DEFAULT_PREVIEW_LEVEL = PreviewLevelHQ.L2;
 export const cesiumConstructorOptions = {
   ...DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS,
   creditContainer: document.createElement("div"),
+  useBrowserRecommendedResolution: false,
 };
 
 export const NORMAL_PIXEL_SIZE = new ConstantProperty(5);
