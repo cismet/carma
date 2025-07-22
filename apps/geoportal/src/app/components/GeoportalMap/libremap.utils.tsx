@@ -269,7 +269,9 @@ export const layersToMapLibreStyle = async (
             ...(styleLayer.id.toLowerCase().includes("selection")
               ? {}
               : {
-                  [getPaintProperty(styleLayer)]: layer.opacity,
+                  [getPaintProperty(styleLayer)]:
+                    layer.opacity *
+                    (styleLayer.paint[getPaintProperty(styleLayer)] || 1),
                 }),
           },
           layout: {
