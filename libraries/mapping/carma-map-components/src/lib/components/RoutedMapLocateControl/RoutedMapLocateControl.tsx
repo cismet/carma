@@ -1,5 +1,5 @@
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
-import { faLocationArrow } from "@fortawesome/free-solid-svg-icons";
+import { faLocationArrow, faSpinner } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useEffect } from "react";
 import { Tooltip } from "antd";
@@ -39,7 +39,7 @@ export const RoutedMapLocateControl = ({
   nativeTooltip = false,
   backgroundColor = "white",
 }: RouteMapControlProps) => {
-  const { isLocationActive, hasMapMoved, setIsLocationActive } =
+  const { isLocationActive, hasMapMoved, setIsLocationActive, isLoading } =
     useRoutedMapLocateControl();
 
   // Set background color using CSS custom properties
@@ -59,15 +59,15 @@ export const RoutedMapLocateControl = ({
       dataTestId="location-control"
     >
       <FontAwesomeIcon
-        icon={faLocationArrow}
+        icon={isLoading ? faSpinner : faLocationArrow}
         //color={              isLocationActive ? (hasMapMoved ? "blue" : "orange") : ""            }
         className={`text-2xl ${
-          isLocationActive
+          isLocationActive && !isLoading
             ? hasMapMoved
               ? "text-blue-500"
               : "text-orange-500"
             : ""
-        }`}
+        } ${isLoading ? "animate-spin" : ""}`}
         title={
           nativeTooltip
             ? isLocationActive

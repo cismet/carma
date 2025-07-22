@@ -11,6 +11,7 @@ export const useRoutedMapLocateControl = () => {
   const [hasFoundLocation, setHasFoundLocation] = useState(false);
   const [locationInstance, setLocationInstance] =
     useState<LocateControl | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (routedMap) {
@@ -23,12 +24,15 @@ export const useRoutedMapLocateControl = () => {
       };
 
       const handleLocationFound = () => {
+        console.log("xxx location found");
         setTimeout(() => {
+          setIsLoading(false);
           setHasFoundLocation(true);
         }, 300);
       };
 
       const handleError = () => {
+        setIsLoading(false);
         setIsLocationActive(false);
       };
 
@@ -83,8 +87,10 @@ export const useRoutedMapLocateControl = () => {
   useEffect(() => {
     if (locationInstance) {
       if (isLocationActive) {
+        setIsLoading(true);
         locationInstance.start();
       } else {
+        setIsLoading(false);
         locationInstance.stop();
       }
     }
@@ -94,5 +100,6 @@ export const useRoutedMapLocateControl = () => {
     isLocationActive,
     setIsLocationActive,
     hasMapMoved,
+    isLoading,
   };
 };
