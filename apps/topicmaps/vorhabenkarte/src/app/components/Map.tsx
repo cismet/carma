@@ -121,9 +121,6 @@ const Map = () => {
   }, [markerSymbolSize]);
 
   useEffect(() => {
-    console.log("xxx itemsDictionary", itemsDictionary);
-    console.log("xxx filterState 1", filterState);
-
     if (
       itemsDictionary &&
       itemsDictionary.topics &&
