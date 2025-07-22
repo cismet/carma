@@ -1,9 +1,18 @@
 const factory = ({ featureCollectionContext }) => {
   const { filterState, itemsDictionary } = featureCollectionContext;
+
   let themenText;
-  if (filterState.topics.length === 1) {
+  if (
+    filterState?.topics &&
+    Array.isArray(itemsDictionary?.topics) &&
+    filterState.topics.length === 1
+  ) {
     themenText = filterState.topics.length + " Thema";
-  } else {
+  } else if (
+    filterState?.topics &&
+    Array.isArray(itemsDictionary?.topics) &&
+    filterState.topics.length !== 1
+  ) {
     themenText = filterState.topics.length + " Themen";
   }
 
@@ -12,8 +21,11 @@ const factory = ({ featureCollectionContext }) => {
   }
 
   if (
-    (itemsDictionary?.topics.length &&
-      filterState.topics?.length !== itemsDictionary?.topics.length) ||
+    (filterState?.topics &&
+      Array.isArray(filterState?.topics) &&
+      Array.isArray(itemsDictionary?.topics) &&
+      itemsDictionary?.topics.length &&
+      filterState.topics.length !== itemsDictionary?.topics.length) ||
     filterState.citizen
   ) {
     return (

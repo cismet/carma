@@ -3,7 +3,7 @@ const itemFilterFunction = ({ filterState }) => {
     let themaResult;
     let citizenResult;
 
-    if (item.thema.name) {
+    if (item.thema.name && filterState?.topics) {
       themaResult = filterState.topics.includes(item.thema.name);
 
       if (filterState.citizen && themaResult) {

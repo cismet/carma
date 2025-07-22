@@ -128,7 +128,7 @@ const Map = () => {
       itemsDictionary &&
       itemsDictionary.topics &&
       itemsDictionary.topics.length > 0 &&
-      filterState.topics.length === 0
+      !filterState?.topics
     ) {
       console.log("xxx filterState 2", filterState);
       const topics = itemsDictionary.topics.map((t) => t.name);
