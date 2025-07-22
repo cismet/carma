@@ -30,9 +30,12 @@ const ContextAwareApp: React.FC<{
   const { zoomToTileset, setHQMode, hqMode, viewer } = useCesiumViewer();
   const { token } = theme.useToken();
 
-  // Connect overlay updates to Cesium render events
+  // Connect overlay updates to Cesium render events with performance optimization
   useEffect(() => {
     if (!viewer || viewer.isDestroyed()) return;
+
+    let isMoving = false;
+    let preRenderListener: (() => void) | null = null;
 
     const onPreRender = () => {
       if (overlayUpdateRef.current) {
@@ -40,12 +43,45 @@ const ContextAwareApp: React.FC<{
       }
     };
 
-    const removeListener = viewer.scene.preRender.addEventListener(onPreRender);
+    const startUpdating = () => {
+      if (!isMoving) {
+        isMoving = true;
+        preRenderListener = viewer.scene.preRender.addEventListener(onPreRender);
+        console.log('[Overlay] Started preRender listener');
+        console.log('[Listeners] preRender count:', viewer.scene.preRender.numberOfListeners);
+        console.log('[Listeners] moveStart count:', viewer.camera.moveStart.numberOfListeners);
+        console.log('[Listeners] moveEnd count:', viewer.camera.moveEnd.numberOfListeners);
+      }
+    };
+
+    const stopUpdating = () => {
+      if (isMoving && preRenderListener) {
+        preRenderListener();
+        preRenderListener = null;
+        isMoving = false;
+        console.log('[Overlay] Stopped preRender listener');
+        console.log('[Listeners] preRender count:', viewer.scene.preRender.numberOfListeners);
+        console.log('[Listeners] moveStart count:', viewer.camera.moveStart.numberOfListeners);
+        console.log('[Listeners] moveEnd count:', viewer.camera.moveEnd.numberOfListeners);
+        // Request a final render after movement ends to ensure tiles can load
+        viewer.scene.requestRender();
+      }
+    };
+
+    // Start updating when camera starts moving
+    const removeMoveStartListener = viewer.camera.moveStart.addEventListener(startUpdating);
+    // Stop updating when camera stops moving
+    const removeMoveEndListener = viewer.camera.moveEnd.addEventListener(stopUpdating);
+
+    // Initial update
+    if (overlayUpdateRef.current) {
+      overlayUpdateRef.current();
+    }
 
     return () => {
-      if (removeListener) {
-        removeListener();
-      }
+      if (removeMoveStartListener) removeMoveStartListener();
+      if (removeMoveEndListener) removeMoveEndListener();
+      stopUpdating();
     };
   }, [viewer, overlayUpdateRef]);
 

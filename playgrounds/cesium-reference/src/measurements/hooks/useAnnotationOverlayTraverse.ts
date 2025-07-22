@@ -1,10 +1,21 @@
 import { useMemo, useState, useEffect } from "react";
 
-import { defined } from "cesium";
+import {
+  defined,
+  Cartesian3,
+  Transforms,
+  Matrix4,
+  Ellipsoid,
+  Cartesian4,
+} from "cesium";
 
-import { usePointLabels, type PointLabelData } from "../../overlay";
+import {
+  usePointLabels,
+  type PointLabelData,
+  MarkerStyle,
+} from "../../overlay";
 import { useCesiumViewer } from "../../contexts/CesiumViewerContext";
-import { PointMeasurementEntry } from "../types/MeasurementTypes";
+import { TraverseMeasurementEntry } from "../types/MeasurementTypes";
 import { formatNumberToEnclosed } from "../utils/cesiumLabels";
 import {
   isPointOccluded,
@@ -15,8 +26,36 @@ import {
 const VIEWPORT_PADDING_HORIZONTAL = 100; // pixels
 const VIEWPORT_PADDING_VERTICAL = 50; // pixels
 
-export const useCesiumPointLabels = (
-  points: PointMeasurementEntry[],
+const getLocalElevatedPoint = (
+  position: Cartesian3,
+  heightOffset: number,
+  ellipsoid: Ellipsoid = Ellipsoid.WGS84
+): Cartesian3 => {
+  if (heightOffset === 0) return position;
+
+  // Get the local up direction at this position
+  const localToFixedFrame = Transforms.eastNorthUpToFixedFrame(
+    position,
+    ellipsoid
+  );
+  const localUp = Matrix4.getColumn(localToFixedFrame, 2, new Cartesian4());
+
+  // Convert to Cartesian3 (ignore w component)
+  const upVector = new Cartesian3(localUp.x, localUp.y, localUp.z);
+
+  // Scale the up vector by the height offset
+  const offsetVector = Cartesian3.multiplyByScalar(
+    upVector,
+    heightOffset,
+    new Cartesian3()
+  );
+
+  // Add the offset to the original position
+  return Cartesian3.add(position, offsetVector, new Cartesian3());
+};
+
+export const useAnnotationOverlayTraverse = (
+  traverses: TraverseMeasurementEntry[],
   showLabels: boolean,
   referenceElevation: number = 0
 ) => {
@@ -29,6 +68,47 @@ export const useCesiumPointLabels = (
   );
   const [cameraPitch, setCameraPitch] = useState<number>(-Math.PI / 4);
 
+  // Extract all points from all traverses with ground and offset positions
+  const allPoints = useMemo(() => {
+    const points: Array<{
+      id: string;
+      groundPosition: Cartesian3;
+      offsetPosition: Cartesian3;
+      traverseId: string;
+      pointIndex: number;
+      cumulativeDistance: number;
+      height: number;
+    }> = [];
+
+    traverses.forEach((traverse) => {
+      const heightOffset = traverse.heightOffset || 0;
+
+      traverse.geometryECEF.forEach((groundPosition, index) => {
+        const pointGeographic = traverse.geometryWGS84[index];
+        const cumulativeDistance =
+          traverse.derived?.segmentLengthsCumulative[index] || 0;
+
+        // Calculate offset position for the label
+        const offsetPosition =
+          heightOffset > 0
+            ? getLocalElevatedPoint(groundPosition, heightOffset)
+            : groundPosition;
+
+        points.push({
+          id: `${traverse.id}-${index}`,
+          groundPosition,
+          offsetPosition,
+          traverseId: traverse.id,
+          pointIndex: index,
+          cumulativeDistance,
+          height: pointGeographic.height,
+        });
+      });
+    });
+
+    return points;
+  }, [traverses]);
+
   // Cesium-specific visibility and occlusion detection
   useEffect(() => {
     if (!viewer || viewer.isDestroyed() || !showLabels) return;
@@ -40,20 +120,18 @@ export const useCesiumPointLabels = (
       // Get current camera pitch once per frame for all points
       const currentPitch = viewer.scene.camera.pitch;
       if (Math.abs(currentPitch - cameraPitch) > 0.01) {
-        // 0.01 radian threshold
         setCameraPitch(currentPitch);
       }
 
-      points.forEach((point) => {
-        // Convert 3D position to screen coordinates
+      allPoints.forEach((point) => {
+        // Convert 3D ground position to screen coordinates (visibility check only on ground point)
         const canvasPosition = viewer.scene.cartesianToCanvasCoordinates(
-          point.geometryECEF
+          point.groundPosition
         );
 
         if (!defined(canvasPosition)) {
-          // Point is behind camera or outside frustum - mark as hidden
           newHiddenResults[point.id] = true;
-          newOcclusionResults[point.id] = false; // Not occluded, just hidden
+          newOcclusionResults[point.id] = false;
           return;
         }
 
@@ -67,29 +145,27 @@ export const useCesiumPointLabels = (
         );
 
         if (!inViewport) {
-          // Point is outside viewport - mark as hidden (no DOM updates)
           newHiddenResults[point.id] = true;
-          newOcclusionResults[point.id] = false; // Not occluded, just hidden
+          newOcclusionResults[point.id] = false;
           return;
         }
 
-        // Point is in viewport, not hidden
         newHiddenResults[point.id] = false;
 
         // Check if point is occluded by terrain or other geometry
         newOcclusionResults[point.id] = isPointOccluded(
           viewer,
-          point.geometryECEF,
+          point.groundPosition,
           canvasPosition,
-          1.0 // 1 meter tolerance
+          1.0
         );
       });
 
       // Only update state if results changed
-      const occlusionChanged = points.some(
+      const occlusionChanged = allPoints.some(
         (point) => occlusionResults[point.id] !== newOcclusionResults[point.id]
       );
-      const hiddenChanged = points.some(
+      const hiddenChanged = allPoints.some(
         (point) => hiddenResults[point.id] !== newHiddenResults[point.id]
       );
 
@@ -102,50 +178,53 @@ export const useCesiumPointLabels = (
     };
 
     // Check visibility and occlusion on camera movement
+    console.log('[TraverseLabels] Registering preRender listener');
     const removeListener = viewer.scene.preRender.addEventListener(
       checkVisibilityAndOcclusion
     );
+    console.log('[TraverseLabels] Registered preRender listener');
 
     return () => {
       if (removeListener) {
         removeListener();
+        console.log('[TraverseLabels] Removed preRender listener');
       }
     };
   }, [
     viewer,
-    points,
+    allPoints,
     showLabels,
     occlusionResults,
     hiddenResults,
     cameraPitch,
   ]);
 
-  // Transform measurement points to point label data
+  // Transform traverse points to point label data using LINE marker style
   const pointLabelData: PointLabelData[] = useMemo(
     () =>
-      points.map((point, index) => ({
+      allPoints.map((point) => ({
         id: point.id,
         getCanvasPosition: () => {
-          // Fresh screen coordinate calculation at render time
           if (!viewer || viewer.isDestroyed()) return null;
           const canvasPosition = viewer.scene.cartesianToCanvasCoordinates(
-            point.geometryECEF
+            point.offsetPosition
           );
           return defined(canvasPosition)
             ? { x: canvasPosition.x, y: canvasPosition.y }
             : null;
         },
-        pitch: cameraPitch, // Use current camera pitch
-        text: `${formatNumberToEnclosed(index + 1)} ${(
-          point.geometryWGS84.height - referenceElevation
+        pitch: cameraPitch,
+        text: `${formatNumberToEnclosed(point.pointIndex + 1)} ${(
+          point.height - referenceElevation
         ).toFixed(2)}m`,
-        selected: point.isSelected,
+        selected: false, // TODO: Add selection support for traverse points
         visible: true,
         isOccluded: occlusionResults[point.id] || false,
-        isHidden: hiddenResults[point.id] || false, // Hidden (outside viewport) vs occluded (behind geometry)
+        isHidden: hiddenResults[point.id] || false,
+        markerStyle: MarkerStyle.LINE, // Use LINE style for no circle marker
       })),
     [
-      points,
+      allPoints,
       referenceElevation,
       occlusionResults,
       hiddenResults,
@@ -154,8 +233,8 @@ export const useCesiumPointLabels = (
     ]
   );
 
-  // Use the built-in point labels hook
+  // Use the point labels hook with LINE marker style
   usePointLabels(pointLabelData, showLabels);
 };
 
-export default useCesiumPointLabels;
+export default useAnnotationOverlayTraverse;

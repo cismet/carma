@@ -140,11 +140,14 @@ export const OverlayProvider: React.FC<OverlayProviderProps> = ({
     existingElements.forEach((elementDiv) => {
       const id = elementDiv.getAttribute("data-overlay-id");
       if (id && !overlayElements.has(id)) {
-        // Clean up React root if it exists
+        // Clean up React root if it exists - defer to avoid race condition
         const root = reactRootsRef.current.get(id);
         if (root) {
-          root.unmount();
-          reactRootsRef.current.delete(id);
+          // Use setTimeout to defer unmounting until after current render cycle
+          setTimeout(() => {
+            root.unmount();
+            reactRootsRef.current.delete(id);
+          }, 0);
         }
         elementDiv.remove();
       }

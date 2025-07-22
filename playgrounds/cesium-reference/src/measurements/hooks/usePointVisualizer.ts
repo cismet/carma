@@ -16,9 +16,9 @@ import {
   createLabelEntity,
   formatNumberToEnclosed,
 } from "../utils/cesiumLabels";
-import { useCesiumPointLabels } from "./useCesiumPointLabels";
+import useAnnotationOverlayPoints from "./useAnnotationOverlayPoints";
 
-export const useCesiumPointVisualizer = (
+export const usePointVisualizer = (
   viewer: Viewer | null,
   measurements: MeasurementCollection = [],
   showMarkers: boolean = true,
@@ -42,7 +42,7 @@ export const useCesiumPointVisualizer = (
     }, [measurements]);
 
   // Use overlay labels instead of Cesium entity labels
-  useCesiumPointLabels(points, showLabels, referenceElevation);
+  useAnnotationOverlayPoints(points, showLabels, referenceElevation);
 
   useEffect(() => {
     // render markers
@@ -144,4 +144,4 @@ export const useCesiumPointVisualizer = (
   }, [viewer, points, currentIds, showCesiumLabels, referenceElevation]);
 };
 
-export default useCesiumPointVisualizer;
+export default usePointVisualizer;

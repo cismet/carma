@@ -15,11 +15,12 @@ import { normalizeOptions } from "@carma-commons/utils";
 import { useCesiumViewer } from "../contexts/CesiumViewerContext";
 
 import { useCesiumPointQuery } from "./hooks/useCesiumPointQuery";
-import { useCesiumPointVisualizer } from "./hooks/useCesiumPointVisualizer";
+import { usePointVisualizer } from "./hooks/usePointVisualizer";
 import { useCesiumTraverseQuery } from "./hooks/useCesiumTraverseQuery";
-import { useCesiumTraverseVisualizer } from "./hooks/useCesiumTraverseVisualizer";
+import { useTraverseVisualizer } from "./hooks/useTraverseVisualizer";
 import { useCesiumMousePosition } from "./hooks/useCesiumMousePosition";
 import { useMeasurementPersistence } from "./hooks/useMeasurementPersistence";
+import { useCartesian3ToScreenCoords } from "./hooks/useCartesian3ToScreenCoords";
 
 import {
   isPointMeasurementEntry,
@@ -27,6 +28,7 @@ import {
   type MeasurementCollection,
   MeasurementMode,
 } from "./types/MeasurementTypes";
+import { ProjectionState } from "./types/ProjectionTypes";
 interface CesiumMeasurementsContextType {
   measurementMode: MeasurementMode;
   setMeasurementMode: Dispatch<SetStateAction<MeasurementMode>>;
@@ -54,6 +56,9 @@ interface CesiumMeasurementsContextType {
   referencePoint: Cartesian3 | null;
   setReferencePoint: Dispatch<SetStateAction<Cartesian3 | null>>;
   referenceElevation: number; // derived from referencePoint
+  // centralized projection system
+  projectionState: ProjectionState;
+  projectionCameraPitch: number;
 }
 
 const CesiumMeasurementsContext = createContext<
@@ -75,7 +80,7 @@ export type MeasurementProviderOptions = {
 
 const defaultOptions: MeasurementProviderOptions = {
   temporary: false,
-  mode: MeasurementMode.PointQuery,
+  mode: MeasurementMode.Traverse
 };
 
 const defaultPointQueryOptions: MeasurementProviderOptions["pointQueries"] = {
@@ -164,7 +169,7 @@ export const CesiumMeasurementsProvider: React.FC<
     showLabels &&
     !hideLabelsOfType.has(MeasurementMode.PointQuery);
 
-  useCesiumPointVisualizer(
+  usePointVisualizer(
     viewer,
     measurements,
     showPoints,
@@ -196,7 +201,7 @@ export const CesiumMeasurementsProvider: React.FC<
     showLabels &&
     !hideLabelsOfType.has(MeasurementMode.Traverse);
 
-  useCesiumTraverseVisualizer(
+  useTraverseVisualizer(
     viewer,
     measurements,
     showTraverse,
@@ -207,6 +212,10 @@ export const CesiumMeasurementsProvider: React.FC<
     currentTraverseId,
     referenceElevation
   );
+
+  // Centralized projection system
+  const { projectionState, cameraPitch: projectionCameraPitch } =
+    useCartesian3ToScreenCoords(measurements, true);
 
   const clearAllMeasurements = useCallback(() => {
     setMeasurements([]);
@@ -280,6 +289,8 @@ export const CesiumMeasurementsProvider: React.FC<
       referencePoint,
       setReferencePoint,
       referenceElevation,
+      projectionState,
+      projectionCameraPitch,
     }),
     [
       measurementMode,
@@ -304,6 +315,8 @@ export const CesiumMeasurementsProvider: React.FC<
       referencePoint,
       setReferencePoint,
       referenceElevation,
+      projectionState,
+      projectionCameraPitch,
     ]
   );
 

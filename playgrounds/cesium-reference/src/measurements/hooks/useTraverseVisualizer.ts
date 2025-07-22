@@ -1,3 +1,4 @@
+
 import { useEffect, useRef, useMemo, useCallback } from "react";
 import {
   Cartesian3,
@@ -5,7 +6,6 @@ import {
   Entity,
   Viewer,
   ConstantProperty,
-  ConstantPositionProperty,
   Transforms,
   Matrix4,
   Ellipsoid,
@@ -20,7 +20,6 @@ import {
   TraverseMeasurementEntry,
 } from "../types/MeasurementTypes";
 import { createPointMarker } from "../utils/cesiumTraverseEntities";
-import { formatDistance } from "../../utils/formatters";
 import {
   createSegmentLabel,
   createSegmentNodeLabel,
@@ -28,8 +27,7 @@ import {
   updateTraverseLabelVisibility,
   createPointLabelText,
 } from "../utils/cesiumLabels";
-import { useRequestRender } from "./useRequestRender";
-import { useCesiumTraverseLabels } from "./useCesiumTraverseLabels";
+import { useAnnotationOverlayTraverse } from "./useAnnotationOverlayTraverse";
 
 const STEMLINE_MIN_OFFSET = 0.1; // meters
 
@@ -67,17 +65,7 @@ const defaultTraverseStyleConfig: Readonly<TraverseStyleConfig> = {
   }),
 };
 
-enum PREVIEW_NAMES {
-  LABEL = "__previewLabel",
-  LINE = "__previewLine",
-  STEM = "__previewStem",
-}
-
-const previewNameValues = Object.freeze(Object.values(PREVIEW_NAMES));
-
-const isPreviewName = (name: string): name is PREVIEW_NAMES => {
-  return previewNameValues.includes(name as PREVIEW_NAMES);
-};
+// Preview-related constants removed - now handled by DOM overlay system
 
 const getLocalElevatedPoint = (
   position: Cartesian3,
@@ -107,7 +95,7 @@ const getLocalElevatedPoint = (
   return Cartesian3.add(position, offsetVector, new Cartesian3());
 };
 
-export function useCesiumTraverseVisualizer(
+export function useTraverseVisualizer(
   viewer: Viewer | null,
   measurements: MeasurementCollection = [],
   showTraverse: boolean = true,
@@ -124,7 +112,6 @@ export function useCesiumTraverseVisualizer(
   const renderedTraversesRef = useRef<
     Map<string, { timestamp: number; referenceElevation: number }>
   >(new Map());
-  const requestRender = useRequestRender(viewer);
 
   const config = defaultTraverseStyleConfig;
 
@@ -136,7 +123,10 @@ export function useCesiumTraverseVisualizer(
     }, [measurements]);
 
   // Use overlay labels instead of Cesium entity labels
-  useCesiumTraverseLabels(traverses, showLabels, referenceElevation);
+  useAnnotationOverlayTraverse(traverses, showLabels, referenceElevation);
+
+  // Preview lines are now handled by DOM-based overlay system
+  // TODO: Implement simplified preview line using ConnectingLine component
 
   const clearVisualizations = useCallback(() => {
     if (!viewer || viewer.isDestroyed()) return;
@@ -427,168 +417,8 @@ export function useCesiumTraverseVisualizer(
     referenceElevation,
   ]);
 
-  // Handle live preview for active traverse measurement
-  useEffect(() => {
-    if (
-      !viewer ||
-      viewer.isDestroyed() ||
-      !mousePosition ||
-      !isActiveTraverse ||
-      !currentTraverseId
-    ) {
-      // Clean up preview entities when no active traverse
-      const previewEntities = traverseEntiesRef.current.filter((entity) =>
-        isPreviewName(entity.name)
-      );
-      previewEntities.forEach((entity) => {
-        try {
-          viewer.entities.remove(entity);
-        } catch {}
-        const index = traverseEntiesRef.current.indexOf(entity);
-        if (index > -1) {
-          traverseEntiesRef.current.splice(index, 1);
-        }
-      });
-      return;
-    }
-
-    // Find the currently active traverse by ID
-    const activeTraverse = traverses.find(
-      (traverse) => traverse.id === currentTraverseId
-    );
-
-    if (!activeTraverse || activeTraverse.geometryECEF.length === 0) {
-      return;
-    }
-
-    const lastPoint =
-      activeTraverse.geometryECEF[activeTraverse.geometryECEF.length - 1];
-    const heightOffset = activeTraverse.heightOffset || 0;
-
-    // Apply height offset for visualization
-    const elevatedLastPoint =
-      heightOffset > 0
-        ? getLocalElevatedPoint(lastPoint, heightOffset)
-        : lastPoint;
-    const elevatedMousePosition =
-      heightOffset > 0
-        ? getLocalElevatedPoint(mousePosition, heightOffset)
-        : mousePosition;
-
-    const segmentDistance = Cartesian3.distance(lastPoint, mousePosition);
-
-    // Update or create preview segment label
-    let previewLabel = traverseEntiesRef.current.find(
-      (entity) => entity.name === PREVIEW_NAMES.LABEL
-    );
-
-    if (!previewLabel) {
-      previewLabel = createSegmentLabel(
-        elevatedLastPoint,
-        elevatedMousePosition,
-        segmentDistance
-      );
-      previewLabel.name = PREVIEW_NAMES.LABEL;
-      viewer.entities.add(previewLabel);
-      traverseEntiesRef.current.push(previewLabel);
-    } else {
-      const midpoint = Cartesian3.midpoint(
-        elevatedLastPoint,
-        elevatedMousePosition,
-        new Cartesian3()
-      );
-      if (previewLabel.position) {
-        (previewLabel.position as ConstantPositionProperty).setValue(midpoint);
-      }
-      if (previewLabel.label && previewLabel.label.text) {
-        (previewLabel.label.text as ConstantProperty).setValue(
-          formatDistance(segmentDistance)
-        );
-      }
-    }
-
-    // Update or create preview line
-    let previewLine = traverseEntiesRef.current.find(
-      (entity) => entity.name === PREVIEW_NAMES.LINE
-    );
-
-    if (!previewLine) {
-      previewLine = new Entity({
-        name: PREVIEW_NAMES.LINE,
-        polyline: {
-          positions: new ConstantProperty([
-            elevatedLastPoint,
-            elevatedMousePosition,
-          ]),
-          width: config.previewLineWidth,
-          material: config.previewLineMaterial,
-          clampToGround: false,
-        },
-      });
-      viewer.entities.add(previewLine);
-      traverseEntiesRef.current.push(previewLine);
-    } else {
-      if (previewLine.polyline && previewLine.polyline.positions) {
-        (previewLine.polyline.positions as ConstantProperty).setValue([
-          elevatedLastPoint,
-          elevatedMousePosition,
-        ]);
-      }
-    }
-
-    // Add preview stem line for mouse position if heightOffset > min height
-    let previewStem = traverseEntiesRef.current.find(
-      (entity) => entity.name === PREVIEW_NAMES.STEM
-    );
-
-    if (heightOffset > STEMLINE_MIN_OFFSET) {
-      if (!previewStem) {
-        previewStem = new Entity({
-          name: PREVIEW_NAMES.STEM,
-          polyline: {
-            positions: new ConstantProperty([
-              mousePosition,
-              elevatedMousePosition,
-            ]),
-            width: config.stemLineWidth,
-            material: config.stemLineMaterial,
-            clampToGround: false,
-          },
-        });
-        viewer.entities.add(previewStem);
-        traverseEntiesRef.current.push(previewStem);
-      } else {
-        if (previewStem.polyline && previewStem.polyline.positions) {
-          (previewStem.polyline.positions as ConstantProperty).setValue([
-            mousePosition,
-            elevatedMousePosition,
-          ]);
-        }
-      }
-    } else if (previewStem) {
-      // Remove stem if heightOffset is 0
-      try {
-        viewer.entities.remove(previewStem);
-      } catch {}
-      const index = traverseEntiesRef.current.indexOf(previewStem);
-      if (index > -1) {
-        traverseEntiesRef.current.splice(index, 1);
-      }
-    }
-
-    requestRender();
-    // Force immediate render for smooth preview updates
-    viewer.scene.requestRender();
-    // config properties are static constants
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    viewer,
-    mousePosition,
-    traverses,
-    requestRender,
-    isActiveTraverse,
-    currentTraverseId,
-  ]);
+  // Preview lines are now handled by DOM-based overlay system
+  // No Cesium entity-based preview logic needed
 
   // Handle camera drag/zoom end events to update label visibility
   useEffect(() => {
@@ -621,6 +451,7 @@ export function useCesiumTraverseVisualizer(
     };
 
     // Add camera event listeners - only on end events for better performance
+    console.log("[TraverseVisualizer] Registering moveEnd listener");
     const removeMoveEndListener =
       viewer.camera.moveEnd.addEventListener(handleCameraChange);
 
@@ -628,6 +459,7 @@ export function useCesiumTraverseVisualizer(
     handleCameraChange();
 
     return () => {
+      console.log("[TraverseVisualizer] Removing moveEnd listener");
       removeMoveEndListener();
     };
   }, [viewer, traverses, showCesiumLabels, requestRender]);

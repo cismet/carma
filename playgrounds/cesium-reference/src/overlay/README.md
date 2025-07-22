@@ -1,10 +1,12 @@
 # Cesium Overlay System
 
-A React context-based overlay system for rendering HTML elements positioned relative to 3D coordinates in Cesium.
+A React context-based overlay system for rendering HTML elements positioned with 2D coordinates.
 
-## Overview
+The overlay system provides a way to render HTML Annotation content (labels, tooltips, UI elements) based on 2D positions.
 
-The overlay system provides a way to render HTML content (labels, tooltips, UI elements) that are positioned and tracked relative to 3D world coordinates in a Cesium viewer. Elements automatically update their screen positions as the camera moves.
+The component itself is agnostic of any 3D engine or framework, so the projection from 3D to 2D should happen in a callback or precomputed.
+
+The Lib provides predefined annotion components and primitives that expect 2D positions.
 
 
 ## Usage
