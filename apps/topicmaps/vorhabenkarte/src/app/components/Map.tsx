@@ -53,16 +53,14 @@ const Map = () => {
     setClusteringOptions,
     setSelectedFeatureByPredicate,
     setFilterState,
-    itemsDictionary,
   } = useContext<typeof FeatureCollectionDispatchContext>(
     FeatureCollectionDispatchContext
   );
   const { markerSymbolSize } = useContext<typeof TopicMapStylingContext>(
     TopicMapStylingContext
   );
-  const { clusteringOptions, selectedFeature, filterState } = useContext<
-    typeof FeatureCollectionContext
-  >(FeatureCollectionContext);
+  const { clusteringOptions, selectedFeature, filterState, itemsDictionary } =
+    useContext<typeof FeatureCollectionContext>(FeatureCollectionContext);
   const lightBoxDispatchContext = useContext(
     LightBoxDispatchContext
   ) as LightboxDispatch;
@@ -124,21 +122,23 @@ const Map = () => {
 
   useEffect(() => {
     console.log("xxx itemsDictionary", itemsDictionary);
+    console.log("xxx filterState 1", filterState);
 
     if (
       itemsDictionary &&
       itemsDictionary.topics &&
-      itemsDictionary.topics.length > 0
+      itemsDictionary.topics.length > 0 &&
+      filterState.topics.length === 0
     ) {
+      console.log("xxx filterState 2", filterState);
       const topics = itemsDictionary.topics.map((t) => t.name);
       const newFilterState = { ...filterState };
 
-      console.log("xxx newFilterState", newFilterState);
       newFilterState["topics"] = topics;
 
       setFilterState(newFilterState);
     }
-  }, [itemsDictionary]);
+  }, [itemsDictionary, filterState]);
 
   useEffect(() => {
     if (
