@@ -45,13 +45,12 @@ export const FeatureIconOverlay = ({
     updateOverlayVisibility();
 
     const markers: L.Marker[] = [];
-    // helper to drop one icon at the centroid of any geometry
     const dropMarkerAt = (
       g: GeoJSON.Geometry | GeoJSON.MultiPolygon,
       feature
     ) => {
-      const c = pointOnFeature(g as any).geometry as GeoJSON.Point;
-      const [x, y] = c.coordinates;
+      const point = pointOnFeature(g as any).geometry as GeoJSON.Point;
+      const [x, y] = point.coordinates;
       const latlng = map.options.crs.projection.unproject(L.point(x, y));
 
       const { svg: html, svgSize: size } = styleFn(feature);
@@ -62,19 +61,19 @@ export const FeatureIconOverlay = ({
         className: "transparent-marker",
       });
 
-      const m = L.marker(latlng, {
+      const marker = L.marker(latlng, {
         icon,
         interactive: true,
         zIndexOffset: 497,
       }).addTo(map);
 
-      m.on("click", () => {
+      marker.on("click", () => {
         setSelectedFeatureByPredicate(
           (f) => f.properties.id === feature.properties.id
         );
       });
 
-      markers.push(m);
+      markers.push(marker);
     };
 
     shownFeatures.forEach((feature) => {
