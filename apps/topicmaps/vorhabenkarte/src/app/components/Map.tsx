@@ -47,13 +47,8 @@ import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextPr
 import { useGazData } from "@carma-apps/portals";
 import { type GazDataItem } from "@carma-commons/utils";
 import versionData from "../../version.json";
-import { Topic } from "../App";
 
-interface MapProps {
-  topicsWitColors: Topic[];
-}
-
-const Map = ({ topicsWitColors }: MapProps) => {
+const Map = () => {
   const {
     setClusteringOptions,
     setSelectedFeatureByPredicate,
@@ -128,6 +123,8 @@ const Map = ({ topicsWitColors }: MapProps) => {
   }, [markerSymbolSize]);
 
   useEffect(() => {
+    console.log("xxx itemsDictionary", itemsDictionary);
+
     if (
       itemsDictionary &&
       itemsDictionary.topics &&
@@ -135,6 +132,8 @@ const Map = ({ topicsWitColors }: MapProps) => {
     ) {
       const topics = itemsDictionary.topics.map((t) => t.name);
       const newFilterState = { ...filterState };
+
+      console.log("xxx newFilterState", newFilterState);
       newFilterState["topics"] = topics;
 
       setFilterState(newFilterState);
@@ -204,7 +203,7 @@ const Map = ({ topicsWitColors }: MapProps) => {
           </div>
         </Control>
         <TopicMapComponent
-          modalMenu={<Menu topicsWitColors={topicsWitColors} />}
+          modalMenu={<Menu />}
           locatorControl={false}
           fullScreenControl={false}
           zoomControls={false}

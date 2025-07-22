@@ -17,13 +17,8 @@ import {
 } from "@carma-collab/wuppertal/vorhabenkarte";
 import versionData from "../../version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
-import { Topic } from "../App";
 
-interface MenuProps {
-  topicsWitColors: Topic[];
-}
-
-const Menu = ({ topicsWitColors }: MenuProps) => {
+const Menu = () => {
   const { filteredItems, shownFeatures } = useContext<
     typeof FeatureCollectionContext
   >(FeatureCollectionContext);
@@ -55,7 +50,7 @@ const Menu = ({ topicsWitColors }: MenuProps) => {
               shownFeatures?.length
             )}
             sectionBsStyle={FilterStyle}
-            sectionContent={<FilterUI topicsWitColors={topicsWitColors} />}
+            sectionContent={<FilterUI />}
           />,
           <DefaultSettingsPanel
             key="settings"

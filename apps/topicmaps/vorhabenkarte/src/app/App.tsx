@@ -11,34 +11,13 @@ import convertItemToFeature from "../helper/convertItemToFeature";
 import { getFeatureStyler } from "../helper/styler";
 import itemFilterFunction from "../helper/filter";
 import { addTitleFlag } from "../helper/urlHelper";
-import { getTopics } from "../helper/getTopics";
 import titleFactory from "../helper/titleFactory";
 import createItemsDictionary from "../helper/createItemsDictionary";
 
-export type Topic = {
-  id: number;
-  name: string;
-  farbe: string;
-  fuellung: number;
-  signatur: string;
-};
-
 export function App() {
-  const [topicsWithColor, setTopicsWithColor] = useState<Topic[]>([]);
-  const topics = topicsWithColor.map((t) => t.name);
   useEffect(() => {
     document.title = "Vorhabenkarte Wuppertal";
     addTitleFlag();
-    const fetchTopics = async (url) => {
-      const res = await getTopics(url);
-      if (res) {
-        setTopicsWithColor(res);
-      }
-    };
-
-    fetchTopics(
-      import.meta.env.VITE_WUPP_ASSET_BASEURL + "/data/vk_thema.data.json"
-    );
   }, []);
   return (
     <TopicMapContextProvider
@@ -61,7 +40,7 @@ export function App() {
       }}
       convertItemToFeature={convertItemToFeature}
     >
-      <Map topicsWitColors={topicsWithColor} />
+      <Map />
     </TopicMapContextProvider>
   );
 }

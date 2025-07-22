@@ -13,12 +13,8 @@ import VorhabenkartePieChart from "./VorhabenkartePieChart";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faTag, faUser } from "@fortawesome/free-solid-svg-icons";
 import Icon from "react-cismap/commons/Icon";
-import { Topic } from "../../App";
 
-interface FilterUIProps {
-  topicsWitColors: Topic[];
-}
-const FilterUI = ({ topicsWitColors }: FilterUIProps) => {
+const FilterUI = () => {
   const { filterState, itemsDictionary } = useContext<
     typeof FeatureCollectionContext
   >(FeatureCollectionContext);
@@ -40,8 +36,6 @@ const FilterUI = ({ topicsWitColors }: FilterUIProps) => {
   let narrowPieChartPlaceholder: any = null;
 
   let pieChart = <VorhabenkartePieChart />;
-
-  console.log("xxx itemsDictionary", itemsDictionary);
 
   if (width < 995) {
     narrowPieChartPlaceholder = (
