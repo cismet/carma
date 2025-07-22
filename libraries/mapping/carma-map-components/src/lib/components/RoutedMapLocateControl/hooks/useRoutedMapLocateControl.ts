@@ -66,10 +66,6 @@ export const useRoutedMapLocateControl = () => {
             outsideMapBoundsMsg:
               "Sie befinden sich außerhalb der Kartengrenzen.",
           },
-          locateOptions: {
-            enableHighAccuracy: true,
-          },
-          showCompass: true,
           setView: "untilPan",
           flyTo: false,
           drawCircle: true,
