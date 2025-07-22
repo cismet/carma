@@ -6,7 +6,6 @@ import {
   FeatureCollectionDispatchContext,
 } from "react-cismap/contexts/FeatureCollectionContextProvider";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
-import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 
 import "url-search-params-polyfill";
 import VorhabenkartePieChart from "./VorhabenkartePieChart";
@@ -24,9 +23,6 @@ const FilterUI = () => {
   >(FeatureCollectionDispatchContext);
   const { windowSize } = useContext<typeof ResponsiveTopicMapContext>(
     ResponsiveTopicMapContext
-  );
-  const { additionalStylingInfo } = useContext<typeof TopicMapStylingContext>(
-    TopicMapStylingContext
   );
 
   const width = windowSize?.width || 500;
