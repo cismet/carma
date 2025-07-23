@@ -14,7 +14,6 @@ import {
   Primitive,
   Viewer,
   Math as CesiumMath,
-  BoundingSphere,
   Rectangle,
   OrthographicFrustum,
   OrthographicOffCenterFrustum,
@@ -24,8 +23,11 @@ import {
 import type { TilesetConfig } from "@carma-commons/resources";
 
 import { isValidViewerInstance } from "./cesiumTypeGuards";
-import type { LatLngRadians, LatLngRecord } from "@carma-commons/types";
-import type { NumericResult } from "@carma-commons/types";
+import type {
+  LatLngRadians,
+  LatLngRecord,
+  NumericResult,
+} from "@carma-commons/types";
 
 // Constants
 
@@ -234,12 +236,7 @@ export const pickViewerCanvasPositions = (
     result.scenePosition = scenePosition;
 
     if (getPixelSize) {
-      const pixelSize = viewer.camera.getPixelSize(
-        new BoundingSphere(scenePosition, 1),
-        viewer.scene.drawingBufferWidth,
-        viewer.scene.drawingBufferHeight
-      );
-      result.pixelSize = pixelSize;
+      result.pixelSize = getPixelSizeForPosition(viewer, scenePosition);
     }
 
     if (getCoordinates) {
@@ -506,6 +503,24 @@ export const WEB_MERCATOR_MAX_LATITUDE_RAD = CesiumMath.toRadians(
   WEB_MERCATOR_MAX_LATITUDE
 );
 
+const getPixelSizeForPosition = (viewer: Viewer, position: Cartesian3) => {
+  if (defined(position)) {
+    // Calculate pixel size directly without creating BoundingSphere for better performance
+    const distance = Cartesian3.distance(position, viewer.camera.positionWC);
+    const dpr = window.devicePixelRatio ?? 1;
+    const pixelDimensions = viewer.camera.frustum.getPixelDimensions(
+      viewer.scene.drawingBufferWidth,
+      viewer.scene.drawingBufferHeight,
+      distance,
+      viewer.scene.pixelRatio,
+      new Cartesian2()
+    );
+
+    return Math.max(pixelDimensions.x, pixelDimensions.y) / dpr;
+  }
+  return null;
+};
+
 export const getMercatorScaleFactorAtLatitude = (latitude: number): number => {
   if (latitude > WEB_MERCATOR_MAX_LATITUDE_RAD) {
     console.warn(
@@ -600,14 +615,8 @@ const sampleRingPixelSize = (
 ) => {
   const positionCoords = generatePositionsForRing(samples, radius);
   const positions = pickViewerCanvasPositions(viewer, positionCoords);
-  const pixelSizes = positions.map(
-    ({ scenePosition }) =>
-      defined(scenePosition) &&
-      viewer.camera.getPixelSize(
-        new BoundingSphere(scenePosition, 1),
-        viewer.scene.drawingBufferWidth,
-        viewer.scene.drawingBufferHeight
-      )
+  const pixelSizes = positions.map(({ scenePosition }) =>
+    getPixelSizeForPosition(viewer, scenePosition)
   );
   const validPixelSizes = pixelSizes.filter(
     (pixelSize): pixelSize is number =>
@@ -672,6 +681,7 @@ export const getScenePixelSize = (
       error: "No pixel size found for camera position",
     };
   }
+
   return result;
 };
 
