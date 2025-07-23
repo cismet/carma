@@ -503,20 +503,22 @@ export const WEB_MERCATOR_MAX_LATITUDE_RAD = CesiumMath.toRadians(
   WEB_MERCATOR_MAX_LATITUDE
 );
 
-const getPixelSizeForPosition = (viewer: Viewer, position: Cartesian3) => {
+const getPixelSizeForPosition = (
+  viewer: Viewer,
+  position: Cartesian3 | null
+) => {
   if (defined(position)) {
     // Calculate pixel size directly without creating BoundingSphere for better performance
-    const distance = Cartesian3.distance(position, viewer.camera.positionWC);
-    const dpr = window.devicePixelRatio ?? 1;
+    const distance = Cartesian3.distance(position, viewer.camera.position);
     const pixelDimensions = viewer.camera.frustum.getPixelDimensions(
       viewer.scene.drawingBufferWidth,
       viewer.scene.drawingBufferHeight,
       distance,
-      viewer.scene.pixelRatio,
+      1,
       new Cartesian2()
     );
 
-    return Math.max(pixelDimensions.x, pixelDimensions.y) / dpr;
+    return Math.max(pixelDimensions.x, pixelDimensions.y);
   }
   return null;
 };
