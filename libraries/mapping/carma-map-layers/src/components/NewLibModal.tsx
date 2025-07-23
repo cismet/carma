@@ -732,7 +732,7 @@ export const NewLibModal = ({
 
       const file = event?.dataTransfer?.files[0];
 
-      if (url && url.endsWith("style.json")) {
+      if (url && url.endsWith(".json")) {
         const newItem = {
           description: "",
           id: `custom:${url}`,
