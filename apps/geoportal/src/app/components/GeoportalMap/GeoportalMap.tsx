@@ -9,6 +9,7 @@ import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 
 import {
+  SelectionItem,
   TopicMapSelectionContent,
   useAuth,
   useFeatureFlags,
@@ -44,7 +45,6 @@ import {
 } from "@carma-mapping/cesium-engine";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 
-import { SelectionItem } from "libraries/appframeworks/portals/src/lib/components/SelectionProvider.tsx";
 import FeatureInfoBox from "../feature-info/FeatureInfoBox.tsx";
 import InfoBoxMeasurement from "../map-measure/InfoBoxMeasurement.jsx";
 import PrintPreview from "../map-print/PrintPreview.tsx";
@@ -59,6 +59,7 @@ import useLeafletZoomControls from "../../hooks/leaflet/useLeafletZoomControls.t
 import { useDispatchSachdatenInfoText } from "../../hooks/useDispatchSachdatenInfoText.ts";
 import { useFeatureInfoModeCursorStyle } from "../../hooks/useFeatureInfoModeCursorStyle.ts";
 import { useObliqueInitializer } from "../../oblique/hooks/useObliqueInitializer.ts";
+import { useModels } from "../../hooks/useModels.ts";
 
 import { createCismapLayers, onClickTopicMap } from "./topicmap.utils.ts";
 import { useTweakpane } from "./GeoportalMap.useTweakpane.ts";
@@ -180,6 +181,11 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
 
   useDispatchSachdatenInfoText();
 
+  useModels({
+    models: CESIUM_CONFIG.models || [],
+    enabled: flags.featureFlagBugaBridge && !isMode2d,
+  });
+
   const { gazData } = useGazData();
 
   useFeatureInfoModeCursorStyle();
@@ -297,7 +303,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
 
   useEffect(() => {
     if (isModeFeatureInfo && pos) updateFeatureInfoLeaflet();
-  }, [layers]);
+  }, [isModeFeatureInfo, layers, pos, updateFeatureInfoLeaflet]);
 
   useEffect(() => {
     const map = routedMap?.leafletMap?.leafletElement;

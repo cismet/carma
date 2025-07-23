@@ -1,10 +1,12 @@
 import {
   BASEMAP_METROPOLRUHR_WMS_GRAUBLAU,
+  BRUECKENENTWURF_GLB,
   WUPP_LOD2_TILESET,
   WUPP_MESH_2024,
   WUPP_TERRAIN_PROVIDER,
   WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
 } from "@carma-commons/resources";
+
 import type { CesiumConfig } from "@carma-mapping/cesium-engine";
 import type { LeafletConfig } from "@carma-commons/types";
 
@@ -42,6 +44,7 @@ export const CESIUM_CONFIG: CesiumConfig = {
     primary: WUPP_MESH_2024,
     secondary: WUPP_LOD2_TILESET,
   },
+  models: [BRUECKENENTWURF_GLB],
 };
 
 export const LEAFLET_CONFIG: LeafletConfig = {

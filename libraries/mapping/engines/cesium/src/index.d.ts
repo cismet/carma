@@ -4,6 +4,7 @@ import type { ColorRgbaArray } from "@carma-commons/types";
 
 import type { ProviderConfig } from "./lib/utils/cesiumProviders";
 import type { TilesetConfigs } from "./lib/utils/cesiumTilesetProviders";
+import type { ModelConfig } from "@carma-commons/resources";
 
 export type CameraPositionAndOrientation = {
   position: Cartesian3;
@@ -123,6 +124,7 @@ export type CesiumConfig = {
   pathName: string;
   tilesetConfigs: TilesetConfigs;
   providerConfig: ProviderConfig;
+  models?: ModelConfig[];
 };
 export interface CesiumState {
   isAnimating?: boolean;
