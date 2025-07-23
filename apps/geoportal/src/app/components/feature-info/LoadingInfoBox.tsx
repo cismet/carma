@@ -6,12 +6,20 @@ import {
   getSelectedFeature,
 } from "../../store/slices/features";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
-import { useContext } from "react";
+import { useContext, useEffect, useState } from "react";
 import { getQueryableLayers } from "../GeoportalMap/utils";
 import { getHashParams } from "@carma-commons/utils";
 import { InfoBox } from "@carma-apps/portals";
 
+type RenderedElements = {
+  additionalInfo?: boolean;
+  subtitle?: boolean;
+};
+
 const LoadingInfoBox = () => {
+  const [renderedLoadingElements, setRenderedLoadingElements] =
+    useState<RenderedElements>({});
+
   const layers = useSelector(getLayers);
   const selectedFeature = useSelector(getSelectedFeature);
   const preferredLayerId = useSelector(getPreferredLayerId);
@@ -52,6 +60,23 @@ const LoadingInfoBox = () => {
     );
   });
 
+  useEffect(() => {
+    if (layers.length > 0 && layers[0]?.conf?.infoboxMapping) {
+      let visibleElements: RenderedElements = {};
+      if (Array.isArray(layers[0].conf.infoboxMapping)) {
+        layers[0].conf.infoboxMapping.forEach((mapping) => {
+          if (mapping.includes("additionalInfo")) {
+            visibleElements.additionalInfo = true;
+          }
+          if (mapping.includes("subtitle")) {
+            visibleElements.subtitle = true;
+          }
+        });
+      }
+      setRenderedLoadingElements(visibleElements);
+    }
+  }, [layers]);
+
   return (
     <InfoBox
       pixelwidth={350}
@@ -73,10 +98,14 @@ const LoadingInfoBox = () => {
         </div>
       }
       additionalInfo={
-        '<html><div className="w-56 h-4 bg-zinc-400 rounded-md animate-pulse" /></html>'
+        renderedLoadingElements.additionalInfo
+          ? '<html><div className="w-56 h-4 bg-zinc-400 rounded-md animate-pulse" /></html>'
+          : undefined
       }
       subtitle={
-        <div className="w-36 h-2 bg-zinc-400 rounded-md animate-pulse mb-4" />
+        renderedLoadingElements.subtitle ? (
+          <div className="w-36 h-2 bg-zinc-400 rounded-md animate-pulse mb-4" />
+        ) : undefined
       }
       header={
         preferredLayerId &&
