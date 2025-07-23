@@ -1,4 +1,3 @@
-import InfoBox from "react-cismap/topicmaps/InfoBox";
 import InfoBoxFotoPreview from "react-cismap/topicmaps/InfoBoxFotoPreview";
 import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
 import { getActionLinksForFeature } from "react-cismap/tools/uiHelper";
@@ -12,6 +11,7 @@ import { additionalInfoFactory } from "@carma-collab/wuppertal/geoportal";
 import { genericSecondaryInfoFooterFactory } from "@carma-collab/wuppertal/commons";
 import versionData from "../../version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
+import { InfoBox } from "@carma-apps/portals";
 
 interface InfoboxProps {
   selectedFeature: any;
