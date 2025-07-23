@@ -60,22 +60,32 @@ const LoadingInfoBox = () => {
     );
   });
 
+  const getHeader = () => {
+    if (selectedFeature) {
+      return selectedFeature.properties.header;
+    } else {
+      return preferredLayerId &&
+        queryableLayers.find((l) => l.id === preferredLayerId)
+        ? queryableLayers.find((l) => l.id === preferredLayerId)?.title
+        : queryableLayers[queryableLayers.length - 1].title;
+    }
+  };
+
   useEffect(() => {
-    if (layers.length > 0 && layers[0]?.conf?.infoboxMapping) {
+    setRenderedLoadingElements({});
+    if (selectedFeature && selectedFeature.properties) {
       let visibleElements: RenderedElements = {};
-      if (Array.isArray(layers[0].conf.infoboxMapping)) {
-        layers[0].conf.infoboxMapping.forEach((mapping) => {
-          if (mapping.includes("additionalInfo")) {
-            visibleElements.additionalInfo = true;
-          }
-          if (mapping.includes("subtitle")) {
-            visibleElements.subtitle = true;
-          }
-        });
+
+      if (selectedFeature.properties.additionalInfo !== undefined) {
+        visibleElements.additionalInfo = true;
       }
+      if (selectedFeature.properties.subtitle !== undefined) {
+        visibleElements.subtitle = true;
+      }
+
       setRenderedLoadingElements(visibleElements);
     }
-  }, [layers]);
+  }, [selectedFeature]);
 
   return (
     <InfoBox
@@ -98,21 +108,16 @@ const LoadingInfoBox = () => {
         </div>
       }
       additionalInfo={
-        renderedLoadingElements.additionalInfo
+        renderedLoadingElements.additionalInfo || !selectedFeature
           ? '<html><div className="w-56 h-4 bg-zinc-400 rounded-md animate-pulse" /></html>'
           : undefined
       }
       subtitle={
-        renderedLoadingElements.subtitle ? (
+        renderedLoadingElements.subtitle || !selectedFeature ? (
           <div className="w-36 h-2 bg-zinc-400 rounded-md animate-pulse mb-4" />
         ) : undefined
       }
-      header={
-        preferredLayerId &&
-        queryableLayers.find((l) => l.id === preferredLayerId)
-          ? queryableLayers.find((l) => l.id === preferredLayerId)?.title
-          : queryableLayers[queryableLayers.length - 1].title
-      }
+      header={getHeader()}
       secondaryInfoBoxElements={featureHeaders}
     />
   );
