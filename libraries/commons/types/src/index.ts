@@ -1,5 +1,6 @@
 export * from "./lib/carma-config.d";
 export * from "./lib/carma-layers.d";
+export * from "./lib/cesium-config.d";
 export * from "./lib/cesium-shaders.d";
 export * from "./lib/cismap-search.d";
 export * from "./lib/data-structures.d";

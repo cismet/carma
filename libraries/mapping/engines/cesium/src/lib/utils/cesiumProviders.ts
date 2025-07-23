@@ -1,10 +1,13 @@
+import type {
+  WebMapServiceProviderConfig,
+  WebMapTileServiceProviderConfig,
+} from "@carma-commons/types";
 import {
   CesiumTerrainProvider,
   ImageryLayer,
   WebMapServiceImageryProvider,
+  WebMapTileServiceImageryProvider,
 } from "cesium";
-
-import type { ImageryProviderConfig } from "../..";
 
 export interface ProviderConfig {
   surfaceProvider?: {
@@ -13,8 +16,12 @@ export interface ProviderConfig {
   terrainProvider: {
     url: string;
   };
-  imageryProvider?: ImageryProviderConfig;
+  imageryProvider?:
+    | WebMapServiceProviderConfig
+    | WebMapTileServiceProviderConfig;
 }
+
+const nativeTileSize = 128;
 
 export const loadCesiumTerrainProvider = async (
   ref: React.MutableRefObject<CesiumTerrainProvider | null>,
@@ -33,9 +40,9 @@ export const loadCesiumTerrainProvider = async (
   }
 };
 
-export const loadCesiumImageryLayer = async (
+export const loadCesiumWebMapServiceImageryLayer = async (
   ref: React.MutableRefObject<ImageryLayer | null>,
-  config: ImageryProviderConfig,
+  config: WebMapServiceProviderConfig,
   signal: AbortSignal
 ) => {
   try {
@@ -48,5 +55,64 @@ export const loadCesiumImageryLayer = async (
     if (!signal.aborted) {
       console.error("Failed to load imagery provider:", error);
     }
+  }
+};
+
+const isWebMapServiceConfig = (
+  config: WebMapServiceProviderConfig | WebMapTileServiceProviderConfig
+): config is WebMapServiceProviderConfig => {
+  return "layers" in config && "parameters" in config;
+};
+
+const isWebMapTileServiceConfig = (
+  config: WebMapServiceProviderConfig | WebMapTileServiceProviderConfig
+): config is WebMapTileServiceProviderConfig => {
+  return "layer" in config && "style" in config && "tileMatrixSetID" in config;
+};
+
+export const loadCesiumWebMapTileServiceImageryLayer = async (
+  ref: React.MutableRefObject<ImageryLayer | null>,
+  config: WebMapTileServiceProviderConfig,
+  signal: AbortSignal
+) => {
+  try {
+    const dpr = window.devicePixelRatio ?? 1;
+    const renderSize = Math.floor(nativeTileSize / dpr);
+    const tileWidth = renderSize;
+    const tileHeight = renderSize;
+
+    const options = {
+      ...config,
+      tileWidth,
+      tileHeight,
+    };
+
+    console.debug("[CESIUM|WMTS] adding WMTS provider", options);
+
+    const imageryProvider = new WebMapTileServiceImageryProvider(options);
+
+    const newImageryLayer = new ImageryLayer(imageryProvider);
+    if (!signal.aborted) {
+      ref.current = newImageryLayer;
+    }
+  } catch (error) {
+    if (!signal.aborted) {
+      console.error("Failed to load WMTS imagery provider:", error);
+    }
+  }
+};
+
+// Generic loader that uses type guards to determine which provider to use
+export const loadCesiumImageryLayer = async (
+  ref: React.MutableRefObject<ImageryLayer | null>,
+  config: WebMapServiceProviderConfig | WebMapTileServiceProviderConfig,
+  signal: AbortSignal
+) => {
+  if (isWebMapServiceConfig(config)) {
+    return loadCesiumWebMapServiceImageryLayer(ref, config, signal);
+  } else if (isWebMapTileServiceConfig(config)) {
+    return loadCesiumWebMapTileServiceImageryLayer(ref, config, signal);
+  } else {
+    console.error("Unknown imagery provider config type:", config);
   }
 };
