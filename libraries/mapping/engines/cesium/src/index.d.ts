@@ -90,12 +90,6 @@ export type TerrainProviderConfig = {
   url: string;
 };
 
-export type ImageryProviderConfig = {
-  url: string;
-  layers: string;
-  parameters: { transparent: boolean; format: string };
-};
-
 export type SceneStyle = {
   backgroundColor: ColorRgbaArray;
   globe: {

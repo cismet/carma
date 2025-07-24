@@ -4,6 +4,30 @@ import {
   WMSLayerMap,
 } from "../wms";
 
+const SPW2_WMTS_TILEMATRIX_LABELS = [
+  "00",
+  "01",
+  "02",
+  "03",
+  "04",
+  "05",
+  "06",
+  "07",
+  "08",
+  "09",
+  "10",
+  "11",
+  "12",
+  "13",
+  "14",
+  "15",
+  "16",
+  "17",
+  "18",
+  "19",
+  "20",
+];
+
 export const BASEMAP_METROPOLRUHR_WMS_GRUNDRISS = {
   url: "https://geodaten.metropoleruhr.de/spw2/service",
   layers: "spw2_light_grundriss",
@@ -14,6 +38,28 @@ export const BASEMAP_METROPOLRUHR_WMS_GRAUBLAU = {
   url: "https://geodaten.metropoleruhr.de/spw2/service",
   layers: "spw2_graublau",
   parameters: DEFAULT_WMS_IMAGE_PROVIDER_PARAMETERS,
+};
+
+export const BASEMAP_METROPOLRUHR_WMTS_GRAUBLAU = {
+  url: "https://geodaten.metropoleruhr.de/spw2/service",
+  layer: "spw2_graublau",
+  style: "default",
+  format: "image/png",
+  tileMatrixSetID: "webmercator",
+  tileMatrixLabels: SPW2_WMTS_TILEMATRIX_LABELS,
+  minimumLevel: 0,
+  maximumLevel: 20,
+};
+
+export const BASEMAP_METROPOLRUHR_WMTS_GRAUBLAU_HQ = {
+  url: "https://geodaten.metropoleruhr.de/spw2/service",
+  layer: "spw2_graublau",
+  style: "default",
+  format: "image/png",
+  tileMatrixSetID: "webmercator_hq",
+  tileMatrixLabels: SPW2_WMTS_TILEMATRIX_LABELS,
+  minimumLevel: 0,
+  maximumLevel: 20, // as in Capabilities
 };
 
 export const BASEMAP_METROPOLRUHR_WMS_EXTRALIGHT = {
