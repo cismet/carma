@@ -30,6 +30,9 @@ export const getColorForProperties = (properties) => {
 export const getColorForFilter = (topic) => {
   let color;
   switch (topic) {
+    case "Kinder und Jugend":
+      color = "#F8CA00";
+      break;
     case "Umwelt und Grünflächen":
       color = "#8A9B0F";
       break;
@@ -47,6 +50,9 @@ export const getColorForFilter = (topic) => {
       break;
     case "Sport und Freizeit":
       color = "#E97F02";
+      break;
+    case "Wirtschaft und Wohnen":
+      color = "#CC3300";
       break;
     default:
       color = "#8A9B0F";
