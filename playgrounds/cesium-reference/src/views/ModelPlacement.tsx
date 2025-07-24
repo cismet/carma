@@ -84,10 +84,17 @@ const ModelPlacement: React.FC = () => {
       viewer.camera.position,
       modelConstructorOptions.position
     );
-    if (distance > 50000) viewer.flyTo(modelEntity);
+    if (distance > 10000)
+      viewer.flyTo(modelEntity, {
+        offset: {
+          heading: (Math.PI / 180) * 70,
+          pitch: -0.1,
+          range: 100,
+        },
+        duration: 0,
+      });
 
     return () => {
-      // Cleanup entities and primitives when viewer changes
       if (!viewer.isDestroyed()) {
         viewer.entities.remove(modelEntity);
         viewer.scene.primitives.remove(localDebugPrimitive);
