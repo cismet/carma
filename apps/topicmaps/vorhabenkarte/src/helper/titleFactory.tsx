@@ -2,18 +2,12 @@ const factory = ({ featureCollectionContext }) => {
   const { filterState, itemsDictionary } = featureCollectionContext;
 
   let themenText;
-  if (
-    filterState?.topics &&
-    Array.isArray(itemsDictionary?.topics) &&
-    filterState.topics.length === 1
-  ) {
-    themenText = filterState.topics.length + " Thema";
-  } else if (
-    filterState?.topics &&
-    Array.isArray(itemsDictionary?.topics) &&
-    filterState.topics.length !== 1
-  ) {
-    themenText = filterState.topics.length + " Themen";
+  if (filterState?.topics && Array.isArray(itemsDictionary?.topics)) {
+    themenText =
+      filterState.topics.length +
+      " von " +
+      itemsDictionary.topics.length +
+      " Themen";
   }
 
   if (filterState.citizen) {
