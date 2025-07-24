@@ -53,13 +53,13 @@ export const PieChart = ({
               tooltip: {
                 displayColors: false,
                 callbacks: {
-                  title: function() {
-                    return '';
+                  title: function () {
+                    return "";
                   },
-                  label: function(context) {
+                  label: function (context) {
                     return `${context.label}: ${context.formattedValue}`;
-                  }
-                }
+                  },
+                },
               },
               title: {
                 display: true,

@@ -20,9 +20,5 @@
     "dist/**": true,
     "node_modules/**": true
   },
-  "cSpell.words": [
-    "alkis",
-    "flur",
-    "landparcel"
-  ]
+  "cSpell.words": ["alkis", "flur", "landparcel"]
 }
