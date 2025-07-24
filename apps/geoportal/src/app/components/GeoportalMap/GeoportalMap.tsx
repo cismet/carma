@@ -303,7 +303,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
 
   useEffect(() => {
     if (isModeFeatureInfo && pos) updateFeatureInfoLeaflet();
-  }, [isModeFeatureInfo, layers, pos, updateFeatureInfoLeaflet]);
+  }, [layers]);
 
   useEffect(() => {
     const map = routedMap?.leafletMap?.leafletElement;
