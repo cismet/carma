@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Viewer, Cesium3DTileset, RequestScheduler } from "cesium";
-import { logStorageUsage } from "../utils/storageDebug";
+import { Viewer, Cesium3DTileset } from "cesium";
 
 const defaultConstructorOptions: Cesium3DTileset.ConstructorOptions = {
   show: true,
@@ -53,31 +52,6 @@ function useTileset(
       } catch (err) {
         if (signal?.aborted) return;
         console.error("[useTileset] Failed to load tileset:", err);
-
-        // Log storage usage when tileset fails to load
-        if (import.meta.env.DEV) {
-          console.group(
-            "[useTileset] Tileset load failed, checking storage..."
-          );
-          logStorageUsage();
-
-          // Check for specific memory-related errors
-          const errorMessage = err.message || "";
-          if (
-            errorMessage.includes("memory") ||
-            errorMessage.includes("Memory")
-          ) {
-            console.warn(
-              "[useTileset] Memory-related error detected. Consider clearing storage."
-            );
-            console.log(
-              "[useTileset] Run window.storageDebug.clearAllStorage() to clear all storage"
-            );
-          }
-
-          console.groupEnd();
-        }
-
         setError(err.message || "Failed to load tileset");
       } finally {
         setLoading(false);

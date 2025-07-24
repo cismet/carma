@@ -1,13 +1,11 @@
 import * as ReactDOM from "react-dom/client";
 import { HashRouter as Router, Routes, Route } from "react-router-dom";
 import { ConfigProvider, theme } from "antd";
+import { Suspense } from "react";
 
 import Home from "./Home";
 import { APP_BASE_PATH, CESIUM_PATHNAME } from "./config";
 import { views } from "./config.views";
-
-// Import storage debugging utilities
-import "./utils/storageDebug";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "antd/dist/reset.css";
@@ -40,7 +38,11 @@ root.render(
             <Route
               key={view.path}
               path={view.path}
-              element={<view.component />}
+              element={
+                <Suspense fallback={<div>Loading...</div>}>
+                  <view.component />
+                </Suspense>
+              }
             />
           ))}
         </Routes>

@@ -1,12 +1,14 @@
-import MinimalMesh from "./views/MinimalMesh";
-import MinimalLod2 from "./views/MinimalLod2";
-import ShadowMesh from "./views/ShadowMesh";
-import ViewShed from "./views/ViewShed";
-import ObliqueAndMesh from "./views/ObliqueAndMesh";
-import NavigationControlView from "./views/NavigationControl";
-import TestMesh from "./views/TestMesh";
-import Measurements from "./views/Measurements";
-import ModelPlacement from "./views/ModelPlacement";
+import { lazy } from "react";
+
+const MinimalMesh = lazy(() => import("./views/MinimalMesh"));
+const MinimalLod2 = lazy(() => import("./views/MinimalLod2"));
+const ShadowMesh = lazy(() => import("./views/ShadowMesh"));
+const ViewShed = lazy(() => import("./views/ViewShed"));
+const ObliqueAndMesh = lazy(() => import("./views/ObliqueAndMesh"));
+const NavigationControlView = lazy(() => import("./views/NavigationControl"));
+const TestMesh = lazy(() => import("./views/TestMesh"));
+const Measurements = lazy(() => import("./views/Measurements"));
+const ModelPlacement = lazy(() => import("./views/ModelPlacement"));
 
 export const views = [
   { path: "/minimal-mesh", name: "Minimal Mesh", component: MinimalMesh },
