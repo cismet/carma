@@ -28,15 +28,26 @@ export const useTilesetsTweakpane = (
           },
           set customShaderKey(v) {
             setCustomShaderKey(v);
-            if (tileset) {
-              const shaderDef = CUSTOM_SHADERS_DEFINITIONS[v];
-              if (v === "UNDEFINED") {
-                tileset.customShader = undefined;
-                viewer && viewer.scene.requestRender();
-              } else {
-                const shader = new CustomShader(shaderDef);
-                tileset.customShader = shader;
-                viewer && viewer.scene.requestRender();
+            if (tileset && !tileset.isDestroyed()) {
+              try {
+                const shaderDef = CUSTOM_SHADERS_DEFINITIONS[v];
+                if (v === "UNDEFINED") {
+                  tileset.customShader = undefined;
+                } else {
+                  const shader = new CustomShader(shaderDef);
+                  tileset.customShader = shader;
+                }
+                if (viewer && !viewer.isDestroyed()) {
+                  viewer.scene.requestRender();
+                }
+              } catch (error) {
+                console.warn("Failed to set custom shader:", error);
+                // Fallback to undefined shader on error
+                try {
+                  tileset.customShader = undefined;
+                } catch (fallbackError) {
+                  console.warn("Failed to reset shader:", fallbackError);
+                }
               }
             }
           },

@@ -1,4 +1,4 @@
-import { type RefObject, useMemo } from "react";
+import React, { useMemo, useEffect, type RefObject } from "react";
 import { Color, Viewer, Rectangle, SceneMode, Cartographic } from "cesium";
 import UAParser from "ua-parser-js";
 import { merge } from "lodash";
@@ -112,6 +112,22 @@ export function CustomViewer(props: CustomViewerProps) {
     enableSceneStyles = true,
   } = props;
 
+  // Test error trigger for F8 keyboard shortcut
+  useEffect(() => {
+    const handleKeyPress = (event: KeyboardEvent) => {
+      if (event.key === "F8") {
+        event.preventDefault();
+        console.warn("F8 pressed - triggering test 3D error in Cesium");
+
+        // Throw an actual error that will be caught by the error boundary
+        throw new Error("Test 3D error triggered by F8 keyboard shortcut");
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyPress);
+    return () => window.removeEventListener("keydown", handleKeyPress);
+  }, []);
+
   const options: Viewer.ConstructorOptions = useMemo(
     () => merge({}, DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS, constructorOptions),
     [constructorOptions]
@@ -138,6 +154,13 @@ export function CustomViewer(props: CustomViewerProps) {
 
   // optional
   useTweakpane();
+
+  // Test error trigger for development
+  if (
+    (window as { _triggerCesiumTestError?: boolean })._triggerCesiumTestError
+  ) {
+    throw new Error("Test 3D error triggered programmatically");
+  }
 
   return (
     <>

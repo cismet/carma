@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import {
@@ -25,10 +25,12 @@ export const CesiumContextProvider = ({
   children,
   providerConfig,
   tilesetConfigs,
+  storagePrefix = "cesium",
 }: {
   children: ReactNode;
   providerConfig: ProviderConfig;
   tilesetConfigs: TilesetConfigs;
+  storagePrefix?: string;
 }) => {
   // Use refs for Cesium instances to prevent re-renders
   const viewerRef = useRef<Viewer | null>(null);
@@ -46,6 +48,42 @@ export const CesiumContextProvider = ({
 
   // explicitly trigger re-renders
   const [isViewerReady, setIsViewerReady] = useState<boolean>(false);
+
+  // Cesium disabled state management
+  const [isCesiumDisabled, setIsCesiumDisabled] = useState<boolean>(() => {
+    // Initialize from storage on mount with configurable prefix
+    const isPermanentlyDisabled =
+      localStorage.getItem(`${storagePrefix}-cesium-disabled`) === "true";
+    const isSessionDisabled =
+      sessionStorage.getItem(`${storagePrefix}-cesium-session-disabled`) ===
+      "true";
+    return isPermanentlyDisabled || isSessionDisabled;
+  });
+
+  const handleSetCesiumDisabled = useCallback(
+    (disabled: boolean, permanent: boolean = false) => {
+      if (permanent) {
+        if (disabled) {
+          localStorage.setItem(`${storagePrefix}-cesium-disabled`, "true");
+        } else {
+          localStorage.removeItem(`${storagePrefix}-cesium-disabled`);
+        }
+        // Also clear session storage when enabling
+        sessionStorage.removeItem(`${storagePrefix}-cesium-session-disabled`);
+      } else {
+        if (disabled) {
+          sessionStorage.setItem(
+            `${storagePrefix}-cesium-session-disabled`,
+            "true"
+          );
+        } else {
+          sessionStorage.removeItem(`${storagePrefix}-cesium-session-disabled`);
+        }
+      }
+      setIsCesiumDisabled(disabled);
+    },
+    [storagePrefix]
+  );
 
   // Asynchronous initialization of providers and imageryLayer
   useEffect(() => {
@@ -189,8 +227,10 @@ export const CesiumContextProvider = ({
       shouldSuspendPitchLimiterRef,
       isViewerReady,
       setIsViewerReady,
+      isCesiumDisabled,
+      setIsCesiumDisabled: handleSetCesiumDisabled,
     }),
-    [isViewerReady]
+    [isViewerReady, isCesiumDisabled, handleSetCesiumDisabled]
   );
 
   console.debug(

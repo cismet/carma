@@ -23,6 +23,8 @@ export interface CesiumContextType {
   shouldSuspendPitchLimiterRef: MutableRefObject<boolean>;
   isViewerReady: boolean;
   setIsViewerReady: (flag: boolean) => void;
+  isCesiumDisabled: boolean;
+  setIsCesiumDisabled: (disabled: boolean, permanent?: boolean) => void;
 }
 
 export const CesiumContext = createContext<CesiumContextType | null>(null);

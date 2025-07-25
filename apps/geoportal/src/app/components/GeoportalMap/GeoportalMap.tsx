@@ -17,6 +17,7 @@ import {
   useHashState,
   useSelectionCesium,
   useSelectionTopicMap,
+  Cesium3DErrorHandler,
 } from "@carma-apps/portals";
 import {
   geoElements,
@@ -40,6 +41,9 @@ import {
   selectViewerIsMode2d,
   selectViewerModels,
   setCurrentSceneStyle,
+  setIsMode2d,
+  setTransitionTo2d,
+  clearTransition,
   useCesiumContext,
   useCesiumInitialCameraFromSearchParams,
 } from "@carma-mapping/cesium-engine";
@@ -105,8 +109,12 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const dispatch = useDispatch();
 
   // Contexts
-  const { viewerRef, terrainProviderRef, surfaceProviderRef } =
-    useCesiumContext();
+  const {
+    viewerRef,
+    terrainProviderRef,
+    surfaceProviderRef,
+    isCesiumDisabled,
+  } = useCesiumContext();
   const { updateHash } = useHashState();
 
   const rerenderCountRef = useRef(0);
@@ -116,7 +124,8 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
 
   // State and Selectors
   const backgroundLayer = useSelector(getBackgroundLayer);
-  const isMode2d = useSelector(selectViewerIsMode2d) || !allow3d;
+  const isMode2d =
+    useSelector(selectViewerIsMode2d) || !allow3d || isCesiumDisabled;
   const models = useSelector(selectViewerModels);
   const markerAsset = models[CESIUM_CONFIG.markerKey]; //
   const markerAnchorHeight = CESIUM_CONFIG.markerAnchorHeight ?? 10;
@@ -170,6 +179,9 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   // TODO: move all these to a custom hook and collect all calls to updateFeatureInfo there
   const [shouldUpdateFeatureInfo, setShouldUpdateFeatureInfo] =
     useState<boolean>(false);
+  // Cesium disabled state is now managed by CesiumContext
+
+  // F8 keyboard shortcut is now handled directly in the Cesium CustomViewer component
 
   const version = getApplicationVersion(versionData);
 
@@ -279,10 +291,14 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     // TODO wrap this with 3d component in own component?
     // INTIALIZE Cesium Tileset style from Geoportal/TopicMap background later style
     if (viewerRef.current && backgroundLayer) {
-      if (backgroundLayer.id === "luftbild") {
-        dispatch(setCurrentSceneStyle("primary"));
-      } else {
-        dispatch(setCurrentSceneStyle("secondary"));
+      try {
+        if (backgroundLayer.id === "luftbild") {
+          dispatch(setCurrentSceneStyle("primary"));
+        } else {
+          dispatch(setCurrentSceneStyle("secondary"));
+        }
+      } catch (error) {
+        console.warn("Failed to set scene style:", error);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -303,7 +319,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
 
   useEffect(() => {
     if (isModeFeatureInfo && pos) updateFeatureInfoLeaflet();
-  }, [layers]);
+  }, [isModeFeatureInfo, layers, pos, updateFeatureInfoLeaflet]);
 
   useEffect(() => {
     const map = routedMap?.leafletMap?.leafletElement;
@@ -376,10 +392,26 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       );
       return;
     }
-    updateHash(e.hashParams, { clearKeys: ["zoom"], label: "GPM:3D" });
+    try {
+      updateHash(e.hashParams, { clearKeys: ["zoom"], label: "GPM:3D" });
+    } catch (error) {
+      console.warn("Failed to update hash from scene change:", error);
+    }
   };
 
-  // TODO Move out Controls to own component
+  // Cleanup effect to prevent destroyed object access
+  useEffect(() => {
+    return () => {
+      // Cleanup any pending operations when component unmounts
+      if (viewerRef.current && !viewerRef.current.isDestroyed()) {
+        try {
+          viewerRef.current.scene.requestRender();
+        } catch (error) {
+          console.warn("Cleanup render request failed:", error);
+        }
+      }
+    };
+  }, [viewerRef]);
 
   console.debug("RENDER: [GEOPORTAL] MAP", isMode2d);
   rerenderCountRef.current++;
@@ -606,12 +638,30 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
             pointerEvents: isMode2d ? "none" : "auto",
           }}
         >
-          <CustomViewer
-            containerRef={container3dMapRef}
-            cameraLimiterOptions={CESIUM_CONFIG.camera}
-            initialCameraView={cesiumInitialCameraView}
-            onSceneChange={onSceneChange}
-          />
+          <Cesium3DErrorHandler
+            onDisable={(permanent) => {
+              // Instantly switch to 2D mode if not already in 2D
+              if (!isMode2d) {
+                dispatch(setIsMode2d(true));
+                dispatch(setTransitionTo2d());
+                // Clear transition immediately for instant switch
+                setTimeout(() => dispatch(clearTransition()), 0);
+              }
+
+              if (permanent) {
+                console.log("Cesium permanently disabled by user");
+              } else {
+                console.log("Cesium disabled for this session");
+              }
+            }}
+          >
+            <CustomViewer
+              containerRef={container3dMapRef}
+              cameraLimiterOptions={CESIUM_CONFIG.camera}
+              initialCameraView={cesiumInitialCameraView}
+              onSceneChange={onSceneChange}
+            />
+          </Cesium3DErrorHandler>
         </div>
       )}
     </>

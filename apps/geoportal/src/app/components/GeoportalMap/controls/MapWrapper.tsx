@@ -129,7 +129,9 @@ const MapWrapper = () => {
 
   // State and Selectors
   const libreMapRef = useSelector(getLibreMapRef);
-  const allow3d = useSelector(getUIAllow3d) && hasGPU;
+  // Check if Cesium is disabled by error handler (using CesiumContext)
+  const { isCesiumDisabled } = useCesiumContext();
+  const allow3d = useSelector(getUIAllow3d) && hasGPU && !isCesiumDisabled;
   const isMode2d = useSelector(selectViewerIsMode2d) || !allow3d;
   const models = useSelector(selectViewerModels);
   const uiMode = useSelector(getUIMode);
