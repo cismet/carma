@@ -13,9 +13,11 @@ import {
   Entity,
   DebugModelMatrixPrimitive,
   Cesium3DTileset,
+  CustomShader,
 } from "cesium";
 import { useControls, button, Leva } from "leva";
 import { ModelConfig } from "@carma-commons/resources";
+import { CUSTOM_SHADERS_DEFINITIONS } from "@carma-mapping/cesium-engine";
 
 interface ModelPlacementUIProps {
   viewerRef: React.RefObject<Viewer | null>;
@@ -36,6 +38,22 @@ export const ModelPlacementUI: React.FC<ModelPlacementUIProps> = ({
   const baseLat = modelConfig.position.latitude;
   const baseLon = modelConfig.position.longitude;
   const baseHeading = modelConfig.orientation?.heading ?? 0;
+
+  // Create shader options from imported definitions
+  const shaderOptions = {
+    Default: null,
+    ...Object.fromEntries(
+      Object.entries(CUSTOM_SHADERS_DEFINITIONS).map(([key, config]) => [
+        key
+          .replace(/_/g, " ")
+          .toLowerCase()
+          .replace(/\b\w/g, (l) => l.toUpperCase()),
+        config.fragmentShaderText || config.lightingModel
+          ? new CustomShader(config)
+          : null,
+      ])
+    ),
+  };
 
   // Function to update model position and orientation
   const updateModelTransform = (lat: number, lon: number, heading: number) => {
@@ -116,7 +134,7 @@ export const ModelPlacementUI: React.FC<ModelPlacementUIProps> = ({
       disabled: true,
     },
     "Debug Axes": {
-      value: true,
+      value: false,
       onChange: (value: boolean) => {
         const debugPrimitive = debugPrimitiveRef.current;
         if (debugPrimitive) {
@@ -162,7 +180,7 @@ export const ModelPlacementUI: React.FC<ModelPlacementUIProps> = ({
       },
     },
     fov: {
-      value: 60,
+      value: 60, // Default FOV in degrees
       min: 10,
       max: 120,
       step: 1,
@@ -208,6 +226,17 @@ export const ModelPlacementUI: React.FC<ModelPlacementUIProps> = ({
         const tileset = tilesetRef.current;
         if (tileset) {
           tileset.maximumScreenSpaceError = value;
+        }
+      },
+    },
+    shader: {
+      value: "Unlit Enhanced 2024",
+      options: Object.keys(shaderOptions),
+      onChange: (value: string) => {
+        const tileset = tilesetRef.current;
+        if (tileset) {
+          tileset.customShader =
+            shaderOptions[value as keyof typeof shaderOptions];
         }
       },
     },

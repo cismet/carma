@@ -34,7 +34,31 @@ const ModelPlacement: React.FC = () => {
   const tilesetRef = useRef<Cesium3DTileset | null>(null);
   const [viewer, setViewer] = useState<Viewer | null>(null);
 
-  useCameraPersistence(viewer);
+  const { wasRestored } = useCameraPersistence(viewer);
+
+  // Check camera distance after persistence is complete
+  useEffect(() => {
+    if (viewer && modelEntityRef.current && wasRestored !== undefined) {
+      const distance = Cartesian3.distance(
+        viewer.camera.positionWC,
+        modelConstructorOptions.position
+      );
+
+      if (distance > 5000) {
+        console.debug(
+          "restoring default position on load - distant camera detected"
+        );
+        viewer.flyTo(modelEntityRef.current, {
+          offset: {
+            heading: (Math.PI / 180) * 78,
+            pitch: 0.05,
+            range: 1200,
+          },
+          duration: 0,
+        });
+      }
+    }
+  }, [viewer, wasRestored]);
 
   useEffect(() => {
     const initialize = async () => {
@@ -73,25 +97,9 @@ const ModelPlacement: React.FC = () => {
             length: 10.0,
             width: 3.0,
           });
+          localDebugPrimitive.show = false; // Hidden by default
           newViewer.scene.primitives.add(localDebugPrimitive);
           debugPrimitiveRef.current = localDebugPrimitive;
-
-          // Position camera relative to model
-          if (
-            Cartesian3.distance(
-              newViewer.camera.positionWC,
-              modelConstructorOptions.position
-            ) > 5000
-          ) {
-            newViewer.flyTo(modelEntity, {
-              offset: {
-                heading: (Math.PI / 180) * 78,
-                pitch: 0.05,
-                range: 1200,
-              },
-              duration: 0,
-            });
-          }
 
           setViewer(newViewer);
         }
