@@ -1,22 +1,11 @@
+import { CUSTOM_SHADERS_DEFINITIONS } from "./../shaders";
 import { useMemo, useState } from "react";
 import { Cesium3DTileset, CustomShader } from "cesium";
 
 import { useTweakpaneCtx } from "@carma-commons/debug";
-
-import { CUSTOM_SHADERS_DEFINITIONS, CustomShaderKeys as k } from "../shaders";
 import { useCesiumViewer } from "./useCesiumViewer";
 
-const customShaderKeys = {
-  clay: k.CLAY,
-  "unlit 2020": k.UNLIT_ENHANCED_2020,
-  "unlit 2024": k.UNLIT_ENHANCED_2024,
-  unlit: k.UNLIT,
-  "unlit fog": k.UNLIT_FOG,
-  monochrome: k.MONOCHROME,
-  undefined: k.UNDEFINED,
-};
-
-const DEFAULT_MESH_SHADER_KEY = k.UNLIT_ENHANCED_2024;
+const DEFAULT_MESH_SHADER_KEY = "UNLIT_ENHANCED_2024";
 
 export const useTilesetsTweakpane = (
   tileset: Cesium3DTileset | null,
@@ -40,12 +29,12 @@ export const useTilesetsTweakpane = (
           set customShaderKey(v) {
             setCustomShaderKey(v);
             if (tileset) {
-              const def = CUSTOM_SHADERS_DEFINITIONS[customShaderKeys[v]];
-              if (def === k.UNDEFINED) {
+              const shaderDef = CUSTOM_SHADERS_DEFINITIONS[v];
+              if (v === "UNDEFINED") {
                 tileset.customShader = undefined;
                 viewer && viewer.scene.requestRender();
               } else {
-                const shader = new CustomShader(CUSTOM_SHADERS_DEFINITIONS[v]);
+                const shader = new CustomShader(shaderDef);
                 tileset.customShader = shader;
                 viewer && viewer.scene.requestRender();
               }
@@ -76,12 +65,15 @@ export const useTilesetsTweakpane = (
           },
         },
         inputs: [
-          { name: "customShaderKey", options: customShaderKeys },
+          {
+            name: "customShaderKey",
+            options: Object.keys(CUSTOM_SHADERS_DEFINITIONS),
+          },
           { name: "enableDebugWireframe" },
           { name: "show", type: "boolean" },
         ],
       }),
-      [viewer, name, customShaderKey, enableDebugWireframe, tileset, viewer]
+      [viewer, name, customShaderKey, enableDebugWireframe, tileset]
     )
   );
 };

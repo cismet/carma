@@ -1,4 +1,4 @@
-import { type RefObject, useEffect } from "react";
+import { type RefObject, useEffect, useCallback } from "react";
 import {
   Viewer,
   Cartesian3,
@@ -13,6 +13,7 @@ import {
   DebugModelMatrixPrimitive,
   Cesium3DTileset,
   CustomShader,
+  LightingModel,
 } from "cesium";
 import { useControls, button, Leva } from "leva";
 import { type ModelConfig } from "@carma-commons/resources";
@@ -25,6 +26,12 @@ interface ModelPlacementUIProps {
   modelConfig: ModelConfig;
   tilesetRef: RefObject<Cesium3DTileset | null>;
 }
+// Create shader options from imported definitions
+const shaderOptions = Object.keys(CUSTOM_SHADERS_DEFINITIONS);
+
+// Define PBR shaders that don't support fog/saturation controls
+const UNDEFINED_KEY = "UNDEFINED";
+const PBR_SHADER_KEYS = [UNDEFINED_KEY, "CLAY"];
 
 export const ModelPlacementUI = ({
   viewerRef,
@@ -38,60 +45,52 @@ export const ModelPlacementUI = ({
   const baseLon = modelConfig.position.longitude;
   const baseHeading = modelConfig.orientation?.heading ?? 0;
 
-  // Create shader options from imported definitions
-  const shaderOptions = {
-    Default: null,
-    ...Object.fromEntries(
-      Object.entries(CUSTOM_SHADERS_DEFINITIONS).map(([key, config]) => [
-        key
-          .replace(/_/g, " ")
-          .toLowerCase()
-          .replace(/\b\w/g, (l) => l.toUpperCase()),
-        config.fragmentShaderText || config.lightingModel
-          ? new CustomShader(config)
-          : null,
-      ])
-    ),
-  };
-
   // Function to update model position and orientation
-  const updateModelTransform = (lat: number, lon: number, heading: number) => {
-    const currentViewer = viewerRef.current;
-    const modelEntity = modelEntityRef.current;
-    const debugPrimitive = debugPrimitiveRef.current;
+  const updateModelTransform = useCallback(
+    (lat: number, lon: number, heading: number) => {
+      const currentViewer = viewerRef.current;
+      const modelEntity = modelEntityRef.current;
+      const debugPrimitive = debugPrimitiveRef.current;
 
-    if (currentViewer && modelEntity && debugPrimitive) {
-      // Create new position from lat/long
-      const newPosition = Cartesian3.fromDegrees(
-        lon,
-        lat,
-        modelConfig.position.altitude
-      );
+      if (currentViewer && modelEntity && debugPrimitive) {
+        // Create new position from lat/long
+        const newPosition = Cartesian3.fromDegrees(
+          lon,
+          lat,
+          modelConfig.position.altitude
+        );
 
-      // Update model position
-      modelEntity.position = new ConstantPositionProperty(newPosition);
+        // Update model position
+        modelEntity.position = new ConstantPositionProperty(newPosition);
 
-      // Create orientation from heading only (pitch=0, roll=0)
-      const hpr = new HeadingPitchRoll(
-        CesiumMath.toRadians(heading),
-        0, // pitch
-        0 // roll
-      );
+        // Create orientation from heading only (pitch=0, roll=0)
+        const hpr = new HeadingPitchRoll(
+          CesiumMath.toRadians(heading),
+          0, // pitch
+          0 // roll
+        );
 
-      // Update model orientation
-      modelEntity.orientation = new ConstantProperty(
-        Transforms.headingPitchRollQuaternion(newPosition, hpr)
-      );
+        // Update model orientation
+        modelEntity.orientation = new ConstantProperty(
+          Transforms.headingPitchRollQuaternion(newPosition, hpr)
+        );
 
-      // Update debug primitive matrix
-      const modelMatrix = Transforms.headingPitchRollToFixedFrame(
-        newPosition,
-        hpr
-      );
-      debugPrimitive.modelMatrix = modelMatrix;
-      viewerRef.current.scene.requestRender();
-    }
-  };
+        // Update debug primitive matrix
+        const modelMatrix = Transforms.headingPitchRollToFixedFrame(
+          newPosition,
+          hpr
+        );
+        debugPrimitive.modelMatrix = modelMatrix;
+        viewerRef.current.scene.requestRender();
+      }
+    },
+    [
+      modelConfig.position.altitude,
+      viewerRef,
+      modelEntityRef,
+      debugPrimitiveRef,
+    ]
+  );
 
   // Model position offset controls
   const { latOffset, lonOffset, heading } = useControls("Position Offsets", {
@@ -175,8 +174,8 @@ export const ModelPlacementUI = ({
     },
     fov: {
       value: 60, // Default FOV in degrees
-      min: 10,
-      max: 120,
+      min: 1,
+      max: 80,
       step: 1,
       onChange: (value: number) => {
         const currentViewer = viewerRef.current;
@@ -209,7 +208,7 @@ export const ModelPlacementUI = ({
   });
 
   // Tileset quality control
-  useControls("Tileset Quality", {
+  useControls("Tileset", {
     maxScreenSpaceError: {
       value: 1.0,
       min: 0.1,
@@ -224,13 +223,88 @@ export const ModelPlacementUI = ({
       },
     },
     shader: {
-      value: "Unlit Enhanced 2024",
-      options: Object.keys(shaderOptions),
+      label: "Shader",
+      value: "UNLIT_ENHANCED_2024",
+      options: shaderOptions,
       onChange: (value: string) => {
         const tileset = tilesetRef.current;
         if (tileset) {
-          tileset.customShader =
-            shaderOptions[value as keyof typeof shaderOptions];
+          const shaderDef =
+            CUSTOM_SHADERS_DEFINITIONS[
+              value as keyof typeof CUSTOM_SHADERS_DEFINITIONS
+            ];
+          if (value === UNDEFINED_KEY) {
+            tileset.customShader = undefined;
+          } else {
+            tileset.customShader = new CustomShader(shaderDef);
+          }
+        }
+      },
+    },
+    fogIntensity: {
+      value: 0.0,
+      min: 0.0,
+      max: 100.0,
+      step: 0.1,
+      label: "Fog Intensity",
+      render: (get) => {
+        const selectedShader = get("Tileset Quality.shader");
+        // Show for all UNLIT shaders, hide for UNDEFINED and CLAY (PBR)
+        return !PBR_SHADER_KEYS.includes(selectedShader);
+      },
+      onChange: (value: number) => {
+        const tileset = tilesetRef.current;
+        if (tileset && tileset.customShader) {
+          try {
+            // Convert linear slider (0-100) to exponential fog intensity
+            const fogIntensity =
+              value === 0 ? 0 : Math.pow(10, (value - 100) / 20);
+            tileset.customShader.setUniform("u_fogIntensity", fogIntensity);
+          } catch (error) {
+            console.warn("Failed to set fog intensity uniform:", error);
+          }
+        }
+      },
+    },
+    maxFog: {
+      value: 1.0,
+      min: 0.0,
+      max: 1.0,
+      step: 0.01,
+      label: "Max Fog",
+      render: (get) => {
+        const selectedShader = get("Tileset Quality.shader");
+        return !PBR_SHADER_KEYS.includes(selectedShader);
+      },
+      onChange: (value: number) => {
+        const tileset = tilesetRef.current;
+        if (tileset && tileset.customShader) {
+          try {
+            tileset.customShader.setUniform("u_maxFog", value);
+          } catch (error) {
+            console.warn("Failed to set max fog uniform:", error);
+          }
+        }
+      },
+    },
+    saturation: {
+      value: 1.0,
+      min: 0.0,
+      max: 2.0,
+      step: 0.01,
+      label: "Saturation",
+      render: (get) => {
+        const selectedShader = get("Tileset Quality.shader");
+        return !PBR_SHADER_KEYS.includes(selectedShader);
+      },
+      onChange: (value: number) => {
+        const tileset = tilesetRef.current;
+        if (tileset && tileset.customShader) {
+          try {
+            tileset.customShader.setUniform("u_saturation", value);
+          } catch (error) {
+            console.warn("Failed to set saturation uniform:", error);
+          }
         }
       },
     },

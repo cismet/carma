@@ -1,8 +1,8 @@
 import {
   Cartesian3,
-  type PerspectiveFrustum,
-  type OrthographicFrustum,
-  type Viewer
+  PerspectiveFrustum,
+  OrthographicFrustum,
+  type Viewer,
 } from "cesium";
 
 export interface CameraPersistenceState {

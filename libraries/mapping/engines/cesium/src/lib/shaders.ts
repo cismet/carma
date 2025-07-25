@@ -1,130 +1,119 @@
-import { LightingModel } from "cesium";
-import type { CesiumCustomChaderOptions } from "@carma-commons/types";
+import { LightingModel, UniformType, Cartesian3 } from "cesium";
 
-export enum CustomShaderKeys {
-  CLAY = "CLAY",
-  UNLIT_ENHANCED_2020 = "UNLIT_ENHANCED_2020",
-  UNLIT_ENHANCED_2024 = "UNLIT_ENHANCED_2024",
-  UNLIT = "UNLIT",
-  UNLIT_FOG = "UNLIT_FOG",
-  UNDEFINED = "UNDEFINED",
-  MONOCHROME = "MONOCHROME",
+// Shared fragment shader for all UNLIT variants
+const UNLIT_FRAGMENT_SHADER = `
+void fragmentMain(FragmentInput fsInput, inout czm_modelMaterial material)
+{
+    // Apply color correction and gamma in one step
+    vec3 color = pow(
+        clamp((material.diffuse - u_blackPoint) / (u_whitePoint - u_blackPoint), 0.0, 1.0),
+        u_gammaCorrection
+    );
+    
+    // Apply saturation only if not 1.0
+    if (u_saturation != 1.0) {
+        float luminance = 0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b;
+        color = mix(vec3(luminance), color, u_saturation);
+    }
+    
+    material.diffuse = color;
+    
+    // Apply fog if intensity > 0
+    if (u_fogIntensity > 0.0) {
+        float distance = length(fsInput.attributes.positionEC);
+        float fogFactor = min(1.0 - exp(-distance * u_fogIntensity), u_maxFog);
+        material.diffuse = mix(material.diffuse, u_fogColor, fogFactor);
+    }
 }
+`;
 
-export const CUSTOM_SHADERS_DEFINITIONS: Record<
-  CustomShaderKeys,
-  CesiumCustomChaderOptions
-> = {
-  [CustomShaderKeys.UNDEFINED]: {},
-  [CustomShaderKeys.CLAY]: {
+// Shared uniforms for all UNLIT variants
+const createUnlitUniforms = (
+  gammaCorrection: [number, number, number],
+  blackPoint: [number, number, number],
+  whitePoint: [number, number, number],
+  saturation: number
+) => ({
+  u_fogIntensity: {
+    type: UniformType.FLOAT,
+    value: 0.0,
+  },
+  u_maxFog: {
+    type: UniformType.FLOAT,
+    value: 1.0,
+  },
+  u_fogColor: {
+    type: UniformType.VEC3,
+    value: new Cartesian3(0.7, 0.8, 0.9),
+  },
+  u_gammaCorrection: {
+    type: UniformType.VEC3,
+    value: new Cartesian3(...gammaCorrection),
+  },
+  u_blackPoint: {
+    type: UniformType.VEC3,
+    value: new Cartesian3(...blackPoint),
+  },
+  u_whitePoint: {
+    type: UniformType.VEC3,
+    value: new Cartesian3(...whitePoint),
+  },
+  u_saturation: {
+    type: UniformType.FLOAT,
+    value: saturation,
+  },
+});
+
+export const CUSTOM_SHADERS_DEFINITIONS = {
+  UNDEFINED: {},
+  CLAY: {
     lightingModel: LightingModel.PBR,
     fragmentShaderText: `
     void fragmentMain(FragmentInput fsInput, inout czm_modelMaterial material)
     {
         material.diffuse = vec3(1.0, 1.0, 0.8); // egg or clay
-        material.roughness = 0.5;   
-    }
-  `,
-  },
-  [CustomShaderKeys.UNLIT_ENHANCED_2020]: {
-    lightingModel: LightingModel.UNLIT,
-    fragmentShaderText: `
-    void fragmentMain(FragmentInput fsInput, inout czm_modelMaterial material)
-    {
-        // This is tuned for a specific tileset texture, not generic
-        // Apply gamma correction
-        vec3 gammaCorrection = vec3(1.0,1.0,1.25); // reduce blue somewhat
-        
-        // Apply black point correction
-        float blackPoint = 0.02; // stretch to black
-        float whitePoint = 0.75; // stretch to white
-         
-        vec3 color = (material.diffuse - vec3(blackPoint)) / (vec3(whitePoint) - vec3(blackPoint));
-        color = clamp(color, 0.0, 1.0); // Ensure values are in [0,1] range
-    
-        // Apply gamma correction after point adjustments
-        material.diffuse = pow(color, gammaCorrection);
+        material.roughness = 0.5;
     }
     `,
   },
-  [CustomShaderKeys.UNLIT_ENHANCED_2024]: {
+  UNLIT_ENHANCED_2020: {
     lightingModel: LightingModel.UNLIT,
-    fragmentShaderText: `
-    void fragmentMain(FragmentInput fsInput, inout czm_modelMaterial material)
-    {
-        // This is tuned for a specific tileset texture, not generic
-        // Apply gamma correction
-        vec3 gammaCorrection = vec3(1.25,1.25,1.23); // adjust color gamma per channel
-        
-        // Apply channel-specific clamping
-        vec3 blackPoint = vec3(0.0,0.0,0.0); 
-        vec3 whitePoint = vec3(0.90,0.90,0.92); 
-         
-        vec3 color = (material.diffuse - blackPoint) / (whitePoint - blackPoint);
-        color = clamp(color, 0.0, 1.0); // Ensure values are in [0,1] range
-    
-        // Apply gamma correction after point adjustments
-        material.diffuse = pow(color, gammaCorrection);
-    }
-    `,
+    uniforms: createUnlitUniforms(
+      [1.0, 1.0, 1.25],
+      [0.02, 0.02, 0.02],
+      [0.75, 0.75, 0.75],
+      1.0
+    ),
+    fragmentShaderText: UNLIT_FRAGMENT_SHADER,
   },
-  [CustomShaderKeys.UNLIT_FOG]: {
+  UNLIT_ENHANCED_2024: {
     lightingModel: LightingModel.UNLIT,
-    fragmentShaderText: `
-    void fragmentMain(FragmentInput fsInput, inout czm_modelMaterial material)
-    {
-        // This is tuned for a specific tileset texture, not generic
-        // Apply gamma correction
-        vec3 gammaCorrection = vec3(1.0,1.0,1.25); // reduce blue somewhat
-        
-        // Apply black point correction
-        float blackPoint = 0.02; // stretch to black
-        float whitePoint = 0.75; // stretch to white
-         
-        vec3 color = (material.diffuse - vec3(blackPoint)) / (vec3(whitePoint) - vec3(blackPoint));
-        color = clamp(color, 0.0, 1.0); // Ensure values are in [0,1] range
-    
-        // Apply gamma correction after point adjustments
-        material.diffuse = pow(color, gammaCorrection);
-
-        // apply fog
-
-        // Calculate distance from camera
-        float distance = length(fsInput.attributes.positionEC);
-    
-        float fogDensity = 0.00005;
-
-        float fogFactor = min(1.0 - exp(-distance * fogDensity) ,0.5);
-
-        material.diffuse = mix(material.diffuse, vec3(0.55, 0.6, 0.785), fogFactor);
-
-    }
-    `,
+    uniforms: createUnlitUniforms(
+      [1.25, 1.25, 1.23],
+      [0.0, 0.0, 0.0],
+      [0.9, 0.9, 0.92],
+      1.0
+    ),
+    fragmentShaderText: UNLIT_FRAGMENT_SHADER,
   },
-  [CustomShaderKeys.UNLIT]: {
+  UNLIT: {
     lightingModel: LightingModel.UNLIT,
+    uniforms: createUnlitUniforms(
+      [1.0, 1.0, 1.0],
+      [0.0, 0.0, 0.0],
+      [1.0, 1.0, 1.0],
+      1.0
+    ),
+    fragmentShaderText: UNLIT_FRAGMENT_SHADER,
   },
-  [CustomShaderKeys.MONOCHROME]: {
+  MONOCHROME: {
     lightingModel: LightingModel.UNLIT,
-    fragmentShaderText: `
-    void fragmentMain(FragmentInput fsInput, inout czm_modelMaterial material)
-    {
-        // This is tuned for a specific tileset texture, not generic
-        // Apply gamma correction
-        vec3 gammaCorrection = vec3(1.0,1.0,1.25); // reduce blue somewhat
-
-        // Apply black point correction
-        float blackPoint = -0.1; // more pale for washed out look
-        float whitePoint = 0.9; // stretch to white
-
-        vec3 color = (material.diffuse - vec3(blackPoint)) / (vec3(whitePoint) - vec3(blackPoint));
-        color = clamp(color, 0.0, 1.0); // Ensure values are in [0,1] range
-
-        // Apply gamma correction after point adjustments
-        vec3 correctedColor = pow(color, gammaCorrection);
-        float greyScale = 0.2126 * correctedColor.r + 0.7152 * correctedColor.g + 0.0722 * correctedColor.b; // https://en.wikipedia.org/wiki/Grayscale#Luma_coding_in_video_systems
-        material.diffuse = vec3(greyScale);
-    }
-    `,
+    uniforms: createUnlitUniforms(
+      [1.0, 1.0, 1.25],
+      [-0.1, -0.1, -0.1],
+      [0.9, 0.9, 0.9],
+      0.0
+    ),
+    fragmentShaderText: UNLIT_FRAGMENT_SHADER,
   },
 };
