@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Entity,
   Transforms,
   DebugModelMatrixPrimitive,
   Viewer,
   Cesium3DTileset,
+  Cartesian3,
 } from "cesium";
 import {
   BRUECKENENTWURF_GLB,
@@ -13,6 +14,7 @@ import {
 } from "@carma-commons/resources";
 import { cesiumConstructorOptions } from "../config";
 import { useCameraPersistence } from "../hooks/useCameraPersistence";
+import { ModelPlacementUI } from "./ModelPlacement.UI";
 
 const modelConstructorOptions =
   createModelEntityConstructorOptions(BRUECKENENTWURF_GLB);
@@ -26,6 +28,10 @@ const tilesetOptions = {
 
 const ModelPlacement: React.FC = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const viewerRef = useRef<Viewer | null>(null);
+  const modelEntityRef = useRef<Entity | null>(null);
+  const debugPrimitiveRef = useRef<DebugModelMatrixPrimitive | null>(null);
+  const tilesetRef = useRef<Cesium3DTileset | null>(null);
   const [viewer, setViewer] = useState<Viewer | null>(null);
 
   useCameraPersistence(viewer);
@@ -39,6 +45,8 @@ const ModelPlacement: React.FC = () => {
             cesiumConstructorOptions
           );
 
+          viewerRef.current = newViewer;
+
           // Load tileset inline
           try {
             const tileset = await Cesium3DTileset.fromUrl(
@@ -46,6 +54,7 @@ const ModelPlacement: React.FC = () => {
               tilesetOptions
             );
             newViewer.scene.primitives.add(tileset);
+            tilesetRef.current = tileset;
             console.debug("Tileset loaded and added to scene");
           } catch (tilesetError) {
             console.error("Failed to load tileset:", tilesetError);
@@ -54,6 +63,7 @@ const ModelPlacement: React.FC = () => {
           // Load model inline
           const modelEntity = new Entity(modelConstructorOptions);
           newViewer.entities.add(modelEntity);
+          modelEntityRef.current = modelEntity;
 
           const modelMatrix = Transforms.eastNorthUpToFixedFrame(
             modelConstructorOptions.position
@@ -64,16 +74,24 @@ const ModelPlacement: React.FC = () => {
             width: 3.0,
           });
           newViewer.scene.primitives.add(localDebugPrimitive);
+          debugPrimitiveRef.current = localDebugPrimitive;
 
           // Position camera relative to model
-          newViewer.flyTo(modelEntity, {
-            offset: {
-              heading: (Math.PI / 180) * 78,
-              pitch: 0.05,
-              range: 1200,
-            },
-            duration: 0,
-          });
+          if (
+            Cartesian3.distance(
+              newViewer.camera.positionWC,
+              modelConstructorOptions.position
+            ) > 5000
+          ) {
+            newViewer.flyTo(modelEntity, {
+              offset: {
+                heading: (Math.PI / 180) * 78,
+                pitch: 0.05,
+                range: 1200,
+              },
+              duration: 0,
+            });
+          }
 
           setViewer(newViewer);
         }
@@ -85,14 +103,28 @@ const ModelPlacement: React.FC = () => {
     initialize();
 
     return () => {
-      if (viewer && !viewer.isDestroyed()) {
-        viewer.destroy();
+      if (viewerRef.current && !viewerRef.current.isDestroyed()) {
+        viewerRef.current.destroy();
       }
+      viewerRef.current = null;
       setViewer(null);
     };
-  }, []);
+  }, []); // Empty dependency array - only run once on mount
 
-  return <div ref={containerRef} style={{ width: "100%", height: "100vh" }} />;
+  return (
+    <>
+      <div ref={containerRef} style={{ width: "100%", height: "100vh" }} />
+      {viewer && (
+        <ModelPlacementUI
+          viewerRef={viewerRef}
+          modelEntityRef={modelEntityRef}
+          debugPrimitiveRef={debugPrimitiveRef}
+          modelConfig={BRUECKENENTWURF_GLB}
+          tilesetRef={tilesetRef}
+        />
+      )}
+    </>
+  );
 };
 
 export default ModelPlacement;

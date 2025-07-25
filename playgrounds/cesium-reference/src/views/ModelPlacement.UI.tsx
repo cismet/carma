@@ -1,0 +1,226 @@
+import React from "react";
+import {
+  Viewer,
+  Cartesian3,
+  Cartographic,
+  Math as CesiumMath,
+  OrthographicFrustum,
+  PerspectiveFrustum,
+  HeadingPitchRoll,
+  Transforms,
+  ConstantPositionProperty,
+  ConstantProperty,
+  Entity,
+  DebugModelMatrixPrimitive,
+  Cesium3DTileset,
+} from "cesium";
+import { useControls, button, Leva } from "leva";
+import { ModelConfig } from "@carma-commons/resources";
+
+interface ModelPlacementUIProps {
+  viewerRef: React.RefObject<Viewer | null>;
+  modelEntityRef: React.RefObject<Entity | null>;
+  debugPrimitiveRef: React.RefObject<DebugModelMatrixPrimitive | null>;
+  modelConfig: ModelConfig;
+  tilesetRef: React.RefObject<Cesium3DTileset | null>;
+}
+
+export const ModelPlacementUI: React.FC<ModelPlacementUIProps> = ({
+  viewerRef,
+  modelEntityRef,
+  debugPrimitiveRef,
+  modelConfig,
+  tilesetRef,
+}) => {
+  // Get initial values from model config
+  const baseLat = modelConfig.position.latitude;
+  const baseLon = modelConfig.position.longitude;
+  const baseHeading = modelConfig.orientation?.heading ?? 0;
+
+  // Function to update model position and orientation
+  const updateModelTransform = (lat: number, lon: number, heading: number) => {
+    const currentViewer = viewerRef.current;
+    const modelEntity = modelEntityRef.current;
+    const debugPrimitive = debugPrimitiveRef.current;
+
+    if (currentViewer && modelEntity && debugPrimitive) {
+      // Create new position from lat/long
+      const newPosition = Cartesian3.fromDegrees(
+        lon,
+        lat,
+        modelConfig.position.altitude
+      );
+
+      // Update model position
+      modelEntity.position = new ConstantPositionProperty(newPosition);
+
+      // Create orientation from heading only (pitch=0, roll=0)
+      const hpr = new HeadingPitchRoll(
+        CesiumMath.toRadians(heading),
+        0, // pitch
+        0 // roll
+      );
+
+      // Update model orientation
+      modelEntity.orientation = new ConstantProperty(
+        Transforms.headingPitchRollQuaternion(newPosition, hpr)
+      );
+
+      // Update debug primitive matrix
+      const modelMatrix = Transforms.headingPitchRollToFixedFrame(
+        newPosition,
+        hpr
+      );
+      debugPrimitive.modelMatrix = modelMatrix;
+      viewerRef.current.scene.requestRender();
+    }
+  };
+
+  // Model position offset controls
+  const { latOffset, lonOffset, heading } = useControls("Position Offsets", {
+    latOffset: {
+      value: 0,
+      min: -500,
+      max: 500,
+      step: 1, // Steps of 1 microdegree
+      label: "Lat Offset (μ°)",
+    },
+    lonOffset: {
+      value: 0,
+      min: -500,
+      max: 500,
+      step: 1, // Steps of 1 microdegree
+      label: "Lon Offset (μ°)",
+    },
+    heading: {
+      value: baseHeading,
+      min: 0.0,
+      max: 360.0,
+      step: 0.01,
+      label: "Heading (°)",
+    },
+  });
+
+  // Calculate final coordinates
+  const finalLat = baseLat + latOffset * 0.000001;
+  const finalLon = baseLon + lonOffset * 0.000001;
+
+  // Final position info text
+  useControls("Position Info", {
+    "Current Position": {
+      value: `${finalLat.toFixed(6)}, ${finalLon.toFixed(6)}`,
+      disabled: true,
+    },
+    Heading: {
+      value: `${heading.toFixed(2)}°`,
+      disabled: true,
+    },
+    "Debug Axes": {
+      value: true,
+      onChange: (value: boolean) => {
+        const debugPrimitive = debugPrimitiveRef.current;
+        if (debugPrimitive) {
+          debugPrimitive.show = value;
+        }
+        viewerRef.current?.scene.requestRender();
+      },
+    },
+  });
+
+  // Camera controls
+  useControls("Camera", {
+    orthographic: {
+      value: false,
+      onChange: (value: boolean) => {
+        const currentViewer = viewerRef.current;
+        if (currentViewer) {
+          if (value) {
+            const canvas = currentViewer.scene.canvas;
+            const width = canvas.clientWidth;
+            const height = canvas.clientHeight;
+            const aspectRatio = width / height;
+
+            const orthoFrustum = new OrthographicFrustum();
+            orthoFrustum.aspectRatio = aspectRatio;
+            orthoFrustum.width = 2000;
+            orthoFrustum.near = 1.0;
+            orthoFrustum.far = 50000.0;
+
+            currentViewer.scene.camera.frustum = orthoFrustum;
+          } else {
+            const perspFrustum = new PerspectiveFrustum();
+            perspFrustum.fov = CesiumMath.toRadians(60);
+            perspFrustum.aspectRatio =
+              currentViewer.scene.canvas.clientWidth /
+              currentViewer.scene.canvas.clientHeight;
+            perspFrustum.near = 1.0;
+            perspFrustum.far = 50000.0;
+
+            currentViewer.scene.camera.frustum = perspFrustum;
+          }
+        }
+      },
+    },
+    fov: {
+      value: 60,
+      min: 10,
+      max: 120,
+      step: 1,
+      onChange: (value: number) => {
+        const currentViewer = viewerRef.current;
+        if (
+          currentViewer &&
+          currentViewer.scene.camera.frustum instanceof PerspectiveFrustum
+        ) {
+          currentViewer.scene.camera.frustum.fov = CesiumMath.toRadians(value);
+        }
+      },
+    },
+    "Top-Down": button(() => {
+      const currentViewer = viewerRef.current;
+      if (currentViewer) {
+        const viewPosition = Cartesian3.fromDegrees(
+          modelConfig.position.longitude - 0.0007,
+          modelConfig.position.latitude - 0.0037,
+          modelConfig.position.altitude + 3000
+        );
+        currentViewer.camera.setView({
+          destination: viewPosition,
+          orientation: {
+            heading: 0.0,
+            pitch: CesiumMath.toRadians(-90),
+            roll: 0.0,
+          },
+        });
+      }
+    }),
+  });
+
+  // Tileset quality control
+  useControls("Tileset Quality", {
+    maxScreenSpaceError: {
+      value: 1.0,
+      min: 0.1,
+      max: 16.0,
+      step: 0.1,
+      label: "Max Screen Space Error",
+      onChange: (value: number) => {
+        const tileset = tilesetRef.current;
+        if (tileset) {
+          tileset.maximumScreenSpaceError = value;
+        }
+      },
+    },
+  });
+
+  // Update model when values change
+  React.useEffect(() => {
+    updateModelTransform(finalLat, finalLon, heading);
+  }, [finalLat, finalLon, heading, updateModelTransform]);
+
+  return (
+    <>
+      <Leva collapsed />
+    </>
+  );
+};
