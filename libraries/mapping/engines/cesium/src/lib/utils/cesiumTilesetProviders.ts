@@ -2,12 +2,14 @@ import { Cesium3DTileset, CustomShader, ShadowMode } from "cesium";
 
 import { TilesetConfig, TilesetType } from "@carma-commons/resources";
 
-import { CUSTOM_SHADERS_DEFINITIONS, CustomShaderKeys } from "../shaders";
+import { CUSTOM_SHADERS_DEFINITIONS } from "../shaders";
 
 export type TilesetConfigs = {
   primary: TilesetConfig;
   secondary?: TilesetConfig;
 };
+
+const MESH_SHADER = CUSTOM_SHADERS_DEFINITIONS.UNLIT_ENHANCED_2024;
 
 const DEFAULT_MESH_OPTIONS: Cesium3DTileset.ConstructorOptions = {
   preloadWhenHidden: false,
@@ -52,9 +54,7 @@ const loadLOD2Tileset = async (tileset: TilesetConfig) => {
 
 const loadMeshTileset = async (tileset: TilesetConfig) => {
   // TODO get shader from tileset config
-  const shader = new CustomShader(
-    CUSTOM_SHADERS_DEFINITIONS[CustomShaderKeys.UNLIT_ENHANCED_2024]
-  );
+  const shader = new CustomShader(MESH_SHADER);
   const meshOptions = {
     ...tileset.constructorOptions,
     ...DEFAULT_MESH_OPTIONS,

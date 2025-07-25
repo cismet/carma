@@ -1,5 +1,9 @@
-import { Cartesian3, PerspectiveFrustum } from "cesium";
-import type { Viewer } from "cesium";
+import {
+  Cartesian3,
+  PerspectiveFrustum,
+  OrthographicFrustum,
+  type Viewer,
+} from "cesium";
 
 export interface CameraPersistenceState {
   position: {
@@ -13,6 +17,8 @@ export interface CameraPersistenceState {
     roll: number; // radians
   };
   fov?: number; // radians
+  isOrthographic?: boolean; // frustum type
+  orthographicWidth?: number; // for orthographic frustum
   timestamp: number;
 }
 
@@ -32,9 +38,14 @@ export const extractCameraState = (viewer: Viewer): CameraPersistenceState => {
   const camera = viewer.camera;
   const position = camera.positionCartographic;
 
+  const isOrthographic = camera.frustum instanceof OrthographicFrustum;
   const fov =
     camera.frustum instanceof PerspectiveFrustum
       ? camera.frustum.fov
+      : undefined;
+  const orthographicWidth =
+    camera.frustum instanceof OrthographicFrustum
+      ? camera.frustum.width
       : undefined;
 
   return {
@@ -49,6 +60,8 @@ export const extractCameraState = (viewer: Viewer): CameraPersistenceState => {
       roll: camera.roll,
     },
     fov,
+    isOrthographic,
+    orthographicWidth,
     timestamp: Date.now(),
   };
 };
@@ -79,14 +92,29 @@ export const applyCameraState = (
     roll: state.orientation.roll,
   };
 
+  // Restore frustum type first
+  if (state.isOrthographic) {
+    const canvas = viewer.scene.canvas;
+    const aspectRatio = canvas.clientWidth / canvas.clientHeight;
+
+    const orthoFrustum = new OrthographicFrustum();
+    orthoFrustum.aspectRatio = aspectRatio;
+    orthoFrustum.width = state.orthographicWidth || 2000;
+
+    viewer.scene.camera.frustum = orthoFrustum;
+  } else {
+    const perspFrustum = new PerspectiveFrustum();
+    perspFrustum.fov = state.fov || 1.0471975511965976; // 60 degrees in radians
+    perspFrustum.aspectRatio =
+      viewer.scene.canvas.clientWidth / viewer.scene.canvas.clientHeight;
+
+    viewer.scene.camera.frustum = perspFrustum;
+  }
+
   viewer.camera.setView({
     destination,
     orientation,
   });
-
-  if (state.fov && viewer.camera.frustum instanceof PerspectiveFrustum) {
-    viewer.camera.frustum.fov = state.fov;
-  }
 
   viewer.scene.requestRender();
 };

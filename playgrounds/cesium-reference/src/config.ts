@@ -1,5 +1,4 @@
-import { DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS } from "@carma-mapping/cesium-engine";
-import { ConstantProperty } from "cesium";
+import { ConstantProperty, SceneMode, Viewer } from "cesium";
 
 export const APP_BASE_PATH = import.meta.env.BASE_URL;
 export const CESIUM_PATHNAME = "__cesium__";
@@ -33,10 +32,38 @@ export enum PreviewLevelAVIF10Bit {
 
 export const DEFAULT_PREVIEW_LEVEL = PreviewLevelHQ.L2;
 
-export const cesiumConstructorOptions = {
-  ...DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS,
-  creditContainer: document.createElement("div"),
+const baseOptions: Viewer.ConstructorOptions = {
+  msaaSamples: 4,
+  requestRenderMode: true,
+  scene3DOnly: true,
+  sceneMode: SceneMode.SCENE3D,
+  selectionIndicator: false,
+  targetFrameRate: 60,
   useBrowserRecommendedResolution: false,
+  contextOptions: {
+    webgl: {
+      //alpha: true,
+      powerPreference: "high-performance" as WebGLPowerPreference,
+    },
+  },
+
+  // Hide UI components
+  animation: false,
+  timeline: false,
+  baseLayer: false, // This is correct - false is allowed
+  baseLayerPicker: false,
+  fullscreenButton: false,
+  geocoder: false,
+  homeButton: false,
+  infoBox: false,
+  navigationHelpButton: false,
+  navigationInstructionsInitiallyVisible: false,
+  sceneModePicker: false,
+  creditContainer: document.createElement("div"),
+};
+
+export const cesiumConstructorOptions = {
+  ...baseOptions,
 };
 
 export const NORMAL_PIXEL_SIZE = new ConstantProperty(5);

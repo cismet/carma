@@ -83,6 +83,7 @@ export const useCameraPersistence = (
         try {
           const currentState = extractCameraState(viewer);
           saveCameraState(currentState);
+          console.debug("camera saved");
         } catch (error) {
           console.warn(
             "[useCameraPersistence] Failed to save camera state:",
