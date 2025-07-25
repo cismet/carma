@@ -1,5 +1,9 @@
-import { Cartesian3, PerspectiveFrustum, OrthographicFrustum } from "cesium";
-import type { Viewer } from "cesium";
+import {
+  Cartesian3,
+  type PerspectiveFrustum,
+  type OrthographicFrustum,
+  type Viewer
+} from "cesium";
 
 export interface CameraPersistenceState {
   position: {
@@ -96,8 +100,6 @@ export const applyCameraState = (
     const orthoFrustum = new OrthographicFrustum();
     orthoFrustum.aspectRatio = aspectRatio;
     orthoFrustum.width = state.orthographicWidth || 2000;
-    orthoFrustum.near = 1.0;
-    orthoFrustum.far = 50000.0;
 
     viewer.scene.camera.frustum = orthoFrustum;
   } else {
@@ -105,8 +107,6 @@ export const applyCameraState = (
     perspFrustum.fov = state.fov || 1.0471975511965976; // 60 degrees in radians
     perspFrustum.aspectRatio =
       viewer.scene.canvas.clientWidth / viewer.scene.canvas.clientHeight;
-    perspFrustum.near = 1.0;
-    perspFrustum.far = 50000.0;
 
     viewer.scene.camera.frustum = perspFrustum;
   }

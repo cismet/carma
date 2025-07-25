@@ -1,8 +1,7 @@
-import React from "react";
+import { type RefObject, useEffect } from "react";
 import {
   Viewer,
   Cartesian3,
-  Cartographic,
   Math as CesiumMath,
   OrthographicFrustum,
   PerspectiveFrustum,
@@ -16,24 +15,24 @@ import {
   CustomShader,
 } from "cesium";
 import { useControls, button, Leva } from "leva";
-import { ModelConfig } from "@carma-commons/resources";
+import { type ModelConfig } from "@carma-commons/resources";
 import { CUSTOM_SHADERS_DEFINITIONS } from "@carma-mapping/cesium-engine";
 
 interface ModelPlacementUIProps {
-  viewerRef: React.RefObject<Viewer | null>;
-  modelEntityRef: React.RefObject<Entity | null>;
-  debugPrimitiveRef: React.RefObject<DebugModelMatrixPrimitive | null>;
+  viewerRef: RefObject<Viewer | null>;
+  modelEntityRef: RefObject<Entity | null>;
+  debugPrimitiveRef: RefObject<DebugModelMatrixPrimitive | null>;
   modelConfig: ModelConfig;
-  tilesetRef: React.RefObject<Cesium3DTileset | null>;
+  tilesetRef: RefObject<Cesium3DTileset | null>;
 }
 
-export const ModelPlacementUI: React.FC<ModelPlacementUIProps> = ({
+export const ModelPlacementUI = ({
   viewerRef,
   modelEntityRef,
   debugPrimitiveRef,
   modelConfig,
   tilesetRef,
-}) => {
+}: ModelPlacementUIProps) => {
   // Get initial values from model config
   const baseLat = modelConfig.position.latitude;
   const baseLon = modelConfig.position.longitude;
@@ -161,8 +160,6 @@ export const ModelPlacementUI: React.FC<ModelPlacementUIProps> = ({
             const orthoFrustum = new OrthographicFrustum();
             orthoFrustum.aspectRatio = aspectRatio;
             orthoFrustum.width = 2000;
-            orthoFrustum.near = 1.0;
-            orthoFrustum.far = 50000.0;
 
             currentViewer.scene.camera.frustum = orthoFrustum;
           } else {
@@ -171,9 +168,6 @@ export const ModelPlacementUI: React.FC<ModelPlacementUIProps> = ({
             perspFrustum.aspectRatio =
               currentViewer.scene.canvas.clientWidth /
               currentViewer.scene.canvas.clientHeight;
-            perspFrustum.near = 1.0;
-            perspFrustum.far = 50000.0;
-
             currentViewer.scene.camera.frustum = perspFrustum;
           }
         }
@@ -243,7 +237,7 @@ export const ModelPlacementUI: React.FC<ModelPlacementUIProps> = ({
   });
 
   // Update model when values change
-  React.useEffect(() => {
+  useEffect(() => {
     updateModelTransform(finalLat, finalLon, heading);
   }, [finalLat, finalLon, heading, updateModelTransform]);
 
