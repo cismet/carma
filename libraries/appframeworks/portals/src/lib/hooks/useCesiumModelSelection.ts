@@ -70,9 +70,6 @@ export const useCesiumModelSelection = (
             },
           };
 
-          // Extract URL from model properties
-
-          // Create feature - use properties from model config directly
           const feature = {
             id: modelData.id,
             properties: extractedProperties,
