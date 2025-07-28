@@ -17,6 +17,8 @@ import {
   useHashState,
   useSelectionCesium,
   useSelectionTopicMap,
+  useCesiumModels,
+  useCesiumModelSelection,
 } from "@carma-apps/portals";
 import {
   geoElements,
@@ -26,6 +28,7 @@ import {
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
+import type { FeatureInfo } from "@carma-commons/types";
 
 import {
   useOverlayHelper,
@@ -59,7 +62,6 @@ import useLeafletZoomControls from "../../hooks/leaflet/useLeafletZoomControls.t
 import { useDispatchSachdatenInfoText } from "../../hooks/useDispatchSachdatenInfoText.ts";
 import { useFeatureInfoModeCursorStyle } from "../../hooks/useFeatureInfoModeCursorStyle.ts";
 import { useObliqueInitializer } from "../../oblique/hooks/useObliqueInitializer.ts";
-import { useModels } from "../../hooks/useModels.ts";
 
 import { createCismapLayers, onClickTopicMap } from "./topicmap.utils.ts";
 import { useTweakpane } from "./GeoportalMap.useTweakpane.ts";
@@ -181,10 +183,31 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
 
   useDispatchSachdatenInfoText();
 
-  useModels({
+  useCesiumModels({
     models: CESIUM_CONFIG.models || [],
     enabled: flags.featureFlagBugaBridge && !isMode2d,
   });
+
+  // 3D model selection using proper hook
+  useCesiumModelSelection(
+    viewerRef.current,
+    (feature: FeatureInfo) => {
+      console.debug("[CESIUM|MODEL] Model clicked:", feature);
+      dispatch(setSelectedFeature(feature));
+      dispatch(setSecondaryInfoBoxElements([]));
+      dispatch(setFeatures([feature]));
+    },
+    !isMode2d
+  );
+
+  // Clear 3D model selection when switching back to 2D mode
+  useEffect(() => {
+    if (isMode2d && selectedFeature && selectedFeature.is3dModel) {
+      dispatch(setSelectedFeature(null));
+      dispatch(setSecondaryInfoBoxElements([]));
+      dispatch(setFeatures([]));
+    }
+  }, [isMode2d, selectedFeature, dispatch]);
 
   const { gazData } = useGazData();
 
@@ -303,6 +326,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
 
   useEffect(() => {
     if (isModeFeatureInfo && pos) updateFeatureInfoLeaflet();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layers]);
 
   useEffect(() => {
@@ -328,7 +352,11 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       if (selectedFeature || loadingFeatureInfo) {
         return <FeatureInfoBox pos={pos} />;
       }
+    } else if (flags.featureFlagBugaBridge && selectedFeature) {
+      // TODO unify with point queries for position information?
+      return <FeatureInfoBox />;
     }
+
     return <div></div>;
   };
 

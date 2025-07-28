@@ -13,6 +13,10 @@ export const BRUECKENENTWURF_GLB: ModelConfig = {
   model: {
     uri: "https://wupp-3d-data.cismet.de/mesh2024/assets/bridge.glb",
   },
-  name: "Hängebrücke (Entwurf)",
-  description: "Hängebrücke BUGA 2031 Entwurf",
+  name: "Hängebrücke (Entwurf Stand Juli 2025)",
+  properties: {
+    header: "3D-Modell",
+    title: "Hängebrücke (Entwurf Stand Juli 2025)",
+    url: "https://www.wuppertal.de/bebauungsplaene#bundesgartenschau-2031-buga-seilbahn-und-haengebruecke",
+  },
 };
