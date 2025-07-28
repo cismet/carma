@@ -17,6 +17,7 @@ import {
   useHashState,
   useSelectionCesium,
   useSelectionTopicMap,
+  useCesiumModels,
 } from "@carma-apps/portals";
 import {
   geoElements,
@@ -59,7 +60,6 @@ import useLeafletZoomControls from "../../hooks/leaflet/useLeafletZoomControls.t
 import { useDispatchSachdatenInfoText } from "../../hooks/useDispatchSachdatenInfoText.ts";
 import { useFeatureInfoModeCursorStyle } from "../../hooks/useFeatureInfoModeCursorStyle.ts";
 import { useObliqueInitializer } from "../../oblique/hooks/useObliqueInitializer.ts";
-import { useModels } from "../../hooks/useModels.ts";
 
 import { createCismapLayers, onClickTopicMap } from "./topicmap.utils.ts";
 import { useTweakpane } from "./GeoportalMap.useTweakpane.ts";
@@ -181,7 +181,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
 
   useDispatchSachdatenInfoText();
 
-  useModels({
+  useCesiumModels({
     models: CESIUM_CONFIG.models || [],
     enabled: flags.featureFlagBugaBridge && !isMode2d,
   });
