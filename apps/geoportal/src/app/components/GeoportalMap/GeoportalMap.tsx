@@ -200,6 +200,15 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     !isMode2d
   );
 
+  // Clear 3D model selection when switching back to 2D mode
+  useEffect(() => {
+    if (isMode2d && selectedFeature && selectedFeature.is3dModel) {
+      dispatch(setSelectedFeature(null));
+      dispatch(setSecondaryInfoBoxElements([]));
+      dispatch(setFeatures([]));
+    }
+  }, [isMode2d, selectedFeature, dispatch]);
+
   const { gazData } = useGazData();
 
   useFeatureInfoModeCursorStyle();
@@ -317,6 +326,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
 
   useEffect(() => {
     if (isModeFeatureInfo && pos) updateFeatureInfoLeaflet();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layers]);
 
   useEffect(() => {
