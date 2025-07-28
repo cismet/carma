@@ -18,6 +18,7 @@ import {
   useSelectionCesium,
   useSelectionTopicMap,
   useCesiumModels,
+  useCesiumModelSelection,
 } from "@carma-apps/portals";
 import {
   geoElements,
@@ -27,6 +28,7 @@ import {
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
+import type { FeatureInfo } from "@carma-commons/types";
 
 import {
   useOverlayHelper,
@@ -186,6 +188,18 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     enabled: flags.featureFlagBugaBridge && !isMode2d,
   });
 
+  // 3D model selection using proper hook
+  useCesiumModelSelection(
+    viewerRef.current,
+    (feature: FeatureInfo) => {
+      console.debug("[CESIUM|MODEL] Model clicked:", feature);
+      dispatch(setSelectedFeature(feature));
+      dispatch(setSecondaryInfoBoxElements([]));
+      dispatch(setFeatures([feature]));
+    },
+    !isMode2d
+  );
+
   const { gazData } = useGazData();
 
   useFeatureInfoModeCursorStyle();
@@ -328,7 +342,11 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       if (selectedFeature || loadingFeatureInfo) {
         return <FeatureInfoBox pos={pos} />;
       }
+    } else if (flags.featureFlagBugaBridge && selectedFeature) {
+      // TODO unify with point queries for position information?
+      return <FeatureInfoBox />;
     }
+
     return <div></div>;
   };
 

@@ -129,29 +129,6 @@ export interface MappingState extends LayerState {
   layersIdle: boolean;
 }
 
-export type FeatureInfo = {
-  id: string;
-  showMarker?: boolean;
-  properties: {
-    header: string;
-    headerColor: string;
-    title: string;
-    subtitle: string;
-    additionalInfo?: string;
-    email?: string;
-    tel?: string;
-    url?: string;
-    genericLinks?: {
-      url: string;
-      tooltip: string;
-      icon: JSX.Element;
-    }[];
-    wmsProps?: {
-      [key: string]: string;
-    };
-  };
-};
-
 export interface FeatureInfoState {
   features: any[];
   selectedFeature: any;

@@ -13,16 +13,19 @@ interface UseCesiumModelsOptions {
 
 /**
  * Hook for managing Cesium 3D model entities
- * 
+ *
  * This hook handles loading, managing, and cleanup of 3D models in Cesium.
  * It automatically adds models to the viewer when enabled and removes them
  * when the component unmounts or when models change.
- * 
+ *
  * @param options - Configuration options for the models hook
  * @param options.models - Array of model configurations to load
  * @param options.enabled - Whether to enable model loading
  */
-export const useCesiumModels = ({ models, enabled }: UseCesiumModelsOptions) => {
+export const useCesiumModels = ({
+  models,
+  enabled,
+}: UseCesiumModelsOptions) => {
   const { viewerRef, isViewerReady } = useCesiumContext();
   const modelEntitiesRef = useRef<Entity[]>([]);
 

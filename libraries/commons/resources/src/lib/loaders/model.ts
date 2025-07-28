@@ -6,6 +6,8 @@ import {
   ModelGraphics,
 } from "cesium";
 
+import type { FeatureInfoProperties } from "@carma-commons/types";
+
 export interface ModelConfig
   extends Partial<Omit<Entity.ConstructorOptions, "position" | "orientation">> {
   /** Geographic position in degrees and meters - gets converted to Cartesian3 */
@@ -21,6 +23,7 @@ export interface ModelConfig
     roll?: number; // degrees
   };
   model: Partial<ModelGraphics.ConstructorOptions> & { uri: string };
+  properties: FeatureInfoProperties;
 }
 
 export function createModelEntityConstructorOptions(config: ModelConfig) {
