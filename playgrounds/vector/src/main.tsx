@@ -12,6 +12,7 @@ import { javascript } from "@codemirror/lang-javascript";
 import { GazDataProvider, SelectionProvider } from "@carma-apps/portals";
 import LeafletMap from "./app/LeafletMap";
 import LibreMap from "./app/LibreMap";
+import LibreMap2 from "./app/LibreMap2";
 import ExperimentalLibreMap from "./app/ExperimentalLibreMap";
 import { gazDataConfig } from "./config/gazData";
 import poisStyle from "./poiStyle.json";
@@ -165,7 +166,8 @@ const RootComponent = () => {
         <Route
           path="/maplibre"
           element={<LibreMap vectorStyles={vectorStylesArray} />}
-        ></Route>
+        ></Route>{" "}
+        <Route path="/maplibre2" element={<LibreMap2 />}></Route>
         <Route
           path="/maplibreWithPois"
           element={<LibreMap vectorStyles={[poisStyle]} />}
