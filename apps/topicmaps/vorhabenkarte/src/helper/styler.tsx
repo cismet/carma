@@ -182,8 +182,8 @@ export const getFeatureStyler = (
   return (feature) => {
     const offset = 0.3;
     const transparency = feature.properties.thema.fuellung / 100 + offset;
-    // var color = Color(colorizer(feature.properties)).alpha(transparency);
-    var color = Color(colorizer(feature.properties));
+    const color = Color(colorizer(feature.properties)).alpha(transparency);
+
     let radius = svgSize / 2; //needed for the Tooltip Positioning
     let canvasSize = svgSize;
     if (feature.selected) {
