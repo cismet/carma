@@ -24,7 +24,7 @@ const factory = ({ featureCollectionContext }) => {
   ) {
     return (
       <div>
-        <b>Meine Themenvorhaben: </b> {themenText}
+        <b>Meine Vorhaben: </b> {themenText}
       </div>
     );
   }

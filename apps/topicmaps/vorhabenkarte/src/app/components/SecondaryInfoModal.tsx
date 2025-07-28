@@ -216,7 +216,8 @@ const SecondaryInfoModal = ({ feature, setOpen, versionString }) => {
 
                   <b style={styles.label}>Voraussichtlicher Abschluss:</b>
                   <span style={styles.value}>
-                    {completion} {" Quartal"}
+                    {completion}
+                    {". Quartal"}
                     {plan?.ende_jahr ? ` ${plan?.ende_jahr}` : ""}
                   </span>
                 </div>
@@ -255,7 +256,7 @@ const SecondaryInfoModal = ({ feature, setOpen, versionString }) => {
                     {sortedResolutions.map((res, idx) => {
                       return (
                         <p key={idx}>
-                          <span> ({formatDatum(res.datum)}) </span>
+                          <span>{formatDatum(res.datum)}: </span>
                           <a href={res.url} target="_blank">
                             {res.anzeige}
                           </a>
