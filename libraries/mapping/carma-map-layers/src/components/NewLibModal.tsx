@@ -1108,20 +1108,16 @@ export const NewLibModal = ({
               </Button>
             </div>
             <div className="flex w-full gap-2">
-              {layers && layers.length > 0 && (
-                <>
-                  <LayerTabs
-                    layers={categoriesToShownLayers(
-                      shownCategories,
-                      sidebarElements[selectedNavItemIndex].id
-                    )}
-                    activeId={currentShownCategory}
-                    setActiveId={setCurrentShownCategory}
-                    numberOfItems={getNumberOfLayers(layers)}
-                  />
-                  <hr className="h-px bg-gray-300 border-0 mt-0 mb-2" />
-                </>
-              )}
+              <LayerTabs
+                layers={categoriesToShownLayers(
+                  shownCategories,
+                  sidebarElements[selectedNavItemIndex].id
+                )}
+                activeId={currentShownCategory}
+                setActiveId={setCurrentShownCategory}
+                numberOfItems={getNumberOfLayers(layers)}
+              />
+              <hr className="h-px bg-gray-300 border-0 mt-0 mb-2" />
             </div>
           </div>
           <div
@@ -1173,15 +1169,6 @@ export const NewLibModal = ({
                   discoverProps={discoverProps}
                 />
               )}
-
-              {layers &&
-                getNumberOfLayers(layers) === 0 &&
-                !loadingCapabilities &&
-                selectedNavItemIndex === 3 && (
-                  <h1 className="text-2xl font-normal">
-                    Keine Ressourcen gefunden
-                  </h1>
-                )}
               {selectedNavItemIndex !== 2 &&
                 selectedNavItemIndex !== 3 &&
                 selectedNavItemIndex !== 1 &&
