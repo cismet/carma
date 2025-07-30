@@ -141,6 +141,7 @@ export const NewLibModal = ({
   const [discoverItems, setDiscoverItems] = useState<any[]>([]);
   const [additionalConfig, setAdditionalConfig] = useState<any[]>([]);
   const [loadingData, setLoadingData] = useState(false);
+  const [loadingCapabilities, setLoadingCapabilities] = useState(false);
   const [triggerRefetch, setTriggerRefetch] = useState(false);
   const debouncedSearchTerm = useDebounce(searchValue, 300);
 
@@ -329,124 +330,131 @@ export const NewLibModal = ({
   };
 
   useEffect(() => {
-    let newLayers: any[] = [];
-    for (let key in services) {
-      if (services[key].url) {
-        fetch(
-          `${services[key].url}?service=WMS&request=GetCapabilities&version=1.1.1`
-        )
-          .then((response) => {
-            return response.text();
-          })
-          .then((text) => {
-            const result = parser.toJSON(text);
-            if (result) {
-              if (config) {
-                const tmpLayer = getLayerStructure({
-                  config,
-                  wms: result,
-                  serviceName: services[key].name,
-                  skipTopicMaps: true,
-                });
+    const loadCapabilites = async () => {
+      let newLayers: any[] = [];
+      setLoadingCapabilities(true);
+      for (let key in services) {
+        if (services[key].url) {
+          fetch(
+            `${services[key].url}?service=WMS&request=GetCapabilities&version=1.1.1`
+          )
+            .then((response) => {
+              return response.text();
+            })
+            .then((text) => {
+              const result = parser.toJSON(text);
+              if (result) {
+                if (config) {
+                  const tmpLayer = getLayerStructure({
+                    config,
+                    wms: result,
+                    serviceName: services[key].name,
+                    skipTopicMaps: true,
+                  });
 
-                tmpLayer.forEach((category) => {
-                  if (category.layers.length > 0) {
-                    activeLayers.forEach(async (activeLayer) => {
-                      const foundLayer = category.layers.find(
-                        (layer) => layer.id === activeLayer.id
-                      );
-                      if (foundLayer) {
-                        const updatedLayer = await utils.parseToMapLayer(
-                          foundLayer,
-                          false,
-                          activeLayer.visible,
-                          activeLayer.opacity
+                  tmpLayer.forEach((category) => {
+                    if (category.layers.length > 0) {
+                      activeLayers.forEach(async (activeLayer) => {
+                        const foundLayer = category.layers.find(
+                          (layer) => layer.id === activeLayer.id
                         );
+                        if (foundLayer) {
+                          const updatedLayer = await utils.parseToMapLayer(
+                            foundLayer,
+                            false,
+                            activeLayer.visible,
+                            activeLayer.opacity
+                          );
 
-                        const normalizedActiveLayer =
-                          normalizeObject(activeLayer);
-                        const normalizedUpdatedLayer =
-                          normalizeObject(updatedLayer);
+                          const normalizedActiveLayer =
+                            normalizeObject(activeLayer);
+                          const normalizedUpdatedLayer =
+                            normalizeObject(updatedLayer);
 
-                        if (
-                          !isEqual(
-                            normalizedActiveLayer,
-                            normalizedUpdatedLayer
-                          )
-                        ) {
-                          updateActiveLayer(updatedLayer);
+                          if (
+                            !isEqual(
+                              normalizedActiveLayer,
+                              normalizedUpdatedLayer
+                            )
+                          ) {
+                            updateActiveLayer(updatedLayer);
+                          }
                         }
-                      }
-                    });
-                  }
-                });
-                const mergedLayer = mergeStructures(tmpLayer, newLayers);
+                      });
+                    }
+                  });
+                  const mergedLayer = mergeStructures(tmpLayer, newLayers);
 
-                newLayers = mergedLayer;
-                let tmp: Layer[] = [];
-                tmp = newLayers;
+                  newLayers = mergedLayer;
+                  let tmp: Layer[] = [];
+                  tmp = newLayers;
 
-                setAllLayers(tmp);
-              } else {
-                getDataFromJson(result);
+                  setAllLayers(tmp);
+                  setLoadingCapabilities(false);
+                } else {
+                  getDataFromJson(result);
+                  setLoadingCapabilities(false);
+                }
               }
-            }
-          });
-      } else {
-        if (services[key].type === "topicmaps") {
+            });
         } else {
-          const tmpLayer = getLayerStructure({
-            config,
-            serviceName: services[key].name,
-            skipTopicMaps: true,
-          });
-          const mergedLayer = mergeStructures(tmpLayer, newLayers);
-          newLayers = mergedLayer;
-          let tmp: Layer[] = [];
+          if (services[key].type === "topicmaps") {
+          } else {
+            const tmpLayer = getLayerStructure({
+              config,
+              serviceName: services[key].name,
+              skipTopicMaps: true,
+            });
+            const mergedLayer = mergeStructures(tmpLayer, newLayers);
+            newLayers = mergedLayer;
+            let tmp: Layer[] = [];
 
-          tmp = newLayers;
-          setLayers(tmp);
-          setAllLayers(tmp);
+            tmp = newLayers;
+            setLayers(tmp);
+            setAllLayers(tmp);
+          }
         }
       }
-    }
 
-    // Partial Twins Category
-    const partialTwinsCategories: {
-      Title: string;
-      id: string;
-      layers: SavedLayerConfig[];
-    }[] = [];
+      // Partial Twins Category
+      const partialTwinsCategories: {
+        Title: string;
+        id: string;
+        layers: SavedLayerConfig[];
+      }[] = [];
 
-    for (let key in partianTwinConfig) {
-      partialTwinsCategories.push(partianTwinConfig[key]);
-    }
-
-    setShownCategories((prev) => {
-      if (prev.find((item) => item.id === "partialTwins")) {
-        prev.splice(
-          prev.findIndex((item) => item.id === "partialTwins"),
-          1
-        );
+      for (let key in partianTwinConfig) {
+        partialTwinsCategories.push(partianTwinConfig[key]);
       }
-      return [
-        ...prev,
-        { id: "partialTwins", categories: partialTwinsCategories },
-      ];
-    });
 
-    setTmpAllCategories((prev) => {
-      if (prev.find((item) => item.id === "partialTwins")) {
-        prev.splice(
-          prev.findIndex((item) => item.id === "partialTwins"),
-          1
-        );
-      }
-      return [
-        ...prev,
-        { id: "partialTwins", categories: partialTwinsCategories },
-      ];
-    });
+      setShownCategories((prev) => {
+        if (prev.find((item) => item.id === "partialTwins")) {
+          prev.splice(
+            prev.findIndex((item) => item.id === "partialTwins"),
+            1
+          );
+        }
+        return [
+          ...prev,
+          { id: "partialTwins", categories: partialTwinsCategories },
+        ];
+      });
+
+      setTmpAllCategories((prev) => {
+        if (prev.find((item) => item.id === "partialTwins")) {
+          prev.splice(
+            prev.findIndex((item) => item.id === "partialTwins"),
+            1
+          );
+        }
+        return [
+          ...prev,
+          { id: "partialTwins", categories: partialTwinsCategories },
+        ];
+      });
+    };
+
+    loadCapabilites();
   }, []);
 
   useEffect(() => {
@@ -1142,7 +1150,7 @@ export const NewLibModal = ({
               </div>
             )}
 
-            <div>
+            <div className="w-full">
               {showItems && (
                 <ItemGrid
                   categories={categoriesToShownLayers(
@@ -1160,12 +1168,15 @@ export const NewLibModal = ({
                   isSearch={selectedNavItemIndex === 5}
                   setTriggerRefetch={setTriggerRefetch}
                   loadingData={loadingData}
+                  loadingCapabilities={loadingCapabilities}
+                  currentCategoryIndex={selectedNavItemIndex}
                   discoverProps={discoverProps}
                 />
               )}
 
               {layers &&
                 getNumberOfLayers(layers) === 0 &&
+                !loadingCapabilities &&
                 selectedNavItemIndex === 3 && (
                   <h1 className="text-2xl font-normal">
                     Keine Ressourcen gefunden
