@@ -300,7 +300,7 @@ const createVectorFeature = (
   );
 
   const minimalBoxSize = 1;
-  const featureInfoBaseUrl = layer.other.service.url;
+  const featureInfoBaseUrl = layer.other?.service?.url;
   const layerName = layer.other.name;
 
   let viewportBbox = {
@@ -380,14 +380,15 @@ const createVectorFeature = (
       viewportHeight
   );
 
-  const legacyFeatureInfoUrl =
+  let legacyFeatureInfoUrl =
+    featureInfoBaseUrl ??
     featureInfoBaseUrl +
-    `?&VERSION=1.1.1&REQUEST=GetFeatureInfo&BBOX=` +
-    `${viewportBbox.left},` +
-    `${viewportBbox.bottom},` +
-    `${viewportBbox.right},` +
-    `${viewportBbox.top}` +
-    `&WIDTH=${viewportWidth}&HEIGHT=${viewportHeight}&SRS=EPSG:3857&FORMAT=image/png&TRANSPARENT=TRUE&BGCOLOR=0xF0F0F0&EXCEPTIONS=application/vnd.ogc.se_xml&FEATURE_COUNT=99&LAYERS=${layerName}&STYLES=default&QUERY_LAYERS=${layerName}&INFO_FORMAT=text/html&X=${pixelX}&Y=${pixelY}
+      `?&VERSION=1.1.1&REQUEST=GetFeatureInfo&BBOX=` +
+      `${viewportBbox.left},` +
+      `${viewportBbox.bottom},` +
+      `${viewportBbox.right},` +
+      `${viewportBbox.top}` +
+      `&WIDTH=${viewportWidth}&HEIGHT=${viewportHeight}&SRS=EPSG:3857&FORMAT=image/png&TRANSPARENT=TRUE&BGCOLOR=0xF0F0F0&EXCEPTIONS=application/vnd.ogc.se_xml&FEATURE_COUNT=99&LAYERS=${layerName}&STYLES=default&QUERY_LAYERS=${layerName}&INFO_FORMAT=text/html&X=${pixelX}&Y=${pixelY}
             `;
 
   let properties = selectedVectorFeature.properties;
@@ -435,16 +436,17 @@ const createVectorFeature = (
     feature = {
       properties: {
         ...featureProperties.properties,
-        genericLinks: blockLegacyGetFeatureInfo
-          ? genericLinks
-          : genericLinks.concat([
-              {
-                url: legacyFeatureInfoUrl,
-                tooltip: "Vollständige Sachdatenabfrage",
-                icon: createElement(FeatureInfoIcon),
-                target: "_legacyGetFeatureInfoHtml",
-              },
-            ]),
+        genericLinks:
+          blockLegacyGetFeatureInfo || !legacyFeatureInfoUrl
+            ? genericLinks
+            : genericLinks.concat([
+                {
+                  url: legacyFeatureInfoUrl,
+                  tooltip: "Vollständige Sachdatenabfrage",
+                  icon: createElement(FeatureInfoIcon),
+                  target: "_legacyGetFeatureInfoHtml",
+                },
+              ]),
         zoom: featureInfoZoom,
       },
       geometry: selectedVectorFeature.geometry,
