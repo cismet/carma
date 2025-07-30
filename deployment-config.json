@@ -1421,6 +1421,33 @@
       },
       "projectPath": "./dist/envirometrics/paderborn/rainhazardmap"
     },
+    "rainhazardmap-werl": {
+      "deployment": {
+        "manual": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "rainhazardmap-werl"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "rainhazardmap-werl"
+            }
+          }
+        },
+        "auto": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "rainhazardmap-werl"
+            }
+          }
+        }
+      },
+      "projectPath": "./dist/envirometrics/werl/rainhazardmap"
+    },
     "rasterfari-tileserver-wms-companion": {
       "deployment": {
         "manual": {
