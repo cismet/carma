@@ -23,7 +23,7 @@ export const useHandleDrop = ({
   getDataFromJson,
 }: UseHandleDropProps) => {
   useEffect(() => {
-    const handleDrop = (event: DragEvent) => {
+    const handleDrop = async (event: DragEvent) => {
       event.preventDefault();
       setOpen(true);
       setSelectedNavItemIndex(3);
@@ -32,7 +32,7 @@ export const useHandleDrop = ({
       const file = event?.dataTransfer?.files[0];
 
       if (url && url.endsWith(".json")) {
-        const newItem = {
+        let newItem = {
           description: "",
           id: `custom:${url}`,
           layerType: "vector",
@@ -42,7 +42,19 @@ export const useHandleDrop = ({
           keywords: [`carmaConf://vectorStyle:${url}`],
           path: "Externe Dienste",
         };
-
+        await fetch(url)
+          .then((response) => response.json())
+          .then((data) => {
+            if (data.metadata && data.metadata.carmaConf.layerInfo) {
+              newItem = {
+                ...newItem,
+                ...data.metadata.carmaConf.layerInfo,
+              };
+            }
+          })
+          .catch((error) => {
+            console.error("Error fetching JSON to check metadata:", error);
+          });
         addItemToCategory(
           "mapLayers",
           { id: "custom", Title: "Externe Dienste" },
