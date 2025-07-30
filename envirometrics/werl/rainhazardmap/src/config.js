@@ -62,9 +62,9 @@ const overridingBaseLayerConf = {
 };
 
 const config = {
-  upperleftX: 707070.773646602407098, //take a depth3857.tif and run gdalinfo on it get the pixelsize and upperleftcorner info from there
-  upperleftY: 6756402.341920492239296,
-  pixelsize: 1.612302542980673,
+  upperleftX: 871272.493949008174241, //take a depth3857.tif and run gdalinfo on it get the pixelsize and upperleftcorner info from there
+  upperleftY: 6727520.990979306399822,
+  pixelsize: 1.607074272603651,
   minAnimationZoom: 17,
   minFeatureInfoZoom: 19,
   rasterfariURL: "https://rasterfari-werl.cismet.de",
