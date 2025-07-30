@@ -1,5 +1,6 @@
 import { Item } from "@carma-commons/types";
 import LayerItem from "./LayerItem";
+import ItemSkeleton from "./ItemSkeleton";
 
 interface ItemGridProps {
   categories: {
@@ -46,25 +47,9 @@ const ItemGrid = ({
   if (loadingCapabilities && currentCategoryIndex === 3) {
     return (
       <div>
-        {/* <div className="flex items-center gap-2 pt-8">
-          {[...Array(8)].map((_, i) => (
-            <div
-              key={`loading_tabs_${i}`}
-              className="mb-4 h-8 w-32 bg-slate-200 rounded animate-pulse"
-            ></div>
-          ))}
-        </div> */}
-        {/* <div className="mb-4 h-10 w-44 bg-slate-200 rounded animate-pulse"></div> */}
-        <p className="mb-4 text-2xl font-semibold">POI</p>
         <div className="pt-2 grid xl:grid-cols-7 grid-flow-dense lg:grid-cols-5 sm:grid-cols-3 min-[490px]:grid-cols-2 gap-8 mb-4">
           {[...Array(10)].map((_, i) => (
-            <div
-              key={i}
-              className="bg-white rounded-lg shadow-sm h-80 w-full flex flex-col gap-2 animate-pulse"
-            >
-              <div className="h-40 p-2 w-full bg-slate-200 rounded-t-lg"></div>
-              <div className="h-4 mt-4 bg-slate-200 rounded mx-8 w-2/3"></div>
-            </div>
+            <ItemSkeleton key={`itemSkeleton_${i}`} />
           ))}
         </div>
       </div>

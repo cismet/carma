@@ -46,6 +46,7 @@ import { discoverConfig } from "../helper/discover";
 import "./input.css";
 import "./modal.css";
 import { md5ActionFetchDAQ } from "@carma-commons/utils/fetching.ts";
+import ItemSkeleton from "./ItemSkeleton";
 
 const { Search } = Input;
 
@@ -994,26 +995,14 @@ export const NewLibModal = ({
             </div>
           </div>
           <div
-            className="flex w-full gap-4 h-full overflow-auto pt-0.5 px-6"
+            className="w-full gap-4 h-full overflow-auto pt-0.5 px-6"
             id="scrollContainer"
           >
             {!showItems && open && (
-              <div className="h-full w-full flex items-center justify-center">
-                <div className="grid xl:grid-cols-5 lg:grid-cols-4 sm:grid-cols-2 w-full gap-8 mb-4 px-6 pt-4">
+              <div className="w-full">
+                <div className="pt-2 grid xl:grid-cols-7 grid-flow-dense lg:grid-cols-5 sm:grid-cols-3 min-[490px]:grid-cols-2 gap-8 mb-4">
                   {[...Array(10)].map((_, i) => (
-                    <div
-                      key={i}
-                      className="bg-white rounded-lg shadow-sm h-80 w-full flex flex-col gap-2 animate-pulse"
-                    >
-                      <div className="h-40 p-2 w-full bg-slate-200 rounded-t-lg"></div>
-                      <div className="h-2 bg-slate-200 rounded mx-8 w-1/3"></div>
-                      <div className="h-20 bg-slate-200 rounded mx-8"></div>
-                      <div className="mx-8 flex items-center gap-2">
-                        <div className="h-2 bg-slate-200 rounded w-full"></div>
-                        <span className="text-slate-200"> · </span>
-                        <div className="h-2 bg-slate-200 rounded w-full"></div>
-                      </div>
-                    </div>
+                    <ItemSkeleton key={`itemSkeleton_${i}`} />
                   ))}
                 </div>
               </div>
