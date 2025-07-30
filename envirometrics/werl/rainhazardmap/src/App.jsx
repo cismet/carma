@@ -148,8 +148,8 @@ function App() {
         zoomControls={false}
         emailaddress={email}
         config={config.config}
-        homeZoom={13}
-        homeCenter={[51.658873404435404, 6.437902450561524]}
+        homeZoom={15}
+        homeCenter={[51.550271396041325, 7.917838096618653]}
         modeSwitcherTitle="AIS Starkregenvorsorge Werl"
         documentTitle="AIS Starkregenvorsorge Werl"
         gazetteerSearchControl={true}
