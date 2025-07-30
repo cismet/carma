@@ -249,7 +249,7 @@ const Map = ({
           <Control position="bottomleft" order={10}>
             <div style={{ marginTop: "4px" }}>
               <LibFuzzySearch
-                gazData={featureGazData}
+                //  additionalGazData={featureGazData}
                 placeholder={config.tm.gazetteerSearchBoxPlaceholdertext}
                 clickAfterGazetteerHit={config.tm.clickAfterGazetteerHit}
                 pixelwidth={
