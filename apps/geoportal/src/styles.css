@@ -3,13 +3,62 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  /* mobile viewport bug fix */
-  min-height: -webkit-fill-available;
+body,
+html {
+  /* Minimal styles - let Safari handle viewport naturally */
+  background-color: #e0e0e0 !important;
+  /* Use dynamic viewport height to adapt to Safari UI changes */
+  height: 100dvh;
+  min-height: 100dvh;
+  margin: 0;
+  padding: 0;
+  /* Prevent overscroll bounce on Safari */
+  overscroll-behavior: contain !important;
 }
 
-html {
-  height: -webkit-fill-available;
+/* Fallback for browsers that don't support dvh */
+@supports not (height: 100dvh) {
+  body,
+  html {
+    height: 100vh;
+    min-height: 100vh;
+  }
+}
+
+/* Ensure root container fills dynamic viewport */
+#root {
+  height: 100dvh;
+  min-height: 100dvh;
+}
+
+@supports not (height: 100dvh) {
+  #root {
+    height: 100vh;
+    min-height: 100vh;
+  }
+}
+
+/* Map container dynamic viewport fallback */
+#mapContainer {
+  height: 100dvh !important;
+  width: 100dvw !important;
+}
+
+@supports not (height: 100dvh) {
+  #mapContainer {
+    height: 100vh !important;
+    width: 100vw !important;
+  }
+}
+
+/* Only prevent overscroll on navigation to avoid dragging */
+nav,
+.navbar,
+.top-nav,
+[role="navigation"] {
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 .cesium-widget-credits {

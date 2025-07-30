@@ -58,6 +58,7 @@ import { GeoportalMap } from "../GeoportalMap.tsx";
 import LibreGeoportalMap from "../LibreGeoportalMap.tsx";
 import { ObliqueControls } from "../../../oblique/components/ObliqueControls.tsx";
 import LayerWrapper from "../../layers/LayerWrapper.tsx";
+import { ViewportDebugDisplay } from "../../debug/ViewportDebugDisplay.tsx";
 
 import useLeafletZoomControls from "../../../hooks/leaflet/useLeafletZoomControls.ts";
 import { useAppSearchParams } from "../../../hooks/useAppSearchParams";
@@ -305,6 +306,50 @@ const MapWrapper = () => {
 
   return (
     <ControlLayout>
+      {/* Debug viewport info - remove in production */}
+      {process.env.NODE_ENV === "development" && (
+        <Control position="topright" order={1}>
+          <ViewportDebugDisplay />
+        </Control>
+      )}
+      <Control position="topcenter" order={10}>
+        <div className="bg-white p-2 rounded shadow mb-2">
+          <div className="text-xs mb-1">Testeingabefeld:</div>
+          <input
+            type="text"
+            placeholder="Native input"
+            className="border border-gray-300 rounded px-2 py-1 text-sm w-full"
+            style={{
+              fontSize: "16px", // Prevent iOS zoom
+            }}
+            onFocus={(e) => {
+              // Store fullscreen state when input is focused
+              (e.target as any).wasFullscreenOnFocus =
+                !!document.fullscreenElement;
+              console.log(
+                "Input focused, fullscreen was:",
+                (e.target as any).wasFullscreenOnFocus
+              );
+            }}
+            onBlur={(e) => {
+              // Only restore fullscreen if it was active when input was focused
+              const wasFullscreen = (e.target as unknown).wasFullscreenOnFocus;
+              if (wasFullscreen && !document.fullscreenElement) {
+                console.log(
+                  "Restoring fullscreen after keyboard (was active on focus)"
+                );
+                setTimeout(() => {
+                  document.documentElement.requestFullscreen?.();
+                }, 100);
+              } else if (!wasFullscreen) {
+                console.log(
+                  "Not restoring fullscreen (was not active on focus)"
+                );
+              }
+            }}
+          />
+        </div>
+      </Control>
       {zenMode ? (
         <Control position="topcenter" order={10}>
           <button
@@ -596,7 +641,7 @@ const MapWrapper = () => {
       <ControlLayoutCanvas>
         <div
           id="mapContainer"
-          className={`h-lvh w-lvw flex flex-1 fixed overflow-hidden`}
+          className={`h-dvh w-dvw flex flex-1 fixed overflow-hidden`}
           ref={wrapperRef}
           style={{
             marginTop: zenMode ? "0px" : "-56px",
