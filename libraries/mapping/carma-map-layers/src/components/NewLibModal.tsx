@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState } from "react";
 import { isEqual } from "lodash";
+import { useHandleDrop } from "../hooks/useHandleDrop";
 
 import {
   faBook,
@@ -328,6 +329,74 @@ export const NewLibModal = ({
     });
     return numberOfLayers;
   };
+
+  const addItemToCategory = (
+    categoryId: string,
+    subCategory: { id: string; Title: string },
+    item: SavedLayerConfig | SavedLayerConfig[]
+  ) => {
+    setShownCategories((prev) => {
+      const newCategories = [...prev];
+      const categoryExists = newCategories.find((cat) => cat.id === categoryId);
+      if (!categoryExists) {
+        newCategories.push({
+          id: categoryId,
+          categories: [],
+        });
+      }
+      newCategories.map((cat) => {
+        if (cat.id === categoryId) {
+          let subCats = cat.categories;
+          let newSubCat: LayerCategories | undefined = undefined;
+          subCats.forEach((subCat) => {
+            if (subCat.id === subCategory.id) {
+              newSubCat = subCat;
+              if (Array.isArray(item)) {
+                newSubCat.layers.push(...item);
+              } else {
+                newSubCat.layers.push(item);
+              }
+              newSubCat.layers = newSubCat.layers.filter(
+                (layer, index) =>
+                  newSubCat?.layers.findIndex((l) => l.id === layer.id) ===
+                  index
+              );
+            }
+          });
+          if (!newSubCat) {
+            if (Array.isArray(item)) {
+              cat.categories.unshift({
+                id: subCategory.id,
+                Title: subCategory.Title,
+                layers: item,
+              });
+            } else {
+              cat.categories.unshift({
+                id: subCategory.id,
+                Title: subCategory.Title,
+                layers: [item],
+              });
+            }
+
+            cat.categories = cat.categories.filter(
+              (layer, index) =>
+                cat?.categories.findIndex((l) => l.id === layer.id) === index
+            );
+          } else {
+            return newSubCat;
+          }
+        }
+      });
+      return newCategories;
+    });
+  };
+
+  useHandleDrop({
+    setOpen,
+    setSelectedNavItemIndex,
+    addItemToCategory,
+    getDataFromJson,
+  });
 
   useEffect(() => {
     const loadCapabilites = async () => {
@@ -669,202 +738,6 @@ export const NewLibModal = ({
 
     return () => clearTimeout(timer);
   }, [open]);
-
-  const addItemToCategory = (
-    categoryId: string,
-    subCategory: { id: string; Title: string },
-    item: SavedLayerConfig | SavedLayerConfig[]
-  ) => {
-    setShownCategories((prev) => {
-      const newCategories = [...prev];
-      const categoryExists = newCategories.find((cat) => cat.id === categoryId);
-      if (!categoryExists) {
-        newCategories.push({
-          id: categoryId,
-          categories: [],
-        });
-      }
-      newCategories.map((cat) => {
-        if (cat.id === categoryId) {
-          let subCats = cat.categories;
-          let newSubCat: LayerCategories | undefined = undefined;
-          subCats.forEach((subCat) => {
-            if (subCat.id === subCategory.id) {
-              newSubCat = subCat;
-              if (Array.isArray(item)) {
-                newSubCat.layers.push(...item);
-              } else {
-                newSubCat.layers.push(item);
-              }
-              newSubCat.layers = newSubCat.layers.filter(
-                (layer, index) =>
-                  newSubCat?.layers.findIndex((l) => l.id === layer.id) ===
-                  index
-              );
-            }
-          });
-          if (!newSubCat) {
-            if (Array.isArray(item)) {
-              cat.categories.unshift({
-                id: subCategory.id,
-                Title: subCategory.Title,
-                layers: item,
-              });
-            } else {
-              cat.categories.unshift({
-                id: subCategory.id,
-                Title: subCategory.Title,
-                layers: [item],
-              });
-            }
-
-            cat.categories = cat.categories.filter(
-              (layer, index) =>
-                cat?.categories.findIndex((l) => l.id === layer.id) === index
-            );
-          } else {
-            return newSubCat;
-          }
-        }
-      });
-      return newCategories;
-    });
-  };
-
-  useEffect(() => {
-    const handleDrop = (event: DragEvent) => {
-      event.preventDefault();
-      setOpen(true);
-      setSelectedNavItemIndex(3);
-      const url = event.dataTransfer?.getData("URL");
-
-      const file = event?.dataTransfer?.files[0];
-
-      if (url && url.endsWith(".json")) {
-        const newItem = {
-          description: "",
-          id: `custom:${url}`,
-          layerType: "vector",
-          title: url.slice(0, -5),
-          serviceName: "custom",
-          type: "layer",
-          keywords: [`carmaConf://vectorStyle:${url}`],
-          path: "Externe Dienste",
-        };
-
-        addItemToCategory(
-          "mapLayers",
-          { id: "custom", Title: "Externe Dienste" },
-          newItem as unknown as SavedLayerConfig // TODO: Fix type
-        );
-      } else if (url) {
-        fetch(url)
-          .then((response) => {
-            return response.text();
-          })
-          .then((text) => {
-            const result = parser.toJSON(text);
-
-            const ownLayers = getDataFromJson(result);
-            if (ownLayers) {
-              addItemToCategory(
-                "mapLayers",
-                { id: "custom", Title: "Externe Dienste" },
-                ownLayers[0].layers.map((layer) => {
-                  return {
-                    ...layer,
-                    path: "Externe Dienste",
-                  };
-                })
-              );
-            }
-          })
-          .catch((error) => {
-            console.log("xxx error", error);
-          });
-      }
-
-      if (file && file.name.endsWith("style.json")) {
-        // Handle file drop
-
-        console.log("File dropped:", file.name, file);
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          try {
-            // Attempt to parse the file content as JSON
-            const fileContent = e.target?.result;
-            if (typeof fileContent === "string") {
-              const processedContent = fileContent.replace(
-                /__SERVER_URL__/g,
-                "https://tiles.cismet.de"
-              );
-
-              const jsonData = JSON.parse(processedContent);
-              console.log("xxx Parsed JSON from file:", jsonData);
-
-              const newItem = {
-                description: "",
-                id: `custom:${file.name}`,
-                layerType: "vector",
-                title: file.name,
-                serviceName: "custom",
-                type: "layer",
-                keywords: [
-                  `carmaConf://vectorStyle:${JSON.stringify(jsonData)}`,
-                ],
-                path: "Externe Dienste",
-              };
-
-              addItemToCategory(
-                "mapLayers",
-                { id: "custom", Title: "Externe Dienste" },
-                newItem as unknown as SavedLayerConfig // TODO: Fix type
-              );
-            }
-          } catch (error) {
-            console.error("Failed to parse the file as JSON:", error);
-          }
-        };
-
-        reader.readAsText(file);
-      } else if (file) {
-        file
-          .text()
-          .then((text) => {
-            const result = parser.toJSON(text);
-            const ownLayers = getDataFromJson(result);
-            if (ownLayers) {
-              addItemToCategory(
-                "mapLayers",
-                { id: "custom", Title: "Externe Dienste" },
-                ownLayers[0].layers.map((layer) => {
-                  return {
-                    ...layer,
-                    path: "Externe Dienste",
-                  };
-                })
-              );
-            }
-          })
-          .catch((error) => {
-            // setError(error.message);
-          });
-      }
-    };
-
-    const handleDragOver = (event: DragEvent) => {
-      event.preventDefault();
-    };
-
-    window.addEventListener("drop", handleDrop);
-    window.addEventListener("dragover", handleDragOver);
-
-    return () => {
-      window.removeEventListener("drop", handleDrop);
-      window.removeEventListener("dragover", handleDragOver);
-    };
-  }, []);
 
   useEffect(() => {
     if (shownCategories) {
