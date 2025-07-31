@@ -16,6 +16,7 @@ const initialState = {
   showBackground: true,
   showInspectMode: true,
   graphqlLayerStatus: undefined,
+  hasFittedBounds: false,
 };
 
 const slice = createSlice({
@@ -145,6 +146,9 @@ const slice = createSlice({
       state.graphqlLayerStatus = action.payload;
       return state;
     },
+    setHasFittedBounds(state, action) {
+      state.hasFittedBounds = action.payload;
+    },
   },
 });
 
@@ -166,6 +170,7 @@ export const {
   setShowInspectMode,
   clear,
   setGraphqlLayerStatus,
+  setHasFittedBounds,
 } = slice.actions;
 
 export const getFlaechenCollection = (state) => {
@@ -201,4 +206,8 @@ export const getShowInspectMode = (state) => {
 };
 export const getGraphqlLayerStatus = (state) => {
   return state.mapping.graphqlLayerStatus;
+};
+
+export const getHasFittedBounds = (state) => {
+  return state.mapping.hasFittedBounds;
 };
