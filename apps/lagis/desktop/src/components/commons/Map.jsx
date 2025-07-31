@@ -442,7 +442,7 @@ const Map = ({
           ondblclick={(event) => {
             //if data contains a ondblclick handler, call it
             if (data.ondblclick) {
-              data.ondblclick(event);
+              data.ondblclick(refRoutedMap.current.leafletMap.leafletElement);
             }
           }}
         >
