@@ -49,7 +49,9 @@ const RentAndLease = ({ width = "100%", height = "100%", inStory = false }) => {
   }, [landparcel]);
 
   useEffect(() => {
-    dispatch(setHasFittedBounds(false));
+    setTimeout(() => {
+      dispatch(setHasFittedBounds(false));
+    }, 800);
   }, []);
   return (
     <div

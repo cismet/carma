@@ -62,7 +62,9 @@ const Overview = ({
   const { landParcels } = useSelector(getLandParcels);
 
   useEffect(() => {
-    dispatch(setHasFittedBounds(false));
+    setTimeout(() => {
+      dispatch(setHasFittedBounds(false));
+    }, 800);
     dispatch(getGemarkungen(navigate));
     if (!landParcels) {
       dispatch(getflurstuecke(navigate));
