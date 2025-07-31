@@ -37,6 +37,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { convertLatLngToXY } from "../core/tools/mappingTools";
 import { getFstckForPoint } from "../store/slices/search";
 import { setMapLoading } from "../store/slices/ui";
+import { setHasFittedBounds } from "../store/slices/mapping";
 const Overview = ({
   dashboardVisible = false,
   width = "100%",
@@ -61,6 +62,7 @@ const Overview = ({
   const { landParcels } = useSelector(getLandParcels);
 
   useEffect(() => {
+    dispatch(setHasFittedBounds(false));
     dispatch(getGemarkungen(navigate));
     if (!landParcels) {
       dispatch(getflurstuecke(navigate));
