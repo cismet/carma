@@ -62,16 +62,14 @@ const FuzzySearchWrapper = ({
   return (
     <>
       {gazData.length > 0 && (
-        <div className="custom-left-control">
+        <>
           <LibFuzzySearch
             gazData={commonGazData}
             onSelection={onGazetteerSelection}
-            pixelwidth={
-              responsiveState === "normal" ? "300px" : windowSize.width - gap
-            }
+            pixelwidth={pixelwidth}
             placeholder={placeholder || "Wohin?"}
           />
-        </div>
+        </>
       )}
     </>
   );

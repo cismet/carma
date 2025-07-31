@@ -23,10 +23,7 @@ import {
   TopicMapSelectionContent,
   useSelectionTopicMap,
 } from "@carma-apps/portals";
-import {
-  EmptySearchComponent,
-  LibFuzzySearch,
-} from "@carma-mapping/fuzzy-search";
+import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import FuzzySearchWrapper from "./components/FuzzySearchWrapper";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import {
@@ -37,11 +34,10 @@ import {
 import CismapLayer from "react-cismap/CismapLayer";
 import { createVectorFeature } from "./helper";
 import FeatureInfobox from "./components/FeatureInfobox";
-import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import Menu from "./components/Menu";
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 import md5 from "md5";
-import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+
 const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 const downloadText = (text, filename) => {
   var element = document.createElement("a");
@@ -136,9 +132,6 @@ const Map = ({
   const { selectedFeature } = useContext(FeatureCollectionContext);
   const [globalHits, setGlobalHits] = useState({});
   const { markerSymbolSize } = useContext(TopicMapStylingContext);
-  const { responsiveState, gap, windowSize } = useContext(
-    ResponsiveTopicMapContext
-  );
   const [cl_key, setClKey] = useState("");
   const { routedMapRef } = useSelectionTopicMap() ?? {};
   const [selectedVectorObject, setSelectedVectorObject] = useState(undefined);
@@ -248,15 +241,10 @@ const Map = ({
         {config?.tm?.gazetteerSearchBox && (
           <Control position="bottomleft" order={10}>
             <div style={{ marginTop: "4px" }}>
-              <LibFuzzySearch
-                //  additionalGazData={featureGazData}
+              <FuzzySearchWrapper
+                featureGazData={featureGazData}
                 placeholder={config.tm.gazetteerSearchBoxPlaceholdertext}
                 clickAfterGazetteerHit={config.tm.clickAfterGazetteerHit}
-                pixelwidth={
-                  responsiveState === "normal"
-                    ? "300px"
-                    : windowSize.width - gap
-                }
               />
             </div>
           </Control>
