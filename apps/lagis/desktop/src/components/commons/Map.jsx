@@ -233,6 +233,7 @@ const Map = ({
 
   const oldBgRef = useRef(null);
   const oldAdditionalLayersLengthRef = useRef(null);
+  const firstSelection = useRef(true);
 
   useEffect(() => {
     const now = Date.now();
@@ -247,11 +248,13 @@ const Map = ({
       data?.featureCollection.length !== 0 &&
       refRoutedMap?.current &&
       activeBackgroundLayer === oldBgRef.current &&
-      oldAdditionalLayersLengthRef.current === activeAdditionalLayers.length
+      oldAdditionalLayersLengthRef.current === activeAdditionalLayers.length &&
+      firstSelection.current
     ) {
       const map = refRoutedMap.current.leafletMap.leafletElement;
       const bb = getBoundsForFeatureArray(data?.featureCollection);
       if (map && bb) {
+        firstSelection.current = false;
         map.fitBounds(bb);
       }
     }
