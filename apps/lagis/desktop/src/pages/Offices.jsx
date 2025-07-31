@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import Map from "../components/commons/Map";
 import Agencies from "../components/offices/Agencies";
 import AdditionalRole from "../components/offices/AdditionalRole";
@@ -19,6 +19,7 @@ import {
 import { mapOfficesExtractor } from "../core/extractors/officesPageExtractor";
 import { mapExtractor } from "../core/extractors/commonExtractors";
 import { setHasFittedBounds } from "../store/slices/mapping";
+import { getBoundsForFeatureArray } from "../core/tools/mappingTools";
 
 const Offices = ({ width = "100%", height = "100%", inStory = false }) => {
   let storyStyle = {};
@@ -37,11 +38,21 @@ const Offices = ({ width = "100%", height = "100%", inStory = false }) => {
   const geometry = useSelector(getGeometry);
   const [extraAgencyGeom, setExtraAgencyGeom] = useState(null);
   const [activeRowId, setActiveRow] = useState(null);
+  const selectedFeature = useRef(null);
 
   const mapClickHandler = (feature) => {
+    // console.log("xxx click", feature);
+    selectedFeature.current = feature;
     const { agencyTableId } = feature;
     if (agencyTableId !== activeRowId) {
       setActiveRow(agencyTableId);
+    }
+  };
+
+  const ondblclick = (map) => {
+    if (map && selectedFeature.current) {
+      const bb = getBoundsForFeatureArray([selectedFeature.current]);
+      map.fitBounds(bb);
     }
   };
 
@@ -75,7 +86,7 @@ const Offices = ({ width = "100%", height = "100%", inStory = false }) => {
             <Map
               width={width}
               height={height}
-              dataIn={{ landparcel, extraAgencyGeom, activeRowId }}
+              dataIn={{ landparcel, extraAgencyGeom, activeRowId, ondblclick }}
               extractor={mapOfficesExtractor}
               onClickHandler={mapClickHandler}
             />
