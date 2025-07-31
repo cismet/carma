@@ -6,6 +6,10 @@
 nx.json
 project.json
 
+# shared IDE settings
+
+/.vscode
+
 # package
 
 package.json
