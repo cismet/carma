@@ -596,7 +596,7 @@ const MapWrapper = () => {
       <ControlLayoutCanvas>
         <div
           id="mapContainer"
-          className={`h-lvh w-lvw flex flex-1 fixed overflow-hidden`}
+          className={`h-dvh w-dvw flex flex-1 fixed overflow-hidden`}
           ref={wrapperRef}
           style={{
             marginTop: zenMode ? "0px" : "-56px",

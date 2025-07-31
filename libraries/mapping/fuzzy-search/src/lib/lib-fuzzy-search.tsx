@@ -110,8 +110,8 @@ export function LibFuzzySearch({
     points: ["bl", "tl"],
     offset: [0, -4],
     overflow: {
-      adjustX: 0,
-      adjustY: 0,
+      adjustX: false,
+      adjustY: false,
     },
   };
 

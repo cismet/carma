@@ -3,13 +3,9 @@
 @tailwind components;
 @tailwind utilities;
 
-body {
-  /* mobile viewport bug fix */
-  min-height: -webkit-fill-available;
-}
-
+body,
 html {
-  height: -webkit-fill-available;
+  overscroll-behavior: none !important;
 }
 
 .cesium-widget-credits {
