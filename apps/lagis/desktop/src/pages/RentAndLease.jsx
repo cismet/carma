@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import Map from "../components/commons/Map";
 import RentBlock from "../components/rent/RentBlock";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import {
   mapMipaExtractor,
   mipaPageExtractor,
@@ -13,9 +13,13 @@ import {
   getMipa,
 } from "../store/slices/lagis";
 import { mapExtractor } from "../core/extractors/commonExtractors";
-import { getShowInspectMode } from "../store/slices/mapping";
+import {
+  getShowInspectMode,
+  setHasFittedBounds,
+} from "../store/slices/mapping";
 
 const RentAndLease = ({ width = "100%", height = "100%", inStory = false }) => {
+  const dispatch = useDispatch();
   const mipa = useSelector(getMipa);
   const [extraRentsGeom, setExtraRentsGeom] = useState(null);
   const [selectedTableRowId, setSelectedTableRowId] = useState(null);
@@ -43,6 +47,10 @@ const RentAndLease = ({ width = "100%", height = "100%", inStory = false }) => {
       setExtraRentsGeom(null);
     }
   }, [landparcel]);
+
+  useEffect(() => {
+    dispatch(setHasFittedBounds(false));
+  }, []);
   return (
     <div
       style={{

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import Map from "../components/commons/Map";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import RightsAndEncumbrances from "../components/rights/RightsAndEncumbrances";
 import {
   getAlkisLandparcel,
@@ -13,9 +13,13 @@ import {
   mapRebeExtractor,
 } from "../core/extractors/rebePageExtractor";
 import { mapExtractor } from "../core/extractors/commonExtractors";
-import { getShowInspectMode } from "../store/slices/mapping";
+import {
+  getShowInspectMode,
+  setHasFittedBounds,
+} from "../store/slices/mapping";
 const RightsPage = ({ width = "100%", height = "100%", inStory = false }) => {
   const alkisLandparcel = useSelector(getAlkisLandparcel);
+  const dispatch = useDispatch();
   const landparcel = useSelector(getLandparcel);
   const geometry = useSelector(getGeometry);
   const rebe = useSelector(getRebe);
@@ -38,6 +42,10 @@ const RightsPage = ({ width = "100%", height = "100%", inStory = false }) => {
     const { tableId } = feature;
     setSelectedTableIdByMap(tableId);
   };
+
+  useEffect(() => {
+    dispatch(setHasFittedBounds(false));
+  }, []);
 
   useEffect(() => {
     if (extraGeom) {

@@ -4,7 +4,7 @@ import Agencies from "../components/offices/Agencies";
 import AdditionalRole from "../components/offices/AdditionalRole";
 import Streetfronts from "../components/offices/Streetfronts";
 import Notes from "../components/offices/Notes";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
 import {
   getLandparcel,
   getAlkisLandparcel,
@@ -18,6 +18,7 @@ import {
 } from "../core/extractors/officesPageExtractor";
 import { mapOfficesExtractor } from "../core/extractors/officesPageExtractor";
 import { mapExtractor } from "../core/extractors/commonExtractors";
+import { setHasFittedBounds } from "../store/slices/mapping";
 
 const Offices = ({ width = "100%", height = "100%", inStory = false }) => {
   let storyStyle = {};
@@ -29,6 +30,8 @@ const Offices = ({ width = "100%", height = "100%", inStory = false }) => {
       backgroundColor: "#F1F1F1",
     };
   }
+  const dispatch = useDispatch();
+
   const landparcel = useSelector(getLandparcel);
   const alkisLandparcel = useSelector(getAlkisLandparcel);
   const geometry = useSelector(getGeometry);
@@ -47,6 +50,10 @@ const Offices = ({ width = "100%", height = "100%", inStory = false }) => {
       setExtraAgencyGeom(null);
     }
   }, [landparcel]);
+
+  useEffect(() => {
+    dispatch(setHasFittedBounds(false));
+  }, []);
 
   return (
     <div
