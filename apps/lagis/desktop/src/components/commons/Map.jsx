@@ -16,6 +16,7 @@ import {
   getCenterAndZoomForBounds,
 } from "../../core/tools/mappingTools";
 import {
+  getHasFittedBounds,
   getShowBackground,
   getShowCurrentFeatureCollection,
   getShowInspectMode,
@@ -23,6 +24,7 @@ import {
   setFrontenSelected,
   setGeneralGeometrySelected,
   setGraphqlLayerStatus,
+  setHasFittedBounds,
   setShowBackground,
   setShowCurrentFeatureCollection,
   setShowInspectMode,
@@ -139,6 +141,9 @@ const Map = ({
     }
     return result;
   }
+
+  const hasFittedBounds = useSelector(getHasFittedBounds);
+
   const urlSearchParams = new URLSearchParams(browserlocation.search);
   const urlSearchParamsObject = paramsToObject(urlParams);
 
@@ -233,7 +238,6 @@ const Map = ({
 
   const oldBgRef = useRef(null);
   const oldAdditionalLayersLengthRef = useRef(null);
-  const firstSelection = useRef(true);
 
   useEffect(() => {
     const now = Date.now();
@@ -249,13 +253,13 @@ const Map = ({
       refRoutedMap?.current &&
       activeBackgroundLayer === oldBgRef.current &&
       oldAdditionalLayersLengthRef.current === activeAdditionalLayers.length &&
-      firstSelection.current
+      !hasFittedBounds
     ) {
       const map = refRoutedMap.current.leafletMap.leafletElement;
       const bb = getBoundsForFeatureArray(data?.featureCollection);
       if (map && bb) {
-        firstSelection.current = false;
         map.fitBounds(bb);
+        dispatch(setHasFittedBounds(true));
       }
     }
 
@@ -275,6 +279,7 @@ const Map = ({
     activeBackgroundLayer,
     activeAdditionalLayers,
     mode,
+    hasFittedBounds,
   ]);
 
   const { gazData } = useGazData();
