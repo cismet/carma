@@ -5,12 +5,9 @@ import { useDispatch, useSelector } from "react-redux";
 import { Tooltip } from "antd";
 
 import {
-  faCompress,
-  faExpand,
   faEyeSlash,
   faHouseChimney,
   faInfo,
-  faLocationArrow,
   faMinus,
   faMountainCity,
   faPlus,
@@ -30,11 +27,7 @@ import {
 
 import { useTweakpaneCtx } from "@carma-commons/debug";
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
-import type {
-  FullScreenDocument,
-  FullScreenHTMLElement,
-  SearchResultItem,
-} from "@carma-commons/types";
+import type { SearchResultItem } from "@carma-commons/types";
 import { detectWebGLContext } from "@carma-commons/utils";
 
 import {
@@ -49,6 +42,7 @@ import {
   useZoomControls as useZoomControlsCesium,
 } from "@carma-mapping/cesium-engine";
 import {
+  FullscreenControl,
   LibrePitchingCompass,
   RoutedMapLocateControl,
 } from "@carma-mapping/components";
@@ -75,12 +69,7 @@ import { useWindowSize } from "../../../hooks/useWindowSize.ts";
 
 import { useOblique } from "../../../oblique/hooks/useOblique.ts";
 
-import {
-  exitFullscreen,
-  getUrlPrefix,
-  isFullscreen,
-  requestFullscreen,
-} from "../utils";
+import { getUrlPrefix } from "../utils";
 import { cancelOngoingRequests } from "../topicmap.utils";
 
 import {
@@ -442,35 +431,7 @@ const MapWrapper = () => {
             </Control>
           )}
           <Control position="topleft" order={20}>
-            {showFullscreenButton && (
-              <Tooltip
-                title={
-                  document.fullscreenElement
-                    ? "Vollbildmodus ausschalten"
-                    : "Vollbildmodus einschalten"
-                }
-                placement="right"
-              >
-                <ControlButtonStyler
-                  onClick={() => {
-                    const doc = document as FullScreenDocument;
-                    if (isFullscreen(doc)) {
-                      exitFullscreen(doc);
-                    } else {
-                      requestFullscreen(
-                        document.documentElement as FullScreenHTMLElement
-                      );
-                    }
-                  }}
-                  ref={tourRefLabels.fullScreen}
-                  dataTestId="full-screen-control"
-                >
-                  <FontAwesomeIcon
-                    icon={document.fullscreenElement ? faCompress : faExpand}
-                  />
-                </ControlButtonStyler>
-              </Tooltip>
-            )}
+            {showFullscreenButton && <FullscreenControl />}
           </Control>
           {showLocatorButton && isMobile && (
             <Control position="topleft" order={30}>
