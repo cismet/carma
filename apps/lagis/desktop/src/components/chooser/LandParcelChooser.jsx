@@ -29,6 +29,7 @@ import {
   removeLeadingZeros,
   replaceSlashWithDash,
 } from "../../core/tools/helper";
+import { setHasFittedBounds } from "../../store/slices/mapping";
 
 function paramsToObject(entries) {
   const result = {};
@@ -120,6 +121,10 @@ const LandParcelChooser = ({
       flur: selectedFlur.flur,
       ...selectedFlur.flurstuecke[flurstueckLabel],
     });
+
+    setTimeout(() => {
+      dispatch(setHasFittedBounds(false));
+    }, 800);
   };
   const handleKeyGemarkung = (e) => {
     if (e.key === "Enter") {
