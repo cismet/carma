@@ -20,11 +20,13 @@ import {
   getShowBackground,
   getShowCurrentFeatureCollection,
   getShowInspectMode,
+  setFeatureCollection,
   setFlaechenSelected,
   setFrontenSelected,
   setGeneralGeometrySelected,
   setGraphqlLayerStatus,
   setHasFittedBounds,
+  setMapInstance,
   setShowBackground,
   setShowCurrentFeatureCollection,
   setShowInspectMode,
@@ -244,6 +246,10 @@ const Map = ({
 
     if (now - lastPointSearchTimeRef.current < 1000) {
       return;
+    }
+
+    if (data?.featureCollection) {
+      dispatch(setFeatureCollection(data?.featureCollection));
     }
 
     if (

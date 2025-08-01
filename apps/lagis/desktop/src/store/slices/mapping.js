@@ -17,6 +17,7 @@ const initialState = {
   showInspectMode: true,
   graphqlLayerStatus: undefined,
   hasFittedBounds: false,
+  mapInstance: undefined,
 };
 
 const slice = createSlice({
@@ -149,6 +150,9 @@ const slice = createSlice({
     setHasFittedBounds(state, action) {
       state.hasFittedBounds = action.payload;
     },
+    setMapInstance(state, action) {
+      state.mapInstance = action.payload;
+    },
   },
 });
 
@@ -171,6 +175,7 @@ export const {
   clear,
   setGraphqlLayerStatus,
   setHasFittedBounds,
+  setMapInstance,
 } = slice.actions;
 
 export const getFlaechenCollection = (state) => {
