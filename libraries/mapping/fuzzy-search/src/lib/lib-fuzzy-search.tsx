@@ -66,6 +66,7 @@ export function LibFuzzySearch({
     threshold: 0.5,
   },
   selection,
+  showDropdownBelow = false,
 }: SearchGazetteerProps) {
   const [options, setOptions] = useState<Option[]>([]);
   const [showCategories, setShowCategories] = useState(standardSearch);
@@ -111,7 +112,7 @@ export function LibFuzzySearch({
     offset: [0, -4],
     overflow: {
       adjustX: false,
-      adjustY: false,
+      adjustY: showDropdownBelow,
     },
   };
 

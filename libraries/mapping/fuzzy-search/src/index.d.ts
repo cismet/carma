@@ -20,6 +20,7 @@ export type SearchGazetteerProps = {
   config?: SearchConfig;
   priorityTypes?: string[];
   selection?: SelectionItem;
+  showDropdownBelow?: boolean;
 };
 
 export interface SearchResultItemWithScore {

@@ -374,6 +374,7 @@ const TopNavbar = ({
               onSelection={onGazetteerSelection}
               pixelwidth={narrow ? 250 : 350}
               placeholder={"Geben Sie einen Suchbegriff ein"}
+              showDropdownBelow={true}
             />
           </div>
         </span>
