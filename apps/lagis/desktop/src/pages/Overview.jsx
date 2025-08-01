@@ -154,6 +154,9 @@ const Overview = ({
               ondblclick: (event) => {
                 dispatch(setMapLoading(true));
                 const xy = convertLatLngToXY(event.latlng);
+                setTimeout(() => {
+                  dispatch(setHasFittedBounds(false));
+                }, 800);
                 dispatch(
                   getFstckForPoint(xy[0], xy[1], () => {
                     setTimeout(() => {
