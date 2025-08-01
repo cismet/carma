@@ -1,6 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import { Table } from "antd";
 import "./table-style.css";
+import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+import { useSelector } from "react-redux";
+import { getFeatureCollection } from "../../../store/slices/mapping";
+import { selectedFeatureFitBounds } from "../../../core/tools/helper";
 
 const TableCustom = ({
   columns,
@@ -13,6 +17,9 @@ const TableCustom = ({
   setActiveDataId,
 }) => {
   const [selectedRow, setSelectedRow] = useState(activeRow);
+  const { routedMapRef } = useContext(TopicMapContext);
+  const features = useSelector(getFeatureCollection);
+
   const handleRowClick = (record) => {
     setActiveRow(record);
     setSelectedRow(record?.id);
@@ -46,6 +53,13 @@ const TableCustom = ({
       <Table
         onRow={(record) => ({
           onClick: () => handleRowClick(record),
+          onDoubleClick: () => {
+            if (routedMapRef && features) {
+              const map = routedMapRef.leafletMap.leafletElement;
+              const selectedFeature = features.filter((f) => f.selectedGeom);
+              selectedFeatureFitBounds(map, selectedFeature[0]);
+            }
+          },
           className:
             record?.id === activeRow?.id ? "ant-table-row-selected" : "",
         })}

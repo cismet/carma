@@ -248,9 +248,9 @@ const Map = ({
       return;
     }
 
-    // if (data?.featureCollection) {
-    //   dispatch(setFeatureCollection(data?.featureCollection));
-    // }
+    if (data?.featureCollection) {
+      dispatch(setFeatureCollection(data?.featureCollection));
+    }
 
     if (
       isMapLoadingValue === false &&
