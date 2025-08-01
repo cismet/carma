@@ -232,7 +232,8 @@ const LayerItem = ({
             </div>
           )}
 
-          {showWithoutThumbnail || layer.id.includes("custom") ? (
+          {showWithoutThumbnail ||
+          (layer.id.includes("custom") && !layer.thumbnail) ? (
             <div style={{ height: "100%", width: "100%" }}>
               <img
                 src={extServiceBackgroundImage}
