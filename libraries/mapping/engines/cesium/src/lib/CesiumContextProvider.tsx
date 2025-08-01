@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import {
@@ -20,6 +20,7 @@ import {
   initViewerAnimationMap,
   ViewerAnimationMap,
 } from "./utils/viewerAnimationMap";
+import type { TilesetConfig } from "@carma-commons/resources";
 
 export const CesiumContextProvider = ({
   children,
@@ -46,6 +47,12 @@ export const CesiumContextProvider = ({
 
   // explicitly trigger re-renders
   const [isViewerReady, setIsViewerReady] = useState<boolean>(false);
+  const [selectedPrimaryIndex, setSelectedPrimaryIndex] = useState<number>(0);
+
+  // Get available mesh options from resources
+  const [primaryTilesetOptions, setPrimaryTilesetOptions] = useState<
+    TilesetConfig[]
+  >([]);
 
   // Asynchronous initialization of providers and imageryLayer
   useEffect(() => {
@@ -111,17 +118,15 @@ export const CesiumContextProvider = ({
   // Load Primary Tileset
   useEffect(() => {
     if (
-      tilesetConfigs.primary &&
+      primaryTilesetOptions.length > 0 &&
       isViewerReady &&
       viewerRef.current &&
       !viewerRef.current.isDestroyed()
     ) {
       const fetchPrimary = async () => {
-        console.debug(
-          "[CESIUM|DEBUG] Loading primary tileset",
-          tilesetConfigs.primary
-        );
-        primaryTilesetRef.current = await loadTileset(tilesetConfigs.primary);
+        const selectedConfig = primaryTilesetOptions[selectedPrimaryIndex];
+        console.debug("[CESIUM|DEBUG] Loading primary tileset", selectedConfig);
+        primaryTilesetRef.current = await loadTileset(selectedConfig);
         console.debug(
           "[CESIUM|DEBUG] Loaded primary tileset",
           primaryTilesetRef.current
@@ -138,7 +143,7 @@ export const CesiumContextProvider = ({
         primaryTilesetRef.current = null;
       }
     };
-  }, [tilesetConfigs.primary, viewerRef, isViewerReady]);
+  }, [primaryTilesetOptions, selectedPrimaryIndex, viewerRef, isViewerReady]);
 
   // Load Secondary Tileset
   useEffect(() => {
@@ -174,6 +179,71 @@ export const CesiumContextProvider = ({
     };
   }, [tilesetConfigs.secondary, viewerRef, isViewerReady]);
 
+  useEffect(() => {
+    const loadMeshOptions = async () => {
+      try {
+        setPrimaryTilesetOptions(
+          Array.isArray(tilesetConfigs.primary)
+            ? tilesetConfigs.primary
+            : [tilesetConfigs.primary]
+        );
+      } catch (error) {
+        console.warn("[CESIUM|DEBUG] Failed to load mesh configs:", error);
+      }
+    };
+    loadMeshOptions();
+  }, [tilesetConfigs.primary]);
+
+  const switchPrimaryTileset = useCallback(
+    async (index: number) => {
+      if (index < 0 || index >= primaryTilesetOptions.length) {
+        console.warn("[CESIUM|DEBUG] Invalid tileset index:", index);
+        return;
+      }
+
+      const viewer = viewerRef.current;
+      if (!viewer || viewer.isDestroyed()) {
+        console.warn("[CESIUM|DEBUG] Viewer not ready for tileset switch");
+        return;
+      }
+
+      // Remove current primary tileset safely
+      if (primaryTilesetRef.current) {
+        try {
+          // Check if tileset is not already destroyed before removing/destroying
+          if (!primaryTilesetRef.current.isDestroyed()) {
+            viewer.scene.primitives.remove(primaryTilesetRef.current);
+            primaryTilesetRef.current.destroy();
+          }
+        } catch (error) {
+          console.warn("[CESIUM|DEBUG] Error removing primary tileset:", error);
+        } finally {
+          primaryTilesetRef.current = null;
+        }
+      }
+
+      try {
+        const meshOption = primaryTilesetOptions[index];
+        console.debug(
+          "[CESIUM|DEBUG] Switching to primary tileset:",
+          meshOption
+        );
+
+        setSelectedPrimaryIndex(index);
+        primaryTilesetRef.current = await loadTileset(meshOption);
+        viewer.scene.primitives.add(primaryTilesetRef.current);
+
+        console.debug("[CESIUM|DEBUG] Successfully switched primary tileset");
+      } catch (error) {
+        console.error(
+          "[CESIUM|DEBUG] Failed to switch primary tileset:",
+          error
+        );
+      }
+    },
+    [viewerRef, primaryTilesetRef, primaryTilesetOptions]
+  );
+
   const contextValue = useMemo<CesiumContextType>(
     () => ({
       viewerRef,
@@ -189,8 +259,15 @@ export const CesiumContextProvider = ({
       shouldSuspendPitchLimiterRef,
       isViewerReady,
       setIsViewerReady,
+      switchPrimaryTileset,
+      primaryTilesetOptions: primaryTilesetOptions.map((config, index) => ({
+        index,
+        displayName: config.displayName || config.key,
+        displayNameShort: config.displayNameShort || config.key,
+        key: config.key,
+      })),
     }),
-    [isViewerReady]
+    [isViewerReady, switchPrimaryTileset, primaryTilesetOptions]
   );
 
   console.debug(

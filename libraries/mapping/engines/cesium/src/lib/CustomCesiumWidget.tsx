@@ -17,8 +17,8 @@ import {
   ClippingPlaneCollection,
 } from "cesium";
 import { generateRingFromDegrees } from "./utils/cesiumHelpers";
-import { CUSTOM_SHADERS_DEFINITIONS } from "./shaders";
 import type { LatLngRadians, LatLngRecord } from "@carma-commons/types";
+import { CUSTOM_SHADERS_DEFINITIONS } from "@carma-commons/resources";
 
 const unlit = new CustomShader(CUSTOM_SHADERS_DEFINITIONS.UNLIT);
 

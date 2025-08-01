@@ -6,7 +6,7 @@ import type {
   VaryingType,
 } from "cesium";
 
-export interface CesiumCustomChaderOptions {
+export interface CesiumCustomShaderOptions {
   mode?: CustomShaderMode;
   lightingModel?: LightingModel;
   translucencyMode?: CustomShaderTranslucencyMode;

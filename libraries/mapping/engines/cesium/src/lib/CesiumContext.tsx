@@ -8,6 +8,7 @@ import {
   Cesium3DTileset,
 } from "cesium";
 import { ViewerAnimationMap } from "./utils/viewerAnimationMap";
+import { TilesetConfig } from "@carma-commons/resources";
 
 export interface CesiumContextType {
   viewerRef: MutableRefObject<Viewer | null>;
@@ -23,6 +24,13 @@ export interface CesiumContextType {
   shouldSuspendPitchLimiterRef: MutableRefObject<boolean>;
   isViewerReady: boolean;
   setIsViewerReady: (flag: boolean) => void;
+  switchPrimaryTileset?: (index: number) => Promise<void>;
+  primaryTilesetOptions?: Array<{
+    index: number;
+    displayName: string;
+    displayNameShort: string;
+    key: string;
+  }>;
 }
 
 export const CesiumContext = createContext<CesiumContextType | null>(null);

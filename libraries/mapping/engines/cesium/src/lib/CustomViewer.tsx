@@ -3,7 +3,6 @@ import { Color, Viewer, Rectangle, SceneMode, Cartographic } from "cesium";
 import UAParser from "ua-parser-js";
 import { merge } from "lodash";
 
-import ElevationControl from "./components/controls/ElevationControl";
 import { CesiumErrorToErrorBoundaryForwarder } from "./utils/CesiumErrorToErrorBoundaryForwarder";
 
 import useCameraRollSoftLimiter from "./hooks/useCameraRollSoftLimiter";
@@ -15,7 +14,6 @@ import { useCesiumWhenHidden } from "./hooks/useCesiumWhenHidden";
 import { useInitializeViewer } from "./hooks/useInitializeViewer";
 import { useOnSceneChange } from "./hooks/useOnSceneChange";
 import useTransitionTimeout from "./hooks/useTransitionTimeout";
-import useTweakpane from "./hooks/useTweakpane";
 import { useTilesets } from "./hooks/useTilesets";
 import { useSceneStyles } from "./hooks/useSceneStyles";
 import { StringifiedCameraState } from "./utils/cesiumHashParamsCodec";
@@ -136,15 +134,7 @@ export function CustomViewer(props: CustomViewerProps) {
   // callback
   useOnSceneChange(onSceneChange);
 
-  // optional
-  useTweakpane();
-
-  return (
-    <>
-      <CesiumErrorToErrorBoundaryForwarder />
-      <ElevationControl show={false} />
-    </>
-  );
+  return <CesiumErrorToErrorBoundaryForwarder />;
 }
 
 export default CustomViewer;

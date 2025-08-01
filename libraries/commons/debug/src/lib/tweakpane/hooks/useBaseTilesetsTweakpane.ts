@@ -1,23 +1,21 @@
 import { useEffect, useRef } from "react";
 import { viewerCesium3DTilesInspectorMixin } from "cesium";
-
-import { useCesiumContext } from "./useCesiumContext";
-import { useCesiumViewer } from "./useCesiumViewer";
-
-import { useTilesetsTweakpane } from "./useTilesetTweakpane";
-import { useTweakpaneCtx } from "@carma-commons/debug";
 import { type ButtonApi } from "tweakpane";
 
+import { useCesiumContext } from "@carma-mapping/cesium-engine";
+import { useTilesetsTweakpane } from "./useTilesetsTweakpane";
+import { useTweakpaneCtx } from "./useTweakpaneContext";
+
 export const useBaseTilesetsTweakpane = () => {
-  const { tilesetsRefs } = useCesiumContext();
-  const viewer = useCesiumViewer();
+  const { tilesetsRefs, viewerRef } = useCesiumContext();
+  const viewer = viewerRef.current;
   const tilesetPrimary = tilesetsRefs.primaryRef.current;
   const tilesetSecondary = tilesetsRefs.secondaryRef.current;
 
   const buttonRef = useRef<ButtonApi | null>(null);
 
-  useTilesetsTweakpane(tilesetPrimary, "Primary");
-  useTilesetsTweakpane(tilesetSecondary, "Secondary");
+  useTilesetsTweakpane(tilesetPrimary, viewer, "Primary");
+  useTilesetsTweakpane(tilesetSecondary, viewer, "Secondary");
 
   const { paneCallback } = useTweakpaneCtx();
 
@@ -33,8 +31,7 @@ export const useBaseTilesetsTweakpane = () => {
         });
       });
     }
-    // Dependencies include all variables that might affect the condition
   }, [paneCallback, viewer]);
 
-  return null; // This hook does not return any UI components
+  return null;
 };

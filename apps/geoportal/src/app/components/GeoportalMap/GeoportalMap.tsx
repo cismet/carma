@@ -1,6 +1,14 @@
 import L from "leaflet";
 import proj4 from "proj4";
-import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
@@ -85,6 +93,13 @@ import {
 import { getUIMode, UIMode } from "../../store/slices/ui.ts";
 
 import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
+
+// Lazy load debug component to avoid bundling in production
+const TilesetsTweakpane = lazy(() =>
+  import("../debug/TilesetsTweakpane").then((module) => ({
+    default: module.TilesetsTweakpane,
+  }))
+);
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../leaflet.css";
@@ -641,6 +656,11 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
             onSceneChange={onSceneChange}
           />
         </div>
+      )}
+      {flags.isDebugMode && (
+        <Suspense fallback={null}>
+          <TilesetsTweakpane />
+        </Suspense>
       )}
     </>
   );

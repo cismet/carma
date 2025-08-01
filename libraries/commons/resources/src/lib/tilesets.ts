@@ -1,6 +1,6 @@
 import { type Cesium3DTileset } from "cesium";
 import { type PlainCartesian3 } from "@carma-commons/types";
-import { type CesiumCustomChaderOptions } from "@carma-commons/types";
+import { type CesiumCustomShaderOptions } from "@carma-commons/types";
 
 export enum TilesetType {
   MESH = "mesh",
@@ -21,9 +21,11 @@ export enum ContentType {
 export type TilesetConfig = {
   url: string;
   key: string;
+  displayName?: string;
+  displayNameShort?: string;
   type: TilesetType;
   contentTypes?: ContentType[];
-  shader?: CesiumCustomChaderOptions;
+  shader?: CesiumCustomShaderOptions;
   translation?: PlainCartesian3;
   idProperty?: string;
   disableSelection?: boolean;

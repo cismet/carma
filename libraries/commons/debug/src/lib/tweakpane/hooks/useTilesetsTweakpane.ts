@@ -1,20 +1,19 @@
-import { CUSTOM_SHADERS_DEFINITIONS } from "./../shaders";
 import { useMemo, useState } from "react";
 import { Cesium3DTileset, CustomShader } from "cesium";
 
-import { useTweakpaneCtx } from "@carma-commons/debug";
-import { useCesiumViewer } from "./useCesiumViewer";
+import { useTweakpaneCtx } from "./useTweakpaneContext";
+import { CUSTOM_SHADERS_DEFINITIONS } from "@carma-commons/resources";
 
 const DEFAULT_MESH_SHADER_KEY = "UNLIT_ENHANCED_2024";
 
 export const useTilesetsTweakpane = (
   tileset: Cesium3DTileset | null,
+  viewer: any,
   name = "unlabeled"
 ) => {
   const [customShaderKey, setCustomShaderKey] = useState(
     DEFAULT_MESH_SHADER_KEY
   );
-  const viewer = useCesiumViewer();
 
   const [enableDebugWireframe, setEnableDebugWireframe] = useState(false);
 

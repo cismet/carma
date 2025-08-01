@@ -2,11 +2,12 @@ import { useState, useEffect, useRef, ChangeEvent, useMemo } from "react";
 import { debounce } from "lodash";
 import { Cartesian3, Cartographic } from "cesium";
 
-import { useTweakpaneCtx } from "@carma-commons/debug";
-
-import { useCesiumViewer } from "../../hooks/useCesiumViewer";
-import { getPositionWithHeightAsync } from "../../utils/positions";
 import "./elevation-control.css";
+import {
+  useCesiumContext,
+  getPositionWithHeightAsync,
+} from "@carma-mapping/cesium-engine";
+import { useTweakpaneCtx } from "../tweakpane/hooks/useTweakpaneContext";
 
 const getNewPosition = (
   posCarto: Cartographic,
@@ -50,7 +51,7 @@ const defaultOptions: ElevationControlProps = {
 // TOD0: highlight/signify non-reachable min height
 // TODO: evaluate change input to differential control like slider that controls speed of movement by distance from center/neutral position
 
-function ElevationControl(options: Partial<ElevationControlProps> = {}) {
+export function ElevationControl(options: Partial<ElevationControlProps> = {}) {
   const {
     displayHeight,
     initialMaxElevation,
@@ -75,7 +76,7 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
 
   const [maxDisplayHeight, setMaxDisplayHeight] = useState<number>(10000); // Adjust as needed
   const controlRef = useRef<HTMLDivElement>(null);
-  const viewer = useCesiumViewer();
+  const { viewerRef } = useCesiumContext();
   const [alwaysShow, setAlwaysShow] = useState(false);
   const [clamp, setClamp] = useState(useClampedHeight);
   const [eventOption, setEventOption] = useState(updateEvent);
@@ -147,9 +148,10 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
   );
 
   useEffect(() => {
-    if (viewer && (alwaysShow || show)) {
+    if (viewerRef.current && (alwaysShow || show)) {
+      const viewer = viewerRef.current;
       const update = () => {
-        if (isUpdating.current) return;
+        if (isUpdating.current || viewer.isDestroyed()) return;
         isUpdating.current = true;
         const cameraPositionCartographic = viewer.camera.positionCartographic;
         const currentCameraHeight = cameraPositionCartographic.height;
@@ -237,7 +239,7 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
       };
     }
   }, [
-    viewer,
+    viewerRef,
     alwaysShow,
     show,
     clamp,
@@ -247,6 +249,7 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
   ]);
 
   useEffect(() => {
+    const viewer = viewerRef.current;
     if (viewer) {
       const factor = displayHeight / maxDisplayHeight;
       const clampedHeightDisplayPosition =
@@ -278,7 +281,7 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
       });
     }
   }, [
-    viewer,
+    viewerRef,
     terrainHeight,
     clampedHeight,
     cameraHeight,
@@ -293,6 +296,7 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
   const onChangeHandler = (e: ChangeEvent<HTMLInputElement>) => {
     e.preventDefault();
     const newValue = e.target.valueAsNumber;
+    const viewer = viewerRef.current;
     if (
       viewer &&
       Math.abs(cameraHeight - newValue) > 0.05 &&
@@ -352,7 +356,8 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
         >
           Höhe der Kamera
         </caption>
-        {viewer?.scene.screenSpaceCameraController.enableCollisionDetection && (
+        {viewerRef.current?.scene.screenSpaceCameraController
+          .enableCollisionDetection && (
           <div
             style={{
               position: "absolute",

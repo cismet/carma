@@ -22,7 +22,10 @@ import {
   useOverlayTourContext,
 } from "@carma-commons/ui/lib-helper-overlay";
 import { cn } from "@carma-commons/utils";
-import { selectViewerIsMode2d } from "@carma-mapping/cesium-engine";
+import {
+  selectViewerIsMode2d,
+  selectShowPrimaryTileset,
+} from "@carma-mapping/cesium-engine";
 
 import {
   getBackgroundLayer,
@@ -34,6 +37,7 @@ import { getZenMode } from "../store/slices/ui";
 
 import { MapStyleKeys } from "../constants/MapStyleKeys";
 import { useMapStyle } from "../hooks/useGeoportalMapStyle";
+import { useMeshToggle } from "../hooks/useMeshToggle";
 import { useOblique } from "../oblique/hooks/useOblique";
 
 import ActionButtons from "./nav-items/ActionButtons";
@@ -49,6 +53,12 @@ const TopNavbar = () => {
   const { showOverlayHandler } = useOverlayTourContext();
   const { isObliqueMode, toggleObliqueMode } = useOblique();
   const { setCurrentStyle } = useMapStyle();
+  const {
+    currentOption,
+    primaryTilesetOptions,
+    toggleMesh,
+    hasMultipleOptions,
+  } = useMeshToggle();
 
   const isTouchDevice =
     "ontouchstart" in window || navigator.maxTouchPoints > 0;
@@ -61,6 +71,7 @@ const TopNavbar = () => {
   const selectedMapLayer = useSelector(getSelectedMapLayer);
   const selectedLuftbildLayer = useSelector(getSelectedLuftbildLayer);
   const zenMode = useSelector(getZenMode);
+  const showPrimaryTileset = useSelector(selectShowPrimaryTileset);
 
   const hintergrundTourRef = useOverlayHelper(
     getCollabedHelpElementsConfig("HINTERGRUND", geoElements)
@@ -148,22 +159,37 @@ const TopNavbar = () => {
             </button>
           </Tooltip>
           {flags.featureFlagObliqueMode && !isMode2d && (
-            <Tooltip
-              title={
-                isObliqueMode
-                  ? "Schrägansicht deaktivieren"
-                  : "Schrägansicht aktivieren"
-              }
-            >
-              <Button
-                type={isObliqueMode ? "primary" : "default"}
-                onClick={toggleObliqueMode}
-                className="mr-2"
+            <>
+              <Tooltip
+                title={
+                  isObliqueMode
+                    ? "Schrägansicht deaktivieren"
+                    : "Schrägansicht aktivieren"
+                }
               >
-                <FontAwesomeIcon icon={faPlane} rotation={270} />
-                <FontAwesomeIcon icon={faImages} />
-              </Button>
-            </Tooltip>
+                <Button
+                  type={isObliqueMode ? "primary" : "default"}
+                  onClick={toggleObliqueMode}
+                  className="mr-2"
+                >
+                  <FontAwesomeIcon icon={faPlane} rotation={270} />
+                  <FontAwesomeIcon icon={faImages} />
+                </Button>
+              </Tooltip>
+              {showPrimaryTileset && hasMultipleOptions && currentOption && (
+                <Tooltip
+                  title={`Zu ${
+                    primaryTilesetOptions?.find(
+                      (_, index) => index !== currentOption.index
+                    )?.displayName || "anderem Mesh"
+                  } wechseln`}
+                >
+                  <Button onClick={toggleMesh} className="mr-2">
+                    {currentOption.displayNameShort}
+                  </Button>
+                </Tooltip>
+              )}
+            </>
           )}
           <div className="lg:flex hidden" ref={hintergrundTourRef}>
             {backgroundLayer && (

@@ -31,7 +31,6 @@ export { useSceneStyles } from "./lib/hooks/useSceneStyles";
 export { useZoomControls } from "./lib/hooks/useZoomControls";
 
 export { VIEWERSTATE_KEYS } from "./lib/constants";
-export { CUSTOM_SHADERS_DEFINITIONS } from "./lib/shaders";
 
 // TODO: all the utils used elsewhere with no cesium dedependency should be moved to common helper utils lib
 
@@ -84,6 +83,7 @@ export {
   distanceFromZoomLevel,
   getHeadingPitchRangeFromHeight,
   getHeadingPitchRangeFromZoom,
+  getPositionWithHeightAsync,
 } from "./lib/utils/positions";
 
 export {

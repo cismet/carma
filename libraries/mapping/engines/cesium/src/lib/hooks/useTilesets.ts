@@ -12,8 +12,6 @@ import { useSecondaryStyleTilesetClickHandler } from "./useSecondaryStyleTileset
 
 import { TRANSITION_DELAY } from "../CustomViewer";
 
-import { useBaseTilesetsTweakpane } from "./useBaseTilesetsTweakpane";
-
 export const useTilesets = () => {
   const showPrimary = useSelector(selectShowPrimaryTileset);
   const { tilesetsRefs, viewerRef } = useCesiumContext();
@@ -22,7 +20,6 @@ export const useTilesets = () => {
   const showSecondary = useSelector(selectShowSecondaryTileset);
 
   const isMode2d = useSelector(selectViewerIsMode2d);
-  useBaseTilesetsTweakpane();
 
   useEffect(() => {
     if (

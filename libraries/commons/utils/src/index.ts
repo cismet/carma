@@ -4,6 +4,8 @@ export { isNumberArrayEqual } from "./lib/arrays";
 
 export { extractCarmaConfig } from "./lib/carmaConfig";
 
+export { resolutionFractions } from "./lib/constants";
+
 export { md5FetchText, md5ActionFetchDAQ } from "./lib/fetching";
 
 export {
@@ -12,6 +14,8 @@ export {
   type GazDataConfig,
   type GazDataSourceConfig,
 } from "./lib/gazData";
+
+export * from "./lib/formatters";
 
 export { suppressReactCismapErrors } from "./lib/log-react-cismap-errors";
 

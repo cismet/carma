@@ -1,47 +1,17 @@
 import { useMemo } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import {
   Math as CesiumMath,
   OrthographicFrustum,
   PerspectiveFrustum,
 } from "cesium";
 
-import { useTweakpaneCtx } from "@carma-commons/debug";
-
-import { formatFractions } from "../utils/formatters";
-import { resolutionFractions } from "../utils/cesiumHelpers";
-
-import { useCesiumViewer } from "./useCesiumViewer";
-import {
-  setScreenSpaceCameraControllerEnableCollisionDetection,
-  setScreenSpaceCameraControllerMaximumZoomDistance,
-  setScreenSpaceCameraControllerMinimumZoomDistance,
-  selectScreenSpaceCameraControllerEnableCollisionDetection,
-  selectScreenSpaceCameraControllerMaximumZoomDistance,
-  selectScreenSpaceCameraControllerMinimumZoomDistance,
-} from "../slices/cesium";
+import { useCesiumContext } from "@carma-mapping/cesium-engine";
+import { resolutionFractions } from "@carma-commons/utils";
+import { useTweakpaneCtx } from "./useTweakpaneContext";
+import { formatFractions } from "../../../../../utils/src";
 
 const useTweakpane = () => {
-  const viewer = useCesiumViewer();
-
-  const dispatch = useDispatch();
-
-  const minZoomDistance = useSelector(
-    selectScreenSpaceCameraControllerMinimumZoomDistance
-  );
-  const maxZoomDistance = useSelector(
-    selectScreenSpaceCameraControllerMaximumZoomDistance
-  );
-  const collisions = useSelector(
-    selectScreenSpaceCameraControllerEnableCollisionDetection
-  );
-
-  const setMaxZoomDistance = (v: number) =>
-    dispatch(setScreenSpaceCameraControllerMaximumZoomDistance(v));
-  const setMinZoomDistance = (v: number) =>
-    dispatch(setScreenSpaceCameraControllerMinimumZoomDistance(v));
-  const setCollisions = (v: boolean) =>
-    dispatch(setScreenSpaceCameraControllerEnableCollisionDetection(v));
+  const { viewerRef } = useCesiumContext();
 
   useTweakpaneCtx(
     useMemo(
@@ -52,23 +22,29 @@ const useTweakpane = () => {
         params: {
           get fov() {
             return (
-              (viewer?.scene.camera.frustum as PerspectiveFrustum)?.fov || 1.0
+              (viewerRef.current?.scene.camera.frustum as PerspectiveFrustum)
+                ?.fov || 1.0
             );
           },
 
           set fov(value: number) {
             if (
-              viewer &&
-              viewer.scene.camera.frustum instanceof PerspectiveFrustum &&
+              viewerRef.current &&
+              viewerRef.current.scene.camera.frustum instanceof
+                PerspectiveFrustum &&
               !Number.isNaN(value)
             ) {
-              viewer.scene.camera.frustum.fov = value;
+              viewerRef.current.scene.camera.frustum.fov = value;
             }
           },
           get orthographic() {
-            return viewer?.scene.camera.frustum instanceof OrthographicFrustum;
+            return (
+              viewerRef.current?.scene.camera.frustum instanceof
+              OrthographicFrustum
+            );
           },
           set orthographic(value: boolean) {
+            const viewer = viewerRef.current;
             if (viewer) {
               if (
                 value &&
@@ -99,7 +75,7 @@ const useTweakpane = () => {
           },
         ],
       }),
-      [viewer?.scene.camera]
+      [viewerRef]
     )
   );
 
@@ -111,6 +87,7 @@ const useTweakpane = () => {
         },
         params: {
           get resolutionScale() {
+            const viewer = viewerRef.current;
             // Find the closest value in the array to the current resolutionScale and return its index
             const currentValue = viewer ? viewer.resolutionScale : 1;
             const closestIndex = resolutionFractions.findIndex(
@@ -121,6 +98,7 @@ const useTweakpane = () => {
               : resolutionFractions.length - 1; // Default to the last index if not found
           },
           set resolutionScale(index) {
+            const viewer = viewerRef.current;
             // Use the index to set the resolutionScale from the array
             if (viewer && index >= 0 && index < resolutionFractions.length) {
               const value = resolutionFractions[index];
@@ -139,7 +117,7 @@ const useTweakpane = () => {
           },
         ],
       }),
-      [viewer?.scene]
+      [viewerRef]
     )
   );
 
@@ -151,28 +129,46 @@ const useTweakpane = () => {
         },
         params: {
           get maxZoomDistance() {
-            return maxZoomDistance;
+            return (
+              viewerRef.current?.scene.screenSpaceCameraController
+                .maximumZoomDistance ?? 1000000
+            );
           },
           set maxZoomDistance(value: number) {
-            if (!isNaN(value)) {
-              // TODO add debounce for all Setters
-              setMaxZoomDistance(value);
+            if (
+              viewerRef.current?.scene.screenSpaceCameraController &&
+              !isNaN(value)
+            ) {
+              viewerRef.current.scene.screenSpaceCameraController.maximumZoomDistance =
+                value;
             }
           },
           get minZoomDistance() {
-            return minZoomDistance;
+            return (
+              viewerRef.current?.scene.screenSpaceCameraController
+                .minimumZoomDistance ?? 10
+            );
           },
           set minZoomDistance(value: number) {
-            if (!isNaN(value)) {
-              setMinZoomDistance(value);
+            if (
+              viewerRef.current?.scene.screenSpaceCameraController &&
+              !isNaN(value)
+            ) {
+              viewerRef.current.scene.screenSpaceCameraController.minimumZoomDistance =
+                value;
             }
           },
-
           get collisions() {
-            return collisions;
+            return (
+              viewerRef.current?.scene.screenSpaceCameraController
+                .enableCollisionDetection ?? false
+            );
           },
           set collisions(v: boolean) {
-            setCollisions(v);
+            if (viewerRef.current?.scene.screenSpaceCameraController) {
+              viewerRef.current.scene.screenSpaceCameraController.enableCollisionDetection =
+                v;
+            }
           },
         },
         inputs: [

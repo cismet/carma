@@ -13,11 +13,12 @@ import {
   DebugModelMatrixPrimitive,
   Cesium3DTileset,
   CustomShader,
-  LightingModel,
 } from "cesium";
 import { useControls, button, Leva } from "leva";
-import { type ModelConfig } from "@carma-commons/resources";
-import { CUSTOM_SHADERS_DEFINITIONS } from "@carma-mapping/cesium-engine";
+import {
+  type ModelConfig,
+  CUSTOM_SHADERS_DEFINITIONS,
+} from "@carma-commons/resources";
 
 interface ModelPlacementUIProps {
   viewerRef: RefObject<Viewer | null>;
