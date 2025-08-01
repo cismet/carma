@@ -56,7 +56,7 @@ export const mapMipaExtractor = ({
   extraGeom,
   selectedTableRowId,
   inspectMode,
-  ondblclick = (map, features) => {
+  ondblclick = (event, map, features) => {
     const selectedFeature = features.filter((f) => f.selectedTableGeom);
     selectedFeatureFitBounds(map, selectedFeature[0]);
   },
