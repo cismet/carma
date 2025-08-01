@@ -40,7 +40,7 @@ const RightsPage = ({ width = "100%", height = "100%", inStory = false }) => {
 
   const mapClickHandler = (feature) => {
     const { tableId } = feature;
-    setSelectedTableIdByMap(tableId);
+    setSelectedTableRowId(tableId);
   };
 
   useEffect(() => {
@@ -91,7 +91,7 @@ const RightsPage = ({ width = "100%", height = "100%", inStory = false }) => {
           setExtraGeom={setExtraGeom}
           setSelectedTableRowId={setSelectedTableRowId}
           selectedTableRowId={selectedTableRowId}
-          selectedTableIdByMap={selectedTableIdByMap}
+          selectedTableIdByMap={selectedTableRowId}
         />
       </div>
     </div>
