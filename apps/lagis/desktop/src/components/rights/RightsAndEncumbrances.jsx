@@ -203,7 +203,7 @@ const RightsAndEncumbrances = ({
             data={rights}
             activeRow={activeRow}
             setActiveRow={setActiveRow}
-            // fixHeight={true}
+            selectedFeatureKey={"selectedTableGeom"}
           />
         </div>
       </InfoBlock>
