@@ -38,21 +38,11 @@ const Offices = ({ width = "100%", height = "100%", inStory = false }) => {
   const geometry = useSelector(getGeometry);
   const [extraAgencyGeom, setExtraAgencyGeom] = useState(null);
   const [activeRowId, setActiveRow] = useState(null);
-  const selectedFeature = useRef(null);
 
   const mapClickHandler = (feature) => {
-    // console.log("xxx click", feature);
-    selectedFeature.current = feature;
     const { agencyTableId } = feature;
     if (agencyTableId !== activeRowId) {
       setActiveRow(agencyTableId);
-    }
-  };
-
-  const ondblclick = (map) => {
-    if (map && selectedFeature.current) {
-      const bb = getBoundsForFeatureArray([selectedFeature.current]);
-      map.fitBounds(bb);
     }
   };
 
