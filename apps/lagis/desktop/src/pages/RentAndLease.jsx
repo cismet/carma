@@ -39,7 +39,7 @@ const RentAndLease = ({ width = "100%", height = "100%", inStory = false }) => {
 
   const mapClickHandler = (feature) => {
     const { tableId } = feature;
-    setSelectedTableIdByMap(tableId);
+    setSelectedTableRowId(tableId);
   };
 
   useEffect(() => {
@@ -94,7 +94,7 @@ const RentAndLease = ({ width = "100%", height = "100%", inStory = false }) => {
           selectedTableRowId={selectedTableRowId}
           setSelectedTableRowId={setSelectedTableRowId}
           setExtraRentsGeom={setExtraRentsGeom}
-          selectedTableIdByMap={selectedTableIdByMap}
+          selectedTableIdByMap={selectedTableRowId}
         />
       </div>
     </div>
