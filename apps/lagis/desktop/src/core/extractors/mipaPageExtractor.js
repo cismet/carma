@@ -2,6 +2,7 @@ import dayjs from "dayjs";
 import weekday from "dayjs/plugin/weekday";
 import localeData from "dayjs/plugin/localeData";
 import customParseFormat from "dayjs/plugin/customParseFormat";
+import { selectedFeatureFitBounds } from "../tools/helper";
 dayjs.extend(weekday);
 dayjs.extend(localeData);
 dayjs.extend(customParseFormat);
@@ -55,7 +56,10 @@ export const mapMipaExtractor = ({
   extraGeom,
   selectedTableRowId,
   inspectMode,
-  ondblclick,
+  ondblclick = (map, features) => {
+    const selectedFeature = features.filter((f) => f.selectedTableGeom);
+    selectedFeatureFitBounds(map, selectedFeature[0]);
+  },
 }) => {
   if (extraGeom && geometry) {
     const feature = {

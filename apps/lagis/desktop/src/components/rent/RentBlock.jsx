@@ -267,7 +267,7 @@ const RentBlock = ({
               data={rents}
               activeRow={activeRow}
               setActiveRow={setActiveRow}
-              // fixHeight={true}
+              selectedFeatureKey={"selectedTableGeom"}
             />
           </div>
         </InfoBlock>
