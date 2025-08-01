@@ -15,6 +15,7 @@ const TableCustom = ({
   activeRow,
   fixHeight = false,
   setActiveDataId,
+  selectedFeatureKey,
 }) => {
   const [selectedRow, setSelectedRow] = useState(activeRow);
   const { routedMapRef } = useContext(TopicMapContext);
@@ -54,9 +55,15 @@ const TableCustom = ({
         onRow={(record) => ({
           onClick: () => handleRowClick(record),
           onDoubleClick: () => {
+            console.log("xxx routedMapRef", routedMapRef);
+            console.log("xxx features", features);
             if (routedMapRef && features) {
               const map = routedMapRef.leafletMap.leafletElement;
-              const selectedFeature = features.filter((f) => f.selectedGeom);
+              const selectedFeature = features.filter(
+                (f) => f[selectedFeatureKey]
+              );
+              console.log("xxx selectedFeature", selectedFeature);
+
               selectedFeatureFitBounds(map, selectedFeature[0]);
             }
           },

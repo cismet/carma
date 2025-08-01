@@ -221,6 +221,7 @@ const Agencies = ({
             activeRow={activeRow}
             setActiveRow={setActiveRow}
             fixHeight={true}
+            selectedFeatureKey={"selectedGeom"}
           />
         </div>
       </InfoBlock>
