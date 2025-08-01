@@ -5,7 +5,7 @@ import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplic
 import versionData from "./version.json";
 import config from "./config";
 import { getApplicationVersion } from "@carma-commons/utils";
-import { getCollabedHelpComponentConfig } from "@carma-pecher-collab/xanten";
+import { getCollabedHelpComponentConfig } from "@carma-pecher-collab/werl";
 import "./notification.css";
 import footerLogoUrl from "./assets/images/Signet_AIS_RZ.png";
 import {
