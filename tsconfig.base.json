@@ -193,6 +193,9 @@
       ],
       "@carma-pecher-collab/xanten": [
         "libraries/collaboration/carma-pecher-collab/src/xanten/index.jsx"
+      ],
+      "@carma-pecher-collab/werl": [
+        "libraries/collaboration/carma-pecher-collab/src/werl/index.jsx"
       ]
     },
     "skipLibCheck": true
