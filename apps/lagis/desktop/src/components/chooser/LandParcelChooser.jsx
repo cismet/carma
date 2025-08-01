@@ -89,6 +89,9 @@ const LandParcelChooser = ({
     };
 
     gotoFstckFromUrl(fromUrl);
+    setTimeout(() => {
+      dispatch(setHasFittedBounds(false));
+    }, 800);
   }, [urlParams, landparcelInternaDataStructure]);
 
   const handleGemarkungChange = (gemarkungValue) => {
