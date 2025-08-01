@@ -58,7 +58,7 @@ export const mapRebeExtractor = ({
   extraGeom,
   selectedTableRowId,
   inspectMode = true,
-  ondblclick = (map, features) => {
+  ondblclick = (event, map, features) => {
     const selectedFeature = features.filter((f) => f.selectedTableGeom);
     selectedFeatureFitBounds(map, selectedFeature[0]);
   },

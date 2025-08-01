@@ -94,7 +94,7 @@ export const mapOfficesExtractor = ({
   landparcel,
   extraAgencyGeom,
   activeRowId,
-  ondblclick = (map, features) => {
+  ondblclick = (event, map, features) => {
     const selectedFeature = features.filter((f) => f.selectedGeom);
     selectedFeatureFitBounds(map, selectedFeature[0]);
   },
