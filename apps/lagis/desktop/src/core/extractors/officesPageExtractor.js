@@ -1,5 +1,5 @@
 import { nanoid } from "@reduxjs/toolkit";
-import { getColorFromCode } from "../tools/helper";
+import { getColorFromCode, selectedFeatureFitBounds } from "../tools/helper";
 import {
   getOfficesWithColorAndSquare,
   geHistoricalArraytOfficesWithColorAndSquare,
@@ -94,7 +94,10 @@ export const mapOfficesExtractor = ({
   landparcel,
   extraAgencyGeom,
   activeRowId,
-  ondblclick,
+  ondblclick = (map, features) => {
+    const selectedFeature = features.filter((f) => f.selectedGeom);
+    selectedFeatureFitBounds(map, selectedFeature[0]);
+  },
 }) => {
   if (extraAgencyGeom) {
     const features = [];

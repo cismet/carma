@@ -86,7 +86,7 @@ const Offices = ({ width = "100%", height = "100%", inStory = false }) => {
             <Map
               width={width}
               height={height}
-              dataIn={{ landparcel, extraAgencyGeom, activeRowId, ondblclick }}
+              dataIn={{ landparcel, extraAgencyGeom, activeRowId }}
               extractor={mapOfficesExtractor}
               onClickHandler={mapClickHandler}
             />
