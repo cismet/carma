@@ -29,6 +29,7 @@ import {
 } from "@carma-mapping/fuzzy-search";
 import { isAreaType } from "@carma-commons/resources";
 import { builtInGazetteerHitTrigger } from "react-cismap/tools/gazetteerHelper";
+import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
 type BoundsAndSize = {
   mapBounds: LatLngBounds;
@@ -312,6 +313,11 @@ export function BelisMap({
       );
     }, 100);
   };
+
+  const { responsiveState } = useContext<typeof ResponsiveTopicMapContext>(
+    ResponsiveTopicMapContext
+  );
+
   return (
     <>
       <RoutedMap
@@ -429,6 +435,11 @@ export function BelisMap({
                   <LibFuzzySearch
                     gazData={gazData}
                     onSelection={onGazetteerSelection}
+                    pixelwidth={
+                      responsiveState === "normal"
+                        ? "300px"
+                        : mapStyle.width - 25 + "px"
+                    }
                   />
                 </div>
               </Control>
