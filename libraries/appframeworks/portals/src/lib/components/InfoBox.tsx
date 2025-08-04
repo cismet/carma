@@ -38,6 +38,8 @@ interface InfoBoxProps {
   secondaryInfoBoxElements?: any;
   colorizer?: any;
   defaultContextValues?: any;
+  mapWidth?: number | null;
+  infoBoxBottomResMargin?: number;
 }
 
 export const InfoBox = ({
@@ -67,7 +69,8 @@ export const InfoBox = ({
   infoStyle = {},
   fixedRow = true,
   secondaryInfoBoxElements = [],
-
+  mapWidth = null,
+  infoBoxBottomResMargin = 0,
   colorizer = (props) => ((props || {}).properties || {}).color, //
   defaultContextValues = {},
 }: InfoBoxProps) => {
@@ -314,6 +317,8 @@ export const InfoBox = ({
       alwaysVisibleDiv={alwaysVisibleDiv}
       collapsibleDiv={collapsibleDiv}
       fixedRow={fixedRow}
+      mapWidth={mapWidth}
+      infoBoxBottomMargin={infoBoxBottomResMargin}
     />
   );
 };

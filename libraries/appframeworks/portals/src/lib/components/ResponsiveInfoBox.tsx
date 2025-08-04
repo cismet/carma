@@ -25,6 +25,8 @@ interface ResponsiveInfoBoxProps {
   divWhenCollapsed?: React.ReactNode;
   divWhenLarge?: React.ReactNode;
   mode?: string;
+  mapWidth?: number | null;
+  infoBoxBottomMargin?: number;
 }
 
 export const ResponsiveInfoBox = ({
@@ -45,19 +47,20 @@ export const ResponsiveInfoBox = ({
   divWhenCollapsed,
   divWhenLarge,
   mode = MODES.DEFAULT,
+  mapWidth,
+  infoBoxBottomMargin = 0,
 }: ResponsiveInfoBoxProps) => {
   const [collapsed, setCollapsed] = useState(false);
+  const mapAppWidth = mapWidth ? mapWidth : window.innerWidth;
 
   const { setInfoBoxPixelWidth } =
     useContext(ResponsiveTopicMapDispatchContext) || defaultContextValues;
 
-  let infoBoxBottomMargin = 0;
   let infoBoxStyle = {
     opacity: "0.9",
     width:
-      typeof window !== "undefined" &&
-      window.innerWidth - 25 - pixelwidth - 300 <= 0
-        ? window.innerWidth - 25
+      typeof window !== "undefined" && mapAppWidth - 25 - pixelwidth - 300 <= 0
+        ? mapAppWidth - 25
         : pixelwidth,
     ...infoStyle,
   };
