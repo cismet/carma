@@ -12,6 +12,7 @@ import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvid
 import MainPage from "./components/MainPage";
 import { checkJWTValidation, getJWT } from "./store/slices/auth";
 import type { UnknownAction } from "redux";
+import { gazDataConfig } from "./config/gazData";
 
 const persistor = persistStore(store);
 
@@ -76,7 +77,7 @@ const root = ReactDOM.createRoot(
 root.render(
   <StrictMode>
     <Provider store={store}>
-      <GazDataProvider>
+      <GazDataProvider config={gazDataConfig}>
         <SelectionProvider>
           <PersistGate loading={null} persistor={persistor}>
             <TopicMapContextProvider appKey="belis-desktop.map">
