@@ -7,6 +7,7 @@ import TopNavbar from "./commons/TopNavbar";
 import useComponentSize from "@rehooks/component-size";
 import { useWindowSize } from "@react-hook/window-size";
 import { getIsMenuCollapsed } from "../store/slices/ui";
+import { BelisSwitch } from "@carma-apps/belis-library";
 
 const MainPage = () => {
   const storedJWT = useSelector(getJWT);
@@ -30,7 +31,15 @@ const MainPage = () => {
     <>
       <TopNavbar innerRef={refUpperToolbar} />
       <div className="mx-3 mt-1">
-        <CustomCard title="Karte" style={{ marginBottom: "8px" }}>
+        <CustomCard
+          title="Karte"
+          style={{ marginBottom: "8px" }}
+          extra={
+            <div className="flex items-center gap-4">
+              <BelisSwitch preLabel="Fokus" />
+            </div>
+          }
+        >
           <BelisMapLibWrapper
             refRoutedMap={refRoutedMap}
             jwt={storedJWT}
