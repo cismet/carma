@@ -33,7 +33,7 @@ const MainPage = () => {
   const [windowWidth, windowHeight] = useWindowSize();
   useComponentSize(refUpperToolbar);
   let refRoutedMap = useRef(null);
-  const { routedMapRef } = useContext(TopicMapContext);
+  const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
 
   const menuWidth = !isCollapsed ? 204 : 72;
   const cardGaps = 24 + 24 + 1;

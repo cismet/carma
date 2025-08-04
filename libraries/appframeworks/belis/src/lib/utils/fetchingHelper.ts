@@ -396,8 +396,8 @@ export const loadObjectsIntoFeatureCollection = (
   {
     boundingBox,
     inFocusMode,
-    _zoom,
-    _overridingFilterState,
+    // _zoom,
+    // _overridingFilterState,
     jwt,
     onlineDataForcing = false,
   },
