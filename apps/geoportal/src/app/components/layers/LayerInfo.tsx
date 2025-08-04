@@ -83,14 +83,15 @@ const LayerInfo = ({ description, legend, zoomLevels }: LayerInfoProps) => {
             <div>
               <h5 className="font-semibold">Inhalt</h5>
               <p className="text-sm">{parsedDescription.inhalt}</p>
-              {parsedDescription.sichtbarkeit.slice(0, -1) !== "öffentlich" && (
-                <>
-                  <h5 className="font-semibold">Sichtbarkeit</h5>
-                  <p className="text-sm">
-                    {parsedDescription.sichtbarkeit.slice(0, -1)}
-                  </p>
-                </>
-              )}
+              {parsedDescription.sichtbarkeit.slice(0, -1) !== "öffentlich" &&
+                parsedDescription.sichtbarkeit !== "" && (
+                  <>
+                    <h5 className="font-semibold">Sichtbarkeit</h5>
+                    <p className="text-sm">
+                      {parsedDescription.sichtbarkeit.slice(0, -1)}
+                    </p>
+                  </>
+                )}
               <h5 className="font-semibold">Nutzung</h5>
               <p className="text-sm">{parsedDescription.nutzung}</p>
             </div>
