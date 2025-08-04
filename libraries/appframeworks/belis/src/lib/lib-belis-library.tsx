@@ -19,6 +19,10 @@ import PaleOverlay from "react-cismap/PaleOverlay";
 import type { ReactNode } from "react";
 import type { LatLngBounds, Point, Map as LeafletMap } from "leaflet";
 import { featuresFilter, FilterState } from "..";
+import {
+  EmptySearchComponent,
+  LibFuzzySearch,
+} from "@carma-mapping/fuzzy-search";
 
 type BoundsAndSize = {
   mapBounds: LatLngBounds;
@@ -69,6 +73,7 @@ interface BelisMapProps {
   activeBackgroundLayer?: string | null;
   backgroundLayerOpacities?: any;
   filter?: FilterState;
+  isShowSearch?: boolean;
 }
 
 export const CONNECTIONMODE = { FROMCACHE: "FROMCACHE", ONLINE: "ONLINE" };
@@ -100,6 +105,7 @@ export function BelisMap({
   activeBackgroundLayer = null,
   backgroundLayerOpacities = {},
   filter = featuresFilter,
+  isShowSearch = false,
 }: BelisMapProps) {
   const mapRef = refRoutedMap?.current?.leafletMap?.leafletElement;
   const blockingTime = 1000;
@@ -374,7 +380,6 @@ export function BelisMap({
             <Control position="topleft" order={10}>
               <ZoomControl />
             </Control>
-
             <Control position="topleft" order={50}>
               <FullscreenControl />
             </Control>
@@ -385,6 +390,13 @@ export function BelisMap({
                 nativeTooltip={true}
               />
             </Control>
+            {isShowSearch && (
+              <Control position="bottomleft" order={10}>
+                <div style={{ marginTop: "4px" }}>
+                  <LibFuzzySearch />
+                </div>
+              </Control>
+            )}
           </ControlLayout>
         </div>
       </RoutedMap>

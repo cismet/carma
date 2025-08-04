@@ -93,6 +93,7 @@ const BelisMapLibWrapper = ({ refRoutedMap, jwt, mapSizes }) => {
         activeBackgroundLayer={activeBackgroundLayer}
         backgroundLayerOpacities={backgroundLayerOpacities}
         filter={filter}
+        isShowSearch={true}
       >
         <InfoBoxWrapper />
       </BelisMap>
