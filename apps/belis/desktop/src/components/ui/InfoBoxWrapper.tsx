@@ -7,7 +7,7 @@ import { InfoBox } from "@carma-apps/portals";
 import { ControlLayout } from "@carma-mapping/map-controls-layout";
 import { getVCard } from "@carma-apps/belis-library";
 
-const InfoBoxWrapper = () => {
+const InfoBoxWrapper = ({ mapWidth }) => {
   const featureCollection = useSelector(getFeatureCollection);
   const selectedFeature = useSelector(getSelectedFeature);
   const config = {
@@ -59,6 +59,8 @@ const InfoBoxWrapper = () => {
         featureCollection={[]}
         hideNavigator={true}
         additionalInfo={additionalInfo}
+        mapWidth={mapWidth}
+        infoBoxBottomResMargin={mapWidth - 25 - 350 - 300 <= 0 ? 38 : 0}
       />
     </ControlLayout>
   );

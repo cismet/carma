@@ -430,15 +430,15 @@ export function BelisMap({
               />
             </Control>
             {isShowSearch && (
-              <Control position="bottomleft" order={10}>
+              <Control position="bottomleft" order={5}>
                 <div style={{ marginTop: "4px" }}>
                   <LibFuzzySearch
                     gazData={gazData}
                     onSelection={onGazetteerSelection}
                     pixelwidth={
-                      responsiveState === "normal"
-                        ? "300px"
-                        : mapStyle.width - 25 + "px"
+                      mapStyle.width - 25 - 350 - 300 <= 0
+                        ? mapStyle.width - 25
+                        : 350
                     }
                   />
                 </div>
