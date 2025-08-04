@@ -9,7 +9,11 @@ import { BelisFeatureCollection } from "./components/BelisFeatureCollection";
 import { BackgroundLayers } from "./components/BackgroundLayers";
 import { FocusRectangle } from "./components/FocusRectangle";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
-import { TopicMapSelectionContent } from "@carma-apps/portals";
+import {
+  TopicMapSelectionContent,
+  useGazData,
+  useSelection,
+} from "@carma-apps/portals";
 import {
   FullscreenControl,
   RoutedMapLocateControl,
@@ -23,6 +27,8 @@ import {
   EmptySearchComponent,
   LibFuzzySearch,
 } from "@carma-mapping/fuzzy-search";
+import { isAreaType } from "@carma-commons/resources";
+import { builtInGazetteerHitTrigger } from "react-cismap/tools/gazetteerHelper";
 
 type BoundsAndSize = {
   mapBounds: LatLngBounds;
@@ -279,6 +285,33 @@ export function BelisMap({
   } else {
     symbolColor = "#000000";
   }
+
+  const { gazData } = useGazData();
+  const { setSelection, setOverlayFeature } = useSelection();
+
+  const onGazetteerSelection = (selection) => {
+    if (!selection) {
+      setSelection(null);
+      return;
+    }
+    const selectionMetaData = {
+      selectedFrom: "gazetteer",
+      selectionTimestamp: Date.now(),
+      isAreaSelection: isAreaType(selection.type),
+    };
+    setSelection(Object.assign({}, selection, selectionMetaData));
+
+    setTimeout(() => {
+      builtInGazetteerHitTrigger(
+        [selection],
+        refRoutedMap.current?.leafletMap.leafletElement,
+        MappingConstants.crs3857,
+        MappingConstants.proj4crs3857def,
+        () => {},
+        setOverlayFeature
+      );
+    }, 100);
+  };
   return (
     <>
       <RoutedMap
@@ -393,7 +426,10 @@ export function BelisMap({
             {isShowSearch && (
               <Control position="bottomleft" order={10}>
                 <div style={{ marginTop: "4px" }}>
-                  <LibFuzzySearch />
+                  <LibFuzzySearch
+                    gazData={gazData}
+                    onSelection={onGazetteerSelection}
+                  />
                 </div>
               </Control>
             )}
