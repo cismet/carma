@@ -395,7 +395,7 @@ export const getDocs = (feature) => {
 export const loadObjectsIntoFeatureCollection = (
   {
     boundingBox,
-    _inFocusMode,
+    inFocusMode,
     _zoom,
     _overridingFilterState,
     jwt,
@@ -410,7 +410,23 @@ export const loadObjectsIntoFeatureCollection = (
   if (boundingBox) {
     return async (dispatch, getState) => {
       dispatch(setDone(false));
-      const convertedBoundingBox = convertBoundingBox(boundingBox);
+      let xbb;
+      if (inFocusMode) {
+        const w = boundingBox.right - boundingBox.left;
+        const h = boundingBox.top - boundingBox.bottom;
+
+        const focusBB = {
+          left: boundingBox.left + w / 4,
+          top: boundingBox.top - h / 4,
+          right: boundingBox.right - w / 4,
+          bottom: boundingBox.bottom + h / 4,
+        };
+        xbb = focusBB;
+      } else {
+        xbb = boundingBox;
+      }
+
+      const convertedBoundingBox = convertBoundingBox(xbb);
       const state = getState();
       let queryparts = "";
       for (const filterKey of Object.keys(filter)) {

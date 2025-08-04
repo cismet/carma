@@ -78,7 +78,7 @@ const BelisMapLibWrapper = ({ refRoutedMap, jwt, mapSizes }) => {
         setZoom={() => {}}
         loadObjects={handleLoadObjects}
         featureCollection={featureCollection}
-        inFocusMode={false}
+        inFocusMode={true}
         selectedFeature={selectedFeature}
         loadingState={false}
         featureCollectionMode={"OBJECTS"}
