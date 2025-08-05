@@ -4,6 +4,7 @@ const initialState = {
   activeBackgroundLayer: "stadtplan",
   backgroundLayerOpacities: {},
   inPaleMode: false,
+  zoom: -1,
 };
 
 const slice = createSlice({
@@ -21,6 +22,9 @@ const slice = createSlice({
     setPaleModeActive: (state, action) => {
       state.inPaleMode = action.payload;
     },
+    setZoom(state, action) {
+      state.zoom = action.payload;
+    },
   },
 });
 
@@ -30,6 +34,7 @@ export const {
   setActiveBackgroundLayer,
   setBackgroundLayerOpacities,
   setPaleModeActive,
+  setZoom,
 } = slice.actions;
 
 export const getActiveBackgroundLayer = (state) => {
@@ -40,4 +45,8 @@ export const getBackgroundLayerOpacities = (state) => {
 };
 export const isInPaleMode = (state) => {
   return state.mapSettings.inPaleMode;
+};
+
+export const getZoom = (state) => {
+  return state.mapSettings.zoom;
 };
