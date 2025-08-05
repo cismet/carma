@@ -13,7 +13,6 @@ const TopNavbar = ({ innerRef }) => {
 
   return (
     <div className="flex items-center  mx-3 mb-4 mt-2" ref={innerRef}>
-      <Filter />
       <div className="ml-auto flex items-center gap-2">
         <Tooltip title="Ausloggen" placement="right">
           <LogoutOutlined

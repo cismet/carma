@@ -32,6 +32,7 @@ import {
   setSearchMode,
   setWishedSearchMode,
 } from "../store/slices/mapSettings";
+import Filter from "./ui/Filter";
 
 const MainPage = () => {
   const dispatch: AppDispatch = useDispatch();
@@ -69,6 +70,7 @@ const MainPage = () => {
           style={{ marginBottom: "8px" }}
           extra={
             <div className="flex items-center gap-4">
+              <Filter />
               <BelisSwitch
                 key={"automatische-suche-toggle-key" + inSearchMode + zoom}
                 id="automatische-suche-toggle"
