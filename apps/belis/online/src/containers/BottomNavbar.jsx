@@ -48,6 +48,7 @@ import {
   isPaleModeActive,
   setPaleModeActive,
 } from "../core/store/slices/paleMode";
+import { BelisSwitch } from "@carma-apps/belis-library";
 
 //---------
 
@@ -303,7 +304,7 @@ const BottomNavbar = ({
         </Nav>
 
         <Nav className="mr-auto">
-          <MySwitch
+          <BelisSwitch
             id="focus-toggle"
             preLabel="Fokus"
             switched={inFocusMode}
@@ -324,7 +325,7 @@ const BottomNavbar = ({
           />
 
           <div style={{ width: 10 }} />
-          <MySwitch
+          <BelisSwitch
             id="pale-toggle"
             preLabel="Blass"
             switched={inPaleMode}
