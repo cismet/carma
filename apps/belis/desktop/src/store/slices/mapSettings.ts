@@ -5,6 +5,7 @@ const initialState = {
   backgroundLayerOpacities: {},
   inPaleMode: false,
   inSearchMode: true,
+  inSearchWishedMode: true,
   zoom: -1,
 };
 export const searchMinimumZoomThreshhold = 19;
@@ -30,6 +31,9 @@ const slice = createSlice({
     setSearchMode(state, action) {
       state.inSearchMode = action.payload;
     },
+    setWishedSearchMode(state, action) {
+      state.inSearchWishedMode = action.payload;
+    },
   },
 });
 
@@ -41,6 +45,7 @@ export const {
   setPaleModeActive,
   setZoom,
   setSearchMode,
+  setWishedSearchMode,
 } = slice.actions;
 
 export const getActiveBackgroundLayer = (state) => {
@@ -59,6 +64,10 @@ export const getZoom = (state) => {
 
 export const isInSearchMode = (state) => {
   return state.mapSettings.inSearchMode;
+};
+
+export const isInWishedSearchMode = (state) => {
+  return state.mapSettings.inSearchWishedMode;
 };
 
 export const isSearchForbidden = (state) => {

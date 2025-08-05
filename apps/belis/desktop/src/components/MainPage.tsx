@@ -30,6 +30,7 @@ import {
   searchMinimumZoomThreshhold,
   setPaleModeActive,
   setSearchMode,
+  setWishedSearchMode,
 } from "../store/slices/mapSettings";
 
 const MainPage = () => {
@@ -77,6 +78,7 @@ const MainPage = () => {
                 stateChanged={(switched) => {
                   dispatch(setSearchMode(switched));
                   if (switched === true) {
+                    dispatch(setWishedSearchMode(true));
                     dispatch(
                       loadObjectsIntoFeatureCollection(
                         {
@@ -92,6 +94,8 @@ const MainPage = () => {
                         isSearchForbidden
                       ) as unknown as UnknownAction
                     );
+                  } else {
+                    dispatch(setWishedSearchMode(false));
                   }
                 }}
               />
