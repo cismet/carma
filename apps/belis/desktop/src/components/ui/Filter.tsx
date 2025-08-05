@@ -23,8 +23,8 @@ const Filter = () => {
   };
   return (
     <>
-      <div onClick={showModal}>
-        <Icon className="text-primary" icon={faFilter} /> Filter (
+      <div onClick={showModal} className="mr-2">
+        <Icon color="#007bff" icon={faFilter} /> Filter (
         {Object.entries(
           filterState as Record<string, { enabled: boolean }>
         ).reduce((prev, curr) => {
