@@ -40,7 +40,6 @@ const BelisMapLibWrapper = ({ refRoutedMap, jwt, mapSizes }) => {
   const inPaleMode = useSelector(isInPaleMode);
   const filter = useSelector(getFilter);
   const fcIsDone = useSelector(getDone);
-  const zoom = useSelector(getZoom);
   const handleSelectedFeature = (feature) => {
     if (feature) {
       const updatedFeature = { ...feature, selected: true };

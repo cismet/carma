@@ -22,7 +22,15 @@ import {
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { DOMAIN, REST_SERVICE } from "../constants/belis";
 import type { UnknownAction } from "redux";
-import { isInPaleMode, setPaleModeActive } from "../store/slices/mapSettings";
+import {
+  getZoom,
+  isInPaleMode,
+  isInSearchMode,
+  isSearchForbidden,
+  searchMinimumZoomThreshhold,
+  setPaleModeActive,
+  setSearchMode,
+} from "../store/slices/mapSettings";
 
 const MainPage = () => {
   const dispatch: AppDispatch = useDispatch();
@@ -31,6 +39,9 @@ const MainPage = () => {
   const filter = useSelector(getFilter);
   const inFocusMode = useSelector(isInFocusMode);
   const inPaleMode = useSelector(isInPaleMode);
+  const inSearchMode = useSelector(isInSearchMode);
+  const zoom = useSelector(getZoom);
+
   let refUpperToolbar = useRef(null);
   let sizeU = useComponentSize(refUpperToolbar);
   const [windowWidth, windowHeight] = useWindowSize();
@@ -58,6 +69,13 @@ const MainPage = () => {
           extra={
             <div className="flex items-center gap-4">
               <BelisSwitch
+                id="automatische-suche-toggle"
+                disabled={zoom < searchMinimumZoomThreshhold}
+                preLabel="automatische Suche"
+                switched={inSearchMode}
+                stateChanged={(switched) => dispatch(setSearchMode(switched))}
+              />
+              <BelisSwitch
                 preLabel="Fokus"
                 switched={inFocusMode}
                 stateChanged={(switched) => {
@@ -74,7 +92,8 @@ const MainPage = () => {
                         DOMAIN,
                         setFeatureCollection,
                         filter,
-                        setDone
+                        setDone,
+                        isSearchForbidden
                       ) as unknown as UnknownAction
                     );
                   }, 300);

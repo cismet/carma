@@ -61,6 +61,7 @@ const mapSettingsConfig = {
     "activeBackgroundLayer",
     "backgroundLayerOpacities",
     "inPaleMode",
+    "inSearchMode",
   ],
 };
 
