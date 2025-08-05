@@ -14,6 +14,7 @@ import {
 import { AppDispatch } from "../store";
 import {
   getFilter,
+  isInFocusMode,
   setDone,
   setFeatureCollection,
   setFocusModeActive,
@@ -21,14 +22,15 @@ import {
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { DOMAIN, REST_SERVICE } from "../constants/belis";
 import type { UnknownAction } from "redux";
-import { setPaleModeActive } from "../store/slices/mapSettings";
+import { isInPaleMode, setPaleModeActive } from "../store/slices/mapSettings";
 
 const MainPage = () => {
   const dispatch: AppDispatch = useDispatch();
   const storedJWT = useSelector(getJWT);
   const isCollapsed = useSelector(getIsMenuCollapsed);
   const filter = useSelector(getFilter);
-
+  const inFocusMode = useSelector(isInFocusMode);
+  const inPaleMode = useSelector(isInPaleMode);
   let refUpperToolbar = useRef(null);
   let sizeU = useComponentSize(refUpperToolbar);
   const [windowWidth, windowHeight] = useWindowSize();
@@ -57,6 +59,7 @@ const MainPage = () => {
             <div className="flex items-center gap-4">
               <BelisSwitch
                 preLabel="Fokus"
+                switched={inFocusMode}
                 stateChanged={(switched) => {
                   dispatch(setFocusModeActive(switched));
                   setTimeout(() => {
@@ -80,6 +83,7 @@ const MainPage = () => {
               <BelisSwitch
                 id="pale-toggle"
                 preLabel="Blass"
+                switched={inPaleMode}
                 stateChanged={(switched) =>
                   dispatch(setPaleModeActive(switched))
                 }

@@ -57,14 +57,27 @@ const authConfig = {
 const mapSettingsConfig = {
   key: "@belis-desktop.1.app.ui",
   storage: localForage,
-  whitelist: ["activeBackgroundLayer", "backgroundLayerOpacities"],
+  whitelist: [
+    "activeBackgroundLayer",
+    "backgroundLayerOpacities",
+    "inPaleMode",
+  ],
+};
+
+const featureCollectionConfig = {
+  key: "@app.featureCollection",
+  storage: localForage,
+  whitelist: ["filter", "inFocusMode"],
 };
 
 const store = configureStore({
   reducer: {
     auth: persistReducer(authConfig, authSlice.reducer),
     mapSettings: persistReducer(mapSettingsConfig, mapSettings.reducer),
-    featureCollection: featureCollectionSlice.reducer,
+    featureCollection: persistReducer(
+      featureCollectionConfig,
+      featureCollectionSlice.reducer
+    ),
     ui: ui.reducer,
   },
   devTools: devToolsEnabled === true && inProduction === false,
