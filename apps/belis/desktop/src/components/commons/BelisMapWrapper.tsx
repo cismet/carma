@@ -9,6 +9,7 @@ import {
   getBackgroundLayerOpacities,
   getZoom,
   isInPaleMode,
+  isSearchForbidden,
   setZoom,
 } from "../../store/slices/mapSettings";
 import {
@@ -60,7 +61,8 @@ const BelisMapLibWrapper = ({ refRoutedMap, jwt, mapSizes }) => {
         DOMAIN,
         setFeatureCollection,
         filter,
-        setDone
+        setDone,
+        isSearchForbidden
       ) as unknown as UnknownAction
     );
   };

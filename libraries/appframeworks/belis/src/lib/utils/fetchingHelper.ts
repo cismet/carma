@@ -405,10 +405,15 @@ export const loadObjectsIntoFeatureCollection = (
   DOMAIN,
   setFeatureCollection,
   filter = featuresFilter,
-  setDone
+  setDone,
+  isSearchForbidden
 ) => {
   if (boundingBox) {
     return async (dispatch, getState) => {
+      const state = getState();
+      const isActiveSearchForbidden = isSearchForbidden(state);
+      if (isActiveSearchForbidden) return false;
+
       dispatch(setDone(false));
       let xbb;
       if (inFocusMode) {
@@ -427,7 +432,6 @@ export const loadObjectsIntoFeatureCollection = (
       }
 
       const convertedBoundingBox = convertBoundingBox(xbb);
-      const state = getState();
       let queryparts = "";
       for (const filterKey of Object.keys(filter)) {
         if (filter[filterKey].enabled === true) {

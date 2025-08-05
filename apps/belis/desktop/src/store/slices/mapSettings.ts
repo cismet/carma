@@ -4,6 +4,7 @@ const initialState = {
   activeBackgroundLayer: "stadtplan",
   backgroundLayerOpacities: {},
   inPaleMode: false,
+  inSearchMode: true,
   zoom: -1,
 };
 const searchMinimumZoomThreshhold = 19;
@@ -25,6 +26,9 @@ const slice = createSlice({
     },
     setZoom(state, action) {
       state.zoom = action.payload;
+    },
+    setSearchMode(state, action) {
+      state.inSearchMode = action.payload;
     },
   },
 });
@@ -54,9 +58,10 @@ export const getZoom = (state) => {
 
 export const isSearchForbidden = (state) => {
   let zoom = state.mapSettings.zoom;
+  const isInSearchMode = state.mapSettings.inSearchMode;
   if (zoom === -1) {
     zoom = new URLSearchParams(window.location.search).get("zoom");
   }
 
-  return zoom < searchMinimumZoomThreshhold;
+  return zoom < searchMinimumZoomThreshhold && isInSearchMode;
 };
