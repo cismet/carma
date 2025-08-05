@@ -3,6 +3,7 @@ import { createSlice } from "@reduxjs/toolkit";
 const initialState = {
   activeBackgroundLayer: "stadtplan",
   backgroundLayerOpacities: {},
+  inPaleMode: false,
 };
 
 const slice = createSlice({
@@ -17,17 +18,26 @@ const slice = createSlice({
       state.backgroundLayerOpacities = action.payload;
       return state;
     },
+    setPaleModeActive: (state, action) => {
+      state.inPaleMode = action.payload;
+    },
   },
 });
 
 export default slice;
 
-export const { setActiveBackgroundLayer, setBackgroundLayerOpacities } =
-  slice.actions;
+export const {
+  setActiveBackgroundLayer,
+  setBackgroundLayerOpacities,
+  setPaleModeActive,
+} = slice.actions;
 
 export const getActiveBackgroundLayer = (state) => {
   return state.mapSettings.activeBackgroundLayer;
 };
 export const getBackgroundLayerOpacities = (state) => {
   return state.mapSettings.backgroundLayerOpacities;
+};
+export const isInPaleMode = (state) => {
+  return state.mapSettings.inPaleMode;
 };

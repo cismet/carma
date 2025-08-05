@@ -7,6 +7,7 @@ import { useDispatch, useSelector } from "react-redux";
 import {
   getActiveBackgroundLayer,
   getBackgroundLayerOpacities,
+  isInPaleMode,
 } from "../../store/slices/mapSettings";
 import {
   getDone,
@@ -33,6 +34,7 @@ const BelisMapLibWrapper = ({ refRoutedMap, jwt, mapSizes }) => {
   const featureCollection = useSelector(getFeatureCollection);
   const selectedFeature = useSelector(getSelectedFeature);
   const inFocusMode = useSelector(isInFocusMode);
+  const inPaleMode = useSelector(isInPaleMode);
   const filter = useSelector(getFilter);
   const fcIsDone = useSelector(getDone);
   const handleSelectedFeature = (feature) => {
@@ -85,7 +87,7 @@ const BelisMapLibWrapper = ({ refRoutedMap, jwt, mapSizes }) => {
         featureCollectionMode={"OBJECTS"}
         connectionMode={"ONLINE"}
         background={""}
-        inPaleMode={false}
+        inPaleMode={inPaleMode}
         handleSelectedFeature={handleSelectedFeature}
         MODES={MODES}
         zoom={15}

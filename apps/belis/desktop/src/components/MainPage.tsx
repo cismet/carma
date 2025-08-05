@@ -21,6 +21,7 @@ import {
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { DOMAIN, REST_SERVICE } from "../constants/belis";
 import type { UnknownAction } from "redux";
+import { setPaleModeActive } from "../store/slices/mapSettings";
 
 const MainPage = () => {
   const dispatch: AppDispatch = useDispatch();
@@ -75,6 +76,13 @@ const MainPage = () => {
                     );
                   }, 300);
                 }}
+              />
+              <BelisSwitch
+                id="pale-toggle"
+                preLabel="Blass"
+                stateChanged={(switched) =>
+                  dispatch(setPaleModeActive(switched))
+                }
               />
             </div>
           }
