@@ -9,6 +9,7 @@ import {
   getBackgroundLayerOpacities,
   getZoom,
   isInPaleMode,
+  isInWishedSearchMode,
   isSearchForbidden,
   searchMinimumZoomThreshhold,
   setSearchMode,
@@ -42,6 +43,8 @@ const BelisMapLibWrapper = ({ refRoutedMap, jwt, mapSizes }) => {
   const inPaleMode = useSelector(isInPaleMode);
   const filter = useSelector(getFilter);
   const fcIsDone = useSelector(getDone);
+  const inWishedSearchMode = useSelector(isInWishedSearchMode);
+
   const handleSelectedFeature = (feature) => {
     if (feature) {
       const updatedFeature = { ...feature, selected: true };
@@ -71,6 +74,10 @@ const BelisMapLibWrapper = ({ refRoutedMap, jwt, mapSizes }) => {
     dispatch(setZoom(z));
     if (z < searchMinimumZoomThreshhold) {
       dispatch(setSearchMode(false));
+    }
+
+    if (z >= searchMinimumZoomThreshhold && inWishedSearchMode) {
+      dispatch(setSearchMode(true));
     }
   };
 

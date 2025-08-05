@@ -8,7 +8,7 @@ const initialState = {
   inSearchWishedMode: true,
   zoom: -1,
 };
-export const searchMinimumZoomThreshhold = 19;
+export const searchMinimumZoomThreshhold = 18;
 
 const slice = createSlice({
   name: "mapSettings",
