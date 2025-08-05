@@ -96,7 +96,7 @@ const BelisMapLibWrapper = ({ refRoutedMap, jwt, mapSizes }) => {
         inPaleMode={inPaleMode}
         handleSelectedFeature={handleSelectedFeature}
         MODES={MODES}
-        zoom={15}
+        zoom={19}
         fcMode="OBJECTS"
         initIndex={() => {}}
         activeBackgroundLayer={activeBackgroundLayer}

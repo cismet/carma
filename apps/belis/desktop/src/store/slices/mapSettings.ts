@@ -6,6 +6,7 @@ const initialState = {
   inPaleMode: false,
   zoom: -1,
 };
+const searchMinimumZoomThreshhold = 19;
 
 const slice = createSlice({
   name: "mapSettings",
@@ -49,4 +50,13 @@ export const isInPaleMode = (state) => {
 
 export const getZoom = (state) => {
   return state.mapSettings.zoom;
+};
+
+export const isSearchForbidden = (state) => {
+  let zoom = state.mapSettings.zoom;
+  if (zoom === -1) {
+    zoom = new URLSearchParams(window.location.search).get("zoom");
+  }
+
+  return zoom < searchMinimumZoomThreshhold;
 };
