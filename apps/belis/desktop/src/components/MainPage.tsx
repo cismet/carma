@@ -69,11 +69,31 @@ const MainPage = () => {
           extra={
             <div className="flex items-center gap-4">
               <BelisSwitch
+                key={"automatische-suche-toggle-key" + inSearchMode + zoom}
                 id="automatische-suche-toggle"
                 disabled={zoom < searchMinimumZoomThreshhold}
                 preLabel="automatische Suche"
                 switched={inSearchMode}
-                stateChanged={(switched) => dispatch(setSearchMode(switched))}
+                stateChanged={(switched) => {
+                  dispatch(setSearchMode(switched));
+                  if (switched === true) {
+                    dispatch(
+                      loadObjectsIntoFeatureCollection(
+                        {
+                          boundingBox: routedMapRef.getBoundingBox(),
+                          inFocusMode: switched,
+                          jwt: storedJWT,
+                        },
+                        REST_SERVICE,
+                        DOMAIN,
+                        setFeatureCollection,
+                        filter,
+                        setDone,
+                        isSearchForbidden
+                      ) as unknown as UnknownAction
+                    );
+                  }
+                }}
               />
               <BelisSwitch
                 preLabel="Fokus"

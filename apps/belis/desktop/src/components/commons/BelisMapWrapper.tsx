@@ -10,6 +10,8 @@ import {
   getZoom,
   isInPaleMode,
   isSearchForbidden,
+  searchMinimumZoomThreshhold,
+  setSearchMode,
   setZoom,
 } from "../../store/slices/mapSettings";
 import {
@@ -67,6 +69,9 @@ const BelisMapLibWrapper = ({ refRoutedMap, jwt, mapSizes }) => {
   };
   const handleSetZoom = (z) => {
     dispatch(setZoom(z));
+    if (z < searchMinimumZoomThreshhold) {
+      dispatch(setSearchMode(false));
+    }
   };
 
   return (

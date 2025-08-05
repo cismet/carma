@@ -412,7 +412,6 @@ export const loadObjectsIntoFeatureCollection = (
     return async (dispatch, getState) => {
       const state = getState();
       const isActiveSearchForbidden = isSearchForbidden(state);
-      console.log("xxx isActiveSearchForbidden", isActiveSearchForbidden);
       if (!isActiveSearchForbidden) return false;
 
       dispatch(setDone(false));
