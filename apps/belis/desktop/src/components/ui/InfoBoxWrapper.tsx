@@ -46,23 +46,25 @@ const InfoBoxWrapper = ({ mapWidth }) => {
   }
 
   return (
-    <ControlLayout ifStorybook={false}>
-      <InfoBox
-        isCollapsible={false}
-        infoStyle={{}}
-        pixelwidth={350}
-        header={header}
-        headerColor={headerColor}
-        title={title}
-        subtitle={subtitle}
-        currentFeature={selectedFeature}
-        featureCollection={[]}
-        hideNavigator={true}
-        additionalInfo={additionalInfo}
-        mapWidth={mapWidth}
-        infoBoxBottomResMargin={mapWidth - 25 - 350 - 300 <= 0 ? 38 : 0}
-      />
-    </ControlLayout>
+    <div className="map-info-box-belis-wrapper">
+      <ControlLayout ifStorybook={false}>
+        <InfoBox
+          isCollapsible={false}
+          infoStyle={{}}
+          pixelwidth={350}
+          header={header}
+          headerColor={headerColor}
+          title={title}
+          subtitle={subtitle}
+          currentFeature={selectedFeature}
+          featureCollection={[]}
+          hideNavigator={true}
+          additionalInfo={additionalInfo}
+          mapWidth={mapWidth}
+          infoBoxBottomResMargin={mapWidth - 25 - 350 - 300 <= 0 ? 38 : 0}
+        />
+      </ControlLayout>
+    </div>
   );
 };
 

@@ -207,3 +207,7 @@ iframe {
   /* background: red; */
   z-index: 1 !important;
 }
+
+.map-info-box-belis-wrapper * div {
+  pointer-events: none !important;
+}
