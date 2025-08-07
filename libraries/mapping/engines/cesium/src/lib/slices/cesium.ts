@@ -178,7 +178,7 @@ export const selectViewerIsTransitioning = ({ cesium }: RootState) =>
   cesium.currentTransition !== undefined &&
   cesium.currentTransition !== VIEWER_TRANSITION_STATE.NONE;
 
-export const selectViewerIsMode2d = ({ cesium }: RootState) => cesium.isMode2d;
+export const selectViewerIsMode2d = ({ cesium }: RootState) => cesium?.isMode2d ?? false;
 export const selectViewerDataSources = ({ cesium }: RootState) =>
   cesium.dataSources;
 export const selectViewerModels = ({ cesium }: RootState) => cesium.models;
@@ -220,9 +220,9 @@ export const selectScreenSpaceCameraControllerEnableCollisionDetection = ({
 }: RootState) => cesium.sceneSpaceCameraController.enableCollisionDetection;
 
 export const selectShowPrimaryTileset = ({ cesium }: RootState) =>
-  cesium.showPrimaryTileset;
+  cesium?.showPrimaryTileset ?? false;
 export const selectShowSecondaryTileset = ({ cesium }: RootState) =>
-  cesium.showSecondaryTileset;
+  cesium?.showSecondaryTileset ?? false;
 export const selectTilesetOpacity = ({ cesium }: RootState) =>
   cesium.styling.tileset.opacity;
 

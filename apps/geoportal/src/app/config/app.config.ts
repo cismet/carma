@@ -42,7 +42,7 @@ export const CESIUM_CONFIG: CesiumConfig = {
     imageryProvider: BASEMAP_METROPOLRUHR_WMTS_GRAUBLAU_HQ,
   },
   tilesetConfigs: {
-    primary: WUPP_MESH_2024,
+    primary: [WUPP_MESH_2024, WUPP_MESH_2020],
     secondary: WUPP_LOD2_TILESET,
   },
   models: [BRUECKENENTWURF_GLB],

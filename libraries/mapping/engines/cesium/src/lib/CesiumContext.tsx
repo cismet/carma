@@ -17,20 +17,18 @@ export interface CesiumContextType {
   surfaceProviderRef: MutableRefObject<CesiumTerrainProvider | null>;
   imageryLayerRef: MutableRefObject<ImageryLayer | null>;
   ellipsoidTerrainProviderRef: MutableRefObject<EllipsoidTerrainProvider | null>;
-  tilesetsRefs: {
-    primaryRef: MutableRefObject<Cesium3DTileset | null>;
-    secondaryRef: MutableRefObject<Cesium3DTileset | null>;
-  };
   shouldSuspendPitchLimiterRef: MutableRefObject<boolean>;
   isViewerReady: boolean;
   setIsViewerReady: (flag: boolean) => void;
-  switchPrimaryTileset?: (index: number) => Promise<void>;
-  primaryTilesetOptions?: Array<{
-    index: number;
-    displayName: string;
-    displayNameShort: string;
-    key: string;
-  }>;
+  primaryTilesetsRef: MutableRefObject<(Cesium3DTileset | null)[]>;
+  secondaryTilesetsRef: MutableRefObject<(Cesium3DTileset | null)[]>;
+  shouldSelectPrimaryTileset?: (index: number) => Promise<void>;
+  shouldSelectSecondaryTileset?: (index: number) => Promise<void>;
+  primaryTilesetConfigs?: TilesetConfig[];
+  secondaryTilesetConfigs?: TilesetConfig[];
+  selectedPrimaryTilesetIndex?: number;
+  selectedSecondaryTilesetIndex?: number;
+  tilesetsLoadedCounter?: number;
 }
 
 export const CesiumContext = createContext<CesiumContextType | null>(null);

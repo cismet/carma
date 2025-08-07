@@ -320,9 +320,9 @@ export const {
 } = slice.actions;
 
 export const getBackgroundLayer = (state: RootState) =>
-  state.mapping.backgroundLayer;
+  state.mapping?.backgroundLayer;
 export const getClickFromInfoView = (state: RootState) =>
-  state.mapping.clickFromInfoView;
+  state.mapping?.clickFromInfoView;
 export const getFocusMode = (state: RootState) => state.mapping.focusMode;
 export const getPaleOpacityValue = (state: RootState) =>
   state.mapping.paleOpacityValue;
@@ -342,9 +342,9 @@ export const getSelectedLayerIndexIsAddedLayer = (state: RootState): boolean =>
   state.mapping.selectedLayerIndex > SELECTED_LAYER_INDEX.NO_SELECTION;
 
 export const getSelectedMapLayer = (state: RootState) =>
-  state.mapping.selectedMapLayer;
+  state.mapping?.selectedMapLayer;
 export const getSelectedLuftbildLayer = (state: RootState) =>
-  state.mapping.selectedLuftbildLayer;
+  state.mapping?.selectedLuftbildLayer;
 export const getShowFullscreenButton = (state: RootState) =>
   state.mapping.showFullscreenButton;
 export const getShowHamburgerMenu = (state: RootState) =>

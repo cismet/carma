@@ -1,24 +1,28 @@
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 import { useCesiumContext } from "@carma-mapping/cesium-engine";
 
 export const useMeshToggle = () => {
-  const { switchPrimaryTileset, primaryTilesetOptions } = useCesiumContext();
-  const [currentIndex, setCurrentIndex] = useState(0);
+  const { 
+    shouldSelectPrimaryTileset, 
+    primaryTilesetConfigs, 
+    selectedPrimaryTilesetIndex 
+  } = useCesiumContext();
 
   const toggleMesh = useCallback(() => {
-    if (!switchPrimaryTileset || !primaryTilesetOptions) return;
+    if (!shouldSelectPrimaryTileset || !primaryTilesetConfigs) return;
 
-    const nextIndex = (currentIndex + 1) % primaryTilesetOptions.length;
-    setCurrentIndex(nextIndex);
-    switchPrimaryTileset(nextIndex);
-  }, [currentIndex, primaryTilesetOptions, switchPrimaryTileset]);
+    const currentIndex = selectedPrimaryTilesetIndex ?? 0;
+    const nextIndex = (currentIndex + 1) % primaryTilesetConfigs.length;
+    shouldSelectPrimaryTileset(nextIndex);
+  }, [selectedPrimaryTilesetIndex, primaryTilesetConfigs, shouldSelectPrimaryTileset]);
 
-  const currentOption = primaryTilesetOptions?.[currentIndex];
+  const currentOption = primaryTilesetConfigs?.[selectedPrimaryTilesetIndex ?? 0];
 
   return {
     currentOption,
-    primaryTilesetOptions,
+    primaryTilesetOptions: primaryTilesetConfigs,
     toggleMesh,
-    hasMultipleOptions: (primaryTilesetOptions?.length || 0) > 1,
+    hasMultipleOptions: (primaryTilesetConfigs?.length || 0) > 1,
+    currentIndex: selectedPrimaryTilesetIndex ?? 0,
   };
 };

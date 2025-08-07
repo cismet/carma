@@ -110,6 +110,6 @@ export const getUIShowLayerHideButtons = (state: RootState) =>
   state.ui.showLayerHideButtons;
 export const getUIShowResourceModal = (state: RootState) =>
   state.ui.showResourceModal;
-export const getZenMode = (state: RootState) => state.ui.zenMode;
+export const getZenMode = (state: RootState) => state.ui?.zenMode;
 
 export default slice.reducer;

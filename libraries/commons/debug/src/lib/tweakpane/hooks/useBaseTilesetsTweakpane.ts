@@ -7,10 +7,10 @@ import { useTilesetsTweakpane } from "./useTilesetsTweakpane";
 import { useTweakpaneCtx } from "./useTweakpaneContext";
 
 export const useBaseTilesetsTweakpane = () => {
-  const { tilesetsRefs, viewerRef } = useCesiumContext();
+  const { primaryTilesetsRef, secondaryTilesetsRef, viewerRef, selectedPrimaryTilesetIndex, selectedSecondaryTilesetIndex } = useCesiumContext();
   const viewer = viewerRef.current;
-  const tilesetPrimary = tilesetsRefs.primaryRef.current;
-  const tilesetSecondary = tilesetsRefs.secondaryRef.current;
+  const tilesetPrimary = primaryTilesetsRef.current[selectedPrimaryTilesetIndex ?? 0];
+  const tilesetSecondary = secondaryTilesetsRef.current[selectedSecondaryTilesetIndex ?? 0];
 
   const buttonRef = useRef<ButtonApi | null>(null);
 

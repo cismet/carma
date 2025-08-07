@@ -5,7 +5,7 @@ import { TilesetType } from "@carma-commons/resources";
 
 export type TilesetConfigs = {
   primary: TilesetConfig | TilesetConfig[];
-  secondary?: TilesetConfig;
+  secondary?: TilesetConfig | TilesetConfig[];
 };
 
 const DEFAULT_MESH_OPTIONS: Cesium3DTileset.ConstructorOptions = {

@@ -58,6 +58,7 @@ const TopNavbar = () => {
     primaryTilesetOptions,
     toggleMesh,
     hasMultipleOptions,
+    currentIndex,
   } = useMeshToggle();
 
   const isTouchDevice =
@@ -180,7 +181,7 @@ const TopNavbar = () => {
                 <Tooltip
                   title={`Zu ${
                     primaryTilesetOptions?.find(
-                      (_, index) => index !== currentOption.index
+                      (_, index) => index !== currentIndex
                     )?.displayName || "anderem Mesh"
                   } wechseln`}
                 >
