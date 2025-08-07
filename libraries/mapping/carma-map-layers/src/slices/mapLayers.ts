@@ -6,6 +6,10 @@ export type ExtendedItem = Item & { replaceId: string };
 
 interface MapLayersState {
   replaceLayers: ExtendedItem[];
+  // IDs to show loading state for the specific capabilities
+  loadingCapabilitiesIDs: string[];
+  // Global loading state for capabilities. Turns to false when one capability finished loading
+  loadingCapabilities: boolean;
 }
 
 type RootState = {
@@ -14,6 +18,8 @@ type RootState = {
 
 const initialState: MapLayersState = {
   replaceLayers: [],
+  loadingCapabilitiesIDs: [],
+  loadingCapabilities: true,
 };
 
 export const getMapLayersConfig = ({
@@ -37,16 +43,39 @@ const sliceMapLayers = createSlice({
     addReplaceLayers: (state, action) => {
       state.replaceLayers.push(action.payload);
     },
+    addloadingCapabilitiesIDs: (state, action) => {
+      state.loadingCapabilitiesIDs.push(action.payload);
+    },
+    removeloadingCapabilitiesIDs: (state, action) => {
+      state.loadingCapabilitiesIDs = state.loadingCapabilitiesIDs.filter(
+        (item) => item !== action.payload
+      );
+    },
     clearReplaceLayers: (state) => {
       state.replaceLayers = [];
+    },
+    setLoadingCapabilities: (state, action) => {
+      state.loadingCapabilities = action.payload;
     },
   },
 });
 
-export const { addReplaceLayers, clearReplaceLayers } = sliceMapLayers.actions;
+export const {
+  addReplaceLayers,
+  clearReplaceLayers,
+  addloadingCapabilitiesIDs,
+  removeloadingCapabilitiesIDs,
+  setLoadingCapabilities,
+} = sliceMapLayers.actions;
 
 export const getReplaceLayers = ({ mapLayers }: RootState) =>
   mapLayers.replaceLayers;
+
+export const getloadingCapabilitiesIDs = ({ mapLayers }: RootState) =>
+  mapLayers.loadingCapabilitiesIDs;
+
+export const getLoadingCapabilities = ({ mapLayers }: RootState) =>
+  mapLayers.loadingCapabilities;
 
 export const mapLayersReducer = sliceMapLayers.reducer;
 

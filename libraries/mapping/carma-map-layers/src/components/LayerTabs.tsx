@@ -1,6 +1,12 @@
-import { Badge, Tabs } from "antd";
+import { Badge, Spin, Tabs } from "antd";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@carma-commons/utils";
+import {
+  getLoadingCapabilities,
+  getloadingCapabilitiesIDs,
+} from "../slices/mapLayers";
+import { useSelector } from "react-redux";
+import { LoadingOutlined } from "@ant-design/icons";
 
 interface LayerTabsProps {
   // TODO add type for layers
@@ -19,6 +25,9 @@ const LayerTabs = ({
 }: LayerTabsProps) => {
   const [tabClicked, setTabClicked] = useState(false);
   const [clickedId, setClickedId] = useState("");
+  const loadingCapabilitiesIDs = useSelector(getloadingCapabilitiesIDs);
+  const loadingCapabilities = useSelector(getLoadingCapabilities);
+
   const clickedRef = useRef("");
   const isClickedRef = useRef(false);
 
@@ -66,6 +75,10 @@ const LayerTabs = ({
                 >
                   {title}
                 </span>
+                {loadingCapabilitiesIDs.includes(layer.id) &&
+                  !loadingCapabilities && (
+                    <Spin indicator={<LoadingOutlined spin />} size="small" />
+                  )}
                 {layer.layers.length > 0 && (
                   <Badge count={layer.layers.length} color="#808080" />
                 )}

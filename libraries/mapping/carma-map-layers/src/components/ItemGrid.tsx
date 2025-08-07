@@ -1,6 +1,8 @@
 import { Item } from "@carma-commons/types";
 import LayerItem from "./LayerItem";
 import ItemSkeleton from "./ItemSkeleton";
+import { getLoadingCapabilities } from "../slices/mapLayers";
+import { useSelector } from "react-redux";
 
 interface ItemGridProps {
   categories: {
@@ -18,7 +20,6 @@ interface ItemGridProps {
   isSearch?: boolean;
   setTriggerRefetch: (value: boolean) => void;
   loadingData: boolean;
-  loadingCapabilities: boolean;
   currentCategoryIndex: number;
   discoverProps?: {
     appKey: string;
@@ -40,10 +41,10 @@ const ItemGrid = ({
   isSearch,
   setTriggerRefetch,
   loadingData,
-  loadingCapabilities,
   currentCategoryIndex,
   discoverProps,
 }: ItemGridProps) => {
+  const loadingCapabilities = useSelector(getLoadingCapabilities);
   if (loadingCapabilities && currentCategoryIndex === 3) {
     return (
       <div>

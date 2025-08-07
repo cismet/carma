@@ -47,7 +47,12 @@ import "./input.css";
 import "./modal.css";
 import { md5ActionFetchDAQ } from "@carma-commons/utils/fetching.ts";
 import ItemSkeleton from "./ItemSkeleton";
-import { addReplaceLayers } from "../slices/mapLayers";
+import {
+  addloadingCapabilitiesIDs,
+  addReplaceLayers,
+  removeloadingCapabilitiesIDs,
+  setLoadingCapabilities,
+} from "../slices/mapLayers";
 import { useDispatch } from "react-redux";
 import type { Store } from "redux";
 
@@ -148,7 +153,6 @@ export const NewLibModal = ({
   const [discoverItems, setDiscoverItems] = useState<any[]>([]);
   const [additionalConfig, setAdditionalConfig] = useState<any[]>([]);
   const [loadingData, setLoadingData] = useState(false);
-  const [loadingCapabilities, setLoadingCapabilities] = useState(false);
   const [triggerRefetch, setTriggerRefetch] = useState(false);
   const [loadingAdditionalConfig, setLoadingAdditionalConfig] = useState(true);
   const debouncedSearchTerm = useDebounce(searchValue, 300);
@@ -414,13 +418,14 @@ export const NewLibModal = ({
   useEffect(() => {
     const loadCapabilites = async () => {
       let newLayers: any[] = [];
-      setLoadingCapabilities(true);
+      dispatch(setLoadingCapabilities(true));
       for (let key in services) {
         if (services[key].url) {
+          dispatch(addloadingCapabilitiesIDs(services[key].name));
           fetch(
             `${services[key].url}?service=WMS&request=GetCapabilities&version=1.1.1`
           )
-            .then((response) => {
+            .then(async (response) => {
               return response.text();
             })
             .then((text) => {
@@ -473,12 +478,19 @@ export const NewLibModal = ({
                   tmp = newLayers;
 
                   setAllLayers(tmp);
-                  setLoadingCapabilities(false);
+                  dispatch(setLoadingCapabilities(false));
+                  dispatch(removeloadingCapabilitiesIDs(services[key].name));
                 } else {
                   getDataFromJson(result);
-                  setLoadingCapabilities(false);
+                  dispatch(setLoadingCapabilities(false));
+                  dispatch(removeloadingCapabilitiesIDs(services[key].name));
                 }
               }
+            })
+            .catch((error) => {
+              console.error(error);
+              dispatch(setLoadingCapabilities(false));
+              dispatch(removeloadingCapabilitiesIDs(services[key].name));
             });
         } else {
           if (services[key].type === "topicmaps") {
@@ -1052,7 +1064,6 @@ export const NewLibModal = ({
                   isSearch={selectedNavItemIndex === 5}
                   setTriggerRefetch={setTriggerRefetch}
                   loadingData={loadingData}
-                  loadingCapabilities={loadingCapabilities}
                   currentCategoryIndex={selectedNavItemIndex}
                   discoverProps={discoverProps}
                 />
