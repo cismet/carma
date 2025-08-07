@@ -3,6 +3,8 @@ import type { WMSCapabilitiesJSON } from "wms-capabilities";
 import type { Item, XMLLayer, Layer } from "@carma-commons/types";
 
 import { serviceConfig } from "./config";
+import { getReplaceLayers } from "../slices/mapLayers";
+import type { Store } from "redux";
 
 export const serviceOptions = [
   { value: "discoverPoi", label: "POI" },
@@ -245,12 +247,15 @@ export const getLayerStructure = ({
   wms,
   serviceName,
   skipTopicMaps,
+  store,
 }: {
   config: any;
   wms?: WMSCapabilitiesJSON;
   serviceName: string;
   skipTopicMaps?: boolean;
+  store: Store;
 }) => {
+  const replaceLayers = getReplaceLayers(store.getState());
   const structure: {
     Title: string;
     layers: Item[];
@@ -293,6 +298,24 @@ export const getLayerStructure = ({
           foundLayer = { ...layer, path: categoryObject.Title };
         }
         if (foundLayer) {
+          let replace = false;
+          replaceLayers?.forEach((replaceLayer) => {
+            if (replaceLayer.replaceId === foundLayer?.id) {
+              replace = true;
+            }
+          });
+          if (replace) {
+            let newLayer = replaceLayers.find(
+              (layer) => layer.replaceId === foundLayer?.id
+            );
+            if (newLayer) {
+              layers.push({
+                ...newLayer,
+                serviceName: service.name,
+              });
+            }
+            continue;
+          }
           if (wms) {
             // @ts-expect-error fix typing
             foundLayer.props["url"] =
