@@ -47,6 +47,9 @@ import "./input.css";
 import "./modal.css";
 import { md5ActionFetchDAQ } from "@carma-commons/utils/fetching.ts";
 import ItemSkeleton from "./ItemSkeleton";
+import { addReplaceLayers } from "../slices/mapLayers";
+import { useDispatch } from "react-redux";
+import type { Store } from "redux";
 
 const { Search } = Input;
 
@@ -87,6 +90,7 @@ export interface LibModalProps {
     daqKey: string;
   };
   setFeatureFlags?: (flags: FeatureFlagConfig) => void;
+  store: Store;
 }
 
 const sidebarElements = [
@@ -115,6 +119,7 @@ export const NewLibModal = ({
   updateFavorite,
   discoverProps,
   setFeatureFlags,
+  store,
 }: LibModalProps) => {
   const [preview, setPreview] = useState(false);
   const [layers, setLayers] = useState<any[]>([]);
@@ -145,7 +150,10 @@ export const NewLibModal = ({
   const [loadingData, setLoadingData] = useState(false);
   const [loadingCapabilities, setLoadingCapabilities] = useState(false);
   const [triggerRefetch, setTriggerRefetch] = useState(false);
+  const [loadingAdditionalConfig, setLoadingAdditionalConfig] = useState(true);
   const debouncedSearchTerm = useDebounce(searchValue, 300);
+
+  const dispatch = useDispatch();
 
   const flags = useFeatureFlags();
 
@@ -190,6 +198,7 @@ export const NewLibModal = ({
         setAdditionalConfig(data);
       })
       .catch((error) => {
+        setLoadingAdditionalConfig(false);
         console.error("Error fetching additional config:", error);
       });
   };
@@ -197,7 +206,6 @@ export const NewLibModal = ({
   useEffect(() => {
     if (open || triggerRefetch) {
       fetchDiscoverItems();
-      fetchAdditionalConfig();
     }
   }, [open, triggerRefetch, jwt]);
 
@@ -353,9 +361,9 @@ export const NewLibModal = ({
             if (subCat.id === subCategory.id) {
               newSubCat = subCat;
               if (Array.isArray(item)) {
-                newSubCat.layers.push(...item);
+                newSubCat.layers.unshift(...item);
               } else {
-                newSubCat.layers.push(item);
+                newSubCat.layers.unshift(item);
               }
               newSubCat.layers = newSubCat.layers.filter(
                 (layer, index) =>
@@ -400,6 +408,10 @@ export const NewLibModal = ({
   });
 
   useEffect(() => {
+    fetchAdditionalConfig();
+  }, []);
+
+  useEffect(() => {
     const loadCapabilites = async () => {
       let newLayers: any[] = [];
       setLoadingCapabilities(true);
@@ -420,6 +432,7 @@ export const NewLibModal = ({
                     wms: result,
                     serviceName: services[key].name,
                     skipTopicMaps: true,
+                    store: store,
                   });
 
                   tmpLayer.forEach((category) => {
@@ -474,6 +487,7 @@ export const NewLibModal = ({
               config,
               serviceName: services[key].name,
               skipTopicMaps: true,
+              store,
             });
             const mergedLayer = mergeStructures(tmpLayer, newLayers);
             newLayers = mergedLayer;
@@ -524,8 +538,10 @@ export const NewLibModal = ({
       });
     };
 
-    loadCapabilites();
-  }, []);
+    if (!loadingAdditionalConfig) {
+      loadCapabilites();
+    }
+  }, [loadingAdditionalConfig]);
 
   useEffect(() => {
     if (discoverItems?.length === 0) {
@@ -581,7 +597,7 @@ export const NewLibModal = ({
 
   useEffect(() => {
     if (additionalConfig.length > 0) {
-      additionalConfig.forEach((config) => {
+      additionalConfig.forEach((config, i) => {
         let layers = config.layers
           .filter((layer) => {
             if (layer.ff) {
@@ -608,14 +624,24 @@ export const NewLibModal = ({
           );
         } else {
           layers.forEach((layer) => {
-            addItemToCategory(
-              "mapLayers",
-              { id: layer.serviceName, Title: layer.path },
-              layer
-            );
+            if (layer.replaceId) {
+              dispatch(addReplaceLayers(layer));
+            } else {
+              addItemToCategory(
+                "mapLayers",
+                { id: layer.serviceName, Title: layer.path },
+                layer
+              );
+            }
           });
         }
+
+        if (i === additionalConfig.length - 1) {
+          setLoadingAdditionalConfig(false);
+        }
       });
+    } else {
+      setLoadingAdditionalConfig(false);
     }
   }, [additionalConfig, flags]);
 

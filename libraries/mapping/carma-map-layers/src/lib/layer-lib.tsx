@@ -17,6 +17,7 @@ export function LayerLib({
   updateFavorite,
   discoverProps,
   setFeatureFlags,
+  store,
 }: LibModalProps) {
   return (
     <NewLibModal
@@ -33,6 +34,7 @@ export function LayerLib({
       updateFavorite={updateFavorite}
       discoverProps={discoverProps}
       setFeatureFlags={setFeatureFlags}
+      store={store}
     />
   );
 }

@@ -34,6 +34,7 @@ import {
   setShowResourceModal,
 } from "../../store/slices/ui";
 import { apiUrl } from "../../constants/discover";
+import store from "../../store";
 const ResourceModal = () => {
   const [discoverItems, setDiscoverItems] = useState([]);
 
@@ -233,6 +234,7 @@ const ResourceModal = () => {
         setFeatureFlags={(flags) => {
           dispatch(setCustomFeatureFlags(flags));
         }}
+        store={store}
       />
     </>
   );

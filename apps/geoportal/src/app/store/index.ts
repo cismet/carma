@@ -14,6 +14,7 @@ import uiReducer from "./slices/ui";
 import measurementsReducer from "./slices/measurements";
 import featuresReducer from "./slices/features";
 import printReducer from "./slices/print";
+import { getMapLayersConfig, mapLayersReducer } from "@carma-mapping/layers";
 
 console.info("store initializing ....");
 
@@ -120,6 +121,10 @@ const store = configureStore({
     cesium: persistReducer(
       getCesiumConfig({ appKey: APP_KEY, storagePrefix: STORAGE_PREFIX }),
       cesiumReducer
+    ),
+    mapLayers: persistReducer(
+      getMapLayersConfig({ appKey: APP_KEY, storagePrefix: STORAGE_PREFIX }),
+      mapLayersReducer
     ),
     print: persistReducer(printConfig, printReducer),
   },
