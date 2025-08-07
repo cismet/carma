@@ -249,10 +249,10 @@ export const serviceConfig: Record<string, LayerConfig> = {
     url: "https://maps.wuppertal.de/planung",
     name: "wuppPlanung",
   },
-  wuppInspire: {
-    url: "https://maps.wuppertal.de/inspire",
-    name: "wuppInspire",
-  },
+  // wuppInspire: {
+  //   url: "https://maps.wuppertal.de/inspire",
+  //   name: "wuppInspire",
+  // },
   wuppImmo: {
     url: "https://maps.wuppertal.de/immo",
     name: "wuppImmo",
