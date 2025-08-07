@@ -48,7 +48,7 @@ import {
 } from "./config/app.config";
 import { featureFlagConfig } from "./config/featureFlags";
 
-import { OBLIQUE_CONFIG, CAMERA_ID_TO_DIRECTION } from "./oblique/config";
+import { OBLIQUE_CONFIG } from "./oblique/config";
 
 // Side-Effect Imports
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -93,10 +93,7 @@ function App({ published }: { published?: boolean }) {
             }}
             mapStyleConfig={geoportalMapStyleConfig}
           >
-            <ObliqueProvider
-              config={OBLIQUE_CONFIG}
-              fallbackDirectionConfig={CAMERA_ID_TO_DIRECTION}
-            >
+            <ObliqueProvider config={OBLIQUE_CONFIG}>
               <ErrorBoundary FallbackComponent={AppErrorFallback}>
                 <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
                   {isLoadingConfig && (

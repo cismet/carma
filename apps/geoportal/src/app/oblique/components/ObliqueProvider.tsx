@@ -45,6 +45,9 @@ interface ObliqueContextType {
   footprintData: FeatureCollection<Polygon, FootprintProperties> | null;
   footprintCenterpointsRBushByCardinals: RBushBySectorBlocks | null;
 
+  //interior Orientation
+  upMatrixMapping: Record<string, { rowIndex: number; negate: boolean }>;
+
   nearestImage: NearestObliqueImageRecord | null;
   setNearestImage: (image: NearestObliqueImageRecord | null) => void;
   nearestImageDistance: number | null;
@@ -79,16 +82,11 @@ export { ObliqueContext };
 interface ObliqueProviderProps {
   children: ReactNode;
   config: ObliqueDataProviderConfig;
-  fallbackDirectionConfig: Record<
-    string,
-    Record<string, CardinalDirectionEnum>
-  >;
 }
 
 export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
   children,
   config,
-  fallbackDirectionConfig,
 }) => {
   const { updateHash, getHashValues } = useHashState();
   // Read initial oblique mode from hash only once on mount
@@ -119,6 +117,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     animations,
     footprintsStyle,
     imagePreviewStyle,
+    upMatrixMapping,
   } = config;
 
   // Store when data has been previously loaded to prevent duplicate loads
@@ -138,8 +137,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     exteriorOrientationsURI,
     footprintsURI,
     converter,
-    headingOffset,
-    fallbackDirectionConfig
+    headingOffset
   );
 
   const performToggleAction = useCallback(() => {
@@ -198,6 +196,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     animations,
     footprintsStyle,
     imagePreviewStyle,
+    upMatrixMapping,
   };
 
   return (

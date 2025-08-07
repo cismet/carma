@@ -48,10 +48,6 @@ export function useObliqueData(
   footprintsURI: string | null,
   converter: Proj4Converter,
   offset = 0,
-  fallbackDirectionConfig: Record<
-    string,
-    Record<string, CardinalDirectionEnum>
-  >,
   noNadir = true, // not used for now
   debug = true
 ): UseObliqueDataResult {
@@ -188,7 +184,6 @@ export function useObliqueData(
         record,
         converter,
         offset,
-        fallbackDirectionConfig
       );
       if (!extendedRecord) {
         console.warn("Failed to extend image record:", key, value);
@@ -236,7 +231,6 @@ export function useObliqueData(
     setProgressStage("Complete");
     setProgress(100);
   }, [
-    fallbackDirectionConfig,
     exteriorOrientations,
     converter,
     noNadir,

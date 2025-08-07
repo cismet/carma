@@ -8,7 +8,6 @@ import { CardinalNames } from "../../utils/orientationUtils";
 import { OBLIQUE_PREVIEW_QUALITY } from "../../constants";
 import { getPreviewImageUrl } from "../../utils/imageHandling";
 import { useObliqueNearestImage } from "../../hooks/useObliqueNearestImage";
-import { CAMERA_ID_TO_UP_VECTOR_MATRIX_MAPPING } from "../../config";
 import { ObliqueControlPanel } from "./ObliqueControlPanel";
 import { computeDerivedExteriorOrientation } from "../../utils/transformExteriorOrientation";
 
@@ -28,7 +27,8 @@ export const ObliqueDebugSvg = () => {
   const [imageRotation, setImageRotation] = useState(0); // 0, 90, 180, 270 degrees
   // Core contexts and refs
   const { viewerRef } = useCesiumContext();
-  const { converter, headingOffset, previewPath } = useOblique();
+  const { converter, headingOffset, previewPath, upMatrixMapping } =
+    useOblique();
   const camera = viewerRef?.current?.camera;
 
   // Use enhanced hook for camera and image calculations
@@ -110,7 +110,7 @@ export const ObliqueDebugSvg = () => {
     // Use custom heading calculation with fixed sign combination
     // todo: get from exterior orientation
 
-    const upMapping = CAMERA_ID_TO_UP_VECTOR_MATRIX_MAPPING[record.cameraId];
+    const upMapping = upMatrixMapping[record.cameraId];
 
     if (record.derivedExtOri === undefined) {
       const derivedExtOri = computeDerivedExteriorOrientation(

@@ -33,8 +33,7 @@ const unpackIdInfo = (id: string) => {
 export const extendObliqueImageRecord = (
   image: BasicObliqueImageRecord,
   { converter }: Proj4Converter,
-  offset: number,
-  fallbackDirectionConfig: Record<string, Record<string, CardinalDirectionEnum>>
+  offset: number
 ): ObliqueImageRecord => {
   const { x, y, z } = image;
 
@@ -50,7 +49,6 @@ export const extendObliqueImageRecord = (
   const sector = getCardinalDirectionByLineAndCameraId(
     image.lineIndex,
     image.cameraId,
-    fallbackDirectionConfig
   );
 
   let flightPatternHeading = getApproximateHeadingBySector(sector, offset);

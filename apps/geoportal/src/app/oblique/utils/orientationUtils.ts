@@ -1,4 +1,5 @@
 import { Cartesian3, Math as CesiumMath } from "cesium";
+import type { InteriorOrientationCalibrationData } from "@carma-commons/resources";
 
 // North is 0 and rotations are clockwise to the east
 
@@ -59,15 +60,6 @@ export function getHeadingFromCardinalDirection(
   direction: CardinalDirectionEnum
 ): number {
   return CesiumMath.zeroToTwoPi(direction * CesiumMath.PI_OVER_TWO);
-}
-
-export function getCardinalDirectionByLineAndCameraId(
-  flightLine: number,
-  cameraId: string,
-  directionConfig: Record<string, Record<string, CardinalDirectionEnum>>
-): CardinalDirectionEnum {
-  const direction = directionConfig[flightLine % 2 === 1 ? "ODD" : "EVEN"];
-  return direction[cameraId];
 }
 
 export function getApproximateHeadingBySector(
@@ -148,3 +140,28 @@ export const getCardinalHeadings = (headingOffset: number) => {
     CesiumMath.zeroToTwoPi(heading + headingOffset)
   );
 };
+
+
+const getOffsetFromIntOri = ({
+  principalPointX,
+  principalPointY,
+  columns,
+  rows,
+}: {
+  principalPointX: number;
+  principalPointY: number;
+  columns: number;
+  rows: number;
+}) => {
+  // calculate the relative offset of the images in unit space
+  const xOffset = 1 - principalPointX / (columns * 0.5);
+  const yOffset = 1 - principalPointY / (rows * 0.5);
+  return { xOffset, yOffset };
+};
+
+export const getInteriorOrientationOffsets = (interiorOrientations: Record<string, InteriorOrientationCalibrationData>) => Object.entries(
+  interiorOrientations
+).reduce((acc, [id, intOri]) => {
+  acc[id] = getOffsetFromIntOri(intOri);
+  return acc;
+}, {} as Record<string, { xOffset: number; yOffset: number }>);

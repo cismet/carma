@@ -5,14 +5,13 @@ import {
   computeDerivedExteriorOrientation,
   DerivedExteriorOrientation,
 } from "../utils/transformExteriorOrientation";
-import { CAMERA_ID_TO_UP_VECTOR_MATRIX_MAPPING } from "../config";
 
 export const useExteriorOrientation = (
   nearestImage: NearestObliqueImageRecord
 ) => {
   // Computer Exterior orientation record on demand
 
-  const { exteriorOrientations, converter } = useOblique();
+  const { exteriorOrientations, converter, upMatrixMapping } = useOblique();
 
   const derivedExteriorOrientationRef =
     useRef<DerivedExteriorOrientation | null>(null);
@@ -25,8 +24,7 @@ export const useExteriorOrientation = (
     }
     // Check if we have exterior orientation data for this image
     if (nearestImage.record.derivedExtOri === undefined) {
-      const upMapping =
-        CAMERA_ID_TO_UP_VECTOR_MATRIX_MAPPING[nearestImage.record.cameraId];
+      const upMapping = config.upMatrixMapping[nearestImage.record.cameraId];
 
       const extOri = computeDerivedExteriorOrientation(
         nearestImage.record,

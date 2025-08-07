@@ -83,6 +83,7 @@ export interface ObliqueDataProviderConfig {
   animations?: ObliqueAnimationsConfig;
   footprintsStyle?: ObliqueFootprintsStyle;
   imagePreviewStyle?: ObliqueImagePreviewStyle;
+  upMatrixMapping: Record<string, { rowIndex: number; negate: boolean }>;
 }
 
 export interface PointWithSector {
