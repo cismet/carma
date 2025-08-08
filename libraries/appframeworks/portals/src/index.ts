@@ -23,6 +23,7 @@ export { InfoBox } from "./lib/components/InfoBox.tsx";
 export { ResponsiveInfoBox } from "./lib/components/ResponsiveInfoBox.tsx";
 export { GenericInfoBoxFromFeature } from "./lib/components/GenericInfoBoxFromFeature.tsx";
 export { PieChart } from "./lib/components/PieChart.tsx";
+export { ContactMailButton } from "./lib/components/ContactMailButton.tsx";
 
 export { GazDataProvider, useGazData } from "./lib/components/GazDataProvider";
 

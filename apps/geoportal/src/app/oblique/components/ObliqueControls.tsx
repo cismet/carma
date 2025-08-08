@@ -27,7 +27,7 @@ import {
   useCesiumContext,
 } from "@carma-mapping/cesium-engine";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
-import { useFeatureFlags } from "@carma-apps/portals";
+import { useFeatureFlags, ContactMailButton } from "@carma-apps/portals";
 
 import { ObliqueDebugSvg } from "./debugUI/ObliqueDebugSvg";
 import { ObliqueImagePreview } from "./ObliqueImagePreview";
@@ -100,7 +100,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     imagePreviewStyle,
   } = useOblique();
   const { viewerRef } = useCesiumContext();
-  const photoId = nearestImage?.record?.id;
+  const imageId = nearestImage?.record?.id;
   const cameraId = nearestImage?.record?.cameraId;
   const { isDebugMode } = useFeatureFlags();
   const animationInProgressRef = useRef<boolean>(false);
@@ -120,8 +120,8 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   useFootprints(isDebugMode);
 
   const { downloadUrl, previewUrl, previewUrlHq, previewUrlOriginal } = useMemo(
-    () => getImageUrls(photoId, previewPath, previewQualityLevel),
-    [previewPath, previewQualityLevel, photoId]
+    () => getImageUrls(imageId, previewPath, previewQualityLevel),
+    [previewPath, previewQualityLevel, imageId]
   );
 
   // Handle visibility changes when oblique mode toggles
@@ -257,7 +257,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       {isDebugMode && nearestImage && (
         <div style={debugComponentsContainerRightStyle}>
           <CameraVectorControls
-            photoId={photoId}
+            imageId={imageId}
             exteriorOrientation={derivedExteriorOrientationRef.current}
             directionVectorLocal={
               derivedExteriorOrientationRef.current?.rotation?.enu?.wgs84
@@ -271,12 +271,12 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
           <ObliqueImageInfo imageRecord={nearestImage} />
         </div>
       )}
-      {nearestImage && photoId && (
+      {nearestImage && imageId && (
         <ObliqueImagePreview
           src={previewUrl}
           srcHQ={previewUrlHq}
           srcOriginal={previewUrlOriginal}
-          alt={`Image preview ${photoId}`}
+          imageId={imageId}
           isVisible={isPreviewVisible}
           onOpenImageLink={openImageLink}
           onDirectDownload={handleDirectDownload}
@@ -320,7 +320,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
               gap: "10px",
             }}
           >
-            {photoId && derivedExteriorOrientationRef.current && (
+            {imageId && derivedExteriorOrientationRef.current && (
               <ControlButtonStyler
                 onClick={flyToNearestExteriorOrientation}
                 width="160px"
@@ -331,7 +331,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
               </ControlButtonStyler>
             )}
 
-            {photoId && downloadUrl && (
+            {imageId && downloadUrl && (
               <div
                 style={{
                   display: "flex",
@@ -344,39 +344,44 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
                   placement="right"
                   title="Bild in hoher Qualität in neuem Tab öffnen"
                 >
-                  <div>
-                    <ControlButtonStyler onClick={openImageLink} width="160px">
-                      <span className="flex items-center text-base">
-                        <FontAwesomeIcon
-                          icon={faExternalLink}
-                          className="mr-2"
-                        />
-                        Bild öffnen
-                      </span>
-                    </ControlButtonStyler>
-                  </div>
+                  <ControlButtonStyler onClick={openImageLink} width="160px">
+                    <span className="flex items-center text-base">
+                      <FontAwesomeIcon icon={faExternalLink} className="mr-2" />
+                      Bild öffnen
+                    </span>
+                  </ControlButtonStyler>
                 </Tooltip>
 
                 <Tooltip placement="right" title="Bild direkt herunterladen">
-                  <div>
-                    <ControlButtonStyler
-                      onClick={handleDirectDownload}
-                      width="160px"
-                    >
-                      <span className="flex items-center text-base">
-                        <FontAwesomeIcon
-                          icon={faFileArrowDown}
-                          className="mr-2"
-                        />
-                        Herunterladen
-                      </span>
-                    </ControlButtonStyler>
-                  </div>
+                  <ControlButtonStyler
+                    onClick={handleDirectDownload}
+                    width="160px"
+                  >
+                    <span className="flex items-center text-base">
+                      <FontAwesomeIcon
+                        icon={faFileArrowDown}
+                        className="mr-2"
+                      />
+                      Herunterladen
+                    </span>
+                  </ControlButtonStyler>
                 </Tooltip>
+
+                <ContactMailButton
+                  width="160px"
+                  emailAddress="geodatenzentrum@stadt.wuppertal.de"
+                  subjectPrefix="Datenschutzprüfung Luftbildschrägaufnahme"
+                  productName="Luftbildschrägaufnahmen"
+                  portalName="Wuppertaler Geodatenportal"
+                  imageId={imageId}
+                  imageUri={downloadUrl}
+                  tooltip={{
+                    title: "Datenschutzprüfung Luftbildschrägaufnahme",
+                    placement: "right",
+                  }}
+                />
               </div>
             )}
-
-            {/* Cardinal direction controls with loading spinner overlay */}
             <div
               className="camera-rotation-controls"
               style={{

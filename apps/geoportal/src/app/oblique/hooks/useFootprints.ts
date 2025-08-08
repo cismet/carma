@@ -126,13 +126,12 @@ export const useFootprints = (debug = false): void => {
           onComplete: () => {
             // Remove entity completely when animation finishes
             cleanupOutlineEntity(viewerRef, outlineEntityRef, debug);
-            // Reset lastImageIdRef to null to force recreation on unlock
             lastImageIdRef.current = null;
           },
         });
       } else if (lastImageIdRef.current === null && nearestImage) {
         // Coming back from locked state - we'll recreate the entity
-        // by setting lastImageIdRef to null to force the next effect to run
+        // by setting last ref to null to force the next effect to run
         lastImageIdRef.current = null;
       }
     }
