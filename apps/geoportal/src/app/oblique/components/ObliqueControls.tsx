@@ -27,7 +27,7 @@ import {
   useCesiumContext,
 } from "@carma-mapping/cesium-engine";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
-import { useFeatureFlags } from "@carma-apps/portals";
+import { useFeatureFlags, ContactMailButton } from "@carma-apps/portals";
 
 import { ObliqueDebugSvg } from "./debugUI/ObliqueDebugSvg";
 import { ObliqueImagePreview } from "./ObliqueImagePreview";
@@ -344,39 +344,43 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
                   placement="right"
                   title="Bild in hoher Qualität in neuem Tab öffnen"
                 >
-                  <div>
-                    <ControlButtonStyler onClick={openImageLink} width="160px">
-                      <span className="flex items-center text-base">
-                        <FontAwesomeIcon
-                          icon={faExternalLink}
-                          className="mr-2"
-                        />
-                        Bild öffnen
-                      </span>
-                    </ControlButtonStyler>
-                  </div>
+                  <ControlButtonStyler onClick={openImageLink} width="160px">
+                    <span className="flex items-center text-base">
+                      <FontAwesomeIcon icon={faExternalLink} className="mr-2" />
+                      Bild öffnen
+                    </span>
+                  </ControlButtonStyler>
                 </Tooltip>
 
                 <Tooltip placement="right" title="Bild direkt herunterladen">
-                  <div>
-                    <ControlButtonStyler
-                      onClick={handleDirectDownload}
-                      width="160px"
-                    >
-                      <span className="flex items-center text-base">
-                        <FontAwesomeIcon
-                          icon={faFileArrowDown}
-                          className="mr-2"
-                        />
-                        Herunterladen
-                      </span>
-                    </ControlButtonStyler>
-                  </div>
+                  <ControlButtonStyler
+                    onClick={handleDirectDownload}
+                    width="160px"
+                  >
+                    <span className="flex items-center text-base">
+                      <FontAwesomeIcon
+                        icon={faFileArrowDown}
+                        className="mr-2"
+                      />
+                      Herunterladen
+                    </span>
+                  </ControlButtonStyler>
+                </Tooltip>
+
+                <Tooltip
+                  placement="right"
+                  title="Datenschutzprüfung Luftbildschrägaufnahme"
+                >
+                  <ContactMailButton
+                    width="160px"
+                    emailAddress="geodatenzentrum@stadt.wuppertal.de"
+                    subjectPrefix="Datenschutzprüfung Luftbildschrägaufnahme"
+                    productName="Luftbildschrägaufnahmen"
+                    portalName="Wuppertaler Geodatenportal"
+                  />
                 </Tooltip>
               </div>
             )}
-
-            {/* Cardinal direction controls with loading spinner overlay */}
             <div
               className="camera-rotation-controls"
               style={{
