@@ -348,7 +348,7 @@ export const NewLibModal = ({
     subCategory: { id: string; Title: string },
     item: SavedLayerConfig | SavedLayerConfig[]
   ) => {
-    setShownCategories((prev) => {
+    const createNewCategories = (prev) => {
       const newCategories = [...prev];
       const categoryExists = newCategories.find((cat) => cat.id === categoryId);
       if (!categoryExists) {
@@ -364,16 +364,18 @@ export const NewLibModal = ({
           subCats.forEach((subCat) => {
             if (subCat.id === subCategory.id) {
               newSubCat = subCat;
-              if (Array.isArray(item)) {
-                newSubCat.layers.unshift(...item);
-              } else {
-                newSubCat.layers.unshift(item);
+              if (newSubCat) {
+                if (Array.isArray(item)) {
+                  newSubCat.layers.unshift(...item);
+                } else {
+                  newSubCat.layers.unshift(item);
+                }
+                newSubCat.layers = newSubCat.layers.filter(
+                  (layer, index) =>
+                    newSubCat?.layers.findIndex((l) => l.id === layer.id) ===
+                    index
+                );
               }
-              newSubCat.layers = newSubCat.layers.filter(
-                (layer, index) =>
-                  newSubCat?.layers.findIndex((l) => l.id === layer.id) ===
-                  index
-              );
             }
           });
           if (!newSubCat) {
@@ -401,7 +403,10 @@ export const NewLibModal = ({
         }
       });
       return newCategories;
-    });
+    };
+
+    setShownCategories(createNewCategories);
+    setTmpAllCategories(createNewCategories);
   };
 
   useHandleDrop({
