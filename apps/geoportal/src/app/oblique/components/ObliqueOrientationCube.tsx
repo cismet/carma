@@ -63,9 +63,8 @@ const ObliqueOrientationCube: React.FC<Props> = ({
   // Scene transform: apply heading around the top/bottom face axis (Y) first, then tilt by pitch (X)
   // Note: CSS applies transforms right-to-left, so heading (rightmost) is applied before pitch
   // Align cube with flight pattern north by compensating heading with offsetDegrees
-  const sceneTransform = `rotateX(${mappedPitchX}deg) rotateY(${
-    headingDeg - offsetDegrees
-  }deg)`;
+  const headingAdj = headingDeg - offsetDegrees;
+  const sceneTransform = `rotateX(${mappedPitchX}deg) rotateY(${headingAdj}deg)`;
   // Pre-rotate the north arrow by the imagery offset (applied in face space before the 3D scene)
   const northArrowTransform = `rotateZ(${offsetDegrees}deg)`;
 
@@ -210,59 +209,134 @@ const ObliqueOrientationCube: React.FC<Props> = ({
         </Tooltip>
       </div>
 
-      {/* Pseudo-spherical NSOW selectors around the cube (2D overlay for clarity) */}
-      <div className="absolute inset-0 pointer-events-none">
-        {/* North */}
-        <div className="absolute left-1/2 -translate-x-1/2 -top-2">
-          <Tooltip title="Nord">
-            <button
-              type="button"
-              className="pointer-events-auto w-7 h-7 rounded-full shadow bg-gradient-to-b from-white to-gray-200 border border-gray-300 text-xs font-semibold"
-              onClick={() => onDirectionSelect?.(CardinalDirectionEnum.North)}
-              aria-label="Select North"
-            >
-              N
-            </button>
-          </Tooltip>
+      {/* NSOW selectors anchored in 3D at face centers; buttons billboard to the viewer */}
+      <div
+        className="absolute inset-0"
+        style={{
+          pointerEvents: "none",
+          transformStyle: "preserve-3d",
+          transform: sceneTransform,
+        }}
+      >
+        {/* Common styles for anchor containers: centered at cube origin, then 3D translated */}
+        {/* Front (South) face center: translateZ(+tz) */}
+        <div
+          className="absolute"
+          style={{
+            left: "50%",
+            top: "50%",
+            transformStyle: "preserve-3d",
+            transform: `translate(-50%, -50%) translate3d(0px, 0px, ${tz}px)`,
+            pointerEvents: "none",
+          }}
+        >
+          <div
+            style={{
+              transform: `rotateY(${-headingAdj}deg) rotateX(${-mappedPitchX}deg)`,
+              pointerEvents: "auto",
+            }}
+          >
+            <Tooltip title="Blick nach Norden auf Südseite">
+              <Button
+                size="small"
+                shape="circle"
+                onClick={() => onDirectionSelect?.(CardinalDirectionEnum.North)}
+                aria-label="Select North"
+              >
+                S
+              </Button>
+            </Tooltip>
+          </div>
         </div>
-        {/* West */}
-        <div className="absolute top-1/2 -translate-y-1/2 -left-2">
-          <Tooltip title="West">
-            <button
-              type="button"
-              className="pointer-events-auto w-7 h-7 rounded-full shadow bg-gradient-to-b from-white to-gray-200 border border-gray-300 text-xs font-semibold"
-              onClick={() => onDirectionSelect?.(CardinalDirectionEnum.West)}
-              aria-label="Select West"
-            >
-              W
-            </button>
-          </Tooltip>
+
+        {/* Back (North) face center: translateZ(-tz) */}
+        <div
+          className="absolute"
+          style={{
+            left: "50%",
+            top: "50%",
+            transformStyle: "preserve-3d",
+            transform: `translate(-50%, -50%) translate3d(0px, 0px, ${-tz}px)`,
+            pointerEvents: "none",
+          }}
+        >
+          <div
+            style={{
+              transform: `rotateY(${-headingAdj}deg) rotateX(${-mappedPitchX}deg)`,
+              pointerEvents: "auto",
+            }}
+          >
+            <Tooltip title="Blick nach Süden auf Nordseite">
+              <Button
+                size="small"
+                shape="circle"
+                onClick={() => onDirectionSelect?.(CardinalDirectionEnum.South)}
+                aria-label="Select South"
+              >
+                N
+              </Button>
+            </Tooltip>
+          </div>
         </div>
-        {/* East (Ost) */}
-        <div className="absolute top-1/2 -translate-y-1/2 -right-2">
-          <Tooltip title="Ost">
-            <button
-              type="button"
-              className="pointer-events-auto w-7 h-7 rounded-full shadow bg-gradient-to-b from-white to-gray-200 border border-gray-300 text-xs font-semibold"
-              onClick={() => onDirectionSelect?.(CardinalDirectionEnum.East)}
-              aria-label="Select East"
-            >
-              O
-            </button>
-          </Tooltip>
+
+        {/* Left (West) face center: translateX(-tz) */}
+        <div
+          className="absolute"
+          style={{
+            left: "50%",
+            top: "50%",
+            transformStyle: "preserve-3d",
+            transform: `translate(-50%, -50%) translate3d(${-tz}px, 0px, 0px)`,
+            pointerEvents: "none",
+          }}
+        >
+          <div
+            style={{
+              transform: `rotateY(${-headingAdj}deg) rotateX(${-mappedPitchX}deg)`,
+              pointerEvents: "auto",
+            }}
+          >
+            <Tooltip title="Blick nach Osten auf Westseite">
+              <Button
+                size="small"
+                shape="circle"
+                onClick={() => onDirectionSelect?.(CardinalDirectionEnum.East)}
+                aria-label="Select East"
+              >
+                W
+              </Button>
+            </Tooltip>
+          </div>
         </div>
-        {/* South */}
-        <div className="absolute left-1/2 -translate-x-1/2 -bottom-2">
-          <Tooltip title="Süd">
-            <button
-              type="button"
-              className="pointer-events-auto w-7 h-7 rounded-full shadow bg-gradient-to-b from-white to-gray-200 border border-gray-300 text-xs font-semibold"
-              onClick={() => onDirectionSelect?.(CardinalDirectionEnum.South)}
-              aria-label="Select South"
-            >
-              S
-            </button>
-          </Tooltip>
+
+        {/* Right (East/Ost) face center: translateX(+tz) */}
+        <div
+          className="absolute"
+          style={{
+            left: "50%",
+            top: "50%",
+            transformStyle: "preserve-3d",
+            transform: `translate(-50%, -50%) translate3d(${tz}px, 0px, 0px)`,
+            pointerEvents: "none",
+          }}
+        >
+          <div
+            style={{
+              transform: `rotateY(${-headingAdj}deg) rotateX(${-mappedPitchX}deg)`,
+              pointerEvents: "auto",
+            }}
+          >
+            <Tooltip title="Blick nach Westen auf Ostseite">
+              <Button
+                size="small"
+                shape="circle"
+                onClick={() => onDirectionSelect?.(CardinalDirectionEnum.West)}
+                aria-label="Select West"
+              >
+                O
+              </Button>
+            </Tooltip>
+          </div>
         </div>
       </div>
     </div>
