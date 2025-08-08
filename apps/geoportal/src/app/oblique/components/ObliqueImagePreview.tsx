@@ -216,8 +216,8 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
             subjectPrefix="Datenschutzprüfung Luftbildschrägaufnahme"
             productName="Luftbildschrägaufnahmen"
             portalName="Wuppertaler Geodatenportal"
-            photoId={photoId || undefined}
-            photoUri={src || undefined}
+            photoId={photoId}
+            photoUri={src}
             tooltip={{
               title: "Datenschutzprüfung Luftbildschrägaufnahme",
               placement: "top",

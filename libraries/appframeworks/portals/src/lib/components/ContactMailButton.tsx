@@ -1,4 +1,3 @@
-/* eslint-disable react/prop-types */
 import { useState } from "react";
 import {
   Checkbox,
@@ -55,8 +54,7 @@ interface ContactMailFormFields {
   otherText?: string; // text for Sonstiges
 }
 
-// eslint-disable-next-line react/prop-types
-export const ContactMailButton: React.FC<ContactMailButtonProps> = ({
+export const ContactMailButton = ({
   emailAddress,
   subjectPrefix,
   productName,
@@ -65,7 +63,7 @@ export const ContactMailButton: React.FC<ContactMailButtonProps> = ({
   photoId,
   photoUri,
   tooltip,
-}) => {
+}: ContactMailButtonProps) => {
   const [visible, setVisible] = useState(false);
   const [form] = Form.useForm<ContactMailFormFields>();
 
@@ -117,8 +115,8 @@ Ansicht: ${url}
 
       setVisible(false);
       form.resetFields();
-    } catch {
-      // validation errors are shown by AntD
+    } catch (e) {
+      // Intentionally ignore all errors here, as validation errors are shown by AntD.
     }
   };
 

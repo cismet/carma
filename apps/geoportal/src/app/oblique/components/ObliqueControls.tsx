@@ -373,8 +373,8 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
                   subjectPrefix="Datenschutzprüfung Luftbildschrägaufnahme"
                   productName="Luftbildschrägaufnahmen"
                   portalName="Wuppertaler Geodatenportal"
-                  photoId={photoId || undefined}
-                  photoUri={downloadUrl || undefined}
+                  photoId={photoId}
+                  photoUri={downloadUrl}
                   tooltip={{
                     title: "Datenschutzprüfung Luftbildschrägaufnahme",
                     placement: "right",
