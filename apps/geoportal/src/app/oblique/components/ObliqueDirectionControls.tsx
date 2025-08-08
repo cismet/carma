@@ -1,12 +1,7 @@
 import React from "react";
-import { Tooltip } from "antd";
-import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
+import { Tooltip, Spin, Button } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faRotateLeft,
-  faRotateRight,
-  faSpinner,
-} from "@fortawesome/free-solid-svg-icons";
+import { faRotateLeft, faRotateRight } from "@fortawesome/free-solid-svg-icons";
 import { CardinalDirectionEnum } from "../utils/orientationUtils";
 
 type Props = {
@@ -28,163 +23,102 @@ export const ObliqueDirectionControls: React.FC<Props> = ({
   offsetDegrees,
   isLoading,
 }) => {
-  const directionLabelStyle: React.CSSProperties = {
-    fontWeight: 800,
-    fontSize: "16px",
-  };
-
-  const headingDisplayStyle: React.CSSProperties = {
-    fontWeight: 600,
-    fontSize: "14px",
-    color: "#333",
-    userSelect: "none",
-  };
-
   return (
-    <div
-      className="camera-rotation-controls"
-      style={{
-        display: "grid",
-        gridTemplateColumns: "repeat(3, 1fr)",
-        gridTemplateRows: "repeat(3, 1fr)",
-        gap: "4px",
-        padding: "8px",
-        backgroundColor: "rgba(255, 255, 255, 0.4)",
-        borderRadius: "8px",
-        boxShadow: "0 0 8px rgba(0, 0, 0, 0.2)",
-        position: "relative",
-      }}
-    >
+    <div className="relative grid grid-cols-3 grid-rows-3 gap-1 p-2 rounded-lg shadow bg-white/40">
       <div
-        style={{
-          position: "absolute",
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          backgroundColor: "rgba(255, 255, 255, 0.8)",
-          zIndex: 10,
-          borderRadius: "8px",
-          opacity: isLoading ? 1 : 0,
-          transition: "opacity 0.5s ease",
-          pointerEvents: isLoading ? "auto" : "none",
-        }}
+        className={
+          `absolute inset-0 z-10 rounded-lg flex flex-col items-center justify-center bg-white/80 transition-opacity duration-500 ` +
+          (isLoading
+            ? "opacity-100 pointer-events-auto"
+            : "opacity-0 pointer-events-none")
+        }
       >
-        {isLoading && (
-          <>
-            <FontAwesomeIcon
-              icon={faSpinner}
-              spin
-              style={{ fontSize: "24px", marginBottom: "10px" }}
-            />
-            <div style={{ textAlign: "center", fontSize: "12px" }}>
-              Schrägluftbild-Daten werden geladen...
-            </div>
-          </>
-        )}
+        <Spin tip="Schrägluftbild-Daten werden geladen..." />
       </div>
 
       {/* Top row */}
-      <ControlButtonStyler
+      <Button
         onClick={() => rotateCamera(false)}
-        width="40px"
-        height="40px"
+        type="default"
+        shape="circle"
+        className="w-10 h-10 flex items-center justify-center"
+        aria-label="Rotate left"
       >
         <FontAwesomeIcon icon={faRotateLeft} className="text-base" />
-      </ControlButtonStyler>
-      <ControlButtonStyler
+      </Button>
+      <Button
         onClick={() => rotateToDirection(CardinalDirectionEnum.North)}
-        width="40px"
-        height="40px"
-        className={
+        type="default"
+        className={`w-10 h-10 font-extrabold ${
           activeDirection === CardinalDirectionEnum.North
             ? activeButtonClass
             : ""
-        }
+        }`}
+        aria-label="North"
       >
-        <span style={directionLabelStyle}>N</span>
-      </ControlButtonStyler>
-      <ControlButtonStyler
+        N
+      </Button>
+      <Button
         onClick={() => rotateCamera(true)}
-        width="40px"
-        height="40px"
+        type="default"
+        shape="circle"
+        className="w-10 h-10 flex items-center justify-center"
+        aria-label="Rotate right"
       >
         <FontAwesomeIcon icon={faRotateRight} className="text-base" />
-      </ControlButtonStyler>
+      </Button>
 
       {/* Middle row */}
-      <ControlButtonStyler
+      <Button
         onClick={() => rotateToDirection(CardinalDirectionEnum.West)}
-        width="40px"
-        height="40px"
-        className={
+        type="default"
+        className={`w-10 h-10 font-extrabold ${
           activeDirection === CardinalDirectionEnum.West
             ? activeButtonClass
             : ""
-        }
+        }`}
+        aria-label="West"
       >
-        <span style={directionLabelStyle}>W</span>
-      </ControlButtonStyler>
+        W
+      </Button>
       <Tooltip
         title={`Luftbildblickrichtung "Nord" hat ${offsetDegrees} Grad Abweichung von Nord`}
         placement="top"
-        overlayInnerStyle={{
-          userSelect: "none",
-          pointerEvents: "none",
-        }}
-        overlayStyle={{
-          pointerEvents: "none",
-        }}
       >
-        <div
-          style={{
-            width: "40px",
-            height: "40px",
-            margin: "2px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <span style={headingDisplayStyle}>{headingDegrees}°</span>
+        <div className="w-10 h-10 m-0.5 flex items-center justify-center">
+          <span className="font-semibold text-sm text-gray-700 select-none">
+            {headingDegrees}°
+          </span>
         </div>
       </Tooltip>
-      <ControlButtonStyler
+      <Button
         onClick={() => rotateToDirection(CardinalDirectionEnum.East)}
-        width="40px"
-        height="40px"
-        className={
+        type="default"
+        className={`w-10 h-10 font-extrabold ${
           activeDirection === CardinalDirectionEnum.East
             ? activeButtonClass
             : ""
-        }
+        }`}
+        aria-label="East"
       >
-        <span style={directionLabelStyle}>O</span>
-      </ControlButtonStyler>
+        O
+      </Button>
 
       {/* Bottom row */}
-      <div style={{ width: "40px", height: "40px", margin: "2px" }}>
-        {/* Empty bottom-left cell */}
-      </div>
-      <ControlButtonStyler
+      <div className="w-10 h-10 m-0.5" />
+      <Button
         onClick={() => rotateToDirection(CardinalDirectionEnum.South)}
-        width="40px"
-        height="40px"
-        className={
+        type="default"
+        className={`w-10 h-10 font-extrabold ${
           activeDirection === CardinalDirectionEnum.South
             ? activeButtonClass
             : ""
-        }
+        }`}
+        aria-label="South"
       >
-        <span style={directionLabelStyle}>S</span>
-      </ControlButtonStyler>
-      <div style={{ width: "40px", height: "40px", margin: "2px" }}>
-        {/* Empty bottom-right cell */}
-      </div>
+        S
+      </Button>
+      <div className="w-10 h-10 m-0.5" />
     </div>
   );
 };
