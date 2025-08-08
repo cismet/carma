@@ -81,8 +81,8 @@ export const ContactMailButton: React.FC<ContactMailButtonProps> = ({
 
 ${introPrefix}${productName} im ${portalName}${introSuffix}
 [${values.isOwner ? "x" : " "}] ${ownerText}
-[${values.other ? "x" : " "}] ${otherLabel} ${
-        values.otherText || "keine Angabe"
+[${values.other ? "x" : " "}] ${otherLabel}${
+        values.otherText ? `\n${values.otherText}` : ""
       }
 
 ${consentText}
