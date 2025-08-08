@@ -165,7 +165,7 @@ Ansicht: ${url}
           </div>
         }
       >
-        <Form form={form} layout="vertical" size="small" preserve={false}>
+        <Form form={form} layout="vertical" size="small">
           {/* Interaktive Vorschau der E-Mail */}
           <Typography.Paragraph>{greetText}</Typography.Paragraph>
           <Typography.Paragraph>
