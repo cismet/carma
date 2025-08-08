@@ -12,6 +12,7 @@ type Props = {
   onDirectionSelect?: (dir: CardinalDirectionEnum) => void;
   rotateCamera?: (clockwise: boolean) => void;
   offsetDegrees?: number;
+  bottomColorRgb?: string; // e.g. "255,255,255"
 };
 
 /**
@@ -22,10 +23,11 @@ type Props = {
  * N/W/O/S selection controls are shown as pseudo-spheres positioned around the cube.
  */
 const ObliqueOrientationCube: React.FC<Props> = ({
-  size = 30,
+  size = 100,
   onDirectionSelect,
   rotateCamera,
   offsetDegrees = 0,
+  bottomColorRgb = "255,255,255",
 }) => {
   const half = size / 2;
 
@@ -70,11 +72,15 @@ const ObliqueOrientationCube: React.FC<Props> = ({
   // Face size and translation distance
   const face = size;
   const tz = half; // translateZ by half size to position faces
+  const discSize = face * 2; // make the circular disc radius equal to cube edge length
+  const bottomColorInner = `rgba(${bottomColorRgb}, 0.4)`;
+  const bottomColorOuter = `rgba(${bottomColorRgb}, 0.0)`;
+  const bottomGradient = `radial-gradient(circle closest-side, ${bottomColorInner} 0 90%, ${bottomColorOuter} 100%)`;
 
   return (
     <div
       className="relative"
-      style={{ width: size, height: size, perspective: 600 }}
+      style={{ width: size, height: size, perspective: 1600 }}
     >
       {/* 3D cube scene */}
       <div
@@ -115,15 +121,30 @@ const ObliqueOrientationCube: React.FC<Props> = ({
             </div>
           </div>
 
-          {/* Bottom */}
+          {/* Bottom - circular disc with radial gradient */}
           <div
-            className="absolute left-0 top-0 bg-white/60 border border-gray-200"
+            className="absolute left-0 top-0"
             style={{
               width: face,
               height: face,
               transform: `rotateX(-90deg) translateZ(${tz}px)`,
+              transformStyle: "preserve-3d",
+              overflow: "visible",
             }}
-          />
+          >
+            <div
+              className="absolute"
+              style={{
+                width: discSize,
+                height: discSize,
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -50%)",
+                borderRadius: "50%",
+                background: bottomGradient,
+              }}
+            />
+          </div>
           {/* Front */}
           <div
             className="absolute left-0 top-0 bg-white/80 border border-gray-300"
