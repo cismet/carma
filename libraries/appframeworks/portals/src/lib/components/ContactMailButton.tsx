@@ -37,8 +37,8 @@ interface ContactMailButtonProps {
   productName: string;
   portalName: string;
   width?: string;
-  photoId?: string;
-  photoUri?: string;
+  imageId?: string;
+  imageUri?: string;
   tooltip?: TooltipProps;
 }
 
@@ -60,8 +60,8 @@ export const ContactMailButton = ({
   productName,
   portalName,
   width,
-  photoId,
-  photoUri,
+  imageId,
+  imageUri,
   tooltip,
 }: ContactMailButtonProps) => {
   const [visible, setVisible] = useState(false);
@@ -97,8 +97,8 @@ ${values.name || ""}
 
 ---
 Technische Informationen:
-Bild-ID: ${photoId}
-Bild-Link: ${photoUri}
+Bild-ID: ${imageId}
+Bild-Link: ${imageUri}
 Ansicht: ${url}
 `;
 

@@ -29,7 +29,7 @@ interface ObliqueImagePreviewProps {
   src: string;
   srcHQ?: string; // high quality image
   srcOriginal?: string; // original image, likely not available
-  photoId: string;
+  imageId: string;
   isVisible: boolean;
   isDebugMode?: boolean;
   onOpenImageLink?: () => void;
@@ -86,7 +86,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   src,
   srcHQ,
   srcOriginal,
-  photoId,
+  imageId,
   isVisible,
   isDebugMode = false,
   onOpenImageLink,
@@ -216,8 +216,8 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
             subjectPrefix="Datenschutzprüfung Luftbildschrägaufnahme"
             productName="Luftbildschrägaufnahmen"
             portalName="Wuppertaler Geodatenportal"
-            photoId={photoId}
-            photoUri={src}
+            imageId={imageId}
+            imageUri={src}
             tooltip={{
               title: "Datenschutzprüfung Luftbildschrägaufnahme",
               placement: "top",
@@ -266,7 +266,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
       </div>
       <PreviewImage
         src={activeSource}
-        alt={photoId ?? "Oblique Image Preview"}
+        alt={imageId ?? "Oblique Image Preview"}
         width={syncedWidth}
         height={syncedHeight}
         borderStyle={border}

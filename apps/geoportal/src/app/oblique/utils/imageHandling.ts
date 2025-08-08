@@ -7,9 +7,9 @@ const isAvifLevel = (level: string): level is OBLIQUE_PREVIEW_QUALITY => {
 export function getPreviewImageUrl(
   previewPath: string,
   level: OBLIQUE_PREVIEW_QUALITY,
-  photoId: string
+  imageId: string
 ): string {
-  return `${previewPath}/${level}/${photoId}.${
+  return `${previewPath}/${level}/${imageId}.${
     isAvifLevel(level) ? "avif" : "jpg"
   }`;
 }

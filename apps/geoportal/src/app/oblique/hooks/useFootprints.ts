@@ -78,7 +78,7 @@ export const useFootprints = (debug = false): void => {
   const animationEasing =
     animations?.outlineFadeOut?.easingFunction || EasingFunction.LINEAR_NONE;
 
-  const lastPhotoIdRef = useRef<string | null>(null);
+  const lastImageIdRef = useRef<string | null>(null);
   const outlineEntityRef = useRef<Entity | null>(null);
   const prevObliqueMode = useRef<boolean>(isObliqueMode);
 
@@ -126,13 +126,13 @@ export const useFootprints = (debug = false): void => {
           onComplete: () => {
             // Remove entity completely when animation finishes
             cleanupOutlineEntity(viewerRef, outlineEntityRef, debug);
-            lastPhotoIdRef.current = null;
+            lastImageIdRef.current = null;
           },
         });
-      } else if (lastPhotoIdRef.current === null && nearestImage) {
+      } else if (lastImageIdRef.current === null && nearestImage) {
         // Coming back from locked state - we'll recreate the entity
-        // by setting lastPhotoIdRef to null to force the next effect to run
-        lastPhotoIdRef.current = null;
+        // by setting last ref to null to force the next effect to run
+        lastImageIdRef.current = null;
       }
     }
     cesiumSafeRequestRender(viewer);
@@ -162,8 +162,8 @@ export const useFootprints = (debug = false): void => {
       return;
     }
 
-    const currentPhotoId = nearestImage.record.id;
-    const sameImage = lastPhotoIdRef.current === currentPhotoId;
+    const currentImageId = nearestImage.record.id;
+    const sameImage = lastImageIdRef.current === currentImageId;
 
     // Only clean up and recreate entity if:
     // 1. It's a new image
@@ -173,7 +173,7 @@ export const useFootprints = (debug = false): void => {
       return;
     }
 
-    lastPhotoIdRef.current = currentPhotoId;
+    lastImageIdRef.current = currentImageId;
 
     // Clean up any existing entity
     cleanupOutlineEntity(viewerRef, outlineEntityRef, debug);

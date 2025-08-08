@@ -8,7 +8,7 @@ import { UnitVectorDisplay } from "./UnitVectorDisplay";
 import type { DerivedExteriorOrientation } from "../../utils/transformExteriorOrientation";
 
 interface CameraVectorControlsProps {
-  photoId?: string;
+  imageId?: string;
   exteriorOrientation: DerivedExteriorOrientation;
   directionVectorLocal: Vector3Arr;
   upVector: Vector3Arr;
@@ -17,7 +17,7 @@ interface CameraVectorControlsProps {
 
 // --- Component: CameraVectorControls ---
 export const CameraVectorControls: React.FC<CameraVectorControlsProps> = ({
-  photoId,
+  imageId,
   exteriorOrientation,
   directionVectorLocal,
   upVector,
@@ -25,7 +25,7 @@ export const CameraVectorControls: React.FC<CameraVectorControlsProps> = ({
 }: CameraVectorControlsProps) => {
   const [activeKey, setActiveKey] = useState<string[]>([]);
 
-  if (!exteriorOrientation || !photoId) return null;
+  if (!exteriorOrientation || !imageId) return null;
 
   const onChange = (key: string | string[]) => {
     setActiveKey(Array.isArray(key) ? key : [key]);
@@ -39,7 +39,7 @@ export const CameraVectorControls: React.FC<CameraVectorControlsProps> = ({
       label: "Camera Vector Controls",
       children: (
         <>
-          Camera Vector Controls Image Record ID: {photoId || "N/A"}
+          Camera Vector Controls Image Record ID: {imageId || "N/A"}
           <div>
             <pre style={{ margin: 0, fontSize: "9px" }}>
               {m[0].map((value) => value.toFixed(5)).join(" ")}

@@ -100,7 +100,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     imagePreviewStyle,
   } = useOblique();
   const { viewerRef } = useCesiumContext();
-  const photoId = nearestImage?.record?.id;
+  const imageId = nearestImage?.record?.id;
   const cameraId = nearestImage?.record?.cameraId;
   const { isDebugMode } = useFeatureFlags();
   const animationInProgressRef = useRef<boolean>(false);
@@ -120,8 +120,8 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   useFootprints(isDebugMode);
 
   const { downloadUrl, previewUrl, previewUrlHq, previewUrlOriginal } = useMemo(
-    () => getImageUrls(photoId, previewPath, previewQualityLevel),
-    [previewPath, previewQualityLevel, photoId]
+    () => getImageUrls(imageId, previewPath, previewQualityLevel),
+    [previewPath, previewQualityLevel, imageId]
   );
 
   // Handle visibility changes when oblique mode toggles
@@ -257,7 +257,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       {isDebugMode && nearestImage && (
         <div style={debugComponentsContainerRightStyle}>
           <CameraVectorControls
-            photoId={photoId}
+            imageId={imageId}
             exteriorOrientation={derivedExteriorOrientationRef.current}
             directionVectorLocal={
               derivedExteriorOrientationRef.current?.rotation?.enu?.wgs84
@@ -271,12 +271,12 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
           <ObliqueImageInfo imageRecord={nearestImage} />
         </div>
       )}
-      {nearestImage && photoId && (
+      {nearestImage && imageId && (
         <ObliqueImagePreview
           src={previewUrl}
           srcHQ={previewUrlHq}
           srcOriginal={previewUrlOriginal}
-          photoId={photoId}
+          imageId={imageId}
           isVisible={isPreviewVisible}
           onOpenImageLink={openImageLink}
           onDirectDownload={handleDirectDownload}
@@ -320,7 +320,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
               gap: "10px",
             }}
           >
-            {photoId && derivedExteriorOrientationRef.current && (
+            {imageId && derivedExteriorOrientationRef.current && (
               <ControlButtonStyler
                 onClick={flyToNearestExteriorOrientation}
                 width="160px"
@@ -331,7 +331,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
               </ControlButtonStyler>
             )}
 
-            {photoId && downloadUrl && (
+            {imageId && downloadUrl && (
               <div
                 style={{
                   display: "flex",
@@ -373,8 +373,8 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
                   subjectPrefix="Datenschutzprüfung Luftbildschrägaufnahme"
                   productName="Luftbildschrägaufnahmen"
                   portalName="Wuppertaler Geodatenportal"
-                  photoId={photoId}
-                  photoUri={downloadUrl}
+                  imageId={imageId}
+                  imageUri={downloadUrl}
                   tooltip={{
                     title: "Datenschutzprüfung Luftbildschrägaufnahme",
                     placement: "right",
