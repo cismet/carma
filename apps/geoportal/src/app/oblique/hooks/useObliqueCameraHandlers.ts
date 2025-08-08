@@ -163,8 +163,8 @@ export const useObliqueCameraHandlers = (
       );
 
       const nextCardinalIndex = clockwise
-        ? (closestCardinalIndex + 1) % 4 // Next clockwise cardinal
-        : (closestCardinalIndex + 3) % 4; // Next counterclockwise cardinal (4-1)
+        ? (closestCardinalIndex + 3) % 4 // Next clockwise cardinal
+        : (closestCardinalIndex + 1) % 4; // Next counterclockwise cardinal (4-1)
 
       rotateToDirection(nextCardinalIndex);
     },

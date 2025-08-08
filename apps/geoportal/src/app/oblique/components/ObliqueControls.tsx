@@ -31,6 +31,7 @@ import { ObliqueImagePreview } from "./ObliqueImagePreview";
 import { ObliqueImageInfo } from "./debugUI/ObliqueImageInfo";
 import { CameraVectorControls } from "./debugUI/CameraVectorControls";
 import { ObliqueDirectionControls } from "./ObliqueDirectionControls";
+import ObliqueOrientationCube from "./ObliqueOrientationCube";
 
 import { useExteriorOrientation } from "../hooks/useExteriorOrientation";
 import { useFootprints } from "../hooks/useFootprints";
@@ -367,15 +368,28 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
                 />
               </div>
             )}
-            <ObliqueDirectionControls
-              rotateCamera={rotateCamera}
-              rotateToDirection={rotateToDirection}
-              activeDirection={activeDirection}
-              activeButtonClass={activeButtonClass}
-              headingDegrees={headingDegrees}
-              offsetDegrees={offsetDegrees}
-              isLoading={!isAllDataReady}
-            />
+            <div className="grid grid-cols-3 items-center gap-3">
+              <div className="flex justify-end">
+                <ObliqueDirectionControls
+                  rotateCamera={rotateCamera}
+                  rotateToDirection={rotateToDirection}
+                  activeDirection={activeDirection}
+                  activeButtonClass={activeButtonClass}
+                  headingDegrees={headingDegrees}
+                  offsetDegrees={offsetDegrees}
+                  isLoading={!isAllDataReady}
+                />
+              </div>
+              <div className="flex justify-center">
+                <ObliqueOrientationCube
+                  size={96}
+                  rotateCamera={rotateCamera}
+                  onDirectionSelect={rotateToDirection}
+                  offsetDegrees={offsetDegrees}
+                />
+              </div>
+              <div />
+            </div>
           </div>
         </div>
       </div>
