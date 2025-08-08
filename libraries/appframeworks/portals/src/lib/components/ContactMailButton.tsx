@@ -110,12 +110,12 @@ Ansicht: ${url}
     mailtoAnchor.click();
 
     setVisible(false);
-    form.resetFields();
+    //form.resetFields();
   };
 
   const handleCancel = () => {
     setVisible(false);
-    form.resetFields();
+    //form.resetFields();
   };
 
   const button = (
@@ -140,7 +140,6 @@ Ansicht: ${url}
         title={subjectPrefix}
         open={visible}
         onCancel={handleCancel}
-        destroyOnClose
         footer={
           <div className="space-y-2">
             <div className="text-right">
