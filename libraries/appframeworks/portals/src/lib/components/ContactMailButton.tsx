@@ -72,16 +72,15 @@ export const ContactMailButton = ({
   };
 
   const handleOk = async () => {
-    try {
-      const values = await form.validateFields();
-      const url = window?.location?.href ?? "";
-      const body = `${greetText}
+    const values = await form.validateFields();
+    const url = window?.location?.href ?? "";
+    const body = `${greetText}
 
 ${introPrefix}${productName} im ${portalName}${introSuffix}
 [${values.isOwner ? "x" : " "}] ${ownerText}
 [${values.other ? "x" : " "}] ${otherLabel}${
-        values.otherText ? `\n${values.otherText}` : ""
-      }
+      values.otherText ? `\n${values.otherText}` : ""
+    }
 
 ${consentText}
 ${nameLabel} ${values.name || "keine Angabe"}
@@ -103,21 +102,15 @@ Bild-Link: ${photoUri}
 Ansicht: ${url}
 `;
 
-      const link = document.createElement("a");
-      link.setAttribute("type");
-      const to = encodeURIComponent(emailAddress);
-      const encodedSubject = encodeURIComponent(subjectPrefix);
-      const encodedBody = encodeURIComponent(body);
-      link.href = `mailto:${to}?subject=${encodedSubject}&body=${encodedBody}`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
+    const to = encodeURIComponent(emailAddress);
+    const encodedSubject = encodeURIComponent(subjectPrefix);
+    const encodedBody = encodeURIComponent(body);
+    const mailtoAnchor = document.createElement("a");
+    mailtoAnchor.href = `mailto:${to}?subject=${encodedSubject}&body=${encodedBody}`;
+    mailtoAnchor.click();
 
-      setVisible(false);
-      form.resetFields();
-    } catch (e) {
-      // Intentionally ignore all errors here, as validation errors are shown by AntD.
-    }
+    setVisible(false);
+    form.resetFields();
   };
 
   const handleCancel = () => {
