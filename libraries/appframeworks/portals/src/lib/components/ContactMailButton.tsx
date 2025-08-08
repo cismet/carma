@@ -104,7 +104,7 @@ Ansicht: ${url}
 `;
 
       const link = document.createElement("a");
-      link.setAttribute("type", "hidden");
+      link.setAttribute("type");
       const to = encodeURIComponent(emailAddress);
       const encodedSubject = encodeURIComponent(subjectPrefix);
       const encodedBody = encodeURIComponent(body);
@@ -191,7 +191,7 @@ Ansicht: ${url}
 
           <Typography.Paragraph>{consentText}</Typography.Paragraph>
           <Form.Item name="name" label={nameLabel}>
-            <Input placeholder="" />
+            <Input />
           </Form.Item>
           <Form.Item name="property" label={propertyLabel}>
             <Input placeholder={propertyPlaceholder} />
