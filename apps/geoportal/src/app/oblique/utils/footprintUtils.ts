@@ -17,8 +17,8 @@ export const fetchGeoJson = async (
 
 export const findMatchingFeature = (
   features: FootprintFeature[],
-  imageId: string
-) => features.find((feature) => feature.properties.FILENAME === imageId);
+  photoId: string
+) => features.find((feature) => feature.properties.FILENAME === photoId);
 
 export const createFilteredGeoJson = (
   feature: FootprintFeature

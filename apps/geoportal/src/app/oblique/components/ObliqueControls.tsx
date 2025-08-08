@@ -276,7 +276,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
           src={previewUrl}
           srcHQ={previewUrlHq}
           srcOriginal={previewUrlOriginal}
-          alt={`Image preview ${photoId}`}
+          photoId={photoId}
           isVisible={isPreviewVisible}
           onOpenImageLink={openImageLink}
           onDirectDownload={handleDirectDownload}
@@ -367,18 +367,19 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
                   </ControlButtonStyler>
                 </Tooltip>
 
-                <Tooltip
-                  placement="right"
-                  title="Datenschutzprüfung Luftbildschrägaufnahme"
-                >
-                  <ContactMailButton
-                    width="160px"
-                    emailAddress="geodatenzentrum@stadt.wuppertal.de"
-                    subjectPrefix="Datenschutzprüfung Luftbildschrägaufnahme"
-                    productName="Luftbildschrägaufnahmen"
-                    portalName="Wuppertaler Geodatenportal"
-                  />
-                </Tooltip>
+                <ContactMailButton
+                  width="160px"
+                  emailAddress="geodatenzentrum@stadt.wuppertal.de"
+                  subjectPrefix="Datenschutzprüfung Luftbildschrägaufnahme"
+                  productName="Luftbildschrägaufnahmen"
+                  portalName="Wuppertaler Geodatenportal"
+                  photoId={photoId || undefined}
+                  photoUri={downloadUrl || undefined}
+                  tooltip={{
+                    title: "Datenschutzprüfung Luftbildschrägaufnahme",
+                    placement: "right",
+                  }}
+                />
               </div>
             )}
             <div

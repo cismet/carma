@@ -78,7 +78,7 @@ export const useFootprints = (debug = false): void => {
   const animationEasing =
     animations?.outlineFadeOut?.easingFunction || EasingFunction.LINEAR_NONE;
 
-  const lastImageIdRef = useRef<string | null>(null);
+  const lastPhotoIdRef = useRef<string | null>(null);
   const outlineEntityRef = useRef<Entity | null>(null);
   const prevObliqueMode = useRef<boolean>(isObliqueMode);
 
@@ -126,14 +126,13 @@ export const useFootprints = (debug = false): void => {
           onComplete: () => {
             // Remove entity completely when animation finishes
             cleanupOutlineEntity(viewerRef, outlineEntityRef, debug);
-            // Reset lastImageIdRef to null to force recreation on unlock
-            lastImageIdRef.current = null;
+            lastPhotoIdRef.current = null;
           },
         });
-      } else if (lastImageIdRef.current === null && nearestImage) {
+      } else if (lastPhotoIdRef.current === null && nearestImage) {
         // Coming back from locked state - we'll recreate the entity
-        // by setting lastImageIdRef to null to force the next effect to run
-        lastImageIdRef.current = null;
+        // by setting lastPhotoIdRef to null to force the next effect to run
+        lastPhotoIdRef.current = null;
       }
     }
     cesiumSafeRequestRender(viewer);
@@ -163,8 +162,8 @@ export const useFootprints = (debug = false): void => {
       return;
     }
 
-    const currentImageId = nearestImage.record.id;
-    const sameImage = lastImageIdRef.current === currentImageId;
+    const currentPhotoId = nearestImage.record.id;
+    const sameImage = lastPhotoIdRef.current === currentPhotoId;
 
     // Only clean up and recreate entity if:
     // 1. It's a new image
@@ -174,7 +173,7 @@ export const useFootprints = (debug = false): void => {
       return;
     }
 
-    lastImageIdRef.current = currentImageId;
+    lastPhotoIdRef.current = currentPhotoId;
 
     // Clean up any existing entity
     cleanupOutlineEntity(viewerRef, outlineEntityRef, debug);

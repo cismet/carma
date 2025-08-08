@@ -1,6 +1,15 @@
 /* eslint-disable react/prop-types */
 import { useState } from "react";
-import { Checkbox, Form, Modal, Input, Button, Typography } from "antd";
+import {
+  Checkbox,
+  Form,
+  Modal,
+  Input,
+  Button,
+  Typography,
+  Tooltip,
+  type TooltipProps,
+} from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faComment } from "@fortawesome/free-solid-svg-icons";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
@@ -16,7 +25,7 @@ const otherPlaceholder = "(bitte Text eingeben)";
 const consentText =
   "Zum Nachweis meines berechtigten Interesses teile ich Ihnen hiermit meinen Namen und meine Adresse mit und stimme der Überprüfung der Eigentumsverhältnisse im Amtlichen Liegenschaftskataster Informationssystem ALKIS zu:";
 const nameLabel = "Name:";
-const propertyLabel = "Straße und Hausnr.:";
+const propertyLabel = "Straße und Hausnr. des Grundstücks:";
 const propertyPlaceholder = "(bitte zu prüfendes Grundstück angeben)";
 const altAddressCheckboxLabel = "abweichende Anschrift";
 const addressLabel = "Anschrift:";
@@ -29,6 +38,9 @@ interface ContactMailButtonProps {
   productName: string;
   portalName: string;
   width?: string;
+  photoId?: string;
+  photoUri?: string;
+  tooltip?: TooltipProps;
 }
 
 interface ContactMailFormFields {
@@ -50,6 +62,9 @@ export const ContactMailButton: React.FC<ContactMailButtonProps> = ({
   productName,
   portalName,
   width,
+  photoId,
+  photoUri,
+  tooltip,
 }) => {
   const [visible, setVisible] = useState(false);
   const [form] = Form.useForm<ContactMailFormFields>();
@@ -84,7 +99,11 @@ ${kindRegards}
 ${values.name || ""}
 
 ---
-Ansicht: ${url}`;
+Technische Informationen:
+Bild-ID: ${photoId}
+Bild-Link: ${photoUri}
+Ansicht: ${url}
+`;
 
       const link = document.createElement("a");
       link.setAttribute("type", "hidden");
@@ -108,15 +127,24 @@ Ansicht: ${url}`;
     form.resetFields();
   };
 
+  const button = (
+    <ControlButtonStyler onClick={handleClick} width={width}>
+      <span className="flex items-center text-base">
+        <FontAwesomeIcon icon={faComment} className="mr-2" />
+        Rückmeldung
+      </span>
+    </ControlButtonStyler>
+  );
+
   return (
     <>
-      <ControlButtonStyler onClick={handleClick} width={width}>
-        <span className="flex items-center text-base">
-          <FontAwesomeIcon icon={faComment} className="mr-2" />
-          Rückmeldung
-        </span>
-      </ControlButtonStyler>
-
+      {tooltip ? (
+        <Tooltip title={tooltip.title} placement={tooltip.placement}>
+          {button}
+        </Tooltip>
+      ) : (
+        button
+      )}
       <Modal
         title={subjectPrefix}
         open={visible}

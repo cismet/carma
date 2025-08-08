@@ -23,12 +23,13 @@ import {
   PreviewImage,
 } from "./ObliqueImagePreview.PreviewImage";
 import { Backdrop } from "./ObliqueImagePreview.Backdrop";
+import { ContactMailButton } from "@carma-apps/portals";
 
 interface ObliqueImagePreviewProps {
   src: string;
   srcHQ?: string; // high quality image
   srcOriginal?: string; // original image, likely not available
-  alt: string;
+  photoId: string;
   isVisible: boolean;
   isDebugMode?: boolean;
   onOpenImageLink?: () => void;
@@ -85,7 +86,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   src,
   srcHQ,
   srcOriginal,
-  alt,
+  photoId,
   isVisible,
   isDebugMode = false,
   onOpenImageLink,
@@ -209,6 +210,19 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
               </ControlButtonStyler>
             </div>
           </Tooltip>
+          <ContactMailButton
+            width="160px"
+            emailAddress="geodatenzentrum@stadt.wuppertal.de"
+            subjectPrefix="Datenschutzprüfung Luftbildschrägaufnahme"
+            productName="Luftbildschrägaufnahmen"
+            portalName="Wuppertaler Geodatenportal"
+            photoId={photoId || undefined}
+            photoUri={src || undefined}
+            tooltip={{
+              title: "Datenschutzprüfung Luftbildschrägaufnahme",
+              placement: "top",
+            }}
+          />
           <Tooltip title="Vorschau schließen" placement="top">
             <div>
               <ControlButtonStyler onClick={handleBackdropClick} width="auto">
@@ -252,7 +266,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
       </div>
       <PreviewImage
         src={activeSource}
-        alt={alt}
+        alt={photoId ?? "Oblique Image Preview"}
         width={syncedWidth}
         height={syncedHeight}
         borderStyle={border}
