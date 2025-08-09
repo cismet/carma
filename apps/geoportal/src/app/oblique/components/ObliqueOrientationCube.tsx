@@ -132,8 +132,8 @@ const ObliqueOrientationCube: React.FC<Props> = ({
   const labelsInverseTransform = offsetCube
     ? inverseSceneTransform
     : `rotateZ(${-offsetRad}rad) ${inverseSceneTransform}`;
-  // Pre-rotate the north arrow by the imagery offset (arrow should always point to geographic north)
-  const northArrowTransform = `rotateZ(${-offsetRad}rad)`;
+  // North arrow always compensates imagery offset to point to geographic north
+  const northArrowTransform = offsetCube ? `rotateZ(${-offsetRad}rad)` : "";
 
   // Face size and translation distance
   const face = size;
@@ -148,7 +148,11 @@ const ObliqueOrientationCube: React.FC<Props> = ({
     <div
       ref={containerRef}
       className="relative"
-      style={{ width: containerSize, height: containerSize, perspective: perspectivePx }}
+      style={{
+        width: containerSize,
+        height: containerSize,
+        perspective: perspectivePx,
+      }}
     >
       {/* 3D cube scene */}
       <div
@@ -349,7 +353,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
         >
           <div
             style={{
-              transform: inverseSceneTransform,
+              transform: labelsInverseTransform,
               pointerEvents: "auto",
             }}
           >
@@ -379,7 +383,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
         >
           <div
             style={{
-              transform: inverseSceneTransform,
+              transform: labelsInverseTransform,
               pointerEvents: "auto",
             }}
           >

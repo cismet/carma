@@ -236,7 +236,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
 
   const effectiveOffsetRad = offsetEnabled ? headingOffset ?? 0 : 0;
   const offsetDegrees = Math.round(CesiumMath.toDegrees(effectiveOffsetRad));
-  const cubeOffsetRad = offsetCube ? effectiveOffsetRad : 0;
 
   return (
     <>
@@ -391,7 +390,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
                     size={70}
                     rotateCamera={rotateCamera}
                     onDirectionSelect={rotateToDirection}
-                    offsetRad={cubeOffsetRad}
+                    offsetRad={effectiveOffsetRad}
                     offsetCube={offsetCube}
                     invertCardinalLabels={invertLabels}
                   />
