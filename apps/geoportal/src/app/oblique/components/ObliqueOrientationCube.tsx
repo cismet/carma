@@ -1,10 +1,14 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Button, Tooltip } from "antd";
 import { Math as CesiumMath } from "cesium";
 import {
   useCesiumContext,
   applyRollToHeadingForCameraNearNadir,
 } from "@carma-mapping/cesium-engine";
+import {
+  cssPerspectiveFromCesiumFrustumForElement,
+  type CesiumFrustumLike,
+} from "@carma-commons/utils";
 import { CardinalDirectionEnum } from "../utils/orientationUtils";
 
 type Props = {
@@ -34,6 +38,9 @@ const ObliqueOrientationCube: React.FC<Props> = ({
   const { viewerRef, isViewerReady } = useCesiumContext();
   const [headingRad, setHeadingRad] = useState(0);
   const [pitchRad, setPitchRad] = useState(0);
+  const [perspectivePx, setPerspectivePx] = useState<number>(1600);
+  const lastPerspectiveRef = useRef<number | undefined>(undefined);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const viewer = viewerRef.current;
@@ -51,7 +58,64 @@ const ObliqueOrientationCube: React.FC<Props> = ({
     return () => {
       camera.changed.removeEventListener(update);
     };
-  }, [viewerRef, isViewerReady]);
+  }, [viewerRef, isViewerReady, size]);
+
+  // Track FOV/aspect changes even when camera pose doesn't change
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!isViewerReady || !viewer || viewer.isDestroyed()) return;
+    const camera = viewer.camera;
+    const scene = viewer.scene;
+
+    const updateFrustum = () => {
+      try {
+        const frustum = camera.frustum as unknown as CesiumFrustumLike;
+        // Use the Cesium viewer container dimensions for perspective mapping so the cube scales with the scene
+        const p = cssPerspectiveFromCesiumFrustumForElement(
+          viewer.container,
+          frustum,
+          lastPerspectiveRef.current ?? 1600
+        );
+        if (!Number.isFinite(p)) return;
+
+        const rect = viewer.container?.getBoundingClientRect?.();
+        const w = rect?.width ?? size;
+        const h = rect?.height ?? size;
+        console.debug("[ObliqueOrientationCube] FOV→perspective", {
+          longerDimension: w >= h ? "width" : "height",
+          containerUsed: "viewer.container",
+          container: { widthPx: w, heightPx: h },
+          fovRad: frustum.fov,
+          fovDeg:
+            typeof frustum.fov === "number"
+              ? CesiumMath.toDegrees(frustum.fov)
+              : undefined,
+          aspect:
+            frustum.aspectRatio ??
+            scene.drawingBufferWidth / Math.max(1, scene.drawingBufferHeight),
+          perspectivePx: p,
+        });
+        const prevP = lastPerspectiveRef.current ?? Number.NaN;
+        const changedP =
+          !Number.isFinite(prevP) ||
+          Math.abs((p as number) - (prevP as number)) > 0.5;
+
+        if (changedP) {
+          setPerspectivePx(p);
+          lastPerspectiveRef.current = p as number;
+        }
+      } catch {
+        // ignore
+      }
+    };
+
+    scene.preRender.addEventListener(updateFrustum);
+    // run once
+    updateFrustum();
+    return () => {
+      scene.preRender.removeEventListener(updateFrustum);
+    };
+  }, [viewerRef, isViewerReady, size]);
 
   const headingDeg = CesiumMath.toDegrees(headingRad);
   const pitchDeg = CesiumMath.toDegrees(pitchRad);
@@ -78,8 +142,9 @@ const ObliqueOrientationCube: React.FC<Props> = ({
 
   return (
     <div
+      ref={containerRef}
       className="relative"
-      style={{ width: size, height: size, perspective: 1600 }}
+      style={{ width: size, height: size, perspective: perspectivePx }}
     >
       {/* 3D cube scene */}
       <div
@@ -183,8 +248,8 @@ const ObliqueOrientationCube: React.FC<Props> = ({
         </div>
       </div>
 
-      {/* CCW / CW rotate buttons in top corners */}
-      <div className="absolute left-0 top-0 p-1">
+      {/* CCW / CW rotate buttons in bottom corners */}
+      <div className="absolute left-0 bottom-0 p-0">
         <Tooltip title="Gegen Uhrzeigersinn drehen">
           <Button
             size="small"
@@ -196,7 +261,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
           </Button>
         </Tooltip>
       </div>
-      <div className="absolute right-0 top-0 p-1">
+      <div className="absolute right-0 bottom-0 p-0">
         <Tooltip title="Im Uhrzeigersinn drehen">
           <Button
             size="small"

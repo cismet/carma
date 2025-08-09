@@ -382,7 +382,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
               </div>
               <div className="flex justify-center">
                 <ObliqueOrientationCube
-                  size={96}
+                  size={70}
                   rotateCamera={rotateCamera}
                   onDirectionSelect={rotateToDirection}
                   offsetDegrees={offsetDegrees}

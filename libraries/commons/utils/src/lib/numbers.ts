@@ -20,3 +20,11 @@ export const clampToToleranceRange = (
   }
   return [v, false];
 };
+
+/** Clamp a number to [min,max] if provided. */
+export const clamp = (v: number, min?: number, max?: number): number => {
+  let out = v;
+  if (typeof min === "number") out = Math.max(min, out);
+  if (typeof max === "number") out = Math.min(max, out);
+  return out;
+};
