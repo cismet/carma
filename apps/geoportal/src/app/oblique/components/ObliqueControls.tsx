@@ -104,8 +104,9 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const animationInProgressRef = useRef<boolean>(false);
 
   const [isVisible, setIsVisible] = useState(isObliqueMode);
+  const [showFacadeLabels, setShowFacadeLabels] = useState(true);
   const [offsetEnabled, setOffsetEnabled] = useState(true);
-  const [offsetCube, setOffsetCube] = useState(true);
+  const [offsetCube, setOffsetCube] = useState(false);
   const [invertLabels, setInvertLabels] = useState(true);
   const [shouldRender, setShouldRender] = useState(isObliqueMode);
   const [isPreviewVisible, setIsPreviewVisible] = useState(false);
@@ -393,6 +394,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
                     offsetRad={effectiveOffsetRad}
                     offsetCube={offsetCube}
                     invertCardinalLabels={invertLabels}
+                    showFacadeLabels={showFacadeLabels}
                   />
                   <div className="flex flex-col items-start gap-1 mt-2">
                     <div className="flex items-center gap-2 text-xs">
@@ -418,6 +420,14 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
                         onChange={setInvertLabels}
                       />
                       <span>Invert labels</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs">
+                      <Switch
+                        size="small"
+                        checked={showFacadeLabels}
+                        onChange={setShowFacadeLabels}
+                      />
+                      <span>Fassadenlabels</span>
                     </div>
                   </div>
                 </div>

@@ -19,6 +19,7 @@ type Props = {
   bottomColorRgb?: string; // e.g. "255,255,255"
   offsetCube?: boolean; // apply imagery offset to cube orientation as well (default true)
   invertCardinalLabels?: boolean; // invert cardinal directions (default true)
+  showFacadeLabels?: boolean; // show facade labels on faces
 };
 
 const eps = 0.00872665; // ~0.5° in rad
@@ -42,8 +43,9 @@ const ObliqueOrientationCube: React.FC<Props> = ({
   rotateCamera,
   offsetRad = 0,
   bottomColorRgb = "255,255,255",
-  offsetCube = true,
+  offsetCube = false,
   invertCardinalLabels = true,
+  showFacadeLabels = true,
 }) => {
   const half = size / 2;
 
@@ -138,11 +140,36 @@ const ObliqueOrientationCube: React.FC<Props> = ({
   // Face size and translation distance
   const face = size;
   const tz = half; // translateZ by half size to position faces
+  const labelRadius = face * 0.8;
   const discSize = face * 2; // circular disc diameter equals 2x cube edge length
   const containerSize = discSize; // ensure container fully contains the disc (dome)
   const bottomColorInner = `rgba(${bottomColorRgb}, 0.4)`;
   const bottomColorOuter = `rgba(${bottomColorRgb}, 0.0)`;
   const bottomGradient = `radial-gradient(circle closest-side, ${bottomColorInner} 0 90%, ${bottomColorOuter} 100%)`;
+  // Facade labels (DE) indexed by CardinalDirectionEnum order: [North, East, South, West]
+  // leading white space offsets the shy hyphen
+  const FACADE_LABELS_DE: readonly string[] = [
+    "NORD\u200bSEITE",
+    "OST\u200bSEITE",
+    "SÜD\u200bSEITE",
+    "WEST\u200bSEITE",
+  ];
+  // Facade label font sizing (~20% larger relative to face)
+  const facadeFontSize = face * 0.28;
+
+  const FacadeLabel: React.FC<{ text: string }> = ({ text }) => (
+    <div
+      className="absolute inset-0 grid place-items-center"
+      style={{ pointerEvents: "none" }}
+    >
+      <div
+        className="text-center uppercase font-black font-sans text-gray-400 leading-none"
+        style={{ fontSize: facadeFontSize }}
+      >
+        {text}
+      </div>
+    </div>
+  );
 
   return (
     <div
@@ -208,42 +235,76 @@ const ObliqueOrientationCube: React.FC<Props> = ({
               }}
             />
           </div>
-          {/* Front */}
+          {/* Front (South) */}
           <div
             className="absolute left-0 top-0 bg-white/80 border border-gray-300"
             style={{
               width: face,
               height: face,
               transform: `rotateX(${-Math.PI / 2}rad) translateZ(${tz}px)`,
+              transformStyle: "preserve-3d",
             }}
-          />
-          {/* Back */}
+          >
+            {showFacadeLabels && (
+              <FacadeLabel
+                text={FACADE_LABELS_DE[CardinalDirectionEnum.South]}
+              />
+            )}
+          </div>
+          {/* Back (North) */}
           <div
             className="absolute left-0 top-0 bg-white/50 border border-gray-200"
             style={{
               width: face,
               height: face,
-              transform: `rotateX(${Math.PI / 2}rad) translateZ(${tz}px)`,
+              transform: `rotateY(${Math.PI}rad) rotateX(${
+                Math.PI / 2
+              }rad) translateZ(${tz}px)`,
+              transformStyle: "preserve-3d",
             }}
-          />
-          {/* Left */}
+          >
+            {showFacadeLabels && (
+              <FacadeLabel
+                text={FACADE_LABELS_DE[CardinalDirectionEnum.North]}
+              />
+            )}
+          </div>
+          {/* Left (West) */}
           <div
             className="absolute left-0 top-0 bg-white/70 border border-gray-200"
             style={{
               width: face,
               height: face,
-              transform: `rotateY(${Math.PI / 2}rad) translateZ(${tz}px)`,
+              transform: `rotateX(${-Math.PI / 2}rad) rotateY(${
+                Math.PI / 2
+              }rad) translateZ(${tz}px)`,
+              transformStyle: "preserve-3d",
             }}
-          />
-          {/* Right */}
+          >
+            {showFacadeLabels && (
+              <FacadeLabel
+                text={FACADE_LABELS_DE[CardinalDirectionEnum.West]}
+              />
+            )}
+          </div>
+          {/* Right (East) */}
           <div
             className="absolute left-0 top-0 bg-white/70 border border-gray-200"
             style={{
               width: face,
               height: face,
-              transform: `rotateY(${-Math.PI / 2}rad) translateZ(${tz}px)`,
+              transform: `rotateX(${-Math.PI / 2}rad) rotateY(${
+                -Math.PI / 2
+              }rad) translateZ(${tz}px)`,
+              transformStyle: "preserve-3d",
             }}
-          />
+          >
+            {showFacadeLabels && (
+              <FacadeLabel
+                text={FACADE_LABELS_DE[CardinalDirectionEnum.East]}
+              />
+            )}
+          </div>
         </div>
       </div>
 
@@ -290,7 +351,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
             left: "50%",
             top: "50%",
             transformStyle: "preserve-3d",
-            transform: `translate(-50%, -50%) translate3d(0px, ${tz}px, 0px)`,
+            transform: `translate(-50%, -50%) translate3d(0px, ${labelRadius}px, 0px)`,
             pointerEvents: "none",
           }}
         >
@@ -317,7 +378,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
             left: "50%",
             top: "50%",
             transformStyle: "preserve-3d",
-            transform: `translate(-50%, -50%) translate3d(0px, ${-tz}px, 0px)`,
+            transform: `translate(-50%, -50%) translate3d(0px, ${-labelRadius}px, 0px)`,
             pointerEvents: "none",
           }}
         >
@@ -347,7 +408,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
             left: "50%",
             top: "50%",
             transformStyle: "preserve-3d",
-            transform: `translate(-50%, -50%) translate3d(${-tz}px, 0px, 0px)`,
+            transform: `translate(-50%, -50%) translate3d(${-labelRadius}px, 0px, 0px)`,
             pointerEvents: "none",
           }}
         >
@@ -377,7 +438,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
             left: "50%",
             top: "50%",
             transformStyle: "preserve-3d",
-            transform: `translate(-50%, -50%) translate3d(${tz}px, 0px, 0px)`,
+            transform: `translate(-50%, -50%) translate3d(${labelRadius}px, 0px, 0px)`,
             pointerEvents: "none",
           }}
         >
