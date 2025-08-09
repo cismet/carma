@@ -10,6 +10,8 @@ import {
   CardinalLetters,
   InvertedCardinalDirectionEnum,
 } from "../utils/orientationUtils";
+import Face3D from "./Face3D";
+import SelectorAnchor from "./SelectorAnchor";
 
 type Props = {
   size?: number; // px size of the square control
@@ -24,9 +26,11 @@ type Props = {
 
 const eps = 0.00872665; // ~0.5° in rad
 
-const ArrowSvg = (size: number = 100) => (
+const PI_OVER_2 = Math.PI / 2;
+
+const ArrowSvg = (size: number = 100, color: string = "#ffaaaaaa") => (
   <svg width={size} height={size} viewBox="0 0 100 100">
-    <polygon points="50,0 80,66 50,50 20,66" fill="#ef4444" />
+    <polygon points="50,15 80,75 50,60 20,75" fill={color} />
   </svg>
 );
 
@@ -157,71 +161,15 @@ const ObliqueOrientationCube: React.FC<Props> = ({
   // Facade label font sizing (~20% larger relative to face)
   const facadeFontSize = face * 0.28;
 
-  const FacadeLabel: React.FC<{ text: string }> = ({ text }) => (
-    <div
-      className="absolute inset-0 grid place-items-center"
-      style={{ pointerEvents: "none" }}
-    >
-      <div
-        className="text-center uppercase font-black font-sans text-gray-400 leading-none"
-        style={{ fontSize: facadeFontSize }}
-      >
-        {text}
-      </div>
-    </div>
-  );
-
-  // Generic vertical face (front/back/left/right) wrapper
-  const Face3D: React.FC<{
-    className?: string;
-    transform: string;
-    label?: string;
-  }> = ({ className = "", transform, label }) => (
-    <div
-      className={`absolute left-0 top-0 ${className}`}
-      style={{
-        width: face,
-        height: face,
-        transform,
-        transformStyle: "preserve-3d",
-      }}
-    >
-      {showFacadeLabels && label ? <FacadeLabel text={label} /> : null}
-    </div>
-  );
-
-  // NSOW selector anchor (3D positioned, billboards via labelsInverseTransform)
-  const SelectorAnchor: React.FC<{
-    translate3d: string; // e.g. `translate3d(0px, ${labelRadius}px, 0px)`
-    tooltip: string;
-    aria: string;
-    clickDir: CardinalDirectionEnum;
-    letterKey: number; // directionEnum.North/East/South/West
-  }> = ({ translate3d, tooltip, aria, clickDir, letterKey }) => (
-    <div
-      className="absolute"
-      style={{
-        left: "50%",
-        top: "50%",
-        transformStyle: "preserve-3d",
-        transform: `translate(-50%, -50%) ${translate3d}`,
-        pointerEvents: "none",
-      }}
-    >
-      <div style={{ transform: labelsInverseTransform, pointerEvents: "auto" }}>
-        <Tooltip title={tooltip}>
-          <Button
-            size="small"
-            shape="circle"
-            onClick={() => onDirectionSelect?.(clickDir)}
-            aria-label={aria}
-          >
-            {getLetter(letterKey)}
-          </Button>
-        </Tooltip>
-      </div>
-    </div>
-  );
+  // Centralize face transforms
+  const transforms = {
+    top: `translateZ(${tz}px)`,
+    bottom: `translateZ(${-tz}px)`,
+    front: `rotateX(${-PI_OVER_2}rad) translateZ(${tz}px)`,
+    back: `rotateY(${Math.PI}rad) rotateX(${PI_OVER_2}rad) translateZ(${tz}px)`,
+    left: `rotateX(${-PI_OVER_2}rad) rotateY(${PI_OVER_2}rad) translateZ(${tz}px)`,
+    right: `rotateX(${-PI_OVER_2}rad) rotateY(${-PI_OVER_2}rad) translateZ(${tz}px)`,
+  } as const;
 
   return (
     <div
@@ -244,15 +192,13 @@ const ObliqueOrientationCube: React.FC<Props> = ({
           style={{ width: face, height: face, transformStyle: "preserve-3d" }}
         >
           {/* Top */}
-          <div
-            className="absolute left-0 top-0 bg-white/70 border border-gray-300"
-            style={{
-              width: face,
-              height: face,
-              transform: `translateZ(${tz}px)`,
-              transformStyle: "preserve-3d",
-              boxShadow: "inset 0 0 10px rgba(0,0,0,0.1)",
-            }}
+          <Face3D
+            className="bg-white/70 border border-gray-300"
+            transform={transforms.top}
+            width={face}
+            height={face}
+            facadeFontSize={facadeFontSize}
+            style={{ boxShadow: "inset 0 0 10px rgba(0,0,0,0.1)" }}
           >
             {/* North arrow (SVG), counter-rotated to keep pointing north */}
             <div
@@ -261,7 +207,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
             >
               {ArrowSvg(face)}
             </div>
-          </div>
+          </Face3D>
 
           {/* Bottom - circular disc with radial gradient */}
           <div
@@ -269,7 +215,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
             style={{
               width: face,
               height: face,
-              transform: `translateZ(${-tz}px)`,
+              transform: transforms.bottom,
               transformStyle: "preserve-3d",
               overflow: "visible",
             }}
@@ -290,31 +236,41 @@ const ObliqueOrientationCube: React.FC<Props> = ({
           {/* Front (South) */}
           <Face3D
             className="bg-white/80 border border-gray-300"
-            transform={`rotateX(${-Math.PI / 2}rad) translateZ(${tz}px)`}
+            transform={transforms.front}
+            width={face}
+            height={face}
+            showLabel={showFacadeLabels}
+            facadeFontSize={facadeFontSize}
             label={FACADE_LABELS_DE[CardinalDirectionEnum.South]}
           />
           {/* Back (North) */}
           <Face3D
             className="bg-white/50 border border-gray-200"
-            transform={`rotateY(${Math.PI}rad) rotateX(${
-              Math.PI / 2
-            }rad) translateZ(${tz}px)`}
+            transform={transforms.back}
+            width={face}
+            height={face}
+            showLabel={showFacadeLabels}
+            facadeFontSize={facadeFontSize}
             label={FACADE_LABELS_DE[CardinalDirectionEnum.North]}
           />
           {/* Left (West) */}
           <Face3D
             className="bg-white/70 border border-gray-200"
-            transform={`rotateX(${-Math.PI / 2}rad) rotateY(${
-              Math.PI / 2
-            }rad) translateZ(${tz}px)`}
+            transform={transforms.left}
+            width={face}
+            height={face}
+            showLabel={showFacadeLabels}
+            facadeFontSize={facadeFontSize}
             label={FACADE_LABELS_DE[CardinalDirectionEnum.West]}
           />
           {/* Right (East) */}
           <Face3D
             className="bg-white/70 border border-gray-200"
-            transform={`rotateX(${-Math.PI / 2}rad) rotateY(${
-              -Math.PI / 2
-            }rad) translateZ(${tz}px)`}
+            transform={transforms.right}
+            width={face}
+            height={face}
+            showLabel={showFacadeLabels}
+            facadeFontSize={facadeFontSize}
             label={FACADE_LABELS_DE[CardinalDirectionEnum.East]}
           />
         </div>
@@ -359,29 +315,33 @@ const ObliqueOrientationCube: React.FC<Props> = ({
           translate3d={`translate3d(0px, ${labelRadius}px, 0px)`}
           tooltip="Blick nach Norden auf Südseite"
           aria="Select North"
-          clickDir={CardinalDirectionEnum.North}
-          letterKey={directionEnum.North}
+          onClick={() => onDirectionSelect?.(CardinalDirectionEnum.North)}
+          label={getLetter(directionEnum.North)}
+          billboardTransform={labelsInverseTransform}
         />
         <SelectorAnchor
           translate3d={`translate3d(0px, ${-labelRadius}px, 0px)`}
           tooltip="Blick nach Süden auf Nordseite"
           aria="Select South"
-          clickDir={CardinalDirectionEnum.South}
-          letterKey={directionEnum.South}
+          onClick={() => onDirectionSelect?.(CardinalDirectionEnum.South)}
+          label={getLetter(directionEnum.South)}
+          billboardTransform={labelsInverseTransform}
         />
         <SelectorAnchor
           translate3d={`translate3d(${-labelRadius}px, 0px, 0px)`}
           tooltip="Blick nach Osten auf Westseite"
           aria="Select East"
-          clickDir={CardinalDirectionEnum.East}
-          letterKey={directionEnum.East}
+          onClick={() => onDirectionSelect?.(CardinalDirectionEnum.East)}
+          label={getLetter(directionEnum.East)}
+          billboardTransform={labelsInverseTransform}
         />
         <SelectorAnchor
           translate3d={`translate3d(${labelRadius}px, 0px, 0px)`}
           tooltip="Blick nach Westen auf Ostseite"
           aria="Select West"
-          clickDir={CardinalDirectionEnum.West}
-          letterKey={directionEnum.West}
+          onClick={() => onDirectionSelect?.(CardinalDirectionEnum.West)}
+          label={getLetter(directionEnum.West)}
+          billboardTransform={labelsInverseTransform}
         />
       </div>
     </div>
