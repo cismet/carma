@@ -42,12 +42,17 @@ export {
   type CesiumAnimateFovOptions,
 } from "./lib/utils/cesiumAnimateFov";
 
+export { applyRollToHeadingForCameraNearNadir } from "./lib/utils/cesiumCamera";
+export {
+  cesiumCameraToCssTransform,
+  cssPerspectiveFromCesiumCameraForElement,
+  fovToCssPerspectiveByFov,
+} from "./lib/utils/cesiumCameraToCssTransform";
+
 export {
   CesiumErrorToErrorBoundaryForwarder,
   type ForwardedCesiumError,
 } from "./lib/utils/CesiumErrorToErrorBoundaryForwarder";
-
-export { applyRollToHeadingForCameraNearNadir } from "./lib/utils/cesiumCamera";
 
 export {
   encodeCesiumCamera,

@@ -385,7 +385,8 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
                   size={70}
                   rotateCamera={rotateCamera}
                   onDirectionSelect={rotateToDirection}
-                  offsetDegrees={offsetDegrees}
+                  offsetRad={CesiumMath.toRadians(offsetDegrees)}
+                  offsetCube={true}
                 />
               </div>
               <div />

@@ -3,21 +3,20 @@ import { Button, Tooltip } from "antd";
 import { Math as CesiumMath } from "cesium";
 import {
   useCesiumContext,
-  applyRollToHeadingForCameraNearNadir,
+  cesiumCameraToCssTransform,
+  cssPerspectiveFromCesiumCameraForElement,
 } from "@carma-mapping/cesium-engine";
-import {
-  cssPerspectiveFromCesiumFrustumForElement,
-  type CesiumFrustumLike,
-} from "@carma-commons/utils";
 import { CardinalDirectionEnum } from "../utils/orientationUtils";
 
 type Props = {
   size?: number; // px size of the square control
   onDirectionSelect?: (dir: CardinalDirectionEnum) => void;
   rotateCamera?: (clockwise: boolean) => void;
-  offsetDegrees?: number;
+  offsetRad?: number;
   bottomColorRgb?: string; // e.g. "255,255,255"
 };
+
+const eps = 0.00872665; // ~0.5° in rad
 
 /**
  * ObliqueOrientationCube
@@ -30,14 +29,13 @@ const ObliqueOrientationCube: React.FC<Props> = ({
   size = 100,
   onDirectionSelect,
   rotateCamera,
-  offsetDegrees = 0,
+  offsetRad = 0,
   bottomColorRgb = "255,255,255",
 }) => {
   const half = size / 2;
 
   const { viewerRef, isViewerReady } = useCesiumContext();
-  const [headingRad, setHeadingRad] = useState(0);
-  const [pitchRad, setPitchRad] = useState(0);
+  const [, setTransformTick] = useState(0);
   const [perspectivePx, setPerspectivePx] = useState<number>(1600);
   const lastPerspectiveRef = useRef<number | undefined>(undefined);
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -46,17 +44,21 @@ const ObliqueOrientationCube: React.FC<Props> = ({
     const viewer = viewerRef.current;
     if (!isViewerReady || !viewer || viewer.isDestroyed()) return;
     const camera = viewer.camera;
-    const update = () => {
-      // Use the same correction as PitchingCompass for stable heading near nadir
-      setHeadingRad(applyRollToHeadingForCameraNearNadir(camera));
-      setPitchRad(camera.pitch);
+    const lastRef = { h: camera.heading, p: camera.pitch };
+    const onChanged = () => {
+      const h = camera.heading;
+      const p = camera.pitch;
+      if (Math.abs(h - lastRef.h) > eps || Math.abs(p - lastRef.p) > eps) {
+        lastRef.h = h;
+        lastRef.p = p;
+        setTransformTick((t) => t + 1);
+      }
     };
     camera.percentageChanged = Math.max(camera.percentageChanged ?? 0.01, 0.01);
-    camera.changed.addEventListener(update);
-    // Initialize immediately
-    update();
+    camera.changed.addEventListener(onChanged);
+    onChanged();
     return () => {
-      camera.changed.removeEventListener(update);
+      camera.changed.removeEventListener(onChanged);
     };
   }, [viewerRef, isViewerReady, size]);
 
@@ -69,31 +71,13 @@ const ObliqueOrientationCube: React.FC<Props> = ({
 
     const updateFrustum = () => {
       try {
-        const frustum = camera.frustum as unknown as CesiumFrustumLike;
         // Use the Cesium viewer container dimensions for perspective mapping so the cube scales with the scene
-        const p = cssPerspectiveFromCesiumFrustumForElement(
+        const p = cssPerspectiveFromCesiumCameraForElement(
           viewer.container,
-          frustum,
+          camera,
           lastPerspectiveRef.current ?? 1600
         );
         if (!Number.isFinite(p)) return;
-
-        const rect = viewer.container?.getBoundingClientRect?.();
-        const w = rect?.width ?? size;
-        const h = rect?.height ?? size;
-        console.debug("[ObliqueOrientationCube] FOV→perspective", {
-          longerDimension: w >= h ? "width" : "height",
-          containerUsed: "viewer.container",
-          container: { widthPx: w, heightPx: h },
-          fovRad: frustum.fov,
-          fovDeg:
-            typeof frustum.fov === "number"
-              ? CesiumMath.toDegrees(frustum.fov)
-              : undefined,
-          aspect:
-            scene.drawingBufferWidth / Math.max(1, scene.drawingBufferHeight),
-          perspectivePx: p,
-        });
         const prevP = lastPerspectiveRef.current ?? Number.NaN;
         const changedP =
           !Number.isFinite(prevP) ||
@@ -116,21 +100,13 @@ const ObliqueOrientationCube: React.FC<Props> = ({
     };
   }, [viewerRef, isViewerReady, size]);
 
-  const headingDeg = CesiumMath.toDegrees(headingRad);
-  const pitchDeg = CesiumMath.toDegrees(pitchRad);
-  // Map Cesium pitch (0 = side, -90 = top-down) so that:
-  //  - at 0, the top face points to the user (rotateX(90))
-  //  - at -90, the front face points to the user (rotateX(0))
-  const mappedPitchX = pitchDeg + 90;
-
-  // Scene transform: apply heading around the top/bottom face axis (Y) first, then tilt by pitch (X)
-  // Note: CSS applies transforms right-to-left, so heading (rightmost) is applied before pitch
-  // Align cube with flight pattern north by compensating heading with offsetDegrees
-  const headingAdj = headingDeg - offsetDegrees;
-  // Axis swap: pre-rotate scene by +90deg around X so that the local default plane becomes the top/bottom plane.
-  const sceneTransform = `rotateX(${mappedPitchX}deg) rotateZ(${headingAdj}deg)`;
+  // Build forward scene transform and inverse (for billboarding labels)
+  const cam = viewerRef.current?.camera;
+  const [sceneTransform, inverseSceneTransform] = cam
+    ? cesiumCameraToCssTransform(cam, { offsetRad })
+    : ["", ""];
   // Pre-rotate the north arrow by the imagery offset (applied in face space before the 3D scene)
-  const northArrowTransform = `rotateZ(${offsetDegrees}deg)`;
+  const northArrowTransform = `rotateZ(${offsetRad}rad)`;
 
   // Face size and translation distance
   const face = size;
@@ -215,7 +191,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
             style={{
               width: face,
               height: face,
-              transform: `rotateX(-90deg) translateZ(${tz}px)`,
+              transform: `rotateX(${-Math.PI / 2}rad) translateZ(${tz}px)`,
             }}
           />
           {/* Back */}
@@ -224,7 +200,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
             style={{
               width: face,
               height: face,
-              transform: `rotateX(90deg) translateZ(${tz}px)`,
+              transform: `rotateX(${Math.PI / 2}rad) translateZ(${tz}px)`,
             }}
           />
           {/* Left */}
@@ -233,7 +209,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
             style={{
               width: face,
               height: face,
-              transform: `rotateY(90deg) translateZ(${tz}px)`,
+              transform: `rotateY(${Math.PI / 2}rad) translateZ(${tz}px)`,
             }}
           />
           {/* Right */}
@@ -242,7 +218,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
             style={{
               width: face,
               height: face,
-              transform: `rotateY(-90deg) translateZ(${tz}px)`,
+              transform: `rotateY(${-Math.PI / 2}rad) translateZ(${tz}px)`,
             }}
           />
         </div>
@@ -296,10 +272,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
           }}
         >
           <div
-            style={{
-              transform: `rotateZ(${-headingAdj}deg) rotateX(${-mappedPitchX}deg)`,
-              pointerEvents: "auto",
-            }}
+            style={{ transform: inverseSceneTransform, pointerEvents: "auto" }}
           >
             <Tooltip title="Blick nach Norden auf Südseite">
               <Button
@@ -308,7 +281,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
                 onClick={() => onDirectionSelect?.(CardinalDirectionEnum.North)}
                 aria-label="Select North"
               >
-                S
+                N
               </Button>
             </Tooltip>
           </div>
@@ -327,7 +300,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
         >
           <div
             style={{
-              transform: `rotateZ(${-headingAdj}deg) rotateX(${-mappedPitchX}deg)`,
+              transform: inverseSceneTransform,
               pointerEvents: "auto",
             }}
           >
@@ -338,7 +311,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
                 onClick={() => onDirectionSelect?.(CardinalDirectionEnum.South)}
                 aria-label="Select South"
               >
-                N
+                S
               </Button>
             </Tooltip>
           </div>
@@ -357,7 +330,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
         >
           <div
             style={{
-              transform: `rotateZ(${-headingAdj}deg) rotateX(${-mappedPitchX}deg)`,
+              transform: inverseSceneTransform,
               pointerEvents: "auto",
             }}
           >
@@ -368,7 +341,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
                 onClick={() => onDirectionSelect?.(CardinalDirectionEnum.East)}
                 aria-label="Select East"
               >
-                W
+                O
               </Button>
             </Tooltip>
           </div>
@@ -387,7 +360,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
         >
           <div
             style={{
-              transform: `rotateZ(${-headingAdj}deg) rotateX(${-mappedPitchX}deg)`,
+              transform: inverseSceneTransform,
               pointerEvents: "auto",
             }}
           >
@@ -398,7 +371,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
                 onClick={() => onDirectionSelect?.(CardinalDirectionEnum.West)}
                 aria-label="Select West"
               >
-                O
+                W
               </Button>
             </Tooltip>
           </div>

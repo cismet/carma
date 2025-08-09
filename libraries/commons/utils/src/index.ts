@@ -40,9 +40,4 @@ export { detectWebGLContext } from "./lib/webgl";
 
 export { extractInformation } from "./lib/layer-parser";
 
-export {
-  fovToCssPerspectiveByFov,
-  cssPerspectiveFromCesiumFrustum,
-  cssPerspectiveFromCesiumFrustumForElement,
-  type CesiumFrustumLike,
-} from "./lib/cssPerspective";
+// Removed Cesium perspective helpers; moved to Cesium engine package
