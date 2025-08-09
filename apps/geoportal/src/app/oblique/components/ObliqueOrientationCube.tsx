@@ -138,7 +138,8 @@ const ObliqueOrientationCube: React.FC<Props> = ({
   // Face size and translation distance
   const face = size;
   const tz = half; // translateZ by half size to position faces
-  const discSize = face * 2; // make the circular disc radius equal to cube edge length
+  const discSize = face * 2; // circular disc diameter equals 2x cube edge length
+  const containerSize = discSize; // ensure container fully contains the disc (dome)
   const bottomColorInner = `rgba(${bottomColorRgb}, 0.4)`;
   const bottomColorOuter = `rgba(${bottomColorRgb}, 0.0)`;
   const bottomGradient = `radial-gradient(circle closest-side, ${bottomColorInner} 0 90%, ${bottomColorOuter} 100%)`;
@@ -147,7 +148,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
     <div
       ref={containerRef}
       className="relative"
-      style={{ width: size, height: size, perspective: perspectivePx }}
+      style={{ width: containerSize, height: containerSize, perspective: perspectivePx }}
     >
       {/* 3D cube scene */}
       <div
