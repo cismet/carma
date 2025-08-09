@@ -14,7 +14,7 @@ import {
   faExternalLink,
   faFileArrowDown,
 } from "@fortawesome/free-solid-svg-icons";
-import { Tooltip } from "antd";
+import { Tooltip, Switch } from "antd";
 import { Math as CesiumMath } from "cesium";
 
 import {
@@ -104,6 +104,9 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const animationInProgressRef = useRef<boolean>(false);
 
   const [isVisible, setIsVisible] = useState(isObliqueMode);
+  const [offsetEnabled, setOffsetEnabled] = useState(true);
+  const [offsetCube, setOffsetCube] = useState(true);
+  const [invertLabels, setInvertLabels] = useState(true);
   const [shouldRender, setShouldRender] = useState(isObliqueMode);
   const [isPreviewVisible, setIsPreviewVisible] = useState(false);
   const isTransitioning = useSelector(selectViewerIsTransitioning);
@@ -231,7 +234,9 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
 
   const headingDegrees = formatHeadingDegrees(currentHeading);
 
-  const offsetDegrees = Math.round(CesiumMath.toDegrees(headingOffset));
+  const effectiveOffsetRad = offsetEnabled ? headingOffset ?? 0 : 0;
+  const offsetDegrees = Math.round(CesiumMath.toDegrees(effectiveOffsetRad));
+  const cubeOffsetRad = offsetCube ? effectiveOffsetRad : 0;
 
   return (
     <>
@@ -381,13 +386,42 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
                 />
               </div>
               <div className="flex justify-center">
-                <ObliqueOrientationCube
-                  size={70}
-                  rotateCamera={rotateCamera}
-                  onDirectionSelect={rotateToDirection}
-                  offsetRad={CesiumMath.toRadians(offsetDegrees)}
-                  offsetCube={true}
-                />
+                <div className="flex flex-col items-center">
+                  <ObliqueOrientationCube
+                    size={70}
+                    rotateCamera={rotateCamera}
+                    onDirectionSelect={rotateToDirection}
+                    offsetRad={cubeOffsetRad}
+                    offsetCube={offsetCube}
+                    invertCardinalLabels={invertLabels}
+                  />
+                  <div className="flex flex-col items-start gap-1 mt-2">
+                    <div className="flex items-center gap-2 text-xs">
+                      <Switch
+                        size="small"
+                        checked={offsetEnabled}
+                        onChange={setOffsetEnabled}
+                      />
+                      <span>Offset enabled</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs">
+                      <Switch
+                        size="small"
+                        checked={offsetCube}
+                        onChange={setOffsetCube}
+                      />
+                      <span>Offset on cube</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-xs">
+                      <Switch
+                        size="small"
+                        checked={invertLabels}
+                        onChange={setInvertLabels}
+                      />
+                      <span>Invert labels</span>
+                    </div>
+                  </div>
+                </div>
               </div>
               <div />
             </div>

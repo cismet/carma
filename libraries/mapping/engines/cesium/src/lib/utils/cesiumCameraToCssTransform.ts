@@ -58,8 +58,8 @@ export function cesiumCameraToCssTransform(
   const headingRad = applyRollToHeadingForCameraNearNadir(camera);
   const mappedPitchRad = camera.pitch + Math.PI / 2; // align top/bottom as default plane
   const headingAdjRad = headingRad - offsetRad; // compensate imagery north offset
-  const transform = `rotateX(${mappedPitchRad}rad) rotateZ(${headingAdjRad}rad)`;
-  const inverseTransform = `rotateZ(${-headingAdjRad}rad) rotateX(${-mappedPitchRad}rad)`;
+  const transform = `rotateX(${mappedPitchRad}rad) rotateZ(${-headingAdjRad}rad)`;
+  const inverseTransform = `rotateZ(${headingAdjRad}rad) rotateX(${-mappedPitchRad}rad)`;
   if (typeof targetEl !== "undefined") {
     const perspective = cssPerspectiveFromCesiumCameraForElement(
       targetEl as Element | null | undefined,

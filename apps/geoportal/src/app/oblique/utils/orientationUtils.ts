@@ -9,6 +9,13 @@ export enum CardinalDirectionEnum {
   West = 3,
 }
 
+export enum InvertedCardinalDirectionEnum {
+  North = 2,
+  East = 3,
+  South = 0,
+  West = 1,
+}
+
 export const CardinalNames = Object.freeze({
   DE: new Map([
     [CardinalDirectionEnum.North, "Norden"],
@@ -37,6 +44,15 @@ export const CardinalLetters = Object.freeze({
     [CardinalDirectionEnum.South, "S"],
     [CardinalDirectionEnum.West, "W"],
   ]),
+});
+
+// for parser from provided GeoJSON File format.
+
+const CARDINAL_STRINGS = Object.freeze({
+  North: "NORD",
+  East: "OST",
+  South: "SUED",
+  West: "WEST",
 });
 
 /**
@@ -77,15 +93,6 @@ export function getApproximateHeadingBySector(
   const baseHeading = getHeadingFromCardinalDirection(sector);
   return baseHeading + offset;
 }
-
-// for parser from provided GeoJSON File format.
-
-const CARDINAL_STRINGS = Object.freeze({
-  North: "NORD",
-  East: "OST",
-  South: "SUED",
-  West: "WEST",
-});
 
 export const getCardinalDirection = (value: string): CardinalDirectionEnum => {
   if (!value) return CardinalDirectionEnum.North;

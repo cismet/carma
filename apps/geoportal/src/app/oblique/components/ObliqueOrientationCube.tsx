@@ -1,12 +1,15 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Button, Tooltip } from "antd";
-import { Math as CesiumMath } from "cesium";
 import {
   useCesiumContext,
   cesiumCameraToCssTransform,
   cssPerspectiveFromCesiumCameraForElement,
 } from "@carma-mapping/cesium-engine";
-import { CardinalDirectionEnum } from "../utils/orientationUtils";
+import {
+  CardinalDirectionEnum,
+  CardinalLetters,
+  InvertedCardinalDirectionEnum,
+} from "../utils/orientationUtils";
 
 type Props = {
   size?: number; // px size of the square control
@@ -14,9 +17,17 @@ type Props = {
   rotateCamera?: (clockwise: boolean) => void;
   offsetRad?: number;
   bottomColorRgb?: string; // e.g. "255,255,255"
+  offsetCube?: boolean; // apply imagery offset to cube orientation as well (default true)
+  invertCardinalLabels?: boolean; // invert cardinal directions (default true)
 };
 
 const eps = 0.00872665; // ~0.5° in rad
+
+const ArrowSvg = (size: number = 100) => (
+  <svg width={size} height={size} viewBox="0 0 100 100">
+    <polygon points="50,0 80,66 50,50 20,66" fill="#ef4444" />
+  </svg>
+);
 
 /**
  * ObliqueOrientationCube
@@ -31,6 +42,8 @@ const ObliqueOrientationCube: React.FC<Props> = ({
   rotateCamera,
   offsetRad = 0,
   bottomColorRgb = "255,255,255",
+  offsetCube = true,
+  invertCardinalLabels = true,
 }) => {
   const half = size / 2;
 
@@ -39,6 +52,13 @@ const ObliqueOrientationCube: React.FC<Props> = ({
   const [perspectivePx, setPerspectivePx] = useState<number>(1600);
   const lastPerspectiveRef = useRef<number | undefined>(undefined);
   const containerRef = useRef<HTMLDivElement | null>(null);
+
+  const directionEnum = invertCardinalLabels
+    ? InvertedCardinalDirectionEnum
+    : CardinalDirectionEnum;
+  const cardinalLetters = CardinalLetters.DE;
+  const getLetter = (key: number) =>
+    cardinalLetters.get(key as CardinalDirectionEnum);
 
   useEffect(() => {
     const viewer = viewerRef.current;
@@ -103,10 +123,17 @@ const ObliqueOrientationCube: React.FC<Props> = ({
   // Build forward scene transform and inverse (for billboarding labels)
   const cam = viewerRef.current?.camera;
   const [sceneTransform, inverseSceneTransform] = cam
-    ? cesiumCameraToCssTransform(cam, { offsetRad })
+    ? cesiumCameraToCssTransform(cam, { offsetRad: offsetCube ? offsetRad : 0 })
     : ["", ""];
-  // Pre-rotate the north arrow by the imagery offset (applied in face space before the 3D scene)
-  const northArrowTransform = `rotateZ(${offsetRad}rad)`;
+  // Labels should optionally receive the offset even when the cube does not
+  const labelsSceneTransform = offsetCube
+    ? sceneTransform
+    : `${sceneTransform} rotateZ(${offsetRad}rad)`;
+  const labelsInverseTransform = offsetCube
+    ? inverseSceneTransform
+    : `rotateZ(${-offsetRad}rad) ${inverseSceneTransform}`;
+  // Pre-rotate the north arrow by the imagery offset (arrow should always point to geographic north)
+  const northArrowTransform = `rotateZ(${-offsetRad}rad)`;
 
   // Face size and translation distance
   const face = size;
@@ -148,16 +175,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
               className="w-full h-full flex items-center justify-center"
               style={{ transform: northArrowTransform }}
             >
-              <svg width={face * 0.5} height={face * 0.5} viewBox="0 0 100 100">
-                <defs>
-                  <linearGradient id="gradN" x1="0%" y1="0%" x2="0%" y2="100%">
-                    <stop offset="0%" stopColor="#ef4444" />
-                    <stop offset="100%" stopColor="#b91c1c" />
-                  </linearGradient>
-                </defs>
-                {/* Triangle arrow pointing up (north) */}
-                <polygon points="50,5 70,70 50,50 30,70" fill="url(#gradN)" />
-              </svg>
+              {ArrowSvg(face)}
             </div>
           </div>
 
@@ -256,11 +274,11 @@ const ObliqueOrientationCube: React.FC<Props> = ({
         style={{
           pointerEvents: "none",
           transformStyle: "preserve-3d",
-          transform: sceneTransform,
+          transform: labelsSceneTransform,
         }}
       >
         {/* Common styles for anchor containers: centered at cube origin, then 3D translated */}
-        {/* Front (South) face center: translateY(+tz) on Z=0 plane */}
+        {/* Front (South) face center */}
         <div
           className="absolute"
           style={{
@@ -272,7 +290,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
           }}
         >
           <div
-            style={{ transform: inverseSceneTransform, pointerEvents: "auto" }}
+            style={{ transform: labelsInverseTransform, pointerEvents: "auto" }}
           >
             <Tooltip title="Blick nach Norden auf Südseite">
               <Button
@@ -281,13 +299,13 @@ const ObliqueOrientationCube: React.FC<Props> = ({
                 onClick={() => onDirectionSelect?.(CardinalDirectionEnum.North)}
                 aria-label="Select North"
               >
-                N
+                {getLetter(directionEnum.North)}
               </Button>
             </Tooltip>
           </div>
         </div>
 
-        {/* Back (North) face center: translateY(-tz) on Z=0 plane */}
+        {/* Back (North) face center */}
         <div
           className="absolute"
           style={{
@@ -300,7 +318,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
         >
           <div
             style={{
-              transform: inverseSceneTransform,
+              transform: labelsInverseTransform,
               pointerEvents: "auto",
             }}
           >
@@ -311,43 +329,13 @@ const ObliqueOrientationCube: React.FC<Props> = ({
                 onClick={() => onDirectionSelect?.(CardinalDirectionEnum.South)}
                 aria-label="Select South"
               >
-                S
+                {getLetter(directionEnum.South)}
               </Button>
             </Tooltip>
           </div>
         </div>
 
-        {/* Left (West) face center: translateX(+tz) on Z=0 plane */}
-        <div
-          className="absolute"
-          style={{
-            left: "50%",
-            top: "50%",
-            transformStyle: "preserve-3d",
-            transform: `translate(-50%, -50%) translate3d(${tz}px, 0px, 0px)`,
-            pointerEvents: "none",
-          }}
-        >
-          <div
-            style={{
-              transform: inverseSceneTransform,
-              pointerEvents: "auto",
-            }}
-          >
-            <Tooltip title="Blick nach Osten auf Westseite">
-              <Button
-                size="small"
-                shape="circle"
-                onClick={() => onDirectionSelect?.(CardinalDirectionEnum.East)}
-                aria-label="Select East"
-              >
-                O
-              </Button>
-            </Tooltip>
-          </div>
-        </div>
-
-        {/* Right (East/Ost) face center: translateX(-tz) on Z=0 plane */}
+        {/* Left (West) face center */}
         <div
           className="absolute"
           style={{
@@ -364,6 +352,36 @@ const ObliqueOrientationCube: React.FC<Props> = ({
               pointerEvents: "auto",
             }}
           >
+            <Tooltip title="Blick nach Osten auf Westseite">
+              <Button
+                size="small"
+                shape="circle"
+                onClick={() => onDirectionSelect?.(CardinalDirectionEnum.East)}
+                aria-label="Select East"
+              >
+                {getLetter(directionEnum.East)}
+              </Button>
+            </Tooltip>
+          </div>
+        </div>
+
+        {/* Right (East/Ost) face center */}
+        <div
+          className="absolute"
+          style={{
+            left: "50%",
+            top: "50%",
+            transformStyle: "preserve-3d",
+            transform: `translate(-50%, -50%) translate3d(${tz}px, 0px, 0px)`,
+            pointerEvents: "none",
+          }}
+        >
+          <div
+            style={{
+              transform: inverseSceneTransform,
+              pointerEvents: "auto",
+            }}
+          >
             <Tooltip title="Blick nach Westen auf Ostseite">
               <Button
                 size="small"
@@ -371,7 +389,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
                 onClick={() => onDirectionSelect?.(CardinalDirectionEnum.West)}
                 aria-label="Select West"
               >
-                W
+                {getLetter(directionEnum.West)}
               </Button>
             </Tooltip>
           </div>
