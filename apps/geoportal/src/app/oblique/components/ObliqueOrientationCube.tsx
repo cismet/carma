@@ -91,7 +91,6 @@ const ObliqueOrientationCube: React.FC<Props> = ({
               ? CesiumMath.toDegrees(frustum.fov)
               : undefined,
           aspect:
-            frustum.aspectRatio ??
             scene.drawingBufferWidth / Math.max(1, scene.drawingBufferHeight),
           perspectivePx: p,
         });
@@ -122,13 +121,14 @@ const ObliqueOrientationCube: React.FC<Props> = ({
   // Map Cesium pitch (0 = side, -90 = top-down) so that:
   //  - at 0, the top face points to the user (rotateX(90))
   //  - at -90, the front face points to the user (rotateX(0))
-  const mappedPitchX = pitchDeg;
+  const mappedPitchX = pitchDeg + 90;
 
   // Scene transform: apply heading around the top/bottom face axis (Y) first, then tilt by pitch (X)
   // Note: CSS applies transforms right-to-left, so heading (rightmost) is applied before pitch
   // Align cube with flight pattern north by compensating heading with offsetDegrees
   const headingAdj = headingDeg - offsetDegrees;
-  const sceneTransform = `rotateX(${mappedPitchX}deg) rotateY(${headingAdj}deg)`;
+  // Axis swap: pre-rotate scene by +90deg around X so that the local default plane becomes the top/bottom plane.
+  const sceneTransform = `rotateX(${mappedPitchX}deg) rotateZ(${headingAdj}deg)`;
   // Pre-rotate the north arrow by the imagery offset (applied in face space before the 3D scene)
   const northArrowTransform = `rotateZ(${offsetDegrees}deg)`;
 
@@ -162,7 +162,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
             style={{
               width: face,
               height: face,
-              transform: `rotateX(90deg) translateZ(${tz}px)`,
+              transform: `translateZ(${tz}px)`,
               transformStyle: "preserve-3d",
               boxShadow: "inset 0 0 10px rgba(0,0,0,0.1)",
             }}
@@ -191,7 +191,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
             style={{
               width: face,
               height: face,
-              transform: `rotateX(-90deg) translateZ(${tz}px)`,
+              transform: `translateZ(${-tz}px)`,
               transformStyle: "preserve-3d",
               overflow: "visible",
             }}
@@ -215,7 +215,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
             style={{
               width: face,
               height: face,
-              transform: `translateZ(${tz}px)`,
+              transform: `rotateX(-90deg) translateZ(${tz}px)`,
             }}
           />
           {/* Back */}
@@ -224,7 +224,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
             style={{
               width: face,
               height: face,
-              transform: `rotateY(180deg) translateZ(${tz}px)`,
+              transform: `rotateX(90deg) translateZ(${tz}px)`,
             }}
           />
           {/* Left */}
@@ -233,7 +233,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
             style={{
               width: face,
               height: face,
-              transform: `rotateY(-90deg) translateZ(${tz}px)`,
+              transform: `rotateY(90deg) translateZ(${tz}px)`,
             }}
           />
           {/* Right */}
@@ -242,7 +242,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
             style={{
               width: face,
               height: face,
-              transform: `rotateY(90deg) translateZ(${tz}px)`,
+              transform: `rotateY(-90deg) translateZ(${tz}px)`,
             }}
           />
         </div>
@@ -284,20 +284,20 @@ const ObliqueOrientationCube: React.FC<Props> = ({
         }}
       >
         {/* Common styles for anchor containers: centered at cube origin, then 3D translated */}
-        {/* Front (South) face center: translateZ(+tz) */}
+        {/* Front (South) face center: translateY(+tz) on Z=0 plane */}
         <div
           className="absolute"
           style={{
             left: "50%",
             top: "50%",
             transformStyle: "preserve-3d",
-            transform: `translate(-50%, -50%) translate3d(0px, 0px, ${tz}px)`,
+            transform: `translate(-50%, -50%) translate3d(0px, ${tz}px, 0px)`,
             pointerEvents: "none",
           }}
         >
           <div
             style={{
-              transform: `rotateY(${-headingAdj}deg) rotateX(${-mappedPitchX}deg)`,
+              transform: `rotateZ(${-headingAdj}deg) rotateX(${-mappedPitchX}deg)`,
               pointerEvents: "auto",
             }}
           >
@@ -314,20 +314,20 @@ const ObliqueOrientationCube: React.FC<Props> = ({
           </div>
         </div>
 
-        {/* Back (North) face center: translateZ(-tz) */}
+        {/* Back (North) face center: translateY(-tz) on Z=0 plane */}
         <div
           className="absolute"
           style={{
             left: "50%",
             top: "50%",
             transformStyle: "preserve-3d",
-            transform: `translate(-50%, -50%) translate3d(0px, 0px, ${-tz}px)`,
+            transform: `translate(-50%, -50%) translate3d(0px, ${-tz}px, 0px)`,
             pointerEvents: "none",
           }}
         >
           <div
             style={{
-              transform: `rotateY(${-headingAdj}deg) rotateX(${-mappedPitchX}deg)`,
+              transform: `rotateZ(${-headingAdj}deg) rotateX(${-mappedPitchX}deg)`,
               pointerEvents: "auto",
             }}
           >
@@ -344,20 +344,20 @@ const ObliqueOrientationCube: React.FC<Props> = ({
           </div>
         </div>
 
-        {/* Left (West) face center: translateX(-tz) */}
+        {/* Left (West) face center: translateX(+tz) on Z=0 plane */}
         <div
           className="absolute"
           style={{
             left: "50%",
             top: "50%",
             transformStyle: "preserve-3d",
-            transform: `translate(-50%, -50%) translate3d(${-tz}px, 0px, 0px)`,
+            transform: `translate(-50%, -50%) translate3d(${tz}px, 0px, 0px)`,
             pointerEvents: "none",
           }}
         >
           <div
             style={{
-              transform: `rotateY(${-headingAdj}deg) rotateX(${-mappedPitchX}deg)`,
+              transform: `rotateZ(${-headingAdj}deg) rotateX(${-mappedPitchX}deg)`,
               pointerEvents: "auto",
             }}
           >
@@ -374,20 +374,20 @@ const ObliqueOrientationCube: React.FC<Props> = ({
           </div>
         </div>
 
-        {/* Right (East/Ost) face center: translateX(+tz) */}
+        {/* Right (East/Ost) face center: translateX(-tz) on Z=0 plane */}
         <div
           className="absolute"
           style={{
             left: "50%",
             top: "50%",
             transformStyle: "preserve-3d",
-            transform: `translate(-50%, -50%) translate3d(${tz}px, 0px, 0px)`,
+            transform: `translate(-50%, -50%) translate3d(${-tz}px, 0px, 0px)`,
             pointerEvents: "none",
           }}
         >
           <div
             style={{
-              transform: `rotateY(${-headingAdj}deg) rotateX(${-mappedPitchX}deg)`,
+              transform: `rotateZ(${-headingAdj}deg) rotateX(${-mappedPitchX}deg)`,
               pointerEvents: "auto",
             }}
           >
