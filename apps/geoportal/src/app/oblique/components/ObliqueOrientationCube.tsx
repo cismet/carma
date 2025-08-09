@@ -171,6 +171,58 @@ const ObliqueOrientationCube: React.FC<Props> = ({
     </div>
   );
 
+  // Generic vertical face (front/back/left/right) wrapper
+  const Face3D: React.FC<{
+    className?: string;
+    transform: string;
+    label?: string;
+  }> = ({ className = "", transform, label }) => (
+    <div
+      className={`absolute left-0 top-0 ${className}`}
+      style={{
+        width: face,
+        height: face,
+        transform,
+        transformStyle: "preserve-3d",
+      }}
+    >
+      {showFacadeLabels && label ? <FacadeLabel text={label} /> : null}
+    </div>
+  );
+
+  // NSOW selector anchor (3D positioned, billboards via labelsInverseTransform)
+  const SelectorAnchor: React.FC<{
+    translate3d: string; // e.g. `translate3d(0px, ${labelRadius}px, 0px)`
+    tooltip: string;
+    aria: string;
+    clickDir: CardinalDirectionEnum;
+    letterKey: number; // directionEnum.North/East/South/West
+  }> = ({ translate3d, tooltip, aria, clickDir, letterKey }) => (
+    <div
+      className="absolute"
+      style={{
+        left: "50%",
+        top: "50%",
+        transformStyle: "preserve-3d",
+        transform: `translate(-50%, -50%) ${translate3d}`,
+        pointerEvents: "none",
+      }}
+    >
+      <div style={{ transform: labelsInverseTransform, pointerEvents: "auto" }}>
+        <Tooltip title={tooltip}>
+          <Button
+            size="small"
+            shape="circle"
+            onClick={() => onDirectionSelect?.(clickDir)}
+            aria-label={aria}
+          >
+            {getLetter(letterKey)}
+          </Button>
+        </Tooltip>
+      </div>
+    </div>
+  );
+
   return (
     <div
       ref={containerRef}
@@ -236,75 +288,35 @@ const ObliqueOrientationCube: React.FC<Props> = ({
             />
           </div>
           {/* Front (South) */}
-          <div
-            className="absolute left-0 top-0 bg-white/80 border border-gray-300"
-            style={{
-              width: face,
-              height: face,
-              transform: `rotateX(${-Math.PI / 2}rad) translateZ(${tz}px)`,
-              transformStyle: "preserve-3d",
-            }}
-          >
-            {showFacadeLabels && (
-              <FacadeLabel
-                text={FACADE_LABELS_DE[CardinalDirectionEnum.South]}
-              />
-            )}
-          </div>
+          <Face3D
+            className="bg-white/80 border border-gray-300"
+            transform={`rotateX(${-Math.PI / 2}rad) translateZ(${tz}px)`}
+            label={FACADE_LABELS_DE[CardinalDirectionEnum.South]}
+          />
           {/* Back (North) */}
-          <div
-            className="absolute left-0 top-0 bg-white/50 border border-gray-200"
-            style={{
-              width: face,
-              height: face,
-              transform: `rotateY(${Math.PI}rad) rotateX(${
-                Math.PI / 2
-              }rad) translateZ(${tz}px)`,
-              transformStyle: "preserve-3d",
-            }}
-          >
-            {showFacadeLabels && (
-              <FacadeLabel
-                text={FACADE_LABELS_DE[CardinalDirectionEnum.North]}
-              />
-            )}
-          </div>
+          <Face3D
+            className="bg-white/50 border border-gray-200"
+            transform={`rotateY(${Math.PI}rad) rotateX(${
+              Math.PI / 2
+            }rad) translateZ(${tz}px)`}
+            label={FACADE_LABELS_DE[CardinalDirectionEnum.North]}
+          />
           {/* Left (West) */}
-          <div
-            className="absolute left-0 top-0 bg-white/70 border border-gray-200"
-            style={{
-              width: face,
-              height: face,
-              transform: `rotateX(${-Math.PI / 2}rad) rotateY(${
-                Math.PI / 2
-              }rad) translateZ(${tz}px)`,
-              transformStyle: "preserve-3d",
-            }}
-          >
-            {showFacadeLabels && (
-              <FacadeLabel
-                text={FACADE_LABELS_DE[CardinalDirectionEnum.West]}
-              />
-            )}
-          </div>
+          <Face3D
+            className="bg-white/70 border border-gray-200"
+            transform={`rotateX(${-Math.PI / 2}rad) rotateY(${
+              Math.PI / 2
+            }rad) translateZ(${tz}px)`}
+            label={FACADE_LABELS_DE[CardinalDirectionEnum.West]}
+          />
           {/* Right (East) */}
-          <div
-            className="absolute left-0 top-0 bg-white/70 border border-gray-200"
-            style={{
-              width: face,
-              height: face,
-              transform: `rotateX(${-Math.PI / 2}rad) rotateY(${
-                -Math.PI / 2
-              }rad) translateZ(${tz}px)`,
-              transformStyle: "preserve-3d",
-            }}
-          >
-            {showFacadeLabels && (
-              <FacadeLabel
-                text={FACADE_LABELS_DE[CardinalDirectionEnum.East]}
-              />
-            )}
-          </div>
+          <Face3D
+            className="bg-white/70 border border-gray-200"
+            transform={`rotateX(${-Math.PI / 2}rad) rotateY(${
+              -Math.PI / 2
+            }rad) translateZ(${tz}px)`}
+            label={FACADE_LABELS_DE[CardinalDirectionEnum.East]}
+          />
         </div>
       </div>
 
@@ -333,7 +345,6 @@ const ObliqueOrientationCube: React.FC<Props> = ({
           </Button>
         </Tooltip>
       </div>
-
       {/* NSOW selectors anchored in 3D at face centers; buttons billboard to the viewer */}
       <div
         className="absolute inset-0"
@@ -344,122 +355,34 @@ const ObliqueOrientationCube: React.FC<Props> = ({
         }}
       >
         {/* Common styles for anchor containers: centered at cube origin, then 3D translated */}
-        {/* Front (South) face center */}
-        <div
-          className="absolute"
-          style={{
-            left: "50%",
-            top: "50%",
-            transformStyle: "preserve-3d",
-            transform: `translate(-50%, -50%) translate3d(0px, ${labelRadius}px, 0px)`,
-            pointerEvents: "none",
-          }}
-        >
-          <div
-            style={{ transform: labelsInverseTransform, pointerEvents: "auto" }}
-          >
-            <Tooltip title="Blick nach Norden auf Südseite">
-              <Button
-                size="small"
-                shape="circle"
-                onClick={() => onDirectionSelect?.(CardinalDirectionEnum.North)}
-                aria-label="Select North"
-              >
-                {getLetter(directionEnum.North)}
-              </Button>
-            </Tooltip>
-          </div>
-        </div>
-
-        {/* Back (North) face center */}
-        <div
-          className="absolute"
-          style={{
-            left: "50%",
-            top: "50%",
-            transformStyle: "preserve-3d",
-            transform: `translate(-50%, -50%) translate3d(0px, ${-labelRadius}px, 0px)`,
-            pointerEvents: "none",
-          }}
-        >
-          <div
-            style={{
-              transform: labelsInverseTransform,
-              pointerEvents: "auto",
-            }}
-          >
-            <Tooltip title="Blick nach Süden auf Nordseite">
-              <Button
-                size="small"
-                shape="circle"
-                onClick={() => onDirectionSelect?.(CardinalDirectionEnum.South)}
-                aria-label="Select South"
-              >
-                {getLetter(directionEnum.South)}
-              </Button>
-            </Tooltip>
-          </div>
-        </div>
-
-        {/* Left (West) face center */}
-        <div
-          className="absolute"
-          style={{
-            left: "50%",
-            top: "50%",
-            transformStyle: "preserve-3d",
-            transform: `translate(-50%, -50%) translate3d(${-labelRadius}px, 0px, 0px)`,
-            pointerEvents: "none",
-          }}
-        >
-          <div
-            style={{
-              transform: labelsInverseTransform,
-              pointerEvents: "auto",
-            }}
-          >
-            <Tooltip title="Blick nach Osten auf Westseite">
-              <Button
-                size="small"
-                shape="circle"
-                onClick={() => onDirectionSelect?.(CardinalDirectionEnum.East)}
-                aria-label="Select East"
-              >
-                {getLetter(directionEnum.East)}
-              </Button>
-            </Tooltip>
-          </div>
-        </div>
-
-        {/* Right (East/Ost) face center */}
-        <div
-          className="absolute"
-          style={{
-            left: "50%",
-            top: "50%",
-            transformStyle: "preserve-3d",
-            transform: `translate(-50%, -50%) translate3d(${labelRadius}px, 0px, 0px)`,
-            pointerEvents: "none",
-          }}
-        >
-          <div
-            style={{
-              transform: labelsInverseTransform,
-              pointerEvents: "auto",
-            }}
-          >
-            <Tooltip title="Blick nach Westen auf Ostseite">
-              <Button
-                size="small"
-                shape="circle"
-                onClick={() => onDirectionSelect?.(CardinalDirectionEnum.West)}
-                aria-label="Select West"
-              >
-                {getLetter(directionEnum.West)}
-              </Button>
-            </Tooltip>
-          </div>
-        </div>
+        <SelectorAnchor
+          translate3d={`translate3d(0px, ${labelRadius}px, 0px)`}
+          tooltip="Blick nach Norden auf Südseite"
+          aria="Select North"
+          clickDir={CardinalDirectionEnum.North}
+          letterKey={directionEnum.North}
+        />
+        <SelectorAnchor
+          translate3d={`translate3d(0px, ${-labelRadius}px, 0px)`}
+          tooltip="Blick nach Süden auf Nordseite"
+          aria="Select South"
+          clickDir={CardinalDirectionEnum.South}
+          letterKey={directionEnum.South}
+        />
+        <SelectorAnchor
+          translate3d={`translate3d(${-labelRadius}px, 0px, 0px)`}
+          tooltip="Blick nach Osten auf Westseite"
+          aria="Select East"
+          clickDir={CardinalDirectionEnum.East}
+          letterKey={directionEnum.East}
+        />
+        <SelectorAnchor
+          translate3d={`translate3d(${labelRadius}px, 0px, 0px)`}
+          tooltip="Blick nach Westen auf Ostseite"
+          aria="Select West"
+          clickDir={CardinalDirectionEnum.West}
+          letterKey={directionEnum.West}
+        />
       </div>
     </div>
   );
