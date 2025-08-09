@@ -25,8 +25,16 @@ type Props = {
 };
 
 const eps = 0.00872665; // ~0.5° in rad
-
 const PI_OVER_2 = Math.PI / 2;
+
+const getTransforms = (tz: number) => ({
+  top: `translateZ(${tz}px)`,
+  bottom: `translateZ(${-tz}px)`,
+  front: `rotateX(${-PI_OVER_2}rad) translateZ(${tz}px)`,
+  back: `rotateY(${Math.PI}rad) rotateX(${PI_OVER_2}rad) translateZ(${tz}px)`,
+  left: `rotateX(${-PI_OVER_2}rad) rotateY(${PI_OVER_2}rad) translateZ(${tz}px)`,
+  right: `rotateX(${-PI_OVER_2}rad) rotateY(${-PI_OVER_2}rad) translateZ(${tz}px)`,
+});
 
 const ArrowSvg = (size: number = 100, color: string = "#ffaaaaaa") => (
   <svg width={size} height={size} viewBox="0 0 100 100">
@@ -161,15 +169,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
   // Facade label font sizing (~20% larger relative to face)
   const facadeFontSize = face * 0.28;
 
-  // Centralize face transforms
-  const transforms = {
-    top: `translateZ(${tz}px)`,
-    bottom: `translateZ(${-tz}px)`,
-    front: `rotateX(${-PI_OVER_2}rad) translateZ(${tz}px)`,
-    back: `rotateY(${Math.PI}rad) rotateX(${PI_OVER_2}rad) translateZ(${tz}px)`,
-    left: `rotateX(${-PI_OVER_2}rad) rotateY(${PI_OVER_2}rad) translateZ(${tz}px)`,
-    right: `rotateX(${-PI_OVER_2}rad) rotateY(${-PI_OVER_2}rad) translateZ(${tz}px)`,
-  } as const;
+  const transforms = getTransforms(tz);
 
   return (
     <div
