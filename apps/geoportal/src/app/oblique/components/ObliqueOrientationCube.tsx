@@ -445,7 +445,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
       <div
         className="absolute inset-0 grid place-items-center select-none"
         style={{
-          cursor: "default",
+          cursor: isDragging ? "grabbing" : "default",
           transformStyle: "preserve-3d",
           transform: sceneTransform,
         }}
@@ -487,20 +487,17 @@ const ObliqueOrientationCube: React.FC<Props> = ({
               width: face,
               height: face,
               transform: transforms.top,
-              pointerEvents: "none",
+              pointerEvents: isDragging ? "none" : "auto",
             }}
           >
             <div
               className="w-full h-full flex items-center justify-center"
-              style={{ pointerEvents: "none", transform: northArrowTransform }}
+              style={{ transform: northArrowTransform }}
             >
               {ArrowSvg(
                 arrowSize,
-                `${arrowBaseClass} ${!isDragging ? arrowHoverClass : ""} ${
-                  isDragging ? "cursor-default" : "cursor-pointer"
-                }`,
-                handleNorthArrowClick,
-                isDragging
+                `${arrowBaseClass} ${arrowHoverClass} cursor-pointer`,
+                handleNorthArrowClick
               )}
             </div>
           </div>
@@ -535,7 +532,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
           <Face3D
             className={`bg-white/50 border border-gray-300 ${
               !isDragging ? hoverFaceClass : ""
-            } ${isDragging ? "cursor-default" : "cursor-pointer"}`}
+            } ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
             transform={transforms.front}
             width={face}
             height={face}
@@ -563,7 +560,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
           <Face3D
             className={`bg-white/50 border border-gray-200 ${
               !isDragging ? hoverFaceClass : ""
-            } ${isDragging ? "cursor-default" : "cursor-pointer"}`}
+            } ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
             transform={transforms.back}
             width={face}
             height={face}
@@ -591,7 +588,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
           <Face3D
             className={`bg-white/50 border border-gray-200 ${
               !isDragging ? hoverFaceClass : ""
-            } ${isDragging ? "cursor-default" : "cursor-pointer"}`}
+            } ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
             transform={transforms.left}
             width={face}
             height={face}
@@ -619,7 +616,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
           <Face3D
             className={`bg-white/50 border border-gray-200 ${
               !isDragging ? hoverFaceClass : ""
-            } ${isDragging ? "cursor-default" : "cursor-pointer"}`}
+            } ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
             transform={transforms.right}
             width={face}
             height={face}
@@ -673,28 +670,35 @@ const ObliqueOrientationCube: React.FC<Props> = ({
       </div>
       {/* NSOW selectors anchored in 3D at face centers; buttons billboard to the viewer */}
       <div
-        className="absolute inset-0"
-        style={{
-          pointerEvents: "none",
-          transformStyle: "preserve-3d",
-          transform: labelsSceneTransform,
-        }}
+        className={`absolute inset-0 transition-opacity duration-150 ${
+          isDragging ? "opacity-0" : "opacity-100"
+        }`}
+        style={{ pointerEvents: "none" }}
       >
-        {/* Common styles for anchor containers: centered at cube origin, then 3D translated */}
-        {SELECTOR_CONFIG.map((cfg) => (
-          <SelectorAnchor
-            key={cfg.dir}
-            translate3d={`translate3d(${cfg.ox * labelRadius}px, ${
-              cfg.oy * labelRadius
-            }px, ${half}px)`}
-            tooltip={cfg.tooltip}
-            aria={cfg.aria}
-            onClick={() => onDirectionSelect?.(cfg.dir)}
-            label={getLetter(cfg.labelKey)}
-            billboardTransform={labelsInverseTransform}
-            disabled={isDragging}
-          />
-        ))}
+        <div
+          className="absolute inset-0"
+          style={{
+            pointerEvents: "none",
+            transformStyle: "preserve-3d",
+            transform: labelsSceneTransform,
+          }}
+        >
+          {/* Common styles for anchor containers: centered at cube origin, then 3D translated */}
+          {SELECTOR_CONFIG.map((cfg) => (
+            <SelectorAnchor
+              key={cfg.dir}
+              translate3d={`translate3d(${cfg.ox * labelRadius}px, ${
+                cfg.oy * labelRadius
+              }px, ${half}px)`}
+              tooltip={cfg.tooltip}
+              aria={cfg.aria}
+              onClick={() => onDirectionSelect?.(cfg.dir)}
+              label={getLetter(cfg.labelKey)}
+              billboardTransform={labelsInverseTransform}
+              disabled={isDragging}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
