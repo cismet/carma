@@ -25,15 +25,19 @@ type Props = {
 };
 
 const eps = 0.00872665; // ~0.5° in rad
-const PI_OVER_2 = Math.PI / 2;
 
 const getTransforms = (tz: number) => ({
+  // keep top/bottom as simple translateZ
   top: `translateZ(${tz}px)`,
   bottom: `translateZ(${-tz}px)`,
-  front: `rotateX(${-PI_OVER_2}rad) translateZ(${tz}px)`,
-  back: `rotateY(${Math.PI}rad) rotateX(${PI_OVER_2}rad) translateZ(${tz}px)`,
-  left: `rotateX(${-PI_OVER_2}rad) rotateY(${PI_OVER_2}rad) translateZ(${tz}px)`,
-  right: `rotateX(${-PI_OVER_2}rad) rotateY(${-PI_OVER_2}rad) translateZ(${tz}px)`,
+  front: `matrix3d(1,0,0,0, 0,0,-1,0, 0,1,0,0, 0,${tz},0,1)`,
+  back: `matrix3d(-1,0,0,0, 0,0,-1,0, 0,-1,0,0, 0,${-tz},0,1)`,
+  left: `matrix3d(0,1,0,0, 0,0,-1,0, -1,0,0,0, ${-tz},0,0,1)`,
+  right: `matrix3d(0,-1,0,0, 0,0,-1,0, 1,0,0,0, ${tz},0,0,1)`,
+  //front: `rotateX(${-PI_OVER_2}rad) translateZ(${tz}px)`,
+  //back: `rotateY(${Math.PI}rad) rotateX(${PI_OVER_2}rad) translateZ(${tz}px)`,
+  //left: `rotateX(${-PI_OVER_2}rad) rotateY(${-PI_OVER_2}rad) translateZ(${tz}px)`,
+  //right: `rotateX(${-PI_OVER_2}rad) rotateY(${PI_OVER_2}rad) translateZ(${tz}px)`,
 });
 
 const ArrowSvg = (size: number = 100, color: string = "#ffaaaaaa") => (
