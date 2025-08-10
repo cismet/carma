@@ -37,6 +37,7 @@ export { CUSTOM_SHADERS_DEFINITIONS } from "./lib/shaders";
 
 export { cesiumSceneHasTweens } from "./lib/utils/cesiumAnimations";
 export { getOrbitPoint } from "./lib/utils/cesiumAnimateOrbits";
+export { getHeadingPitchForMouseEvent } from "./lib/utils/cesiumAnimateOrbits";
 export {
   cesiumAnimateFov,
   type CesiumAnimateFovOptions,
@@ -95,6 +96,7 @@ export {
   type ViewerAnimationMap,
   initViewerAnimationMap,
 } from "./lib/utils/viewerAnimationMap";
+export { cancelViewerAnimation } from "./lib/utils/viewerAnimationMap";
 
 // Re-export all the types as workaround
 export * from "./index.d";

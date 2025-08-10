@@ -1,9 +1,17 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Button, Tooltip } from "antd";
 import {
+  Cartesian3,
+  HeadingPitchRange,
+  Matrix4,
+  Math as CesiumMath,
+} from "cesium";
+import {
   useCesiumContext,
   cesiumCameraToCssTransform,
   cssPerspectiveFromCesiumCameraForElement,
+  getOrbitPoint,
+  cancelViewerAnimation,
 } from "@carma-mapping/cesium-engine";
 import {
   CardinalDirectionEnum,
@@ -24,7 +32,13 @@ type Props = {
   showFacadeLabels?: boolean; // show facade labels on faces
 };
 
-const eps = 0.00872665; // ~0.5° in rad
+const eps = 0.001; // ~0.057° in rad, smaller to update cube more frequently
+
+// Drag tuning constants
+const MIN_PITCH = CesiumMath.toRadians(-70);
+const MAX_PITCH = CesiumMath.toRadians(-30);
+const HEADING_FACTOR = 1;
+const PITCH_FACTOR = 1;
 
 const getTransforms = (tz: number) => ({
   // keep top/bottom as simple translateZ
@@ -65,11 +79,66 @@ const ObliqueOrientationCube: React.FC<Props> = ({
 }) => {
   const half = size / 2;
 
-  const { viewerRef, isViewerReady } = useCesiumContext();
+  const {
+    viewerRef,
+    isViewerReady,
+    viewerAnimationMapRef,
+    shouldSuspendPitchLimiterRef,
+  } = useCesiumContext();
   const [, setTransformTick] = useState(0);
   const [perspectivePx, setPerspectivePx] = useState<number>(1600);
   const lastPerspectiveRef = useRef<number | undefined>(undefined);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const previousPercentageChangedRef = useRef<number | undefined>(undefined);
+
+  // Drag state
+  const [isDragging, setIsDragging] = useState(false);
+  const isDraggingRef = useRef(false);
+  const lastMouseXRef = useRef(0);
+  const lastMouseYRef = useRef(0);
+  const orbitPointRef = useRef<Cartesian3 | null>(null);
+  const rangeRef = useRef(0);
+  const targetHeadingRef = useRef(0);
+  const targetPitchRef = useRef(0);
+  const animFrameRef = useRef<number | null>(null);
+
+  // angle utils
+  const shortestAngleDelta = (a: number, b: number) => {
+    let d = (b - a + Math.PI) % (2 * Math.PI);
+    if (d < 0) d += 2 * Math.PI;
+    return d - Math.PI;
+  };
+
+  const stepAnimation = () => {
+    if (
+      !viewerRef.current ||
+      !orbitPointRef.current ||
+      !isDraggingRef.current
+    ) {
+      animFrameRef.current = null;
+      return;
+    }
+    const viewer = viewerRef.current;
+    const camera = viewer.camera;
+    const currentHeading = camera.heading;
+    const currentPitch = camera.pitch;
+    const targetH = targetHeadingRef.current;
+    const targetP = targetPitchRef.current;
+    const easing = 0.25; // smoothing factor per frame
+    const dh = shortestAngleDelta(currentHeading, targetH);
+    const dp = targetP - currentPitch;
+    const nextHeading = currentHeading + dh * easing;
+    const nextPitch = CesiumMath.clamp(
+      currentPitch + dp * easing,
+      MIN_PITCH,
+      MAX_PITCH
+    );
+    viewer.camera.lookAt(
+      orbitPointRef.current,
+      new HeadingPitchRange(nextHeading, nextPitch, rangeRef.current)
+    );
+    animFrameRef.current = requestAnimationFrame(stepAnimation);
+  };
 
   const directionEnum = invertCardinalLabels
     ? InvertedCardinalDirectionEnum
@@ -175,6 +244,96 @@ const ObliqueOrientationCube: React.FC<Props> = ({
 
   const transforms = getTransforms(tz);
 
+  // Drag handlers (mirror PitchingCompass behavior)
+  // constants lifted to module scope to stabilize effect deps
+
+  const handleMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
+    if (!viewerRef.current || viewerRef.current.isDestroyed()) return;
+    // Allow dragging only with primary button
+    if (event.button !== 0) return;
+    event.preventDefault();
+    shouldSuspendPitchLimiterRef.current = true;
+    if (viewerAnimationMapRef?.current) {
+      cancelViewerAnimation(viewerRef.current, viewerAnimationMapRef.current);
+    }
+    const camera = viewerRef.current.camera;
+    // make camera.changed fire more often during drag
+    previousPercentageChangedRef.current = camera.percentageChanged ?? 0.01;
+    camera.percentageChanged = 0.002;
+    setIsDragging(true);
+    isDraggingRef.current = true;
+    lastMouseXRef.current = event.clientX;
+    lastMouseYRef.current = event.clientY;
+    targetHeadingRef.current = camera.heading;
+    targetPitchRef.current = camera.pitch;
+    const target = getOrbitPoint(viewerRef.current);
+    if (target) {
+      const range = Cartesian3.distance(target, camera.positionWC);
+      orbitPointRef.current = target;
+      rangeRef.current = range;
+    } else {
+      orbitPointRef.current = null;
+    }
+    if (!animFrameRef.current) {
+      animFrameRef.current = requestAnimationFrame(stepAnimation);
+    }
+  };
+
+  const handleMouseUp = React.useCallback(() => {
+    shouldSuspendPitchLimiterRef.current = false;
+    setIsDragging(false);
+    isDraggingRef.current = false;
+    if (animFrameRef.current !== null) {
+      cancelAnimationFrame(animFrameRef.current);
+      animFrameRef.current = null;
+    }
+    if (!viewerRef.current || viewerRef.current.isDestroyed()) return;
+    const camera = viewerRef.current.camera;
+    // restore percentageChanged after drag
+    if (previousPercentageChangedRef.current !== undefined) {
+      camera.percentageChanged = previousPercentageChangedRef.current;
+    }
+    viewerRef.current.camera.lookAtTransform(Matrix4.IDENTITY);
+  }, [viewerRef, shouldSuspendPitchLimiterRef]);
+
+  useEffect(() => {
+    if (!isDragging) return;
+    const onMove = (event: MouseEvent) => {
+      if (!isDraggingRef.current) return;
+      const dx = event.clientX - lastMouseXRef.current;
+      const dy = event.clientY - lastMouseYRef.current;
+      lastMouseXRef.current = event.clientX;
+      lastMouseYRef.current = event.clientY;
+      // update targets incrementally
+      targetHeadingRef.current =
+        targetHeadingRef.current + dx * 0.01 * HEADING_FACTOR;
+      targetHeadingRef.current =
+        ((targetHeadingRef.current + Math.PI) % (2 * Math.PI)) - Math.PI;
+      targetPitchRef.current = CesiumMath.clamp(
+        targetPitchRef.current - dy * 0.01 * PITCH_FACTOR,
+        MIN_PITCH,
+        MAX_PITCH
+      );
+    };
+    const onUp = () => handleMouseUp();
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [isDragging, handleMouseUp]);
+
+  // Ensure rAF is cancelled on unmount
+  useEffect(() => {
+    return () => {
+      if (animFrameRef.current !== null) {
+        cancelAnimationFrame(animFrameRef.current);
+        animFrameRef.current = null;
+      }
+    };
+  }, []);
+
   return (
     <div
       ref={containerRef}
@@ -187,8 +346,22 @@ const ObliqueOrientationCube: React.FC<Props> = ({
     >
       {/* 3D cube scene */}
       <div
-        className="absolute inset-0 grid place-items-center"
+        className="absolute inset-0 grid place-items-center select-none"
         style={{ transformStyle: "preserve-3d", transform: sceneTransform }}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
+        role="button"
+        aria-label="Drag to rotate camera; use Left/Right arrows to rotate"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowLeft") {
+            e.preventDefault();
+            rotateCamera?.(false);
+          } else if (e.key === "ArrowRight") {
+            e.preventDefault();
+            rotateCamera?.(true);
+          }
+        }}
       >
         {/* Cube wrapper */}
         <div
