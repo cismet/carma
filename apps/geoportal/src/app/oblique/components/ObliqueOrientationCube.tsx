@@ -18,8 +18,8 @@ import {
   CardinalLetters,
   InvertedCardinalDirectionEnum,
 } from "../utils/orientationUtils";
-import Face3D from "./Face3D";
-import SelectorAnchor from "./SelectorAnchor";
+import Face3D from "./ObliqueOrientationCube.Face3D";
+import SelectorAnchor from "./ObliqueOrientationCube.SelectorAnchor";
 
 type Props = {
   size?: number;

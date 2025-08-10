@@ -1,5 +1,5 @@
 import React from "react";
-import FacadeLabel from "./FacadeLabel";
+import FacadeLabel from "./ObliqueOrientationCube.FacadeLabel";
 
 export type Face3DProps = {
   className?: string;
