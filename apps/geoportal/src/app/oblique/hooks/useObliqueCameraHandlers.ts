@@ -15,7 +15,6 @@ import {
   HeadingPitchRange,
 } from "cesium";
 
-import { useFeatureFlags } from "@carma-apps/portals";
 import {
   isValidViewerInstance,
   useCesiumContext,
@@ -42,6 +41,106 @@ export const useObliqueCameraHandlers = (
     isObliqueMode,
     orbitPoint,
     isDebugMode
+  );
+
+  const rotateToHeading = useCallback(
+    (targetHeading: number) => {
+      const viewer = viewerRef.current;
+      if (!isValidViewerInstance(viewer) || animationInProgressRef.current)
+        return;
+
+      const camera = viewer.camera;
+      const scene = viewer.scene;
+      const currentHeading = camera.heading;
+
+      // Normalize headings to [0, 2PI)
+      const normalizedTarget = CesiumMath.zeroToTwoPi(targetHeading);
+      const normalizedCurrent = CesiumMath.zeroToTwoPi(currentHeading);
+
+      if (Math.abs(normalizedCurrent - normalizedTarget) < 0.0001) {
+        return;
+      }
+
+      if (!orbitPoint && isDebugMode) {
+        updateOrbitPointEntity();
+      }
+
+      // Calculate the range (distance from center)
+      const range = Cartesian3.distance(orbitPoint, camera.position);
+
+      // Start the animation
+      animationInProgressRef.current = true;
+      userMovedCameraRef.current = false; // Reset this flag since we're starting a programmatic move
+
+      let startTime = Date.now();
+      const duration = 500; // ms
+
+      let headingChange = normalizedTarget - normalizedCurrent;
+
+      // Ensure we take the shortest path
+      if (headingChange > Math.PI) {
+        headingChange -= CesiumMath.TWO_PI;
+      } else if (headingChange < -Math.PI) {
+        headingChange += CesiumMath.TWO_PI;
+      }
+
+      // Skip animation if the change is very small
+      if (Math.abs(headingChange) < 0.0001) {
+        animationInProgressRef.current = false;
+        return;
+      }
+
+      const onPreUpdate = () => {
+        const currentTime = Date.now();
+        let t = Math.min((currentTime - startTime) / duration, 1);
+        t = EasingFunction.SINUSOIDAL_IN_OUT(t);
+
+        if (t < 1) {
+          const intermediateHeading = normalizedCurrent + headingChange * t;
+
+          camera.lookAt(
+            orbitPoint,
+            new HeadingPitchRange(intermediateHeading, camera.pitch, range)
+          );
+
+          setCurrentHeading(intermediateHeading);
+
+          scene.requestRender();
+        } else {
+          camera.lookAt(
+            orbitPoint,
+            new HeadingPitchRange(normalizedTarget, camera.pitch, range)
+          );
+
+          setCurrentHeading(normalizedTarget);
+          resetCamera(viewer);
+          animationInProgressRef.current = false;
+          userMovedCameraRef.current = true;
+
+          // update activeDirection to closest cardinal to target heading
+          const cardinals = getCardinalHeadings(headingOffset);
+          const closest = findClosestCardinalIndex(normalizedTarget, cardinals);
+          setActiveDirection(closest);
+
+          scene.preUpdate.removeEventListener(onPreUpdate);
+        }
+      };
+      scene.preUpdate.addEventListener(onPreUpdate);
+      return () => {
+        resetCamera(viewer);
+        animationInProgressRef.current = false;
+        userMovedCameraRef.current = true;
+        scene.preUpdate.removeEventListener(onPreUpdate);
+      };
+    },
+    [
+      viewerRef,
+      headingOffset,
+      updateOrbitPointEntity,
+      orbitPoint,
+      isDebugMode,
+      animationInProgressRef,
+    ]
   );
   const userMovedCameraRef = useRef<boolean>(false);
 
@@ -256,5 +355,6 @@ export const useObliqueCameraHandlers = (
     activeDirection,
     rotateCamera,
     rotateToDirection,
+    rotateToHeading,
   };
 };

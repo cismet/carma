@@ -113,8 +113,13 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const isTransitioning = useSelector(selectViewerIsTransitioning);
   const preloadImageRef = useRef<ReturnType<typeof debounce> | null>(null);
 
-  const { currentHeading, activeDirection, rotateCamera, rotateToDirection } =
-    useObliqueCameraHandlers(animationInProgressRef, isDebugMode);
+  const {
+    currentHeading,
+    activeDirection,
+    rotateCamera,
+    rotateToDirection,
+    rotateToHeading,
+  } = useObliqueCameraHandlers(animationInProgressRef, isDebugMode);
 
   const { derivedExteriorOrientationRef } =
     useExteriorOrientation(nearestImage);
@@ -391,6 +396,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
                     size={70}
                     rotateCamera={rotateCamera}
                     onDirectionSelect={rotateToDirection}
+                    onHeadingSelect={rotateToHeading}
                     offsetRad={effectiveOffsetRad}
                     offsetCube={offsetCube}
                     invertCardinalLabels={invertLabels}

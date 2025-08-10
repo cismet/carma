@@ -13,6 +13,8 @@ export type Face3DProps = {
   children?: React.ReactNode;
   onClick?: () => void;
   onKeyDown?: React.KeyboardEventHandler<HTMLDivElement>;
+  onMouseDown?: React.MouseEventHandler<HTMLDivElement>;
+  onMouseUp?: React.MouseEventHandler<HTMLDivElement>;
   role?: React.AriaRole;
   tabIndex?: number;
   ariaLabel?: string;
@@ -30,6 +32,8 @@ const Face3D: React.FC<Face3DProps> = ({
   children,
   onClick,
   onKeyDown,
+  onMouseDown,
+  onMouseUp,
   role,
   tabIndex,
   ariaLabel,
@@ -45,6 +49,8 @@ const Face3D: React.FC<Face3DProps> = ({
     }}
     onClick={onClick}
     onKeyDown={onKeyDown}
+    onMouseDown={onMouseDown}
+    onMouseUp={onMouseUp}
     role={role}
     tabIndex={tabIndex}
     aria-label={ariaLabel}

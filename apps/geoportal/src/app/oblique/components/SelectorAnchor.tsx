@@ -8,6 +8,7 @@ export type SelectorAnchorProps = {
   onClick: () => void;
   label: React.ReactNode;
   billboardTransform: string; // transform that billboards to the viewer
+  disabled?: boolean;
 };
 
 const SelectorAnchor: React.FC<SelectorAnchorProps> = ({
@@ -17,6 +18,7 @@ const SelectorAnchor: React.FC<SelectorAnchorProps> = ({
   onClick,
   label,
   billboardTransform,
+  disabled = false,
 }) => (
   <div
     className="absolute"
@@ -28,9 +30,21 @@ const SelectorAnchor: React.FC<SelectorAnchorProps> = ({
       pointerEvents: "none",
     }}
   >
-    <div style={{ transform: billboardTransform, pointerEvents: "auto" }}>
-      <Tooltip title={tooltip}>
-        <Button size="small" shape="circle" onClick={onClick} aria-label={aria}>
+    <div
+      style={{
+        transform: billboardTransform,
+        pointerEvents: disabled ? "none" : "auto",
+      }}
+    >
+      <Tooltip title={tooltip} open={disabled ? false : undefined}>
+        <Button
+          size="small"
+          shape="circle"
+          onClick={onClick}
+          aria-label={aria}
+          disabled={disabled}
+          aria-disabled={disabled}
+        >
           {label}
         </Button>
       </Tooltip>

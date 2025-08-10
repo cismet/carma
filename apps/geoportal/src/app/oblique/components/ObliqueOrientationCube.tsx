@@ -22,60 +22,88 @@ import Face3D from "./Face3D";
 import SelectorAnchor from "./SelectorAnchor";
 
 type Props = {
-  size?: number; // px size of the square control
+  size?: number;
   onDirectionSelect?: (dir: CardinalDirectionEnum) => void;
   rotateCamera?: (clockwise: boolean) => void;
+  onHeadingSelect?: (heading: number) => void;
   offsetRad?: number;
-  bottomColorRgb?: string; // e.g. "255,255,255"
-  offsetCube?: boolean; // apply imagery offset to cube orientation as well (default true)
-  invertCardinalLabels?: boolean; // invert cardinal directions (default true)
-  showFacadeLabels?: boolean; // show facade labels on faces
+  bottomColorRgb?: string;
+  offsetCube?: boolean;
+  invertCardinalLabels?: boolean;
+  showFacadeLabels?: boolean;
+  hoverFaceClass?: string;
+  arrowHoverClass?: string;
+  arrowBaseClass?: string;
 };
 
-const eps = 0.001; // ~0.057° in rad, smaller to update cube more frequently
-
-// Drag tuning constants
+const eps = 0.001;
 const MIN_PITCH = CesiumMath.toRadians(-70);
 const MAX_PITCH = CesiumMath.toRadians(-30);
 const HEADING_FACTOR = 1;
 const PITCH_FACTOR = 1;
 
 const getTransforms = (tz: number) => ({
-  // keep top/bottom as simple translateZ
   top: `translateZ(${tz}px)`,
   bottom: `translateZ(${-tz}px)`,
   front: `matrix3d(1,0,0,0, 0,0,-1,0, 0,1,0,0, 0,${tz},0,1)`,
   back: `matrix3d(-1,0,0,0, 0,0,-1,0, 0,-1,0,0, 0,${-tz},0,1)`,
   left: `matrix3d(0,1,0,0, 0,0,-1,0, -1,0,0,0, ${-tz},0,0,1)`,
   right: `matrix3d(0,-1,0,0, 0,0,-1,0, 1,0,0,0, ${tz},0,0,1)`,
-  //front: `rotateX(${-PI_OVER_2}rad) translateZ(${tz}px)`,
-  //back: `rotateY(${Math.PI}rad) rotateX(${PI_OVER_2}rad) translateZ(${tz}px)`,
-  //left: `rotateX(${-PI_OVER_2}rad) rotateY(${-PI_OVER_2}rad) translateZ(${tz}px)`,
-  //right: `rotateX(${-PI_OVER_2}rad) rotateY(${PI_OVER_2}rad) translateZ(${tz}px)`,
 });
 
-const ArrowSvg = (size: number = 100, color: string = "#ffaaaaaa") => (
-  <svg width={size} height={size} viewBox="0 0 100 100">
-    <polygon points="50,15 80,75 50,60 20,75" fill={color} />
+const ArrowSvg = (
+  size: number = 100,
+  className?: string,
+  onActivate?: () => void,
+  disabled: boolean = false
+) => (
+  <svg
+    width={size}
+    height={size}
+    viewBox="0 0 100 100"
+    style={{ pointerEvents: "none" }}
+  >
+    <polygon
+      points="50,15 80,75 50,60 20,75"
+      className={className}
+      fill="currentColor"
+      pointerEvents={disabled ? "none" : "visibleFill"}
+      role="button"
+      tabIndex={disabled ? -1 : 0}
+      aria-label="Auf Nordausrichtung setzen"
+      onMouseDown={(e) => {
+        if (disabled) return;
+        e.stopPropagation();
+      }}
+      onClick={(e) => {
+        if (disabled) return;
+        e.stopPropagation();
+        onActivate?.();
+      }}
+      onKeyDown={(e) => {
+        if (disabled) return;
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onActivate?.();
+        }
+      }}
+    />
   </svg>
 );
 
-/**
- * ObliqueOrientationCube
- *
- * Renders a CSS 3D cube whose orientation matches the camera heading and pitch.
- * A north arrow on the top face counter-rotates to always point to geographic north.
- * N/W/O/S selection controls are shown as pseudo-spheres positioned around the cube.
- */
 const ObliqueOrientationCube: React.FC<Props> = ({
   size = 100,
   onDirectionSelect,
   rotateCamera,
+  onHeadingSelect,
   offsetRad = 0,
   bottomColorRgb = "255,255,255",
   offsetCube = false,
   invertCardinalLabels = true,
   showFacadeLabels = true,
+  hoverFaceClass = "hover:bg-yellow-100",
+  arrowHoverClass = "hover:text-yellow-500",
+  arrowBaseClass = "text-gray-500",
 }) => {
   const half = size / 2;
 
@@ -146,6 +174,49 @@ const ObliqueOrientationCube: React.FC<Props> = ({
   const cardinalLetters = CardinalLetters.DE;
   const getLetter = (key: number) =>
     cardinalLetters.get(key as CardinalDirectionEnum);
+
+  // Enum-keyed selector configuration to avoid repetition
+  const SELECTOR_CONFIG: ReadonlyArray<{
+    dir: CardinalDirectionEnum;
+    ox: number; // x offset multiplier (-1, 0, 1)
+    oy: number; // y offset multiplier (-1, 0, 1)
+    tooltip: string;
+    aria: string;
+    labelKey: number; // resolved enum value for label mapping (accounts for inversion)
+  }> = [
+    {
+      dir: CardinalDirectionEnum.North,
+      ox: 0,
+      oy: 1,
+      tooltip: "Blick nach Norden auf Südseite",
+      aria: "Select North",
+      labelKey: directionEnum.North,
+    },
+    {
+      dir: CardinalDirectionEnum.South,
+      ox: 0,
+      oy: -1,
+      tooltip: "Blick nach Süden auf Nordseite",
+      aria: "Select South",
+      labelKey: directionEnum.South,
+    },
+    {
+      dir: CardinalDirectionEnum.East,
+      ox: -1,
+      oy: 0,
+      tooltip: "Blick nach Osten auf Westseite",
+      aria: "Select East",
+      labelKey: directionEnum.East,
+    },
+    {
+      dir: CardinalDirectionEnum.West,
+      ox: 1,
+      oy: 0,
+      tooltip: "Blick nach Westen auf Ostseite",
+      aria: "Select West",
+      labelKey: directionEnum.West,
+    },
+  ];
 
   useEffect(() => {
     const viewer = viewerRef.current;
@@ -243,9 +314,35 @@ const ObliqueOrientationCube: React.FC<Props> = ({
   const facadeFontSize = face * 0.28;
 
   const transforms = getTransforms(tz);
+  const arrowSize = face * 0.8;
 
   // Drag handlers (mirror PitchingCompass behavior)
   // constants lifted to module scope to stabilize effect deps
+
+  const handleNorthArrowClick = () => {
+    // Prefer animated heading change if provided by parent
+    if (onHeadingSelect) {
+      onHeadingSelect(0);
+      return;
+    }
+    // Fallback: instant snap (legacy behavior)
+    if (!viewerRef.current || viewerRef.current.isDestroyed()) return;
+    const viewer = viewerRef.current;
+    if (viewerAnimationMapRef?.current) {
+      cancelViewerAnimation(viewer, viewerAnimationMapRef.current);
+    }
+    const camera = viewer.camera;
+    const target = getOrbitPoint(viewer);
+    if (target) {
+      const range = Cartesian3.distance(target, camera.positionWC);
+      viewer.camera.lookAt(
+        target,
+        new HeadingPitchRange(0, camera.pitch, range)
+      );
+      // exit lookAt mode to avoid locking transform
+      viewer.camera.lookAtTransform(Matrix4.IDENTITY);
+    }
+  };
 
   const handleMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
     if (!viewerRef.current || viewerRef.current.isDestroyed()) return;
@@ -347,9 +444,11 @@ const ObliqueOrientationCube: React.FC<Props> = ({
       {/* 3D cube scene */}
       <div
         className="absolute inset-0 grid place-items-center select-none"
-        style={{ transformStyle: "preserve-3d", transform: sceneTransform }}
-        onMouseDown={handleMouseDown}
-        onMouseUp={handleMouseUp}
+        style={{
+          cursor: "default",
+          transformStyle: "preserve-3d",
+          transform: sceneTransform,
+        }}
         role="button"
         aria-label="Drag to rotate camera; use Left/Right arrows to rotate"
         tabIndex={0}
@@ -376,15 +475,35 @@ const ObliqueOrientationCube: React.FC<Props> = ({
             height={face}
             facadeFontSize={facadeFontSize}
             style={{ pointerEvents: "none" }}
+            // top face should not start drags
           >
-            {/* North arrow (SVG), counter-rotated to keep pointing north */}
+            {/* North arrow overlay is rendered separately to remain clickable */}
+          </Face3D>
+
+          {/* Clickable North Arrow overlay (counter-rotated to geographic north) */}
+          <div
+            className="absolute left-0 top-0"
+            style={{
+              width: face,
+              height: face,
+              transform: transforms.top,
+              pointerEvents: "none",
+            }}
+          >
             <div
               className="w-full h-full flex items-center justify-center"
-              style={{ transform: northArrowTransform }}
+              style={{ pointerEvents: "none", transform: northArrowTransform }}
             >
-              {ArrowSvg(face)}
+              {ArrowSvg(
+                arrowSize,
+                `${arrowBaseClass} ${!isDragging ? arrowHoverClass : ""} ${
+                  isDragging ? "cursor-default" : "cursor-pointer"
+                }`,
+                handleNorthArrowClick,
+                isDragging
+              )}
             </div>
-          </Face3D>
+          </div>
 
           {/* Bottom - circular disc with radial gradient */}
           <div
@@ -396,9 +515,11 @@ const ObliqueOrientationCube: React.FC<Props> = ({
               transformStyle: "preserve-3d",
               overflow: "visible",
             }}
+            onMouseDown={handleMouseDown}
+            onMouseUp={handleMouseUp}
           >
             <div
-              className="absolute"
+              className="absolute cursor-grab active:cursor-grabbing"
               style={{
                 width: discSize,
                 height: discSize,
@@ -412,81 +533,113 @@ const ObliqueOrientationCube: React.FC<Props> = ({
           </div>
           {/* Front (South) */}
           <Face3D
-            className="bg-white/50 border border-gray-300 hover:bg-yellow-100 cursor-pointer"
+            className={`bg-white/50 border border-gray-300 ${
+              !isDragging ? hoverFaceClass : ""
+            } ${isDragging ? "cursor-default" : "cursor-pointer"}`}
             transform={transforms.front}
             width={face}
             height={face}
             showLabel={showFacadeLabels}
             facadeFontSize={facadeFontSize}
             label={FACADE_LABELS_DE[CardinalDirectionEnum.South]}
-            onClick={() => onDirectionSelect?.(CardinalDirectionEnum.North)}
+            onMouseDown={handleMouseDown}
+            onMouseUp={handleMouseUp}
+            onClick={() => {
+              if (isDraggingRef.current) return;
+              onDirectionSelect?.(CardinalDirectionEnum.North);
+            }}
             role="button"
             tabIndex={0}
             ariaLabel="Select North (front face)"
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
-                onDirectionSelect?.(CardinalDirectionEnum.North);
+                if (!isDraggingRef.current)
+                  onDirectionSelect?.(CardinalDirectionEnum.North);
               }
             }}
           />
           {/* Back (North) */}
           <Face3D
-            className="bg-white/50 border border-gray-200 hover:bg-yellow-100 cursor-pointer"
+            className={`bg-white/50 border border-gray-200 ${
+              !isDragging ? hoverFaceClass : ""
+            } ${isDragging ? "cursor-default" : "cursor-pointer"}`}
             transform={transforms.back}
             width={face}
             height={face}
             showLabel={showFacadeLabels}
             facadeFontSize={facadeFontSize}
             label={FACADE_LABELS_DE[CardinalDirectionEnum.North]}
-            onClick={() => onDirectionSelect?.(CardinalDirectionEnum.South)}
+            onMouseDown={handleMouseDown}
+            onMouseUp={handleMouseUp}
+            onClick={() => {
+              if (isDraggingRef.current) return;
+              onDirectionSelect?.(CardinalDirectionEnum.South);
+            }}
             role="button"
             tabIndex={0}
             ariaLabel="Select South (back face)"
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
-                onDirectionSelect?.(CardinalDirectionEnum.South);
+                if (!isDraggingRef.current)
+                  onDirectionSelect?.(CardinalDirectionEnum.South);
               }
             }}
           />
           {/* Left (West) */}
           <Face3D
-            className="bg-white/50 border border-gray-200 hover:bg-yellow-100 cursor-pointer"
+            className={`bg-white/50 border border-gray-200 ${
+              !isDragging ? hoverFaceClass : ""
+            } ${isDragging ? "cursor-default" : "cursor-pointer"}`}
             transform={transforms.left}
             width={face}
             height={face}
             showLabel={showFacadeLabels}
             facadeFontSize={facadeFontSize}
             label={FACADE_LABELS_DE[CardinalDirectionEnum.West]}
-            onClick={() => onDirectionSelect?.(CardinalDirectionEnum.East)}
+            onMouseDown={handleMouseDown}
+            onMouseUp={handleMouseUp}
+            onClick={() => {
+              if (isDraggingRef.current) return;
+              onDirectionSelect?.(CardinalDirectionEnum.East);
+            }}
             role="button"
             tabIndex={0}
             ariaLabel="Select East (left face)"
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
-                onDirectionSelect?.(CardinalDirectionEnum.East);
+                if (!isDraggingRef.current)
+                  onDirectionSelect?.(CardinalDirectionEnum.East);
               }
             }}
           />
           {/* Right (East) */}
           <Face3D
-            className="bg-white/50 border border-gray-200 hover:bg-yellow-100 cursor-pointer"
+            className={`bg-white/50 border border-gray-200 ${
+              !isDragging ? hoverFaceClass : ""
+            } ${isDragging ? "cursor-default" : "cursor-pointer"}`}
             transform={transforms.right}
             width={face}
             height={face}
             showLabel={showFacadeLabels}
             facadeFontSize={facadeFontSize}
             label={FACADE_LABELS_DE[CardinalDirectionEnum.East]}
-            onClick={() => onDirectionSelect?.(CardinalDirectionEnum.West)}
+            onMouseDown={handleMouseDown}
+            onMouseUp={handleMouseUp}
+            onClick={() => {
+              if (isDraggingRef.current) return;
+              onDirectionSelect?.(CardinalDirectionEnum.West);
+            }}
             role="button"
             tabIndex={0}
             ariaLabel="Select West (right face)"
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
-                onDirectionSelect?.(CardinalDirectionEnum.West);
+                if (!isDraggingRef.current)
+                  onDirectionSelect?.(CardinalDirectionEnum.West);
               }
             }}
           />
@@ -528,38 +681,20 @@ const ObliqueOrientationCube: React.FC<Props> = ({
         }}
       >
         {/* Common styles for anchor containers: centered at cube origin, then 3D translated */}
-        <SelectorAnchor
-          translate3d={`translate3d(0px, ${labelRadius}px, ${half}px)`}
-          tooltip="Blick nach Norden auf Südseite"
-          aria="Select North"
-          onClick={() => onDirectionSelect?.(CardinalDirectionEnum.North)}
-          label={getLetter(directionEnum.North)}
-          billboardTransform={labelsInverseTransform}
-        />
-        <SelectorAnchor
-          translate3d={`translate3d(0px, ${-labelRadius}px, ${half}px)`}
-          tooltip="Blick nach Süden auf Nordseite"
-          aria="Select South"
-          onClick={() => onDirectionSelect?.(CardinalDirectionEnum.South)}
-          label={getLetter(directionEnum.South)}
-          billboardTransform={labelsInverseTransform}
-        />
-        <SelectorAnchor
-          translate3d={`translate3d(${-labelRadius}px, 0px, ${half}px)`}
-          tooltip="Blick nach Osten auf Westseite"
-          aria="Select East"
-          onClick={() => onDirectionSelect?.(CardinalDirectionEnum.East)}
-          label={getLetter(directionEnum.East)}
-          billboardTransform={labelsInverseTransform}
-        />
-        <SelectorAnchor
-          translate3d={`translate3d(${labelRadius}px, 0px, ${half}px)`}
-          tooltip="Blick nach Westen auf Ostseite"
-          aria="Select West"
-          onClick={() => onDirectionSelect?.(CardinalDirectionEnum.West)}
-          label={getLetter(directionEnum.West)}
-          billboardTransform={labelsInverseTransform}
-        />
+        {SELECTOR_CONFIG.map((cfg) => (
+          <SelectorAnchor
+            key={cfg.dir}
+            translate3d={`translate3d(${cfg.ox * labelRadius}px, ${
+              cfg.oy * labelRadius
+            }px, ${half}px)`}
+            tooltip={cfg.tooltip}
+            aria={cfg.aria}
+            onClick={() => onDirectionSelect?.(cfg.dir)}
+            label={getLetter(cfg.labelKey)}
+            billboardTransform={labelsInverseTransform}
+            disabled={isDragging}
+          />
+        ))}
       </div>
     </div>
   );
