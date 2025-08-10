@@ -11,6 +11,11 @@ export type Face3DProps = {
   facadeFontSize: number;
   style?: React.CSSProperties;
   children?: React.ReactNode;
+  onClick?: () => void;
+  onKeyDown?: React.KeyboardEventHandler<HTMLDivElement>;
+  role?: React.AriaRole;
+  tabIndex?: number;
+  ariaLabel?: string;
 };
 
 const Face3D: React.FC<Face3DProps> = ({
@@ -23,9 +28,14 @@ const Face3D: React.FC<Face3DProps> = ({
   facadeFontSize,
   style,
   children,
+  onClick,
+  onKeyDown,
+  role,
+  tabIndex,
+  ariaLabel,
 }) => (
   <div
-    className={`absolute left-0 top-0 ${className}`}
+    className={`absolute left-0 top-0 select-none ${className}`}
     style={{
       width,
       height,
@@ -33,6 +43,11 @@ const Face3D: React.FC<Face3DProps> = ({
       transformStyle: "preserve-3d",
       ...(style ?? {}),
     }}
+    onClick={onClick}
+    onKeyDown={onKeyDown}
+    role={role}
+    tabIndex={tabIndex}
+    aria-label={ariaLabel}
   >
     {showLabel && label ? (
       <FacadeLabel text={label} fontSize={facadeFontSize} />

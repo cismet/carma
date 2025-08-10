@@ -156,7 +156,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
   // Face size and translation distance
   const face = size;
   const tz = half; // translateZ by half size to position faces
-  const labelRadius = face * 0.8;
+  const labelRadius = face * 0.9;
   const discSize = face * 2; // circular disc diameter equals 2x cube edge length
   const containerSize = discSize; // ensure container fully contains the disc (dome)
   const bottomColorInner = `rgba(${bottomColorRgb}, 0.4)`;
@@ -202,7 +202,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
             width={face}
             height={face}
             facadeFontSize={facadeFontSize}
-            style={{ boxShadow: "inset 0 0 10px rgba(0,0,0,0.1)" }}
+            style={{ pointerEvents: "none" }}
           >
             {/* North arrow (SVG), counter-rotated to keep pointing north */}
             <div
@@ -239,43 +239,83 @@ const ObliqueOrientationCube: React.FC<Props> = ({
           </div>
           {/* Front (South) */}
           <Face3D
-            className="bg-white/80 border border-gray-300"
+            className="bg-white/50 border border-gray-300 hover:bg-yellow-100 cursor-pointer"
             transform={transforms.front}
             width={face}
             height={face}
             showLabel={showFacadeLabels}
             facadeFontSize={facadeFontSize}
             label={FACADE_LABELS_DE[CardinalDirectionEnum.South]}
+            onClick={() => onDirectionSelect?.(CardinalDirectionEnum.North)}
+            role="button"
+            tabIndex={0}
+            ariaLabel="Select North (front face)"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onDirectionSelect?.(CardinalDirectionEnum.North);
+              }
+            }}
           />
           {/* Back (North) */}
           <Face3D
-            className="bg-white/50 border border-gray-200"
+            className="bg-white/50 border border-gray-200 hover:bg-yellow-100 cursor-pointer"
             transform={transforms.back}
             width={face}
             height={face}
             showLabel={showFacadeLabels}
             facadeFontSize={facadeFontSize}
             label={FACADE_LABELS_DE[CardinalDirectionEnum.North]}
+            onClick={() => onDirectionSelect?.(CardinalDirectionEnum.South)}
+            role="button"
+            tabIndex={0}
+            ariaLabel="Select South (back face)"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onDirectionSelect?.(CardinalDirectionEnum.South);
+              }
+            }}
           />
           {/* Left (West) */}
           <Face3D
-            className="bg-white/70 border border-gray-200"
+            className="bg-white/50 border border-gray-200 hover:bg-yellow-100 cursor-pointer"
             transform={transforms.left}
             width={face}
             height={face}
             showLabel={showFacadeLabels}
             facadeFontSize={facadeFontSize}
             label={FACADE_LABELS_DE[CardinalDirectionEnum.West]}
+            onClick={() => onDirectionSelect?.(CardinalDirectionEnum.East)}
+            role="button"
+            tabIndex={0}
+            ariaLabel="Select East (left face)"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onDirectionSelect?.(CardinalDirectionEnum.East);
+              }
+            }}
           />
           {/* Right (East) */}
           <Face3D
-            className="bg-white/70 border border-gray-200"
+            className="bg-white/50 border border-gray-200 hover:bg-yellow-100 cursor-pointer"
             transform={transforms.right}
             width={face}
             height={face}
             showLabel={showFacadeLabels}
             facadeFontSize={facadeFontSize}
             label={FACADE_LABELS_DE[CardinalDirectionEnum.East]}
+            onClick={() => onDirectionSelect?.(CardinalDirectionEnum.West)}
+            role="button"
+            tabIndex={0}
+            ariaLabel="Select West (right face)"
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onDirectionSelect?.(CardinalDirectionEnum.West);
+              }
+            }}
           />
         </div>
       </div>
@@ -316,7 +356,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
       >
         {/* Common styles for anchor containers: centered at cube origin, then 3D translated */}
         <SelectorAnchor
-          translate3d={`translate3d(0px, ${labelRadius}px, 0px)`}
+          translate3d={`translate3d(0px, ${labelRadius}px, ${half}px)`}
           tooltip="Blick nach Norden auf Südseite"
           aria="Select North"
           onClick={() => onDirectionSelect?.(CardinalDirectionEnum.North)}
@@ -324,7 +364,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
           billboardTransform={labelsInverseTransform}
         />
         <SelectorAnchor
-          translate3d={`translate3d(0px, ${-labelRadius}px, 0px)`}
+          translate3d={`translate3d(0px, ${-labelRadius}px, ${half}px)`}
           tooltip="Blick nach Süden auf Nordseite"
           aria="Select South"
           onClick={() => onDirectionSelect?.(CardinalDirectionEnum.South)}
@@ -332,7 +372,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
           billboardTransform={labelsInverseTransform}
         />
         <SelectorAnchor
-          translate3d={`translate3d(${-labelRadius}px, 0px, 0px)`}
+          translate3d={`translate3d(${-labelRadius}px, 0px, ${half}px)`}
           tooltip="Blick nach Osten auf Westseite"
           aria="Select East"
           onClick={() => onDirectionSelect?.(CardinalDirectionEnum.East)}
@@ -340,7 +380,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
           billboardTransform={labelsInverseTransform}
         />
         <SelectorAnchor
-          translate3d={`translate3d(${labelRadius}px, 0px, 0px)`}
+          translate3d={`translate3d(${labelRadius}px, 0px, ${half}px)`}
           tooltip="Blick nach Westen auf Ostseite"
           aria="Select West"
           onClick={() => onDirectionSelect?.(CardinalDirectionEnum.West)}
