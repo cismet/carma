@@ -11,6 +11,7 @@ export type SelectorAnchorProps = {
   disabled?: boolean;
   color?: string;
   hoverColor?: string;
+  rotateRad?: number;
 };
 
 const SelectorAnchor: React.FC<SelectorAnchorProps> = ({
@@ -23,6 +24,7 @@ const SelectorAnchor: React.FC<SelectorAnchorProps> = ({
   disabled = false,
   color,
   hoverColor,
+  rotateRad,
 }) => {
   const [hover, setHover] = useState(false);
   const effectiveColor = hover && !disabled ? hoverColor ?? color : color;
@@ -57,6 +59,9 @@ const SelectorAnchor: React.FC<SelectorAnchorProps> = ({
               color: effectiveColor,
               cursor: disabled ? "not-allowed" : "pointer",
               transition: "color 150ms ease-in-out",
+              transform:
+                rotateRad !== undefined ? `rotate(${rotateRad}rad)` : undefined,
+              transformOrigin: "50% 50%",
             }}
           >
             {label}

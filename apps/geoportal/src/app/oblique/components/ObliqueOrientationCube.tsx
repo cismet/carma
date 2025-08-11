@@ -46,21 +46,6 @@ const getTransforms = (tz: number) => ({
   right: `matrix3d(0,-1,0,0, 0,0,-1,0, 1,0,0,0, ${tz},0,0,1)`,
 });
 
-const arrowGlyphForDirection = (dir: CardinalDirectionEnum): string => {
-  switch (dir) {
-    case CardinalDirectionEnum.North:
-      return "↑";
-    case CardinalDirectionEnum.East:
-      return "→";
-    case CardinalDirectionEnum.South:
-      return "↓";
-    case CardinalDirectionEnum.West:
-      return "←";
-    default:
-      return "";
-  }
-};
-
 const ArrowSvg = (
   size: number = 100,
   styleColor?: string,
@@ -280,6 +265,8 @@ const ObliqueOrientationCube: React.FC<Props> = ({
     : `rotateZ(${-offsetRad}rad) ${inverseSceneTransform}`;
   // North arrow always compensates imagery offset to point to geographic north
   const northArrowTransform = offsetCube ? `rotateZ(${-offsetRad}rad)` : "";
+  // Current camera heading (rad) for arrow-rotation compensation
+  const currentHeadingRad = cam?.heading ?? 0;
 
   // Face size and translation distance
   const face = size;
@@ -298,6 +285,13 @@ const ObliqueOrientationCube: React.FC<Props> = ({
     "SÜD\u200bSEITE",
     "WEST\u200bSEITE",
   ];
+  // Tooltips used when directionalButtonType === "nextCapture" (sibling navigation)
+  const NEXT_TOOLTIPS_DE: Record<CardinalDirectionEnum, string> = {
+    [CardinalDirectionEnum.North]: "Nächster Nachbar nach Norden",
+    [CardinalDirectionEnum.East]: "Nächster Nachbar nach Osten",
+    [CardinalDirectionEnum.South]: "Nächster Nachbar nach Süden",
+    [CardinalDirectionEnum.West]: "Nächster Nachbar nach Westen",
+  };
   // Facade label font sizing (~20% larger relative to face)
   const facadeFontSize = face * 0.28;
 
@@ -340,19 +334,22 @@ const ObliqueOrientationCube: React.FC<Props> = ({
       "gray-200": "#e5e7eb",
       "yellow-500": "#eab308",
       "yellow-100": "#fef9c3",
-      "white": "#ffffff",
+      white: "#ffffff",
     };
     return map[token];
   };
 
   const arrowBaseColor = resolveColorToken(arrowColorToken) ?? undefined;
-  const arrowHoverColor = resolveColorToken(arrowHoverColorToken) ?? arrowBaseColor;
+  const arrowHoverColor =
+    resolveColorToken(arrowHoverColorToken) ?? arrowBaseColor;
   const faceHoverBgColor = resolveColorToken(faceHoverBgToken);
 
   const faceBaseClassName = `bg-white/50 border border-gray-200 active:cursor-grabbing cursor-grab`;
 
   // Local hover states
-  const [hoveredFace, setHoveredFace] = useState<"front" | "back" | "left" | "right" | null>(null);
+  const [hoveredFace, setHoveredFace] = useState<
+    "front" | "back" | "left" | "right" | null
+  >(null);
   const [hoverNorth, setHoverNorth] = useState(false);
 
   return (
@@ -651,9 +648,16 @@ const ObliqueOrientationCube: React.FC<Props> = ({
           {/* Common styles for anchor containers: centered at cube origin, then 3D translated */}
           {SELECTOR_CONFIG.map((cfg) => {
             const isNextCapture = directionalButtonType === "nextCapture";
-            const label = isNextCapture
-              ? arrowGlyphForDirection(cfg.dir)
-              : getLetter(cfg.labelKey);
+            // Always point arrow away from cube center: base angle by anchor offset
+            // Compensate with current camera heading and optional imagery offset
+            const baseAngleRad = Math.atan2(cfg.oy, cfg.ox) + Math.PI / 2;
+            // Rotate the up-arrow (↑) by +90° so that (ox,oy) maps to the visual outward direction
+            const rotateRad = -currentHeadingRad + baseAngleRad + offsetRad;
+            const label = isNextCapture ? "↑" : getLetter(cfg.labelKey);
+            const tooltip = isNextCapture
+              ? NEXT_TOOLTIPS_DE[cfg.dir]
+              : cfg.tooltip;
+
             const onClick = isNextCapture
               ? () => onNextCapture?.(cfg.dir)
               : () => onDirectionSelect?.(cfg.dir);
@@ -664,7 +668,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
                 translate3d={`translate3d(${cfg.ox * labelRadius}px, ${
                   cfg.oy * labelRadius
                 }px, ${half}px)`}
-                tooltip={cfg.tooltip}
+                tooltip={tooltip}
                 aria={cfg.aria}
                 onClick={onClick}
                 label={label}
@@ -672,6 +676,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
                 disabled={isDisabled}
                 color={arrowBaseColor}
                 hoverColor={arrowHoverColor}
+                rotateRad={isNextCapture ? rotateRad : undefined}
               />
             );
           })}
