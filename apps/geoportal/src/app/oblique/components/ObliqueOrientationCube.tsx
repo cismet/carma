@@ -654,8 +654,15 @@ const ObliqueOrientationCube: React.FC<Props> = ({
             // Rotate the up-arrow (↑) by +90° so that (ox,oy) maps to the visual outward direction
             const rotateRad = -currentHeadingRad + baseAngleRad + offsetRad;
             const label = isNextCapture ? "↑" : getLetter(cfg.labelKey);
+            // Use inversion enum from utils for a 180° tooltip rotation
+            const invertedDir = (
+              InvertedCardinalDirectionEnum as unknown as Record<
+                string,
+                CardinalDirectionEnum
+              >
+            )[CardinalDirectionEnum[cfg.dir] as unknown as string];
             const tooltip = isNextCapture
-              ? NEXT_TOOLTIPS_DE[cfg.dir]
+              ? NEXT_TOOLTIPS_DE[invertedDir]
               : cfg.tooltip;
 
             const onClick = isNextCapture
