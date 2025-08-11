@@ -63,10 +63,12 @@ const arrowGlyphForDirection = (dir: CardinalDirectionEnum): string => {
 
 const ArrowSvg = (
   size: number = 100,
-  className?: string,
+  styleColor?: string,
   onActivate?: () => void,
   disabled: boolean = false,
-  style?: React.CSSProperties
+  style?: React.CSSProperties,
+  onMouseEnter?: () => void,
+  onMouseLeave?: () => void
 ) => (
   <svg
     width={size}
@@ -76,12 +78,20 @@ const ArrowSvg = (
   >
     <polygon
       points="50,15 80,75 50,60 20,75"
-      className={className}
       fill="currentColor"
       pointerEvents={disabled ? "none" : "visibleFill"}
       role="button"
       tabIndex={disabled ? -1 : 0}
       aria-label="Auf Nordausrichtung setzen"
+      style={{ color: styleColor, transition: "color 150ms ease-in-out" }}
+      onMouseEnter={() => {
+        if (disabled) return;
+        onMouseEnter?.();
+      }}
+      onMouseLeave={() => {
+        if (disabled) return;
+        onMouseLeave?.();
+      }}
       onMouseDown={(e) => {
         if (disabled) return;
         e.stopPropagation();
@@ -322,12 +332,28 @@ const ObliqueOrientationCube: React.FC<Props> = ({
     }
   };
 
-  // Compute effective classes: use deprecated class props if present; else build from tokens
-  const hoverFaceClassEffective = `hover:bg-${faceHoverBgToken}`;
-  const arrowBaseClassEffective = `text-${arrowColorToken}`;
-  const arrowHoverClassEffective = `hover:text-${arrowHoverColorToken}`;
+  // Resolve color tokens to CSS colors for hover effects (limited map for defaults)
+  const resolveColorToken = (token?: string): string | undefined => {
+    if (!token) return undefined;
+    const map: Record<string, string> = {
+      "gray-500": "#6b7280",
+      "gray-200": "#e5e7eb",
+      "yellow-500": "#eab308",
+      "yellow-100": "#fef9c3",
+      "white": "#ffffff",
+    };
+    return map[token];
+  };
 
-  const faceClassName = `bg-white/50 border border-gray-200 active:cursor-grabbing cursor-grab ${hoverFaceClassEffective}`;
+  const arrowBaseColor = resolveColorToken(arrowColorToken) ?? undefined;
+  const arrowHoverColor = resolveColorToken(arrowHoverColorToken) ?? arrowBaseColor;
+  const faceHoverBgColor = resolveColorToken(faceHoverBgToken);
+
+  const faceBaseClassName = `bg-white/50 border border-gray-200 active:cursor-grabbing cursor-grab`;
+
+  // Local hover states
+  const [hoveredFace, setHoveredFace] = useState<"front" | "back" | "left" | "right" | null>(null);
+  const [hoverNorth, setHoverNorth] = useState(false);
 
   return (
     <div
@@ -398,9 +424,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
           {/* Clickable North Arrow overlay (counter-rotated to geographic north) */}
           {ArrowSvg(
             arrowSize,
-            `${arrowBaseClassEffective} ${
-              !isDragging ? arrowHoverClassEffective : ""
-            } ${isDragging ? "" : "cursor-pointer"}`,
+            !isDragging && hoverNorth ? arrowHoverColor : arrowBaseColor,
             handleNorthArrowClick,
             isDragging,
             {
@@ -408,7 +432,10 @@ const ObliqueOrientationCube: React.FC<Props> = ({
               left: "50%",
               top: "50%",
               transform: `${transforms.top} translate(-50%, -50%) ${northArrowTransform}`,
-            }
+              cursor: isDragging ? "default" : "pointer",
+            },
+            () => setHoverNorth(true),
+            () => setHoverNorth(false)
           )}
 
           {/* Bottom - circular disc with radial gradient */}
@@ -440,7 +467,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
           </div>
           {/* Front (South) */}
           <Face3D
-            className={faceClassName}
+            className={faceBaseClassName}
             transform={transforms.front}
             width={face}
             height={face}
@@ -449,6 +476,15 @@ const ObliqueOrientationCube: React.FC<Props> = ({
             label={FACADE_LABELS_DE[CardinalDirectionEnum.South]}
             onMouseDown={handleMouseDown}
             onMouseUp={handleMouseUp}
+            onMouseEnter={() => setHoveredFace("front")}
+            onMouseLeave={() => setHoveredFace(null)}
+            style={{
+              backgroundColor:
+                !isDragging && hoveredFace === "front" && faceHoverBgColor
+                  ? faceHoverBgColor
+                  : undefined,
+              transition: "background-color 150ms ease-in-out",
+            }}
             onClick={() => {
               if (isDraggingRef.current) return;
               onDirectionSelect?.(CardinalDirectionEnum.North);
@@ -466,7 +502,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
           />
           {/* Back (North) */}
           <Face3D
-            className={faceClassName}
+            className={faceBaseClassName}
             transform={transforms.back}
             width={face}
             height={face}
@@ -475,6 +511,15 @@ const ObliqueOrientationCube: React.FC<Props> = ({
             label={FACADE_LABELS_DE[CardinalDirectionEnum.North]}
             onMouseDown={handleMouseDown}
             onMouseUp={handleMouseUp}
+            onMouseEnter={() => setHoveredFace("back")}
+            onMouseLeave={() => setHoveredFace(null)}
+            style={{
+              backgroundColor:
+                !isDragging && hoveredFace === "back" && faceHoverBgColor
+                  ? faceHoverBgColor
+                  : undefined,
+              transition: "background-color 150ms ease-in-out",
+            }}
             onClick={() => {
               if (isDraggingRef.current) return;
               onDirectionSelect?.(CardinalDirectionEnum.South);
@@ -492,7 +537,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
           />
           {/* Left (West) */}
           <Face3D
-            className={faceClassName}
+            className={faceBaseClassName}
             transform={transforms.left}
             width={face}
             height={face}
@@ -501,6 +546,15 @@ const ObliqueOrientationCube: React.FC<Props> = ({
             label={FACADE_LABELS_DE[CardinalDirectionEnum.West]}
             onMouseDown={handleMouseDown}
             onMouseUp={handleMouseUp}
+            onMouseEnter={() => setHoveredFace("left")}
+            onMouseLeave={() => setHoveredFace(null)}
+            style={{
+              backgroundColor:
+                !isDragging && hoveredFace === "left" && faceHoverBgColor
+                  ? faceHoverBgColor
+                  : undefined,
+              transition: "background-color 150ms ease-in-out",
+            }}
             onClick={() => {
               if (isDraggingRef.current) return;
               onDirectionSelect?.(CardinalDirectionEnum.East);
@@ -518,7 +572,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
           />
           {/* Right (East) */}
           <Face3D
-            className={faceClassName}
+            className={faceBaseClassName}
             transform={transforms.right}
             width={face}
             height={face}
@@ -527,6 +581,15 @@ const ObliqueOrientationCube: React.FC<Props> = ({
             label={FACADE_LABELS_DE[CardinalDirectionEnum.East]}
             onMouseDown={handleMouseDown}
             onMouseUp={handleMouseUp}
+            onMouseEnter={() => setHoveredFace("right")}
+            onMouseLeave={() => setHoveredFace(null)}
+            style={{
+              backgroundColor:
+                !isDragging && hoveredFace === "right" && faceHoverBgColor
+                  ? faceHoverBgColor
+                  : undefined,
+              transition: "background-color 150ms ease-in-out",
+            }}
             onClick={() => {
               if (isDraggingRef.current) return;
               onDirectionSelect?.(CardinalDirectionEnum.West);
@@ -607,6 +670,8 @@ const ObliqueOrientationCube: React.FC<Props> = ({
                 label={label}
                 billboardTransform={labelsInverseTransform}
                 disabled={isDisabled}
+                color={arrowBaseColor}
+                hoverColor={arrowHoverColor}
               />
             );
           })}

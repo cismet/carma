@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Button, Tooltip } from "antd";
 
 export type SelectorAnchorProps = {
@@ -9,6 +9,8 @@ export type SelectorAnchorProps = {
   label: React.ReactNode;
   billboardTransform: string; // transform that billboards to the viewer
   disabled?: boolean;
+  color?: string;
+  hoverColor?: string;
 };
 
 const SelectorAnchor: React.FC<SelectorAnchorProps> = ({
@@ -19,37 +21,50 @@ const SelectorAnchor: React.FC<SelectorAnchorProps> = ({
   label,
   billboardTransform,
   disabled = false,
-}) => (
-  <div
-    className="absolute"
-    style={{
-      left: "50%",
-      top: "50%",
-      transformStyle: "preserve-3d",
-      transform: `translate(-50%, -50%) ${translate3d}`,
-      pointerEvents: "none",
-    }}
-  >
+  color,
+  hoverColor,
+}) => {
+  const [hover, setHover] = useState(false);
+  const effectiveColor = hover && !disabled ? hoverColor ?? color : color;
+  return (
     <div
+      className="absolute"
       style={{
-        transform: billboardTransform,
-        pointerEvents: disabled ? "none" : "auto",
+        left: "50%",
+        top: "50%",
+        transformStyle: "preserve-3d",
+        transform: `translate(-50%, -50%) ${translate3d}`,
+        pointerEvents: "none",
       }}
     >
-      <Tooltip title={tooltip} open={disabled ? false : undefined}>
-        <Button
-          size="small"
-          shape="circle"
-          onClick={onClick}
-          aria-label={aria}
-          disabled={disabled}
-          aria-disabled={disabled}
-        >
-          {label}
-        </Button>
-      </Tooltip>
+      <div
+        style={{
+          transform: billboardTransform,
+          pointerEvents: disabled ? "none" : "auto",
+        }}
+      >
+        <Tooltip title={tooltip} open={disabled ? false : undefined}>
+          <Button
+            size="small"
+            shape="circle"
+            onClick={onClick}
+            aria-label={aria}
+            disabled={disabled}
+            aria-disabled={disabled}
+            onMouseEnter={() => setHover(true)}
+            onMouseLeave={() => setHover(false)}
+            style={{
+              color: effectiveColor,
+              cursor: disabled ? "not-allowed" : "pointer",
+              transition: "color 150ms ease-in-out",
+            }}
+          >
+            {label}
+          </Button>
+        </Tooltip>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 export default SelectorAnchor;
