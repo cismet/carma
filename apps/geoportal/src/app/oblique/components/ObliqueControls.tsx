@@ -99,10 +99,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     toggleObliqueMode,
     imagePreviewStyle,
     imageRecords,
-    navigateForward,
-    navigateBackward,
-    navigateLeft,
-    navigateRight,
+    navigateByFlightPattern,
   } = useOblique();
   const { viewerRef } = useCesiumContext();
   const imageId = nearestImage?.record?.id;
@@ -126,31 +123,24 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const [showOrientationCube, setShowOrientationCube] = useState(true);
   const [directionalButtonType, setDirectionalButtonType] = useState<
     "captureDirection" | "nextCapture"
-  >("captureDirection");
+  >("nextCapture");
   const isTransitioning = useSelector(selectViewerIsTransitioning);
 
   const handleNextCapture = useCallback(
     (dir: CardinalDirectionEnum) => {
       // mark that we should fly to the new image after navigation updates nearestImage
       nextCaptureShouldFlyRef.current = true;
-      switch (dir) {
-        case CardinalDirectionEnum.North:
-          navigateForward();
-          break;
-        case CardinalDirectionEnum.South:
-          navigateBackward();
-          break;
-        case CardinalDirectionEnum.West:
-          navigateLeft();
-          break;
-        case CardinalDirectionEnum.East:
-          navigateRight();
-          break;
-        default:
-          break;
+      if (dir === CardinalDirectionEnum.East) {
+        navigateByFlightPattern("forward");
+      } else if (dir === CardinalDirectionEnum.West) {
+        navigateByFlightPattern("backward");
+      } else if (dir === CardinalDirectionEnum.North) {
+        navigateByFlightPattern("right");
+      } else if (dir === CardinalDirectionEnum.South) {
+        navigateByFlightPattern("left");
       }
     },
-    [navigateForward, navigateBackward, navigateLeft, navigateRight]
+    [navigateByFlightPattern]
   );
 
   // Fly-to handling for next capture (without opening preview)
@@ -218,28 +208,52 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
       return 6371000 * c;
     };
+    let hasForwardExact = false;
+    let hasForwardWithin = false;
+    let hasBackwardExact = false;
+    let hasBackwardWithin = false;
+    // Forward/backward direction depends on line parity: even lines are inverted per dataset
+    const forwardStep = current.lineIndex % 2 === 0 ? -1 : 1;
     imageRecords.forEach((rec) => {
       // Forward/backward: same strip, keep cameraId constraint
       if (
         rec.lineIndex === current.lineIndex &&
         rec.cameraId === current.cameraId
       ) {
-        if (rec.photoIndex > current.photoIndex) hasForward = true;
-        if (rec.photoIndex < current.photoIndex) hasBackward = true;
+        // Forward exact: next index in the parity-adjusted direction
+        if (rec.photoIndex === current.photoIndex + forwardStep) {
+          hasForwardExact = true;
+        } else {
+          const delta = rec.photoIndex - current.photoIndex;
+          if (delta * forwardStep > 0) {
+            const d = haversineMeters(
+              rec.centerWGS84[0],
+              rec.centerWGS84[1],
+              current.centerWGS84[0],
+              current.centerWGS84[1]
+            );
+            if (d <= 350) hasForwardWithin = true;
+          }
+        }
+        // Backward exact: previous index in the parity-adjusted opposite direction
+        if (rec.photoIndex === current.photoIndex - forwardStep) {
+          hasBackwardExact = true;
+        } else {
+          const delta = rec.photoIndex - current.photoIndex;
+          if (delta * forwardStep < 0) {
+            const d = haversineMeters(
+              rec.centerWGS84[0],
+              rec.centerWGS84[1],
+              current.centerWGS84[0],
+              current.centerWGS84[1]
+            );
+            if (d <= 350) hasBackwardWithin = true;
+          }
+        }
       }
-      // Left/right: adjacent strip, require same sector and <= 2000m
+      // Left/right: adjacent strip, require same sector and <= 350m
+      // Left (North) => lineIndex + 1; Right (South) => lineIndex - 1
       if (
-        rec.lineIndex === current.lineIndex - 1 &&
-        rec.sector === current.sector
-      ) {
-        const d = haversineMeters(
-          rec.centerWGS84[0],
-          rec.centerWGS84[1],
-          current.centerWGS84[0],
-          current.centerWGS84[1]
-        );
-        if (d <= 2000) hasLeft = true;
-      } else if (
         rec.lineIndex === current.lineIndex + 1 &&
         rec.sector === current.sector
       ) {
@@ -249,14 +263,31 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
           current.centerWGS84[0],
           current.centerWGS84[1]
         );
-        if (d <= 2000) hasRight = true;
+        if (d <= 350) hasLeft = true;
+      } else if (
+        rec.lineIndex === current.lineIndex - 1 &&
+        rec.sector === current.sector
+      ) {
+        const d = haversineMeters(
+          rec.centerWGS84[0],
+          rec.centerWGS84[1],
+          current.centerWGS84[0],
+          current.centerWGS84[1]
+        );
+        if (d <= 350) hasRight = true;
       }
     });
 
-    disabled[CardinalDirectionEnum.North] = !hasForward;
-    disabled[CardinalDirectionEnum.South] = !hasBackward;
-    disabled[CardinalDirectionEnum.West] = !hasLeft;
-    disabled[CardinalDirectionEnum.East] = !hasRight;
+    // Fold exact/within checks into final forward/back availability
+    hasForward = hasForwardExact || (!hasForwardExact && hasForwardWithin);
+    hasBackward = hasBackwardExact || (!hasBackwardExact && hasBackwardWithin);
+
+    // Disabled keys correspond to what the cube sends via onNextCapture (raw cardinals)
+    // and how we map those cardinals in handleNextCapture (above).
+    disabled[CardinalDirectionEnum.East] = !hasForward; // East -> forward
+    disabled[CardinalDirectionEnum.West] = !hasBackward; // West -> backward
+    disabled[CardinalDirectionEnum.North] = !hasRight; // North -> adjacent -1 (right)
+    disabled[CardinalDirectionEnum.South] = !hasLeft; // South -> adjacent +1 (left)
     return disabled;
   }, [nearestImage, imageRecords]);
   const preloadImageRef = useRef<ReturnType<typeof debounce> | null>(null);

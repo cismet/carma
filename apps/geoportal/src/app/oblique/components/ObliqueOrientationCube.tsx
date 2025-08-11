@@ -654,26 +654,18 @@ const ObliqueOrientationCube: React.FC<Props> = ({
             // Rotate the up-arrow (↑) by +90° so that (ox,oy) maps to the visual outward direction
             const rotateRad = -currentHeadingRad + baseAngleRad + offsetRad;
             const label = isNextCapture ? "↑" : getLetter(cfg.labelKey);
-            // Use inversion enum from utils for a 180° tooltip rotation
-            const invertedDir = (
-              InvertedCardinalDirectionEnum as unknown as Record<
-                string,
-                CardinalDirectionEnum
-              >
-            )[CardinalDirectionEnum[cfg.dir] as unknown as string];
+            // Tooltips and mapping: in nextCapture, use raw cardinal directions (no rotation/inversion)
             const tooltip = isNextCapture
-              ? NEXT_TOOLTIPS_DE[invertedDir]
+              ? NEXT_TOOLTIPS_DE[cfg.dir]
               : cfg.tooltip;
-
-            // Step 1: Align actions by rotating the inverted cardinal 90° clockwise (N->E->S->W->N)
-            // Using invertedDir as base aligns with how tooltips were corrected (180° inversion)
-            const rotatedDirCW = isNextCapture
-              ? ((((invertedDir as unknown as number) + 1) % 4) as CardinalDirectionEnum)
-              : cfg.dir;
             const onClick = isNextCapture
-              ? () => onNextCapture?.(rotatedDirCW)
+              ? () => onNextCapture?.(cfg.dir)
               : () => onDirectionSelect?.(cfg.dir);
-            const isDisabled = isDragging || !!disabledDirections?.[cfg.dir];
+            const isDisabled =
+              isDragging ||
+              !!(isNextCapture
+                ? disabledDirections?.[cfg.dir]
+                : disabledDirections?.[cfg.dir]);
             return (
               <SelectorAnchor
                 key={cfg.dir}
