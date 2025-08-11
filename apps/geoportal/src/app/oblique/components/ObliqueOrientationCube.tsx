@@ -31,9 +31,9 @@ type Props = {
   offsetCube?: boolean;
   invertCardinalLabels?: boolean;
   showFacadeLabels?: boolean;
-  hoverFaceClass?: string;
-  arrowHoverClass?: string;
-  arrowBaseClass?: string;
+  faceHoverBgToken?: string;
+  arrowColorToken?: string;
+  arrowHoverColorToken?: string;
 };
 
 const eps = 0.001;
@@ -101,9 +101,9 @@ const ObliqueOrientationCube: React.FC<Props> = ({
   offsetCube = false,
   invertCardinalLabels = true,
   showFacadeLabels = true,
-  hoverFaceClass = "hover:bg-yellow-100",
-  arrowHoverClass = "hover:text-yellow-500",
-  arrowBaseClass = "text-gray-500",
+  faceHoverBgToken = "yellow-100",
+  arrowColorToken = "gray-500",
+  arrowHoverColorToken = "yellow-500",
 }) => {
   const half = size / 2;
 
@@ -431,6 +431,15 @@ const ObliqueOrientationCube: React.FC<Props> = ({
     };
   }, []);
 
+  // Compute effective classes: use deprecated class props if present; else build from tokens
+  const hoverFaceClassEffective = `hover:bg-${faceHoverBgToken}`;
+  const arrowBaseClassEffective = `text-${arrowColorToken}`;
+  const arrowHoverClassEffective = `hover:text-${arrowHoverColorToken}`;
+
+  const faceClassName = `bg-white/50 border border-gray-200 active:cursor-grabbing cursor-grab ${
+    !isDragging ? hoverFaceClassEffective : ""
+  }`;
+
   return (
     <div
       ref={containerRef}
@@ -469,26 +478,28 @@ const ObliqueOrientationCube: React.FC<Props> = ({
         >
           {/* Top */}
           <Face3D
-            className="bg-white/70 border border-gray-300"
+            className="bg-white/70 border border-gray-300 cursor-grab active:cursor-grabbing"
             transform={transforms.top}
             width={face}
             height={face}
             facadeFontSize={facadeFontSize}
-            style={{ pointerEvents: "none" }}
-            // top face should not start drags
+            onMouseDown={handleMouseDown}
+            onMouseUp={handleMouseUp}
           >
             {/* North arrow overlay is rendered separately to remain clickable */}
           </Face3D>
 
           {/* Clickable North Arrow overlay (counter-rotated to geographic north) */}
+          {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
           <div
-            className="absolute left-0 top-0"
+            className="absolute left-0 top-0 cursor-grab active:cursor-grabbing"
             style={{
               width: face,
               height: face,
               transform: transforms.top,
-              pointerEvents: isDragging ? "none" : "auto",
             }}
+            onMouseDown={handleMouseDown}
+            onMouseUp={handleMouseUp}
           >
             <div
               className="w-full h-full flex items-center justify-center"
@@ -496,13 +507,14 @@ const ObliqueOrientationCube: React.FC<Props> = ({
             >
               {ArrowSvg(
                 arrowSize,
-                `${arrowBaseClass} ${arrowHoverClass} cursor-pointer`,
+                `${arrowBaseClassEffective} ${arrowHoverClassEffective} cursor-pointer`,
                 handleNorthArrowClick
               )}
             </div>
           </div>
 
           {/* Bottom - circular disc with radial gradient */}
+          {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
           <div
             className="absolute left-0 top-0"
             style={{
@@ -530,9 +542,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
           </div>
           {/* Front (South) */}
           <Face3D
-            className={`bg-white/50 border border-gray-300 ${
-              !isDragging ? hoverFaceClass : ""
-            } ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
+            className={faceClassName}
             transform={transforms.front}
             width={face}
             height={face}
@@ -558,9 +568,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
           />
           {/* Back (North) */}
           <Face3D
-            className={`bg-white/50 border border-gray-200 ${
-              !isDragging ? hoverFaceClass : ""
-            } ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
+            className={faceClassName}
             transform={transforms.back}
             width={face}
             height={face}
@@ -586,9 +594,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
           />
           {/* Left (West) */}
           <Face3D
-            className={`bg-white/50 border border-gray-200 ${
-              !isDragging ? hoverFaceClass : ""
-            } ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
+            className={faceClassName}
             transform={transforms.left}
             width={face}
             height={face}
@@ -614,9 +620,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
           />
           {/* Right (East) */}
           <Face3D
-            className={`bg-white/50 border border-gray-200 ${
-              !isDragging ? hoverFaceClass : ""
-            } ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
+            className={faceClassName}
             transform={transforms.right}
             width={face}
             height={face}
