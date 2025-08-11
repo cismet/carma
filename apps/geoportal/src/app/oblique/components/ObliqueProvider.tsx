@@ -20,6 +20,7 @@ import type {
   ObliqueFootprintsStyle,
   ObliqueImagePreviewStyle,
   ObliqueImageRecordMap,
+  ObliqueImageRecord,
   Proj4Converter,
 } from "../types";
 
@@ -34,6 +35,27 @@ import { createConverter } from "../utils/crsUtils";
 
 const DEBOUNCE_MS = 250; // time in milliseconds
 const DEBOUNCE_LEADING_EDGE = { leading: true, trailing: false };
+
+// Simple haversine distance (meters)
+const EARTH_RADIUS_M = 6371000;
+function haversineMeters(
+  lon1: number,
+  lat1: number,
+  lon2: number,
+  lat2: number
+) {
+  const toRad = (v: number) => (v * Math.PI) / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) *
+      Math.cos(toRad(lat2)) *
+      Math.sin(dLon / 2) *
+      Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return EARTH_RADIUS_M * c;
+}
 
 interface ObliqueContextType {
   isObliqueMode: boolean;
@@ -70,6 +92,12 @@ interface ObliqueContextType {
   animations: ObliqueAnimationsConfig;
   footprintsStyle: ObliqueFootprintsStyle;
   imagePreviewStyle: ObliqueImagePreviewStyle;
+
+  // Navigation between captures in the flight grid
+  navigateForward: () => void;
+  navigateBackward: () => void;
+  navigateLeft: () => void;
+  navigateRight: () => void;
 }
 
 const ObliqueContext = createContext<ObliqueContextType | null>(null);
@@ -198,6 +226,156 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     animations,
     footprintsStyle,
     imagePreviewStyle,
+    navigateForward: () => {
+      const current = nearestImage?.record;
+      if (!current || !imageRecords) return;
+      let candidate: ObliqueImageRecord | null = null;
+      let minDelta = Number.POSITIVE_INFINITY;
+      imageRecords.forEach((rec) => {
+        if (
+          rec.lineIndex === current.lineIndex &&
+          rec.cameraId === current.cameraId &&
+          rec.photoIndex > current.photoIndex
+        ) {
+          const delta = rec.photoIndex - current.photoIndex;
+          if (delta < minDelta) {
+            minDelta = delta;
+            candidate = rec;
+          }
+        }
+      });
+      if (!candidate) return;
+      setNearestImage({
+        record: candidate,
+        distanceOnGround: 0,
+        distanceToCamera: 0,
+        imageCenter: {
+          x: candidate.x,
+          y: candidate.y,
+          longitude: candidate.centerWGS84[0],
+          latitude: candidate.centerWGS84[1],
+          cardinal: candidate.sector,
+        },
+      });
+      setNearestImageDistance(0);
+    },
+    navigateBackward: () => {
+      const current = nearestImage?.record;
+      if (!current || !imageRecords) return;
+      let candidate: ObliqueImageRecord | null = null;
+      let minDelta = Number.POSITIVE_INFINITY;
+      imageRecords.forEach((rec) => {
+        if (
+          rec.lineIndex === current.lineIndex &&
+          rec.cameraId === current.cameraId &&
+          rec.photoIndex < current.photoIndex
+        ) {
+          const delta = current.photoIndex - rec.photoIndex;
+          if (delta < minDelta) {
+            minDelta = delta;
+            candidate = rec;
+          }
+        }
+      });
+      if (!candidate) return;
+      setNearestImage({
+        record: candidate,
+        distanceOnGround: 0,
+        distanceToCamera: 0,
+        imageCenter: {
+          x: candidate.x,
+          y: candidate.y,
+          longitude: candidate.centerWGS84[0],
+          latitude: candidate.centerWGS84[1],
+          cardinal: candidate.sector,
+        },
+      });
+      setNearestImageDistance(0);
+    },
+    navigateLeft: () => {
+      const current = nearestImage?.record;
+      if (!current || !imageRecords) return;
+      const targetLine = current.lineIndex - 1;
+      let candidate: ObliqueImageRecord | null = null;
+      let bestDist = Number.POSITIVE_INFINITY;
+      let bestDeltaIdx = Number.POSITIVE_INFINITY;
+      imageRecords.forEach((rec) => {
+        if (rec.lineIndex === targetLine && rec.sector === current.sector) {
+          const dist = haversineMeters(
+            rec.centerWGS84[0],
+            rec.centerWGS84[1],
+            current.centerWGS84[0],
+            current.centerWGS84[1]
+          );
+          if (dist > 2000) return; // cap strip jump at 2km
+          const deltaIdx = Math.abs(rec.photoIndex - current.photoIndex);
+          if (
+            dist < bestDist ||
+            (Math.abs(dist - bestDist) < 1e-6 && deltaIdx < bestDeltaIdx)
+          ) {
+            bestDist = dist;
+            bestDeltaIdx = deltaIdx;
+            candidate = rec;
+          }
+        }
+      });
+      if (!candidate) return;
+      setNearestImage({
+        record: candidate,
+        distanceOnGround: 0,
+        distanceToCamera: 0,
+        imageCenter: {
+          x: candidate.x,
+          y: candidate.y,
+          longitude: candidate.centerWGS84[0],
+          latitude: candidate.centerWGS84[1],
+          cardinal: candidate.sector,
+        },
+      });
+      setNearestImageDistance(0);
+    },
+    navigateRight: () => {
+      const current = nearestImage?.record;
+      if (!current || !imageRecords) return;
+      const targetLine = current.lineIndex + 1;
+      let candidate: ObliqueImageRecord | null = null;
+      let bestDist = Number.POSITIVE_INFINITY;
+      let bestDeltaIdx = Number.POSITIVE_INFINITY;
+      imageRecords.forEach((rec) => {
+        if (rec.lineIndex === targetLine && rec.sector === current.sector) {
+          const dist = haversineMeters(
+            rec.centerWGS84[0],
+            rec.centerWGS84[1],
+            current.centerWGS84[0],
+            current.centerWGS84[1]
+          );
+          if (dist > 2000) return; // cap strip jump at 2km
+          const deltaIdx = Math.abs(rec.photoIndex - current.photoIndex);
+          if (
+            dist < bestDist ||
+            (Math.abs(dist - bestDist) < 1e-6 && deltaIdx < bestDeltaIdx)
+          ) {
+            bestDist = dist;
+            bestDeltaIdx = deltaIdx;
+            candidate = rec;
+          }
+        }
+      });
+      if (!candidate) return;
+      setNearestImage({
+        record: candidate,
+        distanceOnGround: 0,
+        distanceToCamera: 0,
+        imageCenter: {
+          x: candidate.x,
+          y: candidate.y,
+          longitude: candidate.centerWGS84[0],
+          latitude: candidate.centerWGS84[1],
+          cardinal: candidate.sector,
+        },
+      });
+      setNearestImageDistance(0);
+    },
   };
 
   return (

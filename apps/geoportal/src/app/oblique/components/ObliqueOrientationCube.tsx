@@ -31,6 +31,8 @@ type Props = {
   arrowHoverColorToken?: string;
   directionalButtonType?: "captureDirection" | "nextCapture";
   isLoading?: boolean;
+  onNextCapture?: (dir: CardinalDirectionEnum) => void;
+  disabledDirections?: Partial<Record<CardinalDirectionEnum, boolean>>;
 };
 
 const eps = 0.001;
@@ -103,6 +105,7 @@ const ArrowSvg = (
 const ObliqueOrientationCube: React.FC<Props> = ({
   size = 100,
   onDirectionSelect,
+  onNextCapture,
   rotateCamera,
   onHeadingSelect,
   offsetRad = 0,
@@ -115,6 +118,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
   arrowHoverColorToken = "yellow-500",
   directionalButtonType = "captureDirection",
   isLoading = false,
+  disabledDirections,
 }) => {
   const half = size / 2;
 
@@ -588,8 +592,9 @@ const ObliqueOrientationCube: React.FC<Props> = ({
               ? arrowGlyphForDirection(cfg.dir)
               : getLetter(cfg.labelKey);
             const onClick = isNextCapture
-              ? () => {}
+              ? () => onNextCapture?.(cfg.dir)
               : () => onDirectionSelect?.(cfg.dir);
+            const isDisabled = isDragging || !!disabledDirections?.[cfg.dir];
             return (
               <SelectorAnchor
                 key={cfg.dir}
@@ -601,7 +606,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
                 onClick={onClick}
                 label={label}
                 billboardTransform={labelsInverseTransform}
-                disabled={isDragging}
+                disabled={isDisabled}
               />
             );
           })}

@@ -49,6 +49,7 @@ import {
 } from "../utils/previewVisibility";
 
 import { CAMERA_ID_INTERIOR_ORIENTATION_PERCENTAGE_OFFSETS } from "../config";
+import { CardinalDirectionEnum } from "../utils/orientationUtils";
 
 interface ObliqueControlsProps {
   /**
@@ -97,12 +98,22 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     isObliqueMode,
     toggleObliqueMode,
     imagePreviewStyle,
+    imageRecords,
+    navigateForward,
+    navigateBackward,
+    navigateLeft,
+    navigateRight,
   } = useOblique();
   const { viewerRef } = useCesiumContext();
   const imageId = nearestImage?.record?.id;
   const cameraId = nearestImage?.record?.cameraId;
   const { isDebugMode, isObliqueUiEval } = useFeatureFlags();
   const animationInProgressRef = useRef<boolean>(false);
+  // Used to trigger fly-to after next capture navigation
+  const nextCaptureShouldFlyRef = useRef(false);
+  // Exterior orientation for current nearest image (used for fly-to actions)
+  const { derivedExteriorOrientationRef } =
+    useExteriorOrientation(nearestImage);
 
   const [isVisible, setIsVisible] = useState(isObliqueMode);
   const [showFacadeLabels, setShowFacadeLabels] = useState(true);
@@ -117,6 +128,137 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     "captureDirection" | "nextCapture"
   >("captureDirection");
   const isTransitioning = useSelector(selectViewerIsTransitioning);
+
+  const handleNextCapture = useCallback(
+    (dir: CardinalDirectionEnum) => {
+      // mark that we should fly to the new image after navigation updates nearestImage
+      nextCaptureShouldFlyRef.current = true;
+      switch (dir) {
+        case CardinalDirectionEnum.North:
+          navigateForward();
+          break;
+        case CardinalDirectionEnum.South:
+          navigateBackward();
+          break;
+        case CardinalDirectionEnum.West:
+          navigateLeft();
+          break;
+        case CardinalDirectionEnum.East:
+          navigateRight();
+          break;
+        default:
+          break;
+      }
+    },
+    [navigateForward, navigateBackward, navigateLeft, navigateRight]
+  );
+
+  // Fly-to handling for next capture (without opening preview)
+
+  const flyToCurrentEOWithoutPreview = useCallback(() => {
+    const viewer = viewerRef.current;
+    if (
+      !isValidViewerInstance(viewer) ||
+      !derivedExteriorOrientationRef.current
+    )
+      return;
+    setLockFootprint(true);
+    animationInProgressRef.current = true;
+    flyToExteriorOrientation(
+      viewer,
+      derivedExteriorOrientationRef.current,
+      () => {
+        animationInProgressRef.current = false;
+        // do not open preview; release footprint lock after the flight
+        setLockFootprint(false);
+        cesiumSafeRequestRender(viewerRef.current);
+      },
+      animations.flyToExteriorOrientation
+    );
+  }, [viewerRef, animations, setLockFootprint, derivedExteriorOrientationRef]);
+
+  // When nearestImage changes after a next-capture, perform a fly-to without preview
+  useEffect(() => {
+    if (!nextCaptureShouldFlyRef.current) return;
+    nextCaptureShouldFlyRef.current = false;
+    flyToCurrentEOWithoutPreview();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nearestImage?.record?.id]);
+
+  // Compute which directions are not available for nextCapture
+  const disabledDirections = useMemo(() => {
+    const disabled: Record<CardinalDirectionEnum, boolean> = {
+      [CardinalDirectionEnum.North]: true,
+      [CardinalDirectionEnum.South]: true,
+      [CardinalDirectionEnum.East]: true,
+      [CardinalDirectionEnum.West]: true,
+    };
+    const current = nearestImage?.record;
+    if (!current || !imageRecords || imageRecords.size === 0) return disabled;
+
+    let hasForward = false;
+    let hasBackward = false;
+    let hasLeft = false;
+    let hasRight = false;
+    const toRad = (v: number) => (v * Math.PI) / 180;
+    const haversineMeters = (
+      lon1: number,
+      lat1: number,
+      lon2: number,
+      lat2: number
+    ) => {
+      const dLat = toRad(lat2 - lat1);
+      const dLon = toRad(lon2 - lon1);
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(toRad(lat1)) *
+          Math.cos(toRad(lat2)) *
+          Math.sin(dLon / 2) *
+          Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return 6371000 * c;
+    };
+    imageRecords.forEach((rec) => {
+      // Forward/backward: same strip, keep cameraId constraint
+      if (
+        rec.lineIndex === current.lineIndex &&
+        rec.cameraId === current.cameraId
+      ) {
+        if (rec.photoIndex > current.photoIndex) hasForward = true;
+        if (rec.photoIndex < current.photoIndex) hasBackward = true;
+      }
+      // Left/right: adjacent strip, require same sector and <= 2000m
+      if (
+        rec.lineIndex === current.lineIndex - 1 &&
+        rec.sector === current.sector
+      ) {
+        const d = haversineMeters(
+          rec.centerWGS84[0],
+          rec.centerWGS84[1],
+          current.centerWGS84[0],
+          current.centerWGS84[1]
+        );
+        if (d <= 2000) hasLeft = true;
+      } else if (
+        rec.lineIndex === current.lineIndex + 1 &&
+        rec.sector === current.sector
+      ) {
+        const d = haversineMeters(
+          rec.centerWGS84[0],
+          rec.centerWGS84[1],
+          current.centerWGS84[0],
+          current.centerWGS84[1]
+        );
+        if (d <= 2000) hasRight = true;
+      }
+    });
+
+    disabled[CardinalDirectionEnum.North] = !hasForward;
+    disabled[CardinalDirectionEnum.South] = !hasBackward;
+    disabled[CardinalDirectionEnum.West] = !hasLeft;
+    disabled[CardinalDirectionEnum.East] = !hasRight;
+    return disabled;
+  }, [nearestImage, imageRecords]);
   const preloadImageRef = useRef<ReturnType<typeof debounce> | null>(null);
 
   // Leva control panel (flat) for UI visibility and cube options
@@ -177,9 +319,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     rotateToDirection,
     rotateToHeading,
   } = useObliqueCameraHandlers(animationInProgressRef, isDebugMode);
-
-  const { derivedExteriorOrientationRef } =
-    useExteriorOrientation(nearestImage);
 
   useFootprints(isDebugMode);
 
@@ -463,6 +602,12 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
                       showFacadeLabels={showFacadeLabels}
                       directionalButtonType={directionalButtonType}
                       isLoading={!isAllDataReady}
+                      onNextCapture={handleNextCapture}
+                      disabledDirections={
+                        directionalButtonType === "nextCapture"
+                          ? disabledDirections
+                          : undefined
+                      }
                     />
                   </div>
                 </div>
