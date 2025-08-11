@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { Cartesian3, HeadingPitchRange, Matrix4, Math as CesiumMath } from "cesium";
+import {
+  Cartesian3,
+  HeadingPitchRange,
+  Matrix4,
+  Math as CesiumMath,
+} from "cesium";
 import {
   cancelViewerAnimation,
   getOrbitPoint,
@@ -46,7 +51,11 @@ export function useOrientationCubeDrag({
   };
 
   const stepAnimation = useCallback(() => {
-    if (!viewerRef.current || !orbitPointRef.current || !isDraggingRef.current) {
+    if (
+      !viewerRef.current ||
+      !orbitPointRef.current ||
+      !isDraggingRef.current
+    ) {
       animFrameRef.current = null;
       return;
     }
@@ -130,7 +139,10 @@ export function useOrientationCubeDrag({
         if (!viewerRef.current || viewerRef.current.isDestroyed()) return;
         shouldSuspendPitchLimiterRef.current = true;
         if (viewerAnimationMapRef?.current) {
-          cancelViewerAnimation(viewerRef.current, viewerAnimationMapRef.current);
+          cancelViewerAnimation(
+            viewerRef.current,
+            viewerAnimationMapRef.current
+          );
         }
         const camera = viewerRef.current.camera;
         previousPercentageChangedRef.current = camera.percentageChanged ?? 0.01;
@@ -161,7 +173,14 @@ export function useOrientationCubeDrag({
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
-  }, [handleMouseUp, viewerRef, viewerAnimationMapRef, shouldSuspendPitchLimiterRef, dragThresholdPx, stepAnimation]);
+  }, [
+    handleMouseUp,
+    viewerRef,
+    viewerAnimationMapRef,
+    shouldSuspendPitchLimiterRef,
+    dragThresholdPx,
+    stepAnimation,
+  ]);
 
   useEffect(() => {
     return () => {

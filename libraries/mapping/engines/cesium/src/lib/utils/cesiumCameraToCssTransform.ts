@@ -77,14 +77,27 @@ export function cesiumCameraToCssTransform(
       const rect = el.getBoundingClientRect();
       const w = rect.width;
       const h = rect.height;
-      const frustum = camera.frustum as unknown as { fovy?: number; _fovy?: number; aspectRatio?: number };
+      const frustum = camera.frustum as unknown as {
+        fovy?: number;
+        _fovy?: number;
+        aspectRatio?: number;
+      };
       const fovy: number | undefined = frustum?.fovy ?? frustum?._fovy;
-      const aspect: number = frustum?.aspectRatio ?? (w > 0 && h > 0 ? w / h : 1);
+      const aspect: number =
+        frustum?.aspectRatio ?? (w > 0 && h > 0 ? w / h : 1);
       const useW = w >= h;
-      const angle = typeof fovy === "number" && fovy > 0 ? (useW ? 2 * Math.atan(Math.tan(fovy / 2) * aspect) : fovy) : undefined;
+      const angle =
+        typeof fovy === "number" && fovy > 0
+          ? useW
+            ? 2 * Math.atan(Math.tan(fovy / 2) * aspect)
+            : fovy
+          : undefined;
 
       const cache = perspectiveCache.get(el) ?? {};
-      const sameAngle = cache.lastAngle !== undefined && angle !== undefined && Math.abs(cache.lastAngle - angle) < 1e-6;
+      const sameAngle =
+        cache.lastAngle !== undefined &&
+        angle !== undefined &&
+        Math.abs(cache.lastAngle - angle) < 1e-6;
       const sameSize = cache.lastW === w && cache.lastH === h;
 
       if (sameAngle && sameSize && typeof cache.lastPerspective === "number") {

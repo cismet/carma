@@ -14,7 +14,8 @@ import {
   faExternalLink,
   faFileArrowDown,
 } from "@fortawesome/free-solid-svg-icons";
-import { Tooltip, Switch } from "antd";
+import { Tooltip } from "antd";
+import { useControls } from "leva";
 import { Math as CesiumMath } from "cesium";
 
 import {
@@ -100,7 +101,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const { viewerRef } = useCesiumContext();
   const imageId = nearestImage?.record?.id;
   const cameraId = nearestImage?.record?.cameraId;
-  const { isDebugMode } = useFeatureFlags();
+  const { isDebugMode, isObliqueUiEval } = useFeatureFlags();
   const animationInProgressRef = useRef<boolean>(false);
 
   const [isVisible, setIsVisible] = useState(isObliqueMode);
@@ -110,8 +111,64 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const [invertLabels, setInvertLabels] = useState(true);
   const [shouldRender, setShouldRender] = useState(isObliqueMode);
   const [isPreviewVisible, setIsPreviewVisible] = useState(false);
+  const [showDirectionControls, setShowDirectionControls] = useState(false);
+  const [showOrientationCube, setShowOrientationCube] = useState(true);
+  const [directionalButtonType, setDirectionalButtonType] = useState<
+    "captureDirection" | "nextCapture"
+  >("captureDirection");
   const isTransitioning = useSelector(selectViewerIsTransitioning);
   const preloadImageRef = useRef<ReturnType<typeof debounce> | null>(null);
+
+  // Leva control panel (flat) for UI visibility and cube options
+  useControls(
+    isObliqueUiEval
+      ? {
+          showDirectionControls: {
+            value: showDirectionControls,
+            onChange: setShowDirectionControls,
+            label: "Dir controls",
+          },
+          showOrientationCube: {
+            value: showOrientationCube,
+            onChange: setShowOrientationCube,
+            label: "Cube",
+          },
+          offsetEnabled: {
+            value: offsetEnabled,
+            onChange: setOffsetEnabled,
+            label: "Offset",
+            render: () => showOrientationCube,
+          },
+          offsetCube: {
+            value: offsetCube,
+            onChange: setOffsetCube,
+            label: "Offset on cube",
+            render: () => showOrientationCube,
+          },
+          invertLabels: {
+            value: invertLabels,
+            onChange: setInvertLabels,
+            label: "Invert labels",
+            render: () => showOrientationCube,
+          },
+          showFacadeLabels: {
+            value: showFacadeLabels,
+            onChange: setShowFacadeLabels,
+            label: "Fassaden",
+            render: () => showOrientationCube,
+          },
+          nextCapture: {
+            value: directionalButtonType === "nextCapture",
+            onChange: (checked: boolean) =>
+              setDirectionalButtonType(
+                checked ? "nextCapture" : "captureDirection"
+              ),
+            label: "Next capture",
+            render: () => showOrientationCube,
+          },
+        }
+      : {}
+  );
 
   const {
     currentHeading,
@@ -378,67 +435,37 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
                 />
               </div>
             )}
-            <div className="grid grid-cols-3 items-center gap-3">
-              <div className="flex justify-end">
-                <ObliqueDirectionControls
-                  rotateCamera={rotateCamera}
-                  rotateToDirection={rotateToDirection}
-                  activeDirection={activeDirection}
-                  activeButtonClass={activeButtonClass}
-                  headingDegrees={headingDegrees}
-                  offsetDegrees={offsetDegrees}
-                  isLoading={!isAllDataReady}
-                />
-              </div>
-              <div className="flex justify-center">
-                <div className="flex flex-col items-center">
-                  <ObliqueOrientationCube
-                    size={70}
+            <div className="flex flex-col items-center gap-2">
+              {showDirectionControls && (
+                <div className="flex justify-center">
+                  <ObliqueDirectionControls
                     rotateCamera={rotateCamera}
-                    onDirectionSelect={rotateToDirection}
-                    onHeadingSelect={rotateToHeading}
-                    offsetRad={effectiveOffsetRad}
-                    offsetCube={offsetCube}
-                    invertCardinalLabels={invertLabels}
-                    showFacadeLabels={showFacadeLabels}
+                    rotateToDirection={rotateToDirection}
+                    activeDirection={activeDirection}
+                    activeButtonClass={activeButtonClass}
+                    headingDegrees={headingDegrees}
+                    offsetDegrees={offsetDegrees}
+                    isLoading={!isAllDataReady}
                   />
-                  <div className="flex flex-col items-start gap-1 mt-2">
-                    <div className="flex items-center gap-2 text-xs">
-                      <Switch
-                        size="small"
-                        checked={offsetEnabled}
-                        onChange={setOffsetEnabled}
-                      />
-                      <span>Offset enabled</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs">
-                      <Switch
-                        size="small"
-                        checked={offsetCube}
-                        onChange={setOffsetCube}
-                      />
-                      <span>Offset on cube</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs">
-                      <Switch
-                        size="small"
-                        checked={invertLabels}
-                        onChange={setInvertLabels}
-                      />
-                      <span>Invert labels</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-xs">
-                      <Switch
-                        size="small"
-                        checked={showFacadeLabels}
-                        onChange={setShowFacadeLabels}
-                      />
-                      <span>Fassadenlabels</span>
-                    </div>
+                </div>
+              )}
+              {showOrientationCube && (
+                <div className="flex justify-center">
+                  <div className="flex flex-col items-center">
+                    <ObliqueOrientationCube
+                      size={70}
+                      rotateCamera={rotateCamera}
+                      onDirectionSelect={rotateToDirection}
+                      onHeadingSelect={rotateToHeading}
+                      offsetRad={effectiveOffsetRad}
+                      offsetCube={offsetCube}
+                      invertCardinalLabels={invertLabels}
+                      showFacadeLabels={showFacadeLabels}
+                      directionalButtonType={directionalButtonType}
+                    />
                   </div>
                 </div>
-              </div>
-              <div />
+              )}
             </div>
           </div>
         </div>

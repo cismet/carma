@@ -29,6 +29,7 @@ type Props = {
   faceHoverBgToken?: string;
   arrowColorToken?: string;
   arrowHoverColorToken?: string;
+  directionalButtonType?: "captureDirection" | "nextCapture";
 };
 
 const eps = 0.001;
@@ -41,6 +42,21 @@ const getTransforms = (tz: number) => ({
   left: `matrix3d(0,1,0,0, 0,0,-1,0, -1,0,0,0, ${-tz},0,0,1)`,
   right: `matrix3d(0,-1,0,0, 0,0,-1,0, 1,0,0,0, ${tz},0,0,1)`,
 });
+
+const arrowGlyphForDirection = (dir: CardinalDirectionEnum): string => {
+  switch (dir) {
+    case CardinalDirectionEnum.North:
+      return "↑";
+    case CardinalDirectionEnum.East:
+      return "→";
+    case CardinalDirectionEnum.South:
+      return "↓";
+    case CardinalDirectionEnum.West:
+      return "←";
+    default:
+      return "";
+  }
+};
 
 const ArrowSvg = (
   size: number = 100,
@@ -96,6 +112,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
   faceHoverBgToken = "yellow-100",
   arrowColorToken = "gray-500",
   arrowHoverColorToken = "yellow-500",
+  directionalButtonType = "captureDirection",
 }) => {
   const half = size / 2;
 
@@ -557,20 +574,29 @@ const ObliqueOrientationCube: React.FC<Props> = ({
           }}
         >
           {/* Common styles for anchor containers: centered at cube origin, then 3D translated */}
-          {SELECTOR_CONFIG.map((cfg) => (
-            <SelectorAnchor
-              key={cfg.dir}
-              translate3d={`translate3d(${cfg.ox * labelRadius}px, ${
-                cfg.oy * labelRadius
-              }px, ${half}px)`}
-              tooltip={cfg.tooltip}
-              aria={cfg.aria}
-              onClick={() => onDirectionSelect?.(cfg.dir)}
-              label={getLetter(cfg.labelKey)}
-              billboardTransform={labelsInverseTransform}
-              disabled={isDragging}
-            />
-          ))}
+          {SELECTOR_CONFIG.map((cfg) => {
+            const isNextCapture = directionalButtonType === "nextCapture";
+            const label = isNextCapture
+              ? arrowGlyphForDirection(cfg.dir)
+              : getLetter(cfg.labelKey);
+            const onClick = isNextCapture
+              ? () => {}
+              : () => onDirectionSelect?.(cfg.dir);
+            return (
+              <SelectorAnchor
+                key={cfg.dir}
+                translate3d={`translate3d(${cfg.ox * labelRadius}px, ${
+                  cfg.oy * labelRadius
+                }px, ${half}px)`}
+                tooltip={cfg.tooltip}
+                aria={cfg.aria}
+                onClick={onClick}
+                label={label}
+                billboardTransform={labelsInverseTransform}
+                disabled={isDragging}
+              />
+            );
+          })}
         </div>
       </div>
     </div>
