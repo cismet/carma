@@ -462,6 +462,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
                       invertCardinalLabels={invertLabels}
                       showFacadeLabels={showFacadeLabels}
                       directionalButtonType={directionalButtonType}
+                      isLoading={!isAllDataReady}
                     />
                   </div>
                 </div>

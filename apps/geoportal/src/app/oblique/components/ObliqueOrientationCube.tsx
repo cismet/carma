@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Button, Tooltip } from "antd";
+import { Button, Tooltip, Spin } from "antd";
 import { Cartesian3, HeadingPitchRange, Matrix4 } from "cesium";
 import {
   useCesiumContext,
@@ -30,6 +30,7 @@ type Props = {
   arrowColorToken?: string;
   arrowHoverColorToken?: string;
   directionalButtonType?: "captureDirection" | "nextCapture";
+  isLoading?: boolean;
 };
 
 const eps = 0.001;
@@ -113,6 +114,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
   arrowColorToken = "gray-500",
   arrowHoverColorToken = "yellow-500",
   directionalButtonType = "captureDirection",
+  isLoading = false,
 }) => {
   const half = size / 2;
 
@@ -316,14 +318,6 @@ const ObliqueOrientationCube: React.FC<Props> = ({
     }
   };
 
-  // handlers moved into drag hook
-
-  // handleMouseUp provided by drag hook
-
-  // drag listeners moved into drag hook
-
-  // rAF cleanup handled in drag hook
-
   // Compute effective classes: use deprecated class props if present; else build from tokens
   const hoverFaceClassEffective = `hover:bg-${faceHoverBgToken}`;
   const arrowBaseClassEffective = `text-${arrowColorToken}`;
@@ -341,6 +335,20 @@ const ObliqueOrientationCube: React.FC<Props> = ({
         perspective: perspectivePx,
       }}
     >
+      {isLoading && (
+        <div
+          className="absolute inset-0 z-10 grid place-items-center select-none"
+          style={{
+            pointerEvents: "auto",
+            background:
+              "radial-gradient(circle closest-side, rgba(255,255,255,0.70) 0 50%, rgba(255,255,255,0) 100%)",
+          }}
+        >
+          <div className="flex flex-col items-center">
+            <Spin delay={1000} size="large" percent={"auto"} />
+          </div>
+        </div>
+      )}
       {/* 3D cube scene */}
       <div
         className="absolute inset-0 grid place-items-center select-none"
