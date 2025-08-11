@@ -665,8 +665,13 @@ const ObliqueOrientationCube: React.FC<Props> = ({
               ? NEXT_TOOLTIPS_DE[invertedDir]
               : cfg.tooltip;
 
+            // Step 1: Align actions by rotating the inverted cardinal 90° clockwise (N->E->S->W->N)
+            // Using invertedDir as base aligns with how tooltips were corrected (180° inversion)
+            const rotatedDirCW = isNextCapture
+              ? ((((invertedDir as unknown as number) + 1) % 4) as CardinalDirectionEnum)
+              : cfg.dir;
             const onClick = isNextCapture
-              ? () => onNextCapture?.(cfg.dir)
+              ? () => onNextCapture?.(rotatedDirCW)
               : () => onDirectionSelect?.(cfg.dir);
             const isDisabled = isDragging || !!disabledDirections?.[cfg.dir];
             return (
