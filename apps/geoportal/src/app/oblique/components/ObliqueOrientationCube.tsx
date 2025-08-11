@@ -1,15 +1,9 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Button, Tooltip } from "antd";
-import {
-  Cartesian3,
-  HeadingPitchRange,
-  Matrix4,
-  Math as CesiumMath,
-} from "cesium";
+import { Cartesian3, HeadingPitchRange, Matrix4 } from "cesium";
 import {
   useCesiumContext,
   cesiumCameraToCssTransform,
-  cssPerspectiveFromCesiumCameraForElement,
   getOrbitPoint,
   cancelViewerAnimation,
 } from "@carma-mapping/cesium-engine";
@@ -20,6 +14,7 @@ import {
 } from "../utils/orientationUtils";
 import Face3D from "./ObliqueOrientationCube.Face3D";
 import SelectorAnchor from "./ObliqueOrientationCube.SelectorAnchor";
+import { useOrientationCubeDrag } from "./useOrientationCubeDrag";
 
 type Props = {
   size?: number;
@@ -37,10 +32,6 @@ type Props = {
 };
 
 const eps = 0.001;
-const MIN_PITCH = CesiumMath.toRadians(-70);
-const MAX_PITCH = CesiumMath.toRadians(-30);
-const HEADING_FACTOR = 1;
-const PITCH_FACTOR = 1;
 
 const getTransforms = (tz: number) => ({
   top: `translateZ(${tz}px)`,
@@ -55,13 +46,14 @@ const ArrowSvg = (
   size: number = 100,
   className?: string,
   onActivate?: () => void,
-  disabled: boolean = false
+  disabled: boolean = false,
+  style?: React.CSSProperties
 ) => (
   <svg
     width={size}
     height={size}
     viewBox="0 0 100 100"
-    style={{ pointerEvents: "none" }}
+    style={{ pointerEvents: "none", ...(style ?? {}) }}
   >
     <polygon
       points="50,15 80,75 50,60 20,75"
@@ -107,66 +99,17 @@ const ObliqueOrientationCube: React.FC<Props> = ({
 }) => {
   const half = size / 2;
 
-  const {
-    viewerRef,
-    isViewerReady,
-    viewerAnimationMapRef,
-    shouldSuspendPitchLimiterRef,
-  } = useCesiumContext();
+  const { viewerRef, isViewerReady, viewerAnimationMapRef } =
+    useCesiumContext();
   const [, setTransformTick] = useState(0);
-  const [perspectivePx, setPerspectivePx] = useState<number>(1600);
-  const lastPerspectiveRef = useRef<number | undefined>(undefined);
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const previousPercentageChangedRef = useRef<number | undefined>(undefined);
+  const lastFrustumRef = useRef<{ angle?: number; w?: number; h?: number }>({});
 
-  // Drag state
-  const [isDragging, setIsDragging] = useState(false);
-  const isDraggingRef = useRef(false);
-  const lastMouseXRef = useRef(0);
-  const lastMouseYRef = useRef(0);
-  const orbitPointRef = useRef<Cartesian3 | null>(null);
-  const rangeRef = useRef(0);
-  const targetHeadingRef = useRef(0);
-  const targetPitchRef = useRef(0);
-  const animFrameRef = useRef<number | null>(null);
+  // Drag state via custom hook
+  const { isDragging, isDraggingRef, handleMouseDown, handleMouseUp } =
+    useOrientationCubeDrag({ dragThresholdPx: 2 });
 
-  // angle utils
-  const shortestAngleDelta = (a: number, b: number) => {
-    let d = (b - a + Math.PI) % (2 * Math.PI);
-    if (d < 0) d += 2 * Math.PI;
-    return d - Math.PI;
-  };
-
-  const stepAnimation = () => {
-    if (
-      !viewerRef.current ||
-      !orbitPointRef.current ||
-      !isDraggingRef.current
-    ) {
-      animFrameRef.current = null;
-      return;
-    }
-    const viewer = viewerRef.current;
-    const camera = viewer.camera;
-    const currentHeading = camera.heading;
-    const currentPitch = camera.pitch;
-    const targetH = targetHeadingRef.current;
-    const targetP = targetPitchRef.current;
-    const easing = 0.25; // smoothing factor per frame
-    const dh = shortestAngleDelta(currentHeading, targetH);
-    const dp = targetP - currentPitch;
-    const nextHeading = currentHeading + dh * easing;
-    const nextPitch = CesiumMath.clamp(
-      currentPitch + dp * easing,
-      MIN_PITCH,
-      MAX_PITCH
-    );
-    viewer.camera.lookAt(
-      orbitPointRef.current,
-      new HeadingPitchRange(nextHeading, nextPitch, rangeRef.current)
-    );
-    animFrameRef.current = requestAnimationFrame(stepAnimation);
-  };
+  // no-op: angle utils moved into drag hook
 
   const directionEnum = invertCardinalLabels
     ? InvertedCardinalDirectionEnum
@@ -240,7 +183,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
     };
   }, [viewerRef, isViewerReady, size]);
 
-  // Track FOV/aspect changes even when camera pose doesn't change
+  // Ensure perspective updates even when only FOV/aspect/size changes (pose unchanged)
   useEffect(() => {
     const viewer = viewerRef.current;
     if (!isViewerReady || !viewer || viewer.isDestroyed()) return;
@@ -249,21 +192,30 @@ const ObliqueOrientationCube: React.FC<Props> = ({
 
     const updateFrustum = () => {
       try {
-        // Use the Cesium viewer container dimensions for perspective mapping so the cube scales with the scene
-        const p = cssPerspectiveFromCesiumCameraForElement(
-          viewer.container,
-          camera,
-          lastPerspectiveRef.current ?? 1600
-        );
-        if (!Number.isFinite(p)) return;
-        const prevP = lastPerspectiveRef.current ?? Number.NaN;
-        const changedP =
-          !Number.isFinite(prevP) ||
-          Math.abs((p as number) - (prevP as number)) > 0.5;
-
-        if (changedP) {
-          setPerspectivePx(p);
-          lastPerspectiveRef.current = p as number;
+        const el = viewer.container as Element;
+        const rect = el.getBoundingClientRect();
+        const w = rect.width;
+        const h = rect.height;
+        const frustum = camera.frustum as unknown as {
+          fovy?: number;
+          _fovy?: number;
+          aspectRatio?: number;
+        };
+        const fovy: number | undefined = frustum?.fovy ?? frustum?._fovy;
+        if (!(w > 0) || !(h > 0) || !(typeof fovy === "number" && fovy > 0))
+          return;
+        const aspect: number =
+          frustum?.aspectRatio ?? (w > 0 && h > 0 ? w / h : 1);
+        const useW = w >= h;
+        const angle = useW ? 2 * Math.atan(Math.tan(fovy / 2) * aspect) : fovy;
+        const last = lastFrustumRef.current;
+        const sameAngle =
+          typeof last.angle === "number" &&
+          Math.abs((last.angle as number) - angle) < 1e-6;
+        const sameSize = last.w === w && last.h === h;
+        if (!sameAngle || !sameSize) {
+          lastFrustumRef.current = { angle, w, h };
+          setTransformTick((t) => t + 1);
         }
       } catch {
         // ignore
@@ -271,18 +223,21 @@ const ObliqueOrientationCube: React.FC<Props> = ({
     };
 
     scene.preRender.addEventListener(updateFrustum);
-    // run once
     updateFrustum();
     return () => {
       scene.preRender.removeEventListener(updateFrustum);
     };
-  }, [viewerRef, isViewerReady, size]);
+  }, [viewerRef, isViewerReady]);
 
   // Build forward scene transform and inverse (for billboarding labels)
   const cam = viewerRef.current?.camera;
-  const [sceneTransform, inverseSceneTransform] = cam
-    ? cesiumCameraToCssTransform(cam, { offsetRad: offsetCube ? offsetRad : 0 })
-    : ["", ""];
+  const [sceneTransform, inverseSceneTransform, perspectivePx] = cam
+    ? cesiumCameraToCssTransform(cam, {
+        offsetRad: offsetCube ? offsetRad : 0,
+        targetEl: viewerRef.current?.container,
+        fallback: 1600,
+      })
+    : ["", "", 1600];
   // Labels should optionally receive the offset even when the cube does not
   const labelsSceneTransform = offsetCube
     ? sceneTransform
@@ -344,101 +299,20 @@ const ObliqueOrientationCube: React.FC<Props> = ({
     }
   };
 
-  const handleMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (!viewerRef.current || viewerRef.current.isDestroyed()) return;
-    // Allow dragging only with primary button
-    if (event.button !== 0) return;
-    event.preventDefault();
-    shouldSuspendPitchLimiterRef.current = true;
-    if (viewerAnimationMapRef?.current) {
-      cancelViewerAnimation(viewerRef.current, viewerAnimationMapRef.current);
-    }
-    const camera = viewerRef.current.camera;
-    // make camera.changed fire more often during drag
-    previousPercentageChangedRef.current = camera.percentageChanged ?? 0.01;
-    camera.percentageChanged = 0.002;
-    setIsDragging(true);
-    isDraggingRef.current = true;
-    lastMouseXRef.current = event.clientX;
-    lastMouseYRef.current = event.clientY;
-    targetHeadingRef.current = camera.heading;
-    targetPitchRef.current = camera.pitch;
-    const target = getOrbitPoint(viewerRef.current);
-    if (target) {
-      const range = Cartesian3.distance(target, camera.positionWC);
-      orbitPointRef.current = target;
-      rangeRef.current = range;
-    } else {
-      orbitPointRef.current = null;
-    }
-    if (!animFrameRef.current) {
-      animFrameRef.current = requestAnimationFrame(stepAnimation);
-    }
-  };
+  // handlers moved into drag hook
 
-  const handleMouseUp = React.useCallback(() => {
-    shouldSuspendPitchLimiterRef.current = false;
-    setIsDragging(false);
-    isDraggingRef.current = false;
-    if (animFrameRef.current !== null) {
-      cancelAnimationFrame(animFrameRef.current);
-      animFrameRef.current = null;
-    }
-    if (!viewerRef.current || viewerRef.current.isDestroyed()) return;
-    const camera = viewerRef.current.camera;
-    // restore percentageChanged after drag
-    if (previousPercentageChangedRef.current !== undefined) {
-      camera.percentageChanged = previousPercentageChangedRef.current;
-    }
-    viewerRef.current.camera.lookAtTransform(Matrix4.IDENTITY);
-  }, [viewerRef, shouldSuspendPitchLimiterRef]);
+  // handleMouseUp provided by drag hook
 
-  useEffect(() => {
-    if (!isDragging) return;
-    const onMove = (event: MouseEvent) => {
-      if (!isDraggingRef.current) return;
-      const dx = event.clientX - lastMouseXRef.current;
-      const dy = event.clientY - lastMouseYRef.current;
-      lastMouseXRef.current = event.clientX;
-      lastMouseYRef.current = event.clientY;
-      // update targets incrementally
-      targetHeadingRef.current =
-        targetHeadingRef.current + dx * 0.01 * HEADING_FACTOR;
-      targetHeadingRef.current =
-        ((targetHeadingRef.current + Math.PI) % (2 * Math.PI)) - Math.PI;
-      targetPitchRef.current = CesiumMath.clamp(
-        targetPitchRef.current - dy * 0.01 * PITCH_FACTOR,
-        MIN_PITCH,
-        MAX_PITCH
-      );
-    };
-    const onUp = () => handleMouseUp();
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    };
-  }, [isDragging, handleMouseUp]);
+  // drag listeners moved into drag hook
 
-  // Ensure rAF is cancelled on unmount
-  useEffect(() => {
-    return () => {
-      if (animFrameRef.current !== null) {
-        cancelAnimationFrame(animFrameRef.current);
-        animFrameRef.current = null;
-      }
-    };
-  }, []);
+  // rAF cleanup handled in drag hook
 
   // Compute effective classes: use deprecated class props if present; else build from tokens
   const hoverFaceClassEffective = `hover:bg-${faceHoverBgToken}`;
   const arrowBaseClassEffective = `text-${arrowColorToken}`;
   const arrowHoverClassEffective = `hover:text-${arrowHoverColorToken}`;
 
-  const faceClassName = `bg-white/50 border border-gray-200 active:cursor-grabbing cursor-grab ${
-    !isDragging ? hoverFaceClassEffective : ""
-  }`;
+  const faceClassName = `bg-white/50 border border-gray-200 active:cursor-grabbing cursor-grab ${hoverFaceClassEffective}`;
 
   return (
     <div
@@ -474,44 +348,39 @@ const ObliqueOrientationCube: React.FC<Props> = ({
         {/* Cube wrapper */}
         <div
           className="relative"
-          style={{ width: face, height: face, transformStyle: "preserve-3d" }}
+          style={{
+            width: face,
+            height: face,
+            transformStyle: "preserve-3d",
+            pointerEvents: isDragging ? "none" : "auto",
+          }}
         >
           {/* Top */}
           <Face3D
-            className="bg-white/70 border border-gray-300 cursor-grab active:cursor-grabbing"
+            className="bg-white/70 border border-gray-300 pointer-events-none"
             transform={transforms.top}
             width={face}
             height={face}
             facadeFontSize={facadeFontSize}
-            onMouseDown={handleMouseDown}
-            onMouseUp={handleMouseUp}
           >
             {/* North arrow overlay is rendered separately to remain clickable */}
           </Face3D>
 
           {/* Clickable North Arrow overlay (counter-rotated to geographic north) */}
-          {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
-          <div
-            className="absolute left-0 top-0 cursor-grab active:cursor-grabbing"
-            style={{
-              width: face,
-              height: face,
-              transform: transforms.top,
-            }}
-            onMouseDown={handleMouseDown}
-            onMouseUp={handleMouseUp}
-          >
-            <div
-              className="w-full h-full flex items-center justify-center"
-              style={{ transform: northArrowTransform }}
-            >
-              {ArrowSvg(
-                arrowSize,
-                `${arrowBaseClassEffective} ${arrowHoverClassEffective} cursor-pointer`,
-                handleNorthArrowClick
-              )}
-            </div>
-          </div>
+          {ArrowSvg(
+            arrowSize,
+            `${arrowBaseClassEffective} ${
+              !isDragging ? arrowHoverClassEffective : ""
+            } ${isDragging ? "" : "cursor-pointer"}`,
+            handleNorthArrowClick,
+            isDragging,
+            {
+              position: "absolute",
+              left: "50%",
+              top: "50%",
+              transform: `${transforms.top} translate(-50%, -50%) ${northArrowTransform}`,
+            }
+          )}
 
           {/* Bottom - circular disc with radial gradient */}
           {/* eslint-disable-next-line jsx-a11y/no-static-element-interactions */}
