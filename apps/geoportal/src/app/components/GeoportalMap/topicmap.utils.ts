@@ -24,11 +24,13 @@ import {
   clearVectorInfos,
   getNothingFoundIDs,
   getPreferredLayerId,
+  getPreferredVectorLayerId,
   getVectorInfos,
   removeNothingFoundID,
   setFeatures,
   setInfoTextToNothingFound,
   setLoading,
+  setPreferredVectorLayerId,
   setSecondaryInfoBoxElements,
   setSelectedFeature,
   setVectorInfo,
@@ -125,6 +127,7 @@ export const onClickTopicMap = async (
     const allVectorInfos = getVectorInfos(store.getState());
     const nothingFoundIDs = getNothingFoundIDs(store.getState());
     const preferredLayerId = getPreferredLayerId(store.getState());
+    const preferredVectorLayerId = getPreferredVectorLayerId(store.getState());
     const pos = proj4(
       proj4.defs("EPSG:4326") as unknown as string,
       proj4crs3857def,
@@ -222,7 +225,20 @@ export const onClickTopicMap = async (
           },
           id: "information",
         });
-        if (preferredLayerId) {
+        if (preferredVectorLayerId) {
+          const preferredVectorLayerIndex = filteredResult.findIndex(
+            (feature) => feature.vectorId === preferredVectorLayerId
+          );
+          if (preferredVectorLayerIndex !== -1) {
+            filteredResult.splice(
+              0,
+              0,
+              ...filteredResult.splice(preferredVectorLayerIndex, 1)
+            );
+          } else {
+            dispatch(setPreferredVectorLayerId(undefined));
+          }
+        } else if (preferredLayerId) {
           const preferredLayerIndex = filteredResult.findIndex(
             (feature) => feature.id === preferredLayerId
           );
@@ -451,6 +467,7 @@ const createVectorFeature = (
       },
       geometry: selectedVectorFeature.geometry,
       id: layer.id,
+      vectorId: selectedVectorFeature.id,
       showMarker:
         selectedVectorFeature.geometry.type === "Polygon" ||
         selectedVectorFeature.geometry.type === "MultiPolygon",

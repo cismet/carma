@@ -15,6 +15,7 @@ const initialState: FeatureInfoState = {
   infoText: EMPTY_INFO_TEXT,
   nothingFoundIDs: [],
   preferredLayerId: "",
+  preferredVectorLayerId: undefined,
   secondaryInfoBoxElements: [],
   selectedFeature: null,
   vectorInfo: undefined,
@@ -110,6 +111,10 @@ const slice = createSlice({
       state.preferredLayerId = action.payload;
     },
 
+    setPreferredVectorLayerId(state, action: PayloadAction<number>) {
+      state.preferredVectorLayerId = action.payload;
+    },
+
     // SecondaryInfoBoxElements
     setSecondaryInfoBoxElements(state, action: PayloadAction<FeatureInfo[]>) {
       state.secondaryInfoBoxElements = action.payload;
@@ -168,6 +173,7 @@ export const {
   clearInfoText,
 
   setPreferredLayerId,
+  setPreferredVectorLayerId,
 
   setSecondaryInfoBoxElements,
   updateSecondaryInfoBoxElements,
@@ -186,6 +192,8 @@ export const getNothingFoundIDs = (state: RootState) =>
   state.features.nothingFoundIDs;
 export const getPreferredLayerId = (state: RootState) =>
   state.features.preferredLayerId;
+export const getPreferredVectorLayerId = (state: RootState) =>
+  state.features.preferredVectorLayerId;
 export const getSecondaryInfoBoxElements = (state: RootState) =>
   state.features.secondaryInfoBoxElements;
 export const getVectorInfo = (state: RootState) => state.features.vectorInfo;

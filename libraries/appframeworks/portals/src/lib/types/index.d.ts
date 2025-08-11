@@ -135,6 +135,7 @@ export interface FeatureInfoState {
   secondaryInfoBoxElements: any[];
   infoText: string;
   preferredLayerId: string;
+  preferredVectorLayerId?: number;
   vectorInfo: any;
   vectorInfos: FeatureInfo[];
   nothingFoundIDs: string[];

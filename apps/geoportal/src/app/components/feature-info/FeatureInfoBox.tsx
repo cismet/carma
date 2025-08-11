@@ -26,6 +26,7 @@ import {
   moveFeatureToEnd,
   removeSecondaryInfoBoxElement,
   moveFeatureToFront,
+  setPreferredVectorLayerId,
 } from "../../store/slices/features";
 import { getLayers } from "../../store/slices/mapping";
 import { getCoordinates } from "../GeoportalMap/topicmap.utils";
@@ -190,6 +191,11 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
           dispatch(setSelectedFeature(feature));
           dispatch(updateSecondaryInfoBoxElements(feature));
           dispatch(setPreferredLayerId(feature.id));
+          if (feature.vectorId) {
+            dispatch(setPreferredVectorLayerId(feature.vectorId));
+          } else {
+            dispatch(setPreferredVectorLayerId(undefined));
+          }
         }}
       >
         <InfoBoxHeader
