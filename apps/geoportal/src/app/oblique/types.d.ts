@@ -54,6 +54,9 @@ export type AnimationConfig = {
 
 export type ObliqueAnimationsConfig = {
   flyToExteriorOrientation?: AnimationConfig;
+  // Optional: animation config for navigating to sibling/next image.
+  // If omitted, consumers should derive it from flyToExteriorOrientation (e.g., half duration).
+  flyToNextImage?: AnimationConfig;
   outlineFadeOut?: AnimationConfig;
 };
 

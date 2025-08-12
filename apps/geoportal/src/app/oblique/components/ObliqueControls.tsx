@@ -83,8 +83,6 @@ const debugComponentsContainerLeftStyle: CSSProperties = {
   zIndex: 1000,
 };
 
-const activeButtonClass = "!bg-blue-100 !border-blue-400";
-
 export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const {
     headingOffset,
@@ -184,6 +182,9 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       return;
     setLockFootprint(true);
     animationInProgressRef.current = true;
+    // Use config-defined sibling flight, or fall back to main flight config
+    const siblingFlyOptions =
+      animations.flyToNextImage ?? animations.flyToExteriorOrientation;
     flyToExteriorOrientation(
       viewer,
       derivedExteriorOrientationRef.current,
@@ -193,7 +194,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
         setLockFootprint(false);
         cesiumSafeRequestRender(viewerRef.current);
       },
-      animations.flyToExteriorOrientation
+      siblingFlyOptions
     );
   }, [viewerRef, animations, setLockFootprint, derivedExteriorOrientationRef]);
 
@@ -456,7 +457,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
                 onClick={flyToNearestExteriorOrientation}
                 width="160px"
                 height="40px"
-                className="bg-blue-50 hover:bg-blue-100"
+                className="pointer-events-auto bg-blue-50 hover:bg-blue-100"
               >
                 <span className="flex items-center">Flug zum Bild</span>
               </ControlButtonStyler>
@@ -522,7 +523,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
                   rotateCamera={rotateCamera}
                   rotateToDirection={rotateToDirection}
                   activeDirection={activeDirection}
-                  activeButtonClass={activeButtonClass}
                   isLoading={!isAllDataReady}
                   siblingCallbacks={
                     directionalButtonType === "nextCapture"
