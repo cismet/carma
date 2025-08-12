@@ -1,7 +1,6 @@
 import { Share, useAuth, useSelection } from "@carma-apps/portals";
 import { getLayerState } from "../store/slices/mapping";
 import { useSelector } from "react-redux";
-import { getAllowPublishing } from "../store/slices/auth";
 
 interface ShareContentProps {
   closePopover?: () => void;
