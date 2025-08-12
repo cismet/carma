@@ -2,7 +2,10 @@ import React from "react";
 import { Spin } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faRotateLeft, faRotateRight } from "@fortawesome/free-solid-svg-icons";
-import { CardinalDirectionEnum } from "../utils/orientationUtils";
+import {
+  CardinalDirectionEnum,
+  CardinalLetters,
+} from "../utils/orientationUtils";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 
 type Props = {
@@ -34,15 +37,9 @@ export const ObliqueDirectionControls: React.FC<Props> = ({
   const rightDir = order[(topIdx + 1) % 4];
   const bottomDir = order[(topIdx + 2) % 4];
   const leftDir = order[(topIdx + 3) % 4];
-  // Fixed NOSW labels (German locale: Osten => "O")
+  // Fixed NOSW labels using shared mapping (German locale)
   const letterFor = (d: CardinalDirectionEnum) =>
-    d === CardinalDirectionEnum.North
-      ? "N"
-      : d === CardinalDirectionEnum.East
-      ? "O"
-      : d === CardinalDirectionEnum.South
-      ? "S"
-      : "W";
+    CardinalLetters.DE.get(d) ?? "";
 
   // Prevent redundant rotations: if direction already active, do nothing
   // Important: return a closure; do NOT call rotateToDirection during render.
