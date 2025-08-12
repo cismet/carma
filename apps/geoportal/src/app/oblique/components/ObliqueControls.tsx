@@ -38,6 +38,7 @@ import { useExteriorOrientation } from "../hooks/useExteriorOrientation";
 import { useFootprints } from "../hooks/useFootprints";
 import { useOblique } from "../hooks/useOblique";
 import { useObliqueCameraHandlers } from "../hooks/useObliqueCameraHandlers";
+import { useSiblingsByCardinal } from "../hooks/useSiblingsByCardinal";
 
 import { flyToExteriorOrientation } from "../utils/cameraUtils";
 import { downloadAsBlobAsync } from "../utils/downloads";
@@ -98,9 +99,22 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     isObliqueMode,
     toggleObliqueMode,
     imagePreviewStyle,
-    imageRecords,
-    navigateByFlightPattern,
+    setNearestImage,
   } = useOblique();
+  const siblingsByCardinal = useSiblingsByCardinal();
+  const disabledDirections = useMemo(
+    () => ({
+      [CardinalDirectionEnum.North]:
+        !siblingsByCardinal[CardinalDirectionEnum.North],
+      [CardinalDirectionEnum.East]:
+        !siblingsByCardinal[CardinalDirectionEnum.East],
+      [CardinalDirectionEnum.South]:
+        !siblingsByCardinal[CardinalDirectionEnum.South],
+      [CardinalDirectionEnum.West]:
+        !siblingsByCardinal[CardinalDirectionEnum.West],
+    }),
+    [siblingsByCardinal]
+  );
   const { viewerRef } = useCesiumContext();
   const imageId = nearestImage?.record?.id;
   const cameraId = nearestImage?.record?.cameraId;
@@ -128,19 +142,24 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
 
   const handleNextCapture = useCallback(
     (dir: CardinalDirectionEnum) => {
-      // mark that we should fly to the new image after navigation updates nearestImage
+      // Trigger a fly-to after nearestImage updates
       nextCaptureShouldFlyRef.current = true;
-      if (dir === CardinalDirectionEnum.East) {
-        navigateByFlightPattern("forward");
-      } else if (dir === CardinalDirectionEnum.West) {
-        navigateByFlightPattern("backward");
-      } else if (dir === CardinalDirectionEnum.North) {
-        navigateByFlightPattern("right");
-      } else if (dir === CardinalDirectionEnum.South) {
-        navigateByFlightPattern("left");
-      }
+      const candidate = siblingsByCardinal[dir];
+      if (!candidate) return;
+      setNearestImage({
+        record: candidate,
+        distanceOnGround: 0,
+        distanceToCamera: 0,
+        imageCenter: {
+          x: candidate.x,
+          y: candidate.y,
+          longitude: candidate.centerWGS84[0],
+          latitude: candidate.centerWGS84[1],
+          cardinal: candidate.sector,
+        },
+      });
     },
-    [navigateByFlightPattern]
+    [siblingsByCardinal, setNearestImage]
   );
 
   // Fly-to handling for next capture (without opening preview)
@@ -175,121 +194,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nearestImage?.record?.id]);
 
-  // Compute which directions are not available for nextCapture
-  const disabledDirections = useMemo(() => {
-    const disabled: Record<CardinalDirectionEnum, boolean> = {
-      [CardinalDirectionEnum.North]: true,
-      [CardinalDirectionEnum.South]: true,
-      [CardinalDirectionEnum.East]: true,
-      [CardinalDirectionEnum.West]: true,
-    };
-    const current = nearestImage?.record;
-    if (!current || !imageRecords || imageRecords.size === 0) return disabled;
-
-    let hasForward = false;
-    let hasBackward = false;
-    let hasLeft = false;
-    let hasRight = false;
-    const toRad = (v: number) => (v * Math.PI) / 180;
-    const haversineMeters = (
-      lon1: number,
-      lat1: number,
-      lon2: number,
-      lat2: number
-    ) => {
-      const dLat = toRad(lat2 - lat1);
-      const dLon = toRad(lon2 - lon1);
-      const a =
-        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-        Math.cos(toRad(lat1)) *
-          Math.cos(toRad(lat2)) *
-          Math.sin(dLon / 2) *
-          Math.sin(dLon / 2);
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-      return 6371000 * c;
-    };
-    let hasForwardExact = false;
-    let hasForwardWithin = false;
-    let hasBackwardExact = false;
-    let hasBackwardWithin = false;
-    // Forward/backward direction depends on line parity: even lines are inverted per dataset
-    const forwardStep = current.lineIndex % 2 === 0 ? -1 : 1;
-    imageRecords.forEach((rec) => {
-      // Forward/backward: same strip, keep cameraId constraint
-      if (
-        rec.lineIndex === current.lineIndex &&
-        rec.cameraId === current.cameraId
-      ) {
-        // Forward exact: next index in the parity-adjusted direction
-        if (rec.photoIndex === current.photoIndex + forwardStep) {
-          hasForwardExact = true;
-        } else {
-          const delta = rec.photoIndex - current.photoIndex;
-          if (delta * forwardStep > 0) {
-            const d = haversineMeters(
-              rec.centerWGS84[0],
-              rec.centerWGS84[1],
-              current.centerWGS84[0],
-              current.centerWGS84[1]
-            );
-            if (d <= 350) hasForwardWithin = true;
-          }
-        }
-        // Backward exact: previous index in the parity-adjusted opposite direction
-        if (rec.photoIndex === current.photoIndex - forwardStep) {
-          hasBackwardExact = true;
-        } else {
-          const delta = rec.photoIndex - current.photoIndex;
-          if (delta * forwardStep < 0) {
-            const d = haversineMeters(
-              rec.centerWGS84[0],
-              rec.centerWGS84[1],
-              current.centerWGS84[0],
-              current.centerWGS84[1]
-            );
-            if (d <= 350) hasBackwardWithin = true;
-          }
-        }
-      }
-      // Left/right: adjacent strip, require same sector and <= 350m
-      // Left (North) => lineIndex + 1; Right (South) => lineIndex - 1
-      if (
-        rec.lineIndex === current.lineIndex + 1 &&
-        rec.sector === current.sector
-      ) {
-        const d = haversineMeters(
-          rec.centerWGS84[0],
-          rec.centerWGS84[1],
-          current.centerWGS84[0],
-          current.centerWGS84[1]
-        );
-        if (d <= 350) hasLeft = true;
-      } else if (
-        rec.lineIndex === current.lineIndex - 1 &&
-        rec.sector === current.sector
-      ) {
-        const d = haversineMeters(
-          rec.centerWGS84[0],
-          rec.centerWGS84[1],
-          current.centerWGS84[0],
-          current.centerWGS84[1]
-        );
-        if (d <= 350) hasRight = true;
-      }
-    });
-
-    // Fold exact/within checks into final forward/back availability
-    hasForward = hasForwardExact || (!hasForwardExact && hasForwardWithin);
-    hasBackward = hasBackwardExact || (!hasBackwardExact && hasBackwardWithin);
-
-    // Disabled keys correspond to what the cube sends via onNextCapture (raw cardinals)
-    // and how we map those cardinals in handleNextCapture (above).
-    disabled[CardinalDirectionEnum.East] = !hasForward; // East -> forward
-    disabled[CardinalDirectionEnum.West] = !hasBackward; // West -> backward
-    disabled[CardinalDirectionEnum.North] = !hasRight; // North -> adjacent -1 (right)
-    disabled[CardinalDirectionEnum.South] = !hasLeft; // South -> adjacent +1 (left)
-    return disabled;
-  }, [nearestImage, imageRecords]);
+  // disabledDirections is derived locally from siblingsByCardinal; UI performs no distance checks
   const preloadImageRef = useRef<ReturnType<typeof debounce> | null>(null);
 
   // Leva control panel (flat) for UI visibility and cube options
