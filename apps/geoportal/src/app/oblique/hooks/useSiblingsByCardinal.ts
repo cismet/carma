@@ -10,29 +10,16 @@ import {
 
 const MAX_CARTESIAN_DISTANCE_M = 350;
 
-// Temporary debugging for line-jump issues
-const DEBUG_SIBLINGS = true;
-const dbg = (...args: unknown[]) => {
-  if (!DEBUG_SIBLINGS) return;
-  // eslint-disable-next-line no-console
-  console.log("[Siblings]", ...args);
-};
-
 export function useSiblingsByCardinal(): Record<
   CardinalDirectionEnum,
   ObliqueImageRecord | null
 > {
   const { nearestImage, imageRecords } = useOblique();
 
-  // Cache sparse 2D index by line and waypoint for fast lookup; rebuild only when imageRecords changes
   const index = useMemo(() => {
     const byLine = new Map<number, Map<number, ObliqueImageRecord[]>>();
-    const boundsByLine = new Map<
-      number,
-      { minWaypoint: number; maxWaypoint: number }
-    >();
     if (!imageRecords || imageRecords.size === 0) {
-      return { byLine, boundsByLine };
+      return { byLine };
     }
     imageRecords.forEach((rec) => {
       let inner = byLine.get(rec.lineIndex);
@@ -46,20 +33,8 @@ export function useSiblingsByCardinal(): Record<
       } else {
         inner.set(rec.waypointIndex, [rec]);
       }
-      const b = boundsByLine.get(rec.lineIndex);
-      if (!b) {
-        boundsByLine.set(rec.lineIndex, {
-          minWaypoint: rec.waypointIndex,
-          maxWaypoint: rec.waypointIndex,
-        });
-      } else {
-        if (rec.waypointIndex < b.minWaypoint)
-          b.minWaypoint = rec.waypointIndex;
-        if (rec.waypointIndex > b.maxWaypoint)
-          b.maxWaypoint = rec.waypointIndex;
-      }
     });
-    return { byLine, boundsByLine };
+    return { byLine };
   }, [imageRecords]);
 
   const siblingsByCardinal = useMemo(() => {
@@ -79,40 +54,7 @@ export function useSiblingsByCardinal(): Record<
     const current = nearestImage?.record;
     if (!current || index.byLine.size === 0) return map;
 
-    if (DEBUG_SIBLINGS) {
-      const lines = Array.from(index.byLine.keys()).sort((a, b) => a - b);
-      const overview = lines.map((li) => {
-        const inner = index.byLine.get(li)!;
-        return {
-          lineIndex: li,
-          waypoints: Array.from(inner.keys()).sort((a, b) => a - b),
-          count: Array.from(inner.values()).reduce(
-            (acc, arr) => acc + arr.length,
-            0
-          ),
-        };
-      });
-      dbg("current", {
-        id: current.id,
-        lineIndex: current.lineIndex,
-        waypointIndex: current.waypointIndex,
-        sector: current.sector,
-        x: current.x,
-        y: current.y,
-      });
-      dbg("byLine overview", overview);
-      dbg("adjacent lines", {
-        left: current.lineIndex - 1,
-        right: current.lineIndex + 1,
-        presentLeft: index.byLine.has(current.lineIndex - 1),
-        presentRight: index.byLine.has(current.lineIndex + 1),
-      });
-    }
-
     const chooseCardinal = (dx: number, dy: number): CardinalDirectionEnum => {
-      // Convert delta vector to heading where North=0 and clockwise positive.
-      // In this project, +x points to West (see obliqueReferenceUtils),
-      // so we invert dx to align East/West correctly.
       const heading = CesiumMath.zeroToTwoPi(Math.atan2(-dx, dy));
       return getCardinalDirectionFromHeading(heading);
     };
@@ -131,97 +73,63 @@ export function useSiblingsByCardinal(): Record<
       if (dist < distByCardinal[key]) {
         map[key] = rec;
         distByCardinal[key] = dist;
-        dbg("setIfCloser", {
-          key,
-          id: rec.id,
-          lineIndex: rec.lineIndex,
-          waypointIndex: rec.waypointIndex,
-          dist,
-        });
       }
     };
 
-    // Forward/backward: search all waypoints on current line in the respective direction; pick minimum distance under threshold (sector filter required)
-    const innerCurrent = index.byLine.get(current.lineIndex);
-    if (innerCurrent) {
-      // forward: waypointIndex > current
-      let bestF: ObliqueImageRecord | null = null;
-      let bestFD = Number.POSITIVE_INFINITY;
-      innerCurrent.forEach((list, wpIdx) => {
-        if (wpIdx <= current.waypointIndex) return;
+    const findBestOnCurrentLine = (
+      isForward: boolean
+    ): ObliqueImageRecord | null => {
+      const inner = index.byLine.get(current.lineIndex);
+      if (!inner) return null;
+      let best: ObliqueImageRecord | null = null;
+      let bestDist = Number.POSITIVE_INFINITY;
+      inner.forEach((list, wpIdx) => {
+        if (
+          isForward
+            ? wpIdx <= current.waypointIndex
+            : wpIdx >= current.waypointIndex
+        )
+          return;
         for (const rec of list) {
           if (rec.sector !== current.sector) continue;
           const dx = rec.x - current.x;
           const dy = rec.y - current.y;
           const dist = Math.hypot(dx, dy);
           if (dist > MAX_CARTESIAN_DISTANCE_M) continue;
-          if (dist < bestFD) {
-            bestF = rec;
-            bestFD = dist;
+          if (dist < bestDist) {
+            best = rec;
+            bestDist = dist;
           }
         }
       });
-      setIfCloser(bestF);
+      return best;
+    };
+    setIfCloser(findBestOnCurrentLine(true));
+    setIfCloser(findBestOnCurrentLine(false));
 
-      // backward: waypointIndex < current
-      let bestB: ObliqueImageRecord | null = null;
-      let bestBD = Number.POSITIVE_INFINITY;
-      innerCurrent.forEach((list, wpIdx) => {
-        if (wpIdx >= current.waypointIndex) return;
-        for (const rec of list) {
-          if (rec.sector !== current.sector) continue;
-          const dx = rec.x - current.x;
-          const dy = rec.y - current.y;
-          const dist = Math.hypot(dx, dy);
-          if (dist > MAX_CARTESIAN_DISTANCE_M) continue;
-          if (dist < bestBD) {
-            bestB = rec;
-            bestBD = dist;
-          }
-        }
-      });
-      setIfCloser(bestB);
-    }
-
-    // Adjacent lines: dynamic filter over imageRecords for ADJACENT lines only (±1); sector filter; keep min under threshold; bucket to North/South only
-    if (imageRecords && imageRecords.size > 0) {
-      let scanned = 0;
+    const findBestOnAdjacent = (
+      isNorth: boolean
+    ): ObliqueImageRecord | null => {
+      if (!imageRecords || imageRecords.size === 0) return null;
+      let best: ObliqueImageRecord | null = null;
+      let bestDist = Number.POSITIVE_INFINITY;
       imageRecords.forEach((rec) => {
         if (rec.lineIndex === current.lineIndex) return;
         if (Math.abs(rec.lineIndex - current.lineIndex) !== 1) return;
         if (rec.sector !== current.sector) return;
-        const dx = rec.x - current.x;
         const dy = rec.y - current.y;
-        const dist = Math.hypot(dx, dy);
+        const dist = Math.hypot(rec.x - current.x, dy);
         if (dist > MAX_CARTESIAN_DISTANCE_M) return;
-        // dy>=0 -> South, dy<0 -> North
-        const forcedKey =
-          dy >= 0 ? CardinalDirectionEnum.South : CardinalDirectionEnum.North;
-        setIfCloser(rec, forcedKey);
-        scanned++;
+        if (isNorth ? dy >= 0 : dy < 0) return;
+        if (dist < bestDist) {
+          best = rec;
+          bestDist = dist;
+        }
       });
-      dbg("dynamic adjacent scan done", { scanned });
-    }
-
-    if (DEBUG_SIBLINGS) {
-      const summarize = (c: CardinalDirectionEnum) => {
-        const r = map[c];
-        return r
-          ? {
-              id: r.id,
-              lineIndex: r.lineIndex,
-              waypointIndex: r.waypointIndex,
-              dist: distByCardinal[c],
-            }
-          : null;
-      };
-      dbg("final", {
-        East: summarize(CardinalDirectionEnum.East),
-        West: summarize(CardinalDirectionEnum.West),
-        North: summarize(CardinalDirectionEnum.North),
-        South: summarize(CardinalDirectionEnum.South),
-      });
-    }
+      return best;
+    };
+    setIfCloser(findBestOnAdjacent(true), CardinalDirectionEnum.North);
+    setIfCloser(findBestOnAdjacent(false), CardinalDirectionEnum.South);
 
     return map;
   }, [nearestImage, index, imageRecords]);
