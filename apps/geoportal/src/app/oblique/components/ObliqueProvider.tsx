@@ -31,6 +31,8 @@ import type { CardinalDirectionEnum } from "../utils/orientationUtils";
 
 import { OBLIQUE_PREVIEW_QUALITY } from "../constants";
 import { createConverter } from "../utils/crsUtils";
+import { prefetchSiblingPreviewFor } from "../utils/prefetch";
+import { useKnownSiblings } from "../hooks/useKnownSiblings";
 
 const DEBOUNCE_MS = 250; // time in milliseconds
 const DEBOUNCE_LEADING_EDGE = { leading: true, trailing: false };
@@ -70,6 +72,13 @@ interface ObliqueContextType {
   animations: ObliqueAnimationsConfig;
   footprintsStyle: ObliqueFootprintsStyle;
   imagePreviewStyle: ObliqueImagePreviewStyle;
+
+  // Known sibling lookup after visiting images
+  knownSiblingIds: Record<
+    string,
+    Partial<Record<CardinalDirectionEnum, string>>
+  >;
+  prefetchSiblingPreview: (imageId: string, dir: CardinalDirectionEnum) => void;
 }
 
 const ObliqueContext = createContext<ObliqueContextType | null>(null);
@@ -104,6 +113,8 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
   >(null);
   const [nearestImageRefresh, setNearestImageRefresh] =
     useState<() => void | null>(null);
+
+  // After visiting images, store known siblings by cardinal for quick lookup
 
   const {
     exteriorOrientationsURI,
@@ -142,17 +153,32 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     fallbackDirectionConfig
   );
 
+  const knownSiblingIds = useKnownSiblings(imageRecords, nearestImage);
+
   const performToggleAction = useCallback(() => {
     setIsObliqueMode((prevMode: boolean) => {
       const newMode = !prevMode;
       updateHash && updateHash({ isOblique: newMode ? "1" : undefined });
       return newMode;
     });
-  }, [setIsObliqueMode, updateHash]); // setIsObliqueMode is stable
+  }, [setIsObliqueMode, updateHash]);
 
   const toggleObliqueMode = useMemo(
     () => debounce(performToggleAction, DEBOUNCE_MS, DEBOUNCE_LEADING_EDGE),
     [performToggleAction]
+  );
+
+  const prefetchSiblingPreview = useCallback(
+    (imageId: string, dir: CardinalDirectionEnum) => {
+      prefetchSiblingPreviewFor(
+        imageId,
+        dir,
+        imageRecords,
+        previewPath,
+        previewQualityLevel
+      );
+    },
+    [imageRecords, previewPath, previewQualityLevel]
   );
 
   // Trigger nearest image search when data is loaded
@@ -168,8 +194,6 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [imageRecords, isObliqueMode, nearestImageRefresh, lockFootprint]);
-
-  // Navigation and sibling computation moved to a dedicated hook to keep the provider lean.
 
   const value = {
     isObliqueMode,
@@ -200,6 +224,8 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     animations,
     footprintsStyle,
     imagePreviewStyle,
+    knownSiblingIds,
+    prefetchSiblingPreview,
   };
 
   return (

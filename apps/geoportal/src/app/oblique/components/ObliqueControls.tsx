@@ -8,7 +8,6 @@ import {
 } from "react";
 import { useSelector } from "react-redux";
 
-import { debounce } from "lodash";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faExternalLink,
@@ -90,6 +89,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     toggleObliqueMode,
     imagePreviewStyle,
     setNearestImage,
+    prefetchSiblingPreview,
   } = useOblique();
   const siblingsByCardinal = useSiblingsByCardinal();
   const { viewerRef } = useCesiumContext();
@@ -116,11 +116,13 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     "captureDirection" | "nextCapture"
   >("nextCapture");
   const isTransitioning = useSelector(selectViewerIsTransitioning);
+  // Track last directional move to prefetch ahead in the same direction on arrival
+  const lastMoveDirRef = useRef<CardinalDirectionEnum | null>(null);
 
   const handleNextCapture = useCallback(
     (dir: CardinalDirectionEnum) => {
-      // Trigger a fly-to after nearestImage updates
       nextCaptureShouldFlyRef.current = true;
+      lastMoveDirRef.current = dir;
       const candidate = siblingsByCardinal[dir];
       if (!candidate) return;
       setNearestImage({
@@ -197,7 +199,12 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nearestImage?.record?.id]);
 
-  const preloadImageRef = useRef<ReturnType<typeof debounce> | null>(null);
+  // After arrival at a new image, prefetch only the sibling in the same direction as the last move
+  useEffect(() => {
+    const dir = lastMoveDirRef.current;
+    if (!imageId || dir == null) return;
+    prefetchSiblingPreview(imageId, dir);
+  }, [imageId, prefetchSiblingPreview]);
 
   useControls(
     isObliqueUiEval
@@ -338,22 +345,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     () => downloadAsBlobAsync(downloadUrl),
     [downloadUrl]
   );
-
-  useEffect(() => {
-    if (preloadImageRef.current) {
-      preloadImageRef.current.cancel();
-    }
-    preloadImageRef.current = debounce(() => {
-      const img = new window.Image();
-      img.src = previewUrl;
-    }, 500);
-    preloadImageRef.current();
-    return () => {
-      if (preloadImageRef.current) {
-        preloadImageRef.current.cancel();
-      }
-    };
-  }, [previewUrl]);
 
   if (!shouldRender) {
     return null;
