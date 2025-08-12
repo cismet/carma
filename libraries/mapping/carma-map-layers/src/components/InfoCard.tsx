@@ -102,7 +102,9 @@ const InfoCard = ({
     return newDescription.trim();
   };
 
-  const { jwt } = useAuth();
+  const { jwt, userGroups } = useAuth();
+
+  const allowPublishing = userGroups.includes("_Geoportal_Publizieren");
 
   const legends = (layer as unknown as any).props?.Style?.[0]?.LegendURL; // TODO: fix type
   const parsedDescriptions = parseDescription(description);
@@ -279,7 +281,7 @@ const InfoCard = ({
                   </span>
                 </Button>
               )}
-              {jwt && isDiscoverItem && (
+              {allowPublishing && isDiscoverItem && (
                 <>
                   {layer.isDraft && (
                     <Button

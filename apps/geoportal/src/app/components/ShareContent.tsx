@@ -1,6 +1,7 @@
 import { Share, useAuth, useSelection } from "@carma-apps/portals";
 import { getLayerState } from "../store/slices/mapping";
 import { useSelector } from "react-redux";
+import { getAllowPublishing } from "../store/slices/auth";
 
 interface ShareContentProps {
   closePopover?: () => void;
@@ -8,15 +9,16 @@ interface ShareContentProps {
 
 export const ShareContent = ({ closePopover }: ShareContentProps) => {
   const layerState = useSelector(getLayerState);
-  const { jwt } = useAuth();
+  const { jwt, userGroups } = useAuth();
   const { selection } = useSelection();
+  const allowPublishing = userGroups.includes("_Geoportal_Publizieren");
   console.debug("RENDER: ShareContent");
   return (
     <Share
       layerState={layerState}
       closePopover={closePopover}
       selection={selection}
-      showExtendedSharing={!!jwt}
+      showExtendedSharing={!!jwt && allowPublishing}
       jwt={jwt}
     />
   );

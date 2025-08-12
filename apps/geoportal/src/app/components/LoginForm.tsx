@@ -21,7 +21,7 @@ const LoginForm = ({
   showHelpText = true,
   style,
 }: LoginFormProps) => {
-  const { user, setJWT, setUser } = useAuth();
+  const { user, setJWT, setUser, setUserGroups } = useAuth();
   const [userName, setUserName] = useState(user || "");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -59,19 +59,30 @@ const LoginForm = ({
     })
       .then(function (response) {
         if (response.status >= 200 && response.status < 300) {
-          response.json().then(function (responseWithJWT) {
-            const jwt = responseWithJWT.jwt;
+          response
+            .json()
+            .then(function (responseWithJWT: {
+              domain: string;
+              jwt: string;
+              passHash: string;
+              user: string;
+              userGroups: string[];
+            }) {
+              const userGroups = responseWithJWT.userGroups;
+              setUserGroups(userGroups);
+              const jwt = responseWithJWT.jwt;
 
-            setTimeout(() => {
-              setJWT(jwt);
-              setUser(userName);
-            }, 500);
-            setTimeout(() => {
-              onSuccess?.();
-              setLoading(false);
-            }, 1000);
-          });
+              setTimeout(() => {
+                setJWT(jwt);
+                setUser(userName);
+              }, 500);
+              setTimeout(() => {
+                onSuccess?.();
+                setLoading(false);
+              }, 1000);
+            });
         } else {
+          setUserGroups([]);
           setLoading(false);
           setError(true);
           setTimeout(() => {
