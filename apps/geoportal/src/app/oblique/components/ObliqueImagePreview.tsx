@@ -35,6 +35,14 @@ interface ObliqueImagePreviewProps {
   onOpenImageLink?: () => void;
   onDirectDownload?: () => void;
   onClose?: () => void;
+  // When true, only the image element should fade out (overlay stays visible)
+  dimImage?: boolean;
+  // Called when current active image source has finished loading
+  onImageLoaded?: () => void;
+  // Incremented by parent when fly-to animation completes; gates showing next image
+  flyCompletionTick?: number;
+  // Called once next image has been swapped into current buffer
+  onSwapComplete?: () => void;
   interiorOrientationOffsets?: {
     xOffset: number;
     yOffset: number;
@@ -43,6 +51,21 @@ interface ObliqueImagePreviewProps {
 }
 
 type ImageQuality = "REGULAR" | "HQ" | "BEST";
+
+const parseBorderWidthPx = (borderStyle?: string) => {
+  if (!borderStyle) return 0;
+  const m = borderStyle.match(/(\d+(?:\.\d+)?)px/);
+  return m ? parseFloat(m[1]) : 0;
+};
+
+const parseShadowBlurPx = (boxShadowStyle?: string) => {
+  if (!boxShadowStyle) return 0;
+  // Matches: offsetX offsetY blur [spread] color
+  const m = boxShadowStyle.match(
+    /-?\d+(?:\.\d+)?px\s+-?\d+(?:\.\d+)?px\s+(-?\d+(?:\.\d+)?)px/
+  );
+  return m ? parseFloat(m[1]) : 0;
+};
 
 const getViewerSyncedSize = (viewerRef: RefObject<Viewer>) => {
   const dim = Math.max(
@@ -92,6 +115,10 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   onOpenImageLink,
   onDirectDownload,
   onClose,
+  dimImage = false,
+  onImageLoaded,
+  flyCompletionTick,
+  onSwapComplete,
   style,
   interiorOrientationOffsets = { xOffset: 0, yOffset: 0 },
 }) => {
@@ -101,6 +128,12 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   const [blendMode, setBlendMode] = useState<BlendMode>("normal");
   const [currentQuality, setCurrentQuality] = useState<ImageQuality>("REGULAR");
   const [activeSource, setActiveSource] = useState(src);
+  // Double buffer sources
+  const [currentSrc, setCurrentSrc] = useState<string | null>(src);
+  const [nextSrc, setNextSrc] = useState<string | null>(null);
+  const [nextLoaded, setNextLoaded] = useState(false);
+  const [canShowNext, setCanShowNext] = useState(false);
+  const [showNext, setShowNext] = useState(false);
 
   const { backdropColor, border, boxShadow } = useMemoMergedDefaultOptions(
     style,
@@ -122,6 +155,72 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
     }
   }, [src, srcHQ, srcOriginal, currentQuality]);
 
+  // Prepare next buffer when activeSource changes
+  useEffect(() => {
+    if (!activeSource) return;
+    if (!currentSrc) {
+      if (dimImage) {
+        setNextSrc(activeSource);
+        setNextLoaded(false);
+      } else {
+        setCurrentSrc(activeSource);
+      }
+      return;
+    }
+    if (activeSource === currentSrc) return;
+    setNextSrc(activeSource);
+    setNextLoaded(false);
+  }, [activeSource, currentSrc, dimImage]);
+
+  // Preload next source
+  useEffect(() => {
+    if (!nextSrc) return;
+    const img = new window.Image();
+    img.src = nextSrc;
+    img.onload = () => {
+      setNextLoaded(true);
+      if (onImageLoaded) onImageLoaded();
+    };
+  }, [nextSrc, onImageLoaded]);
+
+  // Gate swap: show next when (a) fly completed or not dimming, and (b) next is loaded
+  useEffect(() => {
+    if (nextLoaded && (canShowNext || !dimImage)) {
+      setShowNext(true);
+    }
+  }, [nextLoaded, canShowNext, dimImage]);
+
+  // Fly completion allows showing next
+  useEffect(() => {
+    if (flyCompletionTick == null) return;
+    setCanShowNext(true);
+  }, [flyCompletionTick]);
+
+  // Finalize swap after fade begins
+  useEffect(() => {
+    if (!showNext || !nextSrc) return;
+    const t = setTimeout(() => {
+      setCurrentSrc(nextSrc);
+      setNextSrc(null);
+      setNextLoaded(false);
+      setShowNext(false);
+      setCanShowNext(false);
+      if (onSwapComplete) onSwapComplete();
+    }, 16); // finalize quickly after mounting next
+    return () => clearTimeout(t);
+  }, [showNext, nextSrc, onSwapComplete]);
+
+  // When a move starts (dimImage true), ensure we reset swap gating state
+  useEffect(() => {
+    if (!dimImage) return;
+    setShowNext(false);
+    setCanShowNext(false);
+    // old image fades out instantly; drop it from DOM by clearing src
+    setCurrentSrc(null);
+  }, [dimImage]);
+
+  // no-op
+
   // compensate for interior orientation sensor offsets
   const translateX = -50 + xOffset * 0.5 * 100;
   const translateY = -50 + yOffset * 0.5 * 100;
@@ -130,15 +229,15 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
 
   // Only load image for aspect ratio when visible
   useEffect(() => {
-    if (isVisible && activeSource) {
+    if (isVisible && currentSrc) {
       const img = new window.Image();
-      img.src = activeSource;
+      img.src = currentSrc;
       img.onload = () => {
         setIsVertical(img.naturalWidth < img.naturalHeight);
         setImageAspectRatio(img.naturalWidth / img.naturalHeight);
       };
     }
-  }, [isVisible, activeSource]);
+  }, [isVisible, currentSrc]);
 
   useEffect(() => {
     if (isVisible) {
@@ -173,6 +272,21 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   const syncedWidth = getViewerSyncedSize(viewerRef) * widthScaleFactor;
   const syncedHeight = getViewerSyncedSize(viewerRef) * heightScaleFactor;
 
+  // Backdrop hole equals image rect plus border + glow margin
+  const borderPx = parseBorderWidthPx(border);
+  const glowPx = parseShadowBlurPx(boxShadow);
+  const holeMargin = Math.max(0, borderPx + glowPx);
+  const vw = typeof window !== "undefined" ? window.innerWidth : 0;
+  const vh = typeof window !== "undefined" ? window.innerHeight : 0;
+  const leftPx = vw * 0.5 + (translateX / 100) * syncedWidth;
+  const topPx = vh * 0.5 + (translateY / 100) * syncedHeight;
+  const holeRect = {
+    x: leftPx - holeMargin,
+    y: topPx - holeMargin,
+    width: syncedWidth + holeMargin * 2,
+    height: syncedHeight + holeMargin * 2,
+  };
+
   return (
     <div
       style={{
@@ -186,6 +300,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
         color={backdropColor}
         fadeIn={shouldFadeIn}
         isDebug={isDebugMode}
+        holeRect={holeRect}
         onClick={handleBackdropClick}
       />
       <div className="absolute top-0 left-0 w-full h-svh">
@@ -264,18 +379,34 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
           )}
         </div>
       </div>
-      <PreviewImage
-        src={activeSource}
-        alt={imageId ?? "Oblique Image Preview"}
-        width={syncedWidth}
-        height={syncedHeight}
-        borderStyle={border}
-        boxShadowStyle={boxShadow}
-        fadeIn={shouldFadeIn}
-        blendMode={blendMode}
-        isDebug={isDebugMode}
-        transform={transform}
-      />
+      {currentSrc && !dimImage && !showNext && (
+        <PreviewImage
+          src={currentSrc}
+          alt={imageId ?? "Oblique Image Preview"}
+          width={syncedWidth}
+          height={syncedHeight}
+          borderStyle={border}
+          boxShadowStyle={boxShadow}
+          fadeIn={shouldFadeIn}
+          blendMode={blendMode}
+          isDebug={isDebugMode}
+          transform={transform}
+        />
+      )}
+      {nextSrc && (
+        <PreviewImage
+          src={nextSrc}
+          alt={imageId ?? "Oblique Image Preview (next)"}
+          width={syncedWidth}
+          height={syncedHeight}
+          borderStyle={border}
+          boxShadowStyle={boxShadow}
+          fadeIn={shouldFadeIn && showNext}
+          blendMode={blendMode}
+          isDebug={isDebugMode}
+          transform={transform}
+        />
+      )}
     </div>
   );
 };

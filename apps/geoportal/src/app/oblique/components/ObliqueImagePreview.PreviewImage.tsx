@@ -39,7 +39,7 @@ export const PreviewImage: FC<PreviewImageProps> = ({
     boxSizing: "content-box",
     pointerEvents: "none",
     zIndex: 1200,
-    transition: "opacity 0.8s linear",
+    transition: fadeIn ? "opacity 0.8s linear" : "opacity 0s linear",
     overflow: "hidden",
     //scroll: "none",
   };

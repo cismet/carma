@@ -110,6 +110,9 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const [invertLabels, setInvertLabels] = useState(true);
   const [shouldRender, setShouldRender] = useState(isObliqueMode);
   const [isPreviewVisible, setIsPreviewVisible] = useState(false);
+  const [shouldRemoveCurrentPreviewImage, setShouldRemoveCurrentPreviewImage] =
+    useState(false);
+  const [flyCompletionTick, setFlyCompletionTick] = useState(0);
   const [showDirectionControls, setShowDirectionControls] = useState(true);
   const [showOrientationCube, setShowOrientationCube] = useState(false);
   const [directionalButtonType, setDirectionalButtonType] = useState<
@@ -121,10 +124,12 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
 
   const handleNextCapture = useCallback(
     (dir: CardinalDirectionEnum) => {
-      nextCaptureShouldFlyRef.current = true;
-      lastMoveDirRef.current = dir;
       const candidate = siblingsByCardinal[dir];
       if (!candidate) return;
+      // Keep overlay, just dim the image until the next one is loaded
+      setShouldRemoveCurrentPreviewImage(true);
+      nextCaptureShouldFlyRef.current = true;
+      lastMoveDirRef.current = dir;
       setNearestImage({
         record: candidate,
         distanceOnGround: 0,
@@ -186,6 +191,8 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       () => {
         animationInProgressRef.current = false;
         setLockFootprint(false);
+        setShouldRemoveCurrentPreviewImage(false);
+        setFlyCompletionTick((t) => t + 1);
         cesiumSafeRequestRender(viewerRef.current);
       },
       siblingFlyOptions
@@ -382,6 +389,8 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
           srcOriginal={previewUrlOriginal}
           imageId={imageId}
           isVisible={isPreviewVisible}
+          dimImage={shouldRemoveCurrentPreviewImage}
+          flyCompletionTick={flyCompletionTick}
           onOpenImageLink={openImageLink}
           onDirectDownload={handleDirectDownload}
           isDebugMode={isDebugMode}
