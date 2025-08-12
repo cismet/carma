@@ -1,6 +1,7 @@
 import {
   useEffect,
   useState,
+  useRef,
   type RefObject,
   type FC,
   type CSSProperties,
@@ -13,7 +14,6 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { Tooltip, Radio, type RadioChangeEvent } from "antd";
 
-import { useMemoMergedDefaultOptions } from "@carma-commons/utils";
 import { useCesiumContext } from "@carma-mapping/cesium-engine";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import { PREVIEW_IMAGE_BASE_SCALE_FACTOR } from "../config";
@@ -52,20 +52,7 @@ interface ObliqueImagePreviewProps {
 
 type ImageQuality = "REGULAR" | "HQ" | "BEST";
 
-const parseBorderWidthPx = (borderStyle?: string) => {
-  if (!borderStyle) return 0;
-  const m = borderStyle.match(/(\d+(?:\.\d+)?)px/);
-  return m ? parseFloat(m[1]) : 0;
-};
-
-const parseShadowBlurPx = (boxShadowStyle?: string) => {
-  if (!boxShadowStyle) return 0;
-  // Matches: offsetX offsetY blur [spread] color
-  const m = boxShadowStyle.match(
-    /-?\d+(?:\.\d+)?px\s+-?\d+(?:\.\d+)?px\s+(-?\d+(?:\.\d+)?)px/
-  );
-  return m ? parseFloat(m[1]) : 0;
-};
+// Note: backdrop dimming hole logic removed per latest requirement.
 
 const getViewerSyncedSize = (viewerRef: RefObject<Viewer>) => {
   const dim = Math.max(
@@ -84,7 +71,7 @@ const getViewerSyncedSize = (viewerRef: RefObject<Viewer>) => {
 };
 
 const defaultStyle: ObliqueImagePreviewStyle = {
-  backdropColor: "rgba(75, 75, 75, 0.2)",
+  backdropColor: "rgba(0, 0, 0, 0.13)",
   border: "2px solid rgba(255, 255, 255, 0.9)",
   boxShadow: "0 0 50px rgba(255, 255, 255, 0.8)",
 };
@@ -134,11 +121,14 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   const [nextLoaded, setNextLoaded] = useState(false);
   const [canShowNext, setCanShowNext] = useState(false);
   const [showNext, setShowNext] = useState(false);
+  // Merge style with defaults
+  const mergedStyle = { ...defaultStyle, ...(style ?? {}) };
+  const { backdropColor, border, boxShadow } = mergedStyle;
 
-  const { backdropColor, border, boxShadow } = useMemoMergedDefaultOptions(
-    style,
-    defaultStyle
-  );
+  const [effectiveBackdropColor, setEffectiveBackdropColor] =
+    useState(backdropColor);
+  const backdropRestoreTimerRef = useRef<number | undefined>(undefined);
+  const [backdropVisible, setBackdropVisible] = useState(true);
 
   const { viewerRef } = useCesiumContext();
 
@@ -154,6 +144,37 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
       setActiveSource(src);
     }
   }, [src, srcHQ, srcOriginal, currentQuality]);
+
+  // Backdrop behavior: transparent during movement (via color), slow fade-in after timeout using opacity
+  useEffect(() => {
+    if (backdropRestoreTimerRef.current !== undefined) {
+      window.clearTimeout(backdropRestoreTimerRef.current);
+      backdropRestoreTimerRef.current = undefined;
+    }
+    if (dimImage) {
+      // instant clear during movement
+      setEffectiveBackdropColor("transparent");
+    } else {
+      backdropRestoreTimerRef.current = window.setTimeout(() => {
+        // fade-in sequence: set opacity to 0, then set color and raise opacity to 1
+        setBackdropVisible(false);
+        window.setTimeout(() => {
+          setEffectiveBackdropColor(backdropColor);
+          // next tick to ensure styles apply
+          window.requestAnimationFrame(() => setBackdropVisible(true));
+        }, 20);
+      }, 800);
+    }
+  }, [dimImage, backdropColor]);
+
+  // Clear timer on unmount
+  useEffect(() => {
+    return () => {
+      if (backdropRestoreTimerRef.current !== undefined) {
+        window.clearTimeout(backdropRestoreTimerRef.current);
+      }
+    };
+  }, []);
 
   // Prepare next buffer when activeSource changes
   useEffect(() => {
@@ -219,8 +240,6 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
     setCurrentSrc(null);
   }, [dimImage]);
 
-  // no-op
-
   // compensate for interior orientation sensor offsets
   const translateX = -50 + xOffset * 0.5 * 100;
   const translateY = -50 + yOffset * 0.5 * 100;
@@ -272,21 +291,6 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   const syncedWidth = getViewerSyncedSize(viewerRef) * widthScaleFactor;
   const syncedHeight = getViewerSyncedSize(viewerRef) * heightScaleFactor;
 
-  // Backdrop hole equals image rect plus border + glow margin
-  const borderPx = parseBorderWidthPx(border);
-  const glowPx = parseShadowBlurPx(boxShadow);
-  const holeMargin = Math.max(0, borderPx + glowPx);
-  const vw = typeof window !== "undefined" ? window.innerWidth : 0;
-  const vh = typeof window !== "undefined" ? window.innerHeight : 0;
-  const leftPx = vw * 0.5 + (translateX / 100) * syncedWidth;
-  const topPx = vh * 0.5 + (translateY / 100) * syncedHeight;
-  const holeRect = {
-    x: leftPx - holeMargin,
-    y: topPx - holeMargin,
-    width: syncedWidth + holeMargin * 2,
-    height: syncedHeight + holeMargin * 2,
-  };
-
   return (
     <div
       style={{
@@ -297,10 +301,9 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
       }}
     >
       <Backdrop
-        color={backdropColor}
-        fadeIn={shouldFadeIn}
+        color={effectiveBackdropColor}
+        fadeIn={shouldFadeIn && backdropVisible}
         isDebug={isDebugMode}
-        holeRect={holeRect}
         onClick={handleBackdropClick}
       />
       <div className="absolute top-0 left-0 w-full h-svh">
