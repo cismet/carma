@@ -22,27 +22,18 @@ export const ObliqueDirectionControls: React.FC<Props> = ({
   isLoading,
   siblingCallbacks,
 }) => {
-  type Slot = "top" | "right" | "bottom" | "left";
-  const slotToDir: Record<Slot, CardinalDirectionEnum> = {
-    top: CardinalDirectionEnum.North,
-    right: CardinalDirectionEnum.East,
-    bottom: CardinalDirectionEnum.South,
-    left: CardinalDirectionEnum.West,
-  };
-  // Choose the slot for each cardinal such that when heading points to a cardinal, that cardinal is "top".
-  const enumDirs: CardinalDirectionEnum[] = [
+  // Heading-relative slot mapping: the active direction is always on top.
+  const order: CardinalDirectionEnum[] = [
     CardinalDirectionEnum.North,
     CardinalDirectionEnum.East,
     CardinalDirectionEnum.South,
     CardinalDirectionEnum.West,
   ];
-  enumDirs.forEach((dir) => {
-    slotToDir[dir] = dir;
-  });
-  const topDir = slotToDir.top;
-  const rightDir = slotToDir.right;
-  const bottomDir = slotToDir.bottom;
-  const leftDir = slotToDir.left;
+  const topDir = activeDirection ?? CardinalDirectionEnum.North;
+  const topIdx = order.indexOf(topDir);
+  const rightDir = order[(topIdx + 1) % 4];
+  const bottomDir = order[(topIdx + 2) % 4];
+  const leftDir = order[(topIdx + 3) % 4];
   // Fixed NOSW labels (German locale: Osten => "O")
   const letterFor = (d: CardinalDirectionEnum) =>
     d === CardinalDirectionEnum.North

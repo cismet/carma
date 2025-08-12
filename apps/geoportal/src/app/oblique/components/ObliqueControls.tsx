@@ -119,7 +119,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const [shouldRender, setShouldRender] = useState(isObliqueMode);
   const [isPreviewVisible, setIsPreviewVisible] = useState(false);
   const [showDirectionControls, setShowDirectionControls] = useState(true);
-  const [showOrientationCube, setShowOrientationCube] = useState(true);
+  const [showOrientationCube, setShowOrientationCube] = useState(false);
   const [directionalButtonType, setDirectionalButtonType] = useState<
     "captureDirection" | "nextCapture"
   >("nextCapture");
