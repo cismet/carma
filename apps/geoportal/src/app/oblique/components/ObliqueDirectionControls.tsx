@@ -1,5 +1,5 @@
 import React from "react";
-import { Tooltip, Spin } from "antd";
+import { Spin } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faRotateLeft, faRotateRight } from "@fortawesome/free-solid-svg-icons";
 import { CardinalDirectionEnum } from "../utils/orientationUtils";
@@ -10,8 +10,6 @@ type Props = {
   rotateToDirection: (d: CardinalDirectionEnum) => void;
   activeDirection?: CardinalDirectionEnum;
   activeButtonClass?: string;
-  headingDegrees: string | number;
-  offsetDegrees: number;
   isLoading: boolean;
   siblingCallbacks?: Partial<Record<CardinalDirectionEnum, () => void>>;
 };
@@ -21,36 +19,65 @@ export const ObliqueDirectionControls: React.FC<Props> = ({
   rotateToDirection,
   activeDirection,
   activeButtonClass = "",
-  headingDegrees,
-  offsetDegrees,
   isLoading,
   siblingCallbacks,
 }) => {
+  type Slot = "top" | "right" | "bottom" | "left";
+  const slotToDir: Record<Slot, CardinalDirectionEnum> = {
+    top: CardinalDirectionEnum.North,
+    right: CardinalDirectionEnum.East,
+    bottom: CardinalDirectionEnum.South,
+    left: CardinalDirectionEnum.West,
+  };
+  // Choose the slot for each cardinal such that when heading points to a cardinal, that cardinal is "top".
+  const enumDirs: CardinalDirectionEnum[] = [
+    CardinalDirectionEnum.North,
+    CardinalDirectionEnum.East,
+    CardinalDirectionEnum.South,
+    CardinalDirectionEnum.West,
+  ];
+  enumDirs.forEach((dir) => {
+    slotToDir[dir] = dir;
+  });
+  const topDir = slotToDir.top;
+  const rightDir = slotToDir.right;
+  const bottomDir = slotToDir.bottom;
+  const leftDir = slotToDir.left;
+  // Fixed NOSW labels (German locale: Osten => "O")
+  const letterFor = (d: CardinalDirectionEnum) =>
+    d === CardinalDirectionEnum.North
+      ? "N"
+      : d === CardinalDirectionEnum.East
+      ? "O"
+      : d === CardinalDirectionEnum.South
+      ? "S"
+      : "W";
+
+  // Prevent redundant rotations: if direction already active, do nothing
+  // Important: return a closure; do NOT call rotateToDirection during render.
+  const getRotateHandler = (dir: CardinalDirectionEnum) =>
+    activeDirection === dir ? undefined : () => rotateToDirection(dir);
   return (
-    <div className="relative grid grid-cols-5 grid-rows-5 gap-1 p-2 rounded-lg shadow bg-white/40">
-      <div
-        className={
-          `absolute inset-0 z-10 rounded-lg flex flex-col items-center justify-center bg-white/80 transition-opacity duration-500 ` +
-          (isLoading
-            ? "opacity-100 pointer-events-auto"
-            : "opacity-0 pointer-events-none")
-        }
-      >
-        <Spin tip="Schrägluftbild-Daten werden geladen..." />
-      </div>
-      {/* Row 1: outer North (center) */}
+    <div className="relative grid grid-cols-5 grid-rows-5 gap-1 p-2">
+      {isLoading && (
+        <div
+          className={`absolute inset-0 z-10 flex flex-col items-center justify-center transition-opacity duration-500`}
+        >
+          <Spin tip="Schrägluftbild-Daten werden geladen..." />
+        </div>
+      )}
       <div />
       <div />
       {siblingCallbacks ? (
         <ControlButtonStyler
-          onClick={siblingCallbacks?.[CardinalDirectionEnum.North]}
+          onClick={siblingCallbacks?.[bottomDir]}
           width="40px"
           height="40px"
-          className={
-            !siblingCallbacks?.[CardinalDirectionEnum.North]
-              ? "opacity-50 cursor-not-allowed"
-              : undefined
-          }
+          className={`${
+            !siblingCallbacks?.[bottomDir]
+              ? "opacity-50 cursor-not-allowed "
+              : ""
+          }pointer-events-auto select-none`}
         >
           ↑
         </ControlButtonStyler>
@@ -60,47 +87,47 @@ export const ObliqueDirectionControls: React.FC<Props> = ({
       <div />
       <div />
 
-      {/* Row 2: rotate CCW, North, rotate CW */}
+      {/* Row 2: rotate CCW, Up, rotate CW */}
       <div />
       <ControlButtonStyler
         onClick={() => rotateCamera(false)}
         width="40px"
         height="40px"
+        className="pointer-events-auto select-none"
       >
         <FontAwesomeIcon icon={faRotateLeft} className="text-xs" />
       </ControlButtonStyler>
       <ControlButtonStyler
-        onClick={() => rotateToDirection(CardinalDirectionEnum.North)}
+        onClick={getRotateHandler(topDir)}
         width="40px"
         height="40px"
-        className={`font-extrabold ${
-          activeDirection === CardinalDirectionEnum.North
-            ? activeButtonClass
-            : ""
+        className={`font-extrabold pointer-events-auto select-none ${
+          activeDirection === topDir ? activeButtonClass : ""
         }`}
       >
-        N
+        {letterFor(topDir)}
       </ControlButtonStyler>
       <ControlButtonStyler
         onClick={() => rotateCamera(true)}
         width="40px"
         height="40px"
+        className="pointer-events-auto select-none"
       >
         <FontAwesomeIcon icon={faRotateRight} className="text-xs" />
       </ControlButtonStyler>
       <div />
 
-      {/* Row 3: outer West, West, heading, East, outer East */}
+      {/* Row 3: move left, rotate left, empty, rotate right, move right */}
       {siblingCallbacks ? (
         <ControlButtonStyler
-          onClick={siblingCallbacks?.[CardinalDirectionEnum.West]}
+          onClick={siblingCallbacks?.[rightDir]}
           width="40px"
           height="40px"
-          className={
-            !siblingCallbacks?.[CardinalDirectionEnum.West]
-              ? "opacity-50 cursor-not-allowed"
-              : undefined
-          }
+          className={`${
+            !siblingCallbacks?.[rightDir]
+              ? "opacity-50 cursor-not-allowed "
+              : ""
+          }pointer-events-auto select-none`}
         >
           ←
         </ControlButtonStyler>
@@ -108,49 +135,34 @@ export const ObliqueDirectionControls: React.FC<Props> = ({
         <div />
       )}
       <ControlButtonStyler
-        onClick={() => rotateToDirection(CardinalDirectionEnum.West)}
+        onClick={getRotateHandler(leftDir)}
         width="40px"
         height="40px"
-        className={`font-extrabold ${
-          activeDirection === CardinalDirectionEnum.West
-            ? activeButtonClass
-            : ""
+        className={`font-extrabold pointer-events-auto select-none ${
+          activeDirection === leftDir ? activeButtonClass : ""
         }`}
       >
-        W
+        {letterFor(leftDir)}
       </ControlButtonStyler>
-      <Tooltip
-        title={`Luftbildblickrichtung "Nord" hat ${offsetDegrees} Grad Abweichung von Nord`}
-        placement="top"
-      >
-        <div className="w-10 h-10 flex items-center justify-center">
-          <span className="font-semibold text-sm text-gray-700 select-none">
-            {headingDegrees}°
-          </span>
-        </div>
-      </Tooltip>
+      <div />
       <ControlButtonStyler
-        onClick={() => rotateToDirection(CardinalDirectionEnum.East)}
+        onClick={getRotateHandler(rightDir)}
         width="40px"
         height="40px"
-        className={`font-extrabold ${
-          activeDirection === CardinalDirectionEnum.East
-            ? activeButtonClass
-            : ""
+        className={`font-extrabold pointer-events-auto select-none ${
+          activeDirection === rightDir ? activeButtonClass : ""
         }`}
       >
-        O
+        {letterFor(rightDir)}
       </ControlButtonStyler>
       {siblingCallbacks ? (
         <ControlButtonStyler
-          onClick={siblingCallbacks?.[CardinalDirectionEnum.East]}
+          onClick={siblingCallbacks?.[leftDir]}
           width="40px"
           height="40px"
-          className={
-            !siblingCallbacks?.[CardinalDirectionEnum.East]
-              ? "opacity-50 cursor-not-allowed"
-              : undefined
-          }
+          className={`${
+            !siblingCallbacks?.[leftDir] ? "opacity-50 cursor-not-allowed " : ""
+          }pointer-events-auto select-none`}
         >
           →
         </ControlButtonStyler>
@@ -158,37 +170,33 @@ export const ObliqueDirectionControls: React.FC<Props> = ({
         <div />
       )}
 
-      {/* Row 4: South in center */}
+      {/* Row 4: rotate 180 */}
       <div />
       <div />
       <ControlButtonStyler
-        onClick={() => rotateToDirection(CardinalDirectionEnum.South)}
+        onClick={getRotateHandler(bottomDir)}
         width="40px"
         height="40px"
-        className={`font-extrabold ${
-          activeDirection === CardinalDirectionEnum.South
-            ? activeButtonClass
-            : ""
+        className={`font-extrabold pointer-events-auto select-none ${
+          activeDirection === bottomDir ? activeButtonClass : ""
         }`}
       >
-        S
+        {letterFor(bottomDir)}
       </ControlButtonStyler>
       <div />
       <div />
 
-      {/* Row 5: outer South (center) */}
+      {/* Row 5: move down */}
       <div />
       <div />
       {siblingCallbacks ? (
         <ControlButtonStyler
-          onClick={siblingCallbacks?.[CardinalDirectionEnum.South]}
+          onClick={siblingCallbacks?.[topDir]}
           width="40px"
           height="40px"
-          className={
-            !siblingCallbacks?.[CardinalDirectionEnum.South]
-              ? "opacity-50 cursor-not-allowed"
-              : undefined
-          }
+          className={`${
+            !siblingCallbacks?.[topDir] ? "opacity-50 cursor-not-allowed " : ""
+          }pointer-events-auto select-none`}
         >
           ↓
         </ControlButtonStyler>

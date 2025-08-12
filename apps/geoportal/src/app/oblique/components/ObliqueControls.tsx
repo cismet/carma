@@ -16,7 +16,6 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { Tooltip } from "antd";
 import { useControls } from "leva";
-import { Math as CesiumMath } from "cesium";
 
 import {
   cesiumSafeRequestRender,
@@ -42,7 +41,6 @@ import { useSiblingsByCardinal } from "../hooks/useSiblingsByCardinal";
 
 import { flyToExteriorOrientation } from "../utils/cameraUtils";
 import { downloadAsBlobAsync } from "../utils/downloads";
-import { formatHeadingDegrees } from "../utils/formatters";
 import { getImageUrls } from "../utils/imageHandling";
 import {
   subscribeToPreviewVisibility,
@@ -261,13 +259,8 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       : {}
   );
 
-  const {
-    currentHeading,
-    activeDirection,
-    rotateCamera,
-    rotateToDirection,
-    rotateToHeading,
-  } = useObliqueCameraHandlers(animationInProgressRef, isDebugMode);
+  const { activeDirection, rotateCamera, rotateToDirection, rotateToHeading } =
+    useObliqueCameraHandlers(animationInProgressRef, isDebugMode);
 
   useFootprints(isDebugMode);
 
@@ -381,12 +374,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   if (!shouldRender) {
     return null;
   }
-  // --- styles and derived formatting for render ---
-
-  const headingDegrees = formatHeadingDegrees(currentHeading);
-
   const effectiveOffsetRad = offsetEnabled ? headingOffset ?? 0 : 0;
-  const offsetDegrees = Math.round(CesiumMath.toDegrees(effectiveOffsetRad));
 
   return (
     <>
@@ -452,6 +440,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
             zIndex: 1000,
             opacity: isVisible && !isPreviewVisible ? 1 : 0,
             transition: "opacity 300ms ease-in-out",
+            pointerEvents: "none",
           }}
         >
           <div
@@ -459,6 +448,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
               display: "flex",
               flexDirection: "column",
               gap: "10px",
+              alignItems: "center",
             }}
           >
             {imageId && derivedExteriorOrientationRef.current && (
@@ -479,6 +469,8 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
                   flexDirection: "column",
                   gap: "10px",
                   paddingBottom: "40px",
+                  alignItems: "center",
+                  pointerEvents: "auto",
                 }}
               >
                 <Tooltip
@@ -523,16 +515,36 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
                 />
               </div>
             )}
-            <div className="flex flex-col items-center gap-2">
-              {showDirectionControls && (
-                <div className="flex justify-center">
-                  <ObliqueDirectionControls
+
+            {showDirectionControls && (
+              <div className="flex justify-center">
+                <ObliqueDirectionControls
+                  rotateCamera={rotateCamera}
+                  rotateToDirection={rotateToDirection}
+                  activeDirection={activeDirection}
+                  activeButtonClass={activeButtonClass}
+                  isLoading={!isAllDataReady}
+                  siblingCallbacks={
+                    directionalButtonType === "nextCapture"
+                      ? siblingCallbacks
+                      : undefined
+                  }
+                />
+              </div>
+            )}
+            {showOrientationCube && (
+              <div className="flex justify-center">
+                <div className="flex flex-col items-center">
+                  <ObliqueOrientationCube
+                    size={70}
                     rotateCamera={rotateCamera}
-                    rotateToDirection={rotateToDirection}
-                    activeDirection={activeDirection}
-                    activeButtonClass={activeButtonClass}
-                    headingDegrees={headingDegrees}
-                    offsetDegrees={offsetDegrees}
+                    onDirectionSelect={rotateToDirection}
+                    onHeadingSelect={rotateToHeading}
+                    offsetRad={effectiveOffsetRad}
+                    offsetCube={offsetCube}
+                    invertCardinalLabels={invertLabels}
+                    showFacadeLabels={showFacadeLabels}
+                    directionalButtonType={directionalButtonType}
                     isLoading={!isAllDataReady}
                     siblingCallbacks={
                       directionalButtonType === "nextCapture"
@@ -541,31 +553,8 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
                     }
                   />
                 </div>
-              )}
-              {showOrientationCube && (
-                <div className="flex justify-center">
-                  <div className="flex flex-col items-center">
-                    <ObliqueOrientationCube
-                      size={70}
-                      rotateCamera={rotateCamera}
-                      onDirectionSelect={rotateToDirection}
-                      onHeadingSelect={rotateToHeading}
-                      offsetRad={effectiveOffsetRad}
-                      offsetCube={offsetCube}
-                      invertCardinalLabels={invertLabels}
-                      showFacadeLabels={showFacadeLabels}
-                      directionalButtonType={directionalButtonType}
-                      isLoading={!isAllDataReady}
-                      siblingCallbacks={
-                        directionalButtonType === "nextCapture"
-                          ? siblingCallbacks
-                          : undefined
-                      }
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
