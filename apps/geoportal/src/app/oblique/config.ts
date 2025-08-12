@@ -25,6 +25,10 @@ export const OBLIQUE_CONFIG: ObliqueDataProviderConfig = {
       duration: 800,
       easingFunction: EasingFunction.QUADRATIC_IN,
     },
+    flyToNextImage: {
+      duration: 300,
+      easingFunction: EasingFunction.LINEAR_NONE,
+    },
     outlineFadeOut: {
       delay: 500,
       duration: 300,

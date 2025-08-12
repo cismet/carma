@@ -25,9 +25,9 @@ import type {
 
 import { useObliqueData } from "../hooks/useObliqueData";
 
-import { CardinalDirectionEnum } from "../utils/orientationUtils";
 import { FootprintProperties } from "../utils/footprintUtils";
 import { RBushBySectorBlocks } from "../utils/spatialIndexing";
+import type { CardinalDirectionEnum } from "../utils/orientationUtils";
 
 import { OBLIQUE_PREVIEW_QUALITY } from "../constants";
 import { createConverter } from "../utils/crsUtils";
@@ -168,6 +168,8 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [imageRecords, isObliqueMode, nearestImageRefresh, lockFootprint]);
+
+  // Navigation and sibling computation moved to a dedicated hook to keep the provider lean.
 
   const value = {
     isObliqueMode,

@@ -37,17 +37,23 @@ export { CUSTOM_SHADERS_DEFINITIONS } from "./lib/shaders";
 
 export { cesiumSceneHasTweens } from "./lib/utils/cesiumAnimations";
 export { getOrbitPoint } from "./lib/utils/cesiumAnimateOrbits";
+export { getHeadingPitchForMouseEvent } from "./lib/utils/cesiumAnimateOrbits";
 export {
   cesiumAnimateFov,
   type CesiumAnimateFovOptions,
 } from "./lib/utils/cesiumAnimateFov";
 
+export { applyRollToHeadingForCameraNearNadir } from "./lib/utils/cesiumCamera";
+export {
+  cesiumCameraToCssTransform,
+  cssPerspectiveFromCesiumCameraForElement,
+  fovToCssPerspectiveByFov,
+} from "./lib/utils/cesiumCameraToCssTransform";
+
 export {
   CesiumErrorToErrorBoundaryForwarder,
   type ForwardedCesiumError,
 } from "./lib/utils/CesiumErrorToErrorBoundaryForwarder";
-
-export { applyRollToHeadingForCameraNearNadir } from "./lib/utils/cesiumCamera";
 
 export {
   encodeCesiumCamera,
@@ -90,6 +96,7 @@ export {
   type ViewerAnimationMap,
   initViewerAnimationMap,
 } from "./lib/utils/viewerAnimationMap";
+export { cancelViewerAnimation } from "./lib/utils/viewerAnimationMap";
 
 // Re-export all the types as workaround
 export * from "./index.d";

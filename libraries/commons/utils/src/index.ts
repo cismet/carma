@@ -17,7 +17,7 @@ export { suppressReactCismapErrors } from "./lib/log-react-cismap-errors";
 
 export { normalizeOptions } from "./lib/normalizeOptions";
 
-export { clampToToleranceRange } from "./lib/numbers";
+export { clampToToleranceRange, clamp } from "./lib/numbers";
 
 export {
   PROJ4_CONVERTERS,
@@ -39,3 +39,5 @@ export { getApplicationVersion } from "./lib/version";
 export { detectWebGLContext } from "./lib/webgl";
 
 export { extractInformation } from "./lib/layer-parser";
+
+// Removed Cesium perspective helpers; moved to Cesium engine package
