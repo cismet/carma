@@ -102,19 +102,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     setNearestImage,
   } = useOblique();
   const siblingsByCardinal = useSiblingsByCardinal();
-  const disabledDirections = useMemo(
-    () => ({
-      [CardinalDirectionEnum.North]:
-        !siblingsByCardinal[CardinalDirectionEnum.North],
-      [CardinalDirectionEnum.East]:
-        !siblingsByCardinal[CardinalDirectionEnum.East],
-      [CardinalDirectionEnum.South]:
-        !siblingsByCardinal[CardinalDirectionEnum.South],
-      [CardinalDirectionEnum.West]:
-        !siblingsByCardinal[CardinalDirectionEnum.West],
-    }),
-    [siblingsByCardinal]
-  );
   const { viewerRef } = useCesiumContext();
   const imageId = nearestImage?.record?.id;
   const cameraId = nearestImage?.record?.cameraId;
@@ -133,7 +120,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const [invertLabels, setInvertLabels] = useState(true);
   const [shouldRender, setShouldRender] = useState(isObliqueMode);
   const [isPreviewVisible, setIsPreviewVisible] = useState(false);
-  const [showDirectionControls, setShowDirectionControls] = useState(false);
+  const [showDirectionControls, setShowDirectionControls] = useState(true);
   const [showOrientationCube, setShowOrientationCube] = useState(true);
   const [directionalButtonType, setDirectionalButtonType] = useState<
     "captureDirection" | "nextCapture"
@@ -160,6 +147,32 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       });
     },
     [siblingsByCardinal, setNearestImage]
+  );
+
+  const siblingCallbacks = useMemo(
+    () => ({
+      [CardinalDirectionEnum.North]: siblingsByCardinal[
+        CardinalDirectionEnum.North
+      ]
+        ? () => handleNextCapture(CardinalDirectionEnum.North)
+        : undefined,
+      [CardinalDirectionEnum.East]: siblingsByCardinal[
+        CardinalDirectionEnum.East
+      ]
+        ? () => handleNextCapture(CardinalDirectionEnum.East)
+        : undefined,
+      [CardinalDirectionEnum.South]: siblingsByCardinal[
+        CardinalDirectionEnum.South
+      ]
+        ? () => handleNextCapture(CardinalDirectionEnum.South)
+        : undefined,
+      [CardinalDirectionEnum.West]: siblingsByCardinal[
+        CardinalDirectionEnum.West
+      ]
+        ? () => handleNextCapture(CardinalDirectionEnum.West)
+        : undefined,
+    }),
+    [siblingsByCardinal, handleNextCapture]
   );
 
   // Fly-to handling for next capture (without opening preview)
@@ -521,6 +534,11 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
                     headingDegrees={headingDegrees}
                     offsetDegrees={offsetDegrees}
                     isLoading={!isAllDataReady}
+                    siblingCallbacks={
+                      directionalButtonType === "nextCapture"
+                        ? siblingCallbacks
+                        : undefined
+                    }
                   />
                 </div>
               )}
@@ -538,10 +556,9 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
                       showFacadeLabels={showFacadeLabels}
                       directionalButtonType={directionalButtonType}
                       isLoading={!isAllDataReady}
-                      onNextCapture={handleNextCapture}
-                      disabledDirections={
+                      siblingCallbacks={
                         directionalButtonType === "nextCapture"
-                          ? disabledDirections
+                          ? siblingCallbacks
                           : undefined
                       }
                     />

@@ -1,8 +1,9 @@
 import React from "react";
-import { Tooltip, Spin, Button } from "antd";
+import { Tooltip, Spin } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faRotateLeft, faRotateRight } from "@fortawesome/free-solid-svg-icons";
 import { CardinalDirectionEnum } from "../utils/orientationUtils";
+import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 
 type Props = {
   rotateCamera: (clockwise: boolean) => void;
@@ -12,6 +13,7 @@ type Props = {
   headingDegrees: string | number;
   offsetDegrees: number;
   isLoading: boolean;
+  siblingCallbacks?: Partial<Record<CardinalDirectionEnum, () => void>>;
 };
 
 export const ObliqueDirectionControls: React.FC<Props> = ({
@@ -22,9 +24,10 @@ export const ObliqueDirectionControls: React.FC<Props> = ({
   headingDegrees,
   offsetDegrees,
   isLoading,
+  siblingCallbacks,
 }) => {
   return (
-    <div className="relative grid grid-cols-3 grid-rows-3 gap-1 p-2 rounded-lg shadow bg-white/40">
+    <div className="relative grid grid-cols-5 grid-rows-5 gap-1 p-2 rounded-lg shadow bg-white/40">
       <div
         className={
           `absolute inset-0 z-10 rounded-lg flex flex-col items-center justify-center bg-white/80 transition-opacity duration-500 ` +
@@ -35,90 +38,165 @@ export const ObliqueDirectionControls: React.FC<Props> = ({
       >
         <Spin tip="Schrägluftbild-Daten werden geladen..." />
       </div>
+      {/* Row 1: outer North (center) */}
+      <div />
+      <div />
+      {siblingCallbacks ? (
+        <ControlButtonStyler
+          onClick={siblingCallbacks?.[CardinalDirectionEnum.North]}
+          width="40px"
+          height="40px"
+          className={
+            !siblingCallbacks?.[CardinalDirectionEnum.North]
+              ? "opacity-50 cursor-not-allowed"
+              : undefined
+          }
+        >
+          ↑
+        </ControlButtonStyler>
+      ) : (
+        <div />
+      )}
+      <div />
+      <div />
 
-      {/* Top row */}
-      <Button
+      {/* Row 2: rotate CCW, North, rotate CW */}
+      <div />
+      <ControlButtonStyler
         onClick={() => rotateCamera(false)}
-        type="default"
-        shape="circle"
-        className="w-10 h-10 flex items-center justify-center"
-        aria-label="Rotate left"
+        width="40px"
+        height="40px"
       >
-        <FontAwesomeIcon icon={faRotateLeft} className="text-base" />
-      </Button>
-      <Button
+        <FontAwesomeIcon icon={faRotateLeft} className="text-xs" />
+      </ControlButtonStyler>
+      <ControlButtonStyler
         onClick={() => rotateToDirection(CardinalDirectionEnum.North)}
-        type="default"
-        className={`w-10 h-10 font-extrabold ${
+        width="40px"
+        height="40px"
+        className={`font-extrabold ${
           activeDirection === CardinalDirectionEnum.North
             ? activeButtonClass
             : ""
         }`}
-        aria-label="North"
       >
         N
-      </Button>
-      <Button
+      </ControlButtonStyler>
+      <ControlButtonStyler
         onClick={() => rotateCamera(true)}
-        type="default"
-        shape="circle"
-        className="w-10 h-10 flex items-center justify-center"
-        aria-label="Rotate right"
+        width="40px"
+        height="40px"
       >
-        <FontAwesomeIcon icon={faRotateRight} className="text-base" />
-      </Button>
+        <FontAwesomeIcon icon={faRotateRight} className="text-xs" />
+      </ControlButtonStyler>
+      <div />
 
-      {/* Middle row */}
-      <Button
+      {/* Row 3: outer West, West, heading, East, outer East */}
+      {siblingCallbacks ? (
+        <ControlButtonStyler
+          onClick={siblingCallbacks?.[CardinalDirectionEnum.West]}
+          width="40px"
+          height="40px"
+          className={
+            !siblingCallbacks?.[CardinalDirectionEnum.West]
+              ? "opacity-50 cursor-not-allowed"
+              : undefined
+          }
+        >
+          ←
+        </ControlButtonStyler>
+      ) : (
+        <div />
+      )}
+      <ControlButtonStyler
         onClick={() => rotateToDirection(CardinalDirectionEnum.West)}
-        type="default"
-        className={`w-10 h-10 font-extrabold ${
+        width="40px"
+        height="40px"
+        className={`font-extrabold ${
           activeDirection === CardinalDirectionEnum.West
             ? activeButtonClass
             : ""
         }`}
-        aria-label="West"
       >
         W
-      </Button>
+      </ControlButtonStyler>
       <Tooltip
         title={`Luftbildblickrichtung "Nord" hat ${offsetDegrees} Grad Abweichung von Nord`}
         placement="top"
       >
-        <div className="w-10 h-10 m-0.5 flex items-center justify-center">
+        <div className="w-10 h-10 flex items-center justify-center">
           <span className="font-semibold text-sm text-gray-700 select-none">
             {headingDegrees}°
           </span>
         </div>
       </Tooltip>
-      <Button
+      <ControlButtonStyler
         onClick={() => rotateToDirection(CardinalDirectionEnum.East)}
-        type="default"
-        className={`w-10 h-10 font-extrabold ${
+        width="40px"
+        height="40px"
+        className={`font-extrabold ${
           activeDirection === CardinalDirectionEnum.East
             ? activeButtonClass
             : ""
         }`}
-        aria-label="East"
       >
         O
-      </Button>
+      </ControlButtonStyler>
+      {siblingCallbacks ? (
+        <ControlButtonStyler
+          onClick={siblingCallbacks?.[CardinalDirectionEnum.East]}
+          width="40px"
+          height="40px"
+          className={
+            !siblingCallbacks?.[CardinalDirectionEnum.East]
+              ? "opacity-50 cursor-not-allowed"
+              : undefined
+          }
+        >
+          →
+        </ControlButtonStyler>
+      ) : (
+        <div />
+      )}
 
-      {/* Bottom row */}
-      <div className="w-10 h-10 m-0.5" />
-      <Button
+      {/* Row 4: South in center */}
+      <div />
+      <div />
+      <ControlButtonStyler
         onClick={() => rotateToDirection(CardinalDirectionEnum.South)}
-        type="default"
-        className={`w-10 h-10 font-extrabold ${
+        width="40px"
+        height="40px"
+        className={`font-extrabold ${
           activeDirection === CardinalDirectionEnum.South
             ? activeButtonClass
             : ""
         }`}
-        aria-label="South"
       >
         S
-      </Button>
-      <div className="w-10 h-10 m-0.5" />
+      </ControlButtonStyler>
+      <div />
+      <div />
+
+      {/* Row 5: outer South (center) */}
+      <div />
+      <div />
+      {siblingCallbacks ? (
+        <ControlButtonStyler
+          onClick={siblingCallbacks?.[CardinalDirectionEnum.South]}
+          width="40px"
+          height="40px"
+          className={
+            !siblingCallbacks?.[CardinalDirectionEnum.South]
+              ? "opacity-50 cursor-not-allowed"
+              : undefined
+          }
+        >
+          ↓
+        </ControlButtonStyler>
+      ) : (
+        <div />
+      )}
+      <div />
+      <div />
     </div>
   );
 };
