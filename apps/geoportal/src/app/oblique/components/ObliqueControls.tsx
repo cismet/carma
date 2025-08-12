@@ -51,16 +51,10 @@ import { CAMERA_ID_INTERIOR_ORIENTATION_PERCENTAGE_OFFSETS } from "../config";
 import { CardinalDirectionEnum } from "../utils/orientationUtils";
 
 interface ObliqueControlsProps {
-  /**
-   * Offset angle in radians to apply to all cardinal directions.
-   * For example, Math.PI/12 (15 degrees) will rotate all directions clockwise.
-   * This allows for aligning the cardinal directions with specific features.
-   */
   headingOffset?: number;
   isObliqueMode?: boolean;
 }
 
-// Reusable styles
 const debugComponentsContainerRightStyle: CSSProperties = {
   position: "absolute",
   top: "10px",
@@ -182,7 +176,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       return;
     setLockFootprint(true);
     animationInProgressRef.current = true;
-    // Use config-defined sibling flight, or fall back to main flight config
     const siblingFlyOptions =
       animations.flyToNextImage ?? animations.flyToExteriorOrientation;
     flyToExteriorOrientation(
@@ -190,7 +183,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       derivedExteriorOrientationRef.current,
       () => {
         animationInProgressRef.current = false;
-        // do not open preview; release footprint lock after the flight
         setLockFootprint(false);
         cesiumSafeRequestRender(viewerRef.current);
       },
@@ -198,7 +190,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     );
   }, [viewerRef, animations, setLockFootprint, derivedExteriorOrientationRef]);
 
-  // When nearestImage changes after a next-capture, perform a fly-to without preview
   useEffect(() => {
     if (!nextCaptureShouldFlyRef.current) return;
     nextCaptureShouldFlyRef.current = false;
@@ -206,10 +197,8 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nearestImage?.record?.id]);
 
-  // disabledDirections is derived locally from siblingsByCardinal; UI performs no distance checks
   const preloadImageRef = useRef<ReturnType<typeof debounce> | null>(null);
 
-  // Leva control panel (flat) for UI visibility and cube options
   useControls(
     isObliqueUiEval
       ? {
@@ -270,7 +259,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     [previewPath, previewQualityLevel, imageId]
   );
 
-  // Handle visibility changes when oblique mode toggles
   useEffect(() => {
     if (isObliqueMode) {
       setShouldRender(true);
@@ -294,13 +282,10 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       }
       viewer.scene.requestRender();
     }
-    // only respond to change in transitioning state the whole component should not be rerendered in 2d mode even
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isTransitioning, viewerRef]);
 
-  // Subscribe to preview visibility changes from outside this component
   useEffect(() => {
-    // Update our local state when preview visibility changes elsewhere
     const unsubscribe = subscribeToPreviewVisibility((visible) => {
       setIsPreviewVisible(visible);
     });
@@ -353,8 +338,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     () => downloadAsBlobAsync(downloadUrl),
     [downloadUrl]
   );
-
-  // Update current heading and set up camera movement detection
 
   useEffect(() => {
     if (preloadImageRef.current) {
