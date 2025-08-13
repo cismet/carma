@@ -9,10 +9,10 @@ export function useSiblingsByCardinal(): Record<
   CardinalDirectionEnum,
   ObliqueImageRecord | null
 > {
-  const { nearestImage, imageRecords } = useOblique();
+  const { selectedImage, imageRecords } = useOblique();
 
   const siblingsByCardinal = useMemo(() => {
-    const current = nearestImage?.record;
+    const current = selectedImage?.record;
     if (!current || !imageRecords || imageRecords.size === 0) {
       return {
         [CardinalDirectionEnum.North]: null,
@@ -22,7 +22,7 @@ export function useSiblingsByCardinal(): Record<
       } as Record<CardinalDirectionEnum, ObliqueImageRecord | null>;
     }
     return computeSiblingsByCardinal(current, imageRecords);
-  }, [nearestImage, imageRecords]);
+  }, [selectedImage, imageRecords]);
 
   return siblingsByCardinal;
 }

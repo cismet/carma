@@ -63,7 +63,7 @@ export const useFootprints = (debug = false): void => {
   const { viewerRef } = useCesiumContext();
   const {
     isObliqueMode,
-    nearestImage,
+    selectedImage,
     footprintData,
     lockFootprint,
     animations,
@@ -129,7 +129,7 @@ export const useFootprints = (debug = false): void => {
             lastImageIdRef.current = null;
           },
         });
-      } else if (lastImageIdRef.current === null && nearestImage) {
+      } else if (lastImageIdRef.current === null && selectedImage) {
         // Coming back from locked state - we'll recreate the entity
         // by setting last ref to null to force the next effect to run
         lastImageIdRef.current = null;
@@ -141,7 +141,7 @@ export const useFootprints = (debug = false): void => {
     outlineOpacity,
     outlineColor,
     viewerRef,
-    nearestImage,
+    selectedImage,
     debug,
   ]);
 
@@ -150,7 +150,7 @@ export const useFootprints = (debug = false): void => {
 
     if (
       !isValidViewerInstance(viewer) ||
-      !nearestImage ||
+      !selectedImage ||
       !footprintData ||
       !isObliqueMode
     ) {
@@ -162,7 +162,7 @@ export const useFootprints = (debug = false): void => {
       return;
     }
 
-    const currentImageId = nearestImage.record.id;
+    const currentImageId = selectedImage.record.id;
     const sameImage = lastImageIdRef.current === currentImageId;
 
     // Only clean up and recreate entity if:
@@ -211,7 +211,7 @@ export const useFootprints = (debug = false): void => {
       return new Entity({
         id: FOOTPRINT_OUTLINE_ID,
         name: `${OBLIQUE_DATASOURCE_PREFIX}-outline-${
-          nearestImage?.record.id || ""
+          selectedImage?.record.id || ""
         }`,
         show: true,
         polyline: new PolylineGraphics({
@@ -225,7 +225,7 @@ export const useFootprints = (debug = false): void => {
 
     const matchingFeature = findMatchingFeature(
       footprintData.features as FootprintFeature[],
-      nearestImage.record.id
+      selectedImage.record.id
     );
 
     if (!matchingFeature) return;
@@ -258,7 +258,7 @@ export const useFootprints = (debug = false): void => {
   }, [
     viewerRef,
     isObliqueMode,
-    nearestImage,
+    selectedImage,
     footprintData,
     outlineWidth,
     outlineColor,
