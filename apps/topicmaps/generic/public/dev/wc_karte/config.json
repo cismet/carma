@@ -1,0 +1,20 @@
+{
+  "tm": {
+    "windowtitle": "WC-Karte Wuppertal",
+    "noFeatureCollection": true,
+    "applicationMenuIntroductionMarkdown": "Die WC-Karte Wuppertal ist eine Anwendung der **GenericTopicMap Wuppertal**. Dies ist eine Komponente aus dem Gesamtsystem des Digitalen Zwillings der Stadt Wuppertal (**DigiTal Zwilling**), mit der eine einfache, für den mobilen Einsatz prädestinierte Web-Karte erzeugt werden kann, indem zwei Konfigurationsdateien angepasst werden. Über **Einstellungen** können Sie die Darstellung der Hintergrundkarte an Ihre Vorlieben anpassen. Wählen Sie **Kompaktanleitung** für detailliertere Bedienungsinformationen und **Urbaner Digitaler Zwilling** für eine Einordnung der WC-Karte in den Kontext des DigiTal Zwillings.",
+    "previewMapPosition": "lat=51.26041096180761&lng=7.175016403198243&zoom=13",
+    "applicationMenuSkipSymbolsizeSetting": false,
+
+    "vectorLayers": [
+      {
+        "name": "öffentliche Toiletten",
+        "layer": "poi_toiletten@https://maps.wuppertal.de/poi?service=WMS&request=GetCapabilities&version=1.1.1",
+        "addMetaInfoToHelp": true,
+        "layerType": "vector",
+        "style": "https://tiles.cismet.de/poi/offentliche-toiletten.style.json",
+        "opacity": 1
+      }
+    ]
+  }
+}
