@@ -6,6 +6,8 @@ import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 
 import { CardinalDirectionEnum } from "../utils/orientationUtils";
 
+const buttonSize = "40px";
+
 export type CompactProps = {
   rotateCamera: (clockwise: boolean) => void;
   rotateToDirection: (d: CardinalDirectionEnum) => void; // kept for API parity
@@ -49,8 +51,8 @@ export const ObliqueDirectionControlsCompact: React.FC<CompactProps> = ({
   }> = ({ dir, label, posCls }) => (
     <ControlButtonStyler
       onClick={siblingCallbacks?.[dir]}
-      width="36px"
-      height="36px"
+      width={buttonSize}
+      height={buttonSize}
       className={`${
         !siblingCallbacks?.[dir] ? disabledCls : ""
       } ${baseBtnCls} ${posCls}`}
@@ -66,8 +68,8 @@ export const ObliqueDirectionControlsCompact: React.FC<CompactProps> = ({
   }) => (
     <ControlButtonStyler
       onClick={() => rotateCamera(clockwise)}
-      width="36px"
-      height="36px"
+      width={buttonSize}
+      height={buttonSize}
       className={`${baseBtnCls} ${posCls}`}
       size="small"
     >
@@ -79,7 +81,7 @@ export const ObliqueDirectionControlsCompact: React.FC<CompactProps> = ({
   );
 
   return (
-    <div className="relative grid grid-cols-3 grid-rows-2 gap-1 p-1">
+    <div className="relative grid grid-cols-3 grid-rows-2 gap-1 p-0">
       {isLoading && (
         <div className="absolute inset-0 z-10 flex items-center justify-center">
           <Spin size="small" />

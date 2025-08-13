@@ -48,7 +48,12 @@ export const useInitializeViewer = (
   options?: Viewer.ConstructorOptions,
   initialCameraView?: InitialCameraView | null
 ) => {
-  const { viewerRef, isViewerReady, setIsViewerReady } = useCesiumContext();
+  const {
+    viewerRef,
+    isViewerReady,
+    setIsViewerReady,
+    shouldSuspendCameraLimitersRef,
+  } = useCesiumContext();
   const home = useSelector(selectViewerHome);
   const homeOffset = useSelector(selectViewerHomeOffset);
 
@@ -113,6 +118,7 @@ export const useInitializeViewer = (
         };
 
         const handleValidCameraPosition = () => {
+          if (shouldSuspendCameraLimitersRef?.current) return;
           if (viewerRef.current && viewerRef.current.camera && home) {
             const camera = viewerRef.current.camera;
             const isValidWorldCoordinate = validateWorldCoordinate(
@@ -191,6 +197,7 @@ export const useInitializeViewer = (
     home,
     maxZoom,
     setIsViewerReady,
+    shouldSuspendCameraLimitersRef,
   ]);
 
   useEffect(() => {

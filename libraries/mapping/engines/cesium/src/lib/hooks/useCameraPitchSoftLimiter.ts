@@ -3,6 +3,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { BoundingSphere, Cartesian3, Math as CesiumMath } from "cesium";
 
 import { useCesiumViewer } from "./useCesiumViewer";
+import { useCesiumContext } from "./useCesiumContext";
 import {
   selectScreenSpaceCameraControllerEnableCollisionDetection,
   selectViewerIsMode2d,
@@ -31,6 +32,7 @@ const useCameraPitchSoftLimiter = (
   const collisions = useSelector(
     selectScreenSpaceCameraControllerEnableCollisionDetection
   );
+  const { shouldSuspendCameraLimitersRef } = useCesiumContext();
 
   const onComplete = useCallback(
     () => dispatch(clearIsAnimating()),
@@ -50,6 +52,7 @@ const useCameraPitchSoftLimiter = (
       const minPitchRad = CesiumMath.toRadians(-minPitchDeg);
 
       const moveEndListener = async () => {
+        if (shouldSuspendCameraLimitersRef?.current) return;
         debug &&
           console.debug(
             "HOOK [2D3D|CESIUM] Soft Pitch Limiter",
@@ -104,6 +107,7 @@ const useCameraPitchSoftLimiter = (
     minPitchDeg,
     resetPitchOffsetDeg,
     debug,
+    shouldSuspendCameraLimitersRef,
   ]);
 };
 

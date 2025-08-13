@@ -95,7 +95,11 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     setSuspendSelectionSearch,
   } = useOblique();
   const siblingsByCardinal = useSiblingsByCardinal();
-  const { viewerRef } = useCesiumContext();
+  const {
+    viewerRef,
+    shouldSuspendPitchLimiterRef,
+    shouldSuspendCameraLimitersRef,
+  } = useCesiumContext();
   const imageId = selectedImage?.record?.id;
   const cameraId = selectedImage?.record?.cameraId;
   const { isDebugMode, isObliqueUiEval } = useFeatureFlags();
@@ -122,6 +126,23 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   useEffect(() => {
     setSuspendSelectionSearch(isPreviewVisible);
   }, [isPreviewVisible, setSuspendSelectionSearch]);
+  // Disable camera limiters while preview is visible
+  useEffect(() => {
+    if (shouldSuspendPitchLimiterRef)
+      shouldSuspendPitchLimiterRef.current = isPreviewVisible;
+    if (shouldSuspendCameraLimitersRef)
+      shouldSuspendCameraLimitersRef.current = isPreviewVisible;
+    return () => {
+      if (shouldSuspendPitchLimiterRef)
+        shouldSuspendPitchLimiterRef.current = false;
+      if (shouldSuspendCameraLimitersRef)
+        shouldSuspendCameraLimitersRef.current = false;
+    };
+  }, [
+    isPreviewVisible,
+    shouldSuspendPitchLimiterRef,
+    shouldSuspendCameraLimitersRef,
+  ]);
   const [shouldRemoveCurrentPreviewImage, setShouldRemoveCurrentPreviewImage] =
     useState(false);
   const [flyCompletionTick, setFlyCompletionTick] = useState(0);
