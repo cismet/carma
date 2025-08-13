@@ -1,7 +1,6 @@
 import {
   useEffect,
   useState,
-  useRef,
   type RefObject,
   type FC,
   type CSSProperties,
@@ -48,6 +47,12 @@ interface ObliqueImagePreviewProps {
     yOffset: number;
   };
   style?: ObliqueImagePreviewStyle;
+  // Base brightness for backdrop filter to brighten the 3D mesh
+  brightnessBase?: number;
+  // Base contrast for backdrop filter after movement settles
+  contrastBase?: number;
+  // Base saturation for backdrop filter
+  saturationBase?: number;
 }
 
 type ImageQuality = "REGULAR" | "HQ" | "BEST";
@@ -108,6 +113,9 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   onSwapComplete,
   style,
   interiorOrientationOffsets = { xOffset: 0, yOffset: 0 },
+  brightnessBase = 100,
+  contrastBase = 85,
+  saturationBase = 100,
 }) => {
   const [shouldFadeIn, setShouldFadeIn] = useState(false);
   const [isVertical, setIsVertical] = useState(false);
@@ -125,10 +133,8 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   const mergedStyle = { ...defaultStyle, ...(style ?? {}) };
   const { backdropColor, border, boxShadow } = mergedStyle;
 
-  const [effectiveBackdropColor, setEffectiveBackdropColor] =
-    useState(backdropColor);
-  const backdropRestoreTimerRef = useRef<number | undefined>(undefined);
-  const [backdropVisible, setBackdropVisible] = useState(true);
+  const [contrast, setContrast] = useState(100);
+  const [saturation, setSaturation] = useState(100);
 
   const { viewerRef } = useCesiumContext();
 
@@ -145,36 +151,19 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
     }
   }, [src, srcHQ, srcOriginal, currentQuality]);
 
-  // Backdrop behavior: transparent during movement (via color), slow fade-in after timeout using opacity
+  // Backdrop filter dynamics: while moving, use base values; on static, fade down to 50
   useEffect(() => {
-    if (backdropRestoreTimerRef.current !== undefined) {
-      window.clearTimeout(backdropRestoreTimerRef.current);
-      backdropRestoreTimerRef.current = undefined;
-    }
     if (dimImage) {
-      // instant clear during movement
-      setEffectiveBackdropColor("transparent");
-    } else {
-      backdropRestoreTimerRef.current = window.setTimeout(() => {
-        // fade-in sequence: set opacity to 0, then set color and raise opacity to 1
-        setBackdropVisible(false);
-        window.setTimeout(() => {
-          setEffectiveBackdropColor(backdropColor);
-          // next tick to ensure styles apply
-          window.requestAnimationFrame(() => setBackdropVisible(true));
-        }, 20);
-      }, 800);
+      setContrast(contrastBase);
+      setSaturation(saturationBase);
+      return;
     }
-  }, [dimImage, backdropColor]);
-
-  // Clear timer on unmount
-  useEffect(() => {
-    return () => {
-      if (backdropRestoreTimerRef.current !== undefined) {
-        window.clearTimeout(backdropRestoreTimerRef.current);
-      }
-    };
-  }, []);
+    const t = window.setTimeout(() => {
+      setContrast(50);
+      setSaturation(50);
+    }, 800);
+    return () => window.clearTimeout(t);
+  }, [dimImage, contrastBase, saturationBase]);
 
   // Prepare next buffer when activeSource changes
   useEffect(() => {
@@ -301,8 +290,10 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
       }}
     >
       <Backdrop
-        color={effectiveBackdropColor}
-        fadeIn={shouldFadeIn && backdropVisible}
+        color={backdropColor}
+        contrast={contrast}
+        brightness={brightnessBase}
+        saturation={saturation}
         isDebug={isDebugMode}
         onClick={handleBackdropClick}
       />

@@ -118,6 +118,9 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const [directionalButtonType, setDirectionalButtonType] = useState<
     "captureDirection" | "nextCapture"
   >("nextCapture");
+  const [brightnessBase, setBrightnessBase] = useState(125);
+  const [contrastBase, setContrastBase] = useState(95);
+  const [saturationBase, setSaturationBase] = useState(85);
   const isTransitioning = useSelector(selectViewerIsTransitioning);
   // Track last directional move to prefetch ahead in the same direction on arrival
   const lastMoveDirRef = useRef<CardinalDirectionEnum | null>(null);
@@ -239,7 +242,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   }, [imageId, prefetchSiblingPreview]);
 
   useControls(
-    isObliqueUiEval
+    isDebugMode || isObliqueUiEval
       ? {
           showDirectionControls: {
             value: showDirectionControls,
@@ -283,6 +286,30 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
               ),
             label: "Next capture",
             render: () => showOrientationCube,
+          },
+          brightnessBase: {
+            value: brightnessBase,
+            min: 50,
+            max: 150,
+            step: 1,
+            label: "Brightness",
+            onChange: setBrightnessBase,
+          },
+          contrastBase: {
+            value: contrastBase,
+            min: 50,
+            max: 150,
+            step: 1,
+            label: "Contrast",
+            onChange: setContrastBase,
+          },
+          saturationBase: {
+            value: saturationBase,
+            min: 0,
+            max: 200,
+            step: 1,
+            label: "Saturation",
+            onChange: setSaturationBase,
           },
         }
       : {}
@@ -423,7 +450,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
             setIsPreviewVisible(false);
             notifyPreviewVisibilityChange(false);
             setLockFootprint(false);
-            // TODO: properly trigger a rerender that shows after not moving the camera, but leaving the preview
             setTimeout(() => {
               cesiumSafeRequestRender(viewerRef.current);
             }, 50);
@@ -431,6 +457,9 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
           interiorOrientationOffsets={
             CAMERA_ID_INTERIOR_ORIENTATION_PERCENTAGE_OFFSETS[cameraId]
           }
+          brightnessBase={brightnessBase}
+          contrastBase={contrastBase}
+          saturationBase={saturationBase}
           style={imagePreviewStyle}
         />
       )}

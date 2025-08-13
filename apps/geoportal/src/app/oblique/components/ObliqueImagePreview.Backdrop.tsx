@@ -1,19 +1,23 @@
 import { CSSProperties } from "react";
 
 interface BackdropProps {
-  fadeIn: boolean;
+  contrast: number; // %
+  brightness?: number; // %
+  saturation?: number; // %
   isDebug?: boolean;
   color?: string;
   onClick?: () => void;
 }
 
 export const Backdrop = ({
-  fadeIn,
+  contrast,
+  brightness = 100,
+  saturation = 100,
   isDebug,
   color,
   onClick,
 }: BackdropProps) => {
-  const filterValue = fadeIn ? "contrast(80%)" : "contrast(100%)";
+  const filterValue = `contrast(${contrast}%) brightness(${brightness}%) saturate(${saturation}%)`;
   const styleObj: CSSProperties = {
     position: "fixed",
     top: 0,
@@ -23,9 +27,9 @@ export const Backdrop = ({
     backdropFilter: filterValue,
     WebkitBackdropFilter: filterValue,
     zIndex: 1100,
-    opacity: fadeIn ? 1 : 0,
+    opacity: 1,
     transition:
-      "opacity 1.2s linear, backdrop-filter 1.2s linear, -webkit-backdrop-filter 1.2s linear",
+      "backdrop-filter 1.2s linear, -webkit-backdrop-filter 1.2s linear",
     cursor: "pointer",
   };
   if (!isDebug && color) {
