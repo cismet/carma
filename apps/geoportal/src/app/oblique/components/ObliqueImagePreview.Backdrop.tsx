@@ -7,17 +7,25 @@ interface BackdropProps {
   onClick?: () => void;
 }
 
-export const Backdrop = ({ fadeIn, isDebug, color, onClick }: BackdropProps) => {
+export const Backdrop = ({
+  fadeIn,
+  isDebug,
+  color,
+  onClick,
+}: BackdropProps) => {
+  const filterValue = fadeIn ? "contrast(80%)" : "contrast(100%)";
   const styleObj: CSSProperties = {
     position: "fixed",
     top: 0,
     left: 0,
     width: "100vw",
     height: "100vh",
-    backdropFilter: `contrast(80%)`,
+    backdropFilter: filterValue,
+    WebkitBackdropFilter: filterValue,
     zIndex: 1100,
     opacity: fadeIn ? 1 : 0,
-    transition: "opacity 0.5s linear",
+    transition:
+      "opacity 1.2s linear, backdrop-filter 1.2s linear, -webkit-backdrop-filter 1.2s linear",
     cursor: "pointer",
   };
   if (!isDebug && color) {

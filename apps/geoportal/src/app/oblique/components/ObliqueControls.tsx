@@ -121,55 +121,80 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const isTransitioning = useSelector(selectViewerIsTransitioning);
   // Track last directional move to prefetch ahead in the same direction on arrival
   const lastMoveDirRef = useRef<CardinalDirectionEnum | null>(null);
+  // Debounced intent for sibling navigation
+  const pendingMoveDirRef = useRef<CardinalDirectionEnum | null>(null);
+  const siblingMoveDebounceRef = useRef<number | undefined>(undefined);
 
-  const handleNextCapture = useCallback(
+  const executeNextCaptureFromIntent = useCallback(() => {
+    const dir = pendingMoveDirRef.current;
+    if (dir == null) return;
+    pendingMoveDirRef.current = null;
+    const candidate = siblingsByCardinal[dir];
+    if (!candidate) return;
+    // Keep overlay, just dim the image until the next one is loaded
+    setShouldRemoveCurrentPreviewImage(true);
+    nextCaptureShouldFlyRef.current = true;
+    lastMoveDirRef.current = dir;
+    setNearestImage({
+      record: candidate,
+      distanceOnGround: 0,
+      distanceToCamera: 0,
+      imageCenter: {
+        x: candidate.x,
+        y: candidate.y,
+        longitude: candidate.centerWGS84[0],
+        latitude: candidate.centerWGS84[1],
+        cardinal: candidate.sector,
+      },
+    });
+  }, [siblingsByCardinal, setNearestImage]);
+
+  const requestNextCapture = useCallback(
     (dir: CardinalDirectionEnum) => {
-      const candidate = siblingsByCardinal[dir];
-      if (!candidate) return;
-      // Keep overlay, just dim the image until the next one is loaded
-      setShouldRemoveCurrentPreviewImage(true);
-      nextCaptureShouldFlyRef.current = true;
-      lastMoveDirRef.current = dir;
-      setNearestImage({
-        record: candidate,
-        distanceOnGround: 0,
-        distanceToCamera: 0,
-        imageCenter: {
-          x: candidate.x,
-          y: candidate.y,
-          longitude: candidate.centerWGS84[0],
-          latitude: candidate.centerWGS84[1],
-          cardinal: candidate.sector,
-        },
-      });
+      pendingMoveDirRef.current = dir;
+      if (siblingMoveDebounceRef.current !== undefined) {
+        window.clearTimeout(siblingMoveDebounceRef.current);
+      }
+      siblingMoveDebounceRef.current = window.setTimeout(() => {
+        executeNextCaptureFromIntent();
+      }, 200);
     },
-    [siblingsByCardinal, setNearestImage]
+    [executeNextCaptureFromIntent]
   );
+
+  // Clear debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (siblingMoveDebounceRef.current !== undefined) {
+        window.clearTimeout(siblingMoveDebounceRef.current);
+      }
+    };
+  }, []);
 
   const siblingCallbacks = useMemo(
     () => ({
       [CardinalDirectionEnum.North]: siblingsByCardinal[
         CardinalDirectionEnum.North
       ]
-        ? () => handleNextCapture(CardinalDirectionEnum.North)
+        ? () => requestNextCapture(CardinalDirectionEnum.North)
         : undefined,
       [CardinalDirectionEnum.East]: siblingsByCardinal[
         CardinalDirectionEnum.East
       ]
-        ? () => handleNextCapture(CardinalDirectionEnum.East)
+        ? () => requestNextCapture(CardinalDirectionEnum.East)
         : undefined,
       [CardinalDirectionEnum.South]: siblingsByCardinal[
         CardinalDirectionEnum.South
       ]
-        ? () => handleNextCapture(CardinalDirectionEnum.South)
+        ? () => requestNextCapture(CardinalDirectionEnum.South)
         : undefined,
       [CardinalDirectionEnum.West]: siblingsByCardinal[
         CardinalDirectionEnum.West
       ]
-        ? () => handleNextCapture(CardinalDirectionEnum.West)
+        ? () => requestNextCapture(CardinalDirectionEnum.West)
         : undefined,
     }),
-    [siblingsByCardinal, handleNextCapture]
+    [siblingsByCardinal, requestNextCapture]
   );
 
   // Fly-to handling for next capture (without opening preview)

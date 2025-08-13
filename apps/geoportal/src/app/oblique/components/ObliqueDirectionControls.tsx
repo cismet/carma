@@ -120,7 +120,7 @@ export const ObliqueDirectionControls: React.FC<Props> = ({
       const isNumpad = code.startsWith("numpad");
       const num = key; // '8','4','2','6','7','9' when using numpad
 
-      // Move: up/left/down/right use flipped mapping (as in click handlers)
+      // Move: match the on-screen arrow buttons (heading-relative mapping)
       if (key === "w" || key === "arrowup" || (isNumpad && num === "8")) {
         const cb = siblingCallbacks?.[bottomDir];
         if (cb) {
