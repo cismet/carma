@@ -18,6 +18,9 @@ export const MatomoTracker = ({
   siteId = matomo_site_id,
   trackerUrl = "https://wupptomo.cismet.de/matomo.php",
 }: MatomoTrackerProps) => {
+  (window as any)._paq = (window as any)._paq || [];
+  (window as any)._paq.push(["disableCookies"]);
+
   // Initialize Matomo tracking
   const { currentMatomoMode, trackPageView, trackEvent } = useMatomo(
     siteId,
