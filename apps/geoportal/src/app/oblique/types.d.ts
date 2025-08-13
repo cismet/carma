@@ -57,6 +57,8 @@ export type ObliqueAnimationsConfig = {
   // Optional: animation config for navigating to sibling/next image.
   // If omitted, consumers should derive it from flyToExteriorOrientation (e.g., half duration).
   flyToNextImage?: AnimationConfig;
+  // Animation used when rotating in preview mode and flying to the nearest image
+  flyToRotatedImage?: AnimationConfig;
   outlineFadeOut?: AnimationConfig;
 };
 
