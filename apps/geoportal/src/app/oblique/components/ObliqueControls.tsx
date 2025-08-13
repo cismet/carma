@@ -497,6 +497,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
             notifyPreviewVisibilityChange(false);
             setLockFootprint(false);
             setSuspendSelectionSearch(false);
+            setShouldRemoveCurrentPreviewImage(false);
             setTimeout(() => {
               cesiumSafeRequestRender(viewerRef.current);
             }, 50);

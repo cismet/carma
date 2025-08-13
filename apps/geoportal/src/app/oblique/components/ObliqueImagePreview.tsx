@@ -105,6 +105,7 @@ const ControlsContainerStyle: CSSProperties = {
   alignItems: "center",
   gap: "10px",
   zIndex: 1300,
+  pointerEvents: "auto",
 };
 
 export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
@@ -166,6 +167,13 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
       setActiveSource(src);
     }
   }, [src, srcHQ, srcOriginal, currentQuality]);
+
+  // If preview is shown again and image buffer was cleared, initialize from active source
+  useEffect(() => {
+    if (isVisible && !currentSrc && activeSource) {
+      setCurrentSrc(activeSource);
+    }
+  }, [isVisible, currentSrc, activeSource]);
 
   // Backdrop filter dynamics: while moving, use base values; on static, fade down to 50
   useEffect(() => {
@@ -311,9 +319,13 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
         brightness={brightnessBase}
         saturation={saturation}
         isDebug={isDebugMode}
+        interactive={isVisible}
         onClick={handleBackdropClick}
       />
-      <div className="absolute top-0 left-0 w-full h-svh">
+      <div
+        className="absolute top-0 left-0 w-full h-svh"
+        style={{ zIndex: 1500, pointerEvents: "none" }}
+      >
         <div style={ControlsContainerStyle}>
           <Tooltip title="Bild in neuem Tab öffnen" placement="top">
             <div>

@@ -7,6 +7,7 @@ interface BackdropProps {
   isDebug?: boolean;
   color?: string;
   onClick?: () => void;
+  interactive?: boolean;
 }
 
 export const Backdrop = ({
@@ -16,6 +17,7 @@ export const Backdrop = ({
   isDebug,
   color,
   onClick,
+  interactive = true,
 }: BackdropProps) => {
   const filterValue = `contrast(${contrast}%) brightness(${brightness}%) saturate(${saturation}%)`;
   const styleObj: CSSProperties = {
@@ -30,7 +32,8 @@ export const Backdrop = ({
     opacity: 1,
     transition:
       "backdrop-filter 1.2s linear, -webkit-backdrop-filter 1.2s linear",
-    cursor: "pointer",
+    cursor: interactive ? "pointer" : "default",
+    pointerEvents: interactive ? "auto" : "none",
   };
   if (!isDebug && color) {
     styleObj.backgroundColor = color;
