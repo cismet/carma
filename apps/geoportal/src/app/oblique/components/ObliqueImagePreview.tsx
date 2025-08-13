@@ -13,7 +13,6 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { Tooltip, Radio, type RadioChangeEvent } from "antd";
 
-import { useMemoMergedDefaultOptions } from "@carma-commons/utils";
 import { useCesiumContext } from "@carma-mapping/cesium-engine";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import { PREVIEW_IMAGE_BASE_SCALE_FACTOR } from "../config";
@@ -35,14 +34,30 @@ interface ObliqueImagePreviewProps {
   onOpenImageLink?: () => void;
   onDirectDownload?: () => void;
   onClose?: () => void;
+  // When true, only the image element should fade out (overlay stays visible)
+  dimImage?: boolean;
+  // Called when current active image source has finished loading
+  onImageLoaded?: () => void;
+  // Incremented by parent when fly-to animation completes; gates showing next image
+  flyCompletionTick?: number;
+  // Called once next image has been swapped into current buffer
+  onSwapComplete?: () => void;
   interiorOrientationOffsets?: {
     xOffset: number;
     yOffset: number;
   };
   style?: ObliqueImagePreviewStyle;
+  // Base brightness for backdrop filter to brighten the 3D mesh
+  brightnessBase?: number;
+  // Base contrast for backdrop filter after movement settles
+  contrastBase?: number;
+  // Base saturation for backdrop filter
+  saturationBase?: number;
 }
 
 type ImageQuality = "REGULAR" | "HQ" | "BEST";
+
+// Note: backdrop dimming hole logic removed per latest requirement.
 
 const getViewerSyncedSize = (viewerRef: RefObject<Viewer>) => {
   const dim = Math.max(
@@ -61,7 +76,7 @@ const getViewerSyncedSize = (viewerRef: RefObject<Viewer>) => {
 };
 
 const defaultStyle: ObliqueImagePreviewStyle = {
-  backdropColor: "rgba(75, 75, 75, 0.2)",
+  backdropColor: "rgba(0, 0, 0, 0.13)",
   border: "2px solid rgba(255, 255, 255, 0.9)",
   boxShadow: "0 0 50px rgba(255, 255, 255, 0.8)",
 };
@@ -92,8 +107,15 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   onOpenImageLink,
   onDirectDownload,
   onClose,
+  dimImage = false,
+  onImageLoaded,
+  flyCompletionTick,
+  onSwapComplete,
   style,
   interiorOrientationOffsets = { xOffset: 0, yOffset: 0 },
+  brightnessBase = 100,
+  contrastBase = 85,
+  saturationBase = 100,
 }) => {
   const [shouldFadeIn, setShouldFadeIn] = useState(false);
   const [isVertical, setIsVertical] = useState(false);
@@ -101,11 +123,18 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   const [blendMode, setBlendMode] = useState<BlendMode>("normal");
   const [currentQuality, setCurrentQuality] = useState<ImageQuality>("REGULAR");
   const [activeSource, setActiveSource] = useState(src);
+  // Double buffer sources
+  const [currentSrc, setCurrentSrc] = useState<string | null>(src);
+  const [nextSrc, setNextSrc] = useState<string | null>(null);
+  const [nextLoaded, setNextLoaded] = useState(false);
+  const [canShowNext, setCanShowNext] = useState(false);
+  const [showNext, setShowNext] = useState(false);
+  // Merge style with defaults
+  const mergedStyle = { ...defaultStyle, ...(style ?? {}) };
+  const { backdropColor, border, boxShadow } = mergedStyle;
 
-  const { backdropColor, border, boxShadow } = useMemoMergedDefaultOptions(
-    style,
-    defaultStyle
-  );
+  const [contrast, setContrast] = useState(100);
+  const [saturation, setSaturation] = useState(100);
 
   const { viewerRef } = useCesiumContext();
 
@@ -122,6 +151,84 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
     }
   }, [src, srcHQ, srcOriginal, currentQuality]);
 
+  // Backdrop filter dynamics: while moving, use base values; on static, fade down to 50
+  useEffect(() => {
+    if (dimImage) {
+      setContrast(contrastBase);
+      setSaturation(saturationBase);
+      return;
+    }
+    const t = window.setTimeout(() => {
+      setContrast(50);
+      setSaturation(50);
+    }, 800);
+    return () => window.clearTimeout(t);
+  }, [dimImage, contrastBase, saturationBase]);
+
+  // Prepare next buffer when activeSource changes
+  useEffect(() => {
+    if (!activeSource) return;
+    if (!currentSrc) {
+      if (dimImage) {
+        setNextSrc(activeSource);
+        setNextLoaded(false);
+      } else {
+        setCurrentSrc(activeSource);
+      }
+      return;
+    }
+    if (activeSource === currentSrc) return;
+    setNextSrc(activeSource);
+    setNextLoaded(false);
+  }, [activeSource, currentSrc, dimImage]);
+
+  // Preload next source
+  useEffect(() => {
+    if (!nextSrc) return;
+    const img = new window.Image();
+    img.src = nextSrc;
+    img.onload = () => {
+      setNextLoaded(true);
+      if (onImageLoaded) onImageLoaded();
+    };
+  }, [nextSrc, onImageLoaded]);
+
+  // Gate swap: show next when (a) fly completed or not dimming, and (b) next is loaded
+  useEffect(() => {
+    if (nextLoaded && (canShowNext || !dimImage)) {
+      setShowNext(true);
+    }
+  }, [nextLoaded, canShowNext, dimImage]);
+
+  // Fly completion allows showing next
+  useEffect(() => {
+    if (flyCompletionTick == null) return;
+    setCanShowNext(true);
+  }, [flyCompletionTick]);
+
+  // Finalize swap after fade begins
+  useEffect(() => {
+    if (!showNext || !nextSrc) return;
+    const t = setTimeout(() => {
+      setCurrentSrc(nextSrc);
+      setNextSrc(null);
+      setNextLoaded(false);
+      setShowNext(false);
+      setCanShowNext(false);
+      if (onSwapComplete) onSwapComplete();
+    }, 16); // finalize quickly after mounting next
+    return () => clearTimeout(t);
+  }, [showNext, nextSrc, onSwapComplete]);
+
+  // When a move starts (dimImage true), ensure we reset swap gating state
+  useEffect(() => {
+    if (!dimImage) return;
+    setShowNext(false);
+    setCanShowNext(false);
+    // old image fades out instantly; drop it from DOM by clearing src
+    setCurrentSrc(null);
+  }, [dimImage]);
+
   // compensate for interior orientation sensor offsets
   const translateX = -50 + xOffset * 0.5 * 100;
   const translateY = -50 + yOffset * 0.5 * 100;
@@ -130,15 +237,15 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
 
   // Only load image for aspect ratio when visible
   useEffect(() => {
-    if (isVisible && activeSource) {
+    if (isVisible && currentSrc) {
       const img = new window.Image();
-      img.src = activeSource;
+      img.src = currentSrc;
       img.onload = () => {
         setIsVertical(img.naturalWidth < img.naturalHeight);
         setImageAspectRatio(img.naturalWidth / img.naturalHeight);
       };
     }
-  }, [isVisible, activeSource]);
+  }, [isVisible, currentSrc]);
 
   useEffect(() => {
     if (isVisible) {
@@ -184,7 +291,9 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
     >
       <Backdrop
         color={backdropColor}
-        fadeIn={shouldFadeIn}
+        contrast={contrast}
+        brightness={brightnessBase}
+        saturation={saturation}
         isDebug={isDebugMode}
         onClick={handleBackdropClick}
       />
@@ -264,18 +373,34 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
           )}
         </div>
       </div>
-      <PreviewImage
-        src={activeSource}
-        alt={imageId ?? "Oblique Image Preview"}
-        width={syncedWidth}
-        height={syncedHeight}
-        borderStyle={border}
-        boxShadowStyle={boxShadow}
-        fadeIn={shouldFadeIn}
-        blendMode={blendMode}
-        isDebug={isDebugMode}
-        transform={transform}
-      />
+      {currentSrc && !dimImage && !showNext && (
+        <PreviewImage
+          src={currentSrc}
+          alt={imageId ?? "Oblique Image Preview"}
+          width={syncedWidth}
+          height={syncedHeight}
+          borderStyle={border}
+          boxShadowStyle={boxShadow}
+          fadeIn={shouldFadeIn}
+          blendMode={blendMode}
+          isDebug={isDebugMode}
+          transform={transform}
+        />
+      )}
+      {nextSrc && (
+        <PreviewImage
+          src={nextSrc}
+          alt={imageId ?? "Oblique Image Preview (next)"}
+          width={syncedWidth}
+          height={syncedHeight}
+          borderStyle={border}
+          boxShadowStyle={boxShadow}
+          fadeIn={shouldFadeIn && showNext}
+          blendMode={blendMode}
+          isDebug={isDebugMode}
+          transform={transform}
+        />
+      )}
     </div>
   );
 };

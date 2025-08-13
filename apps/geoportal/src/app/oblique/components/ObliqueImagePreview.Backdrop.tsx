@@ -1,36 +1,40 @@
 import { CSSProperties } from "react";
 
 interface BackdropProps {
-  fadeIn: boolean;
+  contrast: number; // %
+  brightness?: number; // %
+  saturation?: number; // %
   isDebug?: boolean;
   color?: string;
   onClick?: () => void;
 }
 
 export const Backdrop = ({
-  fadeIn,
+  contrast,
+  brightness = 100,
+  saturation = 100,
   isDebug,
   color,
   onClick,
 }: BackdropProps) => {
+  const filterValue = `contrast(${contrast}%) brightness(${brightness}%) saturate(${saturation}%)`;
   const styleObj: CSSProperties = {
     position: "fixed",
     top: 0,
     left: 0,
     width: "100vw",
     height: "100vh",
-    backdropFilter: `contrast(${isDebug ? 85 : 80}%)`,
+    backdropFilter: filterValue,
+    WebkitBackdropFilter: filterValue,
     zIndex: 1100,
-    opacity: fadeIn ? 1 : 0,
-    transition: "opacity 0.5s linear",
+    opacity: 1,
+    transition:
+      "backdrop-filter 1.2s linear, -webkit-backdrop-filter 1.2s linear",
     cursor: "pointer",
   };
-
   if (!isDebug && color) {
     styleObj.backgroundColor = color;
   }
-
-  // Additional functionality: the overlay can also be closed by a button in the parent component.
   // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
   return <div style={styleObj} onClick={onClick} />;
 };

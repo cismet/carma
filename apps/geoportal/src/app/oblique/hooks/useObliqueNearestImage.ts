@@ -45,11 +45,12 @@ export function useObliqueNearestImage(
     converter,
     headingOffset,
     imageRecords,
-    setNearestImageDistance,
-    setNearestImageRefresh,
-    setNearestImage,
+    setSelectedImageDistance,
+    setSelectedImageRefresh,
+    setSelectedImage,
     footprintCenterpointsRBushByCardinals,
     isObliqueMode,
+    suspendSelectionSearch,
   } = useOblique();
 
   const [nearestImages, setNearestImages] = useState<
@@ -79,7 +80,7 @@ export function useObliqueNearestImage(
   // Function to refresh the search for nearest images
   const refreshSearch = useCallback(() => {
     // Check if the search is enabled
-    if (!isObliqueMode) {
+    if (!isObliqueMode || suspendSelectionSearch) {
       debug && console.debug("refreshSearch skipped - disabled");
       return;
     }
@@ -236,12 +237,11 @@ export function useObliqueNearestImage(
       // Set the single nearest image
       if (filteredImages && filteredImages.length > 0) {
         const nearestImageItem = filteredImages[0];
-
-        setNearestImage(nearestImageItem);
-        setNearestImageDistance(nearestImageItem.distanceOnGround);
+        setSelectedImage(nearestImageItem);
+        setSelectedImageDistance(nearestImageItem.distanceOnGround);
       } else {
-        setNearestImage(null);
-        setNearestImageDistance(null);
+        setSelectedImage(null);
+        setSelectedImageDistance(null);
       }
     } catch (error) {
       console.error("Error finding nearest oblique image:", error);
@@ -255,18 +255,19 @@ export function useObliqueNearestImage(
     options.debounceTime,
     orbitPoint,
     footprintCenterpointsRBushByCardinals,
-    setNearestImageDistance,
-    setNearestImage,
+    setSelectedImageDistance,
+    setSelectedImage,
     debug,
     isObliqueMode,
+    suspendSelectionSearch,
   ]); // Include all dependencies for proper updates
 
   // Store timer ID in a ref to persist across renders
   const timerIdRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
-    setNearestImageRefresh(refreshSearch);
-  }, [refreshSearch, setNearestImageRefresh]);
+    setSelectedImageRefresh(refreshSearch);
+  }, [refreshSearch, setSelectedImageRefresh]);
 
   // Setup camera movement listener
   useEffect(() => {
@@ -274,6 +275,7 @@ export function useObliqueNearestImage(
     // Don't set up camera listener if not enabled
     if (
       !isObliqueMode ||
+      suspendSelectionSearch ||
       !isValidViewerInstance(viewer) ||
       !imageRecords ||
       !imageRecords.size
@@ -286,12 +288,15 @@ export function useObliqueNearestImage(
 
     // Create a stable handler function that doesn't change on every render
     const handleCameraMove = () => {
+      if (suspendSelectionSearch) return;
       if (timerIdRef.current) {
         clearTimeout(timerIdRef.current);
       }
 
       timerIdRef.current = setTimeout(() => {
-        !cesiumSceneHasTweens(viewer) && refreshSearch();
+        if (!cesiumSceneHasTweens(viewer) && !suspendSelectionSearch) {
+          refreshSearch();
+        }
       }, options.debounceTime || defaultOptions.debounceTime);
     };
 
@@ -315,6 +320,7 @@ export function useObliqueNearestImage(
     refreshSearch,
     options.debounceTime,
     isObliqueMode,
+    suspendSelectionSearch,
   ]); // Include necessary dependencies
 
   // Use useMemo to create a stable return object that only changes when its dependencies change

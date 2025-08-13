@@ -13,15 +13,15 @@ import { computeSiblingsByCardinal } from "../utils/siblings";
  */
 export const useKnownSiblings = (
   imageRecords: ObliqueImageRecordMap | null,
-  nearestImage: NearestObliqueImageRecord | null
+  selectedImage: NearestObliqueImageRecord | null
 ) => {
   const [knownSiblingIds, setKnownSiblingIds] = useState<
     Record<string, Partial<Record<CardinalDirectionEnum, string>>>
   >({});
 
   useEffect(() => {
-    if (!nearestImage || !imageRecords) return;
-    const rec = nearestImage.record;
+    if (!selectedImage || !imageRecords) return;
+    const rec = selectedImage.record;
     const siblings = computeSiblingsByCardinal(rec, imageRecords);
     const idMap: Partial<Record<CardinalDirectionEnum, string>> = {};
 
@@ -36,7 +36,7 @@ export const useKnownSiblings = (
       ...prev,
       [rec.id]: { ...(prev[rec.id] || {}), ...idMap },
     }));
-  }, [nearestImage, imageRecords]);
+  }, [selectedImage, imageRecords]);
 
   return knownSiblingIds;
 };

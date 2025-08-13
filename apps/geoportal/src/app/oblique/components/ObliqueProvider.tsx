@@ -47,15 +47,17 @@ interface ObliqueContextType {
   footprintData: FeatureCollection<Polygon, FootprintProperties> | null;
   footprintCenterpointsRBushByCardinals: RBushBySectorBlocks | null;
 
-  nearestImage: NearestObliqueImageRecord | null;
-  setNearestImage: (image: NearestObliqueImageRecord | null) => void;
-  nearestImageDistance: number | null;
-  setNearestImageDistance: (distance: number | null) => void;
+  selectedImage: NearestObliqueImageRecord | null;
+  setSelectedImage: (image: NearestObliqueImageRecord | null) => void;
+  selectedImageDistance: number | null;
+  setSelectedImageDistance: (distance: number | null) => void;
 
-  nearestImageRefresh: () => void | null;
-  setNearestImageRefresh: (refresh: () => void | null) => void;
+  selectedImageRefresh: () => void | null;
+  setSelectedImageRefresh: (refresh: () => void | null) => void;
   lockFootprint: boolean;
   setLockFootprint: (value: boolean) => void;
+  suspendSelectionSearch: boolean;
+  setSuspendSelectionSearch: (value: boolean) => void;
 
   isLoading: boolean;
   isAllDataReady: boolean;
@@ -106,12 +108,13 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     return isOblique === "1";
   });
   const [lockFootprint, setLockFootprint] = useState(false);
-  const [nearestImage, setNearestImage] =
+  const [suspendSelectionSearch, setSuspendSelectionSearch] = useState(false);
+  const [selectedImage, setSelectedImage] =
     useState<NearestObliqueImageRecord | null>(null);
-  const [nearestImageDistance, setNearestImageDistance] = useState<
+  const [selectedImageDistance, setSelectedImageDistance] = useState<
     number | null
   >(null);
-  const [nearestImageRefresh, setNearestImageRefresh] =
+  const [selectedImageRefresh, setSelectedImageRefresh] =
     useState<() => void | null>(null);
 
   // After visiting images, store known siblings by cardinal for quick lookup
@@ -153,7 +156,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     fallbackDirectionConfig
   );
 
-  const knownSiblingIds = useKnownSiblings(imageRecords, nearestImage);
+  const knownSiblingIds = useKnownSiblings(imageRecords, selectedImage);
 
   const performToggleAction = useCallback(() => {
     setIsObliqueMode((prevMode: boolean) => {
@@ -181,19 +184,26 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     [imageRecords, previewPath, previewQualityLevel]
   );
 
-  // Trigger nearest image search when data is loaded
+  // Trigger selection search when data is loaded
   useEffect(() => {
     if (
       imageRecords &&
       isObliqueMode &&
       !lockFootprint &&
-      typeof nearestImageRefresh === "function"
+      !suspendSelectionSearch &&
+      typeof selectedImageRefresh === "function"
     ) {
       // TODO: check if this ever needed, remove if not
-      nearestImageRefresh();
+      selectedImageRefresh();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [imageRecords, isObliqueMode, nearestImageRefresh, lockFootprint]);
+  }, [
+    imageRecords,
+    isObliqueMode,
+    selectedImageRefresh,
+    lockFootprint,
+    suspendSelectionSearch,
+  ]);
 
   const value = {
     isObliqueMode,
@@ -201,13 +211,13 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     isLoading,
     isAllDataReady,
     error,
-    nearestImageDistance,
-    setNearestImageDistance,
-    nearestImageRefresh,
-    setNearestImageRefresh,
+    selectedImageDistance,
+    setSelectedImageDistance,
+    selectedImageRefresh,
+    setSelectedImageRefresh,
     toggleObliqueMode,
-    nearestImage,
-    setNearestImage,
+    selectedImage,
+    setSelectedImage,
     converter,
     previewPath,
     previewQualityLevel,
@@ -221,6 +231,8 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     footprintCenterpointsRBushByCardinals,
     lockFootprint,
     setLockFootprint,
+    suspendSelectionSearch,
+    setSuspendSelectionSearch,
     animations,
     footprintsStyle,
     imagePreviewStyle,

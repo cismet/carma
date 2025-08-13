@@ -79,7 +79,7 @@ const debugComponentsContainerLeftStyle: CSSProperties = {
 export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const {
     headingOffset,
-    nearestImage,
+    selectedImage,
     isAllDataReady,
     previewPath,
     previewQualityLevel,
@@ -88,20 +88,21 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     isObliqueMode,
     toggleObliqueMode,
     imagePreviewStyle,
-    setNearestImage,
+    setSelectedImage,
     prefetchSiblingPreview,
+    setSuspendSelectionSearch,
   } = useOblique();
   const siblingsByCardinal = useSiblingsByCardinal();
   const { viewerRef } = useCesiumContext();
-  const imageId = nearestImage?.record?.id;
-  const cameraId = nearestImage?.record?.cameraId;
+  const imageId = selectedImage?.record?.id;
+  const cameraId = selectedImage?.record?.cameraId;
   const { isDebugMode, isObliqueUiEval } = useFeatureFlags();
   const animationInProgressRef = useRef<boolean>(false);
   // Used to trigger fly-to after next capture navigation
   const nextCaptureShouldFlyRef = useRef(false);
   // Exterior orientation for current nearest image (used for fly-to actions)
   const { derivedExteriorOrientationRef } =
-    useExteriorOrientation(nearestImage);
+    useExteriorOrientation(selectedImage);
 
   const [isVisible, setIsVisible] = useState(isObliqueMode);
   const [showFacadeLabels, setShowFacadeLabels] = useState(true);
@@ -110,61 +111,105 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const [invertLabels, setInvertLabels] = useState(true);
   const [shouldRender, setShouldRender] = useState(isObliqueMode);
   const [isPreviewVisible, setIsPreviewVisible] = useState(false);
+  // Hide footprints while preview is visible
+  useEffect(() => {
+    setLockFootprint(isPreviewVisible);
+  }, [isPreviewVisible, setLockFootprint]);
+  // Suspend selection search while preview is visible
+  useEffect(() => {
+    setSuspendSelectionSearch(isPreviewVisible);
+  }, [isPreviewVisible, setSuspendSelectionSearch]);
+  const [shouldRemoveCurrentPreviewImage, setShouldRemoveCurrentPreviewImage] =
+    useState(false);
+  const [flyCompletionTick, setFlyCompletionTick] = useState(0);
   const [showDirectionControls, setShowDirectionControls] = useState(true);
   const [showOrientationCube, setShowOrientationCube] = useState(false);
   const [directionalButtonType, setDirectionalButtonType] = useState<
     "captureDirection" | "nextCapture"
   >("nextCapture");
+
+  const [brightnessBase, setBrightnessBase] = useState(125);
+  const [contrastBase, setContrastBase] = useState(95);
+  const [saturationBase, setSaturationBase] = useState(85);
   const isTransitioning = useSelector(selectViewerIsTransitioning);
   // Track last directional move to prefetch ahead in the same direction on arrival
   const lastMoveDirRef = useRef<CardinalDirectionEnum | null>(null);
+  // Debounced intent for sibling navigation
+  const pendingMoveDirRef = useRef<CardinalDirectionEnum | null>(null);
+  const siblingMoveDebounceRef = useRef<number | undefined>(undefined);
 
-  const handleNextCapture = useCallback(
+  const executeNextCaptureFromIntent = useCallback(() => {
+    const dir = pendingMoveDirRef.current;
+    if (dir == null) return;
+    pendingMoveDirRef.current = null;
+    const candidate = siblingsByCardinal[dir];
+    if (!candidate) return;
+    // Keep overlay, just dim the image until the next one is loaded
+    setShouldRemoveCurrentPreviewImage(true);
+    nextCaptureShouldFlyRef.current = true;
+    lastMoveDirRef.current = dir;
+    // Lock selection to the known next image to avoid flicker from live search
+    setSuspendSelectionSearch(true);
+    setSelectedImage({
+      record: candidate,
+      distanceOnGround: 0,
+      distanceToCamera: 0,
+      imageCenter: {
+        x: candidate.x,
+        y: candidate.y,
+        longitude: candidate.centerWGS84[0],
+        latitude: candidate.centerWGS84[1],
+        cardinal: candidate.sector,
+      },
+    });
+  }, [siblingsByCardinal, setSelectedImage, setSuspendSelectionSearch]);
+
+  const requestNextCapture = useCallback(
     (dir: CardinalDirectionEnum) => {
-      nextCaptureShouldFlyRef.current = true;
-      lastMoveDirRef.current = dir;
-      const candidate = siblingsByCardinal[dir];
-      if (!candidate) return;
-      setNearestImage({
-        record: candidate,
-        distanceOnGround: 0,
-        distanceToCamera: 0,
-        imageCenter: {
-          x: candidate.x,
-          y: candidate.y,
-          longitude: candidate.centerWGS84[0],
-          latitude: candidate.centerWGS84[1],
-          cardinal: candidate.sector,
-        },
-      });
+      pendingMoveDirRef.current = dir;
+      if (siblingMoveDebounceRef.current !== undefined) {
+        window.clearTimeout(siblingMoveDebounceRef.current);
+      }
+      siblingMoveDebounceRef.current = window.setTimeout(() => {
+        executeNextCaptureFromIntent();
+      }, 200);
     },
-    [siblingsByCardinal, setNearestImage]
+    [executeNextCaptureFromIntent]
   );
+
+  // Clear debounce timer on unmount
+  useEffect(() => {
+    return () => {
+      if (siblingMoveDebounceRef.current !== undefined) {
+        window.clearTimeout(siblingMoveDebounceRef.current);
+      }
+    };
+  }, []);
 
   const siblingCallbacks = useMemo(
     () => ({
       [CardinalDirectionEnum.North]: siblingsByCardinal[
         CardinalDirectionEnum.North
       ]
-        ? () => handleNextCapture(CardinalDirectionEnum.North)
+        ? () => requestNextCapture(CardinalDirectionEnum.North)
         : undefined,
       [CardinalDirectionEnum.East]: siblingsByCardinal[
         CardinalDirectionEnum.East
       ]
-        ? () => handleNextCapture(CardinalDirectionEnum.East)
+        ? () => requestNextCapture(CardinalDirectionEnum.East)
         : undefined,
       [CardinalDirectionEnum.South]: siblingsByCardinal[
         CardinalDirectionEnum.South
       ]
-        ? () => handleNextCapture(CardinalDirectionEnum.South)
+        ? () => requestNextCapture(CardinalDirectionEnum.South)
         : undefined,
       [CardinalDirectionEnum.West]: siblingsByCardinal[
         CardinalDirectionEnum.West
       ]
-        ? () => handleNextCapture(CardinalDirectionEnum.West)
+        ? () => requestNextCapture(CardinalDirectionEnum.West)
         : undefined,
     }),
-    [siblingsByCardinal, handleNextCapture]
+    [siblingsByCardinal, requestNextCapture]
   );
 
   // Fly-to handling for next capture (without opening preview)
@@ -176,7 +221,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       !derivedExteriorOrientationRef.current
     )
       return;
-    setLockFootprint(true);
     animationInProgressRef.current = true;
     const siblingFlyOptions =
       animations.flyToNextImage ?? animations.flyToExteriorOrientation;
@@ -185,19 +229,34 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       derivedExteriorOrientationRef.current,
       () => {
         animationInProgressRef.current = false;
-        setLockFootprint(false);
+        if (!isPreviewVisible) {
+          setLockFootprint(false);
+        }
+        setShouldRemoveCurrentPreviewImage(false);
+        setFlyCompletionTick((t) => t + 1);
+        // Re-enable selection search after arriving only if preview is not visible
+        if (!isPreviewVisible) {
+          setSuspendSelectionSearch(false);
+        }
         cesiumSafeRequestRender(viewerRef.current);
       },
       siblingFlyOptions
     );
-  }, [viewerRef, animations, setLockFootprint, derivedExteriorOrientationRef]);
+  }, [
+    viewerRef,
+    animations,
+    setLockFootprint,
+    derivedExteriorOrientationRef,
+    setSuspendSelectionSearch,
+    isPreviewVisible,
+  ]);
 
   useEffect(() => {
     if (!nextCaptureShouldFlyRef.current) return;
     nextCaptureShouldFlyRef.current = false;
     flyToCurrentEOWithoutPreview();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nearestImage?.record?.id]);
+  }, [selectedImage?.record?.id]);
 
   // After arrival at a new image, prefetch only the sibling in the same direction as the last move
   useEffect(() => {
@@ -207,7 +266,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   }, [imageId, prefetchSiblingPreview]);
 
   useControls(
-    isObliqueUiEval
+    isDebugMode || isObliqueUiEval
       ? {
           showDirectionControls: {
             value: showDirectionControls,
@@ -251,6 +310,30 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
               ),
             label: "Next capture",
             render: () => showOrientationCube,
+          },
+          brightnessBase: {
+            value: brightnessBase,
+            min: 50,
+            max: 150,
+            step: 1,
+            label: "Brightness",
+            onChange: setBrightnessBase,
+          },
+          contrastBase: {
+            value: contrastBase,
+            min: 50,
+            max: 150,
+            step: 1,
+            label: "Contrast",
+            onChange: setContrastBase,
+          },
+          saturationBase: {
+            value: saturationBase,
+            min: 0,
+            max: 200,
+            step: 1,
+            label: "Saturation",
+            onChange: setSaturationBase,
           },
         }
       : {}
@@ -310,7 +393,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     const viewer = viewerRef.current;
     if (
       !isValidViewerInstance(viewer) ||
-      !nearestImage ||
+      !selectedImage ||
       !derivedExteriorOrientationRef.current
     )
       return;
@@ -331,7 +414,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   }, [
     viewerRef,
     animations,
-    nearestImage,
+    selectedImage,
     isPreviewVisible,
     setLockFootprint,
     derivedExteriorOrientationRef,
@@ -358,7 +441,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
           <ObliqueDebugSvg />
         </div>
       )}
-      {isDebugMode && nearestImage && (
+      {isDebugMode && selectedImage && (
         <div style={debugComponentsContainerRightStyle}>
           <CameraVectorControls
             imageId={imageId}
@@ -372,16 +455,18 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
             }
             setUpVector={() => {}}
           />
-          <ObliqueImageInfo imageRecord={nearestImage} />
+          <ObliqueImageInfo imageRecord={selectedImage} />
         </div>
       )}
-      {nearestImage && imageId && (
+      {selectedImage && imageId && (
         <ObliqueImagePreview
           src={previewUrl}
           srcHQ={previewUrlHq}
           srcOriginal={previewUrlOriginal}
           imageId={imageId}
           isVisible={isPreviewVisible}
+          dimImage={shouldRemoveCurrentPreviewImage}
+          flyCompletionTick={flyCompletionTick}
           onOpenImageLink={openImageLink}
           onDirectDownload={handleDirectDownload}
           isDebugMode={isDebugMode}
@@ -389,7 +474,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
             setIsPreviewVisible(false);
             notifyPreviewVisibilityChange(false);
             setLockFootprint(false);
-            // TODO: properly trigger a rerender that shows after not moving the camera, but leaving the preview
+            setSuspendSelectionSearch(false);
             setTimeout(() => {
               cesiumSafeRequestRender(viewerRef.current);
             }, 50);
@@ -397,6 +482,9 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
           interiorOrientationOffsets={
             CAMERA_ID_INTERIOR_ORIENTATION_PERCENTAGE_OFFSETS[cameraId]
           }
+          brightnessBase={brightnessBase}
+          contrastBase={contrastBase}
+          saturationBase={saturationBase}
           style={imagePreviewStyle}
         />
       )}
