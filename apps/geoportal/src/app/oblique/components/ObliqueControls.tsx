@@ -44,8 +44,8 @@ import { flyToExteriorOrientation } from "../utils/cameraUtils";
 import { downloadAsBlobAsync } from "../utils/downloads";
 import { getImageUrls } from "../utils/imageHandling";
 import {
-  subscribeToPreviewVisibility,
   notifyPreviewVisibilityChange,
+  subscribeToPreviewVisibility,
 } from "../utils/previewVisibility";
 
 import { CAMERA_ID_INTERIOR_ORIENTATION_PERCENTAGE_OFFSETS } from "../config";
@@ -113,6 +113,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const [invertLabels, setInvertLabels] = useState(true);
   const [shouldRender, setShouldRender] = useState(isObliqueMode);
   const [isPreviewVisible, setIsPreviewVisible] = useState(false);
+  const [isFlyButtonHovered, setIsFlyButtonHovered] = useState(false);
   // Hide footprints while preview is visible
   useEffect(() => {
     setLockFootprint(isPreviewVisible);
@@ -134,6 +135,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const [contrastBase, setContrastBase] = useState(95);
   const [saturationBase, setSaturationBase] = useState(85);
   const [useLegacyDirControls, setUseLegacyDirControls] = useState(false);
+
   const isTransitioning = useSelector(selectViewerIsTransitioning);
   // Track last directional move to prefetch ahead in the same direction on arrival
   const lastMoveDirRef = useRef<CardinalDirectionEnum | null>(null);
@@ -265,8 +267,9 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   useEffect(() => {
     const dir = lastMoveDirRef.current;
     if (!imageId || dir == null) return;
+    if (!isPreviewVisible) return; // do not prefetch while not in preview mode
     prefetchSiblingPreview(imageId, dir);
-  }, [imageId, prefetchSiblingPreview]);
+  }, [imageId, prefetchSiblingPreview, isPreviewVisible]);
 
   useControls(
     isDebugMode || isObliqueUiEval
@@ -492,6 +495,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
           activeDirection={activeDirection}
           siblingCallbacks={siblingCallbacks}
           isDirectionLoading={false}
+          preloadNextEnabled={isFlyButtonHovered}
           onClose={() => {
             setIsPreviewVisible(false);
             notifyPreviewVisibilityChange(false);
@@ -540,6 +544,8 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
             {imageId && derivedExteriorOrientationRef.current && (
               <ControlButtonStyler
                 onClick={flyToNearestExteriorOrientation}
+                onMouseEnter={() => setIsFlyButtonHovered(true)}
+                onMouseLeave={() => setIsFlyButtonHovered(false)}
                 width="160px"
                 height="40px"
                 className="pointer-events-auto bg-blue-50 hover:bg-blue-100"

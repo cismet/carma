@@ -1,6 +1,7 @@
 import {
   useEffect,
   useState,
+  useRef,
   type RefObject,
   type FC,
   type CSSProperties,
@@ -63,6 +64,8 @@ interface ObliqueImagePreviewProps {
   activeDirection?: CardinalDirectionEnum;
   siblingCallbacks?: Partial<Record<CardinalDirectionEnum, () => void>>;
   isDirectionLoading?: boolean;
+  // When true, allow preloading the next buffer image
+  preloadNextEnabled?: boolean;
 }
 
 type ImageQuality = "REGULAR" | "HQ" | "BEST";
@@ -70,19 +73,22 @@ type ImageQuality = "REGULAR" | "HQ" | "BEST";
 // Note: backdrop dimming hole logic removed per latest requirement.
 
 const getViewerSyncedSize = (viewerRef: RefObject<Viewer>) => {
-  const dim = Math.max(
-    viewerRef.current.canvas.width,
-    viewerRef.current.canvas.height
-  );
-  const frustum = viewerRef.current.scene.camera.frustum;
+  const vw = typeof window !== "undefined" ? window.innerWidth : 1024;
+  const vh = typeof window !== "undefined" ? window.innerHeight : 768;
+  const viewer = viewerRef.current;
+  const rawDim = viewer
+    ? Math.max(viewer.canvas.width, viewer.canvas.height)
+    : 0;
+  const dim = rawDim > 0 ? rawDim : Math.max(vw, vh, 1);
+  const frustum = viewer?.scene?.camera?.frustum;
 
   if (frustum instanceof PerspectiveFrustum) {
     const fovFactor = Math.tan(frustum.fov / 2);
-    return dim / fovFactor;
+    return Math.max(1, dim / fovFactor);
   }
   console.warn("Unsupported frustum type");
 
-  return dim;
+  return Math.max(1, dim);
 };
 
 const defaultStyle: ObliqueImagePreviewStyle = {
@@ -133,6 +139,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   activeDirection,
   siblingCallbacks,
   isDirectionLoading = false,
+  preloadNextEnabled = false,
 }) => {
   const [shouldFadeIn, setShouldFadeIn] = useState(false);
   const [isVertical, setIsVertical] = useState(false);
@@ -157,6 +164,8 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
 
   const { xOffset, yOffset } = interiorOrientationOffsets;
 
+  // Quality can be controlled via debug UI; default is REGULAR
+
   // Update activeSource when quality or src/srcHQ changes
   useEffect(() => {
     if (currentQuality === "HQ" && srcHQ) {
@@ -167,6 +176,21 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
       setActiveSource(src);
     }
   }, [src, srcHQ, srcOriginal, currentQuality]);
+
+  // On opening preview, reset buffers and gating state to avoid stale/null image
+  const prevVisibleRef = useRef(false);
+  useEffect(() => {
+    if (isVisible && !prevVisibleRef.current) {
+      if (activeSource) {
+        setCurrentSrc(activeSource);
+      }
+      setNextSrc(null);
+      setNextLoaded(false);
+      setShowNext(false);
+      setCanShowNext(false);
+    }
+    prevVisibleRef.current = isVisible;
+  }, [isVisible, activeSource]);
 
   // If preview is shown again and image buffer was cleared, initialize from active source
   useEffect(() => {
@@ -208,14 +232,15 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
 
   // Preload next source
   useEffect(() => {
-    if (!nextSrc) return;
+    if (!nextSrc || !preloadNextEnabled) return;
     const img = new window.Image();
-    img.src = nextSrc;
+    img.decoding = "async";
     img.onload = () => {
       setNextLoaded(true);
       if (onImageLoaded) onImageLoaded();
     };
-  }, [nextSrc, onImageLoaded]);
+    img.src = nextSrc;
+  }, [nextSrc, onImageLoaded, preloadNextEnabled]);
 
   // Gate swap: show next when (a) fly completed or not dimming, and (b) next is loaded
   useEffect(() => {
@@ -263,11 +288,12 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   useEffect(() => {
     if (isVisible && currentSrc) {
       const img = new window.Image();
-      img.src = currentSrc;
+      img.decoding = "async";
       img.onload = () => {
         setIsVertical(img.naturalWidth < img.naturalHeight);
         setImageAspectRatio(img.naturalWidth / img.naturalHeight);
       };
+      img.src = currentSrc;
     }
   }, [isVisible, currentSrc]);
 
