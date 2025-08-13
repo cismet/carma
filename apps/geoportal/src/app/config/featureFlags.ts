@@ -27,7 +27,7 @@ export const featureFlagConfig: FeatureFlagConfig = {
     alias: "debugTileBoundaries",
   },
   featureFlagTracking: {
-    default: false,
+    default: true,
     alias: "tracking",
   },
   featureFlagBugaBridge: {
