@@ -23,6 +23,8 @@ import {
 } from "./ObliqueImagePreview.PreviewImage";
 import { Backdrop } from "./ObliqueImagePreview.Backdrop";
 import { ContactMailButton } from "@carma-apps/portals";
+import { ObliqueDirectionControlsCompact } from "./ObliqueDirectionControls.Compact";
+import type { CardinalDirectionEnum } from "../utils/orientationUtils";
 
 interface ObliqueImagePreviewProps {
   src: string;
@@ -53,6 +55,14 @@ interface ObliqueImagePreviewProps {
   contrastBase?: number;
   // Base saturation for backdrop filter
   saturationBase?: number;
+  // Show compact direction controls between download and report
+  showCompactDirectionControls?: boolean;
+  // Direction controls inputs (optional)
+  rotateCamera?: (clockwise: boolean) => void;
+  rotateToDirection?: (d: CardinalDirectionEnum) => void;
+  activeDirection?: CardinalDirectionEnum;
+  siblingCallbacks?: Partial<Record<CardinalDirectionEnum, () => void>>;
+  isDirectionLoading?: boolean;
 }
 
 type ImageQuality = "REGULAR" | "HQ" | "BEST";
@@ -116,6 +126,12 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   brightnessBase = 100,
   contrastBase = 85,
   saturationBase = 100,
+  showCompactDirectionControls = true,
+  rotateCamera,
+  rotateToDirection,
+  activeDirection,
+  siblingCallbacks,
+  isDirectionLoading = false,
 }) => {
   const [shouldFadeIn, setShouldFadeIn] = useState(false);
   const [isVertical, setIsVertical] = useState(false);
@@ -319,6 +335,15 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
               </ControlButtonStyler>
             </div>
           </Tooltip>
+          {showCompactDirectionControls && rotateCamera && (
+            <ObliqueDirectionControlsCompact
+              rotateCamera={rotateCamera}
+              rotateToDirection={rotateToDirection || (() => {})}
+              activeDirection={activeDirection}
+              isLoading={isDirectionLoading}
+              siblingCallbacks={siblingCallbacks}
+            />
+          )}
           <ContactMailButton
             width="160px"
             emailAddress="geodatenzentrum@stadt.wuppertal.de"

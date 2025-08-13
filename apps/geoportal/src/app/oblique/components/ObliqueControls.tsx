@@ -30,6 +30,7 @@ import { ObliqueImagePreview } from "./ObliqueImagePreview";
 import { ObliqueImageInfo } from "./debugUI/ObliqueImageInfo";
 import { CameraVectorControls } from "./debugUI/CameraVectorControls";
 import { ObliqueDirectionControls } from "./ObliqueDirectionControls";
+import { ObliqueDirectionControlsCompact } from "./ObliqueDirectionControls.Compact";
 import ObliqueOrientationCube from "./ObliqueOrientationCube";
 
 import { useExteriorOrientation } from "../hooks/useExteriorOrientation";
@@ -37,6 +38,7 @@ import { useFootprints } from "../hooks/useFootprints";
 import { useOblique } from "../hooks/useOblique";
 import { useObliqueCameraHandlers } from "../hooks/useObliqueCameraHandlers";
 import { useSiblingsByCardinal } from "../hooks/useSiblingsByCardinal";
+import { useObliqueDirectionKeybindings } from "../hooks/useObliqueDirectionKeybindings";
 
 import { flyToExteriorOrientation } from "../utils/cameraUtils";
 import { downloadAsBlobAsync } from "../utils/downloads";
@@ -131,6 +133,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const [brightnessBase, setBrightnessBase] = useState(125);
   const [contrastBase, setContrastBase] = useState(95);
   const [saturationBase, setSaturationBase] = useState(85);
+  const [useLegacyDirControls, setUseLegacyDirControls] = useState(false);
   const isTransitioning = useSelector(selectViewerIsTransitioning);
   // Track last directional move to prefetch ahead in the same direction on arrival
   const lastMoveDirRef = useRef<CardinalDirectionEnum | null>(null);
@@ -271,7 +274,13 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
           showDirectionControls: {
             value: showDirectionControls,
             onChange: setShowDirectionControls,
-            label: "Dir controls",
+            label: "Small controls",
+          },
+          legacyDirControls: {
+            value: useLegacyDirControls,
+            onChange: setUseLegacyDirControls,
+            label: "Large controls",
+            render: () => showDirectionControls,
           },
           showOrientationCube: {
             value: showOrientationCube,
@@ -348,6 +357,13 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     () => getImageUrls(imageId, previewPath, previewQualityLevel),
     [previewPath, previewQualityLevel, imageId]
   );
+
+  // Global keybindings for direction controls (WASD/Arrows/QE/Numpad)
+  useObliqueDirectionKeybindings({
+    activeDirection,
+    siblingCallbacks,
+    rotateCamera,
+  });
 
   useEffect(() => {
     if (isObliqueMode) {
@@ -470,6 +486,12 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
           onOpenImageLink={openImageLink}
           onDirectDownload={handleDirectDownload}
           isDebugMode={isDebugMode}
+          showCompactDirectionControls
+          rotateCamera={rotateCamera}
+          rotateToDirection={rotateToDirection}
+          activeDirection={activeDirection}
+          siblingCallbacks={siblingCallbacks}
+          isDirectionLoading={false}
           onClose={() => {
             setIsPreviewVisible(false);
             notifyPreviewVisibilityChange(false);
@@ -579,20 +601,31 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
               </div>
             )}
 
+            {useLegacyDirControls && (
+              <ObliqueDirectionControls
+                rotateCamera={rotateCamera}
+                rotateToDirection={rotateToDirection}
+                activeDirection={activeDirection}
+                isLoading={!isAllDataReady}
+                siblingCallbacks={
+                  directionalButtonType === "nextCapture"
+                    ? siblingCallbacks
+                    : undefined
+                }
+              />
+            )}
             {showDirectionControls && (
-              <div className="flex justify-center">
-                <ObliqueDirectionControls
-                  rotateCamera={rotateCamera}
-                  rotateToDirection={rotateToDirection}
-                  activeDirection={activeDirection}
-                  isLoading={!isAllDataReady}
-                  siblingCallbacks={
-                    directionalButtonType === "nextCapture"
-                      ? siblingCallbacks
-                      : undefined
-                  }
-                />
-              </div>
+              <ObliqueDirectionControlsCompact
+                rotateCamera={rotateCamera}
+                rotateToDirection={rotateToDirection}
+                activeDirection={activeDirection}
+                isLoading={!isAllDataReady}
+                siblingCallbacks={
+                  directionalButtonType === "nextCapture"
+                    ? siblingCallbacks
+                    : undefined
+                }
+              />
             )}
             {showOrientationCube && (
               <div className="flex justify-center">
