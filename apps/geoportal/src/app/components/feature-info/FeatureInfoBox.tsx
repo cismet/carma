@@ -120,7 +120,15 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
       },
       displayZoomToFeature: true,
       zoomToFeature: () => {
-        if (selectedFeature.geometry) {
+        if (selectedFeature.properties.wmsProps.bounds) {
+          const bbox = JSON.parse(selectedFeature.properties.wmsProps.bounds);
+          if (routedMapRef) {
+            routedMapRef.leafletMap.leafletElement.fitBounds([
+              [bbox[3], bbox[2]],
+              [bbox[1], bbox[0]],
+            ]);
+          }
+        } else if (selectedFeature.geometry) {
           const type = selectedFeature.geometry.type;
           if (type === "Point") {
             const coordinates = getCoordinates(selectedFeature.geometry);
