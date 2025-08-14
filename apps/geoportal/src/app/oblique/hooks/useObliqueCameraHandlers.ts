@@ -20,7 +20,6 @@ import {
 import {
   isValidViewerInstance,
   useCesiumContext,
-  cesiumSafeRequestRender,
 } from "@carma-mapping/cesium-engine";
 
 import {
@@ -149,7 +148,6 @@ export const useObliqueCameraHandlers = (
           const cardinals = getCardinalHeadings(headingOffset);
           const closest = findClosestCardinalIndex(normalizedTarget, cardinals);
           setActiveDirection(closest);
-          cesiumSafeRequestRender(viewer);
           scene.preUpdate.removeEventListener(onPreUpdate);
         }
       };
@@ -256,7 +254,6 @@ export const useObliqueCameraHandlers = (
 
           scene.preUpdate.removeEventListener(onPreUpdate);
           setActiveDirection(targetDirection);
-          cesiumSafeRequestRender(viewer);
         }
       };
       scene.preUpdate.addEventListener(onPreUpdate);

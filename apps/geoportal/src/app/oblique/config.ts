@@ -27,7 +27,7 @@ export const OBLIQUE_CONFIG: ObliqueDataProviderConfig = {
     },
     flyToNextImage: {
       delay: 0,
-      duration: 300,
+      duration: 100,
       easingFunction: EasingFunction.LINEAR_NONE,
     },
     flyToRotatedImage: {
