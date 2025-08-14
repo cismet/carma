@@ -2,6 +2,7 @@ import { isNaN } from "lodash";
 
 import type { Item, Layer } from "@carma-commons/types";
 import { extractCarmaConfig } from "@carma-commons/utils";
+import envelope from "@turf/envelope";
 
 export const parseDescription = (description: string) => {
   const result = { inhalt: "", sichtbarkeit: "", nutzung: "" };
@@ -239,4 +240,57 @@ export const parseToMapLayer = async (
     throw new Error(`Could not parse layer ${layer.id} to map layer.`);
   }
   return newLayer;
+};
+
+export const getCoordinates = (geometry) => {
+  switch (geometry.type) {
+    case "Polygon":
+      return geometry.coordinates[0][0];
+    case "MultiPolygon":
+      return geometry.coordinates[0][0][0];
+    case "LineString":
+      return geometry.coordinates[1];
+    default:
+      return geometry.coordinates;
+  }
+};
+
+export const zoomToFeature = (
+  selectedFeature: any,
+  routedMapRef: {
+    leafletMap: {
+      leafletElement: L.Map;
+    };
+  }
+) => {
+  if (selectedFeature.properties.wmsProps.bounds) {
+    const bbox = JSON.parse(selectedFeature.properties.wmsProps.bounds);
+    if (routedMapRef) {
+      routedMapRef.leafletMap.leafletElement.fitBounds([
+        [bbox[3], bbox[2]],
+        [bbox[1], bbox[0]],
+      ]);
+    }
+  } else if (selectedFeature.geometry) {
+    const type = selectedFeature.geometry.type;
+    if (type === "Point") {
+      const coordinates = getCoordinates(selectedFeature.geometry);
+
+      if (routedMapRef) {
+        routedMapRef.leafletMap.leafletElement.setView(
+          [coordinates[1], coordinates[0]],
+          selectedFeature.properties.zoom ? selectedFeature.properties.zoom : 20
+        );
+      }
+    } else {
+      const bbox = envelope(selectedFeature.geometry).bbox;
+
+      if (routedMapRef) {
+        routedMapRef.leafletMap.leafletElement.fitBounds([
+          [bbox[3], bbox[2]],
+          [bbox[1], bbox[0]],
+        ]);
+      }
+    }
+  }
 };

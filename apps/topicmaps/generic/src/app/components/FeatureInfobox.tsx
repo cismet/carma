@@ -11,7 +11,7 @@ import { additionalInfoFactory } from "@carma-collab/wuppertal/geoportal";
 import { genericSecondaryInfoFooterFactory } from "@carma-collab/wuppertal/commons";
 import versionData from "../../version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
-import { InfoBox } from "@carma-apps/portals";
+import { InfoBox, utils } from "@carma-apps/portals";
 
 interface InfoboxProps {
   selectedFeature: any;
@@ -48,30 +48,7 @@ const FeatureInfobox = ({ selectedFeature }: InfoboxProps) => {
       },
       displayZoomToFeature: true,
       zoomToFeature: () => {
-        if (selectedFeature.geometry) {
-          const type = selectedFeature.geometry.type;
-          if (type === "Point") {
-            const coordinates = getCoordinates(selectedFeature.geometry);
-
-            if (routedMapRef) {
-              routedMapRef.leafletMap.leafletElement.setView(
-                [coordinates[1], coordinates[0]],
-                selectedFeature.properties.zoom
-                  ? selectedFeature.properties.zoom
-                  : 20
-              );
-            }
-          } else {
-            const bbox = envelope(selectedFeature.geometry).bbox;
-
-            if (routedMapRef) {
-              routedMapRef.leafletMap.leafletElement.fitBounds([
-                [bbox[3], bbox[2]],
-                [bbox[1], bbox[0]],
-              ]);
-            }
-          }
-        }
+        utils.zoomToFeature(selectedFeature, routedMapRef);
       },
     });
   }

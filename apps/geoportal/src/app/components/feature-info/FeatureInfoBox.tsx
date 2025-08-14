@@ -37,7 +37,7 @@ import LoadingInfoBox from "./LoadingInfoBox";
 
 import versionData from "../../../version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
-import { InfoBox } from "@carma-apps/portals";
+import { InfoBox, utils } from "@carma-apps/portals";
 
 interface InfoBoxProps {
   pos?: [number, number];
@@ -120,38 +120,7 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
       },
       displayZoomToFeature: true,
       zoomToFeature: () => {
-        if (selectedFeature.properties.wmsProps.bounds) {
-          const bbox = JSON.parse(selectedFeature.properties.wmsProps.bounds);
-          if (routedMapRef) {
-            routedMapRef.leafletMap.leafletElement.fitBounds([
-              [bbox[3], bbox[2]],
-              [bbox[1], bbox[0]],
-            ]);
-          }
-        } else if (selectedFeature.geometry) {
-          const type = selectedFeature.geometry.type;
-          if (type === "Point") {
-            const coordinates = getCoordinates(selectedFeature.geometry);
-
-            if (routedMapRef) {
-              routedMapRef.leafletMap.leafletElement.setView(
-                [coordinates[1], coordinates[0]],
-                selectedFeature.properties.zoom
-                  ? selectedFeature.properties.zoom
-                  : 20
-              );
-            }
-          } else {
-            const bbox = envelope(selectedFeature.geometry).bbox;
-
-            if (routedMapRef) {
-              routedMapRef.leafletMap.leafletElement.fitBounds([
-                [bbox[3], bbox[2]],
-                [bbox[1], bbox[0]],
-              ]);
-            }
-          }
-        }
+        utils.zoomToFeature(selectedFeature, routedMapRef);
       },
     });
   }
