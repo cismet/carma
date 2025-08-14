@@ -187,11 +187,14 @@ export function LibFuzzySearch({
       );
       const modifyAdressen = [];
 
-      _gazData.forEach((item) => {
+      allModifiedData.forEach((item) => {
         if (item.glyph === "home" && item.string.includes("Str.")) {
           const newString = item.string.replace(/Str\./gi, "Straße");
           const newObj = {
             ...item,
+            sorter: item.sorter
+              ? `${item.sorter}_strasse`
+              : `${Date.now()}_${Math.random()}`,
             xSearchData: newString,
           };
 
@@ -199,7 +202,7 @@ export function LibFuzzySearch({
           // console.log("xxx item", newObj);
         }
       });
-      setAllGazeteerData([..._gazData, ...modifyAdressen]);
+      setAllGazeteerData([...allModifiedData, ...modifyAdressen]);
     }
   }, [_gazData, prepoHandling]);
 
