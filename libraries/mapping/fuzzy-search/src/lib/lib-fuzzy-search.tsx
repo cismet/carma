@@ -185,7 +185,21 @@ export function LibFuzzySearch({
         prepoHandling,
         typeInference
       );
-      setAllGazeteerData(allModifiedData);
+      const modifyAdressen = [];
+
+      _gazData.forEach((item) => {
+        if (item.glyph === "home" && item.string.includes("Str.")) {
+          const newString = item.string.replace(/Str\./gi, "Straße");
+          const newObj = {
+            ...item,
+            xSearchData: newString,
+          };
+
+          modifyAdressen.push(newObj);
+          // console.log("xxx item", newObj);
+        }
+      });
+      setAllGazeteerData([..._gazData, ...modifyAdressen]);
     }
   }, [_gazData, prepoHandling]);
 
