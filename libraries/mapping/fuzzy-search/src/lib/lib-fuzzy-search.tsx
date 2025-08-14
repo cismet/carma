@@ -118,7 +118,11 @@ export function LibFuzzySearch({
 
   const handleSearchAutoComplete = (value) => {
     if (allGazeteerData.length > 0 && fuseInstance) {
-      const removeStopWords = removeStopwords(value, stopwords, prepoHandling);
+      const removeStopWords = removeStopwords(
+        value.replace(".", ""),
+        stopwords,
+        prepoHandling
+      );
       const result = fuseInstance.search(removeStopWords);
       const cleanedFromDoubledRes = removedDoubledSearchRes(result);
       let resultWithRoundScore = cleanedFromDoubledRes.map((r) => {
@@ -195,6 +199,7 @@ export function LibFuzzySearch({
           const newString = item.string.replace(/Str\./gi, "Straße");
           const newObj = {
             ...item,
+            string: newString,
             sorter: item.sorter
               ? `${item.sorter}_strasse`
               : `${Date.now()}_${Math.random()}`,
