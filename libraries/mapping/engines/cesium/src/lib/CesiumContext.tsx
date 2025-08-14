@@ -22,6 +22,7 @@ export interface CesiumContextType {
   };
   shouldSuspendPitchLimiterRef: MutableRefObject<boolean>;
   shouldSuspendCameraLimitersRef: MutableRefObject<boolean>;
+  shouldRotateGridByIncrementRef: MutableRefObject<number>;
   isViewerReady: boolean;
   setIsViewerReady: (flag: boolean) => void;
 }

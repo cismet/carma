@@ -56,7 +56,6 @@ export const ObliqueDirectionControlsCompact: React.FC<CompactProps> = ({
       className={`${
         !siblingCallbacks?.[dir] ? disabledCls : ""
       } ${baseBtnCls} ${posCls}`}
-      size="small"
     >
       {label}
     </ControlButtonStyler>
@@ -71,7 +70,6 @@ export const ObliqueDirectionControlsCompact: React.FC<CompactProps> = ({
       width={buttonSize}
       height={buttonSize}
       className={`${baseBtnCls} ${posCls}`}
-      size="small"
     >
       <FontAwesomeIcon
         icon={clockwise ? faRotateRight : faRotateLeft}

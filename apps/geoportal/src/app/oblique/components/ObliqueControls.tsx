@@ -34,7 +34,6 @@ import { ObliqueDirectionControlsCompact } from "./ObliqueDirectionControls.Comp
 import ObliqueOrientationCube from "./ObliqueOrientationCube";
 
 import { useExteriorOrientation } from "../hooks/useExteriorOrientation";
-import { useOrbitPoint } from "../hooks/useOrbitPoint";
 import { useFootprints } from "../hooks/useFootprints";
 import { useOblique } from "../hooks/useOblique";
 import { useObliqueCameraHandlers } from "../hooks/useObliqueCameraHandlers";
@@ -51,9 +50,6 @@ import {
 
 import { CAMERA_ID_INTERIOR_ORIENTATION_PERCENTAGE_OFFSETS } from "../config";
 import { CardinalDirectionEnum } from "../utils/orientationUtils";
-import { calculateImageCoordsFromCartesian } from "../utils/obliqueReferenceUtils";
-import type { RBushItem } from "../utils/spatialIndexing";
-import knn from "rbush-knn";
 
 interface ObliqueControlsProps {
   headingOffset?: number;
@@ -97,20 +93,21 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     setSelectedImage,
     prefetchSiblingPreview,
     setSuspendSelectionSearch,
-    converter,
-    imageRecords,
-    footprintCenterpointsRBushByCardinals,
+    selectedImageRefresh,
   } = useOblique();
   const siblingsByCardinal = useSiblingsByCardinal();
   const {
     viewerRef,
     shouldSuspendPitchLimiterRef,
     shouldSuspendCameraLimitersRef,
+    shouldRotateGridByIncrementRef,
   } = useCesiumContext();
   const imageId = selectedImage?.record?.id;
   const cameraId = selectedImage?.record?.cameraId;
   const { isDebugMode, isObliqueUiEval } = useFeatureFlags();
   const animationInProgressRef = useRef<boolean>(false);
+  // Avoid repeated logs when refresh is not yet wired
+  const warnedMissingRefreshRef = useRef(false);
   // Used to trigger fly-to after next capture navigation
   const nextCaptureShouldFlyRef = useRef(false);
   // Marks that the upcoming fly was triggered by a rotation action in preview mode
@@ -249,56 +246,33 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     [siblingsByCardinal, requestNextCapture]
   );
 
-  // Orbit center used for nearest-by-direction lookup
-  const orbitPoint = useOrbitPoint(isObliqueMode);
-
-  // Find nearest image for a given cardinal direction using spatial index
+  // Request nearest image for a given cardinal via on-demand search
   const findNearestForCardinal = useCallback(
-    (dir: CardinalDirectionEnum) => {
-      if (
-        !footprintCenterpointsRBushByCardinals ||
-        !converter ||
-        !imageRecords ||
-        !orbitPoint
-      )
+    (dir: CardinalDirectionEnum, opts?: { computeOnly?: boolean }) => {
+      if (typeof selectedImageRefresh !== "function") {
+        console.debug("[PreviewRotate] selectedImageRefresh unavailable");
         return null;
-
-      const sectorTree = footprintCenterpointsRBushByCardinals.get(dir);
-      if (!sectorTree) return null;
-
-      const coords = calculateImageCoordsFromCartesian(orbitPoint, converter);
-      if (!coords) return null;
-      const [ox, oy] = coords;
-
-      const items = knn(sectorTree, ox, oy, 1) as RBushItem[];
-      if (!items || items.length === 0) return null;
-
-      const item: RBushItem = items[0];
-      const record = imageRecords.get(item.id);
-      if (!record) return null;
-
-      const dx = ox - record.x;
-      const dy = oy - record.y;
-      const distanceToCamera = Math.sqrt(dx * dx + dy * dy);
-
-      const dxg = ox - item.x;
-      const dyg = oy - item.y;
-      const distanceOnGround = Math.sqrt(dxg * dxg + dyg * dyg);
-
-      return {
-        record,
-        distanceOnGround,
-        distanceToCamera,
-        imageCenter: {
-          x: item.x,
-          y: item.y,
-          longitude: record.centerWGS84[0],
-          latitude: record.centerWGS84[1],
-          cardinal: record.sector,
-        },
-      };
+      }
+      console.debug("[PreviewRotate] request nearest", {
+        dir,
+        force: isPreviewVisible,
+        computeOnly: !!opts?.computeOnly,
+      });
+      const results = selectedImageRefresh({
+        direction: dir,
+        immediate: true,
+        force: isPreviewVisible,
+        computeOnly: !!opts?.computeOnly,
+      });
+      const nearestId =
+        results && results.length ? results[0]?.record?.id : null;
+      console.debug("[PreviewRotate] nearest results", {
+        count: results?.length ?? 0,
+        nearestId,
+      });
+      return results && results.length ? results[0] : null;
     },
-    [footprintCenterpointsRBushByCardinals, converter, imageRecords, orbitPoint]
+    [selectedImageRefresh, isPreviewVisible]
   );
 
   // Fly-to handling for next capture (without opening preview)
@@ -315,6 +289,13 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     const flyOptions = rotatedFlyPendingRef.current
       ? animations.flyToRotatedImage ?? animations.flyToExteriorOrientation
       : animations.flyToNextImage ?? animations.flyToExteriorOrientation;
+    console.debug("[PreviewRotate] flyTo start", {
+      rotated: rotatedFlyPendingRef.current,
+      using: rotatedFlyPendingRef.current
+        ? "flyToRotatedImage"
+        : "flyToNextImage",
+      targetId: selectedImage?.record?.id,
+    });
     rotatedFlyPendingRef.current = false;
     flyToExteriorOrientation(
       viewer,
@@ -330,6 +311,9 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
         if (!isPreviewVisible) {
           setSuspendSelectionSearch(false);
         }
+        console.debug("[PreviewRotate] flyTo complete", {
+          previewVisible: isPreviewVisible,
+        });
         cesiumSafeRequestRender(viewerRef.current);
       },
       flyOptions
@@ -341,10 +325,14 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     derivedExteriorOrientationRef,
     setSuspendSelectionSearch,
     isPreviewVisible,
+    selectedImage?.record?.id,
   ]);
 
   useEffect(() => {
     if (!nextCaptureShouldFlyRef.current) return;
+    console.debug("[PreviewRotate] selectedImage changed; triggering fly", {
+      imageId: selectedImage?.record?.id,
+    });
     nextCaptureShouldFlyRef.current = false;
     flyToCurrentEOWithoutPreview();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -443,44 +431,117 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
 
   // When rotating in preview: fade current image, trigger nearest search after rotation, and fly to the result
   const rotateCameraWithPreview = useCallback(
-    (clockwise: boolean) => {
+    (clockwise: boolean): boolean => {
       if (isPreviewVisible) {
         // compute target direction relative to current active cardinal
         const targetDir = (
           clockwise ? (activeDirection + 3) % 4 : (activeDirection + 1) % 4
         ) as CardinalDirectionEnum;
-        const nearest = findNearestForCardinal(targetDir);
-        if (!nearest) return; // suppress free rotation when none found
+        console.debug("[PreviewRotate] rotateCamera in preview", {
+          clockwise,
+          activeDirection,
+          targetDir,
+        });
+        // First compute nearest without mutating selection so we can set flags before selection change
+        const nearest = findNearestForCardinal(targetDir, {
+          computeOnly: true,
+        });
+        if (!nearest) return false; // suppress free rotation when none found
+        if (nearest.record.id === selectedImage?.record?.id) {
+          console.debug("[PreviewRotate] no-op same image", {
+            imageId: nearest.record.id,
+          });
+          return false;
+        }
 
         lastMoveDirRef.current = targetDir;
         setShouldRemoveCurrentPreviewImage(true);
         nextCaptureShouldFlyRef.current = true;
         rotatedFlyPendingRef.current = true;
-        setSelectedImage(nearest);
-        return; // skip camera rotation animation in preview
+        console.debug("[PreviewRotate] flags set for fly", {
+          imageId: nearest.record.id,
+        });
+        // Now trigger selection update
+        selectedImageRefresh?.({
+          direction: targetDir,
+          immediate: true,
+          force: isPreviewVisible,
+        });
+        return true; // step accepted; fly will be triggered by selection change
       }
       rotateCamera(clockwise);
+      return true;
     },
     [
       isPreviewVisible,
       rotateCamera,
       activeDirection,
       findNearestForCardinal,
-      setSelectedImage,
+      selectedImageRefresh,
+      selectedImage?.record?.id,
+    ]
+  );
+
+  // Keypress writer: accumulate intent during preview; execute immediately otherwise
+  const rotateCameraKeypress = useCallback(
+    (clockwise: boolean) => {
+      if (isPreviewVisible) {
+        // If search callback isn't wired yet, ignore rotation to avoid loops
+        if (!selectedImageRefresh) {
+          if (!warnedMissingRefreshRef.current) {
+            console.debug(
+              "[PreviewRotate] search not ready; ignoring rotation until initialized",
+              { hasRefresh: !!selectedImageRefresh, isAllDataReady }
+            );
+            warnedMissingRefreshRef.current = true;
+          }
+          return;
+        }
+        shouldRotateGridByIncrementRef.current += clockwise ? 1 : -1;
+        cesiumSafeRequestRender(viewerRef.current);
+        return;
+      }
+      rotateCamera(clockwise);
+    },
+    [
+      isPreviewVisible,
+      shouldRotateGridByIncrementRef,
+      rotateCamera,
+      viewerRef,
+      selectedImageRefresh,
+      isAllDataReady,
     ]
   );
 
   const rotateToDirectionWithPreview = useCallback(
     (dir: CardinalDirectionEnum) => {
       if (isPreviewVisible) {
-        const nearest = findNearestForCardinal(dir);
+        console.debug("[PreviewRotate] rotateToDirection in preview", {
+          dir,
+        });
+        // Phase 1: compute nearest without mutating selection so flags can be set beforehand
+        const nearest = findNearestForCardinal(dir, { computeOnly: true });
         if (!nearest) return; // no animation when nothing to fly to
+        if (nearest.record.id === selectedImage?.record?.id) {
+          console.debug("[PreviewRotate] no-op same image", {
+            imageId: nearest.record.id,
+          });
+          return;
+        }
 
         lastMoveDirRef.current = dir;
         setShouldRemoveCurrentPreviewImage(true);
         nextCaptureShouldFlyRef.current = true;
         rotatedFlyPendingRef.current = true;
-        setSelectedImage(nearest);
+        console.debug("[PreviewRotate] flags set for fly", {
+          imageId: nearest.record.id,
+        });
+        // Phase 2: trigger selection update to new direction to kick off fly effect
+        selectedImageRefresh?.({
+          direction: dir,
+          immediate: true,
+          force: isPreviewVisible,
+        });
         return; // skip camera rotation animation in preview
       }
       rotateToDirection(dir);
@@ -489,9 +550,126 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       isPreviewVisible,
       rotateToDirection,
       findNearestForCardinal,
-      setSelectedImage,
+      selectedImageRefresh,
+      selectedImage?.record?.id,
     ]
   );
+
+  // Drain one rotation per frame when there is pending intent
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (!isValidViewerInstance(viewer)) return;
+
+    const handler = () => {
+      // Defer and clear rotation intent until search is initialized to avoid per-frame looping
+      if (isPreviewVisible && !selectedImageRefresh) {
+        if (
+          shouldRotateGridByIncrementRef.current !== 0 &&
+          !warnedMissingRefreshRef.current
+        ) {
+          console.debug(
+            "[PreviewRotate] search not ready; clearing rotation intent",
+            { hasRefresh: !!selectedImageRefresh, isAllDataReady }
+          );
+          warnedMissingRefreshRef.current = true;
+        }
+        shouldRotateGridByIncrementRef.current = 0;
+        return;
+      }
+      const step = Math.sign(shouldRotateGridByIncrementRef.current);
+      if (step === 0) return;
+      if (animationInProgressRef.current || rotatedFlyPendingRef.current)
+        return;
+
+      const clockwise = step > 0;
+
+      let executed = true;
+      if (isPreviewVisible) {
+        executed = rotateCameraWithPreview(clockwise);
+      } else {
+        rotateCamera(clockwise);
+      }
+
+      if (executed) {
+        shouldRotateGridByIncrementRef.current -= step;
+      }
+    };
+
+    viewer.scene.preUpdate.addEventListener(handler);
+    return () => {
+      if (isValidViewerInstance(viewer)) {
+        viewer.scene.preUpdate.removeEventListener(handler);
+      }
+    };
+  }, [
+    viewerRef,
+    isPreviewVisible,
+    rotateCameraWithPreview,
+    rotateCamera,
+    shouldRotateGridByIncrementRef,
+    selectedImageRefresh,
+  ]);
+
+  // Clear pending rotation queue when preview closes
+  useEffect(() => {
+    if (!isPreviewVisible) {
+      shouldRotateGridByIncrementRef.current = 0;
+    }
+  }, [isPreviewVisible, shouldRotateGridByIncrementRef]);
+
+  // Log readiness and expose a simple debug probe to verify nearest by increment
+  useEffect(() => {
+    if (selectedImageRefresh && isAllDataReady) {
+      console.debug("[PreviewRotate] search ready");
+    }
+    if (isDebugMode) {
+      (window as any).__obliqueRotateDebug = {
+        testIncrement: (clockwise: boolean) => {
+          if (!selectedImageRefresh || !isAllDataReady) {
+            console.debug(
+              "[PreviewRotate] debug: search not ready for testIncrement"
+            );
+            return;
+          }
+          const targetDir = (
+            clockwise ? (activeDirection + 3) % 4 : (activeDirection + 1) % 4
+          ) as CardinalDirectionEnum;
+          console.debug("[PreviewRotate] debug: testing nearest for", {
+            activeDirection,
+            targetDir,
+          });
+          const results = selectedImageRefresh({
+            direction: targetDir,
+            immediate: true,
+            force: true,
+            computeOnly: true,
+          });
+          const nearestId =
+            results && results.length ? results[0]?.record?.id : null;
+          console.debug("[PreviewRotate] debug: nearest results", {
+            count: results?.length ?? 0,
+            nearestId,
+          });
+          return results;
+        },
+      };
+    }
+    return () => {
+      if (isDebugMode && (window as any).__obliqueRotateDebug) {
+        delete (window as any).__obliqueRotateDebug;
+      }
+    };
+  }, [isDebugMode, selectedImageRefresh, isAllDataReady, activeDirection]);
+
+  // Reset one-time warning when conditions improve
+  useEffect(() => {
+    if (isPreviewVisible && selectedImageRefresh && isAllDataReady) {
+      warnedMissingRefreshRef.current = false;
+    }
+    if (!isPreviewVisible) {
+      warnedMissingRefreshRef.current = false;
+    }
+  }, [isPreviewVisible, selectedImageRefresh, isAllDataReady]);
 
   useFootprints(isDebugMode);
 
@@ -504,7 +682,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   useObliqueDirectionKeybindings({
     activeDirection,
     siblingCallbacks,
-    rotateCamera: rotateCameraWithPreview,
+    rotateCamera: rotateCameraKeypress,
   });
 
   useEffect(() => {
@@ -629,7 +807,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
           onDirectDownload={handleDirectDownload}
           isDebugMode={isDebugMode}
           showCompactDirectionControls
-          rotateCamera={rotateCameraWithPreview}
+          rotateCamera={rotateCameraKeypress}
           rotateToDirection={rotateToDirectionWithPreview}
           activeDirection={activeDirection}
           siblingCallbacks={siblingCallbacks}
