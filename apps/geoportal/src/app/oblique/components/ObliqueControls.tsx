@@ -485,28 +485,24 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   // Keypress writer: accumulate intent during preview; execute immediately otherwise
   const rotateCameraKeypress = useCallback(
     (clockwise: boolean) => {
-      if (isPreviewVisible) {
-        // If search callback isn't wired yet, ignore rotation to avoid loops
-        if (!selectedImageRefresh) {
-          if (!warnedMissingRefreshRef.current) {
-            console.debug(
-              "[PreviewRotate] search not ready; ignoring rotation until initialized",
-              { hasRefresh: !!selectedImageRefresh, isAllDataReady }
-            );
-            warnedMissingRefreshRef.current = true;
-          }
-          return;
+      // In preview: if search callback isn't wired yet, ignore to avoid loops
+      if (isPreviewVisible && !selectedImageRefresh) {
+        if (!warnedMissingRefreshRef.current) {
+          console.debug(
+            "[PreviewRotate] search not ready; ignoring rotation until initialized",
+            { hasRefresh: !!selectedImageRefresh, isAllDataReady }
+          );
+          warnedMissingRefreshRef.current = true;
         }
-        shouldRotateGridByIncrementRef.current += clockwise ? 1 : -1;
-        cesiumSafeRequestRender(viewerRef.current);
         return;
       }
-      rotateCamera(clockwise);
+      // Otherwise (preview with refresh OR explore), enqueue and let handler drain
+      shouldRotateGridByIncrementRef.current += clockwise ? 1 : -1;
+      cesiumSafeRequestRender(viewerRef.current);
     },
     [
       isPreviewVisible,
       shouldRotateGridByIncrementRef,
-      rotateCamera,
       viewerRef,
       selectedImageRefresh,
       isAllDataReady,
