@@ -199,10 +199,10 @@ export function LibFuzzySearch({
           const newString = item.string.replace(/Str\./gi, "Straße");
           const newObj = {
             ...item,
-            string: newString,
-            sorter: item.sorter
-              ? `${item.sorter}_strasse`
-              : `${Date.now()}_${Math.random()}`,
+            // string: newString,
+            // sorter: item.sorter
+            //   ? `${item.sorter}_strasse`
+            //   : `${Date.now()}_${Math.random()}`,
             xSearchData: newString,
           };
 
