@@ -188,7 +188,10 @@ export function LibFuzzySearch({
       const modifyAdressen = [];
 
       allModifiedData.forEach((item) => {
-        if (item.glyph === "home" && item.string.includes("Str.")) {
+        if (
+          item.glyph === "home" &&
+          item.string.toLowerCase().includes("str.")
+        ) {
           const newString = item.string.replace(/Str\./gi, "Straße");
           const newObj = {
             ...item,
@@ -199,7 +202,6 @@ export function LibFuzzySearch({
           };
 
           modifyAdressen.push(newObj);
-          // console.log("xxx item", newObj);
         }
       });
       setAllGazeteerData([...allModifiedData, ...modifyAdressen]);
