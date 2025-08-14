@@ -603,6 +603,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     };
   }, [
     viewerRef,
+    isAllDataReady,
     isPreviewVisible,
     rotateCameraWithPreview,
     rotateCamera,

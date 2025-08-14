@@ -8,11 +8,13 @@ import {
 
 import {
   Cartesian3,
+  Cartesian2,
   EasingFunction,
   ScreenSpaceEventType,
   ScreenSpaceEventHandler,
   Math as CesiumMath,
   HeadingPitchRange,
+  type Viewer,
 } from "cesium";
 
 import {
@@ -43,6 +45,30 @@ export const useObliqueCameraHandlers = (
     isDebugMode
   );
 
+  // Returns a stable orbit center. If no orbitPoint is available yet (e.g., before selecting an image),
+  // use the pick on the globe at the screen center; as a last resort, use the current camera position.
+  const getOrbitCenter = useCallback(
+    (viewer: Viewer | null | undefined): Cartesian3 => {
+      if (orbitPoint) return orbitPoint;
+      const scene = viewer?.scene;
+      const camera = viewer?.camera;
+      const canvas = viewer?.canvas;
+      if (scene && camera && canvas && scene.globe && camera.getPickRay) {
+        try {
+          const ray = camera.getPickRay(
+            new Cartesian2(canvas.clientWidth / 2, canvas.clientHeight / 2)
+          );
+          const picked = scene.globe.pick(ray, scene);
+          if (picked) return picked;
+        } catch (_) {
+          // ignore and fallback to camera position below
+        }
+      }
+      return camera?.position || Cartesian3.ZERO;
+    },
+    [orbitPoint]
+  );
+
   const rotateToHeading = useCallback(
     (targetHeading: number) => {
       const viewer = viewerRef.current;
@@ -66,7 +92,8 @@ export const useObliqueCameraHandlers = (
       }
 
       // Calculate the range (distance from center)
-      const range = Cartesian3.distance(orbitPoint, camera.position);
+      const centerPoint = getOrbitCenter(viewer);
+      const range = Cartesian3.distance(centerPoint, camera.position);
 
       // Start the animation
       animationInProgressRef.current = true;
@@ -99,7 +126,7 @@ export const useObliqueCameraHandlers = (
           const intermediateHeading = normalizedCurrent + headingChange * t;
 
           camera.lookAt(
-            orbitPoint,
+            centerPoint,
             new HeadingPitchRange(intermediateHeading, camera.pitch, range)
           );
 
@@ -108,7 +135,7 @@ export const useObliqueCameraHandlers = (
           scene.requestRender();
         } else {
           camera.lookAt(
-            orbitPoint,
+            centerPoint,
             new HeadingPitchRange(normalizedTarget, camera.pitch, range)
           );
 
@@ -140,6 +167,7 @@ export const useObliqueCameraHandlers = (
       orbitPoint,
       isDebugMode,
       animationInProgressRef,
+      getOrbitCenter,
     ]
   );
   const userMovedCameraRef = useRef<boolean>(false);
@@ -173,7 +201,8 @@ export const useObliqueCameraHandlers = (
       }
 
       // Calculate the range (distance from center)
-      const range = Cartesian3.distance(orbitPoint, camera.position);
+      const centerPoint = getOrbitCenter(viewer);
+      const range = Cartesian3.distance(centerPoint, camera.position);
 
       // Start the animation
       animationInProgressRef.current = true;
@@ -206,7 +235,7 @@ export const useObliqueCameraHandlers = (
           const intermediateHeading = currentHeading + headingChange * t;
 
           camera.lookAt(
-            orbitPoint,
+            centerPoint,
             new HeadingPitchRange(intermediateHeading, camera.pitch, range)
           );
 
@@ -215,7 +244,7 @@ export const useObliqueCameraHandlers = (
           scene.requestRender();
         } else {
           camera.lookAt(
-            orbitPoint,
+            centerPoint,
             new HeadingPitchRange(targetHeading, camera.pitch, range)
           );
 
@@ -243,6 +272,7 @@ export const useObliqueCameraHandlers = (
       orbitPoint,
       isDebugMode,
       animationInProgressRef,
+      getOrbitCenter,
     ]
   );
 
