@@ -94,13 +94,13 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     prefetchSiblingPreview,
     setSuspendSelectionSearch,
     selectedImageRefresh,
+    shouldRotateGridByIncrementRef,
   } = useOblique();
   const siblingsByCardinal = useSiblingsByCardinal();
   const {
     viewerRef,
     shouldSuspendPitchLimiterRef,
     shouldSuspendCameraLimitersRef,
-    shouldRotateGridByIncrementRef,
   } = useCesiumContext();
   const imageId = selectedImage?.record?.id;
   const cameraId = selectedImage?.record?.cameraId;

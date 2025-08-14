@@ -116,6 +116,8 @@ interface ObliqueContextType {
   prefetchSiblingPreview: (imageId: string, dir: CardinalDirectionEnum) => void;
   // Optional override for heading used in nearest-image computation (radians). One-shot.
   requestedHeadingRef: React.MutableRefObject<number | null>;
+  // Accumulated rotation intent for preview rotation; drained per frame
+  shouldRotateGridByIncrementRef: React.MutableRefObject<number>;
 }
 
 const ObliqueContext = createContext<ObliqueContextType | null>(null);
@@ -137,6 +139,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
   fallbackDirectionConfig,
 }) => {
   const { viewerRef } = useCesiumContext();
+  const shouldRotateGridByIncrementRef = useRef(0);
   const { updateHash, getHashValues } = useHashState();
   // Read initial oblique mode from hash only once on mount
   const [isObliqueMode, setIsObliqueMode] = useState<boolean>(() => {
@@ -473,6 +476,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     knownSiblingIds,
     prefetchSiblingPreview,
     requestedHeadingRef,
+    shouldRotateGridByIncrementRef,
   };
 
   return (
