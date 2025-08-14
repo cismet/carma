@@ -120,7 +120,7 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
       },
       displayZoomToFeature: true,
       zoomToFeature: () => {
-        utils.zoomToFeature(selectedFeature, routedMapRef);
+        utils.zoomToFeature(selectedFeature, routedMapRef, [60, 60]);
       },
     });
   }

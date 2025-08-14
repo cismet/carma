@@ -262,15 +262,21 @@ export const zoomToFeature = (
     leafletMap: {
       leafletElement: L.Map;
     };
-  }
+  },
+  padding: [number, number] = [0, 0]
 ) => {
   if (selectedFeature.properties.wmsProps.bounds) {
     const bbox = JSON.parse(selectedFeature.properties.wmsProps.bounds);
     if (routedMapRef) {
-      routedMapRef.leafletMap.leafletElement.fitBounds([
-        [bbox[3], bbox[2]],
-        [bbox[1], bbox[0]],
-      ]);
+      routedMapRef.leafletMap.leafletElement.fitBounds(
+        [
+          [bbox[3], bbox[2]],
+          [bbox[1], bbox[0]],
+        ],
+        {
+          padding: padding,
+        }
+      );
     }
   } else if (selectedFeature.geometry) {
     const type = selectedFeature.geometry.type;
@@ -287,10 +293,15 @@ export const zoomToFeature = (
       const bbox = envelope(selectedFeature.geometry).bbox;
 
       if (routedMapRef) {
-        routedMapRef.leafletMap.leafletElement.fitBounds([
-          [bbox[3], bbox[2]],
-          [bbox[1], bbox[0]],
-        ]);
+        routedMapRef.leafletMap.leafletElement.fitBounds(
+          [
+            [bbox[3], bbox[2]],
+            [bbox[1], bbox[0]],
+          ],
+          {
+            padding: padding,
+          }
+        );
       }
     }
   }
