@@ -8,6 +8,7 @@ import {
   setIsAnimating,
 } from "../slices/cesium";
 import { useCesiumViewer } from "./useCesiumViewer";
+import { useCesiumContext } from "./useCesiumContext";
 
 const NADIR_THRESHOLD = 0.2;
 
@@ -25,6 +26,7 @@ const useCameraRollSoftLimiter = ({
   const viewer = useCesiumViewer();
   const dispatch = useDispatch();
   const isMode2d = useSelector(selectViewerIsMode2d);
+  const { shouldSuspendCameraLimitersRef } = useCesiumContext();
 
   const onComplete = useCallback(
     () => dispatch(clearIsAnimating()),
@@ -38,6 +40,7 @@ const useCameraRollSoftLimiter = ({
           "HOOK [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to reset rolled camera"
         );
       const moveEndListener = async () => {
+        if (shouldSuspendCameraLimitersRef?.current) return;
         if (viewer.camera.position && !isMode2d) {
           const rollDeviation = CesiumMath.equalsEpsilon(
             viewer.camera.roll,
@@ -103,6 +106,7 @@ const useCameraRollSoftLimiter = ({
     debug,
     nadirThreshold,
     rollThreshold,
+    shouldSuspendCameraLimitersRef,
   ]);
 };
 

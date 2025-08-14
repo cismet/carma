@@ -10,7 +10,6 @@ import {
 
 import { useOblique } from "./useOblique";
 import { enterObliqueMode, leaveObliqueMode } from "../utils/cameraUtils";
-import { useObliqueNearestImage } from "./useObliqueNearestImage";
 
 const viewerPreUpdateHandlers = new WeakMap<Viewer, (scene: Scene) => void>();
 
@@ -26,8 +25,6 @@ export function useObliqueInitializer(debug = false) {
     headingOffset,
   } = useOblique();
   const originalFovRef = useRef<number | null>(null);
-
-  useObliqueNearestImage(debug);
 
   const wheelZoomOptions = useMemo(
     () => ({

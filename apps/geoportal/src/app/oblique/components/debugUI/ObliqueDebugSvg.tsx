@@ -1,16 +1,24 @@
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Math as CesiumMath } from "cesium";
-import { useCesiumContext } from "@carma-mapping/cesium-engine";
+import {
+  useCesiumContext,
+  isValidViewerInstance,
+} from "@carma-mapping/cesium-engine";
 import { Collapse } from "antd";
 
 import { useOblique } from "../../hooks/useOblique";
-import { CardinalNames } from "../../utils/orientationUtils";
+import {
+  CardinalNames,
+  getCardinalDirectionFromHeading,
+  getHeadingFromCardinalDirection,
+} from "../../utils/orientationUtils";
 import { OBLIQUE_PREVIEW_QUALITY } from "../../constants";
 import { getPreviewImageUrl } from "../../utils/imageHandling";
-import { useObliqueNearestImage } from "../../hooks/useObliqueNearestImage";
 import { CAMERA_ID_TO_UP_VECTOR_MATRIX_MAPPING } from "../../config";
 import { ObliqueControlPanel } from "./ObliqueControlPanel";
 import { computeDerivedExteriorOrientation } from "../../utils/transformExteriorOrientation";
+import { calculateImageCoordsFromCartesian } from "../../utils/obliqueReferenceUtils";
+import type { NearestObliqueImageRecord } from "../../types";
 
 export const ObliqueDebugSvg = () => {
   // UI state variables
@@ -28,20 +36,90 @@ export const ObliqueDebugSvg = () => {
   const [imageRotation, setImageRotation] = useState(0); // 0, 90, 180, 270 degrees
   // Core contexts and refs
   const { viewerRef } = useCesiumContext();
-  const { converter, headingOffset, previewPath } = useOblique();
+  const { converter, headingOffset, previewPath, selectedImageRefresh } =
+    useOblique();
   const camera = viewerRef?.current?.camera;
 
-  // Use enhanced hook for camera and image calculations
-  const {
-    cameraPosition,
-    cameraHeading,
-    cardinalSector,
-    radiusPointCoords,
-    pointOnGround,
-    pointOnRadius,
+  // Compute camera and sector values locally
+  const cameraHeading = useMemo(() => {
+    const raw = camera?.heading || 0;
+    return raw - headingOffset;
+  }, [camera?.heading, headingOffset]);
+
+  const cardinalSector = useMemo(
+    () => getCardinalDirectionFromHeading(cameraHeading),
+    [cameraHeading]
+  );
+  const sectorHeading = useMemo(
+    () => getHeadingFromCardinalDirection(cardinalSector),
+    [cardinalSector]
+  );
+
+  const cameraPosition = useMemo(() => {
+    if (!converter || !camera) return [0, 0] as [number, number];
+    // Transform camera position into local CRS
+    try {
+      // camera.position is a Cartesian3
+      return calculateImageCoordsFromCartesian(camera.position, converter);
+    } catch {
+      return [0, 0] as [number, number];
+    }
+  }, [camera, converter]);
+
+  // Derived points in local CRS
+  const pointOnGround = useMemo(() => {
+    const height = camera?.positionCartographic?.height || 0;
+    const dist = camera?.pitch ? height * Math.tan(camera.pitch) : 0;
+    return {
+      x: dist * Math.sin(cameraHeading),
+      y: dist * Math.cos(cameraHeading),
+    };
+  }, [camera?.pitch, camera?.positionCartographic?.height, cameraHeading]);
+
+  const pointOnRadius = useMemo(() => {
+    const height = camera?.positionCartographic?.height || 0;
+    const r = camera?.pitch ? Math.abs(height * Math.tan(camera.pitch)) : 0;
+    return {
+      x: pointOnGround.x + r * Math.sin(sectorHeading),
+      y: pointOnGround.y + r * Math.cos(sectorHeading),
+    };
+  }, [
+    camera?.pitch,
+    camera?.positionCartographic?.height,
+    pointOnGround.x,
+    pointOnGround.y,
     sectorHeading,
-    nearestImages,
-  } = useObliqueNearestImage(true);
+  ]);
+
+  const radiusPointCoords = useMemo<[number, number]>(() => {
+    return [
+      cameraPosition[0] + pointOnRadius.x,
+      cameraPosition[1] + pointOnRadius.y,
+    ];
+  }, [cameraPosition, pointOnRadius.x, pointOnRadius.y]);
+
+  const [nearestImages, setNearestImages] = useState<
+    NearestObliqueImageRecord[]
+  >([]);
+
+  // Subscribe to camera changes to refresh nearest images using centralized search
+  useEffect(() => {
+    const viewer = viewerRef.current;
+    if (
+      !isValidViewerInstance(viewer) ||
+      typeof selectedImageRefresh !== "function"
+    )
+      return;
+    const refresh = () => {
+      const res = selectedImageRefresh({ computeOnly: true });
+      if (res) setNearestImages(res);
+    };
+    viewer.camera.changed.addEventListener(refresh);
+    refresh();
+    return () => {
+      viewer.camera.changed.removeEventListener(refresh);
+    };
+  }, [viewerRef, selectedImageRefresh]);
 
   // SVG dimensions
   const svgWidth = 800;
@@ -56,8 +134,7 @@ export const ObliqueDebugSvg = () => {
     ? cameraHeight * Math.tan(camera.pitch)
     : 0;
 
-  // No additional filtering needed - we'll directly use the nearest images
-  // which are already filtered in the useEffect
+  // Nearest images are already filtered by sector from provider search
 
   if (!nearestImages.length) {
     return null;

@@ -606,8 +606,8 @@ const MapWrapper = () => {
             <LibreGeoportalMap />
           ) : (
             <>
-              {!isMode2d && <ObliqueControls />}
               <GeoportalMap height={height} width={width} allow3d={allow3d} />
+              {!isMode2d && <ObliqueControls />}
             </>
           )}
         </div>

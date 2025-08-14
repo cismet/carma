@@ -21,6 +21,7 @@ export interface CesiumContextType {
     secondaryRef: MutableRefObject<Cesium3DTileset | null>;
   };
   shouldSuspendPitchLimiterRef: MutableRefObject<boolean>;
+  shouldSuspendCameraLimitersRef: MutableRefObject<boolean>;
   isViewerReady: boolean;
   setIsViewerReady: (flag: boolean) => void;
 }

@@ -43,6 +43,7 @@ export const CesiumContextProvider = ({
   const primaryTilesetRef = useRef<Cesium3DTileset | null>(null);
   const secondaryTilesetRef = useRef<Cesium3DTileset | null>(null);
   const shouldSuspendPitchLimiterRef = useRef(false);
+  const shouldSuspendCameraLimitersRef = useRef(false);
 
   // explicitly trigger re-renders
   const [isViewerReady, setIsViewerReady] = useState<boolean>(false);
@@ -187,6 +188,7 @@ export const CesiumContextProvider = ({
         secondaryRef: secondaryTilesetRef,
       },
       shouldSuspendPitchLimiterRef,
+      shouldSuspendCameraLimitersRef,
       isViewerReady,
       setIsViewerReady,
     }),

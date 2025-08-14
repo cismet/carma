@@ -4,6 +4,7 @@ import { useSelector } from "react-redux";
 import { Math as CesiumMath, Cartographic, EasingFunction } from "cesium";
 
 import { useCesiumViewer } from "./useCesiumViewer";
+import { useCesiumContext } from "./useCesiumContext";
 import {
   selectScreenSpaceCameraControllerEnableCollisionDetection,
   selectViewerIsAnimating,
@@ -27,6 +28,7 @@ const useCameraPitchEasingLimiter = (
   const pitchLimiter =
     options.pitchLimiter === undefined ? true : options.pitchLimiter;
   const viewer = useCesiumViewer();
+  const { shouldSuspendCameraLimitersRef } = useCesiumContext();
 
   const isMode2d = useSelector(selectViewerIsMode2d);
   const isAnimating = useSelector(selectViewerIsAnimating);
@@ -50,6 +52,7 @@ const useCameraPitchEasingLimiter = (
       lastPosition.current = null;
 
       const onUpdate = async () => {
+        if (shouldSuspendCameraLimitersRef?.current) return;
         if (isTransitioningRef.current || isAnimatingRef.current) {
           console.debug(
             "HOOK [CESIUM|CAMERA] EASING Pitch Limiter skipped while transitioning or animating"
@@ -126,6 +129,7 @@ const useCameraPitchEasingLimiter = (
     easing,
     easingRangeDeg,
     minPitchDeg,
+    shouldSuspendCameraLimitersRef,
   ]);
 };
 

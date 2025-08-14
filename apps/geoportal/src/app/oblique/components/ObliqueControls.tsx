@@ -30,6 +30,7 @@ import { ObliqueImagePreview } from "./ObliqueImagePreview";
 import { ObliqueImageInfo } from "./debugUI/ObliqueImageInfo";
 import { CameraVectorControls } from "./debugUI/CameraVectorControls";
 import { ObliqueDirectionControls } from "./ObliqueDirectionControls";
+import { ObliqueDirectionControlsCompact } from "./ObliqueDirectionControls.Compact";
 import ObliqueOrientationCube from "./ObliqueOrientationCube";
 
 import { useExteriorOrientation } from "../hooks/useExteriorOrientation";
@@ -37,13 +38,14 @@ import { useFootprints } from "../hooks/useFootprints";
 import { useOblique } from "../hooks/useOblique";
 import { useObliqueCameraHandlers } from "../hooks/useObliqueCameraHandlers";
 import { useSiblingsByCardinal } from "../hooks/useSiblingsByCardinal";
+import { useObliqueDirectionKeybindings } from "../hooks/useObliqueDirectionKeybindings";
 
 import { flyToExteriorOrientation } from "../utils/cameraUtils";
 import { downloadAsBlobAsync } from "../utils/downloads";
 import { getImageUrls } from "../utils/imageHandling";
 import {
-  subscribeToPreviewVisibility,
   notifyPreviewVisibilityChange,
+  subscribeToPreviewVisibility,
 } from "../utils/previewVisibility";
 
 import { CAMERA_ID_INTERIOR_ORIENTATION_PERCENTAGE_OFFSETS } from "../config";
@@ -91,15 +93,24 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     setSelectedImage,
     prefetchSiblingPreview,
     setSuspendSelectionSearch,
+    selectedImageRefresh,
   } = useOblique();
   const siblingsByCardinal = useSiblingsByCardinal();
-  const { viewerRef } = useCesiumContext();
+  const {
+    viewerRef,
+    shouldSuspendPitchLimiterRef,
+    shouldSuspendCameraLimitersRef,
+  } = useCesiumContext();
   const imageId = selectedImage?.record?.id;
   const cameraId = selectedImage?.record?.cameraId;
   const { isDebugMode, isObliqueUiEval } = useFeatureFlags();
   const animationInProgressRef = useRef<boolean>(false);
+  // Avoid repeated logs when refresh is not yet wired
+
   // Used to trigger fly-to after next capture navigation
   const nextCaptureShouldFlyRef = useRef(false);
+  // Marks that the upcoming fly was triggered by a rotation action in preview mode
+  const rotatedFlyPendingRef = useRef(false);
   // Exterior orientation for current nearest image (used for fly-to actions)
   const { derivedExteriorOrientationRef } =
     useExteriorOrientation(selectedImage);
@@ -111,6 +122,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const [invertLabels, setInvertLabels] = useState(true);
   const [shouldRender, setShouldRender] = useState(isObliqueMode);
   const [isPreviewVisible, setIsPreviewVisible] = useState(false);
+  const [isFlyButtonHovered, setIsFlyButtonHovered] = useState(false);
   // Hide footprints while preview is visible
   useEffect(() => {
     setLockFootprint(isPreviewVisible);
@@ -119,6 +131,23 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   useEffect(() => {
     setSuspendSelectionSearch(isPreviewVisible);
   }, [isPreviewVisible, setSuspendSelectionSearch]);
+  // Disable camera limiters while preview is visible
+  useEffect(() => {
+    if (shouldSuspendPitchLimiterRef)
+      shouldSuspendPitchLimiterRef.current = isPreviewVisible;
+    if (shouldSuspendCameraLimitersRef)
+      shouldSuspendCameraLimitersRef.current = isPreviewVisible;
+    return () => {
+      if (shouldSuspendPitchLimiterRef)
+        shouldSuspendPitchLimiterRef.current = false;
+      if (shouldSuspendCameraLimitersRef)
+        shouldSuspendCameraLimitersRef.current = false;
+    };
+  }, [
+    isPreviewVisible,
+    shouldSuspendPitchLimiterRef,
+    shouldSuspendCameraLimitersRef,
+  ]);
   const [shouldRemoveCurrentPreviewImage, setShouldRemoveCurrentPreviewImage] =
     useState(false);
   const [flyCompletionTick, setFlyCompletionTick] = useState(0);
@@ -131,6 +160,8 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const [brightnessBase, setBrightnessBase] = useState(125);
   const [contrastBase, setContrastBase] = useState(95);
   const [saturationBase, setSaturationBase] = useState(85);
+  const [useLegacyDirControls, setUseLegacyDirControls] = useState(false);
+
   const isTransitioning = useSelector(selectViewerIsTransitioning);
   // Track last directional move to prefetch ahead in the same direction on arrival
   const lastMoveDirRef = useRef<CardinalDirectionEnum | null>(null);
@@ -147,6 +178,8 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     // Keep overlay, just dim the image until the next one is loaded
     setShouldRemoveCurrentPreviewImage(true);
     nextCaptureShouldFlyRef.current = true;
+    // This is a sibling navigation, not a rotation fly
+    rotatedFlyPendingRef.current = false;
     lastMoveDirRef.current = dir;
     // Lock selection to the known next image to avoid flicker from live search
     setSuspendSelectionSearch(true);
@@ -212,6 +245,23 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     [siblingsByCardinal, requestNextCapture]
   );
 
+  // Request nearest image for a given cardinal via on-demand search
+  const findNearestForCardinal = useCallback(
+    (dir: CardinalDirectionEnum, opts?: { computeOnly?: boolean }) => {
+      if (typeof selectedImageRefresh !== "function") {
+        return null;
+      }
+      const results = selectedImageRefresh({
+        direction: dir,
+        immediate: true,
+        force: isPreviewVisible,
+        computeOnly: !!opts?.computeOnly,
+      });
+      return results && results.length ? results[0] : null;
+    },
+    [selectedImageRefresh, isPreviewVisible]
+  );
+
   // Fly-to handling for next capture (without opening preview)
 
   const flyToCurrentEOWithoutPreview = useCallback(() => {
@@ -222,8 +272,11 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     )
       return;
     animationInProgressRef.current = true;
-    const siblingFlyOptions =
-      animations.flyToNextImage ?? animations.flyToExteriorOrientation;
+    // Choose animation based on whether this fly was triggered by a rotation in preview
+    const flyOptions = rotatedFlyPendingRef.current
+      ? animations.flyToRotatedImage ?? animations.flyToExteriorOrientation
+      : animations.flyToNextImage ?? animations.flyToExteriorOrientation;
+    rotatedFlyPendingRef.current = false;
     flyToExteriorOrientation(
       viewer,
       derivedExteriorOrientationRef.current,
@@ -240,7 +293,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
         }
         cesiumSafeRequestRender(viewerRef.current);
       },
-      siblingFlyOptions
+      flyOptions
     );
   }, [
     viewerRef,
@@ -262,8 +315,9 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   useEffect(() => {
     const dir = lastMoveDirRef.current;
     if (!imageId || dir == null) return;
+    if (!isPreviewVisible) return; // do not prefetch while not in preview mode
     prefetchSiblingPreview(imageId, dir);
-  }, [imageId, prefetchSiblingPreview]);
+  }, [imageId, prefetchSiblingPreview, isPreviewVisible]);
 
   useControls(
     isDebugMode || isObliqueUiEval
@@ -271,7 +325,13 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
           showDirectionControls: {
             value: showDirectionControls,
             onChange: setShowDirectionControls,
-            label: "Dir controls",
+            label: "Small controls",
+          },
+          legacyDirControls: {
+            value: useLegacyDirControls,
+            onChange: setUseLegacyDirControls,
+            label: "Large controls",
+            render: () => showDirectionControls,
           },
           showOrientationCube: {
             value: showOrientationCube,
@@ -342,12 +402,117 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const { activeDirection, rotateCamera, rotateToDirection, rotateToHeading } =
     useObliqueCameraHandlers(animationInProgressRef, isDebugMode);
 
+  // When rotating in preview: fade current image, trigger nearest search after rotation, and fly to the result
+  const rotateCameraWithPreview = useCallback(
+    (clockwise: boolean): boolean => {
+      if (isPreviewVisible) {
+        // compute target direction relative to current active cardinal
+        const targetDir = (
+          clockwise ? (activeDirection + 3) % 4 : (activeDirection + 1) % 4
+        ) as CardinalDirectionEnum;
+        console.debug("[PreviewRotate] rotateCamera in preview", {
+          clockwise,
+          activeDirection,
+          targetDir,
+        });
+        // First compute nearest without mutating selection so we can set flags before selection change
+        const nearest = findNearestForCardinal(targetDir, {
+          computeOnly: true,
+        });
+        if (!nearest) return false; // suppress free rotation when none found
+        if (nearest.record.id === selectedImage?.record?.id) {
+          return false;
+        }
+
+        lastMoveDirRef.current = targetDir;
+        setShouldRemoveCurrentPreviewImage(true);
+        nextCaptureShouldFlyRef.current = true;
+        rotatedFlyPendingRef.current = true;
+        // Now trigger selection update
+        selectedImageRefresh?.({
+          direction: targetDir,
+          immediate: true,
+          force: isPreviewVisible,
+        });
+        return true; // step accepted; fly will be triggered by selection change
+      }
+      rotateCamera(clockwise);
+      return true;
+    },
+    [
+      isPreviewVisible,
+      rotateCamera,
+      activeDirection,
+      findNearestForCardinal,
+      selectedImageRefresh,
+      selectedImage?.record?.id,
+    ]
+  );
+
+  // Keypress: execute immediately
+  const rotateCameraKeypress = useCallback(
+    (clockwise: boolean) => {
+      if (isPreviewVisible) {
+        if (!selectedImageRefresh) return;
+        rotateCameraWithPreview(clockwise);
+      } else {
+        rotateCamera(clockwise);
+      }
+    },
+    [
+      isPreviewVisible,
+      rotateCameraWithPreview,
+      rotateCamera,
+      selectedImageRefresh,
+    ]
+  );
+
+  const rotateToDirectionWithPreview = useCallback(
+    (dir: CardinalDirectionEnum) => {
+      if (isPreviewVisible) {
+        // Phase 1: compute nearest without mutating selection so flags can be set beforehand
+        const nearest = findNearestForCardinal(dir, { computeOnly: true });
+        if (!nearest) return; // no animation when nothing to fly to
+        if (nearest.record.id === selectedImage?.record?.id) {
+          return;
+        }
+
+        lastMoveDirRef.current = dir;
+        setShouldRemoveCurrentPreviewImage(true);
+        nextCaptureShouldFlyRef.current = true;
+        rotatedFlyPendingRef.current = true;
+        // Phase 2: trigger selection update to new direction to kick off fly effect
+        selectedImageRefresh?.({
+          direction: dir,
+          immediate: true,
+          force: isPreviewVisible,
+        });
+        return; // skip camera rotation animation in preview
+      }
+      rotateToDirection(dir);
+    },
+    [
+      isPreviewVisible,
+      rotateToDirection,
+      findNearestForCardinal,
+      selectedImageRefresh,
+      selectedImage?.record?.id,
+    ]
+  );
+
   useFootprints(isDebugMode);
 
   const { downloadUrl, previewUrl, previewUrlHq, previewUrlOriginal } = useMemo(
     () => getImageUrls(imageId, previewPath, previewQualityLevel),
     [previewPath, previewQualityLevel, imageId]
   );
+
+  // Global keybindings for direction controls (WASD/Arrows/QE/Numpad)
+  useObliqueDirectionKeybindings({
+    activeDirection,
+    siblingCallbacks,
+    rotateCamera: rotateCameraKeypress,
+  });
 
   useEffect(() => {
     if (isObliqueMode) {
@@ -470,11 +635,19 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
           onOpenImageLink={openImageLink}
           onDirectDownload={handleDirectDownload}
           isDebugMode={isDebugMode}
+          showCompactDirectionControls
+          rotateCamera={rotateCameraKeypress}
+          rotateToDirection={rotateToDirectionWithPreview}
+          activeDirection={activeDirection}
+          siblingCallbacks={siblingCallbacks}
+          isDirectionLoading={false}
+          preloadNextEnabled={isFlyButtonHovered}
           onClose={() => {
             setIsPreviewVisible(false);
             notifyPreviewVisibilityChange(false);
             setLockFootprint(false);
             setSuspendSelectionSearch(false);
+            setShouldRemoveCurrentPreviewImage(false);
             setTimeout(() => {
               cesiumSafeRequestRender(viewerRef.current);
             }, 50);
@@ -517,6 +690,8 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
             {imageId && derivedExteriorOrientationRef.current && (
               <ControlButtonStyler
                 onClick={flyToNearestExteriorOrientation}
+                onMouseEnter={() => setIsFlyButtonHovered(true)}
+                onMouseLeave={() => setIsFlyButtonHovered(false)}
                 width="160px"
                 height="40px"
                 className="pointer-events-auto bg-blue-50 hover:bg-blue-100"
@@ -579,20 +754,31 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
               </div>
             )}
 
+            {useLegacyDirControls && (
+              <ObliqueDirectionControls
+                rotateCamera={rotateCamera}
+                rotateToDirection={rotateToDirection}
+                activeDirection={activeDirection}
+                isLoading={!isAllDataReady}
+                siblingCallbacks={
+                  directionalButtonType === "nextCapture"
+                    ? siblingCallbacks
+                    : undefined
+                }
+              />
+            )}
             {showDirectionControls && (
-              <div className="flex justify-center">
-                <ObliqueDirectionControls
-                  rotateCamera={rotateCamera}
-                  rotateToDirection={rotateToDirection}
-                  activeDirection={activeDirection}
-                  isLoading={!isAllDataReady}
-                  siblingCallbacks={
-                    directionalButtonType === "nextCapture"
-                      ? siblingCallbacks
-                      : undefined
-                  }
-                />
-              </div>
+              <ObliqueDirectionControlsCompact
+                rotateCamera={rotateCamera}
+                rotateToDirection={rotateToDirection}
+                activeDirection={activeDirection}
+                isLoading={!isAllDataReady}
+                siblingCallbacks={
+                  directionalButtonType === "nextCapture"
+                    ? siblingCallbacks
+                    : undefined
+                }
+              />
             )}
             {showOrientationCube && (
               <div className="flex justify-center">
