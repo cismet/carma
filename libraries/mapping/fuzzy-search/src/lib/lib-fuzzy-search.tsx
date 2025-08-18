@@ -119,7 +119,7 @@ export function LibFuzzySearch({
   const handleSearchAutoComplete = (value) => {
     if (allGazeteerData.length > 0 && fuseInstance) {
       const removeStopWords = removeStopwords(
-        value.replace(".", ""),
+        value.replace(".", ""), // / Remove dot to have stable score like
         stopwords,
         prepoHandling
       );
