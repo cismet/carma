@@ -10,11 +10,11 @@ import { LayerLib } from "@carma-mapping/layers";
 
 import { updateInfoElementsAfterRemovingFeature } from "../../store/slices/features";
 import {
+  addCustomFeatureFlags,
   addFavorite,
   getFavorites,
   getThumbnails,
   removeFavorite,
-  setCustomFeatureFlags,
   updateFavorite,
 } from "../../store/slices/layers";
 import {
@@ -232,7 +232,7 @@ const ResourceModal = () => {
           daqKey: "gp_entdecken",
         }}
         setFeatureFlags={(flags) => {
-          dispatch(setCustomFeatureFlags(flags));
+          dispatch(addCustomFeatureFlags(flags));
         }}
         store={store}
       />

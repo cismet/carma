@@ -66,8 +66,11 @@ const slice = createSlice({
       }
       return state;
     },
-    setCustomFeatureFlags(state, action: PayloadAction<FeatureFlagConfig>) {
-      state.customFeatureFlags = action.payload;
+    addCustomFeatureFlags(state, action: PayloadAction<FeatureFlagConfig>) {
+      state.customFeatureFlags = {
+        ...state.customFeatureFlags,
+        ...action.payload,
+      };
       return state;
     },
   },
@@ -78,7 +81,7 @@ export const {
   removeFavorite,
   updateFavorite,
   setThumbnail,
-  setCustomFeatureFlags,
+  addCustomFeatureFlags,
 } = slice.actions;
 
 export const getFavorites = (state: RootState): Item[] =>
