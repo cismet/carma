@@ -25,7 +25,7 @@ const LayerIcon = ({
 
   const iconName =
     layer.other?.icon ||
-    layer.other?.path.toLowerCase() + "/" + layer.other?.name;
+    layer.other?.path?.toLowerCase() + "/" + layer.other?.name;
 
   useEffect(() => {
     if (iconName) {
