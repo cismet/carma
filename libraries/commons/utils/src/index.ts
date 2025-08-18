@@ -6,6 +6,8 @@ export { extractCarmaConfig } from "./lib/carmaConfig";
 
 export { md5FetchText, md5ActionFetchDAQ } from "./lib/fetching";
 
+export { extractInformation } from "./lib/layer-parser";
+
 export {
   getGazData,
   type GazDataItem,
@@ -18,6 +20,8 @@ export { suppressReactCismapErrors } from "./lib/log-react-cismap-errors";
 export { normalizeOptions } from "./lib/normalizeOptions";
 
 export { clampToToleranceRange, clamp } from "./lib/numbers";
+
+export { preventPinchZoom } from "./lib/prevent-pinch-zoom.ts";
 
 export {
   PROJ4_CONVERTERS,
@@ -37,7 +41,3 @@ export {
 export { getApplicationVersion } from "./lib/version";
 
 export { detectWebGLContext } from "./lib/webgl";
-
-export { extractInformation } from "./lib/layer-parser";
-
-// Removed Cesium perspective helpers; moved to Cesium engine package

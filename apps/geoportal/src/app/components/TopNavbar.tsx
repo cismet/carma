@@ -108,7 +108,7 @@ const TopNavbar = () => {
 
       <button
         onClick={toggleMobileMenu}
-        className="sm:hidden flex items-center justify-center p-2"
+        className="sm:hidden flex items-center justify-center p-2 select-none"
       >
         <FontAwesomeIcon
           icon={mobileMenuOpen ? faChevronRight : faChevronLeft}
@@ -134,7 +134,7 @@ const TopNavbar = () => {
             title="Hilfefolie überlagern"
           >
             <button
-              className="hover:text-gray-600 text-xl lg:mr-11 hidden sm:block xl:mr-40"
+              className="hover:text-gray-600 text-xl lg:mr-11 hidden sm:block xl:mr-40 select-none"
               onClick={showOverlayHandler}
               data-test-id="helper-overlay-btn"
               ref={helpOverlayTourRef}
@@ -158,7 +158,7 @@ const TopNavbar = () => {
               <Button
                 type={isObliqueMode ? "primary" : "default"}
                 onClick={toggleObliqueMode}
-                className="mr-2"
+                className="mr-2 select-none"
               >
                 <FontAwesomeIcon icon={faPlane} rotation={270} />
                 <FontAwesomeIcon icon={faImages} />
@@ -185,19 +185,31 @@ const TopNavbar = () => {
                     isMode2d ? selectedMapLayer.title : "LoD2-Gebäude (NRW)"
                   }
                 >
-                  <Radio.Button value={MapStyleKeys.TOPO}>Karte</Radio.Button>
+                  <Radio.Button
+                    className="select-none"
+                    value={MapStyleKeys.TOPO}
+                  >
+                    Karte
+                  </Radio.Button>
                 </Tooltip>
                 <Tooltip
                   title={
                     isMode2d ? selectedLuftbildLayer.title : "3D-Mesh 03/24"
                   }
                 >
-                  <Radio.Button value={MapStyleKeys.AERIAL}>
+                  <Radio.Button
+                    className="select-none"
+                    value={MapStyleKeys.AERIAL}
+                  >
                     Luftbild
                   </Radio.Button>
                 </Tooltip>
                 <Tooltip title="Hintergrund auswählen">
-                  <Radio.Button value="openBaseLayerView" disabled={!isMode2d}>
+                  <Radio.Button
+                    className="select-none"
+                    value="openBaseLayerView"
+                    disabled={!isMode2d}
+                  >
                     <FontAwesomeIcon
                       id="openBaseLayerView"
                       icon={faLayerGroup}
@@ -215,6 +227,7 @@ const TopNavbar = () => {
               }}
               ref={modalMenuTourRef}
               data-test-id="modal-menu-btn"
+              className="select-none"
             >
               <FontAwesomeIcon icon={faBars} />
             </Button>
