@@ -404,7 +404,11 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       );
       return;
     }
-    updateHash(e.hashParams, { clearKeys: ["zoom"], label: "GPM:3D" });
+    updateHash(e.hashParams, {
+      clearKeys: ["zoom"],
+      label: "GPM:3D",
+      replace: true,
+    });
   };
 
   // TODO Move out Controls to own component

@@ -21,6 +21,13 @@ const sortArrayByKeys = (
     }
   });
 
+// A lightweight type for a React Router-like navigate function.
+// We avoid importing react-router here to keep this utility framework-agnostic.
+type NavigateLike = (
+  to: string,
+  opts?: { replace?: boolean; state?: unknown }
+) => void;
+
 /**
  * Get the stored parameters or parse them from the URL as fallback
  */
@@ -41,7 +48,13 @@ export const getHashParams = (hash?: string): Record<string, string> => {
 export const updateHashHistoryState = (
   hashParams: Record<string, string> = {},
   routedPath: string,
-  options: { removeKeys?: string[]; label?: string; keyOrder?: string[] } = {}
+  options: {
+    removeKeys?: string[];
+    label?: string;
+    keyOrder?: string[];
+    replace?: boolean; // if true: replace current entry; default false => push
+    navigate?: NavigateLike; // optional router navigate function
+  } = {}
 ) => {
   // this is method is used to avoid triggering rerenders from the HashRouter when updating the hash
   const currentParams = getHashParams();
@@ -54,6 +67,7 @@ export const updateHashHistoryState = (
   const removeKeys = options.removeKeys || [];
   const label = options.label || "N/A"; // for tracing debugging only
   const keyOrder = options.keyOrder || [];
+  const replace = options.replace === true; // default: push
 
   // remove keys that are in the removeKeys array
   removeKeys.forEach((key) => {
@@ -74,15 +88,39 @@ export const updateHashHistoryState = (
   });
 
   const combinedHash = combinedSearchParams.toString();
-  const fullHashState = `#${routedPath}?${combinedHash}`;
+  const toPath = `${routedPath}${combinedHash ? `?${combinedHash}` : ""}`;
+  const fullHashState = `#${toPath}`;
   // this is a workaround to avoid triggering rerenders from the HashRouter
   // navigate would cause rerenders
   // navigate(`${routedPath}?${formattedHash}`, { replace: true });
   // see https://github.com/remix-run/react-router/discussions/9851#discussioncomment-9459061
 
-  const currentUrl = new URL(window.location.href);
-  const newUrl = `${currentUrl.origin}${currentUrl.pathname}${fullHashState}`;
+  // Prefer router-aware navigation if provided
+  if (options.navigate) {
+    options.navigate(toPath, { replace });
+    console.debug(
+      `[Routing][react-router] (${label}): ${replace ? "Replace" : "Push"}`,
+      toPath
+    );
+    return;
+  }
 
-  window.history.replaceState(null, "", newUrl);
-  console.debug(`[Routing][window.history] (${label}): State Replace`, newUrl);
+  // Fallback to direct hash manipulation that emits 'hashchange'
+  // - Replace: use location.replace(...) to avoid adding history entries
+  // - Push: assign to location.hash to add a new history entry
+  if (replace) {
+    const currentUrl = new URL(window.location.href);
+    const newUrl = `${currentUrl.origin}${currentUrl.pathname}${fullHashState}`;
+    window.location.replace(newUrl);
+    console.debug(
+      `[Routing][window.location] (${label}): Hash Replace`,
+      newUrl
+    );
+  } else {
+    window.location.hash = toPath;
+    console.debug(
+      `[Routing][window.location] (${label}): Hash Push`,
+      `#${toPath}`
+    );
+  }
 };

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 import {
   type LayerMap,
@@ -80,6 +80,7 @@ export const useAppConfig = (
 ) => {
   const dispatch = useDispatch();
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   const [isLoadingConfig, setIsLoadingConfig] = useState<boolean | null>(null); // initially null to indicate undetermined state
 
   useEffect(() => {
@@ -92,6 +93,8 @@ export const useAppConfig = (
     }
     updateHashHistoryState({ [configKey]: undefined }, pathname, {
       label: "remove config search parameter",
+      navigate,
+      replace: true,
     });
 
     if (config === null || config === "") {
