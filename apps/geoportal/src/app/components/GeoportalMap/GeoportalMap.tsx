@@ -407,7 +407,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     updateHash(e.hashParams, {
       clearKeys: ["zoom"],
       label: "GPM:3D",
-      replace: true,
     });
   };
 
