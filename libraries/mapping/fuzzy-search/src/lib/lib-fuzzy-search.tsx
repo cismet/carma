@@ -24,7 +24,7 @@ import {
 } from "./utils/fuzzySearchHelper";
 import { type SearchResultItem } from "@carma-commons/types";
 
-import { SearchGazetteerProps, Option, GroupedOptions } from "..";
+import { SearchGazetteerProps, Option, GroupedOptions, SearchItem } from "..";
 import { stopwords as stopwordsDe } from "./config/stopwords.de-de";
 
 import "./fuzzy-search.css";
@@ -102,7 +102,7 @@ export function LibFuzzySearch({
   const [fuseInstance, setFuseInstance] =
     useState<FuseWithOption<SearchResultItem> | null>(null);
   const [searchResult, setSearchResult] = useState<GroupedOptions[]>([]);
-  const [allGazeteerData, setAllGazeteerData] = useState([]);
+  const [allGazeteerData, setAllGazeteerData] = useState<SearchItem[]>([]);
   const [value, setValue] = useState("");
   const [cleanBtnDisable, setCleanBtnDisable] = useState(true);
   const [fireScrollEvent, setFireScrollEvent] = useState(null);
@@ -189,7 +189,7 @@ export function LibFuzzySearch({
         prepoHandling,
         typeInference
       );
-      const modifyAdressen = [];
+      const modifyAdressen: SearchItem[] = [];
 
       allModifiedData.forEach((item) => {
         if (
@@ -197,7 +197,7 @@ export function LibFuzzySearch({
           item.string.toLowerCase().includes("str.")
         ) {
           const newString = item.string.replace(/Str\./gi, "Straße");
-          const newObj = {
+          const newObj: SearchItem = {
             ...item,
             // string: newString,
             // sorter: item.sorter

@@ -53,3 +53,10 @@ export type SearchConfig = {
   distance?: number; // in CRS units
   threshold?: number;
 };
+
+export type SearchItem = SearchResultItem & {
+  xSearchData: string;
+  glyph?: string;
+  string: string;
+  sorter?: string;
+};
