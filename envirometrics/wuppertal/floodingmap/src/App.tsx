@@ -177,6 +177,7 @@ function App({ sync = false }: { sync?: boolean }) {
       : updateHashHistoryState(e.hashParams, "/", {
           removeKeys: ["zoom"],
           label: "app/hgk:3D",
+          replace: true,
         });
   };
 

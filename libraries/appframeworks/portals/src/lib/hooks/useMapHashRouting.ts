@@ -50,6 +50,7 @@ export function useMapHashRouting({
         {
           clearKeys: cesiumClearKeys,
           label: labels?.topicMapLocation ?? "Map:2D:location",
+          replace: false,
         }
       );
     },

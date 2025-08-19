@@ -174,10 +174,8 @@ export const CarmaMap = ({
   );
 
   const topicMapLocationChangedHandler = (location: Location) => {
-    (location) => {
-      const newParams = { ...paramsToObject(urlParams), ...location };
-      setUrlParams(newParams);
-    };
+    const newParams = { ...paramsToObject(urlParams), ...location };
+    setUrlParams(newParams, { replace: false });
   };
 
   const is2dOnlyParamSet = urlParams.get(PARAMS.ONLY_2D) !== null;
@@ -510,6 +508,7 @@ export const CarmaMap = ({
                 // console.debug('xxx bbox', createWMSBbox(boundingbox));
               }}
               locationChangedHandler={topicMapLocationChangedHandler}
+              outerLocationChangedHandlerExclusive={true}
               onclick={(e) => {
                 const map = routedMap.leafletMap.leafletElement;
                 const baseUrl =
@@ -579,6 +578,7 @@ export const CarmaMap = ({
                   updateHashHistoryState(e.hashParams, "/", {
                     removeKeys: ["zoom"],
                     label: "app/carma:3D",
+                    replace: true,
                   });
                 }}
               ></CustomViewer>
