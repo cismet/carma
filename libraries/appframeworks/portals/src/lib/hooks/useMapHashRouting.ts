@@ -79,7 +79,11 @@ export function useMapHashRouting({
       });
       // Then push current 2D location
       const map = getLeafletMap?.();
-      if (map && getLeafletZoom) {
+      if (
+        map &&
+        typeof map.getCenter === "function" &&
+        typeof getLeafletZoom === "function"
+      ) {
         const center = map.getCenter();
         const zoom = getLeafletZoom();
         updateHash(
