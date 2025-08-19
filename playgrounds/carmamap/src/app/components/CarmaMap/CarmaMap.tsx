@@ -547,6 +547,7 @@ export const CarmaMap = ({
               {createCismapLayers(layers, {
                 mode: uiMode,
                 dispatch,
+                zoom: getLeafletZoom(),
               })}
               {hqKey && <HGKWMSTLayer hqKey={hqKey} />}
             </TopicMapComponent>

@@ -333,13 +333,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       setPos(null);
       dispatch(setPreferredLayerId(""));
     }
-  }, [
-    uiMode,
-    marker,
-    markerAccent,
-    dispatch,
-    routedMap?.leafletMap?.leafletElement,
-  ]);
+  }, [uiMode]);
 
   useEffect(() => {
     if (isModeFeatureInfo && pos) updateFeatureInfoLeaflet();
@@ -481,8 +475,8 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
           leafletMapProps={{ editable: true }}
           minZoom={10}
           backgroundlayers="empty"
-          mappingBoundsChanged={(bbox: unknown) => {
-            console.debug("[TopicMap] bbox changed", bbox);
+          mappingBoundsChanged={(boundingbox) => {
+            // intentionally no-op
           }}
           locationChangedHandler={topicMapLocationChangedHandler}
           outerLocationChangedHandlerExclusive={true}
@@ -617,6 +611,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
           {createCismapLayers(layers, {
             mode: uiMode,
             dispatch,
+            zoom: getLeafletZoom(),
             selectedFeature,
             leafletMap: routedMap?.leafletMap?.leafletElement,
           })}
