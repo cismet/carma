@@ -595,13 +595,11 @@ export const createCismapLayers = (
   {
     mode,
     dispatch,
-    zoom,
     selectedFeature,
     leafletMap,
   }: {
     mode: UIMode;
     dispatch: Dispatch;
-    zoom: number;
     selectedFeature: any;
     leafletMap: Map;
   }

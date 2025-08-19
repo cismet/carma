@@ -21,7 +21,6 @@ import {
   SelectionMetaData,
   useFeatureFlags,
   useGazData,
-  useHashState,
   useSelection,
 } from "@carma-apps/portals";
 
@@ -31,7 +30,6 @@ import type { SearchResultItem } from "@carma-commons/types";
 import { detectWebGLContext } from "@carma-commons/utils";
 
 import {
-  cesiumClearParamKeys,
   MapTypeSwitcher,
   PitchingCompass,
   selectViewerIsMode2d,
@@ -197,8 +195,6 @@ const MapWrapper = () => {
   const [zenButtonHidden, setZenButtonHidden] = useState(false);
   const [isHoveringZenButton, setIsHoveringZenButton] = useState(false);
 
-  const { updateHash } = useHashState();
-
   useEffect(() => {
     if (routedMap?.leafletMap) {
       const map = routedMap.leafletMap.leafletElement;
@@ -252,14 +248,6 @@ const MapWrapper = () => {
   const tourRefLabels = useTourRefCollabLabels();
   const { gazData } = useGazData();
   const { width, height } = useWindowSize(wrapperRef);
-
-  const clear3dHashParams = () => {
-    updateHash &&
-      updateHash(undefined, {
-        clearKeys: cesiumClearParamKeys,
-        label: "MapTypeSwitcher Clear",
-      });
-  };
 
   const handleToggleMeasurement = () => {
     cancelOngoingRequests();
@@ -418,10 +406,6 @@ const MapWrapper = () => {
                   // TODO: move Config to props
                   duration={CESIUM_CONFIG.transitions.mapMode.duration}
                   className="!rounded-t-none !border-t-[1px]"
-                  onComplete={(isTo2d: boolean) => {
-                    isTo2d && clear3dHashParams();
-                    //dispatch(setBackgroundLayer({ ...backgroundLayer, visible: isTo2d }));
-                  }}
                   ref={tourRefLabels.toggle2d3d}
                 />
                 {
