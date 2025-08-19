@@ -7,6 +7,7 @@ import { getLayers, getSelectedLayerIndex } from "../../store/slices/mapping";
 import { useContext, useEffect, useState } from "react";
 import "./text.css";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+import LayerInfoWrapper from "./LayerInfoWrapper";
 
 interface LayerInfoProps {
   description: string;
@@ -75,59 +76,67 @@ const LayerInfo = ({ description, legend, zoomLevels }: LayerInfoProps) => {
     }
   }, [metadataUrl]);
 
-  return (
-    <div className="flex flex-col gap-1 h-[calc(100%-28px)]">
-      <div className="flex gap-2 w-full h-full overflow-y-hidden">
-        <div className="h-full flex flex-col gap-2 w-[80%] hide-tabs">
-          {parsedDescription && (
-            <div>
-              <h5 className="font-semibold">Inhalt</h5>
-              <p className="text-sm">{parsedDescription.inhalt}</p>
-              {parsedDescription.sichtbarkeit.slice(0, -1) !== "öffentlich" &&
-                parsedDescription.sichtbarkeit !== "" && (
-                  <>
-                    <h5 className="font-semibold">Sichtbarkeit</h5>
-                    <p className="text-sm">
-                      {parsedDescription.sichtbarkeit.slice(0, -1)}
-                    </p>
-                  </>
-                )}
-              <h5 className="font-semibold">Nutzung</h5>
-              <p className="text-sm">{parsedDescription.nutzung}</p>
-            </div>
-          )}
-          <hr className="h-px my-0 bg-gray-300 border-0 w-full" />
+  const getFooterText = () => {
+    const layerCurrentlyVisible =
+      zoom < zoomLevels.maxZoom && zoom > zoomLevels.minZoom;
 
-          <Tabs
-            animated={false}
-            items={tabItems(currentLayer, metadataText, pdfUrl)}
-            activeKey={activeTabKey}
-            onChange={(key) => dispatch(setUIActiveTabKey(key))}
-          />
-        </div>
-        <div className="w-1/3 h-[calc(100%-26px)]">
-          <h5 className="pl-1.5">Legende</h5>
-          <div className="h-full overflow-auto">
-            {legend?.map((legend, i) => (
-              <img
-                key={`legend_${i}`}
-                src={legend.OnlineResource}
-                alt="Legende"
-                className="aspect-auto h-auto object-contain overflow-clip"
+    return (
+      layerType +
+      (!layerCurrentlyVisible ? " | keine Anzeige im aktuellen Maßstab" : "")
+    );
+  };
+
+  return (
+    <LayerInfoWrapper
+      content={
+        <>
+          <div className="flex gap-2 w-full h-full overflow-y-hidden">
+            <div className="h-full flex flex-col gap-2 w-[80%] hide-tabs">
+              {parsedDescription && (
+                <div>
+                  <h5 className="font-semibold">Inhalt</h5>
+                  <p className="text-sm">{parsedDescription.inhalt}</p>
+                  {parsedDescription.sichtbarkeit.slice(0, -1) !==
+                    "öffentlich" &&
+                    parsedDescription.sichtbarkeit !== "" && (
+                      <>
+                        <h5 className="font-semibold">Sichtbarkeit</h5>
+                        <p className="text-sm">
+                          {parsedDescription.sichtbarkeit.slice(0, -1)}
+                        </p>
+                      </>
+                    )}
+                  <h5 className="font-semibold">Nutzung</h5>
+                  <p className="text-sm">{parsedDescription.nutzung}</p>
+                </div>
+              )}
+              <hr className="h-px my-0 bg-gray-300 border-0 w-full" />
+
+              <Tabs
+                animated={false}
+                items={tabItems(currentLayer, metadataText, pdfUrl)}
+                activeKey={activeTabKey}
+                onChange={(key) => dispatch(setUIActiveTabKey(key))}
               />
-            ))}
+            </div>
+            <div className="w-1/3 h-[calc(100%-26px)]">
+              <h5 className="pl-1.5">Legende</h5>
+              <div className="h-full overflow-auto">
+                {legend?.map((legend, i) => (
+                  <img
+                    key={`legend_${i}`}
+                    src={legend.OnlineResource}
+                    alt="Legende"
+                    className="aspect-auto h-auto object-contain overflow-clip"
+                  />
+                ))}
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
-      <div className="h-[30px] flex flex-col mt-1">
-        <hr className="h-px my-0 bg-gray-300 border-0 w-full absolute bottom-9 left-0" />
-        <p className="my-0 text-gray-400 text-base truncate">
-          {layerType}{" "}
-          {(zoom >= zoomLevels.maxZoom || zoom <= zoomLevels.minZoom) &&
-            "| keine Anzeige im aktuellen Maßstab"}
-        </p>
-      </div>
-    </div>
+        </>
+      }
+      footerText={getFooterText()}
+    />
   );
 };
 
