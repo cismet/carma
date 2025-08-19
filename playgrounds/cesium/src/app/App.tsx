@@ -8,6 +8,7 @@ import {
   CesiumContextProvider,
 } from "@carma-mapping/cesium-engine";
 import { TweakpaneProvider } from "@carma-commons/debug";
+import { HashStateProvider } from "@carma-apps/portals";
 import {
   BASEMAP_METROPOLRUHR_WMS_GRAUBLAU,
   METROPOLERUHR_WMTS_SPW2_WEBMERCATOR,
@@ -41,38 +42,41 @@ export function App() {
     >
       <TweakpaneProvider>
         <HashRouter>
-          <Navigation
-            className="leaflet-bar"
-            style={{
-              position: "absolute",
-              top: 8,
-              left: "50%",
-              width: "auto",
-              display: "flex",
-              justifyContent: "center",
-              transform: "translate(-50%, 0)",
-              zIndex: 10,
-            }}
-            routes={[...viewerRoutes, ...otherRoutes]}
-          />
-          <Routes>
-            <Route
-              path="/*"
-              element={
-                <TopicMapContextProvider>
-                  <CustomViewerPlayground
-                    minimapLayerUrl={
-                      METROPOLERUHR_WMTS_SPW2_WEBMERCATOR.layers["spw2_orange"]
-                        .url
-                    }
-                  >
-                    <Routes>{...ViewerRoutes}</Routes>
-                  </CustomViewerPlayground>
-                </TopicMapContextProvider>
-              }
+          <HashStateProvider>
+            <Navigation
+              className="leaflet-bar"
+              style={{
+                position: "absolute",
+                top: 8,
+                left: "50%",
+                width: "auto",
+                display: "flex",
+                justifyContent: "center",
+                transform: "translate(-50%, 0)",
+                zIndex: 10,
+              }}
+              routes={[...viewerRoutes, ...otherRoutes]}
             />
-            {...OtherRoutes}
-          </Routes>
+            <Routes>
+              <Route
+                path="/*"
+                element={
+                  <TopicMapContextProvider>
+                    <CustomViewerPlayground
+                      minimapLayerUrl={
+                        METROPOLERUHR_WMTS_SPW2_WEBMERCATOR.layers[
+                          "spw2_orange"
+                        ].url
+                      }
+                    >
+                      <Routes>{ViewerRoutes}</Routes>
+                    </CustomViewerPlayground>
+                  </TopicMapContextProvider>
+                }
+              />
+              {OtherRoutes}
+            </Routes>
+          </HashStateProvider>
         </HashRouter>
       </TweakpaneProvider>
     </CesiumContextProvider>

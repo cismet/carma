@@ -36,15 +36,63 @@ export function useMapHashRouting({
   cesiumClearKeys = cesiumClearParamKeys,
   labels,
 }: UseMapHashRoutingOptions) {
-  const { updateHash, subscribe } = useHashState();
+  const { updateHash, subscribe, getHashValues } = useHashState();
 
   // Skip 2D writes when the map move was initiated by a navigation (popstate)
   const navMoveInProgressRef = useRef(false);
+  // Remember the popstate target to avoid immediate re-pushing nearly identical coords
+  const popstateTargetRef = useRef<LatLngZoom | null>(null);
 
   const handleTopicMapLocationChange = useCallback(
     ({ lat, lng, zoom }: LatLngZoom) => {
       if (!isMode2d) return;
-      if (navMoveInProgressRef.current) return;
+      if (navMoveInProgressRef.current) {
+        console.debug(
+          "[Routing][hash] (2D) suppress push: popstate navigation in progress",
+          {
+            lat,
+            lng,
+            zoom,
+            label: labels?.topicMapLocation ?? "Map:2D:location",
+          }
+        );
+        return;
+      }
+      // If we just restored to a target via popstate, allow small drift without pushing
+      const target = popstateTargetRef.current;
+      if (target) {
+        const tol = 3e-5; // ~3 meters
+        const nearLat = Math.abs(lat - target.lat) <= tol;
+        const nearLng = Math.abs(lng - target.lng) <= tol;
+        const sameZoom = Math.abs(zoom - target.zoom) < 1e-6;
+        if (nearLat && nearLng && sameZoom) {
+          console.debug(
+            "[Routing][hash] (2D) skip push: equals popstate target within tolerance",
+            { lat, lng, zoom, target }
+          );
+          popstateTargetRef.current = null;
+          return;
+        }
+      }
+      // Skip writing if the map is already at the current hash location (within tolerance)
+      try {
+        const vals = getHashValues?.() || {};
+        const hLat = Number((vals as Record<string, unknown>).lat);
+        const hLng = Number((vals as Record<string, unknown>).lng);
+        const hZoom = Number((vals as Record<string, unknown>).zoom);
+        const tol = 3e-5; // ~3 meters
+        const sameLat = Number.isFinite(hLat) && Math.abs(lat - hLat) <= tol;
+        const sameLng = Number.isFinite(hLng) && Math.abs(lng - hLng) <= tol;
+        const sameZoom =
+          Number.isFinite(hZoom) && Math.abs(zoom - hZoom) < 1e-6;
+        if (sameLat && sameLng && sameZoom) {
+          console.debug(
+            "[Routing][hash] (2D) skip push: equals current hash within tolerance",
+            { lat, lng, zoom, hLat, hLng, hZoom }
+          );
+          return;
+        }
+      } catch {}
       updateHash(
         { lat, lng, zoom },
         {
@@ -54,7 +102,13 @@ export function useMapHashRouting({
         }
       );
     },
-    [isMode2d, updateHash, cesiumClearKeys, labels?.topicMapLocation]
+    [
+      isMode2d,
+      updateHash,
+      getHashValues,
+      cesiumClearKeys,
+      labels?.topicMapLocation,
+    ]
   );
 
   const handleCesiumSceneChange = useCallback(
@@ -120,13 +174,27 @@ export function useMapHashRouting({
         const map = getLeafletMap?.();
         if (!map) return;
         navMoveInProgressRef.current = true;
-        const clearNavFlag = () => {
-          navMoveInProgressRef.current = false;
+        popstateTargetRef.current = { lat, lng, zoom };
+        console.debug("[Routing][hash] popstate begin -> restore 2D view", {
+          lat,
+          lng,
+          zoom,
+        });
+        const scheduleClear = (evt: string) => {
+          if (typeof map.once === "function") {
+            map.once(evt, () => {
+              setTimeout(() => {
+                navMoveInProgressRef.current = false;
+                console.debug(
+                  "[Routing][hash] popstate end -> resume 2D writes",
+                  { via: evt }
+                );
+              }, 0);
+            });
+          }
         };
-        if (typeof map.once === "function") {
-          map.once("moveend", clearNavFlag);
-          map.once("zoomend", clearNavFlag);
-        }
+        scheduleClear("moveend");
+        scheduleClear("zoomend");
         if (typeof map.setView === "function") {
           map.setView({ lat, lng }, zoom);
         } else if (typeof map.panTo === "function") {

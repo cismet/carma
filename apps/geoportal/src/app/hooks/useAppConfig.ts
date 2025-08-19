@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 
 import {
   type LayerMap,
@@ -80,7 +80,6 @@ export const useAppConfig = (
 ) => {
   const dispatch = useDispatch();
   const { pathname } = useLocation();
-  const navigate = useNavigate();
   const [isLoadingConfig, setIsLoadingConfig] = useState<boolean | null>(null); // initially null to indicate undetermined state
 
   useEffect(() => {
@@ -91,9 +90,12 @@ export const useAppConfig = (
       console.info("[CONFIG] No config key provided in hash parameters.");
       return;
     }
+    // can't use HashStateProvider here
+    // because it's not yet available
+    // and needs to be configured by the config itself
+    // use direct history state update instead
     updateHashHistoryState({ [configKey]: undefined }, pathname, {
       label: "remove config search parameter",
-      navigate,
       replace: true,
     });
 
