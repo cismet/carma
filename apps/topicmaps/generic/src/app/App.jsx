@@ -26,7 +26,11 @@ import WMSCapabilities from "wms-capabilities";
 import merge from "lodash/merge";
 import defaultConfig from "../assets/gtmDefaulConfig.json";
 import { getAllLeafLayers } from "@carma-mapping/layers";
-import { extractCarmaConfig, extractInformation } from "@carma-commons/utils";
+import {
+  extractCarmaConfig,
+  extractInformation,
+  getHashParams,
+} from "@carma-commons/utils";
 import md5 from "md5";
 import {
   createMetaHelpBlock,
@@ -216,8 +220,16 @@ function App({ name }) {
   };
   const slugName = slugify(name, { lower: true });
 
-  const configPath = import.meta.env.VITE_GTM_CONFIG_PATH || "/dev/"; //uses the dev folder in public to debug local stuff when no ENV is set
-  const configServer = import.meta.env.VITE_GTM_CONFIGSERVER || ""; //uses the local server when no ENV is set
+  const hashParams = getHashParams();
+  const overrideConfigPath = hashParams.configPath;
+  const overrideConfigServer = hashParams.configServer;
+  // console.log("xxx ", { hashParams, overrideConfigPath, overrideConfigServer });
+  // console.log("xxx configPath", import.meta.env.VITE_GTM_CONFIG_PATH);
+
+  const configPath =
+    overrideConfigPath || import.meta.env.VITE_GTM_CONFIG_PATH || "/dev/"; //uses the dev folder in public to debug local stuff when no ENV is set
+  const configServer =
+    overrideConfigServer || import.meta.env.VITE_GTM_CONFIGSERVER || ""; //uses the local server when no ENV is set
 
   const [initialized, setInitialized] = useState(false);
   const [config, setConfig] = useState({});

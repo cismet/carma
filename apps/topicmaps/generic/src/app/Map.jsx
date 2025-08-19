@@ -15,6 +15,7 @@ import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 import { MenuFooter } from "@carma-collab/wuppertal/commons";
 import {
   getApplicationVersion,
+  getHashParams,
   TAILWIND_CLASSNAMES_FULLSCREEN_FIXED,
 } from "@carma-commons/utils";
 import versionData from "../version.json";
@@ -54,8 +55,21 @@ const downloadText = (text, filename) => {
 
   document.body.removeChild(element);
 };
-const configPath = import.meta.env.VITE_GTM_CONFIG_PATH || "/dev/"; //uses the dev folder in public to debug local stuff when no ENV is set
-const configServer = import.meta.env.VITE_GTM_CONFIGSERVER || ""; //uses the local server when no ENV is set
+
+// CHeck wheter urlParams for configPath and configServer are set and store dem in oberrideConfigPath and overrideConfigServer
+
+const hashParams = getHashParams();
+const overrideConfigPath = hashParams.configPath;
+const overrideConfigServer = hashParams.configServer;
+// console.log("xxx ", { hashParams, overrideConfigPath, overrideConfigServer });
+// console.log("xxx configPath", import.meta.env.VITE_GTM_CONFIG_PATH);
+
+const configPath =
+  overrideConfigPath || import.meta.env.VITE_GTM_CONFIG_PATH || "/dev/"; //uses the dev folder in public to debug local stuff when no ENV is set
+const configServer =
+  overrideConfigServer || import.meta.env.VITE_GTM_CONFIGSERVER || ""; //uses the local server when no ENV is set
+
+// console.log("xxx ", { configPath, configServer });
 // Helper to get the style for a layer from various possible sources
 function getLayerStyle(layer, layerInformation) {
   // Try direct style on layer
