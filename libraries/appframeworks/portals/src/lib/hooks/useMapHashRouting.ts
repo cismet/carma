@@ -18,6 +18,7 @@ type LeafletLikeMap = {
   panTo?: (center: { lat: number; lng: number }) => void;
   setZoom?: (zoom: number) => void;
   getCenter?: () => { lat: number; lng: number };
+  once?: (type: string, fn: (...args: unknown[]) => void) => void;
 };
 
 export interface UseMapHashRoutingOptions {
@@ -37,13 +38,13 @@ export function useMapHashRouting({
 }: UseMapHashRoutingOptions) {
   const { updateHash, subscribe } = useHashState();
 
-  // Prevent write loops when we programmatically move the map due to history navigation
-  const suppressWriteRef = useRef(false);
+  // Skip 2D writes when the map move was initiated by a navigation (popstate)
+  const navMoveInProgressRef = useRef(false);
 
   const handleTopicMapLocationChange = useCallback(
     ({ lat, lng, zoom }: LatLngZoom) => {
       if (!isMode2d) return;
-      if (suppressWriteRef.current) return;
+      if (navMoveInProgressRef.current) return;
       updateHash(
         { lat, lng, zoom },
         {
@@ -117,18 +118,19 @@ export function useMapHashRouting({
         if (lat == null || lng == null || zoom == null) return;
         const map = getLeafletMap?.();
         if (!map) return;
-        suppressWriteRef.current = true;
-        try {
-          if (typeof map.setView === "function") {
-            map.setView({ lat, lng }, zoom);
-          } else if (typeof map.panTo === "function") {
-            map.panTo({ lat, lng });
-            if (typeof map.setZoom === "function") map.setZoom(zoom);
-          }
-        } finally {
-          setTimeout(() => {
-            suppressWriteRef.current = false;
-          }, 50);
+        navMoveInProgressRef.current = true;
+        const clearNavFlag = () => {
+          navMoveInProgressRef.current = false;
+        };
+        if (typeof map.once === "function") {
+          map.once("moveend", clearNavFlag);
+          map.once("zoomend", clearNavFlag);
+        }
+        if (typeof map.setView === "function") {
+          map.setView({ lat, lng }, zoom);
+        } else if (typeof map.panTo === "function") {
+          map.panTo({ lat, lng });
+          if (typeof map.setZoom === "function") map.setZoom(zoom);
         }
       },
       { keys: ["lat", "lng", "zoom"] }

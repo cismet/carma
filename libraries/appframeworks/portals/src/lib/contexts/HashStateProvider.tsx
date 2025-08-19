@@ -11,7 +11,7 @@ import {
   normalizeOptions,
   updateHashHistoryState,
 } from "@carma-commons/utils";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 interface HashUpdateOptions {
   clearKeys?: string[];
@@ -81,6 +81,7 @@ export const HashStateProvider: React.FC<{
   keyOrder?: string[];
 }> = ({ children, keyAliases, hashCodecs, keyOrder }) => {
   const location = useLocation();
+  const navigate = useNavigate();
   const aliasReverseLookup = useMemo(
     () => getAliasReverseLookup(keyAliases || {}),
     [keyAliases]
@@ -169,6 +170,7 @@ export const HashStateProvider: React.FC<{
         keyOrder,
         label: label || "unspecified",
         replace,
+        navigate,
       });
 
       const afterRaw = getHashParams();

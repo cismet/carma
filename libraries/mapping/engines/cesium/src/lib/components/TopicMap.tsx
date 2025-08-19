@@ -73,6 +73,7 @@ export const TopicMap = ({ forceShow = false } = {}) => {
         gazData={[]}
         backgroundlayers="empty"
         hamburgerMenu={false}
+        pushToHistory={() => {}}
         fullScreenControlEnabled={false}
         zoomSnap={0.5} // TODO fix zoom snapping in TopicMap Component
         zoomDelta={0.5}

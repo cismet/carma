@@ -90,6 +90,14 @@ export const updateHashHistoryState = (
   const combinedHash = combinedSearchParams.toString();
   const toPath = `${routedPath}${combinedHash ? `?${combinedHash}` : ""}`;
   const fullHashState = `#${toPath}`;
+  // No-op: target equals current hash
+  if (window.location.hash === fullHashState) {
+    console.debug(
+      `[Routing] (noop): target hash equals current`,
+      fullHashState
+    );
+    return;
+  }
   // this is a workaround to avoid triggering rerenders from the HashRouter
   // navigate would cause rerenders
   // navigate(`${routedPath}?${formattedHash}`, { replace: true });
