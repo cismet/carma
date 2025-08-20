@@ -22,12 +22,20 @@ import {
 } from "cesium";
 import type { TilesetConfig } from "@carma-commons/resources";
 
-import { isValidViewerInstance } from "./cesiumTypeGuards";
 import type {
   LatLngRadians,
   LatLngRecord,
   NumericResult,
 } from "@carma-commons/types";
+
+import {
+  EARTH_RADIUS,
+  asRadians,
+  asMeters,
+  getZoomFromPixelResolutionAtLatitudeRad,
+} from "@carma-commons/utils";
+
+import { isValidViewerInstance } from "./cesiumTypeGuards";
 
 // Constants
 
@@ -492,16 +500,7 @@ export const rectangleToExtentDegrees = ({
     },
   };
 };
-
-export const EARTH_CIRCUMFERENCE = 40075016.686;
-export const EARTH_RADIUS = 6371008.7714;
-export const EARTH_RADIUS_KM = EARTH_RADIUS / 1000;
-export const DEFAULT_LEAFLET_TILESIZE = 256;
-
-const WEB_MERCATOR_MAX_LATITUDE = 85.051129;
-export const WEB_MERCATOR_MAX_LATITUDE_RAD = CesiumMath.toRadians(
-  WEB_MERCATOR_MAX_LATITUDE
-);
+// Mercator helpers are provided by @carma-commons/utils/mercator; no re-exports here.
 
 const getPixelSizeForPosition = (
   viewer: Viewer,
@@ -521,43 +520,6 @@ const getPixelSizeForPosition = (
     return Math.max(pixelDimensions.x, pixelDimensions.y);
   }
   return null;
-};
-
-export const getMercatorScaleFactorAtLatitude = (latitude: number): number => {
-  if (latitude > WEB_MERCATOR_MAX_LATITUDE_RAD) {
-    console.warn(
-      "latitude is greater than max web mercator latitude, clamping applied"
-    );
-    latitude = WEB_MERCATOR_MAX_LATITUDE_RAD;
-  } else if (latitude < -WEB_MERCATOR_MAX_LATITUDE_RAD) {
-    console.warn(
-      "latitude is smaller than min web mercator latitude, clamping applied"
-    );
-    latitude = -WEB_MERCATOR_MAX_LATITUDE_RAD;
-  }
-  return 1 / Math.cos(latitude);
-};
-
-export const getZoomFromPixelResolutionAtLatitude = (
-  meterResolution: number,
-  latitude: number = 0,
-  { tileSize = DEFAULT_LEAFLET_TILESIZE }: { tileSize?: number } = {}
-) => {
-  const scaleFactor = getMercatorScaleFactorAtLatitude(latitude);
-  const zoom = Math.log2(
-    EARTH_CIRCUMFERENCE / (scaleFactor * meterResolution * tileSize)
-  );
-  console.debug("zoom", zoom, scaleFactor, meterResolution, latitude);
-  return zoom;
-};
-
-export const getPixelResolutionFromZoomAtLatitude = (
-  zoom: number,
-  latitude: number = 0,
-  { tileSize = DEFAULT_LEAFLET_TILESIZE }: { tileSize?: number } = {}
-) => {
-  const scale = getMercatorScaleFactorAtLatitude(latitude);
-  return EARTH_CIRCUMFERENCE / (scale * Math.pow(2, zoom) * tileSize);
 };
 
 // CESIUM TO WEB MAPS
@@ -695,9 +657,9 @@ export const cesiumCenterPixelSizeToLeafletZoom = (
     console.warn("No pixel size found for camera position.", pixelSize.error);
     return { value: null, error: "No pixel size found for camera position" };
   }
-  const zoom = getZoomFromPixelResolutionAtLatitude(
-    pixelSize.value,
-    viewer.camera.positionCartographic.latitude
+  const zoom = getZoomFromPixelResolutionAtLatitudeRad(
+    asMeters(pixelSize.value),
+    asRadians(viewer.camera.positionCartographic.latitude)
   );
 
   if (zoom === Infinity) {

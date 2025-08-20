@@ -9,4 +9,5 @@ export * from "./lib/geo.d";
 export * from "./lib/leaflet-config.d";
 export * from "./lib/leaflet-extensions.d";
 export * from "./lib/math.d";
+export * from "./lib/units.d";
 export * from "./lib/react-cismap.extended.d";

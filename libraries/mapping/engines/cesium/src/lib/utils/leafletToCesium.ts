@@ -10,10 +10,11 @@ import {
 import type { Map as LeafletMap } from "leaflet";
 
 import {
-  getCameraHeightAboveGround,
-  getPixelResolutionFromZoomAtLatitude,
-  getScenePixelSize,
-} from "./cesiumHelpers";
+  asRadians,
+  getPixelResolutionFromZoomAtLatitudeRad,
+} from "@carma-commons/utils";
+
+import { getCameraHeightAboveGround, getScenePixelSize } from "./cesiumHelpers";
 import { isLeafletZoomValid } from "./leafletHelpers";
 import { getCesiumCameraPixelDimensionForDistance } from "./cesiumCamera";
 
@@ -61,9 +62,9 @@ export const leafletToCesium = async (
   const lngRad = CesiumMath.toRadians(lng);
   const latRad = CesiumMath.toRadians(lat);
 
-  const targetPixelResolution = getPixelResolutionFromZoomAtLatitude(
+  const targetPixelResolution = getPixelResolutionFromZoomAtLatitudeRad(
     zoom,
-    latRad
+    asRadians(latRad)
   );
 
   const START_DISTANCE = 1000;

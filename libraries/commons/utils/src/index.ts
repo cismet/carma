@@ -4,6 +4,8 @@ export { isNumberArrayEqual } from "./lib/arrays";
 
 export { extractCarmaConfig } from "./lib/carmaConfig";
 
+export * from "./lib/constants";
+
 export { md5FetchText, md5ActionFetchDAQ } from "./lib/fetching";
 
 export {
@@ -16,11 +18,16 @@ export {
 export {
   metersPerPixel,
   distanceMeters,
-  pixelsBetweenLocations,
+  pixelsBetweenGeographicLocations,
   isLocationEqualWithinPixelTolerance,
-  type LatLng,
-  type LatLngZoom,
 } from "./lib/geo";
+
+export {
+  getMercatorScaleFactorAtLatitudeRad,
+  getZoomFromPixelResolutionAtLatitudeRad,
+  getPixelResolutionFromZoomAtLatitudeRad,
+  clampLatitudeToWebMercatorExtent,
+} from "./lib/mercator";
 
 export { extractInformation } from "./lib/layer-parser";
 
@@ -50,6 +57,27 @@ export {
   cn,
   TAILWIND_CLASSNAMES_FULLSCREEN_FIXED,
 } from "./lib/styles-tailwind";
+
+export {
+  brandedNegate,
+  brandedAdd,
+  brandedSub,
+  brandedMul,
+  brandedDiv,
+  brandedAbs,
+  brandedMin,
+  brandedMax,
+  brandedClamp,
+  unbrandNumber,
+} from "./lib/typescript-branded-ops";
+
+export {
+  asDegrees,
+  asRadians,
+  degToRad,
+  radToDeg,
+  asMeters,
+} from "./lib/units";
 
 export { getApplicationVersion } from "./lib/version";
 

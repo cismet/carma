@@ -133,6 +133,15 @@
       "@carma-commons/cismap": ["libraries/commons/cismap/src/index.ts"],
       "@carma-commons/utils": ["libraries/commons/utils/src/index.ts"],
       "@carma-commons/utils/*": ["libraries/commons/utils/src/lib/*"],
+      "@carma-commons/utils/mercator": [
+        "libraries/commons/utils/src/lib/mercator.ts"
+      ],
+      "@carma-commons/utils/units": [
+        "libraries/commons/utils/src/lib/units.ts"
+      ],
+      "@carma-commons/utils/constants": [
+        "libraries/commons/utils/src/lib/constants.ts"
+      ],
       "@carma-commons/ui/tag-selection": [
         "libraries/commons/ui/tag-selection/src/index.ts"
       ],
