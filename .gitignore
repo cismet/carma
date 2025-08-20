@@ -51,6 +51,11 @@ apps/**/.env
 
 # Cypress screenshots
 report-cy/
+# Test reports
+**/report-pw/
+**/report-cy/
+**/test-results/
+playwright-report/
 
 dispatch.*.event
 .github/workflows/test.yml
