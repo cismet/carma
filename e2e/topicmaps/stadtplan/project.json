@@ -7,11 +7,9 @@
   "implicitDependencies": ["stadtplan"],
   "targets": {
     "e2e": {
-      "executor": "@nx/cypress:cypress",
+      "executor": "@nx/playwright:playwright",
       "options": {
-        "cypressConfig": "e2e/topicmaps/stadtplan/cypress.config.ts",
-        "devServerTarget": "stadtplan:serve:development",
-        "testingType": "e2e"
+        "config": "e2e/topicmaps/stadtplan/playwright.config.ts"
       },
       "configurations": {
         "production": {
