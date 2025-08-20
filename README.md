@@ -113,7 +113,8 @@ All configurations should allow importing `.js`
 common custom carma types and type declarations for external libraries
 are to be added to their respective `/types/*.d.ts`
 
-... tbd
+- [Branded units (Radians-first)](libraries/commons/types/BRANDED-UNITS.md)
+- Commons types index: `libraries/commons/types/`
 
 #### verbatim Module Syntax
 
