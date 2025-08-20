@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { useHashState } from "../contexts/HashStateProvider";
 
 import { cesiumClearParamKeys } from "@carma-mapping/cesium-engine";
+import { isLocationEqualWithinPixelTolerance } from "@carma-commons/utils";
 
 export type LatLngZoom = { lat: number; lng: number; zoom: number };
 export type CesiumSceneChangeEvent = { hashParams: Record<string, string> };
@@ -27,6 +28,7 @@ export interface UseMapHashRoutingOptions {
   getLeafletZoom?: () => number;
   cesiumClearKeys?: string[];
   labels?: Labels;
+  pixelTolerance?: number; // px
 }
 
 export function useMapHashRouting({
@@ -35,6 +37,7 @@ export function useMapHashRouting({
   getLeafletZoom,
   cesiumClearKeys = cesiumClearParamKeys,
   labels,
+  pixelTolerance,
 }: UseMapHashRoutingOptions) {
   const { updateHash, subscribe, getHashValues } = useHashState();
 
@@ -61,11 +64,12 @@ export function useMapHashRouting({
       // If we just restored to a target via popstate, allow small drift without pushing
       const target = popstateTargetRef.current;
       if (target) {
-        const tol = 3e-5; // ~3 meters
-        const nearLat = Math.abs(lat - target.lat) <= tol;
-        const nearLng = Math.abs(lng - target.lng) <= tol;
-        const sameZoom = Math.abs(zoom - target.zoom) < 1e-6;
-        if (nearLat && nearLng && sameZoom) {
+        if (
+          isLocationEqualWithinPixelTolerance({ lat, lng, zoom }, target, {
+            pixelTolerance,
+            zoomTolerance: 1e-6,
+          })
+        ) {
           console.debug(
             "[Routing][hash] (2D) skip push: equals popstate target within tolerance",
             { lat, lng, zoom, target }
@@ -80,12 +84,19 @@ export function useMapHashRouting({
         const hLat = Number((vals as Record<string, unknown>).lat);
         const hLng = Number((vals as Record<string, unknown>).lng);
         const hZoom = Number((vals as Record<string, unknown>).zoom);
-        const tol = 3e-5; // ~3 meters
-        const sameLat = Number.isFinite(hLat) && Math.abs(lat - hLat) <= tol;
-        const sameLng = Number.isFinite(hLng) && Math.abs(lng - hLng) <= tol;
-        const sameZoom =
-          Number.isFinite(hZoom) && Math.abs(zoom - hZoom) < 1e-6;
-        if (sameLat && sameLng && sameZoom) {
+        const h =
+          Number.isFinite(hLat) &&
+          Number.isFinite(hLng) &&
+          Number.isFinite(hZoom)
+            ? { lat: hLat, lng: hLng, zoom: hZoom }
+            : undefined;
+        if (
+          h &&
+          isLocationEqualWithinPixelTolerance({ lat, lng, zoom }, h, {
+            pixelTolerance,
+            zoomTolerance: 1e-6,
+          })
+        ) {
           console.debug(
             "[Routing][hash] (2D) skip push: equals current hash within tolerance",
             { lat, lng, zoom, hLat, hLng, hZoom }
@@ -108,6 +119,7 @@ export function useMapHashRouting({
       getHashValues,
       cesiumClearKeys,
       labels?.topicMapLocation,
+      pixelTolerance,
     ]
   );
 

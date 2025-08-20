@@ -10,8 +10,10 @@ import {
   getHashParams,
   normalizeOptions,
   updateHashHistoryState,
+  diffHashParams,
 } from "@carma-commons/utils";
 import { useLocation, useNavigate } from "react-router-dom";
+import { useHashChangeEmit } from "../hooks/useHashChangeEmit";
 
 interface HashUpdateOptions {
   clearKeys?: string[];
@@ -174,18 +176,8 @@ export const HashStateProvider: React.FC<{
       });
 
       const afterRaw = getHashParams();
-      const allKeys = new Set<string>([
-        ...Object.keys(beforeRaw),
-        ...Object.keys(afterRaw),
-      ]);
-      const changedAliasKeys: string[] = [];
-      const removedAliasKeys: string[] = [];
-      allKeys.forEach((k) => {
-        if (beforeRaw[k] !== afterRaw[k]) changedAliasKeys.push(k);
-      });
-      Object.keys(beforeRaw).forEach((k) => {
-        if (!(k in afterRaw)) removedAliasKeys.push(k);
-      });
+      const { changedKeys: changedAliasKeys, removedKeys: removedAliasKeys } =
+        diffHashParams(beforeRaw, afterRaw);
       const toOriginal = (k: string) => aliasReverseLookup[k] || k;
       const changedKeys = [...new Set(changedAliasKeys.map(toOriginal))];
       const removedKeys = [...new Set(removedAliasKeys.map(toOriginal))];
@@ -212,43 +204,12 @@ export const HashStateProvider: React.FC<{
     ]
   );
 
-  useEffect(() => {
-    const handle = (source: HashChangeSource) => () => {
-      const beforeRaw = prevRawRef.current || {};
-      const afterRaw = getHashParams();
-      const allKeys = new Set<string>([
-        ...Object.keys(beforeRaw),
-        ...Object.keys(afterRaw),
-      ]);
-      const changedAliasKeys: string[] = [];
-      const removedAliasKeys: string[] = [];
-      allKeys.forEach((k) => {
-        if (beforeRaw[k] !== afterRaw[k]) changedAliasKeys.push(k);
-      });
-      Object.keys(beforeRaw).forEach((k) => {
-        if (!(k in afterRaw)) removedAliasKeys.push(k);
-      });
-      const toOriginal = (k: string) => aliasReverseLookup[k] || k;
-      const changedKeys = [...new Set(changedAliasKeys.map(toOriginal))];
-      const removedKeys = [...new Set(removedAliasKeys.map(toOriginal))];
-      emit({
-        raw: afterRaw,
-        values: getHashValues(),
-        changedKeys,
-        removedKeys,
-        source,
-      });
-      prevRawRef.current = afterRaw;
-    };
-    const onPop = handle("popstate");
-    const onHash = handle("hashchange");
-    window.addEventListener("popstate", onPop);
-    window.addEventListener("hashchange", onHash);
-    return () => {
-      window.removeEventListener("popstate", onPop);
-      window.removeEventListener("hashchange", onHash);
-    };
-  }, [emit, getHashValues, aliasReverseLookup]);
+  useHashChangeEmit({
+    emit: (e) => emit(e as any),
+    getHashValues,
+    aliasReverseLookup,
+    prevRawRef,
+  });
 
   const value = useRef<HashStateContextType>({
     getHash,

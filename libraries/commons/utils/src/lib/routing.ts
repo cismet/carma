@@ -43,6 +43,32 @@ export const getHashParams = (hash?: string): Record<string, string> => {
 };
 
 /**
+ * Computes which keys changed and which were removed when going from `before` to `after`.
+ * Keys refer to the literal hash parameter names (aliasing not considered here).
+ */
+export const diffHashParams = (
+  before: Record<string, string>,
+  after: Record<string, string>
+) => {
+  const allKeys = new Set<string>([
+    ...Object.keys(before),
+    ...Object.keys(after),
+  ]);
+  const changedKeys: string[] = [];
+  const removedKeys: string[] = [];
+  allKeys.forEach((k) => {
+    if (before[k] !== after[k]) changedKeys.push(k);
+  });
+  Object.keys(before).forEach((k) => {
+    if (!(k in after)) removedKeys.push(k);
+  });
+  return {
+    changedKeys: [...new Set(changedKeys)],
+    removedKeys: [...new Set(removedKeys)],
+  };
+};
+
+/**
  * Updates the URL hash parameters without triggering a React Router navigation
  */
 export const updateHashHistoryState = (
