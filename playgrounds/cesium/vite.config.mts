@@ -72,7 +72,7 @@ export default defineConfig({
   build: {
     outDir: '../../dist/playgrounds/cesium',
     reportCompressedSize: true,
-    sourcemap: true, // while not in actual production,
+    sourcemap: false,
     commonjsOptions: { transformMixedEsModules: true },
     rollupOptions: {
       onwarn: (warning, warn) => {
