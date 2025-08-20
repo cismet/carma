@@ -7,11 +7,9 @@
   "implicitDependencies": ["kita-finder"],
   "targets": {
     "e2e": {
-      "executor": "@nx/cypress:cypress",
+      "executor": "@nx/playwright:playwright",
       "options": {
-        "cypressConfig": "e2e/topicmaps/kita-finder/cypress.config.ts",
-        "devServerTarget": "kita-finder:serve:development",
-        "testingType": "e2e"
+        "config": "e2e/topicmaps/kita-finder/playwright.config.ts"
       },
       "configurations": {
         "production": {
