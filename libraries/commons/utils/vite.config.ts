@@ -45,4 +45,18 @@ export default defineConfig({
       external: ['react', 'react-dom', 'react/jsx-runtime'],
     },
   },
+
+  test: {
+    globals: true,
+    cache: {
+      dir: '../../../node_modules/.vitest',
+    },
+    environment: 'node',
+    include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+    reporters: ['default'],
+    coverage: {
+      reportsDirectory: '../../../coverage/libraries/commons/utils',
+      provider: 'v8',
+    },
+  },
 });

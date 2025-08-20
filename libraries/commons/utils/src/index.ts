@@ -4,6 +4,8 @@ export { isNumberArrayEqual } from "./lib/arrays";
 
 export { extractCarmaConfig } from "./lib/carmaConfig";
 
+export * from "./lib/constants";
+
 export { md5FetchText, md5ActionFetchDAQ } from "./lib/fetching";
 
 export {
@@ -21,6 +23,13 @@ export {
   type LatLng,
   type LatLngZoom,
 } from "./lib/geo";
+
+export {
+  getMercatorScaleFactorAtLatitudeRad,
+  getZoomFromPixelResolutionAtLatitudeRad,
+  getPixelResolutionFromZoomAtLatitudeRad,
+  clampLatitudeRadiansToWebMercatorExtent,
+} from "./lib/mercator";
 
 export { extractInformation } from "./lib/layer-parser";
 
@@ -50,6 +59,21 @@ export {
   cn,
   TAILWIND_CLASSNAMES_FULLSCREEN_FIXED,
 } from "./lib/styles-tailwind";
+
+export {
+  asDegrees,
+  asRadians,
+  degToRad,
+  radToDeg,
+  unDeg,
+  unRad,
+  asMeters,
+  unMeters,
+  // type guards
+  isDegrees,
+  isRadians,
+  isMeters,
+} from "./lib/units";
 
 export { getApplicationVersion } from "./lib/version";
 
