@@ -7,11 +7,9 @@
   "implicitDependencies": ["e-auto-ladestation"],
   "targets": {
     "e2e": {
-      "executor": "@nx/cypress:cypress",
+      "executor": "@nx/playwright:playwright",
       "options": {
-        "cypressConfig": "e2e/topicmaps/e-auto-ladestation/cypress.config.ts",
-        "devServerTarget": "e-auto-ladestation:serve:development",
-        "testingType": "e2e"
+        "config": "e2e/topicmaps/e-auto-ladestation/playwright.config.ts"
       },
       "configurations": {
         "production": {
