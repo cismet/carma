@@ -153,6 +153,7 @@ function App({ name }) {
           if (!data || !Array.isArray(data.layers)) return;
           // Always output legacy config: vectorLayers
           const vectorLayers = data.layers.map((layer) => {
+            // console.log("xxx layer", layer);
             let layerType =
               layer.layerType ||
               layer.other?.layerType ||
@@ -165,6 +166,8 @@ function App({ name }) {
                 (layer.other?.capabilitiesUrl || ""),
               addMetaInfoToHelp: true,
               ...(layerType ? { layerType } : {}),
+              style: layer?.other?.vectorStyle,
+              infoboxMapping: layer?.conf?.infoboxMapping,
             };
             const styleVal = layer.conf?.vectorStyle;
             if (styleVal && styleVal !== "") {
