@@ -7,11 +7,9 @@
   "implicitDependencies": ["luftmessstationen"],
   "targets": {
     "e2e": {
-      "executor": "@nx/cypress:cypress",
+      "executor": "@nx/playwright:playwright",
       "options": {
-        "cypressConfig": "e2e/topicmaps/luftmessstationen/cypress.config.ts",
-        "devServerTarget": "luftmessstationen:serve:development",
-        "testingType": "e2e"
+        "config": "e2e/topicmaps/luftmessstationen/playwright.config.ts"
       },
       "configurations": {
         "production": {
