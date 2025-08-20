@@ -1,7 +1,7 @@
 import { test } from "@playwright/test";
 import { runMapSmokeTest, setupSmokeTest } from "@carma/pw-helper";
 
-test.describe("x-and-ride smoke test", () => {
+test.describe("potenzialflaechen-online smoke test", () => {
   test.beforeEach(async ({ page }) => {
     await setupSmokeTest(page, "/", {
       navigationTimeout: 30000,
