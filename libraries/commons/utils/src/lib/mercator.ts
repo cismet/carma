@@ -1,57 +1,58 @@
 import {
   EARTH_CIRCUMFERENCE,
   DEFAULT_LEAFLET_TILESIZE,
+  DEFAULT_MERCATOR_LATITUDE_RAD,
   WEB_MERCATOR_MAX_LATITUDE_RAD,
 } from "./constants";
-import { asRadians, asMeters, unMeters, unRad } from "./units";
+import { brandedNegate } from "./typescript-branded-ops";
+import { asMeters } from "./units";
 import type { Radians, Meters } from "@carma-commons/types";
 
-export const clampLatitudeRadiansToWebMercatorExtent = (
-  latitude: number
-): number => {
+export const clampLatitudeToWebMercatorExtent = (
+  latitude: Radians
+): Radians => {
   if (latitude > WEB_MERCATOR_MAX_LATITUDE_RAD) {
     console.warn(
       "latitude is greater than max web mercator latitude, clamping applied"
     );
     return WEB_MERCATOR_MAX_LATITUDE_RAD;
   }
-  if (latitude < -WEB_MERCATOR_MAX_LATITUDE_RAD) {
+  const minMercator = brandedNegate(WEB_MERCATOR_MAX_LATITUDE_RAD);
+  if (latitude < minMercator) {
     console.warn(
       "latitude is smaller than min web mercator latitude, clamping applied"
     );
-    return -WEB_MERCATOR_MAX_LATITUDE_RAD;
+    return minMercator;
   }
   return latitude;
 };
 
 export const getMercatorScaleFactorAtLatitudeRad = (
-  latitude: number
+  latitude: Radians
 ): number => {
-  const latRadClamped = clampLatitudeRadiansToWebMercatorExtent(latitude);
-  const latRad: Radians = asRadians(latRadClamped);
-  return 1 / Math.cos(unRad(latRad));
+  const clampedLatitude: Radians = clampLatitudeToWebMercatorExtent(latitude);
+  return 1 / Math.cos(clampedLatitude);
 };
 
 export const getZoomFromPixelResolutionAtLatitudeRad = (
-  meterResolution: number,
-  latitude: number = 0,
+  meterResolution: Meters,
+  latitude: Radians = DEFAULT_MERCATOR_LATITUDE_RAD,
   { tileSize = DEFAULT_LEAFLET_TILESIZE }: { tileSize?: number } = {}
-) => {
+): number => {
   const scaleFactor = getMercatorScaleFactorAtLatitudeRad(latitude);
-  const mPerPx: Meters = asMeters(meterResolution);
-  const denominator = scaleFactor * unMeters(mPerPx) * tileSize;
+  const denominator = scaleFactor * meterResolution * tileSize;
   const zoom = Math.log2(EARTH_CIRCUMFERENCE / denominator);
   return zoom;
 };
 
 export const getPixelResolutionFromZoomAtLatitudeRad = (
   zoom: number,
-  latitude: number = 0,
+  latitude: Radians,
   { tileSize = DEFAULT_LEAFLET_TILESIZE }: { tileSize?: number } = {}
-) => {
+): Meters => {
   const scale = getMercatorScaleFactorAtLatitudeRad(latitude);
   const metersPerPixel: Meters = asMeters(
     EARTH_CIRCUMFERENCE / (scale * Math.pow(2, zoom) * tileSize)
   );
-  return unMeters(metersPerPixel);
+  return metersPerPixel;
 };

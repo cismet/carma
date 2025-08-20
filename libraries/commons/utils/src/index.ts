@@ -18,17 +18,15 @@ export {
 export {
   metersPerPixel,
   distanceMeters,
-  pixelsBetweenLocations,
+  pixelsBetweenGeographicLocations,
   isLocationEqualWithinPixelTolerance,
-  type LatLng,
-  type LatLngZoom,
 } from "./lib/geo";
 
 export {
   getMercatorScaleFactorAtLatitudeRad,
   getZoomFromPixelResolutionAtLatitudeRad,
   getPixelResolutionFromZoomAtLatitudeRad,
-  clampLatitudeRadiansToWebMercatorExtent,
+  clampLatitudeToWebMercatorExtent,
 } from "./lib/mercator";
 
 export { extractInformation } from "./lib/layer-parser";
@@ -61,18 +59,24 @@ export {
 } from "./lib/styles-tailwind";
 
 export {
+  brandedNegate,
+  brandedAdd,
+  brandedSub,
+  brandedMul,
+  brandedDiv,
+  brandedAbs,
+  brandedMin,
+  brandedMax,
+  brandedClamp,
+  unbrandNumber,
+} from "./lib/typescript-branded-ops";
+
+export {
   asDegrees,
   asRadians,
   degToRad,
   radToDeg,
-  unDeg,
-  unRad,
   asMeters,
-  unMeters,
-  // type guards
-  isDegrees,
-  isRadians,
-  isMeters,
 } from "./lib/units";
 
 export { getApplicationVersion } from "./lib/version";

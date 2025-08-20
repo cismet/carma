@@ -1,10 +1,5 @@
 import type { Degrees, Radians, Meters } from "@carma-commons/types";
-import { DEG_TO_RAD, RAD_TO_DEG } from "./constants";
-
-// Type guards (runtime can't detect brands on primitives; these narrow types only)
-export const isDegrees = (v: unknown): v is Degrees => typeof v === "number";
-export const isRadians = (v: unknown): v is Radians => typeof v === "number";
-export const isMeters = (v: unknown): v is Meters => typeof v === "number";
+import { DEG_TO_RAD_FACTOR, RAD_TO_DEG_FACTOR } from "./constants";
 
 // Branding helpers
 export const asDegrees = (n: number): Degrees => n as Degrees;
@@ -12,12 +7,21 @@ export const asRadians = (n: number): Radians => n as Radians;
 export const asMeters = (n: number): Meters => n as Meters;
 
 // Conversions (branded)
-export const degToRad = (deg: Degrees): Radians =>
-  ((deg as number) * DEG_TO_RAD) as Radians;
-export const radToDeg = (rad: Radians): Degrees =>
-  ((rad as number) * RAD_TO_DEG) as Degrees;
+// allow forwarding undefined values in variables with overloads
+// units.ts
+export function degToRad(deg: Degrees): Radians;
+// pass-through undefined
+export function degToRad(deg: undefined): undefined;
+// union overload for callers with Degrees | undefined
+export function degToRad(deg: Degrees | undefined): Radians | undefined;
+// single implementation compatible with all overloads
+export function degToRad(deg: Degrees | undefined): Radians | undefined {
+  return deg === undefined ? undefined : asRadians(deg * DEG_TO_RAD_FACTOR);
+}
 
-// Unwrapping
-export const unDeg = (deg: Degrees): number => deg as number;
-export const unRad = (rad: Radians): number => rad as number;
-export const unMeters = (m: Meters): number => m as number;
+export function radToDeg(rad: Radians): Degrees;
+export function radToDeg(rad: undefined): undefined;
+export function radToDeg(rad: Radians | undefined): Degrees | undefined;
+export function radToDeg(rad: Radians | undefined): Degrees | undefined {
+  return rad === undefined ? undefined : asDegrees(rad * RAD_TO_DEG_FACTOR);
+}

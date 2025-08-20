@@ -31,6 +31,7 @@ import type {
 import {
   EARTH_RADIUS,
   asRadians,
+  asMeters,
   getZoomFromPixelResolutionAtLatitudeRad,
 } from "@carma-commons/utils";
 
@@ -657,7 +658,7 @@ export const cesiumCenterPixelSizeToLeafletZoom = (
     return { value: null, error: "No pixel size found for camera position" };
   }
   const zoom = getZoomFromPixelResolutionAtLatitudeRad(
-    pixelSize.value,
+    asMeters(pixelSize.value),
     asRadians(viewer.camera.positionCartographic.latitude)
   );
 

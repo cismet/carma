@@ -1,24 +1,38 @@
 import { distance } from "@turf/turf";
 import {
   DEFAULT_LEAFLET_TILESIZE,
+  DEFAULT_MERCATOR_LATITUDE_RAD,
   DEFAULT_ZOOM_TOLERANCE,
   DEFAULT_PIXEL_TOLERANCE,
 } from "./constants";
 import { getPixelResolutionFromZoomAtLatitudeRad } from "./mercator";
-import { asDegrees, degToRad } from "./units";
-import type { Degrees, Radians } from "@carma-commons/types";
-
-export type LatLng = { lat: number; lng: number };
-export type LatLngZoom = { lat: number; lng: number; zoom: number };
+import { degToRad } from "./units";
+import type {
+  Degrees,
+  Meters,
+  Radians,
+  LatLng,
+  LatLngZoom,
+} from "@carma-commons/types";
+import { brandedRatio, brandedAbs, brandedMax } from "./typescript-branded-ops";
 
 // Meters per pixel at zoom/latitude (latitude in degrees)
-export function metersPerPixel(zoom: number, latitudeDeg?: number): number {
-  const latDeg = latitudeDeg ?? 50; // default ~50°
-  const latDegBranded: Degrees = asDegrees(latDeg);
-  const latRad: Radians = degToRad(latDegBranded);
-  return getPixelResolutionFromZoomAtLatitudeRad(zoom, latRad, {
-    tileSize: DEFAULT_LEAFLET_TILESIZE,
-  });
+export function metersPerPixel(zoom: number, latitudeDeg?: Degrees): Meters {
+  return metersPerPixelAtLatitudeRad(zoom, degToRad(latitudeDeg));
+}
+
+// Meters per pixel at zoom/latitude (latitude in degrees)
+export function metersPerPixelAtLatitudeRad(
+  zoom: number,
+  latitudeRad?: Radians
+): Meters {
+  return getPixelResolutionFromZoomAtLatitudeRad(
+    zoom,
+    latitudeRad ?? DEFAULT_MERCATOR_LATITUDE_RAD,
+    {
+      tileSize: DEFAULT_LEAFLET_TILESIZE,
+    }
+  );
 }
 
 // Geodesic distance in meters between two LatLngs (degrees)
@@ -26,16 +40,16 @@ export function distanceMeters(a: LatLng, b: LatLng): number {
   return distance([a.lng, a.lat], [b.lng, b.lat], { units: "meters" });
 }
 
-export function pixelsBetweenLocations(
+export function pixelsBetweenGeographicLocations(
   a: LatLng,
   b: LatLng,
   zoomRef: number
 ): number {
   // Use max |latitude| of both points for Mercator scale
-  const latForScale = Math.max(Math.abs(a.lat || 0), Math.abs(b.lat || 0));
+  const latForScale = brandedMax(brandedAbs(a.lat), brandedAbs(b.lat));
   const mPerPx = metersPerPixel(zoomRef, latForScale);
   const dMeters = distanceMeters(a, b);
-  return dMeters / mPerPx;
+  return brandedRatio(dMeters, mPerPx);
 }
 
 export function isZoomClose(
@@ -62,10 +76,6 @@ export function isLocationEqualWithinPixelTolerance(
   const pxTol = opts?.pixelTolerance ?? DEFAULT_PIXEL_TOLERANCE;
   const zoomTol = opts?.zoomTolerance ?? DEFAULT_ZOOM_TOLERANCE;
   if (!isZoomClose(a.zoom, b.zoom, zoomTol)) return false;
-  const px = pixelsBetweenLocations(
-    { lat: a.lat, lng: a.lng },
-    { lat: b.lat, lng: b.lng },
-    b.zoom
-  );
+  const px = pixelsBetweenGeographicLocations(a, b, b.zoom);
   return px <= pxTol;
 }

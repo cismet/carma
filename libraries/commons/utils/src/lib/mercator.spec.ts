@@ -9,27 +9,34 @@ import {
   DEFAULT_LEAFLET_TILESIZE,
   WEB_MERCATOR_MAX_LATITUDE_RAD,
 } from "./constants";
+import { asRadians, asMeters, unMeters } from "./units";
 
 describe("commons/utils mercator", () => {
   test("getMercatorScaleFactorAtLatitudeRad", () => {
     const maxScale = getMercatorScaleFactorAtLatitudeRad(
-      WEB_MERCATOR_MAX_LATITUDE_RAD
+      asRadians(WEB_MERCATOR_MAX_LATITUDE_RAD)
     );
 
-    expect(getMercatorScaleFactorAtLatitudeRad(0)).toBeCloseTo(1);
-    expect(getMercatorScaleFactorAtLatitudeRad(Math.PI / 4)).toBeCloseTo(
-      Math.SQRT2
+    expect(getMercatorScaleFactorAtLatitudeRad(asRadians(0))).toBeCloseTo(1);
+    expect(
+      getMercatorScaleFactorAtLatitudeRad(asRadians(Math.PI / 4))
+    ).toBeCloseTo(Math.SQRT2);
+    expect(
+      getMercatorScaleFactorAtLatitudeRad(asRadians(Math.PI / 3))
+    ).toBeCloseTo(2);
+    expect(
+      getMercatorScaleFactorAtLatitudeRad(asRadians(-Math.PI / 4))
+    ).toBeCloseTo(Math.SQRT2);
+    expect(getMercatorScaleFactorAtLatitudeRad(asRadians(Math.PI / 2))).toBe(
+      maxScale
     );
-    expect(getMercatorScaleFactorAtLatitudeRad(Math.PI / 3)).toBeCloseTo(2);
-    expect(getMercatorScaleFactorAtLatitudeRad(-Math.PI / 4)).toBeCloseTo(
-      Math.SQRT2
-    );
-    expect(getMercatorScaleFactorAtLatitudeRad(Math.PI / 2)).toBe(maxScale);
   });
 
   test("getZoomFromPixelResolutionAtLatitudeRad - eq zoom 0", () => {
-    const meterResolution = EARTH_CIRCUMFERENCE / DEFAULT_LEAFLET_TILESIZE;
-    const latitude = 0;
+    const meterResolution = asMeters(
+      EARTH_CIRCUMFERENCE / DEFAULT_LEAFLET_TILESIZE
+    );
+    const latitude = asRadians(0);
     const expectedZoom = getZoomFromPixelResolutionAtLatitudeRad(
       meterResolution,
       latitude
@@ -38,8 +45,10 @@ describe("commons/utils mercator", () => {
   });
 
   test("getZoomFromPixelResolutionAtLatitudeRad - high lat eq zoom -1", () => {
-    const meterResolution = EARTH_CIRCUMFERENCE / DEFAULT_LEAFLET_TILESIZE;
-    const latitude = Math.PI / 3; // 60°
+    const meterResolution = asMeters(
+      EARTH_CIRCUMFERENCE / DEFAULT_LEAFLET_TILESIZE
+    );
+    const latitude = asRadians(Math.PI / 3); // 60°
     const expectedZoom = getZoomFromPixelResolutionAtLatitudeRad(
       meterResolution,
       latitude
@@ -48,9 +57,10 @@ describe("commons/utils mercator", () => {
   });
 
   test("getZoomFromPixelResolutionAtLatitudeRad - compensate scale", () => {
-    const meterResolution =
-      EARTH_CIRCUMFERENCE / (DEFAULT_LEAFLET_TILESIZE * 2);
-    const latitude = Math.PI / 3; // 60°
+    const meterResolution = asMeters(
+      EARTH_CIRCUMFERENCE / (DEFAULT_LEAFLET_TILESIZE * 2)
+    );
+    const latitude = asRadians(Math.PI / 3); // 60°
     const expectedZoom = getZoomFromPixelResolutionAtLatitudeRad(
       meterResolution,
       latitude
@@ -60,10 +70,9 @@ describe("commons/utils mercator", () => {
 
   test("getPixelResolutionFromZoomAtLatitudeRad", () => {
     const zoom = 0;
-    const latitude = 0;
-    const expectedResolution = getPixelResolutionFromZoomAtLatitudeRad(
-      zoom,
-      latitude
+    const latitude = asRadians(0);
+    const expectedResolution = unMeters(
+      getPixelResolutionFromZoomAtLatitudeRad(zoom, latitude)
     );
     expect(expectedResolution).toBeCloseTo(
       EARTH_CIRCUMFERENCE / DEFAULT_LEAFLET_TILESIZE
@@ -72,7 +81,7 @@ describe("commons/utils mercator", () => {
 
   test("round trip from zoom to resolution", () => {
     const zoom = 4;
-    const latitude = 0;
+    const latitude = asRadians(0);
     const resolution = getPixelResolutionFromZoomAtLatitudeRad(zoom, latitude);
     const roundTripZoom = getZoomFromPixelResolutionAtLatitudeRad(
       resolution,
@@ -82,44 +91,41 @@ describe("commons/utils mercator", () => {
   });
 
   test("round trip from resolution to zoom - eq", () => {
-    const meterResolution = 1000;
-    const latitude = 0;
+    const meterResolution = asMeters(1000);
+    const latitude = asRadians(0);
     const zoom = getZoomFromPixelResolutionAtLatitudeRad(
       meterResolution,
       latitude
     );
-    const roundTripResolution = getPixelResolutionFromZoomAtLatitudeRad(
-      zoom,
-      latitude
+    const roundTripResolution = unMeters(
+      getPixelResolutionFromZoomAtLatitudeRad(zoom, latitude)
     );
-    expect(roundTripResolution).toBeCloseTo(meterResolution);
+    expect(roundTripResolution).toBeCloseTo(unMeters(meterResolution));
   });
 
   test("round trip from resolution to zoom - high lat", () => {
-    const meterResolution = 1000;
-    const latitude = Math.PI / 3;
+    const meterResolution = asMeters(1000);
+    const latitude = asRadians(Math.PI / 3);
     const zoom = getZoomFromPixelResolutionAtLatitudeRad(
       meterResolution,
       latitude
     );
-    const roundTripResolution = getPixelResolutionFromZoomAtLatitudeRad(
-      zoom,
-      latitude
+    const roundTripResolution = unMeters(
+      getPixelResolutionFromZoomAtLatitudeRad(zoom, latitude)
     );
-    expect(roundTripResolution).toBeCloseTo(meterResolution);
+    expect(roundTripResolution).toBeCloseTo(unMeters(meterResolution));
   });
 
   test("round trip from resolution to zoom - near pole", () => {
-    const meterResolution = 1000;
-    const latitude = Math.PI / 2 - 0.01; // just within mercator bounds
+    const meterResolution = asMeters(1000);
+    const latitude = asRadians(Math.PI / 2 - 0.01); // just within mercator bounds
     const zoom = getZoomFromPixelResolutionAtLatitudeRad(
       meterResolution,
       latitude
     );
-    const roundTripResolution = getPixelResolutionFromZoomAtLatitudeRad(
-      zoom,
-      latitude
+    const roundTripResolution = unMeters(
+      getPixelResolutionFromZoomAtLatitudeRad(zoom, latitude)
     );
-    expect(roundTripResolution).toBeCloseTo(meterResolution);
+    expect(roundTripResolution).toBeCloseTo(unMeters(meterResolution));
   });
 });
