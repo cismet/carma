@@ -100,6 +100,9 @@ export const parseToMapLayer = async (
 
   const carmaConf = extractCarmaConfig(layer.keywords);
   if (layer.type === "layer") {
+    let capabilitiesUrl = layer?.props?.url
+      ? layer?.props?.url + "service=WMS&request=GetCapabilities&version=1.1.1"
+      : undefined;
     if ((carmaConf?.vectorStyle && !forceWMS) || layer.vectorStyle) {
       let zoom = {
         minzoom: 9,
@@ -156,9 +159,7 @@ export const parseToMapLayer = async (
             Object.entries(layer).filter(([key]) => !["props"].includes(key))
           ),
           layerName: layer.name,
-          capabilitiesUrl:
-            layer?.props?.url +
-            "service=WMS&request=GetCapabilities&version=1.1.1",
+          capabilitiesUrl: capabilitiesUrl,
         },
       };
     } else {
@@ -191,9 +192,7 @@ export const parseToMapLayer = async (
                 )
               ),
               layerName: layer.name,
-              capabilitiesUrl:
-                layer?.props?.url +
-                "service=WMS&request=GetCapabilities&version=1.1.1",
+              capabilitiesUrl: capabilitiesUrl,
             },
           };
           break;
@@ -225,9 +224,7 @@ export const parseToMapLayer = async (
                 )
               ),
               layerName: layer.name,
-              capabilitiesUrl:
-                layer?.props?.url +
-                "service=WMS&request=GetCapabilities&version=1.1.1",
+              capabilitiesUrl: capabilitiesUrl,
             },
           };
           break;
