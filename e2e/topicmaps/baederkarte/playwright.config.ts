@@ -27,7 +27,7 @@ export default defineConfig({
   webServer: {
     command: "npx nx serve baederkarte --port=4222",
     url: "http://localhost:4222",
-    reuseExistingServer: true,
+    reuseExistingServer: false,
     timeout: 60_000,
   },
 });
