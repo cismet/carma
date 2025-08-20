@@ -55,6 +55,9 @@ export const useOnSceneChange = (
   useEffect(() => {
     // on changes to mode or style
     const viewer = viewerRef.current;
+    if (isTransitioning) {
+      return;
+    }
     if (viewer && viewer.camera && !isMode2d) {
       console.debug(
         "HOOK: update Hash, route or style changed",
@@ -73,7 +76,7 @@ export const useOnSceneChange = (
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewerRef, isMode2d, isSecondaryStyle]);
+  }, [viewerRef, isMode2d, isSecondaryStyle, isTransitioning]);
 
   useEffect(() => {
     // update hash hook

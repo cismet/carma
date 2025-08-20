@@ -32,6 +32,9 @@ export { useAuth } from "./lib/components/AuthProvider";
 export {
   HashStateProvider,
   useHashState,
+  type HashChangeEvent,
+  type HashChangeSource,
+  type HashSubscribeOptions,
 } from "./lib/contexts/HashStateProvider";
 export {
   MapStyleProvider,
@@ -59,6 +62,11 @@ export { useShareUrl, SHORTENER_URL } from "./lib/hooks/useShareUrl";
 export { useProgress } from "./lib/hooks/useProgress";
 export { useCesiumModels } from "./lib/hooks/useCesiumModels";
 export { useCesiumModelSelection } from "./lib/hooks/useCesiumModelSelection";
+export {
+  useMapHashRouting,
+  createLocationChangeHandler,
+  type LatLngZoom,
+} from "./lib/hooks/useMapHashRouting";
 export { uploadImage } from "./lib/utils/fileUpload";
 export {
   defaultBackgroundConfigurations,

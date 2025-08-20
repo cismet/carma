@@ -23,16 +23,10 @@ import {
   useSelection,
   useSelectionCesium,
   useSelectionTopicMap,
+  useHashState,
 } from "@carma-apps/portals";
-import {
-  ENDPOINT,
-  isAreaType,
-  isAreaTypeWithGEP,
-} from "@carma-commons/resources";
-import {
-  getApplicationVersion,
-  updateHashHistoryState,
-} from "@carma-commons/utils";
+import { ENDPOINT, isAreaTypeWithGEP } from "@carma-commons/resources";
+import { getApplicationVersion } from "@carma-commons/utils";
 
 import { getCollabedHelpComponentConfig } from "@carma-collab/wuppertal/hochwassergefahrenkarte";
 
@@ -93,6 +87,7 @@ function App({ sync = false }: { sync?: boolean }) {
     responsiveState === "normal" ? "300px" : windowSize.width - gap - 2;
 
   const { gazData } = useGazData();
+  const { updateHash } = useHashState();
 
   const reactCismapEnvirometricsVersion = cismapEnvirometricsVersion;
   const [hochwasserschutz, setHochwasserschutz] = useState(true);
@@ -172,12 +167,13 @@ function App({ sync = false }: { sync?: boolean }) {
   };
 
   const onCesiumSceneChange = (e) => {
-    isMode2d
-      ? undefined
-      : updateHashHistoryState(e.hashParams, "/", {
-          removeKeys: ["zoom"],
-          label: "app/hgk:3D",
-        });
+    if (!isMode2d) {
+      updateHash(e.hashParams, {
+        clearKeys: ["zoom"],
+        label: "app/hgk:3D",
+        replace: true,
+      });
+    }
   };
 
   useSelectionTopicMap();
@@ -211,19 +207,15 @@ function App({ sync = false }: { sync?: boolean }) {
       !viewerRef.current.isDestroyed()
     ) {
       const viewer = viewerRef.current;
-      // remove default cesium credit because no ion resource is used;
-      (viewer as any)._cesiumWidget._creditContainer.style.display = "none";
+      // remove default cesium credit because no ion resource is used
+      (
+        viewer as unknown as {
+          _cesiumWidget: { _creditContainer: { style: { display: string } } };
+        }
+      )._cesiumWidget._creditContainer.style.display = "none";
       viewer.scene.requestRender();
     }
   }, [viewerRef, isViewerReady]);
-
-  const onFullscreenClick = () => {
-    if (document.fullscreenElement) {
-      document.exitFullscreen();
-    } else {
-      document.documentElement.requestFullscreen();
-    }
-  };
 
   const enableControlStateToggle = (controlState) => {
     return controlState.selectedSimulation !== 2;

@@ -15,7 +15,6 @@ import {
   Math as CesiumMath,
   CesiumTerrainProvider,
   Color,
-  Terrain,
 } from "cesium";
 
 import {
@@ -26,8 +25,6 @@ import {
 } from "@carma-mapping/map-controls-layout";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faCompress,
-  faExpand,
   faHouseChimney,
   faMinus,
   faPlus,
@@ -46,6 +43,7 @@ import {
   useSelection,
   useSelectionCesium,
   useSelectionTopicMap,
+  useHashState,
 } from "@carma-apps/portals";
 import {
   getCollabedHelpComponentConfig,
@@ -55,7 +53,6 @@ import {
 import {
   detectWebGLContext,
   getApplicationVersion,
-  updateHashHistoryState,
 } from "@carma-commons/utils";
 
 import {
@@ -77,8 +74,6 @@ import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { type SearchResultItem } from "@carma-commons/types";
 
 import versionData from "../../../version.json";
-
-import { paramsToObject } from "../../helper/helper.ts";
 import { getBackgroundLayers } from "../../helper/layer.tsx";
 
 import { useWindowSize } from "../../hooks/useWindowSize.ts";
@@ -173,11 +168,16 @@ export const CarmaMap = ({
     "HQ500"
   );
 
-  const topicMapLocationChangedHandler = (location: Location) => {
-    (location) => {
-      const newParams = { ...paramsToObject(urlParams), ...location };
-      setUrlParams(newParams);
-    };
+  const topicMapLocationChangedHandler = (loc: {
+    lat: number;
+    lng: number;
+    zoom: number;
+  }) => {
+    const params = new URLSearchParams(urlParams);
+    params.set("lat", String(loc.lat));
+    params.set("lng", String(loc.lng));
+    params.set("zoom", String(loc.zoom));
+    setUrlParams(params, { replace: false });
   };
 
   const is2dOnlyParamSet = urlParams.get(PARAMS.ONLY_2D) !== null;
@@ -227,6 +227,7 @@ export const CarmaMap = ({
   const { width, height } = useWindowSize(wrapperRef);
 
   const { setSelection } = useSelection();
+  const { updateHash } = useHashState();
 
   useSelectionTopicMap();
   useSelectionCesium(
@@ -506,10 +507,11 @@ export const CarmaMap = ({
               leafletMapProps={{ editable: true }}
               minZoom={10}
               backgroundlayers="empty"
-              mappingBoundsChanged={(boundingbox) => {
+              mappingBoundsChanged={() => {
                 // console.debug('xxx bbox', createWMSBbox(boundingbox));
               }}
               locationChangedHandler={topicMapLocationChangedHandler}
+              outerLocationChangedHandlerExclusive={true}
               onclick={(e) => {
                 const map = routedMap.leafletMap.leafletElement;
                 const baseUrl =
@@ -576,9 +578,10 @@ export const CarmaMap = ({
                     "[GEOPORTALMAP|HASH|SCENE|CESIUM]cesium scene changed",
                     e
                   );
-                  updateHashHistoryState(e.hashParams, "/", {
-                    removeKeys: ["zoom"],
+                  updateHash(e.hashParams, {
+                    clearKeys: ["zoom"],
                     label: "app/carma:3D",
+                    replace: true,
                   });
                 }}
               ></CustomViewer>

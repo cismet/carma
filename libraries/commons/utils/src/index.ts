@@ -6,14 +6,23 @@ export { extractCarmaConfig } from "./lib/carmaConfig";
 
 export { md5FetchText, md5ActionFetchDAQ } from "./lib/fetching";
 
-export { extractInformation } from "./lib/layer-parser";
-
 export {
   getGazData,
   type GazDataItem,
   type GazDataConfig,
   type GazDataSourceConfig,
 } from "./lib/gazData";
+
+export {
+  metersPerPixel,
+  distanceMeters,
+  pixelsBetweenLocations,
+  isLocationEqualWithinPixelTolerance,
+  type LatLng,
+  type LatLngZoom,
+} from "./lib/geo";
+
+export { extractInformation } from "./lib/layer-parser";
 
 export { suppressReactCismapErrors } from "./lib/log-react-cismap-errors";
 
@@ -29,7 +38,11 @@ export {
   convertBBox2Bounds,
 } from "./lib/proj4helpers";
 
-export { updateHashHistoryState, getHashParams } from "./lib/routing.ts";
+export {
+  updateHashHistoryState,
+  getHashParams,
+  diffHashParams,
+} from "./lib/routing.ts";
 
 export { generateRandomString } from "./lib/strings";
 

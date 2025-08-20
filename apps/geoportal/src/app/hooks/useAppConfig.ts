@@ -90,8 +90,13 @@ export const useAppConfig = (
       console.info("[CONFIG] No config key provided in hash parameters.");
       return;
     }
+    // can't use HashStateProvider here
+    // because it's not yet available
+    // and needs to be configured by the config itself
+    // use direct history state update instead
     updateHashHistoryState({ [configKey]: undefined }, pathname, {
       label: "remove config search parameter",
+      replace: true,
     });
 
     if (config === null || config === "") {

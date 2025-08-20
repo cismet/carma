@@ -20,6 +20,7 @@ import {
   LibreMapSelectionContent,
   SelectionItem,
   useHashState,
+  useMapHashRouting,
   useSelectionLibreMap,
 } from "@carma-apps/portals";
 
@@ -42,13 +43,12 @@ import {
   addMarkerToMap,
   changeWmsVisibility,
   createFeature,
-  getParamsMapLibre,
   layersToMapLibreStyle,
   zoom256as512,
+  zoom512as256,
 } from "./libremap.utils";
 import {
   cancelOngoingRequests,
-  getCoordinates,
   onClickTopicMap,
   onSelectionChangedVector,
 } from "./topicmap.utils";
@@ -107,7 +107,7 @@ const LibreGeoportalMap = ({
 }: {
   mapOptions?: LibreGeoportalMapOptions;
 }) => {
-  const { updateHash, getHashValues } = useHashState();
+  const { getHashValues } = useHashState();
   const normalizedMapOptions = useMemo(
     () => normalizeOptions(mapOptions, defaultMapOptions),
     [mapOptions]
@@ -148,6 +148,36 @@ const LibreGeoportalMap = ({
 
   const layers = useSelector(getLayers);
   const backgroundLayer = useSelector(getBackgroundLayer);
+
+  // Centralized hash routing for MapLibre (2D-only in this component)
+  const { handleTopicMapLocationChange } = useMapHashRouting({
+    isMode2d: true,
+    getLeafletMap: () => {
+      const m = map.current;
+      if (!m) return null;
+      return {
+        setView: (center: { lat: number; lng: number }, zoom?: number) => {
+          if (typeof zoom === "number") m.setZoom(zoom256as512(zoom));
+          m.setCenter([center.lng, center.lat]);
+        },
+        panTo: (center: { lat: number; lng: number }) =>
+          m.panTo([center.lng, center.lat]),
+        setZoom: (zoom: number) => m.setZoom(zoom256as512(zoom)),
+        getCenter: () => m.getCenter(),
+        once: (type: string, fn: (...args: unknown[]) => void) =>
+          m.once(type, fn),
+      };
+    },
+    getLeafletZoom: () => {
+      const m = map.current;
+      return m ? zoom512as256(m.getZoom()) : normalizedMapOptions.zoom;
+    },
+    labels: {
+      clear3d: "LGM:2D:clear3d",
+      write2d: "LGM:2D:writeLocation",
+      topicMapLocation: "LGM:2D:location",
+    },
+  });
 
   const onComplete = (
     selection: SelectionItem,
@@ -438,8 +468,6 @@ const LibreGeoportalMap = ({
 
           if (filteredHits.length > 0) {
             const selectedVectorFeature = filteredHits[0];
-
-            const coordinates = getCoordinates(selectedVectorFeature.geometry);
             const layerId = selectedVectorFeature.layer?.metadata?.["layer-id"];
             const currentLayers = getLayers(store.getState());
             const layer = currentLayers.find((layer) => layer.id === layerId);
@@ -504,7 +532,7 @@ const LibreGeoportalMap = ({
 
                 // Update the selection layer filter to show this building
                 if (map.current.getLayer(selectionLayerId)) {
-                  const filterConditions: any[] = [
+                  const filterConditions: unknown[] = [
                     "all",
                     ["==", ["geometry-type"], "Polygon"],
                   ];
@@ -587,22 +615,22 @@ const LibreGeoportalMap = ({
         map.current.remove();
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     const mapInstance = map.current;
-    if (!mapInstance || typeof updateHash !== "function") return;
+    if (!mapInstance) return;
     const handleMoveEnd = () => {
-      if (!mapInstance) return;
-      updateHash(getParamsMapLibre(mapInstance, defaultMapOptions), {
-        label: "MapLibre",
-      });
+      const center = mapInstance.getCenter();
+      const zoom = zoom512as256(mapInstance.getZoom());
+      handleTopicMapLocationChange({ lat: center.lat, lng: center.lng, zoom });
     };
     mapInstance.on("moveend", handleMoveEnd);
     return () => {
       mapInstance && mapInstance.off("moveend", handleMoveEnd);
     };
-  }, [updateHash]);
+  }, [handleTopicMapLocationChange]);
 
   useEffect(() => {
     if (!map.current) return;

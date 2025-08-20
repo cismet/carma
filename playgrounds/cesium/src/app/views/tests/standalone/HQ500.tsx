@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
-import { useLocation } from "react-router-dom";
 
-import { CesiumTerrainProvider, Color, Terrain, TerrainProvider } from "cesium";
+import { CesiumTerrainProvider, Color, Terrain } from "cesium";
 
 import {
   Control,
@@ -18,21 +17,19 @@ import {
 
 import {
   CustomViewer,
-  Compass,
   useCesiumContext,
   useHomeControl,
   useZoomControls as useZoomControlsCesium,
 } from "@carma-mapping/cesium-engine";
 import { useTweakpaneCtx } from "@carma-commons/debug";
-import { updateHashHistoryState } from "@carma-commons/utils";
+import { useHashState } from "@carma-apps/portals";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 
 const TERRAIN_HQ500_CM = "https://cesium-wupp-terrain.cismet.de/HQ500cm/";
-const TERRAIN_HQ500 = "https://cesium-wupp-terrain.cismet.de/HQ500/";
 
 export const HQ500 = () => {
-  const location = useLocation();
+  const { updateHash } = useHashState();
 
   const rerenderCountRef = useRef(0);
   const lastRenderTimeStampRef = useRef(Date.now());
@@ -91,7 +88,7 @@ export const HQ500 = () => {
 
   useEffect(() => {
     if (viewer && hq500Terrain && primaryTileset) {
-      const onTerrainReady = (terrainProvider: TerrainProvider) => {
+      const onTerrainReady = () => {
         primaryTileset.show = true;
         viewer.scene.setTerrain(hq500Terrain);
         viewer.scene.backgroundColor = Color.DIMGREY;
@@ -168,8 +165,8 @@ export const HQ500 = () => {
                 "[GEOPORTALMAP|HASH|SCENE|CESIUM]cesium scene changed",
                 e
               );
-              updateHashHistoryState(e.hashParams, location.pathname, {
-                removeKeys: ["zoom"],
+              updateHash(e.hashParams, {
+                clearKeys: ["zoom"],
                 label: "app/hq500:3D",
               });
             }}

@@ -5,11 +5,14 @@ import { Provider } from "react-redux";
 import { persistStore } from "redux-persist";
 import { PersistGate } from "redux-persist/integration/react";
 
-import { MappingConstants } from "react-cismap";
 import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextProvider";
 import { CrossTabCommunicationContextProvider } from "react-cismap/contexts/CrossTabCommunicationContextProvider";
 
-import { GazDataProvider, SelectionProvider } from "@carma-apps/portals";
+import {
+  GazDataProvider,
+  SelectionProvider,
+  HashStateProvider,
+} from "@carma-apps/portals";
 import { TweakpaneProvider } from "@carma-commons/debug";
 import { suppressReactCismapErrors } from "@carma-commons/utils";
 import {
@@ -46,12 +49,14 @@ const appWithContext = (
         // baseLayerConf={wuppertalConfig.overridingBaseLayerConf}
         infoBoxPixelWidth={370}
       >
-        <CesiumContextProvider
-          providerConfig={CESIUM_CONFIG.providerConfig}
-          tilesetConfigs={CESIUM_CONFIG.tilesetConfigs}
-        >
-          {enableSync ? syncedApp : <App />}
-        </CesiumContextProvider>
+        <HashStateProvider>
+          <CesiumContextProvider
+            providerConfig={CESIUM_CONFIG.providerConfig}
+            tilesetConfigs={CESIUM_CONFIG.tilesetConfigs}
+          >
+            {enableSync ? syncedApp : <App />}
+          </CesiumContextProvider>
+        </HashStateProvider>
       </TopicMapContextProvider>
     </SelectionProvider>
   </GazDataProvider>

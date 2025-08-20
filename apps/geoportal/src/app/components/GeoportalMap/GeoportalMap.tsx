@@ -14,7 +14,8 @@ import {
   useAuth,
   useFeatureFlags,
   useGazData,
-  useHashState,
+  useMapHashRouting,
+  createLocationChangeHandler,
   useSelectionCesium,
   useSelectionTopicMap,
   useCesiumModels,
@@ -37,7 +38,6 @@ import {
 import { getApplicationVersion } from "@carma-commons/utils";
 
 import {
-  cesiumClearParamKeys,
   CustomViewer,
   selectShowPrimaryTileset,
   selectViewerIsMode2d,
@@ -94,7 +94,6 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faArrowRightFromBracket,
   faKey,
-  faUser,
 } from "@fortawesome/free-solid-svg-icons";
 
 interface MapProps {
@@ -109,7 +108,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   // Contexts
   const { viewerRef, terrainProviderRef, surfaceProviderRef } =
     useCesiumContext();
-  const { updateHash } = useHashState();
 
   const rerenderCountRef = useRef(0);
   const lastRenderTimeStampRef = useRef(Date.now());
@@ -208,6 +206,19 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       dispatch(setFeatures([]));
     }
   }, [isMode2d, selectedFeature, dispatch]);
+
+  const { handleTopicMapLocationChange, handleCesiumSceneChange } =
+    useMapHashRouting({
+      isMode2d,
+      getLeafletMap: () => routedMap?.leafletMap?.leafletElement,
+      getLeafletZoom,
+      labels: {
+        clear3d: "GPM:2D:clear3d",
+        write2d: "GPM:2D:writeLocation",
+        topicMapLocation: "GPM:TopicMap:locationChangedHandler",
+        cesiumScene: "GPM:3D",
+      },
+    });
 
   const { gazData } = useGazData();
 
@@ -372,30 +383,19 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shouldUpdateFeatureInfo]);
 
-  const topicMapLocationChangedHandler = ({
-    lat,
-    lng,
-    zoom,
-  }: {
-    lat: number;
-    lng: number;
-    zoom: number;
-  }) => {
-    if (!isMode2d) {
-      console.debug(
-        "[TopicMap|DEBUG] Location changed handler triggered while in 3D mode"
-      );
-      return;
-    }
-    updateHash(
-      { lat, lng, zoom },
-      {
-        clearKeys: cesiumClearParamKeys,
-        label: "GPM:TopicMap:locationChangedHandler",
-      }
-    );
-    dispatch(setLayersIdle(false));
-  };
+  const topicMapLocationChangedHandler = useMemo(
+    () =>
+      createLocationChangeHandler({
+        isMode2d,
+        onChange: handleTopicMapLocationChange,
+        onAfter: () => dispatch(setLayersIdle(false)),
+        onMismatch: () =>
+          console.debug(
+            "[TopicMap|DEBUG] Location changed handler triggered while in 3D mode"
+          ),
+      }),
+    [isMode2d, handleTopicMapLocationChange, dispatch]
+  );
 
   const onSceneChange = (e: { hashParams: Record<string, string> }) => {
     if (isMode2d) {
@@ -404,7 +404,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       );
       return;
     }
-    updateHash(e.hashParams, { clearKeys: ["zoom"], label: "GPM:3D" });
+    handleCesiumSceneChange(e);
   };
 
   // TODO Move out Controls to own component
@@ -476,7 +476,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
           minZoom={10}
           backgroundlayers="empty"
           mappingBoundsChanged={(boundingbox) => {
-            // console.debug('xxx bbox', createWMSBbox(boundingbox));
+            // intentionally no-op
           }}
           locationChangedHandler={topicMapLocationChangedHandler}
           outerLocationChangedHandlerExclusive={true}
