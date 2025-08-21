@@ -121,7 +121,6 @@
       "@carma-collab/wuppertal/x-and-ride": [
         "libraries/collaboration/carma-wuppertal-collab/src/x-and-ride/index.ts"
       ],
-      "@carma-commons/cismap": ["libraries/commons/cismap/src/index.ts"],
       "@carma-commons/debug": ["libraries/commons/debug/src/index.ts"],
       "@carma-commons/document-viewer": [
         "libraries/commons/document-viewer/src/index.ts"
@@ -146,8 +145,6 @@
       "@carma-commons/ui/tag-selection": [
         "libraries/commons/ui/tag-selection/src/index.ts"
       ],
-      "@carma-commons/utils": ["libraries/commons/utils/src/index.ts"],
-      "@carma-commons/utils/*": ["libraries/commons/utils/src/lib/*"],
       "@carma-mapping/cesium-engine": [
         "libraries/mapping/engines/cesium/src/index.ts"
       ],
