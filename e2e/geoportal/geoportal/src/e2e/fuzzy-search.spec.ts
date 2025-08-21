@@ -32,7 +32,7 @@ const mockedAdressen = [
 
 test.describe("geoportal fuzzy search test", () => {
   test.beforeEach(async ({ context, page }) => {
-    // 1) Mock ONLY addresses with your custom list
+    // 1) Mock ONLY addresses with mockedAdressen
     await context.route("**/v2/data/**/adressen.json*", (route) =>
       route.fulfill({
         status: 200,
