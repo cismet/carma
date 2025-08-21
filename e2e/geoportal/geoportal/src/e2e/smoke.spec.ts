@@ -2,19 +2,20 @@ import { test, expect } from "@playwright/test";
 
 test.describe("geoportal smoke test", () => {
   test.beforeEach(async ({ page }) => {
-    // Make sure you set `use.baseURL` in playwright.config to allow `page.goto('/')`
     await page.goto("/");
+    await page.waitForLoadState("networkidle");
   });
 
   test("Map loads with key controls and buttons", async ({ page }) => {
-    await expect(page.locator('[data-test-id="zoom-control"]')).toBeVisible();
+    await expect(
+      page.locator('[data-test-id="zoom-in-control"]')
+    ).toBeVisible();
     await expect(page.locator('[data-test-id="home-control"]')).toBeVisible();
     await expect(
       page.locator('[data-test-id="measurement-control"]')
     ).toBeVisible();
     await expect(page.locator('[data-test-id="3d-control"]')).toBeVisible();
 
-    // Cypress `.should("not.exist")` -> Playwright: expect zero matches
     await expect(page.locator('[data-test-id="2d-control"]')).toHaveCount(0);
 
     await expect(
@@ -37,7 +38,6 @@ test.describe("geoportal smoke test", () => {
     await expect(page.locator('[data-test-id="teilen-btn"]')).toBeVisible();
     await expect(page.locator('[data-test-id="fuzzy-search"]')).toBeVisible();
 
-    // Modal should not exist initially
     await expect(page.locator("#cmdCloseModalApplicationMenu")).toHaveCount(0);
 
     // Open modal
