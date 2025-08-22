@@ -126,3 +126,29 @@ export async function isTopicMapApp(page: Page): Promise<boolean> {
     return false;
   }
 }
+
+/**
+ * Takes a screenshot with a descriptive name for debugging
+ * @param page - The Playwright page object
+ * @param name - The section attribute name starts with a lowercase first letter
+ */
+export async function toggleAccordion(page: Page, sectionName: string) {
+  // No section should be open initially
+  await expect(page.locator(".collapse.show")).toHaveCount(0);
+
+  const btn = page.locator(`[name="${sectionName}"]`).locator("button");
+  await expect(btn).toBeVisible();
+
+  // Open
+  await btn.click({ force: true });
+  const openSection = page.locator(".collapse.show").first();
+  await expect(openSection).toBeVisible();
+
+  // Should have some content
+  const text = (await openSection.innerText()).trim();
+  expect(text.length).toBeGreaterThan(0);
+
+  // Close
+  await btn.click({ force: true });
+  await expect(page.locator(".collapse.show")).toHaveCount(0);
+}

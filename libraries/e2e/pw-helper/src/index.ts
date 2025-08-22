@@ -18,5 +18,6 @@ export {
   takeDebugScreenshot,
   waitForElementWithRetry,
   isTopicMapApp,
+  toggleAccordion,
   type SmokeTestSetupOptions,
 } from "./lib/test-helpers";
