@@ -8,6 +8,9 @@ export {
   type SmokeTestOptions,
 } from "./lib/smoke-tests";
 
+// Modal menu test functions
+export { runModalMenuTest, type ModalMenuOptions } from "./lib/modal-menu-test";
+
 // Page object models
 export { TopicMapPage, ExtendedTopicMapPage } from "./lib/page-objects";
 
