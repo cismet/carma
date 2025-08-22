@@ -1,5 +1,5 @@
 import { expect, Page } from "@playwright/test";
-
+type MaybePromise<T> = T | Promise<T>;
 export type ModalMenuOptions = {
   introText?: string | RegExp;
   minAccordionCount?: number;
@@ -14,7 +14,7 @@ export type ModalMenuOptions = {
   /**
    * Open the modal menu, verify content, toggle sections, and close.
    */
-  menuOpenCallback?: (page: Page) => void | null;
+  menuOpenCallback?: (page: Page) => MaybePromise<void>;
 };
 
 /**

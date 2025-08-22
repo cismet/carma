@@ -1,5 +1,5 @@
 import { test, expect, Page } from "@playwright/test";
-import { toggleAccordion, menuOpenCallback } from "@carma/pw-helper";
+import { toggleAccordion, runModalMenuTest } from "@carma/pw-helper";
 
 const checkAccordion = async (page: Page) => {
   await toggleAccordion(page, "positionieren");
@@ -18,9 +18,9 @@ test.describe("Modal menu opens and contains header, introduction, sections, foo
   }) => {
     // await page.locator('[data-test-id="modal-menu-btn"]').click();
 
-    await menuOpenCallback(page, {
+    await runModalMenuTest(page, {
       openButtonSelector: '[data-test-id="modal-menu-btn"]',
-      // menuOpenCallback: checkAccordion
+      menuOpenCallback: checkAccordion,
     });
   });
 });
