@@ -83,7 +83,7 @@ const convertItemToFeature = async (itemIn, poiColors) => {
     properties: {
       ...item,
       info: {
-        title: text,
+        title: item.abgeschlossen ? text + " (abgeschlossen)" : text,
         subtitle: item.buergerbeteiligung
           ? shortenText(item.beschreibung) +
             "\n\n" +
