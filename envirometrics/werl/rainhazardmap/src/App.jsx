@@ -54,7 +54,7 @@ function App() {
   };
 
   useEffect(() => {
-    getGazData(setGazData, urlPrefix + "/data/adressen_xanten.json");
+    getGazData(setGazData, urlPrefix + "/data/adressen_werl.json");
   }, []);
 
   const { setSelection } = useSelection();
