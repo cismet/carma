@@ -14,7 +14,7 @@ import { Tag } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Modal, Accordion } from "react-bootstrap";
 import {
-  changeUnreadableColor,
+  // changeUnreadableColor,
   formatDatum,
   formatIsoString,
 } from "../../helper/styler";
@@ -123,11 +123,11 @@ const SecondaryInfoModal = ({ feature, setOpen, versionString }) => {
           <Modal.Title>
             {` Datenblatt: `}
             <span
-              style={{
-                color: plan.abgeschlossen
-                  ? changeUnreadableColor(plan.color)
-                  : "inherit",
-              }}
+            // style={{
+            //   color: plan.abgeschlossen
+            //     ? changeUnreadableColor(plan.color)
+            //     : "inherit",
+            // }}
             >
               {plan.info.title} {plan.abgeschlossen ? "(abgeschlossen)" : ""}
             </span>
