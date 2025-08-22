@@ -90,7 +90,7 @@ const RootComponent = () => {
               console.log("JSON content fetched:", jsonData);
 
               // Store the JSON object in the array
-              setVectorStylesArray((prev) => [...prev, jsonData]);
+              setVectorStylesArray([jsonData]);
             } else {
               console.warn("The content is not JSON");
             }
@@ -123,7 +123,7 @@ const RootComponent = () => {
               console.log("Parsed JSON from file:", jsonData);
 
               // Add the parsed JSON to the vectorStylesArray
-              setVectorStylesArray((prev) => [...prev, jsonData]);
+              setVectorStylesArray([jsonData]);
             }
           } catch (error) {
             console.error("Failed to parse the file as JSON:", error);
