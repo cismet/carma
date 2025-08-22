@@ -257,9 +257,10 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   };
 
   const updateFeatureInfoLeaflet = () => {
+    setShouldUpdateFeatureInfo(false);
+    if (!pos) return;
     const map = routedMap?.leafletMap?.leafletElement;
 
-    setShouldUpdateFeatureInfo(false);
     setTimeout(() => {
       const latlngPoint = L.latLng(pos);
       map &&
