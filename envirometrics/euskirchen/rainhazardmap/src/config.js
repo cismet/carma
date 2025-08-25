@@ -59,7 +59,8 @@ const config = {
   minAnimationZoom: 17,
   minFeatureInfoZoom: 19,
   rasterfariURL: "https://tmp-rasterfari-euskirchen-v11.cismet.de",
-  modelWMS: "https://tmp-starkregen-euskirchen-v11.cismet.de/geoserver/wms?SERVICE=WMS",
+  modelWMS:
+    "https://tmp-starkregen-euskirchen-v11.cismet.de/geoserver/wms?SERVICE=WMS",
   timeSeriesAvailable: false,
   simulations: [
     {

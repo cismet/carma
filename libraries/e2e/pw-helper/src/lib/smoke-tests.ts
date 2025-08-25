@@ -1,4 +1,4 @@
-import { expect, Page } from '@playwright/test';
+import { expect, Page } from "@playwright/test";
 
 /**
  * Options for configuring smoke test behavior
@@ -19,11 +19,14 @@ export interface SmokeTestOptions {
 /**
  * Runs a comprehensive smoke test on a topic map page to verify key UI elements are visible.
  * This function checks for the presence of essential components that indicate the app has loaded properly.
- * 
+ *
  * @param page - The Playwright page object
  * @param options - Optional configuration for the smoke test
  */
-export async function runMapSmokeTest(page: Page, options: SmokeTestOptions = {}): Promise<void> {
+export async function runMapSmokeTest(
+  page: Page,
+  options: SmokeTestOptions = {}
+): Promise<void> {
   const {
     fuzzySearchTimeout = 10000,
     checkZoomControl = true,
@@ -34,24 +37,24 @@ export async function runMapSmokeTest(page: Page, options: SmokeTestOptions = {}
 
   if (checkZoomControl) {
     // Check that zoom control is visible
-    await expect(page.locator('[data-test-id=zoom-control]')).toBeVisible();
+    await expect(page.locator("[data-test-id=zoom-control]")).toBeVisible();
   }
 
   if (checkFuzzySearch) {
     // Check that fuzzy search is visible (this is a key indicator the app loaded)
-    await expect(page.locator('[data-test-id=fuzzy-search]')).toBeVisible({ 
-      timeout: fuzzySearchTimeout 
+    await expect(page.locator("[data-test-id=fuzzy-search]")).toBeVisible({
+      timeout: fuzzySearchTimeout,
     });
   }
 
   if (checkApplicationMenu) {
     // Check that application menu button is visible
-    await expect(page.locator('#cmdShowModalApplicationMenu')).toBeVisible();
+    await expect(page.locator("#cmdShowModalApplicationMenu")).toBeVisible();
   }
 
   if (checkInfoBox) {
     // Check that info box is visible
-    await expect(page.locator('[data-test-id=info-box]')).toBeVisible();
+    await expect(page.locator("[data-test-id=info-box]")).toBeVisible();
   }
 }
 
@@ -60,7 +63,7 @@ export async function runMapSmokeTest(page: Page, options: SmokeTestOptions = {}
  * @param page - The Playwright page object
  */
 export async function checkZoomControlVisible(page: Page): Promise<void> {
-  await expect(page.locator('[data-test-id=zoom-control]')).toBeVisible();
+  await expect(page.locator("[data-test-id=zoom-control]")).toBeVisible();
 }
 
 /**
@@ -68,8 +71,13 @@ export async function checkZoomControlVisible(page: Page): Promise<void> {
  * @param page - The Playwright page object
  * @param timeout - Timeout in milliseconds (default: 10000)
  */
-export async function checkFuzzySearchVisible(page: Page, timeout = 10000): Promise<void> {
-  await expect(page.locator('[data-test-id=fuzzy-search]')).toBeVisible({ timeout });
+export async function checkFuzzySearchVisible(
+  page: Page,
+  timeout = 10000
+): Promise<void> {
+  await expect(page.locator("[data-test-id=fuzzy-search]")).toBeVisible({
+    timeout,
+  });
 }
 
 /**
@@ -77,7 +85,7 @@ export async function checkFuzzySearchVisible(page: Page, timeout = 10000): Prom
  * @param page - The Playwright page object
  */
 export async function checkApplicationMenuVisible(page: Page): Promise<void> {
-  await expect(page.locator('#cmdShowModalApplicationMenu')).toBeVisible();
+  await expect(page.locator("#cmdShowModalApplicationMenu")).toBeVisible();
 }
 
 /**
@@ -85,5 +93,5 @@ export async function checkApplicationMenuVisible(page: Page): Promise<void> {
  * @param page - The Playwright page object
  */
 export async function checkInfoBoxVisible(page: Page): Promise<void> {
-  await expect(page.locator('[data-test-id=info-box]')).toBeVisible();
+  await expect(page.locator("[data-test-id=info-box]")).toBeVisible();
 }

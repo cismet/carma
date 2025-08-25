@@ -1,4 +1,4 @@
-import { Page, Locator } from '@playwright/test';
+import { Page, Locator } from "@playwright/test";
 
 /**
  * Base page object for common topic map elements
@@ -12,10 +12,10 @@ export class TopicMapPage {
 
   constructor(page: Page) {
     this.page = page;
-    this.zoomControl = page.locator('[data-test-id=zoom-control]');
-    this.fuzzySearch = page.locator('[data-test-id=fuzzy-search]');
-    this.applicationMenuButton = page.locator('#cmdShowModalApplicationMenu');
-    this.infoBox = page.locator('[data-test-id=info-box]');
+    this.zoomControl = page.locator("[data-test-id=zoom-control]");
+    this.fuzzySearch = page.locator("[data-test-id=fuzzy-search]");
+    this.applicationMenuButton = page.locator("#cmdShowModalApplicationMenu");
+    this.infoBox = page.locator("[data-test-id=info-box]");
   }
 
   /**
@@ -23,7 +23,7 @@ export class TopicMapPage {
    * @param timeout - Timeout in milliseconds (default: 10000)
    */
   async waitForPageReady(timeout = 10000): Promise<void> {
-    await this.fuzzySearch.waitFor({ state: 'visible', timeout });
+    await this.fuzzySearch.waitFor({ state: "visible", timeout });
   }
 
   /**
@@ -31,10 +31,13 @@ export class TopicMapPage {
    */
   async areEssentialElementsVisible(): Promise<boolean> {
     try {
-      await this.zoomControl.waitFor({ state: 'visible', timeout: 5000 });
-      await this.fuzzySearch.waitFor({ state: 'visible', timeout: 5000 });
-      await this.applicationMenuButton.waitFor({ state: 'visible', timeout: 5000 });
-      await this.infoBox.waitFor({ state: 'visible', timeout: 5000 });
+      await this.zoomControl.waitFor({ state: "visible", timeout: 5000 });
+      await this.fuzzySearch.waitFor({ state: "visible", timeout: 5000 });
+      await this.applicationMenuButton.waitFor({
+        state: "visible",
+        timeout: 5000,
+      });
+      await this.infoBox.waitFor({ state: "visible", timeout: 5000 });
       return true;
     } catch {
       return false;
@@ -52,9 +55,9 @@ export class ExtendedTopicMapPage extends TopicMapPage {
 
   constructor(page: Page) {
     super(page);
-    this.searchInput = page.locator('[data-test-id=search-input]');
-    this.mapContainer = page.locator('[data-test-id=map-container]');
-    this.loadingIndicator = page.locator('[data-test-id=loading-indicator]');
+    this.searchInput = page.locator("[data-test-id=search-input]");
+    this.mapContainer = page.locator("[data-test-id=map-container]");
+    this.loadingIndicator = page.locator("[data-test-id=loading-indicator]");
   }
 
   /**
@@ -64,13 +67,13 @@ export class ExtendedTopicMapPage extends TopicMapPage {
   async waitForMapLoaded(timeout = 15000): Promise<void> {
     // Wait for loading indicator to disappear if present
     try {
-      await this.loadingIndicator.waitFor({ state: 'hidden', timeout: 5000 });
+      await this.loadingIndicator.waitFor({ state: "hidden", timeout: 5000 });
     } catch {
       // Loading indicator might not be present, continue
     }
-    
+
     // Wait for map container to be visible
-    await this.mapContainer.waitFor({ state: 'visible', timeout });
+    await this.mapContainer.waitFor({ state: "visible", timeout });
   }
 
   /**
@@ -79,6 +82,6 @@ export class ExtendedTopicMapPage extends TopicMapPage {
    */
   async performSearch(searchTerm: string): Promise<void> {
     await this.searchInput.fill(searchTerm);
-    await this.searchInput.press('Enter');
+    await this.searchInput.press("Enter");
   }
 }

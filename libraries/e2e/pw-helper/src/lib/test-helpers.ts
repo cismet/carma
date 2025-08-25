@@ -1,4 +1,4 @@
-import { Page, expect } from '@playwright/test';
+import { Page, expect } from "@playwright/test";
 
 /**
  * Configuration options for setting up smoke tests
@@ -17,14 +17,19 @@ export interface SmokeTestSetupOptions {
  * @param page - The Playwright page object
  * @param timeout - Timeout in milliseconds (default: 15000)
  */
-export async function waitForAppReady(page: Page, timeout = 15000): Promise<void> {
+export async function waitForAppReady(
+  page: Page,
+  timeout = 15000
+): Promise<void> {
   // Wait for the fuzzy search to be visible as it's a key indicator the app is loaded
-  await expect(page.locator('[data-test-id=fuzzy-search]')).toBeVisible({ timeout });
-  
+  await expect(page.locator("[data-test-id=fuzzy-search]")).toBeVisible({
+    timeout,
+  });
+
   // Wait for any loading indicators to disappear
-  const loadingIndicator = page.locator('[data-test-id=loading-indicator]');
+  const loadingIndicator = page.locator("[data-test-id=loading-indicator]");
   try {
-    await loadingIndicator.waitFor({ state: 'hidden', timeout: 5000 });
+    await loadingIndicator.waitFor({ state: "hidden", timeout: 5000 });
   } catch {
     // Loading indicator might not be present, continue
   }
@@ -37,19 +42,16 @@ export async function waitForAppReady(page: Page, timeout = 15000): Promise<void
  * @param options - Setup options
  */
 export async function setupSmokeTest(
-  page: Page, 
-  url: string, 
+  page: Page,
+  url: string,
   options: SmokeTestSetupOptions = {}
 ): Promise<void> {
-  const {
-    navigationTimeout = 30000,
-    waitForNetworkIdle = true,
-  } = options;
+  const { navigationTimeout = 30000, waitForNetworkIdle = true } = options;
 
   // Navigate to the page
-  await page.goto(url, { 
+  await page.goto(url, {
     timeout: navigationTimeout,
-    waitUntil: waitForNetworkIdle ? 'networkidle' : 'load'
+    waitUntil: waitForNetworkIdle ? "networkidle" : "load",
   });
 
   // Wait for the app to be ready
@@ -61,11 +63,14 @@ export async function setupSmokeTest(
  * @param page - The Playwright page object
  * @param name - Descriptive name for the screenshot
  */
-export async function takeDebugScreenshot(page: Page, name: string): Promise<void> {
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  await page.screenshot({ 
+export async function takeDebugScreenshot(
+  page: Page,
+  name: string
+): Promise<void> {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+  await page.screenshot({
     path: `debug-screenshots/${name}-${timestamp}.png`,
-    fullPage: true 
+    fullPage: true,
   });
 }
 
@@ -77,13 +82,13 @@ export async function takeDebugScreenshot(page: Page, name: string): Promise<voi
  * @param retries - Number of retries (default: 3)
  */
 export async function waitForElementWithRetry(
-  page: Page, 
-  selector: string, 
-  timeout = 10000, 
+  page: Page,
+  selector: string,
+  timeout = 10000,
   retries = 3
 ): Promise<void> {
   let lastError: Error | null = null;
-  
+
   for (let i = 0; i < retries; i++) {
     try {
       await expect(page.locator(selector)).toBeVisible({ timeout });
@@ -96,8 +101,11 @@ export async function waitForElementWithRetry(
       }
     }
   }
-  
-  throw lastError || new Error(`Element ${selector} not visible after ${retries} retries`);
+
+  throw (
+    lastError ||
+    new Error(`Element ${selector} not visible after ${retries} retries`)
+  );
 }
 
 /**
@@ -107,12 +115,12 @@ export async function waitForElementWithRetry(
 export async function isTopicMapApp(page: Page): Promise<boolean> {
   try {
     // Check for presence of key topic map elements
-    const fuzzySearch = page.locator('[data-test-id=fuzzy-search]');
-    const zoomControl = page.locator('[data-test-id=zoom-control]');
-    
-    await fuzzySearch.waitFor({ state: 'visible', timeout: 5000 });
-    await zoomControl.waitFor({ state: 'visible', timeout: 5000 });
-    
+    const fuzzySearch = page.locator("[data-test-id=fuzzy-search]");
+    const zoomControl = page.locator("[data-test-id=zoom-control]");
+
+    await fuzzySearch.waitFor({ state: "visible", timeout: 5000 });
+    await zoomControl.waitFor({ state: "visible", timeout: 5000 });
+
     return true;
   } catch {
     return false;
