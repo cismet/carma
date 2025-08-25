@@ -16,6 +16,8 @@ import {
   useGazData,
   useMapHashRouting,
   createLocationChangeHandler,
+  createCesiumSceneChangeHandler,
+  useCesiumFlyToFromHash,
   useSelectionCesium,
   useSelectionTopicMap,
   useCesiumModels,
@@ -178,6 +180,9 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const { isDebugMode } = flags;
   const cesiumInitialCameraView = useCesiumInitialCameraFromSearchParams();
   const { isObliqueMode } = useObliqueInitializer(isDebugMode);
+
+  const enableCesiumFlyToFromHash = true;
+  useCesiumFlyToFromHash({ isMode2d, enabled: enableCesiumFlyToFromHash });
 
   useDispatchSachdatenInfoText();
 
@@ -398,15 +403,18 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     [isMode2d, handleTopicMapLocationChange, dispatch]
   );
 
-  const onSceneChange = (e: { hashParams: Record<string, string> }) => {
-    if (isMode2d) {
-      console.debug(
-        "[CESIUM|DEBUG|CESIUM_WARN] Cesium scene change triggered while in 2D mode"
-      );
-      return;
-    }
-    handleCesiumSceneChange(e);
-  };
+  const onSceneChange = useMemo(
+    () =>
+      createCesiumSceneChangeHandler({
+        isMode2d,
+        onChange: handleCesiumSceneChange,
+        onMismatch: () =>
+          console.debug(
+            "[CESIUM|DEBUG] Scene change handler triggered while in 2D mode"
+          ),
+      }),
+    [isMode2d, handleCesiumSceneChange]
+  );
 
   // TODO Move out Controls to own component
 

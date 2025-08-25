@@ -1,8 +1,15 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import { useHashState } from "../contexts/HashStateProvider";
 
-import { cesiumClearParamKeys } from "@carma-mapping/cesium-engine";
+import {
+  cesiumClearParamKeys,
+  useCesiumContext,
+  decodeCesiumCamera,
+  cesiumCameraParamKeys,
+  interpolateCamera,
+} from "@carma-mapping/cesium-engine";
 import { isLocationEqualWithinPixelTolerance } from "@carma-commons/utils";
+import { Cartesian3, EasingFunction } from "cesium";
 
 export type LatLngZoom = { lat: number; lng: number; zoom: number };
 export type CesiumSceneChangeEvent = { hashParams: Record<string, string> };
@@ -129,7 +136,7 @@ export function useMapHashRouting({
       updateHash(e.hashParams, {
         clearKeys: ["zoom"],
         label: labels?.cesiumScene ?? "Map:3D:scene",
-        replace: true,
+        replace: false,
       });
     },
     [isMode2d, updateHash, labels?.cesiumScene]
@@ -241,4 +248,97 @@ export function createLocationChangeHandler({
     onChange(p);
     onAfter?.();
   };
+}
+
+export function createCesiumSceneChangeHandler({
+  isMode2d,
+  onChange,
+  onAfter,
+  onMismatch,
+}: {
+  isMode2d: boolean;
+  onChange: (e: CesiumSceneChangeEvent) => void;
+  onAfter?: () => void;
+  onMismatch?: () => void;
+}) {
+  return (e: CesiumSceneChangeEvent) => {
+    if (isMode2d) {
+      onMismatch?.();
+      return;
+    }
+    onChange(e);
+    onAfter?.();
+  };
+}
+
+export function useCesiumFlyToFromHash({
+  isMode2d,
+  duration = 1.0,
+  enabled = true,
+}: {
+  isMode2d: boolean;
+  duration?: number; // seconds
+  enabled?: boolean;
+}) {
+  const { subscribe } = useHashState();
+  const { viewerRef } = useCesiumContext();
+
+  const keys = useMemo(() => cesiumCameraParamKeys, []);
+
+  // Track and cancel ongoing custom animations across popstate events
+  const cancelAnimRef = useRef<(() => void) | null>(null);
+
+  useEffect(() => {
+    if (!enabled) return;
+    const unsub = subscribe(
+      (e) => {
+        if (isMode2d) return;
+        if (e.source !== "popstate") return;
+        const viewer = viewerRef.current;
+        if (!viewer || viewer.isDestroyed?.()) return;
+        const cameraState = decodeCesiumCamera(e.raw as Record<string, string>);
+        if (!cameraState) return;
+        const { position, heading, pitch, fov } = cameraState;
+
+        const destination = Cartesian3.fromRadians(
+          position.longitude,
+          position.latitude,
+          position.height
+        );
+
+        // FOV will be animated within the same loop when provided
+
+        // Cancel any ongoing Cesium flight and our custom animation
+        try {
+          viewer.camera.cancelFlight?.();
+        } catch {}
+        if (cancelAnimRef.current) {
+          cancelAnimRef.current();
+          cancelAnimRef.current = null;
+        }
+
+        // Start custom interpolation (duration in ms)
+        cancelAnimRef.current = interpolateCamera(viewer, {
+          destination,
+          orientation: {
+            heading: heading ?? viewer.camera.heading,
+            pitch: pitch ?? viewer.camera.pitch,
+            roll: viewer.camera.roll,
+          },
+          duration: duration * 1000,
+          easing: EasingFunction.QUADRATIC_IN_OUT,
+          cancelable: true,
+          fov: fov ?? undefined,
+          onComplete: () => {
+            cancelAnimRef.current = null;
+          },
+          onCancel: () => {
+            cancelAnimRef.current = null;
+          },
+        });
+      },
+      { keys }
+    );
+    return unsub;
+  }, [subscribe, viewerRef, isMode2d, keys, duration, enabled]);
 }
