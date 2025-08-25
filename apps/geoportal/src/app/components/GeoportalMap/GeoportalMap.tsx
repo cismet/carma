@@ -397,6 +397,37 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     [isMode2d, handleTopicMapLocationChange, dispatch]
   );
 
+  // switch: true = rely on TopicMapComponent's locationChangedHandler; false = custom listeners
+  const useBuiltinLocationHandler = false;
+
+  // Custom unified listener for 2D move/zoom end -> updates hash via topicMapLocationChangedHandler
+  useEffect(() => {
+    if (useBuiltinLocationHandler) return;
+    const map = routedMap?.leafletMap?.leafletElement;
+    if (!map) return;
+    const emitLocation = () => {
+      const center = map.getCenter?.();
+      const zoom = getLeafletZoom();
+      if (!center || zoom == null) return;
+      topicMapLocationChangedHandler({
+        lat: center.lat,
+        lng: center.lng,
+        zoom,
+      });
+    };
+    map.on && map.on("moveend", emitLocation);
+    map.on && map.on("zoomend", emitLocation);
+    return () => {
+      map.off && map.off("moveend", emitLocation);
+      map.off && map.off("zoomend", emitLocation);
+    };
+  }, [
+    useBuiltinLocationHandler,
+    routedMap,
+    getLeafletZoom,
+    topicMapLocationChangedHandler,
+  ]);
+
   const onSceneChange = (e: { hashParams: Record<string, string> }) => {
     if (isMode2d) {
       console.debug(
@@ -478,7 +509,11 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
           mappingBoundsChanged={(boundingbox) => {
             // intentionally no-op
           }}
-          locationChangedHandler={topicMapLocationChangedHandler}
+          locationChangedHandler={
+            useBuiltinLocationHandler
+              ? topicMapLocationChangedHandler
+              : () => {}
+          }
           outerLocationChangedHandlerExclusive={true}
           onclick={(e) => {
             const map = routedMap?.leafletMap?.leafletElement;
