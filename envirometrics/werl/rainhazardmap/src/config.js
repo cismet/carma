@@ -81,10 +81,10 @@ const config = {
 
       animation: "SRI7/",
       name: "Stärke 7",
-      title: "Starkregen SRI 7 (38,7 - 39,5 l/m² in 1 h)",
+      title: "Starkregen SRI 7 (38,3 l/m² in 1 h)",
       icon: "bitbucket",
       subtitle:
-        "Simulation eines einstündigen Starkregens einer Belastung zwischen 38,7 und 39,5 Liter/m² Niederschlag (Starkregenindex SRI 7) für das hydrologische Einzugsgebiet der Stadt Werl",
+        "Simulation eines einstündigen Starkregens mit 38,3 Liter/m² Niederschlag (Starkregenindex SRI 7) für das hydrologische Einzugsgebiet der Stadt Werl",
     },
     {
       depthLayer: "starkregen:L_SRI11_depth3857",
