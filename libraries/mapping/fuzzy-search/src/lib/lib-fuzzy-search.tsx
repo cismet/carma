@@ -3,7 +3,7 @@ import type { IFuseOptions } from "fuse.js";
 import Fuse from "fuse.js";
 import { AutoComplete, Button } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faLocationDot } from "@fortawesome/free-solid-svg-icons";
+import { faLocationDot, faTimes } from "@fortawesome/free-solid-svg-icons";
 import type { BaseSelectRef } from "rc-select";
 
 import IconComp from "react-cismap/commons/Icon";
@@ -372,7 +372,7 @@ export function LibFuzzySearch({
             // />
             icon
           ) : (
-            <IconComp name="close" />
+            <FontAwesomeIcon style={{ fontSize: "16px" }} icon={faTimes} />
           )
         }
         className={
