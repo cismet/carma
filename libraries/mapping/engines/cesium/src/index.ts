@@ -40,6 +40,7 @@ export {
   animateInterpolateCameraPositionOrientation,
   animateInterpolateFov,
 } from "./lib/utils/cesiumAnimations";
+export type { CameraInterpolationController } from "./lib/utils/cesiumAnimations";
 export {
   animateInterpolateCameraPositionOrientation as interpolateCamera,
   animateInterpolateFov as interpolateFov,

@@ -8,6 +8,7 @@ import {
   cesiumCameraParamKeys,
   interpolateCamera,
 } from "@carma-mapping/cesium-engine";
+import type { CameraInterpolationController } from "@carma-mapping/cesium-engine";
 import { isLocationEqualWithinPixelTolerance } from "@carma-commons/utils";
 import { Cartesian3, EasingFunction } from "cesium";
 
@@ -286,7 +287,7 @@ export function useCesiumFlyToFromHash({
   const keys = useMemo(() => cesiumCameraParamKeys, []);
 
   // Track and cancel ongoing custom animations across popstate events
-  const cancelAnimRef = useRef<(() => void) | null>(null);
+  const controllerRef = useRef<CameraInterpolationController | null>(null);
 
   useEffect(() => {
     if (!enabled) return;
@@ -312,13 +313,13 @@ export function useCesiumFlyToFromHash({
         try {
           viewer.camera.cancelFlight?.();
         } catch {}
-        if (cancelAnimRef.current) {
-          cancelAnimRef.current();
-          cancelAnimRef.current = null;
+        if (controllerRef.current) {
+          controllerRef.current.cancel();
+          controllerRef.current = null;
         }
 
         // Start custom interpolation (duration in ms)
-        cancelAnimRef.current = interpolateCamera(viewer, {
+        controllerRef.current = interpolateCamera(viewer, {
           destination,
           orientation: {
             heading: heading ?? viewer.camera.heading,
@@ -330,10 +331,10 @@ export function useCesiumFlyToFromHash({
           cancelable: true,
           fov: fov ?? undefined,
           onComplete: () => {
-            cancelAnimRef.current = null;
+            controllerRef.current = null;
           },
           onCancel: () => {
-            cancelAnimRef.current = null;
+            controllerRef.current = null;
           },
         });
       },

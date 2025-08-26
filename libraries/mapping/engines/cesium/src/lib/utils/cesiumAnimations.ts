@@ -7,16 +7,68 @@ import {
   EasingFunction,
   Scene,
   PerspectiveFrustum,
+  Quaternion,
+  HeadingPitchRoll,
 } from "cesium";
 
-// Common helpers for Cesium camera animations
-const PITCH_MIN = -Math.PI / 2 + 0.0001; // avoid singularity at exact nadir
-const PITCH_MAX = 0; // do not go above horizon
+const PITCH_MIN = -Math.PI / 2 + 0.0001;
+const PITCH_MAX = 0;
 
 function shortestAngleLerp(start: number, end: number, t: number): number {
   const delta = CesiumMath.negativePiToPi(end - start);
   return start + delta * t;
 }
+
+const quatNeedsUpdate = (a: Quaternion, b: Quaternion): boolean => {
+  const dot = Quaternion.dot(a, b);
+  return 1 - Math.abs(dot) > 1e-6;
+};
+
+const posNeedsUpdate = (a: Cartesian3, b: Cartesian3): boolean =>
+  !Cartesian3.equalsEpsilon(a, b, CesiumMath.EPSILON7, CesiumMath.EPSILON7);
+
+const fovNeedsUpdate = (
+  currentFov: number | undefined,
+  targetFov: number | undefined
+): boolean =>
+  typeof currentFov === "number" &&
+  typeof targetFov === "number" &&
+  Math.abs(currentFov - targetFov) > CesiumMath.EPSILON7;
+
+const computeAlphaDamped = (dt: number, tauMs: number): number => {
+  const tau = Math.max(1, tauMs);
+  return 1 - Math.exp(-dt / tau);
+};
+
+const computeAlphaTimed = (
+  time: number,
+  startTime: number,
+  duration: number,
+  easing: (t: number) => number
+): number => {
+  const t = Math.min((time - startTime) / Math.max(1, duration), 1);
+  return easing(t);
+};
+
+const lerpCartesian3 = (a: Cartesian3, b: Cartesian3, t: number): Cartesian3 =>
+  new Cartesian3(
+    CesiumMath.lerp(a.x, b.x, t),
+    CesiumMath.lerp(a.y, b.y, t),
+    CesiumMath.lerp(a.z, b.z, t)
+  );
+
+const setCameraViewFromQuat = (
+  viewer: Viewer,
+  destination: Cartesian3,
+  quat: Quaternion
+) => {
+  const orientation = HeadingPitchRoll.fromQuaternion(quat);
+  viewer.camera.lookAtTransform(Matrix4.IDENTITY);
+  viewer.camera.setView({
+    destination,
+    orientation,
+  });
+};
 
 function shortestPitchClamped(
   startPitch: number,
@@ -81,8 +133,6 @@ export function animateInterpolateHeadingPitchRange(
 ): () => void {
   const { heading, pitch, range } = hpr;
 
-  // get HPR from camera in relation to LookAt in order to interpolate to target HPR
-
   let initialHeading = viewer.camera.heading;
   const initialPitch = viewer.camera.pitch;
   const initialRange = Cartesian3.distance(viewer.camera.position, destination);
@@ -93,13 +143,10 @@ export function animateInterpolateHeadingPitchRange(
       pitch: initialPitch,
       range: initialRange,
     });
-
-  // Animation control variables
   let animationFrameId: number | null = null;
   let isCanceled = false;
 
-  // Animation start time
-  const startTime = performance.now() + delay; // delay the animation for other animations to finish
+  const startTime = performance.now() + delay;
 
   const cancelAnimation = () => {
     if (animationFrameId !== null) {
@@ -121,10 +168,7 @@ export function animateInterpolateHeadingPitchRange(
   const animate = (time: number) => {
     if (isCanceled) return;
     const elapsed = time - startTime;
-    const t = Math.min(elapsed / duration, 1); // normalize to [0, 1]
-    //console.debug('animate', duration, elapsed, t, frameIndex);
-
-    // Interpolate heading and pitch over time
+    const t = Math.min(elapsed / duration, 1);
     const te = easing(t);
     const currentHeading = shortestAngleLerp(initialHeading, heading, te);
     const currentPitch = shortestPitchClamped(initialPitch, pitch, te);
@@ -141,17 +185,13 @@ export function animateInterpolateHeadingPitchRange(
       currentPitch,
       currentRange
     );
-
-    // Update the camera's orientation
     viewer.camera.lookAtTransform(Matrix4.IDENTITY);
     viewer.camera.lookAt(destination, orientation);
-    // explicit render call due to cesium request render mode.
     viewer.scene.render();
 
     if (t < 1) {
       animationFrameId = requestAnimationFrame(animate);
     } else {
-      // Animation complete, reset the transformation matrix
       viewer.camera.lookAtTransform(Matrix4.IDENTITY);
       removePointerCancel();
       onComplete?.();
@@ -185,7 +225,7 @@ export function animateInterpolateFov(
     onCancel?: () => void;
   } = {}
 ): () => void {
-  return animateInterpolateCameraPositionOrientation(viewer, {
+  const controller = animateInterpolateCameraPositionOrientation(viewer, {
     delay,
     duration,
     easing,
@@ -194,6 +234,7 @@ export function animateInterpolateFov(
     onCancel,
     fov: targetFov,
   });
+  return controller.cancel;
 }
 
 // undocumented cesium function to get if animation is running
@@ -210,8 +251,17 @@ export const cesiumSceneHasTweens = (viewer: Viewer) => {
  * @param options - animation options, including optional destination/orientation
  * @param options.destination - final camera Cartesian3 position (optional)
  * @param options.orientation - target orientation (heading/pitch/roll). If not provided, current values are kept.
- * @returns cancel function
+ * @returns controller with cancel and retarget
  */
+export type CameraInterpolationController = {
+  cancel: () => void;
+  retarget: (opts: {
+    destination?: Cartesian3;
+    orientation?: { heading?: number; pitch?: number; roll?: number };
+    fov?: number;
+  }) => void;
+};
+
 export function animateInterpolateCameraPositionOrientation(
   viewer: Viewer,
   {
@@ -224,6 +274,8 @@ export function animateInterpolateCameraPositionOrientation(
     cancelable = true,
     easing = EasingFunction.CUBIC_IN_OUT,
     fov,
+    mode = "damped",
+    tauMs = 300,
   }: {
     destination?: Cartesian3;
     orientation?: { heading?: number; pitch?: number; roll?: number };
@@ -234,59 +286,46 @@ export function animateInterpolateCameraPositionOrientation(
     cancelable?: boolean;
     easing?: (time: number) => number;
     fov?: number; // optional target FOV to animate within the same loop
+    mode?: "damped" | "timed";
+    tauMs?: number; // used for damped mode
   } = {}
-): () => void {
-  // Capture initial state
+): CameraInterpolationController {
   const initialPos = viewer.camera.position.clone();
   const startHeading = viewer.camera.heading;
   const startPitch = viewer.camera.pitch;
   const startRoll = viewer.camera.roll;
 
-  const dest = destination ?? initialPos;
-  const ori = orientation ?? {};
-  const targetHeading = ori.heading ?? startHeading;
-  const targetPitch = ori.pitch ?? startPitch;
-  const targetRoll = ori.roll ?? startRoll;
+  let currentPos = initialPos.clone();
+  let currentQuat = Quaternion.fromHeadingPitchRoll(
+    new HeadingPitchRoll(startHeading, startPitch, startRoll)
+  );
 
-  // Determine which components actually need interpolation
+  let targetPos = destination ?? initialPos.clone();
+  let targetQuat = (() => {
+    const h = orientation?.heading ?? startHeading;
+    const p = orientation?.pitch ?? startPitch;
+    const r = orientation?.roll ?? startRoll;
+    return Quaternion.fromHeadingPitchRoll(new HeadingPitchRoll(h, p, r));
+  })();
   const hasPerspectiveFrustum =
     viewer.camera.frustum instanceof PerspectiveFrustum;
-  const startFov: number | undefined =
-    hasPerspectiveFrustum && typeof fov === "number"
-      ? (viewer.camera.frustum as PerspectiveFrustum).fov
-      : undefined;
+  let currentFov = hasPerspectiveFrustum
+    ? (viewer.camera.frustum as PerspectiveFrustum).fov
+    : undefined;
+  let targetFov =
+    hasPerspectiveFrustum && typeof fov === "number" ? fov : undefined;
 
-  const posNeeds = !Cartesian3.equalsEpsilon(
-    initialPos,
-    dest,
-    CesiumMath.EPSILON7,
-    CesiumMath.EPSILON7
-  );
-  const headingNeeds =
-    typeof targetHeading === "number" &&
-    Math.abs(CesiumMath.negativePiToPi(targetHeading - startHeading)) >
-      CesiumMath.EPSILON7;
-  const pitchNeeds =
-    typeof targetPitch === "number" &&
-    Math.abs(CesiumMath.negativePiToPi(targetPitch - startPitch)) >
-      CesiumMath.EPSILON7;
-  const rollNeeds =
-    typeof targetRoll === "number" &&
-    Math.abs(targetRoll - startRoll) > CesiumMath.EPSILON7;
-  const fovNeeds =
-    typeof fov === "number" &&
-    typeof startFov === "number" &&
-    Math.abs(fov - startFov) > CesiumMath.EPSILON7;
+  const needsAny = () => {
+    const posNeeds = posNeedsUpdate(currentPos, targetPos);
+    const quatNeeds = quatNeedsUpdate(currentQuat, targetQuat);
+    const fovNeeds = fovNeedsUpdate(currentFov, targetFov);
+    return posNeeds || quatNeeds || fovNeeds;
+  };
 
-  if (!posNeeds && !headingNeeds && !pitchNeeds && !rollNeeds && !fovNeeds) {
-    onComplete?.();
-    return () => {};
-  }
-
-  // Animation control variables
   let animationFrameId: number | null = null;
   let isCanceled = false;
-
+  let started = false;
+  let lastTime = performance.now();
   const startTime = performance.now() + delay;
 
   const cancelAnimation = () => {
@@ -307,63 +346,78 @@ export function animateInterpolateCameraPositionOrientation(
 
   const animate = (time: number) => {
     if (isCanceled) return;
-    const elapsed = time - startTime;
-    const t = Math.min(elapsed / duration, 1);
-    const te = easing(t);
-
-    // Interpolate position in Cartesian space (only if needed)
-    const currentPos = posNeeds
-      ? new Cartesian3(
-          CesiumMath.lerp(initialPos.x, dest.x, te),
-          CesiumMath.lerp(initialPos.y, dest.y, te),
-          CesiumMath.lerp(initialPos.z, dest.z, te)
-        )
-      : initialPos;
-
-    // Interpolate orientation
-    const currentHeading = headingNeeds
-      ? shortestAngleLerp(startHeading, targetHeading, te)
-      : startHeading;
-    const currentPitch = pitchNeeds
-      ? shortestPitchClamped(startPitch, targetPitch, te)
-      : startPitch;
-    const currentRoll = rollNeeds
-      ? CesiumMath.lerp(startRoll, targetRoll, te)
-      : startRoll;
-
-    // Apply view
-    if (posNeeds || headingNeeds || pitchNeeds || rollNeeds) {
-      viewer.camera.lookAtTransform(Matrix4.IDENTITY);
-      viewer.camera.setView({
-        destination: currentPos,
-        orientation: {
-          heading: currentHeading,
-          pitch: currentPitch,
-          roll: currentRoll,
-        },
-      });
+    if (!started) {
+      started = true;
+      lastTime = time;
     }
 
-    // Interpolate FOV within the same loop if requested
-    if (fovNeeds && hasPerspectiveFrustum && typeof startFov === "number") {
-      (viewer.camera.frustum as PerspectiveFrustum).fov = CesiumMath.lerp(
-        startFov,
-        fov as number,
-        te
-      );
-    }
-    // Explicit render due to requestRenderMode
-    viewer.scene.render();
-
-    if (t < 1) {
+    if (time < startTime) {
       animationFrameId = requestAnimationFrame(animate);
-    } else {
-      removePointerCancel();
-      onComplete?.();
+      return;
     }
+
+    const dt = Math.max(0, time - lastTime);
+    lastTime = time;
+
+    const alpha =
+      mode === "damped"
+        ? computeAlphaDamped(dt, tauMs)
+        : computeAlphaTimed(time, startTime, duration, easing);
+
+    currentQuat = Quaternion.slerp(currentQuat, targetQuat, alpha, currentQuat);
+    currentPos = lerpCartesian3(currentPos, targetPos, alpha);
+    if (typeof currentFov === "number" && typeof targetFov === "number") {
+      currentFov = CesiumMath.lerp(currentFov, targetFov, alpha);
+      (viewer.camera.frustum as PerspectiveFrustum).fov = currentFov;
+    }
+    setCameraViewFromQuat(viewer, currentPos, currentQuat);
+    viewer.scene.render();
+    if (mode === "timed") {
+      const elapsed = time - startTime;
+      if (elapsed >= Math.max(1, duration)) {
+        removePointerCancel();
+        onComplete?.();
+        return;
+      }
+    } else {
+      const closeEnough = !needsAny();
+      if (closeEnough) {
+        removePointerCancel();
+        onComplete?.();
+        return;
+      }
+    }
+
+    animationFrameId = requestAnimationFrame(animate);
   };
 
   animationFrameId = requestAnimationFrame(animate);
 
-  return cancelAnimation;
+  return {
+    cancel: cancelAnimation,
+    retarget: ({ destination, orientation, fov }) => {
+      if (destination) {
+        targetPos = destination;
+      }
+      if (orientation) {
+        const h =
+          orientation.heading ??
+          HeadingPitchRoll.fromQuaternion(targetQuat).heading;
+        const p =
+          orientation.pitch ??
+          HeadingPitchRoll.fromQuaternion(targetQuat).pitch;
+        const r =
+          orientation.roll ?? HeadingPitchRoll.fromQuaternion(targetQuat).roll;
+        targetQuat = Quaternion.fromHeadingPitchRoll(
+          new HeadingPitchRoll(h, p, r)
+        );
+      }
+      if (typeof fov === "number") {
+        targetFov = fov;
+        if (typeof currentFov !== "number" && hasPerspectiveFrustum) {
+          currentFov = (viewer.camera.frustum as PerspectiveFrustum).fov;
+        }
+      }
+    },
+  };
 }
