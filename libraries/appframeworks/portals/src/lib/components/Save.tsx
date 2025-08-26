@@ -71,12 +71,14 @@ export const Save = ({
       <Input
         id="title"
         value={title}
+        className="bg-white"
         onChange={(e) => setTitle(e.target.value)}
       />
       <h5 className="mb-0">Beschreibung</h5>
       <Input.TextArea
         id="description"
         value={description}
+        className="bg-white"
         onChange={(e) => setDescription(e.target.value)}
       />
       <div className="flex gap-1 -mb-2 font-medium items-center">
@@ -93,6 +95,7 @@ export const Save = ({
       <Input
         id="thumbnail"
         value={thumbnail}
+        className="bg-white"
         placeholder="Adresse (URL)"
         onChange={(e) => setThumbnail(e.target.value)}
       />
