@@ -5,9 +5,14 @@ import {
   faExternalLinkSquareAlt,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { RefCallback, RefObject } from "react";
 import UAParser from "ua-parser-js";
 
-export const FullscreenControl = () => {
+interface FullscreenControlProps {
+  tourRef?: RefObject<HTMLButtonElement> | RefCallback<HTMLButtonElement>;
+}
+
+export const FullscreenControl = ({ tourRef }: FullscreenControlProps) => {
   const parser = new UAParser();
   const os = parser.getOS();
   const browser = parser.getBrowser();
@@ -36,16 +41,18 @@ export const FullscreenControl = () => {
   if (simulateInIOS || iOS || internetExplorer || !fullscreenCapable) {
     // iosClass = "iOS-device";
     if (simulateInIframe || inIframe) {
-      return <NewWindowControl />;
+      return <NewWindowControl tourRef={tourRef} />;
     } else {
       return null;
     }
   } else {
-    return <SimpleFullscreenControl />;
+    return <SimpleFullscreenControl tourRef={tourRef} />;
   }
 };
 
-export const SimpleFullscreenControl = () => {
+export const SimpleFullscreenControl = ({
+  tourRef,
+}: FullscreenControlProps) => {
   return (
     <ControlButtonStyler
       title={
@@ -58,6 +65,7 @@ export const SimpleFullscreenControl = () => {
           document.documentElement.requestFullscreen();
         }
       }}
+      ref={tourRef}
       dataTestId="full-screen-control"
     >
       <FontAwesomeIcon
@@ -67,7 +75,7 @@ export const SimpleFullscreenControl = () => {
   );
 };
 
-export const NewWindowControl = () => {
+export const NewWindowControl = ({ tourRef }: FullscreenControlProps) => {
   return (
     <ControlButtonStyler
       title="In neuem Fenster öffnen"
@@ -75,6 +83,7 @@ export const NewWindowControl = () => {
         window.open(window.location.href);
       }}
       dataTestId="new-window-control"
+      ref={tourRef}
     >
       <FontAwesomeIcon icon={faExternalLinkSquareAlt} />
     </ControlButtonStyler>

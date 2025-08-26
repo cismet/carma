@@ -1,4 +1,11 @@
-import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  RefObject,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { isMobile } from "react-device-detect";
 import { useDispatch, useSelector } from "react-redux";
 
@@ -415,7 +422,9 @@ const MapWrapper = () => {
             </Control>
           )}
           <Control position="topleft" order={20}>
-            {showFullscreenButton && <FullscreenControl />}
+            {showFullscreenButton && (
+              <FullscreenControl tourRef={tourRefLabels?.fullScreen} />
+            )}
           </Control>
           {showLocatorButton && isMobile && (
             <Control position="topleft" order={30}>
