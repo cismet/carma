@@ -96,6 +96,7 @@ export interface LibModalProps {
   };
   setFeatureFlags?: (flags: FeatureFlagConfig) => void;
   store: Store;
+  unauthorizedCallback?: () => void;
 }
 
 const sidebarElements = [
@@ -125,6 +126,7 @@ export const NewLibModal = ({
   discoverProps,
   setFeatureFlags,
   store,
+  unauthorizedCallback,
 }: LibModalProps) => {
   const [preview, setPreview] = useState(false);
   const [layers, setLayers] = useState<any[]>([]);
@@ -153,7 +155,7 @@ export const NewLibModal = ({
   const [discoverItems, setDiscoverItems] = useState<any[]>([]);
   const [additionalConfig, setAdditionalConfig] = useState<any[]>([]);
   const [loadingData, setLoadingData] = useState(false);
-  const [triggerRefetch, setTriggerRefetch] = useState(false);
+  const [triggerRefetch, setTriggerRefetch] = useState(true);
   const [loadingAdditionalConfig, setLoadingAdditionalConfig] = useState(true);
   const debouncedSearchTerm = useDebounce(searchValue, 300);
 
@@ -176,6 +178,10 @@ export const NewLibModal = ({
         })
         .catch((e) => {
           if (e.status === 401) {
+            unauthorizedCallback?.();
+            setJWT("");
+          } else {
+            unauthorizedCallback?.();
             setJWT("");
           }
           console.error("Error fetching gp_entdecken: ", e);

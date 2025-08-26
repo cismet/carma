@@ -18,6 +18,7 @@ export function LayerLib({
   discoverProps,
   setFeatureFlags,
   store,
+  unauthorizedCallback,
 }: LibModalProps) {
   return (
     <NewLibModal
@@ -35,6 +36,7 @@ export function LayerLib({
       discoverProps={discoverProps}
       setFeatureFlags={setFeatureFlags}
       store={store}
+      unauthorizedCallback={unauthorizedCallback}
     />
   );
 }

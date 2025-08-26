@@ -22,6 +22,7 @@ export interface UIState {
   showLayerHideButtons: boolean;
   showResourceModal: boolean;
   zenMode: boolean;
+  showLoginModal: boolean;
 }
 
 const initialState: UIState = {
@@ -35,6 +36,7 @@ const initialState: UIState = {
   showLayerHideButtons: false,
   showResourceModal: false,
   zenMode: false,
+  showLoginModal: false,
 };
 
 const slice = createSlice({
@@ -80,6 +82,9 @@ const slice = createSlice({
     setZenMode(state, action: PayloadAction<boolean>) {
       state.zenMode = action.payload;
     },
+    setShowLoginModal(state, action: PayloadAction<boolean>) {
+      state.showLoginModal = action.payload;
+    },
   },
 });
 
@@ -95,6 +100,7 @@ export const {
   setUIShowLayerHideButtons,
   setShowResourceModal,
   setZenMode,
+  setShowLoginModal,
 } = slice.actions;
 
 export const getUIMode = (state: RootState) => state.ui.mode;
@@ -111,5 +117,6 @@ export const getUIShowLayerHideButtons = (state: RootState) =>
 export const getUIShowResourceModal = (state: RootState) =>
   state.ui.showResourceModal;
 export const getZenMode = (state: RootState) => state.ui.zenMode;
+export const getShowLoginModal = (state: RootState) => state.ui.showLoginModal;
 
 export default slice.reducer;

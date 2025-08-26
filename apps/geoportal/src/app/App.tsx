@@ -56,6 +56,7 @@ import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import "./index.css";
 import { getCustomFeatureFlags } from "./store/slices/layers";
+import { getShowLoginModal, setShowLoginModal } from "./store/slices/ui";
 
 declare global {
   interface Window {
@@ -67,7 +68,8 @@ if (typeof global === "undefined") {
   window.global = window;
 }
 function App({ published }: { published?: boolean }) {
-  const [showLoginModal, setShowLoginModal] = useState(false);
+  const dispatch = useDispatch();
+  const showLoginModal = useSelector(getShowLoginModal);
   const isLoadingConfig = useAppConfig(CONFIG_BASE_URL, layerMap);
   useManageLayers(layerMap);
   const syncToken = useSyncToken();
@@ -129,30 +131,12 @@ function App({ published }: { published?: boolean }) {
                     }}
                   >
                     <LoginForm
-                      onSuccess={() => setShowLoginModal(false)}
-                      closeLoginForm={() => setShowLoginModal(false)}
+                      onSuccess={() => dispatch(setShowLoginModal(false))}
+                      closeLoginForm={() => dispatch(setShowLoginModal(false))}
                       showHelpText={false}
                       style={{ padding: "20px" }}
                     />
                   </Modal>
-
-                  {/* <Modal
-                  title={mobileInfo.headerText}
-                  open={isModalOpen && isMobile}
-                  closable={false}
-                  closeIcon={false}
-                  footer={[
-                    <Button
-                      key="confirm"
-                      type="primary"
-                      onClick={() => setIsModalOpen(false)}
-                    >
-                      {mobileInfo.confirmButtonText}
-                    </Button>,
-                  ]}
-                >
-                  <p>{mobileInfo.bodyText}</p>
-                </Modal> */}
                 </div>
               </ErrorBoundary>
             </ObliqueProvider>

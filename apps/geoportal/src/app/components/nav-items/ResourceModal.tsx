@@ -31,6 +31,7 @@ import {
 } from "../../store/slices/mapping";
 import {
   getUIShowResourceModal,
+  setShowLoginModal,
   setShowResourceModal,
 } from "../../store/slices/ui";
 import { apiUrl } from "../../constants/discover";
@@ -235,6 +236,9 @@ const ResourceModal = () => {
           dispatch(addCustomFeatureFlags(flags));
         }}
         store={store}
+        unauthorizedCallback={() => {
+          dispatch(setShowLoginModal(true));
+        }}
       />
     </>
   );
