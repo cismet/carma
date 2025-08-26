@@ -60,29 +60,37 @@ export const Save = ({
   };
 
   return (
-    <div className="p-2 flex flex-col gap-3 w-96">
+    <div className="p-2 flex flex-col gap-3 w-[460px]">
       {contextHolder}
       <div className="flex items-center gap-2">
         <FontAwesomeIcon icon={faFileExport} className="text-xl" />
         <h4 className="mb-0">Karte speichern</h4>
       </div>
       <hr className="my-0" />
-      <h5 className="mb-0">Bezeichnung</h5>
+      <label htmlFor="title" className="-mb-1 font-semibold">
+        Titel
+      </label>
       <Input
         id="title"
         value={title}
         className="bg-white"
+        placeholder="Unter welchem Namen soll die Karte gespeichert werden?"
         onChange={(e) => setTitle(e.target.value)}
       />
-      <h5 className="mb-0">Beschreibung</h5>
+      <label htmlFor="description" className="-mb-1 font-semibold">
+        Inhalt
+      </label>
       <Input.TextArea
         id="description"
         value={description}
         className="bg-white"
+        placeholder="Welche Kartenebenen und/oder Objektkategorien umfasst die Karte? Welche Hintergrundkarte wird verwendet?"
         onChange={(e) => setDescription(e.target.value)}
       />
       <div className="flex gap-1 -mb-2 font-medium items-center">
-        <h5 className="mb-0">Vorschaubild</h5>
+        <label htmlFor="thumbnail" className="-mb-1 font-semibold">
+          Vorschaubild
+        </label>
         <Tooltip
           placement="bottom"
           title="Das Vorschaubild wird automatisch generiert, wenn keine URL angegeben wird."
@@ -96,7 +104,7 @@ export const Save = ({
         id="thumbnail"
         value={thumbnail}
         className="bg-white"
-        placeholder="Adresse (URL)"
+        placeholder="Unter welcher URL ist ein geeignetes Vorschaubild verfügbar?"
         onChange={(e) => setThumbnail(e.target.value)}
       />
 
