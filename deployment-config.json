@@ -266,7 +266,10 @@
             "pages": {
               "org": "digital-twin-wuppertal-live",
               "prj": "geoportal",
-              "envs": ["VITE_MATOMO_SITE_ID=4"]
+              "envs": [
+                "VITE_MATOMO_SITE_ID=4",
+                "VITE_DISCOVER_API_URL=geoportal-rest-api.cismet.de"
+              ]
             }
           }
         },
