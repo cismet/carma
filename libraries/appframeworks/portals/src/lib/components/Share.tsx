@@ -18,6 +18,7 @@ export type ShareProps = {
   closePopover?: () => void;
   showExtendedSharing?: boolean;
   jwt?: string;
+  apiUrl?: string;
 };
 
 export const Share = ({
@@ -26,6 +27,7 @@ export const Share = ({
   selection,
   showExtendedSharing,
   jwt,
+  apiUrl = "https://wunda-cloud-api.cismet.de",
 }: ShareProps) => {
   const [loading, setLoading] = useState(false);
   // form states
@@ -57,7 +59,6 @@ export const Share = ({
 
   const addItemToDb = async (data, isDraft: boolean) => {
     setLoading(true);
-    const apiUrl = "https://wunda-cloud-api.cismet.de";
     const taskParameters = {
       parameters: {
         className: "gp_entdecken",
@@ -106,7 +107,7 @@ export const Share = ({
     e.preventDefault();
     let fileUrl;
     if (file) {
-      fileUrl = await uploadImage(file, jwt);
+      fileUrl = await uploadImage({ file, jwt, apiUrl });
       if (!fileUrl) return;
     }
 

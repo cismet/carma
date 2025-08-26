@@ -139,8 +139,9 @@ const InfoCard = ({
 
   const updateItem = async (publish?: boolean) => {
     let fileUrl;
+    const apiUrl = discoverProps?.apiUrl || "https://wunda-cloud-api.cismet.de";
     if (updatedFile && updatedFile instanceof File) {
-      fileUrl = await uploadImage(updatedFile, jwt);
+      fileUrl = await uploadImage({ file: updatedFile, jwt, apiUrl });
       if (!fileUrl) return;
     }
 
@@ -160,7 +161,6 @@ const InfoCard = ({
       }
     }
     setLoading(true);
-    const apiUrl = discoverProps?.apiUrl || "https://wunda-cloud-api.cismet.de";
     const taskParameters = {
       parameters: {
         className: discoverProps?.daqKey || "gp_entdecken",

@@ -1,6 +1,7 @@
 import { Share, useAuth, useSelection } from "@carma-apps/portals";
 import { getLayerState } from "../store/slices/mapping";
 import { useSelector } from "react-redux";
+import { apiUrl } from "../constants/discover";
 
 interface ShareContentProps {
   closePopover?: () => void;
@@ -19,6 +20,7 @@ export const ShareContent = ({ closePopover }: ShareContentProps) => {
       selection={selection}
       showExtendedSharing={!!jwt && allowPublishing}
       jwt={jwt}
+      apiUrl={apiUrl}
     />
   );
 };

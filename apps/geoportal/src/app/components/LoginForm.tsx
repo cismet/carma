@@ -5,6 +5,7 @@ import "./login.css";
 import { useRef, useState, useEffect } from "react";
 import { useDispatch } from "react-redux";
 import { useAuth } from "@carma-apps/portals";
+import { apiUrl } from "../constants/discover";
 
 interface LoginFormProps {
   helpText?: string;
@@ -49,7 +50,7 @@ const LoginForm = ({
   const login = (e) => {
     e.preventDefault();
     setLoading(true);
-    fetch("https://wunda-cloud-api.cismet.de/users", {
+    fetch(apiUrl + "/users", {
       method: "GET",
       headers: {
         Authorization:

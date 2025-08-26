@@ -1,14 +1,19 @@
-export const uploadImage = async (file: File, jwt?: string) => {
+export const uploadImage = async ({
+  file,
+  apiUrl = "https://wunda-cloud-api.cismet.de",
+  jwt,
+}: {
+  file: File;
+  apiUrl?: string;
+  jwt?: string;
+}) => {
   let fileUrl = "";
-  await fetch(
-    "https://wunda-cloud-api.cismet.de/configattributes/geoportal.files",
-    {
-      method: "GET",
-      headers: {
-        Authorization: "Bearer " + jwt,
-      },
-    }
-  )
+  await fetch(apiUrl + "/configattributes/geoportal.files", {
+    method: "GET",
+    headers: {
+      Authorization: "Bearer " + jwt,
+    },
+  })
     .then((response) => {
       return response.text();
     })
