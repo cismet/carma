@@ -13,7 +13,7 @@ import {
   clearTransition,
 } from "../slices/cesium";
 
-import { animateInterpolateHeadingPitchRange } from "../utils/cesiumAnimations";
+import { animateInterpolateHeadingPitchRange } from "../utils/animation/cesiumAnimations";
 import {
   cesiumCenterPixelSizeToLeafletZoom,
   getCameraHeightAboveGround,

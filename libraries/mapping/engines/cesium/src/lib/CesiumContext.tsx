@@ -7,7 +7,7 @@ import {
   Viewer,
   Cesium3DTileset,
 } from "cesium";
-import { ViewerAnimationMap } from "./utils/viewerAnimationMap";
+import { ViewerAnimationMap } from "./utils/animation/viewerAnimationMap";
 
 export interface CesiumContextType {
   viewerRef: MutableRefObject<Viewer | null>;

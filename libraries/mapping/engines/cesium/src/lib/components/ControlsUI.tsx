@@ -12,7 +12,7 @@ import LockCenterControl from "./controls/LockCenterControl";
 import OrbitControl from "./controls/OrbitControl";
 import { SceneStyleToggle } from "./controls/SceneStyleToggle";
 import ZoomControls from "./controls/ZoomControls";
-import { ViewerAnimationMap } from "../utils/viewerAnimationMap";
+import { ViewerAnimationMap } from "../utils/animation/viewerAnimationMap";
 
 const ControlsUI = ({
   showHome = true,

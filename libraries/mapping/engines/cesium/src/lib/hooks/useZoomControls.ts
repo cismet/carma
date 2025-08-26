@@ -12,9 +12,9 @@ import {
 import {
   cancelViewerAnimation,
   type ViewerAnimationMap,
-} from "../utils/viewerAnimationMap";
-import { cesiumAnimateFov } from "../utils/cesiumAnimateFov";
-import { cesiumSceneHasTweens } from "../utils/cesiumAnimations";
+} from "../utils/animation/viewerAnimationMap";
+import { cesiumAnimateFov } from "../utils/animation/cesiumAnimateFov";
+import { cesiumSceneHasTweens } from "../utils/animation/helpers";
 
 const FOV_MOVERATE_FACTOR = 0.5;
 

@@ -3,7 +3,7 @@ import { useCallback } from "react";
 import { type Scene, type Viewer } from "cesium";
 
 import { cesiumCameraForceOblique } from "../utils/cesiumCameraForceOblique";
-import { cesiumSceneHasTweens } from "../utils/cesiumAnimations";
+import { cesiumSceneHasTweens } from "../utils/animation/helpers";
 
 const viewerPreUpdateHandlers = new WeakMap<Viewer, (scene: Scene) => void>();
 

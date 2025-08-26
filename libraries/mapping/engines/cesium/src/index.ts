@@ -35,22 +35,16 @@ export { CUSTOM_SHADERS_DEFINITIONS } from "./lib/shaders";
 
 // TODO: all the utils used elsewhere with no cesium dedependency should be moved to common helper utils lib
 
-export {
-  cesiumSceneHasTweens,
-  animateInterpolateCameraPositionOrientation,
-  animateInterpolateFov,
-} from "./lib/utils/cesiumAnimations";
-export type { CameraInterpolationController } from "./lib/utils/cesiumAnimations";
-export {
-  animateInterpolateCameraPositionOrientation as interpolateCamera,
-  animateInterpolateFov as interpolateFov,
-} from "./lib/utils/cesiumAnimations";
-export { getOrbitPoint } from "./lib/utils/cesiumAnimateOrbits";
-export { getHeadingPitchForMouseEvent } from "./lib/utils/cesiumAnimateOrbits";
+export { animateInterpolateCameraPositionOrientation } from "./lib/utils/animation/cesiumAnimations";
+export { cesiumSceneHasTweens } from "./lib/utils/animation/helpers";
+export type { CameraInterpolationController } from "./lib/utils/animation/cesiumAnimations";
+export { animateInterpolateCameraPositionOrientation as interpolateCamera } from "./lib/utils/animation/cesiumAnimations";
+export { getOrbitPoint } from "./lib/utils/animation/cesiumAnimateOrbits";
+export { getHeadingPitchForMouseEvent } from "./lib/utils/animation/cesiumAnimateOrbits";
 export {
   cesiumAnimateFov,
   type CesiumAnimateFovOptions,
-} from "./lib/utils/cesiumAnimateFov";
+} from "./lib/utils/animation/cesiumAnimateFov";
 
 export { applyRollToHeadingForCameraNearNadir } from "./lib/utils/cesiumCamera";
 export {
@@ -104,8 +98,8 @@ export {
 export {
   type ViewerAnimationMap,
   initViewerAnimationMap,
-} from "./lib/utils/viewerAnimationMap";
-export { cancelViewerAnimation } from "./lib/utils/viewerAnimationMap";
+} from "./lib/utils/animation/viewerAnimationMap";
+export { cancelViewerAnimation } from "./lib/utils/animation/viewerAnimationMap";
 
 // Re-export all the types as workaround
 export * from "./index.d";

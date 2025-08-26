@@ -3,7 +3,7 @@ import { ReactNode } from "react";
 import { Viewer } from "cesium";
 
 import { useZoomControls } from "../../hooks/useZoomControls";
-import { ViewerAnimationMap } from "../../utils/viewerAnimationMap";
+import { ViewerAnimationMap } from "../../utils/animation/viewerAnimationMap";
 
 type ZoomControlsProps = {
   children?: ReactNode;

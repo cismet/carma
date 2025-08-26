@@ -19,7 +19,7 @@ import { loadTileset, TilesetConfigs } from "./utils/cesiumTilesetProviders";
 import {
   initViewerAnimationMap,
   ViewerAnimationMap,
-} from "./utils/viewerAnimationMap";
+} from "./utils/animation/viewerAnimationMap";
 
 export const CesiumContextProvider = ({
   children,

@@ -12,14 +12,14 @@ import {
 import {
   cancelViewerAnimation,
   type ViewerAnimationMap,
-} from "../../../utils/viewerAnimationMap";
+} from "../../../utils/animation/viewerAnimationMap";
 
 import {
   animateCamera,
   getHeadingPitchForMouseEvent,
   getOrbitPoint,
   PITCH,
-} from "../../../utils/cesiumAnimateOrbits";
+} from "../../../utils/animation/cesiumAnimateOrbits";
 
 import { CompassNeedleSVG } from "./CompassNeedleSVG";
 import { applyRollToHeadingForCameraNearNadir } from "../../../utils/cesiumCamera";

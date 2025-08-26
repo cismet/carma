@@ -5,93 +5,22 @@ import {
   Math as CesiumMath,
   HeadingPitchRange,
   EasingFunction,
-  Scene,
   PerspectiveFrustum,
   Quaternion,
   HeadingPitchRoll,
 } from "cesium";
 
-const PITCH_MIN = -Math.PI / 2 + 0.0001;
-const PITCH_MAX = 0;
-
-function shortestAngleLerp(start: number, end: number, t: number): number {
-  const delta = CesiumMath.negativePiToPi(end - start);
-  return start + delta * t;
-}
-
-const quatNeedsUpdate = (a: Quaternion, b: Quaternion): boolean => {
-  const dot = Quaternion.dot(a, b);
-  return 1 - Math.abs(dot) > 1e-6;
-};
-
-const posNeedsUpdate = (a: Cartesian3, b: Cartesian3): boolean =>
-  !Cartesian3.equalsEpsilon(a, b, CesiumMath.EPSILON7, CesiumMath.EPSILON7);
-
-const fovNeedsUpdate = (
-  currentFov: number | undefined,
-  targetFov: number | undefined
-): boolean =>
-  typeof currentFov === "number" &&
-  typeof targetFov === "number" &&
-  Math.abs(currentFov - targetFov) > CesiumMath.EPSILON7;
-
-const computeAlphaDamped = (dt: number, tauMs: number): number => {
-  const tau = Math.max(1, tauMs);
-  return 1 - Math.exp(-dt / tau);
-};
-
-const computeAlphaTimed = (
-  time: number,
-  startTime: number,
-  duration: number,
-  easing: (t: number) => number
-): number => {
-  const t = Math.min((time - startTime) / Math.max(1, duration), 1);
-  return easing(t);
-};
-
-const lerpCartesian3 = (a: Cartesian3, b: Cartesian3, t: number): Cartesian3 =>
-  new Cartesian3(
-    CesiumMath.lerp(a.x, b.x, t),
-    CesiumMath.lerp(a.y, b.y, t),
-    CesiumMath.lerp(a.z, b.z, t)
-  );
-
-const setCameraViewFromQuat = (
-  viewer: Viewer,
-  destination: Cartesian3,
-  quat: Quaternion
-) => {
-  const orientation = HeadingPitchRoll.fromQuaternion(quat);
-  viewer.camera.lookAtTransform(Matrix4.IDENTITY);
-  viewer.camera.setView({
-    destination,
-    orientation,
-  });
-};
-
-function shortestPitchClamped(
-  startPitch: number,
-  targetPitch: number,
-  t: number
-): number {
-  const pitchTargetAdjusted =
-    startPitch + CesiumMath.negativePiToPi(targetPitch - startPitch);
-  const rawPitch = CesiumMath.lerp(startPitch, pitchTargetAdjusted, t);
-  return CesiumMath.clamp(rawPitch, PITCH_MIN, PITCH_MAX);
-}
-
-function setupPointerCancel(
-  viewer: Viewer,
-  cancelable: boolean,
-  cancel: () => void
-): () => void {
-  const onPointer = () => {
-    if (cancelable) cancel();
-  };
-  viewer.canvas.addEventListener("pointerdown", onPointer);
-  return () => viewer.canvas.removeEventListener("pointerdown", onPointer);
-}
+import { computeAlphaDamped, computeAlphaTimed } from "./easing";
+import {
+  shortestAngleLerp,
+  quatNeedsUpdate,
+  posNeedsUpdate,
+  fovNeedsUpdate,
+  lerpCartesian3,
+  setCameraViewFromQuat,
+  shortestPitchClamped,
+  setupPointerCancel,
+} from "./helpers";
 
 /**
  * Rotates and tilts the Cesium camera around the center of the screen.
@@ -146,7 +75,7 @@ export function animateInterpolateHeadingPitchRange(
   let animationFrameId: number | null = null;
   let isCanceled = false;
 
-  const startTime = performance.now() + delay;
+  let startTime = performance.now() + delay;
 
   const cancelAnimation = () => {
     if (animationFrameId !== null) {
@@ -204,62 +133,24 @@ export function animateInterpolateHeadingPitchRange(
 }
 
 /**
- * Interpolate PerspectiveFrustum fov with easing and pointer-cancel.
- */
-export function animateInterpolateFov(
-  viewer: Viewer,
-  targetFov: number,
-  {
-    delay = 0,
-    duration = 300,
-    easing = EasingFunction.SINUSOIDAL_IN_OUT,
-    cancelable = true,
-    onComplete,
-    onCancel,
-  }: {
-    delay?: number;
-    duration?: number;
-    easing?: (t: number) => number;
-    cancelable?: boolean;
-    onComplete?: () => void;
-    onCancel?: () => void;
-  } = {}
-): () => void {
-  const controller = animateInterpolateCameraPositionOrientation(viewer, {
-    delay,
-    duration,
-    easing,
-    cancelable,
-    onComplete,
-    onCancel,
-    fov: targetFov,
-  });
-  return controller.cancel;
-}
-
-// undocumented cesium function to get if animation is running
-// https://community.cesium.com/t/cancel-a-camera-flyto-intentionally/1371/6
-export const cesiumSceneHasTweens = (viewer: Viewer) => {
-  const scene = viewer.scene as Scene & { tweens: [] };
-  return scene && scene.tweens && scene.tweens.length > 0;
-};
-
-/**
  * Interpolates Cesium camera position and orientation directly (setView) with easing.
  * Intended for driving camera to an absolute position/orientation rather than orbiting a target.
  * @param viewer - Cesium viewer
  * @param options - animation options, including optional destination/orientation
  * @param options.destination - final camera Cartesian3 position (optional)
  * @param options.orientation - target orientation (heading/pitch/roll). If not provided, current values are kept.
- * @returns controller with cancel and retarget
+ * @returns controller with cancel and chainable to() for retargeting (optionally resetTiming)
  */
 export type CameraInterpolationController = {
   cancel: () => void;
-  retarget: (opts: {
-    destination?: Cartesian3;
-    orientation?: { heading?: number; pitch?: number; roll?: number };
-    fov?: number;
-  }) => void;
+  to: (
+    opts: {
+      destination?: Cartesian3;
+      orientation?: { heading?: number; pitch?: number; roll?: number };
+      fov?: number;
+    },
+    cfg?: { resetTiming?: boolean }
+  ) => CameraInterpolationController;
 };
 
 export function animateInterpolateCameraPositionOrientation(
@@ -326,7 +217,7 @@ export function animateInterpolateCameraPositionOrientation(
   let isCanceled = false;
   let started = false;
   let lastTime = performance.now();
-  const startTime = performance.now() + delay;
+  let startTime = performance.now() + delay;
 
   const cancelAnimation = () => {
     if (animationFrameId !== null) {
@@ -393,9 +284,9 @@ export function animateInterpolateCameraPositionOrientation(
 
   animationFrameId = requestAnimationFrame(animate);
 
-  return {
+  const controller: CameraInterpolationController = {
     cancel: cancelAnimation,
-    retarget: ({ destination, orientation, fov }) => {
+    to: ({ destination, orientation, fov }, cfg) => {
       if (destination) {
         targetPos = destination;
       }
@@ -418,6 +309,12 @@ export function animateInterpolateCameraPositionOrientation(
           currentFov = (viewer.camera.frustum as PerspectiveFrustum).fov;
         }
       }
+      if (cfg?.resetTiming) {
+        startTime = performance.now();
+      }
+      return controller;
     },
   };
+
+  return controller;
 }
