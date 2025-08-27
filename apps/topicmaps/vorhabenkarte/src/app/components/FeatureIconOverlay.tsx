@@ -4,17 +4,9 @@ import {
   FeatureCollectionContext,
   FeatureCollectionDispatchContext,
 } from "react-cismap/contexts/FeatureCollectionContextProvider";
-// import centroid from "@turf/centroid";
 import pointOnFeature from "@turf/point-on-feature";
 import L from "leaflet";
 import { getFeatureStyler } from "../../helper/styler";
-
-// const svgBadge = `
-//   <svg width="24" height="24" viewBox="0 0 24 24">
-//     <circle cx="12" cy="12" r="10" fill="#CF4647" />
-//     <text x="12" y="16" text-anchor="middle" fill="#fff" font-size="12">P</text>
-//   </svg>
-// `;
 
 export const FeatureIconOverlay = ({
   zoomLevel = 12,
@@ -28,10 +20,7 @@ export const FeatureIconOverlay = ({
     typeof FeatureCollectionContext
   >(FeatureCollectionDispatchContext);
 
-  const styleFn = getFeatureStyler(
-    markerSymbolSize,
-    (props) => props.thema.farbe
-  );
+  const styleFn = getFeatureStyler(markerSymbolSize);
 
   useEffect(() => {
     const map = routedMapRef?.leafletMap?.leafletElement;

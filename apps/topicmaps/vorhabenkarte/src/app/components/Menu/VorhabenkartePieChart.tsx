@@ -17,7 +17,7 @@ const VorhabenkartePieChart = ({ visible = true }) => {
       const topicName = obj.thema.name;
       if (stats[topicName] === undefined) {
         stats[topicName] = 1;
-        colormodel[topicName] = obj.thema.farbe || "#FF0000";
+        colormodel[topicName] = obj.thema?.farbe || "#FF0000";
       } else {
         stats[topicName] += 1;
       }
