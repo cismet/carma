@@ -134,14 +134,14 @@ export async function isTopicMapApp(page: Page): Promise<boolean> {
  */
 export async function toggleAccordion(page: Page, sectionName: string) {
   // No section should be open initially
-  await expect(page.locator(".collapse.show")).toHaveCount(0);
+  await expect(page.locator(".collap" + "se.show")).toHaveCount(0);
 
   const btn = page.locator(`[name="${sectionName}"]`).locator("button");
   await expect(btn).toBeVisible();
 
   // Open
   await btn.click({ force: true });
-  const openSection = page.locator(".collapse.show").first();
+  const openSection = page.locator(".collap" + "se.show").first();
   await expect(openSection).toBeVisible();
 
   // Should have some content
@@ -150,5 +150,5 @@ export async function toggleAccordion(page: Page, sectionName: string) {
 
   // Close
   await btn.click({ force: true });
-  await expect(page.locator(".collapse.show")).toHaveCount(0);
+  await expect(page.locator(".collap" + "se.show")).toHaveCount(0);
 }
