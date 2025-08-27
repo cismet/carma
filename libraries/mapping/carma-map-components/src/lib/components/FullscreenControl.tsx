@@ -17,8 +17,11 @@ export const FullscreenControl = ({ tourRef }: FullscreenControlProps) => {
   const os = parser.getOS();
   const browser = parser.getBrowser();
 
-  // Check if device is iOS based on OS name
-  let iOS = os.name === "iOS";
+  // Check if device is iOS based on OS name, device type, or user agent string
+  let iOS =
+    os.name === "iOS" ||
+    (os.name === "Mac OS" && navigator.maxTouchPoints > 0) ||
+    /iPad|iPhone|iPod/.test(navigator.userAgent);
   let inIframe = window.self !== window.top;
   let simulateInIframe = false;
   let simulateInIOS = false;
