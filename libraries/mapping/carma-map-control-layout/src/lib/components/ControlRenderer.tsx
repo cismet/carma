@@ -1,4 +1,4 @@
-import { type CSSProperties } from "react";
+import { Fragment, type CSSProperties } from "react";
 import { type ControlComponent } from "../map-control";
 import { filterControls, sortControls } from "../utils/controlHelper";
 
@@ -118,7 +118,7 @@ function ControlRenderer({ controls }: ControlRendererProps) {
       {topLeftControls.length > 0 && (
         <div style={topLeftStyle}>
           {topLeftControls.map((control, index) => (
-            <div key={`topLeft-${index}`}>{control.component}</div>
+            <Fragment key={`topLeft-${index}`}>{control.component}</Fragment>
           ))}
         </div>
       )}
@@ -126,7 +126,7 @@ function ControlRenderer({ controls }: ControlRendererProps) {
       {topRightControls.length > 0 && (
         <div style={topRightStyle}>
           {topRightControls.map((control, index) => (
-            <div key={`topRight-${index}`}>{control.component}</div>
+            <Fragment key={`topRight-${index}`}>{control.component}</Fragment>
           ))}
         </div>
       )}
@@ -162,7 +162,9 @@ function ControlRenderer({ controls }: ControlRendererProps) {
           {bottomLeftControls.length > 0 && (
             <div style={bottomLeftStyle}>
               {bottomLeftControls.map((control, index) => (
-                <div key={`bottomLeft-${index}`}>{control.component}</div>
+                <Fragment key={`bottomLeft-${index}`}>
+                  {control.component}
+                </Fragment>
               ))}
             </div>
           )}
@@ -180,7 +182,9 @@ function ControlRenderer({ controls }: ControlRendererProps) {
           {bottomRightControls.length > 0 && (
             <div style={bottomRightStyle}>
               {bottomRightControls.map((control, index) => (
-                <div key={`bottomRight-${index}`}>{control.component}</div>
+                <Fragment key={`bottomRight-${index}`}>
+                  {control.component}
+                </Fragment>
               ))}
             </div>
           )}
