@@ -1,10 +1,11 @@
 /* tailwind.config.cjs */
-const path = require("path");
+const { join } = require("path");
 
 module.exports = {
+  // Inherit global content globs and exclusions
+  presets: [require(join(__dirname, "../../..", "tailwind.preset.cjs"))],
   content: [
-    path.join(__dirname, "./src/**/*.{js,ts,cjs,mjs,tjs,jsx,tsx}"),
-    path.join("libraries/**/src/**/*.{js,ts,jsx,tsx}"),
+    join(__dirname, "src/**/*!(*.stories|*.spec|*.test).{js,jsx,ts,tsx,html}"),
   ],
   theme: {
     extend: {},
