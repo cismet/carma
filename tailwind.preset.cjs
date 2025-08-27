@@ -1,7 +1,9 @@
-/* Tailwind preset with global exclusions (merged with app content) */
-
+/* opt in libraries here*/
 module.exports = {
-  content: ["libraries/!(e2e)/**/src/**/*!(*.spec|*.stories|*.test|*.e2e).{ts,tsx}"],
+  content: [
+    "libraries/(appframeworks|commons|mapping)/**/src/**/*!(*.spec|*.stories|*.test).{tsx}",
+    "libraries/collaborations/**/src/**/*!(*.spec|*.stories|*.test).{jsx,tsx}",
+  ],
   theme: { extend: {} },
   plugins: [],
 };
