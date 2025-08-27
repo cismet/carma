@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-test.describe("lagis smoke test", () => {
+test.describe("verdis-desktop smoke test", () => {
   let userData: any;
 
   test.beforeAll(async () => {
@@ -14,9 +14,6 @@ test.describe("lagis smoke test", () => {
     // Navigate to the application
     await page.goto("/");
 
-    // Check initial page load
-    // await expect(page.locator('text=LagIS')).toBeVisible();
-
     // Perform authentication
     await page.locator("#username").fill(userData.cheatingUser);
     await page.fill('input[type="password"]', userData.cheatingPassword);
@@ -28,17 +25,10 @@ test.describe("lagis smoke test", () => {
     // Verify authenticated state - check for fuzzy search component
     await expect(page.locator("[data-test-id=fuzzy-search]")).toBeVisible();
 
-    // Check for menu items
-    const menuItems = page.locator(".ant-menu-item");
-    await expect(menuItems).toHaveCount(9);
-
     // Check for "Karte" text
     await expect(page.locator("text=Karte")).toBeVisible();
 
     // Logout
-    await page.click(".logout");
-
-    // Verify logout - should see LagIS Desktop
-    // await expect(page.locator('text=LagIS Desktop')).toBeVisible();
+    await page.getByRole("img", { name: "logout" }).locator("path").click();
   });
 });
