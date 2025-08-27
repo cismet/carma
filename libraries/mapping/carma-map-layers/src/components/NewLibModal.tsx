@@ -180,9 +180,6 @@ export const NewLibModal = ({
           if (e.status === 401) {
             unauthorizedCallback?.();
             setJWT("");
-          } else {
-            unauthorizedCallback?.();
-            setJWT("");
           }
           console.error("Error fetching gp_entdecken: ", e);
         });
