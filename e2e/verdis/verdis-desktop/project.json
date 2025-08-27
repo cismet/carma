@@ -7,11 +7,9 @@
   "implicitDependencies": ["verdis-desktop"],
   "targets": {
     "e2e": {
-      "executor": "@nx/cypress:cypress",
+      "executor": "@nx/playwright:playwright",
       "options": {
-        "cypressConfig": "e2e/verdis/verdis-desktop/cypress.config.ts",
-        "devServerTarget": "verdis-desktop:serve:development",
-        "testingType": "e2e"
+        "config": "e2e/verdis/verdis-desktop/playwright.config.ts"
       },
       "configurations": {
         "production": {

@@ -11,7 +11,7 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: "html",
   use: {
-    baseURL: "http://localhost:4333",
+    baseURL: "http://localhost:4222",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
     channel: process.env.CI ? "chrome" : undefined,
@@ -25,8 +25,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "npx nx serve kita-finder --port=4333",
-    url: "http://localhost:4333",
+    command: "npx nx serve verdis-desktop --port=4222",
+    url: "http://localhost:4222",
     reuseExistingServer: false,
     timeout: 60_000,
   },
