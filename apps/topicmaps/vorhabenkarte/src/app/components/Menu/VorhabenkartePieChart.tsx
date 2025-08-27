@@ -1,9 +1,5 @@
 import { useContext } from "react";
 import { FeatureCollectionContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
-import {
-  getColorForFilter,
-  getColorForProperties,
-} from "../../../helper/styler";
 import { PieChart } from "@carma-apps/portals";
 
 const VorhabenkartePieChart = ({ visible = true }) => {
@@ -19,19 +15,9 @@ const VorhabenkartePieChart = ({ visible = true }) => {
 
     for (let obj of filteredItems) {
       const topicName = obj.thema.name;
-      // if (obj.stek) {
-      //   obj.stek.forEach((group) => {
-      //     if (stats[group] === undefined) {
-      //       stats[group] = 1;
-      //       colormodel[group] = getColorForFilter(group);
-      //     } else {
-      //       stats[group] += 1;
-      //     }
-      //   });
-      // }
       if (stats[topicName] === undefined) {
         stats[topicName] = 1;
-        colormodel[topicName] = obj.thema.farbe || getColorForFilter(topicName);
+        colormodel[topicName] = obj.thema.farbe || "#FF0000";
       } else {
         stats[topicName] += 1;
       }

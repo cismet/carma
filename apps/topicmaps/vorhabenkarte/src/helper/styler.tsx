@@ -1,8 +1,6 @@
 import Color from "color";
-import ColorHash from "color-hash";
 import createSVGPie from "create-svg-pie";
 import L from "leaflet";
-import queryString from "query-string";
 import createElement from "svg-create-element";
 
 const fallbackSVG = `
@@ -25,40 +23,6 @@ export const getColorForProperties = (properties) => {
   // }
 
   return "#1d599e";
-};
-
-export const getColorForFilter = (topic) => {
-  let color;
-  switch (topic) {
-    case "Kinder und Jugend":
-      color = "#F8CA00";
-      break;
-    case "Umwelt und Grünflächen":
-      color = "#8A9B0F";
-      break;
-    case "Verkehr und Mobilität":
-      color = "#1d599e";
-      break;
-    case "Bildung und Kultur":
-      color = "#490A3D";
-      break;
-    case "Stadtentwicklung & Sicherheit":
-      color = "#BD1550";
-      break;
-    case "Sonstiges":
-      color = "#AAAAAA";
-      break;
-    case "Sport und Freizeit":
-      color = "#E97F02";
-      break;
-    case "Wirtschaft und Wohnen":
-      color = "#CC3300";
-      break;
-    default:
-      color = "#8A9B0F";
-  }
-
-  return color;
 };
 
 export const getPoiClusterIconCreatorFunction = ({
