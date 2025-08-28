@@ -10,6 +10,7 @@ interface MapLayersState {
   loadingCapabilitiesIDs: string[];
   // Global loading state for capabilities. Turns to false when one capability finished loading
   loadingCapabilities: boolean;
+  selectedLayer: Item | null;
 }
 
 type RootState = {
@@ -20,6 +21,7 @@ const initialState: MapLayersState = {
   replaceLayers: [],
   loadingCapabilitiesIDs: [],
   loadingCapabilities: true,
+  selectedLayer: null,
 };
 
 export const getMapLayersConfig = ({
@@ -57,6 +59,9 @@ const sliceMapLayers = createSlice({
     setLoadingCapabilities: (state, action) => {
       state.loadingCapabilities = action.payload;
     },
+    setSelectedLayer: (state, action) => {
+      state.selectedLayer = action.payload;
+    },
   },
 });
 
@@ -66,6 +71,7 @@ export const {
   addloadingCapabilitiesIDs,
   removeloadingCapabilitiesIDs,
   setLoadingCapabilities,
+  setSelectedLayer,
 } = sliceMapLayers.actions;
 
 export const getReplaceLayers = ({ mapLayers }: RootState) =>
@@ -76,6 +82,9 @@ export const getloadingCapabilitiesIDs = ({ mapLayers }: RootState) =>
 
 export const getLoadingCapabilities = ({ mapLayers }: RootState) =>
   mapLayers.loadingCapabilities;
+
+export const getSelectedLayer = ({ mapLayers }: RootState) =>
+  mapLayers.selectedLayer;
 
 export const mapLayersReducer = sliceMapLayers.reducer;
 

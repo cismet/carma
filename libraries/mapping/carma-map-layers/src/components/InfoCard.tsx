@@ -1,4 +1,4 @@
-import { Button, Input, Select, Tabs } from "antd";
+import { Button, Checkbox, Input, Select, Tabs } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faBan,
@@ -16,18 +16,21 @@ import {
   faX,
 } from "@fortawesome/free-solid-svg-icons";
 
-import { Item } from "@carma-commons/types";
+import { Item, Layer } from "@carma-commons/types";
 import { extractCarmaConfig } from "@carma-commons/utils";
 
 import { parseDescription, serviceOptions } from "../helper/layerHelper";
 import { Fragment, useState } from "react";
 import { FileUploader, uploadImage, useAuth } from "@carma-apps/portals";
 import { TagSelector } from "@carma-commons/ui/tag-selection";
+import { useDispatch, useSelector } from "react-redux";
+import { getSelectedLayer, setSelectedLayer } from "../slices/mapLayers";
+import { setTriggerRefetch } from "../slices/ui";
 
 interface InfoCardProps {
-  layer: Item;
   isFavorite: boolean;
   isActiveLayer: boolean;
+  activeLayers: Layer[];
   handleAddClick: (
     e: React.MouseEvent<HTMLElement, MouseEvent>,
     preview?: boolean
@@ -35,11 +38,9 @@ interface InfoCardProps {
   handleFavoriteClick: (
     e: React.MouseEvent<HTMLButtonElement, MouseEvent>
   ) => void;
-  closeInfoCard: () => void;
   setPreview: (preview: boolean) => void;
   links: { url: string; text: string }[];
   deleteCollection: () => void;
-  setTriggerRefetch: (value: boolean) => void;
   loadingData: boolean;
   discoverProps?: {
     appKey: string;
@@ -49,19 +50,20 @@ interface InfoCardProps {
 }
 
 const InfoCard = ({
-  layer,
   isFavorite,
   isActiveLayer,
+  activeLayers,
   handleAddClick,
   handleFavoriteClick,
-  closeInfoCard,
   setPreview,
   links,
   deleteCollection,
-  setTriggerRefetch,
   loadingData,
   discoverProps,
 }: InfoCardProps) => {
+  const dispatch = useDispatch();
+  const layer = useSelector(getSelectedLayer);
+  if (!layer) return null;
   const { title, description, tags } = layer;
 
   const [editCollection, setEditCollection] = useState(false);
@@ -80,6 +82,7 @@ const InfoCard = ({
   const [keywordInput, setKeywordInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [useNewLayers, setUseNewLayers] = useState(false);
 
   // Function to reconstruct the original description format from edited descriptions
   const reconstructDescription = () => {
@@ -145,6 +148,7 @@ const InfoCard = ({
       if (!fileUrl) return;
     }
 
+    // Create base config without layers property
     const config = {
       ...layer,
       description: reconstructDescription(),
@@ -152,7 +156,13 @@ const InfoCard = ({
       thumbnail: fileUrl || updatedThumbnail,
       serviceName: updatedService,
       tags: updatedKeywords,
+      layers: useNewLayers
+        ? activeLayers
+        : layer.type === "collection"
+        ? layer.layers
+        : [],
     };
+
     if (!(!publish && layer.isDraft)) {
       const error = checkForRequiredFields(config);
       if (error) {
@@ -194,14 +204,14 @@ const InfoCard = ({
       }
     );
     if (response.status === 200) {
-      setTriggerRefetch(true);
+      dispatch(setTriggerRefetch(true));
       const waitForLoadingToFinish = async () => {
         while (loadingData) {
           await new Promise((resolve) => setTimeout(resolve, 100));
         }
         setLoading(false);
         setEditCollection(false);
-        closeInfoCard();
+        dispatch(setSelectedLayer(null));
       };
 
       waitForLoadingToFinish();
@@ -343,10 +353,22 @@ const InfoCard = ({
                   <span className="!hidden sm:!inline-block">Vorschau</span>
                 </Button>
               )}
+              {editCollection && (
+                <Checkbox
+                  checked={useNewLayers}
+                  onChange={(e) => {
+                    setUseNewLayers(e.target.checked);
+                  }}
+                >
+                  Karteninhalte übernehmen
+                </Checkbox>
+              )}
             </div>
           </div>
           <button
-            onClick={closeInfoCard}
+            onClick={() => {
+              dispatch(setSelectedLayer(null));
+            }}
             className="text-gray-600 hover:text-gray-500 flex items-center justify-center py-0.5 px-1 absolute top-2 right-0"
           >
             <FontAwesomeIcon icon={faX} />

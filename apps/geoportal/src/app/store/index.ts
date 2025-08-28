@@ -14,7 +14,11 @@ import uiReducer from "./slices/ui";
 import measurementsReducer from "./slices/measurements";
 import featuresReducer from "./slices/features";
 import printReducer from "./slices/print";
-import { getMapLayersConfig, mapLayersReducer } from "@carma-mapping/layers";
+import {
+  getMapLayersConfig,
+  mapLayersReducer,
+  mapLayersUIReducer,
+} from "@carma-mapping/layers";
 
 console.info("store initializing ....");
 
@@ -125,6 +129,10 @@ const store = configureStore({
     mapLayers: persistReducer(
       getMapLayersConfig({ appKey: APP_KEY, storagePrefix: STORAGE_PREFIX }),
       mapLayersReducer
+    ),
+    mapLayersUI: persistReducer(
+      getMapLayersConfig({ appKey: APP_KEY, storagePrefix: STORAGE_PREFIX }),
+      mapLayersUIReducer
     ),
     print: persistReducer(printConfig, printReducer),
   },

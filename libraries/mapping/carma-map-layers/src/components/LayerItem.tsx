@@ -15,7 +15,7 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Button, Modal, Spin } from "antd";
 
-import { Item } from "@carma-commons/types";
+import { Item, Layer } from "@carma-commons/types";
 import { extractCarmaConfig } from "@carma-commons/utils";
 import {
   extServiceText,
@@ -24,19 +24,19 @@ import {
 
 import InfoCard from "./InfoCard";
 import { useAuth } from "@carma-apps/portals";
+import { useDispatch, useSelector } from "react-redux";
+import { getSelectedLayer, setSelectedLayer } from "../slices/mapLayers";
+import { setTriggerRefetch } from "../slices/ui";
 
 interface LayerItemProps {
   setAdditionalLayers: any;
   layer: Item;
-  activeLayers: Item[];
+  activeLayers: Layer[];
   favorites?: Item[];
   addFavorite: (layer: Item) => void;
   removeFavorite: (layer: Item) => void;
-  selectedLayerId: string | null;
-  setSelectedLayerId: (id: string | null) => void;
   setPreview: (preview: boolean) => void;
   showWithoutThumbnail?: boolean;
-  setTriggerRefetch: (value: boolean) => void;
   loadingData: boolean;
   discoverProps?: {
     appKey: string;
@@ -52,14 +52,13 @@ const LayerItem = ({
   favorites,
   addFavorite,
   removeFavorite,
-  selectedLayerId,
-  setSelectedLayerId,
   setPreview,
   showWithoutThumbnail,
-  setTriggerRefetch,
   loadingData,
   discoverProps,
 }: LayerItemProps) => {
+  const dispatch = useDispatch();
+  const selectedLayer = useSelector(getSelectedLayer);
   const [hovered, setHovered] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isActiveLayer, setIsActiveLayer] = useState(false);
@@ -77,7 +76,7 @@ const LayerItem = ({
     }[]
   >([]);
   const [forceWMS, setForceWMS] = useState(false);
-  const showInfo = selectedLayerId === layer.id;
+  const showInfo = selectedLayer?.id === layer.id;
   const canShowInfo =
     layer.type === "layer" ||
     (layer.type === "link" && layer.description) ||
@@ -192,7 +191,7 @@ const LayerItem = ({
       }
     );
     if (response.status === 200) {
-      setTriggerRefetch(true);
+      dispatch(setTriggerRefetch(true));
       const waitForLoadingToFinish = async () => {
         while (loadingData) {
           await new Promise((resolve) => setTimeout(resolve, 100));
@@ -215,7 +214,7 @@ const LayerItem = ({
         onClick={() => {
           console.log("xxx", layer);
           if (canShowInfo) {
-            setSelectedLayerId(showInfo ? null : layer.id);
+            dispatch(setSelectedLayer(showInfo ? null : layer));
           }
         }}
         data-test-id="card-layer-prev"
@@ -445,7 +444,9 @@ const LayerItem = ({
           </div>
           {canShowInfo && (
             <FontAwesomeIcon
-              icon={selectedLayerId === layer.id ? faChevronUp : faChevronDown}
+              icon={
+                selectedLayer?.id === layer.id ? faChevronUp : faChevronDown
+              }
               className="text-xl pt-1 cursor-pointer text-gray-700 z-50"
             />
           )}
@@ -488,7 +489,7 @@ const LayerItem = ({
         <InfoCard
           isFavorite={isFavorite}
           isActiveLayer={isActiveLayer}
-          layer={layer}
+          activeLayers={activeLayers}
           handleAddClick={handleLayerClick}
           handleFavoriteClick={() => {
             if (isFavorite) {
@@ -497,13 +498,11 @@ const LayerItem = ({
               addFavorite(layer);
             }
           }}
-          closeInfoCard={() => setSelectedLayerId(null)}
           setPreview={setPreview}
           links={links}
           deleteCollection={() => {
             setOpenDeleteModal(true);
           }}
-          setTriggerRefetch={setTriggerRefetch}
           loadingData={loadingData}
         />
       )}
