@@ -69,21 +69,27 @@
     "default": ["{projectRoot}/**/*", "sharedGlobals"],
     "production": [
       "default",
-      "!{projectRoot}/cypress/**/*",
+      "!{projectRoot}/(.storybook|cypress)/**/*",
+      "!{projectRoot}/src/e2e/**/*",
       "!{projectRoot}/**/*.cy.[jt]s?(x)",
       "!{projectRoot}/cypress.config.[jt]s",
       "!{projectRoot}/**/?(*.)+(spec|test).[jt]s?(x)?(.snap)",
-      "!{projectRoot}/tsconfig.json",
       "!{projectRoot}/tsconfig.spec.json",
       "!{projectRoot}/tsconfig.storybook.json",
-      "!{projectRoot}/*.config.(js|ts|cjs,mjs|mts)",
       "!{projectRoot}/**/*.stories.@(js|jsx|ts|tsx|mdx)",
-      "!{projectRoot}/.storybook/**/*",
+      "!{projectRoot}/playwright.config.@(js|cjs|mjs|ts|cts|mts)",
       "!{projectRoot}/jest.config.[jt]s",
-      "!{projectRoot}/src/test-setup.[jt]s",
-      "!{projectRoot}/test-setup.[jt]s"
+      "!{projectRoot}/eslint.config.@(js|cjs|mjs|ts|cts|mts)",
+      "!{projectRoot}/src/setupTests.[jt]s",
+      "!{projectRoot}/src/setup-tests.[jt]s"
     ],
-    "sharedGlobals": []
+    "sharedGlobals": [
+      "{workspaceRoot}/package.json",
+      "{workspaceRoot}/package-lock.json",
+      "{workspaceRoot}/nx.json",
+      "{workspaceRoot}/tailwind.preset.@(js|cjs|mjs|ts)",
+      "{workspaceRoot}/tsconfig.*.json"
+    ]
   },
   "generators": {
     "@nx/react": {
