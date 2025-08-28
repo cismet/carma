@@ -14,7 +14,7 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        primary: '#E67843',
+        primary: '#1677ff',
       },
       screens: {
         '3xl': '2560px',
@@ -24,4 +24,8 @@ module.exports = {
       },
     },
   },
+  corePlugins: {
+    preflight: false,
+  },
+  important: true,
 };
