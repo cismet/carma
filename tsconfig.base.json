@@ -208,7 +208,7 @@
       "@carma-pecher-collab/xanten": [
         "libraries/collaboration/carma-pecher-collab/src/xanten/index.jsx"
       ],
-      "@carma/pw-helper": ["libraries/e2e/pw-helper/src/index.ts"]
+      "@e2e-carma/pw-helper": ["libraries/e2e/pw-helper/src/index.ts"]
     },
     "skipLibCheck": true
   }

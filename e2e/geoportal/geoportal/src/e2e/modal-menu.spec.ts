@@ -1,5 +1,5 @@
 import { test, expect, Page } from "@playwright/test";
-import { toggleAccordion, runModalMenuTest } from "@carma/pw-helper";
+import { toggleAccordion, runModalMenuTest } from "@e2e-carma/pw-helper";
 
 const checkAccordion = async (page: Page) => {
   await toggleAccordion(page, "positionieren");
