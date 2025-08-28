@@ -1,38 +1,32 @@
-/* tailwind.config.cjs */
-const path = require("path");
+const { join } = require("path");
+const { workspaceRoot } = require('@nx/devkit');
+const { createGlobPatternsForDependencies } = require("@nx/react/tailwind");
+const resolveConfig = require('tailwindcss/resolveConfig');
+const { inspect } = require('util');
 
-module.exports = {
+// Use shared preset from workspace root
+const preset = require(join(workspaceRoot, 'tailwind.preset.cjs'));
+
+// Dependency globs via Nx so we pick up dependent libraries correctly
+const depsGlobs = createGlobPatternsForDependencies(__dirname);
+
+// Tailwind config
+const config = {
+  presets: [preset],
   content: [
-    path.join(__dirname, "./src/**/*.{js,ts,cjs,mjs,tjs,jsx,tsx}"),
-    path.join(
-      __dirname,
-      "../../libraries/mapping/carma-map-layers/src/**/*.{js,ts,jsx,tsx}",
-    ),
-    path.join(
-      __dirname,
-      "../../libraries/appframeworks/portals/src/**/*.{js,ts,jsx,tsx}",
-      
-    ),
-    path.join("libraries/**/src/**/*.{js,ts,jsx,tsx}"),
+    join(__dirname, "src/**/*!(*.stories|*.spec|*.test).{js,ts,jsx,tsx}"),
+    ...depsGlobs,
   ],
-  theme: {
-    extend: {
-      screens: {
-        "xs": "320px",
-      },
-      spacing: {
-        // mobile first standard margins
-        'safe-top': 'max(2px, env(safe-area-inset-top))',
-        'safe-bottom': 'max(2px, env(safe-area-inset-bottom))',
-        'safe-left': 'max(6px, env(safe-area-inset-left))',
-        'safe-right': 'max(6px, env(safe-area-inset-right))',
-        // xs and above
-        'safe-top-xs': 'max(5px, env(safe-area-inset-top))',
-        'safe-bottom-xs': 'max(5px, env(safe-area-inset-bottom))',
-        'safe-left-xs': 'max(12px, env(safe-area-inset-left))',
-        'safe-right-xs': 'max(12px, env(safe-area-inset-right))',
-      }
-    },
-  },
-  plugins: [],
 };
+
+
+if (process.env.NODE_ENV === 'development') {
+  // check resolved config if needed
+  // npx nx build geoportal --output-style=stream 2>&1 | tee nx-geoportal-build.log
+  // only log for development builds:
+  const resolved = resolveConfig(config);
+  console.log('[tailwind] resolved content:\n' + inspect(resolved.content, { depth: null, colors: false, maxArrayLength: null }));
+  console.log('[tailwind] resolved presets:\n' + inspect(resolved.presets, { depth: null, colors: false, maxArrayLength: null }));
+}
+
+module.exports = config;
