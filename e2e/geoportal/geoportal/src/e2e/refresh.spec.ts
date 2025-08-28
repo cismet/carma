@@ -24,7 +24,6 @@ test.describe("Geoportal refresh", () => {
       reloadBtn.click(),
     ]);
 
-    // Element should be gone from the DOM (Cypress `.should('not.exist')`)
     await expect(emptyInfo).toHaveCount(0);
     // (Alternatively) await expect(emptyInfo).toBeHidden(); // passes if hidden OR detached
   });

@@ -22,7 +22,6 @@ test.describe("Geoportal overlay", () => {
     await helperBtn.click();
     await expect(overlayBg).toBeVisible();
 
-    // At least 6 primary items (Cypress: have.length.greaterThan, 5)
     const primaryCount = await primaryItems.count();
     expect(primaryCount).toBeGreaterThan(5);
 

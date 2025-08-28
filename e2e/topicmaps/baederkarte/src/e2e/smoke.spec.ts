@@ -1,4 +1,5 @@
 import { test } from "@playwright/test";
+
 import { runMapSmokeTest, setupSmokeTest } from "@carma-commons/e2e";
 
 test.describe("baederkarte smoke test", () => {

@@ -125,7 +125,7 @@
       "@carma-commons/document-viewer": [
         "libraries/commons/document-viewer/src/index.ts"
       ],
-      "@carma-commons/e2e": ["lib/commons/e2e/index.ts"],
+      "@carma-commons/e2e": ["libraries/commons/e2e/src/index.ts"],
       "@carma-commons/resources": ["libraries/commons/resources/src/index.ts"],
       "@carma-commons/types": ["libraries/commons/types/src/index.ts"],
       "@carma-commons/ui/lib-helper-overlay": [

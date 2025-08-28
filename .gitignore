@@ -49,11 +49,9 @@ apps/wunda/verkehrszeichenkataster/public/signs/*
 
 apps/**/.env
 
-# Cypress screenshots
-report-cy/
+
 # Test reports
 **/report-pw/
-**/report-cy/
 **/test-results/
 playwright-report/
 

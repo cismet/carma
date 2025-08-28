@@ -2,7 +2,6 @@ import { test, expect, Page } from "@playwright/test";
 
 async function getZoomLevel(page: Page): Promise<number> {
   const hash = await page.evaluate(() => window.location.hash || "");
-  // Your app seems to use a "#!..." style hash. Keep slice(2) like in Cypress.
   const params = new URLSearchParams(hash.slice(2));
   const z = params.get("zoom");
   if (z === null) throw new Error("Zoom parameter is missing in the URL");

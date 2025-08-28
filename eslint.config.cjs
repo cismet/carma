@@ -1,7 +1,6 @@
 const nx = require("@nx/eslint-plugin");
 const tseslint = require("typescript-eslint");
 const a11y = require("eslint-plugin-jsx-a11y");
-const cypress = require("eslint-plugin-cypress");
 const importPlugin = require("eslint-plugin-import");
 const react = require("eslint-plugin-react");
 const reactHooks = require("eslint-plugin-react-hooks");
@@ -110,14 +109,5 @@ const baseConfig = {
   },
 };
 
-const cypressConfig = {
-  name: "E2E Cypress Config",
-  ...baseConfig,
-  ...cypress.recommended,
-  //plugins: { ...baseConfig.plugins, cypress },
-  files: ["e2e/**/*.cy.ts"],
-  //ignores: [],
-};
-
 // order here specific to least specific
-module.exports = [baseConfig, cypressConfig];
+module.exports = [baseConfig];

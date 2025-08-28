@@ -21,7 +21,7 @@ package-lock.json
 /dist
 
 # configs from boilerplate
-cypress.config.ts
+
 
 eslint.config.cjs
 eslint.config.ts
