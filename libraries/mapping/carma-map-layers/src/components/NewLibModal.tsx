@@ -212,7 +212,6 @@ export const NewLibModal = ({
   };
 
   useEffect(() => {
-    console.log("xxx", triggerRefetch);
     if (open || triggerRefetch) {
       fetchDiscoverItems();
     }
