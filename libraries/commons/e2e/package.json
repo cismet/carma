@@ -1,5 +1,5 @@
 {
-  "name": "@carma/pw-helper",
+  "name": "@carma-commons/e2e",
   "version": "0.0.1",
   "private": true,
   "type": "commonjs",

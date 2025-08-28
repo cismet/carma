@@ -125,6 +125,7 @@
       "@carma-commons/document-viewer": [
         "libraries/commons/document-viewer/src/index.ts"
       ],
+      "@carma-commons/e2e": ["lib/commons/e2e/index.ts"],
       "@carma-commons/resources": ["libraries/commons/resources/src/index.ts"],
       "@carma-commons/types": ["libraries/commons/types/src/index.ts"],
       "@carma-commons/ui/lib-helper-overlay": [
@@ -145,6 +146,7 @@
       "@carma-commons/ui/tag-selection": [
         "libraries/commons/ui/tag-selection/src/index.ts"
       ],
+      
       "@carma-mapping/cesium-engine": [
         "libraries/mapping/engines/cesium/src/index.ts"
       ],
@@ -208,7 +210,6 @@
       "@carma-pecher-collab/xanten": [
         "libraries/collaboration/carma-pecher-collab/src/xanten/index.jsx"
       ],
-      "@e2e-carma/pw-helper": ["libraries/e2e/pw-helper/src/index.ts"]
     },
     "skipLibCheck": true
   }

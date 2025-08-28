@@ -1,0 +1,22 @@
+{
+  "name": "lib-e2e",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libraries/commons/e2e/src",
+  "projectType": "library",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libraries/commons/e2e",
+        "main": "libraries/commons/e2e/src/index.ts",
+        "tsConfig": "libraries/commons/e2e/tsconfig.lib.json",
+        "assets": ["libraries/commons/e2e/*.md"]
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  }
+}

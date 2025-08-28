@@ -1,5 +1,5 @@
 import { test } from "@playwright/test";
-import { runMapSmokeTest, setupSmokeTest } from "@e2e-carma/pw-helper";
+import { runMapSmokeTest, setupSmokeTest } from "@carma-commons/e2e";
 
 test.describe("e-bikes smoke test", () => {
   test.beforeEach(async ({ page }) => {
