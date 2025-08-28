@@ -19,7 +19,6 @@ import {
   useSelectionCesium,
   useSelectionTopicMap,
   useCesiumModels,
-  useCesiumModelSelection,
 } from "@carma-apps/portals";
 import {
   geoElements,
@@ -89,6 +88,7 @@ import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../leaflet.css";
 import LoginForm from "../LoginForm.tsx";
+import { useModelSelectionDispatcher } from "../../hooks/useModelSelectionDispatcher.ts";
 import { Button, Tooltip } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -180,32 +180,18 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const { isObliqueMode } = useObliqueInitializer(isDebugMode);
 
   useDispatchSachdatenInfoText();
+  const modelSelectionDispatcher = useModelSelectionDispatcher();
 
   useCesiumModels({
     models: CESIUM_CONFIG.models || [],
     enabled: flags.featureFlagBugaBridge && !isMode2d,
-  });
-
-  // 3D model selection using proper hook
-  useCesiumModelSelection(
-    viewerRef.current,
-    (feature: FeatureInfo) => {
-      console.debug("[CESIUM|MODEL] Model clicked:", feature);
-      dispatch(setSelectedFeature(feature));
-      dispatch(setSecondaryInfoBoxElements([]));
-      dispatch(setFeatures([feature]));
+    selection: {
+      enabled: flags.featureFlagBugaBridge && !isMode2d,
+      deselectOnEmptyClick: true,
+      onSelect: (feature) =>
+        modelSelectionDispatcher(feature as FeatureInfo | null),
     },
-    !isMode2d
-  );
-
-  // Clear 3D model selection when switching back to 2D mode
-  useEffect(() => {
-    if (isMode2d && selectedFeature && selectedFeature.is3dModel) {
-      dispatch(setSelectedFeature(null));
-      dispatch(setSecondaryInfoBoxElements([]));
-      dispatch(setFeatures([]));
-    }
-  }, [isMode2d, selectedFeature, dispatch]);
+  });
 
   const { handleTopicMapLocationChange, handleCesiumSceneChange } =
     useMapHashRouting({
@@ -476,7 +462,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
           leafletMapProps={{ editable: true }}
           minZoom={10}
           backgroundlayers="empty"
-          mappingBoundsChanged={(boundingbox) => {
+          mappingBoundsChanged={() => {
             // intentionally no-op
           }}
           locationChangedHandler={topicMapLocationChangedHandler}
