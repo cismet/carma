@@ -1,13 +1,14 @@
 const { createGlobPatternsForDependencies } = require('@nx/react/tailwind');
 const { join } = require('path');
+const { workspaceRoot } = require('@nx/devkit');
+
+const preset = require(join(workspaceRoot, 'tailwind.preset.cjs'));
 
 /** @type {import('tailwindcss').Config} */
 module.exports = {
+  presets: [preset],
   content: [
-    join(
-      __dirname,
-      '{src,pages,components,app}/**/*!(*.stories|*.spec).{ts,tsx,html,js,jsx}'
-    ),
+    join(__dirname, 'src/**/*!(*.stories|*.spec|*.test).{js,ts,jsx,tsx}'),
     ...createGlobPatternsForDependencies(__dirname),
   ],
   theme: {
@@ -23,9 +24,4 @@ module.exports = {
       },
     },
   },
-  plugins: [],
-  corePlugins: {
-    preflight: false,
-  },
-  important: true,
 };
