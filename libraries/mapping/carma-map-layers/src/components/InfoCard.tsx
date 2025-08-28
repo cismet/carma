@@ -1,4 +1,4 @@
-import { Button, Input, Select, Tabs } from "antd";
+import { Button, Checkbox, Input, Select, Tabs } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faBan,
@@ -16,7 +16,7 @@ import {
   faX,
 } from "@fortawesome/free-solid-svg-icons";
 
-import { Item } from "@carma-commons/types";
+import { Item, Layer } from "@carma-commons/types";
 import { extractCarmaConfig } from "@carma-commons/utils";
 
 import { parseDescription, serviceOptions } from "../helper/layerHelper";
@@ -30,6 +30,7 @@ import { setTriggerRefetch } from "../slices/ui";
 interface InfoCardProps {
   isFavorite: boolean;
   isActiveLayer: boolean;
+  activeLayers: Layer[];
   handleAddClick: (
     e: React.MouseEvent<HTMLElement, MouseEvent>,
     preview?: boolean
@@ -51,6 +52,7 @@ interface InfoCardProps {
 const InfoCard = ({
   isFavorite,
   isActiveLayer,
+  activeLayers,
   handleAddClick,
   handleFavoriteClick,
   setPreview,
@@ -80,6 +82,7 @@ const InfoCard = ({
   const [keywordInput, setKeywordInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
+  const [useNewLayers, setUseNewLayers] = useState(false);
 
   // Function to reconstruct the original description format from edited descriptions
   const reconstructDescription = () => {
@@ -145,6 +148,7 @@ const InfoCard = ({
       if (!fileUrl) return;
     }
 
+    // Create base config without layers property
     const config = {
       ...layer,
       description: reconstructDescription(),
@@ -152,7 +156,13 @@ const InfoCard = ({
       thumbnail: fileUrl || updatedThumbnail,
       serviceName: updatedService,
       tags: updatedKeywords,
+      layers: useNewLayers
+        ? activeLayers
+        : layer.type === "collection"
+        ? layer.layers
+        : [],
     };
+
     if (!(!publish && layer.isDraft)) {
       const error = checkForRequiredFields(config);
       if (error) {
@@ -342,6 +352,16 @@ const InfoCard = ({
                 >
                   <span className="!hidden sm:!inline-block">Vorschau</span>
                 </Button>
+              )}
+              {editCollection && (
+                <Checkbox
+                  checked={useNewLayers}
+                  onChange={(e) => {
+                    setUseNewLayers(e.target.checked);
+                  }}
+                >
+                  Karteninhalte übernehmen
+                </Checkbox>
               )}
             </div>
           </div>

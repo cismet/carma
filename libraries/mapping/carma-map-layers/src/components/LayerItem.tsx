@@ -15,7 +15,7 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Button, Modal, Spin } from "antd";
 
-import { Item } from "@carma-commons/types";
+import { Item, Layer } from "@carma-commons/types";
 import { extractCarmaConfig } from "@carma-commons/utils";
 import {
   extServiceText,
@@ -31,7 +31,7 @@ import { setTriggerRefetch } from "../slices/ui";
 interface LayerItemProps {
   setAdditionalLayers: any;
   layer: Item;
-  activeLayers: Item[];
+  activeLayers: Layer[];
   favorites?: Item[];
   addFavorite: (layer: Item) => void;
   removeFavorite: (layer: Item) => void;
@@ -489,6 +489,7 @@ const LayerItem = ({
         <InfoCard
           isFavorite={isFavorite}
           isActiveLayer={isActiveLayer}
+          activeLayers={activeLayers}
           handleAddClick={handleLayerClick}
           handleFavoriteClick={() => {
             if (isFavorite) {
