@@ -24,6 +24,8 @@ import {
 
 import InfoCard from "./InfoCard";
 import { useAuth } from "@carma-apps/portals";
+import { useDispatch, useSelector } from "react-redux";
+import { getSelectedLayer, setSelectedLayer } from "../slices/mapLayers";
 
 interface LayerItemProps {
   setAdditionalLayers: any;
@@ -32,8 +34,6 @@ interface LayerItemProps {
   favorites?: Item[];
   addFavorite: (layer: Item) => void;
   removeFavorite: (layer: Item) => void;
-  selectedLayerId: string | null;
-  setSelectedLayerId: (id: string | null) => void;
   setPreview: (preview: boolean) => void;
   showWithoutThumbnail?: boolean;
   setTriggerRefetch: (value: boolean) => void;
@@ -52,14 +52,14 @@ const LayerItem = ({
   favorites,
   addFavorite,
   removeFavorite,
-  selectedLayerId,
-  setSelectedLayerId,
   setPreview,
   showWithoutThumbnail,
   setTriggerRefetch,
   loadingData,
   discoverProps,
 }: LayerItemProps) => {
+  const dispatch = useDispatch();
+  const selectedLayer = useSelector(getSelectedLayer);
   const [hovered, setHovered] = useState(false);
   const [loading, setLoading] = useState(false);
   const [isActiveLayer, setIsActiveLayer] = useState(false);
@@ -77,7 +77,7 @@ const LayerItem = ({
     }[]
   >([]);
   const [forceWMS, setForceWMS] = useState(false);
-  const showInfo = selectedLayerId === layer.id;
+  const showInfo = selectedLayer?.id === layer.id;
   const canShowInfo =
     layer.type === "layer" ||
     (layer.type === "link" && layer.description) ||
@@ -215,7 +215,7 @@ const LayerItem = ({
         onClick={() => {
           console.log("xxx", layer);
           if (canShowInfo) {
-            setSelectedLayerId(showInfo ? null : layer.id);
+            dispatch(setSelectedLayer(showInfo ? null : layer));
           }
         }}
         data-test-id="card-layer-prev"
@@ -445,7 +445,9 @@ const LayerItem = ({
           </div>
           {canShowInfo && (
             <FontAwesomeIcon
-              icon={selectedLayerId === layer.id ? faChevronUp : faChevronDown}
+              icon={
+                selectedLayer?.id === layer.id ? faChevronUp : faChevronDown
+              }
               className="text-xl pt-1 cursor-pointer text-gray-700 z-50"
             />
           )}
@@ -488,7 +490,6 @@ const LayerItem = ({
         <InfoCard
           isFavorite={isFavorite}
           isActiveLayer={isActiveLayer}
-          layer={layer}
           handleAddClick={handleLayerClick}
           handleFavoriteClick={() => {
             if (isFavorite) {
@@ -497,7 +498,6 @@ const LayerItem = ({
               addFavorite(layer);
             }
           }}
-          closeInfoCard={() => setSelectedLayerId(null)}
           setPreview={setPreview}
           links={links}
           deleteCollection={() => {

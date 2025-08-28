@@ -14,8 +14,6 @@ interface ItemGridProps {
   favorites: any;
   addFavorite: any;
   removeFavorite: any;
-  selectedLayerId: any;
-  setSelectedLayerId: any;
   setPreview: any;
   isSearch?: boolean;
   setTriggerRefetch: (value: boolean) => void;
@@ -35,8 +33,6 @@ const ItemGrid = ({
   favorites,
   addFavorite,
   removeFavorite,
-  selectedLayerId,
-  setSelectedLayerId,
   setPreview,
   isSearch,
   setTriggerRefetch,
@@ -108,8 +104,6 @@ const ItemGrid = ({
                               favorites={favorites}
                               addFavorite={addFavorite}
                               removeFavorite={removeFavorite}
-                              selectedLayerId={selectedLayerId}
-                              setSelectedLayerId={setSelectedLayerId}
                               setPreview={setPreview}
                               setTriggerRefetch={setTriggerRefetch}
                               loadingData={loadingData}
@@ -148,8 +142,6 @@ const ItemGrid = ({
                         favorites={favorites}
                         addFavorite={addFavorite}
                         removeFavorite={removeFavorite}
-                        selectedLayerId={selectedLayerId}
-                        setSelectedLayerId={setSelectedLayerId}
                         setPreview={setPreview}
                         setTriggerRefetch={setTriggerRefetch}
                         loadingData={loadingData}

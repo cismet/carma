@@ -23,9 +23,10 @@ import { parseDescription, serviceOptions } from "../helper/layerHelper";
 import { Fragment, useState } from "react";
 import { FileUploader, uploadImage, useAuth } from "@carma-apps/portals";
 import { TagSelector } from "@carma-commons/ui/tag-selection";
+import { useDispatch, useSelector } from "react-redux";
+import { getSelectedLayer, setSelectedLayer } from "../slices/mapLayers";
 
 interface InfoCardProps {
-  layer: Item;
   isFavorite: boolean;
   isActiveLayer: boolean;
   handleAddClick: (
@@ -35,7 +36,6 @@ interface InfoCardProps {
   handleFavoriteClick: (
     e: React.MouseEvent<HTMLButtonElement, MouseEvent>
   ) => void;
-  closeInfoCard: () => void;
   setPreview: (preview: boolean) => void;
   links: { url: string; text: string }[];
   deleteCollection: () => void;
@@ -49,12 +49,10 @@ interface InfoCardProps {
 }
 
 const InfoCard = ({
-  layer,
   isFavorite,
   isActiveLayer,
   handleAddClick,
   handleFavoriteClick,
-  closeInfoCard,
   setPreview,
   links,
   deleteCollection,
@@ -62,6 +60,9 @@ const InfoCard = ({
   loadingData,
   discoverProps,
 }: InfoCardProps) => {
+  const dispatch = useDispatch();
+  const layer = useSelector(getSelectedLayer);
+  if (!layer) return null;
   const { title, description, tags } = layer;
 
   const [editCollection, setEditCollection] = useState(false);
@@ -201,7 +202,7 @@ const InfoCard = ({
         }
         setLoading(false);
         setEditCollection(false);
-        closeInfoCard();
+        dispatch(setSelectedLayer(null));
       };
 
       waitForLoadingToFinish();
@@ -346,7 +347,9 @@ const InfoCard = ({
             </div>
           </div>
           <button
-            onClick={closeInfoCard}
+            onClick={() => {
+              dispatch(setSelectedLayer(null));
+            }}
             className="text-gray-600 hover:text-gray-500 flex items-center justify-center py-0.5 px-1 absolute top-2 right-0"
           >
             <FontAwesomeIcon icon={faX} />

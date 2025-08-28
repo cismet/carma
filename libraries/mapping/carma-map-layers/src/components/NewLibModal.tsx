@@ -52,6 +52,7 @@ import {
   addReplaceLayers,
   removeloadingCapabilitiesIDs,
   setLoadingCapabilities,
+  setSelectedLayer,
 } from "../slices/mapLayers";
 import { useDispatch } from "react-redux";
 import type { Store } from "redux";
@@ -135,7 +136,6 @@ export const NewLibModal = ({
   const [searchValue, setSearchValue] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [showItems, setShowItems] = useState(false);
-  const [selectedLayerId, setSelectedLayerId] = useState<string | null>(null);
   const [selectedNavItemIndex, setSelectedNavItemIndex] = useState(0);
   const [tmpAllCategories, setTmpAllCategories] = useState<
     {
@@ -977,7 +977,7 @@ export const NewLibModal = ({
                   onClick={() => {
                     setOpen(false);
                     setPreview(false);
-                    setSelectedLayerId(null);
+                    dispatch(setSelectedLayer(null));
                   }}
                 >
                   <FontAwesomeIcon icon={faX} />
@@ -1021,7 +1021,7 @@ export const NewLibModal = ({
                 onClick={() => {
                   setOpen(false);
                   setPreview(false);
-                  setSelectedLayerId(null);
+                  dispatch(setSelectedLayer(null));
                 }}
               >
                 <FontAwesomeIcon icon={faX} />
@@ -1066,8 +1066,6 @@ export const NewLibModal = ({
                   favorites={favorites}
                   addFavorite={addFavorite}
                   removeFavorite={removeFavorite}
-                  selectedLayerId={selectedLayerId}
-                  setSelectedLayerId={setSelectedLayerId}
                   setPreview={setPreview}
                   isSearch={selectedNavItemIndex === 5}
                   setTriggerRefetch={setTriggerRefetch}
