@@ -1,4 +1,5 @@
 import { expect, Page } from "@playwright/test";
+import { runModalMenuTest } from "./modal-menu-test";
 
 /**
  * Options for configuring smoke test behavior
@@ -49,7 +50,8 @@ export async function runMapSmokeTest(
 
   if (checkApplicationMenu) {
     // Check that application menu button is visible
-    await expect(page.locator("#cmdShowModalApplicationMenu")).toBeVisible();
+    // await expect(page.locator("#cmdShowModalApplicationMenu")).toBeVisible();
+    await runModalMenuTest(page);
   }
 
   if (checkInfoBox) {
