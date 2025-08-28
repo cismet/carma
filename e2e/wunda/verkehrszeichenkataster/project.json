@@ -7,11 +7,9 @@
   "implicitDependencies": ["verkehrszeichenkataster"],
   "targets": {
     "e2e": {
-      "executor": "@nx/cypress:cypress",
+      "executor": "@nx/playwright:playwright",
       "options": {
-        "cypressConfig": "e2e/wunda/verkehrszeichenkataster/cypress.config.ts",
-        "devServerTarget": "verkehrszeichenkataster:serve:development",
-        "testingType": "e2e"
+        "config": "e2e/wunda/verkehrszeichenkataster/playwright.config.ts"
       },
       "configurations": {
         "production": {
