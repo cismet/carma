@@ -54,8 +54,9 @@ import {
   setLoadingCapabilities,
   setSelectedLayer,
 } from "../slices/mapLayers";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import type { Store } from "redux";
+import { getTriggerRefetch, setTriggerRefetch } from "../slices/ui";
 
 const { Search } = Input;
 
@@ -155,10 +156,10 @@ export const NewLibModal = ({
   const [discoverItems, setDiscoverItems] = useState<any[]>([]);
   const [additionalConfig, setAdditionalConfig] = useState<any[]>([]);
   const [loadingData, setLoadingData] = useState(false);
-  const [triggerRefetch, setTriggerRefetch] = useState(true);
   const [loadingAdditionalConfig, setLoadingAdditionalConfig] = useState(true);
   const debouncedSearchTerm = useDebounce(searchValue, 300);
 
+  const triggerRefetch = useSelector(getTriggerRefetch);
   const dispatch = useDispatch();
 
   const flags = useFeatureFlags();
@@ -174,7 +175,7 @@ export const NewLibModal = ({
           const typedResult = result as DiscoverResult;
           setDiscoverItems(typedResult.data);
           setLoadingData(false);
-          setTriggerRefetch(false);
+          dispatch(setTriggerRefetch(false));
         })
         .catch((e) => {
           if (e.status === 401) {
@@ -211,6 +212,7 @@ export const NewLibModal = ({
   };
 
   useEffect(() => {
+    console.log("xxx", triggerRefetch);
     if (open || triggerRefetch) {
       fetchDiscoverItems();
     }
@@ -1068,7 +1070,6 @@ export const NewLibModal = ({
                   removeFavorite={removeFavorite}
                   setPreview={setPreview}
                   isSearch={selectedNavItemIndex === 5}
-                  setTriggerRefetch={setTriggerRefetch}
                   loadingData={loadingData}
                   currentCategoryIndex={selectedNavItemIndex}
                   discoverProps={discoverProps}

@@ -25,6 +25,7 @@ import { FileUploader, uploadImage, useAuth } from "@carma-apps/portals";
 import { TagSelector } from "@carma-commons/ui/tag-selection";
 import { useDispatch, useSelector } from "react-redux";
 import { getSelectedLayer, setSelectedLayer } from "../slices/mapLayers";
+import { setTriggerRefetch } from "../slices/ui";
 
 interface InfoCardProps {
   isFavorite: boolean;
@@ -39,7 +40,6 @@ interface InfoCardProps {
   setPreview: (preview: boolean) => void;
   links: { url: string; text: string }[];
   deleteCollection: () => void;
-  setTriggerRefetch: (value: boolean) => void;
   loadingData: boolean;
   discoverProps?: {
     appKey: string;
@@ -56,7 +56,6 @@ const InfoCard = ({
   setPreview,
   links,
   deleteCollection,
-  setTriggerRefetch,
   loadingData,
   discoverProps,
 }: InfoCardProps) => {
@@ -195,7 +194,7 @@ const InfoCard = ({
       }
     );
     if (response.status === 200) {
-      setTriggerRefetch(true);
+      dispatch(setTriggerRefetch(true));
       const waitForLoadingToFinish = async () => {
         while (loadingData) {
           await new Promise((resolve) => setTimeout(resolve, 100));

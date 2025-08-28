@@ -16,7 +16,6 @@ interface ItemGridProps {
   removeFavorite: any;
   setPreview: any;
   isSearch?: boolean;
-  setTriggerRefetch: (value: boolean) => void;
   loadingData: boolean;
   currentCategoryIndex: number;
   discoverProps?: {
@@ -35,7 +34,6 @@ const ItemGrid = ({
   removeFavorite,
   setPreview,
   isSearch,
-  setTriggerRefetch,
   loadingData,
   currentCategoryIndex,
   discoverProps,
@@ -105,7 +103,6 @@ const ItemGrid = ({
                               addFavorite={addFavorite}
                               removeFavorite={removeFavorite}
                               setPreview={setPreview}
-                              setTriggerRefetch={setTriggerRefetch}
                               loadingData={loadingData}
                               discoverProps={discoverProps}
                               key={`${subCategory.Title}_layer_${i}_${layer.id}`}
@@ -143,7 +140,6 @@ const ItemGrid = ({
                         addFavorite={addFavorite}
                         removeFavorite={removeFavorite}
                         setPreview={setPreview}
-                        setTriggerRefetch={setTriggerRefetch}
                         loadingData={loadingData}
                         discoverProps={discoverProps}
                         key={`${category.Title}_layer_${i}_${layer.id}`}

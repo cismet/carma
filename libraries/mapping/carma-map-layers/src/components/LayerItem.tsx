@@ -26,6 +26,7 @@ import InfoCard from "./InfoCard";
 import { useAuth } from "@carma-apps/portals";
 import { useDispatch, useSelector } from "react-redux";
 import { getSelectedLayer, setSelectedLayer } from "../slices/mapLayers";
+import { setTriggerRefetch } from "../slices/ui";
 
 interface LayerItemProps {
   setAdditionalLayers: any;
@@ -36,7 +37,6 @@ interface LayerItemProps {
   removeFavorite: (layer: Item) => void;
   setPreview: (preview: boolean) => void;
   showWithoutThumbnail?: boolean;
-  setTriggerRefetch: (value: boolean) => void;
   loadingData: boolean;
   discoverProps?: {
     appKey: string;
@@ -54,7 +54,6 @@ const LayerItem = ({
   removeFavorite,
   setPreview,
   showWithoutThumbnail,
-  setTriggerRefetch,
   loadingData,
   discoverProps,
 }: LayerItemProps) => {
@@ -192,7 +191,7 @@ const LayerItem = ({
       }
     );
     if (response.status === 200) {
-      setTriggerRefetch(true);
+      dispatch(setTriggerRefetch(true));
       const waitForLoadingToFinish = async () => {
         while (loadingData) {
           await new Promise((resolve) => setTimeout(resolve, 100));
@@ -503,7 +502,6 @@ const LayerItem = ({
           deleteCollection={() => {
             setOpenDeleteModal(true);
           }}
-          setTriggerRefetch={setTriggerRefetch}
           loadingData={loadingData}
         />
       )}
