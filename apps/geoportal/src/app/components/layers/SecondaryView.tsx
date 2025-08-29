@@ -166,16 +166,20 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
       }}
       className="pt-4 w-full"
     >
-      <div className="flex items-center justify-center">
+      <div className="flex items-center justify-center w-full">
         <div
           ref={infoRef}
           onClick={(e) => {
             e.stopPropagation();
           }}
           className={cn(
-            "min-w-[280px] max-w-[400px] sm:max-w-[560px] md:max-w-[720px] lg:w-full w-3/4",
+            "min-w-[280px] sm:max-w-[560px] md:max-w-[720px] lg:w-full w-full sm:w-3/4 sm:mx-0",
             "h-fit bg-white button-shadow rounded-[10px] flex flex-col relative secondary-view gap-2 py-2 transition-all duration-300",
-            showInfo ? "max-h-[600px] h-[70vh]" : isBaseLayer ? "h-fit" : "h-12"
+            showInfo
+              ? "sm:max-h-[600px] sm:h-[70vh] h-[80vh]"
+              : isBaseLayer
+              ? "h-fit"
+              : "h-12"
           )}
           onMouseEnter={() => {
             routedMapRef?.leafletMap?.leafletElement.dragging.disable();
