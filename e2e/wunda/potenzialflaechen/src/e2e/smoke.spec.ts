@@ -1,26 +1,28 @@
-import { test } from "@playwright/test";
+import { test, expect } from "@playwright/test";
 import { runMapSmokeTest, setupSmokeTest } from "@carma-commons/e2e";
 
 test.describe("potenzialflaechen-online smoke test", () => {
   let userData: any;
 
   test.beforeAll(async () => {
-    // Load test data from fixtures
     userData = require("../fixtures/devSecrets.json");
-    // });
   });
 
   test("map loads with key controls", async ({ page }) => {
     await page.goto("/");
+    const modal = page.locator(".modal-content");
+    await expect(modal).toBeVisible();
     await page
       .getByRole("textbox", { name: "WuNDa Benutzername" })
       .fill(userData.cheatingUser);
     await page
       .getByRole("textbox", { name: "Passwort" })
-      .fill(userData.cheatingUser);
+      .fill(userData.cheatingPassword);
     await page
       .getByRole("button", { name: "Anmeldung" })
       .click({ force: true });
+
+    await expect(modal).toHaveCount(0);
 
     await runMapSmokeTest(page, {
       fuzzySearchTimeout: 10000,
