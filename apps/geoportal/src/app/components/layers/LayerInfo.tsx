@@ -90,8 +90,8 @@ const LayerInfo = ({ description, legend, zoomLevels }: LayerInfoProps) => {
     <LayerInfoWrapper
       content={
         <>
-          <div className="flex gap-2 w-full h-full overflow-y-hidden">
-            <div className="h-full flex flex-col gap-2 w-[80%] hide-tabs">
+          <div className="flex sm:flex-row flex-col overflow-auto gap-2 w-full h-full overflow-y-hidden">
+            <div className="h-full flex flex-col gap-2 w-full sm:w-[80%] hide-tabs">
               {parsedDescription && (
                 <div>
                   <h5 className="font-semibold">Inhalt</h5>
@@ -118,10 +118,11 @@ const LayerInfo = ({ description, legend, zoomLevels }: LayerInfoProps) => {
                 activeKey={activeTabKey}
                 onChange={(key) => dispatch(setUIActiveTabKey(key))}
               />
+              <hr className="h-px my-0 bg-gray-300 border-0 w-full sm:hidden" />
             </div>
             <div className="w-1/3 h-[calc(100%-26px)]">
               <h5 className="pl-1.5">Legende</h5>
-              <div className="h-full overflow-auto">
+              <div className="h-full sm:overflow-auto">
                 {legend?.map((legend, i) => (
                   <img
                     key={`legend_${i}`}
