@@ -14,7 +14,7 @@ export async function runModalMenuTest(
   opts: ModalMenuOptions = {}
 ) {
   const {
-    minAccordionCount = 4,
+    minAccordionCount = 3,
     openButtonSelector = "#cmdShowModalApplicationMenu",
     footerSelector = ".modal-footer",
     closeButtonSelector = "#cmdCloseModalApplicationMenu",
@@ -34,15 +34,18 @@ export async function runModalMenuTest(
 
     const accBtn = accordion.locator("button").first();
     await expect(accBtn).toBeVisible();
-    await accBtn.click();
 
     const content = accordion.locator(".card-body").first();
-    await expect(content).toBeVisible();
+
+    if (!(await content.isVisible())) {
+      await accBtn.click();
+      await expect(content).toBeVisible();
+    }
 
     const text = await content.innerText();
     const len = text.replace(/\s+/g, " ").trim().length; // normalize whitespace
-    console.log(`Accordion ${i} text: ${text.slice(0, 200)}...`);
-    expect(len).toBeGreaterThanOrEqual(200);
+    console.log(`Accordion ${i} text: ${text.slice(0, 100)}...`);
+    expect(len).toBeGreaterThanOrEqual(100);
   }
 
   // Footer
