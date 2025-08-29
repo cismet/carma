@@ -360,7 +360,7 @@ const InfoCard = ({
                     setUseNewLayers(e.target.checked);
                   }}
                 >
-                  Karteninhalte übernehmen
+                  Kartenebenen aktualisieren
                 </Checkbox>
               )}
             </div>
