@@ -1,7 +1,7 @@
 /* eslint-disable jsx-a11y/no-static-element-interactions */
 /* eslint-disable jsx-a11y/click-events-have-key-events */
 
-import { useContext } from "react";
+import { useContext, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
@@ -39,6 +39,8 @@ import {
   setLayers,
   setSelectedLayerIndex,
   setSelectedLayerIndexNoSelection,
+  setShowLeftScrollButton,
+  setShowRightScrollButton,
 } from "../../store/slices/mapping";
 import LayerButton from "./LayerButton";
 import SecondaryView from "./SecondaryView";
@@ -90,6 +92,13 @@ const LayerWrapper = () => {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 2 } })
   );
+
+  useEffect(() => {
+    if (size.width < 640 && (showLeftScrollButton || showRightScrollButton)) {
+      dispatch(setShowLeftScrollButton(false));
+      dispatch(setShowRightScrollButton(false));
+    }
+  }, [size]);
 
   console.debug("RENDER: LayerWrapper selectedLayerIndex", selectedLayerIndex);
 
