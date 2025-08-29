@@ -25,7 +25,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "npx nx serve x-and-ride5 --port=4222",
+    command: "npx nx serve x-and-ride --port=4222",
     url: "http://localhost:4222",
     reuseExistingServer: false,
     timeout: 60_000,
