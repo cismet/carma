@@ -67,23 +67,51 @@ const BaseLayerInfo = () => {
               items={[
                 {
                   key: "1",
-                  label: "Eignung",
+                  label: "Kartenebenen",
                   children: (
-                    <div className="h-full overflow-auto">
+                    <DndContext
+                      onDragEnd={handleDragEnd}
+                      modifiers={[restrictToVerticalAxis]}
+                    >
+                      <div className="h-full overflow-auto max-h-full flex flex-col gap-2">
+                        <SortableContext
+                          items={layers}
+                          strategy={verticalListSortingStrategy}
+                        >
+                          {reversedLayers.map((layer, i) => (
+                            <LayerRow
+                              key={`layer.${i}`}
+                              layer={layer}
+                              id={layer.id}
+                              index={reversedLayers.length - 1 - i}
+                            />
+                          ))}
+                        </SortableContext>
+                        <LayerRow
+                          isBackgroundLayer
+                          layer={backgroundLayer}
+                          id={backgroundLayer.id}
+                          index={-1}
+                        />
+                      </div>
+                    </DndContext>
+                  ),
+                },
+                {
+                  key: "2",
+                  label: "Infos",
+                  children: (
+                    <div className="h-full overflow-auto flex flex-col">
+                      <h5 className="font-semibold text-lg mb-1">Eignung:</h5>
                       <div
                         className="text-base"
                         dangerouslySetInnerHTML={{
                           __html: backgroundLayer.eignung,
                         }}
                       />
-                    </div>
-                  ),
-                },
-                {
-                  key: "2",
-                  label: "Inhalt",
-                  children: (
-                    <div className="h-full overflow-auto">
+                      <h5 className="font-semibold text-lg mb-1 mt-2">
+                        Inhalt:
+                      </h5>
                       <div
                         className="text-base"
                         dangerouslySetInnerHTML={{
@@ -95,33 +123,6 @@ const BaseLayerInfo = () => {
                 },
               ]}
             />
-            <h5 className="font-semibold text-lg">Kartenebenen:</h5>
-            <DndContext
-              onDragEnd={handleDragEnd}
-              modifiers={[restrictToVerticalAxis]}
-            >
-              <div className="h-full overflow-auto max-h-full flex flex-col gap-2">
-                <SortableContext
-                  items={layers}
-                  strategy={verticalListSortingStrategy}
-                >
-                  {reversedLayers.map((layer, i) => (
-                    <LayerRow
-                      key={`layer.${i}`}
-                      layer={layer}
-                      id={layer.id}
-                      index={reversedLayers.length - 1 - i}
-                    />
-                  ))}
-                </SortableContext>
-                <LayerRow
-                  isBackgroundLayer
-                  layer={backgroundLayer}
-                  id={backgroundLayer.id}
-                  index={-1}
-                />
-              </div>
-            </DndContext>
           </div>
         </>
       }
