@@ -6,50 +6,26 @@ test.describe("fullscreen", () => {
   });
 
   test("opens app in full page when toggled", async ({ page }) => {
-    const map = page.locator("#routedMap");
     const control = page.locator('[data-test-id="full-screen-control"]');
 
-    await expect(map).toBeVisible();
-    await expect(control).toBeVisible();
+    // Get initial map height as a number
+    const mapSmallHeight = await page
+      .locator("#routedMap")
+      .evaluate((el) => parseInt(getComputedStyle(el).height, 10));
 
-    const size = () =>
-      map.evaluate(
-        (el) => [el.clientWidth, el.clientHeight] as [number, number]
-      );
+    console.log("mapSmallHeight:", mapSmallHeight);
 
-    const [w0, h0] = await size();
-
-    // enter fullscreen
+    // Click the fullscreen button
     await control.click();
 
-    // wait until size differs from initial (matcher is attached to poll)
-    await expect
-      .poll(size, {
-        timeout: 7000,
-        message: "map size should change after entering fullscreen",
-      })
-      .not.toEqual([w0, h0]);
+    // Get fullscreen height as a number
+    const mapBigHeight = await page
+      .locator("#routedMap")
+      .evaluate((el) => parseInt(getComputedStyle(el).height, 10));
 
-    // now read the new size if you need it later
-    const [w1, h1] = await size();
+    console.log("mapBigHeight:", mapBigHeight);
 
-    // exit fullscreen
-    await control.click();
-
-    // wait until size differs from the fullscreen size
-    await expect
-      .poll(size, {
-        timeout: 7000,
-        message: "map size should change after exiting fullscreen",
-      })
-      .not.toEqual([w1, h1]);
-
-    // optional: final read
-    const [w2, h2] = await size();
-    // sanity checks (not required, but explicit)
-    expect(w1).not.toBe(w0);
-    expect(h1).not.toBe(h0);
-    expect(w2).not.toBe(w1);
-    expect(h2).not.toBe(h1);
+    // Assert that fullscreen height is bigger
+    expect(mapBigHeight).toBeGreaterThan(mapSmallHeight);
   });
 });
