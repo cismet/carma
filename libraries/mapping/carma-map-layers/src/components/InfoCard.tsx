@@ -556,7 +556,9 @@ const InfoCard = ({
                       ]}
                     />
                   </div>
-                  <label htmlFor="tags">Schlüsselwörter</label>
+                  <label htmlFor="tags" className="font-semibold text-lg pt-1">
+                    Schlüsselwörter
+                  </label>
                   <div className="flex items-center gap-2">
                     <Input
                       onChange={(e) => setKeywordInput(e.target.value)}
