@@ -1,4 +1,4 @@
-import { Button, Checkbox, Input, Select, Tabs } from "antd";
+import { Button, Input, message, Select, Tabs } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faBan,
@@ -8,6 +8,7 @@ import {
   faExternalLink,
   faMap,
   faPlus,
+  faRotateLeft,
   faSave,
   faSquareUpRight,
   faStar,
@@ -15,6 +16,7 @@ import {
   faUpload,
   faX,
 } from "@fortawesome/free-solid-svg-icons";
+import isEqual from "lodash/isEqual";
 
 import { Item, Layer } from "@carma-commons/types";
 import { extractCarmaConfig } from "@carma-commons/utils";
@@ -26,6 +28,7 @@ import { TagSelector } from "@carma-commons/ui/tag-selection";
 import { useDispatch, useSelector } from "react-redux";
 import { getSelectedLayer, setSelectedLayer } from "../slices/mapLayers";
 import { setTriggerRefetch } from "../slices/ui";
+import { LayerButton, LayerIcon } from "@carma-mapping/components";
 
 interface InfoCardProps {
   isFavorite: boolean;
@@ -63,6 +66,7 @@ const InfoCard = ({
 }: InfoCardProps) => {
   const dispatch = useDispatch();
   const layer = useSelector(getSelectedLayer);
+  const [messageApi, contextHolder] = message.useMessage();
   if (!layer) return null;
   const { title, description, tags } = layer;
 
@@ -144,7 +148,12 @@ const InfoCard = ({
     let fileUrl;
     const apiUrl = discoverProps?.apiUrl || "https://wunda-cloud-api.cismet.de";
     if (updatedFile && updatedFile instanceof File) {
-      fileUrl = await uploadImage({ file: updatedFile, jwt, apiUrl });
+      fileUrl = await uploadImage({
+        file: updatedFile,
+        jwt,
+        apiUrl,
+        messageApi,
+      });
       if (!fileUrl) return;
     }
 
@@ -223,6 +232,7 @@ const InfoCard = ({
       className="w-full h-full sm:h-[400px] px-6 pt-6 pb-2 shadow-sm hover:!shadow-lg rounded-lg bg-blue-50 col-span-full max-w-full overflow-x-auto"
       style={{ maxWidth: "100vw" }}
     >
+      {contextHolder}
       <div className="flex h-full flex-col justify-between">
         <div className="relative pb-4">
           <div className="flex flex-wrap gap-4 items-center pr-8">
@@ -353,16 +363,6 @@ const InfoCard = ({
                   <span className="!hidden sm:!inline-block">Vorschau</span>
                 </Button>
               )}
-              {editCollection && (
-                <Checkbox
-                  checked={useNewLayers}
-                  onChange={(e) => {
-                    setUseNewLayers(e.target.checked);
-                  }}
-                >
-                  Kartenebenen aktualisieren
-                </Checkbox>
-              )}
             </div>
           </div>
           <button
@@ -379,6 +379,26 @@ const InfoCard = ({
             <div>
               {errorMessage && (
                 <div className="text-red-500">{errorMessage}</div>
+              )}
+
+              {editCollection && (
+                <div>
+                  <label
+                    htmlFor="service"
+                    className="font-semibold text-lg pt-1"
+                  >
+                    Kategorie
+                    <span className="text-red-500"> *</span>
+                  </label>
+                  <br />
+                  <Select
+                    options={serviceOptions}
+                    onChange={(value) => setUpdatedService(value)}
+                    value={updatedService}
+                    className="w-40"
+                    id="service"
+                  />
+                </div>
               )}
               {parsedDescriptions.map((description, i) => {
                 if (description.title === "Sichtbarkeit") {
@@ -420,21 +440,83 @@ const InfoCard = ({
               })}
               {editCollection && (
                 <>
-                  <label
-                    htmlFor="service"
-                    className="font-semibold text-lg pt-1"
-                  >
-                    Kategorie
-                    {editCollection && <span className="text-red-500"> *</span>}
-                  </label>
-                  <br />
-                  <Select
-                    options={serviceOptions}
-                    onChange={(value) => setUpdatedService(value)}
-                    value={updatedService}
-                    className="w-40"
-                    id="service"
-                  />
+                  <div className="flex gap-6 items-center">
+                    <div>
+                      <h5 className="font-semibold text-lg pt-1">
+                        Layer in der Konfiguration
+                        <Button
+                          className="ml-2"
+                          disabled={
+                            layer?.type === "collection" &&
+                            isEqual(
+                              layer.layers.map((layer) => layer.title),
+                              activeLayers.map((layer) => layer.title)
+                            )
+                          }
+                          icon={
+                            <FontAwesomeIcon
+                              className={useNewLayers ? "" : "fa-rotate-180"}
+                              icon={
+                                useNewLayers ? faRotateLeft : faSquareUpRight
+                              }
+                            />
+                          }
+                          onClick={() => {
+                            setUseNewLayers(!useNewLayers);
+                          }}
+                        ></Button>
+                      </h5>
+
+                      <div className="flex gap-2">
+                        {layer.type === "collection" &&
+                          (!useNewLayers
+                            ? layer.layers.map((layer) => (
+                                <LayerButton
+                                  key={layer.id}
+                                  layer={layer}
+                                  classNames={["px-3"]}
+                                  useShadow={false}
+                                >
+                                  <LayerIcon
+                                    layer={layer}
+                                    fallbackIcon={layer.icon}
+                                    iconPrefix="https://www.wuppertal.de/geoportal/geoportal_icon_legends/"
+                                  />
+                                  <span className="text-base ml-1">
+                                    {layer.title}
+                                  </span>
+                                  {layer.opacity !== 1 && (
+                                    <span className="text-base ml-1 text-gray-500">
+                                      ({layer.opacity * 100}%)
+                                    </span>
+                                  )}
+                                </LayerButton>
+                              ))
+                            : activeLayers.map((layer) => (
+                                <LayerButton
+                                  key={layer.id}
+                                  layer={layer}
+                                  classNames={["px-3"]}
+                                  useShadow={false}
+                                >
+                                  <LayerIcon
+                                    layer={layer}
+                                    fallbackIcon={layer.icon}
+                                    iconPrefix="https://www.wuppertal.de/geoportal/geoportal_icon_legends/"
+                                  />
+                                  <span className="text-base ml-1">
+                                    {layer.title}
+                                  </span>
+                                  {layer.opacity !== 1 && (
+                                    <span className="text-base ml-1 text-gray-500">
+                                      ({layer.opacity * 100}%)
+                                    </span>
+                                  )}
+                                </LayerButton>
+                              )))}
+                      </div>
+                    </div>
+                  </div>
                   <br />
                   <label
                     htmlFor="thumbnail"
