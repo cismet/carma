@@ -21,7 +21,7 @@ import {
 import {
   TopicMapSelectionContent,
   useSelectionTopicMap,
-} from "@carma-apps/portals";
+} from "@carma-appframeworks/portals";
 import {
   EmptySearchComponent,
   LibFuzzySearch,
@@ -34,7 +34,7 @@ import {
   ZoomControl,
 } from "@carma-mapping/components";
 import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
-import { GenericInfoBoxFromFeature } from "@carma-apps/portals";
+import { GenericInfoBoxFromFeature } from "@carma-appframeworks/portals";
 
 const Map = () => {
   const { setClusteringOptions, setFilterState } = useContext<

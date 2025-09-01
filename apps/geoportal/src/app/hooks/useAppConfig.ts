@@ -6,7 +6,7 @@ import {
   type LayerMap,
   type SelectionItem,
   type Settings,
-} from "@carma-apps/portals";
+} from "@carma-appframeworks/portals";
 import type { BackgroundLayer, Layer } from "@carma-commons/types";
 import { updateHashHistoryState, getHashParams } from "@carma-commons/utils";
 

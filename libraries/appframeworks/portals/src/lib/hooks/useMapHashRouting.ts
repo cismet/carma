@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useHashState } from "../contexts/HashStateProvider";
 
-import { cesiumClearParamKeys } from "@carma-mapping/cesium-engine";
+import { cesiumClearParamKeys } from "@carma-mapping/engines/cesium";
 import { isLocationEqualWithinPixelTolerance } from "@carma-commons/utils";
 
 export type LatLngZoom = { lat: number; lng: number; zoom: number };

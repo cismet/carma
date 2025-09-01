@@ -1,4 +1,4 @@
-import { ModelAsset } from "@carma-mapping/cesium-engine";
+import { ModelAsset } from "@carma-mapping/engines/cesium";
 
 import { APP_BASE_PATH } from "../app.config";
 

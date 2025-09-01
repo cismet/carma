@@ -82,11 +82,8 @@
       "!{projectRoot}/src/setup-tests.[jt]s"
     ],
     "sharedGlobals": [
-      "{workspaceRoot}/package.json",
-      "{workspaceRoot}/package-lock.json",
-      "{workspaceRoot}/nx.json",
       "{workspaceRoot}/tailwind.preset.@(js|cjs|mjs|ts)",
-      "{workspaceRoot}/tsconfig.*.json"
+      "{workspaceRoot}/tsconfig.base.json"
     ]
   },
   "generators": {

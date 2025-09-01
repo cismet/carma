@@ -24,192 +24,27 @@
       "@nx/react/typings/styled-jsx.d.ts"
     ],
     "paths": {
-      "@carma-apps/alkis-renderer": [
-        "libraries/appframeworks/alkis/src/index.ts"
+      "@carma-appframeworks/*": [
+        "libraries/appframeworks/*/src/index.ts"
       ],
-      "@carma-apps/belis-library": [
-        "libraries/appframeworks/belis/src/index.ts"
+      "@carma-collab/pecher/*": [
+        "libraries/collaboration/carma-pecher-collab/pecher-collab-submodule/src/*",
       ],
-      "@carma-apps/envirometrics": [
-        "libraries/appframeworks/envirometrics/src/index.ts"
+      "@carma-collab/wuppertal/*": [
+        "libraries/collaboration/carma-wuppertal-collab/wuppertal-collab-submodule/src/*"
       ],
-      "@carma-apps/portals": ["libraries/appframeworks/portals/src/index.ts"],
-      "@carma-apps/topicmaps": [
-        "libraries/appframeworks/topicmaps/src/index.ts"
+      "@carma-commons/*": [
+        "libraries/commons/*/src/index.ts",
       ],
-      "@carma-collab/wuppertal/baederkarte": [
-        "libraries/collaboration/carma-wuppertal-collab/src/baederkarte/index.ts"
+      "@carma-commons/utils/*": [
+        "libraries/commons/utils/src/lib/*"
       ],
-      "@carma-collab/wuppertal/belis-online": [
-        "libraries/collaboration/carma-wuppertal-collab/src/belis-online/index.ts"
+      "@carma-mapping/*": [
+        "libraries/mapping/*/src/index.ts"
       ],
-      "@carma-collab/wuppertal/bplan-auskunft": [
-        "libraries/collaboration/carma-wuppertal-collab/src/bplan-auskunft/index.ts"
-      ],
-      "@carma-collab/wuppertal/commons": [
-        "libraries/collaboration/carma-wuppertal-collab/src/commons/index.ts"
-      ],
-      "@carma-collab/wuppertal/e-auto-ladestation": [
-        "libraries/collaboration/carma-wuppertal-collab/src/e-auto-ladestation/index.ts"
-      ],
-      "@carma-collab/wuppertal/e-bikes": [
-        "libraries/collaboration/carma-wuppertal-collab/src/e-bikes/index.ts"
-      ],
-      "@carma-collab/wuppertal/ehrenamtskarte": [
-        "libraries/collaboration/carma-wuppertal-collab/src/ehrenamtskarte/index.ts"
-      ],
-      "@carma-collab/wuppertal/fnp-inspektor": [
-        "libraries/collaboration/carma-wuppertal-collab/src/fnp-inspektor/index.ts"
-      ],
-      "@carma-collab/wuppertal/generic-topicmap": [
-        "libraries/collaboration/carma-wuppertal-collab/src/generic-topicmap/index.ts"
-      ],
-      "@carma-collab/wuppertal/geoportal": [
-        "libraries/collaboration/carma-wuppertal-collab/src/geoportal/index.tsx"
-      ],
-      "@carma-collab/wuppertal/helper-overlay": [
-        "libraries/collaboration/carma-wuppertal-collab/src/helper-overlay/index.ts"
-      ],
-      "@carma-collab/wuppertal/hitzeinderstadt": [
-        "libraries/collaboration/carma-wuppertal-collab/src/hitzeinderstadt/index.tsx"
-      ],
-      "@carma-collab/wuppertal/hochwassergefahrenkarte": [
-        "libraries/collaboration/carma-wuppertal-collab/src/hochwasssergefahrenkarte/index.jsx"
-      ],
-      "@carma-collab/wuppertal/kita-finder": [
-        "libraries/collaboration/carma-wuppertal-collab/src/kita-finder/index.ts"
-      ],
-      "@carma-collab/wuppertal/klimaorte": [
-        "libraries/collaboration/carma-wuppertal-collab/src/klimaorte/index.ts"
-      ],
-      "@carma-collab/wuppertal/kulturstadtplan": [
-        "libraries/collaboration/carma-wuppertal-collab/src/kulturstadtplan/index.ts"
-      ],
-      "@carma-collab/wuppertal/lagis-desktop": [
-        "libraries/collaboration/carma-wuppertal-collab/src/lagis-desktop/index.ts"
-      ],
-      "@carma-collab/wuppertal/luftmessstationen": [
-        "libraries/collaboration/carma-wuppertal-collab/src/luftmessstationen/index.ts"
-      ],
-      "@carma-collab/wuppertal/luftmessstationen/*": [
-        "libraries/collaboration/carma-wuppertal-collab/src/luftmessstationen/*"
-      ],
-      "@carma-collab/wuppertal/potenzialflaechen-online": [
-        "libraries/collaboration/carma-wuppertal-collab/src/potenzialflaechen-online/index.ts"
-      ],
-      "@carma-collab/wuppertal/secondary-info-modals": [
-        "libraries/collaboration/carma-wuppertal-collab/src/secondary-info-modals/index.ts"
-      ],
-      "@carma-collab/wuppertal/stadtplan": [
-        "libraries/collaboration/carma-wuppertal-collab/src/stadtplan/index.ts"
-      ],
-      "@carma-collab/wuppertal/starkregengefahrenkarte": [
-        "libraries/collaboration/carma-wuppertal-collab/src/starkregengefahrenkarte/index.jsx"
-      ],
-      "@carma-collab/wuppertal/umweltalarm": [
-        "libraries/collaboration/carma-wuppertal-collab/src/umweltalarm/index.tsx"
-      ],
-      "@carma-collab/wuppertal/verdis-desktop": [
-        "libraries/collaboration/carma-wuppertal-collab/src/verdis-desktop/index.ts"
-      ],
-      "@carma-collab/wuppertal/verdis-online": [
-        "libraries/collaboration/carma-wuppertal-collab/src/verdis-online/index.ts"
-      ],
-      "@carma-collab/wuppertal/vorhabenkarte": [
-        "libraries/collaboration/carma-wuppertal-collab/src/vorhabenkarte/index.ts"
-      ],
-      "@carma-collab/wuppertal/x-and-ride": [
-        "libraries/collaboration/carma-wuppertal-collab/src/x-and-ride/index.ts"
-      ],
-      "@carma-commons/debug": ["libraries/commons/debug/src/index.ts"],
-      "@carma-commons/document-viewer": [
-        "libraries/commons/document-viewer/src/index.ts"
-      ],
-      "@carma-commons/e2e": ["libraries/commons/e2e/src/index.ts"],
-      "@carma-commons/resources": ["libraries/commons/resources/src/index.ts"],
-      "@carma-commons/types": ["libraries/commons/types/src/index.ts"],
-      "@carma-commons/ui/lib-helper-overlay": [
-        "libraries/commons/ui/lib-helper-overlay/src/index.ts"
-      ],
-      "@carma-commons/cismap": ["libraries/commons/cismap/src/index.ts"],
-      "@carma-commons/utils": ["libraries/commons/utils/src/index.ts"],
-      "@carma-commons/utils/*": ["libraries/commons/utils/src/lib/*"],
-      "@carma-commons/utils/mercator": [
-        "libraries/commons/utils/src/lib/mercator.ts"
-      ],
-      "@carma-commons/utils/units": [
-        "libraries/commons/utils/src/lib/units.ts"
-      ],
-      "@carma-commons/utils/constants": [
-        "libraries/commons/utils/src/lib/constants.ts"
-      ],
-      "@carma-commons/ui/tag-selection": [
-        "libraries/commons/ui/tag-selection/src/index.ts"
-      ],
-      
-      "@carma-mapping/cesium-engine": [
-        "libraries/mapping/engines/cesium/src/index.ts"
-      ],
-      "@carma-mapping/cesium-engine/types": [
-        "libraries/mapping/engines/cesium/src/index.d.ts"
-      ],
-      "@carma-mapping/cesium-widget-engine": [
-        "libraries/mapping/engines/cesium-widget/src/index.ts"
-      ],
-      "@carma-mapping/components": [
-        "libraries/mapping/carma-map-components/src/index.ts"
-      ],
-      "@carma-mapping/fuzzy-search": [
-        "libraries/mapping/fuzzy-search/src/index.ts"
-      ],
-      "@carma-mapping/fuzzy-search/*": [
-        "libraries/mapping/fuzzy-search/src/lib/*"
-      ],
-      "@carma-mapping/layers": [
-        "libraries/mapping/carma-map-layers/src/index.ts"
-      ],
-      "@carma-mapping/leaflet-engine": [
-        "libraries/mapping/engines/leaflet/src/index.ts"
-      ],
-      "@carma-mapping/map-controls-layout": [
-        "libraries/mapping/carma-map-control-layout/src/index.ts"
-      ],
-      "@carma-mapping/maplibre-engine": [
-        "libraries/mapping/engines/maplibre/src/index.ts"
-      ],
-      "@carma-mapping/test-controls-layout": [
-        "libraries/mapping/test-control-layout/src/index.ts"
-      ],
-      "@carma-mapping/utils": [
-        "libraries/mapping/carma-map-utils/src/index.ts"
-      ],
-      "@carma-pecher-collab/emsdetten": [
-        "libraries/collaboration/carma-pecher-collab/src/emsdetten/index.jsx"
-      ],
-      "@carma-pecher-collab/euskirchen": [
-        "libraries/collaboration/carma-pecher-collab/src/euskirchen/index.jsx"
-      ],
-      "@carma-pecher-collab/haltern": [
-        "libraries/collaboration/carma-pecher-collab/src/haltern/index.jsx"
-      ],
-      "@carma-pecher-collab/korschenbroich": [
-        "libraries/collaboration/carma-pecher-collab/src/korschenbroich/index.jsx"
-      ],
-      "@carma-pecher-collab/meschede": [
-        "libraries/collaboration/carma-pecher-collab/src/meschede/index.jsx"
-      ],
-      "@carma-pecher-collab/olpe": [
-        "libraries/collaboration/carma-pecher-collab/src/olpe/index.jsx"
-      ],
-      "@carma-pecher-collab/paderborn": [
-        "libraries/collaboration/carma-pecher-collab/src/paderborn/index.jsx"
-      ],
-      "@carma-pecher-collab/werl": [
-        "libraries/collaboration/carma-pecher-collab/src/werl/index.jsx"
-      ],
-      "@carma-pecher-collab/xanten": [
-        "libraries/collaboration/carma-pecher-collab/src/xanten/index.jsx"
-      ],
+      "@carma-mapping/engines/*": [
+        "libraries/mapping/engines/*/src/index.ts"
+      ]
     },
     "skipLibCheck": true
   }

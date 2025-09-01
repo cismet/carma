@@ -2,7 +2,7 @@ import {
   useGazData,
   useSelection,
   useSelectionTopicMap,
-} from "@carma-apps/portals";
+} from "@carma-appframeworks/portals";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { useContext } from "react";

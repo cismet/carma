@@ -1,6 +1,9 @@
 import { StrictMode, useEffect, useState } from "react";
 import * as ReactDOM from "react-dom/client";
-import { GazDataProvider, SelectionProvider } from "@carma-apps/portals";
+import {
+  GazDataProvider,
+  SelectionProvider,
+} from "@carma-appframeworks/portals";
 import { Navigate, RouterProvider, createHashRouter } from "react-router-dom";
 import { Provider, useDispatch, useSelector } from "react-redux";
 import Layout from "./components/commons/Layout";

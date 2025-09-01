@@ -1,4 +1,4 @@
-import { BelisMap } from "@carma-apps/belis-library";
+import { BelisMap } from "@carma-appframeworks/belis";
 import { useDispatch, useSelector } from "react-redux";
 import { setBounds } from "../core/store/slices/mapInfo";
 import { setMapRef } from "../core/store/slices/map";

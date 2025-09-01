@@ -7,7 +7,7 @@ import {
 import InfoBoxHeader from "react-cismap/topicmaps/InfoBoxHeader";
 import itemFilterFunction from "../utils/filterFunction";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
-import { GenericInfoBoxFromFeature } from "@carma-apps/portals";
+import { GenericInfoBoxFromFeature } from "@carma-appframeworks/portals";
 const InfoBox = (props) => {
   const featureCollectionContext = useContext(FeatureCollectionContext);
   const { setSelectedFeatureByPredicate } = useContext(

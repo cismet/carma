@@ -18,7 +18,7 @@ import {
   InfoBoxTextTitle,
   InfoBoxTextContent,
 } from "@carma-collab/wuppertal/x-and-ride";
-import { TopicMapSelectionContent } from "@carma-apps/portals";
+import { TopicMapSelectionContent } from "@carma-appframeworks/portals";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import FuzzySearchWrapper from "./FuzzySearchWrapper";
@@ -31,7 +31,7 @@ import { getApplicationVersion } from "@carma-commons/utils";
 import versionData from "../../version.json";
 import SIMComponentDictionary from "@carma-collab/wuppertal/secondary-info-modals";
 import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
-import { GenericInfoBoxFromFeature } from "@carma-apps/portals";
+import { GenericInfoBoxFromFeature } from "@carma-appframeworks/portals";
 
 const SecondaryInfoModal = SIMComponentDictionary["xandRideSIM"];
 const Map = () => {

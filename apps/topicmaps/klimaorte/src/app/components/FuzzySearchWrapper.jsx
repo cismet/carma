@@ -1,4 +1,7 @@
-import { useSelection, useSelectionTopicMap } from "@carma-apps/portals";
+import {
+  useSelection,
+  useSelectionTopicMap,
+} from "@carma-appframeworks/portals";
 import {
   defaultTypeInference,
   LibFuzzySearch,

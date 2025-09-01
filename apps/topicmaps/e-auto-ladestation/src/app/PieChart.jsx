@@ -1,7 +1,7 @@
 import { useContext } from "react";
 import { FeatureCollectionContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
 import { getColorForProperties } from "./helper/styler";
-import { PieChart } from "@carma-apps/portals";
+import { PieChart } from "@carma-appframeworks/portals";
 
 const ChartComp = ({ visible = true }) => {
   const { filteredItems } = useContext(FeatureCollectionContext);

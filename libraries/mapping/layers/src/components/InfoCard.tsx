@@ -23,7 +23,11 @@ import { extractCarmaConfig } from "@carma-commons/utils";
 
 import { parseDescription, serviceOptions } from "../helper/layerHelper";
 import { Fragment, useState } from "react";
-import { FileUploader, uploadImage, useAuth } from "@carma-apps/portals";
+import {
+  FileUploader,
+  uploadImage,
+  useAuth,
+} from "@carma-appframeworks/portals";
 import { TagSelector } from "@carma-commons/ui/tag-selection";
 import { useDispatch, useSelector } from "react-redux";
 import { getSelectedLayer, setSelectedLayer } from "../slices/mapLayers";

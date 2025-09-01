@@ -20,7 +20,7 @@ import { isNumberArrayEqual } from "@carma-commons/utils";
 import {
   selectViewerIsMode2d,
   useCesiumContext,
-} from "@carma-mapping/cesium-engine";
+} from "@carma-mapping/engines/cesium";
 
 import { useHGKCesiumTerrain } from "../hooks/useHGKCesiumTerrain";
 import { onCesiumClick } from "../utils/cesiumHandlers";

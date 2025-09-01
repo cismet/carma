@@ -14,7 +14,7 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
-import { useFeatureFlags } from "@carma-apps/portals";
+import { useFeatureFlags } from "@carma-appframeworks/portals";
 import { geoElements } from "@carma-collab/wuppertal/geoportal";
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 import {
@@ -22,7 +22,7 @@ import {
   useOverlayTourContext,
 } from "@carma-commons/ui/lib-helper-overlay";
 import { cn } from "@carma-commons/utils";
-import { selectViewerIsMode2d } from "@carma-mapping/cesium-engine";
+import { selectViewerIsMode2d } from "@carma-mapping/engines/cesium";
 
 import {
   getBackgroundLayer,

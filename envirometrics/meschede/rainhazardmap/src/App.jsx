@@ -6,7 +6,7 @@ import { md5FetchJSON } from "react-cismap/tools/fetching";
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 import versionData from "./version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
-import { getCollabedHelpComponentConfig } from "@carma-pecher-collab/meschede";
+import { getCollabedHelpComponentConfig } from "@carma-collab/pecher/meschede";
 import meschedeConfig from "./meschede";
 import "./notification.css";
 import footerLogoUrl from "./assets/images/Signet_AIS_RZ.png";
@@ -18,7 +18,7 @@ import {
   TopicMapSelectionContent,
   useSelection,
   useSelectionTopicMap,
-} from "@carma-apps/portals";
+} from "@carma-appframeworks/portals";
 import {
   Control,
   useAttributionControlStyling,

@@ -1,4 +1,4 @@
-import { PieChart } from "@carma-apps/portals";
+import { PieChart } from "@carma-appframeworks/portals";
 
 export const FilterPieChart = ({
   filteredItems,

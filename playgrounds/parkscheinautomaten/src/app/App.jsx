@@ -15,7 +15,7 @@ import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import FeatureCollection from "react-cismap/FeatureCollection";
 import GenericInfoBoxFromFeature from "react-cismap/topicmaps/GenericInfoBoxFromFeature";
 import getGTMFeatureStyler from "react-cismap/topicmaps/generic/GTMStyler";
-import { TopicMapSelectionContent } from "@carma-apps/portals";
+import { TopicMapSelectionContent } from "@carma-appframeworks/portals";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import FuzzySearchComponent from "./components/FuzzySearchComponent";
 import { MappingConstants } from "react-cismap";

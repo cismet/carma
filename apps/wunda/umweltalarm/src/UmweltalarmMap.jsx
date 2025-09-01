@@ -29,7 +29,7 @@ import {
   useGazData,
   useSelection,
   useSelectionTopicMap,
-} from "@carma-apps/portals";
+} from "@carma-appframeworks/portals";
 import {
   EmptySearchComponent,
   LibFuzzySearch,

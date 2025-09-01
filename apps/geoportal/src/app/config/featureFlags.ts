@@ -1,4 +1,4 @@
-import { FeatureFlagConfig } from "@carma-apps/portals";
+import { FeatureFlagConfig } from "@carma-appframeworks/portals";
 
 export const featureFlagConfig: FeatureFlagConfig = {
   featureFlagObliqueMode: {

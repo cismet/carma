@@ -6,7 +6,7 @@ import {
   useCesiumContext,
   useFovWheelZoom,
   useCesiumCameraForceOblique,
-} from "@carma-mapping/cesium-engine";
+} from "@carma-mapping/engines/cesium";
 
 import { useOblique } from "./useOblique";
 import { enterObliqueMode, leaveObliqueMode } from "../utils/cameraUtils";

@@ -14,7 +14,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { Tooltip, Radio, type RadioChangeEvent } from "antd";
 
-import { useCesiumContext } from "@carma-mapping/cesium-engine";
+import { useCesiumContext } from "@carma-mapping/engines/cesium";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import { PREVIEW_IMAGE_BASE_SCALE_FACTOR } from "../config";
 import type { ObliqueImagePreviewStyle } from "../types";
@@ -23,7 +23,7 @@ import {
   PreviewImage,
 } from "./ObliqueImagePreview.PreviewImage";
 import { Backdrop } from "./ObliqueImagePreview.Backdrop";
-import { ContactMailButton } from "@carma-apps/portals";
+import { ContactMailButton } from "@carma-appframeworks/portals";
 import { ObliqueDirectionControlsCompact } from "./ObliqueDirectionControls.Compact";
 import type { CardinalDirectionEnum } from "../utils/orientationUtils";
 

@@ -11,7 +11,7 @@ import { additionalInfoFactory } from "@carma-collab/wuppertal/geoportal";
 import { genericSecondaryInfoFooterFactory } from "@carma-collab/wuppertal/commons";
 import versionData from "../../version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
-import { InfoBox, utils } from "@carma-apps/portals";
+import { InfoBox, utils } from "@carma-appframeworks/portals";
 
 interface InfoboxProps {
   selectedFeature: any;

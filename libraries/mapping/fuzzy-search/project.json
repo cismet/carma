@@ -1,5 +1,5 @@
 {
-  "name": "lib-fuzzy-search",
+  "name": "fuzzy-search",
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libraries/mapping/fuzzy-search/src",
   "projectType": "library",

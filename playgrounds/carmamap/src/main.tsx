@@ -10,7 +10,7 @@ import { suppressReactCismapErrors } from "@carma-commons/utils";
 import App from "./app/App";
 import store from "./app/store";
 import { CESIUM_CONFIG } from "./app/config/app.config";
-import { setupCesiumEnvironment } from "@carma-mapping/cesium-engine";
+import { setupCesiumEnvironment } from "@carma-mapping/engines/cesium";
 
 const persistor = persistStore(store);
 

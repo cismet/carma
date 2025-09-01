@@ -6,7 +6,7 @@ import {
   isValidViewerInstance,
   useCesiumContext,
   getOrbitPoint,
-} from "@carma-mapping/cesium-engine";
+} from "@carma-mapping/engines/cesium";
 
 import { useOrbitPoint } from "./useOrbitPoint";
 import { useOblique } from "./useOblique";

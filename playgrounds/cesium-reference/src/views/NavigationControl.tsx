@@ -27,7 +27,7 @@ import {
   PitchingCompass,
   initViewerAnimationMap,
   type ViewerAnimationMap,
-} from "@carma-mapping/cesium-engine";
+} from "@carma-mapping/engines/cesium";
 
 import useTileset from "../hooks/useTileset";
 import { useZoomToTilesetOnReady } from "../hooks/useZoomToTilesetOnReady";

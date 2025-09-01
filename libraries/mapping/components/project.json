@@ -1,7 +1,7 @@
 {
-  "name": "carma-wuppertal-collab",
+  "name": "carma-maps",
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "libraries/collaboration/carma-wuppertal-collab/src",
+  "sourceRoot": "libraries/mapping/components/src",
   "projectType": "library",
   "tags": [],
   "targets": {
@@ -9,14 +9,14 @@
       "executor": "@nx/vite:build",
       "outputs": ["{options.outputPath}"],
       "options": {
-        "outputPath": "dist/libraries/collaboration/carma-wuppertal-collab"
+        "outputPath": "dist/libraries/mapping/components"
       }
     },
     "test": {
       "executor": "@nx/vite:test",
       "outputs": ["{options.reportsDirectory}"],
       "options": {
-        "reportsDirectory": "../../../coverage/libraries/collaboration/carma-wuppertal-collab"
+        "reportsDirectory": "../../../coverage/libraries/mapping/components"
       }
     },
     "lint": {

@@ -13,7 +13,10 @@ import { CrossTabCommunicationContextProvider } from "react-cismap/contexts/Cros
 // Monorepo Packages
 import { backgroundSettings } from "@carma-collab/wuppertal/geoportal";
 
-import { CarmaMapProviderWrapper, type Settings } from "@carma-apps/portals";
+import {
+  CarmaMapProviderWrapper,
+  type Settings,
+} from "@carma-appframeworks/portals";
 import type { BackgroundLayer, Layer } from "@carma-commons/types";
 
 // Local Modules

@@ -6,7 +6,7 @@ import {
   getColorFromMainlocationTypeName,
   textConversion,
 } from "../../../helper/styler";
-import { PieChart } from "@carma-apps/portals";
+import { PieChart } from "@carma-appframeworks/portals";
 
 const KulturPieChart = ({ visible = true }) => {
   const { filteredItems } = useContext<typeof FeatureCollectionContext>(

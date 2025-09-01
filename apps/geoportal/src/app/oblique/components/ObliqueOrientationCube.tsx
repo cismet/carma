@@ -6,7 +6,7 @@ import {
   cesiumCameraToCssTransform,
   getOrbitPoint,
   cancelViewerAnimation,
-} from "@carma-mapping/cesium-engine";
+} from "@carma-mapping/engines/cesium";
 import {
   CardinalDirectionEnum,
   CardinalLetters,

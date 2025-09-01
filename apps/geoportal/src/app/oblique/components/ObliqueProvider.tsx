@@ -12,7 +12,7 @@ import debounce from "lodash/debounce";
 
 import type { FeatureCollection, Polygon } from "geojson";
 
-import { useHashState } from "@carma-apps/portals";
+import { useHashState } from "@carma-appframeworks/portals";
 
 import type {
   ExteriorOrientations,
@@ -30,7 +30,7 @@ import {
   useCesiumContext,
   isValidViewerInstance,
   getOrbitPoint,
-} from "@carma-mapping/cesium-engine";
+} from "@carma-mapping/engines/cesium";
 import { useOrbitPoint } from "../hooks/useOrbitPoint";
 
 import { FootprintProperties } from "../utils/footprintUtils";

@@ -11,7 +11,7 @@ import { getPoiClusterIconCreatorFunction } from "./helper/styler";
 import {
   TopicMapSelectionContent,
   useSelectionTopicMap,
-} from "@carma-apps/portals";
+} from "@carma-appframeworks/portals";
 import {
   defaultTypeInference,
   EmptySearchComponent,
@@ -25,7 +25,7 @@ import {
 } from "@carma-mapping/components";
 import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
-import { GenericInfoBoxFromFeature } from "@carma-apps/portals";
+import { GenericInfoBoxFromFeature } from "@carma-appframeworks/portals";
 
 const Baederkarte = () => {
   const { setSelectedFeatureByPredicate, setClusteringOptions } = useContext(

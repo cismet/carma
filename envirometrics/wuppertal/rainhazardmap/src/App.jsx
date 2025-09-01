@@ -12,7 +12,7 @@ import {
 import NotesDisplay from "./NotesDisplay";
 import { getCollabedHelpComponentConfig } from "@carma-collab/wuppertal/starkregengefahrenkarte";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
-import { TopicMapSelectionContent } from "@carma-apps/portals";
+import { TopicMapSelectionContent } from "@carma-appframeworks/portals";
 import FuzzySearch from "./app/components/FuzzySearch";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {

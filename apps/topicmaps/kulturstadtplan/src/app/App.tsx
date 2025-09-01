@@ -20,7 +20,7 @@ import {
   backgroundConfWithFastOrtho2024,
   ProgressIndicator,
   useProgress,
-} from "@carma-apps/portals";
+} from "@carma-appframeworks/portals";
 
 export function App() {
   const { progress, showProgress, handleProgressUpdate } = useProgress();

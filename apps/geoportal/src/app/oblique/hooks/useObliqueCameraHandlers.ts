@@ -20,7 +20,7 @@ import {
 import {
   isValidViewerInstance,
   useCesiumContext,
-} from "@carma-mapping/cesium-engine";
+} from "@carma-mapping/engines/cesium";
 
 import {
   CardinalDirectionEnum,

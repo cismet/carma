@@ -25,7 +25,7 @@ import {
   backgroundConfWithFastOrtho2024,
   ProgressIndicator,
   useProgress,
-} from "@carma-apps/portals";
+} from "@carma-appframeworks/portals";
 if (typeof global === "undefined") {
   window.global = window;
 }

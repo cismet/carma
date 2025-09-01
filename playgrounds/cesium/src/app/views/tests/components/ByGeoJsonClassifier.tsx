@@ -3,7 +3,7 @@ import { useSelector } from "react-redux";
 import {
   ByGeojsonClassifier,
   selectViewerDataSources,
-} from "@carma-mapping/cesium-engine";
+} from "@carma-mapping/engines/cesium";
 
 function View() {
   const datasources = useSelector(selectViewerDataSources);

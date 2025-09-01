@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Cartesian3, Viewer } from "cesium";
-import { useCesiumContext, getOrbitPoint } from "@carma-mapping/cesium-engine";
+import { useCesiumContext, getOrbitPoint } from "@carma-mapping/engines/cesium";
 
 // Shared state across hook instances
 let sharedOrbitPoint: Cartesian3 | null = null;

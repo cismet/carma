@@ -18,7 +18,7 @@ import {
   backgroundConfWithFastOrtho2024,
   ProgressIndicator,
   useProgress,
-} from "@carma-apps/portals";
+} from "@carma-appframeworks/portals";
 import { defaultLayerConf } from "react-cismap/tools/layerFactory";
 
 export function App() {

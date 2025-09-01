@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Checkbox, Radio, Select } from "antd";
 
 import { useTweakpaneCtx } from "@carma-commons/debug";
-import { Widget } from "@carma-mapping/cesium-widget-engine";
+import { Widget } from "@carma-mapping/engines/cesium-widget";
 
 import { WUPP_MESH_2024 } from "@carma-commons/resources";
 import type { LatLngRecord } from "@carma-commons/types";

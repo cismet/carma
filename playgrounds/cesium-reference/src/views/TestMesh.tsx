@@ -4,7 +4,7 @@ import { Cesium3DTilesInspector, Viewer, CesiumWidget } from "cesium";
 import { Slider, Divider } from "antd";
 
 import { WUPP_MESH_2024 } from "@carma-commons/resources";
-import { CesiumErrorToErrorBoundaryForwarder } from "@carma-mapping/cesium-engine";
+import { CesiumErrorToErrorBoundaryForwarder } from "@carma-mapping/engines/cesium";
 
 import useTileset from "../hooks/useTileset";
 import { useZoomToTilesetOnReady } from "../hooks/useZoomToTilesetOnReady";

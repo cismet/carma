@@ -20,7 +20,7 @@ import {
   TopicMapSelectionContent,
   useSelection,
   useSelectionTopicMap,
-} from "@carma-apps/portals";
+} from "@carma-appframeworks/portals";
 import ContactButton from "./components/ContactButton";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { isAreaTypeWithGEP } from "@carma-commons/resources";

@@ -1,7 +1,7 @@
 {
-  "name": "carma-maps",
+  "name": "carma-map-utils",
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "libraries/mapping/carma-map-components/src",
+  "sourceRoot": "libraries/mapping/utils/src",
   "projectType": "library",
   "tags": [],
   "targets": {
@@ -9,14 +9,14 @@
       "executor": "@nx/vite:build",
       "outputs": ["{options.outputPath}"],
       "options": {
-        "outputPath": "dist/libraries/mapping/carma-map-components"
+        "outputPath": "dist/libraries/mapping/utils"
       }
     },
     "test": {
       "executor": "@nx/vite:test",
       "outputs": ["{options.reportsDirectory}"],
       "options": {
-        "reportsDirectory": "../../../coverage/libraries/mapping/carma-map-components"
+        "reportsDirectory": "../../../coverage/libraries/mapping/utils"
       }
     },
     "lint": {

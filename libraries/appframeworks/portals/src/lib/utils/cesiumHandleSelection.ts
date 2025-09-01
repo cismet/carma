@@ -31,7 +31,7 @@ import {
   removeGroundPrimitiveById,
   type CesiumOptions,
   type EntityData,
-} from "@carma-mapping/cesium-engine";
+} from "@carma-mapping/engines/cesium";
 import { HitTriggerOptions } from "./cesiumHitTrigger";
 import { MutableRefObject } from "react";
 import { DerivedGeometries } from "./getDerivedGeometries";

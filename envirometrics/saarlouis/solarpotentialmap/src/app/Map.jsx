@@ -34,7 +34,7 @@ import {
   TopicMapSelectionContent,
   useSelection,
   useSelectionTopicMap,
-} from "@carma-apps/portals";
+} from "@carma-appframeworks/portals";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import {
   FullscreenControl,

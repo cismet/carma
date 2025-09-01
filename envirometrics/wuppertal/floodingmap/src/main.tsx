@@ -12,13 +12,13 @@ import {
   GazDataProvider,
   SelectionProvider,
   HashStateProvider,
-} from "@carma-apps/portals";
+} from "@carma-appframeworks/portals";
 import { TweakpaneProvider } from "@carma-commons/debug";
 import { suppressReactCismapErrors } from "@carma-commons/utils";
 import {
   CesiumContextProvider,
   setupCesiumEnvironment,
-} from "@carma-mapping/cesium-engine";
+} from "@carma-mapping/engines/cesium";
 
 import App from "./App";
 import store from "./store";

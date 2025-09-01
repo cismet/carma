@@ -24,7 +24,10 @@ import "./App.css";
 // import "antd/dist/antd.min.css";
 import Login from "./containers/Login";
 import { getBelisHash, getBelisVersion } from "./constants/versions";
-import { GazDataProvider, SelectionProvider } from "@carma-apps/portals";
+import {
+  GazDataProvider,
+  SelectionProvider,
+} from "@carma-appframeworks/portals";
 import { gazDataConfig } from "./config/gazData";
 
 if (typeof global === "undefined") {

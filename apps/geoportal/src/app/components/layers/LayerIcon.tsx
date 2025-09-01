@@ -6,7 +6,7 @@ import type { Layer } from "@carma-commons/types";
 
 import { ICON_PREFIX } from "../../config/app.config";
 import { iconColorMap, iconMap } from "./items";
-import { FontAwesomeLikeIcon } from "@carma-apps/portals";
+import { FontAwesomeLikeIcon } from "@carma-appframeworks/portals";
 
 interface LayerIconProps {
   layer: Layer;

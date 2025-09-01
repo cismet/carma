@@ -23,7 +23,7 @@ import {
   TAILWIND_CLASSNAMES_FULLSCREEN_FIXED,
 } from "@carma-commons/utils";
 import { Layer } from "leaflet";
-import { TopicMapSelectionContent } from "@carma-apps/portals";
+import { TopicMapSelectionContent } from "@carma-appframeworks/portals";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import FuzzySearchWrapper from "./FuzzySearchWrapper";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";

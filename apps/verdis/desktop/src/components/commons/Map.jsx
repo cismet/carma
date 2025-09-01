@@ -63,13 +63,13 @@ import Toolbar from "./Toolbar";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import RectangleSearch from "../searchShapes/RectangleSearch";
 import ShapeSearchButton from "../ui/ShapeSearchButton";
-import { PointSearchButton, PointSearch } from "@carma-apps/alkis-renderer";
+import { PointSearchButton, PointSearch } from "@carma-appframeworks/alkis";
 import { getShapeMode, storeShapeMode } from "../../store/slices/searchMode";
 import {
   TopicMapSelectionContent,
   useGazData,
   useSelection,
-} from "@carma-apps/portals";
+} from "@carma-appframeworks/portals";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { isAreaType } from "@carma-commons/resources";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";

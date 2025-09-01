@@ -23,7 +23,7 @@ import DefaultAppMenu from "react-cismap/topicmaps/menu/DefaultAppMenu";
 //--------  Config Files
 import * as wasserstoffConfig from "./config/wasserstoff";
 import * as parkscheinautomatenConfig from "./config/parkscheinautomaten";
-import { TopicMapSelectionContent } from "@carma-apps/portals";
+import { TopicMapSelectionContent } from "@carma-appframeworks/portals";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import FuzzySearchComponent from "./components/FuzzySearchComponent";
 

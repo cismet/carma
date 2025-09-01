@@ -1,5 +1,5 @@
 {
-  "name": "carma-map-engines-cesium-widget",
+  "name": "engines/cesium-widget",
   "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libraries/mapping/engines/cesium-widget/src",
   "projectType": "library",

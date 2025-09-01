@@ -29,7 +29,7 @@ import {
   useFeatureFlags,
   useGazData,
   useSelection,
-} from "@carma-apps/portals";
+} from "@carma-appframeworks/portals";
 
 import { useTweakpaneCtx } from "@carma-commons/debug";
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
@@ -45,7 +45,7 @@ import {
   useCesiumContext,
   useHomeControl,
   useZoomControls as useZoomControlsCesium,
-} from "@carma-mapping/cesium-engine";
+} from "@carma-mapping/engines/cesium";
 import {
   FullscreenControl,
   LibrePitchingCompass,

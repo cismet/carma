@@ -14,7 +14,7 @@ import {
   useCesiumContext,
   cesiumSafeRequestRender,
   isValidViewerInstance,
-} from "@carma-mapping/cesium-engine";
+} from "@carma-mapping/engines/cesium";
 import { DEFAULT_MODEL_HIGHLIGHT_SHADER } from "../utils/cesiumShaders";
 
 type PrimitiveLike = { isCesium3DTileset?: boolean };

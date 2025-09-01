@@ -1,6 +1,6 @@
 import React, { useContext, useEffect } from "react";
 import { getActionLinksForFeature } from "react-cismap/tools/uiHelper";
-import { InfoBox } from "@carma-apps/portals";
+import { InfoBox } from "@carma-appframeworks/portals";
 import Icon from "react-cismap/commons/Icon";
 import {
   FeatureCollectionContext,

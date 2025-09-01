@@ -7,7 +7,7 @@ import {
   WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
 } from "@carma-commons/resources";
 
-import type { CesiumConfig } from "@carma-mapping/cesium-engine";
+import type { CesiumConfig } from "@carma-mapping/engines/cesium";
 import type { LeafletConfig } from "@carma-commons/types";
 
 export const APP_BASE_PATH = import.meta.env.BASE_URL;

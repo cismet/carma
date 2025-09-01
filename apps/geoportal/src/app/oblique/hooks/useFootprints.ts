@@ -19,7 +19,7 @@ import {
   polygonHierarchyFromPolygonCoords,
   cesiumSafeRequestRender,
   isValidViewerInstance,
-} from "@carma-mapping/cesium-engine";
+} from "@carma-mapping/engines/cesium";
 
 import { useOblique } from "../hooks/useOblique";
 import {

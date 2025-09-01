@@ -1,5 +1,5 @@
 {
-  "name": "@carma-apps/topicmaps",
+  "name": "@carma-appframeworks/topicmaps",
   "version": "0.0.1",
   "dependencies": {},
   "main": "./index.js",

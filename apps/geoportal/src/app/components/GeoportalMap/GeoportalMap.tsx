@@ -19,7 +19,7 @@ import {
   useSelectionCesium,
   useSelectionTopicMap,
   useCesiumModels,
-} from "@carma-apps/portals";
+} from "@carma-appframeworks/portals";
 import {
   geoElements,
   getCollabedHelpComponentConfig,
@@ -44,7 +44,7 @@ import {
   setCurrentSceneStyle,
   useCesiumContext,
   useCesiumInitialCameraFromSearchParams,
-} from "@carma-mapping/cesium-engine";
+} from "@carma-mapping/engines/cesium";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 
 import FeatureInfoBox from "../feature-info/FeatureInfoBox.tsx";

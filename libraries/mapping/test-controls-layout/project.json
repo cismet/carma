@@ -1,7 +1,7 @@
 {
-  "name": "carma-map-controls-layout",
+  "name": "test-controls-layout",
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "libraries/mapping/carma-map-control-layout/src",
+  "sourceRoot": "libraries/mapping/test-controls-layout/src",
   "projectType": "library",
   "tags": [],
   "targets": {
@@ -13,7 +13,7 @@
       "outputs": ["{options.outputPath}"],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "dist/libraries/mapping/carma-map-control-layout"
+        "outputPath": "dist/libraries/mapping/test-controls-layout"
       },
       "configurations": {
         "development": {
@@ -28,7 +28,7 @@
       "executor": "@nx/storybook:storybook",
       "options": {
         "port": 4400,
-        "configDir": "libraries/mapping/carma-map-control-layout/.storybook"
+        "configDir": "libraries/mapping/test-controls-layout/.storybook"
       },
       "configurations": {
         "ci": {
@@ -41,7 +41,7 @@
       "outputs": ["{options.outputDir}"],
       "options": {
         "outputDir": "dist/storybook/map-control",
-        "configDir": "libraries/mapping/carma-map-control-layout/.storybook"
+        "configDir": "libraries/mapping/test-controls-layout/.storybook"
       },
       "configurations": {
         "ci": {
@@ -49,7 +49,7 @@
             "executor": "@nx/storybook:storybook",
             "options": {
               "port": 4400,
-              "configDir": "libraries/mapping/carma-map-control-layout/.storybook"
+              "configDir": "libraries/mapping/test-controls-layout/.storybook"
             },
             "configurations": {
               "ci": {
@@ -62,7 +62,7 @@
             "outputs": ["{options.outputDir}"],
             "options": {
               "outputDir": "dist/storybook/map-control",
-              "configDir": "libraries/mapping/carma-map-control-layout/.storybook"
+              "configDir": "libraries/mapping/test-controls-layout/.storybook"
             },
             "configurations": {
               "ci": {
@@ -77,18 +77,18 @@
     "test-storybook": {
       "executor": "nx:run-commands",
       "options": {
-        "command": "test-storybook -c libraries/mapping/carma-map-control-layout/.storybook --url=http://localhost:4400"
+        "command": "test-storybook -c libraries/mapping/test-controls-layout/.storybook --url=http://localhost:4400"
       }
     },
     "static-storybook": {
       "executor": "@nx/web:file-server",
       "options": {
-        "buildTarget": "carma-map-controls-layout:build-storybook",
+        "buildTarget": "test-controls-layout:build-storybook",
         "staticFilePath": "dist/storybook/map-control"
       },
       "configurations": {
         "ci": {
-          "buildTarget": "carma-map-controls-layout:build-storybook:ci"
+          "buildTarget": "test-controls-layout:build-storybook:ci"
         }
       }
     }

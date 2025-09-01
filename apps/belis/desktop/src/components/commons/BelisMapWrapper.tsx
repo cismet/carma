@@ -2,7 +2,7 @@ import {
   BelisMap,
   loadObjectsIntoFeatureCollection,
   MapBlocker,
-} from "@carma-apps/belis-library";
+} from "@carma-appframeworks/belis";
 import { useDispatch, useSelector } from "react-redux";
 import {
   getActiveBackgroundLayer,

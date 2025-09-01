@@ -10,7 +10,7 @@ import { getIsMenuCollapsed } from "../store/slices/ui";
 import {
   BelisSwitch,
   loadObjectsIntoFeatureCollection,
-} from "@carma-apps/belis-library";
+} from "@carma-appframeworks/belis";
 import { AppDispatch } from "../store";
 import {
   getFilter,

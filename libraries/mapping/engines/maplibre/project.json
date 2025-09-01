@@ -1,5 +1,5 @@
 {
-  "name": "carma-map-engines-maplibre",
+  "name": "engines/maplibre",
   "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libraries/mapping/engines/maplibre/src",
   "projectType": "library",

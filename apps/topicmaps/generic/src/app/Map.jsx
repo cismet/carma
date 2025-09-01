@@ -23,7 +23,7 @@ import { GenericDigitalTwinReferenceSection } from "@carma-collab/wuppertal/comm
 import {
   TopicMapSelectionContent,
   useSelectionTopicMap,
-} from "@carma-apps/portals";
+} from "@carma-appframeworks/portals";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import FuzzySearchWrapper from "./components/FuzzySearchWrapper";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";

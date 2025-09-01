@@ -9,7 +9,7 @@ import {
   getColorForHauptnutzung,
   getLinkFromAEV,
 } from "../../../utils/FnpHelper";
-import { ResponsiveInfoBox } from "@carma-apps/portals";
+import { ResponsiveInfoBox } from "@carma-appframeworks/portals";
 
 const HN9999Info = () => {
   const features = useSelector(getFeatureCollection);

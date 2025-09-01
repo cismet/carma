@@ -1,5 +1,5 @@
 {
-  "name": "carma-map-engines-leaflet",
+  "name": "engines/leaflet",
   "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libraries/mapping/engines/leaflet/src",
   "projectType": "library",

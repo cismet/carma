@@ -1,5 +1,5 @@
 import { useEffect, useCallback, useContext, createContext } from "react";
-import { useFeatureFlags } from "@carma-apps/portals";
+import { useFeatureFlags } from "@carma-appframeworks/portals";
 import { useLocation } from "react-router-dom";
 
 // Matomo tracking modes

@@ -1,7 +1,7 @@
 import { useSearchParams } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { getJWT } from "../store/slices/auth.js";
-import { AlkisRenderer } from "@carma-apps/alkis-renderer";
+import { AlkisRenderer } from "@carma-appframeworks/alkis";
 
 const AlkisLandparcelPage = () => {
   const [searchParams] = useSearchParams();

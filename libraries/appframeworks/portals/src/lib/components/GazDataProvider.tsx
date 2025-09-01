@@ -8,7 +8,7 @@ import {
 } from "react";
 
 import { type GazDataItem, getGazData } from "@carma-commons/utils";
-import { GazDataConfig } from "@carma-commons/utils/gazData";
+import { GazDataConfig } from "@carma-commons/utils";
 import { defaultGazDataConfig } from "@carma-commons/resources";
 
 interface GazDataContextType {

@@ -5,7 +5,10 @@ import store from "./app/store";
 import { RouterProvider, createHashRouter } from "react-router-dom";
 import { PersistGate } from "redux-persist/integration/react";
 import { persistStore } from "redux-persist";
-import { GazDataProvider, SelectionProvider } from "@carma-apps/portals";
+import {
+  GazDataProvider,
+  SelectionProvider,
+} from "@carma-appframeworks/portals";
 import { gazDataConfig } from "./config/gazData";
 
 const persistor = persistStore(store);

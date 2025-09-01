@@ -10,7 +10,7 @@ import {
   SELECTED_LAYER_INDEX,
   SelectionItem,
   type MappingState,
-} from "@carma-apps/portals";
+} from "@carma-appframeworks/portals";
 
 import { RootState } from "..";
 import { layerMap } from "../../config";

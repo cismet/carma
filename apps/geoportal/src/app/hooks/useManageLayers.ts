@@ -1,4 +1,4 @@
-import { LayerMap } from "@carma-apps/portals";
+import { LayerMap } from "@carma-appframeworks/portals";
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {

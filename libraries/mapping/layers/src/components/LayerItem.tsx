@@ -23,7 +23,7 @@ import {
 } from "@carma-collab/wuppertal/geoportal";
 
 import InfoCard from "./InfoCard";
-import { useAuth } from "@carma-apps/portals";
+import { useAuth } from "@carma-appframeworks/portals";
 import { useDispatch, useSelector } from "react-redux";
 import { getSelectedLayer, setSelectedLayer } from "../slices/mapLayers";
 import { setTriggerRefetch } from "../slices/ui";

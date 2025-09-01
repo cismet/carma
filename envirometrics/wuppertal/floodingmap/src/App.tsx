@@ -24,11 +24,12 @@ import {
   useSelectionCesium,
   useSelectionTopicMap,
   useHashState,
-} from "@carma-apps/portals";
+} from "@carma-appframeworks/portals";
 import { ENDPOINT, isAreaTypeWithGEP } from "@carma-commons/resources";
 import { getApplicationVersion } from "@carma-commons/utils";
 
-import { getCollabedHelpComponentConfig } from "@carma-collab/wuppertal/hochwassergefahrenkarte";
+// TODO fix collab path names
+import { getCollabedHelpComponentConfig } from "@carma-collab/wuppertal/hochwasssergefahrenkarte";
 
 import {
   CustomViewer,
@@ -44,7 +45,7 @@ import {
   useHomeControl,
   useZoomControls,
   VIEWERSTATE_KEYS,
-} from "@carma-mapping/cesium-engine";
+} from "@carma-mapping/engines/cesium";
 import {
   EmptySearchComponent,
   LibFuzzySearch,

@@ -1,4 +1,4 @@
-import { useMapStyle as usePortalsMapStyle } from "@carma-apps/portals";
+import { useMapStyle as usePortalsMapStyle } from "@carma-appframeworks/portals";
 import { MapStyleKeys, type MapStyle } from "../constants/MapStyleKeys";
 
 export const useMapStyle = () => {

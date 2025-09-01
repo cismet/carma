@@ -3,9 +3,9 @@ import {
   getFeatureCollection,
   getSelectedFeature,
 } from "../../store/slices/featureCollection";
-import { InfoBox } from "@carma-apps/portals";
+import { InfoBox } from "@carma-appframeworks/portals";
 import { ControlLayout } from "@carma-mapping/map-controls-layout";
-import { getVCard } from "@carma-apps/belis-library";
+import { getVCard } from "@carma-appframeworks/belis";
 
 const InfoBoxWrapper = ({ mapWidth }) => {
   const featureCollection = useSelector(getFeatureCollection);

@@ -22,7 +22,7 @@ import {
   useHashState,
   useMapHashRouting,
   useSelectionLibreMap,
-} from "@carma-apps/portals";
+} from "@carma-appframeworks/portals";
 
 import { proj4crs3857def, proj4crs4326def } from "../../helper/gisHelper.js";
 

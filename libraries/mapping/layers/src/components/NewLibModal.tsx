@@ -23,7 +23,7 @@ import {
   useAuth,
   useFeatureFlags,
   utils,
-} from "@carma-apps/portals";
+} from "@carma-appframeworks/portals";
 
 import {
   baseConfig as config,
@@ -45,7 +45,7 @@ import { discoverConfig } from "../helper/discover";
 
 import "./input.css";
 import "./modal.css";
-import { md5ActionFetchDAQ } from "@carma-commons/utils/fetching.ts";
+import { md5ActionFetchDAQ } from "@carma-commons/utils";
 import ItemSkeleton from "./ItemSkeleton";
 import {
   addloadingCapabilitiesIDs,
