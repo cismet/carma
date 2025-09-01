@@ -99,7 +99,7 @@ const BaseLayerInfo = () => {
                 },
                 {
                   key: "2",
-                  label: "Infos",
+                  label: "Informationen",
                   children: (
                     <div className="h-full overflow-auto flex flex-col">
                       <h5 className="font-semibold text-lg mb-1">Eignung:</h5>
