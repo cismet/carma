@@ -24,30 +24,13 @@
       "@nx/react/typings/styled-jsx.d.ts"
     ],
     "paths": {
-      "@carma-appframeworks/*": [
-        "libraries/appframeworks/*/src/index.ts"
-      ],
-      "@carma-collab/pecher/*": [
-        "libraries/collaboration/carma-pecher-collab/pecher-collab-submodule/src/*",
-      ],
-      "@carma-collab/wuppertal/*": [
-        "libraries/collaboration/carma-wuppertal-collab/wuppertal-collab-submodule/src/*"
-      ],
-      "@carma-commons/*": [
-        "libraries/commons/*/src/index.ts",
-      ],
-      "@carma-commons/utils/*": [
-        "libraries/commons/utils/src/lib/*"
-      ],
-      "@carma-mapping/*": [
-        "libraries/mapping/*/src/index.ts"
-      ],
-      "@carma-mapping/engines/*": [
-        "libraries/mapping/engines/*/src/index.ts"
-      ],
-      "@carma-mapping/cesium-widget-engine": [
-        "libraries/mapping/engines/cesium-widget/src/index.ts"
-      ]
+      "@carma-appframeworks/*": ["libraries/appframeworks/*/src/index.ts"],
+      "@carma-collab/pecher/*": ["libraries/collaboration/carma-pecher-collab/pecher-collab-submodule/src/*"],
+      "@carma-collab/wuppertal/*": ["libraries/collaboration/carma-wuppertal-collab/wuppertal-collab-submodule/src/*"],
+      "@carma-commons/*": ["libraries/commons/*/src/index.ts",],
+      "@carma-commons/utils/*": ["libraries/commons/utils/src/lib/*"],
+      "@carma-mapping/*": ["libraries/mapping/*/src/index.ts"],
+      "@carma-mapping/engines/*": ["libraries/mapping/engines/*/src/index.ts"],
     },
     "skipLibCheck": true
   }

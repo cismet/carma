@@ -1,10 +1,6 @@
 # nx and nx boilerplate stuff
 
-/.nx/cache
-/.nx/workspace-data
-
-nx.json
-project.json
+/.nx
 
 # shared IDE settings
 
@@ -20,8 +16,12 @@ package-lock.json
 /coverage
 /dist
 
-# configs from boilerplate
+# configs from boilerplate and nx generators
 
+/nx.json
+/tsconfig.*.json
+
+project.json
 
 eslint.config.cjs
 eslint.config.ts

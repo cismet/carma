@@ -92,6 +92,7 @@
         "babel": true,
         "bundler": "vite",
         "linter": "eslint",
+        "skipFormat": true,
         "style": "css"
       },
       "component": {
@@ -100,6 +101,7 @@
       "library": {
         "bundler": "none",
         "linter": "eslint",
+        "skipFormat": true,
         "skipTsConfig": true,
         "style": "css",
         "unitTestRunner": "vitest"
@@ -109,8 +111,9 @@
       "library": {
         "bundler": "none",
         "linter": "eslint",
+        "skipFormat": true,
         "skipTsConfig": true,
-        "unitTestRunner": "none"
+        "unitTestRunner": "vitest"
       }
     }
   },
