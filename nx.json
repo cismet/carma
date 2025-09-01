@@ -112,7 +112,8 @@
       "!{projectRoot}/jest.config.[jt]s",
       "!{projectRoot}/eslint.config.@(js|cjs|mjs|ts|cts|mts)",
       "!{projectRoot}/src/setupTests.[jt]s",
-      "!{projectRoot}/src/setup-tests.[jt]s"
+      "!{projectRoot}/src/setup-tests.[jt]s",
+      "!{projectRoot}/src/test-setup.[jt]s"
     ],
     "sharedGlobals": [
       "{workspaceRoot}/tailwind.preset.@(js|cjs|mjs|ts)",
