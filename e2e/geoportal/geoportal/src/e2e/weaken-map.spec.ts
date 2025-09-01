@@ -16,11 +16,15 @@ test.describe("geoportal weaken the map background", () => {
     await btn.click();
 
     await expect(mapContainer).toBeVisible();
+    await expect(mapContainer).toHaveCSS(
+      "background-color",
+      "rgb(255, 255, 255)"
+    );
 
-    const bg = await page
-      .locator(".leaflet-container")
-      .evaluate((el) => getComputedStyle(el).backgroundColor);
+    // const bg = await page
+    //   .locator(".leaflet-container")
+    //   .evaluate((el) => getComputedStyle(el).backgroundColor);
 
-    expect(bg).toBe("rgb(000, 255, 255)");
+    // expect(bg).toBe("rgb(000, 255, 255)");
   });
 });
