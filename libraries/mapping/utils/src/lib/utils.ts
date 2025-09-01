@@ -1,6 +1,3 @@
-export function carmaMapUtils(): string {
-  return "carma-map-utils";
-}
 import proj4 from "proj4";
 
 export function getBoundingBoxForLeafletMap(

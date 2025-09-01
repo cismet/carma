@@ -1,11 +1,9 @@
-# carma-map-utils
-
-This library was generated with [Nx](https://nx.dev).
+# mapping/utils
 
 ## Building
 
-Run `nx build carma-map-utils` to build the library.
+Run `nx build mapping/utils` to build the library.
 
 ## Running unit tests
 
-Run `nx test carma-map-utils` to execute the unit tests via [Vitest](https://vitest.dev/).
+Run `nx test mapping/utils` to execute the unit tests via [Vitest](https://vitest.dev/).

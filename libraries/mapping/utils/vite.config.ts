@@ -6,7 +6,7 @@ import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 
 export default defineConfig({
   root: __dirname,
-  cacheDir: '../../../node_modules/.vite/libraries/mapping/carma-map-utils',
+  cacheDir: '../../../node_modules/.vite/libraries/mapping/utils',
 
   plugins: [
     nxViteTsPaths(),
@@ -24,7 +24,7 @@ export default defineConfig({
   // Configuration for building your library.
   // See: https://vitejs.dev/guide/build.html#library-mode
   build: {
-    outDir: '../../../dist/libraries/mapping/carma-map-utils',
+    outDir: '../../../dist/libraries/mapping/utils',
     reportCompressedSize: true,
     commonjsOptions: {
       transformMixedEsModules: true,
@@ -32,7 +32,7 @@ export default defineConfig({
     lib: {
       // Could also be a dictionary or array of multiple entry points.
       entry: 'src/index.ts',
-      name: 'carma-map-utils',
+      name: 'mapping-utils',
       fileName: 'index',
       // Change this to the formats you want to support.
       // Don't forget to update your package.json as well.
@@ -54,7 +54,7 @@ export default defineConfig({
 
     reporters: ['default'],
     coverage: {
-      reportsDirectory: '../../../coverage/libraries/mapping/carma-map-utils',
+      reportsDirectory: '../../../coverage/libraries/mapping/utils',
       provider: 'v8',
     },
   },

@@ -1,4 +1,4 @@
-# carma-map-controls-layout
+# map-controls-layout
 
 This library was generated with [Nx](https://nx.dev).
 

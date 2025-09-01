@@ -8,8 +8,7 @@ const config: StorybookConfig = {
     name: "@storybook/react-vite",
     options: {
       builder: {
-        viteConfigPath:
-          "libraries/mapping/carma-map-control-layout/vite.config.ts",
+        viteConfigPath: "libraries/mapping/map-controls-layout/vite.config.ts",
       },
     },
   },
@@ -20,7 +19,7 @@ const config: StorybookConfig = {
     reactDocgen: "react-docgen-typescript",
     reactDocgenTypescriptOptions: {
       tsconfigPath:
-        "libraries/mapping/carma-map-control-layout/tsconfig.storybook.json",
+        "libraries/mapping/map-controls-layout/tsconfig.storybook.json",
     },
   },
 };

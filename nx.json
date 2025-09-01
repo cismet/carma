@@ -100,7 +100,13 @@
       "library": {
         "style": "css",
         "linter": "eslint",
-        "unitTestRunner": "none"
+        "unitTestRunner": "none",
+        "skipTsConfig": true
+      }
+    },
+    "@nx/js": {
+      "library": {
+        "skipTsConfig": true
       }
     }
   },
