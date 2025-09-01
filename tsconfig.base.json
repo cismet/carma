@@ -27,7 +27,7 @@
       "@carma-appframeworks/*": ["libraries/appframeworks/*/src/index.ts"],
       "@carma-collab/pecher/*": ["libraries/collaboration/carma-pecher-collab/pecher-collab-submodule/src/*"],
       "@carma-collab/wuppertal/*": ["libraries/collaboration/carma-wuppertal-collab/wuppertal-collab-submodule/src/*"],
-      "@carma-commons/*": ["libraries/commons/*/src/index.ts",],
+      "@carma-commons/*": ["libraries/commons/*/src/index.ts"],
       "@carma-commons/utils/*": ["libraries/commons/utils/src/lib/*"],
       "@carma-mapping/*": ["libraries/mapping/*/src/index.ts"],
     },
