@@ -90,23 +90,27 @@
     "@nx/react": {
       "application": {
         "babel": true,
-        "style": "css",
+        "bundler": "vite",
         "linter": "eslint",
-        "bundler": "vite"
+        "style": "css"
       },
       "component": {
         "style": "css"
       },
       "library": {
-        "style": "css",
+        "bundler": "none",
         "linter": "eslint",
-        "unitTestRunner": "none",
-        "skipTsConfig": true
+        "skipTsConfig": true,
+        "style": "css",
+        "unitTestRunner": "vitest"
       }
     },
     "@nx/js": {
       "library": {
-        "skipTsConfig": true
+        "bundler": "none",
+        "linter": "eslint",
+        "skipTsConfig": true,
+        "unitTestRunner": "none"
       }
     }
   },
