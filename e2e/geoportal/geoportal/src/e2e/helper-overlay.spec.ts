@@ -17,7 +17,7 @@ test.describe("Geoportal overlay", () => {
 
     // Button visible
     await expect(helperBtn).toBeVisible();
-
+    await expect(overlayBg).toBeHidden();
     // Click button to open overlay
     await helperBtn.click();
     await expect(overlayBg).toBeVisible();
@@ -41,8 +41,12 @@ test.describe("Geoportal overlay", () => {
     }
 
     // await overlayBg.click();
-    await page.mouse.click(5, 5);
+    // await page.mouse.click(5, 5);
+    await overlayBg.click({ position: { x: 10, y: 10 } });
+
+    await overlayBg.waitFor({ state: "detached" });
+    await expect(overlayBg).toBeHidden();
     // await expect(overlayBg).toBeHidden({ timeout: 10_000 });
-    await expect(overlayBg).toHaveCount(0, { timeout: 10_000 });
+    // await expect(overlayBg).toHaveCount(0, { timeout: 10_000 });
   });
 });
