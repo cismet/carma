@@ -36,9 +36,9 @@ import {
   getUIMode,
   getUIShowLayerHideButtons,
 } from "../../store/slices/ui";
-import LayerIcon from "./LayerIcon";
 
 import "./tabs.css";
+import { LayerButton, LayerIcon } from "@carma-mapping/components";
 
 interface LayerButtonProps {
   title: string;
@@ -49,7 +49,7 @@ interface LayerButtonProps {
   background?: boolean;
 }
 
-const LayerButton = ({
+const GeoportalLayerButton = ({
   title,
   id,
   index,
@@ -141,7 +141,8 @@ const LayerButton = ({
       )}
       id={`layer-${id}`}
     >
-      <div
+      <LayerButton
+        layer={layer}
         ref={setNodeRef}
         onClick={(e) => {
           e.stopPropagation();
@@ -166,8 +167,7 @@ const LayerButton = ({
         }}
         {...listeners}
         {...attributes}
-        className={cn(
-          "w-fit min-w-max relative flex items-center gap-1 pl-3 rounded-[10px] h-8 z-[9999999] button-shadow",
+        classNames={[
           selectedLayerIndex === -2
             ? layer.visible
               ? "bg-white"
@@ -177,10 +177,15 @@ const LayerButton = ({
             : "bg-neutral-200",
           zoom >= layer.props.maxZoom && "opacity-50",
           zoom <= layer.props.minZoom && "opacity-50",
-          background ? "pr-3" : "pr-2"
-        )}
+          background ? "pr-3" : "pr-2",
+          "pl-3",
+        ]}
       >
-        <LayerIcon layer={layer} fallbackIcon={icon} />
+        <LayerIcon
+          layer={layer}
+          fallbackIcon={layer.icon}
+          iconPrefix="https://www.wuppertal.de/geoportal/geoportal_icon_legends/"
+        />
         {layersLength > 0 && (
           <span className="text-base sm:hidden">{layersLength} Layer</span>
         )}
@@ -244,9 +249,9 @@ const LayerButton = ({
             />
           </div>
         )}
-      </div>
+      </LayerButton>
     </div>
   );
 };
 
-export default LayerButton;
+export default GeoportalLayerButton;

@@ -42,7 +42,7 @@ import {
   setShowLeftScrollButton,
   setShowRightScrollButton,
 } from "../../store/slices/mapping";
-import LayerButton from "./LayerButton";
+import GeoportalLayerButton from "./GeoportalLayerButton";
 import SecondaryView from "./SecondaryView";
 
 import "./button.css";
@@ -156,7 +156,7 @@ const LayerWrapper = () => {
               </div>
             )}
             <div className="w-full flex justify-center items-center h-full gap-2">
-              <LayerButton
+              <GeoportalLayerButton
                 icon="background"
                 layer={backgroundLayer}
                 index={-1}
@@ -174,7 +174,7 @@ const LayerWrapper = () => {
                     strategy={horizontalListSortingStrategy}
                   >
                     {layers.map((layer, i) => (
-                      <LayerButton
+                      <GeoportalLayerButton
                         title={layer.title}
                         id={layer.id}
                         key={layer.id}

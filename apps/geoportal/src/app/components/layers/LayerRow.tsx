@@ -17,7 +17,7 @@ import {
 } from "../../store/slices/mapping";
 import OpacitySlider from "./OpacitySlider";
 import VisibilityToggle from "./VisibilityToggle";
-import LayerIcon from "./LayerIcon";
+import { LayerIcon } from "@carma-mapping/components";
 
 interface LayerRowProps {
   layer: Layer;

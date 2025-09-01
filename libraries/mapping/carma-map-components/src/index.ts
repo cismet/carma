@@ -8,3 +8,5 @@ export {
 } from "./lib/components/FullscreenControl";
 export { ZoomControl } from "./lib/components/ZoomControl";
 export { MobileWarningMessage } from "./lib/components/MobileWarningMessage";
+export { LayerButton } from "./lib/components/LayerButton";
+export { LayerIcon } from "./lib/components/LayerIcon";

@@ -34,10 +34,10 @@ import {
 import AerialLayerSelection from "./AerialLayerSelection";
 import BaseLayerInfo from "./BaseLayerInfo";
 import BaseLayerSelection from "./BaseLayerSelection";
-import LayerIcon from "./LayerIcon";
 import LayerInfo from "./LayerInfo";
 import OpacitySlider from "./OpacitySlider";
 import VisibilityToggle from "./VisibilityToggle";
+import { LayerIcon } from "@carma-mapping/components";
 
 type Ref = HTMLDivElement;
 
