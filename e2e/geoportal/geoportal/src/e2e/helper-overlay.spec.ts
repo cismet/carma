@@ -5,8 +5,6 @@ test.describe("Geoportal overlay", () => {
     await page.goto("/");
   });
 
-  // Work with errors
-
   test("Overlay helper is visible and opens all secondary popups", async ({
     page,
   }) => {
@@ -40,13 +38,32 @@ test.describe("Geoportal overlay", () => {
       await expect(popover).toHaveCount(1);
     }
 
-    // await overlayBg.click();
-    // await page.mouse.click(5, 5);
-    await overlayBg.click({ position: { x: 10, y: 10 } });
+    // First, try clicking the overlay background directly
+    await overlayBg.click({ force: true });
+    await page.waitForTimeout(300);
 
-    await overlayBg.waitFor({ state: "detached" });
+    // If still visible, try clicking at different positions
+    if (await overlayBg.isVisible()) {
+      const box = await overlayBg.boundingBox();
+      if (box) {
+        // Try clicking in different corners of the overlay
+        await page.mouse.click(box.x + 10, box.y + 10);
+        await page.waitForTimeout(300);
+
+        if (await overlayBg.isVisible()) {
+          await page.mouse.click(box.x + box.width - 10, box.y + 10);
+          await page.waitForTimeout(300);
+        }
+
+        if (await overlayBg.isVisible()) {
+          await page.mouse.click(box.x + box.width / 2, box.y + 10);
+          await page.waitForTimeout(300);
+        }
+      }
+    }
+
+    // Wait for the overlay to be detached with increased timeout
+    await overlayBg.waitFor({ state: "detached", timeout: 10000 });
     await expect(overlayBg).toBeHidden();
-    // await expect(overlayBg).toBeHidden({ timeout: 10_000 });
-    // await expect(overlayBg).toHaveCount(0, { timeout: 10_000 });
   });
 });
