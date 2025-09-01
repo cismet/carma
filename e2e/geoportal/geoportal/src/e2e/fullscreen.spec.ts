@@ -1,31 +1,23 @@
 import { test, expect } from "@playwright/test";
 
-test.describe("fullscreen", () => {
-  test.beforeEach(async ({ page }) => {
-    await page.goto("/");
-  });
+test("fullscreen button toggles fullscreen", async ({ page }) => {
+  await page.goto("/");
 
-  test("opens app in full page when toggled", async ({ page }) => {
-    const control = page.locator('[data-test-id="full-screen-control"]');
+  // Locate the fullscreen control by attribute
+  const control = page.locator("[data-test-id=full-screen-control]");
+  await expect(control).toBeVisible();
 
-    // Get initial map height as a number
-    const mapSmallHeight = await page
-      .locator("#routedMap")
-      .evaluate((el) => parseInt(getComputedStyle(el).height, 10));
+  // Click to enter fullscreen
+  await control.click();
 
-    console.log("mapSmallHeight:", mapSmallHeight);
+  // Wait until something is in fullscreen
+  await expect
+    .poll(() => page.evaluate(() => !!document.fullscreenElement))
+    .toBe(true);
 
-    // Click the fullscreen button
-    await control.click();
-
-    // Get fullscreen height as a number
-    const mapBigHeight = await page
-      .locator("#routedMap")
-      .evaluate((el) => parseInt(getComputedStyle(el).height, 10));
-
-    console.log("mapBigHeight:", mapBigHeight);
-
-    // Assert that fullscreen height is bigger
-    expect(mapBigHeight).toBeGreaterThan(mapSmallHeight);
-  });
+  // Click again (or Esc) to exit fullscreen
+  await control.click();
+  await expect
+    .poll(() => page.evaluate(() => !!document.fullscreenElement))
+    .toBe(false);
 });
