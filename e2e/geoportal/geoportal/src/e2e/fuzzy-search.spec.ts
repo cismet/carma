@@ -81,6 +81,30 @@ test.describe("geoportal fuzzy search test", () => {
       })
     );
 
+    // WMTS tiles from geodaten.metropoleruhr.de/spw2 -> serve 1x1 transparent PNG
+    await context.route(
+      (url) => {
+        try {
+          const u = new URL(url);
+          return (
+            u.hostname.endsWith("metropoleruhr.de") &&
+            u.pathname.endsWith("/spw2") &&
+            (u.searchParams.get("SERVICE") || "").toUpperCase() === "WMTS" &&
+            (u.searchParams.get("REQUEST") || "").toLowerCase() === "gettile" &&
+            (u.searchParams.get("FORMAT") || "").toLowerCase().includes("image")
+          );
+        } catch {
+          return false;
+        }
+      },
+      (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: "image/png",
+          body: Buffer.from(BLANK_PNG, "base64"),
+        })
+    );
+
     await page.goto("/");
     await page.waitForLoadState("networkidle");
   });
