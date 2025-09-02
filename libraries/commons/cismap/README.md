@@ -1,7 +1,13 @@
-# debug
+# cismap
 
-This library was generated with [Nx](https://nx.dev).
+## Build
 
-## Running unit tests
+```sh
+nx build cismap
+```
 
-Run `nx test debug` to execute the unit tests via [Vitest](https://vitest.dev/).
+## Lint
+
+```sh
+nx lint cismap
+```

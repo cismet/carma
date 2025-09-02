@@ -1,5 +1,5 @@
 {
-  "name": "carma-apps-portals",
+  "name": "portals",
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libraries/appframeworks/portals/src",
   "projectType": "library",

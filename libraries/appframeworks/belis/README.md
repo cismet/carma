@@ -1,3 +1,7 @@
-# libraries-commons-ui-lib-helper-overlay
+# belis-library
 
-This library was generated with [Nx](https://nx.dev).
+## Lint
+
+```sh
+nx lint belis-library
+```

@@ -1,7 +1,6 @@
 # document-viewer
 
-This library was generated with [Nx](https://nx.dev).
+## Lint
 
-## Running unit tests
-
-Run `nx test document-viewer` to execute the unit tests via [Jest](https://jestjs.io).
+```sh
+nx lint document-viewer

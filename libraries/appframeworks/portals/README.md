@@ -1,11 +1,7 @@
-# carma-apps-portals
+# portals
 
-This library was generated with [Nx](https://nx.dev).
+## Lint
 
-## Building
-
-Run `nx build carma-apps-portals` to build the library.
-
-## Running unit tests
-
-Run `nx test carma-apps-portals` to execute the unit tests via [Vitest](https://vitest.dev/).
+```sh
+nx lint portals
+```

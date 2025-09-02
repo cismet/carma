@@ -1,11 +1,19 @@
-# carma-apps-topicmaps
+# topicmaps
 
-This library was generated with [Nx](https://nx.dev).
+## Build
 
-## Building
+```sh
+nx build topicmaps
+```
 
-Run `nx build carma-apps-topicmaps` to build the library.
+## Test
 
-## Running unit tests
+```sh
+nx test topicmaps
+```
 
-Run `nx test carma-apps-topicmaps` to execute the unit tests via [Vitest](https://vitest.dev/).
+## Lint
+
+```sh
+nx lint topicmaps
+```

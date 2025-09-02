@@ -1,7 +1,19 @@
-# debug
+# utils
 
-This library was generated with [Nx](https://nx.dev).
+## Build
 
-## Running unit tests
+```sh
+nx build utils
+```
 
-Run `nx test debug` to execute the unit tests via [Vitest](https://vitest.dev/).
+## Test
+
+```sh
+nx test utils
+```
+
+## Lint
+
+```sh
+nx lint utils
+```

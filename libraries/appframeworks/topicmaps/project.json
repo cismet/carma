@@ -1,5 +1,5 @@
 {
-  "name": "carma-apps-topicmaps",
+  "name": "topicmaps",
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libraries/appframeworks/topicmaps/src",
   "projectType": "library",

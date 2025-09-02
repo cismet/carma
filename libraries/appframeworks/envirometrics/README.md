@@ -1,11 +1,19 @@
-# carma-apps-envirometrics
+# envirometrics
 
-This library was generated with [Nx](https://nx.dev).
+## Build
 
-## Building
+```sh
+nx build envirometrics
+```
 
-Run `nx build carma-apps-envirometrics` to build the library.
+## Test
 
-## Running unit tests
+```sh
+nx test envirometrics
+```
 
-Run `nx test carma-apps-envirometrics` to execute the unit tests via [Vitest](https://vitest.dev/).
+## Lint
+
+```sh
+nx lint envirometrics
+```

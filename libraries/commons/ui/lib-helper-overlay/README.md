@@ -1,3 +1,6 @@
 # libraries-commons-ui-lib-helper-overlay
 
-This library was generated with [Nx](https://nx.dev).
+## Lint
+
+```sh
+nx lint libraries-commons-ui-lib-helper-overlay

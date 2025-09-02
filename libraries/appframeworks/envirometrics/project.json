@@ -1,5 +1,5 @@
 {
-  "name": "carma-apps-envirometrics",
+  "name": "envirometrics",
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libraries/appframeworks/envirometrics/src",
   "projectType": "library",

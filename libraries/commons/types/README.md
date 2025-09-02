@@ -1,6 +1,16 @@
-# Types
+# types
 
-This library was generated with [Nx](https://nx.dev).
+## Build
+
+```sh
+nx build types
+```
+
+## Lint
+
+```sh
+nx lint types
+```
 
 share library for common types
 
