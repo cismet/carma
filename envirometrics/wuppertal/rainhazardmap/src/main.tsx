@@ -1,7 +1,10 @@
 import "./index.css";
 import { StrictMode } from "react";
 import * as ReactDOM from "react-dom/client";
-import { GazDataProvider, SelectionProvider } from "@carma-apps/portals";
+import {
+  GazDataProvider,
+  SelectionProvider,
+} from "@carma-appframeworks/portals";
 import App from "./App";
 import { MappingConstants } from "react-cismap";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";

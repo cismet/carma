@@ -9,7 +9,7 @@ import {
 import {
   isValidViewerInstance,
   useCesiumContext,
-} from "@carma-mapping/cesium-engine";
+} from "@carma-mapping/engines/cesium";
 
 export const useDebugOrbitPoint = (
   isEnabled: boolean,

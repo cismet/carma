@@ -4,7 +4,7 @@ import { useContext } from "react";
 import { FeatureCollectionContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
 import { useSelector } from "react-redux";
 import { getFeatureRenderingOption } from "./store/slices/ui";
-import { PieChart } from "@carma-apps/portals";
+import { PieChart } from "@carma-appframeworks/portals";
 
 const KitasPieChart = ({ visible = true }) => {
   const { filteredItems } = useContext(FeatureCollectionContext);

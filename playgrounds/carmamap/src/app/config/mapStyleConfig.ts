@@ -1,4 +1,4 @@
-import type { MapStyleConfig } from "@carma-apps/portals";
+import type { MapStyleConfig } from "@carma-appframeworks/portals";
 import { MapStyleKeys } from "../constants/MapStyleKeys";
 
 export const carmaMapStyleConfig: MapStyleConfig = {

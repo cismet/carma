@@ -1,7 +1,10 @@
 import { createSelector, createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
 
-import { SELECTED_LAYER_INDEX, type MappingState } from "@carma-apps/portals";
+import {
+  SELECTED_LAYER_INDEX,
+  type MappingState,
+} from "@carma-appframeworks/portals";
 import type {
   Layer,
   BackgroundLayer,

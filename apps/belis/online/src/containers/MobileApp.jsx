@@ -61,7 +61,7 @@ import SideBar from "./SideBar";
 import TopNavbar from "./TopNavbar";
 import { mobileInfo } from "@carma-collab/wuppertal/belis-online";
 import { MobileWarningMessage } from "@carma-mapping/components";
-import { MapBlocker } from "@carma-apps/belis-library";
+import { MapBlocker } from "@carma-appframeworks/belis";
 
 //---
 

@@ -44,7 +44,7 @@ import {
   useSelectionCesium,
   useSelectionTopicMap,
   useHashState,
-} from "@carma-apps/portals";
+} from "@carma-appframeworks/portals";
 import {
   getCollabedHelpComponentConfig,
   tooltipText,
@@ -69,7 +69,7 @@ import {
   setCurrentSceneStyle,
   SceneStyleToggle,
   selectViewerHome,
-} from "@carma-mapping/cesium-engine";
+} from "@carma-mapping/engines/cesium";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { type SearchResultItem } from "@carma-commons/types";
 

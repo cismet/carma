@@ -2,7 +2,7 @@ import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import { isEqual } from "lodash";
 
 import type { FeatureInfo } from "@carma-commons/types";
-import type { FeatureInfoState } from "@carma-apps/portals";
+import type { FeatureInfoState } from "@carma-appframeworks/portals";
 import type { RootState } from "..";
 
 // TODO: move to constants/config;

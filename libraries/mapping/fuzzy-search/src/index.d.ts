@@ -1,4 +1,4 @@
-import { SelectionItem } from "@carma-apps/portals";
+import { SelectionItem } from "@carma-appframeworks/portals";
 import { GazDataItem } from "@carma-commons/utils";
 import { ReactNode } from "react";
 

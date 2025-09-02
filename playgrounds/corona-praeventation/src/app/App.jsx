@@ -19,7 +19,7 @@ import GenericInfoBoxFromFeature from "react-cismap/topicmaps/GenericInfoBoxFrom
 import getGTMFeatureStyler from "react-cismap/topicmaps/generic/GTMStyler";
 import { addSVGToProps } from "react-cismap/tools/svgHelper";
 import { MappingConstants } from "react-cismap";
-import { TopicMapSelectionContent } from "@carma-apps/portals";
+import { TopicMapSelectionContent } from "@carma-appframeworks/portals";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import FuzzySearchComponent from "./components/FuzzySearchComponent";
 

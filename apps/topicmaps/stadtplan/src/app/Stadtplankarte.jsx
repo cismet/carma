@@ -11,7 +11,7 @@ import {
   GenericInfoBoxFromFeature,
   TopicMapSelectionContent,
   useSelectionTopicMap,
-} from "@carma-apps/portals";
+} from "@carma-appframeworks/portals";
 import {
   InfoBoxTextContent,
   InfoBoxTextTitle,

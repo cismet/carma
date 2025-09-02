@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
-import { useAuth, utils } from "@carma-apps/portals";
+import { useAuth, utils } from "@carma-appframeworks/portals";
 import type { Item, Layer } from "@carma-commons/types";
 import { LayerLib } from "@carma-mapping/layers";
 

@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { setCurrentSceneStyle } from "@carma-mapping/cesium-engine";
+import { setCurrentSceneStyle } from "@carma-mapping/engines/cesium";
 
 import { useMapStyle } from "./useGeoportalMapStyle";
 import { MapStyleKeys } from "../constants/MapStyleKeys";

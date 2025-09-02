@@ -13,7 +13,7 @@ import {
   TopicMapSelectionContent,
   useGazData,
   useSelection,
-} from "@carma-apps/portals";
+} from "@carma-appframeworks/portals";
 import {
   FullscreenControl,
   RoutedMapLocateControl,

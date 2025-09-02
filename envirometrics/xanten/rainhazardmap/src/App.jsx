@@ -5,7 +5,7 @@ import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplic
 import versionData from "./version.json";
 import config from "./config";
 import { getApplicationVersion } from "@carma-commons/utils";
-import { getCollabedHelpComponentConfig } from "@carma-pecher-collab/xanten";
+import { getCollabedHelpComponentConfig } from "@carma-collab/pecher/xanten";
 import "./notification.css";
 import footerLogoUrl from "./assets/images/Signet_AIS_RZ.png";
 import {
@@ -16,7 +16,7 @@ import {
   TopicMapSelectionContent,
   useSelection,
   useSelectionTopicMap,
-} from "@carma-apps/portals";
+} from "@carma-appframeworks/portals";
 import {
   useAttributionControlStyling,
   Control,

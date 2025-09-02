@@ -3,7 +3,7 @@ import { md5FetchJSON } from "react-cismap/tools/fetching";
 import HeavyRainHazardMap from "@cismet-dev/react-cismap-envirometrics-maps/HeavyRainHazardMap";
 import { getApplicationVersion } from "@carma-commons/utils";
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
-import { getCollabedHelpComponentConfig } from "@carma-pecher-collab/haltern";
+import { getCollabedHelpComponentConfig } from "@carma-collab/pecher/haltern";
 import versionData from "./version.json";
 import config from "./config";
 import "./notification.css";
@@ -29,7 +29,7 @@ import {
   useSelection,
   useSelectionTopicMap,
   TopicMapSelectionContent,
-} from "@carma-apps/portals";
+} from "@carma-appframeworks/portals";
 
 function App() {
   const version = getApplicationVersion(versionData);

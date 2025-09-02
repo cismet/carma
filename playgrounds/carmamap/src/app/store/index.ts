@@ -4,7 +4,7 @@ import { createLogger } from "redux-logger";
 import { persistReducer } from "redux-persist";
 import localForage from "localforage";
 
-import { getCesiumConfig, cesiumReducer } from "@carma-mapping/cesium-engine";
+import { getCesiumConfig, cesiumReducer } from "@carma-mapping/engines/cesium";
 
 import { APP_KEY, STORAGE_PREFIX } from "../config";
 import { defaultCesiumState } from "../config/cesium/store.config";

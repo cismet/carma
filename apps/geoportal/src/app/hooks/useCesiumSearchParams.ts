@@ -5,7 +5,7 @@ import {
   setIsMode2d,
   setCurrentSceneStyle,
   VIEWERSTATE_KEYS,
-} from "@carma-mapping/cesium-engine";
+} from "@carma-mapping/engines/cesium";
 import { getHashParams } from "@carma-commons/utils";
 
 export const useCesiumSearchParams = () => {

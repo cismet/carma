@@ -3,7 +3,7 @@ import { Viewer } from "cesium";
 import {
   type CesiumOptions,
   type EntityData,
-} from "@carma-mapping/cesium-engine";
+} from "@carma-mapping/engines/cesium";
 
 import { cesiumHandleSelection } from "./cesiumHandleSelection";
 import { MutableRefObject } from "react";

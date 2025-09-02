@@ -10,7 +10,7 @@ import {
   getLinkFromAEV,
   validFNPIcons,
 } from "../../../utils/FnpHelper";
-import { ResponsiveInfoBox } from "@carma-apps/portals";
+import { ResponsiveInfoBox } from "@carma-appframeworks/portals";
 
 const bplanBaseUrl = import.meta.env.VITE_BPLAN_BASEURL || "";
 const baseURL = window.location.origin + window.location.pathname;

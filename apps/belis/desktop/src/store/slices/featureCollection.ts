@@ -1,4 +1,4 @@
-import { featuresFilter } from "@carma-apps/belis-library";
+import { featuresFilter } from "@carma-appframeworks/belis";
 import { createSlice } from "@reduxjs/toolkit";
 
 export const MODES = {

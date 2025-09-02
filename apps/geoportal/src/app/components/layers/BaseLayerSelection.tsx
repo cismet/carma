@@ -9,7 +9,7 @@ import { Radio } from "antd";
 import { layerMap } from "../../config";
 import LayerSelection from "./LayerSelection";
 import { useState } from "react";
-import { useMapStyle } from "@carma-apps/portals";
+import { useMapStyle } from "@carma-appframeworks/portals";
 import { MapStyleKeys } from "../../constants/MapStyleKeys";
 
 const BaseLayerSelection = () => {

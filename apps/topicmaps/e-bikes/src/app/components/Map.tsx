@@ -21,7 +21,7 @@ import {
 import {
   TopicMapSelectionContent,
   useSelectionTopicMap,
-} from "@carma-apps/portals";
+} from "@carma-appframeworks/portals";
 import {
   EmptySearchComponent,
   LibFuzzySearch,
@@ -37,7 +37,7 @@ import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopic
 import { getApplicationVersion } from "@carma-commons/utils";
 import versionData from "../../version.json";
 import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
-import { GenericInfoBoxFromFeature } from "@carma-apps/portals";
+import { GenericInfoBoxFromFeature } from "@carma-appframeworks/portals";
 
 import SIMComponentDictionary from "@carma-collab/wuppertal/secondary-info-modals";
 const SecondaryInfoModal = SIMComponentDictionary["ebikesSIM"];

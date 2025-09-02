@@ -3,7 +3,10 @@ import * as ReactDOM from "react-dom/client";
 
 import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextProvider";
 
-import { GazDataProvider, SelectionProvider } from "@carma-apps/portals";
+import {
+  GazDataProvider,
+  SelectionProvider,
+} from "@carma-appframeworks/portals";
 
 import { App } from "./app/App";
 

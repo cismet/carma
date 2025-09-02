@@ -11,7 +11,7 @@ import proj4 from "proj4";
 
 import CismapLayer from "react-cismap/CismapLayer";
 
-import { useFeatureFlags } from "@carma-apps/portals";
+import { useFeatureFlags } from "@carma-appframeworks/portals";
 import type { Layer } from "@carma-commons/types";
 
 import {

@@ -7,7 +7,7 @@ import {
   getCesiumConfig,
   cesiumReducer,
   CesiumState,
-} from "@carma-mapping/cesium-engine";
+} from "@carma-mapping/engines/cesium";
 
 import { defaultCesiumState } from "../config/cesium/store.config";
 import { APP_KEY, STORAGE_PREFIX } from "../config/app.config";

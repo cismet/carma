@@ -6,7 +6,7 @@ import {
   setActiveBackgroundLayer,
   setBackgroundLayerOpacities,
 } from "../../store/slices/mapSettings";
-import { backgroundLayerConfigurations } from "@carma-apps/belis-library";
+import { backgroundLayerConfigurations } from "@carma-appframeworks/belis";
 
 const BackgroundLayerRow = ({
   layerkey,

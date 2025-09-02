@@ -48,7 +48,7 @@ import {
   isPaleModeActive,
   setPaleModeActive,
 } from "../core/store/slices/paleMode";
-import { BelisSwitch } from "@carma-apps/belis-library";
+import { BelisSwitch } from "@carma-appframeworks/belis";
 
 //---------
 

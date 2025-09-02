@@ -1,5 +1,5 @@
 import { Cartesian3, Cartographic, Math as CesiumMath, Viewer } from "cesium";
-import { getOrbitPoint } from "@carma-mapping/cesium-engine";
+import { getOrbitPoint } from "@carma-mapping/engines/cesium";
 
 import { getHeadingFromCardinalDirection } from "./orientationUtils";
 import type { CardinalDirectionEnum } from "./orientationUtils";

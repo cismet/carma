@@ -1,4 +1,4 @@
-import { ResponsiveInfoBox } from "@carma-apps/portals";
+import { ResponsiveInfoBox } from "@carma-appframeworks/portals";
 import {
   faCity,
   faExclamationCircle,

@@ -2,7 +2,7 @@ import type {
   DefaultLayerConfig,
   LayerMap,
   NamedStyles,
-} from "@carma-apps/portals";
+} from "@carma-appframeworks/portals";
 
 export const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 export const APP_KEY = "geoportal";

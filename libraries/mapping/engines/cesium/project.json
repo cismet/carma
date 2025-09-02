@@ -1,5 +1,5 @@
 {
-  "name": "carma-map-engines-cesium",
+  "name": "engines/cesium",
   "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libraries/mapping/engines/cesium/src",
   "projectType": "library",

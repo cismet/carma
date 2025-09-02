@@ -27,7 +27,7 @@ import {
   backgroundConfWithFastOrtho2024,
   ProgressIndicator,
   useProgress,
-} from "@carma-apps/portals";
+} from "@carma-appframeworks/portals";
 
 function App() {
   const [gazData, setGazData] = useState([]);

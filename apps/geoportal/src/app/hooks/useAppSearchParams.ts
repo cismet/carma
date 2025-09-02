@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useDispatch } from "react-redux";
 
-import { setIsMode2d, VIEWERSTATE_KEYS } from "@carma-mapping/cesium-engine";
+import { setIsMode2d, VIEWERSTATE_KEYS } from "@carma-mapping/engines/cesium";
 import { getHashParams } from "@carma-commons/utils";
 
 import { useMapStyle } from "./useGeoportalMapStyle";

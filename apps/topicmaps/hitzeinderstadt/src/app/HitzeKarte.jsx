@@ -25,7 +25,7 @@ import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 import {
   TopicMapSelectionContent,
   useSelectionTopicMap,
-} from "@carma-apps/portals";
+} from "@carma-appframeworks/portals";
 import {
   EmptySearchComponent,
   LibFuzzySearch,

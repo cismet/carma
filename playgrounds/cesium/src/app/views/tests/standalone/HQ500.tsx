@@ -20,9 +20,9 @@ import {
   useCesiumContext,
   useHomeControl,
   useZoomControls as useZoomControlsCesium,
-} from "@carma-mapping/cesium-engine";
+} from "@carma-mapping/engines/cesium";
 import { useTweakpaneCtx } from "@carma-commons/debug";
-import { useHashState } from "@carma-apps/portals";
+import { useHashState } from "@carma-appframeworks/portals";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 

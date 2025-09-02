@@ -12,7 +12,7 @@ import { getApplicationVersion } from "@carma-commons/utils";
 import {
   getCollabedHelpComponentConfig,
   textElementsForOverlays,
-} from "@carma-pecher-collab/euskirchen";
+} from "@carma-collab/pecher/euskirchen";
 import NotesDisplay from "./NotesDisplay";
 import footerLogoUrl from "./assets/images/Signet_AIS_RZ.png";
 

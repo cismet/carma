@@ -1,5 +1,5 @@
 import { EasingFunction, Math as CesiumMath } from "cesium";
-import { cesiumSafeRequestRender } from "@carma-mapping/cesium-engine";
+import { cesiumSafeRequestRender } from "@carma-mapping/engines/cesium";
 
 const DEFAULT_ANIMATION_DURATION = 500; // milliseconds
 

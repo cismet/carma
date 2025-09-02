@@ -17,7 +17,7 @@ import {
 import {
   GenericInfoBoxFromFeature,
   TopicMapSelectionContent,
-} from "@carma-apps/portals";
+} from "@carma-appframeworks/portals";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import FuzzySearchWrapper from "./components/FuzzySearchWrapper";
 import {

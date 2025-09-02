@@ -9,7 +9,7 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { useContext, useEffect, useState } from "react";
 import { getQueryableLayers } from "../GeoportalMap/utils";
 import { getHashParams } from "@carma-commons/utils";
-import { InfoBox } from "@carma-apps/portals";
+import { InfoBox } from "@carma-appframeworks/portals";
 
 type RenderedElements = {
   additionalInfo?: boolean;

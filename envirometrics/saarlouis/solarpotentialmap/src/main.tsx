@@ -1,6 +1,9 @@
 import { StrictMode } from "react";
 import * as ReactDOM from "react-dom/client";
-import { GazDataProvider, SelectionProvider } from "@carma-apps/portals";
+import {
+  GazDataProvider,
+  SelectionProvider,
+} from "@carma-appframeworks/portals";
 import { gazDataConfig } from "./config/gazData";
 import App from "./app/App.jsx";
 

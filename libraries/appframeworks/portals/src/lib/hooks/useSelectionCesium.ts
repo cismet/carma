@@ -7,7 +7,7 @@ import {
   removeCesiumMarker,
   removeGroundPrimitiveById,
   useCesiumContext,
-} from "@carma-mapping/cesium-engine";
+} from "@carma-mapping/engines/cesium";
 
 import { useSelection } from "../components/SelectionProvider";
 import { cesiumHitTrigger } from "../utils/cesiumHitTrigger";

@@ -37,7 +37,7 @@ import LoadingInfoBox from "./LoadingInfoBox";
 
 import versionData from "../../../version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
-import { InfoBox, utils } from "@carma-apps/portals";
+import { InfoBox, utils } from "@carma-appframeworks/portals";
 
 interface InfoBoxProps {
   pos?: [number, number];

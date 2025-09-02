@@ -1,5 +1,5 @@
 import { Cartographic, sampleTerrainMostDetailed, Viewer } from "cesium";
-import { getDegreesFromCartographic } from "@carma-mapping/cesium-engine";
+import { getDegreesFromCartographic } from "@carma-mapping/engines/cesium";
 
 import { updateMarkerPosition } from "./marker";
 

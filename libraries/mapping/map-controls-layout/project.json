@@ -1,0 +1,96 @@
+{
+  "name": "mapping/map-controls-layout",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libraries/mapping/map-controls-layout/src",
+  "projectType": "library",
+  "tags": [],
+  "targets": {
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "build": {
+      "executor": "@nx/vite:build",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "outputPath": "dist/libraries/mapping/map-controls-layout"
+      },
+      "configurations": {
+        "development": {
+          "mode": "development"
+        },
+        "production": {
+          "mode": "production"
+        }
+      }
+    },
+    "storybook": {
+      "executor": "@nx/storybook:storybook",
+      "options": {
+        "port": 4400,
+        "configDir": "libraries/mapping/map-controls-layout/.storybook"
+      },
+      "configurations": {
+        "ci": {
+          "quiet": true
+        }
+      }
+    },
+    "build-storybook": {
+      "executor": "@nx/storybook:build",
+      "outputs": ["{options.outputDir}"],
+      "options": {
+        "outputDir": "dist/storybook/map-control",
+        "configDir": "libraries/mapping/map-controls-layout/.storybook"
+      },
+      "configurations": {
+        "ci": {
+          "storybook": {
+            "executor": "@nx/storybook:storybook",
+            "options": {
+              "port": 4400,
+              "configDir": "libraries/mapping/map-controls-layout/.storybook"
+            },
+            "configurations": {
+              "ci": {
+                "quiet": true
+              }
+            }
+          },
+          "build-storybook": {
+            "executor": "@nx/storybook:build",
+            "outputs": ["{options.outputDir}"],
+            "options": {
+              "outputDir": "dist/storybook/map-control",
+              "configDir": "libraries/mapping/map-controls-layout/.storybook"
+            },
+            "configurations": {
+              "ci": {
+                "quiet": true
+              }
+            }
+          },
+          "quiet": true
+        }
+      }
+    },
+    "test-storybook": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "test-storybook -c libraries/mapping/map-controls-layout/.storybook --url=http://localhost:4400"
+      }
+    },
+    "static-storybook": {
+      "executor": "@nx/web:file-server",
+      "options": {
+        "buildTarget": "mapping/map-controls-layout:build-storybook",
+        "staticFilePath": "dist/storybook/map-control"
+      },
+      "configurations": {
+        "ci": {
+          "buildTarget": "mapping/map-controls-layout:build-storybook:ci"
+        }
+      }
+    }
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "name": "@carma-apps/envirometrics",
+  "name": "@carma-appframeworks/envirometrics",
   "version": "0.0.1",
   "dependencies": {},
   "main": "./index.js",

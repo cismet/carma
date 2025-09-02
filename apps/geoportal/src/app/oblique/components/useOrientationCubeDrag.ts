@@ -9,7 +9,7 @@ import {
   cancelViewerAnimation,
   getOrbitPoint,
   useCesiumContext,
-} from "@carma-mapping/cesium-engine";
+} from "@carma-mapping/engines/cesium";
 
 export type UseOrientationCubeDragParams = {
   dragThresholdPx?: number;

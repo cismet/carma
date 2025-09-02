@@ -14,7 +14,7 @@ import { CrossTabCommunicationContextProvider } from "react-cismap/contexts/Cros
 import {
   CarmaMapProviderWrapper,
   FeatureFlagProvider,
-} from "@carma-apps/portals";
+} from "@carma-appframeworks/portals";
 import {
   backgroundSettings,
   mobileInfo,

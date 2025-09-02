@@ -21,9 +21,12 @@ import {
   isValidViewerInstance,
   selectViewerIsTransitioning,
   useCesiumContext,
-} from "@carma-mapping/cesium-engine";
+} from "@carma-mapping/engines/cesium";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
-import { useFeatureFlags, ContactMailButton } from "@carma-apps/portals";
+import {
+  useFeatureFlags,
+  ContactMailButton,
+} from "@carma-appframeworks/portals";
 
 import { ObliqueDebugSvg } from "./debugUI/ObliqueDebugSvg";
 import { ObliqueImagePreview } from "./ObliqueImagePreview";

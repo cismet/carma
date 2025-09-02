@@ -16,7 +16,7 @@ import {
   getOrbitPoint,
   isValidViewerInstance,
   type ViewerAnimationMap,
-} from "@carma-mapping/cesium-engine";
+} from "@carma-mapping/engines/cesium";
 import { DerivedExteriorOrientation } from "./transformExteriorOrientation";
 import type { AnimationConfig } from "../types";
 

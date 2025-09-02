@@ -5,7 +5,7 @@ import HeavyRainHazardMap from "@cismet-dev/react-cismap-envirometrics-maps/Heav
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 import { getApplicationVersion } from "@carma-commons/utils";
 import versionData from "./version.json";
-import { getCollabedHelpComponentConfig } from "@carma-pecher-collab/olpe";
+import { getCollabedHelpComponentConfig } from "@carma-collab/pecher/olpe";
 import olpeConfig from "./config";
 import "./notification.css";
 import footerLogoUrl from "./assets/images/Signet_AIS_RZ.png";
@@ -18,7 +18,7 @@ import {
   TopicMapSelectionContent,
   useSelection,
   useSelectionTopicMap,
-} from "@carma-apps/portals";
+} from "@carma-appframeworks/portals";
 import ContactButton from "./components/ContactButton";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { isAreaTypeWithGEP } from "@carma-commons/resources";

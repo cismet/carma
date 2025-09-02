@@ -1,7 +1,7 @@
 import { useSearchParams } from "react-router-dom";
 import { useSelector } from "react-redux";
 import { getJWT } from "../store/slices/auth.js";
-import { AlkisBookingSheetRenderer } from "@carma-apps/alkis-renderer";
+import { AlkisBookingSheetRenderer } from "@carma-appframeworks/alkis";
 
 const AlkisBookingSheetPage = () => {
   const [searchParams] = useSearchParams();

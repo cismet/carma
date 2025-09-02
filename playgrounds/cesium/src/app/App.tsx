@@ -6,9 +6,9 @@ import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextPr
 import {
   CustomViewerPlayground,
   CesiumContextProvider,
-} from "@carma-mapping/cesium-engine";
+} from "@carma-mapping/engines/cesium";
 import { TweakpaneProvider } from "@carma-commons/debug";
-import { HashStateProvider } from "@carma-apps/portals";
+import { HashStateProvider } from "@carma-appframeworks/portals";
 import {
   BASEMAP_METROPOLRUHR_WMS_GRAUBLAU,
   METROPOLERUHR_WMTS_SPW2_WEBMERCATOR,

@@ -10,7 +10,7 @@ import "./notification.css";
 
 import { notification } from "antd";
 // import NotesDisplay from './NotesDisplay';
-import { getCollabedHelpComponentConfig } from "@carma-pecher-collab/korschenbroich";
+import { getCollabedHelpComponentConfig } from "@carma-collab/pecher/korschenbroich";
 import {
   EmptySearchComponent,
   LibFuzzySearch,
@@ -19,7 +19,7 @@ import {
   TopicMapSelectionContent,
   useSelection,
   useSelectionTopicMap,
-} from "@carma-apps/portals";
+} from "@carma-appframeworks/portals";
 import {
   Control,
   useAttributionControlStyling,

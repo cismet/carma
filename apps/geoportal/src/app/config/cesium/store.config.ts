@@ -3,7 +3,7 @@
 import { Cartesian3, Color } from "cesium";
 
 import { WUPPERTAL } from "@carma-commons/resources";
-import { CesiumState, toColorRgbaArray } from "@carma-mapping/cesium-engine";
+import { CesiumState, toColorRgbaArray } from "@carma-mapping/engines/cesium";
 
 import { MODEL_ASSETS } from "./assets.config";
 

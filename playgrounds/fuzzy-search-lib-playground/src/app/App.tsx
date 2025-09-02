@@ -10,7 +10,7 @@ import {
   useSelection,
   TopicMapSelectionContent,
   useSelectionTopicMap,
-} from "@carma-apps/portals";
+} from "@carma-appframeworks/portals";
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 
 suppressReactCismapErrors();

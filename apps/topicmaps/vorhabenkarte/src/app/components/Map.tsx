@@ -21,7 +21,7 @@ import {
   TopicMapSelectionContent,
   useSelectionTopicMap,
   useSelection,
-} from "@carma-apps/portals";
+} from "@carma-appframeworks/portals";
 import {
   EmptySearchComponent,
   LibFuzzySearch,
@@ -38,13 +38,13 @@ import {
   getApplicationVersion,
   TAILWIND_CLASSNAMES_FULLSCREEN_FIXED,
 } from "@carma-commons/utils";
-import { GenericInfoBoxFromFeature } from "@carma-apps/portals";
+import { GenericInfoBoxFromFeature } from "@carma-appframeworks/portals";
 import SecondaryInfoModal, { LightboxDispatch } from "./SecondaryInfoModal";
 import { FeatureIconOverlay } from "./FeatureIconOverlay";
 import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { isAreaType } from "@carma-commons/resources";
 import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
-import { useGazData } from "@carma-apps/portals";
+import { useGazData } from "@carma-appframeworks/portals";
 import { type GazDataItem } from "@carma-commons/utils";
 import versionData from "../../version.json";
 

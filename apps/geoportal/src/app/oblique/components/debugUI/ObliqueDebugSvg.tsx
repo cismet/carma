@@ -3,7 +3,7 @@ import { Math as CesiumMath } from "cesium";
 import {
   useCesiumContext,
   isValidViewerInstance,
-} from "@carma-mapping/cesium-engine";
+} from "@carma-mapping/engines/cesium";
 import { Collapse } from "antd";
 
 import { useOblique } from "../../hooks/useOblique";
