@@ -1,9 +1,19 @@
 # mapping/utils
 
-## Building
+## Build
 
-Run `nx build mapping/utils` to build the library.
+```sh
+nx build mapping/utils
+```
 
-## Running unit tests
+## Test
 
-Run `nx test mapping/utils` to execute the unit tests via [Vitest](https://vitest.dev/).
+```sh
+nx test mapping/utils
+```
+
+## Lint
+
+```sh
+nx lint mapping/utils
+```

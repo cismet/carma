@@ -1,11 +1,19 @@
-# carma-maps
+# mapping/components
 
-This library was generated with [Nx](https://nx.dev).
+## Build
 
-## Building
+```sh
+nx build mapping/components
+```
 
-Run `nx build carma-maps` to build the library.
+## Test
 
-## Running unit tests
+```sh
+nx test mapping/components
+```
 
-Run `nx test carma-maps` to execute the unit tests via [Vitest](https://vitest.dev/).
+## Lint
+
+```sh
+nx lint mapping/components
+```

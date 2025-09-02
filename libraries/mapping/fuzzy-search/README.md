@@ -1,3 +1,7 @@
-# lib-fuzzy-search
+# fuzzy-search
 
-This library was generated with [Nx](https://nx.dev).
+## Lint
+
+```sh
+nx lint fuzzy-search
+```

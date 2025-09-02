@@ -1,11 +1,19 @@
-# carma-map-engines-cesium-widget
+# engines/cesium-widget
 
-This library was generated with [Nx](https://nx.dev).
+## Build
 
-## Building
+```sh
+nx build engines/cesium-widget
+```
 
-Run `nx build carma-map-engines-cesium-widget` to build the library.
+## Test
 
-## Running unit tests
+```sh
+nx test engines/cesium-widget
+```
 
-Run `nx test carma-map-engines-cesium-widget` to execute the unit tests via [Vitest](https://vitest.dev/).
+## Lint
+
+```sh
+nx lint engines/cesium-widget
+```

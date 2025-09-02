@@ -1,11 +1,19 @@
-# carma-map-engines-maplibre
+# engines/maplibre
 
-This library was generated with [Nx](https://nx.dev).
+## Build
 
-## Building
+```sh
+nx build engines/maplibre
+```
 
-Run `nx build carma-map-engines-maplibre` to build the library.
+## Test
 
-## Running unit tests
+```sh
+nx test engines/maplibre
+```
 
-Run `nx test carma-map-engines-maplibre` to execute the unit tests via [Vitest](https://vitest.dev/).
+## Lint
+
+```sh
+nx lint engines/maplibre
+```

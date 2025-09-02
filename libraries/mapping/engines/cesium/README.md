@@ -1,8 +1,6 @@
-# carma-map-engines-cesium
+# engines/cesium
 
-This library was generated with [Nx](https://nx.dev).
-
-TODO:
+## Notes / TODO
 
 add basic installation/app integration instructions
 
@@ -38,10 +36,20 @@ https://community.cesium.com/t/is-there-a-good-way-to-use-cesium-with-vite/27545
 https://cesium.com/learn/cesiumjs-learn/cesiumjs-quickstart/#step-2-set-up-the-cesiumjs-client
 https://github.com/s3xysteak/vite-plugin-cesium-build/
 
-## Building
+## Build
 
-Run `nx build carma-map-engines-cesium` to build the library.
+```sh
+nx build engines/cesium
+```
 
-## Running unit tests
+## Test
 
-Run `nx test carma-map-engines-cesium` to execute the unit tests via [Vitest](https://vitest.dev/).
+```sh
+nx test engines/cesium
+```
+
+## Lint
+
+```sh
+nx lint engines/cesium
+```
