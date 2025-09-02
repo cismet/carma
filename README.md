@@ -88,20 +88,20 @@ vite build and [`vite-plugin-dts`](https://www.npmjs.com/package/vite-plugin-dts
 
 #### For _new_ production level projects:
 
-- `/tsconfig.strict.base.json` should be extending the local project `./tsconfig.json`.
+- [`/tsconfig.strict.base.json`](/tsconfig.strict.base.json) should be extending the local project `./tsconfig.json`.
 
 - changes to [`compilerOptions`](https://www.typescriptlang.org/tsconfig/#compilerOptions) on a per project basis should be avoided.
 
 #### For _new_ playground level projects:
 
-- `/tsconfig.strict.base.json` is recommended but not required.
-- `/tsconfig.base.json` can be used with local changes as needed.
+- [`/tsconfig.strict.base.json`](/tsconfig.strict.base.json) is recommended but not required.
+- [`/tsconfig.base.json`](/tsconfig.base.json) can be used with local changes as needed.
 
 #### For _existing_ production level projects:
 
-- `/tsconfig.legacy.base.json` as lowest level of existing strictness permitted.
-- `/tsconfig.base.json` as optional intermediate step
-- `/tsconfig.strict.base.json` should be adopted, if feasible, on a per project commit basis.
+- [`/tsconfig.legacy.base.json`](/tsconfig.legacy.base.json) as lowest level of existing strictness permitted.
+- [`/tsconfig.base.json`](/tsconfig.base.json) as optional intermediate step
+- [`/tsconfig.strict.base.json`](/tsconfig.strict.base.json) should be adopted, if feasible, on a per project commit basis.
 
 #### handling code imports
 
@@ -114,7 +114,7 @@ common custom carma types and type declarations for external libraries
 are to be added to their respective `/types/*.d.ts`
 
 - [Branded units (Radians-first)](libraries/commons/types/BRANDED-UNITS.md)
-- Commons types index: `libraries/commons/types/`
+- Commons types index: [`libraries/commons/types/`](libraries/commons/types/)
 
 #### verbatim Module Syntax
 
@@ -136,7 +136,7 @@ import React, { useEffect, ReactNode } from "react";
 
 uses eslint flat config in
 
-`/eslint.config.cjs`
+[`/eslint.config.cjs`](/eslint.config.cjs)
 
 can be run per project with
 
