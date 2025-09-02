@@ -6,8 +6,7 @@ import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 
 export default defineConfig({
   root: __dirname,
-  cacheDir:
-    '../../../node_modules/.vite/libraries/mapping/carma-map-components',
+  cacheDir: '../../../node_modules/.vite/libraries/mapping/components',
 
   plugins: [
     nxViteTsPaths(),
@@ -25,7 +24,7 @@ export default defineConfig({
   // Configuration for building your library.
   // See: https://vitejs.dev/guide/build.html#library-mode
   build: {
-    outDir: '../../../dist/libraries/mapping/carma-map-components',
+    outDir: '../../../dist/libraries/mapping/components',
     reportCompressedSize: true,
     commonjsOptions: {
       transformMixedEsModules: true,
@@ -55,8 +54,7 @@ export default defineConfig({
 
     reporters: ['default'],
     coverage: {
-      reportsDirectory:
-        '../../../coverage/libraries/mapping/carma-map-components',
+      reportsDirectory: '../../../coverage/libraries/mapping/components',
       provider: 'v8',
     },
   },
