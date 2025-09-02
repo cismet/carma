@@ -33,7 +33,7 @@ import type { FeatureInfo } from "@carma-commons/types";
 import {
   useOverlayHelper,
   useOverlayTourContext,
-} from "@carma-commons/ui/lib-helper-overlay";
+} from "@carma-commons/ui/helper-overlay";
 import { getApplicationVersion } from "@carma-commons/utils";
 
 import {

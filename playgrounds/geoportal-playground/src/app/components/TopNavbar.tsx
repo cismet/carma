@@ -18,7 +18,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
 import type { Item, Layer } from "@carma-commons/types";
-import { useOverlayHelper } from "@carma-commons/ui/lib-helper-overlay";
+import { useOverlayHelper } from "@carma-commons/ui/helper-overlay";
 import { cn } from "@carma-commons/utils";
 import { LayerLib } from "@carma-mapping/layers";
 

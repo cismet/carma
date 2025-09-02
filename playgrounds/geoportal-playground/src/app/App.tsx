@@ -6,7 +6,7 @@ import LZString from "lz-string";
 import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextProvider";
 import { CrossTabCommunicationContextProvider } from "react-cismap/contexts/CrossTabCommunicationContextProvider";
 
-import { OverlayTourProvider } from "@carma-commons/ui/lib-helper-overlay";
+import { OverlayTourProvider } from "@carma-commons/ui/helper-overlay";
 import type { Layer } from "@carma-commons/types";
 import {
   BackgroundLayer,
