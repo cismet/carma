@@ -52,6 +52,35 @@ test.describe("geoportal fuzzy search test", () => {
       );
     }
 
+    const BLANK_PNG =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+8V/8AAAAASUVORK5CYII=";
+
+    await context.route(/GetMap|SERVICE=WMS/i, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "image/png",
+        body: Buffer.from(BLANK_PNG, "base64"),
+      })
+    );
+
+    // Raster tiles
+    await context.route(/\/tiles\/.+\.(png|jpg|jpeg|webp)(\?.*)?$/i, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "image/png",
+        body: Buffer.from(BLANK_PNG, "base64"),
+      })
+    );
+
+    // Vector tiles (MVT): no content is valid and fast
+    await context.route(/\.(pbf)(\?.*)?$/i, (route) =>
+      route.fulfill({
+        status: 204,
+        contentType: "application/x-protobuf",
+        body: "",
+      })
+    );
+
     await page.goto("/");
     await page.waitForLoadState("networkidle");
   });
