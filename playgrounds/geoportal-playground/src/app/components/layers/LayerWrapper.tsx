@@ -20,7 +20,7 @@ import {
   arrayMove,
 } from "@dnd-kit/sortable";
 
-import { useOverlayHelper } from "@carma-commons/ui/lib-helper-overlay";
+import { useOverlayHelper } from "@carma-commons/ui/helper-overlay";
 import { cn } from "@carma-commons/utils";
 
 import {

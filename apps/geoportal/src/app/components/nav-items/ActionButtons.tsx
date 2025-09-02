@@ -13,7 +13,7 @@ import { useDispatch, useSelector } from "react-redux";
 import { Save, useSelection, useShareUrl } from "@carma-appframeworks/portals";
 import { geoElements } from "@carma-collab/wuppertal/geoportal";
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
-import { useOverlayHelper } from "@carma-commons/ui/lib-helper-overlay";
+import { useOverlayHelper } from "@carma-commons/ui/helper-overlay";
 import { selectViewerIsMode2d } from "@carma-mapping/engines/cesium";
 import { useEffect } from "react";
 import {

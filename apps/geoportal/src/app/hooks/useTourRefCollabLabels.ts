@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 
-import { useOverlayHelper } from "@carma-commons/ui/lib-helper-overlay";
+import { useOverlayHelper } from "@carma-commons/ui/helper-overlay";
 import { getCollabedHelpComponentConfig } from "@carma-collab/wuppertal/helper-overlay";
 import { geoElements } from "@carma-collab/wuppertal/geoportal";
 

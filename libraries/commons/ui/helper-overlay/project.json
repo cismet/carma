@@ -1,7 +1,7 @@
 {
-  "name": "libraries-commons-ui-lib-helper-overlay",
+  "name": "helper-overlay",
   "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "libraries/commons/ui/lib-helper-overlay/src",
+  "sourceRoot": "libraries/commons/ui/helper-overlay/src",
   "projectType": "library",
   "tags": [],
   "targets": {

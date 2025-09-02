@@ -1,4 +1,4 @@
-import { OptionsOverlayHelper } from "@carma-commons/ui/lib-helper-overlay";
+import { OptionsOverlayHelper } from "@carma-commons/ui/helper-overlay";
 
 export const addCssToOverlayHelperItem = (
   item: OptionsOverlayHelper,

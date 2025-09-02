@@ -20,7 +20,7 @@ import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from 
 import {
   useOverlayHelper,
   useOverlayTourContext,
-} from "@carma-commons/ui/lib-helper-overlay";
+} from "@carma-commons/ui/helper-overlay";
 import { cn } from "@carma-commons/utils";
 import { selectViewerIsMode2d } from "@carma-mapping/engines/cesium";
 
