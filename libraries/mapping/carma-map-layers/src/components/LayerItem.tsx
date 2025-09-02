@@ -504,6 +504,7 @@ const LayerItem = ({
             setOpenDeleteModal(true);
           }}
           loadingData={loadingData}
+          discoverProps={discoverProps}
         />
       )}
     </>
