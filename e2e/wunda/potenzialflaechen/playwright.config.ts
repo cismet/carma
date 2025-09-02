@@ -12,6 +12,8 @@ export default defineConfig({
   reporter: "html",
   use: {
     baseURL: "http://localhost:4222",
+    serviceWorkers: "block",
+    viewport: null,
     trace: "on-first-retry",
     screenshot: "only-on-failure",
     channel: process.env.CI ? "chrome" : undefined,

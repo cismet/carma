@@ -10,6 +10,13 @@ test.describe("potenzialflaechen-online smoke test", () => {
 
   test("map loads with key controls", async ({ page }) => {
     await page.goto("/");
+    await page.addStyleTag({
+      content: `
+      * { transition: none !important; animation: none !important; }
+      .collapse { display: block !important; height: auto !important; }
+    `,
+    });
+
     const modal = page.locator(".modal-content");
     await expect(modal).toBeVisible();
     await page
@@ -18,9 +25,7 @@ test.describe("potenzialflaechen-online smoke test", () => {
     await page
       .getByRole("textbox", { name: "Passwort" })
       .fill(userData.cheatingPassword);
-    await page
-      .getByRole("button", { name: "Anmeldung" })
-      .click({ force: true });
+    await page.getByRole("button", { name: "Anmeldung" }).click();
 
     await expect(modal).toHaveCount(0);
 
