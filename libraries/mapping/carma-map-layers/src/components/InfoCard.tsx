@@ -224,6 +224,13 @@ const InfoCard = ({
       };
 
       waitForLoadingToFinish();
+    } else {
+      setLoading(false);
+      messageApi?.open({
+        type: "error",
+        content: `Es gab einen Fehler beim Speichern der Karte.`,
+        duration: 2,
+      });
     }
   };
 
