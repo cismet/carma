@@ -2766,26 +2766,32 @@ export const baseConfig = {
       {
         name: "alf",
         icon: "basis/Flurkarte_farbig_ABK",
+        layerType: "wmts-nt",
       },
       {
         name: "algw",
         icon: "basis/Flurkarte_Graustufen_ABK",
+        layerType: "wmts-nt",
       },
       {
         name: "alkomf",
         icon: "basis/Stadtgrundkarte_farbig_ABK",
+        layerType: "wmts-nt",
       },
       {
         name: "alkomgw",
         icon: "basis/Stadtgrundkarte_Graustufen_ABK",
+        layerType: "wmts-nt",
       },
       {
         name: "albsf",
         icon: "basis/Schätzungskarte_farbig_ABK",
+        layerType: "wmts-nt",
       },
       {
         name: "albsgw",
         icon: "basis/Schätzungskarte_Graustufen_ABK",
+        layerType: "wmts-nt",
       },
       {
         name: "expsw",
