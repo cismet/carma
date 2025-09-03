@@ -35,6 +35,45 @@ async function waitForTilesWithLayer(
 
 test.describe("Geoportal add map layers", () => {
   test.beforeEach(async ({ page }) => {
+    // Mock the discover API to return empty results
+    await page.route("**/actions/WUNDA_BLAU.**", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/octet-stream",
+        body: JSON.stringify({
+          md5: null,
+          content: null,
+          version: null,
+          time: new Date().toISOString(),
+          data: [], // Empty array - no discover layers
+        }),
+      });
+    });
+
+    // Mock additional layer config
+    await page.route("**/additionalLayerConfig.json", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: "[]",
+      });
+    });
+
+    // Mock any other potential endpoints that might cause issues
+    await page.route(
+      "**/wupp-digitaltwin-assets.cismet.de/**",
+      async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: "[]",
+        });
+      }
+    );
+
+    // Let WMS GetCapabilities go through to real services
+    // (Remove the WMS mock entirely)
+
     await page.goto("/");
   });
 
@@ -54,7 +93,6 @@ test.describe("Geoportal add map layers", () => {
     const searchInput = modal.locator("input");
     await expect(searchInput).toBeVisible();
     await searchInput.fill("orange");
-    await page.waitForTimeout(3300);
     const cards = page.locator('[data-test-id="card-layer-prev"]');
     await expect(cards.first()).toBeVisible();
 
