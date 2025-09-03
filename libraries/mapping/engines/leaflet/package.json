@@ -1,6 +1,7 @@
 {
   "name": "@carma-mapping/leaflet-engine",
   "version": "0.0.1",
+  "private": true,
   "dependencies": {},
   "main": "./index.js",
   "module": "./index.mjs",

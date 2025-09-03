@@ -21,6 +21,28 @@
     },
     "lint": {
       "executor": "@nx/eslint:lint"
+    },
+    "storybook": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "libraries/collaboration/carma-wuppertal-collab/wuppertal-collab-submodule",
+        "command": "npm run storybook"
+      }
+    },
+    "build-storybook": {
+      "executor": "nx:run-commands",
+      "outputs": ["libraries/collaboration/carma-wuppertal-collab/wuppertal-collab-submodule/storybook-static"],
+      "options": {
+        "cwd": "libraries/collaboration/carma-wuppertal-collab/wuppertal-collab-submodule",
+        "command": "npm run build-storybook"
+      }
+    },
+    "serve-storybook": {
+      "executor": "nx:run-commands",
+      "options": {
+        "cwd": "libraries/collaboration/carma-wuppertal-collab/wuppertal-collab-submodule",
+        "command": "npm run serve-storybook"
+      }
     }
   }
 }
