@@ -140,11 +140,12 @@ export const parseToMapLayer = async (
         opacity: opacity || 1.0,
         description: layer.description,
         conf: carmaConf ?? undefined,
-        queryable: isNaN(layer.queryable)
-          ? layer?.keywords?.some((keyword) =>
-              keyword.includes("carmaconf://infoBoxMapping")
-            )
-          : layer.queryable,
+        queryable:
+          !layer.queryable && !layer.unsecure
+            ? layer?.keywords?.some((keyword) =>
+                keyword.includes("carmaconf://infoBoxMapping")
+              )
+            : layer.queryable,
         useInFeatureInfo: true,
         visible: visible,
         props: {
