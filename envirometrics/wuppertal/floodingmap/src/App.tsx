@@ -29,7 +29,7 @@ import { ENDPOINT, isAreaTypeWithGEP } from "@carma-commons/resources";
 import { getApplicationVersion } from "@carma-commons/utils";
 
 // TODO fix collab path names
-import { getCollabedHelpComponentConfig } from "@carma-collab/wuppertal/hochwasssergefahrenkarte";
+import { getCollabedHelpComponentConfig } from "@carma-collab/wuppertal/hochwassergefahrenkarte";
 
 import {
   CustomViewer,

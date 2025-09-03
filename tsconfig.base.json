@@ -25,17 +25,8 @@
     ],
     "paths": {
       "@carma-appframeworks/*": ["libraries/appframeworks/*/src/index.ts"],
-      "@carma-collab/pecher/*": [
-        "libraries/collaboration/carma-pecher-collab/src/*/index.jsx"
-      ],
-      "@carma-collab/wuppertal/*": [
-        "libraries/collaboration/carma-wuppertal-collab/src/*/index.ts",
-        "libraries/collaboration/carma-wuppertal-collab/src/*/index.jsx",
-        "libraries/collaboration/carma-wuppertal-collab/src/*/index.tsx"
-      ],
-      "@carma-collab/wuppertal/luftmessstationen/*": [
-        "libraries/collaboration/carma-wuppertal-collab/src/luftmessstationen/*"
-      ],
+      "@carma-collab/pecher/*": ["libraries/collaboration/carma-pecher-collab/src/*/index.jsx"],
+      "@carma-collab/wuppertal/*": ["libraries/collaboration/carma-wuppertal-collab/src/*/index.ts"],
       "@carma-commons/*": ["libraries/commons/*/src/index.ts"],
       "@carma-commons/utils/*": ["libraries/commons/utils/src/lib/*"],
       "@carma-mapping/*": ["libraries/mapping/*/src/index.ts"],
