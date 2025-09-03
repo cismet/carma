@@ -1,4 +1,4 @@
-import { Button, Input, message, Select, Tabs } from "antd";
+import { Button, Input, message, Select, Tabs, Tooltip } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faBan,
@@ -454,28 +454,36 @@ const InfoCard = ({
                   <div className="flex gap-6 items-center">
                     <div>
                       <h5 className="font-semibold text-lg pt-1">
-                        Layer in der Konfiguration
-                        <Button
-                          className="ml-2"
-                          disabled={
-                            layer?.type === "collection" &&
-                            isEqual(
-                              layer.layers.map((layer) => layer.title),
-                              activeLayers.map((layer) => layer.title)
-                            )
+                        Kartenebenen
+                        <Tooltip
+                          title={
+                            useNewLayers
+                              ? "zurücksetzen auf gespeicherte Kartenebenen"
+                              : "aktuelle Kartenebenen übernehmen"
                           }
-                          icon={
-                            <FontAwesomeIcon
-                              className={useNewLayers ? "" : "fa-rotate-180"}
-                              icon={
-                                useNewLayers ? faRotateLeft : faSquareUpRight
-                              }
-                            />
-                          }
-                          onClick={() => {
-                            setUseNewLayers(!useNewLayers);
-                          }}
-                        ></Button>
+                        >
+                          <Button
+                            className="ml-2"
+                            disabled={
+                              layer?.type === "collection" &&
+                              isEqual(
+                                layer.layers.map((layer) => layer.title),
+                                activeLayers.map((layer) => layer.title)
+                              )
+                            }
+                            icon={
+                              <FontAwesomeIcon
+                                className={useNewLayers ? "" : "fa-rotate-180"}
+                                icon={
+                                  useNewLayers ? faRotateLeft : faSquareUpRight
+                                }
+                              />
+                            }
+                            onClick={() => {
+                              setUseNewLayers(!useNewLayers);
+                            }}
+                          />
+                        </Tooltip>
                       </h5>
 
                       <div className="flex gap-2">
