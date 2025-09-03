@@ -25,7 +25,7 @@ export const truncateString = (text: string, num: number) => {
   return text;
 };
 
-export const objectToFeature = (jsonOutput: any, code: string) => {
+export const objectToFeature = async (jsonOutput: any, code: string) => {
   if (!jsonOutput) {
     return {
       properties: {
@@ -60,8 +60,9 @@ export const objectToFeature = (jsonOutput: any, code: string) => {
   return { properties };
 };
 
-export const functionToFeature = (output: any, code: string) => {
+export const functionToFeature = async (output: any, code: string) => {
   try {
+    // await new Promise((resolve) => setTimeout(resolve, 2000));
     let codeFunction = eval("(" + code + ")");
     const tmpInfo = codeFunction(output);
 
@@ -261,17 +262,18 @@ export const getFeatureForLayer = async (
       });
 
     if (output) {
-      const features = output
-        .map((currentOutput) => {
+      const featuresRaw = await Promise.all(
+        output.map(async (currentOutput) => {
           const feature = result.includes("function")
-            ? functionToFeature(currentOutput, result)
-            : objectToFeature(currentOutput, result);
+            ? await functionToFeature(currentOutput, result)
+            : await objectToFeature(currentOutput, result);
           if (!feature) {
             return undefined;
           }
           return feature;
         })
-        .filter((feature) => feature !== undefined);
+      );
+      const features = featuresRaw.filter((feature) => feature !== undefined);
 
       if (features.length === 0) {
         return undefined;
