@@ -59,7 +59,7 @@ export const FileUploader = ({ file, setFile }: FileUploaderProps) => {
                 }
               }}
             >
-              Datei Auswählen
+              Datei auswählen
             </Button>
           </div>
         </div>
