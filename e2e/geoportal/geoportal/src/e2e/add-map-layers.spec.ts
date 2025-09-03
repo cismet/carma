@@ -64,6 +64,8 @@ const PATHS_EMPTY = [
   "gebiet",
 ];
 
+const LAYER_UI_MAP_TEXT = "Stadtgrundkarte (grau) - ABK";
+
 test.describe("Geoportal add map layers", () => {
   test.beforeEach(async ({ context, page }) => {
     // Return empty responds
@@ -96,6 +98,8 @@ test.describe("Geoportal add map layers", () => {
   test("Search shows only related layer, layers are added to map and to the favorite section", async ({
     page,
   }) => {
+    await expect(page.getByText(LAYER_UI_MAP_TEXT)).toHaveCount(0);
+
     const addLayersBtn = page.locator(
       '[data-test-id="kartenebenen-hinzufügen-btn"]'
     );
@@ -117,9 +121,9 @@ test.describe("Geoportal add map layers", () => {
     // Close modal
     await page.locator(".sticky > div > button").click();
     await page.waitForTimeout(300);
-    const justTest = page.locator(
-      '[data-test-id="kartenebenen-hinzufügen-btn"]'
-    );
-    await expect(justTest).toBeVisible();
+
+    await expect(
+      page.getByRole("button", { name: /Stadtgrundkarte \(grau\) - ABK/i })
+    ).toBeVisible();
   });
 });
