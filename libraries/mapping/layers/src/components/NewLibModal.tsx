@@ -106,7 +106,7 @@ const sidebarElements = [
   { icon: faList, text: "Entdecken", id: "discover" },
   { icon: faBook, text: "Teilzwillinge", id: "partialTwins" },
   { icon: faMap, text: "Kartenebenen", id: "mapLayers" },
-  { icon: faMapPin, text: "Sensoren", id: "sensors" },
+  { icon: faMapPin, text: "Sensoren", id: "sensors", disabled: true },
   { icon: faSearch, text: "Suchergebnisse", id: "searchResults" },
 ];
 
@@ -954,7 +954,10 @@ export const NewLibModal = ({
                         )
                   }
                   showNumberOfItems={!!searchValue && !!debouncedSearchTerm}
-                  disabled={i === sidebarElements.length - 1 && !searchValue}
+                  disabled={
+                    (i === sidebarElements.length - 1 && !searchValue) ||
+                    element.disabled
+                  }
                 />
               );
             })}
