@@ -16,7 +16,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Button, Modal, Spin } from "antd";
 
 import { Item, Layer } from "@carma-commons/types";
-import { extractCarmaConfig } from "@carma-commons/utils";
+import { cn, extractCarmaConfig } from "@carma-commons/utils";
 import {
   extServiceText,
   extServiceBackgroundImage,
@@ -27,6 +27,7 @@ import { useAuth } from "@carma-appframeworks/portals";
 import { useDispatch, useSelector } from "react-redux";
 import { getSelectedLayer, setSelectedLayer } from "../slices/mapLayers";
 import { setTriggerRefetch } from "../slices/ui";
+import ImageCollage from "./ImageCollage";
 
 interface LayerItemProps {
   setAdditionalLayers: any;
@@ -87,7 +88,7 @@ const LayerItem = ({
   const title = layer.title;
   const carmaConf = extractCarmaConfig(layer.keywords);
 
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(layer.type !== "collection");
 
   const { jwt } = useAuth();
 
@@ -265,33 +266,7 @@ const LayerItem = ({
               }}
             />
           ) : layer.type === "collection" ? (
-            <div
-              className={`overflow-clip ${
-                layer.layers.length > 3
-                  ? "grid grid-cols-2"
-                  : "flex flex-col h-full"
-              }`}
-            >
-              {layer.layers.map((item, i) => {
-                if (i > 3) {
-                  return <></>;
-                }
-                return (
-                  <img
-                    key={`collection_img_${i}`}
-                    src={item.other?.thumbnail}
-                    alt={title}
-                    loading="lazy"
-                    onLoad={(e) => {
-                      setIsLoading(false);
-                    }}
-                    className={`object-cover relative overflow-clip w-[calc(130%+7.2px)] ${
-                      hovered && "scale-110"
-                    } transition-all duration-200`}
-                  />
-                );
-              })}
-            </div>
+            <ImageCollage layer={layer} />
           ) : (
             <div className="object-cover relative h-full overflow-clip w-[calc(130%+7.2px)]" />
           )}
