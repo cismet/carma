@@ -150,8 +150,10 @@ export const parseToMapLayer = async (
         visible: visible,
         props: {
           style: vectorStyle,
-          minZoom: Number(carmaConf?.minZoom) || zoom?.minzoom,
-          maxZoom: Number(carmaConf?.maxZoom) || zoom?.maxzoom,
+          minZoom:
+            Number(carmaConf?.minZoom) || layer?.minZoom || zoom?.minzoom,
+          maxZoom:
+            Number(carmaConf?.maxZoom) || layer?.maxZoom || zoom?.maxzoom,
           legend: layer?.props?.Style[0].LegendURL,
           metaData: layer?.props?.MetadataURL,
         },
