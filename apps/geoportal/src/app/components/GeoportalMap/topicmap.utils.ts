@@ -703,7 +703,7 @@ export const createCismapLayers = (
         dispatch(setSelectedFeature(null));
       }
     }
-  }, [globalHits]);
+  }, [globalHits, foundFeatures]);
 
   useEffect(() => {
     updateGlobalHits();
