@@ -692,12 +692,12 @@ const InfoCard = ({
             {tags?.map((tag, i) => (
               <span key={"tag_" + tag + "_" + i}>
                 <span>{tag}</span>
-                {i + 1 < tags.length && <span> · </span>}
+                {i + 1 < tags?.length && <span> · </span>}
               </span>
             ))}
             {isVectorLayer && (
               <span>
-                {tags.length > 0 && <span> · </span>}
+                {tags?.length > 0 && <span> · </span>}
                 <span>Vektorlayer</span>
               </span>
             )}
