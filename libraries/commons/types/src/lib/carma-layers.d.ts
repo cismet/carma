@@ -150,6 +150,7 @@ export type Item = {
   path?: string;
   isDraft?: boolean;
   vectorStyle?: string;
+  unsecure?: boolean;
 } & (tmpLayer | Link | Feature | Collection);
 
 export type XMLLayer = {

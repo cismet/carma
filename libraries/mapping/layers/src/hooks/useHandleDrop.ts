@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import WMSCapabilities from "wms-capabilities";
 import { SavedLayerConfig } from "@carma-commons/types";
+import { useFeatureFlags } from "@carma-appframeworks/portals";
 
 // @ts-expect-error tbd
 const parser = new WMSCapabilities();
@@ -22,6 +23,7 @@ export const useHandleDrop = ({
   addItemToCategory,
   getDataFromJson,
 }: UseHandleDropProps) => {
+  const flags = useFeatureFlags();
   useEffect(() => {
     const handleDrop = async (event: DragEvent) => {
       event.preventDefault();
@@ -41,6 +43,7 @@ export const useHandleDrop = ({
           type: "layer",
           keywords: [`carmaConf://vectorStyle:${url}`],
           path: "Externe Dienste",
+          unsecure: flags["trustUnsecureObjectMapping"] ? false : true,
         };
         await fetch(url)
           .then((response) => response.json())
