@@ -87,26 +87,6 @@ export const Save = ({
         placeholder="Welche Kartenebenen und/oder Objektkategorien umfasst die Karte? Welche Hintergrundkarte wird verwendet?"
         onChange={(e) => setDescription(e.target.value)}
       />
-      <div className="flex gap-1 -mb-2 font-medium items-center">
-        <label htmlFor="thumbnail" className="-mb-1 font-semibold">
-          Vorschaubild
-        </label>
-        <Tooltip
-          placement="bottom"
-          title="Das Vorschaubild wird automatisch generiert, wenn keine URL angegeben wird."
-          arrow={false}
-          trigger={["hover", "click"]}
-        >
-          <FontAwesomeIcon icon={faQuestionCircle} className="text-sm" />
-        </Tooltip>
-      </div>
-      <Input
-        id="thumbnail"
-        value={thumbnail}
-        className="bg-white"
-        placeholder="Unter welcher URL ist ein geeignetes Vorschaubild verfügbar?"
-        onChange={(e) => setThumbnail(e.target.value)}
-      />
 
       <Button onClick={handleOnClick}>Als Favorit speichern</Button>
     </div>
