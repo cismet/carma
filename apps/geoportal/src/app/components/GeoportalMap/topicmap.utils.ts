@@ -48,7 +48,7 @@ import { FeatureInfoIcon } from "../feature-info/FeatureInfoIcon";
 import { proj4crs3857def } from "../../helper/gisHelper";
 
 interface WMTSLayerProps {
-  type: "wmts";
+  type: "wmts" | "wmts-nt";
   key: string;
   url: string;
   maxZoom: number;
@@ -735,9 +735,25 @@ export const createCismapLayers = (
     }
   }, [idleLayers]);
 
+  const ntList = [""];
+
   return layers.map((layer, i) => {
     if (layer.visible) {
       switch (layer.layerType) {
+        case "wmts-nt":
+          return createCismapLayer({
+            key: `${layer.id}`,
+            url: layer.props.url,
+            maxZoom: MAX_ZOOM,
+            layers: layer.props.name,
+            format: "image/png",
+            tiled: true,
+            transparent: "true",
+            additionalLayerUniquePane: layer.id,
+            additionalLayersFreeZOrder: i,
+            opacity: layer.opacity.toFixed(1) || 0.7,
+            type: "wmts-nt",
+          });
         case "wmts":
           return createCismapLayer({
             key: `${layer.id}`,
@@ -750,7 +766,6 @@ export const createCismapLayers = (
             additionalLayerUniquePane: layer.id,
             additionalLayersFreeZOrder: i,
             opacity: layer.opacity.toFixed(1) || 0.7,
-            // type: "wmts-nt", //globally disable tiling
             type: "wmts",
           });
         case "vector":

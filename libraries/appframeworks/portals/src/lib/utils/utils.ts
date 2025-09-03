@@ -165,11 +165,12 @@ export const parseToMapLayer = async (
       };
     } else {
       switch (layer.layerType) {
+        case "wmts-nt":
         case "wmts": {
           newLayer = {
             title: layer.title,
             id: id,
-            layerType: "wmts",
+            layerType: layer.layerType,
             opacity: opacity || 1.0,
             description: layer.description,
             conf: carmaConf!,
