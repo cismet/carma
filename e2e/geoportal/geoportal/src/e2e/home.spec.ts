@@ -1,3 +1,4 @@
+import { setupAllMocks } from "@carma-commons/e2e";
 import { test, expect } from "@playwright/test";
 
 async function getLatLngFromHash(page: import("@playwright/test").Page) {
@@ -10,7 +11,7 @@ async function getLatLngFromHash(page: import("@playwright/test").Page) {
     const lat = p.get("lat") ?? p.get("flat");
     const lng = p.get("lng");
     return { lat, lng };
-  });
+  }); 
 
   if (!lat || !lng)
     throw new Error("Lat or lng parameter is missing in the URL");
@@ -18,7 +19,8 @@ async function getLatLngFromHash(page: import("@playwright/test").Page) {
 }
 
 test.describe("geoportal home", () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ context, page }) => {
+    await setupAllMocks(context);
     await page.goto("/");
     await page.waitForLoadState("networkidle");
   });

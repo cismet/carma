@@ -1,10 +1,12 @@
+import { setupAllMocks } from "@carma-commons/e2e";
 import { test, expect } from "@playwright/test";
 
 test.describe("Geoportal refresh", () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ context, page }) => {
+    await setupAllMocks(context);
     await page.goto("/");
   });
-
+  
   test("Refresh button reloads page and switches off measurement mode", async ({
     page,
   }) => {

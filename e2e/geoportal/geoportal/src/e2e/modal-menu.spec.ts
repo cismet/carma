@@ -1,4 +1,5 @@
-import { test, expect, Page } from "@playwright/test";
+import { setupAllMocks } from "@carma-commons/e2e";
+import { test, expect } from "@playwright/test";
 import { toggleAccordion, runModalMenuTest } from "@carma-commons/e2e";
 
 // const checkAccordion = async (page: Page) => {
@@ -8,8 +9,8 @@ import { toggleAccordion, runModalMenuTest } from "@carma-commons/e2e";
 // };
 
 test.describe("Modal menu opens and contains header, introduction, sections, footer.", () => {
-  test.beforeEach(async ({ page }) => {
-    // Set use.baseURL in playwright.config, or replace with your full URL
+  test.beforeEach(async ({ context, page }) => {
+    await setupAllMocks(context);
     await page.goto("/");
   });
 

@@ -1,3 +1,4 @@
+import { setupAllMocks } from "@carma-commons/e2e";
 import { test, expect, Page } from "@playwright/test";
 
 async function getZoomLevel(page: Page): Promise<number> {
@@ -11,7 +12,8 @@ async function getZoomLevel(page: Page): Promise<number> {
 }
 
 test.describe("Geoportal zoom", () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ context, page }) => {
+    await setupAllMocks(context);
     await page.goto("/");
   });
 

@@ -1,7 +1,9 @@
+import { setupAllMocks } from "@carma-commons/e2e";
 import { test, expect } from "@playwright/test";
 
 test.describe("geoportal share", () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ context, page }) => {
+    await setupAllMocks(context);
     // Patch clipboard writes before the app loads
     // Purpose: capture what the app copies without needing real clipboard permissions.
 
