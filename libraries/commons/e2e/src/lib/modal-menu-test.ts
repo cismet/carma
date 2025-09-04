@@ -44,7 +44,7 @@ export async function runModalMenuTest(
 
     const text = await content.innerText();
     const len = text.replace(/\s+/g, " ").trim().length; // normalize whitespace
-    console.log(`Accordion ${i} text: ${text.slice(0, 10)}...`);
+    // console.log(`Accordion ${i} text: ${text.slice(0, 10)}...`);
     expect(len).toBeGreaterThanOrEqual(10);
   }
 
