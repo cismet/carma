@@ -134,12 +134,12 @@ export async function mockEmptyDatasets(
 /**
  * Setup all common image mocks at once
  */
-export async function setupAllImageMocks(context: BrowserContext) {
+export async function setupAllMocks(context: BrowserContext, mockedAdressen: any[] = ["bezirke", "quartiere", "pois", "kitas"], addresses: any[] = simpleAdressen) {
   await Promise.all([
     mockWMSImages(context),
     mockRasterTiles(context),
     mockVectorTiles(context),
     mockWMTSTiles(context),
-    mockEmptyDatasets(context, ["bezirke", "quartiere", "pois", "kitas"], simpleAdressen),
+    mockEmptyDatasets(context, mockedAdressen, addresses),
   ]);
 }

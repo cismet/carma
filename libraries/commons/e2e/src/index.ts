@@ -20,7 +20,7 @@ export {
   mockRasterTiles,
   mockVectorTiles,
   mockWMTSTiles,
-  setupAllImageMocks,
+  setupAllMocks,
   mockAddresses,
   mockEmptyDatasets,
 } from "./lib/image-mocks";
