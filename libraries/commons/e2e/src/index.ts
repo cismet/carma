@@ -23,6 +23,8 @@ export {
   setupAllMocks,
   mockAddresses,
   mockEmptyDatasets,
+  mockTopicMapData,
+  mockAdditionalData,
 } from "./lib/image-mocks";
 
 // Test helper utilities

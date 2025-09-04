@@ -170,6 +170,32 @@ export async function mockSVGIcons(context: BrowserContext) {
 }
 
 /**
+ * Universal data mocking function for topicmaps
+ */
+export async function mockTopicMapData(context: BrowserContext, dataType: string, mockData: any[]) {
+  await context.route(`**/v2/data/**/${dataType}.data.json*`, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(mockData),
+    })
+  );
+}
+
+/**
+ * Mock additional data files (like poi.farben.json)
+ */
+export async function mockAdditionalData(context: BrowserContext, pattern: string, mockData: any) {
+  await context.route(pattern, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(mockData),
+    })
+  );
+}
+
+/**
  * Setup all common image mocks at once
  */
 export async function setupAllMocks(context: BrowserContext, mockedAdressen: any[] = ["bezirke", "quartiere", "pois", "kitas"], addresses: any[] = simpleAdressen) {
