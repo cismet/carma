@@ -1,6 +1,36 @@
 import { BrowserContext } from "@playwright/test";
 const BLANK_PNG =
   "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+8V/8AAAAASUVORK5CYII=";
+
+const simpleAdressen = [
+  {
+    s: "Achenbachstr.",
+    nr: 1,
+    z: "",
+    g: "home",
+    x: 793007.83,
+    y: 6668501.93,
+    m: { zl: 18 },
+  },
+  {
+    s: "Achenbachstr.",
+    nr: 9,
+    z: "",
+    g: "home",
+    x: 793053.3,
+    y: 6668415.06,
+    m: { zl: 18 },
+  },
+  {
+    s: "Achenbachtreppe",
+    nr: 0,
+    z: "",
+    g: "road",
+    x: 793022.68,
+    y: 6668515.97,
+    m: { zl: 18 },
+  },
+];
 /**
  * Mock WMS GetMap requests with a blank PNG
  */
@@ -65,6 +95,43 @@ export async function mockWMTSTiles(context: BrowserContext) {
   );
 }
 /**
+ * Mock addresses data with provided mock data
+ */
+export async function mockAddresses(
+  context: BrowserContext,
+  mockedAdressen: any[]
+) {
+  await context.route("**/v2/data/**/adressen.json*", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(mockedAdressen),
+    })
+  );
+}
+
+/**
+ * Mock other datasets as empty arrays to avoid extra suggestions
+ */
+export async function mockEmptyDatasets(
+  context: BrowserContext,
+  datasets: string[] = [],
+  mockedAdressen: any[] = []
+) {
+  for (const name of datasets) {
+    await context.route(`**/v2/data/**/${name}.json*`, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: "[]",
+      })
+    );
+  }
+
+  mockAddresses(context, mockedAdressen);
+}
+
+/**
  * Setup all common image mocks at once
  */
 export async function setupAllImageMocks(context: BrowserContext) {
@@ -73,5 +140,6 @@ export async function setupAllImageMocks(context: BrowserContext) {
     mockRasterTiles(context),
     mockVectorTiles(context),
     mockWMTSTiles(context),
+    mockEmptyDatasets(context, ["bezirke", "quartiere", "pois", "kitas"], simpleAdressen),
   ]);
 }
