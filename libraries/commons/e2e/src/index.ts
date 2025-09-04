@@ -21,6 +21,8 @@ export {
   mockVectorTiles,
   mockWMTSTiles,
   setupAllImageMocks,
+  mockAddresses,
+  mockEmptyDatasets,
 } from "./lib/image-mocks";
 
 // Test helper utilities
