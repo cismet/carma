@@ -132,6 +132,21 @@ export async function mockEmptyDatasets(
 }
 
 /**
+ * Mock SVG icons with a simple gray circle
+ */
+export async function mockSVGIcons(context: BrowserContext) {
+  await context.route('**/v2/poi-signaturen/*.svg', route =>
+    route.fulfill({
+      status: 200,
+      contentType: 'image/svg+xml',
+      body: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24">
+               <circle cx="12" cy="12" r="10" fill="gray"/>
+             </svg>`,
+    })
+  );
+}
+
+/**
  * Setup all common image mocks at once
  */
 export async function setupAllMocks(context: BrowserContext, mockedAdressen: any[] = ["bezirke", "quartiere", "pois", "kitas"], addresses: any[] = simpleAdressen) {
@@ -140,6 +155,7 @@ export async function setupAllMocks(context: BrowserContext, mockedAdressen: any
     mockRasterTiles(context),
     mockVectorTiles(context),
     mockWMTSTiles(context),
+    mockSVGIcons(context),
     mockEmptyDatasets(context, mockedAdressen, addresses),
   ]);
 }
