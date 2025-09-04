@@ -3,6 +3,7 @@ import type { Map } from "leaflet";
 import type { LayerProps } from "@carma-commons/types";
 import { FeatureInfoIcon } from "./FeatureInfoIcon";
 import { proj4crs3857def } from "../../helper/gisHelper";
+import { sandboxedEvalExternal } from "@carma-appframeworks/portals";
 
 export const getLeafNodes = (node, result: any = {}): any => {
   if (node.nodeType === Node.ELEMENT_NODE) {
@@ -50,7 +51,8 @@ export const objectToFeature = async (jsonOutput: any, code: string) => {
                                           return info;
                     })`;
 
-  const tmpInfo = eval(functionString)(jsonOutput);
+  const evaluated = await sandboxedEvalExternal(functionString);
+  const tmpInfo = evaluated(jsonOutput);
 
   const properties = {
     ...tmpInfo,
@@ -63,7 +65,7 @@ export const objectToFeature = async (jsonOutput: any, code: string) => {
 export const functionToFeature = async (output: any, code: string) => {
   try {
     // await new Promise((resolve) => setTimeout(resolve, 2000));
-    let codeFunction = eval("(" + code + ")");
+    const codeFunction = await sandboxedEvalExternal("(" + code + ")");
     const tmpInfo = codeFunction(output);
 
     if (!tmpInfo) {
