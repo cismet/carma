@@ -1,23 +1,22 @@
-// TODO Replace by branded versions
-export interface LatLngRecord {
-  latitude: number;
-  longitude: number;
-}
+import { Degrees, Radians, Meters } from "./units";
 
+// Spatial type definitions (consolidated, using branded units from units.d.ts)
 export interface LatLngDegrees {
-  latDeg: number;
-  lngDeg: number;
+  latitude: Degrees;
+  longitude: Degrees;
+  altitude?: Meters;
 }
 
 export interface LatLngRadians {
-  latRad: number;
-  lngRad: number;
+  latitude: Radians;
+  longitude: Radians;
+  altitude?: Meters;
 }
 
 export interface PlainCartesian3 {
-  x: number;
-  y: number;
-  z: number;
+  x: Meters;
+  y: Meters;
+  z: Meters;
 }
 
 // Prefer branded types over interfaces
@@ -26,3 +25,16 @@ export interface PlainCartesian3 {
 // carma-commons/utils/units.ts
 export type LatLng = { lat: Degrees; lng: Degrees };
 export type LatLngZoom = LatLng & { zoom: number };
+
+// Heading/Pitch/Roll consolidated
+export interface HeadingPitchRollDegrees {
+  heading?: Degrees;
+  pitch?: Degrees;
+  roll?: Degrees;
+}
+
+export interface HeadingPitchRollRadians {
+  heading?: Radians;
+  pitch?: Radians;
+  roll?: Radians;
+}

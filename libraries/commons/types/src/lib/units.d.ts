@@ -1,8 +1,11 @@
-// Branded unit types (dimensionless numeric brands)
-declare const degreesBrand: unique symbol;
-declare const radiansBrand: unique symbol;
-declare const metersBrand: unique symbol;
 
-export type Degrees = number & { readonly [degreesBrand]: true };
-export type Radians = number & { readonly [radiansBrand]: true };
-export type Meters = number & { readonly [metersBrand]: true };
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export type NumericUnit<S extends symbol> = number & { readonly [S]: true };
+
+declare const degreesSymbol: unique symbol;
+declare const radiansSymbol: unique symbol;
+declare const metersSymbol: unique symbol;
+
+export type Degrees = NumericUnit<typeof degreesSymbol>;
+export type Radians = NumericUnit<typeof radiansSymbol>;
+export type Meters  = NumericUnit<typeof metersSymbol>;
