@@ -135,7 +135,30 @@ export async function mockEmptyDatasets(
  * Mock SVG icons with a simple gray circle
  */
 export async function mockSVGIcons(context: BrowserContext) {
-  await context.route('**/v2/poi-signaturen/*.svg', route =>
+  // Mock poi-signaturen SVG files (stadtplan, vorhabenkarte)
+  await context.route('**/poi-signaturen/**/*.svg', route =>
+    route.fulfill({
+      status: 200,
+      contentType: 'image/svg+xml',
+      body: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24">
+               <circle cx="12" cy="12" r="10" fill="gray"/>
+             </svg>`,
+    })
+  );
+
+  // Mock /svgs/ path (e-bikes, e-auto-ladestation, x-and-ride)
+  await context.route('**/svgs/**/*.svg', route =>
+    route.fulfill({
+      status: 200,
+      contentType: 'image/svg+xml',
+      body: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24">
+               <circle cx="12" cy="12" r="10" fill="gray"/>
+             </svg>`,
+    })
+  );
+
+  // Mock any SVG file requests (broad pattern for baederkarte and others)
+  await context.route('**/*.svg', route =>
     route.fulfill({
       status: 200,
       contentType: 'image/svg+xml',
