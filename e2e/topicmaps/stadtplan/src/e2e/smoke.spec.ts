@@ -1,5 +1,5 @@
 import { test } from "@playwright/test";
-import { runMapSmokeTest, setupSmokeTest, setupAllMocks, mockTopicMapData } from "@carma-commons/e2e";
+import { runMapSmokeTest, setupSmokeTest, setupAllMocks, mockTopicMapData, mockAdditionalData } from "@carma-commons/e2e";
 
 test.describe("stadtplan smoke test", () => {
   test.beforeEach(async ({context, page }) => {
@@ -30,13 +30,7 @@ test.describe("stadtplan smoke test", () => {
       },
     ]); 
 
-    await context.route('**/data/poi.farben.json*', route =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: "[]",
-      })
-    );
+    await mockAdditionalData(context, '**/data/poi.farben.json*', []);
 
 
     await setupSmokeTest(page, "/", {

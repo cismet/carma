@@ -1,10 +1,10 @@
 import { test } from "@playwright/test";
-import { runMapSmokeTest, setupSmokeTest, setupAllMocks } from "@carma-commons/e2e";
+import { runMapSmokeTest, setupSmokeTest, setupAllMocks, mockAdditionalData } from "@carma-commons/e2e";
 
 test.describe("e-auto-ladestation smoke test", () => {
   test.beforeEach(async ({ context, page }) => {
     await setupAllMocks(context, ["bezirke", "quartiere", 'poi', 'kitas', "pois", "emob", "emob.data"]);
-    
+    await mockAdditionalData(context, '**/data/poi.farben.json*', []);
     await setupSmokeTest(page, "/", {
       navigationTimeout: 30000,
       waitForNetworkIdle: true,
