@@ -1,3 +1,4 @@
+import { setupAllImageMocks } from "@carma-commons/e2e";
 import { test, expect } from "@playwright/test";
 
 const mockedAdressen = [
@@ -52,58 +53,7 @@ test.describe("geoportal fuzzy search test", () => {
       );
     }
 
-    const BLANK_PNG =
-      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+8V/8AAAAASUVORK5CYII=";
-
-    await context.route(/GetMap|SERVICE=WMS/i, (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: "image/png",
-        body: Buffer.from(BLANK_PNG, "base64"),
-      })
-    );
-
-    // Raster tiles
-    await context.route(/\/tiles\/.+\.(png|jpg|jpeg|webp)(\?.*)?$/i, (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: "image/png",
-        body: Buffer.from(BLANK_PNG, "base64"),
-      })
-    );
-
-    // Vector tiles (MVT): no content is valid and fast
-    await context.route(/\.(pbf)(\?.*)?$/i, (route) =>
-      route.fulfill({
-        status: 204,
-        contentType: "application/x-protobuf",
-        body: "",
-      })
-    );
-
-    // WMTS tiles from geodaten.metropoleruhr.de/spw2 -> serve 1x1 transparent PNG
-    await context.route(
-      (url) => {
-        try {
-          const u = new URL(url);
-          return (
-            u.hostname.endsWith("metropoleruhr.de") &&
-            u.pathname.endsWith("/spw2") &&
-            (u.searchParams.get("SERVICE") || "").toUpperCase() === "WMTS" &&
-            (u.searchParams.get("REQUEST") || "").toLowerCase() === "gettile" &&
-            (u.searchParams.get("FORMAT") || "").toLowerCase().includes("image")
-          );
-        } catch {
-          return false;
-        }
-      },
-      (route) =>
-        route.fulfill({
-          status: 200,
-          contentType: "image/png",
-          body: Buffer.from(BLANK_PNG, "base64"),
-        })
-    );
+    await setupAllImageMocks(context);
 
     await page.goto("/");
     await page.waitForLoadState("networkidle");

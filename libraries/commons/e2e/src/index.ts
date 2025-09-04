@@ -14,6 +14,15 @@ export { runModalMenuTest, type ModalMenuOptions } from "./lib/modal-menu-test";
 // Page object models
 export { TopicMapPage, ExtendedTopicMapPage } from "./lib/page-objects";
 
+// Image mocks
+export {
+  mockWMSImages,
+  mockRasterTiles,
+  mockVectorTiles,
+  mockWMTSTiles,
+  setupAllImageMocks,
+} from "./lib/image-mocks";
+
 // Test helper utilities
 export {
   waitForAppReady,
