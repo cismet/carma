@@ -51,8 +51,7 @@ export const objectToFeature = async (jsonOutput: any, code: string) => {
                                           return info;
                     })`;
 
-  const evaluated = await sandboxedEvalExternal(functionString);
-  const tmpInfo = evaluated(jsonOutput);
+  const tmpInfo = await sandboxedEvalExternal(functionString, jsonOutput);
 
   const properties = {
     ...tmpInfo,
@@ -65,8 +64,7 @@ export const objectToFeature = async (jsonOutput: any, code: string) => {
 export const functionToFeature = async (output: any, code: string) => {
   try {
     // await new Promise((resolve) => setTimeout(resolve, 2000));
-    const codeFunction = await sandboxedEvalExternal("(" + code + ")");
-    const tmpInfo = codeFunction(output);
+    const tmpInfo = await sandboxedEvalExternal("(" + code + ")", output);
 
     if (!tmpInfo) {
       return undefined;
