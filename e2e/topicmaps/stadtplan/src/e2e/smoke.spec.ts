@@ -4,7 +4,7 @@ import { setupAllMocks } from "@carma-commons/e2e";
 
 test.describe("stadtplan smoke test", () => {
   test.beforeEach(async ({context, page }) => {
-    await setupAllMocks(context, ["bezirke", "quartiere", 'poi', 'kitas']);
+    await setupAllMocks(context, ["bezirke", "quartiere", 'poi', 'kitas', "pois",]);
 
 
     await context.route("**/v2/data/**/poi.data.json*", (route) =>
@@ -41,6 +41,24 @@ test.describe("stadtplan smoke test", () => {
             }
           },
         ]),
+      })
+    );
+
+    await context.route('**/data/poi.farben.json*', route =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: "[]",
+      })
+    );
+
+    await context.route('**/v2/poi-signaturen/*.svg', route =>
+      route.fulfill({
+        status: 200,
+        contentType: 'image/svg+xml',
+        body: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24">
+                 <circle cx="12" cy="12" r="10" fill="gray"/>
+               </svg>`,
       })
     );
 
