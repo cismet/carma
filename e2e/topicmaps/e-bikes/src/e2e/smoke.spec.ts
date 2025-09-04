@@ -3,7 +3,7 @@ import { runMapSmokeTest, setupSmokeTest, setupAllMocks } from "@carma-commons/e
 
 test.describe("e-bikes smoke test", () => {
   test.beforeEach(async ({ context, page }) => {
-    await setupAllMocks(context);
+    await setupAllMocks(context, ["bezirke", "quartiere", 'poi', 'kitas', "pois", "ebikes", "ebikes.data"]);
     await setupSmokeTest(page, "/", {
       navigationTimeout: 30000,
       waitForNetworkIdle: true,
