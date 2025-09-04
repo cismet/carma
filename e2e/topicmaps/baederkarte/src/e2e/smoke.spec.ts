@@ -1,9 +1,55 @@
 import { test } from "@playwright/test";
 
-import { runMapSmokeTest, setupSmokeTest } from "@carma-commons/e2e";
+import { runMapSmokeTest, setupSmokeTest, setupAllMocks } from "@carma-commons/e2e";
 
 test.describe("baederkarte smoke test", () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ context, page }) => {
+    await setupAllMocks(context);
+    await context.route("**/v2/data/**/baeder.data.json*", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([
+          {
+            "id": 216,
+            "name": "Freibad Vohwinkel",
+            "adresse": "Gräfrather Straße 43c",
+            "stadt": "Wuppertal",
+            "tel": "+49-202-2791737",
+            "info": "öffentliches Freibad in Vereinsregie (Förderverein Freibad Vohwinkel e.V.)",
+            "email": "vorstand@freibad-wuppertal-vohwinkel.de",
+            "url": "http://www.freibad-wuppertal-vohwinkel.de",
+            "signatur": "Icon_Freibad_farbig.svg",
+            "geojson": {
+              "type": "Point",
+              "crs": {
+                "type": "name",
+                "properties": {
+                  "name": "EPSG:25832"
+                }
+              },
+              "coordinates": [
+                365254.600742188,
+                5676822.244472656
+              ]
+            },
+            "mainlocationtype": {
+              "id": 5,
+              "name": "Schwimmbäder",
+              "lebenslagen": [
+                "Freizeit",
+                "Sport"
+              ]
+            },
+            "more": {
+              "typ": "Freibad",
+              "betreiber": "Verein",
+              "zugang": "öffentlich"
+            }
+          },
+        ]),
+      })
+    );
     await setupSmokeTest(page, "/", {
       navigationTimeout: 30000,
       waitForNetworkIdle: true,
