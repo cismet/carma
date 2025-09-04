@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { runMapSmokeTest, setupSmokeTest } from "@carma-commons/e2e";
+import { runMapSmokeTest, setupSmokeTest, setupAllMocks } from "@carma-commons/e2e";
 
 test.describe("potenzialflaechen-online smoke test", () => {
   let userData: any;
@@ -8,7 +8,65 @@ test.describe("potenzialflaechen-online smoke test", () => {
     userData = require("../fixtures/devSecrets.json");
   });
 
-  test("map loads with key controls", async ({ page }) => {
+  test("map loads with key controls", async ({ context, page }) => {
+    await setupAllMocks(context, ["bezirke", "quartiere", "kitas", "pois"]);
+    
+    // Mock map style JSON files
+    const mockStyleJson = {
+      version: 8,
+      name: "Mock Style",
+      sources: {},
+      layers: []
+    };
+    
+    await context.route('https://omt.map-hosting.de/styles/cismet-light/style.json', route =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockStyleJson),
+      })
+    );
+    
+    await context.route('https://omt.map-hosting.de/styles/osm-bright-grey/style.json', route =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockStyleJson),
+      })
+    );
+    
+    await context.route('https://omt.map-hosting.de/styles/brunnen/style.json', route =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockStyleJson),
+      })
+    );
+    
+    await context.route('https://omt.map-hosting.de/styles/kanal/style.json', route =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockStyleJson),
+      })
+    );
+    
+    await context.route('https://omt.map-hosting.de/styles/gewaesser/style.json', route =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(mockStyleJson),
+      })
+    );
+
+    await context.route(' https://potenzialflaechen-online-api.cismet.de/actions/WUNDA_BLAU.dataAquisition/tasks?resultingInstanceType=result', route =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: "[]",
+      })
+    );
+    
     await page.goto("/");
     await page.addStyleTag({
       content: `
