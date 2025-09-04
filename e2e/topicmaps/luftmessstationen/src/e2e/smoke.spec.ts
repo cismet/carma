@@ -1,8 +1,9 @@
 import { test } from "@playwright/test";
-import { runMapSmokeTest, setupSmokeTest } from "@carma-commons/e2e";
+import { runMapSmokeTest, setupSmokeTest, setupAllMocks } from "@carma-commons/e2e";
 
 test.describe("luftmessstationen smoke test", () => {
-  test.beforeEach(async ({ page }) => {
+  test.beforeEach(async ({ context, page }) => {
+    await setupAllMocks(context);
     await setupSmokeTest(page, "/", {
       navigationTimeout: 30000,
       waitForNetworkIdle: true,
