@@ -3,7 +3,7 @@ import { runMapSmokeTest, setupSmokeTest, setupAllMocks } from "@carma-commons/e
 
 test.describe("luftmessstationen smoke test", () => {
   test.beforeEach(async ({ context, page }) => {
-    await setupAllMocks(context);
+    await setupAllMocks(context, ["bezirke", "quartiere", 'kitas', "pois", "no2", "no2.data", "umweltzonen"]);
     await setupSmokeTest(page, "/", {
       navigationTimeout: 30000,
       waitForNetworkIdle: true,
