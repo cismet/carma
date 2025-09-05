@@ -300,7 +300,7 @@ export const getCoordinates = (geometry) => {
   }
 };
 
-const createVectorFeature = (
+const createVectorFeature = async (
   coordinates,
   layer,
   selectedVectorFeature,
@@ -441,8 +441,8 @@ const createVectorFeature = (
     }
 
     const featureProperties = result.includes("function")
-      ? functionToFeature(properties, result)
-      : objectToFeature(properties, result);
+      ? await functionToFeature(properties, result)
+      : await objectToFeature(properties, result);
     if (!featureProperties) {
       return undefined;
     }
@@ -475,7 +475,7 @@ const createVectorFeature = (
   return feature;
 };
 
-const implicitVectorSelection = (
+const implicitVectorSelection = async (
   e: {
     hits: any[];
     hit: any;
@@ -531,7 +531,7 @@ const implicitVectorSelection = (
     //make sure to get a point from any geometry type
     const coordinates = getCoordinates(selectedVectorFeature.geometry);
 
-    const feature = createVectorFeature(
+    const feature = await createVectorFeature(
       coordinates,
       layer,
       selectedVectorFeature,
@@ -546,7 +546,7 @@ const implicitVectorSelection = (
   }
 };
 
-export const onSelectionChangedVector = (
+export const onSelectionChangedVector = async (
   e: {
     hits: any[];
     hit: any;
@@ -563,22 +563,20 @@ export const onSelectionChangedVector = (
       (hit, index) => e.hits.findIndex((h) => h.id === hit.id) === index
     );
 
-    uniqueHits.forEach((vector, i) => {
+    for (const vector of uniqueHits) {
       const coordinates = getCoordinates(vector.geometry);
-
-      const feature = createVectorFeature(
+      const feature = await createVectorFeature(
         coordinates,
         layer,
         vector,
         map,
         e.latlng
       );
-
       if (feature) {
         dispatch(addVectorInfo(feature));
         dispatch(removeNothingFoundID(layer.id));
       }
-    });
+    }
   } else {
     if (layer.queryable) {
       dispatch(addNothingFoundID(layer.id));
@@ -705,7 +703,7 @@ export const createCismapLayers = (
         dispatch(setSelectedFeature(null));
       }
     }
-  }, [globalHits]);
+  }, [globalHits, foundFeatures]);
 
   useEffect(() => {
     updateGlobalHits();

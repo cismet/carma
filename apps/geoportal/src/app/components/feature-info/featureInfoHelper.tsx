@@ -3,6 +3,7 @@ import type { Map } from "leaflet";
 import type { LayerProps } from "@carma-commons/types";
 import { FeatureInfoIcon } from "./FeatureInfoIcon";
 import { proj4crs3857def } from "../../helper/gisHelper";
+import { sandboxedEvalExternal } from "@carma-appframeworks/portals";
 
 export const getLeafNodes = (node, result: any = {}): any => {
   if (node.nodeType === Node.ELEMENT_NODE) {
@@ -25,7 +26,7 @@ export const truncateString = (text: string, num: number) => {
   return text;
 };
 
-export const objectToFeature = (jsonOutput: any, code: string) => {
+export const objectToFeature = async (jsonOutput: any, code: string) => {
   if (!jsonOutput) {
     return {
       properties: {
@@ -50,7 +51,7 @@ export const objectToFeature = (jsonOutput: any, code: string) => {
                                           return info;
                     })`;
 
-  const tmpInfo = eval(functionString)(jsonOutput);
+  const tmpInfo = await sandboxedEvalExternal(functionString, jsonOutput);
 
   const properties = {
     ...tmpInfo,
@@ -60,10 +61,10 @@ export const objectToFeature = (jsonOutput: any, code: string) => {
   return { properties };
 };
 
-export const functionToFeature = (output: any, code: string) => {
+export const functionToFeature = async (output: any, code: string) => {
   try {
-    let codeFunction = eval("(" + code + ")");
-    const tmpInfo = codeFunction(output);
+    // await new Promise((resolve) => setTimeout(resolve, 2000));
+    const tmpInfo = await sandboxedEvalExternal("(" + code + ")", output);
 
     if (!tmpInfo) {
       return undefined;
@@ -261,17 +262,18 @@ export const getFeatureForLayer = async (
       });
 
     if (output) {
-      const features = output
-        .map((currentOutput) => {
+      const featuresRaw = await Promise.all(
+        output.map(async (currentOutput) => {
           const feature = result.includes("function")
-            ? functionToFeature(currentOutput, result)
-            : objectToFeature(currentOutput, result);
+            ? await functionToFeature(currentOutput, result)
+            : await objectToFeature(currentOutput, result);
           if (!feature) {
             return undefined;
           }
           return feature;
         })
-        .filter((feature) => feature !== undefined);
+      );
+      const features = featuresRaw.filter((feature) => feature !== undefined);
 
       if (features.length === 0) {
         return undefined;

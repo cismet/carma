@@ -14,6 +14,7 @@ import { HashCodecs, HashStateProvider } from "../contexts/HashStateProvider";
 import { defaultHashCodecs, defaultHashKeyAliases } from "../utils/hashState";
 import { useMemo } from "react";
 import { AuthProvider } from "./AuthProvider";
+import { SandboxedEvalProvider } from "./SandboxedEvalProvider";
 
 type CarmaMapProviderWrapperProps = {
   children: React.ReactNode;
@@ -73,24 +74,26 @@ export const CarmaMapProviderWrapper = ({
       keyOrder={keyOrder}
     >
       <AuthProvider>
-        <GazDataProvider config={gazDataConfig}>
-          <SelectionProvider>
-            <MapStyleProvider config={mapStyleConfig}>
-              <TopicMapContextProvider infoBoxPixelWidth={350}>
-                <OverlayTourProvider transparency={transparency} color={color}>
-                  <CesiumContextProvider
-                    //initialViewerState={defaultCesiumState}
-                    // TODO move these to store/slice setup ?
-                    providerConfig={cesiumOptions.providerConfig}
-                    tilesetConfigs={cesiumOptions.tilesetConfigs}
-                  >
-                    {children}
-                  </CesiumContextProvider>
-                </OverlayTourProvider>
-              </TopicMapContextProvider>
-            </MapStyleProvider>
-          </SelectionProvider>
-        </GazDataProvider>
+        <SandboxedEvalProvider>
+          <GazDataProvider config={gazDataConfig}>
+            <SelectionProvider>
+              <MapStyleProvider config={mapStyleConfig}>
+                <TopicMapContextProvider infoBoxPixelWidth={350}>
+                  <OverlayTourProvider transparency={transparency} color={color}>
+                    <CesiumContextProvider
+                      //initialViewerState={defaultCesiumState}
+                      // TODO move these to store/slice setup ?
+                      providerConfig={cesiumOptions.providerConfig}
+                      tilesetConfigs={cesiumOptions.tilesetConfigs}
+                    >
+                      {children}
+                    </CesiumContextProvider>
+                  </OverlayTourProvider>
+                </TopicMapContextProvider>
+              </MapStyleProvider>
+            </SelectionProvider>
+          </GazDataProvider>
+        </SandboxedEvalProvider>
       </AuthProvider>
     </HashStateProvider>
   );

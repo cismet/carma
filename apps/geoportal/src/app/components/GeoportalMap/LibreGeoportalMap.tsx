@@ -297,7 +297,7 @@ const LibreGeoportalMap = ({
         isIdleRef.current = false;
       });
 
-      map.current.on("click", (e) => {
+      map.current.on("click", async (e) => {
         setPos([e.lngLat.lat, e.lngLat.lng]);
         const point = map.current.project([e.lngLat.lng, e.lngLat.lat]);
         const hits = map.current.queryRenderedFeatures(point);
@@ -473,7 +473,7 @@ const LibreGeoportalMap = ({
             const layer = currentLayers.find((layer) => layer.id === layerId);
             let feature;
             if (layer) {
-              feature = createFeature(selectedVectorFeature, layer);
+              feature = await createFeature(selectedVectorFeature, layer);
             } else {
               if (!selectedVectorFeature.layer.id.includes("3D")) {
                 return;

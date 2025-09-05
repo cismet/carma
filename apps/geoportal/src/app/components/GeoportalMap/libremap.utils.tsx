@@ -311,7 +311,7 @@ export const layersToMapLibreStyle = async (
   return style;
 };
 
-export const createFeature = (selectedVectorFeature, layer) => {
+export const createFeature = async (selectedVectorFeature, layer) => {
   let feature = undefined;
 
   let properties = selectedVectorFeature.properties;
@@ -349,8 +349,8 @@ export const createFeature = (selectedVectorFeature, layer) => {
     }
 
     const featureProperties = result.includes("function")
-      ? functionToFeature(properties, result)
-      : objectToFeature(properties, result);
+      ? await functionToFeature(properties, result)
+      : await objectToFeature(properties, result);
     if (!featureProperties) {
       return undefined;
     }
