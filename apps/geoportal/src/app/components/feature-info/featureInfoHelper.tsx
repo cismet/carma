@@ -1,6 +1,10 @@
 import proj4 from "proj4";
 import type { Map } from "leaflet";
-import type { LayerProps } from "@carma-commons/types";
+import type {
+  FeatureInfo,
+  FeatureInfoProperties,
+  LayerProps,
+} from "@carma-commons/types";
 import { FeatureInfoIcon } from "./FeatureInfoIcon";
 import { proj4crs3857def } from "../../helper/gisHelper";
 import { sandboxedEvalExternal } from "@carma-appframeworks/portals";
@@ -32,7 +36,7 @@ export const objectToFeature = async (jsonOutput: any, code: string) => {
       properties: {
         title: "Keine Informationen gefunden",
       },
-    };
+    } as FeatureInfo;
   }
 
   const conf = code
@@ -51,11 +55,10 @@ export const objectToFeature = async (jsonOutput: any, code: string) => {
                                           return info;
                     })`;
 
-  const tmpInfo = await sandboxedEvalExternal(functionString, jsonOutput);
-  const baseInfo =
-    tmpInfo && typeof tmpInfo === "object" && !Array.isArray(tmpInfo)
-      ? (tmpInfo as Record<string, unknown>)
-      : { value: tmpInfo };
+  const baseInfo = (await sandboxedEvalExternal(
+    functionString,
+    jsonOutput
+  )) as FeatureInfoProperties;
 
   const properties = {
     ...baseInfo,
@@ -68,16 +71,14 @@ export const objectToFeature = async (jsonOutput: any, code: string) => {
 export const functionToFeature = async (output: any, code: string) => {
   try {
     // await new Promise((resolve) => setTimeout(resolve, 2000));
-    const tmpInfo = await sandboxedEvalExternal("(" + code + ")", output);
+    const baseInfo = (await sandboxedEvalExternal(
+      "(" + code + ")",
+      output
+    )) as FeatureInfoProperties;
 
-    if (tmpInfo == null) {
+    if (baseInfo == null) {
       return undefined;
     }
-
-    const baseInfo =
-      tmpInfo && typeof tmpInfo === "object" && !Array.isArray(tmpInfo)
-        ? (tmpInfo as Record<string, unknown>)
-        : { value: tmpInfo };
 
     const properties = {
       ...baseInfo,
@@ -295,9 +296,7 @@ export const getFeatureForLayer = async (
           typeof props === "object" &&
           !Array.isArray(props) &&
           "genericLinks" in (props as Record<string, unknown>)
-            ? ((props as Record<string, unknown>)[
-                "genericLinks"
-              ] as unknown[])
+            ? ((props as Record<string, unknown>)["genericLinks"] as unknown[])
             : [];
 
         return {

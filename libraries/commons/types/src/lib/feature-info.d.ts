@@ -5,7 +5,7 @@ export type FeatureInfo = {
 };
 
 export type FeatureInfoProperties = {
-  header: string;
+  header?: string;
   headerColor?: string;
   title: string;
   subtitle?: string;
@@ -17,6 +17,7 @@ export type FeatureInfoProperties = {
     url: string;
     tooltip: string;
     icon: JSX.Element;
+    target?: string;
   }[];
   wmsProps?: {
     [key: string]: string;
