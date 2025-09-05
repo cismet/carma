@@ -15,6 +15,13 @@ test.describe("lagis smoke test", () => {
   }) => {
     await setupAllMocks(context);
     await mockOMTMapHosting(context);
+    await context.route("https://lagis-api.cismet.de/graphql/LAGIS/execute", route =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: "[]",
+      })
+    );
     // Navigate to the application
     await page.goto("/");
     // Check initial page load
