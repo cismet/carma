@@ -1,9 +1,19 @@
 import { test } from "@playwright/test";
-import { runMapSmokeTest, setupSmokeTest, setupAllMocks } from "@carma-commons/e2e";
+import {
+  runMapSmokeTest,
+  setupSmokeTest,
+  setupAllMocks,
+} from "@carma-commons/e2e";
 
 test.describe("kulturstadtplan smoke test", () => {
   test.beforeEach(async ({ context, page }) => {
-    await setupAllMocks(context, ["bezirke", "quartiere",'kitas', "pois", "veranstaltungsorte.data"]);
+    await setupAllMocks(context, [
+      "bezirke",
+      "quartiere",
+      "kitas",
+      "pois",
+      "veranstaltungsorte.data",
+    ]);
     await setupSmokeTest(page, "/", {
       navigationTimeout: 30000,
       waitForNetworkIdle: true,

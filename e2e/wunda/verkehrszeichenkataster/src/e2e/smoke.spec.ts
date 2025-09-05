@@ -16,20 +16,24 @@ test.describe("verkehrszeichenkataster smoke test", () => {
     // Navigate to the application
     await setupAllMocks(context);
     await mockOMTMapHosting(context);
-    await context.route("https://wunda-cloud.cismet.de/wunda/api/graphql/WUNDA_BLAU/execute", route =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: "[]",
-      })
+    await context.route(
+      "https://wunda-cloud.cismet.de/wunda/api/graphql/WUNDA_BLAU/execute",
+      (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: "[]",
+        })
     );
 
-    await context.route("https://unpkg.com/@excalidraw/excalidraw@0.17.6/dist/excalidraw-assets-dev/vendor-39727f4653a274cf18f6.js", route =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: "[]",
-      })
+    await context.route(
+      "https://unpkg.com/@excalidraw/excalidraw@0.17.6/dist/excalidraw-assets-dev/vendor-39727f4653a274cf18f6.js",
+      (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: "[]",
+        })
     );
 
     await page.goto("/");

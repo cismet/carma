@@ -15,37 +15,43 @@ test.describe("verdis-desktop smoke test", () => {
   }) => {
     // Navigate to the application
     await setupAllMocks(context);
-    await context.route("https://wunda-api.cismet.de/configattributes/virtualcitymap_secret", route =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: "{}",
-      })
+    await context.route(
+      "https://wunda-api.cismet.de/configattributes/virtualcitymap_secret",
+      (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: "{}",
+        })
     );
 
-        await context.route("**/*.md5", async route => {
-          await route.fulfill({
-            status: 200,
-            contentType: "text/plain", // fine even if server uses octet-stream
-            body: "0123456789abcdef0123456789abcdef",
-          });
-        });
+    await context.route("**/*.md5", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "text/plain", // fine even if server uses octet-stream
+        body: "0123456789abcdef0123456789abcdef",
+      });
+    });
 
-        await context.route("https://verdis-api.cismet.de/graphql/VERDIS_GRUNDIS/execute", route =>
-          route.fulfill({
-            status: 200,
-            contentType: 'application/json',
-            body: "[]",
-          })
-        );
+    await context.route(
+      "https://verdis-api.cismet.de/graphql/VERDIS_GRUNDIS/execute",
+      (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: "[]",
+        })
+    );
 
-        await context.route("https://wunda-api.cismet.de/graphql/WUNDA_BLAU/execute", route =>
-          route.fulfill({
-            status: 200,
-            contentType: 'application/json',
-            body: "[]",
-          })
-        );
+    await context.route(
+      "https://wunda-api.cismet.de/graphql/WUNDA_BLAU/execute",
+      (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: "[]",
+        })
+    );
 
     await page.goto("/");
 

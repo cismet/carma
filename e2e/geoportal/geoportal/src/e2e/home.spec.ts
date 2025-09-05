@@ -11,7 +11,7 @@ async function getLatLngFromHash(page: import("@playwright/test").Page) {
     const lat = p.get("lat") ?? p.get("flat");
     const lng = p.get("lng");
     return { lat, lng };
-  }); 
+  });
 
   if (!lat || !lng)
     throw new Error("Lat or lng parameter is missing in the URL");

@@ -136,10 +136,10 @@ export async function mockEmptyDatasets(
  */
 export async function mockSVGIcons(context: BrowserContext) {
   // Mock poi-signaturen SVG files (stadtplan, vorhabenkarte)
-  await context.route('**/poi-signaturen/**/*.svg', route =>
+  await context.route("**/poi-signaturen/**/*.svg", (route) =>
     route.fulfill({
       status: 200,
-      contentType: 'image/svg+xml',
+      contentType: "image/svg+xml",
       body: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24">
                <circle cx="12" cy="12" r="10" fill="gray"/>
              </svg>`,
@@ -147,10 +147,10 @@ export async function mockSVGIcons(context: BrowserContext) {
   );
 
   // Mock /svgs/ path (e-bikes, e-auto-ladestation, x-and-ride)
-  await context.route('**/svgs/**/*.svg', route =>
+  await context.route("**/svgs/**/*.svg", (route) =>
     route.fulfill({
       status: 200,
-      contentType: 'image/svg+xml',
+      contentType: "image/svg+xml",
       body: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24">
                <circle cx="12" cy="12" r="10" fill="gray"/>
              </svg>`,
@@ -158,10 +158,10 @@ export async function mockSVGIcons(context: BrowserContext) {
   );
 
   // Mock any SVG file requests (broad pattern for baederkarte and others)
-  await context.route('**/*.svg', route =>
+  await context.route("**/*.svg", (route) =>
     route.fulfill({
       status: 200,
-      contentType: 'image/svg+xml',
+      contentType: "image/svg+xml",
       body: `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24">
                <circle cx="12" cy="12" r="10" fill="gray"/>
              </svg>`,
@@ -172,7 +172,11 @@ export async function mockSVGIcons(context: BrowserContext) {
 /**
  * Universal data mocking function for topicmaps
  */
-export async function mockTopicMapData(context: BrowserContext, dataType: string, mockData: any[]) {
+export async function mockTopicMapData(
+  context: BrowserContext,
+  dataType: string,
+  mockData: any[]
+) {
   await context.route(`**/v2/data/**/${dataType}.data.json*`, (route) =>
     route.fulfill({
       status: 200,
@@ -185,7 +189,11 @@ export async function mockTopicMapData(context: BrowserContext, dataType: string
 /**
  * Mock additional data files (like poi.farben.json)
  */
-export async function mockAdditionalData(context: BrowserContext, pattern: string, mockData: any) {
+export async function mockAdditionalData(
+  context: BrowserContext,
+  pattern: string,
+  mockData: any
+) {
   await context.route(pattern, (route) =>
     route.fulfill({
       status: 200,
@@ -199,32 +207,32 @@ export async function mockAdditionalData(context: BrowserContext, pattern: strin
  * Mock OpenMapTiles hosting requests with empty responses
  */
 export async function mockOMTMapHosting(context: BrowserContext) {
-  await context.route('https://omt.map-hosting.de/**', route => {
+  await context.route("https://omt.map-hosting.de/**", (route) => {
     const url = route.request().url();
-    
-    if (url.endsWith('.json')) {
+
+    if (url.endsWith(".json")) {
       // For JSON files (style.json, sprite.json, data/v3.json), return empty object or appropriate structure
       let emptyResponse = {};
-      
-      if (url.includes('style.json')) {
+
+      if (url.includes("style.json")) {
         emptyResponse = { version: 8, sources: {}, layers: [] };
-      } else if (url.includes('sprite.json')) {
+      } else if (url.includes("sprite.json")) {
         emptyResponse = {};
       } else {
         emptyResponse = {};
       }
-      
+
       route.fulfill({
         status: 200,
-        contentType: 'application/json',
+        contentType: "application/json",
         body: JSON.stringify(emptyResponse),
       });
     } else {
       // For other resources, return empty response
       route.fulfill({
         status: 200,
-        contentType: 'text/plain',
-        body: '',
+        contentType: "text/plain",
+        body: "",
       });
     }
   });
@@ -233,7 +241,11 @@ export async function mockOMTMapHosting(context: BrowserContext) {
 /**
  * Setup all common image mocks at once
  */
-export async function setupAllMocks(context: BrowserContext, mockedAdressen: any[] = ["bezirke", "quartiere", "pois", "kitas"], addresses: any[] = simpleAdressen) {
+export async function setupAllMocks(
+  context: BrowserContext,
+  mockedAdressen: any[] = ["bezirke", "quartiere", "pois", "kitas"],
+  addresses: any[] = simpleAdressen
+) {
   await Promise.all([
     mockWMSImages(context),
     mockRasterTiles(context),
