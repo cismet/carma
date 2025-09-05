@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { setupAllMocks } from "@carma-commons/e2e";
 
 test.describe("verdis-desktop smoke test", () => {
   let userData: any;
@@ -10,10 +11,18 @@ test.describe("verdis-desktop smoke test", () => {
 
   test("main page show map, menu, cards, combo boxes after authorisation", async ({
     page,
+    context,
   }) => {
     // Navigate to the application
     await page.goto("/");
-
+    await setupAllMocks(context);
+    await context.route("https://wunda-api.cismet.de/configattributes/virtualcitymap_secret", route =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: "{}",
+      })
+    );
     // Perform authentication
     await page.locator("#username").fill(userData.cheatingUser);
     await page.fill('input[type="password"]', userData.cheatingPassword);
