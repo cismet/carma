@@ -7,6 +7,8 @@ import {
   getBackgroundLayer,
   setBackgroundLayer,
 } from "../../store/slices/mapping";
+import { MapStyleKeys } from "../../constants/MapStyleKeys";
+import { useMapStyle } from "../../hooks/useGeoportalMapStyle";
 
 interface LayerSelectionProps extends React.HTMLAttributes<HTMLButtonElement> {
   id: string;
@@ -22,7 +24,7 @@ const LayerSelection = ({
   children,
   ...props
 }: LayerSelectionProps) => {
-  const dispatch = useDispatch();
+  const { setCurrentStyle } = useMapStyle();
 
   const backgroundLayer = useSelector(getBackgroundLayer);
 
@@ -33,7 +35,11 @@ const LayerSelection = ({
           (e.target as HTMLElement).localName !== "span" &&
           (e.target as HTMLElement).localName !== "input"
         ) {
-          dispatch(setBackgroundLayer(selectedLayer));
+          if (selectedLayer.id === MapStyleKeys.TOPO) {
+            setCurrentStyle(MapStyleKeys.TOPO);
+          } else if (selectedLayer.id === MapStyleKeys.AERIAL) {
+            setCurrentStyle(MapStyleKeys.AERIAL);
+          }
         }
       }}
       className={cn(
