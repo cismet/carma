@@ -25,6 +25,7 @@ export {
   mockEmptyDatasets,
   mockTopicMapData,
   mockAdditionalData,
+  mockOMTMapHosting,
 } from "./lib/image-mocks";
 
 // Test helper utilities

@@ -196,6 +196,41 @@ export async function mockAdditionalData(context: BrowserContext, pattern: strin
 }
 
 /**
+ * Mock OpenMapTiles hosting requests with empty responses
+ */
+export async function mockOMTMapHosting(context: BrowserContext) {
+  await context.route('https://omt.map-hosting.de/**', route => {
+    const url = route.request().url();
+    
+    if (url.endsWith('.json')) {
+      // For JSON files (style.json, sprite.json, data/v3.json), return empty object or appropriate structure
+      let emptyResponse = {};
+      
+      if (url.includes('style.json')) {
+        emptyResponse = { version: 8, sources: {}, layers: [] };
+      } else if (url.includes('sprite.json')) {
+        emptyResponse = {};
+      } else {
+        emptyResponse = {};
+      }
+      
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(emptyResponse),
+      });
+    } else {
+      // For other resources, return empty response
+      route.fulfill({
+        status: 200,
+        contentType: 'text/plain',
+        body: '',
+      });
+    }
+  });
+}
+
+/**
  * Setup all common image mocks at once
  */
 export async function setupAllMocks(context: BrowserContext, mockedAdressen: any[] = ["bezirke", "quartiere", "pois", "kitas"], addresses: any[] = simpleAdressen) {
