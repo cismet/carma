@@ -247,6 +247,7 @@ const Map = ({ layers, vectorStyles }) => {
                 opacity: 1,
                 maxSelectionCount: 1,
                 selectionEnabled: true,
+                logMapLibreErrors: true,
                 onSelectionChanged: (e) => {
                   const selectedFeature = e.hits[0];
                   console.log(
