@@ -1,9 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Math as CesiumMath } from "cesium";
-import {
-  useCesiumContext,
-  isValidViewerInstance,
-} from "@carma-mapping/engines/cesium";
+import { useCesiumContext } from "@carma-mapping/engines/cesium";
 import { Collapse } from "antd";
 
 import { useOblique } from "../../hooks/useOblique";
@@ -35,7 +32,8 @@ export const ObliqueDebugSvg = () => {
   const [cropHeightFactor, setCropHeightFactor] = useState(400);
   const [imageRotation, setImageRotation] = useState(0); // 0, 90, 180, 270 degrees
   // Core contexts and refs
-  const { viewerRef } = useCesiumContext();
+  const ctx = useCesiumContext();
+  const { viewerRef, isViewerValid } = ctx;
   const { converter, headingOffset, previewPath, selectedImageRefresh } =
     useOblique();
   const camera = viewerRef?.current?.camera;
@@ -105,11 +103,7 @@ export const ObliqueDebugSvg = () => {
   // Subscribe to camera changes to refresh nearest images using centralized search
   useEffect(() => {
     const viewer = viewerRef.current;
-    if (
-      !isValidViewerInstance(viewer) ||
-      typeof selectedImageRefresh !== "function"
-    )
-      return;
+    if (!isViewerValid() || typeof selectedImageRefresh !== "function") return;
     const refresh = () => {
       const res = selectedImageRefresh({ computeOnly: true });
       if (res) setNearestImages(res);
@@ -117,9 +111,11 @@ export const ObliqueDebugSvg = () => {
     viewer.camera.changed.addEventListener(refresh);
     refresh();
     return () => {
-      viewer.camera.changed.removeEventListener(refresh);
+      if (viewer && !viewer.isDestroyed()) {
+        viewer.camera.changed.removeEventListener(refresh);
+      }
     };
-  }, [viewerRef, selectedImageRefresh]);
+  }, [viewerRef, selectedImageRefresh, isViewerValid]);
 
   // SVG dimensions
   const svgWidth = 800;

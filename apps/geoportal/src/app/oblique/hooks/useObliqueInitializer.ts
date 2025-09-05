@@ -9,13 +9,16 @@ import {
 } from "@carma-mapping/engines/cesium";
 
 import { useOblique } from "./useOblique";
-import { enterObliqueMode, leaveObliqueMode } from "../utils/cameraUtils";
+import {
+  enterObliqueModeCtx,
+  leaveObliqueModeCtx,
+} from "../utils/cameraUtils";
 
 const viewerPreUpdateHandlers = new WeakMap<Viewer, (scene: Scene) => void>();
 
 export function useObliqueInitializer(debug = false) {
-  const { viewerRef, viewerAnimationMapRef, shouldSuspendPitchLimiterRef } =
-    useCesiumContext();
+  const ctx = useCesiumContext();
+  const { viewerRef, viewerAnimationMapRef, shouldSuspendPitchLimiterRef, requestRender } = ctx;
   const {
     isObliqueMode,
     fixedHeight,
@@ -35,7 +38,7 @@ export function useObliqueInitializer(debug = false) {
   );
 
   const { setEnabled: setWheelZoomEnabled } = useFovWheelZoom(
-    viewerRef,
+    ctx,
     isObliqueMode,
     wheelZoomOptions
   );
@@ -65,22 +68,15 @@ export function useObliqueInitializer(debug = false) {
 
     if (isObliqueMode) {
       debug && console.debug("entering Oblique Mode");
-      enterObliqueMode(
-        viewer,
-        viewerAnimationMap,
-        originalFovRef,
-        fixedPitch,
-        fixedHeight,
-        () => {
-          enableCameraForceOblique();
-          viewer.scene.requestRender();
-        }
-      );
+      enterObliqueModeCtx(ctx, viewerAnimationMap, originalFovRef, fixedPitch, fixedHeight, () => {
+        enableCameraForceOblique();
+        requestRender();
+      });
     } else {
       debug && console.debug("leaving Oblique Mode", originalFovRef.current);
-      leaveObliqueMode(viewer, viewerAnimationMap, originalFovRef, () => {
+      leaveObliqueModeCtx(ctx, viewerAnimationMap, originalFovRef, () => {
         disableCameraForceOblique();
-        viewer.scene.requestRender();
+        requestRender();
       });
     }
 
@@ -105,6 +101,7 @@ export function useObliqueInitializer(debug = false) {
     setWheelZoomEnabled,
     enableCameraForceOblique,
     disableCameraForceOblique,
+    requestRender,
   ]);
 
   return {

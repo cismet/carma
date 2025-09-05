@@ -2,8 +2,8 @@ import { FC } from "react";
 import { useSelector } from "react-redux";
 import {
   GeoJsonDataSource as ResiumGeoJsonDataSource,
-  useCesium,
 } from "resium";
+import { useCesiumContext } from "../../hooks/useCesiumContext";
 
 import {
   ClassificationType,
@@ -24,7 +24,6 @@ interface ByGeoJsonClassifier {
   debug?: boolean;
   geojson: GeoJsonConfig;
   classificationType?: ClassificationType;
-  style?: unknown;
 }
 
 const HIGHLIGHT_COLOR = Color.YELLOW;
@@ -37,15 +36,14 @@ const ByGeoJsonClassifier: FC<ByGeoJsonClassifier> = ({
   debug = false,
   classificationType = ClassificationType.CESIUM_3D_TILE,
   geojson,
-  style,
 }) => {
-  const { viewer } = useCesium();
+  const ctx = useCesiumContext();
 
   const isPrimaryStyle = useSelector(selectShowPrimaryTileset);
 
   const classificationTypeProperty = new ConstantProperty(classificationType);
 
-  useSelectAndHighlightGeoJsonEntity(viewer, {
+  useSelectAndHighlightGeoJsonEntity(ctx, {
     highlightMaterial: HIGHLIGHT_MATERIAL,
     isPrimaryStyle,
   });

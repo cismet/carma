@@ -7,9 +7,9 @@ import {
 } from "cesium";
 
 import { useTweakpaneCtx } from "@carma-commons/debug";
+import { resolutionFractionsAscending } from "@carma-commons/utils";
 
 import { formatFractions } from "../utils/formatters";
-import { resolutionFractions } from "../utils/cesiumHelpers";
 
 import { useCesiumViewer } from "./useCesiumViewer";
 import {
@@ -124,17 +124,21 @@ const useDebug = () => {
           get resolutionScale() {
             // Find the closest value in the array to the current resolutionScale and return its index
             const currentValue = viewer ? viewer.resolutionScale : 1;
-            const closestIndex = resolutionFractions.findIndex(
+            const closestIndex = resolutionFractionsAscending.findIndex(
               (value) => value === currentValue
             );
             return closestIndex !== -1
               ? closestIndex
-              : resolutionFractions.length - 1; // Default to the last index if not found
+              : resolutionFractionsAscending.length - 1; // Default to the last index if not found
           },
           set resolutionScale(index) {
             // Use the index to set the resolutionScale from the array
-            if (viewer && index >= 0 && index < resolutionFractions.length) {
-              const value = resolutionFractions[index];
+            if (
+              viewer &&
+              index >= 0 &&
+              index < resolutionFractionsAscending.length
+            ) {
+              const value = resolutionFractionsAscending[index];
               console.debug("HOOK: [TWEAKPANE] resolutionScale", index, value);
               viewer.resolutionScale = value ?? 1;
             }
@@ -144,9 +148,10 @@ const useDebug = () => {
           {
             name: "resolutionScale",
             min: 0, // The minimum index
-            max: resolutionFractions.length - 1, // The maximum index
+            max: resolutionFractionsAscending.length - 1, // The maximum index
             step: 1, // Step by index
-            format: (v: number) => formatFractions(resolutionFractions[v]),
+            format: (v: number) =>
+              formatFractions(resolutionFractionsAscending[v]),
           },
         ],
       }),

@@ -31,25 +31,27 @@ import {
   getZoomFromPixelResolutionAtLatitudeRad,
 } from "@carma-commons/utils";
 
+import type { CesiumContextType } from "../CesiumContext";
+
 import { isValidViewerInstance } from "./cesiumTypeGuards";
 
-// Constants
+// Helper methods for validated Cesium objects
+export type ValidatedCesiumObjects = {
+  viewer: Viewer | false;
+  scene: Viewer["scene"] | false;
+  camera: Viewer["camera"] | false;
+};
 
-export const resolutionFractions = [
-  5,
-  4,
-  3,
-  2,
-  1,
-  1 / 2,
-  1 / 3,
-  1 / 4,
-  1 / 5,
-  1 / 6,
-  1 / 8,
-  1 / 10,
-  1 / 16,
-].reverse();
+/**
+ * Gets all validated Cesium objects, with false for invalid properties
+ */
+export const getValidContext = (ctx: CesiumContextType): ValidatedCesiumObjects => {
+  if (!ctx.isViewerValid()) return { viewer: false, scene: false, camera: false };
+  const viewer = ctx.viewerRef.current!;
+  const scene = defined(viewer.scene) ? viewer.scene : false;
+  const camera = defined(viewer.camera) ? viewer.camera : false;
+  return { viewer, scene, camera };
+};
 
 // Math
 
@@ -136,7 +138,8 @@ export const cameraToCartographicDegrees = (camera: Camera) => {
   };
 };
 
-export const getTopDownCameraDeviationAngle = (viewer: Viewer) => {
+export const getTopDownCameraDeviationAngle = (ctx: CesiumContextType) => {
+  const viewer = ctx.viewerRef.current!;
   const currentDirection = viewer.camera.direction;
 
   const internalAngle = Cartesian3.angleBetween(
@@ -146,8 +149,9 @@ export const getTopDownCameraDeviationAngle = (viewer: Viewer) => {
   return Math.abs(internalAngle);
 };
 
-export const getCameraHeightAboveGround = (viewer: Viewer) => {
-  const { scenePosition: pos, coordinates } = pickViewerCanvasCenter(viewer, {
+export const getCameraHeightAboveGround = (ctx: CesiumContextType) => {
+  const viewer = ctx.viewerRef.current!;
+  const { scenePosition: pos, coordinates } = pickViewerCanvasCenter(ctx, {
     getCoordinates: true,
   });
 
@@ -198,7 +202,7 @@ interface PickOptions {
 }
 
 export const pickViewerCanvasPositions = (
-  viewer: Viewer,
+  ctx: CesiumContextType,
   positions: [number, number][] = [CENTER_POSITION],
   {
     getPixelSize = false,
@@ -207,6 +211,16 @@ export const pickViewerCanvasPositions = (
     pickTranslucentDepth = true,
   }: PickOptions = {}
 ): PickResult[] => {
+  if (!ctx.isViewerValid()) {
+    return positions.map((position) => ({
+      position,
+      windowPosition: new Cartesian2(0, 0),
+      scenePosition: null,
+      pixelSize: null,
+      coordinates: null,
+    }));
+  }
+  const viewer = ctx.viewerRef.current!;
   // store previous settings
   const prev = {
     depthTestAgainstTerrain: viewer.scene.globe.depthTestAgainstTerrain,
@@ -271,8 +285,6 @@ export const createOffCenterFrustum = (
     right,
     top,
     bottom,
-    fov,
-    aspectRatio = 1,
   }: {
     near?: number;
     far?: number;
@@ -280,8 +292,6 @@ export const createOffCenterFrustum = (
     right?: number;
     top?: number;
     bottom?: number;
-    aspectRatio?: number;
-    fov?: number;
   } = {}
 ) => {
   const src = sourceFrustum.clone();
@@ -314,12 +324,16 @@ export const createOffCenterFrustum = (
   return;
 };
 
-const findTopPick = (viewer: Viewer, xPos = 0, targetPixelSize: number) => {
+const findTopPick = (
+  ctx: CesiumContextType,
+  xPos = 0,
+  targetPixelSize: number
+) => {
   let top: PickResult | null = null;
   let yPos = 0;
 
   while (top === null && yPos < 1) {
-    const [candidate] = pickViewerCanvasPositions(viewer, [[xPos, yPos]], {
+    const [candidate] = pickViewerCanvasPositions(ctx, [[xPos, yPos]], {
       getPixelSize: true,
       getCoordinates: true,
     });
@@ -335,11 +349,11 @@ const findTopPick = (viewer: Viewer, xPos = 0, targetPixelSize: number) => {
 };
 
 export const getViewerViewportPolygonRing = (
-  viewer: Viewer,
+  ctx: CesiumContextType,
   { resolutionRange = 4 }: { resolutionRange?: number } = {}
 ): [number, number][] | null => {
   const bottom = pickViewerCanvasPositions(
-    viewer,
+    ctx,
     [
       [0, 1],
       //[0.25, 1],
@@ -367,7 +381,7 @@ export const getViewerViewportPolygonRing = (
     }, Infinity) * resolutionRange;
 
   const top = bottom.map((pos) => {
-    const result = findTopPick(viewer, pos.position[0], targetPixelSize);
+    const result = findTopPick(ctx, pos.position[0], targetPixelSize);
     if (result) {
       console.debug("Top pixel position found", pos.position[0], result);
       return result;
@@ -395,10 +409,20 @@ export const getViewerViewportPolygonRing = (
 
 // helper shorthand
 export const pickViewerCanvasCenter = (
-  viewer: Viewer,
+  ctx: CesiumContextType,
   options?: PickOptions
-): PickResult =>
-  pickViewerCanvasPositions(viewer, [CENTER_POSITION], options)[0];
+): PickResult => {
+  if (!ctx.isViewerValid()) {
+    return {
+      position: CENTER_POSITION,
+      windowPosition: new Cartesian2(0, 0),
+      scenePosition: null,
+      pixelSize: null,
+      coordinates: null,
+    };
+  }
+  return pickViewerCanvasPositions(ctx, [CENTER_POSITION], options)[0];
+};
 
 const GEOJSON_DRILL_LIMIT = 10;
 
@@ -423,16 +447,24 @@ function getLastGroundPrimitive(
 }
 
 export function pickFromClampedGeojson(
-  viewer: Viewer,
+  ctx: CesiumContextType,
   position: Cartesian2,
   limit: number = GEOJSON_DRILL_LIMIT
 ): Entity | null {
+  if (!ctx.isViewerValid()) {
+    return null;
+  }
+  const viewer = ctx.viewerRef.current!;
   const pickedObjects = viewer.scene.drillPick(position, limit);
   console.debug("SCENE DRILL PICK:", pickedObjects);
   return getLastGroundPrimitive(pickedObjects);
 }
 
-export function getPrimitiveById(viewer: Viewer, id: string) {
+export function getPrimitiveById(ctx: CesiumContextType, id: string) {
+  if (!ctx.isViewerValid()) {
+    return null;
+  }
+  const viewer = ctx.viewerRef.current!;
   const primitives = viewer.scene.primitives;
   const length = primitives.length;
 
@@ -446,7 +478,11 @@ export function getPrimitiveById(viewer: Viewer, id: string) {
   return null;
 }
 
-export function getAllPrimitives(viewer: Viewer) {
+export function getAllPrimitives(ctx: CesiumContextType) {
+  if (!ctx.isViewerValid()) {
+    return [];
+  }
+  const viewer = ctx.viewerRef.current!;
   const primitives = viewer.scene.primitives;
   const length = primitives.length;
 
@@ -569,14 +605,15 @@ export const generateRingFromDegrees = (
 };
 
 const sampleRingPixelSize = (
-  viewer: Viewer,
+  ctx: CesiumContextType,
   samples: number,
   radius: number
 ) => {
   const positionCoords = generatePositionsForRing(samples, radius);
-  const positions = pickViewerCanvasPositions(viewer, positionCoords);
+  const positions = pickViewerCanvasPositions(ctx, positionCoords);
+  const viewer = ctx.isViewerValid() ? ctx.viewerRef.current! : null;
   const pixelSizes = positions.map(({ scenePosition }) =>
-    getPixelSizeForPosition(viewer, scenePosition)
+    viewer ? getPixelSizeForPosition(viewer, scenePosition) : null
   );
   const validPixelSizes = pixelSizes.filter(
     (pixelSize): pixelSize is number =>
@@ -599,11 +636,11 @@ const sampleRingPixelSize = (
 };
 
 export const getScenePixelSize = (
-  viewer: Viewer,
+  ctx: CesiumContextType,
   mode = PICKMODE.CENTER,
-  { samples = 10, radius = 0.2 }: { samples?: number; radius?: number } = {} // radius for unit screen coordinates, should be less than 0.5 with center at 0.5,0.5
+  { samples = 10, radius = 0.2 }: { samples?: number; radius?: number } = {}
 ): NumericResult => {
-  const { camera, scene } = viewer;
+  if (!ctx.isViewerValid()) return { value: null };
 
   // sample two position to get better approximation for full view extent
   if (radius >= 0.5) {
@@ -620,7 +657,7 @@ export const getScenePixelSize = (
   switch (mode) {
     case PICKMODE.RING: {
       if (radius > 0) {
-        result.value = sampleRingPixelSize(viewer, samples, radius);
+        result.value = sampleRingPixelSize(ctx, samples, radius);
         break;
       }
       console.warn("radius is 0, skipping");
@@ -628,7 +665,7 @@ export const getScenePixelSize = (
     }
     case PICKMODE.CENTER:
     default: {
-      const centerPos = pickViewerCanvasCenter(viewer, {
+      const centerPos = pickViewerCanvasCenter(ctx, {
         getPixelSize: true,
       });
       result.value = centerPos.pixelSize;
@@ -646,16 +683,16 @@ export const getScenePixelSize = (
 };
 
 export const cesiumCenterPixelSizeToLeafletZoom = (
-  viewer: Viewer
+  ctx: CesiumContextType
 ): NumericResult => {
-  const pixelSize = getScenePixelSize(viewer, PICKMODE.RING);
+  const pixelSize = getScenePixelSize(ctx, PICKMODE.RING);
   if (pixelSize.value === null) {
     console.warn("No pixel size found for camera position.", pixelSize.error);
     return { value: null, error: "No pixel size found for camera position" };
   }
   const zoom = getZoomFromPixelResolutionAtLatitudeRad(
     asMeters(pixelSize.value),
-    asRadians(viewer.camera.positionCartographic.latitude)
+    asRadians(ctx.viewerRef.current!.camera.positionCartographic.latitude)
   );
 
   if (zoom === Infinity) {
@@ -666,12 +703,31 @@ export const cesiumCenterPixelSizeToLeafletZoom = (
   return { value: zoom };
 };
 
-export const cesiumSafeRequestRender = (viewer: unknown): void => {
+// Safe render that optionally enforces identity (same instance)
+export const cesiumSafeRequestRender = (
+  viewer: unknown,
+  capturedIdentity?: unknown
+): void => {
   if (isValidViewerInstance(viewer)) {
-    viewer.scene.requestRender();
-  } else {
+    if (!capturedIdentity || capturedIdentity === viewer) {
+      viewer.scene.requestRender();
+      return;
+    }
+    // Identity mismatch: likely a new viewer was mounted; skip
     console.warn(
-      "Cesium Render request failed, viewer is destroyed or invalid"
+      "Cesium Render skipped: viewer identity mismatch (stale instance)"
     );
+    return;
   }
+  console.warn(
+    "Cesium Render request failed, viewer is destroyed or invalid"
+  );
+};
+
+// Factory to produce a safe requestRender bound to a specific ref and identity
+export const makeSafeRequestRender = (
+  viewerRef: { current: unknown }
+): (() => void) => {
+  const captured = viewerRef.current;
+  return () => cesiumSafeRequestRender(viewerRef.current, captured);
 };

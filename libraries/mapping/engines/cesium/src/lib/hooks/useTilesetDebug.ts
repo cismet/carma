@@ -1,6 +1,7 @@
 import { CUSTOM_SHADERS_DEFINITIONS } from "../shaders";
 import { useMemo, useState } from "react";
 import { Cesium3DTileset, CustomShader } from "cesium";
+import { cesiumSafeRequestRender } from "../utils/cesiumHelpers";
 
 import { useTweakpaneCtx } from "@carma-commons/debug";
 import { useCesiumViewer } from "./useCesiumViewer";
@@ -40,11 +41,11 @@ export const useTilesetDebug = (
               const shaderDef = CUSTOM_SHADERS_DEFINITIONS[v];
               if (v === "UNDEFINED") {
                 tileset.customShader = undefined;
-                viewer && viewer.scene.requestRender();
+                viewer && cesiumSafeRequestRender(viewer);
               } else {
                 const shader = new CustomShader(shaderDef);
                 tileset.customShader = shader;
-                viewer && viewer.scene.requestRender();
+                viewer && cesiumSafeRequestRender(viewer);
               }
             }
           },
@@ -55,7 +56,7 @@ export const useTilesetDebug = (
             if (v !== enableDebugWireframe && tileset) {
               setEnableDebugWireframe(v);
               tileset.debugWireframe = v;
-              viewer && viewer.scene.requestRender();
+              viewer && cesiumSafeRequestRender(viewer);
             }
           },
           get show() {
@@ -68,7 +69,7 @@ export const useTilesetDebug = (
           set show(v: boolean) {
             if (tileset && v !== tileset.show) {
               tileset.show = v;
-              viewer && viewer.scene.requestRender();
+              viewer && cesiumSafeRequestRender(viewer);
             }
           },
         },

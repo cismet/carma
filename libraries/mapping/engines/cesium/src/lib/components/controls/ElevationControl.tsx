@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, ChangeEvent, useMemo } from "react";
 import { debounce } from "lodash";
 import { Cartesian3, Cartographic } from "cesium";
+import { cesiumSafeRequestRender } from "../../utils/cesiumHelpers";
 
 import { useTweakpaneCtx } from "@carma-commons/debug";
 
@@ -313,7 +314,8 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
             up: viewer.camera.up.clone(),
           },
         });
-        viewer.scene.requestRender();
+        // centralized render request for requestRenderMode
+        cesiumSafeRequestRender(viewer);
         updateHeight.current && updateHeight.current();
       });
     }

@@ -1,9 +1,10 @@
-import { Viewer } from "cesium";
+ 
 import type { Map as LeafletMap } from "leaflet";
 import {
   cameraToCartographicDegrees,
   cesiumCenterPixelSizeToLeafletZoom,
 } from "./cesiumHelpers";
+import type { CesiumContextType } from "../CesiumContext";
 
 export const isLeafletZoomValid = (zoom: number) => {
   if (
@@ -19,16 +20,17 @@ export const isLeafletZoomValid = (zoom: number) => {
 };
 
 export const setLeafletView = async (
-  viewer: Viewer,
+  ctx: CesiumContextType,
   leafletElement: LeafletMap,
   {
     duration = 0,
     animate = false,
   }: { duration?: number; animate?: boolean } = {}
 ) => {
+  const viewer = ctx.viewerRef.current;
   if (!viewer || !leafletElement) return;
 
-  let zoom = cesiumCenterPixelSizeToLeafletZoom(viewer).value;
+  let zoom = cesiumCenterPixelSizeToLeafletZoom(ctx).value;
   if (zoom === null) {
     console.warn("zoom is null, skipping");
     return;

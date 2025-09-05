@@ -14,7 +14,8 @@ import {
 import {
   cesiumAnimateFov,
   getOrbitPoint,
-  isValidViewerInstance,
+  getValidContext,
+  type CesiumContextType,
   type ViewerAnimationMap,
 } from "@carma-mapping/engines/cesium";
 import { DerivedExteriorOrientation } from "./transformExteriorOrientation";
@@ -35,13 +36,17 @@ const DYNAMIC_DISTANCE_TO_MS_FACTOR = 100;
  * @param flyToOptions Optional configuration for the flight animation
  */
 export const flyToExteriorOrientation = (
-  viewer: Viewer,
+  ctx: CesiumContextType,
   exteriorOrientation: DerivedExteriorOrientation,
   onComplete?: () => void,
   flyToOptions: AnimationConfig = {}
 ): void => {
+  const objects = getValidContext(ctx);
+  if (!objects.viewer || !objects.camera) return;
+
+  const { camera } = objects;
+
   if (
-    !viewer ||
     !exteriorOrientation ||
     !exteriorOrientation.position.wgs84 ||
     !exteriorOrientation.rotation.ecef.direction
@@ -76,7 +81,7 @@ export const flyToExteriorOrientation = (
 
   // Calculate appropriate flight duration based on distance
   const currentDistanceToCamera = Cartesian3.distance(
-    viewer.camera.positionWC,
+    camera.positionWC,
     position
   );
 
@@ -95,7 +100,7 @@ export const flyToExteriorOrientation = (
   // const upZ = enuToEcef(localEnuUpAxis, position);
 
   // Execute the camera flight
-  viewer.camera.flyTo({
+  camera.flyTo({
     destination: position,
     orientation: {
       direction,
@@ -108,11 +113,46 @@ export const flyToExteriorOrientation = (
   });
 };
 
-export const resetCamera = (viewer: Viewer) => {
-  if (isValidViewerInstance(viewer) && defined(viewer.camera)) {
-    viewer.camera.lookAtTransform(Matrix4.IDENTITY);
-    viewer.scene.requestRender();
-  }
+// Context-based convenience wrappers (preferred from React code)
+export type CesiumCtxLike = {
+  viewerRef: MutableRefObject<Viewer | null>;
+};
+
+export const enterObliqueModeCtx = (
+  ctx: CesiumCtxLike,
+  viewerAnimationMap: ViewerAnimationMap,
+  originalFovRef: MutableRefObject<number | null>,
+  targetPitch: number,
+  targetHeight: number,
+  onComplete: () => void
+) => {
+  const viewer = ctx.viewerRef.current;
+  if (!viewer) return;
+  enterObliqueMode(
+    viewer,
+    viewerAnimationMap,
+    originalFovRef,
+    targetPitch,
+    targetHeight,
+    onComplete
+  );
+};
+
+export const leaveObliqueModeCtx = (
+  ctx: CesiumCtxLike,
+  viewerAnimationMap: ViewerAnimationMap,
+  originalFovRef: MutableRefObject<number | null>,
+  onComplete: () => void
+) => {
+  const viewer = ctx.viewerRef.current;
+  if (!viewer) return;
+  leaveObliqueMode(viewer, viewerAnimationMap, originalFovRef, onComplete);
+};
+
+export const resetCamera = (ctx: CesiumContextType) => {
+  const { camera } = getValidatedViewerAndCamera(ctx);
+  if (!camera) return;
+  camera.lookAtTransform(Matrix4.IDENTITY);
 };
 
 const distanceSqrtInMetersToMilliseconds = (
@@ -187,7 +227,6 @@ export const enterObliqueMode = (
       });
     } else {
       onComplete();
-      viewer.scene.requestRender();
     }
   };
 
@@ -238,4 +277,27 @@ export const leaveObliqueMode = (
     }
     onComplete();
   }
+};
+
+/**
+ * Gets validated viewer and camera objects, or false for invalid properties
+ */
+export const getValidatedViewerAndCamera = (ctx: CesiumContextType): { viewer: Viewer | false; camera: Viewer["camera"] | false } => {
+  const objects = getValidContext(ctx);
+  return { viewer: objects.viewer, camera: objects.camera };
+};
+
+/**
+ * Gets validated viewer and scene objects, or null if invalid
+ */
+export const getValidatedViewerAndScene = (ctx: CesiumContextType): { viewer: Viewer | false; scene: Viewer["scene"] | false } => {
+  const objects = getValidContext(ctx);
+  return { viewer: objects.viewer, scene: objects.scene };
+};
+
+/**
+ * Gets validated viewer object, or null if invalid
+ */
+export const getValidatedViewer = (ctx: CesiumContextType): Viewer | false => {
+  return getValidContext(ctx).viewer;
 };

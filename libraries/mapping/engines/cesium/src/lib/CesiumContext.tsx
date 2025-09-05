@@ -6,6 +6,8 @@ import {
   ImageryLayer,
   Viewer,
   Cesium3DTileset,
+  Scene,
+  Camera,
 } from "cesium";
 import { ViewerAnimationMap } from "./utils/viewerAnimationMap";
 
@@ -24,6 +26,21 @@ export interface CesiumContextType {
   shouldSuspendCameraLimitersRef: MutableRefObject<boolean>;
   isViewerReady: boolean;
   setIsViewerReady: (flag: boolean) => void;
+  requestRender: (opts?: {
+    delay?: number; // ms
+    repeat?: number; // times
+    repeatInterval?: number; // ms
+  }) => void;
+  // Shorthands for viewer validation
+  isViewerValid: () => boolean;
+  validateViewer: () =>
+    | { viewer: Viewer; camera: Camera; scene: Scene }
+    | null;
+  withViewer: (
+    cb: (ctx: { viewer: Viewer; camera: Camera; scene: Scene }) => void
+  ) => void;
+  // Also expose as a top-level helper for convenience in components
+  removeEntityById: (id: string) => boolean;
 }
 
 export const CesiumContext = createContext<CesiumContextType | null>(null);

@@ -14,6 +14,7 @@ import {
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 
 import { useCesiumViewer } from "../../hooks/useCesiumViewer";
+import { useCesiumContext } from "../../hooks/useCesiumContext";
 import { selectScreenSpaceCameraControllerMinimumZoomDistance } from "../../slices/cesium";
 import { pickViewerCanvasCenter } from "../../utils/cesiumHelpers";
 import { Tooltip } from "antd";
@@ -28,6 +29,7 @@ type Ref = HTMLButtonElement;
 export const Compass = forwardRef<Ref, CompassProps>(
   ({ children, disabled }, ref) => {
     const viewer = useCesiumViewer();
+    const ctx = useCesiumContext();
     const minZoomDistance = useSelector(
       selectScreenSpaceCameraControllerMinimumZoomDistance
     );
@@ -45,12 +47,9 @@ export const Compass = forwardRef<Ref, CompassProps>(
         if (defined(horizonTest)) {
           console.info("scene center below horizon");
           //const pos = getCanvasCenter(viewer);
-          const { scenePosition, coordinates } = pickViewerCanvasCenter(
-            viewer,
-            {
-              getCoordinates: true,
-            }
-          );
+          const { scenePosition, coordinates } = pickViewerCanvasCenter(ctx, {
+            getCoordinates: true,
+          });
           console.debug("pick compass", coordinates, scenePosition);
           if (scenePosition && coordinates) {
             const distance = Cartesian3.distance(

@@ -34,7 +34,7 @@ import { useInitializeViewer } from "./hooks/useInitializeViewer";
 import { useSceneStyles } from "./hooks/useSceneStyles";
 import { useTilesets } from "./hooks/useTilesets";
 
-import { resolutionFractions } from "./utils/cesiumHelpers";
+import { resolutionFractionsAscending } from "@carma-commons/utils";
 
 import { formatFractions } from "./utils/formatters";
 import { setLeafletView } from "./utils/leafletHelpers";
@@ -73,7 +73,8 @@ type CustomViewerProps = {
 };
 
 export function CustomViewerPlayground(props: CustomViewerProps) {
-  const { viewerRef, viewerAnimationMapRef } = useCesiumContext();
+  const ctx = useCesiumContext();
+  const { viewerRef, viewerAnimationMapRef } = ctx;
   let viewer = useCesiumViewer();
 
   const isSecondaryStyle = useSelector(selectShowSecondaryTileset);
@@ -214,17 +215,17 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
           get resolutionScale() {
             // Find the closest value in the array to the current resolutionScale and return its index
             const currentValue = viewer ? viewer.resolutionScale : 1;
-            const closestIndex = resolutionFractions.findIndex(
+            const closestIndex = resolutionFractionsAscending.findIndex(
               (value) => value === currentValue
             );
             return closestIndex !== -1
               ? closestIndex
-              : resolutionFractions.length - 1; // Default to the last index if not found
+              : resolutionFractionsAscending.length - 1; // Default to the last index if not found
           },
           set resolutionScale(index) {
             // Use the index to set the resolutionScale from the array
-            if (viewer && index >= 0 && index < resolutionFractions.length) {
-              const value = resolutionFractions[index];
+            if (viewer && index >= 0 && index < resolutionFractionsAscending.length) {
+              const value = resolutionFractionsAscending[index];
               viewer.resolutionScale = value;
             }
           },
@@ -238,9 +239,9 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
           {
             name: "resolutionScale",
             min: 0, // The minimum index
-            max: resolutionFractions.length - 1, // The maximum index
+            max: resolutionFractionsAscending.length - 1, // The maximum index
             step: 1, // Step by index
-            format: (v: number) => formatFractions(resolutionFractions[v]),
+            format: (v: number) => formatFractions(resolutionFractionsAscending[v]),
           },
         ],
       }),
@@ -349,7 +350,7 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
           const leaflet =
             topicMapContext?.routedMapRef?.leafletMap?.leafletElement;
           console.debug("leaflet", leaflet, topicMapContext?.routedMapRef);
-          leaflet && setLeafletView(viewer, leaflet, { animate: false });
+          leaflet && setLeafletView(ctx, leaflet, { animate: false });
         }
       }
     };
@@ -408,9 +409,7 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
       {children}
       {showControls && (
         <ControlsUI
-          viewerRef={viewerRef}
-          viewerAnimationMapRef={viewerAnimationMapRef}
-          isViewerReady={true} // TODO: check if ready properly
+          isViewerReady={true}
           showHome={showHome}
           showOrbit={showOrbit}
         />

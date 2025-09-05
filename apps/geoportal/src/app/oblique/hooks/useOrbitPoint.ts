@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { Cartesian3, Viewer } from "cesium";
-import { useCesiumContext, getOrbitPoint } from "@carma-mapping/engines/cesium";
+import { Cartesian3 } from "cesium";
+import { useCesiumContext, getOrbitPoint, CesiumContextType } from "@carma-mapping/engines/cesium";
 
 // Shared state across hook instances
 let sharedOrbitPoint: Cartesian3 | null = null;
@@ -10,7 +10,7 @@ const orbitPointSubscribers: Array<{
 }> = [];
 let listenerInitialized = false;
 
-function initOrbitPointListener(viewer: Viewer) {
+function initOrbitPointListener(ctx: CesiumContextType) {
   if (listenerInitialized) return;
   listenerInitialized = true;
 
@@ -18,7 +18,7 @@ function initOrbitPointListener(viewer: Viewer) {
     // Check if any subscribers are enabled
     if (!orbitPointSubscribers.some((subscriber) => subscriber.enabled)) return;
 
-    const point = getOrbitPoint(viewer);
+    const point = getOrbitPoint(ctx);
     if (sharedOrbitPoint && point && point.equals(sharedOrbitPoint)) return;
     sharedOrbitPoint = point;
     orbitPointSubscribers.forEach((subscriber) => {
@@ -29,21 +29,21 @@ function initOrbitPointListener(viewer: Viewer) {
   };
 
   updateOrbitPoint();
-  viewer.camera.changed.addEventListener(updateOrbitPoint);
+  ctx.viewerRef.current!.camera.changed.addEventListener(updateOrbitPoint);
 }
 
 export function useOrbitPoint(enabled = true): Cartesian3 | null {
-  const { viewerRef, isViewerReady } = useCesiumContext();
+  const ctx = useCesiumContext();
   const [orbitPoint, setOrbitPoint] = useState<Cartesian3 | null>(
     sharedOrbitPoint
   );
 
   useEffect(() => {
-    if (!isViewerReady) return;
+    if (!ctx.isViewerReady) return;
 
-    const viewer = viewerRef.current;
+    const viewer = ctx.viewerRef.current;
     if (!viewer) return;
-    initOrbitPointListener(viewer);
+    initOrbitPointListener(ctx);
 
     const subscriber = {
       callback: (point: Cartesian3 | null) => setOrbitPoint(point),
@@ -60,7 +60,7 @@ export function useOrbitPoint(enabled = true): Cartesian3 | null {
       const index = orbitPointSubscribers.indexOf(subscriber);
       if (index > -1) orbitPointSubscribers.splice(index, 1);
     };
-  }, [viewerRef, isViewerReady, enabled]);
+  }, [ctx, enabled]);
 
   return orbitPoint;
 }

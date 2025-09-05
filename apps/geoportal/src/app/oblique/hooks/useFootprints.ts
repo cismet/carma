@@ -9,17 +9,10 @@ import {
   EasingFunction,
   PolylineGraphics,
   type Cartesian3,
-  Viewer,
-  defined,
 } from "cesium";
 
 import { useMemoMergedDefaultOptions } from "@carma-commons/utils";
-import {
-  useCesiumContext,
-  polygonHierarchyFromPolygonCoords,
-  cesiumSafeRequestRender,
-  isValidViewerInstance,
-} from "@carma-mapping/engines/cesium";
+import { useCesiumContext, polygonHierarchyFromPolygonCoords } from "@carma-mapping/engines/cesium";
 
 import { useOblique } from "../hooks/useOblique";
 import {
@@ -46,21 +39,20 @@ const defaultFootprintsStyle: ObliqueFootprintsStyle = {
 };
 
 const cleanupOutlineEntity = (
-  viewerRef: MutableRefObject<Viewer | null>,
+  removeEntityById: (id: string) => boolean,
   ref: MutableRefObject<Entity | null>,
-  debug = false
+  debug = false,
+  requestRender?: () => void
 ) => {
-  const viewer = viewerRef.current;
-  if (isValidViewerInstance(viewer) && defined(viewer.entities)) {
-    debug && console.log(`Oblique Footprints: Removing outline entity`);
-    viewer.entities.removeById(FOOTPRINT_OUTLINE_ID);
-    ref.current = null;
-    cesiumSafeRequestRender(viewer);
-  }
+  debug && console.log(`Oblique Footprints: Removing outline entity`);
+  removeEntityById(FOOTPRINT_OUTLINE_ID);
+  ref.current = null;
+  requestRender && requestRender();
 };
 
 export const useFootprints = (debug = false): void => {
-  const { viewerRef } = useCesiumContext();
+  const { viewerRef, requestRender, isViewerValid, removeEntityById } =
+    useCesiumContext();
   const {
     isObliqueMode,
     selectedImage,
@@ -95,18 +87,18 @@ export const useFootprints = (debug = false): void => {
   // Clean up entities when component unmounts
   useEffect(() => {
     return () => {
-      cleanupOutlineEntity(viewerRef, outlineEntityRef, debug);
+      cleanupOutlineEntity(removeEntityById, outlineEntityRef, debug, requestRender);
     };
-  }, [debug, viewerRef]);
+  }, [debug, removeEntityById, requestRender]);
 
   useEffect(() => {
     // If we're leaving oblique mode, trigger exit animation then clean up the footprint
     if (prevObliqueMode.current && !isObliqueMode) {
       // Always clean up the outline immediately
-      cleanupOutlineEntity(viewerRef, outlineEntityRef, debug);
+      cleanupOutlineEntity(removeEntityById, outlineEntityRef, debug, requestRender);
     }
     prevObliqueMode.current = isObliqueMode;
-  }, [isObliqueMode, viewerRef, debug]);
+  }, [isObliqueMode, removeEntityById, debug, requestRender]);
 
   useEffect(() => {
     opacityAnimationRef.current.duration = animationDuration;
@@ -125,7 +117,7 @@ export const useFootprints = (debug = false): void => {
           forceStart: true,
           onComplete: () => {
             // Remove entity completely when animation finishes
-            cleanupOutlineEntity(viewerRef, outlineEntityRef, debug);
+            cleanupOutlineEntity(removeEntityById, outlineEntityRef, debug, requestRender);
             lastImageIdRef.current = null;
           },
         });
@@ -135,7 +127,7 @@ export const useFootprints = (debug = false): void => {
         lastImageIdRef.current = null;
       }
     }
-    cesiumSafeRequestRender(viewer);
+    requestRender();
   }, [
     lockFootprint,
     outlineOpacity,
@@ -143,13 +135,13 @@ export const useFootprints = (debug = false): void => {
     viewerRef,
     selectedImage,
     debug,
+    requestRender,
   ]);
 
   useEffect(() => {
     const viewer = viewerRef.current;
-
     if (
-      !isValidViewerInstance(viewer) ||
+      !isViewerValid() ||
       !selectedImage ||
       !footprintData ||
       !isObliqueMode
@@ -176,7 +168,7 @@ export const useFootprints = (debug = false): void => {
     lastImageIdRef.current = currentImageId;
 
     // Clean up any existing entity
-    cleanupOutlineEntity(viewerRef, outlineEntityRef, debug);
+    cleanupOutlineEntity(removeEntityById, outlineEntityRef, debug, requestRender);
 
     const createOpacityCallbackProperty = () => {
       return new CallbackProperty(() => {
@@ -192,8 +184,8 @@ export const useFootprints = (debug = false): void => {
               `Oblique Footprints: Animation complete, removing outline entity`
             );
           requestAnimationFrame(() => {
-            // Delay to no conflict with current updates, Remove the entity completely
-            cleanupOutlineEntity(viewerRef, outlineEntityRef, debug);
+            // Delay to avoid conflict with current updates, then remove the entity completely
+            cleanupOutlineEntity(removeEntityById, outlineEntityRef, debug, requestRender);
           });
         }
         return outlineColor.withAlpha(newOpacity);
@@ -248,13 +240,13 @@ export const useFootprints = (debug = false): void => {
         easingFunction: animationEasing,
       });
 
-      if (isValidViewerInstance(viewer)) {
+      if (isViewerValid()) {
         const outlineEntity = createOutlineEntity(polygonHierarchy.positions);
         viewer.entities.add(outlineEntity);
         outlineEntityRef.current = outlineEntity;
       }
     }
-    cesiumSafeRequestRender(viewer);
+    requestRender();
   }, [
     viewerRef,
     isObliqueMode,
@@ -268,6 +260,8 @@ export const useFootprints = (debug = false): void => {
     animationDelay,
     animationEasing,
     debug,
+    isViewerValid,
+    requestRender,
   ]);
 };
 

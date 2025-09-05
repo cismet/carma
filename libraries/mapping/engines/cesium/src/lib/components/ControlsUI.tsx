@@ -1,5 +1,4 @@
 import { useSelector } from "react-redux";
-import { Viewer } from "cesium";
 
 import { selectViewerHome, selectViewerIsMode2d } from "../slices/cesium";
 
@@ -12,19 +11,14 @@ import LockCenterControl from "./controls/LockCenterControl";
 import OrbitControl from "./controls/OrbitControl";
 import { SceneStyleToggle } from "./controls/SceneStyleToggle";
 import ZoomControls from "./controls/ZoomControls";
-import { ViewerAnimationMap } from "../utils/viewerAnimationMap";
 
 const ControlsUI = ({
   showHome = true,
   showOrbit = true,
-  viewerRef,
-  viewerAnimationMapRef,
   isViewerReady,
 }: {
   showHome?: boolean;
   showOrbit?: boolean;
-  viewerRef: React.RefObject<Viewer | null>;
-  viewerAnimationMapRef: React.RefObject<ViewerAnimationMap | null>;
   isViewerReady: boolean;
 }) => {
   const home = useSelector(selectViewerHome);
@@ -42,10 +36,7 @@ const ControlsUI = ({
             visibility: isMode2d ? "hidden" : "visible",
           }}
         >
-          <ZoomControls
-            viewerRef={viewerRef}
-            viewerAnimationMapRef={viewerAnimationMapRef}
-          />
+          <ZoomControls />
           {showHome && home && (
             <ControlGroup>
               <HomeControl />

@@ -7,6 +7,7 @@ import {
   Cartesian2,
 } from "cesium";
 import { AnimationType, ViewerAnimationMap } from "./viewerAnimationMap";
+import type { CesiumContextType } from "../CesiumContext";
 
 // TODO: consolidate cesium animation helper into separate package
 // see also viewerAnimationMap
@@ -22,7 +23,16 @@ export enum PITCH {
  * @param viewer The Cesium viewer.
  * @returns The point on the globe that the camera is currently orbiting around.
  */
-export const getOrbitPoint = (viewer: Viewer) => {
+export const getOrbitPoint = (viewerOrCtx: Viewer | CesiumContextType) => {
+  let viewer: Viewer;
+  if ('viewerRef' in viewerOrCtx) {
+    // It's a CesiumContextType
+    if (!viewerOrCtx.isViewerValid()) return null;
+    viewer = viewerOrCtx.viewerRef.current!;
+  } else {
+    // It's a Viewer
+    viewer = viewerOrCtx;
+  }
   const scene = viewer.scene;
   const screenCenter = new Cartesian2(
     scene.canvas.clientWidth / 2,

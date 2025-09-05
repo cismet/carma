@@ -1,19 +1,12 @@
 import { useCallback } from "react";
 
-import {
-  type Viewer,
-  Cartesian2,
-  Cartesian3,
-  EasingFunction,
-  Math as CesiumMath,
-  Ray,
-  PerspectiveFrustum,
-} from "cesium";
+import { Cartesian2, Cartesian3, EasingFunction, Math as CesiumMath, Ray, PerspectiveFrustum, Viewer } from "cesium";
 import {
   cancelViewerAnimation,
   type ViewerAnimationMap,
 } from "../utils/viewerAnimationMap";
-import { cesiumAnimateFov } from "../utils/cesiumAnimateFov";
+import { cesiumAnimateFov, cesiumAnimateFovCtx } from "../utils/cesiumAnimateFov";
+import type { CesiumContextType } from "../CesiumContext";
 import { cesiumSceneHasTweens } from "../utils/cesiumAnimations";
 
 const FOV_MOVERATE_FACTOR = 0.5;
@@ -49,6 +42,8 @@ const zoom = (
     cancelViewerAnimation(viewer, viewerAnimationMap);
     wasCancelled = true;
   }
+
+// (moved context-based variant below)
 
   // undocumented Cesium feature
   // TODO: replace with a public API when one is available to check for ongoing flyTo animations
@@ -183,12 +178,11 @@ const fovZoom = (
  */
 
 export function useZoomControls(
-  viewerRef: React.MutableRefObject<Viewer | null>,
-  viewerAnimationMapRef: React.MutableRefObject<ViewerAnimationMap | null>,
+  ctx: CesiumContextType,
   zoomOptions: Partial<ZoomOptions> = {}
 ) {
-  const viewer = viewerRef.current;
-  const viewerAnimationMap = viewerAnimationMapRef.current;
+  const viewer = ctx.viewerRef.current;
+  const viewerAnimationMap = ctx.viewerAnimationMapRef.current;
   const { duration, fovMode, moveRateFactor } = {
     ...defaultZoomOptions,
     ...zoomOptions,

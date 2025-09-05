@@ -1,12 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import knn from "rbush-knn";
 
-import {
-  cesiumSceneHasTweens,
-  isValidViewerInstance,
-  useCesiumContext,
-  getOrbitPoint,
-} from "@carma-mapping/engines/cesium";
+import { cesiumSceneHasTweens, useCesiumContext, getOrbitPoint } from "@carma-mapping/engines/cesium";
 
 import { useOrbitPoint } from "./useOrbitPoint";
 import { useOblique } from "./useOblique";
@@ -48,7 +43,8 @@ export function useObliqueNearestImage(
   debug = false,
   options: UseObliqueNearestImageOptions = defaultOptions
 ) {
-  const { viewerRef } = useCesiumContext();
+  const ctx = useCesiumContext();
+  const { viewerRef, isViewerValid } = ctx;
   const lastSearchTimeRef = useRef<number>(0);
   const {
     converter,
@@ -81,12 +77,7 @@ export function useObliqueNearestImage(
       }
 
       const viewer = viewerRef.current;
-      if (
-        !isValidViewerInstance(viewer) ||
-        !imageRecords ||
-        !imageRecords.size ||
-        !converter
-      ) {
+      if (!isViewerValid() || !imageRecords || !imageRecords.size || !converter) {
         return;
       }
 
@@ -136,7 +127,7 @@ export function useObliqueNearestImage(
           getCardinalDirectionFromHeading(effectiveHeading);
 
         // Fallback to computing orbit point directly if shared orbit point isn't initialized yet
-        const orbit = orbitPoint ?? getOrbitPoint(viewer);
+        const orbit = orbitPoint ?? getOrbitPoint(ctx);
         const orbitPointCoords = orbit
           ? calculateImageCoordsFromCartesian(orbit, converter)
           : null;
@@ -292,13 +283,7 @@ export function useObliqueNearestImage(
   useEffect(() => {
     if (!options.continuous) return;
     const viewer = viewerRef.current;
-    if (
-      !isObliqueMode ||
-      suspendSelectionSearch ||
-      !isValidViewerInstance(viewer) ||
-      !imageRecords ||
-      !imageRecords.size
-    ) {
+    if (!isObliqueMode || suspendSelectionSearch || !isViewerValid() || !imageRecords || !imageRecords.size) {
       return;
     }
 
@@ -317,7 +302,7 @@ export function useObliqueNearestImage(
 
     viewer.camera.changed.addEventListener(handleCameraMove);
     return () => {
-      if (isValidViewerInstance(viewer)) {
+      if (viewer && !viewer.isDestroyed()) {
         viewer.camera.changed.removeEventListener(handleCameraMove);
       }
       if (timerIdRef.current) {

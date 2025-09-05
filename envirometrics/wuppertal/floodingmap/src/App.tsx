@@ -104,6 +104,7 @@ function App({ sync = false }: { sync?: boolean }) {
     isViewerReady,
     terrainProviderRef,
     surfaceProviderRef,
+    requestRender,
   } = useCesiumContext();
   const homeControl = useHomeControl();
   const {
@@ -214,7 +215,7 @@ function App({ sync = false }: { sync?: boolean }) {
           _cesiumWidget: { _creditContainer: { style: { display: string } } };
         }
       )._cesiumWidget._creditContainer.style.display = "none";
-      viewer.scene.requestRender();
+      requestRender();
     }
   }, [viewerRef, isViewerReady]);
 

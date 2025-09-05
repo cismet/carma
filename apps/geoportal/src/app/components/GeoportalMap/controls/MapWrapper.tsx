@@ -127,8 +127,8 @@ const MapWrapper = () => {
   const showLocatorButton = useSelector(getShowLocatorButton);
   const showMeasurementButton = useSelector(getShowMeasurementButton);
   const zenMode = useSelector(getZenMode);
-  const { viewerRef, viewerAnimationMapRef, isViewerReady } =
-    useCesiumContext();
+  const ctx = useCesiumContext();
+  const { viewerRef, viewerAnimationMapRef, isViewerReady } = ctx;
   const homeControl = useHomeControl();
   const configSelection = useSelector(getConfigSelection);
 
@@ -137,7 +137,7 @@ const MapWrapper = () => {
   const {
     handleZoomIn: handleZoomInCesium,
     handleZoomOut: handleZoomOutCesium,
-  } = useZoomControlsCesium(viewerRef, viewerAnimationMapRef, {
+  } = useZoomControlsCesium(ctx, {
     fovMode: isObliqueMode,
   });
   const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();

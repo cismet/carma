@@ -1,5 +1,6 @@
 import { useCallback, useEffect } from "react";
 import { Math as CesiumMath, PerspectiveFrustum, type Viewer } from "cesium";
+import type { CesiumContextType } from "../CesiumContext";
 
 const viewerWheelHandlers = new WeakMap<Viewer, (event: WheelEvent) => void>();
 
@@ -16,7 +17,7 @@ const defaultFovWheelZoomOptions: Required<FovWheelZoomOptions> = {
 };
 
 export function useFovWheelZoom(
-  viewerRef: React.MutableRefObject<Viewer | null>,
+  ctx: CesiumContextType,
   enabled: boolean = true,
   options: FovWheelZoomOptions = {}
 ) {
@@ -29,7 +30,7 @@ export function useFovWheelZoom(
     (event: WheelEvent) => {
       event.preventDefault();
 
-      const viewer = viewerRef.current;
+      const viewer = ctx.viewerRef.current;
       if (!viewer || !viewer.scene) return;
 
       if (!(viewer.camera.frustum instanceof PerspectiveFrustum)) {
@@ -49,14 +50,14 @@ export function useFovWheelZoom(
 
       if (Math.abs(newFov - currentFov) > 0.0001) {
         viewer.camera.frustum.fov = newFov;
-        viewer.scene.requestRender();
+        ctx.requestRender();
       }
     },
-    [viewerRef, minFov, maxFov, fovChangeRate]
+    [ctx, minFov, maxFov, fovChangeRate]
   );
 
   const enableWheelZoom = useCallback(() => {
-    const viewer = viewerRef.current;
+    const viewer = ctx.viewerRef.current;
     if (!viewer || !viewer.scene) return;
 
     viewer.scene.screenSpaceCameraController.enableZoom = false;
@@ -68,10 +69,10 @@ export function useFovWheelZoom(
 
       viewerWheelHandlers.set(viewer, handleWheel);
     }
-  }, [viewerRef, handleWheel]);
+  }, [ctx, handleWheel]);
 
   const disableWheelZoom = useCallback(() => {
-    const viewer = viewerRef.current;
+    const viewer = ctx.viewerRef.current;
     if (!viewer || !viewer.scene) return;
 
     if (viewerWheelHandlers.has(viewer)) {
@@ -84,7 +85,7 @@ export function useFovWheelZoom(
     }
 
     viewer.scene.screenSpaceCameraController.enableZoom = true;
-  }, [viewerRef]);
+  }, [ctx]);
 
   useEffect(() => {
     if (!enabled) {
@@ -113,7 +114,7 @@ export function useFovWheelZoom(
     handleWheel,
     setEnabled,
     isEnabled: Boolean(
-      viewerRef.current && viewerWheelHandlers.has(viewerRef.current)
+      ctx.viewerRef.current && viewerWheelHandlers.has(ctx.viewerRef.current)
     ),
   };
 }

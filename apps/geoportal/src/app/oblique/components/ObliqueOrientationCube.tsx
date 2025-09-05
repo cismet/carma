@@ -115,8 +115,8 @@ const ObliqueOrientationCube: React.FC<Props> = ({
 }) => {
   const half = size / 2;
 
-  const { viewerRef, isViewerReady, viewerAnimationMapRef } =
-    useCesiumContext();
+  const ctx = useCesiumContext();
+  const { viewerRef, isViewerReady, viewerAnimationMapRef } = ctx;
   const [, setTransformTick] = useState(0);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const lastFrustumRef = useRef<{ angle?: number; w?: number; h?: number }>({});
@@ -201,10 +201,10 @@ const ObliqueOrientationCube: React.FC<Props> = ({
 
   // Ensure perspective updates even when only FOV/aspect/size changes (pose unchanged)
   useEffect(() => {
-    const viewer = viewerRef.current;
-    if (!isViewerReady || !viewer || viewer.isDestroyed()) return;
-    const camera = viewer.camera;
-    const scene = viewer.scene;
+    if (!ctx.isViewerValid()) return;
+    const validated = ctx.validateViewer();
+    if (!validated) return;
+    const { viewer, camera, scene } = validated;
 
     const updateFrustum = () => {
       try {
@@ -243,7 +243,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
     return () => {
       scene.preRender.removeEventListener(updateFrustum);
     };
-  }, [viewerRef, isViewerReady]);
+  }, [viewerRef, isViewerReady, ctx]);
 
   // Build forward scene transform and inverse (for billboarding labels)
   const cam = viewerRef.current?.camera;
@@ -306,13 +306,13 @@ const ObliqueOrientationCube: React.FC<Props> = ({
       return;
     }
     // Fallback: instant snap (legacy behavior)
-    if (!viewerRef.current || viewerRef.current.isDestroyed()) return;
-    const viewer = viewerRef.current;
+    if (!ctx.isViewerValid()) return;
+    const viewer = ctx.viewerRef.current!;
     if (viewerAnimationMapRef?.current) {
       cancelViewerAnimation(viewer, viewerAnimationMapRef.current);
     }
     const camera = viewer.camera;
-    const target = getOrbitPoint(viewer);
+    const target = getOrbitPoint(ctx);
     if (target) {
       const range = Cartesian3.distance(target, camera.positionWC);
       viewer.camera.lookAt(

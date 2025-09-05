@@ -67,6 +67,8 @@ export {
   getDegreesFromCartesian,
   getDegreesFromCartographic,
   cesiumSafeRequestRender,
+  getValidContext,
+  type ValidatedCesiumObjects,
 } from "./lib/utils/cesiumHelpers";
 export {
   fromColorRgbaArray,

@@ -17,10 +17,7 @@ import {
   type Viewer,
 } from "cesium";
 
-import {
-  isValidViewerInstance,
-  useCesiumContext,
-} from "@carma-mapping/engines/cesium";
+import { isValidViewerInstance, useCesiumContext } from "@carma-mapping/engines/cesium";
 
 import {
   CardinalDirectionEnum,
@@ -36,7 +33,8 @@ export const useObliqueCameraHandlers = (
   animationInProgressRef: MutableRefObject<boolean>,
   isDebugMode: boolean
 ) => {
-  const { viewerRef } = useCesiumContext();
+  const ctx = useCesiumContext();
+  const { viewerRef, requestRender, isViewerValid } = ctx;
   const { headingOffset, isObliqueMode } = useOblique();
   const orbitPoint = useOrbitPoint(isObliqueMode);
   const updateOrbitPointEntity = useDebugOrbitPoint(
@@ -72,7 +70,7 @@ export const useObliqueCameraHandlers = (
   const rotateToHeading = useCallback(
     (targetHeading: number) => {
       const viewer = viewerRef.current;
-      if (!isValidViewerInstance(viewer) || animationInProgressRef.current)
+      if (!isViewerValid() || animationInProgressRef.current)
         return;
 
       const camera = viewer.camera;
@@ -131,8 +129,7 @@ export const useObliqueCameraHandlers = (
           );
 
           setCurrentHeading(intermediateHeading);
-
-          scene.requestRender();
+          requestRender();
         } else {
           camera.lookAt(
             centerPoint,
@@ -140,7 +137,7 @@ export const useObliqueCameraHandlers = (
           );
 
           setCurrentHeading(normalizedTarget);
-          resetCamera(viewer);
+          resetCamera(ctx);
           animationInProgressRef.current = false;
           userMovedCameraRef.current = true;
 
@@ -153,13 +150,14 @@ export const useObliqueCameraHandlers = (
       };
       scene.preUpdate.addEventListener(onPreUpdate);
       return () => {
-        resetCamera(viewer);
+        resetCamera(ctx);
         animationInProgressRef.current = false;
         userMovedCameraRef.current = true;
         scene.preUpdate.removeEventListener(onPreUpdate);
       };
     },
     [
+      ctx,
       viewerRef,
       headingOffset,
       updateOrbitPointEntity,
@@ -167,6 +165,8 @@ export const useObliqueCameraHandlers = (
       isDebugMode,
       animationInProgressRef,
       getOrbitCenter,
+      requestRender,
+      isViewerValid,
     ]
   );
   const userMovedCameraRef = useRef<boolean>(false);
@@ -239,8 +239,7 @@ export const useObliqueCameraHandlers = (
           );
 
           setCurrentHeading(intermediateHeading);
-
-          scene.requestRender();
+          requestRender();
         } else {
           camera.lookAt(
             centerPoint,
@@ -248,7 +247,7 @@ export const useObliqueCameraHandlers = (
           );
 
           setCurrentHeading(targetHeading);
-          resetCamera(viewer);
+          resetCamera(ctx);
           animationInProgressRef.current = false;
           userMovedCameraRef.current = true;
 
@@ -258,7 +257,7 @@ export const useObliqueCameraHandlers = (
       };
       scene.preUpdate.addEventListener(onPreUpdate);
       return () => {
-        resetCamera(viewer);
+        resetCamera(ctx);
         animationInProgressRef.current = false;
         userMovedCameraRef.current = true;
         scene.preUpdate.removeEventListener(onPreUpdate);
@@ -272,6 +271,8 @@ export const useObliqueCameraHandlers = (
       isDebugMode,
       animationInProgressRef,
       getOrbitCenter,
+      requestRender,
+      ctx,
     ]
   );
 
@@ -301,7 +302,7 @@ export const useObliqueCameraHandlers = (
 
   useEffect(() => {
     const viewer = viewerRef.current;
-    if (!isValidViewerInstance(viewer) || !isObliqueMode) return;
+    if (!isViewerValid() || !isObliqueMode) return;
 
     const camera = viewer.camera;
 
@@ -364,7 +365,7 @@ export const useObliqueCameraHandlers = (
     viewer.camera.moveEnd.addEventListener(updateCameraInfo);
 
     return () => {
-      if (isValidViewerInstance(viewer)) {
+      if (viewer && !viewer.isDestroyed()) {
         viewer.camera.changed.removeEventListener(updateCameraInfo);
         viewer.camera.moveEnd.removeEventListener(updateCameraInfo);
         inputHandler.destroy();
@@ -378,6 +379,7 @@ export const useObliqueCameraHandlers = (
     isDebugMode,
     orbitPoint,
     animationInProgressRef,
+    isViewerValid,
   ]);
   return {
     currentHeading,
