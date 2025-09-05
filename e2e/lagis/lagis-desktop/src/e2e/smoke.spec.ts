@@ -14,7 +14,37 @@ test.describe("lagis smoke test", () => {
     context,
   }) => {
     await setupAllMocks(context);
-
+    
+    // Mock all omt.map-hosting.de requests with empty responses
+    await context.route('https://omt.map-hosting.de/**', route => {
+      const url = route.request().url();
+      
+      if (url.endsWith('.json')) {
+        // For JSON files (style.json, sprite.json, data/v3.json), return empty object or appropriate structure
+        let emptyResponse = {};
+        
+        if (url.includes('style.json')) {
+          emptyResponse = { version: 8, sources: {}, layers: [] };
+        } else if (url.includes('sprite.json')) {
+          emptyResponse = {};
+        } else {
+          emptyResponse = {};
+        }
+        
+        route.fulfill({
+          status: 200,
+          contentType: 'application/json',
+          body: JSON.stringify(emptyResponse),
+        });
+      } else {
+        // For other resources, return empty response
+        route.fulfill({
+          status: 200,
+          contentType: 'text/plain',
+          body: '',
+        });
+      }
+    });
     // Navigate to the application
     await page.goto("/");
     // Check initial page load
