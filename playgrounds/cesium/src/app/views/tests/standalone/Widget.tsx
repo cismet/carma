@@ -5,7 +5,7 @@ import { useTweakpaneCtx } from "@carma-commons/debug";
 import { Widget } from "@carma-mapping/engines/cesium-widget";
 
 import { WUPP_MESH_2024 } from "@carma-commons/resources";
-import type { LatLngRecord } from "@carma-commons/types";
+import type { LatLng } from "@carma-commons/types";
 
 import { FOOTPRINT_GEOJSON_SOURCES } from "../../../config/dataSources.config";
 
@@ -13,11 +13,11 @@ const { Option } = Select;
 
 type Poi = {
   label: string;
-  position: PositionRecord;
+  position: LatLng.deg;
   range?: number;
   clipBy?: {
     radius?: number;
-    polygon?: LatLngRecord[];
+    polygon?: LatLng.deg[];
   };
 };
 
@@ -68,8 +68,6 @@ const options = Object.entries(POI).reduce((acc, [key, value]) => {
   acc[value.label] = key;
   return acc;
 }, {});
-
-type PositionRecord = LatLngRecord & { height: number };
 
 function View() {
   const [poiKey, setPoiKey] = useState<string>("TOELLETURM");

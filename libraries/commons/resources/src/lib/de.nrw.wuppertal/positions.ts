@@ -1,17 +1,18 @@
-import { PositionPreset } from "../positions";
+import type { PositionPreset } from "../positions";
+import type { Altitude, Degrees } from "@carma-commons/types";
 
 export const WUPPERTAL: PositionPreset = {
   name: "Wuppertal",
   position: {
-    latDeg: 51.27174,
-    lngDeg: 7.20028,
+    latitude: 51.27174 as Degrees,
+    longitude: 7.20028 as Degrees,
+    altitude: 155 as Altitude.EllipsoidalWGS84Meters,
   },
-  height: 155, // Willy Brandt Platz as Reference
   extent: {
-    east: 7.32,
-    north: 51.33,
-    south: 51.16,
-    west: 7.0,
+    east: 7.32 as Degrees,
+    north: 51.33 as Degrees,
+    south: 51.16 as Degrees,
+    west: 7.0 as Degrees,
   },
 };
 

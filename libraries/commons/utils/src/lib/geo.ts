@@ -2,18 +2,13 @@ import { distance } from "@turf/turf";
 import {
   DEFAULT_LEAFLET_TILESIZE,
   DEFAULT_MERCATOR_LATITUDE_RAD,
+  DEFAULT_ZOOM_LEVEL,
   DEFAULT_ZOOM_TOLERANCE,
   DEFAULT_PIXEL_TOLERANCE,
 } from "./constants";
 import { getPixelResolutionFromZoomAtLatitudeRad } from "./mercator";
 import { degToRad } from "./units";
-import type {
-  Degrees,
-  Meters,
-  Radians,
-  LatLng,
-  LatLngZoom,
-} from "@carma-commons/types";
+import type { Degrees, Meters, Radians, LatLng } from "@carma-commons/types";
 import { brandedRatio, brandedAbs, brandedMax } from "./typescript-branded-ops";
 
 // Meters per pixel at zoom/latitude (latitude in degrees)
@@ -36,17 +31,22 @@ export function metersPerPixelAtLatitudeRad(
 }
 
 // Geodesic distance in meters between two LatLngs (degrees)
-export function distanceMeters(a: LatLng, b: LatLng): number {
-  return distance([a.lng, a.lat], [b.lng, b.lat], { units: "meters" });
+export function distanceMeters(a: LatLng.deg, b: LatLng.deg): number {
+  return distance([a.longitude, a.latitude], [b.longitude, b.latitude], {
+    units: "meters",
+  });
 }
 
 export function pixelsBetweenGeographicLocations(
-  a: LatLng,
-  b: LatLng,
+  a: LatLng.deg,
+  b: LatLng.deg,
   zoomRef: number
 ): number {
   // Use max |latitude| of both points for Mercator scale
-  const latForScale = brandedMax(brandedAbs(a.lat), brandedAbs(b.lat));
+  const latForScale = brandedMax(
+    brandedAbs(a.latitude),
+    brandedAbs(b.latitude)
+  );
   const mPerPx = metersPerPixel(zoomRef, latForScale);
   const dMeters = distanceMeters(a, b);
   return brandedRatio(dMeters, mPerPx);
@@ -55,7 +55,7 @@ export function pixelsBetweenGeographicLocations(
 export function isZoomClose(
   a: number | undefined,
   b: number | undefined,
-  tol: number = 1e-6
+  tol: number = DEFAULT_ZOOM_TOLERANCE
 ): boolean {
   return (
     Number.isFinite(a) &&
@@ -65,17 +65,17 @@ export function isZoomClose(
 }
 
 export function isLocationEqualWithinPixelTolerance(
-  a: LatLngZoom | undefined,
-  b: LatLngZoom | undefined,
+  a: LatLng.deg | undefined,
+  b: LatLng.deg | undefined,
   opts?: {
+    zoom?: number;
     pixelTolerance?: number; // pixels
     zoomTolerance?: number; // absolute diff
   }
 ): boolean {
   if (!a || !b) return false;
+  const zoom = opts?.zoom ?? DEFAULT_ZOOM_LEVEL;
   const pxTol = opts?.pixelTolerance ?? DEFAULT_PIXEL_TOLERANCE;
-  const zoomTol = opts?.zoomTolerance ?? DEFAULT_ZOOM_TOLERANCE;
-  if (!isZoomClose(a.zoom, b.zoom, zoomTol)) return false;
-  const px = pixelsBetweenGeographicLocations(a, b, b.zoom);
+  const px = pixelsBetweenGeographicLocations(a, b, zoom);
   return px <= pxTol;
 }

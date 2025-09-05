@@ -2,7 +2,11 @@ import { useCallback, useEffect, useRef } from "react";
 import { useHashState } from "../contexts/HashStateProvider";
 
 import { cesiumClearParamKeys } from "@carma-mapping/engines/cesium";
-import { isLocationEqualWithinPixelTolerance } from "@carma-commons/utils";
+import {
+  isLocationEqualWithinPixelTolerance,
+  isZoomClose,
+} from "@carma-commons/utils";
+import { Degrees } from "@carma-commons/types";
 
 export type LatLngZoom = { lat: number; lng: number; zoom: number };
 export type CesiumSceneChangeEvent = { hashParams: Record<string, string> };
@@ -64,12 +68,13 @@ export function useMapHashRouting({
       // If we just restored to a target via popstate, allow small drift without pushing
       const target = popstateTargetRef.current;
       if (target) {
-        if (
-          isLocationEqualWithinPixelTolerance({ lat, lng, zoom }, target, {
-            pixelTolerance,
-            zoomTolerance: 1e-6,
-          })
-        ) {
+        const zoomEqual = isZoomClose(zoom, target.zoom);
+        const locEqual = isLocationEqualWithinPixelTolerance(
+          { latitude: lat as Degrees, longitude: lng as Degrees },
+          { latitude: target.lat as Degrees, longitude: target.lng as Degrees },
+          { zoom, pixelTolerance }
+        );
+        if (zoomEqual && locEqual) {
           console.debug(
             "[Routing][hash] (2D) skip push: equals popstate target within tolerance",
             { lat, lng, zoom, target }
@@ -81,27 +86,27 @@ export function useMapHashRouting({
       // Skip writing if the map is already at the current hash location (within tolerance)
       try {
         const vals = getHashValues?.() || {};
-        const hLat = Number((vals as Record<string, unknown>).lat);
-        const hLng = Number((vals as Record<string, unknown>).lng);
-        const hZoom = Number((vals as Record<string, unknown>).zoom);
-        const h =
+        const hLat = Number((vals as Record<string, unknown>).lat) as Degrees;
+        const hLng = Number((vals as Record<string, unknown>).lng) as Degrees;
+        const hZoom = Number((vals as Record<string, unknown>).zoom) as number;
+        const hasAll =
           Number.isFinite(hLat) &&
           Number.isFinite(hLng) &&
-          Number.isFinite(hZoom)
-            ? { lat: hLat, lng: hLng, zoom: hZoom }
-            : undefined;
-        if (
-          h &&
-          isLocationEqualWithinPixelTolerance({ lat, lng, zoom }, h, {
-            pixelTolerance,
-            zoomTolerance: 1e-6,
-          })
-        ) {
-          console.debug(
-            "[Routing][hash] (2D) skip push: equals current hash within tolerance",
-            { lat, lng, zoom, hLat, hLng, hZoom }
+          Number.isFinite(hZoom);
+        if (hasAll) {
+          if (!isZoomClose(zoom, hZoom)) return;
+          const locEqual = isLocationEqualWithinPixelTolerance(
+            { latitude: lat as Degrees, longitude: lng as Degrees },
+            { latitude: hLat, longitude: hLng },
+            { zoom, pixelTolerance }
           );
-          return;
+          if (locEqual) {
+            console.debug(
+              "[Routing][hash] (2D) skip push: equals current hash within tolerance",
+              { lat, lng, zoom, hLat, hLng, hZoom }
+            );
+            return;
+          }
         }
       } catch {}
       updateHash(

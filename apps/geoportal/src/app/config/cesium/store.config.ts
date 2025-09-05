@@ -10,9 +10,9 @@ import { MODEL_ASSETS } from "./assets.config";
 // SETUP Store State
 
 const homePosition = Cartesian3.fromDegrees(
-  WUPPERTAL.position.lngDeg,
-  WUPPERTAL.position.latDeg,
-  WUPPERTAL.height
+  WUPPERTAL.position.longitude,
+  WUPPERTAL.position.latitude,
+  WUPPERTAL.position.altitude
 );
 
 // position relative to the home position

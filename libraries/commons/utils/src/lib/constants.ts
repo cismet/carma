@@ -24,6 +24,7 @@ export const WEB_MERCATOR_MAX_LATITUDE_RAD: Radians = degToRad(
 );
 
 // Web Map App opiniated defaults
+export const DEFAULT_ZOOM_LEVEL = 15;
 export const DEFAULT_ZOOM_TOLERANCE = 0.001; // should be no perceptable visual difference at 1/1000
 export const DEFAULT_PIXEL_TOLERANCE = 8; // pixels
 // Used for local scale factor defaults

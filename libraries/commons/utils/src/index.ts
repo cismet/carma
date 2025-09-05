@@ -20,6 +20,7 @@ export {
   distanceMeters,
   pixelsBetweenGeographicLocations,
   isLocationEqualWithinPixelTolerance,
+  isZoomClose,
 } from "./lib/geo";
 
 export {
