@@ -66,6 +66,14 @@ test.describe("potenzialflaechen-online smoke test", () => {
         body: "[]",
       })
     );
+
+    await context.route("https://offline-data.cismet.de/offline-data/*", route =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: "[]",
+      })
+    );
     
     await page.goto("/");
     await page.addStyleTag({
