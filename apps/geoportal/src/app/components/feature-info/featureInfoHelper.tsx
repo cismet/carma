@@ -52,9 +52,13 @@ export const objectToFeature = async (jsonOutput: any, code: string) => {
                     })`;
 
   const tmpInfo = await sandboxedEvalExternal(functionString, jsonOutput);
+  const baseInfo =
+    tmpInfo && typeof tmpInfo === "object" && !Array.isArray(tmpInfo)
+      ? (tmpInfo as Record<string, unknown>)
+      : { value: tmpInfo };
 
   const properties = {
-    ...tmpInfo,
+    ...baseInfo,
     wmsProps: jsonOutput,
   };
 
@@ -66,12 +70,17 @@ export const functionToFeature = async (output: any, code: string) => {
     // await new Promise((resolve) => setTimeout(resolve, 2000));
     const tmpInfo = await sandboxedEvalExternal("(" + code + ")", output);
 
-    if (!tmpInfo) {
+    if (tmpInfo == null) {
       return undefined;
     }
 
+    const baseInfo =
+      tmpInfo && typeof tmpInfo === "object" && !Array.isArray(tmpInfo)
+        ? (tmpInfo as Record<string, unknown>)
+        : { value: tmpInfo };
+
     const properties = {
-      ...tmpInfo,
+      ...baseInfo,
       wmsProps: output,
     };
 
@@ -280,7 +289,16 @@ export const getFeatureForLayer = async (
       }
 
       return features.map((feature) => {
-        const genericLinks = feature.properties.genericLinks || [];
+        const props = feature.properties as unknown;
+        const genericLinks =
+          props &&
+          typeof props === "object" &&
+          !Array.isArray(props) &&
+          "genericLinks" in (props as Record<string, unknown>)
+            ? ((props as Record<string, unknown>)[
+                "genericLinks"
+              ] as unknown[])
+            : [];
 
         return {
           properties: {

@@ -446,7 +446,14 @@ const createVectorFeature = async (
     if (!featureProperties) {
       return undefined;
     }
-    const genericLinks = featureProperties.properties.genericLinks || [];
+    const props = featureProperties.properties as unknown;
+    const genericLinks =
+      props &&
+      typeof props === "object" &&
+      !Array.isArray(props) &&
+      "genericLinks" in (props as Record<string, unknown>)
+        ? ((props as Record<string, unknown>)["genericLinks"] as unknown[])
+        : [];
 
     feature = {
       properties: {
