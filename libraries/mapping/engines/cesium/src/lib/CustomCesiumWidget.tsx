@@ -18,7 +18,7 @@ import {
 } from "cesium";
 import { generateRingFromDegrees } from "./utils/cesiumHelpers";
 import { CUSTOM_SHADERS_DEFINITIONS } from "./shaders";
-import type { LatLngRadians, LatLngRecord } from "@carma-commons/types";
+import type { Altitude, Degrees, LatLng } from "@carma-commons/types";
 
 const unlit = new CustomShader(CUSTOM_SHADERS_DEFINITIONS.UNLIT);
 
@@ -54,19 +54,21 @@ const addDebugPrimitives = (widget: CesiumWidget, cartesian: Cartesian3) => {
   };
 };
 
-export const CustomCesiumWidget: FC<{
+interface CustomCesiumWidgetProps {
   pixelSize?: { width: number; height: number };
-  position: { longitude: number; latitude: number; height?: number };
+  position: LatLng.deg;
   range?: number;
   clip?: boolean;
-  clipPolygon?: LatLngRecord[];
+  clipPolygon?: LatLng.deg[];
   clipRadius?: number;
   tilesetUrl: string;
   debug?: boolean;
   orthographic?: boolean;
   animate?: boolean;
   children?: ReactNode;
-}> = ({
+}
+
+export const CustomCesiumWidget = ({
   children,
   clip = false,
   orthographic = false,
@@ -75,10 +77,14 @@ export const CustomCesiumWidget: FC<{
   clipRadius,
   clipPolygon,
   tilesetUrl,
-  position = { longitude: 7.201578, latitude: 51.256565, height: 335 },
+  position = {
+    longitude: 7.201578 as Degrees,
+    latitude: 51.256565 as Degrees,
+    altitude: 335 as Altitude.EllipsoidalWGS84Meters,
+  },
   debug = false,
   animate = false,
-}) => {
+}: CustomCesiumWidgetProps) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [widget, setWidget] = useState<CesiumWidget | null>(null);
   const [tileset, setTileset] = useState<Cesium3DTileset | null>(null);
@@ -88,7 +94,7 @@ export const CustomCesiumWidget: FC<{
     const cartesian3 = Cartesian3.fromDegrees(
       position.longitude,
       position.latitude,
-      position.height
+      position.altitude
     );
     setCartesian(cartesian3);
 
@@ -251,7 +257,7 @@ export const CustomCesiumWidget: FC<{
 
         if (clipPolygon && clipPolygon.length > 2) {
           clippingPolygon = new ClippingPolygon({
-            positions: clipPolygon.map((coord: LatLngRecord) =>
+            positions: clipPolygon.map((coord: LatLng.deg) =>
               Cartesian3.fromDegrees(coord.longitude, coord.latitude)
             ),
           });
@@ -264,8 +270,8 @@ export const CustomCesiumWidget: FC<{
           );
 
           clippingPolygon = new ClippingPolygon({
-            positions: ringCoords.map((coord: LatLngRadians) =>
-              Cartesian3.fromRadians(coord.lngRad, coord.latRad)
+            positions: ringCoords.map((coord: LatLng.rad) =>
+              Cartesian3.fromRadians(coord.longitude, coord.latitude)
             ),
           });
         }

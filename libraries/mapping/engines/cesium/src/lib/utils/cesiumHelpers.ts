@@ -22,11 +22,7 @@ import {
 } from "cesium";
 import type { TilesetConfig } from "@carma-commons/resources";
 
-import type {
-  LatLngRadians,
-  LatLngRecord,
-  NumericResult,
-} from "@carma-commons/types";
+import type { LatLng, NumericResult, Radians } from "@carma-commons/types";
 
 import {
   EARTH_RADIUS,
@@ -542,15 +538,15 @@ const generatePositionsForRing = (n = 8, radius = 0.1, center = [0.5, 0.5]) => {
 };
 
 export const generateRingFromDegrees = (
-  centerDeg: LatLngRecord,
+  centerDeg: LatLng.deg,
   radiusInMeters: number,
   samples: number = 24
-): LatLngRadians[] => {
+): LatLng.rad[] => {
   const center = Cartographic.fromDegrees(
     centerDeg.longitude,
     centerDeg.latitude
   );
-  const points: LatLngRadians[] = [];
+  const points: LatLng.rad[] = [];
 
   const scaleFactor = {
     latitude: 1 / EARTH_RADIUS,
@@ -562,8 +558,8 @@ export const generateRingFromDegrees = (
     const dx = radiusInMeters * Math.cos(angle);
     const dy = radiusInMeters * Math.sin(angle);
     const point = {
-      lngRad: center.longitude + dx * scaleFactor.longitude,
-      latRad: center.latitude + dy * scaleFactor.latitude,
+      longitude: (center.longitude + dx * scaleFactor.longitude) as Radians,
+      latitude: (center.latitude + dy * scaleFactor.latitude) as Radians,
     };
 
     points.push(point);

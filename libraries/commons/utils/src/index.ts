@@ -19,7 +19,9 @@ export {
   metersPerPixel,
   distanceMeters,
   pixelsBetweenGeographicLocations,
-  isLocationEqualWithinPixelTolerance,
+  isLocationVisuallyEquivalentAtZoom,
+  isZoomClose,
+  isMapCenterZoomEquivalent,
 } from "./lib/geo";
 
 export {

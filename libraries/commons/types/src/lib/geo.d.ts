@@ -1,17 +1,69 @@
-// TODO Replace by branded versions
-export interface LatLngRecord {
-  latitude: number;
-  longitude: number;
+import { Degrees, Radians, Meters, NumericUnit } from "./units";
+import LatLngDegrees from "@carma-types/spatial";
+
+declare const EllipsoidalWGS84MetersSymbol: unique symbol;
+declare const DHHN2016MetersSymbol: unique symbol;
+export namespace Altitude {
+  export type EllipsoidalWGS84Meters = Meters &
+    NumericUnit<typeof EllipsoidalWGS84MetersSymbol>;
+  export type DHHN2016Meters = Meters &
+    NumericUnit<typeof DHHN2016MetersSymbol>;
+}
+interface LatLngDegrees {
+  latitude: Degrees;
+  longitude: Degrees;
+  altitude?: Altitude.EllipsoidalWGS84Meters;
 }
 
-export interface LatLngDegrees {
-  latDeg: number;
-  lngDeg: number;
+interface LatLngRadians {
+  latitude: Radians;
+  longitude: Radians;
+  altitude?: Altitude.EllipsoidalWGS84Meters;
 }
 
-export interface LatLngRadians {
-  latRad: number;
-  lngRad: number;
+export namespace LatLng {
+  export type deg = LatLngDegrees;
+  export type rad = LatLngRadians;
+}
+
+export namespace Extent {
+  export type deg = {
+    east: Degrees;
+    north: Degrees;
+    south: Degrees;
+    west: Degrees;
+  };
+  export type rad = {
+    east: Radians;
+    north: Radians;
+    south: Radians;
+    west: Radians;
+  };
+}
+
+// explicitly degrees only.
+type LatLngZoom = LatLngDegrees & { zoom: number };
+
+interface HeadingPitchRollDegrees {
+  heading?: Degrees;
+  pitch?: Degrees;
+  roll?: Degrees;
+}
+interface HeadingPitchRollRadians {
+  heading?: Radians;
+  pitch?: Radians;
+  roll?: Radians;
+}
+
+export namespace HeadingPitchRoll {
+  export type deg = HeadingPitchRollDegrees;
+  export type rad = HeadingPitchRollRadians;
+}
+
+export interface Cartesian3Meters {
+  x: Meters;
+  y: Meters;
+  z: Meters;
 }
 
 export interface PlainCartesian3 {
@@ -19,10 +71,3 @@ export interface PlainCartesian3 {
   y: number;
   z: number;
 }
-
-// Prefer branded types over interfaces
-// see also
-// carma-commons/utils/typescript-branded-ops.ts
-// carma-commons/utils/units.ts
-export type LatLng = { lat: Degrees; lng: Degrees };
-export type LatLngZoom = LatLng & { zoom: number };

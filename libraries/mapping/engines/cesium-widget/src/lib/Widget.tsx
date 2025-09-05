@@ -19,7 +19,7 @@ import {
 import { generateRingFromDegrees } from "./utils";
 
 import type { FC, ReactNode } from "react";
-import type { LatLngRadians, LatLngRecord } from "@carma-commons/types";
+import type { LatLng } from "@carma-commons/types";
 import { CUSTOM_SHADERS_DEFINITIONS } from "@carma-mapping/engines/cesium";
 
 const unlit = new CustomShader(CUSTOM_SHADERS_DEFINITIONS.UNLIT_ENHANCED_2024);
@@ -61,7 +61,7 @@ export const Widget: FC<{
   position: { longitude: number; latitude: number; height?: number };
   range?: number;
   clip?: boolean;
-  clipPolygon?: LatLngRecord[];
+  clipPolygon?: LatLng.deg[];
   clipRadius?: number;
   tilesetUrl: string;
   debug?: boolean;
@@ -253,7 +253,7 @@ export const Widget: FC<{
 
         if (clipPolygon && clipPolygon.length > 2) {
           clippingPolygon = new ClippingPolygon({
-            positions: clipPolygon.map((coord: LatLngRecord) =>
+            positions: clipPolygon.map((coord: LatLng.deg) =>
               Cartesian3.fromDegrees(coord.longitude, coord.latitude)
             ),
           });
@@ -266,8 +266,8 @@ export const Widget: FC<{
           );
 
           clippingPolygon = new ClippingPolygon({
-            positions: ringCoords.map((coord: LatLngRadians) =>
-              Cartesian3.fromRadians(coord.lngRad, coord.latRad)
+            positions: ringCoords.map((coord: LatLng.rad) =>
+              Cartesian3.fromRadians(coord.longitude, coord.latitude)
             ),
           });
         }

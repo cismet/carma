@@ -1,19 +1,19 @@
 import { Cartographic, Math as CesiumMath } from "cesium";
 
-import type { LatLngRadians, LatLngRecord } from "@carma-commons/types";
+import type { LatLng, Radians } from "@carma-commons/types";
 
 export const EARTH_RADIUS = 6371008.7714;
 
 export const generateRingFromDegrees = (
-  centerDeg: LatLngRecord,
+  centerDeg: LatLng.deg,
   radiusInMeters: number,
   samples: number = 24
-): LatLngRadians[] => {
+): LatLng.rad[] => {
   const center = Cartographic.fromDegrees(
     centerDeg.longitude,
     centerDeg.latitude
   );
-  const points: LatLngRadians[] = [];
+  const points: LatLng.rad[] = [];
 
   const scaleFactor = {
     latitude: 1 / EARTH_RADIUS,
@@ -25,8 +25,8 @@ export const generateRingFromDegrees = (
     const dx = radiusInMeters * Math.cos(angle);
     const dy = radiusInMeters * Math.sin(angle);
     const point = {
-      lngRad: center.longitude + dx * scaleFactor.longitude,
-      latRad: center.latitude + dy * scaleFactor.latitude,
+      longitude: (center.longitude + dx * scaleFactor.longitude) as Radians,
+      latitude: (center.latitude + dy * scaleFactor.latitude) as Radians,
     };
 
     points.push(point);
