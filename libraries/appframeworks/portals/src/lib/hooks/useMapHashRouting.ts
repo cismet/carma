@@ -2,10 +2,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { useHashState } from "../contexts/HashStateProvider";
 
 import { cesiumClearParamKeys } from "@carma-mapping/engines/cesium";
-import {
-  isLocationEqualWithinPixelTolerance,
-  isZoomClose,
-} from "@carma-commons/utils";
+import { isMapCenterZoomEquivalent } from "@carma-commons/utils";
 import { Degrees } from "@carma-commons/types";
 
 export type LatLngZoom = { lat: number; lng: number; zoom: number };
@@ -68,13 +65,21 @@ export function useMapHashRouting({
       // If we just restored to a target via popstate, allow small drift without pushing
       const target = popstateTargetRef.current;
       if (target) {
-        const zoomEqual = isZoomClose(zoom, target.zoom);
-        const locEqual = isLocationEqualWithinPixelTolerance(
-          { latitude: lat as Degrees, longitude: lng as Degrees },
-          { latitude: target.lat as Degrees, longitude: target.lng as Degrees },
-          { zoom, pixelTolerance }
+        const eq = isMapCenterZoomEquivalent(
+          {
+            center: { latitude: lat as Degrees, longitude: lng as Degrees },
+            zoom,
+          },
+          {
+            center: {
+              latitude: target.lat as Degrees,
+              longitude: target.lng as Degrees,
+            },
+            zoom: target.zoom,
+          },
+          { pixelTolerance }
         );
-        if (zoomEqual && locEqual) {
+        if (eq) {
           console.debug(
             "[Routing][hash] (2D) skip push: equals popstate target within tolerance",
             { lat, lng, zoom, target }
@@ -94,13 +99,18 @@ export function useMapHashRouting({
           Number.isFinite(hLng) &&
           Number.isFinite(hZoom);
         if (hasAll) {
-          if (!isZoomClose(zoom, hZoom)) return;
-          const locEqual = isLocationEqualWithinPixelTolerance(
-            { latitude: lat as Degrees, longitude: lng as Degrees },
-            { latitude: hLat, longitude: hLng },
-            { zoom, pixelTolerance }
+          const eq = isMapCenterZoomEquivalent(
+            {
+              center: { latitude: lat as Degrees, longitude: lng as Degrees },
+              zoom,
+            },
+            {
+              center: { latitude: hLat, longitude: hLng },
+              zoom: hZoom,
+            },
+            { pixelTolerance }
           );
-          if (locEqual) {
+          if (eq) {
             console.debug(
               "[Routing][hash] (2D) skip push: equals current hash within tolerance",
               { lat, lng, zoom, hLat, hLng, hZoom }

@@ -64,18 +64,31 @@ export function isZoomClose(
   );
 }
 
-export function isLocationEqualWithinPixelTolerance(
+export function isLocationVisuallyEquivalentAtZoom(
   a: LatLng.deg | undefined,
   b: LatLng.deg | undefined,
   opts?: {
     zoom?: number;
     pixelTolerance?: number; // pixels
-    zoomTolerance?: number; // absolute diff
   }
 ): boolean {
   if (!a || !b) return false;
-  const zoom = opts?.zoom ?? DEFAULT_ZOOM_LEVEL;
   const pxTol = opts?.pixelTolerance ?? DEFAULT_PIXEL_TOLERANCE;
+  const zoom = opts?.zoom ?? DEFAULT_ZOOM_LEVEL;
   const px = pixelsBetweenGeographicLocations(a, b, zoom);
   return px <= pxTol;
+}
+
+// Composite predicate: both center and zoom are equivalent within tolerances
+export function isMapCenterZoomEquivalent(
+  a: { center: LatLng.deg; zoom: number },
+  b: { center: LatLng.deg; zoom: number },
+  opts?: { pixelTolerance?: number; zoomTolerance?: number }
+): boolean {
+  const zoomClose = isZoomClose(a.zoom, b.zoom, opts?.zoomTolerance);
+  if (!zoomClose) return false;
+  return isLocationVisuallyEquivalentAtZoom(a.center, b.center, {
+    zoom: a.zoom,
+    pixelTolerance: opts?.pixelTolerance,
+  });
 }
