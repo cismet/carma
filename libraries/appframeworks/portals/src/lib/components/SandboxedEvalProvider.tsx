@@ -45,6 +45,7 @@ export function SandboxedEvalProvider({
 }) {
   // Iframe sandbox setup
   const iframeRef = useRef<HTMLIFrameElement | null>(null);
+  const cleanupRef = useRef<null | (() => void)>(null);
   const pendingRef = useRef(
     new Map<
       string,
@@ -56,22 +57,20 @@ export function SandboxedEvalProvider({
     >()
   );
   const requestCounterRef = useRef(0);
+  const resettingRef = useRef(false);
 
-  // Create hidden iframe with strict sandboxing
-  useEffect(() => {
+  // Helper to set up the iframe and message handling; returns a cleanup function
+  const setupIframe = useCallback(() => {
     const iframe = document.createElement("iframe");
     iframe.style.display = "none";
     iframe.setAttribute("sandbox", "allow-scripts");
-    // Minimal runtime to evaluate code and post back results
     const srcdoc = `<!doctype html><html><head><meta charset=\"utf-8\" /></head><body>
 <script>
 (function(){
-  // In srcdoc sandbox, origin is 'null'. Communicate via postMessage.
   function respond(target, msg){
     try { target.postMessage(msg, '*'); } catch(e) {}
   }
   async function runEval(code, payload){
-    // eslint-disable-next-line no-eval
     const evaluated = eval(code);
     if (typeof evaluated === 'function') {
       return await evaluated(payload);
@@ -82,9 +81,8 @@ export function SandboxedEvalProvider({
     try {
       var data = event && event.data;
       if (!data || data.type !== 'EVAL' || !data.id) { return; }
-      var result;
       try {
-        result = await runEval(data.code, data.payload);
+        var result = await runEval(data.code, data.payload);
         respond(window.parent, { type: 'RESULT', id: data.id, value: result });
       } catch (err) {
         respond(window.parent, { type: 'ERROR', id: data.id, error: { message: (err && err.message) || String(err), name: err && err.name, stack: err && err.stack } });
@@ -144,24 +142,32 @@ export function SandboxedEvalProvider({
 
     window.addEventListener("message", onMessage);
 
-    // Capture the current map reference for stable cleanup
-    const pendingMap = pendingRef.current;
-
+    // return cleanup
     return () => {
       window.removeEventListener("message", onMessage);
       // Reject any pending
-      for (const [, p] of pendingMap.entries()) {
+      for (const [, p] of pendingRef.current.entries()) {
         window.clearTimeout(p.timeoutId);
-        p.reject(new Error("Sandboxed eval aborted (provider unmounted)"));
+        p.reject(new Error("Sandboxed eval aborted (sandbox reset)"));
       }
-      pendingMap.clear();
-      // Remove iframe
+      pendingRef.current.clear();
       try {
         iframeRef.current?.remove();
       } catch {}
       iframeRef.current = null;
     };
   }, []);
+
+  // Create iframe on mount and clean up on unmount
+  useEffect(() => {
+    cleanupRef.current = setupIframe();
+    return () => {
+      if (cleanupRef.current) {
+        cleanupRef.current();
+        cleanupRef.current = null;
+      }
+    };
+  }, [setupIframe]);
 
   const postEval = useCallback(
     (code: string, payload?: unknown, timeoutMs: number = 5000) => {
@@ -174,14 +180,29 @@ export function SandboxedEvalProvider({
       const id = `req_${Date.now()}_${requestCounterRef.current++}`;
       return new Promise<unknown>((resolve, reject) => {
         const timeoutId = window.setTimeout(() => {
+          // If already cleared (e.g., due to a prior reset), do nothing.
+          const pending = pendingRef.current.get(id);
+          if (!pending) return;
           pendingRef.current.delete(id);
-          reject(new Error("Sandboxed eval timed out"));
+          pending.reject(new Error("Sandboxed eval timed out"));
+          // Reset iframe only once for this batch
+          if (!resettingRef.current) {
+            resettingRef.current = true;
+            // Tear down existing iframe and reject all other pending requests
+            if (cleanupRef.current) {
+              cleanupRef.current();
+              cleanupRef.current = null;
+            }
+            // Recreate a fresh iframe context
+            cleanupRef.current = setupIframe();
+            resettingRef.current = false;
+          }
         }, timeoutMs);
         pendingRef.current.set(id, { resolve, reject, timeoutId });
         iframeWin.postMessage({ type: "EVAL", id, code, payload }, "*");
       });
     },
-    []
+    [setupIframe]
   );
 
   const sandboxedEval = useCallback<SandboxedEval>(
