@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { setupAllMocks } from "@carma-commons/e2e";
 
 test.describe("lagis smoke test", () => {
   let userData: any;
@@ -10,10 +11,12 @@ test.describe("lagis smoke test", () => {
 
   test("main page show map, menu, cards, combo boxes after authorisation", async ({
     page,
+    context,
   }) => {
+    await setupAllMocks(context);
+
     // Navigate to the application
     await page.goto("/");
-
     // Check initial page load
     // await expect(page.locator('text=LagIS')).toBeVisible();
 
