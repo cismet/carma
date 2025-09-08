@@ -21,6 +21,7 @@ import { MappingConstants } from "react-cismap";
 import { defaultLayerConf } from "react-cismap/tools/layerFactory";
 import {
   GazDataProvider,
+  SandboxedEvalProvider,
   SelectionProvider,
 } from "@carma-appframeworks/portals";
 import { gazDataConfig } from "../config/gazData";
@@ -1168,13 +1169,15 @@ function App({ name }) {
               backgroundModes={config?.tm?.backgroundModes}
               appKey="GenericTopicMap"
             >
-              <Map
-                slugName={slugName}
-                config={config}
-                featureGazData={featureGazData || []}
-                layerInformation={layerInformation}
-                layerHelpBlocks={layerHelpBlocks}
-              />
+              <SandboxedEvalProvider>
+                <Map
+                  slugName={slugName}
+                  config={config}
+                  featureGazData={featureGazData || []}
+                  layerInformation={layerInformation}
+                  layerHelpBlocks={layerHelpBlocks}
+                />
+              </SandboxedEvalProvider>
             </TopicMapContextProvider>
           </SelectionProvider>
         </GazDataProvider>

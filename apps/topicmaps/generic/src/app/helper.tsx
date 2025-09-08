@@ -1,62 +1,10 @@
+import {
+  functionToFeature,
+  objectToFeature,
+} from "@carma-appframeworks/portals";
 import { GTMComponentDictionary } from "@carma-collab/wuppertal/generic-topicmap";
 
-const functionToFeature = (output: any, code: string) => {
-  try {
-    let codeFunction = eval("(" + code + ")");
-    const tmpInfo = codeFunction(output);
-
-    if (!tmpInfo) {
-      return undefined;
-    }
-
-    const properties = {
-      ...tmpInfo,
-      wmsProps: output,
-    };
-
-    return { properties };
-  } catch (error) {
-    console.log(error);
-    return undefined;
-  }
-};
-
-const objectToFeature = (jsonOutput: any, code: string) => {
-  if (!jsonOutput) {
-    return {
-      properties: {
-        title: "Keine Informationen gefunden",
-      },
-    };
-  }
-
-  const conf = code
-    .split("\n")
-    .filter((line) => line.trim() !== "" && line.trim() !== "undefined");
-
-  let functionString = `(function(p) {
-                      const info = {`;
-
-  conf.forEach((rule) => {
-    functionString += `${rule.trim()},\n`;
-  });
-
-  functionString += `
-                                            };
-                                            return info;
-                      })`;
-
-  const tmpInfo = eval(functionString)(jsonOutput);
-
-  const properties = {
-    ...tmpInfo,
-    wmsProps: jsonOutput,
-  };
-
-  return { properties };
-};
-
-export const createVectorFeature = (mapping, selectedVectorFeature) => {
+export const createVectorFeature = async (mapping, selectedVectorFeature) => {
   let feature: any = undefined;
 
   let properties = selectedVectorFeature.properties;
@@ -80,8 +28,8 @@ export const createVectorFeature = (mapping, selectedVectorFeature) => {
     }
 
     const featureProperties = result.includes("function")
-      ? functionToFeature(properties, result)
-      : objectToFeature(properties, result);
+      ? await functionToFeature(properties, result)
+      : await objectToFeature(properties, result);
     if (!featureProperties) {
       return undefined;
     }

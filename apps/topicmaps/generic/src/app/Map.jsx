@@ -153,6 +153,11 @@ const Map = ({
 
   // lets assume we will only have vector layers
   useEffect(() => {
+    const getFeature = async (infoboxMapping, hit) => {
+      const feature = await createVectorFeature(infoboxMapping, hit);
+      setFeature(feature);
+    };
+
     if (globalHits && config?.tm?.vectorLayers) {
       const layers = config.tm.vectorLayers;
       //iterate layers in reverse order
@@ -176,8 +181,7 @@ const Map = ({
               ?.infoboxMapping;
 
           if (infoboxMapping) {
-            const feature = createVectorFeature(infoboxMapping, hit);
-            setFeature(feature);
+            getFeature(infoboxMapping, hit);
           }
           return;
         }
