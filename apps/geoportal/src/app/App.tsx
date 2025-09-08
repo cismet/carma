@@ -19,7 +19,7 @@ import {
   backgroundSettings,
   mobileInfo,
 } from "@carma-collab/wuppertal/geoportal";
-import { TweakpaneProvider } from "@carma-commons/debug";
+import { DebugUiProvider } from "@carma-commons/debug";
 import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
 import { MobileWarningMessage } from "@carma-mapping/components";
 
@@ -87,7 +87,7 @@ function App({ published }: { published?: boolean }) {
       config={{ ...featureFlagConfig, ...customFeatureFlags }}
     >
       <MatomoTracker>
-        <TweakpaneProvider>
+        <DebugUiProvider>
           <CarmaMapProviderWrapper
             cesiumOptions={CESIUM_CONFIG}
             overlayOptions={{
@@ -141,7 +141,7 @@ function App({ published }: { published?: boolean }) {
               </ErrorBoundary>
             </ObliqueProvider>
           </CarmaMapProviderWrapper>
-        </TweakpaneProvider>
+        </DebugUiProvider>
       </MatomoTracker>
     </FeatureFlagProvider>
   );

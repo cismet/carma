@@ -1,4 +1,4 @@
-import { CUSTOM_SHADERS_DEFINITIONS } from "./../shaders";
+import { CUSTOM_SHADERS_DEFINITIONS } from "../shaders";
 import { useMemo, useState } from "react";
 import { Cesium3DTileset, CustomShader } from "cesium";
 
@@ -7,7 +7,7 @@ import { useCesiumViewer } from "./useCesiumViewer";
 
 const DEFAULT_MESH_SHADER_KEY = "UNLIT_ENHANCED_2024";
 
-export const useTilesetsTweakpane = (
+export const useTilesetDebug = (
   tileset: Cesium3DTileset | null,
   name = "unlabeled"
 ) => {

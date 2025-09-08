@@ -3,6 +3,13 @@ import proj4 from "proj4";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
+import { Button, Tooltip } from "antd";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faArrowRightFromBracket,
+  faKey,
+} from "@fortawesome/free-solid-svg-icons";
+
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
@@ -63,7 +70,6 @@ import { useFeatureInfoModeCursorStyle } from "../../hooks/useFeatureInfoModeCur
 import { useObliqueInitializer } from "../../oblique/hooks/useObliqueInitializer.ts";
 
 import { createCismapLayers, onClickTopicMap } from "./topicmap.utils.ts";
-import { useTweakpane } from "./GeoportalMap.useTweakpane.ts";
 
 import store from "../../store/index.ts";
 import {
@@ -83,19 +89,15 @@ import {
 } from "../../store/slices/mapping.ts";
 import { getUIMode, UIMode } from "../../store/slices/ui.ts";
 
+import LoginForm from "../LoginForm.tsx";
+import { useModelSelectionDispatcher } from "../../hooks/useModelSelectionDispatcher.ts";
+
+import { useDebug } from "./GeoportalMap.useDebug.ts";
+
 import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../leaflet.css";
-import LoginForm from "../LoginForm.tsx";
-import { useModelSelectionDispatcher } from "../../hooks/useModelSelectionDispatcher.ts";
-import { Button, Tooltip } from "antd";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import {
-  faArrowRightFromBracket,
-  faKey,
-} from "@fortawesome/free-solid-svg-icons";
-
 interface MapProps {
   height: number;
   width: number;
@@ -154,7 +156,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   useOverlayHelper(layerButtonsOverlay);
   useOverlayHelper(mapInteractionOverlay);
 
-  useTweakpane(viewerRef, rerenderCountRef, lastRenderIntervalRef);
+  useDebug(viewerRef, rerenderCountRef, lastRenderIntervalRef);
 
   const { routedMapRef: routedMap } =
     useContext<typeof TopicMapContext>(TopicMapContext);

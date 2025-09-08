@@ -7,7 +7,7 @@ import {
   CustomViewerPlayground,
   CesiumContextProvider,
 } from "@carma-mapping/engines/cesium";
-import { TweakpaneProvider } from "@carma-commons/debug";
+import { DebugUiProvider } from "@carma-commons/debug";
 import { HashStateProvider } from "@carma-appframeworks/portals";
 import {
   BASEMAP_METROPOLRUHR_WMS_GRAUBLAU,
@@ -40,7 +40,7 @@ export function App() {
         secondary: WUPP_LOD2_TILESET,
       }}
     >
-      <TweakpaneProvider>
+      <DebugUiProvider>
         <HashRouter>
           <HashStateProvider>
             <Navigation
@@ -78,7 +78,7 @@ export function App() {
             </Routes>
           </HashStateProvider>
         </HashRouter>
-      </TweakpaneProvider>
+      </DebugUiProvider>
     </CesiumContextProvider>
   );
 }

@@ -12,7 +12,7 @@ import { useSecondaryStyleTilesetClickHandler } from "./useSecondaryStyleTileset
 
 import { TRANSITION_DELAY } from "../CustomViewer";
 
-import { useBaseTilesetsTweakpane } from "./useBaseTilesetsTweakpane";
+import { useTilesetsDebug } from "./useTilesetsDebug";
 
 export const useTilesets = () => {
   const showPrimary = useSelector(selectShowPrimaryTileset);
@@ -22,7 +22,7 @@ export const useTilesets = () => {
   const showSecondary = useSelector(selectShowSecondaryTileset);
 
   const isMode2d = useSelector(selectViewerIsMode2d);
-  useBaseTilesetsTweakpane();
+  useTilesetsDebug();
 
   useEffect(() => {
     if (
