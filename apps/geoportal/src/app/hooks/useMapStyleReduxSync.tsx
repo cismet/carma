@@ -8,6 +8,7 @@ import {
   setBackgroundLayer,
   getSelectedMapLayer,
   getSelectedLuftbildLayer,
+  getBackgroundLayer,
 } from "../store/slices/mapping";
 import type { RootState } from "../store";
 
@@ -29,13 +30,18 @@ export const useMapStyleReduxSync = () => {
     getSelectedLuftbildLayer(state)
   );
 
+  const backgroundLayer = useSelector((state: RootState) =>
+    getBackgroundLayer(state)
+  );
+
   useEffect(() => {
     if (currentStyle === MapStyleKeys.TOPO) {
       dispatch(
         setBackgroundLayer({
           ...selectedMapLayer,
           id: "karte",
-          visible: true,
+          visible: backgroundLayer.visible,
+          opacity: backgroundLayer.opacity,
         })
       );
       dispatch(setCurrentSceneStyle("secondary"));
@@ -44,10 +50,17 @@ export const useMapStyleReduxSync = () => {
         setBackgroundLayer({
           ...selectedLuftbildLayer,
           id: "luftbild",
-          visible: true,
+          visible: backgroundLayer.visible,
+          opacity: backgroundLayer.opacity,
         })
       );
       dispatch(setCurrentSceneStyle("primary"));
     }
-  }, [currentStyle, selectedMapLayer, selectedLuftbildLayer, dispatch]);
+  }, [
+    currentStyle,
+    selectedMapLayer,
+    selectedLuftbildLayer,
+    backgroundLayer.visible,
+    dispatch,
+  ]);
 };

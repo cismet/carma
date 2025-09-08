@@ -24,13 +24,13 @@ export const useManageLayers = (layerMap: LayerMap) => {
     };
     dispatch(
       setBackgroundLayer({
+        ...backgroundLayer,
         title: layerMap[getId()].title,
         id: backgroundLayerId,
         opacity: backgroundLayer.opacity,
         description: layerMap[getId()].description,
         inhalt: layerMap[getId()].inhalt,
         eignung: layerMap[getId()].eignung,
-        visible: backgroundLayer.visible,
         layerType: "wmts",
         props: {
           name: "",
@@ -44,7 +44,7 @@ export const useManageLayers = (layerMap: LayerMap) => {
       setSelectedMapLayer({
         title: layerMap[selectedMapLayerId].title,
         id: selectedMapLayerId,
-        opacity: 1.0,
+        opacity: selectedMapLayer.opacity,
         description: ``,
         inhalt: layerMap[selectedMapLayerId].inhalt,
         eignung: layerMap[selectedMapLayerId].eignung,

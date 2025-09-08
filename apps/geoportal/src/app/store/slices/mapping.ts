@@ -135,6 +135,11 @@ const slice = createSlice({
     },
 
     changeBackgroundOpacity(state, action) {
+      if (state.backgroundLayer.id === "karte") {
+        state.selectedMapLayer.opacity = action.payload.opacity;
+      } else {
+        state.selectedLuftbildLayer.opacity = action.payload.opacity;
+      }
       state.backgroundLayer.opacity = action.payload.opacity;
       if (action.payload.opacity === 1) {
         state.focusMode = false;
