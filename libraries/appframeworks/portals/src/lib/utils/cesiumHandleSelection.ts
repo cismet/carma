@@ -35,7 +35,6 @@ import {
 import { HitTriggerOptions } from "./cesiumHitTrigger";
 import { MutableRefObject } from "react";
 import { DerivedGeometries } from "./getDerivedGeometries";
- 
 
 const DEFAULT_BOUNDINGSPHERE_ELEVATION = 200; // meters, default elevation for bounding sphere in GeoJSON Polygon
 const DEFAULT_BOUNDINGSPHERE_VIEW_MARGIN = 0.2; // 20% margin
@@ -110,7 +109,13 @@ const updateMarkerPosition = async (
   if (entityData) removeCesiumMarker(ctx, entityData);
   ctx.requestRender();
   if (markerAsset) {
-    const data = await addCesiumMarker(ctx, anchorPosition, groundPosition, markerAsset, { model });
+    const data = await addCesiumMarker(
+      ctx,
+      anchorPosition,
+      groundPosition,
+      markerAsset,
+      { model }
+    );
     setEntityData && setEntityData(data);
   }
 };

@@ -16,8 +16,8 @@ import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import { useCesiumViewer } from "../../hooks/useCesiumViewer";
 import { useCesiumContext } from "../../hooks/useCesiumContext";
 import { selectScreenSpaceCameraControllerMinimumZoomDistance } from "../../slices/cesium";
-import { pickViewerCanvasCenter } from "../../utils/cesiumHelpers";
 import { Tooltip } from "antd";
+import { pickViewerCanvasCenter } from "../../utils/pickers";
 
 type CompassProps = {
   children?: ReactNode;

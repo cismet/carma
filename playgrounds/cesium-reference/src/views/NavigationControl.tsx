@@ -27,6 +27,7 @@ import {
   PitchingCompass,
   initViewerAnimationMap,
   type ViewerAnimationMap,
+  CesiumContextType,
 } from "@carma-mapping/engines/cesium";
 
 import useTileset from "../hooks/useTileset";
@@ -37,6 +38,7 @@ const NavigationControlView: FC = () => {
   const viewerRef = useRef<Viewer | null>(null);
   const viewerAnimationMapRef = useRef<ViewerAnimationMap | null>(null);
   const [isViewerReady, setIsViewerReady] = useState(false);
+  const ctx = { viewerRef, viewerAnimationMapRef } as CesiumContextType;
 
   const { tilesetRef, tilesetReady } = useTileset(
     WUPP_LOD2_TILESET.url,
@@ -78,10 +80,7 @@ const NavigationControlView: FC = () => {
   }, []);
 
   useZoomToTilesetOnReady(viewerRef.current, tilesetRef, tilesetReady);
-  const { handleZoomIn, handleZoomOut } = useZoomControls(
-    viewerRef,
-    viewerAnimationMapRef
-  );
+  const { handleZoomIn, handleZoomOut } = useZoomControls(ctx);
 
   console.log("RENDER", isViewerReady);
 

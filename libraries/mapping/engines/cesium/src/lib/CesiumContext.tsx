@@ -32,15 +32,14 @@ export interface CesiumContextType {
     repeatInterval?: number; // ms
   }) => void;
   // Shorthands for viewer validation
-  isViewerValid: () => boolean;
-  validateViewer: () =>
-    | { viewer: Viewer; camera: Camera; scene: Scene }
-    | null;
-  withViewer: (
-    cb: (ctx: { viewer: Viewer; camera: Camera; scene: Scene }) => void
+  isValidViewer: () => boolean;
+  withViewer: (cb: (viewer: Viewer) => void) => void;
+  withCamera: (cb: (camera: Camera) => void) => void;
+  withCanvas: (cb: (canvas: HTMLCanvasElement) => void) => void;
+  withScene: (cb: (scene: Scene) => void) => void;
+  withEntities: (
+    cb: (entities: NonNullable<Viewer["entities"]>) => void
   ) => void;
-  // Also expose as a top-level helper for convenience in components
-  removeEntityById: (id: string) => boolean;
 }
 
 export const CesiumContext = createContext<CesiumContextType | null>(null);

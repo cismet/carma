@@ -1,11 +1,19 @@
 import { useCallback } from "react";
 
-import { Cartesian2, Cartesian3, EasingFunction, Math as CesiumMath, Ray, PerspectiveFrustum, Viewer } from "cesium";
+import {
+  Cartesian2,
+  Cartesian3,
+  EasingFunction,
+  Math as CesiumMath,
+  Ray,
+  PerspectiveFrustum,
+  Viewer,
+} from "cesium";
 import {
   cancelViewerAnimation,
   type ViewerAnimationMap,
 } from "../utils/viewerAnimationMap";
-import { cesiumAnimateFov, cesiumAnimateFovCtx } from "../utils/cesiumAnimateFov";
+import { cesiumAnimateFov } from "../utils/cesiumAnimateFov";
 import type { CesiumContextType } from "../CesiumContext";
 import { cesiumSceneHasTweens } from "../utils/cesiumAnimations";
 
@@ -43,7 +51,7 @@ const zoom = (
     wasCancelled = true;
   }
 
-// (moved context-based variant below)
+  // (moved context-based variant below)
 
   // undocumented Cesium feature
   // TODO: replace with a public API when one is available to check for ongoing flyTo animations
@@ -132,6 +140,7 @@ const zoom = (
 };
 
 const fovZoom = (
+  ctx: CesiumContextType,
   viewer: Viewer,
   viewerAnimationMap: ViewerAnimationMap,
   zoomIn: boolean,
@@ -158,9 +167,7 @@ const fovZoom = (
 
   const targetFov = Math.max(Math.min(newFov, maxFov), minFov);
 
-  cesiumAnimateFov({
-    viewer,
-    viewerAnimationMap,
+  cesiumAnimateFov(ctx, {
     startFov,
     targetFov,
     duration,
@@ -194,6 +201,7 @@ export function useZoomControls(
       event.preventDefault();
       fovMode
         ? fovZoom(
+            ctx,
             viewer,
             viewerAnimationMap,
             false,
@@ -202,7 +210,7 @@ export function useZoomControls(
           )
         : zoom(viewer, viewerAnimationMap, false, duration, moveRateFactor);
     },
-    [viewer, viewerAnimationMap, duration, moveRateFactor, fovMode]
+    [ctx, viewer, viewerAnimationMap, duration, moveRateFactor, fovMode]
   );
 
   const handleZoomOut = useCallback(
@@ -211,6 +219,7 @@ export function useZoomControls(
       event.preventDefault();
       fovMode
         ? fovZoom(
+            ctx,
             viewer,
             viewerAnimationMap,
             true,
@@ -219,7 +228,7 @@ export function useZoomControls(
           )
         : zoom(viewer, viewerAnimationMap, true, duration, moveRateFactor);
     },
-    [viewer, viewerAnimationMap, duration, moveRateFactor, fovMode]
+    [ctx, viewer, viewerAnimationMap, duration, moveRateFactor, fovMode]
   );
 
   return { handleZoomIn, handleZoomOut };

@@ -224,7 +224,11 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
           },
           set resolutionScale(index) {
             // Use the index to set the resolutionScale from the array
-            if (viewer && index >= 0 && index < resolutionFractionsAscending.length) {
+            if (
+              viewer &&
+              index >= 0 &&
+              index < resolutionFractionsAscending.length
+            ) {
               const value = resolutionFractionsAscending[index];
               viewer.resolutionScale = value;
             }
@@ -241,7 +245,8 @@ export function CustomViewerPlayground(props: CustomViewerProps) {
             min: 0, // The minimum index
             max: resolutionFractionsAscending.length - 1, // The maximum index
             step: 1, // Step by index
-            format: (v: number) => formatFractions(resolutionFractionsAscending[v]),
+            format: (v: number) =>
+              formatFractions(resolutionFractionsAscending[v]),
           },
         ],
       }),

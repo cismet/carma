@@ -212,11 +212,19 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
         return;
       }
 
-      const validated = ctx.validateViewer();
-      if (!ctx.isViewerReady || !validated || !imageRecords || !imageRecords.size || !converter) {
+      let viewer: typeof ctx.viewerRef.current | null = null;
+      ctx.withViewer((v) => {
+        viewer = v;
+      });
+      if (
+        !ctx.isViewerReady ||
+        !viewer ||
+        !imageRecords ||
+        !imageRecords.size ||
+        !converter
+      ) {
         return;
       }
-      const { viewer } = validated;
 
       const now = Date.now();
       const explicitHeadingOverride =

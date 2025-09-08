@@ -25,9 +25,9 @@ export enum PITCH {
  */
 export const getOrbitPoint = (viewerOrCtx: Viewer | CesiumContextType) => {
   let viewer: Viewer;
-  if ('viewerRef' in viewerOrCtx) {
+  if ("viewerRef" in viewerOrCtx) {
     // It's a CesiumContextType
-    if (!viewerOrCtx.isViewerValid()) return null;
+    if (!viewerOrCtx.isValidViewer()) return null;
     viewer = viewerOrCtx.viewerRef.current!;
   } else {
     // It's a Viewer

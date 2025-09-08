@@ -13,13 +13,13 @@ export const useDebugOrbitPoint = (
   orbitPoint: Cartesian3,
   isDebugMode = false
 ) => {
-  const { viewerRef, isViewerValid } = useCesiumContext();
+  const { viewerRef, isValidViewer } = useCesiumContext();
   const orbitPointEntityRef = useRef<Entity | null>(null);
 
   // Create or update the orbit point entity
   const updateOrbitPointEntity = useCallback(() => {
     const viewer = viewerRef.current;
-    if (!isViewerValid()) return;
+    if (!isValidViewer()) return;
     if (!orbitPoint || !isDebugMode || !isEnabled) {
       if (orbitPointEntityRef.current && defined(orbitPointEntityRef.current)) {
         viewer.entities.remove(orbitPointEntityRef.current);

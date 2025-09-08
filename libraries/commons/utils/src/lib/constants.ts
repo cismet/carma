@@ -33,7 +33,6 @@ export const DEFAULT_MERCATOR_LATITUDE_RAD: Radians = degToRad(
   DEFAULT_MERCATOR_LATITUDE_DEG
 );
 
-
 // Resolution Fraction for RenderResolutions
 export const resolutionFractionsDescending = [
   5,
@@ -49,6 +48,7 @@ export const resolutionFractionsDescending = [
   1 / 8,
   1 / 10,
   1 / 16,
-]
+];
 
-export const resolutionFractionsAscending = resolutionFractionsDescending.reverse();
+export const resolutionFractionsAscending =
+  resolutionFractionsDescending.reverse();

@@ -9,7 +9,7 @@ import {
 import { useEffect, useRef } from "react";
 
 import { CesiumContextType } from "../../CesiumContext";
-import { pickFromClampedGeojson } from "../../utils/cesiumHelpers";
+import { pickFromClampedGeojson } from "../../utils/pickers";
 
 const restoreMaterial = (
   entity: Entity,
@@ -43,7 +43,7 @@ export const useSelectAndHighlightGeoJsonEntity = (
       return;
     }
     let originalMaterials;
-    if (ctx.isViewerValid()) {
+    if (ctx.isValidViewer()) {
       const viewer = ctx.viewerRef.current!;
       originalMaterials = new Map<Entity, MaterialProperty>();
       console.debug("HOOK ByGeoJsonClassifier add ScreenSpaceEventHandler");
@@ -81,10 +81,7 @@ export const useSelectAndHighlightGeoJsonEntity = (
         let hasPick = false;
 
         // last picked object is the top one we need for highlighting
-        const lastGroundPrimitive = pickFromClampedGeojson(
-          ctx,
-          event.position
-        );
+        const lastGroundPrimitive = pickFromClampedGeojson(ctx, event.position);
         if (lastGroundPrimitive) {
           hasPick = true;
           perEntityAction(lastGroundPrimitive);

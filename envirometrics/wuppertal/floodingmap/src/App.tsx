@@ -98,6 +98,7 @@ function App({ sync = false }: { sync?: boolean }) {
   const initialCameraView = useCesiumInitialCameraFromSearchParams();
 
   // CONTROLS
+  const ctx = useCesiumContext();
   const {
     viewerRef,
     viewerAnimationMapRef,
@@ -105,12 +106,12 @@ function App({ sync = false }: { sync?: boolean }) {
     terrainProviderRef,
     surfaceProviderRef,
     requestRender,
-  } = useCesiumContext();
+  } = ctx;
   const homeControl = useHomeControl();
   const {
     handleZoomIn: handleZoomInCesium,
     handleZoomOut: handleZoomOutCesium,
-  } = useZoomControls(viewerRef, viewerAnimationMapRef);
+  } = useZoomControls(ctx);
   const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
 
   // LEAFLET related

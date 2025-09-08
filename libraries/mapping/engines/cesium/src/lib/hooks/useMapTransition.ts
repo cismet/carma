@@ -15,13 +15,13 @@ import {
 
 import { animateInterpolateHeadingPitchRange } from "../utils/cesiumAnimations";
 import {
-  cesiumCenterPixelSizeToLeafletZoom,
   getCameraHeightAboveGround,
   getTopDownCameraDeviationAngle,
-  pickViewerCanvasCenter,
 } from "../utils/cesiumHelpers";
 import { setLeafletView } from "../utils/leafletHelpers";
 import { leafletToCesium } from "../utils/leafletToCesium";
+import { pickViewerCanvasCenter } from "../utils/pickers";
+import { cesiumCenterPixelSizeToLeafletZoom } from "../utils/pixels";
 
 type TransitionOptions = {
   onComplete?: (isTo2d: boolean) => void;

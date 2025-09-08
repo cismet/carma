@@ -9,16 +9,13 @@ import {
 } from "@carma-mapping/engines/cesium";
 
 import { useOblique } from "./useOblique";
-import {
-  enterObliqueModeCtx,
-  leaveObliqueModeCtx,
-} from "../utils/cameraUtils";
+import { enterObliqueMode, leaveObliqueMode } from "../utils/cameraUtils";
 
 const viewerPreUpdateHandlers = new WeakMap<Viewer, (scene: Scene) => void>();
 
 export function useObliqueInitializer(debug = false) {
   const ctx = useCesiumContext();
-  const { viewerRef, viewerAnimationMapRef, shouldSuspendPitchLimiterRef, requestRender } = ctx;
+  const { viewerRef, shouldSuspendPitchLimiterRef, requestRender } = ctx;
   const {
     isObliqueMode,
     fixedHeight,
@@ -57,7 +54,6 @@ export function useObliqueInitializer(debug = false) {
     }
 
     const viewer = viewerRef.current;
-    const viewerAnimationMap = viewerAnimationMapRef.current;
     const cameraController = viewer.scene.screenSpaceCameraController;
 
     cameraController.enableRotate = true;
@@ -68,13 +64,13 @@ export function useObliqueInitializer(debug = false) {
 
     if (isObliqueMode) {
       debug && console.debug("entering Oblique Mode");
-      enterObliqueModeCtx(ctx, viewerAnimationMap, originalFovRef, fixedPitch, fixedHeight, () => {
+      enterObliqueMode(ctx, originalFovRef, fixedPitch, fixedHeight, () => {
         enableCameraForceOblique();
         requestRender();
       });
     } else {
       debug && console.debug("leaving Oblique Mode", originalFovRef.current);
-      leaveObliqueModeCtx(ctx, viewerAnimationMap, originalFovRef, () => {
+      leaveObliqueMode(ctx, originalFovRef, () => {
         disableCameraForceOblique();
         requestRender();
       });
@@ -91,8 +87,8 @@ export function useObliqueInitializer(debug = false) {
   }, [
     debug,
     isObliqueMode,
+    ctx,
     viewerRef,
-    viewerAnimationMapRef,
     fixedPitch,
     fixedHeight,
     minFov,

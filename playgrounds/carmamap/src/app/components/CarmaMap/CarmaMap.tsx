@@ -197,19 +197,15 @@ export const CarmaMap = ({
   const layers = useSelector(getLayers);
   const uiMode = useSelector(getUIMode);
   const showFullscreenButton = useSelector(getShowFullscreenButton);
-  const {
-    viewerRef,
-    viewerAnimationMapRef,
-    terrainProviderRef,
-    surfaceProviderRef,
-    tilesetsRefs,
-  } = useCesiumContext();
+  const ctx = useCesiumContext();
+  const { viewerRef, terrainProviderRef, surfaceProviderRef, tilesetsRefs } =
+    ctx;
 
   const homeControl = useHomeControl();
   const {
     handleZoomIn: handleZoomInCesium,
     handleZoomOut: handleZoomOutCesium,
-  } = useZoomControlsCesium(viewerRef, viewerAnimationMapRef);
+  } = useZoomControlsCesium(ctx);
   const { getLeafletZoom, zoomInLeaflet, zoomOutLeaflet } =
     useLeafletZoomControls();
   const showPrimaryTileset = useSelector(selectShowPrimaryTileset);

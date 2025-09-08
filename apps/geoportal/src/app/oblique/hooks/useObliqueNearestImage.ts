@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useRef } from "react";
 import knn from "rbush-knn";
 
-import { cesiumSceneHasTweens, useCesiumContext, getOrbitPoint } from "@carma-mapping/engines/cesium";
+import {
+  cesiumSceneHasTweens,
+  useCesiumContext,
+  getOrbitPoint,
+} from "@carma-mapping/engines/cesium";
 
 import { useOrbitPoint } from "./useOrbitPoint";
 import { useOblique } from "./useOblique";
@@ -44,7 +48,7 @@ export function useObliqueNearestImage(
   options: UseObliqueNearestImageOptions = defaultOptions
 ) {
   const ctx = useCesiumContext();
-  const { viewerRef, isViewerValid } = ctx;
+  const { viewerRef, isValidViewer } = ctx;
   const lastSearchTimeRef = useRef<number>(0);
   const {
     converter,
@@ -77,7 +81,12 @@ export function useObliqueNearestImage(
       }
 
       const viewer = viewerRef.current;
-      if (!isViewerValid() || !imageRecords || !imageRecords.size || !converter) {
+      if (
+        !isValidViewer() ||
+        !imageRecords ||
+        !imageRecords.size ||
+        !converter
+      ) {
         return;
       }
 
@@ -283,7 +292,13 @@ export function useObliqueNearestImage(
   useEffect(() => {
     if (!options.continuous) return;
     const viewer = viewerRef.current;
-    if (!isObliqueMode || suspendSelectionSearch || !isViewerValid() || !imageRecords || !imageRecords.size) {
+    if (
+      !isObliqueMode ||
+      suspendSelectionSearch ||
+      !isValidViewer() ||
+      !imageRecords ||
+      !imageRecords.size
+    ) {
       return;
     }
 

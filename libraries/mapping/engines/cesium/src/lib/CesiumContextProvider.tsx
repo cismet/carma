@@ -9,6 +9,8 @@ import {
   Cesium3DTileset,
 } from "cesium";
 
+import { handleDelayedRender } from "@carma-commons/utils/window";
+
 import { CesiumContext, type CesiumContextType } from "./CesiumContext";
 import {
   loadCesiumImageryLayer,
@@ -20,7 +22,7 @@ import {
   initViewerAnimationMap,
   ViewerAnimationMap,
 } from "./utils/viewerAnimationMap";
-import { createRequestRender } from "./utils/requestRender";
+import { isValidViewer, withValidViewer } from "./utils/viewer";
 
 export const CesiumContextProvider = ({
   children,
@@ -48,6 +50,11 @@ export const CesiumContextProvider = ({
 
   // explicitly trigger re-renders
   const [isViewerReady, setIsViewerReady] = useState<boolean>(false);
+
+  // Reusable validation helper - now imported from cesiumHelpers
+  const withViewer = (cb: (viewer: Viewer) => void) => {
+    withValidViewer(viewerRef.current, cb);
+  };
 
   // Asynchronous initialization of providers and imageryLayer
   useEffect(() => {
@@ -195,49 +202,29 @@ export const CesiumContextProvider = ({
       // NOTE: Workaround for CesiumGS/cesium#12543 — delay/repeat options exist
       // to schedule additional renders in requestRenderMode when needed. These
       // options should be deprecated once upstream behavior is improved.
-      requestRender: createRequestRender(viewerRef),
-      isViewerValid: () => !!(function () {
-        const v = viewerRef.current;
-        return v && !v.isDestroyed() && v.scene && !v.scene.isDestroyed() && v.camera;
-      })(),
-      validateViewer: () => {
-        const ctx = (function () {
-          const v = viewerRef.current;
-          if (v && !v.isDestroyed()) {
-            const scene = v.scene;
-            const camera = v.camera;
-            if (scene && !scene.isDestroyed() && camera) {
-              return { viewer: v, camera, scene };
-            }
-          }
-          return null;
-        })();
-        return ctx;
+      isValidViewer: () => isValidViewer(viewerRef.current),
+      requestRender: (opts) => {
+        const renderOnce = () => {
+          withViewer((viewer) => {
+            viewer.scene.requestRender();
+          });
+        };
+        handleDelayedRender(renderOnce, opts);
       },
-      withViewer: (cb) => {
-        const ctx = (function () {
-          const v = viewerRef.current;
-          if (v && !v.isDestroyed()) {
-            const scene = v.scene;
-            const camera = v.camera;
-            if (scene && !scene.isDestroyed() && camera) {
-              return { viewer: v, camera, scene };
-            }
-          }
-          return null;
-        })();
-        if (ctx) cb(ctx);
+      withViewer,
+      withCamera: (cb) => {
+        withViewer((viewer) => cb(viewer.camera));
       },
-      removeEntityById: (id: string) => {
-        const v = viewerRef.current;
-        if (v && !v.isDestroyed() && v.entities) {
-          try {
-            return v.entities.removeById(id);
-          } catch (_err) {
-            return false;
-          }
-        }
-        return false;
+      withCanvas: (cb) => {
+        withViewer((viewer) => cb(viewer.canvas));
+      },
+      withScene: (cb) => {
+        withViewer((viewer) => cb(viewer.scene));
+      },
+      withEntities: (cb) => {
+        withViewer((viewer) => {
+          if (viewer.entities) cb(viewer.entities);
+        });
       },
     }),
     [isViewerReady]

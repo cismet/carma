@@ -5,7 +5,6 @@ import { Color, Entity, PolygonGraphics } from "cesium";
 import { useCesiumContext } from "../hooks/useCesiumContext";
 import {
   cameraToCartographicDegrees,
-  getViewerViewportPolygonRing,
   rectangleToExtentDegrees,
 } from "../utils/cesiumHelpers";
 import { polygonHierarchyFromPolygonCoords } from "../utils/cesiumGroundPrimitives";
@@ -14,6 +13,7 @@ import { makeLeafletMarkerRotatable } from "./LeafletMiniMap.utils";
 
 import camera_png from "./camera.png";
 import "leaflet/dist/leaflet.css";
+import { getViewerViewportPolygonRing } from "../utils/pickers";
 
 //TODO sync time externally if needed
 const DEFAULT_MODE_2D_3D_CHANGE_FADE_DURATION = 1000;
@@ -81,7 +81,7 @@ export const LeafletMiniMap = ({
   }, [layerUrl]);
 
   useEffect(() => {
-    if (mapInstanceRef.current && ctx.isViewerValid()) {
+    if (mapInstanceRef.current && ctx.isValidViewer()) {
       const lRect = new L.Rectangle([
         [0, 0],
         [0, 0],
@@ -188,8 +188,12 @@ export const LeafletMiniMap = ({
       ctx.viewerRef.current!.camera.changed.addEventListener(handleOnChanged);
 
       return () => {
-        ctx.viewerRef.current!.camera.moveEnd.removeEventListener(handleOnChanged);
-        ctx.viewerRef.current!.camera.changed.removeEventListener(handleOnChanged);
+        ctx.viewerRef.current!.camera.moveEnd.removeEventListener(
+          handleOnChanged
+        );
+        ctx.viewerRef.current!.camera.changed.removeEventListener(
+          handleOnChanged
+        );
         ctx.viewerRef.current!.entities.removeById("viewEntity");
         viewPolygon.removeFrom(lMap);
         camMarker.removeFrom(lMap);

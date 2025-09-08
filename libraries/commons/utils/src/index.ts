@@ -84,3 +84,5 @@ export {
 export { getApplicationVersion } from "./lib/version";
 
 export { detectWebGLContext } from "./lib/webgl";
+
+export * from "./lib/window";

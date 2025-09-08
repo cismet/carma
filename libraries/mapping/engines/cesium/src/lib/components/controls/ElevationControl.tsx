@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, ChangeEvent, useMemo } from "react";
 import { debounce } from "lodash";
 import { Cartesian3, Cartographic } from "cesium";
-import { cesiumSafeRequestRender } from "../../utils/cesiumHelpers";
 
 import { useTweakpaneCtx } from "@carma-commons/debug";
 
+import { useCesiumContext } from "../../hooks/useCesiumContext";
 import { useCesiumViewer } from "../../hooks/useCesiumViewer";
 import { getPositionWithHeightAsync } from "../../utils/positions";
 import "./elevation-control.css";
@@ -77,6 +77,7 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
   const [maxDisplayHeight, setMaxDisplayHeight] = useState<number>(10000); // Adjust as needed
   const controlRef = useRef<HTMLDivElement>(null);
   const viewer = useCesiumViewer();
+  const ctx = useCesiumContext();
   const [alwaysShow, setAlwaysShow] = useState(false);
   const [clamp, setClamp] = useState(useClampedHeight);
   const [eventOption, setEventOption] = useState(updateEvent);
@@ -314,8 +315,6 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
             up: viewer.camera.up.clone(),
           },
         });
-        // centralized render request for requestRenderMode
-        cesiumSafeRequestRender(viewer);
         updateHeight.current && updateHeight.current();
       });
     }

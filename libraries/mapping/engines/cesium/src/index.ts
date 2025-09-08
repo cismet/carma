@@ -1,3 +1,5 @@
+import { withValidViewer } from "./lib/utils/viewer";
+import { pickViewerCanvasCenter } from "./lib/utils/pickers";
 export * from "./lib/slices/cesium";
 
 export { CesiumContextProvider } from "./lib/CesiumContextProvider";
@@ -63,14 +65,6 @@ export {
 } from "./lib/utils/cesiumHashParamsCodec";
 
 export {
-  pickViewerCanvasCenter,
-  getDegreesFromCartesian,
-  getDegreesFromCartographic,
-  cesiumSafeRequestRender,
-  getValidContext,
-  type ValidatedCesiumObjects,
-} from "./lib/utils/cesiumHelpers";
-export {
   fromColorRgbaArray,
   toColorRgbaArray,
 } from "./lib/utils/cesiumSerializer";
@@ -86,7 +80,7 @@ export {
   setupCesiumEnvironment,
 } from "./lib/utils/cesiumSetup";
 
-export { isValidViewerInstance } from "./lib/utils/cesiumTypeGuards";
+export { pickViewerCanvasCenter } from "./lib/utils/pickers";
 
 export {
   distanceFromZoomLevel,
@@ -94,11 +88,19 @@ export {
   getHeadingPitchRangeFromZoom,
 } from "./lib/utils/positions";
 
+export { isValidViewer, withValidViewer } from "./lib/utils/viewer";
+
 export {
   type ViewerAnimationMap,
+  cancelViewerAnimation,
   initViewerAnimationMap,
 } from "./lib/utils/viewerAnimationMap";
-export { cancelViewerAnimation } from "./lib/utils/viewerAnimationMap";
+
+export {
+  getDegreesFromCartesian,
+  getDegreesFromCartographic,
+} from "./lib/utils/units";
 
 // Re-export all the types as workaround
+// TODO move to common types
 export * from "./index.d";

@@ -1,10 +1,7 @@
- 
 import type { Map as LeafletMap } from "leaflet";
-import {
-  cameraToCartographicDegrees,
-  cesiumCenterPixelSizeToLeafletZoom,
-} from "./cesiumHelpers";
+import { cameraToCartographicDegrees } from "./cesiumHelpers";
 import type { CesiumContextType } from "../CesiumContext";
+import { cesiumCenterPixelSizeToLeafletZoom } from "./pixels";
 
 export const isLeafletZoomValid = (zoom: number) => {
   if (

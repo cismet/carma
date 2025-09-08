@@ -1,9 +1,9 @@
 import { CUSTOM_SHADERS_DEFINITIONS } from "../shaders";
 import { useMemo, useState } from "react";
 import { Cesium3DTileset, CustomShader } from "cesium";
-import { cesiumSafeRequestRender } from "../utils/cesiumHelpers";
 
 import { useTweakpaneCtx } from "@carma-commons/debug";
+import { useCesiumContext } from "./useCesiumContext";
 import { useCesiumViewer } from "./useCesiumViewer";
 
 const DEFAULT_MESH_SHADER_KEY = "UNLIT_ENHANCED_2024";
@@ -24,6 +24,7 @@ export const useTilesetDebug = (
     DEFAULT_MESH_SHADER_KEY
   );
   const viewer = useCesiumViewer();
+  const ctx = useCesiumContext();
 
   const [enableDebugWireframe, setEnableDebugWireframe] = useState(false);
 
@@ -41,11 +42,11 @@ export const useTilesetDebug = (
               const shaderDef = CUSTOM_SHADERS_DEFINITIONS[v];
               if (v === "UNDEFINED") {
                 tileset.customShader = undefined;
-                viewer && cesiumSafeRequestRender(viewer);
+                ctx.requestRender();
               } else {
                 const shader = new CustomShader(shaderDef);
                 tileset.customShader = shader;
-                viewer && cesiumSafeRequestRender(viewer);
+                ctx.requestRender();
               }
             }
           },
@@ -56,7 +57,7 @@ export const useTilesetDebug = (
             if (v !== enableDebugWireframe && tileset) {
               setEnableDebugWireframe(v);
               tileset.debugWireframe = v;
-              viewer && cesiumSafeRequestRender(viewer);
+              ctx.requestRender();
             }
           },
           get show() {
@@ -69,7 +70,7 @@ export const useTilesetDebug = (
           set show(v: boolean) {
             if (tileset && v !== tileset.show) {
               tileset.show = v;
-              viewer && cesiumSafeRequestRender(viewer);
+              ctx.requestRender();
             }
           },
         },
@@ -82,7 +83,7 @@ export const useTilesetDebug = (
           { name: "show", type: "boolean" },
         ],
       }),
-      [viewer, name, customShaderKey, enableDebugWireframe, tileset]
+      [name, customShaderKey, enableDebugWireframe, tileset, ctx]
     )
   );
 };

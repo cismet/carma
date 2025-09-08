@@ -16,7 +16,10 @@ import {
 import { Tooltip } from "antd";
 import { useControls } from "leva";
 
-import { selectViewerIsTransitioning, useCesiumContext } from "@carma-mapping/engines/cesium";
+import {
+  selectViewerIsTransitioning,
+  useCesiumContext,
+} from "@carma-mapping/engines/cesium";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import {
   useFeatureFlags,
@@ -100,7 +103,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       shouldSuspendPitchLimiterRef,
       shouldSuspendCameraLimitersRef,
       requestRender,
-      isViewerValid,
+      isValidViewer,
     } = ctx;
   const imageId = selectedImage?.record?.id;
   const cameraId = selectedImage?.record?.cameraId;
@@ -260,14 +263,13 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       });
       return results && results.length ? results[0] : null;
     },
-    [selectedImageRefresh, isPreviewVisible, isViewerValid]
+    [selectedImageRefresh, isPreviewVisible, isValidViewer]
   );
 
   // Fly-to handling for next capture (without opening preview)
 
   const flyToCurrentEOWithoutPreview = useCallback(() => {
-    if (!isViewerValid() || !derivedExteriorOrientationRef.current)
-      return;
+    if (!isValidViewer() || !derivedExteriorOrientationRef.current) return;
     animationInProgressRef.current = true;
     // Choose animation based on whether this fly was triggered by a rotation in preview
     const flyOptions = rotatedFlyPendingRef.current
@@ -299,7 +301,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     setSuspendSelectionSearch,
     isPreviewVisible,
     requestRender,
-    isViewerValid,
+    isValidViewer,
     ctx,
   ]);
 
@@ -525,7 +527,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   }, [isObliqueMode]);
 
   useEffect(() => {
-    if (isTransitioning && isViewerValid()) {
+    if (isTransitioning && isValidViewer()) {
       isDebugMode &&
         console.debug(
           "ObliqueControls: Transitioning to 2D mode disabling oblique mode"
@@ -536,7 +538,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       requestRender();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isTransitioning, isViewerValid]);
+  }, [isTransitioning, isValidViewer]);
 
   useEffect(() => {
     const unsubscribe = subscribeToPreviewVisibility((visible) => {
@@ -553,7 +555,11 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       return;
     }
 
-    if (!isViewerValid() || !selectedImage || !derivedExteriorOrientationRef.current)
+    if (
+      !isValidViewer() ||
+      !selectedImage ||
+      !derivedExteriorOrientationRef.current
+    )
       return;
 
     setLockFootprint(true);
@@ -575,7 +581,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     isPreviewVisible,
     setLockFootprint,
     derivedExteriorOrientationRef,
-    isViewerValid,
+    isValidViewer,
     ctx,
   ]);
 

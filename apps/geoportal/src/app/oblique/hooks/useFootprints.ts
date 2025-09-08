@@ -12,7 +12,10 @@ import {
 } from "cesium";
 
 import { useMemoMergedDefaultOptions } from "@carma-commons/utils";
-import { useCesiumContext, polygonHierarchyFromPolygonCoords } from "@carma-mapping/engines/cesium";
+import {
+  useCesiumContext,
+  polygonHierarchyFromPolygonCoords,
+} from "@carma-mapping/engines/cesium";
 
 import { useOblique } from "../hooks/useOblique";
 import {
@@ -39,20 +42,32 @@ const defaultFootprintsStyle: ObliqueFootprintsStyle = {
 };
 
 const cleanupOutlineEntity = (
-  removeEntityById: (id: string) => boolean,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  withEntities: any,
   ref: MutableRefObject<Entity | null>,
   debug = false,
   requestRender?: () => void
 ) => {
   debug && console.log(`Oblique Footprints: Removing outline entity`);
-  removeEntityById(FOOTPRINT_OUTLINE_ID);
+  try {
+    withEntities((entities) => {
+      // removeById is the safe entity removal API on Cesium EntityCollection
+      if (typeof entities.removeById === "function") {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        entities.removeById(FOOTPRINT_OUTLINE_ID as any);
+      }
+    });
+  } catch (e) {
+    // swallow removal errors to avoid breaking unmount
+    debug && console.error("Error removing outline entity", e);
+  }
   ref.current = null;
   requestRender && requestRender();
 };
 
 export const useFootprints = (debug = false): void => {
-  const { viewerRef, requestRender, isViewerValid, removeEntityById } =
-    useCesiumContext();
+  const ctx = useCesiumContext();
+  const { viewerRef, requestRender, isValidViewer, withEntities } = ctx;
   const {
     isObliqueMode,
     selectedImage,
@@ -87,18 +102,28 @@ export const useFootprints = (debug = false): void => {
   // Clean up entities when component unmounts
   useEffect(() => {
     return () => {
-      cleanupOutlineEntity(removeEntityById, outlineEntityRef, debug, requestRender);
+      cleanupOutlineEntity(
+        withEntities,
+        outlineEntityRef,
+        debug,
+        requestRender
+      );
     };
-  }, [debug, removeEntityById, requestRender]);
+  }, [debug, withEntities, requestRender]);
 
   useEffect(() => {
     // If we're leaving oblique mode, trigger exit animation then clean up the footprint
     if (prevObliqueMode.current && !isObliqueMode) {
       // Always clean up the outline immediately
-      cleanupOutlineEntity(removeEntityById, outlineEntityRef, debug, requestRender);
+      cleanupOutlineEntity(
+        withEntities,
+        outlineEntityRef,
+        debug,
+        requestRender
+      );
     }
     prevObliqueMode.current = isObliqueMode;
-  }, [isObliqueMode, removeEntityById, debug, requestRender]);
+  }, [isObliqueMode, withEntities, debug, requestRender]);
 
   useEffect(() => {
     opacityAnimationRef.current.duration = animationDuration;
@@ -117,7 +142,12 @@ export const useFootprints = (debug = false): void => {
           forceStart: true,
           onComplete: () => {
             // Remove entity completely when animation finishes
-            cleanupOutlineEntity(removeEntityById, outlineEntityRef, debug, requestRender);
+            cleanupOutlineEntity(
+              withEntities,
+              outlineEntityRef,
+              debug,
+              requestRender
+            );
             lastImageIdRef.current = null;
           },
         });
@@ -136,12 +166,13 @@ export const useFootprints = (debug = false): void => {
     selectedImage,
     debug,
     requestRender,
+    withEntities,
   ]);
 
   useEffect(() => {
     const viewer = viewerRef.current;
     if (
-      !isViewerValid() ||
+      !isValidViewer() ||
       !selectedImage ||
       !footprintData ||
       !isObliqueMode
@@ -168,13 +199,13 @@ export const useFootprints = (debug = false): void => {
     lastImageIdRef.current = currentImageId;
 
     // Clean up any existing entity
-    cleanupOutlineEntity(removeEntityById, outlineEntityRef, debug, requestRender);
+    cleanupOutlineEntity(withEntities, outlineEntityRef, debug, requestRender);
 
     const createOpacityCallbackProperty = () => {
       return new CallbackProperty(() => {
         const newOpacity = processAnimation(
           opacityAnimationRef.current,
-          viewerRef.current
+          requestRender
         );
 
         // If opacity is near zero, remove the entity completely instead of just hiding it
@@ -185,7 +216,12 @@ export const useFootprints = (debug = false): void => {
             );
           requestAnimationFrame(() => {
             // Delay to avoid conflict with current updates, then remove the entity completely
-            cleanupOutlineEntity(removeEntityById, outlineEntityRef, debug, requestRender);
+            cleanupOutlineEntity(
+              withEntities,
+              outlineEntityRef,
+              debug,
+              requestRender
+            );
           });
         }
         return outlineColor.withAlpha(newOpacity);
@@ -240,7 +276,7 @@ export const useFootprints = (debug = false): void => {
         easingFunction: animationEasing,
       });
 
-      if (isViewerValid()) {
+      if (isValidViewer()) {
         const outlineEntity = createOutlineEntity(polygonHierarchy.positions);
         viewer.entities.add(outlineEntity);
         outlineEntityRef.current = outlineEntity;
@@ -260,8 +296,10 @@ export const useFootprints = (debug = false): void => {
     animationDelay,
     animationEasing,
     debug,
-    isViewerValid,
+    isValidViewer,
     requestRender,
+    ctx,
+    withEntities,
   ]);
 };
 

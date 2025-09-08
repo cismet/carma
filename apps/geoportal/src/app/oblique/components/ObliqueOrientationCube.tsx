@@ -201,47 +201,55 @@ const ObliqueOrientationCube: React.FC<Props> = ({
 
   // Ensure perspective updates even when only FOV/aspect/size changes (pose unchanged)
   useEffect(() => {
-    if (!ctx.isViewerValid()) return;
-    const validated = ctx.validateViewer();
-    if (!validated) return;
-    const { viewer, camera, scene } = validated;
+    if (!ctx.isValidViewer()) return;
+    let cleanup: (() => void) | undefined;
+    ctx.withViewer((viewer) => {
+      const camera = viewer.camera;
+      const scene = viewer.scene;
 
-    const updateFrustum = () => {
-      try {
-        const el = viewer.container as Element;
-        const rect = el.getBoundingClientRect();
-        const w = rect.width;
-        const h = rect.height;
-        const frustum = camera.frustum as unknown as {
-          fovy?: number;
-          _fovy?: number;
-          aspectRatio?: number;
-        };
-        const fovy: number | undefined = frustum?.fovy ?? frustum?._fovy;
-        if (!(w > 0) || !(h > 0) || !(typeof fovy === "number" && fovy > 0))
-          return;
-        const aspect: number =
-          frustum?.aspectRatio ?? (w > 0 && h > 0 ? w / h : 1);
-        const useW = w >= h;
-        const angle = useW ? 2 * Math.atan(Math.tan(fovy / 2) * aspect) : fovy;
-        const last = lastFrustumRef.current;
-        const sameAngle =
-          typeof last.angle === "number" &&
-          Math.abs((last.angle as number) - angle) < 1e-6;
-        const sameSize = last.w === w && last.h === h;
-        if (!sameAngle || !sameSize) {
-          lastFrustumRef.current = { angle, w, h };
-          setTransformTick((t) => t + 1);
+      const updateFrustum = () => {
+        try {
+          const el = viewer.container as Element;
+          const rect = el.getBoundingClientRect();
+          const w = rect.width;
+          const h = rect.height;
+          const frustum = camera.frustum as unknown as {
+            fovy?: number;
+            _fovy?: number;
+            aspectRatio?: number;
+          };
+          const fovy: number | undefined = frustum?.fovy ?? frustum?._fovy;
+          if (!(w > 0) || !(h > 0) || !(typeof fovy === "number" && fovy > 0))
+            return;
+          const aspect: number =
+            frustum?.aspectRatio ?? (w > 0 && h > 0 ? w / h : 1);
+          const useW = w >= h;
+          const angle = useW
+            ? 2 * Math.atan(Math.tan(fovy / 2) * aspect)
+            : fovy;
+          const last = lastFrustumRef.current;
+          const sameAngle =
+            typeof last.angle === "number" &&
+            Math.abs((last.angle as number) - angle) < 1e-6;
+          const sameSize = last.w === w && last.h === h;
+          if (!sameAngle || !sameSize) {
+            lastFrustumRef.current = { angle, w, h };
+            setTransformTick((t) => t + 1);
+          }
+        } catch {
+          // ignore
         }
-      } catch {
-        // ignore
-      }
-    };
+      };
 
-    scene.preRender.addEventListener(updateFrustum);
-    updateFrustum();
+      scene.preRender.addEventListener(updateFrustum);
+      updateFrustum();
+      cleanup = () => {
+        scene.preRender.removeEventListener(updateFrustum);
+      };
+    });
+
     return () => {
-      scene.preRender.removeEventListener(updateFrustum);
+      cleanup && cleanup();
     };
   }, [viewerRef, isViewerReady, ctx]);
 
@@ -306,22 +314,23 @@ const ObliqueOrientationCube: React.FC<Props> = ({
       return;
     }
     // Fallback: instant snap (legacy behavior)
-    if (!ctx.isViewerValid()) return;
-    const viewer = ctx.viewerRef.current!;
-    if (viewerAnimationMapRef?.current) {
-      cancelViewerAnimation(viewer, viewerAnimationMapRef.current);
-    }
-    const camera = viewer.camera;
-    const target = getOrbitPoint(ctx);
-    if (target) {
-      const range = Cartesian3.distance(target, camera.positionWC);
-      viewer.camera.lookAt(
-        target,
-        new HeadingPitchRange(0, camera.pitch, range)
-      );
-      // exit lookAt mode to avoid locking transform
-      viewer.camera.lookAtTransform(Matrix4.IDENTITY);
-    }
+    if (!ctx.isValidViewer()) return;
+    ctx.withViewer((viewer) => {
+      if (viewerAnimationMapRef?.current) {
+        cancelViewerAnimation(viewer, viewerAnimationMapRef.current);
+      }
+      const camera = viewer.camera;
+      const target = getOrbitPoint(ctx);
+      if (target) {
+        const range = Cartesian3.distance(target, camera.positionWC);
+        viewer.camera.lookAt(
+          target,
+          new HeadingPitchRange(0, camera.pitch, range)
+        );
+        viewer.camera.lookAtTransform(Matrix4.IDENTITY);
+        ctx.requestRender();
+      }
+    });
   };
 
   // Resolve color tokens to CSS colors for hover effects (limited map for defaults)

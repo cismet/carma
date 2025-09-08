@@ -33,7 +33,7 @@ export const ObliqueDebugSvg = () => {
   const [imageRotation, setImageRotation] = useState(0); // 0, 90, 180, 270 degrees
   // Core contexts and refs
   const ctx = useCesiumContext();
-  const { viewerRef, isViewerValid } = ctx;
+  const { viewerRef, isValidViewer } = ctx;
   const { converter, headingOffset, previewPath, selectedImageRefresh } =
     useOblique();
   const camera = viewerRef?.current?.camera;
@@ -103,7 +103,7 @@ export const ObliqueDebugSvg = () => {
   // Subscribe to camera changes to refresh nearest images using centralized search
   useEffect(() => {
     const viewer = viewerRef.current;
-    if (!isViewerValid() || typeof selectedImageRefresh !== "function") return;
+    if (!isValidViewer() || typeof selectedImageRefresh !== "function") return;
     const refresh = () => {
       const res = selectedImageRefresh({ computeOnly: true });
       if (res) setNearestImages(res);
@@ -115,7 +115,7 @@ export const ObliqueDebugSvg = () => {
         viewer.camera.changed.removeEventListener(refresh);
       }
     };
-  }, [viewerRef, selectedImageRefresh, isViewerValid]);
+  }, [viewerRef, selectedImageRefresh, isValidViewer]);
 
   // SVG dimensions
   const svgWidth = 800;

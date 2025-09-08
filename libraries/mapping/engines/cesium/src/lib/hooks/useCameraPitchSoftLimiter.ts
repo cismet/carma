@@ -10,7 +10,7 @@ import {
   setIsAnimating,
   clearIsAnimating,
 } from "../slices/cesium";
-import { pickViewerCanvasCenter } from "../utils/cesiumHelpers";
+import { pickViewerCanvasCenter } from "../utils/pickers";
 
 const useCameraPitchSoftLimiter = (
   options: {

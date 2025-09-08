@@ -3,9 +3,7 @@ import { MutableRefObject } from "react";
 import {
   Cartographic,
   Math as CesiumMath,
-  type CesiumTerrainProvider,
   sampleTerrainMostDetailed,
-  Viewer,
 } from "cesium";
 import type { Map as LeafletMap } from "leaflet";
 
@@ -14,10 +12,11 @@ import {
   getPixelResolutionFromZoomAtLatitudeRad,
 } from "@carma-commons/utils";
 
-import { getCameraHeightAboveGround, getScenePixelSize } from "./cesiumHelpers";
+import { getCameraHeightAboveGround } from "./cesiumHelpers";
 import { isLeafletZoomValid } from "./leafletHelpers";
 import { getCesiumCameraPixelDimensionForDistance } from "./cesiumCamera";
 import type { CesiumContextType } from "../CesiumContext";
+import { getScenePixelSize } from "./pixels";
 
 export const leafletToCesium = async (
   leaflet: LeafletMap,
@@ -188,7 +187,7 @@ export const leafletToCesium = async (
     currentPixelResolution = newResolution;
     iterations++;
   }
-  viewer.scene.requestRender();
+  ctx.requestRender();
   onComplete && onComplete();
   return true; // Return true if camera position found within max iterations
 };
