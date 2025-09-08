@@ -20,12 +20,18 @@ export function useDebugCrashReact(source: string = "useDebugCrashReact") {
 
   const { paneCallback, paneRef } = useTweakpaneCtx();
   const crashBtnRef = useRef<ButtonApi | null>(null);
+  const intervalRef = useRef<number | null>(null);
   useEffect(() => {
     if (!paneCallback) return;
-    let interval: number | undefined;
+    const clear = () => {
+      if (intervalRef.current !== null) {
+        window.clearInterval(intervalRef.current);
+        intervalRef.current = null;
+      }
+    };
     const attach = () => {
       if (crashBtnRef.current) {
-        if (interval !== undefined) window.clearInterval(interval);
+        clear();
         return;
       }
       if (!paneRef.current) return;
@@ -39,13 +45,13 @@ export function useDebugCrashReact(source: string = "useDebugCrashReact") {
           setCrash(true);
         });
         crashBtnRef.current = btn;
-        if (interval !== undefined) window.clearInterval(interval);
+        clear();
       });
     };
     attach();
-    interval = window.setInterval(attach, 250);
+    intervalRef.current = window.setInterval(attach, 250);
     return () => {
-      if (interval !== undefined) window.clearInterval(interval);
+      clear();
       crashBtnRef.current?.dispose();
       crashBtnRef.current = null;
     };

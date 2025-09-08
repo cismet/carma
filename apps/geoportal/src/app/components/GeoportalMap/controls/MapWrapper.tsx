@@ -145,7 +145,7 @@ const MapWrapper = () => {
   useDebug({
     viewerRef,
     rerenderCountRef,
-    lastRenderIntervalRef: lastRenderIntervalRef,
+    lastRenderIntervalRef,
   });
   useDebugCrashReact("MapWrapper.useDebug");
 

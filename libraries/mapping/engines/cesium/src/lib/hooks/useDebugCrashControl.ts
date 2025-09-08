@@ -59,8 +59,8 @@ export function useDebugCrashControl(source: string = "useDebugCrashControl") {
         h: canvas.clientHeight,
       },
       drawingBuffer: canvas && {
-        w: (canvas as { width?: number }).width,
-        h: (canvas as { height?: number }).height,
+        w: canvas.width,
+        h: canvas.height,
       },
       widget: widget && {
         useDefaultRenderLoop: widget.useDefaultRenderLoop,

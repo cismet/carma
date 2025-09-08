@@ -5,6 +5,7 @@ export type CesiumContextSnapshot = Readonly<
   Record<string, unknown> & {
     isViewerReady: boolean;
     viewerPresent: boolean;
+    snapshotFailed?: boolean;
     sceneMode?: unknown;
     morphTime?: unknown;
     camera?: {

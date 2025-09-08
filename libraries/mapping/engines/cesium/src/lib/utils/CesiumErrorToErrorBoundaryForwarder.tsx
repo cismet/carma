@@ -28,7 +28,7 @@ const overrideCesiumWidgetShowErrorPanel = function (
     message: string,
     error: unknown
   ) {
-    console.log("showErrorPanel");
+    console.debug("[Cesium] showErrorPanel invoked");
     // Normalize any input (string/object) to a real Error instance
     const base: Error =
       error instanceof Error
