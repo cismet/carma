@@ -7,7 +7,11 @@ import type {
 } from "@carma-commons/types";
 import { FeatureInfoIcon } from "./FeatureInfoIcon";
 import { proj4crs3857def } from "../../helper/gisHelper";
-import { sandboxedEvalExternal } from "@carma-appframeworks/portals";
+import {
+  createUrl,
+  functionToFeature,
+  objectToFeature,
+} from "@carma-appframeworks/portals";
 
 export const getLeafNodes = (node, result: any = {}): any => {
   if (node.nodeType === Node.ELEMENT_NODE) {
@@ -28,97 +32,6 @@ export const truncateString = (text: string, num: number) => {
     return text.slice(0, num) + "...";
   }
   return text;
-};
-
-export const objectToFeature = async (jsonOutput: any, code: string) => {
-  if (!jsonOutput) {
-    return {
-      properties: {
-        title: "Keine Informationen gefunden",
-      },
-    } as FeatureInfo;
-  }
-
-  const conf = code
-    .split("\n")
-    .filter((line) => line.trim() !== "" && line.trim() !== "undefined");
-
-  let functionString = `(function(p) {
-                    const info = {`;
-
-  conf.forEach((rule) => {
-    functionString += `${rule.trim()},\n`;
-  });
-
-  functionString += `
-                                          };
-                                          return info;
-                    })`;
-
-  const baseInfo = (await sandboxedEvalExternal(
-    functionString,
-    jsonOutput
-  )) as FeatureInfoProperties;
-
-  const properties = {
-    ...baseInfo,
-    wmsProps: jsonOutput,
-  };
-
-  return { properties };
-};
-
-export const functionToFeature = async (output: any, code: string) => {
-  try {
-    // await new Promise((resolve) => setTimeout(resolve, 2000));
-    const baseInfo = (await sandboxedEvalExternal(
-      "(" + code + ")",
-      output
-    )) as FeatureInfoProperties;
-
-    if (baseInfo == null) {
-      return undefined;
-    }
-
-    const properties = {
-      ...baseInfo,
-      wmsProps: output,
-    };
-
-    return { properties };
-  } catch (error) {
-    console.log(error);
-    return undefined;
-  }
-};
-
-export const createUrl = ({
-  baseUrl,
-  layerName,
-  viewportBbox,
-  viewportWidth,
-  viewportHeight,
-  x,
-  y,
-}: {
-  baseUrl: string;
-  layerName: string;
-  viewportBbox: { left: number; bottom: number; right: number; top: number };
-  viewportWidth: number;
-  viewportHeight: number;
-  x: number;
-  y: number;
-}) => {
-  const url =
-    baseUrl +
-    `?SERVICE=WMS&request=GetFeatureInfo&format=image%2Fpng&transparent=true&version=1.1.1&tiled=true&srs=EPSG%3A3857&BBOX=` +
-    `${viewportBbox.left},` +
-    `${viewportBbox.bottom},` +
-    `${viewportBbox.right},` +
-    `${viewportBbox.top}` +
-    `&WIDTH=${viewportWidth}&HEIGHT=${viewportHeight}&FEATURE_COUNT=99&LAYERS=${layerName}&QUERY_LAYERS=${layerName}&X=${x}&Y=${y}`;
-
-  return url;
 };
 
 export const getFeatureForLayer = async (

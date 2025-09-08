@@ -11,7 +11,11 @@ import proj4 from "proj4";
 
 import CismapLayer from "react-cismap/CismapLayer";
 
-import { useFeatureFlags } from "@carma-appframeworks/portals";
+import {
+  functionToFeature,
+  objectToFeature,
+  useFeatureFlags,
+} from "@carma-appframeworks/portals";
 import type { Layer } from "@carma-commons/types";
 
 import {
@@ -37,11 +41,7 @@ import {
 } from "../../store/slices/features";
 import { getLayers, setLayersIdle } from "../../store/slices/mapping";
 
-import {
-  functionToFeature,
-  getFeatureForLayer,
-  objectToFeature,
-} from "../feature-info/featureInfoHelper";
+import { getFeatureForLayer } from "../feature-info/featureInfoHelper";
 import { getAtLeastOneLayerIsQueryable, getQueryableLayers } from "./utils";
 import { UIMode } from "../../store/slices/ui";
 import { FeatureInfoIcon } from "../feature-info/FeatureInfoIcon";

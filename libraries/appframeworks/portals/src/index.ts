@@ -77,3 +77,8 @@ export {
   defaultBackgroundConfigurations,
   backgroundConfWithFastOrtho2024,
 } from "./lib/utils/topicmapConfigs";
+export {
+  createUrl,
+  functionToFeature,
+  objectToFeature,
+} from "./lib/utils/featureInfo";
