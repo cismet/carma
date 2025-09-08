@@ -92,8 +92,6 @@ import { getUIMode, UIMode } from "../../store/slices/ui.ts";
 import LoginForm from "../LoginForm.tsx";
 import { useModelSelectionDispatcher } from "../../hooks/useModelSelectionDispatcher.ts";
 
-import { useDebug } from "./GeoportalMap.useDebug.ts";
-
 import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
@@ -155,8 +153,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   useOverlayHelper(infoBoxOverlay);
   useOverlayHelper(layerButtonsOverlay);
   useOverlayHelper(mapInteractionOverlay);
-
-  useDebug(viewerRef, rerenderCountRef, lastRenderIntervalRef);
 
   const { routedMapRef: routedMap } =
     useContext<typeof TopicMapContext>(TopicMapContext);

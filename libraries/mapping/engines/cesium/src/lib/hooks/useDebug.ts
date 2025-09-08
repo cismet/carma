@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   Math as CesiumMath,
@@ -20,8 +20,10 @@ import {
   selectScreenSpaceCameraControllerMaximumZoomDistance,
   selectScreenSpaceCameraControllerMinimumZoomDistance,
 } from "../slices/cesium";
+import { useDebugCrashControl } from "./useDebugCrashControl";
 
 const useDebug = () => {
+  useDebugCrashControl("useDebug(CustomViewer)");
   const viewer = useCesiumViewer();
 
   const dispatch = useDispatch();
@@ -36,12 +38,21 @@ const useDebug = () => {
     selectScreenSpaceCameraControllerEnableCollisionDetection
   );
 
-  const setMaxZoomDistance = (v: number) =>
-    dispatch(setScreenSpaceCameraControllerMaximumZoomDistance(v));
-  const setMinZoomDistance = (v: number) =>
-    dispatch(setScreenSpaceCameraControllerMinimumZoomDistance(v));
-  const setCollisions = (v: boolean) =>
-    dispatch(setScreenSpaceCameraControllerEnableCollisionDetection(v));
+  const setMaxZoomDistance = useCallback(
+    (v: number) =>
+      dispatch(setScreenSpaceCameraControllerMaximumZoomDistance(v)),
+    [dispatch]
+  );
+  const setMinZoomDistance = useCallback(
+    (v: number) =>
+      dispatch(setScreenSpaceCameraControllerMinimumZoomDistance(v)),
+    [dispatch]
+  );
+  const setCollisions = useCallback(
+    (v: boolean) =>
+      dispatch(setScreenSpaceCameraControllerEnableCollisionDetection(v)),
+    [dispatch]
+  );
 
   useTweakpaneCtx(
     useMemo(
@@ -99,7 +110,7 @@ const useDebug = () => {
           },
         ],
       }),
-      [viewer?.scene.camera]
+      [viewer]
     )
   );
 
@@ -139,7 +150,7 @@ const useDebug = () => {
           },
         ],
       }),
-      [viewer?.scene]
+      [viewer]
     )
   );
 
@@ -181,7 +192,14 @@ const useDebug = () => {
           { name: "minZoomDistance", min: 10, max: 1000, step: 10 },
         ],
       }),
-      []
+      [
+        minZoomDistance,
+        maxZoomDistance,
+        collisions,
+        setMinZoomDistance,
+        setMaxZoomDistance,
+        setCollisions,
+      ]
     )
   );
 };

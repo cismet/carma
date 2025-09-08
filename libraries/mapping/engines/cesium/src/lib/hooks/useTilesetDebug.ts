@@ -7,6 +7,14 @@ import { useCesiumViewer } from "./useCesiumViewer";
 
 const DEFAULT_MESH_SHADER_KEY = "UNLIT_ENHANCED_2024";
 
+const shaderOptions = Object.keys(CUSTOM_SHADERS_DEFINITIONS).reduce(
+  (acc: Record<string, string>, key: string) => {
+    acc[key] = key;
+    return acc;
+  },
+  {}
+);
+
 export const useTilesetDebug = (
   tileset: Cesium3DTileset | null,
   name = "unlabeled"
@@ -67,7 +75,7 @@ export const useTilesetDebug = (
         inputs: [
           {
             name: "customShaderKey",
-            options: Object.keys(CUSTOM_SHADERS_DEFINITIONS),
+            options: shaderOptions,
           },
           { name: "enableDebugWireframe" },
           { name: "show", type: "boolean" },

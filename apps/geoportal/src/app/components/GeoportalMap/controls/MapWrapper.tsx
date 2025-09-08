@@ -1,11 +1,4 @@
-import {
-  RefObject,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { isMobile } from "react-device-detect";
 import { useDispatch, useSelector } from "react-redux";
 
@@ -31,7 +24,6 @@ import {
   useSelection,
 } from "@carma-appframeworks/portals";
 
-import { useTweakpaneCtx } from "@carma-commons/debug";
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import type { SearchResultItem } from "@carma-commons/types";
 import { detectWebGLContext } from "@carma-commons/utils";
@@ -101,6 +93,8 @@ import {
 } from "../../../store/slices/ui.ts";
 
 import { CESIUM_CONFIG } from "../../../config/app.config";
+import { useDebug } from "./MapWrapper.useDebug.ts";
+import useDebugCrashReact from "./useDebugCrashReact.ts";
 
 // detect GPU support, disables 3d mode if not supported
 let hasGPU = false;
@@ -148,42 +142,12 @@ const MapWrapper = () => {
   });
   const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
 
-  useTweakpaneCtx(
-    useMemo(
-      () => ({
-        folder: {
-          title: "GeoportalMap",
-        },
-        params: {
-          get renderCount() {
-            return rerenderCountRef.current;
-          },
-          get renderInterval() {
-            return lastRenderIntervalRef.current;
-          },
-          dpr: window.devicePixelRatio,
-          resolutionScale: viewerRef.current
-            ? viewerRef.current.resolutionScale
-            : 0,
-        },
-        inputs: [
-          { name: "renderCount", readonly: true, format: (v) => v.toFixed(0) },
-          {
-            name: "renderInterval",
-            readonly: true,
-            format: (v) => v.toFixed(0),
-          },
-          { name: "dpr", readonly: true, format: (v) => v.toFixed(1) },
-          {
-            name: "resolutionScale",
-            readonly: true,
-            format: (v) => v.toFixed(1),
-          },
-        ],
-      }),
-      [viewerRef, rerenderCountRef]
-    )
-  );
+  useDebug({
+    viewerRef,
+    rerenderCountRef,
+    lastRenderIntervalRef: lastRenderIntervalRef,
+  });
+  useDebugCrashReact("MapWrapper.useDebug");
 
   const { routedMapRef: routedMap } =
     useContext<typeof TopicMapContext>(TopicMapContext);
