@@ -1,9 +1,7 @@
-import { withValidViewer } from "./lib/utils/viewer";
-import { pickViewerCanvasCenter } from "./lib/utils/pickers";
 export * from "./lib/slices/cesium";
 
-export { CesiumContextProvider } from "./lib/CesiumContextProvider";
 export { type CesiumContextType } from "./lib/CesiumContext";
+export { CesiumContextProvider } from "./lib/CesiumContextProvider";
 
 export { CustomCesiumWidget } from "./lib/CustomCesiumWidget";
 export {

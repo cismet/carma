@@ -8,7 +8,6 @@ import {
   ColorMaterialProperty,
   defined,
   Matrix4,
-  Primitive,
   Math as CesiumMath,
   Rectangle,
   OrthographicFrustum,
@@ -176,52 +175,6 @@ export const createOffCenterFrustum = (
   console.warn("Unsupported frustum type");
   return;
 };
-
-export function getPrimitiveById(ctx: CesiumContextType, id: string) {
-  const viewer = ctx.viewerRef.current;
-  if (
-    !viewer ||
-    viewer.isDestroyed() ||
-    !viewer.scene ||
-    viewer.scene.isDestroyed() ||
-    !viewer.camera
-  ) {
-    return null;
-  }
-  const primitives = viewer.scene.primitives;
-  const length = primitives.length;
-
-  for (let i = 0; i < length; ++i) {
-    const p = primitives.get(i);
-    if (p.id === id) {
-      return p;
-    }
-  }
-
-  return null;
-}
-
-export function getAllPrimitives(ctx: CesiumContextType) {
-  const viewer = ctx.viewerRef.current;
-  if (
-    !viewer ||
-    viewer.isDestroyed() ||
-    !viewer.scene ||
-    viewer.scene.isDestroyed() ||
-    !viewer.camera
-  ) {
-    return [];
-  }
-  const primitives = viewer.scene.primitives;
-  const length = primitives.length;
-
-  const primitiveArray: Primitive[] = [];
-  for (let i = 0; i < length; ++i) {
-    const p = primitives.get(i);
-    primitiveArray.push(p);
-  }
-  return primitiveArray;
-}
 
 // GEO
 
