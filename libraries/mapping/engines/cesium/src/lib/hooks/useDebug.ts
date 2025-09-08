@@ -21,7 +21,7 @@ import {
   selectScreenSpaceCameraControllerMinimumZoomDistance,
 } from "../slices/cesium";
 
-const useTweakpane = () => {
+const useDebug = () => {
   const viewer = useCesiumViewer();
 
   const dispatch = useDispatch();
@@ -186,4 +186,4 @@ const useTweakpane = () => {
   );
 };
 
-export default useTweakpane;
+export default useDebug;

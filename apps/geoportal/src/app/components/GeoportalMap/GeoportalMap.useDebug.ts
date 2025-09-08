@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { Viewer } from "cesium";
 import { useTweakpaneCtx } from "@carma-commons/debug";
 
-export const useTweakpane = (
+export const useDebug = (
   viewerRef: React.MutableRefObject<Viewer | null>,
   rerenderCountRef: React.MutableRefObject<number>,
   lastRenderIntervalRef: React.MutableRefObject<number>

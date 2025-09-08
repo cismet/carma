@@ -1,13 +1,14 @@
 import React, { useRef, useEffect, useState, useCallback } from "react";
 import type { ReactNode } from "react";
-import { Pane } from "tweakpane";
+import type { Pane } from "tweakpane";
 import localForage from "localforage";
-import { TweakpaneContext } from "./TweakpaneContext";
+import { DebugUiContext } from "./DebugUiContext";
+import { createTweakpane, disposeTweakpane } from "./tweakpane/initPane";
 
 const eventKeys = ["~", "F1"];
 const localForageKey = "tweakpaneEnabled";
 
-export const TweakpaneProvider: React.FC<{
+export const DebugUiProvider: React.FC<{
   children: ReactNode;
   position?: {
     top?: number;
@@ -55,21 +56,11 @@ export const TweakpaneProvider: React.FC<{
 
   useEffect(() => {
     if (!paneRef.current && containerRef.current) {
-      const pane = new Pane({
-        title: "Developer Options",
-        container: containerRef.current,
-      });
-      paneRef.current = pane;
-
-      const closeButton = pane.addButton({
-        title: "Close This Dev GUI",
-        label: "Toggle with F1 or ~",
-      });
-      closeButton.on("click", toggleTweakpane);
+      paneRef.current = createTweakpane(containerRef.current, toggleTweakpane);
     }
 
     return () => {
-      paneRef.current?.dispose();
+      disposeTweakpane(paneRef.current);
       paneRef.current = null;
     };
   }, [toggleTweakpane]);
@@ -77,7 +68,7 @@ export const TweakpaneProvider: React.FC<{
   const { top, left, right } = position;
 
   return (
-    <TweakpaneContext.Provider value={{ paneRef }}>
+    <DebugUiContext.Provider value={{ paneRef }}>
       <div
         ref={containerRef}
         id="tweakpane-container"
@@ -93,8 +84,8 @@ export const TweakpaneProvider: React.FC<{
         }}
       ></div>
       {children}
-    </TweakpaneContext.Provider>
+    </DebugUiContext.Provider>
   );
 };
 
-export default TweakpaneProvider;
+export default DebugUiProvider;

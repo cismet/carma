@@ -15,7 +15,7 @@ import { useCesiumWhenHidden } from "./hooks/useCesiumWhenHidden";
 import { useInitializeViewer } from "./hooks/useInitializeViewer";
 import { useOnSceneChange } from "./hooks/useOnSceneChange";
 import useTransitionTimeout from "./hooks/useTransitionTimeout";
-import useTweakpane from "./hooks/useTweakpane";
+import useDebug from "./hooks/useDebug";
 import { useTilesets } from "./hooks/useTilesets";
 import { useSceneStyles } from "./hooks/useSceneStyles";
 import { StringifiedCameraState } from "./utils/cesiumHashParamsCodec";
@@ -137,7 +137,7 @@ export function CustomViewer(props: CustomViewerProps) {
   useOnSceneChange(onSceneChange);
 
   // optional
-  useTweakpane();
+  useDebug();
 
   return (
     <>

@@ -13,7 +13,7 @@ import {
   SelectionProvider,
   HashStateProvider,
 } from "@carma-appframeworks/portals";
-import { TweakpaneProvider } from "@carma-commons/debug";
+import { DebugUiProvider } from "@carma-commons/debug";
 import { suppressReactCismapErrors } from "@carma-commons/utils";
 import {
   CesiumContextProvider,
@@ -72,10 +72,10 @@ const root = createRoot(document.getElementById("root") as HTMLElement);
 
 root.render(
   <Provider store={store}>
-    <TweakpaneProvider>
+    <DebugUiProvider>
       <PersistGate loading={null} persistor={persistor}>
         <RouterProvider router={router} />
       </PersistGate>
-    </TweakpaneProvider>
+    </DebugUiProvider>
   </Provider>
 );
