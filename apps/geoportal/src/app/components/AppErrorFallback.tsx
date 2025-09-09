@@ -363,6 +363,7 @@ const AppErrorFallback = ({ error, extra }: AppErrorFallbackProps) => {
 
         <Space size="middle">
           <Button
+            className="!text-black"
             style={{ backgroundColor: branding.downloadButtonColor }}
             onClick={() => {
               const dataStr =
@@ -380,6 +381,7 @@ const AppErrorFallback = ({ error, extra }: AppErrorFallbackProps) => {
           </Button>
 
           <Button
+            className="!text-black"
             style={{ backgroundColor: branding.resetButtonColor }}
             onClick={() => {
               const confirmation = window.confirm(

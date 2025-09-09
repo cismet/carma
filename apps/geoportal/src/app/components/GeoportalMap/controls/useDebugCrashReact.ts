@@ -29,12 +29,8 @@ export function useDebugCrashReact(source: string = "useDebugCrashReact") {
         intervalRef.current = null;
       }
     };
-    const attach = () => {
-      if (crashBtnRef.current) {
-        clear();
-        return;
-      }
-      if (!paneRef.current) return;
+    const attachOnce = () => {
+      if (crashBtnRef.current || !paneRef.current) return;
       paneCallback((pane) => {
         if (crashBtnRef.current) return;
         const btn = pane.addButton({ title: "Crash React (ErrorBoundary)" });
@@ -48,8 +44,11 @@ export function useDebugCrashReact(source: string = "useDebugCrashReact") {
         clear();
       });
     };
-    attach();
-    intervalRef.current = window.setInterval(attach, 250);
+    // Try once immediately, then fallback to a slower retry to avoid hot loops
+    attachOnce();
+    if (!crashBtnRef.current) {
+      intervalRef.current = window.setInterval(attachOnce, 750);
+    }
     return () => {
       clear();
       crashBtnRef.current?.dispose();

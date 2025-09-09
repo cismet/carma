@@ -60,9 +60,11 @@ export function snapshotCesiumContext(
           lon,
           lat,
           height,
-          heading: cam.heading && CesiumMath.toDegrees(cam.heading),
-          pitch: cam.pitch && CesiumMath.toDegrees(cam.pitch),
-          roll: cam.roll && CesiumMath.toDegrees(cam.roll),
+          heading:
+            cam.heading != null ? CesiumMath.toDegrees(cam.heading) : undefined,
+          pitch:
+            cam.pitch != null ? CesiumMath.toDegrees(cam.pitch) : undefined,
+          roll: cam.roll != null ? CesiumMath.toDegrees(cam.roll) : undefined,
         } as const),
       providers: {
         terrainProvider: terrainProviderRef.current?.constructor?.name,

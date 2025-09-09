@@ -4,6 +4,26 @@ import { useTweakpaneCtx } from "@carma-commons/debug";
 import { useCesiumContext } from "./useCesiumContext";
 import { snapshotCesiumContext } from "../utils/cesiumContextSnapshot";
 
+interface RuntimeViewerSnapshot {
+  scene?: Partial<{
+    requestRenderMode: boolean;
+    frameState: Partial<{ frameNumber: number }>;
+    canvas: Partial<
+      Pick<
+        HTMLCanvasElement,
+        "clientWidth" | "clientHeight" | "width" | "height"
+      >
+    >;
+  }>;
+  clock?: Partial<{ currentTime: { toString: () => string } }>;
+  cesiumWidget?: Partial<{
+    useDefaultRenderLoop: boolean;
+    useBrowserRecommendedResolution: boolean;
+    targetFrameRate: number;
+    resolutionScale: number;
+  }>;
+}
+
 /**
  * Registers a Debug UI button that intentionally crashes the app to test ErrorBoundary handling.
  * The error is thrown during render by toggling local state.
@@ -24,25 +44,7 @@ export function useDebugCrashControl(source: string = "useDebugCrashControl") {
     ).carmaCesiumContext = snapshotCesiumContext(cesium);
 
     const v = cesium.viewerRef.current as
-      | Partial<{
-          scene: Partial<{
-            requestRenderMode: boolean;
-            frameState: Partial<{ frameNumber: number }>;
-            canvas: Partial<
-              Pick<
-                HTMLCanvasElement,
-                "clientWidth" | "clientHeight" | "width" | "height"
-              >
-            >;
-          }>;
-          clock: Partial<{ currentTime: { toString: () => string } }>;
-          cesiumWidget: Partial<{
-            useDefaultRenderLoop: boolean;
-            useBrowserRecommendedResolution: boolean;
-            targetFrameRate: number;
-            resolutionScale: number;
-          }>;
-        }>
+      | Partial<RuntimeViewerSnapshot>
       | undefined;
     const scene = v?.scene;
     const canvas = scene?.canvas;
