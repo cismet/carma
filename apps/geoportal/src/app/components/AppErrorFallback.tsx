@@ -1,242 +1,401 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import StackTrace from "stacktrace-js";
 import localforage from "localforage";
-import { Col, Container, Row } from "react-bootstrap";
-import versionData from "../../version.json";
-import { getApplicationVersion } from "@carma-commons/utils";
-import store from "../store";
-import { Button, Checkbox } from "antd";
+import { Button, Collapse, Typography, Divider, Space, Row, Col } from "antd";
 import { isMobile, isTablet, isDesktop } from "react-device-detect";
 import UAParser from "ua-parser-js";
+import { getApplicationVersion } from "@carma-commons/utils";
+import versionData from "../../version.json";
+import store from "../store";
 
-const AppErrorFallback = ({ error, resetErrorBoundary }) => {
+// Types
+type ErrorWithCause = Error & { cause?: unknown };
+
+type MailTemplateCtx = { br: string; appName: string };
+
+export interface AppErrorMailConfig {
+  to: string;
+  subject: string;
+  bodyTemplate?: (ctx: MailTemplateCtx) => string;
+}
+
+export interface BrandingOptions {
+  appName?: string;
+  logoSrc?: string;
+  logoAlt?: string;
+  logoWidth?: number;
+  headerTextColor?: string;
+  backgroundImage?: string;
+  headerOverlayColor?: string;
+  downloadButtonColor?: string;
+  resetButtonColor?: string;
+  attachmentFilename?: string;
+}
+
+export interface AppErrorFallbackExtra {
+  // Diagnostics forwarded by CesiumErrorToErrorBoundaryForwarder or other sources
+  cesiumTitle?: string;
+  cesiumMessage?: string;
+  forwarderAt?: string;
+  forwarderStack?: string;
+  carmaCesiumContext?: Record<string, unknown>;
+
+  // Configurables
+  appErrorMail?: AppErrorMailConfig;
+  branding?: BrandingOptions;
+}
+
+export interface AppErrorFallbackProps {
+  error: ErrorWithCause;
+  resetErrorBoundary: () => void;
+  extra?: AppErrorFallbackExtra;
+}
+
+const defaultMail: Required<Pick<AppErrorMailConfig, "to" | "subject">> & {
+  bodyTemplate: NonNullable<AppErrorMailConfig["bodyTemplate"]>;
+} = {
+  to: "david.glogaza@cismet.de",
+  subject: "Fehler im Geoportal Wuppertal",
+  bodyTemplate: ({ br, appName }) =>
+    `Sehr geehrte Damen und Herren,${br}${br}` +
+    `Während der Benutzung des ${appName} ist der untenstehende Fehler aufgetreten.${br}${br}` +
+    `[Tragen Sie hier bitte ein, was Sie gemacht haben oder was Ihnen aufgefallen ist.]${br}${br}${br}` +
+    `Mit freundlichen Grüßen${br}${br}${br}` +
+    `[Bitte überschreiben Sie den nachfolgenden Block mit Ihren Kontaktinformationen, damit wir ggf mit Ihnen Kontakt aufnehmen können]${br}${br}` +
+    `Vor- und Nachname${br}` +
+    `ggf E-Mail-Adresse${br}` +
+    `ggf. Telefonnummer${br}${br}` +
+    `!! Mit Absenden dieser E-Mail erkläre ich mein Einverständnis mit der zweckgebundenen Verarbeitung meiner personenbezogenen Daten gemäß der Information nach Artikel 13 bzw. Art. 14 Datenschutz-Grundverordnung (DS-GVO).${br}${br}`,
+};
+
+const defaultBranding: Required<BrandingOptions> = {
+  appName: "Geoportal Wuppertal",
+  logoSrc: "/images/wuppertal-white.svg",
+  logoAlt: "",
+  logoWidth: 180,
+  headerTextColor: "#ffffff",
+  backgroundImage: "/geoportal/images/error.jpg",
+  headerOverlayColor: "rgba(0,0,0,0.4)",
+  downloadButtonColor: "orange",
+  resetButtonColor: "yellow",
+  attachmentFilename: "problemReport.geoportal-wuppertal.txt",
+};
+
+type ForwardedDiagnostics = Partial<
+  Pick<
+    AppErrorFallbackExtra,
+    | "cesiumTitle"
+    | "cesiumMessage"
+    | "forwarderAt"
+    | "forwarderStack"
+    | "carmaCesiumContext"
+  >
+> & {
+  originalStack?: string;
+  carmaCesiumRuntime?: Record<string, unknown>;
+};
+
+const AppErrorFallback = ({ error, extra }: AppErrorFallbackProps) => {
   const br = "\n";
   const [errorStack, setErrorStack] = useState<{
     errorStack?: StackTrace.StackFrame[];
     stringifiedStack?: string;
   }>({});
-  const parser = new UAParser();
+
+  const parser = useMemo(() => new UAParser(), []);
   const isMobileUA = parser.getDevice().type === "mobile";
   const isTabletUA = parser.getDevice().type === "tablet";
   const isDesktopUA = !isMobileUA && !isTabletUA;
   const isTouchDevice =
-    "ontouchstart" in window || navigator.maxTouchPoints > 0;
+    typeof window !== "undefined" &&
+    ("ontouchstart" in window || navigator.maxTouchPoints > 0);
 
   const version = getApplicationVersion(versionData);
 
   useEffect(() => {
-    StackTrace.fromError(error).then((errorStack) => {
-      const stringifiedStack = errorStack
-        .map(function (sf) {
-          return sf.toString();
-        })
-        .join("\n");
-      setErrorStack({ errorStack, stringifiedStack });
+    StackTrace.fromError(error).then((stack) => {
+      const stringifiedStack = stack.map((sf) => sf.toString()).join("\n");
+      setErrorStack({ errorStack: stack, stringifiedStack });
     });
   }, [error]);
 
   const state = store.getState();
   const stateToLog = {
-    cesium: state.cesium,
-    features: state.features,
-    mapping: state.mapping,
-    measurements: state.measurements,
-    ui: state.ui,
+    cesium: (state as Record<string, unknown>)["cesium"],
+    features: (state as Record<string, unknown>)["features"],
+    mapping: (state as Record<string, unknown>)["mapping"],
+    measurements: (state as Record<string, unknown>)["measurements"],
+    ui: (state as Record<string, unknown>)["ui"],
+  } as const;
+
+  const branding = { ...defaultBranding, ...(extra?.branding ?? {}) };
+  const mailCfg: Required<AppErrorMailConfig> = {
+    to: extra?.appErrorMail?.to ?? defaultMail.to,
+    subject: extra?.appErrorMail?.subject ?? defaultMail.subject,
+    bodyTemplate: extra?.appErrorMail?.bodyTemplate ?? defaultMail.bodyTemplate,
   };
 
-  let mailToHref =
-    "mailto:david.glogaza@cismet.de?subject=Fehler%20im%20Geoportal%20Wuppertal" +
-    "&body=" +
-    encodeURI(
-      `Sehr geehrte Damen und Herren,${br}${br}` +
-        `während der benutzung vom Geoportal Wuppertal ist der untenstehende Fehler passiert: ` +
-        `${br}${br}` +
-        `[Tragen Sie hier bitte ein, was Sie gemacht haben oder was Ihnen aufgefallen ist.]${br}` +
-        `${br}${br}` +
-        `Mit freundlichen Grüßen${br}` +
-        `${br}${br}${br}` +
-        `[Bitte überschreiben Sie den nachfolgenden Block mit Ihren Kontaktinformationen, damit wir ggf mit Ihnen Kontakt aufnehmen können]` +
-        `${br}${br}` +
-        `Vor- und Nachname${br}` +
-        `ggf E-Mail-Adresse${br}` +
-        `ggf. Telefonnummer${br}${br}` +
-        `!! Mit Absenden dieser E-Mail erkläre ich mein Einverständnis mit der zweckgebundenen Verarbeitung meiner personenbezogenen Daten gemäß der Information nach Artikel 13 bzw. Art. 14 Datenschutz-Grundverordnung (DS-GVO).` +
-        `${br}${br}` +
-        `----------------------${br}` +
-        `${error.message}${br}` +
-        `----------------------${br}` +
-        `${errorStack?.stringifiedStack}${br}` +
-        `----------------------${br}`
-    );
+  const mailBodyIntro = mailCfg.bodyTemplate({ br, appName: branding.appName });
 
-  let attachmentText =
+  const causeStack =
+    (error as ErrorWithCause)?.cause &&
+    (error as ErrorWithCause).cause instanceof Error
+      ? ((error as ErrorWithCause).cause as Error).stack
+      : undefined;
+
+  // Prefer diagnostics from props.extra, but also read fields attached to the error object
+  const forwardedFromError = (error as unknown as ForwardedDiagnostics) || {};
+  const diag: ForwardedDiagnostics = {
+    cesiumTitle: extra?.cesiumTitle ?? forwardedFromError.cesiumTitle,
+    cesiumMessage: extra?.cesiumMessage ?? forwardedFromError.cesiumMessage,
+    forwarderAt: extra?.forwarderAt ?? forwardedFromError.forwarderAt,
+    forwarderStack: extra?.forwarderStack ?? forwardedFromError.forwarderStack,
+    carmaCesiumContext:
+      extra?.carmaCesiumContext ?? forwardedFromError.carmaCesiumContext,
+    originalStack: forwardedFromError.originalStack,
+    carmaCesiumRuntime: forwardedFromError.carmaCesiumRuntime,
+  };
+
+  const mailBodyFull =
+    `${mailBodyIntro}` +
     `----------------------${br}` +
     `${error?.message}${br}` +
     `----------------------${br}` +
-    `${errorStack?.stringifiedStack}${br}` +
+    `${errorStack?.stringifiedStack ?? ""}${br}` +
+    (diag.originalStack
+      ? `${br}--- Cesium original stack ---${br}${diag.originalStack}${br}`
+      : "") +
+    (diag.cesiumTitle || diag.cesiumMessage
+      ? `${br}--- Cesium error panel ---${br}` +
+        `title: ${diag.cesiumTitle ?? "-"}${br}` +
+        `message: ${diag.cesiumMessage ?? "-"}${br}`
+      : "") +
+    (diag.forwarderAt
+      ? `${br}--- Forwarder ---${br}at: ${diag.forwarderAt}${br}`
+      : "") +
+    `----------------------${br}`;
+
+  const mailToHref =
+    `mailto:${encodeURIComponent(mailCfg.to)}` +
+    `?subject=${encodeURIComponent(mailCfg.subject)}` +
+    `&body=${encodeURIComponent(mailBodyFull)}`;
+
+  const attachmentText =
     `----------------------${br}` +
+    `${error?.message}${br}` +
+    `----------------------${br}` +
+    `${errorStack?.stringifiedStack ?? ""}${br}` +
+    `----------------------${br}` +
+    (diag.originalStack
+      ? `Cesium original stack:${br}${diag.originalStack}${br}----------------------${br}`
+      : "") +
+    (diag.cesiumTitle || diag.cesiumMessage
+      ? `Cesium error panel:${br}` +
+        `title: ${diag.cesiumTitle ?? "-"}${br}` +
+        `message: ${diag.cesiumMessage ?? "-"}${br}----------------------${br}`
+      : "") +
+    (diag.forwarderAt || diag.forwarderStack
+      ? `Forwarder:${br}${diag.forwarderAt ?? ""}${br}${
+          diag.forwarderStack ?? ""
+        }${br}----------------------${br}`
+      : "") +
     `${navigator.userAgent}${br}` +
     `${br}${br}` +
     `----------------------${br}` +
     `STATE${br}` +
     `----------------------${br}` +
     `${JSON.stringify(stateToLog, null, 2)}${br}` +
-    `----------------------${br}`;
+    `----------------------${br}` +
+    (diag.carmaCesiumContext
+      ? `CesiumContext:${br}${JSON.stringify(
+          diag.carmaCesiumContext,
+          null,
+          2
+        )}${br}----------------------${br}`
+      : "") +
+    (diag.carmaCesiumRuntime
+      ? `CesiumRuntime:${br}${JSON.stringify(
+          diag.carmaCesiumRuntime,
+          null,
+          2
+        )}${br}----------------------${br}`
+      : "");
 
   return (
     <div
-      style={{
-        backgroundColor: "white",
-        width: "100%",
-        height: "100%",
-        minHeight: "100vh",
-        background: "url('/geoportal/images/error.jpg')",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundRepeat: "no-repeat",
-      }}
+      className="relative w-full min-h-screen bg-cover bg-center bg-no-repeat"
+      style={{ backgroundImage: `url('${branding.backgroundImage}')` }}
     >
+      {/* Header */}
       <div
-        style={{
-          position: "absolute",
-          top: "0px",
-          left: "0px",
-          width: "100%",
-          height: "140px",
-          backgroundColor: "rgba(0,0,0,0.4)",
-        }}
-      />
-
-      <div
-        style={{
-          position: "absolute",
-          bottom: "0px",
-          left: "0px",
-          width: "100%",
-        }}
+        className="w-full"
+        style={{ backgroundColor: branding.headerOverlayColor }}
       >
-        <div
-          style={{
-            fontSize: "9px",
-            textAlign: "right",
-            color: "rgba(256,256,256,0.5)",
-            margin: 4,
-          }}
-        >
-          {version}
+        <div className="container mx-auto px-6 py-6">
+          <Row align="middle" justify="space-between" gutter={[16, 16]}>
+            <Col xs={24} md={12}>
+              <h1 className="m-0">
+                <img
+                  alt={branding.logoAlt}
+                  width={branding.logoWidth}
+                  src={branding.logoSrc}
+                />
+              </h1>
+              <h2
+                className="m-0 mt-2"
+                style={{ color: branding.headerTextColor }}
+              >
+                {branding.appName}
+              </h2>
+            </Col>
+            <Col xs={24} md={12} className="md:text-right">
+              <Typography.Paragraph className="!text-white m-0">
+                <pre className="m-0 !text-white bg-transparent whitespace-pre-wrap break-words outline-none focus:outline-none ring-0">
+                  {navigator.userAgent}
+                </pre>
+                {isMobile && <span title="mobile">📱 </span>}
+                {isMobileUA && <span title="mobile">(📱) </span>}
+                {isTablet && <span title="tablet">🧮 </span>}
+                {isTabletUA && <span title="tablet">(🧮) </span>}
+                {isDesktop && <span title="desktop">🖥️ </span>}
+                {isDesktopUA && <span title="desktop">(🖥️) </span>}
+                {isTouchDevice && <span title="touch">👇 </span>}
+                <span title="cpu">CPU </span>
+                {navigator.hardwareConcurrency}
+                <span title="ram"> RAM </span>
+                {(navigator as unknown as { deviceMemory?: number })
+                  .deviceMemory || "n/a"}
+              </Typography.Paragraph>
+            </Col>
+          </Row>
         </div>
       </div>
-      {/* <Container> */}
-      <div style={{ marginRight: 25, marginLeft: 25 }}>
-        <Row className="show-grid">
-          <Col style={{ marginTop: 30 }} xs={12} md={12}>
-            <h1 style={{ color: "white" }}>
-              <img alt="" width={180} src="/images/wuppertal-white.svg" />
-            </h1>
-            <h2 style={{ color: "white" }}>Geoportal Wuppertal</h2>
-            <p style={{ paddingTop: "1rem" }}>
-              User Agent: <code>{navigator.userAgent}</code>
-              <br />
-              {/* mobileEmoji */}
-              <span title="mobile">📱 </span>
-              <Checkbox checked={isMobile} /> <Checkbox checked={isMobileUA} />
-              &emsp;
-              {/* tabletEmoji */}
-              <span title="tablet">🧮 </span>
-              <Checkbox checked={isTablet} /> <Checkbox checked={isTabletUA} />
-              &emsp;
-              {/* desktopEmoji */}
-              <span title="desktop">🖥️ </span>
-              <Checkbox checked={isDesktop} />{" "}
-              <Checkbox checked={isDesktopUA} />
-              &emsp;
-              {/* touchEmoji finger*/}
-              <span title="touch">👇 </span>
-              <Checkbox checked={isTouchDevice} />
-              &emsp;
-              {/* cpuEmoji */}
-              <span title="cpu">CPU </span>
-              {navigator.hardwareConcurrency}
-              &emsp;
-              <span title="ram">RAM </span>
-              {(navigator as unknown as { deviceMemory: number })
-                .deviceMemory || "n/a"}
-            </p>
-          </Col>
-        </Row>
+
+      {/* App Version (bottom right) */}
+      <div className="absolute bottom-0 right-0 text-[9px] text-white/50 m-1">
+        {version}
       </div>
-      {/* </Container> */}
-      <div style={{ margin: 25, overflow: "auto" }}>
-        <h2>Es ist ein Fehler aufgetreten. Das tut uns leid. ¯\_(ツ)_/¯</h2>
 
-        <div
-          style={{ overflow: "auto", height: "20%", backgroundColor: "#fff9" }}
-        >
-          <h3>
-            <pre style={{ backgroundColor: "#fff9" }}>{error.message}</pre>
-          </h3>
-          <pre style={{ height: "80%", backgroundColor: "#fff9" }}>
-            {errorStack?.stringifiedStack ||
-              "weiter Informationen werden geladen ..."}
-          </pre>
+      {/* Body */}
+      <div className="container mx-auto px-6 mt-6">
+        <Typography.Title level={2}>
+          Es ist ein Fehler aufgetreten. Das tut uns leid. ¯\_(ツ)_/¯
+        </Typography.Title>
 
-          <br />
-        </div>
+        <Typography.Title level={4}>Fehlermeldung</Typography.Title>
+        <Typography.Paragraph>
+          <pre>{error.message}</pre>
+        </Typography.Paragraph>
 
-        <h4 style={{ marginTop: 50 }}>
-          Sie können die Entwickler unterstützen, indem Sie den Fehler an uns
-          melden.
-        </h4>
+        <Collapse bordered={false} ghost={true} defaultActiveKey={[]}>
+          <Collapse.Panel header="Error stack" key="errorStack">
+            <pre>
+              {errorStack?.stringifiedStack ||
+                "weitere Informationen werden geladen ..."}
+            </pre>
+          </Collapse.Panel>
 
-        <h4>
-          Bitte schicken Sie uns dazu eine <a href={mailToHref}>Mail</a> und
-          fügen Sie bitte den Report, den Sie mit dem orangenen Button erzeugen
-          können, als Anhang hinzu.
-          <br />
-          <br />
+          {(Object.keys(diag ?? {}).length > 0 || !!causeStack) && (
+            <Collapse.Panel header="Technische Details" key="cesiumDiag">
+              {(diag.cesiumTitle || diag.cesiumMessage) && (
+                <Typography.Paragraph>
+                  <Typography.Text strong>Titel:</Typography.Text>{" "}
+                  <Typography.Text code>
+                    {diag.cesiumTitle || "-"}
+                  </Typography.Text>
+                  <br />
+                  <Typography.Text strong>Nachricht:</Typography.Text>{" "}
+                  <Typography.Text code>
+                    {diag.cesiumMessage || "-"}
+                  </Typography.Text>
+                </Typography.Paragraph>
+              )}
+              {(diag.forwarderAt || diag.forwarderStack) && (
+                <Typography.Paragraph>
+                  {diag?.forwarderAt && (
+                    <>
+                      <Typography.Text strong>Weitergeleitet:</Typography.Text>{" "}
+                      <Typography.Text code>{diag.forwarderAt}</Typography.Text>
+                      <br />
+                    </>
+                  )}
+                  {diag?.forwarderStack && <pre>{diag.forwarderStack}</pre>}
+                </Typography.Paragraph>
+              )}
+              {diag?.carmaCesiumContext && (
+                <Typography.Paragraph>
+                  <Typography.Text strong>Cesium-Kontext:</Typography.Text>
+                  <pre>{JSON.stringify(diag.carmaCesiumContext, null, 2)}</pre>
+                </Typography.Paragraph>
+              )}
+              {diag?.carmaCesiumRuntime && (
+                <Typography.Paragraph>
+                  <Typography.Text strong>Cesium-Runtime:</Typography.Text>
+                  <pre>{JSON.stringify(diag.carmaCesiumRuntime, null, 2)}</pre>
+                </Typography.Paragraph>
+              )}
+              {diag?.originalStack && (
+                <Typography.Paragraph>
+                  <Typography.Text strong>
+                    Cesium original stack:
+                  </Typography.Text>
+                  <pre>{diag.originalStack}</pre>
+                </Typography.Paragraph>
+              )}
+              {causeStack && (
+                <Typography.Paragraph>
+                  <Typography.Text strong>Cause Stack:</Typography.Text>
+                  <pre>{causeStack}</pre>
+                </Typography.Paragraph>
+              )}
+            </Collapse.Panel>
+          )}
+        </Collapse>
+        <Divider />
+
+        <Typography.Title level={4}>
+          Bitte helfen Sie uns bei der Fehlerbehebung
+        </Typography.Title>
+        <Typography.Paragraph>
+          Senden Sie uns bitte eine <a href={mailToHref}>E-Mail</a> und fügen
+          Sie den mit dem orangenen Button erzeugten Report als Anhang hinzu.
+        </Typography.Paragraph>
+
+        <Space size="middle">
           <Button
-            style={{ marginLeft: 20, backgroundColor: "orange" }}
+            className="!text-black"
+            style={{ backgroundColor: branding.downloadButtonColor }}
             onClick={() => {
-              var dataStr =
+              const dataStr =
                 "data:text/plain;charset=utf-8," +
                 encodeURIComponent(attachmentText);
-              var downloadAnchorNode = document.createElement("a");
-              downloadAnchorNode.setAttribute("href", dataStr);
-              downloadAnchorNode.setAttribute(
-                "download",
-                "problemReport.geoportal-wuppertal.txt"
-              );
-              window.document.body.appendChild(downloadAnchorNode); // required for firefox
-              downloadAnchorNode.click();
-              downloadAnchorNode.remove();
+              const a = document.createElement("a");
+              a.setAttribute("href", dataStr);
+              a.setAttribute("download", branding.attachmentFilename);
+              window.document.body.appendChild(a);
+              a.click();
+              a.remove();
             }}
           >
             Problemreport erzeugen (sehr groß)
           </Button>
-        </h4>
-        <br />
-        <h4>
-          Mit dem folgenden Button können Sie den Zustand der Applikation
-          verändern:
-          <br /> <br />
+
           <Button
-            style={{ marginLeft: 20, backgroundColor: "yellow" }}
+            className="!text-black"
+            style={{ backgroundColor: branding.resetButtonColor }}
             onClick={() => {
-              let confirmation = window.confirm(
-                "Mit dieser Aktion werden die gespeicherten Einstellungen wie ausgewählte Layer," +
-                  " Messungen, u.ä. gelöscht.\n\n" +
-                  "Sind Sie sicher, dass Sie Ihre Einstellungen zurücksetzen wollen?"
+              const confirmation = window.confirm(
+                "Mit dieser Aktion werden die gespeicherten Einstellungen wie ausgewählte Layer, Messungen, u.ä. gelöscht.\n\nSind Sie sicher, dass Sie Ihre Einstellungen zurücksetzen wollen?"
               );
-              // console.debug("confirmation: " + confirmation);
               if (confirmation) {
                 console.info("resetting settings");
                 localforage.clear();
               }
             }}
           >
-            Zurücksetzen des gespeicherten Zustandes
+            Gespeicherten Zustand zurücksetzen
           </Button>
-        </h4>
+        </Space>
       </div>
     </div>
   );

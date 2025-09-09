@@ -5,10 +5,17 @@ import {
 } from "react-error-boundary";
 import { useState, useEffect } from "react";
 import { CesiumWidget } from "cesium";
+import { useCesiumContext } from "../hooks/useCesiumContext";
+import { snapshotCesiumContext } from "./cesiumContextSnapshot";
 
 export type ForwardedCesiumError = Error & {
   cesiumTitle?: string;
   cesiumMessage?: string;
+  // snapshot of useful state at forward-time
+  forwarderAt?: string;
+  forwarderStack?: string;
+  carmaCesiumContext?: Record<string, unknown>;
+  originalStack?: string;
 };
 
 const overrideCesiumWidgetShowErrorPanel = function (
@@ -21,10 +28,24 @@ const overrideCesiumWidgetShowErrorPanel = function (
     message: string,
     error: unknown
   ) {
-    console.log("showErrorPanel");
-    (error as ForwardedCesiumError).cesiumTitle = title;
-    (error as ForwardedCesiumError).cesiumMessage = message;
-    setCesiumError(error as ForwardedCesiumError);
+    console.debug("[Cesium] showErrorPanel invoked");
+    // Normalize any input (string/object) to a real Error instance
+    const base: Error =
+      error instanceof Error
+        ? error
+        : typeof error === "string"
+        ? new Error(error)
+        : new Error("Cesium error (non-Error thrown)");
+
+    const forwarded = base as ForwardedCesiumError;
+    forwarded.cesiumTitle = title;
+    forwarded.cesiumMessage = message;
+    forwarded.originalStack = base.stack;
+    // capture the forwarder stack to aid root-cause tracing
+    forwarded.forwarderStack = new Error(
+      "Forwarded from CesiumWidget.showErrorPanel"
+    ).stack;
+    setCesiumError(forwarded);
   };
 };
 
@@ -35,6 +56,7 @@ export const CesiumErrorToErrorBoundaryForwarder = withErrorBoundary(
     );
 
     const { showBoundary } = useErrorBoundary();
+    const ctx = useCesiumContext();
 
     useEffect(() => {
       console.debug(
@@ -45,10 +67,12 @@ export const CesiumErrorToErrorBoundaryForwarder = withErrorBoundary(
 
     useEffect(() => {
       if (cesiumError && showBoundary) {
+        cesiumError.forwarderAt = new Date().toISOString();
+        cesiumError.carmaCesiumContext = snapshotCesiumContext(ctx);
         showBoundary(cesiumError);
         setCesiumError(null);
       }
-    }, [cesiumError, showBoundary]);
+    }, [cesiumError, showBoundary, ctx]);
 
     return null;
   },
