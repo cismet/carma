@@ -116,8 +116,7 @@
       "!{projectRoot}/src/test-setup.[jt]s"
     ],
     "sharedGlobals": [
-      "{workspaceRoot}/tailwind.preset.@(js|cjs|mjs|ts)",
-      "{workspaceRoot}/tsconfig.base.json"
+      "{workspaceRoot}/tailwind.preset.@(js|cjs|mjs|ts)"
     ]
   },
   "generators": {
