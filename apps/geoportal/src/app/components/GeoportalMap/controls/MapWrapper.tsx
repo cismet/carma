@@ -19,7 +19,6 @@ import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopic
 
 import {
   SelectionMetaData,
-  useFeatureFlags,
   useGazData,
   useSelection,
 } from "@carma-appframeworks/portals";
@@ -50,6 +49,7 @@ import {
   ControlLayout,
   ControlLayoutCanvas,
 } from "@carma-mapping/map-controls-layout";
+import { useFeatureFlags } from "@carma-providers/feature-flag";
 
 import { GeoportalMap } from "../GeoportalMap.tsx";
 import LibreGeoportalMap from "../LibreGeoportalMap.tsx";
@@ -94,7 +94,7 @@ import {
 
 import { CESIUM_CONFIG } from "../../../config/app.config";
 import { useDebug } from "./MapWrapper.useDebug.ts";
-import useDebugCrashReact from "./useDebugCrashReact.ts";
+import { useDebugCrashReact } from "./useDebugCrashReact.ts";
 
 // detect GPU support, disables 3d mode if not supported
 let hasGPU = false;

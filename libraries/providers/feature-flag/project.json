@@ -1,0 +1,13 @@
+{
+  "name": "feature-flag",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libraries/providers/feature-flag/src",
+  "projectType": "library",
+  "tags": [],
+  "private": true,
+  "targets": {
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  }
+}

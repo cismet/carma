@@ -19,7 +19,6 @@ import {
   SelectionItem,
   TopicMapSelectionContent,
   useAuth,
-  useFeatureFlags,
   useGazData,
   useMapHashRouting,
   createLocationChangeHandler,
@@ -53,6 +52,7 @@ import {
   useCesiumInitialCameraFromSearchParams,
 } from "@carma-mapping/engines/cesium";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
+import { useFeatureFlags } from "@carma-providers/feature-flag";
 
 import FeatureInfoBox from "../feature-info/FeatureInfoBox.tsx";
 import InfoBoxMeasurement from "../map-measure/InfoBoxMeasurement.jsx";

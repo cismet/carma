@@ -30,6 +30,7 @@
       "@carma-commons/*": ["libraries/commons/*/src/index.ts"],
       "@carma-commons/utils/*": ["libraries/commons/utils/src/lib/*/index.ts"],
       "@carma-mapping/*": ["libraries/mapping/*/src/index.ts"],
+      "@carma-providers/*": ["libraries/providers/*/src/index.ts"],
     },
     "skipLibCheck": true
   }

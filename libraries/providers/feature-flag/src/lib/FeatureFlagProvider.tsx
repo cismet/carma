@@ -1,5 +1,6 @@
-import React, { createContext, useContext } from "react";
 import { getHashParams } from "@carma-commons/utils";
+import { FeatureFlagContext } from "./FeatureFlagContext";
+
 const DEFAULT_FEATURE_FLAG_PARAM = "ff";
 const FEATURE_FLAG_DISABLED_PREFIX = "-";
 const FEATURE_FLAG_SEPARATOR = ".";
@@ -12,11 +13,7 @@ export type FeatureFlagConfig = Record<
   }
 >;
 
-type FeatureFlags = Record<string, boolean>;
-
-const FeatureFlagContext = createContext<FeatureFlags>({});
-
-export const useFeatureFlags = () => useContext(FeatureFlagContext);
+export type FeatureFlags = Record<string, boolean>;
 
 interface FeatureFlagProviderProps {
   children: React.ReactNode;
@@ -29,11 +26,11 @@ interface FeatureFlagProviderProps {
  * Uses standard query parameter format: /#/route?ff=flagkey1|flagkey2
  * To disable default flags prefix with minus like: ff=-flagkey1|flagkey2
  */
-export const FeatureFlagProvider: React.FC<FeatureFlagProviderProps> = ({
+export const FeatureFlagProvider = ({
   children,
   config,
-  featureFlagParam: featureFlagParam = DEFAULT_FEATURE_FLAG_PARAM,
-}) => {
+  featureFlagParam = DEFAULT_FEATURE_FLAG_PARAM,
+}: FeatureFlagProviderProps) => {
   const flags = (() => {
     const hashParams = getHashParams();
     const ffParam = hashParams[featureFlagParam];

@@ -8,12 +8,6 @@ export enum SELECTED_LAYER_INDEX {
 
 export { utils };
 
-export {
-  FeatureFlagProvider,
-  type FeatureFlagConfig,
-  useFeatureFlags,
-} from "./lib/components/FeatureFlagProvider.tsx";
-
 export { Save } from "./lib/components/Save.tsx";
 export { Share } from "./lib/components/Share.tsx";
 export { FileUploader } from "./lib/components/FileUploader.tsx";

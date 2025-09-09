@@ -1,9 +1,8 @@
 // Built-in Modules
-import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 // 3rd party Modules
-import { Button, Modal } from "antd";
+import { Modal } from "antd";
 import { ErrorBoundary } from "react-error-boundary";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSpinner } from "@fortawesome/free-solid-svg-icons";
@@ -11,10 +10,7 @@ import { faSpinner } from "@fortawesome/free-solid-svg-icons";
 import { CrossTabCommunicationContextProvider } from "react-cismap/contexts/CrossTabCommunicationContextProvider";
 
 // Monorepo Packages
-import {
-  CarmaMapProviderWrapper,
-  FeatureFlagProvider,
-} from "@carma-appframeworks/portals";
+import { CarmaMapProviderWrapper } from "@carma-appframeworks/portals";
 import {
   backgroundSettings,
   mobileInfo,
@@ -22,6 +18,7 @@ import {
 import { DebugUiProvider } from "@carma-commons/debug";
 import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
 import { MobileWarningMessage } from "@carma-mapping/components";
+import { FeatureFlagProvider } from "@carma-providers/feature-flag";
 
 // Local Modules
 import AppErrorFallback from "./components/AppErrorFallback";
@@ -41,11 +38,7 @@ import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 import { layerMap } from "./config";
 import { geoportalMapStyleConfig } from "./config/mapStyleConfig";
 
-import {
-  CESIUM_CONFIG,
-  CONFIG_BASE_URL,
-  MIN_MOBILE_WIDTH,
-} from "./config/app.config";
+import { CESIUM_CONFIG, CONFIG_BASE_URL } from "./config/app.config";
 import { featureFlagConfig } from "./config/featureFlags";
 
 import { OBLIQUE_CONFIG, CAMERA_ID_TO_DIRECTION } from "./oblique/config";
@@ -87,7 +80,7 @@ function App({ published }: { published?: boolean }) {
       config={{ ...featureFlagConfig, ...customFeatureFlags }}
     >
       <MatomoTracker>
-        <DebugUiProvider>
+        <DebugUiProvider enabled={import.meta.env?.DEV === true}>
           <CarmaMapProviderWrapper
             cesiumOptions={CESIUM_CONFIG}
             overlayOptions={{

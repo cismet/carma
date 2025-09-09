@@ -4,11 +4,13 @@ import { faPlus, faShareNodes } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Button, Input, Select, Tabs } from "antd";
 import { useState } from "react";
+
+import { useFeatureFlags } from "@carma-providers/feature-flag";
+
 import type { LayerState } from "../types";
-import { useFeatureFlags } from "./FeatureFlagProvider";
 import { SelectionItem } from "./SelectionProvider";
 import { useShareUrl } from "../hooks/useShareUrl";
-import FileUploader from "./FileUploader";
+import { FileUploader } from "./FileUploader";
 import "./tabs.css";
 import { uploadImage } from "../utils/fileUpload";
 

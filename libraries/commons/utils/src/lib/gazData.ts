@@ -1,5 +1,5 @@
 import { ENDPOINT } from "@carma-commons/resources";
-import { md5FetchText } from "./fetching";
+import { md5FetchText } from "./fetching/fetching";
 
 export type GazDataSourceConfig = {
   topic: ENDPOINT;

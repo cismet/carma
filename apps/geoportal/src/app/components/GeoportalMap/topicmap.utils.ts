@@ -14,9 +14,9 @@ import CismapLayer from "react-cismap/CismapLayer";
 import {
   functionToFeature,
   objectToFeature,
-  useFeatureFlags,
 } from "@carma-appframeworks/portals";
 import type { Layer } from "@carma-commons/types";
+import { useFeatureFlags } from "@carma-providers/feature-flag";
 
 import {
   addNothingFoundID,

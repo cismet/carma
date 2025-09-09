@@ -21,10 +21,8 @@ import {
   useCesiumContext,
 } from "@carma-mapping/engines/cesium";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
-import {
-  useFeatureFlags,
-  ContactMailButton,
-} from "@carma-appframeworks/portals";
+import { ContactMailButton } from "@carma-appframeworks/portals";
+import { useFeatureFlags } from "@carma-providers/feature-flag";
 
 import { ObliqueDebugSvg } from "./debugUI/ObliqueDebugSvg";
 import { ObliqueImagePreview } from "./ObliqueImagePreview";
@@ -51,6 +49,7 @@ import {
 
 import { CAMERA_ID_INTERIOR_ORIENTATION_PERCENTAGE_OFFSETS } from "../config";
 import { CardinalDirectionEnum } from "../utils/orientationUtils";
+import { i } from "vitest/dist/reporters-yx5ZTtEV.js";
 
 interface ObliqueControlsProps {
   headingOffset?: number;

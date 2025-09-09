@@ -14,7 +14,7 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
-import { useFeatureFlags } from "@carma-appframeworks/portals";
+import { useFeatureFlags } from "@carma-providers/feature-flag";
 import { geoElements } from "@carma-collab/wuppertal/geoportal";
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 import {

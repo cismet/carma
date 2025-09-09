@@ -1,6 +1,10 @@
-import { FeatureFlagConfig } from "@carma-appframeworks/portals";
+import { FeatureFlagConfig } from "@carma-providers/feature-flag";
 
 export const featureFlagConfig: FeatureFlagConfig = {
+  isDeveloperMode: {
+    default: false,
+    alias: "dev",
+  },
   featureFlagObliqueMode: {
     default: false,
     alias: "oblq",

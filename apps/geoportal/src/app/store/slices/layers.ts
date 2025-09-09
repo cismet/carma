@@ -1,8 +1,9 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 
 import { Item } from "@carma-commons/types";
+import { type FeatureFlagConfig } from "@carma-providers/feature-flag";
+
 import type { RootState } from "..";
-import { FeatureFlagConfig } from "@carma-appframeworks/portals";
 
 export type LayersState = {
   favorites: Item[];

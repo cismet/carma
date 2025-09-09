@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import WMSCapabilities from "wms-capabilities";
 import { SavedLayerConfig } from "@carma-commons/types";
-import { useFeatureFlags } from "@carma-appframeworks/portals";
+import { useFeatureFlags } from "@carma-providers/feature-flag";
 
 // @ts-expect-error tbd
 const parser = new WMSCapabilities();
