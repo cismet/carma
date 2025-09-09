@@ -1,4 +1,3 @@
-import "leaflet-path-drag";
 import proj4 from "proj4";
 import bbox from "@turf/bbox";
 import {
