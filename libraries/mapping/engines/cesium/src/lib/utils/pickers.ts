@@ -40,6 +40,14 @@ interface PickOptions {
 const GEOJSON_DRILL_LIMIT = 10;
 const CENTER_POSITION: [number, number] = [0.5, 0.5];
 
+const noopMap = (position: [number, number]) => ({
+  position,
+  windowPosition: new Cartesian2(0, 0),
+  pixelSize: null,
+  scenePosition: null,
+  coordinates: null,
+});
+
 // Convert normalized canvas coords [0..1] to window pixel position centered on pixels
 export const getCanvasWindowPosition = (
   canvasDimensions: CanvasDimensions,
@@ -70,7 +78,7 @@ export const pickViewerCanvasPositions = (
     pickTranslucentDepth = true,
   }: PickOptions = {}
 ): PickResult[] => {
-  if (!ctx.isValidViewer()) return [];
+  if (!ctx.isValidViewer()) return positions.map(noopMap);
   let results: PickResult[] = [];
 
   ctx.withScene((scene) => {
@@ -86,59 +94,62 @@ export const pickViewerCanvasPositions = (
     // apply overrides
     scene.pickTranslucentDepth = pickTranslucentDepth;
     scene.globe.depthTestAgainstTerrain = depthTestAgainstTerrain;
-    results = positions.map((position) => {
-      const windowPosition = getCanvasWindowPosition(
-        canvasDimensions,
-        position[0],
-        position[1]
-      );
-      const result: PickResult = {
-        position,
-        windowPosition,
-        scenePosition: null,
-        pixelSize: null,
-        coordinates: null,
-      };
-
-      const scenePosition = scene.pickPosition(
-        windowPosition
-      ) as Cartesian3 | null;
-
-      if (!defined(scenePosition)) {
-        console.warn(
-          "No scene position found at the picked position.",
+    try {
+      results = positions.map((position) => {
+        const windowPosition = getCanvasWindowPosition(
+          canvasDimensions,
           position[0],
-          position[1],
-          windowPosition
+          position[1]
         );
-        return result;
-      }
+        const result: PickResult = {
+          position,
+          windowPosition,
+          scenePosition: null,
+          pixelSize: null,
+          coordinates: null,
+        };
 
-      result.scenePosition = scenePosition;
+        const scenePosition = scene.pickPosition(
+          windowPosition
+        ) as Cartesian3 | null;
 
-      if (getPixelSize) {
-        const { drawingBufferWidth, drawingBufferHeight } = scene;
-        ctx.withCamera((camera) => {
-          result.pixelSize = getPixelSizeForPosition(
-            scenePosition,
-            camera,
-            drawingBufferWidth,
-            drawingBufferHeight
+        if (!defined(scenePosition)) {
+          console.warn(
+            "No scene position found at the picked position.",
+            position[0],
+            position[1],
+            windowPosition
           );
-        });
-      }
+          return result;
+        }
 
-      if (getCoordinates) {
-        const coordinates =
-          scenePosition && defined(scenePosition)
-            ? Cartographic.fromCartesian(scenePosition)
-            : null;
-        result.coordinates = coordinates;
-      }
-      return result;
-    });
-    scene.pickTranslucentDepth = prev.pickTranslucentDepth;
-    scene.globe.depthTestAgainstTerrain = prev.depthTestAgainstTerrain;
+        result.scenePosition = scenePosition;
+
+        if (getPixelSize) {
+          const { drawingBufferWidth, drawingBufferHeight } = scene;
+          ctx.withCamera((camera) => {
+            result.pixelSize = getPixelSizeForPosition(
+              scenePosition,
+              camera,
+              drawingBufferWidth,
+              drawingBufferHeight
+            );
+          });
+        }
+
+        if (getCoordinates) {
+          const coordinates =
+            scenePosition && defined(scenePosition)
+              ? Cartographic.fromCartesian(scenePosition)
+              : null;
+          result.coordinates = coordinates;
+        }
+        return result;
+      });
+    } finally {
+      scene.pickTranslucentDepth = prev.pickTranslucentDepth;
+      scene.globe.depthTestAgainstTerrain = prev.depthTestAgainstTerrain;
+    }
   });
   return results;
 };

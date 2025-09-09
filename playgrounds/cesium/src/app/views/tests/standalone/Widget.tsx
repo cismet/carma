@@ -2,10 +2,10 @@ import { useEffect, useMemo, useState } from "react";
 import { Checkbox, Radio, Select } from "antd";
 
 import { useTweakpaneCtx } from "@carma-commons/debug";
-import { Widget } from "@carma-mapping/engines/cesium-widget";
-
 import { WUPP_MESH_2024 } from "@carma-commons/resources";
-import type { LatLng } from "@carma-commons/types";
+import type { Degrees, Meters, LatLng } from "@carma-commons/types";
+
+import { Widget } from "@carma-mapping/engines/cesium-widget";
 
 import { FOOTPRINT_GEOJSON_SOURCES } from "../../../config/dataSources.config";
 
@@ -21,10 +21,14 @@ type Poi = {
   };
 };
 
-const POI = {
+const POI: Record<string, Poi> = {
   TOELLETURM: {
     label: "Toelleturm",
-    position: { longitude: 7.201578, latitude: 51.256565, height: 335 + 10 },
+    position: {
+      longitude: 7.201578,
+      latitude: 51.256565,
+      altitude: 335 + 10,
+    } as LatLng.deg,
     range: 30,
     clipBy: {
       radius: 15,
@@ -32,7 +36,11 @@ const POI = {
   },
   RATHAUS: {
     label: "Rathaus",
-    position: { longitude: 7.19993, latitude: 51.27225, height: 170 },
+    position: {
+      longitude: 7.19993,
+      latitude: 51.27225,
+      altitude: 170,
+    } as LatLng.deg,
     range: 150,
     clipBy: {
       radius: 120,
@@ -40,7 +48,11 @@ const POI = {
   },
   KUGELGAS: {
     label: "Kugelgasbehälter",
-    position: { longitude: 7.08586, latitude: 51.24584, height: 190 },
+    position: {
+      longitude: 7.08586,
+      latitude: 51.24584,
+      altitude: 190,
+    } as LatLng.deg,
     range: 60,
     clipBy: {
       radius: 30,
@@ -48,7 +60,11 @@ const POI = {
   },
   STADION: {
     label: "Stadion am Zoo",
-    position: { longitude: 7.1049, latitude: 51.23916, height: 140 },
+    position: {
+      longitude: 7.1049,
+      latitude: 51.23916,
+      altitude: 140,
+    } as LatLng.deg,
     range: 185,
     clipBy: {
       radius: 140,
@@ -56,7 +72,11 @@ const POI = {
   },
   HBF: {
     label: "Hauptbahnhof",
-    position: { longitude: 7.1485164, latitude: 51.2559275, height: 150 },
+    position: {
+      longitude: 7.1485164,
+      latitude: 51.2559275,
+      altitude: 150,
+    } as LatLng.deg,
     range: 80,
     clipBy: {
       radius: 60,
@@ -244,9 +264,9 @@ function View() {
             const lngCenter = (lngMin + lngMax) / 2;
 
             const position = {
-              longitude: lngCenter ?? longitude,
-              latitude: latCenter ?? latitude,
-              height: height ?? 170,
+              longitude: (lngCenter ?? longitude) as Degrees,
+              latitude: (latCenter ?? latitude) as Degrees,
+              altitude: (height ?? 170) as Meters,
             };
             feature &&
               setPoi({
@@ -256,7 +276,10 @@ function View() {
                 clipBy: {
                   //radius: 100,
                   polygon: feature!.geometry!.coordinates[0][0].map(
-                    ([longitude, latitude]) => ({ longitude, latitude })
+                    ([longitude, latitude]) => ({
+                      longitude: longitude as Degrees,
+                      latitude: latitude as Degrees,
+                    })
                   ),
                 },
               });

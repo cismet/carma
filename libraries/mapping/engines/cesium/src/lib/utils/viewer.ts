@@ -18,8 +18,6 @@ export const isValidViewer = (viewer: Viewer | null): viewer is Viewer => {
 
   if (!viewer.camera || !isValidCameraInstance(viewer.camera)) return false;
   if (!viewer.canvas || !isValidCanvasInstance(viewer.canvas)) return false;
-
-  debugger;
   return true;
 };
 
