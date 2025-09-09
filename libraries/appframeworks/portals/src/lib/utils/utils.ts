@@ -122,13 +122,10 @@ export const parseToMapLayer = async (
             return response.json();
           })
           .then((result) => {
-            const parsedZoom = parseZoom(
-              result.layers.filter((layer) => !layer.id.includes("selection")),
-              {
-                minzoom: 9,
-                maxzoom: 24,
-              }
-            );
+            const parsedZoom = parseZoom(result.layers, {
+              minzoom: 9,
+              maxzoom: 24,
+            });
             return parsedZoom;
           });
       }
@@ -151,9 +148,9 @@ export const parseToMapLayer = async (
         props: {
           style: vectorStyle,
           minZoom:
-            Number(carmaConf?.minZoom) || layer?.minZoom || zoom?.minzoom,
+            Number(carmaConf?.minZoom) || zoom?.minzoom || layer?.minZoom,
           maxZoom:
-            Number(carmaConf?.maxZoom) || layer?.maxZoom || zoom?.maxzoom,
+            Number(carmaConf?.maxZoom) || zoom?.maxzoom || layer?.maxZoom,
           legend: layer?.props?.Style[0].LegendURL,
           metaData: layer?.props?.MetadataURL,
         },
