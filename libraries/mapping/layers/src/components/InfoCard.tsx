@@ -18,21 +18,20 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import isEqual from "lodash/isEqual";
 
+import { serviceOptions } from "@carma-commons/resources";
 import { Item, Layer } from "@carma-commons/types";
 import { extractCarmaConfig } from "@carma-commons/utils";
 
-import { parseDescription, serviceOptions } from "../helper/layerHelper";
+import { parseDescription } from "../helper/layerHelper";
 import { Fragment, useState } from "react";
-import {
-  FileUploader,
-  uploadImage,
-  useAuth,
-} from "@carma-appframeworks/portals";
+import { FileUploader, uploadImage } from "@carma-appframeworks/portals";
 import { TagSelector } from "@carma-commons/ui/tag-selection";
 import { useDispatch, useSelector } from "react-redux";
 import { getSelectedLayer, setSelectedLayer } from "../slices/mapLayers";
 import { setTriggerRefetch } from "../slices/ui";
 import { LayerButton, LayerIcon } from "@carma-mapping/components";
+
+import { useAuth } from "@carma-providers/auth";
 
 interface InfoCardProps {
   isFavorite: boolean;

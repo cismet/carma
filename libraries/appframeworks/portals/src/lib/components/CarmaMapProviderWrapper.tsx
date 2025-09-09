@@ -10,10 +10,11 @@ import {
 } from "../contexts/MapStyleProvider";
 import { GazDataConfig, normalizeOptions } from "@carma-commons/utils";
 import { defaultGazDataConfig } from "@carma-commons/resources";
+import { AuthProvider } from "@carma-providers/auth";
+
 import { HashCodecs, HashStateProvider } from "../contexts/HashStateProvider";
 import { defaultHashCodecs, defaultHashKeyAliases } from "../utils/hashState";
 import { useMemo } from "react";
-import { AuthProvider } from "./AuthProvider";
 import { SandboxedEvalProvider } from "./SandboxedEvalProvider";
 
 type CarmaMapProviderWrapperProps = {

@@ -1,10 +1,13 @@
 import { TagSelector } from "@carma-commons/ui/tag-selection";
-import { serviceOptions } from "@carma-mapping/layers";
 import { faPlus, faShareNodes } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Button, Input, Select, Tabs } from "antd";
 import { useState } from "react";
 
+import {
+  type ServiceOption,
+  serviceOptions as defaultServiceOptions,
+} from "@carma-commons/resources";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 
 import type { LayerState } from "../types";
@@ -21,6 +24,7 @@ export type ShareProps = {
   showExtendedSharing?: boolean;
   jwt?: string;
   apiUrl?: string;
+  serviceOptions?: ServiceOption[];
 };
 
 export const Share = ({
@@ -30,6 +34,7 @@ export const Share = ({
   showExtendedSharing,
   jwt,
   apiUrl = "https://wunda-cloud-api.cismet.de",
+  serviceOptions = defaultServiceOptions,
 }: ShareProps) => {
   const [loading, setLoading] = useState(false);
   // form states

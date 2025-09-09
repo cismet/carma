@@ -1,4 +1,6 @@
-import { Share, useAuth, useSelection } from "@carma-appframeworks/portals";
+import { Share, useSelection } from "@carma-appframeworks/portals";
+import { useAuth } from "@carma-providers/auth";
+
 import { getLayerState } from "../store/slices/mapping";
 import { useSelector } from "react-redux";
 import { apiUrl } from "../constants/discover";

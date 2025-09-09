@@ -21,8 +21,6 @@ export { ContactMailButton } from "./lib/components/ContactMailButton.tsx";
 
 export { GazDataProvider, useGazData } from "./lib/components/GazDataProvider";
 
-export { useAuth } from "./lib/components/AuthProvider";
-
 export {
   SandboxedEvalProvider,
   useSandboxedEval,

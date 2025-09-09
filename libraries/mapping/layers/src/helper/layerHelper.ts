@@ -6,17 +6,6 @@ import { serviceConfig } from "./config";
 import { getReplaceLayers } from "../slices/mapLayers";
 import type { Store } from "redux";
 
-export const serviceOptions = [
-  { value: "discoverPoi", label: "POI" },
-  { value: "discoverPlanung", label: "Planung" },
-  { value: "discoverVerkehr", label: "Verkehr" },
-  { value: "discoverUmwelt", label: "Umwelt" },
-  { value: "discoverInfra", label: "Infrastruktur" },
-  { value: "discoverImmo", label: "Immobilien" },
-  { value: "discoverGebiet", label: "Gebiete" },
-  { value: "discoverBasis", label: "Basis" },
-];
-
 export const parseDescription = (description: string) => {
   if (!description) {
     return [];

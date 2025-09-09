@@ -1,12 +1,13 @@
 import { message } from "antd";
-import { useContext, useEffect, useState } from "react";
+import { useContext, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
-import { useAuth, utils } from "@carma-appframeworks/portals";
+import { utils } from "@carma-appframeworks/portals";
 import type { Item, Layer } from "@carma-commons/types";
 import { LayerLib } from "@carma-mapping/layers";
+import { useAuth } from "@carma-providers/auth";
 
 import { updateInfoElementsAfterRemovingFeature } from "../../store/slices/features";
 import {

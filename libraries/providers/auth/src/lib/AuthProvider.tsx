@@ -1,12 +1,6 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import localforage from "localforage";
+import { AuthContext } from "./AuthContext";
 
 export type AuthState = {
   jwt: string | undefined;
@@ -19,20 +13,6 @@ const initialState: AuthState = {
   user: undefined,
   userGroups: [],
 };
-
-interface AuthContextType {
-  jwt: string | undefined;
-  user: string | undefined;
-  userGroups: string[];
-  setJWT: (jwt: string) => void;
-  setUser: (user: string) => void;
-  setUserGroups: (userGroups: string[]) => void;
-  getJWT: () => string | undefined;
-  getUser: () => string | undefined;
-  getUserGroups: () => string[];
-}
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 interface AuthProviderProps {
   children: React.ReactNode;
@@ -74,36 +54,45 @@ export function AuthProvider({
     }
 
     loadFromStorage();
-  }, []);
+  }, [storagePrefix]);
 
-  const setJWT = useCallback((jwt: string) => {
-    setAuth((prev) => ({ ...prev, jwt }));
-    if (typeof window !== "undefined") {
-      localforage.setItem(`${storagePrefix}_jwt`, jwt).catch((error) => {
-        console.error("Error saving JWT to localforage:", error);
-      });
-    }
-  }, []);
-
-  const setUser = useCallback((user: string) => {
-    setAuth((prev) => ({ ...prev, user }));
-    if (typeof window !== "undefined") {
-      localforage.setItem(`${storagePrefix}_user`, user).catch((error) => {
-        console.error("Error saving user to localforage:", error);
-      });
-    }
-  }, []);
-
-  const setUserGroups = useCallback((userGroups: string[]) => {
-    setAuth((prev) => ({ ...prev, userGroups }));
-    if (typeof window !== "undefined") {
-      localforage
-        .setItem(`${storagePrefix}_userGroups`, userGroups)
-        .catch((error) => {
-          console.error("Error saving user groups to localforage:", error);
+  const setJWT = useCallback(
+    (jwt: string) => {
+      setAuth((prev) => ({ ...prev, jwt }));
+      if (typeof window !== "undefined") {
+        localforage.setItem(`${storagePrefix}_jwt`, jwt).catch((error) => {
+          console.error("Error saving JWT to localforage:", error);
         });
-    }
-  }, []);
+      }
+    },
+    [storagePrefix]
+  );
+
+  const setUser = useCallback(
+    (user: string) => {
+      setAuth((prev) => ({ ...prev, user }));
+      if (typeof window !== "undefined") {
+        localforage.setItem(`${storagePrefix}_user`, user).catch((error) => {
+          console.error("Error saving user to localforage:", error);
+        });
+      }
+    },
+    [storagePrefix]
+  );
+
+  const setUserGroups = useCallback(
+    (userGroups: string[]) => {
+      setAuth((prev) => ({ ...prev, userGroups }));
+      if (typeof window !== "undefined") {
+        localforage
+          .setItem(`${storagePrefix}_userGroups`, userGroups)
+          .catch((error) => {
+            console.error("Error saving user groups to localforage:", error);
+          });
+      }
+    },
+    [storagePrefix]
+  );
 
   const getUserGroups = useCallback(() => auth.userGroups, [auth]);
 
@@ -136,12 +125,4 @@ export function AuthProvider({
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
 }

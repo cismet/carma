@@ -18,7 +18,6 @@ import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplic
 import {
   SelectionItem,
   TopicMapSelectionContent,
-  useAuth,
   useGazData,
   useMapHashRouting,
   createLocationChangeHandler,
@@ -52,6 +51,7 @@ import {
   useCesiumInitialCameraFromSearchParams,
 } from "@carma-mapping/engines/cesium";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
+import { useAuth } from "@carma-providers/auth";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 
 import FeatureInfoBox from "../feature-info/FeatureInfoBox.tsx";

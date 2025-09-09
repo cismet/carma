@@ -18,7 +18,8 @@ import { Button, Input, Modal } from "antd";
 import Fuse from "fuse.js";
 import WMSCapabilities from "wms-capabilities";
 import type { Item, Layer, SavedLayerConfig } from "@carma-commons/types";
-import { useAuth, utils } from "@carma-appframeworks/portals";
+import { utils } from "@carma-appframeworks/portals";
+import { useAuth } from "@carma-providers/auth";
 import {
   useFeatureFlags,
   type FeatureFlagConfig,

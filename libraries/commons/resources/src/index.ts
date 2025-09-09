@@ -1,5 +1,6 @@
 export * from "./lib/endpoints";
 
+export * from "./lib/service-options";
 export * from "./lib/tilesets";
 export * from "./lib/loaders/model";
 
