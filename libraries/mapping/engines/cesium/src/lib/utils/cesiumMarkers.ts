@@ -3,7 +3,6 @@ import {
   Matrix4,
   Transforms,
   Quaternion,
-  Viewer,
   Model,
   Cartographic,
   Math as CesiumMath,
@@ -13,17 +12,21 @@ import {
 } from "cesium";
 
 import type { EntityData, ModelAsset, PolylineConfig } from "../..";
+import type { CesiumContextType } from "../CesiumContext";
 
 const defaultOptions = {
   id: "selected3dmarker",
 };
 
+type CesiumCtx = CesiumContextType;
+
 const createOrUpdateStemline = (
-  viewer: Viewer,
+  ctx: CesiumCtx,
   entityData: EntityData,
   [pos, groundPos]: Cartographic[],
   options: Partial<PolylineConfig> = {}
 ) => {
+  const viewer = ctx.viewerRef.current!;
   const topHeight = pos.height - (options.gap ?? 0);
   const baseHeight = groundPos.height + (options.gap ?? 10);
 
@@ -85,7 +88,7 @@ const createOrUpdateStemline = (
 };
 
 export const addCesiumMarker = async (
-  viewer: Viewer,
+  ctx: CesiumCtx,
   pos: Cartographic,
   groundPos: Cartographic,
   modelConfig: ModelAsset, // TODO integrate modelconfig to options
@@ -148,19 +151,20 @@ export const addCesiumMarker = async (
 
   // Add the stemline if configured
   if (options.stemline || modelConfig.stemline) {
-    createOrUpdateStemline(viewer, entityData, [pos, groundPos], {
+    createOrUpdateStemline(ctx, entityData, [pos, groundPos], {
       ...modelConfig.stemline,
       ...options.stemline,
     });
   }
 
+  const viewer = ctx.viewerRef.current!;
   entityData.model = markerModel;
 
   viewer.scene.primitives.add(markerModel);
 
-  const onPreUpdate = () => updateMarker(viewer, entityData);
+  const onPreUpdate = () => updateMarker(ctx, entityData);
   viewer.scene.preUpdate.addEventListener(onPreUpdate);
-  viewer.scene.requestRender();
+  ctx.requestRender();
 
   entityData.onPreUpdate = onPreUpdate;
   entityData.cleanup = () => {
@@ -174,7 +178,8 @@ export const addCesiumMarker = async (
   return entityData;
 };
 
-const updateMarker = (viewer: Viewer, entityData: EntityData) => {
+const updateMarker = (ctx: CesiumCtx, entityData: EntityData) => {
+  const viewer = ctx.viewerRef.current!;
   const {
     modelMatrix,
     animatedModelMatrix,
@@ -259,7 +264,7 @@ const updateMarker = (viewer: Viewer, entityData: EntityData) => {
 };
 
 export const removeCesiumMarker = (
-  viewer: Viewer,
+  ctx: CesiumCtx,
   data: EntityData | null | undefined
 ) => {
   console.debug(
@@ -271,7 +276,8 @@ export const removeCesiumMarker = (
     // remove listeners before removing the primitives
     // so no updates are triggered after the primitive is removed
     data.cleanup && data.cleanup();
-    viewer.scene.requestRender();
+    const viewer = ctx.viewerRef.current!;
+    ctx.requestRender();
     try {
       data.model && viewer.scene.primitives.remove(data.model);
     } catch (e) {

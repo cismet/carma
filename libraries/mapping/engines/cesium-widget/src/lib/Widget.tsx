@@ -58,7 +58,7 @@ const addDebugPrimitives = (widget: CesiumWidget, cartesian: Cartesian3) => {
 
 export const Widget: FC<{
   pixelSize?: { width: number; height: number };
-  position: { longitude: number; latitude: number; height?: number };
+  position: LatLng.deg;
   range?: number;
   clip?: boolean;
   clipPolygon?: LatLng.deg[];
@@ -77,7 +77,11 @@ export const Widget: FC<{
   clipRadius,
   clipPolygon,
   tilesetUrl,
-  position = { longitude: 7.201578, latitude: 51.256565, height: 335 },
+  position = {
+    longitude: 7.201578,
+    latitude: 51.256565,
+    altitude: 335,
+  } as LatLng.deg,
   debug = false,
   animate = false,
 }) => {
@@ -90,7 +94,7 @@ export const Widget: FC<{
     const cartesian3 = Cartesian3.fromDegrees(
       position.longitude,
       position.latitude,
-      position.height
+      position.altitude
     );
     setCartesian(cartesian3);
 

@@ -4,6 +4,7 @@ import {
   HeadingPitchRange,
   Matrix4,
   Math as CesiumMath,
+  type Camera,
 } from "cesium";
 import {
   cancelViewerAnimation,
@@ -30,8 +31,8 @@ const PITCH_FACTOR = 1;
 export function useOrientationCubeDrag({
   dragThresholdPx = 2,
 }: UseOrientationCubeDragParams = {}): UseOrientationCubeDragReturn {
-  const { viewerRef, viewerAnimationMapRef, shouldSuspendPitchLimiterRef } =
-    useCesiumContext();
+  const ctx = useCesiumContext();
+  const { viewerAnimationMapRef, shouldSuspendPitchLimiterRef } = ctx;
   const [isDragging, setIsDragging] = useState(false);
   const isDraggingRef = useRef(false);
   const isPointerDownRef = useRef(false);
@@ -51,55 +52,54 @@ export function useOrientationCubeDrag({
   };
 
   const stepAnimation = useCallback(() => {
-    if (
-      !viewerRef.current ||
-      !orbitPointRef.current ||
-      !isDraggingRef.current
-    ) {
+    if (!orbitPointRef.current || !isDraggingRef.current) {
       animFrameRef.current = null;
       return;
     }
-    const viewer = viewerRef.current;
-    const camera = viewer.camera;
-    const currentHeading = camera.heading;
-    const currentPitch = camera.pitch;
-    const targetH = targetHeadingRef.current;
-    const targetP = targetPitchRef.current;
-    const easing = 0.25;
-    const dh = shortestAngleDelta(currentHeading, targetH);
-    const dp = targetP - currentPitch;
-    const nextHeading = currentHeading + dh * easing;
-    const nextPitch = CesiumMath.clamp(
-      currentPitch + dp * easing,
-      MIN_PITCH,
-      MAX_PITCH
-    );
-    viewer.camera.lookAt(
-      orbitPointRef.current,
-      new HeadingPitchRange(nextHeading, nextPitch, rangeRef.current)
-    );
-    animFrameRef.current = requestAnimationFrame(stepAnimation);
-  }, [viewerRef]);
+    ctx.withViewer((viewer) => {
+      const camera = viewer.camera;
+      const currentHeading = camera.heading;
+      const currentPitch = camera.pitch;
+      const targetH = targetHeadingRef.current;
+      const targetP = targetPitchRef.current;
+      const easing = 0.25;
+      const dh = shortestAngleDelta(currentHeading, targetH);
+      const dp = targetP - currentPitch;
+      const nextHeading = currentHeading + dh * easing;
+      const nextPitch = CesiumMath.clamp(
+        currentPitch + dp * easing,
+        MIN_PITCH,
+        MAX_PITCH
+      );
+      viewer.camera.lookAt(
+        orbitPointRef.current!,
+        new HeadingPitchRange(nextHeading, nextPitch, rangeRef.current)
+      );
+      animFrameRef.current = requestAnimationFrame(stepAnimation);
+    });
+  }, [ctx]);
 
   const handleMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (!viewerRef.current || viewerRef.current.isDestroyed()) return;
+    if (!ctx.isValidViewer()) return;
     if (event.button !== 0) return; // primary button only
     event.preventDefault();
     isPointerDownRef.current = true;
     const { clientX: x, clientY: y } = event;
     lastMouseRef.current = [x, y];
     startMouseRef.current = [x, y];
-    const camera = viewerRef.current.camera;
-    targetHeadingRef.current = camera.heading;
-    targetPitchRef.current = camera.pitch;
-    const target = getOrbitPoint(viewerRef.current);
-    if (target) {
-      const range = Cartesian3.distance(target, camera.positionWC);
-      orbitPointRef.current = target;
-      rangeRef.current = range;
-    } else {
-      orbitPointRef.current = null;
-    }
+    ctx.withViewer((viewer) => {
+      const camera = viewer.camera;
+      targetHeadingRef.current = camera.heading;
+      targetPitchRef.current = camera.pitch;
+      const target = getOrbitPoint(ctx);
+      if (target) {
+        const range = Cartesian3.distance(target, camera.positionWC);
+        orbitPointRef.current = target;
+        rangeRef.current = range;
+      } else {
+        orbitPointRef.current = null;
+      }
+    });
   };
 
   const handleMouseUp = useCallback(() => {
@@ -113,13 +113,19 @@ export function useOrientationCubeDrag({
       animFrameRef.current = null;
     }
     if (!wasDragging) return;
-    if (!viewerRef.current || viewerRef.current.isDestroyed()) return;
-    const camera = viewerRef.current.camera;
+    if (!ctx.isValidViewer()) return;
+    let camera: Camera | undefined;
+    ctx.withViewer((viewer) => {
+      camera = viewer.camera;
+    });
+    if (!camera) return;
     if (previousPercentageChangedRef.current !== undefined) {
       camera.percentageChanged = previousPercentageChangedRef.current;
     }
-    viewerRef.current.camera.lookAtTransform(Matrix4.IDENTITY);
-  }, [viewerRef, shouldSuspendPitchLimiterRef]);
+    ctx.withViewer((viewer) => {
+      viewer.camera.lookAtTransform(Matrix4.IDENTITY);
+    });
+  }, [ctx, shouldSuspendPitchLimiterRef]);
 
   useEffect(() => {
     const onMove = (event: MouseEvent) => {
@@ -136,17 +142,17 @@ export function useOrientationCubeDrag({
         if (Math.hypot(totalDx, totalDy) < dragThresholdPx) {
           return;
         }
-        if (!viewerRef.current || viewerRef.current.isDestroyed()) return;
+        if (!ctx.isValidViewer()) return;
         shouldSuspendPitchLimiterRef.current = true;
-        if (viewerAnimationMapRef?.current) {
-          cancelViewerAnimation(
-            viewerRef.current,
-            viewerAnimationMapRef.current
-          );
-        }
-        const camera = viewerRef.current.camera;
-        previousPercentageChangedRef.current = camera.percentageChanged ?? 0.01;
-        camera.percentageChanged = 0.002;
+        ctx.withViewer((viewer) => {
+          if (viewerAnimationMapRef?.current) {
+            cancelViewerAnimation(viewer, viewerAnimationMapRef.current);
+          }
+          const camera = viewer.camera;
+          previousPercentageChangedRef.current =
+            camera.percentageChanged ?? 0.01;
+          camera.percentageChanged = 0.002;
+        });
         setIsDragging(true);
         isDraggingRef.current = true;
         if (!animFrameRef.current) {
@@ -175,7 +181,7 @@ export function useOrientationCubeDrag({
     };
   }, [
     handleMouseUp,
-    viewerRef,
+    ctx,
     viewerAnimationMapRef,
     shouldSuspendPitchLimiterRef,
     dragThresholdPx,

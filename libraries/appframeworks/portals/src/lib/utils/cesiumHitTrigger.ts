@@ -6,6 +6,7 @@ import {
 } from "@carma-mapping/engines/cesium";
 
 import { cesiumHandleSelection } from "./cesiumHandleSelection";
+import type { CesiumContextType } from "@carma-mapping/engines/cesium";
 import { MutableRefObject } from "react";
 import { getDerivedGeometries } from "./getDerivedGeometries";
 import { SearchResultItem } from "@carma-commons/types";
@@ -21,7 +22,7 @@ export type HitTriggerOptions = {
 
 export const cesiumHitTrigger = async (
   hit: SearchResultItem[],
-  mapRef: MutableRefObject<Viewer | null>,
+  ctx: CesiumContextType,
   shouldFlyToRef: MutableRefObject<boolean>,
   entityData: null | EntityData,
   setEntityData: (data: EntityData | null) => void,
@@ -29,13 +30,10 @@ export const cesiumHitTrigger = async (
 ) => {
   if (hit !== undefined && hit.length !== undefined && hit.length > 0) {
     const derivedGeometries = getDerivedGeometries(hit[0]);
-    if (
-      mapRef.current instanceof Viewer &&
-      !mapRef.current.isDestroyed() &&
-      options
-    ) {
+    const viewer = ctx.viewerRef.current;
+    if (viewer instanceof Viewer && !viewer.isDestroyed() && options) {
       cesiumHandleSelection(
-        mapRef.current,
+        ctx,
         shouldFlyToRef,
         entityData,
         setEntityData,
@@ -43,7 +41,7 @@ export const cesiumHitTrigger = async (
         options
       );
     } else {
-      console.warn("Unsupported map or map not ready", mapRef.current);
+      console.warn("Unsupported map or map not ready", viewer);
     }
   } else {
     console.info("unhandled hit:", hit);

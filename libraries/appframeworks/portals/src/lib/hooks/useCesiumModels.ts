@@ -10,11 +10,7 @@ import {
   ModelConfig,
   createModelEntityConstructorOptions,
 } from "@carma-commons/resources";
-import {
-  useCesiumContext,
-  cesiumSafeRequestRender,
-  isValidViewerInstance,
-} from "@carma-mapping/engines/cesium";
+import { useCesiumContext } from "@carma-mapping/engines/cesium";
 import { DEFAULT_MODEL_HIGHLIGHT_SHADER } from "../utils/cesiumShaders";
 
 type PrimitiveLike = { isCesium3DTileset?: boolean };
@@ -37,7 +33,7 @@ export const useCesiumModels = ({
   enabled,
   selection,
 }: UseCesiumModelsOptions) => {
-  const { viewerRef, isViewerReady } = useCesiumContext();
+  const ctx = useCesiumContext();
   const modelEntitiesRef = useRef<Entity[]>([]);
   type DrillPickResult = ReturnType<Scene["drillPick"]>;
   type PickedObject = DrillPickResult[0];
@@ -52,13 +48,13 @@ export const useCesiumModels = ({
   }, [selection?.onSelect]);
 
   useEffect(() => {
-    const viewer = viewerRef.current;
-
+    const v = ctx.viewerRef.current;
     if (
       !enabled ||
-      !isValidViewerInstance(viewer) ||
-      !isViewerReady ||
-      models.length === 0
+      !ctx.isValidViewer() ||
+      !ctx.isViewerReady ||
+      models.length === 0 ||
+      !v
     )
       return;
 
@@ -69,17 +65,17 @@ export const useCesiumModels = ({
         const modelConstructorOptions =
           createModelEntityConstructorOptions(modelConfig);
         const modelEntity = new Entity(modelConstructorOptions);
-        viewer.entities.add(modelEntity);
+        v.entities.add(modelEntity);
         loadedEntities.push(modelEntity);
       });
 
       modelEntitiesRef.current = loadedEntities;
-      cesiumSafeRequestRender(viewer);
+      ctx.requestRender();
     } catch (error) {
       console.warn("[Cesium|Models] Model load failure:", error);
       loadedEntities.forEach((entity) => {
         try {
-          viewer.entities.remove(entity);
+          v.entities.remove(entity);
         } catch (cleanupError) {
           console.warn(
             "[Cesium|Models] Failed to cleanup model entity:",
@@ -90,14 +86,10 @@ export const useCesiumModels = ({
     }
 
     return () => {
-      if (
-        modelEntitiesRef.current.length > 0 &&
-        viewer &&
-        !viewer.isDestroyed()
-      ) {
+      if (modelEntitiesRef.current.length > 0 && v && !v.isDestroyed()) {
         try {
           modelEntitiesRef.current.forEach((entity) => {
-            viewer.entities.remove(entity);
+            v.entities.remove(entity);
           });
           modelEntitiesRef.current = [];
         } catch (error) {
@@ -105,20 +97,21 @@ export const useCesiumModels = ({
         }
       }
     };
-  }, [enabled, viewerRef, isViewerReady, models]);
+  }, [enabled, models, ctx]);
 
   useEffect(() => {
-    const viewer = viewerRef.current;
+    const v = ctx.viewerRef.current;
     const selectionEnabled = !!selection?.enabled && enabled;
     if (
       !selectionEnabled ||
-      !isValidViewerInstance(viewer) ||
-      !viewer.scene ||
-      !viewer.canvas
+      !ctx.isValidViewer() ||
+      !v ||
+      !v.scene ||
+      !v.canvas
     )
       return;
 
-    const { scene, canvas } = viewer;
+    const { scene, canvas } = v;
     const handler = new ScreenSpaceEventHandler(canvas);
 
     const highlightShader =
@@ -139,7 +132,7 @@ export const useCesiumModels = ({
       if (selectedEntityRef.current?.id?.model) {
         selectedEntityRef.current.id.model.customShader =
           originalShaderRef.current ?? undefined;
-        cesiumSafeRequestRender(viewer);
+        ctx.requestRender();
       }
     };
 
@@ -147,7 +140,7 @@ export const useCesiumModels = ({
       if (!entity.id?.model) return;
       originalShaderRef.current = entity.id.model.customShader ?? undefined;
       if (highlightShader) entity.id.model.customShader = highlightShader;
-      cesiumSafeRequestRender(viewer);
+      ctx.requestRender();
     };
 
     const extractProperties = (
@@ -175,7 +168,7 @@ export const useCesiumModels = ({
     const handleLeftClick = ({
       position,
     }: ScreenSpaceEventHandler.PositionedEvent) => {
-      if (!position || !isValidViewerInstance(viewer)) return;
+      if (!position || !ctx.isValidViewer()) return;
       const entities = scene.drillPick(position, 5);
       for (let i = 0; i < entities.length; i++) {
         const entity = entities[i];
@@ -202,7 +195,7 @@ export const useCesiumModels = ({
         if (selectedEntityRef.current?.id?.model) {
           selectedEntityRef.current.id.model.customShader =
             originalShaderRef.current ?? undefined;
-          cesiumSafeRequestRender(viewer);
+          ctx.requestRender();
         }
         selectedEntityRef.current = null;
         originalShaderRef.current = undefined;
@@ -215,8 +208,7 @@ export const useCesiumModels = ({
     };
   }, [
     enabled,
-    viewerRef,
-    isViewerReady,
+    ctx,
     selection?.enabled,
     selection?.deselectOnEmptyClick,
     selection?.highlightShader,

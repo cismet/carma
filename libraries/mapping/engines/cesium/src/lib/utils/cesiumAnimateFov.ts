@@ -1,13 +1,8 @@
 import { EasingFunction, PerspectiveFrustum, type Viewer } from "cesium";
-import {
-  type ViewerAnimationMap,
-  cancelViewerAnimation,
-  AnimationType,
-} from "./viewerAnimationMap";
+import { cancelViewerAnimation, AnimationType } from "./viewerAnimationMap";
+import type { CesiumContextType } from "../CesiumContext";
 
 export interface CesiumAnimateFovOptions {
-  viewer: Viewer;
-  viewerAnimationMap: ViewerAnimationMap;
   startFov: number;
   targetFov: number;
   duration?: number;
@@ -15,23 +10,34 @@ export interface CesiumAnimateFovOptions {
   onComplete?: () => void;
 }
 
-export const cesiumAnimateFov = ({
-  viewer,
-  viewerAnimationMap,
-  startFov,
-  targetFov,
-  duration = 300,
-  easingFunction = EasingFunction.SINUSOIDAL_IN_OUT,
-  onComplete,
-}: CesiumAnimateFovOptions): (() => void) => {
-  // Cancel any existing animation for this viewer when a new one starts
-  cancelViewerAnimation(viewer, viewerAnimationMap);
+// Context-first FOV animation
+export const cesiumAnimateFov = (
+  ctx: CesiumContextType,
+  {
+    startFov,
+    targetFov,
+    duration = 300,
+    easingFunction = EasingFunction.SINUSOIDAL_IN_OUT,
+    onComplete,
+  }: CesiumAnimateFovOptions
+): (() => void) => {
+  let viewer: Viewer | null = null;
+  ctx.withViewer((v) => {
+    viewer = v;
+  });
+
+  if (!viewer) return () => {};
+
+  const viewerAnimationMap = ctx.viewerAnimationMapRef.current;
+  if (viewerAnimationMap) {
+    cancelViewerAnimation(viewer, viewerAnimationMap);
+  }
 
   const startTime = performance.now();
   let animationFrameId: number;
 
   const animate = (timestamp: number) => {
-    if (!(viewer.camera.frustum instanceof PerspectiveFrustum)) {
+    if (!(viewer!.camera.frustum instanceof PerspectiveFrustum)) {
       return;
     }
 
@@ -40,35 +46,27 @@ export const cesiumAnimateFov = ({
     const easedProgress = easingFunction(progress);
     const newFov = startFov + easedProgress * (targetFov - startFov);
 
-    viewer.camera.frustum.fov = newFov;
-    viewer.scene.requestRender();
+    viewer!.camera.frustum.fov = newFov;
+    ctx.requestRender();
 
     if (progress < 1) {
       animationFrameId = requestAnimationFrame(animate);
-
-      // Update the animation ID in the map
       if (viewerAnimationMap) {
-        viewerAnimationMap.set(viewer, {
+        viewerAnimationMap.set(viewer!, {
           id: animationFrameId,
           type: AnimationType.FovChange,
           cancelable: true,
         });
       }
     } else {
-      // Animation complete, remove from map
       if (viewerAnimationMap) {
-        viewerAnimationMap.delete(viewer);
+        viewerAnimationMap.delete(viewer!);
       }
-
-      if (onComplete) {
-        onComplete();
-      }
+      onComplete && onComplete();
     }
   };
 
   animationFrameId = requestAnimationFrame(animate);
-
-  // Store initial animation ID in the map
   if (viewerAnimationMap) {
     viewerAnimationMap.set(viewer, {
       id: animationFrameId,
@@ -77,15 +75,10 @@ export const cesiumAnimateFov = ({
     });
   }
 
-  // Return cleanup function
   return () => {
     if (animationFrameId) {
       cancelAnimationFrame(animationFrameId);
-
-      // Remove from animation map on cleanup
-      if (viewerAnimationMap) {
-        viewerAnimationMap.delete(viewer);
-      }
+      if (viewerAnimationMap) viewerAnimationMap.delete(viewer!);
     }
   };
 };

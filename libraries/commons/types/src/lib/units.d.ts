@@ -1,6 +1,8 @@
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 export type NumericUnit<S extends symbol> = number & { readonly [S]: true };
 
+// SI and derived Units
+
 declare const degreesSymbol: unique symbol;
 declare const radiansSymbol: unique symbol;
 declare const metersSymbol: unique symbol;
@@ -8,3 +10,24 @@ declare const metersSymbol: unique symbol;
 export type Degrees = NumericUnit<typeof degreesSymbol>;
 export type Radians = NumericUnit<typeof radiansSymbol>;
 export type Meters = NumericUnit<typeof metersSymbol>;
+
+// SCREEN UNITS
+
+declare const cssPixelsSymbol: unique symbol;
+declare const devicePixelsSymbol: unique symbol;
+
+export type CssPixels = NumericUnit<typeof cssPixelsSymbol>;
+export type DevicePixels = NumericUnit<typeof devicePixelsSymbol>;
+
+// SCREEN UNIT QUALITIES
+
+declare const widthSymbol: unique symbol;
+declare const heightSymbol: unique symbol;
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+type CssPixelQuality<S extends symbol> = CssPixels & {
+  readonly [S]: true;
+};
+
+export type CssPixelWidth = CssPixelQuality<typeof widthSymbol>;
+export type CssPixelHeight = CssPixelQuality<typeof heightSymbol>;

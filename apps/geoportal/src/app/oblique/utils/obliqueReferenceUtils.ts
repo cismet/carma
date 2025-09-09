@@ -1,5 +1,8 @@
-import { Cartesian3, Cartographic, Math as CesiumMath, Viewer } from "cesium";
-import { getOrbitPoint } from "@carma-mapping/engines/cesium";
+import { Cartesian3, Cartographic, Math as CesiumMath } from "cesium";
+import {
+  getOrbitPoint,
+  CesiumContextType,
+} from "@carma-mapping/engines/cesium";
 
 import { getHeadingFromCardinalDirection } from "./orientationUtils";
 import type { CardinalDirectionEnum } from "./orientationUtils";
@@ -87,11 +90,11 @@ export function calculateImageCoordsFromCartesian(
 }
 
 export function calculateOrbitPointCoords(
-  viewer: Viewer,
+  ctx: CesiumContextType,
   converterObj: Proj4Converter
 ): [number, number, number] | null {
   // Use the existing getOrbitPoint method from Cesium engine
-  const orbitPoint = getOrbitPoint(viewer);
+  const orbitPoint = getOrbitPoint(ctx);
   if (!orbitPoint) {
     return null;
   }

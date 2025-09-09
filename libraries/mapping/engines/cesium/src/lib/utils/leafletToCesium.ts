@@ -3,9 +3,7 @@ import { MutableRefObject } from "react";
 import {
   Cartographic,
   Math as CesiumMath,
-  type CesiumTerrainProvider,
   sampleTerrainMostDetailed,
-  Viewer,
 } from "cesium";
 import type { Map as LeafletMap } from "leaflet";
 
@@ -14,19 +12,19 @@ import {
   getPixelResolutionFromZoomAtLatitudeRad,
 } from "@carma-commons/utils";
 
-import { getCameraHeightAboveGround, getScenePixelSize } from "./cesiumHelpers";
+import { getCameraHeightAboveGround } from "./cesiumHelpers";
 import { isLeafletZoomValid } from "./leafletHelpers";
 import { getCesiumCameraPixelDimensionForDistance } from "./cesiumCamera";
+import type { CesiumContextType } from "../CesiumContext";
+import { getScenePixelSize } from "./pixels";
 
 export const leafletToCesium = async (
   leaflet: LeafletMap,
-  viewer: Viewer,
+  ctx: CesiumContextType,
   {
     epsilon = 0.5,
     limit = 5,
     cause = "not specified",
-    surfaceProviderRef,
-    terrainProviderRef,
     onComplete,
     fallbackHeight = 150, // min height for local terrain
   }: {
@@ -34,11 +32,10 @@ export const leafletToCesium = async (
     limit?: number;
     cause?: string;
     onComplete?: Function;
-    surfaceProviderRef: MutableRefObject<CesiumTerrainProvider | null>;
-    terrainProviderRef: MutableRefObject<CesiumTerrainProvider | null>;
     fallbackHeight?: number;
   }
 ) => {
+  const viewer = ctx.viewerRef.current;
   if (!viewer) {
     console.warn("No viewer available for transition");
     return false;
@@ -89,7 +86,7 @@ export const leafletToCesium = async (
 
   const computedDistance = START_DISTANCE * resolutionRatio;
 
-  let currentPixelResolution = getScenePixelSize(viewer).value;
+  let currentPixelResolution = getScenePixelSize(ctx).value;
 
   if (currentPixelResolution === null) {
     console.warn("No pixel size found for camera position");
@@ -104,15 +101,15 @@ export const leafletToCesium = async (
     fallbackHeight
   );
 
-  if (surfaceProviderRef?.current) {
+  if (ctx.surfaceProviderRef?.current) {
     const [surfaceSample] = await sampleTerrainMostDetailed(
-      surfaceProviderRef.current,
+      ctx.surfaceProviderRef.current,
       [cameraGroundPosition]
     );
     console.debug("surfaceSample", surfaceSample, cameraGroundPosition);
-  } else if (terrainProviderRef?.current) {
+  } else if (ctx.terrainProviderRef?.current) {
     const [terrainSample] = await sampleTerrainMostDetailed(
-      terrainProviderRef.current,
+      ctx.terrainProviderRef.current,
       [Cartographic.fromRadians(lngRad, latRad)]
     );
     console.debug("terrainSample", terrainSample, cameraGroundPosition);
@@ -147,7 +144,7 @@ export const leafletToCesium = async (
 
   const cameraPositionAtStart = camera.position.clone();
   let { cameraHeightAboveGround, groundHeight } =
-    getCameraHeightAboveGround(viewer);
+    getCameraHeightAboveGround(ctx);
   const maxIterations = limit;
   let iterations = 0;
 
@@ -183,14 +180,14 @@ export const leafletToCesium = async (
     camera.setView({
       destination: updatedDestination,
     });
-    const newResolution = getScenePixelSize(viewer).value;
+    const newResolution = getScenePixelSize(ctx).value;
     if (newResolution === null) {
       return false;
     }
     currentPixelResolution = newResolution;
     iterations++;
   }
-  viewer.scene.requestRender();
+  ctx.requestRender();
   onComplete && onComplete();
   return true; // Return true if camera position found within max iterations
 };

@@ -98,18 +98,20 @@ function App({ sync = false }: { sync?: boolean }) {
   const initialCameraView = useCesiumInitialCameraFromSearchParams();
 
   // CONTROLS
+  const ctx = useCesiumContext();
   const {
     viewerRef,
     viewerAnimationMapRef,
     isViewerReady,
     terrainProviderRef,
     surfaceProviderRef,
-  } = useCesiumContext();
+    requestRender,
+  } = ctx;
   const homeControl = useHomeControl();
   const {
     handleZoomIn: handleZoomInCesium,
     handleZoomOut: handleZoomOutCesium,
-  } = useZoomControls(viewerRef, viewerAnimationMapRef);
+  } = useZoomControls(ctx);
   const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
 
   // LEAFLET related
@@ -214,7 +216,7 @@ function App({ sync = false }: { sync?: boolean }) {
           _cesiumWidget: { _creditContainer: { style: { display: string } } };
         }
       )._cesiumWidget._creditContainer.style.display = "none";
-      viewer.scene.requestRender();
+      requestRender();
     }
   }, [viewerRef, isViewerReady]);
 

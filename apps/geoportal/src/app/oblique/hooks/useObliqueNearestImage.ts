@@ -3,7 +3,6 @@ import knn from "rbush-knn";
 
 import {
   cesiumSceneHasTweens,
-  isValidViewerInstance,
   useCesiumContext,
   getOrbitPoint,
 } from "@carma-mapping/engines/cesium";
@@ -48,7 +47,8 @@ export function useObliqueNearestImage(
   debug = false,
   options: UseObliqueNearestImageOptions = defaultOptions
 ) {
-  const { viewerRef } = useCesiumContext();
+  const ctx = useCesiumContext();
+  const { viewerRef, isValidViewer } = ctx;
   const lastSearchTimeRef = useRef<number>(0);
   const {
     converter,
@@ -82,7 +82,7 @@ export function useObliqueNearestImage(
 
       const viewer = viewerRef.current;
       if (
-        !isValidViewerInstance(viewer) ||
+        !isValidViewer() ||
         !imageRecords ||
         !imageRecords.size ||
         !converter
@@ -136,7 +136,7 @@ export function useObliqueNearestImage(
           getCardinalDirectionFromHeading(effectiveHeading);
 
         // Fallback to computing orbit point directly if shared orbit point isn't initialized yet
-        const orbit = orbitPoint ?? getOrbitPoint(viewer);
+        const orbit = orbitPoint ?? getOrbitPoint(ctx);
         const orbitPointCoords = orbit
           ? calculateImageCoordsFromCartesian(orbit, converter)
           : null;
@@ -295,7 +295,7 @@ export function useObliqueNearestImage(
     if (
       !isObliqueMode ||
       suspendSelectionSearch ||
-      !isValidViewerInstance(viewer) ||
+      !isValidViewer() ||
       !imageRecords ||
       !imageRecords.size
     ) {
@@ -317,7 +317,7 @@ export function useObliqueNearestImage(
 
     viewer.camera.changed.addEventListener(handleCameraMove);
     return () => {
-      if (isValidViewerInstance(viewer)) {
+      if (viewer && !viewer.isDestroyed()) {
         viewer.camera.changed.removeEventListener(handleCameraMove);
       }
       if (timerIdRef.current) {

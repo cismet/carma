@@ -16,8 +16,9 @@ import {
   toggleIsAnimating,
   selectViewerIsAnimating,
 } from "../../slices/cesium";
-import { pickViewerCanvasCenter } from "../../utils/cesiumHelpers";
 import { useCesiumViewer } from "../../hooks/useCesiumViewer";
+import { useCesiumContext } from "../../hooks/useCesiumContext";
+import { pickViewerCanvasCenter } from "../../utils/pickers";
 
 // TODO use config/context
 const DEFAULT_ROTATION_SPEED = 0.0001;
@@ -33,6 +34,7 @@ const OrbitControl = ({ showCenterPoint = true }: SpinningControlProps) => {
   const dispatch = useDispatch();
 
   const viewer = useCesiumViewer();
+  const ctx = useCesiumContext();
   const orbitPointRef = useRef<Cartesian3 | null>(null);
   const lastRenderTimeRef = useRef<number | null>(null);
   const isAnimating = useSelector(selectViewerIsAnimating);
@@ -59,7 +61,7 @@ const OrbitControl = ({ showCenterPoint = true }: SpinningControlProps) => {
 
   const toggleOrbit = (viewer: Viewer) => {
     if (!isAnimating) {
-      const position = pickViewerCanvasCenter(viewer).scenePosition;
+      const position = pickViewerCanvasCenter(ctx).scenePosition;
       orbitPointRef.current = position;
       lastRenderTimeRef.current = null;
       viewer.clock.onTick.addEventListener(orbitListener);
@@ -85,18 +87,19 @@ const OrbitControl = ({ showCenterPoint = true }: SpinningControlProps) => {
 
   const handleOrbit = (event: MouseEvent) => {
     event.preventDefault();
-    if (!viewer) return;
-    toggleOrbit(viewer);
+    ctx.withViewer((viewer) => toggleOrbit(viewer));
   };
 
   useEffect(() => {
-    if (!isAnimating && viewer) {
-      console.debug("stop orbiting by state", orbitPointRef.current);
-      viewer.clock.onTick.removeEventListener(orbitListener);
-      viewer.camera.constrainedAxis = undefined;
-      showCenterPoint && viewer.entities.removeById(orbitCenterPointId);
+    if (!isAnimating) {
+      ctx.withViewer((viewer) => {
+        console.debug("stop orbiting by state", orbitPointRef.current);
+        viewer.clock.onTick.removeEventListener(orbitListener);
+        viewer.camera.constrainedAxis = undefined;
+        showCenterPoint && viewer.entities.removeById(orbitCenterPointId);
+      });
     }
-  }, [isAnimating, viewer, orbitListener, showCenterPoint]);
+  }, [isAnimating, ctx, orbitListener, showCenterPoint]);
 
   return (
     <OnMapButton

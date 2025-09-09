@@ -28,7 +28,7 @@ import {
   updateTraverseLabelVisibility,
   createPointLabelText,
 } from "../utils/cesiumLabels";
-import { useRequestRender } from "./useRequestRender";
+import { createLocalCesiumUtils } from "../utils/cesiumLocalUtils";
 
 const STEMLINE_MIN_OFFSET = 0.1; // meters
 
@@ -122,9 +122,12 @@ export function useCesiumTraverseVisualizer(
   const renderedTraversesRef = useRef<
     Map<string, { timestamp: number; referenceElevation: number }>
   >(new Map());
-  const requestRender = useRequestRender(viewer);
 
   const config = defaultTraverseStyleConfig;
+
+  // Create local Cesium utilities
+  const cesiumUtils = useMemo(() => createLocalCesiumUtils(viewer), [viewer]);
+  const { requestRender, withViewer, withScene, withEntities } = cesiumUtils;
 
   const [traverses, currentIds]: [TraverseMeasurementEntry[], Set<string>] =
     useMemo(() => {

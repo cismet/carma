@@ -106,8 +106,8 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const dispatch = useDispatch();
 
   // Contexts
-  const { viewerRef, terrainProviderRef, surfaceProviderRef } =
-    useCesiumContext();
+  const ctx = useCesiumContext();
+  const { viewerRef, terrainProviderRef, surfaceProviderRef } = ctx;
 
   const rerenderCountRef = useRef(0);
   const lastRenderTimeStampRef = useRef(Date.now());

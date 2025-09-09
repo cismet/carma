@@ -1,23 +1,17 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
 import { ReactNode } from "react";
-import { Viewer } from "cesium";
-
 import { useZoomControls } from "../../hooks/useZoomControls";
-import { ViewerAnimationMap } from "../../utils/viewerAnimationMap";
+import { useCesiumContext } from "../../hooks/useCesiumContext";
 
 type ZoomControlsProps = {
   children?: ReactNode;
   role?: string;
   ariaLabel?: string;
-  viewerRef: React.RefObject<Viewer | null>;
-  viewerAnimationMapRef: React.RefObject<ViewerAnimationMap | null>;
 };
 
 const ZoomControls = (props: ZoomControlsProps) => {
-  const { handleZoomIn, handleZoomOut } = useZoomControls(
-    props.viewerRef,
-    props.viewerAnimationMapRef
-  );
+  const ctx = useCesiumContext();
+  const { handleZoomIn, handleZoomOut } = useZoomControls(ctx);
 
   return (
     <div className="leaflet-control-zoom leaflet-bar leaflet-control">

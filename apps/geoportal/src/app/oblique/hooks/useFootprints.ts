@@ -9,16 +9,12 @@ import {
   EasingFunction,
   PolylineGraphics,
   type Cartesian3,
-  Viewer,
-  defined,
 } from "cesium";
 
 import { useMemoMergedDefaultOptions } from "@carma-commons/utils";
 import {
   useCesiumContext,
   polygonHierarchyFromPolygonCoords,
-  cesiumSafeRequestRender,
-  isValidViewerInstance,
 } from "@carma-mapping/engines/cesium";
 
 import { useOblique } from "../hooks/useOblique";
@@ -46,21 +42,32 @@ const defaultFootprintsStyle: ObliqueFootprintsStyle = {
 };
 
 const cleanupOutlineEntity = (
-  viewerRef: MutableRefObject<Viewer | null>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  withEntities: any,
   ref: MutableRefObject<Entity | null>,
-  debug = false
+  debug = false,
+  requestRender?: () => void
 ) => {
-  const viewer = viewerRef.current;
-  if (isValidViewerInstance(viewer) && defined(viewer.entities)) {
-    debug && console.log(`Oblique Footprints: Removing outline entity`);
-    viewer.entities.removeById(FOOTPRINT_OUTLINE_ID);
-    ref.current = null;
-    cesiumSafeRequestRender(viewer);
+  debug && console.log(`Oblique Footprints: Removing outline entity`);
+  try {
+    withEntities((entities) => {
+      // removeById is the safe entity removal API on Cesium EntityCollection
+      if (typeof entities.removeById === "function") {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        entities.removeById(FOOTPRINT_OUTLINE_ID as any);
+      }
+    });
+  } catch (e) {
+    // swallow removal errors to avoid breaking unmount
+    debug && console.error("Error removing outline entity", e);
   }
+  ref.current = null;
+  requestRender && requestRender();
 };
 
 export const useFootprints = (debug = false): void => {
-  const { viewerRef } = useCesiumContext();
+  const ctx = useCesiumContext();
+  const { viewerRef, requestRender, isValidViewer, withEntities } = ctx;
   const {
     isObliqueMode,
     selectedImage,
@@ -95,18 +102,28 @@ export const useFootprints = (debug = false): void => {
   // Clean up entities when component unmounts
   useEffect(() => {
     return () => {
-      cleanupOutlineEntity(viewerRef, outlineEntityRef, debug);
+      cleanupOutlineEntity(
+        withEntities,
+        outlineEntityRef,
+        debug,
+        requestRender
+      );
     };
-  }, [debug, viewerRef]);
+  }, [debug, withEntities, requestRender]);
 
   useEffect(() => {
     // If we're leaving oblique mode, trigger exit animation then clean up the footprint
     if (prevObliqueMode.current && !isObliqueMode) {
       // Always clean up the outline immediately
-      cleanupOutlineEntity(viewerRef, outlineEntityRef, debug);
+      cleanupOutlineEntity(
+        withEntities,
+        outlineEntityRef,
+        debug,
+        requestRender
+      );
     }
     prevObliqueMode.current = isObliqueMode;
-  }, [isObliqueMode, viewerRef, debug]);
+  }, [isObliqueMode, withEntities, debug, requestRender]);
 
   useEffect(() => {
     opacityAnimationRef.current.duration = animationDuration;
@@ -125,7 +142,12 @@ export const useFootprints = (debug = false): void => {
           forceStart: true,
           onComplete: () => {
             // Remove entity completely when animation finishes
-            cleanupOutlineEntity(viewerRef, outlineEntityRef, debug);
+            cleanupOutlineEntity(
+              withEntities,
+              outlineEntityRef,
+              debug,
+              requestRender
+            );
             lastImageIdRef.current = null;
           },
         });
@@ -135,7 +157,7 @@ export const useFootprints = (debug = false): void => {
         lastImageIdRef.current = null;
       }
     }
-    cesiumSafeRequestRender(viewer);
+    requestRender();
   }, [
     lockFootprint,
     outlineOpacity,
@@ -143,13 +165,14 @@ export const useFootprints = (debug = false): void => {
     viewerRef,
     selectedImage,
     debug,
+    requestRender,
+    withEntities,
   ]);
 
   useEffect(() => {
     const viewer = viewerRef.current;
-
     if (
-      !isValidViewerInstance(viewer) ||
+      !isValidViewer() ||
       !selectedImage ||
       !footprintData ||
       !isObliqueMode
@@ -176,13 +199,13 @@ export const useFootprints = (debug = false): void => {
     lastImageIdRef.current = currentImageId;
 
     // Clean up any existing entity
-    cleanupOutlineEntity(viewerRef, outlineEntityRef, debug);
+    cleanupOutlineEntity(withEntities, outlineEntityRef, debug, requestRender);
 
     const createOpacityCallbackProperty = () => {
       return new CallbackProperty(() => {
         const newOpacity = processAnimation(
           opacityAnimationRef.current,
-          viewerRef.current
+          requestRender
         );
 
         // If opacity is near zero, remove the entity completely instead of just hiding it
@@ -192,8 +215,13 @@ export const useFootprints = (debug = false): void => {
               `Oblique Footprints: Animation complete, removing outline entity`
             );
           requestAnimationFrame(() => {
-            // Delay to no conflict with current updates, Remove the entity completely
-            cleanupOutlineEntity(viewerRef, outlineEntityRef, debug);
+            // Delay to avoid conflict with current updates, then remove the entity completely
+            cleanupOutlineEntity(
+              withEntities,
+              outlineEntityRef,
+              debug,
+              requestRender
+            );
           });
         }
         return outlineColor.withAlpha(newOpacity);
@@ -248,13 +276,13 @@ export const useFootprints = (debug = false): void => {
         easingFunction: animationEasing,
       });
 
-      if (isValidViewerInstance(viewer)) {
+      if (isValidViewer()) {
         const outlineEntity = createOutlineEntity(polygonHierarchy.positions);
         viewer.entities.add(outlineEntity);
         outlineEntityRef.current = outlineEntity;
       }
     }
-    cesiumSafeRequestRender(viewer);
+    requestRender();
   }, [
     viewerRef,
     isObliqueMode,
@@ -268,6 +296,10 @@ export const useFootprints = (debug = false): void => {
     animationDelay,
     animationEasing,
     debug,
+    isValidViewer,
+    requestRender,
+    ctx,
+    withEntities,
   ]);
 };
 

@@ -26,11 +26,7 @@ import type {
 } from "../types";
 
 import { useObliqueData } from "../hooks/useObliqueData";
-import {
-  useCesiumContext,
-  isValidViewerInstance,
-  getOrbitPoint,
-} from "@carma-mapping/engines/cesium";
+import { useCesiumContext, getOrbitPoint } from "@carma-mapping/engines/cesium";
 import { useOrbitPoint } from "../hooks/useOrbitPoint";
 
 import { FootprintProperties } from "../utils/footprintUtils";
@@ -136,7 +132,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
   config,
   fallbackDirectionConfig,
 }) => {
-  const { viewerRef } = useCesiumContext();
+  const ctx = useCesiumContext();
   const { updateHash, getHashValues } = useHashState();
   // Read initial oblique mode from hash only once on mount
   const [isObliqueMode, setIsObliqueMode] = useState<boolean>(() => {
@@ -216,9 +212,13 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
         return;
       }
 
-      const viewer = viewerRef.current;
+      let viewer: typeof ctx.viewerRef.current | null = null;
+      ctx.withViewer((v) => {
+        viewer = v;
+      });
       if (
-        !isValidViewerInstance(viewer) ||
+        !ctx.isViewerReady ||
+        !viewer ||
         !imageRecords ||
         !imageRecords.size ||
         !converter
@@ -260,7 +260,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
         const cameraCardinal =
           getCardinalDirectionFromHeading(effectiveHeading);
 
-        const orbit = orbitPoint ?? getOrbitPoint(viewer);
+        const orbit = orbitPoint ?? getOrbitPoint(ctx);
         const orbitPointCoords = orbit
           ? calculateImageCoordsFromCartesian(orbit, converter)
           : null;
@@ -373,7 +373,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
       }
     },
     [
-      viewerRef,
+      ctx,
       imageRecords,
       converter,
       headingOffset,

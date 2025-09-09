@@ -15,7 +15,6 @@ import {
   PerspectiveFrustum,
   PolygonGeometry,
   sampleTerrainMostDetailed,
-  Scene,
   Viewer,
 } from "cesium";
 
@@ -31,11 +30,11 @@ import {
   removeGroundPrimitiveById,
   type CesiumOptions,
   type EntityData,
+  type CesiumContextType,
 } from "@carma-mapping/engines/cesium";
 import { HitTriggerOptions } from "./cesiumHitTrigger";
 import { MutableRefObject } from "react";
 import { DerivedGeometries } from "./getDerivedGeometries";
-import { map } from "leaflet";
 
 const DEFAULT_BOUNDINGSPHERE_ELEVATION = 200; // meters, default elevation for bounding sphere in GeoJSON Polygon
 const DEFAULT_BOUNDINGSPHERE_VIEW_MARGIN = 0.2; // 20% margin
@@ -81,12 +80,13 @@ const getBoundingSphereFromCoordinatesAndHeight = (
 };
 
 const updateMarkerPosition = async (
-  viewer: Viewer,
+  ctx: CesiumContextType,
   groundPosition: Cartographic,
   entityData: EntityData | null,
   setEntityData: (data: EntityData | null) => void | null,
   { markerAsset, markerAnchorHeight }
 ) => {
+  const viewer = ctx.viewerRef.current;
   if (!viewer || viewer.isDestroyed()) {
     console.warn("updateMarkerPosition: viewer is not ready or destroyed");
     return;
@@ -106,21 +106,22 @@ const updateMarkerPosition = async (
     viewer.scene.terrainProvider
   );
   const model = entityData?.model;
-  entityData && removeCesiumMarker(viewer, entityData);
-  scene.requestRender(); // explicit render for requestRenderMode;
+  if (entityData) removeCesiumMarker(ctx, entityData);
+  ctx.requestRender();
   if (markerAsset) {
     const data = await addCesiumMarker(
-      viewer,
+      ctx,
       anchorPosition,
       groundPosition,
       markerAsset,
-      model
+      { model }
     );
     setEntityData && setEntityData(data);
   }
 };
 
 const cesiumLookAtPoint = async (
+  ctx: CesiumContextType,
   viewer: Viewer,
   targetPosition: Cartographic,
   zoom: number,
@@ -134,7 +135,7 @@ const cesiumLookAtPoint = async (
 ) => {
   const { scene } = viewer;
   if (scene) {
-    const currentCenterPos = pickViewerCanvasCenter(viewer).scenePosition;
+    const currentCenterPos = pickViewerCanvasCenter(ctx).scenePosition;
     const center = Cartographic.toCartesian(targetPosition);
 
     const maxDuration = options.maxDuration ?? MAX_FLYTO_DURATION;
@@ -277,13 +278,14 @@ const handlePolygonSelection = (
   });
 };
 export const cesiumHandleSelection = async (
-  viewer: Viewer,
+  ctx: CesiumContextType,
   shouldFlyToRef: MutableRefObject<boolean>,
   entityData: null | EntityData,
   setEntityData: (data: EntityData | null) => void,
   { pos, zoom, polygon }: DerivedGeometries,
   options: HitTriggerOptions
 ) => {
+  const viewer = ctx.viewerRef.current;
   if (!viewer || viewer.isDestroyed()) {
     console.warn("cesiumLookAt: viewer is not ready or destroyed");
     return;
@@ -305,11 +307,11 @@ export const cesiumHandleSelection = async (
 
   // cleanup previous selection
   // todo only remove polygons, try to update existing entities for marker and polylines
-  entityData && removeCesiumMarker(viewer, entityData);
+  if (entityData) removeCesiumMarker(ctx, entityData);
   viewer.entities.removeById(idSelected);
   //viewer.entities.removeById(INVERTED_SELECTED_POLYGON_ID);
   removeGroundPrimitiveById(viewer, idInverted);
-  scene.requestRender(); // explicit render for requestRenderMode;
+  ctx.requestRender();
 
   const posCarto = Cartographic.fromDegrees(pos.lon, pos.lat, 0);
 
@@ -342,19 +344,18 @@ export const cesiumHandleSelection = async (
     );
   } else if (defined(groundPosition)) {
     if (markerAsset) {
-      updateMarkerPosition(viewer, groundPosition, entityData, setEntityData, {
+      updateMarkerPosition(ctx, groundPosition, entityData, setEntityData, {
         markerAsset,
         markerAnchorHeight,
       });
     }
 
     shouldFlyToRef.current &&
-      cesiumLookAtPoint(viewer, groundPosition, zoom, mapOptions, {
+      cesiumLookAtPoint(ctx, viewer, groundPosition, zoom, mapOptions, {
         onComplete: () => {
           shouldFlyToRef.current = false;
           console.debug("GAZETTEER: [2D3D|CESIUM|CAMERA] flyTo Point complete");
         },
-        //onComplete: delayedMarker,
         durationFactor,
         maxDuration: duration,
         useCameraHeight: options.useCameraHeight,

@@ -17,8 +17,6 @@ import { Tooltip } from "antd";
 import { useControls } from "leva";
 
 import {
-  cesiumSafeRequestRender,
-  isValidViewerInstance,
   selectViewerIsTransitioning,
   useCesiumContext,
 } from "@carma-mapping/engines/cesium";
@@ -99,11 +97,14 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     selectedImageRefresh,
   } = useOblique();
   const siblingsByCardinal = useSiblingsByCardinal();
-  const {
-    viewerRef,
-    shouldSuspendPitchLimiterRef,
-    shouldSuspendCameraLimitersRef,
-  } = useCesiumContext();
+  const ctx = useCesiumContext(),
+    {
+      viewerRef,
+      shouldSuspendPitchLimiterRef,
+      shouldSuspendCameraLimitersRef,
+      requestRender,
+      isValidViewer,
+    } = ctx;
   const imageId = selectedImage?.record?.id;
   const cameraId = selectedImage?.record?.cameraId;
   const { isDebugMode, isObliqueUiEval } = useFeatureFlags();
@@ -262,18 +263,13 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       });
       return results && results.length ? results[0] : null;
     },
-    [selectedImageRefresh, isPreviewVisible]
+    [selectedImageRefresh, isPreviewVisible, isValidViewer]
   );
 
   // Fly-to handling for next capture (without opening preview)
 
   const flyToCurrentEOWithoutPreview = useCallback(() => {
-    const viewer = viewerRef.current;
-    if (
-      !isValidViewerInstance(viewer) ||
-      !derivedExteriorOrientationRef.current
-    )
-      return;
+    if (!isValidViewer() || !derivedExteriorOrientationRef.current) return;
     animationInProgressRef.current = true;
     // Choose animation based on whether this fly was triggered by a rotation in preview
     const flyOptions = rotatedFlyPendingRef.current
@@ -281,7 +277,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       : animations.flyToNextImage ?? animations.flyToExteriorOrientation;
     rotatedFlyPendingRef.current = false;
     flyToExteriorOrientation(
-      viewer,
+      ctx,
       derivedExteriorOrientationRef.current,
       () => {
         animationInProgressRef.current = false;
@@ -294,17 +290,19 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
         if (!isPreviewVisible) {
           setSuspendSelectionSearch(false);
         }
-        cesiumSafeRequestRender(viewerRef.current);
+        requestRender();
       },
       flyOptions
     );
   }, [
-    viewerRef,
     animations,
     setLockFootprint,
     derivedExteriorOrientationRef,
     setSuspendSelectionSearch,
     isPreviewVisible,
+    requestRender,
+    isValidViewer,
+    ctx,
   ]);
 
   useEffect(() => {
@@ -529,8 +527,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   }, [isObliqueMode]);
 
   useEffect(() => {
-    const viewer = viewerRef.current;
-    if (isTransitioning && isValidViewerInstance(viewer)) {
+    if (isTransitioning && isValidViewer()) {
       isDebugMode &&
         console.debug(
           "ObliqueControls: Transitioning to 2D mode disabling oblique mode"
@@ -538,10 +535,10 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       if (isObliqueMode) {
         toggleObliqueMode();
       }
-      viewer.scene.requestRender();
+      requestRender();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isTransitioning, viewerRef]);
+  }, [isTransitioning, isValidViewer]);
 
   useEffect(() => {
     const unsubscribe = subscribeToPreviewVisibility((visible) => {
@@ -558,9 +555,8 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       return;
     }
 
-    const viewer = viewerRef.current;
     if (
-      !isValidViewerInstance(viewer) ||
+      !isValidViewer() ||
       !selectedImage ||
       !derivedExteriorOrientationRef.current
     )
@@ -570,7 +566,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     animationInProgressRef.current = true;
 
     flyToExteriorOrientation(
-      viewer,
+      ctx,
       derivedExteriorOrientationRef.current,
       () => {
         animationInProgressRef.current = false;
@@ -580,12 +576,13 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       animations.flyToExteriorOrientation
     );
   }, [
-    viewerRef,
     animations,
     selectedImage,
     isPreviewVisible,
     setLockFootprint,
     derivedExteriorOrientationRef,
+    isValidViewer,
+    ctx,
   ]);
 
   const openImageLink = useCallback(() => {
@@ -651,9 +648,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
             setLockFootprint(false);
             setSuspendSelectionSearch(false);
             setShouldRemoveCurrentPreviewImage(false);
-            setTimeout(() => {
-              cesiumSafeRequestRender(viewerRef.current);
-            }, 50);
+            requestRender({ delay: 50 });
           }}
           interiorOrientationOffsets={
             CAMERA_ID_INTERIOR_ORIENTATION_PERCENTAGE_OFFSETS[cameraId]

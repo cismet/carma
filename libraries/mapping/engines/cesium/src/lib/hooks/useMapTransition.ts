@@ -15,13 +15,13 @@ import {
 
 import { animateInterpolateHeadingPitchRange } from "../utils/cesiumAnimations";
 import {
-  cesiumCenterPixelSizeToLeafletZoom,
   getCameraHeightAboveGround,
   getTopDownCameraDeviationAngle,
-  pickViewerCanvasCenter,
 } from "../utils/cesiumHelpers";
 import { setLeafletView } from "../utils/leafletHelpers";
 import { leafletToCesium } from "../utils/leafletToCesium";
+import { pickViewerCanvasCenter } from "../utils/pickers";
+import { cesiumCenterPixelSizeToLeafletZoom } from "../utils/pixels";
 
 type TransitionOptions = {
   onComplete?: (isTo2d: boolean) => void;
@@ -38,8 +38,8 @@ export const useMapTransition = ({
   const topicMapContext = useContext<typeof TopicMapContext>(TopicMapContext);
   const { realRoutedMapRef: routedMapRef } = topicMapContext;
 
-  const { viewerRef, surfaceProviderRef, terrainProviderRef } =
-    useCesiumContext();
+  const ctx = useCesiumContext();
+  const { viewerRef } = ctx;
 
   if (duration === undefined) {
     duration = DEFAULT_MODE_2D_3D_CHANGE_FADE_DURATION;
@@ -72,7 +72,7 @@ export const useMapTransition = ({
     // introduces side effects with gazetteer and home button, always show animation
 
     const onCompleteAnimatedTo3d = () => {
-      const pos = pickViewerCanvasCenter(viewer).scenePosition;
+      const pos = pickViewerCanvasCenter(ctx).scenePosition;
 
       if (pos && prevHPR) {
         console.debug(
@@ -98,11 +98,9 @@ export const useMapTransition = ({
       }
     };
 
-    await leafletToCesium(leaflet, viewer, {
+    await leafletToCesium(leaflet, ctx, {
       cause: "SwitchMapMode to 3d",
       onComplete: () => setTimeout(onCompleteAnimatedTo3d, 100),
-      terrainProviderRef,
-      surfaceProviderRef,
     });
   };
 
@@ -120,13 +118,13 @@ export const useMapTransition = ({
     const leaflet = routedMapRef.current?.leafletMap?.leafletElement;
 
     dispatch(setTransitionTo2d());
-    const groundPos = pickViewerCanvasCenter(viewer).scenePosition;
+    const groundPos = pickViewerCanvasCenter(ctx).scenePosition;
     let height = viewer.camera.positionCartographic.height;
     let distance = height;
     const hasGroundPos = defined(groundPos);
     if (hasGroundPos) {
       const { scenePosition: pos, coordinates: cartographic } =
-        pickViewerCanvasCenter(viewer, { getCoordinates: true });
+        pickViewerCanvasCenter(ctx, { getCoordinates: true });
       if (pos && cartographic) {
         distance = Cartesian3.distance(pos, viewer.camera.position);
         height = cartographic.height + distance;
@@ -142,7 +140,7 @@ export const useMapTransition = ({
 
     if (zoomSnap) {
       // Move the cesium camera to the next zoom snap level of leaflet before transitioning
-      const currentZoom = cesiumCenterPixelSizeToLeafletZoom(viewer).value;
+      const currentZoom = cesiumCenterPixelSizeToLeafletZoom(ctx).value;
       const heightBefore = height;
       const distanceBefore = distance;
 
@@ -158,7 +156,7 @@ export const useMapTransition = ({
             : Math.ceil(intMultiple) * zoomSnap;
         zoomDiff = currentZoom - targetZoom;
         const heightFactor = Math.pow(2, zoomDiff);
-        const { groundHeight } = getCameraHeightAboveGround(viewer);
+        const { groundHeight } = getCameraHeightAboveGround(ctx);
 
         distance = distance * heightFactor;
         height = groundHeight + distance;
@@ -180,11 +178,11 @@ export const useMapTransition = ({
       console.info("no zoomSnap applied", leaflet);
     }
 
-    const duration = getTopDownCameraDeviationAngle(viewer) * 2 + zoomDiff * 1;
+    const duration = getTopDownCameraDeviationAngle(ctx) * 2 + zoomDiff * 1;
     setPrevDuration(duration);
 
     const onComplete2d = () => {
-      setLeafletView(viewer, leaflet, { animate: false, duration: 0 });
+      setLeafletView(ctx, leaflet, { animate: false, duration: 0 });
       // trigger the visual transition
       dispatch(setIsMode2d(true));
       dispatch(clearTransition());

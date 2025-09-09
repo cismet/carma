@@ -1,5 +1,4 @@
 import { EasingFunction, Math as CesiumMath } from "cesium";
-import { cesiumSafeRequestRender } from "@carma-mapping/engines/cesium";
 
 const DEFAULT_ANIMATION_DURATION = 500; // milliseconds
 
@@ -32,7 +31,7 @@ export function createAnimationState<T>(
  */
 export function processAnimation<T extends number>(
   animState: AnimationState<T>,
-  viewer: unknown
+  requestRenderCallback: () => void
 ): T {
   if (!animState.isAnimating || animState.startTime === null) {
     return animState.targetValue;
@@ -54,7 +53,7 @@ export function processAnimation<T extends number>(
     animState.onComplete && animState.onComplete();
   }
 
-  cesiumSafeRequestRender(viewer);
+  requestRenderCallback();
 
   return newValue as T;
 }

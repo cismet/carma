@@ -9,6 +9,8 @@ import {
   Cesium3DTileset,
 } from "cesium";
 
+import { handleDelayedRender } from "@carma-commons/utils/window";
+
 import { CesiumContext, type CesiumContextType } from "./CesiumContext";
 import {
   loadCesiumImageryLayer,
@@ -20,6 +22,7 @@ import {
   initViewerAnimationMap,
   ViewerAnimationMap,
 } from "./utils/viewerAnimationMap";
+import { isValidViewer, withValidViewer } from "./utils/viewer";
 
 export const CesiumContextProvider = ({
   children,
@@ -47,6 +50,11 @@ export const CesiumContextProvider = ({
 
   // explicitly trigger re-renders
   const [isViewerReady, setIsViewerReady] = useState<boolean>(false);
+
+  // Reusable validation helper - now imported from cesiumHelpers
+  const withViewer = (cb: (viewer: Viewer) => void) => {
+    withValidViewer(viewerRef.current, cb);
+  };
 
   // Asynchronous initialization of providers and imageryLayer
   useEffect(() => {
@@ -191,6 +199,33 @@ export const CesiumContextProvider = ({
       shouldSuspendCameraLimitersRef,
       isViewerReady,
       setIsViewerReady,
+      // NOTE: Workaround for CesiumGS/cesium#12543 — delay/repeat options exist
+      // to schedule additional renders in requestRenderMode when needed. These
+      // options should be deprecated once upstream behavior is improved.
+      isValidViewer: () => isValidViewer(viewerRef.current),
+      requestRender: (opts) => {
+        const renderOnce = () => {
+          withViewer((viewer) => {
+            viewer.scene.requestRender();
+          });
+        };
+        handleDelayedRender(renderOnce, opts);
+      },
+      withViewer,
+      withCamera: (cb) => {
+        withViewer((viewer) => cb(viewer.camera));
+      },
+      withCanvas: (cb) => {
+        withViewer((viewer) => cb(viewer.canvas));
+      },
+      withScene: (cb) => {
+        withViewer((viewer) => cb(viewer.scene));
+      },
+      withEntities: (cb) => {
+        withViewer((viewer) => {
+          if (viewer.entities) cb(viewer.entities);
+        });
+      },
     }),
     [isViewerReady]
   );

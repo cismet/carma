@@ -5,11 +5,11 @@ import {
   MaterialProperty,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
-  Viewer,
 } from "cesium";
 import { useEffect, useRef } from "react";
 
-import { pickFromClampedGeojson } from "../../utils/cesiumHelpers";
+import { CesiumContextType } from "../../CesiumContext";
+import { pickFromClampedGeojson } from "../../utils/pickers";
 
 const restoreMaterial = (
   entity: Entity,
@@ -24,7 +24,7 @@ const restoreMaterial = (
 // TODO sync geosjson selection by ID with the store to enable selection of the same entitiy in CityGm=ML tilesets
 
 export const useSelectAndHighlightGeoJsonEntity = (
-  viewer?: Viewer,
+  ctx: CesiumContextType,
   options?: {
     highlightMaterial?: ColorMaterialProperty;
     isPrimaryStyle?: boolean;
@@ -43,7 +43,8 @@ export const useSelectAndHighlightGeoJsonEntity = (
       return;
     }
     let originalMaterials;
-    if (viewer) {
+    if (ctx.isValidViewer()) {
+      const viewer = ctx.viewerRef.current!;
       originalMaterials = new Map<Entity, MaterialProperty>();
       console.debug("HOOK ByGeoJsonClassifier add ScreenSpaceEventHandler");
       handler.current = new ScreenSpaceEventHandler(viewer.scene.canvas);
@@ -80,10 +81,7 @@ export const useSelectAndHighlightGeoJsonEntity = (
         let hasPick = false;
 
         // last picked object is the top one we need for highlighting
-        const lastGroundPrimitive = pickFromClampedGeojson(
-          viewer,
-          event.position
-        );
+        const lastGroundPrimitive = pickFromClampedGeojson(ctx, event.position);
         if (lastGroundPrimitive) {
           hasPick = true;
           perEntityAction(lastGroundPrimitive);
@@ -104,5 +102,5 @@ export const useSelectAndHighlightGeoJsonEntity = (
         originalMaterials.clear();
       }
     };
-  }, [viewer, highlightMaterial, isPrimaryStyle]);
+  }, [ctx, highlightMaterial, isPrimaryStyle]);
 };

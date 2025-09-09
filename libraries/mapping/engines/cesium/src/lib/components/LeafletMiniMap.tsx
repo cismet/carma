@@ -2,10 +2,9 @@ import { useEffect, useRef } from "react";
 import L from "leaflet";
 import { Color, Entity, PolygonGraphics } from "cesium";
 
-import { useCesiumViewer } from "../hooks/useCesiumViewer";
+import { useCesiumContext } from "../hooks/useCesiumContext";
 import {
   cameraToCartographicDegrees,
-  getViewerViewportPolygonRing,
   rectangleToExtentDegrees,
 } from "../utils/cesiumHelpers";
 import { polygonHierarchyFromPolygonCoords } from "../utils/cesiumGroundPrimitives";
@@ -14,6 +13,7 @@ import { makeLeafletMarkerRotatable } from "./LeafletMiniMap.utils";
 
 import camera_png from "./camera.png";
 import "leaflet/dist/leaflet.css";
+import { getViewerViewportPolygonRing } from "../utils/pickers";
 
 //TODO sync time externally if needed
 const DEFAULT_MODE_2D_3D_CHANGE_FADE_DURATION = 1000;
@@ -39,7 +39,7 @@ export const LeafletMiniMap = ({
   showCesiumPolygon?: boolean;
   viewportLimitResolutionFactor?: number;
 }) => {
-  const viewer = useCesiumViewer();
+  const ctx = useCesiumContext();
   const mapContainerRef = useRef<HTMLDivElement | null>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
 
@@ -81,7 +81,7 @@ export const LeafletMiniMap = ({
   }, [layerUrl]);
 
   useEffect(() => {
-    if (mapInstanceRef.current && viewer) {
+    if (mapInstanceRef.current && ctx.isValidViewer()) {
       const lRect = new L.Rectangle([
         [0, 0],
         [0, 0],
@@ -112,6 +112,7 @@ export const LeafletMiniMap = ({
       viewPolygon.addTo(lMap);
 
       const handleOnChanged = () => {
+        const viewer = ctx.viewerRef.current!;
         const { camera } = viewer;
         const { longitude: lng, latitude: lat } =
           cameraToCartographicDegrees(camera);
@@ -130,7 +131,7 @@ export const LeafletMiniMap = ({
           });
         */
 
-        const geom = getViewerViewportPolygonRing(viewer, {
+        const geom = getViewerViewportPolygonRing(ctx, {
           resolutionRange: viewportLimitResolutionFactor,
         });
 
@@ -161,8 +162,8 @@ export const LeafletMiniMap = ({
               polygon: cesiumPolygon,
             });
 
-            viewer.entities.removeById("viewEntity");
-            viewer.entities.add(viewEntity);
+            ctx.viewerRef.current!.entities.removeById("viewEntity");
+            ctx.viewerRef.current!.entities.add(viewEntity);
           }
         }
         const rect = camera.computeViewRectangle();
@@ -183,13 +184,17 @@ export const LeafletMiniMap = ({
           });
         }
       };
-      viewer.camera.moveEnd.addEventListener(handleOnChanged);
-      viewer.camera.changed.addEventListener(handleOnChanged);
+      ctx.viewerRef.current!.camera.moveEnd.addEventListener(handleOnChanged);
+      ctx.viewerRef.current!.camera.changed.addEventListener(handleOnChanged);
 
       return () => {
-        viewer.camera.moveEnd.removeEventListener(handleOnChanged);
-        viewer.camera.changed.removeEventListener(handleOnChanged);
-        viewer.entities.removeById("viewEntity");
+        ctx.viewerRef.current!.camera.moveEnd.removeEventListener(
+          handleOnChanged
+        );
+        ctx.viewerRef.current!.camera.changed.removeEventListener(
+          handleOnChanged
+        );
+        ctx.viewerRef.current!.entities.removeById("viewEntity");
         viewPolygon.removeFrom(lMap);
         camMarker.removeFrom(lMap);
         lRect.removeFrom(lMap);
@@ -197,7 +202,7 @@ export const LeafletMiniMap = ({
     }
     return;
   }, [
-    viewer,
+    ctx,
     zoomOffset,
     showRect,
     showCesiumPolygon,

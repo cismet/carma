@@ -2,11 +2,10 @@ import {
   useEffect,
   useState,
   useRef,
-  type RefObject,
   type FC,
   type CSSProperties,
 } from "react";
-import { type Viewer, PerspectiveFrustum } from "cesium";
+import { PerspectiveFrustum } from "cesium";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faExternalLink,
@@ -72,10 +71,10 @@ type ImageQuality = "REGULAR" | "HQ" | "BEST";
 
 // Note: backdrop dimming hole logic removed per latest requirement.
 
-const getViewerSyncedSize = (viewerRef: RefObject<Viewer>) => {
+const getViewerSyncedSize = (ctx: ReturnType<typeof useCesiumContext>) => {
   const vw = typeof window !== "undefined" ? window.innerWidth : 1024;
   const vh = typeof window !== "undefined" ? window.innerHeight : 768;
-  const viewer = viewerRef.current;
+  const viewer = ctx.viewerRef.current;
   const rawDim = viewer
     ? Math.max(viewer.canvas.width, viewer.canvas.height)
     : 0;
@@ -160,7 +159,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   const [contrast, setContrast] = useState(100);
   const [saturation, setSaturation] = useState(100);
 
-  const { viewerRef } = useCesiumContext();
+  const ctx = useCesiumContext();
 
   const { xOffset, yOffset } = interiorOrientationOffsets;
 
@@ -327,8 +326,8 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   const widthScaleFactor = f * (isVertical ? imageAspectRatio : 1);
   const heightScaleFactor = f * (isVertical ? 1 : 1 / imageAspectRatio);
 
-  const syncedWidth = getViewerSyncedSize(viewerRef) * widthScaleFactor;
-  const syncedHeight = getViewerSyncedSize(viewerRef) * heightScaleFactor;
+  const syncedWidth = getViewerSyncedSize(ctx) * widthScaleFactor;
+  const syncedHeight = getViewerSyncedSize(ctx) * heightScaleFactor;
 
   return (
     <div

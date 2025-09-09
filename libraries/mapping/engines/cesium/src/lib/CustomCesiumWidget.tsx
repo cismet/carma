@@ -16,9 +16,9 @@ import {
   OrthographicFrustum,
   ClippingPlaneCollection,
 } from "cesium";
-import { generateRingFromDegrees } from "./utils/cesiumHelpers";
 import { CUSTOM_SHADERS_DEFINITIONS } from "./shaders";
 import type { Altitude, Degrees, LatLng } from "@carma-commons/types";
+import { generateRingFromDegrees } from "./utils/geometryGenerators";
 
 const unlit = new CustomShader(CUSTOM_SHADERS_DEFINITIONS.UNLIT);
 
