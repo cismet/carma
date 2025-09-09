@@ -1,13 +1,14 @@
-import { LatLng } from "@carma-commons/types";
-import { Math as CesiumMath, Cartographic, type Cartesian3 } from "cesium";
+import { LatLng, Meters, Radians } from "@carma-commons/types";
+import { radToDeg } from "@carma-commons/utils";
+import { Cartographic, type Cartesian3 } from "cesium";
 
 export const getDegreesFromCartographic = (
   cartographic: Cartographic
 ): LatLng.deg => {
   return {
-    longitude: CesiumMath.toDegrees(cartographic.longitude),
-    latitude: CesiumMath.toDegrees(cartographic.latitude),
-    altitude: cartographic.height,
+    longitude: radToDeg(cartographic.longitude as Radians),
+    latitude: radToDeg(cartographic.latitude as Radians),
+    altitude: cartographic.height as Meters,
   };
 };
 

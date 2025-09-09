@@ -8,6 +8,11 @@ import {
   Math as CesiumMath,
 } from "cesium";
 
+import {
+  getCanvasDimensions,
+  type CanvasDimensions,
+} from "@carma-commons/utils/canvas";
+
 import { CesiumContextType } from "../CesiumContext";
 import { getPixelSizeForPosition } from "./pixels";
 
@@ -37,22 +42,20 @@ const CENTER_POSITION: [number, number] = [0.5, 0.5];
 
 // Convert normalized canvas coords [0..1] to window pixel position centered on pixels
 export const getCanvasWindowPosition = (
-  width: number,
-  height: number,
+  canvasDimensions: CanvasDimensions,
   x = 0.5,
   y = 0.5
 ): Cartesian2 => {
+  const { width, height } = canvasDimensions;
   return new Cartesian2((width - 1) * x + 0.5, (height - 1) * y + 0.5);
 };
 
 // shorthand helper for canvas center position
 export const getCanvasCenterWindowPosition = (
-  height: number,
-  width: number
+  canvasDimensions: CanvasDimensions
 ): Cartesian2 =>
   getCanvasWindowPosition(
-    width,
-    height,
+    canvasDimensions,
     CENTER_POSITION[0],
     CENTER_POSITION[1]
   );
@@ -67,21 +70,25 @@ export const pickViewerCanvasPositions = (
     pickTranslucentDepth = true,
   }: PickOptions = {}
 ): PickResult[] => {
+  if (!ctx.isValidViewer()) return [];
   let results: PickResult[] = [];
-  ctx.withViewer((viewer) => {
+
+  ctx.withScene((scene) => {
+    const canvasDimensions: CanvasDimensions = getCanvasDimensions(
+      scene.canvas as HTMLCanvasElement
+    );
     // store previous settings
     const prev = {
-      depthTestAgainstTerrain: viewer.scene.globe.depthTestAgainstTerrain,
-      pickTranslucentDepth: viewer.scene.pickTranslucentDepth,
+      depthTestAgainstTerrain: scene.globe.depthTestAgainstTerrain,
+      pickTranslucentDepth: scene.pickTranslucentDepth,
     };
 
     // apply overrides
-    viewer.scene.pickTranslucentDepth = pickTranslucentDepth;
-    viewer.scene.globe.depthTestAgainstTerrain = depthTestAgainstTerrain;
+    scene.pickTranslucentDepth = pickTranslucentDepth;
+    scene.globe.depthTestAgainstTerrain = depthTestAgainstTerrain;
     results = positions.map((position) => {
       const windowPosition = getCanvasWindowPosition(
-        viewer.canvas.clientWidth,
-        viewer.canvas.clientHeight,
+        canvasDimensions,
         position[0],
         position[1]
       );
@@ -93,10 +100,9 @@ export const pickViewerCanvasPositions = (
         coordinates: null,
       };
 
-      let scenePosition: Cartesian3 | null = null;
-      ctx.withScene((scene) => {
-        scenePosition = scene.pickPosition(windowPosition) as Cartesian3 | null;
-      });
+      const scenePosition = scene.pickPosition(
+        windowPosition
+      ) as Cartesian3 | null;
 
       if (!defined(scenePosition)) {
         console.warn(
@@ -111,13 +117,15 @@ export const pickViewerCanvasPositions = (
       result.scenePosition = scenePosition;
 
       if (getPixelSize) {
-        const { drawingBufferWidth, drawingBufferHeight } = viewer.scene;
-        result.pixelSize = getPixelSizeForPosition(
-          scenePosition,
-          viewer.camera,
-          drawingBufferWidth,
-          drawingBufferHeight
-        );
+        const { drawingBufferWidth, drawingBufferHeight } = scene;
+        ctx.withCamera((camera) => {
+          result.pixelSize = getPixelSizeForPosition(
+            scenePosition,
+            camera,
+            drawingBufferWidth,
+            drawingBufferHeight
+          );
+        });
       }
 
       if (getCoordinates) {
@@ -129,8 +137,8 @@ export const pickViewerCanvasPositions = (
       }
       return result;
     });
-    // restore previous settings
-    Object.assign(viewer.scene.globe, prev);
+    scene.pickTranslucentDepth = prev.pickTranslucentDepth;
+    scene.globe.depthTestAgainstTerrain = prev.depthTestAgainstTerrain;
   });
   return results;
 };

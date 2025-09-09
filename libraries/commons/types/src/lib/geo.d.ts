@@ -1,5 +1,4 @@
 import { Degrees, Radians, Meters, NumericUnit } from "./units";
-import LatLngDegrees from "@carma-types/spatial";
 
 declare const EllipsoidalWGS84MetersSymbol: unique symbol;
 declare const DHHN2016MetersSymbol: unique symbol;
