@@ -114,7 +114,7 @@ export const pickViewerCanvasPositions = (
         ) as Cartesian3 | null;
 
         if (!defined(scenePosition)) {
-          console.warn(
+          console.debug(
             "No scene position found at the picked position.",
             position[0],
             position[1],
@@ -245,7 +245,7 @@ export const getViewerViewportPolygonRing = (
     }
   );
   if (!bottom || bottom.length < 2) {
-    console.warn("No bottom pixel position found", bottom);
+    console.debug("No bottom pixel position found", bottom);
     return null;
   }
   const targetPixelSize =
@@ -264,7 +264,7 @@ export const getViewerViewportPolygonRing = (
       console.debug("Top pixel position found", pos.position[0], result);
       return result;
     } else {
-      console.warn("No valid top pixel position found");
+      console.debug("No valid top pixel position found");
       return null;
     }
   });
@@ -277,7 +277,7 @@ export const getViewerViewportPolygonRing = (
           CesiumMath.toDegrees(result.coordinates.longitude),
         ];
       } else {
-        console.warn("No valid mapping", result);
+        console.debug("No valid mapping", result);
         return null;
       }
     }
