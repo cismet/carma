@@ -80,8 +80,8 @@ export const pickViewerCanvasPositions = (
     viewer.scene.globe.depthTestAgainstTerrain = depthTestAgainstTerrain;
     results = positions.map((position) => {
       const windowPosition = getCanvasWindowPosition(
-        viewer.canvas.clientHeight,
         viewer.canvas.clientWidth,
+        viewer.canvas.clientHeight,
         position[0],
         position[1]
       );
