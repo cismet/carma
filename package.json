@@ -4,7 +4,7 @@
   "license": "MIT",
   "scripts": {
     "update": "git fetch --all && git submodule update --init --recursive --remote --checkout --force && npm install",
-    "update-force": "git fetch --all && git submodule update --init --recursive --remote --checkout --force && npx nx reset && rm -rf node_modules && npm install"
+    "update-force": "git fetch --all && git submodule update --init --recursive --remote --checkout --force && npx nx reset && npm ci --force"
   },
   "private": true,
   "dependencies": {

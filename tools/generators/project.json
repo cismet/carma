@@ -1,0 +1,15 @@
+{
+  "name": "generators",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "tools/generators",
+  "projectType": "library",
+  "targets": {},
+  "generators": {
+    "lib-react": {
+      "factory": "./lib-react/generator",
+      "schema": "./lib-react/schema.json",
+      "description": "CARMA Minimal React Library"
+    }
+  },
+  "tags": []
+}

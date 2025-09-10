@@ -1,0 +1,41 @@
+{
+  "title": "CARMA Minimal React Library",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Library name (leaf only). If omitted, a guided setup will prompt for it.",
+      "$default": {
+        "$source": "argv",
+        "index": 0
+      }
+    },
+    "path": {
+      "type": "string",
+      "description": "Full path like libraries/providers/feat. If provided, overrides name+directory.",
+      "$default": {
+        "$source": "argv",
+        "index": 0
+      }
+    },
+    "directory": {
+      "type": "string",
+      "description": "Workspace subdirectory for the library. If omitted, a guided setup will offer choices from tsconfig paths."
+    },
+    "tags": { "type": "string", "description": "Comma-separated tags" },
+    "skipTsConfig": {
+      "type": "boolean",
+      "description": "Skip editing tsconfig.base.json"
+    },
+    "skipPackageJson": {
+      "type": "boolean",
+      "description": "Skip editing package.json",
+      "default": true
+    },
+    "minimal": {
+      "type": "boolean",
+      "description": "Prefer minimal setup"
+    }
+  },
+  "required": []
+}

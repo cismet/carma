@@ -134,7 +134,9 @@
       "library": {
         "bundler": "none",
         "linter": "eslint",
+        "minimal": true,
         "skipFormat": true,
+        "skipPackageJson": true,
         "skipTsConfig": true,
         "style": "css",
         "unitTestRunner": "vitest"
@@ -149,6 +151,9 @@
         "unitTestRunner": "vitest"
       }
     }
+  },
+  "cli": {
+    "defaultCollection": "generators"
   },
   "nxCloudAccessToken": "OTZiNTQ5MjMtM2NjZi00ZTg0LTlhMjYtYWYwNzU3NDlkOTNjfHJlYWQ=",
   "tasksRunnerOptions": {

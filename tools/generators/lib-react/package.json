@@ -1,0 +1,13 @@
+{
+  "name": "@carma/generator-lib-react",
+  "version": "0.0.1",
+  "type": "commonjs",
+  "main": "generator.js",
+  "generators": {
+    "./generator": {
+      "factory": "./generator.ts",
+      "schema": "./schema.json",
+      "description": "CARMA Minimal React Library"
+    }
+  }
+}
