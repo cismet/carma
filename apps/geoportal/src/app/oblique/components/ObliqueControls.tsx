@@ -49,7 +49,6 @@ import {
 
 import { CAMERA_ID_INTERIOR_ORIENTATION_PERCENTAGE_OFFSETS } from "../config";
 import { CardinalDirectionEnum } from "../utils/orientationUtils";
-import { i } from "vitest/dist/reporters-yx5ZTtEV.js";
 
 interface ObliqueControlsProps {
   headingOffset?: number;
@@ -98,7 +97,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const siblingsByCardinal = useSiblingsByCardinal();
   const ctx = useCesiumContext(),
     {
-      viewerRef,
       shouldSuspendPitchLimiterRef,
       shouldSuspendCameraLimitersRef,
       requestRender,

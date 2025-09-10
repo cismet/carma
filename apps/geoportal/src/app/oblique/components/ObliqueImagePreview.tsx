@@ -5,7 +5,6 @@ import {
   type FC,
   type CSSProperties,
 } from "react";
-import { PerspectiveFrustum } from "cesium";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faExternalLink,
@@ -25,6 +24,7 @@ import { Backdrop } from "./ObliqueImagePreview.Backdrop";
 import { ContactMailButton } from "@carma-appframeworks/portals";
 import { ObliqueDirectionControlsCompact } from "./ObliqueDirectionControls.Compact";
 import type { CardinalDirectionEnum } from "../utils/orientationUtils";
+import { getViewerSyncedDimensions } from "../utils/getViewerSyncedDimensions";
 
 interface ObliqueImagePreviewProps {
   src: string;
@@ -70,25 +70,6 @@ interface ObliqueImagePreviewProps {
 type ImageQuality = "REGULAR" | "HQ" | "BEST";
 
 // Note: backdrop dimming hole logic removed per latest requirement.
-
-const getViewerSyncedSize = (ctx: ReturnType<typeof useCesiumContext>) => {
-  const vw = typeof window !== "undefined" ? window.innerWidth : 1024;
-  const vh = typeof window !== "undefined" ? window.innerHeight : 768;
-  const viewer = ctx.viewerRef.current;
-  const rawDim = viewer
-    ? Math.max(viewer.canvas.width, viewer.canvas.height)
-    : 0;
-  const dim = rawDim > 0 ? rawDim : Math.max(vw, vh, 1);
-  const frustum = viewer?.scene?.camera?.frustum;
-
-  if (frustum instanceof PerspectiveFrustum) {
-    const fovFactor = Math.tan(frustum.fov / 2);
-    return Math.max(1, dim / fovFactor);
-  }
-  console.warn("Unsupported frustum type");
-
-  return Math.max(1, dim);
-};
 
 const defaultStyle: ObliqueImagePreviewStyle = {
   backdropColor: "rgba(0, 0, 0, 0.13)",
@@ -278,8 +259,8 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   }, [dimImage]);
 
   // compensate for interior orientation sensor offsets
-  const translateX = -50 + xOffset * 0.5 * 100;
-  const translateY = -50 + yOffset * 0.5 * 100;
+  const translateX = (xOffset - 0.5) * 100;
+  const translateY = (yOffset - 0.5) * 100;
 
   const transform = `translate(${translateX}%, ${translateY}%)`;
 
@@ -320,14 +301,12 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
 
   if (!isVisible) return null;
 
-  const f = PREVIEW_IMAGE_BASE_SCALE_FACTOR;
-  // seems to need no adjustment per dimension
-
-  const widthScaleFactor = f * (isVertical ? imageAspectRatio : 1);
-  const heightScaleFactor = f * (isVertical ? 1 : 1 / imageAspectRatio);
-
-  const syncedWidth = getViewerSyncedSize(ctx) * widthScaleFactor;
-  const syncedHeight = getViewerSyncedSize(ctx) * heightScaleFactor;
+  const { syncedWidth, syncedHeight } = getViewerSyncedDimensions(
+    ctx,
+    isVertical,
+    imageAspectRatio,
+    PREVIEW_IMAGE_BASE_SCALE_FACTOR
+  );
 
   return (
     <div

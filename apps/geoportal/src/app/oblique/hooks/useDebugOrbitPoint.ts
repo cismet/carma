@@ -43,7 +43,7 @@ export const useDebugOrbitPoint = (
         orbitPoint
       );
     }
-  }, [viewerRef, isDebugMode, isEnabled, orbitPoint]);
+  }, [viewerRef, isDebugMode, isEnabled, orbitPoint, isValidViewer]);
 
   // Remove orbit point entity when component unmounts
   useEffect(() => {
