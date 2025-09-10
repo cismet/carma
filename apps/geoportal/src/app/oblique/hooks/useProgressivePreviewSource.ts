@@ -56,7 +56,7 @@ export const useProgressivePreviewSource = ({
     upgradedRef.current = false;
     setProgressiveSrc(lq);
     if (finalPreviewUrl && finalPreviewUrl !== lq) {
-      const img = new window.Image();
+      const img = new Image();
       img.decoding = "async";
       img.onload = () => {
         if (!upgradedRef.current && imageTokenRef.current === imageId) {

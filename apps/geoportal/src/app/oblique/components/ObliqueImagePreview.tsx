@@ -182,7 +182,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   // Preload currentSrc before rendering
   useEffect(() => {
     if (!currentSrc) return;
-    const img = new window.Image();
+    const img = new Image();
     img.decoding = "async";
     img.onload = () => setCurrentLoaded(true);
     img.src = currentSrc;
@@ -306,7 +306,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   // Only load image for aspect ratio when visible
   useEffect(() => {
     if (isVisible && currentSrc) {
-      const img = new window.Image();
+      const img = new Image();
       img.decoding = "async";
       img.onload = () => {
         setIsVertical(img.naturalWidth < img.naturalHeight);
