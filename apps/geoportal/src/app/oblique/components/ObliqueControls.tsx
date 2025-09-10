@@ -1,11 +1,4 @@
-import {
-  useCallback,
-  useRef,
-  useState,
-  useEffect,
-  useMemo,
-  type CSSProperties,
-} from "react";
+import { useCallback, useRef, useState, useEffect, useMemo } from "react";
 import { useSelector } from "react-redux";
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -28,6 +21,10 @@ import { ObliqueDebugSvg } from "./debugUI/ObliqueDebugSvg";
 import { ObliqueImagePreview } from "./ObliqueImagePreview";
 import { ObliqueImageInfo } from "./debugUI/ObliqueImageInfo";
 import { CameraVectorControls } from "./debugUI/CameraVectorControls";
+import {
+  debugComponentsContainerLeftStyle,
+  debugComponentsContainerRightStyle,
+} from "./debugUI/styles";
 import { ObliqueDirectionControls } from "./ObliqueDirectionControls";
 import { ObliqueDirectionControlsCompact } from "./ObliqueDirectionControls.Compact";
 import ObliqueOrientationCube from "./ObliqueOrientationCube";
@@ -49,34 +46,11 @@ import {
 
 import { CAMERA_ID_INTERIOR_ORIENTATION_PERCENTAGE_OFFSETS } from "../config";
 import { CardinalDirectionEnum } from "../utils/orientationUtils";
-import { i } from "vitest/dist/reporters-yx5ZTtEV.js";
 
 interface ObliqueControlsProps {
   headingOffset?: number;
   isObliqueMode?: boolean;
 }
-
-const debugComponentsContainerRightStyle: CSSProperties = {
-  position: "absolute",
-  top: "10px",
-  right: "10px",
-  width: "450px",
-  maxWidth: "calc(100vw - 20px)",
-  display: "flex",
-  flexDirection: "column",
-  gap: "5px",
-  zIndex: 1000,
-};
-
-const debugComponentsContainerLeftStyle: CSSProperties = {
-  position: "absolute",
-  top: "10px",
-  left: "60px",
-  display: "flex",
-  flexDirection: "column",
-  gap: "5px",
-  zIndex: 1000,
-};
 
 export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const {
@@ -98,7 +72,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const siblingsByCardinal = useSiblingsByCardinal();
   const ctx = useCesiumContext(),
     {
-      viewerRef,
       shouldSuspendPitchLimiterRef,
       shouldSuspendCameraLimitersRef,
       requestRender,
@@ -262,7 +235,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       });
       return results && results.length ? results[0] : null;
     },
-    [selectedImageRefresh, isPreviewVisible, isValidViewer]
+    [selectedImageRefresh, isPreviewVisible]
   );
 
   // Fly-to handling for next capture (without opening preview)
@@ -502,7 +475,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
 
   useFootprints(isDebugMode);
 
-  const { downloadUrl, previewUrl, previewUrlHq, previewUrlOriginal } = useMemo(
+  const { downloadUrl } = useMemo(
     () => getImageUrls(imageId, previewPath, previewQualityLevel),
     [previewPath, previewQualityLevel, imageId]
   );
@@ -624,9 +597,8 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       )}
       {selectedImage && imageId && (
         <ObliqueImagePreview
-          src={previewUrl}
-          srcHQ={previewUrlHq}
-          srcOriginal={previewUrlOriginal}
+          key={imageId}
+          previewPath={previewPath!}
           imageId={imageId}
           isVisible={isPreviewVisible}
           dimImage={shouldRemoveCurrentPreviewImage}

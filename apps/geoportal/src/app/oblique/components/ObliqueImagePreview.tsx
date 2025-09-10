@@ -5,7 +5,6 @@ import {
   type FC,
   type CSSProperties,
 } from "react";
-import { PerspectiveFrustum } from "cesium";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
   faExternalLink,
@@ -25,11 +24,12 @@ import { Backdrop } from "./ObliqueImagePreview.Backdrop";
 import { ContactMailButton } from "@carma-appframeworks/portals";
 import { ObliqueDirectionControlsCompact } from "./ObliqueDirectionControls.Compact";
 import type { CardinalDirectionEnum } from "../utils/orientationUtils";
+import { getViewerSyncedDimensions } from "../utils/getViewerSyncedDimensions";
+import { useProgressivePreviewSource } from "../hooks/useProgressivePreviewSource";
 
 interface ObliqueImagePreviewProps {
-  src: string;
-  srcHQ?: string; // high quality image
-  srcOriginal?: string; // original image, likely not available
+  // Base path for progressive preview levels (for level 6 initial load)
+  previewPath: string;
   imageId: string;
   isVisible: boolean;
   isDebugMode?: boolean;
@@ -71,25 +71,6 @@ type ImageQuality = "REGULAR" | "HQ" | "BEST";
 
 // Note: backdrop dimming hole logic removed per latest requirement.
 
-const getViewerSyncedSize = (ctx: ReturnType<typeof useCesiumContext>) => {
-  const vw = typeof window !== "undefined" ? window.innerWidth : 1024;
-  const vh = typeof window !== "undefined" ? window.innerHeight : 768;
-  const viewer = ctx.viewerRef.current;
-  const rawDim = viewer
-    ? Math.max(viewer.canvas.width, viewer.canvas.height)
-    : 0;
-  const dim = rawDim > 0 ? rawDim : Math.max(vw, vh, 1);
-  const frustum = viewer?.scene?.camera?.frustum;
-
-  if (frustum instanceof PerspectiveFrustum) {
-    const fovFactor = Math.tan(frustum.fov / 2);
-    return Math.max(1, dim / fovFactor);
-  }
-  console.warn("Unsupported frustum type");
-
-  return Math.max(1, dim);
-};
-
 const defaultStyle: ObliqueImagePreviewStyle = {
   backdropColor: "rgba(0, 0, 0, 0.13)",
   border: "2px solid rgba(255, 255, 255, 0.9)",
@@ -114,9 +95,7 @@ const ControlsContainerStyle: CSSProperties = {
 };
 
 export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
-  src,
-  srcHQ,
-  srcOriginal,
+  previewPath,
   imageId,
   isVisible,
   isDebugMode = false,
@@ -145,13 +124,15 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   const [imageAspectRatio, setImageAspectRatio] = useState(1);
   const [blendMode, setBlendMode] = useState<BlendMode>("normal");
   const [currentQuality, setCurrentQuality] = useState<ImageQuality>("REGULAR");
-  const [activeSource, setActiveSource] = useState(src);
+  // activeSource now derived from progressive hook, starting at level 6 then upgrading
+  const [activeSource, setActiveSource] = useState<string | null>(null);
   // Double buffer sources
-  const [currentSrc, setCurrentSrc] = useState<string | null>(src);
+  const [currentSrc, setCurrentSrc] = useState<string | null>(null);
   const [nextSrc, setNextSrc] = useState<string | null>(null);
   const [nextLoaded, setNextLoaded] = useState(false);
   const [canShowNext, setCanShowNext] = useState(false);
   const [showNext, setShowNext] = useState(false);
+  const [currentLoaded, setCurrentLoaded] = useState(false);
   // Merge style with defaults
   const mergedStyle = { ...defaultStyle, ...(style ?? {}) };
   const { backdropColor, border, boxShadow } = mergedStyle;
@@ -165,31 +146,65 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
 
   // Quality can be controlled via debug UI; default is REGULAR
 
-  // Update activeSource when quality or src/srcHQ changes
+  // Progressive: resolve target quality *final* source
+  const [finalPreviewSrc, setFinalPreviewSrc] = useState<string | null>(null);
   useEffect(() => {
-    if (currentQuality === "HQ" && srcHQ) {
-      setActiveSource(srcHQ);
-    } else if (currentQuality === "BEST" && srcOriginal) {
-      setActiveSource(srcOriginal);
-    } else {
-      setActiveSource(src);
+    if (!previewPath || !imageId) {
+      setFinalPreviewSrc(null);
+      return;
     }
-  }, [src, srcHQ, srcOriginal, currentQuality]);
+    // Map quality selection to preview level
+    // REGULAR -> LEVEL_3, HQ -> LEVEL_2, BEST -> LEVEL_1 (might be missing)
+    const base = previewPath;
+    const level =
+      currentQuality === "HQ" ? "2" : currentQuality === "BEST" ? "1" : "3";
+    setFinalPreviewSrc(`${base}/${level}/${imageId}.jpg`);
+  }, [previewPath, imageId, currentQuality]);
+
+  // Hook to get progressive low-quality-first source
+  // Import locally to avoid side-effects if not used elsewhere
+  // (kept inline import style consistent with existing ordering rules for local modules)
+  const progressiveSrc = useProgressivePreviewSource({
+    finalPreviewUrl: finalPreviewSrc || null,
+    previewPath,
+    imageId,
+    resetKey: finalPreviewSrc,
+  });
+
+  // Update activeSource and seed buffers when progressive src changes
+  useEffect(() => {
+    // Only handle when progressiveSrc changes to a new url
+    if (!progressiveSrc || progressiveSrc === currentSrc) return;
+    setActiveSource(progressiveSrc);
+    setCurrentLoaded(false);
+    setCurrentSrc(progressiveSrc);
+  }, [progressiveSrc, currentSrc]);
+  // Preload currentSrc before rendering
+  useEffect(() => {
+    if (!currentSrc) return;
+    const img = new Image();
+    img.decoding = "async";
+    img.onload = () => setCurrentLoaded(true);
+    img.src = currentSrc;
+  }, [currentSrc]);
 
   // On opening preview, reset buffers and gating state to avoid stale/null image
   const prevVisibleRef = useRef(false);
+  const prevImageIdRef = useRef<string | null>(null);
   useEffect(() => {
-    if (isVisible && !prevVisibleRef.current) {
-      if (activeSource) {
-        setCurrentSrc(activeSource);
-      }
+    const imageChanged =
+      prevImageIdRef.current && prevImageIdRef.current !== imageId;
+    if ((isVisible && !prevVisibleRef.current) || imageChanged) {
+      // Clear buffers; progressive effect will seed new image
+      setCurrentSrc(null);
       setNextSrc(null);
       setNextLoaded(false);
       setShowNext(false);
       setCanShowNext(false);
     }
     prevVisibleRef.current = isVisible;
-  }, [isVisible, activeSource]);
+    prevImageIdRef.current = imageId;
+  }, [isVisible, imageId]);
 
   // If preview is shown again and image buffer was cleared, initialize from active source
   useEffect(() => {
@@ -215,6 +230,11 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   // Prepare next buffer when activeSource changes
   useEffect(() => {
     if (!activeSource) return;
+    // Guard: if imageId changed after nextSrc set, discard it
+    if (nextSrc && prevImageIdRef.current !== imageId) {
+      setNextSrc(null);
+      setNextLoaded(false);
+    }
     if (!currentSrc) {
       if (dimImage) {
         setNextSrc(activeSource);
@@ -227,7 +247,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
     if (activeSource === currentSrc) return;
     setNextSrc(activeSource);
     setNextLoaded(false);
-  }, [activeSource, currentSrc, dimImage]);
+  }, [activeSource, currentSrc, dimImage, imageId, nextSrc]);
 
   // Preload next source
   useEffect(() => {
@@ -278,15 +298,15 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   }, [dimImage]);
 
   // compensate for interior orientation sensor offsets
-  const translateX = -50 + xOffset * 0.5 * 100;
-  const translateY = -50 + yOffset * 0.5 * 100;
+  const translateX = (xOffset - 0.5) * 100;
+  const translateY = (yOffset - 0.5) * 100;
 
   const transform = `translate(${translateX}%, ${translateY}%)`;
 
   // Only load image for aspect ratio when visible
   useEffect(() => {
     if (isVisible && currentSrc) {
-      const img = new window.Image();
+      const img = new Image();
       img.decoding = "async";
       img.onload = () => {
         setIsVertical(img.naturalWidth < img.naturalHeight);
@@ -320,14 +340,12 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
 
   if (!isVisible) return null;
 
-  const f = PREVIEW_IMAGE_BASE_SCALE_FACTOR;
-  // seems to need no adjustment per dimension
-
-  const widthScaleFactor = f * (isVertical ? imageAspectRatio : 1);
-  const heightScaleFactor = f * (isVertical ? 1 : 1 / imageAspectRatio);
-
-  const syncedWidth = getViewerSyncedSize(ctx) * widthScaleFactor;
-  const syncedHeight = getViewerSyncedSize(ctx) * heightScaleFactor;
+  const { syncedWidth, syncedHeight } = getViewerSyncedDimensions(
+    ctx,
+    isVertical,
+    imageAspectRatio,
+    PREVIEW_IMAGE_BASE_SCALE_FACTOR
+  );
 
   return (
     <div
@@ -388,7 +406,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
             productName="Luftbildschrägaufnahmen"
             portalName="Wuppertaler Geodatenportal"
             imageId={imageId}
-            imageUri={src}
+            imageUri={finalPreviewSrc || undefined}
             tooltip={{
               title: "Datenschutzprüfung Luftbildschrägaufnahme",
               placement: "top",
@@ -435,7 +453,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
           )}
         </div>
       </div>
-      {currentSrc && !dimImage && !showNext && (
+      {currentSrc && currentLoaded && !dimImage && !showNext && (
         <PreviewImage
           src={currentSrc}
           alt={imageId ?? "Oblique Image Preview"}

@@ -1,4 +1,5 @@
 import type { CSSProperties, FC } from "react";
+import { CssPixelHeight, CssPixelWidth } from "@carma-commons/types";
 
 export type BlendMode = "normal" | "difference" | "normal50";
 
@@ -6,8 +7,8 @@ interface PreviewImageProps {
   src: string;
   alt: string;
   fadeIn: boolean;
-  width: number;
-  height: number;
+  width: CssPixelWidth;
+  height: CssPixelHeight;
   borderStyle: string;
   boxShadowStyle: string;
   transform: string;
