@@ -502,7 +502,7 @@ const implicitVectorSelection = async (
     const coordinates = getCoordinates(selectedVectorFeature.geometry);
     const feature = {
       properties: {
-        header: "Information",
+        header: layer.title || "Information",
         headerColor: "#0078a8",
         title: "Zu diesem Objekt sind keine weiteren Sachdaten verfügbar.",
         additionalInfo: `Position: ${coordinates[1].toFixed(
