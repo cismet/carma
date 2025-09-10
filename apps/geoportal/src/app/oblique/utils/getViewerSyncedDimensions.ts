@@ -7,10 +7,11 @@ import { PerspectiveFrustum } from "cesium";
 const getViewerSyncedSize = (
   ctx: ReturnType<typeof useCesiumContext>
 ): number | undefined => {
-  let maxCanvas = 0;
-  let frustum: unknown | null = null;
+  let maxCanvas: number | undefined;
+  let frustum: unknown;
 
   const wDim = getWindowDimensions(window);
+  if (!wDim) return;
   const maxWindow = Math.max(wDim.width, wDim.height);
 
   ctx.withViewer((viewer) => {
@@ -18,6 +19,8 @@ const getViewerSyncedSize = (
     maxCanvas = Math.max(width, height);
     frustum = viewer?.scene?.camera?.frustum;
   });
+
+  // use maxCanvas if available, otherwise fall back to maxWindow
   const dim = maxCanvas > 0 ? maxCanvas : maxWindow;
 
   if (frustum instanceof PerspectiveFrustum) {
