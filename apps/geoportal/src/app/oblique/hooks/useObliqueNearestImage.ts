@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef } from "react";
 import knn from "rbush-knn";
 
 import {
-  cesiumSceneHasTweens,
+  sceneHasTweens,
   useCesiumContext,
   getOrbitPoint,
 } from "@carma-mapping/engines/cesium";
@@ -309,7 +309,7 @@ export function useObliqueNearestImage(
       if (suspendSelectionSearch) return;
       if (timerIdRef.current) clearTimeout(timerIdRef.current);
       timerIdRef.current = setTimeout(() => {
-        if (!cesiumSceneHasTweens(viewer) && !suspendSelectionSearch) {
+        if (!sceneHasTweens(viewer) && !suspendSelectionSearch) {
           refreshSearch();
         }
       }, options.debounceTime || defaultOptions.debounceTime);

@@ -1,21 +1,38 @@
 import {
-  Viewer,
   Cartesian3,
   Matrix4,
   Math as CesiumMath,
   HeadingPitchRange,
   EasingFunction,
-  Scene,
 } from "cesium";
+import { CesiumContextType } from "../CesiumContext";
+
+const DEFAULT_MIN_RANGE = 10;
+const DEFAULT_MAX_RANGE = 40000;
+
+interface CesiumAnimateOrbitsOptions {
+  setPrevious?: (hpr: HeadingPitchRange) => void;
+  duration?: number;
+  delay?: number; // ms
+  onComplete?: () => void;
+  cancelable?: boolean;
+  onCancel?: () => void;
+  useCurrentDistance?: boolean;
+  easing?: (time: number) => number;
+  minRange?: number;
+  maxRange?: number;
+}
 
 /**
  * Rotates and tilts the Cesium camera around the center of the screen.
- * @param viewer - The Cesium viewer instance.
+ * @param ctx - The Cesium context instance.
  * @param destination - The position to look at.
  * @param hpr - the target heading, pitch, and range of the camera.
  * @param options - Options for the completion of the animation.
  * @param options.duration - The duration of the animation in milliseconds. Defaults to 1000.
  * @param options.cancelable - If true, the animation can be canceled by user interaction. Defaults to true.
+ * @param options.minRange - Minimum camera range in meters. Defaults to 10.
+ * @param options.maxRange - Maximum camera range in meters. Defaults to 40000.
  * @param options.easing - The easing function to use for the animation. Defaults to EasingFunction.CUBIC_IN_OUT.
  * @param options.onCancel - A callback function to be called when the animation is canceled.
  * @param options.onComplete - A callback function to be called when the animation completes.
@@ -23,7 +40,7 @@ import {
  * @param options.useCurrentDistance - use current Distance/Range instead of last views one.
  */
 export function animateInterpolateHeadingPitchRange(
-  viewer: Viewer,
+  ctx: CesiumContextType,
   destination: Cartesian3,
   hpr: HeadingPitchRange = new HeadingPitchRange(0, -Math.PI / 2, 0),
   {
@@ -35,31 +52,22 @@ export function animateInterpolateHeadingPitchRange(
     useCurrentDistance = true,
     easing = EasingFunction.CUBIC_IN_OUT,
     setPrevious,
-  }: {
-    setPrevious?: (hpr: HeadingPitchRange) => void;
-    duration?: number;
-    delay?: number; // ms
-    onComplete?: () => void;
-    cancelable?: boolean;
-    onCancel?: () => void;
-    useCurrentDistance?: boolean;
-    easing?: (time: number) => number;
-  } = {}
+    minRange = DEFAULT_MIN_RANGE,
+    maxRange = DEFAULT_MAX_RANGE,
+  }: CesiumAnimateOrbitsOptions = {}
 ): () => void {
-  const { heading, pitch, range } = hpr;
+  // Get current camera state
+  let initialHPR: HeadingPitchRange | null = null;
+  ctx.withCamera((camera) => {
+    const range = Cartesian3.distance(camera.position, destination);
+    initialHPR = new HeadingPitchRange(camera.heading, camera.pitch, range);
+  });
 
-  // get HPR from camera in relation to LookAt in order to interpolate to target HPR
+  if (!initialHPR) {
+    return () => {};
+  }
 
-  let initialHeading = viewer.camera.heading;
-  const initialPitch = viewer.camera.pitch;
-  const initialRange = Cartesian3.distance(viewer.camera.position, destination);
-
-  setPrevious &&
-    setPrevious({
-      heading: initialHeading,
-      pitch: initialPitch,
-      range: initialRange,
-    });
+  setPrevious && setPrevious(initialHPR);
 
   // Animation control variables
   let animationFrameId: number | null = null;
@@ -80,54 +88,73 @@ export function animateInterpolateHeadingPitchRange(
       cancelAnimationFrame(animationFrameId);
       animationFrameId = null;
       isCanceled = true;
+    }
+    ctx.withViewer((viewer) => {
       viewer.canvas.removeEventListener("pointerdown", onUserInteraction);
       viewer.camera.lookAtTransform(Matrix4.IDENTITY);
-      onCancel?.();
-    }
+    });
+    onCancel?.();
   };
 
-  viewer.canvas.addEventListener("pointerdown", onUserInteraction);
+  ctx.withCanvas((canvas) => {
+    canvas.addEventListener("pointerdown", onUserInteraction);
+  });
 
-  const interpolateAngle = (start: number, end: number, t: number): number => {
-    const delta = CesiumMath.negativePiToPi(end - start);
-    return start + delta * t;
+  const interpolateHpr = (
+    startHpr: HeadingPitchRange,
+    endHpr: HeadingPitchRange,
+    t: number
+  ): HeadingPitchRange => {
+    const interpolateAngle = (
+      start: number,
+      end: number,
+      t: number
+    ): number => {
+      const delta = CesiumMath.negativePiToPi(end - start);
+      return start + delta * t;
+    };
+
+    const currentHeading = interpolateAngle(
+      startHpr.heading,
+      endHpr.heading,
+      t
+    );
+    const currentPitch = CesiumMath.lerp(startHpr.pitch, endHpr.pitch, t);
+    const currentRange = CesiumMath.clamp(
+      useCurrentDistance
+        ? startHpr.range
+        : CesiumMath.lerp(startHpr.range, endHpr.range, t),
+      minRange,
+      maxRange
+    );
+
+    return new HeadingPitchRange(currentHeading, currentPitch, currentRange);
   };
 
   const animate = (time: number) => {
-    if (isCanceled) return;
+    if (isCanceled || !initialHPR) return;
     const elapsed = time - startTime;
     const t = Math.min(elapsed / duration, 1); // normalize to [0, 1]
     //console.debug('animate', duration, elapsed, t, frameIndex);
 
-    // Interpolate heading and pitch over time
-    const currentHeading = interpolateAngle(initialHeading, heading, easing(t));
-    const currentPitch = CesiumMath.lerp(initialPitch, pitch, easing(t));
-    const currentRange = CesiumMath.clamp(
-      useCurrentDistance
-        ? initialRange
-        : CesiumMath.lerp(initialRange, range, easing(t)),
-      10,
-      40000
-    );
+    const orientation = interpolateHpr(initialHPR, hpr, easing(t));
 
-    const orientation = new HeadingPitchRange(
-      currentHeading,
-      currentPitch,
-      currentRange
-    );
+    ctx.withCamera((camera) => {
+      camera.lookAtTransform(Matrix4.IDENTITY);
+      camera.lookAt(destination, orientation);
+    });
 
-    // Update the camera's orientation
-    viewer.camera.lookAtTransform(Matrix4.IDENTITY);
-    viewer.camera.lookAt(destination, orientation);
-    // explicit render call due to cesium request render mode.
-    viewer.scene.render();
+    ctx.requestRender();
 
     if (t < 1) {
       animationFrameId = requestAnimationFrame(animate);
     } else {
-      // Animation complete, reset the transformation matrix
-      viewer.camera.lookAtTransform(Matrix4.IDENTITY);
-      viewer.canvas.removeEventListener("pointerdown", onUserInteraction);
+      ctx.withCamera((camera) => {
+        camera.lookAtTransform(Matrix4.IDENTITY);
+      });
+      ctx.withCanvas((canvas) => {
+        canvas.removeEventListener("pointerdown", onUserInteraction);
+      });
       onComplete?.();
     }
   };
@@ -136,10 +163,3 @@ export function animateInterpolateHeadingPitchRange(
 
   return cancelAnimation;
 }
-
-// undocumented cesium function to get if animation is running
-// https://community.cesium.com/t/cancel-a-camera-flyto-intentionally/1371/6
-export const cesiumSceneHasTweens = (viewer: Viewer) => {
-  const scene = viewer.scene as Scene & { tweens: [] };
-  return scene && scene.tweens && scene.tweens.length > 0;
-};

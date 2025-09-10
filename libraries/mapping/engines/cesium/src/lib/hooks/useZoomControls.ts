@@ -15,7 +15,7 @@ import {
 } from "../utils/viewerAnimationMap";
 import { cesiumAnimateFov } from "../utils/cesiumAnimateFov";
 import type { CesiumContextType } from "../CesiumContext";
-import { cesiumSceneHasTweens } from "../utils/cesiumAnimations";
+import { sceneHasTweens } from "../utils/sceneHasTweens";
 
 const FOV_MOVERATE_FACTOR = 0.5;
 
@@ -56,7 +56,7 @@ const zoom = (
   // undocumented Cesium feature
   // TODO: replace with a public API when one is available to check for ongoing flyTo animations
 
-  if (cesiumSceneHasTweens(viewer)) {
+  if (sceneHasTweens(viewer)) {
     camera.completeFlight();
     console.debug("completing previous zoom or other flyTo animation");
     wasCancelled = true;

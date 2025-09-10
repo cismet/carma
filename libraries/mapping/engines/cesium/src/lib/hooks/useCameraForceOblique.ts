@@ -3,7 +3,7 @@ import { useCallback } from "react";
 import { type Scene, type Viewer } from "cesium";
 
 import { cesiumCameraForceOblique } from "../utils/cesiumCameraForceOblique";
-import { cesiumSceneHasTweens } from "../utils/cesiumAnimations";
+import { sceneHasTweens } from "../utils/sceneHasTweens";
 
 const viewerPreUpdateHandlers = new WeakMap<Viewer, (scene: Scene) => void>();
 
@@ -19,7 +19,7 @@ export function useCesiumCameraForceOblique(
     const viewer = viewerRef.current;
 
     const onPreupdate = () => {
-      !cesiumSceneHasTweens(viewer) &&
+      !sceneHasTweens(viewer) &&
         cesiumCameraForceOblique(
           viewer,
           fixedPitch,
