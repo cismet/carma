@@ -132,9 +132,6 @@ export const useFootprints = (debug = false): void => {
   }, [animationDuration, animationDelay, animationEasing]);
 
   useEffect(() => {
-    const viewer = viewerRef.current;
-    if (!viewer) return;
-
     // When lockFootprint is set, start fade-out animation with a completion callback to clean up
     if (outlineEntityRef.current && outlineEntityRef.current.polyline) {
       if (lockFootprint) {
@@ -162,7 +159,6 @@ export const useFootprints = (debug = false): void => {
     lockFootprint,
     outlineOpacity,
     outlineColor,
-    viewerRef,
     selectedImage,
     debug,
     requestRender,
@@ -170,7 +166,6 @@ export const useFootprints = (debug = false): void => {
   ]);
 
   useEffect(() => {
-    const viewer = viewerRef.current;
     if (
       !isValidViewer() ||
       !selectedImage ||
@@ -276,13 +271,13 @@ export const useFootprints = (debug = false): void => {
         easingFunction: animationEasing,
       });
 
-      if (isValidViewer()) {
+      ctx.withEntities((entities) => {
         const outlineEntity = createOutlineEntity(polygonHierarchy.positions);
-        viewer.entities.add(outlineEntity);
+        entities.add(outlineEntity);
         outlineEntityRef.current = outlineEntity;
-      }
+      });
     }
-    requestRender();
+    requestRender({ delay: 50, repeat: 2 });
   }, [
     viewerRef,
     isObliqueMode,
