@@ -56,7 +56,6 @@
     "leaflet-draw": "^1.0.4",
     "leaflet-editable": "^1.2.0",
     "leaflet-measure-path": "^1.5.0",
-    "leaflet-path-drag": "^1.9.5",
     "leaflet-rastercoords": "^1.0.6",
     "leva": "^0.10.0",
     "localforage": "^1.10.0",
