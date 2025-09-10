@@ -38,8 +38,4 @@ export const featureFlagConfig: FeatureFlagConfig = {
     default: false,
     alias: "buga-bruecke",
   },
-  trustUnsecureObjectMapping: {
-    default: false,
-    alias: "trustUnsecureObjectMapping",
-  },
 };

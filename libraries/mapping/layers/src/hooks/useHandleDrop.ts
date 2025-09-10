@@ -43,7 +43,6 @@ export const useHandleDrop = ({
           type: "layer",
           keywords: [`carmaConf://vectorStyle:${url}`],
           path: "Externe Dienste",
-          unsecure: flags["trustUnsecureObjectMapping"] ? false : true,
         };
         await fetch(url)
           .then((response) => response.json())
