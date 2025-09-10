@@ -7,6 +7,9 @@ import {
 } from "cesium";
 import { CesiumContextType } from "../CesiumContext";
 
+const DEFAULT_MIN_RANGE = 10;
+const DEFAULT_MAX_RANGE = 40000;
+
 interface CesiumAnimateOrbitsOptions {
   setPrevious?: (hpr: HeadingPitchRange) => void;
   duration?: number;
@@ -16,6 +19,8 @@ interface CesiumAnimateOrbitsOptions {
   onCancel?: () => void;
   useCurrentDistance?: boolean;
   easing?: (time: number) => number;
+  minRange?: number;
+  maxRange?: number;
 }
 
 /**
@@ -26,6 +31,8 @@ interface CesiumAnimateOrbitsOptions {
  * @param options - Options for the completion of the animation.
  * @param options.duration - The duration of the animation in milliseconds. Defaults to 1000.
  * @param options.cancelable - If true, the animation can be canceled by user interaction. Defaults to true.
+ * @param options.minRange - Minimum camera range in meters. Defaults to 10.
+ * @param options.maxRange - Maximum camera range in meters. Defaults to 40000.
  * @param options.easing - The easing function to use for the animation. Defaults to EasingFunction.CUBIC_IN_OUT.
  * @param options.onCancel - A callback function to be called when the animation is canceled.
  * @param options.onComplete - A callback function to be called when the animation completes.
@@ -45,27 +52,22 @@ export function animateInterpolateHeadingPitchRange(
     useCurrentDistance = true,
     easing = EasingFunction.CUBIC_IN_OUT,
     setPrevious,
+    minRange = DEFAULT_MIN_RANGE,
+    maxRange = DEFAULT_MAX_RANGE,
   }: CesiumAnimateOrbitsOptions = {}
 ): () => void {
-  const { heading, pitch, range } = hpr;
-
-  // Use context's withViewer method to safely access viewer
-  let initialHeading: number;
-  let initialPitch: number;
-  let initialRange: number;
-
-  ctx.withViewer((viewer) => {
-    initialHeading = viewer.camera.heading;
-    initialPitch = viewer.camera.pitch;
-    initialRange = Cartesian3.distance(viewer.camera.position, destination);
+  // Get current camera state
+  let initialHPR: HeadingPitchRange | null = null;
+  ctx.withCamera((camera) => {
+    const range = Cartesian3.distance(camera.position, destination);
+    initialHPR = new HeadingPitchRange(camera.heading, camera.pitch, range);
   });
 
-  setPrevious &&
-    setPrevious({
-      heading: initialHeading!,
-      pitch: initialPitch!,
-      range: initialRange!,
-    });
+  if (!initialHPR) {
+    return () => {};
+  }
+
+  setPrevious && setPrevious(initialHPR);
 
   // Animation control variables
   let animationFrameId: number | null = null;
@@ -98,9 +100,35 @@ export function animateInterpolateHeadingPitchRange(
     canvas.addEventListener("pointerdown", onUserInteraction);
   });
 
-  const interpolateAngle = (start: number, end: number, t: number): number => {
-    const delta = CesiumMath.negativePiToPi(end - start);
-    return start + delta * t;
+  const interpolateHpr = (
+    startHpr: HeadingPitchRange,
+    endHpr: HeadingPitchRange,
+    t: number
+  ): HeadingPitchRange => {
+    const interpolateAngle = (
+      start: number,
+      end: number,
+      t: number
+    ): number => {
+      const delta = CesiumMath.negativePiToPi(end - start);
+      return start + delta * t;
+    };
+
+    const currentHeading = interpolateAngle(
+      startHpr.heading,
+      endHpr.heading,
+      t
+    );
+    const currentPitch = CesiumMath.lerp(startHpr.pitch, endHpr.pitch, t);
+    const currentRange = CesiumMath.clamp(
+      useCurrentDistance
+        ? startHpr.range
+        : CesiumMath.lerp(startHpr.range, endHpr.range, t),
+      minRange,
+      maxRange
+    );
+
+    return new HeadingPitchRange(currentHeading, currentPitch, currentRange);
   };
 
   const animate = (time: number) => {
@@ -109,26 +137,7 @@ export function animateInterpolateHeadingPitchRange(
     const t = Math.min(elapsed / duration, 1); // normalize to [0, 1]
     //console.debug('animate', duration, elapsed, t, frameIndex);
 
-    // Interpolate heading and pitch over time
-    const currentHeading = interpolateAngle(
-      initialHeading!,
-      heading,
-      easing(t)
-    );
-    const currentPitch = CesiumMath.lerp(initialPitch!, pitch, easing(t));
-    const currentRange = CesiumMath.clamp(
-      useCurrentDistance
-        ? initialRange!
-        : CesiumMath.lerp(initialRange!, range, easing(t)),
-      10,
-      40000
-    );
-
-    const orientation = new HeadingPitchRange(
-      currentHeading,
-      currentPitch,
-      currentRange
-    );
+    const orientation = interpolateHpr(initialHPR, hpr, easing(t));
 
     ctx.withCamera((camera) => {
       camera.lookAtTransform(Matrix4.IDENTITY);

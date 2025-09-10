@@ -193,7 +193,7 @@ export const useMapTransition = ({
 
       console.debug("[Animation|2D3D] duration zoom", distance);
 
-      if (hasGroundPos && groundPos) {
+      if (hasGroundPos) {
         // rotate around the groundposition at center
         console.debug(
           "[CESIUM|2D3D|TO2D] setting prev HPR zoom",
