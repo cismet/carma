@@ -102,7 +102,7 @@ export const useMapTransition = ({
     });
   };
 
-  const transitionToMode2d = () => {
+  const transitionToMode2d = async () => {
     if (!routedMapRef.current?.leafletMap?.leafletElement) {
       console.warn("leaflet not available no transition possible [zoom]");
       return;
@@ -215,6 +215,7 @@ export const useMapTransition = ({
       } else {
         console.info("rotate around camera position not implemented yet zoom");
         dispatch(clearTransition());
+        return Promise.resolve();
       }
     });
   };

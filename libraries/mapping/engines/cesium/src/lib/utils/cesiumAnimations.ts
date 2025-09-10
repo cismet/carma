@@ -88,12 +88,12 @@ export function animateInterpolateHeadingPitchRange(
       cancelAnimationFrame(animationFrameId);
       animationFrameId = null;
       isCanceled = true;
-      ctx.withViewer((viewer) => {
-        viewer.canvas.removeEventListener("pointerdown", onUserInteraction);
-        viewer.camera.lookAtTransform(Matrix4.IDENTITY);
-      });
-      onCancel?.();
     }
+    ctx.withViewer((viewer) => {
+      viewer.canvas.removeEventListener("pointerdown", onUserInteraction);
+      viewer.camera.lookAtTransform(Matrix4.IDENTITY);
+    });
+    onCancel?.();
   };
 
   ctx.withCanvas((canvas) => {
@@ -132,7 +132,7 @@ export function animateInterpolateHeadingPitchRange(
   };
 
   const animate = (time: number) => {
-    if (isCanceled) return;
+    if (isCanceled || !initialHPR) return;
     const elapsed = time - startTime;
     const t = Math.min(elapsed / duration, 1); // normalize to [0, 1]
     //console.debug('animate', duration, elapsed, t, frameIndex);
