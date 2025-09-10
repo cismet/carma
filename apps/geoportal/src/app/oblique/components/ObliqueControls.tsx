@@ -475,7 +475,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
 
   useFootprints(isDebugMode);
 
-  const { downloadUrl, previewUrl, previewUrlHq, previewUrlOriginal } = useMemo(
+  const { downloadUrl } = useMemo(
     () => getImageUrls(imageId, previewPath, previewQualityLevel),
     [previewPath, previewQualityLevel, imageId]
   );
@@ -597,9 +597,8 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       )}
       {selectedImage && imageId && (
         <ObliqueImagePreview
-          src={previewUrl}
-          srcHQ={previewUrlHq}
-          srcOriginal={previewUrlOriginal}
+          key={imageId}
+          previewPath={previewPath!}
           imageId={imageId}
           isVisible={isPreviewVisible}
           dimImage={shouldRemoveCurrentPreviewImage}
