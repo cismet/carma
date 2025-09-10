@@ -35,7 +35,7 @@ export { CUSTOM_SHADERS_DEFINITIONS } from "./lib/shaders";
 
 // TODO: all the utils used elsewhere with no cesium dedependency should be moved to common helper utils lib
 
-export { cesiumSceneHasTweens } from "./lib/utils/cesiumAnimations";
+export { sceneHasTweens } from "./lib/utils/sceneHasTweens";
 export { getOrbitPoint } from "./lib/utils/cesiumAnimateOrbits";
 export { getHeadingPitchForMouseEvent } from "./lib/utils/cesiumAnimateOrbits";
 export {

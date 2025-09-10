@@ -37,7 +37,6 @@ export const useMapTransition = ({
   const dispatch = useDispatch();
   const topicMapContext = useContext<typeof TopicMapContext>(TopicMapContext);
   const { realRoutedMapRef: routedMapRef } = topicMapContext;
-
   const ctx = useCesiumContext();
   const { viewerRef } = ctx;
 
@@ -54,14 +53,13 @@ export const useMapTransition = ({
       !routedMapRef.current?.leafletMap?.leafletElement
     ) {
       console.warn("cesium or leaflet not available");
-      return null;
+      return;
     }
 
-    const viewer = viewerRef.current;
     const leaflet = routedMapRef.current?.leafletMap?.leafletElement;
 
     // cancel any ongoing flight
-    viewer.camera.cancelFlight();
+    ctx.withViewer((viewer) => viewer.camera.cancelFlight());
 
     dispatch(setTransitionTo3d());
     dispatch(setIsMode2d(false));
@@ -80,7 +78,7 @@ export const useMapTransition = ({
           pos,
           prevHPR
         );
-        animateInterpolateHeadingPitchRange(viewer, pos, prevHPR, {
+        animateInterpolateHeadingPitchRange(ctx, pos, prevHPR, {
           delay: duration, // allow the css transition to finish
           duration: prevDuration * 1000,
           useCurrentDistance: true,
@@ -107,115 +105,119 @@ export const useMapTransition = ({
   const transitionToMode2d = () => {
     if (!routedMapRef.current?.leafletMap?.leafletElement) {
       console.warn("leaflet not available no transition possible [zoom]");
-      return null;
+      return;
     }
     if (!viewerRef.current) {
       console.warn("cesium not available no transition possible [zoom]");
-      return null;
+      return;
     }
 
-    const viewer = viewerRef.current;
     const leaflet = routedMapRef.current?.leafletMap?.leafletElement;
 
     dispatch(setTransitionTo2d());
     const groundPos = pickViewerCanvasCenter(ctx).scenePosition;
-    let height = viewer.camera.positionCartographic.height;
-    let distance = height;
-    const hasGroundPos = defined(groundPos);
-    if (hasGroundPos) {
-      const { scenePosition: pos, coordinates: cartographic } =
-        pickViewerCanvasCenter(ctx, { getCoordinates: true });
-      if (pos && cartographic) {
-        distance = Cartesian3.distance(pos, viewer.camera.position);
-        height = cartographic.height + distance;
-      }
-    } else {
-      console.debug("scene above horizon, using camera position as reference");
-    }
 
-    // evaluate angles for animation duration
-    let zoomDiff = 0;
+    ctx.withViewer((viewer) => {
+      let height = viewer.camera.positionCartographic.height;
+      let distance = height;
 
-    const { zoomSnap } = leaflet.options;
-
-    if (zoomSnap) {
-      // Move the cesium camera to the next zoom snap level of leaflet before transitioning
-      const currentZoom = cesiumCenterPixelSizeToLeafletZoom(ctx).value;
-      const heightBefore = height;
-      const distanceBefore = distance;
-
-      if (currentZoom === null) {
-        console.error("could not determine current zoom level");
+      const hasGroundPos = defined(groundPos);
+      if (hasGroundPos) {
+        const { scenePosition: pos, coordinates: cartographic } =
+          pickViewerCanvasCenter(ctx, { getCoordinates: true });
+        if (pos && cartographic) {
+          distance = Cartesian3.distance(pos, viewer.camera.position);
+          height = cartographic.height + distance;
+        }
       } else {
-        // go to the next integer zoom snap level
-        // smaller values is further away
-        const intMultiple = currentZoom * (1 / zoomSnap);
-        const targetZoom =
-          intMultiple % 1 < 0.75 // prefer zooming out
-            ? Math.floor(intMultiple) * zoomSnap
-            : Math.ceil(intMultiple) * zoomSnap;
-        zoomDiff = currentZoom - targetZoom;
-        const heightFactor = Math.pow(2, zoomDiff);
-        const { groundHeight } = getCameraHeightAboveGround(ctx);
-
-        distance = distance * heightFactor;
-        height = groundHeight + distance;
-
         console.debug(
-          "TRANSITION TO 2D [2D|3D] zoomSnap",
-          zoomSnap,
-          currentZoom,
-          targetZoom,
-          heightFactor,
-          distance,
-          distanceBefore,
-          height,
-          heightBefore,
-          zoomDiff
+          "scene above horizon, using camera position as reference"
         );
       }
-    } else {
-      console.info("no zoomSnap applied", leaflet);
-    }
 
-    const duration = getTopDownCameraDeviationAngle(ctx) * 2 + zoomDiff * 1;
-    setPrevDuration(duration);
+      // evaluate angles for animation duration
+      let zoomDiff = 0;
 
-    const onComplete2d = () => {
-      setLeafletView(ctx, leaflet, { animate: false, duration: 0 });
-      // trigger the visual transition
-      dispatch(setIsMode2d(true));
-      dispatch(clearTransition());
-      onComplete && onComplete(true);
-    };
+      const { zoomSnap } = leaflet.options;
 
-    console.debug("[Animation|2D3D] duration zoom", distance);
+      if (zoomSnap) {
+        // Move the cesium camera to the next zoom snap level of leaflet before transitioning
+        const currentZoom = cesiumCenterPixelSizeToLeafletZoom(ctx).value;
+        const heightBefore = height;
+        const distanceBefore = distance;
 
-    if (hasGroundPos) {
-      // rotate around the groundposition at center
-      console.debug(
-        "[CESIUM|2D3D|TO2D] setting prev HPR zoom",
-        groundPos,
-        height
-      );
+        if (currentZoom === null) {
+          console.error("could not determine current zoom level");
+        } else {
+          // go to the next integer zoom snap level
+          // smaller values is further away
+          const intMultiple = currentZoom * (1 / zoomSnap);
+          const targetZoom =
+            intMultiple % 1 < 0.75 // prefer zooming out
+              ? Math.floor(intMultiple) * zoomSnap
+              : Math.ceil(intMultiple) * zoomSnap;
+          zoomDiff = currentZoom - targetZoom;
+          const heightFactor = Math.pow(2, zoomDiff);
+          const { groundHeight } = getCameraHeightAboveGround(ctx);
 
-      animateInterpolateHeadingPitchRange(
-        viewer,
-        groundPos,
-        new HeadingPitchRange(0, -Math.PI / 2, distance),
-        {
-          setPrevious: setPrevHPR,
-          duration: duration * 1000,
-          onComplete: onComplete2d,
-          cancelable: false,
+          distance = distance * heightFactor;
+          height = groundHeight + distance;
+
+          console.debug(
+            "TRANSITION TO 2D [2D|3D] zoomSnap",
+            zoomSnap,
+            currentZoom,
+            targetZoom,
+            heightFactor,
+            distance,
+            distanceBefore,
+            height,
+            heightBefore,
+            zoomDiff
+          );
         }
-      );
-    } else {
-      console.info("rotate around camera position not implemented yet zoom");
-      dispatch(clearTransition());
-    }
+      } else {
+        console.info("no zoomSnap applied", leaflet);
+      }
+
+      const duration = getTopDownCameraDeviationAngle(ctx) * 2 + zoomDiff * 1;
+      setPrevDuration(duration);
+
+      const onComplete2d = () => {
+        setLeafletView(ctx, leaflet, { animate: false, duration: 0 });
+        // trigger the visual transition
+        dispatch(setIsMode2d(true));
+        dispatch(clearTransition());
+        onComplete && onComplete(true);
+      };
+
+      console.debug("[Animation|2D3D] duration zoom", distance);
+
+      if (hasGroundPos && groundPos) {
+        // rotate around the groundposition at center
+        console.debug(
+          "[CESIUM|2D3D|TO2D] setting prev HPR zoom",
+          groundPos,
+          height
+        );
+
+        animateInterpolateHeadingPitchRange(
+          ctx,
+          groundPos,
+          new HeadingPitchRange(0, -Math.PI / 2, distance),
+          {
+            setPrevious: setPrevHPR,
+            duration: duration * 1000,
+            onComplete: onComplete2d,
+            cancelable: false,
+          }
+        );
+      } else {
+        console.info("rotate around camera position not implemented yet zoom");
+        dispatch(clearTransition());
+      }
+    });
   };
   return { transitionToMode2d, transitionToMode3d };
 };
-
 export default useMapTransition;

@@ -94,6 +94,12 @@ export const useInitializeViewer = (
     console.debug("HOOK: [CESIUM] init CustomViewer");
     if (containerRef?.current) {
       try {
+        // Reuse existing viewer if it exists and isn't destroyed
+        if (viewerRef.current && !viewerRef.current.isDestroyed()) {
+          console.debug("HOOK: [CESIUM] Reusing existing viewer instance");
+          return;
+        }
+
         console.debug(
           "HOOK: [CESIUM] new init CustomViewer",
           containerRef,
@@ -167,7 +173,8 @@ export const useInitializeViewer = (
       }
     }
     return () => {
-      if (viewerRef.current) {
+      // Only cleanup listeners, don't destroy viewer to allow reuse
+      if (viewerRef.current && !viewerRef.current.isDestroyed()) {
         // cleanup listeners
         const handlePostRender = postRenderHandlerMap.get(viewerRef.current);
         if (handlePostRender && viewerRef.current.scene) {
@@ -184,9 +191,10 @@ export const useInitializeViewer = (
           );
           preUpdateHandlerMap.delete(viewerRef.current);
         }
-        console.info("RENDER: [CESIUM] CustomViewer cleanup destroy viewer");
-        viewerRef.current.destroy();
-        viewerRef.current = null;
+        console.info(
+          "RENDER: [CESIUM] CustomViewer cleanup - preserving viewer instance"
+        );
+        // Don't destroy the viewer - keep it for reuse when returning to 3D
       }
     };
   }, [
@@ -339,14 +347,38 @@ export const useInitializeViewer = (
   }, [viewerRef, containerRef, isMode2d]);
 
   useEffect(() => {
-    // init hook
-    console.debug("HOOK: useInitializeViewer useEffect");
+    console.debug("HOOK: useInitializeViewer useEffect - mode change handler", {
+      isMode2d,
+      previous: previousIsMode2d.current,
+      hasViewer: !!viewerRef.current,
+    });
+
     if (viewerRef.current) {
-      if (
-        isMode2d !== previousIsMode2d.current ||
-        isSecondaryStyle !== previousIsSecondaryStyle.current
-      ) {
+      if (isMode2d !== previousIsMode2d.current) {
         previousIsMode2d.current = isMode2d;
+
+        if (isMode2d) {
+          // Switching to 2D: pause Cesium rendering
+          console.debug("HOOK: [CESIUM] Pausing viewer for 2D mode");
+          viewerRef.current.scene.requestRenderMode = true;
+          // Stop any ongoing animations
+          viewerRef.current.camera.cancelFlight();
+          // Clear any tweens if available (using type assertion for Cesium internal API)
+          const scene = viewerRef.current.scene as Scene & {
+            tweens?: { removeAll(): void };
+          };
+          if (scene.tweens && typeof scene.tweens.removeAll === "function") {
+            scene.tweens.removeAll();
+          }
+        } else {
+          // Switching to 3D: resume Cesium rendering
+          console.debug("HOOK: [CESIUM] Resuming viewer for 3D mode");
+          viewerRef.current.scene.requestRenderMode = false;
+          viewerRef.current.scene.requestRender();
+        }
+      }
+
+      if (isSecondaryStyle !== previousIsSecondaryStyle.current) {
         previousIsSecondaryStyle.current = isSecondaryStyle;
       }
     }

@@ -70,7 +70,10 @@ export const CesiumContextProvider = ({
       );
 
       return () => {
-        abortController.abort();
+        // Only abort if viewer is being destroyed, not during 2D/3D transitions
+        if (viewerRef.current && viewerRef.current.isDestroyed()) {
+          abortController.abort();
+        }
       };
     } else {
       console.info("[CESIUM|CONTEXT] No imagery provider configured");
@@ -92,7 +95,10 @@ export const CesiumContextProvider = ({
     );
 
     return () => {
-      abortController.abort();
+      // Only abort if viewer is being destroyed, not during 2D/3D transitions
+      if (viewerRef.current && viewerRef.current.isDestroyed()) {
+        abortController.abort();
+      }
     };
   }, [providerConfig.terrainProvider.url, isViewerReady]);
 
@@ -112,7 +118,10 @@ export const CesiumContextProvider = ({
       );
 
       return () => {
-        abortController.abort();
+        // Only abort if viewer is being destroyed, not during 2D/3D transitions
+        if (viewerRef.current && viewerRef.current.isDestroyed()) {
+          abortController.abort();
+        }
       };
     }
   }, [providerConfig.surfaceProvider, isViewerReady]);
@@ -142,7 +151,12 @@ export const CesiumContextProvider = ({
     }
 
     return () => {
-      if (primaryTilesetRef.current) {
+      // Don't destroy providers when transitioning to 2D mode - only when viewer is destroyed
+      if (
+        primaryTilesetRef.current &&
+        viewerRef.current &&
+        viewerRef.current.isDestroyed()
+      ) {
         primaryTilesetRef.current.destroy();
         primaryTilesetRef.current = null;
       }
@@ -176,7 +190,12 @@ export const CesiumContextProvider = ({
     }
 
     return () => {
-      if (secondaryTilesetRef.current) {
+      // Don't destroy providers when transitioning to 2D mode - only when viewer is destroyed
+      if (
+        secondaryTilesetRef.current &&
+        viewerRef.current &&
+        viewerRef.current.isDestroyed()
+      ) {
         secondaryTilesetRef.current.destroy();
         secondaryTilesetRef.current = null;
       }
