@@ -100,6 +100,8 @@ const SecondaryInfoModal = ({ feature, setOpen, versionString }) => {
   const citizenText = plan?.bb_text || null;
   const citizenUrl = plan?.bb_url || null;
 
+  const linksArray = plan?.links || [];
+
   const handleImgClick = (idx) => {
     lightBoxDispatchContext.setIndex(idx);
     lightBoxDispatchContext.setTitle(plan.info.title);
@@ -286,7 +288,7 @@ const SecondaryInfoModal = ({ feature, setOpen, versionString }) => {
                 </Panel>
               </Accordion>
             )}
-            {documents.length > 0 && (
+            {(documents.length > 0 || linksArray.length > 0) && (
               <Accordion style={{ marginBottom: 6 }} defaultActiveKey={"2"}>
                 <Panel header="Anhang" eventKey="2" bsStyle="warning">
                   <ul className="ml-[-22px]">
