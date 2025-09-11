@@ -178,8 +178,8 @@ const TopNavbar = () => {
               onClick={showOverlayHandler}
               data-test-id="helper-overlay-btn"
               ref={helpOverlayTourRef}
-              onMouseEnter={handleHideHelpTooltip}
-              onMouseLeave={handleShowHelpTooltip}
+              onMouseEnter={handleShowHelpTooltip}
+              onMouseLeave={handleHideHelpTooltip}
             >
               <FontAwesomeIcon
                 className="h-[24px] pt-1"
