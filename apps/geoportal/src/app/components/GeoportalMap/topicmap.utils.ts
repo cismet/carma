@@ -532,10 +532,14 @@ const implicitVectorSelection = async (
 
     //make sure to get a point from any geometry type
     const coordinates = getCoordinates(selectedVectorFeature.geometry);
+    let headerColor = "#0078a8";
+    if (layer.other?.accentColor) {
+      headerColor = layer.other?.accentColor;
+    }
     const feature = {
       properties: {
         header: layer.title || "Information",
-        headerColor: "#0078a8",
+        headerColor: headerColor,
         title: "Zu diesem Objekt sind keine weiteren Sachdaten verfügbar.",
         additionalInfo: `Position: ${coordinates[1].toFixed(
           5

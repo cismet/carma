@@ -116,6 +116,7 @@ export const parseToMapLayer = async (
       } else if (layer.vectorStyle) {
         vectorStyle = layer.vectorStyle;
       }
+      let metaData = {};
       if (vectorStyle) {
         zoom = await fetch(vectorStyle)
           .then((response) => {
@@ -126,6 +127,9 @@ export const parseToMapLayer = async (
               minzoom: 9,
               maxzoom: 24,
             });
+            if (result.metadata && result.metadata.carmaConf.layerInfo) {
+              metaData = result.metadata.carmaConf.layerInfo;
+            }
             return parsedZoom;
           });
       }
@@ -159,6 +163,7 @@ export const parseToMapLayer = async (
           ),
           layerName: layer.name,
           capabilitiesUrl: capabilitiesUrl,
+          ...metaData,
         },
       };
     } else {
