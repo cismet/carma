@@ -1,4 +1,6 @@
 import { CSSProperties } from "react";
+import type React from "react";
+import { useCesiumContext } from "@carma-mapping/engines/cesium";
 
 interface BackdropProps {
   contrast: number; // %
@@ -19,6 +21,7 @@ export const Backdrop = ({
   onClick,
   interactive = true,
 }: BackdropProps) => {
+  const ctx = useCesiumContext();
   const filterValue = `contrast(${contrast}%) brightness(${brightness}%) saturate(${saturation}%)`;
   const styleObj: CSSProperties = {
     position: "fixed",
@@ -38,6 +41,19 @@ export const Backdrop = ({
   if (!isDebug && color) {
     styleObj.backgroundColor = color;
   }
+  const handleWheel = (e: React.WheelEvent) => {
+    e.preventDefault();
+    // Forward a synthetic wheel event to the Cesium canvas to trigger FOV zoom behavior
+    ctx.withCanvas((canvas) => {
+      const forwarded = new WheelEvent("wheel", {
+        ...e,
+        bubbles: true,
+        cancelable: true,
+      } as unknown as WheelEventInit);
+      canvas.dispatchEvent(forwarded);
+    });
+  };
+
   // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
-  return <div style={styleObj} onClick={onClick} />;
+  return <div style={styleObj} onClick={onClick} onWheel={handleWheel} />;
 };
