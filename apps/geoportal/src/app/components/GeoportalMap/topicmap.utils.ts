@@ -19,13 +19,16 @@ import type { Layer } from "@carma-commons/types";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 
 import {
+  addCompletedVectorLayer,
   addNothingFoundID,
   addVectorInfo,
+  clearCompletedVectorLayers,
   clearFeatures,
   clearNothingFoundIDs,
   clearSecondaryInfoBoxElements,
   clearSelectedFeature,
   clearVectorInfos,
+  getCompletedVectorLayers,
   getNothingFoundIDs,
   getPreferredLayerId,
   getPreferredVectorLayerId,
@@ -120,9 +123,38 @@ export const onClickTopicMap = async (
     mode === UIMode.FEATURE_INFO &&
     getAtLeastOneLayerIsQueryable(layers, zoom)
   ) {
-    if (queryableLayers.find((layer) => layer.layerType === "vector")) {
-      await wait(10);
+    const completedVectorLayers = getCompletedVectorLayers(store.getState());
+    const queryableVectorLayers = queryableLayers.filter(
+      (layer) => layer.layerType === "vector"
+    );
+
+    // Check if all vector layers have completed loading their vector infos
+    const allVectorLayersCompleted = queryableVectorLayers.every((layer) =>
+      completedVectorLayers.includes(layer.id)
+    );
+
+    if (!allVectorLayersCompleted && queryableVectorLayers.length > 0) {
+      await new Promise<void>((resolve) => {
+        const checkCompletion = () => {
+          const currentCompletedLayers = getCompletedVectorLayers(
+            store.getState()
+          );
+          const allCompleted = queryableVectorLayers.every((layer) =>
+            currentCompletedLayers.includes(layer.id)
+          );
+
+          if (allCompleted) {
+            resolve();
+          } else {
+            setTimeout(checkCompletion, 10);
+          }
+        };
+
+        checkCompletion();
+      });
     }
+
+    dispatch(clearCompletedVectorLayers());
 
     const allVectorInfos = getVectorInfos(store.getState());
     const nothingFoundIDs = getNothingFoundIDs(store.getState());
@@ -582,6 +614,7 @@ export const onSelectionChangedVector = async (
       dispatch(addNothingFoundID(layer.id));
     }
   }
+  dispatch(addCompletedVectorLayer(layer.id));
 };
 
 const createCismapLayer = (props: WMTSLayerProps | VectorLayerProps) => {

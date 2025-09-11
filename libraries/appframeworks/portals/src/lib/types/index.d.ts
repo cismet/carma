@@ -140,4 +140,5 @@ export interface FeatureInfoState {
   vectorInfos: FeatureInfo[];
   nothingFoundIDs: string[];
   loading: boolean;
+  completedVectorLayers: string[];
 }
