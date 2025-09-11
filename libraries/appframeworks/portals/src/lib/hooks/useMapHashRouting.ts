@@ -144,7 +144,7 @@ export function useMapHashRouting({
       updateHash(e.hashParams, {
         clearKeys: ["zoom"],
         label: labels?.cesiumScene ?? "Map:3D:scene",
-        replace: true,
+        replace: true, // don't push to history until cesium handled history navigation
       });
     },
     [isMode2d, updateHash, labels?.cesiumScene]

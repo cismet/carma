@@ -1,3 +1,4 @@
+import { normalizeOptions } from "./normalizeOptions";
 const sortArrayByKeys = (
   arr: [string, unknown][],
   keyOrder: string[],
@@ -20,13 +21,6 @@ const sortArrayByKeys = (
       return sortRestAlphabetically ? keyA.localeCompare(keyB) : 0;
     }
   });
-
-// A lightweight type for a React Router-like navigate function.
-// We avoid importing react-router here to keep this utility framework-agnostic.
-type NavigateLike = (
-  to: string,
-  opts?: { replace?: boolean; state?: unknown }
-) => void;
 
 /**
  * Get the stored parameters or parse them from the URL as fallback
@@ -71,16 +65,27 @@ export const diffHashParams = (
 /**
  * Updates the URL hash parameters without triggering a React Router navigation
  */
+
+interface updateHashHistoryStateOptions {
+  removeKeys?: string[];
+  label?: string;
+  keyOrder?: string[];
+  replace?: boolean; // if true: replace current entry; default false => push
+  debug?: boolean;
+}
+
+const defaultOptions: Required<updateHashHistoryStateOptions> = {
+  removeKeys: [],
+  label: "N/A",
+  keyOrder: [],
+  replace: false,
+  debug: false,
+};
+
 export const updateHashHistoryState = (
   hashParams: Record<string, string> = {},
   routedPath: string,
-  options: {
-    removeKeys?: string[];
-    label?: string;
-    keyOrder?: string[];
-    replace?: boolean; // if true: replace current entry; default false => push
-    navigate?: NavigateLike; // optional router navigate function
-  } = {}
+  options: updateHashHistoryStateOptions
 ) => {
   // this is method is used to avoid triggering rerenders from the HashRouter when updating the hash
   const currentParams = getHashParams();
@@ -90,10 +95,10 @@ export const updateHashHistoryState = (
     ...hashParams, // overwrite from state but keep others
   };
 
-  const removeKeys = options.removeKeys || [];
-  const label = options.label || "N/A"; // for tracing debugging only
-  const keyOrder = options.keyOrder || [];
-  const replace = options.replace === true; // default: push
+  const { removeKeys, label, keyOrder, replace, debug } = normalizeOptions(
+    options,
+    defaultOptions
+  );
 
   // remove keys that are in the removeKeys array
   removeKeys.forEach((key) => {
@@ -124,37 +129,31 @@ export const updateHashHistoryState = (
     );
     return;
   }
-  // this is a workaround to avoid triggering rerenders from the HashRouter
-  // navigate would cause rerenders
+  // Avoid React Router's navigate() to prevent cascade rerenders
+  // - navigate() triggers React Router rerenders and component cascades
   // navigate(`${routedPath}?${formattedHash}`, { replace: true });
   // see https://github.com/remix-run/react-router/discussions/9851#discussioncomment-9459061
 
-  // Prefer router-aware navigation if provided
-  if (options.navigate) {
-    options.navigate(toPath, { replace });
-    console.debug(
-      `[Routing][react-router] (${label}): ${replace ? "Replace" : "Push"}`,
-      toPath
-    );
-    return;
-  }
+  // History API that doesn't emit 'hashchange' events (prevents React Router rerenders)
+  // Use History API to update URL without triggering hashchange events
+  const currentUrl = new URL(window.location.href);
+  const newUrl = `${currentUrl.origin}${currentUrl.pathname}${fullHashState}`;
 
-  // Fallback to direct hash manipulation that emits 'hashchange'
-  // - Replace: use location.replace(...) to avoid adding history entries
-  // - Push: assign to location.hash to add a new history entry
   if (replace) {
-    const currentUrl = new URL(window.location.href);
-    const newUrl = `${currentUrl.origin}${currentUrl.pathname}${fullHashState}`;
+    // not navigable just updates the current hash
     window.location.replace(newUrl);
-    console.debug(
-      `[Routing][window.location] (${label}): Hash Replace`,
-      newUrl
-    );
+    debug &&
+      console.debug(
+        `[Routing][window.location] (${label}): Hash Replace`,
+        `#${toPath}`
+      );
   } else {
-    window.location.hash = toPath;
-    console.debug(
-      `[Routing][window.location] (${label}): Hash Push`,
-      `#${toPath}`
-    );
+    // navigable Push: assign to location.hash to add a new history entry
+    window.history.pushState({}, "", newUrl);
+    debug &&
+      console.debug(
+        `[Routing][window.location] (${label}): Hash Push`,
+        `#${toPath}`
+      );
   }
 };

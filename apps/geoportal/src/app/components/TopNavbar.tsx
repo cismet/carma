@@ -1,3 +1,11 @@
+import {
+  type CSSProperties,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+} from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { faCircleQuestion } from "@fortawesome/free-regular-svg-icons";
 import {
   faBars,
@@ -8,13 +16,10 @@ import {
   faPlane,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { Button, Radio, Tooltip } from "antd";
-import { useContext, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { Button, Radio, type RadioChangeEvent, Tooltip } from "antd";
 
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
-import { useFeatureFlags } from "@carma-providers/feature-flag";
 import { geoElements } from "@carma-collab/wuppertal/geoportal";
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 import {
@@ -23,6 +28,7 @@ import {
 } from "@carma-commons/ui/helper-overlay";
 import { cn } from "@carma-commons/utils";
 import { selectViewerIsMode2d } from "@carma-mapping/engines/cesium";
+import { useFeatureFlags } from "@carma-providers/feature-flag";
 
 import {
   getBackgroundLayer,
@@ -62,23 +68,67 @@ const TopNavbar = () => {
   const selectedLuftbildLayer = useSelector(getSelectedLuftbildLayer);
   const zenMode = useSelector(getZenMode);
 
-  const hintergrundTourRef = useOverlayHelper(
-    getCollabedHelpElementsConfig("HINTERGRUND", geoElements)
+  const hintergrundConfig = useMemo(
+    () => getCollabedHelpElementsConfig("HINTERGRUND", geoElements),
+    []
   );
-  const modalMenuTourRef = useOverlayHelper(
-    getCollabedHelpElementsConfig("MENU", geoElements)
+  const modalMenuConfig = useMemo(
+    () => getCollabedHelpElementsConfig("MENU", geoElements),
+    []
   );
-  const helpOverlayTourRef = useOverlayHelper({
-    ...getCollabedHelpElementsConfig("HILFE_OVERLAY", geoElements),
-    primary: {
-      ...getCollabedHelpElementsConfig("HILFE_OVERLAY", geoElements).primary,
-      minWindowSize: 1024,
-    },
-  });
 
-  const toggleMobileMenu = () => {
+  const hintergrundTourRef = useOverlayHelper(hintergrundConfig);
+  const modalMenuTourRef = useOverlayHelper(modalMenuConfig);
+
+  const overlayConfig = useMemo(() => {
+    return {
+      ...getCollabedHelpElementsConfig("HILFE_OVERLAY", geoElements),
+      primary: {
+        ...getCollabedHelpElementsConfig("HILFE_OVERLAY", geoElements).primary,
+        minWindowSize: 1024,
+      },
+    };
+  }, []);
+
+  const helpOverlayTourRef = useOverlayHelper(overlayConfig);
+
+  const toggleMobileMenu = useCallback(() => {
     setMobileMenuOpen(!mobileMenuOpen);
-  };
+  }, [mobileMenuOpen]);
+
+  const handleShowHelpTooltip = useCallback(() => {
+    setShowHelpTooltip(true);
+  }, []);
+
+  const handleHideHelpTooltip = useCallback(() => {
+    setShowHelpTooltip(false);
+  }, []);
+
+  const handleBackgroundLayerChange = useCallback(
+    (e: RadioChangeEvent) => {
+      e.stopPropagation();
+      if (e.target.value === "openBaseLayerView") {
+        dispatch(setSelectedLayerIndex(-1));
+      } else if (e.target.value === MapStyleKeys.TOPO) {
+        setCurrentStyle(MapStyleKeys.TOPO);
+      } else if (e.target.value === MapStyleKeys.AERIAL) {
+        setCurrentStyle(MapStyleKeys.AERIAL);
+      }
+    },
+    [dispatch, setCurrentStyle]
+  );
+
+  const handleAppMenuVisible = useCallback(() => {
+    setAppMenuVisible(true);
+  }, []); // setAppMenuVisible from context is stable
+
+  const mainStyle = useMemo((): CSSProperties => {
+    return {
+      visibility: zenMode ? "hidden" : undefined,
+      display: zenMode ? "none" : "flex",
+      zIndex: 10000,
+    };
+  }, [zenMode]);
 
   console.debug("RENDER: TopNavbar");
 
@@ -90,11 +140,7 @@ const TopNavbar = () => {
         py-2 pt-safe-top pb-safe-bottom \
         pl-safe-left xs:pl-safe-left-xs pr-safe-right xs:pr-safe-right-xs"
       }
-      style={{
-        visibility: zenMode ? "hidden" : undefined,
-        display: zenMode ? "none" : "flex",
-        zIndex: 10000,
-      }}
+      style={mainStyle}
     >
       <ResourceModal />
 
@@ -138,8 +184,8 @@ const TopNavbar = () => {
               onClick={showOverlayHandler}
               data-test-id="helper-overlay-btn"
               ref={helpOverlayTourRef}
-              onMouseEnter={() => setShowHelpTooltip(true)}
-              onMouseLeave={() => setShowHelpTooltip(false)}
+              onMouseEnter={handleShowHelpTooltip}
+              onMouseLeave={handleHideHelpTooltip}
             >
               <FontAwesomeIcon
                 className="h-[24px] pt-1"
@@ -169,16 +215,7 @@ const TopNavbar = () => {
             {backgroundLayer && (
               <Radio.Group
                 value={backgroundLayer.id}
-                onChange={(e) => {
-                  e.stopPropagation();
-                  if (e.target.value === "openBaseLayerView") {
-                    dispatch(setSelectedLayerIndex(-1));
-                  } else if (e.target.value === MapStyleKeys.TOPO) {
-                    setCurrentStyle(MapStyleKeys.TOPO);
-                  } else if (e.target.value === MapStyleKeys.AERIAL) {
-                    setCurrentStyle(MapStyleKeys.AERIAL);
-                  }
-                }}
+                onChange={handleBackgroundLayerChange}
               >
                 <Tooltip
                   title={
@@ -222,9 +259,7 @@ const TopNavbar = () => {
 
           <Tooltip title="Kompaktanleitung | Login">
             <Button
-              onClick={() => {
-                setAppMenuVisible(true);
-              }}
+              onClick={handleAppMenuVisible}
               ref={modalMenuTourRef}
               data-test-id="modal-menu-btn"
               className="select-none"
