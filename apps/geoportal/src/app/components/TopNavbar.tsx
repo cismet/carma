@@ -1,4 +1,10 @@
-import { useCallback, useContext, useMemo, useState } from "react";
+import {
+  type CSSProperties,
+  useCallback,
+  useContext,
+  useMemo,
+  useState,
+} from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { faCircleQuestion } from "@fortawesome/free-regular-svg-icons";
 import {
@@ -10,7 +16,7 @@ import {
   faPlane,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { Button, Radio, Tooltip } from "antd";
+import { Button, Radio, type RadioChangeEvent, Tooltip } from "antd";
 
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
@@ -99,7 +105,7 @@ const TopNavbar = () => {
   }, []);
 
   const handleBackgroundLayerChange = useCallback(
-    (e: Event) => {
+    (e: RadioChangeEvent) => {
       e.stopPropagation();
       if (e.target.value === "openBaseLayerView") {
         dispatch(setSelectedLayerIndex(-1));
@@ -116,7 +122,7 @@ const TopNavbar = () => {
     setAppMenuVisible(true);
   }, []); // setAppMenuVisible from context is stable
 
-  const mainStyle = useMemo(() => {
+  const mainStyle = useMemo((): CSSProperties => {
     return {
       visibility: zenMode ? "hidden" : undefined,
       display: zenMode ? "none" : "flex",
