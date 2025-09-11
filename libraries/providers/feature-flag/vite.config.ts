@@ -7,7 +7,20 @@ import { nxCopyAssetsPlugin } from '@nx/vite/plugins/nx-copy-assets.plugin';
 export default defineConfig({
   root: __dirname,
   cacheDir: '../../../node_modules/.vite/libraries/providers/feature-flag',
-  plugins: [react(), nxViteTsPaths(), nxCopyAssetsPlugin(['*.md']), ],
+  plugins: [react(), nxViteTsPaths(), nxCopyAssetsPlugin(['*.md'])],
+  build: {
+    lib: {
+      entry: 'src/index.ts',
+      name: 'feature-flag',
+      formats: ['es'],
+      fileName: () => 'index.js',
+    },
+    outDir: '../../../dist/libraries/providers/feature-flag',
+    emptyOutDir: true,
+    rollupOptions: {
+      external: [/^react(\/.*)?$/, /^react-dom(\/.*)?$/],
+    },
+  },
   // Uncomment this if you are using workers.
   // worker: {
   //  plugins: [ nxViteTsPaths() ],
