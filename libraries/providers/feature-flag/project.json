@@ -6,6 +6,20 @@
   "tags": [],
   "private": true,
   "targets": {
+    "build": {
+      "executor": "@nx/vite:build",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libraries/providers/feature-flag"
+      }
+    },
+    "test": {
+      "executor": "@nx/vite:test",
+      "outputs": ["{options.reportsDirectory}"],
+      "options": {
+        "reportsDirectory": "../../../coverage/libraries/providers/feature-flag"
+      }
+    },
     "lint": {
       "executor": "@nx/eslint:lint"
     }

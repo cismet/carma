@@ -2,9 +2,11 @@ import React, { useRef, useEffect, useState, useCallback } from "react";
 import type { ReactNode } from "react";
 import type { Pane } from "tweakpane";
 import localForage from "localforage";
+
+import { useFeatureFlags } from "@carma-providers/feature-flag";
+
 import { DebugUiContext } from "./DebugUiContext";
 import { createTweakpane, disposeTweakpane } from "./tweakpane/initPane";
-import { useFeatureFlags } from "@carma-providers/feature-flag";
 
 const eventKeys = ["~", "F1"];
 const localForageKey = "tweakpaneEnabled";
