@@ -1,6 +1,13 @@
 import L from "leaflet";
 import proj4 from "proj4";
-import { useContext, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import { Button, Tooltip } from "antd";
@@ -168,6 +175,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   // TODO: move all these to a custom hook and collect all calls to updateFeatureInfo there
   const [shouldUpdateFeatureInfo, setShouldUpdateFeatureInfo] =
     useState<boolean>(false);
+  const layersIdle = useSelector(getLayersIdle);
 
   const version = getApplicationVersion(versionData);
 
@@ -176,6 +184,13 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const { isDebugMode } = flags;
   const cesiumInitialCameraView = useCesiumInitialCameraFromSearchParams();
   const { isObliqueMode } = useObliqueInitializer(isDebugMode);
+
+  const updateLayersIdleState = useCallback(() => {
+    if (layersIdle) {
+      console.debug("Layers are idle, setting layers idle to false");
+      dispatch(setLayersIdle(false));
+    }
+  }, [layersIdle, dispatch]);
 
   useDispatchSachdatenInfoText();
   const modelSelectionDispatcher = useModelSelectionDispatcher();
@@ -373,13 +388,13 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       createLocationChangeHandler({
         isMode2d,
         onChange: handleTopicMapLocationChange,
-        onAfter: () => dispatch(setLayersIdle(false)),
+        onAfter: updateLayersIdleState,
         onMismatch: () =>
           console.debug(
             "[TopicMap|DEBUG] Location changed handler triggered while in 3D mode"
           ),
       }),
-    [isMode2d, handleTopicMapLocationChange, dispatch]
+    [isMode2d, handleTopicMapLocationChange, updateLayersIdleState]
   );
 
   const onSceneChange = (e: { hashParams: Record<string, string> }) => {

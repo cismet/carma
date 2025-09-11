@@ -172,7 +172,7 @@ export const HashStateProvider: React.FC<{
         keyOrder,
         label: label || "unspecified",
         replace,
-        navigate,
+        //navigate,
       });
 
       const afterRaw = getHashParams();
