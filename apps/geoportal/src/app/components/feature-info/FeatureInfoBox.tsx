@@ -152,7 +152,7 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
       if (selectedFeature?.properties?.headerColor) {
         const color = await parseColor(
           selectedFeature.properties.headerColor,
-          selectedFeature.properties
+          selectedFeature.properties.wmsProps ?? {}
         );
         setHeaderColor(color || "#0078a8");
       } else {
