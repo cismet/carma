@@ -7,12 +7,8 @@ import {
   Math as CesiumMath,
   Ray,
   PerspectiveFrustum,
-  Viewer,
 } from "cesium";
-import {
-  cancelViewerAnimation,
-  type ViewerAnimationMap,
-} from "../utils/viewerAnimationMap";
+import { cancelViewerAnimation } from "../utils/viewerAnimationMap";
 import { cesiumAnimateFov } from "../utils/cesiumAnimateFov";
 import type { CesiumContextType } from "../CesiumContext";
 import { sceneHasTweens } from "../utils/sceneHasTweens";
@@ -36,148 +32,150 @@ const defaultZoomOptions: Required<ZoomOptions> = {
 };
 
 const zoom = (
-  viewer: Viewer,
-  viewerAnimationMap: ViewerAnimationMap,
+  ctx: CesiumContextType,
   isZoomOut = false,
   duration: number,
   moveRateFactor: number
-) => {
-  const scene = viewer.scene;
-  const camera = viewer.camera;
-  let wasCancelled = false;
+): void => {
+  ctx.withViewer((viewer) => {
+    let wasCancelled = false;
+    if (!ctx.viewerAnimationMapRef.current) return;
 
-  if (viewerAnimationMap.get(viewer)) {
-    cancelViewerAnimation(viewer, viewerAnimationMap);
-    wasCancelled = true;
-  }
+    if (ctx.viewerAnimationMapRef.current.get(viewer)) {
+      cancelViewerAnimation(viewer, ctx.viewerAnimationMapRef.current);
+      wasCancelled = true;
+    } // TODO: replace with a public API when one is available to check for ongoing flyTo animations
 
-  // (moved context-based variant below)
+    const camera = viewer.camera;
+    const scene = viewer.scene;
+    const canvas = viewer.canvas;
+    const globe = viewer.scene.globe;
 
-  // undocumented Cesium feature
-  // TODO: replace with a public API when one is available to check for ongoing flyTo animations
+    if (sceneHasTweens(viewer)) {
+      camera.completeFlight();
+      console.debug("completing previous zoom or other flyTo animation");
+      wasCancelled = true;
+    }
 
-  if (sceneHasTweens(viewer)) {
-    camera.completeFlight();
-    console.debug("completing previous zoom or other flyTo animation");
-    wasCancelled = true;
-  }
-
-  const screenCenter = new Cartesian2(
-    scene.canvas.clientWidth / 2,
-    scene.canvas.clientHeight / 2
-  );
-
-  const scenePickPosition = scene.pickPosition(screenCenter);
-
-  const pickRay = camera.getPickRay(screenCenter);
-
-  const cameraPosition = camera.position;
-
-  if (!pickRay) return;
-
-  const globePickPosition = pickRay && scene.globe.pick(pickRay, scene);
-
-  let globeDistance: number | undefined = undefined;
-  if (globePickPosition) {
-    globeDistance = Cartesian3.distance(cameraPosition, globePickPosition);
-  }
-
-  const sceneDistance =
-    scenePickPosition && Cartesian3.distance(cameraPosition, scenePickPosition);
-
-  let distance;
-
-  if (sceneDistance !== undefined) {
-    distance = sceneDistance;
-  } else if (globeDistance !== undefined) {
-    distance = globeDistance - FALLBACK_MIN_DISTANCE_TO_GLOBE;
-  } else {
-    return;
-  }
-
-  const maxDistance = scene.screenSpaceCameraController.maximumZoomDistance;
-  const minDistance = scene.screenSpaceCameraController.minimumZoomDistance;
-  if (maxDistance === undefined || maxDistance === Number.POSITIVE_INFINITY) {
-    console.warn(
-      "Cesium maximumZoomDistance is undefined or infinite, zooming may not work as expected, set maximumZoomDistance in cesium config for ScreenSpaceCameraController"
+    const screenCenter = new Cartesian2(
+      canvas.clientWidth / 2,
+      canvas.clientHeight / 2
     );
-  }
-  if (minDistance === undefined || minDistance === 0) {
-    console.warn(
-      "Cesium minimumZoomDistance is undefined or 0, zooming may not work as expected, set minimumZoomDistance in cesium config for ScreenSpaceCameraController"
-    );
-  }
 
-  let offsetOnRay = isZoomOut
-    ? -distance * moveRateFactor
-    : (distance * 0.5) / moveRateFactor;
+    const scenePickPosition = scene.pickPosition(screenCenter);
 
-  // Clamp to maxDistance
-  if (distance - offsetOnRay > maxDistance) {
-    offsetOnRay = distance - maxDistance;
-  }
+    const pickRay = camera.getPickRay(screenCenter);
 
-  // Clamp to minDistance
-  if (distance - offsetOnRay < minDistance) {
-    offsetOnRay = distance - minDistance;
-  }
+    const cameraPosition = camera.position;
 
-  // Move the camera along the ray
-  const newPosition = Ray.getPoint(pickRay, offsetOnRay, new Cartesian3());
-  camera.flyTo({
-    destination: newPosition,
-    orientation: {
-      heading: camera.heading,
-      pitch: camera.pitch,
-      roll: camera.roll,
-    },
-    duration: duration,
-    easingFunction: wasCancelled
-      ? EasingFunction.QUADRATIC_OUT
-      : EasingFunction.QUADRATIC_IN_OUT,
+    if (!pickRay) return;
+
+    const globePickPosition = pickRay && globe.pick(pickRay, scene);
+
+    let globeDistance: number | undefined = undefined;
+    if (globePickPosition) {
+      globeDistance = Cartesian3.distance(cameraPosition, globePickPosition);
+    }
+
+    const sceneDistance =
+      scenePickPosition &&
+      Cartesian3.distance(cameraPosition, scenePickPosition);
+
+    let distance;
+
+    if (sceneDistance !== undefined) {
+      distance = sceneDistance;
+    } else if (globeDistance !== undefined) {
+      distance = globeDistance - FALLBACK_MIN_DISTANCE_TO_GLOBE;
+    } else {
+      return;
+    }
+
+    const maxDistance = scene.screenSpaceCameraController.maximumZoomDistance;
+    const minDistance = scene.screenSpaceCameraController.minimumZoomDistance;
+    if (maxDistance === undefined || maxDistance === Number.POSITIVE_INFINITY) {
+      console.warn(
+        "Cesium maximumZoomDistance is undefined or infinite, zooming may not work as expected, set maximumZoomDistance in cesium config for ScreenSpaceCameraController"
+      );
+    }
+    if (minDistance === undefined || minDistance === 0) {
+      console.warn(
+        "Cesium minimumZoomDistance is undefined or 0, zooming may not work as expected, set minimumZoomDistance in cesium config for ScreenSpaceCameraController"
+      );
+    }
+
+    let offsetOnRay = isZoomOut
+      ? -distance * moveRateFactor
+      : (distance * 0.5) / moveRateFactor;
+
+    // Clamp to maxDistance
+    if (distance - offsetOnRay > maxDistance) {
+      offsetOnRay = distance - maxDistance;
+    }
+
+    // Clamp to minDistance
+    if (distance - offsetOnRay < minDistance) {
+      offsetOnRay = distance - minDistance;
+    }
+
+    // Move the camera along the ray
+    const newPosition = Ray.getPoint(pickRay, offsetOnRay, new Cartesian3());
+    ctx.withCamera((camera) => {
+      camera.flyTo({
+        destination: newPosition,
+        orientation: {
+          heading: camera.heading,
+          pitch: camera.pitch,
+          roll: camera.roll,
+        },
+        duration: duration,
+        easingFunction: wasCancelled
+          ? EasingFunction.QUADRATIC_OUT
+          : EasingFunction.QUADRATIC_IN_OUT,
+      });
+    });
   });
-  return;
 };
 
 const fovZoom = (
   ctx: CesiumContextType,
-  viewer: Viewer,
-  viewerAnimationMap: ViewerAnimationMap,
   zoomIn: boolean,
   duration: number,
   moveRateFactor: number,
   maxFov: number = CesiumMath.toRadians(120),
   minFov: number = CesiumMath.toRadians(5)
 ) => {
-  if (viewerAnimationMap.get(viewer)) {
-    cancelViewerAnimation(viewer, viewerAnimationMap);
-  }
-  if (!(viewer.camera.frustum instanceof PerspectiveFrustum)) {
-    console.debug("Camera frustum is not PerspectiveFrustum");
-    return;
-  }
+  const hasViewer = ctx.withViewer((viewer) => {
+    cancelViewerAnimation(viewer, ctx.viewerAnimationMapRef.current);
+  });
+  if (!hasViewer) return;
+  ctx.withCamera((camera) => {
+    if (!(camera.frustum instanceof PerspectiveFrustum)) {
+      console.debug("Camera frustum is not PerspectiveFrustum");
+      return;
+    }
 
-  if (!viewer.camera.frustum.fov) return;
+    if (!camera.frustum.fov) return;
 
-  const startFov = viewer.camera.frustum.fov;
+    const startFov = camera.frustum.fov;
 
-  const fovChange = moveRateFactor * FOV_MOVERATE_FACTOR;
+    const fovChange = moveRateFactor * FOV_MOVERATE_FACTOR;
 
-  const newFov = startFov * (zoomIn ? 1 + fovChange : 1 - fovChange);
+    const newFov = startFov * (zoomIn ? 1 + fovChange : 1 - fovChange);
 
-  const targetFov = Math.max(Math.min(newFov, maxFov), minFov);
+    const targetFov = Math.max(Math.min(newFov, maxFov), minFov);
 
-  cesiumAnimateFov(ctx, {
-    startFov,
-    targetFov,
-    duration,
-    easingFunction: EasingFunction.SINUSOIDAL_IN_OUT,
+    cesiumAnimateFov(ctx, {
+      startFov,
+      targetFov,
+      duration,
+      easingFunction: EasingFunction.SINUSOIDAL_IN_OUT,
+    });
   });
 };
 
 /**
- * @param viewerRef - reference to the Cesium Viewer component
- * @param moveRateFactor - The factor by which the camera's default zoom/moveRate increment be amplified by, default 1.
+ * @param ctx - Cesium context
  * @param zoomOptions - Options for the zoom animation.
  * @param zoomOptions.fovMode - The mode of the zoom animation. Default is "zoom".
  * @param zoomOptions.duration - The duration of the animation in milliseconds. Default is 0.5.
@@ -188,8 +186,6 @@ export function useZoomControls(
   ctx: CesiumContextType,
   zoomOptions: Partial<ZoomOptions> = {}
 ) {
-  const viewer = ctx.viewerRef.current;
-  const viewerAnimationMap = ctx.viewerAnimationMapRef.current;
   const { duration, fovMode, moveRateFactor } = {
     ...defaultZoomOptions,
     ...zoomOptions,
@@ -197,38 +193,22 @@ export function useZoomControls(
 
   const handleZoomIn = useCallback(
     (event: React.MouseEvent) => {
-      if (!viewer || !viewerAnimationMap) return;
       event.preventDefault();
       fovMode
-        ? fovZoom(
-            ctx,
-            viewer,
-            viewerAnimationMap,
-            false,
-            duration * 1000,
-            moveRateFactor
-          )
-        : zoom(viewer, viewerAnimationMap, false, duration, moveRateFactor);
+        ? fovZoom(ctx, false, duration * 1000, moveRateFactor)
+        : zoom(ctx, false, duration, moveRateFactor);
     },
-    [ctx, viewer, viewerAnimationMap, duration, moveRateFactor, fovMode]
+    [ctx, duration, moveRateFactor, fovMode]
   );
 
   const handleZoomOut = useCallback(
     (event: React.MouseEvent) => {
-      if (!viewer || !viewerAnimationMap) return;
       event.preventDefault();
       fovMode
-        ? fovZoom(
-            ctx,
-            viewer,
-            viewerAnimationMap,
-            true,
-            duration * 1000,
-            moveRateFactor
-          )
-        : zoom(viewer, viewerAnimationMap, true, duration, moveRateFactor);
+        ? fovZoom(ctx, true, duration * 1000, moveRateFactor)
+        : zoom(ctx, true, duration, moveRateFactor);
     },
-    [ctx, viewer, viewerAnimationMap, duration, moveRateFactor, fovMode]
+    [ctx, duration, moveRateFactor, fovMode]
   );
 
   return { handleZoomIn, handleZoomOut };

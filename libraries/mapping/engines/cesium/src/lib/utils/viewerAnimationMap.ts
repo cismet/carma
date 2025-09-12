@@ -20,8 +20,9 @@ export const initViewerAnimationMap = (): ViewerAnimationMap =>
 
 export const cancelViewerAnimation = (
   viewer: Viewer,
-  viewerAnimationMap: ViewerAnimationMap
+  viewerAnimationMap: ViewerAnimationMap | null
 ) => {
+  if (!viewerAnimationMap) return;
   const animationEntry = viewerAnimationMap.get(viewer);
   if (animationEntry) {
     cancelAnimationFrame(animationEntry.id);

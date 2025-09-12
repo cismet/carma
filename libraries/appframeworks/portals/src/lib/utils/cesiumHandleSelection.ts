@@ -291,7 +291,6 @@ export const cesiumHandleSelection = async (
     return;
   }
 
-  const { scene } = viewer;
   const { mapOptions, duration, durationFactor = 0.2 } = options;
 
   const idSelected = options.selectedPolygonId ?? "selected-polygon";
@@ -308,9 +307,11 @@ export const cesiumHandleSelection = async (
   // cleanup previous selection
   // todo only remove polygons, try to update existing entities for marker and polylines
   if (entityData) removeCesiumMarker(ctx, entityData);
-  viewer.entities.removeById(idSelected);
-  //viewer.entities.removeById(INVERTED_SELECTED_POLYGON_ID);
-  removeGroundPrimitiveById(viewer, idInverted);
+  ctx.withEntities((entities, viewer) => {
+    entities.removeById(idSelected);
+    removeGroundPrimitiveById(viewer, idInverted);
+  });
+
   ctx.requestRender();
 
   const posCarto = Cartographic.fromDegrees(pos.lon, pos.lat, 0);
