@@ -50,9 +50,10 @@ export const useInitializeViewer = (
 ) => {
   const {
     viewerRef,
+    isValidViewer,
     isViewerReady,
-    setIsViewerReady,
     shouldSuspendCameraLimitersRef,
+    withScene,
   } = useCesiumContext();
   const home = useSelector(selectViewerHome);
   const homeOffset = useSelector(selectViewerHomeOffset);
@@ -95,7 +96,7 @@ export const useInitializeViewer = (
     if (containerRef?.current) {
       try {
         // Reuse existing viewer if it exists and isn't destroyed
-        if (viewerRef.current && !viewerRef.current.isDestroyed()) {
+        if (isValidViewer()) {
           console.debug("HOOK: [CESIUM] Reusing existing viewer instance");
           return;
         }
@@ -111,21 +112,18 @@ export const useInitializeViewer = (
         viewerRef.current = viewer;
 
         const handlePostRender = () => {
-          if (
-            viewerRef.current &&
-            !viewerRef.current.isDestroyed() &&
-            viewerRef.current.canvas.width > 0 &&
-            viewerRef.current.canvas.height > 0
-          ) {
-            setIsViewerReady(true);
-            viewer.scene.postRender.removeEventListener(handlePostRender);
-            postRenderHandlerMap.delete(viewer);
-          }
+          withScene((scene, viewer) => {
+            if (viewer.canvas.width > 0 && viewer.canvas.height > 0) {
+              setIsViewerReady(true);
+              scene.postRender.removeEventListener(handlePostRender);
+              postRenderHandlerMap.delete(viewer);
+            }
+          });
         };
 
         const handleValidCameraPosition = () => {
           if (shouldSuspendCameraLimitersRef?.current) return;
-          if (viewerRef.current && viewerRef.current.camera && home) {
+          if (isValidViewer() && home) {
             const camera = viewerRef.current.camera;
             const isValidWorldCoordinate = validateWorldCoordinate(
               camera,
@@ -163,24 +161,27 @@ export const useInitializeViewer = (
           }
         };
 
-        viewer.scene.preUpdate.addEventListener(handleValidCameraPosition);
-        preUpdateHandlerMap.set(viewer, handleValidCameraPosition);
+        withScene((scene, viewer) => {
+          scene.preUpdate.addEventListener(handleValidCameraPosition);
+          preUpdateHandlerMap.set(viewer, handleValidCameraPosition);
 
-        viewer.scene.postRender.addEventListener(handlePostRender);
-        postRenderHandlerMap.set(viewer, handlePostRender);
+          scene.postRender.addEventListener(handlePostRender);
+          postRenderHandlerMap.set(viewer, handlePostRender);
+        });
       } catch (error) {
         console.error("Error initializing viewer:", error);
       }
     }
     return () => {
       // Only cleanup listeners, don't destroy viewer to allow reuse
-      if (viewerRef.current && !viewerRef.current.isDestroyed()) {
+      if (!isValidViewer()) {
         // cleanup listeners
         const handlePostRender = postRenderHandlerMap.get(viewerRef.current);
-        if (handlePostRender && viewerRef.current.scene) {
-          viewerRef.current.scene.postRender.removeEventListener(
-            handlePostRender
-          );
+        if (handlePostRender) {
+          // cleanup for ref not for callback
+            viewerRef.current.scene.postRender.removeEventListener(
+              handlePostRender
+            );
           postRenderHandlerMap.delete(viewerRef.current);
         }
 
@@ -204,14 +205,15 @@ export const useInitializeViewer = (
     viewerRef,
     home,
     maxZoom,
-    setIsViewerReady,
     shouldSuspendCameraLimitersRef,
+    isValidViewer,
+    isViewerReady,
+    withScene,
   ]);
 
   useEffect(() => {
     console.debug("HOOK: useInitializeViewer useEffect scene settings");
-    if (viewerRef.current) {
-      const scene: Scene = viewerRef.current.scene;
+    withScene((scene, viewer) => {
       const sscc: ScreenSpaceCameraController =
         scene.screenSpaceCameraController;
 
@@ -224,14 +226,12 @@ export const useInitializeViewer = (
       sscc.enableCollisionDetection = enableCollisionDetection;
       sscc.minimumZoomDistance = minZoom ?? 1;
       sscc.maximumZoomDistance = maxZoom ?? Infinity;
-    }
-  }, [viewerRef, isSecondaryStyle, maxZoom, minZoom, enableCollisionDetection]);
+    });
+  }, [withScene, isSecondaryStyle, maxZoom, minZoom, enableCollisionDetection]);
 
   useEffect(() => {
     console.debug("HOOK: useInitializeViewer position", initialCameraView);
-    if (viewerRef.current && isViewerReady && initialCameraView !== null) {
-      const viewer = viewerRef.current;
-
+    if (ctx.isViewerReady && initialCameraView !== null) {
       if (!home || !homeOffset) {
         console.warn(
           "HOOK: [2D3D|CESIUM|CAMERA] initViewer has no home or homeOffset set, please provide them"
@@ -247,9 +247,11 @@ export const useInitializeViewer = (
       }
 
       const resetToHome = () => {
-        viewer.camera.lookAt(home, homeOffset);
-        viewer.camera.flyToBoundingSphere(new BoundingSphere(home, 500), {
-          duration: 2,
+        withCamera((camera) => {
+          camera.lookAt(home, homeOffset);
+          camera.flyToBoundingSphere(new BoundingSphere(home, 500), {
+            duration: 2,
+          });
         });
       };
 
@@ -280,9 +282,10 @@ export const useInitializeViewer = (
             0
           );
 
-          if (viewer.camera.frustum instanceof PerspectiveFrustum) {
-            viewer.camera.frustum.fov = fov ?? Math.PI / 4;
-          }
+          withCamera((camera) => {
+            if (camera.frustum instanceof PerspectiveFrustum) {
+              camera.frustum.fov = fov ?? Math.PI / 4;
+            }
 
           if (isValidDestination) {
             console.debug(
@@ -305,13 +308,12 @@ export const useInitializeViewer = (
               home
             );
           }
-        }
+        });
         console.info(
           "Cesium Viewer initialized with default home position",
           home
         );
         resetToHome();
-      }
       initialViewSetMap.set(viewer, true);
     }
   }, [

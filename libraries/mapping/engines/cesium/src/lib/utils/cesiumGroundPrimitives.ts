@@ -2,8 +2,7 @@ import {
   Cartesian3,
   GroundPrimitive,
   PolygonHierarchy,
-  Viewer,
-  Model,
+  type Scene,
 } from "cesium";
 
 export const polygonHierarchyFromPolygonCoords = (
@@ -44,10 +43,10 @@ export const invertedPolygonHierarchy = (
 ) => polygonHierarchyFromPolygonCoords([outerPolygon, polygon]);
 
 export function getGroundPrimitiveById(
-  viewer: Viewer,
+  scene: Scene,
   id: string
 ): GroundPrimitive | null {
-  const groundPrimitives = viewer.scene.groundPrimitives;
+  const groundPrimitives = scene.groundPrimitives;
 
   for (let i = 0; i < groundPrimitives.length; ++i) {
     const primitive = groundPrimitives.get(i);
@@ -70,8 +69,8 @@ export function getGroundPrimitiveById(
   return null;
 }
 
-export function removeGroundPrimitiveById(viewer: Viewer, id: string): boolean {
-  const primitive = getGroundPrimitiveById(viewer, id);
-  primitive && viewer.scene.groundPrimitives.remove(primitive);
+export function removeGroundPrimitiveById(scene: Scene, id: string): boolean {
+  const primitive = getGroundPrimitiveById(scene, id);
+  primitive && scene.groundPrimitives.remove(primitive);
   return false;
 }

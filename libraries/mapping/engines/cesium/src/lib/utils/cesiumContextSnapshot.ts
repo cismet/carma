@@ -1,4 +1,4 @@
-import { Cartographic, Math as CesiumMath } from "cesium";
+import { Cartographic, Math as CesiumMath, type Viewer } from "cesium";
 import type { CesiumContextType } from "../CesiumContext";
 
 export type CesiumContextSnapshot = Readonly<
@@ -32,22 +32,50 @@ export function snapshotCesiumContext(
   cesium: CesiumContextType
 ): CesiumContextSnapshot {
   try {
-    const {
-      viewerRef,
-      terrainProviderRef,
-      surfaceProviderRef,
-      imageryLayerRef,
-      tilesetsRefs,
-      isViewerReady,
-    } = cesium;
+    const { isViewerReady } = cesium;
 
-    const v = viewerRef.current;
+    let v: Viewer | undefined;
+    cesium.withViewer((viewer) => {
+      v = viewer;
+    });
+    if (!v) {
+      return {
+        isViewerReady,
+        viewerPresent: false,
+        providers: { imageryLayer: "none" },
+        tilesets: { primary: { ready: false }, secondary: { ready: false } },
+        snapshotFailed: true,
+      } as CesiumContextSnapshot;
+    }
+
     const cam = v?.camera;
     const scene = v?.scene;
     const carto = cam ? Cartographic.fromCartesian(cam.position) : undefined;
     const lon = carto ? CesiumMath.toDegrees(carto.longitude) : undefined;
     const lat = carto ? CesiumMath.toDegrees(carto.latitude) : undefined;
     const height = carto ? carto.height : undefined;
+
+    let terrainProvider;
+    let surfaceProvider;
+    let imageryLayer;
+    let tilesetPrimary;
+    let tilesetSecondary;
+
+    cesium.withTerrainProvider((provider) => {
+      terrainProvider = provider;
+    });
+    cesium.withSurfaceProvider((provider) => {
+      surfaceProvider = provider;
+    });
+    cesium.withImageryLayer((layer) => {
+      imageryLayer = layer;
+    });
+    cesium.withPrimaryTileset((tileset) => {
+      tilesetPrimary = tileset;
+    });
+    cesium.withSecondaryTileset((tileset) => {
+      tilesetSecondary = tileset;
+    });
 
     return {
       isViewerReady,
@@ -67,30 +95,18 @@ export function snapshotCesiumContext(
           roll: cam.roll != null ? CesiumMath.toDegrees(cam.roll) : undefined,
         } as const),
       providers: {
-        terrainProvider: terrainProviderRef.current?.constructor?.name,
-        surfaceProvider: surfaceProviderRef.current?.constructor?.name,
-        imageryLayer: imageryLayerRef.current ? "present" : "none",
+        terrainProvider: terrainProvider?.constructor?.name,
+        surfaceProvider: surfaceProvider?.constructor?.name,
+        imageryLayer: imageryLayer ? "present" : "none",
       },
       tilesets: {
         primary: {
-          ready: Boolean(
-            (tilesetsRefs.primaryRef.current as unknown as { ready?: boolean })
-              ?.ready
-          ),
-          url: (tilesetsRefs.primaryRef.current as unknown as { url?: string })
-            ?.url,
+          ready: Boolean(tilesetPrimary?.ready),
+          url: tilesetPrimary?.url,
         },
         secondary: {
-          ready: Boolean(
-            (
-              tilesetsRefs.secondaryRef.current as unknown as {
-                ready?: boolean;
-              }
-            )?.ready
-          ),
-          url: (
-            tilesetsRefs.secondaryRef.current as unknown as { url?: string }
-          )?.url,
+          ready: Boolean(tilesetSecondary?.ready),
+          url: tilesetSecondary?.url,
         },
       },
     } as const;

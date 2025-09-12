@@ -44,7 +44,7 @@ export const useOnSceneChange = (
     isMode2d?: boolean
   ) => void
 ) => {
-  const { viewerRef } = useCesiumContext();
+  const ctx = useCesiumContext();
   const isSecondaryStyle = useSelector(selectShowSecondaryTileset);
   const isMode2d = useSelector(selectViewerIsMode2d);
   const isTransitioning = useSelector(selectViewerIsTransitioning);
@@ -54,17 +54,22 @@ export const useOnSceneChange = (
 
   useEffect(() => {
     // on changes to mode or style
-    const viewer = viewerRef.current;
     if (isTransitioning) {
       return;
     }
-    if (viewer && viewer.camera && !isMode2d) {
+    if (ctx.isValidViewer() && !isMode2d) {
       console.debug(
         "HOOK: update Hash, route or style changed",
         isSecondaryStyle
       );
       if (onSceneChange) {
-        const cameraState = encodeCesiumCamera(viewer.camera);
+        let cameraState: StringifiedCameraState | null = null;
+        ctx.withCamera((camera) => {
+          cameraState = encodeCesiumCamera(camera);
+        });
+        if (cameraState === null) {
+          return;
+        }
         const hashParams = toHashParams(cameraState, {
           isSecondaryStyle,
           isMode2d,
@@ -76,23 +81,29 @@ export const useOnSceneChange = (
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewerRef, isMode2d, isSecondaryStyle, isTransitioning]);
+  }, [ctx, isMode2d, isSecondaryStyle, isTransitioning]);
 
   useEffect(() => {
     // update hash hook
-    const viewer = viewerRef.current;
     if (isTransitioning) {
       return;
     }
 
-    if (viewer && viewer.camera) {
+    if (ctx.isValidViewer()) {
       console.debug(
         "HOOK: [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to update hash"
       );
       const moveEndListener = async () => {
         // let TopicMap/leaflet handle the view change in 2d Mode
-        if (viewer.camera && viewer.camera.position && !isMode2d) {
-          const camDeg = cameraToCartographicDegrees(viewer.camera);
+        let proceed = false;
+        let camDeg: { latitude: number; longitude: number; height: number } | undefined;
+        ctx.withCamera((camera) => {
+          proceed = Boolean(camera && camera.position && !isMode2d);
+          if (proceed) {
+            camDeg = cameraToCartographicDegrees(camera);
+          }
+        });
+        if (proceed && camDeg) {
           console.debug(
             "LISTENER: Cesium moveEndListener encode viewer to hash",
             isSecondaryStyle,
@@ -100,7 +111,13 @@ export const useOnSceneChange = (
           );
 
           if (onSceneChange) {
-            const cameraState = encodeCesiumCamera(viewer.camera);
+            let cameraState: StringifiedCameraState | null = null;
+            ctx.withCamera((camera) => {
+              cameraState = encodeCesiumCamera(camera);
+            });
+            if (cameraState === null ) {
+              return;
+            }
             const hashParams = toHashParams(cameraState, {
               isSecondaryStyle,
               isMode2d,
@@ -111,15 +128,20 @@ export const useOnSceneChange = (
           }
         }
       };
-      viewer.camera.moveEnd.addEventListener(moveEndListener);
+      ctx.withCamera((camera) => {
+        camera.moveEnd.addEventListener(moveEndListener);
+      });
       return () => {
         // clear hash on unmount
         // onSceneChange && onSceneChange({ hashParams: clear3dOnlyHashParams });
-        !viewer.isDestroyed() &&
-          viewer.camera.moveEnd.removeEventListener(moveEndListener);
+        ctx.withViewer((viewer) => {
+          if (!viewer.isDestroyed()) {
+            viewer.camera.moveEnd.removeEventListener(moveEndListener);
+          }
+        });
       };
     }
-  }, [viewerRef, isSecondaryStyle, isMode2d, onSceneChange, isTransitioning]);
+  }, [ctx, isSecondaryStyle, isMode2d, onSceneChange, isTransitioning]);
 };
 
 export default useOnSceneChange;

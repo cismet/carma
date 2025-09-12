@@ -22,6 +22,7 @@ import { setLeafletView } from "../utils/leafletHelpers";
 import { leafletToCesium } from "../utils/leafletToCesium";
 import { pickViewerCanvasCenter } from "../utils/pickers";
 import { cesiumCenterPixelSizeToLeafletZoom } from "../utils/pixels";
+import { isValidViewer } from '../utils/viewer';
 
 type TransitionOptions = {
   onComplete?: (isTo2d: boolean) => void;
@@ -38,7 +39,7 @@ export const useMapTransition = ({
   const topicMapContext = useContext<typeof TopicMapContext>(TopicMapContext);
   const { realRoutedMapRef: routedMapRef } = topicMapContext;
   const cesiumContext = useCesiumContext();
-  const { viewerRef } = cesiumContext;
+  const { isValidViewer } = cesiumContext;
 
   if (duration === undefined) {
     duration = DEFAULT_MODE_2D_3D_CHANGE_FADE_DURATION;
@@ -49,7 +50,7 @@ export const useMapTransition = ({
 
   const transitionToMode3d = async () => {
     if (
-      !viewerRef.current ||
+      !cesiumContext.isValidViewer() ||
       !routedMapRef.current?.leafletMap?.leafletElement
     ) {
       console.warn("cesium or leaflet not available");
@@ -107,7 +108,7 @@ export const useMapTransition = ({
       console.warn("leaflet not available no transition possible [zoom]");
       return;
     }
-    if (!viewerRef.current) {
+    if (!isValidViewer()) {
       console.warn("cesium not available no transition possible [zoom]");
       return;
     }

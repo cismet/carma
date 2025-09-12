@@ -26,7 +26,6 @@ const createOrUpdateStemline = (
   [pos, groundPos]: Cartographic[],
   options: Partial<PolylineConfig> = {}
 ) => {
-  const viewer = ctx.viewerRef.current!;
   const topHeight = pos.height - (options.gap ?? 0);
   const baseHeight = groundPos.height + (options.gap ?? 10);
 
@@ -51,11 +50,15 @@ const createOrUpdateStemline = (
       })
     : colorMaterial;
 
-  const positions = viewer.scene.ellipsoid.cartographicArrayToCartesianArray([
-    posTop,
-    posCenter,
-    posBase,
-  ]);
+  let positions;
+
+  ctx.withScene((scene) => {
+    positions = scene.ellipsoid.cartographicArrayToCartesianArray([
+      posTop,
+      posCenter,
+      posBase,
+    ]);
+  });
   const width = options.width ?? 4;
 
   if (entityData.stemline) {
@@ -82,7 +85,9 @@ const createOrUpdateStemline = (
     const stemlineCollection = new PolylineCollection();
     stemlineCollection.add(polylineTop);
     stemlineCollection.add(polylineBottom);
-    viewer.scene.primitives.add(stemlineCollection);
+    ctx.withScene((scene) => {
+      scene.primitives.add(stemlineCollection);
+    });
     entityData.stemline = stemlineCollection;
   }
 };
@@ -157,13 +162,15 @@ export const addCesiumMarker = async (
     });
   }
 
-  const viewer = ctx.viewerRef.current!;
   entityData.model = markerModel;
-
-  viewer.scene.primitives.add(markerModel);
+  ctx.withScene((scene) => {
+    scene.primitives.add(markerModel);
+  });
 
   const onPreUpdate = () => updateMarker(ctx, entityData);
-  viewer.scene.preUpdate.addEventListener(onPreUpdate);
+  ctx.withScene((scene) => {
+    scene.preUpdate.addEventListener(onPreUpdate);
+  });
   ctx.requestRender();
 
   entityData.onPreUpdate = onPreUpdate;
@@ -172,14 +179,15 @@ export const addCesiumMarker = async (
       "[CESIUM|SCENE|MARKER|LISTENER] cleaning up preUpdate Listener for",
       entityData.id
     );
-    viewer.scene.preUpdate.removeEventListener(onPreUpdate);
+    ctx.withScene((scene) => {
+      scene.preUpdate.removeEventListener(onPreUpdate);
+    });
   };
 
   return entityData;
 };
 
 const updateMarker = (ctx: CesiumCtx, entityData: EntityData) => {
-  const viewer = ctx.viewerRef.current!;
   const {
     modelMatrix,
     animatedModelMatrix,
@@ -201,18 +209,20 @@ const updateMarker = (ctx: CesiumCtx, entityData: EntityData) => {
       let scale;
       let translation = new Cartesian3(0, 0, 0);
       if (fixedScale) {
-        const dist = Cartesian3.distance(
-          viewer.camera.position,
-          new Cartesian3(modelMatrix[12], modelMatrix[13], modelMatrix[14])
-        );
-        if (dist) {
-          scale = new Cartesian3(dist / 1000, dist / 1000, dist / 1000);
-          translation = new Cartesian3(
-            0,
-            0,
-            ((modelConfig.scale ?? 1) * dist) / (1000 * 0.5)
-          ); // offset to scale from bottom
-        }
+        ctx.withCamera((camera) => {
+          const dist = Cartesian3.distance(
+            camera.position,
+            new Cartesian3(modelMatrix[12], modelMatrix[13], modelMatrix[14])
+          );
+          if (dist) {
+            scale = new Cartesian3(dist / 1000, dist / 1000, dist / 1000);
+            translation = new Cartesian3(
+              0,
+              0,
+              ((modelConfig.scale ?? 1) * dist) / (1000 * 0.5)
+            ); // offset to scale from bottom
+          }
+        });
       } else {
         scale = new Cartesian3(1, 1, 1);
       }
@@ -237,26 +247,28 @@ const updateMarker = (ctx: CesiumCtx, entityData: EntityData) => {
         entityData.animatedModelMatrix = updatedModelMatrix;
         entityData.model.modelMatrix = updatedModelMatrix;
       } else if (isCameraFacing) {
-        const cameraHeading = viewer.camera.heading;
-        const rotationQuaternion = Quaternion.fromAxisAngle(
-          Cartesian3.UNIT_Z,
-          -cameraHeading - CesiumMath.PI_OVER_TWO
-        );
-        const rotationMatrix = Matrix4.fromTranslationQuaternionRotationScale(
-          translation,
-          rotationQuaternion,
-          scale
-        );
-        const updatedModelMatrix = Matrix4.clone(modelMatrix);
-        Matrix4.multiply(
-          updatedModelMatrix,
-          rotationMatrix,
-          updatedModelMatrix
-        );
-        entityData.animatedModelMatrix = updatedModelMatrix;
-        if (entityData.model) {
-          entityData.model.modelMatrix = updatedModelMatrix;
-        }
+        ctx.withCamera((camera) => {
+          const cameraHeading = camera.heading;
+          const rotationQuaternion = Quaternion.fromAxisAngle(
+            Cartesian3.UNIT_Z,
+            -cameraHeading - CesiumMath.PI_OVER_TWO
+          );
+          const rotationMatrix = Matrix4.fromTranslationQuaternionRotationScale(
+            translation,
+            rotationQuaternion,
+            scale
+          );
+          const updatedModelMatrix = Matrix4.clone(modelMatrix);
+          Matrix4.multiply(
+            updatedModelMatrix,
+            rotationMatrix,
+            updatedModelMatrix
+          );
+          entityData.animatedModelMatrix = updatedModelMatrix;
+          if (entityData.model) {
+            entityData.model.modelMatrix = updatedModelMatrix;
+          }
+        });
       }
     }
   }
@@ -276,17 +288,20 @@ export const removeCesiumMarker = (
     // remove listeners before removing the primitives
     // so no updates are triggered after the primitive is removed
     data.cleanup && data.cleanup();
-    const viewer = ctx.viewerRef.current!;
     ctx.requestRender();
-    try {
-      data.model && viewer.scene.primitives.remove(data.model);
-    } catch (e) {
-      console.error("[CESIUM|MARKER] error removing model", e);
-    }
-    try {
-      data.stemline && viewer.scene.primitives.remove(data.stemline);
-    } catch (e) {
-      console.error("[CESIUM|MARKER] error removing stemline", e);
-    }
+    ctx.withScene((scene) => {
+      try {
+        data.model && scene.primitives.remove(data.model);
+      } catch (e) {
+        console.error("[CESIUM|MARKER] error removing model", e);
+      }
+    });
+    ctx.withScene((scene) => {
+      try {
+        data.stemline && scene.primitives.remove(data.stemline);
+      } catch (e) {
+        console.error("[CESIUM|MARKER] error removing stemline", e);
+      }
+    });
   }
 };

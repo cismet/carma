@@ -15,7 +15,6 @@ import {
   isValidTileset,
   isValidCesiumTerrainProvider,
   isValidEllipsoidTerrainProvider,
-  isValidImageryProvider,
 } from "../utils/viewer";
 
 export type KnownProviders =

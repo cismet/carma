@@ -9,32 +9,32 @@ import { useTweakpaneCtx } from "@carma-commons/debug";
 import { type ButtonApi } from "tweakpane";
 
 export const useTilesetsDebug = () => {
-  const { tilesetsRefs } = useCesiumContext();
-  const viewer = useCesiumViewer();
-  const tilesetPrimary = tilesetsRefs.primaryRef.current;
-  const tilesetSecondary = tilesetsRefs.secondaryRef.current;
+  const ctx = useCesiumContext();
 
   const buttonRef = useRef<ButtonApi | null>(null);
 
-  useTilesetDebug(tilesetPrimary, "Primary");
-  useTilesetDebug(tilesetSecondary, "Secondary");
+  useTilesetDebug(ctx.withPrimaryTileset, "Primary");
+
+  useTilesetDebug(ctx.withSecondaryTileset, "Secondary");
 
   const { paneCallback } = useTweakpaneCtx();
 
   useEffect(() => {
-    if (paneCallback && viewer && !buttonRef.current) {
-      paneCallback((pane) => {
-        buttonRef.current = pane.addButton({
-          title: "Add Tile Inspector Mixin",
+    ctx.withViewer((viewer) => {
+      if (paneCallback && !buttonRef.current) {
+        paneCallback((pane) => {
+          buttonRef.current = pane.addButton({
+            title: "Add Tile Inspector Mixin",
+          });
+          buttonRef.current.on("click", () => {
+            viewer.extend(viewerCesium3DTilesInspectorMixin);
+            buttonRef.current?.dispose();
+          });
         });
-        buttonRef.current.on("click", () => {
-          viewer.extend(viewerCesium3DTilesInspectorMixin);
-          buttonRef.current?.dispose();
-        });
-      });
-    }
+      }
+    });
     // Dependencies include all variables that might affect the condition
-  }, [paneCallback, viewer]);
+  }, [ctx, paneCallback]);
 
   return null; // This hook does not return any UI components
 };

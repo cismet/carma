@@ -189,14 +189,6 @@ export const CesiumContextProvider = ({
     () => ({
       viewerRef,
       viewerAnimationMapRef,
-      ellipsoidTerrainProviderRef,
-      terrainProviderRef,
-      surfaceProviderRef,
-      imageryLayerRef,
-      tilesetsRefs: {
-        primaryRef: primaryTilesetRef,
-        secondaryRef: secondaryTilesetRef,
-      },
       shouldSuspendPitchLimiterRef,
       shouldSuspendCameraLimitersRef,
       isViewerReady,
@@ -217,14 +209,7 @@ export const CesiumContextProvider = ({
       withCamera: (cb) => withViewer((viewer) => cb(viewer.camera, viewer)),
       withCanvas: (cb) => withViewer((viewer) => cb(viewer.canvas, viewer)),
       withScene: (cb) => withViewer((viewer) => cb(viewer.scene, viewer)),
-      withEntities: (cb) =>
-        withViewer((viewer) => {
-          if (viewer.entities && viewer.entities.values.length > 0) {
-            cb(viewer.entities, viewer);
-            return true;
-          }
-          return false;
-        }),
+      withEntities: (cb) => withViewer((viewer) => cb(viewer.entities, viewer)),
       withImageryLayer: (cb) =>
         withImageryLayerRef(imageryLayerRef, (imageryLayer, viewer) =>
           cb(imageryLayer, viewer)
