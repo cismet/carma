@@ -38,6 +38,7 @@ import LoadingInfoBox from "./LoadingInfoBox";
 import versionData from "../../../version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
 import { InfoBox, utils } from "@carma-appframeworks/portals";
+import { parseColor } from "../../helper/color";
 
 interface InfoBoxProps {
   pos?: [number, number];
@@ -47,6 +48,7 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
   const [open, setOpen] = useState(false);
   const [shouldRenderLoadingInfobox, setShouldRenderLoadingInfobox] =
     useState(false);
+  const [headerColor, setHeaderColor] = useState<string>("");
   const dispatch = useDispatch();
 
   const loadingFeatureInfo = useSelector(getLoading);
@@ -145,6 +147,20 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
     if (selectedFeature && selectedFeature.properties.wmsProps) {
       console.log("feature properties:", selectedFeature.properties.wmsProps);
     }
+
+    const updateHeaderColor = async () => {
+      if (selectedFeature?.properties?.headerColor) {
+        const color = await parseColor(
+          selectedFeature.properties.headerColor,
+          selectedFeature.properties
+        );
+        setHeaderColor(color || "#0078a8");
+      } else {
+        setHeaderColor("#0078a8");
+      }
+    };
+
+    updateHeaderColor();
   }, [selectedFeature]);
 
   if (loadingFeatureInfo && shouldRenderLoadingInfobox)
@@ -185,6 +201,10 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
 
   const Modal = additionalInfoFactory(selectedFeature?.properties?.modal);
 
+  if (!headerColor) {
+    return <></>;
+  }
+
   return (
     <>
       <InfoBox
@@ -192,11 +212,7 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
         currentFeature={selectedFeature}
         hideNavigator={true}
         {...selectedFeature?.properties}
-        headerColor={
-          selectedFeature?.properties.headerColor
-            ? selectedFeature.properties.headerColor
-            : "#0078a8"
-        }
+        headerColor={headerColor}
         title={
           selectedFeature?.properties?.title?.includes("undefined")
             ? undefined
