@@ -540,44 +540,20 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     ctx,
   ]);
 
-  // Bootstrap selection using camera.changed for a short window after settle in oblique mode
-  // This captures any late camera changes from setView/flyTo and avoids requiring user movement
+  // Single source of truth: trigger nearest-image refresh based on orbitPoint changes after settle
   useEffect(() => {
     if (
       !isObliqueMode ||
       !ctx.isViewerReady ||
       !isInitialCameraSettled ||
-      typeof selectedImageRefresh !== "function"
+      typeof selectedImageRefresh !== "function" ||
+      !orbitPoint
     ) {
       return;
     }
-    let detach: (() => void) | null = null;
-    ctx.withViewer((viewer) => {
-      let remaining = 20;
-      const handler = () => {
-        if (remaining-- <= 0) {
-          viewer.camera.changed.removeEventListener(handler);
-          detach = null;
-          return;
-        }
-        // Debug: bootstrap refresh on camera change
-        // eslint-disable-next-line no-console
-        console.debug("[OBLQ|BOOTSTRAP] camera.changed -> refresh(force)");
-        selectedImageRefresh({ immediate: true, force: true });
-      };
-      viewer.camera.changed.addEventListener(handler);
-      detach = () => viewer.camera.changed.removeEventListener(handler);
-    });
-    return () => {
-      if (detach) detach();
-    };
-  }, [
-    isObliqueMode,
-    ctx,
-    ctx.isViewerReady,
-    isInitialCameraSettled,
-    selectedImageRefresh,
-  ]);
+    // Use debounced behavior inside refreshSearch; no force here during normal operation
+    selectedImageRefresh();
+  }, [isObliqueMode, ctx, ctx.isViewerReady, isInitialCameraSettled, orbitPoint, selectedImageRefresh]);
 
   // Once a nearest image exists and the viewer is ready, retrigger render twice (100ms apart)
   // to ensure derived visuals (e.g., footprint outline) become visible without interaction
