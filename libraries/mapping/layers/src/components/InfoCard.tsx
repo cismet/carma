@@ -395,7 +395,7 @@ const InfoCard = ({
                 <div>
                   <label
                     htmlFor="service"
-                    className="font-semibold text-lg pt-1"
+                    className="font-semibold text-lg pt-2 mb-1"
                   >
                     Kategorie
                     <span className="text-red-500"> *</span>
@@ -416,14 +416,18 @@ const InfoCard = ({
                 }
                 return (
                   <Fragment key={`description_${i}`}>
-                    <h5 className="font-semibold text-lg">
+                    <label
+                      htmlFor={description.title}
+                      className="font-semibold text-lg mb-1 pt-2"
+                    >
                       {description.title}
                       {editCollection && (
                         <span className="text-red-500"> *</span>
                       )}
-                    </h5>
+                    </label>
                     {editCollection ? (
                       <Input.TextArea
+                        id={description.title}
                         value={
                           editedDescriptions[description.title] !== undefined
                             ? editedDescriptions[description.title]
@@ -452,7 +456,7 @@ const InfoCard = ({
                 <>
                   <div className="flex gap-6 items-center">
                     <div>
-                      <h5 className="font-semibold text-lg pt-1">
+                      <h5 className="font-semibold text-lg pt-2 mb-1">
                         Kartenebenen
                         <Tooltip
                           title={
@@ -538,7 +542,7 @@ const InfoCard = ({
                   <br />
                   <label
                     htmlFor="thumbnail"
-                    className="font-semibold text-lg pt-1"
+                    className="font-semibold text-lg pt-2 mb-1"
                   >
                     Vorschaubild
                     <span className="text-red-500"> *</span>
@@ -574,7 +578,10 @@ const InfoCard = ({
                       ]}
                     />
                   </div>
-                  <label htmlFor="tags" className="font-semibold text-lg pt-1">
+                  <label
+                    htmlFor="tags"
+                    className="font-semibold text-lg pt-2 mb-1"
+                  >
                     Schlüsselwörter
                   </label>
                   <div className="flex items-center gap-2">
