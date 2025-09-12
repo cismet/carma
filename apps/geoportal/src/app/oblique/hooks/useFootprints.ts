@@ -277,7 +277,6 @@ export const useFootprints = (debug = false): void => {
         outlineEntityRef.current = outlineEntity;
       });
     }
-    requestRender({ delay: 50, repeat: 2 });
   }, [
     viewerRef,
     isObliqueMode,

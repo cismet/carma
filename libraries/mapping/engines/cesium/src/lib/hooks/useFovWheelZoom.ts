@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { Math as CesiumMath, PerspectiveFrustum, type Viewer } from "cesium";
 import type { CesiumContextType } from "../CesiumContext";
 
@@ -55,7 +55,20 @@ export function useFovWheelZoom(
     [ctx, minFov, maxFov, fovChangeRate]
   );
 
+  // Temporary global wheel blocker while viewer is not yet available.
+  // Prevents native Cesium zoom from triggering on reload before our handler attaches.
+  const pendingBlockerAttachedRef = useRef(false);
+  const pendingWheelBlocker = useCallback(
+    (event: WheelEvent) => {
+      if (!enabled) return;
+      // Block all wheel events while pending to avoid native zoom before handler attaches
+      event.preventDefault();
+    },
+    [enabled]
+  );
+
   const enableWheelZoom = useCallback(() => {
+    let applied = false;
     ctx.withViewer((viewer) => {
       viewer.scene.screenSpaceCameraController.enableZoom = false;
 
@@ -63,13 +76,22 @@ export function useFovWheelZoom(
         viewer.canvas.addEventListener("wheel", handleWheel, {
           passive: false,
         });
-
         viewerWheelHandlers.set(viewer, handleWheel);
       }
+      applied = true;
     });
-  }, [ctx, handleWheel]);
+    // Once applied, remove any pending global blocker
+    if (applied && pendingBlockerAttachedRef.current) {
+      window.removeEventListener("wheel", pendingWheelBlocker, {
+        capture: true as unknown as boolean,
+      } as AddEventListenerOptions);
+      pendingBlockerAttachedRef.current = false;
+    }
+    return applied;
+  }, [ctx, handleWheel, pendingWheelBlocker]);
 
   const disableWheelZoom = useCallback(() => {
+    let applied = false;
     ctx.withViewer((viewer) => {
       if (viewerWheelHandlers.has(viewer)) {
         const handlerToRemove = viewerWheelHandlers.get(viewer);
@@ -81,20 +103,46 @@ export function useFovWheelZoom(
       }
 
       viewer.scene.screenSpaceCameraController.enableZoom = true;
+      applied = true;
     });
+    return applied;
   }, [ctx]);
 
   useEffect(() => {
-    if (!enabled) {
-      disableWheelZoom();
-      return;
-    }
-    enableWheelZoom();
+    let cancelled = false;
+
+    const tryApply = (attemptsLeft: number) => {
+      if (cancelled) return;
+      const ok = enabled ? enableWheelZoom() : disableWheelZoom();
+      if (!ok && attemptsLeft > 0) {
+        // Defer until viewer is available; schedule short retries
+        requestAnimationFrame(() => tryApply(attemptsLeft - 1));
+        // Also nudge render loop in requestRenderMode setups
+        ctx.requestRender({ delay: 50, repeat: 1 });
+        // Attach a temporary global wheel blocker while pending
+        if (enabled && !pendingBlockerAttachedRef.current) {
+          window.addEventListener("wheel", pendingWheelBlocker, {
+            passive: false,
+            capture: true,
+          });
+          pendingBlockerAttachedRef.current = true;
+        }
+      }
+    };
+
+    tryApply(3); // a few quick retries is sufficient for viewer readiness
 
     return () => {
+      cancelled = true;
       disableWheelZoom();
+      if (pendingBlockerAttachedRef.current) {
+        window.removeEventListener("wheel", pendingWheelBlocker, {
+          capture: true as unknown as boolean,
+        } as AddEventListenerOptions);
+        pendingBlockerAttachedRef.current = false;
+      }
     };
-  }, [enabled, enableWheelZoom, disableWheelZoom]);
+  }, [enabled, enableWheelZoom, disableWheelZoom, ctx, pendingWheelBlocker]);
 
   const setEnabled = useCallback(
     (isEnabled: boolean) => {
@@ -110,8 +158,19 @@ export function useFovWheelZoom(
   return {
     handleWheel,
     setEnabled,
-    isEnabled:
-      ctx.withViewer((viewer) => viewerWheelHandlers.has(viewer)) || false,
+    isEnabled: (() => {
+      let flag = false;
+      ctx.withViewer((viewer) => {
+        flag = viewerWheelHandlers.has(viewer);
+      });
+      return flag;
+    })(),
+    pending: (() => {
+      // true while viewer isn't available yet
+      let hasViewer = false;
+      hasViewer = ctx.withViewer(() => {});
+      return !hasViewer;
+    })(),
   };
 }
 
