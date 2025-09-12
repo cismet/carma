@@ -102,7 +102,7 @@ const BaseLayerInfo = () => {
                   label: "Informationen",
                   children: (
                     <div className="h-full overflow-auto flex flex-col">
-                      <h5 className="font-semibold text-lg mb-1">Eignung:</h5>
+                      <h5 className="font-semibold text-lg mb-1">Eignung</h5>
                       <div
                         className="text-base"
                         dangerouslySetInnerHTML={{
@@ -110,7 +110,7 @@ const BaseLayerInfo = () => {
                         }}
                       />
                       <h5 className="font-semibold text-lg mb-1 mt-2">
-                        Inhalt:
+                        Inhalt
                       </h5>
                       <div
                         className="text-base"
