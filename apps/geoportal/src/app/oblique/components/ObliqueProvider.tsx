@@ -200,9 +200,9 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
   const lastFrameIdRef = useRef<number | null>(null);
   const lastKeyRef = useRef<string | null>(null);
   const lastResultsRef = useRef<NearestObliqueImageRecord[] | null>(null);
-  const [isInitialCameraSettled, setIsInitialCameraSettled] = useState(false);
+  const isInitialCameraSettled = ctx.initialCameraSettled === true;
 
-  const orbitPoint = useOrbitPoint(isObliqueMode);
+  const orbitPoint = useOrbitPoint(isObliqueMode && isInitialCameraSettled);
 
   const refreshSearch = useCallback(
     (
@@ -210,6 +210,10 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     ): NearestObliqueImageRecord[] | undefined => {
       const force = !!args?.force;
       if (!isObliqueMode || (suspendSelectionSearch && !force)) {
+        return;
+      }
+      // Do not perform searches on load until initial camera was settled
+      if (!isInitialCameraSettled && !force) {
         return;
       }
       if (!imageRecords || !imageRecords.size || !converter) {
@@ -386,23 +390,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     ]
   );
 
-  // One-shot: mark initial camera as settled on the first camera.changed after viewer is ready
-  useEffect(() => {
-    if (!ctx.isViewerReady || isInitialCameraSettled) return;
-    let detach: (() => void) | null = null;
-    ctx.withViewer((viewer) => {
-      const onChanged = () => {
-        setIsInitialCameraSettled(true);
-        viewer.camera.changed.removeEventListener(onChanged);
-        detach = null;
-      };
-      viewer.camera.changed.addEventListener(onChanged);
-      detach = () => viewer.camera.changed.removeEventListener(onChanged);
-    });
-    return () => {
-      if (detach) detach();
-    };
-  }, [ctx, ctx.isViewerReady, isInitialCameraSettled]);
+  // Initial camera settled is driven by CesiumContextProvider/useInitializeViewer
 
   const performToggleAction = useCallback(() => {
     setIsObliqueMode((prevMode: boolean) => {
@@ -416,6 +404,15 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     () => debounce(performToggleAction, DEBOUNCE_MS, DEBOUNCE_LEADING_EDGE),
     [performToggleAction]
   );
+
+  // When initial camera just settled, clear caches to avoid reusing stale results
+  useEffect(() => {
+    if (isInitialCameraSettled) {
+      lastFrameIdRef.current = null;
+      lastKeyRef.current = null;
+      lastResultsRef.current = null;
+    }
+  }, [isInitialCameraSettled]);
 
   const prefetchSiblingPreview = useCallback(
     (imageId: string, dir: CardinalDirectionEnum) => {
@@ -435,6 +432,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     if (
       imageRecords &&
       isObliqueMode &&
+      isInitialCameraSettled &&
       !lockFootprint &&
       !suspendSelectionSearch &&
       typeof selectedImageRefresh === "function"
@@ -446,6 +444,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
   }, [
     imageRecords,
     isObliqueMode,
+    isInitialCameraSettled,
     selectedImageRefresh,
     lockFootprint,
     suspendSelectionSearch,
@@ -512,9 +511,21 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
         viewer.scene.postRender.addEventListener(handler);
         detach = () => viewer.scene.postRender.removeEventListener(handler);
       });
+
+      // Minimal extra safety: schedule two additional forced refreshes shortly after settle
+      const t1 = setTimeout(
+        () => selectedImageRefresh({ immediate: true, force: true }),
+        150
+      );
+      const t2 = setTimeout(
+        () => selectedImageRefresh({ immediate: true, force: true }),
+        350
+      );
       return () => {
         cancelled = true;
         if (detach) detach();
+        clearTimeout(t1);
+        clearTimeout(t2);
       };
     }
     // We intentionally do not include imageRecords here to avoid multiple triggers
@@ -529,27 +540,29 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     ctx,
   ]);
 
-  // Bootstrap selection using camera.changed for a few frames after reload in oblique mode
-  // This captures initial camera changes from setView/flyTo and avoids requiring user movement
+  // Bootstrap selection using camera.changed for a short window after settle in oblique mode
+  // This captures any late camera changes from setView/flyTo and avoids requiring user movement
   useEffect(() => {
     if (
       !isObliqueMode ||
       !ctx.isViewerReady ||
       !isInitialCameraSettled ||
-      typeof selectedImageRefresh !== "function" ||
-      selectedImage
+      typeof selectedImageRefresh !== "function"
     ) {
       return;
     }
     let detach: (() => void) | null = null;
     ctx.withViewer((viewer) => {
-      let remaining = 10;
+      let remaining = 20;
       const handler = () => {
         if (remaining-- <= 0) {
           viewer.camera.changed.removeEventListener(handler);
           detach = null;
           return;
         }
+        // Debug: bootstrap refresh on camera change
+        // eslint-disable-next-line no-console
+        console.debug("[OBLQ|BOOTSTRAP] camera.changed -> refresh(force)");
         selectedImageRefresh({ immediate: true, force: true });
       };
       viewer.camera.changed.addEventListener(handler);
@@ -564,7 +577,6 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     ctx.isViewerReady,
     isInitialCameraSettled,
     selectedImageRefresh,
-    selectedImage,
   ]);
 
   // Once a nearest image exists and the viewer is ready, retrigger render twice (100ms apart)
@@ -574,6 +586,22 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
       ctx.requestRender({ delay: 500, repeat: 10, repeatInterval: 200 });
     }
   }, [isObliqueMode, ctx, ctx.isViewerReady, selectedImage, lockFootprint]);
+
+  // When initial camera apply starts (settled=false), clear selection and caches to avoid stale state.
+  useEffect(() => {
+    if (ctx.initialCameraSettled === false) {
+      if (selectedImage !== null) setSelectedImage(null);
+      setSelectedImageDistance(null);
+      lastFrameIdRef.current = null;
+      lastKeyRef.current = null;
+      lastResultsRef.current = null;
+    }
+  }, [
+    ctx.initialCameraSettled,
+    selectedImage,
+    setSelectedImage,
+    setSelectedImageDistance,
+  ]);
 
   const value = {
     isObliqueMode,

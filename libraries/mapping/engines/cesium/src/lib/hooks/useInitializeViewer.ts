@@ -57,6 +57,7 @@ export const useInitializeViewer = (
     withScene,
     withCamera,
     withViewer,
+    setInitialCameraSettled,
   } = useCesiumContext();
   const home = useSelector(selectViewerHome);
   const homeOffset = useSelector(selectViewerHomeOffset);
@@ -113,6 +114,9 @@ export const useInitializeViewer = (
         );
         const viewer = new Viewer(containerRef.current, options);
         viewerRef.current = viewer;
+        // Initial state: not started determining yet
+        setInitialCameraSettled(null);
+        console.info("[CESIUM|INIT|SETTLE] state:null (viewer created)");
 
         const handlePostRender = () => {
           withScene((scene, viewer) => {
@@ -207,6 +211,10 @@ export const useInitializeViewer = (
     isValidViewer,
     isViewerReady,
     withScene,
+    setIsViewerReady,
+    withCamera,
+    withViewer,
+    setInitialCameraSettled,
   ]);
 
   useEffect(() => {
@@ -229,7 +237,18 @@ export const useInitializeViewer = (
 
   useEffect(() => {
     console.debug("HOOK: useInitializeViewer position", initialCameraView);
-    if (!isViewerReady || !initialCameraView) return;
+    if (!isViewerReady) return;
+    // Begin determining/applying initial camera (or home fallback if absent)
+    setInitialCameraSettled(false);
+    if (!initialCameraView) {
+      console.info(
+        "[CESIUM|INIT|SETTLE] initialCameraView:absent -> applying home fallback"
+      );
+    } else {
+      console.info(
+        "[CESIUM|INIT|SETTLE] applying:false (begin applying initial view)"
+      );
+    }
     const hasHome = !!home && !!homeOffset;
     if (!hasHome) {
       console.warn(
@@ -245,15 +264,26 @@ export const useInitializeViewer = (
       console.debug(
         "HOOK: [CESIUM|CAMERA] Initial view already set, skipping."
       );
+      // Viewer already has an initial view applied — consider camera settled
+      setInitialCameraSettled(true);
+      console.info(
+        "[CESIUM|INIT|SETTLE] reuse:true -> state:true (already applied)"
+      );
       return;
     }
 
+    let willFlyHome = false;
     const resetToHome = () => {
       if (!hasHome) return;
       withCamera((camera) => {
         camera.lookAt(home, homeOffset);
+        willFlyHome = true;
         camera.flyToBoundingSphere(new BoundingSphere(home, 500), {
           duration: 2,
+          complete: () => {
+            setInitialCameraSettled(true);
+            console.info("[CESIUM|INIT|SETTLE] flyHome:complete -> state:true");
+          },
         });
       });
     };
@@ -272,7 +302,7 @@ export const useInitializeViewer = (
         scene.postRender.addEventListener(enableLimitersNextFrame);
       });
     }
-    if (!isMode2d) {
+    if (!isMode2d && initialCameraView) {
       const { position, heading, pitch, fov } = initialCameraView;
       if (position) {
         const restoredHeight = CesiumMath.clamp(
@@ -323,6 +353,20 @@ export const useInitializeViewer = (
       );
       resetToHome();
     }
+    // If we started a home flyTo, rely on its complete() to mark settled.
+    // Otherwise, mark settled after the next postRender.
+    if (!willFlyHome) {
+      withScene((scene) => {
+        const markSettled = () => {
+          setInitialCameraSettled(true);
+          console.info(
+            "[CESIUM|INIT|SETTLE] postRender -> state:true (applied)"
+          );
+          scene.postRender.removeEventListener(markSettled);
+        };
+        scene.postRender.addEventListener(markSettled);
+      });
+    }
     withViewer((viewer) => initialViewSetMap.set(viewer, true));
   }, [
     isViewerReady,
@@ -333,6 +377,9 @@ export const useInitializeViewer = (
     maxZoom,
     withViewer,
     withCamera,
+    withScene,
+    setInitialCameraSettled,
+    shouldSuspendCameraLimitersRef,
   ]);
 
   useEffect(() => {

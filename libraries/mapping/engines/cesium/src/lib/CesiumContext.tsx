@@ -19,6 +19,12 @@ export interface CesiumContextType {
   shouldSuspendCameraLimitersRef: MutableRefObject<boolean>;
   isViewerReady: boolean;
   setIsViewerReady: (flag: boolean) => void;
+  // null: not started determining; false: determining/applying; true: settled
+  initialCameraSettled: boolean | null;
+  setInitialCameraSettled: (flag: boolean | null) => void;
+  // Monotonic counter that increments each time an initial camera apply sequence starts
+  initialCameraEpoch: number;
+  bumpInitialCameraEpoch: () => void;
   requestRender: (opts?: {
     delay?: number; // ms
     repeat?: number; // times

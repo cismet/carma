@@ -51,6 +51,12 @@ export const CesiumContextProvider = ({
 
   // explicitly trigger re-renders
   const [isViewerReady, setIsViewerReady] = useState<boolean>(false);
+  // Tri-state: null (not started), false (applying), true (settled)
+  const [initialCameraSettled, setInitialCameraSettled] = useState<
+    boolean | null
+  >(null);
+  // Monotonic counter for initial camera applications
+  const [initialCameraEpoch, setInitialCameraEpoch] = useState<number>(0);
 
   const {
     withViewer,
@@ -193,6 +199,10 @@ export const CesiumContextProvider = ({
       shouldSuspendCameraLimitersRef,
       isViewerReady,
       setIsViewerReady,
+      initialCameraSettled,
+      setInitialCameraSettled,
+      initialCameraEpoch,
+      bumpInitialCameraEpoch: () => setInitialCameraEpoch((v) => v + 1),
       // NOTE: Workaround for CesiumGS/cesium#12543 — delay/repeat options exist
       // to schedule additional renders in requestRenderMode when needed. These
       // options should be deprecated once upstream behavior is improved.
@@ -238,6 +248,8 @@ export const CesiumContextProvider = ({
     }),
     [
       isViewerReady,
+      initialCameraSettled,
+      initialCameraEpoch,
       isValidViewer,
       withViewer,
       withImageryLayerRef,
