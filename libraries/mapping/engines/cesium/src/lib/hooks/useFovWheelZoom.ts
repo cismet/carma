@@ -28,7 +28,12 @@ export function useFovWheelZoom(
 
   const handleWheel = useCallback(
     (event: WheelEvent) => {
+      // Block native handlers and SSCC listeners early
       event.preventDefault();
+      event.stopPropagation();
+      if (typeof event.stopImmediatePropagation === "function") {
+        event.stopImmediatePropagation();
+      }
 
       ctx.withCamera((camera) => {
         if (!(camera.frustum instanceof PerspectiveFrustum)) {
@@ -63,6 +68,10 @@ export function useFovWheelZoom(
       if (!enabled) return;
       // Block all wheel events while pending to avoid native zoom before handler attaches
       event.preventDefault();
+      event.stopPropagation();
+      if (typeof event.stopImmediatePropagation === "function") {
+        event.stopImmediatePropagation();
+      }
     },
     [enabled]
   );
@@ -75,6 +84,7 @@ export function useFovWheelZoom(
       if (!viewerWheelHandlers.has(viewer)) {
         viewer.canvas.addEventListener("wheel", handleWheel, {
           passive: false,
+          capture: true,
         });
         viewerWheelHandlers.set(viewer, handleWheel);
       }
@@ -97,7 +107,8 @@ export function useFovWheelZoom(
         const handlerToRemove = viewerWheelHandlers.get(viewer);
         viewer.canvas.removeEventListener(
           "wheel",
-          handlerToRemove as (event: WheelEvent) => void
+          handlerToRemove as (event: WheelEvent) => void,
+          true
         );
         viewerWheelHandlers.delete(viewer);
       }
