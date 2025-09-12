@@ -93,34 +93,37 @@ export const cameraToCartographicDegrees = (camera: Camera) => {
 };
 
 export const getTopDownCameraDeviationAngle = (ctx: CesiumContextType) => {
-  const viewer = ctx.viewerRef.current!;
-  const currentDirection = viewer.camera.direction;
-
-  const internalAngle = Cartesian3.angleBetween(
-    currentDirection,
-    TOP_DOWN_DIRECTION
-  );
-  return Math.abs(internalAngle);
+  let angle = 0;
+  ctx.withCamera((camera) => {
+    const currentDirection = camera.direction;
+    const internalAngle = Cartesian3.angleBetween(
+      currentDirection,
+      TOP_DOWN_DIRECTION
+    );
+    angle = Math.abs(internalAngle);
+  });
+  return angle;
 };
 
 export const getCameraHeightAboveGround = (ctx: CesiumContextType) => {
-  const viewer = ctx.viewerRef.current!;
   const { scenePosition: pos, coordinates } = pickViewerCanvasCenter(ctx, {
     getCoordinates: true,
   });
 
-  let cameraHeightAboveGround: number;
+  let cameraHeightAboveGround = 0;
   let groundHeight: number = 0;
 
   if (defined(pos) && defined(coordinates)) {
     groundHeight = coordinates.height;
-
-    cameraHeightAboveGround =
-      viewer.camera.positionCartographic.height - groundHeight;
+    ctx.withCamera((camera) => {
+      cameraHeightAboveGround =
+        camera.positionCartographic.height - groundHeight;
+    });
   } else {
     console.warn("No ground position found under the camera.");
-
-    cameraHeightAboveGround = viewer.camera.positionCartographic.height;
+    ctx.withCamera((camera) => {
+      cameraHeightAboveGround = camera.positionCartographic.height;
+    });
   }
   return { cameraHeightAboveGround, groundHeight };
 };

@@ -51,7 +51,7 @@ export const StateAwareChildren = () => {
   const conf = config.config;
 
   // CESIUM
-  const { viewerRef, terrainProviderRef, isViewerReady } = useCesiumContext();
+  const { viewerRef, isViewerReady, withTerrainProvider } = useCesiumContext();
   const [cesiumPickedPosition, setCesiumPickedPosition] = useState<
     [number, number] | null
   >(null);
@@ -72,8 +72,7 @@ export const StateAwareChildren = () => {
         if (
           !isViewerReady ||
           !viewerRef.current ||
-          viewerRef.current.isDestroyed() ||
-          !terrainProviderRef.current
+          viewerRef.current.isDestroyed()
         )
           return;
         const { lat, lon } = getWebMercatorInWGS84(
@@ -82,10 +81,14 @@ export const StateAwareChildren = () => {
 
         const cartographic = Cartographic.fromDegrees(lon, lat);
 
-        const [groundPositionCartographic] = await sampleTerrainMostDetailed(
-          terrainProviderRef.current,
-          [cartographic]
-        );
+        let groundPositionCartographic: Cartographic | null = null;
+        await withTerrainProvider(async (provider) => {
+          const [gp] = await sampleTerrainMostDetailed(provider, [
+            cartographic,
+          ]);
+          groundPositionCartographic = gp;
+        });
+        if (!groundPositionCartographic) return;
 
         updateMarkerPosition(
           viewerRef.current,
@@ -99,7 +102,7 @@ export const StateAwareChildren = () => {
   }, [
     isViewerReady,
     viewerRef,
-    terrainProviderRef,
+    withTerrainProvider,
     controlState.featureInfoModeActivated,
     controlState.currentFeatureInfoPosition,
     isMode2d,
@@ -127,7 +130,7 @@ export const StateAwareChildren = () => {
           onCesiumClick(
             click,
             viewer,
-            terrainProviderRef,
+            withTerrainProvider,
             markerEntityRef,
             highlightEntityRef,
             setCesiumPickedPosition
@@ -152,7 +155,7 @@ export const StateAwareChildren = () => {
         viewer.scene.requestRender();
       };
     }
-  }, [viewerRef, terrainProviderRef, controlState.featureInfoModeActivated]);
+  }, [viewerRef, withTerrainProvider, controlState.featureInfoModeActivated]);
 
   // Add effect to cleanup marker when feature info mode is disabled
   useEffect(() => {

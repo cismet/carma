@@ -31,13 +31,13 @@ const slice = createSlice({
     addFeature(state, action: PayloadAction<FeatureInfo>) {
       state.features.push(action.payload);
     },
-    
+
     addCompletedVectorLayer(state, action: PayloadAction<string>) {
       if (!state.completedVectorLayers.includes(action.payload)) {
         state.completedVectorLayers.push(action.payload);
       }
     },
-    
+
     clearCompletedVectorLayers(state) {
       state.completedVectorLayers = [];
     },
@@ -213,6 +213,7 @@ export const getSecondaryInfoBoxElements = (state: RootState) =>
 export const getVectorInfo = (state: RootState) => state.features.vectorInfo;
 export const getVectorInfos = (state: RootState) => state.features.vectorInfos;
 export const getLoading = (state: RootState) => state.features.loading;
-export const getCompletedVectorLayers = (state: RootState) => state.features.completedVectorLayers;
+export const getCompletedVectorLayers = (state: RootState) =>
+  state.features.completedVectorLayers;
 
 export default slice.reducer;

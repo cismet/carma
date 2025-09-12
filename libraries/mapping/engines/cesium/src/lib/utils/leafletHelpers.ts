@@ -24,8 +24,7 @@ export const setLeafletView = async (
     animate = false,
   }: { duration?: number; animate?: boolean } = {}
 ) => {
-  const viewer = ctx.viewerRef.current;
-  if (!viewer || !leafletElement) return;
+  if (!ctx.isValidViewer() || !leafletElement) return;
 
   let zoom = cesiumCenterPixelSizeToLeafletZoom(ctx).value;
   if (zoom === null) {
@@ -45,9 +44,11 @@ export const setLeafletView = async (
     console.warn("zoom is NaN", MIN_2D_ZOOM, zoom);
     zoom = DEFAULT_2D_ZOOM;
   }
-  const { longitude: lng, latitude: lat } = cameraToCartographicDegrees(
-    viewer.camera
-  );
-  console.debug("[2D3D|LEAFLET] setView", { lng, lat, zoom });
-  leafletElement.setView({ lng, lat }, zoom, { duration, animate });
+
+  ctx.withCamera((camera) => {
+    const { longitude: lng, latitude: lat } =
+      cameraToCartographicDegrees(camera);
+    console.debug("[2D3D|LEAFLET] setView", { lng, lat, zoom });
+    leafletElement.setView({ lng, lat }, zoom, { duration, animate });
+  });
 };

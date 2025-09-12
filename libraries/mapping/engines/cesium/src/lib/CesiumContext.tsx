@@ -1,31 +1,30 @@
 import { createContext, MutableRefObject } from "react";
 
-import {
+import type {
+  Camera,
+  Cesium3DTileset,
   CesiumTerrainProvider,
   EllipsoidTerrainProvider,
+  EntityCollection,
   ImageryLayer,
-  Viewer,
-  Cesium3DTileset,
   Scene,
-  Camera,
+  Viewer,
 } from "cesium";
 import { ViewerAnimationMap } from "./utils/viewerAnimationMap";
 
 export interface CesiumContextType {
   viewerRef: MutableRefObject<Viewer | null>;
   viewerAnimationMapRef: MutableRefObject<ViewerAnimationMap | null>;
-  terrainProviderRef: MutableRefObject<CesiumTerrainProvider | null>;
-  surfaceProviderRef: MutableRefObject<CesiumTerrainProvider | null>;
-  imageryLayerRef: MutableRefObject<ImageryLayer | null>;
-  ellipsoidTerrainProviderRef: MutableRefObject<EllipsoidTerrainProvider | null>;
-  tilesetsRefs: {
-    primaryRef: MutableRefObject<Cesium3DTileset | null>;
-    secondaryRef: MutableRefObject<Cesium3DTileset | null>;
-  };
   shouldSuspendPitchLimiterRef: MutableRefObject<boolean>;
   shouldSuspendCameraLimitersRef: MutableRefObject<boolean>;
   isViewerReady: boolean;
   setIsViewerReady: (flag: boolean) => void;
+  // null: not started determining; false: determining/applying; true: settled
+  initialCameraSettled: boolean | null;
+  setInitialCameraSettled: (flag: boolean | null) => void;
+  // Monotonic counter that increments each time an initial camera apply sequence starts
+  initialCameraEpoch: number;
+  bumpInitialCameraEpoch: () => void;
   requestRender: (opts?: {
     delay?: number; // ms
     repeat?: number; // times
@@ -33,13 +32,33 @@ export interface CesiumContextType {
   }) => void;
   // Shorthands for viewer validation
   isValidViewer: () => boolean;
-  withViewer: (cb: (viewer: Viewer) => void) => void;
-  withCamera: (cb: (camera: Camera) => void) => void;
-  withCanvas: (cb: (canvas: HTMLCanvasElement) => void) => void;
-  withScene: (cb: (scene: Scene) => void) => void;
+  withViewer: (cb: (viewer: Viewer) => void) => boolean;
+  withCamera: (cb: (camera: Camera, viewer: Viewer) => void) => boolean;
+  withCanvas: (
+    cb: (canvas: HTMLCanvasElement, viewer: Viewer) => void
+  ) => boolean;
+  withScene: (cb: (scene: Scene, viewer: Viewer) => void) => boolean;
   withEntities: (
-    cb: (entities: NonNullable<Viewer["entities"]>) => void
-  ) => void;
+    cb: (entities: EntityCollection, viewer: Viewer) => void
+  ) => boolean;
+  withImageryLayer: (
+    cb: (imageryLayer: ImageryLayer, viewer: Viewer) => void
+  ) => boolean;
+  withPrimaryTileset: (
+    cb: (tileset: Cesium3DTileset, viewer: Viewer) => void
+  ) => boolean;
+  withSecondaryTileset: (
+    cb: (tileset: Cesium3DTileset, viewer: Viewer) => void
+  ) => boolean;
+  withEllipsoidTerrainProvider: (
+    cb: (provider: EllipsoidTerrainProvider, viewer: Viewer) => void
+  ) => boolean;
+  withTerrainProvider: (
+    cb: (provider: CesiumTerrainProvider, viewer: Viewer) => void
+  ) => boolean;
+  withSurfaceProvider: (
+    cb: (provider: CesiumTerrainProvider, viewer: Viewer) => void
+  ) => boolean;
 }
 
 export const CesiumContext = createContext<CesiumContextType | null>(null);

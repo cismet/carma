@@ -2,6 +2,7 @@ import {
   BoundingSphere,
   Cartesian3,
   Cartographic,
+  CesiumTerrainProvider,
   ClassificationType,
   Color,
   ColorGeometryInstanceAttribute,
@@ -43,28 +44,31 @@ const DEFAULT_CESIUM_PITCH_ADJUST_HEIGHT = 1500; // meters
 const MAX_FLYTO_DURATION = 10; // seconds
 
 const getFullViewDistance = (
-  viewer: Viewer,
+  ctx: CesiumContextType,
   boundingSphere: BoundingSphere,
   margin: number = DEFAULT_BOUNDINGSPHERE_VIEW_MARGIN
 ): number => {
-  const fovY =
-    viewer.camera.frustum instanceof PerspectiveFrustum
-      ? viewer.camera.frustum.fov ?? 1
-      : 1;
+  let distance = 0;
+  ctx.withCamera((camera, viewer) => {
+    const fovY =
+      camera.frustum instanceof PerspectiveFrustum
+        ? camera.frustum.fov ?? 1
+        : 1;
 
-  const aspectRatio = viewer.canvas.clientWidth / viewer.canvas.clientHeight;
+    const aspectRatio = viewer.canvas.clientWidth / viewer.canvas.clientHeight;
 
-  const tanHalfFovY = Math.tan(fovY / 2.0);
-  const tanHalfFovX = tanHalfFovY / aspectRatio;
+    const tanHalfFovY = Math.tan(fovY / 2.0);
+    const tanHalfFovX = tanHalfFovY / aspectRatio;
 
-  // The narrowest dimension corresponds to the smaller FOV angle.
-  // the smaller angle will have the smaller tangent.
-  const tanHalfNarrowestFov = Math.min(tanHalfFovX, tanHalfFovY);
+    // The narrowest dimension corresponds to the smaller FOV angle.
+    // the smaller angle will have the smaller tangent.
+    const tanHalfNarrowestFov = Math.min(tanHalfFovX, tanHalfFovY);
 
-  // To add a margin, make the sphere larger.
-  const effectiveRadius = boundingSphere.radius * (1 + margin);
+    // To add a margin, make the sphere larger.
+    const effectiveRadius = boundingSphere.radius * (1 + margin);
 
-  const distance = effectiveRadius / tanHalfNarrowestFov;
+    distance = effectiveRadius / tanHalfNarrowestFov;
+  });
 
   return distance;
 };
@@ -122,7 +126,6 @@ const updateMarkerPosition = async (
 
 const cesiumLookAtPoint = async (
   ctx: CesiumContextType,
-  viewer: Viewer,
   targetPosition: Cartographic,
   zoom: number,
   cesiumConfig: { pitchAdjustHeight?: number } = {},
@@ -133,8 +136,7 @@ const cesiumLookAtPoint = async (
     useCameraHeight?: boolean;
   } = {}
 ) => {
-  const { scene } = viewer;
-  if (scene) {
+  ctx.withScene((scene) => {
     const currentCenterPos = pickViewerCanvasCenter(ctx).scenePosition;
     const center = Cartographic.toCartesian(targetPosition);
 
@@ -192,11 +194,11 @@ const cesiumLookAtPoint = async (
         options.onComplete && options.onComplete();
       },
     });
-  }
+  });
 };
 
 const handlePolygonSelection = (
-  viewer: Viewer,
+  ctx: CesiumContextType,
   shouldFlyToRef: MutableRefObject<boolean>,
   groundPosition: Cartographic | null,
   polygon: number[][][],
@@ -205,8 +207,6 @@ const handlePolygonSelection = (
   duration: number,
   { isPrimaryStyle }: CesiumOptions
 ) => {
-  const { scene } = viewer;
-
   const polygonEntity = new Entity({
     id: idSelected,
     polygon: {
@@ -247,34 +247,36 @@ const handlePolygonSelection = (
       : ClassificationType.BOTH,
   });
 
-  scene.groundPrimitives.add(invertedGroundPrimitive);
-  viewer.entities.add(polygonEntity);
-  //viewer.entities.add(invertedPolygonEntity);
+  ctx.withScene((scene, viewer) => {
+    scene.groundPrimitives.add(invertedGroundPrimitive);
+    viewer.entities.add(polygonEntity);
+    //viewer.entities.add(invertedPolygonEntity);
 
-  const boundingSphere = getBoundingSphereFromCoordinatesAndHeight(
-    polygon[0],
-    groundPosition?.height
-  );
+    const boundingSphere = getBoundingSphereFromCoordinatesAndHeight(
+      polygon[0],
+      groundPosition?.height
+    );
 
-  const fullViewDistance = getFullViewDistance(viewer, boundingSphere);
-  console.debug(
-    "GAZETTEER: [2D3D|CESIUM|CAMERA] flyTo BoundingSphere",
-    boundingSphere.radius,
-    boundingSphere.center,
-    groundPosition?.height,
-    fullViewDistance,
-    (viewer.camera.frustum as any).fov
-  );
+    const fullViewDistance = getFullViewDistance(ctx, boundingSphere);
+    console.debug(
+      "GAZETTEER: [2D3D|CESIUM|CAMERA] flyTo BoundingSphere",
+      boundingSphere.radius,
+      boundingSphere.center,
+      groundPosition?.height,
+      fullViewDistance,
+      (viewer.camera.frustum as any).fov
+    );
 
-  viewer.camera.flyToBoundingSphere(boundingSphere, {
-    duration,
-    offset: new HeadingPitchRange(0, viewer.camera.pitch, fullViewDistance),
-    complete: () => {
-      shouldFlyToRef.current = false;
-      console.debug(
-        "GAZETTEER: [2D3D|CESIUM|CAMERA] flyToBoundingSphere completed"
-      );
-    },
+    viewer.camera.flyToBoundingSphere(boundingSphere, {
+      duration,
+      offset: new HeadingPitchRange(0, viewer.camera.pitch, fullViewDistance),
+      complete: () => {
+        shouldFlyToRef.current = false;
+        console.debug(
+          "GAZETTEER: [2D3D|CESIUM|CAMERA] flyToBoundingSphere completed"
+        );
+      },
+    });
   });
 };
 export const cesiumHandleSelection = async (
@@ -285,40 +287,49 @@ export const cesiumHandleSelection = async (
   { pos, zoom, polygon }: DerivedGeometries,
   options: HitTriggerOptions
 ) => {
-  const viewer = ctx.viewerRef.current;
-  if (!viewer || viewer.isDestroyed()) {
+  const { isValidViewer, withTerrainProvider, withSurfaceProvider } = ctx;
+  if (!isValidViewer()) {
     console.warn("cesiumLookAt: viewer is not ready or destroyed");
     return;
   }
 
-  const { scene } = viewer;
   const { mapOptions, duration, durationFactor = 0.2 } = options;
 
   const idSelected = options.selectedPolygonId ?? "selected-polygon";
   const idInverted =
     options.invertedSelectedPolygonId ?? "inverted-selected-polygon";
 
-  const {
-    surfaceProviderRef,
-    terrainProviderRef,
-    markerAsset,
-    markerAnchorHeight,
-  } = mapOptions;
+  const { markerAsset, markerAnchorHeight } = mapOptions;
 
   // cleanup previous selection
   // todo only remove polygons, try to update existing entities for marker and polylines
   if (entityData) removeCesiumMarker(ctx, entityData);
-  viewer.entities.removeById(idSelected);
-  //viewer.entities.removeById(INVERTED_SELECTED_POLYGON_ID);
-  removeGroundPrimitiveById(viewer, idInverted);
+  ctx.withEntities((entities, viewer) => {
+    entities.removeById(idSelected);
+    removeGroundPrimitiveById(viewer.scene, idInverted);
+  });
+
   ctx.requestRender();
 
   const posCarto = Cartographic.fromDegrees(pos.lon, pos.lat, 0);
 
-  const terrainProvider =
-    surfaceProviderRef.current ?? terrainProviderRef.current;
+  let provider: CesiumTerrainProvider | null = null;
 
-  if (!terrainProvider) {
+  ctx.withTerrainProvider((terrainProvider) => {
+    provider = terrainProvider;
+  });
+
+  if (!provider) {
+    console.warn(
+      "no terrain provider found, cant place marker without elevation, using surface provider"
+    );
+
+    ctx.withSurfaceProvider((surfaceProvider) => {
+      provider = surfaceProvider;
+    });
+  }
+
+  if (!provider) {
     console.warn(
       "no terrain provider found, cant place marker without elevation"
     );
@@ -326,14 +337,14 @@ export const cesiumHandleSelection = async (
   }
 
   const [groundPosition] = await sampleTerrainMostDetailed(
-    terrainProvider,
+    provider,
     [posCarto],
     true
   );
 
   if (polygon) {
     handlePolygonSelection(
-      viewer,
+      ctx,
       shouldFlyToRef,
       groundPosition,
       polygon,
@@ -351,7 +362,7 @@ export const cesiumHandleSelection = async (
     }
 
     shouldFlyToRef.current &&
-      cesiumLookAtPoint(ctx, viewer, groundPosition, zoom, mapOptions, {
+      cesiumLookAtPoint(ctx, groundPosition, zoom, mapOptions, {
         onComplete: () => {
           shouldFlyToRef.current = false;
           console.debug("GAZETTEER: [2D3D|CESIUM|CAMERA] flyTo Point complete");

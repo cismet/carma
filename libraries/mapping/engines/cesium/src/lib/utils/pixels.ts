@@ -134,14 +134,23 @@ export const cesiumCenterPixelSizeToLeafletZoom = (
     console.warn("No pixel size found for camera position.", pixelSize.error);
     return { value: null, error: "No pixel size found for camera position" };
   }
-  const zoom = getZoomFromPixelResolutionAtLatitudeRad(
-    asMeters(pixelSize.value),
-    asRadians(ctx.viewerRef.current!.camera.positionCartographic.latitude)
-  );
-
-  if (zoom === Infinity) {
-    console.warn("zoom is infinity, skipping");
-    return { value: null, error: "Zoom is infinity" };
+  const px = pixelSize.value;
+  if (px === null) {
+    return { value: null, error: "No pixel size found for camera position" };
   }
-  return { value: zoom };
+  let result: NumericResult = { value: null, error: "no camera found" };
+  ctx.withCamera((camera) => {
+    const zoom = getZoomFromPixelResolutionAtLatitudeRad(
+      asMeters(px),
+      asRadians(camera.positionCartographic.latitude)
+    );
+
+    if (zoom === Infinity) {
+      console.warn("zoom is infinity, skipping");
+      result = { value: null, error: "Zoom is infinity" };
+    } else {
+      result = { value: zoom };
+    }
+  });
+  return result;
 };

@@ -112,18 +112,17 @@ export const LeafletMiniMap = ({
       viewPolygon.addTo(lMap);
 
       const handleOnChanged = () => {
-        const viewer = ctx.viewerRef.current!;
-        const { camera } = viewer;
-        const { longitude: lng, latitude: lat } =
-          cameraToCartographicDegrees(camera);
+        ctx.withCamera((camera) => {
+          const { longitude: lng, latitude: lat } =
+            cameraToCartographicDegrees(camera);
 
-        const heading = camera.heading;
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (camMarker as any).setRotationAngle(heading);
+          const heading = camera.heading;
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (camMarker as any).setRotationAngle(heading);
 
-        camMarker.setLatLng([lat, lng]);
+          camMarker.setLatLng([lat, lng]);
 
-        /*   
+          /*   
         const zoom = cesiumCenterPixelSizeToLeafletZoom(viewer).value;
         zoom &&
           lMap.setView({ lat, lng }, Math.round(zoom - zoomOffset), {
@@ -131,70 +130,74 @@ export const LeafletMiniMap = ({
           });
         */
 
-        const geom = getViewerViewportPolygonRing(ctx, {
-          resolutionRange: viewportLimitResolutionFactor,
-        });
-
-        if (geom) {
-          viewPolygon.setLatLngs(geom as unknown as L.LatLng[]);
-
-          if (showCesiumPolygon) {
-            const cesiumPolygon = new PolygonGraphics({
-              hierarchy: polygonHierarchyFromPolygonCoords([
-                geom.map((coord) => coord.reverse()),
-              ]),
-              material: Color.YELLOW.withAlpha(0.45),
-              //closeBottom: false,
-              //closeTop: false,
-              height: undefined,
-              //extrudedHeight: 200,
-              //heightReference: HeightReference.RELATIVE_TO_GROUND,
-              //extrudedHeightReference: HeightReference.RELATIVE_TO_GROUND,
-
-              //outline: true,
-              //outlineColor: Color.RED.withAlpha(0.8),
-              //outlineWidth: 20,
-              //fill: false,
-            });
-
-            const viewEntity = new Entity({
-              id: "viewEntity",
-              polygon: cesiumPolygon,
-            });
-
-            ctx.viewerRef.current!.entities.removeById("viewEntity");
-            ctx.viewerRef.current!.entities.add(viewEntity);
-          }
-        }
-        const rect = camera.computeViewRectangle();
-        if (rect) {
-          const bounds = rectangleToExtentDegrees(rect).leafletBounds;
-          const miniMapBounds = new L.Bounds([
-            new L.Point(bounds.SW.lat, bounds.SW.lng),
-            new L.Point(bounds.NE.lat, bounds.NE.lng),
-            new L.Point(lat, lng),
-          ]);
-          lRect.setBounds(new L.LatLngBounds(bounds.SW, bounds.NE));
-          const tl = miniMapBounds.getTopLeft();
-          const br = miniMapBounds.getBottomRight();
-          const newBounds = new L.LatLngBounds([tl.x, tl.y], [br.x, br.y]);
-          lMap.fitBounds(newBounds, {
-            animate: true,
-            padding: [20, 20],
+          const geom = getViewerViewportPolygonRing(ctx, {
+            resolutionRange: viewportLimitResolutionFactor,
           });
-        }
+
+          if (geom) {
+            viewPolygon.setLatLngs(geom as unknown as L.LatLng[]);
+
+            if (showCesiumPolygon) {
+              const cesiumPolygon = new PolygonGraphics({
+                hierarchy: polygonHierarchyFromPolygonCoords([
+                  geom.map((coord) => coord.reverse()),
+                ]),
+                material: Color.YELLOW.withAlpha(0.45),
+                //closeBottom: false,
+                //closeTop: false,
+                height: undefined,
+                //extrudedHeight: 200,
+                //heightReference: HeightReference.RELATIVE_TO_GROUND,
+                //extrudedHeightReference: HeightReference.RELATIVE_TO_GROUND,
+
+                //outline: true,
+                //outlineColor: Color.RED.withAlpha(0.8),
+                //outlineWidth: 20,
+                //fill: false,
+              });
+
+              const viewEntity = new Entity({
+                id: "viewEntity",
+                polygon: cesiumPolygon,
+              });
+              ctx.withEntities((entities) => {
+                entities.removeById("viewEntity");
+                entities.add(viewEntity);
+              });
+            }
+          }
+          const rect = camera.computeViewRectangle();
+          if (rect) {
+            const bounds = rectangleToExtentDegrees(rect).leafletBounds;
+            const miniMapBounds = new L.Bounds([
+              new L.Point(bounds.SW.lat, bounds.SW.lng),
+              new L.Point(bounds.NE.lat, bounds.NE.lng),
+              new L.Point(lat, lng),
+            ]);
+            lRect.setBounds(new L.LatLngBounds(bounds.SW, bounds.NE));
+            const tl = miniMapBounds.getTopLeft();
+            const br = miniMapBounds.getBottomRight();
+            const newBounds = new L.LatLngBounds([tl.x, tl.y], [br.x, br.y]);
+            lMap.fitBounds(newBounds, {
+              animate: true,
+              padding: [20, 20],
+            });
+          }
+        });
       };
-      ctx.viewerRef.current!.camera.moveEnd.addEventListener(handleOnChanged);
-      ctx.viewerRef.current!.camera.changed.addEventListener(handleOnChanged);
+      ctx.withCamera((camera) => {
+        camera.moveEnd.addEventListener(handleOnChanged);
+        camera.changed.addEventListener(handleOnChanged);
+      });
 
       return () => {
-        ctx.viewerRef.current!.camera.moveEnd.removeEventListener(
-          handleOnChanged
-        );
-        ctx.viewerRef.current!.camera.changed.removeEventListener(
-          handleOnChanged
-        );
-        ctx.viewerRef.current!.entities.removeById("viewEntity");
+        ctx.withCamera((camera) => {
+          camera.moveEnd.removeEventListener(handleOnChanged);
+          camera.changed.removeEventListener(handleOnChanged);
+        });
+        ctx.withEntities((entities) => {
+          entities.removeById("viewEntity");
+        });
         viewPolygon.removeFrom(lMap);
         camMarker.removeFrom(lMap);
         lRect.removeFrom(lMap);

@@ -1,7 +1,7 @@
 import { useContext, useState } from "react";
 import { useDispatch } from "react-redux";
 
-import { Cartesian3, defined, HeadingPitchRange } from "cesium";
+import { Cartesian3, Cartographic, defined, HeadingPitchRange } from "cesium";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
@@ -22,6 +22,7 @@ import { setLeafletView } from "../utils/leafletHelpers";
 import { leafletToCesium } from "../utils/leafletToCesium";
 import { pickViewerCanvasCenter } from "../utils/pickers";
 import { cesiumCenterPixelSizeToLeafletZoom } from "../utils/pixels";
+// import removed: rely on cesiumContext.isValidViewer
 
 type TransitionOptions = {
   onComplete?: (isTo2d: boolean) => void;
@@ -48,10 +49,7 @@ export const useMapTransition = ({
   const [prevDuration, setPrevDuration] = useState<number>(0);
 
   const transitionToMode3d = async () => {
-    if (
-      !viewerRef.current ||
-      !routedMapRef.current?.leafletMap?.leafletElement
-    ) {
+    if (!viewerRef.current || !routedMapRef.current?.leafletMap?.leafletElement) {
       console.warn("cesium or leaflet not available");
       return;
     }
@@ -62,6 +60,7 @@ export const useMapTransition = ({
     cesiumContext.withCamera((camera) => camera.cancelFlight());
 
     dispatch(setTransitionTo3d());
+    // Dev behavior: switch out of 2D immediately; animation will restore HPR
     dispatch(setIsMode2d(false));
     const onComplete3d = () => {
       dispatch(clearTransition());
@@ -114,26 +113,29 @@ export const useMapTransition = ({
 
     const leaflet = routedMapRef.current?.leafletMap?.leafletElement;
 
-    dispatch(setTransitionTo2d());
-    const groundPos = pickViewerCanvasCenter(cesiumContext).scenePosition;
+    // Do not transition if we cannot pick ground from depth (ellipsoid-only is not allowed)
+    const { scenePosition: groundPos, coordinates: cartographic } =
+      pickViewerCanvasCenter(cesiumContext, { getCoordinates: true });
 
     cesiumContext.withCamera((camera) => {
       let height = camera.positionCartographic.height;
       let distance = height;
 
-      const hasGroundPos = defined(groundPos);
-      if (hasGroundPos) {
-        const { scenePosition: pos, coordinates: cartographic } =
-          pickViewerCanvasCenter(cesiumContext, { getCoordinates: true });
-        if (pos && cartographic) {
-          distance = Cartesian3.distance(pos, camera.position);
-          height = cartographic.height + distance;
-        }
-      } else {
-        console.debug(
-          "scene above horizon, using camera position as reference"
+      const hasGroundPos = defined(groundPos) && defined(cartographic);
+      if (!hasGroundPos) {
+        console.info(
+          "[CESIUM|2D3D|TO2D] No valid ground height (depth) found – cancel transition"
         );
+        dispatch(clearTransition());
+        return;
       }
+
+      // Start transition visuals only after we know we can complete it
+      dispatch(setTransitionTo2d());
+      const pos = groundPos as Cartesian3;
+      const carto = cartographic as Cartographic;
+      distance = Cartesian3.distance(pos, camera.position);
+      height = carto.height + distance;
 
       // evaluate angles for animation duration
       let zoomDiff = 0;
@@ -205,7 +207,7 @@ export const useMapTransition = ({
 
         animateInterpolateHeadingPitchRange(
           cesiumContext,
-          groundPos,
+          pos,
           new HeadingPitchRange(0, -Math.PI / 2, distance),
           {
             setPrevious: setPrevHPR,
@@ -214,10 +216,6 @@ export const useMapTransition = ({
             cancelable: false,
           }
         );
-      } else {
-        console.info("rotate around camera position not implemented yet zoom");
-        dispatch(clearTransition());
-        return Promise.resolve();
       }
     });
   };

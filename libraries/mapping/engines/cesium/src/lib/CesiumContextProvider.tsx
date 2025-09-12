@@ -18,11 +18,12 @@ import {
   ProviderConfig,
 } from "./utils/cesiumProviders";
 import { loadTileset, TilesetConfigs } from "./utils/cesiumTilesetProviders";
+import { useValidInstances } from "./hooks/useValidInstances";
+
 import {
   initViewerAnimationMap,
   ViewerAnimationMap,
 } from "./utils/viewerAnimationMap";
-import { isValidViewer, withValidViewer } from "./utils/viewer";
 
 export const CesiumContextProvider = ({
   children,
@@ -50,11 +51,21 @@ export const CesiumContextProvider = ({
 
   // explicitly trigger re-renders
   const [isViewerReady, setIsViewerReady] = useState<boolean>(false);
+  // Tri-state: null (not started), false (applying), true (settled)
+  const [initialCameraSettled, setInitialCameraSettled] = useState<
+    boolean | null
+  >(null);
+  // Monotonic counter for initial camera applications
+  const [initialCameraEpoch, setInitialCameraEpoch] = useState<number>(0);
 
-  // Reusable validation helper - now imported from cesiumHelpers
-  const withViewer = (cb: (viewer: Viewer) => void) => {
-    withValidViewer(viewerRef.current, cb);
-  };
+  const {
+    withViewer,
+    isValidViewer,
+    withImageryLayerRef,
+    withTerrainProviderRef,
+    withEllipsoidTerrainProviderRef,
+    withTilesetRef,
+  } = useValidInstances(viewerRef);
 
   // Asynchronous initialization of providers and imageryLayer
   useEffect(() => {
@@ -71,14 +82,12 @@ export const CesiumContextProvider = ({
 
       return () => {
         // Only abort if viewer is being destroyed, not during 2D/3D transitions
-        if (viewerRef.current && viewerRef.current.isDestroyed()) {
-          abortController.abort();
-        }
+        !isValidViewer() && abortController.abort();
       };
     } else {
       console.info("[CESIUM|CONTEXT] No imagery provider configured");
     }
-  }, [providerConfig.imageryProvider]);
+  }, [providerConfig.imageryProvider, isValidViewer]);
 
   useEffect(() => {
     if (!isViewerReady) {
@@ -95,12 +104,9 @@ export const CesiumContextProvider = ({
     );
 
     return () => {
-      // Only abort if viewer is being destroyed, not during 2D/3D transitions
-      if (viewerRef.current && viewerRef.current.isDestroyed()) {
-        abortController.abort();
-      }
+      !isValidViewer() && abortController.abort();
     };
-  }, [providerConfig.terrainProvider.url, isViewerReady]);
+  }, [providerConfig.terrainProvider.url, isValidViewer, isViewerReady]);
 
   useEffect(() => {
     if (!isViewerReady) {
@@ -118,22 +124,14 @@ export const CesiumContextProvider = ({
       );
 
       return () => {
-        // Only abort if viewer is being destroyed, not during 2D/3D transitions
-        if (viewerRef.current && viewerRef.current.isDestroyed()) {
-          abortController.abort();
-        }
+        !isValidViewer() && abortController.abort();
       };
     }
-  }, [providerConfig.surfaceProvider, isViewerReady]);
+  }, [providerConfig.surfaceProvider, isViewerReady, isValidViewer]);
 
   // Load Primary Tileset
   useEffect(() => {
-    if (
-      tilesetConfigs.primary &&
-      isViewerReady &&
-      viewerRef.current &&
-      !viewerRef.current.isDestroyed()
-    ) {
+    if (tilesetConfigs.primary && isViewerReady) {
       const fetchPrimary = async () => {
         console.debug(
           "[CESIUM|DEBUG] Loading primary tileset",
@@ -152,25 +150,18 @@ export const CesiumContextProvider = ({
 
     return () => {
       // Don't destroy providers when transitioning to 2D mode - only when viewer is destroyed
-      if (
-        primaryTilesetRef.current &&
-        viewerRef.current &&
-        viewerRef.current.isDestroyed()
-      ) {
-        primaryTilesetRef.current.destroy();
+      const t = primaryTilesetRef.current;
+      if (t && !t.isDestroyed() && !isValidViewer()) {
+        console.debug("[CESIUM|DEBUG] Destroying primary tileset");
+        t.destroy();
         primaryTilesetRef.current = null;
       }
     };
-  }, [tilesetConfigs.primary, viewerRef, isViewerReady]);
+  }, [tilesetConfigs.primary, isViewerReady, isValidViewer]);
 
   // Load Secondary Tileset
   useEffect(() => {
-    if (
-      tilesetConfigs.secondary &&
-      isViewerReady &&
-      viewerRef.current &&
-      !viewerRef.current.isDestroyed()
-    ) {
+    if (tilesetConfigs.secondary && isViewerReady && isValidViewer()) {
       const fetchSecondary = async () => {
         console.debug(
           "[CESIUM|DEBUG] Loading secondary tileset",
@@ -191,37 +182,31 @@ export const CesiumContextProvider = ({
 
     return () => {
       // Don't destroy providers when transitioning to 2D mode - only when viewer is destroyed
-      if (
-        secondaryTilesetRef.current &&
-        viewerRef.current &&
-        viewerRef.current.isDestroyed()
-      ) {
-        secondaryTilesetRef.current.destroy();
+      const t = secondaryTilesetRef.current;
+      if (t && !t.isDestroyed() && !isValidViewer()) {
+        console.debug("[CESIUM|DEBUG] Destroying secondary tileset");
+        t.destroy();
         secondaryTilesetRef.current = null;
       }
     };
-  }, [tilesetConfigs.secondary, viewerRef, isViewerReady]);
+  }, [tilesetConfigs.secondary, isViewerReady, isValidViewer]);
 
   const contextValue = useMemo<CesiumContextType>(
     () => ({
       viewerRef,
       viewerAnimationMapRef,
-      ellipsoidTerrainProviderRef,
-      terrainProviderRef,
-      surfaceProviderRef,
-      imageryLayerRef,
-      tilesetsRefs: {
-        primaryRef: primaryTilesetRef,
-        secondaryRef: secondaryTilesetRef,
-      },
       shouldSuspendPitchLimiterRef,
       shouldSuspendCameraLimitersRef,
       isViewerReady,
       setIsViewerReady,
+      initialCameraSettled,
+      setInitialCameraSettled,
+      initialCameraEpoch,
+      bumpInitialCameraEpoch: () => setInitialCameraEpoch((v) => v + 1),
       // NOTE: Workaround for CesiumGS/cesium#12543 — delay/repeat options exist
       // to schedule additional renders in requestRenderMode when needed. These
       // options should be deprecated once upstream behavior is improved.
-      isValidViewer: () => isValidViewer(viewerRef.current),
+      isValidViewer,
       requestRender: (opts) => {
         const renderOnce = () => {
           withViewer((viewer) => {
@@ -231,22 +216,47 @@ export const CesiumContextProvider = ({
         handleDelayedRender(renderOnce, opts);
       },
       withViewer,
-      withCamera: (cb) => {
-        withViewer((viewer) => cb(viewer.camera));
-      },
-      withCanvas: (cb) => {
-        withViewer((viewer) => cb(viewer.canvas));
-      },
-      withScene: (cb) => {
-        withViewer((viewer) => cb(viewer.scene));
-      },
-      withEntities: (cb) => {
-        withViewer((viewer) => {
-          if (viewer.entities) cb(viewer.entities);
-        });
-      },
+      withCamera: (cb) => withViewer((viewer) => cb(viewer.camera, viewer)),
+      withCanvas: (cb) => withViewer((viewer) => cb(viewer.canvas, viewer)),
+      withScene: (cb) => withViewer((viewer) => cb(viewer.scene, viewer)),
+      withEntities: (cb) => withViewer((viewer) => cb(viewer.entities, viewer)),
+      withImageryLayer: (cb) =>
+        withImageryLayerRef(imageryLayerRef, (imageryLayer, viewer) =>
+          cb(imageryLayer, viewer)
+        ),
+      withPrimaryTileset: (cb) =>
+        withTilesetRef(primaryTilesetRef, (tileset, viewer) =>
+          cb(tileset, viewer)
+        ),
+      withSecondaryTileset: (cb) =>
+        withTilesetRef(secondaryTilesetRef, (tileset, viewer) =>
+          cb(tileset, viewer)
+        ),
+      withEllipsoidTerrainProvider: (cb) =>
+        withEllipsoidTerrainProviderRef(
+          ellipsoidTerrainProviderRef,
+          (provider, viewer) => cb(provider, viewer)
+        ),
+      withTerrainProvider: (cb) =>
+        withTerrainProviderRef(terrainProviderRef, (provider, viewer) =>
+          cb(provider, viewer)
+        ),
+      withSurfaceProvider: (cb) =>
+        withTerrainProviderRef(surfaceProviderRef, (provider, viewer) =>
+          cb(provider, viewer)
+        ),
     }),
-    [isViewerReady]
+    [
+      isViewerReady,
+      initialCameraSettled,
+      initialCameraEpoch,
+      isValidViewer,
+      withViewer,
+      withImageryLayerRef,
+      withTerrainProviderRef,
+      withEllipsoidTerrainProviderRef,
+      withTilesetRef,
+    ]
   );
 
   console.debug(

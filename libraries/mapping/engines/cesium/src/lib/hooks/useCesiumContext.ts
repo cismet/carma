@@ -11,7 +11,9 @@ export const useCesiumContext = () => {
   }
 
   if (!context) {
-    throw new Error("useViewer must be used within a CesiumContextProvider");
+    throw new Error(
+      "useCesiumContext must be used within a CesiumContextProvider"
+    );
   }
   return context;
 };

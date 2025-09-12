@@ -30,7 +30,7 @@ const cleanUpCesium = (
       setSelectedCesiumEntityData(null);
     }
     viewer.entities.removeById(SELECTED_POLYGON_ID);
-    removeGroundPrimitiveById(viewer, INVERTED_SELECTED_POLYGON_ID);
+    removeGroundPrimitiveById(viewer.scene, INVERTED_SELECTED_POLYGON_ID);
     ctx.requestRender();
   }
 };

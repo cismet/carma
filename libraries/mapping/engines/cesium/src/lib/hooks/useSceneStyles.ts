@@ -17,18 +17,11 @@ export const useSceneStyles = (enabled = true) => {
   const currentSceneStyle = useSelector(selectCurrentSceneStyle);
 
   const ctx = useCesiumContext();
-  const { viewerRef, isViewerReady } = ctx;
   const primaryStyle = useSelector(selectSceneStylePrimary);
   const secondaryStyle = useSelector(selectSceneStyleSecondary);
 
   useEffect(() => {
-    if (
-      !enabled ||
-      !viewerRef.current ||
-      viewerRef.current.isDestroyed() ||
-      !isViewerReady ||
-      currentSceneStyle === undefined
-    )
+    if (!enabled || !ctx.isValidViewer() || currentSceneStyle === undefined)
       return;
     console.debug("currentSceneStyle change", currentSceneStyle);
     if (currentSceneStyle === "primary") {
@@ -42,16 +35,7 @@ export const useSceneStyles = (enabled = true) => {
     } else {
       throw new Error(`Unknown style: ${currentSceneStyle}`);
     }
-  }, [
-    dispatch,
-    enabled,
-    viewerRef,
-    isViewerReady,
-    currentSceneStyle,
-    primaryStyle,
-    secondaryStyle,
-    ctx,
-  ]);
+  }, [dispatch, enabled, currentSceneStyle, primaryStyle, secondaryStyle, ctx]);
 };
 
 export default useSceneStyles;

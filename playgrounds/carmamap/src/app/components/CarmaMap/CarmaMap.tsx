@@ -198,8 +198,7 @@ export const CarmaMap = ({
   const uiMode = useSelector(getUIMode);
   const showFullscreenButton = useSelector(getShowFullscreenButton);
   const ctx = useCesiumContext();
-  const { viewerRef, terrainProviderRef, surfaceProviderRef, tilesetsRefs } =
-    ctx;
+  const { viewerRef } = ctx;
 
   const homeControl = useHomeControl();
   const {
@@ -233,16 +232,10 @@ export const CarmaMap = ({
         markerAsset,
         markerAnchorHeight,
         isPrimaryStyle: showPrimaryTileset,
-        surfaceProviderRef,
-        terrainProviderRef,
+        withTerrainProvider: (cb) => ctx.withTerrainProvider(cb),
+        withSurfaceProvider: (cb) => ctx.withSurfaceProvider(cb),
       }),
-      [
-        markerAsset,
-        markerAnchorHeight,
-        showPrimaryTileset,
-        surfaceProviderRef,
-        terrainProviderRef,
-      ]
+      [markerAsset, markerAnchorHeight, showPrimaryTileset, ctx]
     )
   );
 
@@ -394,7 +387,6 @@ export const CarmaMap = ({
           }
         }
         const provider = hgkTerrainProviders[hqKey];
-        terrainProviderRef.current = provider;
         if (viewerRef.current && provider) {
           setTimeout(() => {
             // overwrite default terrain provider
@@ -406,7 +398,7 @@ export const CarmaMap = ({
         }
       })();
     }
-  }, [hqKey, terrainProviderRef, viewerRef]);
+  }, [hqKey, viewerRef]);
 
   useEffect(() => {
     if (!isMode2d && viewerRef.current) {
@@ -428,7 +420,7 @@ export const CarmaMap = ({
         viewer.scene.requestRender();
       }, 300);
     }
-  }, [isMode2d, viewerRef, tilesetsRefs]);
+  }, [isMode2d, viewerRef]);
 
   console.debug("CARMAMAP render hgk", hqKey);
 

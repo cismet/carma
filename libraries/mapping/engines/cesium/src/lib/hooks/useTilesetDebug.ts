@@ -1,10 +1,9 @@
 import { CUSTOM_SHADERS_DEFINITIONS } from "../shaders";
 import { useMemo, useState } from "react";
-import { Cesium3DTileset, CustomShader } from "cesium";
+import { Cesium3DTileset, CustomShader, type Viewer } from "cesium";
 
 import { useTweakpaneCtx } from "@carma-commons/debug";
 import { useCesiumContext } from "./useCesiumContext";
-import { useCesiumViewer } from "./useCesiumViewer";
 
 const DEFAULT_MESH_SHADER_KEY = "UNLIT_ENHANCED_2024";
 
@@ -17,14 +16,18 @@ const shaderOptions = Object.keys(CUSTOM_SHADERS_DEFINITIONS).reduce(
 );
 
 export const useTilesetDebug = (
-  tileset: Cesium3DTileset | null,
+  cb: (cb: (tileset: Cesium3DTileset, viewer: Viewer) => void) => boolean,
   name = "unlabeled"
 ) => {
+  const ctx = useCesiumContext();
   const [customShaderKey, setCustomShaderKey] = useState(
     DEFAULT_MESH_SHADER_KEY
   );
-  const viewer = useCesiumViewer();
-  const ctx = useCesiumContext();
+
+  let tileset: Cesium3DTileset | undefined;
+  cb((t) => {
+    tileset = t;
+  });
 
   const [enableDebugWireframe, setEnableDebugWireframe] = useState(false);
 
@@ -83,7 +86,7 @@ export const useTilesetDebug = (
           { name: "show", type: "boolean" },
         ],
       }),
-      [name, customShaderKey, enableDebugWireframe, tileset, ctx]
+      [ctx, name, customShaderKey, enableDebugWireframe, tileset]
     )
   );
 };

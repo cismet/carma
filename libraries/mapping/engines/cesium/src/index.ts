@@ -78,6 +78,16 @@ export {
   setupCesiumEnvironment,
 } from "./lib/utils/cesiumSetup";
 
+export {
+  isValidViewer,
+  withValidViewer,
+  isValidImageryLayer,
+  isValidCesiumTerrainProvider,
+  isValidEllipsoidTerrainProvider,
+  isValidImageryProvider,
+  isValidTileset,
+} from "./lib/utils/instanceGates";
+
 export { pickViewerCanvasCenter } from "./lib/utils/pickers";
 
 export {
@@ -85,8 +95,6 @@ export {
   getHeadingPitchRangeFromHeight,
   getHeadingPitchRangeFromZoom,
 } from "./lib/utils/positions";
-
-export { isValidViewer, withValidViewer } from "./lib/utils/viewer";
 
 export {
   type ViewerAnimationMap,
