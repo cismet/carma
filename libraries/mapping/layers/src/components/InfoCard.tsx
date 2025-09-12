@@ -547,7 +547,7 @@ const InfoCard = ({
                     Vorschaubild
                     <span className="text-red-500"> *</span>
                   </label>
-                  <div className="w-1/3">
+                  <div className="w-1/3 hide-tabs">
                     <Tabs
                       defaultActiveKey="1"
                       items={[
