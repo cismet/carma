@@ -6,28 +6,40 @@ import { isValidImageryLayer } from "../utils/instanceGates";
 import { useCesiumContext } from "./useCesiumContext";
 
 const hideLayers = (ctx: CesiumContextType) => {
-  ctx.withViewer((viewer) => {
-    for (let i = 0; i < viewer.imageryLayers.length; i++) {
-      const layer = viewer.imageryLayers.get(i);
-      if (isValidImageryLayer(layer)) {
-        layer.show = false; // Hide the layer
-      } else {
-        console.debug("[CESIUM|VIEWER] skip invalid imagery layer", i, layer);
-      }
-    }
+  ctx.withScene((scene) => {
+    const hideOnce = () => {
+      ctx.withScene((scene, viewer) => {
+        for (let i = 0; i < viewer.imageryLayers.length; i++) {
+          const layer = viewer.imageryLayers.get(i);
+          if (isValidImageryLayer(layer)) {
+            layer.show = false; // Hide the layer
+          } else {
+            console.debug("[CESIUM|VIEWER] skip invalid imagery layer");
+          }
+        }
+        scene.postRender.removeEventListener(hideOnce);
+      });
+    };
+    scene.postRender.addEventListener(hideOnce);
   });
 };
 
 const showLayers = (ctx: CesiumContextType) => {
-  ctx.withViewer((viewer) => {
-    for (let i = 0; i < viewer.imageryLayers.length; i++) {
-      const layer = viewer.imageryLayers.get(i);
-      if (isValidImageryLayer(layer)) {
-        layer.show = true; // unHide the layer
-      } else {
-        console.debug("[CESIUM|VIEWER] skip invalid imagery layer", i, layer);
-      }
-    }
+  ctx.withScene((scene) => {
+    const showOnce = () => {
+      ctx.withScene((scene, viewer) => {
+        for (let i = 0; i < viewer.imageryLayers.length; i++) {
+          const layer = viewer.imageryLayers.get(i);
+          if (isValidImageryLayer(layer)) {
+            layer.show = true; // unHide the layer
+          } else {
+            console.debug("[CESIUM|VIEWER] skip invalid imagery layer");
+          }
+        }
+        scene.postRender.removeEventListener(showOnce);
+      });
+    };
+    scene.postRender.addEventListener(showOnce);
   });
 };
 

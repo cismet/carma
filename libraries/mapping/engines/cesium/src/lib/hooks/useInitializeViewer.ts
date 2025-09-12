@@ -230,11 +230,11 @@ export const useInitializeViewer = (
   useEffect(() => {
     console.debug("HOOK: useInitializeViewer position", initialCameraView);
     if (!isViewerReady || !initialCameraView) return;
-    if (!home || !homeOffset) {
+    const hasHome = !!home && !!homeOffset;
+    if (!hasHome) {
       console.warn(
-        "HOOK: [2D3D|CESIUM|CAMERA] initViewer has no home or homeOffset set, please provide them"
+        "HOOK: [2D3D|CESIUM|CAMERA] initViewer has no home or homeOffset yet; applying hash camera without validation"
       );
-      return;
     }
 
     let alreadySet = false;
@@ -249,6 +249,7 @@ export const useInitializeViewer = (
     }
 
     const resetToHome = () => {
+      if (!hasHome) return;
       withCamera((camera) => {
         camera.lookAt(home, homeOffset);
         camera.flyToBoundingSphere(new BoundingSphere(home, 500), {
@@ -258,6 +259,19 @@ export const useInitializeViewer = (
     };
 
     let usedInitial = false;
+    // suspend camera limiters during the initial apply to avoid unintended corrections
+    if (shouldSuspendCameraLimitersRef) {
+      shouldSuspendCameraLimitersRef.current = true;
+      withScene((scene) => {
+        const enableLimitersNextFrame = () => {
+          if (shouldSuspendCameraLimitersRef) {
+            shouldSuspendCameraLimitersRef.current = false;
+          }
+          scene.postRender.removeEventListener(enableLimitersNextFrame);
+        };
+        scene.postRender.addEventListener(enableLimitersNextFrame);
+      });
+    }
     if (!isMode2d) {
       const { position, heading, pitch, fov } = initialCameraView;
       if (position) {
@@ -268,22 +282,16 @@ export const useInitializeViewer = (
         );
         position.height = restoredHeight;
         const destination = Cartographic.toCartesian(position);
-        const isValidDestination = validateWorldCoordinate(
-          destination,
-          home,
-          maxZoom,
-          0
-        );
+        const isValidDestination = hasHome
+          ? validateWorldCoordinate(destination, home, maxZoom, 0)
+          : true;
         withCamera((camera) => {
           if (camera.frustum instanceof PerspectiveFrustum) {
             camera.frustum.fov = fov ?? Math.PI / 4;
           }
           if (isValidDestination) {
-            console.debug(
-              "HOOK [2D3D|CESIUM|CAMERA] init Viewer set camera from provided position",
-              destination,
-              position
-            );
+            // clear any non-identity transform to avoid offsets
+            camera.lookAtTransform(Matrix4.IDENTITY);
             camera.setView({
               destination,
               orientation: {
@@ -308,7 +316,7 @@ export const useInitializeViewer = (
       );
     }
 
-    if (!usedInitial) {
+    if (!usedInitial && hasHome) {
       console.info(
         "Cesium Viewer initialized with default home position",
         home

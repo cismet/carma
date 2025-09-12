@@ -83,43 +83,6 @@ export const CesiumContextProvider = ({
     }
   }, [providerConfig.imageryProvider, isValidViewer]);
 
-  // Ensure imagery layer is attached to the viewer once it is available
-  useEffect(() => {
-    if (!isViewerReady) return;
-    let added = false;
-    const tryAdd = () => {
-      if (added) return;
-      const has = withImageryLayerRef(
-        imageryLayerRef,
-        (imageryLayer, viewer) => {
-          if (viewer.isDestroyed()) return;
-          const layers = viewer.imageryLayers;
-          let alreadyAdded = false;
-          for (let i = 0; i < layers.length; i++) {
-            if (layers.get(i) === imageryLayer) {
-              alreadyAdded = true;
-              break;
-            }
-          }
-          if (!alreadyAdded) {
-            layers.add(imageryLayer);
-            console.debug(
-              "[CESIUM|CONTEXT] Added imagery layer to viewer",
-              layers.length
-            );
-            viewer.scene.requestRender();
-          }
-          added = true;
-        }
-      );
-      if (!has) {
-        // Layer not yet created or viewer not yet valid; retry next frame
-        requestAnimationFrame(tryAdd);
-      }
-    };
-    tryAdd();
-  }, [isViewerReady, withImageryLayerRef]);
-
   useEffect(() => {
     if (!isViewerReady) {
       return;

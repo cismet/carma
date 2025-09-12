@@ -134,10 +134,23 @@ export const decodeCesiumCamera = (
 
   const position = Cartographic.fromRadians(longitude, latitude, height);
 
+  // Normalize pitch to Cesium's expected range
+  // Input URLs may encode pitch in [0, 360). Example: 299.98° should map to -60.02°
+  let normalizedPitch: number | undefined = undefined;
+  if (isNumber(pitch)) {
+    let p = pitch as number;
+    // wrap to [-PI, PI]
+    if (p > CesiumMath.PI) p -= CesiumMath.TWO_PI;
+    if (p < -CesiumMath.PI) p += CesiumMath.TWO_PI;
+    // clamp to [-PI/2, PI/2]
+    p = CesiumMath.clamp(p, -CesiumMath.PI_OVER_TWO, CesiumMath.PI_OVER_TWO);
+    normalizedPitch = p;
+  }
+
   const cameraState = {
     position,
     heading: heading ?? undefined,
-    pitch: pitch ?? undefined,
+    pitch: normalizedPitch,
     fov: fov ?? undefined,
   };
   return cameraState;

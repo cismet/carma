@@ -49,49 +49,45 @@ export const setupPrimaryStyle = (
   ctx: CesiumContextType,
   style?: Partial<SceneStyle>
 ) => {
-  async () => {
-    ctx.withScene((scene) => {
-      scene.globe.baseColor =
-        fromColorRgbaArray(style?.globe?.baseColor) ?? Color.LIGHTGREY;
-      scene.backgroundColor =
-        fromColorRgbaArray(style?.backgroundColor) ?? new Color(0, 0, 0, 0);
+  ctx.withScene((scene) => {
+    scene.globe.baseColor =
+      fromColorRgbaArray(style?.globe?.baseColor) ?? Color.LIGHTGREY;
+    scene.backgroundColor =
+      fromColorRgbaArray(style?.backgroundColor) ?? new Color(0, 0, 0, 0);
 
-      console.debug("[STYLES|TERRAIN|CESIUM] setup primary style");
+    console.debug("[STYLES|TERRAIN|CESIUM] setup primary style");
 
-      // use terrain provider not the surface provider to prevent camera jitter on move
-      waitAndSetTerrainProvider(ctx, {
-        label: "secondary",
-        //onReady: addImageryLayer,
-      });
+    const invertedSelection = getGroundPrimitiveById(
+      scene,
+      INVERTED_SELECTED_POLYGON_ID
+    );
+    if (invertedSelection) {
+      invertedSelection.classificationType = ClassificationType.CESIUM_3D_TILE;
+    }
+  });
 
-      // Defer hide to postRender to avoid toggling during tile processing
-      ctx.withScene((scene) => {
-        const hideOnce = () => {
-          ctx.withImageryLayer((imageryLayer) => {
-            if (!imageryLayer.isDestroyed()) {
-              imageryLayer.show = false;
-            } else {
-              console.debug("[STYLES|IMAGERY] skip hide; layer destroyed");
-            }
-          });
-          scene.postRender.removeEventListener(hideOnce);
-        };
-        scene.postRender.addEventListener(hideOnce);
-      });
+  // ensure the correct terrain provider is set (not the surface provider)
+  waitAndSetTerrainProvider(ctx, {
+    label: "primary",
+  });
 
-      ctx.withScene((scene) => {
-        const invertedSelection = getGroundPrimitiveById(
-          scene,
-          INVERTED_SELECTED_POLYGON_ID
-        );
-        if (invertedSelection) {
-          invertedSelection.classificationType =
-            ClassificationType.CESIUM_3D_TILE;
-        }
-      });
-    });
-    ctx.requestRender();
-  };
+  // If an imagery layer exists and is present in the collection, hide it for primary style
+  ctx.withImageryLayer((imageryLayer, viewer) => {
+    if (imageryLayer.isDestroyed()) return;
+    const layers = viewer.imageryLayers;
+    let present = false;
+    for (let i = 0; i < layers.length; i++) {
+      if (layers.get(i) === imageryLayer) {
+        present = true;
+        break;
+      }
+    }
+    if (present) {
+      imageryLayer.show = false;
+    }
+  });
+
+  ctx.requestRender();
 };
 
 export const setupSecondaryStyle = (

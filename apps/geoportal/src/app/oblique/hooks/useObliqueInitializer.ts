@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 
-import { type Viewer, type Scene } from "cesium";
+import { type Viewer, type Scene, Math as CesiumMath } from "cesium";
 
 import {
   useCesiumContext,
@@ -64,10 +64,24 @@ export function useObliqueInitializer(debug = false) {
 
     if (isObliqueMode) {
       debug && console.debug("entering Oblique Mode");
-      enterObliqueMode(ctx, originalFovRef, fixedPitch, fixedHeight, () => {
+      // If camera already has an oblique-like pitch (e.g., restored from hash), don't override it
+      let isAlreadyOblique = false;
+      ctx.withCamera((camera) => {
+        const p = camera.pitch;
+        const minOblique = -CesiumMath.toRadians(80);
+        const maxOblique = -CesiumMath.toRadians(5);
+        isAlreadyOblique = p > minOblique && p < maxOblique;
+      });
+
+      if (isAlreadyOblique) {
         enableCameraForceOblique();
         requestRender();
-      });
+      } else {
+        enterObliqueMode(ctx, originalFovRef, fixedPitch, fixedHeight, () => {
+          enableCameraForceOblique();
+          requestRender();
+        });
+      }
     } else {
       debug && console.debug("leaving Oblique Mode", originalFovRef.current);
       leaveObliqueMode(ctx, originalFovRef, () => {

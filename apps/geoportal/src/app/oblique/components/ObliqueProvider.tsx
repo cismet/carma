@@ -439,6 +439,29 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     setSelectedImageRefresh(() => refreshSearch);
   }, [refreshSearch, setSelectedImageRefresh]);
 
+  // Ensure nearest image search runs once on load from URL in oblique mode
+  useEffect(() => {
+    if (
+      isObliqueMode &&
+      ctx.isViewerReady &&
+      isAllDataReady &&
+      typeof selectedImageRefresh === "function" &&
+      !lockFootprint &&
+      !suspendSelectionSearch
+    ) {
+      // Run immediately to bypass debounce and use current camera heading
+      selectedImageRefresh({ immediate: true });
+    }
+    // We intentionally do not include imageRecords here to avoid multiple triggers
+  }, [
+    isObliqueMode,
+    ctx.isViewerReady,
+    isAllDataReady,
+    selectedImageRefresh,
+    lockFootprint,
+    suspendSelectionSearch,
+  ]);
+
   const value = {
     isObliqueMode,
     imageRecords,
