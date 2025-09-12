@@ -61,12 +61,11 @@ export function useFovWheelZoom(
   );
 
   // Temporary global wheel blocker while viewer is not yet available.
-  // Prevents native Cesium zoom from triggering on reload before our handler attaches.
+  // Prevents native Cesium zoom from triggering on reload handler attaches.
   const pendingBlockerAttachedRef = useRef(false);
   const pendingWheelBlocker = useCallback(
     (event: WheelEvent) => {
       if (!enabled) return;
-      // Block all wheel events while pending to avoid native zoom before handler attaches
       event.preventDefault();
       event.stopPropagation();
       if (typeof event.stopImmediatePropagation === "function") {

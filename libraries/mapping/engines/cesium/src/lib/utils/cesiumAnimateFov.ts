@@ -77,7 +77,11 @@ export const cesiumAnimateFov = (
     return () => {
       if (animationFrameId) {
         cancelAnimationFrame(animationFrameId);
-        if (viewerAnimationMap) viewerAnimationMap.delete(viewer!);
+        if (viewerAnimationMap) {
+          ctx.withViewer((viewer) => {
+            viewerAnimationMap.delete(viewer);
+          });
+        }
       }
     };
   });
