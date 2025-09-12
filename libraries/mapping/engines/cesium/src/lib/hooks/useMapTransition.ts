@@ -39,7 +39,7 @@ export const useMapTransition = ({
   const topicMapContext = useContext<typeof TopicMapContext>(TopicMapContext);
   const { realRoutedMapRef: routedMapRef } = topicMapContext;
   const cesiumContext = useCesiumContext();
-  const { isValidViewer } = cesiumContext;
+  const { viewerRef } = cesiumContext;
 
   if (duration === undefined) {
     duration = DEFAULT_MODE_2D_3D_CHANGE_FADE_DURATION;
@@ -49,10 +49,7 @@ export const useMapTransition = ({
   const [prevDuration, setPrevDuration] = useState<number>(0);
 
   const transitionToMode3d = async () => {
-    if (
-      !cesiumContext.isValidViewer() ||
-      !routedMapRef.current?.leafletMap?.leafletElement
-    ) {
+    if (!viewerRef.current || !routedMapRef.current?.leafletMap?.leafletElement) {
       console.warn("cesium or leaflet not available");
       return;
     }
@@ -63,6 +60,8 @@ export const useMapTransition = ({
     cesiumContext.withCamera((camera) => camera.cancelFlight());
 
     dispatch(setTransitionTo3d());
+    // Dev behavior: switch out of 2D immediately; animation will restore HPR
+    dispatch(setIsMode2d(false));
     const onComplete3d = () => {
       dispatch(clearTransition());
       onComplete && onComplete(false);
@@ -98,11 +97,7 @@ export const useMapTransition = ({
 
     await leafletToCesium(leaflet, cesiumContext, {
       cause: "SwitchMapMode to 3d",
-      onComplete: () => {
-        // fade in 3D only after calibration is complete to avoid visible 2D jump
-        dispatch(setIsMode2d(false));
-        setTimeout(onCompleteAnimatedTo3d, 100);
-      },
+      onComplete: () => setTimeout(onCompleteAnimatedTo3d, 100),
     });
   };
 
@@ -111,15 +106,14 @@ export const useMapTransition = ({
       console.warn("leaflet not available no transition possible [zoom]");
       return;
     }
-    if (!isValidViewer()) {
+    if (!viewerRef.current) {
       console.warn("cesium not available no transition possible [zoom]");
       return;
     }
 
     const leaflet = routedMapRef.current?.leafletMap?.leafletElement;
 
-    // First, ensure we have a valid ground pick (scenePosition + coordinates)
-    cesiumContext.requestRender();
+    // Do not transition if we cannot pick ground from depth (ellipsoid-only is not allowed)
     const { scenePosition: groundPos, coordinates: cartographic } =
       pickViewerCanvasCenter(cesiumContext, { getCoordinates: true });
 
@@ -130,7 +124,7 @@ export const useMapTransition = ({
       const hasGroundPos = defined(groundPos) && defined(cartographic);
       if (!hasGroundPos) {
         console.info(
-          "[CESIUM|2D3D|TO2D] No valid ground height found – cancel transition"
+          "[CESIUM|2D3D|TO2D] No valid ground height (depth) found – cancel transition"
         );
         dispatch(clearTransition());
         return;
@@ -138,10 +132,9 @@ export const useMapTransition = ({
 
       // Start transition visuals only after we know we can complete it
       dispatch(setTransitionTo2d());
-      // We have both ground position and coordinates
       const pos = groundPos as Cartesian3;
-      distance = Cartesian3.distance(pos, camera.position);
       const carto = cartographic as Cartographic;
+      distance = Cartesian3.distance(pos, camera.position);
       height = carto.height + distance;
 
       // evaluate angles for animation duration

@@ -187,13 +187,13 @@ export function pickFromClampedGeojson(
   position: Cartesian2,
   limit: number = GEOJSON_DRILL_LIMIT
 ): Entity | null {
-  let pickedObject: Entity | null = null;
-  ctx.withScene((scene) => {
+  let result: Entity | null = null;
+  const ok = ctx.withScene((scene) => {
     const pickedObjects = scene.drillPick(position, limit);
     console.debug("SCENE DRILL PICK:", pickedObjects);
-    pickedObject = getLastGroundPrimitive(pickedObjects);
+    result = getLastGroundPrimitive(pickedObjects);
   });
-  return pickedObject;
+  return ok ? result : null;
 }
 
 const findTopPick = (
