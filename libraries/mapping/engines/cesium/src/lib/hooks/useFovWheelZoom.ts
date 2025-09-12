@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useRef } from "react";
 import { Math as CesiumMath, PerspectiveFrustum, type Viewer } from "cesium";
 import type { CesiumContextType } from "../CesiumContext";
+import { useBlockDefaultZoomBehaviour } from "./useBlockDefaultZoomBehaviour";
 
 const viewerWheelHandlers = new WeakMap<Viewer, (event: WheelEvent) => void>();
 
@@ -15,15 +16,35 @@ export interface FovWheelZoomOptions {
 const DEFAULT_MIN_FOV = CesiumMath.toRadians(10);
 const DEFAULT_MAX_FOV = CesiumMath.toRadians(120);
 const DEFAULT_FOV_CHANGE_RATE = 0.01;
+
 const defaultFovWheelZoomOptions: FovWheelZoomOptions = {
   minFov: DEFAULT_MIN_FOV,
   maxFov: DEFAULT_MAX_FOV,
   fovChangeRate: DEFAULT_FOV_CHANGE_RATE,
 };
 
+const blockWheelEvent = (event: WheelEvent) => {
+  event.preventDefault();
+  event.stopPropagation();
+  event.stopImmediatePropagation();
+};
+
+const computeNextFov = (
+  current: number,
+  deltaY: number,
+  min: number,
+  max: number,
+  rate: number
+) => {
+  const sign = Math.sign(deltaY);
+  const normalized = Math.sqrt(Math.abs(deltaY)) * sign;
+  const target = current * (1 + normalized * rate);
+  return Math.max(min, Math.min(max, target));
+};
+
 export function useFovWheelZoom(
   ctx: CesiumContextType,
-  enabled: boolean = true,
+  enabled = true,
   options: FovWheelZoomOptions = {}
 ) {
   const { minFov, maxFov, fovChangeRate, onAfterFovChange, onFovChange } = {
@@ -36,31 +57,22 @@ export function useFovWheelZoom(
 
   const handleWheel = useCallback(
     (event: WheelEvent) => {
-      // Block native handlers and SSCC listeners early
-      event.preventDefault();
-      event.stopPropagation();
-      if (typeof event.stopImmediatePropagation === "function") {
-        event.stopImmediatePropagation();
-      }
+      blockWheelEvent(event);
 
       ctx.withCamera((camera) => {
-        if (!(camera.frustum instanceof PerspectiveFrustum)) {
-          console.debug("Camera frustum is not PerspectiveFrustum");
-          return;
-        }
+        if (!(camera.frustum instanceof PerspectiveFrustum)) return;
 
         const currentFov = camera.frustum.fov || 1;
-
-        const deltaSign = Math.sign(event.deltaY);
-
-        const deltaYNormalized = Math.sqrt(Math.abs(event.deltaY)) * deltaSign;
-
-        const targetFov = currentFov * (1 + deltaYNormalized * rate);
-
-        const newFov = Math.max(min, Math.min(max, targetFov));
+        const nextFov = computeNextFov(
+          currentFov,
+          event.deltaY,
+          min,
+          max,
+          rate
+        );
+        const newFov = nextFov;
 
         if (Math.abs(newFov - currentFov) > 0.0001) {
-          // Emit computed FOV to listeners first for zero-lag overlays
           onFovChange && onFovChange(newFov, currentFov);
           camera.frustum.fov = newFov;
           ctx.requestRender();
@@ -129,41 +141,13 @@ export function useFovWheelZoom(
     return applied;
   }, [ctx]);
 
-  useEffect(() => {
-    let cancelled = false;
-
-    const tryApply = (attemptsLeft: number) => {
-      if (cancelled) return;
-      const ok = enabled ? enableWheelZoom() : disableWheelZoom();
-      if (!ok && attemptsLeft > 0) {
-        // Defer until viewer is available; schedule short retries
-        requestAnimationFrame(() => tryApply(attemptsLeft - 1));
-        // Also nudge render loop in requestRenderMode setups
-        ctx.requestRender({ delay: 50, repeat: 1 });
-        // Attach a temporary global wheel blocker while pending
-        if (enabled && !pendingBlockerAttachedRef.current) {
-          window.addEventListener("wheel", pendingWheelBlocker, {
-            passive: false,
-            capture: true,
-          });
-          pendingBlockerAttachedRef.current = true;
-        }
-      }
-    };
-
-    tryApply(3); // a few quick retries is sufficient for viewer readiness
-
-    return () => {
-      cancelled = true;
-      disableWheelZoom();
-      if (pendingBlockerAttachedRef.current) {
-        window.removeEventListener("wheel", pendingWheelBlocker, {
-          capture: true as unknown as boolean,
-        } as AddEventListenerOptions);
-        pendingBlockerAttachedRef.current = false;
-      }
-    };
-  }, [enabled, enableWheelZoom, disableWheelZoom, ctx, pendingWheelBlocker]);
+  useBlockDefaultZoomBehaviour({
+    enabled,
+    enable: enableWheelZoom,
+    disable: disableWheelZoom,
+    pendingWheelBlocker,
+    ref: pendingBlockerAttachedRef,
+  });
 
   const setEnabled = useCallback(
     (isEnabled: boolean) => {
