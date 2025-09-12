@@ -30,61 +30,58 @@ export function useFovWheelZoom(
     (event: WheelEvent) => {
       event.preventDefault();
 
-      const viewer = ctx.viewerRef.current;
-      if (!viewer || !viewer.scene) return;
+      ctx.withCamera((camera) => {
+        if (!(camera.frustum instanceof PerspectiveFrustum)) {
+          console.debug("Camera frustum is not PerspectiveFrustum");
+          return;
+        }
 
-      if (!(viewer.camera.frustum instanceof PerspectiveFrustum)) {
-        console.debug("Camera frustum is not PerspectiveFrustum");
-        return;
-      }
+        const currentFov = camera.frustum.fov || 1;
 
-      const currentFov = viewer.camera.frustum.fov || 1;
+        const deltaSign = Math.sign(event.deltaY);
 
-      const deltaSign = Math.sign(event.deltaY);
+        const deltaYNormalized = Math.sqrt(Math.abs(event.deltaY)) * deltaSign;
 
-      const deltaYNormalized = Math.sqrt(Math.abs(event.deltaY)) * deltaSign;
+        const targetFov = currentFov * (1 + deltaYNormalized * fovChangeRate);
 
-      const targetFov = currentFov * (1 + deltaYNormalized * fovChangeRate);
+        const newFov = Math.max(minFov, Math.min(maxFov, targetFov));
 
-      const newFov = Math.max(minFov, Math.min(maxFov, targetFov));
-
-      if (Math.abs(newFov - currentFov) > 0.0001) {
-        viewer.camera.frustum.fov = newFov;
-        ctx.requestRender();
-      }
+        if (Math.abs(newFov - currentFov) > 0.0001) {
+          camera.frustum.fov = newFov;
+          ctx.requestRender();
+        }
+      });
     },
     [ctx, minFov, maxFov, fovChangeRate]
   );
 
   const enableWheelZoom = useCallback(() => {
-    const viewer = ctx.viewerRef.current;
-    if (!viewer || !viewer.scene) return;
+    ctx.withViewer((viewer) => {
+      viewer.scene.screenSpaceCameraController.enableZoom = false;
 
-    viewer.scene.screenSpaceCameraController.enableZoom = false;
+      if (!viewerWheelHandlers.has(viewer)) {
+        viewer.canvas.addEventListener("wheel", handleWheel, {
+          passive: false,
+        });
 
-    if (!viewerWheelHandlers.has(viewer)) {
-      viewer.canvas.addEventListener("wheel", handleWheel, {
-        passive: false,
-      });
-
-      viewerWheelHandlers.set(viewer, handleWheel);
-    }
+        viewerWheelHandlers.set(viewer, handleWheel);
+      }
+    });
   }, [ctx, handleWheel]);
 
   const disableWheelZoom = useCallback(() => {
-    const viewer = ctx.viewerRef.current;
-    if (!viewer || !viewer.scene) return;
+    ctx.withViewer((viewer) => {
+      if (viewerWheelHandlers.has(viewer)) {
+        const handlerToRemove = viewerWheelHandlers.get(viewer);
+        viewer.canvas.removeEventListener(
+          "wheel",
+          handlerToRemove as (event: WheelEvent) => void
+        );
+        viewerWheelHandlers.delete(viewer);
+      }
 
-    if (viewerWheelHandlers.has(viewer)) {
-      const handlerToRemove = viewerWheelHandlers.get(viewer);
-      viewer.canvas.removeEventListener(
-        "wheel",
-        handlerToRemove as (event: WheelEvent) => void
-      );
-      viewerWheelHandlers.delete(viewer);
-    }
-
-    viewer.scene.screenSpaceCameraController.enableZoom = true;
+      viewer.scene.screenSpaceCameraController.enableZoom = true;
+    });
   }, [ctx]);
 
   useEffect(() => {
@@ -113,9 +110,8 @@ export function useFovWheelZoom(
   return {
     handleWheel,
     setEnabled,
-    isEnabled: Boolean(
-      ctx.viewerRef.current && viewerWheelHandlers.has(ctx.viewerRef.current)
-    ),
+    isEnabled:
+      ctx.withViewer((viewer) => viewerWheelHandlers.has(viewer)) || false,
   };
 }
 

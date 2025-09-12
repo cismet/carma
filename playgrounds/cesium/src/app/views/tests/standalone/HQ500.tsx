@@ -17,6 +17,7 @@ import {
 
 import {
   CustomViewer,
+  isValidCesiumTerrainProvider,
   useCesiumContext,
   useHomeControl,
   useZoomControls as useZoomControlsCesium,
@@ -39,9 +40,7 @@ export const HQ500 = () => {
 
   // State and Selectors
   const ctx = useCesiumContext();
-  const { viewerRef, tilesetsRefs, imageryLayerRef } = useCesiumContext();
-  const viewer = viewerRef.current;
-  const primaryTileset = tilesetsRefs.primaryRef.current;
+  const { viewerRef, withScene } = ctx;
   const homeControl = useHomeControl();
   const {
     handleZoomIn: handleZoomInCesium,
@@ -60,20 +59,22 @@ export const HQ500 = () => {
         return lastRenderIntervalRef.current;
       },
       dpr: window.devicePixelRatio,
-      resolutionScale: viewer ? viewer.resolutionScale : 0,
+      resolutionScale: viewerRef.current
+        ? viewerRef.current.resolutionScale
+        : 0,
     },
     inputs: [
       { name: "renderCount", readonly: true, format: (v) => v.toFixed(0) },
       {
         name: "renderInterval",
         readonly: true,
-        format: (v) => v.toFixed(0),
+        format: (v: number) => v.toFixed(0),
       },
-      { name: "dpr", readonly: true, format: (v) => v.toFixed(1) },
+      { name: "dpr", readonly: true, format: (v: number) => v.toFixed(1) },
       {
         name: "resolutionScale",
         readonly: true,
-        format: (v) => v.toFixed(1),
+        format: (v: number) => v.toFixed(1),
       },
     ],
   });
@@ -87,32 +88,33 @@ export const HQ500 = () => {
   const hq500Terrain = useMemo(() => new Terrain(provider), [provider]);
 
   useEffect(() => {
-    if (viewer && hq500Terrain && primaryTileset) {
+    if (hq500Terrain) {
       const onTerrainReady = () => {
-        primaryTileset.show = true;
-        viewer.scene.setTerrain(hq500Terrain);
-        viewer.scene.backgroundColor = Color.DIMGREY;
-        viewer.scene.globe.baseColor = new Color(0.3, 0.2, 0.8, 0.7);
-        viewer.scene.globe.show = true;
-        viewer.scene.globe.translucency.enabled = true;
-        viewer.scene.globe.translucency.frontFaceAlpha = 1.0;
-        viewer.scene.globe.translucency.backFaceAlpha = 1.0;
-        viewer.scene.screenSpaceCameraController.enableCollisionDetection =
-          false;
-        viewer.scene.terrainProvider = hq500Terrain.provider;
-        console.debug(
-          "ccc [CESIUM] terrain ready",
-          viewer.imageryLayers.length
-        );
-        viewer.scene.requestRender();
+        ctx.withPrimaryTileset((primaryTileset) => {
+          primaryTileset.show = true;
+        });
+        withScene((scene) => {
+          scene.setTerrain(hq500Terrain);
+          scene.backgroundColor = Color.DIMGREY;
+          scene.globe.baseColor = new Color(0.3, 0.2, 0.8, 0.7);
+          scene.globe.show = true;
+          scene.globe.translucency.enabled = true;
+          scene.globe.translucency.frontFaceAlpha = 1.0;
+          scene.globe.translucency.backFaceAlpha = 1.0;
+          scene.screenSpaceCameraController.enableCollisionDetection = false;
+          scene.terrainProvider = hq500Terrain.provider;
+          console.debug("ccc [CESIUM] terrain ready");
+        });
+        ctx.requestRender();
       };
       hq500Terrain.readyEvent.addEventListener(onTerrainReady);
 
       return () => {
-        hq500Terrain.readyEvent.removeEventListener(onTerrainReady);
+        isValidCesiumTerrainProvider(hq500Terrain.provider) &&
+          hq500Terrain.readyEvent.removeEventListener(onTerrainReady);
       };
     }
-  }, [viewer, hq500Terrain, primaryTileset, imageryLayerRef]);
+  }, [withScene, hq500Terrain, ctx]);
 
   return (
     <ControlLayout ifStorybook={false}>

@@ -23,28 +23,71 @@ export const useTilesets = () => {
   useTilesetsDebug();
 
   useEffect(() => {
-    ctx.withPrimaryTileset((tileset, viewer) => {
-      if (tileset) {
-        viewer.scene.primitives.add(tileset);
-        console.debug(
-          "[CESIUM|DEBUG] Adding primary tileset to viewer",
-          viewer.scene.primitives.length
-        );
+    let added = false;
+    const tryAdd = () => {
+      if (added) return;
+      const has = ctx.withPrimaryTileset((tileset, viewer) => {
+        // avoid duplicates
+        let alreadyAdded = false;
+        for (let i = 0; i < viewer.scene.primitives.length; i++) {
+          if (viewer.scene.primitives.get(i) === tileset) {
+            alreadyAdded = true;
+            break;
+          }
+        }
+        if (!alreadyAdded) {
+          viewer.scene.primitives.add(tileset);
+          console.debug(
+            "[CESIUM|DEBUG] Adding primary tileset to viewer",
+            viewer.scene.primitives.length
+          );
+          ctx.requestRender();
+        }
+        // ensure correct initial visibility according to current style
+        tileset.show = showPrimary;
+        ctx.requestRender();
+        added = true;
+      });
+      if (!has) {
+        // not yet available -> retry next frame
+        requestAnimationFrame(tryAdd);
       }
-    });
-  }, [ctx]);
+    };
+    tryAdd();
+  }, [ctx, showPrimary]);
 
   useEffect(() => {
-    ctx.withSecondaryTileset((tileset, viewer) => {
-      if (tileset) {
-        viewer.scene.primitives.add(tileset);
-        console.debug(
-          "[CESIUM|DEBUG] Adding secondary tileset to viewer",
-          viewer.scene.primitives.length
-        );
+    let added = false;
+    const tryAdd = () => {
+      if (added) return;
+      const has = ctx.withSecondaryTileset((tileset, viewer) => {
+        // avoid duplicates
+        let alreadyAdded = false;
+        for (let i = 0; i < viewer.scene.primitives.length; i++) {
+          if (viewer.scene.primitives.get(i) === tileset) {
+            alreadyAdded = true;
+            break;
+          }
+        }
+        if (!alreadyAdded) {
+          viewer.scene.primitives.add(tileset);
+          console.debug(
+            "[CESIUM|DEBUG] Adding secondary tileset to viewer",
+            viewer.scene.primitives.length
+          );
+          ctx.requestRender();
+        }
+        // ensure correct initial visibility according to current style
+        tileset.show = showSecondary;
+        ctx.requestRender();
+        added = true;
+      });
+      if (!has) {
+        requestAnimationFrame(tryAdd);
       }
-    });
-  }, [ctx]);
+    };
+    tryAdd();
+  }, [ctx, showSecondary]);
 
   useEffect(() => {
     console.debug("HOOK BaseTilesets: showSecondary", showSecondary);
@@ -54,15 +97,17 @@ export const useTilesets = () => {
         console.debug(
           "[CESIUM|DEBUG] show secondary tileset, setting preloadWhenHidden to true"
         );
-        // after initial load, set this to true to enable fast switching to small LOD2 tilesets
-        // tilesetSecondary.preloadWhenHidden = true;
+        ctx.requestRender();
       }
     });
   }, [ctx, showSecondary]);
 
   useEffect(() => {
     console.debug("HOOK BaseTilesets: showPrimary", showPrimary);
-    ctx.withPrimaryTileset((tileset) => (tileset.show = showPrimary));
+    ctx.withPrimaryTileset((tileset) => {
+      tileset.show = showPrimary;
+      ctx.requestRender();
+    });
   }, [ctx, showPrimary]);
 
   useSecondaryStyleTilesetClickHandler();

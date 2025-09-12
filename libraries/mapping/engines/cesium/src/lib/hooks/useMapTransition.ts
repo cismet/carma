@@ -22,7 +22,7 @@ import { setLeafletView } from "../utils/leafletHelpers";
 import { leafletToCesium } from "../utils/leafletToCesium";
 import { pickViewerCanvasCenter } from "../utils/pickers";
 import { cesiumCenterPixelSizeToLeafletZoom } from "../utils/pixels";
-import { isValidViewer } from '../utils/viewer';
+import { isValidViewer } from "../utils/instanceGates";
 
 type TransitionOptions = {
   onComplete?: (isTo2d: boolean) => void;

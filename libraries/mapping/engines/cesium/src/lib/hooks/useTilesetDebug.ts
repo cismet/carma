@@ -5,7 +5,7 @@ import { Cesium3DTileset, CustomShader, type Viewer } from "cesium";
 import { useTweakpaneCtx } from "@carma-commons/debug";
 import { useCesiumContext } from "./useCesiumContext";
 
-const DEFAULT_MESH_SHADER_KEY = "UNLIT_ENHANCED_2024";  
+const DEFAULT_MESH_SHADER_KEY = "UNLIT_ENHANCED_2024";
 
 const shaderOptions = Object.keys(CUSTOM_SHADERS_DEFINITIONS).reduce(
   (acc: Record<string, string>, key: string) => {

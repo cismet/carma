@@ -187,7 +187,6 @@ export function pickFromClampedGeojson(
   position: Cartesian2,
   limit: number = GEOJSON_DRILL_LIMIT
 ): Entity | null {
-
   let pickedObject: Entity | null = null;
   ctx.withScene((scene) => {
     const pickedObjects = scene.drillPick(position, limit);

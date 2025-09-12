@@ -13,6 +13,7 @@ import type {
 import { ViewerAnimationMap } from "./utils/viewerAnimationMap";
 
 export interface CesiumContextType {
+  viewerRef: MutableRefObject<Viewer | null>;
   viewerAnimationMapRef: MutableRefObject<ViewerAnimationMap | null>;
   shouldSuspendPitchLimiterRef: MutableRefObject<boolean>;
   shouldSuspendCameraLimitersRef: MutableRefObject<boolean>;

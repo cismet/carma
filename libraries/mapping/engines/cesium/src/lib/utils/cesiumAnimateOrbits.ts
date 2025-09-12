@@ -23,7 +23,9 @@ export enum PITCH {
  * @param viewer The Cesium viewer.
  * @returns The point on the globe that the camera is currently orbiting around.
  */
-export const getOrbitPoint = (ctx: CesiumContextType): Cartesian3 | undefined => {
+export const getOrbitPoint = (
+  ctx: CesiumContextType
+): Cartesian3 | undefined => {
   let target: Cartesian3 | undefined;
   ctx.withScene((scene) => {
     const screenCenter = new Cartesian2(

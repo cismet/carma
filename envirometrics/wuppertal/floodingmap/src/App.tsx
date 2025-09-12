@@ -99,14 +99,8 @@ function App({ sync = false }: { sync?: boolean }) {
 
   // CONTROLS
   const ctx = useCesiumContext();
-  const {
-    viewerRef,
-    viewerAnimationMapRef,
-    isViewerReady,
-    terrainProviderRef,
-    surfaceProviderRef,
-    requestRender,
-  } = ctx;
+  const { viewerRef, viewerAnimationMapRef, isViewerReady, requestRender } =
+    ctx;
   const homeControl = useHomeControl();
   const {
     handleZoomIn: handleZoomInCesium,
@@ -187,10 +181,10 @@ function App({ sync = false }: { sync?: boolean }) {
         markerAsset,
         markerAnchorHeight,
         isPrimaryStyle: true,
-        surfaceProviderRef,
-        terrainProviderRef,
+        withTerrainProvider: (cb) => ctx.withTerrainProvider(cb),
+        withSurfaceProvider: (cb) => ctx.withSurfaceProvider(cb),
       }),
-      [markerAsset, markerAnchorHeight, surfaceProviderRef, terrainProviderRef]
+      [markerAsset, markerAnchorHeight, ctx]
     )
   );
 

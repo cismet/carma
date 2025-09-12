@@ -56,7 +56,7 @@ export const useHGKCesiumTerrain = (
   HGK_KEYS,
   HGK_TERRAIN_PROVIDER_URLS
 ) => {
-  const { terrainProviderRef, viewerRef, isViewerReady } = useCesiumContext();
+  const { viewerRef, isViewerReady } = useCesiumContext();
   const retryTimeoutRef = useRef<number | null>(null);
   const currentAttemptRef = useRef<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
@@ -131,7 +131,6 @@ export const useHGKCesiumTerrain = (
         )
           return;
 
-        terrainProviderRef.current = provider;
         if (provider && viewer.scene) {
           try {
             viewer.scene.terrainProvider = provider;
@@ -154,7 +153,6 @@ export const useHGKCesiumTerrain = (
   }, [
     isHWS,
     selectedSimulation,
-    terrainProviderRef,
     viewerRef,
     isViewerReady,
     HGK_KEYS,

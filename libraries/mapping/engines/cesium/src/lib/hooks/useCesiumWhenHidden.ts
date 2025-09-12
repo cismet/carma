@@ -1,62 +1,61 @@
 import { useEffect } from "react";
-import { useCesiumViewer } from "./useCesiumViewer";
 import { selectViewerIsMode2d } from "../slices/cesium";
 import { useSelector } from "react-redux";
-import { Viewer } from "cesium";
+import { CesiumContextType } from "../CesiumContext";
+import { isValidImageryLayer } from "../utils/instanceGates";
+import { useCesiumContext } from "./useCesiumContext";
 
-const hideLayers = (viewer: Viewer) => {
-  if (viewer.isDestroyed()) {
-    return;
-  }
-  for (let i = 0; i < viewer.imageryLayers.length; i++) {
-    const layer = viewer.imageryLayers.get(i);
-    if (layer) {
-      layer.show = false; // Hide the layer
-      console.debug("[CESIUM|VIEWER] hide imagery layer", i);
+const hideLayers = (ctx: CesiumContextType) => {
+  ctx.withViewer((viewer) => {
+    for (let i = 0; i < viewer.imageryLayers.length; i++) {
+      const layer = viewer.imageryLayers.get(i);
+      if (isValidImageryLayer(layer)) {
+        layer.show = false; // Hide the layer
+      } else {
+        console.debug("[CESIUM|VIEWER] skip invalid imagery layer", i, layer);
+      }
     }
-  }
+  });
 };
 
-const showLayers = (viewer: Viewer) => {
-  if (viewer.isDestroyed()) {
-    return;
-  }
-  for (let i = 0; i < viewer.imageryLayers.length; i++) {
-    const layer = viewer.imageryLayers.get(i);
-    if (layer) {
-      layer.show = true; // unHide the layer
-      console.debug("[CESIUM|VIEWER] show imagerylayer", i);
+const showLayers = (ctx: CesiumContextType) => {
+  ctx.withViewer((viewer) => {
+    for (let i = 0; i < viewer.imageryLayers.length; i++) {
+      const layer = viewer.imageryLayers.get(i);
+      if (isValidImageryLayer(layer)) {
+        layer.show = true; // unHide the layer
+      } else {
+        console.debug("[CESIUM|VIEWER] skip invalid imagery layer", i, layer);
+      }
     }
-  }
+  });
 };
 
 // reduce resoures use when cesium is not visible
 export const useCesiumWhenHidden = (delay = 0) => {
-  const viewer = useCesiumViewer();
+  const ctx = useCesiumContext();
   const isMode2d = useSelector(selectViewerIsMode2d);
   console.debug("HOOKINIT: [CESIUM] useCesiumWhenHidden");
   useEffect(() => {
-    console.debug("HOOK: [CESIUM] useCesiumWhenHidden", viewer, isMode2d);
-    if (viewer) {
-      if (isMode2d) {
-        if (delay > 0) {
-          setTimeout(() => {
-            console.debug(
-              "HOOK: [CESIUM] hiding cesium imagery layer with delay",
-              delay
-            );
-            hideLayers(viewer);
-          }, delay);
-        } else {
-          console.debug("HOOK: [CESIUM] hiding cesium imagery layer undelayed");
-          hideLayers(viewer);
-        }
+    console.debug("HOOK: [CESIUM] useCesiumWhenHidden", isMode2d);
+    if (isMode2d) {
+      if (delay > 0) {
+        setTimeout(() => {
+          console.debug(
+            "HOOK: [CESIUM] hiding cesium imagery layer with delay",
+            delay
+          );
+          hideLayers(ctx);
+        }, delay);
       } else {
-        console.debug("HOOK: [CESIUM] showing cesium imagery layer");
-        showLayers(viewer);
+        console.debug("HOOK: [CESIUM] hiding cesium imagery layer undelayed");
+        hideLayers(ctx);
       }
+    } else {
+      console.debug("HOOK: [CESIUM] showing cesium imagery layer");
+      showLayers(ctx);
     }
-  }, [viewer, isMode2d]);
+  }, [delay, ctx, isMode2d]);
 };
 
 export default useCesiumWhenHidden;

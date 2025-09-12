@@ -114,7 +114,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
 
   // Contexts
   const ctx = useCesiumContext();
-  const { viewerRef, terrainProviderRef, surfaceProviderRef } = ctx;
+  const { withTerrainProvider, withSurfaceProvider } = ctx;
 
   const rerenderCountRef = useRef(0);
   const lastRenderTimeStampRef = useRef(Date.now());
@@ -279,15 +279,15 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
         markerAsset,
         markerAnchorHeight,
         isPrimaryStyle: showPrimaryTileset,
-        surfaceProviderRef,
-        terrainProviderRef,
+        withTerrainProvider,
+        withSurfaceProvider,
       }),
       [
         markerAsset,
         markerAnchorHeight,
         showPrimaryTileset,
-        surfaceProviderRef,
-        terrainProviderRef,
+        withTerrainProvider,
+        withSurfaceProvider,
       ]
     ),
     isObliqueMode
@@ -312,7 +312,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   useEffect(() => {
     // TODO wrap this with 3d component in own component?
     // INTIALIZE Cesium Tileset style from Geoportal/TopicMap background later style
-    if (viewerRef.current && backgroundLayer) {
+    if (ctx.isValidViewer() && backgroundLayer) {
       if (backgroundLayer.id === "luftbild") {
         dispatch(setCurrentSceneStyle("primary"));
       } else {

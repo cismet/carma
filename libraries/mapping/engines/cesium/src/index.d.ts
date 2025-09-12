@@ -76,8 +76,12 @@ export type CesiumOptions = {
   isPrimaryStyle: boolean;
   markerAnchorHeight?: number;
   pitchAdjustHeight?: number;
-  terrainProviderRef: MutableRefObject<TerrainProvider | null>;
-  surfaceProviderRef: MutableRefObject<TerrainProvider | null>;
+  withTerrainProvider: (
+    cb: (provider: CesiumTerrainProvider, viewer: Viewer) => void
+  ) => boolean;
+  withSurfaceProvider: (
+    cb: (provider: CesiumTerrainProvider, viewer: Viewer) => void
+  ) => boolean;
 };
 
 export type GeoJsonConfig = {

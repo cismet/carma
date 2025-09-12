@@ -61,6 +61,7 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
   pitchOblique = PITCH.OBLIQUE,
   headingFactor = 1,
 }) => {
+  const cesiumCtx = useCesiumContext();
   const [isControlMouseDown, setIsControlMouseDown] = useState(false);
   const [initialMouseX, setInitialMouseX] = useState(0);
   const [initialMouseY, setInitialMouseY] = useState(0);
@@ -88,7 +89,7 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
       setCurrentPitch(viewerRef.current.camera.pitch);
       setCurrentHeading(viewerRef.current.camera.heading);
 
-      const target = getOrbitPoint(viewerRef.current);
+      const target = getOrbitPoint(cesiumCtx);
       if (target) {
         const range = Cartesian3.distance(
           target,
@@ -162,7 +163,7 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
           maxPitch
         );
 
-        const target = getOrbitPoint(viewerRef.current);
+        const target = getOrbitPoint(cesiumCtx);
 
         if (target && initialRange !== null) {
           viewerRef.current.camera.lookAt(
@@ -185,13 +186,13 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
     };
   }, [isControlMouseDown]);
 
-  const handleButtonClick = (event: React.MouseEvent<HTMLDivElement>) => {
+  const handleButtonClick = (_event: React.MouseEvent<HTMLDivElement>) => {
     if (
       viewerRef.current &&
       viewerAnimationMapRef.current &&
       initialRange !== null
     ) {
-      const orbitPoint = getOrbitPoint(viewerRef.current);
+      const orbitPoint = getOrbitPoint(cesiumCtx);
       if (orbitPoint) {
         animateCamera(
           viewerRef.current,
@@ -206,13 +207,13 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
     }
   };
 
-  const handleDoubleClick = (event: React.MouseEvent<HTMLDivElement>) => {
+  const handleDoubleClick = (_event: React.MouseEvent<HTMLDivElement>) => {
     if (
       viewerRef.current &&
       viewerAnimationMapRef.current &&
       initialRange !== null
     ) {
-      const orbitPoint = getOrbitPoint(viewerRef.current);
+      const orbitPoint = getOrbitPoint(cesiumCtx);
       if (orbitPoint) {
         animateCamera(
           viewerRef.current,

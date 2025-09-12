@@ -96,7 +96,9 @@ export const useOnSceneChange = (
       const moveEndListener = async () => {
         // let TopicMap/leaflet handle the view change in 2d Mode
         let proceed = false;
-        let camDeg: { latitude: number; longitude: number; height: number } | undefined;
+        let camDeg:
+          | { latitude: number; longitude: number; height: number }
+          | undefined;
         ctx.withCamera((camera) => {
           proceed = Boolean(camera && camera.position && !isMode2d);
           if (proceed) {
@@ -115,7 +117,7 @@ export const useOnSceneChange = (
             ctx.withCamera((camera) => {
               cameraState = encodeCesiumCamera(camera);
             });
-            if (cameraState === null ) {
+            if (cameraState === null) {
               return;
             }
             const hashParams = toHashParams(cameraState, {

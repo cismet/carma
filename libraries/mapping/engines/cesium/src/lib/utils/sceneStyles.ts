@@ -30,9 +30,8 @@ const waitAndSetTerrainProvider = (
       onReady?.();
     });
     if (!hasProvider) {
-      return;
+      requestAnimationFrame(checkTerrainProvider);
     }
-    requestAnimationFrame(checkTerrainProvider);
   };
 
   const isSet = ctx.withTerrainProvider((terrainProvider, viewer) => {
@@ -50,7 +49,7 @@ export const setupPrimaryStyle = (
   ctx: CesiumContextType,
   style?: Partial<SceneStyle>
 ) => {
-  (async () => {
+  async () => {
     ctx.withScene((scene) => {
       scene.globe.baseColor =
         fromColorRgbaArray(style?.globe?.baseColor) ?? Color.LIGHTGREY;
@@ -65,9 +64,20 @@ export const setupPrimaryStyle = (
         //onReady: addImageryLayer,
       });
 
-      if (imageryLayer) {
-        imageryLayer.show = false;
-      }
+      // Defer hide to postRender to avoid toggling during tile processing
+      ctx.withScene((scene) => {
+        const hideOnce = () => {
+          ctx.withImageryLayer((imageryLayer) => {
+            if (!imageryLayer.isDestroyed()) {
+              imageryLayer.show = false;
+            } else {
+              console.debug("[STYLES|IMAGERY] skip hide; layer destroyed");
+            }
+          });
+          scene.postRender.removeEventListener(hideOnce);
+        };
+        scene.postRender.addEventListener(hideOnce);
+      });
 
       ctx.withScene((scene) => {
         const invertedSelection = getGroundPrimitiveById(
@@ -81,7 +91,7 @@ export const setupPrimaryStyle = (
       });
     });
     ctx.requestRender();
-  })();
+  };
 };
 
 export const setupSecondaryStyle = (
@@ -95,15 +105,35 @@ export const setupSecondaryStyle = (
       fromColorRgbaArray(style?.backgroundColor) ?? new Color(0, 0, 0, 0);
 
     const addImageryLayer = () => {
-      ctx.withImageryLayer((imageryLayer, viewer) => {
-        imageryLayer.show = true;
-        if (viewer.imageryLayers.length === 0) {
-          viewer.imageryLayers.add(imageryLayer);
-          console.debug(
-            "Secondary Style Setup: add imagery layer",
-            viewer.imageryLayers.length
-          );
-        }
+      // Defer add/show to postRender to avoid mutating collection mid-frame
+      ctx.withScene((scene) => {
+        const addOnce = () => {
+          ctx.withImageryLayer((imageryLayer, viewer) => {
+            if (imageryLayer.isDestroyed()) {
+              console.debug("[STYLES|IMAGERY] skip add/show; layer destroyed");
+              return;
+            }
+            const layers = viewer.imageryLayers;
+            let alreadyAdded = false;
+            for (let i = 0; i < layers.length; i++) {
+              if (layers.get(i) === imageryLayer) {
+                alreadyAdded = true;
+                break;
+              }
+            }
+            if (!alreadyAdded) {
+              layers.add(imageryLayer);
+              console.debug(
+                "Secondary Style Setup: add imagery layer",
+                layers.length
+              );
+            }
+            imageryLayer.show = true;
+            viewer.scene.requestRender();
+          });
+          scene.postRender.removeEventListener(addOnce);
+        };
+        scene.postRender.addEventListener(addOnce);
       });
     };
 
@@ -112,15 +142,13 @@ export const setupSecondaryStyle = (
       onReady: addImageryLayer,
     });
 
-    ctx.withScene((scene) => {
-      const invertedSelection = getGroundPrimitiveById(
-        scene,
-        INVERTED_SELECTED_POLYGON_ID
-      );
-      if (invertedSelection) {
-        invertedSelection.classificationType = ClassificationType.BOTH;
-      }
-    });
+    const invertedSelection = getGroundPrimitiveById(
+      scene,
+      INVERTED_SELECTED_POLYGON_ID
+    );
+    if (invertedSelection) {
+      invertedSelection.classificationType = ClassificationType.BOTH;
+    }
     ctx.requestRender();
-  })();
+  });
 };

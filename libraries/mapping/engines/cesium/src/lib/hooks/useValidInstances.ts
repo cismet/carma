@@ -15,7 +15,7 @@ import {
   isValidTileset,
   isValidCesiumTerrainProvider,
   isValidEllipsoidTerrainProvider,
-} from "../utils/viewer";
+} from "../utils/instanceGates";
 
 export type KnownProviders =
   | CesiumTerrainProvider
@@ -59,7 +59,10 @@ export const useValidInstances = (viewerRef: MutableRefObject<Viewer | null>) =>
 
     const withEllipsoidTerrainProviderRef = (
       ellipsoidTerrainProviderRef: MutableRefObject<EllipsoidTerrainProvider | null>,
-      cb: (ellipsoidTerrainProvider: EllipsoidTerrainProvider, viewer: Viewer) => void
+      cb: (
+        ellipsoidTerrainProvider: EllipsoidTerrainProvider,
+        viewer: Viewer
+      ) => void
     ): boolean => {
       if (
         isValidViewerNoCtx(viewerRef.current) &&
