@@ -26,6 +26,7 @@ import { ObliqueDirectionControlsCompact } from "./ObliqueDirectionControls.Comp
 import type { CardinalDirectionEnum } from "../utils/orientationUtils";
 import { getViewerSyncedDimensions } from "../utils/getViewerSyncedDimensions";
 import { useProgressivePreviewSource } from "../hooks/useProgressivePreviewSource";
+import { useForwardZoomEventsToCesium } from "../hooks/useForwardZoomEventsToCesium";
 
 interface ObliqueImagePreviewProps {
   // Base path for progressive preview levels (for level 6 initial load)
@@ -141,6 +142,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   const [saturation, setSaturation] = useState(100);
 
   const ctx = useCesiumContext();
+  const { rootRef, onWheel, fovOverride } = useForwardZoomEventsToCesium();
 
   const { xOffset, yOffset } = interiorOrientationOffsets;
 
@@ -344,11 +346,14 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
     ctx,
     isVertical,
     imageAspectRatio,
-    PREVIEW_IMAGE_BASE_SCALE_FACTOR
+    PREVIEW_IMAGE_BASE_SCALE_FACTOR,
+    fovOverride
   );
 
   return (
     <div
+      ref={rootRef}
+      onWheel={onWheel}
       style={{
         position: "absolute",
         width: "100%",

@@ -8,12 +8,17 @@ export interface FovWheelZoomOptions {
   minFov?: number;
   maxFov?: number;
   fovChangeRate?: number;
+  onAfterFovChange?: () => void;
+  onFovChange?: (newFov: number, previousFov: number) => void;
 }
 
-const defaultFovWheelZoomOptions: Required<FovWheelZoomOptions> = {
-  minFov: CesiumMath.toRadians(10), // Minimum field of view in radians
-  maxFov: CesiumMath.toRadians(120), // Maximum field of view in radians
-  fovChangeRate: 0.01,
+const DEFAULT_MIN_FOV = CesiumMath.toRadians(10);
+const DEFAULT_MAX_FOV = CesiumMath.toRadians(120);
+const DEFAULT_FOV_CHANGE_RATE = 0.01;
+const defaultFovWheelZoomOptions: FovWheelZoomOptions = {
+  minFov: DEFAULT_MIN_FOV,
+  maxFov: DEFAULT_MAX_FOV,
+  fovChangeRate: DEFAULT_FOV_CHANGE_RATE,
 };
 
 export function useFovWheelZoom(
@@ -21,10 +26,13 @@ export function useFovWheelZoom(
   enabled: boolean = true,
   options: FovWheelZoomOptions = {}
 ) {
-  const { minFov, maxFov, fovChangeRate } = {
+  const { minFov, maxFov, fovChangeRate, onAfterFovChange, onFovChange } = {
     ...defaultFovWheelZoomOptions,
     ...options,
   };
+  const min = minFov ?? DEFAULT_MIN_FOV;
+  const max = maxFov ?? DEFAULT_MAX_FOV;
+  const rate = fovChangeRate ?? DEFAULT_FOV_CHANGE_RATE;
 
   const handleWheel = useCallback(
     (event: WheelEvent) => {
@@ -47,17 +55,20 @@ export function useFovWheelZoom(
 
         const deltaYNormalized = Math.sqrt(Math.abs(event.deltaY)) * deltaSign;
 
-        const targetFov = currentFov * (1 + deltaYNormalized * fovChangeRate);
+        const targetFov = currentFov * (1 + deltaYNormalized * rate);
 
-        const newFov = Math.max(minFov, Math.min(maxFov, targetFov));
+        const newFov = Math.max(min, Math.min(max, targetFov));
 
         if (Math.abs(newFov - currentFov) > 0.0001) {
+          // Emit computed FOV to listeners first for zero-lag overlays
+          onFovChange && onFovChange(newFov, currentFov);
           camera.frustum.fov = newFov;
           ctx.requestRender();
+          onAfterFovChange && onAfterFovChange();
         }
       });
     },
-    [ctx, minFov, maxFov, fovChangeRate]
+    [ctx, min, max, rate, onAfterFovChange, onFovChange]
   );
 
   // Temporary global wheel blocker while viewer is not yet available.

@@ -1,10 +1,14 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import type { MutableRefObject, WheelEvent as ReactWheelEvent } from "react";
-import { useCesiumContext } from "@carma-mapping/engines/cesium";
+import {
+  useCesiumContext,
+  useFovWheelZoom,
+} from "@carma-mapping/engines/cesium";
 
 export interface ForwardZoomEventsBindings {
   rootRef: MutableRefObject<HTMLDivElement | null>;
   onWheel: (e: ReactWheelEvent | WheelEvent) => void;
+  fovOverride?: number;
 }
 
 /**
@@ -14,34 +18,24 @@ export interface ForwardZoomEventsBindings {
 export function useForwardZoomEventsToCesium(): ForwardZoomEventsBindings {
   const ctx = useCesiumContext();
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const [, setTick] = useState(0);
+  const [fovOverride, setFovOverride] = useState<number | undefined>(undefined);
+
+  // Use Cesium FOV wheel zoom directly; re-render after each FOV change
+  const { handleWheel } = useFovWheelZoom(ctx, true, {
+    onFovChange: (newFov) => setFovOverride(newFov),
+    onAfterFovChange: () => setTick((t) => t + 1),
+  });
 
   const onWheel = useCallback(
     (e: ReactWheelEvent | WheelEvent) => {
-      // Prevent browser/page scroll
       e.preventDefault();
       const native: WheelEvent = (e as ReactWheelEvent).nativeEvent
         ? ((e as ReactWheelEvent).nativeEvent as WheelEvent)
         : (e as WheelEvent);
-
-      ctx.withCanvas((canvas) => {
-        const forwarded = new WheelEvent("wheel", {
-          altKey: native.altKey,
-          bubbles: true,
-          cancelable: true,
-          clientX: native.clientX,
-          clientY: native.clientY,
-          ctrlKey: native.ctrlKey,
-          deltaMode: native.deltaMode,
-          deltaX: native.deltaX,
-          deltaY: native.deltaY,
-          deltaZ: native.deltaZ,
-          metaKey: native.metaKey,
-          shiftKey: native.shiftKey,
-        });
-        canvas.dispatchEvent(forwarded);
-      });
+      handleWheel(native);
     },
-    [ctx]
+    [handleWheel]
   );
 
   // Safari emits non-standard gesture events for pinch (gesture*).
@@ -64,15 +58,9 @@ export function useForwardZoomEventsToCesium(): ForwardZoomEventsBindings {
       lastScale = scale;
       if (deltaScale === 0) return;
       const deltaY = -deltaScale * 300; // negative -> zoom in
-
-      ctx.withCanvas((canvas) => {
-        const forwarded = new WheelEvent("wheel", {
-          bubbles: true,
-          cancelable: true,
-          deltaY,
-        });
-        canvas.dispatchEvent(forwarded);
-      });
+      // Create a synthetic WheelEvent-equivalent object for our handler
+      const pseudoWheel = new WheelEvent("wheel", { deltaY });
+      handleWheel(pseudoWheel);
     };
     const onGestureEnd: EventListener = (ev) => {
       ev.preventDefault();
@@ -88,9 +76,9 @@ export function useForwardZoomEventsToCesium(): ForwardZoomEventsBindings {
       el.removeEventListener("gesturechange", onGestureChange);
       el.removeEventListener("gestureend", onGestureEnd);
     };
-  }, [ctx]);
+  }, [handleWheel]);
 
-  return { rootRef, onWheel };
+  return { rootRef, onWheel, fovOverride };
 }
 
 export default useForwardZoomEventsToCesium;
