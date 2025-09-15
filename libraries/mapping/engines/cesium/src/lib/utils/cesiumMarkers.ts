@@ -154,18 +154,28 @@ export const addCesiumMarker = async (
     });
   }
 
-  // Add the stemline if configured
-  if (options.stemline || modelConfig.stemline) {
-    createOrUpdateStemline(ctx, entityData, [pos, groundPos], {
-      ...modelConfig.stemline,
-      ...options.stemline,
-    });
+  try {
+    // Add the stemline if configured
+    if (options.stemline || modelConfig.stemline) {
+      createOrUpdateStemline(ctx, entityData, [pos, groundPos], {
+        ...modelConfig.stemline,
+        ...options.stemline,
+      });
+    }
+  } catch (e) {
+    console.error("[CESIUM|MARKER] error adding/updating stemline", e);
   }
 
   entityData.model = markerModel;
-  ctx.withScene((scene) => {
-    scene.primitives.add(markerModel);
-  });
+
+  if (markerModel.isDestroyed()) {
+    console.warn("[CESIUM|MARKER] marker model is destroyed");
+    return;
+  } else {
+    ctx.withScene((scene) => {
+      scene.primitives.add(markerModel);
+    });
+  }
 
   const onPreUpdate = () => updateMarker(ctx, entityData);
   ctx.withScene((scene) => {
@@ -288,20 +298,42 @@ export const removeCesiumMarker = (
     // remove listeners before removing the primitives
     // so no updates are triggered after the primitive is removed
     data.cleanup && data.cleanup();
-    ctx.requestRender();
-    ctx.withScene((scene) => {
+    ctx.withScene(async (scene) => {
       try {
-        data.model && scene.primitives.remove(data.model);
+        data.model &&
+          !data.model.isDestroyed() &&
+          !scene.primitives.isDestroyed() &&
+          scene.primitives.remove(data.model);
       } catch (e) {
         console.error("[CESIUM|MARKER] error removing model", e);
       }
+      ctx.requestRender();
     });
-    ctx.withScene((scene) => {
+    ctx.withScene(async (scene) => {
       try {
-        data.stemline && scene.primitives.remove(data.stemline);
+        const hasValidStemline = data.stemline && !data.stemline.isDestroyed();
+
+        const hasValidCollection =
+          scene.primitives && !scene.primitives.isDestroyed();
+
+        const isInCollection = scene.primitives.contains(data.stemline);
+        console.debug(
+          "[CESIUM|MARKER] removing stemline",
+          data.stemline,
+          hasValidStemline,
+          hasValidCollection,
+          isInCollection
+        );
+        if (hasValidStemline && hasValidCollection && isInCollection) {
+          scene.primitives.remove(data.stemline);
+        }
       } catch (e) {
-        console.error("[CESIUM|MARKER] error removing stemline", e);
+        console.warn(
+          "[CESIUM|MARKER] error removing stemline, likely reinitialization issue",
+          e
+        );
       }
+      ctx.requestRender();
     });
   }
 };

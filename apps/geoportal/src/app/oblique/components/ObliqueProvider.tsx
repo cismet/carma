@@ -553,7 +553,14 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     }
     // Use debounced behavior inside refreshSearch; no force here during normal operation
     selectedImageRefresh();
-  }, [isObliqueMode, ctx, ctx.isViewerReady, isInitialCameraSettled, orbitPoint, selectedImageRefresh]);
+  }, [
+    isObliqueMode,
+    ctx,
+    ctx.isViewerReady,
+    isInitialCameraSettled,
+    orbitPoint,
+    selectedImageRefresh,
+  ]);
 
   // Once a nearest image exists and the viewer is ready, retrigger render twice (100ms apart)
   // to ensure derived visuals (e.g., footprint outline) become visible without interaction

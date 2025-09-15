@@ -49,7 +49,10 @@ export const useMapTransition = ({
   const [prevDuration, setPrevDuration] = useState<number>(0);
 
   const transitionToMode3d = async () => {
-    if (!viewerRef.current || !routedMapRef.current?.leafletMap?.leafletElement) {
+    if (
+      !viewerRef.current ||
+      !routedMapRef.current?.leafletMap?.leafletElement
+    ) {
       console.warn("cesium or leaflet not available");
       return;
     }

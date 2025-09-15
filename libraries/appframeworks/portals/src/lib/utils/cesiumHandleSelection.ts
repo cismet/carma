@@ -1,3 +1,4 @@
+import { MutableRefObject } from "react";
 import {
   BoundingSphere,
   Cartesian3,
@@ -16,7 +17,7 @@ import {
   PerspectiveFrustum,
   PolygonGeometry,
   sampleTerrainMostDetailed,
-  Viewer,
+  type Model,
 } from "cesium";
 
 import {
@@ -34,7 +35,6 @@ import {
   type CesiumContextType,
 } from "@carma-mapping/engines/cesium";
 import { HitTriggerOptions } from "./cesiumHitTrigger";
-import { MutableRefObject } from "react";
 import { DerivedGeometries } from "./getDerivedGeometries";
 
 const DEFAULT_BOUNDINGSPHERE_ELEVATION = 200; // meters, default elevation for bounding sphere in GeoJSON Polygon
@@ -90,38 +90,45 @@ const updateMarkerPosition = async (
   setEntityData: (data: EntityData | null) => void | null,
   { markerAsset, markerAnchorHeight }
 ) => {
-  const viewer = ctx.viewerRef.current;
-  if (!viewer || viewer.isDestroyed()) {
-    console.warn("updateMarkerPosition: viewer is not ready or destroyed");
-    return;
-  }
-  const { scene } = viewer;
-  const anchorHeightOffset =
-    markerAnchorHeight ?? DEFAULT_CESIUM_MARKER_ANCHOR_HEIGHT;
-  const anchorPosition = groundPosition.clone();
-  anchorPosition.height = anchorPosition.height + anchorHeightOffset;
-  console.debug(
-    "GAZETTEER: [2D3D|CESIUM|CAMERA] adding marker at Marker (Surface/Terrain Elevation)",
-    anchorPosition.height,
-    groundPosition.height,
-    anchorHeightOffset,
-    anchorPosition,
-    groundPosition,
-    viewer.scene.terrainProvider
-  );
-  const model = entityData?.model;
-  if (entityData) removeCesiumMarker(ctx, entityData);
-  ctx.requestRender();
-  if (markerAsset) {
-    const data = await addCesiumMarker(
-      ctx,
-      anchorPosition,
-      groundPosition,
-      markerAsset,
-      { model }
-    );
-    setEntityData && setEntityData(data);
-  }
+  ctx.withScene(async (scene) => {
+    try {
+      const anchorHeightOffset =
+        markerAnchorHeight ?? DEFAULT_CESIUM_MARKER_ANCHOR_HEIGHT;
+      const anchorPosition = groundPosition.clone();
+      anchorPosition.height = anchorPosition.height + anchorHeightOffset;
+      console.debug(
+        "GAZETTEER: [2D3D|CESIUM|CAMERA] adding marker at Marker (Surface/Terrain Elevation)",
+        anchorPosition.height,
+        groundPosition.height,
+        anchorHeightOffset,
+        anchorPosition,
+        groundPosition,
+        scene.terrainProvider
+      );
+      // Only reuse an existing model if it is not destroyed. The caller already
+      // performed cleanup of previous marker entities; avoid double-removal here.
+      const existing = entityData?.model;
+      const canReuseModel = Boolean(
+        existing &&
+          typeof (existing as unknown as Model).isDestroyed === "function" &&
+          !existing.isDestroyed()
+      );
+      const model = canReuseModel ? existing : undefined;
+
+      if (markerAsset) {
+        const data = await addCesiumMarker(
+          ctx,
+          anchorPosition,
+          groundPosition,
+          markerAsset,
+          { model }
+        );
+        setEntityData && data && setEntityData(data);
+      }
+    } catch (e) {
+      console.error("[CESIUM|MARKER] error adding marker", e);
+    }
+  });
 };
 
 const cesiumLookAtPoint = async (
@@ -354,6 +361,10 @@ export const cesiumHandleSelection = async (
       mapOptions
     );
   } else if (defined(groundPosition)) {
+    if (entityData?.model?.isDestroyed()) {
+      console.warn("marker model is destroyed, try to reinitialize model");
+    }
+
     if (markerAsset) {
       updateMarkerPosition(ctx, groundPosition, entityData, setEntityData, {
         markerAsset,

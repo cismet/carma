@@ -23,16 +23,15 @@ const cleanUpCesium = (
   setSelectedCesiumEntityData: (data: EntityData | null) => void
 ) => {
   console.debug("HOOK: cleanUpCesium", selectedCesiumEntityData);
-  const viewer = ctx.viewerRef.current;
-  if (viewer && !viewer.isDestroyed() && !viewer.scene.isDestroyed()) {
+  ctx.withEntities((entities, viewer) => {
     if (selectedCesiumEntityData) {
       removeCesiumMarker(ctx, selectedCesiumEntityData);
       setSelectedCesiumEntityData(null);
     }
-    viewer.entities.removeById(SELECTED_POLYGON_ID);
+    entities.removeById(SELECTED_POLYGON_ID);
     removeGroundPrimitiveById(viewer.scene, INVERTED_SELECTED_POLYGON_ID);
     ctx.requestRender();
-  }
+  });
 };
 
 export const useSelectionCesium = (

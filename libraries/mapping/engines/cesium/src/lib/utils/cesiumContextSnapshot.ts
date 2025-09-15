@@ -48,6 +48,18 @@ export function snapshotCesiumContext(
       } as CesiumContextSnapshot;
     }
 
+    // If the viewer has been destroyed, avoid accessing any of its properties,
+    // as Cesium will throw DeveloperError("This object was destroyed").
+    if (v.isDestroyed && v.isDestroyed()) {
+      return {
+        isViewerReady,
+        viewerPresent: false,
+        providers: { imageryLayer: "none" },
+        tilesets: { primary: { ready: false }, secondary: { ready: false } },
+        snapshotFailed: true,
+      } as CesiumContextSnapshot;
+    }
+
     const cam = v?.camera;
     const scene = v?.scene;
     const carto = cam ? Cartographic.fromCartesian(cam.position) : undefined;

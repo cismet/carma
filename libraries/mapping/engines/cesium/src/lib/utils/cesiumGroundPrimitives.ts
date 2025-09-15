@@ -69,8 +69,10 @@ export function getGroundPrimitiveById(
   return null;
 }
 
-export function removeGroundPrimitiveById(scene: Scene, id: string): boolean {
+export const removeGroundPrimitiveById = (scene: Scene, id: string) => {
+  if (!scene || scene.isDestroyed() || !scene.groundPrimitives) return;
   const primitive = getGroundPrimitiveById(scene, id);
-  primitive && scene.groundPrimitives.remove(primitive);
-  return false;
-}
+  if (primitive && !primitive.isDestroyed()) {
+    scene.groundPrimitives.remove(primitive);
+  }
+};
