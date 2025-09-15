@@ -1,7 +1,10 @@
 import { isValidEntityCollection, isValidEntity } from "./instanceGates";
 import type { EntityCollection, Entity } from "cesium";
 
-export const guardEntityCollection = (collection: unknown, label?: string) => {
+export const guardEntityCollection = (
+  collection: EntityCollection,
+  label?: string
+) => {
   const isValid = () => isValidEntityCollection(collection);
   const ensure = <T>(fn: (ec: EntityCollection) => T, fallback: T): T => {
     if (!isValid()) {
@@ -23,9 +26,7 @@ export const guardEntityCollection = (collection: unknown, label?: string) => {
         console.warn("add: invalid entity", label, entity);
         return this;
       }
-      ensure((ec) => {
-        ec.add(entity as Entity);
-      }, undefined as unknown as void);
+      ensure((ec) => ec.add(entity as Entity), undefined);
       return this;
     },
     remove(entity: unknown) {
@@ -33,21 +34,15 @@ export const guardEntityCollection = (collection: unknown, label?: string) => {
         console.warn("remove: invalid entity", label, entity);
         return this;
       }
-      ensure((ec) => {
-        ec.remove(entity as Entity);
-      }, undefined as unknown as void);
+      ensure((ec) => ec.remove(entity as Entity), undefined);
       return this;
     },
     removeById(id: string) {
-      ensure((ec) => {
-        ec.removeById(id);
-      }, undefined as unknown as void);
+      ensure((ec) => ec.removeById(id), undefined);
       return this;
     },
     removeAll() {
-      ensure((ec) => {
-        ec.removeAll();
-      }, undefined as unknown as void);
+      ensure((ec) => ec.removeAll(), undefined);
       return this;
     },
 

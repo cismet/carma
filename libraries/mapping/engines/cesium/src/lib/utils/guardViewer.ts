@@ -4,14 +4,14 @@ import { guardEntityCollection } from "./guardEntityCollection";
 import { guardScene } from "./guardScene";
 import { guardCamera } from "./guardCamera";
 
-export const guardViewer = (viewerLike: unknown, label?: string) => {
+export const guardViewer = (viewer: Viewer, label?: string) => {
   const ensure = <T>(fn: (v: Viewer) => T, fallback: T): T => {
     try {
-      if (!isValidViewer(viewerLike as Viewer)) {
+      if (!isValidViewer(viewer)) {
         console.warn("Viewer gate invalid", label);
         return fallback;
       }
-      return fn(viewerLike as Viewer);
+      return fn(viewer);
     } catch (e) {
       console.warn("Viewer gate call failed", label, e);
       return fallback;

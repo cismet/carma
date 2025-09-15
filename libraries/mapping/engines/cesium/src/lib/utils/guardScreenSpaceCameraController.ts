@@ -3,19 +3,19 @@ import type { ScreenSpaceCameraController } from "cesium";
 import { isValidScreenSpaceCameraController } from "./instanceGates";
 
 export const guardScreenSpaceCameraController = (
-  ssccLike: unknown,
+  sscc: ScreenSpaceCameraController,
   label?: string
 ) => {
   const ensure = <T>(
     fn: (s: ScreenSpaceCameraController) => T,
     fallback: T
   ): T => {
-    if (!isValidScreenSpaceCameraController(ssccLike)) {
+    if (!isValidScreenSpaceCameraController(sscc)) {
       console.warn("SSCC gate invalid", label);
       return fallback;
     }
     try {
-      return fn(ssccLike as ScreenSpaceCameraController);
+      return fn(sscc);
     } catch (e) {
       console.warn("SSCC gate call failed", label, e);
       return fallback;
@@ -26,25 +26,25 @@ export const guardScreenSpaceCameraController = (
     enableZoom(flag: boolean) {
       ensure((s) => {
         s.enableZoom = flag;
-      }, undefined as unknown as void);
+      }, undefined);
       return this;
     },
     enableTilt(flag: boolean) {
       ensure((s) => {
         s.enableTilt = flag;
-      }, undefined as unknown as void);
+      }, undefined);
       return this;
     },
     enableLook(flag: boolean) {
       ensure((s) => {
         s.enableLook = flag;
-      }, undefined as unknown as void);
+      }, undefined);
       return this;
     },
     enableRotate(flag: boolean) {
       ensure((s) => {
         s.enableRotate = flag;
-      }, undefined as unknown as void);
+      }, undefined);
       return this;
     },
   };

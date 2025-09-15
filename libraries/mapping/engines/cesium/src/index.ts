@@ -85,6 +85,7 @@ export {
   isValidEntityCollection,
   isValidImageryLayer,
   isValidImageryProvider,
+  isValidPrimitiveCollection,
   isValidScene,
   isValidTileset,
   isValidViewer,
@@ -99,6 +100,7 @@ export { guardViewer } from "./lib/utils/guardViewer";
 export { guardScene } from "./lib/utils/guardScene";
 export { guardCamera } from "./lib/utils/guardCamera";
 export { guardScreenSpaceCameraController } from "./lib/utils/guardScreenSpaceCameraController";
+export { guardTileset } from "./lib/utils/guardTileset";
 
 export {
   distanceFromZoomLevel,

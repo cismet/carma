@@ -11,6 +11,7 @@ import {
   ImageryProvider,
   ImageryLayer,
   PolylineCollection,
+  PrimitiveCollection,
   ScreenSpaceCameraController,
   Scene,
   Viewer,
@@ -78,12 +79,6 @@ export const isValidViewer = (viewer: Viewer | null): viewer is Viewer => {
 
 // Collections
 
-export const isValidEntityCollection = (
-  collection: unknown
-): collection is EntityCollection => {
-  return collection instanceof EntityCollection;
-};
-
 export const isValidClippingPlaneCollection = (
   collection: unknown
 ): collection is ClippingPlaneCollection => {
@@ -102,11 +97,26 @@ export const isValidClippingPolygonCollection = (
   );
 };
 
+export const isValidEntityCollection = (
+  collection: unknown
+): collection is EntityCollection => {
+  return collection instanceof EntityCollection;
+};
+
 export const isValidPolylineCollection = (
   collection: unknown
 ): collection is PolylineCollection => {
   return (
     collection instanceof PolylineCollection &&
+    collection.isDestroyed() === false
+  );
+};
+
+export const isValidPrimitiveCollection = (
+  collection: unknown
+): collection is PrimitiveCollection => {
+  return (
+    collection instanceof PrimitiveCollection &&
     collection.isDestroyed() === false
   );
 };

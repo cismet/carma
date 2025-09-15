@@ -1,4 +1,4 @@
-import type { Camera, BoundingSphere, HeadingPitchRange } from "cesium";
+import type { Camera, BoundingSphere } from "cesium";
 
 // Guard operations on a Cesium Camera instance. All methods are no-throw and
 // return safe defaults where applicable.
@@ -22,17 +22,11 @@ export const guardCamera = (cameraLike: unknown, label?: string) => {
   // Facade for Cesium Camera.changed event providing chainable methods
   const changedFacade = {
     addEventListener(handler: (...args: unknown[]) => void) {
-      ensure(
-        (c) => c.changed.addEventListener(handler),
-        undefined as unknown as void
-      );
+      ensure((c) => c.changed.addEventListener(handler), undefined);
       return changedFacade;
     },
     removeEventListener(handler: (...args: unknown[]) => void) {
-      ensure(
-        (c) => c.changed.removeEventListener(handler),
-        undefined as unknown as void
-      );
+      ensure((c) => c.changed.removeEventListener(handler), undefined);
       return changedFacade;
     },
   };
@@ -60,18 +54,9 @@ export const guardCamera = (cameraLike: unknown, label?: string) => {
     // Actions
     flyToBoundingSphere(
       sphere: BoundingSphere,
-      options: {
-        offset?: HeadingPitchRange;
-        duration?: number;
-        pitchAdjustHeight?: number;
-        easingFunction?: (time: number) => number;
-        complete?: () => void;
-      } = {}
+      options: Camera.FlyToBoundingSphereOptions
     ) {
-      ensure(
-        (c) => c.flyToBoundingSphere(sphere, options as any),
-        undefined as unknown as void
-      );
+      ensure((c) => c.flyToBoundingSphere(sphere, options), undefined);
       return this;
     },
   };

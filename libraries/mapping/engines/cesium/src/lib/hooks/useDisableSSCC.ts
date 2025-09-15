@@ -6,20 +6,30 @@ import {
   selectViewerIsAnimating,
   selectViewerIsTransitioning,
 } from "../slices/cesium";
+import { guardScreenSpaceCameraController } from "../utils/guardScreenSpaceCameraController";
+import { useCesiumContext } from "./useCesiumContext";
 
 const useDisableSSCC = () => {
-  const viewer = useCesiumViewer();
   const isAnimating = useSelector(selectViewerIsAnimating);
   const isTransitioning = useSelector(selectViewerIsTransitioning);
   console.debug("HOOKINIT [CESIUM|SCENE] useDisableSSCC");
+  const ctx = useCesiumContext();
   useEffect(() => {
-    if (!viewer) return;
-    const isEnabled = !isAnimating && !isTransitioning;
-    console.info("HOOK [CESIUM|SCENE|SSCC] map interaction set to", isEnabled);
-    viewer.scene.screenSpaceCameraController.enableRotate = isEnabled;
-    viewer.scene.screenSpaceCameraController.enableZoom = isEnabled;
-    viewer.scene.screenSpaceCameraController.enableTilt = isEnabled;
-  }, [viewer, isAnimating, isTransitioning]);
+    ctx.withViewer((viewer) => {
+      const isEnabled = !isAnimating && !isTransitioning;
+      console.info(
+        "HOOK [CESIUM|SCENE|SSCC] map interaction set to",
+        isEnabled
+      );
+      guardScreenSpaceCameraController(
+        viewer.scene.screenSpaceCameraController,
+        "useDisableSSCC"
+      )
+        .enableRotate(isEnabled)
+        .enableZoom(isEnabled)
+        .enableTilt(isEnabled);
+    });
+  }, [ctx, isAnimating, isTransitioning]);
 };
 
 export default useDisableSSCC;
