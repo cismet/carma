@@ -1,7 +1,8 @@
 import { useCallback, useRef } from "react";
+import { useBlockDefaultZoomBehaviour } from "./useBlockDefaultZoomBehaviour";
 import { Math as CesiumMath, PerspectiveFrustum, type Viewer } from "cesium";
 import type { CesiumContextType } from "../CesiumContext";
-import { useBlockDefaultZoomBehaviour } from "./useBlockDefaultZoomBehaviour";
+import { blockWheelEvent } from "../utils/blockWheelEvent";
 
 const viewerWheelHandlers = new WeakMap<Viewer, (event: WheelEvent) => void>();
 
@@ -21,12 +22,6 @@ const defaultFovWheelZoomOptions: FovWheelZoomOptions = {
   minFov: DEFAULT_MIN_FOV,
   maxFov: DEFAULT_MAX_FOV,
   fovChangeRate: DEFAULT_FOV_CHANGE_RATE,
-};
-
-const blockWheelEvent = (event: WheelEvent) => {
-  event.preventDefault();
-  event.stopPropagation();
-  event.stopImmediatePropagation();
 };
 
 const computeNextFov = (
@@ -89,11 +84,7 @@ export function useFovWheelZoom(
   const pendingWheelBlocker = useCallback(
     (event: WheelEvent) => {
       if (!enabled) return;
-      event.preventDefault();
-      event.stopPropagation();
-      if (typeof event.stopImmediatePropagation === "function") {
-        event.stopImmediatePropagation();
-      }
+      blockWheelEvent(event);
     },
     [enabled]
   );
