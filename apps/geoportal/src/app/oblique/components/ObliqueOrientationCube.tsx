@@ -6,6 +6,7 @@ import {
   cesiumCameraToCssTransform,
   getOrbitPoint,
   cancelViewerAnimation,
+  guardCamera,
 } from "@carma-mapping/engines/cesium";
 import {
   CardinalDirectionEnum,
@@ -178,26 +179,30 @@ const ObliqueOrientationCube: React.FC<Props> = ({
   ];
 
   useEffect(() => {
-    const viewer = viewerRef.current;
-    if (!isViewerReady || !viewer || viewer.isDestroyed()) return;
-    const camera = viewer.camera;
-    const lastRef = { h: camera.heading, p: camera.pitch };
-    const onChanged = () => {
-      const h = camera.heading;
-      const p = camera.pitch;
-      if (Math.abs(h - lastRef.h) > eps || Math.abs(p - lastRef.p) > eps) {
-        lastRef.h = h;
-        lastRef.p = p;
-        setTransformTick((t) => t + 1);
-      }
-    };
-    camera.percentageChanged = Math.max(camera.percentageChanged ?? 0.01, 0.01);
-    camera.changed.addEventListener(onChanged);
-    onChanged();
-    return () => {
-      camera.changed.removeEventListener(onChanged);
-    };
-  }, [viewerRef, isViewerReady, size]);
+    ctx.withCamera((camera, viewer) => {
+      const lastRef = { h: camera.heading, p: camera.pitch };
+      const onChanged = () => {
+        const h = camera.heading;
+        const p = camera.pitch;
+        if (Math.abs(h - lastRef.h) > eps || Math.abs(p - lastRef.p) > eps) {
+          lastRef.h = h;
+          lastRef.p = p;
+          setTransformTick((t) => t + 1);
+        }
+      };
+      camera.percentageChanged = Math.max(
+        camera.percentageChanged ?? 0.01,
+        0.01
+      );
+      camera.changed.addEventListener(onChanged);
+      onChanged();
+      return () => {
+        ctx.withCamera((camera) => {
+          guardCamera(camera).changed.removeEventListener(onChanged);
+        });
+      };
+    });
+  }, [ctx, size]);
 
   // Ensure perspective updates even when only FOV/aspect/size changes (pose unchanged)
   useEffect(() => {

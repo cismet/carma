@@ -79,16 +79,26 @@ export {
 } from "./lib/utils/cesiumSetup";
 
 export {
-  isValidViewer,
-  withValidViewer,
-  isValidImageryLayer,
   isValidCesiumTerrainProvider,
   isValidEllipsoidTerrainProvider,
+  isValidEntity,
+  isValidEntityCollection,
+  isValidImageryLayer,
   isValidImageryProvider,
+  isValidScene,
   isValidTileset,
+  isValidViewer,
+  withValidViewer,
 } from "./lib/utils/instanceGates";
 
 export { pickViewerCanvasCenter } from "./lib/utils/pickers";
+
+// Safe guard wrappers
+export { guardEntityCollection } from "./lib/utils/guardEntityCollection";
+export { guardViewer } from "./lib/utils/guardViewer";
+export { guardScene } from "./lib/utils/guardScene";
+export { guardCamera } from "./lib/utils/guardCamera";
+export { guardScreenSpaceCameraController } from "./lib/utils/guardScreenSpaceCameraController";
 
 export {
   distanceFromZoomLevel,
