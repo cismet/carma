@@ -1,21 +1,40 @@
 import {
   Camera,
-  Scene,
-  Viewer,
+  Cesium3DTileset,
   CesiumTerrainProvider,
+  ClippingPlaneCollection,
+  ClippingPolygonCollection,
+  EllipsoidTerrainProvider,
+  Entity,
+  EntityCollection,
+  GroundPrimitive,
   ImageryProvider,
   ImageryLayer,
-  EllipsoidTerrainProvider,
-  Cesium3DTileset,
+  PolylineCollection,
+  PrimitiveCollection,
+  ScreenSpaceCameraController,
+  Scene,
+  ScreenSpaceEventHandler,
+  Viewer,
 } from "cesium";
 
 export const isValidViewerInstance = (viewer: unknown): viewer is Viewer =>
   viewer instanceof Viewer && viewer.isDestroyed() === false;
 
-const isValidScene = (scene: unknown): scene is Scene =>
+export const isValidScene = (scene: unknown): scene is Scene =>
   scene instanceof Scene && scene.isDestroyed() === false;
 
-const isValidCamera = (camera: unknown): camera is Camera =>
+export const isValidScreenSpaceCameraController = (
+  sscc: unknown
+): sscc is ScreenSpaceCameraController =>
+  sscc instanceof ScreenSpaceCameraController && sscc.isDestroyed() === false;
+
+export const isValidScreenSpaceEventHandler = (
+  handler: unknown
+): handler is ScreenSpaceEventHandler =>
+  handler instanceof ScreenSpaceEventHandler && handler.isDestroyed() === false;
+
+export const isValidCamera = (camera: unknown): camera is Camera =>
   camera instanceof Camera;
 
 const isValidCanvas = (canvas: unknown): canvas is HTMLCanvasElement =>
@@ -62,6 +81,67 @@ export const isValidViewer = (viewer: Viewer | null): viewer is Viewer => {
   if (!viewer.camera || !isValidCamera(viewer.camera)) return false;
   if (!viewer.canvas || !isValidCanvas(viewer.canvas)) return false;
   return true;
+};
+
+// Collections
+
+export const isValidClippingPlaneCollection = (
+  collection: unknown
+): collection is ClippingPlaneCollection => {
+  return (
+    collection instanceof ClippingPlaneCollection &&
+    collection.isDestroyed() === false
+  );
+};
+
+export const isValidClippingPolygonCollection = (
+  collection: unknown
+): collection is ClippingPolygonCollection => {
+  return (
+    collection instanceof ClippingPolygonCollection &&
+    collection.isDestroyed() === false
+  );
+};
+
+export const isValidEntityCollection = (
+  collection: unknown
+): collection is EntityCollection => {
+  return collection instanceof EntityCollection;
+};
+
+export const isValidPolylineCollection = (
+  collection: unknown
+): collection is PolylineCollection => {
+  return (
+    collection instanceof PolylineCollection &&
+    collection.isDestroyed() === false
+  );
+};
+
+export const isValidPrimitiveCollection = (
+  collection: unknown
+): collection is PrimitiveCollection => {
+  return (
+    collection instanceof PrimitiveCollection &&
+    collection.isDestroyed() === false
+  );
+};
+
+// Entities
+
+export const isValidEntity = (entity: unknown): entity is Entity => {
+  return entity instanceof Entity;
+};
+
+// Primitives
+
+export const isValidGroundPrimitive = (
+  groundPrimitive: unknown
+): groundPrimitive is GroundPrimitive => {
+  return (
+    groundPrimitive instanceof GroundPrimitive &&
+    groundPrimitive.isDestroyed() === false
+  );
 };
 
 /**

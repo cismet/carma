@@ -19,6 +19,7 @@ import {
 } from "./utils/cesiumProviders";
 import { loadTileset, TilesetConfigs } from "./utils/cesiumTilesetProviders";
 import { useValidInstances } from "./hooks/useValidInstances";
+import { guardScene } from "./utils/guardScene";
 
 import {
   initViewerAnimationMap,
@@ -210,7 +211,7 @@ export const CesiumContextProvider = ({
       requestRender: (opts) => {
         const renderOnce = () => {
           withViewer((viewer) => {
-            viewer.scene.requestRender();
+            guardScene(viewer.scene, "ctx requestRender").requestRender();
           });
         };
         handleDelayedRender(renderOnce, opts);

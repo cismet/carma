@@ -198,21 +198,16 @@ function App({ sync = false }: { sync?: boolean }) {
   }, []);
 
   useEffect(() => {
-    if (
-      isViewerReady &&
-      viewerRef.current &&
-      !viewerRef.current.isDestroyed()
-    ) {
-      const viewer = viewerRef.current;
+    ctx.withViewer((viewer) => {
       // remove default cesium credit because no ion resource is used
       (
         viewer as unknown as {
           _cesiumWidget: { _creditContainer: { style: { display: string } } };
         }
       )._cesiumWidget._creditContainer.style.display = "none";
-      requestRender();
-    }
-  }, [viewerRef, isViewerReady]);
+      ctx.requestRender();
+    });
+  }, [ctx]);
 
   const enableControlStateToggle = (controlState) => {
     return controlState.selectedSimulation !== 2;
@@ -286,11 +281,7 @@ function App({ sync = false }: { sync?: boolean }) {
                 dataTestId="compass-control"
                 title="Nach Norden ausrichten"
               >
-                <PitchingCompass
-                  viewerRef={viewerRef}
-                  viewerAnimationMapRef={viewerAnimationMapRef}
-                  isViewerReady={isViewerReady}
-                />
+                <PitchingCompass />
               </ControlButtonStyler>
               {/* </Tooltip> */}
 

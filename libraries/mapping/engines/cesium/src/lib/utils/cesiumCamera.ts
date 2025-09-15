@@ -1,4 +1,7 @@
 import { Camera, Cartesian2, Math as CesiumMath } from "cesium";
+
+import type { Radians } from "@carma-commons/types";
+
 import type { CesiumContextType } from "../CesiumContext";
 
 export const getCesiumCameraPixelDimensionForDistance = (
@@ -54,12 +57,12 @@ export const getCesiumCameraPixelDimensionForDistance = (
  */
 export const applyRollToHeadingForCameraNearNadir = (
   camera: Camera,
-  nadirRange = 0.2
-) => {
+  nadirRange = 0.2 as Radians
+): Radians => {
   const isInNadirRange =
     Math.abs(camera.pitch + CesiumMath.PI_OVER_TWO) < nadirRange;
   const rollCorrectedHeading = isInNadirRange
     ? (camera.heading + camera.roll) % CesiumMath.TWO_PI
     : camera.heading;
-  return rollCorrectedHeading;
+  return rollCorrectedHeading as Radians;
 };

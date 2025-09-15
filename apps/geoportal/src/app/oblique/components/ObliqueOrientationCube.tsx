@@ -1,12 +1,15 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Button, Tooltip, Spin } from "antd";
 import { Cartesian3, HeadingPitchRange, Matrix4 } from "cesium";
+
 import {
   useCesiumContext,
   cesiumCameraToCssTransform,
   getOrbitPoint,
   cancelViewerAnimation,
+  guardCamera,
 } from "@carma-mapping/engines/cesium";
+
 import {
   CardinalDirectionEnum,
   CardinalLetters,
@@ -178,26 +181,32 @@ const ObliqueOrientationCube: React.FC<Props> = ({
   ];
 
   useEffect(() => {
-    const viewer = viewerRef.current;
-    if (!isViewerReady || !viewer || viewer.isDestroyed()) return;
-    const camera = viewer.camera;
-    const lastRef = { h: camera.heading, p: camera.pitch };
-    const onChanged = () => {
-      const h = camera.heading;
-      const p = camera.pitch;
-      if (Math.abs(h - lastRef.h) > eps || Math.abs(p - lastRef.p) > eps) {
-        lastRef.h = h;
-        lastRef.p = p;
-        setTransformTick((t) => t + 1);
-      }
-    };
-    camera.percentageChanged = Math.max(camera.percentageChanged ?? 0.01, 0.01);
-    camera.changed.addEventListener(onChanged);
-    onChanged();
+    let cleanup: (() => void) | undefined;
+    ctx.withCamera((camera) => {
+      const lastRef = { h: camera.heading, p: camera.pitch };
+      const onChanged = () => {
+        const h = camera.heading;
+        const p = camera.pitch;
+        if (Math.abs(h - lastRef.h) > eps || Math.abs(p - lastRef.p) > eps) {
+          lastRef.h = h;
+          lastRef.p = p;
+          setTransformTick((t) => t + 1);
+        }
+      };
+      camera.percentageChanged = Math.max(
+        camera.percentageChanged ?? 0.01,
+        0.01
+      );
+      camera.changed.addEventListener(onChanged);
+      onChanged();
+      cleanup = () => {
+        guardCamera(camera).changed.removeEventListener(onChanged);
+      };
+    });
     return () => {
-      camera.changed.removeEventListener(onChanged);
+      cleanup && cleanup();
     };
-  }, [viewerRef, isViewerReady, size]);
+  }, [ctx, size]);
 
   // Ensure perspective updates even when only FOV/aspect/size changes (pose unchanged)
   useEffect(() => {

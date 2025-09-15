@@ -1,24 +1,13 @@
 import { useMemo } from "react";
-import type { RefObject } from "react";
-import type { Viewer } from "cesium";
 
 import { useTweakpaneCtx } from "@carma-commons/debug";
+import { useCesiumContext } from "@carma-mapping/engines/cesium";
 
-type UseDebugMapWrapperOptions = {
-  viewerRef: RefObject<Viewer | null>;
-  rerenderCountRef: React.MutableRefObject<number>;
-  lastRenderIntervalRef: React.MutableRefObject<number>;
-};
-
-/**
- * Adds MapWrapper debug entries to the Tweakpane and a React crash test button.
- */
-export function useDebug({
-  viewerRef,
-  rerenderCountRef,
-  lastRenderIntervalRef,
-}: UseDebugMapWrapperOptions) {
+export function useDebug() {
   // Register metrics folder/inputs
+
+  const viewerRef = useCesiumContext().viewerRef;
+
   useTweakpaneCtx(
     useMemo(
       () => ({
@@ -26,28 +15,12 @@ export function useDebug({
           title: "MapWrapper",
         },
         params: {
-          get renderCount() {
-            return rerenderCountRef.current;
-          },
-          get renderInterval() {
-            return lastRenderIntervalRef.current;
-          },
           dpr: window.devicePixelRatio,
           resolutionScale: viewerRef.current
             ? viewerRef.current.resolutionScale
             : 0,
         },
         inputs: [
-          {
-            name: "renderCount",
-            readonly: true,
-            format: (v: number) => v.toFixed(0),
-          },
-          {
-            name: "renderInterval",
-            readonly: true,
-            format: (v: number) => v.toFixed(0),
-          },
           { name: "dpr", readonly: true, format: (v: number) => v.toFixed(1) },
           {
             name: "resolutionScale",
@@ -56,7 +29,7 @@ export function useDebug({
           },
         ],
       }),
-      [viewerRef, rerenderCountRef, lastRenderIntervalRef]
+      [viewerRef]
     )
   );
 }
