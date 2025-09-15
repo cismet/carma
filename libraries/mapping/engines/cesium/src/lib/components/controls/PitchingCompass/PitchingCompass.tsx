@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
-  Viewer,
   Cartesian3,
   Math as CesiumMath,
   HeadingPitchRange,
@@ -9,10 +8,9 @@ import {
   ScreenSpaceEventType,
 } from "cesium";
 
-import {
-  cancelViewerAnimation,
-  type ViewerAnimationMap,
-} from "../../../utils/viewerAnimationMap";
+import type { Radians, Meters } from "@carma-commons/types";
+
+import { useCesiumContext } from "../../../hooks/useCesiumContext";
 
 import {
   animateCamera,
@@ -20,27 +18,22 @@ import {
   getOrbitPoint,
   PITCH,
 } from "../../../utils/cesiumAnimateOrbits";
-
-import { CompassNeedleSVG } from "./CompassNeedleSVG";
 import { applyRollToHeadingForCameraNearNadir } from "../../../utils/cesiumCamera";
-import { useCesiumContext } from "../../../hooks/useCesiumContext";
+import { guardCamera } from "../../../utils/guardCamera";
+import { isValidScreenSpaceEventHandler } from "../../../utils/instanceGates";
+import { cancelViewerAnimation } from "../../../utils/viewerAnimationMap";
+import { Needle } from "./Needle";
 
 interface RotateButtonProps {
-  viewerRef: React.RefObject<Viewer | null>;
-  viewerAnimationMapRef: React.RefObject<ViewerAnimationMap | null>;
-  isViewerReady: boolean;
-  minPitch?: number;
-  maxPitch?: number;
+  minPitch?: Radians;
+  maxPitch?: Radians;
   durationReset?: number;
   pitchFactor?: number;
-  pitchOblique?: number;
+  pitchOblique?: Radians;
   headingFactor?: number;
 }
 
 /**
- * @viewerRef reference to cesium viewer
- * @viewerAnimationMapRef reference to a WeakMap of viewer animations
- * @isViewerReady boolean state indicating if the viewer is ready
  * @minPitch pitch angle in radians starting from Nadir -90 to -0, should be left at -90
  * @maxPitch pitch angle in radians starting from Nadir -90 to -0 is flat with terrain and should be avoided.
  * @durationReset duration in milliseconds when returning to top down or default oblique view
@@ -51,9 +44,6 @@ interface RotateButtonProps {
  */
 
 export const PitchingCompass: React.FC<RotateButtonProps> = ({
-  viewerRef,
-  viewerAnimationMapRef,
-  isViewerReady,
   minPitch = CesiumMath.toRadians(-90),
   maxPitch = CesiumMath.toRadians(-30),
   durationReset = 1500,
@@ -62,95 +52,56 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
   headingFactor = 1,
 }) => {
   const cesiumCtx = useCesiumContext();
+  const { viewerAnimationMapRef } = cesiumCtx;
   const [isControlMouseDown, setIsControlMouseDown] = useState(false);
   const [initialMouseX, setInitialMouseX] = useState(0);
   const [initialMouseY, setInitialMouseY] = useState(0);
-  const [initialHeading, setInitialHeading] = useState<number>(0);
-  const [initialPitch, setInitialPitch] = useState<number>(0);
-  const [initialRange, setInitialRange] = useState<number>(100);
-  const [currentPitch, setCurrentPitch] = useState(0);
-  const [currentHeading, setCurrentHeading] = useState(0);
+  const [initialHeading, setInitialHeading] = useState<Radians>(0 as Radians);
+  const [initialPitch, setInitialPitch] = useState<Radians>(0 as Radians);
+  const [initialRange, setInitialRange] = useState<Meters>(100 as Meters);
+  const needleOrientationRef = useRef<
+    ((p: Radians, h: Radians) => void) | null
+  >(null);
 
   const { shouldSuspendPitchLimiterRef } = useCesiumContext();
 
-  const handleMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
-    shouldSuspendPitchLimiterRef.current = true;
-    if (
-      viewerRef.current &&
-      viewerAnimationMapRef.current &&
-      !viewerRef.current.isDestroyed()
-    ) {
-      cancelViewerAnimation(viewerRef.current, viewerAnimationMapRef.current);
-      setIsControlMouseDown(true);
-      setInitialMouseX(event.clientX);
-      setInitialMouseY(event.clientY);
-      setInitialHeading(viewerRef.current.camera.heading);
-      setInitialPitch(viewerRef.current.camera.pitch);
-      setCurrentPitch(viewerRef.current.camera.pitch);
-      setCurrentHeading(viewerRef.current.camera.heading);
-
-      const target = getOrbitPoint(cesiumCtx);
-      if (target) {
-        const range = Cartesian3.distance(
-          target,
-          viewerRef.current.camera.positionWC
+  const handleMouseDown = useCallback(
+    (event: React.MouseEvent<HTMLDivElement>) => {
+      shouldSuspendPitchLimiterRef.current = true;
+      cesiumCtx.withCamera((camera, viewer) => {
+        cancelViewerAnimation(viewer, viewerAnimationMapRef.current);
+        setIsControlMouseDown(true);
+        setInitialMouseX(event.clientX);
+        setInitialMouseY(event.clientY);
+        setInitialHeading(camera.heading as Radians);
+        setInitialPitch(camera.pitch as Radians);
+        needleOrientationRef.current?.(
+          camera.pitch as Radians,
+          camera.heading as Radians
         );
-        setInitialRange(range);
-      }
-    }
-  };
 
-  const handleControlMouseUp = () => {
+        const target = getOrbitPoint(cesiumCtx);
+        if (target) {
+          const range = Cartesian3.distance(target, camera.positionWC);
+          setInitialRange(range as Meters);
+        }
+      });
+    },
+    [cesiumCtx, shouldSuspendPitchLimiterRef, viewerAnimationMapRef]
+  );
+
+  const handleMouseUp = useCallback(() => {
     shouldSuspendPitchLimiterRef.current = false;
     setIsControlMouseDown(false);
-    if (
-      viewerRef.current &&
-      initialHeading !== null &&
-      !viewerRef.current.isDestroyed()
-    ) {
-      viewerRef.current.camera.lookAtTransform(Matrix4.IDENTITY);
-    }
-  };
+    cesiumCtx.withCamera((camera) => {
+      camera.lookAtTransform(Matrix4.IDENTITY);
+    });
+  }, [cesiumCtx, shouldSuspendPitchLimiterRef]);
 
-  useEffect(() => {
-    if (
-      !viewerRef.current ||
-      viewerRef.current.isDestroyed() ||
-      !viewerAnimationMapRef.current
-    ) {
-      return;
-    }
-    const viewer = viewerRef.current;
-    const camera = viewer.camera;
-    const animationMap = viewerAnimationMapRef.current;
-
-    const getCameraOrientation = () => {
-      if (!camera) return;
-      const { pitch, heading } = camera;
-      setCurrentPitch(pitch);
-      setCurrentHeading(heading);
-    };
-
-    const handler = new ScreenSpaceEventHandler(viewer.canvas);
-
-    handler.setInputAction(() => {
-      cancelViewerAnimation(viewer, animationMap);
-    }, ScreenSpaceEventType.LEFT_DOWN);
-
-    camera.changed.addEventListener(getCameraOrientation);
-
-    return () => {
-      handler.destroy();
-      camera.changed.removeEventListener(getCameraOrientation);
-    };
-  }, [viewerRef, viewerAnimationMapRef]);
-
-  useEffect(() => {
-    if (!isControlMouseDown) return;
-
-    const handleMouseMove = (event: MouseEvent) => {
+  const handleMouseMove = useCallback(
+    (event: MouseEvent) => {
       if (!isControlMouseDown) return;
-      if (viewerRef.current) {
+      cesiumCtx.withCamera((camera) => {
         const { pitch, heading } = getHeadingPitchForMouseEvent(
           event,
           initialMouseX,
@@ -164,97 +115,149 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
         );
 
         const target = getOrbitPoint(cesiumCtx);
-
         if (target && initialRange !== null) {
-          viewerRef.current.camera.lookAt(
+          guardCamera(camera).lookAt(
             target,
             new HeadingPitchRange(heading, pitch, initialRange)
           );
         }
-        setInitialMouseX(event.clientX);
-        setInitialMouseY(event.clientY);
-        setCurrentPitch(pitch);
-        setCurrentHeading(heading);
-      }
-    };
+        needleOrientationRef.current?.(pitch, heading);
+      });
+    },
+    [
+      cesiumCtx,
+      initialMouseX,
+      initialMouseY,
+      initialHeading,
+      initialPitch,
+      headingFactor,
+      initialRange,
+      isControlMouseDown,
+      maxPitch,
+      minPitch,
+      pitchFactor,
+    ]
+  );
 
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleControlMouseUp);
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleControlMouseUp);
-    };
-  }, [isControlMouseDown]);
-
-  const handleButtonClick = (_event: React.MouseEvent<HTMLDivElement>) => {
-    if (
-      viewerRef.current &&
-      viewerAnimationMapRef.current &&
-      initialRange !== null
-    ) {
+  const handleButtonClick = useCallback(() => {
+    // sets heading to 0 and pitch to pitchOblique
+    cesiumCtx.withCamera((camera, viewer) => {
       const orbitPoint = getOrbitPoint(cesiumCtx);
-      if (orbitPoint) {
-        animateCamera(
-          viewerRef.current,
-          viewerAnimationMapRef.current,
-          orbitPoint,
-          0,
-          pitchOblique,
-          initialRange,
-          durationReset
-        );
-      }
-    }
-  };
+      if (!orbitPoint || !viewerAnimationMapRef.current) return;
+      animateCamera(
+        viewer,
+        viewerAnimationMapRef.current,
+        orbitPoint,
+        0,
+        pitchOblique,
+        initialRange,
+        durationReset
+      );
+    });
+  }, [
+    cesiumCtx,
+    durationReset,
+    initialRange,
+    pitchOblique,
+    viewerAnimationMapRef,
+  ]);
 
-  const handleDoubleClick = (_event: React.MouseEvent<HTMLDivElement>) => {
-    if (
-      viewerRef.current &&
-      viewerAnimationMapRef.current &&
-      initialRange !== null
-    ) {
+  const handleDoubleClick = useCallback(() => {
+    // sets heading to 0 and pitch to PITCH.ORTHO
+    cesiumCtx.withCamera((camera, viewer) => {
       const orbitPoint = getOrbitPoint(cesiumCtx);
-      if (orbitPoint) {
-        animateCamera(
-          viewerRef.current,
-          viewerAnimationMapRef.current,
-          orbitPoint,
-          0,
-          PITCH.ORTHO,
-          initialRange,
-          durationReset
-        );
-      }
-    }
-  };
+      if (!orbitPoint || !viewerAnimationMapRef.current) return;
+      animateCamera(
+        viewer,
+        viewerAnimationMapRef.current,
+        orbitPoint,
+        0,
+        PITCH.ORTHO,
+        initialRange,
+        durationReset
+      );
+    });
+  }, [cesiumCtx, durationReset, initialRange, viewerAnimationMapRef]);
 
   useEffect(() => {
-    if (
-      viewerRef.current &&
-      isViewerReady &&
-      !viewerRef.current.isDestroyed()
-    ) {
-      const camera = viewerRef.current.camera;
+    const animationMap = viewerAnimationMapRef.current;
+    let cleanup;
+    cesiumCtx.withCamera((camera, viewer) => {
+      const getCameraOrientation = () => {
+        cesiumCtx.withCamera((camera) => {
+          needleOrientationRef.current?.(
+            camera.pitch as Radians,
+            camera.heading as Radians
+          );
+        });
+      };
+
+      try {
+        const handler = new ScreenSpaceEventHandler(viewer.canvas);
+        handler.setInputAction(() => {
+          cesiumCtx.withViewer((viewer) => {
+            cancelViewerAnimation(viewer, animationMap);
+          });
+        }, ScreenSpaceEventType.LEFT_DOWN);
+
+        guardCamera(camera, "compass setup").changed.addEventListener(
+          getCameraOrientation
+        );
+
+        cleanup = () => {
+          isValidScreenSpaceEventHandler(handler) && handler.destroy();
+          guardCamera(camera, "compass cleanup").changed.removeEventListener(
+            getCameraOrientation
+          );
+        };
+      } catch (error) {
+        console.warn("Error setting up screen space event handler:", error);
+      }
+    });
+    return () => {
+      cleanup && cleanup();
+    };
+  }, [cesiumCtx, viewerAnimationMapRef]);
+
+  useEffect(() => {
+    window.addEventListener("mousemove", handleMouseMove);
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("mouseup", handleMouseUp);
+    };
+  }, [handleMouseMove, handleMouseUp]);
+
+  useEffect(() => {
+    let cleanup;
+    cesiumCtx.withCamera((camera) => {
       const updateOrientation = () => {
-        setCurrentPitch(camera.pitch);
-        // correct heading for compass needle
-        setCurrentHeading(applyRollToHeadingForCameraNearNadir(camera));
+        cesiumCtx.withCamera((camera) => {
+          // correct heading for compass needle
+          needleOrientationRef.current?.(
+            camera.pitch as Radians,
+            applyRollToHeadingForCameraNearNadir(camera)
+          );
+        });
       };
       camera.percentageChanged = 0.01;
-      camera.changed.addEventListener(updateOrientation);
+      guardCamera(camera).changed.addEventListener(updateOrientation);
 
-      return () => {
-        camera.changed.removeEventListener(updateOrientation);
+      cleanup = () => {
+        cesiumCtx.withCamera((camera) => {
+          guardCamera(camera).changed.removeEventListener(updateOrientation);
+        });
       };
-    }
-  }, [viewerRef, isViewerReady]);
+    });
+    return () => cleanup && cleanup();
+  }, [cesiumCtx]);
 
   return (
     // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
     <div
       className="cesium-orbit-control-button"
       onMouseDown={handleMouseDown}
-      onMouseUp={handleControlMouseUp}
+      onMouseUp={handleMouseUp}
       onClick={handleButtonClick}
       onDoubleClick={handleDoubleClick}
       style={{
@@ -269,7 +272,7 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
         alignItems: "center",
       }}
     >
-      <CompassNeedleSVG pitch={currentPitch} heading={currentHeading} />
+      <Needle register={(fn) => (needleOrientationRef.current = fn)} />
     </div>
   );
 };

@@ -14,6 +14,7 @@ import {
   PrimitiveCollection,
   ScreenSpaceCameraController,
   Scene,
+  ScreenSpaceEventHandler,
   Viewer,
 } from "cesium";
 
@@ -27,6 +28,11 @@ export const isValidScreenSpaceCameraController = (
   sscc: unknown
 ): sscc is ScreenSpaceCameraController =>
   sscc instanceof ScreenSpaceCameraController && sscc.isDestroyed() === false;
+
+export const isValidScreenSpaceEventHandler = (
+  handler: unknown
+): handler is ScreenSpaceEventHandler =>
+  handler instanceof ScreenSpaceEventHandler && handler.isDestroyed() === false;
 
 export const isValidCamera = (camera: unknown): camera is Camera =>
   camera instanceof Camera;

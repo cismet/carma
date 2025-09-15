@@ -86,6 +86,7 @@ export {
   isValidImageryLayer,
   isValidImageryProvider,
   isValidPrimitiveCollection,
+  isValidScreenSpaceEventHandler,
   isValidScene,
   isValidTileset,
   isValidViewer,

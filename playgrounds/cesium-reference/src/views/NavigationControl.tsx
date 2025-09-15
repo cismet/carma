@@ -110,11 +110,7 @@ const NavigationControlView: FC = () => {
           </Control>
           <Control position="topleft" order={30}>
             <ControlButtonStyler>
-              <PitchingCompass
-                viewerRef={viewerRef}
-                viewerAnimationMapRef={viewerAnimationMapRef}
-                isViewerReady={isViewerReady}
-              />
+              <PitchingCompass />
             </ControlButtonStyler>
           </Control>
         </ControlLayout>

@@ -6,6 +6,9 @@ import {
   Math as CesiumMath,
   Cartesian2,
 } from "cesium";
+
+import type { Radians } from "@carma-commons/types";
+
 import { AnimationType, ViewerAnimationMap } from "./viewerAnimationMap";
 import type { CesiumContextType } from "../CesiumContext";
 
@@ -183,7 +186,7 @@ export const getHeadingPitchForMouseEvent = (
   pitchFactor: number,
   minPitch: number,
   maxPitch: number
-) => {
+): { heading: Radians; pitch: Radians } => {
   const absoluteMinPitch = Math.max(minPitch, OFFSET_NADIR);
   const absoluteMaxPitch = Math.min(maxPitch, 0);
   const deltaX = event.clientX - initialMouseX;
@@ -199,5 +202,5 @@ export const getHeadingPitchForMouseEvent = (
     absoluteMinPitch,
     absoluteMaxPitch
   );
-  return { heading: newHeading, pitch: newPitch };
+  return { heading: newHeading as Radians, pitch: newPitch as Radians };
 };

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Button, Tooltip, Spin } from "antd";
 import { Cartesian3, HeadingPitchRange, Matrix4 } from "cesium";
+
 import {
   useCesiumContext,
   cesiumCameraToCssTransform,
@@ -8,6 +9,7 @@ import {
   cancelViewerAnimation,
   guardCamera,
 } from "@carma-mapping/engines/cesium";
+
 import {
   CardinalDirectionEnum,
   CardinalLetters,
@@ -179,7 +181,8 @@ const ObliqueOrientationCube: React.FC<Props> = ({
   ];
 
   useEffect(() => {
-    ctx.withCamera((camera, viewer) => {
+    let cleanup: (() => void) | undefined;
+    ctx.withCamera((camera) => {
       const lastRef = { h: camera.heading, p: camera.pitch };
       const onChanged = () => {
         const h = camera.heading;
@@ -196,12 +199,13 @@ const ObliqueOrientationCube: React.FC<Props> = ({
       );
       camera.changed.addEventListener(onChanged);
       onChanged();
-      return () => {
-        ctx.withCamera((camera) => {
-          guardCamera(camera).changed.removeEventListener(onChanged);
-        });
+      cleanup = () => {
+        guardCamera(camera).changed.removeEventListener(onChanged);
       };
     });
+    return () => {
+      cleanup && cleanup();
+    };
   }, [ctx, size]);
 
   // Ensure perspective updates even when only FOV/aspect/size changes (pose unchanged)

@@ -94,7 +94,6 @@ import {
 
 import { CESIUM_CONFIG } from "../../../config/app.config";
 import { useDebug } from "./MapWrapper.useDebug.ts";
-import { useDebugCrashReact } from "./useDebugCrashReact.ts";
 
 // detect GPU support, disables 3d mode if not supported
 let hasGPU = false;
@@ -128,7 +127,6 @@ const MapWrapper = () => {
   const showMeasurementButton = useSelector(getShowMeasurementButton);
   const zenMode = useSelector(getZenMode);
   const ctx = useCesiumContext();
-  const { viewerRef, viewerAnimationMapRef, isViewerReady } = ctx;
   const homeControl = useHomeControl();
   const configSelection = useSelector(getConfigSelection);
 
@@ -142,12 +140,7 @@ const MapWrapper = () => {
   });
   const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
 
-  useDebug({
-    viewerRef,
-    rerenderCountRef,
-    lastRenderIntervalRef,
-  });
-  useDebugCrashReact("MapWrapper.useDebug");
+  useDebug();
 
   const { routedMapRef: routedMap } =
     useContext<typeof TopicMapContext>(TopicMapContext);
@@ -364,11 +357,7 @@ const MapWrapper = () => {
                     {showLibreMap ? (
                       <LibrePitchingCompass mapRef={libreMapRef} />
                     ) : (
-                      <PitchingCompass
-                        viewerRef={viewerRef}
-                        viewerAnimationMapRef={viewerAnimationMapRef}
-                        isViewerReady={isViewerReady}
-                      />
+                      <PitchingCompass />
                     )}
                   </ControlButtonStyler>
                 </Tooltip>
