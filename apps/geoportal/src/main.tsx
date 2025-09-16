@@ -13,12 +13,9 @@ import App from "./app/App";
 import store from "./app/store";
 import { CESIUM_CONFIG } from "./app/config/app.config";
 
-// Required for Cesium Integration
-declare global {
-  interface Window {
-    CESIUM_BASE_URL: string;
-  }
-}
+// Bring in ambient Window typings for Cesium globals from the library
+import "@carma-commons/types";
+
 window.CESIUM_BASE_URL = CESIUM_CONFIG.baseUrl;
 
 const persistor = persistStore(store);
