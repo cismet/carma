@@ -31,9 +31,6 @@ console.error = (message, ...args) => {
 const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement
 );
-if (typeof global === "undefined") {
-  window.global = window;
-}
 
 function AppWrapper() {
   let { name } = useParams();
