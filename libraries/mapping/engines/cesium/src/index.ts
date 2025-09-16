@@ -128,6 +128,7 @@ export {
   getTerrainElevationAsync,
   type ElevationResult,
 } from "./lib/utils/elevation";
+export { attachCallStackTracer } from "./lib/utils/callStackTracer";
 
 export {
   type ViewerAnimationMap,

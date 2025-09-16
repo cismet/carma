@@ -3,16 +3,21 @@ import { isValidScene } from "./instanceGates";
 import { guardScreenSpaceCameraController } from "./guardScreenSpaceCameraController";
 import { guardCamera } from "./guardCamera";
 import { guardPrimitiveCollection } from "./guardPrimitiveCollection";
+import type { CesiumContextType } from "../CesiumContext";
+import { pushDebugStack } from "./debugStack";
 
-// Guard operations on Scene accessed via a Viewer instance. We validate the viewer,
-// then operate on its scene with safe defaults and no-throw semantics.
-export const guardScene = (scene: Scene, label?: string) => {
+export const guardScene = (
+  ctx: CesiumContextType,
+  scene: Scene,
+  label?: string
+) => {
   const ensure = <T>(fn: (scene: Scene) => T, fallback: T): T => {
+    if (!isValidScene(scene)) {
+      console.warn("Scene gate invalid", label);
+      return fallback;
+    }
+    pushDebugStack(ctx, 2);
     try {
-      if (!isValidScene(scene)) {
-        console.warn("Scene gate invalid", label);
-        return fallback;
-      }
       return fn(scene);
     } catch (e) {
       console.warn("Scene gate call failed", label, e);
@@ -38,7 +43,7 @@ export const guardScene = (scene: Scene, label?: string) => {
       );
     },
 
-    primitives: guardPrimitiveCollection(scene.primitives, label),
+    primitives: guardPrimitiveCollection(ctx, scene.primitives, label),
 
     screenSpaceCameraController<T>(
       cb: (sscc: ReturnType<typeof guardScreenSpaceCameraController>) => T,

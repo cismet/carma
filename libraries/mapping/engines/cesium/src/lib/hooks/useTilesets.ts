@@ -30,11 +30,12 @@ export const useTilesets = () => {
       if (added) return;
       const has = ctx.withPrimaryTileset((tileset, viewer) => {
         const contains = guardScene(
+          ctx,
           viewer.scene,
           "useTilesets-primary"
         ).primitives.contains(tileset);
         if (!contains) {
-          guardScene(viewer.scene, "useTilesets-primary").primitives.add(
+          guardScene(ctx, viewer.scene, "useTilesets-primary").primitives.add(
             tileset
           );
         }
@@ -56,11 +57,12 @@ export const useTilesets = () => {
       if (added) return;
       const has = ctx.withSecondaryTileset((tileset, viewer) => {
         const contains = guardScene(
+          ctx,
           viewer.scene,
           "useTilesets-secondary"
         ).primitives.contains(tileset);
         if (!contains) {
-          guardScene(viewer.scene, "useTilesets-secondary").primitives.add(
+          guardScene(ctx, viewer.scene, "useTilesets-secondary").primitives.add(
             tileset
           );
         }

@@ -4,9 +4,8 @@ import { getCesiumVersion } from "./cesiumEnv";
 const tag = Symbol.for("carma.cesium.renderErrorPatch");
 
 type TaggedScene = {
-  [key: typeof tag]: true;
+  [key in typeof tag]: true;
 };
-
 
 /**
  * Configure Cesium to avoid disruptive error panels and centralize render error logging.
@@ -39,7 +38,7 @@ export function configureCesiumErrorHandling(
 
     const { scene } = viewer;
 
-    const taggedScene = scene as TaggedScene;
+    const taggedScene = scene as unknown as TaggedScene;
     if (!taggedScene[tag]) {
       taggedScene[tag] = true;
 

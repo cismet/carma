@@ -59,6 +59,10 @@ export interface CesiumContextType {
   withSurfaceProvider: (
     cb: (provider: CesiumTerrainProvider, viewer: Viewer) => void
   ) => boolean;
+  // debugging
+  debug?: boolean;
+  pushCesiumCallstack?: (frame: string) => void;
+  callStackRef?: MutableRefObject<string[] | null>;
 }
 
 export const CesiumContext = createContext<CesiumContextType | null>(null);

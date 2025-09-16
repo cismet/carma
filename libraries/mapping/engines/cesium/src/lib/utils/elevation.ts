@@ -18,6 +18,7 @@ export async function getTerrainElevationAsync(
   ctx.withTerrainProvider((p) => (provider = p));
   if (!provider) return [];
   return guardSampleTerrainMostDetailedAsync(
+    ctx,
     provider,
     positions,
     rejectOnTileFail,
@@ -35,6 +36,7 @@ export async function getSurfaceElevationAsync(
   ctx.withSurfaceProvider((p) => (provider = p));
   if (!provider) return [];
   return guardSampleTerrainMostDetailedAsync(
+    ctx,
     provider,
     positions,
     rejectOnTileFail,

@@ -1,7 +1,10 @@
+import type { CesiumContextType } from "../CesiumContext";
 import type { PrimitiveCollection } from "cesium";
 import { isValidPrimitiveCollection } from "./instanceGates";
+import { pushDebugStack } from "./debugStack";
 
 export const guardPrimitiveCollection = (
+  ctx: CesiumContextType,
   collection: PrimitiveCollection,
   label?: string
 ) => {
@@ -11,6 +14,7 @@ export const guardPrimitiveCollection = (
       console.warn("Collection gate invalid", label);
       return fallback;
     }
+    pushDebugStack(ctx, 2);
     try {
       return fn(collection as PrimitiveCollection);
     } catch (e) {

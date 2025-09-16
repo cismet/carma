@@ -1,7 +1,10 @@
 import { isValidEntityCollection, isValidEntity } from "./instanceGates";
 import type { EntityCollection, Entity } from "cesium";
+import type { CesiumContextType } from "../CesiumContext";
+import { pushDebugStack } from "./debugStack";
 
 export const guardEntityCollection = (
+  ctx: CesiumContextType,
   collection: EntityCollection,
   label?: string
 ) => {
@@ -11,6 +14,7 @@ export const guardEntityCollection = (
       console.warn("EntityCollection gate invalid", label);
       return fallback;
     }
+    pushDebugStack(ctx, 2);
     try {
       return fn(collection as EntityCollection);
     } catch (e) {

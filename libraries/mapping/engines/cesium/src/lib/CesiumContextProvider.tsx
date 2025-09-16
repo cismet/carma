@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import type { ReactNode } from "react";
 
 import {
@@ -10,6 +10,7 @@ import {
 } from "cesium";
 
 import { handleDelayedRender } from "@carma-commons/utils/window";
+import { useFeatureFlags } from "@carma-providers/feature-flag";
 
 import { CesiumContext, type CesiumContextType } from "./CesiumContext";
 import {
@@ -25,6 +26,8 @@ import {
   initViewerAnimationMap,
   ViewerAnimationMap,
 } from "./utils/viewerAnimationMap";
+
+const CALLSTACK_LIMIT = 50;
 
 export const CesiumContextProvider = ({
   children,
@@ -58,6 +61,20 @@ export const CesiumContextProvider = ({
   >(null);
   // Monotonic counter for initial camera applications
   const [initialCameraEpoch, setInitialCameraEpoch] = useState<number>(0);
+
+  const { isDeveloperMode } = useFeatureFlags();
+
+  // Give lifetime of component
+  const mountTimeRef = useRef<number>(Date.now());
+  const callStackRef = useRef<string[]>([]);
+  const pushCesiumCallstack = useCallback((frame: string) => {
+    const elapsed = ((Date.now() - mountTimeRef.current) / 1000).toFixed(2);
+    const currentTimeOfDay = new Date().toTimeString().split(" ")[0];
+    callStackRef.current.push(`[${currentTimeOfDay}] [${elapsed}s] ${frame}`);
+    if (callStackRef.current.length > CALLSTACK_LIMIT) {
+      callStackRef.current.shift();
+    }
+  }, []);
 
   const {
     withViewer,
@@ -211,7 +228,11 @@ export const CesiumContextProvider = ({
       requestRender: (opts) => {
         const renderOnce = () => {
           withViewer((viewer) => {
-            guardScene(viewer.scene, "ctx requestRender").requestRender();
+            guardScene(
+              contextValue,
+              viewer.scene,
+              "ctx requestRender"
+            ).requestRender();
           });
         };
         handleDelayedRender(renderOnce, opts);
@@ -246,8 +267,12 @@ export const CesiumContextProvider = ({
         withTerrainProviderRef(surfaceProviderRef, (provider, viewer) =>
           cb(provider, viewer)
         ),
+      debug: isDeveloperMode,
+      pushCesiumCallstack,
+      callStackRef,
     }),
     [
+      isDeveloperMode,
       isViewerReady,
       initialCameraSettled,
       initialCameraEpoch,
@@ -257,11 +282,12 @@ export const CesiumContextProvider = ({
       withTerrainProviderRef,
       withEllipsoidTerrainProviderRef,
       withTilesetRef,
+      pushCesiumCallstack,
     ]
   );
 
   console.debug(
-    "CesiumContextProvider Changed/Rendered",
+    "[CESIUM|CONTEXT] CesiumContextProvider Changed/Rendered",
     isViewerReady,
     contextValue
   );

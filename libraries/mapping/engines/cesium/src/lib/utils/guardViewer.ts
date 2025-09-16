@@ -3,14 +3,21 @@ import { isValidViewer } from "./instanceGates";
 import { guardEntityCollection } from "./guardEntityCollection";
 import { guardScene } from "./guardScene";
 import { guardCamera } from "./guardCamera";
+import type { CesiumContextType } from "../CesiumContext";
+import { pushDebugStack } from "./debugStack";
 
-export const guardViewer = (viewer: Viewer, label?: string) => {
+export const guardViewer = (
+  ctx: CesiumContextType,
+  viewer: Viewer,
+  label?: string
+) => {
   const ensure = <T>(fn: (v: Viewer) => T, fallback: T): T => {
     try {
       if (!isValidViewer(viewer)) {
         console.warn("Viewer gate invalid", label);
         return fallback;
       }
+      pushDebugStack(ctx, 2);
       return fn(viewer);
     } catch (e) {
       console.warn("Viewer gate call failed", label, e);
@@ -23,7 +30,10 @@ export const guardViewer = (viewer: Viewer, label?: string) => {
       cb: (scene: ReturnType<typeof guardScene>, viewer: Viewer) => T,
       fallback?: T
     ): T | undefined {
-      return ensure((v) => cb(guardScene(v.scene, label), v), fallback as T);
+      return ensure(
+        (v) => cb(guardScene(ctx, v.scene, label), v),
+        fallback as T
+      );
     },
     entities<T>(
       cb: (
@@ -33,7 +43,7 @@ export const guardViewer = (viewer: Viewer, label?: string) => {
       fallback?: T
     ): T | undefined {
       return ensure(
-        (v) => cb(guardEntityCollection(v.entities, label), v),
+        (v) => cb(guardEntityCollection(ctx, v.entities, label), v),
         fallback as T
       );
     },
