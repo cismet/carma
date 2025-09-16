@@ -17,7 +17,7 @@ export type ElevationResult = { terrain: Cartographic; surface?: Cartographic };
  * Returns a Promise resolving to an array of ElevationResult objects.
  */
 export async function guardedSampleTerrainMostDetailedAsync(
-  provider: CesiumTerrainProvider | EllipsoidTerrainProvider | unknown,
+  provider: CesiumTerrainProvider | EllipsoidTerrainProvider,
   positions: Cartographic[],
   clonePositions: boolean = true // whether to clone the positions array to avoid modifying input
 ): Promise<Cartographic[]> {
@@ -48,8 +48,9 @@ export async function getTerrainElevationAsync(
   positions: Cartographic[],
   clonePositions: boolean = true
 ): Promise<Cartographic[]> {
-  let provider: CesiumTerrainProvider | null = null;
+  let provider: CesiumTerrainProvider | undefined = undefined;
   ctx.withTerrainProvider((p) => (provider = p));
+  if (!provider) return [];
   return guardedSampleTerrainMostDetailedAsync(
     provider,
     positions,
@@ -62,8 +63,9 @@ export async function getSurfaceElevationAsync(
   positions: Cartographic[],
   clonePositions: boolean = true
 ): Promise<Cartographic[]> {
-  let provider: CesiumTerrainProvider | null = null;
+  let provider: CesiumTerrainProvider | undefined = undefined;
   ctx.withSurfaceProvider((p) => (provider = p));
+  if (!provider) return [];
   return guardedSampleTerrainMostDetailedAsync(
     provider,
     positions,
