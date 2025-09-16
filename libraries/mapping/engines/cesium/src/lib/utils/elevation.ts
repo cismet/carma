@@ -17,8 +17,9 @@ export type ElevationResult = { terrain: Cartographic; surface?: Cartographic };
  * Returns a Promise resolving to an array of ElevationResult objects.
  */
 export async function guardedSampleTerrainMostDetailedAsync(
-  provider: CesiumTerrainProvider | EllipsoidTerrainProvider,
-  positions: Cartographic[]
+  provider: CesiumTerrainProvider | EllipsoidTerrainProvider | unknown,
+  positions: Cartographic[],
+  clonePositions: boolean = true // whether to clone the positions array to avoid modifying input
 ): Promise<Cartographic[]> {
   let result: Cartographic[] = [];
   if (
@@ -32,7 +33,10 @@ export async function guardedSampleTerrainMostDetailedAsync(
     return result;
   }
   try {
-    result = await sampleTerrainMostDetailed(provider, positions);
+    result = await sampleTerrainMostDetailed(
+      provider,
+      clonePositions ? positions.map((p) => p.clone()) : positions
+    );
   } catch (e) {
     console.warn("[CESIUM|ELEVATION] elevation sampling failed", e);
   }
@@ -41,24 +45,30 @@ export async function guardedSampleTerrainMostDetailedAsync(
 
 export async function getTerrainElevationAsync(
   ctx: CesiumContextType,
-  positions: Cartographic[]
+  positions: Cartographic[],
+  clonePositions: boolean = true
 ): Promise<Cartographic[]> {
-  let result: Cartographic[] = [];
-  await ctx.withTerrainProvider(async (p) => {
-    result = await guardedSampleTerrainMostDetailedAsync(p, positions);
-  });
-  return result;
+  let provider: CesiumTerrainProvider | null = null;
+  ctx.withTerrainProvider((p) => (provider = p));
+  return guardedSampleTerrainMostDetailedAsync(
+    provider,
+    positions,
+    clonePositions
+  );
 }
 
 export async function getSurfaceElevationAsync(
   ctx: CesiumContextType,
-  positions: Cartographic[]
+  positions: Cartographic[],
+  clonePositions: boolean = true
 ): Promise<Cartographic[]> {
-  let result: Cartographic[] = [];
-  await ctx.withSurfaceProvider(async (p) => {
-    result = await guardedSampleTerrainMostDetailedAsync(p, positions);
-  });
-  return result;
+  let provider: CesiumTerrainProvider | null = null;
+  ctx.withSurfaceProvider((p) => (provider = p));
+  return guardedSampleTerrainMostDetailedAsync(
+    provider,
+    positions,
+    clonePositions
+  );
 }
 
 /**
@@ -68,53 +78,19 @@ export async function getElevationAsync(
   ctx: CesiumContextType,
   positions: Cartographic[]
 ): Promise<ElevationResult[]> {
-  let surfaceResult: Cartographic[] = [];
-  let terrainResult: Cartographic[] = [];
-  let result: ElevationResult[] = [];
-
-  await ctx.withSurfaceProvider(
-    async (p) =>
-      (surfaceResult = await guardedSampleTerrainMostDetailedAsync(
-        p,
-        positions
-      ))
-  );
-  await ctx.withTerrainProvider(
-    async (p) =>
-      (terrainResult = await guardedSampleTerrainMostDetailedAsync(
-        p,
-        positions
-      ))
-  );
+  const surfaceResult = await getSurfaceElevationAsync(ctx, positions, true);
+  const terrainResult = await getTerrainElevationAsync(ctx, positions, true);
 
   if (
     surfaceResult.length !== positions.length ||
     terrainResult.length !== positions.length
   ) {
     console.warn("[CESIUM|ELEVATION] elevation sampling failed");
-    if (surfaceResult.length === positions.length) {
-      console.warn(
-        "[CESIUM|ELEVATION] terrain elevation sampling failed, applying surface elevations to all results"
-      );
-      terrainResult = surfaceResult;
-    }
-    if (terrainResult.length === positions.length) {
-      console.warn(
-        "[CESIUM|ELEVATION] surface elevation sampling failed, applying terrain elevations to all results"
-      );
-      surfaceResult = terrainResult;
-    }
-    if (surfaceResult.length !== positions.length) {
-      console.warn(
-        "[CESIUM|ELEVATION] elevation sampling failed, returning empty result"
-      );
-      return result;
-    }
+    return [];
   }
 
-  result = positions.map((p, i) => ({
+  return positions.map((p, i) => ({
     terrain: terrainResult[i],
     surface: surfaceResult[i],
   }));
-  return result;
 }
