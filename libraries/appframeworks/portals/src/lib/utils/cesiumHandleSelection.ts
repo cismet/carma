@@ -3,7 +3,6 @@ import {
   BoundingSphere,
   Cartesian3,
   Cartographic,
-  CesiumTerrainProvider,
   ClassificationType,
   Color,
   ColorGeometryInstanceAttribute,
@@ -16,13 +15,13 @@ import {
   HeightReference,
   PerspectiveFrustum,
   PolygonGeometry,
-  sampleTerrainMostDetailed,
   type Model,
 } from "cesium";
 
 import {
   addCesiumMarker,
   distanceFromZoomLevel,
+  getElevationAsync,
   getHeadingPitchRangeFromHeight,
   getHeadingPitchRangeFromZoom,
   invertedPolygonHierarchy,
@@ -42,6 +41,8 @@ const DEFAULT_BOUNDINGSPHERE_VIEW_MARGIN = 0.2; // 20% margin
 const DEFAULT_CESIUM_MARKER_ANCHOR_HEIGHT = 10; // in METERS
 const DEFAULT_CESIUM_PITCH_ADJUST_HEIGHT = 1500; // meters
 const MAX_FLYTO_DURATION = 10; // seconds
+const MIN_GROUND_HEIGHT = -200; // meters
+const MAX_GROUND_HEIGHT = 10000; // meters
 
 const getFullViewDistance = (
   ctx: CesiumContextType,
@@ -294,7 +295,7 @@ export const cesiumHandleSelection = async (
   { pos, zoom, polygon }: DerivedGeometries,
   options: HitTriggerOptions
 ) => {
-  const { isValidViewer, withTerrainProvider, withSurfaceProvider } = ctx;
+  const { isValidViewer } = ctx;
   if (!isValidViewer()) {
     console.warn("cesiumLookAt: viewer is not ready or destroyed");
     return;
@@ -320,56 +321,55 @@ export const cesiumHandleSelection = async (
 
   const posCarto = Cartographic.fromDegrees(pos.lon, pos.lat, 0);
 
-  // Prefer surface/mesh provider for elevation; fall back to terrain
-  let terrainProvider: CesiumTerrainProvider | null = null;
-  let surfaceProvider: CesiumTerrainProvider | null = null;
+  const [posResult] = await getElevationAsync(ctx, [posCarto]);
 
-  ctx.withSurfaceProvider((sp) => {
-    surfaceProvider = sp;
-  });
-  ctx.withTerrainProvider((tp) => {
-    terrainProvider = tp;
-  });
-
-  const provider = surfaceProvider ?? terrainProvider;
-  if (!provider) {
-    console.warn(
-      "no terrain or surface provider found, cant place marker without elevation"
-    );
+  if (!posResult) {
+    console.warn("no ground position found for marker");
     return;
   }
 
-  const [groundPosition] = await sampleTerrainMostDetailed(
-    provider,
-    [posCarto],
-    true
+  const { terrain, surface: surfacePosition } = posResult;
+
+  if (
+    !surfacePosition ||
+    surfacePosition.height < MIN_GROUND_HEIGHT ||
+    surfacePosition.height > MAX_GROUND_HEIGHT
+  ) {
+    console.warn("invalid ground position found for marker", surfacePosition);
+    return;
+  }
+
+  console.debug(
+    "GAZETTEER: [2D3D|CESIUM|MARKER] ground position",
+    terrain,
+    surfacePosition
   );
 
   if (polygon) {
     handlePolygonSelection(
       ctx,
       shouldFlyToRef,
-      groundPosition,
+      surfacePosition, // fly to surface elevation
       polygon,
       idSelected,
       idInverted,
       duration,
       mapOptions
     );
-  } else if (defined(groundPosition)) {
+  } else if (defined(posResult)) {
     if (entityData?.model?.isDestroyed()) {
       console.warn("marker model is destroyed, try to reinitialize model");
     }
 
     if (markerAsset) {
-      updateMarkerPosition(ctx, groundPosition, entityData, setEntityData, {
+      updateMarkerPosition(ctx, surfacePosition, entityData, setEntityData, {
         markerAsset,
         markerAnchorHeight,
       });
     }
 
     shouldFlyToRef.current &&
-      cesiumLookAtPoint(ctx, groundPosition, zoom, mapOptions, {
+      cesiumLookAtPoint(ctx, surfacePosition, zoom, mapOptions, {
         onComplete: () => {
           shouldFlyToRef.current = false;
           console.debug("GAZETTEER: [2D3D|CESIUM|CAMERA] flyTo Point complete");

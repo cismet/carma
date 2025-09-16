@@ -1,10 +1,5 @@
 // WEB MAPS TO CESIUM
-import { MutableRefObject } from "react";
-import {
-  Cartographic,
-  Math as CesiumMath,
-  sampleTerrainMostDetailed,
-} from "cesium";
+import { Cartographic, Math as CesiumMath } from "cesium";
 import type { Map as LeafletMap } from "leaflet";
 
 import {
@@ -12,10 +7,12 @@ import {
   getPixelResolutionFromZoomAtLatitudeRad,
 } from "@carma-commons/utils";
 
-import { getCameraHeightAboveGround } from "./cesiumHelpers";
-import { isLeafletZoomValid } from "./leafletHelpers";
-import { getCesiumCameraPixelDimensionForDistance } from "./cesiumCamera";
 import type { CesiumContextType } from "../CesiumContext";
+
+import { getCesiumCameraPixelDimensionForDistance } from "./cesiumCamera";
+import { getCameraHeightAboveGround } from "./cesiumHelpers";
+import { getElevationAsync } from "./elevation";
+import { isLeafletZoomValid } from "./leafletHelpers";
 import { getScenePixelSize } from "./pixels";
 
 export const leafletToCesium = async (
@@ -98,21 +95,21 @@ export const leafletToCesium = async (
     fallbackHeight
   );
 
-  let surfaceSample: Cartographic | undefined;
-  let terrainSample: Cartographic | undefined;
+  const [elevation] = await getElevationAsync(ctx, [cameraGroundPosition]);
 
-  ctx.withSurfaceProvider(async (provider) => {
-    [surfaceSample] = await sampleTerrainMostDetailed(provider, [
-      cameraGroundPosition,
-    ]);
-    console.debug("surfaceSample", surfaceSample, cameraGroundPosition);
-  });
-  ctx.withTerrainProvider(async (provider) => {
-    [terrainSample] = await sampleTerrainMostDetailed(provider, [
-      Cartographic.fromRadians(lngRad, latRad),
-    ]);
-    console.debug("terrainSample", terrainSample, cameraGroundPosition);
-  });
+  if (!elevation) {
+    console.warn("No elevation found for camera position");
+    return false;
+  }
+
+  const { terrain, surface } = elevation;
+
+  console.debug(
+    "L2C [2D3D|CESIUM|CAMERA] elevations",
+    terrain,
+    surface,
+    fallbackHeight
+  );
 
   const cameraDestinationCartographic = cameraGroundPosition.clone();
   cameraDestinationCartographic.height += computedDistance;
