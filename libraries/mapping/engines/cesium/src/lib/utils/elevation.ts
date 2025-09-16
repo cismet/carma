@@ -1,59 +1,26 @@
-import {
-  Cartographic,
-  CesiumTerrainProvider,
-  EllipsoidTerrainProvider,
-  sampleTerrainMostDetailed,
-} from "cesium";
+import { Cartographic, CesiumTerrainProvider } from "cesium";
 import type { CesiumContextType } from "../CesiumContext";
-import {
-  isValidCesiumTerrainProvider,
-  isValidEllipsoidTerrainProvider,
-} from "./instanceGates";
+import { guardSampleTerrainMostDetailedAsync } from "./guardSampleTerrainMostDetailedAsync";
 
-export type ElevationResult = { terrain: Cartographic; surface?: Cartographic };
-
-/**
- * Sample elevations from a concrete CesiumTerrainProvider (can be a real terrain or a surface-derived provider).
- * Returns a Promise resolving to an array of ElevationResult objects.
- */
-export async function guardedSampleTerrainMostDetailedAsync(
-  provider: CesiumTerrainProvider | EllipsoidTerrainProvider,
-  positions: Cartographic[],
-  clonePositions: boolean = true // whether to clone the positions array to avoid modifying input
-): Promise<Cartographic[]> {
-  let result: Cartographic[] = [];
-  if (
-    !isValidCesiumTerrainProvider(provider) &&
-    !isValidEllipsoidTerrainProvider(provider)
-  ) {
-    console.warn(
-      "[CESIUM|ELEVATION] invalid terrain provider, skipping elevation sampling",
-      provider
-    );
-    return result;
-  }
-  try {
-    result = await sampleTerrainMostDetailed(
-      provider,
-      clonePositions ? positions.map((p) => p.clone()) : positions
-    );
-  } catch (e) {
-    console.warn("[CESIUM|ELEVATION] elevation sampling failed", e);
-  }
-  return result;
-}
+export type ElevationResult = {
+  terrain: Cartographic;
+  surface?: Cartographic;
+  position: Cartographic; // return original position for convenience
+};
 
 export async function getTerrainElevationAsync(
   ctx: CesiumContextType,
   positions: Cartographic[],
+  rejectOnTileFail: boolean = true,
   clonePositions: boolean = true
 ): Promise<Cartographic[]> {
   let provider: CesiumTerrainProvider | undefined = undefined;
   ctx.withTerrainProvider((p) => (provider = p));
   if (!provider) return [];
-  return guardedSampleTerrainMostDetailedAsync(
+  return guardSampleTerrainMostDetailedAsync(
     provider,
     positions,
+    rejectOnTileFail,
     clonePositions
   );
 }
@@ -61,14 +28,16 @@ export async function getTerrainElevationAsync(
 export async function getSurfaceElevationAsync(
   ctx: CesiumContextType,
   positions: Cartographic[],
+  rejectOnTileFail: boolean = true,
   clonePositions: boolean = true
 ): Promise<Cartographic[]> {
   let provider: CesiumTerrainProvider | undefined = undefined;
   ctx.withSurfaceProvider((p) => (provider = p));
   if (!provider) return [];
-  return guardedSampleTerrainMostDetailedAsync(
+  return guardSampleTerrainMostDetailedAsync(
     provider,
     positions,
+    rejectOnTileFail,
     clonePositions
   );
 }
@@ -78,10 +47,21 @@ export async function getSurfaceElevationAsync(
  */
 export async function getElevationAsync(
   ctx: CesiumContextType,
-  positions: Cartographic[]
+  positions: Cartographic[],
+  rejectOnTileFail: boolean = true
 ): Promise<ElevationResult[]> {
-  const surfaceResult = await getSurfaceElevationAsync(ctx, positions, true);
-  const terrainResult = await getTerrainElevationAsync(ctx, positions, true);
+  const surfaceResult = await getSurfaceElevationAsync(
+    ctx,
+    positions,
+    rejectOnTileFail,
+    true
+  );
+  const terrainResult = await getTerrainElevationAsync(
+    ctx,
+    positions,
+    rejectOnTileFail,
+    true
+  );
 
   if (
     surfaceResult.length !== positions.length ||
@@ -91,7 +71,8 @@ export async function getElevationAsync(
     return [];
   }
 
-  return positions.map((p, i) => ({
+  return positions.map((position, i) => ({
+    position,
     terrain: terrainResult[i],
     surface: surfaceResult[i],
   }));

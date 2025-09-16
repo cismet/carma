@@ -100,6 +100,7 @@ export { guardEntityCollection } from "./lib/utils/guardEntityCollection";
 export { guardViewer } from "./lib/utils/guardViewer";
 export { guardScene } from "./lib/utils/guardScene";
 export { guardCamera } from "./lib/utils/guardCamera";
+export { guardSampleTerrainMostDetailedAsync } from "./lib/utils/guardSampleTerrainMostDetailedAsync";
 export { guardScreenSpaceCameraController } from "./lib/utils/guardScreenSpaceCameraController";
 export { guardTileset } from "./lib/utils/guardTileset";
 
@@ -110,7 +111,6 @@ export {
 } from "./lib/utils/positions";
 
 export {
-  guardedSampleTerrainMostDetailedAsync,
   getElevationAsync,
   getSurfaceElevationAsync,
   getTerrainElevationAsync,
