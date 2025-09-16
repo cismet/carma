@@ -43,23 +43,15 @@ import { featureFlagConfig } from "./config/featureFlags";
 
 import { OBLIQUE_CONFIG, CAMERA_ID_TO_DIRECTION } from "./oblique/config";
 
+import { getCustomFeatureFlags } from "./store/slices/layers";
+import { getShowLoginModal, setShowLoginModal } from "./store/slices/ui";
+
 // Side-Effect Imports
 import "bootstrap/dist/css/bootstrap.min.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import "./index.css";
-import { getCustomFeatureFlags } from "./store/slices/layers";
-import { getShowLoginModal, setShowLoginModal } from "./store/slices/ui";
 
-declare global {
-  interface Window {
-    global?: typeof window;
-  }
-}
-
-if (typeof global === "undefined") {
-  window.global = window;
-}
 function App({ published }: { published?: boolean }) {
   const dispatch = useDispatch();
   const showLoginModal = useSelector(getShowLoginModal);
