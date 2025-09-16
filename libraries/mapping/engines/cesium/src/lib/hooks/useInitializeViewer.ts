@@ -17,6 +17,7 @@ import {
 } from "cesium";
 
 import { useCesiumContext } from "./useCesiumContext";
+import { configureCesiumErrorHandling } from "../utils/cesiumErrorHandling";
 
 import {
   selectScreenSpaceCameraControllerMaximumZoomDistance,
@@ -114,6 +115,12 @@ export const useInitializeViewer = (
         );
         const viewer = new Viewer(containerRef.current, options);
         viewerRef.current = viewer;
+        // Configure error handling to avoid disruptive error panels and crashes
+        configureCesiumErrorHandling(viewer, {
+          suppressErrorPanel: true,
+          suppressErrorBoundaryForwarding: true,
+          logLevel: "warn",
+        });
         // Initial state: not started determining yet
         setInitialCameraSettled(null);
         console.info("[CESIUM|INIT|SETTLE] state:null (viewer created)");

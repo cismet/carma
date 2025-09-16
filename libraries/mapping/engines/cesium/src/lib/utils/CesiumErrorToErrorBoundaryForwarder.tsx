@@ -5,8 +5,11 @@ import {
 } from "react-error-boundary";
 import { useState, useEffect } from "react";
 import { CesiumWidget } from "cesium";
+import { getCesiumVersion } from "./cesiumEnv";
 import { useCesiumContext } from "../hooks/useCesiumContext";
 import { snapshotCesiumContext } from "./cesiumContextSnapshot";
+
+const CESIUM_VERSION = getCesiumVersion();
 
 export type ForwardedCesiumError = Error & {
   cesiumTitle?: string;
@@ -69,7 +72,29 @@ export const CesiumErrorToErrorBoundaryForwarder = withErrorBoundary(
       if (cesiumError && showBoundary) {
         cesiumError.forwarderAt = new Date().toISOString();
         cesiumError.carmaCesiumContext = snapshotCesiumContext(ctx);
-        showBoundary(cesiumError);
+        // Respect global suppression flag to avoid crashing the viewer
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const suppressed = (window as any).CARMA_CESIUM_SUPPRESS_ERROR_BOUNDARY;
+        if (suppressed) {
+          // Enrich logs with Cesium version and worker base URL
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const baseUrl: string | undefined = (window as any).CESIUM_BASE_URL;
+          const meta = {
+            cesiumVersion: CESIUM_VERSION,
+            baseUrl,
+            workersBaseUrl: baseUrl ? `${baseUrl}/Workers` : undefined,
+          };
+          console.warn(
+            "[Cesium] error forwarded (suppressed)",
+            cesiumError,
+            meta
+          );
+          // clear suppression for next error
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          (window as any).CARMA_CESIUM_SUPPRESS_ERROR_BOUNDARY = false;
+        } else {
+          showBoundary(cesiumError);
+        }
         setCesiumError(null);
       }
     }, [cesiumError, showBoundary, ctx]);

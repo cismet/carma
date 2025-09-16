@@ -1,6 +1,4 @@
-import type { TerrainProvider } from "cesium";
-import type { PlainCartesian3 } from "@carma-commons/types";
-import type { ColorRgbaArray } from "@carma-commons/types";
+import type { ColorRgbaArray, PlainCartesian3 } from "@carma-commons/types";
 
 import type { ProviderConfig } from "./lib/utils/cesiumProviders";
 import type { TilesetConfigs } from "./lib/utils/cesiumTilesetProviders";

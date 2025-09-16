@@ -18,7 +18,14 @@ import {
 import { DebugUiProvider } from "@carma-commons/debug";
 import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
 import { MobileWarningMessage } from "@carma-mapping/components";
-import { FeatureFlagProvider } from "@carma-providers/feature-flag";
+import {
+  FeatureFlagProvider,
+  useFeatureFlags,
+} from "@carma-providers/feature-flag";
+import {
+  useCesiumDevConsoleTrigger,
+  useReloadOnCesiumRenderError,
+} from "@carma-mapping/engines/cesium";
 
 // Local Modules
 import AppErrorFallback from "./components/AppErrorFallback";
@@ -52,6 +59,13 @@ import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import "./index.css";
 
+function CesiumAppIntegration() {
+  const flags = useFeatureFlags();
+  useCesiumDevConsoleTrigger({ isDeveloperMode: flags.isDeveloperMode });
+  useReloadOnCesiumRenderError();
+  return null;
+}
+
 function App({ published }: { published?: boolean }) {
   const dispatch = useDispatch();
   const showLoginModal = useSelector(getShowLoginModal);
@@ -72,6 +86,8 @@ function App({ published }: { published?: boolean }) {
       config={{ ...featureFlagConfig, ...customFeatureFlags }}
     >
       <MatomoTracker>
+        <CesiumAppIntegration />
+
         <DebugUiProvider enabled={import.meta.env?.DEV === true}>
           <CarmaMapProviderWrapper
             cesiumOptions={CESIUM_CONFIG}

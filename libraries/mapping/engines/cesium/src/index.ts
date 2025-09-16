@@ -104,6 +104,18 @@ export { guardSampleTerrainMostDetailedAsync } from "./lib/utils/guardSampleTerr
 export { guardScreenSpaceCameraController } from "./lib/utils/guardScreenSpaceCameraController";
 export { guardTileset } from "./lib/utils/guardTileset";
 
+// Centralized error handling and test triggers
+export {
+  configureCesiumErrorHandling,
+  triggerCesiumRenderError,
+  triggerCesiumShowErrorPanel,
+} from "./lib/utils/cesiumErrorHandling";
+
+// Hooks for app integration
+export { useCesiumDevConsoleTrigger } from "./lib/hooks/useCesiumDevConsoleTrigger";
+export { useReloadOnCesiumRenderError } from "./lib/hooks/useReloadOnCesiumRenderError";
+export { getCesiumVersion } from "./lib/utils/cesiumEnv";
+
 export {
   distanceFromZoomLevel,
   getHeadingPitchRangeFromHeight,
