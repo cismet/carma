@@ -156,46 +156,46 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
         const cameraPositionCartographic = viewer.camera.positionCartographic;
         const currentCameraHeight = cameraPositionCartographic.height;
         setCameraHeightFmt(`${cameraPositionCartographic.height.toFixed(0)}m`);
-        getPositionWithHeightAsync(
-          viewer.scene,
-          cameraPositionCartographic,
-          false
-        ).then((position) => {
-          setTerrainHeight(position.height);
-          setCameraRelHeightFmt(
-            `${(currentCameraHeight - position.height).toFixed(0)}m`
-          );
-          setTerrainHeightFmt(`${position.height.toFixed(0)}m`);
-          setCameraHeight(currentCameraHeight);
-          setEllipsoidHeight(localMinEllipsoidalHeight);
+        getPositionWithHeightAsync(ctx, cameraPositionCartographic, false).then(
+          (position) => {
+            setTerrainHeight(position.height);
+            setCameraRelHeightFmt(
+              `${(currentCameraHeight - position.height).toFixed(0)}m`
+            );
+            setTerrainHeightFmt(`${position.height.toFixed(0)}m`);
+            setCameraHeight(currentCameraHeight);
+            setEllipsoidHeight(localMinEllipsoidalHeight);
 
-          // Update maxDisplayHeight based on current heights
-          const maxHeight = Math.max(
-            currentCameraHeight,
-            position.height,
-            initialMaxElevation
-          );
-          setMaxDisplayHeight(Math.min(maxHeight * 1.1, 50000));
+            // Update maxDisplayHeight based on current heights
+            const maxHeight = Math.max(
+              currentCameraHeight,
+              position.height,
+              initialMaxElevation
+            );
+            setMaxDisplayHeight(Math.min(maxHeight * 1.1, 50000));
 
-          if (clamp) {
-            getPositionWithHeightAsync(
-              viewer.scene,
-              cameraPositionCartographic,
-              true
-            ).then((clampedPosition) => {
-              setClampedHeight(clampedPosition.height);
-              setCameraRelClampedHeightFmt(
-                `${(currentCameraHeight - clampedPosition.height).toFixed(0)}m`
-              );
-              setClampedRelHeightFmt(
-                `${(clampedPosition.height - position.height).toFixed(1)}m`
-              );
+            if (clamp) {
+              getPositionWithHeightAsync(
+                ctx,
+                cameraPositionCartographic,
+                true
+              ).then((clampedPosition) => {
+                setClampedHeight(clampedPosition.height);
+                setCameraRelClampedHeightFmt(
+                  `${(currentCameraHeight - clampedPosition.height).toFixed(
+                    0
+                  )}m`
+                );
+                setClampedRelHeightFmt(
+                  `${(clampedPosition.height - position.height).toFixed(1)}m`
+                );
+                isUpdating.current = false;
+              });
+            } else {
               isUpdating.current = false;
-            });
-          } else {
-            isUpdating.current = false;
+            }
           }
-        });
+        );
       };
 
       // todo provide these heights and position somewhere centralized state,

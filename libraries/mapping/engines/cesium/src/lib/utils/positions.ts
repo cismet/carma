@@ -1,11 +1,7 @@
-import {
-  Camera,
-  Cartesian3,
-  Cartographic,
-  HeadingPitchRange,
-  sampleTerrainMostDetailed,
-  Scene,
-} from "cesium";
+import { Camera, Cartesian3, Cartographic, HeadingPitchRange } from "cesium";
+
+import { getSurfaceElevationAsync } from "./elevation";
+import type { CesiumContextType } from "../CesiumContext";
 
 export const distanceFromZoomLevel = (zoom: number) => {
   return 40000000 / Math.pow(2, zoom);
@@ -36,7 +32,7 @@ export const getHeadingPitchRangeFromHeight = (
 };
 
 export const getPositionWithHeightAsync = async (
-  scene: Scene,
+  ctx: CesiumContextType,
   position: Cartographic,
   useClampedHeight: boolean = false
 ) => {
@@ -46,12 +42,15 @@ export const getPositionWithHeightAsync = async (
   let updatedPosition: Cartographic | null = null;
 
   if (useClampedHeight) {
+    let clampedPosition: Cartesian3 | undefined;
     // Attempt to clamp the position to the tileset's height
     try {
-      const clampedPosition = await scene.clampToHeight(
-        cartesianPosition
-        //[tileset],
-      );
+      await ctx.withScene(async (scene) => {
+        clampedPosition = await scene.clampToHeight(
+          cartesianPosition
+          //[tileset],
+        );
+      });
 
       if (clampedPosition) {
         const clampedCartesian = clampedPosition;
@@ -90,33 +89,23 @@ export const getPositionWithHeightAsync = async (
     return updatedPosition;
   } else {
     // Fall back to using terrain data
-    const terrainProvider = scene.globe.terrainProvider;
-    console.debug(
-      "[CESIUM|TERRAIN] Using terrain provider",
-      terrainProvider,
-      "for position",
-      position
-    );
+    console.debug("[CESIUM|TERRAIN] Using surface for position", position);
 
     try {
-      const updatedPositions = await sampleTerrainMostDetailed(
-        terrainProvider,
-        [position]
-      );
-      const cartoPos = updatedPositions[0];
+      const [surfacePosition] = await getSurfaceElevationAsync(ctx, [position]);
 
-      if (cartoPos instanceof Cartographic) {
+      if (surfacePosition instanceof Cartographic) {
         console.debug(
-          "[CESIUM|TERRAIN] Sampled terrain for position",
+          "[CESIUM|TERRAIN] Sampled surface for position",
           position,
-          cartoPos
+          surfacePosition
         );
-        return cartoPos;
+        return surfacePosition;
       } else {
         console.warn(
-          "[CESIUM|TERRAIN] Could not get elevation for position",
+          "[CESIUM|TERRAIN] Could not get surface elevation for position",
           position,
-          cartoPos
+          surfacePosition
         );
         return position;
       }

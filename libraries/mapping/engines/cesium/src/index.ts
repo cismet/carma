@@ -110,6 +110,14 @@ export {
 } from "./lib/utils/positions";
 
 export {
+  guardedSampleTerrainMostDetailedAsync,
+  getElevationAsync,
+  getSurfaceElevationAsync,
+  getTerrainElevationAsync,
+  type ElevationResult,
+} from "./lib/utils/elevation";
+
+export {
   type ViewerAnimationMap,
   cancelViewerAnimation,
   initViewerAnimationMap,

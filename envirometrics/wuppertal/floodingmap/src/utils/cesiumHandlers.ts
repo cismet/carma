@@ -1,49 +1,42 @@
+import type { MutableRefObject } from "react";
+import { Cartographic, type Cartesian3, type Entity } from "cesium";
 import {
-  Cartographic,
-  sampleTerrainMostDetailed,
-  Viewer,
-  CesiumTerrainProvider,
-} from "cesium";
-import { getDegreesFromCartographic } from "@carma-mapping/engines/cesium";
+  getDegreesFromCartographic,
+  getTerrainElevationAsync,
+  type CesiumContextType,
+} from "@carma-mapping/engines/cesium";
 
 import { updateMarkerPosition } from "./marker";
 
 export const onCesiumClick = async (
   click,
-  viewer: Viewer,
-  withTerrainProvider: (
-    cb: (provider: CesiumTerrainProvider, viewer: Viewer) => void
-  ) => boolean,
-  markerEntityRef,
-  highlightEntityRef,
+  ctx: CesiumContextType,
+  markerEntityRef: MutableRefObject<Entity | null>,
+  highlightEntityRef: MutableRefObject<Entity | null>,
   callback
 ) => {
-  if (viewer.isDestroyed()) return;
+  let cartesian: Cartesian3 | undefined;
 
-  const cartesian = viewer.scene.pickPosition(click.position);
+  ctx.withScene((scene) => {
+    cartesian = scene.pickPosition(click.position);
+  });
+
   if (!cartesian) return;
 
   const cartographic = Cartographic.fromCartesian(cartesian);
   const { latitude, longitude } = getDegreesFromCartographic(cartographic);
 
-  let handled = false;
-  await withTerrainProvider(async (provider) => {
-    const [groundPositionCartographic] = await sampleTerrainMostDetailed(
-      provider,
-      [cartographic]
-    );
+  const [groundPositionCartographic] = await getTerrainElevationAsync(ctx, [
+    cartographic,
+  ]);
 
-    updateMarkerPosition(
-      viewer,
-      markerEntityRef,
-      highlightEntityRef,
-      groundPositionCartographic
-    );
-    callback([latitude, longitude]);
-    handled = true;
-  });
-  if (!handled) {
-    // fallback: if no provider available yet, do nothing
-    return;
-  }
+  if (!groundPositionCartographic) return;
+
+  updateMarkerPosition(
+    ctx.viewerRef.current!,
+    markerEntityRef,
+    highlightEntityRef,
+    groundPositionCartographic
+  );
+  callback && callback([latitude, longitude]);
 };

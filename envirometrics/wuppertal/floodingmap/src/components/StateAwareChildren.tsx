@@ -4,7 +4,6 @@ import { useSelector } from "react-redux";
 import {
   Cartographic,
   Entity,
-  sampleTerrainMostDetailed,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
 } from "cesium";
@@ -18,6 +17,7 @@ import StyledWMSTileLayer from "react-cismap/StyledWMSTileLayer";
 import { isNumberArrayEqual } from "@carma-commons/utils";
 
 import {
+  getTerrainElevationAsync,
   selectViewerIsMode2d,
   useCesiumContext,
 } from "@carma-mapping/engines/cesium";
@@ -51,7 +51,8 @@ export const StateAwareChildren = () => {
   const conf = config.config;
 
   // CESIUM
-  const { viewerRef, isViewerReady, withTerrainProvider } = useCesiumContext();
+  const cesiumContext = useCesiumContext();
+  const { isViewerReady, viewerRef } = cesiumContext;
   const [cesiumPickedPosition, setCesiumPickedPosition] = useState<
     [number, number] | null
   >(null);
@@ -81,17 +82,14 @@ export const StateAwareChildren = () => {
 
         const cartographic = Cartographic.fromDegrees(lon, lat);
 
-        let groundPositionCartographic: Cartographic | null = null;
-        await withTerrainProvider(async (provider) => {
-          const [gp] = await sampleTerrainMostDetailed(provider, [
-            cartographic,
-          ]);
-          groundPositionCartographic = gp;
-        });
+        const [groundPositionCartographic] = await getTerrainElevationAsync(
+          cesiumContext,
+          [cartographic]
+        );
         if (!groundPositionCartographic) return;
 
         updateMarkerPosition(
-          viewerRef.current,
+          viewerRef.current!,
           markerEntityRef,
           highlightEntityRef,
           groundPositionCartographic
@@ -102,7 +100,7 @@ export const StateAwareChildren = () => {
   }, [
     isViewerReady,
     viewerRef,
-    withTerrainProvider,
+    cesiumContext,
     controlState.featureInfoModeActivated,
     controlState.currentFeatureInfoPosition,
     isMode2d,
@@ -129,8 +127,7 @@ export const StateAwareChildren = () => {
         async (click) =>
           onCesiumClick(
             click,
-            viewer,
-            withTerrainProvider,
+            cesiumContext,
             markerEntityRef,
             highlightEntityRef,
             setCesiumPickedPosition
@@ -155,7 +152,7 @@ export const StateAwareChildren = () => {
         viewer.scene.requestRender();
       };
     }
-  }, [viewerRef, withTerrainProvider, controlState.featureInfoModeActivated]);
+  }, [cesiumContext, viewerRef, controlState.featureInfoModeActivated]);
 
   // Add effect to cleanup marker when feature info mode is disabled
   useEffect(() => {
