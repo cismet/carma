@@ -16,10 +16,6 @@ import {
 import "./index.css";
 import Map from "./Map";
 
-if (typeof global === "undefined") {
-  window.global = window;
-}
-
 function App() {
   useEffect(() => {
     document.title = "Map Wuppertal";

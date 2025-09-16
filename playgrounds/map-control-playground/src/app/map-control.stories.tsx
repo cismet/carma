@@ -43,10 +43,6 @@ import InfoBox from "react-cismap/topicmaps/InfoBox";
 import GenericInfoBoxFromFeature from "react-cismap/topicmaps/GenericInfoBoxFromFeature";
 import { Divider } from "antd";
 
-if (typeof global === "undefined") {
-  window.global = window;
-}
-
 const meta: Meta<typeof Map> = {
   component: Map,
   title: "MapControl",

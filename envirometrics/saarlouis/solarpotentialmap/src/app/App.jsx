@@ -11,9 +11,6 @@ import "leaflet/dist/leaflet.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 
-if (typeof global === "undefined") {
-  window.global = window;
-}
 const year = new Date().getFullYear();
 
 function App() {

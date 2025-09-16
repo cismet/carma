@@ -42,10 +42,6 @@ import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import "./index.css";
 
-if (typeof global === "undefined") {
-  window.global = window;
-}
-
 type Config = {
   layers: Layer[];
   backgroundLayer: BackgroundLayer;
