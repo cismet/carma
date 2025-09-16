@@ -320,25 +320,21 @@ export const cesiumHandleSelection = async (
 
   const posCarto = Cartographic.fromDegrees(pos.lon, pos.lat, 0);
 
-  let provider: CesiumTerrainProvider | null = null;
+  // Prefer surface/mesh provider for elevation; fall back to terrain
+  let terrainProvider: CesiumTerrainProvider | null = null;
+  let surfaceProvider: CesiumTerrainProvider | null = null;
 
-  ctx.withTerrainProvider((terrainProvider) => {
-    provider = terrainProvider;
+  ctx.withSurfaceProvider((sp) => {
+    surfaceProvider = sp;
+  });
+  ctx.withTerrainProvider((tp) => {
+    terrainProvider = tp;
   });
 
+  const provider = surfaceProvider ?? terrainProvider;
   if (!provider) {
     console.warn(
-      "no terrain provider found, cant place marker without elevation, using surface provider"
-    );
-
-    ctx.withSurfaceProvider((surfaceProvider) => {
-      provider = surfaceProvider;
-    });
-  }
-
-  if (!provider) {
-    console.warn(
-      "no terrain provider found, cant place marker without elevation"
+      "no terrain or surface provider found, cant place marker without elevation"
     );
     return;
   }
