@@ -17,13 +17,22 @@ export function useCesiumDevConsoleTrigger(
 ) {
   useEffect(() => {
     const eventName = options?.eventName ?? "carma:cesium:renderError";
-    const isDev = options?.isDeveloperMode === true;
-    if (!isDev) {
+    const devFlag = options?.isDeveloperMode === true;
+    if (!devFlag) {
       console.debug(
         "[CARMA][dev] useCesiumDevConsoleTrigger: developer mode disabled (set isDeveloperMode=true in provider to enable trigger)"
       );
       return;
     }
+    const localDev = (() => {
+      try {
+        return Boolean(
+          typeof import.meta !== "undefined" && import.meta.env?.DEV
+        );
+      } catch {
+        return false;
+      }
+    })();
     const win = window as unknown as {
       CARMA_CESIUM_TRIGGER?: {
         renderError?: (err?: unknown) => void;
@@ -44,7 +53,8 @@ export function useCesiumDevConsoleTrigger(
       };
       registeredSomething = true;
     }
-    if (typeof triggerObj.renderErrorDebug !== "function") {
+    // Only register the debug variant (with debugger) in local dev builds
+    if (localDev && typeof triggerObj.renderErrorDebug !== "function") {
       triggerObj.renderErrorDebug = () => {
         debugger; // eslint-disable-line no-debugger
         const error = new Error("Manual debug renderError");
@@ -53,8 +63,11 @@ export function useCesiumDevConsoleTrigger(
       registeredSomething = true;
     }
     if (registeredSomething) {
+      const dbgInfo = localDev
+        ? ".renderErrorDebug"
+        : " (renderErrorDebug only in local dev)";
       console.info(
-        `[CARMA][dev] window.CARMA_CESIUM_TRIGGER.renderError(.renderErrorDebug) available (event: ${eventName})`
+        `[CARMA][dev] window.CARMA_CESIUM_TRIGGER.renderError${dbgInfo} available (event: ${eventName})`
       );
     }
   }, [options?.isDeveloperMode, options?.eventName]);
