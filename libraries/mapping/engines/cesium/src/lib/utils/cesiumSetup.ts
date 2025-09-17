@@ -1,20 +1,30 @@
 import { Viewer } from "cesium";
 import type { CesiumConfig } from "./../..";
 
-declare global {
-  interface Window {
-    CESIUM_BASE_URL: string;
-  }
-}
+const CESIUM_PATHNAME = "__cesium__";
 
-const getDefaultBaseUrl = () => {
-  const CESIUM_PATHNAME = "__cesium__";
-  const APP_BASE_PATH = import.meta.env.BASE_URL;
-  return `${APP_BASE_PATH}${CESIUM_PATHNAME}`;
+const getAppBaseUrl = (): string => {
+  const meta = import.meta as unknown as { env?: Record<string, unknown> };
+  const v = meta?.env?.BASE_URL;
+  return typeof v === "string" && v.length > 0 ? v : "/";
 };
 
-export const setupCesiumEnvironment = (config?: CesiumConfig) => {
-  const baseUrl = config?.baseUrl ? config.baseUrl : getDefaultBaseUrl();
+const getDefaultBaseUrl = () => `${getAppBaseUrl()}${CESIUM_PATHNAME}`;
+
+type CesiumBaseUrlInput =
+  | CesiumConfig
+  | { baseUrl: string }
+  | string
+  | undefined;
+
+export const setupCesiumEnvironment = (input?: CesiumBaseUrlInput) => {
+  const baseUrl =
+    typeof input === "string"
+      ? input
+      : input && typeof input === "object" && "baseUrl" in input
+      ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (input as any).baseUrl
+      : getDefaultBaseUrl();
   window.CESIUM_BASE_URL = baseUrl;
 };
 

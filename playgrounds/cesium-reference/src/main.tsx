@@ -11,14 +11,10 @@ import "cesium/Build/Cesium/Widgets/widgets.css";
 import "antd/dist/reset.css";
 import { ErrorBoundary } from "react-error-boundary";
 import ErrorFallback from "./components/ErrorFallback";
-declare global {
-  interface Window {
-    CESIUM_BASE_URL: string;
-  }
-}
+import { setupCesiumEnvironment } from "@carma-mapping/engines/cesium";
 
 const CESIUM_BASE_URL = `${APP_BASE_PATH}${CESIUM_PATHNAME}`;
-window.CESIUM_BASE_URL = CESIUM_BASE_URL;
+setupCesiumEnvironment({ baseUrl: CESIUM_BASE_URL });
 
 const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement

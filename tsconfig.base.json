@@ -4,6 +4,7 @@
   "include": [
     "${configDir}/src/**/*.js",
     "${configDir}/src/**/*.ts",
+    "${configDir}/src/**/*.d.ts",
     "${configDir}/src/**/*.jsx",
     "${configDir}/src/**/*.tsx",
     "${configDir}/*.config.js",

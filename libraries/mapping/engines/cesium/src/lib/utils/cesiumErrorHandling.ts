@@ -1,10 +1,33 @@
 import { Viewer } from "cesium";
-import { getCesiumVersion } from "./cesiumEnv";
+import { getCesiumVersion, checkWindowEnv } from "./cesiumEnv";
 
-const tag = Symbol.for("carma.cesium.renderErrorPatch");
+const patchedScenes = new WeakSet<object>();
 
-type TaggedScene = {
-  [key in typeof tag]: true;
+const normalizeError = (e: unknown): Error =>
+  e instanceof Error ? e : new Error(String(e));
+
+const disableCesiumErrorPanel = (viewer: Viewer) => {
+  const w = viewer.cesiumWidget as { showRenderLoopErrors?: boolean };
+  if (typeof w.showRenderLoopErrors === "boolean") {
+    w.showRenderLoopErrors = false;
+  }
+};
+
+const callRenderErrorRaise = (viewer: Viewer, error: Error) => {
+  const ev = viewer.scene.renderError as { raiseEvent?: (e: Error) => void };
+  ev?.raiseEvent?.(error);
+};
+
+const callShowErrorPanel = (
+  viewer: Viewer,
+  title: string,
+  message: string,
+  error: Error
+) => {
+  const w = viewer.cesiumWidget as {
+    showErrorPanel?: (title: string, message: string, error?: unknown) => void;
+  };
+  w.showErrorPanel?.(title, message, error);
 };
 
 /**
@@ -30,17 +53,12 @@ export function configureCesiumErrorHandling(
   } = options;
 
   try {
-    if (suppressErrorPanel) {
-      // Optional: Suppress Cesium's own error panel
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      (viewer.cesiumWidget as any)._showRenderLoopErrors = false;
-    }
+    if (suppressErrorPanel) disableCesiumErrorPanel(viewer);
 
     const { scene } = viewer;
 
-    const taggedScene = scene as unknown as TaggedScene;
-    if (!taggedScene[tag]) {
-      taggedScene[tag] = true;
+    if (!patchedScenes.has(scene)) {
+      patchedScenes.add(scene);
 
       // Prefer not rethrowing inside render loop
       if (typeof scene.rethrowRenderErrors === "boolean") {
@@ -50,11 +68,9 @@ export function configureCesiumErrorHandling(
       scene.renderError.addEventListener((err: unknown) => {
         // Allow downstream to choose whether to forward to React ErrorBoundary
         if (suppressErrorBoundaryForwarding) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (window as any).CARMA_CESIUM_SUPPRESS_ERROR_BOUNDARY = true;
+          window.CARMA_CESIUM_SUPPRESS_ERROR_BOUNDARY = true;
         }
-        const workerBase = (window as unknown as { CESIUM_BASE_URL?: string })
-          .CESIUM_BASE_URL;
+        const workerBase = checkWindowEnv().cesiumBaseUrl;
         const meta = {
           cesiumVersion: getCesiumVersion(),
           workersBaseUrl: workerBase ? `${workerBase}/Workers` : undefined,
@@ -92,8 +108,8 @@ export function triggerCesiumRenderError(
   error: unknown = new Error("Manual test renderError")
 ) {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (viewer.scene.renderError as any).raiseEvent(error);
+    const normalized = normalizeError(error);
+    callRenderErrorRaise(viewer, normalized);
   } catch (e) {
     console.warn("Failed to trigger renderError", e);
   }
@@ -109,8 +125,8 @@ export function triggerCesiumShowErrorPanel(
   error: unknown = new Error("Manual showErrorPanel test")
 ) {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (viewer.cesiumWidget as any).showErrorPanel(title, message, error);
+    const normalized = normalizeError(error);
+    callShowErrorPanel(viewer, title, message, normalized);
   } catch (e) {
     console.warn("Failed to trigger showErrorPanel", e);
   }

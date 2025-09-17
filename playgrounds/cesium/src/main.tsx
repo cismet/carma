@@ -5,15 +5,11 @@ import { suppressReactCismapErrors } from "@carma-commons/utils";
 import { Provider } from "react-redux";
 import { setupStore } from "./app/store";
 import defaultViewerState from "./app/config";
-declare global {
-  interface Window {
-    CESIUM_BASE_URL: string;
-  }
-}
+import { setupCesiumEnvironment } from "@carma-mapping/engines/cesium";
 
 suppressReactCismapErrors();
 
-window.CESIUM_BASE_URL = CESIUM_BASE_URL;
+setupCesiumEnvironment({ baseUrl: CESIUM_BASE_URL });
 const root = createRoot(document.getElementById("root") as HTMLElement);
 
 const store = setupStore(defaultViewerState);

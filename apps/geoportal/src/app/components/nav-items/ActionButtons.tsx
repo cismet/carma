@@ -1,3 +1,6 @@
+import { useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
+
 import {
   faExclamation,
   faEye,
@@ -8,14 +11,13 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Tooltip } from "antd";
-import { useDispatch, useSelector } from "react-redux";
 
 import { Save, useSelection, useShareUrl } from "@carma-appframeworks/portals";
 import { geoElements } from "@carma-collab/wuppertal/geoportal";
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 import { useOverlayHelper } from "@carma-commons/ui/helper-overlay";
+import { carmaWindow } from "@carma-commons/utils";
 import { selectViewerIsMode2d } from "@carma-mapping/engines/cesium";
-import { useEffect } from "react";
 import {
   appendSavedLayerConfig,
   changeBackgroundOpacity,
@@ -38,7 +40,7 @@ import {
   setUIMode,
   setZenMode,
 } from "../../store/slices/ui";
-import ShareContent from "../ShareContent";
+import { ShareContent } from "../ShareContent";
 import Print from "../map-print/Print";
 import CustomPopover from "./CustomPopover";
 
@@ -84,9 +86,7 @@ const ActionButtons = () => {
     >
       <Tooltip title="Aktualisieren">
         <button
-          onClick={() => {
-            window.location.reload();
-          }}
+          onClick={carmaWindow.location.reload}
           className="text-xl hover:text-gray-600"
           data-test-id="reload-btn"
         >

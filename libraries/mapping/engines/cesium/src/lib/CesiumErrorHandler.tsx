@@ -81,11 +81,8 @@ export const CesiumErrorHandler = withErrorBoundary(
 
     const isDev = (() => {
       try {
-        // Vite-style import.meta.env.DEV; fall back to false if not present
         return Boolean(
-          typeof import.meta !== "undefined" &&
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            (import.meta as any)?.env?.DEV
+          typeof import.meta !== "undefined" && import.meta.env?.DEV
         );
       } catch {
         return false;
@@ -124,8 +121,7 @@ export const CesiumErrorHandler = withErrorBoundary(
           cesiumError.carmaCesiumContext = snapshotCesiumContext(ctx);
         }
         // Respect global suppression flag to avoid crashing the viewer
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const suppressed = (window as any).CARMA_CESIUM_SUPPRESS_ERROR_BOUNDARY;
+        const suppressed = window.CARMA_CESIUM_SUPPRESS_ERROR_BOUNDARY;
         if (suppressed) {
           // Enrich logs with Cesium version and worker base URL
           const baseUrl: string | undefined = checkWindowEnv().cesiumBaseUrl;
@@ -148,8 +144,7 @@ export const CesiumErrorHandler = withErrorBoundary(
             );
           } catch {}
           // clear suppression for next error
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          (window as any).CARMA_CESIUM_SUPPRESS_ERROR_BOUNDARY = false;
+          window.CARMA_CESIUM_SUPPRESS_ERROR_BOUNDARY = false;
         } else {
           showBoundary(cesiumError);
         }
