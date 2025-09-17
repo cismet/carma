@@ -5,6 +5,8 @@ export type CesiumDevConsoleTriggerOptions = {
   eventName?: string; // default: "carma:cesium:renderError"
 };
 
+// dev helper does not need option overloading
+
 /**
  * Register a simple console helper to simulate a Cesium renderError.
  * It exposes window.CARMA_CESIUM_TRIGGER.renderError(err?) which dispatches a CustomEvent.
@@ -15,38 +17,44 @@ export function useCesiumDevConsoleTrigger(
 ) {
   useEffect(() => {
     const eventName = options?.eventName ?? "carma:cesium:renderError";
-    const inferDev = () => {
-      try {
-        const params = new URLSearchParams(window.location.search);
-        const flag = params.get("dev") ?? params.get("isDeveloperMode");
-        return flag !== null && flag !== "0" && flag !== "false";
-      } catch {
-        return false;
-      }
-    };
-
-    const isDev = options?.isDeveloperMode ?? inferDev();
+    const isDev = options?.isDeveloperMode === true;
     if (!isDev) {
       console.debug(
-        "[CARMA][dev] useCesiumDevConsoleTrigger: FeatureFlagProvider is not available or dev flag is off; pass isDeveloperMode to enable"
+        "[CARMA][dev] useCesiumDevConsoleTrigger: developer mode disabled (set isDeveloperMode=true in provider to enable trigger)"
       );
       return;
     }
-
-    const w = window as unknown as {
-      CARMA_CESIUM_TRIGGER?: { renderError?: (err?: unknown) => void };
-    };
-    if (!w.CARMA_CESIUM_TRIGGER) w.CARMA_CESIUM_TRIGGER = {};
-    if (typeof w.CARMA_CESIUM_TRIGGER.renderError !== "function") {
-      w.CARMA_CESIUM_TRIGGER.renderError = (err?: unknown) => {
-        window.dispatchEvent(
-          new CustomEvent(eventName, {
-            detail: { error: err ?? new Error("Manual test renderError") },
-          })
-        );
+    const win = window as unknown as {
+      CARMA_CESIUM_TRIGGER?: {
+        renderError?: (err?: unknown) => void;
+        renderErrorDebug?: () => void;
       };
+    };
+    const triggerObj = (win.CARMA_CESIUM_TRIGGER ||= {});
+    let registeredSomething = false;
+    if (typeof triggerObj.renderError !== "function") {
+      triggerObj.renderError = (arg?: unknown) => {
+        const error =
+          arg instanceof Error
+            ? arg
+            : arg
+            ? new Error(String(arg))
+            : new Error("Manual test renderError");
+        window.dispatchEvent(new CustomEvent(eventName, { detail: { error } }));
+      };
+      registeredSomething = true;
+    }
+    if (typeof triggerObj.renderErrorDebug !== "function") {
+      triggerObj.renderErrorDebug = () => {
+        debugger; // eslint-disable-line no-debugger
+        const error = new Error("Manual debug renderError");
+        window.dispatchEvent(new CustomEvent(eventName, { detail: { error } }));
+      };
+      registeredSomething = true;
+    }
+    if (registeredSomething) {
       console.info(
-        `[CARMA][dev] window.CARMA_CESIUM_TRIGGER.renderError available (event: ${eventName})`
+        `[CARMA][dev] window.CARMA_CESIUM_TRIGGER.renderError(.renderErrorDebug) available (event: ${eventName})`
       );
     }
   }, [options?.isDeveloperMode, options?.eventName]);

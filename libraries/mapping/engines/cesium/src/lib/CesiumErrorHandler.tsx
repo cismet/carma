@@ -3,7 +3,7 @@ import {
   useErrorBoundary,
   withErrorBoundary,
 } from "react-error-boundary";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { CesiumWidget } from "cesium";
 import { useCesiumContextOptional } from "./hooks/useCesiumContext";
 import {
@@ -32,17 +32,22 @@ export type CesiumErrorHandlerOptions = {
   reloadOnRenderError?: boolean | ReloadOnCesiumRenderErrorOptions;
 };
 
-const overrideCesiumWidgetShowErrorPanel = function (
+const overrideCesiumWidgetShowErrorPanel = (
   setCesiumError: React.Dispatch<
     React.SetStateAction<ForwardedCesiumError | null>
-  >
-) {
+  >,
+  debugOnError: boolean
+): void => {
   CesiumWidget.prototype.showErrorPanel = function (
     title: string,
     message: string,
     error: unknown
   ) {
     console.debug("[Cesium] showErrorPanel invoked");
+    if (debugOnError) {
+      // dev only: pause on any natural Cesium error when feature flag + local dev are active
+      debugger; // eslint-disable-line no-debugger
+    }
     // Normalize any input (string/object) to a real Error instance
     const base: Error =
       error instanceof Error
@@ -63,6 +68,35 @@ const overrideCesiumWidgetShowErrorPanel = function (
   };
 };
 
+const deriveDevConsoleOptions = (
+  input: CesiumErrorHandlerOptions["devConsoleTrigger"]
+): CesiumDevConsoleTriggerOptions | undefined =>
+  typeof input === "object" ? input : { isDeveloperMode: input === true };
+
+const detectIsDev = (): boolean => {
+  try {
+    return Boolean(typeof import.meta !== "undefined" && import.meta.env?.DEV);
+  } catch {
+    return false;
+  }
+};
+
+const deriveReloadOptions = (
+  isDev: boolean,
+  input: CesiumErrorHandlerOptions["reloadOnRenderError"]
+): ReloadOnCesiumRenderErrorOptions | undefined => {
+  if (typeof input === "object") {
+    return {
+      enabled: typeof input.enabled === "boolean" ? input.enabled : !isDev,
+      eventName: input.eventName,
+      onReloadRequested: input.onReloadRequested,
+    };
+  }
+  return {
+    enabled: input === undefined ? true : input === true,
+  };
+};
+
 export const CesiumErrorHandler = withErrorBoundary(
   function CesiumErrorHandler(props: CesiumErrorHandlerOptions) {
     const [cesiumError, setCesiumError] = useState<ForwardedCesiumError | null>(
@@ -72,47 +106,27 @@ export const CesiumErrorHandler = withErrorBoundary(
     const { showBoundary } = useErrorBoundary();
     const ctx = useCesiumContextOptional();
 
-    // Hook wiring (always call hooks; control behavior via options)
-    const devOpts: CesiumDevConsoleTriggerOptions | undefined =
-      typeof props?.devConsoleTrigger === "object"
-        ? props.devConsoleTrigger
-        : { isDeveloperMode: props?.devConsoleTrigger === true };
-    useCesiumDevConsoleTrigger(devOpts);
+    // Memoize derived option objects for referential stability
+    const isDev = useMemo(detectIsDev, []);
+    const devOpts = useMemo(
+      () => deriveDevConsoleOptions(props?.devConsoleTrigger),
+      [props?.devConsoleTrigger]
+    );
+    const reloadOpts = useMemo(
+      () => deriveReloadOptions(isDev, props?.reloadOnRenderError),
+      [isDev, props?.reloadOnRenderError]
+    );
 
-    const isDev = (() => {
-      try {
-        return Boolean(
-          typeof import.meta !== "undefined" && import.meta.env?.DEV
-        );
-      } catch {
-        return false;
-      }
-    })();
-    const reloadOpts: ReloadOnCesiumRenderErrorOptions | undefined =
-      typeof props?.reloadOnRenderError === "object"
-        ? {
-            enabled:
-              typeof props.reloadOnRenderError.enabled === "boolean"
-                ? props.reloadOnRenderError.enabled
-                : !isDev,
-            eventName: props.reloadOnRenderError.eventName,
-            onReloadRequested: props.reloadOnRenderError.onReloadRequested,
-          }
-        : // default: enabled in prod, disabled in dev; allow explicit boolean override
-          {
-            enabled:
-              props?.reloadOnRenderError === undefined
-                ? !isDev
-                : props.reloadOnRenderError === true,
-          };
+    useCesiumDevConsoleTrigger(devOpts);
     useReloadOnCesiumRenderError(reloadOpts);
 
     useEffect(() => {
       console.debug(
         "overriding CesiumWidget.showErrorPanel with custom Error forwarder"
       );
-      overrideCesiumWidgetShowErrorPanel(setCesiumError);
-    }, [showBoundary]);
+      const debugOnError = isDev && devOpts?.isDeveloperMode === true;
+      overrideCesiumWidgetShowErrorPanel(setCesiumError, debugOnError);
+    }, [showBoundary, isDev, devOpts?.isDeveloperMode]);
 
     useEffect(() => {
       if (cesiumError && showBoundary) {

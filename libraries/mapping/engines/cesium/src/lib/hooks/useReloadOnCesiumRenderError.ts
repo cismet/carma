@@ -13,28 +13,26 @@ export type ReloadOnCesiumRenderErrorOptions = {
 export function useReloadOnCesiumRenderError(
   options?: ReloadOnCesiumRenderErrorOptions
 ) {
+  const enabled = options?.enabled;
+  const eventName = options?.eventName;
+  const onReloadRequested = options?.onReloadRequested;
   useEffect(() => {
-    const {
-      enabled = true,
-      eventName = "carma:cesium:renderError",
-      onReloadRequested,
-    } = options || {};
-    if (!enabled) return;
-    const handler = () => {
+    const finalEnabled = enabled ?? true;
+    const finalEventName = eventName ?? "carma:cesium:renderError";
+    if (!finalEnabled) return;
+    const handler = (ev: Event) => {
       try {
+        const detail = (ev as CustomEvent).detail as
+          | { suppressReload?: boolean }
+          | undefined;
+        if (detail?.suppressReload) return;
         if (typeof onReloadRequested === "function") onReloadRequested();
         else carmaWindow.location.reload();
-      } catch (e) {
+      } catch {
         // noop
       }
     };
-
-    window.addEventListener(eventName, handler);
-    return () => window.removeEventListener(eventName, handler);
-  }, [
-    options,
-    options?.enabled,
-    options?.eventName,
-    options?.onReloadRequested,
-  ]);
+    window.addEventListener(finalEventName, handler);
+    return () => window.removeEventListener(finalEventName, handler);
+  }, [enabled, eventName, onReloadRequested]);
 }

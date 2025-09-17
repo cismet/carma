@@ -56,6 +56,13 @@ import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import "./index.css";
 
+function CesiumDevConsoleIntegration() {
+  const flags = useFeatureFlags();
+  // Explicitly pass through flag; hook no longer performs URL inference
+  useCesiumDevConsoleTrigger({ isDeveloperMode: flags.isDeveloperMode });
+  return null;
+}
+
 function App({ published }: { published?: boolean }) {
   const dispatch = useDispatch();
   const showLoginModal = useSelector(getShowLoginModal);
@@ -76,16 +83,7 @@ function App({ published }: { published?: boolean }) {
       config={{ ...featureFlagConfig, ...customFeatureFlags }}
     >
       <MatomoTracker>
-        {(() => {
-          function CesiumAppIntegration() {
-            const flags = useFeatureFlags();
-            useCesiumDevConsoleTrigger({
-              isDeveloperMode: flags.isDeveloperMode,
-            });
-            return null;
-          }
-          return <CesiumAppIntegration />;
-        })()}
+        <CesiumDevConsoleIntegration />
         <DebugUiProvider enabled={import.meta.env?.DEV === true}>
           <CarmaMapProviderWrapper
             cesiumOptions={CESIUM_CONFIG}
