@@ -4,7 +4,7 @@ import { Cesium3DTilesInspector, Viewer, CesiumWidget } from "cesium";
 import { Slider, Divider } from "antd";
 
 import { WUPP_MESH_2024 } from "@carma-commons/resources";
-import { CesiumErrorToErrorBoundaryForwarder } from "@carma-mapping/engines/cesium";
+import { CesiumErrorHandling } from "@carma-mapping/engines/cesium";
 
 import useTileset from "../hooks/useTileset";
 import { useZoomToTilesetOnReady } from "../hooks/useZoomToTilesetOnReady";
@@ -123,7 +123,7 @@ const TestMesh: React.FC = () => {
 
   return (
     <>
-      <CesiumErrorToErrorBoundaryForwarder />
+      <CesiumErrorHandling />
       <div ref={containerRef} style={{ width: "100%", height: "100vh" }} />
       <UiTopRight ref={uiTopRightRef} />
       <UiBottom>

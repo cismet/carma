@@ -1,10 +1,13 @@
 import { type RefObject, useMemo } from "react";
-import { Color, Viewer, Rectangle, SceneMode, Cartographic } from "cesium";
-import UAParser from "ua-parser-js";
+import { Color, Viewer, Rectangle, Cartographic } from "cesium";
 import { merge } from "lodash";
 
+import {
+  CesiumErrorHandler,
+  type CesiumErrorHandlerOptions,
+} from "./CesiumErrorHandler";
+
 import ElevationControl from "./components/controls/ElevationControl";
-import { CesiumErrorToErrorBoundaryForwarder } from "./utils/CesiumErrorToErrorBoundaryForwarder";
 
 import useCameraRollSoftLimiter from "./hooks/useCameraRollSoftLimiter";
 import useCameraPitchEasingLimiter from "./hooks/useCameraPitchEasingLimiter";
@@ -19,6 +22,10 @@ import useDebug from "./hooks/useDebug";
 import { useTilesets } from "./hooks/useTilesets";
 import { useSceneStyles } from "./hooks/useSceneStyles";
 import { StringifiedCameraState } from "./utils/cesiumHashParamsCodec";
+import {
+  DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS,
+  TRANSITION_DELAY,
+} from "./viewerDefaults";
 
 export type GlobeOptions = {
   // https://cesium.com/learn/cesiumjs/ref-doc/Globe.html
@@ -57,41 +64,8 @@ export type CustomViewerProps = {
   ) => void;
   postInit?: () => void;
   enableSceneStyles?: boolean;
-};
-
-export const TRANSITION_DELAY = 1000;
-const CESIUM_TARGET_FRAME_RATE = 120;
-const isMobile = new UAParser().getDevice().type === "mobile";
-
-export const DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS: Viewer.ConstructorOptions = {
-  msaaSamples: 4,
-  requestRenderMode: true,
-
-  scene3DOnly: true,
-  sceneMode: SceneMode.SCENE3D,
-  selectionIndicator: false,
-  targetFrameRate: CESIUM_TARGET_FRAME_RATE,
-  useBrowserRecommendedResolution: false,
-  contextOptions: {
-    webgl: {
-      alpha: true,
-      powerPreference: isMobile ? "default" : "high-performance",
-    },
-  },
-
-  // Hide UI components
-  animation: false,
-  baseLayer: false,
-  baseLayerPicker: false,
-  fullscreenButton: false,
-  geocoder: false,
-  homeButton: false,
-  infoBox: false,
-  navigationHelpButton: false,
-  navigationInstructionsInitiallyVisible: false,
-  sceneModePicker: false,
-  skyBox: false,
-  timeline: false,
+  // debug/error handling wiring
+  errorHandlerOptions?: CesiumErrorHandlerOptions;
 };
 
 export function CustomViewer(props: CustomViewerProps) {
@@ -141,7 +115,7 @@ export function CustomViewer(props: CustomViewerProps) {
 
   return (
     <>
-      <CesiumErrorToErrorBoundaryForwarder />
+      <CesiumErrorHandler {...(props.errorHandlerOptions || {})} />
       <ElevationControl show={false} />
     </>
   );

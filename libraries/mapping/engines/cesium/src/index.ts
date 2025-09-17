@@ -5,11 +5,19 @@ export { CesiumContextProvider } from "./lib/CesiumContextProvider";
 
 export { CustomCesiumWidget } from "./lib/CustomCesiumWidget";
 export {
+  CesiumErrorHandler as CesiumErrorHandling,
+  type ForwardedCesiumError,
+} from "./lib/CesiumErrorHandler";
+
+export {
   CustomViewer,
-  DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS,
   type InitialCameraView,
   type CameraLimiterOptions,
 } from "./lib/CustomViewer";
+export {
+  DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS,
+  TRANSITION_DELAY,
+} from "./lib/viewerDefaults";
 export { CustomViewerPlayground } from "./lib/CustomViewerPlayground";
 
 export { ByGeojsonClassifier } from "./lib/components/ByGeojsonClassifier";
@@ -22,7 +30,10 @@ export { MapTypeSwitcher } from "./lib/components/controls/MapTypeSwitcher";
 export { PitchingCompass } from "./lib/components/controls/PitchingCompass";
 export { SceneStyleToggle } from "./lib/components/controls/SceneStyleToggle";
 
-export { useCesiumContext } from "./lib/hooks/useCesiumContext";
+export {
+  useCesiumContext,
+  useCesiumContextOptional,
+} from "./lib/hooks/useCesiumContext";
 export { useCesiumCameraForceOblique } from "./lib/hooks/useCameraForceOblique";
 export { useHomeControl } from "./lib/hooks/useHomeControl";
 export { useCesiumInitialCameraFromSearchParams } from "./lib/hooks/useCesiumInitialCameraFromSearchParams";
@@ -50,10 +61,21 @@ export {
   fovToCssPerspectiveByFov,
 } from "./lib/utils/cesiumCameraToCssTransform";
 
+// Centralized error handling and test triggers
 export {
-  CesiumErrorToErrorBoundaryForwarder,
-  type ForwardedCesiumError,
-} from "./lib/utils/CesiumErrorToErrorBoundaryForwarder";
+  configureCesiumErrorHandling,
+  triggerCesiumRenderError,
+  triggerCesiumShowErrorPanel,
+} from "./lib/utils/cesiumErrorHandling";
+
+// Hooks for app integration
+export { useCesiumDevConsoleTrigger } from "./lib/hooks/useCesiumDevConsoleTrigger";
+export { useReloadOnCesiumRenderError } from "./lib/hooks/useReloadOnCesiumRenderError";
+export {
+  getCesiumVersion,
+  checkWindowEnv,
+  assertWindowCesiumEnv,
+} from "./lib/utils/cesiumEnv";
 
 export {
   encodeCesiumCamera,

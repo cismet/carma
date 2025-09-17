@@ -28,7 +28,9 @@ import {
   selectViewerHomeOffset,
 } from "../slices/cesium";
 
+import { configureCesiumErrorHandling } from "../utils/cesiumErrorHandling";
 import { validateWorldCoordinate } from "../utils/positions";
+
 import type { InitialCameraView } from "../CustomViewer";
 
 // Type for storing position and orientation
@@ -114,6 +116,12 @@ export const useInitializeViewer = (
         );
         const viewer = new Viewer(containerRef.current, options);
         viewerRef.current = viewer;
+        // Configure centralized error handling: suppress Cesium panel, don't crash ErrorBoundary by default, log warn
+        configureCesiumErrorHandling(viewer, {
+          suppressErrorPanel: true,
+          suppressErrorBoundaryForwarding: true,
+          logLevel: "warn",
+        });
         // Initial state: not started determining yet
         setInitialCameraSettled(null);
         console.info("[CESIUM|INIT|SETTLE] state:null (viewer created)");

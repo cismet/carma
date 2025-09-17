@@ -7,7 +7,7 @@ import {
   selectViewerIsMode2d,
 } from "../slices/cesium";
 
-import { TRANSITION_DELAY } from "../CustomViewer";
+import { TRANSITION_DELAY } from "../viewerDefaults";
 import { guardScene } from "../utils/guardScene";
 import { guardTileset } from "../utils/guardTileset";
 

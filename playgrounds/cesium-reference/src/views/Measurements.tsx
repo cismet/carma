@@ -2,7 +2,7 @@ import React, { useRef, useCallback, useEffect } from "react";
 import { Flex, Collapse, theme, Switch, Typography } from "antd";
 
 import { WUPP_MESH_2024 } from "@carma-commons/resources";
-import { CesiumErrorToErrorBoundaryForwarder } from "@carma-mapping/engines/cesium";
+import { CesiumErrorHandling } from "@carma-mapping/engines/cesium";
 
 import {
   CesiumViewerProvider,
@@ -112,7 +112,7 @@ const TestMeshElevations: React.FC = () => {
 
   return (
     <>
-      <CesiumErrorToErrorBoundaryForwarder />
+      <CesiumErrorHandling />
       <div
         ref={containerRef}
         style={{
