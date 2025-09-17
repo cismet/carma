@@ -1,21 +1,21 @@
 import { useEffect, useContext, useState } from "react";
-
-import type LocateControl from "leaflet.locatecontrol";
-import { control } from "leaflet";
-
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+import * as L from "leaflet";
+import "leaflet.locatecontrol"; // plugin side-effect augment
 
-const LocateControlComponent = ({ isActive = false }) => {
-  const { routedMapRef } = useContext<typeof TopicMapContext>(
-    TopicMapContext
-  ) as any;
+interface Props {
+  isActive?: boolean;
+}
+
+const LocateControlComponent = ({ isActive = false }: Props) => {
+  const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const [locationInstance, setLocationInstance] =
-    useState<LocateControl | null>(null);
+    useState<L.Control.Locate | null>(null);
 
   useEffect(() => {
     if (!locationInstance && routedMapRef?.leafletMap) {
-      const mapExample = routedMapRef.leafletMap.leafletElement;
-      const lc = (control as LocateControl)
+      const mapInstance = routedMapRef.leafletMap.leafletElement;
+      const lc = L.control
         .locate({
           position: "topright",
           strings: {
@@ -31,11 +31,11 @@ const LocateControlComponent = ({ isActive = false }) => {
           },
           showCompass: true,
           setView: "untilPan",
-          keepCurrentZoomLevel: "true",
+          keepCurrentZoomLevel: true,
           flyTo: false,
           drawCircle: true,
         })
-        .addTo(mapExample);
+        .addTo(mapInstance);
       setLocationInstance(lc);
     }
 
@@ -44,7 +44,7 @@ const LocateControlComponent = ({ isActive = false }) => {
         locationInstance.stop();
       }
     };
-  }, [routedMapRef]);
+  }, [routedMapRef, locationInstance]);
 
   useEffect(() => {
     if (locationInstance) {

@@ -1,7 +1,7 @@
 import { useContext, useEffect, useState } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
-import type LocateControl from "leaflet.locatecontrol";
-import { control } from "leaflet";
+import * as L from "leaflet";
+import "leaflet.locatecontrol"; // side-effect plugin augments leaflet (runtime only)
 
 export const useRoutedMapLocateControl = () => {
   const { routedMapRef: routedMap } =
@@ -10,7 +10,7 @@ export const useRoutedMapLocateControl = () => {
   const [hasMapMoved, setHasMapMoved] = useState(false);
   const [hasFoundLocation, setHasFoundLocation] = useState(false);
   const [locationInstance, setLocationInstance] =
-    useState<LocateControl | null>(null);
+    useState<L.Control.Locate | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -59,7 +59,7 @@ export const useRoutedMapLocateControl = () => {
   useEffect(() => {
     if (!locationInstance && routedMap) {
       const targetMap = routedMap.leafletMap.leafletElement;
-      const lc = (control as LocateControl)
+      const lc = L.control
         .locate({
           position: "topright",
           strings: {
@@ -82,7 +82,7 @@ export const useRoutedMapLocateControl = () => {
         locationInstance.stop();
       }
     };
-  }, [routedMap]);
+  }, [routedMap, locationInstance]);
 
   useEffect(() => {
     if (locationInstance) {

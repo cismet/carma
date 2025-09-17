@@ -33,7 +33,7 @@ export interface BrandingOptions {
 }
 
 export interface AppErrorFallbackExtra {
-  // Diagnostics forwarded by CesiumErrorToErrorBoundaryForwarder or other sources
+  // Diagnostics forwarded by CesiumErrorHandling or other sources
   cesiumTitle?: string;
   cesiumMessage?: string;
   forwarderAt?: string;

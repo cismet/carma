@@ -1,5 +1,3 @@
-/// <reference path="./lib/cesium-window-globals.d.ts" />
-
 export * from "./lib/carma-config.d";
 export * from "./lib/carma-layers.d";
 export * from "./lib/cesium-config.d";

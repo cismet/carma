@@ -19,7 +19,7 @@ import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
 import type { Item, Layer } from "@carma-commons/types";
 import { useOverlayHelper } from "@carma-commons/ui/helper-overlay";
-import { cn } from "@carma-commons/utils";
+import { cn, carmaWindow } from "@carma-commons/utils";
 import { LayerLib } from "@carma-mapping/layers";
 
 import { getThumbnails, setThumbnail } from "../store/slices/layers";
@@ -253,9 +253,7 @@ const TopNavbar = () => {
       >
         <Tooltip title="Refresh">
           <button
-            onClick={() => {
-              window.location.reload();
-            }}
+            onClick={carmaWindow.location.reload}
             className="text-xl hover:text-gray-600"
           >
             <FontAwesomeIcon icon={faRedo} />

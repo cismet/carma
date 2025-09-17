@@ -11,7 +11,6 @@
     "${configDir}/*.config.cjs",
     "${configDir}/*.config.mjs",
     "${configDir}/*.config.mts",
-    "types/**/*.d.ts"
   ],
   "compilerOptions": {
     "rootDir": ".",

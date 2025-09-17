@@ -86,22 +86,23 @@ const iconPadding = {
   fontSize: "18px",
 };
 
-const LocateControlComponent = ({ startLocate = 0 }) => {
-  const { routedMapRef } = useContext<typeof TopicMapContext>(
-    TopicMapContext
-  ) as any;
+interface LocateControlComponentLegacyProps {
+  startLocate?: number;
+}
+const LocateControlComponent = ({
+  startLocate = 0,
+}: LocateControlComponentLegacyProps) => {
+  const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const [locationInstance, setLocationInstance] =
-    useState<LocateControl | null>(null);
+    useState<L.Control.Locate | null>(null);
 
   useEffect(() => {
-    if (!locationInstance && routedMapRef) {
+    if (!locationInstance && routedMapRef?.leafletMap) {
       const mapExample = routedMapRef.leafletMap.leafletElement;
-      const lc = (L.control as LocateControl)
+      const lc = L.control
         .locate({
           position: "topright",
-          strings: {
-            title: "demo location",
-          },
+          strings: { title: "demo location" },
           flyTo: true,
           drawMarker: false,
           icon: "custom_icon",
@@ -109,17 +110,13 @@ const LocateControlComponent = ({ startLocate = 0 }) => {
         .addTo(mapExample);
       setLocationInstance(lc);
     }
-
-    // return () => {
-    //   lc.remove();
-    // };
-  }, [routedMapRef]);
+  }, [routedMapRef, locationInstance]);
 
   useEffect(() => {
     if (startLocate && locationInstance) {
       locationInstance.start();
     }
-  }, [startLocate]);
+  }, [startLocate, locationInstance]);
 
   return null;
 };

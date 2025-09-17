@@ -12,11 +12,10 @@ import {
 import App from "./app/App";
 import store from "./app/store";
 import { CESIUM_CONFIG } from "./app/config/app.config";
+import { setupCesiumEnvironment } from "@carma-mapping/engines/cesium";
 
-// Bring in ambient Window typings for Cesium globals from the library
-import "@carma-commons/types";
-
-window.CESIUM_BASE_URL = CESIUM_CONFIG.baseUrl;
+// Set up Cesium environment (CESIUM_BASE_URL) via engine helper
+setupCesiumEnvironment(CESIUM_CONFIG);
 
 const persistor = persistStore(store);
 
