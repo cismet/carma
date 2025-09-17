@@ -99,7 +99,7 @@ export const CesiumErrorHandler = withErrorBoundary(
                 ? props.reloadOnRenderError.enabled
                 : !isDev,
             eventName: props.reloadOnRenderError.eventName,
-            onReload: props.reloadOnRenderError.onReload,
+            onReloadRequested: props.reloadOnRenderError.onReloadRequested,
           }
         : // default: enabled in prod, disabled in dev; allow explicit boolean override
           {
