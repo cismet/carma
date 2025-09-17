@@ -1,3 +1,6 @@
+// Bring in ambient Window globals for consumers of this package
+import "./lib/types/env";
+
 export * from "./lib/slices/cesium";
 
 export { type CesiumContextType } from "./lib/CesiumContext";
