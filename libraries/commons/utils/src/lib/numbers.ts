@@ -28,3 +28,6 @@ export const clamp = (v: number, min?: number, max?: number): number => {
   if (typeof max === "number") out = Math.min(max, out);
   return out;
 };
+
+export const isClose = (a: number, b: number, epsilon: number): boolean =>
+  Math.abs(a - b) <= epsilon;

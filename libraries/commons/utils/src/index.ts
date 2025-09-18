@@ -37,7 +37,11 @@ export { suppressReactCismapErrors } from "./lib/log-react-cismap-errors";
 
 export { normalizeOptions } from "./lib/normalizeOptions";
 
-export { clampToToleranceRange, clamp } from "./lib/numbers";
+export {
+  clampToToleranceRange,
+  clamp,
+  isClose,
+} from "./lib/numbers";
 
 export { preventPinchZoom } from "./lib/prevent-pinch-zoom.ts";
 

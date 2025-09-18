@@ -3,7 +3,7 @@ import { useBlockDefaultZoomBehaviour } from "./useBlockDefaultZoomBehaviour";
 import { Math as CesiumMath, PerspectiveFrustum, type Viewer } from "cesium";
 
 import type { Radians } from "@carma/types";
-import { normalizeOptions } from "@carma-commons/utils";
+import { normalizeOptions, isClose, clamp } from "@carma-commons/utils";
 
 import type { CesiumContextType } from "../CesiumContext";
 import { blockWheelEvent } from "../utils/blockWheelEvent";
@@ -38,7 +38,7 @@ const computeNextFov = (
   const sign = Math.sign(deltaY);
   const normalized = Math.sqrt(Math.abs(deltaY)) * sign;
   const target = current * (1 + normalized * rate);
-  return Math.max(min, Math.min(max, target)) as Radians;
+  return clamp(target, min, max) as Radians;
 };
 
 export function useFovWheelZoom(
@@ -46,8 +46,14 @@ export function useFovWheelZoom(
   enabled = true,
   options: FovWheelZoomOptions = {}
 ) {
-  const { minFov, maxFov, fovChangeRate, onAfterFovChange, onFovChange } =
-    normalizeOptions(options, defaultFovWheelZoomOptions);
+  const {
+    minFov,
+    maxFov,
+    fovChangeRate,
+    onAfterFovChange,
+    onFovChange,
+    minFovChange,
+  } = normalizeOptions(options, defaultFovWheelZoomOptions);
 
   const handleWheel = useCallback(
     (event: WheelEvent) => {
@@ -64,7 +70,7 @@ export function useFovWheelZoom(
           maxFov,
           fovChangeRate
         );
-        if (Math.abs(nextFov - currentFov) > 0.0001) {
+        if (!isClose(nextFov, currentFov, minFovChange)) {
           onFovChange && onFovChange(nextFov, currentFov);
           camera.frustum.fov = nextFov;
           ctx.requestRender();
@@ -72,7 +78,15 @@ export function useFovWheelZoom(
         }
       });
     },
-    [ctx, minFov, maxFov, fovChangeRate, onAfterFovChange, onFovChange]
+    [
+      ctx,
+      minFov,
+      maxFov,
+      fovChangeRate,
+      onAfterFovChange,
+      onFovChange,
+      minFovChange,
+    ]
   );
 
   // Temporary global wheel blocker while viewer is not yet available.
