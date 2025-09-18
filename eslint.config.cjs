@@ -29,7 +29,8 @@ const baseConfig = {
     parserOptions: {
       ecmaVersion: 2022,
       tsconfigRootDir: __dirname,
-      EXPERIMENTAL_useProjectService: true,
+      // Use explicit central project to avoid default project fallback & perf warning
+      project: ["./tsconfig.eslint.json"],
       //allowDefaultProjectForFiles: [        "./*.json"      ], // TODO Limit Scope
       ecmaFeatures: {
         jsx: true,

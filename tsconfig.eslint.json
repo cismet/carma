@@ -1,0 +1,21 @@
+{
+  "extends": "./tsconfig.base.json",
+  "include": [
+    "apps/**/*.ts",
+    "apps/**/*.tsx",
+    "libraries/**/*.ts",
+    "libraries/**/*.tsx",
+    "playgrounds/**/*.ts",
+    "playgrounds/**/*.tsx",
+    "services/**/*.ts",
+  ],
+  "exclude": [
+    "dist",
+    "node_modules",
+    // Declaration-only root types (handled by lightweight ESLint block)
+    "libraries/types/src/**/*.d.ts"
+  ],
+  "compilerOptions": {
+    "noEmit": true
+  }
+}

@@ -15,7 +15,7 @@ declare module "leaflet" {
      * isn't loaded this will be undefined at runtime, so consumers must guard.
      */
     function geoJson(
-      geojson: GeoJSON.GeoJsonObject,
+      geojson: GeoJSON.GeoJsonObject | GeoJSON.GeoJsonObject[],
       options?: GeoJSONOptions
     ): LGeoJSON;
   }
