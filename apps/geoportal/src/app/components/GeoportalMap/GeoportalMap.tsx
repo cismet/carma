@@ -76,7 +76,8 @@ import { useDispatchSachdatenInfoText } from "../../hooks/useDispatchSachdatenIn
 import { useFeatureInfoModeCursorStyle } from "../../hooks/useFeatureInfoModeCursorStyle.ts";
 import { useObliqueInitializer } from "../../oblique/hooks/useObliqueInitializer.ts";
 
-import { createCismapLayers, onClickTopicMap } from "./topicmap.utils.ts";
+import { onClickTopicMap } from "./topicmap.utils.ts";
+import { useCreateCismapLayers } from "./hooks/useCreateCismapLayer.ts";
 
 import store from "../../store/index.ts";
 import {
@@ -608,7 +609,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
               masterOpacity: backgroundLayer.opacity,
             })}
 
-          {createCismapLayers(layers, {
+          {useCreateCismapLayers(layers, {
             mode: uiMode,
             dispatch,
             zoom: getLeafletZoom(),

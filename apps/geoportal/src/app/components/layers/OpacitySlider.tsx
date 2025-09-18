@@ -1,4 +1,4 @@
-import { Slider, SliderSingleProps } from "antd";
+import { Slider, type SliderSingleProps } from "antd";
 import { useDispatch } from "react-redux";
 import {
   changeBackgroundOpacity,
