@@ -1,4 +1,4 @@
-import type { Degrees, Radians, Meters } from "@carma-commons/types";
+import type { Degrees, Radians, Meters } from "@carma/types";
 import { DEG_TO_RAD_FACTOR, RAD_TO_DEG_FACTOR } from "./constants";
 
 // Branding helpers

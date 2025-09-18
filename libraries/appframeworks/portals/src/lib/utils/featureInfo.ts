@@ -1,4 +1,4 @@
-import type { FeatureInfo, FeatureInfoProperties } from "@carma-commons/types";
+import type { FeatureInfo, FeatureInfoProperties } from "@carma/types";
 import { sandboxedEvalExternal } from "../components/SandboxedEvalProvider";
 
 export const objectToFeature = async (jsonOutput: any, code: string) => {

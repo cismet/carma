@@ -40,7 +40,7 @@ import {
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
-import type { FeatureInfo } from "@carma-commons/types";
+import type { FeatureInfo } from "@carma/types";
 
 import {
   useOverlayHelper,

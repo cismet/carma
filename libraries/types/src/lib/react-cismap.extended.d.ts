@@ -1,4 +1,4 @@
-// TODO intergrate with React-Cismap Package Type or replace with Carma-Equivalent
+// TODO integrate with React-Cismap Package Type or replace with Carma-Equivalent
 
 export type CismapSupportedLayerTypes =
   | "wms"

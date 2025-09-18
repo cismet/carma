@@ -1,7 +1,7 @@
 import { type CSSProperties } from "react";
 import { Math as CesiumMath } from "cesium";
 
-import type { Radians } from "@carma-commons/types";
+import type { Radians } from "@carma/types";
 
 const PITCH_HORIZON_OFFSET = CesiumMath.PI_OVER_TWO - 0.2; // avoid showing completely flat from the side
 

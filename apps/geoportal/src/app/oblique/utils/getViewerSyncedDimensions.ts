@@ -1,4 +1,4 @@
-import { CssPixelHeight, CssPixelWidth } from "@carma-commons/types";
+import { CssPixelHeight, CssPixelWidth } from "@carma/types";
 import { getWindowDimensions } from "@carma-commons/utils";
 import { getCanvasDimensions } from "@carma-commons/utils/canvas";
 import { useCesiumContext } from "@carma-mapping/engines/cesium";

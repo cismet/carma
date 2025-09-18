@@ -6,7 +6,7 @@ import {
   ModelGraphics,
 } from "cesium";
 
-import type { FeatureInfoProperties } from "@carma-commons/types";
+import type { FeatureInfoProperties } from "@carma/types";
 
 export interface ModelConfig
   extends Partial<Omit<Entity.ConstructorOptions, "position" | "orientation">> {

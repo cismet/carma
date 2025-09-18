@@ -7,7 +7,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { faGripVertical, faX } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
-import type { Layer } from "@carma-commons/types";
+import type { Layer } from "@carma/types";
 
 import { getSelectedFeature } from "../../store/slices/features";
 import {

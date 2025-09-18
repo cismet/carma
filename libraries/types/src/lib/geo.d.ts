@@ -1,4 +1,4 @@
-import { Degrees, Radians, Meters, NumericUnit } from "./units";
+import type { Degrees, Radians, Meters, NumericUnit } from "./units";
 
 declare const EllipsoidalWGS84MetersSymbol: unique symbol;
 declare const DHHN2016MetersSymbol: unique symbol;

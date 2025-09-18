@@ -8,7 +8,7 @@ import {
   ScreenSpaceEventType,
 } from "cesium";
 
-import type { Radians, Meters } from "@carma-commons/types";
+import type { Radians, Meters } from "@carma/types";
 
 import { useCesiumContext } from "../../../hooks/useCesiumContext";
 

@@ -1,7 +1,7 @@
 import type {
   WebMapServiceProviderConfig,
   WebMapTileServiceProviderConfig,
-} from "@carma-commons/types";
+} from "@carma/types";
 import {
   CesiumTerrainProvider,
   ImageryLayer,

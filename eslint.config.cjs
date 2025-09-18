@@ -12,6 +12,9 @@ delete globals.browser["AudioWorkletGlobalScope "]; // some weird bug
 const baseConfig = {
   name: "Base Config",
   files: ["**/*.ts", "**/*.tsx"],
+  // Exclude pure declaration files from carma-types so they don't trigger expensive
+  // type-aware linting / default project fallback.
+  ignores: ["libraries/types/src/**/*.d.ts"],
   plugins: {
     import: importPlugin,
     "jsx-a11y": a11y,
@@ -110,4 +113,28 @@ const baseConfig = {
 };
 
 // order here specific to least specific
-module.exports = [baseConfig];
+const carmaTypesDeclConfig = {
+  name: "CARMA Types Declarations (lightweight)",
+  files: ["libraries/types/src/**/*.d.ts"],
+  plugins: {
+    "@typescript-eslint": tseslint.plugin,
+  },
+  languageOptions: {
+    parser: tseslint.parser,
+    parserOptions: {
+      ecmaVersion: 2022,
+      // IMPORTANT: no project / no project service => avoids default project warning
+      EXPERIMENTAL_useProjectService: false,
+    },
+    globals: {
+      ...globals.browser,
+    },
+  },
+  rules: {
+    // Keep this minimal; declaration files often intentionally have 'unused' names
+    '@typescript-eslint/no-unused-vars': 'off',
+    '@typescript-eslint/no-explicit-any': 'off',
+  },
+};
+
+module.exports = [baseConfig, carmaTypesDeclConfig];

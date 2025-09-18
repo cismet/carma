@@ -1,4 +1,4 @@
-import { CarmaConfig } from "@carma-commons/types";
+import { CarmaConfig } from "@carma/types";
 
 export const extractCarmaConfig = (
   keywords: string[] | undefined

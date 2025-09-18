@@ -5,11 +5,7 @@ import {
   SELECTED_LAYER_INDEX,
   type MappingState,
 } from "@carma-appframeworks/portals";
-import type {
-  Layer,
-  BackgroundLayer,
-  SavedLayerConfig,
-} from "@carma-commons/types";
+import type { Layer, BackgroundLayer, SavedLayerConfig } from "@carma/types";
 
 import { RootState } from "..";
 import { layerMap } from "../../config";

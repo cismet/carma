@@ -24,7 +24,7 @@ import {
 } from "@carma-appframeworks/portals";
 
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
-import type { SearchResultItem } from "@carma-commons/types";
+import type { SearchResultItem } from "@carma/types";
 import { detectWebGLContext } from "@carma-commons/utils";
 
 import {

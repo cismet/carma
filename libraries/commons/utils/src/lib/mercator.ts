@@ -6,7 +6,7 @@ import {
 } from "./constants";
 import { brandedNegate } from "./typescript-branded-ops";
 import { asMeters } from "./units";
-import type { Radians, Meters } from "@carma-commons/types";
+import type { Radians, Meters } from "@carma/types";
 
 export const clampLatitudeToWebMercatorExtent = (
   latitude: Radians

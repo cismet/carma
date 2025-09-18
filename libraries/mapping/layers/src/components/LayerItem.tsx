@@ -15,7 +15,7 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Button, Modal, Spin } from "antd";
 
-import { Item, Layer } from "@carma-commons/types";
+import { Item, Layer } from "@carma/types";
 import { cn, extractCarmaConfig } from "@carma-commons/utils";
 import {
   extServiceText,

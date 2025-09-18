@@ -1,5 +1,5 @@
 import { asDegrees, degToRad, asMeters } from "./units";
-import type { Degrees, Radians, Meters } from "@carma-commons/types";
+import type { Degrees, Radians, Meters } from "@carma/types";
 // Common math constants (fractions of π)
 export const PI = Math.PI;
 export const TWO_PI = Math.PI * 2;

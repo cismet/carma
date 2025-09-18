@@ -15,7 +15,7 @@ import {
   functionToFeature,
   objectToFeature,
 } from "@carma-appframeworks/portals";
-import type { Layer } from "@carma-commons/types";
+import type { Layer } from "@carma/types";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 
 import {

@@ -1,5 +1,5 @@
 import { Cartesian3, Color } from "cesium";
-import type { ColorRgbaArray, PlainCartesian3 } from "@carma-commons/types";
+import type { ColorRgbaArray, PlainCartesian3 } from "@carma/types";
 
 export const toPlainCartesian3 = (cartesian3: Cartesian3): PlainCartesian3 => {
   return { x: cartesian3.x, y: cartesian3.y, z: cartesian3.z };

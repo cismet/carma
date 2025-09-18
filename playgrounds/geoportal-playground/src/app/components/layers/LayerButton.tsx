@@ -16,7 +16,7 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { FontAwesomeLikeIcon } from "@carma-appframeworks/portals";
 
-import type { Layer } from "@carma-commons/types";
+import type { Layer } from "@carma/types";
 import { cn } from "@carma-commons/utils";
 
 import {

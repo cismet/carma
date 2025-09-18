@@ -3,7 +3,7 @@ import { Checkbox, Radio, Select } from "antd";
 
 import { useTweakpaneCtx } from "@carma-commons/debug";
 import { WUPP_MESH_2024 } from "@carma-commons/resources";
-import type { Degrees, Meters, LatLng } from "@carma-commons/types";
+import type { Degrees, Meters, LatLng } from "@carma/types";
 
 import { Widget } from "@carma-mapping/engines/cesium-widget";
 

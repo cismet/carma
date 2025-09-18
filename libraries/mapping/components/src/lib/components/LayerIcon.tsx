@@ -1,4 +1,4 @@
-import type { Layer } from "@carma-commons/types";
+import type { Layer } from "@carma/types";
 import { FontAwesomeLikeIcon } from "@carma-appframeworks/portals";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useEffect, useState } from "react";

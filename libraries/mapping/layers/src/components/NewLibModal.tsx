@@ -17,7 +17,7 @@ import { useDebounce } from "@uidotdev/usehooks";
 import { Button, Input, Modal } from "antd";
 import Fuse from "fuse.js";
 import WMSCapabilities from "wms-capabilities";
-import type { Item, Layer, SavedLayerConfig } from "@carma-commons/types";
+import type { Item, Layer, SavedLayerConfig } from "@carma/types";
 import { utils } from "@carma-appframeworks/portals";
 import { useAuth } from "@carma-providers/auth";
 import {

@@ -71,7 +71,7 @@ import {
   selectViewerHome,
 } from "@carma-mapping/engines/cesium";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
-import { type SearchResultItem } from "@carma-commons/types";
+import { type SearchResultItem } from "@carma/types";
 
 import versionData from "../../../version.json";
 import { getBackgroundLayers } from "../../helper/layer.tsx";

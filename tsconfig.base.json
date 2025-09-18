@@ -23,6 +23,7 @@
       "@nx/react/typings/styled-jsx.d.ts"
     ],
     "paths": {
+      "@carma/types": ["libraries/types/src/index.d.ts"],
       "@carma-appframeworks/*": ["libraries/appframeworks/*/src/index.ts"],
       "@carma-collab/pecher/*": ["libraries/collaboration/carma-pecher-collab/src/*/index.jsx"],
       "@carma-collab/wuppertal/*": ["libraries/collaboration/carma-wuppertal-collab/src/*/index.ts"],

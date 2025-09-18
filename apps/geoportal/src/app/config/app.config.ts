@@ -8,7 +8,7 @@ import {
 } from "@carma-commons/resources";
 
 import type { CesiumConfig } from "@carma-mapping/engines/cesium";
-import type { LeafletConfig } from "@carma-commons/types";
+import type { LeafletConfig } from "@carma/types";
 
 export const APP_BASE_PATH = import.meta.env.BASE_URL;
 export const ICON_PREFIX =

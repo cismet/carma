@@ -7,7 +7,7 @@ import {
 } from "react";
 import type { Feature } from "geojson";
 
-import { type SearchResultItem } from "@carma-commons/types";
+import { type SearchResultItem } from "@carma/types";
 
 export type SelectionMetaData = {
   selectionTimestamp: number | null;

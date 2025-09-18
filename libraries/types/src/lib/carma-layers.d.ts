@@ -39,7 +39,6 @@ type OtherLayerProps = Partial<LayerProps & Item> & {
 
 export type Layer = {
   title: string;
-  // url: string;
   id: string;
   opacity: number;
   description: string;
@@ -152,22 +151,74 @@ export type Item = {
   vectorStyle?: string;
 } & (tmpLayer | Link | Feature | Collection);
 
+/** Bounding box as defined in WMS Capabilities (LatLonBoundingBox) */
+export interface WMSLatLonBoundingBox {
+  /** westBoundLongitude, southBoundLatitude, eastBoundLongitude, northBoundLatitude */
+  0: number;
+  1: number;
+  2: number;
+  3: number;
+  length: 4;
+}
+
+export interface WMSGeographicBoundingBox {
+  westBoundLongitude: number;
+  eastBoundLongitude: number;
+  southBoundLatitude: number;
+  northBoundLatitude: number;
+}
+
+export interface WMSDimension {
+  name?: string;
+  units?: string;
+  unitSymbol?: string;
+  default?: string;
+  multipleValues?: boolean;
+  nearestValue?: boolean;
+  current?: boolean;
+  values: string[];
+}
+
+/**
+ * Standardized (lower camel case) WMS metadata URL shape.
+ * NOTE: Existing implementation code in the repo expects an array of legacy objects with
+ * capitalized keys (Format, OnlineResource, type). To remain backwards compatible we expose
+ * a union (see XMLLayer.MetadataURL) that allows both shapes in a single array.
+ */
+export interface WMSMetadataURL {
+  type?: string;
+  format: string;
+  onlineResource: string;
+}
+
+/** Legacy metadata entry shape kept for backward compatibility. */
+export interface LegacyWMSMetadataURL {
+  Format: string;
+  OnlineResource: string;
+  type: string;
+}
+
 export type XMLLayer = {
   Abstract: string;
   Attribution?: string;
   BoundingBox: {
     crs: string;
     extent: number[];
-    res: number | undefined[];
+    res: Array<number | undefined>;
   }[];
   KeywordList?: string[];
-  Dimension?: any;
-  EX_GeographicBoundingBox?: any;
-  LatLonBoundingBox: number[];
-  MaxScaleDenominator?: any;
-  // TODO verify this type
-  MetadataURL?: any;
-  MinScaleDenominator?: any;
+  Dimension?: WMSDimension | WMSDimension[];
+  EX_GeographicBoundingBox?: WMSGeographicBoundingBox;
+  LatLonBoundingBox: WMSLatLonBoundingBox | number[];
+  MaxScaleDenominator?: number;
+  /**
+   * Backward compatible metadata list. Keep legacy shape only for now so existing
+   * code (expecting capitalized keys) does not need adjustments.
+   * Follow-up issue will introduce normalization to the lower-cased variant.
+   * TODO(dxmigrate): Replace with normalized WMSMetadataURL[] after migration.
+   */
+  MetadataURL?: LegacyWMSMetadataURL[];
+  MinScaleDenominator?: number;
   Name: string;
   SRS: string[];
   ScaleHint: {

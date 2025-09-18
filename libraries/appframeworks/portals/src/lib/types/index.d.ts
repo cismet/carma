@@ -1,4 +1,4 @@
-import type { CismapLayerProps, Layer } from "@carma-commons/types";
+import type { CismapLayerProps, Layer } from "@carma/types";
 import { SELECTED_LAYER_INDEX, SelectionItem } from "../..";
 
 // TODO elevate some of the type here to carma-commons

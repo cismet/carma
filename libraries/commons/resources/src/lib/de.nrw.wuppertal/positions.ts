@@ -1,5 +1,5 @@
 import type { PositionPreset } from "../positions";
-import type { Altitude, Degrees } from "@carma-commons/types";
+import type { Altitude, Degrees } from "@carma/types";
 
 export const WUPPERTAL: PositionPreset = {
   name: "Wuppertal",

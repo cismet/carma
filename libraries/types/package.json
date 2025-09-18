@@ -1,0 +1,14 @@
+{
+  "name": "@carma/types",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Core shared type declarations for the CARMA monorepo.",
+  "types": "dist/libraries/types/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/libraries/types/src/index.d.ts"
+    }
+  },
+  "sideEffects": false,
+  "license": "MIT"
+}

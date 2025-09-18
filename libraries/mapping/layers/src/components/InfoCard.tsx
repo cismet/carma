@@ -19,7 +19,7 @@ import {
 import isEqual from "lodash/isEqual";
 
 import { serviceOptions } from "@carma-commons/resources";
-import { Item, Layer } from "@carma-commons/types";
+import { Item, Layer } from "@carma/types";
 import { extractCarmaConfig } from "@carma-commons/utils";
 
 import { parseDescription } from "../helper/layerHelper";

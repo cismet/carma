@@ -1,6 +1,6 @@
 // Mercator helpers are provided by @carma-commons/utils/mercator; no re-exports here.
 
-import { NumericResult } from "@carma-commons/types";
+import { NumericResult } from "@carma/types";
 import {
   asMeters,
   asRadians,
