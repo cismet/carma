@@ -40,7 +40,7 @@ export const useBlockDefaultZoomBehaviour = ({
       disable();
       if (ref.current) {
         window.removeEventListener("wheel", pendingWheelBlocker, {
-          capture: true as unknown as boolean,
+          capture: true,
         } as AddEventListenerOptions);
         ref.current = false;
       }

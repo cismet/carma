@@ -51,10 +51,9 @@ export const getViewerSyncedDimensions = (
   const heightScaleFactor =
     baseScaleFactor * (isVertical ? 1 : 1 / imageAspectRatio);
 
-  const syncedWidth = (getViewerSyncedSize(ctx, overrideFov) *
-    widthScaleFactor) as CssPixelWidth;
-  const syncedHeight = (getViewerSyncedSize(ctx, overrideFov) *
-    heightScaleFactor) as CssPixelHeight;
+  const baseSize = Number(getViewerSyncedSize(ctx, overrideFov));
+  const syncedWidth = (baseSize * widthScaleFactor) as CssPixelWidth;
+  const syncedHeight = (baseSize * heightScaleFactor) as CssPixelHeight;
 
   return { syncedWidth, syncedHeight };
 };

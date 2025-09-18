@@ -18,22 +18,21 @@ export interface ForwardZoomEventsBindings {
 export function useForwardZoomEventsToCesium(): ForwardZoomEventsBindings {
   const ctx = useCesiumContext();
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const [, setTick] = useState(0);
   const [fovOverride, setFovOverride] = useState<number | undefined>(undefined);
 
   // Use Cesium FOV wheel zoom directly; re-render after each FOV change
   const { handleWheel } = useFovWheelZoom(ctx, true, {
     onFovChange: (newFov) => setFovOverride(newFov),
-    onAfterFovChange: () => setTick((t) => t + 1),
   });
 
   const onWheel = useCallback(
     (e: ReactWheelEvent | WheelEvent) => {
       e.preventDefault();
-      const native: WheelEvent = (e as ReactWheelEvent).nativeEvent
-        ? ((e as ReactWheelEvent).nativeEvent as WheelEvent)
-        : (e as WheelEvent);
-      handleWheel(native);
+      handleWheel(
+        (e as ReactWheelEvent).nativeEvent
+          ? ((e as ReactWheelEvent).nativeEvent as WheelEvent)
+          : (e as WheelEvent)
+      );
     },
     [handleWheel]
   );

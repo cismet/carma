@@ -65,11 +65,9 @@ export function useFovWheelZoom(
           max,
           rate
         );
-        const newFov = nextFov;
-
-        if (Math.abs(newFov - currentFov) > 0.0001) {
-          onFovChange && onFovChange(newFov, currentFov);
-          camera.frustum.fov = newFov;
+        if (Math.abs(nextFov - currentFov) > 0.0001) {
+          onFovChange && onFovChange(nextFov, currentFov);
+          camera.frustum.fov = nextFov;
           ctx.requestRender();
           onAfterFovChange && onAfterFovChange();
         }
@@ -106,7 +104,7 @@ export function useFovWheelZoom(
     // Once applied, remove any pending global blocker
     if (applied && pendingBlockerAttachedRef.current) {
       window.removeEventListener("wheel", pendingWheelBlocker, {
-        capture: true as unknown as boolean,
+        capture: true,
       } as AddEventListenerOptions);
       pendingBlockerAttachedRef.current = false;
     }
