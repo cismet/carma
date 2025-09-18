@@ -1,6 +1,6 @@
 import { Camera, Cartesian2, Math as CesiumMath } from "cesium";
 
-import type { Radians } from "@carma-commons/types";
+import type { Radians } from "@carma/types";
 
 import type { CesiumContextType } from "../CesiumContext";
 

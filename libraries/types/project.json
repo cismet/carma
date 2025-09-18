@@ -1,0 +1,41 @@
+{
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "name": "types",
+  "sourceRoot": "libraries/types/src",
+  "projectType": "library",
+  "tags": ["scope:types", "type:declarations"],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libraries/types",
+        "main": "libraries/types/src/index.d.ts",
+        "tsConfig": "libraries/types/tsconfig.lib.json",
+        "assets": [
+          {
+            "input": "libraries/types",
+            "glob": "BRANDED-UNITS.md",
+            "output": "."
+          },
+          {
+            "input": "libraries/types",
+            "glob": "README.md",
+            "output": "."
+          },
+          {
+            "input": "libraries/types/src",
+            "glob": "**/*.d.ts",
+            "output": "./src"
+          }
+        ]
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": ["libraries/types/src/**/*.ts", "libraries/types/src/**/*.d.ts"]
+      }
+    }
+  }
+}

@@ -1,5 +1,5 @@
 import type { ModelConfig } from "@carma-commons/resources";
-import type { ColorRgbaArray, PlainCartesian3 } from "@carma-commons/types";
+import type { ColorRgbaArray, PlainCartesian3 } from "@carma/types";
 
 import type { ProviderConfig } from "./lib/utils/cesiumProviders";
 import type { TilesetConfigs } from "./lib/utils/cesiumTilesetProviders";

@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import WMSCapabilities from "wms-capabilities";
-import { SavedLayerConfig } from "@carma-commons/types";
+import { SavedLayerConfig } from "@carma/types";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 
 // @ts-expect-error tbd

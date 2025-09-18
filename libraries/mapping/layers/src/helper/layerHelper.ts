@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type { WMSCapabilitiesJSON } from "wms-capabilities";
-import type { Item, XMLLayer, Layer } from "@carma-commons/types";
+import type { Item, XMLLayer, Layer } from "@carma/types";
 
 import { serviceConfig } from "./config";
 import { getReplaceLayers } from "../slices/mapLayers";

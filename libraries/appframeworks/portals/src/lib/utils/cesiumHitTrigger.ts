@@ -9,7 +9,7 @@ import {
 import { cesiumHandleSelection } from "./cesiumHandleSelection";
 import { MutableRefObject } from "react";
 import { getDerivedGeometries } from "./getDerivedGeometries";
-import { SearchResultItem } from "@carma-commons/types";
+import { SearchResultItem } from "@carma/types";
 
 export type HitTriggerOptions = {
   mapOptions: CesiumOptions;

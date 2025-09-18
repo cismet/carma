@@ -1,7 +1,7 @@
 import { createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
 
-import { Layer } from "@carma-commons/types";
+import { Layer } from "@carma/types";
 
 import { RootState } from "..";
 import { layerMap } from "../../helper/layer";

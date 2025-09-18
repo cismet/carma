@@ -4,7 +4,7 @@ import type {
   FeatureInfo,
   FeatureInfoProperties,
   LayerProps,
-} from "@carma-commons/types";
+} from "@carma/types";
 import { FeatureInfoIcon } from "./FeatureInfoIcon";
 import { proj4crs3857def } from "../../helper/gisHelper";
 import {

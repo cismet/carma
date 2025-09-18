@@ -3,7 +3,7 @@ import localForage from "localforage";
 import { createSelector, createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
 
-import type { PlainCartesian3 } from "@carma-commons/types";
+import type { PlainCartesian3 } from "@carma/types";
 
 import { type RootState, type CesiumState, SceneStyles } from "../..";
 import { fromPlainCartesian3 } from "../utils/cesiumSerializer";

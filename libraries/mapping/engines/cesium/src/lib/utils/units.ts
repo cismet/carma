@@ -1,4 +1,4 @@
-import { LatLng, Meters, Radians } from "@carma-commons/types";
+import { LatLng, Meters, Radians } from "@carma/types";
 import { radToDeg } from "@carma-commons/utils";
 import { Cartographic, type Cartesian3 } from "cesium";
 

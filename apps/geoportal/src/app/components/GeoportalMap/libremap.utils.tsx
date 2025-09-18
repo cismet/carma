@@ -2,7 +2,7 @@ import maplibregl from "maplibre-gl";
 import { type LayerSpecification, type StyleSpecification } from "maplibre-gl";
 import slugify from "slugify";
 
-import type { BackgroundLayer, Layer } from "@carma-commons/types";
+import type { BackgroundLayer, Layer } from "@carma/types";
 
 import {
   functionToFeature,

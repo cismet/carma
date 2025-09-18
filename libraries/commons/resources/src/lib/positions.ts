@@ -1,4 +1,4 @@
-import type { Extent, LatLng } from "@carma-commons/types";
+import type { Extent, LatLng } from "@carma/types";
 
 export type PositionPreset = {
   name: string;

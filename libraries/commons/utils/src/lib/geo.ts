@@ -8,7 +8,7 @@ import {
 } from "./constants";
 import { getPixelResolutionFromZoomAtLatitudeRad } from "./mercator";
 import { degToRad } from "./units";
-import type { Degrees, Meters, Radians, LatLng } from "@carma-commons/types";
+import type { Degrees, Meters, Radians, LatLng } from "@carma/types";
 import { brandedRatio, brandedAbs, brandedMax } from "./typescript-branded-ops";
 
 // Meters per pixel at zoom/latitude (latitude in degrees)

@@ -7,7 +7,7 @@ import {
   Cartesian2,
 } from "cesium";
 
-import type { Radians } from "@carma-commons/types";
+import type { Radians } from "@carma/types";
 
 import { AnimationType, ViewerAnimationMap } from "./viewerAnimationMap";
 import type { CesiumContextType } from "../CesiumContext";

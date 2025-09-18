@@ -1,6 +1,6 @@
 import localForage from "localforage";
 import { createSlice } from "@reduxjs/toolkit";
-import { Item } from "@carma-commons/types";
+import { Item } from "@carma/types";
 
 export type ExtendedItem = Item & { replaceId: string };
 

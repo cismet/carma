@@ -1,4 +1,4 @@
-import { LatLng, Radians } from "@carma-commons/types";
+import { LatLng, Radians } from "@carma/types";
 import { EARTH_RADIUS } from "@carma-commons/utils";
 import { Cartographic, Math as CesiumMath } from "cesium";
 

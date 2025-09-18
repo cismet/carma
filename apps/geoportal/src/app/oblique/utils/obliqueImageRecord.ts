@@ -11,7 +11,7 @@ import {
   getApproximateHeadingBySector,
   CardinalDirectionEnum,
 } from "./orientationUtils";
-import type { Matrix3RowMajor } from "@carma-commons/types";
+import type { Matrix3RowMajor } from "@carma/types";
 
 // TODO: quite specific for the provided, should be more generic or standardized
 const unpackIdInfo = (id: string) => {

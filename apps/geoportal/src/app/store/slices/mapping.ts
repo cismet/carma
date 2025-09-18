@@ -1,11 +1,7 @@
 import { createSelector, createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
 
-import type {
-  BackgroundLayer,
-  Layer,
-  SavedLayerConfig,
-} from "@carma-commons/types";
+import type { BackgroundLayer, Layer, SavedLayerConfig } from "@carma/types";
 import {
   SELECTED_LAYER_INDEX,
   SelectionItem,

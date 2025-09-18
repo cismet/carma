@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faLayerGroup, faMap } from "@fortawesome/free-solid-svg-icons";
 
-import type { Layer } from "@carma-commons/types";
+import type { Layer } from "@carma/types";
 
 import { ICON_PREFIX } from "../../config/app.config";
 import { iconColorMap, iconMap } from "./items";

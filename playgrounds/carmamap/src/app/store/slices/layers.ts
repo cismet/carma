@@ -1,6 +1,6 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 
-import { Item } from "@carma-commons/types";
+import { Item } from "@carma/types";
 
 import type { RootState } from "..";
 
