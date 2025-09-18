@@ -135,7 +135,7 @@ export const useOnSceneChange = (
       });
       return () => {
         // clear hash on unmount
-        // onSceneChange && onSceneChange({ hashParams: clear3dOnlyHashParams });
+        // onSceneChange?.({ hashParams: clear3dOnlyHashParams });
         ctx.withViewer((viewer) => {
           if (!viewer.isDestroyed()) {
             viewer.camera.moveEnd.removeEventListener(moveEndListener);

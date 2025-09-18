@@ -163,7 +163,7 @@ export function searchForHauptnutzungen({
       if (finalResults.length === 0) {
         dispatch(setFeatureCollection([]));
       } else {
-        done && done(finalResults);
+        done?.(finalResults);
       }
     } else if (point !== undefined) {
     }

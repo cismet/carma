@@ -215,7 +215,7 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
       }
     });
     return () => {
-      cleanup && cleanup();
+      cleanup?.();
     };
   }, [cesiumCtx, viewerAnimationMapRef]);
 
@@ -249,7 +249,7 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
         });
       };
     });
-    return () => cleanup && cleanup();
+    return () => cleanup?.();
   }, [cesiumCtx]);
 
   return (

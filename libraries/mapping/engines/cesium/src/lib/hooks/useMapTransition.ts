@@ -67,7 +67,7 @@ export const useMapTransition = ({
     dispatch(setIsMode2d(false));
     const onComplete3d = () => {
       dispatch(clearTransition());
-      onComplete && onComplete(false);
+      onComplete?.(false);
     };
     // introduces side effects with gazetteer and home button, always show animation
 
@@ -195,7 +195,7 @@ export const useMapTransition = ({
         // trigger the visual transition
         dispatch(setIsMode2d(true));
         dispatch(clearTransition());
-        onComplete && onComplete(true);
+        onComplete?.(true);
       };
 
       console.debug("[Animation|2D3D] duration zoom", distance);

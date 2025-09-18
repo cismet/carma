@@ -204,7 +204,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
       };
     });
     return () => {
-      cleanup && cleanup();
+      cleanup?.();
     };
   }, [ctx, size]);
 
@@ -258,7 +258,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
     });
 
     return () => {
-      cleanup && cleanup();
+      cleanup?.();
     };
   }, [viewerRef, isViewerReady, ctx]);
 

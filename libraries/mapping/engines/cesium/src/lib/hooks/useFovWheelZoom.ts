@@ -74,10 +74,10 @@ export function useFovWheelZoom(
           fovChangeRate
         );
         if (!isClose(nextFov, currentFov, minFovChange)) {
-          onFovChange && onFovChange(nextFov, currentFov);
+          onFovChange?.(nextFov, currentFov);
           camera.frustum.fov = nextFov;
           ctx.requestRender();
-          onAfterFovChange && onAfterFovChange();
+          onAfterFovChange?.();
         }
       });
     },

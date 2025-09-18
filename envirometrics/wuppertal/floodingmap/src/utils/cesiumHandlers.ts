@@ -38,5 +38,5 @@ export const onCesiumClick = async (
     highlightEntityRef,
     groundPositionCartographic
   );
-  callback && callback([latitude, longitude]);
+  callback?.([latitude, longitude]);
 };
