@@ -124,7 +124,9 @@ const updateMarkerPosition = async (
           markerAsset,
           { model }
         );
-        setEntityData && data && setEntityData(data);
+        if (data) {
+          setEntityData?.(data);
+        }
       }
     } catch (e) {
       console.error("[CESIUM|MARKER] error adding marker", e);

@@ -67,7 +67,7 @@ export function animateInterpolateHeadingPitchRange(
     return () => {};
   }
 
-  setPrevious && setPrevious(initialHPR);
+  setPrevious?.(initialHPR);
 
   // Animation control variables
   let animationFrameId: number | null = null;

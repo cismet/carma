@@ -397,7 +397,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
   const performToggleAction = useCallback(() => {
     setIsObliqueMode((prevMode: boolean) => {
       const newMode = !prevMode;
-      updateHash && updateHash({ isOblique: newMode ? "1" : undefined });
+      updateHash?.({ isOblique: newMode ? "1" : undefined });
       return newMode;
     });
   }, [setIsObliqueMode, updateHash]);

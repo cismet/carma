@@ -26,7 +26,7 @@ export const SceneStyleToggle = (props: SceneStyleToggleProps) => {
   const handleToggle = (e: MouseEvent) => {
     e.preventDefault();
     dispatch(toggleCurrentSceneStyle());
-    onToggle && onToggle(isPrimaryStyle);
+    onToggle?.(isPrimaryStyle);
   };
 
   return (

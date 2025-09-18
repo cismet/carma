@@ -194,6 +194,6 @@ export const leafletToCesium = async (
     }
   });
   ctx.requestRender();
-  onComplete && onComplete();
+  onComplete?.();
   return true; // Return true if camera position found within max iterations
 };

@@ -46,7 +46,7 @@ export const cesiumAnimateFov = (
         camera.frustum.fov = newFov;
       });
       ctx.requestRender();
-      onRender && onRender(newFov);
+      onRender?.(newFov);
 
       if (progress < 1) {
         animationFrameId = requestAnimationFrame(animate);
@@ -61,7 +61,7 @@ export const cesiumAnimateFov = (
         if (viewerAnimationMap) {
           viewerAnimationMap.delete(viewer!);
         }
-        onComplete && onComplete();
+        onComplete?.();
       }
     };
 

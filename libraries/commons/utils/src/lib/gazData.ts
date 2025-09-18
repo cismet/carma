@@ -158,6 +158,6 @@ export const getGazData = async (
 
   const gazData = getGazDataFromSources(config.sources as SourceWithPayload[]);
 
-  setGazData && setGazData(gazData);
+  setGazData?.(gazData);
   return gazData;
 };

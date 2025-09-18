@@ -37,7 +37,7 @@ const PointQuerySettingsComponent: React.FC<{
   onChange,
 }) => {
   const onValueChange: InputNumberProps["onChange"] = (newDisplayValue) => {
-    onChange && onChange(newDisplayValue as number);
+    onChange?.(newDisplayValue as number);
   };
 
   return (
@@ -82,7 +82,7 @@ const TraverseSettingsComponent: React.FC<{
   onChange,
 }) => {
   const onValueChange: InputNumberProps["onChange"] = (newDisplayValue) => {
-    onChange && onChange(newDisplayValue as number);
+    onChange?.(newDisplayValue as number);
   };
 
   return (

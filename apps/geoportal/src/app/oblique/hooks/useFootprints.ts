@@ -62,7 +62,7 @@ const cleanupOutlineEntity = (
     debug && console.error("Error removing outline entity", e);
   }
   ref.current = null;
-  requestRender && requestRender();
+  requestRender?.();
 };
 
 export const useFootprints = (debug = false): void => {
