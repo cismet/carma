@@ -41,6 +41,7 @@ export {
   clampToToleranceRange,
   clamp,
   isClose,
+  compoundScale,
 } from "./lib/numbers";
 
 export { preventPinchZoom } from "./lib/prevent-pinch-zoom.ts";
