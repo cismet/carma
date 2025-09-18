@@ -4,6 +4,8 @@ const removeUndefined = <T extends object>(obj: T): T => {
   ) as T;
 };
 
+/* recommended usage is with defaults as Required<T> */
+
 export function normalizeOptions<T extends object>(
   options: Partial<T> | undefined,
   defaults: Required<T>,

@@ -1,40 +1,44 @@
 import { useCallback, useRef } from "react";
 import { useBlockDefaultZoomBehaviour } from "./useBlockDefaultZoomBehaviour";
 import { Math as CesiumMath, PerspectiveFrustum, type Viewer } from "cesium";
+
+import type { Radians } from "@carma/types";
+import { normalizeOptions } from "@carma-commons/utils";
+
 import type { CesiumContextType } from "../CesiumContext";
 import { blockWheelEvent } from "../utils/blockWheelEvent";
 
 const viewerWheelHandlers = new WeakMap<Viewer, (event: WheelEvent) => void>();
 
 export interface FovWheelZoomOptions {
-  minFov?: number;
-  maxFov?: number;
-  fovChangeRate?: number;
+  minFov?: Radians;
+  maxFov?: Radians;
+  fovChangeRate?: Radians;
   onAfterFovChange?: () => void;
-  onFovChange?: (newFov: number, previousFov: number) => void;
+  onFovChange?: (newFov: Radians, previousFov: Radians) => void;
+  minFovChange?: Radians; // minimum change in FOV to trigger an update (radians), default 0.0001
 }
 
-const DEFAULT_MIN_FOV = CesiumMath.toRadians(10);
-const DEFAULT_MAX_FOV = CesiumMath.toRadians(120);
-const DEFAULT_FOV_CHANGE_RATE = 0.01;
-
-const defaultFovWheelZoomOptions: FovWheelZoomOptions = {
-  minFov: DEFAULT_MIN_FOV,
-  maxFov: DEFAULT_MAX_FOV,
-  fovChangeRate: DEFAULT_FOV_CHANGE_RATE,
+const defaultFovWheelZoomOptions: Required<FovWheelZoomOptions> = {
+  minFov: CesiumMath.toRadians(10) as Radians,
+  maxFov: CesiumMath.toRadians(120) as Radians,
+  fovChangeRate: 0.01 as Radians,
+  minFovChange: 0.0001 as Radians,
+  onAfterFovChange: () => {},
+  onFovChange: () => {},
 };
 
 const computeNextFov = (
-  current: number,
-  deltaY: number,
-  min: number,
-  max: number,
-  rate: number
+  current: Radians,
+  deltaY: Radians,
+  min: Radians,
+  max: Radians,
+  rate: Radians
 ) => {
   const sign = Math.sign(deltaY);
   const normalized = Math.sqrt(Math.abs(deltaY)) * sign;
   const target = current * (1 + normalized * rate);
-  return Math.max(min, Math.min(max, target));
+  return Math.max(min, Math.min(max, target)) as Radians;
 };
 
 export function useFovWheelZoom(
@@ -42,13 +46,8 @@ export function useFovWheelZoom(
   enabled = true,
   options: FovWheelZoomOptions = {}
 ) {
-  const { minFov, maxFov, fovChangeRate, onAfterFovChange, onFovChange } = {
-    ...defaultFovWheelZoomOptions,
-    ...options,
-  };
-  const min = minFov ?? DEFAULT_MIN_FOV;
-  const max = maxFov ?? DEFAULT_MAX_FOV;
-  const rate = fovChangeRate ?? DEFAULT_FOV_CHANGE_RATE;
+  const { minFov, maxFov, fovChangeRate, onAfterFovChange, onFovChange } =
+    normalizeOptions(options, defaultFovWheelZoomOptions);
 
   const handleWheel = useCallback(
     (event: WheelEvent) => {
@@ -57,13 +56,13 @@ export function useFovWheelZoom(
       ctx.withCamera((camera) => {
         if (!(camera.frustum instanceof PerspectiveFrustum)) return;
 
-        const currentFov = camera.frustum.fov || 1;
+        const currentFov = camera.frustum.fov as Radians;
         const nextFov = computeNextFov(
           currentFov,
-          event.deltaY,
-          min,
-          max,
-          rate
+          event.deltaY as Radians,
+          minFov,
+          maxFov,
+          fovChangeRate
         );
         if (Math.abs(nextFov - currentFov) > 0.0001) {
           onFovChange && onFovChange(nextFov, currentFov);
@@ -73,7 +72,7 @@ export function useFovWheelZoom(
         }
       });
     },
-    [ctx, min, max, rate, onAfterFovChange, onFovChange]
+    [ctx, minFov, maxFov, fovChangeRate, onAfterFovChange, onFovChange]
   );
 
   // Temporary global wheel blocker while viewer is not yet available.

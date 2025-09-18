@@ -1,20 +1,21 @@
-import { Math as CesiumMath, Color, EasingFunction } from "cesium";
+import { Color, EasingFunction } from "cesium";
 import {
   OBLIQUE_2024_ORIENTATIONS_CRS,
   OBLIQUE_2024_PREVIEW_PATH,
   OBLIQUE_2024_EXT_ORI_UTM32_URI,
   OBLIQUE_2024_FPRFC_GEOJSON_URI,
 } from "@carma-commons/resources";
+import { degToRad, asDegrees } from "@carma-commons/utils";
+
 import { OBLIQUE_PREVIEW_QUALITY } from "./constants";
 import { ObliqueDataProviderConfig } from "./types";
 import { CardinalDirectionEnum } from "./utils/orientationUtils";
-
 export const OBLIQUE_CONFIG: ObliqueDataProviderConfig = {
-  fixedPitch: CesiumMath.toRadians(-45), // Pitch in radians
+  fixedPitch: degToRad(asDegrees(-45)), // Pitch in radians
   fixedHeight: 900, // Height in meters
-  minFov: CesiumMath.toRadians(10), // Minimum field of view in radians
-  maxFov: CesiumMath.toRadians(120), // Maximum field of view in radians
-  headingOffset: CesiumMath.toRadians(-34.3), // Heading offset in radians
+  minFov: degToRad(asDegrees(10)), // Minimum field of view in radians
+  maxFov: degToRad(asDegrees(120)), // Maximum field of view in radians
+  headingOffset: degToRad(asDegrees(-34.3)), // Heading offset in radians
   previewQualityLevel: OBLIQUE_PREVIEW_QUALITY.LEVEL_3,
   previewPath: OBLIQUE_2024_PREVIEW_PATH,
   crs: OBLIQUE_2024_ORIENTATIONS_CRS,
