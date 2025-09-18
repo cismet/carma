@@ -14,6 +14,8 @@ import type { FeatureCollection, Polygon } from "geojson";
 
 import { useHashState } from "@carma-appframeworks/portals";
 
+import type { Radians } from "@carma/types";
+
 import type {
   ExteriorOrientations,
   NearestObliqueImageRecord,
@@ -96,8 +98,8 @@ interface ObliqueContextType {
   previewPath: string;
   fixedPitch: number;
   fixedHeight: number;
-  minFov: number;
-  maxFov: number;
+  minFov: Radians;
+  maxFov: Radians;
   headingOffset: number;
 
   animations: ObliqueAnimationsConfig;

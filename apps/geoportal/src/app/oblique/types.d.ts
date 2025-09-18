@@ -1,6 +1,8 @@
 import { OBLIQUE_PREVIEW_QUALITY } from "./constants";
 import type { Converter } from "proj4/dist/lib/core";
 
+import type { Radians } from "@carma/types";
+
 export type ExteriorPosition = {
   x: number;
   y: number;
@@ -82,8 +84,8 @@ export interface ObliqueDataProviderConfig {
   previewQualityLevel?: OBLIQUE_PREVIEW_QUALITY;
   fixedPitch?: number;
   fixedHeight?: number;
-  minFov?: number;
-  maxFov?: number;
+  minFov?: Radians;
+  maxFov?: Radians;
   headingOffset?: number;
   animations?: ObliqueAnimationsConfig;
   footprintsStyle?: ObliqueFootprintsStyle;
