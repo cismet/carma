@@ -9,6 +9,7 @@ import {
   setShowSecondaryTileset,
 } from "../slices/cesium";
 import { setupPrimaryStyle, setupSecondaryStyle } from "../utils/sceneStyles";
+import { setCesiumBackgroundCssVar } from "../utils/cssVars";
 
 import { useCesiumContext } from "./useCesiumContext";
 
@@ -28,10 +29,12 @@ export const useSceneStyles = (enabled = true) => {
       setupPrimaryStyle(ctx, primaryStyle);
       dispatch(setShowPrimaryTileset(true));
       dispatch(setShowSecondaryTileset(false));
+      setCesiumBackgroundCssVar(primaryStyle?.backgroundColor);
     } else if (currentSceneStyle === "secondary") {
       setupSecondaryStyle(ctx, secondaryStyle);
       dispatch(setShowPrimaryTileset(false));
       dispatch(setShowSecondaryTileset(true));
+      setCesiumBackgroundCssVar(secondaryStyle?.backgroundColor);
     } else {
       throw new Error(`Unknown style: ${currentSceneStyle}`);
     }
