@@ -6,6 +6,7 @@ import type { Radians } from "@carma/types";
 import { normalizeOptions, isClose } from "@carma-commons/utils";
 
 import type { CesiumContextType } from "../CesiumContext";
+import { CtxEvent } from "../cesiumContextEventMap";
 import { blockWheelEvent } from "../utils/blockWheelEvent";
 
 const viewerWheelHandlers = new WeakMap<Viewer, (event: WheelEvent) => void>();
@@ -69,6 +70,8 @@ export function useFovWheelZoom(
           onFovChange?.(nextFov, currentFov);
           camera.frustum.fov = nextFov;
           ctx.requestRender();
+          // Emit via enum-typed context event
+          ctx.emit?.(CtxEvent.FovChange, nextFov);
           onAfterFovChange?.();
         }
       });

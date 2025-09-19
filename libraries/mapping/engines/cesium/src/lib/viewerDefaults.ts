@@ -1,6 +1,6 @@
 import { SceneMode, Viewer } from "cesium";
 import UAParser from "ua-parser-js";
-import type { ColorRgbaArray } from '@carma/types';
+import type { ColorRgbaArray } from "@carma/types";
 
 export const TRANSITION_DELAY = 1000;
 export const CESIUM_TARGET_FRAME_RATE = 120;

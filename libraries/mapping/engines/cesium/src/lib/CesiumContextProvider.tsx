@@ -8,10 +8,12 @@ import {
   Viewer,
   Cesium3DTileset,
 } from "cesium";
-
+import { createEventBus } from "@carma-commons/utils";
 import { handleDelayedRender } from "@carma-commons/utils/window";
 
 import { CesiumContext, type CesiumContextType } from "./CesiumContext";
+import type { CesiumContextEventMap } from "./cesiumContextEventMap";
+
 import {
   loadCesiumImageryLayer,
   loadCesiumTerrainProvider,
@@ -58,6 +60,12 @@ export const CesiumContextProvider = ({
   >(null);
   // Monotonic counter for initial camera applications
   const [initialCameraEpoch, setInitialCameraEpoch] = useState<number>(0);
+
+  // Event bus for the Cesium context
+  const { subscribe, emit } = useMemo(
+    () => createEventBus<CesiumContextEventMap>(),
+    []
+  );
 
   const {
     withViewer,
@@ -204,6 +212,8 @@ export const CesiumContextProvider = ({
       setInitialCameraSettled,
       initialCameraEpoch,
       bumpInitialCameraEpoch: () => setInitialCameraEpoch((v) => v + 1),
+      subscribe,
+      emit,
       // NOTE: Workaround for CesiumGS/cesium#12543 — delay/repeat options exist
       // to schedule additional renders in requestRenderMode when needed. These
       // options should be deprecated once upstream behavior is improved.
@@ -257,6 +267,8 @@ export const CesiumContextProvider = ({
       withTerrainProviderRef,
       withEllipsoidTerrainProviderRef,
       withTilesetRef,
+      subscribe,
+      emit,
     ]
   );
 
