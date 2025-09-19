@@ -1,11 +1,8 @@
 import type { ColorRgbaArray } from "@carma/types";
 import { isColorRgbaArray } from "./cesiumSerializer";
+import { DEFAULT_BACKGROUND_COLOR } from "../viewerDefaults";
 
-const colorRgbaArrayToCssRgbaString = (
-  color: ColorRgbaArray,
-  fallback = "rgba(0,0,0,0)"
-): string => {
-  if (!isColorRgbaArray(color)) return fallback;
+const colorRgbaArrayToCssRgbaString = (color: ColorRgbaArray): string => {
   const [red, green, blue, alpha] = color;
   const r255 = Math.round(red * 255);
   const g255 = Math.round(green * 255);
@@ -14,10 +11,12 @@ const colorRgbaArrayToCssRgbaString = (
 };
 
 export const setCesiumBackgroundCssVar = (
-  color: ColorRgbaArray,
-  fallback = "rgba(0,0,0,0)"
+  color: ColorRgbaArray = DEFAULT_BACKGROUND_COLOR
 ): void => {
-  const cssColor = colorRgbaArrayToCssRgbaString(color, fallback);
+  const validatedColor: ColorRgbaArray = isColorRgbaArray(color)
+    ? color
+    : DEFAULT_BACKGROUND_COLOR;
+  const cssColor = colorRgbaArrayToCssRgbaString(validatedColor);
   try {
     document.documentElement.style.setProperty("--cesium-bg-color", cssColor);
   } catch (error) {

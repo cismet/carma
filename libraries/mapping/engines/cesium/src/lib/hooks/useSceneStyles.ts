@@ -25,16 +25,16 @@ export const useSceneStyles = (enabled = true) => {
     if (!enabled || !ctx.isValidViewer() || currentSceneStyle === undefined)
       return;
     console.debug("currentSceneStyle change", currentSceneStyle);
-    if (currentSceneStyle === "primary") {
+    if (currentSceneStyle === "primary" && primaryStyle) {
       setupPrimaryStyle(ctx, primaryStyle);
       dispatch(setShowPrimaryTileset(true));
       dispatch(setShowSecondaryTileset(false));
-      setCesiumBackgroundCssVar(primaryStyle?.backgroundColor);
-    } else if (currentSceneStyle === "secondary") {
+      setCesiumBackgroundCssVar(primaryStyle.backgroundColor);
+    } else if (currentSceneStyle === "secondary" && secondaryStyle) {
       setupSecondaryStyle(ctx, secondaryStyle);
       dispatch(setShowPrimaryTileset(false));
       dispatch(setShowSecondaryTileset(true));
-      setCesiumBackgroundCssVar(secondaryStyle?.backgroundColor);
+      setCesiumBackgroundCssVar(secondaryStyle.backgroundColor);
     } else {
       throw new Error(`Unknown style: ${currentSceneStyle}`);
     }
