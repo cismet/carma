@@ -47,6 +47,12 @@ export const cesiumAnimateFov = (
       });
       ctx.requestRender();
       onRender?.(newFov);
+      // Broadcast per-frame FOV changes so overlays can sync image sizing during animations
+      try {
+        window.dispatchEvent(
+          new CustomEvent("carma:cesium:fovChange", { detail: { fov: newFov } })
+        );
+      } catch {}
 
       if (progress < 1) {
         animationFrameId = requestAnimationFrame(animate);

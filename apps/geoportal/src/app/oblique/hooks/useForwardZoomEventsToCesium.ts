@@ -77,6 +77,19 @@ export function useForwardZoomEventsToCesium(): ForwardZoomEventsBindings {
     };
   }, [handleWheel]);
 
+  // Keep fovOverride in sync during button-triggered FOV animations
+  useEffect(() => {
+    const onFovChangeEvent = (ev: Event) => {
+      const e = ev as CustomEvent<{ fov?: number }>;
+      const val = e?.detail?.fov;
+      if (typeof val === "number") setFovOverride(val);
+    };
+    window.addEventListener("carma:cesium:fovChange", onFovChangeEvent);
+    return () => {
+      window.removeEventListener("carma:cesium:fovChange", onFovChangeEvent);
+    };
+  }, []);
+
   return { rootRef, onWheel, fovOverride };
 }
 
