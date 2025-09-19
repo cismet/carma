@@ -22,6 +22,9 @@ import "leaflet/dist/leaflet.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import { ProgressIndicator, useProgress } from "@carma-appframeworks/portals";
+if (typeof global === "undefined") {
+  window.global = window;
+}
 
 function App() {
   const [poiColors, setPoiColors] = useState();

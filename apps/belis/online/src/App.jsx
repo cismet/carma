@@ -30,6 +30,10 @@ import {
 } from "@carma-appframeworks/portals";
 import { gazDataConfig } from "./config/gazData";
 
+if (typeof global === "undefined") {
+  window.global = window;
+}
+
 let persistor = persistStore(store);
 
 const baseLayerConf = { ...defaultLayerConf };

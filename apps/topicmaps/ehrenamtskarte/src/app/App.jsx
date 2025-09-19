@@ -20,6 +20,9 @@ import "leaflet/dist/leaflet.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import { createItemsDictionary } from "./helper/createItemsDictionary";
+if (typeof global === "undefined") {
+  window.global = window;
+}
 
 function App() {
   const [poiColors, setPoiColors] = useState();
