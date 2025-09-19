@@ -9,3 +9,5 @@ export const carmaWindow = {
 // as individual exports
 export { getWindowDimensions } from "./getWindowDimensions";
 export { handleDelayedRender } from "./handleDelayedRender";
+
+export { cjsGlobalShim } from "./cjsGlobalShim";

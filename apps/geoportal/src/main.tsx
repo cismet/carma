@@ -4,16 +4,18 @@ import { RouterProvider, createHashRouter } from "react-router-dom";
 import { persistStore } from "redux-persist";
 import { PersistGate } from "redux-persist/integration/react";
 
+import { setupCesiumEnvironment } from "@carma-mapping/engines/cesium";
 import {
   suppressReactCismapErrors,
   preventPinchZoom,
+  cjsGlobalShim,
 } from "@carma-commons/utils";
 
 import App from "./app/App";
 import store from "./app/store";
 import { CESIUM_CONFIG } from "./app/config/app.config";
-import { setupCesiumEnvironment } from "@carma-mapping/engines/cesium";
 
+cjsGlobalShim();
 // Set up Cesium environment (CESIUM_BASE_URL) via engine helper
 setupCesiumEnvironment(CESIUM_CONFIG);
 
