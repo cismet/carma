@@ -6,10 +6,11 @@ import {
 } from "@carma-appframeworks/portals";
 import App from "./app/App";
 import { gazDataConfig } from "./config/gazData";
-window.global ||= window;
+
 const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement
 );
+
 if (typeof global === "undefined") {
   window.global = window;
 }
