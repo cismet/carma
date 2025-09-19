@@ -26,9 +26,9 @@ import {
   ProgressIndicator,
   useProgress,
 } from "@carma-appframeworks/portals";
-if (typeof global === "undefined") {
-  window.global = window;
-}
+import { cjsGlobalShim } from "@carma-commons/utils/window";
+
+cjsGlobalShim();
 
 function App() {
   const [poiColors, setPoiColors] = useState();

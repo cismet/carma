@@ -1,6 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom";
-
+import { cjsGlobalShim } from "@carma-commons/utils/window";
 import App from "./App";
 import * as serviceWorkerRegistration from "./serviceWorkerRegistration";
 
@@ -43,6 +43,7 @@ if (PLAYGROUND === true) {
   appOverlayStyle = {};
 }
 
+cjsGlobalShim();
 ReactDOM.render(
   <React.StrictMode>
     <React.StrictMode>
