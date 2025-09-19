@@ -1,5 +1,6 @@
 // Bring in ambient Window globals for consumers of this package
 import "./lib/types/env";
+import { isColorRgbaArray } from "./lib/utils/cesiumSerializer";
 
 export * from "./lib/slices/cesium";
 
@@ -89,6 +90,7 @@ export {
 
 export {
   fromColorRgbaArray,
+  isColorRgbaArray,
   toColorRgbaArray,
 } from "./lib/utils/cesiumSerializer";
 

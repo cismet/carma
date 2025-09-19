@@ -29,7 +29,7 @@ html {
 }
 
 .cesium-viewer-cesiumWidgetContainer {
-  background-color: rgba(255, 255, 255, 1);
+  background-color: var(--cesium-bg-color, rgba(255, 255, 255, 1));
 }
 
 .cesium-widget {
@@ -67,17 +67,6 @@ html {
   margin-left: auto;
   pointer-events: none;
 }
-.rectangle-button {
-  /* background-color: #7a7a7a;
-  color: white;
-  opacity: 1;
-  border-radius: 4px;
-  padding: 2px;
-  cursor: pointer;
-  text-align: center;
-  margin-top: 4px;
-  transition: background-color 0.3s ease, opacity 0.3s ease; */
-}
 
 .rectangle-button:hover {
   background-color: #888888;
@@ -100,13 +89,6 @@ html {
   background-color: #123c6a;
   border-radius: 4px;
   opacity: 0.4;
-}
-
-.rectangle-close {
-  /* position: absolute;
-  top: 0;
-  right: 0; */
-  /* pointer-events: none; */
 }
 
 #preview-tooltip-text {
