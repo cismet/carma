@@ -24,17 +24,16 @@ html {
   }
 }
 
-/* TODO: remove not needed debug colors */
 .cesium-viewer {
-  background-color: red;
+  background-color: transparent;
 }
 
 .cesium-viewer-cesiumWidgetContainer {
-  background-color: blue;
+  background-color: rgba(255, 255, 255, 1);
 }
 
 .cesium-widget {
-  background-color: cadetblue;
+  background-color: transparent;
 }
 
 #preview {
