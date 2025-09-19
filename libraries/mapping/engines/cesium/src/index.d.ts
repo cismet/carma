@@ -1,3 +1,5 @@
+import type { CesiumWidget } from "cesium";
+
 import type { ModelConfig } from "@carma-commons/resources";
 import type { ColorRgbaArray, PlainCartesian3 } from "@carma/types";
 
@@ -75,10 +77,10 @@ export type CesiumOptions = {
   markerAnchorHeight?: number;
   pitchAdjustHeight?: number;
   withTerrainProvider: (
-    cb: (provider: CesiumTerrainProvider, viewer: Viewer) => void
+    cb: (provider: CesiumTerrainProvider, widget: CesiumWidget) => void
   ) => boolean;
   withSurfaceProvider: (
-    cb: (provider: CesiumTerrainProvider, viewer: Viewer) => void
+    cb: (provider: CesiumTerrainProvider, widget: CesiumWidget) => void
   ) => boolean;
 };
 
@@ -124,7 +126,7 @@ export type CesiumConfig = {
 };
 export interface CesiumState {
   isAnimating?: boolean;
-  currentTransition?: VIEWER_TRANSITION_STATE;
+  currentTransition?: TRANSITION_STATE;
   currentSceneStyle?: keyof SceneStyles;
   isMode2d: boolean;
   homePosition: null | PlainCartesian3;

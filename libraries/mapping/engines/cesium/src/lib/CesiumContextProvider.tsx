@@ -3,9 +3,9 @@ import type { ReactNode } from "react";
 
 import {
   CesiumTerrainProvider,
+  type CesiumWidget,
   EllipsoidTerrainProvider,
   ImageryLayer,
-  Viewer,
   Cesium3DTileset,
 } from "cesium";
 
@@ -21,10 +21,7 @@ import { loadTileset, TilesetConfigs } from "./utils/cesiumTilesetProviders";
 import { useValidInstances } from "./hooks/useValidInstances";
 import { guardScene } from "./utils/guardScene";
 
-import {
-  initViewerAnimationMap,
-  ViewerAnimationMap,
-} from "./utils/viewerAnimationMap";
+import { initAnimationMap, AnimationMap } from "./utils/AnimationMap";
 
 export const CesiumContextProvider = ({
   children,
@@ -36,10 +33,8 @@ export const CesiumContextProvider = ({
   tilesetConfigs: TilesetConfigs;
 }) => {
   // Use refs for Cesium instances to prevent re-renders
-  const viewerRef = useRef<Viewer | null>(null);
-  const viewerAnimationMapRef = useRef<ViewerAnimationMap | null>(
-    initViewerAnimationMap()
-  );
+  const widgetRef = useRef<CesiumWidget | null>(null);
+  const AnimationMapRef = useRef<AnimationMap | null>(initAnimationMap());
   const ellipsoidTerrainProviderRef = useRef(new EllipsoidTerrainProvider());
   const terrainProviderRef = useRef<CesiumTerrainProvider | null>(null);
   const surfaceProviderRef = useRef<CesiumTerrainProvider | null>(null);
@@ -51,7 +46,7 @@ export const CesiumContextProvider = ({
   const shouldSuspendCameraLimitersRef = useRef(false);
 
   // explicitly trigger re-renders
-  const [isViewerReady, setIsViewerReady] = useState<boolean>(false);
+  const [isReady, setisReady] = useState<boolean>(false);
   // Tri-state: null (not started), false (applying), true (settled)
   const [initialCameraSettled, setInitialCameraSettled] = useState<
     boolean | null
@@ -60,13 +55,13 @@ export const CesiumContextProvider = ({
   const [initialCameraEpoch, setInitialCameraEpoch] = useState<number>(0);
 
   const {
-    withViewer,
-    isValidViewer,
+    withWidget,
+    isValidWidget,
     withImageryLayerRef,
     withTerrainProviderRef,
     withEllipsoidTerrainProviderRef,
     withTilesetRef,
-  } = useValidInstances(viewerRef);
+  } = useValidInstances(widgetRef);
 
   // Asynchronous initialization of providers and imageryLayer
   useEffect(() => {
@@ -82,16 +77,16 @@ export const CesiumContextProvider = ({
       );
 
       return () => {
-        // Only abort if viewer is being destroyed, not during 2D/3D transitions
-        !isValidViewer() && abortController.abort();
+        // Only abort if scene is being destroyed, not during 2D/3D transitions
+        !isValidWidget() && abortController.abort();
       };
     } else {
       console.info("[CESIUM|CONTEXT] No imagery provider configured");
     }
-  }, [providerConfig.imageryProvider, isValidViewer]);
+  }, [providerConfig.imageryProvider, isValidWidget]);
 
   useEffect(() => {
-    if (!isViewerReady) {
+    if (!isReady) {
       return;
     } // avoids runtime issues with WebGL context not available
 
@@ -105,12 +100,12 @@ export const CesiumContextProvider = ({
     );
 
     return () => {
-      !isValidViewer() && abortController.abort();
+      !isValidWidget() && abortController.abort();
     };
-  }, [providerConfig.terrainProvider.url, isValidViewer, isViewerReady]);
+  }, [providerConfig.terrainProvider.url, isValidWidget, isReady]);
 
   useEffect(() => {
-    if (!isViewerReady) {
+    if (!isReady) {
       return;
     } // avoids runtime issues with WebGL context not available
 
@@ -125,14 +120,14 @@ export const CesiumContextProvider = ({
       );
 
       return () => {
-        !isValidViewer() && abortController.abort();
+        !isValidWidget() && abortController.abort();
       };
     }
-  }, [providerConfig.surfaceProvider, isViewerReady, isValidViewer]);
+  }, [providerConfig.surfaceProvider, isReady, isValidWidget]);
 
   // Load Primary Tileset
   useEffect(() => {
-    if (tilesetConfigs.primary && isViewerReady) {
+    if (tilesetConfigs.primary && isReady) {
       const fetchPrimary = async () => {
         console.debug(
           "[CESIUM|DEBUG] Loading primary tileset",
@@ -150,19 +145,19 @@ export const CesiumContextProvider = ({
     }
 
     return () => {
-      // Don't destroy providers when transitioning to 2D mode - only when viewer is destroyed
+      // Don't destroy providers when transitioning to 2D mode - only when scene is destroyed
       const t = primaryTilesetRef.current;
-      if (t && !t.isDestroyed() && !isValidViewer()) {
+      if (t && !t.isDestroyed() && !isValidWidget()) {
         console.debug("[CESIUM|DEBUG] Destroying primary tileset");
         t.destroy();
         primaryTilesetRef.current = null;
       }
     };
-  }, [tilesetConfigs.primary, isViewerReady, isValidViewer]);
+  }, [tilesetConfigs.primary, isReady, isValidWidget]);
 
   // Load Secondary Tileset
   useEffect(() => {
-    if (tilesetConfigs.secondary && isViewerReady && isValidViewer()) {
+    if (tilesetConfigs.secondary && isReady && isValidWidget()) {
       const fetchSecondary = async () => {
         console.debug(
           "[CESIUM|DEBUG] Loading secondary tileset",
@@ -182,24 +177,26 @@ export const CesiumContextProvider = ({
     }
 
     return () => {
-      // Don't destroy providers when transitioning to 2D mode - only when viewer is destroyed
+      // Don't destroy providers when transitioning to 2D mode - only when widget is destroyed
       const t = secondaryTilesetRef.current;
-      if (t && !t.isDestroyed() && !isValidViewer()) {
+      if (t && !t.isDestroyed() && !isValidWidget()) {
         console.debug("[CESIUM|DEBUG] Destroying secondary tileset");
         t.destroy();
         secondaryTilesetRef.current = null;
       }
     };
-  }, [tilesetConfigs.secondary, isViewerReady, isValidViewer]);
+  }, [tilesetConfigs.secondary, isReady, isValidWidget]);
 
   const contextValue = useMemo<CesiumContextType>(
     () => ({
-      viewerRef,
-      viewerAnimationMapRef,
+      // Keep legacy name and add the new alias
+      widgetRef,
+      widgetRef: widgetRef,
+      AnimationMapRef,
       shouldSuspendPitchLimiterRef,
       shouldSuspendCameraLimitersRef,
-      isViewerReady,
-      setIsViewerReady,
+      isReady,
+      setisReady,
       initialCameraSettled,
       setInitialCameraSettled,
       initialCameraEpoch,
@@ -207,52 +204,53 @@ export const CesiumContextProvider = ({
       // NOTE: Workaround for CesiumGS/cesium#12543 — delay/repeat options exist
       // to schedule additional renders in requestRenderMode when needed. These
       // options should be deprecated once upstream behavior is improved.
-      isValidViewer,
+      isValidWidget,
+      isValidWidget: isValidWidget,
       requestRender: (opts) => {
         const renderOnce = () => {
-          withViewer((viewer) => {
-            guardScene(viewer.scene, "ctx requestRender").requestRender();
+          withWidget((w) => {
+            guardScene(w.scene, "ctx requestRender").requestRender();
           });
         };
         handleDelayedRender(renderOnce, opts);
       },
-      withViewer,
-      withCamera: (cb) => withViewer((viewer) => cb(viewer.camera, viewer)),
-      withCanvas: (cb) => withViewer((viewer) => cb(viewer.canvas, viewer)),
-      withScene: (cb) => withViewer((viewer) => cb(viewer.scene, viewer)),
-      withEntities: (cb) => withViewer((viewer) => cb(viewer.entities, viewer)),
+      withWidget,
+      withCamera: (cb) => withWidget((w) => cb(w.camera, w)),
+      withCanvas: (cb) => withWidget((w) => cb(w.canvas, w)),
+      withScene: (cb) => withWidget((w) => cb(w.scene, w)),
+      withEntities: (cb) => withWidget((w) => cb(w.entities, w)),
       withImageryLayer: (cb) =>
-        withImageryLayerRef(imageryLayerRef, (imageryLayer, viewer) =>
-          cb(imageryLayer, viewer)
+        withImageryLayerRef(imageryLayerRef, (imageryLayer, widget) =>
+          cb(imageryLayer, widget)
         ),
       withPrimaryTileset: (cb) =>
-        withTilesetRef(primaryTilesetRef, (tileset, viewer) =>
-          cb(tileset, viewer)
+        withTilesetRef(primaryTilesetRef, (tileset, widget) =>
+          cb(tileset, widget)
         ),
       withSecondaryTileset: (cb) =>
-        withTilesetRef(secondaryTilesetRef, (tileset, viewer) =>
-          cb(tileset, viewer)
+        withTilesetRef(secondaryTilesetRef, (tileset, widget) =>
+          cb(tileset, widget)
         ),
       withEllipsoidTerrainProvider: (cb) =>
         withEllipsoidTerrainProviderRef(
           ellipsoidTerrainProviderRef,
-          (provider, viewer) => cb(provider, viewer)
+          (provider, widget) => cb(provider, widget)
         ),
       withTerrainProvider: (cb) =>
-        withTerrainProviderRef(terrainProviderRef, (provider, viewer) =>
-          cb(provider, viewer)
+        withTerrainProviderRef(terrainProviderRef, (provider, widget) =>
+          cb(provider, widget)
         ),
       withSurfaceProvider: (cb) =>
-        withTerrainProviderRef(surfaceProviderRef, (provider, viewer) =>
-          cb(provider, viewer)
+        withTerrainProviderRef(surfaceProviderRef, (provider, widget) =>
+          cb(provider, widget)
         ),
     }),
     [
-      isViewerReady,
+      isReady,
       initialCameraSettled,
       initialCameraEpoch,
-      isValidViewer,
-      withViewer,
+      isValidWidget,
+      withWidget,
       withImageryLayerRef,
       withTerrainProviderRef,
       withEllipsoidTerrainProviderRef,
@@ -262,7 +260,7 @@ export const CesiumContextProvider = ({
 
   console.debug(
     "CesiumContextProvider Changed/Rendered",
-    isViewerReady,
+    isReady,
     contextValue
   );
 

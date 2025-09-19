@@ -7,7 +7,7 @@ import {
   type Camera,
 } from "cesium";
 import {
-  cancelViewerAnimation,
+  cancelAnimation,
   getOrbitPoint,
   useCesiumContext,
 } from "@carma-mapping/engines/cesium";
@@ -32,7 +32,7 @@ export function useOrientationCubeDrag({
   dragThresholdPx = 2,
 }: UseOrientationCubeDragParams = {}): UseOrientationCubeDragReturn {
   const ctx = useCesiumContext();
-  const { viewerAnimationMapRef, shouldSuspendPitchLimiterRef } = ctx;
+  const { AnimationMapRef, shouldSuspendPitchLimiterRef } = ctx;
   const [isDragging, setIsDragging] = useState(false);
   const isDraggingRef = useRef(false);
   const isPointerDownRef = useRef(false);
@@ -56,8 +56,8 @@ export function useOrientationCubeDrag({
       animFrameRef.current = null;
       return;
     }
-    ctx.withViewer((viewer) => {
-      const camera = viewer.camera;
+    ctx.withWidget((w) => {
+      const camera = w.camera;
       const currentHeading = camera.heading;
       const currentPitch = camera.pitch;
       const targetH = targetHeadingRef.current;
@@ -71,7 +71,7 @@ export function useOrientationCubeDrag({
         MIN_PITCH,
         MAX_PITCH
       );
-      viewer.camera.lookAt(
+      w.camera.lookAt(
         orbitPointRef.current!,
         new HeadingPitchRange(nextHeading, nextPitch, rangeRef.current)
       );
@@ -80,15 +80,15 @@ export function useOrientationCubeDrag({
   }, [ctx]);
 
   const handleMouseDown = (event: React.MouseEvent<HTMLDivElement>) => {
-    if (!ctx.isValidViewer()) return;
+    if (!ctx.isValidWidget()) return;
     if (event.button !== 0) return; // primary button only
     event.preventDefault();
     isPointerDownRef.current = true;
     const { clientX: x, clientY: y } = event;
     lastMouseRef.current = [x, y];
     startMouseRef.current = [x, y];
-    ctx.withViewer((viewer) => {
-      const camera = viewer.camera;
+    ctx.withWidget((w) => {
+      const camera = w.camera;
       targetHeadingRef.current = camera.heading;
       targetPitchRef.current = camera.pitch;
       const target = getOrbitPoint(ctx);
@@ -113,17 +113,17 @@ export function useOrientationCubeDrag({
       animFrameRef.current = null;
     }
     if (!wasDragging) return;
-    if (!ctx.isValidViewer()) return;
+    if (!ctx.isValidWidget()) return;
     let camera: Camera | undefined;
-    ctx.withViewer((viewer) => {
-      camera = viewer.camera;
+    ctx.withWidget((w) => {
+      camera = w.camera;
     });
     if (!camera) return;
     if (previousPercentageChangedRef.current !== undefined) {
       camera.percentageChanged = previousPercentageChangedRef.current;
     }
-    ctx.withViewer((viewer) => {
-      viewer.camera.lookAtTransform(Matrix4.IDENTITY);
+    ctx.withWidget((w) => {
+      w.camera.lookAtTransform(Matrix4.IDENTITY);
     });
   }, [ctx, shouldSuspendPitchLimiterRef]);
 
@@ -142,13 +142,13 @@ export function useOrientationCubeDrag({
         if (Math.hypot(totalDx, totalDy) < dragThresholdPx) {
           return;
         }
-        if (!ctx.isValidViewer()) return;
+        if (!ctx.isValidWidget()) return;
         shouldSuspendPitchLimiterRef.current = true;
-        ctx.withViewer((viewer) => {
-          if (viewerAnimationMapRef?.current) {
-            cancelViewerAnimation(viewer, viewerAnimationMapRef.current);
+        ctx.withWidget((w) => {
+          if (AnimationMapRef?.current) {
+            cancelAnimation(w, AnimationMapRef.current);
           }
-          const camera = viewer.camera;
+          const camera = w.camera;
           previousPercentageChangedRef.current =
             camera.percentageChanged ?? 0.01;
           camera.percentageChanged = 0.002;
@@ -182,7 +182,7 @@ export function useOrientationCubeDrag({
   }, [
     handleMouseUp,
     ctx,
-    viewerAnimationMapRef,
+    AnimationMapRef,
     shouldSuspendPitchLimiterRef,
     dragThresholdPx,
     stepAnimation,

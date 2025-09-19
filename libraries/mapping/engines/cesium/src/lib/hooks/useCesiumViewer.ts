@@ -2,10 +2,10 @@ import { Viewer } from "cesium";
 import { useCesiumContext } from "./useCesiumContext";
 
 export const useCesiumViewer = (): Viewer | undefined => {
-  const { withViewer } = useCesiumContext();
+  const { withWidget } = useCesiumContext();
   let viewer: Viewer | undefined;
-  withViewer((v) => {
-    viewer = v;
+  withWidget((w) => {
+    viewer = w as Viewer;
   });
   if (!viewer) {
     return;

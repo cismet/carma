@@ -67,7 +67,12 @@ const cleanupOutlineEntity = (
 
 export const useFootprints = (debug = false): void => {
   const ctx = useCesiumContext();
-  const { viewerRef, requestRender, isValidViewer, withEntities } = ctx;
+  const {
+    widgetRef,
+    requestRender,
+    isValidWidget: isValidWidget,
+    withEntities,
+  } = ctx;
   const {
     isObliqueMode,
     selectedImage,
@@ -167,7 +172,7 @@ export const useFootprints = (debug = false): void => {
 
   useEffect(() => {
     if (
-      !isValidViewer() ||
+      !isValidWidget() ||
       !selectedImage ||
       !footprintData ||
       !isObliqueMode
@@ -278,7 +283,7 @@ export const useFootprints = (debug = false): void => {
       });
     }
   }, [
-    viewerRef,
+    widgetRef,
     isObliqueMode,
     selectedImage,
     footprintData,
@@ -290,7 +295,7 @@ export const useFootprints = (debug = false): void => {
     animationDelay,
     animationEasing,
     debug,
-    isValidViewer,
+    isValidWidget,
     requestRender,
     ctx,
     withEntities,

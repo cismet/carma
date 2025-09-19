@@ -4,7 +4,7 @@ import { useSelector } from "react-redux";
 import {
   selectShowPrimaryTileset,
   selectShowSecondaryTileset,
-  selectViewerIsMode2d,
+  selectCesiumIsInBackground,
 } from "../slices/cesium";
 
 import { TRANSITION_DELAY } from "../viewerDefaults";
@@ -21,7 +21,7 @@ export const useTilesets = () => {
   const ctx = useCesiumContext();
   const showSecondary = useSelector(selectShowSecondaryTileset);
 
-  const isMode2d = useSelector(selectViewerIsMode2d);
+  const isMode2d = useSelector(selectCesiumIsInBackground);
   useTilesetsDebug();
 
   useEffect(() => {

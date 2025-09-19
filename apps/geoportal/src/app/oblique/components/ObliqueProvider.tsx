@@ -247,7 +247,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
 
       try {
         let computedResults: NearestObliqueImageRecord[] | undefined;
-        ctx.withCamera((camera, viewer) => {
+        ctx.withCamera((camera, w) => {
           const cartographic = camera.positionCartographic;
           if (!cartographic) return;
 
@@ -268,12 +268,11 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
             y: orbitPointCoords[1],
           };
           const k = NUM_NEAREST_IMAGES;
-          const frameId =
-            (
-              viewer as unknown as {
-                scene?: { frameState?: { frameNumber?: number } };
-              }
-            )?.scene?.frameState?.frameNumber ?? null;
+          let frameId;
+          ctx.withScene((scene) => {
+            frameId = scene.frameState?.frameNumber ?? null;
+          });
+
           const key = `${Math.round(orbitPointTargetCrs.x)}:${Math.round(
             orbitPointTargetCrs.y
           )}:${cameraCardinal}:${k}:${
@@ -392,7 +391,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     ]
   );
 
-  // Initial camera settled is driven by CesiumContextProvider/useInitializeViewer
+  // Initial camera settled is driven by CesiumContextProvider/useInitialize
 
   const performToggleAction = useCallback(() => {
     setIsObliqueMode((prevMode: boolean) => {
@@ -471,7 +470,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
   useEffect(() => {
     if (
       isObliqueMode &&
-      ctx.isViewerReady &&
+      ctx.isReady &&
       isInitialCameraSettled &&
       isAllDataReady &&
       typeof selectedImageRefresh === "function" &&
@@ -494,10 +493,10 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
       // As a fallback, hook into a few postRender frames to attempt again when depth/orbit point is available
       let remainingFrames = 20;
       let detach: (() => void) | null = null;
-      ctx.withViewer((viewer) => {
-        const handler = () => {
+      const handler = () => {
+        ctx.withScene((scene) => {
           if (cancelled || remainingFrames-- <= 0) {
-            viewer.scene.postRender.removeEventListener(handler);
+            scene.postRender.removeEventListener(handler);
             detach = null;
             return;
           }
@@ -506,13 +505,21 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
             force: true,
           });
           if (results && results.length > 0) {
-            viewer.scene.postRender.removeEventListener(handler);
+            scene.postRender.removeEventListener(handler);
             detach = null;
           }
-        };
-        viewer.scene.postRender.addEventListener(handler);
-        detach = () => viewer.scene.postRender.removeEventListener(handler);
+        });
+      };
+
+      ctx.withScene((scene) => {
+        scene.postRender.addEventListener(handler);
       });
+
+      const detach = () => {
+        ctx.withScene((scene) => {
+          scene.postRender.removeEventListener(handler);
+        });
+      };
 
       // Minimal extra safety: schedule two additional forced refreshes shortly after settle
       const t1 = setTimeout(
@@ -525,7 +532,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
       );
       return () => {
         cancelled = true;
-        if (detach) detach();
+        detach?.();
         clearTimeout(t1);
         clearTimeout(t2);
       };
@@ -533,7 +540,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     // We intentionally do not include imageRecords here to avoid multiple triggers
   }, [
     isObliqueMode,
-    ctx.isViewerReady,
+    ctx.isReady,
     isInitialCameraSettled,
     isAllDataReady,
     selectedImageRefresh,
@@ -546,7 +553,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
   useEffect(() => {
     if (
       !isObliqueMode ||
-      !ctx.isViewerReady ||
+      !ctx.isReady ||
       !isInitialCameraSettled ||
       typeof selectedImageRefresh !== "function" ||
       !orbitPoint
@@ -558,19 +565,19 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
   }, [
     isObliqueMode,
     ctx,
-    ctx.isViewerReady,
+    ctx.isReady,
     isInitialCameraSettled,
     orbitPoint,
     selectedImageRefresh,
   ]);
 
-  // Once a nearest image exists and the viewer is ready, retrigger render twice (100ms apart)
+  // Once a nearest image exists and the widget is ready, retrigger render twice (100ms apart)
   // to ensure derived visuals (e.g., footprint outline) become visible without interaction
   useEffect(() => {
-    if (isObliqueMode && ctx.isViewerReady && selectedImage && !lockFootprint) {
+    if (isObliqueMode && ctx.isReady && selectedImage && !lockFootprint) {
       ctx.requestRender({ delay: 500, repeat: 10, repeatInterval: 200 });
     }
-  }, [isObliqueMode, ctx, ctx.isViewerReady, selectedImage, lockFootprint]);
+  }, [isObliqueMode, ctx, ctx.isReady, selectedImage, lockFootprint]);
 
   // When initial camera apply starts (settled=false), clear selection and caches to avoid stale state.
   useEffect(() => {

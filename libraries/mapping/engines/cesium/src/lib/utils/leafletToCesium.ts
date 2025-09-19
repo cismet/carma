@@ -32,7 +32,7 @@ export const leafletToCesium = async (
     fallbackHeight?: number;
   }
 ) => {
-  if (!ctx.isValidViewer()) {
+  if (!ctx.isValidWidget()) {
     console.warn("No viewer available for transition");
     return false;
   }

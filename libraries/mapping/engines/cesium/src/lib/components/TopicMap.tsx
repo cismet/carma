@@ -8,7 +8,7 @@ import StyledWMSTileLayer from "react-cismap/StyledWMSTileLayer";
 
 import {
   selectShowPrimaryTileset,
-  selectViewerIsMode2d,
+  selectCesiumIsInBackground,
 } from "../slices/cesium";
 
 // TODO sync this setting across app
@@ -17,7 +17,7 @@ const DEFAULT_MODE_2D_3D_CHANGE_FADE_DURATION = 1000;
 // TODO remove this component replace with cesium overlayed on provied leaflet instance
 export const TopicMap = ({ forceShow = false } = {}) => {
   const isPrimaryStyle = useSelector(selectShowPrimaryTileset);
-  const isMode2d = useSelector(selectViewerIsMode2d);
+  const isMode2d = useSelector(selectCesiumIsInBackground);
 
   const componentRef = useRef<null | HTMLDivElement>(null);
 

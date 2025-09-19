@@ -27,7 +27,7 @@ import {
   useOverlayTourContext,
 } from "@carma-commons/ui/helper-overlay";
 import { cn } from "@carma-commons/utils";
-import { selectViewerIsMode2d } from "@carma-mapping/engines/cesium";
+import { selectIsInBackground } from "@carma-mapping/engines/cesium";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 
 import {
@@ -62,7 +62,7 @@ const TopNavbar = () => {
   const { setAppMenuVisible } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
 
-  const isMode2d = useSelector(selectViewerIsMode2d);
+  const isMode2d = useSelector(selectIsInBackground);
   const backgroundLayer = useSelector(getBackgroundLayer);
   const selectedMapLayer = useSelector(getSelectedMapLayer);
   const selectedLuftbildLayer = useSelector(getSelectedLuftbildLayer);

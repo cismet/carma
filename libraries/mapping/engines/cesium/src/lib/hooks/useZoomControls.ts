@@ -8,7 +8,7 @@ import {
   Ray,
   PerspectiveFrustum,
 } from "cesium";
-import { cancelViewerAnimation } from "../utils/viewerAnimationMap";
+import { cancelAnimation } from "../utils/AnimationMap";
 import { cesiumAnimateFov } from "../utils/cesiumAnimateFov";
 import type { CesiumContextType } from "../CesiumContext";
 import { sceneHasTweens } from "../utils/sceneHasTweens";
@@ -37,19 +37,19 @@ const zoom = (
   duration: number,
   moveRateFactor: number
 ): void => {
-  ctx.withViewer((viewer) => {
+  ctx.withWidget((w) => {
     let wasCancelled = false;
-    if (!ctx.viewerAnimationMapRef.current) return;
+    if (!ctx.AnimationMapRef.current) return;
 
-    if (ctx.viewerAnimationMapRef.current.get(viewer)) {
-      cancelViewerAnimation(viewer, ctx.viewerAnimationMapRef.current);
+    if (ctx.AnimationMapRef.current.get(w)) {
+      cancelAnimation(w, ctx.AnimationMapRef.current);
       wasCancelled = true;
     } // TODO: replace with a public API when one is available to check for ongoing flyTo animations
 
-    const camera = viewer.camera;
-    const scene = viewer.scene;
-    const canvas = viewer.canvas;
-    const globe = viewer.scene.globe;
+    const camera = w.camera;
+    const scene = w.scene;
+    const canvas = w.canvas;
+    const globe = w.scene.globe;
 
     if (sceneHasTweens(viewer)) {
       camera.completeFlight();
@@ -145,8 +145,8 @@ const fovZoom = (
   maxFov: number = CesiumMath.toRadians(120),
   minFov: number = CesiumMath.toRadians(5)
 ) => {
-  const hasViewer = ctx.withViewer((viewer) => {
-    cancelViewerAnimation(viewer, ctx.viewerAnimationMapRef.current);
+  const hasViewer = ctx.withWidget((w) => {
+    cancelAnimation(w, ctx.AnimationMapRef.current);
   });
   if (!hasViewer) return;
   ctx.withCamera((camera) => {

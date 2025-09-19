@@ -7,9 +7,9 @@ import { useCesiumViewer } from "./useCesiumViewer";
 import { useCesiumContext } from "./useCesiumContext";
 import {
   selectScreenSpaceCameraControllerEnableCollisionDetection,
-  selectViewerIsAnimating,
-  selectViewerIsMode2d,
-  selectViewerIsTransitioning,
+  selectCesiumIsAnimating,
+  selectCesiumIsInBackground,
+  selectCesiumIsTransitioning,
 } from "../slices/cesium";
 
 const DEFAULT_MIN_PITCH = 12;
@@ -30,10 +30,10 @@ const useCameraPitchEasingLimiter = (
   const viewer = useCesiumViewer();
   const { shouldSuspendCameraLimitersRef } = useCesiumContext();
 
-  const isMode2d = useSelector(selectViewerIsMode2d);
-  const isAnimating = useSelector(selectViewerIsAnimating);
+  const isMode2d = useSelector(selectCesiumIsInBackground);
+  const isAnimating = useSelector(selectCesiumIsAnimating);
 
-  const isTransitioning = useSelector(selectViewerIsTransitioning);
+  const isTransitioning = useSelector(selectCesiumIsTransitioning);
   const collisions = useSelector(
     selectScreenSpaceCameraControllerEnableCollisionDetection
   );

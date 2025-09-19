@@ -1,6 +1,6 @@
-import { FC, ReactNode, useEffect, useRef, useState } from "react";
+import { ReactNode, useEffect, useRef, useState } from "react";
 import {
-  CesiumWidget,
+  type CesiumWidget,
   Cesium3DTileset,
   Cartesian3,
   BoundingSphere,
@@ -54,7 +54,7 @@ const addDebugPrimitives = (widget: CesiumWidget, cartesian: Cartesian3) => {
   };
 };
 
-interface CustomCesiumWidgetProps {
+interface CesiumWidgetComponentProps {
   pixelSize?: { width: number; height: number };
   position: LatLng.deg;
   range?: number;
@@ -68,7 +68,7 @@ interface CustomCesiumWidgetProps {
   children?: ReactNode;
 }
 
-export const CustomCesiumWidget = ({
+export const CesiumWidgetComponent = ({
   children,
   clip = false,
   orthographic = false,
@@ -84,7 +84,7 @@ export const CustomCesiumWidget = ({
   },
   debug = false,
   animate = false,
-}: CustomCesiumWidgetProps) => {
+}: CesiumWidgetComponentProps) => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const [widget, setWidget] = useState<CesiumWidget | null>(null);
   const [tileset, setTileset] = useState<Cesium3DTileset | null>(null);
@@ -321,7 +321,7 @@ export const CustomCesiumWidget = ({
     return;
   }, [debug, cartesian, widget]);
 
-  console.debug("Render CustomCesiumWidget", position, range);
+  console.debug("Render CesiumWidgetComponent", position, range);
 
   return (
     <div
@@ -337,4 +337,4 @@ export const CustomCesiumWidget = ({
   );
 };
 
-export default CustomCesiumWidget;
+export default CesiumWidgetComponent;

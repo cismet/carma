@@ -4,7 +4,7 @@ import { Math as CesiumMath } from "cesium";
 
 import {
   clearIsAnimating,
-  selectViewerIsMode2d,
+  selectCesiumIsInBackground,
   setIsAnimating,
 } from "../slices/cesium";
 import { useCesiumViewer } from "./useCesiumViewer";
@@ -25,7 +25,7 @@ const useCameraRollSoftLimiter = ({
 } = {}) => {
   const viewer = useCesiumViewer();
   const dispatch = useDispatch();
-  const isMode2d = useSelector(selectViewerIsMode2d);
+  const isMode2d = useSelector(selectCesiumIsInBackground);
   const { shouldSuspendCameraLimitersRef } = useCesiumContext();
 
   const onComplete = useCallback(

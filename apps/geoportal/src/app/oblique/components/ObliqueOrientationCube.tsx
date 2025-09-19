@@ -6,7 +6,7 @@ import {
   useCesiumContext,
   cesiumCameraToCssTransform,
   getOrbitPoint,
-  cancelViewerAnimation,
+  cancelAnimation,
   guardCamera,
 } from "@carma-mapping/engines/cesium";
 
@@ -119,7 +119,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
   const half = size / 2;
 
   const ctx = useCesiumContext();
-  const { viewerRef, isViewerReady, viewerAnimationMapRef } = ctx;
+  const { widgetRef, isReady, AnimationMapRef } = ctx;
   const [, setTransformTick] = useState(0);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const lastFrustumRef = useRef<{ angle?: number; w?: number; h?: number }>({});
@@ -210,15 +210,15 @@ const ObliqueOrientationCube: React.FC<Props> = ({
 
   // Ensure perspective updates even when only FOV/aspect/size changes (pose unchanged)
   useEffect(() => {
-    if (!ctx.isValidViewer()) return;
+    if (!ctx.isValidWidget()) return;
     let cleanup: (() => void) | undefined;
-    ctx.withViewer((viewer) => {
-      const camera = viewer.camera;
-      const scene = viewer.scene;
+    ctx.withWidget((w) => {
+      const camera = w.camera;
+      const scene = w.scene;
 
       const updateFrustum = () => {
         try {
-          const el = viewer.container as Element;
+          const el = w.container as Element;
           const rect = el.getBoundingClientRect();
           const w = rect.width;
           const h = rect.height;
@@ -260,14 +260,14 @@ const ObliqueOrientationCube: React.FC<Props> = ({
     return () => {
       cleanup?.();
     };
-  }, [viewerRef, isViewerReady, ctx]);
+  }, [widgetRef, isReady, ctx]);
 
   // Build forward scene transform and inverse (for billboarding labels)
-  const cam = viewerRef.current?.camera;
+  const cam = widgetRef.current?.camera;
   const [sceneTransform, inverseSceneTransform, perspectivePx] = cam
     ? cesiumCameraToCssTransform(cam, {
         offsetRad: offsetCube ? offsetRad : 0,
-        targetEl: viewerRef.current?.container,
+        targetEl: widgetRef.current?.container,
         fallback: 1600,
       })
     : ["", "", 1600];
@@ -323,20 +323,17 @@ const ObliqueOrientationCube: React.FC<Props> = ({
       return;
     }
     // Fallback: instant snap (legacy behavior)
-    if (!ctx.isValidViewer()) return;
-    ctx.withViewer((viewer) => {
-      if (viewerAnimationMapRef?.current) {
-        cancelViewerAnimation(viewer, viewerAnimationMapRef.current);
+    if (!ctx.isValidWidget()) return;
+    ctx.withWidget((w) => {
+      if (AnimationMapRef?.current) {
+        cancelAnimation(w, AnimationMapRef.current);
       }
-      const camera = viewer.camera;
+      const camera = w.camera;
       const target = getOrbitPoint(ctx);
       if (target) {
         const range = Cartesian3.distance(target, camera.positionWC);
-        viewer.camera.lookAt(
-          target,
-          new HeadingPitchRange(0, camera.pitch, range)
-        );
-        viewer.camera.lookAtTransform(Matrix4.IDENTITY);
+        w.camera.lookAt(target, new HeadingPitchRange(0, camera.pitch, range));
+        w.camera.lookAtTransform(Matrix4.IDENTITY);
         ctx.requestRender();
       }
     });

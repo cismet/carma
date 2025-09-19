@@ -1,5 +1,5 @@
 import { EasingFunction, PerspectiveFrustum, type Viewer } from "cesium";
-import { cancelViewerAnimation, AnimationType } from "./viewerAnimationMap";
+import { cancelAnimation, AnimationType } from "./AnimationMap";
 import type { CesiumContextType } from "../CesiumContext";
 
 export interface CesiumAnimateFovOptions {
@@ -22,12 +22,12 @@ export const cesiumAnimateFov = (
     onComplete,
   }: CesiumAnimateFovOptions
 ): void => {
-  ctx.withViewer((v: Viewer) => {
-    const viewer = v;
+  ctx.withWidget((w: Viewer) => {
+    const viewer = w;
 
-    const viewerAnimationMap = ctx.viewerAnimationMapRef.current;
-    if (viewerAnimationMap) {
-      cancelViewerAnimation(viewer, viewerAnimationMap);
+    const AnimationMap = ctx.AnimationMapRef.current;
+    if (AnimationMap) {
+      cancelAnimation(viewer, AnimationMap);
     }
 
     const startTime = performance.now();
@@ -50,24 +50,24 @@ export const cesiumAnimateFov = (
 
       if (progress < 1) {
         animationFrameId = requestAnimationFrame(animate);
-        if (viewerAnimationMap) {
-          viewerAnimationMap.set(viewer!, {
+        if (AnimationMap) {
+          AnimationMap.set(viewer!, {
             id: animationFrameId,
             type: AnimationType.FovChange,
             cancelable: true,
           });
         }
       } else {
-        if (viewerAnimationMap) {
-          viewerAnimationMap.delete(viewer!);
+        if (AnimationMap) {
+          AnimationMap.delete(viewer!);
         }
         onComplete?.();
       }
     };
 
     animationFrameId = requestAnimationFrame(animate);
-    if (viewerAnimationMap) {
-      viewerAnimationMap.set(viewer, {
+    if (AnimationMap) {
+      AnimationMap.set(viewer, {
         id: animationFrameId,
         type: AnimationType.FovChange,
         cancelable: true,
@@ -77,9 +77,9 @@ export const cesiumAnimateFov = (
     return () => {
       if (animationFrameId) {
         cancelAnimationFrame(animationFrameId);
-        if (viewerAnimationMap) {
-          ctx.withViewer((viewer) => {
-            viewerAnimationMap.delete(viewer);
+        if (AnimationMap) {
+          ctx.withWidget((w) => {
+            AnimationMap.delete(w);
           });
         }
       }

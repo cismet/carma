@@ -1,4 +1,5 @@
-import { type Viewer, Matrix4 } from "cesium";
+import { Matrix4 } from "cesium";
+import type { CesiumWidget } from "../CesiumContext";
 
 export enum AnimationType {
   ResetView = "ResetView",
@@ -13,22 +14,22 @@ export type AnimationMapEntry = {
   cancelable: boolean;
   next?: AnimationMapEntry;
 };
-export type ViewerAnimationMap = WeakMap<Viewer, AnimationMapEntry>;
+export type AnimationMap = WeakMap<CesiumWidget, AnimationMapEntry>;
 
-export const initViewerAnimationMap = (): ViewerAnimationMap =>
-  new WeakMap<Viewer, AnimationMapEntry>();
+export const initAnimationMap = (): AnimationMap =>
+  new WeakMap<CesiumWidget, AnimationMapEntry>();
 
-export const cancelViewerAnimation = (
-  viewer: Viewer,
-  viewerAnimationMap: ViewerAnimationMap | null
+export const cancelAnimation = (
+  viewer: CesiumWidget,
+  AnimationMap: AnimationMap | null
 ) => {
-  if (!viewerAnimationMap) return;
-  const animationEntry = viewerAnimationMap.get(viewer);
+  if (!AnimationMap) return;
+  const animationEntry = AnimationMap.get(viewer);
   if (animationEntry) {
     cancelAnimationFrame(animationEntry.id);
     // reset any camera transforms
     viewer.scene.camera.lookAtTransform(Matrix4.IDENTITY);
-    viewerAnimationMap.delete(viewer);
+    AnimationMap.delete(viewer);
     console.debug(
       `Canceling animation of type ${animationEntry.type}`,
       animationEntry.id

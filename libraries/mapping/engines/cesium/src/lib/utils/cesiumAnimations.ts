@@ -89,9 +89,9 @@ export function animateInterpolateHeadingPitchRange(
       animationFrameId = null;
       isCanceled = true;
     }
-    ctx.withViewer((viewer) => {
-      viewer.canvas.removeEventListener("pointerdown", onUserInteraction);
-      viewer.camera.lookAtTransform(Matrix4.IDENTITY);
+    ctx.withWidget((w) => {
+      w.canvas.removeEventListener("pointerdown", onUserInteraction);
+      w.camera.lookAtTransform(Matrix4.IDENTITY);
     });
     onCancel?.();
   };

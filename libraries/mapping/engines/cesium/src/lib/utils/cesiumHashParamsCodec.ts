@@ -4,7 +4,7 @@ import {
   Math as CesiumMath,
   PerspectiveFrustum,
 } from "cesium";
-import { VIEWERSTATE_KEYS } from "../constants";
+import { CESIUM_STATE_KEYS } from "../constants";
 
 // Constants for URL parameter formatting
 const DEGREE_DIGITS = 7;
@@ -78,7 +78,7 @@ export const cesiumClearParamKeys = cesiumCameraParamKeys
   .filter(
     (k) => !["lng", "lat"].includes(k) // keep lng and lat  as they are used for 2D mode too an will be overwritten
   )
-  .concat(VIEWERSTATE_KEYS.is3d); // remove Cesium Only state keys
+  .concat(CESIUM_STATE_KEYS.is3d); // remove Cesium Only state keys
 
 function isNumber(value: unknown): value is number {
   return (

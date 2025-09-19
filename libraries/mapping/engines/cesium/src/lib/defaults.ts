@@ -1,11 +1,11 @@
-import { SceneMode, Viewer } from "cesium";
+import { SceneMode, CesiumWidget } from "cesium";
 import UAParser from "ua-parser-js";
 
 export const TRANSITION_DELAY = 1000;
 export const CESIUM_TARGET_FRAME_RATE = 120;
 const isMobile = new UAParser().getDevice().type === "mobile";
 
-export const DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS: Viewer.ConstructorOptions = {
+export const DEFAULT_CONSTRUCTOR_OPTIONS: CesiumWidget.ConstructorOptions = {
   msaaSamples: 4,
   requestRenderMode: true,
 

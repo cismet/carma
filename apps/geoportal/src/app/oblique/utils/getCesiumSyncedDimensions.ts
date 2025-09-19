@@ -4,7 +4,7 @@ import { getCanvasDimensions } from "@carma-commons/utils/canvas";
 import { useCesiumContext } from "@carma-mapping/engines/cesium";
 import { PerspectiveFrustum } from "cesium";
 
-const getViewerSyncedSize = (
+const getCesiumSyncedSize = (
   ctx: ReturnType<typeof useCesiumContext>,
   overrideFov?: number
 ): number | undefined => {
@@ -15,10 +15,10 @@ const getViewerSyncedSize = (
   if (!wDim) return;
   const maxWindow = Math.max(wDim.width, wDim.height);
 
-  ctx.withViewer((viewer) => {
-    const { width, height } = getCanvasDimensions(viewer.canvas);
+  ctx.withWidget((w) => {
+    const { width, height } = getCanvasDimensions(w.canvas);
     maxCanvas = Math.max(width, height);
-    frustum = viewer?.scene?.camera?.frustum;
+    frustum = w?.scene?.camera?.frustum;
   });
 
   // use maxCanvas if available, otherwise fall back to maxWindow
@@ -34,12 +34,12 @@ const getViewerSyncedSize = (
     const fovFactor = Math.tan(fov / 2);
     return Math.max(1, dim / fovFactor);
   } else {
-    console.debug("getViewerSyncedSize: unsupported or missing frustum; skip");
+    console.debug("getCesiumSyncedSize: unsupported or missing frustum; skip");
     return;
   }
 };
 
-export const getViewerSyncedDimensions = (
+export const getCesiumSyncedDimensions = (
   ctx: ReturnType<typeof useCesiumContext>,
   isVertical: boolean,
   imageAspectRatio: number,
@@ -51,7 +51,7 @@ export const getViewerSyncedDimensions = (
   const heightScaleFactor =
     baseScaleFactor * (isVertical ? 1 : 1 / imageAspectRatio);
 
-  const baseSize = Number(getViewerSyncedSize(ctx, overrideFov));
+  const baseSize = Number(getCesiumSyncedSize(ctx, overrideFov));
   const syncedWidth = (baseSize * widthScaleFactor) as CssPixelWidth;
   const syncedHeight = (baseSize * heightScaleFactor) as CssPixelHeight;
 

@@ -12,7 +12,7 @@ import { generatePositionsForRing } from "./geometryGenerators";
 import {
   PICKMODE,
   pickViewerCanvasPositions,
-  pickViewerCanvasCenter,
+  pickCanvasCenter,
 } from "./pickers";
 
 export const getPixelSizeForPosition = (
@@ -45,12 +45,12 @@ const sampleRingPixelSize = (
   const positions = pickViewerCanvasPositions(ctx, positionCoords);
   const pixelSizes: (number | null)[] = [];
 
-  ctx.withViewer((viewer) => {
-    const { drawingBufferWidth, drawingBufferHeight } = viewer.scene;
+  ctx.withWidget((w) => {
+    const { drawingBufferWidth, drawingBufferHeight } = w.scene;
     positions.forEach(({ scenePosition }) => {
       const pixelSize = getPixelSizeForPosition(
         scenePosition,
-        viewer.camera,
+        w.camera,
         drawingBufferWidth,
         drawingBufferHeight
       );
@@ -84,7 +84,7 @@ export const getScenePixelSize = (
   mode = PICKMODE.CENTER,
   { samples = 10, radius = 0.2 }: { samples?: number; radius?: number } = {}
 ): NumericResult => {
-  if (!ctx.isValidViewer()) return { value: null };
+  if (!ctx.isValidWidget()) return { value: null };
 
   // sample two position to get better approximation for full view extent
   if (radius >= 0.5) {
@@ -109,7 +109,7 @@ export const getScenePixelSize = (
     }
     case PICKMODE.CENTER:
     default: {
-      const centerPos = pickViewerCanvasCenter(ctx, {
+      const centerPos = pickCanvasCenter(ctx, {
         getPixelSize: true,
       });
       result.value = centerPos.pixelSize;

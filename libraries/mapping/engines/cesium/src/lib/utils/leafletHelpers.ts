@@ -24,7 +24,7 @@ export const setLeafletView = async (
     animate = false,
   }: { duration?: number; animate?: boolean } = {}
 ) => {
-  if (!ctx.isValidViewer() || !leafletElement) return;
+  if (!ctx.isValidWidget() || !leafletElement) return;
 
   let zoom = cesiumCenterPixelSizeToLeafletZoom(ctx).value;
   if (zoom === null) {

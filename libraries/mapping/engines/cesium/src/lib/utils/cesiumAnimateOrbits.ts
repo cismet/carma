@@ -2,18 +2,17 @@ import {
   Cartesian3,
   HeadingPitchRange,
   Matrix4,
-  Viewer,
   Math as CesiumMath,
   Cartesian2,
 } from "cesium";
 
 import type { Radians } from "@carma/types";
 
-import { AnimationType, ViewerAnimationMap } from "./viewerAnimationMap";
-import type { CesiumContextType } from "../CesiumContext";
+import { AnimationType, AnimationMap } from "./AnimationMap";
+import type { CesiumContextType, CesiumWidget } from "../CesiumContext";
 
 // TODO: consolidate cesium animation helper into separate package
-// see also viewerAnimationMap
+// see also AnimationMap
 
 export enum PITCH {
   HORIZONTAL = 0,
@@ -45,8 +44,8 @@ export const getOrbitPoint = (
 };
 
 function runAnimation(
-  viewer: Viewer,
-  viewerAnimationMap: ViewerAnimationMap,
+  viewer: CesiumWidget,
+  AnimationMap: AnimationMap,
   target: Cartesian3,
   targetHeading: number,
   targetPitch: number,
@@ -78,14 +77,14 @@ function runAnimation(
 
     if (t < 1) {
       const animationFrameId = requestAnimationFrame(animate);
-      viewerAnimationMap.set(viewer, {
+      AnimationMap.set(viewer, {
         id: animationFrameId,
         type: animationType,
         cancelable: true,
       });
     } else {
       viewer.scene.camera.lookAtTransform(Matrix4.IDENTITY);
-      viewerAnimationMap.delete(viewer); // Clear the animation entry
+      AnimationMap.delete(viewer); // Clear the animation entry
     }
   };
   animate(performance.now());
@@ -94,7 +93,7 @@ function runAnimation(
 /**
  * Animate the camera to a new position.
  * @param viewer The Cesium viewer.
- * @param viewerAnimationMap A WeakMap to store animation frame IDs.
+ * @param AnimationMap A WeakMap to store animation frame IDs.
  * @param target The target position.
  * @param targetHeading The target heading.
  * @param targetPitch The target pitch.
@@ -103,8 +102,8 @@ function runAnimation(
  * @param animationType The type of animation.
  */
 export const animateCamera = (
-  viewer: Viewer,
-  viewerAnimationMap: ViewerAnimationMap,
+  viewer: CesiumWidget,
+  AnimationMap: AnimationMap,
   target: Cartesian3,
   targetHeading: number,
   targetPitch: number,
@@ -112,7 +111,7 @@ export const animateCamera = (
   duration: number,
   animationType: AnimationType = AnimationType.ResetView
 ) => {
-  const previousAnimation = viewerAnimationMap.get(viewer);
+  const previousAnimation = AnimationMap.get(viewer);
   if (previousAnimation) {
     if (previousAnimation.cancelable) {
       console.info(`Canceling previous ${previousAnimation.type} animation`);
@@ -120,7 +119,7 @@ export const animateCamera = (
       viewer.scene.camera.lookAtTransform(Matrix4.IDENTITY);
       runAnimation(
         viewer,
-        viewerAnimationMap,
+        AnimationMap,
         target,
         targetHeading,
         targetPitch,
@@ -135,7 +134,7 @@ export const animateCamera = (
       setTimeout(() => {
         runAnimation(
           viewer,
-          viewerAnimationMap,
+          AnimationMap,
           target,
           targetHeading,
           targetPitch,
@@ -148,7 +147,7 @@ export const animateCamera = (
   } else {
     runAnimation(
       viewer,
-      viewerAnimationMap,
+      AnimationMap,
       target,
       targetHeading,
       targetPitch,

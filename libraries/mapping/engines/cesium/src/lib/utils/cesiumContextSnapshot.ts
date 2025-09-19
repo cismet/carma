@@ -3,7 +3,7 @@ import type { CesiumContextType } from "../CesiumContext";
 
 export type CesiumContextSnapshot = Readonly<
   Record<string, unknown> & {
-    isViewerReady: boolean;
+    isReady: boolean;
     viewerPresent: boolean;
     snapshotFailed?: boolean;
     sceneMode?: unknown;
@@ -32,15 +32,15 @@ export function snapshotCesiumContext(
   cesium: CesiumContextType
 ): CesiumContextSnapshot {
   try {
-    const { isViewerReady } = cesium;
+    const { isReady } = cesium;
 
     let v: Viewer | undefined;
-    cesium.withViewer((viewer) => {
-      v = viewer;
+    cesium.withWidget((w) => {
+      v = w;
     });
     if (!v) {
       return {
-        isViewerReady,
+        isReady,
         viewerPresent: false,
         providers: { imageryLayer: "none" },
         tilesets: { primary: { ready: false }, secondary: { ready: false } },
@@ -52,7 +52,7 @@ export function snapshotCesiumContext(
     // as Cesium will throw DeveloperError("This object was destroyed").
     if (v.isDestroyed && v.isDestroyed()) {
       return {
-        isViewerReady,
+        isReady,
         viewerPresent: false,
         providers: { imageryLayer: "none" },
         tilesets: { primary: { ready: false }, secondary: { ready: false } },
@@ -90,7 +90,7 @@ export function snapshotCesiumContext(
     });
 
     return {
-      isViewerReady,
+      isReady,
       viewerPresent: Boolean(v && !v.isDestroyed()),
       sceneMode: scene?.mode,
       morphTime: scene?.morphTime,
@@ -124,7 +124,7 @@ export function snapshotCesiumContext(
     } as const;
   } catch {
     return {
-      isViewerReady: false,
+      isReady: false,
       viewerPresent: false,
       providers: { imageryLayer: "none" },
       tilesets: { primary: { ready: false }, secondary: { ready: false } },

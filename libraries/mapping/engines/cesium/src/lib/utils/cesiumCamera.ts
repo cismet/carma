@@ -10,12 +10,22 @@ export const getCesiumCameraPixelDimensionForDistance = (
 ): { x: number; y: number; average: number } | null => {
   let pixelDimensions;
 
-  const hasDimensions = ctx.withCamera((camera, viewer) => {
+  const hasDimensions = ctx.withCamera((camera, w) => {
+    const dpr = (typeof window !== "undefined" && window.devicePixelRatio) || 1;
+    const useBrowserRecommendedResolution = Boolean(
+      (viewer as unknown as { useBrowserRecommendedResolution?: boolean })
+        ?.useBrowserRecommendedResolution
+    );
+    const resolutionScale =
+      (viewer as unknown as { resolutionScale?: number }).resolutionScale ?? 1;
+    const basePixelRatio = useBrowserRecommendedResolution ? 1 : dpr;
+    const pixelRatio =
+      basePixelRatio * (resolutionScale > 0 ? resolutionScale : 1);
     pixelDimensions = camera.frustum.getPixelDimensions(
       viewer.scene.drawingBufferWidth,
       viewer.scene.drawingBufferHeight,
       distance,
-      viewer.resolutionScale,
+      pixelRatio,
       new Cartesian2()
     );
   });

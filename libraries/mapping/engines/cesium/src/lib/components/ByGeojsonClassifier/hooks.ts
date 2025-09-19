@@ -43,8 +43,8 @@ export const useSelectAndHighlightGeoJsonEntity = (
       return;
     }
     let originalMaterials;
-    if (ctx.isValidViewer()) {
-      const viewer = ctx.viewerRef.current!;
+    if (ctx.isValidWidget()) {
+      const viewer = ctx.widgetRef.current!;
       originalMaterials = new Map<Entity, MaterialProperty>();
       console.debug("HOOK ByGeoJsonClassifier add ScreenSpaceEventHandler");
       handler.current = new ScreenSpaceEventHandler(viewer.scene.canvas);

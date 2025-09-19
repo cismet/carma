@@ -1,16 +1,16 @@
 import { useMemo, type MutableRefObject } from "react";
 import {
   CesiumTerrainProvider,
+  CesiumWidget,
   ImageryProvider,
   EllipsoidTerrainProvider,
-  Viewer,
   ImageryLayer,
   Cesium3DTileset,
 } from "cesium";
 
 import {
-  isValidViewer as isValidViewerNoCtx,
-  withValidViewer,
+  isValidWidget as isValidWidgetNoCtx,
+  withValidWidget,
   isValidImageryLayer,
   isValidTileset,
   isValidCesiumTerrainProvider,
@@ -22,22 +22,24 @@ export type KnownProviders =
   | ImageryProvider
   | EllipsoidTerrainProvider;
 
-export const useValidInstances = (viewerRef: MutableRefObject<Viewer | null>) =>
+export const useValidInstances = (
+  widgetRef: MutableRefObject<CesiumWidget | null>
+) =>
   useMemo(() => {
-    const withViewer = (cb: (viewer: Viewer) => void): boolean =>
-      withValidViewer(viewerRef.current, cb);
+    const withWidget = (cb: (w: CesiumWidget) => void): boolean =>
+      withValidWidget(widgetRef.current, cb);
 
-    const isValidViewer = () => isValidViewerNoCtx(viewerRef.current);
+    const isValidWidget = () => isValidWidgetNoCtx(widgetRef.current);
 
     const withImageryLayerRef = (
       imageryLayerRef: MutableRefObject<ImageryLayer | null>,
-      cb: (imageryLayer: ImageryLayer, viewer: Viewer) => void
+      cb: (imageryLayer: ImageryLayer, viewer: CesiumWidget) => void
     ): boolean => {
       if (
-        isValidViewerNoCtx(viewerRef.current) &&
+        isValidWidgetNoCtx(widgetRef.current) &&
         isValidImageryLayer(imageryLayerRef.current)
       ) {
-        cb(imageryLayerRef.current, viewerRef.current);
+        cb(imageryLayerRef.current, widgetRef.current);
         return true;
       }
       return false;
@@ -45,13 +47,13 @@ export const useValidInstances = (viewerRef: MutableRefObject<Viewer | null>) =>
 
     const withTerrainProviderRef = (
       terrainProviderRef: MutableRefObject<CesiumTerrainProvider | null>,
-      cb: (terrainProvider: CesiumTerrainProvider, viewer: Viewer) => void
+      cb: (terrainProvider: CesiumTerrainProvider, viewer: CesiumWidget) => void
     ): boolean => {
       if (
-        isValidViewerNoCtx(viewerRef.current) &&
+        isValidWidgetNoCtx(widgetRef.current) &&
         isValidCesiumTerrainProvider(terrainProviderRef.current)
       ) {
-        cb(terrainProviderRef.current, viewerRef.current);
+        cb(terrainProviderRef.current, widgetRef.current);
         return true;
       }
       return false;
@@ -61,14 +63,14 @@ export const useValidInstances = (viewerRef: MutableRefObject<Viewer | null>) =>
       ellipsoidTerrainProviderRef: MutableRefObject<EllipsoidTerrainProvider | null>,
       cb: (
         ellipsoidTerrainProvider: EllipsoidTerrainProvider,
-        viewer: Viewer
+        viewer: CesiumWidget
       ) => void
     ): boolean => {
       if (
-        isValidViewerNoCtx(viewerRef.current) &&
+        isValidWidgetNoCtx(widgetRef.current) &&
         isValidEllipsoidTerrainProvider(ellipsoidTerrainProviderRef.current)
       ) {
-        cb(ellipsoidTerrainProviderRef.current, viewerRef.current);
+        cb(ellipsoidTerrainProviderRef.current, widgetRef.current);
         return true;
       }
       return false;
@@ -76,13 +78,13 @@ export const useValidInstances = (viewerRef: MutableRefObject<Viewer | null>) =>
 
     const withTilesetRef = (
       tilesetRef: MutableRefObject<Cesium3DTileset | null>,
-      cb: (tileset: Cesium3DTileset, viewer: Viewer) => void
+      cb: (tileset: Cesium3DTileset, viewer: CesiumWidget) => void
     ): boolean => {
       if (
-        isValidViewerNoCtx(viewerRef.current) &&
+        isValidWidgetNoCtx(widgetRef.current) &&
         isValidTileset(tilesetRef.current)
       ) {
-        cb(tilesetRef.current, viewerRef.current);
+        cb(tilesetRef.current, widgetRef.current);
         return true;
       }
       return false;
@@ -90,10 +92,10 @@ export const useValidInstances = (viewerRef: MutableRefObject<Viewer | null>) =>
 
     return {
       withViewer,
-      isValidViewer,
+      isValidWidget,
       withImageryLayerRef,
       withTerrainProviderRef,
       withEllipsoidTerrainProviderRef,
       withTilesetRef,
     };
-  }, [viewerRef]);
+  }, [widgetRef]);

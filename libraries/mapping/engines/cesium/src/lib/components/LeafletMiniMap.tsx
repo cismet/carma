@@ -13,7 +13,7 @@ import { makeLeafletMarkerRotatable } from "./LeafletMiniMap.utils";
 
 import camera_png from "./camera.png";
 import "leaflet/dist/leaflet.css";
-import { getViewerViewportPolygonRing } from "../utils/pickers";
+import { getViewportPolygonRing } from "../utils/pickers";
 
 //TODO sync time externally if needed
 const DEFAULT_MODE_2D_3D_CHANGE_FADE_DURATION = 1000;
@@ -81,7 +81,7 @@ export const LeafletMiniMap = ({
   }, [layerUrl]);
 
   useEffect(() => {
-    if (mapInstanceRef.current && ctx.isValidViewer()) {
+    if (mapInstanceRef.current && ctx.isValidWidget()) {
       const lRect = new L.Rectangle([
         [0, 0],
         [0, 0],
@@ -122,15 +122,7 @@ export const LeafletMiniMap = ({
 
           camMarker.setLatLng([lat, lng]);
 
-          /*   
-        const zoom = cesiumCenterPixelSizeToLeafletZoom(viewer).value;
-        zoom &&
-          lMap.setView({ lat, lng }, Math.round(zoom - zoomOffset), {
-            animate: false,
-          });
-        */
-
-          const geom = getViewerViewportPolygonRing(ctx, {
+          const geom = getViewportPolygonRing(ctx, {
             resolutionRange: viewportLimitResolutionFactor,
           });
 

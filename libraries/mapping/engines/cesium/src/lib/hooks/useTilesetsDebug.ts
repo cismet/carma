@@ -2,7 +2,6 @@ import { useEffect, useRef } from "react";
 import { viewerCesium3DTilesInspectorMixin } from "cesium";
 
 import { useCesiumContext } from "./useCesiumContext";
-import { useCesiumViewer } from "./useCesiumViewer";
 
 import { useTilesetDebug } from "./useTilesetDebug";
 import { useTweakpaneCtx } from "@carma-commons/debug";
@@ -20,14 +19,14 @@ export const useTilesetsDebug = () => {
   const { paneCallback } = useTweakpaneCtx();
 
   useEffect(() => {
-    ctx.withViewer((viewer) => {
+    ctx.withWidget((w) => {
       if (paneCallback && !buttonRef.current) {
         paneCallback((pane) => {
           buttonRef.current = pane.addButton({
             title: "Add Tile Inspector Mixin",
           });
           buttonRef.current.on("click", () => {
-            viewer.extend(viewerCesium3DTilesInspectorMixin);
+            w.extend(viewerCesium3DTilesInspectorMixin);
             buttonRef.current?.dispose();
           });
         });

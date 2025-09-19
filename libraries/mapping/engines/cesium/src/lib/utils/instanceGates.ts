@@ -15,11 +15,15 @@ import {
   ScreenSpaceCameraController,
   Scene,
   ScreenSpaceEventHandler,
-  Viewer,
+  CesiumWidget,
 } from "cesium";
 
-export const isValidViewerInstance = (viewer: unknown): viewer is Viewer =>
-  viewer instanceof Viewer && viewer.isDestroyed() === false;
+export const isValidCesiumWidgetInstance = (
+  widget: unknown
+): widget is CesiumWidget =>
+  widget instanceof CesiumWidget &&
+  typeof widget.isDestroyed === "function" &&
+  widget.isDestroyed() === false;
 
 export const isValidScene = (scene: unknown): scene is Scene =>
   scene instanceof Scene && scene.isDestroyed() === false;
@@ -74,8 +78,10 @@ export const isValidTileset = (
   return tileset instanceof Cesium3DTileset && tileset.isDestroyed() === false;
 };
 
-export const isValidViewer = (viewer: Viewer | null): viewer is Viewer => {
-  if (!isValidViewerInstance(viewer)) return false;
+export const isValidWidget = (
+  viewer: CesiumWidget | null
+): viewer is CesiumWidget => {
+  if (!isValidWidgetInstance(viewer)) return false;
   if (!viewer.scene || !isValidScene(viewer.scene)) return false;
 
   if (!viewer.camera || !isValidCamera(viewer.camera)) return false;
@@ -147,11 +153,11 @@ export const isValidGroundPrimitive = (
 /**
  * Validates a Cesium viewer and executes a callback if valid
  */
-export const withValidViewer = (
-  viewer: Viewer | null,
-  cb: (viewer: Viewer) => void
+export const withValidWidget = (
+  viewer: CesiumWidget | null,
+  cb: (viewer: CesiumWidget) => void
 ): boolean => {
-  if (!isValidViewer(viewer)) return false;
+  if (!isValidWidget(viewer)) return false;
   cb(viewer);
   return true;
 };

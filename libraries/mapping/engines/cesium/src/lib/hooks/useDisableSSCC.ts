@@ -1,28 +1,27 @@
 import { useEffect } from "react";
 import { useSelector } from "react-redux";
 
-import { useCesiumViewer } from "./useCesiumViewer";
 import {
-  selectViewerIsAnimating,
-  selectViewerIsTransitioning,
+  selectCesiumIsAnimating,
+  selectSceneIsTransitioning,
 } from "../slices/cesium";
 import { guardScreenSpaceCameraController } from "../utils/guardScreenSpaceCameraController";
 import { useCesiumContext } from "./useCesiumContext";
 
 const useDisableSSCC = () => {
-  const isAnimating = useSelector(selectViewerIsAnimating);
-  const isTransitioning = useSelector(selectViewerIsTransitioning);
+  const isAnimating = useSelector(selectCesiumIsAnimating);
+  const isTransitioning = useSelector(selectSceneIsTransitioning);
   console.debug("HOOKINIT [CESIUM|SCENE] useDisableSSCC");
   const ctx = useCesiumContext();
   useEffect(() => {
-    ctx.withViewer((viewer) => {
+    ctx.withWidget((w) => {
       const isEnabled = !isAnimating && !isTransitioning;
       console.info(
         "HOOK [CESIUM|SCENE|SSCC] map interaction set to",
         isEnabled
       );
       guardScreenSpaceCameraController(
-        viewer.scene.screenSpaceCameraController,
+        w.scene.screenSpaceCameraController,
         "useDisableSSCC"
       )
         .enableRotate(isEnabled)

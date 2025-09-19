@@ -85,7 +85,7 @@ export const CarmaMapProviderWrapper = ({
                     color={color}
                   >
                     <CesiumContextProvider
-                      //initialViewerState={defaultCesiumState}
+                      //initialState={defaultCesiumState}
                       // TODO move these to store/slice setup ?
                       providerConfig={cesiumOptions.providerConfig}
                       tilesetConfigs={cesiumOptions.tilesetConfigs}

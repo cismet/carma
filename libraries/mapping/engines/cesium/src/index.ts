@@ -4,25 +4,19 @@ import { isColorRgbaArray } from "./lib/utils/cesiumSerializer";
 
 export * from "./lib/slices/cesium";
 
-export { type CesiumContextType } from "./lib/CesiumContext";
 export { CesiumContextProvider } from "./lib/CesiumContextProvider";
 
-export { CustomCesiumWidget } from "./lib/CustomCesiumWidget";
 export {
   CesiumErrorHandler as CesiumErrorHandling,
   type ForwardedCesiumError,
 } from "./lib/CesiumErrorHandler";
 
 export {
-  CustomViewer,
+  CesiumWidgetComponent,
   type InitialCameraView,
   type CameraLimiterOptions,
-} from "./lib/CustomViewer";
-export {
-  DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS,
-  TRANSITION_DELAY,
-} from "./lib/viewerDefaults";
-export { CustomViewerPlayground } from "./lib/CustomViewerPlayground";
+} from "./lib/CesiumWidgetComponent";
+export { DEFAULT_CONSTRUCTOR_OPTIONS, TRANSITION_DELAY } from "./lib/defaults";
 
 export { ByGeojsonClassifier } from "./lib/components/ByGeojsonClassifier";
 export { ByTilesetClassifier } from "./lib/components/ByTilesetClassifier";
@@ -45,7 +39,8 @@ export { useFovWheelZoom } from "./lib/hooks/useFovWheelZoom";
 export { useSceneStyles } from "./lib/hooks/useSceneStyles";
 export { useZoomControls } from "./lib/hooks/useZoomControls";
 
-export { VIEWERSTATE_KEYS } from "./lib/constants";
+// TODO move to props or config
+export { CESIUM_STATE_KEYS } from "./lib/constants";
 export { CUSTOM_SHADERS_DEFINITIONS } from "./lib/shaders";
 
 // TODO: all the utils used elsewhere with no cesium dedependency should be moved to common helper utils lib
@@ -101,7 +96,7 @@ export {
 } from "./lib/utils/cesiumGroundPrimitives";
 export { addCesiumMarker, removeCesiumMarker } from "./lib/utils/cesiumMarkers";
 export {
-  getIsViewerReadyAsync,
+  getisReadyAsync,
   setupCesiumEnvironment,
 } from "./lib/utils/cesiumSetup";
 
@@ -116,15 +111,15 @@ export {
   isValidScreenSpaceEventHandler,
   isValidScene,
   isValidTileset,
-  isValidViewer,
-  withValidViewer,
+  isValidWidget,
+  withValidWidget,
 } from "./lib/utils/instanceGates";
 
-export { pickViewerCanvasCenter } from "./lib/utils/pickers";
+export { pickCanvasCenter } from "./lib/utils/pickers";
 
 // Safe guard wrappers
 export { guardEntityCollection } from "./lib/utils/guardEntityCollection";
-export { guardViewer } from "./lib/utils/guardViewer";
+export { guardWidget } from "./lib/utils/guardWidget";
 export { guardScene } from "./lib/utils/guardScene";
 export { guardCamera } from "./lib/utils/guardCamera";
 export { guardSampleTerrainMostDetailedAsync } from "./lib/utils/guardSampleTerrainMostDetailedAsync";
@@ -145,10 +140,10 @@ export {
 } from "./lib/utils/elevation";
 
 export {
-  type ViewerAnimationMap,
-  cancelViewerAnimation,
-  initViewerAnimationMap,
-} from "./lib/utils/viewerAnimationMap";
+  type AnimationMap,
+  cancelAnimation,
+  initAnimationMap,
+} from "./lib/utils/AnimationMap";
 
 export {
   getDegreesFromCartesian,

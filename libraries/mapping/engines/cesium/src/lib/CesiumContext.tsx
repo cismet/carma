@@ -1,4 +1,4 @@
-import { createContext, MutableRefObject } from "react";
+import { createContext, type MutableRefObject } from "react";
 
 import type {
   Camera,
@@ -8,17 +8,17 @@ import type {
   EntityCollection,
   ImageryLayer,
   Scene,
-  Viewer,
+  CesiumWidget,
 } from "cesium";
-import { ViewerAnimationMap } from "./utils/viewerAnimationMap";
+import type { AnimationMap } from "./utils/animationMap";
 
 export interface CesiumContextType {
-  viewerRef: MutableRefObject<Viewer | null>;
-  viewerAnimationMapRef: MutableRefObject<ViewerAnimationMap | null>;
+  widgetRef: MutableRefObject<CesiumWidget | null>;
+  AnimationMapRef: MutableRefObject<AnimationMap | null>;
   shouldSuspendPitchLimiterRef: MutableRefObject<boolean>;
   shouldSuspendCameraLimitersRef: MutableRefObject<boolean>;
-  isViewerReady: boolean;
-  setIsViewerReady: (flag: boolean) => void;
+  isReady: boolean;
+  setisReady: (flag: boolean) => void;
   // null: not started determining; false: determining/applying; true: settled
   initialCameraSettled: boolean | null;
   setInitialCameraSettled: (flag: boolean | null) => void;
@@ -30,34 +30,36 @@ export interface CesiumContextType {
     repeat?: number; // times
     repeatInterval?: number; // ms
   }) => void;
-  // Shorthands for viewer validation
-  isValidViewer: () => boolean;
-  withViewer: (cb: (viewer: Viewer) => void) => boolean;
-  withCamera: (cb: (camera: Camera, viewer: Viewer) => void) => boolean;
+  // Shorthands for widget validation
+  isValidWidget: () => boolean;
+  // Deprecated alias during migration; prefer isValidWidget
+  isValidWidget: () => boolean;
+  withWidget: (cb: (widget: CesiumWidget) => void) => boolean;
+  withCamera: (cb: (camera: Camera, widget: CesiumWidget) => void) => boolean;
   withCanvas: (
-    cb: (canvas: HTMLCanvasElement, viewer: Viewer) => void
+    cb: (canvas: HTMLCanvasElement, widget: CesiumWidget) => void
   ) => boolean;
-  withScene: (cb: (scene: Scene, viewer: Viewer) => void) => boolean;
+  withScene: (cb: (scene: Scene, widget: CesiumWidget) => void) => boolean;
   withEntities: (
-    cb: (entities: EntityCollection, viewer: Viewer) => void
+    cb: (entities: EntityCollection, widget: CesiumWidget) => void
   ) => boolean;
   withImageryLayer: (
-    cb: (imageryLayer: ImageryLayer, viewer: Viewer) => void
+    cb: (imageryLayer: ImageryLayer, widget: CesiumWidget) => void
   ) => boolean;
   withPrimaryTileset: (
-    cb: (tileset: Cesium3DTileset, viewer: Viewer) => void
+    cb: (tileset: Cesium3DTileset, widget: CesiumWidget) => void
   ) => boolean;
   withSecondaryTileset: (
-    cb: (tileset: Cesium3DTileset, viewer: Viewer) => void
+    cb: (tileset: Cesium3DTileset, widget: CesiumWidget) => void
   ) => boolean;
   withEllipsoidTerrainProvider: (
-    cb: (provider: EllipsoidTerrainProvider, viewer: Viewer) => void
+    cb: (provider: EllipsoidTerrainProvider, widget: CesiumWidget) => void
   ) => boolean;
   withTerrainProvider: (
-    cb: (provider: CesiumTerrainProvider, viewer: Viewer) => void
+    cb: (provider: CesiumTerrainProvider, widget: CesiumWidget) => void
   ) => boolean;
   withSurfaceProvider: (
-    cb: (provider: CesiumTerrainProvider, viewer: Viewer) => void
+    cb: (provider: CesiumTerrainProvider, widget: CesiumWidget) => void
   ) => boolean;
 }
 

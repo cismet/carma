@@ -20,9 +20,9 @@ import {
 } from "../utils/cesiumHelpers";
 import { setLeafletView } from "../utils/leafletHelpers";
 import { leafletToCesium } from "../utils/leafletToCesium";
-import { pickViewerCanvasCenter } from "../utils/pickers";
+import { pickCanvasCenter } from "../utils/pickers";
 import { cesiumCenterPixelSizeToLeafletZoom } from "../utils/pixels";
-// import removed: rely on cesiumContext.isValidViewer
+// import removed: rely on cesiumContext.isValidWidget
 
 type TransitionOptions = {
   onComplete?: (isTo2d: boolean) => void;
@@ -39,7 +39,7 @@ export const useMapTransition = ({
   const topicMapContext = useContext<typeof TopicMapContext>(TopicMapContext);
   const { realRoutedMapRef: routedMapRef } = topicMapContext;
   const cesiumContext = useCesiumContext();
-  const { viewerRef } = cesiumContext;
+  const { widgetRef } = cesiumContext;
 
   if (duration === undefined) {
     duration = DEFAULT_MODE_2D_3D_CHANGE_FADE_DURATION;
@@ -50,7 +50,7 @@ export const useMapTransition = ({
 
   const transitionToMode3d = async () => {
     if (
-      !viewerRef.current ||
+      !widgetRef.current ||
       !routedMapRef.current?.leafletMap?.leafletElement
     ) {
       console.warn("cesium or leaflet not available");
@@ -72,7 +72,7 @@ export const useMapTransition = ({
     // introduces side effects with gazetteer and home button, always show animation
 
     const onCompleteAnimatedTo3d = () => {
-      const pos = pickViewerCanvasCenter(cesiumContext).scenePosition;
+      const pos = pickCanvasCenter(cesiumContext).scenePosition;
 
       if (pos && prevHPR) {
         console.debug(
@@ -109,7 +109,7 @@ export const useMapTransition = ({
       console.warn("leaflet not available no transition possible [zoom]");
       return;
     }
-    if (!viewerRef.current) {
+    if (!widgetRef.current) {
       console.warn("cesium not available no transition possible [zoom]");
       return;
     }
@@ -118,7 +118,7 @@ export const useMapTransition = ({
 
     // Do not transition if we cannot pick ground from depth (ellipsoid-only is not allowed)
     const { scenePosition: groundPos, coordinates: cartographic } =
-      pickViewerCanvasCenter(cesiumContext, { getCoordinates: true });
+      pickCanvasCenter(cesiumContext, { getCoordinates: true });
 
     cesiumContext.withCamera((camera) => {
       let height = camera.positionCartographic.height;

@@ -17,7 +17,7 @@ import { geoElements } from "@carma-collab/wuppertal/geoportal";
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 import { useOverlayHelper } from "@carma-commons/ui/helper-overlay";
 import { carmaWindow } from "@carma-commons/utils";
-import { selectViewerIsMode2d } from "@carma-mapping/engines/cesium";
+import { selectIsInBackground } from "@carma-mapping/engines/cesium";
 import {
   appendSavedLayerConfig,
   changeBackgroundOpacity,
@@ -53,7 +53,7 @@ const ActionButtons = () => {
   const { selection } = useSelection();
   const { copyShareUrl, contextHolder } = useShareUrl();
 
-  const isMode2d = useSelector(selectViewerIsMode2d);
+  const isMode2d = useSelector(selectIsInBackground);
   const focusMode = useSelector(getFocusMode);
   const activeLayers = useSelector(getLayers);
   const showPrintPopup = useSelector(getIfPopupOpend);

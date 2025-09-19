@@ -25,7 +25,7 @@ import {
   getHeadingPitchRangeFromHeight,
   getHeadingPitchRangeFromZoom,
   invertedPolygonHierarchy,
-  pickViewerCanvasCenter,
+  pickCanvasCenter,
   polygonHierarchyFromPolygonCoords,
   removeCesiumMarker,
   removeGroundPrimitiveById,
@@ -50,13 +50,13 @@ const getFullViewDistance = (
   margin: number = DEFAULT_BOUNDINGSPHERE_VIEW_MARGIN
 ): number => {
   let distance = 0;
-  ctx.withCamera((camera, viewer) => {
+  ctx.withCamera((camera, w) => {
     const fovY =
       camera.frustum instanceof PerspectiveFrustum
         ? camera.frustum.fov ?? 1
         : 1;
 
-    const aspectRatio = viewer.canvas.clientWidth / viewer.canvas.clientHeight;
+    const aspectRatio = w.canvas.clientWidth / w.canvas.clientHeight;
 
     const tanHalfFovY = Math.tan(fovY / 2.0);
     const tanHalfFovX = tanHalfFovY / aspectRatio;
@@ -147,7 +147,7 @@ const cesiumLookAtPoint = async (
   } = {}
 ) => {
   ctx.withScene((scene) => {
-    const currentCenterPos = pickViewerCanvasCenter(ctx).scenePosition;
+    const currentCenterPos = pickCanvasCenter(ctx).scenePosition;
     const center = Cartographic.toCartesian(targetPosition);
 
     const maxDuration = options.maxDuration ?? MAX_FLYTO_DURATION;

@@ -4,8 +4,8 @@ import { type Viewer } from "cesium";
 
 import {
   selectShowSecondaryTileset,
-  selectViewerIsMode2d,
-  selectViewerIsTransitioning,
+  selectCesiumIsInBackground
+  selectSceneIsTransitioning,
 } from "../slices/cesium";
 
 import { useCesiumContext } from "./useCesiumContext";
@@ -16,15 +16,15 @@ import {
   type StringifiedCameraState,
 } from "../utils/cesiumHashParamsCodec";
 
-import { VIEWERSTATE_KEYS } from "../constants";
+import { CESIUM_STATE_KEYS } from "../constants";
 
 const toHashParams = (
   cesiumCameraState: StringifiedCameraState,
   args: { isSecondaryStyle: boolean; isMode2d: boolean }
 ) => {
   const viewerState = {
-    [VIEWERSTATE_KEYS.mapStyle]: args.isSecondaryStyle ? "0" : "1",
-    [VIEWERSTATE_KEYS.is3d]: args.isMode2d ? "0" : "1",
+    [CESIUM_STATE_KEYS.mapStyle]: args.isSecondaryStyle ? "0" : "1",
+    [CESIUM_STATE_KEYS.is3d]: args.isMode2d ? "0" : "1",
   };
 
   const hashParams = cesiumCameraState.reduce((acc, { key, value }) => {
@@ -46,8 +46,8 @@ export const useOnSceneChange = (
 ) => {
   const ctx = useCesiumContext();
   const isSecondaryStyle = useSelector(selectShowSecondaryTileset);
-  const isMode2d = useSelector(selectViewerIsMode2d);
-  const isTransitioning = useSelector(selectViewerIsTransitioning);
+  const isMode2d = useSelector(selectCesiumIsInBackground);
+  const isTransitioning = useSelector(selectSceneIsTransitioning);
 
   // todo handle style change explicitly not via tileset, is secondarystyle
   // todo consider declaring changed part of state in the callback, not full state only
@@ -57,7 +57,7 @@ export const useOnSceneChange = (
     if (isTransitioning) {
       return;
     }
-    if (ctx.isValidViewer() && !isMode2d) {
+  if (ctx.isValidWidget() && !isMode2d) {
       console.debug(
         "HOOK: update Hash, route or style changed",
         isSecondaryStyle
@@ -89,7 +89,7 @@ export const useOnSceneChange = (
       return;
     }
 
-    if (ctx.isValidViewer()) {
+  if (ctx.isValidWidget()) {
       console.debug(
         "HOOK: [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to update hash"
       );
@@ -136,11 +136,11 @@ export const useOnSceneChange = (
       return () => {
         // clear hash on unmount
         // onSceneChange?.({ hashParams: clear3dOnlyHashParams });
-        ctx.withViewer((viewer) => {
-          if (!viewer.isDestroyed()) {
-            viewer.camera.moveEnd.removeEventListener(moveEndListener);
-          }
-        });
+      ctx.withWidget((w) => {
+        if (!w.isDestroyed()) {
+          w.camera.moveEnd.removeEventListener(moveEndListener);
+        }
+       });
       };
     }
   }, [ctx, isSecondaryStyle, isMode2d, onSceneChange, isTransitioning]);

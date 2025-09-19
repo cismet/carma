@@ -30,7 +30,7 @@ import { detectWebGLContext } from "@carma-commons/utils";
 import {
   MapTypeSwitcher,
   PitchingCompass,
-  selectViewerIsMode2d,
+  selectIsInBackground,
   selectViewerModels,
   setIsMode2d,
   useCesiumContext,
@@ -117,7 +117,7 @@ const MapWrapper = () => {
   // State and Selectors
   const libreMapRef = useSelector(getLibreMapRef);
   const allow3d = useSelector(getUIAllow3d) && hasGPU;
-  const isMode2d = useSelector(selectViewerIsMode2d) || !allow3d;
+  const isMode2d = useSelector(selectIsInBackground) || !allow3d;
   const models = useSelector(selectViewerModels);
   const uiMode = useSelector(getUIMode);
   const isModeMeasurement = uiMode === UIMode.MEASUREMENT;

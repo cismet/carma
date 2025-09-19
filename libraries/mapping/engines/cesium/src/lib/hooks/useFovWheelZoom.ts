@@ -1,6 +1,6 @@
 import { useCallback, useRef } from "react";
 import { useBlockDefaultZoomBehaviour } from "./useBlockDefaultZoomBehaviour";
-import { Math as CesiumMath, PerspectiveFrustum, type Viewer } from "cesium";
+import { Math as CesiumMath, PerspectiveFrustum } from "cesium";
 
 import type { Radians, Ratio } from "@carma/types";
 import {
@@ -10,10 +10,13 @@ import {
   compoundScale,
 } from "@carma-commons/utils";
 
-import type { CesiumContextType } from "../CesiumContext";
+import type { CesiumContextType, CesiumWidget } from "../CesiumContext";
 import { blockWheelEvent } from "../utils/blockWheelEvent";
 
-const viewerWheelHandlers = new WeakMap<Viewer, (event: WheelEvent) => void>();
+const viewerWheelHandlers = new WeakMap<
+  CesiumWidget,
+  (event: WheelEvent) => void
+>();
 
 export interface FovWheelZoomOptions {
   minFov?: Radians;
@@ -105,15 +108,15 @@ export function useFovWheelZoom(
 
   const enableWheelZoom = useCallback(() => {
     let applied = false;
-    ctx.withViewer((viewer) => {
-      viewer.scene.screenSpaceCameraController.enableZoom = false;
+    ctx.withWidget((w) => {
+      w.scene.screenSpaceCameraController.enableZoom = false;
 
-      if (!viewerWheelHandlers.has(viewer)) {
-        viewer.canvas.addEventListener("wheel", handleWheel, {
+      if (!viewerWheelHandlers.has(w)) {
+        w.canvas.addEventListener("wheel", handleWheel, {
           passive: false,
           capture: true,
         });
-        viewerWheelHandlers.set(viewer, handleWheel);
+        viewerWheelHandlers.set(w, handleWheel);
       }
       applied = true;
     });
@@ -129,18 +132,18 @@ export function useFovWheelZoom(
 
   const disableWheelZoom = useCallback(() => {
     let applied = false;
-    ctx.withViewer((viewer) => {
-      if (viewerWheelHandlers.has(viewer)) {
-        const handlerToRemove = viewerWheelHandlers.get(viewer);
-        viewer.canvas.removeEventListener(
+    ctx.withWidget((w) => {
+      if (viewerWheelHandlers.has(w)) {
+        const handlerToRemove = viewerWheelHandlers.get(w);
+        w.canvas.removeEventListener(
           "wheel",
           handlerToRemove as (event: WheelEvent) => void,
           true
         );
-        viewerWheelHandlers.delete(viewer);
+        viewerWheelHandlers.delete(w);
       }
 
-      viewer.scene.screenSpaceCameraController.enableZoom = true;
+      w.scene.screenSpaceCameraController.enableZoom = true;
       applied = true;
     });
     return applied;
@@ -170,15 +173,15 @@ export function useFovWheelZoom(
     setEnabled,
     isEnabled: (() => {
       let flag = false;
-      ctx.withViewer((viewer) => {
-        flag = viewerWheelHandlers.has(viewer);
+      ctx.withWidget((w) => {
+        flag = viewerWheelHandlers.has(w);
       });
       return flag;
     })(),
     pending: (() => {
       // true while viewer isn't available yet
       let hasViewer = false;
-      hasViewer = ctx.withViewer(() => {});
+      hasViewer = ctx.withWidget(() => {});
       return !hasViewer;
     })(),
   };

@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { selectViewerIsMode2d } from "../slices/cesium";
+import { selectCesiumIsInBackground } from "../slices/cesium";
 import { useSelector } from "react-redux";
 import { CesiumContextType } from "../CesiumContext";
 import { isValidImageryLayer } from "../utils/instanceGates";
@@ -14,7 +14,7 @@ const hideLayers = (ctx: CesiumContextType) => {
           if (isValidImageryLayer(layer)) {
             layer.show = false; // Hide the layer
           } else {
-            console.debug("[CESIUM|VIEWER] skip invalid imagery layer");
+            console.debug("[CESIUM] skip invalid imagery layer");
           }
         }
         scene.postRender.removeEventListener(hideOnce);
@@ -33,7 +33,7 @@ const showLayers = (ctx: CesiumContextType) => {
           if (isValidImageryLayer(layer)) {
             layer.show = true; // unHide the layer
           } else {
-            console.debug("[CESIUM|VIEWER] skip invalid imagery layer");
+            console.debug("[CESIUM|IMAGERYLAYER] skip invalid imagery layer");
           }
         }
         scene.postRender.removeEventListener(showOnce);
@@ -46,7 +46,7 @@ const showLayers = (ctx: CesiumContextType) => {
 // reduce resoures use when cesium is not visible
 export const useCesiumWhenHidden = (delay = 0) => {
   const ctx = useCesiumContext();
-  const isMode2d = useSelector(selectViewerIsMode2d);
+  const isMode2d = useSelector(selectCesiumIsInBackground);
   console.debug("HOOKINIT: [CESIUM] useCesiumWhenHidden");
   useEffect(() => {
     console.debug("HOOK: [CESIUM] useCesiumWhenHidden", isMode2d);

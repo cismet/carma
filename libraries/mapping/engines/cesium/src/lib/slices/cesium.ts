@@ -8,7 +8,7 @@ import type { PlainCartesian3 } from "@carma/types";
 import { type RootState, type CesiumState, SceneStyles } from "../..";
 import { fromPlainCartesian3 } from "../utils/cesiumSerializer";
 
-export enum VIEWER_TRANSITION_STATE {
+export enum TRANSITION_STATE {
   NONE,
   TO3D,
   TO2D,
@@ -17,7 +17,7 @@ export enum VIEWER_TRANSITION_STATE {
 const initialState: CesiumState = {
   isMode2d: false,
   isAnimating: false,
-  currentTransition: VIEWER_TRANSITION_STATE.NONE,
+  currentTransition: TRANSITION_STATE.NONE,
   homeOffset: null,
   homePosition: null,
   showPrimaryTileset: true,
@@ -68,15 +68,15 @@ const sliceCesium = createSlice({
 
     setTransitionTo2d: (state: CesiumState) => {
       console.debug("REDUCER [STATE|CESIUM] transition to 2D");
-      state.currentTransition = VIEWER_TRANSITION_STATE.TO2D;
+      state.currentTransition = TRANSITION_STATE.TO2D;
     },
     setTransitionTo3d: (state: CesiumState) => {
       console.debug("REDUCER [STATE|CESIUM] transition to 3D");
-      state.currentTransition = VIEWER_TRANSITION_STATE.TO3D;
+      state.currentTransition = TRANSITION_STATE.TO3D;
     },
     clearTransition: (state: CesiumState) => {
       console.debug("REDUCER [STATE|CESIUM] transition cleared");
-      state.currentTransition = VIEWER_TRANSITION_STATE.NONE;
+      state.currentTransition = TRANSITION_STATE.NONE;
     },
 
     setShowPrimaryTileset: (
@@ -170,32 +170,33 @@ export const {
 
 // selectors
 
-export const selectViewerIsAnimating = ({ cesium }: RootState) =>
+export const selectCesiumIsAnimating = ({ cesium }: RootState) =>
   cesium.isAnimating;
-export const selectViewerCurrentTransition = ({ cesium }: RootState) =>
+export const selectCesiumCurrentTransition = ({ cesium }: RootState) =>
   cesium.currentTransition;
-export const selectViewerIsTransitioning = ({ cesium }: RootState) =>
+export const selectCesiumIsTransitioning = ({ cesium }: RootState) =>
   cesium.currentTransition !== undefined &&
-  cesium.currentTransition !== VIEWER_TRANSITION_STATE.NONE;
+  cesium.currentTransition !== TRANSITION_STATE.NONE;
 
-export const selectViewerIsMode2d = ({ cesium }: RootState) => cesium.isMode2d;
-export const selectViewerDataSources = ({ cesium }: RootState) =>
+export const selectCesiumIsInBackground = ({ cesium }: RootState) =>
+  cesium.isMode2d;
+export const selectCesiumDataSources = ({ cesium }: RootState) =>
   cesium.dataSources;
-export const selectViewerModels = ({ cesium }: RootState) => cesium.models;
+export const selectCesiumModels = ({ cesium }: RootState) => cesium.models;
 
-export const selectViewerHomePlain = ({ cesium }: RootState) =>
+export const selectCesiumHomePlain = ({ cesium }: RootState) =>
   cesium.homePosition;
-export const selectViewerHomeOffsetPlain = ({ cesium }: RootState) =>
+export const selectCesiumHomeOffsetPlain = ({ cesium }: RootState) =>
   cesium.homeOffset;
 
 // memoized selectors
-export const selectViewerHome: (state: RootState) => Cartesian3 | null =
-  createSelector(selectViewerHomePlain, (homePosition) => {
+export const selectCesiumHome: (state: RootState) => Cartesian3 | null =
+  createSelector(selectCesiumHomePlain, (homePosition) => {
     return homePosition ? fromPlainCartesian3(homePosition) : null;
   });
 
-export const selectViewerHomeOffset: (state: RootState) => Cartesian3 | null =
-  createSelector(selectViewerHomeOffsetPlain, (homeOffset) => {
+export const selectCesiumHomeOffset: (state: RootState) => Cartesian3 | null =
+  createSelector(selectCesiumHomeOffsetPlain, (homeOffset) => {
     return homeOffset ? fromPlainCartesian3(homeOffset) : null;
   });
 

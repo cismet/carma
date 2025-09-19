@@ -3,16 +3,16 @@ import { useDispatch, useSelector } from "react-redux";
 
 import {
   clearTransition,
-  selectViewerCurrentTransition,
-  selectViewerIsTransitioning,
+  selectCesiumCurrentTransition,
+  selectCesiumIsTransitioning,
 } from "../slices/cesium";
 import { useCesiumViewer } from "./useCesiumViewer";
 
 const DEFAULT_TIMEOUT = 4000;
 
 const useTransitionTimeout = (timeOut = DEFAULT_TIMEOUT) => {
-  const isTransitioning = useSelector(selectViewerIsTransitioning);
-  const currentTransition = useSelector(selectViewerCurrentTransition);
+  const isTransitioning = useSelector(selectCesiumIsTransitioning);
+  const currentTransition = useSelector(selectCesiumCurrentTransition);
   const viewer = useCesiumViewer();
   const dispatch = useDispatch();
 

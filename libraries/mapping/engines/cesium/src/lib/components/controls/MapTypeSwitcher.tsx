@@ -8,8 +8,8 @@ import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 
 import { useMapTransition } from "../../hooks/useMapTransition";
 import {
-  selectViewerIsMode2d,
-  selectViewerIsTransitioning,
+  selectCesiumIsInBackground,
+  selectCesiumIsTransitioning,
 } from "../../slices/cesium";
 
 type Props = {
@@ -49,8 +49,8 @@ export const MapTypeSwitcher = forwardRef<Ref, Props>(
     ref
   ) => {
     const [hasConfirmed, setHasConfirmed] = useState(false);
-    const isMode2d = useSelector(selectViewerIsMode2d);
-    const isTransitioning = useSelector(selectViewerIsTransitioning);
+    const isMode2d = useSelector(selectCesiumIsInBackground);
+    const isTransitioning = useSelector(selectCesiumIsTransitioning);
     const { transitionToMode2d, transitionToMode3d } = useMapTransition({
       onComplete,
       duration,

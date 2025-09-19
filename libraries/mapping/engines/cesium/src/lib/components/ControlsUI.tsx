@@ -1,6 +1,6 @@
 import { useSelector } from "react-redux";
 
-import { selectViewerHome, selectViewerIsMode2d } from "../slices/cesium";
+import { selectCesiumHome, selectCesiumIsInBackground } from "../slices/cesium";
 
 import { Compass } from "./controls/Compass";
 import ControlContainer from "./controls/ControlContainer";
@@ -21,9 +21,9 @@ const ControlsUI = ({
   showOrbit?: boolean;
   isViewerReady: boolean;
 }) => {
-  const home = useSelector(selectViewerHome);
+  const home = useSelector(selectCesiumHome);
 
-  const isMode2d = useSelector(selectViewerIsMode2d);
+  const isMode2d = useSelector(selectCesiumIsInBackground);
 
   return (
     <div className={"leaflet-control-container"}>

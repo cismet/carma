@@ -78,7 +78,7 @@ export const pickViewerCanvasPositions = (
     pickTranslucentDepth = true,
   }: PickOptions = {}
 ): PickResult[] => {
-  if (!ctx.isValidViewer()) return positions.map(noopMap);
+  if (!ctx.isValidWidget()) return positions.map(noopMap);
   let results: PickResult[] = [];
 
   ctx.withScene((scene) => {
@@ -155,7 +155,7 @@ export const pickViewerCanvasPositions = (
 };
 
 // helper shorthand
-export const pickViewerCanvasCenter = (
+export const pickCanvasCenter = (
   ctx: CesiumContextType,
   options?: PickOptions
 ): PickResult => {

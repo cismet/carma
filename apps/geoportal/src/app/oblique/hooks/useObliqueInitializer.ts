@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 
-import { type Viewer, type Scene, Math as CesiumMath } from "cesium";
+import { type Scene, Math as CesiumMath } from "cesium";
 
 import {
   useCesiumContext,
@@ -11,11 +11,11 @@ import {
 import { useOblique } from "./useOblique";
 import { enterObliqueMode, leaveObliqueMode } from "../utils/cameraUtils";
 
-const viewerPreUpdateHandlers = new WeakMap<Viewer, (scene: Scene) => void>();
+const preUpdateHandlers = new WeakMap<Scene, (scene: Scene) => void>();
 
 export function useObliqueInitializer(debug = false) {
   const ctx = useCesiumContext();
-  const { viewerRef, shouldSuspendPitchLimiterRef, requestRender } = ctx;
+  const { widgetRef, shouldSuspendPitchLimiterRef, requestRender } = ctx;
   const {
     isObliqueMode,
     fixedHeight,
@@ -42,18 +42,18 @@ export function useObliqueInitializer(debug = false) {
 
   const { enableCameraForceOblique, disableCameraForceOblique } =
     useCesiumCameraForceOblique(
-      viewerRef,
+      widgetRef,
       fixedPitch,
       fixedHeight,
       shouldSuspendPitchLimiterRef
     );
 
   useEffect(() => {
-    // Always set the zoom handler state based on oblique mode; the hook will defer attaching until a viewer exists
+    // Always set the zoom handler state based on oblique mode; the hook will defer attaching until a instance exists
     setWheelZoomEnabled(isObliqueMode);
 
-    ctx.withCamera((camera, viewer) => {
-      const cameraController = viewer.scene.screenSpaceCameraController;
+    ctx.withSceneCamera((scene) => {
+      const cameraController = scene.screenSpaceCameraController;
 
       cameraController.enableRotate = true;
       cameraController.enableTilt = true;
@@ -89,11 +89,11 @@ export function useObliqueInitializer(debug = false) {
     });
 
     return () => {
-      ctx.withViewer((viewer) => {
-        if (viewerPreUpdateHandlers.has(viewer)) {
-          const handlerToRemove = viewerPreUpdateHandlers.get(viewer);
-          viewer.scene.preUpdate.removeEventListener(handlerToRemove!);
-          viewerPreUpdateHandlers.delete(viewer);
+      ctx.withScene((scene) => {
+        if (preUpdateHandlers.has(scene)) {
+          const handlerToRemove = preUpdateHandlers.get(scene);
+          scene.preUpdate.removeEventListener(handlerToRemove!);
+          preUpdateHandlers.delete(scene);
         }
       });
     };
@@ -101,7 +101,7 @@ export function useObliqueInitializer(debug = false) {
     debug,
     isObliqueMode,
     ctx,
-    viewerRef,
+    widgetRef,
     fixedPitch,
     fixedHeight,
     minFov,

@@ -48,7 +48,7 @@ export function useObliqueNearestImage(
   options: UseObliqueNearestImageOptions = defaultOptions
 ) {
   const ctx = useCesiumContext();
-  const { viewerRef, isValidViewer } = ctx;
+  const { widgetRef, isValidWidget: isValidWidget } = ctx;
   const lastSearchTimeRef = useRef<number>(0);
   const {
     converter,
@@ -80,9 +80,8 @@ export function useObliqueNearestImage(
         return;
       }
 
-      const viewer = viewerRef.current;
       if (
-        !isValidViewer() ||
+        !isValidWidget() ||
         !imageRecords ||
         !imageRecords.size ||
         !converter
@@ -122,7 +121,6 @@ export function useObliqueNearestImage(
       debug && console.debug(" refreshSearch");
 
       try {
-        const camera = viewer.camera;
         const cartographic = camera.positionCartographic;
         if (!cartographic) return;
 
@@ -154,12 +152,10 @@ export function useObliqueNearestImage(
           y: orbitPointCoords[1],
         };
         const k = options.k || defaultOptions.k;
-        const frameId =
-          (
-            viewer as unknown as {
-              scene?: { frameState?: { frameNumber?: number } };
-            }
-          )?.scene?.frameState?.frameNumber ?? null;
+        let frameId;
+        ctx.withScene((scene) => {
+          frameId = scene.frameState?.frameNumber ?? null;
+        });
         const key = `${Math.round(orbitPointTargetCrs.x)}:${Math.round(
           orbitPointTargetCrs.y
         )}:${cameraCardinal}:${k}:${
@@ -266,7 +262,7 @@ export function useObliqueNearestImage(
       }
     },
     [
-      viewerRef,
+      widgetRef,
       imageRecords,
       converter,
       headingOffset,
@@ -281,6 +277,8 @@ export function useObliqueNearestImage(
       requestedHeadingRef,
       selectedImage,
       debug,
+      isValidWidget,
+      ctx,
     ]
   ); // Include all dependencies for proper updates
 
@@ -291,11 +289,10 @@ export function useObliqueNearestImage(
   const timerIdRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (!options.continuous) return;
-    const viewer = viewerRef.current;
     if (
       !isObliqueMode ||
       suspendSelectionSearch ||
-      !isValidViewer() ||
+      !isValidWidget() ||
       !imageRecords ||
       !imageRecords.size
     ) {
@@ -309,30 +306,36 @@ export function useObliqueNearestImage(
       if (suspendSelectionSearch) return;
       if (timerIdRef.current) clearTimeout(timerIdRef.current);
       timerIdRef.current = setTimeout(() => {
-        if (!sceneHasTweens(viewer) && !suspendSelectionSearch) {
-          refreshSearch();
-        }
+        ctx.withScene((scene) => {
+          if (!sceneHasTweens(scene) && !suspendSelectionSearch) {
+            refreshSearch();
+          }
+        });
       }, options.debounceTime || defaultOptions.debounceTime);
     };
 
-    viewer.camera.changed.addEventListener(handleCameraMove);
+    ctx.withCamera((camera) => {
+      camera.changed.addEventListener(handleCameraMove);
+    });
+
     return () => {
-      if (viewer && !viewer.isDestroyed()) {
-        viewer.camera.changed.removeEventListener(handleCameraMove);
-      }
+      ctx.withCamera((camera) => {
+        camera.changed.removeEventListener(handleCameraMove);
+      });
       if (timerIdRef.current) {
         clearTimeout(timerIdRef.current);
         timerIdRef.current = null;
       }
     };
   }, [
+    ctx,
     options.continuous,
-    viewerRef,
     imageRecords,
     refreshSearch,
     options.debounceTime,
     isObliqueMode,
     suspendSelectionSearch,
+    isValidWidget,
   ]);
 
   // Only return the on-request search callback

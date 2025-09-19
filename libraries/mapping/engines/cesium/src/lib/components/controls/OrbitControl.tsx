@@ -8,17 +8,18 @@ import {
 import { useDispatch, useSelector } from "react-redux";
 
 import { Cartesian3, Color, Matrix4, Transforms, Viewer } from "cesium";
+import type { CesiumWidget } from "../../CesiumContext";
 import { faSync } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import OnMapButton from "./OnMapButton";
 import {
   toggleIsAnimating,
-  selectViewerIsAnimating,
+  selectCesiumIsAnimating,
 } from "../../slices/cesium";
 import { useCesiumViewer } from "../../hooks/useCesiumViewer";
 import { useCesiumContext } from "../../hooks/useCesiumContext";
-import { pickViewerCanvasCenter } from "../../utils/pickers";
+import { pickCanvasCenter } from "../../utils/pickers";
 
 // TODO use config/context
 const DEFAULT_ROTATION_SPEED = 0.0001;
@@ -37,7 +38,7 @@ const OrbitControl = ({ showCenterPoint = true }: SpinningControlProps) => {
   const ctx = useCesiumContext();
   const orbitPointRef = useRef<Cartesian3 | null>(null);
   const lastRenderTimeRef = useRef<number | null>(null);
-  const isAnimating = useSelector(selectViewerIsAnimating);
+  const isAnimating = useSelector(selectCesiumIsAnimating);
 
   const orbitListener = useCallback(() => {
     console.debug("CALLBACK: orbiting");
@@ -59,18 +60,19 @@ const OrbitControl = ({ showCenterPoint = true }: SpinningControlProps) => {
     viewer.camera.lookAtTransform(Matrix4.IDENTITY); // keep the camera unlocked while rotating
   }, [viewer]);
 
-  const toggleOrbit = (viewer: Viewer) => {
+  const toggleOrbit = (viewer: CesiumWidget) => {
+    const v = viewer as Viewer;
     if (!isAnimating) {
-      const position = pickViewerCanvasCenter(ctx).scenePosition;
+      const position = pickCanvasCenter(ctx).scenePosition;
       orbitPointRef.current = position;
       lastRenderTimeRef.current = null;
-      viewer.clock.onTick.addEventListener(orbitListener);
+      v.clock.onTick.addEventListener(orbitListener);
 
       //showCenterPoint && viewer.entities.removeById(orbitCenterPointId);
 
       position &&
         showCenterPoint &&
-        viewer.entities.add({
+        v.entities.add({
           position,
           point: {
             pixelSize: 30,
@@ -87,19 +89,17 @@ const OrbitControl = ({ showCenterPoint = true }: SpinningControlProps) => {
 
   const handleOrbit = (event: MouseEvent) => {
     event.preventDefault();
-    ctx.withViewer((viewer) => toggleOrbit(viewer));
+    if (viewer) toggleOrbit(viewer);
   };
 
   useEffect(() => {
-    if (!isAnimating) {
-      ctx.withViewer((viewer) => {
-        console.debug("stop orbiting by state", orbitPointRef.current);
-        viewer.clock.onTick.removeEventListener(orbitListener);
-        viewer.camera.constrainedAxis = undefined;
-        showCenterPoint && viewer.entities.removeById(orbitCenterPointId);
-      });
+    if (!isAnimating && viewer) {
+      console.debug("stop orbiting by state", orbitPointRef.current);
+      viewer.clock.onTick.removeEventListener(orbitListener);
+      viewer.camera.constrainedAxis = undefined;
+      showCenterPoint && viewer.entities.removeById(orbitCenterPointId);
     }
-  }, [isAnimating, ctx, orbitListener, showCenterPoint]);
+  }, [isAnimating, viewer, orbitListener, showCenterPoint]);
 
   return (
     <OnMapButton

@@ -22,7 +22,7 @@ export const useSceneStyles = (enabled = true) => {
   const secondaryStyle = useSelector(selectSceneStyleSecondary);
 
   useEffect(() => {
-    if (!enabled || !ctx.isValidViewer() || currentSceneStyle === undefined)
+    if (!enabled || !ctx.isValidWidget() || currentSceneStyle === undefined)
       return;
     console.debug("currentSceneStyle change", currentSceneStyle);
     if (currentSceneStyle === "primary") {

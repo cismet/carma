@@ -35,7 +35,7 @@ export const MarkerContainer: FC<MarkerContainerProps> = ({
   style,
   markerData,
 }) => {
-  const { viewer } = useCesium();
+  const ctx = useCesium();
   const [entityData, setEntityData] = useState<Marker3dData[] | null>(null);
   const lastFrameTimeRef = useRef<number | null>(null);
   const [animatonSpeed, setAnimationSpeed] = useState<number>(
@@ -68,35 +68,8 @@ export const MarkerContainer: FC<MarkerContainerProps> = ({
     );
   }, [markerData]);
 
-  /*
   useEffect(() => {
-    if (viewer && entityData) {
-      const preRenderListener = () => {
-        entityData.forEach(({ model, animatedModelMatrix }, i) => {
-          if (model?.hasAnimation && animatedModelMatrix) {
-            const modelEntity = viewer.entities.getById(i.toString());
-            if (modelEntity && modelEntity?.model) {
-              const animations = modelEntity.model.activeAnimations;
-              if (animations && animations.length === 0) {
-                animations.addAll({
-                  loop: ModelAnimationLoop.REPEAT,
-                });
-              }
-            }
-          }
-        });
-      };
-
-      viewer.scene.preRender.addEventListener(preRenderListener);
-      return () => {
-        viewer.scene.preRender.removeEventListener(preRenderListener);
-      };
-    }
-  }, [viewer, entityData]);
-  */
-
-  useEffect(() => {
-    if (viewer && entityData && animatonSpeed !== 0) {
+    if (entityData && animatonSpeed !== 0) {
       const preRenderListener = () => {
         const currentTime = new Date().getTime();
         if (lastFrameTimeRef.current === null) {
@@ -111,14 +84,17 @@ export const MarkerContainer: FC<MarkerContainerProps> = ({
             if (model && modelMatrix && animatedModelMatrix) {
               let scale;
               if (model.fixedScale) {
-                const dist = Cartesian3.distance(
-                  viewer.camera.position,
-                  new Cartesian3(
-                    modelMatrix[12],
-                    modelMatrix[13],
-                    modelMatrix[14]
-                  )
-                );
+                let dist;
+                ctx.withCamera((camera) => {
+                  dist = Cartesian3.distance(
+                    camera.position,
+                    new Cartesian3(
+                      modelMatrix[12],
+                      modelMatrix[13],
+                      modelMatrix[14]
+                    )
+                  );
+                });
                 if (dist) {
                   // TODO fix scaling origin
                   scale = new Cartesian3(dist / 1000, dist / 1000, dist / 1000);
@@ -151,7 +127,10 @@ export const MarkerContainer: FC<MarkerContainerProps> = ({
                   animatedModelMatrix: updatedModelMatrix,
                 }; // Update modelMatrix
               } else if (isCameraFacing) {
-                const cameraHeading = viewer.camera.heading;
+                let cameraHeading = 0;
+                ctx.withCamera((camera) => {
+                  cameraHeading = camera.heading;
+                });
                 const rotationQuaternion = Quaternion.fromAxisAngle(
                   Cartesian3.UNIT_Z,
                   -cameraHeading - CesiumMath.PI_OVER_TWO
@@ -181,13 +160,17 @@ export const MarkerContainer: FC<MarkerContainerProps> = ({
         setEntityData(updatedEntityData);
       };
 
-      viewer.scene.preRender.addEventListener(preRenderListener);
+      ctx.withScene((scene) => {
+        scene.preRender.addEventListener(preRenderListener);
+      });
       return () => {
-        viewer.scene.preRender.removeEventListener(preRenderListener);
+        ctx.withScene((scene) => {
+          scene.preRender.removeEventListener(preRenderListener);
+        });
       };
     }
     return;
-  }, [viewer, entityData, animatonSpeed]);
+  }, [ctx, entityData, animatonSpeed]);
 
   // Use modelMatrix from entityDataRef in Model component
   const entities =

@@ -49,10 +49,10 @@ import {
 import { getApplicationVersion } from "@carma-commons/utils";
 
 import {
-  CustomViewer,
+  CesiumWidgetComponent,
   selectShowPrimaryTileset,
-  selectViewerIsMode2d,
-  selectViewerModels,
+  selectIsInBackground
+  selectModels,
   setCurrentSceneStyle,
   useCesiumContext,
   useCesiumInitialCameraFromSearchParams,
@@ -124,8 +124,8 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
 
   // State and Selectors
   const backgroundLayer = useSelector(getBackgroundLayer);
-  const isMode2d = useSelector(selectViewerIsMode2d) || !allow3d;
-  const models = useSelector(selectViewerModels);
+  const isMode2d = useSelector(selectIsInBackground) || !allow3d;
+  const models = useSelector(selectModels);
   const markerAsset = models[CESIUM_CONFIG.markerKey]; //
   const markerAnchorHeight = CESIUM_CONFIG.markerAnchorHeight ?? 10;
   const layers = useSelector(getLayers);
@@ -313,7 +313,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   useEffect(() => {
     // TODO wrap this with 3d component in own component?
     // INTIALIZE Cesium Tileset style from Geoportal/TopicMap background later style
-    if (ctx.isValidViewer() && backgroundLayer) {
+  if (ctx.isValidWidget() && backgroundLayer) {
       if (backgroundLayer.id === "luftbild") {
         dispatch(setCurrentSceneStyle("primary"));
       } else {
@@ -635,7 +635,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
             pointerEvents: isMode2d ? "none" : "auto",
           }}
         >
-          <CustomViewer
+          <CesiumWidgetComponent
             containerRef={container3dMapRef}
             cameraLimiterOptions={CESIUM_CONFIG.camera}
             initialCameraView={cesiumInitialCameraView}
