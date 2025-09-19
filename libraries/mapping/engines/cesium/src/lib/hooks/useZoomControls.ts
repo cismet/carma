@@ -7,16 +7,14 @@ import {
   Ray,
   PerspectiveFrustum,
 } from "cesium";
+
+import type { Ratio, Radians } from "@carma/types";
+
 import { cancelViewerAnimation } from "../utils/viewerAnimationMap";
 import { cesiumAnimateFov } from "../utils/cesiumAnimateFov";
 import type { CesiumContextType } from "../CesiumContext";
 import { sceneHasTweens } from "../utils/sceneHasTweens";
-import {
-  DEFAULT_MAX_FOV,
-  DEFAULT_MIN_FOV,
-  DEFAULT_FOV_CHANGE_RATE,
-  computeNextFov,
-} from "../utils/fov";
+import { DEFAULT_MAX_FOV, DEFAULT_MIN_FOV, computeNextFov } from "../utils/fov";
 
 type ZoomOptions = {
   duration?: number;
@@ -27,6 +25,8 @@ type ZoomOptions = {
 // Value to subtract from the globe distance to get the minimum zoom distance when not over scene content
 // Should be significantly over maximum elevations of area of interest to prevent camera going under the surface
 const FALLBACK_MIN_DISTANCE_TO_GLOBE = 2500;
+
+const MOVE_RATE_EQUIVALENT_FACTOR = 0.5;
 
 const defaultZoomOptions: Required<ZoomOptions> = {
   duration: 0.5,
@@ -145,8 +145,8 @@ const fovZoom = (
   zoomIn: boolean,
   duration: number,
   moveRateFactor: number,
-  maxFov: number = DEFAULT_MAX_FOV,
-  minFov: number = DEFAULT_MIN_FOV
+  maxFov = DEFAULT_MAX_FOV,
+  minFov = DEFAULT_MIN_FOV
 ) => {
   const hasViewer = ctx.withViewer((viewer) => {
     cancelViewerAnimation(viewer, ctx.viewerAnimationMapRef.current);
@@ -160,16 +160,17 @@ const fovZoom = (
 
     if (!camera.frustum.fov) return;
 
-    const currentFov = camera.frustum.fov;
+    const currentFov = camera.frustum.fov as Radians;
     const step = zoomIn ? 1 : -1;
-    const stepFraction = (moveRateFactor * DEFAULT_FOV_CHANGE_RATE) as number;
+    const stepFraction = (moveRateFactor *
+      MOVE_RATE_EQUIVALENT_FACTOR) as Ratio;
     const targetFov = computeNextFov(
-      currentFov as number,
+      currentFov,
       step,
-      minFov as number,
-      maxFov as number,
+      minFov,
+      maxFov,
       stepFraction
-    ) as number;
+    );
 
     // Use the same per-frame animation helper; it updates on each render
     cesiumAnimateFov(ctx, {
