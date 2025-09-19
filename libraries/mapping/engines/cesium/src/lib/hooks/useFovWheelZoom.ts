@@ -1,14 +1,9 @@
 import { useCallback, useRef } from "react";
 import { useBlockDefaultZoomBehaviour } from "./useBlockDefaultZoomBehaviour";
-import { Math as CesiumMath, PerspectiveFrustum, type Viewer } from "cesium";
+import { PerspectiveFrustum, type Viewer } from "cesium";
 
-import type { Radians, Ratio } from "@carma/types";
-import {
-  normalizeOptions,
-  isClose,
-  clamp,
-  compoundScale,
-} from "@carma-commons/utils";
+import type { Radians } from "@carma/types";
+import { normalizeOptions, isClose } from "@carma-commons/utils";
 
 import type { CesiumContextType } from "../CesiumContext";
 import { blockWheelEvent } from "../utils/blockWheelEvent";
@@ -24,24 +19,21 @@ export interface FovWheelZoomOptions {
   minFovChange?: Radians; // minimum change in FOV to trigger an update (radians), default 0.0001
 }
 
+import {
+  DEFAULT_MAX_FOV,
+  DEFAULT_MIN_FOV,
+  DEFAULT_FOV_CHANGE_RATE,
+  DEFAULT_MIN_FOV_CHANGE,
+  computeNextFov,
+} from "../utils/fov";
+
 const defaultFovWheelZoomOptions: Required<FovWheelZoomOptions> = {
-  minFov: CesiumMath.toRadians(10) as Radians,
-  maxFov: CesiumMath.toRadians(120) as Radians,
-  fovChangeRate: 0.0008 as Ratio, // is pretty low but compounds fast
-  minFovChange: 0.0001 as Radians,
+  minFov: DEFAULT_MIN_FOV,
+  maxFov: DEFAULT_MAX_FOV,
+  fovChangeRate: DEFAULT_FOV_CHANGE_RATE, // is pretty low but compounds fast
+  minFovChange: DEFAULT_MIN_FOV_CHANGE,
   onAfterFovChange: () => {},
   onFovChange: () => {},
-};
-
-const computeNextFov = (
-  current: Radians,
-  steps: Radians,
-  min: Radians,
-  max: Radians,
-  stepFraction: Radians
-) => {
-  const target = compoundScale(current, stepFraction, steps) as Radians;
-  return clamp(target, min, max) as Radians;
 };
 
 export function useFovWheelZoom(

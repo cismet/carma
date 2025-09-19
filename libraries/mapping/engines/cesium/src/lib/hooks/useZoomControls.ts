@@ -4,7 +4,6 @@ import {
   Cartesian2,
   Cartesian3,
   EasingFunction,
-  Math as CesiumMath,
   Ray,
   PerspectiveFrustum,
 } from "cesium";
@@ -12,8 +11,12 @@ import { cancelViewerAnimation } from "../utils/viewerAnimationMap";
 import { cesiumAnimateFov } from "../utils/cesiumAnimateFov";
 import type { CesiumContextType } from "../CesiumContext";
 import { sceneHasTweens } from "../utils/sceneHasTweens";
-
-const FOV_MOVERATE_FACTOR = 0.5;
+import {
+  DEFAULT_MAX_FOV,
+  DEFAULT_MIN_FOV,
+  DEFAULT_FOV_CHANGE_RATE,
+  computeNextFov,
+} from "../utils/fov";
 
 type ZoomOptions = {
   duration?: number;
@@ -142,8 +145,8 @@ const fovZoom = (
   zoomIn: boolean,
   duration: number,
   moveRateFactor: number,
-  maxFov: number = CesiumMath.toRadians(120),
-  minFov: number = CesiumMath.toRadians(5)
+  maxFov: number = DEFAULT_MAX_FOV,
+  minFov: number = DEFAULT_MIN_FOV
 ) => {
   const hasViewer = ctx.withViewer((viewer) => {
     cancelViewerAnimation(viewer, ctx.viewerAnimationMapRef.current);
@@ -157,16 +160,20 @@ const fovZoom = (
 
     if (!camera.frustum.fov) return;
 
-    const startFov = camera.frustum.fov;
+    const currentFov = camera.frustum.fov;
+    const step = zoomIn ? 1 : -1;
+    const stepFraction = (moveRateFactor * DEFAULT_FOV_CHANGE_RATE) as number;
+    const targetFov = computeNextFov(
+      currentFov as number,
+      step,
+      minFov as number,
+      maxFov as number,
+      stepFraction
+    ) as number;
 
-    const fovChange = moveRateFactor * FOV_MOVERATE_FACTOR;
-
-    const newFov = startFov * (zoomIn ? 1 + fovChange : 1 - fovChange);
-
-    const targetFov = Math.max(Math.min(newFov, maxFov), minFov);
-
+    // Use the same per-frame animation helper; it updates on each render
     cesiumAnimateFov(ctx, {
-      startFov,
+      startFov: currentFov,
       targetFov,
       duration,
       easingFunction: EasingFunction.SINUSOIDAL_IN_OUT,
