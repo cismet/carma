@@ -5,10 +5,12 @@ import type {
 
 export enum CtxEvent {
   FovChange,
+  Home,
 }
 
 export type CesiumContextEventMap = {
   [CtxEvent.FovChange]: number;
+  [CtxEvent.Home]: void;
 };
 
 // Helper type aliases bound to the Cesium context event map for ergonomics

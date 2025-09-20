@@ -9,6 +9,14 @@ import type { CesiumContextType } from "../CesiumContext";
 import { CtxEvent } from "../cesiumContextEventMap";
 import { blockWheelEvent } from "../utils/blockWheelEvent";
 
+import {
+  DEFAULT_MAX_FOV,
+  DEFAULT_MIN_FOV,
+  DEFAULT_FOV_CHANGE_RATE,
+  DEFAULT_MIN_FOV_CHANGE,
+  computeNextFov,
+} from "../utils/fov";
+
 const viewerWheelHandlers = new WeakMap<Viewer, (event: WheelEvent) => void>();
 
 export interface FovWheelZoomOptions {
@@ -19,14 +27,6 @@ export interface FovWheelZoomOptions {
   onFovChange?: (newFov: Radians, previousFov: Radians) => void;
   minFovChange?: Radians; // minimum change in FOV to trigger an update (radians), default 0.0001
 }
-
-import {
-  DEFAULT_MAX_FOV,
-  DEFAULT_MIN_FOV,
-  DEFAULT_FOV_CHANGE_RATE,
-  DEFAULT_MIN_FOV_CHANGE,
-  computeNextFov,
-} from "../utils/fov";
 
 const defaultFovWheelZoomOptions: Required<FovWheelZoomOptions> = {
   minFov: DEFAULT_MIN_FOV,
