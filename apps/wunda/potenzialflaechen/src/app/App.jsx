@@ -202,7 +202,17 @@ function App() {
       alwaysShowAllFeatures={false}
       getFeatureStyler={() => {
         return (feature) => {
-          const c = new Color(feature.properties.color);
+          let c;
+          try {
+            c = new Color(feature.properties.color);
+          } catch (e) {
+            c = new Color("#FF00FF");
+            console.error(
+              "Problem with color ",
+              feature.properties.color,
+              feature
+            );
+          }
           let borderColor, fillOpacity;
           if (feature.selected === true) {
             fillOpacity = 0.85;
