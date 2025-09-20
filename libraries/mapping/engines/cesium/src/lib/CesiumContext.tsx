@@ -11,6 +11,10 @@ import type {
   Viewer,
 } from "cesium";
 import { ViewerAnimationMap } from "./utils/viewerAnimationMap";
+import type {
+  EmitCesiumCtxFn,
+  SubscribeCesiumCtxFn,
+} from "./cesiumContextEventMap";
 
 export interface CesiumContextType {
   viewerRef: MutableRefObject<Viewer | null>;
@@ -25,6 +29,9 @@ export interface CesiumContextType {
   // Monotonic counter that increments each time an initial camera apply sequence starts
   initialCameraEpoch: number;
   bumpInitialCameraEpoch: () => void;
+  // Generic, typed event bus for Cesium context
+  subscribe: SubscribeCesiumCtxFn;
+  emit: EmitCesiumCtxFn;
   requestRender: (opts?: {
     delay?: number; // ms
     repeat?: number; // times

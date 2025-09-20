@@ -1,6 +1,5 @@
 // Bring in ambient Window globals for consumers of this package
 import "./lib/types/env";
-import { isColorRgbaArray } from "./lib/utils/cesiumSerializer";
 
 export * from "./lib/slices/cesium";
 
@@ -38,6 +37,7 @@ export {
   useCesiumContext,
   useCesiumContextOptional,
 } from "./lib/hooks/useCesiumContext";
+export { CtxEvent } from "./lib/cesiumContextEventMap";
 export { useCesiumCameraForceOblique } from "./lib/hooks/useCameraForceOblique";
 export { useHomeControl } from "./lib/hooks/useHomeControl";
 export { useCesiumInitialCameraFromSearchParams } from "./lib/hooks/useCesiumInitialCameraFromSearchParams";

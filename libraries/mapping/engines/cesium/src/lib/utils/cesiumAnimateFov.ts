@@ -1,5 +1,6 @@
 import { EasingFunction, PerspectiveFrustum, type Viewer } from "cesium";
 import { cancelViewerAnimation, AnimationType } from "./viewerAnimationMap";
+import { CtxEvent } from "../cesiumContextEventMap";
 import type { CesiumContextType } from "../CesiumContext";
 
 export interface CesiumAnimateFovOptions {
@@ -47,6 +48,8 @@ export const cesiumAnimateFov = (
       });
       ctx.requestRender();
       onRender?.(newFov);
+      // Emit per-frame FOV changes via Cesium context bus
+      ctx.emit?.(CtxEvent.FovChange, newFov);
 
       if (progress < 1) {
         animationFrameId = requestAnimationFrame(animate);

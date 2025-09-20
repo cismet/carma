@@ -91,3 +91,11 @@ export { getApplicationVersion } from "./lib/version";
 export { detectWebGLContext } from "./lib/webgl";
 
 export * from "./lib/window";
+
+// Typed event bus for lightweight pub/sub in apps and libraries
+export {
+  createEventBus,
+  type EventBus,
+  type SubscribeFn,
+  type EmitFn,
+} from "./lib/event-bus";
