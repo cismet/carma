@@ -115,7 +115,18 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
   }, [secondaryInfoBoxElements]);
 
   let links = [];
-  if (selectedFeature && selectedFeature.id !== "information") {
+
+  const canZoomToFeature = (selectedFeature) => {
+    if (
+      selectedFeature.properties?.wmsProps?.bounds ||
+      selectedFeature.geometry
+    ) {
+      return true;
+    }
+    return false;
+  };
+
+  if (selectedFeature && canZoomToFeature(selectedFeature)) {
     links = getActionLinksForFeature(selectedFeature, {
       displaySecondaryInfoAction: !!selectedFeature?.properties?.modal,
       setVisibleStateOfSecondaryInfo: () => {

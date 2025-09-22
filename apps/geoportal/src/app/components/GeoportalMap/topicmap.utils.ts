@@ -508,6 +508,7 @@ export const implicitVectorSelection = async (
         subtitle: "(Geogr. Breite und Länge in Dezimalgrad, ETRS89)",
         wmsProps: selectedVectorFeature.properties,
       },
+      geometry: selectedVectorFeature.geometry,
       id: "information",
     };
 
