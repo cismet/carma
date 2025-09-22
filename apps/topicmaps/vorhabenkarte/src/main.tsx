@@ -13,6 +13,7 @@ const root = ReactDOM.createRoot(
 );
 
 cjsGlobalShim();
+
 root.render(
   <StrictMode>
     <GazDataProvider config={gazDataConfig}>
