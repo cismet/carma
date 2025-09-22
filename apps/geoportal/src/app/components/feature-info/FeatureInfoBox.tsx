@@ -253,9 +253,7 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
           <div
             className="w-full"
             style={{
-              backgroundColor: selectedFeature?.properties.headerColor
-                ? selectedFeature.properties.headerColor
-                : "#0078a8",
+              backgroundColor: headerColor,
             }}
           >
             {parsedHeader ? truncateString(parsedHeader, 66) : "Informationen"}
