@@ -1,6 +1,8 @@
 import { Modal, Button } from "antd";
 import { useState, useEffect } from "react";
 
+const MOBILE_WARNING_LAST_SHOWN_KEY = "mobileWarningLastShown";
+
 type MobileWarningMessageProps = {
   headerText?: string;
   confirmButtonText?: string;
@@ -9,6 +11,7 @@ type MobileWarningMessageProps = {
   messageWidth?: number;
   hasBeenShown?: boolean;
   onConfirm?: () => void;
+  messageId?: string;
 };
 
 export const MobileWarningMessage = ({
@@ -19,7 +22,26 @@ export const MobileWarningMessage = ({
   messageWidth = 600,
   hasBeenShown = false,
   onConfirm = () => {},
+  messageId,
 }: MobileWarningMessageProps) => {
+  const storageKey = `${MOBILE_WARNING_LAST_SHOWN_KEY}_${
+    messageId || bodyText.substring(0, 20)
+  }`;
+
+  const [wasShownToday, setWasShownToday] = useState(() => {
+    try {
+      const lastShownDate = localStorage.getItem(storageKey);
+      if (lastShownDate) {
+        const today = new Date().toDateString();
+        return lastShownDate === today;
+      }
+      return false;
+    } catch (error) {
+      console.error("Error accessing localStorage:", error);
+      return false;
+    }
+  });
+
   const [isModalOpen, setIsModalOpen] = useState(true);
   const [innerWidth, setInnerWidth] = useState(() => window.innerWidth);
 
@@ -37,6 +59,13 @@ export const MobileWarningMessage = ({
 
   const handleClick = () => {
     setIsModalOpen(false);
+    try {
+      const today = new Date().toDateString();
+      localStorage.setItem(storageKey, today);
+      setWasShownToday(true);
+    } catch (error) {
+      console.error("Error writing to localStorage:", error);
+    }
     onConfirm();
   };
 
@@ -44,7 +73,7 @@ export const MobileWarningMessage = ({
     <Modal
       zIndex={9999}
       title={headerText}
-      open={isModalOpen && isMobile && !hasBeenShown}
+      open={isModalOpen && isMobile && !hasBeenShown && !wasShownToday}
       closable={false}
       footer={[
         <Button
