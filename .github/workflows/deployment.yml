@@ -43,6 +43,7 @@ jobs:
     outputs:
       project_list: ${{ steps.set_up_matrix.outputs.project_list }}
       is_affected: ${{ steps.list_affected_projects.outputs.project_list != '' }}
+      node-modules-cache-key: ${{ steps.node-cache-key.outputs.key }}
 
     permissions:
       contents: read
@@ -75,8 +76,22 @@ jobs:
         run: |
           touch .npmrc
           echo "${{ secrets.CISMET_DEV_REGISTRY_SECRET_4_DOT_NPMRC }}" >> .npmrc
+
+      - name: Generate node_modules cache key
+        id: node-cache-key
+        run: |
+          echo "key=node-modules-${{ runner.os }}-node-20-${{ hashFiles('package-lock.json') }}" >> $GITHUB_OUTPUT
+  
+      - uses: actions/cache@v4
+        id: determine-job-node-cache
+        with:
+          path: node_modules
+          key: ${{ steps.node-cache-key.outputs.key }}
+  
       - name: Install dependencies
+        if: steps.determine-job-node-cache.outputs.cache-hit != 'true'
         run: npm install
+  
 
       - name: Set Directory as Safe
         run: |
@@ -363,7 +378,15 @@ jobs:
           touch .npmrc
           echo "${{ secrets.CISMET_DEV_REGISTRY_SECRET_4_DOT_NPMRC }}" >> .npmrc
 
-      - name: Install Dependencies
+      - name: Restore node_modules from cache
+        id: build-job-node-cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ needs.determine_projects.outputs.node-modules-cache-key }}
+    
+      - name: Install dependencies
+        if: steps.build-job-node-cache.outputs.cache-hit != 'true'
         run: npm install
 
       - name: Build project
@@ -580,7 +603,19 @@ jobs:
           touch .npmrc
           echo "${{ secrets.CISMET_DEV_REGISTRY_SECRET_4_DOT_NPMRC }}" >> .npmrc
 
-      - name: Install Dependencies
+      - name: Generate node_modules cache key
+        id: node-cache-key
+        run: |
+          echo "key=node-modules-${{ runner.os }}-node-20-${{ hashFiles('package-lock.json') }}" >> $GITHUB_OUTPUT
+    
+      - uses: actions/cache@v4
+        id: single-job-node-cache
+        with:
+          path: node_modules
+          key: ${{ steps.node-cache-key.outputs.key }}
+    
+      - name: Install dependencies
+        if: steps.single-job-node-cache.outputs.cache-hit != 'true'
         run: npm install
 
       - name: Build project
@@ -827,7 +862,19 @@ jobs:
         run: |
           touch .npmrc
           echo "${{ secrets.CISMET_DEV_REGISTRY_SECRET_4_DOT_NPMRC }}" >> .npmrc
-      - name: Install Dependencies
+      - name: Generate node_modules cache key
+        id: node-cache-key
+        run: |
+          echo "key=node-modules-${{ runner.os }}-node-20-${{ hashFiles('package-lock.json') }}" >> $GITHUB_OUTPUT
+      
+      - uses: actions/cache@v4
+        id: build-each-job-node-cache
+        with:
+          path: node_modules
+          key: ${{ steps.node-cache-key.outputs.key }}
+      
+      - name: Install dependencies
+        if: steps.build-each-job-node-cache.outputs.cache-hit != 'true'
         run: npm install
 
       - name: Build project
