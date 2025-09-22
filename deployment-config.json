@@ -146,8 +146,8 @@
           },
           "live": {
             "pages": {
-              "org": "carma-dev-deployments",
-              "prj": "topicmaps-vorhabenkarte-wuppertal"
+              "org": "digital-twin-wuppertal-live",
+              "prj": "vorhabenkarte"
             }
           }
         },
