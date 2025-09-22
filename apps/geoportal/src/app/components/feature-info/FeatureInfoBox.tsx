@@ -38,7 +38,7 @@ import LoadingInfoBox from "./LoadingInfoBox";
 import versionData from "../../../version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
 import { InfoBox, utils } from "@carma-appframeworks/portals";
-import { parseColor } from "../../helper/color";
+import { parseColor, parseHeader } from "../../helper/color";
 
 interface InfoBoxProps {
   pos?: [number, number];
@@ -49,6 +49,7 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
   const [shouldRenderLoadingInfobox, setShouldRenderLoadingInfobox] =
     useState(false);
   const [headerColor, setHeaderColor] = useState<string>("");
+  const [parsedHeader, setParsedHeader] = useState<string>("");
   const dispatch = useDispatch();
 
   const loadingFeatureInfo = useSelector(getLoading);
@@ -148,7 +149,19 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
       console.log("feature properties:", selectedFeature.properties.wmsProps);
     }
 
-    const updateHeaderColor = async () => {
+    const updateHeaderAndColor = async () => {
+      // Parse header if it exists
+      if (selectedFeature?.properties?.header) {
+        const header = await parseHeader(
+          selectedFeature.properties.header,
+          selectedFeature.properties.wmsProps ?? {}
+        );
+        setParsedHeader(header || "Informationen");
+      } else {
+        setParsedHeader("Informationen");
+      }
+
+      // Parse header color
       if (selectedFeature?.properties?.headerColor) {
         const color = await parseColor(
           selectedFeature.properties.headerColor,
@@ -160,7 +173,7 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
       }
     };
 
-    updateHeaderColor();
+    updateHeaderAndColor();
   }, [selectedFeature]);
 
   if (loadingFeatureInfo && shouldRenderLoadingInfobox)
@@ -234,9 +247,7 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
                 : "#0078a8",
             }}
           >
-            {selectedFeature?.properties.header
-              ? truncateString(selectedFeature.properties.header, 66)
-              : "Informationen"}
+            {parsedHeader ? truncateString(parsedHeader, 66) : "Informationen"}
           </div>
         }
         noCurrentFeatureContent=""

@@ -493,9 +493,13 @@ export const implicitVectorSelection = async (
     if (layer.other?.accentColor) {
       headerColor = layer.other?.accentColor;
     }
+    let header = layer.title || "Information";
+    if (layer.other?.header) {
+      header = layer.other?.header;
+    }
     const feature = {
       properties: {
-        header: layer.title || "Information",
+        header: header,
         headerColor: headerColor,
         title: "Zu diesem Objekt sind keine weiteren Sachdaten verfügbar.",
         additionalInfo: `Position: ${coordinates[1].toFixed(
