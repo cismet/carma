@@ -156,23 +156,9 @@ const CrossReferences = ({
         beschlussart: "",
         datum: "",
       };
-      // setResolution((prev) => [...prev, newData]);
-      // setActiveResolution(newData);
     }
   };
-  const handleEditActiveKosten = (updatedObject) => {
-    updatedObject.betrag = updatedObject.betrag.format("DD.MM.YYYY");
-    updatedObject.anweisung = updatedObject.anweisung.format("DD.MM.YYYY");
-    setKosten(
-      kosten.map((k) => (k.id === updatedObject.id ? updatedObject : k))
-    );
-  };
-  const handleEditActiveResolution = (updatedObject) => {
-    // updatedObject.datum = updatedObject.datum.format("DD.MM.YYYY");
-    // setResolution(
-    //   resolution.map((r) => (r.id === updatedObject.id ? updatedObject : r))
-    // );
-  };
+
   const deleteActiveRow = () => {
     if (activeTabe === "2" && activecCosts) {
       const updatedArray = kosten.filter((k) => k.id !== activecCosts.id);
@@ -181,26 +167,6 @@ const CrossReferences = ({
         ? setActiveCosts(kosten[0])
         : setActiveCosts(kosten[1]);
     }
-    // if (activeTabe === "3" && activeResolution) {
-    //   const updatedArray = resolution.filter(
-    //     (r) => r.id !== activeResolution.id
-    //   );
-    //   setResolution(updatedArray);
-    //   activeResolution.id !== kosten[0].id
-    //     ? setActiveResolution(resolution[0])
-    //     : setActiveResolution(resolution[1]);
-    // }
-  };
-  const handleEditNotes = (updatedObject) => {
-    const targetRow = dataContract.find((c) => c.id === activeRow.id);
-    const copyRow = {
-      ...targetRow,
-      querverweise: updatedObject.querverweise,
-    };
-    setActiveRow(copyRow);
-    setDataContract(
-      dataContract.map((obj) => (obj.id === copyRow.id ? copyRow : obj))
-    );
   };
 
   const crossData = async () => {
@@ -237,20 +203,6 @@ const CrossReferences = ({
             deleteActiveRow={deleteActiveRow}
           >
             <ModalForm
-              // updateHandle={
-              //   activeTabe === "1"
-              //     ? handleEditNotes
-              //     : activeTabe === "2"
-              //     ? handleEditActiveKosten
-              //     : handleEditActiveResolution
-              // }
-              // formName={
-              //   activeTabe === "1"
-              //     ? activeRow.id
-              //     : activeTabe === "2"
-              //     ? activecCosts?.id
-              //     : activeResolution?.id
-              // }
               customFields={
                 activeTabe === "1"
                   ? querverweiseField
