@@ -1,5 +1,5 @@
 import { useContext } from "react";
-import ResponsiveInfoBox from "./ResponsiveInfoBox";
+import { ResponsiveInfoBox } from "./ResponsiveInfoBox";
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 import {
   FeatureCollectionContext,
@@ -182,9 +182,13 @@ export const InfoBox = ({
                 overflowWrap: "break-word",
               }}
             >
-              <h5>
-                <b>{title}</b>
-              </h5>
+              {title && title.startsWith && title.startsWith("<html>") ? (
+                <div>{parseHtml(title.match(/<html>(.*?)<\/html>/)[1])}</div>
+              ) : (
+                <h5>
+                  <b>{title}</b>
+                </h5>
+              )}
             </td>
             <td style={{ textAlign: "right", paddingRight: 7 }}>{[links]}</td>
           </tr>
