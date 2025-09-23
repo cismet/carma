@@ -20,7 +20,10 @@ import { javascript } from "@codemirror/lang-javascript";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faRepeat } from "@fortawesome/free-solid-svg-icons";
 import type { Layer } from "wms-capabilities";
-import { ControlLayout } from "@carma-mapping/map-controls-layout";
+import {
+  ControlLayout,
+  ControlLayoutCanvas,
+} from "@carma-mapping/map-controls-layout";
 
 export function App() {
   const [code, setCode] = useState(`// Objekt Variante
@@ -322,7 +325,9 @@ function createInfoBoxInfo(p) {
       >
         <div className="h-full rounded-md w-1/3">
           <ControlLayout>
-            <Map layer={selectedLayer} selectedFeature={selectedFeature} />
+            <ControlLayoutCanvas>
+              <Map layer={selectedLayer} selectedFeature={selectedFeature} />
+            </ControlLayoutCanvas>
           </ControlLayout>
         </div>
         <div className="flex flex-col gap-2 items-center justify-center w-2/3 h-full">
