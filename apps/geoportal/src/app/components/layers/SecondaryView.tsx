@@ -58,6 +58,10 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
   const backgroundLayer = useSelector(getBackgroundLayer);
   const layer =
     selectedLayerIndex >= 0 ? layers[selectedLayerIndex] : backgroundLayer;
+  const legend =
+    layer.other.vectorLegend && layer.layerType === "vector"
+      ? [{ OnlineResource: layer.other.vectorLegend }]
+      : layer.props?.legend || [];
 
   const iconName = layer?.other?.icon;
   const icon = layer.title.includes("Orthofoto")
@@ -276,7 +280,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
             ) : (
               <LayerInfo
                 description={layer.description}
-                legend={layer.props.legend ? layer.props.legend : []}
+                legend={legend}
                 zoomLevels={{
                   maxZoom: layer.props.maxZoom,
                   minZoom: layer.props.minZoom,

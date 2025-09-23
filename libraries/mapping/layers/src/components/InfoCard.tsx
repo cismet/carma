@@ -116,7 +116,10 @@ const InfoCard = ({
 
   const allowPublishing = userGroups.includes("_Geoportal_Publizieren");
 
-  const legends = (layer as unknown as any).props?.Style?.[0]?.LegendURL; // TODO: fix type
+  const legends =
+    layer.vectorStyle && layer.vectorLegend
+      ? [{ OnlineResource: layer.vectorLegend }]
+      : (layer as unknown as any).props?.Style?.[0]?.LegendURL; // TODO: fix type
   const parsedDescriptions = parseDescription(description);
   const carmaConf = extractCarmaConfig(layer.keywords);
   const isVectorLayer = carmaConf?.vectorStyle;
