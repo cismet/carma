@@ -9,7 +9,7 @@ import { CSS } from "@dnd-kit/utilities";
 
 import { faEye, faEyeSlash, faX } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import type L from "leaflet";
+import L from "leaflet";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
@@ -39,6 +39,8 @@ import {
 
 import "./tabs.css";
 import { LayerButton, LayerIcon } from "@carma-mapping/components";
+import { Spin } from "antd";
+import { LoadingOutlined } from "@ant-design/icons";
 
 interface LayerButtonProps {
   title: string;
@@ -72,6 +74,7 @@ const GeoportalLayerButton = ({
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
 
   const [error, setError] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const selectedLayerIndex = useSelector(getSelectedLayerIndex);
   const showLayerHideButtons = useSelector(getUIShowLayerHideButtons);
@@ -107,25 +110,162 @@ const GeoportalLayerButton = ({
     }
   }, [layersLength]);
 
-  useEffect(() => {
-    map?.eachLayer((leafletLayer) => {
-      if (
-        // @ts-ignore
-        leafletLayer.options?.layers &&
-        layer.other?.name &&
-        // @ts-ignore
-        leafletLayer.options?.layers === layer.other?.name
-      ) {
-        leafletLayer.on("tileerror", () => {
-          setError(true);
-        });
+  // Track if event listeners have been attached to this layer
+  const [listenersAttached, setListenersAttached] = useState(false);
 
-        leafletLayer.on("tileload", () => {
-          setError(false);
-        });
+  // Check if this layer should have loading indicators
+  const shouldShowLoading = () => {
+    // Don't show loading for background layers
+    if (background) return false;
+
+    // Don't show loading for vector layers
+    if (layer.layerType === "vector") {
+      return false;
+    }
+
+    return true;
+  };
+
+  // Function to find and attach event listeners to the layer
+  const findAndAttachListeners = () => {
+    if (!map || !layer.other?.name || listenersAttached) return;
+
+    // Skip loading indicators for certain layer types
+    const showLoading = shouldShowLoading();
+
+    let found = false;
+    map.eachLayer((leafletLayer) => {
+      // Check if this is our target layer by name
+      // @ts-ignore
+      const isTargetLayer = leafletLayer.options?.layers === layer.other?.name;
+
+      if (isTargetLayer) {
+        found = true;
+
+        // Check if it's a GridLayer to access its methods
+        const isGridLayer = leafletLayer instanceof L.GridLayer;
+
+        if (isGridLayer && showLoading) {
+          // Use GridLayer's isLoading method if available
+          const isCurrentlyLoading = leafletLayer.isLoading?.();
+          if (isCurrentlyLoading !== undefined) {
+            setLoading(isCurrentlyLoading);
+          }
+
+          // We can also check _loading property which some GridLayer implementations use
+          // @ts-ignore
+          if (leafletLayer._loading !== undefined) {
+            // @ts-ignore
+            setLoading(leafletLayer._loading);
+          }
+        }
+
+        // Only attach loading-related events if we should show loading
+        if (showLoading) {
+          // Attach events
+          leafletLayer.on("tileerror", () => {
+            setError(true);
+            setLoading(false);
+          });
+
+          leafletLayer.on("tileload", () => {
+            setError(false);
+          });
+
+          leafletLayer.on("loading", () => {
+            setLoading(true);
+          });
+
+          leafletLayer.on("tileloadstart", () => {
+            setLoading(true);
+          });
+
+          leafletLayer.on("load", () => {
+            setLoading(false);
+          });
+        }
+
+        setListenersAttached(true);
       }
     });
-  }, [map]);
+
+    // If layer is visible but we didn't find it, it might still be loading
+    if (!found && layer.visible && showLoading) {
+      setLoading(true);
+    }
+  };
+
+  // Run when map or layer changes
+  useEffect(() => {
+    findAndAttachListeners();
+
+    // Set up a MutationObserver to detect when new layers are added to the map
+    if (map && !listenersAttached) {
+      // Listen for layeradd events on the map
+      const layerAddHandler = () => {
+        findAndAttachListeners();
+      };
+
+      map.on("layeradd", layerAddHandler);
+
+      // Initial check
+      findAndAttachListeners();
+
+      return () => {
+        map.off("layeradd", layerAddHandler);
+      };
+    }
+  }, [map, layer, listenersAttached]);
+
+  // Also check when layer visibility changes
+  useEffect(() => {
+    if (layer.visible && map) {
+      // When layer becomes visible, it might be added to the map
+      findAndAttachListeners();
+
+      // If we still don't have listeners attached, show loading state
+      // but only for non-vector and non-background layers
+      if (!listenersAttached && shouldShowLoading()) {
+        setLoading(true);
+      }
+
+      // Set up periodic check for GridLayer loading state
+      let gridLayerRef: L.GridLayer | null = null;
+
+      // Find our GridLayer if it exists
+      map.eachLayer((leafletLayer) => {
+        if (
+          // @ts-ignore
+          leafletLayer.options?.layers === layer.other?.name &&
+          leafletLayer instanceof L.GridLayer
+        ) {
+          gridLayerRef = leafletLayer as L.GridLayer;
+        }
+      });
+
+      // If we found a GridLayer, set up interval to check its loading state
+      if (gridLayerRef && shouldShowLoading()) {
+        const intervalId = setInterval(() => {
+          if (gridLayerRef) {
+            // Check isLoading method
+            const isCurrentlyLoading = gridLayerRef.isLoading?.();
+            if (isCurrentlyLoading !== undefined) {
+              setLoading(isCurrentlyLoading);
+            }
+
+            // Also check _loading property
+            // @ts-ignore
+            if (gridLayerRef._loading !== undefined) {
+              // @ts-ignore
+              setLoading(gridLayerRef._loading);
+            }
+          }
+        }, 500); // Check every 500ms
+
+        return () => clearInterval(intervalId);
+      }
+    }
+  }, [layer.visible, map]);
 
   return (
     <div
@@ -144,6 +284,7 @@ const GeoportalLayerButton = ({
       <LayerButton
         ref={setNodeRef}
         onClick={(e) => {
+          console.log("xxx", layer);
           e.stopPropagation();
           console.debug(
             "onClick LayerButton settings clickFromInfoView",
@@ -180,7 +321,16 @@ const GeoportalLayerButton = ({
           "pl-3",
         ]}
       >
-        <LayerIcon layer={layer} fallbackIcon={layer.icon} />
+        {loading ? (
+          <Spin indicator={<LoadingOutlined spin />} size="small" />
+        ) : (
+          <LayerIcon
+            layer={layer}
+            fallbackIcon={layer.icon}
+            iconPrefix="https://www.wuppertal.de/geoportal/geoportal_icon_legends/"
+            id={`test`}
+          />
+        )}
         {layersLength > 0 && (
           <span className="text-base sm:hidden">{layersLength} Layer</span>
         )}
