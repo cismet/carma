@@ -162,11 +162,12 @@ const CrossReferences = ({
   }, [dataIn]);
   return (
     <div
-      className="cross-data h-full shadow-md"
+      className="cross-data h-full shadow-md pb-8"
       style={{
         height: "100%",
         backgroundColor: "#ffffff",
         borderRadius: "6px",
+        overflow: "hidden",
       }}
     >
       <InfoBlock
@@ -201,25 +202,36 @@ const CrossReferences = ({
         <Tabs
           defaultActiveKey="1"
           size="small"
-          style={{ padding: "0 18px" }}
+          style={{ padding: "0 18px", height: "100%" }}
           onChange={(activeKey) => setActiveTab(activeKey)}
-          className="overflow-hidden"
         >
-          <TabPane tab={vorgange.qkb.querverweiseTitle} key="1">
-            {/* <CustomNotes
-              currentText={querverweise?.join("\n")}
-              ifDisable={false}
-            /> */}
+          <TabPane
+            tab={
+              <span className="inline-block py-2">
+                {vorgange.qkb.querverweiseTitle}
+              </span>
+            }
+            key="1"
+            className="overflow-y-auto pb-2"
+          >
             {querverweise?.map((q, idx) => {
               return (
-                <div onClick={() => handleCrossReferenceClick(q)} key={idx}>
+                <div
+                  onClick={() => handleCrossReferenceClick(q)}
+                  key={idx}
+                  className="cursor-pointer"
+                >
                   {q}
                 </div>
               );
             })}
           </TabPane>
           <TabPane
-            tab={vorgange.qkb.kostenTitle}
+            tab={
+              <span className="inline-block py-2">
+                {vorgange.qkb.kostenTitle}
+              </span>
+            }
             key="2"
             className="overflow-y-auto"
           >
@@ -232,14 +244,6 @@ const CrossReferences = ({
               />
             </div>
           </TabPane>
-          {/* <TabPane tab="Beschlüsse" key="3">
-            <TableCustom
-              columns={columns}
-              data={resolution}
-              setActiveRow={setActiveResolution}
-              activeRow={activeResolution}
-            />
-          </TabPane> */}
         </Tabs>
       </InfoBlock>
     </div>
