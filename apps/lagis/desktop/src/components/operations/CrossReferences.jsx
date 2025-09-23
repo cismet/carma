@@ -153,6 +153,7 @@ const CrossReferences = ({
     setKosten(data);
     setActiveCosts(data[0]);
   }, [dataIn]);
+  console.log('xxx', querverweise)
   return (
     <div
       className="cross-data h-full shadow-md pb-8"
@@ -207,17 +208,22 @@ const CrossReferences = ({
             key="1"
             className="overflow-y-auto pb-2"
           >
-            {querverweise?.map((q, idx) => {
-              return (
-                <div
-                  onClick={() => handleCrossReferenceClick(q)}
-                  key={idx}
-                  className="cursor-pointer"
+            {querverweise && querverweise?.length > 0 ? querverweise?.map((q, idx) => (
+              <div key={idx}>
+                <a
+                  href={q}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    handleCrossReferenceClick(q);
+                  }}
+                  className="text-blue-600 underline hover:text-blue-800"
+                  target="_blank"
+                  rel="noopener noreferrer"
                 >
                   {q}
-                </div>
-              );
-            })}
+                </a>
+              </div>
+            )) : <CustomNotes currentText={""} />}
           </TabPane>
           <TabPane
             tab={
