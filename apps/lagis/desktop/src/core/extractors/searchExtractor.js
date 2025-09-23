@@ -2,8 +2,6 @@ export function searchContractExtractor(
   contractFlurstuckeArr,
   mipaFlurstuckeArr
 ) {
-  // console.log("search extractor mipa", mipaFlurstuckeArr);
-  // console.log("search extractor contract", contractFlurstuckeArr);
   if (contractFlurstuckeArr === undefined || mipaFlurstuckeArr === undefined) {
     return [];
   } else {

@@ -8,12 +8,12 @@ import ModalForm from "../ui/forms/ModalForm";
 import { useEffect, useState } from "react";
 import "./operations.css";
 import { nanoid } from "@reduxjs/toolkit";
-import { compare } from "../../core/tools/helper";
 import dayjs from "dayjs";
 import weekday from "dayjs/plugin/weekday";
 import localeData from "dayjs/plugin/localeData";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import { vorgange } from "@carma-collab/wuppertal/lagis-desktop";
+import { useSearchParams } from "react-router-dom";
 
 dayjs.extend(weekday);
 dayjs.extend(localeData);
@@ -56,9 +56,8 @@ const CrossReferences = ({
   // const [resolution, setResolution] = useState(activeRow.resolution);
   const [activecCosts, setActiveCosts] = useState();
   const [querverweise, setQuerverweise] = useState();
-  // const [activeResolution, setActiveResolution] = useState(
-  //   activeRow.resolution[0]
-  // );
+  const [urlParams, setUrlParams] = useSearchParams();
+
   const [activeTabe, setActiveTab] = useState("1");
   const dateFormat = "DD.MM.YYYY";
   const costFields = [
@@ -96,36 +95,18 @@ const CrossReferences = ({
           : dayjs(activecCosts?.anweisung, dateFormat),
     },
   ];
-  // const resolutionsFields = [
-  //   {
-  //     title: "Beschlussart",
-  //     value: activeResolution?.beschlussart,
-  //     name: "beschlussart",
-  //     id: nanoid(),
-  //     type: "select",
-  //     options: [
-  //       {
-  //         value: "Vermietung",
-  //         lable: "Vermietung",
-  //       },
-  //       {
-  //         value: "Leasing",
-  //         lable: "Leasing",
-  //       },
-  //     ],
-  //   },
-  //   {
-  //     title: "Datum",
-  //     value: activeResolution?.datum,
-  //     value:
-  //       activeResolution?.datum === ""
-  //         ? null
-  //         : dayjs(activeResolution?.datum, dateFormat),
-  //     name: "datum",
-  //     type: "date",
-  //     id: nanoid(),
-  //   },
-  // ];
+  const handleCrossReferenceClick = (q) => {
+    const strToArr = q.replace("/", "-").split(" ");
+    const gemarkung = strToArr[0];
+    const flur = strToArr[1];
+    const nennerZaehler = strToArr[2];
+    const searchParamsObj = {
+      gem: gemarkung,
+      flur: flur,
+      fstck: nennerZaehler,
+    };
+    setUrlParams(searchParamsObj);
+  };
   const querverweiseField = [
     {
       title: "Querverweise",
@@ -225,10 +206,17 @@ const CrossReferences = ({
           className="overflow-hidden"
         >
           <TabPane tab={vorgange.qkb.querverweiseTitle} key="1">
-            <CustomNotes
+            {/* <CustomNotes
               currentText={querverweise?.join("\n")}
               ifDisable={false}
-            />
+            /> */}
+            {querverweise?.map((q, idx) => {
+              return (
+                <div onClick={() => handleCrossReferenceClick(q)} key={idx}>
+                  {q}
+                </div>
+              );
+            })}
           </TabPane>
           <TabPane
             tab={vorgange.qkb.kostenTitle}
