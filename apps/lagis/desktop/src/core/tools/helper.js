@@ -212,3 +212,17 @@ export const selectedFeatureFitBounds = (map, selectedFeature) => {
     map.fitBounds(bb);
   }
 };
+
+
+export const convertLParcelStrToSetUrlParams = (lParcelStr) => {
+  const strToArr = lParcelStr.replace("/", "-").split(" ");
+  const gemarkung = strToArr[0];
+  const flur = strToArr[1];
+  const nennerZaehler = strToArr[2];
+  const searchParamsObj = {
+    gem: gemarkung,
+    flur: flur,
+    fstck: nennerZaehler,
+  };
+  return searchParamsObj;
+}

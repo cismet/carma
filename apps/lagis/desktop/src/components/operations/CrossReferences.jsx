@@ -14,6 +14,7 @@ import localeData from "dayjs/plugin/localeData";
 import customParseFormat from "dayjs/plugin/customParseFormat";
 import { vorgange } from "@carma-collab/wuppertal/lagis-desktop";
 import { useSearchParams } from "react-router-dom";
+import { convertLParcelStrToSetUrlParams } from "../../core/tools/helper";
 
 dayjs.extend(weekday);
 dayjs.extend(localeData);
@@ -96,15 +97,7 @@ const CrossReferences = ({
     },
   ];
   const handleCrossReferenceClick = (q) => {
-    const strToArr = q.replace("/", "-").split(" ");
-    const gemarkung = strToArr[0];
-    const flur = strToArr[1];
-    const nennerZaehler = strToArr[2];
-    const searchParamsObj = {
-      gem: gemarkung,
-      flur: flur,
-      fstck: nennerZaehler,
-    };
+    const searchParamsObj = convertLParcelStrToSetUrlParams(q);
     setUrlParams(searchParamsObj);
   };
   const querverweiseField = [
