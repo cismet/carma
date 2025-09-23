@@ -2,7 +2,7 @@ import localForage from "localforage";
 import { createSlice } from "@reduxjs/toolkit";
 import { Item } from "@carma/types";
 
-export type ExtendedItem = Item & { replaceId: string };
+export type ExtendedItem = Item & { replaceId?: string; mergeId?: string };
 
 interface MapLayersState {
   replaceLayers: ExtendedItem[];

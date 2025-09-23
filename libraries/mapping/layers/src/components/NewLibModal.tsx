@@ -645,7 +645,7 @@ export const NewLibModal = ({
           );
         } else {
           layers.forEach((layer) => {
-            if (layer.replaceId) {
+            if (layer.replaceId || layer.mergeId) {
               dispatch(addReplaceLayers(layer));
             } else {
               addItemToCategory(

@@ -3,7 +3,7 @@ import type { WMSCapabilitiesJSON } from "wms-capabilities";
 import type { Item, XMLLayer, Layer } from "@carma/types";
 
 import { serviceConfig } from "./config";
-import { getReplaceLayers } from "../slices/mapLayers";
+import { ExtendedItem, getReplaceLayers } from "../slices/mapLayers";
 import type { Store } from "redux";
 
 export const parseDescription = (description: string) => {
@@ -288,16 +288,24 @@ export const getLayerStructure = ({
         }
         if (foundLayer) {
           let replace = false;
+          let merge = false;
           replaceLayers?.forEach((replaceLayer) => {
             if (replaceLayer.replaceId === foundLayer?.id) {
               replace = true;
+            } else if (replaceLayer.mergeId === foundLayer?.id) {
+              merge = true;
             }
           });
-          if (replace) {
+          if (replace || merge) {
             let newLayer = replaceLayers.find(
-              (layer) => layer.replaceId === foundLayer?.id
+              (layer) =>
+                layer.replaceId === foundLayer?.id ||
+                layer.mergeId === foundLayer?.id
             );
             if (newLayer) {
+              if (merge) {
+                newLayer = mergeLayers(newLayer, foundLayer);
+              }
               layers.push({
                 ...newLayer,
                 serviceName: service.name,
@@ -466,6 +474,71 @@ export const mergeStructures = (structure1: any, structure2: any) => {
 
   let mergedArray = Object.values(mergedObj);
   return mergedArray;
+};
+
+const mergeLayers = (layer1: ExtendedItem, layer2: Item) => {
+  const mergedLayer = { ...layer2 };
+
+  for (const key in layer1) {
+    if (key !== "keywords") {
+      mergedLayer[key] = layer1[key];
+    }
+  }
+
+  const keywords1 = layer1.keywords || [];
+  const keywords2 = layer2.keywords || [];
+
+  const carmaConfMap: Record<string, string> = {};
+
+  keywords2.forEach((keyword) => {
+    let lowerKeyword = keyword.toLowerCase();
+    if (lowerKeyword.startsWith("carmaconf://")) {
+      const withoutProtocol = lowerKeyword.startsWith("carmaconf://")
+        ? keyword.substring(11)
+        : keyword.substring(12);
+
+      const colonIndex = withoutProtocol.indexOf(":");
+      const identifier =
+        colonIndex !== -1
+          ? withoutProtocol.substring(0, colonIndex).toLowerCase()
+          : withoutProtocol.toLowerCase();
+
+      carmaConfMap[identifier] = keyword;
+    }
+  });
+
+  keywords1.forEach((keyword) => {
+    let lowerKeyword = keyword.toLowerCase();
+    if (lowerKeyword.startsWith("carmaconf://")) {
+      const withoutProtocol = lowerKeyword.startsWith("carmaconf://")
+        ? keyword.substring(11)
+        : keyword.substring(12);
+
+      const colonIndex = withoutProtocol.indexOf(":");
+      const identifier =
+        colonIndex !== -1
+          ? withoutProtocol.substring(0, colonIndex).toLowerCase()
+          : withoutProtocol.toLowerCase();
+
+      carmaConfMap[identifier] = keyword;
+    }
+  });
+
+  const mergedKeywords = [
+    ...keywords2.filter((keyword) => {
+      const lowerKeyword = keyword.toLowerCase();
+      return !lowerKeyword.startsWith("carmaconf://");
+    }),
+    ...keywords1.filter((keyword) => {
+      const lowerKeyword = keyword.toLowerCase();
+      return !lowerKeyword.startsWith("carmaconf://");
+    }),
+    ...Object.values(carmaConfMap),
+  ];
+
+  mergedLayer.keywords = mergedKeywords;
+
+  return mergedLayer;
 };
 
 export const findLayerAndAddTags = (
