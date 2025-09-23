@@ -477,13 +477,20 @@ export const mergeStructures = (structure1: any, structure2: any) => {
 };
 
 const mergeLayers = (layer1: ExtendedItem, layer2: Item) => {
+  if (layer1.type !== "layer" || layer2.type !== "layer") {
+    return layer2;
+  }
   const mergedLayer = { ...layer2 };
 
+  const mergedProps = deepMergeProps(layer1.props || {}, layer2.props || {});
+
   for (const key in layer1) {
-    if (key !== "keywords") {
+    if (key !== "keywords" && key !== "props") {
       mergedLayer[key] = layer1[key];
     }
   }
+
+  mergedLayer.props = mergedProps;
 
   const keywords1 = layer1.keywords || [];
   const keywords2 = layer2.keywords || [];
@@ -539,6 +546,40 @@ const mergeLayers = (layer1: ExtendedItem, layer2: Item) => {
   mergedLayer.keywords = mergedKeywords;
 
   return mergedLayer;
+};
+
+/**
+ * Helper function to merge props objects
+ * Properties from props1 completely replace properties from props2 when they exist
+ */
+const deepMergeProps = (props1: any, props2: any): any => {
+  if (typeof props1 !== "object" || props1 === null) {
+    return props1;
+  }
+
+  if (typeof props2 !== "object" || props2 === null) {
+    return props1;
+  }
+
+  const result = { ...props2 };
+
+  for (const key in props1) {
+    if (Object.prototype.hasOwnProperty.call(props1, key)) {
+      if (
+        key in result &&
+        typeof result[key] === "object" &&
+        typeof props1[key] === "object" &&
+        !Array.isArray(result[key]) &&
+        !Array.isArray(props1[key])
+      ) {
+        result[key] = deepMergeProps(props1[key], result[key]);
+      } else {
+        result[key] = props1[key];
+      }
+    }
+  }
+
+  return result;
 };
 
 export const findLayerAndAddTags = (
