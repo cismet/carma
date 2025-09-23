@@ -1,6 +1,6 @@
 import { Input } from "antd";
 const { TextArea } = Input;
-const CustomNotes = ({ styles, currentText }) => {
+const CustomNotes = ({ styles, currentText, ifDisable = true }) => {
   return (
     <div
       className={styles}
@@ -11,7 +11,7 @@ const CustomNotes = ({ styles, currentText }) => {
       }}
     >
       <TextArea
-        disabled={true}
+        disabled={ifDisable}
         className="shadow-md"
         style={{
           resize: "none",

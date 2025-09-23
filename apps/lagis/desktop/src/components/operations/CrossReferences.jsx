@@ -225,7 +225,10 @@ const CrossReferences = ({
           className="overflow-hidden"
         >
           <TabPane tab={vorgange.qkb.querverweiseTitle} key="1">
-            <CustomNotes currentText={querverweise?.join("\n")} />
+            <CustomNotes
+              currentText={querverweise?.join("\n")}
+              ifDisable={false}
+            />
           </TabPane>
           <TabPane
             tab={vorgange.qkb.kostenTitle}
