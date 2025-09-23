@@ -21,9 +21,9 @@ interface InfoBoxProps {
   header: any;
   headerColor: any;
   links?: any;
-  title: any;
-  subtitle: any;
-  additionalInfo: any;
+  title?: any;
+  subtitle?: any;
+  additionalInfo?: any;
   zoomToAllLabel?: any;
   currentlyShownCountLabel?: any;
   collapsedInfoBox?: any;
