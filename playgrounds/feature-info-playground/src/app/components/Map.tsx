@@ -5,6 +5,8 @@ import CismapLayer from "react-cismap/CismapLayer";
 import { proj4crs25832def } from "react-cismap/constants/gis";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import ExtraMarker from "react-cismap/ExtraMarker";
+import { InfoBox } from "@carma-appframeworks/portals";
+
 import { useDispatch, useSelector } from "react-redux";
 import { getLeafNodes } from "../helper/featureInfo";
 import {
@@ -15,7 +17,6 @@ import {
   setOldVariant,
   setVectorOutput,
 } from "../store/slices/mapping";
-import InfoBox from "react-cismap/topicmaps/InfoBox";
 import { getActionLinksForFeature } from "react-cismap/tools/uiHelper";
 import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextProvider";
 import type { LatLng, Point } from "leaflet";
