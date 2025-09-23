@@ -30,6 +30,7 @@ import {
   replaceSlashWithDash,
 } from "../../core/tools/helper";
 import { setHasFittedBounds } from "../../store/slices/mapping";
+import LandParcelHistoryNav from "../navigation/lp-history/LandParcelHistoryNav";
 
 function paramsToObject(entries) {
   const result = {};
@@ -316,6 +317,9 @@ const LandParcelChooser = ({
           };
         })}
       />
+      <div className="ml-6">
+        <LandParcelHistoryNav />
+      </div>
       <Tooltip title="Flurstück neu laden">
         <SyncOutlined
           className="ml-6 cursor-pointer hover:text-slate-400"
