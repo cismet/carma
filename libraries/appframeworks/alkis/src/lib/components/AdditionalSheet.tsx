@@ -77,7 +77,7 @@ export const AdditionalSheet = ({
                   display: "grid",
                   gridTemplateColumns: attributesZaehlerNenner
                     ? "max-content max-content 1fr"
-                    : "max-content max-content",
+                    : "max-content 1fr",
                   // rowGap: "4px",
                   columnGap: "2rem",
                   maxWidth: "500px",
