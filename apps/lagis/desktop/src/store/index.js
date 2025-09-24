@@ -137,6 +137,7 @@ export default configureStore({
     search: searchSlice.reducer,
     searchMode: searchModeSlice.reducer,
   },
-  middleware: (getDefaultMiddleware) =>
-    getDefaultMiddleware({ immutableCheck: false }),
+  // middleware: (getDefaultMiddleware) =>
+  //   getDefaultMiddleware({ immutableCheck: false }),
+  middleware,
 });
