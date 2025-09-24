@@ -59,7 +59,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
   const layer =
     selectedLayerIndex >= 0 ? layers[selectedLayerIndex] : backgroundLayer;
   const legend =
-    layer.other.vectorLegend && layer.layerType === "vector"
+    layer?.other?.vectorLegend && layer.layerType === "vector"
       ? [{ OnlineResource: layer.other.vectorLegend }]
       : layer.props?.legend || [];
 
