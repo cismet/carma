@@ -226,3 +226,16 @@ export const convertLParcelStrToSetUrlParams = (lParcelStr) => {
   };
   return searchParamsObj;
 }
+
+export const simpleRemoveLeadingZeros = (numberStr) => {
+  return parseInt(numberStr, 10)
+}
+
+export const prepareFstckLabel = (fstckLabel) => {
+      const fstckArr = fstckLabel.split("/");
+      const zaehler = fstckArr[0];
+      const nenner = fstckArr.length > 1 ? fstckArr[1] : 0;
+      const fullFstckLabel = `${simpleRemoveLeadingZeros(zaehler)}/${simpleRemoveLeadingZeros(nenner)}`;
+      return fullFstckLabel;
+    }
+  

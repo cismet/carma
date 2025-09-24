@@ -27,7 +27,7 @@ import { SyncOutlined } from "@ant-design/icons";
 import {
   defaultLinksColor,
   removeLeadingZeros,
-  replaceSlashWithDash,
+  prepareFstckLabel,
 } from "../../core/tools/helper";
 import { setHasFittedBounds } from "../../store/slices/mapping";
 import LandParcelHistoryNav from "../navigation/lp-history/LandParcelHistoryNav";
@@ -125,6 +125,9 @@ const LandParcelChooser = ({
       flur: selectedFlur.flur,
       ...selectedFlur.flurstuecke[flurstueckLabel],
     });
+
+    const fullFstckLabel = prepareFstckLabel(flurstueckLabel);
+    console.log('xxx, ', selectedGemarkung.gemarkung, parseInt(selectedFlur.flur, 10), fullFstckLabel)
 
     setTimeout(() => {
       dispatch(setHasFittedBounds(false));
