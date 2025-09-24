@@ -93,6 +93,9 @@ export const LandparcelInfo = ({
         defaultActiveKey="0"
         tabPosition="left"
         destroyInactiveTabPane={true}
+        tabBarStyle={{
+          maxWidth: "130px",
+        }}
         items={sortedSheetsCode.map((b, i) => {
           const id = String(i);
           return {
