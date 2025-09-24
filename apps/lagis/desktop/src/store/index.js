@@ -8,6 +8,7 @@ import permissionsSlice from "./slices/permissions";
 import uiSlice from "./slices/ui";
 import searchSlice from "./slices/search";
 import searchModeSlice from "./slices/searchMode";
+import lpHistoryNav from "./slices/lpHistoryNav";
 
 import {
   persistReducer,
@@ -136,6 +137,7 @@ export default configureStore({
     gazetteerData: gazDataSlice.reducer,
     search: searchSlice.reducer,
     searchMode: searchModeSlice.reducer,
+    lpHistoryNav: lpHistoryNav.reducer,
   },
   // middleware: (getDefaultMiddleware) =>
   //   getDefaultMiddleware({ immutableCheck: false }),

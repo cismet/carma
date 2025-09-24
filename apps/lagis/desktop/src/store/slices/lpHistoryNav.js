@@ -10,22 +10,22 @@ const slice = createSlice({
   name: "lpHistoryNav",
   initialState,
   reducers: {
-    setCurrent(state, action) {
+    setCurrentLP(state, action) {
+      if (state.current) {
+        state.previous.unshift(state.current);
+      }
       state.current = action.payload;
-      return state;
     },
     addPrevious(state, action) {
       state.previous.push(action.payload);
-      return state;
     },
     addNext(state, action) {
       state.next.push(action.payload);
-      return state;
     },
   },
 });
 
-export const { setCurrent, addPrevious, addNext } = slice.actions;
+export const { setCurrentLP, addPrevious, addNext } = slice.actions;
 
 export const getCurrent = (state) => state.lpHistoryNav.current;
 export const getPrevious = (state) => state.lpHistoryNav.previous;

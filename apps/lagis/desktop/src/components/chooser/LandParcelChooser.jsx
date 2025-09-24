@@ -21,6 +21,7 @@ import {
   storeSelectedFlurstueckLabel,
 } from "../../store/slices/lagis";
 import { getSyncLandparcel } from "../../store/slices/ui";
+import { setCurrentLP } from "../../store/slices/lpHistoryNav";
 import { useDispatch, useSelector } from "react-redux";
 import { Tooltip } from "antd";
 import { SyncOutlined } from "@ant-design/icons";
@@ -126,9 +127,10 @@ const LandParcelChooser = ({
       ...selectedFlur.flurstuecke[flurstueckLabel],
     });
 
-    const fullFstckLabel = prepareFstckLabel(flurstueckLabel);
-    console.log('xxx, ', selectedGemarkung.gemarkung, parseInt(selectedFlur.flur, 10), fullFstckLabel)
-
+    const fullFstckLabel = selectedGemarkung.gemarkung + " " + parseInt(selectedFlur.flur, 10) + " " + prepareFstckLabel(flurstueckLabel);
+    console.log('xxx', fullFstckLabel)
+    dispatch(setCurrentLP(fullFstckLabel));
+      
     setTimeout(() => {
       dispatch(setHasFittedBounds(false));
     }, 800);
