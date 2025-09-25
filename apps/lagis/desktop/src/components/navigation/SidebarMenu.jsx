@@ -45,6 +45,7 @@ import {
   usageExtractor,
 } from "../../core/extractors/overviewExtractors";
 import { Tag } from "antd";
+import LandParcelHistoryNav from "./lp-history/LandParcelHistoryNav";
 
 function getItem(label, key, icon, children) {
   return {
@@ -318,9 +319,12 @@ const SidebarMenu = ({ parametersForLink }) => {
         <span onClick={toggleCollapsed} className="cursor-pointer">
           <MenuOutlined style={{ textAlign: "left" }} />
         </span>
+        
         <Logo showText={collapsed} />
       </div>
-
+      <div className="pl-[18px] mt-[-22px]">
+        <LandParcelHistoryNav />
+        </div>
       <div className="side-menu lg:ml-[-5px] overflow-y-auto overflow-x-hidden">
         <Menu
           style={{ border: 0, width: !collapsed ? "280px" : "81px" }}
