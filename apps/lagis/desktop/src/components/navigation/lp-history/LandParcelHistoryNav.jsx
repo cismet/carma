@@ -1,5 +1,6 @@
 import React from 'react'
-import {   LeftOutlined, RightOutlined } from '@ant-design/icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
 import { Dropdown, Button } from 'antd';
 import { useSelector } from 'react-redux';
 import { getPrevious, getNext, hitPrevious, hitNext, hitPrevItem, hitNextItem } from '../../../store/slices/lpHistoryNav';
@@ -29,11 +30,18 @@ function LandParcelHistoryNav() {
   return (
     <div className="flex gap-1 items-center">
       <Dropdown menu={{ items: prevItems }} placement="bottom">
-      <LeftOutlined className="text-sm mr-1" onClick={() => dispatch(hitPrevious(handleLParcelUpdate))}/>
-
+        <FontAwesomeIcon 
+          icon={faChevronLeft} 
+          className="text-sm mr-1 cursor-pointer hover:text-blue-500 transition-colors" 
+          onClick={() => dispatch(hitPrevious(handleLParcelUpdate))}
+        />
       </Dropdown>
       <Dropdown menu={{ items: nextItems }} placement="bottom">
-      <RightOutlined className="text-sm ml-1" onClick={() => dispatch(hitNext(handleLParcelUpdate))} />
+        <FontAwesomeIcon 
+          icon={faChevronRight} 
+          className="text-sm ml-1 cursor-pointer hover:text-blue-500 transition-colors" 
+          onClick={() => dispatch(hitNext(handleLParcelUpdate))} 
+        />
       </Dropdown>
     </div>
   )
