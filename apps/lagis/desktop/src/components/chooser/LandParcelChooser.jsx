@@ -218,6 +218,9 @@ const LandParcelChooser = ({
 
   return (
     <>
+      <div className="mr-3">
+        <LandParcelHistoryNav />
+      </div>
       <Select
         ref={gemarkungRef}
         value={selectedGemarkung?.gemarkung || undefined}
@@ -317,9 +320,9 @@ const LandParcelChooser = ({
           };
         })}
       />
-      <div className="ml-6">
+      {/* <div className="ml-6">
         <LandParcelHistoryNav />
-      </div>
+      </div> */}
       <Tooltip title="Flurstück neu laden">
         <SyncOutlined
           className="ml-6 cursor-pointer hover:text-slate-400"
