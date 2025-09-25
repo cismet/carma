@@ -16,7 +16,7 @@ export function App() {
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          backgroundImage: "url('/base_blurred.jpg.png')",
+          backgroundImage: `url('${baseUrl}base_blurred.jpg.png')`,
           backgroundSize: "cover",
           backgroundPosition: "center",
           backgroundRepeat: "no-repeat",
