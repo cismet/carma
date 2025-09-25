@@ -32,7 +32,7 @@ function LandParcelHistoryNav() {
 
   return (
     <div className="flex gap-1 items-center">
-      <Dropdown menu={{ items: prevItems }} placement="bottom" disabled={isPrevDisabled}>
+      <Dropdown menu={{ items: prevItems }} placement="bottomRight" disabled={isPrevDisabled}>
         <button 
           className={`h-[30px] px-3 rounded border flex items-center justify-center transition-colors ${
             isPrevDisabled 
@@ -48,7 +48,7 @@ function LandParcelHistoryNav() {
           />
         </button>
       </Dropdown>
-      <Dropdown menu={{ items: nextItems }} placement="bottom" disabled={isNextDisabled}>
+      <Dropdown menu={{ items: nextItems }} placement="bottomLeft" disabled={isNextDisabled}>
         <button 
           className={`h-[30px] px-3 rounded border flex items-center justify-center transition-colors ${
             isNextDisabled 
