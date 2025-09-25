@@ -14,6 +14,10 @@ const slice = createSlice({
       if (state.current) {
         state.previous.unshift(state.current);
       }
+
+      if (state.next.length > 0) {
+        state.next = [];
+      }
       state.current = action.payload;
     },
     setOnlyCurrent(state, action) {

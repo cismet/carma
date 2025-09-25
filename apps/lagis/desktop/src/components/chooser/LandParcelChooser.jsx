@@ -134,11 +134,7 @@ const LandParcelChooser = ({
       dispatch(setHasFittedBounds(false));
     }, 800);
   };
-  const handleKeyGemarkung = (e) => {
-    if (e.key === "Enter") {
-      flurRef.current.focus();
-    }
-  };
+
   const handleKeyFlur = (e) => {
     if (e.key === "Enter") {
       flurstueckRef.current.focus();
