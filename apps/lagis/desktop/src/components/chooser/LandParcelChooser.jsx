@@ -21,7 +21,7 @@ import {
   storeSelectedFlurstueckLabel,
 } from "../../store/slices/lagis";
 import { getSyncLandparcel } from "../../store/slices/ui";
-import { setCurrentLP } from "../../store/slices/lpHistoryNav";
+import { getCurrentLParcelNav, setCurrentLP } from "../../store/slices/lpHistoryNav";
 import { useDispatch, useSelector } from "react-redux";
 import { Tooltip } from "antd";
 import { SyncOutlined } from "@ant-design/icons";
@@ -50,7 +50,7 @@ const LandParcelChooser = ({
   const dispatch = useDispatch();
   const landparcel = useSelector(getLandparcel);
   const alkisLandparcel = useSelector(getAlkisLandparcel);
-  const ifSyncLandparcel = useSelector(getSyncLandparcel);
+  const currentLParcelNav = useSelector(getCurrentLParcelNav);
   // const [selectedGemarkung, setSelectedGemarkung] = useState();
   // const [selectedFlur, setSelectedFlur] = useState();
   // const [selectedFlurstueckLabel, setSelectedFlurstueckLabel] = useState();
@@ -126,9 +126,6 @@ const LandParcelChooser = ({
       flur: selectedFlur.flur,
       ...selectedFlur.flurstuecke[flurstueckLabel],
     });
-
-    const fullFstckLabel = selectedGemarkung.gemarkung + " " + parseInt(selectedFlur.flur, 10) + " " + prepareFstckLabel(flurstueckLabel);
-    dispatch(setCurrentLP(fullFstckLabel));
       
     setTimeout(() => {
       dispatch(setHasFittedBounds(false));
@@ -142,6 +139,13 @@ const LandParcelChooser = ({
   };
 
   const gotoFstckFromUrl = ({ gem, flur, fstck }) => {
+
+    if(gem && flur && fstck){
+      const fullFstckLabel = gem + " " + flur + " " + fstck.replace("-", "/");
+      if(fullFstckLabel !== currentLParcelNav){
+        dispatch(setCurrentLP(fullFstckLabel));
+      }
+    }
     dispatch(
       switchToLandparcel({
         gem,
@@ -340,29 +344,3 @@ const LandParcelChooser = ({
 };
 
 export default LandParcelChooser;
-
-// export const removeLeadingZeros = (numberStr, flur = false) => {
-//   if (!numberStr) {
-//     return undefined;
-//   }
-//   const parts = numberStr.split("/");
-
-//   const trimmedParts = parts.map((part) => {
-//     let startIndex = 0;
-
-//     while (startIndex < part.length && part[startIndex] === "0") {
-//       startIndex++;
-//     }
-
-//     return part.substring(startIndex);
-//   });
-
-//   const flurResalt = trimmedParts.join("/");
-
-//   const result =
-//     trimmedParts.length > 1
-//       ? trimmedParts.join("/")
-//       : trimmedParts.join("") + "/0";
-
-//   return !flur ? result : flurResalt;
-// };

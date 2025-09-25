@@ -153,7 +153,6 @@ const CrossReferences = ({
     setKosten(data);
     setActiveCosts(data[0]);
   }, [dataIn]);
-  console.log('xxx', querverweise)
   return (
     <div
       className="cross-data h-full shadow-md pb-8"

@@ -34,7 +34,7 @@ const slice = createSlice({
 
 export const { setCurrentLP, setOnlyCurrent, setPrevious, setNext } = slice.actions;
 
-export const getCurrent = (state) => state.lpHistoryNav.current;
+export const getCurrentLParcelNav = (state) => state.lpHistoryNav.current;
 export const getPrevious = (state) => state.lpHistoryNav.previous;
 export const getNext = (state) => state.lpHistoryNav.next;
 
@@ -44,7 +44,7 @@ export default slice;
 export const hitPrevious = (cb) => {
   return async (dispatch, getState) => {
     const state = getState();
-    const current = getCurrent(state);
+    const current = getCurrentLParcelNav (state);
     const previous = getPrevious(state);
     const next = getNext(state);
     if (previous.length > 0) {
@@ -59,7 +59,7 @@ export const hitPrevious = (cb) => {
 export const hitNext = (cb) => {
   return async (dispatch, getState) => {
     const state = getState();
-    const current = getCurrent(state);
+    const current = getCurrentLParcelNav(state);
     const previous = getPrevious(state);
     const next = getNext(state);
     if (next.length > 0) {
@@ -74,7 +74,7 @@ export const hitNext = (cb) => {
 export const hitPrevItem = (cb, arrKey) => {
   return async (dispatch, getState) => {
     const state = getState();
-    const current = getCurrent(state);
+    const current = getCurrentLParcelNav(state);
     const previous = getPrevious(state);
     const next = getNext(state);
 
@@ -93,7 +93,7 @@ export const hitPrevItem = (cb, arrKey) => {
 export const hitNextItem = (cb, arrKey) => {
   return async (dispatch, getState) => {
     const state = getState();
-    const current = getCurrent(state);
+    const current = getCurrentLParcelNav(state);
     const previous = getPrevious(state);
     const next = getNext(state);
 
