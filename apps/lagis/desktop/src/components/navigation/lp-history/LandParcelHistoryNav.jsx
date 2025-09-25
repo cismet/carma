@@ -30,18 +30,26 @@ function LandParcelHistoryNav() {
   return (
     <div className="flex gap-1 items-center">
       <Dropdown menu={{ items: prevItems }} placement="bottom">
-        <FontAwesomeIcon 
-          icon={faChevronLeft} 
-          className="text-sm mr-1 cursor-pointer hover:text-blue-500 transition-colors" 
+        <button 
+          className="w-8 h-8 rounded border border-gray-300 bg-white hover:bg-gray-50 flex items-center justify-center cursor-pointer transition-colors mr-1"
           onClick={() => dispatch(hitPrevious(handleLParcelUpdate))}
-        />
+        >
+          <FontAwesomeIcon 
+            icon={faChevronLeft} 
+            className="text-xs text-gray-600"
+          />
+        </button>
       </Dropdown>
       <Dropdown menu={{ items: nextItems }} placement="bottom">
-        <FontAwesomeIcon 
-          icon={faChevronRight} 
-          className="text-sm ml-1 cursor-pointer hover:text-blue-500 transition-colors" 
-          onClick={() => dispatch(hitNext(handleLParcelUpdate))} 
-        />
+        <button 
+          className="w-8 h-8 rounded border border-gray-300 bg-white hover:bg-gray-50 flex items-center justify-center cursor-pointer transition-colors ml-1"
+          onClick={() => dispatch(hitNext(handleLParcelUpdate))}
+        >
+          <FontAwesomeIcon 
+            icon={faChevronRight} 
+            className="text-xs text-gray-600"
+          />
+        </button>
       </Dropdown>
     </div>
   )
