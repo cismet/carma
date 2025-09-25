@@ -1,5 +1,5 @@
 import React from 'react'
-import { LeftCircleOutlined, RightCircleOutlined } from '@ant-design/icons';
+import {   LeftOutlined, RightOutlined } from '@ant-design/icons';
 import { Dropdown, Button } from 'antd';
 import { useSelector } from 'react-redux';
 import { getPrevious, getNext, hitPrevious, hitNext, hitPrevItem, hitNextItem } from '../../../store/slices/lpHistoryNav';
@@ -28,13 +28,12 @@ function LandParcelHistoryNav() {
 
   return (
     <div className="flex gap-1 items-center">
-      <LeftCircleOutlined onClick={() => dispatch(hitPrevious(handleLParcelUpdate))}/>
-      <Dropdown menu={{ items: prevItems }} placement="bottom" open={true}>
-        <Button>Previous</Button>
+      <Dropdown menu={{ items: prevItems }} placement="bottom">
+      <LeftOutlined className="text-sm mr-1" onClick={() => dispatch(hitPrevious(handleLParcelUpdate))}/>
+
       </Dropdown>
-      <RightCircleOutlined onClick={() => dispatch(hitNext(handleLParcelUpdate))} />
-      <Dropdown menu={{ items: nextItems }} placement="bottom" open={true}>
-        <Button>Next</Button>
+      <Dropdown menu={{ items: nextItems }} placement="bottom">
+      <RightOutlined className="text-sm ml-1" onClick={() => dispatch(hitNext(handleLParcelUpdate))} />
       </Dropdown>
     </div>
   )
