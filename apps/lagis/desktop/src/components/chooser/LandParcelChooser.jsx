@@ -218,9 +218,9 @@ const LandParcelChooser = ({
 
   return (
     <>
-      {/* <div className="mr-3">
+      <div className="mr-3">
         <LandParcelHistoryNav />
-      </div> */}
+      </div>
       <Select
         ref={gemarkungRef}
         value={selectedGemarkung?.gemarkung || undefined}

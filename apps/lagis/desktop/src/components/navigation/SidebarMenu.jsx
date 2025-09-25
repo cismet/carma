@@ -322,9 +322,9 @@ const SidebarMenu = ({ parametersForLink }) => {
         
         <Logo showText={collapsed} />
       </div>
-      <div className="pl-[18px] mt-[-22px]">
+      {/* <div className="pl-[18px] mt-[-22px]">
         <LandParcelHistoryNav />
-        </div>
+        </div> */}
       <div className="side-menu lg:ml-[-5px] overflow-y-auto overflow-x-hidden">
         <Menu
           style={{ border: 0, width: !collapsed ? "280px" : "81px" }}
