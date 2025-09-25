@@ -45,7 +45,7 @@ import { discoverConfig } from "../helper/discover";
 
 import "./input.css";
 import "./modal.css";
-import { md5ActionFetchDAQ } from "@carma-commons/utils";
+import { md5ActionFetchDAQ, md5FetchJSON } from "@carma-commons/utils";
 import ItemSkeleton from "./ItemSkeleton";
 import {
   addloadingCapabilitiesIDs,
@@ -177,8 +177,14 @@ export const NewLibModal = ({
           setLoadingData(false);
           dispatch(setTriggerRefetch(false));
         })
-        .catch((e) => {
-          if (e.status === 401) {
+        .catch(async (e) => {
+          if (!jwt) {
+            const result = await md5FetchJSON(
+              "gp_entdecken",
+              "https://wupp-topicmaps-data.cismet.de/data/gp_entdecken.json"
+            );
+            setDiscoverItems(result);
+          } else if (e.status === 401) {
             unauthorizedCallback?.();
             setJWT("");
           }

@@ -6,7 +6,11 @@ export { extractCarmaConfig } from "./lib/carmaConfig";
 
 export * from "./lib/constants";
 
-export { md5FetchText, md5ActionFetchDAQ } from "./lib/fetching/fetching.ts";
+export {
+  md5FetchText,
+  md5ActionFetchDAQ,
+  md5FetchJSON,
+} from "./lib/fetching/fetching.ts";
 
 export {
   getGazData,
