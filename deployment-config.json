@@ -27,6 +27,33 @@
       },
       "projectPath": "./dist/apps/topicmaps/stadtplan"
     },
+    "legals": {
+      "deployment": {
+        "manual": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "legals"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "digital-twin-wuppertal-live",
+              "prj": "legals"
+            }
+          }
+        },
+        "auto": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "legals"
+            }
+          }
+        }
+      },
+      "projectPath": "./dist/apps/legals"
+    },
     "kulturstadtplan": {
       "deployment": {
         "manual": {

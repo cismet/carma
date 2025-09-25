@@ -1,0 +1,75 @@
+{
+  "name": "legals",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/legals/src",
+  "projectType": "application",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/vite:build",
+      "outputs": [
+        "{options.outputPath}"
+      ],
+      "defaultConfiguration": "production",
+      "options": {
+        "outputPath": "dist/apps/legals"
+      },
+      "configurations": {
+        "development": {
+          "mode": "development"
+        },
+        "production": {
+          "mode": "production"
+        }
+      }
+    },
+    "serve": {
+      "executor": "@nx/vite:dev-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "legals:build"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "legals:build:development",
+          "hmr": true
+        },
+        "production": {
+          "buildTarget": "legals:build:production",
+          "hmr": false
+        }
+      }
+    },
+    "preview": {
+      "dependsOn": [
+        "build"
+      ],
+      "executor": "@nx/vite:preview-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "legals:build"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "legals:build:development"
+        },
+        "production": {
+          "buildTarget": "legals:build:production"
+        }
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "serve-static": {
+      "executor": "@nx/web:file-server",
+      "dependsOn": [
+        "build"
+      ],
+      "options": {
+        "buildTarget": "legals:build",
+        "spa": true
+      }
+    }
+  }
+}
