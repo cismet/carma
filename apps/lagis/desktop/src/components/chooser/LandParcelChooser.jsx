@@ -128,7 +128,6 @@ const LandParcelChooser = ({
     });
 
     const fullFstckLabel = selectedGemarkung.gemarkung + " " + parseInt(selectedFlur.flur, 10) + " " + prepareFstckLabel(flurstueckLabel);
-    console.log('xxx', fullFstckLabel)
     dispatch(setCurrentLP(fullFstckLabel));
       
     setTimeout(() => {

@@ -2,7 +2,7 @@ import React from 'react'
 import { LeftCircleOutlined, RightCircleOutlined } from '@ant-design/icons';
 import { Dropdown, Button } from 'antd';
 import { useSelector } from 'react-redux';
-import { getPrevious, getNext, hitPrevious, hitNext, hitPrevItem } from '../../../store/slices/lpHistoryNav';
+import { getPrevious, getNext, hitPrevious, hitNext, hitPrevItem, hitNextItem } from '../../../store/slices/lpHistoryNav';
 import { useDispatch } from 'react-redux';
 import { convertLParcelStrToSetUrlParams } from '../../../core/tools/helper';
 import { useSearchParams } from 'react-router-dom';
@@ -23,7 +23,7 @@ function LandParcelHistoryNav() {
   }));
   const nextItems = next.map((item, index) => ({
     key: item + '-' + index,
-    label: <span>{item}</span>,
+    label: <div onClick={() => dispatch(hitNextItem(handleLParcelUpdate, index++))}>{item}</div>,
   }));
 
   return (

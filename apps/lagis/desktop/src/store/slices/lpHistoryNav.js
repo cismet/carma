@@ -76,7 +76,7 @@ export const hitPrevItem = (cb, arrKey) => {
 
     if (previous.length > 0) {
       const selectedItem = previous[arrKey];
-      const movingItemsStack = previous.slice(0, arrKey);
+      const movingItemsStack = previous.slice(0, arrKey).reverse();
       const restPrevItems = previous.slice(arrKey+1, previous.length);
       dispatch(setNext([...movingItemsStack, current, ...next]));
       dispatch(setOnlyCurrent(selectedItem));
@@ -86,3 +86,21 @@ export const hitPrevItem = (cb, arrKey) => {
   }
 }
   
+export const hitNextItem = (cb, arrKey) => {
+  return async (dispatch, getState) => {
+    const state = getState();
+    const current = getCurrent(state);
+    const previous = getPrevious(state);
+    const next = getNext(state);
+
+    if (next.length > 0) {
+      const selectedItem = next[arrKey];
+      const movingItemsStack = next.slice(0, arrKey).reverse();
+      const restNextItems = next.slice(arrKey+1, next.length);
+      dispatch(setPrevious([...movingItemsStack, current, ...previous]));
+      dispatch(setOnlyCurrent(selectedItem));
+      dispatch(setNext(restNextItems));
+      cb(selectedItem)
+    }
+  }
+}
