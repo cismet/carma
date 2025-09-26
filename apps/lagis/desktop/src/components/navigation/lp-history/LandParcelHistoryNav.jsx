@@ -4,7 +4,7 @@ import {
   faChevronLeft,
   faChevronRight,
 } from "@fortawesome/free-solid-svg-icons";
-import { Dropdown, Button, Tooltip } from "antd";
+import { Dropdown, Tooltip } from "antd";
 import { useSelector } from "react-redux";
 import {
   getPrevious,
@@ -45,49 +45,59 @@ function LandParcelHistoryNav() {
   const isPrevDisabled = previous.length === 0;
   const isNextDisabled = next.length === 0;
 
+  // Shared styles for navigation buttons
+  const baseBtnClasses =
+    "h-[30px] px-3 rounded border flex items-center justify-center transition-colors";
+  const enabledClasses =
+    "border-gray-300 bg-white hover:bg-gray-50 text-gray-600 cursor-pointer";
+  const disabledClasses =
+    "border-gray-200 bg-gray-50 text-gray-300 cursor-not-allowed";
+
+  // Reusable renderer for nav dropdowns
+  const renderNavDropdown = ({
+    items,
+    placement,
+    disabled,
+    onClick,
+    icon,
+    ariaLabel,
+  }) => (
+    <Dropdown menu={{ items }} placement={placement} disabled={disabled}>
+      <button
+        type="button"
+        aria-label={ariaLabel}
+        className={`${baseBtnClasses} ${
+          disabled ? disabledClasses : enabledClasses
+        }`}
+        onClick={() => !disabled && onClick()}
+        disabled={disabled}
+      >
+        <FontAwesomeIcon icon={icon} className="text-xs" />
+      </button>
+    </Dropdown>
+  );
+
   return (
     <div className="flex gap-1 items-center">
       {/* <Tooltip title="Klicken, um zurückzugehen"> */}
-      <Dropdown
-        menu={{ items: prevItems }}
-        placement="bottomRight"
-        disabled={isPrevDisabled}
-      >
-        <button
-          className={`h-[30px] px-3 rounded border flex items-center justify-center transition-colors ${
-            isPrevDisabled
-              ? "border-gray-200 bg-gray-50 text-gray-300 cursor-not-allowed"
-              : "border-gray-300 bg-white hover:bg-gray-50 text-gray-600 cursor-pointer"
-          }`}
-          onClick={() =>
-            !isPrevDisabled && dispatch(hitPrevious(handleLParcelUpdate))
-          }
-          disabled={isPrevDisabled}
-        >
-          <FontAwesomeIcon icon={faChevronLeft} className="text-xs" />
-        </button>
-      </Dropdown>
+      {renderNavDropdown({
+        items: prevItems,
+        placement: "bottomRight",
+        disabled: isPrevDisabled,
+        onClick: () => dispatch(hitPrevious(handleLParcelUpdate)),
+        icon: faChevronLeft,
+        ariaLabel: "Zurück",
+      })}
       {/* </Tooltip> */}
       {/* <Tooltip title="Klicken, um vorwärtszugehen"> */}
-      <Dropdown
-        menu={{ items: nextItems }}
-        placement="bottomLeft"
-        disabled={isNextDisabled}
-      >
-        <button
-          className={`h-[30px] px-3 rounded border flex items-center justify-center transition-colors ${
-            isNextDisabled
-              ? "border-gray-200 bg-gray-50 text-gray-300 cursor-not-allowed"
-              : "border-gray-300 bg-white hover:bg-gray-50 text-gray-600 cursor-pointer"
-          }`}
-          onClick={() =>
-            !isNextDisabled && dispatch(hitNext(handleLParcelUpdate))
-          }
-          disabled={isNextDisabled}
-        >
-          <FontAwesomeIcon icon={faChevronRight} className="text-xs" />
-        </button>
-      </Dropdown>
+      {renderNavDropdown({
+        items: nextItems,
+        placement: "bottomLeft",
+        disabled: isNextDisabled,
+        onClick: () => dispatch(hitNext(handleLParcelUpdate)),
+        icon: faChevronRight,
+        ariaLabel: "Vorwärts",
+      })}
       {/* </Tooltip> */}
     </div>
   );
