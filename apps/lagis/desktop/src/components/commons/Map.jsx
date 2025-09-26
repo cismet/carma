@@ -1,6 +1,6 @@
 import "react-cismap/topicMaps.css";
 import "leaflet/dist/leaflet.css";
-import { Card, Tooltip } from "antd";
+import { Card, Tooltip, Button } from "antd";
 import PropTypes from "prop-types";
 import { useContext, useEffect, useRef, useState } from "react";
 import {
@@ -124,12 +124,6 @@ const Map = ({
     activeAdditionalLayerKeys,
   } = useContext(TopicMapStylingContext);
 
-  // const {
-  //   setSelectedBackground,
-  //   setNamedMapStyle,
-  //   setActiveAdditionalLayerKeys,
-  // } = useContext(TopicMapStylingDispatchContext);
-
   const { setRoutedMapRef } = useContext(TopicMapDispatchContext);
 
   const isMapLoadingValue = useSelector(isMapLoading);
@@ -162,8 +156,6 @@ const Map = ({
 
   const lastPointSearchTimeRef = useRef(0);
 
-  // const _backgroundLayers = backgroundsFromMode || "rvrGrau@40";
-  // const opacities = useSelector(getAdditionalLayerOpacities);
   const handleSetShowBackground = () => {
     dispatch(setShowBackground(!showBackground));
   };
@@ -173,10 +165,6 @@ const Map = ({
   const handleSetShowInspectMode = () => {
     dispatch(setShowInspectMode(!showInspectMode));
   };
-
-  // const handleSetDonutSearch = (mode = "point") => {
-  //   dispatch(storeShapeMode(mode));
-  // };
 
   const handleSetDonutWithDelay = (mode = "point") => {
     lastPointSearchTimeRef.current = Date.now();
@@ -290,7 +278,6 @@ const Map = ({
 
   const { gazData } = useGazData();
   const { setSelection } = useSelection();
-  // useSelectionTopicMap();
 
   const onGazetteerSelection = (selection) => {
     if (!selection) {
@@ -362,6 +349,15 @@ const Map = ({
               />
             </div>
           )}
+
+          {/* {mode === "point" && (
+            <div>
+              Der Flurstückssuche-Modus ist aktiv{" "}
+              <Button onClick={() => dispatch(storeShapeMode("default"))}>
+                Abbrechen
+              </Button>
+            </div>
+          )} */}
 
           <div className="relative flex items-center gap-2 cursor-pointer">
             <PointSearchButton
