@@ -364,7 +364,10 @@ const Map = ({
           )}
 
           <div className="relative flex items-center gap-2 cursor-pointer">
-            <PointSearchButton setMode={handleSetDonutWithDelay} />
+            <PointSearchButton
+              setMode={handleSetDonutWithDelay}
+              active={mode === "point"}
+            />
             <Tooltip title="Hintergrund an/aus">
               <FileImageFilled
                 className="text-lg h-6 cursor-pointer"
