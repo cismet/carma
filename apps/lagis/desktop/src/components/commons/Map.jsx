@@ -329,16 +329,11 @@ const Map = ({
           </div>
           {mode === "point" && (
             <div className="ml-auto mr-auto">
-              <Tag>
-                <span className="text-gray-500">
-                  Der Flurstückssuche-Modus ist aktiv
-                </span>
-                <span
-                  className="ml-2 cursor-pointer text-red-500 hover:text-red-600"
-                  onClick={() => dispatch(storeShapeMode("default"))}
-                >
-                  Abbrechen
-                </span>
+              <Tag
+                closeIcon
+                onClose={() => dispatch(storeShapeMode("default"))}
+              >
+                <span className="text-gray-500">Flurstückssuche aktiv</span>
               </Tag>
             </div>
           )}
