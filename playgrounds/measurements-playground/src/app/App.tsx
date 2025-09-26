@@ -6,10 +6,12 @@ import { ZoomControl } from "@carma-mapping/components";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faRuler } from "@fortawesome/free-solid-svg-icons";
+import { useState } from "react";
 
 suppressReactCismapErrors();
 
 export function App() {
+  const [startDrawing, setStartDrawing] = useState(false);
   return (
     <>
       <ControlLayout ifStorybook={false}>
@@ -19,10 +21,13 @@ export function App() {
         <Control position="topleft" order={10}>
           <ControlButtonStyler
             onClick={() => {
-              console.log("xxx measurements");
+              setStartDrawing(!startDrawing);
             }}
           >
-            <FontAwesomeIcon icon={faRuler} />
+            <FontAwesomeIcon
+              icon={faRuler}
+              style={{ color: startDrawing ? "blue" : "black" }}
+            />
           </ControlButtonStyler>
         </Control>
       </ControlLayout>
@@ -32,7 +37,7 @@ export function App() {
         fullScreenControl={false}
         zoomControls={false}
       >
-        <LibMeasurements />
+        <LibMeasurements startDrawing={startDrawing} />
       </TopicMapComponent>
     </>
   );
