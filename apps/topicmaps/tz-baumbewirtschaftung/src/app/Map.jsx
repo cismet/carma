@@ -1,13 +1,8 @@
 import { useContext, useEffect, useState } from "react";
-import {
-  FeatureCollectionContext,
-  FeatureCollectionDispatchContext,
-} from "react-cismap/contexts/FeatureCollectionContextProvider";
+import { FeatureCollectionContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
-import FeatureCollection from "react-cismap/FeatureCollection";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import Menu from "./Menu";
-import { getPoiClusterIconCreatorFunction } from "./helper/styler";
 import {
   createVectorFeature,
   FeatureInfobox,
@@ -28,9 +23,7 @@ import {
 } from "@carma-mapping/components";
 import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
-import { GenericInfoBoxFromFeature } from "@carma-appframeworks/portals";
 import CismapLayer from "react-cismap/CismapLayer";
-import { getWGS84GeoJSON } from "../../../../lagis/desktop/src/core/tools/mappingTools";
 import versionData from "../version.json";
 import { md5FetchJSON } from "react-cismap/tools/fetching";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
@@ -43,7 +36,7 @@ const TZBaumbewirtschaftung = () => {
   const { responsiveState, gap, windowSize } = useContext(
     ResponsiveTopicMapContext
   );
-  // useSelectionTopicMap();
+  useSelectionTopicMap();
   const { appKey } = useContext(TopicMapContext);
   const dataUrl =
     import.meta.env.VITE_WUPP_ASSET_BASEURL +
