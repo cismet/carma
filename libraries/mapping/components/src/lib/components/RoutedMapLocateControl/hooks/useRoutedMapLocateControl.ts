@@ -10,6 +10,7 @@ export const useRoutedMapLocateControl = () => {
   const [hasMapMoved, setHasMapMoved] = useState(false);
   const [hasFoundLocation, setHasFoundLocation] = useState(false);
   const [locationInstance, setLocationInstance] =
+    //@ts-ignore
     useState<L.Control.Locate | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -60,6 +61,7 @@ export const useRoutedMapLocateControl = () => {
     if (!locationInstance && routedMap) {
       const targetMap = routedMap.leafletMap.leafletElement;
       const lc = L.control
+        //@ts-ignore
         .locate({
           position: "topright",
           strings: {

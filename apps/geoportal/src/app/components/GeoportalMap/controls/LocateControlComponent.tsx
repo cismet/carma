@@ -10,12 +10,14 @@ interface Props {
 const LocateControlComponent = ({ isActive = false }: Props) => {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const [locationInstance, setLocationInstance] =
+    //@ts-ignore
     useState<L.Control.Locate | null>(null);
 
   useEffect(() => {
     if (!locationInstance && routedMapRef?.leafletMap) {
       const mapInstance = routedMapRef.leafletMap.leafletElement;
       const lc = L.control
+        //@ts-ignore
         .locate({
           position: "topright",
           strings: {

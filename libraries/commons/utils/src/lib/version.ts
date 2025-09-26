@@ -4,7 +4,7 @@ interface VersionData {
   md5?: string;
 }
 
-export { VersionData };
+export type { VersionData };
 
 export const getApplicationVersion = (versionData: VersionData): string => {
   let v = versionData.version;
