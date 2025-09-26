@@ -91,3 +91,46 @@ export const createUrl = ({
 
   return url;
 };
+
+export const createVectorFeature = async (mapping, selectedVectorFeature) => {
+  let feature: any = undefined;
+
+  let properties = selectedVectorFeature.properties;
+  properties = {
+    ...properties,
+    vectorId: selectedVectorFeature.id,
+  };
+  let result = "";
+  let featureInfoZoom = 20;
+  mapping.forEach((keyword) => {
+    result += keyword + "\n";
+  });
+
+  if (result) {
+    if (result.includes("function")) {
+      // remove every line that is not a function
+      result = result
+        .split("\n")
+        .filter((line) => line.includes("function"))
+        .join("\n");
+    }
+
+    const featureProperties = result.includes("function")
+      ? await functionToFeature(properties, result)
+      : await objectToFeature(properties, result);
+    if (!featureProperties) {
+      return undefined;
+    }
+    const genericLinks = featureProperties.properties.genericLinks || [];
+
+    feature = {
+      properties: {
+        ...featureProperties.properties,
+        genericLinks: genericLinks,
+        zoom: featureInfoZoom,
+      },
+      geometry: selectedVectorFeature.geometry,
+    };
+  }
+  return feature;
+};
