@@ -1,12 +1,22 @@
-import React from 'react'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
-import { Dropdown, Button } from 'antd';
-import { useSelector } from 'react-redux';
-import { getPrevious, getNext, hitPrevious, hitNext, hitPrevItem, hitNextItem } from '../../../store/slices/lpHistoryNav';
-import { useDispatch } from 'react-redux';
-import { convertLParcelStrToSetUrlParams } from '../../../core/tools/helper';
-import { useSearchParams } from 'react-router-dom';
+import React from "react";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faChevronLeft,
+  faChevronRight,
+} from "@fortawesome/free-solid-svg-icons";
+import { Dropdown, Button } from "antd";
+import { useSelector } from "react-redux";
+import {
+  getPrevious,
+  getNext,
+  hitPrevious,
+  hitNext,
+  hitPrevItem,
+  hitNextItem,
+} from "../../../store/slices/lpHistoryNav";
+import { useDispatch } from "react-redux";
+import { convertLParcelStrToSetUrlParams } from "../../../core/tools/helper";
+import { useSearchParams } from "react-router-dom";
 
 function LandParcelHistoryNav() {
   const dispatch = useDispatch();
@@ -14,58 +24,69 @@ function LandParcelHistoryNav() {
   const next = useSelector(getNext);
   const [urlParams, setUrlParams] = useSearchParams();
 
-  const handleLParcelUpdate= (q) => {
+  const handleLParcelUpdate = (q) => {
     const searchParamsObj = convertLParcelStrToSetUrlParams(q);
     setUrlParams(searchParamsObj);
   };
-  const prevItems = previous.map((item, index) => ({
-    key: item + '-' + index,
-    label: <div onClick={() => dispatch(hitPrevItem(handleLParcelUpdate, index++))}>{item}</div>,
-  }));
-  const nextItems = next.map((item, index) => ({
-    key: item + '-' + index,
-    label: <div onClick={() => dispatch(hitNextItem(handleLParcelUpdate, index++))}>{item}</div>,
-  }));
+  // Helper to build dropdown menu items without mutating the index and with better accessibility
+  const makeItems = (items, actionCreator) =>
+    items.map((item, idx) => ({
+      key: `${idx}-${item}`,
+      label: (
+        <div onClick={() => dispatch(actionCreator(handleLParcelUpdate, idx))}>
+          {item}
+        </div>
+      ),
+    }));
+
+  const prevItems = makeItems(previous, hitPrevItem);
+  const nextItems = makeItems(next, hitNextItem);
 
   const isPrevDisabled = previous.length === 0;
   const isNextDisabled = next.length === 0;
 
   return (
     <div className="flex gap-1 items-center">
-      <Dropdown menu={{ items: prevItems }} placement="bottomRight" disabled={isPrevDisabled}>
-        <button 
+      <Dropdown
+        menu={{ items: prevItems }}
+        placement="bottomRight"
+        disabled={isPrevDisabled}
+      >
+        <button
           className={`h-[30px] px-3 rounded border flex items-center justify-center transition-colors ${
-            isPrevDisabled 
-              ? 'border-gray-200 bg-gray-50 text-gray-300 cursor-not-allowed' 
-              : 'border-gray-300 bg-white hover:bg-gray-50 text-gray-600 cursor-pointer'
+            isPrevDisabled
+              ? "border-gray-200 bg-gray-50 text-gray-300 cursor-not-allowed"
+              : "border-gray-300 bg-white hover:bg-gray-50 text-gray-600 cursor-pointer"
           }`}
-          onClick={() => !isPrevDisabled && dispatch(hitPrevious(handleLParcelUpdate))}
+          onClick={() =>
+            !isPrevDisabled && dispatch(hitPrevious(handleLParcelUpdate))
+          }
           disabled={isPrevDisabled}
         >
-          <FontAwesomeIcon 
-            icon={faChevronLeft} 
-            className="text-xs"
-          />
+          <FontAwesomeIcon icon={faChevronLeft} className="text-xs" />
         </button>
       </Dropdown>
-      <Dropdown menu={{ items: nextItems }} placement="bottomLeft" disabled={isNextDisabled}>
-        <button 
+      <Dropdown
+        menu={{ items: nextItems }}
+        placement="bottomLeft"
+        disabled={isNextDisabled}
+      >
+        <button
           className={`h-[30px] px-3 rounded border flex items-center justify-center transition-colors ${
-            isNextDisabled 
-              ? 'border-gray-200 bg-gray-50 text-gray-300 cursor-not-allowed' 
-              : 'border-gray-300 bg-white hover:bg-gray-50 text-gray-600 cursor-pointer'
+            isNextDisabled
+              ? "border-gray-200 bg-gray-50 text-gray-300 cursor-not-allowed"
+              : "border-gray-300 bg-white hover:bg-gray-50 text-gray-600 cursor-pointer"
           }`}
-          onClick={() => !isNextDisabled && dispatch(hitNext(handleLParcelUpdate))}
+          onClick={() =>
+            !isNextDisabled && dispatch(hitNext(handleLParcelUpdate))
+          }
           disabled={isNextDisabled}
         >
-          <FontAwesomeIcon 
-            icon={faChevronRight} 
-            className="text-xs"
-          />
+          <FontAwesomeIcon icon={faChevronRight} className="text-xs" />
         </button>
       </Dropdown>
     </div>
-  )
+  );
 }
 
-export default LandParcelHistoryNav
+export default LandParcelHistoryNav;

@@ -1,6 +1,6 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useRef, useEffect } from "react";
 import { BankOutlined, BlockOutlined, UserOutlined } from "@ant-design/icons";
-import { Button, Select } from "antd";
+import { Select } from "antd";
 import { useSearchParams } from "react-router-dom";
 import {
   storeLagisLandparcel,
@@ -20,16 +20,14 @@ import {
   getLandparcelInternaDataStructure,
   storeSelectedFlurstueckLabel,
 } from "../../store/slices/lagis";
-import { getSyncLandparcel } from "../../store/slices/ui";
-import { getCurrentLParcelNav, setCurrentLP } from "../../store/slices/lpHistoryNav";
+import {
+  getCurrentLParcelNav,
+  setCurrentLP,
+} from "../../store/slices/lpHistoryNav";
 import { useDispatch, useSelector } from "react-redux";
 import { Tooltip } from "antd";
 import { SyncOutlined } from "@ant-design/icons";
-import {
-  defaultLinksColor,
-  removeLeadingZeros,
-  prepareFstckLabel,
-} from "../../core/tools/helper";
+import { defaultLinksColor, removeLeadingZeros } from "../../core/tools/helper";
 import { setHasFittedBounds } from "../../store/slices/mapping";
 import LandParcelHistoryNav from "../navigation/lp-history/LandParcelHistoryNav";
 
@@ -51,9 +49,6 @@ const LandParcelChooser = ({
   const landparcel = useSelector(getLandparcel);
   const alkisLandparcel = useSelector(getAlkisLandparcel);
   const currentLParcelNav = useSelector(getCurrentLParcelNav);
-  // const [selectedGemarkung, setSelectedGemarkung] = useState();
-  // const [selectedFlur, setSelectedFlur] = useState();
-  // const [selectedFlurstueckLabel, setSelectedFlurstueckLabel] = useState();
   const selectedGemarkung = useSelector(getSelectedGemarkung);
   const selectedFlur = useSelector(getSelectedFlur);
   const selectedFlurstueckLabel = useSelector(getSelectedFlurstueckLabel);
@@ -126,7 +121,7 @@ const LandParcelChooser = ({
       flur: selectedFlur.flur,
       ...selectedFlur.flurstuecke[flurstueckLabel],
     });
-      
+
     setTimeout(() => {
       dispatch(setHasFittedBounds(false));
     }, 800);
@@ -139,10 +134,9 @@ const LandParcelChooser = ({
   };
 
   const gotoFstckFromUrl = ({ gem, flur, fstck }) => {
-
-    if(gem && flur && fstck){
+    if (gem && flur && fstck) {
       const fullFstckLabel = gem + " " + flur + " " + fstck.replace("-", "/");
-      if(fullFstckLabel !== currentLParcelNav){
+      if (fullFstckLabel !== currentLParcelNav) {
         dispatch(setCurrentLP(fullFstckLabel));
       }
     }
