@@ -23,12 +23,13 @@ export const PointSearchButton = ({
           onClick={() => setMode("point")}
         />
       </Tooltip>
-      <div
-        className={`w-3 h-3 rounded-full bg-[#4ABC96] ${
-          active ? "absolute" : "hidden"
-        } bottom-0 -right-1 cursor-pointer`}
-        onClick={() => setMode("point")}
-      />
+      {
+        <div
+          className={`w-3 h-3 rounded-full bg-[#4ABC96] ${
+            active ? "absolute" : "hidden"
+          } bottom-0 -right-1 cursor-pointer`}
+        />
+      }
     </div>
   );
 };
