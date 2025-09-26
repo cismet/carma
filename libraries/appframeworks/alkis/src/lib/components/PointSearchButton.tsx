@@ -7,12 +7,14 @@ interface PointSearchButtonProps {
   setMode: (mode: string) => void;
   iconStyle?: string;
   active?: boolean;
+  mode: string;
 }
 
 export const PointSearchButton = ({
   setMode,
   iconStyle = "text-lg h-5 cursor-pointer",
   active = false,
+  mode,
 }: PointSearchButtonProps) => {
   return (
     <div className="relative flex items-center" style={{ height: "24px" }}>
@@ -20,7 +22,9 @@ export const PointSearchButton = ({
         <FontAwesomeIcon
           icon={faSearchLocation}
           className={iconStyle}
-          onClick={() => setMode("point")}
+          onClick={() =>
+            mode === "default" ? setMode("point") : setMode("default")
+          }
         />
       </Tooltip>
       {

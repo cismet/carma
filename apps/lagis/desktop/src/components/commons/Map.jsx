@@ -366,6 +366,7 @@ const Map = ({
             <PointSearchButton
               setMode={handleSetDonutWithDelay}
               active={mode === "point"}
+              mode={mode}
             />
             <Tooltip title="Hintergrund an/aus">
               <FileImageFilled
