@@ -4,6 +4,8 @@ interface VersionData {
   md5?: string;
 }
 
+export { VersionData };
+
 export const getApplicationVersion = (versionData: VersionData): string => {
   let v = versionData.version;
   if (versionData.triggered === "live") {
