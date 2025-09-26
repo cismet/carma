@@ -1,6 +1,6 @@
 import "react-cismap/topicMaps.css";
 import "leaflet/dist/leaflet.css";
-import { Card, Tooltip, Button } from "antd";
+import { Card, Tooltip, Button, Tag } from "antd";
 import PropTypes from "prop-types";
 import { useContext, useEffect, useRef, useState } from "react";
 import {
@@ -322,10 +322,27 @@ const Map = ({
       size="small"
       hoverable={false}
       title={
-        <span>
-          <span className="mr-6">Karte</span>
-          <HoveredLandparcelInfo />
-        </span>
+        <div className="flex items-center gap-3">
+          <div>
+            <span className="mr-6">Karte</span>
+            <HoveredLandparcelInfo />
+          </div>
+          {mode === "point" && (
+            <div className="ml-auto mr-auto">
+              <Tag>
+                <span className="text-gray-500">
+                  Der Flurstückssuche-Modus ist aktiv
+                </span>
+                <span
+                  className="ml-2 cursor-pointer text-red-500 hover:text-red-600"
+                  onClick={() => dispatch(storeShapeMode("default"))}
+                >
+                  Abbrechen
+                </span>
+              </Tag>
+            </div>
+          )}
+        </div>
       }
       extra={
         <div className="flex items-center gap-3">
@@ -349,15 +366,6 @@ const Map = ({
               />
             </div>
           )}
-
-          {/* {mode === "point" && (
-            <div>
-              Der Flurstückssuche-Modus ist aktiv{" "}
-              <Button onClick={() => dispatch(storeShapeMode("default"))}>
-                Abbrechen
-              </Button>
-            </div>
-          )} */}
 
           <div className="relative flex items-center gap-2 cursor-pointer">
             <PointSearchButton
