@@ -144,9 +144,11 @@ const TZBaumbewirtschaftung = () => {
                         infoBoxMapping,
                         hit
                       );
-                      // console.log("xxx feature", feature);
                       setSelectedFeature(feature);
+                    } else {
+                      setSelectedFeature(undefined);
                     }
+                    // console.log("xxx feature", feature);
                   })();
                 }}
                 style={{
