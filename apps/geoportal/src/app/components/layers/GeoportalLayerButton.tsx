@@ -84,6 +84,10 @@ const GeoportalLayerButton = ({
   const showSettings = index === selectedLayerIndex;
   const layers = useSelector(getLayers);
   const layersLength = layers.length;
+  const wmsName =
+    layer.layerType === "wmts" || layer.layerType === "wmts-nt"
+      ? layer.props.name
+      : layer.other.name;
   const { attributes, listeners, setNodeRef, transform, transition } =
     useSortable({
       id,
@@ -128,7 +132,7 @@ const GeoportalLayerButton = ({
 
   // Function to find and attach event listeners to the layer
   const findAndAttachListeners = () => {
-    if (!map || !layer.other?.name || listenersAttached) return;
+    if (!map || !wmsName || listenersAttached) return;
 
     // Skip loading indicators for certain layer types
     const showLoading = shouldShowLoading();
@@ -137,7 +141,7 @@ const GeoportalLayerButton = ({
     map.eachLayer((leafletLayer) => {
       // Check if this is our target layer by name
       // @ts-ignore
-      const isTargetLayer = leafletLayer.options?.layers === layer.other?.name;
+      const isTargetLayer = leafletLayer.options?.layers === wmsName;
 
       if (isTargetLayer) {
         found = true;
@@ -236,7 +240,7 @@ const GeoportalLayerButton = ({
       map.eachLayer((leafletLayer) => {
         if (
           // @ts-ignore
-          leafletLayer.options?.layers === layer.other?.name &&
+          leafletLayer.options?.layers === wmsName &&
           leafletLayer instanceof L.GridLayer
         ) {
           gridLayerRef = leafletLayer as L.GridLayer;
