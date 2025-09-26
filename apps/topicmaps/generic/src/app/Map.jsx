@@ -21,6 +21,7 @@ import {
 import versionData from "../version.json";
 import { GenericDigitalTwinReferenceSection } from "@carma-collab/wuppertal/commons";
 import {
+  FeatureInfobox,
   TopicMapSelectionContent,
   useSelectionTopicMap,
 } from "@carma-appframeworks/portals";
@@ -33,11 +34,10 @@ import {
   ZoomControl,
 } from "@carma-mapping/components";
 import CismapLayer from "react-cismap/CismapLayer";
-import { createVectorFeature } from "./helper";
-import FeatureInfobox from "./components/FeatureInfobox";
 import Menu from "./components/Menu";
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 import md5 from "md5";
+import { createVectorFeature } from "@carma-appframeworks/portals";
 
 const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 const downloadText = (text, filename) => {
@@ -154,6 +154,7 @@ const Map = ({
   // lets assume we will only have vector layers
   useEffect(() => {
     const getFeature = async (infoboxMapping, hit) => {
+      // console.log("xxx infoboxMapping", infoboxMapping);
       const feature = await createVectorFeature(infoboxMapping, hit);
       setFeature(feature);
     };
@@ -285,7 +286,10 @@ const Map = ({
           gazetteerSearchComponent={EmptySearchComponent}
           infoBox={
             config.tm.vectorLayers && config.tm.noFeatureCollection === true ? (
-              <FeatureInfobox selectedFeature={feature} />
+              <FeatureInfobox
+                selectedFeature={feature}
+                versionData={versionData}
+              />
             ) : (
               <>
                 {config.tm.noFeatureCollection !== true && (

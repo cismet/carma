@@ -2,42 +2,29 @@ import InfoBoxFotoPreview from "react-cismap/topicmaps/InfoBoxFotoPreview";
 import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
 import { getActionLinksForFeature } from "react-cismap/tools/uiHelper";
 
-import envelope from "@turf/envelope";
-
-import { ComponentType, useContext, useState } from "react";
+import { useContext, useState } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import { additionalInfoFactory } from "@carma-collab/wuppertal/geoportal";
 import { genericSecondaryInfoFooterFactory } from "@carma-collab/wuppertal/commons";
-import versionData from "../../version.json";
-import { getApplicationVersion } from "@carma-commons/utils";
+import { getApplicationVersion, type VersionData } from "@carma-commons/utils";
 import { InfoBox, utils } from "@carma-appframeworks/portals";
 
 interface InfoboxProps {
   selectedFeature: any;
+  versionData: VersionData;
 }
 
-const FeatureInfobox = ({ selectedFeature }: InfoboxProps) => {
+export const FeatureInfobox = ({
+  selectedFeature,
+  versionData,
+}: InfoboxProps) => {
   const [openModal, setOpenModal] = useState(false);
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const lightBoxDispatchContext = useContext(LightBoxDispatchContext);
-
   if (!selectedFeature) {
     return null;
   }
-
-  const getCoordinates = (geometry) => {
-    switch (geometry.type) {
-      case "Polygon":
-        return geometry.coordinates[0][0];
-      case "MultiPolygon":
-        return geometry.coordinates[0][0][0];
-      case "LineString":
-        return geometry.coordinates[1];
-      default:
-        return geometry.coordinates;
-    }
-  };
 
   let links = [];
   if (selectedFeature) {
@@ -63,7 +50,7 @@ const FeatureInfobox = ({ selectedFeature }: InfoboxProps) => {
   const Modal = additionalInfoFactory(
     selectedFeature?.properties?.modal
   ) as React.ComponentType<any> | null;
-
+  // console.log("xxx selectedFeature.properties", selectedFeature);
   return (
     <>
       {" "}
@@ -126,5 +113,3 @@ const FeatureInfobox = ({ selectedFeature }: InfoboxProps) => {
     </>
   );
 };
-
-export default FeatureInfobox;
