@@ -137,14 +137,16 @@ const TZBaumbewirtschaftung = () => {
                 // additionalLayersFreeZOrder={1}
                 onSelectionChanged={(e) => {
                   (async () => {
-                    // console.log("xxx e", e);
+                    // console.log("xxx hit", e.hit);
                     const hit = e.hit;
-                    const feature = await createVectorFeature(
-                      infoBoxMapping,
-                      hit
-                    );
-                    console.log("xxx feature", feature);
-                    setSelectedFeature(feature);
+                    if (hit) {
+                      const feature = await createVectorFeature(
+                        infoBoxMapping,
+                        hit
+                      );
+                      // console.log("xxx feature", feature);
+                      setSelectedFeature(feature);
+                    }
                   })();
                 }}
                 style={{
