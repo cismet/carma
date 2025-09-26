@@ -1,0 +1,63 @@
+{
+  "name": "tz-baumbewirtschaftung",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "apps/topicmaps/tz-baumbewirtschaftung/src",
+  "projectType": "application",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/vite:build",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "outputPath": "dist/apps/topicmaps/tz-baumbewirtschaftung"
+      },
+      "configurations": {
+        "development": {
+          "mode": "development",
+        },
+        "production": {
+          "mode": "production",
+        }
+      }
+    },
+    "serve": {
+      "executor": "@nx/vite:dev-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "tz-baumbewirtschaftung:build"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "tz-baumbewirtschaftung:build:development",
+          "hmr": true,
+          "host": "0.0.0.0"
+        },
+        "production": {
+          "buildTarget": "tz-baumbewirtschaftung:build:production",
+          "hmr": false,
+          "host": "0.0.0.0"
+        }
+      }
+    },
+    "preview": {
+      "executor": "@nx/vite:preview-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "tz-baumbewirtschaftung:build"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "tz-baumbewirtschaftung:build:development"
+        },
+        "production": {
+          "buildTarget": "tz-baumbewirtschaftung:build:production"
+        }
+      },
+      "dependsOn": ["build"]
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  }
+}

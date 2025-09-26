@@ -1,0 +1,66 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  overscroll-behavior: contain;
+}
+
+.leaflet-control * img {
+  display: initial;
+}
+
+.ant-tooltip-arrow {
+  display: none !important;
+}
+
+.modal-footer img[alt="Logo DigiTal Zwilling"] {
+  max-height: 60px;
+}
+
+/* Make lists look good again */
+ul {
+  list-style: disc !important;
+  display: block;
+  list-style-type: disc;
+  margin-block-start: 1em;
+  margin-block-end: 1em;
+  margin-inline-start: 0px;
+  margin-inline-end: 0px;
+  padding-inline-start: 40px;
+  unicode-bidi: isolate;
+}
+
+.modal-content svg,
+.modal-content img {
+  display: inline;
+}
+
+#routedMap {
+  position: unset !important;
+  background-color: unset !important;
+}
+
+/* Info box */
+div.leaflet-bottom.leaflet-right {
+  position: fixed;
+  right: max(3px, env(safe-area-inset-right));
+  bottom: max(10px, env(safe-area-inset-bottom));
+  margin-bottom: 0px !important;
+}
+
+div.leaflet-top.leaflet-right {
+  position: fixed;
+  right: max(3px, env(safe-area-inset-right));
+}
+
+div.leaflet-control-attribution {
+  display: none;
+}
+/* Menu */
+div.leaflet-top.leaflet-right > .leaflet-control {
+  position: fixed;
+  right: max(10px, env(safe-area-inset-right));
+  margin-right: 0 !important;
+}
