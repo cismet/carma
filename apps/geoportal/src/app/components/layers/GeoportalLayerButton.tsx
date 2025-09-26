@@ -114,6 +114,14 @@ const GeoportalLayerButton = ({
     }
   }, [layersLength]);
 
+  const isCurrentlyVisible = () => {
+    if (zoom >= layer.props.maxZoom || zoom <= layer.props.minZoom) {
+      return false;
+    } else {
+      return true;
+    }
+  };
+
   return (
     <div
       ref={(el) => {
@@ -162,13 +170,12 @@ const GeoportalLayerButton = ({
             : showSettings
             ? "bg-white"
             : "bg-neutral-200",
-          zoom >= layer.props.maxZoom && "opacity-50",
-          zoom <= layer.props.minZoom && "opacity-50",
+          !isCurrentlyVisible() && "opacity-50",
           background ? "pr-3" : "pr-2",
           "pl-3",
         ]}
       >
-        {loading ? (
+        {loading && isCurrentlyVisible() ? (
           <Spin indicator={<LoadingOutlined spin />} size="small" />
         ) : (
           <LayerIcon
