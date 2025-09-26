@@ -81,6 +81,33 @@
       },
       "projectPath": "./dist/apps/topicmaps/kulturstadtplan"
     },
+    "tz-baumbewirtschaftung": {
+      "deployment": {
+        "manual": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "tz-baumbewirtschaftung"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "digital-twin-wuppertal-live",
+              "prj": "tz-baumbewirtschaftung"
+            }
+          }
+        },
+        "auto": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-deployments",
+              "prj": "tz-baumbewirtschaftung"
+            }
+          }
+        }
+      },
+      "projectPath": "./dist/apps/topicmaps/tz-baumbewirtschaftung"
+    },
     "x-and-ride": {
       "deployment": {
         "manual": {
