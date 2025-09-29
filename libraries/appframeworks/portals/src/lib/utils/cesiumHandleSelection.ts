@@ -1,4 +1,3 @@
-import { MutableRefObject } from "react";
 import {
   BoundingSphere,
   Cartesian3,
@@ -33,11 +32,12 @@ import {
   type EntityData,
   type CesiumContextType,
 } from "@carma-mapping/engines/cesium";
+
 import { HitTriggerOptions } from "./cesiumHitTrigger";
 import { DerivedGeometries } from "./getDerivedGeometries";
 
-const DEFAULT_BOUNDINGSPHERE_ELEVATION = 200; // meters, default elevation for bounding sphere in GeoJSON Polygon
-const DEFAULT_BOUNDINGSPHERE_VIEW_MARGIN = 0.2; // 20% margin
+const DEFAULT_BOUNDING_SPHERE_ELEVATION = 200; // meters, default elevation for bounding sphere in GeoJSON Polygon
+const DEFAULT_BOUNDING_SPHERE_VIEW_MARGIN = 0.2; // 20% margin
 const DEFAULT_CESIUM_MARKER_ANCHOR_HEIGHT = 10; // in METERS
 const DEFAULT_CESIUM_PITCH_ADJUST_HEIGHT = 1500; // meters
 const MAX_FLYTO_DURATION = 10; // seconds
@@ -47,7 +47,7 @@ const MAX_GROUND_HEIGHT = 10000; // meters
 const getFullViewDistance = (
   ctx: CesiumContextType,
   boundingSphere: BoundingSphere,
-  margin: number = DEFAULT_BOUNDINGSPHERE_VIEW_MARGIN
+  margin: number = DEFAULT_BOUNDING_SPHERE_VIEW_MARGIN
 ): number => {
   let distance = 0;
   ctx.withCamera((camera, viewer) => {
@@ -76,7 +76,7 @@ const getFullViewDistance = (
 
 const getBoundingSphereFromCoordinatesAndHeight = (
   coordinates: number[][],
-  height: number = DEFAULT_BOUNDINGSPHERE_ELEVATION
+  height: number = DEFAULT_BOUNDING_SPHERE_ELEVATION
 ): BoundingSphere => {
   const points = coordinates.map((coord) =>
     Cartesian3.fromDegrees(coord[0], coord[1], coord[2] ?? height)
@@ -184,7 +184,7 @@ const cesiumLookAtPoint = async (
 
     if (duration > maxDuration) {
       console.info(
-        "[CESIUM|ANIMATION] FlytoBoundingSphere duration too long, clamped to",
+        "[CESIUM|ANIMATION] FlyToBoundingSphere duration too long, clamped to",
         duration,
         maxDuration
       );
@@ -209,7 +209,6 @@ const cesiumLookAtPoint = async (
 
 const handlePolygonSelection = (
   ctx: CesiumContextType,
-  shouldFlyToRef: MutableRefObject<boolean>,
   groundPosition: Cartographic | null,
   polygon: number[][][],
   idSelected: string,
@@ -281,7 +280,6 @@ const handlePolygonSelection = (
       duration,
       offset: new HeadingPitchRange(0, viewer.camera.pitch, fullViewDistance),
       complete: () => {
-        shouldFlyToRef.current = false;
         console.debug(
           "GAZETTEER: [2D3D|CESIUM|CAMERA] flyToBoundingSphere completed"
         );
@@ -291,7 +289,6 @@ const handlePolygonSelection = (
 };
 export const cesiumHandleSelection = async (
   ctx: CesiumContextType,
-  shouldFlyToRef: MutableRefObject<boolean>,
   entityData: null | EntityData,
   setEntityData: (data: EntityData | null) => void,
   { pos, zoom, polygon }: DerivedGeometries,
@@ -350,7 +347,6 @@ export const cesiumHandleSelection = async (
   if (polygon) {
     handlePolygonSelection(
       ctx,
-      shouldFlyToRef,
       surfacePosition, // fly to surface elevation
       polygon,
       idSelected,
@@ -370,16 +366,14 @@ export const cesiumHandleSelection = async (
       });
     }
 
-    shouldFlyToRef.current &&
-      cesiumLookAtPoint(ctx, surfacePosition, zoom, mapOptions, {
-        onComplete: () => {
-          shouldFlyToRef.current = false;
-          console.debug("GAZETTEER: [2D3D|CESIUM|CAMERA] flyTo Point complete");
-        },
-        durationFactor,
-        maxDuration: duration,
-        useCameraHeight: options.useCameraHeight,
-      });
+    cesiumLookAtPoint(ctx, surfacePosition, zoom, mapOptions, {
+      onComplete: () => {
+        console.debug("GAZETTEER: [2D3D|CESIUM|CAMERA] flyTo Point complete");
+      },
+      durationFactor,
+      maxDuration: duration,
+      useCameraHeight: options.useCameraHeight,
+    });
     console.debug(
       "GAZETTEER: [2D3D|CESIUM|CAMERA] look at Marker (Terrain Elevation)"
     );

@@ -15,8 +15,6 @@ import { cesiumHitTrigger } from "../utils/cesiumHitTrigger";
 export const SELECTED_POLYGON_ID = "searchgaz-highlight-polygon";
 export const INVERTED_SELECTED_POLYGON_ID = "searchgaz-inverted-polygon";
 
-const NEW_SELECTION_TIMEOUT = 100;
-
 const cleanUpCesium = (
   ctx: CesiumContextType,
   selectedCesiumEntityData: EntityData | null,
@@ -42,43 +40,30 @@ export const useSelectionCesium = (
   durationFactor: number = 0.2
 ) => {
   const ctx = useCesiumContext();
-  const { viewerRef } = ctx;
 
   const { selection } = useSelection();
-  const shouldFlyToRef = useRef<boolean>(false);
-  const lastSelectionKey = useRef<number | null>(null);
-  const lastSelectionTimestamp = useRef<number | null>(null);
+  const lastSelectionKeyRef = useRef<number | null>(null);
+  const lastSelectionTimestampRef = useRef<number | null>(null);
   const [selectedCesiumEntityData, setSelectedCesiumEntityData] =
     useState<EntityData | null>(null);
 
-  // Ref to store the previous selection
-
   useEffect(() => {
-    if (!isActive || !viewerRef.current) {
+    if (!isActive || !ctx.isValidViewer()) {
       return;
     }
 
     if (selection) {
-      if (
-        lastSelectionKey.current === selection.sorter &&
-        lastSelectionTimestamp.current === selection.selectionTimestamp
-      ) {
+      const isDuplicateSelection =
+        lastSelectionKeyRef.current === selection.sorter &&
+        lastSelectionTimestampRef.current === selection.selectionTimestamp;
+
+      if (isDuplicateSelection) {
         console.debug("HOOK: useSelectionTopicMap - same selection, skipping");
         return;
       }
-      lastSelectionKey.current = selection.sorter;
-      lastSelectionTimestamp.current = selection.selectionTimestamp;
 
-      const isNewSelection = Boolean(
-        selection?.selectionTimestamp &&
-          Date.now() - selection.selectionTimestamp < NEW_SELECTION_TIMEOUT
-      );
-
-      if (isNewSelection) {
-        shouldFlyToRef.current = true;
-      } else {
-        shouldFlyToRef.current = false;
-      }
+      lastSelectionKeyRef.current = selection.sorter;
+      lastSelectionTimestampRef.current = selection.selectionTimestamp;
 
       console.debug("HOOK: useSelectionCesium", selection, isActive);
 
@@ -94,20 +79,17 @@ export const useSelectionCesium = (
       cesiumHitTrigger(
         [selection],
         ctx,
-        shouldFlyToRef,
         selectedCesiumEntityData,
         setSelectedCesiumEntityData,
         options
       );
     } else {
-      lastSelectionKey.current = null;
-      shouldFlyToRef.current = false;
+      lastSelectionKeyRef.current = null;
       cleanUpCesium(ctx, selectedCesiumEntityData, setSelectedCesiumEntityData);
     }
   }, [
     selection,
     useCameraHeight,
-    viewerRef,
     isActive,
     cesiumOptions,
     duration,
