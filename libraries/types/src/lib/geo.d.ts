@@ -40,9 +40,6 @@ export namespace Extent {
   };
 }
 
-// explicitly degrees only.
-type LatLngZoom = LatLngDegrees & { zoom: number };
-
 interface HeadingPitchRollDegrees {
   heading?: Degrees;
   pitch?: Degrees;

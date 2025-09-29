@@ -1,5 +1,7 @@
 // Generic, framework-agnostic typed event bus
+// for lightweight pub/sub in apps and libraries
 // M is a map from event keys to payload types
+
 export type SubscribeFn<M extends Record<PropertyKey, unknown>> = <
   E extends keyof M
 >(

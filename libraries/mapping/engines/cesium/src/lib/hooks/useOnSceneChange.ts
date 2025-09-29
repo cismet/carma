@@ -2,6 +2,8 @@ import { useEffect } from "react";
 import { useSelector } from "react-redux";
 import { type Viewer } from "cesium";
 
+import type { LatLng } from "@carma/types";
+
 import {
   selectShowSecondaryTileset,
   selectViewerIsMode2d,
@@ -96,9 +98,7 @@ export const useOnSceneChange = (
       const moveEndListener = async () => {
         // let TopicMap/leaflet handle the view change in 2d Mode
         let proceed = false;
-        let camDeg:
-          | { latitude: number; longitude: number; height: number }
-          | undefined;
+        let camDeg: Required<LatLng.deg> | undefined;
         ctx.withCamera((camera) => {
           proceed = Boolean(camera && camera.position && !isMode2d);
           if (proceed) {

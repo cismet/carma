@@ -3,13 +3,15 @@ import {
   DEFAULT_LEAFLET_TILESIZE,
   DEFAULT_MERCATOR_LATITUDE_RAD,
   DEFAULT_ZOOM_LEVEL,
-  DEFAULT_ZOOM_TOLERANCE,
   DEFAULT_PIXEL_TOLERANCE,
 } from "./constants";
+
+import type { Degrees, Meters, Radians, LatLng } from "@carma/types";
+
 import { getPixelResolutionFromZoomAtLatitudeRad } from "./mercator";
 import { degToRad } from "./units";
-import type { Degrees, Meters, Radians, LatLng } from "@carma/types";
 import { brandedRatio, brandedAbs, brandedMax } from "./typescript-branded-ops";
+import { isZoom, isZoomClose } from "./zoom";
 
 // Meters per pixel at zoom/latitude (latitude in degrees)
 export function metersPerPixel(zoom: number, latitudeDeg?: Degrees): Meters {
@@ -52,18 +54,6 @@ export function pixelsBetweenGeographicLocations(
   return brandedRatio(dMeters, mPerPx);
 }
 
-export function isZoomClose(
-  a: number | undefined,
-  b: number | undefined,
-  tol: number = DEFAULT_ZOOM_TOLERANCE
-): boolean {
-  return (
-    Number.isFinite(a) &&
-    Number.isFinite(b) &&
-    Math.abs((a as number) - (b as number)) < tol
-  );
-}
-
 export function isLocationVisuallyEquivalentAtZoom(
   a: LatLng.deg | undefined,
   b: LatLng.deg | undefined,
@@ -85,6 +75,9 @@ export function isMapCenterZoomEquivalent(
   b: { center: LatLng.deg; zoom: number },
   opts?: { pixelTolerance?: number; zoomTolerance?: number }
 ): boolean {
+  if (!isZoom(a.zoom) || !isZoom(b.zoom)) {
+    return false;
+  }
   const zoomClose = isZoomClose(a.zoom, b.zoom, opts?.zoomTolerance);
   if (!zoomClose) return false;
   return isLocationVisuallyEquivalentAtZoom(a.center, b.center, {

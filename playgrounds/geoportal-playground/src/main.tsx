@@ -9,6 +9,7 @@ import {
   GazDataProvider,
   SelectionProvider,
 } from "@carma-appframeworks/portals";
+import { MockAuthProvider } from "./app/providers/MockAuthProvider";
 import { gazDataConfig } from "./config/gazData";
 
 const persistor = persistStore(store);
@@ -49,11 +50,13 @@ const root = ReactDOM.createRoot(
 root.render(
   <Provider store={store}>
     <PersistGate loading={null} persistor={persistor}>
-      <GazDataProvider config={gazDataConfig}>
-        <SelectionProvider>
-          <RouterProvider router={router} />
-        </SelectionProvider>
-      </GazDataProvider>
+      <MockAuthProvider>
+        <GazDataProvider config={gazDataConfig}>
+          <SelectionProvider>
+            <RouterProvider router={router} />
+          </SelectionProvider>
+        </GazDataProvider>
+      </MockAuthProvider>
     </PersistGate>
   </Provider>
 );
