@@ -51,14 +51,14 @@ export const BASEMAP_METROPOLRUHR_WMTS_GRAUBLAU = {
   maximumLevel: 20,
 };
 
-export const BASEMAP_METROPOLRUHR_WMTS_GRAUBLAU_HQ = {
+export const BASEMAP_METROPOLE_RUHR_WMTS_GRAUBLAU_HQ = {
   url: "https://geodaten.metropoleruhr.de/spw2/service",
   layer: "spw2_graublau",
   style: "default",
   format: "image/png",
   tileMatrixSetID: "webmercator_hq",
   tileMatrixLabels: SPW2_WMTS_TILEMATRIX_LABELS,
-  minimumLevel: 0,
+  minimumLevel: 9, // limit to avoid errors
   maximumLevel: 20, // as in Capabilities
 };
 

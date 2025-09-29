@@ -1,5 +1,5 @@
 import {
-  BASEMAP_METROPOLRUHR_WMTS_GRAUBLAU_HQ,
+  BASEMAP_METROPOLE_RUHR_WMTS_GRAUBLAU_HQ,
   BRUECKENENTWURF_GLB,
   WUPP_LOD2_TILESET,
   WUPP_MESH_2024,
@@ -38,7 +38,7 @@ export const CESIUM_CONFIG: CesiumConfig = {
   providerConfig: {
     terrainProvider: WUPP_TERRAIN_PROVIDER,
     surfaceProvider: WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
-    imageryProvider: BASEMAP_METROPOLRUHR_WMTS_GRAUBLAU_HQ,
+    imageryProvider: BASEMAP_METROPOLE_RUHR_WMTS_GRAUBLAU_HQ,
   },
   tilesetConfigs: {
     primary: WUPP_MESH_2024,
