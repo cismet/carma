@@ -108,6 +108,54 @@ export const configuration = {
       pane: "backgroundvectorLayers",
     },
   },
+  lsg: {
+    title: "Luftbild und Stadtgrundkarte",
+    conf: [
+      {
+        type: "wmts",
+        url: "https://geodaten.metropoleruhr.de/spw2/service",
+        layers: "spw2_light_grundriss",
+        version: "1.3.0",
+        pane: "backgroundvectorLayers",
+        transparent: true,
+        format: "image/png",
+        maxZoom: 26,
+
+        tiled: false,
+      },
+      {
+        type: "wms",
+        url: "https://geo.udsp.wuppertal.de/geoserver-cloud/ows",
+        layers: "GIS-102:trueortho2024",
+        // url: "https://maps.wuppertal.de/karten",
+        // layers: "R102:trueortho2024",
+        tileSize: 256,
+        transparent: true,
+        pane: "backgroundLayers",
+        maxZoom: 26,
+        opacityFunction: (opacity) => opacity * 0.5,
+        format: "image/png",
+      },
+      {
+        type: "wmts",
+        url: "https://geodaten.metropoleruhr.de/dop/dop_overlay?language=ger",
+        layers: "dop_overlay",
+        version: "1.3.0",
+        tiled: false,
+        format: "image/png",
+        transparent: true,
+        maxZoom: 26,
+        pane: "additionalLayers0",
+      },
+      {
+        type: "vector",
+        style: "https://omt.map-hosting.de/styles/osm-bright-grey/style.json",
+        //   offlineAvailable: true,
+        //   offlineDataStoreKey: "wuppBasemap",
+        pane: "backgroundvectorLayers",
+      },
+    ],
+  },
 };
 
 export default function BackgroundLayers({
