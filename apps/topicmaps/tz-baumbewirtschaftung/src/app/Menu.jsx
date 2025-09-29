@@ -9,7 +9,7 @@ import {
   KompaktanleitungSection,
   Footer,
   MenuIntroduction,
-} from "@carma-collab/wuppertal/baederkarte";
+} from "@carma-collab/wuppertal/tz-baumbewirtschaftung";
 import { GenericDigitalTwinReferenceSection } from "@carma-collab/wuppertal/commons";
 import versionData from "../version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
