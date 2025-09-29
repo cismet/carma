@@ -20,6 +20,49 @@ import { drawerTextsHelper } from "@carma-collab/wuppertal/lagis-desktop";
 
 const trueOrthoYears = [2018, 2020, 2022, 2024];
 
+const dynamicOrtho = {
+  2018: {
+    type: "wms",
+    url: "https://geo.udsp.wuppertal.de/geoserver-cloud/ows",
+    layers: `GIS-102:trueortho2018`,
+    tileSize: 256,
+    transparent: true,
+    pane: "backgroundLayers",
+    maxZoom: 26,
+    format: "image/png",
+  },
+  2020: {
+    type: "wms",
+    url: "https://geo.udsp.wuppertal.de/geoserver-cloud/ows",
+    layers: `GIS-102:trueortho2020`,
+    tileSize: 256,
+    transparent: true,
+    pane: "backgroundLayers",
+    maxZoom: 26,
+    format: "image/png",
+  },
+  2022: {
+    type: "wms",
+    url: "https://geo.udsp.wuppertal.de/geoserver-cloud/ows",
+    layers: `GIS-102:trueortho2022`,
+    tileSize: 256,
+    transparent: true,
+    pane: "backgroundLayers",
+    maxZoom: 26,
+    format: "image/png",
+  },
+  2024: {
+    type: "wms",
+    url: "https://geo.udsp.wuppertal.de/geoserver-cloud/ows",
+    layers: `GIS-102:trueortho2024`,
+    tileSize: 256,
+    transparent: true,
+    pane: "backgroundLayers",
+    maxZoom: 26,
+    format: "image/png",
+  },
+};
+
 const SettingsRow = ({ onClick, title, children }) => {
   return (
     <div
