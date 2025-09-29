@@ -13,8 +13,10 @@ import {
 } from "../../store/slices/ui";
 import { configuration as additionalLayerConfigurations } from "./AdditionalLayers";
 import { configuration as backgroundLayerConfigurations } from "./BackgroundLayers";
-import { Checkbox, Radio, Slider, Switch } from "antd";
+import { Checkbox, Radio, Slider, Switch, Tag } from "antd";
 import { drawerTextsHelper } from "@carma-collab/wuppertal/lagis-desktop";
+
+const trueOrthoYears = [2024, 2022, 2020, 2018];
 
 const SettingsRow = ({ onClick, title, children }) => {
   return (
@@ -74,17 +76,31 @@ const BackgroundLayerRow = ({
   opacity = 1,
   opacityChanged = (e) => {},
 }) => {
+  console.log("xxx layerkey", layerkey);
   return (
-    <div className="flex items-center gap-2 hover:bg-zinc-100 p-1">
-      <Radio value={layerkey} className="min-w-[calc(52%-22px)]">
-        {title}
-      </Radio>
-      <Slider
-        defaultValue={opacity * 100}
-        disabled={false}
-        className="w-full"
-        onAfterChange={(value) => opacityChanged(layerkey, value / 100)}
-      />
+    <div>
+      <div className="flex items-center gap-2 hover:bg-zinc-100 p-1">
+        <Radio value={layerkey} className="min-w-[calc(52%-22px)]">
+          {title}
+        </Radio>
+        <Slider
+          defaultValue={opacity * 100}
+          disabled={false}
+          className="w-full"
+          onAfterChange={(value) => opacityChanged(layerkey, value / 100)}
+        />
+      </div>
+      {layerkey === "trueOrtho" && (
+        <div className="ml-[28px]">
+          {trueOrthoYears.map((year) => {
+            return (
+              <Tag size="small" className="mb-2">
+                <span className="cursor-pointer">{year}</span>
+              </Tag>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

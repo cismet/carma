@@ -37,7 +37,7 @@ export const configuration = {
     conf: {
       type: "wms",
       url: "https://geo.udsp.wuppertal.de/geoserver-cloud/ows",
-      layers: "GIS-102:trueortho2024",
+      layers: "GIS-102:trueortho2018",
       // url: "https://maps.wuppertal.de/karten",
       // layers: "R102:trueortho2024",
       tileSize: 256,
