@@ -106,6 +106,13 @@ export {
 } from "./lib/utils/cesiumSetup";
 
 export {
+  getElevationAsync,
+  getSurfaceElevationAsync,
+  getTerrainElevationAsync,
+  type ElevationResult,
+} from "./lib/utils/elevation";
+
+export {
   isValidCesiumTerrainProvider,
   isValidEllipsoidTerrainProvider,
   isValidEntity,
@@ -120,8 +127,6 @@ export {
   withValidViewer,
 } from "./lib/utils/instanceGates";
 
-export { pickViewerCanvasCenter } from "./lib/utils/pickers";
-
 // Safe guard wrappers
 export { guardEntityCollection } from "./lib/utils/guardEntityCollection";
 export { guardViewer } from "./lib/utils/guardViewer";
@@ -131,18 +136,13 @@ export { guardSampleTerrainMostDetailedAsync } from "./lib/utils/guardSampleTerr
 export { guardScreenSpaceCameraController } from "./lib/utils/guardScreenSpaceCameraController";
 export { guardTileset } from "./lib/utils/guardTileset";
 
+export { pickViewerCanvasCenter } from "./lib/utils/pickers";
+
 export {
   distanceFromZoomLevel,
   getHeadingPitchRangeFromHeight,
   getHeadingPitchRangeFromZoom,
 } from "./lib/utils/positions";
-
-export {
-  getElevationAsync,
-  getSurfaceElevationAsync,
-  getTerrainElevationAsync,
-  type ElevationResult,
-} from "./lib/utils/elevation";
 
 export {
   type ViewerAnimationMap,

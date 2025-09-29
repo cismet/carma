@@ -7,6 +7,13 @@ export { extractCarmaConfig } from "./lib/carmaConfig";
 export * from "./lib/constants";
 
 export {
+  createEventBus,
+  type EventBus,
+  type SubscribeFn,
+  type EmitFn,
+} from "./lib/event-bus";
+
+export {
   md5FetchText,
   md5ActionFetchDAQ,
   md5FetchJSON,
@@ -24,7 +31,6 @@ export {
   distanceMeters,
   pixelsBetweenGeographicLocations,
   isLocationVisuallyEquivalentAtZoom,
-  isZoomClose,
   isMapCenterZoomEquivalent,
 } from "./lib/geo";
 
@@ -98,10 +104,4 @@ export { detectWebGLContext } from "./lib/webgl";
 
 export * from "./lib/window";
 
-// Typed event bus for lightweight pub/sub in apps and libraries
-export {
-  createEventBus,
-  type EventBus,
-  type SubscribeFn,
-  type EmitFn,
-} from "./lib/event-bus";
+export { isZoom, isZoomClose } from "./lib/zoom";

@@ -1,10 +1,13 @@
 // WEB MAPS TO CESIUM
 import { Cartographic, Math as CesiumMath } from "cesium";
-import type { Map as LeafletMap } from "leaflet";
+
+import type { LatLng, Zoom } from "@carma/types";
 
 import {
   asRadians,
   getPixelResolutionFromZoomAtLatitudeRad,
+  normalizeOptions,
+  isZoom,
 } from "@carma-commons/utils";
 
 import type { CesiumContextType } from "../CesiumContext";
@@ -12,55 +15,79 @@ import type { CesiumContextType } from "../CesiumContext";
 import { getCesiumCameraPixelDimensionForDistance } from "./cesiumCamera";
 import { getCameraHeightAboveGround } from "./cesiumHelpers";
 import { getElevationAsync } from "./elevation";
-import { isLeafletZoomValid } from "./leafletHelpers";
 import { getScenePixelSize } from "./pixels";
 
-export const leafletToCesium = async (
-  leaflet: LeafletMap,
+// TODO: move to config or formalize the starting distance value
+const START_DISTANCE = 1000;
+
+type TransitionOptions = {
+  epsilon?: number;
+  limit?: number;
+  cause?: string;
+  onComplete?: Function;
+  fallbackHeight?: number;
+};
+
+const noop = () => {};
+
+const defaultTransitionOptions: Required<TransitionOptions> = {
+  epsilon: 0.05,
+  limit: 5,
+  cause: "not specified",
+  onComplete: noop,
+  fallbackHeight: 150,
+};
+
+/**
+ * Transitions a web map to a Cesium camera position.
+ *
+ * @param ctx - The Cesium context.
+ * @param {LatLng.deg} { lat, lng } - The latitude and longitude of the center of the web map in degrees.
+ * @param {Zoom} zoom - The zoom level of the web map.
+ * @param {Object} options - The options for the transition.
+ * @param {number} options.epsilon - The epsilon value (permitted error) for the target pixel resolution.
+ * @param {number} options.limit - The iteration limit for getting the camera position.
+ * @param {string} options.cause - The cause of the transition.
+ * @param {Function} options.onComplete - The callback function to be called when the transition is complete.
+ * @param {number} options.fallbackHeight - The fallback height for the transition.
+ * @returns {Promise<boolean>} - A promise that resolves to true if the transition was successful, false otherwise.
+ */
+
+export const tiledMapToCesium = async (
   ctx: CesiumContextType,
-  {
-    epsilon = 0.5,
-    limit = 5,
-    cause = "not specified",
-    onComplete,
-    fallbackHeight = 150, // min height for local terrain
-  }: {
-    epsilon?: number;
-    limit?: number;
-    cause?: string;
-    onComplete?: Function;
-    fallbackHeight?: number;
-  }
+  { latitude, longitude }: LatLng.deg,
+  zoom: Zoom,
+  options: TransitionOptions
 ) => {
   if (!ctx.isValidViewer()) {
     console.warn("No viewer available for transition");
     return false;
   }
-  if (!leaflet) {
-    console.warn("No leaflet map available for transition");
-    return false;
-  }
 
-  const center = leaflet.getCenter();
-  const { lat, lng } = center;
-  const zoom = leaflet.getZoom();
-  // cancel any ongoing animation
-  leaflet.setView(center, zoom, { animate: false });
-
-  if (!isLeafletZoomValid(zoom)) {
+  if (!isZoom(zoom)) {
     console.warn("No zoom level available for transition");
     return false;
   }
 
-  const lngRad = CesiumMath.toRadians(lng);
-  const latRad = CesiumMath.toRadians(lat);
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    console.warn(
+      "No valid coordinates available for transition",
+      latitude,
+      longitude
+    );
+    return false;
+  }
+
+  const lngRad = CesiumMath.toRadians(longitude);
+  const latRad = CesiumMath.toRadians(latitude);
 
   const targetPixelResolution = getPixelResolutionFromZoomAtLatitudeRad(
     zoom,
     asRadians(latRad)
   );
 
-  const START_DISTANCE = 1000;
+  const { epsilon, limit, cause, onComplete, fallbackHeight } =
+    normalizeOptions(options, defaultTransitionOptions);
 
   const baseComputedPixelResolution = getCesiumCameraPixelDimensionForDistance(
     ctx,
@@ -117,7 +144,7 @@ export const leafletToCesium = async (
   const destination = Cartographic.toCartesian(cameraDestinationCartographic);
 
   console.debug(
-    `L2C [2D3D|CESIUM|CAMERA] cause: ${cause} lat: ${lat} lng: ${lng} z: ${zoom}`
+    `L2C [2D3D|CESIUM|CAMERA] cause: ${cause} lat: ${latitude} lng: ${longitude} z: ${zoom}`
   );
   console.debug("L2C [2D3D|CESIUM|CAMERA] destination", destination);
   console.debug(

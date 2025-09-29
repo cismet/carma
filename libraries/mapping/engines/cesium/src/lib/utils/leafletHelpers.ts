@@ -3,19 +3,6 @@ import { cameraToCartographicDegrees } from "./cesiumHelpers";
 import type { CesiumContextType } from "../CesiumContext";
 import { cesiumCenterPixelSizeToLeafletZoom } from "./pixels";
 
-export const isLeafletZoomValid = (zoom: number) => {
-  if (
-    zoom === undefined ||
-    Number.isNaN(zoom) ||
-    zoom === Infinity ||
-    zoom === -Infinity
-  ) {
-    return false;
-  } else {
-    return true;
-  }
-};
-
 export const setLeafletView = async (
   ctx: CesiumContextType,
   leafletElement: LeafletMap,

@@ -2,8 +2,13 @@ import { useContext, useState } from "react";
 import { useDispatch } from "react-redux";
 
 import { Cartesian3, Cartographic, defined, HeadingPitchRange } from "cesium";
+import type { Map as LeafletMap } from "leaflet";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+
+import { normalizeOptions, isZoom } from "@carma-commons/utils";
+import { promiseWithTimeout } from "@carma-commons/utils/promise";
+import { LeafletMapStateChangeEvents } from "@carma-mapping/engines/leaflet";
 
 import { useCesiumContext } from "./useCesiumContext";
 import {
@@ -19,38 +24,100 @@ import {
   getTopDownCameraDeviationAngle,
 } from "../utils/cesiumHelpers";
 import { setLeafletView } from "../utils/leafletHelpers";
-import { leafletToCesium } from "../utils/leafletToCesium";
+import { tiledMapToCesium } from "../utils/tiledMapToCesium";
 import { pickViewerCanvasCenter } from "../utils/pickers";
 import { cesiumCenterPixelSizeToLeafletZoom } from "../utils/pixels";
-// import removed: rely on cesiumContext.isValidViewer
 
 type TransitionOptions = {
   onComplete?: (isTo2d: boolean) => void;
-  duration?: number;
+  duration?: number; // milliseconds
+  maxZoom?: number; // max zoom level to transition from 2D to 3D
+  zoomOutDuration?: number; // milliseconds
+  zoomOutEaseLinearity?: number; // 0 to 1
+  zoomOutTimeoutBuffer?: number; // milliseconds
 };
 
-const DEFAULT_MODE_2D_3D_CHANGE_FADE_DURATION = 1000;
+const noop = () => {};
 
-export const useMapTransition = ({
-  onComplete,
-  duration,
-}: TransitionOptions = {}) => {
+const defaultTransitionOptions: Required<TransitionOptions> = {
+  onComplete: noop,
+  duration: 1000,
+  maxZoom: 20,
+  zoomOutDuration: 700,
+  zoomOutEaseLinearity: 0.75,
+  zoomOutTimeoutBuffer: 100,
+};
+
+export const useMapTransition = (options: TransitionOptions = {}) => {
+  const {
+    duration,
+    onComplete,
+    maxZoom,
+    zoomOutEaseLinearity,
+    zoomOutDuration,
+    zoomOutTimeoutBuffer,
+  } = normalizeOptions(options, defaultTransitionOptions);
+
   const dispatch = useDispatch();
   const topicMapContext = useContext<typeof TopicMapContext>(TopicMapContext);
   const { realRoutedMapRef: routedMapRef } = topicMapContext;
   const cesiumContext = useCesiumContext();
-  const { viewerRef } = cesiumContext;
-
-  if (duration === undefined) {
-    duration = DEFAULT_MODE_2D_3D_CHANGE_FADE_DURATION;
-  }
-
   const [prevHPR, setPrevHPR] = useState<HeadingPitchRange | null>(null);
   const [prevDuration, setPrevDuration] = useState<number>(0);
 
+  const prepareLeafletForTransition = async (
+    leaflet: LeafletMap | null | undefined
+  ) => {
+    if (!leaflet) {
+      return;
+    }
+
+    const cleanups: Array<() => void> = [];
+
+    const zoom = leaflet.getZoom();
+    const shouldZoomOut = isZoom(zoom) && zoom > maxZoom;
+
+    let moveEndPromise: Promise<void> | undefined;
+
+    if (shouldZoomOut) {
+      moveEndPromise = new Promise<void>((resolve) => {
+        const handle = () => {
+          leaflet.off(LeafletMapStateChangeEvents.zoomend, handle);
+          resolve();
+        };
+        cleanups.push(() =>
+          leaflet.off(LeafletMapStateChangeEvents.zoomend, handle)
+        );
+        leaflet.once(LeafletMapStateChangeEvents.zoomend, handle);
+      });
+    }
+
+    leaflet.stop();
+
+    try {
+      if (shouldZoomOut && Number.isFinite(maxZoom)) {
+        const durationMs = Math.max(0, zoomOutDuration);
+        const durationSeconds = durationMs / 1000;
+        leaflet.flyTo(leaflet.getCenter(), maxZoom, {
+          duration: durationSeconds,
+          animate: durationSeconds > 0,
+          easeLinearity: zoomOutEaseLinearity,
+        });
+      }
+
+      if (moveEndPromise) {
+        const timeoutMs =
+          Math.max(0, zoomOutDuration) + Math.max(0, zoomOutTimeoutBuffer);
+        await promiseWithTimeout(moveEndPromise, timeoutMs);
+      }
+    } finally {
+      cleanups.forEach((cleanup) => cleanup());
+    }
+  };
+
   const transitionToMode3d = async () => {
     if (
-      !viewerRef.current ||
+      !cesiumContext.isValidViewer() ||
       !routedMapRef.current?.leafletMap?.leafletElement
     ) {
       console.warn("cesium or leaflet not available");
@@ -58,6 +125,8 @@ export const useMapTransition = ({
     }
 
     const leaflet = routedMapRef.current?.leafletMap?.leafletElement;
+
+    await prepareLeafletForTransition(leaflet);
 
     // cancel any ongoing flight
     cesiumContext.withCamera((camera) => camera.cancelFlight());
@@ -98,7 +167,10 @@ export const useMapTransition = ({
       }
     };
 
-    await leafletToCesium(leaflet, cesiumContext, {
+    const { lat: latitude, lng: longitude } = leaflet.getCenter();
+    const zoom = leaflet.getZoom();
+
+    await tiledMapToCesium(cesiumContext, { latitude, longitude }, zoom, {
       cause: "SwitchMapMode to 3d",
       onComplete: () => setTimeout(onCompleteAnimatedTo3d, 100),
     });
@@ -109,13 +181,14 @@ export const useMapTransition = ({
       console.warn("leaflet not available no transition possible [zoom]");
       return;
     }
-    if (!viewerRef.current) {
+    if (!cesiumContext.isValidViewer()) {
       console.warn("cesium not available no transition possible [zoom]");
       return;
     }
 
     const leaflet = routedMapRef.current?.leafletMap?.leafletElement;
 
+    await prepareLeafletForTransition(leaflet);
     // Do not transition if we cannot pick ground from depth (ellipsoid-only is not allowed)
     const { scenePosition: groundPos, coordinates: cartographic } =
       pickViewerCanvasCenter(cesiumContext, { getCoordinates: true });

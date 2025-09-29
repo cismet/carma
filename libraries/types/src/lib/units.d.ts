@@ -8,6 +8,7 @@ declare const radiansSymbol: unique symbol;
 declare const metersSymbol: unique symbol;
 declare const ratioSymbol: unique symbol;
 declare const percentSymbol: unique symbol;
+declare const zoomSymbol: unique symbol;
 
 // ratio, like Percent but normalized to unit range
 // eg 0.05
@@ -18,6 +19,9 @@ export type Percent = NumericUnit<typeof percentSymbol>;
 export type Degrees = NumericUnit<typeof degreesSymbol>;
 export type Radians = NumericUnit<typeof radiansSymbol>;
 export type Meters = NumericUnit<typeof metersSymbol>;
+
+// XYZ SLIPPY MAP
+export type Zoom = NumericUnit<typeof zoomSymbol>;
 
 // SCREEN UNITS
 
