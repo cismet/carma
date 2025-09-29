@@ -78,9 +78,9 @@ const BackgroundLayerRow = ({
   opacity = 1,
   opacityChanged = (e) => {},
 }) => {
-  console.log("xxx layerkey", layerkey);
   const dispatch = useDispatch();
   const selectedYear = useSelector(getSelectedTrueOrthoYear);
+  const activeBackgroundLayer = useSelector(getActiveBackgroundLayer);
 
   return (
     <div>
@@ -95,7 +95,7 @@ const BackgroundLayerRow = ({
           onAfterChange={(value) => opacityChanged(layerkey, value / 100)}
         />
       </div>
-      {layerkey === "trueOrtho" && (
+      {layerkey === "trueOrtho" && activeBackgroundLayer === "trueOrtho" && (
         <div className="ml-[28px]">
           {trueOrthoYears.map((year) => {
             const isSelected = year === selectedYear;
