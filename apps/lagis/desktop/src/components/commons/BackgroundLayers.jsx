@@ -34,18 +34,18 @@ export const configuration = {
   },
   trueOrtho: {
     title: drawerTextsHelper.trueOrthoOpt,
-    conf: {
+    conf: (year = 2024) => ({
       type: "wms",
       url: "https://geo.udsp.wuppertal.de/geoserver-cloud/ows",
-      layers: "GIS-102:trueortho2018",
+      layers: `GIS-102:trueortho${year}`,
       // url: "https://maps.wuppertal.de/karten",
-      // layers: "R102:trueortho2024",
+      // layers: `R102:trueortho${year}`,
       tileSize: 256,
       transparent: true,
       pane: "backgroundLayers",
       maxZoom: 26,
       format: "image/png",
-    },
+    }),
   },
   lbk: {
     title: drawerTextsHelper.lbkOpt,
@@ -113,14 +113,22 @@ export const configuration = {
 export default function BackgroundLayers({
   activeBackgroundLayer,
   opacities = {},
+  selectedYear = 2024,
 }) {
   //get the current configuration
   const currentConf = configuration[activeBackgroundLayer];
+  
+  // Get the actual configuration, handling function-based configs
+  let actualConf = currentConf.conf;
+  if (typeof actualConf === 'function') {
+    actualConf = actualConf(selectedYear);
+  }
+  
   //   if it is an array of configurations, render them all
-  if (Array.isArray(currentConf.conf)) {
+  if (Array.isArray(actualConf)) {
     return (
       <>
-        {currentConf.conf.map((conf, index) => {
+        {actualConf.map((conf, index) => {
           let opacity = opacities[activeBackgroundLayer] || 1;
           if (conf.opacityFunction) {
             opacity = conf.opacityFunction(opacity);
@@ -145,7 +153,7 @@ export default function BackgroundLayers({
         key={"CismapLayer." + activeBackgroundLayer + "." + opacity}
         pane="backgroundLayers"
         {...{
-          ...currentConf.conf,
+          ...actualConf,
           opacity,
         }}
       ></CismapLayer>

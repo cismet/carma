@@ -42,6 +42,7 @@ import {
   getBackgroundLayerOpacities,
   isMapLoading,
   setHoveredLandparcel,
+  getSelectedTrueOrthoYear,
 } from "../../store/slices/ui";
 import proj4 from "proj4";
 import { proj4crs3857def } from "react-cismap/constants/gis";
@@ -225,6 +226,7 @@ const Map = ({
   const additionalLayerOpacities = useSelector(getAdditionalLayerOpacities);
   const activeBackgroundLayer = useSelector(getActiveBackgroundLayer);
   const activeAdditionalLayers = useSelector(getActiveAdditionalLayers);
+  const selectedTrueOrthoYear = useSelector(getSelectedTrueOrthoYear);
 
   const oldBgRef = useRef(null);
   const oldAdditionalLayersLengthRef = useRef(null);
@@ -540,6 +542,7 @@ const Map = ({
               <BackgroundLayers
                 activeBackgroundLayer={activeBackgroundLayer}
                 opacities={backgroundLayerOpacities}
+                selectedYear={selectedTrueOrthoYear}
               />
               <AdditionalLayers
                 jwt={jwt}

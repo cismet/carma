@@ -10,6 +10,8 @@ import {
   setActiveAdditionaLayers,
   setAdditionalLayerOpacities,
   getAdditionalLayerOpacities,
+  getSelectedTrueOrthoYear,
+  setSelectedTrueOrthoYear,
 } from "../../store/slices/ui";
 import { configuration as additionalLayerConfigurations } from "./AdditionalLayers";
 import { configuration as backgroundLayerConfigurations } from "./BackgroundLayers";
@@ -77,6 +79,9 @@ const BackgroundLayerRow = ({
   opacityChanged = (e) => {},
 }) => {
   console.log("xxx layerkey", layerkey);
+  const dispatch = useDispatch();
+  const selectedYear = useSelector(getSelectedTrueOrthoYear);
+
   return (
     <div>
       <div className="flex items-center gap-2 hover:bg-zinc-100 p-1">
@@ -93,8 +98,22 @@ const BackgroundLayerRow = ({
       {layerkey === "trueOrtho" && (
         <div className="ml-[28px]">
           {trueOrthoYears.map((year) => {
+            const isSelected = year === selectedYear;
             return (
-              <Tag size="small" className="mb-2">
+              <Tag
+                key={year}
+                size="small"
+                className="mb-2"
+                disabled={false}
+                // color={isSelected ? "blue" : "default"}
+                style={{
+                  backgroundColor: isSelected ? "#1777ff" : undefined,
+                  borderColor: isSelected ? "#1777ff" : undefined,
+                  color: isSelected ? "white" : undefined,
+                  cursor: "pointer",
+                }}
+                onClick={() => dispatch(setSelectedTrueOrthoYear(year))}
+              >
                 <span className="cursor-pointer">{year}</span>
               </Tag>
             );
