@@ -18,7 +18,7 @@ import { configuration as backgroundLayerConfigurations } from "./BackgroundLaye
 import { Checkbox, Radio, Slider, Switch, Tag } from "antd";
 import { drawerTextsHelper } from "@carma-collab/wuppertal/lagis-desktop";
 
-const trueOrthoYears = [2024, 2022, 2020, 2018];
+const trueOrthoYears = [2018, 2020, 2022, 2024];
 
 const SettingsRow = ({ onClick, title, children }) => {
   return (
