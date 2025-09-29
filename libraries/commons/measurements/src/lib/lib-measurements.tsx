@@ -1,12 +1,15 @@
-import React, { useContext, useEffect, useRef } from "react";
-import L from "leaflet";
-import "leaflet-draw";
-import "leaflet/dist/leaflet.css";
-import "leaflet-draw/dist/leaflet.draw.css";
+import { useContext, useEffect, useRef } from "react";
+
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
+import L from "leaflet";
+import "leaflet-draw";
+
+import "leaflet/dist/leaflet.css";
+import "leaflet-draw/dist/leaflet.draw.css";
+
 export function LibMeasurements({ startDrawing }: { startDrawing: boolean }) {
-  const { routedMapRef } = useContext(TopicMapContext);
+  const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const featureGroupRef = useRef<L.FeatureGroup | null>(null);
   const drawHandlerRef = useRef<L.Draw.Polygon | null>(null);
   const createdListenerAttached = useRef(false);
@@ -42,8 +45,13 @@ export function LibMeasurements({ startDrawing }: { startDrawing: boolean }) {
         drawHandlerRef.current.disable();
         drawHandlerRef.current = null;
       }
+
+      if (!(map instanceof L.DrawMap)) {
+        console.warn("[MEASUREMENTS] map is not a DrawMap");
+      }
+
       // Create a fresh polygon draw handler and enable it
-      const handler = new L.Draw.Polygon(map, {
+      const handler = new L.Draw.Polygon(map as L.DrawMap, {
         showArea: true,
         shapeOptions: {
           color: "#3388ff",
