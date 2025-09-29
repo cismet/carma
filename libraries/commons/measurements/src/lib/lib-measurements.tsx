@@ -1,94 +1,292 @@
-import { useContext, useEffect, useRef } from "react";
-
+import React, { useState, useEffect, useContext } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
-
-import L from "leaflet";
-import "leaflet-draw";
-
 import "leaflet/dist/leaflet.css";
 import "leaflet-draw/dist/leaflet.draw.css";
+import L from "leaflet";
+import "leaflet-draw";
+import "leaflet-editable";
+import "./utils/measure";
+import "./utils/measure-path";
+import "leaflet-measure-path/leaflet-measure-path.css";
+import makeMeasureIcon from "./assets/measure.png";
+import makeMeasureActiveIcon from "./assets/measure-active.png";
+import "./styles/m-style.css";
+import { useSelector, useDispatch } from "react-redux";
+import {
+  getShapes,
+  setShapes,
+  getActiveShapes,
+  setActiveShape,
+  setVisibleShapes,
+  getVisibleShapes,
+  getDrawingShape,
+  setDrawingShape,
+  setShowAll,
+  getShowAll,
+  getDeleteAll,
+  setDeleteAll,
+  getMoveToShape,
+  setMoveToShape,
+  setUpdateShape,
+  setMapMovingEnd,
+  addShape,
+  deleteShapeById,
+  updateShapeById,
+  setLastVisibleShapeActive,
+  setDrawingWithLastActiveShape,
+  setActiveShapeIfDrawCancelled,
+  updateAreaOfDrawing,
+  deleteVisibleShapeById,
+} from "../../store/slices/measurements";
 
-export function LibMeasurements({ startDrawing }: { startDrawing: boolean }) {
-  const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
-  const featureGroupRef = useRef<L.FeatureGroup | null>(null);
-  const drawHandlerRef = useRef<L.Draw.Polygon | null>(null);
-  const createdListenerAttached = useRef(false);
+import { getUIMode, toggleUIMode, UIMode } from "../../store/slices/ui";
+import { getStartDrawing, setStartDrawing } from "../../store/slices/mapping";
+// eslint-disable-next-line import/no-unresolved
+import useDeviceDetection from "../../hooks/useDeviceDetection";
+
+const MapMeasurement = (props) => {
+  const { routedMapRef } = useContext(TopicMapContext);
+
+  const dispatch = useDispatch();
+  const measurementShapes = useSelector(getShapes);
+  const activeShape = useSelector(getActiveShapes);
+  const ifDrawing = useSelector(getDrawingShape);
+  const showAllMeasurements = useSelector(getShowAll);
+  const deleteShape = useSelector(getDeleteAll);
+  const visibleShapes = useSelector(getVisibleShapes);
+  const moveToShape = useSelector(getMoveToShape);
+  const mode = useSelector(getUIMode);
+  const startDrawing = useSelector(getStartDrawing);
+  const [measureControl, setMeasureControl] = useState(null);
+  const [visiblePolylines, setVisiblePolylines] = useState();
+  const [drawingShape, setDrawingLine] = useState(null);
+
+  const device = useDeviceDetection();
+
+  const toggleMeasurementModeHandler = () => {
+    dispatch(toggleUIMode(UIMode.MEASUREMENT));
+  };
 
   useEffect(() => {
-    const map = routedMapRef?.leafletMap?.leafletElement as L.Map | undefined;
-    if (!map) return;
+    if (routedMapRef?.leafletMap && !measureControl) {
+      const mapExample = routedMapRef?.leafletMap?.leafletElement;
+      const customOptions = {
+        position: "topright",
+        icon_lineActive: makeMeasureActiveIcon,
+        icon_lineInactive: makeMeasureIcon,
+        icon_polygonActive: polygonActiveIcon,
+        icon_polygonInactive: polygonIcon,
+        activeShape,
+        mode_btn: `<div id='draw-shape-active' class='measure_button_wrapper'><div class='add_shape'>+</div></div>`,
+        msj_disable_tool: "Do you want to disable the tool?",
+        device,
+        shapes: measurementShapes,
+        cbSaveShape: saveShapeHandler,
+        cbUpdateShape: updateShapeHandler,
+        cdDeleteShape: deleteShapeHandler,
+        cbDeleteVisibleShapeById: deleteVisibleShapeByIdHandler,
+        cbVisiblePolylinesChange: visiblePolylinesChange,
+        cbSetDrawingStatus: drawingStatusHandler,
+        cbSetDrawingShape: drawingShapeHandler,
+        measurementOrder: findLargestNumber(measurementShapes),
+        measurementMode: mode,
+        cbSetActiveShape: setActiveShapeHandler,
+        cbSetUpdateStatusHandler: setUpdateStatusHandler,
+        cbMapMovingEndHandler: mapMovingEndHandler,
+        cbSaveLastActiveShapeIdBeforeDrawingHandler:
+          saveLastActiveShapeIdBeforeDrawingHandler,
+        cbChangeActiveCanceldShapeId: changeActiveCancelledShapeId,
+        cbToggleMeasurementMode: toggleMeasurementModeHandler,
+        cbUpdateAreaOfDrawingMeasurement: updateAreaOfDrawingMeasurementHandler,
+      };
 
-    if (!featureGroupRef.current) {
-      featureGroupRef.current = new L.FeatureGroup();
-      map.addLayer(featureGroupRef.current);
+      const measurePolygonControl = L.control.measurePolygon(customOptions);
+      measurePolygonControl.addTo(mapExample);
+
+      setMeasureControl(measurePolygonControl);
+    }
+  }, [routedMapRef]);
+
+  useEffect(() => {
+    if (measureControl && activeShape) {
+      const shapeCoordinates = measurementShapes.filter(
+        (s) => s.shapeId === activeShape
+      );
+      const map = routedMapRef.leafletMap.leafletElement;
+
+      if (ifDrawing) {
+        dispatch(setMoveToShape(null));
+      }
+
+      if (shapeCoordinates[0]?.shapeId && !ifDrawing && !deleteShape) {
+        measureControl.changeColorByActivePolyline(
+          map,
+          shapeCoordinates[0].shapeId
+        );
+      }
+      if (showAllMeasurements) {
+        const allPolylines = measureControl.getAllPolylines(map);
+        measureControl.fitMapToPolylines(map, allPolylines);
+        dispatch(setShowAll(false));
+      }
+
+      if (deleteShape) {
+        dispatch(setMoveToShape(null));
+        measureControl.removePolylineById(map, activeShape);
+        const cleanArr = visibleShapes.filter((m) => m.shapeId !== activeShape);
+        deleteShapeHandler(activeShape);
+        dispatch(setVisibleShapes(cleanArr));
+
+        const cleanAllArr = measurementShapes.filter(
+          (m) => m.shapeId !== activeShape
+        );
+        dispatch(setShapes(cleanAllArr));
+        dispatch(setDeleteAll(false));
+        if (measureControl.options.shapes.length === 1) {
+          measureControl.options.shapes = [];
+        }
+        const cleanLocalLefletShapes = measureControl.options.shapes.filter(
+          (m) => m.shapeId !== activeShape
+        );
+
+        measureControl.options.shapes = cleanLocalLefletShapes;
+      }
+      if (moveToShape && !deleteShape) {
+        if (shapeCoordinates.length > 0) {
+          measureControl.showActiveShape(map, shapeCoordinates[0]?.coordinates);
+        }
+      }
     }
 
-    const handleCreated = (e: any) => {
-      const layer = e.layer as L.Layer;
-      featureGroupRef.current?.addLayer(layer);
-      // After one polygon is created, stop drawing automatically
-      if (drawHandlerRef.current) {
-        drawHandlerRef.current.disable();
-        drawHandlerRef.current = null;
+    if (measureControl) {
+      const map = routedMapRef.leafletMap.leafletElement;
+      measureControl.changeMeasurementMode(mode, map);
+      const shapeCoordinates = measurementShapes.filter(
+        (s) => s.shapeId === activeShape
+      );
+      if (shapeCoordinates[0]?.shapeId) {
+        measureControl.changeColorByActivePolyline(
+          map,
+          shapeCoordinates[0].shapeId
+        );
       }
-    };
 
-    // Attach once
-    if (!createdListenerAttached.current) {
-      map.on("draw:created", handleCreated);
-      createdListenerAttached.current = true;
+      if (mode === "measurement" && visibleShapes.length === 0) {
+        const visibleShapesIds = measureControl.getVisibleShapeIdsArr(
+          measureControl._map
+        );
+      }
     }
+  }, [
+    activeShape,
+    measureControl,
+    showAllMeasurements,
+    deleteShape,
+    ifDrawing,
+    moveToShape,
+    mode,
+  ]);
 
-    if (startDrawing) {
-      // If a previous handler is still around, disable it first
-      if (drawHandlerRef.current) {
-        drawHandlerRef.current.disable();
-        drawHandlerRef.current = null;
-      }
+  useEffect(() => {
+    if (measureControl) {
+      const cleanedVisibleArr = filterArrByIds(
+        visiblePolylines,
+        measurementShapes
+      );
+      dispatch(setVisibleShapes(cleanedVisibleArr));
 
-      if (!(map instanceof L.DrawMap)) {
-        console.warn("[MEASUREMENTS] map is not a DrawMap");
-      }
+      measureControl.changeMeasurementsArr(measurementShapes);
+    }
+  }, [visiblePolylines, measurementShapes]);
 
-      // Create a fresh polygon draw handler and enable it
-      const handler = new L.Draw.Polygon(map as L.DrawMap, {
-        showArea: true,
-        shapeOptions: {
-          color: "#3388ff",
-          weight: 3,
-          opacity: 1,
-          fillOpacity: 0.2,
-        },
-      });
-      drawHandlerRef.current = handler;
-      handler.enable();
+  useEffect(() => {
+    if (drawingShape) {
+      const cleanArr = visibleShapes.filter((m) => m.shapeId !== 5555);
+      dispatch(setVisibleShapes([...cleanArr, drawingShape]));
     } else {
-      // If toggled off from parent, ensure handler is disabled
-      if (drawHandlerRef.current) {
-        drawHandlerRef.current.disable();
-        drawHandlerRef.current = null;
-      }
+      dispatch(setLastVisibleShapeActive());
     }
+  }, [drawingShape]);
 
-    return () => {
-      // On unmount, remove listener and clean up
-      if (createdListenerAttached.current) {
-        map.off("draw:created");
-        createdListenerAttached.current = false;
-      }
-      if (drawHandlerRef.current) {
-        drawHandlerRef.current.disable();
-        drawHandlerRef.current = null;
-      }
-      if (featureGroupRef.current) {
-        // keep layers if desired; or clear if you prefer a clean tear-down
-        // featureGroupRef.current.clearLayers();
-        // map.removeLayer(featureGroupRef.current);
-        // featureGroupRef.current = null;
-      }
-    };
-  }, [routedMapRef, startDrawing]);
+  // useEffect(() => {
+  //   if (startDrawing && measureControl) {
+  //     measureControl.drawingLines(routedMapRef.leafletMap.leafletElement);
+  //   }
+  // }, [startDrawing]);
 
-  // This component is UI-less; it wires draw interactions to the map
-  return null;
+  const saveShapeHandler = (layer) => {
+    dispatch(addShape(layer));
+  };
+  const deleteShapeHandler = (id) => {
+    dispatch(deleteShapeById(id));
+  };
+  const deleteVisibleShapeByIdHandler = (id) => {
+    dispatch(deleteVisibleShapeById(id));
+  };
+  const updateShapeHandler = (id, newCoordinates, newDistance, newSquare) => {
+    dispatch(updateShapeById(id, newCoordinates, newDistance, newSquare));
+  };
+
+  const saveLastActiveShapeIdBeforeDrawingHandler = () => {
+    dispatch(setDrawingWithLastActiveShape());
+  };
+  const changeActiveCancelledShapeId = () => {
+    dispatch(setActiveShapeIfDrawCancelled());
+  };
+
+  const visiblePolylinesChange = (arr) => {
+    setVisiblePolylines(arr);
+  };
+
+  const drawingStatusHandler = (status) => {
+    dispatch(setDrawingShape(status));
+    dispatch(setStartDrawing(status));
+  };
+
+  const drawingShapeHandler = (draw) => {
+    setDrawingLine(draw);
+  };
+  const setActiveShapeHandler = (id) => {
+    dispatch(setActiveShape(id));
+    dispatch(setMoveToShape(null));
+  };
+  const setUpdateStatusHandler = (status) => {
+    dispatch(setUpdateShape(status));
+  };
+  const mapMovingEndHandler = (status) => {
+    dispatch(setMapMovingEnd(status));
+  };
+
+  const updateAreaOfDrawingMeasurementHandler = (newArea) => {
+    dispatch(updateAreaOfDrawing(newArea));
+  };
+
+  console.debug("RENDER: [MAPMEASUREMENT] MapMeasurement");
+
+  return <div></div>;
+};
+
+export default MapMeasurement;
+
+function filterArrByIds(arrIds, fullArray) {
+  const finalResult = [];
+  fullArray.forEach((currentItem) => {
+    if (arrIds.includes(currentItem.shapeId)) {
+      finalResult.push(currentItem);
+    }
+  });
+
+  return finalResult;
+}
+
+function findLargestNumber(measurements) {
+  let largestNumber = 0;
+
+  measurements.forEach((item) => {
+    if (item.number > largestNumber) {
+      largestNumber = item.number;
+    }
+  });
+
+  return largestNumber;
 }
