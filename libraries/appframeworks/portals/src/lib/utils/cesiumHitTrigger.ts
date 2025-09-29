@@ -1,15 +1,12 @@
-import { Viewer } from "cesium";
-
-import {
-  type CesiumOptions,
-  type EntityData,
-  type CesiumContextType,
+import type { SearchResultItem } from "@carma/types";
+import type {
+  CesiumOptions,
+  EntityData,
+  CesiumContextType,
 } from "@carma-mapping/engines/cesium";
 
 import { cesiumHandleSelection } from "./cesiumHandleSelection";
-import { MutableRefObject } from "react";
 import { getDerivedGeometries } from "./getDerivedGeometries";
-import { SearchResultItem } from "@carma/types";
 
 export type HitTriggerOptions = {
   mapOptions: CesiumOptions;
@@ -23,7 +20,6 @@ export type HitTriggerOptions = {
 export const cesiumHitTrigger = async (
   hit: SearchResultItem[],
   ctx: CesiumContextType,
-  shouldFlyToRef: MutableRefObject<boolean>,
   entityData: null | EntityData,
   setEntityData: (data: EntityData | null) => void,
   options: HitTriggerOptions
@@ -32,7 +28,6 @@ export const cesiumHitTrigger = async (
     const derivedGeometries = getDerivedGeometries(hit[0]);
     cesiumHandleSelection(
       ctx,
-      shouldFlyToRef,
       entityData,
       setEntityData,
       derivedGeometries,
