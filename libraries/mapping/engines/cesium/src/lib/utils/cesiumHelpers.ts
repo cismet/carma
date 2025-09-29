@@ -15,6 +15,8 @@ import {
   PerspectiveFrustum,
   PerspectiveOffCenterFrustum,
 } from "cesium";
+
+import type { Degrees, LatLng, Altitude } from "@carma/types";
 import type { TilesetConfig } from "@carma-commons/resources";
 
 import type { CesiumContextType } from "../CesiumContext";
@@ -83,12 +85,14 @@ export function create3DTileStyle(
 
 const TOP_DOWN_DIRECTION = new Cartesian3(0, 0, -1);
 
-export const cameraToCartographicDegrees = (camera: Camera) => {
+export const cameraToCartographicDegrees = (
+  camera: Camera
+): Required<LatLng.deg> => {
   const { latitude, longitude, height } = camera.positionCartographic.clone();
   return {
-    latitude: CesiumMath.toDegrees(latitude),
-    longitude: CesiumMath.toDegrees(longitude),
-    height,
+    latitude: CesiumMath.toDegrees(latitude) as Degrees,
+    longitude: CesiumMath.toDegrees(longitude) as Degrees,
+    altitude: height as Altitude.EllipsoidalWGS84Meters,
   };
 };
 

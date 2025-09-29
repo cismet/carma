@@ -21,7 +21,18 @@ export type Radians = NumericUnit<typeof radiansSymbol>;
 export type Meters = NumericUnit<typeof metersSymbol>;
 
 // XYZ SLIPPY MAP
-export type Zoom = NumericUnit<typeof zoomSymbol>;
+
+declare const tileSize256: 256;
+declare const tileSize512: 512;
+
+type zoomQuality<TileSize extends number> = TileSize & {
+  readonly tileSize: TileSize;
+};
+
+// Leaflet Zoom
+export type Zoom = zoomQuality<typeof tileSize256>;
+// MapLibre Zoom defined for 512x512 tiles
+export type Zoom512 = zoomQuality<typeof tileSize512>;
 
 // SCREEN UNITS
 

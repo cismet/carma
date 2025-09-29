@@ -21,7 +21,6 @@ export {
   DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS,
   TRANSITION_DELAY,
 } from "./lib/viewerDefaults";
-export { CustomViewerPlayground } from "./lib/CustomViewerPlayground";
 
 export { ByGeojsonClassifier } from "./lib/components/ByGeojsonClassifier";
 export { ByTilesetClassifier } from "./lib/components/ByTilesetClassifier";

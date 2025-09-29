@@ -1,17 +1,16 @@
-import React from "react";
+import React, { useRef } from "react";
 import { HashRouter, Route, Routes } from "react-router-dom";
 
 import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextProvider";
 
 import {
-  CustomViewerPlayground,
+  CustomViewer,
   CesiumContextProvider,
 } from "@carma-mapping/engines/cesium";
 import { DebugUiProvider } from "@carma-commons/debug";
 import { HashStateProvider } from "@carma-appframeworks/portals";
 import {
   BASEMAP_METROPOLRUHR_WMS_GRAUBLAU,
-  METROPOLERUHR_WMTS_SPW2_WEBMERCATOR,
   WUPP_LOD2_TILESET,
   WUPP_MESH_2024,
   WUPP_TERRAIN_PROVIDER,
@@ -28,6 +27,8 @@ const ViewerRoutes = routeGenerator(viewerRoutes);
 const OtherRoutes = routeGenerator(otherRoutes);
 
 export function App() {
+  const viewerContainerRef = useRef<HTMLDivElement>(null);
+
   return (
     <CesiumContextProvider
       //initialViewerState={defaultViewerState}
@@ -62,15 +63,31 @@ export function App() {
                 path="/*"
                 element={
                   <TopicMapContextProvider>
-                    <CustomViewerPlayground
-                      minimapLayerUrl={
-                        METROPOLERUHR_WMTS_SPW2_WEBMERCATOR.layers[
-                          "spw2_orange"
-                        ].url
-                      }
+                    <div
+                      style={{
+                        position: "relative",
+                        width: "100vw",
+                        height: "100vh",
+                      }}
                     >
-                      <Routes>{ViewerRoutes}</Routes>
-                    </CustomViewerPlayground>
+                      <div
+                        ref={viewerContainerRef}
+                        style={{ position: "absolute", inset: 0 }}
+                      />
+                      <CustomViewer containerRef={viewerContainerRef} />
+                      <div
+                        style={{
+                          pointerEvents: "none",
+                          position: "absolute",
+                          inset: 0,
+                          zIndex: 10,
+                        }}
+                      >
+                        <div style={{ pointerEvents: "auto", height: "100%" }}>
+                          <Routes>{ViewerRoutes}</Routes>
+                        </div>
+                      </div>
+                    </div>
                   </TopicMapContextProvider>
                 }
               />

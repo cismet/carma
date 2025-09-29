@@ -23,7 +23,7 @@ import {
   getCameraHeightAboveGround,
   getTopDownCameraDeviationAngle,
 } from "../utils/cesiumHelpers";
-import { setLeafletView } from "../utils/leafletHelpers";
+import { getTiledMapCenterZoomEquivalent } from "../utils/getTiledMapCenterZoomEquivalent";
 import { tiledMapToCesium } from "../utils/tiledMapToCesium";
 import { pickViewerCanvasCenter } from "../utils/pickers";
 import { cesiumCenterPixelSizeToLeafletZoom } from "../utils/pixels";
@@ -38,6 +38,10 @@ type TransitionOptions = {
 };
 
 const noop = () => {};
+const noAnimation = {
+  animate: false,
+  duration: 0,
+};
 
 const defaultTransitionOptions: Required<TransitionOptions> = {
   onComplete: noop,
@@ -263,8 +267,29 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
         getTopDownCameraDeviationAngle(cesiumContext) * 2 + zoomDiff * 1;
       setPrevDuration(duration);
 
-      const onComplete2d = () => {
-        setLeafletView(cesiumContext, leaflet, { animate: false, duration: 0 });
+      const onComplete2d = async () => {
+        try {
+          const { latitude, longitude, zoom } =
+            await getTiledMapCenterZoomEquivalent(cesiumContext);
+          if (!leaflet) {
+            console.warn("leaflet not available no transition possible [zoom]");
+            return;
+          }
+          if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+            console.warn("latitude or longitude is undefined, skipping");
+            return;
+          }
+          if (!Number.isFinite(zoom)) {
+            console.warn("zoom is undefined, skipping");
+            return;
+          }
+
+          leaflet.setView([latitude, longitude], zoom, noAnimation);
+        } catch (error) {
+          console.error("could not determine center zoom equivalent", error);
+          return;
+        }
+
         // trigger the visual transition
         dispatch(setIsMode2d(true));
         dispatch(clearTransition());
