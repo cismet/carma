@@ -2,6 +2,7 @@ import CismapLayer from "react-cismap/CismapLayer";
 import StyledWMSTileLayer from "react-cismap/StyledWMSTileLayer";
 import MapLibreLayer from "react-cismap/vector/MapLibreLayer";
 import { drawerTextsHelper } from "@carma-collab/wuppertal/lagis-desktop";
+import { dynamicOrtho } from "./Settings";
 
 export const configuration = {
   liegenschaftskarteGrau: {
@@ -34,18 +35,10 @@ export const configuration = {
   },
   trueOrtho: {
     title: drawerTextsHelper.trueOrthoOpt,
-    conf: (year = 2024) => ({
-      type: "wms",
-      url: "https://geo.udsp.wuppertal.de/geoserver-cloud/ows",
-      layers: `GIS-102:trueortho${year}`,
-      // url: "https://maps.wuppertal.de/karten",
-      // layers: `R102:trueortho${year}`,
-      tileSize: 256,
-      transparent: true,
-      pane: "backgroundLayers",
-      maxZoom: 26,
-      format: "image/png",
-    }),
+    conf: (year = 2024) => {
+      // Use the dynamicOrtho configuration for the selected year
+      return dynamicOrtho[year] || dynamicOrtho[2024];
+    },
   },
   lbk: {
     title: drawerTextsHelper.lbkOpt,

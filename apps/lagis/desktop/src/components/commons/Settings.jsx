@@ -18,9 +18,7 @@ import { configuration as backgroundLayerConfigurations } from "./BackgroundLaye
 import { Checkbox, Radio, Slider, Switch, Tag } from "antd";
 import { drawerTextsHelper } from "@carma-collab/wuppertal/lagis-desktop";
 
-const trueOrthoYears = [2018, 2020, 2022, 2024];
-
-const dynamicOrtho = {
+export const dynamicOrtho = {
   2018: {
     type: "wms",
     url: "https://geo.udsp.wuppertal.de/geoserver-cloud/ows",
@@ -62,6 +60,8 @@ const dynamicOrtho = {
     format: "image/png",
   },
 };
+
+const trueOrthoYears = Object.keys(dynamicOrtho).map(Number).sort();
 
 const SettingsRow = ({ onClick, title, children }) => {
   return (
