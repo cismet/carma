@@ -101,6 +101,36 @@ export const configuration = {
       pane: "backgroundvectorLayers",
     },
   },
+  lsg: {
+    title: "Luftbild und Stadtgrundkarte",
+    conf: [
+      {
+        type: "wmts",
+        url: "https://geo.udsp.wuppertal.de/geoserver-cloud/ows",
+        layers: "GIS-102:trueortho2024",
+        // url: "https://maps.wuppertal.de/karten",
+        // layers: "R102:trueortho2024",
+        tileSize: 256,
+        transparent: true,
+        pane: "backgroundLayers",
+        maxZoom: 26,
+        opacityFunction: (opacity) => opacity,
+        format: "image/png",
+      },
+      {
+        type: "wmts",
+        url: "http://s10221.wuppertal-intra.de:7098/alkis/services",
+        layers: "alkomgw",
+        styles: "default",
+        version: "1.1.1",
+        tileSize: 256,
+        maxZoom: 26,
+        opacityFunction: (opacity) => opacity * 0.7,
+        transparent: true,
+        format: "image/png",
+      },
+    ],
+  },
 };
 
 export default function BackgroundLayers({
@@ -110,13 +140,13 @@ export default function BackgroundLayers({
 }) {
   //get the current configuration
   const currentConf = configuration[activeBackgroundLayer];
-  
+
   // Get the actual configuration, handling function-based configs
   let actualConf = currentConf.conf;
-  if (typeof actualConf === 'function') {
+  if (typeof actualConf === "function") {
     actualConf = actualConf(selectedYear);
   }
-  
+
   //   if it is an array of configurations, render them all
   if (Array.isArray(actualConf)) {
     return (
