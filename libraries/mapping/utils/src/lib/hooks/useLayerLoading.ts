@@ -129,6 +129,8 @@ export const useLayerLoading = ({ map, layer }: UseLayerLoadingProps) => {
   const [backgroundLayers, setBackgroundLayers] = useState<
     { config: NamedLayerConfig; loading: boolean }[]
   >([]);
+  // Store references to layers with attached listeners for cleanup
+  const [layersWithListeners, setLayersWithListeners] = useState<L.Layer[]>([]);
 
   const isBackgroundLayer = "layers" in layer;
 
@@ -164,6 +166,23 @@ export const useLayerLoading = ({ map, layer }: UseLayerLoadingProps) => {
 
     return true;
   };
+  // Helper function to remove listeners from a layer
+  const removeListeners = (leafletLayer: L.Layer) => {
+    leafletLayer.off("tileerror");
+    leafletLayer.off("tileload");
+    leafletLayer.off("loading");
+    leafletLayer.off("tileloadstart");
+    leafletLayer.off("load");
+  };
+
+  // Helper function to clean up all listeners
+  const cleanupAllListeners = () => {
+    layersWithListeners.forEach(layer => {
+      removeListeners(layer);
+    });
+    setLayersWithListeners([]);
+  };
+
   const findAndAttachListeners = () => {
     if (
       !map ||
@@ -172,10 +191,16 @@ export const useLayerLoading = ({ map, layer }: UseLayerLoadingProps) => {
     )
       return;
 
+    // Clean up any existing listeners before attaching new ones
+    cleanupAllListeners();
+    setListenersAttached(false);
+
     // Skip loading indicators for certain layer types
     const showLoading = shouldShowLoading();
 
     let found = false;
+    const newLayersWithListeners: L.Layer[] = [];
+    
     map.eachLayer((leafletLayer) => {
       const isTargetLayer =
         // @ts-ignore
@@ -206,32 +231,40 @@ export const useLayerLoading = ({ map, layer }: UseLayerLoadingProps) => {
 
         // Only attach loading-related events if we should show loading
         if (showLoading) {
-          // Attach events
-          leafletLayer.on("tileerror", () => {
+          // Attach events with named handler functions for better cleanup
+          const handleTileError = () => {
             setError(true);
             setLoading(false);
-          });
-
-          leafletLayer.on("tileload", () => {
+          };
+          
+          const handleTileLoad = () => {
             setError(false);
-          });
-
-          leafletLayer.on("loading", () => {
+          };
+          
+          const handleLoading = () => {
             setLoading(true);
-          });
-
-          leafletLayer.on("tileloadstart", () => {
-            setLoading(true);
-          });
-
-          leafletLayer.on("load", () => {
+          };
+          
+          const handleLoad = () => {
             setLoading(false);
-          });
+          };
+
+          leafletLayer.on("tileerror", handleTileError);
+          leafletLayer.on("tileload", handleTileLoad);
+          leafletLayer.on("loading", handleLoading);
+          leafletLayer.on("tileloadstart", handleLoading);
+          leafletLayer.on("load", handleLoad);
+          
+          // Track this layer for cleanup
+          newLayersWithListeners.push(leafletLayer);
         }
 
         setListenersAttached(true);
       }
     });
+    
+    // Update the list of layers with listeners
+    setLayersWithListeners(newLayersWithListeners);
 
     // If layer is visible but we didn't find it, it might still be loading
     if (!found && layer.visible && showLoading) {
@@ -257,8 +290,14 @@ export const useLayerLoading = ({ map, layer }: UseLayerLoadingProps) => {
 
       return () => {
         map.off("layeradd", layerAddHandler);
+        cleanupAllListeners();
       };
     }
+    
+    // Cleanup listeners when component unmounts or when dependencies change
+    return () => {
+      cleanupAllListeners();
+    };
   }, [map, layer, listenersAttached, backgroundLayers]);
 
   // Also check when layer visibility changes
@@ -306,8 +345,23 @@ export const useLayerLoading = ({ map, layer }: UseLayerLoadingProps) => {
           }
         }, 500); // Check every 500ms
 
-        return () => clearInterval(intervalId);
+        return () => {
+          clearInterval(intervalId);
+          // Also clean up listeners if layer becomes invisible
+          if (!layer.visible) {
+            cleanupAllListeners();
+            setListenersAttached(false);
+          }
+        };
       }
+      
+      // Clean up when layer visibility changes or component unmounts
+      return () => {
+        if (!layer.visible) {
+          cleanupAllListeners();
+          setListenersAttached(false);
+        }
+      };
     }
   }, [layer.visible, map]);
 
