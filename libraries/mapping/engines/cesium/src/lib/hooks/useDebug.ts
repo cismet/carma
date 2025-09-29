@@ -20,10 +20,8 @@ import {
   selectScreenSpaceCameraControllerMaximumZoomDistance,
   selectScreenSpaceCameraControllerMinimumZoomDistance,
 } from "../slices/cesium";
-import { useDebugCrashControl } from "./useDebugCrashControl";
 
 const useDebug = () => {
-  useDebugCrashControl("useDebug(CustomViewer)");
   const viewer = useCesiumViewer();
 
   const dispatch = useDispatch();
