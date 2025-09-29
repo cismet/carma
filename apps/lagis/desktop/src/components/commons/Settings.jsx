@@ -20,6 +20,7 @@ import { drawerTextsHelper } from "@carma-collab/wuppertal/lagis-desktop";
 
 export const dynamicOrtho = {
   2018: {
+    label: "2018",
     type: "wms",
     url: "https://geo.udsp.wuppertal.de/geoserver-cloud/ows",
     layers: `GIS-102:trueortho2018`,
@@ -30,6 +31,7 @@ export const dynamicOrtho = {
     format: "image/png",
   },
   2020: {
+    label: "2020",
     type: "wms",
     url: "https://geo.udsp.wuppertal.de/geoserver-cloud/ows",
     layers: `GIS-102:trueortho2020`,
@@ -40,6 +42,7 @@ export const dynamicOrtho = {
     format: "image/png",
   },
   2022: {
+    label: "2022",
     type: "wms",
     url: "https://geo.udsp.wuppertal.de/geoserver-cloud/ows",
     layers: `GIS-102:trueortho2022`,
@@ -50,6 +53,7 @@ export const dynamicOrtho = {
     format: "image/png",
   },
   2024: {
+    label: "2024",
     type: "wms",
     url: "https://geo.udsp.wuppertal.de/geoserver-cloud/ows",
     layers: `GIS-102:trueortho2024`,
@@ -157,7 +161,9 @@ const BackgroundLayerRow = ({
                 }}
                 onClick={() => dispatch(setSelectedTrueOrthoYear(year))}
               >
-                <span className="cursor-pointer">{year}</span>
+                <span className="cursor-pointer">
+                  {dynamicOrtho[year].label}
+                </span>
               </Tag>
             );
           })}
