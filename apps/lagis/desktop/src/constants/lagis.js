@@ -21,3 +21,6 @@ export const WUNDA_ENDPOINT =
 export const landparcelForPointGeomQuery = gql`
   ${queries.landparcelForPointGeom}
 `;
+
+// History navigation configuration
+export const HISTORY_LIMIT = 10;
