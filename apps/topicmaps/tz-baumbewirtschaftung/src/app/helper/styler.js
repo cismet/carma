@@ -13,9 +13,7 @@ const fallbackSVG = `
 `;
 
 export const getColorForProperties = (properties) => {
-
   return "#519548";
-
 };
 
 export const getPoiClusterIconCreatorFunction = ({
@@ -146,7 +144,7 @@ export const getFeatureStyler = (
     // let badge = feature.properties.svgBadge || fallbackSVG; //|| `<image x="${(svgSize - 20) / 2}" y="${(svgSize - 20) / 2}" width="20" height="20" xlink:href="/pois/signaturen/`+getSignatur(feature.properties)+`" />`;
 
     // let svg = `<svg id="badgefor_${feature.id
-    //   }" height="${canvasSize}" width="${canvasSize}"> 
+    //   }" height="${canvasSize}" width="${canvasSize}">
     //                 <style>
     //                 /* <![CDATA[ */
     //                     #badgefor_${feature.id} .bg-fill  {
@@ -165,7 +163,7 @@ export const getFeatureStyler = (
     //                 </style>
     //             <svg x="${svgSize / 12}" y="${svgSize / 12}"  width="${svgSize - (2 * svgSize) / 12
     //   }" height="${svgSize - (2 * svgSize) / 12}" viewBox="0 0 ${feature.properties.svgBadgeDimension.width
-    //   } ${feature.properties.svgBadgeDimension.height}">       
+    //   } ${feature.properties.svgBadgeDimension.height}">
     //                 ${badge}
     //             </svg>
     //             </svg>  `;

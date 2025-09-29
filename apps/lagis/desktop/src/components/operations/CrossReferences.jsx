@@ -207,22 +207,26 @@ const CrossReferences = ({
             key="1"
             className="overflow-y-auto pb-2"
           >
-            {querverweise && querverweise?.length > 0 ? querverweise?.map((q, idx) => (
-              <div key={idx}>
-                <a
-                  href={q}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    handleCrossReferenceClick(q);
-                  }}
-                  className="text-blue-600 underline hover:text-blue-800"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {q}
-                </a>
-              </div>
-            )) : <CustomNotes currentText={""} />}
+            {querverweise && querverweise?.length > 0 ? (
+              querverweise?.map((q, idx) => (
+                <div key={idx}>
+                  <a
+                    href={q}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      handleCrossReferenceClick(q);
+                    }}
+                    className="text-blue-600 underline hover:text-blue-800"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {q}
+                  </a>
+                </div>
+              ))
+            ) : (
+              <CustomNotes currentText={""} />
+            )}
           </TabPane>
           <TabPane
             tab={

@@ -213,7 +213,6 @@ export const selectedFeatureFitBounds = (map, selectedFeature) => {
   }
 };
 
-
 export const convertLParcelStrToSetUrlParams = (lParcelStr) => {
   const strToArr = lParcelStr.replace("/", "-").split(" ");
   const gemarkung = strToArr[0];
@@ -225,17 +224,18 @@ export const convertLParcelStrToSetUrlParams = (lParcelStr) => {
     fstck: nennerZaehler,
   };
   return searchParamsObj;
-}
+};
 
 export const simpleRemoveLeadingZeros = (numberStr) => {
-  return parseInt(numberStr, 10)
-}
+  return parseInt(numberStr, 10);
+};
 
 export const prepareFstckLabel = (fstckLabel) => {
-      const fstckArr = fstckLabel.split("/");
-      const zaehler = fstckArr[0];
-      const nenner = fstckArr.length > 1 ? fstckArr[1] : 0;
-      const fullFstckLabel = `${simpleRemoveLeadingZeros(zaehler)}/${simpleRemoveLeadingZeros(nenner)}`;
-      return fullFstckLabel;
-    }
-  
+  const fstckArr = fstckLabel.split("/");
+  const zaehler = fstckArr[0];
+  const nenner = fstckArr.length > 1 ? fstckArr[1] : 0;
+  const fullFstckLabel = `${simpleRemoveLeadingZeros(
+    zaehler
+  )}/${simpleRemoveLeadingZeros(nenner)}`;
+  return fullFstckLabel;
+};

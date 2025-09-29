@@ -319,7 +319,7 @@ const SidebarMenu = ({ parametersForLink }) => {
         <span onClick={toggleCollapsed} className="cursor-pointer">
           <MenuOutlined style={{ textAlign: "left" }} />
         </span>
-        
+
         <Logo showText={collapsed} />
       </div>
       {/* <div className="pl-[18px] mt-[-22px]">

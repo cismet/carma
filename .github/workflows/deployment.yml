@@ -81,17 +81,16 @@ jobs:
         id: node-cache-key
         run: |
           echo "key=node-modules-${{ runner.os }}-node-20-${{ hashFiles('package-lock.json') }}" >> $GITHUB_OUTPUT
-  
+
       - uses: actions/cache@v4
         id: determine-job-node-cache
         with:
           path: node_modules
           key: ${{ steps.node-cache-key.outputs.key }}
-  
+
       - name: Install dependencies
         if: steps.determine-job-node-cache.outputs.cache-hit != 'true'
         run: npm install
-  
 
       - name: Set Directory as Safe
         run: |
@@ -384,7 +383,7 @@ jobs:
         with:
           path: node_modules
           key: ${{ needs.determine_projects.outputs.node-modules-cache-key }}
-    
+
       - name: Install dependencies
         if: steps.build-job-node-cache.outputs.cache-hit != 'true'
         run: npm install
@@ -607,13 +606,13 @@ jobs:
         id: node-cache-key
         run: |
           echo "key=node-modules-${{ runner.os }}-node-20-${{ hashFiles('package-lock.json') }}" >> $GITHUB_OUTPUT
-    
+
       - uses: actions/cache@v4
         id: single-job-node-cache
         with:
           path: node_modules
           key: ${{ steps.node-cache-key.outputs.key }}
-    
+
       - name: Install dependencies
         if: steps.single-job-node-cache.outputs.cache-hit != 'true'
         run: npm install
@@ -866,13 +865,13 @@ jobs:
         id: node-cache-key
         run: |
           echo "key=node-modules-${{ runner.os }}-node-20-${{ hashFiles('package-lock.json') }}" >> $GITHUB_OUTPUT
-      
+
       - uses: actions/cache@v4
         id: build-each-job-node-cache
         with:
           path: node_modules
           key: ${{ steps.node-cache-key.outputs.key }}
-      
+
       - name: Install dependencies
         if: steps.build-each-job-node-cache.outputs.cache-hit != 'true'
         run: npm install
