@@ -129,6 +129,8 @@ export const useLayerLoading = ({ map, layer }: UseLayerLoadingProps) => {
   const [backgroundLayers, setBackgroundLayers] = useState<
     { config: NamedLayerConfig; loading: boolean }[]
   >([]);
+  const [backgroundLayerLoadingStates, setBackgroundLayerLoadingStates] =
+    useState<{ id: number; loading: boolean }[]>([]);
   // Store references to layers with attached listeners for cleanup
   const [layersWithListeners, setLayersWithListeners] = useState<L.Layer[]>([]);
 
@@ -139,6 +141,7 @@ export const useLayerLoading = ({ map, layer }: UseLayerLoadingProps) => {
       const namedLayers = getNamedLayersFromString(layer.layers).filter(
         (layer) => layer.type !== "vector"
       );
+      setBackgroundLayerLoadingStates([]);
       if (namedLayers.length > 0) {
         setBackgroundLayers(
           namedLayers.map((namedLayer) => {
@@ -177,10 +180,30 @@ export const useLayerLoading = ({ map, layer }: UseLayerLoadingProps) => {
 
   // Helper function to clean up all listeners
   const cleanupAllListeners = () => {
-    layersWithListeners.forEach(layer => {
+    layersWithListeners.forEach((layer) => {
       removeListeners(layer);
     });
     setLayersWithListeners([]);
+  };
+
+  const updateLoadingState = (loading: boolean, id) => {
+    setBackgroundLayerLoadingStates((prev) => {
+      // Check if an entry with this id already exists
+      const exists = prev.some((l) => l.id === id);
+
+      if (exists) {
+        // Update existing entry
+        return prev.map((l) => {
+          if (l.id === id) {
+            return { ...l, loading };
+          }
+          return l;
+        });
+      } else {
+        // Add new entry
+        return [...prev, { id, loading }];
+      }
+    });
   };
 
   const findAndAttachListeners = () => {
@@ -200,13 +223,15 @@ export const useLayerLoading = ({ map, layer }: UseLayerLoadingProps) => {
 
     let found = false;
     const newLayersWithListeners: L.Layer[] = [];
-    
+
     map.eachLayer((leafletLayer) => {
       const isTargetLayer =
         // @ts-ignore
         leafletLayer.options?.layers === wmsName ||
         (leafletLayer.options.pane === "backgroundLayers" &&
           backgroundLayers.length > 0);
+
+      const multipleLayers = backgroundLayers.length > 1;
 
       if (isTargetLayer) {
         found = true;
@@ -234,19 +259,34 @@ export const useLayerLoading = ({ map, layer }: UseLayerLoadingProps) => {
           // Attach events with named handler functions for better cleanup
           const handleTileError = () => {
             setError(true);
-            setLoading(false);
+            if (multipleLayers) {
+              // @ts-ignore
+              updateLoadingState(false, leafletLayer._leaflet_id);
+            } else {
+              setLoading(false);
+            }
           };
-          
+
           const handleTileLoad = () => {
             setError(false);
           };
-          
+
           const handleLoading = () => {
-            setLoading(true);
+            if (multipleLayers) {
+              // @ts-ignore
+              updateLoadingState(true, leafletLayer._leaflet_id);
+            } else {
+              setLoading(true);
+            }
           };
-          
+
           const handleLoad = () => {
-            setLoading(false);
+            if (multipleLayers) {
+              // @ts-ignore
+              updateLoadingState(false, leafletLayer._leaflet_id);
+            } else {
+              setLoading(false);
+            }
           };
 
           leafletLayer.on("tileerror", handleTileError);
@@ -254,7 +294,7 @@ export const useLayerLoading = ({ map, layer }: UseLayerLoadingProps) => {
           leafletLayer.on("loading", handleLoading);
           leafletLayer.on("tileloadstart", handleLoading);
           leafletLayer.on("load", handleLoad);
-          
+
           // Track this layer for cleanup
           newLayersWithListeners.push(leafletLayer);
         }
@@ -262,7 +302,7 @@ export const useLayerLoading = ({ map, layer }: UseLayerLoadingProps) => {
         setListenersAttached(true);
       }
     });
-    
+
     // Update the list of layers with listeners
     setLayersWithListeners(newLayersWithListeners);
 
@@ -293,7 +333,7 @@ export const useLayerLoading = ({ map, layer }: UseLayerLoadingProps) => {
         cleanupAllListeners();
       };
     }
-    
+
     // Cleanup listeners when component unmounts or when dependencies change
     return () => {
       cleanupAllListeners();
@@ -354,7 +394,7 @@ export const useLayerLoading = ({ map, layer }: UseLayerLoadingProps) => {
           }
         };
       }
-      
+
       // Clean up when layer visibility changes or component unmounts
       return () => {
         if (!layer.visible) {
@@ -364,6 +404,13 @@ export const useLayerLoading = ({ map, layer }: UseLayerLoadingProps) => {
       };
     }
   }, [layer.visible, map]);
+
+  useEffect(() => {
+    if (backgroundLayerLoadingStates.length > 0) {
+      const isLoading = backgroundLayerLoadingStates.some((l) => l.loading);
+      setLoading(isLoading);
+    }
+  }, [backgroundLayerLoadingStates]);
 
   return { loading, error };
 };
