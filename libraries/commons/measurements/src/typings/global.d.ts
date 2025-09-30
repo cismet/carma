@@ -33,3 +33,7 @@ declare module "leaflet" {
     function measurePolygon(options?: any): any;
   }
 }
+
+// Broaden React useState inference when initialized with null to avoid
+// over-narrowing to `never` inside truthy checks without touching source code.
+// Note: do not override React types here; rely on tsconfig loosening instead.

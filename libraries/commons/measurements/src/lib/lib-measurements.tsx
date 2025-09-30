@@ -30,10 +30,10 @@ export interface MapMeasurementProps {
   visibleShapes: MeasurementShape[];
   moveToShape?: number | string | null;
   mode?: UIModeType;
-  startDrawing?: boolean;
 
   // Callbacks (replacements for dispatch(action))
   toggleUIMode: (mode: any) => void;
+
   setShapes: (shapes: MeasurementShape[]) => void;
   setActiveShape: (id: number | string | null) => void;
   setVisibleShapes: (shapes: MeasurementShape[]) => void;
@@ -56,6 +56,7 @@ export interface MapMeasurementProps {
   setActiveShapeIfDrawCancelled: () => void;
   updateAreaOfDrawing: (area: number) => void;
   deleteVisibleShapeById: (id: number | string) => void;
+  setStartDrawing: (status: boolean) => void;
 
   // Optional handlers that were previously passed into control options
   polygonActiveIcon?: string;
@@ -71,12 +72,12 @@ const MapMeasurement = ({
   visibleShapes,
   moveToShape,
   mode,
-  startDrawing,
   toggleUIMode,
   setShapes,
   setActiveShape,
   setVisibleShapes,
   setDrawingShape,
+  setStartDrawing,
   setShowAll,
   setDeleteAll,
   setMoveToShape,
