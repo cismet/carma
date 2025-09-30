@@ -56,6 +56,9 @@ const TZBaumbewirtschaftung = () => {
     "title:p.baumart_botanisch + ' (' + p.standort_nr + '.' + p.zusatz + '.' + p.lfd_nr_str + ')'",
     "additionalInfo:' (*' + p.pflanzjahr + ' / ' + p.standalter_jahr + ')' + '\\n\\n' + p.hoehe_m + 'm / ' + p.stammumfang_cm + 'cm'",
     "subtitle: p.ortlicher_bezug",
+    "url:'https://cismet.de'",
+    "email:'info@cismet.de'",
+    "tel:'01709120394'",
   ];
 
   function computeLatestStatus(actions) {
@@ -137,6 +140,7 @@ const TZBaumbewirtschaftung = () => {
               <FeatureInfobox
                 selectedFeature={selectedFeature}
                 versionInfo={versionData}
+                bigMobileIconsInsteadOfCollapsing={true}
               />
             }
             contactButtonEnabled={false}

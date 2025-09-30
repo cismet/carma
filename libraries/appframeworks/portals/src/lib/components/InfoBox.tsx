@@ -1,4 +1,4 @@
-import { useContext } from "react";
+import { useContext, useState } from "react";
 import { ResponsiveInfoBox } from "./ResponsiveInfoBox";
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 import {
@@ -8,6 +8,10 @@ import {
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import Color from "color";
 import parseHtml from "html-react-parser";
+import Button from "react-bootstrap/Button";
+import Icon from "react-cismap/commons/Icon";
+import IconLink from "react-cismap/commons/IconLink";
+import { Dropdown, Menu } from "antd";
 
 interface InfoBoxProps {
   currentFeature?: any;
@@ -40,6 +44,7 @@ interface InfoBoxProps {
   defaultContextValues?: any;
   mapWidth?: number | null;
   infoBoxBottomResMargin?: number;
+  bigMobileIconsInsteadOfCollapsing?: boolean;
 }
 
 export const InfoBox = ({
@@ -73,7 +78,9 @@ export const InfoBox = ({
   infoBoxBottomResMargin = 0,
   colorizer = (props) => ((props || {}).properties || {}).color, //
   defaultContextValues = {},
+  bigMobileIconsInsteadOfCollapsing = false,
 }: InfoBoxProps) => {
+  const [internalCollapsed, setInternalCollapsed] = useState(false);
   const featureCollectionContext =
     useContext<typeof FeatureCollectionContext>(FeatureCollectionContext) ||
     defaultContextValues;
@@ -96,6 +103,14 @@ export const InfoBox = ({
   const { additionalStylingInfo } = useContext<typeof TopicMapStylingContext>(
     TopicMapStylingContext
   );
+
+  // Determine the actual collapsed state
+  const isCollapsed =
+    collapsedInfoBox !== undefined ? collapsedInfoBox : internalCollapsed;
+  const setIsCollapsed =
+    setCollapsedInfoBox !== undefined
+      ? setCollapsedInfoBox
+      : setInternalCollapsed;
 
   const gotoPrevious = featureCollectionDispatchContext.prev;
   const gotoNext = featureCollectionDispatchContext.next;
@@ -168,6 +183,23 @@ export const InfoBox = ({
   );
 
   let alwaysVisibleDiv, collapsibleDiv;
+  let actionLinkInfos: any[] = [];
+
+  // Convert links to actionLinkInfos format if bigMobileIconsInsteadOfCollapsing is enabled
+  if (bigMobileIconsInsteadOfCollapsing && links && Array.isArray(links)) {
+    actionLinkInfos = links
+      .map((link: any) => {
+        if (!link) return null;
+        return {
+          iconname: link.props?.iconname,
+          iconspan: link.props?.children,
+          tooltip: link.props?.tooltip,
+          onClick: link.props?.onClick,
+          subs: link.props?.subs,
+        };
+      })
+      .filter(Boolean);
+  }
 
   if (_currentFeature) {
     alwaysVisibleDiv = (
@@ -190,7 +222,91 @@ export const InfoBox = ({
                 </h5>
               )}
             </td>
-            <td style={{ textAlign: "right", paddingRight: 7 }}>{[links]}</td>
+            <td style={{ textAlign: "right", paddingRight: 7 }}>
+              {bigMobileIconsInsteadOfCollapsing && isCollapsed
+                ? // Show small icons when collapsed
+                  actionLinkInfos.map((li: any, index: number) => {
+                    if (li.subs) {
+                      const items = li.subs.map(
+                        (sub: any, subIndex: number) => {
+                          return {
+                            key: subIndex,
+                            label: (
+                              <h4 onClick={sub.onClick}>
+                                <span
+                                  style={{
+                                    marginRight: 10,
+                                    opacity: 0.5,
+                                  }}
+                                >
+                                  {sub.iconname && <Icon name={sub.iconname} />}
+                                  {sub.iconspan && sub.iconspan}
+                                </span>
+                                <span style={{ margin: 3 }}>{sub.title}</span>
+                              </h4>
+                            ),
+                          };
+                        }
+                      );
+
+                      const menu = (
+                        <Menu style={{ opacity: 0.8 }} items={items} />
+                      );
+                      return (
+                        <Dropdown
+                          key={`dropdown.${index}`}
+                          overlay={menu}
+                          placement="topRight"
+                          trigger={["click"]}
+                        >
+                          <span style={{ paddingLeft: index > 0 ? 3 : 0 }}>
+                            <IconLink
+                              key={`iconlink${index}`}
+                              tooltip={li.tooltip}
+                              onClick={li.onClick}
+                              iconname={li.iconname || li.iconspan}
+                              href="#"
+                            />
+                          </span>
+                        </Dropdown>
+                      );
+                    } else {
+                      return (
+                        <span
+                          key={`span.${index}`}
+                          style={{ paddingLeft: index > 0 ? 3 : 0 }}
+                        >
+                          {li.iconname && (
+                            <IconLink
+                              key={`iconlink${index}`}
+                              tooltip={li.tooltip}
+                              onClick={li.onClick}
+                              iconname={li.iconname || li.iconspan}
+                              href="#"
+                            />
+                          )}
+                          {li.iconspan && (
+                            <a
+                              style={{
+                                fontSize: "1.5rem",
+                                paddingRight: "2px",
+                                paddingTop: "3px",
+                                color: "grey",
+                                width: "26px",
+                                textAlign: "center",
+                              }}
+                              onClick={li.onClick}
+                            >
+                              {li.iconspan}
+                            </a>
+                          )}
+                        </span>
+                      );
+                    }
+                  })
+                : // Show normal links when not using bigMobileIconsInsteadOfCollapsing or when not collapsed
+                  !bigMobileIconsInsteadOfCollapsing && [links]}
+            </td>
           </tr>
         </tbody>
       </table>
@@ -307,17 +423,121 @@ export const InfoBox = ({
     );
   }
 
+  // Prepare secondary elements with large action buttons when bigMobileIconsInsteadOfCollapsing is enabled
+  let finalSecondaryElements = [...secondaryInfoBoxElements];
+  
+  // Calculate the actual width that matches ResponsiveInfoBox's calculation
+  const mapAppWidth = mapWidth ? mapWidth : (typeof window !== "undefined" ? window.innerWidth : pixelwidth);
+  const actualWidth =
+    typeof window !== "undefined" && mapAppWidth - 25 - pixelwidth - 300 <= 0
+      ? mapAppWidth - 25
+      : pixelwidth;
+  
+  if (
+    bigMobileIconsInsteadOfCollapsing &&
+    !isCollapsed &&
+    actionLinkInfos.length > 0
+  ) {
+    // Add large action buttons above the infobox when not collapsed
+    const largeButtonsElement = (
+      <div
+        key="large-action-buttons"
+        style={{
+          width: actualWidth,
+          display: "flex",
+          gap: "5px",
+          paddingBottom: 5,
+        }}
+      >
+        {actionLinkInfos.map((li: any, index: number) => {
+          if (li.subs) {
+            const items = li.subs.map((sub: any, subIndex: number) => {
+              return {
+                key: subIndex,
+                label: (
+                  <h4 onClick={sub.onClick}>
+                    <span
+                      style={{
+                        marginRight: 10,
+                        opacity: 0.5,
+                      }}
+                    >
+                      {sub.iconname && <Icon name={sub.iconname} />}
+                      {sub.iconspan && sub.iconspan}
+                    </span>
+                    <span style={{ margin: 3 }}>{sub.title}</span>
+                  </h4>
+                ),
+              };
+            });
+
+            const menu = <Menu style={{ opacity: 0.8 }} items={items} />;
+
+            return (
+              <Dropdown
+                key={`dropdown.${index}`}
+                overlay={menu}
+                placement="topRight"
+                trigger={["click"]}
+              >
+                <Button
+                  style={{
+                    opacity: 0.7,
+                    margin: 0,
+                    flex: 1,
+                  }}
+                  key={`actionbutton.${index}`}
+                  size="lg"
+                  variant="light"
+                  title={li.tooltip}
+                >
+                  <h2>
+                    {li.iconname && <Icon name={li.iconname} />}
+                    {li.iconspan && li.iconspan}
+                  </h2>
+                </Button>
+              </Dropdown>
+            );
+          } else {
+            return (
+              <Button
+                style={{
+                  opacity: 0.7,
+                  margin: 0,
+                  flex: 1,
+                }}
+                key={`actionbutton.${index}`}
+                size="lg"
+                variant="light"
+                onClick={li.onClick}
+                title={li.tooltip}
+              >
+                <h2>
+                  {li.iconname && <Icon name={li.iconname} />}
+                  {li.iconspan && li.iconspan}
+                </h2>
+              </Button>
+            );
+          }
+        })}
+      </div>
+    );
+
+    // Prepend the large buttons to the secondary elements
+    finalSecondaryElements = [largeButtonsElement, ...finalSecondaryElements];
+  }
+
   return (
     <ResponsiveInfoBox
       panelClick={panelClick}
       pixelwidth={pixelwidth}
       header={llVis}
-      collapsedInfoBox={collapsedInfoBox}
-      setCollapsedInfoBox={setCollapsedInfoBox}
+      collapsedInfoBox={isCollapsed}
+      setCollapsedInfoBox={setIsCollapsed}
       isCollapsible={isCollapsible}
       handleResponsiveDesign={handleResponsiveDesign}
       infoStyle={infoStyle}
-      secondaryInfoBoxElements={secondaryInfoBoxElements}
+      secondaryInfoBoxElements={finalSecondaryElements}
       alwaysVisibleDiv={alwaysVisibleDiv}
       collapsibleDiv={collapsibleDiv}
       fixedRow={fixedRow}

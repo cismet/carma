@@ -81,6 +81,7 @@ export const ResponsiveInfoBox = ({
 
   useEffect(() => {
     setInfoBoxPixelWidth(pixelwidth);
+    console.log("xxx responsiveinfobox width", pixelwidth);
   }, [pixelwidth]);
 
   return (

@@ -13,11 +13,13 @@ import { InfoBox, utils } from "@carma-appframeworks/portals";
 interface InfoboxProps {
   selectedFeature: any;
   versionData: VersionData;
+  bigMobileIconsInsteadOfCollapsing?: boolean;
 }
 
 export const FeatureInfobox = ({
   selectedFeature,
   versionData,
+  bigMobileIconsInsteadOfCollapsing = false,
 }: InfoboxProps) => {
   const [openModal, setOpenModal] = useState(false);
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
@@ -99,6 +101,7 @@ export const FeatureInfobox = ({
             : []
         }
         links={links}
+        bigMobileIconsInsteadOfCollapsing={bigMobileIconsInsteadOfCollapsing}
       />
       {openModal && Modal && (
         <Modal
