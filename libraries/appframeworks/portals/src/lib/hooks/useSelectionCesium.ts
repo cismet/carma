@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { GroundPrimitive } from "cesium";
 
 import {
   CesiumOptions,
@@ -80,6 +81,47 @@ const isMarkerPrimitivePresent = (
   return isPresent;
 };
 
+const areSelectionPolygonsPresent = (
+  ctx: CesiumContextType,
+  selectedId: string,
+  invertedId: string
+) => {
+  let hasSelected = false;
+  let hasInverted = false;
+
+  ctx.withScene((scene) => {
+    if (!scene || scene.isDestroyed()) return;
+
+    const { groundPrimitives } = scene;
+
+    if (!groundPrimitives || groundPrimitives.isDestroyed()) return;
+
+    for (let i = 0; i < groundPrimitives.length; i++) {
+      const primitive = groundPrimitives.get(i);
+      if (!(primitive instanceof GroundPrimitive)) continue;
+
+      const instances = primitive.geometryInstances;
+
+      if (Array.isArray(instances)) {
+        for (const instance of instances) {
+          if (!instance) continue;
+          if (instance.id === selectedId) hasSelected = true;
+          if (instance.id === invertedId) hasInverted = true;
+        }
+      } else if (instances) {
+        if (instances.id === selectedId) hasSelected = true;
+        if (instances.id === invertedId) hasInverted = true;
+      }
+
+      if (hasSelected && hasInverted) {
+        break;
+      }
+    }
+  });
+
+  return hasSelected && hasInverted;
+};
+
 export const useSelectionCesium = (
   isActive: boolean,
   cesiumOptions: CesiumOptions,
@@ -101,12 +143,12 @@ export const useSelectionCesium = (
     }
 
     if (selection) {
-      const isDuplicateSelection =
-        lastSelectionKeyRef.current === selection.sorter &&
-        lastSelectionTimestampRef.current === selection.selectionTimestamp;
-
       const selectionKey = selection.sorter ?? null;
       const selectionTimestamp = selection.selectionTimestamp ?? null;
+
+      const isDuplicateSelection =
+        lastSelectionKeyRef.current === selectionKey &&
+        lastSelectionTimestampRef.current === selectionTimestamp;
 
       if (isDuplicateSelection) {
         console.debug("HOOK: useSelectionCesium - same selection, skipping");
@@ -119,7 +161,24 @@ export const useSelectionCesium = (
         selectionKey
       );
 
-      if (isMarkerPresent) {
+      const isReselectionWithMarker =
+        isMarkerPresent && selectedMarkerData?.selectionId === selectionKey;
+
+      const isReselectionArea =
+        selection.isAreaSelection === true &&
+        lastSelectionKeyRef.current === selectionKey &&
+        areSelectionPolygonsPresent(
+          ctx,
+          SELECTED_POLYGON_ID,
+          INVERTED_SELECTED_POLYGON_ID
+        );
+
+      const shouldSkipBecauseMarkerAlreadyPresent =
+        isMarkerPresent &&
+        !isReselectionWithMarker &&
+        selection.selectedFromMapMode !== SelectionMapMode.MODE_3D;
+
+      if (shouldSkipBecauseMarkerAlreadyPresent) {
         console.debug(
           "HOOK: useSelectionCesium - marker already present, skipping"
         );
@@ -129,10 +188,10 @@ export const useSelectionCesium = (
       lastSelectionKeyRef.current = selectionKey;
       lastSelectionTimestampRef.current = selectionTimestamp;
 
-      const wasAddedFrom2D =
+      const skipFlyTo =
         selection.selectedFromMapMode === SelectionMapMode.MODE_2D;
 
-      const skipFlyTo = wasAddedFrom2D || isDuplicateSelection;
+      const skipMarkerUpdate = isReselectionWithMarker || isReselectionArea;
 
       const options = {
         mapOptions: cesiumOptions,
@@ -142,6 +201,7 @@ export const useSelectionCesium = (
         duration,
         durationFactor,
         skipFlyTo,
+        skipMarkerUpdate,
       };
 
       const setMarkerDataWithMeta = (data: MarkerPrimitiveData | null) => {

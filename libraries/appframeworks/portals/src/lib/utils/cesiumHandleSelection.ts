@@ -318,14 +318,18 @@ export const cesiumHandleSelection = async (
 
   const { markerAsset, markerAnchorHeight } = mapOptions;
 
-  // cleanup previous selection - use scene primitives only
-  if (markerData) removeCesiumMarker(ctx, markerData);
-  ctx.withScene((scene) => {
-    removeGroundPrimitiveById(scene, idSelected);
-    removeGroundPrimitiveById(scene, idInverted);
-  });
+  const skipMarkerUpdate = Boolean(options.skipMarkerUpdate);
 
-  ctx.requestRender();
+  // cleanup previous selection - use scene primitives only
+  if (!skipMarkerUpdate) {
+    if (markerData) removeCesiumMarker(ctx, markerData);
+    ctx.withScene((scene) => {
+      removeGroundPrimitiveById(scene, idSelected);
+      removeGroundPrimitiveById(scene, idInverted);
+    });
+
+    ctx.requestRender();
+  }
 
   const posCarto = Cartographic.fromDegrees(pos.lon, pos.lat, 0);
 
@@ -356,16 +360,32 @@ export const cesiumHandleSelection = async (
   const skipFlyTo = Boolean(options.skipFlyTo);
 
   if (polygon) {
-    handlePolygonSelection(
-      ctx,
-      surfacePosition, // fly to surface elevation
-      polygon,
-      idSelected,
-      idInverted,
-      duration,
-      mapOptions,
-      skipFlyTo
-    );
+    if (!skipMarkerUpdate) {
+      handlePolygonSelection(
+        ctx,
+        surfacePosition, // fly to surface elevation
+        polygon,
+        idSelected,
+        idInverted,
+        duration,
+        mapOptions,
+        skipFlyTo
+      );
+    }
+
+    if (!skipFlyTo) {
+      cesiumLookAtPoint(ctx, surfacePosition, zoom, mapOptions, {
+        onComplete: () => {
+          console.debug("GAZETTEER: [2D3D|CESIUM|CAMERA] flyTo Point complete");
+        },
+        durationFactor,
+        maxDuration: duration,
+        useCameraHeight: options.useCameraHeight,
+      });
+      console.debug(
+        "GAZETTEER: [2D3D|CESIUM|CAMERA] look at Marker (Terrain Elevation)"
+      );
+    }
   } else if (defined(posResult)) {
     if (markerData?.model?.isDestroyed()) {
       console.debug(
@@ -373,7 +393,7 @@ export const cesiumHandleSelection = async (
       );
     }
 
-    if (markerAsset) {
+    if (markerAsset && !skipMarkerUpdate) {
       updateMarkerPosition(ctx, surfacePosition, markerData, setMarkerData, {
         markerAsset,
         markerAnchorHeight,

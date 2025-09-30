@@ -16,6 +16,7 @@ export type HitTriggerOptions = {
   selectedPolygonId?: string;
   invertedSelectedPolygonId?: string;
   skipFlyTo?: boolean;
+  skipMarkerUpdate?: boolean;
 };
 
 export const cesiumHitTrigger = async (
