@@ -27,7 +27,7 @@ import { SYNC_TOKEN } from "./config/app.config";
 import { CESIUM_CONFIG } from "./config/cesium/cesium.config";
 
 suppressReactCismapErrors();
-setupCesiumEnvironment();
+setupCesiumEnvironment(CESIUM_CONFIG);
 
 const persistor = persistStore(store);
 
