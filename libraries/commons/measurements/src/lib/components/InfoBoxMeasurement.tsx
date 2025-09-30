@@ -40,7 +40,7 @@ export interface InfoBoxMeasurementProps {
   updateTitle: (shapeId: number | string, title: string) => void;
 }
 
-const InfoBoxMeasurement = ({
+export function InfoBoxMeasurement({
   measurementsData,
   visibleShapesData,
   activeShape,
@@ -55,7 +55,7 @@ const InfoBoxMeasurement = ({
   setMapMovingEnd,
   setShowAll,
   updateTitle,
-}: InfoBoxMeasurementProps) => {
+}: InfoBoxMeasurementProps) {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
 
   const [currentMeasure, setCurrentMeasure] = useState(0);
@@ -361,9 +361,7 @@ const InfoBoxMeasurement = ({
       )}
     </div>
   );
-};
-
-export default InfoBoxMeasurement;
+}
 
 function addDefaultShapeNameToTitle(shape) {
   let newShape = "Linienzug";

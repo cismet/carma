@@ -1,6 +1,9 @@
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import { suppressReactCismapErrors } from "@carma-commons/utils";
-import { MapMeasurementLib } from "@carma-commons/measurements";
+import {
+  MapMeasurementLib,
+  InfoBoxMeasurement,
+} from "@carma-commons/measurements";
 import { ZoomControl } from "@carma-mapping/components";
 import {
   Control,
@@ -9,16 +12,14 @@ import {
 } from "@carma-mapping/map-controls-layout";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faRuler } from "@fortawesome/free-solid-svg-icons";
-import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import type { AppDispatch, RootState } from "./store";
+import type { AppDispatch } from "./store";
 import {
   // selectors
   getShapes,
   getActiveShapes,
   getVisibleShapes,
   getMoveToShape,
-  getMode,
   getShowAll,
   getUpdateShapeToShape,
   getMapMovingEnd,
@@ -44,6 +45,7 @@ import {
   toggleMeasurementMode,
   getDrawingShape,
   getDeleteAll,
+  updateTitle,
 } from "./store/slices/measurements";
 import { setStartDrawing as setStartDrawingAction } from "./store/slices/mapping";
 import { getUIMode, toggleUIMode, UIMode } from "./store/slices/ui";
@@ -137,6 +139,23 @@ export function App() {
             dispatch(deleteVisibleShapeById(id) as any)
           }
           setStartDrawing={(b) => dispatch(setStartDrawingAction(b))}
+        />
+
+        <InfoBoxMeasurement
+          measurementsData={measurementShapes}
+          visibleShapesData={visibleShapes}
+          activeShape={activeShape}
+          moveToShape={moveToShape}
+          updateShape={updateShape}
+          drawingMode={ifDrawing}
+          mapMovingEnd={mapMovingEnd}
+          setMoveToShape={setMoveToShape}
+          setActiveShape={setActiveShape}
+          setUpdateShape={setUpdateShape}
+          setDeleteAll={setDeleteAll}
+          setMapMovingEnd={setMapMovingEnd}
+          setShowAll={setShowAll}
+          updateTitle={updateTitle}
         />
       </TopicMapComponent>
     </>
