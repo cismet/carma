@@ -25,9 +25,12 @@ export const DebugUiProvider: React.FC<{
   const paneRef = useRef<Pane | null>(null);
 
   const { isDeveloperMode } = useFeatureFlags();
+  const isLocalDevelopment = import.meta.env?.DEV === true;
 
   // can be enabled via props e.g test if in local development or via feature flag
-  const effectiveEnabled = enabled || isDeveloperMode;
+  const effectiveEnabled = Boolean(
+    enabled || isDeveloperMode || isLocalDevelopment
+  );
 
   const toggleTweakpane = useCallback(() => {
     setIsHidden((prevState) => {
@@ -50,11 +53,12 @@ export const DebugUiProvider: React.FC<{
 
   const toggleOnKeypress = useCallback(
     (event: KeyboardEvent) => {
+      if (!effectiveEnabled) return;
       if (eventKeys.includes(event.key)) {
         toggleTweakpane();
       }
     },
-    [toggleTweakpane]
+    [toggleTweakpane, effectiveEnabled]
   );
 
   useEffect(() => {
@@ -66,7 +70,10 @@ export const DebugUiProvider: React.FC<{
   }, [toggleOnKeypress, effectiveEnabled]);
 
   useEffect(() => {
-    if (!effectiveEnabled) return;
+    if (!effectiveEnabled) {
+      return;
+    }
+
     if (!paneRef.current && containerRef.current) {
       paneRef.current = createTweakpane(containerRef.current, toggleTweakpane);
     }
@@ -80,7 +87,7 @@ export const DebugUiProvider: React.FC<{
   const { top, left, right } = position;
 
   return (
-    <DebugUiContext.Provider value={{ paneRef }}>
+    <DebugUiContext.Provider value={{ enabled: effectiveEnabled, paneRef }}>
       {effectiveEnabled && (
         <div
           ref={containerRef}
@@ -94,7 +101,7 @@ export const DebugUiProvider: React.FC<{
             zIndex: 10000,
             overflow: "hidden",
           }}
-        ></div>
+        />
       )}
       {children}
     </DebugUiContext.Provider>

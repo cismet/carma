@@ -25,11 +25,12 @@ export const useTweakpaneCtx = ({
     throw new Error("useTweakpaneCtx must be used within a DebugUiProvider");
   }
 
-  const { paneRef } = context;
+  const { paneRef, enabled } = context;
 
   const folderRef = useRef<FolderApi | null>(null);
 
   useEffect(() => {
+    if (!enabled) return;
     let isSetup = setupTweakpane(paneRef, folderRef, folder, params, inputs);
 
     if (!isSetup) {
@@ -53,25 +54,30 @@ export const useTweakpaneCtx = ({
         });
       }
     };
-  }, [folder, params, inputs, paneRef]);
+  }, [folder, params, inputs, paneRef, enabled]);
 
-  const folderCallback = useCallback((fn: (folder: FolderApi) => void) => {
-    if (folderRef.current) {
-      fn(folderRef.current);
-    } else {
-      console.warn("Folder not initialized yet");
-    }
-  }, []);
+  const folderCallback = useCallback(
+    (fn: (folder: FolderApi) => void) => {
+      if (!enabled) return;
+      if (folderRef.current) {
+        fn(folderRef.current);
+      } else {
+        console.warn("Folder not initialized yet");
+      }
+    },
+    [folderRef, enabled]
+  );
 
   const paneCallback = useCallback(
     (fn: (pane: Pane) => void) => {
+      if (!enabled) return;
       if (paneRef.current) {
         fn(paneRef.current);
       } else {
         console.warn("Pane not initialized yet");
       }
     },
-    [paneRef]
+    [paneRef, enabled]
   );
 
   const value = useMemo(
@@ -80,8 +86,9 @@ export const useTweakpaneCtx = ({
       paneCallback,
       folderRef,
       folderCallback,
+      enabled,
     }),
-    [paneRef, paneCallback, folderRef, folderCallback]
+    [paneRef, paneCallback, folderRef, folderCallback, enabled]
   );
 
   return value;

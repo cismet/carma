@@ -3,6 +3,7 @@ import React, { createContext } from "react";
 import { type Pane } from "tweakpane";
 
 interface DebugUiContextType {
+  enabled: boolean;
   paneRef: React.RefObject<Pane | null>;
 }
 

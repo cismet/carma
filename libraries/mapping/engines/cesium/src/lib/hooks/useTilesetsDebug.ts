@@ -2,7 +2,6 @@ import { useEffect, useRef } from "react";
 import { viewerCesium3DTilesInspectorMixin } from "cesium";
 
 import { useCesiumContext } from "./useCesiumContext";
-import { useCesiumViewer } from "./useCesiumViewer";
 
 import { useTilesetDebug } from "./useTilesetDebug";
 import { useTweakpaneCtx } from "@carma-commons/debug";
@@ -17,9 +16,10 @@ export const useTilesetsDebug = () => {
 
   useTilesetDebug(ctx.withSecondaryTileset, "Secondary");
 
-  const { paneCallback } = useTweakpaneCtx();
+  const { paneCallback, enabled } = useTweakpaneCtx();
 
   useEffect(() => {
+    if (!enabled) return;
     ctx.withViewer((viewer) => {
       if (paneCallback && !buttonRef.current) {
         paneCallback((pane) => {
@@ -33,8 +33,7 @@ export const useTilesetsDebug = () => {
         });
       }
     });
-    // Dependencies include all variables that might affect the condition
-  }, [ctx, paneCallback]);
+  }, [ctx, paneCallback, enabled]);
 
-  return null; // This hook does not return any UI components
+  return null;
 };

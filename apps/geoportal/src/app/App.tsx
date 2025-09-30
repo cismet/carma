@@ -84,7 +84,7 @@ function App({ published }: { published?: boolean }) {
     >
       <MatomoTracker>
         <CesiumDevConsoleIntegration />
-        <DebugUiProvider enabled={import.meta.env?.DEV === true}>
+        <DebugUiProvider>
           <CarmaMapProviderWrapper
             cesiumOptions={CESIUM_CONFIG}
             overlayOptions={{
