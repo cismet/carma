@@ -7,11 +7,9 @@ import {
   ColorGeometryInstanceAttribute,
   defined,
   EasingFunction,
-  Entity,
   GeometryInstance,
   GroundPrimitive,
   HeadingPitchRange,
-  HeightReference,
   PerspectiveFrustum,
   PolygonGeometry,
   type Model,
@@ -29,7 +27,7 @@ import {
   removeCesiumMarker,
   removeGroundPrimitiveById,
   type CesiumOptions,
-  type EntityData,
+  type MarkerPrimitiveData,
   type CesiumContextType,
 } from "@carma-mapping/engines/cesium";
 
@@ -87,8 +85,8 @@ const getBoundingSphereFromCoordinatesAndHeight = (
 const updateMarkerPosition = async (
   ctx: CesiumContextType,
   groundPosition: Cartographic,
-  entityData: EntityData | null,
-  setEntityData: (data: EntityData | null) => void | null,
+  markerData: MarkerPrimitiveData | null,
+  setMarkerData: (data: MarkerPrimitiveData | null) => void | null,
   { markerAsset, markerAnchorHeight }
 ) => {
   ctx.withScene(async (scene) => {
@@ -107,8 +105,8 @@ const updateMarkerPosition = async (
         scene.terrainProvider
       );
       // Only reuse an existing model if it is not destroyed. The caller already
-      // performed cleanup of previous marker entities; avoid double-removal here.
-      const existing = entityData?.model;
+      // performed cleanup of previous marker primitives; avoid double-removal here.
+      const existing = markerData?.model;
       const canReuseModel = Boolean(
         existing &&
           typeof (existing as unknown as Model).isDestroyed === "function" &&
@@ -125,7 +123,7 @@ const updateMarkerPosition = async (
           { model }
         );
         if (data) {
-          setEntityData?.(data);
+          setMarkerData?.(data);
         }
       }
     } catch (e) {
@@ -216,20 +214,30 @@ const handlePolygonSelection = (
   duration: number,
   { isPrimaryStyle }: CesiumOptions
 ) => {
-  const polygonEntity = new Entity({
+  // Convert polygon to GroundPrimitive instead of Entity
+  const selectedPolygonGeometry = new PolygonGeometry({
+    polygonHierarchy: polygonHierarchyFromPolygonCoords(polygon),
+    extrudedHeight: 1,
+    height: 0,
+  });
+
+  const selectedGeometryInstance = new GeometryInstance({
+    geometry: selectedPolygonGeometry,
     id: idSelected,
-    polygon: {
-      hierarchy: polygonHierarchyFromPolygonCoords(polygon),
-      material: Color.WHITE.withAlpha(0.01),
-      outline: false,
-      closeBottom: false,
-      closeTop: false,
-      // needs some Geometry for proper fly to and centering in correct elevation
-      extrudedHeight: 1, // falls jemand die Absicht hat eine Mauer zu errichten, kann dies hier getan werden.
-      extrudedHeightReference: HeightReference.RELATIVE_TO_GROUND,
-      height: 0, // height reference needs top compensate for some terrain variation minus the mount point of the polygon to ground
-      heightReference: HeightReference.RELATIVE_TO_GROUND,
+    attributes: {
+      color: ColorGeometryInstanceAttribute.fromColor(
+        Color.WHITE.withAlpha(0.01)
+      ),
     },
+  });
+
+  const selectedGroundPrimitive = new GroundPrimitive({
+    geometryInstances: selectedGeometryInstance,
+    allowPicking: false,
+    releaseGeometryInstances: false,
+    classificationType: isPrimaryStyle
+      ? ClassificationType.CESIUM_3D_TILE
+      : ClassificationType.BOTH,
   });
   // For the inverted polygon
   const invertedPolygonGeometry = new PolygonGeometry({
@@ -257,9 +265,8 @@ const handlePolygonSelection = (
   });
 
   ctx.withScene((scene, viewer) => {
+    scene.groundPrimitives.add(selectedGroundPrimitive);
     scene.groundPrimitives.add(invertedGroundPrimitive);
-    viewer.entities.add(polygonEntity);
-    //viewer.entities.add(invertedPolygonEntity);
 
     const boundingSphere = getBoundingSphereFromCoordinatesAndHeight(
       polygon[0],
@@ -289,8 +296,8 @@ const handlePolygonSelection = (
 };
 export const cesiumHandleSelection = async (
   ctx: CesiumContextType,
-  entityData: null | EntityData,
-  setEntityData: (data: EntityData | null) => void,
+  markerData: null | MarkerPrimitiveData,
+  setMarkerData: (data: MarkerPrimitiveData | null) => void,
   { pos, zoom, polygon }: DerivedGeometries,
   options: HitTriggerOptions
 ) => {
@@ -308,12 +315,11 @@ export const cesiumHandleSelection = async (
 
   const { markerAsset, markerAnchorHeight } = mapOptions;
 
-  // cleanup previous selection
-  // todo only remove polygons, try to update existing entities for marker and polylines
-  if (entityData) removeCesiumMarker(ctx, entityData);
-  ctx.withEntities((entities, viewer) => {
-    entities.removeById(idSelected);
-    removeGroundPrimitiveById(viewer.scene, idInverted);
+  // cleanup previous selection - use scene primitives only
+  if (markerData) removeCesiumMarker(ctx, markerData);
+  ctx.withScene((scene) => {
+    removeGroundPrimitiveById(scene, idSelected);
+    removeGroundPrimitiveById(scene, idInverted);
   });
 
   ctx.requestRender();
@@ -355,12 +361,14 @@ export const cesiumHandleSelection = async (
       mapOptions
     );
   } else if (defined(posResult)) {
-    if (entityData?.model?.isDestroyed()) {
-      console.warn("marker model is destroyed, try to reinitialize model");
+    if (markerData?.model?.isDestroyed()) {
+      console.debug(
+        "marker model destroyed (likely scene transition), will reinitialize"
+      );
     }
 
     if (markerAsset) {
-      updateMarkerPosition(ctx, surfacePosition, entityData, setEntityData, {
+      updateMarkerPosition(ctx, surfacePosition, markerData, setMarkerData, {
         markerAsset,
         markerAnchorHeight,
       });

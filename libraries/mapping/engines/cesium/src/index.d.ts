@@ -55,12 +55,12 @@ export type ParsedModelAsset = {
   model: Model;
 };
 
-export type EntityData = {
+export type MarkerPrimitiveData = {
   id: string;
   modelMatrix: Matrix4 | null;
   animatedModelMatrix: Matrix4 | null;
   modelConfig: ModelAsset | null;
-  stemline?: Polyline | null;
+  stemline?: PolylineCollection | null;
   lastRenderTime?: number;
   animationSpeed?: number;
   model: Model | null;
@@ -68,7 +68,6 @@ export type EntityData = {
   cleanup?: Function;
 };
 
-// as used for marker creation and fuzzy search
 export type CesiumOptions = {
   markerAsset: ModelAsset;
   isPrimaryStyle: boolean;

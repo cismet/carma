@@ -11,7 +11,7 @@ import {
   PolylineCollection,
 } from "cesium";
 
-import type { EntityData, ModelAsset, PolylineConfig } from "../..";
+import type { MarkerPrimitiveData, ModelAsset, PolylineConfig } from "../..";
 import type { CesiumContextType } from "../CesiumContext";
 
 const defaultOptions = {
@@ -22,7 +22,7 @@ type CesiumCtx = CesiumContextType;
 
 const createOrUpdateStemline = (
   ctx: CesiumCtx,
-  entityData: EntityData,
+  markerData: MarkerPrimitiveData,
   [pos, groundPos]: Cartographic[],
   options: Partial<PolylineConfig> = {}
 ) => {
@@ -61,10 +61,10 @@ const createOrUpdateStemline = (
   });
   const width = options.width ?? 4;
 
-  if (entityData.stemline) {
-    entityData.stemline.positions = positions;
-    entityData.stemline.width = width;
-    entityData.stemline.material = material;
+  if (markerData.stemline) {
+    markerData.stemline.positions = positions;
+    markerData.stemline.width = width;
+    markerData.stemline.material = material;
   } else {
     const [top, center, base] = positions;
     const polylineTop = {
@@ -88,7 +88,7 @@ const createOrUpdateStemline = (
     ctx.withScene((scene) => {
       scene.primitives.add(stemlineCollection);
     });
-    entityData.stemline = stemlineCollection;
+    markerData.stemline = stemlineCollection;
   }
 };
 
@@ -107,7 +107,7 @@ export const addCesiumMarker = async (
 
   const { id, model } = Object.assign({ ...defaultOptions, ...options });
 
-  const entityData: EntityData = {
+  const markerData: MarkerPrimitiveData = {
     id,
     modelMatrix: null,
     animatedModelMatrix: null,
@@ -129,9 +129,9 @@ export const addCesiumMarker = async (
   );
   Matrix4.multiply(modelMatrix, translation, modelMatrix);
 
-  entityData.modelConfig = modelConfig;
-  entityData.modelMatrix = modelMatrix.clone();
-  entityData.animatedModelMatrix = modelMatrix.clone();
+  markerData.modelConfig = modelConfig;
+  markerData.modelMatrix = modelMatrix.clone();
+  markerData.animatedModelMatrix = modelMatrix.clone();
 
   let markerModel: Model;
 
@@ -157,7 +157,7 @@ export const addCesiumMarker = async (
   try {
     // Add the stemline if configured
     if (options.stemline || modelConfig.stemline) {
-      createOrUpdateStemline(ctx, entityData, [pos, groundPos], {
+      createOrUpdateStemline(ctx, markerData, [pos, groundPos], {
         ...modelConfig.stemline,
         ...options.stemline,
       });
@@ -166,7 +166,7 @@ export const addCesiumMarker = async (
     console.error("[CESIUM|MARKER] error adding/updating stemline", e);
   }
 
-  entityData.model = markerModel;
+  markerData.model = markerModel;
 
   if (markerModel.isDestroyed()) {
     console.warn("[CESIUM|MARKER] marker model is destroyed");
@@ -177,43 +177,43 @@ export const addCesiumMarker = async (
     });
   }
 
-  const onPreUpdate = () => updateMarker(ctx, entityData);
+  const onPreUpdate = () => updateMarker(ctx, markerData);
   ctx.withScene((scene) => {
     scene.preUpdate.addEventListener(onPreUpdate);
   });
   ctx.requestRender();
 
-  entityData.onPreUpdate = onPreUpdate;
-  entityData.cleanup = () => {
+  markerData.onPreUpdate = onPreUpdate;
+  markerData.cleanup = () => {
     console.debug(
       "[CESIUM|SCENE|MARKER|LISTENER] cleaning up preUpdate Listener for",
-      entityData.id
+      markerData.id
     );
     ctx.withScene((scene) => {
       scene.preUpdate.removeEventListener(onPreUpdate);
     });
   };
 
-  return entityData;
+  return markerData;
 };
 
-const updateMarker = (ctx: CesiumCtx, entityData: EntityData) => {
+const updateMarker = (ctx: CesiumCtx, markerData: MarkerPrimitiveData) => {
   const {
     modelMatrix,
     animatedModelMatrix,
     animationSpeed,
     model,
     modelConfig,
-  } = entityData;
+  } = markerData;
 
   if (modelConfig !== null) {
     const { isCameraFacing, rotation, fixedScale } = modelConfig;
     const currentTime = new Date().getTime();
-    if (entityData.lastRenderTime === undefined) {
-      entityData.lastRenderTime = currentTime;
+    if (markerData.lastRenderTime === undefined) {
+      markerData.lastRenderTime = currentTime;
     }
-    const deltaTime = currentTime - entityData.lastRenderTime;
-    entityData.lastRenderTime = currentTime;
+    const deltaTime = currentTime - markerData.lastRenderTime;
+    markerData.lastRenderTime = currentTime;
 
     if (model && modelMatrix && animatedModelMatrix) {
       let scale;
@@ -254,8 +254,8 @@ const updateMarker = (ctx: CesiumCtx, entityData: EntityData) => {
           rotationMatrix,
           updatedModelMatrix
         );
-        entityData.animatedModelMatrix = updatedModelMatrix;
-        entityData.model.modelMatrix = updatedModelMatrix;
+        markerData.animatedModelMatrix = updatedModelMatrix;
+        markerData.model.modelMatrix = updatedModelMatrix;
       } else if (isCameraFacing) {
         ctx.withCamera((camera) => {
           const cameraHeading = camera.heading;
@@ -274,20 +274,20 @@ const updateMarker = (ctx: CesiumCtx, entityData: EntityData) => {
             rotationMatrix,
             updatedModelMatrix
           );
-          entityData.animatedModelMatrix = updatedModelMatrix;
-          if (entityData.model) {
-            entityData.model.modelMatrix = updatedModelMatrix;
+          markerData.animatedModelMatrix = updatedModelMatrix;
+          if (markerData.model) {
+            markerData.model.modelMatrix = updatedModelMatrix;
           }
         });
       }
     }
   }
-  return entityData;
+  return markerData;
 };
 
 export const removeCesiumMarker = (
   ctx: CesiumCtx,
-  data: EntityData | null | undefined
+  data: MarkerPrimitiveData | null | undefined
 ) => {
   console.debug(
     "[CESIUM|MARKER] removing marker primitive from scene",
@@ -328,8 +328,10 @@ export const removeCesiumMarker = (
           scene.primitives.remove(data.stemline);
         }
       } catch (e) {
-        console.warn(
-          "[CESIUM|MARKER] error removing stemline, likely reinitialization issue",
+        // Expected during scene reinitialization (2D↔3D transitions)
+        // Primitives from old scene are destroyed - silently skip
+        console.debug(
+          "[CESIUM|MARKER] stemline already destroyed (likely scene transition)",
           e
         );
       }

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 
 import {
   CesiumOptions,
-  EntityData,
+  MarkerPrimitiveData,
   removeCesiumMarker,
   removeGroundPrimitiveById,
   useCesiumContext,
@@ -17,17 +17,17 @@ export const INVERTED_SELECTED_POLYGON_ID = "searchgaz-inverted-polygon";
 
 const cleanUpCesium = (
   ctx: CesiumContextType,
-  selectedCesiumEntityData: EntityData | null,
-  setSelectedCesiumEntityData: (data: EntityData | null) => void
+  selectedMarkerData: MarkerPrimitiveData | null,
+  setSelectedMarkerData: (data: MarkerPrimitiveData | null) => void
 ) => {
-  console.debug("HOOK: cleanUpCesium", selectedCesiumEntityData);
-  ctx.withEntities((entities, viewer) => {
-    if (selectedCesiumEntityData) {
-      removeCesiumMarker(ctx, selectedCesiumEntityData);
-      setSelectedCesiumEntityData(null);
+  console.debug("HOOK: cleanUpCesium", selectedMarkerData);
+  ctx.withScene((scene) => {
+    if (selectedMarkerData) {
+      removeCesiumMarker(ctx, selectedMarkerData);
+      setSelectedMarkerData(null);
     }
-    entities.removeById(SELECTED_POLYGON_ID);
-    removeGroundPrimitiveById(viewer.scene, INVERTED_SELECTED_POLYGON_ID);
+    removeGroundPrimitiveById(scene, SELECTED_POLYGON_ID);
+    removeGroundPrimitiveById(scene, INVERTED_SELECTED_POLYGON_ID);
     ctx.requestRender();
   });
 };
@@ -44,8 +44,8 @@ export const useSelectionCesium = (
   const { selection } = useSelection();
   const lastSelectionKeyRef = useRef<number | null>(null);
   const lastSelectionTimestampRef = useRef<number | null>(null);
-  const [selectedCesiumEntityData, setSelectedCesiumEntityData] =
-    useState<EntityData | null>(null);
+  const [selectedMarkerData, setSelectedMarkerData] =
+    useState<MarkerPrimitiveData | null>(null);
 
   useEffect(() => {
     if (!isActive || !ctx.isValidViewer()) {
@@ -79,13 +79,13 @@ export const useSelectionCesium = (
       cesiumHitTrigger(
         [selection],
         ctx,
-        selectedCesiumEntityData,
-        setSelectedCesiumEntityData,
+        selectedMarkerData,
+        setSelectedMarkerData,
         options
       );
     } else {
       lastSelectionKeyRef.current = null;
-      cleanUpCesium(ctx, selectedCesiumEntityData, setSelectedCesiumEntityData);
+      cleanUpCesium(ctx, selectedMarkerData, setSelectedMarkerData);
     }
   }, [
     selection,
@@ -94,8 +94,7 @@ export const useSelectionCesium = (
     cesiumOptions,
     duration,
     durationFactor,
-    setSelectedCesiumEntityData,
-    selectedCesiumEntityData,
+    selectedMarkerData,
     ctx,
   ]);
 };
