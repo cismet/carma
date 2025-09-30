@@ -46,13 +46,12 @@ import {
   getDeleteAll,
 } from "./store/slices/measurements";
 import { setStartDrawing as setStartDrawingAction } from "./store/slices/mapping";
-import { getUIMode, UIMode } from "./store/slices/ui";
+import { getUIMode, toggleUIMode, UIMode } from "./store/slices/ui";
 
 suppressReactCismapErrors();
 
 export function App() {
   const dispatch = useDispatch<AppDispatch>();
-  const [startDrawing, setStartDrawing] = useState(false);
   // selectors
   const measurementShapes = useSelector(getShapes);
   const activeShape = useSelector(getActiveShapes);
@@ -64,6 +63,9 @@ export function App() {
   const mode = useSelector(getUIMode);
   const updateShape = useSelector(getUpdateShapeToShape);
   const mapMovingEnd = useSelector(getMapMovingEnd);
+
+  const isModeMeasurement = mode === UIMode.MEASUREMENT;
+
   return (
     <>
       <ControlLayout ifStorybook={false}>
@@ -73,12 +75,15 @@ export function App() {
         <Control position="topleft" order={10}>
           <ControlButtonStyler
             onClick={() => {
-              dispatch(toggleMeasurementMode());
+              if (!isModeMeasurement) {
+                dispatch(setDrawingShape(false));
+              }
+              dispatch(toggleUIMode(UIMode.MEASUREMENT));
             }}
           >
             <FontAwesomeIcon
               icon={faRuler}
-              style={{ color: startDrawing ? "blue" : "black" }}
+              style={{ color: isModeMeasurement ? "blue" : "black" }}
             />
           </ControlButtonStyler>
         </Control>
