@@ -46,7 +46,7 @@ import {
   getDeleteAll,
 } from "./store/slices/measurements";
 import { setStartDrawing as setStartDrawingAction } from "./store/slices/mapping";
-import { getUIMode } from "./store/slices/ui";
+import { getUIMode, UIMode } from "./store/slices/ui";
 
 suppressReactCismapErrors();
 
@@ -73,8 +73,7 @@ export function App() {
         <Control position="topleft" order={10}>
           <ControlButtonStyler
             onClick={() => {
-              setStartDrawing(!startDrawing);
-              dispatch(setStartDrawingAction(!startDrawing));
+              dispatch(toggleMeasurementMode());
             }}
           >
             <FontAwesomeIcon
