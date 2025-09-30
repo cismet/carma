@@ -1,6 +1,6 @@
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import { suppressReactCismapErrors } from "@carma-commons/utils";
-import { LibMeasurements } from "@carma-commons/measurements";
+// import { LibMeasurements } from "@carma-commons/measurements";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import { ZoomControl } from "@carma-mapping/components";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
@@ -37,7 +37,7 @@ export function App() {
         fullScreenControl={false}
         zoomControls={false}
       >
-        <LibMeasurements startDrawing={startDrawing} />
+        {/* <LibMeasurements startDrawing={startDrawing} /> */}
       </TopicMapComponent>
     </>
   );
