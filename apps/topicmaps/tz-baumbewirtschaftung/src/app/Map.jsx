@@ -44,8 +44,9 @@ const TZBaumbewirtschaftung = () => {
   useEffect(() => {
     (async () => {
       const fc = await md5FetchJSON(appKey, dataUrl);
-      console.log("xxx featurecollection", fc);
-      setFeatureCollection(fc);
+
+      const enriched = enrichFeatureCollection(fc); // Helper function
+      setFeatureCollection(enriched);
     })();
   }, []);
 
@@ -57,6 +58,31 @@ const TZBaumbewirtschaftung = () => {
     "subtitle: p.ortlicher_bezug",
   ];
 
+  function computeLatestStatus(actions) {
+    if (!actions || actions.length === 0) return "none";
+    return actions[0]?.status || "none";
+  }
+
+  function hasStatus(actions, status) {
+    if (!actions || actions.length === 0) return false;
+    return actions.some((a) => a.status === status);
+  }
+
+  function enrichFeatureCollection(fc) {
+    return {
+      ...fc,
+      features: fc.features.map((f) => ({
+        ...f,
+        properties: {
+          ...f.properties,
+          // Add computed properties
+          latestActionStatus: computeLatestStatus(f.properties.actions),
+          hasOpenActions: hasStatus(f.properties.actions, "open"),
+          actionCount: f.properties.actions?.length || 0,
+        },
+      })),
+    };
+  }
   const vectorLayer = true;
   return (
     <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
@@ -130,18 +156,22 @@ const TZBaumbewirtschaftung = () => {
                 // additionalLayersFreeZOrder={1}
                 onSelectionChanged={(e) => {
                   (async () => {
-                    // console.log("xxx hit", e.hit);
+                    console.log("xxx id", e.hit);
                     const hit = e.hit;
                     if (hit) {
                       const feature = await createVectorFeature(
                         infoBoxMapping,
                         hit
                       );
+                      console.log("xxx feature", feature);
+                      feature.properties.wmsProps.actions = JSON.parse(
+                        feature.properties.wmsProps.actions
+                      );
+                      console.log("xxx feature", feature);
                       setSelectedFeature(feature);
                     } else {
                       setSelectedFeature(undefined);
                     }
-                    // console.log("xxx feature", feature);
                   })();
                 }}
                 style={{
@@ -157,7 +187,7 @@ const TZBaumbewirtschaftung = () => {
                   sprite: "https://tiles.cismet.de/poi/sprites",
                   layers: [
                     {
-                      id: "green-dots",
+                      id: "tree-dots",
                       type: "circle",
                       source: "trees",
                       minzoom: 0,
@@ -174,8 +204,26 @@ const TZBaumbewirtschaftung = () => {
                             [22, 26],
                           ],
                         },
-                        "circle-color": "#7AB317",
-                        "circle-stroke-color": "#0D6759",
+                        "circle-color": [
+                          "case",
+                          ["==", ["get", "latestActionStatus"], "done"],
+                          "#4CAF50", // vibrant green for done
+                          ["==", ["get", "latestActionStatus"], "open"],
+                          "#FFEB3B", // yellow for open
+                          ["==", ["get", "latestActionStatus"], "exception"],
+                          "#F44336", // red for exception
+                          "#A5D6A7", // grayish green for none
+                        ],
+                        "circle-stroke-color": [
+                          "case",
+                          ["==", ["get", "latestActionStatus"], "done"],
+                          "#2E7D32", // darker green for done
+                          ["==", ["get", "latestActionStatus"], "open"],
+                          "#F57C00", // orange for open
+                          ["==", ["get", "latestActionStatus"], "exception"],
+                          "#B71C1C", // dark red for exception
+                          "#757575", // grey for none
+                        ],
                         "circle-stroke-width": {
                           base: 1.75,
                           stops: [
@@ -184,22 +232,12 @@ const TZBaumbewirtschaftung = () => {
                             [22, 10],
                           ],
                         },
-                        "circle-opacity": [
-                          "case",
-                          ["boolean", ["feature-state", "selected"], false],
-                          0,
-                          0.8,
-                        ],
-                        "circle-stroke-opacity": [
-                          "case",
-                          ["boolean", ["feature-state", "selected"], false],
-                          0,
-                          0.8,
-                        ],
+                        "circle-opacity": 0.8,
+                        "circle-stroke-opacity": 1,
                       },
                     },
                     {
-                      id: "red-dots",
+                      id: "tree-dots-selected",
                       type: "circle",
                       source: "trees",
                       minzoom: 0,
@@ -216,7 +254,6 @@ const TZBaumbewirtschaftung = () => {
                             [22, 26],
                           ],
                         },
-                        // "circle-color": "#008800",
                         "circle-color": "#3A7CEB",
                         "circle-stroke-color": "#0D6759",
                         "circle-stroke-width": {
@@ -227,7 +264,6 @@ const TZBaumbewirtschaftung = () => {
                             [22, 10],
                           ],
                         },
-
                         "circle-opacity": [
                           "case",
                           ["boolean", ["feature-state", "selected"], false],
