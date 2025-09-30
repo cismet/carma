@@ -4,5 +4,7 @@ import { AuthProvider } from "@carma-providers/auth";
 export const MockAuthProvider = ({
   children,
 }: PropsWithChildren<Record<string, unknown>>) => {
-  return <AuthProvider storagePrefix="playground-auth">{children}</AuthProvider>;
+  return (
+    <AuthProvider storagePrefix="playground-auth">{children}</AuthProvider>
+  );
 };
