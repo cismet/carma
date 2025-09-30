@@ -1,5 +1,5 @@
 import { useContext, useState } from "react";
-import { ResponsiveInfoBox } from "./ResponsiveInfoBox";
+import { ResponsiveInfoBox, MODES } from "./ResponsiveInfoBox";
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 import {
   FeatureCollectionContext,
@@ -423,15 +423,19 @@ export const InfoBox = ({
     );
   }
 
-  // Prepare secondary elements with large action buttons when bigMobileIconsInsteadOfCollapsing is enabled
-  let finalSecondaryElements = [...secondaryInfoBoxElements];
-  
   // Calculate the actual width that matches ResponsiveInfoBox's calculation
-  const mapAppWidth = mapWidth ? mapWidth : (typeof window !== "undefined" ? window.innerWidth : pixelwidth);
+  const mapAppWidth = mapWidth
+    ? mapWidth
+    : typeof window !== "undefined"
+    ? window.innerWidth
+    : pixelwidth;
   const actualWidth =
     typeof window !== "undefined" && mapAppWidth - 25 - pixelwidth - 300 <= 0
       ? mapAppWidth - 25
       : pixelwidth;
+
+  // Prepare secondary elements with large action buttons when bigMobileIconsInsteadOfCollapsing is enabled
+  let finalSecondaryElements = [...secondaryInfoBoxElements];
   
   if (
     bigMobileIconsInsteadOfCollapsing &&
@@ -543,6 +547,7 @@ export const InfoBox = ({
       fixedRow={fixedRow}
       mapWidth={mapWidth}
       infoBoxBottomMargin={infoBoxBottomResMargin}
+      mode={bigMobileIconsInsteadOfCollapsing ? MODES.BIG_MOBILE_ICONS : MODES.DEFAULT}
     />
   );
 };
