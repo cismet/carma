@@ -248,7 +248,7 @@ export function MapMeasurementLib({
   }, [drawingShape]);
 
   const saveShapeHandler = (layer) => {
-    addShape([...measurementShapes, layer]);
+    addShape(layer);
   };
   const deleteShapeHandler = (id) => {
     deleteShapeById(id);

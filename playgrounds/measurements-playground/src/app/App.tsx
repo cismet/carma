@@ -116,7 +116,7 @@ export function App() {
           setMoveToShape={(id) => dispatch(setMoveToShape(id))}
           setUpdateShape={(b) => dispatch(setUpdateShape(b))}
           setMapMovingEnd={(b) => dispatch(setMapMovingEnd(b))}
-          addShape={(l) => dispatch(addShape(l) as any)}
+          addShape={(layer) => dispatch(addShape(layer) as any)}
           deleteShapeById={(id) => dispatch(deleteShapeById(id) as any)}
           updateShapeById={(id, coords, dist, area) =>
             dispatch(updateShapeById(id, coords, dist, area) as any)
