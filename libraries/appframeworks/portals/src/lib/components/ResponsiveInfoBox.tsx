@@ -61,8 +61,10 @@ export const ResponsiveInfoBox = ({
     useContext(ResponsiveTopicMapDispatchContext) || defaultContextValues;
 
   // For BIG_MOBILE_ICONS mode, use the external collapsed state or internal state
-  const actualCollapsed = collapsedInfoBox !== undefined ? collapsedInfoBox : collapsed;
-  const actualSetCollapsed = setCollapsedInfoBox !== undefined ? setCollapsedInfoBox : setCollapsed;
+  const actualCollapsed =
+    collapsedInfoBox !== undefined ? collapsedInfoBox : collapsed;
+  const actualSetCollapsed =
+    setCollapsedInfoBox !== undefined ? setCollapsedInfoBox : setCollapsed;
 
   let infoBoxStyle = {
     opacity: "0.9",
@@ -151,6 +153,7 @@ export const ResponsiveInfoBox = ({
               isCollapsible={isCollapsible}
             />
           )}
+
           {mode === MODES.AB && (
             <CollapsibleABWell
               collapsed={collapsed}

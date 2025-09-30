@@ -436,7 +436,7 @@ export const InfoBox = ({
 
   // Prepare secondary elements with large action buttons when bigMobileIconsInsteadOfCollapsing is enabled
   let finalSecondaryElements = [...secondaryInfoBoxElements];
-  
+
   if (
     bigMobileIconsInsteadOfCollapsing &&
     !isCollapsed &&
@@ -547,7 +547,11 @@ export const InfoBox = ({
       fixedRow={fixedRow}
       mapWidth={mapWidth}
       infoBoxBottomMargin={infoBoxBottomResMargin}
-      mode={bigMobileIconsInsteadOfCollapsing ? MODES.BIG_MOBILE_ICONS : MODES.DEFAULT}
+      mode={
+        bigMobileIconsInsteadOfCollapsing
+          ? MODES.BIG_MOBILE_ICONS
+          : MODES.DEFAULT
+      }
     />
   );
 };
