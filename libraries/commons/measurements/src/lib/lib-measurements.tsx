@@ -63,7 +63,7 @@ export interface MapMeasurementProps {
   polygonIcon?: string;
 }
 
-const MapMeasurement = ({
+export function MapMeasurementLib({
   measurementShapes,
   activeShape,
   ifDrawing,
@@ -93,7 +93,7 @@ const MapMeasurement = ({
   deleteVisibleShapeById,
   polygonActiveIcon,
   polygonIcon,
-}: MapMeasurementProps) => {
+}: MapMeasurementProps) {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
 
   const [measureControl, setMeasureControl] = useState(null);
@@ -297,9 +297,7 @@ const MapMeasurement = ({
   console.debug("RENDER: [MAPMEASUREMENT] MapMeasurement");
 
   return <div></div>;
-};
-
-export default MapMeasurement;
+}
 
 function filterArrByIds(arrIds, fullArray) {
   const finalResult = [];
