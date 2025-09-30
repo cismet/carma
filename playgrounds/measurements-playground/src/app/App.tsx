@@ -93,6 +93,7 @@ export function App() {
         locatorControl={false}
         fullScreenControl={false}
         zoomControls={false}
+        leafletMapProps={{ editable: true }}
       >
         <MapMeasurementLib
           // state

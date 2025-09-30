@@ -63,7 +63,7 @@ const mappingConfig = {
 const measurementsConfig = {
   key: "@measurements-playground.app.measurements",
   storage: localForage,
-  whitelist: ["shapes"],
+  whitelist: [],
 };
 
 const store = configureStore({
