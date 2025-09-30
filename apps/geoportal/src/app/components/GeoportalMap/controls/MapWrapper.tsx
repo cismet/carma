@@ -19,6 +19,7 @@ import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopic
 
 import {
   SelectionMetaData,
+  SelectionMapMode,
   useGazData,
   useSelection,
 } from "@carma-appframeworks/portals";
@@ -235,6 +236,9 @@ const MapWrapper = () => {
     }
     const selectionMetaData: SelectionMetaData = {
       selectedFrom: "gazetteer",
+      selectedFromMapMode: isMode2d
+        ? SelectionMapMode.MODE_2D
+        : SelectionMapMode.MODE_3D,
       selectionTimestamp: Date.now(),
       isAreaSelection: isAreaType(selection.type as ENDPOINT),
     };

@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useSelector } from "react-redux";
 
 import {
   CesiumOptions,
@@ -9,7 +10,10 @@ import {
 } from "@carma-mapping/engines/cesium";
 import type { CesiumContextType } from "@carma-mapping/engines/cesium";
 
-import { useSelection } from "../components/SelectionProvider";
+import {
+  SelectionMapMode,
+  useSelection,
+} from "../components/SelectionProvider";
 import { cesiumHitTrigger } from "../utils/cesiumHitTrigger";
 
 export const SELECTED_POLYGON_ID = "searchgaz-highlight-polygon";
@@ -57,8 +61,11 @@ export const useSelectionCesium = (
         lastSelectionKeyRef.current === selection.sorter &&
         lastSelectionTimestampRef.current === selection.selectionTimestamp;
 
+      const wasAddedFrom2D =
+        selection.selectedFromMapMode === SelectionMapMode.MODE_2D;
+
       if (isDuplicateSelection) {
-        console.debug("HOOK: useSelectionTopicMap - same selection, skipping");
+        console.debug("HOOK: useSelectionCesium - same selection, skipping");
         return;
       }
 
@@ -67,6 +74,8 @@ export const useSelectionCesium = (
 
       console.debug("HOOK: useSelectionCesium", selection, isActive);
 
+      const skipFlyTo = wasAddedFrom2D || isDuplicateSelection;
+
       const options = {
         mapOptions: cesiumOptions,
         selectedPolygonId: SELECTED_POLYGON_ID,
@@ -74,6 +83,7 @@ export const useSelectionCesium = (
         useCameraHeight,
         duration,
         durationFactor,
+        skipFlyTo,
       };
 
       cesiumHitTrigger(

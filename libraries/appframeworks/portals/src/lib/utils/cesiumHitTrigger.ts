@@ -15,6 +15,7 @@ export type HitTriggerOptions = {
   durationFactor?: number; // dynamic flyTo duration factor,
   selectedPolygonId?: string;
   invertedSelectedPolygonId?: string;
+  skipFlyTo?: boolean;
 };
 
 export const cesiumHitTrigger = async (

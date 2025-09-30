@@ -212,7 +212,8 @@ const handlePolygonSelection = (
   idSelected: string,
   idInverted: string,
   duration: number,
-  { isPrimaryStyle }: CesiumOptions
+  { isPrimaryStyle }: CesiumOptions,
+  skipFlyTo: boolean
 ) => {
   // Convert polygon to GroundPrimitive instead of Entity
   const selectedPolygonGeometry = new PolygonGeometry({
@@ -268,30 +269,32 @@ const handlePolygonSelection = (
     scene.groundPrimitives.add(selectedGroundPrimitive);
     scene.groundPrimitives.add(invertedGroundPrimitive);
 
-    const boundingSphere = getBoundingSphereFromCoordinatesAndHeight(
-      polygon[0],
-      groundPosition?.height
-    );
+    if (!skipFlyTo) {
+      const boundingSphere = getBoundingSphereFromCoordinatesAndHeight(
+        polygon[0],
+        groundPosition?.height
+      );
 
-    const fullViewDistance = getFullViewDistance(ctx, boundingSphere);
-    console.debug(
-      "GAZETTEER: [2D3D|CESIUM|CAMERA] flyTo BoundingSphere",
-      boundingSphere.radius,
-      boundingSphere.center,
-      groundPosition?.height,
-      fullViewDistance,
-      (viewer.camera.frustum as any).fov
-    );
+      const fullViewDistance = getFullViewDistance(ctx, boundingSphere);
+      console.debug(
+        "GAZETTEER: [2D3D|CESIUM|CAMERA] flyTo BoundingSphere",
+        boundingSphere.radius,
+        boundingSphere.center,
+        groundPosition?.height,
+        fullViewDistance,
+        (viewer.camera.frustum as any).fov
+      );
 
-    viewer.camera.flyToBoundingSphere(boundingSphere, {
-      duration,
-      offset: new HeadingPitchRange(0, viewer.camera.pitch, fullViewDistance),
-      complete: () => {
-        console.debug(
-          "GAZETTEER: [2D3D|CESIUM|CAMERA] flyToBoundingSphere completed"
-        );
-      },
-    });
+      viewer.camera.flyToBoundingSphere(boundingSphere, {
+        duration,
+        offset: new HeadingPitchRange(0, viewer.camera.pitch, fullViewDistance),
+        complete: () => {
+          console.debug(
+            "GAZETTEER: [2D3D|CESIUM|CAMERA] flyToBoundingSphere completed"
+          );
+        },
+      });
+    }
   });
 };
 export const cesiumHandleSelection = async (
@@ -350,6 +353,8 @@ export const cesiumHandleSelection = async (
     surfacePosition
   );
 
+  const skipFlyTo = Boolean(options.skipFlyTo);
+
   if (polygon) {
     handlePolygonSelection(
       ctx,
@@ -358,7 +363,8 @@ export const cesiumHandleSelection = async (
       idSelected,
       idInverted,
       duration,
-      mapOptions
+      mapOptions,
+      skipFlyTo
     );
   } else if (defined(posResult)) {
     if (markerData?.model?.isDestroyed()) {
@@ -374,17 +380,19 @@ export const cesiumHandleSelection = async (
       });
     }
 
-    cesiumLookAtPoint(ctx, surfacePosition, zoom, mapOptions, {
-      onComplete: () => {
-        console.debug("GAZETTEER: [2D3D|CESIUM|CAMERA] flyTo Point complete");
-      },
-      durationFactor,
-      maxDuration: duration,
-      useCameraHeight: options.useCameraHeight,
-    });
-    console.debug(
-      "GAZETTEER: [2D3D|CESIUM|CAMERA] look at Marker (Terrain Elevation)"
-    );
+    if (!skipFlyTo) {
+      cesiumLookAtPoint(ctx, surfacePosition, zoom, mapOptions, {
+        onComplete: () => {
+          console.debug("GAZETTEER: [2D3D|CESIUM|CAMERA] flyTo Point complete");
+        },
+        durationFactor,
+        maxDuration: duration,
+        useCameraHeight: options.useCameraHeight,
+      });
+      console.debug(
+        "GAZETTEER: [2D3D|CESIUM|CAMERA] look at Marker (Terrain Elevation)"
+      );
+    }
   } else {
     console.warn("no ground position found");
   }

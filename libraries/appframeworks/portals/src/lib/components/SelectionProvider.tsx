@@ -9,9 +9,15 @@ import type { Feature } from "geojson";
 
 import { type SearchResultItem } from "@carma/types";
 
+export enum SelectionMapMode {
+  MODE_2D,
+  MODE_3D,
+}
+
 export type SelectionMetaData = {
   selectionTimestamp: number | null;
   selectedFrom?: "gazetteer" | "topicmap" | "store";
+  selectedFromMapMode?: SelectionMapMode;
   isAreaSelection: boolean;
 };
 
