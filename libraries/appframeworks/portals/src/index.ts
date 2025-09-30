@@ -48,6 +48,7 @@ export {
   type SelectionMetaData,
   useSelection,
   type SelectionItem,
+  SelectionMapMode,
 } from "./lib/components/SelectionProvider";
 
 export { LibreMapSelectionContent } from "./lib/components/LibreMapSelectionContent";

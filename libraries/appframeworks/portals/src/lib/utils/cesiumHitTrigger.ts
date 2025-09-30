@@ -1,7 +1,7 @@
 import type { SearchResultItem } from "@carma/types";
 import type {
   CesiumOptions,
-  EntityData,
+  MarkerPrimitiveData,
   CesiumContextType,
 } from "@carma-mapping/engines/cesium";
 
@@ -15,21 +15,23 @@ export type HitTriggerOptions = {
   durationFactor?: number; // dynamic flyTo duration factor,
   selectedPolygonId?: string;
   invertedSelectedPolygonId?: string;
+  skipFlyTo?: boolean;
+  skipMarkerUpdate?: boolean;
 };
 
 export const cesiumHitTrigger = async (
   hit: SearchResultItem[],
   ctx: CesiumContextType,
-  entityData: null | EntityData,
-  setEntityData: (data: EntityData | null) => void,
+  markerData: null | MarkerPrimitiveData,
+  setMarkerData: (data: MarkerPrimitiveData | null) => void,
   options: HitTriggerOptions
 ) => {
   if (hit !== undefined && hit.length !== undefined && hit.length > 0) {
     const derivedGeometries = getDerivedGeometries(hit[0]);
     cesiumHandleSelection(
       ctx,
-      entityData,
-      setEntityData,
+      markerData,
+      setMarkerData,
       derivedGeometries,
       options
     );
