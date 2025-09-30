@@ -41,8 +41,7 @@ import {
 
 import { getUIMode, toggleUIMode, UIMode } from "../../store/slices/ui";
 import { getStartDrawing, setStartDrawing } from "../../store/slices/mapping";
-// eslint-disable-next-line import/no-unresolved
-import useDeviceDetection from "../../hooks/useDeviceDetection";
+import useDeviceDetection from "./hooks/useDeviceDetection";
 
 const MapMeasurement = (props) => {
   const { routedMapRef } = useContext(TopicMapContext);
