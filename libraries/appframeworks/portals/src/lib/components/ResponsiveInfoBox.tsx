@@ -141,9 +141,7 @@ export const ResponsiveInfoBox = ({
               alwaysVisibleDiv={
                 <div>
                   {alwaysVisibleDiv}
-                  <div style={{ display: actualCollapsed ? "none" : "block" }}>
-                    {collapsibleDiv}
-                  </div>
+                  {collapsibleDiv}
                 </div>
               }
               collapsibleDiv={<div style={{ display: "none" }} />}
