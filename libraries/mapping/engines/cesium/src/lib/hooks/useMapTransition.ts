@@ -131,20 +131,16 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
     const leaflet = routedMapRef.current?.leafletMap?.leafletElement;
 
     await prepareLeafletForTransition(leaflet);
-
     // cancel any ongoing flight
     cesiumContext.withCamera((camera) => camera.cancelFlight());
 
     dispatch(setTransitionTo3d());
-    // Dev behavior: switch out of 2D immediately; animation will restore HPR
-    dispatch(setIsMode2d(false));
     const onComplete3d = () => {
       dispatch(clearTransition());
       onComplete?.(false);
     };
-    // introduces side effects with gazetteer and home button, always show animation
 
-    const onCompleteAnimatedTo3d = () => {
+    const animateCesiumView = () => {
       const pos = pickViewerCanvasCenter(cesiumContext).scenePosition;
 
       if (pos && prevHPR) {
@@ -176,7 +172,11 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
 
     await tiledMapToCesium(cesiumContext, { latitude, longitude }, zoom, {
       cause: "SwitchMapMode to 3d",
-      onComplete: () => setTimeout(onCompleteAnimatedTo3d, 100),
+      onComplete: () => {
+        // handles fadeout of topicmap/2d component externally
+        dispatch(setIsMode2d(false));
+        setTimeout(animateCesiumView, 100);
+      },
     });
   };
 
