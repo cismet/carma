@@ -340,68 +340,23 @@ export const useLayerLoading = ({ map, layer }: UseLayerLoadingProps) => {
     };
   }, [map, layer, listenersAttached, backgroundLayers]);
 
-  // Also check when layer visibility changes
   useEffect(() => {
     if (layer.visible && map) {
-      // When layer becomes visible, it might be added to the map
       findAndAttachListeners();
 
-      // If we still don't have listeners attached, show loading state
-      // but only for non-vector and non-background layers
-      if (!listenersAttached && shouldShowLoading() && !isBackgroundLayer) {
+      if (!listenersAttached && shouldShowLoading()) {
         setLoading(true);
       }
 
-      // Set up periodic check for GridLayer loading state
-      let gridLayerRef: L.GridLayer | null = null;
-
-      // Find our GridLayer if it exists
-      map.eachLayer((leafletLayer) => {
-        if (
-          // @ts-ignore
-          leafletLayer.options?.layers === wmsName &&
-          leafletLayer instanceof L.GridLayer
-        ) {
-          gridLayerRef = leafletLayer as L.GridLayer;
-        }
-      });
-
-      // If we found a GridLayer, set up interval to check its loading state
-      if (gridLayerRef && shouldShowLoading()) {
-        const intervalId = setInterval(() => {
-          if (gridLayerRef) {
-            // Check isLoading method
-            const isCurrentlyLoading = gridLayerRef.isLoading?.();
-            if (isCurrentlyLoading !== undefined) {
-              setLoading(isCurrentlyLoading);
-            }
-
-            // Also check _loading property
-            // @ts-ignore
-            if (gridLayerRef._loading !== undefined) {
-              // @ts-ignore
-              setLoading(gridLayerRef._loading);
-            }
-          }
-        }, 500); // Check every 500ms
-
-        return () => {
-          clearInterval(intervalId);
-          // Also clean up listeners if layer becomes invisible
-          if (!layer.visible) {
-            cleanupAllListeners();
-            setListenersAttached(false);
-          }
-        };
-      }
-
-      // Clean up when layer visibility changes or component unmounts
       return () => {
         if (!layer.visible) {
           cleanupAllListeners();
           setListenersAttached(false);
         }
       };
+    } else if (!layer.visible) {
+      cleanupAllListeners();
+      setListenersAttached(false);
     }
   }, [layer.visible, map]);
 
