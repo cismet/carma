@@ -36,8 +36,9 @@ import {
   getUIMode,
   getUIShowLayerHideButtons,
 } from "../../store/slices/ui";
-
+import "./pulsing.css";
 import "./tabs.css";
+
 import { LayerButton, LayerIcon } from "@carma-mapping/components";
 import { Spin } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
@@ -175,16 +176,14 @@ const GeoportalLayerButton = ({
           "pl-3",
         ]}
       >
-        {loading && isCurrentlyVisible() ? (
-          <Spin indicator={<LoadingOutlined spin />} size="small" />
-        ) : (
-          <LayerIcon
-            layer={layer}
-            fallbackIcon={layer.icon}
-            iconPrefix="https://www.wuppertal.de/geoportal/geoportal_icon_legends/"
-            id={`test`}
-          />
-        )}
+        <LayerIcon
+          layer={layer}
+          fallbackIcon={layer.icon}
+          iconPrefix="https://www.wuppertal.de/geoportal/geoportal_icon_legends/"
+          id={`test`}
+          className={loading && isCurrentlyVisible() ? "icon" : ""}
+        />
+
         {layersLength > 0 && (
           <span className="text-base sm:hidden">{layersLength} Layer</span>
         )}

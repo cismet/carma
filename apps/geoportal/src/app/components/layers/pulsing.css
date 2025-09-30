@@ -1,0 +1,25 @@
+/* the pulsing icon */
+.icon {
+  animation: pulse-opacity 2.5s ease-in-out infinite;
+}
+
+/* Pulsing opacity animation */
+@keyframes pulse-opacity {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* accessibility: respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .icon {
+    animation: none;
+    opacity: 0.8;
+  }
+}

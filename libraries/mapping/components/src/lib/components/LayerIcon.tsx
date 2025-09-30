@@ -15,6 +15,7 @@ interface LayerIconProps {
   fallbackIcon?: string;
   isBaseLayer?: boolean;
   id?: string;
+  className?: string;
 }
 
 const isUrl = (str: string | undefined): boolean => {
@@ -28,6 +29,7 @@ export const LayerIcon = ({
   fallbackIcon,
   isBaseLayer,
   id,
+  className,
 }: LayerIconProps) => {
   const [imgError, setImgError] = useState(!layer.other?.icon);
 
@@ -57,7 +59,7 @@ export const LayerIcon = ({
         <FontAwesomeLikeIcon
           src={iconSrc}
           alt="Layer Icon"
-          className="text-base"
+          className={className + " text-base"}
           id={id}
         />
       ) : (
@@ -69,7 +71,7 @@ export const LayerIcon = ({
               ? faLayerGroup
               : faMap
           }
-          className="text-base"
+          className={className + " text-base"}
           style={{ color: fallbackIcon ? iconColorMap[fallbackIcon] : "" }}
           id={id}
         />
