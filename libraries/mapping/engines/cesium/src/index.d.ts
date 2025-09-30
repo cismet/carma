@@ -10,68 +10,19 @@ export type CameraPositionAndOrientation = {
   direction: Cartesian3;
 };
 
-// MODELS
-
-export interface MarkerData {
-  position: [number, number] | [number, number, number];
-  image?: string;
-  scale?: number;
-  model?: ModelAsset;
-}
-
-export interface Marker3dData extends Omit<MarkerData, "model"> {
-  model: ModelAsset;
-  modelMatrix: Matrix4;
-  animatedModelMatrix?: Matrix4;
-}
-
-export type PolylineConfig = {
-  color?: ColorRgbaArray;
-  width?: number;
-  gap?: number;
-  glow?: boolean;
-};
-
-export type ModelAsset = {
-  uri: string;
-  scale?: number;
-  isCameraFacing?: boolean;
-  rotation?: boolean | number;
-  fixedScale?: boolean;
-  anchorOffset?: { x?: number; y?: number; z?: number };
-  hasAnimation?: boolean;
-  stemline?: Partial<PolylineConfig>;
-};
-
-export type ParsedModelAsset = {
-  isParsed: true;
-  uri: string;
-  scale: number;
-  isCameraFacing: boolean;
-  rotation: boolean | number;
-  fixedScale: boolean;
-  anchorOffset: { x: number; y: number; z: number };
-  hasAnimation: boolean;
-  model: Model;
-};
-
-export type MarkerPrimitiveData = {
-  id: string;
-  modelMatrix: Matrix4 | null;
-  animatedModelMatrix: Matrix4 | null;
-  modelConfig: ModelAsset | null;
-  stemline?: PolylineCollection | null;
-  lastRenderTime?: number;
-  animationSpeed?: number;
-  model: Model | null;
-  onPreUpdate?: Function;
-  cleanup?: Function;
-  selectionId?: number | string | null;
-  selectionTimestamp?: number | null;
-};
+// MARKERS
+export type {
+  MarkerData,
+  Marker3dData,
+  MarkerPrimitiveData,
+  MarkerModelAsset,
+  ParsedMarkerModelAsset,
+  PolylineConfig,
+  MarkerOptions,
+} from "./lib/extensions/markers";
 
 export type CesiumOptions = {
-  markerAsset: ModelAsset;
+  markerAsset: MarkerModelAsset;
   isPrimaryStyle: boolean;
   markerAnchorHeight?: number;
   pitchAdjustHeight?: number;
@@ -146,7 +97,7 @@ export interface CesiumState {
     };
   };
   dataSources?: Record<string, GeoJsonConfig>;
-  models?: Record<string, ModelAsset | ParsedModelAsset>;
+  models?: Record<string, MarkerModelAsset | ParsedMarkerModelAsset>;
 }
 
 export type RootState = {

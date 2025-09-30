@@ -58,7 +58,7 @@ export const tiledMapToCesium = async (
   { latitude, longitude }: LatLng.deg,
   zoom: Zoom,
   options: TransitionOptions
-) => {
+): Promise<boolean> => {
   if (!ctx.isValidViewer()) {
     console.warn("No viewer available for transition");
     return false;
@@ -162,65 +162,70 @@ export const tiledMapToCesium = async (
       camera.setView({ destination });
     });
   });
+  let isQualifiedResult = true;
+  let { cameraHeightAboveGround, groundHeight } =
+    getCameraHeightAboveGround(ctx);
+  const maxIterations = limit;
+  let iterations = 0;
 
-  ctx.withCamera((camera) => {
-    const cameraPositionAtStart = camera.position.clone();
-    let { cameraHeightAboveGround, groundHeight } =
-      getCameraHeightAboveGround(ctx);
-    const maxIterations = limit;
-    let iterations = 0;
+  if (currentPixelResolution === null) {
+    console.warn("No pixel size found for camera position");
+    return false;
+  }
 
-    if (currentPixelResolution === null) {
-      console.warn("No pixel size found for camera position");
+  let currentError = Math.abs(currentPixelResolution - targetPixelResolution);
+
+  // Iterative adjustment to match the target resolution
+  while (isQualifiedResult && currentError > epsilon) {
+    if (iterations >= maxIterations) {
+      console.warn(
+        "Maximum height finding iterations reached with no result, using best result."
+      );
+      console.debug(
+        "L2C [2D3D] iterate",
+        iterations,
+        maxIterations,
+        epsilon,
+        currentError,
+        currentPixelResolution,
+        targetPixelResolution
+      );
+      isQualifiedResult = false;
+    }
+
+    const adjustmentFactor = targetPixelResolution / currentPixelResolution;
+    cameraHeightAboveGround *= adjustmentFactor;
+    const newCameraHeight = cameraHeightAboveGround + groundHeight;
+
+    const updatedCameraDestinationCartographic = Cartographic.fromRadians(
+      lngRad,
+      latRad,
+      newCameraHeight
+    );
+    const updatedDestination = Cartographic.toCartesian(
+      updatedCameraDestinationCartographic
+    );
+
+    console.debug(
+      "L2C [2D3D|CESIUM|CAMERA] setview",
+      iterations,
+      newCameraHeight,
+      updatedDestination
+    );
+    ctx.withCamera((camera) => {
+      camera.setView({
+        destination: updatedDestination,
+      });
+    });
+    const newResolution = getScenePixelSize(ctx).value;
+    if (newResolution === null) {
       return false;
     }
-
-    // Iterative adjustment to match the target resolution
-    while (Math.abs(currentPixelResolution - targetPixelResolution) > epsilon) {
-      if (iterations >= maxIterations) {
-        console.warn(
-          "Maximum height finding iterations reached with no result, restoring last Cesium camera position."
-        );
-        console.debug("L2C [2D3D] iterate", iterations, cameraPositionAtStart);
-        ctx.withCamera((camera) => {
-          camera.setView({ destination: cameraPositionAtStart });
-        });
-        return false;
-      }
-
-      const adjustmentFactor = targetPixelResolution / currentPixelResolution;
-      cameraHeightAboveGround *= adjustmentFactor;
-      const newCameraHeight = cameraHeightAboveGround + groundHeight;
-
-      const updatedCameraDestinationCartographic = Cartographic.fromRadians(
-        lngRad,
-        latRad,
-        newCameraHeight
-      );
-      const updatedDestination = Cartographic.toCartesian(
-        updatedCameraDestinationCartographic
-      );
-
-      console.debug(
-        "L2C [2D3D|CESIUM|CAMERA] setview",
-        iterations,
-        newCameraHeight,
-        updatedDestination
-      );
-      ctx.withCamera((camera) => {
-        camera.setView({
-          destination: updatedDestination,
-        });
-      });
-      const newResolution = getScenePixelSize(ctx).value;
-      if (newResolution === null) {
-        return false;
-      }
-      currentPixelResolution = newResolution;
-      iterations++;
-    }
-  });
+    currentPixelResolution = newResolution;
+    currentError = Math.abs(currentPixelResolution - targetPixelResolution);
+    iterations++;
+  }
   ctx.requestRender();
   onComplete?.();
-  return true; // Return true if camera position found within max iterations
+  return true;
 };

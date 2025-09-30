@@ -1,5 +1,5 @@
 import { APP_BASE_PATH } from "./app.config";
-import { ModelAsset } from "@carma-mapping/engines/cesium";
+import { MarkerModelAsset } from "@carma-mapping/engines/cesium";
 
 const BEHOERDE_SVG = `${APP_BASE_PATH}data/img/behoerde.svg`;
 export const GLB_SAMPLE = `${APP_BASE_PATH}data/glb/map_pointer.glb`;
@@ -7,11 +7,11 @@ const FROM_SVG_SAMPLE = `${APP_BASE_PATH}data/glb/behoerde.glb`;
 // https://sketchfab.com/3d-models/map-pointer-162fba8901ea4ce5894d8b0916d802b4
 // Placeholder asset - CC BY 4.0 DEED - thekiross
 
-export const IMAGE_ASSETS: Record<string, ModelAsset> = {
+export const IMAGE_ASSETS: Record<string, MarkerModelAsset> = {
   SvgMarker: { uri: BEHOERDE_SVG, scale: 0.5 },
 };
 
-export const MODEL_ASSETS: Record<string, ModelAsset> = {
+export const MODEL_ASSETS: Record<string, MarkerModelAsset> = {
   Marker: { uri: GLB_SAMPLE, scale: 20, anchorOffset: { z: 2 } },
   MarkerFacing: {
     uri: GLB_SAMPLE,
