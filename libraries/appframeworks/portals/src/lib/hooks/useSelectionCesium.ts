@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { useSelector } from "react-redux";
 
 import {
   CesiumOptions,
@@ -36,6 +35,51 @@ const cleanUpCesium = (
   });
 };
 
+const isMarkerPrimitivePresent = (
+  ctx: CesiumContextType,
+  markerData: MarkerPrimitiveData | null,
+  selectionKey: number | string | null
+) => {
+  if (!markerData) {
+    return false;
+  }
+
+  if (markerData.selectionId !== selectionKey) {
+    return false;
+  }
+
+  let isPresent = false;
+
+  ctx.withScene((scene) => {
+    if (!scene || scene.isDestroyed()) return;
+
+    const { primitives } = scene;
+
+    if (!primitives || primitives.isDestroyed()) return;
+
+    if (
+      markerData.model &&
+      typeof markerData.model.isDestroyed === "function" &&
+      !markerData.model.isDestroyed() &&
+      primitives.contains(markerData.model)
+    ) {
+      isPresent = true;
+      return;
+    }
+
+    if (
+      markerData.stemline &&
+      typeof markerData.stemline.isDestroyed === "function" &&
+      !markerData.stemline.isDestroyed() &&
+      primitives.contains(markerData.stemline)
+    ) {
+      isPresent = true;
+    }
+  });
+
+  return isPresent;
+};
+
 export const useSelectionCesium = (
   isActive: boolean,
   cesiumOptions: CesiumOptions,
@@ -61,18 +105,32 @@ export const useSelectionCesium = (
         lastSelectionKeyRef.current === selection.sorter &&
         lastSelectionTimestampRef.current === selection.selectionTimestamp;
 
-      const wasAddedFrom2D =
-        selection.selectedFromMapMode === SelectionMapMode.MODE_2D;
+      const selectionKey = selection.sorter ?? null;
+      const selectionTimestamp = selection.selectionTimestamp ?? null;
 
       if (isDuplicateSelection) {
         console.debug("HOOK: useSelectionCesium - same selection, skipping");
         return;
       }
 
-      lastSelectionKeyRef.current = selection.sorter;
-      lastSelectionTimestampRef.current = selection.selectionTimestamp;
+      const isMarkerPresent = isMarkerPrimitivePresent(
+        ctx,
+        selectedMarkerData,
+        selectionKey
+      );
 
-      console.debug("HOOK: useSelectionCesium", selection, isActive);
+      if (isMarkerPresent) {
+        console.debug(
+          "HOOK: useSelectionCesium - marker already present, skipping"
+        );
+        return;
+      }
+
+      lastSelectionKeyRef.current = selectionKey;
+      lastSelectionTimestampRef.current = selectionTimestamp;
+
+      const wasAddedFrom2D =
+        selection.selectedFromMapMode === SelectionMapMode.MODE_2D;
 
       const skipFlyTo = wasAddedFrom2D || isDuplicateSelection;
 
@@ -86,11 +144,22 @@ export const useSelectionCesium = (
         skipFlyTo,
       };
 
+      const setMarkerDataWithMeta = (data: MarkerPrimitiveData | null) => {
+        if (data) {
+          data.selectionId = selectionKey;
+          data.selectionTimestamp = selectionTimestamp;
+          if (data.model && selectionKey != null) {
+            data.model.id = String(selectionKey);
+          }
+        }
+        setSelectedMarkerData(data);
+      };
+
       cesiumHitTrigger(
         [selection],
         ctx,
         selectedMarkerData,
-        setSelectedMarkerData,
+        setMarkerDataWithMeta,
         options
       );
     } else {

@@ -66,6 +66,8 @@ export type MarkerPrimitiveData = {
   model: Model | null;
   onPreUpdate?: Function;
   cleanup?: Function;
+  selectionId?: number | string | null;
+  selectionTimestamp?: number | null;
 };
 
 export type CesiumOptions = {
