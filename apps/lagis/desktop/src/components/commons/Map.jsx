@@ -324,22 +324,12 @@ const Map = ({
       size="small"
       hoverable={false}
       title={
-        <div className="flex items-center gap-3">
-          <div>
-            <span className="mr-6">Karte</span>
-            <HoveredLandparcelInfo />
-          </div>
-          {mode === "point" && (
-            <div className="ml-auto mr-auto">
-              <Tag
-                closeIcon
-                onClose={() => dispatch(storeShapeMode("default"))}
-              >
-                <span className="text-gray-500">Flurstückssuche aktiv</span>
-              </Tag>
-            </div>
-          )}
+        // <div className="flex items-center gap-3">
+        <div>
+          <span className="mr-6">Karte</span>
+          <HoveredLandparcelInfo />
         </div>
+        // </div>
       }
       extra={
         <div className="flex items-center gap-3">
@@ -364,11 +354,22 @@ const Map = ({
             </div>
           )}
 
+          {mode === "point" && (
+            <Tag
+              closeIcon
+              onClose={() => dispatch(storeShapeMode("default"))}
+              className="mr-0"
+            >
+              <span className="text-gray-500">Flurstücksinfo aktiv</span>
+            </Tag>
+          )}
+
           <div className="relative flex items-center gap-2 cursor-pointer">
             <PointSearchButton
               setMode={handleSetDonutWithDelay}
               active={mode === "point"}
               mode={mode}
+              activeIndicatorColor="[#4ABC96]"
             />
             <Tooltip title="Hintergrund an/aus">
               <FileImageFilled

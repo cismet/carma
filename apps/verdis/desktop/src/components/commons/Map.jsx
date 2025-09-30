@@ -325,6 +325,9 @@ const Map = ({
           <PointSearchButton
             setMode={handleSetDonutSearch}
             iconStyle="h-6 cursor-pointer"
+            active={mode === "point"}
+            mode={mode}
+            activeIndicatorColor="#4ABC96"
           />
           <ShapeSearchButton />
           <Tooltip title="optimaler Kartenausschnitt für dieses Kassenzeichen">

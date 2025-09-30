@@ -8,6 +8,7 @@ interface PointSearchButtonProps {
   iconStyle?: string;
   active?: boolean;
   mode: string;
+  activeIndicatorColor?: string;
 }
 
 export const PointSearchButton = ({
@@ -15,10 +16,11 @@ export const PointSearchButton = ({
   iconStyle = "text-lg h-5 cursor-pointer",
   active = false,
   mode,
+  activeIndicatorColor = "primary",
 }: PointSearchButtonProps) => {
   return (
     <div className="relative flex items-center" style={{ height: "24px" }}>
-      <Tooltip title="Flurstücksuche">
+      <Tooltip title="Flurstücksinfo">
         <FontAwesomeIcon
           icon={faSearchLocation}
           className={iconStyle}
@@ -29,7 +31,7 @@ export const PointSearchButton = ({
       </Tooltip>
       {
         <div
-          className={`w-3 h-3 rounded-full bg-[#4ABC96] ${
+          className={`w-3 h-3 rounded-full bg-${activeIndicatorColor} ${
             active ? "absolute" : "hidden"
           } bottom-0 -right-1 cursor-pointer`}
         />
