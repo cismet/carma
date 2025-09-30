@@ -58,7 +58,7 @@ export const BASEMAP_METROPOLE_RUHR_WMTS_GRAUBLAU_HQ = {
   format: "image/png",
   tileMatrixSetID: "webmercator_hq",
   tileMatrixLabels: SPW2_WMTS_TILEMATRIX_LABELS,
-  minimumLevel: 9, // limit to avoid errors
+  minimumLevel: 0, // limiting here makes app behave way too slow
   maximumLevel: 20, // as in Capabilities
 };
 
