@@ -2,7 +2,11 @@ import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import { suppressReactCismapErrors } from "@carma-commons/utils";
 import { MapMeasurementLib } from "@carma-commons/measurements";
 import { ZoomControl } from "@carma-mapping/components";
-import { Control, ControlLayout, ControlButtonStyler } from "@carma-mapping/map-controls-layout";
+import {
+  Control,
+  ControlLayout,
+  ControlButtonStyler,
+} from "@carma-mapping/map-controls-layout";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faRuler } from "@fortawesome/free-solid-svg-icons";
 import { useState } from "react";
@@ -38,8 +42,11 @@ import {
   setActiveShapeIfDrawCancelled,
   updateAreaOfDrawing,
   toggleMeasurementMode,
+  getDrawingShape,
+  getDeleteAll,
 } from "./store/slices/measurements";
-import { getStartDrawing, setStartDrawing as setStartDrawingAction } from "./store/slices/mapping";
+import { setStartDrawing as setStartDrawingAction } from "./store/slices/mapping";
+import { getUIMode } from "./store/slices/ui";
 
 suppressReactCismapErrors();
 
@@ -49,13 +56,14 @@ export function App() {
   // selectors
   const measurementShapes = useSelector(getShapes);
   const activeShape = useSelector(getActiveShapes);
+  const ifDrawing = useSelector(getDrawingShape);
+  const showAllMeasurements = useSelector(getShowAll);
+  const deleteShape = useSelector(getDeleteAll);
   const visibleShapes = useSelector(getVisibleShapes);
   const moveToShape = useSelector(getMoveToShape);
-  const mode = useSelector(getMode);
-  const showAllMeasurements = useSelector(getShowAll);
+  const mode = useSelector(getUIMode);
   const updateShape = useSelector(getUpdateShapeToShape);
   const mapMovingEnd = useSelector(getMapMovingEnd);
-  const ifDrawing = useSelector((s: RootState) => getStartDrawing(s));
   return (
     <>
       <ControlLayout ifStorybook={false}>
@@ -91,7 +99,7 @@ export function App() {
           mode={mode}
           ifDrawing={ifDrawing}
           showAllMeasurements={showAllMeasurements}
-          deleteShape={false}
+          deleteShape={deleteShape}
           // callbacks mapped to redux
           toggleUIMode={() => dispatch(toggleMeasurementMode() as any)}
           setShapes={(s) => dispatch(setShapes(s))}
