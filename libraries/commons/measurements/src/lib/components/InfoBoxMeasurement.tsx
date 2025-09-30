@@ -322,7 +322,7 @@ export function InfoBoxMeasurement({
               </div>
             </div>
           }
-          // fixedRow={{}}
+          fixedRow={true}
         />
       )}
       {!visibleShapesData[currentMeasure] && (
@@ -356,7 +356,7 @@ export function InfoBoxMeasurement({
               <div className="flex justify-between items-center w-[96%] mt-1 mb-1"></div>
             </div>
           }
-          // fixedRow={{}}
+          fixedRow={false}
         />
       )}
     </div>
