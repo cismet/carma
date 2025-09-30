@@ -59,6 +59,7 @@ const TZBaumbewirtschaftung = () => {
     "url:'https://cismet.de'",
     "email:'info@cismet.de'",
     "tel:'01709120394'",
+    "genericLinks: [{url: 'fahrplanauskunft', tooltip:'Zur Fahrplanauskunft', iconname: 'bus'}]",
   ];
 
   function computeLatestStatus(actions) {
