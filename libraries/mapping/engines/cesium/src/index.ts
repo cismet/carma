@@ -98,7 +98,7 @@ export {
   polygonHierarchyFromPolygonCoords,
   removeGroundPrimitiveById,
 } from "./lib/utils/cesiumGroundPrimitives";
-export { addCesiumMarker, removeCesiumMarker } from "./lib/utils/cesiumMarkers";
+export { addCesiumMarker, removeCesiumMarker } from "./lib/extensions/markers";
 export {
   getIsViewerReadyAsync,
   setupCesiumEnvironment,
