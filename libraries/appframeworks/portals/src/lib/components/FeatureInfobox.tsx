@@ -14,12 +14,16 @@ interface InfoboxProps {
   selectedFeature: any;
   versionData: VersionData;
   bigMobileIconsInsteadOfCollapsing?: boolean;
+  Modal?: React.ComponentType<any> | null;
 }
 
 export const FeatureInfobox = ({
   selectedFeature,
   versionData,
   bigMobileIconsInsteadOfCollapsing = false,
+  Modal = additionalInfoFactory(
+    selectedFeature?.properties?.modal
+  ) as React.ComponentType<any> | null,
 }: InfoboxProps) => {
   const [openModal, setOpenModal] = useState(false);
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
@@ -30,6 +34,7 @@ export const FeatureInfobox = ({
 
   let links = [];
   if (selectedFeature) {
+    console.log("xxx selectedFeature", selectedFeature);
     links = getActionLinksForFeature(selectedFeature, {
       displaySecondaryInfoAction: !!selectedFeature?.properties?.modal,
       setVisibleStateOfSecondaryInfo: () => {
@@ -49,10 +54,11 @@ export const FeatureInfobox = ({
     return text;
   };
 
-  const Modal = additionalInfoFactory(
-    selectedFeature?.properties?.modal
-  ) as React.ComponentType<any> | null;
+  // const Modal = additionalInfoFactory(
+  //   selectedFeature?.properties?.modal
+  // ) as React.ComponentType<any> | null;
   // console.log("xxx selectedFeature.properties", selectedFeature);
+  console.log("xxx selectedFeature.links", links);
   return (
     <>
       {" "}

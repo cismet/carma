@@ -503,6 +503,7 @@ export const InfoBox = ({
               </Dropdown>
             );
           } else {
+            console.log("xxx pure button", li);
             return (
               <Button
                 style={{

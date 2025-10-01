@@ -3,6 +3,7 @@ import { FeatureCollectionContext } from "react-cismap/contexts/FeatureCollectio
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import Menu from "./Menu";
+import Modal from "./Modal";
 import {
   createVectorFeature,
   FeatureInfobox,
@@ -56,10 +57,11 @@ const TZBaumbewirtschaftung = () => {
     "title:p.baumart_botanisch + ' (' + p.standort_nr + '.' + p.zusatz + '.' + p.lfd_nr_str + ')'",
     "additionalInfo:' (*' + p.pflanzjahr + ' / ' + p.standalter_jahr + ')' + '\\n\\n' + p.hoehe_m + 'm / ' + p.stammumfang_cm + 'cm'",
     "subtitle: p.ortlicher_bezug",
-    "url:'https://cismet.de'",
-    "email:'info@cismet.de'",
-    "tel:'01709120394'",
-    "genericLinks: [{url: 'fahrplanauskunft', tooltip:'Zur Fahrplanauskunft', iconname: 'bus'}]",
+    "modal:'xxx'",
+    // "url:'https://cismet.de'",
+    // "email:'info@cismet.de'",
+    // "tel:'01709120394'",
+    "genericLinks: [{url: 'https://maps.google.com', tooltip:'Zur Fahrplanauskunft', iconname: 'tasks'}]",
   ];
 
   function computeLatestStatus(actions) {
@@ -140,8 +142,9 @@ const TZBaumbewirtschaftung = () => {
             infoBox={
               <FeatureInfobox
                 selectedFeature={selectedFeature}
-                versionInfo={versionData}
+                versionData={versionData}
                 bigMobileIconsInsteadOfCollapsing={true}
+                Modal={Modal}
               />
             }
             contactButtonEnabled={false}
