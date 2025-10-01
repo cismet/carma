@@ -63,6 +63,16 @@
       "sourceMapPathOverrides": {
         "http://localhost:4200/src/*": "${workspaceFolder}/playgrounds/cesium-reference/src/*"
       }
+    },
+    {
+      "type": "chrome",
+      "request": "launch",
+      "name": "Teilzwilling Baumbewirtschaftung:4200",
+      "url": "http://localhost:4200/#/?lat=51.25810803312697&lng=7.172436118125916&zoom=18",
+      "webRoot": "${workspaceFolder}",
+      "sourceMapPathOverrides": {
+        "http://localhost:4200/src/*": "${workspaceFolder}/apps/topicmaps/tz-baumbewirtschaftung/src/*"
+      }
     }
   ]
 }
