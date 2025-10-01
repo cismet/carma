@@ -94,24 +94,25 @@ export function App() {
           </ControlButtonStyler>
         </Control>
         {isModeMeasurement && (
-          <InfoBoxMeasurement
-            measurementsData={measurementShapes}
-            visibleShapesData={visibleShapes}
-            activeShape={activeShape}
-            moveToShape={moveToShape}
-            updateShape={updateShape}
-            drawingMode={ifDrawing}
-            mapMovingEnd={mapMovingEnd}
-            setMoveToShape={(id) => dispatch(setMoveToShape(id))}
-            setActiveShape={(id) => dispatch(setActiveShape(id))}
-            setUpdateShape={(s) => dispatch(setUpdateShape(s))}
-            setDeleteAll={() => dispatch(setDeleteAll(true))}
-            setMapMovingEnd={() => dispatch(setMapMovingEnd(false))}
-            setShowAll={() => dispatch(setShowAll(true))}
-            updateTitle={(shapeId, customTitle) =>
-              dispatch(updateTitle(shapeId, customTitle))
-            }
-          />
+          // <InfoBoxMeasurement
+          //   measurementsData={measurementShapes}
+          //   visibleShapesData={visibleShapes}
+          //   activeShape={activeShape}
+          //   moveToShape={moveToShape}
+          //   updateShape={updateShape}
+          //   drawingMode={ifDrawing}
+          //   mapMovingEnd={mapMovingEnd}
+          //   setMoveToShape={(id) => dispatch(setMoveToShape(id))}
+          //   setActiveShape={(id) => dispatch(setActiveShape(id))}
+          //   setUpdateShape={(s) => dispatch(setUpdateShape(s))}
+          //   setDeleteAll={() => dispatch(setDeleteAll(true))}
+          //   setMapMovingEnd={() => dispatch(setMapMovingEnd(false))}
+          //   setShowAll={() => dispatch(setShowAll(true))}
+          //   updateTitle={(shapeId, customTitle) =>
+          //     dispatch(updateTitle(shapeId, customTitle))
+          //   }
+          // />
+          <></>
         )}
       </ControlLayout>
       <TopicMapComponent
@@ -124,7 +125,7 @@ export function App() {
         <MapMeasurementLib
           // state
           measurementShapes={measurementShapes}
-          activeShape={activeShape}
+          // activeShape={activeShape}
           visibleShapes={visibleShapes}
           moveToShape={moveToShape}
           mode={mode}
@@ -134,7 +135,7 @@ export function App() {
           // callbacks mapped to redux
           toggleUIMode={() => dispatch(toggleMeasurementMode() as any)}
           setShapes={(s) => dispatch(setShapes(s))}
-          setActiveShape={(id) => dispatch(setActiveShape(id))}
+          // setActiveShape={(id) => dispatch(setActiveShape(id))}
           setVisibleShapes={(s) => dispatch(setVisibleShapes(s))}
           setDrawingShape={(b) => dispatch(setDrawingShape(b))}
           setShowAll={(b) => dispatch(setShowAll(b))}

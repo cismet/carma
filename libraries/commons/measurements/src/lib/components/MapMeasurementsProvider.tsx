@@ -1,4 +1,4 @@
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 export type ActiveShape = null | number | string | any;
 export interface MapMeasurementsContextType {
   activeShape: ActiveShape;
@@ -17,6 +17,11 @@ export const MapMeasurementsProvider = ({
   children: React.ReactNode;
 }) => {
   const [activeShape, setActiveShape] = useState<ActiveShape>(null);
+
+  //   useEffect(() => {
+  //     console.log("xxx activeShape", activeShape);
+  //   }, [activeShape]);
+
   return (
     <MapMeasurementsContext.Provider value={{ activeShape, setActiveShape }}>
       {children}

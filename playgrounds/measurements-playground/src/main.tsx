@@ -12,6 +12,7 @@ import "react-bootstrap-typeahead/css/Typeahead.css";
 import "leaflet/dist/leaflet.css";
 import { PersistGate } from "redux-persist/integration/react";
 import { persistStore } from "redux-persist";
+import { MapMeasurementsProvider } from "@carma-commons/measurements";
 
 const persistor = persistStore(store);
 
@@ -22,9 +23,11 @@ root.render(
   <StrictMode>
     <Provider store={store}>
       <PersistGate loading={null} persistor={persistor}>
-        <TopicMapContextProvider>
-          <App />
-        </TopicMapContextProvider>
+        <MapMeasurementsProvider>
+          <TopicMapContextProvider>
+            <App />
+          </TopicMapContextProvider>
+        </MapMeasurementsProvider>
       </PersistGate>
     </Provider>
   </StrictMode>
