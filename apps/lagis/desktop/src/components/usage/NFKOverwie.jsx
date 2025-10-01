@@ -4,7 +4,7 @@ import ToggleModal from "../ui/control-board/ToggleModal";
 import TableCustom from "../ui/tables/TableCustom";
 import ModalForm from "../ui/forms/ModalForm";
 import { EuroCircleOutlined } from "@ant-design/icons";
-import { Button, Tag } from "antd";
+import { Button, Tag, Tooltip } from "antd";
 import { useState, useEffect } from "react";
 import { nanoid } from "@reduxjs/toolkit";
 import { compare, formatPrice } from "../../core/tools/helper";
@@ -14,6 +14,9 @@ const columns = [
   {
     title: nutzung.overviewTable.anlageklasseCol,
     dataIndex: "anlageklasse",
+    render: (record, row) => {
+      return <Tooltip title={row.anlageklasseKey}>{record}</Tooltip>;
+    },
     sorter: (a, b) => compare(a.anlageklasse, b.anlageklasse),
   },
   {

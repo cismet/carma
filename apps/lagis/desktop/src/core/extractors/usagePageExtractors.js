@@ -133,6 +133,7 @@ export function NFKOverwieExtractor(dataIn) {
     const formattedCurrentUsage = currentUsage.map((u) => ({
       id: u.id,
       anlageklasse: u.anlageklasseName,
+      anlageklasseKey: u.anlageklasse,
       summe: formatPrice(u.summe),
       stille: formatPrice(stille),
     }));
