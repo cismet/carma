@@ -192,7 +192,6 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
 
     const leaflet = routedMapRef.current?.leafletMap?.leafletElement;
 
-    await prepareLeafletForTransition(leaflet);
     // Do not transition if we cannot pick ground from depth (ellipsoid-only is not allowed)
     const { scenePosition: groundPos, coordinates: cartographic } =
       pickViewerCanvasCenter(cesiumContext, { getCoordinates: true });
