@@ -1,9 +1,13 @@
 import { useCallback, useEffect, useRef } from "react";
+
+import L from "leaflet";
+
 import { useHashState } from "../contexts/HashStateProvider";
 
 import { cesiumClearParamKeys } from "@carma-mapping/engines/cesium";
+import { gatedLeafletSetView } from "@carma-mapping/engines/leaflet";
 import { isMapCenterZoomEquivalent } from "@carma-commons/utils";
-import { Degrees } from "@carma/types";
+import { Degrees, Zoom256 } from "@carma/types";
 
 export type LatLngZoom = { lat: number; lng: number; zoom: number };
 export type CesiumSceneChangeEvent = { hashParams: Record<string, string> };
@@ -222,12 +226,12 @@ export function useMapHashRouting({
         };
         scheduleClear("moveend");
         scheduleClear("zoomend");
-        if (typeof map.setView === "function") {
-          map.setView({ lat, lng }, zoom);
-        } else if (typeof map.panTo === "function") {
-          map.panTo({ lat, lng });
-          if (typeof map.setZoom === "function") map.setZoom(zoom);
-        }
+        gatedLeafletSetView(
+          map as unknown as L.Map,
+          "hash popstate",
+          L.latLng(lat, lng),
+          zoom as Zoom256
+        );
       },
       { keys: ["lat", "lng", "zoom"] }
     );

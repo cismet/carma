@@ -1,14 +1,17 @@
-import React from "react";
-import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
-import "react-cismap/topicMaps.css";
-import "leaflet/dist/leaflet.css";
 import { useContext, useEffect, useRef, useState } from "react";
+
+import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+import { LatLngBounds } from "leaflet";
+
 import { FeatureCollectionDisplay } from "react-cismap";
+import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent.js";
+
 import { stylerGeometrienStyle } from "../utils/helper";
 import { getBoundsForFeatureArray } from "../utils/mappingTools";
-import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent.js";
-import { LatLngBounds } from "leaflet";
 import { MapProps } from "../..";
+
+import "react-cismap/topicMaps.css";
+import "leaflet/dist/leaflet.css";
 
 const mockExtractor = (input) => {
   return {
@@ -67,7 +70,8 @@ export const Map = <T,>({
     }
 
     if (map && bb) {
-      map.fitBounds(bb);
+      const bounds = new L.LatLngBounds(bb);
+      gatedLeafletFitBounds(map, "fitMapBounds", bounds);
     }
   }
 
@@ -99,9 +103,10 @@ export const Map = <T,>({
           }
         });
 
-        const bounds = getBoundsForFeatureArray(feature);
+        const bb = getBoundsForFeatureArray(feature);
+        const bounds = new L.LatLngBounds(bb);
 
-        map.fitBounds(bounds);
+        gatedLeafletFitBounds(map, "zoomToFeature", bounds);
       }
     }
   }, [selectedFeature]);

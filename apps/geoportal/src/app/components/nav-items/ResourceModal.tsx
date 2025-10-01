@@ -1,11 +1,16 @@
 import { message } from "antd";
 import { useContext, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import * as L from "leaflet";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import { utils } from "@carma-appframeworks/portals";
 import type { Item, Layer } from "@carma/types";
+import {
+  gatedLeafletSetZoom,
+  gatedLeafletFlyTo,
+} from "@carma-mapping/engines/leaflet";
 import { LayerLib } from "@carma-mapping/layers";
 import { useAuth } from "@carma-providers/auth";
 
@@ -37,6 +42,7 @@ import {
 } from "../../store/slices/ui";
 import { apiUrl } from "../../constants/discover";
 import store from "../../store";
+
 const ResourceModal = () => {
   const [discoverItems, setDiscoverItems] = useState([]);
 
@@ -92,11 +98,16 @@ const ResourceModal = () => {
             const lng = layer.settings.lng || map.getCenter().lng;
 
             if (changePosition) {
-              map.flyTo([lat, lng], zoom);
+              gatedLeafletFlyTo(
+                map,
+                "updateLayers",
+                new L.LatLng(lat, lng),
+                zoom
+              );
             }
 
             if (changeZoomLevel) {
-              map.setZoom(zoom);
+              gatedLeafletSetZoom(map, "updateLayers", zoom);
             }
           }
           messageApi.open({

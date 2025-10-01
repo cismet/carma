@@ -1,6 +1,7 @@
 import { useContext, useEffect, useState, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
+import * as L from "leaflet";
 import { isEqual } from "lodash";
 import envelope from "@turf/envelope";
 
@@ -11,7 +12,12 @@ import InfoBoxHeader from "react-cismap/topicmaps/InfoBoxHeader";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
 
+import { InfoBox } from "@carma-appframeworks/portals";
 import { additionalInfoFactory } from "@carma-collab/wuppertal/geoportal";
+import {
+  gatedLeafletFitBounds,
+  gatedLeafletSetView,
+} from "@carma-mapping/engines/leaflet";
 
 import {
   setPreferredLayerId,
@@ -29,10 +35,9 @@ import {
 import { getLayers } from "../../store/slices/mapping";
 import { getCoordinates } from "../GeoportalMap/topicmap.utils";
 import { truncateString, updateUrlWithCoordinates } from "./featureInfoHelper";
+import LoadingInfoBox from "./LoadingInfoBox";
 
 import "../infoBox.css";
-import LoadingInfoBox from "./LoadingInfoBox";
-import { InfoBox } from "@carma-appframeworks/portals";
 
 interface InfoBoxProps {
   pos?: [number, number];
@@ -122,11 +127,15 @@ const LibreFeatureInfoBox = ({ pos, libreMap }: InfoBoxProps) => {
             const coordinates = getCoordinates(selectedFeature.geometry);
 
             if (routedMapRef) {
-              routedMapRef.leafletMap.leafletElement.setView(
-                [coordinates[1], coordinates[0]],
-                selectedFeature.properties.zoom
-                  ? selectedFeature.properties.zoom
-                  : 20
+              const center = new L.LatLng(coordinates[1], coordinates[0]);
+              const zoom = selectedFeature.properties.zoom
+                ? selectedFeature.properties.zoom
+                : 20;
+              gatedLeafletSetView(
+                routedMapRef.leafletMap.leafletElement,
+                "zoomToFeature",
+                center,
+                zoom
               );
             } else if (libreMap) {
               libreMap.flyTo({
@@ -141,10 +150,16 @@ const LibreFeatureInfoBox = ({ pos, libreMap }: InfoBoxProps) => {
             const bbox = envelope(selectedFeature.geometry).bbox;
 
             if (routedMapRef) {
-              routedMapRef.leafletMap.leafletElement.fitBounds([
+              const bounds = L.latLngBounds([
                 [bbox[3], bbox[2]],
                 [bbox[1], bbox[0]],
               ]);
+
+              gatedLeafletFitBounds(
+                routedMapRef.leafletMap.leafletElement,
+                "zoomToFeature",
+                bounds
+              );
             } else if (libreMap) {
               libreMap.fitBounds(
                 [

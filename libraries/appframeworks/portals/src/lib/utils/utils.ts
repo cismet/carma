@@ -1,9 +1,17 @@
 import { isNaN } from "lodash";
 
-import type { Item, Layer } from "@carma/types";
-import { extractCarmaConfig } from "@carma-commons/utils";
 import envelope from "@turf/envelope";
 import L from "leaflet";
+
+import type { Item, Layer } from "@carma/types";
+import { extractCarmaConfig } from "@carma-commons/utils";
+
+import {
+  gatedLeafletFitBounds,
+  gatedLeafletSetView,
+} from "@carma-mapping/engines/leaflet";
+
+const DEFAULT_LEAFLET_ZOOM = 20;
 
 export const parseDescription = (description: string) => {
   const result = { inhalt: "", sichtbarkeit: "", nutzung: "" };
@@ -270,11 +278,15 @@ export const zoomToFeature = (
   if (selectedFeature.properties?.wmsProps?.bounds) {
     const bbox = JSON.parse(selectedFeature.properties.wmsProps.bounds);
     if (routedMapRef) {
-      routedMapRef.leafletMap.leafletElement.fitBounds(
-        [
-          [bbox[3], bbox[2]],
-          [bbox[1], bbox[0]],
-        ],
+      const bounds = L.latLngBounds([
+        [bbox[3], bbox[2]],
+        [bbox[1], bbox[0]],
+      ]);
+
+      gatedLeafletFitBounds(
+        routedMapRef.leafletMap.leafletElement,
+        "zoomToFeature",
+        bounds,
         {
           padding: padding,
         }
@@ -286,20 +298,28 @@ export const zoomToFeature = (
       const coordinates = getCoordinates(selectedFeature.geometry);
 
       if (routedMapRef) {
-        routedMapRef.leafletMap.leafletElement.setView(
-          [coordinates[1], coordinates[0]],
-          selectedFeature.properties.zoom ? selectedFeature.properties.zoom : 20
+        const leafletZoom = selectedFeature.properties.zoom
+          ? selectedFeature.properties.zoom
+          : DEFAULT_LEAFLET_ZOOM;
+        gatedLeafletSetView(
+          routedMapRef.leafletMap.leafletElement,
+          "zoomToFeature",
+          new L.LatLng(coordinates[1], coordinates[0]),
+          leafletZoom
         );
       }
     } else {
       const bbox = envelope(selectedFeature.geometry).bbox;
 
       if (routedMapRef) {
-        routedMapRef.leafletMap.leafletElement.fitBounds(
-          [
-            [bbox[3], bbox[2]],
-            [bbox[1], bbox[0]],
-          ],
+        const bounds = new L.LatLngBounds([
+          [bbox[3], bbox[2]],
+          [bbox[1], bbox[0]],
+        ]);
+        gatedLeafletFitBounds(
+          routedMapRef.leafletMap.leafletElement,
+          "zoomToFeature",
+          bounds,
           {
             padding: padding,
           }
