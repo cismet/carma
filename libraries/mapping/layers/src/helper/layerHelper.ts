@@ -48,6 +48,13 @@ export const parseDescription = (description: string) => {
     return [{ title: "Inhalt", description: description.trim() }];
   }
 
+  // Check if there's text before the first title match
+  const firstMatchPosition = titleMatches[0].position;
+  let unmatchedTextAtStart = "";
+  if (firstMatchPosition > 0) {
+    unmatchedTextAtStart = description.substring(0, firstMatchPosition).trim();
+  }
+
   // Process each title and extract its description
   for (let i = 0; i < titleMatches.length; i++) {
     const currentMatch = titleMatches[i];
@@ -69,6 +76,20 @@ export const parseDescription = (description: string) => {
       title: titleWithoutColon,
       description: descriptionText,
     });
+  }
+
+  if (unmatchedTextAtStart && titleMatches.length > 1) {
+    const inhaltIndex = results.findIndex((item) => item.title === "Inhalt");
+
+    if (inhaltIndex !== -1) {
+      results[inhaltIndex].description =
+        unmatchedTextAtStart + "\n\n" + results[inhaltIndex].description;
+    } else {
+      results.unshift({
+        title: "Inhalt",
+        description: unmatchedTextAtStart,
+      });
+    }
   }
 
   return results;

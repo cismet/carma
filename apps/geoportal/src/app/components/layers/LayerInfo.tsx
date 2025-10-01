@@ -1,5 +1,4 @@
 import { Tabs } from "antd";
-import { parseDescription } from "../../helper/helper";
 import { tabItems } from "./items";
 import { useDispatch, useSelector } from "react-redux";
 import { getUIActiveTabKey, setUIActiveTabKey } from "../../store/slices/ui";
@@ -8,6 +7,7 @@ import { useContext, useEffect, useState } from "react";
 import "./text.css";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import LayerInfoWrapper from "./LayerInfoWrapper";
+import { parseDescription } from "@carma-mapping/layers";
 
 interface LayerInfoProps {
   description: string;
@@ -92,22 +92,25 @@ const LayerInfo = ({ description, legend, zoomLevels }: LayerInfoProps) => {
         <>
           <div className="flex sm:flex-row flex-col overflow-auto gap-2 w-full h-full overflow-y-hidden">
             <div className="h-full flex flex-col gap-2 w-full sm:w-[80%] hide-tabs">
-              {parsedDescription && (
+              {parsedDescription && parsedDescription.length > 0 && (
                 <div>
-                  <h5 className="font-semibold">Inhalt</h5>
-                  <p className="text-sm">{parsedDescription.inhalt}</p>
-                  {parsedDescription.sichtbarkeit.slice(0, -1) !==
-                    "öffentlich" &&
-                    parsedDescription.sichtbarkeit !== "" && (
-                      <>
-                        <h5 className="font-semibold">Sichtbarkeit</h5>
-                        <p className="text-sm">
-                          {parsedDescription.sichtbarkeit.slice(0, -1)}
-                        </p>
-                      </>
-                    )}
-                  <h5 className="font-semibold">Nutzung</h5>
-                  <p className="text-sm">{parsedDescription.nutzung}</p>
+                  {parsedDescription.map((section, index) => {
+                    if (
+                      section.title === "Sichtbarkeit" &&
+                      (section.description === "öffentlich." ||
+                        section.description.slice(0, -1) === "öffentlich" ||
+                        section.description === "")
+                    ) {
+                      return null;
+                    }
+
+                    return (
+                      <div key={`section-${index}`}>
+                        <h5 className="font-semibold">{section.title}</h5>
+                        <p className="text-sm">{section.description}</p>
+                      </div>
+                    );
+                  })}
                 </div>
               )}
               <hr className="h-px my-0 bg-gray-300 border-0 w-full" />
