@@ -31,11 +31,11 @@ type TransitionOptions = {
 const noop = () => {};
 
 const defaultTransitionOptions: Required<TransitionOptions> = {
-  epsilon: 0.05,
-  limit: 5,
+  epsilon: 0.1,
+  limit: 20,
   cause: "not specified",
   onComplete: noop,
-  fallbackHeight: 150,
+  fallbackHeight: 350,
 };
 
 /**
@@ -210,7 +210,6 @@ export const tiledMapToCesium = async (
       "L2C [2D3D|CESIUM|CAMERA] setview",
       iterations,
       newCameraHeight,
-      updatedDestination
     );
     ctx.withCamera((camera) => {
       camera.setView({
