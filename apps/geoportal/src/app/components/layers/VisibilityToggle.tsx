@@ -43,9 +43,6 @@ const VisibilityToggle = ({
         } else {
           if (isBackgroundLayer) {
             dispatch(changeBackgroundVisibility(true));
-            if (backgroundLayer.opacity === 0) {
-              dispatch(changeBackgroundOpacity({ opacity: 1 }));
-            }
           } else {
             dispatch(changeVisibility({ id, visible: true }));
           }

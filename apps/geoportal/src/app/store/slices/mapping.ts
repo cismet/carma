@@ -161,9 +161,7 @@ const slice = createSlice({
     },
     changeBackgroundVisibility(state, action: PayloadAction<boolean>) {
       if (!action.payload) {
-        state.backgroundLayer.opacity = 0;
         state.focusMode = true;
-        state.paleOpacityValue = defaultOpacity;
       }
       state.backgroundLayer.visible = action.payload;
     },
