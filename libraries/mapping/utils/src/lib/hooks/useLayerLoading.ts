@@ -152,6 +152,7 @@ export const useLayerLoading = ({ map, layer }: UseLayerLoadingProps) => {
           })
         );
         setListenersAttached(false);
+        cleanupAllListeners();
       } else {
         setLoading(false);
         setListenersAttached(true);
