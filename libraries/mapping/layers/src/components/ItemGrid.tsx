@@ -15,7 +15,7 @@ interface ItemGridProps {
   addFavorite: any;
   removeFavorite: any;
   setPreview: any;
-  isSearch?: boolean;
+  isSearchCategory?: boolean;
   loadingData: boolean;
   currentCategoryIndex: number;
   discoverProps?: {
@@ -23,7 +23,12 @@ interface ItemGridProps {
     apiUrl: string;
     daqKey: string;
   };
+  currentlySearching?: boolean;
 }
+
+const NoItemFound = () => {
+  return <div className="text-xl">Keine Ergebnisse gefunden</div>;
+};
 
 const ItemGrid = ({
   categories,
@@ -33,10 +38,11 @@ const ItemGrid = ({
   addFavorite,
   removeFavorite,
   setPreview,
-  isSearch,
+  isSearchCategory,
   loadingData,
   currentCategoryIndex,
   discoverProps,
+  currentlySearching,
 }: ItemGridProps) => {
   const loadingCapabilities = useSelector(getLoadingCapabilities);
   if (loadingCapabilities && currentCategoryIndex === 3) {
@@ -66,7 +72,17 @@ const ItemGrid = ({
     return paths;
   };
 
-  if (isSearch) {
+  const getNumberOfLayers = (
+    categories: { Title: string; layers: Item[] }[]
+  ) => {
+    let numberOfLayers = 0;
+    categories.forEach((category) => {
+      numberOfLayers += category.layers.length;
+    });
+    return numberOfLayers;
+  };
+
+  if (isSearchCategory) {
     const categoriesWithPath = categories.map((category) => {
       return {
         ...category,
@@ -78,6 +94,10 @@ const ItemGrid = ({
         }),
       };
     });
+
+    if (getNumberOfLayers(categoriesWithPath) === 0) {
+      return <NoItemFound />;
+    }
 
     return (
       <>
@@ -118,6 +138,10 @@ const ItemGrid = ({
         })}
       </>
     );
+  }
+
+  if (getNumberOfLayers(categories) === 0 && currentlySearching) {
+    return <NoItemFound />;
   }
 
   return (

@@ -1080,10 +1080,11 @@ export const NewLibModal = ({
                   addFavorite={addFavorite}
                   removeFavorite={removeFavorite}
                   setPreview={setPreview}
-                  isSearch={selectedNavItemIndex === 5}
+                  isSearchCategory={selectedNavItemIndex === 5}
                   loadingData={loadingData}
                   currentCategoryIndex={selectedNavItemIndex}
                   discoverProps={discoverProps}
+                  currentlySearching={!!debouncedSearchTerm}
                 />
               )}
               {selectedNavItemIndex !== 2 &&
