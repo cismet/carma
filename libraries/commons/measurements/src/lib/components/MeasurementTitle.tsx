@@ -1,5 +1,15 @@
 import { useState, useEffect } from "react";
 
+interface MeasurementTitleProps {
+  title: string;
+  shapeId: number | string;
+  order: number;
+  updateTitleMeasurementById: (shapeId: number | string, title: string) => void;
+  setUpdateMeasurementStatus: (status: boolean) => void;
+  isCollapsed?: boolean;
+  collapsedContent?: string;
+}
+
 const MeasurementTitle = ({
   title,
   shapeId,
@@ -8,7 +18,7 @@ const MeasurementTitle = ({
   setUpdateMeasurementStatus,
   isCollapsed,
   collapsedContent,
-}) => {
+}: MeasurementTitleProps) => {
   const [content, setContent] = useState(title.trim());
   const [oldContent, setOldContent] = useState(title);
 
@@ -18,7 +28,7 @@ const MeasurementTitle = ({
     <div>
       <span
         onBlur={(t) => {
-          const trimmedContent = t.currentTarget.textContent.trim();
+          const trimmedContent = t.currentTarget.textContent?.trim() || '';
           setContent(trimmedContent);
 
           if (trimmedContent.length === 0) {
@@ -45,7 +55,7 @@ const MeasurementTitle = ({
 
 export default MeasurementTitle;
 
-function capitalizeFirstLetter(text) {
+function capitalizeFirstLetter(text: string): string {
   if (!text) return "";
   return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase();
 }

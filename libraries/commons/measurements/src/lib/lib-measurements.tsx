@@ -16,11 +16,11 @@ import useDeviceDetection from "./hooks/useDeviceDetection";
 export interface MeasurementShape {
   shapeId: number | string;
   number: number;
-  coordinates?: any;
-  [key: string]: any;
+  coordinates?: unknown;
+  [key: string]: unknown;
 }
 
-export type UIModeType = string | "measurement" | "default" | any;
+export type UIModeType = string | "measurement" | "default";
 export interface MapMeasurementProps {
   measurementShapes: MeasurementShape[];
   activeShape?: number | string | null;
@@ -32,7 +32,7 @@ export interface MapMeasurementProps {
   mode?: UIModeType;
 
   // Callbacks (replacements for dispatch(action))
-  toggleUIMode: (mode: any) => void;
+  toggleUIMode: (mode: UIModeType) => void;
 
   setShapes: (shapes: MeasurementShape[]) => void;
   setActiveShape: (id: number | string | null) => void;
@@ -43,11 +43,11 @@ export interface MapMeasurementProps {
   setMoveToShape: (id: number | string | null) => void;
   setUpdateShape: (status: boolean) => void;
   setMapMovingEnd: (status: boolean) => void;
-  addShape: (any) => void;
+  addShape: (layer: unknown) => void;
   deleteShapeById: (id: number | string) => void;
   updateShapeById: (
     id: number | string,
-    newCoordinates?: any,
+    newCoordinates?: unknown,
     newDistance?: number,
     newSquare?: number
   ) => void;
@@ -96,7 +96,7 @@ export function MapMeasurementLib({
 }: MapMeasurementProps) {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
 
-  const [measureControl, setMeasureControl] = useState(null);
+  const [measureControl, setMeasureControl] = useState<any>(null);
   const [visiblePolylines, setVisiblePolylines] = useState();
   const [drawingShape, setDrawingLine] = useState(null);
 
@@ -299,8 +299,8 @@ export function MapMeasurementLib({
   return <div></div>;
 }
 
-function filterArrByIds(arrIds, fullArray) {
-  const finalResult = [];
+function filterArrByIds(arrIds: (string | number)[], fullArray: MeasurementShape[]): MeasurementShape[] {
+  const finalResult: MeasurementShape[] = [];
   fullArray.forEach((currentItem) => {
     if (arrIds.includes(currentItem.shapeId)) {
       finalResult.push(currentItem);
@@ -310,7 +310,7 @@ function filterArrByIds(arrIds, fullArray) {
   return finalResult;
 }
 
-function findLargestNumber(measurements) {
+function findLargestNumber(measurements: MeasurementShape[]): number {
   let largestNumber = 0;
 
   measurements.forEach((item) => {
