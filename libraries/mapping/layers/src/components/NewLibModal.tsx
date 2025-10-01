@@ -259,6 +259,9 @@ export const NewLibModal = ({
 
       const selectedCategoryId = sidebarElements[selectedNavItemIndex].id;
       let categoryContainsResults = false;
+      if (selectedCategoryId === "searchResults") {
+        categoryContainsResults = true;
+      }
       categoriesWithResults.forEach((category) => {
         if (category.id === selectedCategoryId) {
           let subCats = category.categories;
