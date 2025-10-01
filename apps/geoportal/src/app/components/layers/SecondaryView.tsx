@@ -233,6 +233,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, ref) => {
                   isBackgroundLayer={isBaseLayer}
                   opacity={layer.opacity}
                   id={layer.id}
+                  isVisible={layer.visible}
                 />
               </div>
             </div>

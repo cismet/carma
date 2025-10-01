@@ -12,6 +12,7 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 interface OpacitySliderProps {
   isBackgroundLayer?: boolean;
+  isVisible?: boolean;
   opacity: number;
   id: string;
 }
@@ -23,6 +24,7 @@ const formatter: NonNullable<SliderSingleProps["tooltip"]>["formatter"] = (
 const OpacitySlider = ({
   isBackgroundLayer,
   opacity,
+  isVisible,
   id,
 }: OpacitySliderProps) => {
   const dispatch = useDispatch();
@@ -37,6 +39,7 @@ const OpacitySlider = ({
         routedMapRef?.leafletMap?.leafletElement.dragging.disable();
       }}
       step={0.1}
+      disabled={!isVisible}
       onChange={(value) => {
         if (isBackgroundLayer) {
           dispatch(changeBackgroundOpacity({ opacity: value }));

@@ -73,6 +73,7 @@ const LayerRow = ({ layer, id, isBackgroundLayer, index }: LayerRowProps) => {
         isBackgroundLayer={isBackgroundLayer}
         opacity={layer.opacity}
         id={layer.id}
+        isVisible={layer.visible}
       />
       <VisibilityToggle
         visible={layer.visible}
