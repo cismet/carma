@@ -70,6 +70,44 @@ export function App() {
 
   return (
     <>
+      <ControlLayout ifStorybook={false}>
+        <Control position="topleft" order={10}>
+          <ZoomControl />
+        </Control>
+        <Control position="topleft" order={10}>
+          <ControlButtonStyler
+            onClick={() => {
+              if (!isModeMeasurement) {
+                dispatch(setDrawingShape(false));
+              }
+              dispatch(toggleUIMode(UIMode.MEASUREMENT));
+            }}
+          >
+            <FontAwesomeIcon
+              icon={faRuler}
+              style={{ color: isModeMeasurement ? "blue" : "black" }}
+            />
+          </ControlButtonStyler>
+        </Control>
+        <InfoBoxMeasurement
+          measurementsData={measurementShapes}
+          visibleShapesData={visibleShapes}
+          activeShape={activeShape}
+          moveToShape={moveToShape}
+          updateShape={updateShape}
+          drawingMode={ifDrawing}
+          mapMovingEnd={mapMovingEnd}
+          setMoveToShape={(id) => dispatch(setMoveToShape(id))}
+          setActiveShape={(id) => dispatch(setActiveShape(id))}
+          setUpdateShape={(s) => dispatch(setUpdateShape(s))}
+          setDeleteAll={() => dispatch(setDeleteAll(true))}
+          setMapMovingEnd={() => dispatch(setMapMovingEnd(false))}
+          setShowAll={() => dispatch(setShowAll(true))}
+          updateTitle={(shapeId, customTitle) =>
+            dispatch(updateTitle(shapeId, customTitle))
+          }
+        />
+      </ControlLayout>
       <TopicMapComponent
         gazetteerSearchComponent={<></>}
         locatorControl={false}
@@ -120,44 +158,6 @@ export function App() {
           }
           setStartDrawing={(b) => dispatch(setStartDrawingAction(b))}
         />
-        <ControlLayout ifStorybook={false}>
-          <Control position="topleft" order={10}>
-            <ZoomControl />
-          </Control>
-          <Control position="topleft" order={10}>
-            <ControlButtonStyler
-              onClick={() => {
-                if (!isModeMeasurement) {
-                  dispatch(setDrawingShape(false));
-                }
-                dispatch(toggleUIMode(UIMode.MEASUREMENT));
-              }}
-            >
-              <FontAwesomeIcon
-                icon={faRuler}
-                style={{ color: isModeMeasurement ? "blue" : "black" }}
-              />
-            </ControlButtonStyler>
-          </Control>
-          <InfoBoxMeasurement
-            measurementsData={measurementShapes}
-            visibleShapesData={visibleShapes}
-            activeShape={activeShape}
-            moveToShape={moveToShape}
-            updateShape={updateShape}
-            drawingMode={ifDrawing}
-            mapMovingEnd={mapMovingEnd}
-            setMoveToShape={(id) => dispatch(setMoveToShape(id))}
-            setActiveShape={(id) => dispatch(setActiveShape(id))}
-            setUpdateShape={(s) => dispatch(setUpdateShape(s))}
-            setDeleteAll={() => dispatch(setDeleteAll(true))}
-            setMapMovingEnd={() => dispatch(setMapMovingEnd(false))}
-            setShowAll={() => dispatch(setShowAll(true))}
-            updateTitle={(shapeId, customTitle) =>
-              dispatch(updateTitle(shapeId, customTitle))
-            }
-          />
-        </ControlLayout>
       </TopicMapComponent>
     </>
   );
