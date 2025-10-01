@@ -20,12 +20,18 @@ import { getScenePixelSize } from "./pixels";
 // TODO: move to config or formalize the starting distance value
 const START_DISTANCE = 1000;
 
+export enum ElevationReference {
+  SURFACE = "surface",
+  TERRAIN = "terrain",
+}
+
 type TransitionOptions = {
   epsilon?: number;
   limit?: number;
   cause?: string;
   onComplete?: Function;
   fallbackHeight?: number;
+  preferredElevationReference?: ElevationReference;
 };
 
 const noop = () => {};
@@ -36,6 +42,7 @@ const defaultTransitionOptions: Required<TransitionOptions> = {
   cause: "not specified",
   onComplete: noop,
   fallbackHeight: 350,
+  preferredElevationReference: ElevationReference.SURFACE,
 };
 
 /**
@@ -50,6 +57,7 @@ const defaultTransitionOptions: Required<TransitionOptions> = {
  * @param {string} options.cause - The cause of the transition.
  * @param {Function} options.onComplete - The callback function to be called when the transition is complete.
  * @param {number} options.fallbackHeight - The fallback height for the transition.
+ * @param {PreferredHeight} options.preferredHeight - The preferred height for the transition.
  * @returns {Promise<boolean>} - A promise that resolves to true if the transition was successful, false otherwise.
  */
 
@@ -86,8 +94,14 @@ export const tiledMapToCesium = async (
     asRadians(latRad)
   );
 
-  const { epsilon, limit, cause, onComplete, fallbackHeight } =
-    normalizeOptions(options, defaultTransitionOptions);
+  const {
+    epsilon,
+    limit,
+    cause,
+    onComplete,
+    fallbackHeight,
+    preferredElevationReference,
+  } = normalizeOptions(options, defaultTransitionOptions);
 
   const baseComputedPixelResolution = getCesiumCameraPixelDimensionForDistance(
     ctx,
@@ -131,12 +145,35 @@ export const tiledMapToCesium = async (
 
   const { terrain, surface } = elevation;
 
-  console.debug(
-    "L2C [2D3D|CESIUM|CAMERA] elevations",
-    terrain,
-    surface,
-    fallbackHeight
-  );
+  if (
+    preferredElevationReference === ElevationReference.TERRAIN &&
+    terrain?.height !== undefined
+  ) {
+    cameraGroundPosition.height = terrain.height;
+    console.debug(
+      "L2C [2D3D|CESIUM|CAMERA] terrain height applied",
+      terrain.height
+    );
+  } else if (
+    preferredElevationReference === ElevationReference.SURFACE &&
+    surface?.height !== undefined
+  ) {
+    cameraGroundPosition.height = surface.height;
+    console.debug(
+      "L2C [2D3D|CESIUM|CAMERA] surface height applied",
+      surface.height
+    );
+  } else {
+    cameraGroundPosition.height =
+      surface?.height ?? terrain?.height ?? fallbackHeight;
+    console.debug(
+      "L2C [2D3D|CESIUM|CAMERA] best available height applied",
+      cameraGroundPosition.height,
+      surface?.height,
+      terrain?.height,
+      fallbackHeight
+    );
+  }
 
   const cameraDestinationCartographic = cameraGroundPosition.clone();
   cameraDestinationCartographic.height += computedDistance;
