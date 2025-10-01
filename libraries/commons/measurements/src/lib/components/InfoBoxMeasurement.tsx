@@ -8,6 +8,7 @@ import "../styles/infoBox.css";
 import { Tooltip } from "antd";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { ResponsiveInfoBox } from "@carma-appframeworks/portals";
+import { useMapMeasurementsContext } from "./MapMeasurementsProvider";
 
 export interface MeasurementShape {
   shapeId: number | string;
@@ -21,7 +22,7 @@ export interface MeasurementShape {
 export interface InfoBoxMeasurementProps {
   measurementsData: MeasurementShape[];
   visibleShapesData: MeasurementShape[];
-  activeShape?: number | string | null;
+  // activeShape?: number | string | null;
   moveToShape?: number | string | null;
   updateShape?: boolean;
   drawingMode?: boolean;
@@ -32,7 +33,7 @@ export interface InfoBoxMeasurementProps {
 
   // Actions (previously dispatched)
   setMoveToShape: (id: number | string | null) => void;
-  setActiveShape: (id: number | string | null) => void;
+  // setActiveShape: (id: number | string | null) => void;
   setUpdateShape: (status: boolean) => void;
   setDeleteAll: (value: boolean) => void;
   setMapMovingEnd: (status: boolean) => void;
@@ -43,13 +44,13 @@ export interface InfoBoxMeasurementProps {
 export function InfoBoxMeasurement({
   measurementsData,
   visibleShapesData,
-  activeShape,
+  // activeShape,
   moveToShape,
   updateShape,
   drawingMode,
   mapMovingEnd,
   setMoveToShape,
-  setActiveShape,
+  // setActiveShape,
   setUpdateShape,
   setDeleteAll,
   setMapMovingEnd,
@@ -57,6 +58,7 @@ export function InfoBoxMeasurement({
   updateTitle,
 }: InfoBoxMeasurementProps) {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
+  const { activeShape, setActiveShape } = useMapMeasurementsContext();
 
   const [currentMeasure, setCurrentMeasure] = useState(0);
   const [oldDataLength, setOldDataLength] = useState(measurementsData.length);
