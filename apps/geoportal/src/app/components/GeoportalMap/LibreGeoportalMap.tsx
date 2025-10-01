@@ -626,11 +626,11 @@ const LibreGeoportalMap = ({
     const mapInstance = map.current;
     if (!mapInstance) return;
     const handleMoveEnd = () => {
-      const center = mapInstance.getCenter();
+      const { lat, lng } = mapInstance.getCenter();
       const zoom = zoom512as256(mapInstance.getZoom() as Zoom512);
       handleTopicMapLocationChange({
-        latitude: center.lat as Degrees,
-        longitude: center.lng as Degrees,
+        lat,
+        lng,
         zoom,
       });
     };

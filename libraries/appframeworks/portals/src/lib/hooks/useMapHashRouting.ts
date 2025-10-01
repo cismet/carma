@@ -43,7 +43,12 @@ export function useMapHashRouting({
   const popstateTargetRef = useRef<LatLngZoom | null>(null);
 
   const handleTopicMapLocationChange = useCallback(
-    ({ latitude, longitude, zoom }: LatLngZoom) => {
+    (topicMapChangePayload: { lat: number; lng: number; zoom: number }) => {
+      // as passed back from topic map in locationChangedHandler in TopicMapComponent
+      const latitude = topicMapChangePayload.lat as Degrees;
+      const longitude = topicMapChangePayload.lng as Degrees;
+      const zoom = topicMapChangePayload.zoom as Zoom256;
+
       if (!isMode2d) return;
       if (navMoveInProgressRef.current) {
         console.debug(
@@ -224,7 +229,7 @@ export function createLocationChangeHandler({
   onMismatch,
 }: {
   isMode2d: boolean;
-  onChange: (p: LatLngZoom) => void;
+  onChange: (p: unknown) => void;
   onAfter?: () => void;
   onMismatch?: () => void;
 }) {
