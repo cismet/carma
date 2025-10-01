@@ -60,7 +60,9 @@ export function InfoBoxMeasurement({
 
   const [currentMeasure, setCurrentMeasure] = useState(0);
   const [oldDataLength, setOldDataLength] = useState(measurementsData.length);
-  const [stepAfterMoveToShape, setStepAfterMoveToShape] = useState<number | string | null>(null);
+  const [stepAfterMoveToShape, setStepAfterMoveToShape] = useState<
+    number | string | null
+  >(null);
   const [stepAfterUpdating, setStepAfterUpdating] = useState(false);
   const [stepAfterCreating, setStepAfterCreating] = useState(false);
   const { collapsedInfoBox } = useContext<typeof UIContext>(UIContext);
@@ -156,7 +158,9 @@ export function InfoBoxMeasurement({
     });
   };
 
-  const activeShapeHandler = (shapeId: number | string | null): number | null => {
+  const activeShapeHandler = (
+    shapeId: number | string | null
+  ): number | null => {
     let activeShapePosition: number | null = null;
     visibleShapesData.forEach((s, idx) => {
       if (s.shapeId === shapeId) {
@@ -210,7 +214,10 @@ export function InfoBoxMeasurement({
     setCurrentMeasure(initialCureentMeasure);
   };
 
-  const updateTitleMeasurementById = (shapeId: number | string, customTitle: string) => {
+  const updateTitleMeasurementById = (
+    shapeId: number | string,
+    customTitle: string
+  ) => {
     updateTitle(shapeId, customTitle);
   };
 
@@ -306,7 +313,7 @@ export function InfoBoxMeasurement({
               </div>
               <div className="flex justify-between items-center w-[96%] mt-1 mb-2">
                 <a
-                  className="renderAsLink text-[#0078a8]"
+                  className="renderAsLink text-[#0078a8] cursor-pointer"
                   onClick={decreaseCurrentHandler}
                   data-test-id="switch-measurement-left"
                   style={{ fontSize: "10.5px" }}
@@ -317,7 +324,7 @@ export function InfoBoxMeasurement({
                   {visibleShapesData.length} Messungen angezeigt
                 </span>
                 <a
-                  className="renderAsLink text-[#0078a8]"
+                  className="renderAsLink text-[#0078a8] cursor-pointer"
                   onClick={increaseCurrentHandler}
                   data-test-id="switch-measurement-right"
                   style={{ fontSize: "10.5px" }}
