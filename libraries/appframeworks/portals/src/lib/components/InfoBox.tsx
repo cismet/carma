@@ -508,7 +508,6 @@ export const InfoBox = ({
               </Dropdown>
             );
           } else {
-            console.log("xxx pure button", li);
             // If there's an href, wrap the button in an anchor tag
             if (li.href) {
               return (

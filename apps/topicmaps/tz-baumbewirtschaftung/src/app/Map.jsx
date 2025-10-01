@@ -10,6 +10,7 @@ import {
   SandboxedEvalProvider,
   TopicMapSelectionContent,
   useSelectionTopicMap,
+  getInfoBoxControlObjectFromMappingAndVectorFeature,
 } from "@carma-appframeworks/portals";
 import {
   defaultTypeInference,
@@ -62,6 +63,9 @@ const TZBaumbewirtschaftung = () => {
     // "email:'info@cismet.de'",
     // "tel:'01709120394'",
     "genericLinks: [{url: 'https://maps.google.com', tooltip:'Zur Fahrplanauskunft', iconname: 'tasks'}]",
+    "foto: ['Tilia_x_vulgaris11.jpeg']",
+    //   "foto: 'https://www.wuppertal.de/geoportal/emobil/autos/fotos/wasserstoff_01.jpg'",
+    //   "fotos: ['https://www.wuppertal.de/geoportal/emobil/autos/fotos/wasserstoff_01.jpg','https://www.wuppertal.de/geoportal/emobil/autos/fotos/wasserstoff_02.jpg',   'https://www.wuppertal.de/geoportal/emobil/autos/fotos/wasserstoff_03.jpg',      'https://www.wuppertal.de/geoportal/emobil/autos/fotos/wasserstoff_04.jpg',      'https://www.wuppertal.de/geoportal/emobil/autos/fotos/wasserstoff_05.jpg',      'https://www.wuppertal.de/geoportal/emobil/autos/fotos/wasserstoff_06.jpg' ]",
   ];
 
   function computeLatestStatus(actions) {
@@ -73,23 +77,70 @@ const TZBaumbewirtschaftung = () => {
     if (!actions || actions.length === 0) return false;
     return actions.some((a) => a.status === status);
   }
+  function createInfoBoxControlObject(feature) {
+    const p = feature.properties;
+    const ibo = {
+      headerColor: "#7AB317",
+      header: "Baumbewirtschaftung",
+      title:
+        p.baumart_botanisch +
+        " (" +
+        p.standort_nr +
+        "." +
+        p.zusatz +
+        "." +
+        p.lfd_nr_str +
+        ")",
+      additionalInfo:
+        " (*" +
+        p.pflanzjahr +
+        " / " +
+        p.standalter_jahr +
+        ")" +
+        "\n\n" +
+        p.hoehe_m +
+        "m / " +
+        p.stammumfang_cm +
+        "cm",
+      subtitle: p.ortlicher_bezug,
+      modal: true,
+      // url: "https://cismet.de",
+      // email: "info@cismet.de",
+      // tel: "01709120394",
+      genericLinks: [
+        {
+          action: () => {
+            console.log("xxx");
+          },
+          tooltip: "Status ändern",
+          iconname: "tasks",
+        },
+      ],
+      foto: "demo/mod" + (feature.id % 10) + ".png",
+      //fotos: [of urls]
+      //if there are more than one foto need to be there anyway
+    };
+    return ibo;
+  }
 
   function enrichFeatureCollection(fc) {
     return {
       ...fc,
-      features: fc.features.map((f) => ({
-        ...f,
-        properties: {
-          ...f.properties,
-          // Add computed properties
-          latestActionStatus: computeLatestStatus(f.properties.actions),
-          hasOpenActions: hasStatus(f.properties.actions, "open"),
-          actionCount: f.properties.actions?.length || 0,
-        },
-      })),
+      features: fc.features.map((f) => {
+        const p = f.properties;
+        return {
+          ...f,
+          properties: {
+            ...f.properties,
+            // Add computed properties
+            latestActionStatus: computeLatestStatus(f.properties.actions),
+            hasOpenActions: hasStatus(f.properties.actions, "open"),
+            actionCount: f.properties.actions?.length || 0,
+          },
+        };
+      }),
     };
   }
-  const vectorLayer = true;
   return (
     <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
       <SandboxedEvalProvider>
@@ -151,8 +202,6 @@ const TZBaumbewirtschaftung = () => {
           >
             <TopicMapSelectionContent />
 
-            {/* <FeatureCollection></FeatureCollection> */}
-
             {featureCollection && (
               <CismapLayer
                 pane="additionalLayers0"
@@ -164,18 +213,30 @@ const TZBaumbewirtschaftung = () => {
                 // additionalLayersFreeZOrder={1}
                 onSelectionChanged={(e) => {
                   (async () => {
-                    console.log("xxx id", e.hit);
                     const hit = e.hit;
                     if (hit) {
-                      const feature = await createVectorFeature(
-                        infoBoxMapping,
-                        hit
+                      console.log("xxx hit", hit);
+
+                      const infoBoxControlObject =
+                        await getInfoBoxControlObjectFromMappingAndVectorFeature(
+                          {
+                            mapping: infoBoxMapping,
+                            selectedVectorFeature: hit,
+                          }
+                        );
+                      console.log(
+                        "xxx infoBoxControlObject",
+                        infoBoxControlObject
                       );
+                      const feature = hit;
                       console.log("xxx feature", feature);
-                      feature.properties.wmsProps.actions = JSON.parse(
-                        feature.properties.wmsProps.actions
-                      );
-                      console.log("xxx feature", feature);
+                      // add infoBoxControlObject
+                      feature.properties.info =
+                        createInfoBoxControlObject(feature);
+
+                      // //or the snadbox way
+                      // feature.properties.info = infoBoxControlObject;
+
                       setSelectedFeature(feature);
                     } else {
                       setSelectedFeature(undefined);

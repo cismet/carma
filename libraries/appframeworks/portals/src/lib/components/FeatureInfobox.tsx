@@ -1,6 +1,5 @@
 import InfoBoxFotoPreview from "react-cismap/topicmaps/InfoBoxFotoPreview";
 import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
-import { getActionLinksForFeature } from "react-cismap/tools/uiHelper";
 
 import { useContext, useState } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
@@ -8,7 +7,11 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { additionalInfoFactory } from "@carma-collab/wuppertal/geoportal";
 import { genericSecondaryInfoFooterFactory } from "@carma-collab/wuppertal/commons";
 import { getApplicationVersion, type VersionData } from "@carma-commons/utils";
-import { InfoBox, utils } from "@carma-appframeworks/portals";
+import {
+  InfoBox,
+  utils,
+  getActionLinksForFeature,
+} from "@carma-appframeworks/portals";
 
 interface InfoboxProps {
   selectedFeature: any;
@@ -22,21 +25,27 @@ export const FeatureInfobox = ({
   versionData,
   bigMobileIconsInsteadOfCollapsing = false,
   Modal = additionalInfoFactory(
-    selectedFeature?.properties?.modal
+    (selectedFeature?.properties?.info || selectedFeature?.properties).modal
   ) as React.ComponentType<any> | null,
 }: InfoboxProps) => {
+  const infoBoxControlObject =
+    selectedFeature?.properties?.info || selectedFeature?.properties;
   const [openModal, setOpenModal] = useState(false);
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const lightBoxDispatchContext = useContext(LightBoxDispatchContext);
   if (!selectedFeature) {
     return null;
   }
-
+  console.log(
+    "xxx in FeatureInfobox infoBoxControlObject",
+    infoBoxControlObject,
+    selectedFeature
+  );
   let links = [];
   if (selectedFeature) {
     console.log("xxx selectedFeature", selectedFeature);
     links = getActionLinksForFeature(selectedFeature, {
-      displaySecondaryInfoAction: !!selectedFeature?.properties?.modal,
+      displaySecondaryInfoAction: !!infoBoxControlObject?.modal,
       setVisibleStateOfSecondaryInfo: () => {
         setOpenModal(true);
       },
@@ -54,11 +63,8 @@ export const FeatureInfobox = ({
     return text;
   };
 
-  // const Modal = additionalInfoFactory(
-  //   selectedFeature?.properties?.modal
-  // ) as React.ComponentType<any> | null;
-  // console.log("xxx selectedFeature.properties", selectedFeature);
   console.log("xxx selectedFeature.links", links);
+
   return (
     <>
       {" "}
@@ -66,16 +72,16 @@ export const FeatureInfobox = ({
         pixelwidth={350}
         currentFeature={selectedFeature}
         hideNavigator={true}
-        {...selectedFeature?.properties}
+        {...infoBoxControlObject}
         headerColor={
-          selectedFeature?.properties.headerColor
-            ? selectedFeature.properties.headerColor
+          infoBoxControlObject.headerColor
+            ? infoBoxControlObject.headerColor
             : "#0078a8"
         }
         title={
-          selectedFeature?.properties?.title?.includes("undefined")
+          infoBoxControlObject?.title?.includes("undefined")
             ? undefined
-            : selectedFeature?.properties?.title
+            : infoBoxControlObject?.title
         }
         noCurrentFeatureTitle={
           "Auf die Karte klicken um Informationen abzurufen"
@@ -84,23 +90,30 @@ export const FeatureInfobox = ({
           <div
             className="w-full"
             style={{
-              backgroundColor: selectedFeature?.properties.headerColor
+              backgroundColor: infoBoxControlObject.headerColor
                 ? selectedFeature.properties.headerColor
                 : "#0078a8",
             }}
           >
-            {selectedFeature?.properties.header
-              ? truncateString(selectedFeature.properties.header, 66)
+            {infoBoxControlObject.header
+              ? truncateString(infoBoxControlObject.header, 66)
               : "Informationen"}
           </div>
         }
         noCurrentFeatureContent=""
         secondaryInfoBoxElements={
-          selectedFeature?.properties.foto || selectedFeature?.properties.fotos
+          infoBoxControlObject.foto || infoBoxControlObject.fotos
             ? [
                 <InfoBoxFotoPreview
                   key="infobox-foto-preview"
                   currentFeature={selectedFeature}
+                  getPhotoUrl={(feature) =>
+                    feature?.properties?.info?.foto || feature?.properties?.foto
+                  }
+                  getPhotoSeriesArray={(feature) =>
+                    feature?.properties?.info?.fotos ||
+                    feature?.properties?.fotos
+                  }
                   lightBoxDispatchContext={lightBoxDispatchContext}
                 />,
               ]
