@@ -40,7 +40,7 @@ import {
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
-import type { FeatureInfo } from "@carma/types";
+import type { FeatureInfo, LatLngZoom } from "@carma/types";
 
 import {
   useOverlayHelper,
@@ -57,6 +57,12 @@ import {
   useCesiumContext,
   useCesiumInitialCameraFromSearchParams,
 } from "@carma-mapping/engines/cesium";
+import {
+  gatedLeafletSetView,
+  getLatLngZoom,
+  isLeafletMap,
+} from "@carma-mapping/engines/leaflet";
+
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import { useAuth } from "@carma-providers/auth";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
@@ -210,6 +216,26 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const { handleTopicMapLocationChange, handleCesiumSceneChange } =
     useMapHashRouting({
       isMode2d,
+      getLatLngZoom: (): LatLngZoom | undefined => {
+        const map = routedMap?.leafletMap?.leafletElement;
+        return getLatLngZoom(map);
+      },
+      setView: (view: LatLngZoom) => {
+        const map = routedMap?.leafletMap?.leafletElement;
+        gatedLeafletSetView(
+          map,
+          "useHashMapRouting from GeoportalMap",
+          L.latLng(view.latitude, view.longitude),
+          view.zoom
+        );
+      },
+      mapOnce: (event: string, cb: () => void) => {
+        const map = routedMap?.leafletMap?.leafletElement;
+        if (!isLeafletMap(map)) {
+          return;
+        }
+        map.once(event, cb);
+      },
       labels: {
         clear3d: "GPM:2D:clear3d",
         write2d: "GPM:2D:writeLocation",

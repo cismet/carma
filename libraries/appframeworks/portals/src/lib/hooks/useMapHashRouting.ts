@@ -18,9 +18,9 @@ type Labels = {
 };
 export interface UseMapHashRoutingOptions {
   isMode2d: boolean;
-  getLatLngZoom?: () => LatLngZoom; // always leaflet zoom with base tilesize of 256
-  setView?: (p: LatLngZoom) => void;
-  mapOnce?: (p: string, cb: () => void) => void;
+  getLatLngZoom: () => LatLngZoom; // always leaflet zoom with base tilesize of 256
+  setView: (p: LatLngZoom) => void;
+  mapOnce: (p: string, cb: () => void) => void;
   cesiumClearKeys?: string[];
   labels?: Labels;
   pixelTolerance?: number; // px
