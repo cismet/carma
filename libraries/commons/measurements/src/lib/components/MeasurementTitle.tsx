@@ -28,7 +28,7 @@ const MeasurementTitle = ({
     <div>
       <span
         onBlur={(t) => {
-          const trimmedContent = t.currentTarget.textContent?.trim() || '';
+          const trimmedContent = t.currentTarget.textContent?.trim() || "";
           setContent(trimmedContent);
 
           if (trimmedContent.length === 0) {

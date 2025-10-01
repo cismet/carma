@@ -209,7 +209,7 @@ export const tiledMapToCesium = async (
     console.debug(
       "L2C [2D3D|CESIUM|CAMERA] setview",
       iterations,
-      newCameraHeight,
+      newCameraHeight
     );
     ctx.withCamera((camera) => {
       camera.setView({

@@ -97,7 +97,9 @@ export function MapMeasurementLib({
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
 
   const [measureControl, setMeasureControl] = useState<any>(null);
-  const [visiblePolylines, setVisiblePolylines] = useState<(string | number)[]>([]);
+  const [visiblePolylines, setVisiblePolylines] = useState<(string | number)[]>(
+    []
+  );
   const [drawingShape, setDrawingLine] = useState(null);
 
   const device = useDeviceDetection();
@@ -299,7 +301,10 @@ export function MapMeasurementLib({
   return <div></div>;
 }
 
-function filterArrByIds(arrIds: (string | number)[], fullArray: MeasurementShape[]): MeasurementShape[] {
+function filterArrByIds(
+  arrIds: (string | number)[],
+  fullArray: MeasurementShape[]
+): MeasurementShape[] {
   const finalResult: MeasurementShape[] = [];
   fullArray.forEach((currentItem) => {
     if (arrIds.includes(currentItem.shapeId)) {
