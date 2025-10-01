@@ -1087,15 +1087,6 @@ export const NewLibModal = ({
                   currentlySearching={!!debouncedSearchTerm}
                 />
               )}
-              {selectedNavItemIndex !== 2 &&
-                selectedNavItemIndex !== 3 &&
-                selectedNavItemIndex !== 1 &&
-                selectedNavItemIndex !== 0 &&
-                selectedNavItemIndex !== 5 && (
-                  <h1 className="text-2xl font-normal">
-                    Kategorie noch nicht implementiert
-                  </h1>
-                )}
             </div>
           </div>
         </div>
