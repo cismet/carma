@@ -195,6 +195,8 @@ export const InfoBox = ({
           iconspan: link.props?.children,
           tooltip: link.props?.tooltip,
           onClick: link.props?.onClick,
+          href: link.props?.href,
+          target: link.props?.target,
           subs: link.props?.subs,
         };
       })
@@ -265,7 +267,6 @@ export const InfoBox = ({
                               tooltip={li.tooltip}
                               onClick={li.onClick}
                               iconname={li.iconname || li.iconspan}
-                              href="#"
                             />
                           </span>
                         </Dropdown>
@@ -281,8 +282,9 @@ export const InfoBox = ({
                               key={`iconlink${index}`}
                               tooltip={li.tooltip}
                               onClick={li.onClick}
+                              href={li.href}
+                              target={li.target}
                               iconname={li.iconname || li.iconspan}
-                              href="#"
                             />
                           )}
                           {li.iconspan && (
@@ -294,8 +296,11 @@ export const InfoBox = ({
                                 color: "grey",
                                 width: "26px",
                                 textAlign: "center",
+                                cursor: "pointer",
                               }}
                               onClick={li.onClick}
+                              href={li.href}
+                              target={li.target}
                             >
                               {li.iconspan}
                             </a>
@@ -504,25 +509,53 @@ export const InfoBox = ({
             );
           } else {
             console.log("xxx pure button", li);
-            return (
-              <Button
-                style={{
-                  opacity: 0.7,
-                  margin: 0,
-                  flex: 1,
-                }}
-                key={`actionbutton.${index}`}
-                size="lg"
-                variant="light"
-                onClick={li.onClick}
-                title={li.tooltip}
-              >
-                <h2>
-                  {li.iconname && <Icon name={li.iconname} />}
-                  {li.iconspan && li.iconspan}
-                </h2>
-              </Button>
-            );
+            // If there's an href, wrap the button in an anchor tag
+            if (li.href) {
+              return (
+                <a
+                  key={`actionlink.${index}`}
+                  href={li.href}
+                  target={li.target}
+                  style={{ flex: 1, textDecoration: "none" }}
+                >
+                  <Button
+                    style={{
+                      opacity: 0.7,
+                      margin: 0,
+                      width: "100%",
+                    }}
+                    size="lg"
+                    variant="light"
+                    title={li.tooltip}
+                  >
+                    <h2>
+                      {li.iconname && <Icon name={li.iconname} />}
+                      {li.iconspan && li.iconspan}
+                    </h2>
+                  </Button>
+                </a>
+              );
+            } else {
+              return (
+                <Button
+                  style={{
+                    opacity: 0.7,
+                    margin: 0,
+                    flex: 1,
+                  }}
+                  key={`actionbutton.${index}`}
+                  size="lg"
+                  variant="light"
+                  onClick={li.onClick}
+                  title={li.tooltip}
+                >
+                  <h2>
+                    {li.iconname && <Icon name={li.iconname} />}
+                    {li.iconspan && li.iconspan}
+                  </h2>
+                </Button>
+              );
+            }
           }
         })}
       </div>
