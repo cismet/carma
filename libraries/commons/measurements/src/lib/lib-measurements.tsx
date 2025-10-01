@@ -12,6 +12,7 @@ import makeMeasureIcon from "./assets/measure.png";
 import makeMeasureActiveIcon from "./assets/measure-active.png";
 import "./styles/m-style.css";
 import useDeviceDetection from "./hooks/useDeviceDetection";
+import { useMapMeasurementsContext } from "./components/MapMeasurementsProvider";
 
 export interface MeasurementShape {
   shapeId: number | string;
@@ -23,7 +24,7 @@ export interface MeasurementShape {
 export type UIModeType = string | "measurement" | "default";
 export interface MapMeasurementProps {
   measurementShapes: MeasurementShape[];
-  activeShape?: number | string | null;
+  // activeShape?: number | string | null;
   ifDrawing?: boolean;
   showAllMeasurements?: boolean;
   deleteShape?: boolean;
@@ -35,7 +36,7 @@ export interface MapMeasurementProps {
   toggleUIMode: (mode: UIModeType) => void;
 
   setShapes: (shapes: MeasurementShape[]) => void;
-  setActiveShape: (id: number | string | null) => void;
+  // setActiveShape: (id: number | string | null) => void;
   setVisibleShapes: (shapes: MeasurementShape[]) => void;
   setDrawingShape: (status: boolean) => void;
   setShowAll: (value: boolean) => void;
@@ -65,7 +66,7 @@ export interface MapMeasurementProps {
 
 export function MapMeasurementLib({
   measurementShapes,
-  activeShape,
+  // activeShape,
   ifDrawing,
   showAllMeasurements,
   deleteShape,
@@ -74,7 +75,7 @@ export function MapMeasurementLib({
   mode,
   toggleUIMode,
   setShapes,
-  setActiveShape,
+  // setActiveShape,
   setVisibleShapes,
   setDrawingShape,
   setStartDrawing,
@@ -95,6 +96,7 @@ export function MapMeasurementLib({
   polygonIcon,
 }: MapMeasurementProps) {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
+  const { activeShape, setActiveShape } = useMapMeasurementsContext();
 
   const [measureControl, setMeasureControl] = useState<any>(null);
   const [visiblePolylines, setVisiblePolylines] = useState<(string | number)[]>(
