@@ -1,7 +1,7 @@
 import type { CesiumContextType } from "../../CesiumContext";
 import type { MarkerPrimitiveData } from "./index.d";
 
-import { updateRotating, updateViewerFacing } from "./updateTransformations";
+import { updateTransform } from "./updateTransform";
 
 const detachPreUpdate = (ctx: CesiumContextType, data: MarkerPrimitiveData) => {
   if (!data.onPreUpdate) {
@@ -15,27 +15,11 @@ const detachPreUpdate = (ctx: CesiumContextType, data: MarkerPrimitiveData) => {
   data.onPreUpdate = undefined;
 };
 
-const detachCameraChanged = (
-  ctx: CesiumContextType,
-  data: MarkerPrimitiveData
-) => {
-  if (!data.onCameraChanged) {
-    return;
-  }
-
-  ctx.withCamera((camera) => {
-    camera.changed.removeEventListener(data.onCameraChanged!);
-  });
-
-  data.onCameraChanged = undefined;
-};
-
 export const detachListeners = (
   ctx: CesiumContextType,
   data: MarkerPrimitiveData
 ) => {
   detachPreUpdate(ctx, data);
-  detachCameraChanged(ctx, data);
 };
 
 export const attachListeners = (
@@ -48,28 +32,14 @@ export const attachListeners = (
     return;
   }
 
-  // ensure stale listeners are removed before registering new ones
   detachListeners(ctx, data);
 
-  if (config.rotation) {
-    const onPreUpdate = () => updateRotating(ctx, data);
+  const onPreUpdate = () => updateTransform(ctx, data);
 
-    ctx.withScene((scene) => {
-      scene.preUpdate.addEventListener(onPreUpdate);
-    });
-
-    data.onPreUpdate = onPreUpdate;
-    ctx.requestRender();
-    return;
-  }
-
-  const onCameraChanged = () => updateViewerFacing(ctx, data);
-
-  ctx.withCamera((camera) => {
-    camera.changed.addEventListener(onCameraChanged);
+  ctx.withScene((scene) => {
+    scene.preUpdate.addEventListener(onPreUpdate);
   });
 
-  data.onCameraChanged = onCameraChanged;
-  updateViewerFacing(ctx, data);
+  data.onPreUpdate = onPreUpdate;
   ctx.requestRender();
 };
