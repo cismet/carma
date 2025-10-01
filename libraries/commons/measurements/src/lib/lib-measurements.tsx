@@ -49,7 +49,7 @@ export interface MapMeasurementProps {
     id: number | string,
     newCoordinates?: unknown,
     newDistance?: number,
-    newSquare?: number
+    newSquare?: number | null
   ) => void;
   setLastVisibleShapeActive: () => void;
   setDrawingWithLastActiveShape: () => void;
@@ -97,7 +97,7 @@ export function MapMeasurementLib({
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
 
   const [measureControl, setMeasureControl] = useState<any>(null);
-  const [visiblePolylines, setVisiblePolylines] = useState();
+  const [visiblePolylines, setVisiblePolylines] = useState<(string | number)[]>([]);
   const [drawingShape, setDrawingLine] = useState(null);
 
   const device = useDeviceDetection();

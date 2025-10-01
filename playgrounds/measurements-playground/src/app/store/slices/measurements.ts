@@ -163,10 +163,10 @@ export const deleteVisibleShapeById = (shapeId) => {
 };
 
 export const updateShapeById = (
-  shapeId,
-  newCoordinates,
-  newDistance,
-  newSquare = null
+  shapeId: string | number,
+  newCoordinates?: any,
+  newDistance?: number,
+  newSquare?: number | null
 ) => {
   return function (dispatch, getState) {
     const state = getState();
