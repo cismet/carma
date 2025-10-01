@@ -1,6 +1,10 @@
 import { useCallback, useContext } from "react";
 import type { Map as LeafletMap } from "leaflet";
+
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+
+import { Zoom256 } from "@carma/types";
+import { gatedLeafletSetZoom } from "@carma-mapping/engines/leaflet";
 
 /**
  * Custom hook to handle Leaflet zoom controls.
@@ -19,7 +23,7 @@ export const useLeafletZoomControls = () => {
     if (leafletElement) {
       const currentZoom = leafletElement.getZoom();
       const newZoom = Math.round(currentZoom) + 1;
-      leafletElement.setZoom(newZoom);
+      gatedLeafletSetZoom(leafletElement, "zoomInLeaflet", newZoom as Zoom256);
     }
   }, [leafletElement]);
 
@@ -27,7 +31,7 @@ export const useLeafletZoomControls = () => {
     if (leafletElement) {
       const currentZoom = leafletElement.getZoom();
       const newZoom = Math.round(currentZoom) - 1;
-      leafletElement.setZoom(newZoom);
+      gatedLeafletSetZoom(leafletElement, "zoomOutLeaflet", newZoom as Zoom256);
     }
   }, [leafletElement]);
 

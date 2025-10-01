@@ -210,8 +210,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const { handleTopicMapLocationChange, handleCesiumSceneChange } =
     useMapHashRouting({
       isMode2d,
-      getLeafletMap: () => routedMap?.leafletMap?.leafletElement,
-      getLeafletZoom,
       labels: {
         clear3d: "GPM:2D:clear3d",
         write2d: "GPM:2D:writeLocation",

@@ -104,4 +104,4 @@ export { detectWebGLContext } from "./lib/webgl";
 
 export * from "./lib/window";
 
-export { isZoom, isZoomClose } from "./lib/zoom";
+export { isZoom, isZoomClose, zoom512as256, zoom256as512 } from "./lib/zoom";

@@ -15,7 +15,12 @@ import {
   isAreaType,
   METROPOLERUHR_WMTS_SPW2_WEBMERCATOR_HQ,
 } from "@carma-commons/resources";
-import { normalizeOptions } from "@carma-commons/utils";
+import {
+  isZoom,
+  normalizeOptions,
+  zoom256as512,
+  zoom512as256,
+} from "@carma-commons/utils";
 import {
   LibreMapSelectionContent,
   SelectionItem,
@@ -44,8 +49,6 @@ import {
   changeWmsVisibility,
   createFeature,
   layersToMapLibreStyle,
-  zoom256as512,
-  zoom512as256,
 } from "./libremap.utils";
 import {
   cancelOngoingRequests,
@@ -55,6 +58,7 @@ import {
 
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./LibreGeoportalMap.css";
+import { Degrees, LatLngZoom, Zoom512 } from "@carma/types";
 
 type ConfigurableMapOptionKeys =
   | "style"
@@ -150,27 +154,27 @@ const LibreGeoportalMap = ({
   const backgroundLayer = useSelector(getBackgroundLayer);
 
   // Centralized hash routing for MapLibre (2D-only in this component)
+  // works as adapter between leaflet and maplibre
   const { handleTopicMapLocationChange } = useMapHashRouting({
     isMode2d: true,
-    getLeafletMap: () => {
-      const m = map.current;
-      if (!m) return null;
+    getLatLngZoom: () => {
+      if (!map.current || !(map.current instanceof maplibregl.Map)) return;
+      const center = map.current.getCenter();
+      const zoom = map.current.getZoom();
       return {
-        setView: (center: { lat: number; lng: number }, zoom?: number) => {
-          if (typeof zoom === "number") m.setZoom(zoom256as512(zoom));
-          m.setCenter([center.lng, center.lat]);
-        },
-        panTo: (center: { lat: number; lng: number }) =>
-          m.panTo([center.lng, center.lat]),
-        setZoom: (zoom: number) => m.setZoom(zoom256as512(zoom)),
-        getCenter: () => m.getCenter(),
-        once: (type: string, fn: (...args: unknown[]) => void) =>
-          m.once(type, fn),
+        latitude: center.lat as Degrees,
+        longitude: center.lng as Degrees,
+        zoom: zoom512as256(zoom as Zoom512),
       };
     },
-    getLeafletZoom: () => {
-      const m = map.current;
-      return m ? zoom512as256(m.getZoom()) : normalizedMapOptions.zoom;
+    setView: (p: LatLngZoom) => {
+      if (!map.current || !(map.current instanceof maplibregl.Map)) return;
+      map.current.setCenter({ lat: p.latitude, lng: p.longitude });
+      map.current.setZoom(zoom256as512(p.zoom));
+    },
+    mapOnce: (p: string, cb: () => void) => {
+      if (!map.current || !(map.current instanceof maplibregl.Map)) return;
+      map.current.once(p, cb);
     },
     labels: {
       clear3d: "LGM:2D:clear3d",
@@ -272,7 +276,7 @@ const LibreGeoportalMap = ({
           typeof lng === "number" && typeof lat === "number"
             ? { lng, lat }
             : undefined,
-        zoom: typeof zoom === "number" ? zoom256as512(zoom) : undefined,
+        zoom: isZoom(zoom) ? zoom256as512(zoom) : undefined,
         bearing: typeof bearing === "number" ? bearing : undefined,
         pitch: typeof pitch === "number" ? pitch : undefined,
       };
@@ -623,8 +627,12 @@ const LibreGeoportalMap = ({
     if (!mapInstance) return;
     const handleMoveEnd = () => {
       const center = mapInstance.getCenter();
-      const zoom = zoom512as256(mapInstance.getZoom());
-      handleTopicMapLocationChange({ lat: center.lat, lng: center.lng, zoom });
+      const zoom = zoom512as256(mapInstance.getZoom() as Zoom512);
+      handleTopicMapLocationChange({
+        latitude: center.lat as Degrees,
+        longitude: center.lng as Degrees,
+        zoom,
+      });
     };
     mapInstance.on("moveend", handleMoveEnd);
     return () => {

@@ -64,7 +64,6 @@ export { useCesiumModels } from "./lib/hooks/useCesiumModels";
 export {
   useMapHashRouting,
   createLocationChangeHandler,
-  type LatLngZoom,
 } from "./lib/hooks/useMapHashRouting";
 export { uploadImage } from "./lib/utils/fileUpload";
 export {

@@ -26,5 +26,5 @@ export type Zoom512 = ZoomQuality<typeof tileSize512>;
 export type LatLngZoom = {
   latitude: Degrees;
   longitude: Degrees;
-  zoom: Zoom; // leaflet zoom
+  zoom: Zoom256; // leaflet zoom
 };

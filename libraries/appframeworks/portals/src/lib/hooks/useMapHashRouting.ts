@@ -5,11 +5,9 @@ import L from "leaflet";
 import { useHashState } from "../contexts/HashStateProvider";
 
 import { cesiumClearParamKeys } from "@carma-mapping/engines/cesium";
-import { gatedLeafletSetView } from "@carma-mapping/engines/leaflet";
-import { isMapCenterZoomEquivalent } from "@carma-commons/utils";
-import { Degrees, Zoom256 } from "@carma/types";
+import { isMapCenterZoomEquivalent, isZoom } from "@carma-commons/utils";
+import { Degrees, LatLngZoom, Zoom256 } from "@carma/types";
 
-export type LatLngZoom = { lat: number; lng: number; zoom: number };
 export type CesiumSceneChangeEvent = { hashParams: Record<string, string> };
 
 type Labels = {
@@ -18,19 +16,11 @@ type Labels = {
   topicMapLocation?: string;
   cesiumScene?: string;
 };
-
-type LeafletLikeMap = {
-  setView?: (center: { lat: number; lng: number }, zoom?: number) => void;
-  panTo?: (center: { lat: number; lng: number }) => void;
-  setZoom?: (zoom: number) => void;
-  getCenter?: () => { lat: number; lng: number };
-  once?: (type: string, fn: (...args: unknown[]) => void) => void;
-};
-
 export interface UseMapHashRoutingOptions {
   isMode2d: boolean;
-  getLeafletMap?: () => LeafletLikeMap | null | undefined;
-  getLeafletZoom?: () => number;
+  getLatLngZoom?: () => LatLngZoom; // always leaflet zoom with base tilesize of 256
+  setView?: (p: LatLngZoom) => void;
+  mapOnce?: (p: string, cb: () => void) => void;
   cesiumClearKeys?: string[];
   labels?: Labels;
   pixelTolerance?: number; // px
@@ -38,8 +28,9 @@ export interface UseMapHashRoutingOptions {
 
 export function useMapHashRouting({
   isMode2d,
-  getLeafletMap,
-  getLeafletZoom,
+  getLatLngZoom,
+  setView,
+  mapOnce,
   cesiumClearKeys = cesiumClearParamKeys,
   labels,
   pixelTolerance,
@@ -52,14 +43,14 @@ export function useMapHashRouting({
   const popstateTargetRef = useRef<LatLngZoom | null>(null);
 
   const handleTopicMapLocationChange = useCallback(
-    ({ lat, lng, zoom }: LatLngZoom) => {
+    ({ latitude, longitude, zoom }: LatLngZoom) => {
       if (!isMode2d) return;
       if (navMoveInProgressRef.current) {
         console.debug(
           "[Routing][hash] (2D) suppress push: popstate navigation in progress",
           {
-            lat,
-            lng,
+            latitude,
+            longitude,
             zoom,
             label: labels?.topicMapLocation ?? "Map:2D:location",
           }
@@ -71,13 +62,13 @@ export function useMapHashRouting({
       if (target) {
         const eq = isMapCenterZoomEquivalent(
           {
-            center: { latitude: lat as Degrees, longitude: lng as Degrees },
+            center: { latitude, longitude },
             zoom,
           },
           {
             center: {
-              latitude: target.lat as Degrees,
-              longitude: target.lng as Degrees,
+              latitude: target.latitude as Degrees,
+              longitude: target.longitude as Degrees,
             },
             zoom: target.zoom,
           },
@@ -86,7 +77,7 @@ export function useMapHashRouting({
         if (eq) {
           console.debug(
             "[Routing][hash] (2D) skip push: equals popstate target within tolerance",
-            { lat, lng, zoom, target }
+            { latitude, longitude, zoom, target }
           );
           popstateTargetRef.current = null;
           return;
@@ -105,7 +96,7 @@ export function useMapHashRouting({
         if (hasAll) {
           const eq = isMapCenterZoomEquivalent(
             {
-              center: { latitude: lat as Degrees, longitude: lng as Degrees },
+              center: { latitude, longitude },
               zoom,
             },
             {
@@ -117,14 +108,14 @@ export function useMapHashRouting({
           if (eq) {
             console.debug(
               "[Routing][hash] (2D) skip push: equals current hash within tolerance",
-              { lat, lng, zoom, hLat, hLng, hZoom }
+              { latitude, longitude, zoom, hLat, hLng, hZoom }
             );
             return;
           }
         }
       } catch {}
       updateHash(
-        { lat, lng, zoom },
+        { lat: latitude, lng: longitude, zoom },
         {
           clearKeys: cesiumClearKeys,
           label: labels?.topicMapLocation ?? "Map:2D:location",
@@ -165,16 +156,10 @@ export function useMapHashRouting({
         replace: true,
       });
       // Then push current 2D location
-      const map = getLeafletMap?.();
-      if (
-        map &&
-        typeof map.getCenter === "function" &&
-        typeof getLeafletZoom === "function"
-      ) {
-        const center = map.getCenter();
-        const zoom = getLeafletZoom();
+      const view = getLatLngZoom?.();
+      if (view) {
         updateHash(
-          { lat: center.lat, lng: center.lng, zoom },
+          { lat: view.latitude, lng: view.longitude, zoom: view.zoom },
           { label: labels?.write2d ?? "Map:2D:writeLocation" }
         );
       }
@@ -183,8 +168,9 @@ export function useMapHashRouting({
   }, [
     isMode2d,
     updateHash,
-    getLeafletMap,
-    getLeafletZoom,
+    getLatLngZoom,
+    setView,
+    mapOnce,
     cesiumClearKeys,
     labels?.clear3d,
     labels?.write2d,
@@ -192,51 +178,41 @@ export function useMapHashRouting({
 
   // Back/forward navigation: move the 2D map to the historical location without writing a new hash
   useEffect(() => {
-    if (!getLeafletMap) return;
-    const unsub = subscribe(
+    const unSubscribe = subscribe(
       (e) => {
         if (e.source !== "popstate") return;
         if (!isMode2d) return;
-        const lat = e.values.lat as number | undefined;
-        const lng = e.values.lng as number | undefined;
-        const zoom =
-          (e.values.zoom as number | undefined) ?? getLeafletZoom?.();
-        if (lat == null || lng == null || zoom == null) return;
-        const map = getLeafletMap?.();
-        if (!map) return;
+        const latitude = e.values.lat as Degrees | undefined;
+        const longitude = e.values.lng as Degrees | undefined;
+        const zoom = e.values.zoom as Zoom256 | undefined;
+        if (latitude == null || longitude == null || !isZoom(zoom)) return;
+
         navMoveInProgressRef.current = true;
-        popstateTargetRef.current = { lat, lng, zoom };
+        popstateTargetRef.current = { latitude, longitude, zoom };
         console.debug("[Routing][hash] popstate begin -> restore 2D view", {
-          lat,
-          lng,
+          latitude,
+          longitude,
           zoom,
         });
         const scheduleClear = (evt: string) => {
-          if (typeof map.once === "function") {
-            map.once(evt, () => {
-              setTimeout(() => {
-                navMoveInProgressRef.current = false;
-                console.debug(
-                  "[Routing][hash] popstate end -> resume 2D writes",
-                  { via: evt }
-                );
-              }, 0);
-            });
-          }
+          mapOnce?.(evt, () => {
+            setTimeout(() => {
+              navMoveInProgressRef.current = false;
+              console.debug(
+                "[Routing][hash] popstate end -> resume 2D writes",
+                { via: evt }
+              );
+            }, 0);
+          });
         };
         scheduleClear("moveend");
         scheduleClear("zoomend");
-        gatedLeafletSetView(
-          map as unknown as L.Map,
-          "hash popstate",
-          L.latLng(lat, lng),
-          zoom as Zoom256
-        );
+        setView?.({ latitude, longitude, zoom });
       },
       { keys: ["lat", "lng", "zoom"] }
     );
-    return unsub;
-  }, [subscribe, isMode2d, getLeafletMap, getLeafletZoom]);
+    return unSubscribe;
+  }, [subscribe, isMode2d, mapOnce, setView]);
 
   return { handleTopicMapLocationChange, handleCesiumSceneChange };
 }
