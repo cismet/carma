@@ -13,7 +13,7 @@ import {
   FlagOutlined,
 } from "@ant-design/icons";
 import { nutzung } from "@carma-collab/wuppertal/lagis-desktop";
-
+import { Tooltip } from "antd";
 const columns = [
   {
     title: nutzung.nutzungTable.nutzungCol,
@@ -28,6 +28,13 @@ const columns = [
   {
     title: nutzung.nutzungTable.anlageklasseCol,
     dataIndex: "anlageklasse",
+    render: (record, row) => {
+      return (
+        <div className="flex items-center justify-center">
+          <Tooltip title={row.anlageklasseKey}>{record}</Tooltip>
+        </div>
+      );
+    },
     sorter: (a, b) => compare(a.anlageklasse, b.anlageklasse),
   },
   // {

@@ -24,6 +24,7 @@ export function usageBlockExtractor(dataIn) {
             data.nutzung = usageId;
             data.buchungs = buchungs;
             data.anlageklasse = u.anlageklasse?.bezeichnung || "";
+            data.anlageklasseKey = u.anlageklasse?.schluessel || "";
             data.nutzungsart = u.nutzungsart?.bezeichnung || "";
             data.bezeichnung = u?.nutzungsart?.bezeichnung || "";
             data.fläche = u.flaeche;
@@ -105,6 +106,7 @@ export function NFKOverwieExtractor(dataIn) {
           element.nutzung_buchungArrayRelationShip.forEach((u) => {
             data.id = usageId;
             data.anlageklasse = u.anlageklasse?.schluessel || "";
+            data.anlageklasseName = u.anlageklasse?.bezeichnung || "";
             (data.summe =
               u.quadratmeterpreis * u.flaeche -
               calculateStilleReserve(
@@ -130,7 +132,7 @@ export function NFKOverwieExtractor(dataIn) {
     });
     const formattedCurrentUsage = currentUsage.map((u) => ({
       id: u.id,
-      anlageklasse: u.anlageklasse,
+      anlageklasse: u.anlageklasseName,
       summe: formatPrice(u.summe),
       stille: formatPrice(stille),
     }));
