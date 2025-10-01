@@ -3,22 +3,8 @@
   "compilerOptions": {
     "outDir": "../../../../dist/out-tsc",
     "declaration": true,
-    "composite": true,
-    "noEmit": false,
-    "emitDeclarationOnly": true,
-    "types": [
-      "node",
-      "vite/client",
-      "@nx/react/typings/cssmodule.d.ts",
-      "@nx/react/typings/image.d.ts"
-    ],
-    "strict": false,
-    "strictNullChecks": false
+    "types": ["node"]
   },
-  "include": [
-    "src/**/*.ts",
-    "src/**/*.tsx",
-    "src/**/*.d.ts"
-  ],
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
   "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"]
 }
