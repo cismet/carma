@@ -67,6 +67,7 @@ export function App() {
   const mapMovingEnd = useSelector(getMapMovingEnd);
 
   const isModeMeasurement = mode === UIMode.MEASUREMENT;
+  const getUrlPrefix = () => window.location.origin + window.location.pathname;
 
   return (
     <>
@@ -83,9 +84,12 @@ export function App() {
               dispatch(toggleUIMode(UIMode.MEASUREMENT));
             }}
           >
-            <FontAwesomeIcon
-              icon={faRuler}
-              style={{ color: isModeMeasurement ? "blue" : "black" }}
+            <img
+              src={`${getUrlPrefix()}${
+                isModeMeasurement ? "measure-active.png" : "measure.png"
+              }`}
+              alt="Measure"
+              className="w-6"
             />
           </ControlButtonStyler>
         </Control>
