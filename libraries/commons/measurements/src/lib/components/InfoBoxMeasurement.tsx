@@ -41,22 +41,21 @@ export interface InfoBoxMeasurementProps {
   updateTitle: (shapeId: number | string, title: string) => void;
 }
 
-export function InfoBoxMeasurement({
-  // measurementsData,
-  // visibleShapesData,
-  // activeShape,
-  // moveToShape,
-  // updateShape,
-  // drawingMode,
-  // mapMovingEnd,
-  // setMoveToShape,
-  // setActiveShape,
-  // setUpdateShape,
-  // setDeleteAll,
-  // setMapMovingEnd,
-  // setShowAll,
-  updateTitle,
-}: InfoBoxMeasurementProps) {
+export function InfoBoxMeasurement({}: // measurementsData,
+// visibleShapesData,
+// activeShape,
+// moveToShape,
+// updateShape,
+// drawingMode,
+// mapMovingEnd,
+// setMoveToShape,
+// setActiveShape,
+// setUpdateShape,
+// setDeleteAll,
+// setMapMovingEnd,
+// setShowAll,
+// updateTitle,
+InfoBoxMeasurementProps) {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const {
     shapes: measurementsData,
@@ -72,6 +71,7 @@ export function InfoBoxMeasurement({
     setMapMovingEnd,
     setDeleteAll,
     setShowAll,
+    setUpdateTitleStatus: updateTitle,
   } = useMapMeasurementsContext();
 
   const [currentMeasure, setCurrentMeasure] = useState(0);
