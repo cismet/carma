@@ -74,6 +74,8 @@ InfoBoxMeasurementProps) {
     setUpdateTitleStatus: updateTitle,
   } = useMapMeasurementsContext();
 
+  // ARCHITECTURE: activeShape is the SINGLE SOURCE OF TRUTH
+  // currentMeasure is derived from activeShape, never the other way around
   const [currentMeasure, setCurrentMeasure] = useState(0);
   const [oldDataLength, setOldDataLength] = useState(measurementsData.length);
   const [stepAfterMoveToShape, setStepAfterMoveToShape] = useState<
@@ -123,11 +125,13 @@ InfoBoxMeasurementProps) {
     mapMovingEnd,
   ]);
 
-  useEffect(() => {
-    if (visibleShapesData[currentMeasure]?.shapeId) {
-      setActiveShape(visibleShapesData[currentMeasure].shapeId);
-    }
-  }, [currentMeasure]);
+  // Remove this useEffect - don't set activeShape based on currentMeasure
+  // activeShape is the source of truth, currentMeasure is derived from it
+  // useEffect(() => {
+  //   if (visibleShapesData[currentMeasure]?.shapeId) {
+  //     setActiveShape(visibleShapesData[currentMeasure].shapeId);
+  //   }
+  // }, [currentMeasure]);
 
   useEffect(() => {
     const positionInArr = activeShapeHandler(activeShape ?? null);
@@ -153,25 +157,25 @@ InfoBoxMeasurementProps) {
   const decreaseCurrentHandler = () => {
     setMoveToShape(null);
     cleanUpdateMeasurementStatus();
-    setCurrentMeasure((prev) => {
-      if (prev <= 0) {
-        return visibleShapesData.length - 1;
-      }
-
-      return prev - 1;
-    });
+    // Update activeShape (source of truth), currentMeasure will be derived
+    const currentIndex = activeShapeHandler(activeShape);
+    const newIndex =
+      currentIndex <= 0 ? visibleShapesData.length - 1 : currentIndex - 1;
+    if (visibleShapesData[newIndex]) {
+      setActiveShape(visibleShapesData[newIndex].shapeId);
+    }
   };
 
   const increaseCurrentHandler = () => {
     setMoveToShape(null);
     cleanUpdateMeasurementStatus();
-    setCurrentMeasure((prev) => {
-      if (prev >= visibleShapesData.length - 1) {
-        return 0;
-      }
-
-      return prev + 1;
-    });
+    // Update activeShape (source of truth), currentMeasure will be derived
+    const currentIndex = activeShapeHandler(activeShape);
+    const newIndex =
+      currentIndex >= visibleShapesData.length - 1 ? 0 : currentIndex + 1;
+    if (visibleShapesData[newIndex]) {
+      setActiveShape(visibleShapesData[newIndex].shapeId);
+    }
   };
 
   const activeShapeHandler = (
@@ -225,9 +229,11 @@ InfoBoxMeasurementProps) {
   };
 
   const setLastMeasureActive = () => {
-    const initialCureentMeasure =
-      visibleShapesData.length - 1 < 0 ? 0 : visibleShapesData.length - 1;
-    setCurrentMeasure(initialCureentMeasure);
+    // Set activeShape (source of truth) to the last visible shape
+    const lastIndex = visibleShapesData.length - 1;
+    if (lastIndex >= 0 && visibleShapesData[lastIndex]) {
+      setActiveShape(visibleShapesData[lastIndex].shapeId);
+    }
   };
 
   const updateTitleMeasurementById = (
