@@ -53,44 +53,47 @@ export const getActionLinksForFeature = (
       />
     );
   }
-  if (infoxboxControlObject.tel || feature?.properties?.tel !== undefined) {
+  if (infoxboxControlObject?.tel || feature?.properties?.tel !== undefined) {
     links.push(
       <IconLink
         key={`IconLink.tel`}
         tooltip="Anrufen"
-        href={"tel:" + infoxboxControlObject.tel || feature?.properties?.tel}
+        href={"tel:" + infoxboxControlObject?.tel || feature?.properties?.tel}
         iconname="phone"
       />
     );
   }
-  if (infoxboxControlObject.email || feature?.properties?.email !== undefined) {
+  if (
+    infoxboxControlObject?.email ||
+    feature?.properties?.email !== undefined
+  ) {
     links.push(
       <IconLink
         key={`IconLink.email`}
         tooltip="E-Mail schreiben"
         href={
-          "mailto:" + infoxboxControlObject.email || feature?.properties?.email
+          "mailto:" + infoxboxControlObject?.email || feature?.properties?.email
         }
         iconname="envelope-square"
       />
     );
   }
-  if (infoxboxControlObject.url || feature?.properties?.url !== undefined) {
+  if (infoxboxControlObject?.url || feature?.properties?.url !== undefined) {
     links.push(
       <IconLink
         key={`IconLink.web`}
         tooltip="Zur Homepage"
-        href={infoxboxControlObject.url || feature?.properties?.url}
+        href={infoxboxControlObject?.url || feature?.properties?.url}
         target="_blank"
         iconname="external-link-square"
       />
     );
   }
   if (
-    infoxboxControlObject.genericLinks ||
+    infoxboxControlObject?.genericLinks ||
     feature?.properties?.genericLinks !== undefined
   ) {
-    for (const genericLink of infoxboxControlObject.genericLinks ||
+    for (const genericLink of infoxboxControlObject?.genericLinks ||
       feature.properties.genericLinks) {
       if (genericLink.url) {
         links.push(
