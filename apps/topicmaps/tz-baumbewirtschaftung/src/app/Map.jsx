@@ -4,6 +4,7 @@ import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingCon
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import Menu from "./Menu";
 import Modal from "./Modal";
+import SetStatusDialog from "./SetStatusDialog";
 import {
   createVectorFeature,
   FeatureInfobox,
@@ -35,6 +36,7 @@ const TZBaumbewirtschaftung = () => {
   const { clusteringOptions } = useContext(FeatureCollectionContext);
   const [selectedFeature, setSelectedFeature] = useState();
   const [featureCollection, setFeatureCollection] = useState();
+  const [showStatusDialog, setShowStatusDialog] = useState(false);
   const { responsiveState, gap, windowSize } = useContext(
     ResponsiveTopicMapContext
   );
@@ -110,7 +112,7 @@ const TZBaumbewirtschaftung = () => {
       genericLinks: [
         {
           action: () => {
-            console.log("xxx");
+            setShowStatusDialog(true);
           },
           tooltip: "Status ändern",
           iconname: "tasks",
@@ -215,8 +217,6 @@ const TZBaumbewirtschaftung = () => {
                   (async () => {
                     const hit = e.hit;
                     if (hit) {
-                      console.log("xxx hit", hit);
-
                       const infoBoxControlObject =
                         await getInfoBoxControlObjectFromMappingAndVectorFeature(
                           {
@@ -224,12 +224,8 @@ const TZBaumbewirtschaftung = () => {
                             selectedVectorFeature: hit,
                           }
                         );
-                      console.log(
-                        "xxx infoBoxControlObject",
-                        infoBoxControlObject
-                      );
+
                       const feature = hit;
-                      console.log("xxx feature", feature);
                       // add infoBoxControlObject
                       feature.properties.info =
                         createInfoBoxControlObject(feature);
@@ -355,6 +351,27 @@ const TZBaumbewirtschaftung = () => {
           </TopicMapComponent>
         </ControlLayout>
       </SandboxedEvalProvider>
+      {showStatusDialog && (
+        <SetStatusDialog
+          feature={selectedFeature}
+          close={() => setShowStatusDialog(false)}
+          onCancel={() => {
+            console.log("Status dialog cancelled");
+          }}
+          onClose={(parameter) => {
+            console.log("Status changed:", parameter);
+            // Mock: Update feature status
+            if (selectedFeature) {
+              console.log(
+                "Would update feature:",
+                selectedFeature.id,
+                "with:",
+                parameter
+              );
+            }
+          }}
+        />
+      )}
     </div>
   );
 };
