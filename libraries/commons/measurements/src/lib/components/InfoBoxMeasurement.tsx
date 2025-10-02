@@ -20,12 +20,12 @@ export interface MeasurementShape {
 }
 
 export interface InfoBoxMeasurementProps {
-  measurementsData: MeasurementShape[];
-  visibleShapesData: MeasurementShape[];
+  // measurementsData: MeasurementShape[];
+  // visibleShapesData: MeasurementShape[];
   // activeShape?: number | string | null;
   moveToShape?: number | string | null;
-  updateShape?: boolean;
-  drawingMode?: boolean;
+  // updateShape?: boolean;
+  // drawingMode?: boolean;
   mapMovingEnd?: boolean;
 
   // UI
@@ -34,7 +34,7 @@ export interface InfoBoxMeasurementProps {
   // Actions (previously dispatched)
   setMoveToShape: (id: number | string | null) => void;
   // setActiveShape: (id: number | string | null) => void;
-  setUpdateShape: (status: boolean) => void;
+  // setUpdateShape: (status: boolean) => void;
   setDeleteAll: (value: boolean) => void;
   setMapMovingEnd: (status: boolean) => void;
   setShowAll: (value: boolean) => void;
@@ -42,23 +42,37 @@ export interface InfoBoxMeasurementProps {
 }
 
 export function InfoBoxMeasurement({
-  measurementsData,
-  visibleShapesData,
+  // measurementsData,
+  // visibleShapesData,
   // activeShape,
-  moveToShape,
-  updateShape,
-  drawingMode,
-  mapMovingEnd,
-  setMoveToShape,
+  // moveToShape,
+  // updateShape,
+  // drawingMode,
+  // mapMovingEnd,
+  // setMoveToShape,
   // setActiveShape,
-  setUpdateShape,
-  setDeleteAll,
-  setMapMovingEnd,
-  setShowAll,
+  // setUpdateShape,
+  // setDeleteAll,
+  // setMapMovingEnd,
+  // setShowAll,
   updateTitle,
 }: InfoBoxMeasurementProps) {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
-  const { activeShape, setActiveShape } = useMapMeasurementsContext();
+  const {
+    shapes: measurementsData,
+    activeShape,
+    setActiveShape,
+    moveToShape,
+    setMoveToShape,
+    visibleShapes: visibleShapesData,
+    updateShape,
+    setUpdateShape,
+    drawingShape: drawingMode,
+    mapMovingEnd,
+    setMapMovingEnd,
+    setDeleteAll,
+    setShowAll,
+  } = useMapMeasurementsContext();
 
   const [currentMeasure, setCurrentMeasure] = useState(0);
   const [oldDataLength, setOldDataLength] = useState(measurementsData.length);
