@@ -25,7 +25,7 @@ export const FeatureInfobox = ({
   versionData,
   bigMobileIconsInsteadOfCollapsing = false,
   Modal = additionalInfoFactory(
-    (selectedFeature?.properties?.info || selectedFeature?.properties).modal
+    (selectedFeature?.properties?.info || selectedFeature?.properties)?.modal
   ) as React.ComponentType<any> | null,
 }: InfoboxProps) => {
   const infoBoxControlObject =
@@ -36,14 +36,9 @@ export const FeatureInfobox = ({
   if (!selectedFeature) {
     return null;
   }
-  console.log(
-    "xxx in FeatureInfobox infoBoxControlObject",
-    infoBoxControlObject,
-    selectedFeature
-  );
-  let links = [];
+
+  let links: JSX.Element[] = [];
   if (selectedFeature) {
-    console.log("xxx selectedFeature", selectedFeature);
     links = getActionLinksForFeature(selectedFeature, {
       displaySecondaryInfoAction: !!infoBoxControlObject?.modal,
       setVisibleStateOfSecondaryInfo: () => {
@@ -62,8 +57,6 @@ export const FeatureInfobox = ({
     }
     return text;
   };
-
-  console.log("xxx selectedFeature.links", links);
 
   return (
     <>
