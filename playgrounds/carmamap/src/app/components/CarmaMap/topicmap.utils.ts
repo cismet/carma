@@ -1,5 +1,5 @@
 import type { Dispatch, Store } from "@reduxjs/toolkit";
-import type { LatLng, Point } from "leaflet";
+import * as L from "leaflet";
 
 import { UIMode } from "../../store/slices/ui";
 
@@ -10,17 +10,6 @@ type Options = {
   zoom: number;
 };
 
-export const onClickTopicMap = async (
-  e: {
-    containerPoint: Point;
-    latlng: LatLng;
-    layerPoint: Point;
-    originalEvent: PointerEvent;
-    sourceTarget: HTMLElement;
-    target: HTMLElement;
-    type: string;
-  },
-  {}: Options
-) => {
+export const onClickTopicMap = async (e: L.LeafletMouseEvent, {}: Options) => {
   console.log("onClickTopicMap", e);
 };

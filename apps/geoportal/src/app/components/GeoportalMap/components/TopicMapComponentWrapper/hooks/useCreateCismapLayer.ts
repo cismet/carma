@@ -13,15 +13,15 @@ import CismapLayer from "react-cismap/CismapLayer";
 import type { Layer } from "@carma/types";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 
-import { setSelectedFeature } from "../../../store/slices/features";
-import { setLayersIdle } from "../../../store/slices/mapping";
+import { setSelectedFeature } from "../../../../../store/slices/features";
+import { setLayersIdle } from "../../../../../store/slices/mapping";
 
-import { UIMode } from "../../../store/slices/ui";
+import { UIMode } from "../../../../../store/slices/ui";
 import {
   cancelOngoingRequests,
   implicitVectorSelection,
   onSelectionChangedVector,
-} from "../topicmap.utils";
+} from "../../../topicmap.utils";
 
 const MAX_ZOOM = 26;
 

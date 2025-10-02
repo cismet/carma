@@ -59,8 +59,12 @@ export const cancelOngoingRequests = () => {
   }
 };
 
+type ClickLatLng = {
+  latlng: { lat: number; lng: number };
+};
+
 export const onClickTopicMap = async (
-  e: L.LeafletMouseEvent,
+  e: ClickLatLng,
   { dispatch, mode, store, zoom, map }: Options
 ) => {
   const layers = getLayers(store.getState());
@@ -459,7 +463,7 @@ export const implicitVectorSelection = async (
   e: {
     hits: any[];
     hit: any;
-    latlng: LatLng;
+    latlng: L.LatLng;
   },
   { layer, dispatch, selectionHandler, featureHandler, leafletMap }
 ) => {
