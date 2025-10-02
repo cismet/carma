@@ -147,7 +147,6 @@ export const createUrl = ({
 
 export const createVectorFeature = async (mapping, selectedVectorFeature) => {
   let feature: any = undefined;
-  console.log("xxx selectedVectorFeature", selectedVectorFeature);
   let properties = selectedVectorFeature.properties;
   properties = {
     ...properties,
@@ -185,7 +184,6 @@ export const createVectorFeature = async (mapping, selectedVectorFeature) => {
       geometry: selectedVectorFeature.geometry,
     };
   }
-  console.log("xxx createdfeature", feature);
   return feature;
 };
 
