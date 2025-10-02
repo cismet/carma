@@ -135,21 +135,22 @@ export const MapMeasurementsProvider = ({
     newSquare?: number | null
   ) => {
     setUpdateShape(true);
-    setShapes(
-      shapes.map((shape) => {
-        if (shape.id === shapeId) {
+    setShapes((prevShapes) => {
+      return prevShapes.map((s) => {
+        if (s.shapeId === shapeId) {
           return {
-            ...shape,
+            ...s,
             coordinates: newCoordinates,
             distance: newDistance,
             area: newSquare,
           };
         } else {
-          return shape;
+          return s;
         }
-      })
-    );
+      });
+    });
   };
+
   const setLastVisibleShapeActive = () => {
     const allShapes = shapes;
     const lastShapeId = allShapes[allShapes.length - 1]?.shapeId;
