@@ -227,7 +227,7 @@ const TopNavbar = () => {
           dispatch(setThumbnail(thumbnail));
         }}
         thumbnails={thumbnails}
-        activeLayers={activeLayers}
+        activeLayers={[backgroundLayer, ...activeLayers]}
         customCategories={[
           {
             Title: "Meine Zusammenstellungen",
