@@ -129,6 +129,7 @@ export const MapMeasurementsProvider = ({
     newDistance?: number,
     newSquare?: number | null
   ) => {
+    setUpdateShape(true);
     setShapes(
       shapes.map((shape) => {
         if (shape.id === shapeId) {
@@ -145,14 +146,15 @@ export const MapMeasurementsProvider = ({
     );
   };
   const setLastVisibleShapeActive = () => {
-    const lastShapeId = visibleShapes[visibleShapes.length - 1]?.shapeId;
+    const allShapes = shapes;
+    const lastShapeId = allShapes[allShapes.length - 1]?.shapeId;
     if (lastShapeId) {
       setActiveShape(lastShapeId);
     }
   };
 
   const setDrawingWithLastActiveShape = () => {
-    const lastActiveShape = lastActiveShapeBeforeDrawing;
+    const lastActiveShape = activeShape;
     if (lastActiveShape) {
       setLastActiveShapeBeforeDrawing(lastActiveShape);
       setDrawingShape(true);
@@ -165,6 +167,9 @@ export const MapMeasurementsProvider = ({
 
     if (lastActiveShape && visible[0]?.shapeId !== 55555) {
       setActiveShape(lastActiveShape);
+      setDrawingShape(false);
+    } else {
+      setVisibleShapes([]);
     }
   };
 

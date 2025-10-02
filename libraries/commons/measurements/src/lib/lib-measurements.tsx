@@ -23,40 +23,40 @@ export interface MeasurementShape {
 
 export type UIModeType = string | "measurement" | "default";
 export interface MapMeasurementProps {
-  measurementShapes: MeasurementShape[];
+  // measurementShapes: MeasurementShape[];
   // activeShape?: number | string | null;
-  ifDrawing?: boolean;
-  showAllMeasurements?: boolean;
-  deleteShape?: boolean;
-  visibleShapes: MeasurementShape[];
-  moveToShape?: number | string | null;
+  // ifDrawing?: boolean;
+  // showAllMeasurements?: boolean;
+  // deleteShape?: boolean;
+  // visibleShapes: MeasurementShape[];
+  // moveToShape?: number | string | null;
   mode?: UIModeType;
 
   // Callbacks (replacements for dispatch(action))
-  toggleUIMode: (mode: UIModeType) => void;
+  // toggleUIMode: (mode: UIModeType) => void;
 
-  setShapes: (shapes: MeasurementShape[]) => void;
+  // setShapes: (shapes: MeasurementShape[]) => void;
   // setActiveShape: (id: number | string | null) => void;
-  setVisibleShapes: (shapes: MeasurementShape[]) => void;
-  setDrawingShape: (status: boolean) => void;
-  setShowAll: (value: boolean) => void;
-  setDeleteAll: (value: boolean) => void;
-  setMoveToShape: (id: number | string | null) => void;
-  setUpdateShape: (status: boolean) => void;
-  setMapMovingEnd: (status: boolean) => void;
-  addShape: (layer: unknown) => void;
-  deleteShapeById: (id: number | string) => void;
-  updateShapeById: (
-    id: number | string,
-    newCoordinates?: unknown,
-    newDistance?: number,
-    newSquare?: number | null
-  ) => void;
-  setLastVisibleShapeActive: () => void;
-  setDrawingWithLastActiveShape: () => void;
-  setActiveShapeIfDrawCancelled: () => void;
-  updateAreaOfDrawing: (area: number) => void;
-  deleteVisibleShapeById: (id: number | string) => void;
+  // setVisibleShapes: (shapes: MeasurementShape[]) => void;
+  // setDrawingShape: (status: boolean) => void;
+  // setShowAll: (value: boolean) => void;
+  // setDeleteAll: (value: boolean) => void;
+  // setMoveToShape: (id: number | string | null) => void;
+  // setUpdateShape: (status: boolean) => void;
+  // setMapMovingEnd: (status: boolean) => void;
+  // addShape: (layer: unknown) => void;
+  // deleteShapeById: (id: number | string) => void;
+  // updateShapeById: (
+  //   id: number | string,
+  //   newCoordinates?: unknown,
+  //   newDistance?: number,
+  //   newSquare?: number | null
+  // ) => void;
+  // setLastVisibleShapeActive: () => void;
+  // setDrawingWithLastActiveShape: () => void;
+  // setActiveShapeIfDrawCancelled: () => void;
+  // updateAreaOfDrawing: (area: number) => void;
+  // deleteVisibleShapeById: (id: number | string) => void;
   setStartDrawing: (status: boolean) => void;
 
   // Optional handlers that were previously passed into control options
@@ -65,38 +65,64 @@ export interface MapMeasurementProps {
 }
 
 export function MapMeasurementLib({
-  measurementShapes,
+  // measurementShapes,
   // activeShape,
-  ifDrawing,
-  showAllMeasurements,
-  deleteShape,
-  visibleShapes,
-  moveToShape,
+  // ifDrawing,
+  // showAllMeasurements,
+  // deleteShape,
+  // visibleShapes,
+  // moveToShape,
   mode,
-  toggleUIMode,
-  setShapes,
+  // toggleUIMode,
+  // setShapes,
   // setActiveShape,
-  setVisibleShapes,
-  setDrawingShape,
+  // setVisibleShapes,
+  // setDrawingShape,
   setStartDrawing,
-  setShowAll,
-  setDeleteAll,
-  setMoveToShape,
-  setUpdateShape,
-  setMapMovingEnd,
-  addShape,
-  deleteShapeById,
-  updateShapeById,
-  setLastVisibleShapeActive,
-  setDrawingWithLastActiveShape,
-  setActiveShapeIfDrawCancelled,
-  updateAreaOfDrawing,
-  deleteVisibleShapeById,
+  // setShowAll,
+  // setDeleteAll,
+  // setMoveToShape,
+  // setUpdateShape,
+  // setMapMovingEnd,
+  // addShape,
+  // deleteShapeById,
+  // updateShapeById,
+  // setLastVisibleShapeActive,
+  // setDrawingWithLastActiveShape,
+  // setActiveShapeIfDrawCancelled,
+  // updateAreaOfDrawing,
+  // deleteVisibleShapeById,
   polygonActiveIcon,
   polygonIcon,
 }: MapMeasurementProps) {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
-  const { activeShape, setActiveShape } = useMapMeasurementsContext();
+  const {
+    activeShape,
+    setActiveShape,
+    shapes,
+    setShapes,
+    addShape,
+    deleteAll,
+    setDeleteAll,
+    setUpdateShape,
+    visibleShapes,
+    setVisibleShapes,
+    drawingShape: ifDrawing,
+    setDrawingShape,
+    moveToShape,
+    setMoveToShape,
+    showAll,
+    setShowAll,
+    toggleMeasurementMode: toggleUIMode,
+    setMapMovingEnd,
+    deleteShapeById,
+    updateShapeById,
+    setLastVisibleShapeActive,
+    setDrawingWithLastActiveShape,
+    setActiveShapeIfDrawCancelled,
+    updateAreaOfDrawing,
+    deleteVisibleShapeById,
+  } = useMapMeasurementsContext();
 
   const [measureControl, setMeasureControl] = useState<any>(null);
   const [visiblePolylines, setVisiblePolylines] = useState<(string | number)[]>(
@@ -123,7 +149,7 @@ export function MapMeasurementLib({
         mode_btn: `<div id='draw-shape-active' class='measure_button_wrapper'><div class='add_shape'>+</div></div>`,
         msj_disable_tool: "Do you want to disable the tool?",
         device,
-        shapes: measurementShapes,
+        shapes,
         cbSaveShape: saveShapeHandler,
         cbUpdateShape: updateShapeHandler,
         cdDeleteShape: deleteShapeHandler,
@@ -131,7 +157,7 @@ export function MapMeasurementLib({
         cbVisiblePolylinesChange: visiblePolylinesChange,
         cbSetDrawingStatus: drawingStatusHandler,
         cbSetDrawingShape: drawingShapeHandler,
-        measurementOrder: findLargestNumber(measurementShapes),
+        measurementOrder: findLargestNumber(shapes),
         measurementMode: mode,
         cbSetActiveShape: setActiveShapeHandler,
         cbSetUpdateStatusHandler: setUpdateStatusHandler,
@@ -152,37 +178,33 @@ export function MapMeasurementLib({
 
   useEffect(() => {
     if (measureControl && activeShape) {
-      const shapeCoordinates = measurementShapes.filter(
-        (s) => s.shapeId === activeShape
-      );
+      const shapeCoordinates = shapes.filter((s) => s.shapeId === activeShape);
       const map = routedMapRef.leafletMap.leafletElement;
 
       if (ifDrawing) {
         setMoveToShape(null);
       }
 
-      if (shapeCoordinates[0]?.shapeId && !ifDrawing && !deleteShape) {
+      if (shapeCoordinates[0]?.shapeId && !ifDrawing && !deleteAll) {
         measureControl.changeColorByActivePolyline(
           map,
           shapeCoordinates[0].shapeId
         );
       }
-      if (showAllMeasurements) {
+      if (showAll) {
         const allPolylines = measureControl.getAllPolylines(map);
         measureControl.fitMapToPolylines(map, allPolylines);
         setShowAll(false);
       }
 
-      if (deleteShape) {
+      if (deleteAll) {
         setMoveToShape(null);
         measureControl.removePolylineById(map, activeShape);
         const cleanArr = visibleShapes.filter((m) => m.shapeId !== activeShape);
         deleteShapeHandler(activeShape);
         setVisibleShapes(cleanArr);
 
-        const cleanAllArr = measurementShapes.filter(
-          (m) => m.shapeId !== activeShape
-        );
+        const cleanAllArr = shapes.filter((m) => m.shapeId !== activeShape);
         setShapes(cleanAllArr);
         setDeleteAll(false);
         if (measureControl.options.shapes.length === 1) {
@@ -194,7 +216,7 @@ export function MapMeasurementLib({
 
         measureControl.options.shapes = cleanLocalLefletShapes;
       }
-      if (moveToShape && !deleteShape) {
+      if (moveToShape && !deleteAll) {
         if (shapeCoordinates.length > 0) {
           measureControl.showActiveShape(map, shapeCoordinates[0]?.coordinates);
         }
@@ -204,9 +226,7 @@ export function MapMeasurementLib({
     if (measureControl) {
       const map = routedMapRef.leafletMap.leafletElement;
       measureControl.changeMeasurementMode(mode, map);
-      const shapeCoordinates = measurementShapes.filter(
-        (s) => s.shapeId === activeShape
-      );
+      const shapeCoordinates = shapes.filter((s) => s.shapeId === activeShape);
       if (shapeCoordinates[0]?.shapeId) {
         measureControl.changeColorByActivePolyline(
           map,
@@ -223,8 +243,8 @@ export function MapMeasurementLib({
   }, [
     activeShape,
     measureControl,
-    showAllMeasurements,
-    deleteShape,
+    showAll,
+    deleteAll,
     ifDrawing,
     moveToShape,
     mode,
@@ -232,15 +252,12 @@ export function MapMeasurementLib({
 
   useEffect(() => {
     if (measureControl) {
-      const cleanedVisibleArr = filterArrByIds(
-        visiblePolylines,
-        measurementShapes
-      );
+      const cleanedVisibleArr = filterArrByIds(visiblePolylines, shapes);
       setVisibleShapes(cleanedVisibleArr);
 
-      measureControl.changeMeasurementsArr(measurementShapes);
+      measureControl.changeMeasurementsArr(shapes);
     }
-  }, [visiblePolylines, measurementShapes]);
+  }, [visiblePolylines, shapes]);
 
   useEffect(() => {
     if (drawingShape) {

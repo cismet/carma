@@ -44,7 +44,7 @@ import {
   updateAreaOfDrawing,
   toggleMeasurementMode,
   getDrawingShape,
-  getDeleteAll,
+  // getDeleteAll,
   updateTitle,
 } from "./store/slices/measurements";
 import { setStartDrawing as setStartDrawingAction } from "./store/slices/mapping";
@@ -55,13 +55,13 @@ suppressReactCismapErrors();
 export function App() {
   const dispatch = useDispatch<AppDispatch>();
   // selectors
-  const measurementShapes = useSelector(getShapes);
+  // const measurementShapes = useSelector(getShapes);
   // const activeShape = useSelector(getActiveShapes);
   const ifDrawing = useSelector(getDrawingShape);
   const showAllMeasurements = useSelector(getShowAll);
-  const deleteShape = useSelector(getDeleteAll);
+  // const deleteShape = useSelector(getDeleteAll);
   const visibleShapes = useSelector(getVisibleShapes);
-  const moveToShape = useSelector(getMoveToShape);
+  // const moveToShape = useSelector(getMoveToShape);
   const mode = useSelector(getUIMode);
   const updateShape = useSelector(getUpdateShapeToShape);
   const mapMovingEnd = useSelector(getMapMovingEnd);
@@ -94,24 +94,25 @@ export function App() {
           </ControlButtonStyler>
         </Control>
         {isModeMeasurement && (
-          <InfoBoxMeasurement
-            measurementsData={measurementShapes}
-            visibleShapesData={visibleShapes}
-            // activeShape={activeShape}
-            moveToShape={moveToShape}
-            updateShape={updateShape}
-            drawingMode={ifDrawing}
-            mapMovingEnd={mapMovingEnd}
-            setMoveToShape={(id) => dispatch(setMoveToShape(id))}
-            // setActiveShape={(id) => dispatch(setActiveShape(id))}
-            setUpdateShape={(s) => dispatch(setUpdateShape(s))}
-            setDeleteAll={() => dispatch(setDeleteAll(true))}
-            setMapMovingEnd={() => dispatch(setMapMovingEnd(false))}
-            setShowAll={() => dispatch(setShowAll(true))}
-            updateTitle={(shapeId, customTitle) =>
-              dispatch(updateTitle(shapeId, customTitle))
-            }
-          />
+          // <InfoBoxMeasurement
+          //   // measurementsData={measurementShapes}
+          //   visibleShapesData={visibleShapes}
+          //   // activeShape={activeShape}
+          //   moveToShape={moveToShape}
+          //   updateShape={updateShape}
+          //   drawingMode={ifDrawing}
+          //   mapMovingEnd={mapMovingEnd}
+          //   setMoveToShape={(id) => dispatch(setMoveToShape(id))}
+          //   // setActiveShape={(id) => dispatch(setActiveShape(id))}
+          //   setUpdateShape={(s) => dispatch(setUpdateShape(s))}
+          //   setDeleteAll={() => dispatch(setDeleteAll(true))}
+          //   setMapMovingEnd={() => dispatch(setMapMovingEnd(false))}
+          //   setShowAll={() => dispatch(setShowAll(true))}
+          //   updateTitle={(shapeId, customTitle) =>
+          //     dispatch(updateTitle(shapeId, customTitle))
+          //   }
+          // />
+          <></>
         )}
       </ControlLayout>
       <TopicMapComponent
@@ -123,45 +124,45 @@ export function App() {
       >
         <MapMeasurementLib
           // state
-          measurementShapes={measurementShapes}
+          // measurementShapes={measurementShapes}
           // activeShape={activeShape}
-          visibleShapes={visibleShapes}
-          moveToShape={moveToShape}
+          // visibleShapes={visibleShapes}
+          // moveToShape={moveToShape}
           mode={mode}
-          ifDrawing={ifDrawing}
-          showAllMeasurements={showAllMeasurements}
-          deleteShape={deleteShape}
+          // ifDrawing={ifDrawing}
+          // showAllMeasurements={showAllMeasurements}
+          // deleteShape={deleteShape}
           // callbacks mapped to redux
-          toggleUIMode={() => dispatch(toggleMeasurementMode() as any)}
-          setShapes={(s) => dispatch(setShapes(s))}
+          // toggleUIMode={() => dispatch(toggleMeasurementMode() as any)}
+          // setShapes={(s) => dispatch(setShapes(s))}
           // setActiveShape={(id) => dispatch(setActiveShape(id))}
-          setVisibleShapes={(s) => dispatch(setVisibleShapes(s))}
-          setDrawingShape={(b) => dispatch(setDrawingShape(b))}
-          setShowAll={(b) => dispatch(setShowAll(b))}
-          setDeleteAll={(b) => dispatch(setDeleteAll(b))}
-          setMoveToShape={(id) => dispatch(setMoveToShape(id))}
-          setUpdateShape={(b) => dispatch(setUpdateShape(b))}
-          setMapMovingEnd={(b) => dispatch(setMapMovingEnd(b))}
-          addShape={(layer) => dispatch(addShape(layer) as any)}
-          deleteShapeById={(id) => dispatch(deleteShapeById(id) as any)}
-          updateShapeById={(id, coords, dist, area) =>
-            dispatch(updateShapeById(id, coords, dist, area) as any)
-          }
-          setLastVisibleShapeActive={() =>
-            dispatch(setLastVisibleShapeActive() as any)
-          }
-          setDrawingWithLastActiveShape={() =>
-            dispatch(setDrawingWithLastActiveShape() as any)
-          }
-          setActiveShapeIfDrawCancelled={() =>
-            dispatch(setActiveShapeIfDrawCancelled() as any)
-          }
-          updateAreaOfDrawing={(area) =>
-            dispatch(updateAreaOfDrawing(area) as any)
-          }
-          deleteVisibleShapeById={(id) =>
-            dispatch(deleteVisibleShapeById(id) as any)
-          }
+          // setVisibleShapes={(s) => dispatch(setVisibleShapes(s))}
+          // setDrawingShape={(b) => dispatch(setDrawingShape(b))}
+          // setShowAll={(b) => dispatch(setShowAll(b))}
+          // setDeleteAll={(b) => dispatch(setDeleteAll(b))}
+          // setMoveToShape={(id) => dispatch(setMoveToShape(id))}
+          // setUpdateShape={(b) => dispatch(setUpdateShape(b))}
+          // setMapMovingEnd={(b) => dispatch(setMapMovingEnd(b))}
+          // addShape={(layer) => dispatch(addShape(layer) as any)}
+          // deleteShapeById={(id) => dispatch(deleteShapeById(id) as any)}
+          // updateShapeById={(id, coords, dist, area) =>
+          //   dispatch(updateShapeById(id, coords, dist, area) as any)
+          // }
+          // setLastVisibleShapeActive={() =>
+          //   dispatch(setLastVisibleShapeActive() as any)
+          // }
+          // setDrawingWithLastActiveShape={() =>
+          //   dispatch(setDrawingWithLastActiveShape() as any)
+          // }
+          // setActiveShapeIfDrawCancelled={() =>
+          //   dispatch(setActiveShapeIfDrawCancelled() as any)
+          // }
+          // updateAreaOfDrawing={(area) =>
+          //   dispatch(updateAreaOfDrawing(area) as any)
+          // }
+          // deleteVisibleShapeById={(id) =>
+          //   dispatch(deleteVisibleShapeById(id) as any)
+          // }
           setStartDrawing={(b) => dispatch(setStartDrawingAction(b))}
         />
       </TopicMapComponent>
