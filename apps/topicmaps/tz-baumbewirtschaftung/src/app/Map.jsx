@@ -30,6 +30,11 @@ import CismapLayer from "react-cismap/CismapLayer";
 import versionData from "../version.json";
 import { md5FetchJSON } from "react-cismap/tools/fetching";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+import { useTreeStyle } from "./hooks/useTreeStyle";
+import {
+  createInfoBoxControlObject,
+  enrichFeatureCollection,
+} from "./helper/treeHelper";
 
 const baseUrl = window.location.origin + window.location.pathname;
 
@@ -72,79 +77,10 @@ const TZBaumbewirtschaftung = () => {
     //   "fotos: ['https://www.wuppertal.de/geoportal/emobil/autos/fotos/wasserstoff_01.jpg','https://www.wuppertal.de/geoportal/emobil/autos/fotos/wasserstoff_02.jpg',   'https://www.wuppertal.de/geoportal/emobil/autos/fotos/wasserstoff_03.jpg',      'https://www.wuppertal.de/geoportal/emobil/autos/fotos/wasserstoff_04.jpg',      'https://www.wuppertal.de/geoportal/emobil/autos/fotos/wasserstoff_05.jpg',      'https://www.wuppertal.de/geoportal/emobil/autos/fotos/wasserstoff_06.jpg' ]",
   ];
 
-  function computeLatestStatus(actions) {
-    if (!actions || actions.length === 0) return "none";
-    return actions[0]?.status || "none";
-  }
+  console.log("xxx markerSymbolSize ", markerSymbolSize);
 
-  function hasStatus(actions, status) {
-    if (!actions || actions.length === 0) return false;
-    return actions.some((a) => a.status === status);
-  }
-  function createInfoBoxControlObject(feature) {
-    const p = feature.properties;
-    const ibo = {
-      headerColor: "#7AB317",
-      header: "Baumbewirtschaftung",
-      title:
-        p.baumart_botanisch +
-        " (" +
-        p.standort_nr +
-        "." +
-        p.zusatz +
-        "." +
-        p.lfd_nr_str +
-        ")",
-      additionalInfo:
-        " (*" +
-        p.pflanzjahr +
-        " / " +
-        p.standalter_jahr +
-        ")" +
-        "\n\n" +
-        p.hoehe_m +
-        "m / " +
-        p.stammumfang_cm +
-        "cm",
-      subtitle: p.ortlicher_bezug,
-      modal: true,
-      // url: "https://cismet.de",
-      // email: "info@cismet.de",
-      // tel: "01709120394",
-      genericLinks: [
-        {
-          action: () => {
-            setShowStatusDialog(true);
-          },
-          tooltip: "Status ändern",
-          iconname: "tasks",
-        },
-      ],
-      foto: baseUrl + "/demo/mod" + (feature.id % 10) + ".png",
-      //fotos: [of urls]
-      //if there are more than one foto need to be there anyway
-    };
-    return ibo;
-  }
+  const treeStyle = useTreeStyle(featureCollection, markerSymbolSize);
 
-  function enrichFeatureCollection(fc) {
-    return {
-      ...fc,
-      features: fc.features.map((f) => {
-        const p = f.properties;
-        return {
-          ...f,
-          properties: {
-            ...f.properties,
-            // Add computed properties
-            latestActionStatus: computeLatestStatus(f.properties.actions),
-            hasOpenActions: hasStatus(f.properties.actions, "open"),
-            actionCount: f.properties.actions?.length || 0,
-          },
-        };
-      }),
-    };
-  }
   return (
     <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
       <SandboxedEvalProvider>
@@ -208,6 +144,7 @@ const TZBaumbewirtschaftung = () => {
 
             {featureCollection && (
               <CismapLayer
+                key={`tree-layer-${markerSymbolSize}`}
                 pane="additionalLayers0"
                 selectionEnabled={true}
                 manualSelectionManagement={false}
@@ -229,8 +166,11 @@ const TZBaumbewirtschaftung = () => {
 
                       const feature = hit;
                       // add infoBoxControlObject
-                      feature.properties.info =
-                        createInfoBoxControlObject(feature);
+                      feature.properties.info = createInfoBoxControlObject(
+                        feature,
+                        baseUrl,
+                        setShowStatusDialog
+                      );
 
                       // //or the snadbox way
                       // feature.properties.info = infoBoxControlObject;
@@ -241,112 +181,7 @@ const TZBaumbewirtschaftung = () => {
                     }
                   })();
                 }}
-                style={{
-                  version: 8,
-                  sources: {
-                    trees: {
-                      type: "geojson",
-                      data: featureCollection,
-                    },
-                  },
-                  glyphs:
-                    "https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf",
-                  sprite: "https://tiles.cismet.de/poi/sprites",
-                  layers: [
-                    {
-                      id: "tree-dots",
-                      type: "circle",
-                      source: "trees",
-                      minzoom: 0,
-                      maxzoom: 24,
-                      layout: {
-                        visibility: "visible",
-                      },
-                      paint: {
-                        "circle-radius": {
-                          base: 1.75,
-                          stops: [
-                            [0, 3],
-                            [16, 10],
-                            [22, 26],
-                          ],
-                        },
-                        "circle-color": [
-                          "case",
-                          ["==", ["get", "latestActionStatus"], "done"],
-                          "#4CAF50", // vibrant green for done
-                          ["==", ["get", "latestActionStatus"], "open"],
-                          "#FFEB3B", // yellow for open
-                          ["==", ["get", "latestActionStatus"], "exception"],
-                          "#F44336", // red for exception
-                          "#A5D6A7", // grayish green for none
-                        ],
-                        "circle-stroke-color": [
-                          "case",
-                          ["==", ["get", "latestActionStatus"], "done"],
-                          "#2E7D32", // darker green for done
-                          ["==", ["get", "latestActionStatus"], "open"],
-                          "#F57C00", // orange for open
-                          ["==", ["get", "latestActionStatus"], "exception"],
-                          "#B71C1C", // dark red for exception
-                          "#757575", // grey for none
-                        ],
-                        "circle-stroke-width": {
-                          base: 1.75,
-                          stops: [
-                            [0, 0.1],
-                            [16, 4],
-                            [22, 10],
-                          ],
-                        },
-                        "circle-opacity": 0.8,
-                        "circle-stroke-opacity": 1,
-                      },
-                    },
-                    {
-                      id: "tree-dots-selected",
-                      type: "circle",
-                      source: "trees",
-                      minzoom: 0,
-                      maxzoom: 24,
-                      layout: {
-                        visibility: "visible",
-                      },
-                      paint: {
-                        "circle-radius": {
-                          base: 1.75,
-                          stops: [
-                            [0, 3],
-                            [16, 10],
-                            [22, 26],
-                          ],
-                        },
-                        "circle-color": "#3A7CEB",
-                        "circle-stroke-color": "#0D6759",
-                        "circle-stroke-width": {
-                          base: 1.75,
-                          stops: [
-                            [0, 0.1],
-                            [16, 4],
-                            [22, 10],
-                          ],
-                        },
-                        "circle-opacity": [
-                          "case",
-                          ["boolean", ["feature-state", "selected"], false],
-                          0.8,
-                          0,
-                        ],
-                        "circle-stroke-opacity": [
-                          "case",
-                          ["boolean", ["feature-state", "selected"], false],
-                          0.8,
-                          0,
-                        ],
-                      },
-                    },
-                  ],
-                }}
+                style={treeStyle}
                 type="vector"
               />
             )}
