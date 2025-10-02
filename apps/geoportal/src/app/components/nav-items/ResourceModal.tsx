@@ -4,7 +4,7 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
-import { utils } from "@carma-appframeworks/portals";
+import { useMapStyle, utils } from "@carma-appframeworks/portals";
 import type { Item, Layer } from "@carma/types";
 import { LayerLib } from "@carma-mapping/layers";
 import { useAuth } from "@carma-providers/auth";
@@ -42,8 +42,11 @@ import { apiUrl } from "../../constants/discover";
 import store from "../../store";
 import { layerMap } from "../../config";
 import { createBackgroundLayerConfig } from "../../helper/layer";
+import { MapStyleKeys } from "../../constants/MapStyleKeys";
 const ResourceModal = () => {
   const [discoverItems, setDiscoverItems] = useState([]);
+
+  const { setCurrentStyle } = useMapStyle();
 
   const dispatch = useDispatch();
 
@@ -87,12 +90,14 @@ const ResourceModal = () => {
                 dispatch(
                   setSelectedMapLayer(createBackgroundLayerConfig(layerKey))
                 );
+                setCurrentStyle(MapStyleKeys.TOPO);
               } else {
                 dispatch(
                   setSelectedLuftbildLayer(
                     createBackgroundLayerConfig(layerKey)
                   )
                 );
+                setCurrentStyle(MapStyleKeys.AERIAL);
               }
             }
           }
