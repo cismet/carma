@@ -26,8 +26,6 @@ import {
   SelectionItem,
   TopicMapSelectionContent,
   useGazData,
-  useMapHashRouting,
-  createLocationChangeHandler,
   useSelectionCesium,
   useSelectionTopicMap,
   useCesiumModels,
@@ -71,7 +69,7 @@ import { proj4crs3857def, proj4crs4326def } from "../../helper/gisHelper.js";
 import { getBackgroundLayers } from "../../helper/layer.tsx";
 import { addCssToOverlayHelperItem } from "../../helper/overlayHelper.ts";
 
-import useLeafletZoomControls from "../../hooks/leaflet/useLeafletZoomControls.ts";
+import { useLeafletZoomControls } from "../../hooks/leaflet/useLeafletZoomControls.ts";
 import { useDispatchSachdatenInfoText } from "../../hooks/useDispatchSachdatenInfoText.ts";
 import { useFeatureInfoModeCursorStyle } from "../../hooks/useFeatureInfoModeCursorStyle.ts";
 import { useObliqueInitializer } from "../../oblique/hooks/useObliqueInitializer.ts";
@@ -100,10 +98,13 @@ import { getUIMode, UIMode } from "../../store/slices/ui.ts";
 import LoginForm from "../LoginForm.tsx";
 import { useModelSelectionDispatcher } from "../../hooks/useModelSelectionDispatcher.ts";
 
+import { useLocationChangeHandlers } from "./hooks/useLocationChangeHandlers.ts";
+
 import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../leaflet.css";
+
 interface MapProps {
   height: number;
   width: number;
@@ -162,8 +163,34 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   useOverlayHelper(layerButtonsOverlay);
   useOverlayHelper(mapInteractionOverlay);
 
-  const { routedMapRef: routedMap } =
+  const { routedMapRef: topicMap } =
     useContext<typeof TopicMapContext>(TopicMapContext);
+
+  const getTopicMap = useCallback(
+    () => topicMap?.leafletMap?.leafletElement,
+    [topicMap]
+  );
+
+  // topicMapLocationChangedHandler callbacks
+  const layersIdle = useSelector(getLayersIdle);
+
+  const changeHandlerOptions = useMemo(() => {
+    const updateLayersIdleState = () => {
+      if (layersIdle) {
+        console.debug("Layers are idle, setting layers idle to false");
+        dispatch(setLayersIdle(false));
+      }
+    };
+    return {
+      topicMap: {
+        getInstance: getTopicMap,
+        onAfter: updateLayersIdleState,
+      },
+    };
+  }, [getTopicMap, layersIdle, dispatch]);
+
+  const { topicMapLocationChangedHandler, cesiumLocationChangedHandler } =
+    useLocationChangeHandlers(isMode2d, changeHandlerOptions);
 
   const { setAppMenuVisible } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
@@ -176,123 +203,109 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   // TODO: move all these to a custom hook and collect all calls to updateFeatureInfo there
   const [shouldUpdateFeatureInfo, setShouldUpdateFeatureInfo] =
     useState<boolean>(false);
-  const layersIdle = useSelector(getLayersIdle);
-
   const version = getApplicationVersion(versionData);
 
   // custom hooks
   const flags = useFeatureFlags();
   const { isDebugMode } = flags;
+
   const cesiumInitialCameraView = useCesiumInitialCameraFromSearchParams();
   const { isObliqueMode } = useObliqueInitializer(isDebugMode);
-
-  const updateLayersIdleState = useCallback(() => {
-    if (layersIdle) {
-      console.debug("Layers are idle, setting layers idle to false");
-      dispatch(setLayersIdle(false));
-    }
-  }, [layersIdle, dispatch]);
 
   useDispatchSachdatenInfoText();
   const modelSelectionDispatcher = useModelSelectionDispatcher();
 
-  useCesiumModels({
-    models: CESIUM_CONFIG.models || [],
-    enabled: flags.featureFlagBugaBridge && !isMode2d,
-    selection: {
+  const modelConfig = useMemo(
+    () => ({
+      models: CESIUM_CONFIG.models || [],
       enabled: flags.featureFlagBugaBridge && !isMode2d,
-      deselectOnEmptyClick: true,
-      onSelect: (feature) =>
-        modelSelectionDispatcher(feature as FeatureInfo | null),
-    },
-  });
-
-  const { handleTopicMapLocationChange, handleCesiumSceneChange } =
-    useMapHashRouting({
-      isMode2d,
-      getLeafletMap: () => routedMap?.leafletMap?.leafletElement,
-      getLeafletZoom,
-      labels: {
-        clear3d: "GPM:2D:clear3d",
-        write2d: "GPM:2D:writeLocation",
-        topicMapLocation: "GPM:TopicMap:locationChangedHandler",
-        cesiumScene: "GPM:3D",
+      selection: {
+        enabled: flags.featureFlagBugaBridge && !isMode2d,
+        deselectOnEmptyClick: true,
+        onSelect: (feature) =>
+          modelSelectionDispatcher(feature as FeatureInfo | null),
       },
-    });
+    }),
+    [flags.featureFlagBugaBridge, isMode2d, modelSelectionDispatcher]
+  );
+
+  useCesiumModels(modelConfig);
 
   const { gazData } = useGazData();
 
   useFeatureInfoModeCursorStyle();
 
-  const onComplete = (selection: SelectionItem) => {
-    if (layers.filter((l) => l.layerType === "vector").length === 0) return;
-    const layersIdle = getLayersIdle(store.getState());
-    if (
-      (uiMode === UIMode.DEFAULT || uiMode === UIMode.FEATURE_INFO) &&
-      !isAreaType(selection.type as ENDPOINT) &&
-      isMode2d
-    ) {
-      const selectedPos = proj4(proj4crs3857def, proj4crs4326def, [
-        selection.x,
-        selection.y,
-      ]);
-      if (layersIdle) {
-        const map = routedMap?.leafletMap?.leafletElement;
-        const updatedPos = { lat: selectedPos[1], lng: selectedPos[0] };
-        const latlngPoint = L.latLng(updatedPos);
+  const onComplete = useCallback(
+    (selection: SelectionItem) => {
+      if (layers.filter((l) => l.layerType === "vector").length === 0) return;
+      if (
+        (uiMode === UIMode.DEFAULT || uiMode === UIMode.FEATURE_INFO) &&
+        !isAreaType(selection.type as ENDPOINT) &&
+        isMode2d
+      ) {
+        const selectedPos = proj4(proj4crs3857def, proj4crs4326def, [
+          selection.x,
+          selection.y,
+        ]);
+        if (layersIdle) {
+          const map = getTopicMap();
+          const updatedPos = { lat: selectedPos[1], lng: selectedPos[0] };
+          const latlngPoint = L.latLng(updatedPos);
 
-        if (map) {
-          map.fireEvent("click", {
-            latlng: latlngPoint,
-            layerPoint: map.latLngToLayerPoint(latlngPoint),
-            containerPoint: map.latLngToContainerPoint(latlngPoint),
-          });
+          if (map) {
+            map.fireEvent("click", {
+              latlng: latlngPoint,
+              layerPoint: map.latLngToLayerPoint(latlngPoint),
+              containerPoint: map.latLngToContainerPoint(latlngPoint),
+            });
+          }
+        } else {
+          setTimeout(() => {
+            onComplete(selection);
+          }, 20);
         }
-      } else {
-        setTimeout(() => {
-          onComplete(selection);
-        }, 20);
       }
-    }
-  };
+    },
+    [layers, uiMode, isMode2d, layersIdle, getTopicMap]
+  );
 
-  const updateFeatureInfoLeaflet = () => {
+  const updateFeatureInfoLeaflet = useCallback(() => {
     setShouldUpdateFeatureInfo(false);
     if (!pos) return;
-    const map = routedMap?.leafletMap?.leafletElement;
 
     setTimeout(() => {
       const latlngPoint = L.latLng(pos);
-      map &&
+      const map = getTopicMap();
+      if (map) {
         map.fireEvent("click", {
           latlng: latlngPoint,
           layerPoint: map.latLngToLayerPoint(latlngPoint),
           containerPoint: map.latLngToContainerPoint(latlngPoint),
         });
+      }
     }, 150);
-  };
+  }, [pos, getTopicMap]);
 
   useSelectionTopicMap({ onComplete });
-  useSelectionCesium(
-    !isMode2d,
-    useMemo(
-      () => ({
-        markerAsset,
-        markerAnchorHeight,
-        isPrimaryStyle: showPrimaryTileset,
-        withTerrainProvider,
-        withSurfaceProvider,
-      }),
-      [
-        markerAsset,
-        markerAnchorHeight,
-        showPrimaryTileset,
-        withTerrainProvider,
-        withSurfaceProvider,
-      ]
-    ),
-    isObliqueMode
+
+  const markerConfig = useMemo(
+    () => ({
+      markerAsset,
+      markerAnchorHeight,
+      isPrimaryStyle: showPrimaryTileset,
+      withTerrainProvider,
+      withSurfaceProvider,
+    }),
+    [
+      markerAsset,
+      markerAnchorHeight,
+      showPrimaryTileset,
+      withTerrainProvider,
+      withSurfaceProvider,
+    ]
   );
+
+  useSelectionCesium(!isMode2d, markerConfig, isObliqueMode);
 
   useEffect(() => {
     let layerType = "";
@@ -342,21 +355,25 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   }, [layers]);
 
   useEffect(() => {
-    const map = routedMap?.leafletMap?.leafletElement;
-
     const handleZoomEnd = () => {
       setShouldUpdateFeatureInfo(true);
     };
 
-    map && map.on("zoomend", handleZoomEnd);
+    const map = getTopicMap();
+
+    if (!map) return;
+
+    map.on("zoomend", handleZoomEnd);
 
     // Clean up the event listener when the component unmounts
     return () => {
-      map && map.off("zoomend", handleZoomEnd);
+      const map = getTopicMap();
+      if (!map) return;
+      map.off("zoomend", handleZoomEnd);
     };
-  }, [routedMap]);
+  }, [getTopicMap]);
 
-  const renderInfoBox = () => {
+  const renderInfoBox = useCallback(() => {
     if (isMode2d) {
       if (isModeMeasurement) {
         return <InfoBoxMeasurement key={uiMode} />;
@@ -370,13 +387,24 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     }
 
     return <div></div>;
-  };
+  }, [
+    isMode2d,
+    isModeMeasurement,
+    selectedFeature,
+    loadingFeatureInfo,
+    pos,
+    flags.featureFlagBugaBridge,
+    uiMode,
+  ]);
 
-  const showOverlayFromOutside = (key: string) => {
-    setAppMenuVisible(false);
-    setSecondaryWithKey(key);
-    showOverlayHandler();
-  };
+  const showOverlayFromOutside = useCallback(
+    (key: string) => {
+      setAppMenuVisible(false);
+      setSecondaryWithKey(key);
+      showOverlayHandler();
+    },
+    [setAppMenuVisible, setSecondaryWithKey, showOverlayHandler]
+  );
 
   useEffect(() => {
     if (shouldUpdateFeatureInfo) updateFeatureInfoLeaflet();
@@ -384,29 +412,122 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shouldUpdateFeatureInfo]);
 
-  const topicMapLocationChangedHandler = useMemo(
-    () =>
-      createLocationChangeHandler({
-        isMode2d,
-        onChange: handleTopicMapLocationChange,
-        onAfter: updateLayersIdleState,
-        onMismatch: () =>
-          console.debug(
-            "[TopicMap|DEBUG] Location changed handler triggered while in 3D mode"
-          ),
-      }),
-    [isMode2d, handleTopicMapLocationChange, updateLayersIdleState]
-  );
+  const handleOnClickTopicMap = useCallback(
+    (e: L.LeafletMouseEvent) => {
+      const map = getTopicMap();
+      if (!map) return;
 
-  const onSceneChange = (e: { hashParams: Record<string, string> }) => {
-    if (isMode2d) {
-      console.debug(
-        "[CESIUM|DEBUG|CESIUM_WARN] Cesium scene change triggered while in 2D mode"
-      );
-      return;
-    }
-    handleCesiumSceneChange(e);
-  };
+      if (uiMode === UIMode.FEATURE_INFO) {
+        if (marker !== undefined) {
+          map.removeLayer(marker);
+        }
+        if (markerAccent !== undefined) {
+          map.removeLayer(markerAccent);
+        }
+
+        map.getPane("markerPaneWithBlendModeDifference").style.zIndex = 601;
+        setMarkerAccent(
+          L.marker([e.latlng.lat, e.latlng.lng], {
+            // pane: "backgroundlayerTooltips",
+            icon: L.divIcon({
+              className: "custom-marker", // Optional class for external styles
+              html: `
+                    <div style="
+                      position: relative;
+                      width: 30px;
+                      height: 30px;
+                      border-radius: 50%;
+                      display: flex;
+                      align-items: center;
+                      justify-content: center;
+                      opacity: 1;
+                    ">
+                      <div style="
+                        position: absolute;
+                        width: 20px;
+                        height: 20px;
+                        border: 2px solid black;
+                        border-radius: 50%;
+                      "></div>
+                      <div style="
+                        position: absolute;
+                        width: 20000px;
+                        height: 1px;
+                        background-color: black;
+                        right: 18px;
+                        opacity: 0.5;
+                      "></div>
+                      <div style="
+                        position: absolute;
+                        width: 20000px;
+                        height: 1px;
+                        background-color: black;
+                        left: 18px;
+                        opacity: 0.5;
+                      "></div>
+                      <div style="
+                        position: absolute;
+                        width: 1px;
+                        height: 20000px;
+                        background-color: black;
+                        top: 18px;
+                        opacity: 0.5;
+                      "></div>
+                      <div style="
+                        position: absolute;
+                        width: 1px;
+                        height: 20000px;
+                        background-color: black;
+                        bottom: 18px;
+                        opacity: 0.5;
+                      "></div>
+                    </div>
+                  `,
+              iconSize: [30, 30],
+            }),
+          }).addTo(map)
+        );
+        setMarker(
+          L.marker([e.latlng.lat, e.latlng.lng], {
+            pane: "markerPaneWithBlendModeDifference",
+            icon: L.divIcon({
+              className: "custom-marker", // Optional class for external styles
+              html: `
+                    <div style="
+                      position: relative;
+                      width: 30px;
+                      height: 30px;
+                      border-radius: 50%;
+                      display: flex;
+                      align-items: center;
+                      justify-content: center;
+                    ">
+                       <div style="
+                        position: absolute;
+                        width: 6px;
+                        height: 6px;
+                        background-color: yellow;
+                        border-radius: 50%;
+                      ">
+                    </div>
+                  `,
+              iconSize: [30, 30],
+            }),
+          }).addTo(map)
+        );
+
+        setPos([e.latlng.lat, e.latlng.lng]);
+      }
+      onClickTopicMap(e, {
+        dispatch,
+        mode: uiMode,
+        store,
+        zoom: getLeafletZoom(),
+        map: map,
+      });
+    },
+    [uiMode, marker, markerAccent, dispatch, getLeafletZoom, getTopicMap]
+  );
 
   // TODO Move out Controls to own component
 
@@ -415,209 +536,128 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   lastRenderIntervalRef.current = Date.now() - lastRenderTimeStampRef.current;
   lastRenderTimeStampRef.current = Date.now();
 
+  const modalMenu = useMemo(
+    () => (
+      <GenericModalApplicationMenu
+        {...getCollabedHelpComponentConfig({
+          versionString: version,
+          showOverlayFromOutside,
+          loginFormToggle: () => setIsLoginFormVisible(!isLoginFormVisible),
+          isLoginFormVisible,
+          loginForm: (
+            <LoginForm
+              onSuccess={() => {
+                setIsLoginFormVisible(false);
+                setAppMenuVisible(false);
+              }}
+              closeLoginForm={() => setIsLoginFormVisible(false)}
+            />
+          ),
+          loginFormTrigger: (
+            <Tooltip title={jwt ? "Abmeldung" : "Anmeldung"} zIndex={99999999}>
+              <Button
+                type="text"
+                onClick={() =>
+                  jwt
+                    ? setJWT(null)
+                    : setIsLoginFormVisible(!isLoginFormVisible)
+                }
+              >
+                <FontAwesomeIcon
+                  icon={jwt ? faArrowRightFromBracket : faKey}
+                  size="lg"
+                />
+              </Button>
+            </Tooltip>
+          ),
+        })}
+      />
+    ),
+    [
+      version,
+      showOverlayFromOutside,
+      isLoginFormVisible,
+      jwt,
+      setJWT,
+      setAppMenuVisible,
+    ]
+  );
+
+  const topicMapLayers = useCreateCismapLayers(layers, {
+    mode: uiMode,
+    dispatch,
+    zoom: getLeafletZoom(),
+    selectedFeature,
+    leafletMap: getTopicMap(),
+  });
+
+  const topicMapBackgroundLayer = useMemo(() => {
+    return (
+      backgroundLayer &&
+      backgroundLayer.visible &&
+      getBackgroundLayers({
+        layerString: backgroundLayer.layers,
+        masterOpacity: backgroundLayer.opacity,
+      })
+    );
+  }, [backgroundLayer]);
+
+  const memoizedTopicMap = useMemo(() => {
+    console.info("RENDER: [GEOPORTAL] MEMOIZED TOPICMAP");
+    return (
+      <TopicMapComponent
+        gazData={gazData}
+        modalMenu={modalMenu}
+        gazetteerSearchComponent={EmptySearchComponent}
+        applicationMenuTooltipString={tooltipText}
+        hamburgerMenu={showHamburgerMenu}
+        locatorControl={false}
+        fullScreenControl={false}
+        zoomControls={false}
+        mapStyle={{
+          width,
+          height,
+          touchAction: "none",
+          WebkitOverflowScrolling: "touch",
+          overscrollBehavior: "none",
+        }}
+        leafletMapProps={{ editable: true }}
+        minZoom={10}
+        backgroundlayers="empty"
+        mappingBoundsChanged={() => {
+          // intentionally no-op
+        }}
+        locationChangedHandler={topicMapLocationChangedHandler}
+        outerLocationChangedHandlerExclusive={true}
+        onclick={handleOnClickTopicMap}
+        gazetteerSearchControl={true}
+        infoBox={renderInfoBox()}
+        zoomSnap={LEAFLET_CONFIG.zoomSnap}
+        zoomDelta={LEAFLET_CONFIG.zoomDelta}
+      >
+        <TopicMapSelectionContent />
+        {topicMapBackgroundLayer}
+        {topicMapLayers}
+        <PrintPreview />
+      </TopicMapComponent>
+    );
+  }, [
+    handleOnClickTopicMap,
+    topicMapBackgroundLayer,
+    topicMapLayers,
+    gazData,
+    modalMenu,
+    showHamburgerMenu,
+    topicMapLocationChangedHandler,
+    renderInfoBox,
+    width,
+    height,
+  ]);
+
   return (
     <>
       <div className={"map-container-2d"} style={{ zIndex: 400 }}>
-        <TopicMapComponent
-          gazData={gazData}
-          modalMenu={
-            <GenericModalApplicationMenu
-              {...getCollabedHelpComponentConfig({
-                versionString: version,
-                showOverlayFromOutside,
-                loginFormToggle: () =>
-                  setIsLoginFormVisible(!isLoginFormVisible),
-                isLoginFormVisible,
-                loginForm: (
-                  <LoginForm
-                    onSuccess={() => {
-                      setIsLoginFormVisible(false);
-                      setAppMenuVisible(false);
-                    }}
-                    closeLoginForm={() => setIsLoginFormVisible(false)}
-                  />
-                ),
-                loginFormTrigger: (
-                  <Tooltip
-                    title={jwt ? "Abmeldung" : "Anmeldung"}
-                    zIndex={99999999}
-                  >
-                    <Button
-                      type="text"
-                      onClick={() =>
-                        jwt
-                          ? setJWT(null)
-                          : setIsLoginFormVisible(!isLoginFormVisible)
-                      }
-                    >
-                      <FontAwesomeIcon
-                        icon={jwt ? faArrowRightFromBracket : faKey}
-                        size="lg"
-                      />
-                    </Button>
-                  </Tooltip>
-                ),
-              })}
-            />
-          }
-          gazetteerSearchComponent={EmptySearchComponent}
-          applicationMenuTooltipString={tooltipText}
-          hamburgerMenu={showHamburgerMenu}
-          locatorControl={false}
-          fullScreenControl={false}
-          zoomControls={false}
-          mapStyle={{
-            width,
-            height,
-            touchAction: "none",
-            WebkitOverflowScrolling: "touch",
-            overscrollBehavior: "none",
-          }}
-          leafletMapProps={{ editable: true }}
-          minZoom={10}
-          backgroundlayers="empty"
-          mappingBoundsChanged={() => {
-            // intentionally no-op
-          }}
-          locationChangedHandler={topicMapLocationChangedHandler}
-          outerLocationChangedHandlerExclusive={true}
-          onclick={(e) => {
-            const map = routedMap?.leafletMap?.leafletElement;
-            if (!map) return;
-
-            if (uiMode === UIMode.FEATURE_INFO) {
-              if (marker !== undefined) {
-                map.removeLayer(marker);
-              }
-              if (markerAccent !== undefined) {
-                map.removeLayer(markerAccent);
-              }
-
-              map.getPane(
-                "markerPaneWithBlendModeDifference"
-              ).style.zIndex = 601;
-              setMarkerAccent(
-                L.marker([e.latlng.lat, e.latlng.lng], {
-                  // pane: "backgroundlayerTooltips",
-                  icon: L.divIcon({
-                    className: "custom-marker", // Optional class for external styles
-                    html: `
-                          <div style="
-                            position: relative;
-                            width: 30px;
-                            height: 30px;
-                            border-radius: 50%;
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                            opacity: 1;
-                          ">
-                            <div style="
-                              position: absolute;
-                              width: 20px;
-                              height: 20px;
-                              border: 2px solid black;
-                              border-radius: 50%;
-                            "></div>
-                            <div style="
-                              position: absolute;
-                              width: 20000px;
-                              height: 1px;
-                              background-color: black;
-                              right: 18px;
-                              opacity: 0.5;
-                            "></div>
-                            <div style="
-                              position: absolute;
-                              width: 20000px;
-                              height: 1px;
-                              background-color: black;
-                              left: 18px;
-                              opacity: 0.5;
-                            "></div>
-                            <div style="
-                              position: absolute;
-                              width: 1px;
-                              height: 20000px;
-                              background-color: black;
-                              top: 18px;
-                              opacity: 0.5;
-                            "></div>
-                            <div style="
-                              position: absolute;
-                              width: 1px;
-                              height: 20000px;
-                              background-color: black;
-                              bottom: 18px;
-                              opacity: 0.5;
-                            "></div>
-                          </div>
-                        `,
-                    iconSize: [30, 30],
-                  }),
-                }).addTo(map)
-              );
-              setMarker(
-                L.marker([e.latlng.lat, e.latlng.lng], {
-                  pane: "markerPaneWithBlendModeDifference",
-                  icon: L.divIcon({
-                    className: "custom-marker", // Optional class for external styles
-                    html: `
-                          <div style="
-                            position: relative;
-                            width: 30px;
-                            height: 30px;
-                            border-radius: 50%;
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                          ">
-                             <div style="
-                              position: absolute;
-                              width: 6px;
-                              height: 6px;
-                              background-color: yellow;
-                              border-radius: 50%;
-                            ">
-                          </div>
-                        `,
-                    iconSize: [30, 30],
-                  }),
-                }).addTo(map)
-              );
-
-              setPos([e.latlng.lat, e.latlng.lng]);
-            }
-            onClickTopicMap(e, {
-              dispatch,
-              mode: uiMode,
-              store,
-              zoom: getLeafletZoom(),
-              map: map,
-            });
-          }}
-          gazetteerSearchControl={true}
-          infoBox={renderInfoBox()}
-          zoomSnap={LEAFLET_CONFIG.zoomSnap}
-          zoomDelta={LEAFLET_CONFIG.zoomDelta}
-        >
-          <TopicMapSelectionContent />
-          {backgroundLayer &&
-            backgroundLayer.visible &&
-            getBackgroundLayers({
-              layerString: backgroundLayer.layers,
-              masterOpacity: backgroundLayer.opacity,
-            })}
-
-          {useCreateCismapLayers(layers, {
-            mode: uiMode,
-            dispatch,
-            zoom: getLeafletZoom(),
-            selectedFeature,
-            leafletMap: routedMap?.leafletMap?.leafletElement,
-          })}
-          <PrintPreview />
-        </TopicMapComponent>
+        {memoizedTopicMap}
       </div>
       {allow3d && cesiumInitialCameraView !== null && (
         <div
@@ -639,7 +679,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
             containerRef={container3dMapRef}
             cameraLimiterOptions={CESIUM_CONFIG.camera}
             initialCameraView={cesiumInitialCameraView}
-            onSceneChange={onSceneChange}
+            onSceneChange={cesiumLocationChangedHandler}
           />
         </div>
       )}

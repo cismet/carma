@@ -1,13 +1,12 @@
 import { createElement } from "react";
 import type { Dispatch, Store } from "@reduxjs/toolkit";
-import type { LatLng, Map, Point } from "leaflet";
+import * as L from "leaflet";
 import proj4 from "proj4";
 
 import {
   functionToFeature,
   objectToFeature,
 } from "@carma-appframeworks/portals";
-import type { Layer } from "@carma/types";
 
 import {
   addCompletedVectorLayer,
@@ -46,7 +45,7 @@ type Options = {
   mode: UIMode;
   store: Store;
   zoom: number;
-  map: Map | maplibregl.Map;
+  map: L.Map | maplibregl.Map;
 };
 
 // TODO: move to portal lib?
@@ -61,15 +60,7 @@ export const cancelOngoingRequests = () => {
 };
 
 export const onClickTopicMap = async (
-  e: {
-    containerPoint?: Point;
-    latlng: LatLng | maplibregl.LngLat;
-    layerPoint?: Point;
-    originalEvent?: PointerEvent;
-    sourceTarget?: HTMLElement;
-    target?: HTMLElement;
-    type?: string;
-  },
+  e: L.LeafletMouseEvent,
   { dispatch, mode, store, zoom, map }: Options
 ) => {
   const layers = getLayers(store.getState());
@@ -549,7 +540,7 @@ export const onSelectionChangedVector = async (
   e: {
     hits: any[];
     hit: any;
-    latlng: LatLng | maplibregl.LngLat;
+    latlng: L.LatLng | maplibregl.LngLat;
   },
   { layer, dispatch, selectionHandler, map }
 ) => {
