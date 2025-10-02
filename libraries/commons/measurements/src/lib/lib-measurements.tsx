@@ -121,9 +121,10 @@ export function MapMeasurementLib({
     setDrawingWithLastActiveShape,
     setActiveShapeIfDrawCancelled,
     updateAreaOfDrawing,
+    deleteVisibleShapeById,
 
     // looks unuseful
-    deleteVisibleShapeById,
+    setStartDrawing,
     startDrawing,
   } = useMapMeasurementsContext();
 
@@ -136,7 +137,7 @@ export function MapMeasurementLib({
   const device = useDeviceDetection();
 
   const toggleMeasurementModeHandler = () => {
-    toggleUIMode("measurement");
+    toggleUIMode();
   };
 
   useEffect(() => {
