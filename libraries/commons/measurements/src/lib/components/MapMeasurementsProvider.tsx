@@ -188,16 +188,18 @@ export const MapMeasurementsProvider = ({
   };
 
   const updateAreaOfDrawing = (newArea: number) => {
-    const shape = visibleShapes.map((s) => {
-      if (s.shapeId === 5555) {
-        return {
-          ...s,
-          area: newArea,
-        };
-      }
-      return s;
+    setVisibleShapes((visibleShapes) => {
+      const shape = visibleShapes.map((s) => {
+        if (s.shapeId === 5555) {
+          return {
+            ...s,
+            area: newArea,
+          };
+        }
+        return s;
+      });
+      return shape;
     });
-    setVisibleShapes(shape);
   };
 
   return (
