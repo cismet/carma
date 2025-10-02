@@ -163,7 +163,7 @@ export function App() {
           // deleteVisibleShapeById={(id) =>
           //   dispatch(deleteVisibleShapeById(id) as any)
           // }
-          setStartDrawing={(b) => dispatch(setStartDrawingAction(b))}
+          // setStartDrawing={(b) => dispatch(setStartDrawingAction(b))}
         />
       </TopicMapComponent>
     </>

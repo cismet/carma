@@ -44,6 +44,8 @@ export interface MapMeasurementsContextType {
   setActiveShapeIfDrawCancelled: () => void;
   toggleMeasurementMode: () => void;
   updateAreaOfDrawing: (newArea: number) => void;
+  setStartDrawing: (status: boolean) => void;
+  startDrawing: boolean;
 }
 export const MapMeasurementsContext = createContext<MapMeasurementsContextType>(
   {
@@ -85,6 +87,8 @@ export const MapMeasurementsContext = createContext<MapMeasurementsContextType>(
     setActiveShapeIfDrawCancelled: () => {},
     toggleMeasurementMode: () => {},
     updateAreaOfDrawing: (newArea: number) => {},
+    setStartDrawing: (status: boolean) => {},
+    startDrawing: false,
   }
 );
 
@@ -106,6 +110,7 @@ export const MapMeasurementsProvider = ({
   const [updateShape, setUpdateShape] = useState(false);
   const [mapMovingEnd, setMapMovingEnd] = useState(false);
   const [updateTitleStatus, setUpdateTitleStatus] = useState(false);
+  const [startDrawing, setStartDrawing] = useState(false);
 
   useEffect(() => {
     console.log("setActiveShape", activeShape);
@@ -230,6 +235,8 @@ export const MapMeasurementsProvider = ({
         setActiveShapeIfDrawCancelled,
         toggleMeasurementMode,
         updateAreaOfDrawing,
+        setStartDrawing,
+        startDrawing,
       }}
     >
       {children}
