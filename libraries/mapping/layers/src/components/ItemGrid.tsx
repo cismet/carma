@@ -3,6 +3,7 @@ import LayerItem from "./LayerItem";
 import ItemSkeleton from "./ItemSkeleton";
 import { getLoadingCapabilities } from "../slices/mapLayers";
 import { useSelector } from "react-redux";
+import type { ActiveLayers } from "./NewLibModal";
 
 interface ItemGridProps {
   categories: {
@@ -10,7 +11,7 @@ interface ItemGridProps {
     layers: Item[];
   }[];
   setAdditionalLayers: any;
-  activeLayers: any;
+  activeLayers: ActiveLayers;
   favorites: any;
   addFavorite: any;
   removeFavorite: any;

@@ -17,7 +17,12 @@ import { useDebounce } from "@uidotdev/usehooks";
 import { Button, Input, Modal } from "antd";
 import Fuse from "fuse.js";
 import WMSCapabilities from "wms-capabilities";
-import type { Item, Layer, SavedLayerConfig } from "@carma/types";
+import type {
+  BackgroundLayer,
+  Item,
+  Layer,
+  SavedLayerConfig,
+} from "@carma/types";
 import { utils } from "@carma-appframeworks/portals";
 import { useAuth } from "@carma-providers/auth";
 import {
@@ -79,6 +84,8 @@ type DiscoverResult = {
   }[];
 };
 
+export type ActiveLayers = [BackgroundLayer, ...Layer[]];
+
 export interface LibModalProps {
   open: boolean;
   setOpen: (open: boolean) => void;
@@ -87,7 +94,7 @@ export interface LibModalProps {
   addFavorite: (layer: Item) => void;
   removeFavorite: (layer: Item) => void;
   updateFavorite?: (layer: Item) => void;
-  activeLayers: any[];
+  activeLayers: ActiveLayers;
   customCategories: LayerCategories[];
   updateActiveLayer: (layer: Layer) => void;
   removeLastLayer?: () => void;

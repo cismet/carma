@@ -19,7 +19,7 @@ import {
 import isEqual from "lodash/isEqual";
 
 import { serviceOptions } from "@carma-commons/resources";
-import { Item, Layer } from "@carma/types";
+import { BackgroundLayer, Item, Layer } from "@carma/types";
 import { extractCarmaConfig } from "@carma-commons/utils";
 
 import { parseDescription } from "../helper/layerHelper";
@@ -32,11 +32,12 @@ import { setTriggerRefetch } from "../slices/ui";
 import { LayerButton, LayerIcon } from "@carma-mapping/components";
 
 import { useAuth } from "@carma-providers/auth";
+import type { ActiveLayers } from "./NewLibModal";
 
 interface InfoCardProps {
   isFavorite: boolean;
   isActiveLayer: boolean;
-  activeLayers: Layer[];
+  activeLayers: ActiveLayers;
   handleAddClick: (
     e: React.MouseEvent<HTMLElement, MouseEvent>,
     preview?: boolean
@@ -171,8 +172,9 @@ const InfoCard = ({
       thumbnail: fileUrl || updatedThumbnail,
       serviceName: updatedService,
       tags: updatedKeywords,
+      backgroundLayer: activeLayers[0],
       layers: useNewLayers
-        ? activeLayers
+        ? activeLayers.slice(1)
         : layer.type === "collection"
         ? layer.layers
         : [],
@@ -473,8 +475,13 @@ const InfoCard = ({
                             disabled={
                               layer?.type === "collection" &&
                               isEqual(
-                                layer.layers.map((layer) => layer.title),
-                                activeLayers.map((layer) => layer.title)
+                                [layer.backgroundLayer, ...layer.layers]
+                                  .filter(
+                                    (l): l is BackgroundLayer | Layer =>
+                                      l !== undefined
+                                  )
+                                  .map((l) => l.title),
+                                activeLayers.map((l) => l.title)
                               )
                             }
                             icon={
@@ -494,8 +501,30 @@ const InfoCard = ({
 
                       <div className="flex gap-2">
                         {layer.type === "collection" &&
-                          (!useNewLayers
-                            ? layer.layers.map((layer) => (
+                          (!useNewLayers ? (
+                            <>
+                              {layer.backgroundLayer && (
+                                <LayerButton
+                                  key={layer.id}
+                                  layer={layer.backgroundLayer}
+                                  classNames={["px-3"]}
+                                  useShadow={false}
+                                >
+                                  <LayerIcon
+                                    layer={layer.backgroundLayer}
+                                    iconPrefix="https://www.wuppertal.de/geoportal/geoportal_icon_legends/"
+                                  />
+                                  <span className="text-base ml-1">
+                                    {layer.backgroundLayer?.title}
+                                  </span>
+                                  {layer.backgroundLayer?.opacity !== 1 && (
+                                    <span className="text-base ml-1 text-gray-500">
+                                      ({layer.backgroundLayer?.opacity * 100}%)
+                                    </span>
+                                  )}
+                                </LayerButton>
+                              )}
+                              {layer.layers.map((layer) => (
                                 <LayerButton
                                   key={layer.id}
                                   layer={layer}
@@ -516,29 +545,32 @@ const InfoCard = ({
                                     </span>
                                   )}
                                 </LayerButton>
-                              ))
-                            : activeLayers.map((layer) => (
-                                <LayerButton
-                                  key={layer.id}
+                              ))}
+                            </>
+                          ) : (
+                            activeLayers.map((layer) => (
+                              <LayerButton
+                                key={layer.id}
+                                layer={layer}
+                                classNames={["px-3"]}
+                                useShadow={false}
+                              >
+                                <LayerIcon
                                   layer={layer}
-                                  classNames={["px-3"]}
-                                  useShadow={false}
-                                >
-                                  <LayerIcon
-                                    layer={layer}
-                                    fallbackIcon={layer.icon}
-                                    iconPrefix="https://www.wuppertal.de/geoportal/geoportal_icon_legends/"
-                                  />
-                                  <span className="text-base ml-1">
-                                    {layer.title}
+                                  fallbackIcon={layer.icon}
+                                  iconPrefix="https://www.wuppertal.de/geoportal/geoportal_icon_legends/"
+                                />
+                                <span className="text-base ml-1">
+                                  {layer.title}
+                                </span>
+                                {layer.opacity !== 1 && (
+                                  <span className="text-base ml-1 text-gray-500">
+                                    ({layer.opacity * 100}%)
                                   </span>
-                                  {layer.opacity !== 1 && (
-                                    <span className="text-base ml-1 text-gray-500">
-                                      ({layer.opacity * 100}%)
-                                    </span>
-                                  )}
-                                </LayerButton>
-                              )))}
+                                )}
+                              </LayerButton>
+                            ))
+                          ))}
                       </div>
                     </div>
                   </div>

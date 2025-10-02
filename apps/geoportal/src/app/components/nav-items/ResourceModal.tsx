@@ -191,7 +191,7 @@ const ResourceModal = () => {
             dispatch(deleteSavedLayerConfig(layer.id));
           }
         }}
-        activeLayers={activeLayers}
+        activeLayers={[backgroundLayer, ...activeLayers]}
         customCategories={[
           {
             Title: "Meine Teilzwillinge",

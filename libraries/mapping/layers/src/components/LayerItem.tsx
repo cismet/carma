@@ -28,11 +28,12 @@ import { useDispatch, useSelector } from "react-redux";
 import { getSelectedLayer, setSelectedLayer } from "../slices/mapLayers";
 import { setTriggerRefetch } from "../slices/ui";
 import ImageCollage from "./ImageCollage";
+import type { ActiveLayers } from "./NewLibModal";
 
 interface LayerItemProps {
   setAdditionalLayers: any;
   layer: Item;
-  activeLayers: Layer[];
+  activeLayers: ActiveLayers;
   favorites?: Item[];
   addFavorite: (layer: Item) => void;
   removeFavorite: (layer: Item) => void;
