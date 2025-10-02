@@ -61,24 +61,6 @@ const TZBaumbewirtschaftung = () => {
     })();
   }, []);
 
-  const infoBoxMapping = [
-    "headerColor:'#7AB317'",
-    "header:'Baumbewirtschaftung'",
-    "title:p.baumart_botanisch + ' (' + p.standort_nr + '.' + p.zusatz + '.' + p.lfd_nr_str + ')'",
-    "additionalInfo:' (*' + p.pflanzjahr + ' / ' + p.standalter_jahr + ')' + '\\n\\n' + p.hoehe_m + 'm / ' + p.stammumfang_cm + 'cm'",
-    "subtitle: p.ortlicher_bezug",
-    "modal:'xxx'",
-    // "url:'https://cismet.de'",
-    // "email:'info@cismet.de'",
-    // "tel:'01709120394'",
-    "genericLinks: [{url: 'https://maps.google.com', tooltip:'Zur Fahrplanauskunft', iconname: 'tasks'}]",
-    "foto: ['Tilia_x_vulgaris11.jpeg']",
-    //   "foto: 'https://www.wuppertal.de/geoportal/emobil/autos/fotos/wasserstoff_01.jpg'",
-    //   "fotos: ['https://www.wuppertal.de/geoportal/emobil/autos/fotos/wasserstoff_01.jpg','https://www.wuppertal.de/geoportal/emobil/autos/fotos/wasserstoff_02.jpg',   'https://www.wuppertal.de/geoportal/emobil/autos/fotos/wasserstoff_03.jpg',      'https://www.wuppertal.de/geoportal/emobil/autos/fotos/wasserstoff_04.jpg',      'https://www.wuppertal.de/geoportal/emobil/autos/fotos/wasserstoff_05.jpg',      'https://www.wuppertal.de/geoportal/emobil/autos/fotos/wasserstoff_06.jpg' ]",
-  ];
-
-  console.log("xxx markerSymbolSize ", markerSymbolSize);
-
   const treeStyle = useTreeStyle(featureCollection, markerSymbolSize);
 
   return (
@@ -149,31 +131,25 @@ const TZBaumbewirtschaftung = () => {
                 selectionEnabled={true}
                 manualSelectionManagement={false}
                 logMapLibreErrors={true}
-                // maxSelectionCount={1}
-                // additionalLayerUniquePane={"vector." + 1}
-                // additionalLayersFreeZOrder={1}
                 onSelectionChanged={(e) => {
                   (async () => {
-                    const hit = e.hit;
-                    if (hit) {
-                      const infoBoxControlObject =
-                        await getInfoBoxControlObjectFromMappingAndVectorFeature(
-                          {
-                            mapping: infoBoxMapping,
-                            selectedVectorFeature: hit,
-                          }
-                        );
+                    const feature = e.hit;
+                    if (feature) {
+                      // if it is confuigured in a string array (comes form vectorlayer metadata)
+                      // const infoBoxControlObject =
+                      //   await getInfoBoxControlObjectFromMappingAndVectorFeature(
+                      //     {
+                      //       mapping: infoBoxMapping,
+                      //       selectedVectorFeature: hit,
+                      //     }
+                      //   );
 
-                      const feature = hit;
                       // add infoBoxControlObject
                       feature.properties.info = createInfoBoxControlObject(
                         feature,
                         baseUrl,
                         setShowStatusDialog
                       );
-
-                      // //or the snadbox way
-                      // feature.properties.info = infoBoxControlObject;
 
                       setSelectedFeature(feature);
                     } else {
