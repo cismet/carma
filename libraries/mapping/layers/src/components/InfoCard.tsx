@@ -480,8 +480,15 @@ const InfoCard = ({
                                     (l): l is BackgroundLayer | Layer =>
                                       l !== undefined
                                   )
-                                  .map((l) => l.title),
-                                activeLayers.map((l) => l.title)
+                                  .map((l) => {
+                                    return {
+                                      title: l.title,
+                                      opacity: l.opacity,
+                                    };
+                                  }),
+                                activeLayers.map((l) => {
+                                  return { title: l.title, opacity: l.opacity };
+                                })
                               )
                             }
                             icon={
