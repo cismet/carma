@@ -22,12 +22,15 @@ import {
   appendLayer,
   appendSavedLayerConfig,
   deleteSavedLayerConfig,
+  getBackgroundLayer,
   getLayers,
   getSavedLayerConfigs,
   removeLastLayer,
   removeLayer,
   setBackgroundLayer,
   setLayers,
+  setSelectedLuftbildLayer,
+  setSelectedMapLayer,
   updateLayer,
 } from "../../store/slices/mapping";
 import {
@@ -37,12 +40,15 @@ import {
 } from "../../store/slices/ui";
 import { apiUrl } from "../../constants/discover";
 import store from "../../store";
+import { layerMap } from "../../config";
+import { createBackgroundLayerConfig } from "../../helper/layer";
 const ResourceModal = () => {
   const [discoverItems, setDiscoverItems] = useState([]);
 
   const dispatch = useDispatch();
 
   const activeLayers = useSelector(getLayers);
+  const backgroundLayer = useSelector(getBackgroundLayer);
   const thumbnails = useSelector(getThumbnails);
   const favorites = useSelector(getFavorites);
   const savedLayerConfigs = useSelector(getSavedLayerConfigs);
@@ -73,6 +79,22 @@ const ResourceModal = () => {
           dispatch(setLayers(layer.layers));
           if (layer.backgroundLayer) {
             dispatch(setBackgroundLayer(layer.backgroundLayer));
+            const layerKey = Object.keys(layerMap).find(
+              (key) => layerMap[key].title === layer.backgroundLayer.title
+            );
+            if (layerKey) {
+              if (layer.backgroundLayer.id === "karte") {
+                dispatch(
+                  setSelectedMapLayer(createBackgroundLayerConfig(layerKey))
+                );
+              } else {
+                dispatch(
+                  setSelectedLuftbildLayer(
+                    createBackgroundLayerConfig(layerKey)
+                  )
+                );
+              }
+            }
           }
           if (layer.settings) {
             const map = routedMap.leafletMap.leafletElement;

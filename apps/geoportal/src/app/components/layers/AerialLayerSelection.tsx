@@ -11,6 +11,7 @@ import LayerSelection from "./LayerSelection";
 import { useState } from "react";
 import { useMapStyle } from "@carma-appframeworks/portals";
 import { MapStyleKeys } from "../../constants/MapStyleKeys";
+import { createBackgroundLayerConfig } from "../../helper/layer";
 
 const AerialLayerSelection = () => {
   const [hovered, setHovered] = useState(false);
@@ -58,39 +59,13 @@ const AerialLayerSelection = () => {
       <Radio.Group
         value={selectedLuftbildLayer.id}
         onChange={(e) => {
-          dispatch(
-            setSelectedLuftbildLayer({
-              id: e.target.value,
-              title: layerMap[e.target.value].title,
-              opacity: 1.0,
-              description: layerMap[e.target.value].description,
-              inhalt: layerMap[e.target.value].inhalt,
-              eignung: layerMap[e.target.value].eignung,
-              layerType: "wmts",
-              visible: true,
-              props: {
-                name: "",
-                url: layerMap[e.target.value].url,
-              },
-              layers: layerMap[e.target.value].layers,
-            })
-          );
+          const config = createBackgroundLayerConfig(e.target.value);
+          dispatch(setSelectedLuftbildLayer(config));
 
           dispatch(
             setBackgroundLayer({
+              ...config,
               id: "luftbild",
-              title: layerMap[e.target.value].title,
-              opacity: 1.0,
-              description: layerMap[e.target.value].description,
-              inhalt: layerMap[e.target.value].inhalt,
-              eignung: layerMap[e.target.value].eignung,
-              layerType: "wmts",
-              visible: true,
-              props: {
-                name: "",
-                url: layerMap[e.target.value].url,
-              },
-              layers: layerMap[e.target.value].layers,
             })
           );
         }}

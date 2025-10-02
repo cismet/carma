@@ -1,6 +1,7 @@
 import objectAssign from "object-assign";
 import CismapLayer from "react-cismap/CismapLayer";
-import { namedStyles, defaultLayerConfig } from "../config";
+import { namedStyles, defaultLayerConfig, layerMap } from "../config";
+import { BackgroundLayer } from "@carma/types";
 interface backgroundLayersProps {
   layerString: string;
   masterOpacity?: number;
@@ -158,4 +159,25 @@ const createLayerFactoryFunction = (key, _conf = defaultLayerConfig) => {
         );
       };
   }
+};
+
+export const createBackgroundLayerConfig = (
+  id: string,
+  opacity?: number
+): BackgroundLayer => {
+  return {
+    id,
+    title: layerMap[id].title,
+    opacity: opacity || 1.0,
+    description: layerMap[id].description,
+    inhalt: layerMap[id].inhalt,
+    eignung: layerMap[id].eignung,
+    layerType: "wmts",
+    visible: true,
+    props: {
+      name: "",
+      url: layerMap[id].url,
+    },
+    layers: layerMap[id].layers,
+  };
 };
