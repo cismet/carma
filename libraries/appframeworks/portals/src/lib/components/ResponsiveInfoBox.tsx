@@ -5,7 +5,11 @@ import { Control } from "@carma-mapping/map-controls-layout";
 // @ts-ignore
 import { ResponsiveTopicMapDispatchContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
-export const MODES = { DEFAULT: "DEFAULT", AB: "AB" };
+export const MODES = {
+  DEFAULT: "DEFAULT",
+  AB: "AB",
+  BIG_MOBILE_ICONS: "BIG_MOBILE_ICONS",
+};
 
 interface ResponsiveInfoBoxProps {
   panelClick: (event: React.MouseEvent) => void;
@@ -55,6 +59,12 @@ export const ResponsiveInfoBox = ({
 
   const { setInfoBoxPixelWidth } =
     useContext(ResponsiveTopicMapDispatchContext) || defaultContextValues;
+
+  // For BIG_MOBILE_ICONS mode, use the external collapsed state or internal state
+  const actualCollapsed =
+    collapsedInfoBox !== undefined ? collapsedInfoBox : collapsed;
+  const actualSetCollapsed =
+    setCollapsedInfoBox !== undefined ? setCollapsedInfoBox : setCollapsed;
 
   let infoBoxStyle = {
     opacity: "0.9",
@@ -117,6 +127,33 @@ export const ResponsiveInfoBox = ({
               isCollapsible={isCollapsible}
             />
           )}
+          {mode === MODES.BIG_MOBILE_ICONS && (
+            <CollapsibleWell
+              collapsed={actualCollapsed}
+              setCollapsed={actualSetCollapsed}
+              style={{
+                pointerEvents: "auto",
+                padding: 0,
+                paddingLeft: 9,
+                ...collapsibleStyle,
+              }}
+              debugBorder={0}
+              tableStyle={{ margin: 0 }}
+              fixedRow={fixedRow}
+              alwaysVisibleDiv={
+                <div>
+                  {alwaysVisibleDiv}
+                  {collapsibleDiv}
+                </div>
+              }
+              collapsibleDiv={<div style={{ display: "none" }} />}
+              collapseButtonAreaStyle={collapseButtonAreaStyle}
+              onClick={panelClick}
+              pixelwidth={pixelwidth}
+              isCollapsible={isCollapsible}
+            />
+          )}
+
           {mode === MODES.AB && (
             <CollapsibleABWell
               collapsed={collapsed}

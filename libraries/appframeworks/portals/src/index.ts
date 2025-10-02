@@ -76,4 +76,7 @@ export {
   functionToFeature,
   objectToFeature,
   createVectorFeature,
+  getInfoBoxControlObjectFromMappingAndVectorFeature,
 } from "./lib/utils/featureInfo";
+
+export { getActionLinksForFeature } from "./lib/components/helper";
