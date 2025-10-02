@@ -23,22 +23,22 @@ export interface InfoBoxMeasurementProps {
   // measurementsData: MeasurementShape[];
   // visibleShapesData: MeasurementShape[];
   // activeShape?: number | string | null;
-  moveToShape?: number | string | null;
+  // moveToShape?: number | string | null;
   // updateShape?: boolean;
   // drawingMode?: boolean;
-  mapMovingEnd?: boolean;
+  // mapMovingEnd?: boolean;
 
   // UI
   collapsedInfoBox?: boolean;
 
   // Actions (previously dispatched)
-  setMoveToShape: (id: number | string | null) => void;
-  // setActiveShape: (id: number | string | null) => void;
-  // setUpdateShape: (status: boolean) => void;
-  setDeleteAll: (value: boolean) => void;
-  setMapMovingEnd: (status: boolean) => void;
-  setShowAll: (value: boolean) => void;
-  updateTitle: (shapeId: number | string, title: string) => void;
+  // setMoveToShape: (id: number | string | null) => void;
+  // // setActiveShape: (id: number | string | null) => void;
+  // // setUpdateShape: (status: boolean) => void;
+  // setDeleteAll: (value: boolean) => void;
+  // setMapMovingEnd: (status: boolean) => void;
+  // setShowAll: (value: boolean) => void;
+  // updateTitle: (shapeId: number | string, title: string) => void;
 }
 
 export function InfoBoxMeasurement({}: // measurementsData,
@@ -234,7 +234,7 @@ InfoBoxMeasurementProps) {
     shapeId: number | string,
     customTitle: string
   ) => {
-    updateTitle(shapeId, customTitle);
+    // updateTitle(shapeId, customTitle);
   };
 
   return (
