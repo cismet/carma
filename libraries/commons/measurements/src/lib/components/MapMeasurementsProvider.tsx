@@ -121,11 +121,15 @@ export const MapMeasurementsProvider = ({
   };
 
   const deleteShapeById = (shapeId: string) => {
-    setShapes(shapes.filter((shape) => shape.id !== shapeId));
+    setShapes((currentShapes) => 
+      currentShapes.filter((shape) => shape.shapeId !== shapeId)
+    );
   };
 
   const deleteVisibleShapeById = (shapeId: string) => {
-    setVisibleShapes(visibleShapes.filter((shape) => shape.id !== shapeId));
+    setVisibleShapes((currentVisibleShapes) => 
+      currentVisibleShapes.filter((shape) => shape.shapeId !== shapeId)
+    );
   };
 
   const updateShapeById = (
@@ -152,31 +156,38 @@ export const MapMeasurementsProvider = ({
   };
 
   const setLastVisibleShapeActive = () => {
-    const allShapes = shapes;
-    const lastShapeId = allShapes[allShapes.length - 1]?.shapeId;
-    if (lastShapeId) {
-      setActiveShape(lastShapeId);
-    }
+    setShapes((currentShapes) => {
+      const lastShapeId = currentShapes[currentShapes.length - 1]?.shapeId;
+      if (lastShapeId) {
+        setActiveShape(lastShapeId);
+      }
+      return currentShapes; // No change to shapes, just accessing fresh state
+    });
   };
 
   const setDrawingWithLastActiveShape = () => {
-    const lastActiveShape = activeShape;
-    if (lastActiveShape) {
-      setLastActiveShapeBeforeDrawing(lastActiveShape);
-      setDrawingShape(true);
-    }
+    setActiveShape((currentActiveShape) => {
+      if (currentActiveShape) {
+        setLastActiveShapeBeforeDrawing(currentActiveShape);
+        setDrawingShape(true);
+      }
+      return currentActiveShape; // No change, just accessing fresh state
+    });
   };
 
   const setActiveShapeIfDrawCancelled = () => {
-    const lastActiveShape = lastActiveShapeBeforeDrawing;
-    const visible = visibleShapes;
-
-    if (lastActiveShape && visible[0]?.shapeId !== 55555) {
-      setActiveShape(lastActiveShape);
-      setDrawingShape(false);
-    } else {
-      setVisibleShapes([]);
-    }
+    setLastActiveShapeBeforeDrawing((lastActiveShape) => {
+      setVisibleShapes((visible) => {
+        if (lastActiveShape && visible[0]?.shapeId !== 55555) {
+          setActiveShape(lastActiveShape);
+          setDrawingShape(false);
+        } else {
+          return []; // Clear visible shapes
+        }
+        return visible; // No change if condition not met
+      });
+      return lastActiveShape; // No change, just accessing fresh state
+    });
   };
 
   const toggleMeasurementMode = () => {
