@@ -70,6 +70,8 @@ import store from "../../../../store/index.ts";
 import { onClickTopicMap } from "../../topicmap.utils.ts";
 
 type TopicMapComponentWrapperProps = {
+  height: number;
+  width: number;
   locationChangedHandler: (e: {
     lat: number;
     lng: number;
@@ -79,6 +81,8 @@ type TopicMapComponentWrapperProps = {
 };
 
 export function TopicMapComponentWrapper({
+  height,
+  width,
   locationChangedHandler,
   leafletOptions,
 }: TopicMapComponentWrapperProps) {
@@ -363,7 +367,7 @@ export function TopicMapComponentWrapper({
   }, [getTopicMap]);
 
   return (
-    <div className={"map-container-2d"} style={{ zIndex: 400 }}>
+    <div className={"map-container-2d"} style={{ zIndex: 400, width, height }}>
       <TopicMapComponent
         gazData={gazData}
         modalMenu={modalMenu}

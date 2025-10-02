@@ -41,12 +41,7 @@ interface MapProps {
   };
 }
 
-export const GeoportalMap = ({
-  height: _height,
-  width: _width,
-  allow3d,
-  options,
-}: MapProps) => {
+export const GeoportalMap = ({ height, width, allow3d, options }: MapProps) => {
   const dispatch = useDispatch();
 
   const cesiumOptions = options?.cesium ?? CESIUM_CONFIG;
@@ -109,28 +104,23 @@ export const GeoportalMap = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [backgroundLayer]);
 
-  // UI mode-based marker cleanup handled in the wrapper
-
-  // Feature info refresh on layer changes handled in the wrapper
-
-  // Zoom-based feature info refresh handled in the wrapper
-
-  // InfoBox rendering is handled in the wrapper
-
-  // Overlay-trigger shortcut moved into wrapper
-
-  // Feature info update scheduling handled in the wrapper
-
-  // TODO Move out Controls to own component
-
-  console.debug("RENDER: [GEOPORTAL] MAP", isMode2d);
-  rerenderCountRef.current++;
-  lastRenderIntervalRef.current = Date.now() - lastRenderTimeStampRef.current;
-  lastRenderTimeStampRef.current = Date.now();
+  const now = Date.now();
+  const intervalMs = now - lastRenderTimeStampRef.current;
+  const nextCount = rerenderCountRef.current + 1;
+  console.debug("RENDER: [GEOPORTAL] MAP", {
+    isMode2d,
+    count: nextCount,
+    intervalMs,
+  });
+  rerenderCountRef.current = nextCount;
+  lastRenderIntervalRef.current = intervalMs;
+  lastRenderTimeStampRef.current = now;
 
   return (
     <>
       <TopicMapComponentWrapper
+        height={height}
+        width={width}
         locationChangedHandler={topicMapLocationChangedHandler}
         leafletOptions={leafletOptions}
       />

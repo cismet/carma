@@ -5,7 +5,7 @@ import {
   createLocationChangeHandler,
   useMapHashRouting,
 } from "@carma-appframeworks/portals";
-import { useLeafletZoomControls } from "@carma-mapping/utils";
+import { useLeafletZoomControls } from "../../../hooks/leaflet/useLeafletZoomControls.ts";
 
 interface Options {
   topicMap?: {
