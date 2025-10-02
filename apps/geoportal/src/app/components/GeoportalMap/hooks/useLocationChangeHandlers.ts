@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useMemo } from "react";
 import * as L from "leaflet";
 
 import {
@@ -33,7 +33,7 @@ export const useLocationChangeHandlers = (
       },
     });
 
-  const topicMapLocationChangedHandler = useCallback(
+  const topicMapLocationChangedHandler = useMemo(
     () =>
       createLocationChangeHandler({
         isMode2d,
