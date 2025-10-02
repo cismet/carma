@@ -15,6 +15,22 @@ import { getApplicationVersion } from "@carma-commons/utils";
 const Menu = () => {
   const { setAppMenuActiveMenuSection } = useContext(UIDispatchContext);
 
+  const previewSVG = (size) => {
+    const _size = size * 1.3;
+    return (
+      <svg width={_size} height={_size} viewBox="0 0 24 24">
+        <circle
+          cx="12"
+          cy="12"
+          r="8"
+          fill="#4CAF50"
+          stroke="#2E7D32"
+          strokeWidth="3"
+          opacity="0.8"
+        />
+      </svg>
+    );
+  };
   return (
     <CustomizationContextProvider customizations={{}}>
       <ModalApplicationMenu
