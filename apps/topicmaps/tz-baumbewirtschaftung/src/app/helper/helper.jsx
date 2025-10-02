@@ -1,5 +1,3 @@
-import React from "react";
-import IconComp from "react-cismap/commons/Icon";
 import { md5FetchJSON, md5FetchText } from "react-cismap/tools/fetching";
 import { getGazDataForTopicIds } from "react-cismap/tools/gazetteerHelper";
 
