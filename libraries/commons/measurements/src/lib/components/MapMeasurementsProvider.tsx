@@ -113,11 +113,11 @@ export const MapMeasurementsProvider = ({
   const [startDrawing, setStartDrawing] = useState(false);
 
   useEffect(() => {
-    console.log("setActiveShape", activeShape);
-  }, [activeShape]);
+    console.log("xxx shapes", shapes);
+  }, [shapes]);
 
   const addShape = (layer: any) => {
-    setShapes([...shapes, layer]);
+    setShapes((prevShapes) => [...prevShapes, layer]);
   };
 
   const deleteShapeById = (shapeId: string) => {
