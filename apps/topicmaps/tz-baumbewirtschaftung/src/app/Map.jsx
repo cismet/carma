@@ -31,6 +31,8 @@ import versionData from "../version.json";
 import { md5FetchJSON } from "react-cismap/tools/fetching";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
+const baseUrl = window.location.origin + window.location.pathname;
+
 const TZBaumbewirtschaftung = () => {
   const { markerSymbolSize } = useContext(TopicMapStylingContext);
   const { clusteringOptions } = useContext(FeatureCollectionContext);
@@ -118,7 +120,7 @@ const TZBaumbewirtschaftung = () => {
           iconname: "tasks",
         },
       ],
-      foto: "demo/mod" + (feature.id % 10) + ".png",
+      foto: baseUrl + "/demo/mod" + (feature.id % 10) + ".png",
       //fotos: [of urls]
       //if there are more than one foto need to be there anyway
     };
