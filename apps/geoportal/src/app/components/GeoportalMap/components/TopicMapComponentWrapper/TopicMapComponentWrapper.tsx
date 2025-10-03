@@ -367,7 +367,7 @@ export function TopicMapComponentWrapper({
   }, [getTopicMap]);
 
   return (
-    <div className={"map-container-2d"} style={{ zIndex: 400, width, height }}>
+    <div className={"map-container-2d"} style={{ zIndex: 400 }}>
       <TopicMapComponent
         gazData={gazData}
         modalMenu={modalMenu}
@@ -378,8 +378,8 @@ export function TopicMapComponentWrapper({
         fullScreenControl={false}
         zoomControls={false}
         mapStyle={{
-          width: "100%",
-          height: "100%",
+          width: width,
+          height: height,
           touchAction: "none",
           WebkitOverflowScrolling: "touch",
           overscrollBehavior: "none",
