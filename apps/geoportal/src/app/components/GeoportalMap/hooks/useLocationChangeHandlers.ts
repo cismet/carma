@@ -47,7 +47,6 @@ export const useLocationChangeHandlers = (
     [isMode2d, handleTopicMapLocationChange, options.topicMap?.onAfter]
   );
 
-  // cesiumSceneChange callbacks
   const cesiumLocationChangedHandler = (e: {
     hashParams: Record<string, string>;
   }) => {

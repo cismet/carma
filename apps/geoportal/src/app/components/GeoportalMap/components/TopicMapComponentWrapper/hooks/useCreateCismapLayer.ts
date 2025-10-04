@@ -10,7 +10,7 @@ import type { LatLng, Map } from "leaflet";
 
 import CismapLayer from "react-cismap/CismapLayer";
 
-import type { Layer } from "@carma/types";
+import type { Layer, FeatureInfo } from "@carma/types";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 
 import { setSelectedFeature } from "../../../../../store/slices/features";
@@ -24,6 +24,14 @@ import {
 } from "../../../topicmap.utils";
 
 const MAX_ZOOM = 26;
+
+// Types for selection hits stored in globalHits
+type VectorHit = {
+  id?: string | number;
+  selectionLayerExists?: boolean;
+  setSelection?: (selected: boolean, hit?: unknown) => void;
+};
+type GlobalHits = Record<string, VectorHit[] | undefined>;
 
 interface WMTSLayerProps {
   type: "wmts" | "wmts-nt";
@@ -53,8 +61,12 @@ interface VectorLayerProps {
   manualSelectionManagement?: boolean;
   maxSelectionCount?: number;
   showTileBoundaries?: boolean;
-  onSelectionChanged?: (e: { hits: any[]; hit: any; latlng: LatLng }) => void;
-  onStyleIdle?: (e: any) => void;
+  onSelectionChanged?: (e: {
+    hits: unknown[];
+    hit: unknown;
+    latlng: LatLng;
+  }) => void;
+  onStyleIdle?: (_?: unknown) => void;
 }
 
 const createCismapLayer = (props: WMTSLayerProps | VectorLayerProps) => {
@@ -66,86 +78,56 @@ export const useCreateCismapLayers = (
   {
     mode,
     dispatch,
-    zoom,
     selectedFeature,
     leafletMap,
   }: {
     mode: UIMode;
     dispatch: Dispatch;
-    zoom: number;
-    selectedFeature: any;
+    selectedFeature: FeatureInfo | null;
     leafletMap: Map;
   }
 ) => {
-  const [globalHits, setGlobalHits] = useState({});
-  const [idleLayers, setIdleLayers] = useState({});
-  const [foundFeatures, setFoundFeatures] = useState({});
+  const [globalHits, setGlobalHits] = useState<GlobalHits>({});
+  const [idleLayers, setIdleLayers] = useState<Record<string, boolean>>({});
+  const [foundFeatures, setFoundFeatures] = useState<Record<string, FeatureInfo | undefined>>({});
   const flags = useFeatureFlags();
 
   const showTileBoundaries = flags?.debugTileBoundaries;
-  const selectionHandler = (e, layer) => {
+  const selectionHandler = (e: { hits: unknown[] }, layer: Layer) => {
     setGlobalHits((old) => {
       return { ...old, [layer.id]: e.hits };
     });
   };
 
-  const featureHandler = (feature, layer) => {
-    setFoundFeatures((old) => {
-      return { ...old, [layer.id]: feature };
-    });
+  const featureHandler = (feature: FeatureInfo, layer: Layer) => {
+    setFoundFeatures((old) => ({ ...old, [layer.id]: feature }));
   };
 
   const modeRef = useRef(mode);
 
-  const getLastDefinedObject = (o: Object) => {
-    const keys = Object.keys(o);
-    for (let i = keys.length - 1; i >= 0; i--) {
-      const value = o[keys[i]];
-      if (value !== undefined && value[0].selectionLayerExists) {
-        return { key: keys[i], value };
-      }
-    }
-    return undefined;
-  };
-
-  const resetSelection = (o: Object) => {
-    Object.keys(o).forEach((key) => {
-      const hits = o[key];
-      if (hits) {
-        hits.forEach((hit) => {
-          hit.setSelection(false);
-        });
-      }
-    });
-  };
-
-  const updateGlobalHits = () => {
-    Object.keys(globalHits).forEach((key) => {
-      const foundLayer = layers.find((layer) => layer.id === key);
-      if (!foundLayer || !foundLayer.visible) {
-        globalHits[key] = undefined;
-      }
-    });
-  };
-
-  const rearrangeGlobalHits = () => {
-    const newGlobalHits = {};
+  useEffect(() => {
+    // rearrangeGlobalHits inline to avoid stale deps warning
+    const newGlobalHits: GlobalHits = {};
     layers.forEach((layer) => {
       if (layer.visible) {
         newGlobalHits[layer.id] = globalHits[layer.id];
       }
     });
     setGlobalHits(newGlobalHits);
-  };
-
-  useEffect(() => {
-    rearrangeGlobalHits();
     setIdleLayers({});
-  }, [layers]);
+  }, [layers, globalHits]);
 
+  // We intentionally react only on mode changes here to preserve behavior
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (modeRef.current !== mode) {
-      updateGlobalHits();
+      // inline updateGlobalHits
+      Object.keys(globalHits).forEach((key) => {
+        const foundLayer = layers.find((layer) => layer.id === key);
+        if (!foundLayer || !foundLayer.visible) {
+          globalHits[key] = undefined;
+        }
+      });
       Object.keys(globalHits).forEach((key) => {
         const hits = globalHits[key];
         if (hits) {
@@ -161,27 +143,71 @@ export const useCreateCismapLayers = (
   }, [mode]);
 
   useEffect(() => {
-    updateGlobalHits();
+    // inline updateGlobalHits to keep deps minimal
+    Object.keys(globalHits).forEach((key) => {
+      const foundLayer = layers.find((layer) => layer.id === key);
+      if (!foundLayer || !foundLayer.visible) {
+        globalHits[key] = undefined;
+      }
+    });
     if (modeRef.current === UIMode.DEFAULT) {
-      const lastObject = getLastDefinedObject(globalHits);
+      // find last defined object
+      const keys = Object.keys(globalHits);
+      let lastObject: { key: string; value: VectorHit[] } | undefined =
+        undefined;
+      for (let i = keys.length - 1; i >= 0; i--) {
+        const value = globalHits[keys[i]];
+        if (value !== undefined && value[0]?.selectionLayerExists) {
+          lastObject = { key: keys[i], value } as {
+            key: string;
+            value: VectorHit[];
+          };
+          break;
+        }
+      }
 
       if (lastObject) {
-        resetSelection(globalHits);
+        // resetSelection inline
+        Object.keys(globalHits).forEach((key) => {
+          const hits = globalHits[key];
+          if (hits) {
+            hits.forEach((hit) => {
+              hit.setSelection && hit.setSelection(false);
+            });
+          }
+        });
         const selectedVectorFeature = lastObject.value[0];
         if (selectedVectorFeature.setSelection) {
           selectedVectorFeature.setSelection(true);
-          dispatch(setSelectedFeature(foundFeatures[lastObject.key]));
+          const f = foundFeatures[lastObject.key];
+          if (f) {
+            dispatch(setSelectedFeature(f));
+          } else {
+            dispatch(setSelectedFeature(null));
+          }
         }
       } else {
         dispatch(setSelectedFeature(null));
       }
     }
-  }, [globalHits, foundFeatures]);
+  }, [globalHits, foundFeatures, layers, dispatch]);
 
   useEffect(() => {
-    updateGlobalHits();
+    Object.keys(globalHits).forEach((key) => {
+      const foundLayer = layers.find((layer) => layer.id === key);
+      if (!foundLayer || !foundLayer.visible) {
+        globalHits[key] = undefined;
+      }
+    });
     if (selectedFeature && modeRef.current !== UIMode.DEFAULT) {
-      resetSelection(globalHits);
+      Object.keys(globalHits).forEach((key) => {
+        const hits = globalHits[key];
+        if (hits) {
+          hits.forEach((hit) => {
+            hit.setSelection && hit.setSelection(false);
+          });
+        }
+      });
       if (globalHits[selectedFeature.id]) {
         const hits = globalHits[selectedFeature.id];
         if (hits) {
@@ -198,7 +224,7 @@ export const useCreateCismapLayers = (
         }
       }
     }
-  }, [selectedFeature]);
+  }, [selectedFeature, globalHits, layers]);
 
   useEffect(() => {
     if (
@@ -207,7 +233,7 @@ export const useCreateCismapLayers = (
     ) {
       dispatch(setLayersIdle(true));
     }
-  }, [idleLayers]);
+  }, [idleLayers, layers, dispatch]);
 
   // const ntList = [""];
 
@@ -225,7 +251,7 @@ export const useCreateCismapLayers = (
             transparent: "true",
             additionalLayerUniquePane: layer.id,
             additionalLayersFreeZOrder: i,
-            opacity: layer.opacity.toFixed(1) || 0.7,
+            opacity: layer.opacity === 0 ? "0" : layer.opacity || 0.7,
             type: "wmts-nt",
           });
         case "wmts":
@@ -239,7 +265,7 @@ export const useCreateCismapLayers = (
             transparent: "true",
             additionalLayerUniquePane: layer.id,
             additionalLayersFreeZOrder: i,
-            opacity: layer.opacity.toFixed(1) || 0.7,
+            opacity: layer.opacity === 0 ? "0" : layer.opacity || 0.7,
             type: "wmts",
           });
         case "vector":
@@ -255,7 +281,7 @@ export const useCreateCismapLayers = (
             selectionEnabled: true,
             manualSelectionManagement: true,
             maxSelectionCount: 10,
-            onStyleIdle: (e) => {
+            onStyleIdle: () => {
               setIdleLayers((old) => {
                 return { ...old, [layer.id]: true };
               });

@@ -1,20 +1,11 @@
+import { memo, useCallback, useContext, useMemo, useState } from "react";
 import L from "leaflet";
 import proj4 from "proj4";
-import { useCallback, useContext, useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Button, Tooltip } from "antd";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
-
-import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
-
-import {
-  faArrowRightFromBracket,
-  faKey,
-} from "@fortawesome/free-solid-svg-icons";
 
 import type { LeafletConfig } from "@carma/types";
 import {
@@ -23,23 +14,18 @@ import {
   useGazData,
   useSelectionTopicMap,
 } from "@carma-appframeworks/portals";
-import {
-  getCollabedHelpComponentConfig,
-  tooltipText,
-} from "@carma-collab/wuppertal/geoportal";
+import { tooltipText } from "@carma-collab/wuppertal/geoportal";
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import { getApplicationVersion } from "@carma-commons/utils";
 import { useOverlayTourContext } from "@carma-commons/ui/helper-overlay";
 
 import { selectViewerIsMode2d } from "@carma-mapping/engines/cesium";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
-import { useAuth } from "@carma-providers/auth";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 
 import PrintPreview from "../../../map-print/PrintPreview.tsx";
 import FeatureInfoBox from "../../../feature-info/FeatureInfoBox.tsx";
 import InfoBoxMeasurement from "../../../map-measure/InfoBoxMeasurement.jsx";
-import LoginForm from "../../../LoginForm.tsx";
 
 import versionData from "../../../../../version.json";
 
@@ -68,6 +54,13 @@ import { getBackgroundLayers } from "../../../../helper/layer.tsx";
 import { useCreateCismapLayers } from "./hooks/useCreateCismapLayer.ts";
 import store from "../../../../store/index.ts";
 import { onClickTopicMap } from "../../topicmap.utils.ts";
+import {
+  useCleanupFeatureInfoOnModeChange,
+  useLeafletZoomEndFlag,
+  useUpdateFeatureInfoOnFlag,
+  useUpdateFeatureInfoOnLayersChange,
+} from "./hooks/useFeatureInfoLifecycle.ts";
+import { useModalMenu } from "./hooks/useModalMenu.tsx";
 
 type TopicMapComponentWrapperProps = {
   height: number;
@@ -80,12 +73,12 @@ type TopicMapComponentWrapperProps = {
   leafletOptions?: Partial<LeafletConfig>;
 };
 
-export function TopicMapComponentWrapper({
+export const TopicMapComponentWrapper = ({
   height,
   width,
   locationChangedHandler,
   leafletOptions,
-}: TopicMapComponentWrapperProps) {
+}: TopicMapComponentWrapperProps) => {
   const dispatch = useDispatch();
   const uiMode = useSelector(getUIMode);
   const layers = useSelector(getLayers);
@@ -96,7 +89,6 @@ export function TopicMapComponentWrapper({
   const loadingFeatureInfo = useSelector(getLoading);
   const isMode2d = useSelector(selectViewerIsMode2d);
   const flags = useFeatureFlags();
-  const { jwt, setJWT } = useAuth();
   const { setAppMenuVisible } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
   const { setSecondaryWithKey, showOverlayHandler } = useOverlayTourContext();
@@ -162,7 +154,6 @@ export function TopicMapComponentWrapper({
         setPos([e.latlng.lat, e.latlng.lng]);
       }
 
-      // Query layers via helper
       onClickTopicMap(e, {
         dispatch,
         mode: uiMode,
@@ -233,35 +224,35 @@ export function TopicMapComponentWrapper({
 
   const isModeFeatureInfo = uiMode === UIMode.FEATURE_INFO;
 
-  useEffect(() => {
-    if (isModeFeatureInfo && pos) updateFeatureInfoLeaflet();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layers]);
+  // Feature info lifecycle hooks
+  useUpdateFeatureInfoOnLayersChange(
+    isModeFeatureInfo,
+    pos,
+    layers,
+    updateFeatureInfoLeaflet
+  );
 
-  useEffect(() => {
-    if (shouldUpdateFeatureInfo) {
-      updateFeatureInfoLeaflet();
-    }
-  }, [shouldUpdateFeatureInfo, updateFeatureInfoLeaflet]);
+  useUpdateFeatureInfoOnFlag(shouldUpdateFeatureInfo, updateFeatureInfoLeaflet);
 
-  // Clear markers and feature state when leaving feature info mode
-  useEffect(() => {
-    const map = getTopicMap();
-    if (uiMode !== UIMode.FEATURE_INFO && marker && map) {
-      map.removeLayer(marker);
-      if (markerAccent) map.removeLayer(markerAccent);
-      dispatch(setSelectedFeature(null));
-      dispatch(setSecondaryInfoBoxElements([]));
-      dispatch(setFeatures([]));
-      setPos(null);
-      dispatch(setPreferredLayerId(""));
-    }
-  }, [uiMode, marker, markerAccent, dispatch, getTopicMap]);
+  const onCleanup = useCallback(() => {
+    dispatch(setSelectedFeature(null));
+    dispatch(setSecondaryInfoBoxElements([]));
+    dispatch(setFeatures([]));
+    setPos(null);
+    dispatch(setPreferredLayerId(""));
+  }, [dispatch]);
+
+  useCleanupFeatureInfoOnModeChange({
+    shouldCleanup: uiMode !== UIMode.FEATURE_INFO,
+    getTopicMap,
+    marker,
+    markerAccent,
+    onCleanup,
+  });
 
   const topicMapLayersElement = useCreateCismapLayers(layers, {
     mode: uiMode,
     dispatch,
-    zoom: getLeafletZoom(),
     selectedFeature,
     leafletMap: getTopicMap(),
   });
@@ -286,55 +277,20 @@ export function TopicMapComponentWrapper({
     [setAppMenuVisible, setSecondaryWithKey, showOverlayHandler]
   );
 
-  const [isLoginFormVisible, setIsLoginFormVisible] = useState(false);
-  const modalMenu = useMemo(
-    () => (
-      <GenericModalApplicationMenu
-        {...getCollabedHelpComponentConfig({
-          versionString: version,
-          showOverlayFromOutside,
-          loginFormToggle: () => setIsLoginFormVisible(!isLoginFormVisible),
-          isLoginFormVisible,
-          loginForm: (
-            <LoginForm
-              onSuccess={() => {
-                setIsLoginFormVisible(false);
-                setAppMenuVisible(false);
-              }}
-              closeLoginForm={() => setIsLoginFormVisible(false)}
-            />
-          ),
-          loginFormTrigger: (
-            <Tooltip title={jwt ? "Abmeldung" : "Anmeldung"} zIndex={99999999}>
-              <Button
-                type="text"
-                onClick={() =>
-                  jwt
-                    ? setJWT(null)
-                    : setIsLoginFormVisible(!isLoginFormVisible)
-                }
-              >
-                <FontAwesomeIcon
-                  icon={jwt ? faArrowRightFromBracket : faKey}
-                  size="lg"
-                />
-              </Button>
-            </Tooltip>
-          ),
-        })}
-      />
-    ),
-    [
-      version,
-      showOverlayFromOutside,
-      isLoginFormVisible,
-      jwt,
-      setJWT,
-      setAppMenuVisible,
-    ]
-  );
+  const modalMenu = useModalMenu({ version, showOverlayFromOutside });
 
   const isModeMeasurement = uiMode === UIMode.MEASUREMENT;
+  const mapStyle = useMemo(
+    () => ({
+      width: width,
+      height: height,
+      touchAction: "none",
+      WebkitOverflowScrolling: "touch",
+      overscrollBehavior: "none",
+    }),
+    [width, height]
+  );
+  const leafletMapProps = useMemo(() => ({ editable: true }), []);
   const infoBox = useMemo(() => {
     if (isMode2d) {
       if (isModeMeasurement) return <InfoBoxMeasurement key={uiMode} />;
@@ -354,17 +310,7 @@ export function TopicMapComponentWrapper({
     uiMode,
   ]);
 
-  useEffect(() => {
-    const handleZoomEnd = () => setShouldUpdateFeatureInfo(true);
-    const map = getTopicMap();
-    if (!map) return;
-    map.on("zoomend", handleZoomEnd);
-    return () => {
-      const m = getTopicMap();
-      if (!m) return;
-      m.off("zoomend", handleZoomEnd);
-    };
-  }, [getTopicMap]);
+  useLeafletZoomEndFlag(getTopicMap, setShouldUpdateFeatureInfo);
 
   return (
     <div className={"map-container-2d"} style={{ zIndex: 400 }}>
@@ -377,14 +323,8 @@ export function TopicMapComponentWrapper({
         locatorControl={false}
         fullScreenControl={false}
         zoomControls={false}
-        mapStyle={{
-          width: width,
-          height: height,
-          touchAction: "none",
-          WebkitOverflowScrolling: "touch",
-          overscrollBehavior: "none",
-        }}
-        leafletMapProps={{ editable: true }}
+        mapStyle={mapStyle}
+        leafletMapProps={leafletMapProps}
         minZoom={10}
         backgroundlayers="empty"
         mappingBoundsChanged={() => {}}
@@ -403,6 +343,6 @@ export function TopicMapComponentWrapper({
       </TopicMapComponent>
     </div>
   );
-}
+};
 
-export default TopicMapComponentWrapper;
+export default memo(TopicMapComponentWrapper);

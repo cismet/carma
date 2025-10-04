@@ -1,5 +1,5 @@
 import { useMemo, useRef } from "react";
-import { useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 
 import {
   CustomViewer,
@@ -19,8 +19,11 @@ import {
 } from "@carma-appframeworks/portals";
 import type { FeatureInfo } from "@carma/types";
 
-import { useModelSelectionDispatcher } from "../../../hooks/useModelSelectionDispatcher.ts";
-import { useObliqueInitializer } from "../../../oblique/hooks/useObliqueInitializer.ts";
+import { useModelSelectionDispatcher } from "../../../../hooks/useModelSelectionDispatcher.ts";
+import { useObliqueInitializer } from "../../../../oblique/hooks/useObliqueInitializer.ts";
+import { getBackgroundLayer } from "../../../../store/slices/mapping.ts";
+import { useSyncCesiumSceneStyle } from "./hooks/useSyncCesiumSceneStyle";
+import "cesium/Build/Cesium/Widgets/widgets.css";
 
 type CesiumMapComponentWrapperProps = {
   allow3d?: boolean;
@@ -28,17 +31,20 @@ type CesiumMapComponentWrapperProps = {
   onSceneChange: (e: { hashParams: Record<string, string> }) => void;
 };
 
-export default function CesiumMapComponentWrapper({
+export const CesiumMapComponentWrapper = ({
   allow3d,
   cesiumOptions,
   onSceneChange,
-}: CesiumMapComponentWrapperProps) {
+}: CesiumMapComponentWrapperProps) => {
   const container3dMapRef = useRef<HTMLDivElement>(null);
-  const { withTerrainProvider, withSurfaceProvider } = useCesiumContext();
+  const ctx = useCesiumContext();
+  const { withTerrainProvider, withSurfaceProvider } = ctx;
 
   const isMode2d = useSelector(selectViewerIsMode2d) || !allow3d;
   const showPrimaryTileset = useSelector(selectShowPrimaryTileset);
   const models = useSelector(selectViewerModels);
+  const backgroundLayer = useSelector(getBackgroundLayer);
+  const dispatch = useDispatch();
 
   const markerAsset = models[cesiumOptions.markerKey ?? "MarkerGlowLine"];
   const markerAnchorHeight = cesiumOptions.markerAnchorHeight ?? 10;
@@ -49,6 +55,9 @@ export default function CesiumMapComponentWrapper({
 
   const cesiumInitialCameraView = useCesiumInitialCameraFromSearchParams();
   const modelSelectionDispatcher = useModelSelectionDispatcher();
+
+  // Sync scene style with background layer selection
+  useSyncCesiumSceneStyle(backgroundLayer, ctx, dispatch);
 
   const modelConfig = useMemo(
     () => ({
@@ -120,4 +129,6 @@ export default function CesiumMapComponentWrapper({
       />
     </div>
   );
-}
+};
+
+export default CesiumMapComponentWrapper;
