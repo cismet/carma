@@ -20,42 +20,10 @@ export interface MeasurementShape {
 }
 
 export interface InfoBoxMeasurementProps {
-  // measurementsData: MeasurementShape[];
-  // visibleShapesData: MeasurementShape[];
-  // activeShape?: number | string | null;
-  // moveToShape?: number | string | null;
-  // updateShape?: boolean;
-  // drawingMode?: boolean;
-  // mapMovingEnd?: boolean;
-
-  // UI
   collapsedInfoBox?: boolean;
-
-  // Actions (previously dispatched)
-  // setMoveToShape: (id: number | string | null) => void;
-  // // setActiveShape: (id: number | string | null) => void;
-  // // setUpdateShape: (status: boolean) => void;
-  // setDeleteAll: (value: boolean) => void;
-  // setMapMovingEnd: (status: boolean) => void;
-  // setShowAll: (value: boolean) => void;
-  // updateTitle: (shapeId: number | string, title: string) => void;
 }
 
-export function InfoBoxMeasurement({}: // measurementsData,
-// visibleShapesData,
-// activeShape,
-// moveToShape,
-// updateShape,
-// drawingMode,
-// mapMovingEnd,
-// setMoveToShape,
-// setActiveShape,
-// setUpdateShape,
-// setDeleteAll,
-// setMapMovingEnd,
-// setShowAll,
-// updateTitle,
-InfoBoxMeasurementProps) {
+export function InfoBoxMeasurement({}: InfoBoxMeasurementProps) {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const {
     shapes: measurementsData,
@@ -141,20 +109,8 @@ InfoBoxMeasurementProps) {
     }
   }, [activeShape, visibleShapesData]);
 
-  // Remove this useEffect - don't set activeShape based on currentMeasure
-  // activeShape is the source of truth, currentMeasure is derived from it
-  // useEffect(() => {
-  //   if (visibleShapesData[currentMeasure]?.shapeId) {
-  //     setActiveShape(visibleShapesData[currentMeasure].shapeId);
-  //   }
-  // }, [currentMeasure]);
-
   useEffect(() => {
     const positionInArr = activeShapeHandler(activeShape ?? null);
-
-    // if (positionInArr !== null) {
-    //   setCurrentMeasure(positionInArr);
-    // }
 
     let checkIfActiveShapeIsVisible = visibleShapesData.some(
       (m) => m.shapeId === activeShape
