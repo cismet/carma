@@ -90,7 +90,10 @@ const SetStatusDialog = ({
             },
           ]}
         >
-          <Radio.Group style={{ width: "100%", marginBottom: 15 }} buttonStyle="solid">
+          <Radio.Group
+            style={{ width: "100%", marginBottom: 15 }}
+            buttonStyle="solid"
+          >
             <Radio.Button
               style={{ width: "33%", textAlign: "center", fontSize: 12 }}
               value="open"
@@ -132,11 +135,7 @@ const SetStatusDialog = ({
 
         {imagePreview && (
           <div style={{ marginTop: 20, marginBottom: 20 }}>
-            <img
-              src={imagePreview}
-              alt="preview"
-              style={{ width: "100%" }}
-            />
+            <img src={imagePreview} alt="preview" style={{ width: "100%" }} />
           </div>
         )}
 
