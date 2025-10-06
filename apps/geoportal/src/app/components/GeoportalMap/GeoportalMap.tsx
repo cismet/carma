@@ -5,7 +5,7 @@ import type { CesiumConfig } from "@carma-mapping/engines/cesium";
 import { selectViewerIsMode2d } from "@carma-mapping/engines/cesium";
 import type { LeafletConfig } from "@carma/types";
 
-import { useGeoportalOverlays } from "./utils/useOverlayHelpers";
+import { useGeoportalOverlays } from "./hooks/useGeoportalOverlays";
 import { useDispatchSachdatenInfoText } from "../../hooks/useDispatchSachdatenInfoText.ts";
 // no UI mode handling here; wrapper handles 2D-specific UI flows
 import { TopicMapComponentWrapper } from "./components/TopicMapComponentWrapper";
