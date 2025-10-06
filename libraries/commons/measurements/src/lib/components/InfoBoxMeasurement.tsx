@@ -85,11 +85,16 @@ InfoBoxMeasurementProps) {
   const [stepAfterCreating, setStepAfterCreating] = useState(false);
   const { collapsedInfoBox } = useContext<typeof UIContext>(UIContext);
 
+  // Handle moveToShape - zoom functionality
   useEffect(() => {
     if (moveToShape) {
       setStepAfterMoveToShape(activeShape ?? null);
       setMoveToShape(null);
-    } else if (updateShape && !drawingMode) {
+    }
+  }, [moveToShape, activeShape, setMoveToShape]);
+
+  useEffect(() => {
+    if (updateShape && !drawingMode) {
       setStepAfterUpdating(true);
     } else if (!stepAfterUpdating && !stepAfterCreating) {
       if (stepAfterMoveToShape) {
@@ -112,7 +117,7 @@ InfoBoxMeasurementProps) {
     }
   }, [
     visibleShapesData,
-    moveToShape,
+    // moveToShape,
     updateShape,
     stepAfterCreating,
     drawingMode,
