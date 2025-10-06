@@ -114,13 +114,17 @@ export const MapMeasurementsProvider = ({
   const [updateTitleStatus, setUpdateTitleStatus] = useState(false);
   const [startDrawing, setStartDrawing] = useState(false);
 
-  // useEffect(() => {
-  //   console.log("xxx shapes", shapes);
-  // }, [shapes]);
+  useEffect(() => {
+    console.log("xxx shapes", shapes);
+  }, [shapes]);
 
-  // useEffect(() => {
-  //   console.log("xxx visibleShapes", visibleShapes);
-  // }, [visibleShapes]);
+  useEffect(() => {
+    console.log("xxx visibleShapes", visibleShapes);
+  }, [visibleShapes]);
+
+  useEffect(() => {
+    console.log("xxx activeShape", activeShape);
+  }, [activeShape]);
 
   const addShape = (layer: any) => {
     setShapes((prevShapes) => [...prevShapes, layer]);

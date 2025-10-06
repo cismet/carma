@@ -125,6 +125,16 @@ InfoBoxMeasurementProps) {
     mapMovingEnd,
   ]);
 
+  // Handle activeShape changes - keep currentMeasure in sync
+  useEffect(() => {
+    if (activeShape) {
+      const positionInArr = activeShapeHandler(activeShape);
+      if (positionInArr !== null) {
+        setCurrentMeasure(positionInArr);
+      }
+    }
+  }, [activeShape, visibleShapesData]);
+
   // Remove this useEffect - don't set activeShape based on currentMeasure
   // activeShape is the source of truth, currentMeasure is derived from it
   // useEffect(() => {
