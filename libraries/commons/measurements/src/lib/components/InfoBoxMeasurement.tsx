@@ -93,15 +93,10 @@ InfoBoxMeasurementProps) {
       setStepAfterUpdating(true);
     } else if (!stepAfterUpdating && !stepAfterCreating) {
       if (stepAfterMoveToShape) {
-        // const positionInArr = activeShapeHandler(stepAfterMoveToShape);
-        // if (positionInArr !== null) {
-        //   setCurrentMeasure(positionInArr);
-        // }
         setStepAfterUpdating(false);
         setStepAfterMoveToShape(null);
       } else if (visibleShapesData.length === 1) {
         setLastMeasureActive();
-        setActiveShape(visibleShapesData[0].shapeId);
       } else {
         setLastMeasureActive();
       }
@@ -114,7 +109,6 @@ InfoBoxMeasurementProps) {
     } else if (mapMovingEnd) {
       setStepAfterUpdating(false);
       setMapMovingEnd(false);
-    } else {
     }
   }, [
     visibleShapesData,
