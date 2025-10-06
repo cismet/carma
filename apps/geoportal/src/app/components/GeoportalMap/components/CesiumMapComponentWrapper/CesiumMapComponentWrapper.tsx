@@ -23,18 +23,17 @@ import { useModelSelectionDispatcher } from "../../../../hooks/useModelSelection
 import { useObliqueInitializer } from "../../../../oblique/hooks/useObliqueInitializer.ts";
 import { getBackgroundLayer } from "../../../../store/slices/mapping.ts";
 import { useSyncCesiumSceneStyle } from "./hooks/useSyncCesiumSceneStyle";
+import { useCesiumSceneChangeHandler } from "./hooks/useCesiumSceneChangeHandler.ts";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 
 type CesiumMapComponentWrapperProps = {
   allow3d?: boolean;
   cesiumOptions: Partial<CesiumConfig>;
-  onSceneChange: (e: { hashParams: Record<string, string> }) => void;
 };
 
 export const CesiumMapComponentWrapper = ({
   allow3d,
   cesiumOptions,
-  onSceneChange,
 }: CesiumMapComponentWrapperProps) => {
   const container3dMapRef = useRef<HTMLDivElement>(null);
   const ctx = useCesiumContext();
@@ -58,6 +57,9 @@ export const CesiumMapComponentWrapper = ({
 
   // Sync scene style with background layer selection
   useSyncCesiumSceneStyle(backgroundLayer, ctx, dispatch);
+
+  // Local scene change handler
+  const onSceneChange = useCesiumSceneChangeHandler(isMode2d);
 
   const modelConfig = useMemo(
     () => ({

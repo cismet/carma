@@ -41,6 +41,7 @@ import {
   getLayersIdle,
   getBackgroundLayer,
   getShowHamburgerMenu,
+  setLayersIdle,
 } from "../../../../store/slices/mapping.ts";
 import {
   getLoading,
@@ -52,6 +53,7 @@ import {
 } from "../../../../store/slices/features.ts";
 import { getBackgroundLayers } from "../../../../helper/layer.tsx";
 import { useCreateCismapLayers } from "./hooks/useCreateCismapLayer.ts";
+import { useTopicMapLocationChangedHandler } from "./hooks/useTopicMapLocationChangedHandler.ts";
 import store from "../../../../store/index.ts";
 import { onClickTopicMap } from "../../topicmap.utils.ts";
 import {
@@ -65,18 +67,12 @@ import { useModalMenu } from "./hooks/useModalMenu.tsx";
 type TopicMapComponentWrapperProps = {
   height: number;
   width: number;
-  locationChangedHandler: (e: {
-    lat: number;
-    lng: number;
-    zoom: number;
-  }) => void;
   leafletOptions?: Partial<LeafletConfig>;
 };
 
 export const TopicMapComponentWrapper = ({
   height,
   width,
-  locationChangedHandler,
   leafletOptions,
 }: TopicMapComponentWrapperProps) => {
   const dispatch = useDispatch();
@@ -95,12 +91,28 @@ export const TopicMapComponentWrapper = ({
   const version = getApplicationVersion(versionData);
   const { getLeafletZoom } = useLeafletZoomControls();
   const { gazData } = useGazData();
+
   const { routedMapRef: topicMap } =
     useContext<typeof TopicMapContext>(TopicMapContext);
 
   const getTopicMap = useCallback(
     () => topicMap?.leafletMap?.leafletElement as L.Map | undefined,
     [topicMap]
+  );
+
+  // Local onAfter to reset layersIdle state after write
+  const updateLayersIdleState = useCallback(() => {
+    if (layersIdle) {
+      dispatch(setLayersIdle(false));
+    }
+  }, [layersIdle, dispatch]);
+
+  const topicMapLocationChangedHandler = useTopicMapLocationChangedHandler(
+    isMode2d,
+    {
+      getInstance: getTopicMap,
+      onAfter: updateLayersIdleState,
+    }
   );
 
   const [marker, setMarker] = useState<L.Marker | undefined>();
@@ -328,7 +340,7 @@ export const TopicMapComponentWrapper = ({
         minZoom={10}
         backgroundlayers="empty"
         mappingBoundsChanged={() => {}}
-        locationChangedHandler={locationChangedHandler}
+        locationChangedHandler={topicMapLocationChangedHandler}
         outerLocationChangedHandlerExclusive={true}
         onclick={handleOnClick}
         gazetteerSearchControl={true}

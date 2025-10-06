@@ -1,7 +1,5 @@
-import { useCallback, useContext, useMemo, useRef } from "react";
-import { useDispatch, useSelector } from "react-redux";
-
-import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+import { useRef } from "react";
+import { useSelector } from "react-redux";
 
 import type { CesiumConfig } from "@carma-mapping/engines/cesium";
 import { selectViewerIsMode2d } from "@carma-mapping/engines/cesium";
@@ -9,9 +7,7 @@ import type { LeafletConfig } from "@carma/types";
 
 import { useGeoportalOverlays } from "./utils/useOverlayHelpers";
 import { useDispatchSachdatenInfoText } from "../../hooks/useDispatchSachdatenInfoText.ts";
-import { getLayersIdle, setLayersIdle } from "../../store/slices/mapping.ts";
 // no UI mode handling here; wrapper handles 2D-specific UI flows
-import { useLocationChangeHandlers } from "./hooks/useLocationChangeHandlers.ts";
 import { TopicMapComponentWrapper } from "./components/TopicMapComponentWrapper";
 import { CesiumMapComponentWrapper } from "./components/CesiumMapComponentWrapper";
 import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
@@ -29,8 +25,6 @@ interface MapProps {
 }
 
 export const GeoportalMap = ({ height, width, allow3d, options }: MapProps) => {
-  const dispatch = useDispatch();
-
   const cesiumOptions = options?.cesium ?? CESIUM_CONFIG;
   const leafletOptions = options?.topicmap ?? LEAFLET_CONFIG;
 
@@ -42,35 +36,6 @@ export const GeoportalMap = ({ height, width, allow3d, options }: MapProps) => {
   const isMode2d = useSelector(selectViewerIsMode2d) || !allow3d;
 
   useGeoportalOverlays();
-
-  const { routedMapRef: topicMap } =
-    useContext<typeof TopicMapContext>(TopicMapContext);
-
-  const getTopicMap = useCallback(
-    () => topicMap?.leafletMap?.leafletElement,
-    [topicMap]
-  );
-
-  // topicMapLocationChangedHandler callbacks
-  const layersIdle = useSelector(getLayersIdle);
-
-  const changeHandlerOptions = useMemo(() => {
-    const updateLayersIdleState = () => {
-      if (layersIdle) {
-        console.debug("Layers are idle, setting layers idle to false");
-        dispatch(setLayersIdle(false));
-      }
-    };
-    return {
-      topicMap: {
-        getInstance: getTopicMap,
-        onAfter: updateLayersIdleState,
-      },
-    };
-  }, [getTopicMap, layersIdle, dispatch]);
-
-  const { topicMapLocationChangedHandler, cesiumLocationChangedHandler } =
-    useLocationChangeHandlers(isMode2d, changeHandlerOptions);
 
   useDispatchSachdatenInfoText();
 
@@ -91,13 +56,11 @@ export const GeoportalMap = ({ height, width, allow3d, options }: MapProps) => {
       <TopicMapComponentWrapper
         height={height}
         width={width}
-        locationChangedHandler={topicMapLocationChangedHandler}
         leafletOptions={leafletOptions}
       />
       <CesiumMapComponentWrapper
         allow3d={allow3d}
         cesiumOptions={cesiumOptions}
-        onSceneChange={cesiumLocationChangedHandler}
       />
     </>
   );

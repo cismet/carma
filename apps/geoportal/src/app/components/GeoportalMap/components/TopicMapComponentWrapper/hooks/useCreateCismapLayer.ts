@@ -89,7 +89,9 @@ export const useCreateCismapLayers = (
 ) => {
   const [globalHits, setGlobalHits] = useState<GlobalHits>({});
   const [idleLayers, setIdleLayers] = useState<Record<string, boolean>>({});
-  const [foundFeatures, setFoundFeatures] = useState<Record<string, FeatureInfo | undefined>>({});
+  const [foundFeatures, setFoundFeatures] = useState<
+    Record<string, FeatureInfo | undefined>
+  >({});
   const flags = useFeatureFlags();
 
   const showTileBoundaries = flags?.debugTileBoundaries;
