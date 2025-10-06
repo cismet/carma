@@ -112,22 +112,22 @@ export const MapMeasurementsProvider = ({
   const [updateTitleStatus, setUpdateTitleStatus] = useState(false);
   const [startDrawing, setStartDrawing] = useState(false);
 
-  useEffect(() => {
-    console.log("xxx shapes", shapes);
-  }, [shapes]);
+  // useEffect(() => {
+  //   console.log("xxx shapes", shapes);
+  // }, [shapes]);
 
   const addShape = (layer: any) => {
     setShapes((prevShapes) => [...prevShapes, layer]);
   };
 
   const deleteShapeById = (shapeId: string) => {
-    setShapes((currentShapes) => 
+    setShapes((currentShapes) =>
       currentShapes.filter((shape) => shape.shapeId !== shapeId)
     );
   };
 
   const deleteVisibleShapeById = (shapeId: string) => {
-    setVisibleShapes((currentVisibleShapes) => 
+    setVisibleShapes((currentVisibleShapes) =>
       currentVisibleShapes.filter((shape) => shape.shapeId !== shapeId)
     );
   };

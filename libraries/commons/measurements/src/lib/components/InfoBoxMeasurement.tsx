@@ -254,10 +254,10 @@ InfoBoxMeasurementProps) {
             <div className="mt-2 mb-2 w-[96%] flex justify-between items-start gap-4">
               <span style={{ cursor: "pointer", width: "100%" }}>
                 <MeasurementTitle
-                  // key={
-                  //   visibleShapesData[currentMeasure].shapeId +
-                  //   visibleShapesData[currentMeasure]?.area
-                  // }
+                  key={
+                    visibleShapesData[currentMeasure].shapeId +
+                    visibleShapesData[currentMeasure]?.area
+                  }
                   order={getOrderOfShape(
                     visibleShapesData[currentMeasure].shapeId
                   )}
