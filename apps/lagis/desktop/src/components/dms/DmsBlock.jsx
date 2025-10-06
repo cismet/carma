@@ -43,6 +43,14 @@ const columns = [
     id: "vorschau",
     render: (record, data) => (
       <div className="flex items-center justify-center">
+        {data.fileType === "d3" ? (
+          <a href={record} target="_d3">
+            <FileTextOutlined
+              style={{ fontSize: "20px" }}
+              className="cursor-pointer text-blue-500 hover:text-blue-400"
+            />
+          </a>
+        ) : null}
         {data.fileType === "TIF" ||
         data.fileType === "tif" ||
         data.fileType === "JPG" ? (
