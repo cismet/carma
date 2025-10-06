@@ -44,6 +44,7 @@ export interface MapMeasurementsContextType {
   setActiveShapeIfDrawCancelled: () => void;
   toggleMeasurementMode: () => void;
   updateAreaOfDrawing: (newArea: number) => void;
+  updateTitle: (shapeId: string | number, customTitle: string) => void;
   setStartDrawing: (status: boolean) => void;
   startDrawing: boolean;
 }
@@ -87,6 +88,7 @@ export const MapMeasurementsContext = createContext<MapMeasurementsContextType>(
     setActiveShapeIfDrawCancelled: () => {},
     toggleMeasurementMode: () => {},
     updateAreaOfDrawing: (newArea: number) => {},
+    updateTitle: (_shapeId: string | number, _customTitle: string) => {},
     setStartDrawing: (status: boolean) => {},
     startDrawing: false,
   }
@@ -112,9 +114,13 @@ export const MapMeasurementsProvider = ({
   const [updateTitleStatus, setUpdateTitleStatus] = useState(false);
   const [startDrawing, setStartDrawing] = useState(false);
 
-  // useEffect(() => {
-  //   console.log("xxx shapes", shapes);
-  // }, [shapes]);
+  useEffect(() => {
+    console.log("xxx shapes", shapes);
+  }, [shapes]);
+
+  useEffect(() => {
+    console.log("xxx visibleShapes", visibleShapes);
+  }, [visibleShapes]);
 
   const addShape = (layer: any) => {
     setShapes((prevShapes) => [...prevShapes, layer]);
@@ -213,6 +219,47 @@ export const MapMeasurementsProvider = ({
     });
   };
 
+  const updateTitle = (shapeId: string | number, customTitle: string) => {
+    // Update visible shapes - find the shape first to preserve all properties
+    setVisibleShapes((currentVisibleShapes) => {
+      const shapeFromVisible = currentVisibleShapes.find(
+        (s) => s.shapeId === shapeId
+      );
+      if (!shapeFromVisible) return currentVisibleShapes;
+
+      return currentVisibleShapes.map((shape) => {
+        if (shape.shapeId === shapeId) {
+          return {
+            ...shapeFromVisible,
+            customTitle,
+          };
+        }
+        return shape;
+      });
+    });
+
+    // Update all shapes - find the shape first to preserve all properties
+    setShapes((currentShapes) => {
+      const shapeFromAllShapes = currentShapes.find(
+        (s) => s.shapeId === shapeId
+      );
+      if (!shapeFromAllShapes) return currentShapes;
+
+      return currentShapes.map((shape) => {
+        if (shape.shapeId === shapeId) {
+          return {
+            ...shapeFromAllShapes,
+            customTitle,
+          };
+        }
+        return shape;
+      });
+    });
+
+    // Set update title status to trigger any necessary UI updates
+    setUpdateTitleStatus(true);
+  };
+
   return (
     <MapMeasurementsContext.Provider
       value={{
@@ -249,6 +296,7 @@ export const MapMeasurementsProvider = ({
         setActiveShapeIfDrawCancelled,
         toggleMeasurementMode,
         updateAreaOfDrawing,
+        updateTitle,
         setStartDrawing,
         startDrawing,
       }}

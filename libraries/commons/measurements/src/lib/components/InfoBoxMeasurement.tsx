@@ -240,7 +240,7 @@ InfoBoxMeasurementProps) {
     shapeId: number | string,
     customTitle: string
   ) => {
-    // updateTitle(shapeId, customTitle);
+    updateTitle(shapeId, customTitle);
   };
 
   return (
