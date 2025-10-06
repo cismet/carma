@@ -6,7 +6,6 @@ import { isMapCenterZoomEquivalent } from "@carma-commons/utils";
 import { Degrees } from "@carma/types";
 
 export type LatLngZoom = { lat: number; lng: number; zoom: number };
-export type CesiumSceneChangeEvent = { hashParams: Record<string, string> };
 
 type Labels = {
   clear3d?: string;
@@ -23,8 +22,7 @@ type LeafletLikeMap = {
   once?: (type: string, fn: (...args: unknown[]) => void) => void;
 };
 
-export interface UseMapHashRoutingOptions {
-  isMode2d: boolean;
+interface UseMapHashRoutingLeafletLikeOptions {
   getLeafletMap?: () => LeafletLikeMap | null | undefined;
   getLeafletZoom?: () => number;
   cesiumClearKeys?: string[];
@@ -32,14 +30,13 @@ export interface UseMapHashRoutingOptions {
   pixelTolerance?: number; // px
 }
 
-export function useMapHashRouting({
-  isMode2d,
+export function useMapHashRoutingLeafletLike({
   getLeafletMap,
   getLeafletZoom,
   cesiumClearKeys = cesiumClearParamKeys,
   labels,
   pixelTolerance,
-}: UseMapHashRoutingOptions) {
+}: UseMapHashRoutingLeafletLikeOptions) {
   const { updateHash, subscribe, getHashValues } = useHashState();
 
   // Skip 2D writes when the map move was initiated by a navigation (popstate)
@@ -49,7 +46,6 @@ export function useMapHashRouting({
 
   const handleTopicMapLocationChange = useCallback(
     ({ lat, lng, zoom }: LatLngZoom) => {
-      if (!isMode2d) return;
       if (navMoveInProgressRef.current) {
         console.debug(
           "[Routing][hash] (2D) suppress push: popstate navigation in progress",
@@ -129,7 +125,6 @@ export function useMapHashRouting({
       );
     },
     [
-      isMode2d,
       updateHash,
       getHashValues,
       cesiumClearKeys,
@@ -138,61 +133,12 @@ export function useMapHashRouting({
     ]
   );
 
-  const handleCesiumSceneChange = useCallback(
-    (e: CesiumSceneChangeEvent) => {
-      if (isMode2d) return;
-      updateHash(e.hashParams, {
-        clearKeys: ["zoom"],
-        label: labels?.cesiumScene ?? "Map:3D:scene",
-        replace: true, // don't push to history until cesium handled history navigation
-      });
-    },
-    [isMode2d, updateHash, labels?.cesiumScene]
-  );
-
-  const prevIsMode2dRef = useRef<boolean>(isMode2d);
-  useEffect(() => {
-    const was2d = prevIsMode2dRef.current;
-    if (!was2d && isMode2d) {
-      // Replace current entry to clear 3D-specific state
-      updateHash(undefined, {
-        clearKeys: cesiumClearKeys,
-        label: labels?.clear3d ?? "Map:2D:clear3d",
-        replace: true,
-      });
-      // Then push current 2D location
-      const map = getLeafletMap?.();
-      if (
-        map &&
-        typeof map.getCenter === "function" &&
-        typeof getLeafletZoom === "function"
-      ) {
-        const center = map.getCenter();
-        const zoom = getLeafletZoom();
-        updateHash(
-          { lat: center.lat, lng: center.lng, zoom },
-          { label: labels?.write2d ?? "Map:2D:writeLocation" }
-        );
-      }
-    }
-    prevIsMode2dRef.current = isMode2d;
-  }, [
-    isMode2d,
-    updateHash,
-    getLeafletMap,
-    getLeafletZoom,
-    cesiumClearKeys,
-    labels?.clear3d,
-    labels?.write2d,
-  ]);
-
   // Back/forward navigation: move the 2D map to the historical location without writing a new hash
   useEffect(() => {
     if (!getLeafletMap) return;
     const unsub = subscribe(
       (e) => {
         if (e.source !== "popstate") return;
-        if (!isMode2d) return;
         const lat = e.values.lat as number | undefined;
         const lng = e.values.lng as number | undefined;
         const zoom =
@@ -232,27 +178,7 @@ export function useMapHashRouting({
       { keys: ["lat", "lng", "zoom"] }
     );
     return unsub;
-  }, [subscribe, isMode2d, getLeafletMap, getLeafletZoom]);
+  }, [subscribe, getLeafletMap, getLeafletZoom]);
 
-  return { handleTopicMapLocationChange, handleCesiumSceneChange };
-}
-
-interface Options {
-  onChange: (p: LatLngZoom) => void;
-  onAfter?: () => void;
-  onMismatch?: () => void;
-}
-
-export function createLocationChangeHandler(
-  is2dOnlyHandler: boolean, // defines return format,
-  { onChange, onAfter, onMismatch }: Options = { onChange: () => {} }
-) {
-  return (p: LatLngZoom) => {
-    if (!is2dOnlyHandler) {
-      onMismatch?.();
-      return;
-    }
-    onChange(p);
-    onAfter?.();
-  };
+  return handleTopicMapLocationChange;
 }

@@ -1,6 +1,14 @@
 import { useMemo, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
+import type { FeatureInfo } from "@carma/types";
+
+import {
+  useMapHashRoutingCesium,
+  useSelectionCesium,
+  useCesiumModels,
+} from "@carma-appframeworks/portals";
+
 import {
   CustomViewer,
   selectShowPrimaryTileset,
@@ -13,17 +21,10 @@ import type { CesiumConfig } from "@carma-mapping/engines/cesium";
 
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 
-import {
-  useSelectionCesium,
-  useCesiumModels,
-} from "@carma-appframeworks/portals";
-import type { FeatureInfo } from "@carma/types";
-
 import { useModelSelectionDispatcher } from "../../../../hooks/useModelSelectionDispatcher.ts";
 import { useObliqueInitializer } from "../../../../oblique/hooks/useObliqueInitializer.ts";
 import { getBackgroundLayer } from "../../../../store/slices/mapping.ts";
 import { useSyncCesiumSceneStyle } from "./hooks/useSyncCesiumSceneStyle";
-import { useCesiumSceneChangeHandler } from "./hooks/useCesiumSceneChangeHandler.ts";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 
 type CesiumMapComponentWrapperProps = {
@@ -58,8 +59,7 @@ export const CesiumMapComponentWrapper = ({
   // Sync scene style with background layer selection
   useSyncCesiumSceneStyle(backgroundLayer, ctx, dispatch);
 
-  // Local scene change handler
-  const onSceneChange = useCesiumSceneChangeHandler();
+  const onSceneChange = useMapHashRoutingCesium();
 
   const modelConfig = useMemo(
     () => ({
