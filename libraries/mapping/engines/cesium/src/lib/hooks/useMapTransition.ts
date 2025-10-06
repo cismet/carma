@@ -1,4 +1,4 @@
-import { useContext, useState } from "react";
+import { MutableRefObject, useContext, useState } from "react";
 import { useDispatch } from "react-redux";
 
 import { Cartesian3, Cartographic, defined, HeadingPitchRange } from "cesium";
@@ -23,39 +23,91 @@ import { tiledMapToCesium } from "../utils/tiledMapToCesium";
 import { pickViewerCanvasCenter } from "../utils/pickers";
 import { cesiumCenterPixelSizeToLeafletZoom } from "../utils/pixels";
 
-export enum MapTransitionState {
-  UNINITIALIZED,
-  MODE_2D = "MODE_2D",
-  MODE_3D = "MODE_3D",
-  TRANSITION_TO_3D_PRE = "TO_3D_PRE",
-  TRANSITION_TO_3D = "TO_3D",
-  TRANSITION_TO_3D_POST = "TO_3D_POST",
-  TRANSITION_TO_2D_PRE = "TO_2D_PRE",
-  TRANSITION_TO_2D = "TO_2D",
-  TRANSITION_TO_2D_POST = "TO_2D_POST",
-}
+const To2d = {
+  preTransitionTo2d: "preTransitionTo2d",
+  transitionTo2d: "transitionTo2d",
+  postTransitionTo2d: "postTransitionTo2d",
+} as const;
 
-export const TRANSITION_TO_3D_STATES = [
-  MapTransitionState.TRANSITION_TO_3D_PRE,
-  MapTransitionState.TRANSITION_TO_3D,
-  MapTransitionState.TRANSITION_TO_3D_POST,
-];
-export const TRANSITION_TO_2D_STATES = [
-  MapTransitionState.TRANSITION_TO_2D_PRE,
-  MapTransitionState.TRANSITION_TO_2D,
-  MapTransitionState.TRANSITION_TO_2D_POST,
-];
+const To3d = {
+  preTransitionTo3d: "preTransitionTo3d",
+  transitionTo3d: "transitionTo3d",
+  postTransitionTo3d: "postTransitionTo3d",
+} as const;
 
-export const isTransitionTo2dState = (state: MapTransitionState) => {
-  return TRANSITION_TO_2D_STATES.includes(state);
+export const MapTransitionState = {
+  ...To2d,
+  ...To3d,
+} as const;
+
+export type MapTransitionStateType = typeof MapTransitionState;
+
+export const MapMode = {
+  mode2d: "mode2d",
+  mode3d: "mode3d",
+} as const;
+
+export const MapState = {
+  uninitialized: "uninitialized",
+  ...MapMode,
+  ...MapTransitionState,
+} as const;
+
+export type MapStateType = typeof MapState;
+
+export const isTransitionTo2dState = (
+  state: unknown
+): state is keyof typeof To2d => {
+  return Object.values(To2d).includes(state as keyof typeof To2d);
 };
 
-export const isTransitionTo3dState = (state: MapTransitionState) => {
-  return TRANSITION_TO_3D_STATES.includes(state);
+export const isTransitionTo3dState = (
+  state: unknown
+): state is keyof typeof To3d => {
+  return Object.values(To3d).includes(state as keyof typeof To3d);
 };
 
-export const isTransitionState = (state: MapTransitionState) => {
+export const isTransitionState = (
+  state: unknown
+): state is keyof MapTransitionStateType => {
   return isTransitionTo2dState(state) || isTransitionTo3dState(state);
+};
+
+type TransitionLifecycleHandler = () => Promise<void>;
+
+export type MapTransitionLifecycle = {
+  [K in keyof MapTransitionStateType]: Set<TransitionLifecycleHandler>;
+};
+
+export const createTransitionLifecycle = (): MapTransitionLifecycle => ({
+  [MapTransitionState.preTransitionTo2d]: new Set(),
+  [MapTransitionState.transitionTo2d]: new Set(),
+  [MapTransitionState.postTransitionTo2d]: new Set(),
+  [MapTransitionState.preTransitionTo3d]: new Set(),
+  [MapTransitionState.transitionTo3d]: new Set(),
+  [MapTransitionState.postTransitionTo3d]: new Set(),
+});
+
+export const addMapTransitionLifecycleHandler = (
+  lifecycleRef: MutableRefObject<MapTransitionLifecycle>,
+  phase: keyof MapTransitionStateType,
+  handler: TransitionLifecycleHandler
+) => {
+  const handlers = lifecycleRef.current[phase];
+  handlers.add(handler);
+  return () => {
+    handlers.delete(handler);
+  };
+};
+
+export const runTransitionLifecycleHandlers = async (
+  lifecycleRef: MutableRefObject<MapTransitionLifecycle>,
+  phase: keyof MapTransitionStateType
+) => {
+  const handlers = lifecycleRef.current[phase];
+  for (const handler of handlers) {
+    await handler();
+  }
 };
 
 type TransitionOptions = {
@@ -96,7 +148,13 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
   const topicMapContext = useContext<typeof TopicMapContext>(TopicMapContext);
   const { realRoutedMapRef: routedMapRef } = topicMapContext;
   const cesiumContext = useCesiumContext();
-  const { withCamera, transitionStateRef } = cesiumContext;
+  // TODO: move transition state int own context below all involved map frameworks,
+  // TODO: move transition options to cesium context or own context
+  // potentially enable transitions between more map frameworks like maplibre and threejs
+  // and have transition as own monorepo project and standalone package possibly
+  const { withCamera, transitionStateRef, transitionLifecycleRef } =
+    cesiumContext;
+
   const [prevHPR, setPrevHPR] = useState<HeadingPitchRange | null>(null);
   const [prevDuration, setPrevDuration] = useState<number>(0);
 
@@ -158,7 +216,7 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
       console.warn("cesium or leaflet not available");
       return;
     }
-    transitionStateRef.current = MapTransitionState.TRANSITION_TO_3D_PRE;
+    transitionStateRef.current = MapTransitionState.preTransitionTo3d;
 
     const leaflet = routedMapRef.current?.leafletMap?.leafletElement;
 
@@ -168,7 +226,7 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
 
     const onComplete3d = () => {
       onComplete?.(false);
-      transitionStateRef.current = MapTransitionState.MODE3D;
+      transitionStateRef.current = MapState.mode3d;
     };
 
     const animateCesiumView = () => {
@@ -201,13 +259,13 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
     const { lat: latitude, lng: longitude } = leaflet.getCenter();
     const zoom = leaflet.getZoom();
 
-    transitionStateRef.current = MapTransitionState.TRANSITION_TO_3D;
+    transitionStateRef.current = MapTransitionState.transitionTo3d;
     await tiledMapToCesium(cesiumContext, { latitude, longitude }, zoom, {
       cause: "SwitchMapMode to 3d",
       onComplete: () => {
         // handles fadeout of topicmap/2d component externally
         dispatch(setIsMode2d(false));
-        transitionStateRef.current = MapTransitionState.TRANSITION_TO_3D_POST;
+        transitionStateRef.current = MapTransitionState.postTransitionTo3d;
         setTimeout(animateCesiumView, 100);
       },
     });
@@ -221,6 +279,16 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
     if (!cesiumContext.isValidViewer()) {
       console.warn("cesium not available no transition possible [zoom]");
       return;
+    }
+    transitionStateRef.current = MapTransitionState.preTransitionTo2d;
+    try {
+      await runTransitionLifecycleHandlers(
+        transitionLifecycleRef,
+        MapTransitionState.preTransitionTo2d
+      );
+    } catch (error) {
+      console.warn("preTransitionTo2d failed", error);
+      // continue with actual transition
     }
 
     const leaflet = routedMapRef.current?.leafletMap?.leafletElement;
@@ -238,7 +306,7 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
         console.info(
           "[CESIUM|2D3D|TO2D] No valid ground height (depth) found – cancel transition"
         );
-        transitionStateRef.current = MapTransitionState.MODE_3D;
+        transitionStateRef.current = MapState.mode3d;
         return;
       }
 
@@ -252,7 +320,6 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
       let zoomDiff = 0;
 
       const { zoomSnap } = leaflet.options;
-      transitionStateRef.current = MapTransitionState.TRANSITION_TO_2D_PRE;
       if (zoomSnap) {
         // Move the cesium camera to the next zoom snap level of leaflet before transitioning
         const currentZoom =
@@ -262,7 +329,7 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
 
         if (currentZoom === null) {
           console.warn("could not determine current zoom level");
-          transitionStateRef.current = MapTransitionState.MODE3D;
+          transitionStateRef.current = MapState.mode3d;
           return;
         } else {
           // go to the next integer zoom snap level
@@ -325,13 +392,13 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
 
         // trigger the visual transition
         dispatch(setIsMode2d(true));
-        transitionStateRef.current = MapTransitionState.MODE_2D;
+        transitionStateRef.current = MapState.mode2d;
         onComplete?.(true);
       };
 
       console.debug("[Animation|2D3D] duration zoom", distance);
 
-      transitionStateRef.current = MapTransitionState.TRANSITION_TO_2D;
+      transitionStateRef.current = MapState.transitionTo2d;
       if (hasGroundPos) {
         // rotate around the groundposition at center
         console.debug(
@@ -353,7 +420,7 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
         );
       } else {
         // no transition possible
-        transitionStateRef.current = MapTransitionState.MODE_3D;
+        transitionStateRef.current = MapState.mode3d;
       }
     });
   };

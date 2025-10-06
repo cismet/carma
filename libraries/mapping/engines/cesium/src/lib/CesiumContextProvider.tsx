@@ -14,7 +14,12 @@ import { handleDelayedRender } from "@carma-commons/utils/window";
 import { CesiumContext, type CesiumContextType } from "./CesiumContext";
 import type { CesiumContextEventMap } from "./cesiumContextEventMap";
 
-import { MapTransitionState } from "./hooks/useMapTransition";
+import {
+  MapState,
+  type MapStateType,
+  type MapTransitionLifecycle,
+  createTransitionLifecycle,
+} from "./hooks/useMapTransition";
 import { useValidInstances } from "./hooks/useValidInstances";
 
 import {
@@ -62,8 +67,9 @@ export const CesiumContextProvider = ({
   >(null);
 
   // Transition handling
-  const transitionStateRef = useRef<MapTransitionState>(
-    MapTransitionState.UNINITIALIZED
+  const transitionStateRef = useRef<keyof MapStateType>(MapState.uninitialized);
+  const transitionLifecycleRef = useRef<MapTransitionLifecycle>(
+    createTransitionLifecycle()
   );
 
   // Monotonic counter for initial camera applications
@@ -237,6 +243,7 @@ export const CesiumContextProvider = ({
       initialCameraSettled,
       setInitialCameraSettled,
       transitionStateRef,
+      transitionLifecycleRef,
       initialCameraEpoch,
       bumpInitialCameraEpoch,
       subscribe,
@@ -258,6 +265,7 @@ export const CesiumContextProvider = ({
       subscribe,
       emit,
       transitionStateRef,
+      transitionLifecycleRef,
     ]
   );
 

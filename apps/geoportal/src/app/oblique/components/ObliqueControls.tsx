@@ -1,5 +1,4 @@
 import { useCallback, useRef, useState, useEffect, useMemo } from "react";
-import { useSelector } from "react-redux";
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -9,7 +8,12 @@ import {
 import { Tooltip } from "antd";
 import { useControls } from "leva";
 
-import { useCesiumContext, CtxEvent } from "@carma-mapping/engines/cesium";
+import {
+  useCesiumContext,
+  CtxEvent,
+  addMapTransitionLifecycleHandler,
+  MapTransitionState,
+} from "@carma-mapping/engines/cesium";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import { ContactMailButton } from "@carma-appframeworks/portals";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
@@ -43,12 +47,16 @@ import {
 
 import { CAMERA_ID_INTERIOR_ORIENTATION_PERCENTAGE_OFFSETS } from "../config";
 import { CardinalDirectionEnum } from "../utils/orientationUtils";
-import { isTransitionState } from "../../../../../../libraries/mapping/engines/cesium/src/lib/hooks/useMapTransition";
 
 interface ObliqueControlsProps {
   headingOffset?: number;
   isObliqueMode?: boolean;
 }
+
+const OBLIQUE_MODE_LEAVE_DURATION_MS = 500;
+
+const delay = (ms: number) =>
+  new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const {
@@ -74,7 +82,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       shouldSuspendCameraLimitersRef,
       requestRender,
       isValidViewer,
-      transitionStateRef,
+      transitionLifecycleRef,
     } = ctx;
   const imageId = selectedImage?.record?.id;
   const cameraId = selectedImage?.record?.cameraId;
@@ -97,6 +105,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const [invertLabels, setInvertLabels] = useState(true);
   const [shouldRender, setShouldRender] = useState(isObliqueMode);
   const [isPreviewVisible, setIsPreviewVisible] = useState(false);
+  const isObliqueModeRef = useRef(isObliqueMode);
   const [isFlyButtonHovered, setIsFlyButtonHovered] = useState(false);
   // Hide footprints while preview is visible
   useEffect(() => {
@@ -504,19 +513,33 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     }
   }, [isObliqueMode]);
 
+  // Refs for passive callbacks
   useEffect(() => {
-    if (isTransitionState(transitionStateRef.current) && isValidViewer()) {
-      isDebugMode &&
-        console.debug(
-          "ObliqueControls: Transitioning to 2D mode disabling oblique mode"
-        );
-      if (isObliqueMode) {
-        toggleObliqueMode();
+    isObliqueModeRef.current = isObliqueMode;
+  }, [isObliqueMode]);
+
+  useEffect(() => {
+    console.debug(
+      "HOOK [Oblique|Transition]Setting up pre-transition to 2D mode callback"
+    );
+
+    const leaveObliqueMode = async () => {
+      console.debug("[ObliqueControls|Transition] Leaving oblique mode");
+      if (!isObliqueModeRef.current) {
+        return;
       }
+      toggleObliqueMode();
       requestRender();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [transitionStateRef, isValidViewer]);
+      await delay(OBLIQUE_MODE_LEAVE_DURATION_MS);
+    };
+
+    const unregister = addMapTransitionLifecycleHandler(
+      transitionLifecycleRef,
+      MapTransitionState.preTransitionTo2d,
+      leaveObliqueMode
+    );
+    return unregister;
+  }, [transitionLifecycleRef, toggleObliqueMode, requestRender]);
 
   useEffect(() => {
     const unsubscribe = subscribeToPreviewVisibility((visible) => {

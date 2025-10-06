@@ -41,13 +41,19 @@ export { useCesiumCameraForceOblique } from "./lib/hooks/useCameraForceOblique";
 export { useHomeControl } from "./lib/hooks/useHomeControl";
 export { useCesiumInitialCameraFromSearchParams } from "./lib/hooks/useCesiumInitialCameraFromSearchParams";
 export { useFovWheelZoom } from "./lib/hooks/useFovWheelZoom";
+export {
+  addMapTransitionLifecycleHandler,
+  MapTransitionState,
+  type MapTransitionLifecycle,
+  useMapTransition,
+} from "./lib/hooks/useMapTransition";
 export { useSceneStyles } from "./lib/hooks/useSceneStyles";
 export { useZoomControls } from "./lib/hooks/useZoomControls";
 
 export { VIEWERSTATE_KEYS } from "./lib/constants";
 export { CUSTOM_SHADERS_DEFINITIONS } from "./lib/shaders";
 
-// TODO: all the utils used elsewhere with no cesium dedependency should be moved to common helper utils lib
+// TODO: all the utils used elsewhere with no cesium dependency should be moved to common helper utils lib
 
 export { sceneHasTweens } from "./lib/utils/sceneHasTweens";
 export { getOrbitPoint } from "./lib/utils/cesiumAnimateOrbits";
