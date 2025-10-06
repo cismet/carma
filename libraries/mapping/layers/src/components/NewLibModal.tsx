@@ -58,6 +58,8 @@ import {
   removeloadingCapabilitiesIDs,
   setLoadingCapabilities,
   setSelectedLayer,
+  setAllLayers,
+  getAllLayers,
 } from "../slices/mapLayers";
 import { useDispatch, useSelector } from "react-redux";
 import type { Store } from "redux";
@@ -139,7 +141,7 @@ export const NewLibModal = ({
 }: LibModalProps) => {
   const [preview, setPreview] = useState(false);
   const [layers, setLayers] = useState<any[]>([]);
-  const [allLayers, setAllLayers] = useState<any[]>([]);
+  const allLayers = useSelector(getAllLayers);
   const services = serviceConfig;
   const [searchValue, setSearchValue] = useState("");
   const [isSearching, setIsSearching] = useState(false);
@@ -502,7 +504,7 @@ export const NewLibModal = ({
                   let tmp: Layer[] = [];
                   tmp = newLayers;
 
-                  setAllLayers(tmp);
+                  dispatch(setAllLayers(tmp));
                   dispatch(setLoadingCapabilities(false));
                   dispatch(removeloadingCapabilitiesIDs(services[key].name));
                 } else {
@@ -532,7 +534,7 @@ export const NewLibModal = ({
 
             tmp = newLayers;
             setLayers(tmp);
-            setAllLayers(tmp);
+            dispatch(setAllLayers(tmp));
           }
         }
       }
@@ -760,7 +762,8 @@ export const NewLibModal = ({
       }
     }
 
-    allLayers.reverse().forEach((layers) => {
+    const allLayersCopy = JSON.parse(JSON.stringify(allLayers));
+    allLayersCopy.reverse().forEach((layers) => {
       addItemToCategory(
         "mapLayers",
         { id: layers.id, Title: layers.Title },
@@ -779,7 +782,7 @@ export const NewLibModal = ({
         ...prev,
         {
           id: "mapLayers",
-          categories: allLayers.reverse(),
+          categories: JSON.parse(JSON.stringify(allLayers)).reverse(),
         },
       ];
     });

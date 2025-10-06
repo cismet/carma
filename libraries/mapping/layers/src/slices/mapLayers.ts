@@ -11,6 +11,7 @@ interface MapLayersState {
   // Global loading state for capabilities. Turns to false when one capability finished loading
   loadingCapabilities: boolean;
   selectedLayer: Item | null;
+  allLayers: { Title: string; id: string; layers: Item[] }[];
 }
 
 type RootState = {
@@ -22,6 +23,7 @@ const initialState: MapLayersState = {
   loadingCapabilitiesIDs: [],
   loadingCapabilities: true,
   selectedLayer: null,
+  allLayers: [],
 };
 
 export const getMapLayersConfig = ({
@@ -34,7 +36,7 @@ export const getMapLayersConfig = ({
   return {
     key: `@${appKey}.${storagePrefix}.app.mapLayers`,
     storage: localForage,
-    whitelist: [],
+    whitelist: ["allLayers"],
   };
 };
 
@@ -62,6 +64,35 @@ const sliceMapLayers = createSlice({
     setSelectedLayer: (state, action) => {
       state.selectedLayer = action.payload;
     },
+    setAllLayers: (state, action) => {
+      const payloadArray = action.payload;
+
+      if (state.allLayers.length === 0) {
+        state.allLayers = payloadArray;
+      } else {
+        payloadArray.forEach((payloadItem, index) => {
+          // Only process if layers array has more than one element
+          if (payloadItem.layers && payloadItem.layers.length > 0) {
+            const existingIndex = state.allLayers.findIndex(
+              (item) => item.id === payloadItem.id
+            );
+
+            if (existingIndex !== -1) {
+              // Replace the existing item's layers
+              state.allLayers[existingIndex] = payloadItem;
+            } else {
+              // Create new item at the same position as in payload
+              // If the position doesn't exist yet, push to end
+              if (index < state.allLayers.length) {
+                state.allLayers.splice(index, 0, payloadItem);
+              } else {
+                state.allLayers.push(payloadItem);
+              }
+            }
+          }
+        });
+      }
+    },
   },
 });
 
@@ -72,6 +103,7 @@ export const {
   removeloadingCapabilitiesIDs,
   setLoadingCapabilities,
   setSelectedLayer,
+  setAllLayers,
 } = sliceMapLayers.actions;
 
 export const getReplaceLayers = ({ mapLayers }: RootState) =>
@@ -85,6 +117,8 @@ export const getLoadingCapabilities = ({ mapLayers }: RootState) =>
 
 export const getSelectedLayer = ({ mapLayers }: RootState) =>
   mapLayers.selectedLayer;
+
+export const getAllLayers = ({ mapLayers }: RootState) => mapLayers.allLayers;
 
 export const mapLayersReducer = sliceMapLayers.reducer;
 

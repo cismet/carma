@@ -76,6 +76,7 @@ const LayerTabs = ({
                   {title}
                 </span>
                 {loadingCapabilitiesIDs.includes(layer.id) &&
+                  layer.layers.length === 0 &&
                   !loadingCapabilities && (
                     <Spin indicator={<LoadingOutlined spin />} size="small" />
                   )}
