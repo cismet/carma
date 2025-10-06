@@ -10,7 +10,7 @@ export function dmsPageExtractor(dataIn) {
         const fileType = fileName.split(".");
         const urlBase = d.url.url_base.path;
         const pathParts = urlBase.split("\\");
-        pathParts[1] = pathParts[1].toLowerCase();
+        pathParts[1] = pathParts[1]?.toLowerCase();
         const modifiedPath = pathParts.join("/");
         const finalPath = `${server}${modifiedPath}${fileName.replace(
           /\s/g,
