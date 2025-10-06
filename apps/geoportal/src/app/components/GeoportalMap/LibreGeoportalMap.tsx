@@ -171,11 +171,7 @@ const LibreGeoportalMap = ({
       const m = map.current;
       return m ? zoom512as256(m.getZoom()) : normalizedMapOptions.zoom;
     },
-    labels: {
-      clear3d: "LGM:2D:clear3d",
-      write2d: "LGM:2D:writeLocation",
-      topicMapLocation: "LGM:2D:location",
-    },
+    label: "LGM:2D:location",
   });
 
   const onComplete = (

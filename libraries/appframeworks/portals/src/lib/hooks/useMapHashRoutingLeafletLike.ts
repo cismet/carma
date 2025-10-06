@@ -1,18 +1,12 @@
 import { useCallback, useEffect, useRef } from "react";
+
+import { Degrees } from "@carma/types";
+import { isMapCenterZoomEquivalent } from "@carma-commons/utils";
+import { cesiumClearParamKeys } from "@carma-mapping/engines/cesium";
+
 import { useHashState } from "../contexts/HashStateProvider";
 
-import { cesiumClearParamKeys } from "@carma-mapping/engines/cesium";
-import { isMapCenterZoomEquivalent } from "@carma-commons/utils";
-import { Degrees } from "@carma/types";
-
 export type LatLngZoom = { lat: number; lng: number; zoom: number };
-
-type Labels = {
-  clear3d?: string;
-  write2d?: string;
-  topicMapLocation?: string;
-  cesiumScene?: string;
-};
 
 type LeafletLikeMap = {
   setView?: (center: { lat: number; lng: number }, zoom?: number) => void;
@@ -26,16 +20,18 @@ interface UseMapHashRoutingLeafletLikeOptions {
   getLeafletMap?: () => LeafletLikeMap | null | undefined;
   getLeafletZoom?: () => number;
   cesiumClearKeys?: string[];
-  labels?: Labels;
+  label?: string;
   pixelTolerance?: number; // px
+  onAfterLocationChanged?: () => void;
 }
 
 export function useMapHashRoutingLeafletLike({
   getLeafletMap,
   getLeafletZoom,
   cesiumClearKeys = cesiumClearParamKeys,
-  labels,
+  label,
   pixelTolerance,
+  onAfterLocationChanged,
 }: UseMapHashRoutingLeafletLikeOptions) {
   const { updateHash, subscribe, getHashValues } = useHashState();
 
@@ -49,12 +45,7 @@ export function useMapHashRoutingLeafletLike({
       if (navMoveInProgressRef.current) {
         console.debug(
           "[Routing][hash] (2D) suppress push: popstate navigation in progress",
-          {
-            lat,
-            lng,
-            zoom,
-            label: labels?.topicMapLocation ?? "Map:2D:location",
-          }
+          { lat, lng, zoom, label }
         );
         return;
       }
@@ -115,11 +106,12 @@ export function useMapHashRoutingLeafletLike({
           }
         }
       } catch {}
+      onAfterLocationChanged?.();
       updateHash(
         { lat, lng, zoom },
         {
           clearKeys: cesiumClearKeys,
-          label: labels?.topicMapLocation ?? "Map:2D:location",
+          label: `${label ?? "LeafletLike Map Change"}:hashUpdate`,
           replace: false,
         }
       );
@@ -128,8 +120,9 @@ export function useMapHashRoutingLeafletLike({
       updateHash,
       getHashValues,
       cesiumClearKeys,
-      labels?.topicMapLocation,
+      label,
       pixelTolerance,
+      onAfterLocationChanged,
     ]
   );
 

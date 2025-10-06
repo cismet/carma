@@ -1,4 +1,11 @@
-import { memo, useCallback, useContext, useMemo, useState } from "react";
+import {
+  memo,
+  useCallback,
+  useContext,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import L from "leaflet";
 import proj4 from "proj4";
 import { useDispatch, useSelector } from "react-redux";
@@ -41,6 +48,7 @@ import {
   getLayersIdle,
   getBackgroundLayer,
   getShowHamburgerMenu,
+  setLayersIdle,
 } from "../../../../store/slices/mapping.ts";
 import {
   getLoading,
@@ -68,6 +76,8 @@ type TopicMapComponentWrapperProps = {
   width: number;
   leafletOptions?: Partial<LeafletConfig>;
 };
+
+const noop = () => {};
 
 export const TopicMapComponentWrapper = ({
   height,
@@ -99,7 +109,23 @@ export const TopicMapComponentWrapper = ({
     [topicMap]
   );
 
-  const topicMapLocationChangedHandler = useTopicMapLocationChangedHandler();
+  const getIsEnabled = useCallback(
+    () => selectViewerIsMode2d(store.getState()),
+    []
+  );
+
+  const layerIdleRef = useRef(layersIdle);
+
+  const updateLayersIdleState = useCallback(() => {
+    if (layerIdleRef.current) {
+      dispatch(setLayersIdle(false));
+    }
+  }, [dispatch]);
+
+  const topicMapLocationChangedHandler = useTopicMapLocationChangedHandler(
+    getIsEnabled,
+    updateLayersIdleState
+  );
 
   const [marker, setMarker] = useState<L.Marker | undefined>();
   const [markerAccent, setMarkerAccent] = useState<L.Marker | undefined>();
@@ -200,7 +226,14 @@ export const TopicMapComponentWrapper = ({
     [layers, uiMode, isMode2d, layersIdle, getTopicMap]
   );
 
-  useSelectionTopicMap({ onComplete });
+  const selectionTopicMapOptions = useMemo(
+    () => ({
+      onComplete,
+    }),
+    [onComplete]
+  );
+
+  useSelectionTopicMap(selectionTopicMapOptions);
 
   const updateFeatureInfoLeaflet = useCallback(() => {
     setShouldUpdateFeatureInfo(false);
@@ -248,12 +281,16 @@ export const TopicMapComponentWrapper = ({
     onCleanup,
   });
 
-  const topicMapLayersElement = useCreateCismapLayers(layers, {
-    mode: uiMode,
-    dispatch,
-    selectedFeature,
-    leafletMap: getTopicMap(),
-  });
+  const layerOptions = useMemo(() => {
+    return {
+      mode: uiMode,
+      dispatch,
+      selectedFeature,
+      leafletMap: getTopicMap(),
+    };
+  }, [uiMode, dispatch, selectedFeature, getTopicMap]);
+
+  const topicMapLayersElement = useCreateCismapLayers(layers, layerOptions);
 
   const backgroundLayerElement = useMemo(() => {
     return (
@@ -310,6 +347,8 @@ export const TopicMapComponentWrapper = ({
 
   useLeafletZoomEndFlag(getTopicMap, setShouldUpdateFeatureInfo);
 
+  console.debug("RENDER [GEOPORTAL|TOPICMAP]");
+
   return (
     <div className={"map-container-2d"} style={{ zIndex: 400 }}>
       <TopicMapComponent
@@ -325,7 +364,7 @@ export const TopicMapComponentWrapper = ({
         leafletMapProps={leafletMapProps}
         minZoom={10}
         backgroundlayers="empty"
-        mappingBoundsChanged={() => {}}
+        mappingBoundsChanged={noop} // intentionally empty
         locationChangedHandler={topicMapLocationChangedHandler}
         outerLocationChangedHandlerExclusive={true}
         onclick={handleOnClick}

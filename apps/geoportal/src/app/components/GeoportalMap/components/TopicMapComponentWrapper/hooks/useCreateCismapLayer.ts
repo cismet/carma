@@ -107,17 +107,56 @@ export const useCreateCismapLayers = (
 
   const modeRef = useRef(mode);
 
-  useEffect(() => {
-    // rearrangeGlobalHits inline to avoid stale deps warning
-    const newGlobalHits: GlobalHits = {};
-    layers.forEach((layer) => {
-      if (layer.visible) {
-        newGlobalHits[layer.id] = globalHits[layer.id];
+  const getLastDefinedObject = (hits: GlobalHits) => {
+    const keys = Object.keys(hits);
+    for (let i = keys.length - 1; i >= 0; i--) {
+      const value = hits[keys[i]];
+      if (value !== undefined && value[0]?.selectionLayerExists) {
+        return { key: keys[i], value } as {
+          key: string;
+          value: VectorHit[];
+        };
+      }
+    }
+    return undefined;
+  };
+
+  const resetSelection = (hits: GlobalHits) => {
+    Object.keys(hits).forEach((key) => {
+      const vectors = hits[key];
+      if (vectors) {
+        vectors.forEach((hit) => {
+          hit.setSelection && hit.setSelection(false);
+        });
       }
     });
-    setGlobalHits(newGlobalHits);
+  };
+
+  const updateGlobalHits = () => {
+    Object.keys(globalHits).forEach((key) => {
+      const foundLayer = layers.find((layer) => layer.id === key);
+      if (!foundLayer || !foundLayer.visible) {
+        globalHits[key] = undefined;
+      }
+    });
+  };
+
+  const rearrangeGlobalHits = () => {
+    setGlobalHits((prev) => {
+      const next: GlobalHits = {};
+      layers.forEach((layer) => {
+        if (layer.visible) {
+          next[layer.id] = prev[layer.id];
+        }
+      });
+      return next;
+    });
+  };
+
+  useEffect(() => {
+    rearrangeGlobalHits();
     setIdleLayers({});
-  }, [layers, globalHits]);
+  }, [layers]);
 
   // We intentionally react only on mode changes here to preserve behavior
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -145,39 +184,11 @@ export const useCreateCismapLayers = (
   }, [mode]);
 
   useEffect(() => {
-    // inline updateGlobalHits to keep deps minimal
-    Object.keys(globalHits).forEach((key) => {
-      const foundLayer = layers.find((layer) => layer.id === key);
-      if (!foundLayer || !foundLayer.visible) {
-        globalHits[key] = undefined;
-      }
-    });
+    updateGlobalHits();
     if (modeRef.current === UIMode.DEFAULT) {
-      // find last defined object
-      const keys = Object.keys(globalHits);
-      let lastObject: { key: string; value: VectorHit[] } | undefined =
-        undefined;
-      for (let i = keys.length - 1; i >= 0; i--) {
-        const value = globalHits[keys[i]];
-        if (value !== undefined && value[0]?.selectionLayerExists) {
-          lastObject = { key: keys[i], value } as {
-            key: string;
-            value: VectorHit[];
-          };
-          break;
-        }
-      }
-
+      const lastObject = getLastDefinedObject(globalHits);
       if (lastObject) {
-        // resetSelection inline
-        Object.keys(globalHits).forEach((key) => {
-          const hits = globalHits[key];
-          if (hits) {
-            hits.forEach((hit) => {
-              hit.setSelection && hit.setSelection(false);
-            });
-          }
-        });
+        resetSelection(globalHits);
         const selectedVectorFeature = lastObject.value[0];
         if (selectedVectorFeature.setSelection) {
           selectedVectorFeature.setSelection(true);
@@ -192,15 +203,10 @@ export const useCreateCismapLayers = (
         dispatch(setSelectedFeature(null));
       }
     }
-  }, [globalHits, foundFeatures, layers, dispatch]);
+  }, [globalHits, foundFeatures]);
 
   useEffect(() => {
-    Object.keys(globalHits).forEach((key) => {
-      const foundLayer = layers.find((layer) => layer.id === key);
-      if (!foundLayer || !foundLayer.visible) {
-        globalHits[key] = undefined;
-      }
-    });
+    updateGlobalHits();
     if (selectedFeature && modeRef.current !== UIMode.DEFAULT) {
       Object.keys(globalHits).forEach((key) => {
         const hits = globalHits[key];
@@ -226,7 +232,7 @@ export const useCreateCismapLayers = (
         }
       }
     }
-  }, [selectedFeature, globalHits, layers]);
+  }, [selectedFeature]);
 
   useEffect(() => {
     if (
@@ -235,7 +241,7 @@ export const useCreateCismapLayers = (
     ) {
       dispatch(setLayersIdle(true));
     }
-  }, [idleLayers, layers, dispatch]);
+  }, [idleLayers]);
 
   // const ntList = [""];
 
