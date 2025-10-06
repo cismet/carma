@@ -101,6 +101,13 @@ InfoBoxMeasurementProps) {
     }
   }, [mapMovingEnd, setMapMovingEnd]);
 
+  // Handle drawing mode
+  useEffect(() => {
+    if (drawingMode) {
+      setLastMeasureActive();
+    }
+  }, [drawingMode]);
+
   useEffect(() => {
     if (updateShape && !drawingMode) {
       setStepAfterUpdating(true);
@@ -113,14 +120,12 @@ InfoBoxMeasurementProps) {
       } else {
         setLastMeasureActive();
       }
-    } else if (drawingMode) {
-      setLastMeasureActive();
     } else if (stepAfterCreating) {
       setLastMeasureActive();
       setStepAfterCreating(false);
       setUpdateShape(false);
     }
-  }, [visibleShapesData, updateShape, stepAfterCreating, drawingMode]);
+  }, [visibleShapesData, updateShape, stepAfterCreating]);
 
   // Handle activeShape changes - keep currentMeasure in sync
   useEffect(() => {
