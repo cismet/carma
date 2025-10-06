@@ -108,6 +108,15 @@ InfoBoxMeasurementProps) {
     }
   }, [drawingMode]);
 
+  // Handle step after creating
+  useEffect(() => {
+    if (stepAfterCreating) {
+      setLastMeasureActive();
+      setStepAfterCreating(false);
+      setUpdateShape(false);
+    }
+  }, [stepAfterCreating]);
+
   useEffect(() => {
     if (updateShape && !drawingMode) {
       setStepAfterUpdating(true);
@@ -120,12 +129,8 @@ InfoBoxMeasurementProps) {
       } else {
         setLastMeasureActive();
       }
-    } else if (stepAfterCreating) {
-      setLastMeasureActive();
-      setStepAfterCreating(false);
-      setUpdateShape(false);
     }
-  }, [visibleShapesData, updateShape, stepAfterCreating]);
+  }, [visibleShapesData, updateShape]);
 
   // Handle activeShape changes - keep currentMeasure in sync
   useEffect(() => {
