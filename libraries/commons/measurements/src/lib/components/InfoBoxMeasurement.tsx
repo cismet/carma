@@ -117,6 +117,7 @@ InfoBoxMeasurementProps) {
     }
   }, [stepAfterCreating]);
 
+  // Handle update shape
   useEffect(() => {
     if (updateShape && !drawingMode) {
       setStepAfterUpdating(true);
@@ -124,8 +125,6 @@ InfoBoxMeasurementProps) {
       if (stepAfterMoveToShape) {
         setStepAfterUpdating(false);
         setStepAfterMoveToShape(null);
-      } else if (visibleShapesData.length === 1) {
-        setLastMeasureActive();
       } else {
         setLastMeasureActive();
       }
