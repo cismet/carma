@@ -114,13 +114,13 @@ export const MapMeasurementsProvider = ({
   const [updateTitleStatus, setUpdateTitleStatus] = useState(false);
   const [startDrawing, setStartDrawing] = useState(false);
 
-  useEffect(() => {
-    console.log("xxx shapes", shapes);
-  }, [shapes]);
+  // useEffect(() => {
+  //   console.log("xxx shapes", shapes);
+  // }, [shapes]);
 
-  useEffect(() => {
-    console.log("xxx visibleShapes", visibleShapes);
-  }, [visibleShapes]);
+  // useEffect(() => {
+  //   console.log("xxx visibleShapes", visibleShapes);
+  // }, [visibleShapes]);
 
   const addShape = (layer: any) => {
     setShapes((prevShapes) => [...prevShapes, layer]);
@@ -167,7 +167,7 @@ export const MapMeasurementsProvider = ({
       if (lastShapeId) {
         setActiveShape(lastShapeId);
       }
-      return currentShapes; // No change to shapes, just accessing fresh state
+      return currentShapes;
     });
   };
 
@@ -177,7 +177,7 @@ export const MapMeasurementsProvider = ({
         setLastActiveShapeBeforeDrawing(currentActiveShape);
         setDrawingShape(true);
       }
-      return currentActiveShape; // No change, just accessing fresh state
+      return currentActiveShape;
     });
   };
 
@@ -190,9 +190,9 @@ export const MapMeasurementsProvider = ({
         } else {
           return []; // Clear visible shapes
         }
-        return visible; // No change if condition not met
+        return visible;
       });
-      return lastActiveShape; // No change, just accessing fresh state
+      return lastActiveShape;
     });
   };
 
@@ -220,13 +220,12 @@ export const MapMeasurementsProvider = ({
   };
 
   const updateTitle = (shapeId: string | number, customTitle: string) => {
-    // Update visible shapes - find the shape first to preserve all properties
     setVisibleShapes((currentVisibleShapes) => {
       const shapeFromVisible = currentVisibleShapes.find(
         (s) => s.shapeId === shapeId
       );
-      if (!shapeFromVisible) return currentVisibleShapes;
 
+      if (!shapeFromVisible) return currentVisibleShapes;
       return currentVisibleShapes.map((shape) => {
         if (shape.shapeId === shapeId) {
           return {

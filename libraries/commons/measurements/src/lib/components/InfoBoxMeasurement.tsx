@@ -71,7 +71,7 @@ InfoBoxMeasurementProps) {
     setMapMovingEnd,
     setDeleteAll,
     setShowAll,
-    setUpdateTitleStatus: updateTitle,
+    updateTitle,
   } = useMapMeasurementsContext();
 
   // ARCHITECTURE: activeShape is the SINGLE SOURCE OF TRUTH
