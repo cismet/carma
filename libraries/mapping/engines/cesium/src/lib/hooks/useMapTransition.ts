@@ -11,12 +11,7 @@ import { promiseWithTimeout } from "@carma-commons/utils/promise";
 import { LeafletMapStateChangeEvents } from "@carma-mapping/engines/leaflet";
 
 import { useCesiumContext } from "./useCesiumContext";
-import {
-  setIsMode2d,
-  setTransitionTo2d,
-  setTransitionTo3d,
-  clearTransition,
-} from "../slices/cesium";
+import { setIsMode2d } from "../slices/cesium";
 
 import { animateInterpolateHeadingPitchRange } from "../utils/cesiumAnimations";
 import {
@@ -27,6 +22,41 @@ import { getTiledMapCenterZoomEquivalent } from "../utils/getTiledMapCenterZoomE
 import { tiledMapToCesium } from "../utils/tiledMapToCesium";
 import { pickViewerCanvasCenter } from "../utils/pickers";
 import { cesiumCenterPixelSizeToLeafletZoom } from "../utils/pixels";
+
+export enum MapTransitionState {
+  UNINITIALIZED,
+  MODE_2D = "MODE_2D",
+  MODE_3D = "MODE_3D",
+  TRANSITION_TO_3D_PRE = "TO_3D_PRE",
+  TRANSITION_TO_3D = "TO_3D",
+  TRANSITION_TO_3D_POST = "TO_3D_POST",
+  TRANSITION_TO_2D_PRE = "TO_2D_PRE",
+  TRANSITION_TO_2D = "TO_2D",
+  TRANSITION_TO_2D_POST = "TO_2D_POST",
+}
+
+export const TRANSITION_TO_3D_STATES = [
+  MapTransitionState.TRANSITION_TO_3D_PRE,
+  MapTransitionState.TRANSITION_TO_3D,
+  MapTransitionState.TRANSITION_TO_3D_POST,
+];
+export const TRANSITION_TO_2D_STATES = [
+  MapTransitionState.TRANSITION_TO_2D_PRE,
+  MapTransitionState.TRANSITION_TO_2D,
+  MapTransitionState.TRANSITION_TO_2D_POST,
+];
+
+export const isTransitionTo2dState = (state: MapTransitionState) => {
+  return TRANSITION_TO_2D_STATES.includes(state);
+};
+
+export const isTransitionTo3dState = (state: MapTransitionState) => {
+  return TRANSITION_TO_3D_STATES.includes(state);
+};
+
+export const isTransitionState = (state: MapTransitionState) => {
+  return isTransitionTo2dState(state) || isTransitionTo3dState(state);
+};
 
 type TransitionOptions = {
   onComplete?: (isTo2d: boolean) => void;
@@ -66,6 +96,7 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
   const topicMapContext = useContext<typeof TopicMapContext>(TopicMapContext);
   const { realRoutedMapRef: routedMapRef } = topicMapContext;
   const cesiumContext = useCesiumContext();
+  const { withCamera, transitionStateRef } = cesiumContext;
   const [prevHPR, setPrevHPR] = useState<HeadingPitchRange | null>(null);
   const [prevDuration, setPrevDuration] = useState<number>(0);
 
@@ -127,17 +158,17 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
       console.warn("cesium or leaflet not available");
       return;
     }
+    transitionStateRef.current = MapTransitionState.TRANSITION_TO_3D_PRE;
 
     const leaflet = routedMapRef.current?.leafletMap?.leafletElement;
 
     await prepareLeafletForTransition(leaflet);
     // cancel any ongoing flight
-    cesiumContext.withCamera((camera) => camera.cancelFlight());
+    withCamera((camera) => camera.cancelFlight());
 
-    dispatch(setTransitionTo3d());
     const onComplete3d = () => {
-      dispatch(clearTransition());
       onComplete?.(false);
+      transitionStateRef.current = MapTransitionState.MODE3D;
     };
 
     const animateCesiumView = () => {
@@ -170,11 +201,13 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
     const { lat: latitude, lng: longitude } = leaflet.getCenter();
     const zoom = leaflet.getZoom();
 
+    transitionStateRef.current = MapTransitionState.TRANSITION_TO_3D;
     await tiledMapToCesium(cesiumContext, { latitude, longitude }, zoom, {
       cause: "SwitchMapMode to 3d",
       onComplete: () => {
         // handles fadeout of topicmap/2d component externally
         dispatch(setIsMode2d(false));
+        transitionStateRef.current = MapTransitionState.TRANSITION_TO_3D_POST;
         setTimeout(animateCesiumView, 100);
       },
     });
@@ -205,12 +238,11 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
         console.info(
           "[CESIUM|2D3D|TO2D] No valid ground height (depth) found – cancel transition"
         );
-        dispatch(clearTransition());
+        transitionStateRef.current = MapTransitionState.MODE_3D;
         return;
       }
 
       // Start transition visuals only after we know we can complete it
-      dispatch(setTransitionTo2d());
       const pos = groundPos as Cartesian3;
       const carto = cartographic as Cartographic;
       distance = Cartesian3.distance(pos, camera.position);
@@ -220,7 +252,7 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
       let zoomDiff = 0;
 
       const { zoomSnap } = leaflet.options;
-
+      transitionStateRef.current = MapTransitionState.TRANSITION_TO_2D_PRE;
       if (zoomSnap) {
         // Move the cesium camera to the next zoom snap level of leaflet before transitioning
         const currentZoom =
@@ -229,7 +261,9 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
         const distanceBefore = distance;
 
         if (currentZoom === null) {
-          console.error("could not determine current zoom level");
+          console.warn("could not determine current zoom level");
+          transitionStateRef.current = MapTransitionState.MODE3D;
+          return;
         } else {
           // go to the next integer zoom snap level
           // smaller values is further away
@@ -291,12 +325,13 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
 
         // trigger the visual transition
         dispatch(setIsMode2d(true));
-        dispatch(clearTransition());
+        transitionStateRef.current = MapTransitionState.MODE_2D;
         onComplete?.(true);
       };
 
       console.debug("[Animation|2D3D] duration zoom", distance);
 
+      transitionStateRef.current = MapTransitionState.TRANSITION_TO_2D;
       if (hasGroundPos) {
         // rotate around the groundposition at center
         console.debug(
@@ -316,6 +351,9 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
             cancelable: false,
           }
         );
+      } else {
+        // no transition possible
+        transitionStateRef.current = MapTransitionState.MODE_3D;
       }
     });
   };

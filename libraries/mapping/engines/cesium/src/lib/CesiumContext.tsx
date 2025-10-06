@@ -10,6 +10,8 @@ import type {
   Scene,
   Viewer,
 } from "cesium";
+
+import { MapTransitionState } from "./hooks/useMapTransition";
 import { ViewerAnimationMap } from "./utils/viewerAnimationMap";
 import type {
   EmitCesiumCtxFn,
@@ -21,6 +23,8 @@ export interface CesiumContextType {
   viewerAnimationMapRef: MutableRefObject<ViewerAnimationMap | null>;
   shouldSuspendPitchLimiterRef: MutableRefObject<boolean>;
   shouldSuspendCameraLimitersRef: MutableRefObject<boolean>;
+  // state for transitions for other map engines
+  transitionStateRef: MutableRefObject<MapTransitionState>;
   isViewerReady: boolean;
   setIsViewerReady: (flag: boolean) => void;
   // null: not started determining; false: determining/applying; true: settled

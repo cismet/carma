@@ -8,16 +8,9 @@ import type { PlainCartesian3 } from "@carma/types";
 import { type RootState, type CesiumState, SceneStyles } from "../..";
 import { fromPlainCartesian3 } from "../utils/cesiumSerializer";
 
-export enum VIEWER_TRANSITION_STATE {
-  NONE,
-  TO3D,
-  TO2D,
-}
-
 const initialState: CesiumState = {
   isMode2d: false,
   isAnimating: false,
-  currentTransition: VIEWER_TRANSITION_STATE.NONE,
   homeOffset: null,
   homePosition: null,
   showPrimaryTileset: true,
@@ -62,21 +55,9 @@ const sliceCesium = createSlice({
       state.isAnimating = !state.isAnimating;
     },
 
+    // TODO: remove this replace by CesiumContextProvider transitionStateRef
     setIsMode2d: (state: CesiumState, action: PayloadAction<boolean>) => {
       state.isMode2d = action.payload;
-    },
-
-    setTransitionTo2d: (state: CesiumState) => {
-      console.debug("REDUCER [STATE|CESIUM] transition to 2D");
-      state.currentTransition = VIEWER_TRANSITION_STATE.TO2D;
-    },
-    setTransitionTo3d: (state: CesiumState) => {
-      console.debug("REDUCER [STATE|CESIUM] transition to 3D");
-      state.currentTransition = VIEWER_TRANSITION_STATE.TO3D;
-    },
-    clearTransition: (state: CesiumState) => {
-      console.debug("REDUCER [STATE|CESIUM] transition cleared");
-      state.currentTransition = VIEWER_TRANSITION_STATE.NONE;
     },
 
     setShowPrimaryTileset: (
@@ -151,10 +132,6 @@ export const {
   clearIsAnimating,
   toggleIsAnimating,
 
-  setTransitionTo2d,
-  setTransitionTo3d,
-  clearTransition,
-
   setCurrentSceneStyle,
   toggleCurrentSceneStyle,
 
@@ -172,12 +149,6 @@ export const {
 
 export const selectViewerIsAnimating = ({ cesium }: RootState) =>
   cesium.isAnimating;
-export const selectViewerCurrentTransition = ({ cesium }: RootState) =>
-  cesium.currentTransition;
-export const selectViewerIsTransitioning = ({ cesium }: RootState) =>
-  cesium.currentTransition !== undefined &&
-  cesium.currentTransition !== VIEWER_TRANSITION_STATE.NONE;
-
 export const selectViewerIsMode2d = ({ cesium }: RootState) => cesium.isMode2d;
 export const selectViewerDataSources = ({ cesium }: RootState) =>
   cesium.dataSources;

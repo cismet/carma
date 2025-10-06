@@ -1,22 +1,20 @@
 import { useEffect } from "react";
 import { useSelector } from "react-redux";
 
-import { useCesiumViewer } from "./useCesiumViewer";
-import {
-  selectViewerIsAnimating,
-  selectViewerIsTransitioning,
-} from "../slices/cesium";
+import { selectViewerIsAnimating } from "../slices/cesium";
 import { guardScreenSpaceCameraController } from "../utils/guardScreenSpaceCameraController";
 import { useCesiumContext } from "./useCesiumContext";
+import { isTransitionState } from "../hooks/useMapTransition";
 
 const useDisableSSCC = () => {
   const isAnimating = useSelector(selectViewerIsAnimating);
-  const isTransitioning = useSelector(selectViewerIsTransitioning);
   console.debug("HOOKINIT [CESIUM|SCENE] useDisableSSCC");
   const ctx = useCesiumContext();
+  const { transitionStateRef } = ctx;
   useEffect(() => {
     ctx.withViewer((viewer) => {
-      const isEnabled = !isAnimating && !isTransitioning;
+      const isEnabled =
+        !isAnimating && !isTransitionState(transitionStateRef.current);
       console.info(
         "HOOK [CESIUM|SCENE|SSCC] map interaction set to",
         isEnabled
@@ -29,7 +27,7 @@ const useDisableSSCC = () => {
         .enableZoom(isEnabled)
         .enableTilt(isEnabled);
     });
-  }, [ctx, isAnimating, isTransitioning]);
+  }, [ctx, isAnimating, transitionStateRef]);
 };
 
 export default useDisableSSCC;

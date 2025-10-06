@@ -14,13 +14,15 @@ import { handleDelayedRender } from "@carma-commons/utils/window";
 import { CesiumContext, type CesiumContextType } from "./CesiumContext";
 import type { CesiumContextEventMap } from "./cesiumContextEventMap";
 
+import { MapTransitionState } from "./hooks/useMapTransition";
+import { useValidInstances } from "./hooks/useValidInstances";
+
 import {
   loadCesiumImageryLayer,
   loadCesiumTerrainProvider,
   ProviderConfig,
 } from "./utils/cesiumProviders";
 import { loadTileset, TilesetConfigs } from "./utils/cesiumTilesetProviders";
-import { useValidInstances } from "./hooks/useValidInstances";
 import { guardScene } from "./utils/guardScene";
 
 import {
@@ -58,6 +60,12 @@ export const CesiumContextProvider = ({
   const [initialCameraSettled, setInitialCameraSettled] = useState<
     boolean | null
   >(null);
+
+  // Transition handling
+  const transitionStateRef = useRef<MapTransitionState>(
+    MapTransitionState.UNINITIALIZED
+  );
+
   // Monotonic counter for initial camera applications
   const [initialCameraEpoch, setInitialCameraEpoch] = useState<number>(0);
 
@@ -228,6 +236,7 @@ export const CesiumContextProvider = ({
       setIsViewerReady,
       initialCameraSettled,
       setInitialCameraSettled,
+      transitionStateRef,
       initialCameraEpoch,
       bumpInitialCameraEpoch,
       subscribe,
@@ -248,6 +257,7 @@ export const CesiumContextProvider = ({
       instanceCallbacks,
       subscribe,
       emit,
+      transitionStateRef,
     ]
   );
 

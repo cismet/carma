@@ -6,11 +6,12 @@ import UAParser from "ua-parser-js";
 
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 
-import { useMapTransition } from "../../hooks/useMapTransition";
+import { useCesiumContext } from "../../hooks/useCesiumContext";
 import {
-  selectViewerIsMode2d,
-  selectViewerIsTransitioning,
-} from "../../slices/cesium";
+  useMapTransition,
+  isTransitionState,
+} from "../../hooks/useMapTransition";
+import { selectViewerIsMode2d } from "../../slices/cesium";
 
 type Props = {
   duration?: number;
@@ -50,7 +51,7 @@ export const MapTypeSwitcher = forwardRef<Ref, Props>(
   ) => {
     const [hasConfirmed, setHasConfirmed] = useState(false);
     const isMode2d = useSelector(selectViewerIsMode2d);
-    const isTransitioning = useSelector(selectViewerIsTransitioning);
+    const { transitionStateRef } = useCesiumContext();
     const { transitionToMode2d, transitionToMode3d } = useMapTransition({
       onComplete,
       duration,
@@ -89,11 +90,19 @@ export const MapTypeSwitcher = forwardRef<Ref, Props>(
       ? LOCALE_DE_SWITCH_TO_3D_MODE
       : LOCALE_DE_SWITCH_TO_2D_MODE;
 
+    console.debug(
+      "RENDER: [CESIUM|LEAFLET|2D3D] MapTypeSwitcher",
+      isMode2d,
+      transitionStateRef.current
+    );
+
     const cbs = (
       <ControlButtonStyler
         className={"font-semibold " + className}
         onClick={handleSwitchMapMode}
-        disabled={isTransitioning && !forceEnabled}
+        disabled={
+          isTransitionState(transitionStateRef.current) && !forceEnabled
+        }
         ref={ref}
         title={nativeTooltip ? switchInfoText : undefined}
         dataTestId={isMode2d ? "3d-control" : "2d-control"}

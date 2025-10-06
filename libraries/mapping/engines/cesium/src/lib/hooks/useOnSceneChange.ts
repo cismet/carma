@@ -7,10 +7,11 @@ import type { LatLng } from "@carma/types";
 import {
   selectShowSecondaryTileset,
   selectViewerIsMode2d,
-  selectViewerIsTransitioning,
 } from "../slices/cesium";
 
 import { useCesiumContext } from "./useCesiumContext";
+
+import { isTransitionState } from "../hooks/useMapTransition";
 
 import { cameraToCartographicDegrees } from "../utils/cesiumHelpers";
 import {
@@ -47,16 +48,16 @@ export const useOnSceneChange = (
   ) => void
 ) => {
   const ctx = useCesiumContext();
+  const { transitionStateRef } = ctx;
   const isSecondaryStyle = useSelector(selectShowSecondaryTileset);
   const isMode2d = useSelector(selectViewerIsMode2d);
-  const isTransitioning = useSelector(selectViewerIsTransitioning);
 
   // todo handle style change explicitly not via tileset, is secondarystyle
   // todo consider declaring changed part of state in the callback, not full state only
 
   useEffect(() => {
     // on changes to mode or style
-    if (isTransitioning) {
+    if (isTransitionState(transitionStateRef.current)) {
       return;
     }
     if (ctx.isValidViewer() && !isMode2d) {
@@ -83,11 +84,11 @@ export const useOnSceneChange = (
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ctx, isMode2d, isSecondaryStyle, isTransitioning]);
+  }, [ctx, isMode2d, isSecondaryStyle]);
 
   useEffect(() => {
     // update hash hook
-    if (isTransitioning) {
+    if (isTransitionState(transitionStateRef.current)) {
       return;
     }
 
@@ -143,7 +144,7 @@ export const useOnSceneChange = (
         });
       };
     }
-  }, [ctx, isSecondaryStyle, isMode2d, onSceneChange, isTransitioning]);
+  }, [ctx, isSecondaryStyle, isMode2d, onSceneChange]);
 };
 
 export default useOnSceneChange;

@@ -9,11 +9,7 @@ import {
 import { Tooltip } from "antd";
 import { useControls } from "leva";
 
-import {
-  selectViewerIsTransitioning,
-  useCesiumContext,
-  CtxEvent,
-} from "@carma-mapping/engines/cesium";
+import { useCesiumContext, CtxEvent } from "@carma-mapping/engines/cesium";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import { ContactMailButton } from "@carma-appframeworks/portals";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
@@ -47,6 +43,7 @@ import {
 
 import { CAMERA_ID_INTERIOR_ORIENTATION_PERCENTAGE_OFFSETS } from "../config";
 import { CardinalDirectionEnum } from "../utils/orientationUtils";
+import { isTransitionState } from "../../../../../../libraries/mapping/engines/cesium/src/lib/hooks/useMapTransition";
 
 interface ObliqueControlsProps {
   headingOffset?: number;
@@ -77,6 +74,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       shouldSuspendCameraLimitersRef,
       requestRender,
       isValidViewer,
+      transitionStateRef,
     } = ctx;
   const imageId = selectedImage?.record?.id;
   const cameraId = selectedImage?.record?.cameraId;
@@ -147,7 +145,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const [saturationBase, setSaturationBase] = useState(85);
   const [useLegacyDirControls, setUseLegacyDirControls] = useState(false);
 
-  const isTransitioning = useSelector(selectViewerIsTransitioning);
   // Track last directional move to prefetch ahead in the same direction on arrival
   const lastMoveDirRef = useRef<CardinalDirectionEnum | null>(null);
   // Debounced intent for sibling navigation
@@ -508,7 +505,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   }, [isObliqueMode]);
 
   useEffect(() => {
-    if (isTransitioning && isValidViewer()) {
+    if (isTransitionState(transitionStateRef.current) && isValidViewer()) {
       isDebugMode &&
         console.debug(
           "ObliqueControls: Transitioning to 2D mode disabling oblique mode"
@@ -519,7 +516,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       requestRender();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isTransitioning, isValidViewer]);
+  }, [transitionStateRef, isValidViewer]);
 
   useEffect(() => {
     const unsubscribe = subscribeToPreviewVisibility((visible) => {
