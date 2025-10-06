@@ -93,10 +93,10 @@ InfoBoxMeasurementProps) {
       setStepAfterUpdating(true);
     } else if (!stepAfterUpdating && !stepAfterCreating) {
       if (stepAfterMoveToShape) {
-        const positionInArr = activeShapeHandler(stepAfterMoveToShape);
-        if (positionInArr !== null) {
-          setCurrentMeasure(positionInArr);
-        }
+        // const positionInArr = activeShapeHandler(stepAfterMoveToShape);
+        // if (positionInArr !== null) {
+        //   setCurrentMeasure(positionInArr);
+        // }
         setStepAfterUpdating(false);
         setStepAfterMoveToShape(null);
       } else if (visibleShapesData.length === 1) {
@@ -146,9 +146,9 @@ InfoBoxMeasurementProps) {
   useEffect(() => {
     const positionInArr = activeShapeHandler(activeShape ?? null);
 
-    if (positionInArr !== null) {
-      setCurrentMeasure(positionInArr);
-    }
+    // if (positionInArr !== null) {
+    //   setCurrentMeasure(positionInArr);
+    // }
 
     let checkIfActiveShapeIsVisible = visibleShapesData.some(
       (m) => m.shapeId === activeShape
