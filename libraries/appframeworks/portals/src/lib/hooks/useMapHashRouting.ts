@@ -237,19 +237,18 @@ export function useMapHashRouting({
   return { handleTopicMapLocationChange, handleCesiumSceneChange };
 }
 
-export function createLocationChangeHandler({
-  isMode2d,
-  onChange,
-  onAfter,
-  onMismatch,
-}: {
-  isMode2d: boolean;
+interface Options {
   onChange: (p: LatLngZoom) => void;
   onAfter?: () => void;
   onMismatch?: () => void;
-}) {
+}
+
+export function createLocationChangeHandler(
+  is2dOnlyHandler: boolean, // defines return format,
+  { onChange, onAfter, onMismatch }: Options = { onChange: () => {} }
+) {
   return (p: LatLngZoom) => {
-    if (!isMode2d) {
+    if (!is2dOnlyHandler) {
       onMismatch?.();
       return;
     }

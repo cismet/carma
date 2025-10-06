@@ -59,7 +59,7 @@ export const CesiumMapComponentWrapper = ({
   useSyncCesiumSceneStyle(backgroundLayer, ctx, dispatch);
 
   // Local scene change handler
-  const onSceneChange = useCesiumSceneChangeHandler(isMode2d);
+  const onSceneChange = useCesiumSceneChangeHandler();
 
   const modelConfig = useMemo(
     () => ({

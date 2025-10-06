@@ -1,8 +1,12 @@
 import { useCallback, useEffect, useRef } from "react";
+import { useSelector } from "react-redux";
 
 import { useMapHashRouting } from "@carma-appframeworks/portals";
+import { selectViewerIsMode2d } from "@carma-mapping/engines/cesium";
 
-export const useCesiumSceneChangeHandler = (isMode2d: boolean) => {
+export const useCesiumSceneChangeHandler = () => {
+  const isMode2d = useSelector(selectViewerIsMode2d);
+
   const { handleCesiumSceneChange } = useMapHashRouting({
     isMode2d,
     labels: {
@@ -13,23 +17,20 @@ export const useCesiumSceneChangeHandler = (isMode2d: boolean) => {
     },
   });
 
-  const isMode2dRef = useRef(isMode2d);
-  useEffect(() => {
-    isMode2dRef.current = isMode2d;
-  }, [isMode2d]);
-
   const handlerRef = useRef(handleCesiumSceneChange);
   useEffect(() => {
-    handlerRef.current = handleCesiumSceneChange;
-  }, [handleCesiumSceneChange]);
-
-  return useCallback((e: { hashParams: Record<string, string> }) => {
-    if (isMode2dRef.current) {
-      console.debug(
-        "[CESIUM|DEBUG|CESIUM_WARN] Cesium scene change triggered while in 2D mode"
-      );
+    if (isMode2d) {
+      handlerRef.current = () => {
+        console.debug(
+          "[CESIUM|DEBUG|CESIUM_WARN] Cesium scene change triggered while in 2D mode"
+        );
+      };
       return;
     }
+    handlerRef.current = handleCesiumSceneChange;
+  }, [handleCesiumSceneChange, isMode2d]);
+
+  return useCallback((e: { hashParams: Record<string, string> }) => {
     handlerRef.current(e);
   }, []);
 };

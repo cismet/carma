@@ -41,7 +41,6 @@ import {
   getLayersIdle,
   getBackgroundLayer,
   getShowHamburgerMenu,
-  setLayersIdle,
 } from "../../../../store/slices/mapping.ts";
 import {
   getLoading,
@@ -100,20 +99,7 @@ export const TopicMapComponentWrapper = ({
     [topicMap]
   );
 
-  // Local onAfter to reset layersIdle state after write
-  const updateLayersIdleState = useCallback(() => {
-    if (layersIdle) {
-      dispatch(setLayersIdle(false));
-    }
-  }, [layersIdle, dispatch]);
-
-  const topicMapLocationChangedHandler = useTopicMapLocationChangedHandler(
-    isMode2d,
-    {
-      getInstance: getTopicMap,
-      onAfter: updateLayersIdleState,
-    }
-  );
+  const topicMapLocationChangedHandler = useTopicMapLocationChangedHandler();
 
   const [marker, setMarker] = useState<L.Marker | undefined>();
   const [markerAccent, setMarkerAccent] = useState<L.Marker | undefined>();
