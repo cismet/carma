@@ -5,6 +5,9 @@ import {
 } from "@carma-mapping/map-controls-layout";
 import { InfoBoxMeasurement } from "./InfoBoxMeasurement";
 import { MeasurementControlProps } from "../../index.d";
+import measureActive from "../assets/measure-active.png";
+import measureInactive from "../assets/measure.png";
+
 export const MeasurementControl: React.FC<MeasurementControlProps> = ({
   isActive,
   onToggle,
@@ -12,8 +15,8 @@ export const MeasurementControl: React.FC<MeasurementControlProps> = ({
   order = 10,
   iconBaseUrl,
   icons = {
-    active: "measure-active.png",
-    inactive: "measure.png",
+    active: measureActive,
+    inactive: measureInactive,
   },
   altText = "Measure",
   iconClassName = "w-6",
@@ -31,7 +34,7 @@ export const MeasurementControl: React.FC<MeasurementControlProps> = ({
       <Control position={position} order={order}>
         <ControlButtonStyler onClick={onToggle}>
           <img
-            src={`${getUrlPrefix()}${isActive ? icons.active : icons.inactive}`}
+            src={isActive ? icons.active : icons.inactive}
             alt={altText}
             className={iconClassName}
           />
