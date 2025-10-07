@@ -86,3 +86,19 @@ export interface MeasurementTitleProps {
   isCollapsed?: boolean;
   collapsedContent?: string;
 }
+
+export interface MeasurementControlProps {
+  isActive: boolean;
+
+  onToggle: () => void;
+
+  position?: "topleft" | "topright" | "bottomleft" | "bottomright";
+  order?: number;
+  iconBaseUrl?: string;
+  icons?: {
+    active: string;
+    inactive: string;
+  };
+  altText?: string;
+  iconClassName?: string;
+}

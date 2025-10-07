@@ -1,11 +1,10 @@
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import { suppressReactCismapErrors } from "@carma-commons/utils";
-import { InfoBoxMeasurement, MapObjects } from "@carma-commons/measurements";
+import { MeasurementControl, MapObjects } from "@carma-commons/measurements";
 import { ZoomControl } from "@carma-mapping/components";
 import {
   Control,
   ControlLayout,
-  ControlButtonStyler,
 } from "@carma-mapping/map-controls-layout";
 import { useDispatch, useSelector } from "react-redux";
 import type { AppDispatch } from "./store";
@@ -19,7 +18,6 @@ export function App() {
   const mode = useSelector(getUIMode);
 
   const isModeMeasurement = mode === UIMode.MEASUREMENT;
-  const getUrlPrefix = () => window.location.origin + window.location.pathname;
 
   return (
     <>
@@ -27,25 +25,15 @@ export function App() {
         <Control position="topleft" order={10}>
           <ZoomControl />
         </Control>
-        <Control position="topleft" order={10}>
-          <ControlButtonStyler
-            onClick={() => {
-              if (!isModeMeasurement) {
-                dispatch(setDrawingShape(false));
-              }
-              dispatch(toggleUIMode(UIMode.MEASUREMENT));
-            }}
-          >
-            <img
-              src={`${getUrlPrefix()}${
-                isModeMeasurement ? "measure-active.png" : "measure.png"
-              }`}
-              alt="Measure"
-              className="w-6"
-            />
-          </ControlButtonStyler>
-        </Control>
-        {isModeMeasurement && <InfoBoxMeasurement />}
+        <MeasurementControl
+          isActive={isModeMeasurement}
+          onToggle={() => {
+            if (!isModeMeasurement) {
+              dispatch(setDrawingShape(false));
+            }
+            dispatch(toggleUIMode(UIMode.MEASUREMENT));
+          }}
+        />
       </ControlLayout>
       <TopicMapComponent
         gazetteerSearchComponent={<></>}
