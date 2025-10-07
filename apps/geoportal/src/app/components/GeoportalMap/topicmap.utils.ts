@@ -499,8 +499,8 @@ export const implicitVectorSelection = async (
     }
     const feature = {
       properties: {
-        header: header,
-        headerColor: headerColor,
+        _header: header,
+        accentColor: headerColor,
         title: "Zu diesem Objekt sind keine weiteren Sachdaten verfügbar.",
         additionalInfo: `Position: ${coordinates[1].toFixed(
           5
@@ -579,6 +579,39 @@ export const onSelectionChangedVector = async (
   } else {
     if (layer.queryable) {
       dispatch(addNothingFoundID(layer.id));
+    } else if (
+      (layer.other.header || layer.other.headerColor) &&
+      e.hit &&
+      e.hit.selectionLayerExists
+    ) {
+      const selectedVectorFeature = e.hit;
+
+      const coordinates = getCoordinates(selectedVectorFeature.geometry);
+      let headerColor = "#0078a8";
+      if (layer.other?.accentColor) {
+        headerColor = layer.other?.accentColor;
+      }
+      let header = layer.title || "Information";
+      if (layer.other?.header) {
+        header = layer.other?.header;
+      }
+      const feature = {
+        properties: {
+          _header: header,
+          accentColor: headerColor,
+          title: "Zu diesem Objekt sind keine weiteren Sachdaten verfügbar.",
+          additionalInfo: `Position: ${coordinates[1].toFixed(
+            5
+          )}, ${coordinates[0].toFixed(5)}`,
+          subtitle: "(Geogr. Breite und Länge in Dezimalgrad, ETRS89)",
+          wmsProps: selectedVectorFeature.properties,
+        },
+        geometry: selectedVectorFeature.geometry,
+        id: layer.id,
+      };
+
+      dispatch(addVectorInfo(feature));
+      dispatch(removeNothingFoundID(layer.id));
     }
   }
   dispatch(addCompletedVectorLayer(layer.id));

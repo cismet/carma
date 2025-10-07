@@ -7,7 +7,6 @@ import envelope from "@turf/envelope";
 // import InfoBox from "react-cismap/topicmaps/InfoBox";
 import InfoBoxFotoPreview from "react-cismap/topicmaps/InfoBoxFotoPreview";
 import { getActionLinksForFeature } from "react-cismap/tools/uiHelper";
-import InfoBoxHeader from "react-cismap/topicmaps/InfoBoxHeader";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
 
@@ -37,8 +36,8 @@ import LoadingInfoBox from "./LoadingInfoBox";
 
 import versionData from "../../../version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
-import { InfoBox, utils } from "@carma-appframeworks/portals";
-import { parseColor, parseHeader } from "../../helper/color";
+import { InfoBox, InfoBoxHeader, utils } from "@carma-appframeworks/portals";
+import { parseColor } from "../../helper/color";
 
 interface InfoBoxProps {
   pos?: [number, number];
@@ -162,25 +161,25 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
 
     const updateHeaderAndColor = async () => {
       // Parse header if it exists
-      if (selectedFeature?.properties?.header) {
-        const header = await parseHeader(
-          selectedFeature.properties.header,
+      if (selectedFeature?.properties?._header) {
+        const header = await utils.parseHeader(
+          selectedFeature.properties._header,
           selectedFeature.properties.wmsProps ?? {}
         );
         setParsedHeader(header || "Informationen");
       } else {
-        setParsedHeader("Informationen");
+        setParsedHeader(selectedFeature?.properties?.header || "Informationen");
       }
 
       // Parse header color
-      if (selectedFeature?.properties?.headerColor) {
+      if (selectedFeature?.properties?.accentColor) {
         const color = await parseColor(
-          selectedFeature.properties.headerColor,
+          selectedFeature.properties.accentColor,
           selectedFeature.properties.wmsProps ?? {}
         );
         setHeaderColor(color || "#0078a8");
       } else {
-        setHeaderColor("#0078a8");
+        setHeaderColor(selectedFeature?.properties?.headerColor || "#0078a8");
       }
     };
 
@@ -216,8 +215,9 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
         }}
       >
         <InfoBoxHeader
-          content={feature.properties.header}
+          content={feature.properties.header || feature.properties._header}
           headerColor={"grey"}
+          properties={feature.properties.wmsProps}
         ></InfoBoxHeader>
       </div>
     );

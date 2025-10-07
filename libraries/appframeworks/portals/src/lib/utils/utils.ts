@@ -1,9 +1,10 @@
 import { isNaN } from "lodash";
 
-import type { Item, Layer } from "@carma/types";
+import type { FeatureInfoProperties, Item, Layer } from "@carma/types";
 import { extractCarmaConfig } from "@carma-commons/utils";
 import envelope from "@turf/envelope";
 import L from "leaflet";
+import { sandboxedEvalExternal } from "../components/SandboxedEvalProvider";
 
 export const parseDescription = (description: string) => {
   const result = { inhalt: "", sichtbarkeit: "", nutzung: "" };
@@ -307,4 +308,30 @@ export const zoomToFeature = (
       }
     }
   }
+};
+
+export const getFunctionRegex = () => {
+  return /(function\s*\([^)]*\)\s*\{[^}]*\})|(\([^)]*\)\s*=>\s*[^}]*)/g;
+};
+
+export const parseHeader = async (
+  header: string,
+  properties?: FeatureInfoProperties
+) => {
+  if (!header) return "";
+
+  if (getFunctionRegex().test(header)) {
+    try {
+      const result = await sandboxedEvalExternal(
+        "(" + header + ")",
+        properties
+      );
+      return (result as any).toString();
+    } catch (error) {
+      console.error("Error parsing header function:", error);
+      return header;
+    }
+  }
+
+  return header;
 };

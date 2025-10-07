@@ -90,7 +90,7 @@ const GeoportalLayerButton = ({
   const zoom =
     routedMapRef?.leafletMap?.leafletElement.getZoom() || hashParams.zoom;
   const queryable =
-    layer?.queryable &&
+    (layer?.queryable || layer?.other?.accentColor || layer?.other?.header) &&
     zoom < (layer.props.maxZoom ? layer.props.maxZoom : Infinity) &&
     zoom > (layer.props.minZoom ? layer.props.minZoom : 0);
   const map = routedMapRef?.leafletMap?.leafletElement as L.Map;

@@ -35,6 +35,8 @@ export type LayerProps = {
 type OtherLayerProps = Partial<LayerProps & Item> & {
   layerName?: string;
   capabilitiesUrl?: string;
+  header?: string;
+  accentColor?: string;
 };
 
 export type Layer = {

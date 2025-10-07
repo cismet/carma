@@ -19,6 +19,7 @@ export { GenericInfoBoxFromFeature } from "./lib/components/GenericInfoBoxFromFe
 export { PieChart } from "./lib/components/PieChart.tsx";
 export { ContactMailButton } from "./lib/components/ContactMailButton.tsx";
 export { FeatureInfobox } from "./lib/components/FeatureInfobox.tsx";
+export { InfoBoxHeader } from "./lib/components/InfoBoxHeader.tsx";
 
 export { GazDataProvider, useGazData } from "./lib/components/GazDataProvider";
 
