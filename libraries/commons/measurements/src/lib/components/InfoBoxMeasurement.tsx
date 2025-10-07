@@ -241,7 +241,7 @@ export function InfoBoxMeasurement({}: InfoBoxMeasurementProps) {
                       ? `${visibleShapesData[currentMeasure].area}`
                       : `${visibleShapesData[currentMeasure].distance}`
                   }
-                  editableTitle={editableTitle}
+                  editable={editableTitle}
                 />
               </span>
               {drawingMode ? (
