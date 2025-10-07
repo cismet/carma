@@ -1,5 +1,5 @@
 import { EasingFunction, PerspectiveFrustum, type Viewer } from "cesium";
-import { cancelViewerAnimation, AnimationType } from "./viewerAnimationMap";
+import { cancelAnimation, AnimationType } from "./viewerAnimationMap";
 import { CtxEvent } from "../cesiumContextEventMap";
 import type { CesiumContextType } from "../CesiumContext";
 
@@ -26,9 +26,9 @@ export const cesiumAnimateFov = (
   ctx.withViewer((v: Viewer) => {
     const viewer = v;
 
-    const viewerAnimationMap = ctx.viewerAnimationMapRef.current;
+    const viewerAnimationMap = ctx.animationMapRef.current;
     if (viewerAnimationMap) {
-      cancelViewerAnimation(viewer, viewerAnimationMap);
+      cancelAnimation(viewer, viewerAnimationMap);
     }
 
     const startTime = performance.now();

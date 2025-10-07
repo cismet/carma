@@ -1,16 +1,22 @@
 import { ClassificationType, Color } from "cesium";
 
-import type { CesiumContextType } from "../CesiumContext";
 import { getGroundPrimitiveById } from "./cesiumGroundPrimitives";
 import { SceneStyle } from "../..";
 import { fromColorRgbaArray } from "./cesiumSerializer";
+import { RequestRenderFn } from "../CesiumContextProvider";
+import { SceneCallback } from "../hooks/useValidInstances";
+import {
+  ImageryLayerCallback,
+  WithCallback,
+  TerrainProviderCallback,
+} from "../hooks/useValidInstances";
 
 // TODO have configurable setup functions for primary and secondary styles
 // TODO MOVE THE ID into viewer config/state
 const INVERTED_SELECTED_POLYGON_ID = "searchgaz-inverted-polygon";
 
 const waitAndSetTerrainProvider = (
-  ctx: CesiumContextType,
+  withTerrainProvider: WithCallback<TerrainProviderCallback>,
   { label, onReady }: { label?: string; onReady?: () => void }
 ) => {
   let isTerrainProviderSet = false;
@@ -18,38 +24,41 @@ const waitAndSetTerrainProvider = (
 
   const checkTerrainProvider = () => {
     if (isTerrainProviderSet) return;
-    const hasProvider = ctx.withTerrainProvider((terrainProvider, viewer) => {
+    withTerrainProvider((terrainProvider, { scene }) => {
       console.debug(
         "[STYLES|TERRAIN|CESIUM] terrainProvider ready after",
         performance.now() - startTime,
         "ms",
         label
       );
-      viewer.scene.terrainProvider = terrainProvider;
+      scene.terrainProvider = terrainProvider;
       isTerrainProviderSet = true;
       onReady?.();
     });
-    if (!hasProvider) {
+    if (!isTerrainProviderSet) {
       requestAnimationFrame(checkTerrainProvider);
     }
   };
 
-  const isSet = ctx.withTerrainProvider((terrainProvider, viewer) => {
-    viewer.scene.terrainProvider = terrainProvider;
+  withTerrainProvider((terrainProvider, { scene }) => {
+    scene.terrainProvider = terrainProvider;
     isTerrainProviderSet = true;
     onReady?.();
     console.debug("[STYLES|TERRAIN|CESIUM] terrainProvider already set");
   });
-  if (!isSet) {
+  if (!isTerrainProviderSet) {
     checkTerrainProvider();
   }
 };
 
 export const setupPrimaryStyle = (
-  ctx: CesiumContextType,
+  withScene: WithCallback<SceneCallback>,
+  withTerrainProvider: WithCallback<TerrainProviderCallback>,
+  withImageryLayer: WithCallback<ImageryLayerCallback>,
+  requestRender: RequestRenderFn,
   style?: Partial<SceneStyle>
 ) => {
-  ctx.withScene((scene) => {
+  withScene((scene) => {
     scene.globe.baseColor =
       fromColorRgbaArray(style?.globe?.baseColor) ?? Color.LIGHTGREY;
     scene.backgroundColor =
@@ -67,14 +76,14 @@ export const setupPrimaryStyle = (
   });
 
   // ensure the correct terrain provider is set (not the surface provider)
-  waitAndSetTerrainProvider(ctx, {
+  waitAndSetTerrainProvider(withTerrainProvider, {
     label: "primary",
   });
 
   // If an imagery layer exists and is present in the collection, hide it for primary style
-  ctx.withImageryLayer((imageryLayer, viewer) => {
+  withImageryLayer((imageryLayer, { scene }) => {
     if (imageryLayer.isDestroyed()) return;
-    const layers = viewer.imageryLayers;
+    const layers = scene.imageryLayers;
     let present = false;
     for (let i = 0; i < layers.length; i++) {
       if (layers.get(i) === imageryLayer) {
@@ -83,18 +92,22 @@ export const setupPrimaryStyle = (
       }
     }
     if (present) {
+      console.debug("[STYLES|IMAGERY|CESIUM] hide imagery layer");
       imageryLayer.show = false;
     }
   });
 
-  ctx.requestRender();
+  requestRender();
 };
 
 export const setupSecondaryStyle = (
-  ctx: CesiumContextType,
+  withScene: WithCallback<SceneCallback>,
+  withTerrainProvider: WithCallback<TerrainProviderCallback>,
+  withImageryLayer: WithCallback<ImageryLayerCallback>,
+  requestRender: RequestRenderFn,
   style?: Partial<SceneStyle>
 ) => {
-  ctx.withScene((scene) => {
+  withScene((scene) => {
     scene.globe.baseColor =
       fromColorRgbaArray(style?.globe?.baseColor) ?? Color.WHITE;
     scene.backgroundColor =
@@ -102,14 +115,14 @@ export const setupSecondaryStyle = (
 
     const addImageryLayer = () => {
       // Defer add/show to postRender to avoid mutating collection mid-frame
-      ctx.withScene((scene) => {
+      withScene((scene) => {
         const addOnce = () => {
-          ctx.withImageryLayer((imageryLayer, viewer) => {
+          withImageryLayer((imageryLayer) => {
             if (imageryLayer.isDestroyed()) {
               console.debug("[STYLES|IMAGERY] skip add/show; layer destroyed");
               return;
             }
-            const layers = viewer.imageryLayers;
+            const layers = scene.imageryLayers;
             let alreadyAdded = false;
             for (let i = 0; i < layers.length; i++) {
               if (layers.get(i) === imageryLayer) {
@@ -125,7 +138,7 @@ export const setupSecondaryStyle = (
               );
             }
             imageryLayer.show = true;
-            viewer.scene.requestRender();
+            scene.requestRender();
           });
           scene.postRender.removeEventListener(addOnce);
         };
@@ -133,7 +146,7 @@ export const setupSecondaryStyle = (
       });
     };
 
-    waitAndSetTerrainProvider(ctx, {
+    waitAndSetTerrainProvider(withTerrainProvider, {
       label: "secondary",
       onReady: addImageryLayer,
     });
@@ -145,6 +158,6 @@ export const setupSecondaryStyle = (
     if (invertedSelection) {
       invertedSelection.classificationType = ClassificationType.BOTH;
     }
-    ctx.requestRender();
+    requestRender();
   });
 };

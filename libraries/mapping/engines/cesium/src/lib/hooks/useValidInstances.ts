@@ -1,10 +1,13 @@
 import { useCallback, type MutableRefObject } from "react";
 import {
+  Camera,
   CesiumTerrainProvider,
-  ImageryProvider,
   EllipsoidTerrainProvider,
-  Viewer,
+  EntityCollection,
   ImageryLayer,
+  ImageryProvider,
+  Scene,
+  Viewer,
   Cesium3DTileset,
 } from "cesium";
 
@@ -22,6 +25,69 @@ export type KnownProviders =
   | ImageryProvider
   | EllipsoidTerrainProvider;
 
+export type ViewerCallback = (viewer: Viewer) => void;
+export type CameraCallback = (camera: Camera, viewer: Viewer) => void;
+export type CanvasCallback = (
+  canvas: HTMLCanvasElement,
+  viewer: Viewer
+) => void;
+export type SceneCallback = (scene: Scene, viewer: Viewer) => void;
+export type EntitiesCallback = (
+  entities: EntityCollection,
+  viewer: Viewer
+) => void;
+export type ImageryLayerCallback = (
+  imageryLayer: ImageryLayer,
+  viewer: Viewer
+) => void;
+export type TilesetCallback = (
+  tileset: Cesium3DTileset,
+  viewer: Viewer
+) => void;
+export type TerrainProviderCallback = (
+  provider: CesiumTerrainProvider,
+  viewer: Viewer
+) => void;
+export type EllipsoidTerrainProviderCallback = (
+  provider: EllipsoidTerrainProvider,
+  viewer: Viewer
+) => void;
+
+export type WithCallback<TCallback> = (cb: TCallback, label?: string) => void;
+
+export type WithAsyncCallback<TCallback> = (
+  cb: TCallback,
+  label?: string
+) => Promise<void>;
+
+export type TerrainProviderAsyncCallback = (
+  provider: CesiumTerrainProvider,
+  viewer: Viewer
+) => Promise<void>;
+
+export type ElevationProvidersAsyncCallback = (
+  terrainProvider: CesiumTerrainProvider,
+  surfaceProvider: CesiumTerrainProvider,
+  viewer: Viewer
+) => Promise<void>;
+
+export type WithElevationProvidersAsyncCallback = (
+  cb: ElevationProvidersAsyncCallback,
+  label?: string
+) => Promise<void>;
+
+type WithRefCallback<TInstance, TCallback> = (
+  ref: MutableRefObject<TInstance | null>,
+  cb: TCallback,
+  label?: string
+) => void;
+
+type WithRefAsyncCallback<TInstance, TCallback> = (
+  ref: MutableRefObject<TInstance | null>,
+  cb: TCallback,
+  label?: string
+) => Promise<void>;
+
 export const useValidInstances = (
   viewerRef: MutableRefObject<Viewer | null>,
   imageryLayerRef: MutableRefObject<ImageryLayer | null>,
@@ -31,9 +97,14 @@ export const useValidInstances = (
   ellipsoidTerrainProviderRef: MutableRefObject<EllipsoidTerrainProvider | null>,
   surfaceProviderRef: MutableRefObject<CesiumTerrainProvider | null>
 ) => {
-  const withViewer = useCallback(
-    (cb: (viewer: Viewer) => void): boolean =>
-      withValidViewer(viewerRef.current, cb),
+  const withViewer = useCallback<WithCallback<ViewerCallback>>(
+    (cb, label = "withViewer") => {
+      try {
+        withValidViewer(viewerRef.current, cb);
+      } catch (error) {
+        console.error(`[VIEWER|CALLBACK] ${label} failed`, error);
+      }
+    },
     [viewerRef]
   );
 
@@ -42,137 +113,230 @@ export const useValidInstances = (
     [viewerRef]
   );
 
-  const withCamera = useCallback(
-    (cb) => withViewer((viewer) => cb(viewer.camera, viewer)),
+  const withCamera = useCallback<WithCallback<CameraCallback>>(
+    (cb, label = "withCamera") =>
+      withViewer((viewer) => cb(viewer.scene.camera, viewer), label),
     [withViewer]
   );
-  const withCanvas = useCallback(
-    (cb) => withViewer((viewer) => cb(viewer.canvas, viewer)),
+  const withCanvas = useCallback<WithCallback<CanvasCallback>>(
+    (cb, label = "withCanvas") =>
+      withViewer((viewer) => cb(viewer.scene.canvas, viewer), label),
     [withViewer]
   );
-  const withScene = useCallback(
-    (cb) => withViewer((viewer) => cb(viewer.scene, viewer)),
+  const withScene = useCallback<WithCallback<SceneCallback>>(
+    (cb, label = "withScene") =>
+      withViewer((viewer) => cb(viewer.scene, viewer), label),
     [withViewer]
   );
-  const withEntities = useCallback(
-    (cb) => withViewer((viewer) => cb(viewer.entities, viewer)),
+  const withEntities = useCallback<WithCallback<EntitiesCallback>>(
+    (cb, label = "withEntities") =>
+      withViewer((viewer) => cb(viewer.entities, viewer), label),
     [withViewer]
   );
 
-  const withImageryLayerRef = useCallback(
-    (
-      imageryLayerRef: MutableRefObject<ImageryLayer | null>,
-      cb: (imageryLayer: ImageryLayer, viewer: Viewer) => void
-    ): boolean => {
+  const withImageryLayerRef = useCallback<
+    WithRefCallback<ImageryLayer, ImageryLayerCallback>
+  >(
+    (imageryLayerRef, cb, label = "withImageryLayerRef") => {
       if (
         isValidViewerNoCtx(viewerRef.current) &&
         isValidImageryLayer(imageryLayerRef.current)
       ) {
-        cb(imageryLayerRef.current, viewerRef.current);
-        return true;
+        try {
+          cb(imageryLayerRef.current, viewerRef.current);
+        } catch (error) {
+          console.error(`[IMAGERY_LAYER|CALLBACK] ${label} failed`, error);
+        }
       }
-      return false;
     },
     [viewerRef]
   );
 
-  const withTerrainProviderRef = useCallback(
-    (
-      terrainProviderRef: MutableRefObject<CesiumTerrainProvider | null>,
-      cb: (terrainProvider: CesiumTerrainProvider, viewer: Viewer) => void
-    ): boolean => {
+  const withTerrainProviderRef = useCallback<
+    WithRefCallback<CesiumTerrainProvider, TerrainProviderCallback>
+  >(
+    (terrainProviderRef, cb, label = "withTerrainProviderRef") => {
       if (
         isValidViewerNoCtx(viewerRef.current) &&
         isValidCesiumTerrainProvider(terrainProviderRef.current)
       ) {
-        cb(terrainProviderRef.current, viewerRef.current);
-        return true;
+        try {
+          cb(terrainProviderRef.current, viewerRef.current);
+        } catch (error) {
+          console.error(`[TERRAIN_PROVIDER|CALLBACK] ${label} failed`, error);
+        }
       }
-      return false;
     },
     [viewerRef]
   );
 
-  const withEllipsoidTerrainProviderRef = useCallback(
+  const withTerrainProviderRefAsync = useCallback<
+    WithRefAsyncCallback<CesiumTerrainProvider, TerrainProviderAsyncCallback>
+  >(
+    async (terrainProviderRef, cb, label = "withTerrainProviderRefAsync") => {
+      if (
+        isValidViewerNoCtx(viewerRef.current) &&
+        isValidCesiumTerrainProvider(terrainProviderRef.current)
+      ) {
+        try {
+          await cb(terrainProviderRef.current, viewerRef.current);
+        } catch (error) {
+          console.error(`[TERRAIN_PROVIDER|CALLBACK] ${label} failed`, error);
+        }
+      }
+    },
+    [viewerRef]
+  );
+
+  const withEllipsoidTerrainProviderRef = useCallback<
+    WithRefCallback<EllipsoidTerrainProvider, EllipsoidTerrainProviderCallback>
+  >(
     (
-      ellipsoidTerrainProviderRef: MutableRefObject<EllipsoidTerrainProvider | null>,
-      cb: (
-        ellipsoidTerrainProvider: EllipsoidTerrainProvider,
-        viewer: Viewer
-      ) => void
-    ): boolean => {
+      ellipsoidTerrainProviderRef,
+      cb,
+      label = "withEllipsoidTerrainProviderRef"
+    ) => {
       if (
         isValidViewerNoCtx(viewerRef.current) &&
         isValidEllipsoidTerrainProvider(ellipsoidTerrainProviderRef.current)
       ) {
-        cb(ellipsoidTerrainProviderRef.current, viewerRef.current);
-        return true;
+        try {
+          cb(ellipsoidTerrainProviderRef.current, viewerRef.current);
+        } catch (error) {
+          console.error(
+            `[ELLIPSOID_TERRAIN_PROVIDER|CALLBACK] ${label} failed`,
+            error
+          );
+        }
       }
-      return false;
     },
     [viewerRef]
   );
 
-  const withTilesetRef = useCallback(
-    (
-      tilesetRef: MutableRefObject<Cesium3DTileset | null>,
-      cb: (tileset: Cesium3DTileset, viewer: Viewer) => void
-    ): boolean => {
+  const withTilesetRef = useCallback<
+    WithRefCallback<Cesium3DTileset, TilesetCallback>
+  >(
+    (tilesetRef, cb, label = "withTilesetRef") => {
       if (
         isValidViewerNoCtx(viewerRef.current) &&
         isValidTileset(tilesetRef.current)
       ) {
-        cb(tilesetRef.current, viewerRef.current);
-        return true;
+        try {
+          cb(tilesetRef.current, viewerRef.current);
+        } catch (error) {
+          console.error(`[TILESET|CALLBACK] ${label} failed`, error);
+        }
       }
-      return false;
     },
     [viewerRef]
   );
 
-  const withImageryLayer = useCallback(
-    (cb) =>
-      withImageryLayerRef(imageryLayerRef, (imageryLayer, viewer) =>
-        cb(imageryLayer, viewer)
+  const withImageryLayer = useCallback<WithCallback<ImageryLayerCallback>>(
+    (cb, label = "withImageryLayer") =>
+      withImageryLayerRef(
+        imageryLayerRef,
+        (imageryLayer, viewer) => cb(imageryLayer, viewer),
+        label
       ),
     [imageryLayerRef, withImageryLayerRef]
   );
-  const withPrimaryTileset = useCallback(
-    (cb) =>
-      withTilesetRef(primaryTilesetRef, (tileset, viewer) =>
-        cb(tileset, viewer)
+  const withPrimaryTileset = useCallback<WithCallback<TilesetCallback>>(
+    (cb, label = "withPrimaryTileset") =>
+      withTilesetRef(
+        primaryTilesetRef,
+        (tileset, viewer) => cb(tileset, viewer),
+        label
       ),
     [primaryTilesetRef, withTilesetRef]
   );
-  const withSecondaryTileset = useCallback(
-    (cb) =>
-      withTilesetRef(secondaryTilesetRef, (tileset, viewer) =>
-        cb(tileset, viewer)
+  const withSecondaryTileset = useCallback<WithCallback<TilesetCallback>>(
+    (cb, label = "withSecondaryTileset") =>
+      withTilesetRef(
+        secondaryTilesetRef,
+        (tileset, viewer) => cb(tileset, viewer),
+        label
       ),
     [secondaryTilesetRef, withTilesetRef]
   );
-  const withEllipsoidTerrainProvider = useCallback(
-    (cb) =>
+  const withEllipsoidTerrainProvider = useCallback<
+    WithCallback<EllipsoidTerrainProviderCallback>
+  >(
+    (cb, label = "withEllipsoidTerrainProvider") =>
       withEllipsoidTerrainProviderRef(
         ellipsoidTerrainProviderRef,
-        (provider, viewer) => cb(provider, viewer)
+        (provider, viewer) => cb(provider, viewer),
+        label
       ),
     [ellipsoidTerrainProviderRef, withEllipsoidTerrainProviderRef]
   );
-  const withTerrainProvider = useCallback(
-    (cb) =>
-      withTerrainProviderRef(terrainProviderRef, (provider, viewer) =>
-        cb(provider, viewer)
+  const withTerrainProvider = useCallback<
+    WithCallback<TerrainProviderCallback>
+  >(
+    (cb, label = "withTerrainProvider") =>
+      withTerrainProviderRef(
+        terrainProviderRef,
+        (provider, viewer) => cb(provider, viewer),
+        label
       ),
     [terrainProviderRef, withTerrainProviderRef]
   );
-  const withSurfaceProvider = useCallback(
-    (cb) =>
-      withTerrainProviderRef(surfaceProviderRef, (provider, viewer) =>
-        cb(provider, viewer)
+
+  const withTerrainProviderAsync = useCallback<
+    WithAsyncCallback<TerrainProviderAsyncCallback>
+  >(
+    async (cb, label = "withTerrainProviderAsync") =>
+      await withTerrainProviderRefAsync(
+        terrainProviderRef,
+        async (provider, viewer) => await cb(provider, viewer),
+        label
+      ),
+    [terrainProviderRef, withTerrainProviderRefAsync]
+  );
+
+  const withSurfaceProvider = useCallback<
+    WithCallback<TerrainProviderCallback>
+  >(
+    (cb, label = "withSurfaceProvider") =>
+      withTerrainProviderRef(
+        surfaceProviderRef,
+        (provider, viewer) => cb(provider, viewer),
+        label
       ),
     [surfaceProviderRef, withTerrainProviderRef]
   );
+
+  const withSurfaceProviderAsync = useCallback<
+    WithAsyncCallback<TerrainProviderAsyncCallback>
+  >(
+    async (cb, label = "withSurfaceProviderAsync") =>
+      await withTerrainProviderRefAsync(
+        surfaceProviderRef,
+        async (provider, viewer) => await cb(provider, viewer),
+        label
+      ),
+    [surfaceProviderRef, withTerrainProviderRefAsync]
+  );
+
+  const withElevationProvidersAsync: WithElevationProvidersAsyncCallback =
+    useCallback(
+      async (cb, label = "withElevationProvidersAsync") => {
+        const terrainProvider = terrainProviderRef.current;
+        const surfaceProvider = surfaceProviderRef.current;
+        const viewer = viewerRef.current;
+        if (
+          isValidViewerNoCtx(viewer) &&
+          isValidCesiumTerrainProvider(terrainProvider) &&
+          isValidCesiumTerrainProvider(surfaceProvider)
+        ) {
+          try {
+            await cb(terrainProvider, surfaceProvider, viewer);
+          } catch (error) {
+            console.error(`withElevationProviderAsyncFailed ${label}`, error);
+          }
+        }
+      },
+      [terrainProviderRef, surfaceProviderRef, viewerRef]
+    );
 
   return {
     withViewer,
@@ -181,15 +345,14 @@ export const useValidInstances = (
     withCamera,
     withCanvas,
     withEntities,
-    withImageryLayerRef,
-    withTerrainProviderRef,
-    withEllipsoidTerrainProviderRef,
-    withTilesetRef,
     withImageryLayer,
     withPrimaryTileset,
     withSecondaryTileset,
     withEllipsoidTerrainProvider,
     withTerrainProvider,
+    withTerrainProviderAsync,
     withSurfaceProvider,
+    withSurfaceProviderAsync,
+    withElevationProvidersAsync,
   };
 };

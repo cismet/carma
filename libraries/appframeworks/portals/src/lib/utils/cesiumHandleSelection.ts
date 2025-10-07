@@ -22,7 +22,7 @@ import {
   getHeadingPitchRangeFromHeight,
   getHeadingPitchRangeFromZoom,
   invertedPolygonHierarchy,
-  pickViewerCanvasCenter,
+  pickSceneCenter,
   polygonHierarchyFromPolygonCoords,
   removeCesiumMarker,
   removeGroundPrimitiveById,
@@ -133,7 +133,7 @@ const updateMarkerPosition = async (
 };
 
 const cesiumLookAtPoint = async (
-  ctx: CesiumContextType,
+  scene: Scene,
   targetPosition: Cartographic,
   zoom: number,
   cesiumConfig: { pitchAdjustHeight?: number } = {},
@@ -144,64 +144,62 @@ const cesiumLookAtPoint = async (
     useCameraHeight?: boolean;
   } = {}
 ) => {
-  ctx.withScene((scene) => {
-    const currentCenterPos = pickViewerCanvasCenter(ctx).scenePosition;
-    const center = Cartographic.toCartesian(targetPosition);
+  const currentCenterPos = pickSceneCenter(scene).scenePosition;
+  const center = Cartographic.toCartesian(targetPosition);
 
-    const maxDuration = options.maxDuration ?? MAX_FLYTO_DURATION;
+  const maxDuration = options.maxDuration ?? MAX_FLYTO_DURATION;
 
-    let duration = maxDuration;
+  let duration = maxDuration;
 
-    if (!currentCenterPos) {
-      return;
-    }
+  if (!currentCenterPos) {
+    return;
+  }
 
-    const distanceTargets = Cartesian3.distance(currentCenterPos, center);
-    const currentRange = Cartesian3.distance(
-      currentCenterPos,
-      scene.camera.position
-    );
+  const distanceTargets = Cartesian3.distance(currentCenterPos, center);
+  const currentRange = Cartesian3.distance(
+    currentCenterPos,
+    scene.camera.position
+  );
 
-    const hpr = options.useCameraHeight
-      ? getHeadingPitchRangeFromHeight(scene.camera, targetPosition)
-      : getHeadingPitchRangeFromZoom(zoom - 1, scene.camera);
-    const range = distanceFromZoomLevel(zoom - 2);
+  const hpr = options.useCameraHeight
+    ? getHeadingPitchRangeFromHeight(scene.camera, targetPosition)
+    : getHeadingPitchRangeFromZoom(zoom - 1, scene.camera);
+  const range = distanceFromZoomLevel(zoom - 2);
 
-    // TODO ADD TEST FOR DURATION FACTOR
-    duration =
-      Math.pow(
-        distanceTargets + Math.abs(currentRange - range) / currentRange,
-        1 / 3
-      ) * (options.durationFactor ?? 1);
+  // TODO ADD TEST FOR DURATION FACTOR
+  duration =
+    Math.pow(
+      distanceTargets + Math.abs(currentRange - range) / currentRange,
+      1 / 3
+    ) * (options.durationFactor ?? 1);
 
+  console.info(
+    "[CESIUM|SEARCH|CAMERA] move duration",
+    duration,
+    distanceTargets
+  );
+
+  if (duration > maxDuration) {
     console.info(
-      "[CESIUM|SEARCH|CAMERA] move duration",
+      "[CESIUM|ANIMATION] FlyToBoundingSphere duration too long, clamped to",
       duration,
-      distanceTargets
+      maxDuration
     );
+    duration = maxDuration;
+  }
 
-    if (duration > maxDuration) {
-      console.info(
-        "[CESIUM|ANIMATION] FlyToBoundingSphere duration too long, clamped to",
-        duration,
-        maxDuration
-      );
-      duration = maxDuration;
-    }
+  //TODO optional add responsive duration based on distance of target
 
-    //TODO optional add responsive duration based on distance of target
-
-    scene.camera.flyToBoundingSphere(new BoundingSphere(center, range), {
-      offset: hpr,
-      duration,
-      pitchAdjustHeight:
-        cesiumConfig.pitchAdjustHeight ?? DEFAULT_CESIUM_PITCH_ADJUST_HEIGHT,
-      easingFunction: EasingFunction.QUADRATIC_IN_OUT,
-      complete: () => {
-        console.info("[CESIUM|ANIMATION] FlytoBoundingSphere Complete", center);
-        options.onComplete && options.onComplete();
-      },
-    });
+  scene.camera.flyToBoundingSphere(new BoundingSphere(center, range), {
+    offset: hpr,
+    duration,
+    pitchAdjustHeight:
+      cesiumConfig.pitchAdjustHeight ?? DEFAULT_CESIUM_PITCH_ADJUST_HEIGHT,
+    easingFunction: EasingFunction.QUADRATIC_IN_OUT,
+    complete: () => {
+      console.info("[CESIUM|ANIMATION] FlytoBoundingSphere Complete", center);
+      options.onComplete && options.onComplete();
+    },
   });
 };
 
@@ -298,18 +296,14 @@ const handlePolygonSelection = (
   });
 };
 export const cesiumHandleSelection = async (
-  ctx: CesiumContextType,
   markerData: null | MarkerPrimitiveData,
   setMarkerData: (data: MarkerPrimitiveData | null) => void,
+  scene: Scene,
+  surfaceProviderRef: React.MutableRefObject<CesiumTerrainProvider>,
+  terrainProviderRef: React.MutableRefObject<CesiumTerrainProvider>,
   { pos, zoom, polygon }: DerivedGeometries,
   options: HitTriggerOptions
 ) => {
-  const { isValidViewer } = ctx;
-  if (!isValidViewer()) {
-    console.warn("cesiumLookAt: viewer is not ready or destroyed");
-    return;
-  }
-
   const { mapOptions, duration, durationFactor = 0.2 } = options;
 
   const idSelected = options.selectedPolygonId ?? "selected-polygon";
@@ -323,17 +317,19 @@ export const cesiumHandleSelection = async (
   // cleanup previous selection - use scene primitives only
   if (!skipMarkerUpdate) {
     if (markerData) removeCesiumMarker(ctx, markerData);
-    ctx.withScene((scene) => {
-      removeGroundPrimitiveById(scene, idSelected);
-      removeGroundPrimitiveById(scene, idInverted);
-    });
+    removeGroundPrimitiveById(scene, idSelected);
+    removeGroundPrimitiveById(scene, idInverted);
 
-    ctx.requestRender();
+    requestRender();
   }
 
   const posCarto = Cartographic.fromDegrees(pos.lon, pos.lat, 0);
 
-  const [posResult] = await getElevationAsync(ctx, [posCarto]);
+  const [posResult] = await getElevationAsync(
+    surfaceProviderRef.current,
+    terrainProviderRef.current,
+    [posCarto]
+  );
 
   if (!posResult) {
     console.warn("no ground position found for marker");
@@ -362,7 +358,7 @@ export const cesiumHandleSelection = async (
   if (polygon) {
     if (!skipMarkerUpdate) {
       handlePolygonSelection(
-        ctx,
+        scene,
         surfacePosition, // fly to surface elevation
         polygon,
         idSelected,

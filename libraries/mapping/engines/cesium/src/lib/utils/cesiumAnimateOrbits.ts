@@ -9,7 +9,7 @@ import {
 
 import type { Radians } from "@carma/types";
 
-import { AnimationType, ViewerAnimationMap } from "./viewerAnimationMap";
+import { AnimationType, AnimationMap } from "./viewerAnimationMap";
 import type { CesiumContextType } from "../CesiumContext";
 
 // TODO: consolidate cesium animation helper into separate package
@@ -46,7 +46,7 @@ export const getOrbitPoint = (
 
 function runAnimation(
   viewer: Viewer,
-  viewerAnimationMap: ViewerAnimationMap,
+  viewerAnimationMap: AnimationMap,
   target: Cartesian3,
   targetHeading: number,
   targetPitch: number,
@@ -104,7 +104,7 @@ function runAnimation(
  */
 export const animateCamera = (
   viewer: Viewer,
-  viewerAnimationMap: ViewerAnimationMap,
+  viewerAnimationMap: AnimationMap,
   target: Cartesian3,
   targetHeading: number,
   targetPitch: number,

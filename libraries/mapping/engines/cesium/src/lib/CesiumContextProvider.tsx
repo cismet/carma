@@ -23,10 +23,14 @@ import { loadTileset, TilesetConfigs } from "./utils/cesiumTilesetProviders";
 import { useValidInstances } from "./hooks/useValidInstances";
 import { guardScene } from "./utils/guardScene";
 
-import {
-  initViewerAnimationMap,
-  ViewerAnimationMap,
-} from "./utils/viewerAnimationMap";
+import { initAnimationMap, AnimationMap } from "./utils/viewerAnimationMap";
+
+export type RequestRenderOptions = {
+  delay?: number; // ms
+  repeat?: number; // times
+  repeatInterval?: number; // ms
+};
+export type RequestRenderFn = (opts?: RequestRenderOptions) => void;
 
 export const CesiumContextProvider = ({
   children,
@@ -39,9 +43,7 @@ export const CesiumContextProvider = ({
 }) => {
   // Use refs for Cesium instances to prevent re-renders
   const viewerRef = useRef<Viewer | null>(null);
-  const viewerAnimationMapRef = useRef<ViewerAnimationMap | null>(
-    initViewerAnimationMap()
-  );
+  const animationMapRef = useRef<AnimationMap | null>(initAnimationMap());
   const ellipsoidTerrainProviderRef = useRef(new EllipsoidTerrainProvider());
   const terrainProviderRef = useRef<CesiumTerrainProvider | null>(null);
   const surfaceProviderRef = useRef<CesiumTerrainProvider | null>(null);
@@ -207,8 +209,9 @@ export const CesiumContextProvider = ({
     () => setInitialCameraEpoch((v) => v + 1),
     [setInitialCameraEpoch]
   );
+
   const requestRender = useCallback(
-    (opts) => {
+    (opts: RequestRenderOptions) => {
       const renderOnce = () => {
         withViewer((viewer) => {
           guardScene(viewer.scene, "ctx requestRender").requestRender();
@@ -222,7 +225,7 @@ export const CesiumContextProvider = ({
   const contextValue = useMemo<CesiumContextType>(
     () => ({
       viewerRef,
-      viewerAnimationMapRef,
+      animationMapRef,
       shouldSuspendPitchLimiterRef,
       shouldSuspendCameraLimitersRef,
       setIsViewerReady,

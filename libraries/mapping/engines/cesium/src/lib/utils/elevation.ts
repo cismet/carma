@@ -1,5 +1,4 @@
 import { Cartographic, CesiumTerrainProvider } from "cesium";
-import type { CesiumContextType } from "../CesiumContext";
 import { guardSampleTerrainMostDetailedAsync } from "./guardSampleTerrainMostDetailedAsync";
 
 export type ElevationResult = {
@@ -8,56 +7,23 @@ export type ElevationResult = {
   position: Cartographic; // return original position for convenience
 };
 
-export async function getTerrainElevationAsync(
-  ctx: CesiumContextType,
-  positions: Cartographic[],
-  rejectOnTileFail: boolean = true,
-  clonePositions: boolean = true
-): Promise<Cartographic[]> {
-  let provider: CesiumTerrainProvider | undefined = undefined;
-  ctx.withTerrainProvider((p) => (provider = p));
-  if (!provider) return [];
-  return guardSampleTerrainMostDetailedAsync(
-    provider,
-    positions,
-    rejectOnTileFail,
-    clonePositions
-  );
-}
-
-export async function getSurfaceElevationAsync(
-  ctx: CesiumContextType,
-  positions: Cartographic[],
-  rejectOnTileFail: boolean = true,
-  clonePositions: boolean = true
-): Promise<Cartographic[]> {
-  let provider: CesiumTerrainProvider | undefined = undefined;
-  ctx.withSurfaceProvider((p) => (provider = p));
-  if (!provider) return [];
-  return guardSampleTerrainMostDetailedAsync(
-    provider,
-    positions,
-    rejectOnTileFail,
-    clonePositions
-  );
-}
-
 /**
  * Prefer surface/mesh elevation when available, otherwise fall back to terrain.
  */
 export async function getElevationAsync(
-  ctx: CesiumContextType,
+  surfaceProvider: CesiumTerrainProvider,
+  terrainProvider: CesiumTerrainProvider,
   positions: Cartographic[],
   rejectOnTileFail: boolean = true
 ): Promise<ElevationResult[]> {
-  const surfaceResult = await getSurfaceElevationAsync(
-    ctx,
+  const surfaceResult = await guardSampleTerrainMostDetailedAsync(
+    surfaceProvider,
     positions,
     rejectOnTileFail,
     true
   );
-  const terrainResult = await getTerrainElevationAsync(
-    ctx,
+  const terrainResult = await guardSampleTerrainMostDetailedAsync(
+    terrainProvider,
     positions,
     rejectOnTileFail,
     true

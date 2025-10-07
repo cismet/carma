@@ -2,25 +2,33 @@ import { Camera, Cartesian2, Math as CesiumMath } from "cesium";
 
 import type { Radians } from "@carma/types";
 
-import type { CesiumContextType } from "../CesiumContext";
-
-export const getCesiumCameraPixelDimensionForDistance = (
-  ctx: CesiumContextType,
+export const getCesiumFrustumPixelDimensionsForDistance = (
+  scene: Scene,
+  resolutionScale: number,
   distance: number
 ): { x: number; y: number; average: number } | null => {
-  let pixelDimensions;
+  const { camera } = scene;
+  const { frustum } = camera;
+  let pixelDimensions: Cartesian2 | null = null;
 
-  const hasDimensions = ctx.withCamera((camera, viewer) => {
-    pixelDimensions = camera.frustum.getPixelDimensions(
-      viewer.scene.drawingBufferWidth,
-      viewer.scene.drawingBufferHeight,
+  try {
+    pixelDimensions = frustum.getPixelDimensions(
+      scene.drawingBufferWidth,
+      scene.drawingBufferHeight,
       distance,
-      viewer.resolutionScale,
+      resolutionScale,
       new Cartesian2()
     );
-  });
+  } catch (error) {
+    console.error(
+      "Failed to get pixel dimensions for distance",
+      distance,
+      error
+    );
+    return null;
+  }
 
-  if (!hasDimensions) {
+  if (!pixelDimensions) {
     return null;
   }
 

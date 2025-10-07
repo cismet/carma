@@ -1,14 +1,13 @@
 import { useEffect } from "react";
 import { selectViewerIsMode2d } from "../slices/cesium";
 import { useSelector } from "react-redux";
-import { CesiumContextType } from "../CesiumContext";
 import { isValidImageryLayer } from "../utils/instanceGates";
 import { useCesiumContext } from "./useCesiumContext";
 
-const hideLayers = (ctx: CesiumContextType) => {
-  ctx.withScene((scene) => {
+const hideLayers = (withScene: (scene: Scene) => void) => {
+  withScene((scene) => {
     const hideOnce = () => {
-      ctx.withScene((scene, viewer) => {
+      withScene((scene, viewer) => {
         for (let i = 0; i < viewer.imageryLayers.length; i++) {
           const layer = viewer.imageryLayers.get(i);
           if (isValidImageryLayer(layer)) {
@@ -24,10 +23,10 @@ const hideLayers = (ctx: CesiumContextType) => {
   });
 };
 
-const showLayers = (ctx: CesiumContextType) => {
-  ctx.withScene((scene) => {
+const showLayers = (withScene: (scene: Scene) => void) => {
+  withScene((scene) => {
     const showOnce = () => {
-      ctx.withScene((scene, viewer) => {
+      withScene((scene, viewer) => {
         for (let i = 0; i < viewer.imageryLayers.length; i++) {
           const layer = viewer.imageryLayers.get(i);
           if (isValidImageryLayer(layer)) {
@@ -43,11 +42,10 @@ const showLayers = (ctx: CesiumContextType) => {
   });
 };
 
-// reduce resoures use when cesium is not visible
+// reduce resources use when cesium is not visible
 export const useCesiumWhenHidden = (delay = 0) => {
-  const ctx = useCesiumContext();
+  const { withScene } = useCesiumContext();
   const isMode2d = useSelector(selectViewerIsMode2d);
-  console.debug("HOOKINIT: [CESIUM] useCesiumWhenHidden");
   useEffect(() => {
     console.debug("HOOK: [CESIUM] useCesiumWhenHidden", isMode2d);
     if (isMode2d) {
@@ -57,17 +55,17 @@ export const useCesiumWhenHidden = (delay = 0) => {
             "HOOK: [CESIUM] hiding cesium imagery layer with delay",
             delay
           );
-          hideLayers(ctx);
+          hideLayers(withScene);
         }, delay);
       } else {
         console.debug("HOOK: [CESIUM] hiding cesium imagery layer undelayed");
-        hideLayers(ctx);
+        hideLayers(withScene);
       }
     } else {
       console.debug("HOOK: [CESIUM] showing cesium imagery layer");
-      showLayers(ctx);
+      showLayers(withScene);
     }
-  }, [delay, ctx, isMode2d]);
+  }, [delay, withScene, isMode2d]);
 };
 
 export default useCesiumWhenHidden;

@@ -6,6 +6,7 @@ import {
   Entity,
   GroundPrimitive,
   Math as CesiumMath,
+  type Scene,
 } from "cesium";
 
 import {
@@ -13,7 +14,6 @@ import {
   type CanvasDimensions,
 } from "@carma-commons/utils/canvas";
 
-import { CesiumContextType } from "../CesiumContext";
 import { getPixelSizeForPosition } from "./pixels";
 
 export type PickResult = {
@@ -40,14 +40,6 @@ interface PickOptions {
 const GEOJSON_DRILL_LIMIT = 10;
 const CENTER_POSITION: [number, number] = [0.5, 0.5];
 
-const noopMap = (position: [number, number]) => ({
-  position,
-  windowPosition: new Cartesian2(0, 0),
-  pixelSize: null,
-  scenePosition: null,
-  coordinates: null,
-});
-
 // Convert normalized canvas coords [0..1] to window pixel position centered on pixels
 export const getCanvasWindowPosition = (
   canvasDimensions: CanvasDimensions,
@@ -68,9 +60,9 @@ export const getCanvasCenterWindowPosition = (
     CENTER_POSITION[1]
   );
 
-export const pickViewerCanvasPositions = (
-  ctx: CesiumContextType,
-  positions: [number, number][] = [CENTER_POSITION],
+export const pickScenePositions = (
+  scene: Scene,
+  positions: [number, number][] = [CENTER_POSITION], // canvas positions
   {
     getPixelSize = false,
     getCoordinates = false,
@@ -78,93 +70,90 @@ export const pickViewerCanvasPositions = (
     pickTranslucentDepth = true,
   }: PickOptions = {}
 ): PickResult[] => {
-  if (!ctx.isValidViewer()) return positions.map(noopMap);
   let results: PickResult[] = [];
 
-  ctx.withScene((scene) => {
-    if (scene.pickPositionSupported === false) {
-      console.debug("Scene pickPositionSupported is false");
-      return results;
-    }
+  if (scene.pickPositionSupported === false) {
+    console.debug("Scene pickPositionSupported is false");
+    return results;
+  }
 
-    const canvasDimensions: CanvasDimensions = getCanvasDimensions(
-      scene.canvas as HTMLCanvasElement
-    );
-    // store previous settings
-    const prev = {
-      depthTestAgainstTerrain: scene.globe.depthTestAgainstTerrain,
-      pickTranslucentDepth: scene.pickTranslucentDepth,
-    };
+  const canvasDimensions: CanvasDimensions = getCanvasDimensions(
+    scene.canvas as HTMLCanvasElement
+  );
+  // store previous settings
+  const prev = {
+    depthTestAgainstTerrain: scene.globe.depthTestAgainstTerrain,
+    pickTranslucentDepth: scene.pickTranslucentDepth,
+  };
 
-    // apply overrides
-    scene.pickTranslucentDepth = pickTranslucentDepth;
-    scene.globe.depthTestAgainstTerrain = depthTestAgainstTerrain;
-    try {
-      results = positions.map((position) => {
-        const windowPosition = getCanvasWindowPosition(
-          canvasDimensions,
+  // apply overrides
+  scene.pickTranslucentDepth = pickTranslucentDepth;
+  scene.globe.depthTestAgainstTerrain = depthTestAgainstTerrain;
+  try {
+    results = positions.map((position) => {
+      const windowPosition = getCanvasWindowPosition(
+        canvasDimensions,
+        position[0],
+        position[1]
+      );
+      const result: PickResult = {
+        position,
+        windowPosition,
+        scenePosition: null,
+        pixelSize: null,
+        coordinates: null,
+      };
+
+      const scenePosition = scene.pickPosition(
+        windowPosition
+      ) as Cartesian3 | null;
+
+      if (!defined(scenePosition)) {
+        console.debug(
+          "No scene position found at the picked position.",
           position[0],
-          position[1]
-        );
-        const result: PickResult = {
-          position,
-          windowPosition,
-          scenePosition: null,
-          pixelSize: null,
-          coordinates: null,
-        };
-
-        const scenePosition = scene.pickPosition(
+          position[1],
           windowPosition
-        ) as Cartesian3 | null;
-
-        if (!defined(scenePosition)) {
-          console.debug(
-            "No scene position found at the picked position.",
-            position[0],
-            position[1],
-            windowPosition
-          );
-          return result;
-        }
-
-        result.scenePosition = scenePosition;
-
-        if (getPixelSize) {
-          const { drawingBufferWidth, drawingBufferHeight } = scene;
-          ctx.withCamera((camera) => {
-            result.pixelSize = getPixelSizeForPosition(
-              scenePosition,
-              camera,
-              drawingBufferWidth,
-              drawingBufferHeight
-            );
-          });
-        }
-
-        if (getCoordinates) {
-          const coordinates =
-            scenePosition && defined(scenePosition)
-              ? Cartographic.fromCartesian(scenePosition)
-              : null;
-          result.coordinates = coordinates;
-        }
+        );
         return result;
-      });
-    } finally {
-      scene.pickTranslucentDepth = prev.pickTranslucentDepth;
-      scene.globe.depthTestAgainstTerrain = prev.depthTestAgainstTerrain;
-    }
-  });
+      }
+
+      result.scenePosition = scenePosition;
+
+      if (getPixelSize) {
+        const { drawingBufferWidth, drawingBufferHeight } = scene;
+        result.pixelSize = getPixelSizeForPosition(
+          scenePosition,
+          scene.camera,
+          drawingBufferWidth,
+          drawingBufferHeight
+        );
+      }
+
+      if (getCoordinates) {
+        const coordinates =
+          scenePosition && defined(scenePosition)
+            ? Cartographic.fromCartesian(scenePosition)
+            : null;
+        result.coordinates = coordinates;
+      }
+      return result;
+    });
+  } catch (error) {
+    console.error("Failed to pick scene positions", error);
+  } finally {
+    scene.pickTranslucentDepth = prev.pickTranslucentDepth;
+    scene.globe.depthTestAgainstTerrain = prev.depthTestAgainstTerrain;
+  }
   return results;
 };
 
 // helper shorthand
-export const pickViewerCanvasCenter = (
-  ctx: CesiumContextType,
+export const pickSceneCenter = (
+  scene: Scene,
   options?: PickOptions
 ): PickResult => {
-  return pickViewerCanvasPositions(ctx, [CENTER_POSITION], options)[0];
+  return pickScenePositions(scene, [CENTER_POSITION], options)[0];
 };
 
 // get last ground primitive from picked objects
@@ -189,29 +178,23 @@ function getLastGroundPrimitive(
 
 // only used in playground
 export function pickFromClampedGeojson(
-  ctx: CesiumContextType,
+  scene: Scene,
   position: Cartesian2,
   limit: number = GEOJSON_DRILL_LIMIT
 ): Entity | null {
   let result: Entity | null = null;
-  const ok = ctx.withScene((scene) => {
-    const pickedObjects = scene.drillPick(position, limit);
-    console.debug("SCENE DRILL PICK:", pickedObjects);
-    result = getLastGroundPrimitive(pickedObjects);
-  });
-  return ok ? result : null;
+  const pickedObjects = scene.drillPick(position, limit);
+  console.debug("SCENE DRILL PICK:", pickedObjects);
+  result = getLastGroundPrimitive(pickedObjects);
+  return result;
 }
 
-const findTopPick = (
-  ctx: CesiumContextType,
-  xPos = 0,
-  targetPixelSize: number
-) => {
+const findTopPick = (scene: Scene, xPos = 0, targetPixelSize: number) => {
   let top: PickResult | null = null;
   let yPos = 0;
 
   while (top === null && yPos < 1) {
-    const [candidate] = pickViewerCanvasPositions(ctx, [[xPos, yPos]], {
+    const [candidate] = pickScenePositions(scene, [[xPos, yPos]], {
       getPixelSize: true,
       getCoordinates: true,
     });
@@ -226,12 +209,12 @@ const findTopPick = (
   return top;
 };
 
-export const getViewerViewportPolygonRing = (
-  ctx: CesiumContextType,
+export const getSceneViewportPolygonRing = (
+  scene: Scene,
   { resolutionRange = 4 }: { resolutionRange?: number } = {}
 ): [number, number][] | null => {
-  const bottom = pickViewerCanvasPositions(
-    ctx,
+  const bottom = pickScenePositions(
+    scene,
     [
       [0, 1],
       //[0.25, 1],
@@ -259,7 +242,7 @@ export const getViewerViewportPolygonRing = (
     }, Infinity) * resolutionRange;
 
   const top = bottom.map((pos) => {
-    const result = findTopPick(ctx, pos.position[0], targetPixelSize);
+    const result = findTopPick(scene, pos.position[0], targetPixelSize);
     if (result) {
       console.debug("Top pixel position found", pos.position[0], result);
       return result;

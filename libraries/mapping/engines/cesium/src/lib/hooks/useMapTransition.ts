@@ -25,7 +25,7 @@ import {
 } from "../utils/cesiumHelpers";
 import { getTiledMapCenterZoomEquivalent } from "../utils/getTiledMapCenterZoomEquivalent";
 import { tiledMapToCesium } from "../utils/tiledMapToCesium";
-import { pickViewerCanvasCenter } from "../utils/pickers";
+import { pickSceneCenter } from "../utils/pickers";
 import { cesiumCenterPixelSizeToLeafletZoom } from "../utils/pixels";
 
 type TransitionOptions = {
@@ -141,7 +141,7 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
     };
 
     const animateCesiumView = () => {
-      const pos = pickViewerCanvasCenter(cesiumContext).scenePosition;
+      const pos = pickSceneCenter(cesiumContext).scenePosition;
 
       if (pos && prevHPR) {
         console.debug(
@@ -194,7 +194,7 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
 
     // Do not transition if we cannot pick ground from depth (ellipsoid-only is not allowed)
     const { scenePosition: groundPos, coordinates: cartographic } =
-      pickViewerCanvasCenter(cesiumContext, { getCoordinates: true });
+      pickSceneCenter(cesiumContext, { getCoordinates: true });
 
     cesiumContext.withCamera((camera) => {
       let height = camera.positionCartographic.height;

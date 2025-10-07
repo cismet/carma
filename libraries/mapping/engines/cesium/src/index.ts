@@ -104,12 +104,7 @@ export {
   setupCesiumEnvironment,
 } from "./lib/utils/cesiumSetup";
 
-export {
-  getElevationAsync,
-  getSurfaceElevationAsync,
-  getTerrainElevationAsync,
-  type ElevationResult,
-} from "./lib/utils/elevation";
+export { getElevationAsync, type ElevationResult } from "./lib/utils/elevation";
 
 export {
   isValidCesiumTerrainProvider,
@@ -135,7 +130,7 @@ export { guardSampleTerrainMostDetailedAsync } from "./lib/utils/guardSampleTerr
 export { guardScreenSpaceCameraController } from "./lib/utils/guardScreenSpaceCameraController";
 export { guardTileset } from "./lib/utils/guardTileset";
 
-export { pickViewerCanvasCenter } from "./lib/utils/pickers";
+export { pickSceneCenter } from "./lib/utils/pickers";
 
 export {
   distanceFromZoomLevel,
@@ -144,9 +139,9 @@ export {
 } from "./lib/utils/positions";
 
 export {
-  type ViewerAnimationMap,
-  cancelViewerAnimation,
-  initViewerAnimationMap,
+  type AnimationMap,
+  cancelAnimation,
+  initAnimationMap,
 } from "./lib/utils/viewerAnimationMap";
 
 export {

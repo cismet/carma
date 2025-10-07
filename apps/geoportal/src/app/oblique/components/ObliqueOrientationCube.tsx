@@ -6,7 +6,7 @@ import {
   useCesiumContext,
   cesiumCameraToCssTransform,
   getOrbitPoint,
-  cancelViewerAnimation,
+  cancelAnimation,
   guardCamera,
 } from "@carma-mapping/engines/cesium";
 
@@ -119,7 +119,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
   const half = size / 2;
 
   const ctx = useCesiumContext();
-  const { viewerRef, isViewerReady, viewerAnimationMapRef } = ctx;
+  const { viewerRef, isViewerReady, animationMapRef } = ctx;
   const [, setTransformTick] = useState(0);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const lastFrustumRef = useRef<{ angle?: number; w?: number; h?: number }>({});
@@ -325,8 +325,8 @@ const ObliqueOrientationCube: React.FC<Props> = ({
     // Fallback: instant snap (legacy behavior)
     if (!ctx.isValidViewer()) return;
     ctx.withViewer((viewer) => {
-      if (viewerAnimationMapRef?.current) {
-        cancelViewerAnimation(viewer, viewerAnimationMapRef.current);
+      if (animationMapRef?.current) {
+        cancelAnimation(viewer, animationMapRef.current);
       }
       const camera = viewer.camera;
       const target = getOrbitPoint(ctx);

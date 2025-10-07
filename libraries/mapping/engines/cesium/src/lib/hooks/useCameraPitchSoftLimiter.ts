@@ -10,7 +10,7 @@ import {
   setIsAnimating,
   clearIsAnimating,
 } from "../slices/cesium";
-import { pickViewerCanvasCenter } from "../utils/pickers";
+import { pickSceneCenter } from "../utils/pickers";
 
 const useCameraPitchSoftLimiter = (
   options: {
@@ -70,7 +70,7 @@ const useCameraPitchSoftLimiter = (
               resetPitchRad
             );
           // TODO Get CenterPos Lower from screen if distance is muliple of elevation. prevent pitch around distant point on horizon
-          const centerPos = pickViewerCanvasCenter(ctx).scenePosition;
+          const centerPos = pickSceneCenter(ctx).scenePosition;
           if (centerPos) {
             dispatch(setIsAnimating());
             const distance = Cartesian3.distance(

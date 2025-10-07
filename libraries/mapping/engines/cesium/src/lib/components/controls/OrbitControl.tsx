@@ -16,9 +16,8 @@ import {
   toggleIsAnimating,
   selectViewerIsAnimating,
 } from "../../slices/cesium";
-import { useCesiumViewer } from "../../hooks/useCesiumViewer";
 import { useCesiumContext } from "../../hooks/useCesiumContext";
-import { pickViewerCanvasCenter } from "../../utils/pickers";
+import { pickSceneCenter } from "../../utils/pickers";
 
 // TODO use config/context
 const DEFAULT_ROTATION_SPEED = 0.0001;
@@ -33,8 +32,7 @@ const orbitCenterPointId = "orbitCenterPoint";
 const OrbitControl = ({ showCenterPoint = true }: SpinningControlProps) => {
   const dispatch = useDispatch();
 
-  const viewer = useCesiumViewer();
-  const ctx = useCesiumContext();
+  const { withScene } = useCesiumContext();
   const orbitPointRef = useRef<Cartesian3 | null>(null);
   const lastRenderTimeRef = useRef<number | null>(null);
   const isAnimating = useSelector(selectViewerIsAnimating);
@@ -42,7 +40,7 @@ const OrbitControl = ({ showCenterPoint = true }: SpinningControlProps) => {
   const orbitListener = useCallback(() => {
     console.debug("CALLBACK: orbiting");
     const point = orbitPointRef.current;
-    if (!viewer || !point) return;
+    if (!point) return;
 
     const transform = Transforms.eastNorthUpToFixedFrame(point);
     // use render time to calculate delta time not clock time which is simulated and can change
@@ -52,54 +50,61 @@ const OrbitControl = ({ showCenterPoint = true }: SpinningControlProps) => {
 
     const rotationDelta = DEFAULT_ROTATION_SPEED * deltaTime;
 
-    viewer.camera.lookAtTransform(transform);
-    viewer.camera.constrainedAxis = Cartesian3.UNIT_Z;
-    viewer.camera.rotateRight(rotationDelta);
-    viewer.camera.constrainedAxis = undefined;
-    viewer.camera.lookAtTransform(Matrix4.IDENTITY); // keep the camera unlocked while rotating
-  }, [viewer]);
+    withScene((scene) => {
+      scene.camera.lookAtTransform(transform);
+      scene.camera.constrainedAxis = Cartesian3.UNIT_Z;
+      scene.camera.rotateRight(rotationDelta);
+      scene.camera.constrainedAxis = undefined;
+      scene.camera.lookAtTransform(Matrix4.IDENTITY); // keep the camera unlocked while rotating
+    });
+  }, [withScene]);
 
-  const toggleOrbit = (viewer: Viewer) => {
+  const toggleOrbit = useCallback(() => {
     if (!isAnimating) {
-      const position = pickViewerCanvasCenter(ctx).scenePosition;
-      orbitPointRef.current = position;
-      lastRenderTimeRef.current = null;
-      viewer.clock.onTick.addEventListener(orbitListener);
+      withScene((scene, viewer) => {
+        const position = pickSceneCenter(scene).scenePosition;
+        orbitPointRef.current = position;
+        lastRenderTimeRef.current = null;
+        scene.clock.onTick.addEventListener(orbitListener);
 
-      //showCenterPoint && viewer.entities.removeById(orbitCenterPointId);
+        //showCenterPoint && viewer.entities.removeById(orbitCenterPointId);
 
-      position &&
-        showCenterPoint &&
-        viewer.entities.add({
-          position,
-          point: {
-            pixelSize: 30,
-            color: Color.RED,
-            outlineColor: Color.WHITE,
-            outlineWidth: 1,
-            //heightReference: HeightReference.RELATIVE_TO_3D_TILE,
-          },
-          id: orbitCenterPointId,
-        });
+        position &&
+          showCenterPoint &&
+          viewer.entities.add({
+            position,
+            point: {
+              pixelSize: 30,
+              color: Color.RED,
+              outlineColor: Color.WHITE,
+              outlineWidth: 1,
+              //heightReference: HeightReference.RELATIVE_TO_3D_TILE,
+            },
+            id: orbitCenterPointId,
+          });
+      });
     }
     dispatch(toggleIsAnimating());
-  };
+  }, [dispatch, isAnimating, orbitListener, showCenterPoint, withScene]);
 
-  const handleOrbit = (event: MouseEvent) => {
-    event.preventDefault();
-    ctx.withViewer((viewer) => toggleOrbit(viewer));
-  };
+  const handleOrbit = useCallback(
+    (event: MouseEvent) => {
+      event.preventDefault();
+      toggleOrbit();
+    },
+    [toggleOrbit]
+  );
 
   useEffect(() => {
     if (!isAnimating) {
-      ctx.withViewer((viewer) => {
+      withScene((scene, viewer) => {
         console.debug("stop orbiting by state", orbitPointRef.current);
         viewer.clock.onTick.removeEventListener(orbitListener);
-        viewer.camera.constrainedAxis = undefined;
+        scene.camera.constrainedAxis = undefined;
         showCenterPoint && viewer.entities.removeById(orbitCenterPointId);
       });
     }
-  }, [isAnimating, ctx, orbitListener, showCenterPoint]);
+  }, [isAnimating, orbitListener, showCenterPoint, withScene]);
 
   return (
     <OnMapButton
