@@ -47,6 +47,7 @@ export interface MapMeasurementsContextType {
   updateTitle: (shapeId: string | number, customTitle: string) => void;
   setStartDrawing: (status: boolean) => void;
   startDrawing: boolean;
+  config: MeasurementConfig;
 }
 
 export interface MeasurementShapeDrawing {
@@ -85,6 +86,7 @@ export interface MeasurementTitleProps {
   setUpdateMeasurementStatus: (status: boolean) => void;
   isCollapsed?: boolean;
   collapsedContent?: string;
+  editable?: boolean;
 }
 
 export interface MeasurementControlProps {
@@ -101,4 +103,8 @@ export interface MeasurementControlProps {
   };
   altText?: string;
   iconClassName?: string;
+}
+
+export interface MeasurementConfig {
+  editableTitle: boolean;
 }

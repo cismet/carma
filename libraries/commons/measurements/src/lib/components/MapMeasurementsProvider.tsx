@@ -1,11 +1,19 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import { ActiveShape, MapMeasurementsContextType } from "../../";
+import {
+  ActiveShape,
+  MapMeasurementsContextType,
+  MeasurementConfig,
+} from "../../";
 import { setFromLocalforage, saveToLocalforage } from "../utils/helper";
 
 enum MEASUREMENT_MODE {
   DEFAULT = "default",
   MEASUREMENT = "measurement",
 }
+
+const defaultConfig: MeasurementConfig = {
+  editableTitle: true,
+};
 
 export const MapMeasurementsContext = createContext<MapMeasurementsContextType>(
   {
@@ -57,10 +65,12 @@ export const MapMeasurementsProvider = ({
   children,
   mode,
   setMode,
+  config = defaultConfig,
 }: {
   children: React.ReactNode;
   mode: MEASUREMENT_MODE;
   setMode: (mode: MEASUREMENT_MODE) => void;
+  config?: MeasurementConfig;
 }) => {
   const [activeShape, setActiveShape] = useState<ActiveShape>(null);
   const [shapes, setShapes] = useState<any[]>([]);
@@ -270,6 +280,7 @@ export const MapMeasurementsProvider = ({
         updateTitle,
         setStartDrawing,
         startDrawing,
+        config,
       }}
     >
       {children}
