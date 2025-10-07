@@ -11,6 +11,7 @@ import "./styles.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import "leaflet/dist/leaflet.css";
+import { PersistGate } from "redux-persist/integration/react";
 import { persistStore } from "redux-persist";
 import {
   MapMeasurementsProvider,
@@ -30,6 +31,9 @@ const MeasurementsProviderWrapper = ({
 }) => {
   const uiMode = useSelector(getUIMode);
   const dispatch = useDispatch<AppDispatch>();
+  const measurementsConfig = {
+    editableTitle: false,
+  };
 
   const mode =
     uiMode === UIMode.MEASUREMENT
@@ -44,7 +48,11 @@ const MeasurementsProviderWrapper = ({
   };
 
   return (
-    <MapMeasurementsProvider mode={mode} setMode={handleSetMode}>
+    <MapMeasurementsProvider
+      mode={mode}
+      setMode={handleSetMode}
+      config={measurementsConfig}
+    >
       {children}
     </MapMeasurementsProvider>
   );
@@ -58,15 +66,17 @@ const root = ReactDOM.createRoot(
 root.render(
   <StrictMode>
     <Provider store={store}>
-      <GazDataProvider>
-        <SelectionProvider>
-          <MeasurementsProviderWrapper>
-            <TopicMapContextProvider>
-              <App />
-            </TopicMapContextProvider>
-          </MeasurementsProviderWrapper>
-        </SelectionProvider>
-      </GazDataProvider>
+      <PersistGate loading={null} persistor={persistor}>
+        <GazDataProvider>
+          <SelectionProvider>
+            <MeasurementsProviderWrapper>
+              <TopicMapContextProvider>
+                <App />
+              </TopicMapContextProvider>
+            </MeasurementsProviderWrapper>
+          </SelectionProvider>
+        </GazDataProvider>
+      </PersistGate>
     </Provider>
   </StrictMode>
 );

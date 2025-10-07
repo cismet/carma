@@ -60,17 +60,17 @@ const mappingConfig = {
   whitelist: [],
 };
 
-const measurementsConfig = {
-  key: "@measurements-playground.app.measurements",
-  storage: localForage,
-  whitelist: ["shapes"],
-};
+// const measurementsConfig = {
+//   key: "@measurements-playground.app.measurements",
+//   storage: localForage,
+//   whitelist: ["shapes"],
+// };
 
 const store = configureStore({
   reducer: {
     mapping: persistReducer(mappingConfig, mappingReducer),
     ui: persistReducer(uiConfig, uiReducer),
-    measurements: persistReducer(measurementsConfig, measurementsReducer),
+    // measurements: persistReducer(measurementsConfig, measurementsReducer),
   },
   devTools: devToolsEnabled === true && inProduction === false,
   middleware,
