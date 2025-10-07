@@ -32,8 +32,9 @@ const MeasurementsProviderWrapper = ({
   const uiMode = useSelector(getUIMode);
   const dispatch = useDispatch<AppDispatch>();
   const measurementsConfig = {
-    editableTitle: false,
-    infoBoxHeaderColor: "#22c55e",
+    // Only override what you want to change
+    editableTitle: true,
+    // infoBoxHeaderColor: "#22c55e",
   };
 
   const mode =
@@ -52,7 +53,8 @@ const MeasurementsProviderWrapper = ({
     <MapMeasurementsProvider
       mode={mode}
       setMode={handleSetMode}
-      config={measurementsConfig}
+      // Skip config if you want to use default values
+      // config={measurementsConfig}
     >
       {children}
     </MapMeasurementsProvider>

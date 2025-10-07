@@ -3,6 +3,7 @@ import {
   ActiveShape,
   MapMeasurementsContextType,
   MeasurementConfig,
+  PartialMeasurementConfig,
 } from "../../";
 import { setFromLocalforage, saveToLocalforage } from "../utils/helper";
 
@@ -12,7 +13,7 @@ enum MEASUREMENT_MODE {
 }
 
 const defaultConfig: MeasurementConfig = {
-  editableTitle: false,
+  editableTitle: true,
   infoBoxHeaderColor: "#3b82f6",
 };
 
@@ -67,13 +68,18 @@ export const MapMeasurementsProvider = ({
   children,
   mode,
   setMode,
-  config = defaultConfig,
+  config = {},
 }: {
   children: React.ReactNode;
   mode: MEASUREMENT_MODE;
   setMode: (mode: MEASUREMENT_MODE) => void;
-  config?: MeasurementConfig;
+  config?: PartialMeasurementConfig;
 }) => {
+  // Merge provided config with defaults
+  const mergedConfig: MeasurementConfig = {
+    ...defaultConfig,
+    ...config,
+  };
   const [activeShape, setActiveShape] = useState<ActiveShape>(null);
   const [shapes, setShapes] = useState<any[]>([]);
   const [visibleShapes, setVisibleShapes] = useState<any[]>([]);
@@ -282,7 +288,7 @@ export const MapMeasurementsProvider = ({
         updateTitle,
         setStartDrawing,
         startDrawing,
-        config,
+        config: mergedConfig,
       }}
     >
       {children}
