@@ -6,7 +6,7 @@ import localForage from "localforage";
 
 import mappingReducer from "./slices/mapping";
 import uiReducer from "./slices/ui";
-import measurementsReducer from "./slices/measurements";
+// import measurementsReducer from "./slices/measurements";
 
 console.info("store initializing ....");
 
