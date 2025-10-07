@@ -105,6 +105,7 @@ function ControlRenderer({ controls }: ControlRendererProps) {
   const bottomRightStyle: CSSProperties = {
     ...BOTTOM_CONTROL_GROUP_STYLE,
     alignItems: "flex-end",
+    pointerEvents: "none",
   };
 
   const bottomCenterStyle: CSSProperties = {

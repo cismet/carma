@@ -186,6 +186,7 @@ export const ResponsiveInfoBox = ({
           <div
             style={{
               opacity: 0.9,
+              pointerEvents: "auto",
             }}
           >
             {element}
