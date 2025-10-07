@@ -13,7 +13,7 @@ enum MEASUREMENT_MODE {
 }
 
 const defaultConfig: MeasurementConfig = {
-  editableTitle: true,
+  editableTitle: false,
   infoBoxHeaderColor: "#3b82f6",
 };
 

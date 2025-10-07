@@ -23,9 +23,12 @@ export const MeasurementControl: React.FC<Partial<MeasurementControlProps>> = ({
   iconClassName = "w-6",
 }) => {
   const { mode, toggleMeasurementMode } = useMapMeasurementsContext();
-  
+
   // Use context values if props are not provided
-  const isActive = propIsActive !== undefined ? propIsActive : mode === MEASUREMENT_MODE.MEASUREMENT;
+  const isActive =
+    propIsActive !== undefined
+      ? propIsActive
+      : mode === MEASUREMENT_MODE.MEASUREMENT;
   const onToggle = propOnToggle || toggleMeasurementMode;
 
   const getUrlPrefix = () => {
@@ -37,7 +40,7 @@ export const MeasurementControl: React.FC<Partial<MeasurementControlProps>> = ({
   };
 
   return (
-    <>
+    <div>
       <Control position={position} order={order}>
         <ControlButtonStyler onClick={onToggle}>
           <img
@@ -48,6 +51,6 @@ export const MeasurementControl: React.FC<Partial<MeasurementControlProps>> = ({
         </ControlButtonStyler>
       </Control>
       {isActive && <InfoBoxMeasurement />}
-    </>
+    </div>
   );
 };
