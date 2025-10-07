@@ -1,10 +1,11 @@
 import { createContext, useContext, useEffect, useState } from "react";
-import {
-  MEASUREMENT_MODE,
-  ActiveShape,
-  MapMeasurementsContextType,
-} from "../../index.d.ts";
+import { ActiveShape, MapMeasurementsContextType } from "../../";
 import { setFromLocalforage, saveToLocalforage } from "../utils/helper";
+
+enum MEASUREMENT_MODE {
+  DEFAULT = "default",
+  MEASUREMENT = "measurement",
+}
 
 export const MapMeasurementsContext = createContext<MapMeasurementsContextType>(
   {

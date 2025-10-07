@@ -10,6 +10,11 @@ import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { useContext } from "react";
+import {
+  TopicMapSelectionContent,
+  useSelectionTopicMap,
+  useSelection,
+} from "@carma-appframeworks/portals";
 
 suppressReactCismapErrors();
 
@@ -17,6 +22,9 @@ export function App() {
   const { responsiveState, gap, windowSize } = useContext<
     typeof ResponsiveTopicMapContext
   >(ResponsiveTopicMapContext);
+
+  const { setSelection } = useSelection();
+  useSelectionTopicMap();
 
   return (
     <>
@@ -36,13 +44,15 @@ export function App() {
         </Control>
       </ControlLayout>
       <TopicMapComponent
-        gazetteerSearchComponent={<EmptySearchComponent />}
+        gazetteerSearchControl={true}
+        gazetteerSearchComponent={EmptySearchComponent}
         locatorControl={false}
         fullScreenControl={false}
         zoomControls={false}
         leafletMapProps={{ editable: true }}
       >
         <MapMeasurementsObjects />
+        <TopicMapSelectionContent />
       </TopicMapComponent>
     </>
   );

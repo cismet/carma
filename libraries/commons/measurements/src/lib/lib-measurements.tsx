@@ -256,7 +256,7 @@ function filterArrByIds(
   arrIds: (string | number)[],
   fullArray: MeasurementShapeDrawing[]
 ): MeasurementShapeDrawing[] {
-  const finalResult: MeasurementShape[] = [];
+  const finalResult: MeasurementShapeDrawing[] = [];
   fullArray.forEach((currentItem) => {
     if (arrIds.includes(currentItem.shapeId)) {
       finalResult.push(currentItem);
