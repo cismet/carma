@@ -167,6 +167,8 @@ export const MapMeasurementsProvider = ({
       setMode(MEASUREMENT_MODE.MEASUREMENT);
     } else {
       setMode(MEASUREMENT_MODE.DEFAULT);
+      // When exiting measurement mode, stop drawing
+      setDrawingShape(false);
     }
   };
 

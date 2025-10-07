@@ -16,12 +16,13 @@ import { useMapMeasurementsContext } from "./components/MapMeasurementsProvider"
 import { MapMeasurementProps, MeasurementShapeDrawing } from "../index.d.ts";
 
 export function MapObjects({
-  mode,
+  mode: propMode,
   polygonActiveIcon,
   polygonIcon,
-}: MapMeasurementProps) {
+}: Partial<MapMeasurementProps>) {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const {
+    mode,
     activeShape,
     setActiveShape,
     shapes,
@@ -51,6 +52,9 @@ export function MapObjects({
     // looks unuseful
     setStartDrawing,
   } = useMapMeasurementsContext();
+
+  // Use context mode if propMode is not provided
+  const currentMode = propMode !== undefined ? propMode : mode;
 
   const [measureControl, setMeasureControl] = useState<any>(null);
   const [visiblePolylines, setVisiblePolylines] = useState<(string | number)[]>(
@@ -86,7 +90,7 @@ export function MapObjects({
         cbSetDrawingStatus: drawingStatusHandler,
         cbSetDrawingShape: drawingShapeHandler,
         measurementOrder: findLargestNumber(shapes),
-        measurementMode: mode,
+        measurementMode: currentMode,
         cbSetActiveShape: setActiveShapeHandler,
         cbSetUpdateStatusHandler: setUpdateStatusHandler,
         cbMapMovingEndHandler: mapMovingEndHandler,
@@ -153,7 +157,7 @@ export function MapObjects({
 
     if (measureControl) {
       const map = routedMapRef.leafletMap.leafletElement;
-      measureControl.changeMeasurementMode(mode, map);
+      measureControl.changeMeasurementMode(currentMode, map);
       const shapeCoordinates = shapes.filter((s) => s.shapeId === activeShape);
       if (shapeCoordinates[0]?.shapeId) {
         measureControl.changeColorByActivePolyline(
@@ -162,7 +166,7 @@ export function MapObjects({
         );
       }
 
-      if (mode === "measurement" && visibleShapes.length === 0) {
+      if (currentMode === "measurement" && visibleShapes.length === 0) {
         const visibleShapesIds = measureControl.getVisibleShapeIdsArr(
           measureControl._map
         );
@@ -175,7 +179,7 @@ export function MapObjects({
     deleteAll,
     ifDrawing,
     moveToShape,
-    mode,
+    currentMode,
   ]);
 
   useEffect(() => {
