@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import {
@@ -67,14 +67,17 @@ export const CesiumContextProvider = ({
     []
   );
 
-  const {
-    withViewer,
-    isValidViewer,
-    withImageryLayerRef,
-    withTerrainProviderRef,
-    withEllipsoidTerrainProviderRef,
-    withTilesetRef,
-  } = useValidInstances(viewerRef);
+  const instanceCallbacks = useValidInstances(
+    viewerRef,
+    imageryLayerRef,
+    primaryTilesetRef,
+    secondaryTilesetRef,
+    terrainProviderRef,
+    ellipsoidTerrainProviderRef,
+    surfaceProviderRef
+  );
+
+  const { withViewer, isValidViewer } = instanceCallbacks;
 
   // Asynchronous initialization of providers and imageryLayer
   useEffect(() => {
@@ -115,7 +118,7 @@ export const CesiumContextProvider = ({
     return () => {
       !isValidViewer() && abortController.abort();
     };
-  }, [providerConfig.terrainProvider.url, isValidViewer, isViewerReady]);
+  }, [providerConfig.terrainProvider.url, isViewerReady, isValidViewer]);
 
   useEffect(() => {
     if (!isViewerReady) {
@@ -200,73 +203,49 @@ export const CesiumContextProvider = ({
     };
   }, [tilesetConfigs.secondary, isViewerReady, isValidViewer]);
 
+  const bumpInitialCameraEpoch = useCallback(
+    () => setInitialCameraEpoch((v) => v + 1),
+    [setInitialCameraEpoch]
+  );
+  const requestRender = useCallback(
+    (opts) => {
+      const renderOnce = () => {
+        withViewer((viewer) => {
+          guardScene(viewer.scene, "ctx requestRender").requestRender();
+        });
+      };
+      handleDelayedRender(renderOnce, opts);
+    },
+    [withViewer]
+  );
+
   const contextValue = useMemo<CesiumContextType>(
     () => ({
       viewerRef,
       viewerAnimationMapRef,
       shouldSuspendPitchLimiterRef,
       shouldSuspendCameraLimitersRef,
-      isViewerReady,
       setIsViewerReady,
       initialCameraSettled,
       setInitialCameraSettled,
       initialCameraEpoch,
-      bumpInitialCameraEpoch: () => setInitialCameraEpoch((v) => v + 1),
+      bumpInitialCameraEpoch,
       subscribe,
       emit,
+      isViewerReady,
       // NOTE: Workaround for CesiumGS/cesium#12543 — delay/repeat options exist
       // to schedule additional renders in requestRenderMode when needed. These
       // options should be deprecated once upstream behavior is improved.
-      isValidViewer,
-      requestRender: (opts) => {
-        const renderOnce = () => {
-          withViewer((viewer) => {
-            guardScene(viewer.scene, "ctx requestRender").requestRender();
-          });
-        };
-        handleDelayedRender(renderOnce, opts);
-      },
-      withViewer,
-      withCamera: (cb) => withViewer((viewer) => cb(viewer.camera, viewer)),
-      withCanvas: (cb) => withViewer((viewer) => cb(viewer.canvas, viewer)),
-      withScene: (cb) => withViewer((viewer) => cb(viewer.scene, viewer)),
-      withEntities: (cb) => withViewer((viewer) => cb(viewer.entities, viewer)),
-      withImageryLayer: (cb) =>
-        withImageryLayerRef(imageryLayerRef, (imageryLayer, viewer) =>
-          cb(imageryLayer, viewer)
-        ),
-      withPrimaryTileset: (cb) =>
-        withTilesetRef(primaryTilesetRef, (tileset, viewer) =>
-          cb(tileset, viewer)
-        ),
-      withSecondaryTileset: (cb) =>
-        withTilesetRef(secondaryTilesetRef, (tileset, viewer) =>
-          cb(tileset, viewer)
-        ),
-      withEllipsoidTerrainProvider: (cb) =>
-        withEllipsoidTerrainProviderRef(
-          ellipsoidTerrainProviderRef,
-          (provider, viewer) => cb(provider, viewer)
-        ),
-      withTerrainProvider: (cb) =>
-        withTerrainProviderRef(terrainProviderRef, (provider, viewer) =>
-          cb(provider, viewer)
-        ),
-      withSurfaceProvider: (cb) =>
-        withTerrainProviderRef(surfaceProviderRef, (provider, viewer) =>
-          cb(provider, viewer)
-        ),
+      requestRender,
+      ...instanceCallbacks,
     }),
     [
       isViewerReady,
       initialCameraSettled,
       initialCameraEpoch,
-      isValidViewer,
-      withViewer,
-      withImageryLayerRef,
-      withTerrainProviderRef,
-      withEllipsoidTerrainProviderRef,
-      withTilesetRef,
+      bumpInitialCameraEpoch,
+      requestRender,
+      instanceCallbacks,
       subscribe,
       emit,
     ]
