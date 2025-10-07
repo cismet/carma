@@ -41,8 +41,14 @@ interface CameraState {
 }
 
 const postRenderHandlerMap: WeakMap<Viewer, () => void> = new WeakMap();
-const preUpdateHandlerMap: WeakMap<Viewer, () => void> = new WeakMap();
+const cameraChangedHandlerMap: WeakMap<Viewer, () => void> = new WeakMap();
 const initialViewSetMap: WeakMap<Viewer, boolean> = new WeakMap();
+
+const DEFAULT_HPR = new HeadingPitchRange(
+  CesiumMath.toRadians(0),
+  CesiumMath.toRadians(-45),
+  700
+);
 
 export const useInitializeViewer = (
   containerRef?: React.RefObject<HTMLDivElement>,
@@ -60,25 +66,9 @@ export const useInitializeViewer = (
     withViewer,
     setInitialCameraSettled,
   } = useCesiumContext();
+
   const home = useSelector(selectViewerHome);
   const homeOffset = useSelector(selectViewerHomeOffset);
-
-  // align Cesium Default fallback with local home
-  if (home) {
-    const { longitude, latitude } = Cartographic.fromCartesian(home);
-    const rect = new Rectangle(longitude, latitude, longitude, latitude);
-
-    Camera.DEFAULT_VIEW_RECTANGLE = rect;
-  }
-  Camera.DEFAULT_OFFSET = new HeadingPitchRange(
-    CesiumMath.toRadians(0),
-    CesiumMath.toRadians(-45),
-    700
-  );
-
-  // Store camera position and orientation vectors
-  const lastGoodCameraState = useRef<CameraState | null>(null);
-
   const isSecondaryStyle = useSelector(selectShowSecondaryTileset);
   const minZoom = useSelector(
     selectScreenSpaceCameraControllerMinimumZoomDistance
@@ -92,20 +82,39 @@ export const useInitializeViewer = (
 
   const isMode2d = useSelector(selectViewerIsMode2d);
 
+  // Store camera position and orientation vectors
+  const lastGoodCameraState = useRef<CameraState | null>(null);
+
   console.debug("HOOK: useInitializeViewer");
 
+  // override cesium default home
   useEffect(() => {
-    console.debug("HOOK: [CESIUM] init CustomViewer");
+    // align Cesium Default fallback with local home
+    if (home) {
+      console.debug(
+        "HOOK: [CESIUM|INIT] override default cesium with configured home",
+        home
+      );
+      const { longitude, latitude } = Cartographic.fromCartesian(home);
+      const rect = new Rectangle(longitude, latitude, longitude, latitude);
+
+      Camera.DEFAULT_VIEW_RECTANGLE = rect;
+      Camera.DEFAULT_OFFSET = DEFAULT_HPR;
+    }
+  }, [home]);
+
+  useEffect(() => {
+    console.debug("HOOK: [CESIUM|INIT] init CustomViewer");
     if (containerRef?.current) {
       try {
         // Reuse existing viewer if it exists and isn't destroyed
         if (isValidViewer()) {
-          console.debug("HOOK: [CESIUM] Reusing existing viewer instance");
+          console.debug("HOOK: [CESIUM|INIT] Reusing existing viewer instance");
           return;
         }
 
         console.debug(
-          "HOOK: [CESIUM] new init CustomViewer",
+          "HOOK: [CESIUM|INIT] new init CustomViewer",
           containerRef,
           Date.now(),
           options,
@@ -134,6 +143,7 @@ export const useInitializeViewer = (
         };
 
         const handleValidCameraPosition = () => {
+          //console.debug("v", viewerRef.current?.scene.requestRenderMode);
           if (shouldSuspendCameraLimitersRef?.current) return;
           if (!home) return;
           withCamera((camera) => {
@@ -172,8 +182,9 @@ export const useInitializeViewer = (
         };
 
         withScene((scene, viewer) => {
-          scene.preUpdate.addEventListener(handleValidCameraPosition);
-          preUpdateHandlerMap.set(viewer, handleValidCameraPosition);
+          console.debug("[CESIUM|INIT|CAMERA] add listener for camera limiter");
+          viewer.camera.changed.addEventListener(handleValidCameraPosition);
+          cameraChangedHandlerMap.set(viewer, handleValidCameraPosition);
 
           scene.postRender.addEventListener(handlePostRender);
           postRenderHandlerMap.set(viewer, handlePostRender);
@@ -193,14 +204,14 @@ export const useInitializeViewer = (
             postRenderHandlerMap.delete(viewer);
           }
 
-          const handlePreUpdate = preUpdateHandlerMap.get(viewer);
-          if (handlePreUpdate) {
-            viewer.scene.preUpdate.removeEventListener(handlePreUpdate);
-            preUpdateHandlerMap.delete(viewer);
+          const handleCameraChanged = cameraChangedHandlerMap.get(viewer);
+          if (handleCameraChanged) {
+            viewer.camera.changed.removeEventListener(handleCameraChanged);
+            cameraChangedHandlerMap.delete(viewer);
           }
         });
         console.info(
-          "RENDER: [CESIUM] CustomViewer cleanup - preserving viewer instance"
+          "RENDER: [CESIUM|INIT] CustomViewer cleanup - preserving viewer instance"
         );
         // Don't destroy the viewer - keep it for reuse when returning to 3D
       }
@@ -223,8 +234,9 @@ export const useInitializeViewer = (
   ]);
 
   useEffect(() => {
-    console.debug("HOOK: useInitializeViewer useEffect scene settings");
     withScene((scene) => {
+      console.debug("HOOK:[CESIUM|INIT|SCENE] setup scene settings");
+
       const sscc: ScreenSpaceCameraController =
         scene.screenSpaceCameraController;
 
@@ -254,12 +266,6 @@ export const useInitializeViewer = (
         "[CESIUM|INIT|SETTLE] applying:false (begin applying initial view)"
       );
     }
-    const hasHome = !!home && !!homeOffset;
-    if (!hasHome) {
-      console.warn(
-        "HOOK: [2D3D|CESIUM|CAMERA] initViewer has no home or homeOffset yet; applying hash camera without validation"
-      );
-    }
 
     let alreadySet = false;
     withViewer((viewer) => {
@@ -275,6 +281,13 @@ export const useInitializeViewer = (
         "[CESIUM|INIT|SETTLE] reuse:true -> state:true (already applied)"
       );
       return;
+    }
+
+    const hasHome = !!home && !!homeOffset;
+    if (!hasHome) {
+      console.warn(
+        "HOOK: [2D3D|CESIUM|CAMERA] initViewer has no home or homeOffset yet; applying hash camera without validation"
+      );
     }
 
     let willFlyHome = false;
