@@ -13,6 +13,10 @@ import "leaflet/dist/leaflet.css";
 import { PersistGate } from "redux-persist/integration/react";
 import { persistStore } from "redux-persist";
 import { MapMeasurementsProvider } from "@carma-commons/measurements";
+import {
+  GazDataProvider,
+  SelectionProvider,
+} from "@carma-appframeworks/portals";
 
 const persistor = persistStore(store);
 
@@ -23,11 +27,15 @@ root.render(
   <StrictMode>
     <Provider store={store}>
       <PersistGate loading={null} persistor={persistor}>
-        <MapMeasurementsProvider>
-          <TopicMapContextProvider>
-            <App />
-          </TopicMapContextProvider>
-        </MapMeasurementsProvider>
+        <GazDataProvider>
+          <SelectionProvider>
+            <MapMeasurementsProvider>
+              <TopicMapContextProvider>
+                <App />
+              </TopicMapContextProvider>
+            </MapMeasurementsProvider>
+          </SelectionProvider>
+        </GazDataProvider>
       </PersistGate>
     </Provider>
   </StrictMode>
