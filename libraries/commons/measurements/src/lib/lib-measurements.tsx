@@ -13,7 +13,7 @@ import makeMeasureActiveIcon from "./assets/measure-active.png";
 import "./styles/m-style.css";
 import useDeviceDetection from "./hooks/useDeviceDetection";
 import { useMapMeasurementsContext } from "./components/MapMeasurementsProvider";
-import { MapMeasurementProps, MeasurementShapeDrawing } from "../index.d.ts";
+import { MapMeasurementProps, MeasurementShapeDrawing } from "..";
 
 export function MapMeasurementsObjects({
   mode: propMode,
