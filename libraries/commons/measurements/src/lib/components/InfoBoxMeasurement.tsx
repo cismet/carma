@@ -9,19 +9,7 @@ import { Tooltip } from "antd";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { ResponsiveInfoBox } from "@carma-appframeworks/portals";
 import { useMapMeasurementsContext } from "./MapMeasurementsProvider";
-
-export interface MeasurementShape {
-  shapeId: number | string;
-  distance?: number;
-  area?: number;
-  customTitle?: string;
-  shapeType?: "line" | "polygon" | string;
-  [key: string]: unknown;
-}
-
-export interface InfoBoxMeasurementProps {
-  collapsedInfoBox?: boolean;
-}
+import { InfoBoxMeasurementProps, MeasurementShape } from "../../index.d.ts";
 
 export function InfoBoxMeasurement({}: InfoBoxMeasurementProps) {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);

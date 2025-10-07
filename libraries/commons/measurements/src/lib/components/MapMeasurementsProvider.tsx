@@ -1,53 +1,10 @@
 import { createContext, useContext, useEffect, useState } from "react";
-export type ActiveShape = null | number | string | any;
-export enum MEASUREMENT_MODE {
-  DEFAULT = "default",
-  MEASUREMENT = "measurement",
-}
-export interface MapMeasurementsContextType {
-  mode: MEASUREMENT_MODE;
-  setMode: (mode: MEASUREMENT_MODE) => void;
-  shapes: any[];
-  setShapes: (shapes: any[]) => void;
-  activeShape: ActiveShape;
-  setActiveShape: (shape: ActiveShape) => void;
-  visibleShapes: any[];
-  setVisibleShapes: (shapes: any[]) => void;
+import {
+  MEASUREMENT_MODE,
+  ActiveShape,
+  MapMeasurementsContextType,
+} from "../../index.d.ts";
 
-  showAll: boolean;
-  deleteAll: boolean;
-  drawingShape: boolean;
-  lastActiveShapeBeforeDrawing: null | any;
-  moveToShape: null | any;
-  updateShape: boolean;
-  mapMovingEnd: boolean;
-  updateTitleStatus: boolean;
-  setDrawingShape: (drawingShape: boolean) => void;
-  setShowAll: (showAll: boolean) => void;
-  setDeleteAll: (deleteAll: boolean) => void;
-  setMoveToShape: (moveToShape: any) => void;
-  setUpdateShape: (updateShape: boolean) => void;
-  setMapMovingEnd: (mapMovingEnd: boolean) => void;
-  setUpdateTitleStatus: (updateTitleStatus: boolean) => void;
-  setLastActiveShapeBeforeDrawing: (lastActiveShapeBeforeDrawing: any) => void;
-  addShape: (layer: any) => void;
-  deleteShapeById: (shapeId: string) => void;
-  deleteVisibleShapeById: (shapeId: string) => void;
-  updateShapeById: (
-    shapeId: string,
-    newCoordinates?: any,
-    newDistance?: number,
-    newSquare?: number | null
-  ) => void;
-  setLastVisibleShapeActive: () => void;
-  setDrawingWithLastActiveShape: () => void;
-  setActiveShapeIfDrawCancelled: () => void;
-  toggleMeasurementMode: () => void;
-  updateAreaOfDrawing: (newArea: number) => void;
-  updateTitle: (shapeId: string | number, customTitle: string) => void;
-  setStartDrawing: (status: boolean) => void;
-  startDrawing: boolean;
-}
 export const MapMeasurementsContext = createContext<MapMeasurementsContextType>(
   {
     mode: MEASUREMENT_MODE.DEFAULT,
@@ -114,17 +71,17 @@ export const MapMeasurementsProvider = ({
   const [updateTitleStatus, setUpdateTitleStatus] = useState(false);
   const [startDrawing, setStartDrawing] = useState(false);
 
-  useEffect(() => {
-    console.log("xxx shapes", shapes);
-  }, [shapes]);
+  // useEffect(() => {
+  //   console.log("xxx shapes", shapes);
+  // }, [shapes]);
 
-  useEffect(() => {
-    console.log("xxx visibleShapes", visibleShapes);
-  }, [visibleShapes]);
+  // useEffect(() => {
+  //   console.log("xxx visibleShapes", visibleShapes);
+  // }, [visibleShapes]);
 
-  useEffect(() => {
-    console.log("xxx activeShape", activeShape);
-  }, [activeShape]);
+  // useEffect(() => {
+  //   console.log("xxx activeShape", activeShape);
+  // }, [activeShape]);
 
   const addShape = (layer: any) => {
     setShapes((prevShapes) => [...prevShapes, layer]);

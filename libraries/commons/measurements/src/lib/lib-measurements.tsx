@@ -13,20 +13,7 @@ import makeMeasureActiveIcon from "./assets/measure-active.png";
 import "./styles/m-style.css";
 import useDeviceDetection from "./hooks/useDeviceDetection";
 import { useMapMeasurementsContext } from "./components/MapMeasurementsProvider";
-
-export interface MeasurementShape {
-  shapeId: number | string;
-  number: number;
-  coordinates?: unknown;
-  [key: string]: unknown;
-}
-
-export type UIModeType = string | "measurement" | "default";
-export interface MapMeasurementProps {
-  mode?: UIModeType;
-  polygonActiveIcon?: string;
-  polygonIcon?: string;
-}
+import { MapMeasurementProps, MeasurementShapeDrawing } from "../index.d.ts";
 
 export function MapObjects({
   mode,
@@ -263,8 +250,8 @@ export function MapObjects({
 
 function filterArrByIds(
   arrIds: (string | number)[],
-  fullArray: MeasurementShape[]
-): MeasurementShape[] {
+  fullArray: MeasurementShapeDrawing[]
+): MeasurementShapeDrawing[] {
   const finalResult: MeasurementShape[] = [];
   fullArray.forEach((currentItem) => {
     if (arrIds.includes(currentItem.shapeId)) {
@@ -275,7 +262,7 @@ function filterArrByIds(
   return finalResult;
 }
 
-function findLargestNumber(measurements: MeasurementShape[]): number {
+function findLargestNumber(measurements: MeasurementShapeDrawing[]): number {
   let largestNumber = 0;
 
   measurements.forEach((item) => {

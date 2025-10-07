@@ -1,14 +1,5 @@
 import { useState, useEffect } from "react";
-
-interface MeasurementTitleProps {
-  title: string;
-  shapeId: number | string;
-  order: number;
-  updateTitleMeasurementById: (shapeId: number | string, title: string) => void;
-  setUpdateMeasurementStatus: (status: boolean) => void;
-  isCollapsed?: boolean;
-  collapsedContent?: string;
-}
+import { MeasurementTitleProps } from "../../index.d.ts";
 
 const MeasurementTitle = ({
   title,
