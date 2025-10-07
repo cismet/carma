@@ -82,6 +82,11 @@ export const pickViewerCanvasPositions = (
   let results: PickResult[] = [];
 
   ctx.withScene((scene) => {
+    if (scene.pickPositionSupported === false) {
+      console.debug("Scene pickPositionSupported is false");
+      return results;
+    }
+
     const canvasDimensions: CanvasDimensions = getCanvasDimensions(
       scene.canvas as HTMLCanvasElement
     );
@@ -182,6 +187,7 @@ function getLastGroundPrimitive(
   return lastGroundPrimitive;
 }
 
+// only used in playground
 export function pickFromClampedGeojson(
   ctx: CesiumContextType,
   position: Cartesian2,
