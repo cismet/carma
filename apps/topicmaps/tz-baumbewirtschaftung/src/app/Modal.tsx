@@ -122,7 +122,13 @@ const groupActionsByKey = (actions: Action[]) => {
   return grouped;
 };
 
-const getTimelineForActions = (actions: Action[], baseUrl?: string, allPhotos?: string[], lightBoxDispatchContext?: any, setOpen?: (open: boolean) => void) => {
+const getTimelineForActions = (
+  actions: Action[],
+  baseUrl?: string,
+  allPhotos?: string[],
+  lightBoxDispatchContext?: any,
+  setOpen?: (open: boolean) => void
+) => {
   if (actions.length === 0) return null;
 
   const groupedActions = groupActionsByKey(actions);
@@ -164,7 +170,8 @@ const getTimelineForActions = (actions: Action[], baseUrl?: string, allPhotos?: 
                   : null;
 
                 // Find the index of this image in the allPhotos array
-                const photoIndex = allPhotos?.findIndex(photo => photo === actionImage) ?? -1;
+                const photoIndex =
+                  allPhotos?.findIndex((photo) => photo === actionImage) ?? -1;
 
                 return (
                   <Timeline.Item
@@ -216,7 +223,11 @@ const getTimelineForActions = (actions: Action[], baseUrl?: string, allPhotos?: 
                           src={actionImage}
                           alt="Aktion"
                           onClick={() => {
-                            if (lightBoxDispatchContext && photoIndex >= 0 && setOpen) {
+                            if (
+                              lightBoxDispatchContext &&
+                              photoIndex >= 0 &&
+                              setOpen
+                            ) {
                               setOpen(false);
                               lightBoxDispatchContext.setIndex(photoIndex);
                               lightBoxDispatchContext.setVisible(true);
@@ -229,7 +240,9 @@ const getTimelineForActions = (actions: Action[], baseUrl?: string, allPhotos?: 
                             borderRadius: "4px",
                             flexShrink: 0,
                             marginRight: "8px",
-                            cursor: lightBoxDispatchContext ? "pointer" : "default",
+                            cursor: lightBoxDispatchContext
+                              ? "pointer"
+                              : "default",
                           }}
                         />
                       )}
@@ -285,7 +298,7 @@ const SecondaryInfoModal = ({
   const header = p.info?.header || "Baumbewirtschaftung";
   const latestStatus = p.latestActionStatus || "none";
   const statusEmoji = getStatusEmoji(latestStatus);
-  
+
   // Get all photos from info
   const allPhotos = p.info?.fotos || [];
 
@@ -371,7 +384,13 @@ const SecondaryInfoModal = ({
           <Panel header={"Verlauf"} eventKey="1" bsStyle="info">
             {actions.length > 0 ? (
               <div style={{ marginTop: "8px" }}>
-                {getTimelineForActions(actions, baseUrl, allPhotos, lightBoxDispatchContext, setOpen)}
+                {getTimelineForActions(
+                  actions,
+                  baseUrl,
+                  allPhotos,
+                  lightBoxDispatchContext,
+                  setOpen
+                )}
               </div>
             ) : (
               <div

@@ -53,13 +53,13 @@
     padding: 4px 2px !important;
     line-height: 1.2 !important;
   }
-  
+
   .status-emoji {
     display: block;
     margin-right: 0;
     margin-bottom: 2px;
   }
-  
+
   .status-text {
     display: block;
     font-size: 9px;

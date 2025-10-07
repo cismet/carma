@@ -149,7 +149,10 @@ const TZBaumbewirtschaftung = () => {
                 versionData={versionData}
                 bigMobileIconsInsteadOfCollapsing={true}
                 Modal={(props: any) => (
-                  <Modal {...props} lightBoxDispatchContext={lightBoxDispatchContext} />
+                  <Modal
+                    {...props}
+                    lightBoxDispatchContext={lightBoxDispatchContext}
+                  />
                 )}
               />
             }
@@ -211,18 +214,20 @@ const TZBaumbewirtschaftung = () => {
           onCancel={() => {
             console.log("Status dialog cancelled");
           }}
-          onClose={((parameter: any) => {
-            console.log("Status changed:", parameter);
-            // Mock: Update feature status
-            if (selectedFeature) {
-              console.log(
-                "Would update feature:",
-                selectedFeature.id,
-                "with:",
-                parameter
-              );
-            }
-          }) as any}
+          onClose={
+            ((parameter: any) => {
+              console.log("Status changed:", parameter);
+              // Mock: Update feature status
+              if (selectedFeature) {
+                console.log(
+                  "Would update feature:",
+                  selectedFeature.id,
+                  "with:",
+                  parameter
+                );
+              }
+            }) as any
+          }
         />
       )}
     </div>
