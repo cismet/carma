@@ -58,6 +58,7 @@ export const MapMeasurementsContext = createContext<MapMeasurementsContextType>(
     updateTitle: (_shapeId: string | number, _customTitle: string) => {},
     setStartDrawing: (status: boolean) => {},
     startDrawing: false,
+    config: defaultConfig,
   }
 );
 
