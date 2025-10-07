@@ -34,7 +34,7 @@ export const BASEMAP_METROPOLRUHR_WMS_GRUNDRISS = {
   parameters: DEFAULT_WMS_IMAGE_PROVIDER_PARAMETERS,
 };
 
-export const BASEMAP_METROPOLRUHR_WMS_GRAUBLAU = {
+export const BASEMAP_METROPOLE_RUHR_WMS_GRAUBLAU = {
   url: "https://geodaten.metropoleruhr.de/spw2/service",
   layers: "spw2_graublau",
   parameters: DEFAULT_WMS_IMAGE_PROVIDER_PARAMETERS,
