@@ -54,10 +54,13 @@ export const MapMeasurementsContext = createContext<MapMeasurementsContextType>(
 
 export const MapMeasurementsProvider = ({
   children,
+  mode,
+  setMode,
 }: {
   children: React.ReactNode;
+  mode: MEASUREMENT_MODE;
+  setMode: (mode: MEASUREMENT_MODE) => void;
 }) => {
-  const [mode, setMode] = useState<MEASUREMENT_MODE>(MEASUREMENT_MODE.DEFAULT);
   const [activeShape, setActiveShape] = useState<ActiveShape>(null);
   const [shapes, setShapes] = useState<any[]>([]);
   const [visibleShapes, setVisibleShapes] = useState<any[]>([]);
