@@ -35,20 +35,32 @@ import {
   createInfoBoxControlObject,
   enrichFeatureCollection,
 } from "./helper/treeHelper";
+import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
 
+type LightboxDispatch = {
+  setPhotoUrls: (urls: string[]) => void;
+  setIndex: (i: number) => void;
+  setTitle: (t: string) => void;
+  setCaptions: (t: string[]) => void;
+  setVisible: (v: boolean) => void;
+};
 const baseUrl = window.location.origin + window.location.pathname;
 
 const TZBaumbewirtschaftung = () => {
-  const { markerSymbolSize } = useContext(TopicMapStylingContext);
-  const { clusteringOptions } = useContext(FeatureCollectionContext);
-  const [selectedFeature, setSelectedFeature] = useState();
-  const [featureCollection, setFeatureCollection] = useState();
+  const { markerSymbolSize } = useContext(TopicMapStylingContext) as any;
+  const { clusteringOptions } = useContext(FeatureCollectionContext) as any;
+  const [selectedFeature, setSelectedFeature] = useState<any>();
+  const [featureCollection, setFeatureCollection] = useState<any>();
   const [showStatusDialog, setShowStatusDialog] = useState(false);
   const { responsiveState, gap, windowSize } = useContext(
     ResponsiveTopicMapContext
-  );
+  ) as any;
   useSelectionTopicMap();
-  const { appKey } = useContext(TopicMapContext);
+  const lightBoxDispatchContext = useContext(
+    LightBoxDispatchContext
+  ) as LightboxDispatch;
+
+  const { appKey } = useContext(TopicMapContext) as any;
   const dataUrl =
     import.meta.env.VITE_WUPP_ASSET_BASEURL +
     "/data/4326/tz_baumbewirtschaftung.json";
@@ -60,6 +72,25 @@ const TZBaumbewirtschaftung = () => {
       setFeatureCollection(enriched);
     })();
   }, []);
+
+  useEffect(() => {
+    if (
+      selectedFeature &&
+      selectedFeature.properties?.info?.fotoCaptions &&
+      selectedFeature.properties?.info?.fotoCaptions.length > 0
+    ) {
+      console.log("xxx xxx selectedFeature", selectedFeature);
+      lightBoxDispatchContext.setCaptions(
+        selectedFeature.properties?.info?.fotoCaptions
+      );
+      // const photos = selectedFeature.properties.originalPhotos;
+      // const urls = selectedFeature.properties.fotos;
+      // const titleArr = photos.map((p) => p.anzeige);
+      // lightBoxDispatchContext.setPhotoUrls(urls);
+      // lightBoxDispatchContext.setCaptions(titleArr);
+      // lightBoxDispatchContext.setIndex(0);
+    }
+  }, [selectedFeature]);
 
   const treeStyle = useTreeStyle(featureCollection, markerSymbolSize);
 
@@ -117,7 +148,9 @@ const TZBaumbewirtschaftung = () => {
                 selectedFeature={selectedFeature}
                 versionData={versionData}
                 bigMobileIconsInsteadOfCollapsing={true}
-                Modal={Modal}
+                Modal={(props: any) => (
+                  <Modal {...props} lightBoxDispatchContext={lightBoxDispatchContext} />
+                )}
               />
             }
             contactButtonEnabled={false}
@@ -144,13 +177,20 @@ const TZBaumbewirtschaftung = () => {
                       //     }
                       //   );
 
+                      // Parse actions first before creating info object
+                      feature.properties.actions = JSON.parse(
+                        feature.properties.actions
+                      );
+
                       // add infoBoxControlObject
                       feature.properties.info = createInfoBoxControlObject(
                         feature,
                         baseUrl,
                         setShowStatusDialog
                       );
+                      feature.text = feature.properties.info.puretitle;
 
+                      console.log("xxx feature", feature);
                       setSelectedFeature(feature);
                     } else {
                       setSelectedFeature(undefined);
@@ -171,7 +211,7 @@ const TZBaumbewirtschaftung = () => {
           onCancel={() => {
             console.log("Status dialog cancelled");
           }}
-          onClose={(parameter) => {
+          onClose={((parameter: any) => {
             console.log("Status changed:", parameter);
             // Mock: Update feature status
             if (selectedFeature) {
@@ -182,7 +222,7 @@ const TZBaumbewirtschaftung = () => {
                 parameter
               );
             }
-          }}
+          }) as any}
         />
       )}
     </div>

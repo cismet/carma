@@ -115,7 +115,6 @@ const bgConf = {
     title: "Stadtplan",
   },
 };
-console.log("xxx bgconf", bgConf);
 function App() {
   const { progress, showProgress, handleProgressUpdate } = useProgress();
 

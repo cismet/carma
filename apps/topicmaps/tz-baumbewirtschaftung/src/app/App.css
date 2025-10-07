@@ -36,3 +36,33 @@
     transform: rotate(360deg);
   }
 }
+
+/* Status Dialog - Responsive Text/Emoji Display */
+.status-emoji {
+  display: inline;
+  margin-right: 6px;
+}
+
+.status-text {
+  display: inline;
+}
+
+@media (max-width: 550px) {
+  .ant-radio-button-wrapper {
+    height: auto !important;
+    padding: 4px 2px !important;
+    line-height: 1.2 !important;
+  }
+  
+  .status-emoji {
+    display: block;
+    margin-right: 0;
+    margin-bottom: 2px;
+  }
+  
+  .status-text {
+    display: block;
+    font-size: 9px;
+    line-height: 1.1;
+  }
+}
