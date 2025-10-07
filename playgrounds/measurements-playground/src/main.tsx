@@ -33,6 +33,7 @@ const MeasurementsProviderWrapper = ({
   const dispatch = useDispatch<AppDispatch>();
   const measurementsConfig = {
     editableTitle: false,
+    infoBoxHeaderColor: "#22c55e",
   };
 
   const mode =

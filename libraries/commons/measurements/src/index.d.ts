@@ -107,4 +107,5 @@ export interface MeasurementControlProps {
 
 export interface MeasurementConfig {
   editableTitle: boolean;
+  infoBoxHeaderColor: string;
 }
