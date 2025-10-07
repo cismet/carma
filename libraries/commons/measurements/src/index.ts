@@ -4,5 +4,5 @@ export {
   MapMeasurementsProvider,
   useMapMeasurementsContext,
 } from "./lib/components/MapMeasurementsProvider";
-export { MapObjects } from "./lib/lib-measurements";
+export { MapMeasurementsObjects } from "./lib/lib-measurements";
 export * from "./index.d";

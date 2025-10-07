@@ -1,6 +1,9 @@
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import { suppressReactCismapErrors } from "@carma-commons/utils";
-import { MeasurementControl, MapObjects } from "@carma-commons/measurements";
+import {
+  MeasurementControl,
+  MapMeasurementsObjects,
+} from "@carma-commons/measurements";
 import { ZoomControl } from "@carma-mapping/components";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
@@ -39,7 +42,7 @@ export function App() {
         zoomControls={false}
         leafletMapProps={{ editable: true }}
       >
-        <MapObjects />
+        <MapMeasurementsObjects />
       </TopicMapComponent>
     </>
   );

@@ -11,9 +11,11 @@ import "./styles.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import "leaflet/dist/leaflet.css";
-import { PersistGate } from "redux-persist/integration/react";
 import { persistStore } from "redux-persist";
-import { MapMeasurementsProvider, MEASUREMENT_MODE } from "@carma-commons/measurements";
+import {
+  MapMeasurementsProvider,
+  MEASUREMENT_MODE,
+} from "@carma-commons/measurements";
 import {
   GazDataProvider,
   SelectionProvider,
@@ -21,16 +23,26 @@ import {
 import { getUIMode, setUIMode, UIMode } from "./app/store/slices/ui";
 
 // Wrapper component to connect Redux to MapMeasurementsProvider
-const MeasurementsProviderWrapper = ({ children }: { children: React.ReactNode }) => {
+const MeasurementsProviderWrapper = ({
+  children,
+}: {
+  children: React.ReactNode;
+}) => {
   const uiMode = useSelector(getUIMode);
   const dispatch = useDispatch<AppDispatch>();
-  
-  const mode = uiMode === UIMode.MEASUREMENT ? MEASUREMENT_MODE.MEASUREMENT : MEASUREMENT_MODE.DEFAULT;
+
+  const mode =
+    uiMode === UIMode.MEASUREMENT
+      ? MEASUREMENT_MODE.MEASUREMENT
+      : MEASUREMENT_MODE.DEFAULT;
   const handleSetMode = (newMode: MEASUREMENT_MODE) => {
-    const newUIMode = newMode === MEASUREMENT_MODE.MEASUREMENT ? UIMode.MEASUREMENT : UIMode.DEFAULT;
+    const newUIMode =
+      newMode === MEASUREMENT_MODE.MEASUREMENT
+        ? UIMode.MEASUREMENT
+        : UIMode.DEFAULT;
     dispatch(setUIMode(newUIMode));
   };
-  
+
   return (
     <MapMeasurementsProvider mode={mode} setMode={handleSetMode}>
       {children}
@@ -46,17 +58,15 @@ const root = ReactDOM.createRoot(
 root.render(
   <StrictMode>
     <Provider store={store}>
-      <PersistGate loading={null} persistor={persistor}>
-        <GazDataProvider>
-          <SelectionProvider>
-            <MeasurementsProviderWrapper>
-              <TopicMapContextProvider>
-                <App />
-              </TopicMapContextProvider>
-            </MeasurementsProviderWrapper>
-          </SelectionProvider>
-        </GazDataProvider>
-      </PersistGate>
+      <GazDataProvider>
+        <SelectionProvider>
+          <MeasurementsProviderWrapper>
+            <TopicMapContextProvider>
+              <App />
+            </TopicMapContextProvider>
+          </MeasurementsProviderWrapper>
+        </SelectionProvider>
+      </GazDataProvider>
     </Provider>
   </StrictMode>
 );

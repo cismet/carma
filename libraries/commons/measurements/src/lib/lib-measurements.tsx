@@ -15,7 +15,7 @@ import useDeviceDetection from "./hooks/useDeviceDetection";
 import { useMapMeasurementsContext } from "./components/MapMeasurementsProvider";
 import { MapMeasurementProps, MeasurementShapeDrawing } from "../index.d.ts";
 
-export function MapObjects({
+export function MapMeasurementsObjects({
   mode: propMode,
   polygonActiveIcon,
   polygonIcon,
