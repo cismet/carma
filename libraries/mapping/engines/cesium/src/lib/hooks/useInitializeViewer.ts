@@ -57,6 +57,7 @@ export const useInitializeViewer = (
 ) => {
   const {
     viewerRef,
+    sceneRef,
     isValidViewer,
     isViewerReady,
     setIsViewerReady,
@@ -122,6 +123,7 @@ export const useInitializeViewer = (
         );
         const viewer = new Viewer(containerRef.current, options);
         viewerRef.current = viewer;
+        sceneRef.current = viewer.scene;
         // Configure centralized error handling: suppress Cesium panel, don't crash ErrorBoundary by default, log warn
         configureCesiumErrorHandling(viewer, {
           suppressErrorPanel: true,

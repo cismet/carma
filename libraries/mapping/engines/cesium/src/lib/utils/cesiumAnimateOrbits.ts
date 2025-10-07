@@ -2,35 +2,38 @@ import {
   Cartesian3,
   HeadingPitchRange,
   Matrix4,
-  Viewer,
   Math as CesiumMath,
   Cartesian2,
+  type Scene,
 } from "cesium";
 
 import type { Radians } from "@carma/types";
 
-import { AnimationType, ViewerAnimationMap } from "./viewerAnimationMap";
-import type { CesiumContextType } from "../CesiumContext";
+import { AnimationType, AnimationMap } from "./animationMap";
+import {
+  isValidScene,
+  tryWithValidCamera,
+  tryWithValidScene,
+} from "./instanceGates";
 
 // TODO: consolidate cesium animation helper into separate package
-// see also viewerAnimationMap
+// see also animationMap
 
 export enum PITCH {
-  HORIZONTAL = 0,
-  OBLIQUE = CesiumMath.toRadians(-45),
-  ORTHO = CesiumMath.toRadians(-90),
+  HORIZONTAL = 0 as Radians,
+  OBLIQUE = CesiumMath.toRadians(-45) as Radians,
+  ORTHO = CesiumMath.toRadians(-90) as Radians,
 }
 
 /**
  * Get the point on the globe that the camera is currently orbiting around.
- * @param viewer The Cesium viewer.
+ * @param scene The Cesium scene.
  * @returns The point on the globe that the camera is currently orbiting around.
  */
-export const getOrbitPoint = (
-  ctx: CesiumContextType
-): Cartesian3 | undefined => {
-  let target: Cartesian3 | undefined;
-  ctx.withScene((scene) => {
+export const getOrbitPoint = (scene: Scene): Cartesian3 | undefined => {
+  let target: Cartesian3 | undefined = undefined;
+
+  tryWithValidScene(scene, (scene) => {
     const screenCenter = new Cartesian2(
       scene.canvas.clientWidth / 2,
       scene.canvas.clientHeight / 2
@@ -45,8 +48,8 @@ export const getOrbitPoint = (
 };
 
 function runAnimation(
-  viewer: Viewer,
-  viewerAnimationMap: ViewerAnimationMap,
+  scene: Scene,
+  animationMap: AnimationMap,
   target: Cartesian3,
   targetHeading: number,
   targetPitch: number,
@@ -54,9 +57,14 @@ function runAnimation(
   duration: number,
   animationType: AnimationType
 ) {
+  if (!isValidScene(scene)) {
+    console.error("runAnimation failed: no scene");
+    return;
+  }
+  const { camera } = scene;
   const startTime = performance.now();
-  const startHeading = viewer.scene.camera.heading || 0;
-  const startPitch = viewer.scene.camera.pitch || 0;
+  const startHeading = camera.heading || 0;
+  const startPitch = camera.pitch || 0;
 
   const animate = (time: number) => {
     const elapsed = time - startTime;
@@ -71,21 +79,28 @@ function runAnimation(
     const currentPitch =
       startPitch + (targetPitch - startPitch) * easeInOutQuad;
 
-    viewer.scene.camera.lookAt(
-      target,
-      new HeadingPitchRange(currentHeading, currentPitch, initialRange)
+    const hpr = new HeadingPitchRange(
+      currentHeading,
+      currentPitch,
+      initialRange
     );
+
+    tryWithValidCamera(camera, (camera) => {
+      camera.lookAt(target, hpr);
+    });
 
     if (t < 1) {
       const animationFrameId = requestAnimationFrame(animate);
-      viewerAnimationMap.set(viewer, {
+      animationMap.set(scene, {
         id: animationFrameId,
         type: animationType,
         cancelable: true,
       });
     } else {
-      viewer.scene.camera.lookAtTransform(Matrix4.IDENTITY);
-      viewerAnimationMap.delete(viewer); // Clear the animation entry
+      tryWithValidCamera(camera, (camera) => {
+        camera.lookAtTransform(Matrix4.IDENTITY);
+      });
+      animationMap.delete(scene); // Clear the animation entry
     }
   };
   animate(performance.now());
@@ -93,8 +108,8 @@ function runAnimation(
 
 /**
  * Animate the camera to a new position.
- * @param viewer The Cesium viewer.
- * @param viewerAnimationMap A WeakMap to store animation frame IDs.
+ * @param scene The Cesium scene.
+ * @param animationMap A WeakMap to store animation frame IDs.
  * @param target The target position.
  * @param targetHeading The target heading.
  * @param targetPitch The target pitch.
@@ -103,8 +118,8 @@ function runAnimation(
  * @param animationType The type of animation.
  */
 export const animateCamera = (
-  viewer: Viewer,
-  viewerAnimationMap: ViewerAnimationMap,
+  scene: Scene,
+  animationMap: AnimationMap,
   target: Cartesian3,
   targetHeading: number,
   targetPitch: number,
@@ -112,15 +127,26 @@ export const animateCamera = (
   duration: number,
   animationType: AnimationType = AnimationType.ResetView
 ) => {
-  const previousAnimation = viewerAnimationMap.get(viewer);
+  const previousAnimation = animationMap.get(scene);
+
+  if (!isValidScene(scene)) {
+    console.error("animateCamera failed: no scene");
+    return;
+  }
+
+  const { camera } = scene;
+
   if (previousAnimation) {
     if (previousAnimation.cancelable) {
       console.info(`Canceling previous ${previousAnimation.type} animation`);
       cancelAnimationFrame(previousAnimation.id);
-      viewer.scene.camera.lookAtTransform(Matrix4.IDENTITY);
+
+      tryWithValidCamera(camera, (camera) => {
+        camera.lookAtTransform(Matrix4.IDENTITY);
+      });
       runAnimation(
-        viewer,
-        viewerAnimationMap,
+        scene,
+        animationMap,
         target,
         targetHeading,
         targetPitch,
@@ -134,8 +160,8 @@ export const animateCamera = (
       );
       setTimeout(() => {
         runAnimation(
-          viewer,
-          viewerAnimationMap,
+          scene,
+          animationMap,
           target,
           targetHeading,
           targetPitch,
@@ -147,8 +173,8 @@ export const animateCamera = (
     }
   } else {
     runAnimation(
-      viewer,
-      viewerAnimationMap,
+      scene,
+      animationMap,
       target,
       targetHeading,
       targetPitch,

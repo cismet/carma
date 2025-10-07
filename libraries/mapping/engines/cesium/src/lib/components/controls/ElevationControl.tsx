@@ -1,4 +1,11 @@
-import { useState, useEffect, useRef, ChangeEvent, useMemo } from "react";
+import {
+  useState,
+  useEffect,
+  useRef,
+  ChangeEvent,
+  useMemo,
+  useCallback,
+} from "react";
 import { debounce } from "lodash";
 import { Cartesian3, Cartographic } from "cesium";
 
@@ -8,6 +15,7 @@ import { useCesiumContext } from "../../hooks/useCesiumContext";
 import { useCesiumViewer } from "../../hooks/useCesiumViewer";
 import { getPositionWithHeightAsync } from "../../utils/positions";
 import "./elevation-control.css";
+import { isValidScene } from "../../utils/instanceGates";
 
 const getNewPosition = (
   posCarto: Cartographic,
@@ -76,8 +84,7 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
 
   const [maxDisplayHeight, setMaxDisplayHeight] = useState<number>(10000); // Adjust as needed
   const controlRef = useRef<HTMLDivElement>(null);
-  const viewer = useCesiumViewer();
-  const ctx = useCesiumContext();
+  const { withElevationProvidersAsync, sceneRef } = useCesiumContext();
   const [alwaysShow, setAlwaysShow] = useState(false);
   const [clamp, setClamp] = useState(useClampedHeight);
   const [eventOption, setEventOption] = useState(updateEvent);
@@ -149,53 +156,56 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
   );
 
   useEffect(() => {
-    if (viewer && (alwaysShow || show)) {
+    const scene = sceneRef.current;
+    if (isValidScene(scene) && (alwaysShow || show)) {
       const update = () => {
         if (isUpdating.current) return;
         isUpdating.current = true;
-        const cameraPositionCartographic = viewer.camera.positionCartographic;
+        const cameraPositionCartographic = scene.camera.positionCartographic;
         const currentCameraHeight = cameraPositionCartographic.height;
         setCameraHeightFmt(`${cameraPositionCartographic.height.toFixed(0)}m`);
-        getPositionWithHeightAsync(ctx, cameraPositionCartographic, false).then(
-          (position) => {
-            setTerrainHeight(position.height);
-            setCameraRelHeightFmt(
-              `${(currentCameraHeight - position.height).toFixed(0)}m`
-            );
-            setTerrainHeightFmt(`${position.height.toFixed(0)}m`);
-            setCameraHeight(currentCameraHeight);
-            setEllipsoidHeight(localMinEllipsoidalHeight);
+        getPositionWithHeightAsync(
+          withElevationProvidersAsync,
+          cameraPositionCartographic,
+          false
+        ).then((position) => {
+          if (!position) return;
+          setTerrainHeight(position.height);
+          setCameraRelHeightFmt(
+            `${(currentCameraHeight - position.height).toFixed(0)}m`
+          );
+          setTerrainHeightFmt(`${position.height.toFixed(0)}m`);
+          setCameraHeight(currentCameraHeight);
+          setEllipsoidHeight(localMinEllipsoidalHeight);
 
-            // Update maxDisplayHeight based on current heights
-            const maxHeight = Math.max(
-              currentCameraHeight,
-              position.height,
-              initialMaxElevation
-            );
-            setMaxDisplayHeight(Math.min(maxHeight * 1.1, 50000));
+          // Update maxDisplayHeight based on current heights
+          const maxHeight = Math.max(
+            currentCameraHeight,
+            position.height,
+            initialMaxElevation
+          );
+          setMaxDisplayHeight(Math.min(maxHeight * 1.1, 50000));
 
-            if (clamp) {
-              getPositionWithHeightAsync(
-                ctx,
-                cameraPositionCartographic,
-                true
-              ).then((clampedPosition) => {
-                setClampedHeight(clampedPosition.height);
-                setCameraRelClampedHeightFmt(
-                  `${(currentCameraHeight - clampedPosition.height).toFixed(
-                    0
-                  )}m`
-                );
-                setClampedRelHeightFmt(
-                  `${(clampedPosition.height - position.height).toFixed(1)}m`
-                );
-                isUpdating.current = false;
-              });
-            } else {
+          if (clamp) {
+            getPositionWithHeightAsync(
+              withElevationProvidersAsync,
+              cameraPositionCartographic,
+              true
+            ).then((clampedPosition) => {
+              if (!clampedPosition) return;
+              setClampedHeight(clampedPosition.height);
+              setCameraRelClampedHeightFmt(
+                `${(currentCameraHeight - clampedPosition.height).toFixed(0)}m`
+              );
+              setClampedRelHeightFmt(
+                `${(clampedPosition.height - position.height).toFixed(1)}m`
+              );
               isUpdating.current = false;
-            }
+            });
+          } else {
+            isUpdating.current = false;
           }
-        );
+        });
       };
 
       // todo provide these heights and position somewhere centralized state,
@@ -204,20 +214,20 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
       debouncedUpdate();
       updateHeight.current = update;
 
-      viewer.camera.changed.removeEventListener(debouncedUpdate);
-      viewer.scene.preRender.removeEventListener(debouncedUpdate);
-      viewer.scene.preUpdate.removeEventListener(debouncedUpdate);
+      scene.camera.changed.removeEventListener(debouncedUpdate);
+      scene.preRender.removeEventListener(debouncedUpdate);
+      scene.preUpdate.removeEventListener(debouncedUpdate);
 
       switch (eventOption) {
         case "cameraChanged":
-          viewer.camera.percentageChanged = 0.01;
-          viewer.camera.changed.addEventListener(debouncedUpdate);
+          scene.camera.percentageChanged = 0.01;
+          scene.camera.changed.addEventListener(debouncedUpdate);
           break;
         case "scenePreRender":
-          viewer.scene.preRender.addEventListener(debouncedUpdate);
+          scene.preRender.addEventListener(debouncedUpdate);
           break;
         case "scenePreUpdate":
-          viewer.scene.preUpdate.addEventListener(debouncedUpdate);
+          scene.preUpdate.addEventListener(debouncedUpdate);
           break;
         default:
           break;
@@ -225,13 +235,13 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
       return () => {
         switch (eventOption) {
           case "cameraChanged":
-            viewer.camera.changed.removeEventListener(debouncedUpdate);
+            scene.camera.changed.removeEventListener(debouncedUpdate);
             break;
           case "scenePreRender":
-            viewer.scene.preRender.removeEventListener(debouncedUpdate);
+            scene.preRender.removeEventListener(debouncedUpdate);
             break;
           case "scenePreUpdate":
-            viewer.scene.preUpdate.removeEventListener(debouncedUpdate);
+            scene.preUpdate.removeEventListener(debouncedUpdate);
             break;
           default:
             break;
@@ -239,48 +249,48 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
       };
     }
   }, [
-    viewer,
+    sceneRef,
     alwaysShow,
     show,
     clamp,
     eventOption,
     localMinEllipsoidalHeight,
     initialMaxElevation,
+    withElevationProvidersAsync,
   ]);
 
   useEffect(() => {
-    if (viewer) {
-      const factor = displayHeight / maxDisplayHeight;
-      const clampedHeightDisplayPosition =
-        (clampedHeight - ellipsoidHeight) * factor;
-      const terrainHeightDisplayPosition =
-        (terrainHeight - ellipsoidHeight) * factor;
-      const cameraHeightDisplayPosition =
-        (cameraHeight - ellipsoidHeight) * factor;
-      const cameraRelHeightDisplayPosition =
-        (terrainHeightDisplayPosition + cameraHeightDisplayPosition) / 2;
-      const cameraRelClampedHeightDisplayPosition = clamp
-        ? (clampedHeightDisplayPosition + cameraHeightDisplayPosition) / 2
-        : cameraRelHeightDisplayPosition;
-      const cameraMinElevationDisplayPosition =
-        (viewer?.scene.screenSpaceCameraController.minimumZoomDistance ?? 0) *
-          factor +
-        (clamp ? clampedHeightDisplayPosition : terrainHeightDisplayPosition);
+    const scene = sceneRef.current;
+    if (!isValidScene(scene)) return;
+    const factor = displayHeight / maxDisplayHeight;
+    const clampedHeightDisplayPosition =
+      (clampedHeight - ellipsoidHeight) * factor;
+    const terrainHeightDisplayPosition =
+      (terrainHeight - ellipsoidHeight) * factor;
+    const cameraHeightDisplayPosition =
+      (cameraHeight - ellipsoidHeight) * factor;
+    const cameraRelHeightDisplayPosition =
+      (terrainHeightDisplayPosition + cameraHeightDisplayPosition) / 2;
+    const cameraRelClampedHeightDisplayPosition = clamp
+      ? (clampedHeightDisplayPosition + cameraHeightDisplayPosition) / 2
+      : cameraRelHeightDisplayPosition;
+    const cameraMinElevationDisplayPosition =
+      (scene.screenSpaceCameraController.minimumZoomDistance ?? 0) * factor +
+      (clamp ? clampedHeightDisplayPosition : terrainHeightDisplayPosition);
 
-      setDisplayY({
-        factor,
-        camera: {
-          min: Math.round(cameraMinElevationDisplayPosition),
-          height: Math.round(cameraHeightDisplayPosition),
-          relativeToTerrain: Math.round(cameraRelHeightDisplayPosition),
-          relativeToClamped: Math.round(cameraRelClampedHeightDisplayPosition),
-        },
-        terrain: Math.round(terrainHeightDisplayPosition),
-        clamped: Math.round(clampedHeightDisplayPosition),
-      });
-    }
+    setDisplayY({
+      factor,
+      camera: {
+        min: Math.round(cameraMinElevationDisplayPosition),
+        height: Math.round(cameraHeightDisplayPosition),
+        relativeToTerrain: Math.round(cameraRelHeightDisplayPosition),
+        relativeToClamped: Math.round(cameraRelClampedHeightDisplayPosition),
+      },
+      terrain: Math.round(terrainHeightDisplayPosition),
+      clamped: Math.round(clampedHeightDisplayPosition),
+    });
   }, [
-    viewer,
+    sceneRef,
     terrainHeight,
     clampedHeight,
     cameraHeight,
@@ -292,33 +302,37 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
 
   console.debug("RENDER: [CESIUM] ElevationControl", alwaysShow, show);
 
-  const onChangeHandler = (e: ChangeEvent<HTMLInputElement>) => {
-    e.preventDefault();
-    const newValue = e.target.valueAsNumber;
-    if (
-      viewer &&
-      Math.abs(cameraHeight - newValue) > 0.05 &&
-      (!viewer.scene.screenSpaceCameraController.enableCollisionDetection ||
-        newValue >=
-          terrainHeight +
-            viewer.scene.screenSpaceCameraController.minimumZoomDistance * 0.5)
-    ) {
-      window.requestAnimationFrame(() => {
-        const newPosition = getNewPosition(
-          viewer.camera.positionCartographic,
-          newValue
-        );
-        viewer.camera.setView({
-          destination: newPosition,
-          orientation: {
-            direction: viewer.camera.direction.clone(),
-            up: viewer.camera.up.clone(),
-          },
+  const onChangeHandler = useCallback(
+    (e: ChangeEvent<HTMLInputElement>) => {
+      e.preventDefault();
+      const scene = sceneRef.current;
+      if (!isValidScene(scene)) return;
+      const newValue = e.target.valueAsNumber;
+      if (
+        Math.abs(cameraHeight - newValue) > 0.05 &&
+        (!scene.screenSpaceCameraController.enableCollisionDetection ||
+          newValue >=
+            terrainHeight +
+              scene.screenSpaceCameraController.minimumZoomDistance * 0.5)
+      ) {
+        window.requestAnimationFrame(() => {
+          const newPosition = getNewPosition(
+            scene.camera.positionCartographic,
+            newValue
+          );
+          scene.camera.setView({
+            destination: newPosition,
+            orientation: {
+              direction: scene.camera.direction.clone(),
+              up: scene.camera.up.clone(),
+            },
+          });
+          updateHeight.current && updateHeight.current();
         });
-        updateHeight.current && updateHeight.current();
-      });
-    }
-  };
+      }
+    },
+    [cameraHeight, terrainHeight, sceneRef]
+  );
 
   return (
     (alwaysShow || show) && (
@@ -353,7 +367,8 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
         >
           Höhe der Kamera
         </caption>
-        {viewer?.scene.screenSpaceCameraController.enableCollisionDetection && (
+        {sceneRef.current?.screenSpaceCameraController
+          .enableCollisionDetection && (
           <div
             style={{
               position: "absolute",

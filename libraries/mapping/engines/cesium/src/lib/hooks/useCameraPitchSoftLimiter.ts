@@ -10,7 +10,8 @@ import {
   setIsAnimating,
   clearIsAnimating,
 } from "../slices/cesium";
-import { pickViewerCanvasCenter } from "../utils/pickers";
+import { pickSceneCenter } from "../utils/pickers";
+import { isValidScene, tryWithValidCamera } from "../utils/instanceGates";
 
 const useCameraPitchSoftLimiter = (
   options: {
@@ -26,14 +27,13 @@ const useCameraPitchSoftLimiter = (
   const minPitchDeg = options.minPitchDeg || 22;
   const resetPitchOffsetDeg = options.resetPitchOffsetDeg || 8;
 
-  const viewer = useCesiumViewer();
+  const { sceneRef, shouldSuspendCameraLimitersRef } = useCesiumContext();
+
   const dispatch = useDispatch();
   const isMode2d = useSelector(selectViewerIsMode2d);
   const collisions = useSelector(
     selectScreenSpaceCameraControllerEnableCollisionDetection
   );
-  const ctx = useCesiumContext();
-  const { shouldSuspendCameraLimitersRef } = ctx;
 
   const onComplete = useCallback(
     () => dispatch(clearIsAnimating()),
@@ -41,7 +41,9 @@ const useCameraPitchSoftLimiter = (
   );
 
   useEffect(() => {
-    if (viewer && !isMode2d && collisions && pitchLimiter) {
+    const scene = sceneRef.current;
+    if (!isValidScene(scene)) return;
+    if (!isMode2d && collisions && pitchLimiter) {
       debug &&
         console.debug(
           "HOOK [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to correct camera pitch"
@@ -53,53 +55,56 @@ const useCameraPitchSoftLimiter = (
       const minPitchRad = CesiumMath.toRadians(-minPitchDeg);
 
       const moveEndListener = async () => {
-        if (shouldSuspendCameraLimitersRef?.current) return;
+        if (shouldSuspendCameraLimitersRef?.current || !isValidScene(scene))
+          return;
         debug &&
           console.debug(
             "HOOK [2D3D|CESIUM] Soft Pitch Limiter",
-            viewer.camera.pitch,
+            scene.camera.pitch,
             minPitchRad,
             resetPitchRad
           );
-        const isPitchTooLow = collisions && viewer.camera.pitch > minPitchRad;
+        const isPitchTooLow = collisions && scene.camera.pitch > minPitchRad;
         if (isPitchTooLow) {
           debug &&
             console.debug(
               "LISTENER HOOK [2D3D|CESIUM|CAMERA]: reset pitch soft",
-              viewer.camera.pitch,
+              scene.camera.pitch,
               resetPitchRad
             );
           // TODO Get CenterPos Lower from screen if distance is muliple of elevation. prevent pitch around distant point on horizon
-          const centerPos = pickViewerCanvasCenter(ctx).scenePosition;
+          const centerPos = pickSceneCenter(scene).scenePosition;
           if (centerPos) {
             dispatch(setIsAnimating());
             const distance = Cartesian3.distance(
               centerPos,
-              viewer.camera.position
+              scene.camera.position
             );
-            viewer.camera.flyToBoundingSphere(
-              new BoundingSphere(centerPos, distance),
-              {
-                offset: {
-                  heading: viewer.camera.heading,
-                  pitch: resetPitchRad,
-                  range: distance,
-                },
-                duration: 1.5,
-                complete: onComplete,
-              }
-            );
+            tryWithValidCamera(scene.camera, (camera) => {
+              camera.flyToBoundingSphere(
+                new BoundingSphere(centerPos, distance),
+                {
+                  offset: {
+                    heading: camera.heading,
+                    pitch: resetPitchRad,
+                    range: distance,
+                  },
+                  duration: 1.5,
+                  complete: onComplete,
+                }
+              );
+            });
           }
         }
       };
-      viewer.camera.moveEnd.addEventListener(moveEndListener);
+      scene.camera.moveEnd.addEventListener(moveEndListener);
       return () => {
-        !viewer.isDestroyed() &&
-          viewer.camera.moveEnd.removeEventListener(moveEndListener);
+        isValidScene(scene) &&
+          scene.camera.moveEnd.removeEventListener(moveEndListener);
       };
     }
   }, [
-    viewer,
+    sceneRef,
     collisions,
     isMode2d,
     pitchLimiter,

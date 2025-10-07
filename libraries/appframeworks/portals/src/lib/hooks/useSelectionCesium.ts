@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { GroundPrimitive } from "cesium";
+import { GroundPrimitive, Scene } from "cesium";
 
 import {
   CesiumOptions,
@@ -7,8 +7,11 @@ import {
   removeCesiumMarker,
   removeGroundPrimitiveById,
   useCesiumContext,
+  isValidScene,
+  tryWithValidScene,
+  sceneRequestRender,
+  WithElevationProvidersAsyncCallback,
 } from "@carma-mapping/engines/cesium";
-import type { CesiumContextType } from "@carma-mapping/engines/cesium";
 
 import {
   SelectionMapMode,
@@ -20,24 +23,25 @@ export const SELECTED_POLYGON_ID = "searchgaz-highlight-polygon";
 export const INVERTED_SELECTED_POLYGON_ID = "searchgaz-inverted-polygon";
 
 const cleanUpCesium = (
-  ctx: CesiumContextType,
+  scene: Scene,
   selectedMarkerData: MarkerPrimitiveData | null,
   setSelectedMarkerData: (data: MarkerPrimitiveData | null) => void
 ) => {
   console.debug("HOOK: cleanUpCesium", selectedMarkerData);
-  ctx.withScene((scene) => {
-    if (selectedMarkerData) {
-      removeCesiumMarker(ctx, selectedMarkerData);
-      setSelectedMarkerData(null);
-    }
+
+  if (selectedMarkerData) {
+    removeCesiumMarker(scene, selectedMarkerData);
+    setSelectedMarkerData(null);
+  }
+  tryWithValidScene(scene, (scene) => {
     removeGroundPrimitiveById(scene, SELECTED_POLYGON_ID);
     removeGroundPrimitiveById(scene, INVERTED_SELECTED_POLYGON_ID);
-    ctx.requestRender();
+    sceneRequestRender(scene);
   });
 };
 
 const isMarkerPrimitivePresent = (
-  ctx: CesiumContextType,
+  scene: Scene,
   markerData: MarkerPrimitiveData | null,
   selectionKey: number | string | null
 ) => {
@@ -51,73 +55,69 @@ const isMarkerPrimitivePresent = (
 
   let isPresent = false;
 
-  ctx.withScene((scene) => {
-    if (!scene || scene.isDestroyed()) return;
+  if (!isValidScene(scene)) return;
 
-    const { primitives } = scene;
+  const { primitives } = scene;
 
-    if (!primitives || primitives.isDestroyed()) return;
+  if (!primitives || primitives.isDestroyed()) return;
 
-    if (
-      markerData.model &&
-      typeof markerData.model.isDestroyed === "function" &&
-      !markerData.model.isDestroyed() &&
-      primitives.contains(markerData.model)
-    ) {
-      isPresent = true;
-      return;
-    }
+  if (
+    markerData.model &&
+    typeof markerData.model.isDestroyed === "function" &&
+    !markerData.model.isDestroyed() &&
+    primitives.contains(markerData.model)
+  ) {
+    isPresent = true;
+    return;
+  }
 
-    if (
-      markerData.stemline &&
-      typeof markerData.stemline.isDestroyed === "function" &&
-      !markerData.stemline.isDestroyed() &&
-      primitives.contains(markerData.stemline)
-    ) {
-      isPresent = true;
-    }
-  });
+  if (
+    markerData.stemline &&
+    typeof markerData.stemline.isDestroyed === "function" &&
+    !markerData.stemline.isDestroyed() &&
+    primitives.contains(markerData.stemline)
+  ) {
+    isPresent = true;
+  }
 
   return isPresent;
 };
 
 const areSelectionPolygonsPresent = (
-  ctx: CesiumContextType,
+  scene: Scene,
   selectedId: string,
   invertedId: string
 ) => {
   let hasSelected = false;
   let hasInverted = false;
 
-  ctx.withScene((scene) => {
-    if (!scene || scene.isDestroyed()) return;
+  if (!isValidScene(scene)) return;
 
-    const { groundPrimitives } = scene;
+  const { groundPrimitives } = scene;
 
-    if (!groundPrimitives || groundPrimitives.isDestroyed()) return;
+  if (!groundPrimitives || groundPrimitives.isDestroyed()) return;
 
-    for (let i = 0; i < groundPrimitives.length; i++) {
-      const primitive = groundPrimitives.get(i);
-      if (!(primitive instanceof GroundPrimitive)) continue;
+  for (let i = 0; i < groundPrimitives.length; i++) {
+    const primitive = groundPrimitives.get(i);
+    if (!(primitive instanceof GroundPrimitive)) continue;
 
-      const instances = primitive.geometryInstances;
+    const instances = primitive.geometryInstances;
 
-      if (Array.isArray(instances)) {
-        for (const instance of instances) {
-          if (!instance) continue;
-          if (instance.id === selectedId) hasSelected = true;
-          if (instance.id === invertedId) hasInverted = true;
-        }
-      } else if (instances) {
-        if (instances.id === selectedId) hasSelected = true;
-        if (instances.id === invertedId) hasInverted = true;
+    if (Array.isArray(instances)) {
+      for (const instance of instances) {
+        if (!instance) continue;
+        if (instance.id === selectedId) hasSelected = true;
+        if (instance.id === invertedId) hasInverted = true;
       }
-
-      if (hasSelected && hasInverted) {
-        break;
-      }
+    } else if (instances) {
+      if (instances.id === selectedId) hasSelected = true;
+      if (instances.id === invertedId) hasInverted = true;
     }
-  });
+
+    if (hasSelected && hasInverted) {
+      break;
+    }
+  }
 
   return hasSelected && hasInverted;
 };
@@ -129,7 +129,7 @@ export const useSelectionCesium = (
   duration: number = 3,
   durationFactor: number = 0.2
 ) => {
-  const ctx = useCesiumContext();
+  const { withElevationProvidersAsync, sceneRef } = useCesiumContext();
 
   const { selection } = useSelection();
   const lastSelectionKeyRef = useRef<number | null>(null);
@@ -138,9 +138,10 @@ export const useSelectionCesium = (
     useState<MarkerPrimitiveData | null>(null);
 
   useEffect(() => {
-    if (!isActive || !ctx.isValidViewer()) {
+    if (!isActive || !isValidScene(sceneRef.current)) {
       return;
     }
+    const scene = sceneRef.current;
 
     if (selection) {
       const selectionKey = selection.sorter ?? null;
@@ -156,7 +157,7 @@ export const useSelectionCesium = (
       }
 
       const isMarkerPresent = isMarkerPrimitivePresent(
-        ctx,
+        scene,
         selectedMarkerData,
         selectionKey
       );
@@ -168,7 +169,7 @@ export const useSelectionCesium = (
         selection.isAreaSelection === true &&
         lastSelectionKeyRef.current === selectionKey &&
         areSelectionPolygonsPresent(
-          ctx,
+          scene,
           SELECTED_POLYGON_ID,
           INVERTED_SELECTED_POLYGON_ID
         );
@@ -217,14 +218,14 @@ export const useSelectionCesium = (
 
       cesiumHitTrigger(
         [selection],
-        ctx,
+        withElevationProvidersAsync,
         selectedMarkerData,
         setMarkerDataWithMeta,
         options
       );
     } else {
       lastSelectionKeyRef.current = null;
-      cleanUpCesium(ctx, selectedMarkerData, setSelectedMarkerData);
+      cleanUpCesium(scene, selectedMarkerData, setSelectedMarkerData);
     }
   }, [
     selection,
@@ -234,6 +235,7 @@ export const useSelectionCesium = (
     duration,
     durationFactor,
     selectedMarkerData,
-    ctx,
+    sceneRef,
+    withElevationProvidersAsync,
   ]);
 };

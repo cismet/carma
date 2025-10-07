@@ -1,45 +1,41 @@
-import type { CesiumContextType } from "../../CesiumContext";
 import type { MarkerPrimitiveData } from "./index.d";
 
 import { updateTransform } from "./updateTransform";
+import { Scene } from "cesium";
+import { tryWithValidScene } from "../../utils/instanceGates";
+import { sceneRequestRender } from "../../utils/sceneRequestRender";
 
-const detachPreUpdate = (ctx: CesiumContextType, data: MarkerPrimitiveData) => {
+const detachPreUpdate = (scene: Scene, data: MarkerPrimitiveData) => {
   if (!data.onPreUpdate) {
     return;
   }
 
-  ctx.withScene((scene) => {
+  tryWithValidScene(scene, () => {
     scene.preUpdate.removeEventListener(data.onPreUpdate!);
   });
 
   data.onPreUpdate = undefined;
 };
 
-export const detachListeners = (
-  ctx: CesiumContextType,
-  data: MarkerPrimitiveData
-) => {
-  detachPreUpdate(ctx, data);
+export const detachListeners = (scene: Scene, data: MarkerPrimitiveData) => {
+  detachPreUpdate(scene, data);
 };
 
-export const attachListeners = (
-  ctx: CesiumContextType,
-  data: MarkerPrimitiveData
-) => {
+export const attachListeners = (scene: Scene, data: MarkerPrimitiveData) => {
   const config = data.modelConfig;
 
   if (!config) {
     return;
   }
 
-  detachListeners(ctx, data);
+  detachListeners(scene, data);
 
-  const onPreUpdate = () => updateTransform(ctx, data);
+  const onPreUpdate = () => updateTransform(scene, data);
 
-  ctx.withScene((scene) => {
+  tryWithValidScene(scene, () => {
     scene.preUpdate.addEventListener(onPreUpdate);
   });
 
   data.onPreUpdate = onPreUpdate;
-  ctx.requestRender();
+  sceneRequestRender(scene);
 };

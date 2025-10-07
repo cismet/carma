@@ -10,6 +10,7 @@ import {
   Matrix4,
   Math as CesiumMath,
   Rectangle,
+  type Scene,
   OrthographicFrustum,
   OrthographicOffCenterFrustum,
   PerspectiveFrustum,
@@ -20,18 +21,10 @@ import type { Degrees, LatLng, Altitude } from "@carma/types";
 import type { TilesetConfig } from "@carma-commons/resources";
 
 import type { CesiumContextType } from "../CesiumContext";
-import { pickViewerCanvasCenter } from "./pickers";
+import { pickSceneCenter } from "./pickers";
+import { isValidCamera, isValidScene } from "./instanceGates";
 
 // Math
-
-export const SELECTABLE_TRANSPARENT_3DTILESTYLE = create3DTileStyle({
-  color: `vec4(1.0, 0.0, 0.0, 0.01)`,
-  show: true,
-});
-export const SELECTABLE_TRANSPARENT_MATERIAL = new ColorMaterialProperty(
-  Color.BLACK.withAlpha(1 / 255)
-);
-
 export function getModelMatrix(config: TilesetConfig, heightOffset = 0) {
   const { x, y, z } = config.translation ?? { x: 0, y: 0, z: 0 };
   const surface = Cartesian3.fromRadians(x, y, z);
@@ -88,6 +81,9 @@ const TOP_DOWN_DIRECTION = new Cartesian3(0, 0, -1);
 export const cameraToCartographicDegrees = (
   camera: Camera
 ): Required<LatLng.deg> => {
+  if (!isValidCamera(camera)) {
+    throw new Error("camera is not valid");
+  }
   const { latitude, longitude, height } = camera.positionCartographic.clone();
   return {
     latitude: CesiumMath.toDegrees(latitude) as Degrees,
@@ -96,38 +92,43 @@ export const cameraToCartographicDegrees = (
   };
 };
 
-export const getTopDownCameraDeviationAngle = (ctx: CesiumContextType) => {
-  let angle = 0;
-  ctx.withCamera((camera) => {
-    const currentDirection = camera.direction;
-    const internalAngle = Cartesian3.angleBetween(
-      currentDirection,
-      TOP_DOWN_DIRECTION
-    );
-    angle = Math.abs(internalAngle);
-  });
+export const getTopDownCameraDeviationAngle = (scene: Scene) => {
+  let angle: number | undefined = undefined;
+
+  if (!isValidScene(scene)) {
+    console.warn("cesium not available no transition possible [zoom]");
+    return angle;
+  }
+
+  const currentDirection = scene.camera.direction;
+  const internalAngle = Cartesian3.angleBetween(
+    currentDirection,
+    TOP_DOWN_DIRECTION
+  );
+  angle = Math.abs(internalAngle);
   return angle;
 };
 
-export const getCameraHeightAboveGround = (ctx: CesiumContextType) => {
-  const { scenePosition: pos, coordinates } = pickViewerCanvasCenter(ctx, {
+export const getCameraHeightAboveGround = (scene: Scene) => {
+  const { camera } = scene;
+  const { scenePosition: pos, coordinates } = pickSceneCenter(scene, {
     getCoordinates: true,
   });
 
   let cameraHeightAboveGround = 0;
   let groundHeight: number = 0;
 
-  if (defined(pos) && defined(coordinates)) {
-    groundHeight = coordinates.height;
-    ctx.withCamera((camera) => {
+  try {
+    if (defined(pos) && defined(coordinates)) {
+      groundHeight = coordinates.height;
       cameraHeightAboveGround =
         camera.positionCartographic.height - groundHeight;
-    });
-  } else {
-    console.warn("No ground position found under the camera.");
-    ctx.withCamera((camera) => {
+    } else {
+      console.warn("No ground position found under the camera.");
       cameraHeightAboveGround = camera.positionCartographic.height;
-    });
+    }
+  } catch (error) {
+    console.warn("Error getting camera height above ground", error);
   }
   return { cameraHeightAboveGround, groundHeight };
 };

@@ -1,9 +1,9 @@
+import type { Scene } from "cesium";
 import type { LatLng, LatLngZoom, Zoom, Zoom256 } from "@carma/types";
 
 import { normalizeOptions, isZoom } from "@carma-commons/utils";
 
 import { cameraToCartographicDegrees } from "./cesiumHelpers";
-import type { CesiumContextType } from "../CesiumContext";
 import { cesiumCenterPixelSizeToLeafletZoom } from "./pixels";
 
 type Options = {
@@ -24,18 +24,14 @@ const defaultOptions: Required<Options> = {
  */
 
 export const getTiledMapCenterZoomEquivalent = async (
-  ctx: CesiumContextType,
+  scene: Scene,
   options?: Options
 ): Promise<LatLngZoom> => {
-  if (!ctx.isValidViewer()) {
-    throw new Error("viewer is not valid");
-  }
-
   const { maxZoom, minZoom } = normalizeOptions(options, defaultOptions);
 
   let center: LatLng.deg | undefined;
 
-  let zoomValue = cesiumCenterPixelSizeToLeafletZoom(ctx).value;
+  let zoomValue = cesiumCenterPixelSizeToLeafletZoom(scene).value;
   if (!isZoom(zoomValue)) {
     throw new Error("zoom is not valid");
   }
@@ -50,10 +46,8 @@ export const getTiledMapCenterZoomEquivalent = async (
     zoom = minZoom;
   }
 
-  ctx.withCamera((camera) => {
-    center = cameraToCartographicDegrees(camera);
-    console.debug("[2D3D] fetched center", { center, zoom });
-  });
+  center = cameraToCartographicDegrees(scene.camera);
+  console.debug("[2D3D] fetched center", { center, zoom });
 
   if (
     center === undefined ||

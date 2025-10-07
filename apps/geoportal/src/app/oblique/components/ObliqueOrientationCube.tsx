@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Button, Tooltip, Spin } from "antd";
 import { Cartesian3, HeadingPitchRange, Matrix4 } from "cesium";
 
@@ -6,8 +6,11 @@ import {
   useCesiumContext,
   cesiumCameraToCssTransform,
   getOrbitPoint,
-  cancelViewerAnimation,
-  guardCamera,
+  cancelAnimation,
+  isValidScene,
+  isValidViewer,
+  tryWithValidCamera,
+  tryWithValidScene,
 } from "@carma-mapping/engines/cesium";
 
 import {
@@ -118,8 +121,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
 }) => {
   const half = size / 2;
 
-  const ctx = useCesiumContext();
-  const { viewerRef, isViewerReady, viewerAnimationMapRef } = ctx;
+  const { viewerRef, sceneRef, animationMapRef } = useCesiumContext();
   const [, setTransformTick] = useState(0);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const lastFrustumRef = useRef<{ angle?: number; w?: number; h?: number }>({});
@@ -182,7 +184,9 @@ const ObliqueOrientationCube: React.FC<Props> = ({
 
   useEffect(() => {
     let cleanup: (() => void) | undefined;
-    ctx.withCamera((camera) => {
+    const scene = sceneRef.current;
+    if (!isValidScene(scene)) return;
+    tryWithValidCamera(scene.camera, (camera) => {
       const lastRef = { h: camera.heading, p: camera.pitch };
       const onChanged = () => {
         const h = camera.heading;
@@ -200,23 +204,25 @@ const ObliqueOrientationCube: React.FC<Props> = ({
       camera.changed.addEventListener(onChanged);
       onChanged();
       cleanup = () => {
-        guardCamera(camera).changed.removeEventListener(onChanged);
+        tryWithValidCamera(camera, () => {
+          camera.changed.removeEventListener(onChanged);
+        });
       };
     });
     return () => {
       cleanup?.();
     };
-  }, [ctx, size]);
+  }, [sceneRef, size]);
 
   // Ensure perspective updates even when only FOV/aspect/size changes (pose unchanged)
   useEffect(() => {
-    if (!ctx.isValidViewer()) return;
+    const scene = sceneRef.current;
+    const viewer = viewerRef.current;
+    if (!isValidScene(scene) || !isValidViewer(viewer)) return;
     let cleanup: (() => void) | undefined;
-    ctx.withViewer((viewer) => {
-      const camera = viewer.camera;
-      const scene = viewer.scene;
-
+    tryWithValidCamera(scene.camera, (camera) => {
       const updateFrustum = () => {
+        if (!isValidViewer(viewer)) return;
         try {
           const el = viewer.container as Element;
           const rect = el.getBoundingClientRect();
@@ -253,17 +259,19 @@ const ObliqueOrientationCube: React.FC<Props> = ({
       scene.preRender.addEventListener(updateFrustum);
       updateFrustum();
       cleanup = () => {
-        scene.preRender.removeEventListener(updateFrustum);
+        tryWithValidScene(scene, () => {
+          scene.preRender.removeEventListener(updateFrustum);
+        });
       };
     });
 
     return () => {
       cleanup?.();
     };
-  }, [viewerRef, isViewerReady, ctx]);
+  }, [viewerRef, sceneRef]);
 
   // Build forward scene transform and inverse (for billboarding labels)
-  const cam = viewerRef.current?.camera;
+  const cam = sceneRef.current?.camera;
   const [sceneTransform, inverseSceneTransform, perspectivePx] = cam
     ? cesiumCameraToCssTransform(cam, {
         offsetRad: offsetCube ? offsetRad : 0,
@@ -316,31 +324,27 @@ const ObliqueOrientationCube: React.FC<Props> = ({
   // Drag handlers (mirror PitchingCompass behavior)
   // constants lifted to module scope to stabilize effect deps
 
-  const handleNorthArrowClick = () => {
+  const handleNorthArrowClick = useCallback(() => {
     // Prefer animated heading change if provided by parent
     if (onHeadingSelect) {
       onHeadingSelect(0);
       return;
     }
-    // Fallback: instant snap (legacy behavior)
-    if (!ctx.isValidViewer()) return;
-    ctx.withViewer((viewer) => {
-      if (viewerAnimationMapRef?.current) {
-        cancelViewerAnimation(viewer, viewerAnimationMapRef.current);
+    const scene = sceneRef.current;
+    if (!isValidScene(scene)) return;
+    tryWithValidCamera(scene.camera, (camera) => {
+      if (animationMapRef?.current) {
+        cancelAnimation(scene, animationMapRef.current);
       }
-      const camera = viewer.camera;
-      const target = getOrbitPoint(ctx);
+      const target = getOrbitPoint(scene);
       if (target) {
         const range = Cartesian3.distance(target, camera.positionWC);
-        viewer.camera.lookAt(
-          target,
-          new HeadingPitchRange(0, camera.pitch, range)
-        );
-        viewer.camera.lookAtTransform(Matrix4.IDENTITY);
-        ctx.requestRender();
+        camera.lookAt(target, new HeadingPitchRange(0, camera.pitch, range));
+        camera.lookAtTransform(Matrix4.IDENTITY);
+        scene.requestRender();
       }
     });
-  };
+  }, [onHeadingSelect, animationMapRef, sceneRef]);
 
   // Resolve color tokens to CSS colors for hover effects (limited map for defaults)
   const resolveColorToken = (token?: string): string | undefined => {

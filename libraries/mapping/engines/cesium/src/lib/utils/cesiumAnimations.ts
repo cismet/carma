@@ -4,8 +4,10 @@ import {
   Math as CesiumMath,
   HeadingPitchRange,
   EasingFunction,
+  Scene,
 } from "cesium";
-import { CesiumContextType } from "../CesiumContext";
+import { tryWithValidScene } from "./instanceGates";
+import { sceneRequestRender } from "./sceneRequestRender";
 
 const DEFAULT_MIN_RANGE = 10;
 const DEFAULT_MAX_RANGE = 40000;
@@ -40,7 +42,7 @@ interface CesiumAnimateOrbitsOptions {
  * @param options.useCurrentDistance - use current Distance/Range instead of last views one.
  */
 export function animateInterpolateHeadingPitchRange(
-  ctx: CesiumContextType,
+  scene: Scene,
   destination: Cartesian3,
   hpr: HeadingPitchRange = new HeadingPitchRange(0, -Math.PI / 2, 0),
   {
@@ -57,11 +59,10 @@ export function animateInterpolateHeadingPitchRange(
   }: CesiumAnimateOrbitsOptions = {}
 ): () => void {
   // Get current camera state
+  const camera = scene.camera;
   let initialHPR: HeadingPitchRange | null = null;
-  ctx.withCamera((camera) => {
-    const range = Cartesian3.distance(camera.position, destination);
-    initialHPR = new HeadingPitchRange(camera.heading, camera.pitch, range);
-  });
+  const range = Cartesian3.distance(camera.position, destination);
+  initialHPR = new HeadingPitchRange(camera.heading, camera.pitch, range);
 
   if (!initialHPR) {
     return () => {};
@@ -89,15 +90,15 @@ export function animateInterpolateHeadingPitchRange(
       animationFrameId = null;
       isCanceled = true;
     }
-    ctx.withViewer((viewer) => {
-      viewer.canvas.removeEventListener("pointerdown", onUserInteraction);
-      viewer.camera.lookAtTransform(Matrix4.IDENTITY);
+    tryWithValidScene(scene, () => {
+      scene.canvas.removeEventListener("pointerdown", onUserInteraction);
+      scene.camera.lookAtTransform(Matrix4.IDENTITY);
     });
     onCancel?.();
   };
 
-  ctx.withCanvas((canvas) => {
-    canvas.addEventListener("pointerdown", onUserInteraction);
+  tryWithValidScene(scene, () => {
+    scene.canvas.addEventListener("pointerdown", onUserInteraction);
   });
 
   const interpolateHpr = (
@@ -139,21 +140,19 @@ export function animateInterpolateHeadingPitchRange(
 
     const orientation = interpolateHpr(initialHPR, hpr, easing(t));
 
-    ctx.withCamera((camera) => {
-      camera.lookAtTransform(Matrix4.IDENTITY);
-      camera.lookAt(destination, orientation);
+    tryWithValidScene(scene, (scene) => {
+      scene.camera.lookAtTransform(Matrix4.IDENTITY);
+      scene.camera.lookAt(destination, orientation);
     });
 
-    ctx.requestRender();
+    sceneRequestRender(scene);
 
     if (t < 1) {
       animationFrameId = requestAnimationFrame(animate);
     } else {
-      ctx.withCamera((camera) => {
-        camera.lookAtTransform(Matrix4.IDENTITY);
-      });
-      ctx.withCanvas((canvas) => {
-        canvas.removeEventListener("pointerdown", onUserInteraction);
+      tryWithValidScene(scene, () => {
+        scene.camera.lookAtTransform(Matrix4.IDENTITY);
+        scene.canvas.removeEventListener("pointerdown", onUserInteraction);
       });
       onComplete?.();
     }

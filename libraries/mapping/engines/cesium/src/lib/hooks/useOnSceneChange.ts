@@ -19,6 +19,7 @@ import {
 } from "../utils/cesiumHashParamsCodec";
 
 import { VIEWERSTATE_KEYS } from "../constants";
+import { isValidCamera } from "../utils/instanceGates";
 
 const toHashParams = (
   cesiumCameraState: StringifiedCameraState,
@@ -46,7 +47,7 @@ export const useOnSceneChange = (
     isMode2d?: boolean
   ) => void
 ) => {
-  const ctx = useCesiumContext();
+  const { withViewer } = useCesiumContext();
   const isSecondaryStyle = useSelector(selectShowSecondaryTileset);
   const isMode2d = useSelector(selectViewerIsMode2d);
   const isTransitioning = useSelector(selectViewerIsTransitioning);
@@ -56,19 +57,20 @@ export const useOnSceneChange = (
 
   useEffect(() => {
     // on changes to mode or style
-    if (isTransitioning) {
+    if (isTransitioning || isMode2d) {
       return;
     }
-    if (ctx.isValidViewer() && !isMode2d) {
+
+    withViewer((viewer) => {
       console.debug(
         "HOOK: update Hash, route or style changed",
         isSecondaryStyle
       );
+      const { scene } = viewer;
+      const { camera } = scene;
       if (onSceneChange) {
         let cameraState: StringifiedCameraState | null = null;
-        ctx.withCamera((camera) => {
-          cameraState = encodeCesiumCamera(camera);
-        });
+        cameraState = encodeCesiumCamera(camera);
         if (cameraState === null) {
           return;
         }
@@ -81,9 +83,8 @@ export const useOnSceneChange = (
       } else {
         console.info("HOOK: [NOOP] no onSceneChange callback");
       }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ctx, isMode2d, isSecondaryStyle, isTransitioning]);
+    });
+  }, [withViewer, onSceneChange, isMode2d, isSecondaryStyle, isTransitioning]);
 
   useEffect(() => {
     // update hash hook
@@ -91,20 +92,25 @@ export const useOnSceneChange = (
       return;
     }
 
-    if (ctx.isValidViewer()) {
+    withViewer((viewer) => {
+      const camera = viewer.scene.camera;
       console.debug(
         "HOOK: [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to update hash"
       );
+      let camDeg: Required<LatLng.deg> | undefined;
+      let proceed = false;
+
       const moveEndListener = async () => {
         // let TopicMap/leaflet handle the view change in 2d Mode
-        let proceed = false;
-        let camDeg: Required<LatLng.deg> | undefined;
-        ctx.withCamera((camera) => {
-          proceed = Boolean(camera && camera.position && !isMode2d);
-          if (proceed) {
+
+        proceed = Boolean(camera && camera.position && !isMode2d);
+        if (proceed) {
+          try {
             camDeg = cameraToCartographicDegrees(camera);
+          } catch (error) {
+            console.warn("Error getting camera position", error);
           }
-        });
+        }
         if (proceed && camDeg) {
           console.debug(
             "LISTENER: Cesium moveEndListener encode viewer to hash",
@@ -114,9 +120,7 @@ export const useOnSceneChange = (
 
           if (onSceneChange) {
             let cameraState: StringifiedCameraState | null = null;
-            ctx.withCamera((camera) => {
-              cameraState = encodeCesiumCamera(camera);
-            });
+            cameraState = encodeCesiumCamera(camera);
             if (cameraState === null) {
               return;
             }
@@ -130,20 +134,20 @@ export const useOnSceneChange = (
           }
         }
       };
-      ctx.withCamera((camera) => {
+      if (isValidCamera(camera)) {
         camera.moveEnd.addEventListener(moveEndListener);
-      });
+      }
       return () => {
         // clear hash on unmount
         // onSceneChange?.({ hashParams: clear3dOnlyHashParams });
-        ctx.withViewer((viewer) => {
+        withViewer((viewer) => {
           if (!viewer.isDestroyed()) {
-            viewer.camera.moveEnd.removeEventListener(moveEndListener);
+            viewer.scene.camera.moveEnd.removeEventListener(moveEndListener);
           }
         });
       };
-    }
-  }, [ctx, isSecondaryStyle, isMode2d, onSceneChange, isTransitioning]);
+    });
+  }, [withViewer, isSecondaryStyle, isMode2d, onSceneChange, isTransitioning]);
 };
 
 export default useOnSceneChange;
