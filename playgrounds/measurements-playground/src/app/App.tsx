@@ -1,9 +1,6 @@
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import { suppressReactCismapErrors } from "@carma-commons/utils";
-import {
-  MapMeasurementLib,
-  InfoBoxMeasurement,
-} from "@carma-commons/measurements";
+import { InfoBoxMeasurement, MapObjects } from "@carma-commons/measurements";
 import { ZoomControl } from "@carma-mapping/components";
 import {
   Control,
@@ -57,7 +54,7 @@ export function App() {
         zoomControls={false}
         leafletMapProps={{ editable: true }}
       >
-        <MapMeasurementLib mode={mode} />
+        <MapObjects mode={mode} />
       </TopicMapComponent>
     </>
   );

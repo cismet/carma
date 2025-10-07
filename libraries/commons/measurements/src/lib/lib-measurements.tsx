@@ -23,75 +23,13 @@ export interface MeasurementShape {
 
 export type UIModeType = string | "measurement" | "default";
 export interface MapMeasurementProps {
-  // measurementShapes: MeasurementShape[];
-  // activeShape?: number | string | null;
-  // ifDrawing?: boolean;
-  // showAllMeasurements?: boolean;
-  // deleteShape?: boolean;
-  // visibleShapes: MeasurementShape[];
-  // moveToShape?: number | string | null;
   mode?: UIModeType;
-
-  // Callbacks (replacements for dispatch(action))
-  // toggleUIMode: (mode: UIModeType) => void;
-
-  // setShapes: (shapes: MeasurementShape[]) => void;
-  // setActiveShape: (id: number | string | null) => void;
-  // setVisibleShapes: (shapes: MeasurementShape[]) => void;
-  // setDrawingShape: (status: boolean) => void;
-  // setShowAll: (value: boolean) => void;
-  // setDeleteAll: (value: boolean) => void;
-  // setMoveToShape: (id: number | string | null) => void;
-  // setUpdateShape: (status: boolean) => void;
-  // setMapMovingEnd: (status: boolean) => void;
-  // addShape: (layer: unknown) => void;
-  // deleteShapeById: (id: number | string) => void;
-  // updateShapeById: (
-  //   id: number | string,
-  //   newCoordinates?: unknown,
-  //   newDistance?: number,
-  //   newSquare?: number | null
-  // ) => void;
-  // setLastVisibleShapeActive: () => void;
-  // setDrawingWithLastActiveShape: () => void;
-  // setActiveShapeIfDrawCancelled: () => void;
-  // updateAreaOfDrawing: (area: number) => void;
-  // deleteVisibleShapeById: (id: number | string) => void;
-  // setStartDrawing: (status: boolean) => void;
-
-  // Optional handlers that were previously passed into control options
   polygonActiveIcon?: string;
   polygonIcon?: string;
 }
 
-export function MapMeasurementLib({
-  // measurementShapes,
-  // activeShape,
-  // ifDrawing,
-  // showAllMeasurements,
-  // deleteShape,
-  // visibleShapes,
-  // moveToShape,
+export function MapObjects({
   mode,
-  // toggleUIMode,
-  // setShapes,
-  // setActiveShape,
-  // setVisibleShapes,
-  // setDrawingShape,
-  // setStartDrawing,
-  // setShowAll,
-  // setDeleteAll,
-  // setMoveToShape,
-  // setUpdateShape,
-  // setMapMovingEnd,
-  // addShape,
-  // deleteShapeById,
-  // updateShapeById,
-  // setLastVisibleShapeActive,
-  // setDrawingWithLastActiveShape,
-  // setActiveShapeIfDrawCancelled,
-  // updateAreaOfDrawing,
-  // deleteVisibleShapeById,
   polygonActiveIcon,
   polygonIcon,
 }: MapMeasurementProps) {
@@ -125,7 +63,6 @@ export function MapMeasurementLib({
 
     // looks unuseful
     setStartDrawing,
-    startDrawing,
   } = useMapMeasurementsContext();
 
   const [measureControl, setMeasureControl] = useState<any>(null);
