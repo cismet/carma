@@ -28,10 +28,11 @@ export function InfoBoxMeasurement({}: InfoBoxMeasurementProps) {
     setDeleteAll,
     setShowAll,
     updateTitle,
+    config,
   } = useMapMeasurementsContext();
 
-  // ARCHITECTURE: activeShape is the SINGLE SOURCE OF TRUTH
-  // currentMeasure is derived from activeShape, never the other way around
+  const { editableTitle } = config;
+
   const [currentMeasure, setCurrentMeasure] = useState(0);
   const [oldDataLength, setOldDataLength] = useState(measurementsData.length);
   const [stepAfterMoveToShape, setStepAfterMoveToShape] = useState<
@@ -117,7 +118,6 @@ export function InfoBoxMeasurement({}: InfoBoxMeasurementProps) {
   const decreaseCurrentHandler = () => {
     setMoveToShape(null);
     cleanUpdateMeasurementStatus();
-    // Update activeShape (source of truth), currentMeasure will be derived
     const currentIndex = activeShapeHandler(activeShape);
     if (currentIndex !== null) {
       const newIndex =
@@ -241,6 +241,7 @@ export function InfoBoxMeasurement({}: InfoBoxMeasurementProps) {
                       ? `${visibleShapesData[currentMeasure].area}`
                       : `${visibleShapesData[currentMeasure].distance}`
                   }
+                  editableTitle={editableTitle}
                 />
               </span>
               {drawingMode ? (
