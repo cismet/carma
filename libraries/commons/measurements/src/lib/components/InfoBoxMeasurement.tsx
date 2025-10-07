@@ -9,7 +9,7 @@ import { Tooltip } from "antd";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { ResponsiveInfoBox } from "@carma-appframeworks/portals";
 import { useMapMeasurementsContext } from "./MapMeasurementsProvider";
-import { InfoBoxMeasurementProps, MeasurementShape } from "../../index.d.ts";
+import { InfoBoxMeasurementProps, MeasurementShape } from "../../index";
 
 export function InfoBoxMeasurement({}: InfoBoxMeasurementProps) {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
@@ -119,10 +119,12 @@ export function InfoBoxMeasurement({}: InfoBoxMeasurementProps) {
     cleanUpdateMeasurementStatus();
     // Update activeShape (source of truth), currentMeasure will be derived
     const currentIndex = activeShapeHandler(activeShape);
-    const newIndex =
-      currentIndex <= 0 ? visibleShapesData.length - 1 : currentIndex - 1;
-    if (visibleShapesData[newIndex]) {
-      setActiveShape(visibleShapesData[newIndex].shapeId);
+    if (currentIndex !== null) {
+      const newIndex =
+        currentIndex <= 0 ? visibleShapesData.length - 1 : currentIndex - 1;
+      if (visibleShapesData[newIndex]) {
+        setActiveShape(visibleShapesData[newIndex].shapeId);
+      }
     }
   };
 
@@ -131,10 +133,12 @@ export function InfoBoxMeasurement({}: InfoBoxMeasurementProps) {
     cleanUpdateMeasurementStatus();
     // Update activeShape (source of truth), currentMeasure will be derived
     const currentIndex = activeShapeHandler(activeShape);
-    const newIndex =
-      currentIndex >= visibleShapesData.length - 1 ? 0 : currentIndex + 1;
-    if (visibleShapesData[newIndex]) {
-      setActiveShape(visibleShapesData[newIndex].shapeId);
+    if (currentIndex !== null) {
+      const newIndex =
+        currentIndex >= visibleShapesData.length - 1 ? 0 : currentIndex + 1;
+      if (visibleShapesData[newIndex]) {
+        setActiveShape(visibleShapesData[newIndex].shapeId);
+      }
     }
   };
 
