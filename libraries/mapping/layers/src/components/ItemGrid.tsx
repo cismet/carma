@@ -45,8 +45,22 @@ const ItemGrid = ({
   discoverProps,
   currentlySearching,
 }: ItemGridProps) => {
+  const getNumberOfLayers = (
+    categories: { Title: string; layers: Item[] }[]
+  ) => {
+    let numberOfLayers = 0;
+    if (!categories) return 0;
+    categories.forEach((category) => {
+      numberOfLayers += category.layers.length;
+    });
+    return numberOfLayers;
+  };
   const loadingCapabilities = useSelector(getLoadingCapabilities);
-  if (loadingCapabilities && currentCategoryIndex === 3) {
+  if (
+    loadingCapabilities &&
+    currentCategoryIndex === 3 &&
+    getNumberOfLayers(categories) === 0
+  ) {
     return (
       <div>
         <div className="pt-2 grid xl:grid-cols-7 grid-flow-dense lg:grid-cols-5 sm:grid-cols-3 min-[490px]:grid-cols-2 gap-8 mb-4">
@@ -71,16 +85,6 @@ const ItemGrid = ({
     });
 
     return paths;
-  };
-
-  const getNumberOfLayers = (
-    categories: { Title: string; layers: Item[] }[]
-  ) => {
-    let numberOfLayers = 0;
-    categories.forEach((category) => {
-      numberOfLayers += category.layers.length;
-    });
-    return numberOfLayers;
   };
 
   if (isSearchCategory) {
