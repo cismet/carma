@@ -11,7 +11,6 @@ import {
   Matrix4,
   PerspectiveFrustum,
   Rectangle,
-  Scene,
   ScreenSpaceCameraController,
   Viewer,
 } from "cesium";
@@ -64,7 +63,7 @@ export const useInitializeViewer = (
   const home = useSelector(selectViewerHome);
   const homeOffset = useSelector(selectViewerHomeOffset);
 
-  // aling Cesium Default fallback with local home
+  // align Cesium Default fallback with local home
   if (home) {
     const { longitude, latitude } = Cartographic.fromCartesian(home);
     const rect = new Rectangle(longitude, latitude, longitude, latitude);
@@ -77,8 +76,6 @@ export const useInitializeViewer = (
     700
   );
 
-  const previousIsMode2d = useRef<boolean | null>(null);
-  const previousIsSecondaryStyle = useRef<boolean | null>(null);
   // Store camera position and orientation vectors
   const lastGoodCameraState = useRef<CameraState | null>(null);
 
@@ -411,44 +408,6 @@ export const useInitializeViewer = (
       };
     }
   }, [viewerRef, containerRef, isMode2d]);
-
-  useEffect(() => {
-    console.debug("HOOK: useInitializeViewer useEffect - mode change handler", {
-      isMode2d,
-      previous: previousIsMode2d.current,
-      hasViewer: !!viewerRef.current,
-    });
-
-    if (viewerRef.current) {
-      if (isMode2d !== previousIsMode2d.current) {
-        previousIsMode2d.current = isMode2d;
-
-        if (isMode2d) {
-          // Switching to 2D: pause Cesium rendering
-          console.debug("HOOK: [CESIUM] Pausing viewer for 2D mode");
-          viewerRef.current.scene.requestRenderMode = true;
-          // Stop any ongoing animations
-          viewerRef.current.camera.cancelFlight();
-          // Clear any tweens if available (using type assertion for Cesium internal API)
-          const scene = viewerRef.current.scene as Scene & {
-            tweens?: { removeAll(): void };
-          };
-          if (scene.tweens && typeof scene.tweens.removeAll === "function") {
-            scene.tweens.removeAll();
-          }
-        } else {
-          // Switching to 3D: resume Cesium rendering
-          console.debug("HOOK: [CESIUM] Resuming viewer for 3D mode");
-          viewerRef.current.scene.requestRenderMode = false;
-          viewerRef.current.scene.requestRender();
-        }
-      }
-
-      if (isSecondaryStyle !== previousIsSecondaryStyle.current) {
-        previousIsSecondaryStyle.current = isSecondaryStyle;
-      }
-    }
-  }, [viewerRef, isSecondaryStyle, isMode2d]);
 };
 
 export default useInitializeViewer;
