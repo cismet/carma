@@ -40,7 +40,7 @@ export const MeasurementControl: React.FC<Partial<MeasurementControlProps>> = ({
   };
 
   return (
-    <>
+    <div>
       <Control position={position} order={order}>
         <ControlButtonStyler onClick={onToggle}>
           <img
@@ -51,6 +51,6 @@ export const MeasurementControl: React.FC<Partial<MeasurementControlProps>> = ({
         </ControlButtonStyler>
       </Control>
       {isActive && <InfoBoxMeasurement />}
-    </>
+    </div>
   );
 };

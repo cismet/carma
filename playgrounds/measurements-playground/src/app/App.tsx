@@ -27,7 +27,7 @@ export function App() {
   useSelectionTopicMap();
 
   return (
-    <>
+    <div>
       <ControlLayout ifStorybook={false}>
         <Control position="topleft" order={10}>
           <ZoomControl />
@@ -54,6 +54,6 @@ export function App() {
         <MapMeasurementsObjects />
         <TopicMapSelectionContent />
       </TopicMapComponent>
-    </>
+    </div>
   );
 }
