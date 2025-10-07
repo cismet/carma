@@ -12,7 +12,7 @@ import { useControls } from "leva";
 import {
   selectViewerIsTransitioning,
   useCesiumContext,
-  CtxEvent,
+  isValidScene,
 } from "@carma-mapping/engines/cesium";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import { ContactMailButton } from "@carma-appframeworks/portals";
@@ -71,13 +71,13 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     selectedImageRefresh,
   } = useOblique();
   const siblingsByCardinal = useSiblingsByCardinal();
-  const ctx = useCesiumContext(),
-    {
-      shouldSuspendPitchLimiterRef,
-      shouldSuspendCameraLimitersRef,
-      requestRender,
-      isValidViewer,
-    } = ctx;
+  const {
+    sceneRef,
+    shouldSuspendPitchLimiterRef,
+    shouldSuspendCameraLimitersRef,
+    requestRender,
+    isValidViewer,
+  } = useCesiumContext();
   const imageId = selectedImage?.record?.id;
   const cameraId = selectedImage?.record?.cameraId;
   const { isDebugMode, isObliqueUiEval } = useFeatureFlags();
@@ -111,11 +111,11 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
 
   // Close preview when a Home fly is triggered
   useEffect(() => {
-    const unsubscribe = ctx.subscribe(CtxEvent.Home, () => {
+    const unsubscribe = subscribeToPreviewVisibility(() => {
       setIsPreviewVisible(false);
     });
     return unsubscribe;
-  }, [ctx]);
+  }, []);
   // Disable camera limiters while preview is visible
   useEffect(() => {
     if (shouldSuspendPitchLimiterRef)
@@ -250,7 +250,8 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   // Fly-to handling for next capture (without opening preview)
 
   const flyToCurrentEOWithoutPreview = useCallback(() => {
-    if (!isValidViewer() || !derivedExteriorOrientationRef.current) return;
+    const scene = sceneRef.current;
+    if (!isValidScene(scene) || !derivedExteriorOrientationRef.current) return;
     animationInProgressRef.current = true;
     // Choose animation based on whether this fly was triggered by a rotation in preview
     const flyOptions = rotatedFlyPendingRef.current
@@ -258,7 +259,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       : animations.flyToNextImage ?? animations.flyToExteriorOrientation;
     rotatedFlyPendingRef.current = false;
     flyToExteriorOrientation(
-      ctx,
+      scene,
       derivedExteriorOrientationRef.current,
       () => {
         animationInProgressRef.current = false;
@@ -282,8 +283,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     setSuspendSelectionSearch,
     isPreviewVisible,
     requestRender,
-    isValidViewer,
-    ctx,
+    sceneRef,
   ]);
 
   useEffect(() => {
@@ -530,6 +530,9 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   }, []);
 
   const flyToNearestExteriorOrientation = useCallback(async () => {
+    const scene = sceneRef.current;
+    if (!isValidScene(scene)) return;
+
     if (isPreviewVisible) {
       setIsPreviewVisible(false);
       notifyPreviewVisibilityChange(false);
@@ -547,7 +550,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     animationInProgressRef.current = true;
 
     flyToExteriorOrientation(
-      ctx,
+      scene,
       derivedExteriorOrientationRef.current,
       () => {
         animationInProgressRef.current = false;
@@ -563,7 +566,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     setLockFootprint,
     derivedExteriorOrientationRef,
     isValidViewer,
-    ctx,
+    sceneRef,
   ]);
 
   const openImageLink = useCallback(() => {

@@ -1,3 +1,11 @@
+import {
+  type Camera,
+  Cartesian2,
+  Cartesian3,
+  defined,
+  type Scene,
+} from "cesium";
+
 // Mercator helpers are provided by @carma-commons/utils/mercator; no re-exports here.
 
 import { NumericResult } from "@carma/types";
@@ -6,18 +14,13 @@ import {
   asRadians,
   getZoomFromPixelResolutionAtLatitudeRad,
 } from "@carma-commons/utils";
-import { type Camera, Cartesian2, Cartesian3, defined } from "cesium";
-import { CesiumContextType } from "../CesiumContext";
 import { generatePositionsForRing } from "./geometryGenerators";
-import {
-  PICKMODE,
-  pickViewerCanvasPositions,
-  pickViewerCanvasCenter,
-} from "./pickers";
+import { PICKMODE, pickScenePositions, pickSceneCenter } from "./pickers";
+import { isValidScene } from "./instanceGates";
 
 export const getPixelSizeForPosition = (
   position: Cartesian3 | null,
-  camera: Camera, // validate Camera existance outside of this
+  camera: Camera, // validate Camera existence outside of this
   drawingBufferWidth: number,
   drawingBufferHeight: number
 ) => {
@@ -36,26 +39,20 @@ export const getPixelSizeForPosition = (
   return null;
 };
 
-const sampleRingPixelSize = (
-  ctx: CesiumContextType,
-  samples: number,
-  radius: number
-) => {
+const sampleRingPixelSize = (scene: Scene, samples: number, radius: number) => {
   const positionCoords = generatePositionsForRing(samples, radius);
-  const positions = pickViewerCanvasPositions(ctx, positionCoords);
+  const positions = pickScenePositions(scene, positionCoords);
   const pixelSizes: (number | null)[] = [];
 
-  ctx.withViewer((viewer) => {
-    const { drawingBufferWidth, drawingBufferHeight } = viewer.scene;
-    positions.forEach(({ scenePosition }) => {
-      const pixelSize = getPixelSizeForPosition(
-        scenePosition,
-        viewer.camera,
-        drawingBufferWidth,
-        drawingBufferHeight
-      );
-      pixelSizes.push(pixelSize);
-    });
+  const { drawingBufferWidth, drawingBufferHeight, camera } = scene;
+  positions.forEach(({ scenePosition }) => {
+    const pixelSize = getPixelSizeForPosition(
+      scenePosition,
+      camera,
+      drawingBufferWidth,
+      drawingBufferHeight
+    );
+    pixelSizes.push(pixelSize);
   });
 
   const validPixelSizes = pixelSizes.filter(
@@ -80,11 +77,11 @@ const sampleRingPixelSize = (
 };
 
 export const getScenePixelSize = (
-  ctx: CesiumContextType,
+  scene: Scene,
   mode = PICKMODE.CENTER,
   { samples = 10, radius = 0.2 }: { samples?: number; radius?: number } = {}
 ): NumericResult => {
-  if (!ctx.isValidViewer()) return { value: null };
+  if (!scene && !isValidScene(scene)) return { value: null };
 
   // sample two position to get better approximation for full view extent
   if (radius >= 0.5) {
@@ -101,7 +98,7 @@ export const getScenePixelSize = (
   switch (mode) {
     case PICKMODE.RING: {
       if (radius > 0) {
-        result.value = sampleRingPixelSize(ctx, samples, radius);
+        result.value = sampleRingPixelSize(scene, samples, radius);
         break;
       }
       console.warn("radius is 0, skipping");
@@ -109,7 +106,7 @@ export const getScenePixelSize = (
     }
     case PICKMODE.CENTER:
     default: {
-      const centerPos = pickViewerCanvasCenter(ctx, {
+      const centerPos = pickSceneCenter(scene, {
         getPixelSize: true,
       });
       result.value = centerPos.pixelSize;
@@ -127,9 +124,9 @@ export const getScenePixelSize = (
 };
 
 export const cesiumCenterPixelSizeToLeafletZoom = (
-  ctx: CesiumContextType
+  scene: Scene
 ): NumericResult => {
-  const pixelSize = getScenePixelSize(ctx, PICKMODE.RING);
+  const pixelSize = getScenePixelSize(scene, PICKMODE.RING);
   if (pixelSize.value === null) {
     console.warn("No pixel size found for camera position.", pixelSize.error);
     return { value: null, error: "No pixel size found for camera position" };
@@ -139,18 +136,16 @@ export const cesiumCenterPixelSizeToLeafletZoom = (
     return { value: null, error: "No pixel size found for camera position" };
   }
   let result: NumericResult = { value: null, error: "no camera found" };
-  ctx.withCamera((camera) => {
-    const zoom = getZoomFromPixelResolutionAtLatitudeRad(
-      asMeters(px),
-      asRadians(camera.positionCartographic.latitude)
-    );
+  const zoom = getZoomFromPixelResolutionAtLatitudeRad(
+    asMeters(px),
+    asRadians(scene.camera.positionCartographic.latitude)
+  );
 
-    if (zoom === Infinity) {
-      console.warn("zoom is infinity, skipping");
-      result = { value: null, error: "Zoom is infinity" };
-    } else {
-      result = { value: zoom };
-    }
-  });
+  if (zoom === Infinity) {
+    console.warn("zoom is infinity, skipping");
+    result = { value: null, error: "Zoom is infinity" };
+  } else {
+    result = { value: zoom };
+  }
   return result;
 };

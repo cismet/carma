@@ -22,7 +22,7 @@ export function useForwardZoomEventsToCesium(): ForwardZoomEventsBindings {
   const [fovOverride, setFovOverride] = useState<number | undefined>(undefined);
 
   // Use Cesium FOV wheel zoom directly; re-render after each FOV change
-  const { handleWheel } = useFovWheelZoom(ctx, true, {
+  const { handleWheel } = useFovWheelZoom(true, {
     onFovChange: (newFov) => setFovOverride(newFov),
   });
 

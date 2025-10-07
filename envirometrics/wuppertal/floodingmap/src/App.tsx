@@ -99,8 +99,7 @@ function App({ sync = false }: { sync?: boolean }) {
 
   // CONTROLS
   const ctx = useCesiumContext();
-  const { viewerRef, viewerAnimationMapRef, isViewerReady, requestRender } =
-    ctx;
+  const { viewerRef, animationMapRef, isViewerReady, requestRender } = ctx;
   const homeControl = useHomeControl();
   const {
     handleZoomIn: handleZoomInCesium,

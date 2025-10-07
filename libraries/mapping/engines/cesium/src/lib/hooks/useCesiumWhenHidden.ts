@@ -1,54 +1,49 @@
 import { useEffect } from "react";
 import { selectViewerIsMode2d } from "../slices/cesium";
 import { useSelector } from "react-redux";
-import { CesiumContextType } from "../CesiumContext";
-import { isValidImageryLayer } from "../utils/instanceGates";
+import { isValidImageryLayer, isValidScene } from "../utils/instanceGates";
 import { useCesiumContext } from "./useCesiumContext";
+import { Scene } from "cesium";
 
-const hideLayers = (ctx: CesiumContextType) => {
-  ctx.withScene((scene) => {
-    const hideOnce = () => {
-      ctx.withScene((scene, viewer) => {
-        for (let i = 0; i < viewer.imageryLayers.length; i++) {
-          const layer = viewer.imageryLayers.get(i);
-          if (isValidImageryLayer(layer)) {
-            layer.show = false; // Hide the layer
-          } else {
-            console.debug("[CESIUM|VIEWER] skip invalid imagery layer");
-          }
-        }
-        scene.postRender.removeEventListener(hideOnce);
-      });
-    };
-    scene.postRender.addEventListener(hideOnce);
-  });
+const hideLayers = (scene: Scene) => {
+  const hideOnce = () => {
+    if (!isValidScene(scene)) return;
+    for (let i = 0; i < scene.imageryLayers.length; i++) {
+      const layer = scene.imageryLayers.get(i);
+      if (isValidImageryLayer(layer)) {
+        layer.show = false; // Hide the layer
+      } else {
+        console.debug("[CESIUM|VIEWER] skip invalid imagery layer");
+      }
+    }
+    scene.postRender.removeEventListener(hideOnce);
+  };
+  scene.postRender.addEventListener(hideOnce);
 };
 
-const showLayers = (ctx: CesiumContextType) => {
-  ctx.withScene((scene) => {
-    const showOnce = () => {
-      ctx.withScene((scene, viewer) => {
-        for (let i = 0; i < viewer.imageryLayers.length; i++) {
-          const layer = viewer.imageryLayers.get(i);
-          if (isValidImageryLayer(layer)) {
-            layer.show = true; // unHide the layer
-          } else {
-            console.debug("[CESIUM|VIEWER] skip invalid imagery layer");
-          }
-        }
-        scene.postRender.removeEventListener(showOnce);
-      });
-    };
-    scene.postRender.addEventListener(showOnce);
-  });
+const showLayers = (scene: Scene) => {
+  const showOnce = () => {
+    if (!isValidScene(scene)) return;
+    for (let i = 0; i < scene.imageryLayers.length; i++) {
+      const layer = scene.imageryLayers.get(i);
+      if (isValidImageryLayer(layer)) {
+        layer.show = true; // unHide the layer
+      } else {
+        console.debug("[CESIUM|VIEWER] skip invalid imagery layer");
+      }
+    }
+    scene.postRender.removeEventListener(showOnce);
+  };
+  scene.postRender.addEventListener(showOnce);
 };
 
-// reduce resoures use when cesium is not visible
+// reduce resources use when cesium is not visible
 export const useCesiumWhenHidden = (delay = 0) => {
-  const ctx = useCesiumContext();
+  const { sceneRef } = useCesiumContext();
   const isMode2d = useSelector(selectViewerIsMode2d);
-  console.debug("HOOKINIT: [CESIUM] useCesiumWhenHidden");
   useEffect(() => {
+    const scene = sceneRef.current;
+    if (!isValidScene(scene)) return;
     console.debug("HOOK: [CESIUM] useCesiumWhenHidden", isMode2d);
     if (isMode2d) {
       if (delay > 0) {
@@ -57,17 +52,17 @@ export const useCesiumWhenHidden = (delay = 0) => {
             "HOOK: [CESIUM] hiding cesium imagery layer with delay",
             delay
           );
-          hideLayers(ctx);
+          hideLayers(scene);
         }, delay);
       } else {
         console.debug("HOOK: [CESIUM] hiding cesium imagery layer undelayed");
-        hideLayers(ctx);
+        hideLayers(scene);
       }
     } else {
       console.debug("HOOK: [CESIUM] showing cesium imagery layer");
-      showLayers(ctx);
+      showLayers(scene);
     }
-  }, [delay, ctx, isMode2d]);
+  }, [delay, sceneRef, isMode2d]);
 };
 
 export default useCesiumWhenHidden;

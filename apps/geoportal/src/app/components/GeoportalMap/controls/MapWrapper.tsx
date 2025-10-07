@@ -136,7 +136,7 @@ const MapWrapper = () => {
   const {
     handleZoomIn: handleZoomInCesium,
     handleZoomOut: handleZoomOutCesium,
-  } = useZoomControlsCesium(ctx, {
+  } = useZoomControlsCesium({
     fovMode: isObliqueMode,
   });
   const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();

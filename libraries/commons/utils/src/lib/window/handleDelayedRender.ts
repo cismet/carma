@@ -7,13 +7,16 @@
  * CesiumGS/cesium#12543 and should be deprecated/removed once upstream
  * behavior no longer requires additional nudging.
  */
+
+export type DelayedRenderOptions = {
+  delay?: number; // ms
+  repeat?: number; // times
+  repeatInterval?: number; // ms
+};
+
 export function handleDelayedRender(
   renderFn: () => void,
-  opts?: {
-    delay?: number; // ms
-    repeat?: number; // times
-    repeatInterval?: number; // ms - if missing, uses requestAnimationFrame for repeats
-  }
+  opts?: DelayedRenderOptions
 ): void {
   const delay = opts?.delay ?? 0;
   const repeat = Math.max(1, opts?.repeat ?? 1);

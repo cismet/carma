@@ -155,3 +155,36 @@ export const withValidViewer = (
   cb(viewer);
   return true;
 };
+
+// Safe Callback Helpers
+export const tryWithValidCamera = (
+  camera: unknown,
+  cb: (camera: Camera) => void,
+  label: string = "camera"
+) => {
+  if (!isValidCamera(camera)) {
+    console.error(`tryWithValidCamera had invalid Camera ${label}`);
+    return;
+  }
+  try {
+    cb(camera);
+  } catch (e) {
+    console.error(`tryWithValidCamera failed on ${label}`, e);
+  }
+};
+
+export const tryWithValidScene = (
+  scene: unknown,
+  cb: (scene: Scene) => void,
+  label: string = "scene"
+) => {
+  if (!isValidScene(scene)) {
+    console.error(`tryWithValidScene had invalid Scene ${label}`);
+    return;
+  }
+  try {
+    cb(scene);
+  } catch (e) {
+    console.error(`tryWithValidScene failed on ${label}`, e);
+  }
+};

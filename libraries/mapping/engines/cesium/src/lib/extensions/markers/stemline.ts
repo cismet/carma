@@ -5,14 +5,15 @@ import {
   type Cartesian3,
   type Cartographic,
   type Polyline,
+  type Scene,
 } from "cesium";
 
 import type { PolylineConfig } from "../../../";
-import type { CesiumContextType } from "../../CesiumContext";
 import type { MarkerPrimitiveData } from "./index.d";
+import { tryWithValidScene } from "../../utils/instanceGates";
 
 export const createOrUpdateStemline = (
-  ctx: CesiumContextType,
+  scene: Scene,
   markerData: MarkerPrimitiveData,
   [pos, groundPos]: Cartographic[],
   options: Partial<PolylineConfig> = {}
@@ -43,7 +44,7 @@ export const createOrUpdateStemline = (
 
   let positions: Cartesian3[] | undefined;
 
-  ctx.withScene((scene) => {
+  tryWithValidScene(scene, () => {
     positions = scene.ellipsoid.cartographicArrayToCartesianArray([
       posTop,
       posCenter,
@@ -84,7 +85,7 @@ export const createOrUpdateStemline = (
   stemlineCollection.add(polylineTop);
   stemlineCollection.add(polylineBottom);
 
-  ctx.withScene((scene) => {
+  tryWithValidScene(scene, () => {
     scene.primitives.add(stemlineCollection);
   });
 

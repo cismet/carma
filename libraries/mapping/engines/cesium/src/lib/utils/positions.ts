@@ -1,7 +1,7 @@
 import { Camera, Cartesian3, Cartographic, HeadingPitchRange } from "cesium";
 
-import { getSurfaceElevationAsync } from "./elevation";
-import type { CesiumContextType } from "../CesiumContext";
+import { WithElevationProvidersAsyncCallback } from "../hooks/useValidInstances";
+import { guardSampleTerrainMostDetailedAsync } from "./guardSampleTerrainMostDetailedAsync";
 
 export const distanceFromZoomLevel = (zoom: number) => {
   return 40000000 / Math.pow(2, zoom);
@@ -32,88 +32,96 @@ export const getHeadingPitchRangeFromHeight = (
 };
 
 export const getPositionWithHeightAsync = async (
-  ctx: CesiumContextType,
+  withElevationProvidersAsync: WithElevationProvidersAsyncCallback,
   position: Cartographic,
   useClampedHeight: boolean = false
-) => {
-  // Convert the Cartographic position to Cartesian3 coordinates
-  const cartesianPosition = Cartographic.toCartesian(position);
+): Promise<Cartographic | null> => {
+  let result: Cartographic | null = null;
+  await withElevationProvidersAsync(
+    async (terrainProvider, surfaceProvider, scene) => {
+      // Convert the Cartographic position to Cartesian3 coordinates
+      const cartesianPosition = Cartographic.toCartesian(position);
 
-  let updatedPosition: Cartographic | null = null;
+      let updatedPosition: Cartographic | null = null;
 
-  if (useClampedHeight) {
-    let clampedPosition: Cartesian3 | undefined;
-    // Attempt to clamp the position to the tileset's height
-    try {
-      await ctx.withScene(async (scene) => {
-        clampedPosition = await scene.clampToHeight(
-          cartesianPosition
-          //[tileset],
-        );
-      });
+      if (useClampedHeight && scene.clampToHeightSupported) {
+        let clampedPosition: Cartesian3 | undefined;
+        // Attempt to clamp the position to the tileset's height
+        try {
+          clampedPosition = await scene.clampToHeight(
+            cartesianPosition.clone()
+          );
 
-      if (clampedPosition) {
-        const clampedCartesian = clampedPosition;
-        const clampedCartographic =
-          Cartographic.fromCartesian(clampedCartesian);
+          if (clampedPosition) {
+            const clampedCartesian = clampedPosition;
+            const clampedCartographic =
+              Cartographic.fromCartesian(clampedCartesian);
 
-        updatedPosition = new Cartographic(
-          position.longitude,
-          position.latitude,
-          clampedCartographic.height
-        );
+            updatedPosition = new Cartographic(
+              position.longitude,
+              position.latitude,
+              clampedCartographic.height
+            );
 
-        console.debug(
-          "[CESIUM|TILESET] Clamped position found for position",
-          position,
-          updatedPosition
-        );
+            console.debug(
+              "[CESIUM|TILESET] Clamped position found for position",
+              position,
+              updatedPosition
+            );
+          } else {
+            console.warn(
+              "[CESIUM|TILESET] No clamped position found for position",
+              position
+            );
+          }
+        } catch (error) {
+          console.error(
+            "[CESIUM|TILESET] Error clamping to tileset height:",
+            error
+          );
+        }
       } else {
-        console.warn(
-          "[CESIUM|TILESET] No clamped position found for position",
-          position
-        );
+        console.debug("[CESIUM|TILESET] No Tileset provided, using terrain");
       }
-    } catch (error) {
-      console.error(
-        "[CESIUM|TILESET] Error clamping to tileset height:",
-        error
-      );
-    }
-  } else {
-    console.debug("[CESIUM|TILESET] No Tileset provided, using terrain");
-  }
 
-  if (updatedPosition) {
-    // Elevation obtained from the tileset
-    return updatedPosition;
-  } else {
-    // Fall back to using terrain data
-    console.debug("[CESIUM|TERRAIN] Using surface for position", position);
-
-    try {
-      const [surfacePosition] = await getSurfaceElevationAsync(ctx, [position]);
-
-      if (surfacePosition instanceof Cartographic) {
-        console.debug(
-          "[CESIUM|TERRAIN] Sampled surface for position",
-          position,
-          surfacePosition
-        );
-        return surfacePosition;
+      if (updatedPosition) {
+        // Elevation obtained from the tileset
+        result = updatedPosition;
+        return;
       } else {
-        console.warn(
-          "[CESIUM|TERRAIN] Could not get surface elevation for position",
-          position,
-          surfacePosition
-        );
-        return position;
+        // Fall back to using terrain data
+        console.debug("[CESIUM|TERRAIN] Using surface for position", position);
+
+        try {
+          const [surfacePosition] = await guardSampleTerrainMostDetailedAsync(
+            surfaceProvider,
+            [position]
+          );
+
+          if (surfacePosition instanceof Cartographic) {
+            console.debug(
+              "[CESIUM|TERRAIN] Sampled surface for position",
+              position,
+              surfacePosition
+            );
+            result = surfacePosition;
+            return;
+          } else {
+            console.warn(
+              "[CESIUM|TERRAIN] Could not get surface elevation for position",
+              position,
+              surfacePosition
+            );
+            return;
+          }
+        } catch (error) {
+          console.error("[CESIUM|TERRAIN] Error sampling terrain:", error);
+          return;
+        }
       }
-    } catch (error) {
-      console.error("[CESIUM|TERRAIN] Error sampling terrain:", error);
-      return position;
     }
-  }
+  );
+  return result;
 };
 
 export const validateWorldCoordinate = (

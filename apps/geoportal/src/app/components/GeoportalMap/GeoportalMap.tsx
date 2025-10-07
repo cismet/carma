@@ -114,8 +114,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const dispatch = useDispatch();
 
   // Contexts
-  const ctx = useCesiumContext();
-  const { withTerrainProvider, withSurfaceProvider } = ctx;
+  const { isValidViewer } = useCesiumContext();
 
   const rerenderCountRef = useRef(0);
   const lastRenderTimeStampRef = useRef(Date.now());
@@ -273,26 +272,17 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   };
 
   useSelectionTopicMap({ onComplete });
-  useSelectionCesium(
-    !isMode2d,
-    useMemo(
-      () => ({
-        markerAsset,
-        markerAnchorHeight,
-        isPrimaryStyle: showPrimaryTileset,
-        withTerrainProvider,
-        withSurfaceProvider,
-      }),
-      [
-        markerAsset,
-        markerAnchorHeight,
-        showPrimaryTileset,
-        withTerrainProvider,
-        withSurfaceProvider,
-      ]
-    ),
-    isObliqueMode
+
+  const selectionOptions = useMemo(
+    () => ({
+      markerAsset,
+      markerAnchorHeight,
+      isPrimaryStyle: showPrimaryTileset,
+    }),
+    [markerAsset, markerAnchorHeight, showPrimaryTileset]
   );
+
+  useSelectionCesium(!isMode2d, selectionOptions, isObliqueMode);
 
   useEffect(() => {
     let layerType = "";
@@ -313,7 +303,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   useEffect(() => {
     // TODO wrap this with 3d component in own component?
     // INTIALIZE Cesium Tileset style from Geoportal/TopicMap background later style
-    if (ctx.isValidViewer() && backgroundLayer) {
+    if (isValidViewer() && backgroundLayer) {
       if (backgroundLayer.id === "luftbild") {
         dispatch(setCurrentSceneStyle("primary"));
       } else {

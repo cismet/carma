@@ -1,11 +1,10 @@
 import { useCallback, useRef } from "react";
 import { useBlockDefaultZoomBehaviour } from "./useBlockDefaultZoomBehaviour";
-import { PerspectiveFrustum, type Viewer } from "cesium";
+import { PerspectiveFrustum, type Scene } from "cesium";
 
 import type { Radians } from "@carma/types";
 import { normalizeOptions, isClose } from "@carma-commons/utils";
 
-import type { CesiumContextType } from "../CesiumContext";
 import { CtxEvent } from "../cesiumContextEventMap";
 import { blockWheelEvent } from "../utils/blockWheelEvent";
 
@@ -16,8 +15,11 @@ import {
   DEFAULT_MIN_FOV_CHANGE,
   computeNextFov,
 } from "../utils/fov";
+import { useCesiumContext } from "./useCesiumContext";
+import { isValidScene } from "../utils/instanceGates";
+import { sceneRequestRender } from "../utils/sceneRequestRender";
 
-const viewerWheelHandlers = new WeakMap<Viewer, (event: WheelEvent) => void>();
+const viewerWheelHandlers = new WeakMap<Scene, (event: WheelEvent) => void>();
 
 export interface FovWheelZoomOptions {
   minFov?: Radians;
@@ -38,7 +40,6 @@ const defaultFovWheelZoomOptions: Required<FovWheelZoomOptions> = {
 };
 
 export function useFovWheelZoom(
-  ctx: CesiumContextType,
   enabled = true,
   options: FovWheelZoomOptions = {}
 ) {
@@ -51,33 +52,36 @@ export function useFovWheelZoom(
     minFovChange,
   } = normalizeOptions(options, defaultFovWheelZoomOptions);
 
+  const { sceneRef, emit } = useCesiumContext();
+
   const handleWheel = useCallback(
     (event: WheelEvent) => {
       blockWheelEvent(event);
+      const scene = sceneRef.current;
+      if (!isValidScene(scene)) return;
 
-      ctx.withCamera((camera) => {
-        if (!(camera.frustum instanceof PerspectiveFrustum)) return;
+      if (!(scene.camera.frustum instanceof PerspectiveFrustum)) return;
 
-        const currentFov = camera.frustum.fov as Radians;
-        const nextFov = computeNextFov(
-          currentFov,
-          event.deltaY as Radians,
-          minFov,
-          maxFov,
-          fovChangeRate
-        );
-        if (!isClose(nextFov, currentFov, minFovChange)) {
-          onFovChange?.(nextFov, currentFov);
-          camera.frustum.fov = nextFov;
-          ctx.requestRender();
-          // Emit via enum-typed context event
-          ctx.emit?.(CtxEvent.FovChange, nextFov);
-          onAfterFovChange?.();
-        }
-      });
+      const currentFov = scene.camera.frustum.fov as Radians;
+      const nextFov = computeNextFov(
+        currentFov,
+        event.deltaY as Radians,
+        minFov,
+        maxFov,
+        fovChangeRate
+      );
+      if (!isClose(nextFov, currentFov, minFovChange)) {
+        onFovChange?.(nextFov, currentFov);
+        scene.camera.frustum.fov = nextFov;
+        sceneRequestRender(scene);
+        // Emit via enum-typed context event
+        emit?.(CtxEvent.FovChange, nextFov);
+        onAfterFovChange?.();
+      }
     },
     [
-      ctx,
+      sceneRef,
+      emit,
       minFov,
       maxFov,
       fovChangeRate,
@@ -100,18 +104,19 @@ export function useFovWheelZoom(
 
   const enableWheelZoom = useCallback(() => {
     let applied = false;
-    ctx.withViewer((viewer) => {
-      viewer.scene.screenSpaceCameraController.enableZoom = false;
+    const scene = sceneRef.current;
+    if (!isValidScene(scene)) return applied;
 
-      if (!viewerWheelHandlers.has(viewer)) {
-        viewer.canvas.addEventListener("wheel", handleWheel, {
-          passive: false,
-          capture: true,
-        });
-        viewerWheelHandlers.set(viewer, handleWheel);
-      }
-      applied = true;
-    });
+    scene.screenSpaceCameraController.enableZoom = false;
+
+    if (!viewerWheelHandlers.has(scene)) {
+      scene.canvas.addEventListener("wheel", handleWheel, {
+        passive: false,
+        capture: true,
+      });
+      viewerWheelHandlers.set(scene, handleWheel);
+    }
+    applied = true;
     // Once applied, remove any pending global blocker
     if (applied && pendingBlockerAttachedRef.current) {
       window.removeEventListener("wheel", pendingWheelBlocker, {
@@ -120,26 +125,27 @@ export function useFovWheelZoom(
       pendingBlockerAttachedRef.current = false;
     }
     return applied;
-  }, [ctx, handleWheel, pendingWheelBlocker]);
+  }, [sceneRef, handleWheel, pendingWheelBlocker]);
 
   const disableWheelZoom = useCallback(() => {
     let applied = false;
-    ctx.withViewer((viewer) => {
-      if (viewerWheelHandlers.has(viewer)) {
-        const handlerToRemove = viewerWheelHandlers.get(viewer);
-        viewer.canvas.removeEventListener(
-          "wheel",
-          handlerToRemove as (event: WheelEvent) => void,
-          true
-        );
-        viewerWheelHandlers.delete(viewer);
-      }
+    const scene = sceneRef.current;
+    if (!isValidScene(scene)) return applied;
 
-      viewer.scene.screenSpaceCameraController.enableZoom = true;
-      applied = true;
-    });
+    if (viewerWheelHandlers.has(scene)) {
+      const handlerToRemove = viewerWheelHandlers.get(scene);
+      scene.canvas.removeEventListener(
+        "wheel",
+        handlerToRemove as (event: WheelEvent) => void,
+        true
+      );
+      viewerWheelHandlers.delete(scene);
+    }
+
+    scene.screenSpaceCameraController.enableZoom = true;
+    applied = true;
     return applied;
-  }, [ctx]);
+  }, [sceneRef]);
 
   useBlockDefaultZoomBehaviour({
     enabled,
@@ -165,16 +171,15 @@ export function useFovWheelZoom(
     setEnabled,
     isEnabled: (() => {
       let flag = false;
-      ctx.withViewer((viewer) => {
-        flag = viewerWheelHandlers.has(viewer);
-      });
+      const scene = sceneRef.current;
+      if (!isValidScene(scene)) return flag;
+      flag = viewerWheelHandlers.has(scene);
       return flag;
     })(),
     pending: (() => {
       // true while viewer isn't available yet
-      let hasViewer = false;
-      hasViewer = ctx.withViewer(() => {});
-      return !hasViewer;
+
+      return !isValidScene(sceneRef.current);
     })(),
   };
 }

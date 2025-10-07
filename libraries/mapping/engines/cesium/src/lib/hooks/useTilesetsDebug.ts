@@ -8,19 +8,20 @@ import { useTweakpaneCtx } from "@carma-commons/debug";
 import { type ButtonApi } from "tweakpane";
 
 export const useTilesetsDebug = () => {
-  const ctx = useCesiumContext();
+  const { withPrimaryTileset, withSecondaryTileset, withViewer } =
+    useCesiumContext();
 
   const buttonRef = useRef<ButtonApi | null>(null);
 
-  useTilesetDebug(ctx.withPrimaryTileset, "Primary");
+  useTilesetDebug(withPrimaryTileset, "Primary");
 
-  useTilesetDebug(ctx.withSecondaryTileset, "Secondary");
+  useTilesetDebug(withSecondaryTileset, "Secondary");
 
   const { paneCallback, enabled } = useTweakpaneCtx();
 
   useEffect(() => {
     if (!enabled) return;
-    ctx.withViewer((viewer) => {
+    withViewer((viewer) => {
       if (paneCallback && !buttonRef.current) {
         paneCallback((pane) => {
           buttonRef.current = pane.addButton({
@@ -33,7 +34,7 @@ export const useTilesetsDebug = () => {
         });
       }
     });
-  }, [ctx, paneCallback, enabled]);
+  }, [withViewer, paneCallback, enabled]);
 
   return null;
 };

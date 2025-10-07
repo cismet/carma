@@ -1,7 +1,6 @@
 /* eslint-disable jsx-a11y/anchor-is-valid */
 import { ReactNode } from "react";
 import { useZoomControls } from "../../hooks/useZoomControls";
-import { useCesiumContext } from "../../hooks/useCesiumContext";
 
 type ZoomControlsProps = {
   children?: ReactNode;
@@ -10,8 +9,7 @@ type ZoomControlsProps = {
 };
 
 const ZoomControls = (props: ZoomControlsProps) => {
-  const ctx = useCesiumContext();
-  const { handleZoomIn, handleZoomOut } = useZoomControls(ctx);
+  const { handleZoomIn, handleZoomOut } = useZoomControls();
 
   return (
     <div className="leaflet-control-zoom leaflet-bar leaflet-control">
