@@ -31,7 +31,7 @@ export function InfoBoxMeasurement({}: InfoBoxMeasurementProps) {
     config,
   } = useMapMeasurementsContext();
 
-  const { editableTitle } = config;
+  const { editableTitle, infoBoxHeaderColor } = config;
 
   const [currentMeasure, setCurrentMeasure] = useState(0);
   const [oldDataLength, setOldDataLength] = useState(measurementsData.length);
@@ -213,7 +213,7 @@ export function InfoBoxMeasurement({}: InfoBoxMeasurementProps) {
         <ResponsiveInfoBox
           pixelwidth={350}
           panelClick={() => {}}
-          header={<div className="w-full bg-blue-500">Messungen</div>}
+          header={<div className="w-full" style={{ backgroundColor: infoBoxHeaderColor }}>Messungen</div>}
           alwaysVisibleDiv={
             <div className="mt-2 mb-2 w-[96%] flex justify-between items-start gap-4">
               <span style={{ cursor: "pointer", width: "100%" }}>
