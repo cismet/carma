@@ -4,7 +4,6 @@ export function dmsPageExtractor(dataIn) {
   } else {
     const dms = dataIn?.dms_urlArrayRelationShip || [];
     if (dms.length > 0) {
-
       const data = dms.map((d) => {
         // console.log("xxx d", d);
         if (d.url.url_base.prot_prefix.startsWith("http")) {
@@ -19,10 +18,13 @@ export function dmsPageExtractor(dataIn) {
           return {
             id: d.id,
             name: d.name,
-            beschreibung: d.beschreibung === null && server.startsWith("d3one") ? "D3-Link" : d.beschreibung,
+            beschreibung:
+              d.beschreibung === null && server.startsWith("d3one")
+                ? "D3-Link"
+                : d.beschreibung,
             file: d.url.object_name,
             vorschau: finalPath,
-            fileType: "d3"
+            fileType: "d3",
           };
         } else {
           const server = "http://dokumente.s10222.wuppertal-intra.de";
