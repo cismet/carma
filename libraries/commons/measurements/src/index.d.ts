@@ -109,3 +109,5 @@ export interface MeasurementConfig {
   editableTitle: boolean;
   infoBoxHeaderColor: string;
 }
+
+export type PartialMeasurementConfig = Partial<MeasurementConfig>;
