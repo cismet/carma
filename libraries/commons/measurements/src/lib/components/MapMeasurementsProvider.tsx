@@ -4,6 +4,7 @@ import {
   ActiveShape,
   MapMeasurementsContextType,
 } from "../../index.d.ts";
+import { setFromLocalforage, saveToLocalforage } from "../utils/helper";
 
 export const MapMeasurementsContext = createContext<MapMeasurementsContextType>(
   {
@@ -71,9 +72,13 @@ export const MapMeasurementsProvider = ({
   const [updateTitleStatus, setUpdateTitleStatus] = useState(false);
   const [startDrawing, setStartDrawing] = useState(false);
 
-  // useEffect(() => {
-  //   console.log("xxx shapes", shapes);
-  // }, [shapes]);
+  useEffect(() => {
+    setFromLocalforage("measurementShapes", setShapes, []);
+  }, []);
+
+  useEffect(() => {
+    saveToLocalforage("measurementShapes", shapes);
+  }, [shapes]);
 
   // useEffect(() => {
   //   console.log("xxx visibleShapes", visibleShapes);
