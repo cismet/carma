@@ -52,8 +52,7 @@
         "production": {
           "buildTarget": "geoportal:build:production"
         }
-      },
-      "dependsOn": ["build"]
+      }
     },
     "test": {
       "executor": "@nx/vite:test",

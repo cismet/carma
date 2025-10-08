@@ -6,6 +6,24 @@ import { viteStaticCopy } from "vite-plugin-static-copy";
 
 const CESIUM_PATHNAME = "__cesium__";
 
+// Packages to keep visible in sourcemaps for debugging
+const SOURCEMAP_VISIBLE_PACKAGES = [
+  'cesium',
+  'leaflet',
+  'react-leaflet',
+  'leaflet-draw',
+  'leaflet-editable',
+  'maplibre-gl',
+  'react-cismap',
+];
+
+// Helper to check if a path should be visible in sourcemaps
+const shouldShowInSourcemaps = (sourcePath: string): boolean => {
+  return SOURCEMAP_VISIBLE_PACKAGES.some(pkg =>
+    sourcePath.includes(`node_modules/${pkg}`)
+  );
+};
+
 export default defineConfig({
   root: __dirname,
   cacheDir: "../../node_modules/.vite/apps/geoportal",
@@ -15,6 +33,14 @@ export default defineConfig({
     host: "localhost",
     fs: {
       allow: ["../.."],
+    },
+    // Control which files are ignored in browser dev tools
+    sourcemapIgnoreList(sourcePath: string) {
+      // Show configured packages, hide all other node_modules
+      if (shouldShowInSourcemaps(sourcePath)) {
+        return false;
+      }
+      return sourcePath.includes('node_modules');
     },
   },
 
@@ -45,8 +71,54 @@ export default defineConfig({
   build: {
     outDir: "../../dist/apps/geoportal",
     reportCompressedSize: true,
+    // 'hidden' generates sourcemaps but doesn't reference them in bundle
+    sourcemap: process.env.NODE_ENV === 'production' ? 'hidden' : true,
     commonjsOptions: {
       transformMixedEsModules: true,
+    },
+    // Reduce memory pressure during build
+    chunkSizeWarningLimit: 1000,
+    rollupOptions: {
+      output: {
+        // Optimize chunks by load priority for better initial load & caching
+        manualChunks: {
+          'vendor-react-core': [
+            'react',
+            'react-dom',
+            'react-redux',
+            '@reduxjs/toolkit',
+            'redux-persist',
+            'localforage',
+            'react-router-dom'
+          ],
+          'vendor-ui': ['antd', '@ant-design/icons'],
+          'vendor-ui-icons': [
+            '@fortawesome/react-fontawesome',
+            '@fortawesome/fontawesome-svg-core',
+            '@fortawesome/free-solid-svg-icons',
+            '@fortawesome/free-regular-svg-icons',
+          ],
+          'vendor-leaflet': [
+            'leaflet',
+            'react-leaflet',
+            'leaflet-draw',
+            'leaflet-editable',
+          ],
+          'vendor-cismap': ['react-cismap'],
+          'vendor-cesium': ['cesium'],
+          'vendor-maplibre': ['maplibre-gl'],
+        },
+        // Exclude most vendor chunks from sourcemaps to save memory
+        // Keep Cesium for debugging, exclude others
+        sourcemapExcludeSources: true,
+        sourcemapIgnoreList: (relativeSourcePath: string) => {
+          // Show configured packages, hide all other node_modules
+          if (shouldShowInSourcemaps(relativeSourcePath)) {
+            return false;
+          }
+          return relativeSourcePath.includes('node_modules');
+        },
+      },
     },
   },
 
