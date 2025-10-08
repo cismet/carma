@@ -155,6 +155,7 @@ export const Share = ({
           <form
             style={{ width: "100%" }}
             onSubmit={(e) => createShare(e, false)}
+            className="formContainer"
           >
             <div
               style={{
