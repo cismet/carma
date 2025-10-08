@@ -19,6 +19,22 @@ const defaultMarkerOptions = {
   id: "selected3dmarker",
 } as const;
 
+const isReusableModel = (model: Model | null | undefined) => {
+  if (!model) {
+    return false;
+  }
+
+  try {
+    return typeof model.isDestroyed === "function" && !model.isDestroyed();
+  } catch (error) {
+    console.debug(
+      "[CESIUM|MARKER|MODEL] failed to probe existing model state, recreating",
+      error
+    );
+    return false;
+  }
+};
+
 export type BuildMarkerParams = {
   scene: Scene;
   pos: Cartographic;
@@ -38,7 +54,10 @@ export const buildMarkerData = async ({
   modelConfig,
   options,
 }: BuildMarkerParams): Promise<MarkerPrimitiveData> => {
-  const { id, model } = { ...defaultMarkerOptions, ...options };
+  const { id, model: modelCandidate } = {
+    ...defaultMarkerOptions,
+    ...options,
+  };
 
   const markerData: MarkerPrimitiveData = {
     id,
@@ -64,8 +83,19 @@ export const buildMarkerData = async ({
   markerData.modelMatrix = Matrix4.clone(modelMatrix);
   markerData.animatedModelMatrix = Matrix4.clone(modelMatrix);
 
-  const markerModel = model
-    ? reuseExistingModel(model, modelMatrix, modelConfig)
+  let markerModel: Model | null = null;
+
+  const reusableModel = isReusableModel(modelCandidate) ? modelCandidate : null;
+
+  if (modelCandidate && !reusableModel) {
+    console.debug(
+      "[CESIUM|MARKER|MODEL] existing marker model destroyed, recreating",
+      id
+    );
+  }
+
+  markerModel = reusableModel
+    ? reuseExistingModel(reusableModel, modelMatrix, modelConfig)
     : await createModelFromConfig(id, modelMatrix, modelConfig);
 
   markerData.model = markerModel;
@@ -104,7 +134,7 @@ const createModelFromConfig = async (
     "[CESIUM|MARKER|MODEL] creating marker model from file",
     modelConfig.uri
   );
-  return Model.fromGltfAsync({
+  return await Model.fromGltfAsync({
     id,
     url: modelConfig.uri,
     modelMatrix,
