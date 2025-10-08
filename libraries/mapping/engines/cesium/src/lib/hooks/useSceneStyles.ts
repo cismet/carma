@@ -17,8 +17,13 @@ export const useSceneStyles = (enabled = true) => {
   const dispatch = useDispatch();
   const currentSceneStyle = useSelector(selectCurrentSceneStyle);
 
-  const { sceneRef, withTerrainProvider, withImageryLayer, isValidViewer } =
-    useCesiumContext();
+  const {
+    sceneRef,
+    withTerrainProvider,
+    withImageryLayer,
+    isValidViewer,
+    isViewerReady,
+  } = useCesiumContext();
   const primaryStyle = useSelector(selectSceneStylePrimary);
   const secondaryStyle = useSelector(selectSceneStyleSecondary);
 
@@ -61,6 +66,7 @@ export const useSceneStyles = (enabled = true) => {
     withTerrainProvider,
     withImageryLayer,
     isValidViewer,
+    isViewerReady,
   ]);
 };
 

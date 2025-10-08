@@ -7,10 +7,11 @@ import type { LatLng } from "@carma/types";
 import {
   selectShowSecondaryTileset,
   selectViewerIsMode2d,
-  selectViewerIsTransitioning,
 } from "../slices/cesium";
 
 import { useCesiumContext } from "./useCesiumContext";
+
+import { isTransitionState } from "../hooks/useMapTransition";
 
 import { cameraToCartographicDegrees } from "../utils/cesiumHelpers";
 import {
@@ -19,7 +20,6 @@ import {
 } from "../utils/cesiumHashParamsCodec";
 
 import { VIEWERSTATE_KEYS } from "../constants";
-import { isValidCamera } from "../utils/instanceGates";
 
 const toHashParams = (
   cesiumCameraState: StringifiedCameraState,
@@ -47,30 +47,29 @@ export const useOnSceneChange = (
     isMode2d?: boolean
   ) => void
 ) => {
-  const { withViewer } = useCesiumContext();
+  const ctx = useCesiumContext();
+  const { transitionStateRef } = ctx;
   const isSecondaryStyle = useSelector(selectShowSecondaryTileset);
   const isMode2d = useSelector(selectViewerIsMode2d);
-  const isTransitioning = useSelector(selectViewerIsTransitioning);
 
   // todo handle style change explicitly not via tileset, is secondarystyle
   // todo consider declaring changed part of state in the callback, not full state only
 
   useEffect(() => {
     // on changes to mode or style
-    if (isTransitioning || isMode2d) {
+    if (isTransitionState(transitionStateRef.current)) {
       return;
     }
-
-    withViewer((viewer) => {
+    if (ctx.isValidViewer() && !isMode2d) {
       console.debug(
         "HOOK: update Hash, route or style changed",
         isSecondaryStyle
       );
-      const { scene } = viewer;
-      const { camera } = scene;
       if (onSceneChange) {
         let cameraState: StringifiedCameraState | null = null;
-        cameraState = encodeCesiumCamera(camera);
+        ctx.withCamera((camera) => {
+          cameraState = encodeCesiumCamera(camera);
+        });
         if (cameraState === null) {
           return;
         }
@@ -83,34 +82,30 @@ export const useOnSceneChange = (
       } else {
         console.info("HOOK: [NOOP] no onSceneChange callback");
       }
-    });
-  }, [withViewer, onSceneChange, isMode2d, isSecondaryStyle, isTransitioning]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ctx, isMode2d, isSecondaryStyle]);
 
   useEffect(() => {
     // update hash hook
-    if (isTransitioning) {
+    if (isTransitionState(transitionStateRef.current)) {
       return;
     }
 
-    withViewer((viewer) => {
-      const camera = viewer.scene.camera;
+    if (ctx.isValidViewer()) {
       console.debug(
         "HOOK: [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to update hash"
       );
-      let camDeg: Required<LatLng.deg> | undefined;
-      let proceed = false;
-
       const moveEndListener = async () => {
         // let TopicMap/leaflet handle the view change in 2d Mode
-
-        proceed = Boolean(camera && camera.position && !isMode2d);
-        if (proceed) {
-          try {
+        let proceed = false;
+        let camDeg: Required<LatLng.deg> | undefined;
+        ctx.withCamera((camera) => {
+          proceed = Boolean(camera && camera.position && !isMode2d);
+          if (proceed) {
             camDeg = cameraToCartographicDegrees(camera);
-          } catch (error) {
-            console.warn("Error getting camera position", error);
           }
-        }
+        });
         if (proceed && camDeg) {
           console.debug(
             "LISTENER: Cesium moveEndListener encode viewer to hash",
@@ -120,7 +115,9 @@ export const useOnSceneChange = (
 
           if (onSceneChange) {
             let cameraState: StringifiedCameraState | null = null;
-            cameraState = encodeCesiumCamera(camera);
+            ctx.withCamera((camera) => {
+              cameraState = encodeCesiumCamera(camera);
+            });
             if (cameraState === null) {
               return;
             }
@@ -134,20 +131,22 @@ export const useOnSceneChange = (
           }
         }
       };
-      if (isValidCamera(camera)) {
+      ctx.withCamera((camera) => {
         camera.moveEnd.addEventListener(moveEndListener);
-      }
+      });
       return () => {
         // clear hash on unmount
         // onSceneChange?.({ hashParams: clear3dOnlyHashParams });
-        withViewer((viewer) => {
+        ctx.withViewer((viewer) => {
           if (!viewer.isDestroyed()) {
-            viewer.scene.camera.moveEnd.removeEventListener(moveEndListener);
+            viewer.camera.moveEnd.removeEventListener(moveEndListener);
           }
         });
       };
-    });
-  }, [withViewer, isSecondaryStyle, isMode2d, onSceneChange, isTransitioning]);
+    }
+    // transitionStateRef is intentionally not in deps - we check its value inside the effect
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ctx, isSecondaryStyle, isMode2d, onSceneChange]);
 };
 
 export default useOnSceneChange;
