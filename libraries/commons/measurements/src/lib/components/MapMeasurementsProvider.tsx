@@ -103,13 +103,13 @@ export const MapMeasurementsProvider = ({
   const [updateTitleStatus, setUpdateTitleStatus] = useState(false);
   const [startDrawing, setStartDrawing] = useState(false);
 
-  // useEffect(() => {
-  //   setFromLocalforage("measurementShapes", setShapes, []);
-  // }, []);
+  useEffect(() => {
+    setFromLocalforage("measurementShapes", setShapes, []);
+  }, []);
 
-  // useEffect(() => {
-  //   saveToLocalforage("measurementShapes", shapes);
-  // }, [shapes]);
+  useEffect(() => {
+    saveToLocalforage("measurementShapes", shapes);
+  }, [shapes]);
 
   // useEffect(() => {
   //   console.log("xxx visibleShapes", visibleShapes);

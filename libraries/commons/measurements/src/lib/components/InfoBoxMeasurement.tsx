@@ -355,7 +355,15 @@ export function InfoBoxMeasurement({}: InfoBoxMeasurementProps) {
               <div className="flex justify-center items-center w-[96%]">
                 <span
                   className="mx-4 text-[#0078a8] cursor-pointer"
-                  onClick={() => setShowAll(true)}
+                  onClick={() => {
+                    const shapesLength = measurementsData.length;
+                    if (shapesLength > 0) {
+                      const shapeId =
+                        measurementsData[shapesLength - 1]?.shapeId;
+                      setActiveShape(shapeId);
+                      setShowAll(true);
+                    }
+                  }}
                 >
                   {measurementsData.length} Messungen verfügbar
                 </span>
