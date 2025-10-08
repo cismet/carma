@@ -25,10 +25,9 @@ export function InfoBoxMeasurement({}: InfoBoxMeasurementProps) {
     drawingShape: drawingMode,
     mapMovingEnd,
     setMapMovingEnd,
+    setDeleteAll,
     setShowAll,
     updateTitle,
-    deleteShapeById,
-    deleteVisibleShapeById,
     config,
   } = useMapMeasurementsContext();
 
@@ -180,32 +179,9 @@ export function InfoBoxMeasurement({}: InfoBoxMeasurementProps) {
   const deleteShapeHandler = (e: React.MouseEvent) => {
     e.stopPropagation();
 
-    // Get the current shape to delete
-    const currentShape = visibleShapesData[currentMeasure];
-    if (currentShape) {
-      // Delete the specific shape by its ID
-      deleteShapeById(currentShape.shapeId);
-      deleteVisibleShapeById(currentShape.shapeId);
-      
-      // Clean up status
-      cleanUpdateMeasurementStatus();
-      
-      // Adjust currentMeasure index if needed
-      if (currentMeasure >= visibleShapesData.length - 1 && currentMeasure > 0) {
-        setCurrentMeasure(currentMeasure - 1);
-      }
-      
-      // Set active shape to remaining shapes if any
-      if (visibleShapesData.length > 1) {
-        const newIndex = currentMeasure >= visibleShapesData.length - 1 ? 
-          Math.max(0, currentMeasure - 1) : currentMeasure;
-        if (visibleShapesData[newIndex] && visibleShapesData[newIndex].shapeId !== currentShape.shapeId) {
-          setActiveShape(visibleShapesData[newIndex].shapeId);
-        }
-      } else {
-        setActiveShape(null);
-      }
-    }
+    setDeleteAll(true);
+    cleanUpdateMeasurementStatus();
+    setLastMeasureActive();
   };
 
   const setUpdateMeasurementStatus = (status: boolean) => {
