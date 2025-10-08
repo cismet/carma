@@ -13,7 +13,7 @@ enum MEASUREMENT_MODE {
 }
 
 const defaultConfig: MeasurementConfig = {
-  editableTitle: false,
+  editableTitle: true,
   infoBoxHeaderColor: "#3b82f6",
 };
 
@@ -76,8 +76,10 @@ export const MapMeasurementsProvider = ({
   config?: PartialMeasurementConfig;
 }) => {
   // Internal mode state as fallback when external props not provided
-  const [internalMode, setInternalMode] = useState<MEASUREMENT_MODE>(MEASUREMENT_MODE.DEFAULT);
-  
+  const [internalMode, setInternalMode] = useState<MEASUREMENT_MODE>(
+    MEASUREMENT_MODE.DEFAULT
+  );
+
   // Use external mode/setMode if provided, otherwise use internal state
   const mode = externalMode ?? internalMode;
   const setMode = setModeExternal ?? setInternalMode;
