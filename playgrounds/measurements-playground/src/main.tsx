@@ -33,7 +33,7 @@ const MeasurementsProviderWrapper = ({
   const dispatch = useDispatch<AppDispatch>();
   const measurementsConfig = {
     // Only override what you want to change
-    editableTitle: false,
+    editableTitle: true,
     // infoBoxHeaderColor: "#22c55e",
   };
 
