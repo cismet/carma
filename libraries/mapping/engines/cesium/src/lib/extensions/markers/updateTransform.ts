@@ -10,7 +10,6 @@ import {
 import { Radians } from "@carma/types";
 
 import type { MarkerPrimitiveData } from "./index.d";
-import type { CesiumContextType } from "../../CesiumContext";
 import { isValidCamera } from "../../utils/instanceGates";
 
 type ScaleTranslation = {
