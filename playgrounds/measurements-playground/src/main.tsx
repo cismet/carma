@@ -33,7 +33,7 @@ const MeasurementsProviderWrapper = ({
   const dispatch = useDispatch<AppDispatch>();
   const measurementsConfig = {
     // Only override what you want to change
-    editableTitle: true,
+    editableTitle: false,
     // infoBoxHeaderColor: "#22c55e",
   };
 
@@ -54,7 +54,7 @@ const MeasurementsProviderWrapper = ({
       externalMode={mode}
       setModeExternal={handleSetMode}
       // Skip config if you want to use default values
-      // config={measurementsConfig}
+      config={measurementsConfig}
     >
       {children}
     </MapMeasurementsProvider>
