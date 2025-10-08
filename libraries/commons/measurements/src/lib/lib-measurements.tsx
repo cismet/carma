@@ -185,11 +185,23 @@ export function MapMeasurementsObjects({
   useEffect(() => {
     if (measureControl) {
       const cleanedVisibleArr = filterArrByIds(visiblePolylines, shapes);
-      setVisibleShapes(cleanedVisibleArr);
 
+      // Preserve drawing shape (5555) if we're in drawing mode
+      const drawingShapeInVisible = visibleShapes.find(
+        (s) => s.shapeId === 5555
+      );
+      if (
+        ifDrawing &&
+        drawingShapeInVisible &&
+        !cleanedVisibleArr.find((s) => s.shapeId === 5555)
+      ) {
+        cleanedVisibleArr.push(drawingShapeInVisible);
+      }
+
+      setVisibleShapes(cleanedVisibleArr);
       measureControl.changeMeasurementsArr(shapes);
     }
-  }, [visiblePolylines, shapes]);
+  }, [visiblePolylines, shapes, ifDrawing]);
 
   useEffect(() => {
     if (drawingShape) {
