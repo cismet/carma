@@ -10,7 +10,6 @@ import {
   isValidScene,
   tryWithValidScene,
   sceneRequestRender,
-  WithElevationProvidersAsyncCallback,
 } from "@carma-mapping/engines/cesium";
 
 import {
@@ -138,12 +137,12 @@ export const useSelectionCesium = (
     useState<MarkerPrimitiveData | null>(null);
 
   useEffect(() => {
-    if (!isActive || !isValidScene(sceneRef.current)) {
+    if (!isValidScene(sceneRef.current)) {
       return;
     }
     const scene = sceneRef.current;
 
-    if (selection) {
+    if (selection && isActive) {
       const selectionKey = selection.sorter ?? null;
       const selectionTimestamp = selection.selectionTimestamp ?? null;
 
@@ -223,7 +222,9 @@ export const useSelectionCesium = (
         setMarkerDataWithMeta,
         options
       );
-    } else {
+    } else if (!selection && isActive) {
+      // Only cleanup when selection is cleared AND we're in 3D mode
+      // Don't cleanup when transitioning to 2D (isActive=false)
       lastSelectionKeyRef.current = null;
       cleanUpCesium(scene, selectedMarkerData, setSelectedMarkerData);
     }
