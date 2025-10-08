@@ -91,7 +91,7 @@ const LayerInfo = ({ description, legend, zoomLevels }: LayerInfoProps) => {
       content={
         <>
           <div className="flex sm:flex-row flex-col overflow-auto gap-2 w-full h-full overflow-y-hidden">
-            <div className="h-full flex flex-col gap-2 w-full sm:w-[80%] hide-tabs">
+            <div className="formContainer h-full flex flex-col gap-2 w-full sm:w-[80%] hide-tabs">
               {parsedDescription && parsedDescription.length > 0 && (
                 <div>
                   {parsedDescription.map((section, index) => {
