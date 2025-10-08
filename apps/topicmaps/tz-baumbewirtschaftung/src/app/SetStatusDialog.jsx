@@ -29,7 +29,7 @@ const SetStatusDialog = ({
       reader.readAsDataURL(info.file.originFileObj);
     }
   };
-  const p = feature.properties;
+
   return (
     <Modal
       zIndex={30000001}
@@ -37,14 +37,7 @@ const SetStatusDialog = ({
         <>
           <div>Status ändern</div>
           <Text type="secondary">
-            {p.baumart_botanisch +
-              " (" +
-              p.standort_nr +
-              "." +
-              p.zusatz +
-              "." +
-              p.lfd_nr_str +
-              ")"}
+            {feature?.properties?.info?.title || "Baum"}
           </Text>
         </>
       }
@@ -105,22 +98,19 @@ const SetStatusDialog = ({
               style={{ width: "33%", textAlign: "center", fontSize: 12 }}
               value="open"
             >
-              <span className="status-emoji">▶️</span>
-              <span className="status-text">Gestartet</span>
+              Gestartet
             </Radio.Button>
             <Radio.Button
               style={{ width: "33%", textAlign: "center", fontSize: 12 }}
               value="done"
             >
-              <span className="status-emoji">✅</span>
-              <span className="status-text">Abgeschlossen</span>
+              Abgeschlossen
             </Radio.Button>
             <Radio.Button
               style={{ width: "33%", textAlign: "center", fontSize: 12 }}
               value="exception"
             >
-              <span className="status-emoji">⚠️</span>
-              <span className="status-text">Ausnahme</span>
+              Ausnahme
             </Radio.Button>
           </Radio.Group>
         </Form.Item>
@@ -149,34 +139,8 @@ const SetStatusDialog = ({
           </div>
         )}
 
-        <Form.Item noStyle shouldUpdate>
-          {({ getFieldValue }) => (
-            <Form.Item
-              name="remarks"
-              label="Bemerkungen"
-              rules={[
-                {
-                  validator(_, value) {
-                    if (getFieldValue("status") === "exception" && !value) {
-                      return Promise.reject(
-                        new Error("Bemerkungen sind bei Ausnahme erforderlich.")
-                      );
-                    }
-                    return Promise.resolve();
-                  },
-                },
-              ]}
-            >
-              <TextArea
-                rows={4}
-                placeholder={
-                  getFieldValue("status") === "exception"
-                    ? "Bemerkungen erforderlich bei Ausnahme..."
-                    : "Optionale Bemerkungen..."
-                }
-              />
-            </Form.Item>
-          )}
+        <Form.Item name="remarks" label="Bemerkungen">
+          <TextArea rows={4} placeholder="Optionale Bemerkungen..." />
         </Form.Item>
       </Form>
     </Modal>

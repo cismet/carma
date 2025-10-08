@@ -17,7 +17,6 @@ import { useCesiumGlobe } from "./hooks/useCesiumGlobe";
 import { useCesiumWhenHidden } from "./hooks/useCesiumWhenHidden";
 import { useInitializeViewer } from "./hooks/useInitializeViewer";
 import { useOnSceneChange } from "./hooks/useOnSceneChange";
-import useTransitionTimeout from "./hooks/useTransitionTimeout";
 import useDebug from "./hooks/useDebug";
 import { useTilesets } from "./hooks/useTilesets";
 import { useSceneStyles } from "./hooks/useSceneStyles";
@@ -93,8 +92,6 @@ export function CustomViewer(props: CustomViewerProps) {
 
   useInitializeViewer(containerRef, options, initialCameraView);
   useCesiumGlobe(globeOptions);
-
-  useTransitionTimeout();
 
   // camera enhancements
   useDisableSSCC();

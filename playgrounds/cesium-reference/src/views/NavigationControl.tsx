@@ -11,7 +11,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faMinus, faPlus } from "@fortawesome/free-solid-svg-icons";
 
 import {
-  BASEMAP_METROPOLE_RUHR_WMS_GRAUBLAU,
+  BASEMAP_METROPOLRUHR_WMS_GRAUBLAU,
   WUPP_LOD2_TILESET,
   WUPP_TERRAIN_PROVIDER,
 } from "@carma-commons/resources";
@@ -60,7 +60,7 @@ const NavigationControlView: FC = () => {
         );
 
         const imageryProvider = new WebMapServiceImageryProvider(
-          BASEMAP_METROPOLE_RUHR_WMS_GRAUBLAU
+          BASEMAP_METROPOLRUHR_WMS_GRAUBLAU
         );
         const newImageryLayer = new ImageryLayer(imageryProvider);
         viewer.imageryLayers.add(newImageryLayer);

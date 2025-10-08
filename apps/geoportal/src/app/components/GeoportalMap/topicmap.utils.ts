@@ -1,13 +1,12 @@
 import { createElement } from "react";
 import type { Dispatch, Store } from "@reduxjs/toolkit";
-import type { LatLng, Map, Point } from "leaflet";
+import * as L from "leaflet";
 import proj4 from "proj4";
 
 import {
   functionToFeature,
   objectToFeature,
 } from "@carma-appframeworks/portals";
-import type { Layer } from "@carma/types";
 
 import {
   addCompletedVectorLayer,
@@ -46,7 +45,7 @@ type Options = {
   mode: UIMode;
   store: Store;
   zoom: number;
-  map: Map | maplibregl.Map;
+  map: L.Map | maplibregl.Map;
 };
 
 // TODO: move to portal lib?
@@ -60,16 +59,12 @@ export const cancelOngoingRequests = () => {
   }
 };
 
+type ClickLatLng = {
+  latlng: { lat: number; lng: number };
+};
+
 export const onClickTopicMap = async (
-  e: {
-    containerPoint?: Point;
-    latlng: LatLng | maplibregl.LngLat;
-    layerPoint?: Point;
-    originalEvent?: PointerEvent;
-    sourceTarget?: HTMLElement;
-    target?: HTMLElement;
-    type?: string;
-  },
+  e: ClickLatLng,
   { dispatch, mode, store, zoom, map }: Options
 ) => {
   const layers = getLayers(store.getState());
@@ -468,7 +463,7 @@ export const implicitVectorSelection = async (
   e: {
     hits: any[];
     hit: any;
-    latlng: LatLng;
+    latlng: L.LatLng;
   },
   { layer, dispatch, selectionHandler, featureHandler, leafletMap }
 ) => {
@@ -499,8 +494,8 @@ export const implicitVectorSelection = async (
     }
     const feature = {
       properties: {
-        _header: header,
-        accentColor: headerColor,
+        header: header,
+        headerColor: headerColor,
         title: "Zu diesem Objekt sind keine weiteren Sachdaten verfügbar.",
         additionalInfo: `Position: ${coordinates[1].toFixed(
           5
@@ -549,7 +544,7 @@ export const onSelectionChangedVector = async (
   e: {
     hits: any[];
     hit: any;
-    latlng: LatLng | maplibregl.LngLat;
+    latlng: L.LatLng | maplibregl.LngLat;
   },
   { layer, dispatch, selectionHandler, map }
 ) => {
@@ -579,39 +574,6 @@ export const onSelectionChangedVector = async (
   } else {
     if (layer.queryable) {
       dispatch(addNothingFoundID(layer.id));
-    } else if (
-      (layer.other.header || layer.other.headerColor) &&
-      e.hit &&
-      e.hit.selectionLayerExists
-    ) {
-      const selectedVectorFeature = e.hit;
-
-      const coordinates = getCoordinates(selectedVectorFeature.geometry);
-      let headerColor = "#0078a8";
-      if (layer.other?.accentColor) {
-        headerColor = layer.other?.accentColor;
-      }
-      let header = layer.title || "Information";
-      if (layer.other?.header) {
-        header = layer.other?.header;
-      }
-      const feature = {
-        properties: {
-          _header: header,
-          accentColor: headerColor,
-          title: "Zu diesem Objekt sind keine weiteren Sachdaten verfügbar.",
-          additionalInfo: `Position: ${coordinates[1].toFixed(
-            5
-          )}, ${coordinates[0].toFixed(5)}`,
-          subtitle: "(Geogr. Breite und Länge in Dezimalgrad, ETRS89)",
-          wmsProps: selectedVectorFeature.properties,
-        },
-        geometry: selectedVectorFeature.geometry,
-        id: layer.id,
-      };
-
-      dispatch(addVectorInfo(feature));
-      dispatch(removeNothingFoundID(layer.id));
     }
   }
   dispatch(addCompletedVectorLayer(layer.id));

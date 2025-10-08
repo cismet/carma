@@ -6,7 +6,7 @@ import {
   WebMapServiceImageryProvider,
 } from "cesium";
 import {
-  BASEMAP_METROPOLE_RUHR_WMS_GRAUBLAU,
+  BASEMAP_METROPOLRUHR_WMS_GRAUBLAU,
   WUPP_LOD2_TILESET,
   WUPP_TERRAIN_PROVIDER,
 } from "@carma-commons/resources";
@@ -37,7 +37,7 @@ const MinimalLod2: FC = () => {
           );
 
           const imageryProvider = new WebMapServiceImageryProvider(
-            BASEMAP_METROPOLE_RUHR_WMS_GRAUBLAU
+            BASEMAP_METROPOLRUHR_WMS_GRAUBLAU
           );
           const newImageryLayer = new ImageryLayer(imageryProvider);
           viewer.imageryLayers.add(newImageryLayer);

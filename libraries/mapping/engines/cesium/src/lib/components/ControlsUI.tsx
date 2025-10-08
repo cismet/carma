@@ -55,7 +55,7 @@ const ControlsUI = ({
           </ControlGroup>
         </div>
         <ControlGroup>
-          <MapTypeSwitcher forceEnabled={true} />
+          <MapTypeSwitcher />
           <SceneStyleToggle />
         </ControlGroup>
       </ControlContainer>

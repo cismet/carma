@@ -19,7 +19,6 @@ export { GenericInfoBoxFromFeature } from "./lib/components/GenericInfoBoxFromFe
 export { PieChart } from "./lib/components/PieChart.tsx";
 export { ContactMailButton } from "./lib/components/ContactMailButton.tsx";
 export { FeatureInfobox } from "./lib/components/FeatureInfobox.tsx";
-export { InfoBoxHeader } from "./lib/components/InfoBoxHeader.tsx";
 
 export { GazDataProvider, useGazData } from "./lib/components/GazDataProvider";
 
@@ -63,10 +62,10 @@ export { useShareUrl, SHORTENER_URL } from "./lib/hooks/useShareUrl";
 export { useProgress } from "./lib/hooks/useProgress";
 export { useCesiumModels } from "./lib/hooks/useCesiumModels";
 export {
-  useMapHashRouting,
-  createLocationChangeHandler,
+  useMapHashRoutingLeafletLike,
   type LatLngZoom,
-} from "./lib/hooks/useMapHashRouting";
+} from "./lib/hooks/useMapHashRoutingLeafletLike";
+export { useMapHashRoutingCesium } from "./lib/hooks/useMapHashRoutingCesium";
 export { uploadImage } from "./lib/utils/fileUpload";
 export {
   defaultBackgroundConfigurations,

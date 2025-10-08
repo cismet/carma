@@ -15,12 +15,19 @@ import { CesiumContext, type CesiumContextType } from "./CesiumContext";
 import type { CesiumContextEventMap } from "./cesiumContextEventMap";
 
 import {
+  MapState,
+  type MapStateType,
+  type MapTransitionLifecycle,
+  createTransitionLifecycle,
+} from "./hooks/useMapTransition";
+import { useValidInstances } from "./hooks/useValidInstances";
+
+import {
   loadCesiumImageryLayer,
   loadCesiumTerrainProvider,
   ProviderConfig,
 } from "./utils/cesiumProviders";
 import { loadTileset, TilesetConfigs } from "./utils/cesiumTilesetProviders";
-import { useValidInstances } from "./hooks/useValidInstances";
 
 import { initAnimationMap, AnimationMap } from "./utils/animationMap";
 import { sceneRequestRender } from "./utils/sceneRequestRender";
@@ -54,6 +61,13 @@ export const CesiumContextProvider = ({
   const [initialCameraSettled, setInitialCameraSettled] = useState<
     boolean | null
   >(null);
+
+  // Transition handling
+  const transitionStateRef = useRef<keyof MapStateType>(MapState.uninitialized);
+  const transitionLifecycleRef = useRef<MapTransitionLifecycle>(
+    createTransitionLifecycle()
+  );
+
   // Monotonic counter for initial camera applications
   const [initialCameraEpoch, setInitialCameraEpoch] = useState<number>(0);
 
@@ -219,6 +233,8 @@ export const CesiumContextProvider = ({
       setIsViewerReady,
       initialCameraSettled,
       setInitialCameraSettled,
+      transitionStateRef,
+      transitionLifecycleRef,
       initialCameraEpoch,
       bumpInitialCameraEpoch,
       subscribe,
@@ -239,6 +255,8 @@ export const CesiumContextProvider = ({
       instanceCallbacks,
       subscribe,
       emit,
+      transitionStateRef,
+      transitionLifecycleRef,
     ]
   );
 

@@ -41,6 +41,12 @@ export { useCesiumCameraForceOblique } from "./lib/hooks/useCameraForceOblique";
 export { useHomeControl } from "./lib/hooks/useHomeControl";
 export { useCesiumInitialCameraFromSearchParams } from "./lib/hooks/useCesiumInitialCameraFromSearchParams";
 export { useFovWheelZoom } from "./lib/hooks/useFovWheelZoom";
+export {
+  addMapTransitionLifecycleHandler,
+  MapTransitionState,
+  type MapTransitionLifecycle,
+  useMapTransition,
+} from "./lib/hooks/useMapTransition";
 export { useSceneStyles } from "./lib/hooks/useSceneStyles";
 export { useZoomControls } from "./lib/hooks/useZoomControls";
 

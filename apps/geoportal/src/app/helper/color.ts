@@ -1,6 +1,7 @@
-import { sandboxedEvalExternal, utils } from "@carma-appframeworks/portals";
+import { sandboxedEvalExternal } from "@carma-appframeworks/portals";
 import { FeatureInfoProperties } from "@carma/types";
 
+// Function to get a fresh regex pattern each time to avoid lastIndex issues
 const getFunctionRegex = () => {
   return /(function\s*\([^)]*\)\s*\{[^}]*\})|(\([^)]*\)\s*=>\s*[^}]*)/g;
 };
@@ -16,4 +17,26 @@ export const parseColor = async (
     return result.toString();
   }
   return "#0078a8";
+};
+
+export const parseHeader = async (
+  header: string,
+  properties: FeatureInfoProperties
+) => {
+  if (!header) return "";
+
+  if (getFunctionRegex().test(header)) {
+    try {
+      const result = await sandboxedEvalExternal(
+        "(" + header + ")",
+        properties
+      );
+      return result.toString();
+    } catch (error) {
+      console.error("Error parsing header function:", error);
+      return header;
+    }
+  }
+
+  return header;
 };

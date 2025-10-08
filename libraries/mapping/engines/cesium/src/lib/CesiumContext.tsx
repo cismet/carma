@@ -1,7 +1,21 @@
 import { createContext, MutableRefObject } from "react";
 
-import type { Scene, Viewer } from "cesium";
+import type {
+  Camera,
+  Cesium3DTileset,
+  CesiumTerrainProvider,
+  EllipsoidTerrainProvider,
+  EntityCollection,
+  ImageryLayer,
+  Scene,
+  Viewer,
+} from "cesium";
+
 import type { AnimationMap } from "./utils/animationMap";
+import {
+  type MapStateType,
+  type MapTransitionLifecycle,
+} from "./hooks/useMapTransition";
 import type {
   EmitCesiumCtxFn,
   SubscribeCesiumCtxFn,
@@ -30,6 +44,9 @@ export interface CesiumContextType {
   animationMapRef: MutableRefObject<AnimationMap | null>;
   shouldSuspendPitchLimiterRef: MutableRefObject<boolean>;
   shouldSuspendCameraLimitersRef: MutableRefObject<boolean>;
+  // state for transitions for other map engines
+  transitionStateRef: MutableRefObject<keyof MapStateType>;
+  transitionLifecycleRef: MutableRefObject<MapTransitionLifecycle>;
   isViewerReady: boolean;
   setIsViewerReady: (flag: boolean) => void;
   // null: not started determining; false: determining/applying; true: settled

@@ -103,7 +103,6 @@ export const ResponsiveInfoBox = ({
             marginBottom: infoBoxBottomMargin,
             fontFamily: "Helvetica Neue, Arial, Helvetica, sans-serif",
             fontSize: "0.75rem",
-            pointerEvents: "auto",
           }}
         >
           {header}

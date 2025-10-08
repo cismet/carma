@@ -10,7 +10,7 @@ import {
 import { DebugUiProvider } from "@carma-commons/debug";
 import { HashStateProvider } from "@carma-appframeworks/portals";
 import {
-  BASEMAP_METROPOLE_RUHR_WMS_GRAUBLAU,
+  BASEMAP_METROPOLRUHR_WMS_GRAUBLAU,
   WUPP_LOD2_TILESET,
   WUPP_MESH_2024,
   WUPP_TERRAIN_PROVIDER,
@@ -34,7 +34,7 @@ export function App() {
       //initialViewerState={defaultViewerState}
       providerConfig={{
         terrainProvider: WUPP_TERRAIN_PROVIDER,
-        imageryProvider: BASEMAP_METROPOLE_RUHR_WMS_GRAUBLAU,
+        imageryProvider: BASEMAP_METROPOLRUHR_WMS_GRAUBLAU,
       }}
       tilesetConfigs={{
         primary: WUPP_MESH_2024,
