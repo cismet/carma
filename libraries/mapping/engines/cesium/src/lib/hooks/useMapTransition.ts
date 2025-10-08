@@ -22,11 +22,7 @@ import { getTiledMapCenterZoomEquivalent } from "../utils/getTiledMapCenterZoomE
 import { tiledMapToCesium } from "../utils/tiledMapToCesium";
 import { pickSceneCenter } from "../utils/pickers";
 import { cesiumCenterPixelSizeToLeafletZoom } from "../utils/pixels";
-import {
-  isValidScene,
-  isValidViewer,
-  tryWithValidScene,
-} from "../utils/instanceGates";
+import { isValidScene } from "../utils/instanceGates";
 
 const To2d = {
   preTransitionTo2d: "preTransitionTo2d",
@@ -309,6 +305,7 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
         cause: "SwitchMapMode to 3d",
         onComplete: () => {
           // handles fadeout of topicmap/2d component externally
+          console.debug("[CESIUM|2D3D|TO3D] tiledMapToCesium complete - dispatching setIsMode2d(false)");
           dispatch(setIsMode2d(false));
           transitionStateRef.current = MapTransitionState.postTransitionTo3d;
           setTimeout(animateCesiumView, 100);
