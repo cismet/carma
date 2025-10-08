@@ -74,6 +74,18 @@ export const isTransitionState = (
   return isTransitionTo2dState(state) || isTransitionTo3dState(state);
 };
 
+export const shouldBlockUserInput = (state: unknown): boolean => {
+  // Post-transition states should NOT block user input
+  if (
+    state === MapTransitionState.postTransitionTo3d ||
+    state === MapTransitionState.postTransitionTo2d
+  ) {
+    return false;
+  }
+  // All other transition states should block
+  return isTransitionState(state);
+};
+
 type TransitionLifecycleHandler = () => Promise<void>;
 
 export type MapTransitionLifecycle = {
@@ -251,6 +263,15 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
       onComplete?.(false);
     };
 
+    const onCancel3d = () => {
+      console.debug(
+        "[CESIUM|2D3D|TO3D] animation cancelled by user - setting mode to mode3d"
+      );
+      transitionStateRef.current = MapState.mode3d;
+      // Still call onComplete so UI (like map type switcher) can clear loading state
+      onComplete?.(false);
+    };
+
     const animateCesiumView = () => {
       const scene = sceneRef.current;
       if (!scene) {
@@ -273,8 +294,9 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
           delay: duration, // allow the css transition to finish
           duration: prevDuration * 1000,
           useCurrentDistance: true,
+          cancelable: true, // Allow user to cancel post-transition animation
           onComplete: onComplete3d,
-          onCancel: onComplete3d,
+          onCancel: onCancel3d, // Just clear transition state, don't jump
         });
       } else {
         console.debug(
@@ -305,7 +327,9 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
         cause: "SwitchMapMode to 3d",
         onComplete: () => {
           // handles fadeout of topicmap/2d component externally
-          console.debug("[CESIUM|2D3D|TO3D] tiledMapToCesium complete - dispatching setIsMode2d(false)");
+          console.debug(
+            "[CESIUM|2D3D|TO3D] tiledMapToCesium complete - dispatching setIsMode2d(false)"
+          );
           dispatch(setIsMode2d(false));
           transitionStateRef.current = MapTransitionState.postTransitionTo3d;
           setTimeout(animateCesiumView, 100);

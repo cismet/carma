@@ -5,7 +5,7 @@ import { Math as CesiumMath, Cartographic, EasingFunction } from "cesium";
 
 import { useCesiumContext } from "./useCesiumContext";
 
-import { isTransitionState } from "../hooks/useMapTransition";
+import { shouldBlockUserInput } from "../hooks/useMapTransition";
 
 import {
   selectScreenSpaceCameraControllerEnableCollisionDetection,
@@ -62,14 +62,17 @@ const useCameraPitchEasingLimiter = (
         withCamera((camera) => {
           if (shouldSuspendCameraLimitersRef?.current) return;
           if (
-            isTransitionState(transitionStateRef.current) ||
+            shouldBlockUserInput(transitionStateRef.current) ||
             isAnimatingRef.current
           ) {
             console.debug(
               "HOOK [CESIUM|CAMERA] EASING Pitch Limiter skipped while transitioning or animating",
-              "transitionState:", transitionStateRef.current,
-              "isTransition:", isTransitionState(transitionStateRef.current),
-              "isAnimating:", isAnimatingRef.current
+              "transitionState:",
+              transitionStateRef.current,
+              "shouldBlock:",
+              shouldBlockUserInput(transitionStateRef.current),
+              "isAnimating:",
+              isAnimatingRef.current
             );
             return;
           }
