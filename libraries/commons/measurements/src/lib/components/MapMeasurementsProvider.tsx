@@ -107,9 +107,9 @@ export const MapMeasurementsProvider = ({
     setFromLocalforage("measurementShapes", setShapes, []);
   }, []);
 
-  useEffect(() => {
-    saveToLocalforage("measurementShapes", shapes);
-  }, [shapes]);
+  // useEffect(() => {
+  //   saveToLocalforage("measurementShapes", shapes);
+  // }, [shapes]);
 
   // useEffect(() => {
   //   console.log("xxx visibleShapes", visibleShapes);

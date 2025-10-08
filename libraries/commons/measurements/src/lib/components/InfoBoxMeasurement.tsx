@@ -375,7 +375,9 @@ export function InfoBoxMeasurement({}: InfoBoxMeasurementProps) {
                     if (shapesLength > 0) {
                       const shapeId =
                         measurementsData[shapesLength - 1]?.shapeId;
-                      setActiveShape(shapeId);
+                      if (!drawingMode) {
+                        setActiveShape(shapeId);
+                      }
                       setShowAll(true);
                     }
                   }}
