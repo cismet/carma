@@ -1,4 +1,4 @@
-import { useCallback, useContext, useEffect, useState } from "react";
+import { MutableRefObject, useContext, useEffect, useState } from "react";
 import { useDispatch } from "react-redux";
 
 import { Cartesian3, Cartographic, defined, HeadingPitchRange } from "cesium";
@@ -11,12 +11,7 @@ import { promiseWithTimeout } from "@carma-commons/utils/promise";
 import { LeafletMapStateChangeEvents } from "@carma-mapping/engines/leaflet";
 
 import { useCesiumContext } from "./useCesiumContext";
-import {
-  setIsMode2d,
-  setTransitionTo2d,
-  setTransitionTo3d,
-  clearTransition,
-} from "../slices/cesium";
+import { setIsMode2d } from "../slices/cesium";
 
 import { animateInterpolateHeadingPitchRange } from "../utils/cesiumAnimations";
 import {
@@ -32,6 +27,93 @@ import {
   isValidViewer,
   tryWithValidScene,
 } from "../utils/instanceGates";
+
+const To2d = {
+  preTransitionTo2d: "preTransitionTo2d",
+  transitionTo2d: "transitionTo2d",
+  postTransitionTo2d: "postTransitionTo2d",
+} as const;
+
+const To3d = {
+  preTransitionTo3d: "preTransitionTo3d",
+  transitionTo3d: "transitionTo3d",
+  postTransitionTo3d: "postTransitionTo3d",
+} as const;
+
+export const MapTransitionState = {
+  ...To2d,
+  ...To3d,
+} as const;
+
+export type MapTransitionStateType = typeof MapTransitionState;
+
+export const MapMode = {
+  mode2d: "mode2d",
+  mode3d: "mode3d",
+} as const;
+
+export const MapState = {
+  uninitialized: "uninitialized",
+  ...MapMode,
+  ...MapTransitionState,
+} as const;
+
+export type MapStateType = typeof MapState;
+
+export const isTransitionTo2dState = (
+  state: unknown
+): state is keyof typeof To2d => {
+  return Object.values(To2d).includes(state as keyof typeof To2d);
+};
+
+export const isTransitionTo3dState = (
+  state: unknown
+): state is keyof typeof To3d => {
+  return Object.values(To3d).includes(state as keyof typeof To3d);
+};
+
+export const isTransitionState = (
+  state: unknown
+): state is keyof MapTransitionStateType => {
+  return isTransitionTo2dState(state) || isTransitionTo3dState(state);
+};
+
+type TransitionLifecycleHandler = () => Promise<void>;
+
+export type MapTransitionLifecycle = {
+  [K in keyof MapTransitionStateType]: Set<TransitionLifecycleHandler>;
+};
+
+export const createTransitionLifecycle = (): MapTransitionLifecycle => ({
+  [MapTransitionState.preTransitionTo2d]: new Set(),
+  [MapTransitionState.transitionTo2d]: new Set(),
+  [MapTransitionState.postTransitionTo2d]: new Set(),
+  [MapTransitionState.preTransitionTo3d]: new Set(),
+  [MapTransitionState.transitionTo3d]: new Set(),
+  [MapTransitionState.postTransitionTo3d]: new Set(),
+});
+
+export const addMapTransitionLifecycleHandler = (
+  lifecycleRef: MutableRefObject<MapTransitionLifecycle>,
+  phase: keyof MapTransitionStateType,
+  handler: TransitionLifecycleHandler
+) => {
+  const handlers = lifecycleRef.current[phase];
+  handlers.add(handler);
+  return () => {
+    handlers.delete(handler);
+  };
+};
+
+export const runTransitionLifecycleHandlers = async (
+  lifecycleRef: MutableRefObject<MapTransitionLifecycle>,
+  phase: keyof MapTransitionStateType
+) => {
+  const handlers = lifecycleRef.current[phase];
+  for (const handler of handlers) {
+    await handler();
+  }
+};
 
 type TransitionOptions = {
   onComplete?: (isTo2d: boolean) => void;
@@ -70,70 +152,82 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
   const dispatch = useDispatch();
   const topicMapContext = useContext<typeof TopicMapContext>(TopicMapContext);
   const { realRoutedMapRef: routedMapRef } = topicMapContext;
-  const { withElevationProvidersAsync, sceneRef, viewerRef, isViewerReady } =
-    useCesiumContext();
+  const cesiumContext = useCesiumContext();
+  // TODO: move transition state int own context below all involved map frameworks,
+  // TODO: move transition options to cesium context or own context
+  // potentially enable transitions between more map frameworks like maplibre and threejs
+  // and have transition as own monorepo project and standalone package possibly
+  const {
+    withCamera,
+    transitionStateRef,
+    transitionLifecycleRef,
+    sceneRef,
+    withElevationProvidersAsync,
+    viewerRef,
+    isViewerReady,
+  } = cesiumContext;
+
   const [prevHPR, setPrevHPR] = useState<HeadingPitchRange | null>(null);
   const [prevDuration, setPrevDuration] = useState<number>(0);
   const [resolutionScale, setResolutionScale] = useState<number | null>(null);
 
   useEffect(() => {
-    if (isViewerReady && isValidViewer(viewerRef.current)) {
+    if (isViewerReady && viewerRef.current) {
       setResolutionScale(viewerRef.current.resolutionScale);
     }
   }, [isViewerReady, viewerRef]);
 
-  const prepareLeafletForTransition = useCallback(
-    async (leaflet: LeafletMap | null | undefined) => {
-      if (!leaflet) {
-        return;
-      }
+  const prepareLeafletForTransition = async (
+    leaflet: LeafletMap | null | undefined
+  ) => {
+    if (!leaflet) {
+      return;
+    }
 
-      const cleanups: Array<() => void> = [];
+    const cleanups: Array<() => void> = [];
 
-      const zoom = leaflet.getZoom();
-      const shouldZoomOut = isZoom(zoom) && zoom > maxZoom;
+    const zoom = leaflet.getZoom();
+    const shouldZoomOut = isZoom(zoom) && zoom > maxZoom;
 
-      let moveEndPromise: Promise<void> | undefined;
+    let moveEndPromise: Promise<void> | undefined;
 
-      if (shouldZoomOut) {
-        moveEndPromise = new Promise<void>((resolve) => {
-          const handle = () => {
-            leaflet.off(LeafletMapStateChangeEvents.zoomend, handle);
-            resolve();
-          };
-          cleanups.push(() =>
-            leaflet.off(LeafletMapStateChangeEvents.zoomend, handle)
-          );
-          leaflet.once(LeafletMapStateChangeEvents.zoomend, handle);
+    if (shouldZoomOut) {
+      moveEndPromise = new Promise<void>((resolve) => {
+        const handle = () => {
+          leaflet.off(LeafletMapStateChangeEvents.zoomend, handle);
+          resolve();
+        };
+        cleanups.push(() =>
+          leaflet.off(LeafletMapStateChangeEvents.zoomend, handle)
+        );
+        leaflet.once(LeafletMapStateChangeEvents.zoomend, handle);
+      });
+    }
+
+    leaflet.stop();
+
+    try {
+      if (shouldZoomOut && Number.isFinite(maxZoom)) {
+        const durationMs = Math.max(0, zoomOutDuration);
+        const durationSeconds = durationMs / 1000;
+        leaflet.flyTo(leaflet.getCenter(), maxZoom, {
+          duration: durationSeconds,
+          animate: durationSeconds > 0,
+          easeLinearity: zoomOutEaseLinearity,
         });
       }
 
-      leaflet.stop();
-
-      try {
-        if (shouldZoomOut && Number.isFinite(maxZoom)) {
-          const durationMs = Math.max(0, zoomOutDuration);
-          const durationSeconds = durationMs / 1000;
-          leaflet.flyTo(leaflet.getCenter(), maxZoom, {
-            duration: durationSeconds,
-            animate: durationSeconds > 0,
-            easeLinearity: zoomOutEaseLinearity,
-          });
-        }
-
-        if (moveEndPromise) {
-          const timeoutMs =
-            Math.max(0, zoomOutDuration) + Math.max(0, zoomOutTimeoutBuffer);
-          await promiseWithTimeout(moveEndPromise, timeoutMs);
-        }
-      } finally {
-        cleanups.forEach((cleanup) => cleanup());
+      if (moveEndPromise) {
+        const timeoutMs =
+          Math.max(0, zoomOutDuration) + Math.max(0, zoomOutTimeoutBuffer);
+        await promiseWithTimeout(moveEndPromise, timeoutMs);
       }
-    },
-    [maxZoom, zoomOutDuration, zoomOutEaseLinearity, zoomOutTimeoutBuffer]
-  );
+    } finally {
+      cleanups.forEach((cleanup) => cleanup());
+    }
+  };
 
-  const transitionToMode3d = useCallback(async () => {
+  const transitionToMode3d = async () => {
     const scene = sceneRef.current;
     if (
       !isValidScene(scene) ||
@@ -147,20 +241,30 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
       console.warn("resolution scale not available");
       return;
     }
+    transitionStateRef.current = MapTransitionState.preTransitionTo3d;
 
     const leaflet = routedMapRef.current?.leafletMap?.leafletElement;
 
     await prepareLeafletForTransition(leaflet);
     // cancel any ongoing flight
-    tryWithValidScene(scene, () => scene.camera.cancelFlight());
+    withCamera((camera) => camera.cancelFlight());
 
-    dispatch(setTransitionTo3d());
     const onComplete3d = () => {
-      dispatch(clearTransition());
+      console.debug("[CESIUM|2D3D|TO3D] onComplete3d - setting mode to mode3d");
+      transitionStateRef.current = MapState.mode3d;
       onComplete?.(false);
     };
 
     const animateCesiumView = () => {
+      const scene = sceneRef.current;
+      if (!scene) {
+        console.warn(
+          "[CESIUM|2D3D|TO3D] scene not available for animation, completing transition anyway"
+        );
+        onComplete3d();
+        return;
+      }
+
       const pos = pickSceneCenter(scene).scenePosition;
 
       if (pos && prevHPR) {
@@ -190,6 +294,12 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
     const { lat: latitude, lng: longitude } = leaflet.getCenter();
     const zoom = leaflet.getZoom();
 
+    if (!Number.isFinite(resolutionScale) || resolutionScale === null) {
+      console.warn("resolution scale not available");
+      return;
+    }
+
+    transitionStateRef.current = MapTransitionState.transitionTo3d;
     await tiledMapToCesium(
       withElevationProvidersAsync,
       { latitude, longitude },
@@ -200,24 +310,14 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
         onComplete: () => {
           // handles fadeout of topicmap/2d component externally
           dispatch(setIsMode2d(false));
+          transitionStateRef.current = MapTransitionState.postTransitionTo3d;
           setTimeout(animateCesiumView, 100);
         },
       }
     );
-  }, [
-    resolutionScale,
-    sceneRef,
-    withElevationProvidersAsync,
-    duration,
-    prevDuration,
-    dispatch,
-    onComplete,
-    prepareLeafletForTransition,
-    prevHPR,
-    routedMapRef,
-  ]);
+  };
 
-  const transitionToMode2d = useCallback(async () => {
+  const transitionToMode2d = async () => {
     if (!routedMapRef.current?.leafletMap?.leafletElement) {
       console.warn("leaflet not available no transition possible [zoom]");
       return;
@@ -227,6 +327,16 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
       console.warn("cesium not available no transition possible [zoom]");
       return;
     }
+    transitionStateRef.current = MapTransitionState.preTransitionTo2d;
+    try {
+      await runTransitionLifecycleHandlers(
+        transitionLifecycleRef,
+        MapTransitionState.preTransitionTo2d
+      );
+    } catch (error) {
+      console.warn("preTransitionTo2d failed", error);
+      // continue with actual transition
+    }
 
     const leaflet = routedMapRef.current?.leafletMap?.leafletElement;
 
@@ -234,130 +344,132 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
     const { scenePosition: groundPos, coordinates: cartographic } =
       pickSceneCenter(scene, { getCoordinates: true });
 
-    let height = scene.camera.positionCartographic.height;
-    let distance = height;
+    cesiumContext.withCamera((camera) => {
+      let height = camera.positionCartographic.height;
+      let distance = height;
 
-    const hasGroundPos = defined(groundPos) && defined(cartographic);
-    if (!hasGroundPos) {
-      console.info(
-        "[CESIUM|2D3D|TO2D] No valid ground height (depth) found – cancel transition"
-      );
-      dispatch(clearTransition());
-      return;
-    }
-
-    // Start transition visuals only after we know we can complete it
-    dispatch(setTransitionTo2d());
-    const pos = groundPos as Cartesian3;
-    const carto = cartographic as Cartographic;
-    distance = Cartesian3.distance(pos, scene.camera.position);
-    height = carto.height + distance;
-
-    // evaluate angles for animation duration
-    let zoomDiff = 0;
-
-    const { zoomSnap } = leaflet.options;
-
-    if (zoomSnap) {
-      // Move the cesium camera to the next zoom snap level of leaflet before transitioning
-      const currentZoom = cesiumCenterPixelSizeToLeafletZoom(scene).value;
-      const heightBefore = height;
-      const distanceBefore = distance;
-
-      if (currentZoom === null) {
-        console.error("could not determine current zoom level");
-      } else {
-        // go to the next integer zoom snap level
-        // smaller values is further away
-        const intMultiple = currentZoom * (1 / zoomSnap);
-        const targetZoom =
-          intMultiple % 1 < 0.75 // prefer zooming out
-            ? Math.floor(intMultiple) * zoomSnap
-            : Math.ceil(intMultiple) * zoomSnap;
-        zoomDiff = currentZoom - targetZoom;
-        const heightFactor = Math.pow(2, zoomDiff);
-        const { groundHeight } = getCameraHeightAboveGround(scene);
-
-        distance = distance * heightFactor;
-        height = groundHeight + distance;
-
-        console.debug(
-          "TRANSITION TO 2D [2D|3D] zoomSnap",
-          zoomSnap,
-          currentZoom,
-          targetZoom,
-          heightFactor,
-          distance,
-          distanceBefore,
-          height,
-          heightBefore,
-          zoomDiff
+      const hasGroundPos = defined(groundPos) && defined(cartographic);
+      if (!hasGroundPos) {
+        console.info(
+          "[CESIUM|2D3D|TO2D] No valid ground height (depth) found – cancel transition"
         );
-      }
-    } else {
-      console.info("no zoomSnap applied", leaflet);
-    }
-
-    const durationValue = getTopDownCameraDeviationAngle(scene);
-    if (!durationValue) {
-      console.error("could not determine duration value");
-      return;
-    }
-    const duration = durationValue * 2 + zoomDiff * 1;
-    setPrevDuration(duration);
-
-    const onComplete2d = async () => {
-      try {
-        const { latitude, longitude, zoom } =
-          await getTiledMapCenterZoomEquivalent(scene);
-        if (!leaflet) {
-          console.warn("leaflet not available no transition possible [zoom]");
-          return;
-        }
-        if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-          console.warn("latitude or longitude is undefined, skipping");
-          return;
-        }
-        if (!Number.isFinite(zoom)) {
-          console.warn("zoom is undefined, skipping");
-          return;
-        }
-
-        leaflet.setView([latitude, longitude], zoom, noAnimation);
-      } catch (error) {
-        console.error("could not determine center zoom equivalent", error);
+        transitionStateRef.current = MapState.mode3d;
         return;
       }
 
-      // trigger the visual transition
-      dispatch(setIsMode2d(true));
-      dispatch(clearTransition());
-      onComplete?.(true);
-    };
+      // Start transition visuals only after we know we can complete it
+      const pos = groundPos as Cartesian3;
+      const carto = cartographic as Cartographic;
+      distance = Cartesian3.distance(pos, camera.position);
+      height = carto.height + distance;
 
-    console.debug("[Animation|2D3D] duration zoom", distance);
+      // evaluate angles for animation duration
+      let zoomDiff = 0;
 
-    if (hasGroundPos) {
-      // rotate around the groundposition at center
-      console.debug(
-        "[CESIUM|2D3D|TO2D] setting prev HPR zoom",
-        groundPos,
-        height
-      );
+      const { zoomSnap } = leaflet.options;
+      if (zoomSnap) {
+        // Move the cesium camera to the next zoom snap level of leaflet before transitioning
+        const currentZoom = cesiumCenterPixelSizeToLeafletZoom(scene).value;
+        const heightBefore = height;
+        const distanceBefore = distance;
 
-      animateInterpolateHeadingPitchRange(
-        scene,
-        pos,
-        new HeadingPitchRange(0, -Math.PI / 2, distance),
-        {
-          setPrevious: setPrevHPR,
-          duration: duration * 1000,
-          onComplete: onComplete2d,
-          cancelable: false,
+        if (currentZoom === null) {
+          console.warn("could not determine current zoom level");
+          transitionStateRef.current = MapState.mode3d;
+          return;
+        } else {
+          // go to the next integer zoom snap level
+          // smaller values is further away
+          const intMultiple = currentZoom * (1 / zoomSnap);
+          const targetZoom =
+            intMultiple % 1 < 0.75 // prefer zooming out
+              ? Math.floor(intMultiple) * zoomSnap
+              : Math.ceil(intMultiple) * zoomSnap;
+          zoomDiff = currentZoom - targetZoom;
+          const heightFactor = Math.pow(2, zoomDiff);
+          const { groundHeight } = getCameraHeightAboveGround(scene);
+
+          distance = distance * heightFactor;
+          height = groundHeight + distance;
+
+          console.debug(
+            "TRANSITION TO 2D [2D|3D] zoomSnap",
+            zoomSnap,
+            currentZoom,
+            targetZoom,
+            heightFactor,
+            distance,
+            distanceBefore,
+            height,
+            heightBefore,
+            zoomDiff
+          );
         }
-      );
-    }
-  }, [dispatch, sceneRef, onComplete, routedMapRef]);
+      } else {
+        console.info("no zoomSnap applied", leaflet);
+      }
+
+      const duration =
+        (getTopDownCameraDeviationAngle(scene) ?? 0) * 2 + (zoomDiff ?? 0) * 1;
+      setPrevDuration(duration);
+
+      const onComplete2d = async () => {
+        try {
+          const { latitude, longitude, zoom } =
+            await getTiledMapCenterZoomEquivalent(scene);
+          if (!leaflet) {
+            console.warn("leaflet not available no transition possible [zoom]");
+            return;
+          }
+          if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+            console.warn("latitude or longitude is undefined, skipping");
+            return;
+          }
+          if (!Number.isFinite(zoom)) {
+            console.warn("zoom is undefined, skipping");
+            return;
+          }
+
+          leaflet.setView([latitude, longitude], zoom, noAnimation);
+        } catch (error) {
+          console.error("could not determine center zoom equivalent", error);
+          return;
+        }
+
+        // trigger the visual transition
+        dispatch(setIsMode2d(true));
+        transitionStateRef.current = MapState.mode2d;
+        onComplete?.(true);
+      };
+
+      console.debug("[Animation|2D3D] duration zoom", distance);
+
+      transitionStateRef.current = MapState.transitionTo2d;
+      if (hasGroundPos) {
+        // rotate around the groundposition at center
+        console.debug(
+          "[CESIUM|2D3D|TO2D] setting prev HPR zoom",
+          groundPos,
+          height
+        );
+
+        animateInterpolateHeadingPitchRange(
+          scene,
+          pos,
+          new HeadingPitchRange(0, -Math.PI / 2, distance),
+          {
+            setPrevious: setPrevHPR,
+            duration: duration * 1000,
+            onComplete: onComplete2d,
+            cancelable: false,
+          }
+        );
+      } else {
+        // no transition possible
+        transitionStateRef.current = MapState.mode3d;
+      }
+    });
+  };
   return { transitionToMode2d, transitionToMode3d };
 };
 export default useMapTransition;

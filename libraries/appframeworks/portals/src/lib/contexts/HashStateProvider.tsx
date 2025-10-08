@@ -182,15 +182,22 @@ export const HashStateProvider: React.FC<{
       const changedKeys = [...new Set(changedAliasKeys.map(toOriginal))];
       const removedKeys = [...new Set(removedAliasKeys.map(toOriginal))];
 
-      emit({
+      const eventPayload = {
         raw: afterRaw,
         values: getHashValues(),
         changedKeys,
         removedKeys,
         label,
         replace,
-        source: "update",
+        source: "update" as const,
+      };
+      console.debug("[HashState] emit:update", {
+        label,
+        replace,
+        changedKeys,
+        removedKeys,
       });
+      emit(eventPayload);
       prevRawRef.current = afterRaw;
     },
     [

@@ -7,15 +7,11 @@ import UAParser from "ua-parser-js";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 
 import { useMapTransition } from "../../hooks/useMapTransition";
-import {
-  selectViewerIsMode2d,
-  selectViewerIsTransitioning,
-} from "../../slices/cesium";
+import { selectViewerIsMode2d } from "../../slices/cesium";
 
 type Props = {
   duration?: number;
   onComplete?: (isTo2D: boolean) => void;
-  forceEnabled?: boolean;
   children?: ReactNode;
   className?: string;
   nativeTooltip?: boolean;
@@ -40,7 +36,6 @@ export const MapTypeSwitcher = forwardRef<Ref, Props>(
   (
     {
       onComplete,
-      forceEnabled,
       duration,
       className,
       nativeTooltip = false,
@@ -49,10 +44,19 @@ export const MapTypeSwitcher = forwardRef<Ref, Props>(
     ref
   ) => {
     const [hasConfirmed, setHasConfirmed] = useState(false);
+    const [disabled, setDisabled] = useState(false);
     const isMode2d = useSelector(selectViewerIsMode2d);
-    const isTransitioning = useSelector(selectViewerIsTransitioning);
+    const onCompleteLocal = () => {
+      setDisabled(false);
+    };
     const { transitionToMode2d, transitionToMode3d } = useMapTransition({
-      onComplete,
+      onComplete: onComplete
+        ? (isTo2D: boolean) => {
+            onComplete(isTo2D);
+            // inject button handling
+            onCompleteLocal();
+          }
+        : onCompleteLocal,
       duration,
     });
 
@@ -78,6 +82,7 @@ export const MapTypeSwitcher = forwardRef<Ref, Props>(
         "CLICKHANDLER: [CESIUM|LEAFLET|2D3D] clicked handleSwitchMapMode zoom",
         isMode2d
       );
+      setDisabled(true);
       if (isMode2d) {
         await transitionToMode3d();
       } else {
@@ -89,11 +94,17 @@ export const MapTypeSwitcher = forwardRef<Ref, Props>(
       ? LOCALE_DE_SWITCH_TO_3D_MODE
       : LOCALE_DE_SWITCH_TO_2D_MODE;
 
+    console.debug(
+      "RENDER: [CESIUM|LEAFLET|2D3D] MapTypeSwitcher",
+      isMode2d,
+      disabled
+    );
+
     const cbs = (
       <ControlButtonStyler
         className={"font-semibold " + className}
         onClick={handleSwitchMapMode}
-        disabled={isTransitioning && !forceEnabled}
+        disabled={disabled}
         ref={ref}
         title={nativeTooltip ? switchInfoText : undefined}
         dataTestId={isMode2d ? "3d-control" : "2d-control"}

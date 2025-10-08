@@ -1,19 +1,12 @@
 import { useCallback, useEffect, useRef } from "react";
+
+import { Degrees } from "@carma/types";
+import { isMapCenterZoomEquivalent } from "@carma-commons/utils";
+import { cesiumClearParamKeys } from "@carma-mapping/engines/cesium";
+
 import { useHashState } from "../contexts/HashStateProvider";
 
-import { cesiumClearParamKeys } from "@carma-mapping/engines/cesium";
-import { isMapCenterZoomEquivalent } from "@carma-commons/utils";
-import { Degrees } from "@carma/types";
-
 export type LatLngZoom = { lat: number; lng: number; zoom: number };
-export type CesiumSceneChangeEvent = { hashParams: Record<string, string> };
-
-type Labels = {
-  clear3d?: string;
-  write2d?: string;
-  topicMapLocation?: string;
-  cesiumScene?: string;
-};
 
 type LeafletLikeMap = {
   setView?: (center: { lat: number; lng: number }, zoom?: number) => void;
@@ -23,23 +16,23 @@ type LeafletLikeMap = {
   once?: (type: string, fn: (...args: unknown[]) => void) => void;
 };
 
-export interface UseMapHashRoutingOptions {
-  isMode2d: boolean;
+interface UseMapHashRoutingLeafletLikeOptions {
   getLeafletMap?: () => LeafletLikeMap | null | undefined;
   getLeafletZoom?: () => number;
   cesiumClearKeys?: string[];
-  labels?: Labels;
+  label?: string;
   pixelTolerance?: number; // px
+  onAfterLocationChanged?: () => void;
 }
 
-export function useMapHashRouting({
-  isMode2d,
+export function useMapHashRoutingLeafletLike({
   getLeafletMap,
   getLeafletZoom,
   cesiumClearKeys = cesiumClearParamKeys,
-  labels,
+  label,
   pixelTolerance,
-}: UseMapHashRoutingOptions) {
+  onAfterLocationChanged,
+}: UseMapHashRoutingLeafletLikeOptions) {
   const { updateHash, subscribe, getHashValues } = useHashState();
 
   // Skip 2D writes when the map move was initiated by a navigation (popstate)
@@ -49,16 +42,10 @@ export function useMapHashRouting({
 
   const handleTopicMapLocationChange = useCallback(
     ({ lat, lng, zoom }: LatLngZoom) => {
-      if (!isMode2d) return;
       if (navMoveInProgressRef.current) {
         console.debug(
           "[Routing][hash] (2D) suppress push: popstate navigation in progress",
-          {
-            lat,
-            lng,
-            zoom,
-            label: labels?.topicMapLocation ?? "Map:2D:location",
-          }
+          { lat, lng, zoom, label }
         );
         return;
       }
@@ -119,72 +106,25 @@ export function useMapHashRouting({
           }
         }
       } catch {}
+      onAfterLocationChanged?.();
       updateHash(
         { lat, lng, zoom },
         {
           clearKeys: cesiumClearKeys,
-          label: labels?.topicMapLocation ?? "Map:2D:location",
+          label: `${label ?? "LeafletLike Map Change"}:hashUpdate`,
           replace: false,
         }
       );
     },
     [
-      isMode2d,
       updateHash,
       getHashValues,
       cesiumClearKeys,
-      labels?.topicMapLocation,
+      label,
       pixelTolerance,
+      onAfterLocationChanged,
     ]
   );
-
-  const handleCesiumSceneChange = useCallback(
-    (e: CesiumSceneChangeEvent) => {
-      if (isMode2d) return;
-      updateHash(e.hashParams, {
-        clearKeys: ["zoom"],
-        label: labels?.cesiumScene ?? "Map:3D:scene",
-        replace: true, // don't push to history until cesium handled history navigation
-      });
-    },
-    [isMode2d, updateHash, labels?.cesiumScene]
-  );
-
-  const prevIsMode2dRef = useRef<boolean>(isMode2d);
-  useEffect(() => {
-    const was2d = prevIsMode2dRef.current;
-    if (!was2d && isMode2d) {
-      // Replace current entry to clear 3D-specific state
-      updateHash(undefined, {
-        clearKeys: cesiumClearKeys,
-        label: labels?.clear3d ?? "Map:2D:clear3d",
-        replace: true,
-      });
-      // Then push current 2D location
-      const map = getLeafletMap?.();
-      if (
-        map &&
-        typeof map.getCenter === "function" &&
-        typeof getLeafletZoom === "function"
-      ) {
-        const center = map.getCenter();
-        const zoom = getLeafletZoom();
-        updateHash(
-          { lat: center.lat, lng: center.lng, zoom },
-          { label: labels?.write2d ?? "Map:2D:writeLocation" }
-        );
-      }
-    }
-    prevIsMode2dRef.current = isMode2d;
-  }, [
-    isMode2d,
-    updateHash,
-    getLeafletMap,
-    getLeafletZoom,
-    cesiumClearKeys,
-    labels?.clear3d,
-    labels?.write2d,
-  ]);
 
   // Back/forward navigation: move the 2D map to the historical location without writing a new hash
   useEffect(() => {
@@ -192,7 +132,6 @@ export function useMapHashRouting({
     const unsub = subscribe(
       (e) => {
         if (e.source !== "popstate") return;
-        if (!isMode2d) return;
         const lat = e.values.lat as number | undefined;
         const lng = e.values.lng as number | undefined;
         const zoom =
@@ -232,28 +171,7 @@ export function useMapHashRouting({
       { keys: ["lat", "lng", "zoom"] }
     );
     return unsub;
-  }, [subscribe, isMode2d, getLeafletMap, getLeafletZoom]);
+  }, [subscribe, getLeafletMap, getLeafletZoom]);
 
-  return { handleTopicMapLocationChange, handleCesiumSceneChange };
-}
-
-export function createLocationChangeHandler({
-  isMode2d,
-  onChange,
-  onAfter,
-  onMismatch,
-}: {
-  isMode2d: boolean;
-  onChange: (p: LatLngZoom) => void;
-  onAfter?: () => void;
-  onMismatch?: () => void;
-}) {
-  return (p: LatLngZoom) => {
-    if (!isMode2d) {
-      onMismatch?.();
-      return;
-    }
-    onChange(p);
-    onAfter?.();
-  };
+  return handleTopicMapLocationChange;
 }

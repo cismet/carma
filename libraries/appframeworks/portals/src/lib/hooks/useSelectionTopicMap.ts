@@ -1,12 +1,13 @@
 import { useContext, useEffect, useRef } from "react";
+import type { Map } from "leaflet";
 
 import { builtInGazetteerHitTrigger } from "react-cismap/tools/gazetteerHelper";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import { SelectionItem, useSelection } from "../components/SelectionProvider";
-import type { Map } from "leaflet";
 
 const NEW_SELECTION_TIMEOUT = 200;
+const noop = () => {};
 
 type SelectionTopicMapOptions = {
   onComplete?: (selection: SelectionItem, map: Map) => void;
@@ -64,7 +65,7 @@ export const useSelectionTopicMap = ({
           leafletElement,
           referenceSystem,
           referenceSystemDefinition,
-          () => {}, //  handleSetSelection with CarmaMap directly
+          noop, //  handleSetSelection with CarmaMap directly
           setOverlayFeature
         );
 
@@ -79,6 +80,7 @@ export const useSelectionTopicMap = ({
     referenceSystem,
     referenceSystemDefinition,
     setSelection,
+    onComplete,
     setOverlayFeature,
   ]);
   return topicMapCtx;

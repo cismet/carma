@@ -1,5 +1,4 @@
 import { useCallback, useRef, useState, useEffect, useMemo } from "react";
-import { useSelector } from "react-redux";
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -10,9 +9,10 @@ import { Tooltip } from "antd";
 import { useControls } from "leva";
 
 import {
-  selectViewerIsTransitioning,
   useCesiumContext,
-  isValidScene,
+  CtxEvent,
+  addMapTransitionLifecycleHandler,
+  MapTransitionState,
 } from "@carma-mapping/engines/cesium";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import { ContactMailButton } from "@carma-appframeworks/portals";
@@ -53,6 +53,11 @@ interface ObliqueControlsProps {
   isObliqueMode?: boolean;
 }
 
+const OBLIQUE_MODE_LEAVE_DURATION_MS = 500;
+
+const delay = (ms: number) =>
+  new Promise<void>((resolve) => setTimeout(resolve, ms));
+
 export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const {
     headingOffset,
@@ -71,13 +76,15 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     selectedImageRefresh,
   } = useOblique();
   const siblingsByCardinal = useSiblingsByCardinal();
-  const {
-    sceneRef,
-    shouldSuspendPitchLimiterRef,
-    shouldSuspendCameraLimitersRef,
-    requestRender,
-    isValidViewer,
-  } = useCesiumContext();
+  const ctx = useCesiumContext(),
+    {
+      sceneRef,
+      shouldSuspendPitchLimiterRef,
+      shouldSuspendCameraLimitersRef,
+      requestRender,
+      isValidViewer,
+      transitionLifecycleRef,
+    } = ctx;
   const imageId = selectedImage?.record?.id;
   const cameraId = selectedImage?.record?.cameraId;
   const { isDebugMode, isObliqueUiEval } = useFeatureFlags();
@@ -99,6 +106,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const [invertLabels, setInvertLabels] = useState(true);
   const [shouldRender, setShouldRender] = useState(isObliqueMode);
   const [isPreviewVisible, setIsPreviewVisible] = useState(false);
+  const isObliqueModeRef = useRef(isObliqueMode);
   const [isFlyButtonHovered, setIsFlyButtonHovered] = useState(false);
   // Hide footprints while preview is visible
   useEffect(() => {
@@ -111,11 +119,11 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
 
   // Close preview when a Home fly is triggered
   useEffect(() => {
-    const unsubscribe = subscribeToPreviewVisibility(() => {
+    const unsubscribe = ctx.subscribe(CtxEvent.Home, () => {
       setIsPreviewVisible(false);
     });
     return unsubscribe;
-  }, []);
+  }, [ctx]);
   // Disable camera limiters while preview is visible
   useEffect(() => {
     if (shouldSuspendPitchLimiterRef)
@@ -147,7 +155,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const [saturationBase, setSaturationBase] = useState(85);
   const [useLegacyDirControls, setUseLegacyDirControls] = useState(false);
 
-  const isTransitioning = useSelector(selectViewerIsTransitioning);
   // Track last directional move to prefetch ahead in the same direction on arrival
   const lastMoveDirRef = useRef<CardinalDirectionEnum | null>(null);
   // Debounced intent for sibling navigation
@@ -250,14 +257,15 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   // Fly-to handling for next capture (without opening preview)
 
   const flyToCurrentEOWithoutPreview = useCallback(() => {
-    const scene = sceneRef.current;
-    if (!isValidScene(scene) || !derivedExteriorOrientationRef.current) return;
+    if (!isValidViewer() || !derivedExteriorOrientationRef.current) return;
     animationInProgressRef.current = true;
     // Choose animation based on whether this fly was triggered by a rotation in preview
     const flyOptions = rotatedFlyPendingRef.current
       ? animations.flyToRotatedImage ?? animations.flyToExteriorOrientation
       : animations.flyToNextImage ?? animations.flyToExteriorOrientation;
     rotatedFlyPendingRef.current = false;
+    const scene = sceneRef.current;
+    if (!scene) return;
     flyToExteriorOrientation(
       scene,
       derivedExteriorOrientationRef.current,
@@ -283,6 +291,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     setSuspendSelectionSearch,
     isPreviewVisible,
     requestRender,
+    isValidViewer,
     sceneRef,
   ]);
 
@@ -507,19 +516,33 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     }
   }, [isObliqueMode]);
 
+  // Refs for passive callbacks
   useEffect(() => {
-    if (isTransitioning && isValidViewer()) {
-      isDebugMode &&
-        console.debug(
-          "ObliqueControls: Transitioning to 2D mode disabling oblique mode"
-        );
-      if (isObliqueMode) {
-        toggleObliqueMode();
+    isObliqueModeRef.current = isObliqueMode;
+  }, [isObliqueMode]);
+
+  useEffect(() => {
+    console.debug(
+      "HOOK [Oblique|Transition]Setting up pre-transition to 2D mode callback"
+    );
+
+    const leaveObliqueMode = async () => {
+      console.debug("[ObliqueControls|Transition] Leaving oblique mode");
+      if (!isObliqueModeRef.current) {
+        return;
       }
+      toggleObliqueMode();
       requestRender();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isTransitioning, isValidViewer]);
+      await delay(OBLIQUE_MODE_LEAVE_DURATION_MS);
+    };
+
+    const unregister = addMapTransitionLifecycleHandler(
+      transitionLifecycleRef,
+      MapTransitionState.preTransitionTo2d,
+      leaveObliqueMode
+    );
+    return unregister;
+  }, [transitionLifecycleRef, toggleObliqueMode, requestRender]);
 
   useEffect(() => {
     const unsubscribe = subscribeToPreviewVisibility((visible) => {
@@ -530,9 +553,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   }, []);
 
   const flyToNearestExteriorOrientation = useCallback(async () => {
-    const scene = sceneRef.current;
-    if (!isValidScene(scene)) return;
-
     if (isPreviewVisible) {
       setIsPreviewVisible(false);
       notifyPreviewVisibilityChange(false);
@@ -549,6 +569,8 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     setLockFootprint(true);
     animationInProgressRef.current = true;
 
+    const scene = sceneRef.current;
+    if (!scene) return;
     flyToExteriorOrientation(
       scene,
       derivedExteriorOrientationRef.current,

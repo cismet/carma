@@ -63,10 +63,10 @@ export { useShareUrl, SHORTENER_URL } from "./lib/hooks/useShareUrl";
 export { useProgress } from "./lib/hooks/useProgress";
 export { useCesiumModels } from "./lib/hooks/useCesiumModels";
 export {
-  useMapHashRouting,
-  createLocationChangeHandler,
+  useMapHashRoutingLeafletLike,
   type LatLngZoom,
-} from "./lib/hooks/useMapHashRouting";
+} from "./lib/hooks/useMapHashRoutingLeafletLike";
+export { useMapHashRoutingCesium } from "./lib/hooks/useMapHashRoutingCesium";
 export { uploadImage } from "./lib/utils/fileUpload";
 export {
   defaultBackgroundConfigurations,

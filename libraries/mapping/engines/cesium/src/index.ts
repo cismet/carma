@@ -41,26 +41,21 @@ export { useCesiumCameraForceOblique } from "./lib/hooks/useCameraForceOblique";
 export { useHomeControl } from "./lib/hooks/useHomeControl";
 export { useCesiumInitialCameraFromSearchParams } from "./lib/hooks/useCesiumInitialCameraFromSearchParams";
 export { useFovWheelZoom } from "./lib/hooks/useFovWheelZoom";
+export {
+  addMapTransitionLifecycleHandler,
+  MapTransitionState,
+  type MapTransitionLifecycle,
+  useMapTransition,
+} from "./lib/hooks/useMapTransition";
 export { useSceneStyles } from "./lib/hooks/useSceneStyles";
 export { useZoomControls } from "./lib/hooks/useZoomControls";
 
-export {
-  type SubscribeCesiumCtxFn,
-  type EmitCesiumCtxFn,
-} from "./lib/cesiumContextEventMap";
 export { VIEWERSTATE_KEYS } from "./lib/constants";
 export { CUSTOM_SHADERS_DEFINITIONS } from "./lib/shaders";
 
 // TODO: all the utils used elsewhere with no cesium dependency should be moved to common helper utils lib
 
-export { addCesiumMarker, removeCesiumMarker } from "./lib/extensions/markers";
-
-export {
-  type AnimationMap,
-  cancelAnimation,
-  initAnimationMap,
-} from "./lib/utils/animationMap";
-
+export { sceneHasTweens } from "./lib/utils/sceneHasTweens";
 export { getOrbitPoint } from "./lib/utils/cesiumAnimateOrbits";
 export { getHeadingPitchForMouseEvent } from "./lib/utils/cesiumAnimateOrbits";
 export {
@@ -85,7 +80,6 @@ export {
 // Hooks for app integration
 export { useCesiumDevConsoleTrigger } from "./lib/hooks/useCesiumDevConsoleTrigger";
 export { useReloadOnCesiumRenderError } from "./lib/hooks/useReloadOnCesiumRenderError";
-export { type WithElevationProvidersAsyncCallback } from "./lib/hooks/useValidInstances";
 export {
   getCesiumVersion,
   checkWindowEnv,
@@ -110,13 +104,18 @@ export {
   polygonHierarchyFromPolygonCoords,
   removeGroundPrimitiveById,
 } from "./lib/utils/cesiumGroundPrimitives";
-
+export { addCesiumMarker, removeCesiumMarker } from "./lib/extensions/markers";
 export {
   getIsViewerReadyAsync,
   setupCesiumEnvironment,
 } from "./lib/utils/cesiumSetup";
 
-export { getElevationAsync, type ElevationResult } from "./lib/utils/elevation";
+export {
+  getElevationAsync,
+  getSurfaceElevationAsync,
+  getTerrainElevationAsync,
+  type ElevationResult,
+} from "./lib/utils/elevation";
 
 export {
   isValidCesiumTerrainProvider,
@@ -131,11 +130,18 @@ export {
   isValidTileset,
   isValidViewer,
   withValidViewer,
-  tryWithValidCamera,
-  tryWithValidScene,
 } from "./lib/utils/instanceGates";
 
-export { pickSceneCenter } from "./lib/utils/pickers";
+// Safe guard wrappers
+// using viewer and entityCollection is discouraged
+// use Scene and PrimitiveCollections instead to enable future switch to CesiumWidget
+export { guardScene } from "./lib/utils/guardScene";
+export { guardCamera } from "./lib/utils/guardCamera";
+export { guardSampleTerrainMostDetailedAsync } from "./lib/utils/guardSampleTerrainMostDetailedAsync";
+export { guardScreenSpaceCameraController } from "./lib/utils/guardScreenSpaceCameraController";
+export { guardTileset } from "./lib/utils/guardTileset";
+
+export { pickViewerCanvasCenter } from "./lib/utils/pickers";
 
 export {
   distanceFromZoomLevel,
@@ -143,8 +149,11 @@ export {
   getHeadingPitchRangeFromZoom,
 } from "./lib/utils/positions";
 
-export { sceneHasTweens } from "./lib/utils/sceneHasTweens";
-export { sceneRequestRender } from "./lib/utils/sceneRequestRender";
+export {
+  type ViewerAnimationMap,
+  cancelViewerAnimation,
+  initViewerAnimationMap,
+} from "./lib/utils/viewerAnimationMap";
 
 export {
   getDegreesFromCartesian,

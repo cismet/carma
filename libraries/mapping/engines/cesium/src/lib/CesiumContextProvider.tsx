@@ -7,12 +7,20 @@ import {
   ImageryLayer,
   Viewer,
   Cesium3DTileset,
-  Scene,
 } from "cesium";
 import { createEventBus } from "@carma-commons/utils";
+import { handleDelayedRender } from "@carma-commons/utils/window";
 
 import { CesiumContext, type CesiumContextType } from "./CesiumContext";
 import type { CesiumContextEventMap } from "./cesiumContextEventMap";
+
+import {
+  MapState,
+  type MapStateType,
+  type MapTransitionLifecycle,
+  createTransitionLifecycle,
+} from "./hooks/useMapTransition";
+import { useValidInstances } from "./hooks/useValidInstances";
 
 import {
   loadCesiumImageryLayer,
@@ -20,10 +28,12 @@ import {
   ProviderConfig,
 } from "./utils/cesiumProviders";
 import { loadTileset, TilesetConfigs } from "./utils/cesiumTilesetProviders";
-import { useValidInstances } from "./hooks/useValidInstances";
+import { guardScene } from "./utils/guardScene";
 
-import { initAnimationMap, AnimationMap } from "./utils/animationMap";
-import { sceneRequestRender } from "./utils/sceneRequestRender";
+import {
+  initViewerAnimationMap,
+  ViewerAnimationMap,
+} from "./utils/viewerAnimationMap";
 
 export const CesiumContextProvider = ({
   children,
@@ -36,8 +46,9 @@ export const CesiumContextProvider = ({
 }) => {
   // Use refs for Cesium instances to prevent re-renders
   const viewerRef = useRef<Viewer | null>(null);
-  const sceneRef = useRef<Scene | null>(null);
-  const animationMapRef = useRef<AnimationMap | null>(initAnimationMap());
+  const viewerAnimationMapRef = useRef<ViewerAnimationMap | null>(
+    initViewerAnimationMap()
+  );
   const ellipsoidTerrainProviderRef = useRef(new EllipsoidTerrainProvider());
   const terrainProviderRef = useRef<CesiumTerrainProvider | null>(null);
   const surfaceProviderRef = useRef<CesiumTerrainProvider | null>(null);
@@ -54,6 +65,13 @@ export const CesiumContextProvider = ({
   const [initialCameraSettled, setInitialCameraSettled] = useState<
     boolean | null
   >(null);
+
+  // Transition handling
+  const transitionStateRef = useRef<keyof MapStateType>(MapState.uninitialized);
+  const transitionLifecycleRef = useRef<MapTransitionLifecycle>(
+    createTransitionLifecycle()
+  );
+
   // Monotonic counter for initial camera applications
   const [initialCameraEpoch, setInitialCameraEpoch] = useState<number>(0);
 
@@ -65,7 +83,6 @@ export const CesiumContextProvider = ({
 
   const instanceCallbacks = useValidInstances(
     viewerRef,
-    sceneRef,
     imageryLayerRef,
     primaryTilesetRef,
     secondaryTilesetRef,
@@ -74,7 +91,7 @@ export const CesiumContextProvider = ({
     surfaceProviderRef
   );
 
-  const { isValidViewer } = instanceCallbacks;
+  const { withViewer, isValidViewer } = instanceCallbacks;
 
   // Asynchronous initialization of providers and imageryLayer
   useEffect(() => {
@@ -204,21 +221,29 @@ export const CesiumContextProvider = ({
     () => setInitialCameraEpoch((v) => v + 1),
     [setInitialCameraEpoch]
   );
-
-  const requestRender = useCallback(() => {
-    sceneRef.current && sceneRequestRender(sceneRef.current);
-  }, [sceneRef]);
+  const requestRender = useCallback(
+    (opts) => {
+      const renderOnce = () => {
+        withViewer((viewer) => {
+          guardScene(viewer.scene, "ctx requestRender").requestRender();
+        });
+      };
+      handleDelayedRender(renderOnce, opts);
+    },
+    [withViewer]
+  );
 
   const contextValue = useMemo<CesiumContextType>(
     () => ({
       viewerRef,
-      sceneRef,
-      animationMapRef,
+      viewerAnimationMapRef,
       shouldSuspendPitchLimiterRef,
       shouldSuspendCameraLimitersRef,
       setIsViewerReady,
       initialCameraSettled,
       setInitialCameraSettled,
+      transitionStateRef,
+      transitionLifecycleRef,
       initialCameraEpoch,
       bumpInitialCameraEpoch,
       subscribe,
@@ -239,6 +264,8 @@ export const CesiumContextProvider = ({
       instanceCallbacks,
       subscribe,
       emit,
+      transitionStateRef,
+      transitionLifecycleRef,
     ]
   );
 
