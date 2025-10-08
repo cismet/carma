@@ -1,6 +1,6 @@
 import { Camera, Cartesian3, Cartographic, HeadingPitchRange } from "cesium";
 
-import { WithElevationProvidersAsyncCallback } from "../hooks/useValidInstances";
+import { type WithElevationProvidersCallback } from "../hooks/useValidInstances";
 import { guardSampleTerrainMostDetailedAsync } from "./guardSampleTerrainMostDetailedAsync";
 
 export const distanceFromZoomLevel = (zoom: number) => {
@@ -32,12 +32,12 @@ export const getHeadingPitchRangeFromHeight = (
 };
 
 export const getPositionWithHeightAsync = async (
-  withElevationProvidersAsync: WithElevationProvidersAsyncCallback,
+  withElevationProviders: WithElevationProvidersCallback,
   position: Cartographic,
   useClampedHeight: boolean = false
 ): Promise<Cartographic | null> => {
   let result: Cartographic | null = null;
-  await withElevationProvidersAsync(
+  await withElevationProviders(
     async (terrainProvider, surfaceProvider, scene) => {
       // Convert the Cartographic position to Cartesian3 coordinates
       const cartesianPosition = Cartographic.toCartesian(position);

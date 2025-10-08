@@ -6,7 +6,11 @@ import type { Map as LeafletMap } from "leaflet";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
-import { normalizeOptions, isZoom } from "@carma-commons/utils";
+import {
+  normalizeOptions,
+  isZoom,
+  waitForAnimationFrames,
+} from "@carma-commons/utils";
 import { promiseWithTimeout } from "@carma-commons/utils/promise";
 import { LeafletMapStateChangeEvents } from "@carma-mapping/engines/leaflet";
 
@@ -170,7 +174,7 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
     transitionStateRef,
     transitionLifecycleRef,
     sceneRef,
-    withElevationProvidersAsync,
+    withElevationProviders,
     viewerRef,
     isViewerReady,
   } = cesiumContext;
@@ -236,17 +240,32 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
   };
 
   const transitionToMode3d = async () => {
+    console.debug("[CESIUM|2D3D|TO3D] transitionToMode3d called", {
+      sceneValid: isValidScene(sceneRef.current),
+      routedMapRef: !!routedMapRef.current,
+      leafletMap: !!routedMapRef.current?.leafletMap,
+      leafletElement: !!routedMapRef.current?.leafletMap?.leafletElement,
+      resolutionScale,
+    });
+
     const scene = sceneRef.current;
     if (
       !isValidScene(scene) ||
       !routedMapRef.current?.leafletMap?.leafletElement
     ) {
-      console.warn("cesium or leaflet not available");
+      console.warn("[CESIUM|2D3D|TO3D] cesium or leaflet not available", {
+        sceneValid: isValidScene(scene),
+        routedMapRef: !!routedMapRef.current,
+        leafletMap: !!routedMapRef.current?.leafletMap,
+        leafletElement: !!routedMapRef.current?.leafletMap?.leafletElement,
+      });
       return;
     }
 
     if (!Number.isFinite(resolutionScale) || resolutionScale === null) {
-      console.warn("resolution scale not available");
+      console.warn("[CESIUM|2D3D|TO3D] resolution scale not available", {
+        resolutionScale,
+      });
       return;
     }
     transitionStateRef.current = MapTransitionState.preTransitionTo3d;
@@ -318,24 +337,32 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
     }
 
     transitionStateRef.current = MapTransitionState.transitionTo3d;
+
+    let transitionCompleted = false;
+
     await tiledMapToCesium(
-      withElevationProvidersAsync,
+      withElevationProviders,
       { latitude, longitude },
       zoom,
       resolutionScale,
       {
         cause: "SwitchMapMode to 3d",
         onComplete: () => {
-          // handles fadeout of topicmap/2d component externally
-          console.debug(
-            "[CESIUM|2D3D|TO3D] tiledMapToCesium complete - dispatching setIsMode2d(false)"
-          );
-          dispatch(setIsMode2d(false));
-          transitionStateRef.current = MapTransitionState.postTransitionTo3d;
-          setTimeout(animateCesiumView, 100);
+          transitionCompleted = true;
         },
       }
     );
+
+    if (transitionCompleted) {
+      await waitForAnimationFrames(1);
+      console.debug(
+        "[CESIUM|2D3D|TO3D] tiledMapToCesium complete - dispatching setIsMode2d(false)"
+      );
+      dispatch(setIsMode2d(false));
+      transitionStateRef.current = MapTransitionState.postTransitionTo3d;
+      await waitForAnimationFrames(1);
+      animateCesiumView();
+    }
   };
 
   const transitionToMode2d = async () => {

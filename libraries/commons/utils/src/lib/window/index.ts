@@ -14,3 +14,5 @@ export {
 } from "./handleDelayedRender";
 
 export { cjsGlobalShim } from "./cjsGlobalShim";
+
+export { waitForAnimationFrames } from "./waitForAnimationFrames";

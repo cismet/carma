@@ -387,7 +387,9 @@ export const useInitializeViewer = (
         scene.postRender.addEventListener(markSettled);
       });
     }
-    withViewer((viewer) => initialViewSetMap.set(viewer, true));
+    withViewer((viewer) => {
+      initialViewSetMap.set(viewer, true);
+    });
   }, [
     isViewerReady,
     initialCameraView,

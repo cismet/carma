@@ -128,7 +128,7 @@ export const useSelectionCesium = (
   duration: number = 3,
   durationFactor: number = 0.2
 ) => {
-  const { withElevationProvidersAsync, sceneRef } = useCesiumContext();
+  const { withElevationProviders, sceneRef } = useCesiumContext();
 
   const { selection } = useSelection();
   const lastSelectionKeyRef = useRef<number | null>(null);
@@ -217,7 +217,7 @@ export const useSelectionCesium = (
 
       cesiumHitTrigger(
         [selection],
-        withElevationProvidersAsync,
+        withElevationProviders,
         selectedMarkerData,
         setMarkerDataWithMeta,
         options
@@ -237,6 +237,6 @@ export const useSelectionCesium = (
     durationFactor,
     selectedMarkerData,
     sceneRef,
-    withElevationProvidersAsync,
+    withElevationProviders,
   ]);
 };

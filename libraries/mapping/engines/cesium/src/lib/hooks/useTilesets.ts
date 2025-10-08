@@ -92,8 +92,12 @@ export const useTilesets = () => {
     const hideTilesets = () => {
       // render offscreen with ultra low res to reduce memory usage
       console.debug("HOOK: hide tilesets in 2d");
-      withPrimaryTileset((tileset) => (tileset.show = false));
-      withSecondaryTileset((tileset) => (tileset.show = false));
+      withPrimaryTileset((tileset) => {
+        tileset.show = false;
+      });
+      withSecondaryTileset((tileset) => {
+        tileset.show = false;
+      });
     };
 
     if (isMode2d) {
@@ -102,8 +106,12 @@ export const useTilesets = () => {
       }, TRANSITION_DELAY);
       return;
     } else {
-      withPrimaryTileset((tileset) => (tileset.show = showPrimary));
-      withSecondaryTileset((tileset) => (tileset.show = showSecondary));
+      withPrimaryTileset((tileset) => {
+        tileset.show = showPrimary;
+      });
+      withSecondaryTileset((tileset) => {
+        tileset.show = showSecondary;
+      });
       return;
     }
   }, [

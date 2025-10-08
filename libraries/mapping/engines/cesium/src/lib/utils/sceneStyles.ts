@@ -4,13 +4,10 @@ import { getGroundPrimitiveById } from "./cesiumGroundPrimitives";
 import { isValidScene, SceneStyle } from "../..";
 import { fromColorRgbaArray } from "./cesiumSerializer";
 import {
-  ImageryLayerCallback,
   WithCallback,
-  SceneCallback,
   TerrainProviderCallback,
 } from "../hooks/useValidInstances";
 import { sceneRequestRender } from "./sceneRequestRender";
-import { MutableRefObject } from "react";
 import { tryWithValidScene } from "./instanceGates";
 
 // TODO have configurable setup functions for primary and secondary styles
@@ -61,7 +58,6 @@ const waitAndSetTerrainProvider = (
 export const setupPrimaryStyle = (
   scene: Scene,
   withTerrainProvider: WithCallback<TerrainProviderCallback>,
-  withImageryLayer: WithCallback<ImageryLayerCallback>,
   style?: Partial<SceneStyle>
 ) => {
   if (!isValidScene(scene)) return;
@@ -79,35 +75,24 @@ export const setupPrimaryStyle = (
   if (invertedSelection) {
     invertedSelection.classificationType = ClassificationType.CESIUM_3D_TILE;
   }
-
-  // ensure the correct terrain provider is set (not the surface provider)
   waitAndSetTerrainProvider(scene, withTerrainProvider, {
     label: "primary",
   });
 
-  // If an imagery layer exists and is present in the collection, hide it for primary style
-  withImageryLayer((imageryLayer) => {
-    if (imageryLayer.isDestroyed() || !isValidScene(scene)) return;
-    const layers = scene.imageryLayers;
-    let present = false;
-    for (let i = 0; i < layers.length; i++) {
-      if (layers.get(i) === imageryLayer) {
-        present = true;
-        break;
-      }
+  // Hide all imagery layers for primary style
+  for (let i = 0; i < scene.imageryLayers.length; i++) {
+    const layer = scene.imageryLayers.get(i);
+    if (layer && !layer.isDestroyed()) {
+      layer.show = false;
     }
-    if (present) {
-      console.debug("[STYLES|IMAGERY|CESIUM] hide imagery layer");
-      imageryLayer.show = false;
-    }
-  });
+  }
+
   sceneRequestRender(scene);
 };
 
 export const setupSecondaryStyle = (
   scene: Scene,
   withTerrainProvider: WithCallback<TerrainProviderCallback>,
-  withImageryLayer: WithCallback<ImageryLayerCallback>,
   style?: Partial<SceneStyle>
 ) => {
   if (!isValidScene(scene)) return;
@@ -117,42 +102,34 @@ export const setupSecondaryStyle = (
   scene.backgroundColor =
     fromColorRgbaArray(style?.backgroundColor) ?? new Color(0, 0, 0, 0);
 
-  const addImageryLayer = () => {
-    // Defer add/show to postRender to avoid mutating collection mid-frame
-    const addOnce = () => {
-      withImageryLayer((imageryLayer) => {
-        if (imageryLayer.isDestroyed() || !isValidScene(scene)) {
-          console.debug("[STYLES|IMAGERY] skip add/show; layer destroyed");
-          return;
-        }
-        const layers = scene.imageryLayers;
-        let alreadyAdded = false;
-        for (let i = 0; i < layers.length; i++) {
-          if (layers.get(i) === imageryLayer) {
-            alreadyAdded = true;
-            break;
-          }
-        }
-        if (!alreadyAdded) {
-          layers.add(imageryLayer);
+  const ensureImageryLayersVisible = () => {
+    // Defer to postRender to avoid mutating collection mid-frame
+    const ensureOnce = () => {
+      if (!isValidScene(scene)) return;
+
+      // Show all existing imagery layers
+      for (let i = 0; i < scene.imageryLayers.length; i++) {
+        const layer = scene.imageryLayers.get(i);
+        if (layer && !layer.isDestroyed()) {
+          layer.show = true;
           console.debug(
-            "Secondary Style Setup: add imagery layer",
-            layers.length
+            "[STYLES|IMAGERY|CESIUM] show imagery layer",
+            i,
+            scene.imageryLayers.length
           );
         }
-        imageryLayer.show = true;
-        scene.requestRender();
-      });
-      if (!isValidScene(scene)) return;
-      scene.postRender.removeEventListener(addOnce);
+      }
+
+      scene.requestRender();
+      scene.postRender.removeEventListener(ensureOnce);
     };
     if (!isValidScene(scene)) return;
-    scene.postRender.addEventListener(addOnce);
+    scene.postRender.addEventListener(ensureOnce);
   };
 
   waitAndSetTerrainProvider(scene, withTerrainProvider, {
     label: "secondary",
-    onReady: addImageryLayer,
+    onReady: ensureImageryLayersVisible,
   });
 
   const invertedSelection = getGroundPrimitiveById(

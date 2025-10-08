@@ -34,7 +34,7 @@ import {
 import { HitTriggerOptions } from "./cesiumHitTrigger";
 import { DerivedGeometries } from "./getDerivedGeometries";
 import {
-  WithElevationProvidersAsyncCallback,
+  WithElevationProvidersCallback,
   tryWithValidScene,
   sceneRequestRender,
   isValidScene,
@@ -302,7 +302,7 @@ const handlePolygonSelection = (
   }
 };
 export const cesiumHandleSelection = async (
-  withElevationProvidersAsync: WithElevationProvidersAsyncCallback,
+  withElevationProviders: WithElevationProvidersCallback,
   markerData: null | MarkerPrimitiveData,
   setMarkerData: (data: MarkerPrimitiveData | null) => void,
   { pos, zoom, polygon }: DerivedGeometries,
@@ -318,7 +318,7 @@ export const cesiumHandleSelection = async (
 
   const skipMarkerUpdate = Boolean(options.skipMarkerUpdate);
 
-  await withElevationProvidersAsync(
+  await withElevationProviders(
     async (terrainProvider, surfaceProvider, scene) => {
       // cleanup previous selection - use scene primitives only
 

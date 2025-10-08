@@ -79,9 +79,6 @@ export function snapshotCesiumContext(
     cesium.withSurfaceProvider((provider) => {
       surfaceProvider = provider;
     });
-    cesium.withImageryLayer((layer) => {
-      imageryLayer = layer;
-    });
     cesium.withPrimaryTileset((tileset) => {
       tilesetPrimary = tileset;
     });

@@ -15,16 +15,12 @@ import {
   isZoom,
 } from "@carma-commons/utils";
 
-import {
-  isValidScene,
-  isValidViewer,
-  tryWithValidScene,
-} from "./instanceGates";
+import { tryWithValidScene } from "./instanceGates";
 import { getCesiumFrustumPixelDimensionsForDistance } from "./cesiumCamera";
 import { getCameraHeightAboveGround } from "./cesiumHelpers";
 import { getElevationAsync } from "./elevation";
 import { getScenePixelSize } from "./pixels";
-import type { WithElevationProvidersAsyncCallback } from "../hooks/useValidInstances";
+import type { WithElevationProvidersCallback } from "../hooks/useValidInstances";
 
 // TODO: move to config or formalize the starting distance value
 const START_DISTANCE = 1000;
@@ -54,31 +50,15 @@ const defaultTransitionOptions: Required<TransitionOptions> = {
   preferredElevationReference: ElevationReference.SURFACE,
 };
 
-/**
- * Transitions a web map to a Cesium camera position.
- *
- * @param ctx - The Cesium context.
- * @param {LatLng.deg} { lat, lng } - The latitude and longitude of the center of the web map in degrees.
- * @param {Zoom} zoom - The zoom level of the web map.
- * @param {Object} options - The options for the transition.
- * @param {number} options.epsilon - The epsilon value (permitted error) for the target pixel resolution.
- * @param {number} options.limit - The iteration limit for getting the camera position.
- * @param {string} options.cause - The cause of the transition.
- * @param {Function} options.onComplete - The callback function to be called when the transition is complete.
- * @param {number} options.fallbackHeight - The fallback height for the transition.
- * @param {PreferredHeight} options.preferredHeight - The preferred height for the transition.
- * @returns {Promise<boolean>} - A promise that resolves to true if the transition was successful, false otherwise.
- */
-
 export const tiledMapToCesium = async (
-  withElevationProvidersAsync: WithElevationProvidersAsyncCallback,
+  withElevationProviders: WithElevationProvidersCallback,
   { latitude, longitude }: LatLng.deg,
   zoom: Zoom,
   resolutionScale: number,
   options: TransitionOptions
 ): Promise<boolean> => {
   let result = false;
-  withElevationProvidersAsync(
+  await withElevationProviders(
     async (terrainProvider, surfaceProvider, scene) => {
       const { camera } = scene;
 

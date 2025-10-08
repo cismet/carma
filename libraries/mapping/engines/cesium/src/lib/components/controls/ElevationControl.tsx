@@ -84,7 +84,7 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
 
   const [maxDisplayHeight, setMaxDisplayHeight] = useState<number>(10000); // Adjust as needed
   const controlRef = useRef<HTMLDivElement>(null);
-  const { withElevationProvidersAsync, sceneRef } = useCesiumContext();
+  const { withElevationProviders, sceneRef } = useCesiumContext();
   const [alwaysShow, setAlwaysShow] = useState(false);
   const [clamp, setClamp] = useState(useClampedHeight);
   const [eventOption, setEventOption] = useState(updateEvent);
@@ -165,7 +165,7 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
         const currentCameraHeight = cameraPositionCartographic.height;
         setCameraHeightFmt(`${cameraPositionCartographic.height.toFixed(0)}m`);
         getPositionWithHeightAsync(
-          withElevationProvidersAsync,
+          withElevationProviders,
           cameraPositionCartographic,
           false
         ).then((position) => {
@@ -188,7 +188,7 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
 
           if (clamp) {
             getPositionWithHeightAsync(
-              withElevationProvidersAsync,
+              withElevationProviders,
               cameraPositionCartographic,
               true
             ).then((clampedPosition) => {
@@ -256,7 +256,7 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
     eventOption,
     localMinEllipsoidalHeight,
     initialMaxElevation,
-    withElevationProvidersAsync,
+    withElevationProviders,
   ]);
 
   useEffect(() => {

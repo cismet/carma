@@ -1,15 +1,6 @@
 import { createContext, MutableRefObject } from "react";
 
-import type {
-  Camera,
-  Cesium3DTileset,
-  CesiumTerrainProvider,
-  EllipsoidTerrainProvider,
-  EntityCollection,
-  ImageryLayer,
-  Scene,
-  Viewer,
-} from "cesium";
+import type { CesiumTerrainProvider, Scene, Viewer } from "cesium";
 
 import type { AnimationMap } from "./utils/animationMap";
 import {
@@ -22,18 +13,13 @@ import type {
 } from "./cesiumContextEventMap";
 import type {
   CameraCallback,
-  CanvasCallback,
-  EllipsoidTerrainProviderCallback,
   EntitiesCallback,
-  ImageryLayerCallback,
   SceneCallback,
   TerrainProviderCallback,
   TilesetCallback,
   ViewerCallback,
   WithCallback,
-  WithAsyncCallback,
-  WithElevationProvidersAsyncCallback,
-  TerrainProviderAsyncCallback,
+  WithElevationProvidersCallback,
 } from "./hooks/useValidInstances";
 import { DelayedRenderOptions } from "@carma-commons/utils";
 
@@ -57,26 +43,20 @@ export interface CesiumContextType {
   // Monotonic counter that increments each time an initial camera apply sequence starts
   initialCameraEpoch: number;
   bumpInitialCameraEpoch: () => void;
-  // Generic, typed event bus for Cesium context
   subscribe: SubscribeCesiumCtxFn;
   emit: EmitCesiumCtxFn;
   requestRender: (opts?: DelayedRenderOptions) => void;
   // Shorthands for viewer validation
   isValidViewer: () => boolean;
   withViewer: WithCallback<ViewerCallback>;
-  withCamera: WithCallback<CameraCallback>;
-  withCanvas: WithCallback<CanvasCallback>;
   withScene: WithCallback<SceneCallback>;
+  withCamera: WithCallback<CameraCallback>;
   withEntities: WithCallback<EntitiesCallback>;
-  withImageryLayer: WithCallback<ImageryLayerCallback>;
   withPrimaryTileset: WithCallback<TilesetCallback>;
   withSecondaryTileset: WithCallback<TilesetCallback>;
-  withEllipsoidTerrainProvider: WithCallback<EllipsoidTerrainProviderCallback>;
   withTerrainProvider: WithCallback<TerrainProviderCallback>;
   withSurfaceProvider: WithCallback<TerrainProviderCallback>;
-  withTerrainProviderAsync: WithAsyncCallback<TerrainProviderAsyncCallback>;
-  withSurfaceProviderAsync: WithAsyncCallback<TerrainProviderAsyncCallback>;
-  withElevationProvidersAsync: WithElevationProvidersAsyncCallback;
+  withElevationProviders: WithElevationProvidersCallback;
 }
 
 export const CesiumContext = createContext<CesiumContextType | null>(null);

@@ -17,13 +17,8 @@ export const useSceneStyles = (enabled = true) => {
   const dispatch = useDispatch();
   const currentSceneStyle = useSelector(selectCurrentSceneStyle);
 
-  const {
-    sceneRef,
-    withTerrainProvider,
-    withImageryLayer,
-    isValidViewer,
-    isViewerReady,
-  } = useCesiumContext();
+  const { sceneRef, withTerrainProvider, isValidViewer, isViewerReady } =
+    useCesiumContext();
   const primaryStyle = useSelector(selectSceneStylePrimary);
   const secondaryStyle = useSelector(selectSceneStyleSecondary);
 
@@ -34,22 +29,12 @@ export const useSceneStyles = (enabled = true) => {
       return;
     console.debug("currentSceneStyle change", currentSceneStyle);
     if (currentSceneStyle === "primary" && primaryStyle) {
-      setupPrimaryStyle(
-        scene,
-        withTerrainProvider,
-        withImageryLayer,
-        primaryStyle
-      );
+      setupPrimaryStyle(scene, withTerrainProvider, primaryStyle);
       dispatch(setShowPrimaryTileset(true));
       dispatch(setShowSecondaryTileset(false));
       setCesiumBackgroundCssVar(primaryStyle.backgroundColor);
     } else if (currentSceneStyle === "secondary" && secondaryStyle) {
-      setupSecondaryStyle(
-        scene,
-        withTerrainProvider,
-        withImageryLayer,
-        secondaryStyle
-      );
+      setupSecondaryStyle(scene, withTerrainProvider, secondaryStyle);
       dispatch(setShowPrimaryTileset(false));
       dispatch(setShowSecondaryTileset(true));
       setCesiumBackgroundCssVar(secondaryStyle.backgroundColor);
@@ -64,7 +49,6 @@ export const useSceneStyles = (enabled = true) => {
     secondaryStyle,
     sceneRef,
     withTerrainProvider,
-    withImageryLayer,
     isValidViewer,
     isViewerReady,
   ]);

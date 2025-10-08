@@ -8,11 +8,11 @@ import { Scene } from "cesium";
 export const sceneRequestRender = (
   scene: Scene,
   opts?: DelayedRenderOptions
-) => {
+): Promise<void> => {
   const renderOnce = () => {
     tryWithValidScene(scene, () => {
       scene.requestRender();
     });
   };
-  handleDelayedRender(renderOnce, opts);
+  return handleDelayedRender(renderOnce, opts);
 };

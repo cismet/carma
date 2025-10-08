@@ -91,7 +91,7 @@ export {
 // Hooks for app integration
 export { useCesiumDevConsoleTrigger } from "./lib/hooks/useCesiumDevConsoleTrigger";
 export { useReloadOnCesiumRenderError } from "./lib/hooks/useReloadOnCesiumRenderError";
-export { type WithElevationProvidersAsyncCallback } from "./lib/hooks/useValidInstances";
+export { type WithElevationProvidersCallback } from "./lib/hooks/useValidInstances";
 export {
   getCesiumVersion,
   checkWindowEnv,

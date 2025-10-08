@@ -112,6 +112,32 @@ export const CesiumContextProvider = ({
     }
   }, [providerConfig.imageryProvider, isValidViewer]);
 
+  // Add imagery layer to scene when it's loaded and viewer is ready
+  useEffect(() => {
+    if (!isViewerReady || !sceneRef.current || !imageryLayerRef.current) {
+      return;
+    }
+
+    const scene = sceneRef.current;
+    const imageryLayer = imageryLayerRef.current;
+
+    // Check if layer is already in the collection
+    let alreadyAdded = false;
+    for (let i = 0; i < scene.imageryLayers.length; i++) {
+      if (scene.imageryLayers.get(i) === imageryLayer) {
+        alreadyAdded = true;
+        break;
+      }
+    }
+
+    if (!alreadyAdded && !imageryLayer.isDestroyed()) {
+      console.debug("[CESIUM|CONTEXT] Adding imagery layer to scene");
+      scene.imageryLayers.add(imageryLayer);
+      // Start hidden - will be shown by secondary style
+      imageryLayer.show = false;
+    }
+  }, [isViewerReady, sceneRef, imageryLayerRef]);
+
   useEffect(() => {
     if (!isViewerReady) {
       return;
