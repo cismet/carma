@@ -165,10 +165,10 @@ export const createInfoBoxControlObject = (
             : action.status === "exception"
             ? "Ausnahme"
             : "";
-        const description = action.description || "";
+        const statusReason = action.status_reason || "";
         const user = action.payload?.user || "";
 
-        const caption = `${dateStr} ${statusEmoji} ${statusName} - ${description} (${user})`;
+        const caption = `${dateStr} ${statusEmoji} ${statusName} - ${statusReason} (${user})`;
         fotoCaptions.push(caption);
       }
     });
