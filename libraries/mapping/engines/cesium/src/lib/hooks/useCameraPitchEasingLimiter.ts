@@ -47,6 +47,11 @@ const useCameraPitchEasingLimiter = (
   const lastPitch = useRef<number | null>(null);
   const lastPosition = useRef<Cartographic | null>(null);
 
+  // Keep isAnimatingRef in sync with isAnimating state
+  useEffect(() => {
+    isAnimatingRef.current = isAnimating;
+  }, [isAnimating]);
+
   useEffect(() => {
     if (!isMode2d && collisions && pitchLimiter) {
       console.debug("HOOK [CESIUM|CAMERA] EASING Pitch Limiter added");
@@ -61,7 +66,10 @@ const useCameraPitchEasingLimiter = (
             isAnimatingRef.current
           ) {
             console.debug(
-              "HOOK [CESIUM|CAMERA] EASING Pitch Limiter skipped while transitioning or animating"
+              "HOOK [CESIUM|CAMERA] EASING Pitch Limiter skipped while transitioning or animating",
+              "transitionState:", transitionStateRef.current,
+              "isTransition:", isTransitionState(transitionStateRef.current),
+              "isAnimating:", isAnimatingRef.current
             );
             return;
           }
