@@ -98,13 +98,19 @@ function App({ sync = false }: { sync?: boolean }) {
   const initialCameraView = useCesiumInitialCameraFromSearchParams();
 
   // CONTROLS
-  const ctx = useCesiumContext();
-  const { viewerRef, animationMapRef, isViewerReady, requestRender } = ctx;
+  const {
+    withViewer,
+    withTerrainProvider,
+    withSurfaceProvider,
+    animationMapRef,
+    isViewerReady,
+    requestRender,
+  } = useCesiumContext();
   const homeControl = useHomeControl();
   const {
     handleZoomIn: handleZoomInCesium,
     handleZoomOut: handleZoomOutCesium,
-  } = useZoomControls(ctx);
+  } = useZoomControls();
   const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
 
   // LEAFLET related
@@ -180,10 +186,15 @@ function App({ sync = false }: { sync?: boolean }) {
         markerAsset,
         markerAnchorHeight,
         isPrimaryStyle: true,
-        withTerrainProvider: (cb) => ctx.withTerrainProvider(cb),
-        withSurfaceProvider: (cb) => ctx.withSurfaceProvider(cb),
+        withTerrainProvider,
+        withSurfaceProvider,
       }),
-      [markerAsset, markerAnchorHeight, ctx]
+      [
+        markerAsset,
+        markerAnchorHeight,
+        withTerrainProvider,
+        withSurfaceProvider,
+      ]
     )
   );
 
@@ -197,16 +208,17 @@ function App({ sync = false }: { sync?: boolean }) {
   }, []);
 
   useEffect(() => {
-    ctx.withViewer((viewer) => {
+    if (!isViewerReady) return;
+    withViewer((viewer) => {
       // remove default cesium credit because no ion resource is used
       (
         viewer as unknown as {
           _cesiumWidget: { _creditContainer: { style: { display: string } } };
         }
       )._cesiumWidget._creditContainer.style.display = "none";
-      ctx.requestRender();
+      requestRender();
     });
-  }, [ctx]);
+  }, [isViewerReady, requestRender]);
 
   const enableControlStateToggle = (controlState) => {
     return controlState.selectedSimulation !== 2;

@@ -11,19 +11,39 @@ import type {
   Viewer,
 } from "cesium";
 
+import type { AnimationMap } from "./utils/animationMap";
 import {
   type MapStateType,
   type MapTransitionLifecycle,
 } from "./hooks/useMapTransition";
-import { ViewerAnimationMap } from "./utils/viewerAnimationMap";
 import type {
   EmitCesiumCtxFn,
   SubscribeCesiumCtxFn,
 } from "./cesiumContextEventMap";
+import type {
+  CameraCallback,
+  CanvasCallback,
+  EllipsoidTerrainProviderCallback,
+  EntitiesCallback,
+  ImageryLayerCallback,
+  SceneCallback,
+  TerrainProviderCallback,
+  TilesetCallback,
+  ViewerCallback,
+  WithCallback,
+  WithAsyncCallback,
+  WithElevationProvidersAsyncCallback,
+  TerrainProviderAsyncCallback,
+} from "./hooks/useValidInstances";
+import { DelayedRenderOptions } from "@carma-commons/utils";
 
 export interface CesiumContextType {
   viewerRef: MutableRefObject<Viewer | null>;
-  viewerAnimationMapRef: MutableRefObject<ViewerAnimationMap | null>;
+  // shorthand for viewer.scene
+  sceneRef: MutableRefObject<Scene | null>;
+  animationMapRef: MutableRefObject<AnimationMap | null>;
+  terrainProviderRef: MutableRefObject<CesiumTerrainProvider | null>;
+  surfaceProviderRef: MutableRefObject<CesiumTerrainProvider | null>;
   shouldSuspendPitchLimiterRef: MutableRefObject<boolean>;
   shouldSuspendCameraLimitersRef: MutableRefObject<boolean>;
   // state for transitions for other map engines
@@ -40,40 +60,23 @@ export interface CesiumContextType {
   // Generic, typed event bus for Cesium context
   subscribe: SubscribeCesiumCtxFn;
   emit: EmitCesiumCtxFn;
-  requestRender: (opts?: {
-    delay?: number; // ms
-    repeat?: number; // times
-    repeatInterval?: number; // ms
-  }) => void;
+  requestRender: (opts?: DelayedRenderOptions) => void;
   // Shorthands for viewer validation
   isValidViewer: () => boolean;
-  withViewer: (cb: (viewer: Viewer) => void) => boolean;
-  withCamera: (cb: (camera: Camera, viewer: Viewer) => void) => boolean;
-  withCanvas: (
-    cb: (canvas: HTMLCanvasElement, viewer: Viewer) => void
-  ) => boolean;
-  withScene: (cb: (scene: Scene, viewer: Viewer) => void) => boolean;
-  withEntities: (
-    cb: (entities: EntityCollection, viewer: Viewer) => void
-  ) => boolean;
-  withImageryLayer: (
-    cb: (imageryLayer: ImageryLayer, viewer: Viewer) => void
-  ) => boolean;
-  withPrimaryTileset: (
-    cb: (tileset: Cesium3DTileset, viewer: Viewer) => void
-  ) => boolean;
-  withSecondaryTileset: (
-    cb: (tileset: Cesium3DTileset, viewer: Viewer) => void
-  ) => boolean;
-  withEllipsoidTerrainProvider: (
-    cb: (provider: EllipsoidTerrainProvider, viewer: Viewer) => void
-  ) => boolean;
-  withTerrainProvider: (
-    cb: (provider: CesiumTerrainProvider, viewer: Viewer) => void
-  ) => boolean;
-  withSurfaceProvider: (
-    cb: (provider: CesiumTerrainProvider, viewer: Viewer) => void
-  ) => boolean;
+  withViewer: WithCallback<ViewerCallback>;
+  withCamera: WithCallback<CameraCallback>;
+  withCanvas: WithCallback<CanvasCallback>;
+  withScene: WithCallback<SceneCallback>;
+  withEntities: WithCallback<EntitiesCallback>;
+  withImageryLayer: WithCallback<ImageryLayerCallback>;
+  withPrimaryTileset: WithCallback<TilesetCallback>;
+  withSecondaryTileset: WithCallback<TilesetCallback>;
+  withEllipsoidTerrainProvider: WithCallback<EllipsoidTerrainProviderCallback>;
+  withTerrainProvider: WithCallback<TerrainProviderCallback>;
+  withSurfaceProvider: WithCallback<TerrainProviderCallback>;
+  withTerrainProviderAsync: WithAsyncCallback<TerrainProviderAsyncCallback>;
+  withSurfaceProviderAsync: WithAsyncCallback<TerrainProviderAsyncCallback>;
+  withElevationProvidersAsync: WithElevationProvidersAsyncCallback;
 }
 
 export const CesiumContext = createContext<CesiumContextType | null>(null);

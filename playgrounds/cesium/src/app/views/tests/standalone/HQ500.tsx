@@ -39,13 +39,13 @@ export const HQ500 = () => {
   const container3dMapRef = useRef<HTMLDivElement>(null);
 
   // State and Selectors
-  const ctx = useCesiumContext();
-  const { viewerRef, withScene } = ctx;
+  const { viewerRef, withScene, withPrimaryTileset, requestRender } =
+    useCesiumContext();
   const homeControl = useHomeControl();
   const {
     handleZoomIn: handleZoomInCesium,
     handleZoomOut: handleZoomOutCesium,
-  } = useZoomControlsCesium(ctx);
+  } = useZoomControlsCesium();
 
   useTweakpaneCtx({
     folder: {
@@ -90,7 +90,7 @@ export const HQ500 = () => {
   useEffect(() => {
     if (hq500Terrain) {
       const onTerrainReady = () => {
-        ctx.withPrimaryTileset((primaryTileset) => {
+        withPrimaryTileset((primaryTileset) => {
           primaryTileset.show = true;
         });
         withScene((scene) => {
@@ -105,7 +105,7 @@ export const HQ500 = () => {
           scene.terrainProvider = hq500Terrain.provider;
           console.debug("ccc [CESIUM] terrain ready");
         });
-        ctx.requestRender();
+        requestRender();
       };
       hq500Terrain.readyEvent.addEventListener(onTerrainReady);
 
@@ -114,7 +114,7 @@ export const HQ500 = () => {
           hq500Terrain.readyEvent.removeEventListener(onTerrainReady);
       };
     }
-  }, [withScene, hq500Terrain, ctx]);
+  }, [withScene, hq500Terrain, requestRender, withPrimaryTileset]);
 
   return (
     <ControlLayout ifStorybook={false}>

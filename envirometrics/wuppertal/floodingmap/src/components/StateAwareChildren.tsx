@@ -17,9 +17,10 @@ import StyledWMSTileLayer from "react-cismap/StyledWMSTileLayer";
 import { isNumberArrayEqual } from "@carma-commons/utils";
 
 import {
-  getTerrainElevationAsync,
+  isValidCesiumTerrainProvider,
   selectViewerIsMode2d,
   useCesiumContext,
+  guardSampleTerrainMostDetailedAsync,
 } from "@carma-mapping/engines/cesium";
 
 import { useHGKCesiumTerrain } from "../hooks/useHGKCesiumTerrain";
@@ -51,8 +52,8 @@ export const StateAwareChildren = () => {
   const conf = config.config;
 
   // CESIUM
-  const cesiumContext = useCesiumContext();
-  const { isViewerReady, viewerRef } = cesiumContext;
+  const { isViewerReady, viewerRef, sceneRef, terrainProviderRef } =
+    useCesiumContext();
   const [cesiumPickedPosition, setCesiumPickedPosition] = useState<
     [number, number] | null
   >(null);
@@ -82,10 +83,13 @@ export const StateAwareChildren = () => {
 
         const cartographic = Cartographic.fromDegrees(lon, lat);
 
-        const [groundPositionCartographic] = await getTerrainElevationAsync(
-          cesiumContext,
-          [cartographic]
-        );
+        if (!isValidCesiumTerrainProvider(terrainProviderRef.current)) return;
+
+        const [groundPositionCartographic] =
+          await guardSampleTerrainMostDetailedAsync(
+            terrainProviderRef.current,
+            [cartographic]
+          );
         if (!groundPositionCartographic) return;
 
         updateMarkerPosition(
@@ -100,7 +104,7 @@ export const StateAwareChildren = () => {
   }, [
     isViewerReady,
     viewerRef,
-    cesiumContext,
+    terrainProviderRef,
     controlState.featureInfoModeActivated,
     controlState.currentFeatureInfoPosition,
     isMode2d,
@@ -127,7 +131,9 @@ export const StateAwareChildren = () => {
         async (click) =>
           onCesiumClick(
             click,
-            cesiumContext,
+            viewerRef,
+            sceneRef,
+            terrainProviderRef,
             markerEntityRef,
             highlightEntityRef,
             setCesiumPickedPosition
@@ -152,7 +158,7 @@ export const StateAwareChildren = () => {
         viewer.scene.requestRender();
       };
     }
-  }, [cesiumContext, viewerRef, controlState.featureInfoModeActivated]);
+  }, [viewerRef, controlState.featureInfoModeActivated]);
 
   // Add effect to cleanup marker when feature info mode is disabled
   useEffect(() => {

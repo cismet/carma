@@ -319,7 +319,7 @@ export const cesiumHandleSelection = async (
   const skipMarkerUpdate = Boolean(options.skipMarkerUpdate);
 
   await withElevationProvidersAsync(
-    async (surfaceProvider, terrainProvider, scene) => {
+    async (terrainProvider, surfaceProvider, scene) => {
       // cleanup previous selection - use scene primitives only
 
       if (!skipMarkerUpdate) {
@@ -344,7 +344,9 @@ export const cesiumHandleSelection = async (
         return;
       }
 
-      const { terrain, surface: surfacePosition } = posResult;
+      const { terrain: terrainPosition, surface: surfacePositionRaw } =
+        posResult;
+      const surfacePosition = surfacePositionRaw ?? terrainPosition;
 
       if (
         !surfacePosition ||
@@ -360,7 +362,7 @@ export const cesiumHandleSelection = async (
 
       console.debug(
         "GAZETTEER: [2D3D|CESIUM|MARKER] ground position",
-        terrain,
+        terrainPosition,
         surfacePosition
       );
 
@@ -392,7 +394,7 @@ export const cesiumHandleSelection = async (
             useCameraHeight: options.useCameraHeight,
           });
           console.debug(
-            "GAZETTEER: [2D3D|CESIUM|CAMERA] look at Marker (Terrain Elevation)"
+            "GAZETTEER: [2D3D|CESIUM|CAMERA] look at Marker (Surface Elevation)"
           );
         }
       } else if (defined(posResult)) {

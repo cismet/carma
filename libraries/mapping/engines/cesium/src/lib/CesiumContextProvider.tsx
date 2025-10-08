@@ -7,9 +7,9 @@ import {
   ImageryLayer,
   Viewer,
   Cesium3DTileset,
+  Scene,
 } from "cesium";
 import { createEventBus } from "@carma-commons/utils";
-import { handleDelayedRender } from "@carma-commons/utils/window";
 
 import { CesiumContext, type CesiumContextType } from "./CesiumContext";
 import type { CesiumContextEventMap } from "./cesiumContextEventMap";
@@ -28,12 +28,9 @@ import {
   ProviderConfig,
 } from "./utils/cesiumProviders";
 import { loadTileset, TilesetConfigs } from "./utils/cesiumTilesetProviders";
-import { guardScene } from "./utils/guardScene";
 
-import {
-  initViewerAnimationMap,
-  ViewerAnimationMap,
-} from "./utils/viewerAnimationMap";
+import { initAnimationMap, AnimationMap } from "./utils/animationMap";
+import { sceneRequestRender } from "./utils/sceneRequestRender";
 
 export const CesiumContextProvider = ({
   children,
@@ -46,9 +43,8 @@ export const CesiumContextProvider = ({
 }) => {
   // Use refs for Cesium instances to prevent re-renders
   const viewerRef = useRef<Viewer | null>(null);
-  const viewerAnimationMapRef = useRef<ViewerAnimationMap | null>(
-    initViewerAnimationMap()
-  );
+  const sceneRef = useRef<Scene | null>(null);
+  const animationMapRef = useRef<AnimationMap | null>(initAnimationMap());
   const ellipsoidTerrainProviderRef = useRef(new EllipsoidTerrainProvider());
   const terrainProviderRef = useRef<CesiumTerrainProvider | null>(null);
   const surfaceProviderRef = useRef<CesiumTerrainProvider | null>(null);
@@ -83,6 +79,7 @@ export const CesiumContextProvider = ({
 
   const instanceCallbacks = useValidInstances(
     viewerRef,
+    sceneRef,
     imageryLayerRef,
     primaryTilesetRef,
     secondaryTilesetRef,
@@ -91,7 +88,7 @@ export const CesiumContextProvider = ({
     surfaceProviderRef
   );
 
-  const { withViewer, isValidViewer } = instanceCallbacks;
+  const { isValidViewer } = instanceCallbacks;
 
   // Asynchronous initialization of providers and imageryLayer
   useEffect(() => {
@@ -221,22 +218,18 @@ export const CesiumContextProvider = ({
     () => setInitialCameraEpoch((v) => v + 1),
     [setInitialCameraEpoch]
   );
-  const requestRender = useCallback(
-    (opts) => {
-      const renderOnce = () => {
-        withViewer((viewer) => {
-          guardScene(viewer.scene, "ctx requestRender").requestRender();
-        });
-      };
-      handleDelayedRender(renderOnce, opts);
-    },
-    [withViewer]
-  );
+
+  const requestRender = useCallback(() => {
+    sceneRef.current && sceneRequestRender(sceneRef.current);
+  }, [sceneRef]);
 
   const contextValue = useMemo<CesiumContextType>(
     () => ({
       viewerRef,
-      viewerAnimationMapRef,
+      sceneRef,
+      terrainProviderRef,
+      surfaceProviderRef,
+      animationMapRef,
       shouldSuspendPitchLimiterRef,
       shouldSuspendCameraLimitersRef,
       setIsViewerReady,
