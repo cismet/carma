@@ -61,7 +61,9 @@ export function InfoBoxMeasurement({}: InfoBoxMeasurementProps) {
   // Handle drawing mode
   useEffect(() => {
     if (drawingMode) {
-      setLastMeasureActive();
+      // setLastMeasureActive();
+      setActiveShape(5555);
+      return;
     }
   }, [drawingMode]);
 
@@ -195,8 +197,21 @@ export function InfoBoxMeasurement({}: InfoBoxMeasurementProps) {
 
   const setLastMeasureActive = () => {
     // Set activeShape (source of truth) to the last visible shape
+    if (activeShape === 5555) {
+      return;
+    }
+
+    console.log("xxx setLastMeasureActive");
+    const isActiveShapeVisible = visibleShapesData.some(
+      (m) => m.shapeId === activeShape
+    );
+
     const lastIndex = visibleShapesData.length - 1;
-    if (lastIndex >= 0 && visibleShapesData[lastIndex]) {
+    if (
+      lastIndex >= 0 &&
+      visibleShapesData[lastIndex] &&
+      !isActiveShapeVisible
+    ) {
       setActiveShape(visibleShapesData[lastIndex].shapeId);
     }
   };
