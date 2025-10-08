@@ -51,8 +51,8 @@ const MeasurementsProviderWrapper = ({
 
   return (
     <MapMeasurementsProvider
-      mode={mode}
-      setMode={handleSetMode}
+      externalMode={mode}
+      setModeExternal={handleSetMode}
       // Skip config if you want to use default values
       // config={measurementsConfig}
     >

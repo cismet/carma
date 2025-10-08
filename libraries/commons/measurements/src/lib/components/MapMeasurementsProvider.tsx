@@ -66,15 +66,22 @@ export const MapMeasurementsContext = createContext<MapMeasurementsContextType>(
 
 export const MapMeasurementsProvider = ({
   children,
-  mode,
-  setMode,
+  externalMode,
+  setModeExternal,
   config = {},
 }: {
   children: React.ReactNode;
-  mode: MEASUREMENT_MODE;
-  setMode: (mode: MEASUREMENT_MODE) => void;
+  externalMode?: MEASUREMENT_MODE;
+  setModeExternal?: (mode: MEASUREMENT_MODE) => void;
   config?: PartialMeasurementConfig;
 }) => {
+  // Internal mode state as fallback when external props not provided
+  const [internalMode, setInternalMode] = useState<MEASUREMENT_MODE>(MEASUREMENT_MODE.DEFAULT);
+  
+  // Use external mode/setMode if provided, otherwise use internal state
+  const mode = externalMode ?? internalMode;
+  const setMode = setModeExternal ?? setInternalMode;
+
   // Merge provided config with defaults
   const mergedConfig: MeasurementConfig = {
     ...defaultConfig,
