@@ -179,9 +179,10 @@ export function InfoBoxMeasurement({}: InfoBoxMeasurementProps) {
   const deleteShapeHandler = (e: React.MouseEvent) => {
     e.stopPropagation();
 
+    // the method activate delete process in  MapMeasurementsObjects
     setDeleteAll(true);
-    cleanUpdateMeasurementStatus();
-    setLastMeasureActive();
+    // cleanUpdateMeasurementStatus();
+    // setLastMeasureActive();
   };
 
   const setUpdateMeasurementStatus = (status: boolean) => {
@@ -213,7 +214,14 @@ export function InfoBoxMeasurement({}: InfoBoxMeasurementProps) {
         <ResponsiveInfoBox
           pixelwidth={350}
           panelClick={() => {}}
-          header={<div className="w-full" style={{ backgroundColor: infoBoxHeaderColor }}>Messungen</div>}
+          header={
+            <div
+              className="w-full"
+              style={{ backgroundColor: infoBoxHeaderColor }}
+            >
+              Messungen
+            </div>
+          }
           alwaysVisibleDiv={
             <div className="mt-2 mb-2 w-[96%] flex justify-between items-start gap-4">
               <span style={{ cursor: "pointer", width: "100%" }}>
