@@ -8,8 +8,6 @@ import "leaflet-editable";
 import "./utils/measure";
 import "./utils/measure-path";
 import "leaflet-measure-path/leaflet-measure-path.css";
-import makeMeasureIcon from "./assets/measure.png";
-import makeMeasureActiveIcon from "./assets/measure-active.png";
 import "./styles/m-style.css";
 import useDeviceDetection from "./hooks/useDeviceDetection";
 import { useMapMeasurementsContext } from "./components/MapMeasurementsProvider";
@@ -73,8 +71,8 @@ export function MapMeasurementsObjects({
       const mapExample = routedMapRef?.leafletMap?.leafletElement;
       const customOptions = {
         position: "topright",
-        icon_lineActive: makeMeasureActiveIcon,
-        icon_lineInactive: makeMeasureIcon,
+        // icon_lineActive: makeMeasureActiveIcon,
+        // icon_lineInactive: makeMeasureIcon,
         icon_polygonActive: polygonActiveIcon,
         icon_polygonInactive: polygonIcon,
         activeShape,

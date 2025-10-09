@@ -201,7 +201,6 @@ export function InfoBoxMeasurement({}: InfoBoxMeasurementProps) {
       return;
     }
 
-    console.log("xxx setLastMeasureActive");
     const isActiveShapeVisible = visibleShapesData.some(
       (m) => m.shapeId === activeShape
     );
