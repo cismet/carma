@@ -467,8 +467,8 @@ const MapWrapper = () => {
               </div>
             )}
           </Control> */}
-          <MeasurementControl 
-            position="topleft" 
+          <MeasurementControl
+            position="topleft"
             order={60}
             disabled={!isMode2d || (isMode2d && showLibreMap)}
             useDisabledStyle={isMode2d && showLibreMap}
@@ -480,6 +480,7 @@ const MapWrapper = () => {
                 : "Messungsmodus einschalten"
             }
             tooltipPlacement="right"
+            showInfoBox={false}
           />
           <Control position="topleft" order={50}>
             <Tooltip

@@ -101,13 +101,14 @@ export interface MeasurementControlProps {
   };
   altText?: string;
   iconClassName?: string;
-  
+
   // Universal features
   disabled?: boolean;
   useDisabledStyle?: boolean;
   tooltip?: string | React.ReactNode;
   tooltipPlacement?: "top" | "bottom" | "left" | "right";
   className?: string;
+  showInfoBox?: boolean;
 }
 
 export interface MeasurementConfig {
