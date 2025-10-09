@@ -1,0 +1,124 @@
+import { useCallback, MutableRefObject } from "react";
+
+import { Degrees } from "@carma/types";
+import { isMapCenterZoomEquivalent } from "@carma-commons/utils";
+import { cesiumClearParamKeys } from "@carma-mapping/engines/cesium";
+
+import { useHashState } from "../contexts/HashStateProvider";
+import type { LatLngZoom } from "./useMapHashRoutingLeafletLike";
+
+interface UseLeafletLikeChangeHandlerOptions {
+  navMoveInProgressRef: MutableRefObject<boolean>;
+  popstateTargetRef: MutableRefObject<LatLngZoom | null>;
+  cesiumClearKeys?: string[];
+  label?: string;
+  pixelTolerance?: number;
+  onAfterLocationChanged?: () => void;
+}
+
+/**
+ * Hook that creates a handler for Leaflet-like map location changes that writes to the URL hash.
+ * Implements tolerance-based deduplication to avoid writing nearly identical coordinates.
+ */
+export function useLeafletLikeChangeHandler({
+  navMoveInProgressRef,
+  popstateTargetRef,
+  cesiumClearKeys = cesiumClearParamKeys,
+  label,
+  pixelTolerance,
+  onAfterLocationChanged,
+}: UseLeafletLikeChangeHandlerOptions) {
+  const { updateHash, getHashValues } = useHashState();
+
+  return useCallback(
+    ({ lat, lng, zoom }: LatLngZoom) => {
+      // Skip writes during popstate-driven navigation to prevent feedback loops
+      if (navMoveInProgressRef.current) {
+        console.debug(
+          "[Routing][hash] (2D) suppress push: popstate navigation in progress",
+          { lat, lng, zoom, label }
+        );
+        return;
+      }
+
+      // If we just restored to a target via popstate, allow small drift without pushing
+      const target = popstateTargetRef.current;
+      if (target) {
+        const eq = isMapCenterZoomEquivalent(
+          {
+            center: { latitude: lat as Degrees, longitude: lng as Degrees },
+            zoom,
+          },
+          {
+            center: {
+              latitude: target.lat as Degrees,
+              longitude: target.lng as Degrees,
+            },
+            zoom: target.zoom,
+          },
+          { pixelTolerance }
+        );
+        if (eq) {
+          console.debug(
+            "[Routing][hash] (2D) skip push: equals popstate target within tolerance",
+            { lat, lng, zoom, target }
+          );
+          popstateTargetRef.current = null;
+          return;
+        }
+      }
+
+      // Skip writing if the map is already at the current hash location (within tolerance)
+      try {
+        const vals = getHashValues?.() || {};
+        const hLat = Number((vals as Record<string, unknown>).lat) as Degrees;
+        const hLng = Number((vals as Record<string, unknown>).lng) as Degrees;
+        const hZoom = Number((vals as Record<string, unknown>).zoom) as number;
+        const hasAll =
+          Number.isFinite(hLat) &&
+          Number.isFinite(hLng) &&
+          Number.isFinite(hZoom);
+        if (hasAll) {
+          const eq = isMapCenterZoomEquivalent(
+            {
+              center: { latitude: lat as Degrees, longitude: lng as Degrees },
+              zoom,
+            },
+            {
+              center: { latitude: hLat, longitude: hLng },
+              zoom: hZoom,
+            },
+            { pixelTolerance }
+          );
+          if (eq) {
+            console.debug(
+              "[Routing][hash] (2D) skip push: equals current hash within tolerance",
+              { lat, lng, zoom, hLat, hLng, hZoom }
+            );
+            return;
+          }
+        }
+      } catch {}
+
+      onAfterLocationChanged?.();
+      updateHash(
+        { lat, lng, zoom },
+        {
+          clearKeys: cesiumClearKeys,
+          label: `${label ?? "LeafletLike Map Change"}:hashUpdate`,
+          replace: false,
+        }
+      );
+    },
+    [
+      navMoveInProgressRef,
+      popstateTargetRef,
+      getHashValues,
+      updateHash,
+      cesiumClearKeys,
+      label,
+      pixelTolerance,
+      onAfterLocationChanged,
+    ]
+  );
+}
