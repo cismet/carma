@@ -107,17 +107,17 @@ export const MapMeasurementsProvider = ({
     setFromLocalforage("measurementShapes", setShapes, []);
   }, []);
 
-  // useEffect(() => {
-  //   saveToLocalforage("measurementShapes", shapes);
-  // }, [shapes]);
+  useEffect(() => {
+    saveToLocalforage("measurementShapes", shapes);
+  }, [shapes]);
 
   // useEffect(() => {
   //   console.log("xxx visibleShapes", visibleShapes);
   // }, [visibleShapes]);
 
-  useEffect(() => {
-    console.log("xxx activeShape", activeShape);
-  }, [activeShape]);
+  // useEffect(() => {
+  //   console.log("xxx activeShape", activeShape);
+  // }, [activeShape]);
 
   const addShape = (layer: any) => {
     setShapes((prevShapes) => [...prevShapes, layer]);
