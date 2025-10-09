@@ -62,6 +62,10 @@ import { isAreaType } from "@carma-commons/resources";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import { ZoomControl } from "@carma-mapping/components";
 import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextProvider";
+import {
+  MapMeasurementsObjects,
+  MeasurementControl,
+} from "@carma-commons/measurements";
 
 const { ScaleControl } = TransitiveReactLeaflet;
 
@@ -424,10 +428,11 @@ const Map = ({
             <Control position="topleft" order={10}>
               <ZoomControl />
             </Control>
+            <MeasurementControl />
           </ControlLayout>
         </div>
         <RoutedMap
-          editable={false}
+          editable={true}
           style={mapStyle}
           key={"leafletRoutedMap"}
           zoomControlEnabled={false}
@@ -570,6 +575,8 @@ const Map = ({
           />
         </RoutedMap>
         <div className="custom-left-control">
+          <MapMeasurementsObjects />
+
           <LibFuzzySearch
             gazData={gazData}
             onSelection={onGazetteerSelection}
