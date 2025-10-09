@@ -1,4 +1,11 @@
-import { type MouseEvent, type ReactNode, forwardRef, useState } from "react";
+import {
+  type MouseEvent,
+  type ReactNode,
+  forwardRef,
+  useState,
+  useCallback,
+  useMemo,
+} from "react";
 import { useSelector } from "react-redux";
 import { Tooltip } from "antd";
 
@@ -12,6 +19,7 @@ import { selectViewerIsMode2d } from "../../slices/cesium";
 type Props = {
   duration?: number;
   onComplete?: (isTo2D: boolean) => void;
+  onCancel?: (isTo2D: boolean) => void;
   children?: ReactNode;
   className?: string;
   nativeTooltip?: boolean;
@@ -36,6 +44,7 @@ export const MapTypeSwitcher = forwardRef<Ref, Props>(
   (
     {
       onComplete,
+      onCancel,
       duration,
       className,
       nativeTooltip = false,
@@ -46,53 +55,84 @@ export const MapTypeSwitcher = forwardRef<Ref, Props>(
     const [hasConfirmed, setHasConfirmed] = useState(false);
     const [disabled, setDisabled] = useState(false);
     const isMode2d = useSelector(selectViewerIsMode2d);
-    const onCompleteLocal = () => {
-      setDisabled(false);
-    };
-    const { transitionToMode2d, transitionToMode3d } = useMapTransition({
-      onComplete: onComplete
-        ? (isTo2D: boolean) => {
-            onComplete(isTo2D);
-            // inject button handling
-            onCompleteLocal();
-          }
-        : onCompleteLocal,
-      duration,
-    });
-
-    const handleSwitchMapMode = async (e: MouseEvent) => {
-      e.preventDefault();
-
-      if (
-        // show warning only from 2d mode and not already confirmed
-        isMode2d &&
-        !hasConfirmed &&
-        enableMobileWarning &&
-        isMobileOrTablet
-      ) {
-        const confirmed = window.confirm(LOCALE_DE_WARNING_ENABLE_CESIUM_MODE);
-        if (confirmed) {
-          setHasConfirmed(true);
-        } else {
-          return;
-        }
-      }
-
-      console.debug(
-        "CLICKHANDLER: [CESIUM|LEAFLET|2D3D] clicked handleSwitchMapMode zoom",
-        isMode2d
-      );
-      setDisabled(true);
-      if (isMode2d) {
-        await transitionToMode3d();
-      } else {
-        await transitionToMode2d();
-      }
-    };
 
     const switchInfoText = isMode2d
       ? LOCALE_DE_SWITCH_TO_3D_MODE
       : LOCALE_DE_SWITCH_TO_2D_MODE;
+
+    const onCompleteStable = useCallback(
+      (isTo2D: boolean) => {
+        onComplete?.(isTo2D);
+        setDisabled(false);
+      },
+      [onComplete]
+    );
+
+    const onCancelStable = useCallback(
+      (isTo2D: boolean) => {
+        onCancel?.(isTo2D);
+        setDisabled(false);
+      },
+      [onCancel]
+    );
+
+    const transitionOptions = useMemo(
+      () => ({
+        onComplete: onCompleteStable,
+        onCancel: onCancelStable,
+        duration,
+      }),
+      [onCompleteStable, onCancelStable, duration]
+    );
+
+    const { transitionToMode2d, transitionToMode3d } =
+      useMapTransition(transitionOptions);
+
+    const handleSwitchMapMode = useCallback(
+      async (e: MouseEvent) => {
+        e.preventDefault();
+
+        if (
+          // show warning only from 2d mode and not already confirmed
+          isMode2d &&
+          !hasConfirmed &&
+          enableMobileWarning &&
+          isMobileOrTablet
+        ) {
+          const confirmed = window.confirm(
+            LOCALE_DE_WARNING_ENABLE_CESIUM_MODE
+          );
+          if (confirmed) {
+            setHasConfirmed(true);
+          } else {
+            return;
+          }
+        }
+
+        console.debug(
+          "CLICKHANDLER: [CESIUM|LEAFLET|2D3D] clicked handleSwitchMapMode zoom",
+          isMode2d
+        );
+        setDisabled(true);
+        try {
+          if (isMode2d) {
+            await transitionToMode3d();
+          } else {
+            await transitionToMode2d();
+          }
+        } catch (error) {
+          console.error("Map transition failed:", error);
+          setDisabled(false);
+        }
+      },
+      [
+        isMode2d,
+        hasConfirmed,
+        enableMobileWarning,
+        transitionToMode3d,
+        transitionToMode2d,
+      ]
+    );
 
     console.debug(
       "RENDER: [CESIUM|LEAFLET|2D3D] MapTypeSwitcher",

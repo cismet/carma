@@ -129,6 +129,7 @@ export const runTransitionLifecycleHandlers = async (
 
 type TransitionOptions = {
   onComplete?: (isTo2d: boolean) => void;
+  onCancel?: (isTo2D: boolean) => void;
   duration?: number; // milliseconds
   maxZoom?: number; // max zoom level to transition from 2D to 3D
   zoomOutDuration?: number; // milliseconds
@@ -144,6 +145,7 @@ const noAnimation = {
 
 const defaultTransitionOptions: Required<TransitionOptions> = {
   onComplete: noop,
+  onCancel: noop,
   duration: 1000,
   maxZoom: 20,
   zoomOutDuration: 700,
@@ -155,6 +157,7 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
   const {
     duration,
     onComplete,
+    onCancel,
     maxZoom,
     zoomOutEaseLinearity,
     zoomOutDuration,
@@ -259,6 +262,7 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
         leafletMap: !!routedMapRef.current?.leafletMap,
         leafletElement: !!routedMapRef.current?.leafletMap?.leafletElement,
       });
+      onCancel?.(false);
       return;
     }
 
@@ -266,6 +270,7 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
       console.warn("[CESIUM|2D3D|TO3D] resolution scale not available", {
         resolutionScale,
       });
+      onCancel?.(false);
       return;
     }
     transitionStateRef.current = MapTransitionState.preTransitionTo3d;
@@ -282,12 +287,12 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
       onComplete?.(false);
     };
 
-    const onCancel3d = () => {
+    const onCancelAnimation3d = () => {
       console.debug(
         "[CESIUM|2D3D|TO3D] animation cancelled by user - setting mode to mode3d"
       );
       transitionStateRef.current = MapState.mode3d;
-      // Still call onComplete so UI (like map type switcher) can clear loading state
+      // this is only about the animation not a cancelled transition
       onComplete?.(false);
     };
 
@@ -315,7 +320,7 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
           useCurrentDistance: true,
           cancelable: true, // Allow user to cancel post-transition animation
           onComplete: onComplete3d,
-          onCancel: onCancel3d, // Just clear transition state, don't jump
+          onCancel: onCancelAnimation3d, // Just clear transition state, don't jump
         });
       } else {
         console.debug(
@@ -333,6 +338,7 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
 
     if (!Number.isFinite(resolutionScale) || resolutionScale === null) {
       console.warn("resolution scale not available");
+      onCancel(false);
       return;
     }
 
@@ -362,17 +368,22 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
       transitionStateRef.current = MapTransitionState.postTransitionTo3d;
       await waitForAnimationFrames(1);
       animateCesiumView();
+    } else {
+      onCancel(false);
+      return;
     }
   };
 
   const transitionToMode2d = async () => {
     if (!routedMapRef.current?.leafletMap?.leafletElement) {
       console.warn("leaflet not available no transition possible [zoom]");
+      onCancel?.(true);
       return;
     }
     const scene = sceneRef.current;
     if (!isValidScene(scene)) {
       console.warn("cesium not available no transition possible [zoom]");
+      onCancel?.(true);
       return;
     }
     transitionStateRef.current = MapTransitionState.preTransitionTo2d;
@@ -402,6 +413,7 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
           "[CESIUM|2D3D|TO2D] No valid ground height (depth) found – cancel transition"
         );
         transitionStateRef.current = MapState.mode3d;
+        onCancel?.(true);
         return;
       }
 
@@ -424,6 +436,7 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
         if (currentZoom === null) {
           console.warn("could not determine current zoom level");
           transitionStateRef.current = MapState.mode3d;
+          onCancel?.(true);
           return;
         } else {
           // go to the next integer zoom snap level
@@ -467,20 +480,24 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
             await getTiledMapCenterZoomEquivalent(scene);
           if (!leaflet) {
             console.warn("leaflet not available no transition possible [zoom]");
+            onCancel(false);
             return;
           }
           if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
             console.warn("latitude or longitude is undefined, skipping");
+            onCancel(false);
             return;
           }
           if (!Number.isFinite(zoom)) {
             console.warn("zoom is undefined, skipping");
+            onCancel(false);
             return;
           }
 
           leaflet.setView([latitude, longitude], zoom, noAnimation);
         } catch (error) {
           console.error("could not determine center zoom equivalent", error);
+          onCancel(false);
           return;
         }
 
@@ -513,6 +530,7 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
           }
         );
       } else {
+        onCancel(false);
         // no transition possible
         transitionStateRef.current = MapState.mode3d;
       }

@@ -6,23 +6,8 @@ import { viteStaticCopy } from "vite-plugin-static-copy";
 
 const CESIUM_PATHNAME = "__cesium__";
 
-// Packages to keep visible in sourcemaps for debugging
-const SOURCEMAP_VISIBLE_PACKAGES = [
-  'cesium',
-  'leaflet',
-  'react-leaflet',
-  'leaflet-draw',
-  'leaflet-editable',
-  'maplibre-gl',
-  'react-cismap',
-];
 
-// Helper to check if a path should be visible in sourcemaps
-const shouldShowInSourcemaps = (sourcePath: string): boolean => {
-  return SOURCEMAP_VISIBLE_PACKAGES.some(pkg =>
-    sourcePath.includes(`node_modules/${pkg}`)
-  );
-};
+
 
 export default defineConfig({
   root: __dirname,
@@ -105,13 +90,6 @@ export default defineConfig({
         // Exclude most vendor chunks from sourcemaps to save memory
         // Keep Cesium for debugging, exclude others
         sourcemapExcludeSources: true,
-        sourcemapIgnoreList: (relativeSourcePath: string) => {
-          // Show configured packages, hide all other node_modules
-          if (shouldShowInSourcemaps(relativeSourcePath)) {
-            return false;
-          }
-          return relativeSourcePath.includes('node_modules');
-        },
       },
     },
   },
