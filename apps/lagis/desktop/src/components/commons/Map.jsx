@@ -420,8 +420,11 @@ const Map = ({
             position: "absolute",
             top: "40px",
             left: "3px",
+            right: "3px",
             bottom: "0px",
+            width: "calc(100% - 6px)",
             zIndex: 600,
+            pointerEvents: "none",
           }}
         >
           <ControlLayout ifStorybook={false}>
@@ -434,7 +437,7 @@ const Map = ({
                 <LibFuzzySearch
                   gazData={gazData}
                   onSelection={onGazetteerSelection}
-                  pixelwidth="400px"
+                  pixelwidth="350px"
                   placeholder="Geben Sie einen Suchbegriff ein"
                 />
               </div>
