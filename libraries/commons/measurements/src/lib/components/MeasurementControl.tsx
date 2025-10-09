@@ -22,13 +22,14 @@ export const MeasurementControl: React.FC<Partial<MeasurementControlProps>> = ({
   },
   altText = "Measure",
   iconClassName = "w-6",
-  
+
   // Universal features
   disabled = false,
   useDisabledStyle = true,
   tooltip,
   tooltipPlacement = "right",
   className = "",
+  showInfoBox = true,
 }) => {
   const { mode, toggleMeasurementMode } = useMapMeasurementsContext();
 
@@ -48,7 +49,7 @@ export const MeasurementControl: React.FC<Partial<MeasurementControlProps>> = ({
   };
 
   const controlButton = (
-    <ControlButtonStyler 
+    <ControlButtonStyler
       onClick={disabled ? undefined : onToggle}
       disabled={disabled}
       useDisabledStyle={useDisabledStyle}
@@ -74,7 +75,7 @@ export const MeasurementControl: React.FC<Partial<MeasurementControlProps>> = ({
           controlButton
         )}
       </Control>
-      {isActive && <InfoBoxMeasurement />}
+      {isActive && showInfoBox && <InfoBoxMeasurement />}
     </div>
   );
 };

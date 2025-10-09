@@ -26,6 +26,7 @@ import { useCesiumDevConsoleTrigger } from "@carma-mapping/engines/cesium";
 import {
   MapMeasurementsProvider,
   MapMeasurementsObjects,
+  MEASUREMENT_MODE,
 } from "@carma-commons/measurements";
 
 // Local Modules
@@ -52,13 +53,20 @@ import { featureFlagConfig } from "./config/featureFlags";
 import { OBLIQUE_CONFIG, CAMERA_ID_TO_DIRECTION } from "./oblique/config";
 
 import { getCustomFeatureFlags } from "./store/slices/layers";
-import { getShowLoginModal, setShowLoginModal } from "./store/slices/ui";
+import {
+  getShowLoginModal,
+  getUIMode,
+  setShowLoginModal,
+  setUIMode,
+  UIMode,
+} from "./store/slices/ui";
 
 // Side-Effect Imports
 import "bootstrap/dist/css/bootstrap.min.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import "./index.css";
+import { setDrawingShape } from "./store/slices/measurements";
 
 function CesiumDevConsoleIntegration() {
   const flags = useFeatureFlags();
@@ -75,6 +83,18 @@ function App({ published }: { published?: boolean }) {
   const syncToken = useSyncToken();
   useKeyboardShortcuts();
   const customFeatureFlags = useSelector(getCustomFeatureFlags);
+  const uiMode = useSelector(getUIMode);
+  const mode =
+    uiMode === UIMode.MEASUREMENT
+      ? MEASUREMENT_MODE.MEASUREMENT
+      : MEASUREMENT_MODE.DEFAULT;
+  const handleSetMode = (newMode: MEASUREMENT_MODE) => {
+    const newUIMode =
+      newMode === MEASUREMENT_MODE.MEASUREMENT
+        ? UIMode.MEASUREMENT
+        : UIMode.DEFAULT;
+    dispatch(setUIMode(newUIMode));
+  };
 
   if (isLoadingConfig === null) {
     // wait for the loading state to be determined to prevent re-rendering
@@ -100,7 +120,10 @@ function App({ published }: { published?: boolean }) {
               config={OBLIQUE_CONFIG}
               fallbackDirectionConfig={CAMERA_ID_TO_DIRECTION}
             >
-              <MapMeasurementsProvider>
+              <MapMeasurementsProvider
+                externalMode={mode}
+                setModeExternal={handleSetMode}
+              >
                 <ErrorBoundary FallbackComponent={AppErrorFallback}>
                   <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
                     {isLoadingConfig && (
