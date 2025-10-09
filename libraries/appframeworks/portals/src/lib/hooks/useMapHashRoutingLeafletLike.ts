@@ -1,4 +1,3 @@
-import { zoom256as512 } from "@carma-mapping/engines/maplibre";
 import { useCallback, useEffect, useRef } from "react";
 import { Map as LeafletMap } from "leaflet";
 import { Map as MaplibreMap } from "maplibre-gl";
@@ -6,12 +5,44 @@ import { Map as MaplibreMap } from "maplibre-gl";
 import { Degrees, Zoom256 } from "@carma/types";
 import { isMapCenterZoomEquivalent } from "@carma-commons/utils";
 import { cesiumClearParamKeys } from "@carma-mapping/engines/cesium";
+import { LeafletMapEventNames } from "@carma-mapping/engines/leaflet";
+import {
+  MaplibreMapEventNames,
+  zoom256as512,
+} from "@carma-mapping/engines/maplibre";
 
 import { useHashState } from "../contexts/HashStateProvider";
 
 export type LatLngZoom = { lat: number; lng: number; zoom: number };
 
 type LeafletLikeMap = LeafletMap | MaplibreMap;
+
+const CLEAR_LEAFLET_EVENTS = [
+  LeafletMapEventNames.moveend,
+  LeafletMapEventNames.zoomend,
+] as const;
+
+const CLEAR_MAPLIBRE_EVENTS = [
+  MaplibreMapEventNames.moveend,
+  MaplibreMapEventNames.zoomend,
+] as const;
+
+const onceOnMoveEndLikeForLeafletLikeMap = (
+  map: LeafletLikeMap,
+  handler: () => void
+): void => {
+  if (map instanceof LeafletMap) {
+    CLEAR_LEAFLET_EVENTS.forEach((evt) => map.once(evt, handler));
+    return;
+  }
+  if (map instanceof MaplibreMap) {
+    CLEAR_MAPLIBRE_EVENTS.forEach((evt) => map.once(evt, handler));
+    return;
+  }
+  console.warn(
+    "[Routing][hash] popstate scheduleClear failed: unsupported map instance"
+  );
+};
 
 interface UseMapHashRoutingLeafletLikeOptions {
   getLeafletLikeMap?: () => LeafletLikeMap | null | undefined;
@@ -167,13 +198,10 @@ export function useMapHashRoutingLeafletLike(
     ]
   );
 
-  // Shared handler for clearing navigation state
-  const sharedClearHandler = useCallback(() => {
-    setTimeout(() => {
-      navMoveInProgressRef.current = false;
-      popstateTargetRef.current = null;
-      console.debug("[Routing][hash] popstate end -> resume 2D writes");
-    }, 0);
+  const clearOnMoveEndLike = useCallback(() => {
+    navMoveInProgressRef.current = false;
+    popstateTargetRef.current = null;
+    console.info("[Routing][hash] popstate end -> resume 2D writes");
   }, []);
 
   // Back/forward navigation: move the 2D map to the historical location without writing a new hash
@@ -197,17 +225,7 @@ export function useMapHashRoutingLeafletLike(
           lng,
           zoom,
         });
-        const scheduleClear = (evt: string) => {
-          if (map instanceof LeafletMap) {
-            map.once(evt, sharedClearHandler);
-          } else if (map instanceof MaplibreMap) {
-            map.once(evt, sharedClearHandler);
-          } else {
-            console.warn("unhandled Map Framework");
-          }
-        };
-        scheduleClear("moveend");
-        scheduleClear("zoomend");
+        onceOnMoveEndLikeForLeafletLikeMap(map, clearOnMoveEndLike);
         setViewLeafletLike(map, { lat, lng, zoom });
       },
       { keys: ["lat", "lng", "zoom"] }
@@ -218,7 +236,7 @@ export function useMapHashRoutingLeafletLike(
     subscribe,
     getLeafletLikeMap,
     getLeafletLikeZoom,
-    sharedClearHandler,
+    clearOnMoveEndLike,
   ]);
 
   return enabled ? handleTopicMapLocationChange : noop;

@@ -12,7 +12,7 @@ import {
   waitForAnimationFrames,
 } from "@carma-commons/utils";
 import { promiseWithTimeout } from "@carma-commons/utils/promise";
-import { LeafletMapStateChangeEvents } from "@carma-mapping/engines/leaflet";
+import { LeafletMapEventNames } from "@carma-mapping/engines/leaflet";
 
 import { useCesiumContext } from "./useCesiumContext";
 import { setIsMode2d } from "../slices/cesium";
@@ -209,13 +209,11 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
     if (shouldZoomOut) {
       moveEndPromise = new Promise<void>((resolve) => {
         const handle = () => {
-          leaflet.off(LeafletMapStateChangeEvents.zoomend, handle);
+          leaflet.off(LeafletMapEventNames.zoomend, handle);
           resolve();
         };
-        cleanups.push(() =>
-          leaflet.off(LeafletMapStateChangeEvents.zoomend, handle)
-        );
-        leaflet.once(LeafletMapStateChangeEvents.zoomend, handle);
+        cleanups.push(() => leaflet.off(LeafletMapEventNames.zoomend, handle));
+        leaflet.once(LeafletMapEventNames.zoomend, handle);
       });
     }
 

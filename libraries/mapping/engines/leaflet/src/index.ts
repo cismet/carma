@@ -1,1 +1,1 @@
-export { LeafletMapStateChangeEvents } from "./lib/events";
+export { LeafletMapEventNames, type LeafletMapEventName } from "./lib/events";
