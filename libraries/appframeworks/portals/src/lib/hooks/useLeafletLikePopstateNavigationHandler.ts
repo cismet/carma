@@ -27,11 +27,11 @@ const CLEAR_MAPLIBRE_EVENTS = [
 ] as const;
 
 /**
- * Defers execution to the next event loop tick.
- * Ensures all synchronous handlers and microtasks complete before running.
+ * Defers execution to the next animation frame.
+ * Ensures all map rendering and visual updates complete before running.
  */
-const deferToNextTick = (fn: () => void): void => {
-  setTimeout(fn, 0);
+const deferToNextFrame = (fn: () => void): void => {
+  window.requestAnimationFrame(() => fn());
 };
 
 const onceOnMoveEndLikeForLeafletLikeMap = (
@@ -39,7 +39,20 @@ const onceOnMoveEndLikeForLeafletLikeMap = (
   handler: () => void
 ): void => {
   if (map instanceof LeafletMap) {
-    CLEAR_LEAFLET_EVENTS.forEach((evt) => map.once(evt, handler));
+    // Leaflet: wait for BOTH moveend AND zoomend before clearing
+    let firedCount = 0;
+    const expectedCount = CLEAR_LEAFLET_EVENTS.length;
+
+    const wrappedHandler = () => {
+      firedCount++;
+      if (firedCount === expectedCount) {
+        CLEAR_LEAFLET_EVENTS.forEach((evt) =>
+          map.off(evt, wrappedHandler as never)
+        );
+        handler();
+      }
+    };
+    CLEAR_LEAFLET_EVENTS.forEach((evt) => map.on(evt, wrappedHandler as never));
     return;
   }
   if (map instanceof MaplibreMap) {
@@ -73,7 +86,7 @@ export function useLeafletLikePopstateNavigationHandler({
   popstateTargetRef,
 }: UseLeafletLikePopstateNavigationHandlerOptions): void {
   const clearOnMoveEndLike = useCallback(() => {
-    deferToNextTick(() => {
+    deferToNextFrame(() => {
       navMoveInProgressRef.current = false;
       popstateTargetRef.current = null;
       console.info("[Routing][hash] popstate end -> resume 2D writes");
