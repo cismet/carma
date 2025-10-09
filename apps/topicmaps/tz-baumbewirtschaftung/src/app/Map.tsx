@@ -33,7 +33,7 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { useTreeStyle } from "./hooks/useTreeStyle";
 import {
   createInfoBoxControlObject,
-  enrichFeatureCollection,
+  enrichFeatureCollectionWithActions,
 } from "./helper/treeHelper";
 import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
 
@@ -61,15 +61,30 @@ const TZBaumbewirtschaftung = () => {
   ) as LightboxDispatch;
 
   const { appKey } = useContext(TopicMapContext) as any;
-  const dataUrl =
-    import.meta.env.VITE_WUPP_ASSET_BASEURL +
-    "/data/4326/tz_baumbewirtschaftung.json";
+  const [maxTreeActionId, setMaxTreeActionId] = useState<number>(0);
+  
+  const baseDataUrl = import.meta.env.VITE_WUPP_ASSET_BASEURL || "https://wunda-geoportal.cismet.de";
+  const treesUrl = `${baseDataUrl}/data/4326/tz_baumbewirtschaftung_trees_featurecollection.json`;
+  const treeActionsUrl = `${baseDataUrl}/data/4326/tz_baumbewirtschaftung_treeactions_array.json`;
+  const actionsUrl = `${baseDataUrl}/data/4326/tz_baumbewirtschaftung_actions_array.json`;
+
   useEffect(() => {
     (async () => {
-      const fc = await md5FetchJSON(appKey, dataUrl);
+      // Load all three data sources
+      const [treesFC, treeActions, actions] = await Promise.all([
+        md5FetchJSON(appKey, treesUrl),
+        md5FetchJSON(appKey, treeActionsUrl),
+        md5FetchJSON(appKey, actionsUrl),
+      ]);
 
-      const enriched = enrichFeatureCollection(fc); // Helper function
+      // Enrich feature collection with actions
+      const { featureCollection: enriched, maxTreeActionId: maxId } =
+        enrichFeatureCollectionWithActions(treesFC, treeActions, actions);
+
       setFeatureCollection(enriched);
+      setMaxTreeActionId(maxId);
+      
+      console.log(`Loaded ${treesFC.features.length} trees, ${treeActions.length} tree actions, max ID: ${maxId}`);
     })();
   }, []);
 

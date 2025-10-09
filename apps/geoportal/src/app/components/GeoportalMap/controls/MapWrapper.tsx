@@ -51,6 +51,7 @@ import {
   ControlLayoutCanvas,
 } from "@carma-mapping/map-controls-layout";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
+import { MeasurementControl } from "@carma-commons/measurements";
 
 import { GeoportalMap } from "../GeoportalMap.tsx";
 import LibreGeoportalMap from "../LibreGeoportalMap.tsx";
@@ -67,7 +68,6 @@ import { useWindowSize } from "../../../hooks/useWindowSize.ts";
 
 import { useOblique } from "../../../oblique/hooks/useOblique.ts";
 
-import { getUrlPrefix } from "../utils";
 import { cancelOngoingRequests } from "../topicmap.utils";
 
 import {
@@ -81,9 +81,7 @@ import {
   getLibreMapRef,
   getShowFullscreenButton,
   getShowLocatorButton,
-  getShowMeasurementButton,
 } from "../../../store/slices/mapping.ts";
-import { setDrawingShape } from "../../../store/slices/measurements.ts";
 import {
   getUIAllow3d,
   getUIMode,
@@ -125,7 +123,6 @@ const MapWrapper = () => {
   const isModeFeatureInfo = uiMode === UIMode.FEATURE_INFO;
   const showFullscreenButton = useSelector(getShowFullscreenButton);
   const showLocatorButton = useSelector(getShowLocatorButton);
-  const showMeasurementButton = useSelector(getShowMeasurementButton);
   const zenMode = useSelector(getZenMode);
   const ctx = useCesiumContext();
   const homeControl = useHomeControl();
@@ -151,7 +148,6 @@ const MapWrapper = () => {
 
   const [pos, setPos] = useState<[number, number] | null>(null);
   const [layoutHeight, setLayoutHeight] = useState(null);
-  const [isMeasurementTooltip, setIsMeasurementTooltip] = useState(false);
   const [isLocationActive, setIsLocationActive] = useState(false);
   const [hasMapMoved, setHasMapMoved] = useState(false);
   const [hasFoundLocation, setHasFoundLocation] = useState(false);
@@ -213,11 +209,6 @@ const MapWrapper = () => {
   const tourRefLabels = useTourRefCollabLabels();
   const { gazData } = useGazData();
   const { width, height } = useWindowSize(wrapperRef);
-
-  const handleToggleMeasurement = () => {
-    cancelOngoingRequests();
-    dispatch(toggleUIMode(UIMode.MEASUREMENT));
-  };
 
   const handleToggleFeatureInfo = () => {
     cancelOngoingRequests();
@@ -419,53 +410,21 @@ const MapWrapper = () => {
               </ControlButtonStyler>
             </Tooltip>
           </Control>
-          <Control position="topleft" order={60}>
-            {showMeasurementButton && (
-              <div className="flex items-center gap-4">
-                <Tooltip
-                  title={
-                    !isMode2d
-                      ? "zum Messen zu 2D-Modus wechseln"
-                      : isModeMeasurement
-                      ? "Messungsmodus ausschalten"
-                      : "Messungsmodus einschalten"
-                  }
-                  // open={isMeasurementTooltip}
-                  defaultOpen={false}
-                  onOpenChange={() => {
-                    if (isModeMeasurement) {
-                      setIsMeasurementTooltip(false);
-                    } else {
-                      setIsMeasurementTooltip(!isMeasurementTooltip);
-                    }
-                  }}
-                  placement="right"
-                >
-                  <ControlButtonStyler
-                    disabled={!isMode2d || (isMode2d && showLibreMap)}
-                    onClick={() => {
-                      if (!isModeMeasurement) {
-                        dispatch(setDrawingShape(false));
-                      }
-                      setIsMeasurementTooltip(false);
-                      handleToggleMeasurement();
-                    }}
-                    ref={tourRefLabels.measurement}
-                    dataTestId="measurement-control"
-                    useDisabledStyle={isMode2d && showLibreMap}
-                  >
-                    <img
-                      src={`${getUrlPrefix()}${
-                        isModeMeasurement ? "measure-active.png" : "measure.png"
-                      }`}
-                      alt="Measure"
-                      className="w-6"
-                    />
-                  </ControlButtonStyler>
-                </Tooltip>
-              </div>
-            )}
-          </Control>
+          <MeasurementControl
+            position="topleft"
+            order={60}
+            disabled={!isMode2d || (isMode2d && showLibreMap)}
+            useDisabledStyle={isMode2d && showLibreMap}
+            tooltip={
+              !isMode2d
+                ? "zum Messen zu 2D-Modus wechseln"
+                : isModeMeasurement
+                ? "Messungsmodus ausschalten"
+                : "Messungsmodus einschalten"
+            }
+            tooltipPlacement="right"
+            showInfoBox={false}
+          />
           <Control position="topleft" order={50}>
             <Tooltip
               title={

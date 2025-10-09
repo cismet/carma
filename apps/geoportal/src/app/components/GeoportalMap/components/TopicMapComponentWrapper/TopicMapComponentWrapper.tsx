@@ -26,6 +26,7 @@ import { tooltipText } from "@carma-collab/wuppertal/geoportal";
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import { getApplicationVersion } from "@carma-commons/utils";
 import { useOverlayTourContext } from "@carma-commons/ui/helper-overlay";
+import { InfoBoxMeasurement } from "@carma-commons/measurements";
 
 import { selectViewerIsMode2d } from "@carma-mapping/engines/cesium";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
@@ -33,7 +34,6 @@ import { useFeatureFlags } from "@carma-providers/feature-flag";
 
 import PrintPreview from "../../../map-print/PrintPreview.tsx";
 import FeatureInfoBox from "../../../feature-info/FeatureInfoBox.tsx";
-import InfoBoxMeasurement from "../../../map-measure/InfoBoxMeasurement.jsx";
 
 import versionData from "../../../../../version.json";
 

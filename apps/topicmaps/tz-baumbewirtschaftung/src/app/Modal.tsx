@@ -6,7 +6,6 @@ import Panel from "react-cismap/commons/Panel";
 
 interface Action {
   id: number;
-  key: string;
   status: string;
   payload?: {
     user?: string;
@@ -15,8 +14,12 @@ interface Action {
     picafter?: string;
   };
   action_time: string;
-  description?: string;
   status_reason?: string;
+  actionDefinition?: {
+    id: number;
+    key: string;
+    description: string;
+  };
 }
 
 interface FeatureType {
@@ -104,10 +107,11 @@ const groupActionsByKey = (actions: Action[]) => {
   const grouped: { [key: string]: Action[] } = {};
 
   actions.forEach((action) => {
-    if (!grouped[action.key]) {
-      grouped[action.key] = [];
+    const key = action.actionDefinition?.key || 'unknown';
+    if (!grouped[key]) {
+      grouped[key] = [];
     }
-    grouped[action.key].push(action);
+    grouped[key].push(action);
   });
 
   // Sort actions within each group by time
@@ -137,7 +141,7 @@ const getTimelineForActions = (
     <>
       {Object.entries(groupedActions).map(([key, actionsInGroup]) => {
         // Use the description from the first action in the group
-        const groupDescription = actionsInGroup[0]?.description || key;
+        const groupDescription = actionsInGroup[0]?.actionDefinition?.description || key;
 
         return (
           <div key={key} style={{ marginBottom: "24px" }}>

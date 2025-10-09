@@ -1,4 +1,5 @@
 import React from "react";
+import { Tooltip } from "antd";
 import {
   Control,
   ControlButtonStyler,
@@ -21,6 +22,14 @@ export const MeasurementControl: React.FC<Partial<MeasurementControlProps>> = ({
   },
   altText = "Measure",
   iconClassName = "w-6",
+
+  // Universal features
+  disabled = false,
+  useDisabledStyle = true,
+  tooltip,
+  tooltipPlacement = "right",
+  className = "",
+  showInfoBox = true,
 }) => {
   const { mode, toggleMeasurementMode } = useMapMeasurementsContext();
 
@@ -39,18 +48,34 @@ export const MeasurementControl: React.FC<Partial<MeasurementControlProps>> = ({
     return baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`;
   };
 
+  const controlButton = (
+    <ControlButtonStyler
+      onClick={disabled ? undefined : onToggle}
+      disabled={disabled}
+      useDisabledStyle={useDisabledStyle}
+      dataTestId="measurement-control"
+      className={className}
+    >
+      <img
+        src={isActive ? icons.active : icons.inactive}
+        alt={altText}
+        className={iconClassName}
+      />
+    </ControlButtonStyler>
+  );
+
   return (
     <div>
       <Control position={position} order={order}>
-        <ControlButtonStyler onClick={onToggle}>
-          <img
-            src={isActive ? icons.active : icons.inactive}
-            alt={altText}
-            className={iconClassName}
-          />
-        </ControlButtonStyler>
+        {tooltip ? (
+          <Tooltip title={tooltip} placement={tooltipPlacement}>
+            {controlButton}
+          </Tooltip>
+        ) : (
+          controlButton
+        )}
       </Control>
-      {isActive && <InfoBoxMeasurement />}
+      {isActive && showInfoBox && <InfoBoxMeasurement />}
     </div>
   );
 };
