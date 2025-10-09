@@ -429,6 +429,16 @@ const Map = ({
               <ZoomControl />
             </Control>
             <MeasurementControl />
+            <Control position="bottomleft" order={10}>
+              <div style={{ marginTop: "4px" }}>
+                <LibFuzzySearch
+                  gazData={gazData}
+                  onSelection={onGazetteerSelection}
+                  pixelwidth="400px"
+                  placeholder="Geben Sie einen Suchbegriff ein"
+                />
+              </div>
+            </Control>
           </ControlLayout>
         </div>
         <RoutedMap
@@ -574,16 +584,15 @@ const Map = ({
             mode={mode}
           />
         </RoutedMap>
-        <div className="custom-left-control">
-          <MapMeasurementsObjects />
-
+        <MapMeasurementsObjects />
+        {/* <div className="custom-left-control">
           <LibFuzzySearch
             gazData={gazData}
             onSelection={onGazetteerSelection}
             pixelwidth="400px"
             placeholder="Geben Sie einen Suchbegriff ein"
           />
-        </div>
+        </div> */}
       </>
     </Card>
   );
