@@ -90,10 +90,8 @@ export interface MeasurementTitleProps {
 }
 
 export interface MeasurementControlProps {
-  isActive: boolean;
-
-  onToggle: () => void;
-
+  isActive?: boolean;
+  onToggle?: () => void;
   position?: "topleft" | "topright" | "bottomleft" | "bottomright";
   order?: number;
   iconBaseUrl?: string;
@@ -103,6 +101,13 @@ export interface MeasurementControlProps {
   };
   altText?: string;
   iconClassName?: string;
+  
+  // Universal features
+  disabled?: boolean;
+  useDisabledStyle?: boolean;
+  tooltip?: string | React.ReactNode;
+  tooltipPlacement?: "top" | "bottom" | "left" | "right";
+  className?: string;
 }
 
 export interface MeasurementConfig {

@@ -467,8 +467,21 @@ const MapWrapper = () => {
               </div>
             )}
           </Control> */}
-          <MeasurementControl />
-          <Control position="topleft" order={60}>
+          <MeasurementControl 
+            position="topleft" 
+            order={60}
+            disabled={!isMode2d || (isMode2d && showLibreMap)}
+            useDisabledStyle={isMode2d && showLibreMap}
+            tooltip={
+              !isMode2d
+                ? "zum Messen zu 2D-Modus wechseln"
+                : isModeMeasurement
+                ? "Messungsmodus ausschalten"
+                : "Messungsmodus einschalten"
+            }
+            tooltipPlacement="right"
+          />
+          <Control position="topleft" order={50}>
             <Tooltip
               title={
                 isModeFeatureInfo
