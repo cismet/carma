@@ -359,7 +359,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const renderInfoBox = () => {
     if (isMode2d) {
       if (isModeMeasurement) {
-        return <InfoBoxMeasurement key={uiMode} />;
+        // return <InfoBoxMeasurement key={uiMode} />;
       }
       if (selectedFeature || loadingFeatureInfo) {
         return <FeatureInfoBox pos={pos} />;

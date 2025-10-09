@@ -51,6 +51,7 @@ import {
   ControlLayoutCanvas,
 } from "@carma-mapping/map-controls-layout";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
+import { MeasurementControl } from "@carma-commons/measurements";
 
 import { GeoportalMap } from "../GeoportalMap.tsx";
 import LibreGeoportalMap from "../LibreGeoportalMap.tsx";
@@ -419,7 +420,7 @@ const MapWrapper = () => {
               </ControlButtonStyler>
             </Tooltip>
           </Control>
-          <Control position="topleft" order={60}>
+          {/* <Control position="topleft" order={60}>
             {showMeasurementButton && (
               <div className="flex items-center gap-4">
                 <Tooltip
@@ -465,8 +466,9 @@ const MapWrapper = () => {
                 </Tooltip>
               </div>
             )}
-          </Control>
-          <Control position="topleft" order={50}>
+          </Control> */}
+          <MeasurementControl />
+          <Control position="topleft" order={60}>
             <Tooltip
               title={
                 isModeFeatureInfo
