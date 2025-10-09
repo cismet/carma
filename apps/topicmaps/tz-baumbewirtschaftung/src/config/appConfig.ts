@@ -11,7 +11,7 @@ export const APP_CONFIG = {
   // REST Service URL
   restService:
     import.meta.env.VITE_TZ_BAUMBEWIRTSCHAFTUNG_REST_SERVICE ||
-    "http://wunda-cloud-api.cismet.de/",
+    "https://wunda-cloud-api.cismet.de/",
 
   // Auth Domain
   domain: import.meta.env.VITE_TZ_BAUMBEWIRTSCHAFTUNG_DOMAIN || "WUNDA_BLAU",
