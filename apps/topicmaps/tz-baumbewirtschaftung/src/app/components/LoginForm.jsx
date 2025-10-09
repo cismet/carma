@@ -40,9 +40,34 @@ const LoginForm = ({
       // If you want to enable offline mode indicator, compute and check your data cache key here
       // setCacheDataAvailable(Boolean(await localforage.getItem(<your-cache-key>)));
       setCacheDataAvailable(false);
-      if (userInCache) {
-        setUser(userInCache);
+      
+      // Try to load devSecrets in development mode
+      if (process.env.NODE_ENV !== "production") {
+        try {
+          const result = await fetch("devSecrets.json");
+          const cheats = await result.json();
+          console.log("devSecrets.json found");
+          
+          if (cheats.cheatingUser) {
+            setUser(cheats.cheatingUser);
+          }
+          if (cheats.cheatingPassword) {
+            setPw(cheats.cheatingPassword);
+          }
+        } catch (e) {
+          console.log("no devSecrets.json found");
+          // Fall back to cached user
+          if (userInCache) {
+            setUser(userInCache);
+          }
+        }
+      } else {
+        // Production mode - just use cached user
+        if (userInCache) {
+          setUser(userInCache);
+        }
       }
+      
       if (userFieldRef?.current) {
         userFieldRef.current.focus();
         userFieldRef.current.select();
