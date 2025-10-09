@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import type { FeatureInfo } from "@carma/types";
@@ -32,6 +32,8 @@ type CesiumMapComponentWrapperProps = {
   cesiumOptions: Partial<CesiumConfig>;
 };
 
+const emptyArr = [];
+
 export const CesiumMapComponentWrapper = ({
   allow3d,
   cesiumOptions,
@@ -59,25 +61,25 @@ export const CesiumMapComponentWrapper = ({
   // Sync scene style with background layer selection
   useSyncCesiumSceneStyle(backgroundLayer, ctx, dispatch);
 
-  const onSceneChange = useMapHashRoutingCesium();
+  const onSceneChange = useMapHashRoutingCesium(!isMode2d);
+
+  const onSelect = useCallback(
+    (feature: unknown) =>
+      modelSelectionDispatcher(feature as FeatureInfo | null),
+    [modelSelectionDispatcher]
+  );
 
   const modelConfig = useMemo(
     () => ({
-      models: cesiumOptions.models || [],
+      models: cesiumOptions.models || emptyArr,
       enabled: flags.featureFlagBugaBridge && !isMode2d,
       selection: {
         enabled: flags.featureFlagBugaBridge && !isMode2d,
         deselectOnEmptyClick: true,
-        onSelect: (feature: unknown) =>
-          modelSelectionDispatcher(feature as FeatureInfo | null),
+        onSelect,
       },
     }),
-    [
-      flags.featureFlagBugaBridge,
-      isMode2d,
-      modelSelectionDispatcher,
-      cesiumOptions.models,
-    ]
+    [flags.featureFlagBugaBridge, isMode2d, cesiumOptions.models, onSelect]
   );
 
   useCesiumModels(modelConfig);

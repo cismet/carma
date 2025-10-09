@@ -1,1 +1,1 @@
-export * from "./lib/carma-map-engines-maplibre";
+export { zoom256as512, zoom512as256 } from "./lib/zoom";

@@ -64,9 +64,14 @@ export { useProgress } from "./lib/hooks/useProgress";
 export { useCesiumModels } from "./lib/hooks/useCesiumModels";
 export {
   useMapHashRoutingLeafletLike,
+  getLatLngZoomFromLeafletLike,
+  triggerLeafletLikeLocationChangeEvent,
   type LatLngZoom,
 } from "./lib/hooks/useMapHashRoutingLeafletLike";
-export { useMapHashRoutingCesium } from "./lib/hooks/useMapHashRoutingCesium";
+export {
+  useMapHashRoutingCesium,
+  triggerCesiumSceneChangeEvent,
+} from "./lib/hooks/useMapHashRoutingCesium";
 export { uploadImage } from "./lib/utils/fileUpload";
 export {
   defaultBackgroundConfigurations,

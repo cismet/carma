@@ -47,8 +47,7 @@ export const useOnSceneChange = (
     isMode2d?: boolean
   ) => void
 ) => {
-  const ctx = useCesiumContext();
-  const { transitionStateRef } = ctx;
+  const { isValidViewer, transitionStateRef, withCamera } = useCesiumContext();
   const isSecondaryStyle = useSelector(selectShowSecondaryTileset);
   const isMode2d = useSelector(selectViewerIsMode2d);
 
@@ -56,35 +55,32 @@ export const useOnSceneChange = (
   // todo consider declaring changed part of state in the callback, not full state only
 
   useEffect(() => {
-    // on changes to mode or style
     if (isTransitionState(transitionStateRef.current)) {
       return;
     }
-    if (ctx.isValidViewer() && !isMode2d) {
-      console.debug(
-        "HOOK: update Hash, route or style changed",
-        isSecondaryStyle
-      );
-      if (onSceneChange) {
-        let cameraState: StringifiedCameraState | null = null;
-        ctx.withCamera((camera) => {
-          cameraState = encodeCesiumCamera(camera);
-        });
-        if (cameraState === null) {
-          return;
-        }
-        const hashParams = toHashParams(cameraState, {
-          isSecondaryStyle,
-          isMode2d,
-        });
-        hashParams.zoom = "";
-        onSceneChange({ hashParams });
-      } else {
-        console.info("HOOK: [NOOP] no onSceneChange callback");
+    if (isValidViewer() && !isMode2d && onSceneChange) {
+      let cameraState: StringifiedCameraState | null = null;
+      withCamera((camera) => {
+        cameraState = encodeCesiumCamera(camera);
+      });
+      if (cameraState === null) {
+        return;
       }
+      const hashParams = toHashParams(cameraState, {
+        isSecondaryStyle,
+        isMode2d,
+      });
+      hashParams.zoom = "";
+      onSceneChange({ hashParams });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ctx, isMode2d, isSecondaryStyle]);
+  }, [
+    isMode2d,
+    withCamera,
+    isSecondaryStyle,
+    onSceneChange,
+    transitionStateRef,
+  ]);
 
   useEffect(() => {
     // update hash hook
@@ -92,7 +88,7 @@ export const useOnSceneChange = (
       return;
     }
 
-    if (ctx.isValidViewer()) {
+    if (isValidViewer()) {
       console.debug(
         "HOOK: [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to update hash"
       );
@@ -100,7 +96,7 @@ export const useOnSceneChange = (
         // let TopicMap/leaflet handle the view change in 2d Mode
         let proceed = false;
         let camDeg: Required<LatLng.deg> | undefined;
-        ctx.withCamera((camera) => {
+        withCamera((camera) => {
           proceed = Boolean(camera && camera.position && !isMode2d);
           if (proceed) {
             camDeg = cameraToCartographicDegrees(camera);
@@ -115,7 +111,7 @@ export const useOnSceneChange = (
 
           if (onSceneChange) {
             let cameraState: StringifiedCameraState | null = null;
-            ctx.withCamera((camera) => {
+            withCamera((camera) => {
               cameraState = encodeCesiumCamera(camera);
             });
             if (cameraState === null) {
@@ -131,22 +127,20 @@ export const useOnSceneChange = (
           }
         }
       };
-      ctx.withCamera((camera) => {
+      withCamera((camera) => {
         camera.moveEnd.addEventListener(moveEndListener);
       });
       return () => {
         // clear hash on unmount
         // onSceneChange?.({ hashParams: clear3dOnlyHashParams });
-        ctx.withViewer((viewer) => {
-          if (!viewer.isDestroyed()) {
-            viewer.camera.moveEnd.removeEventListener(moveEndListener);
-          }
+        withCamera((camera) => {
+          camera.moveEnd.removeEventListener(moveEndListener);
         });
       };
     }
     // transitionStateRef is intentionally not in deps - we check its value inside the effect
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ctx, isSecondaryStyle, isMode2d, onSceneChange]);
+  }, [withCamera, isValidViewer, isSecondaryStyle, isMode2d, onSceneChange]);
 };
 
 export default useOnSceneChange;

@@ -1,21 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import type {
-  FilterSpecification,
-  MapGeoJSONFeature,
-  MapOptions,
-  StyleSpecification,
+import {
+  type FilterSpecification,
+  type MapGeoJSONFeature,
+  type MapOptions,
+  type StyleSpecification,
+  Map as MaplibreMap,
+  type Marker,
 } from "maplibre-gl";
-import maplibregl from "maplibre-gl";
 import proj4 from "proj4";
 
-import {
-  ENDPOINT,
-  isAreaType,
-  METROPOLERUHR_WMTS_SPW2_WEBMERCATOR_HQ,
-} from "@carma-commons/resources";
-import { normalizeOptions } from "@carma-commons/utils";
+import { Zoom256, Zoom512 } from "@carma/types";
 import {
   LibreMapSelectionContent,
   SelectionItem,
@@ -23,6 +19,13 @@ import {
   useMapHashRoutingLeafletLike,
   useSelectionLibreMap,
 } from "@carma-appframeworks/portals";
+import {
+  ENDPOINT,
+  isAreaType,
+  METROPOLERUHR_WMTS_SPW2_WEBMERCATOR_HQ,
+} from "@carma-commons/resources";
+import { normalizeOptions } from "@carma-commons/utils";
+import { zoom256as512, zoom512as256 } from "@carma-mapping/engines/maplibre";
 
 import { proj4crs3857def, proj4crs4326def } from "../../helper/gisHelper.js";
 
@@ -44,8 +47,6 @@ import {
   changeWmsVisibility,
   createFeature,
   layersToMapLibreStyle,
-  zoom256as512,
-  zoom512as256,
 } from "./libremap.utils";
 import {
   cancelOngoingRequests,
@@ -137,8 +138,8 @@ const LibreGeoportalMap = ({
   }, [pos]);
 
   const mapContainerRef = useRef<HTMLDivElement>(null);
-  const map = useRef<maplibregl.Map | null>(null);
-  const featureInfoMarkerRef = useRef<maplibregl.Marker | null>(null);
+  const map = useRef<MaplibreMap | null>(null);
+  const featureInfoMarkerRef = useRef<Marker | null>(null);
   const selectedFeatures: Set<{
     source: string;
     sourceLayer: string;
@@ -150,26 +151,18 @@ const LibreGeoportalMap = ({
   const backgroundLayer = useSelector(getBackgroundLayer);
 
   // Centralized hash routing for MapLibre (2D-only in this component)
-  const handleTopicMapLocationChange = useMapHashRoutingLeafletLike({
-    getLeafletMap: () => {
+  const handleTopicMapLocationChange = useMapHashRoutingLeafletLike(true, {
+    getLeafletLikeMap: () => {
       const m = map.current;
-      if (!m) return null;
-      return {
-        setView: (center: { lat: number; lng: number }, zoom?: number) => {
-          if (typeof zoom === "number") m.setZoom(zoom256as512(zoom));
-          m.setCenter([center.lng, center.lat]);
-        },
-        panTo: (center: { lat: number; lng: number }) =>
-          m.panTo([center.lng, center.lat]),
-        setZoom: (zoom: number) => m.setZoom(zoom256as512(zoom)),
-        getCenter: () => m.getCenter(),
-        once: (type: string, fn: (...args: unknown[]) => void) =>
-          m.once(type, fn),
-      };
+      if (m instanceof MaplibreMap) {
+        return m;
+      }
     },
-    getLeafletZoom: () => {
+    getLeafletLikeZoom: () => {
       const m = map.current;
-      return m ? zoom512as256(m.getZoom()) : normalizedMapOptions.zoom;
+      return m
+        ? zoom512as256(m.getZoom() as Zoom512)
+        : normalizedMapOptions.zoom;
     },
     label: "LGM:2D:location",
   });
@@ -267,7 +260,9 @@ const LibreGeoportalMap = ({
           typeof lng === "number" && typeof lat === "number"
             ? { lng, lat }
             : undefined,
-        zoom: typeof zoom === "number" ? zoom256as512(zoom) : undefined,
+        // todo: define zoom maptile in hashvalues
+        zoom:
+          typeof zoom === "number" ? zoom256as512(zoom as Zoom256) : undefined,
         bearing: typeof bearing === "number" ? bearing : undefined,
         pitch: typeof pitch === "number" ? pitch : undefined,
       };
@@ -277,7 +272,7 @@ const LibreGeoportalMap = ({
         normalizedMapOptions
       );
 
-      map.current = new maplibregl.Map({
+      map.current = new MaplibreMap({
         container: mapContainerRef.current,
         ...appliedMapOptions,
       });
@@ -618,7 +613,7 @@ const LibreGeoportalMap = ({
     if (!mapInstance) return;
     const handleMoveEnd = () => {
       const center = mapInstance.getCenter();
-      const zoom = zoom512as256(mapInstance.getZoom());
+      const zoom = zoom512as256(mapInstance.getZoom() as Zoom512);
       handleTopicMapLocationChange({ lat: center.lat, lng: center.lng, zoom });
     };
     mapInstance.on("moveend", handleMoveEnd);

@@ -5,7 +5,7 @@ import { useMapHashRoutingLeafletLike } from "@carma-appframeworks/portals";
 import { useLeafletZoomControls } from "../../../../../hooks/leaflet/useLeafletZoomControls.ts";
 
 export const useTopicMapLocationChangedHandler = (
-  isEnabledCallback: () => boolean,
+  enabled: boolean,
   onAfterLocationChanged?: () => void
 ) => {
   const { routedMapRef: topicMap } =
@@ -20,30 +20,18 @@ export const useTopicMapLocationChangedHandler = (
 
   const handlerOptions = useMemo(
     () => ({
-      getLeafletMap: getTopicMap,
-      getLeafletZoom,
+      getLeafletLikeMap: getTopicMap,
+      getLeafletLikeZoom: getLeafletZoom,
       onAfterLocationChanged,
       label: "GPM:TopicMap:locationChangedHandler",
     }),
     [getTopicMap, getLeafletZoom, onAfterLocationChanged]
   );
 
-  const handleTopicMapLocationChange =
-    useMapHashRoutingLeafletLike(handlerOptions);
-
-  const stableHandler = useCallback(
-    (e: { lat: number; lng: number; zoom: number }) => {
-      // Instrumentation: prove handler invocation context without causing re-renders
-      const isEnabled = isEnabledCallback();
-      if (!isEnabled) {
-        console.debug(
-          "[TopicMap|DEBUG] location Changed handler currently disabled, skip update"
-        );
-        return;
-      }
-      handleTopicMapLocationChange(e);
-    },
-    [handleTopicMapLocationChange, isEnabledCallback]
+  const handleTopicMapLocationChange = useMapHashRoutingLeafletLike(
+    enabled,
+    handlerOptions
   );
-  return stableHandler;
+
+  return handleTopicMapLocationChange;
 };
