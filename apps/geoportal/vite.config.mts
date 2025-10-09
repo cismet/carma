@@ -34,14 +34,6 @@ export default defineConfig({
     fs: {
       allow: ["../.."],
     },
-    // Control which files are ignored in browser dev tools
-    sourcemapIgnoreList(sourcePath: string) {
-      // Show configured packages, hide all other node_modules
-      if (shouldShowInSourcemaps(sourcePath)) {
-        return false;
-      }
-      return sourcePath.includes('node_modules');
-    },
   },
 
   preview: {
@@ -73,6 +65,8 @@ export default defineConfig({
     reportCompressedSize: true,
     // 'hidden' generates sourcemaps but doesn't reference them in bundle
     sourcemap: process.env.NODE_ENV === 'production' ? 'hidden' : true,
+    // Disable minification in development for readable stack traces
+    minify: process.env.NODE_ENV === 'production' ? 'esbuild' : false,
     commonjsOptions: {
       transformMixedEsModules: true,
     },
