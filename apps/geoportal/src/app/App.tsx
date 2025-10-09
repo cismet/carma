@@ -44,7 +44,7 @@ import { useManageLayers } from "./hooks/useManageLayers";
 import { useSyncToken } from "./hooks/useSyncToken";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 
-import { layerMap } from "./config";
+import { APP_KEY, layerMap, STORAGE_PREFIX } from "./config";
 import { geoportalMapStyleConfig } from "./config/mapStyleConfig";
 
 import { CESIUM_CONFIG, CONFIG_BASE_URL } from "./config/app.config";
@@ -66,7 +66,7 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import "./index.css";
-import { setDrawingShape } from "./store/slices/measurements";
+// import { setDrawingShape } from "./store/slices/measurements";
 
 function CesiumDevConsoleIntegration() {
   const flags = useFeatureFlags();
@@ -123,6 +123,9 @@ function App({ published }: { published?: boolean }) {
               <MapMeasurementsProvider
                 externalMode={mode}
                 setModeExternal={handleSetMode}
+                config={{
+                  localStorageKey: "@" + APP_KEY + ".app.measurements",
+                }}
               >
                 <ErrorBoundary FallbackComponent={AppErrorFallback}>
                   <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>

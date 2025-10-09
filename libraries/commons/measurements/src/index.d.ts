@@ -114,6 +114,7 @@ export interface MeasurementControlProps {
 export interface MeasurementConfig {
   editableTitle: boolean;
   infoBoxHeaderColor: string;
+  localStorageKey: string;
 }
 
 export type PartialMeasurementConfig = Partial<MeasurementConfig>;

@@ -15,6 +15,7 @@ enum MEASUREMENT_MODE {
 const defaultConfig: MeasurementConfig = {
   editableTitle: true,
   infoBoxHeaderColor: "#3b82f6",
+  localStorageKey: "measurementShapes",
 };
 
 export const MapMeasurementsContext = createContext<MapMeasurementsContextType>(
@@ -104,11 +105,11 @@ export const MapMeasurementsProvider = ({
   const [startDrawing, setStartDrawing] = useState(false);
 
   useEffect(() => {
-    setFromLocalforage("measurementShapes", setShapes, []);
+    setFromLocalforage(mergedConfig.localStorageKey, setShapes, []);
   }, []);
 
   useEffect(() => {
-    saveToLocalforage("measurementShapes", shapes);
+    saveToLocalforage(mergedConfig.localStorageKey, shapes);
   }, [shapes]);
 
   // useEffect(() => {
