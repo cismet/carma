@@ -65,6 +65,7 @@ import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextPr
 import {
   MapMeasurementsObjects,
   MeasurementControl,
+  InfoBoxMeasurement,
 } from "@carma-commons/measurements";
 
 const { ScaleControl } = TransitiveReactLeaflet;
@@ -220,6 +221,7 @@ const Map = ({
   };
 
   useEffect(() => {
+    console.log("xxx mapWidth", mapWidth);
     if (refRoutedMap?.current) {
       const map = refRoutedMap.current.leafletMap.leafletElement;
       map.invalidateSize();
@@ -323,6 +325,10 @@ const Map = ({
       setRoutedMapRef(refRoutedMap.current);
     }
   }, [refRoutedMap]);
+
+  const isBreakpointForControls = 738 < mapWidth;
+  const pixelWidth = isBreakpointForControls ? 350 : mapWidth - 30;
+
   return (
     <Card
       size="small"
@@ -431,13 +437,16 @@ const Map = ({
             <Control position="topleft" order={10}>
               <ZoomControl />
             </Control>
-            <MeasurementControl />
+            <MeasurementControl showInfoBox={false} />
+            <InfoBoxMeasurement pixelWidth={pixelWidth} />
             <Control position="bottomleft" order={10}>
               <div style={{ marginTop: "4px" }}>
                 <LibFuzzySearch
                   gazData={gazData}
                   onSelection={onGazetteerSelection}
-                  pixelwidth="350px"
+                  pixelwidth={
+                    isBreakpointForControls ? "350px" : pixelWidth + "px"
+                  }
                   placeholder="Geben Sie einen Suchbegriff ein"
                 />
               </div>

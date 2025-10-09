@@ -76,6 +76,7 @@ export interface MeasurementShape {
 
 export interface InfoBoxMeasurementProps {
   collapsedInfoBox?: boolean;
+  pixelWidth?: number;
 }
 
 export interface MeasurementTitleProps {
