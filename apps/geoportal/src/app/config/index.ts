@@ -83,7 +83,7 @@ export const defaultLayerConfig: DefaultLayerConfig = {
       type: "wms",
       url: "https://geo.udsp.wuppertal.de/geoserver-cloud/ows",
       layers: "GIS-102:trueortho2024",
-      // maxNativeZoom: 20,
+      maxNativeZoom: 22,
       transparent: true,
     },
     trueOrtho2021: {
