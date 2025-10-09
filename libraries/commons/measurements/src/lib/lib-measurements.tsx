@@ -99,7 +99,9 @@ export function MapMeasurementsObjects({
         cbUpdateAreaOfDrawingMeasurement: updateAreaOfDrawingMeasurementHandler,
       };
 
-      const measurePolygonControl = L.control.measurePolygon(customOptions);
+      const measurePolygonControl = (L.control as any).measurePolygon(
+        customOptions
+      );
       measurePolygonControl.addTo(mapExample);
 
       setMeasureControl(measurePolygonControl);
