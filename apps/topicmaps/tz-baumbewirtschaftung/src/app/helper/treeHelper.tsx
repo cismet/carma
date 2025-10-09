@@ -57,6 +57,151 @@ interface FeatureCollection {
   [key: string]: any;
 }
 
+/**
+ * Enriches a feature collection with tree actions
+ * @param fc - The base feature collection (trees)
+ * @param treeActions - Array of tree actions (links tree to action)
+ * @param actions - Array of action definitions
+ * @returns Object with enriched feature collection and max treeaction ID
+ */
+export const enrichFeatureCollectionWithActions = (
+  fc: FeatureCollection,
+  treeActions: any[],
+  actions: any[]
+) => {
+  // Create a lookup map for actions by ID
+  const actionMap = new Map(actions.map((a) => [a.id, a]));
+
+  // Group tree actions by tree ID
+  const treeActionsMap = new Map<number, any[]>();
+  let maxTreeActionId = 0;
+
+  treeActions.forEach((ta) => {
+    const treeId = ta.fk_tree;
+    if (!treeActionsMap.has(treeId)) {
+      treeActionsMap.set(treeId, []);
+    }
+    
+    // Enrich tree action with action definition reference (memory efficient)
+    const enrichedAction = {
+      ...ta,
+      actionDefinition: actionMap.get(ta.fk_action),
+    };
+    
+    treeActionsMap.get(treeId)!.push(enrichedAction);
+    
+    // Track max ID
+    if (ta.id > maxTreeActionId) {
+      maxTreeActionId = ta.id;
+    }
+  });
+
+  // Enrich features with their actions
+  const enrichedFeatures = fc.features.map((f) => {
+    const treeId = f.id;
+    const treeActionsForTree = treeActionsMap.get(treeId) || [];
+
+    return {
+      ...f,
+      properties: {
+        ...f.properties,
+        actions: treeActionsForTree,
+        // Add computed properties
+        latestActionStatus: computeLatestStatus(treeActionsForTree),
+        hasOpenActions: hasStatus(treeActionsForTree, "open"),
+        actionCount: treeActionsForTree.length,
+      },
+    };
+  });
+
+  return {
+    featureCollection: {
+      ...fc,
+      features: enrichedFeatures,
+    },
+    maxTreeActionId,
+  };
+};
+
+/**
+ * Updates an existing enriched feature collection with new tree actions
+ * @param fc - The already enriched feature collection
+ * @param newTreeActions - Array of new tree actions to add
+ * @param actions - Array of action definitions
+ * @returns Object with updated feature collection and new max treeaction ID
+ */
+export const updateFeatureCollectionWithNewActions = (
+  fc: FeatureCollection,
+  newTreeActions: any[],
+  actions: any[]
+) => {
+  // Create a lookup map for actions by ID
+  const actionMap = new Map(actions.map((a) => [a.id, a]));
+
+  // Group new tree actions by tree ID
+  const newActionsMap = new Map<number, any[]>();
+  let maxTreeActionId = 0;
+
+  newTreeActions.forEach((ta) => {
+    const treeId = ta.fk_tree;
+    if (!newActionsMap.has(treeId)) {
+      newActionsMap.set(treeId, []);
+    }
+    
+    // Enrich tree action with action definition reference (memory efficient)
+    const enrichedAction = {
+      ...ta,
+      actionDefinition: actionMap.get(ta.fk_action),
+    };
+    
+    newActionsMap.get(treeId)!.push(enrichedAction);
+    
+    // Track max ID
+    if (ta.id > maxTreeActionId) {
+      maxTreeActionId = ta.id;
+    }
+  });
+
+  // Update features with new actions
+  const updatedFeatures = fc.features.map((f) => {
+    const treeId = f.id;
+    const newActionsForTree = newActionsMap.get(treeId);
+
+    if (!newActionsForTree || newActionsForTree.length === 0) {
+      // No new actions for this tree
+      return f;
+    }
+
+    // Merge new actions with existing ones
+    const existingActions = f.properties.actions || [];
+    const mergedActions = [...existingActions, ...newActionsForTree];
+
+    return {
+      ...f,
+      properties: {
+        ...f.properties,
+        actions: mergedActions,
+        // Recompute properties
+        latestActionStatus: computeLatestStatus(mergedActions),
+        hasOpenActions: hasStatus(mergedActions, "open"),
+        actionCount: mergedActions.length,
+      },
+    };
+  });
+
+  return {
+    featureCollection: {
+      ...fc,
+      features: updatedFeatures,
+    },
+    maxTreeActionId,
+  };
+};
+
+/**
+ * Legacy function - kept for backward compatibility
+ * @deprecated Use enrichFeatureCollectionWithActions instead
+ */
 export const enrichFeatureCollection = (fc: FeatureCollection) => {
   return {
     ...fc,
