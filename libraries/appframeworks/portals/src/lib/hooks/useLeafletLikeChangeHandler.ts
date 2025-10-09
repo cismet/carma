@@ -5,7 +5,7 @@ import { isMapCenterZoomEquivalent } from "@carma-commons/utils";
 import { cesiumClearParamKeys } from "@carma-mapping/engines/cesium";
 
 import { useHashState } from "../contexts/HashStateProvider";
-import type { LatLngZoom } from "./useMapHashRoutingLeafletLike";
+import type { LatLngZoom } from "../utils/leafletLikeMapUtils";
 
 interface UseLeafletLikeChangeHandlerOptions {
   navMoveInProgressRef: MutableRefObject<boolean>;

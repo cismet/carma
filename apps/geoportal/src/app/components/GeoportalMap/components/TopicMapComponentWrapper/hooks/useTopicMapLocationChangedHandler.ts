@@ -1,8 +1,7 @@
-import { useCallback, useContext, useMemo } from "react";
+import { useCallback, useContext, useEffect, useMemo } from "react";
 import * as L from "leaflet";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { useMapHashRoutingLeafletLike } from "@carma-appframeworks/portals";
-import { useLeafletZoomControls } from "../../../../../hooks/leaflet/useLeafletZoomControls.ts";
 
 export const useTopicMapLocationChangedHandler = (
   enabled: boolean,
@@ -16,16 +15,13 @@ export const useTopicMapLocationChangedHandler = (
     [topicMap]
   );
 
-  const { getLeafletZoom } = useLeafletZoomControls();
-
   const handlerOptions = useMemo(
     () => ({
-      getLeafletLikeMap: getTopicMap,
-      getLeafletLikeZoom: getLeafletZoom,
+      leafletLikeMap: getTopicMap(),
       onAfterLocationChanged,
       label: "GPM:TopicMap:locationChangedHandler",
     }),
-    [getTopicMap, getLeafletZoom, onAfterLocationChanged]
+    [getTopicMap, onAfterLocationChanged]
   );
 
   const handleTopicMapLocationChange = useMapHashRoutingLeafletLike(

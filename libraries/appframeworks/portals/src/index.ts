@@ -62,14 +62,13 @@ export { useSelectionLibreMap } from "./lib/hooks/useSelectionLibreMap";
 export { useShareUrl, SHORTENER_URL } from "./lib/hooks/useShareUrl";
 export { useProgress } from "./lib/hooks/useProgress";
 export { useCesiumModels } from "./lib/hooks/useCesiumModels";
-export {
-  useMapHashRoutingLeafletLike,
-  type LatLngZoom,
-} from "./lib/hooks/useMapHashRoutingLeafletLike";
+export { useMapHashRoutingLeafletLike } from "./lib/hooks/useMapHashRoutingLeafletLike";
 export {
   getLatLngZoomFromLeafletLike,
   setViewLeafletLike,
   triggerLeafletLikeLocationChangeEvent,
+  type LatLngZoom,
+  type LeafletLikeMap,
 } from "./lib/utils/leafletLikeMapUtils";
 export {
   useMapHashRoutingCesium,

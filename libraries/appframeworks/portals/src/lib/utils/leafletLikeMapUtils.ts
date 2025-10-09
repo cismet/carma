@@ -4,10 +4,9 @@ import { Map as MaplibreMap } from "maplibre-gl";
 import { Zoom256 } from "@carma/types";
 import { zoom256as512 } from "@carma-mapping/engines/maplibre";
 
-import type { LatLngZoom } from "../hooks/useMapHashRoutingLeafletLike";
-
 // todo create and move to new mapping engine leafletLikes
 
+export type LatLngZoom = { lat: number; lng: number; zoom: number };
 export type LeafletLikeMap = LeafletMap | MaplibreMap;
 
 /**

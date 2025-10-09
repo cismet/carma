@@ -150,22 +150,19 @@ const LibreGeoportalMap = ({
   const layers = useSelector(getLayers);
   const backgroundLayer = useSelector(getBackgroundLayer);
 
+  const options = useMemo(
+    () => ({
+      leafletLikeMap: map.current,
+      label: "LGM:2D:location",
+    }),
+    []
+  );
+
   // Centralized hash routing for MapLibre (2D-only in this component)
-  const handleTopicMapLocationChange = useMapHashRoutingLeafletLike(true, {
-    getLeafletLikeMap: () => {
-      const m = map.current;
-      if (m instanceof MaplibreMap) {
-        return m;
-      }
-    },
-    getLeafletLikeZoom: () => {
-      const m = map.current;
-      return m
-        ? zoom512as256(m.getZoom() as Zoom512)
-        : normalizedMapOptions.zoom;
-    },
-    label: "LGM:2D:location",
-  });
+  const handleTopicMapLocationChange = useMapHashRoutingLeafletLike(
+    true,
+    options
+  );
 
   const onComplete = (
     selection: SelectionItem,

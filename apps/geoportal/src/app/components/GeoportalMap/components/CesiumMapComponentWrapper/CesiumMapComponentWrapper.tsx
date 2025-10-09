@@ -4,7 +4,6 @@ import { useDispatch, useSelector } from "react-redux";
 import type { FeatureInfo } from "@carma/types";
 
 import {
-  useMapHashRoutingCesium,
   useSelectionCesium,
   useCesiumModels,
 } from "@carma-appframeworks/portals";
@@ -25,6 +24,7 @@ import { useModelSelectionDispatcher } from "../../../../hooks/useModelSelection
 import { useObliqueInitializer } from "../../../../oblique/hooks/useObliqueInitializer.ts";
 import { getBackgroundLayer } from "../../../../store/slices/mapping.ts";
 import { useSyncCesiumSceneStyle } from "./hooks/useSyncCesiumSceneStyle";
+import { useCesiumSceneChangedHandler } from "./hooks/useCesiumSceneChangedHandler";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 
 type CesiumMapComponentWrapperProps = {
@@ -61,7 +61,7 @@ export const CesiumMapComponentWrapper = ({
   // Sync scene style with background layer selection
   useSyncCesiumSceneStyle(backgroundLayer, ctx, dispatch);
 
-  const onSceneChange = useMapHashRoutingCesium(!isMode2d);
+  const onSceneChange = useCesiumSceneChangedHandler(!isMode2d);
 
   const onSelect = useCallback(
     (feature: unknown) =>

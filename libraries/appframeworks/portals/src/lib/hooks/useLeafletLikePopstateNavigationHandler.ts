@@ -5,16 +5,12 @@ import { Map as MaplibreMap } from "maplibre-gl";
 import { LeafletMapEventNames } from "@carma-mapping/engines/leaflet";
 import { MaplibreMapEventNames } from "@carma-mapping/engines/maplibre";
 
-import type { LatLngZoom } from "./useMapHashRoutingLeafletLike";
+import { useHashState } from "../contexts/HashStateProvider";
 import {
   setViewLeafletLike,
-  LeafletLikeMap,
+  type LeafletLikeMap,
+  type LatLngZoom,
 } from "../utils/leafletLikeMapUtils";
-
-type HashStateSubscriber = (
-  callback: (e: { source: string; values: Record<string, unknown> }) => void,
-  options?: { keys?: string[] }
-) => () => void;
 
 const CLEAR_LEAFLET_EVENTS = [
   LeafletMapEventNames.moveend,
@@ -66,9 +62,7 @@ const onceOnMoveEndLikeForLeafletLikeMap = (
 
 interface UseLeafletLikePopstateNavigationHandlerOptions {
   enabled: boolean;
-  subscribe: HashStateSubscriber;
-  getLeafletLikeMap?: () => LeafletLikeMap | null | undefined;
-  getLeafletLikeZoom?: () => number;
+  leafletLikeMap: LeafletLikeMap;
   navMoveInProgressRef: MutableRefObject<boolean>;
   popstateTargetRef: MutableRefObject<LatLngZoom | null>;
 }
@@ -79,12 +73,12 @@ interface UseLeafletLikePopstateNavigationHandlerOptions {
  */
 export function useLeafletLikePopstateNavigationHandler({
   enabled,
-  subscribe,
-  getLeafletLikeMap,
-  getLeafletLikeZoom,
+  leafletLikeMap,
   navMoveInProgressRef,
   popstateTargetRef,
 }: UseLeafletLikePopstateNavigationHandlerOptions): void {
+  const { subscribe } = useHashState();
+
   const clearOnMoveEndLike = useCallback(() => {
     deferToNextFrame(() => {
       navMoveInProgressRef.current = false;
@@ -95,23 +89,20 @@ export function useLeafletLikePopstateNavigationHandler({
 
   useEffect(() => {
     if (!enabled) return;
-    if (!getLeafletLikeMap) return;
+    if (!leafletLikeMap) return;
 
     const handlePopstateNavigation = (e: {
       source: string;
       values: Record<string, unknown>;
     }) => {
       if (e.source !== "popstate") return;
+      if (!leafletLikeMap) return;
 
       const lat = e.values.lat as number | undefined;
       const lng = e.values.lng as number | undefined;
-      const zoom =
-        (e.values.zoom as number | undefined) ?? getLeafletLikeZoom?.();
+      const zoom = e.values.zoom as number | undefined;
 
       if (lat == null || lng == null || zoom == null) return;
-
-      const map = getLeafletLikeMap?.();
-      if (!map) return;
 
       navMoveInProgressRef.current = true;
       popstateTargetRef.current = { lat, lng, zoom };
@@ -122,8 +113,8 @@ export function useLeafletLikePopstateNavigationHandler({
         zoom,
       });
 
-      onceOnMoveEndLikeForLeafletLikeMap(map, clearOnMoveEndLike);
-      setViewLeafletLike(map, { lat, lng, zoom });
+      onceOnMoveEndLikeForLeafletLikeMap(leafletLikeMap, clearOnMoveEndLike);
+      setViewLeafletLike(leafletLikeMap, { lat, lng, zoom });
     };
 
     const unsub = subscribe(handlePopstateNavigation, {
@@ -134,8 +125,7 @@ export function useLeafletLikePopstateNavigationHandler({
   }, [
     enabled,
     subscribe,
-    getLeafletLikeMap,
-    getLeafletLikeZoom,
+    leafletLikeMap,
     clearOnMoveEndLike,
     navMoveInProgressRef,
     popstateTargetRef,

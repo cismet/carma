@@ -2,7 +2,6 @@ import {
   memo,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -21,7 +20,6 @@ import {
   TopicMapSelectionContent,
   useGazData,
   useSelectionTopicMap,
-  triggerLeafletLikeLocationChangeEvent,
 } from "@carma-appframeworks/portals";
 
 import { tooltipText } from "@carma-collab/wuppertal/geoportal";
@@ -344,16 +342,6 @@ export const TopicMapComponentWrapper = ({
   ]);
 
   useLeafletZoomEndFlag(getTopicMap, setShouldUpdateFeatureInfo);
-
-  // update hash on mode change instantly, dont wait for mapchange
-  useEffect(() => {
-    if (isMode2d) {
-      triggerLeafletLikeLocationChangeEvent(
-        getTopicMap(),
-        topicMapLocationChangedHandler
-      );
-    }
-  }, [isMode2d, getTopicMap, topicMapLocationChangedHandler]);
 
   console.debug("RENDER [GEOPORTAL|TOPICMAP]");
 

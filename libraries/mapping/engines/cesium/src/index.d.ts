@@ -4,6 +4,8 @@ import type { ColorRgbaArray, PlainCartesian3 } from "@carma/types";
 import type { ProviderConfig } from "./lib/utils/cesiumProviders";
 import type { TilesetConfigs } from "./lib/utils/cesiumTilesetProviders";
 
+export type { StringifiedCameraState } from "./lib/utils/cesiumHashParamsCodec";
+
 export type CameraPositionAndOrientation = {
   position: Cartesian3;
   up: Cartesian3;

@@ -19,18 +19,21 @@ export const triggerCesiumSceneChangeEvent = (
 
 // analog to useMapHashRoutingLeafletLike
 // updates hash on cesium scene change
-export const useMapHashRoutingCesium = (enabled = true) => {
+export const useMapHashRoutingCesium = (
+  enabled = true,
+  clearKeys = ["zoom"]
+) => {
   const { updateHash } = useHashState();
 
   const handleCesiumSceneChange = useCallback(
     (e: CesiumSceneChangeEvent) => {
       updateHash(e.hashParams, {
-        clearKeys: ["zoom"],
+        clearKeys,
         label: "GPM:3D",
         replace: true, // don't push to history until cesium handled history navigation
       });
     },
-    [updateHash]
+    [updateHash, clearKeys]
   );
 
   return enabled ? handleCesiumSceneChange : noop;
