@@ -44,7 +44,7 @@ import { useManageLayers } from "./hooks/useManageLayers";
 import { useSyncToken } from "./hooks/useSyncToken";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 
-import { APP_KEY, layerMap, STORAGE_PREFIX } from "./config";
+import { APP_KEY, layerMap } from "./config";
 import { geoportalMapStyleConfig } from "./config/mapStyleConfig";
 
 import { CESIUM_CONFIG, CONFIG_BASE_URL } from "./config/app.config";
@@ -139,7 +139,6 @@ function App({ published }: { published?: boolean }) {
                       </div>
                     )}
                     {!published && <TopNavbar />}
-                    {/* <MapMeasurement /> */}
                     <MapMeasurementsObjects />
                     <MapWrapper />
                     <MobileWarningMessage

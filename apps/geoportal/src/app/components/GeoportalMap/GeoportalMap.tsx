@@ -62,7 +62,6 @@ import { useAuth } from "@carma-providers/auth";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 
 import FeatureInfoBox from "../feature-info/FeatureInfoBox.tsx";
-// import InfoBoxMeasurement from "../map-measure/InfoBoxMeasurement.jsx";
 import { InfoBoxMeasurement } from "@carma-commons/measurements";
 import PrintPreview from "../map-print/PrintPreview.tsx";
 

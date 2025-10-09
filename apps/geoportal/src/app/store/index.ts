@@ -11,7 +11,6 @@ import { defaultCesiumState } from "../config/cesium/store.config";
 import mappingReducer from "./slices/mapping";
 import layersReducer from "./slices/layers";
 import uiReducer from "./slices/ui";
-import measurementsReducer from "./slices/measurements";
 import featuresReducer from "./slices/features";
 import printReducer from "./slices/print";
 import {
@@ -97,11 +96,6 @@ const layersConfig = {
   storage: localForage,
   whitelist: ["thumbnails", "favorites"],
 };
-const measurementsConfig = {
-  key: "@" + APP_KEY + "." + STORAGE_PREFIX + ".app.measurements",
-  storage: localForage,
-  whitelist: ["shapes"],
-};
 
 const featuresConfig = {
   key: "@" + APP_KEY + "." + STORAGE_PREFIX + ".app.features",
@@ -120,7 +114,6 @@ const store = configureStore({
     mapping: persistReducer(mappingConfig, mappingReducer),
     ui: persistReducer(uiConfig, uiReducer),
     layers: persistReducer(layersConfig, layersReducer),
-    measurements: persistReducer(measurementsConfig, measurementsReducer),
     features: persistReducer(featuresConfig, featuresReducer),
     cesium: persistReducer(
       getCesiumConfig({ appKey: APP_KEY, storagePrefix: STORAGE_PREFIX }),
