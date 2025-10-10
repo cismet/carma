@@ -28,8 +28,9 @@ import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import CismapLayer from "react-cismap/CismapLayer";
 import versionData from "../version.json";
-import { md5FetchJSON } from "react-cismap/tools/fetching";
+import { md5ActionFetchDAQ } from "react-cismap/tools/fetching";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+import { APP_CONFIG } from "../config/appConfig";
 import { useTreeStyle } from "./hooks/useTreeStyle";
 import {
   createInfoBoxControlObject,
@@ -46,7 +47,13 @@ type LightboxDispatch = {
 };
 const baseUrl = window.location.origin + window.location.pathname;
 
-const TZBaumbewirtschaftung = () => {
+const TZBaumbewirtschaftung = ({ 
+  jwt,
+  onAuthError,
+}: { 
+  jwt?: string;
+  onAuthError?: () => void;
+}) => {
   const { markerSymbolSize } = useContext(TopicMapStylingContext) as any;
   const { clusteringOptions } = useContext(FeatureCollectionContext) as any;
   const [selectedFeature, setSelectedFeature] = useState<any>();
@@ -62,31 +69,45 @@ const TZBaumbewirtschaftung = () => {
 
   const { appKey } = useContext(TopicMapContext) as any;
   const [maxTreeActionId, setMaxTreeActionId] = useState<number>(0);
-  
-  const baseDataUrl = import.meta.env.VITE_WUPP_ASSET_BASEURL || "https://wunda-geoportal.cismet.de";
-  const treesUrl = `${baseDataUrl}/data/4326/tz_baumbewirtschaftung_trees_featurecollection.json`;
-  const treeActionsUrl = `${baseDataUrl}/data/4326/tz_baumbewirtschaftung_treeactions_array.json`;
-  const actionsUrl = `${baseDataUrl}/data/4326/tz_baumbewirtschaftung_actions_array.json`;
 
   useEffect(() => {
+    if (!jwt) {
+      console.log("Waiting for JWT...");
+      return;
+    }
+
     (async () => {
-      // Load all three data sources
-      const [treesFC, treeActions, actions] = await Promise.all([
-        md5FetchJSON(appKey, treesUrl),
-        md5FetchJSON(appKey, treeActionsUrl),
-        md5FetchJSON(appKey, actionsUrl),
-      ]);
+      try {
+        // Load all three data sources using DAQ API
+        const [treesResult, treeActionsResult, actionsResult] = await Promise.all([
+          md5ActionFetchDAQ(appKey, APP_CONFIG.restService, jwt, APP_CONFIG.daqKeys.trees),
+          md5ActionFetchDAQ(appKey, APP_CONFIG.restService, jwt, APP_CONFIG.daqKeys.treeActions),
+          md5ActionFetchDAQ(appKey, APP_CONFIG.restService, jwt, APP_CONFIG.daqKeys.actions),
+        ]);
 
-      // Enrich feature collection with actions
-      const { featureCollection: enriched, maxTreeActionId: maxId } =
-        enrichFeatureCollectionWithActions(treesFC, treeActions, actions);
+        const treesFC = treesResult.data as any;
+        const treeActions = treeActionsResult.data as any[];
+        const actions = actionsResult.data as any[];
 
-      setFeatureCollection(enriched);
-      setMaxTreeActionId(maxId);
-      
-      console.log(`Loaded ${treesFC.features.length} trees, ${treeActions.length} tree actions, max ID: ${maxId}`);
+        // Enrich feature collection with actions
+        const { featureCollection: enriched, maxTreeActionId: maxId } =
+          enrichFeatureCollectionWithActions(treesFC, treeActions, actions);
+
+        setFeatureCollection(enriched);
+        setMaxTreeActionId(maxId);
+        
+        console.log(`Loaded ${treesFC.features.length} trees, ${treeActions.length} tree actions, max ID: ${maxId}`);
+        console.log(`Data timestamps - Trees: ${treesResult.time}, Actions: ${treeActionsResult.time}`);
+      } catch (error) {
+        console.error("Error loading data:", error);
+        // Handle 401 errors (JWT expired) by showing login modal again
+        if ((error as any)?.status === 401) {
+          console.log("JWT expired, user needs to re-login");
+          onAuthError?.();
+        }
+      }
     })();
-  }, []);
+  }, [jwt]);
 
   useEffect(() => {
     if (

@@ -8,10 +8,10 @@
  */
 
 export const APP_CONFIG = {
-  // REST Service URL
+  // REST Service URL (without trailing slash for DAQ API compatibility)
   restService:
     import.meta.env.VITE_TZ_BAUMBEWIRTSCHAFTUNG_REST_SERVICE ||
-    "https://wunda-cloud-api.cismet.de/",
+    "https://wunda-cloud-api.cismet.de",
 
   // Auth Domain
   domain: import.meta.env.VITE_TZ_BAUMBEWIRTSCHAFTUNG_DOMAIN || "WUNDA_BLAU",
@@ -37,6 +37,14 @@ export const APP_CONFIG = {
 
   // JWT Settings
   jwtStorageKey: "tz-baumbewirtschaftung-jwt",
+
+  // DAQ (Data Acquisition) Keys
+  daqKeys: {
+    trees: "tzbBaumbewirtschaftungTrees",
+    treeActions: "tzbBaumbewirtschaftungTreeActions",
+    actions: "tzbBaumbewirtschaftungActions",
+    legacy: "tzbBaumbewirtschaftung", // Full dataset (all-in-one)
+  },
 };
 
 /**
