@@ -419,7 +419,9 @@ const Map = ({
       bodyStyle={{ padding }}
       headStyle={{ backgroundColor: "white" }}
       type="inner"
-      className="overflow-hidden shadow-md"
+      className={`overflow-hidden shadow-md ${
+        measurementMode !== MEASUREMENT_MODE.MEASUREMENT ? "lagis-map-card" : ""
+      }`}
       ref={cardRef}
     >
       <>
