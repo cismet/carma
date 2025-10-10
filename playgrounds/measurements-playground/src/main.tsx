@@ -1,4 +1,4 @@
-import { StrictMode } from "react";
+import { StrictMode, useEffect, useState } from "react";
 import * as ReactDOM from "react-dom/client";
 import { Provider, useSelector, useDispatch } from "react-redux";
 import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextProvider";
@@ -61,6 +61,90 @@ const MeasurementsProviderWrapper = ({
   );
 };
 
+// Root component with drag-and-drop functionality
+const RootComponent = () => {
+  const [vectorStylesArray, setVectorStylesArray] = useState<any[]>([]);
+
+  useEffect(() => {
+    const handleDrop = async (event: DragEvent) => {
+      event.preventDefault();
+
+      const url = event.dataTransfer?.getData("URL");
+      console.log("handleDrop", url);
+
+      if (url) {
+        try {
+          // Fetch the content of the URL
+          const response = await fetch(url);
+
+          if (response.ok) {
+            const contentType = response.headers.get("Content-Type");
+
+            if (contentType?.includes("application/json")) {
+              const jsonData = await response.json();
+              console.log("JSON content fetched:", jsonData);
+
+              // Store the JSON object in the array
+              setVectorStylesArray([jsonData]);
+            } else {
+              console.warn("The content is not JSON");
+            }
+          } else {
+            console.error("Failed to fetch the URL:", response.statusText);
+          }
+        } catch (error) {
+          console.error("Error fetching URL:", error);
+        }
+      } else if (
+        event.dataTransfer?.files &&
+        event.dataTransfer.files.length > 0
+      ) {
+        // Handle file drop
+        const file = event.dataTransfer.files[0]; // Get the first dropped file
+        console.log("File dropped:", file.name, file);
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          try {
+            // Attempt to parse the file content as JSON
+            const fileContent = e.target?.result;
+            if (typeof fileContent === "string") {
+              const processedContent = fileContent.replace(
+                /__SERVER_URL__/g,
+                "https://tiles.cismet.de"
+              );
+
+              const jsonData = JSON.parse(processedContent);
+              console.log("Parsed JSON from file:", jsonData);
+
+              // Add the parsed JSON to the vectorStylesArray
+              setVectorStylesArray([jsonData]);
+            }
+          } catch (error) {
+            console.error("Failed to parse the file as JSON:", error);
+          }
+        };
+
+        reader.readAsText(file); // Read the file as text
+      }
+    };
+
+    const handleDragOver = (event: DragEvent) => {
+      event.preventDefault();
+    };
+
+    window.addEventListener("drop", handleDrop);
+    window.addEventListener("dragover", handleDragOver);
+
+    return () => {
+      window.removeEventListener("drop", handleDrop);
+      window.removeEventListener("dragover", handleDragOver);
+    };
+  }, []);
+
+  return <App vectorStyles={vectorStylesArray} />;
+};
+
 const persistor = persistStore(store);
 
 const root = ReactDOM.createRoot(
@@ -74,7 +158,7 @@ root.render(
           <SelectionProvider>
             <MeasurementsProviderWrapper>
               <TopicMapContextProvider>
-                <App />
+                <RootComponent />
               </TopicMapContextProvider>
             </MeasurementsProviderWrapper>
           </SelectionProvider>
