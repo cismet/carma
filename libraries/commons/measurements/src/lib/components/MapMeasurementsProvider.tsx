@@ -112,9 +112,9 @@ export const MapMeasurementsProvider = ({
     saveToLocalforage(mergedConfig.localStorageKey, shapes);
   }, [shapes]);
 
-  // useEffect(() => {
-  //   console.log("xxx visibleShapes", visibleShapes);
-  // }, [visibleShapes]);
+  useEffect(() => {
+    console.log("xxx visibleShapes", visibleShapes);
+  }, [visibleShapes]);
 
   // useEffect(() => {
   //   console.log("xxx activeShape", activeShape);
@@ -199,8 +199,8 @@ export const MapMeasurementsProvider = ({
       setMode(MEASUREMENT_MODE.MEASUREMENT);
     } else {
       setMode(MEASUREMENT_MODE.DEFAULT);
-      // When exiting measurement mode, stop drawing
       setDrawingShape(false);
+      setLastVisibleShapeActive();
     }
   };
 
