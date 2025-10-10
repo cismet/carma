@@ -1,8 +1,11 @@
 import { useCopyToClipboard } from "@uidotdev/usehooks";
 import { message } from "antd";
+
+import { getHashParams } from "@carma-commons/utils";
+
+import { MapStyleKeys } from "../constants";
 import type { LayerState } from "../types";
 import { SelectionItem } from "../components/SelectionProvider";
-import { getHashParams } from "@carma-commons/utils";
 
 export const SHORTENER_URL =
   "https://ceepr.cismet.de/store/wuppertal/_dev_geoportal";
@@ -37,7 +40,7 @@ export const useShareUrl = () => {
       backgroundLayer: {
         ...backgroundLayer,
         selectedLayerId:
-          backgroundLayer.id === "luftbild"
+          backgroundLayer.id === MapStyleKeys.AERIAL
             ? selectedLuftbildLayer.id
             : selectedMapLayer.id,
       },

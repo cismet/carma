@@ -57,19 +57,16 @@ import {
 
 import {
   CustomViewer,
-  MapTypeSwitcher,
   Compass,
-  selectShowPrimaryTileset,
-  selectViewerIsMode2d,
-  selectViewerModels,
-  setIsMode2d,
   useCesiumContext,
   useHomeControl,
   useZoomControls as useZoomControlsCesium,
-  setCurrentSceneStyle,
   SceneStyleToggle,
-  selectViewerHome,
+  CtxEvent as CesiumCtxEvent,
+  TILESET_IDS,
+  SCENE_STYLES,
 } from "@carma-mapping/engines/cesium";
+import { MapTypeSwitcher } from "@carma-mapping/components";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { type SearchResultItem } from "@carma/types";
 
@@ -186,19 +183,39 @@ export const CarmaMap = ({
   // State and Selectors
   const allow3d = useSelector(getUIAllow3d);
 
-  const isMode2d = useSelector(selectViewerIsMode2d);
-
   const backgroundLayer = useSelector(getBackgroundLayer);
   const selectedMapLayer = useSelector(getSelectedMapLayer);
 
-  const models = useSelector(selectViewerModels);
-  const markerAsset = models[CESIUM_CONFIG.markerKey]; //
+  const ctx = useCesiumContext();
+  const {
+    viewerRef,
+    models,
+    tilesetVisibilityRef,
+    isSuspendedRef,
+    homePositionRef,
+    emit,
+  } = ctx;
+
+  // Track mode state from context
+  const [isMode2d, setIsMode2dState] = useState(isSuspendedRef.current);
+
+  useEffect(() => {
+    const unsubActivate = ctx.subscribe(CesiumCtxEvent.Activate, () => {
+      setIsMode2dState(false);
+    });
+    const unsubSuspend = ctx.subscribe(CesiumCtxEvent.Suspend, () => {
+      setIsMode2dState(true);
+    });
+    return () => {
+      unsubActivate();
+      unsubSuspend();
+    };
+  }, [ctx]);
+  const markerAsset = models.current?.[CESIUM_CONFIG.markerKey]; //
   const markerAnchorHeight = CESIUM_CONFIG.markerAnchorHeight ?? 10;
   const layers = useSelector(getLayers);
   const uiMode = useSelector(getUIMode);
   const showFullscreenButton = useSelector(getShowFullscreenButton);
-  const ctx = useCesiumContext();
-  const { viewerRef } = ctx;
 
   const homeControl = useHomeControl();
   const {
@@ -207,7 +224,8 @@ export const CarmaMap = ({
   } = useZoomControlsCesium();
   const { getLeafletZoom, zoomInLeaflet, zoomOutLeaflet } =
     useLeafletZoomControls();
-  const showPrimaryTileset = useSelector(selectShowPrimaryTileset);
+  const showPrimaryTileset =
+    tilesetVisibilityRef.current.get(TILESET_IDS.PRIMARY) ?? false;
 
   const { routedMapRef: routedMap } =
     useContext<typeof TopicMapContext>(TopicMapContext);
@@ -256,13 +274,13 @@ export const CarmaMap = ({
   useEffect(() => {
     if (viewerRef.current && backgroundLayer) {
       if (backgroundLayer.id === MANAGED_BACKGROUND_LAYERS.ORTHO) {
-        dispatch(setCurrentSceneStyle("primary"));
+        emit(CesiumCtxEvent.SetSceneStyle, SCENE_STYLES.PRIMARY);
       } else {
-        dispatch(setCurrentSceneStyle("secondary"));
+        emit(CesiumCtxEvent.SetSceneStyle, SCENE_STYLES.SECONDARY);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [backgroundLayer]);
+  }, [backgroundLayer, viewerRef, emit]);
 
   useEffect(() => {
     if (is2dOnlyParamSet || !hasGPU) {
@@ -279,13 +297,13 @@ export const CarmaMap = ({
     // set 2d mode if allow3d is false or undefined
     if (!isMode2d && (allow3d === false || allow3d === undefined)) {
       console.debug("seting mode to 2d, because of allow3d", allow3d);
-      dispatch(setIsMode2d(true));
+      emit(CesiumCtxEvent.Suspend, undefined);
     }
-  }, [isMode2d, allow3d, dispatch]);
+  }, [isMode2d, allow3d, emit]);
 
   console.debug("RENDER: [CARMAMAP] MAP", isMode2d);
 
-  const homePosition = useSelector(selectViewerHome);
+  const homePosition = homePositionRef.current;
 
   const topicMapHomeClick = () => {
     if (homePosition && routedMap?.leafletMap?.leafletElement) {
@@ -342,14 +360,14 @@ export const CarmaMap = ({
   useEffect(() => {
     if (baseMapStyle === BASEMAP_STYLE_KEYS.PRIMARY) {
       toggleTopicMapBackgroundLayer(true);
-      dispatch(setCurrentSceneStyle("primary"));
+      emit(CesiumCtxEvent.SetSceneStyle, SCENE_STYLES.PRIMARY);
     } else if (baseMapStyle === BASEMAP_STYLE_KEYS.SECONDARY) {
       toggleTopicMapBackgroundLayer(false);
-      //dispatch(setCurrentSceneStyle("secondary"));
+      //emit(CesiumCtxEvent.SetSceneStyle, SCENE_STYLES.SECONDARY);
       // disable secondary style for HGK
-      dispatch(setCurrentSceneStyle("primary"));
+      emit(CesiumCtxEvent.SetSceneStyle, SCENE_STYLES.PRIMARY);
     }
-  }, [baseMapStyle, dispatch, toggleTopicMapBackgroundLayer]);
+  }, [baseMapStyle, emit, toggleTopicMapBackgroundLayer]);
 
   // CUSTOM CODE for simulation
   useEffect(() => {
@@ -404,7 +422,7 @@ export const CarmaMap = ({
     if (!isMode2d && viewerRef.current) {
       setTimeout(() => {
         const viewer = viewerRef.current;
-        setCurrentSceneStyle("primary");
+        emit(CesiumCtxEvent.SetSceneStyle, SCENE_STYLES.PRIMARY);
         console.debug("force hide default imagery layer hgk");
         viewer.scene.backgroundColor = Color.DIMGREY;
         viewer.scene.globe.baseColor = new Color(0.3, 0.2, 0.8, 0.7);
@@ -420,7 +438,7 @@ export const CarmaMap = ({
         viewer.scene.requestRender();
       }, 300);
     }
-  }, [isMode2d, viewerRef]);
+  }, [isMode2d, viewerRef, emit]);
 
   console.debug("CARMAMAP render hgk", hqKey);
 

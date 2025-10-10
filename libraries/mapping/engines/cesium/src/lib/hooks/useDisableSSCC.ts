@@ -1,32 +1,82 @@
 import { useEffect } from "react";
-import { useSelector } from "react-redux";
 
-import { selectViewerIsAnimating } from "../slices/cesium";
 import { useCesiumContext } from "./useCesiumContext";
-import { shouldBlockUserInput } from "../hooks/useMapTransition";
+import { CtxEvent } from "../cesiumContextEventMap";
 import {
   isValidScene,
   isValidScreenSpaceCameraController,
 } from "../utils/instanceGates";
 
+/**
+ * Manages ScreenSpaceCameraController (SSCC) enabling/disabling based on:
+ * - Transition state (suspend during transitions)
+ * - Animation state (suspend during animations)
+ * - Explicit suspend/resume events (for external control)
+ *
+ * Uses event bus to coordinate SSCC state across the system.
+ */
 const useDisableSSCC = () => {
-  const isAnimating = useSelector(selectViewerIsAnimating);
   console.debug("HOOKINIT [CESIUM|SCENE] useDisableSSCC");
-  const { transitionStateRef, sceneRef } = useCesiumContext();
+  const { transitionStateRef, sceneRef, subscribe, suspendSSCCRef } =
+    useCesiumContext();
 
-  const isEnabled =
-    !isAnimating && !shouldBlockUserInput(transitionStateRef.current);
-
+  // Subscribe to all suspension/resume events
   useEffect(() => {
-    console.info("HOOK [CESIUM|SCENE|SSCC] map is enabled", isEnabled);
+    const unsubAnimStart = subscribe(CtxEvent.AnimationStart, () => {
+      console.debug("[SSCC] Animation started - suspending controls");
+      suspendSSCCRef.current = true;
+      updateSSCC();
+    });
 
+    const unsubAnimEnd = subscribe(CtxEvent.AnimationEnd, () => {
+      console.debug("[SSCC] Animation ended - checking if can resume");
+      suspendSSCCRef.current = false;
+      updateSSCC();
+    });
+
+    const unsubSuspend = subscribe(CtxEvent.SuspendSSCC, () => {
+      console.debug("[SSCC] Explicit suspend requested");
+      suspendSSCCRef.current = true;
+      updateSSCC();
+    });
+
+    const unsubResume = subscribe(CtxEvent.ResumeSSCC, () => {
+      console.debug("[SSCC] Explicit resume requested");
+      suspendSSCCRef.current = false;
+      updateSSCC();
+    });
+
+    return () => {
+      unsubAnimStart();
+      unsubAnimEnd();
+      unsubSuspend();
+      unsubResume();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subscribe]);
+
+  const shouldBlockUserInput = (state: unknown): boolean => {
+    const transitionStates = [
+      "preTransitionTo2d",
+      "transitionTo2d",
+      "preTransitionTo3d",
+      "transitionTo3d",
+    ];
+    return transitionStates.includes(String(state));
+  };
+
+  const updateSSCC = () => {
     const scene = sceneRef.current;
-
     if (!isValidScene(scene)) return;
 
     const sccc = scene.screenSpaceCameraController;
-
     if (!isValidScreenSpaceCameraController(sccc)) return;
+
+    const isEnabled =
+      !suspendSSCCRef.current &&
+      !shouldBlockUserInput(transitionStateRef.current);
+
+    console.info("HOOK [CESIUM|SCENE|SSCC] updating controls", { isEnabled });
 
     try {
       sccc.enableRotate = isEnabled;
@@ -38,20 +88,7 @@ const useDisableSSCC = () => {
         e
       );
     }
-    return () => {
-      console.debug("HOOK [CESIUM|SCENE|SSCC] map interaction reset");
-      const scene = sceneRef.current;
-
-      if (!isValidScene(scene)) return;
-
-      const sccc = scene.screenSpaceCameraController;
-
-      if (!isValidScreenSpaceCameraController(sccc)) return;
-      sccc.enableRotate = true;
-      sccc.enableZoom = true;
-      sccc.enableTilt = true;
-    };
-  }, [isEnabled, sceneRef]);
+  };
 };
 
 export default useDisableSSCC;

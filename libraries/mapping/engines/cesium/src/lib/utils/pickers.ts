@@ -12,7 +12,7 @@ import {
 import {
   getCanvasDimensions,
   type CanvasDimensions,
-} from "@carma-commons/utils/canvas";
+} from "@carma-commons/dom/canvas";
 
 import { getPixelSizeForPosition } from "./pixels";
 
@@ -153,7 +153,7 @@ export const pickSceneCenter = (
   scene: Scene,
   options?: PickOptions
 ): PickResult => {
-  return pickScenePositions(scene, [CENTER_POSITION], options)[0];
+  return pickScenePositions(scene, [CENTER_POSITION], options)[0]!;
 };
 
 // get last ground primitive from picked objects

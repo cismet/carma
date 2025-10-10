@@ -14,6 +14,7 @@ export enum UIMode {
 export interface UIState {
   mode: UIMode;
   activeTabKey: string;
+  isMode2d: boolean;
   allow3d: boolean;
   allowChanges: boolean;
   showInfo: boolean;
@@ -28,6 +29,7 @@ export interface UIState {
 const initialState: UIState = {
   mode: UIMode.DEFAULT,
   activeTabKey: "1",
+  isMode2d: true,
   allow3d: true,
   allowChanges: true,
   showInfo: true,
@@ -56,6 +58,9 @@ const slice = createSlice({
 
     setUIActiveTabKey(state, action) {
       state.activeTabKey = action.payload;
+    },
+    setUIIsMode2d(state, action: PayloadAction<boolean>) {
+      state.isMode2d = action.payload;
     },
     setUIAllow3d(state, action: PayloadAction<boolean>) {
       state.allow3d = action.payload;
@@ -92,6 +97,7 @@ export const {
   setUIMode,
   toggleUIMode,
   setUIActiveTabKey,
+  setUIIsMode2d,
   setUIAllow3d,
   setUIAllowChanges,
   setUIShowInfo,
@@ -105,6 +111,7 @@ export const {
 
 export const getUIMode = (state: RootState) => state.ui.mode;
 
+export const getUIIsMode2d = (state: RootState) => state.ui.isMode2d;
 export const getUIAllow3d = (state: RootState) => state.ui.allow3d;
 export const getUIAllowChanges = (state: RootState) => state.ui.allowChanges;
 export const getUIActiveTabKey = (state: RootState) => state.ui.activeTabKey;

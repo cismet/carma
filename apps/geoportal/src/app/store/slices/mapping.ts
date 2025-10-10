@@ -5,6 +5,7 @@ import type { BackgroundLayer, Layer, SavedLayerConfig } from "@carma/types";
 import {
   SELECTED_LAYER_INDEX,
   SelectionItem,
+  MapStyleKeys,
   type MappingState,
 } from "@carma-appframeworks/portals";
 
@@ -39,23 +40,23 @@ const initialState: MappingState = {
 
   selectedLuftbildLayer: {
     title: "Luftbildkarte 03/24",
-    id: "luftbild",
+    id: MapStyleKeys.AERIAL,
     opacity: 1.0,
-    description: layerMap["luftbild"].description,
-    inhalt: layerMap["luftbild"].inhalt,
-    eignung: layerMap["luftbild"].eignung,
+    description: layerMap[MapStyleKeys.AERIAL].description,
+    inhalt: layerMap[MapStyleKeys.AERIAL].inhalt,
+    eignung: layerMap[MapStyleKeys.AERIAL].eignung,
     visible: true,
     layerType: "wmts",
     props: {
       name: "",
-      url: layerMap["luftbild"].url,
+      url: layerMap[MapStyleKeys.AERIAL].url,
     },
-    layers: layerMap["luftbild"].layers,
+    layers: layerMap[MapStyleKeys.AERIAL].layers,
   },
 
   backgroundLayer: {
     title: "Stadtplan",
-    id: "karte",
+    id: MapStyleKeys.TOPO,
     opacity: 1.0,
     description: layerMap["stadtplan"].description,
     inhalt: layerMap["stadtplan"].inhalt,

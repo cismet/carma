@@ -1,17 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import {
-  Cartesian3,
-  HeadingPitchRange,
-  Matrix4,
-  Math as CesiumMath,
-  type Camera,
-} from "cesium";
+import { Cartesian3, HeadingPitchRange, Matrix4 } from "cesium";
 import {
   cancelAnimation,
   getOrbitPoint,
   isValidScene,
   useCesiumContext,
 } from "@carma-mapping/engines/cesium";
+import { degToRad, clamp, PI, TWO_PI } from "@carma-commons/math";
+import type { Radians } from "@carma/types";
 
 export type UseOrientationCubeDragParams = {
   dragThresholdPx?: number;
@@ -24,20 +20,16 @@ export type UseOrientationCubeDragReturn = {
   handleMouseUp: () => void;
 };
 
-const MIN_PITCH = CesiumMath.toRadians(-70);
-const MAX_PITCH = CesiumMath.toRadians(-30);
+const MIN_PITCH: Radians = degToRad(-70 as Degrees);
+const MAX_PITCH: Radians = degToRad(-30 as Degrees);
 const HEADING_FACTOR = 1;
 const PITCH_FACTOR = 1;
 
 export function useOrientationCubeDrag({
   dragThresholdPx = 2,
 }: UseOrientationCubeDragParams = {}): UseOrientationCubeDragReturn {
-  const {
-    animationMapRef,
-    shouldSuspendPitchLimiterRef,
-    sceneRef,
-    requestRender,
-  } = useCesiumContext();
+  const { animationMapRef, shouldSuspendPitchLimiterRef, sceneRef } =
+    useCesiumContext();
   const [isDragging, setIsDragging] = useState(false);
   const isDraggingRef = useRef(false);
   const isPointerDownRef = useRef(false);
@@ -51,9 +43,9 @@ export function useOrientationCubeDrag({
   const previousPercentageChangedRef = useRef<number | undefined>(undefined);
 
   const shortestAngleDelta = (a: number, b: number) => {
-    let d = (b - a + Math.PI) % (2 * Math.PI);
-    if (d < 0) d += 2 * Math.PI;
-    return d - Math.PI;
+    let d = (b - a + PI) % TWO_PI;
+    if (d < 0) d += TWO_PI;
+    return d - PI;
   };
 
   const stepAnimation = useCallback(() => {
@@ -76,11 +68,7 @@ export function useOrientationCubeDrag({
     const dh = shortestAngleDelta(currentHeading, targetH);
     const dp = targetP - currentPitch;
     const nextHeading = currentHeading + dh * easing;
-    const nextPitch = CesiumMath.clamp(
-      currentPitch + dp * easing,
-      MIN_PITCH,
-      MAX_PITCH
-    );
+    const nextPitch = clamp(currentPitch + dp * easing, MIN_PITCH, MAX_PITCH);
     scene.camera.lookAt(
       orbitPointRef.current!,
       new HeadingPitchRange(nextHeading, nextPitch, rangeRef.current)
@@ -169,8 +157,8 @@ export function useOrientationCubeDrag({
       targetHeadingRef.current =
         targetHeadingRef.current + dx * 0.01 * HEADING_FACTOR;
       targetHeadingRef.current =
-        ((targetHeadingRef.current + Math.PI) % (2 * Math.PI)) - Math.PI;
-      targetPitchRef.current = CesiumMath.clamp(
+        ((targetHeadingRef.current + Math.PI) % TWO_PI) - Math.PI;
+      targetPitchRef.current = clamp(
         targetPitchRef.current - dy * 0.01 * PITCH_FACTOR,
         MIN_PITCH,
         MAX_PITCH

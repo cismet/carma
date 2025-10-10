@@ -3,6 +3,7 @@ import { ClassificationType, Color, Scene } from "cesium";
 import { getGroundPrimitiveById } from "./cesiumGroundPrimitives";
 import { isValidScene, SceneStyle } from "../..";
 import { fromColorRgbaArray } from "./cesiumSerializer";
+import { SCENE_STYLES } from "../constants";
 import {
   WithCallback,
   TerrainProviderCallback,
@@ -76,7 +77,7 @@ export const setupPrimaryStyle = (
     invertedSelection.classificationType = ClassificationType.CESIUM_3D_TILE;
   }
   waitAndSetTerrainProvider(scene, withTerrainProvider, {
-    label: "primary",
+    label: SCENE_STYLES.PRIMARY,
   });
 
   // Hide all imagery layers for primary style
@@ -128,7 +129,7 @@ export const setupSecondaryStyle = (
   };
 
   waitAndSetTerrainProvider(scene, withTerrainProvider, {
-    label: "secondary",
+    label: SCENE_STYLES.SECONDARY,
     onReady: ensureImageryLayersVisible,
   });
 

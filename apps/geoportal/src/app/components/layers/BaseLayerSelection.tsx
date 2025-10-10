@@ -1,16 +1,18 @@
+import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { Radio } from "antd";
+
+import { useMapStyle, MapStyleKeys } from "@carma-appframeworks/portals";
+
 import {
   getBackgroundLayer,
   getSelectedMapLayer,
   setBackgroundLayer,
   setSelectedMapLayer,
 } from "../../store/slices/mapping";
-import { Radio } from "antd";
+
 import { layerMap } from "../../config";
 import LayerSelection from "./LayerSelection";
-import { useState } from "react";
-import { useMapStyle } from "@carma-appframeworks/portals";
-import { MapStyleKeys } from "../../constants/MapStyleKeys";
 import { createBackgroundLayerConfig } from "../../helper/layer";
 
 const BaseLayerSelection = () => {
@@ -22,11 +24,11 @@ const BaseLayerSelection = () => {
   const backgroundLayer = useSelector(getBackgroundLayer);
 
   const handleRadioClick = (e) => {
-    if (backgroundLayer.id !== "karte") {
+    if (backgroundLayer.id !== MapStyleKeys.TOPO) {
       setCurrentStyle(MapStyleKeys.TOPO);
       dispatch(
         setBackgroundLayer({
-          id: "karte",
+          id: MapStyleKeys.TOPO,
           title: layerMap[e.target.value].title,
           opacity: 1.0,
           description: layerMap[e.target.value].description,
@@ -46,9 +48,9 @@ const BaseLayerSelection = () => {
 
   return (
     <LayerSelection
-      id="karte"
+      id={MapStyleKeys.TOPO}
       title="Karte"
-      selectedLayer={{ ...selectedMapLayer, id: "karte" }}
+      selectedLayer={{ ...selectedMapLayer, id: MapStyleKeys.TOPO }}
       onMouseEnter={() => {
         setHovered(true);
       }}
@@ -65,7 +67,7 @@ const BaseLayerSelection = () => {
           dispatch(
             setBackgroundLayer({
               ...config,
-              id: "karte",
+              id: MapStyleKeys.TOPO,
             })
           );
         }}
@@ -73,7 +75,9 @@ const BaseLayerSelection = () => {
         optionType="default"
         style={{
           filter:
-            backgroundLayer.id !== "karte" && !hovered ? "saturate(0)" : "",
+            backgroundLayer.id !== MapStyleKeys.TOPO && !hovered
+              ? "saturate(0)"
+              : "",
         }}
       >
         <Radio

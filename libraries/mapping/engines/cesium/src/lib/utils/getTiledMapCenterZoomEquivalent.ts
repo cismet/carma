@@ -1,7 +1,8 @@
 import type { Scene } from "cesium";
 import type { LatLng, LatLngZoom, Zoom, Zoom256 } from "@carma/types";
 
-import { normalizeOptions, isZoom } from "@carma-commons/utils";
+import { normalizeOptions } from "@carma-commons/utils";
+import { isZoom } from "@carma-commons/geo";
 
 import { cameraToCartographicDegrees } from "./cesiumHelpers";
 import { cesiumCenterPixelSizeToLeafletZoom } from "./pixels";

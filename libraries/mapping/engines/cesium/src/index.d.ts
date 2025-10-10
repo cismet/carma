@@ -1,5 +1,5 @@
 import type { ModelConfig } from "@carma-commons/resources";
-import type { ColorRgbaArray, PlainCartesian3 } from "@carma/types";
+import type { ColorRgbaArray } from "@carma/types";
 
 import type { ProviderConfig } from "./lib/utils/cesiumProviders";
 import type { TilesetConfigs } from "./lib/utils/cesiumTilesetProviders";
@@ -70,28 +70,9 @@ export type CesiumConfig = {
   providerConfig: ProviderConfig;
   models?: ModelConfig[];
 };
+// Minimal Redux state for static Cesium configuration only
+// All runtime state (visibility, opacity, home position, etc.) is now managed via CesiumContext
 export interface CesiumState {
-  isAnimating?: boolean;
-  currentTransition?: VIEWER_TRANSITION_STATE;
-  currentSceneStyle?: keyof SceneStyles;
-  isMode2d: boolean;
-  homePosition: null | PlainCartesian3;
-  homeOffset: null | PlainCartesian3;
-  showPrimaryTileset: boolean; // tileset is the base 3D model equivalent to a basemap
-  showSecondaryTileset: boolean; // tileset is the base 3D model equivalent to a basemap
-
-  sceneSpaceCameraController: {
-    enableCollisionDetection: boolean;
-    minimumZoomDistance: number; // default is 1.0
-    maximumZoomDistance: number; // default is Infinity
-  };
-  sceneStyles?: SceneStyles;
-  // TODO move to per tileset styling
-  styling: {
-    tileset: {
-      opacity: number;
-    };
-  };
   dataSources?: Record<string, GeoJsonConfig>;
   models?: Record<string, MarkerModelAsset | ParsedMarkerModelAsset>;
 }

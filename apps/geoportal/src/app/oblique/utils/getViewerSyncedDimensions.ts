@@ -1,25 +1,38 @@
+import { PerspectiveFrustum, type Scene } from "cesium";
+
 import { CssPixelHeight, CssPixelWidth } from "@carma/types";
 import { getWindowDimensions } from "@carma-commons/utils";
 import { getCanvasDimensions } from "@carma-commons/utils/canvas";
-import { useCesiumContext } from "@carma-mapping/engines/cesium";
-import { PerspectiveFrustum } from "cesium";
+import { tryWithValidScene } from "@carma-mapping/engines/cesium";
 
-const getViewerSyncedSize = (
-  ctx: ReturnType<typeof useCesiumContext>,
-  overrideFov?: number
-): number | undefined => {
+const isSupportedFrustum = (
+  frustum: unknown
+): frustum is PerspectiveFrustum => {
+  return frustum instanceof PerspectiveFrustum;
+};
+
+const getSceneSyncedSize = (scene: Scene, overrideFov?: number): number => {
   let maxCanvas: number | undefined;
-  let frustum: unknown;
+  let frustum: PerspectiveFrustum;
+  let width = 0;
+  let height = 0;
 
   const wDim = getWindowDimensions(window);
   if (!wDim) return;
   const maxWindow = Math.max(wDim.width, wDim.height);
 
-  ctx.withViewer((viewer) => {
-    const { width, height } = getCanvasDimensions(viewer.canvas);
+  tryWithValidScene(scene, (scene) => {
+    const { canvas, camera } = scene;
+    ({ width, height } = getCanvasDimensions(canvas));
     maxCanvas = Math.max(width, height);
-    frustum = viewer?.scene?.camera?.frustum;
+    if (isSupportedFrustum(camera?.frustum)) {
+      frustum = camera.frustum;
+    }
   });
+
+  if (!frustum) {
+    throw new Error("getSceneSyncedSize: unsupported or missing frustum; skip");
+  }
 
   // use maxCanvas if available, otherwise fall back to maxWindow
   const dim = maxCanvas > 0 ? maxCanvas : maxWindow;
@@ -34,13 +47,12 @@ const getViewerSyncedSize = (
     const fovFactor = Math.tan(fov / 2);
     return Math.max(1, dim / fovFactor);
   } else {
-    console.debug("getViewerSyncedSize: unsupported or missing frustum; skip");
-    return;
+    throw new Error("getSceneSyncedSize: unsupported or missing frustum; skip");
   }
 };
 
-export const getViewerSyncedDimensions = (
-  ctx: ReturnType<typeof useCesiumContext>,
+export const getSceneSyncedDimensions = (
+  scene: Scene,
   isVertical: boolean,
   imageAspectRatio: number,
   baseScaleFactor: number,
@@ -51,9 +63,14 @@ export const getViewerSyncedDimensions = (
   const heightScaleFactor =
     baseScaleFactor * (isVertical ? 1 : 1 / imageAspectRatio);
 
-  const baseSize = Number(getViewerSyncedSize(ctx, overrideFov));
-  const syncedWidth = (baseSize * widthScaleFactor) as CssPixelWidth;
-  const syncedHeight = (baseSize * heightScaleFactor) as CssPixelHeight;
+  try {
+    const baseSize = Number(getSceneSyncedSize(scene, overrideFov));
+    const syncedWidth = (baseSize * widthScaleFactor) as CssPixelWidth;
+    const syncedHeight = (baseSize * heightScaleFactor) as CssPixelHeight;
 
-  return { syncedWidth, syncedHeight };
+    return { syncedWidth, syncedHeight };
+  } catch (e) {
+    console.error("getSceneSyncedDimensions: failed to get synced size", e);
+    throw e;
+  }
 };

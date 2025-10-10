@@ -1,4 +1,4 @@
-import { MutableRefObject, useEffect, useRef } from "react";
+import { MutableRefObject, useEffect, useMemo, useRef } from "react";
 
 import {
   Color,
@@ -6,12 +6,11 @@ import {
   ConstantProperty,
   Entity,
   CallbackProperty,
-  EasingFunction,
   PolylineGraphics,
   type Cartesian3,
 } from "cesium";
 
-import { useMemoMergedDefaultOptions } from "@carma-commons/utils";
+import { useMemoMergedDefaultOptions, Easing } from "@carma-commons/utils";
 import {
   useCesiumContext,
   polygonHierarchyFromPolygonCoords,
@@ -66,8 +65,13 @@ const cleanupOutlineEntity = (
 };
 
 export const useFootprints = (debug = false): void => {
-  const ctx = useCesiumContext();
-  const { viewerRef, requestRender, isValidViewer, withEntities } = ctx;
+  const {
+    viewerRef,
+    requestRender,
+    isValidViewer,
+    withEntities,
+    isViewerReady,
+  } = useCesiumContext();
   const {
     isObliqueMode,
     selectedImage,
@@ -83,21 +87,26 @@ export const useFootprints = (debug = false): void => {
   const animationDuration = animations?.outlineFadeOut?.duration ?? 1000;
   const animationDelay = animations?.outlineFadeOut?.delay ?? 0;
   const animationEasing =
-    animations?.outlineFadeOut?.easingFunction || EasingFunction.LINEAR_NONE;
+    animations?.outlineFadeOut?.easingFunction || Easing.LINEAR_NONE;
 
   const lastImageIdRef = useRef<string | null>(null);
   const outlineEntityRef = useRef<Entity | null>(null);
   const prevObliqueMode = useRef<boolean>(isObliqueMode);
 
-  const opacityAnimationRef = useRef<OpacityAnimationState>(
-    createAnimationState({
-      startValue: outlineOpacity,
-      targetValue: outlineOpacity,
-      duration: animationDuration,
-      delay: animationDelay,
-      easingFunction: animationEasing,
-    })
+  const startAnimationState = useMemo(
+    () =>
+      createAnimationState({
+        startValue: outlineOpacity,
+        targetValue: outlineOpacity,
+        duration: animationDuration,
+        delay: animationDelay,
+        easingFunction: animationEasing,
+      }),
+    [outlineOpacity, animationDuration, animationDelay, animationEasing]
   );
+
+  const opacityAnimationRef =
+    useRef<OpacityAnimationState>(startAnimationState);
 
   // Clean up entities when component unmounts
   useEffect(() => {
@@ -168,6 +177,7 @@ export const useFootprints = (debug = false): void => {
   useEffect(() => {
     if (
       !isValidViewer() ||
+      !isViewerReady ||
       !selectedImage ||
       !footprintData ||
       !isObliqueMode
@@ -271,7 +281,7 @@ export const useFootprints = (debug = false): void => {
         easingFunction: animationEasing,
       });
 
-      ctx.withEntities((entities) => {
+      withEntities((entities) => {
         const outlineEntity = createOutlineEntity(polygonHierarchy.positions);
         entities.add(outlineEntity);
         outlineEntityRef.current = outlineEntity;
@@ -291,8 +301,8 @@ export const useFootprints = (debug = false): void => {
     animationEasing,
     debug,
     isValidViewer,
+    isViewerReady,
     requestRender,
-    ctx,
     withEntities,
   ]);
 };

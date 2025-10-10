@@ -33,13 +33,28 @@ export async function getElevationAsync(
     surfaceResult.length !== positions.length ||
     terrainResult.length !== positions.length
   ) {
-    console.warn("[CESIUM|ELEVATION] elevation sampling failed");
-    return [];
+    throw new Error(
+      "[CESIUM|ELEVATION] elevation sampling failed - length mismatch"
+    );
   }
 
-  return positions.map((position, i) => ({
-    position,
-    terrain: terrainResult[i],
-    surface: surfaceResult[i],
-  }));
+  const results: ElevationResult[] = [];
+
+  for (let i = 0; i < positions.length; i++) {
+    const terrain = terrainResult[i];
+    const position = positions[i];
+    if (terrain === undefined || position === undefined) {
+      throw new Error(
+        `[CESIUM|ELEVATION] terrain or position data is undefined for index ${i}`
+      );
+    }
+
+    results.push({
+      position,
+      terrain,
+      surface: surfaceResult[i],
+    });
+  }
+
+  return results;
 }

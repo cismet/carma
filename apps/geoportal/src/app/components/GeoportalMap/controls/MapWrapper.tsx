@@ -17,24 +17,22 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
+import type { SearchResultItem } from "@carma/types";
 import {
   SelectionMetaData,
   SelectionMapMode,
   useGazData,
   useSelection,
+  type GeoportalEventMap,
 } from "@carma-appframeworks/portals";
-
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
-import type { SearchResultItem } from "@carma/types";
 import { detectWebGLContext } from "@carma-commons/utils";
 
 import {
   MapTypeSwitcher,
   PitchingCompass,
-  selectViewerIsMode2d,
   selectViewerModels,
   setIsMode2d,
-  useCesiumContext,
   useHomeControl,
   useZoomControls as useZoomControlsCesium,
 } from "@carma-mapping/engines/cesium";
@@ -58,7 +56,7 @@ import LibreGeoportalMap from "../LibreGeoportalMap.tsx";
 import { ObliqueControls } from "../../../oblique/components/ObliqueControls.tsx";
 import LayerWrapper from "../../layers/LayerWrapper.tsx";
 
-import useLeafletZoomControls from "../../../hooks/leaflet/useLeafletZoomControls.ts";
+import { useLeafletZoomControls } from "../../../hooks/leaflet/useLeafletZoomControls.ts";
 import { useAppSearchParams } from "../../../hooks/useAppSearchParams";
 import { useDispatchSachdatenInfoText } from "../../../hooks/useDispatchSachdatenInfoText.ts";
 import { useFeatureInfoModeCursorStyle } from "../../../hooks/useFeatureInfoModeCursorStyle.ts";
@@ -105,6 +103,7 @@ window.addEventListener("load", testGPU, false);
 const MapWrapper = () => {
   const dispatch = useDispatch();
   const flags = useFeatureFlags();
+  const { emit } = useEventBus<GeoportalEventMap>();
 
   const showLibreMap = flags.featureFlagLibreMap;
 
@@ -112,6 +111,23 @@ const MapWrapper = () => {
   const lastRenderTimeStampRef = useRef(Date.now());
   const lastRenderIntervalRef = useRef(0);
   const wrapperRef = useRef<HTMLDivElement>(null);
+
+  // Emit events and update Redux when mode transitions complete
+  const handleTransitionComplete = (isTo2D: boolean) => {
+    console.debug("[MapWrapper] Transition complete:", { isTo2D });
+
+    // Update Redux UI state
+    dispatch(setIsMode2d(isTo2D));
+
+    // Emit events for decoupled components
+    if (isTo2D) {
+      emit("topicmap-active");
+      emit("cesium-suspended");
+    } else {
+      emit("cesium-active");
+      emit("topicmap-suspended");
+    }
+  };
 
   // State and Selectors
   const libreMapRef = useSelector(getLibreMapRef);
@@ -124,7 +140,6 @@ const MapWrapper = () => {
   const showFullscreenButton = useSelector(getShowFullscreenButton);
   const showLocatorButton = useSelector(getShowLocatorButton);
   const zenMode = useSelector(getZenMode);
-  const ctx = useCesiumContext();
   const homeControl = useHomeControl();
   const configSelection = useSelector(getConfigSelection);
 
@@ -362,6 +377,7 @@ const MapWrapper = () => {
                   duration={CESIUM_CONFIG.transitions.mapMode.duration}
                   className="!rounded-t-none !border-t-[1px]"
                   ref={tourRefLabels.toggle2d3d}
+                  onComplete={handleTransitionComplete}
                 />
                 {
                   // TODO implement cesium home action with generic home control for all mapping engines

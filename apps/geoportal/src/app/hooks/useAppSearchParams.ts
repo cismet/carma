@@ -1,29 +1,38 @@
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { useDispatch } from "react-redux";
 
-import { setIsMode2d, VIEWERSTATE_KEYS } from "@carma-mapping/engines/cesium";
+import {
+  MapStyleKeys,
+  useInitialViewModeFromUrl,
+} from "@carma-appframeworks/portals";
+import { VIEWERSTATE_KEYS } from "@carma-mapping/engines/cesium";
 import { getHashParams } from "@carma-commons/utils";
+import { setUIIsMode2d } from "../store/slices/ui";
 
 import { useMapStyle } from "./useGeoportalMapStyle";
-import { MapStyleKeys } from "../constants/MapStyleKeys";
 
 export const useAppSearchParams = () => {
   const dispatch = useDispatch();
   const { setCurrentStyle } = useMapStyle();
 
+  // Initialize 2D/3D mode from URL
+  const setUIMode = useCallback(
+    (isMode2d: boolean) => {
+      dispatch(setUIIsMode2d(isMode2d));
+    },
+    [dispatch]
+  );
+
+  useInitialViewModeFromUrl({
+    is3dKey: VIEWERSTATE_KEYS.is3d,
+    is3dEnabledValue: "1",
+    setUIMode,
+  });
+
+  // Initialize map style from URL
   useEffect(() => {
     const hashParams = getHashParams();
     console.debug("useAppSearchParams - hashParams:", hashParams);
-
-    // Handle 3D mode parameter
-    if (hashParams[VIEWERSTATE_KEYS.is3d] !== undefined) {
-      const is3d = hashParams[VIEWERSTATE_KEYS.is3d];
-      if (is3d === "1") {
-        dispatch(setIsMode2d(false));
-      }
-    } else {
-      dispatch(setIsMode2d(true));
-    }
 
     if (hashParams[VIEWERSTATE_KEYS.mapStyle] !== undefined) {
       const mapStyleParam = hashParams[VIEWERSTATE_KEYS.mapStyle];

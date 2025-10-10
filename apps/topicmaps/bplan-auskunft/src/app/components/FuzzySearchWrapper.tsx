@@ -19,7 +19,7 @@ import L from "leaflet";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faSearch } from "@fortawesome/free-solid-svg-icons";
 import type { UnknownAction } from "redux";
-import { getBoundingBoxForLeafletMap } from "@carma-mapping/utils";
+import { getBoundingBoxForLeafletMap } from "@carma-mapping/engines/leaflet";
 import proj4 from "proj4";
 interface FuzzySearchProps {
   setFeatures: (hit) => void;

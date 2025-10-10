@@ -38,11 +38,6 @@ export function getPolygonfromBBox(bbox) {
   );
 }
 
-const degToRad = (degrees) => degrees * (Math.PI / 180);
-
-export const getMeractorScale = (scale, lat) =>
-  scale * (1 / Math.cos(degToRad(lat)));
-
 export function getLabelPosition(feature) {
   if (feature.geometry.type === "Polygon") {
     return getLabelPositionForPolygon(feature.geometry.coordinates);
@@ -98,29 +93,6 @@ export const getBoundsFromArea = (area) => {
 
   return bounds;
 };
-
-export function getBoundingBoxForLeafletMap(
-  leafletMap,
-  referenceSystemDefinition
-) {
-  const bounds = leafletMap.leafletElement.getBounds();
-  const projectedNE = proj4(
-    proj4.defs("EPSG:4326"),
-    referenceSystemDefinition,
-    [bounds._northEast.lng, bounds._northEast.lat]
-  );
-  const projectedSW = proj4(
-    proj4.defs("EPSG:4326"),
-    referenceSystemDefinition,
-    [bounds._southWest.lng, bounds._southWest.lat]
-  );
-  return {
-    left: projectedSW[0],
-    top: projectedNE[1],
-    right: projectedNE[0],
-    bottom: projectedSW[1],
-  };
-}
 
 export const getBoundsForFeatureCollection = (featureCollection) => {
   // Get bbox in EPSG:3857 from Turf.js

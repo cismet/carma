@@ -1,13 +1,10 @@
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 
 import type { BackgroundLayer } from "@carma/types";
+import { MapStyleKeys } from "@carma-appframeworks/portals";
 import { cn } from "@carma-commons/utils";
 
-import {
-  getBackgroundLayer,
-  setBackgroundLayer,
-} from "../../store/slices/mapping";
-import { MapStyleKeys } from "../../constants/MapStyleKeys";
+import { getBackgroundLayer } from "../../store/slices/mapping";
 import { useMapStyle } from "../../hooks/useGeoportalMapStyle";
 
 interface LayerSelectionProps extends React.HTMLAttributes<HTMLButtonElement> {

@@ -1,6 +1,8 @@
-import { LayerMap } from "@carma-appframeworks/portals";
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
+
+import { LayerMap, MapStyleKeys } from "@carma-appframeworks/portals";
+
 import {
   getBackgroundLayer,
   getSelectedMapLayer,
@@ -18,7 +20,7 @@ export const useManageLayers = (layerMap: LayerMap) => {
     const selectedMapLayerId = selectedMapLayer.id;
 
     const getId = () => {
-      return backgroundLayerId === "luftbild"
+      return backgroundLayerId === MapStyleKeys.AERIAL
         ? backgroundLayerId
         : selectedMapLayerId;
     };

@@ -1,5 +1,5 @@
-import React, { ReactNode, useEffect, forwardRef, ForwardedRef } from "react";
-import { ControlComponent, useControlContext } from "../map-control";
+import { ReactNode, useEffect, forwardRef, ForwardedRef } from "react";
+import { useControlContext } from "../map-control";
 import ControlRenderer from "./ControlRenderer";
 
 interface ControlLayoutCanvasProps {

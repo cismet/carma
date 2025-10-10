@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { useReloadOnCesiumRenderError } from "./useReloadOnCesiumRenderError";
-import { carmaWindow } from "@carma-commons/utils";
+import { carmaWindow } from "@carma-commons/dom/window";
 
 describe("useReloadOnCesiumRenderError", () => {
   it("reloads window by default when event is dispatched", () => {

@@ -1,17 +1,22 @@
-import { useCallback, MutableRefObject } from "react";
+import { useCallback, useEffect, useRef, type MutableRefObject } from "react";
 
 import { Degrees } from "@carma/types";
-import { isMapCenterZoomEquivalent } from "@carma-commons/utils";
 import { cesiumClearParamKeys } from "@carma-mapping/engines/cesium";
+import {
+  useCarmaTopicMapContext,
+  TopicMapCtxEvent,
+} from "@carma-mapping/engines/carma-cismap";
 
 import { useHashState } from "../contexts/HashStateProvider";
-import type { LatLngZoom } from "../utils/leafletLikeMapUtils";
+import {
+  getLatLngZoomFromLeafletLike,
+  type LatLngZoom,
+} from "../utils/leafletLikeMapUtils";
 
 interface UseLeafletLikeChangeHandlerOptions {
   navMoveInProgressRef: MutableRefObject<boolean>;
   popstateTargetRef: MutableRefObject<LatLngZoom | null>;
   cesiumClearKeys?: string[];
-  label?: string;
   pixelTolerance?: number;
   onAfterLocationChanged?: () => void;
 }
@@ -29,9 +34,35 @@ export function useLeafletLikeChangeHandler({
   onAfterLocationChanged,
 }: UseLeafletLikeChangeHandlerOptions) {
   const { updateHash, getHashValues } = useHashState();
+  const { subscribe, isSuspendedRef } = useCarmaTopicMapContext();
+
+  // Subscribe to TopicMap context events
+  useEffect(() => {
+    const unsubActive = subscribe(TopicMapCtxEvent.Active, () => {
+      console.debug("[TopicMapHashRouting] TopicMap active");
+    });
+    const unsubSuspended = subscribe(TopicMapCtxEvent.Suspended, () => {
+      console.debug("[TopicMapHashRouting] TopicMap suspended");
+    });
+    return () => {
+      unsubActive();
+      unsubSuspended();
+    };
+  }, [subscribe]);
 
   return useCallback(
     ({ lat, lng, zoom }: LatLngZoom) => {
+      // Don't update hash if TopicMap is suspended (in 3D mode)
+      if (isSuspendedRef.current) {
+        console.debug("[Routing][hash] (2D) skip: TopicMap suspended", {
+          lat,
+          lng,
+          zoom,
+          label,
+        });
+        return;
+      }
+
       // Skip writes during popstate-driven navigation to prevent feedback loops
       if (navMoveInProgressRef.current) {
         console.debug(

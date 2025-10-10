@@ -17,7 +17,7 @@ export interface ForwardZoomEventsBindings {
  * to the Cesium canvas so FOV zoom works while the overlay is visible.
  */
 export function useForwardZoomEventsToCesium(): ForwardZoomEventsBindings {
-  const ctx = useCesiumContext();
+  const { subscribe } = useCesiumContext();
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [fovOverride, setFovOverride] = useState<number | undefined>(undefined);
 
@@ -79,8 +79,8 @@ export function useForwardZoomEventsToCesium(): ForwardZoomEventsBindings {
   }, [handleWheel]);
 
   useEffect(() => {
-    return ctx.subscribe?.(CtxEvent.FovChange, (fov) => setFovOverride(fov));
-  }, [ctx]);
+    return subscribe?.(CtxEvent.FovChange, (fov) => setFovOverride(fov));
+  }, [subscribe]);
 
   return { rootRef, onWheel, fovOverride };
 }

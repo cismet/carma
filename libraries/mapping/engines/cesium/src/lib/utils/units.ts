@@ -1,5 +1,5 @@
 import { LatLng, Meters, Radians } from "@carma/types";
-import { radToDeg } from "@carma-commons/utils";
+import { radToDeg } from "@carma-commons/math";
 import { Cartographic, type Cartesian3 } from "cesium";
 
 export const getDegreesFromCartographic = (

@@ -1,1 +1,0 @@
-export { PitchingCompass } from "./PitchingCompass";

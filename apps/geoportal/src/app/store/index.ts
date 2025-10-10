@@ -4,10 +4,14 @@ import { createLogger } from "redux-logger";
 import { persistReducer } from "redux-persist";
 import localForage from "localforage";
 
-import { getCesiumConfig, cesiumReducer } from "@carma-mapping/engines/cesium";
+import {
+  getCesiumConfig,
+  cesiumReducer,
+  type CesiumState,
+} from "@carma-mapping/engines/cesium";
 
 import { APP_KEY, STORAGE_PREFIX } from "../config";
-import { defaultCesiumState } from "../config/cesium/store.config";
+import { CESIUM_CONFIG } from "../config/app.config";
 import mappingReducer from "./slices/mapping";
 import layersReducer from "./slices/layers";
 import uiReducer from "./slices/ui";
@@ -20,6 +24,11 @@ import {
 } from "@carma-mapping/layers";
 
 console.info("store initializing ....");
+
+// Create Redux state for Cesium (static configuration only)
+const defaultCesiumState: CesiumState = {
+  models: CESIUM_CONFIG.modelAssets,
+};
 
 const customAppKey = new URLSearchParams(window.location.hash).get("appKey");
 

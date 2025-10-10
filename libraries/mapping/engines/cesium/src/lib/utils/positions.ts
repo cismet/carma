@@ -38,7 +38,7 @@ export const getPositionWithHeightAsync = async (
 ): Promise<Cartographic | null> => {
   let result: Cartographic | null = null;
   await withElevationProviders(
-    async (terrainProvider, surfaceProvider, scene) => {
+    async (_terrainProvider, surfaceProvider, scene) => {
       // Convert the Cartographic position to Cartesian3 coordinates
       const cartesianPosition = Cartographic.toCartesian(position);
 

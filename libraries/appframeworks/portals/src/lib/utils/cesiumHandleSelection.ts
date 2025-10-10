@@ -333,14 +333,15 @@ export const cesiumHandleSelection = async (
 
       const posCarto = Cartographic.fromDegrees(pos.lon, pos.lat, 0);
 
-      const [posResult] = await getElevationAsync(
-        surfaceProvider,
-        terrainProvider,
-        [posCarto]
-      );
-
-      if (!posResult) {
-        console.warn("no ground position found for marker");
+      let posResult;
+      try {
+        [posResult] = await getElevationAsync(
+          surfaceProvider,
+          terrainProvider,
+          [posCarto]
+        );
+      } catch (error) {
+        console.warn("failed to get elevation for marker", error);
         return;
       }
 

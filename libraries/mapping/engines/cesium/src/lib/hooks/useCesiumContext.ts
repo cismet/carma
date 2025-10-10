@@ -1,6 +1,6 @@
 import { useContext } from "react";
-import { CesiumContext } from "../CesiumContext";
-import type { CesiumContextType } from "../CesiumContext";
+import { CesiumContext } from "../providers/cesiumContext/CesiumContext";
+import type { CesiumContextType } from "../providers/cesiumContext/CesiumContext";
 import { assertWindowCesiumEnv } from "../utils/cesiumEnv";
 
 export function useCesiumContext(): CesiumContextType {

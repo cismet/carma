@@ -1,4 +1,3 @@
-import React from "react";
 import { type ControlComponent } from "../map-control";
 
 export const filterControls = (control: ControlComponent, position: string) => {

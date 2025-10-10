@@ -1,5 +1,5 @@
 import { SelectionItem } from "@carma-appframeworks/portals";
-import { GazDataItem } from "@carma-commons/utils";
+import { GazDataItem } from "@carma-commons/gazetteer";
 import { ReactNode } from "react";
 
 export type SearchGazetteerProps = {

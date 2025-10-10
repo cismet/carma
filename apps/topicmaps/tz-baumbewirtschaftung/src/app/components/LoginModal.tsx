@@ -14,7 +14,10 @@ const LoginModal = ({ open }: LoginModalProps) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleLogin = async (values: { username: string; password: string }) => {
+  const handleLogin = async (values: {
+    username: string;
+    password: string;
+  }) => {
     setLoading(true);
     setError(null);
 
@@ -23,7 +26,8 @@ const LoginModal = ({ open }: LoginModalProps) => {
         method: "GET",
         headers: {
           Authorization:
-            "Basic " + btoa(`${values.username}@${APP_CONFIG.domain}:${values.password}`),
+            "Basic " +
+            btoa(`${values.username}@${APP_CONFIG.domain}:${values.password}`),
           "Content-Type": "application/json",
         },
       });
@@ -52,7 +56,11 @@ const LoginModal = ({ open }: LoginModalProps) => {
           label="Benutzername"
           rules={[{ required: true, message: "Bitte Benutzername eingeben" }]}
         >
-          <Input prefix={<UserOutlined />} placeholder="Benutzername" size="large" />
+          <Input
+            prefix={<UserOutlined />}
+            placeholder="Benutzername"
+            size="large"
+          />
         </Form.Item>
         <Form.Item
           name="password"
@@ -67,10 +75,21 @@ const LoginModal = ({ open }: LoginModalProps) => {
           />
         </Form.Item>
         {error && (
-          <Alert message={error} type="error" showIcon style={{ marginBottom: 16 }} />
+          <Alert
+            message={error}
+            type="error"
+            showIcon
+            style={{ marginBottom: 16 }}
+          />
         )}
         <Form.Item>
-          <Button type="primary" htmlType="submit" loading={loading} block size="large">
+          <Button
+            type="primary"
+            htmlType="submit"
+            loading={loading}
+            block
+            size="large"
+          >
             Anmelden
           </Button>
         </Form.Item>

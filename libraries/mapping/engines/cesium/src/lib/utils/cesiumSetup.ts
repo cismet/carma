@@ -5,7 +5,7 @@ const CESIUM_PATHNAME = "__cesium__";
 
 const getAppBaseUrl = (): string => {
   const meta = import.meta as unknown as { env?: Record<string, unknown> };
-  const v = meta?.env?.BASE_URL;
+  const v = meta?.env?.["BASE_URL"];
   return typeof v === "string" && v.length > 0 ? v : "/";
 };
 

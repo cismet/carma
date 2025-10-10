@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef } from "react";
 
-import { type Viewer, type Scene, Math as CesiumMath } from "cesium";
+import { type Scene } from "cesium";
 
 import {
   useCesiumContext,
@@ -8,6 +8,7 @@ import {
   useCesiumCameraForceOblique,
   isValidScene,
 } from "@carma-mapping/engines/cesium";
+import { degToRad } from "@carma-commons/math";
 
 import { useOblique } from "./useOblique";
 import { enterObliqueMode, leaveObliqueMode } from "../utils/cameraUtils";
@@ -73,8 +74,8 @@ export function useObliqueInitializer(debug = false) {
       // If camera already has an oblique-like pitch (e.g., restored from hash), don't override it
       let isAlreadyOblique = false;
       const p = camera.pitch;
-      const minOblique = -CesiumMath.toRadians(80);
-      const maxOblique = -CesiumMath.toRadians(5);
+      const minOblique = -degToRad(80 as Degrees);
+      const maxOblique = -degToRad(5 as Degrees);
       isAlreadyOblique = p > minOblique && p < maxOblique;
 
       if (isAlreadyOblique) {

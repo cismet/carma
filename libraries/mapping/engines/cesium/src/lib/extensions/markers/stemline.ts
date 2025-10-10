@@ -21,6 +21,10 @@ export const createOrUpdateStemline = (
   const topHeight = pos.height - (options.gap ?? 0);
   const baseHeight = groundPos.height + (options.gap ?? 10);
 
+  if (!pos || !groundPos) {
+    return;
+  }
+
   const posTop = pos.clone();
   posTop.height = topHeight;
   const posBase = groundPos.clone();

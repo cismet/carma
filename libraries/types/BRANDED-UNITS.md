@@ -37,11 +37,12 @@ Guidelines for type‑safe units (Radians, Degrees, Meters) with zero runtime ov
 
 ### 1) Convert only at IO boundaries (e.g., GeoJSON deg input)
 ```ts
-import { asDegrees, degToRad } from "../utils/src/lib/units";
+import { type Degrees } from "@carma/types";
+import { degToRad } from "../utils/src/lib/units";
 
 // incoming lon/lat in degrees
-const lonDeg = asDegrees(7.0);
-const latDeg = asDegrees(51.0);
+const lonDeg = 7.0 as Degrees;
+const latDeg = 51.0 as Degrees;
 
 const lonRad = degToRad(lonDeg);
 const latRad = degToRad(latDeg);
@@ -50,9 +51,10 @@ const latRad = degToRad(latDeg);
 
 ### 2) Safe conversions with stable types
 ```ts
+import { type Degrees } from "@carma/types";
 import { degToRad, radToDeg } from "../utils/src/lib/units";
 
-const r = degToRad(asDegrees(180)); // Radians
+const r = degToRad(180 as Degrees); // Radians
 const d = radToDeg(r);              // Degrees
 
 const maybeR = degToRad(undefined); // undefined passes through

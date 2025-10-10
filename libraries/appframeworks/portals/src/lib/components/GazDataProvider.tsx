@@ -7,8 +7,11 @@ import {
   useMemo,
 } from "react";
 
-import { type GazDataItem, getGazData } from "@carma-commons/utils";
-import { GazDataConfig } from "@carma-commons/utils";
+import {
+  type GazDataItem,
+  getGazData,
+  type GazDataConfig,
+} from "@carma-commons/gazetteer";
 import { defaultGazDataConfig } from "@carma-commons/resources";
 
 interface GazDataContextType {

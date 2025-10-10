@@ -8,12 +8,8 @@ import {
 
 // Mercator helpers are provided by @carma-commons/utils/mercator; no re-exports here.
 
-import { NumericResult } from "@carma/types";
-import {
-  asMeters,
-  asRadians,
-  getZoomFromPixelResolutionAtLatitudeRad,
-} from "@carma-commons/utils";
+import { NumericResult, Meters, Radians } from "@carma/types";
+import { getZoomFromPixelResolutionAtLatitudeRad } from "@carma-commons/geo";
 import { generatePositionsForRing } from "./geometryGenerators";
 import { PICKMODE, pickScenePositions, pickSceneCenter } from "./pickers";
 import { isValidScene } from "./instanceGates";
@@ -137,8 +133,8 @@ export const cesiumCenterPixelSizeToLeafletZoom = (
   }
   let result: NumericResult = { value: null, error: "no camera found" };
   const zoom = getZoomFromPixelResolutionAtLatitudeRad(
-    asMeters(px),
-    asRadians(scene.camera.positionCartographic.latitude)
+    px as Meters,
+    scene.camera.positionCartographic.latitude as Radians
   );
 
   if (zoom === Infinity) {

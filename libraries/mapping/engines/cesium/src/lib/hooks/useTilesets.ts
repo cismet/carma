@@ -1,28 +1,27 @@
 import { useEffect } from "react";
-import { useSelector } from "react-redux";
-
-import {
-  selectShowPrimaryTileset,
-  selectShowSecondaryTileset,
-  selectViewerIsMode2d,
-} from "../slices/cesium";
-
-import { TRANSITION_DELAY } from "../viewerDefaults";
 
 import { useCesiumContext } from "./useCesiumContext";
+import { TRANSITION_DELAY } from "../viewerDefaults";
+import { TILESET_IDS } from "../constants";
 import { useSecondaryStyleTilesetClickHandler } from "./useSecondaryStyleTilesetClickHandler";
-
 import { useTilesetsDebug } from "./useTilesetsDebug";
 import { isValidScene } from "../utils/instanceGates";
-import { sceneRequestRender } from "../utils/sceneRequestRender";
 
 export const useTilesets = () => {
-  const showPrimary = useSelector(selectShowPrimaryTileset);
-  const { withPrimaryTileset, withSecondaryTileset, sceneRef, requestRender } =
-    useCesiumContext();
-  const showSecondary = useSelector(selectShowSecondaryTileset);
+  const {
+    withPrimaryTileset,
+    withSecondaryTileset,
+    sceneRef,
+    isSuspendedRef,
+    requestRender,
+    tilesetVisibilityRef,
+  } = useCesiumContext();
 
-  const isMode2d = useSelector(selectViewerIsMode2d);
+  const showPrimary =
+    tilesetVisibilityRef.current.get(TILESET_IDS.PRIMARY) ?? false;
+  const showSecondary =
+    tilesetVisibilityRef.current.get(TILESET_IDS.SECONDARY) ?? true;
+
   useTilesetsDebug();
 
   useEffect(() => {
@@ -46,7 +45,7 @@ export const useTilesets = () => {
     };
     repeatUntilAdded();
     requestRender();
-  }, [withPrimaryTileset, showPrimary, requestRender, sceneRef]);
+  }, [withPrimaryTileset, showPrimary, sceneRef, requestRender]);
 
   useEffect(() => {
     let added = false;
@@ -68,7 +67,7 @@ export const useTilesets = () => {
     };
     repeatUntilAdded();
     requestRender();
-  }, [withSecondaryTileset, showSecondary, requestRender, sceneRef]);
+  }, [withSecondaryTileset, showSecondary, sceneRef, requestRender]);
 
   useEffect(() => {
     console.debug("HOOK BaseTilesets: showSecondary", showSecondary);
@@ -100,7 +99,7 @@ export const useTilesets = () => {
       });
     };
 
-    if (isMode2d) {
+    if (isSuspendedRef.current) {
       setTimeout(() => {
         hideTilesets();
       }, TRANSITION_DELAY);
@@ -115,10 +114,11 @@ export const useTilesets = () => {
       return;
     }
   }, [
-    isMode2d,
+    isSuspendedRef,
     showPrimary,
     showSecondary,
     withPrimaryTileset,
     withSecondaryTileset,
+    requestRender,
   ]);
 };

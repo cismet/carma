@@ -1,7 +1,7 @@
 import {
   handleDelayedRender,
   type DelayedRenderOptions,
-} from "@carma-commons/utils";
+} from "@carma-commons/dom/window";
 import { tryWithValidScene } from "./instanceGates";
 import { Scene } from "cesium";
 

@@ -1,8 +1,8 @@
-import { Cartographic, Math as CesiumMath } from "cesium";
+import { Cartographic } from "cesium";
 
 import type { LatLng, Radians } from "@carma/types";
-
-export const EARTH_RADIUS = 6371008.7714;
+import { TWO_PI } from "@carma-commons/math";
+import { EARTH_RADIUS } from "@carma-commons/geo";
 
 export const generateRingFromDegrees = (
   centerDeg: LatLng.deg,
@@ -21,7 +21,7 @@ export const generateRingFromDegrees = (
   };
 
   for (let i = 0; i < samples; i++) {
-    const angle = (CesiumMath.TWO_PI * i) / samples;
+    const angle = (TWO_PI * i) / samples;
     const dx = radiusInMeters * Math.cos(angle);
     const dy = radiusInMeters * Math.sin(angle);
     const point = {

@@ -1,20 +1,5 @@
 import { HashCodec, HashCodecs } from "../contexts/HashStateProvider";
-
-export const defaultHashKeyAliases = {
-  mapStyle: "m",
-  isOblique: "oblq",
-};
-
-// TODO move to a shared location
-enum MapStyleKeys {
-  TOPO = "karte",
-  AERIAL = "luftbild",
-}
-
-const mapStyleShortNames: Record<MapStyleKeys, string> = {
-  [MapStyleKeys.TOPO]: "0",
-  [MapStyleKeys.AERIAL]: "1",
-};
+import { mapStyleShortNames, defaultPrecisions } from "../constants";
 
 const getStringLookupCodec = <T extends string>(
   mapping: Record<T, string>
@@ -54,10 +39,10 @@ const getNumberCodec = (fixed?: number, trailingZeros = false): HashCodec => ({
 
 export const defaultHashCodecs: HashCodecs = Object.freeze({
   mapStyle: getStringLookupCodec(mapStyleShortNames),
-  lat: getNumberCodec(7),
-  lng: getNumberCodec(7),
-  zoom: getNumberCodec(2),
-  heading: getNumberCodec(2),
-  bearing: getNumberCodec(2), // bearing is used by maplibre
+  lat: getNumberCodec(defaultPrecisions.latitude),
+  lng: getNumberCodec(defaultPrecisions.longitude),
+  zoom: getNumberCodec(defaultPrecisions.zoom),
+  heading: getNumberCodec(defaultPrecisions.heading),
+  bearing: getNumberCodec(defaultPrecisions.bearing), // bearing is used by maplibre
   pitch: getNumberCodec(2),
 });

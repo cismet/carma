@@ -1,9 +1,8 @@
-import { useCallback } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useHashState } from "@carma-appframeworks/portals";
+import { useCesiumContext, CtxEvent } from "@carma-mapping/engines/cesium";
 
 export type CesiumSceneChangeEvent = { hashParams: Record<string, string> };
-
-const noop = () => {};
 
 export const triggerCesiumSceneChangeEvent = (
   hashParams: Record<string, string> | null | undefined,
@@ -19,14 +18,35 @@ export const triggerCesiumSceneChangeEvent = (
 
 // analog to useMapHashRoutingLeafletLike
 // updates hash on cesium scene change
-export const useMapHashRoutingCesium = (
-  enabled = true,
-  clearKeys = ["zoom"]
-) => {
+// Internally tracks whether Cesium is suspended (in 2D mode)
+export const useMapHashRoutingCesium = (clearKeys = ["zoom"]) => {
   const { updateHash } = useHashState();
+  const { subscribe, isSuspendedRef } = useCesiumContext();
+
+  // Subscribe to Cesium context events
+  useEffect(() => {
+    const unsubActive = subscribe(CtxEvent.Active, () => {
+      console.debug("[CesiumHashRouting] Cesium active");
+    });
+    const unsubSuspended = subscribe(CtxEvent.Suspended, () => {
+      console.debug("[CesiumHashRouting] Cesium suspended");
+    });
+    return () => {
+      unsubActive();
+      unsubSuspended();
+    };
+  }, [subscribe]);
 
   const handleCesiumSceneChange = useCallback(
     (e: CesiumSceneChangeEvent) => {
+      // Don't update hash if Cesium is suspended (in 2D mode)
+      if (isSuspendedRef.current) {
+        console.debug(
+          "[CesiumHashRouting] Skipping hash update - Cesium suspended"
+        );
+        return;
+      }
+
       updateHash(e.hashParams, {
         clearKeys,
         label: "GPM:3D",
@@ -36,5 +56,5 @@ export const useMapHashRoutingCesium = (
     [updateHash, clearKeys]
   );
 
-  return enabled ? handleCesiumSceneChange : noop;
+  return handleCesiumSceneChange;
 };

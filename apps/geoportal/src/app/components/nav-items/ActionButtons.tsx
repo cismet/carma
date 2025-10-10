@@ -17,30 +17,31 @@ import { geoElements } from "@carma-collab/wuppertal/geoportal";
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 import { useOverlayHelper } from "@carma-commons/ui/helper-overlay";
 import { carmaWindow } from "@carma-commons/utils";
-import { selectViewerIsMode2d } from "@carma-mapping/engines/cesium";
 import {
   appendSavedLayerConfig,
   changeBackgroundOpacity,
   changeBackgroundVisibility,
-  getBackgroundLayer,
   getFocusMode,
   getLayers,
   getLayerState,
   getPaleOpacityValue,
   setFocusMode,
+  setPaleOpacityValue,
+  toggleLayerVisibility,
 } from "../../store/slices/mapping";
 import {
-  changePrintError,
+  UIMode,
   getIfPopupOpend,
-  getIsLoading,
-  getPrintError,
-} from "../../store/slices/print";
+  getUIIsMode2d,
+  setShowResourceModal,
+  setUIMode,
+  toggleUIMode,
+} from "../../store/slices/ui";
 import {
   setShowResourceModal,
   setUIMode,
   setZenMode,
 } from "../../store/slices/ui";
-import { ShareContent } from "../ShareContent";
 import Print from "../map-print/Print";
 import CustomPopover from "./CustomPopover";
 
@@ -53,7 +54,7 @@ const ActionButtons = () => {
   const { selection } = useSelection();
   const { copyShareUrl, contextHolder } = useShareUrl();
 
-  const isMode2d = useSelector(selectViewerIsMode2d);
+  const shouldShow2dUI = useSelector(getUIIsMode2d);
   const focusMode = useSelector(getFocusMode);
   const activeLayers = useSelector(getLayers);
   const showPrintPopup = useSelector(getIfPopupOpend);
@@ -95,7 +96,7 @@ const ActionButtons = () => {
       </Tooltip>
       <Tooltip title="Karteninhalte hinzufügen">
         <button
-          disabled={!isMode2d}
+          disabled={!shouldShow2dUI}
           onClick={() => {
             dispatch(setShowResourceModal(true));
           }}
@@ -106,7 +107,7 @@ const ActionButtons = () => {
             src={baseUrl + "icons/add-layers.png"}
             alt="Kartenebenen hinzufügen"
             className={`h-5 min-w-fit mb-0.5 cursor-pointer ${
-              isMode2d ? "" : disabledImageOpacity
+              shouldShow2dUI ? "" : disabledImageOpacity
             }`}
           />
         </button>
@@ -116,7 +117,7 @@ const ActionButtons = () => {
       >
         <button
           className="h-[24.5px] min-w-fit"
-          disabled={!isMode2d}
+          disabled={!shouldShow2dUI}
           onClick={() => {
             dispatch(setFocusMode(!focusMode));
             dispatch(
@@ -137,7 +138,7 @@ const ActionButtons = () => {
             }
             alt="Kartenebenen hinzufügen"
             className={`h-5 min-w-fit mb-0.5 cursor-pointer ${
-              isMode2d ? "" : disabledImageOpacity
+              shouldShow2dUI ? "" : disabledImageOpacity
             }`}
           />
         </button>
@@ -175,14 +176,14 @@ const ActionButtons = () => {
         icon={faFileExport}
         testId="speichern-btn"
         tooltip="Karte speichern"
-        disabled={!isMode2d}
+        disabled={!shouldShow2dUI}
       />
       <CustomPopover
         content={<Print />}
         icon={printError ? faExclamation : faPrint}
         testId="print-btn"
         tooltip={printError ? printError : "Drucken"}
-        disabled={!isMode2d}
+        disabled={!shouldShow2dUI}
         className={printError ? "text-red-600" : ""}
       />
       <CustomPopover

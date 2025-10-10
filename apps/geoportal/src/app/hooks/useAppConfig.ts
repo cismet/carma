@@ -6,6 +6,7 @@ import {
   type LayerMap,
   type SelectionItem,
   type Settings,
+  MapStyleKeys,
 } from "@carma-appframeworks/portals";
 import type { BackgroundLayer, Layer } from "@carma/types";
 import { updateHashHistoryState, getHashParams } from "@carma-commons/utils";
@@ -63,7 +64,7 @@ const onLoadedConfig = (
       id: config.backgroundLayer.id,
     })
   );
-  if (config.backgroundLayer.id === "luftbild") {
+  if (config.backgroundLayer.id === MapStyleKeys.AERIAL) {
     dispatch(setSelectedLuftbildLayer(selectedBackgroundLayer));
   } else {
     dispatch(setSelectedMapLayer(selectedBackgroundLayer));

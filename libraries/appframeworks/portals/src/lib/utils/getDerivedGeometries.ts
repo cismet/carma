@@ -1,7 +1,7 @@
 import proj4 from "proj4";
 import type { Converter } from "proj4/dist/lib/core";
 
-import { PROJ4_CONVERTERS } from "@carma-commons/utils";
+import { PROJ4_CONVERTERS } from "@carma-commons/geo";
 
 import { DEFAULT_PROJ } from "@carma-commons/resources";
 import { SearchResultItem } from "@carma/types";

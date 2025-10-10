@@ -95,12 +95,12 @@ export const encodeCesiumCamera = (camera: Camera): StringifiedCameraState => {
   const fov = frustum instanceof PerspectiveFrustum ? frustum.fov : undefined;
 
   const orderedParams: [number | undefined, HashCodec][] = [
-    [longitude, cameraCodec.longitude],
-    [latitude, cameraCodec.latitude],
-    [height, cameraCodec.height],
-    [heading, cameraCodec.heading],
-    [pitch, cameraCodec.pitch],
-    [fov, cameraCodec.fov],
+    [longitude, cameraCodec["longitude"]],
+    [latitude, cameraCodec["latitude"]],
+    [height, cameraCodec["height"]],
+    [heading, cameraCodec["heading"]],
+    [pitch, cameraCodec["pitch"]],
+    [fov, cameraCodec["fov"]],
   ];
 
   const stringifiedOrderedParams = orderedParams
@@ -117,12 +117,12 @@ export const decodeCesiumCamera = (
   hashParams: Record<string, string>
 ): CameraState | null => {
   const decoded = Object.keys(cameraCodec).reduce((acc, key) => {
-    const shortKey = cameraCodec[key].key;
+    const codec = cameraCodec[key];
+    if (!codec) return acc;
+    const shortKey = codec.key;
     const value = hashParams[shortKey];
     acc[key] =
-      value !== null && value !== undefined
-        ? cameraCodec[key].decode(value)
-        : null;
+      value !== null && value !== undefined ? codec.decode(value) : null;
     return acc;
   }, {} as Record<string, number | null>);
 
@@ -147,11 +147,11 @@ export const decodeCesiumCamera = (
     normalizedPitch = p;
   }
 
-  const cameraState = {
+  const cameraState: CameraState = {
     position,
-    heading: heading ?? undefined,
-    pitch: normalizedPitch,
-    fov: fov ?? undefined,
+    ...(heading !== null && { heading }),
+    ...(normalizedPitch !== undefined && { pitch: normalizedPitch }),
+    ...(fov !== null && { fov }),
   };
   return cameraState;
 };

@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { carmaWindow } from "@carma-commons/utils";
+import { carmaWindow } from "@carma-commons/dom/window";
 
 export type ReloadOnCesiumRenderErrorOptions = {
   enabled?: boolean; // default true

@@ -11,8 +11,11 @@ import proj4 from "proj4";
 import { useDispatch, useSelector } from "react-redux";
 
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
-import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
+import {
+  useCarmaTopicMapContext,
+  TopicMapCtxEvent,
+} from "@carma-mapping/engines/carma-cismap";
 
 import type { LeafletConfig } from "@carma/types";
 import {
@@ -28,7 +31,6 @@ import { getApplicationVersion } from "@carma-commons/utils";
 import { useOverlayTourContext } from "@carma-commons/ui/helper-overlay";
 import { InfoBoxMeasurement } from "@carma-commons/measurements";
 
-import { selectViewerIsMode2d } from "@carma-mapping/engines/cesium";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 
@@ -42,6 +44,7 @@ import {
   proj4crs4326def,
 } from "../../../../helper/gisHelper.js";
 import { useLeafletZoomControls } from "../../../../hooks/leaflet/useLeafletZoomControls.ts";
+import { useDispatchSachdatenInfoText } from "../../../../hooks/useDispatchSachdatenInfoText.ts";
 import { LEAFLET_CONFIG } from "../../../../config/app.config";
 import { UIMode, getUIMode } from "../../../../store/slices/ui.ts";
 import {
@@ -93,8 +96,8 @@ export const TopicMapComponentWrapper = ({
   const showHamburgerMenu = useSelector(getShowHamburgerMenu);
   const selectedFeature = useSelector(getSelectedFeature);
   const loadingFeatureInfo = useSelector(getLoading);
-  const isMode2d = useSelector(selectViewerIsMode2d);
   const flags = useFeatureFlags();
+  const { isSuspendedRef, leafletMap, subscribe } = useCarmaTopicMapContext();
   const { setAppMenuVisible } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
   const { setSecondaryWithKey, showOverlayHandler } = useOverlayTourContext();
@@ -102,13 +105,7 @@ export const TopicMapComponentWrapper = ({
   const { getLeafletZoom } = useLeafletZoomControls();
   const { gazData } = useGazData();
 
-  const { routedMapRef: topicMap } =
-    useContext<typeof TopicMapContext>(TopicMapContext);
-
-  const getTopicMap = useCallback(
-    () => topicMap?.leafletMap?.leafletElement as L.Map | undefined,
-    [topicMap]
-  );
+  const getTopicMap = useCallback(() => leafletMap, [leafletMap]);
 
   const layerIdleRef = useRef(layersIdle);
 
@@ -118,10 +115,26 @@ export const TopicMapComponentWrapper = ({
     }
   }, [dispatch]);
 
+  // Subscribe to TopicMap context events
+  useEffect(() => {
+    const unsubActivate = subscribe(TopicMapCtxEvent.Activate, () => {
+      console.debug("[TopicMapWrapper] TopicMap activate");
+    });
+    const unsubSuspend = subscribe(TopicMapCtxEvent.Suspend, () => {
+      console.debug("[TopicMapWrapper] TopicMap suspend");
+    });
+    return () => {
+      unsubActivate();
+      unsubSuspend();
+    };
+  }, [subscribe]);
+
   const topicMapLocationChangedHandler = useTopicMapLocationChangedHandler(
-    Boolean(isMode2d),
     updateLayersIdleState
   );
+
+  // Update Sachdaten info text based on layers and zoom
+  useDispatchSachdatenInfoText();
 
   const [marker, setMarker] = useState<L.Marker | undefined>();
   const [markerAccent, setMarkerAccent] = useState<L.Marker | undefined>();
@@ -191,7 +204,7 @@ export const TopicMapComponentWrapper = ({
       if (
         (uiMode === UIMode.DEFAULT || uiMode === UIMode.FEATURE_INFO) &&
         !isAreaType(selection.type as ENDPOINT) &&
-        isMode2d
+        !isSuspendedRef.current
       ) {
         const selectedPos = proj4(proj4crs3857def, proj4crs4326def, [
           selection.x,
@@ -219,7 +232,7 @@ export const TopicMapComponentWrapper = ({
         }
       }
     },
-    [layers, uiMode, isMode2d, layersIdle, getTopicMap]
+    [layers, uiMode, isSuspendedRef, layersIdle, getTopicMap]
   );
 
   const selectionTopicMapOptions = useMemo(
@@ -323,7 +336,7 @@ export const TopicMapComponentWrapper = ({
   );
   const leafletMapProps = useMemo(() => ({ editable: true }), []);
   const infoBox = useMemo(() => {
-    if (isMode2d) {
+    if (!isSuspendedRef.current) {
       if (isModeMeasurement) return <InfoBoxMeasurement key={uiMode} />;
       if (selectedFeature || loadingFeatureInfo)
         return <FeatureInfoBox pos={pos} />;
@@ -332,7 +345,7 @@ export const TopicMapComponentWrapper = ({
     }
     return <div></div>;
   }, [
-    isMode2d,
+    isSuspendedRef,
     isModeMeasurement,
     selectedFeature,
     loadingFeatureInfo,

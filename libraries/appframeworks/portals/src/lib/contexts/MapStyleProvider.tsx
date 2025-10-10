@@ -1,17 +1,16 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { useHashState } from "./HashStateProvider";
-
-export type MapStyle = string;
+import { type MapStyleKey, MapStyleKeys, isMapStyleKey } from "../constants";
 
 export interface MapStyleConfig {
-  defaultStyle: MapStyle;
-  availableStyles: readonly MapStyle[];
+  defaultStyle: MapStyleKey;
+  availableStyles: readonly MapStyleKey[];
 }
 
 interface MapStyleContextType {
-  currentStyle: MapStyle;
-  setCurrentStyle: (style: MapStyle) => void;
+  currentStyle: MapStyleKey;
+  setCurrentStyle: (style: MapStyleKey) => void;
 }
 
 const MapStyleContext = createContext<MapStyleContextType | undefined>(
@@ -31,12 +30,12 @@ export const MapStyleProvider = ({
   const { updateHash, getHashValues } = useHashState();
   // get style on load from hash
   const hashedStyle = getHashValues().mapStyle;
+
   const initStyle =
-    typeof hashedStyle === "string" &&
-    config.availableStyles.includes(hashedStyle)
+    isMapStyleKey(hashedStyle) && config.availableStyles.includes(hashedStyle)
       ? hashedStyle
       : defaultStyle;
-  const [currentStyle, setCurrentStyle] = useState<MapStyle>(initStyle);
+  const [currentStyle, setCurrentStyle] = useState<MapStyleKey>(initStyle);
 
   useEffect(() => {
     // Update the hash state when the current style changes

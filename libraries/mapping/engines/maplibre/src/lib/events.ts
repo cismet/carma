@@ -120,8 +120,13 @@ export const MaplibreWheelEventNames = {
   wheel: "wheel",
 } as const satisfies Record<string, MapWheelEvent["type"]>;
 
-export type MaplibreMapEventName = keyof typeof MaplibreMapEventNames;
-export type MaplibreLayerEventName = keyof typeof MaplibreLayerEventNames;
-export type MaplibreMouseEventName = keyof typeof MaplibreMouseEventNames;
-export type MaplibreTouchEventName = keyof typeof MaplibreTouchEventNames;
-export type MaplibreWheelEventName = keyof typeof MaplibreWheelEventNames;
+export type MaplibreMapEventName =
+  (typeof MaplibreMapEventNames)[keyof typeof MaplibreMapEventNames];
+export type MaplibreLayerEventName =
+  (typeof MaplibreLayerEventNames)[keyof typeof MaplibreLayerEventNames];
+export type MaplibreMouseEventName =
+  (typeof MaplibreMouseEventNames)[keyof typeof MaplibreMouseEventNames];
+export type MaplibreTouchEventName =
+  (typeof MaplibreTouchEventNames)[keyof typeof MaplibreTouchEventNames];
+export type MaplibreWheelEventName =
+  (typeof MaplibreWheelEventNames)[keyof typeof MaplibreWheelEventNames];

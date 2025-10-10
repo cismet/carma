@@ -16,4 +16,5 @@ export const LeafletMapEventNames = {
   moveend: "moveend", //	Event	Fired when the map view stopped changing (e.g. user stopped dragging the map).
 } as const satisfies Record<string, keyof LeafletEventHandlerFnMap>;
 
-export type LeafletMapEventName = keyof typeof LeafletMapEventNames;
+export type LeafletMapEventName =
+  (typeof LeafletMapEventNames)[keyof typeof LeafletMapEventNames];

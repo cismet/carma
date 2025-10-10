@@ -12,6 +12,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { Tooltip, Radio, type RadioChangeEvent } from "antd";
 
+import { CssPixelWidth, CssPixelHeight } from "@carma/types";
 import { useCesiumContext } from "@carma-mapping/engines/cesium";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import { PREVIEW_IMAGE_BASE_SCALE_FACTOR } from "../config";
@@ -24,7 +25,7 @@ import { Backdrop } from "./ObliqueImagePreview.Backdrop";
 import { ContactMailButton } from "@carma-appframeworks/portals";
 import { ObliqueDirectionControlsCompact } from "./ObliqueDirectionControls.Compact";
 import type { CardinalDirectionEnum } from "../utils/orientationUtils";
-import { getViewerSyncedDimensions } from "../utils/getViewerSyncedDimensions";
+import { getSceneSyncedDimensions } from "../utils/getViewerSyncedDimensions";
 import { useProgressivePreviewSource } from "../hooks/useProgressivePreviewSource";
 import { useForwardZoomEventsToCesium } from "../hooks/useForwardZoomEventsToCesium";
 
@@ -141,7 +142,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   const [contrast, setContrast] = useState(100);
   const [saturation, setSaturation] = useState(100);
 
-  const ctx = useCesiumContext();
+  const { sceneRef } = useCesiumContext();
   const { rootRef, onWheel, fovOverride } = useForwardZoomEventsToCesium();
 
   const { xOffset, yOffset } = interiorOrientationOffsets;
@@ -342,13 +343,22 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
 
   if (!isVisible) return null;
 
-  const { syncedWidth, syncedHeight } = getViewerSyncedDimensions(
-    ctx,
-    isVertical,
-    imageAspectRatio,
-    PREVIEW_IMAGE_BASE_SCALE_FACTOR,
-    fovOverride
-  );
+  let syncedWidth = 0 as CssPixelWidth;
+  let syncedHeight = 0 as CssPixelHeight;
+  let validSyncedDimensions = false;
+
+  try {
+    ({ syncedWidth, syncedHeight } = getSceneSyncedDimensions(
+      sceneRef.current,
+      isVertical,
+      imageAspectRatio,
+      PREVIEW_IMAGE_BASE_SCALE_FACTOR,
+      fovOverride
+    ));
+    validSyncedDimensions = true;
+  } catch (e) {
+    console.error("Failed to get synced dimensions", e);
+  }
 
   return (
     <div
@@ -458,21 +468,25 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
           )}
         </div>
       </div>
-      {currentSrc && currentLoaded && !dimImage && !showNext && (
-        <PreviewImage
-          src={currentSrc}
-          alt={imageId ?? "Oblique Image Preview"}
-          width={syncedWidth}
-          height={syncedHeight}
-          borderStyle={border}
-          boxShadowStyle={boxShadow}
-          fadeIn={shouldFadeIn}
-          blendMode={blendMode}
-          isDebug={isDebugMode}
-          transform={transform}
-        />
-      )}
-      {nextSrc && (
+      {currentSrc &&
+        currentLoaded &&
+        !dimImage &&
+        !showNext &&
+        validSyncedDimensions && (
+          <PreviewImage
+            src={currentSrc}
+            alt={imageId ?? "Oblique Image Preview"}
+            width={syncedWidth}
+            height={syncedHeight}
+            borderStyle={border}
+            boxShadowStyle={boxShadow}
+            fadeIn={shouldFadeIn}
+            blendMode={blendMode}
+            isDebug={isDebugMode}
+            transform={transform}
+          />
+        )}
+      {nextSrc && validSyncedDimensions && (
         <PreviewImage
           src={nextSrc}
           alt={imageId ?? "Oblique Image Preview (next)"}

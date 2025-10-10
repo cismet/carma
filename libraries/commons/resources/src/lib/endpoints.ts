@@ -3,53 +3,41 @@ type EndpointOptions = {
   host: string;
 };
 
-export enum ENDPOINT {
-  ADRESSEN = "adressen",
-  AENDERUNGSV = "aenderungsv",
-  BEZIRKE = "bezirke",
-  BPKLIMASTANDORTE = "bpklimastandorte",
-  BPLAENE = "bplaene.v2",
-  EBIKES = "ebikes",
-  EMOB = "emob",
-  GEPS = "geps",
-  GEPS_REVERSE = "geps_reverse",
-  KITAS = "kitas",
-  PRBR = "prbr",
-  NO2 = "no2",
-  QUARTIERE = "quartiere",
-  POIS = "pois",
-  VORHABEN = "vorhabenkarte",
-}
+export const ENDPOINTS = {
+  ADRESSEN: "adressen",
+  AENDERUNGSV: "aenderungsv",
+  BEZIRKE: "bezirke",
+  BPKLIMASTANDORTE: "bpklimastandorte",
+  BPLAENE: "bplaene.v2",
+  EBIKES: "ebikes",
+  EMOB: "emob",
+  GEPS: "geps",
+  GEPS_REVERSE: "geps_reverse",
+  KITAS: "kitas",
+  PRBR: "prbr",
+  NO2: "no2",
+  QUARTIERE: "quartiere",
+  POIS: "pois",
+  VORHABEN: "vorhabenkarte",
+} as const;
 
-export type NamedCategory = Record<ENDPOINT, string>;
+export type EndpointKey = (typeof ENDPOINTS)[keyof typeof ENDPOINTS];
 
-export const NAMED_CATEGORIES: Partial<NamedCategory> = Object.freeze({
-  [ENDPOINT.POIS]: "POIS",
-  [ENDPOINT.BPKLIMASTANDORTE]: "Klimastandorte",
-  [ENDPOINT.KITAS]: "Kitas",
-  [ENDPOINT.BEZIRKE]: "Bezirke",
-  [ENDPOINT.QUARTIERE]: "Quartiere",
-  [ENDPOINT.ADRESSEN]: "Adressen",
-  // todo to be confirmed
-  /*
-    aenderungsv: "Änderungsverfahren",
-    bplaene: "Bebauungs-Pläne",
-    emob: "Elektromobilität",
-    ebikes: "E-Bikes",
-    geps: "GEPS",
-    geps_reverse: "GEPS",
-    prbr: "PR BR",
-    no2: "NO2",
-    */
-});
+export const NAMED_CATEGORIES: Partial<Record<EndpointKey, string>> = {
+  [ENDPOINTS.POIS]: "POIS",
+  [ENDPOINTS.BPKLIMASTANDORTE]: "Klimastandorte",
+  [ENDPOINTS.KITAS]: "Kitas",
+  [ENDPOINTS.BEZIRKE]: "Bezirke",
+  [ENDPOINTS.QUARTIERE]: "Quartiere",
+} as const;
 
 // add default endpoints here
-export const DEFAULT_GAZ_SOURCES: ENDPOINT[] = [
-  ENDPOINT.ADRESSEN,
-  ENDPOINT.BEZIRKE,
-  ENDPOINT.QUARTIERE,
-  ENDPOINT.POIS,
-  ENDPOINT.KITAS,
+export const DEFAULT_GAZ_SOURCES: EndpointKey[] = [
+  ENDPOINTS.ADRESSEN,
+  ENDPOINTS.BEZIRKE,
+  ENDPOINTS.QUARTIERE,
+  ENDPOINTS.POIS,
+  ENDPOINTS.KITAS,
   // ENDPOINT.VORHABEN,
 ];
 
@@ -57,27 +45,27 @@ export const DEFAULT_HOST = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 export const DEFAULT_PROJ = "3857";
 export const DEFAULT_NRW_PROJ = "25832";
 
-const AREA_ENDPOINTS = [ENDPOINT.BEZIRKE, ENDPOINT.QUARTIERE];
+const AREA_ENDPOINTS: EndpointKey[] = [ENDPOINTS.BEZIRKE, ENDPOINTS.QUARTIERE];
 
-export const isAreaType = (endpoint: ENDPOINT) => {
+export const isAreaType = (endpoint: EndpointKey) => {
   return AREA_ENDPOINTS.includes(endpoint);
 };
 
-const AREA_ENDPOINTS_GEP = [
-  ENDPOINT.BEZIRKE,
-  ENDPOINT.QUARTIERE,
-  ENDPOINT.GEPS,
-  ENDPOINT.GEPS_REVERSE,
+const AREA_ENDPOINTS_GEP: EndpointKey[] = [
+  ENDPOINTS.BEZIRKE,
+  ENDPOINTS.QUARTIERE,
+  ENDPOINTS.GEPS,
+  ENDPOINTS.GEPS_REVERSE,
 ];
 
 const DEFAULT_GAZ_PROJ = "25832";
 
-export const isAreaTypeWithGEP = (endpoint: ENDPOINT) => {
+export const isAreaTypeWithGEP = (endpoint: EndpointKey) => {
   return AREA_ENDPOINTS_GEP.includes(endpoint);
 };
 
 export const createGazEndpointUri = (
-  endpoint: ENDPOINT,
+  endpoint: EndpointKey,
   { crs, host }: EndpointOptions
 ) => {
   if (crs === "" || crs === DEFAULT_GAZ_PROJ) {
@@ -88,7 +76,7 @@ export const createGazEndpointUri = (
 };
 
 export const createGazEndpointUriWithoutCRS = (
-  endpoint: ENDPOINT,
+  endpoint: EndpointKey,
   { crs, host }: EndpointOptions
 ) => {
   if (crs !== "") {
@@ -99,14 +87,17 @@ export const createGazEndpointUriWithoutCRS = (
 
 export const gazDataPrefix = "GazDataDefault";
 
-export const createConfig = (endpoint: ENDPOINT, options: EndpointOptions) => ({
+export const createConfig = (
+  endpoint: EndpointKey,
+  options: EndpointOptions
+) => ({
   topic: endpoint,
   url: createGazEndpointUri(endpoint, options),
   crs: options.crs,
 });
 
 export const createConfigWithoutCRS = (
-  endpoint: ENDPOINT,
+  endpoint: EndpointKey,
   options: EndpointOptions
 ) => ({
   topic: endpoint,
@@ -116,14 +107,14 @@ export const createConfigWithoutCRS = (
 
 export const defaultGazDataConfig = {
   crs: DEFAULT_PROJ,
-  sources: DEFAULT_GAZ_SOURCES.map((endpoint) => {
+  sources: DEFAULT_GAZ_SOURCES.map((endpoint: EndpointKey) => {
     return createConfig(endpoint, { crs: DEFAULT_PROJ, host: DEFAULT_HOST });
   }),
   prefix: gazDataPrefix,
 };
 
-export const isEndpoint = (value: string): value is ENDPOINT => {
-  return Object.values(ENDPOINT).includes(value as ENDPOINT);
+export const isEndpoint = (value: string): value is EndpointKey => {
+  return Object.values(ENDPOINTS).includes(value as EndpointKey);
 };
 
-export default ENDPOINT;
+export default ENDPOINTS;

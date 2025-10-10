@@ -3,16 +3,16 @@ import {
   BoundingSphere,
   Camera,
   Cartesian3,
-  EasingFunction,
   HeadingPitchRange,
   Matrix4,
   PerspectiveFrustum,
   Ray,
   defined,
   Ellipsoid,
-  Math as CesiumMath,
   Scene,
 } from "cesium";
+
+import { clamp, Easing } from "@carma-commons/utils";
 import {
   type AnimationMap,
   cesiumAnimateFov,
@@ -20,6 +20,7 @@ import {
   tryWithValidCamera,
   EmitCesiumCtxFn,
 } from "@carma-mapping/engines/cesium";
+
 import { DerivedExteriorOrientation } from "./transformExteriorOrientation";
 import type { AnimationConfig } from "../types";
 
@@ -27,7 +28,7 @@ const ENTER_DURATION = 1000;
 const LEAVE_BASE_DURATION = 800;
 const MAX_FLY_DURATION_MS = 2000; // ms
 const MIN_FLY_DURATION_MS = 50; // should be about a frame to avoid zero duration artifacts in calculations and code paths taken
-const DEFAULT_EASING_FUNCTION = EasingFunction.LINEAR_NONE;
+const DEFAULT_EASING_FUNCTION = Easing.LINEAR_NONE;
 const DYNAMIC_DISTANCE_TO_MS_FACTOR = 100;
 
 /**
@@ -124,7 +125,7 @@ const distanceSqrtInMetersToMilliseconds = (
   factor = DYNAMIC_DISTANCE_TO_MS_FACTOR
 ) => {
   const distanceToMSeconds = Math.sqrt(Math.abs(distance)) * factor;
-  return CesiumMath.clamp(distanceToMSeconds, min, max);
+  return clamp(distanceToMSeconds, min, max);
 };
 
 export const getDynamicDurationSecondsFromDistance = (

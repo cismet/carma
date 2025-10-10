@@ -8,12 +8,11 @@ import {
 import { Tooltip } from "antd";
 import { useControls } from "leva";
 
+import { useCesiumContext, CtxEvent } from "@carma-mapping/engines/cesium";
 import {
-  useCesiumContext,
-  CtxEvent,
   addMapTransitionLifecycleHandler,
   MapTransitionState,
-} from "@carma-mapping/engines/cesium";
+} from "@carma-mapping/map-transition-2d-3d";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import { ContactMailButton } from "@carma-appframeworks/portals";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
@@ -76,15 +75,15 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     selectedImageRefresh,
   } = useOblique();
   const siblingsByCardinal = useSiblingsByCardinal();
-  const ctx = useCesiumContext(),
-    {
-      sceneRef,
-      shouldSuspendPitchLimiterRef,
-      shouldSuspendCameraLimitersRef,
-      requestRender,
-      isValidViewer,
-      transitionLifecycleRef,
-    } = ctx;
+  const {
+    sceneRef,
+    subscribe,
+    shouldSuspendPitchLimiterRef,
+    shouldSuspendCameraLimitersRef,
+    requestRender,
+    isValidViewer,
+    transitionLifecycleRef,
+  } = useCesiumContext();
   const imageId = selectedImage?.record?.id;
   const cameraId = selectedImage?.record?.cameraId;
   const { isDebugMode, isObliqueUiEval } = useFeatureFlags();
@@ -119,11 +118,11 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
 
   // Close preview when a Home fly is triggered
   useEffect(() => {
-    const unsubscribe = ctx.subscribe(CtxEvent.Home, () => {
+    const unsubscribe = subscribe(CtxEvent.GoHome, () => {
       setIsPreviewVisible(false);
     });
     return unsubscribe;
-  }, [ctx]);
+  }, [subscribe]);
   // Disable camera limiters while preview is visible
   useEffect(() => {
     if (shouldSuspendPitchLimiterRef)

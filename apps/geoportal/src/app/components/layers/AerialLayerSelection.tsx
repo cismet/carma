@@ -1,16 +1,18 @@
+import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
+import { Radio } from "antd";
+
+import { useMapStyle, MapStyleKeys } from "@carma-appframeworks/portals";
+
 import {
   getBackgroundLayer,
   getSelectedLuftbildLayer,
   setBackgroundLayer,
   setSelectedLuftbildLayer,
 } from "../../store/slices/mapping";
-import { Radio } from "antd";
+
 import { layerMap } from "../../config";
 import LayerSelection from "./LayerSelection";
-import { useState } from "react";
-import { useMapStyle } from "@carma-appframeworks/portals";
-import { MapStyleKeys } from "../../constants/MapStyleKeys";
 import { createBackgroundLayerConfig } from "../../helper/layer";
 
 const AerialLayerSelection = () => {
@@ -22,11 +24,11 @@ const AerialLayerSelection = () => {
   const backgroundLayer = useSelector(getBackgroundLayer);
 
   const handleRadioClick = (e) => {
-    if (backgroundLayer.id !== "luftbild") {
+    if (backgroundLayer.id !== MapStyleKeys.AERIAL) {
       setCurrentStyle(MapStyleKeys.AERIAL);
       dispatch(
         setBackgroundLayer({
-          id: "luftbild",
+          id: MapStyleKeys.AERIAL,
           title: layerMap[e.target.value].title,
           opacity: 1.0,
           description: layerMap[e.target.value].description,
@@ -46,9 +48,9 @@ const AerialLayerSelection = () => {
 
   return (
     <LayerSelection
-      id="luftbild"
+      id={MapStyleKeys.AERIAL}
       title="Luftbild"
-      selectedLayer={{ ...selectedLuftbildLayer, id: "luftbild" }}
+      selectedLayer={{ ...selectedLuftbildLayer, id: MapStyleKeys.AERIAL }}
       onMouseEnter={() => {
         setHovered(true);
       }}
@@ -65,7 +67,7 @@ const AerialLayerSelection = () => {
           dispatch(
             setBackgroundLayer({
               ...config,
-              id: "luftbild",
+              id: MapStyleKeys.AERIAL,
             })
           );
         }}
@@ -73,12 +75,14 @@ const AerialLayerSelection = () => {
         optionType="default"
         style={{
           filter:
-            backgroundLayer.id !== "luftbild" && !hovered ? "saturate(0)" : "",
+            backgroundLayer.id !== MapStyleKeys.AERIAL && !hovered
+              ? "saturate(0)"
+              : "",
         }}
       >
         <Radio
           onClick={handleRadioClick}
-          value="luftbild"
+          value={MapStyleKeys.AERIAL}
           className="text-left"
         >
           Luftbildkarte 03/24

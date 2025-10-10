@@ -2,6 +2,7 @@ import { OBLIQUE_PREVIEW_QUALITY } from "./constants";
 import type { Converter } from "proj4/dist/lib/core";
 
 import type { Radians } from "@carma/types";
+import type { EasingFunction } from "@carma-commons/utils";
 
 export type ExteriorPosition = {
   x: number;
@@ -51,7 +52,7 @@ export type ObliqueImageRecordMap = Map<string, ObliqueImageRecord>;
 export type AnimationConfig = {
   delay?: number; // in ms, useful for synchronizing independedent animations
   duration?: number; // in ms, also max value for dynamic duration
-  easingFunction?: EasingFunction.Callback;
+  easingFunction?: EasingFunction;
 };
 
 export type ObliqueAnimationsConfig = {

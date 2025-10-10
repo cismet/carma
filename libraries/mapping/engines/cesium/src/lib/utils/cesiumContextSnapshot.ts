@@ -1,5 +1,5 @@
 import { Cartographic, Math as CesiumMath, type Viewer } from "cesium";
-import type { CesiumContextType } from "../CesiumContext";
+import type { CesiumContextType } from "../providers/cesiumContext/CesiumContext";
 
 export type CesiumContextSnapshot = Readonly<
   Record<string, unknown> & {

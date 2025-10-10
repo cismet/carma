@@ -1,0 +1,5 @@
+{
+  "name": "@carma-mapping/engines/carma-cismap",
+  "version": "0.0.1",
+  "type": "module"
+}

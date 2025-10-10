@@ -1,20 +1,20 @@
 import { useEffect } from "react";
 
-import type { AnyAction, Dispatch } from "@reduxjs/toolkit";
 import type { BackgroundLayer } from "@carma/types";
-import { setCurrentSceneStyle } from "@carma-mapping/engines/cesium";
+import {
+  MapStyleKeys,
+  ManagedCesiumStyleKeys,
+} from "@carma-appframeworks/portals";
+import { useCesiumContext, CtxEvent } from "@carma-mapping/engines/cesium";
 
-export const useSyncCesiumSceneStyle = (
-  backgroundLayer: BackgroundLayer | undefined,
-  ctx: { isValidViewer: () => boolean },
-  dispatch: Dispatch<AnyAction>
-) => {
+export const useSyncCesiumSceneStyle = (backgroundLayer: BackgroundLayer) => {
+  const { isValidViewer, emit } = useCesiumContext();
   useEffect(() => {
-    if (ctx.isValidViewer() && backgroundLayer) {
-      if (backgroundLayer.id === "luftbild") {
-        dispatch(setCurrentSceneStyle("primary"));
+    if (isValidViewer() && backgroundLayer) {
+      if (backgroundLayer.id === MapStyleKeys.AERIAL) {
+        emit(CtxEvent.SetSceneStyle, ManagedCesiumStyleKeys.LOD2);
       } else {
-        dispatch(setCurrentSceneStyle("secondary"));
+        emit(CtxEvent.SetSceneStyle, ManagedCesiumStyleKeys.MESH);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

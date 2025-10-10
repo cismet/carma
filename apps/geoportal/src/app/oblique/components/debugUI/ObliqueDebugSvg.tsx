@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Math as CesiumMath } from "cesium";
 import { useCesiumContext } from "@carma-mapping/engines/cesium";
+import { radToDeg } from "@carma-commons/utils";
 import { Collapse } from "antd";
 
 import { useOblique } from "../../hooks/useOblique";
@@ -32,8 +32,7 @@ export const ObliqueDebugSvg = () => {
   const [cropHeightFactor, setCropHeightFactor] = useState(400);
   const [imageRotation, setImageRotation] = useState(0); // 0, 90, 180, 270 degrees
   // Core contexts and refs
-  const ctx = useCesiumContext();
-  const { viewerRef, isValidViewer } = ctx;
+  const { viewerRef, isValidViewer } = useCesiumContext();
   const { converter, headingOffset, previewPath, selectedImageRefresh } =
     useOblique();
   const camera = viewerRef?.current?.camera;
@@ -375,7 +374,7 @@ export const ObliqueDebugSvg = () => {
       strokeWidth={8}
       transform={`translate(${pointOnGround.x}, ${
         pointOnGround.y
-      }) rotate(${CesiumMath.toDegrees(sectorHeading)})`}
+      }) rotate(${radToDeg(sectorHeading as Radians)})`}
     />
   );
 

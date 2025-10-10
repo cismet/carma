@@ -50,7 +50,7 @@ import { discoverConfig } from "../helper/discover";
 
 import "./input.css";
 import "./modal.css";
-import { md5ActionFetchDAQ, md5FetchJSON } from "@carma-commons/utils";
+import { md5ActionFetchDAQ, md5FetchJSON } from "@carma-commons/fetching";
 import ItemSkeleton from "./ItemSkeleton";
 import {
   addloadingCapabilitiesIDs,

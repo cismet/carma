@@ -1,20 +1,20 @@
-import { useCallback, useMemo, useRef } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useSelector } from "react-redux";
 
 import type { FeatureInfo } from "@carma/types";
 
 import {
   useSelectionCesium,
   useCesiumModels,
+  DEFAULT_TILESET_IDS,
+  DEFAULT_MARKER_KEYS,
 } from "@carma-appframeworks/portals";
 
 import {
   CustomViewer,
-  selectShowPrimaryTileset,
-  selectViewerIsMode2d,
-  selectViewerModels,
   useCesiumContext,
   useCesiumInitialCameraFromSearchParams,
+  CtxEvent,
 } from "@carma-mapping/engines/cesium";
 import type { CesiumConfig } from "@carma-mapping/engines/cesium";
 
@@ -39,16 +39,41 @@ export const CesiumMapComponentWrapper = ({
   cesiumOptions,
 }: CesiumMapComponentWrapperProps) => {
   const container3dMapRef = useRef<HTMLDivElement>(null);
-  const ctx = useCesiumContext();
-  const { withTerrainProvider, withSurfaceProvider } = ctx;
+  const {
+    withTerrainProvider,
+    withSurfaceProvider,
+    subscribe,
+    tilesetVisibilityRef,
+    models,
+  } = useCesiumContext();
 
-  const isMode2d = useSelector(selectViewerIsMode2d) || !allow3d;
-  const showPrimaryTileset = useSelector(selectShowPrimaryTileset);
-  const models = useSelector(selectViewerModels);
+  // Track mode via events to prevent re-renders from Redux
+  const [isMode2d, setIsMode2d] = useState(!allow3d);
   const backgroundLayer = useSelector(getBackgroundLayer);
-  const dispatch = useDispatch();
 
-  const markerAsset = models[cesiumOptions.markerKey ?? "MarkerGlowLine"];
+  // Read tileset visibility from context ref
+  const showPrimaryTileset =
+    tilesetVisibilityRef.current.get(DEFAULT_TILESET_IDS.PRIMARY) ?? true;
+
+  // Subscribe to Cesium context events
+  useEffect(() => {
+    if (!allow3d) return; // If 3D not allowed, stay in 2D
+    const unsubActivate = subscribe(CtxEvent.Activate, () => {
+      console.debug("[CesiumWrapper] Cesium activate");
+      setIsMode2d(false);
+    });
+    const unsubSuspend = subscribe(CtxEvent.Suspend, () => {
+      console.debug("[CesiumWrapper] Cesium suspend");
+      setIsMode2d(true);
+    });
+    return () => {
+      unsubActivate();
+      unsubSuspend();
+    };
+  }, [subscribe, allow3d]);
+
+  const markerAsset =
+    models?.[cesiumOptions.markerKey ?? DEFAULT_MARKER_KEYS.MARKER_GLOW_LINE];
   const markerAnchorHeight = cesiumOptions.markerAnchorHeight ?? 10;
 
   const flags = useFeatureFlags();
@@ -59,9 +84,9 @@ export const CesiumMapComponentWrapper = ({
   const modelSelectionDispatcher = useModelSelectionDispatcher();
 
   // Sync scene style with background layer selection
-  useSyncCesiumSceneStyle(backgroundLayer, ctx, dispatch);
+  useSyncCesiumSceneStyle(backgroundLayer);
 
-  const onSceneChange = useCesiumSceneChangedHandler(!isMode2d);
+  const onSceneChange = useCesiumSceneChangedHandler();
 
   const onSelect = useCallback(
     (feature: unknown) =>

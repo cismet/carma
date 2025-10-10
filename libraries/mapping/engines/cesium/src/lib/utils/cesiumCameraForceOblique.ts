@@ -1,4 +1,4 @@
-import { clampToToleranceRange } from "@carma-commons/utils";
+import { clampToToleranceRange } from "@carma-commons/math";
 import {
   Cartesian3,
   Math as CesiumMath,

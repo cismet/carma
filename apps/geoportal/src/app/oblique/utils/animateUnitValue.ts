@@ -1,4 +1,4 @@
-import { EasingFunction, Math as CesiumMath } from "cesium";
+import { clamp, type EasingFunction, Easing } from "@carma-commons/utils";
 
 const DEFAULT_ANIMATION_DURATION = 500; // milliseconds
 
@@ -10,7 +10,7 @@ export interface AnimationState<T> {
   onComplete?: () => void;
   duration: number;
   delay?: number;
-  easingFunction: (time: number) => number;
+  easingFunction: EasingFunction;
 }
 
 export function createAnimationState<T>(
@@ -21,7 +21,7 @@ export function createAnimationState<T>(
     startTime: null,
     duration: DEFAULT_ANIMATION_DURATION,
     delay: 0,
-    easingFunction: EasingFunction.LINEAR_NONE,
+    easingFunction: Easing.LINEAR_NONE,
     ...params,
   };
 }
@@ -40,7 +40,7 @@ export function processAnimation<T extends number>(
   const elapsed =
     performance.now() - animState.startTime - (animState.delay || 0);
   const duration = animState.duration;
-  const progress = CesiumMath.clamp(elapsed / duration, 0, 1);
+  const progress = clamp(elapsed / duration, 0, 1);
   const easedProgress = animState.easingFunction(progress);
   // Calculate interpolated value
   const newValue =

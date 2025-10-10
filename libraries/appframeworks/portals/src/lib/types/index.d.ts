@@ -142,3 +142,5 @@ export interface FeatureInfoState {
   loading: boolean;
   completedVectorLayers: string[];
 }
+
+export type { GeoportalEventMap } from "./GeoportalEventMap";

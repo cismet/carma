@@ -4,8 +4,6 @@ import {
   Cartographic,
   Cesium3DTileset,
   Cesium3DTileStyle,
-  Color,
-  ColorMaterialProperty,
   defined,
   Matrix4,
   Math as CesiumMath,
@@ -20,7 +18,6 @@ import {
 import type { Degrees, LatLng, Altitude } from "@carma/types";
 import type { TilesetConfig } from "@carma-commons/resources";
 
-import type { CesiumContextType } from "../CesiumContext";
 import { pickSceneCenter } from "./pickers";
 import { isValidCamera, isValidScene } from "./instanceGates";
 

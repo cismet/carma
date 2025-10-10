@@ -33,7 +33,8 @@ export const useCesiumModels = ({
   enabled,
   selection,
 }: UseCesiumModelsOptions) => {
-  const ctx = useCesiumContext();
+  const { requestRender, isValidViewer, isViewerReady, viewerRef } =
+    useCesiumContext();
   const modelEntitiesRef = useRef<Entity[]>([]);
   type DrillPickResult = ReturnType<Scene["drillPick"]>;
   type PickedObject = DrillPickResult[0];
@@ -48,11 +49,11 @@ export const useCesiumModels = ({
   }, [selection?.onSelect]);
 
   useEffect(() => {
-    const v = ctx.viewerRef.current;
+    const v = viewerRef.current;
     if (
       !enabled ||
-      !ctx.isValidViewer() ||
-      !ctx.isViewerReady ||
+      isValidViewer() ||
+      !isViewerReady ||
       models.length === 0 ||
       !v
     )
@@ -70,7 +71,7 @@ export const useCesiumModels = ({
       });
 
       modelEntitiesRef.current = loadedEntities;
-      ctx.requestRender();
+      requestRender();
     } catch (error) {
       console.warn("[Cesium|Models] Model load failure:", error);
       loadedEntities.forEach((entity) => {
@@ -97,14 +98,15 @@ export const useCesiumModels = ({
         }
       }
     };
-  }, [enabled, models, ctx]);
+  }, [enabled, models, isValidViewer, isViewerReady, requestRender, viewerRef]);
 
   useEffect(() => {
-    const v = ctx.viewerRef.current;
+    const v = viewerRef.current;
     const selectionEnabled = !!selection?.enabled && enabled;
     if (
       !selectionEnabled ||
-      !ctx.isValidViewer() ||
+      !isValidViewer() ||
+      !isViewerReady ||
       !v ||
       !v.scene ||
       !v.canvas
@@ -132,7 +134,7 @@ export const useCesiumModels = ({
       if (selectedEntityRef.current?.id?.model) {
         selectedEntityRef.current.id.model.customShader =
           originalShaderRef.current ?? undefined;
-        ctx.requestRender();
+        requestRender();
       }
     };
 
@@ -140,7 +142,7 @@ export const useCesiumModels = ({
       if (!entity.id?.model) return;
       originalShaderRef.current = entity.id.model.customShader ?? undefined;
       if (highlightShader) entity.id.model.customShader = highlightShader;
-      ctx.requestRender();
+      requestRender();
     };
 
     const extractProperties = (
@@ -168,7 +170,7 @@ export const useCesiumModels = ({
     const handleLeftClick = ({
       position,
     }: ScreenSpaceEventHandler.PositionedEvent) => {
-      if (!position || !ctx.isValidViewer()) return;
+      if (!position || !isValidViewer() || !isViewerReady) return;
       const entities = scene.drillPick(position, 5);
       for (let i = 0; i < entities.length; i++) {
         const entity = entities[i];
@@ -195,7 +197,7 @@ export const useCesiumModels = ({
         if (selectedEntityRef.current?.id?.model) {
           selectedEntityRef.current.id.model.customShader =
             originalShaderRef.current ?? undefined;
-          ctx.requestRender();
+          requestRender();
         }
         selectedEntityRef.current = null;
         originalShaderRef.current = undefined;
@@ -208,9 +210,12 @@ export const useCesiumModels = ({
     };
   }, [
     enabled,
-    ctx,
     selection?.enabled,
     selection?.deselectOnEmptyClick,
     selection?.highlightShader,
+    isValidViewer,
+    isViewerReady,
+    requestRender,
+    viewerRef,
   ]);
 };

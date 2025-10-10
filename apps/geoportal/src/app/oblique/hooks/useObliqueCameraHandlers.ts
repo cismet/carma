@@ -9,20 +9,18 @@ import {
 import {
   Cartesian3,
   Cartesian2,
-  EasingFunction,
   ScreenSpaceEventType,
   ScreenSpaceEventHandler,
-  Math as CesiumMath,
   HeadingPitchRange,
-  Camera,
 } from "cesium";
 
+import type { Radians } from "@carma/types";
 import {
   isValidScene,
-  isValidViewer,
   tryWithValidCamera,
   useCesiumContext,
 } from "@carma-mapping/engines/cesium";
+import { zeroToTwoPi, PI, TWO_PI, Easing } from "@carma-commons/math";
 
 import {
   CardinalDirectionEnum,
@@ -33,6 +31,9 @@ import { useOblique } from "./useOblique";
 import { useOrbitPoint } from "./useOrbitPoint";
 import { useDebugOrbitPoint } from "./useDebugOrbitPoint";
 import { resetCamera } from "../utils/cameraUtils";
+
+const DURATION = 500;
+const MIN_HEADING_DELTA = 0.0001 as Radians;
 
 export const useObliqueCameraHandlers = (
   animationInProgressRef: MutableRefObject<boolean>,
@@ -77,18 +78,22 @@ export const useObliqueCameraHandlers = (
 
   const rotateToHeading = useCallback(
     (targetHeading: number) => {
-      const viewer = viewerRef.current;
-      if (!isValidViewer() || animationInProgressRef.current) return;
+      const scene = sceneRef.current;
+      if (
+        !isValidScene(scene) ||
+        !isValidViewer() ||
+        animationInProgressRef.current
+      )
+        return;
 
-      const camera = viewer.camera;
-      const scene = viewer.scene;
+      const { camera } = scene;
       const currentHeading = camera.heading;
 
       // Normalize headings to [0, 2PI)
-      const normalizedTarget = CesiumMath.zeroToTwoPi(targetHeading);
-      const normalizedCurrent = CesiumMath.zeroToTwoPi(currentHeading);
+      const normalizedTarget = zeroToTwoPi(targetHeading as Radians);
+      const normalizedCurrent = zeroToTwoPi(currentHeading as Radians);
 
-      if (Math.abs(normalizedCurrent - normalizedTarget) < 0.0001) {
+      if (Math.abs(normalizedCurrent - normalizedTarget) < MIN_HEADING_DELTA) {
         return;
       }
 
@@ -105,19 +110,16 @@ export const useObliqueCameraHandlers = (
       userMovedCameraRef.current = false; // Reset this flag since we're starting a programmatic move
 
       let startTime = Date.now();
-      const duration = 500; // ms
+      const duration = DURATION; // ms
 
       let headingChange = normalizedTarget - normalizedCurrent;
 
       // Ensure we take the shortest path
-      if (headingChange > Math.PI) {
-        headingChange -= CesiumMath.TWO_PI;
-      } else if (headingChange < -Math.PI) {
-        headingChange += CesiumMath.TWO_PI;
-      }
+      if (headingChange > PI) headingChange -= TWO_PI;
+      if (headingChange < -PI) headingChange += TWO_PI;
 
       // Skip animation if the change is very small
-      if (Math.abs(headingChange) < 0.0001) {
+      if (Math.abs(headingChange) < MIN_HEADING_DELTA) {
         animationInProgressRef.current = false;
         return;
       }
@@ -125,7 +127,7 @@ export const useObliqueCameraHandlers = (
       const onPreUpdate = () => {
         const currentTime = Date.now();
         let t = Math.min((currentTime - startTime) / duration, 1);
-        t = EasingFunction.SINUSOIDAL_IN_OUT(t);
+        t = Easing.SINUSOIDAL_IN_OUT(t);
 
         if (t < 1) {
           const intermediateHeading = normalizedCurrent + headingChange * t;
@@ -218,14 +220,14 @@ export const useObliqueCameraHandlers = (
       let headingChange = targetHeading - currentHeading;
 
       // Ensure we take the shortest path
-      if (headingChange > Math.PI) {
-        headingChange -= CesiumMath.TWO_PI;
-      } else if (headingChange < -Math.PI) {
-        headingChange += CesiumMath.TWO_PI;
+      if (headingChange > PI) {
+        headingChange -= TWO_PI;
+      } else if (headingChange < -PI) {
+        headingChange += TWO_PI;
       }
 
       // Skip animation if the change is very small
-      if (Math.abs(headingChange) < 0.0001) {
+      if (Math.abs(headingChange) < MIN_HEADING_DELTA) {
         animationInProgressRef.current = false;
         return;
       }
@@ -236,7 +238,7 @@ export const useObliqueCameraHandlers = (
         const { camera } = scene;
         const currentTime = Date.now();
         let t = Math.min((currentTime - startTime) / duration, 1);
-        t = EasingFunction.SINUSOIDAL_IN_OUT(t);
+        t = Easing.SINUSOIDAL_IN_OUT(t);
 
         if (t < 1) {
           const intermediateHeading = currentHeading + headingChange * t;
@@ -308,15 +310,15 @@ export const useObliqueCameraHandlers = (
   );
 
   useEffect(() => {
-    const viewer = viewerRef.current;
-    if (!isValidViewer() || !isObliqueMode) return;
+    const scene = sceneRef.current;
+    if (!isValidScene(scene) || !isViewerReady || !isObliqueMode) return;
 
-    const camera = viewer.camera;
+    const { camera } = scene;
 
     setCurrentHeading(camera.heading);
 
     // Set up event handlers to detect when the user moves the camera manually
-    const inputHandler = new ScreenSpaceEventHandler(viewer.canvas);
+    const inputHandler = new ScreenSpaceEventHandler(scene.canvas);
 
     // Track when the user starts manipulating the camera
     inputHandler.setInputAction(() => {
@@ -379,7 +381,7 @@ export const useObliqueCameraHandlers = (
       }
     };
   }, [
-    viewerRef,
+    sceneRef,
     isObliqueMode,
     headingOffset,
     updateOrbitPointEntity,

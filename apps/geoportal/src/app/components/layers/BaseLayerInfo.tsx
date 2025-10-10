@@ -1,3 +1,4 @@
+import { useDispatch, useSelector } from "react-redux";
 import { DndContext } from "@dnd-kit/core";
 import { restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import {
@@ -6,8 +7,9 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { Tabs } from "antd";
-import { useDispatch, useSelector } from "react-redux";
-import { layerMap } from "../../config";
+
+import { MapStyleKeys } from "@carma-appframeworks/portals";
+
 import {
   getBackgroundLayer,
   getLayers,
@@ -16,8 +18,9 @@ import {
   setLayers,
 } from "../../store/slices/mapping";
 import LayerRow from "./LayerRow";
-import "./text.css";
 import LayerInfoWrapper from "./LayerInfoWrapper";
+import { layerMap } from "../../config";
+import "./text.css";
 
 const BaseLayerInfo = () => {
   const dispatch = useDispatch();
@@ -48,7 +51,7 @@ const BaseLayerInfo = () => {
   };
 
   const getBackgroundDescription = () => {
-    if (backgroundLayer.id === "karte") {
+    if (backgroundLayer.id === MapStyleKeys.TOPO) {
       return layerMap[selectedMapLayer.id].description;
     } else {
       return layerMap[selectedLuftbildLayer.id].description;

@@ -1,4 +1,4 @@
-import { normalizeOptions } from "./normalizeOptions";
+import { normalizeOptions } from "./normalize-options";
 const sortArrayByKeys = (
   arr: [string, unknown][],
   keyOrder: string[],
@@ -101,7 +101,7 @@ export const updateHashHistoryState = (
   );
 
   // remove keys that are in the removeKeys array
-  removeKeys.forEach((key) => {
+  removeKeys.forEach((key: string) => {
     if (key in combinedParams) {
       delete combinedParams[key];
     }

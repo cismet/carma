@@ -1,10 +1,4 @@
-import React, {
-  ReactNode,
-  useRef,
-  useState,
-  useEffect,
-  CSSProperties,
-} from "react";
+import React, { ReactNode, CSSProperties } from "react";
 
 interface ControlCenterStylerProps {
   children: ReactNode;

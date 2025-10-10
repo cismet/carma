@@ -1,5 +1,4 @@
 import { useMemo, useCallback } from "react";
-import { useDispatch, useSelector } from "react-redux";
 import {
   Math as CesiumMath,
   OrthographicFrustum,
@@ -7,49 +6,47 @@ import {
 } from "cesium";
 
 import { useTweakpaneCtx } from "@carma-commons/debug";
-import { resolutionFractionsAscending } from "@carma-commons/utils";
+import { resolutionFractionsAscending } from "@carma-commons/constants";
 
+import { useCesiumContext } from "./useCesiumContext";
 import { formatFractions } from "../utils/formatters";
-
-import { useCesiumViewer } from "./useCesiumViewer";
-import {
-  setScreenSpaceCameraControllerEnableCollisionDetection,
-  setScreenSpaceCameraControllerMaximumZoomDistance,
-  setScreenSpaceCameraControllerMinimumZoomDistance,
-  selectScreenSpaceCameraControllerEnableCollisionDetection,
-  selectScreenSpaceCameraControllerMaximumZoomDistance,
-  selectScreenSpaceCameraControllerMinimumZoomDistance,
-} from "../slices/cesium";
+import { CtxEvent } from "../cesiumContextEventMap";
 
 const useDebug = () => {
-  const viewer = useCesiumViewer();
+  const {
+    sceneRef,
+    viewerRef,
+    isViewerReady,
+    minZoomDistanceRef,
+    maxZoomDistanceRef,
+    enableCollisionDetectionRef,
+    emit,
+  } = useCesiumContext();
 
-  const dispatch = useDispatch();
-
-  const minZoomDistance = useSelector(
-    selectScreenSpaceCameraControllerMinimumZoomDistance
-  );
-  const maxZoomDistance = useSelector(
-    selectScreenSpaceCameraControllerMaximumZoomDistance
-  );
-  const collisions = useSelector(
-    selectScreenSpaceCameraControllerEnableCollisionDetection
-  );
+  const minZoomDistance = minZoomDistanceRef.current;
+  const maxZoomDistance = maxZoomDistanceRef.current;
+  const collisions = enableCollisionDetectionRef.current;
 
   const setMaxZoomDistance = useCallback(
-    (v: number) =>
-      dispatch(setScreenSpaceCameraControllerMaximumZoomDistance(v)),
-    [dispatch]
+    (v: number) => {
+      maxZoomDistanceRef.current = v;
+      emit(CtxEvent.SetMaxZoomDistance, v);
+    },
+    [maxZoomDistanceRef, emit]
   );
   const setMinZoomDistance = useCallback(
-    (v: number) =>
-      dispatch(setScreenSpaceCameraControllerMinimumZoomDistance(v)),
-    [dispatch]
+    (v: number) => {
+      minZoomDistanceRef.current = v;
+      emit(CtxEvent.SetMinZoomDistance, v);
+    },
+    [minZoomDistanceRef, emit]
   );
   const setCollisions = useCallback(
-    (v: boolean) =>
-      dispatch(setScreenSpaceCameraControllerEnableCollisionDetection(v)),
-    [dispatch]
+    (v: boolean) => {
+      enableCollisionDetectionRef.current = v;
+      emit(CtxEvent.SetEnableCollisionDetection, v);
+    },
+    [enableCollisionDetectionRef, emit]
   );
 
   useTweakpaneCtx(
@@ -61,33 +58,32 @@ const useDebug = () => {
         params: {
           get fov() {
             return (
-              (viewer?.scene.camera.frustum as PerspectiveFrustum)?.fov || 1.0
+              (sceneRef?.current?.camera?.frustum as PerspectiveFrustum)?.fov ||
+              1.0
             );
           },
 
           set fov(value: number) {
+            const scene = sceneRef?.current;
             if (
-              viewer &&
-              viewer.scene.camera.frustum instanceof PerspectiveFrustum &&
+              scene &&
+              scene.camera?.frustum instanceof PerspectiveFrustum &&
               !Number.isNaN(value)
             ) {
-              viewer.scene.camera.frustum.fov = value;
+              scene.camera.frustum.fov = value;
             }
           },
           get orthographic() {
-            return viewer?.scene.camera.frustum instanceof OrthographicFrustum;
+            const scene = sceneRef.current;
+            return scene?.camera.frustum instanceof OrthographicFrustum;
           },
           set orthographic(value: boolean) {
-            if (viewer) {
-              if (
-                value &&
-                viewer.scene.camera.frustum instanceof PerspectiveFrustum
-              ) {
-                viewer.scene.camera.switchToOrthographicFrustum();
-              } else if (
-                viewer.scene.camera.frustum instanceof OrthographicFrustum
-              ) {
-                viewer.scene.camera.switchToPerspectiveFrustum();
+            const scene = sceneRef.current;
+            if (scene) {
+              if (value && scene.camera.frustum instanceof PerspectiveFrustum) {
+                scene.camera.switchToOrthographicFrustum();
+              } else if (scene.camera.frustum instanceof OrthographicFrustum) {
+                scene.camera.switchToPerspectiveFrustum();
               }
             }
           },
@@ -108,7 +104,8 @@ const useDebug = () => {
           },
         ],
       }),
-      [viewer]
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [isViewerReady, sceneRef]
     )
   );
 
@@ -121,6 +118,7 @@ const useDebug = () => {
         params: {
           get resolutionScale() {
             // Find the closest value in the array to the current resolutionScale and return its index
+            const viewer = viewerRef.current;
             const currentValue = viewer ? viewer.resolutionScale : 1;
             const closestIndex = resolutionFractionsAscending.findIndex(
               (value) => value === currentValue
@@ -131,6 +129,7 @@ const useDebug = () => {
           },
           set resolutionScale(index) {
             // Use the index to set the resolutionScale from the array
+            const viewer = viewerRef.current;
             if (
               viewer &&
               index >= 0 &&
@@ -153,7 +152,8 @@ const useDebug = () => {
           },
         ],
       }),
-      [viewer]
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      [isViewerReady, viewerRef]
     )
   );
 

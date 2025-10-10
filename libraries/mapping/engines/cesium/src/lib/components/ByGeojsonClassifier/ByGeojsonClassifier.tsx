@@ -1,5 +1,3 @@
-import { FC } from "react";
-import { useSelector } from "react-redux";
 import { GeoJsonDataSource as ResiumGeoJsonDataSource } from "resium";
 
 import {
@@ -12,7 +10,8 @@ import {
 } from "cesium";
 
 import { GeoJsonConfig } from "../../..";
-import { selectShowPrimaryTileset } from "../../slices/cesium";
+import { TILESET_IDS } from "../../constants";
+import { useCesiumContext } from "../../hooks/useCesiumContext";
 
 import { useSelectAndHighlightGeoJsonEntity } from "./hooks";
 
@@ -23,26 +22,38 @@ const SELECTABLE_TRANSPARENT_MATERIAL = new ColorMaterialProperty(
 interface ByGeoJsonClassifier {
   debug?: boolean;
   geojson: GeoJsonConfig;
+  selectionId?: number | string | null;
+  selected?: boolean;
+  selectableEntities?: boolean;
+  onEntitySelected?: (featureId: string | number | undefined) => void;
   classificationType?: ClassificationType;
 }
 
-const HIGHLIGHT_COLOR = Color.YELLOW;
-
-const HIGHLIGHT_MATERIAL = new ColorMaterialProperty(
-  HIGHLIGHT_COLOR.withAlpha(0.6)
-);
-
-const ByGeoJsonClassifier: FC<ByGeoJsonClassifier> = ({
-  debug = false,
+export const ByGeojsonClassifier = ({
+  selectionId,
+  onEntitySelected,
+  selected = false,
+  selectableEntities,
   classificationType = ClassificationType.CESIUM_3D_TILE,
   geojson,
-}) => {
-  const isPrimaryStyle = useSelector(selectShowPrimaryTileset);
+  debug,
+}: ByGeoJsonClassifier) => {
+  const { tilesetVisibilityRef } = useCesiumContext();
+  const isPrimaryStyle =
+    tilesetVisibilityRef.current.get(TILESET_IDS.PRIMARY) ?? false;
   const classificationTypeProperty = new ConstantProperty(classificationType);
+
+  const HIGHLIGHT_MATERIAL = new ColorMaterialProperty(
+    Color.YELLOW.withAlpha(0.5)
+  );
 
   useSelectAndHighlightGeoJsonEntity({
     highlightMaterial: HIGHLIGHT_MATERIAL,
     isPrimaryStyle,
+    selectedEntityId:
+      typeof selectionId === "string"
+        ? selectionId
+        : selectionId?.toString() ?? null,
   });
 
   const handleOnLoad = (dataSource: GeoJsonDataSource) => {
@@ -72,4 +83,4 @@ const ByGeoJsonClassifier: FC<ByGeoJsonClassifier> = ({
   );
 };
 
-export default ByGeoJsonClassifier;
+export default ByGeojsonClassifier;

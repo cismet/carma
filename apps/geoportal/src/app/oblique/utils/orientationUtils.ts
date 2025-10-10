@@ -1,4 +1,13 @@
-import { Cartesian3, Math as CesiumMath } from "cesium";
+import { Cartesian3 } from "cesium";
+import type { Radians } from "@carma/types";
+import {
+  zeroToTwoPi,
+  PI_OVER_FOUR,
+  PI_OVER_TWO,
+  TWO_PI,
+} from "@carma-commons/math";
+
+const THREE_PI_OVER_TWO = (3 * Math.PI) / 2;
 
 // North is 0 and rotations are clockwise to the east
 
@@ -64,17 +73,15 @@ export function getCardinalDirectionFromHeading(
   heading: number
 ): CardinalDirectionEnum {
   return (
-    Math.floor(
-      CesiumMath.zeroToTwoPi(heading + CesiumMath.PI_OVER_FOUR) /
-        CesiumMath.PI_OVER_TWO
-    ) % 4
+    Math.floor(zeroToTwoPi((heading + PI_OVER_FOUR) as Radians) / PI_OVER_TWO) %
+    4
   );
 }
 
 export function getHeadingFromCardinalDirection(
   direction: CardinalDirectionEnum
 ): number {
-  return CesiumMath.zeroToTwoPi(direction * CesiumMath.PI_OVER_TWO);
+  return zeroToTwoPi((direction * PI_OVER_TWO) as Radians);
 }
 
 export function getCardinalDirectionByLineAndCameraId(
@@ -122,7 +129,7 @@ export const findClosestCardinalIndex = (
   heading: number,
   cardinals: number[]
 ) => {
-  const normalizedHeading = CesiumMath.zeroToTwoPi(heading);
+  const normalizedHeading = zeroToTwoPi(heading as Radians);
 
   let closestIndex = 0;
   let minDifference = Number.MAX_VALUE;
@@ -130,7 +137,7 @@ export const findClosestCardinalIndex = (
   cardinals.forEach((cardinal, index) => {
     let diff = Math.abs(normalizedHeading - cardinal);
     if (diff > Math.PI) {
-      diff = CesiumMath.TWO_PI - diff;
+      diff = TWO_PI - diff;
     }
 
     if (diff < minDifference) {
@@ -145,13 +152,13 @@ export const getCardinalHeadings = (headingOffset: number) => {
   // Base cardinal directions in radians
   const directions = [
     0, // North
-    CesiumMath.PI_OVER_TWO, // East
-    CesiumMath.PI, // South
-    CesiumMath.THREE_PI_OVER_TWO, // West
+    PI_OVER_TWO, // East
+    Math.PI, // South
+    THREE_PI_OVER_TWO, // West
   ];
 
   // Apply the heading offset to all directions
   return directions.map((heading) =>
-    CesiumMath.zeroToTwoPi(heading + headingOffset)
+    zeroToTwoPi((heading + headingOffset) as Radians)
   );
 };

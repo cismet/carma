@@ -7,14 +7,14 @@ import {
   type CesiumErrorHandlerOptions,
 } from "./CesiumErrorHandler";
 
-import ElevationControl from "./components/controls/ElevationControl";
+import { ElevationControl } from "./extensions/elevationControl";
 
-import useCameraRollSoftLimiter from "./hooks/useCameraRollSoftLimiter";
-import useCameraPitchEasingLimiter from "./hooks/useCameraPitchEasingLimiter";
-import useCameraPitchSoftLimiter from "./hooks/useCameraPitchSoftLimiter";
+import useCameraRollSoftLimiter from "./extensions/cameraLimiters/hooks/useCameraRollSoftLimiter";
+import useCameraPitchEasingLimiter from "./extensions/cameraLimiters/hooks/useCameraPitchEasingLimiter";
+import useCameraPitchSoftLimiter from "./extensions/cameraLimiters/hooks/useCameraPitchSoftLimiter";
 import useDisableSSCC from "./hooks/useDisableSSCC";
 import { useCesiumGlobe } from "./hooks/useCesiumGlobe";
-import { useCesiumWhenHidden } from "./hooks/useCesiumWhenHidden";
+import { useCesiumWhenSuspended } from "./hooks/useCesiumWhenSuspended";
 import { useInitializeViewer } from "./hooks/useInitializeViewer";
 import { useOnSceneChange } from "./hooks/useOnSceneChange";
 import useDebug from "./hooks/useDebug";
@@ -38,6 +38,13 @@ export type CameraLimiterOptions = {
   pitchLimiter?: boolean;
   minPitch?: number;
   minPitchRange?: number;
+  rollThreshold?: number;
+  nadirThreshold?: number;
+  minPitchDeg?: number;
+  easingRangeDeg?: number;
+  easing?: (x: number) => number;
+  resetPitchOffsetDeg?: number;
+  debug?: boolean;
 };
 
 export type InitialCameraView = {
@@ -82,7 +89,6 @@ export function CustomViewer(props: CustomViewerProps) {
     constructorOptions,
     containerRef,
     onSceneChange,
-    enableSceneStyles = true,
   } = props;
 
   const options: Viewer.ConstructorOptions = useMemo(
@@ -99,10 +105,11 @@ export function CustomViewer(props: CustomViewerProps) {
   useCameraPitchSoftLimiter(cameraLimiterOptions);
   useCameraPitchEasingLimiter(cameraLimiterOptions);
 
-  useCesiumWhenHidden(TRANSITION_DELAY);
+  useCesiumWhenSuspended(TRANSITION_DELAY);
 
   useTilesets();
-  useSceneStyles(enableSceneStyles);
+  // useSceneStyles is deprecated and no longer functional
+  // Scene styles should be managed via CesiumContext configuration
 
   // callback
   useOnSceneChange(onSceneChange);

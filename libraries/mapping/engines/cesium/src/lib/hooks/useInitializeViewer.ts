@@ -1,13 +1,11 @@
 import { useEffect, useRef } from "react";
-import { useSelector } from "react-redux";
-
 import {
   BoundingSphere,
   Camera,
   Cartesian3,
   Cartographic,
-  Math as CesiumMath,
   HeadingPitchRange,
+  Math as CesiumMath,
   Matrix4,
   PerspectiveFrustum,
   Rectangle,
@@ -17,18 +15,9 @@ import {
 
 import { useCesiumContext } from "./useCesiumContext";
 
-import {
-  selectScreenSpaceCameraControllerMaximumZoomDistance,
-  selectScreenSpaceCameraControllerMinimumZoomDistance,
-  selectScreenSpaceCameraControllerEnableCollisionDetection,
-  selectShowSecondaryTileset,
-  selectViewerIsMode2d,
-  selectViewerHome,
-  selectViewerHomeOffset,
-} from "../slices/cesium";
-
 import { configureCesiumErrorHandling } from "../utils/cesiumErrorHandling";
 import { validateWorldCoordinate } from "../utils/positions";
+import { SCENE_STYLES } from "../constants";
 
 import type { InitialCameraView } from "../CustomViewer";
 
@@ -58,6 +47,8 @@ export const useInitializeViewer = (
   const {
     viewerRef,
     sceneRef,
+    primaryTilesetRef,
+    secondaryTilesetRef,
     isValidViewer,
     isViewerReady,
     setIsViewerReady,
@@ -66,23 +57,33 @@ export const useInitializeViewer = (
     withCamera,
     withViewer,
     setInitialCameraSettled,
+    isSuspendedRef,
+    homePositionRef,
+    homeOffsetRef,
+    minZoomDistanceRef,
+    maxZoomDistanceRef,
+    enableCollisionDetectionRef,
+    currentSceneStyleRef,
   } = useCesiumContext();
 
-  const home = useSelector(selectViewerHome);
-  const homeOffset = useSelector(selectViewerHomeOffset);
-  const isSecondaryStyle = useSelector(selectShowSecondaryTileset);
-  const minZoom = useSelector(
-    selectScreenSpaceCameraControllerMinimumZoomDistance
-  );
-  const maxZoom = useSelector(
-    selectScreenSpaceCameraControllerMaximumZoomDistance
-  );
-  const enableCollisionDetection = useSelector(
-    selectScreenSpaceCameraControllerEnableCollisionDetection
-  );
-
-  const isMode2d = useSelector(selectViewerIsMode2d);
-
+  // Get values from refs
+  const home = homePositionRef.current
+    ? new Cartesian3(
+        homePositionRef.current.x,
+        homePositionRef.current.y,
+        homePositionRef.current.z
+      )
+    : null;
+  const homeOffset = homeOffsetRef.current
+    ? new Cartesian3(
+        homeOffsetRef.current.x,
+        homeOffsetRef.current.y,
+        homeOffsetRef.current.z
+      )
+    : null;
+  const minZoom = minZoomDistanceRef.current;
+  const maxZoom = maxZoomDistanceRef.current;
+  const enableCollisionDetection = enableCollisionDetectionRef.current;
   // Store camera position and orientation vectors
   const lastGoodCameraState = useRef<CameraState | null>(null);
 
@@ -220,6 +221,7 @@ export const useInitializeViewer = (
     };
   }, [
     options,
+    sceneRef,
     containerRef,
     initialCameraView,
     viewerRef,
@@ -245,6 +247,8 @@ export const useInitializeViewer = (
       scene.globe.depthTestAgainstTerrain = true;
       // Terrain would show up as opaques surface over mesh if not set transparent
       scene.globe.translucency.enabled = true;
+      const isSecondaryStyle =
+        currentSceneStyleRef.current === SCENE_STYLES.SECONDARY;
       scene.globe.translucency.frontFaceAlpha = isSecondaryStyle ? 1.0 : 0.0;
       scene.globe.translucency.backFaceAlpha = isSecondaryStyle ? 1.0 : 0.0;
 
@@ -252,7 +256,13 @@ export const useInitializeViewer = (
       sscc.minimumZoomDistance = minZoom ?? 1;
       sscc.maximumZoomDistance = maxZoom ?? Infinity;
     });
-  }, [withScene, isSecondaryStyle, maxZoom, minZoom, enableCollisionDetection]);
+  }, [
+    withScene,
+    maxZoom,
+    minZoom,
+    enableCollisionDetection,
+    currentSceneStyleRef,
+  ]);
 
   useEffect(() => {
     console.debug("HOOK: useInitializeViewer position", initialCameraView);
@@ -322,7 +332,7 @@ export const useInitializeViewer = (
         scene.postRender.addEventListener(enableLimitersNextFrame);
       });
     }
-    if (!isMode2d && initialCameraView) {
+    if (!isSuspendedRef.current && initialCameraView) {
       const { position, heading, pitch, fov } = initialCameraView;
       if (position) {
         const restoredHeight = CesiumMath.clamp(
@@ -395,7 +405,7 @@ export const useInitializeViewer = (
     initialCameraView,
     home,
     homeOffset,
-    isMode2d,
+    isSuspendedRef,
     maxZoom,
     withViewer,
     withCamera,
@@ -424,7 +434,7 @@ export const useInitializeViewer = (
         resizeObserver.disconnect();
       };
     }
-  }, [viewerRef, containerRef, isMode2d]);
+  }, [viewerRef, containerRef, isSuspendedRef]);
 };
 
 export default useInitializeViewer;

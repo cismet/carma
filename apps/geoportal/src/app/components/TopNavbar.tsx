@@ -20,6 +20,7 @@ import { Button, Radio, type RadioChangeEvent, Tooltip } from "antd";
 
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
+import { MapStyleKeys } from "@carma-appframeworks/portals";
 import { geoElements } from "@carma-collab/wuppertal/geoportal";
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 import {
@@ -27,7 +28,6 @@ import {
   useOverlayTourContext,
 } from "@carma-commons/ui/helper-overlay";
 import { cn } from "@carma-commons/utils";
-import { selectViewerIsMode2d } from "@carma-mapping/engines/cesium";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 
 import {
@@ -36,9 +36,8 @@ import {
   getSelectedMapLayer,
   setSelectedLayerIndex,
 } from "../store/slices/mapping";
-import { getZenMode } from "../store/slices/ui";
+import { getZenMode, getUIIsMode2d } from "../store/slices/ui";
 
-import { MapStyleKeys } from "../constants/MapStyleKeys";
 import { useMapStyle } from "../hooks/useGeoportalMapStyle";
 import { useOblique } from "../oblique/hooks/useOblique";
 
@@ -62,7 +61,7 @@ const TopNavbar = () => {
   const { setAppMenuVisible } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
 
-  const isMode2d = useSelector(selectViewerIsMode2d);
+  const shouldShow2dUI = useSelector(getUIIsMode2d);
   const backgroundLayer = useSelector(getBackgroundLayer);
   const selectedMapLayer = useSelector(getSelectedMapLayer);
   const selectedLuftbildLayer = useSelector(getSelectedLuftbildLayer);
@@ -193,7 +192,7 @@ const TopNavbar = () => {
               />
             </button>
           </Tooltip>
-          {flags.featureFlagObliqueMode && !isMode2d && (
+          {flags.featureFlagObliqueMode && !shouldShow2dUI && (
             <Tooltip
               title={
                 isObliqueMode
@@ -219,7 +218,9 @@ const TopNavbar = () => {
               >
                 <Tooltip
                   title={
-                    isMode2d ? selectedMapLayer.title : "LoD2-Gebäude (NRW)"
+                    shouldShow2dUI
+                      ? selectedMapLayer.title
+                      : "LoD2-Gebäude (NRW)"
                   }
                 >
                   <Radio.Button
@@ -231,7 +232,9 @@ const TopNavbar = () => {
                 </Tooltip>
                 <Tooltip
                   title={
-                    isMode2d ? selectedLuftbildLayer.title : "3D-Mesh 03/24"
+                    shouldShow2dUI
+                      ? selectedLuftbildLayer.title
+                      : "3D-Mesh 03/24"
                   }
                 >
                   <Radio.Button
@@ -245,7 +248,7 @@ const TopNavbar = () => {
                   <Radio.Button
                     className="select-none"
                     value="openBaseLayerView"
-                    disabled={!isMode2d}
+                    disabled={!shouldShow2dUI}
                   >
                     <FontAwesomeIcon
                       id="openBaseLayerView"

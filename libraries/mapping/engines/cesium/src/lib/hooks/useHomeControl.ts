@@ -1,36 +1,38 @@
-import { useCallback, useEffect, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useCallback, useState, useEffect } from "react";
 
 import { BoundingSphere, Cartesian3 } from "cesium";
 
-import { useCesiumViewer } from "./useCesiumViewer";
 import { useCesiumContext } from "./useCesiumContext";
 import { CtxEvent } from "../cesiumContextEventMap";
-import { selectViewerHome, clearIsAnimating } from "../slices/cesium";
+import { tryWithValidCamera } from "../utils/instanceGates";
 
 export const useHomeControl = () => {
-  const dispatch = useDispatch();
-  const viewer = useCesiumViewer();
-  const ctx = useCesiumContext();
-  const homePosition = useSelector(selectViewerHome);
+  const { sceneRef, isViewerReady, emit, homePositionRef } = useCesiumContext();
 
   const [homePos, setHomePos] = useState<Cartesian3 | null>(null);
 
   useEffect(() => {
-    homePosition && setHomePos(homePosition);
-  }, [homePosition]);
+    const home = homePositionRef.current;
+    if (home) {
+      setHomePos(new Cartesian3(home.x, home.y, home.z));
+    }
+  }, [homePositionRef]);
 
   const handleHomeClick = useCallback(() => {
-    console.debug("homePos click", homePos, viewer);
+    console.debug("homePos click", homePos);
     // Notify subscribers that a Home fly has been triggered (hide overlays, etc.)
-    ctx.emit?.(CtxEvent.Home, undefined as void);
-    if (viewer && homePos) {
-      dispatch(clearIsAnimating());
+    emit?.(CtxEvent.GoHome, undefined);
+    const scene = sceneRef.current;
+    if (isViewerReady && homePos && scene) {
+      // Clear any ongoing animation
+      emit(CtxEvent.AnimationEnd, undefined);
       const boundingSphere = new BoundingSphere(homePos, 400);
       console.debug("HOOK: [2D3D|CESIUM|CAMERA] homeClick");
-      viewer.camera.flyToBoundingSphere(boundingSphere);
+      tryWithValidCamera(scene.camera, (camera) => {
+        camera.flyToBoundingSphere(boundingSphere);
+      });
     }
-  }, [viewer, homePos, dispatch, ctx]);
+  }, [sceneRef, isViewerReady, homePos, emit]);
 
   return handleHomeClick;
 };

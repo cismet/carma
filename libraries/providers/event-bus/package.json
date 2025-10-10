@@ -1,0 +1,6 @@
+{
+  "name": "@carma-providers/event-bus",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module"
+}

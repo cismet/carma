@@ -62,8 +62,10 @@ const TZBaumbewirtschaftung = () => {
 
   const { appKey } = useContext(TopicMapContext) as any;
   const [maxTreeActionId, setMaxTreeActionId] = useState<number>(0);
-  
-  const baseDataUrl = import.meta.env.VITE_WUPP_ASSET_BASEURL || "https://wunda-geoportal.cismet.de";
+
+  const baseDataUrl =
+    import.meta.env.VITE_WUPP_ASSET_BASEURL ||
+    "https://wunda-geoportal.cismet.de";
   const treesUrl = `${baseDataUrl}/data/4326/tz_baumbewirtschaftung_trees_featurecollection.json`;
   const treeActionsUrl = `${baseDataUrl}/data/4326/tz_baumbewirtschaftung_treeactions_array.json`;
   const actionsUrl = `${baseDataUrl}/data/4326/tz_baumbewirtschaftung_actions_array.json`;
@@ -83,8 +85,10 @@ const TZBaumbewirtschaftung = () => {
 
       setFeatureCollection(enriched);
       setMaxTreeActionId(maxId);
-      
-      console.log(`Loaded ${treesFC.features.length} trees, ${treeActions.length} tree actions, max ID: ${maxId}`);
+
+      console.log(
+        `Loaded ${treesFC.features.length} trees, ${treeActions.length} tree actions, max ID: ${maxId}`
+      );
     })();
   }, []);
 
