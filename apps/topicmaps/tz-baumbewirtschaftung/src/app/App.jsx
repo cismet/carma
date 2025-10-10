@@ -199,7 +199,17 @@ function App() {
           setAuth({ checked: true, jwt: undefined });
         }}
       />
-      <Map />
+      <Map 
+        jwt={auth.jwt}
+        onAuthError={() => {
+          setAuth({ checked: true, jwt: undefined });
+          setLoginInfo({
+            color: "#F9D423",
+            text: "Bitte melden Sie sich erneut an.",
+          });
+          setTimeout(() => setLoginInfo(), 2500);
+        }}
+      />
     </TopicMapContextProvider>
   );
 }
