@@ -139,7 +139,7 @@ export default configureStore({
     searchMode: searchModeSlice.reducer,
     lpHistoryNav: lpHistoryNav.reducer,
   },
-  // middleware: (getDefaultMiddleware) =>
-  //   getDefaultMiddleware({ immutableCheck: false }),
-  middleware,
+  middleware: (getDefaultMiddleware) =>
+    getDefaultMiddleware({ immutableCheck: false }),
+  // middleware,
 });
