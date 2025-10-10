@@ -69,6 +69,23 @@ export type CesiumConfig = {
   tilesetConfigs: TilesetConfigs;
   providerConfig: ProviderConfig;
   models?: ModelConfig[];
+  tilesetVisibility?: {
+    primary?: boolean;
+    secondary?: boolean;
+  };
+  tilesetOpacity?: {
+    primary?: number;
+    secondary?: number;
+  };
+  homePosition?: { x: number; y: number; z: number };
+  homeOffset?: { x: number; y: number; z: number };
+  cameraController?: {
+    enableCollisionDetection?: boolean;
+    maximumZoomDistance?: number;
+    minimumZoomDistance?: number;
+  };
+  sceneStyles?: SceneStyles;
+  modelAssets?: Record<string, MarkerModelAsset | ParsedMarkerModelAsset>;
 };
 // Minimal Redux state for static Cesium configuration only
 // All runtime state (visibility, opacity, home position, etc.) is now managed via CesiumContext

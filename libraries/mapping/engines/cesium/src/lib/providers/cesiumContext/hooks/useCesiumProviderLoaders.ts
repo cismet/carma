@@ -5,6 +5,8 @@ import type {
   Scene,
   Cesium3DTileset,
 } from "cesium";
+import { Model, Cartesian3, HeadingPitchRoll, Transforms } from "cesium";
+import type { ModelConfig } from "@carma-commons/resources";
 
 import {
   loadCesiumImageryLayer,
@@ -15,6 +17,7 @@ import {
   loadTileset,
   type TilesetConfigs,
 } from "../../../utils/cesiumTilesetProviders";
+import { tryWithValidScene } from "../../../utils/instanceGates";
 
 /**
  * Loads the imagery provider configuration
@@ -253,4 +256,101 @@ export const useSecondaryTilesetLoader = ({
     isValidViewer,
     secondaryTilesetRef,
   ]);
+};
+
+/**
+ * Loads models from config
+ */
+export const useModelsLoader = ({
+  models,
+  sceneRef,
+  isViewerReady,
+}: {
+  models?: ModelConfig[];
+  sceneRef: MutableRefObject<Scene | null>;
+  isViewerReady: boolean;
+}) => {
+  useEffect(() => {
+    if (!isViewerReady || !models || models.length === 0) return;
+
+    const scene = sceneRef.current;
+    if (!scene) return;
+
+    const loadedModels: Model[] = [];
+
+    const loadModels = async () => {
+      for (const modelConfig of models) {
+        try {
+          console.debug(
+            "[CESIUM|MODEL] Loading model from:",
+            modelConfig.model.uri
+          );
+
+          const position = Cartesian3.fromDegrees(
+            modelConfig.position.longitude,
+            modelConfig.position.latitude,
+            modelConfig.position.altitude
+          );
+
+          const hpr = HeadingPitchRoll.fromDegrees(
+            modelConfig.orientation?.heading ?? 0,
+            modelConfig.orientation?.pitch ?? 0,
+            modelConfig.orientation?.roll ?? 0
+          );
+
+          const modelMatrix = Transforms.headingPitchRollToFixedFrame(
+            position,
+            hpr
+          );
+
+          const model = await Model.fromGltfAsync({
+            url: modelConfig.model.uri,
+            modelMatrix,
+          });
+
+          if (modelConfig.model.scale !== undefined) {
+            model.scale =
+              typeof modelConfig.model.scale === "number"
+                ? modelConfig.model.scale
+                : 1.0;
+          }
+          if (modelConfig.model.show !== undefined) {
+            model.show =
+              typeof modelConfig.model.show === "boolean"
+                ? modelConfig.model.show
+                : true;
+          }
+
+          tryWithValidScene(scene, () => {
+            scene.primitives.add(model);
+            loadedModels.push(model);
+            console.debug(
+              "[CESIUM|MODEL] Model primitive added to scene:",
+              modelConfig.model.uri
+            );
+          });
+        } catch (error) {
+          console.error(
+            "[CESIUM|MODEL] Failed to load model:",
+            modelConfig.model.uri,
+            error
+          );
+        }
+      }
+    };
+
+    loadModels();
+
+    return () => {
+      const currentScene = sceneRef.current;
+      if (currentScene && !currentScene.isDestroyed()) {
+        loadedModels.forEach((model) => {
+          if (!model.isDestroyed() && currentScene.primitives.contains(model)) {
+            currentScene.primitives.remove(model);
+            model.destroy();
+          }
+        });
+      }
+    };
+  }, [models, sceneRef, isViewerReady]);
 };

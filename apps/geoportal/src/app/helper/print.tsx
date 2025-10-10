@@ -1,11 +1,16 @@
 import proj4 from "proj4";
 import bbox from "@turf/bbox";
 import {
-  convertBBox2Bounds,
-  getMeractorScale,
+  convertBBox2BoundsLegacy as convertBBox2Bounds,
   proj4crs3857def,
-} from "./gisHelper";
+  getMercatorScaleFactorAtLatitudeDeg,
+} from "@carma-commons/geo";
+import type { Degrees } from "@carma/types";
 import * as L from "leaflet";
+
+const getMercatorScale = (scale: number, latDegrees: number): number => {
+  return scale * getMercatorScaleFactorAtLatitudeDeg(latDegrees as Degrees);
+};
 import { createRoot } from "react-dom/client";
 import PrintButton from "../components/map-print/PrintButton";
 import PrintPrevTexts from "../components/map-print/PrintPrevTexts";
@@ -77,7 +82,7 @@ export const printMap = async (
         rotation: 0,
         longitudeFirst: true,
         layers,
-        scale: getMeractorScale(scale, latLng[1]),
+        scale: getMercatorScale(scale, latLng[1]),
         projection: "EPSG:3857",
         dpi,
       },
@@ -1029,7 +1034,7 @@ export const getPreviewBounds = (
       const width = orientation === "landscape" ? 802 : 555;
       const height = orientation === "landscape" ? 555 : 802;
 
-      const mercatorScale = getMeractorScale(scale, latLngCenter.lat);
+      const mercatorScale = getMercatorScale(scale, latLngCenter.lat);
 
       const f = createFeatureFromBBox(
         calculateBBox(

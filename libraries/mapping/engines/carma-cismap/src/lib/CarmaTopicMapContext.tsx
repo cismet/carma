@@ -5,12 +5,12 @@ import type {
   EmitTopicMapCtxFn,
 } from "./carmaTopicMapContextEventMap";
 
-export interface TopicMapContextType {
+export interface CarmaTopicMapContextType {
   isSuspendedRef: MutableRefObject<boolean>;
   subscribe: SubscribeTopicMapCtxFn;
   emit: EmitTopicMapCtxFn;
-  leafletMap: L.Map | undefined;
-  isMapReady: boolean;
+  leafletMapRef: MutableRefObject<L.Map | undefined>;
 }
 
-export const TopicMapContext = createContext<TopicMapContextType | null>(null);
+export const CarmaTopicMapContext =
+  createContext<CarmaTopicMapContextType | null>(null);

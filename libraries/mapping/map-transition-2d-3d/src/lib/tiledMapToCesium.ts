@@ -182,6 +182,21 @@ export const tiledMapToCesium = async (
         cameraDestinationCartographic
       );
 
+      if (
+        !destination ||
+        !Number.isFinite(destination.x) ||
+        !Number.isFinite(destination.y) ||
+        !Number.isFinite(destination.z)
+      ) {
+        console.error(
+          "[TRANSITION|ERROR] Invalid destination calculated:",
+          destination
+        );
+        throw new Error(
+          "Invalid camera destination - contains NaN or Infinity"
+        );
+      }
+
       console.debug(
         `L2C [2D3D|CESIUM|CAMERA] cause: ${cause} lat: ${latitude} lng: ${longitude} z: ${zoom}`
       );
@@ -241,6 +256,14 @@ export const tiledMapToCesium = async (
         cameraHeightAboveGround *= adjustmentFactor;
         const newCameraHeight = cameraHeightAboveGround + groundHeight;
 
+        if (!Number.isFinite(newCameraHeight)) {
+          console.error(
+            "[TRANSITION|ERROR] Invalid camera height calculated:",
+            newCameraHeight
+          );
+          throw new Error("Invalid camera height - NaN or Infinity");
+        }
+
         const updatedCameraDestinationCartographic = Cartographic.fromRadians(
           lngRad,
           latRad,
@@ -249,6 +272,21 @@ export const tiledMapToCesium = async (
         const updatedDestination = Cartographic.toCartesian(
           updatedCameraDestinationCartographic
         );
+
+        if (
+          !updatedDestination ||
+          !Number.isFinite(updatedDestination.x) ||
+          !Number.isFinite(updatedDestination.y) ||
+          !Number.isFinite(updatedDestination.z)
+        ) {
+          console.error(
+            "[TRANSITION|ERROR] Invalid updated destination:",
+            updatedDestination
+          );
+          throw new Error(
+            "Invalid updated camera destination - contains NaN or Infinity"
+          );
+        }
 
         console.debug(
           "L2C [2D3D|CESIUM|CAMERA] setview",

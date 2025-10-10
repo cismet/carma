@@ -2,11 +2,11 @@ import { useContext } from "react";
 // @ts-ignore - react-cismap has no type declarations
 import { TopicMapContext as ReactCismapTopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import {
-  TopicMapContext as CarmaTopicMapContext,
-  type TopicMapContextType,
+  CarmaTopicMapContext,
+  type CarmaTopicMapContextType,
 } from "./CarmaTopicMapContext";
 
-export type CombinedTopicMapContextType = TopicMapContextType &
+export type CombinedTopicMapContextType = CarmaTopicMapContextType &
   typeof ReactCismapTopicMapContext;
 
 /**
@@ -24,9 +24,9 @@ export const useCarmaTopicMapContext = () => {
     );
   }
 
-  // Return Carma context (includes leafletMap) + full react-cismap context
   return {
     ...carmaContext,
+    leafletMap: carmaContext.leafletMapRef.current,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ...(reactCismapContext as any),
   };

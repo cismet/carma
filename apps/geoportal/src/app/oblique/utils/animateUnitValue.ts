@@ -1,4 +1,4 @@
-import { clamp, type EasingFunction, Easing } from "@carma-commons/utils";
+import { clamp, type EasingFunction, Easing } from "@carma-commons/math";
 
 const DEFAULT_ANIMATION_DURATION = 500; // milliseconds
 

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { Degrees, Radians } from "@carma/types";
 import { Cartesian3, HeadingPitchRange, Matrix4 } from "cesium";
 import {
   cancelAnimation,
@@ -7,7 +8,6 @@ import {
   useCesiumContext,
 } from "@carma-mapping/engines/cesium";
 import { degToRad, clamp, PI, TWO_PI } from "@carma-commons/math";
-import type { Radians } from "@carma/types";
 
 export type UseOrientationCubeDragParams = {
   dragThresholdPx?: number;

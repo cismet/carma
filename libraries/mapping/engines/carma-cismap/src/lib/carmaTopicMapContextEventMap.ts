@@ -7,6 +7,7 @@ export enum TopicMapCtxEvent {
   Activate = "Activate",
   Suspend = "Suspend",
   LocationChanged = "LocationChanged",
+  MapReady = "MapReady",
 }
 
 export type TopicMapContextEventMap = {
@@ -17,6 +18,7 @@ export type TopicMapContextEventMap = {
     lng: number;
     zoom: number;
   };
+  [TopicMapCtxEvent.MapReady]: void;
 };
 
 // Helper type aliases bound to the TopicMap context event map

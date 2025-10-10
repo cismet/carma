@@ -1,11 +1,4 @@
-import {
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react";
+import { useContext, useEffect, useMemo, useRef, type ReactNode } from "react";
 // @ts-ignore - react-cismap has no type declarations
 import {
   TopicMapContextProvider,
@@ -14,8 +7,8 @@ import {
 import { createEventBus } from "@carma-providers/event-bus";
 
 import {
-  TopicMapContext,
-  type TopicMapContextType,
+  CarmaTopicMapContext,
+  type CarmaTopicMapContextType,
 } from "./CarmaTopicMapContext";
 import type { TopicMapContextEventMap } from "./carmaTopicMapContextEventMap";
 import { TopicMapCtxEvent } from "./carmaTopicMapContextEventMap";
@@ -30,8 +23,8 @@ export interface CarmaTopicMapContextProviderProps {
  */
 const CarmaTopicMapContextInner = ({ children }: { children: ReactNode }) => {
   const reactCismapContext = useContext(ReactCismapTopicMapContext);
-  const isSuspendedRef = useRef(false); // Start active (2D mode)
-  const [isMapReady, setIsMapReady] = useState(false);
+  const isSuspendedRef = useRef(false);
+  const leafletMapRef = useRef<L.Map | undefined>(undefined);
 
   // Event bus for the TopicMap context
   const { subscribe, emit } = useMemo(
@@ -60,35 +53,33 @@ const CarmaTopicMapContextInner = ({ children }: { children: ReactNode }) => {
   const leafletMap = (reactCismapContext as any).routedMapRef?.leafletMap
     ?.leafletElement;
 
-  // Track map ready state
+  // Update the ref and emit MapReady event
   useEffect(() => {
+    leafletMapRef.current = leafletMap;
     if (leafletMap) {
       leafletMap.whenReady(() => {
         console.debug("[TopicMapContext] Leaflet map ready");
-        setIsMapReady(true);
+        emit(TopicMapCtxEvent.MapReady, undefined);
       });
-    } else {
-      setIsMapReady(false);
     }
-  }, [leafletMap]);
+  }, [leafletMap, emit]);
 
-  const contextValue = useMemo<TopicMapContextType>(
+  const contextValue = useMemo<CarmaTopicMapContextType>(
     () => ({
       isSuspendedRef,
       subscribe,
       emit,
-      leafletMap,
-      isMapReady,
+      leafletMapRef,
     }),
-    [subscribe, emit, leafletMap, isMapReady]
+    [subscribe, emit]
   );
 
   console.debug("[CarmaTopicMapContextProvider] Rendered", contextValue);
 
   return (
-    <TopicMapContext.Provider value={contextValue}>
+    <CarmaTopicMapContext.Provider value={contextValue}>
       {children}
-    </TopicMapContext.Provider>
+    </CarmaTopicMapContext.Provider>
   );
 };
 

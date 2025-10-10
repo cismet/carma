@@ -10,6 +10,11 @@ import {
   proj4crs25832def,
 } from "./constants/proj";
 
+// Register all projections
+proj4.defs(EPSG3857, proj4crs3857def);
+proj4.defs(EPSG4326, proj4crs4326def);
+proj4.defs(EPSG25832, proj4crs25832def);
+
 // Export proj4 with correct typing from proj4 package
 export default proj4;
 
@@ -43,6 +48,26 @@ export function convertBBox2Bounds(
   );
   const projectedSW = PROJ4_CONVERTERS.CRS4326.forward(
     refDef.inverse([bbox[2], bbox[3]])
+  );
+  return [
+    [projectedNE[1], projectedSW[0]],
+    [projectedSW[1], projectedNE[0]],
+  ];
+}
+
+export function convertBBox2BoundsLegacy(
+  bbox: number[],
+  refDef: string = proj4crs25832def
+) {
+  const projectedNE = proj4(
+    refDef,
+    proj4.defs("EPSG:4326") as unknown as string,
+    [bbox[0], bbox[1]]
+  );
+  const projectedSW = proj4(
+    refDef,
+    proj4.defs("EPSG:4326") as unknown as string,
+    [bbox[2], bbox[3]]
   );
   return [
     [projectedNE[1], projectedSW[0]],

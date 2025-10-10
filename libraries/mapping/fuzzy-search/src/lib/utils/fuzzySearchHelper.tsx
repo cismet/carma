@@ -1,8 +1,7 @@
 import {
-  ENDPOINT,
   isEndpoint,
   NAMED_CATEGORIES,
-  NamedCategory,
+  type EndpointKey,
   isAreaType,
 } from "@carma-commons/resources";
 
@@ -24,8 +23,8 @@ import { FeatureCollectionDispatchContext } from "react-cismap/contexts/FeatureC
 import { useSelection } from "@carma-appframeworks/portals";
 
 export const renderCategoryTitle = (
-  category: ENDPOINT,
-  namedCategories: Partial<NamedCategory>
+  category: EndpointKey,
+  namedCategories: Partial<Record<EndpointKey, string>>
 ) => {
   const title = namedCategories[category] || category;
   return <span>{title}</span>;
@@ -152,7 +151,7 @@ export const mapDataToSearchResult = (
       optionItem.label = renderCategoryTitle(item, NAMED_CATEGORIES);
       optionItem.options = splittedCategories[item];
     } else {
-      console.warn(`category ${item} does not match known endpoints`, ENDPOINT);
+      console.warn(`category ${item} does not match known endpoints`);
     }
 
     prepareOptions.push(optionItem);
@@ -334,7 +333,7 @@ export const mapDataWithCategory = (
       optionItem.label = renderCategoryTitleWithScore(item);
       optionItem.options = splittedCategories[item];
     } else {
-      console.warn(`category ${item} does not match known endpoints`, ENDPOINT);
+      console.warn(`category ${item} does not match known endpoints`);
     }
 
     prepareOptions.push(optionItem);

@@ -5,7 +5,8 @@ import {
   WEB_MERCATOR_MAX_LATITUDE_RAD,
 } from "./constants/web-map";
 import { brandedNegate } from "@carma-commons/units";
-import type { Radians, Meters } from "@carma/types";
+import { degToRad } from "@carma-commons/math";
+import type { Radians, Meters, Degrees } from "@carma/types";
 
 export const clampLatitudeToWebMercatorExtent = (
   latitude: Radians
@@ -31,6 +32,13 @@ export const getMercatorScaleFactorAtLatitudeRad = (
 ): number => {
   const clampedLatitude: Radians = clampLatitudeToWebMercatorExtent(latitude);
   return 1 / Math.cos(clampedLatitude);
+};
+
+export const getMercatorScaleFactorAtLatitudeDeg = (
+  latitude: Degrees
+): number => {
+  const latRad = degToRad(latitude);
+  return getMercatorScaleFactorAtLatitudeRad(latRad);
 };
 
 export const getZoomFromPixelResolutionAtLatitudeRad = (

@@ -100,7 +100,7 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
     zoomOutTimeoutBuffer,
   } = normalizeOptions(options, defaultTransitionOptions);
 
-  const { leafletMap, emit: emitTopicMapEvent } = useCarmaTopicMapContext();
+  const { leafletMapRef, emit: emitTopicMapEvent } = useCarmaTopicMapContext();
   const { transitionStateRef, transitionLifecycleRef } = useTransitionContext();
   const {
     withCamera,
@@ -169,6 +169,7 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
   };
 
   const transitionToMode3d = async () => {
+    const leafletMap = leafletMapRef.current;
     console.debug("[CESIUM|2D3D|TO3D] transitionToMode3d called", {
       sceneValid: isValidScene(sceneRef.current),
       leafletMap,
@@ -263,18 +264,25 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
 
     let transitionCompleted = false;
 
-    await tiledMapToCesium(
-      withElevationProviders,
-      { latitude, longitude },
-      zoom,
-      resolutionScale,
-      {
-        cause: "SwitchMapMode to 3d",
-        onComplete: () => {
-          transitionCompleted = true;
-        },
-      }
-    );
+    try {
+      await tiledMapToCesium(
+        withElevationProviders,
+        { latitude, longitude },
+        zoom,
+        resolutionScale,
+        {
+          cause: "SwitchMapMode to 3d",
+          onComplete: () => {
+            transitionCompleted = true;
+          },
+        }
+      );
+    } catch (error) {
+      console.error("[TRANSITION|ERROR] Failed to transition to 3D:", error);
+      transitionStateRef.current = MapTransitionState.mode2d;
+      onCancel?.(false);
+      return;
+    }
 
     if (transitionCompleted) {
       await waitForAnimationFrames(1);
@@ -295,6 +303,7 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
   };
 
   const transitionToMode2d = async () => {
+    const leafletMap = leafletMapRef.current;
     if (!leafletMap) {
       console.warn("leaflet not available no transition possible [zoom]");
       onCancel?.(true);

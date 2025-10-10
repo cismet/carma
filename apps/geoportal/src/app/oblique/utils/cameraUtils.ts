@@ -12,7 +12,7 @@ import {
   Scene,
 } from "cesium";
 
-import { clamp, Easing } from "@carma-commons/utils";
+import { clamp, Easing } from "@carma-commons/math";
 import {
   type AnimationMap,
   cesiumAnimateFov,

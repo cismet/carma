@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useCesiumContext } from "@carma-mapping/engines/cesium";
-import { radToDeg } from "@carma-commons/utils";
+import { radToDeg } from "@carma-commons/math";
+import type { Radians } from "@carma/types";
 import { Collapse } from "antd";
 
 import { useOblique } from "../../hooks/useOblique";

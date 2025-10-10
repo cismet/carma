@@ -38,7 +38,7 @@ import { getFeatureForLayer } from "../feature-info/featureInfoHelper";
 import { getAtLeastOneLayerIsQueryable, getQueryableLayers } from "./utils";
 import { UIMode } from "../../store/slices/ui";
 import { FeatureInfoIcon } from "../feature-info/FeatureInfoIcon";
-import { proj4crs3857def } from "../../helper/gisHelper";
+import { proj4crs3857def } from "@carma-commons/geo";
 
 type Options = {
   dispatch: Dispatch;

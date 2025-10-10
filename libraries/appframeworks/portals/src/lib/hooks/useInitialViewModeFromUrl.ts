@@ -55,12 +55,12 @@ export const useInitialViewModeFromUrl = ({
 
     // Emit engine events to coordinate initial state
     if (isTo2D) {
-      emitTopicMapEvent(TopicMapCtxEvent.Active);
-      emitCesiumEvent(CesiumCtxEvent.Suspended);
+      emitTopicMapEvent(TopicMapCtxEvent.Activate, undefined);
+      emitCesiumEvent(CesiumCtxEvent.Suspend, undefined);
       console.debug("[useInitialViewModeFromUrl] Initial mode: 2D");
     } else {
-      emitCesiumEvent(CesiumCtxEvent.Active);
-      emitTopicMapEvent(TopicMapCtxEvent.Suspended);
+      emitCesiumEvent(CesiumCtxEvent.Activate, undefined);
+      emitTopicMapEvent(TopicMapCtxEvent.Suspend, undefined);
       console.debug("[useInitialViewModeFromUrl] Initial mode: 3D");
     }
     // run only once on load

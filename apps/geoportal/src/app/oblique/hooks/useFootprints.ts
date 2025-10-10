@@ -10,7 +10,8 @@ import {
   type Cartesian3,
 } from "cesium";
 
-import { useMemoMergedDefaultOptions, Easing } from "@carma-commons/utils";
+import { useMemoMergedDefaultOptions } from "@carma-commons/react";
+import { Easing } from "@carma-commons/math";
 import {
   useCesiumContext,
   polygonHierarchyFromPolygonCoords,
@@ -82,6 +83,7 @@ export const useFootprints = (debug = false): void => {
   } = useOblique();
 
   const { outlineColor, outlineOpacity, outlineWidth } =
+    // @ts-expect-error - Type mismatch between ObliqueFootprintsStyle and Required options
     useMemoMergedDefaultOptions(footprintsStyle, defaultFootprintsStyle);
 
   const animationDuration = animations?.outlineFadeOut?.duration ?? 1000;

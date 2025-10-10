@@ -23,28 +23,36 @@ import {
   useSurfaceProviderLoader,
   usePrimaryTilesetLoader,
   useSecondaryTilesetLoader,
+  useModelsLoader,
 } from "./hooks/useCesiumProviderLoaders";
 
 import type { ProviderConfig } from "../../utils/cesiumProviders";
 import type { TilesetConfigs } from "../../utils/cesiumTilesetProviders";
+import type { CesiumConfig, SceneStyles } from "../../../index";
 
 import { initAnimationMap, AnimationMap } from "../../utils/animationMap";
 import { sceneRequestRender } from "../../utils/sceneRequestRender";
-import { TILESET_IDS } from "../../constants";
+import { TILESET_IDS, SCENE_STYLES } from "../../constants";
 
 export const CesiumContextProvider = ({
   children,
-  providerConfig,
-  tilesetConfigs,
-  models,
-  dataSources,
+  config,
 }: {
   children: ReactNode;
-  providerConfig: ProviderConfig;
-  tilesetConfigs: TilesetConfigs;
-  models?: Record<string, any>;
-  dataSources?: Record<string, any>;
+  config: CesiumConfig;
 }) => {
+  const {
+    providerConfig,
+    tilesetConfigs,
+    models,
+    modelAssets,
+    tilesetVisibility,
+    tilesetOpacity,
+    homePosition,
+    homeOffset,
+    cameraController,
+    sceneStyles,
+  } = config;
   // Use refs for Cesium instances to prevent re-renders
   const viewerRef = useRef<Viewer | null>(null);
   const sceneRef = useRef<Scene | null>(null);
@@ -62,38 +70,46 @@ export const CesiumContextProvider = ({
   const isAnimatingRef = useRef(false);
   const suspendSSCCRef = useRef(false);
 
-  // Camera controller settings
-  const minZoomDistanceRef = useRef(1);
-  const maxZoomDistanceRef = useRef(Infinity);
-  const enableCollisionDetectionRef = useRef(false);
+  // Camera controller settings from config
+  const minZoomDistanceRef = useRef(cameraController?.minimumZoomDistance ?? 1);
+  const maxZoomDistanceRef = useRef(
+    cameraController?.maximumZoomDistance ?? Infinity
+  );
+  const enableCollisionDetectionRef = useRef(
+    cameraController?.enableCollisionDetection ?? false
+  );
 
-  // Scene style settings
-  const currentSceneStyleRef = useRef<string | undefined>(undefined);
+  // Scene style settings - initialize to secondary if primary (LOD2) is visible
+  const initialStyle =
+    tilesetVisibility?.primary !== false
+      ? SCENE_STYLES.SECONDARY
+      : SCENE_STYLES.PRIMARY;
+  const currentSceneStyleRef = useRef<string | undefined>(initialStyle);
 
   // Tileset visibility and styling
   const tilesetVisibilityRef = useRef<Map<string, boolean>>(
     new Map([
-      [TILESET_IDS.PRIMARY, true],
-      [TILESET_IDS.SECONDARY, false],
+      [TILESET_IDS.PRIMARY, tilesetVisibility?.primary ?? true],
+      [TILESET_IDS.SECONDARY, tilesetVisibility?.secondary ?? false],
     ])
   );
   const tilesetOpacityRef = useRef<Map<string, number>>(
     new Map([
-      [TILESET_IDS.PRIMARY, 1.0],
-      [TILESET_IDS.SECONDARY, 1.0],
+      [TILESET_IDS.PRIMARY, tilesetOpacity?.primary ?? 1.0],
+      [TILESET_IDS.SECONDARY, tilesetOpacity?.secondary ?? 1.0],
     ])
   );
 
-  // Home position
+  // Home position from config
   const homePositionRef = useRef<{ x: number; y: number; z: number } | null>(
-    null
+    homePosition ?? null
   );
   const homeOffsetRef = useRef<{ x: number; y: number; z: number } | null>(
-    null
+    homeOffset ?? null
   );
 
-  const dataSourcesRef = useRef(dataSources ?? null);
-  const modelsRef = useRef(models ?? null);
+  const dataSourcesRef = useRef<Record<string, any> | null>(null);
+  const modelsRef = useRef(modelAssets ?? null);
 
   // explicitly trigger re-renders
   const [isViewerReady, setIsViewerReady] = useState<boolean>(false);
@@ -105,19 +121,9 @@ export const CesiumContextProvider = ({
   // Monotonic counter for initial camera applications
   const [initialCameraEpoch, setInitialCameraEpoch] = useState<number>(0);
 
-  /**
-   * Transition state refs
-   *
-   * NOTE: These refs are exposed by CesiumContext for Cesium-specific hooks to access.
-   * The actual transition coordination logic uses TransitionContext from map-transition-2d-3d.
-   *
-   * We cannot import TransitionContext here due to circular dependency:
-   * engines/cesium ← map-transition-2d-3d (which imports from engines/cesium)
-   *
-   * The transition state is synchronized through:
-   * 1. useMapTransition (reads from TransitionContext, writes to both)
-   * 2. Cesium hooks (read from CesiumContext.transitionStateRef)
-   */
+  // DEPRECATED: Transition state is now managed by TransitionContextProvider
+  // Keeping these refs for backward compatibility, but they should not be used
+  // Use useTransitionContext() instead in new code
   const transitionStateRef = useRef<string>("uninitialized");
   const transitionLifecycleRef = useRef<
     Record<string, () => void | Promise<void>>
@@ -158,6 +164,7 @@ export const CesiumContextProvider = ({
     homePositionRef,
     homeOffsetRef,
     withTerrainProvider,
+    sceneStyles,
   });
 
   // Load all providers and tilesets using named hooks
@@ -186,6 +193,11 @@ export const CesiumContextProvider = ({
     secondaryTilesetRef,
     isViewerReady,
     isValidViewer,
+  });
+  useModelsLoader({
+    models,
+    sceneRef,
+    isViewerReady,
   });
 
   const bumpInitialCameraEpoch = useCallback(
@@ -248,8 +260,8 @@ export const CesiumContextProvider = ({
       emit,
       transitionStateRef,
       transitionLifecycleRef,
-      models,
-      dataSources,
+      modelsRef,
+      dataSourcesRef,
     ]
   );
 

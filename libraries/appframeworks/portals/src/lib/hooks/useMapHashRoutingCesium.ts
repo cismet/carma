@@ -25,10 +25,10 @@ export const useMapHashRoutingCesium = (clearKeys = ["zoom"]) => {
 
   // Subscribe to Cesium context events
   useEffect(() => {
-    const unsubActive = subscribe(CtxEvent.Active, () => {
+    const unsubActive = subscribe(CtxEvent.Activate, () => {
       console.debug("[CesiumHashRouting] Cesium active");
     });
-    const unsubSuspended = subscribe(CtxEvent.Suspended, () => {
+    const unsubSuspended = subscribe(CtxEvent.Suspend, () => {
       console.debug("[CesiumHashRouting] Cesium suspended");
     });
     return () => {

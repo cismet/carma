@@ -311,16 +311,14 @@ export const useObliqueCameraHandlers = (
 
   useEffect(() => {
     const scene = sceneRef.current;
-    if (!isValidScene(scene) || !isViewerReady || !isObliqueMode) return;
+    if (!isValidScene(scene) || !isObliqueMode) return;
 
     const { camera } = scene;
 
     setCurrentHeading(camera.heading);
 
-    // Set up event handlers to detect when the user moves the camera manually
     const inputHandler = new ScreenSpaceEventHandler(scene.canvas);
 
-    // Track when the user starts manipulating the camera
     inputHandler.setInputAction(() => {
       if (!animationInProgressRef.current) {
         userMovedCameraRef.current = true;
@@ -340,23 +338,25 @@ export const useObliqueCameraHandlers = (
     }, ScreenSpaceEventType.RIGHT_DOWN);
 
     const updateCameraInfo = () => {
-      setCurrentHeading(camera.heading);
+      tryWithValidCamera(sceneRef, (camera) => {
+        setCurrentHeading(camera.heading);
 
-      if (animationInProgressRef.current) {
-        return; // Don't process further if we're in the middle of an animation
-      }
+        if (animationInProgressRef.current) {
+          return;
+        }
 
-      if (userMovedCameraRef.current) {
-        updateOrbitPointEntity();
-        userMovedCameraRef.current = false;
-      }
+        if (userMovedCameraRef.current) {
+          updateOrbitPointEntity();
+          userMovedCameraRef.current = false;
+        }
 
-      const cardinalHeadings = getCardinalHeadings(headingOffset);
-      const closestCardinalIndex = findClosestCardinalIndex(
-        camera.heading,
-        cardinalHeadings
-      );
-      setActiveDirection(closestCardinalIndex);
+        const cardinalHeadings = getCardinalHeadings(headingOffset);
+        const closestCardinalIndex = findClosestCardinalIndex(
+          camera.heading,
+          cardinalHeadings
+        );
+        setActiveDirection(closestCardinalIndex);
+      });
     };
 
     if (!orbitPoint && isDebugMode) {
@@ -370,21 +370,20 @@ export const useObliqueCameraHandlers = (
     );
     setActiveDirection(closestCardinalIndex);
 
-    viewer.camera.changed.addEventListener(updateCameraInfo);
-    viewer.camera.moveEnd.addEventListener(updateCameraInfo);
+    camera.changed.addEventListener(updateCameraInfo);
+    camera.moveEnd.addEventListener(updateCameraInfo);
 
     return () => {
-      if (viewer && !viewer.isDestroyed()) {
-        viewer.camera.changed.removeEventListener(updateCameraInfo);
-        viewer.camera.moveEnd.removeEventListener(updateCameraInfo);
-        inputHandler.destroy();
-      }
+      tryWithValidCamera(sceneRef, (camera) => {
+        camera.changed.removeEventListener(updateCameraInfo);
+        camera.moveEnd.removeEventListener(updateCameraInfo);
+      });
+      inputHandler.destroy();
     };
   }, [
     sceneRef,
     isObliqueMode,
     headingOffset,
-    updateOrbitPointEntity,
     isDebugMode,
     orbitPoint,
     animationInProgressRef,

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { type Degrees } from "@carma/types";
-import { degToRad } from "@carma-commons/math";
+import { type Degrees, type Radians } from "@carma/types";
+import { degToRad, radToDeg, PI, PI_OVER_TWO } from "@carma-commons/math";
 import {
   CardinalDirectionEnum,
   getCardinalDirectionFromHeading,
@@ -18,9 +18,11 @@ const DEG_135 = 135 as Degrees;
 const DEG_180 = 180 as Degrees;
 const DEG_224 = 224 as Degrees;
 const DEG_225 = 225 as Degrees;
+const DEG_226 = 226 as Degrees;
 const DEG_270 = 270 as Degrees;
 const DEG_314 = 314 as Degrees;
 const DEG_315 = 315 as Degrees;
+const DEG_360 = 360 as Degrees;
 
 describe("getCardinalDirectionFromHeading", () => {
   // Cardinal direction boundaries in radians
@@ -122,13 +124,13 @@ describe("getHeadingFromCardinalDirection", () => {
       CardinalDirectionEnum.North
     );
     expect(heading).toBeCloseTo(0);
-    expect(radToDeg(heading)).toBeCloseTo(0);
+    expect(+radToDeg(heading as Radians)).toBeCloseTo(0);
   });
 
   it("should convert EAST to π/2 radians (90 degrees)", () => {
     const heading = getHeadingFromCardinalDirection(CardinalDirectionEnum.East);
     expect(heading).toBeCloseTo(PI_OVER_TWO);
-    expect(radToDeg(heading)).toBeCloseTo(DEG_90);
+    expect(+radToDeg(heading as Radians)).toBeCloseTo(+DEG_90);
   });
 
   it("should convert SOUTH to π radians (180 degrees)", () => {
@@ -136,13 +138,13 @@ describe("getHeadingFromCardinalDirection", () => {
       CardinalDirectionEnum.South
     );
     expect(heading).toBeCloseTo(PI);
-    expect(radToDeg(heading)).toBeCloseTo(DEG_180);
+    expect(+radToDeg(heading as Radians)).toBeCloseTo(+DEG_180);
   });
 
   it("should convert WEST to 3π/2 radians (270 degrees)", () => {
     const heading = getHeadingFromCardinalDirection(CardinalDirectionEnum.West);
     expect(heading).toBeCloseTo(3 * PI_OVER_TWO);
-    expect(radToDeg(heading)).toBeCloseTo(DEG_270);
+    expect(+radToDeg(heading as Radians)).toBeCloseTo(+DEG_270);
   });
 
   it("should produce headings that, when converted back, return the original cardinal direction", () => {

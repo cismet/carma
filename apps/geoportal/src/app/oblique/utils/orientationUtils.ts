@@ -80,7 +80,7 @@ export function getCardinalDirectionFromHeading(
 
 export function getHeadingFromCardinalDirection(
   direction: CardinalDirectionEnum
-): number {
+): Radians {
   return zeroToTwoPi((direction * PI_OVER_TWO) as Radians);
 }
 

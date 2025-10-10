@@ -1,6 +1,6 @@
-import { useEffect, type MutableRefObject } from "react";
-import type { Scene } from "cesium";
-
+import { useEffect } from "react";
+import type { MutableRefObject } from "react";
+import { Scene } from "cesium";
 import {
   CtxEvent,
   SubscribeCesiumCtxFn,
@@ -16,6 +16,7 @@ import type {
   WithCallback,
   TerrainProviderCallback,
 } from "../../../hooks/useValidInstances";
+import type { SceneStyles } from "../../../../index";
 
 /**
  * Custom hook that manages all event subscriptions for CesiumContext refs.
@@ -36,6 +37,7 @@ export const useCesiumContextSubscriptions = ({
   homePositionRef,
   homeOffsetRef,
   withTerrainProvider,
+  sceneStyles,
 }: {
   subscribe: SubscribeCesiumCtxFn;
   emit: EmitCesiumCtxFn;
@@ -51,11 +53,21 @@ export const useCesiumContextSubscriptions = ({
   homePositionRef: MutableRefObject<{ x: number; y: number; z: number } | null>;
   homeOffsetRef: MutableRefObject<{ x: number; y: number; z: number } | null>;
   withTerrainProvider: WithCallback<TerrainProviderCallback>;
+  sceneStyles?: SceneStyles;
 }) => {
   // Update isSuspendedRef when suspend/activate events are emitted
   useEffect(() => {
     const unsubActivate = subscribe(CtxEvent.Activate, () => {
       isSuspendedRef.current = false;
+
+      const currentStyle = currentSceneStyleRef.current;
+      if (currentStyle) {
+        console.debug(
+          "[CesiumContext] Reapplying style on activate:",
+          currentStyle
+        );
+        emit(CtxEvent.SetSceneStyle, currentStyle);
+      }
     });
     const unsubSuspend = subscribe(CtxEvent.Suspend, () => {
       isSuspendedRef.current = true;
@@ -64,7 +76,7 @@ export const useCesiumContextSubscriptions = ({
       unsubActivate();
       unsubSuspend();
     };
-  }, [subscribe, isSuspendedRef]);
+  }, [subscribe, isSuspendedRef, currentSceneStyleRef, emit]);
 
   // Update isAnimatingRef when animation events are emitted
   useEffect(() => {
@@ -141,28 +153,40 @@ export const useCesiumContextSubscriptions = ({
       console.debug("[CesiumContext] Applying scene style:", newStyle);
 
       if (newStyle === SCENE_STYLES.PRIMARY) {
-        setupPrimaryStyle(scene, withTerrainProvider, undefined);
+        console.debug(
+          "[CesiumContext] Switching to PRIMARY style (Luftbild/Mesh mode)"
+        );
+        setupPrimaryStyle(scene, withTerrainProvider, sceneStyles?.primary);
+        console.debug(
+          "[CesiumContext] Hiding LOD2 (primary tileset), showing mesh (secondary tileset)"
+        );
         emit(CtxEvent.SetTilesetVisibility, {
           id: TILESET_IDS.PRIMARY,
-          visible: true,
+          visible: false,
         });
         emit(CtxEvent.SetTilesetVisibility, {
           id: TILESET_IDS.SECONDARY,
-          visible: false,
+          visible: true,
         });
         // TODO: Get style config from context and set background
         // if (primaryStyle?.backgroundColor) {
         //   setCesiumBackgroundCssVar(primaryStyle.backgroundColor);
         // }
       } else if (newStyle === SCENE_STYLES.SECONDARY) {
-        setupSecondaryStyle(scene, withTerrainProvider, undefined);
+        console.debug(
+          "[CesiumContext] Switching to SECONDARY style (LOD2 mode)"
+        );
+        setupSecondaryStyle(scene, withTerrainProvider, sceneStyles?.secondary);
+        console.debug(
+          "[CesiumContext] Showing LOD2 (primary tileset), hiding mesh (secondary tileset)"
+        );
         emit(CtxEvent.SetTilesetVisibility, {
           id: TILESET_IDS.PRIMARY,
-          visible: false,
+          visible: true,
         });
         emit(CtxEvent.SetTilesetVisibility, {
           id: TILESET_IDS.SECONDARY,
-          visible: true,
+          visible: false,
         });
         // TODO: Get style config from context and set background
         // if (secondaryStyle?.backgroundColor) {

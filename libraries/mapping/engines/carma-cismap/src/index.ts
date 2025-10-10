@@ -3,8 +3,8 @@ export {
   type CarmaTopicMapContextProviderProps,
 } from "./lib/CarmaTopicMapContextProvider";
 export {
-  TopicMapContext,
-  type TopicMapContextType,
+  CarmaTopicMapContext,
+  type CarmaTopicMapContextType,
 } from "./lib/CarmaTopicMapContext";
 export {
   useCarmaTopicMapContext,

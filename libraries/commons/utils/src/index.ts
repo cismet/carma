@@ -1,5 +1,7 @@
 export { isNumberArrayEqual } from "./lib/arrays";
 
+export { extractCarmaConfig } from "./lib/carma-config";
+
 export { extractInformation } from "./lib/layer-parser";
 
 export { suppressReactCismapErrors } from "./lib/log-react-cismap-errors";

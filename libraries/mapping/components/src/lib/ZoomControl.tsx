@@ -1,10 +1,13 @@
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faMinus, faPlus } from "@fortawesome/free-solid-svg-icons";
-import { useLeafletZoomControls } from "@carma-mapping/utils";
+import { useLeafletZoomControls } from "@carma-mapping/engines/leaflet";
+import { useCarmaTopicMapContext } from "@carma-mapping/engines/carma-cismap";
 
 export const ZoomControl = () => {
-  const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
+  const { leafletMapRef } = useCarmaTopicMapContext();
+  const { zoomInLeaflet, zoomOutLeaflet } =
+    useLeafletZoomControls(leafletMapRef);
 
   return (
     <div data-test-id="zoom-control" className="flex flex-col">

@@ -12,7 +12,7 @@ import { Cartesian3, Color } from "cesium";
 import type { CesiumConfig } from "@carma-mapping/engines/cesium";
 import { toColorRgbaArray } from "@carma-mapping/engines/cesium";
 import type { LeafletConfig } from "@carma/types";
-import { MODEL_ASSETS } from "./cesium/assets.config";
+import { MODEL_ASSETS } from "./assets.config";
 
 export const APP_BASE_PATH = import.meta.env.BASE_URL;
 export const ICON_PREFIX =
@@ -49,12 +49,12 @@ export const CESIUM_CONFIG: CesiumConfig = {
     imageryProvider: BASEMAP_METROPOLE_RUHR_WMTS_GRAUBLAU_HQ,
   },
   tilesetConfigs: {
-    primary: WUPP_MESH_2024,
-    secondary: WUPP_LOD2_TILESET,
+    primary: WUPP_LOD2_TILESET,
+    secondary: WUPP_MESH_2024,
   },
   tilesetVisibility: {
-    primary: false,
-    secondary: true,
+    primary: true,
+    secondary: false,
   },
   tilesetOpacity: {
     primary: 1.0,

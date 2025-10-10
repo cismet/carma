@@ -26,7 +26,7 @@ import type { GeoportalEventMap } from "../types/GeoportalEventMap";
 type CarmaMapProviderWrapperProps = {
   children: React.ReactNode;
   overlayOptions: { background: { transparency: number; color: string } };
-  cesiumOptions: { providerConfig: any; tilesetConfigs: any };
+  cesiumOptions: any;
   gazDataConfig?: GazDataConfig;
   mapStyleConfig: MapStyleConfig;
   hashKeyAliases?: Record<string, string>;
@@ -92,12 +92,7 @@ export const CarmaMapProviderWrapper = ({
                         transparency={transparency}
                         color={color}
                       >
-                        <CesiumContextProvider
-                          //initialViewerState={defaultCesiumState}
-                          // TODO move these to store/slice setup ?
-                          providerConfig={cesiumOptions.providerConfig}
-                          tilesetConfigs={cesiumOptions.tilesetConfigs}
-                        >
+                        <CesiumContextProvider config={cesiumOptions}>
                           {children}
                         </CesiumContextProvider>
                       </OverlayTourProvider>

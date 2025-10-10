@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
@@ -16,7 +15,7 @@ import { Save, useSelection, useShareUrl } from "@carma-appframeworks/portals";
 import { geoElements } from "@carma-collab/wuppertal/geoportal";
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 import { useOverlayHelper } from "@carma-commons/ui/helper-overlay";
-import { carmaWindow } from "@carma-commons/utils";
+import { carmaWindow } from "@carma-commons/dom/window";
 import {
   appendSavedLayerConfig,
   changeBackgroundOpacity,
@@ -26,21 +25,13 @@ import {
   getLayerState,
   getPaleOpacityValue,
   setFocusMode,
-  setPaleOpacityValue,
-  toggleLayerVisibility,
+  getBackgroundLayer,
 } from "../../store/slices/mapping";
 import {
-  UIMode,
-  getIfPopupOpend,
   getUIIsMode2d,
-  setShowResourceModal,
-  setUIMode,
-  toggleUIMode,
-} from "../../store/slices/ui";
-import {
-  setShowResourceModal,
-  setUIMode,
   setZenMode,
+  setShowResourceModal,
+  setUIMode,
 } from "../../store/slices/ui";
 import Print from "../map-print/Print";
 import CustomPopover from "./CustomPopover";
@@ -57,7 +48,6 @@ const ActionButtons = () => {
   const shouldShow2dUI = useSelector(getUIIsMode2d);
   const focusMode = useSelector(getFocusMode);
   const activeLayers = useSelector(getLayers);
-  const showPrintPopup = useSelector(getIfPopupOpend);
   const backgroundLayer = useSelector(getBackgroundLayer);
   const paleOpacityValue = useSelector(getPaleOpacityValue);
 
@@ -66,19 +56,6 @@ const ActionButtons = () => {
   const menuTourRef = useOverlayHelper(
     getCollabedHelpElementsConfig("MENULEISTE", geoElements)
   );
-
-  const loading = useSelector(getIsLoading);
-  const printError = useSelector(getPrintError);
-
-  useEffect(() => {
-    if (printError) {
-      const timer = setTimeout(() => {
-        dispatch(changePrintError(null));
-      }, 5000);
-
-      return () => clearTimeout(timer);
-    }
-  }, [printError]);
 
   return (
     <div
@@ -180,14 +157,13 @@ const ActionButtons = () => {
       />
       <CustomPopover
         content={<Print />}
-        icon={printError ? faExclamation : faPrint}
+        icon={faPrint}
         testId="print-btn"
-        tooltip={printError ? printError : "Drucken"}
+        tooltip="Drucken"
         disabled={!shouldShow2dUI}
-        className={printError ? "text-red-600" : ""}
       />
       <CustomPopover
-        content={<ShareContent />}
+        content={<div>Share content placeholder</div>}
         icon={faShareNodes}
         testId="teilen-btn"
         tooltip="Teilen"

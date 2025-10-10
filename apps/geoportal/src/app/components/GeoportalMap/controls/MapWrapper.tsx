@@ -14,7 +14,6 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
-import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
 import type { SearchResultItem } from "@carma/types";
@@ -23,24 +22,26 @@ import {
   SelectionMapMode,
   useGazData,
   useSelection,
-  type GeoportalEventMap,
 } from "@carma-appframeworks/portals";
-import { ENDPOINT, isAreaType } from "@carma-commons/resources";
-import { detectWebGLContext } from "@carma-commons/utils";
+import { isAreaType, type EndpointKey } from "@carma-commons/resources";
+import { detectWebGLContext } from "@carma-commons/dom/canvas";
 
 import {
-  MapTypeSwitcher,
-  PitchingCompass,
-  selectViewerModels,
-  setIsMode2d,
+  useCesiumContext,
   useHomeControl,
   useZoomControls as useZoomControlsCesium,
+  CtxEvent,
 } from "@carma-mapping/engines/cesium";
+import { useCarmaTopicMapContext } from "@carma-mapping/engines/carma-cismap";
 import {
+  MapTypeSwitcher,
   FullscreenControl,
-  LibrePitchingCompass,
   RoutedMapLocateControl,
 } from "@carma-mapping/components";
+import {
+  CesiumPitchingCompass,
+  LibrePitchingCompass,
+} from "@carma-mapping/ui/pitching-compass";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import {
   Control,
@@ -56,7 +57,7 @@ import LibreGeoportalMap from "../LibreGeoportalMap.tsx";
 import { ObliqueControls } from "../../../oblique/components/ObliqueControls.tsx";
 import LayerWrapper from "../../layers/LayerWrapper.tsx";
 
-import { useLeafletZoomControls } from "../../../hooks/leaflet/useLeafletZoomControls.ts";
+import { useLeafletZoomControls } from "@carma-mapping/engines/leaflet";
 import { useAppSearchParams } from "../../../hooks/useAppSearchParams";
 import { useDispatchSachdatenInfoText } from "../../../hooks/useDispatchSachdatenInfoText.ts";
 import { useFeatureInfoModeCursorStyle } from "../../../hooks/useFeatureInfoModeCursorStyle.ts";
@@ -103,7 +104,8 @@ window.addEventListener("load", testGPU, false);
 const MapWrapper = () => {
   const dispatch = useDispatch();
   const flags = useFeatureFlags();
-  const { emit } = useEventBus<GeoportalEventMap>();
+  const { emit: emitCesium, isSuspendedRef } = useCesiumContext();
+  const { emit: emitTopicMap, leafletMapRef } = useCarmaTopicMapContext();
 
   const showLibreMap = flags.featureFlagLibreMap;
 
@@ -112,28 +114,22 @@ const MapWrapper = () => {
   const lastRenderIntervalRef = useRef(0);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  // Emit events and update Redux when mode transitions complete
+  // Emit events when mode transitions complete
   const handleTransitionComplete = (isTo2D: boolean) => {
     console.debug("[MapWrapper] Transition complete:", { isTo2D });
 
-    // Update Redux UI state
-    dispatch(setIsMode2d(isTo2D));
-
-    // Emit events for decoupled components
+    // Emit events to Cesium context
     if (isTo2D) {
-      emit("topicmap-active");
-      emit("cesium-suspended");
+      emitCesium(CtxEvent.Suspend, undefined);
     } else {
-      emit("cesium-active");
-      emit("topicmap-suspended");
+      emitCesium(CtxEvent.Activate, undefined);
     }
   };
 
   // State and Selectors
   const libreMapRef = useSelector(getLibreMapRef);
   const allow3d = useSelector(getUIAllow3d) && hasGPU;
-  const isMode2d = useSelector(selectViewerIsMode2d) || !allow3d;
-  const models = useSelector(selectViewerModels);
+  const isMode2d = isSuspendedRef.current || !allow3d;
   const uiMode = useSelector(getUIMode);
   const isModeMeasurement = uiMode === UIMode.MEASUREMENT;
   const isModeFeatureInfo = uiMode === UIMode.FEATURE_INFO;
@@ -151,12 +147,12 @@ const MapWrapper = () => {
   } = useZoomControlsCesium({
     fovMode: isObliqueMode,
   });
-  const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
+
+  const { zoomInLeaflet, zoomOutLeaflet } =
+    useLeafletZoomControls(leafletMapRef);
 
   useDebug();
 
-  const { routedMapRef: routedMap } =
-    useContext<typeof TopicMapContext>(TopicMapContext);
   const { responsiveState, gap, windowSize } = useContext<
     typeof ResponsiveTopicMapContext
   >(ResponsiveTopicMapContext);
@@ -172,9 +168,8 @@ const MapWrapper = () => {
   const [isHoveringZenButton, setIsHoveringZenButton] = useState(false);
 
   useEffect(() => {
-    if (routedMap?.leafletMap) {
-      const map = routedMap.leafletMap.leafletElement;
-
+    const map = leafletMapRef.current;
+    if (map) {
       const handleMapMove = () => {
         if (isLocationActive && hasFoundLocation) {
           setHasMapMoved(true);
@@ -196,7 +191,7 @@ const MapWrapper = () => {
         map.off("locationfound", handleLocationFound);
       };
     }
-  }, [routedMap, isLocationActive, hasFoundLocation]);
+  }, [leafletMapRef, isLocationActive, hasFoundLocation]);
 
   useEffect(() => {
     if (!isLocationActive) {
@@ -246,19 +241,18 @@ const MapWrapper = () => {
         ? SelectionMapMode.MODE_2D
         : SelectionMapMode.MODE_3D,
       selectionTimestamp: Date.now(),
-      isAreaSelection: isAreaType(selection.type as ENDPOINT),
+      isAreaSelection: isAreaType(selection.type as EndpointKey),
     };
 
     setSelection(Object.assign({}, selection, selectionMetaData));
   };
 
   useEffect(() => {
-    // set 2d mode if allow3d is false or undefined
+    // Suspend Cesium if 3D is not allowed
     if (allow3d === false || allow3d === undefined) {
-      dispatch(setIsMode2d(true));
+      emitCesium(CtxEvent.Suspend, undefined);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allow3d]);
+  }, [allow3d, emitCesium]);
 
   console.debug("RENDER: [WRAPPER] MAP", isMode2d);
   rerenderCountRef.current++;
@@ -367,7 +361,7 @@ const MapWrapper = () => {
                     {showLibreMap ? (
                       <LibrePitchingCompass mapRef={libreMapRef} />
                     ) : (
-                      <PitchingCompass />
+                      <CesiumPitchingCompass />
                     )}
                   </ControlButtonStyler>
                 </Tooltip>
@@ -413,11 +407,11 @@ const MapWrapper = () => {
                       });
                     }
                   } else {
-                    routedMap.leafletMap.leafletElement.flyTo(
-                      [51.272570027476256, 7.199918031692506],
-                      18
-                    );
-                    homeControl();
+                    const map = leafletMapRef.current;
+                    if (map) {
+                      map.flyTo([51.272570027476256, 7.199918031692506], 18);
+                      homeControl();
+                    }
                   }
                 }}
                 dataTestId="home-control"

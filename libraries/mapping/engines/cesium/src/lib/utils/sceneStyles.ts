@@ -76,18 +76,35 @@ export const setupPrimaryStyle = (
   if (invertedSelection) {
     invertedSelection.classificationType = ClassificationType.CESIUM_3D_TILE;
   }
+  const hideAllImageryLayers = () => {
+    if (!isValidScene(scene)) return;
+
+    for (let i = 0; i < scene.imageryLayers.length; i++) {
+      const layer = scene.imageryLayers.get(i);
+      if (layer && !layer.isDestroyed() && layer.show) {
+        layer.show = false;
+        console.debug("[STYLES|IMAGERY|CESIUM] hide imagery layer", i);
+      }
+    }
+  };
+
+  const ensureImageryHidden = () => {
+    const ensureOnce = () => {
+      if (!isValidScene(scene)) return;
+      hideAllImageryLayers();
+      scene.requestRender();
+      scene.postRender.removeEventListener(ensureOnce);
+    };
+    if (!isValidScene(scene)) return;
+    scene.postRender.addEventListener(ensureOnce);
+  };
+
   waitAndSetTerrainProvider(scene, withTerrainProvider, {
     label: SCENE_STYLES.PRIMARY,
+    onReady: ensureImageryHidden,
   });
 
-  // Hide all imagery layers for primary style
-  for (let i = 0; i < scene.imageryLayers.length; i++) {
-    const layer = scene.imageryLayers.get(i);
-    if (layer && !layer.isDestroyed()) {
-      layer.show = false;
-    }
-  }
-
+  hideAllImageryLayers();
   sceneRequestRender(scene);
 };
 

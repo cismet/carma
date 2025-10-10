@@ -2,6 +2,7 @@ import {
   memo,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -26,7 +27,7 @@ import {
 } from "@carma-appframeworks/portals";
 
 import { tooltipText } from "@carma-collab/wuppertal/geoportal";
-import { ENDPOINT, isAreaType } from "@carma-commons/resources";
+import { isAreaType, type EndpointKey } from "@carma-commons/resources";
 import { getApplicationVersion } from "@carma-commons/utils";
 import { useOverlayTourContext } from "@carma-commons/ui/helper-overlay";
 import { InfoBoxMeasurement } from "@carma-commons/measurements";
@@ -39,11 +40,8 @@ import FeatureInfoBox from "../../../feature-info/FeatureInfoBox.tsx";
 
 import versionData from "../../../../../version.json";
 
-import {
-  proj4crs3857def,
-  proj4crs4326def,
-} from "../../../../helper/gisHelper.js";
-import { useLeafletZoomControls } from "../../../../hooks/leaflet/useLeafletZoomControls.ts";
+import { proj4crs3857def, proj4crs4326def } from "@carma-commons/geo";
+import { useLeafletZoomControls } from "@carma-mapping/engines/leaflet";
 import { useDispatchSachdatenInfoText } from "../../../../hooks/useDispatchSachdatenInfoText.ts";
 import { LEAFLET_CONFIG } from "../../../../config/app.config";
 import { UIMode, getUIMode } from "../../../../store/slices/ui.ts";
@@ -97,15 +95,16 @@ export const TopicMapComponentWrapper = ({
   const selectedFeature = useSelector(getSelectedFeature);
   const loadingFeatureInfo = useSelector(getLoading);
   const flags = useFeatureFlags();
-  const { isSuspendedRef, leafletMap, subscribe } = useCarmaTopicMapContext();
+  const { isSuspendedRef, leafletMapRef, subscribe } =
+    useCarmaTopicMapContext();
   const { setAppMenuVisible } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
   const { setSecondaryWithKey, showOverlayHandler } = useOverlayTourContext();
   const version = getApplicationVersion(versionData);
-  const { getLeafletZoom } = useLeafletZoomControls();
+  const { getLeafletZoom } = useLeafletZoomControls(leafletMapRef);
   const { gazData } = useGazData();
 
-  const getTopicMap = useCallback(() => leafletMap, [leafletMap]);
+  const getTopicMap = useCallback(() => leafletMapRef.current, [leafletMapRef]);
 
   const layerIdleRef = useRef(layersIdle);
 
@@ -203,7 +202,7 @@ export const TopicMapComponentWrapper = ({
       if (layers.filter((l) => l.layerType === "vector").length === 0) return;
       if (
         (uiMode === UIMode.DEFAULT || uiMode === UIMode.FEATURE_INFO) &&
-        !isAreaType(selection.type as ENDPOINT) &&
+        !isAreaType(selection.type as EndpointKey) &&
         !isSuspendedRef.current
       ) {
         const selectedPos = proj4(proj4crs3857def, proj4crs4326def, [

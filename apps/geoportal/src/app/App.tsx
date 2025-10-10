@@ -17,7 +17,10 @@ import {
 } from "@carma-collab/wuppertal/geoportal";
 import { DebugUiProvider } from "@carma-commons/debug";
 import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
-import { MobileWarningMessage } from "@carma-mapping/components";
+import {
+  MobileWarningMessage,
+  TilesetLoadingProgress,
+} from "@carma-mapping/components";
 import {
   FeatureFlagProvider,
   useFeatureFlags,
@@ -139,6 +142,7 @@ function App({ published }: { published?: boolean }) {
                       </div>
                     )}
                     {!published && <TopNavbar />}
+                    <TilesetLoadingProgress />
                     <MapMeasurementsObjects />
                     <MapWrapper />
                     <MobileWarningMessage

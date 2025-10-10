@@ -6,6 +6,7 @@ import {
   useCarmaTopicMapContext,
   TopicMapCtxEvent,
 } from "@carma-mapping/engines/carma-cismap";
+import { isMapCenterZoomEquivalent } from "@carma-commons/geo";
 
 import { useHashState } from "../contexts/HashStateProvider";
 import {
@@ -17,6 +18,7 @@ interface UseLeafletLikeChangeHandlerOptions {
   navMoveInProgressRef: MutableRefObject<boolean>;
   popstateTargetRef: MutableRefObject<LatLngZoom | null>;
   cesiumClearKeys?: string[];
+  label?: string;
   pixelTolerance?: number;
   onAfterLocationChanged?: () => void;
 }
@@ -38,10 +40,10 @@ export function useLeafletLikeChangeHandler({
 
   // Subscribe to TopicMap context events
   useEffect(() => {
-    const unsubActive = subscribe(TopicMapCtxEvent.Active, () => {
+    const unsubActive = subscribe(TopicMapCtxEvent.Activate, () => {
       console.debug("[TopicMapHashRouting] TopicMap active");
     });
-    const unsubSuspended = subscribe(TopicMapCtxEvent.Suspended, () => {
+    const unsubSuspended = subscribe(TopicMapCtxEvent.Suspend, () => {
       console.debug("[TopicMapHashRouting] TopicMap suspended");
     });
     return () => {

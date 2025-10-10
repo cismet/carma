@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
-
+import type { Degrees } from "@carma/types";
 import { type Scene } from "cesium";
 
 import {

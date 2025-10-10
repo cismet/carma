@@ -14,6 +14,7 @@ import {
 } from "cesium";
 
 import { useCesiumContext } from "./useCesiumContext";
+import { CtxEvent } from "../cesiumContextEventMap";
 
 import { configureCesiumErrorHandling } from "../utils/cesiumErrorHandling";
 import { validateWorldCoordinate } from "../utils/positions";
@@ -64,6 +65,7 @@ export const useInitializeViewer = (
     maxZoomDistanceRef,
     enableCollisionDetectionRef,
     currentSceneStyleRef,
+    emit,
   } = useCesiumContext();
 
   // Get values from refs
@@ -141,6 +143,15 @@ export const useInitializeViewer = (
               setIsViewerReady(true);
               scene.postRender.removeEventListener(handlePostRender);
               postRenderHandlerMap.delete(viewer);
+
+              const initialStyle = currentSceneStyleRef.current;
+              if (initialStyle) {
+                console.debug(
+                  "[CESIUM|INIT] Applying initial style:",
+                  initialStyle
+                );
+                emit(CtxEvent.SetSceneStyle, initialStyle);
+              }
             }
           });
         };

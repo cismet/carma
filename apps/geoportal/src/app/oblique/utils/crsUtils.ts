@@ -1,5 +1,9 @@
 import proj4 from "proj4";
+import { proj4crs25832def, EPSG25832 } from "@carma-commons/geo";
 import { ExteriorPosition, Proj4Converter } from "../types";
+
+// Register EPSG:25832 projection
+proj4.defs(EPSG25832, proj4crs25832def);
 
 /**
  * Calculates the convergence angle (meridian convergence) between a projected CRS and WGS84

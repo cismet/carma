@@ -1,8 +1,9 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 
 import { useCesiumContext } from "./useCesiumContext";
 import { TRANSITION_DELAY } from "../viewerDefaults";
 import { TILESET_IDS } from "../constants";
+import { CtxEvent } from "../cesiumContextEventMap";
 import { useSecondaryStyleTilesetClickHandler } from "./useSecondaryStyleTilesetClickHandler";
 import { useTilesetsDebug } from "./useTilesetsDebug";
 import { isValidScene } from "../utils/instanceGates";
@@ -15,12 +16,29 @@ export const useTilesets = () => {
     isSuspendedRef,
     requestRender,
     tilesetVisibilityRef,
+    subscribe,
   } = useCesiumContext();
 
-  const showPrimary =
-    tilesetVisibilityRef.current.get(TILESET_IDS.PRIMARY) ?? false;
-  const showSecondary =
-    tilesetVisibilityRef.current.get(TILESET_IDS.SECONDARY) ?? true;
+  const [showPrimary, setShowPrimary] = useState(
+    () => tilesetVisibilityRef.current.get(TILESET_IDS.PRIMARY) ?? false
+  );
+  const [showSecondary, setShowSecondary] = useState(
+    () => tilesetVisibilityRef.current.get(TILESET_IDS.SECONDARY) ?? true
+  );
+
+  useEffect(() => {
+    const unsubVis = subscribe(
+      CtxEvent.SetTilesetVisibility,
+      ({ id, visible }) => {
+        if (id === TILESET_IDS.PRIMARY) {
+          setShowPrimary(visible);
+        } else if (id === TILESET_IDS.SECONDARY) {
+          setShowSecondary(visible);
+        }
+      }
+    );
+    return () => unsubVis();
+  }, [subscribe]);
 
   useTilesetsDebug();
 
@@ -70,17 +88,22 @@ export const useTilesets = () => {
   }, [withSecondaryTileset, showSecondary, sceneRef, requestRender]);
 
   useEffect(() => {
-    console.debug("HOOK BaseTilesets: showSecondary", showSecondary);
+    console.debug(
+      "[TILESETS] Mesh/Secondary visibility change:",
+      showSecondary
+    );
     withSecondaryTileset((tileset) => {
       tileset.show = showSecondary;
+      console.debug("[TILESETS] Mesh tileset.show =", tileset.show);
       requestRender();
     });
   }, [withSecondaryTileset, showSecondary, requestRender]);
 
   useEffect(() => {
-    console.debug("HOOK BaseTilesets: showPrimary", showPrimary);
+    console.debug("[TILESETS] LOD2/Primary visibility change:", showPrimary);
     withPrimaryTileset((tileset) => {
       tileset.show = showPrimary;
+      console.debug("[TILESETS] LOD2 tileset.show =", tileset.show);
       requestRender();
     });
   }, [withPrimaryTileset, showPrimary, requestRender]);

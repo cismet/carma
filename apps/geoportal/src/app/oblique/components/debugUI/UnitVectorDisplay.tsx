@@ -1,6 +1,6 @@
 import { useRef } from "react";
 import type { Vector3Arr, Radians } from "@carma/types";
-import { radToDeg } from "@carma-commons/utils";
+import { radToDeg } from "@carma-commons/math";
 
 const CESIUM_DEBUG_AXIS_COLORS = {
   // https://cesium.com/learn/cesiumjs/ref-doc/DebugModelMatrixPrimitive.html

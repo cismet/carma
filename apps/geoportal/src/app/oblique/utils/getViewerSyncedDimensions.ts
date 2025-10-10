@@ -1,8 +1,8 @@
 import { PerspectiveFrustum, type Scene } from "cesium";
 
 import { CssPixelHeight, CssPixelWidth } from "@carma/types";
-import { getWindowDimensions } from "@carma-commons/utils";
-import { getCanvasDimensions } from "@carma-commons/utils/canvas";
+import { getWindowDimensions } from "@carma-commons/dom/window";
+import { getCanvasDimensions } from "@carma-commons/dom/canvas";
 import { tryWithValidScene } from "@carma-mapping/engines/cesium";
 
 const isSupportedFrustum = (

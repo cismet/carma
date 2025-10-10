@@ -20,14 +20,14 @@ import {
   useSelectionLibreMap,
 } from "@carma-appframeworks/portals";
 import {
-  ENDPOINT,
   isAreaType,
+  type EndpointKey,
   METROPOLERUHR_WMTS_SPW2_WEBMERCATOR_HQ,
 } from "@carma-commons/resources";
 import { normalizeOptions } from "@carma-commons/utils";
 import { zoom256as512, zoom512as256 } from "@carma-mapping/engines/maplibre";
 
-import { proj4crs3857def, proj4crs4326def } from "../../helper/gisHelper.js";
+import { proj4crs3857def, proj4crs4326def } from "@carma-commons/geo";
 
 import store from "../../store";
 import {
@@ -171,7 +171,7 @@ const LibreGeoportalMap = ({
     if (layers.filter((l) => l.layerType === "vector").length === 0) return;
     if (
       (uiMode === UIMode.DEFAULT || uiMode === UIMode.FEATURE_INFO) &&
-      !isAreaType(selection.type as ENDPOINT)
+      !isAreaType(selection.type as EndpointKey)
     ) {
       const selectedPos = proj4(proj4crs3857def, proj4crs4326def, [
         selection.x,
