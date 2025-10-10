@@ -230,6 +230,21 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
       const L = (window as any).L;
 
       const mousemoveHandler = (e: any) => {
+        // Check zoom level - only work if zoom >= 17
+        const currentZoom = leafletMap.getZoom();
+        if (currentZoom < 17) {
+          // Remove circles if zoom is too low
+          if (circleMarkerRef.current) {
+            leafletMap.removeLayer(circleMarkerRef.current);
+            circleMarkerRef.current = null;
+          }
+          if (toleranceCircleMarkerRef.current) {
+            leafletMap.removeLayer(toleranceCircleMarkerRef.current);
+            toleranceCircleMarkerRef.current = null;
+          }
+          return; // Exit early
+        }
+
         // Remove old circles if exist
         if (circleMarkerRef.current) {
           leafletMap.removeLayer(circleMarkerRef.current);
@@ -740,6 +755,18 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
               const redSpiderLines: any[] = [];
               const redPoints: any[] = [];
 
+              // If no points found, show red dot at mouse pointer
+              if (shortestIndex === -1) {
+                redPoints.push({
+                  type: "Feature",
+                  geometry: {
+                    type: "Point",
+                    coordinates: [mouseLatLng.lng, mouseLatLng.lat],
+                  },
+                  properties: {},
+                });
+              }
+
               filteredPointsWithDistance.forEach((item: any, index: number) => {
                 const isClosest = index === shortestIndex;
 
@@ -919,7 +946,18 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
 
               // Only show the closest point in black
               const blackPoint: any[] = [];
-              if (shortestIndex !== -1) {
+              
+              if (shortestIndex === -1) {
+                // No points found - show black dot at mouse pointer
+                blackPoint.push({
+                  type: "Feature",
+                  geometry: {
+                    type: "Point",
+                    coordinates: [mouseLatLng.lng, mouseLatLng.lat],
+                  },
+                  properties: { black: true },
+                });
+              } else {
                 const closestItem = filteredPointsWithDistance[shortestIndex];
                 
                 // Check if winning dot is within tolerance radius
@@ -938,10 +976,10 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
                       type: "Point",
                       coordinates: [mouseLatLng.lng, mouseLatLng.lat],
                     },
-                    properties: { black: true },
-                  });
-                }
+                    properties: { black: true, mode: mode },
+                });
               }
+            }
 
               // Update highlight source with only the black point
               maplibreMap.getSource("highlight").setData({
@@ -1010,26 +1048,27 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
           gap: "10px",
         }}
       >
-        <div style={{ display: "flex", flexDirection: "row", gap: "8px" }}>
-          {hasSavedVectorStyle && (
+        {vectorStyles.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "row", gap: "8px" }}>
+            {hasSavedVectorStyle && (
+              <button
+                onClick={clearVectorStyle}
+                style={{
+                  padding: "8px 12px",
+                  border: "1px solid #ccc",
+                  borderRadius: "4px",
+                  background: "white",
+                  color: "black",
+                  cursor: "pointer",
+                  fontSize: "14px",
+                  whiteSpace: "nowrap",
+                }}
+                title="Clear saved vector layer"
+              >
+                🗑️
+              </button>
+            )}
             <button
-              onClick={clearVectorStyle}
-              style={{
-                padding: "8px 12px",
-                border: "1px solid #ccc",
-                borderRadius: "4px",
-                background: "white",
-                color: "black",
-                cursor: "pointer",
-                fontSize: "14px",
-                whiteSpace: "nowrap",
-              }}
-              title="Clear saved vector layer"
-            >
-              🗑️
-            </button>
-          )}
-          <button
             onClick={() => setMode("features")}
             style={{
               padding: "8px 12px",
@@ -1120,7 +1159,8 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
           >
             Serious
           </button>
-        </div>
+          </div>
+        )}
 
         {/* Radius Slider */}
         <div style={{ borderTop: "1px solid #e0e0e0", paddingTop: "10px" }}>
