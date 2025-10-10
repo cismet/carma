@@ -271,6 +271,7 @@ export function InfoBoxMeasurement({
               {drawingMode ? (
                 <Tooltip title="Aktuelle Messung abbrechen">
                   <button
+                    className="bg-transparent"
                     onClick={(e) => {
                       e.stopPropagation();
                       const map = routedMapRef.leafletMap.leafletElement;
