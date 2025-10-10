@@ -439,7 +439,14 @@ const Map = ({
             <Control position="topleft" order={10}>
               <ZoomControl />
             </Control>
-            <MeasurementControl showInfoBox={false} />
+            <MeasurementControl
+              showInfoBox={false}
+              tooltip={
+                measurementMode === MEASUREMENT_MODE.MEASUREMENT
+                  ? "Messungsmodus ausschalten"
+                  : "Messungsmodus einschalten"
+              }
+            />
             {measurementMode === MEASUREMENT_MODE.MEASUREMENT && (
               <InfoBoxMeasurement pixelWidth={pixelWidth} />
             )}
