@@ -25,7 +25,9 @@ import {
 } from "react-cismap/contexts/TopicMapContextProvider";
 import InfoBoxFotoPreview from "react-cismap/topicmaps/InfoBoxFotoPreview";
 import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
-import { Slider } from "antd";
+import { ModeButtons } from "./components/ModeButtons";
+import { RadiusSliders } from "./components/RadiusSliders";
+import { VectorLayerButton } from "./components/VectorLayerButton";
 
 suppressReactCismapErrors();
 
@@ -1050,159 +1052,22 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
       >
         {vectorStyles.length > 0 && (
           <div style={{ display: "flex", flexDirection: "row", gap: "8px" }}>
-            {hasSavedVectorStyle && (
-              <button
-                onClick={clearVectorStyle}
-                style={{
-                  padding: "8px 12px",
-                  border: "1px solid #ccc",
-                  borderRadius: "4px",
-                  background: "white",
-                  color: "black",
-                  cursor: "pointer",
-                  fontSize: "14px",
-                  whiteSpace: "nowrap",
-                }}
-                title="Clear saved vector layer"
-              >
-                🗑️
-              </button>
-            )}
-            <button
-            onClick={() => setMode("features")}
-            style={{
-              padding: "8px 12px",
-              border: "1px solid #ccc",
-              borderRadius: "4px",
-              background: mode === "features" ? "#4CAF50" : "white",
-              color: mode === "features" ? "white" : "black",
-              cursor: "pointer",
-              fontSize: "14px",
-              whiteSpace: "nowrap",
-            }}
-          >
-            Highlight Features
-          </button>
-          <button
-            onClick={() => setMode("coordinates")}
-            style={{
-              padding: "8px 12px",
-              border: "1px solid #ccc",
-              borderRadius: "4px",
-              background: mode === "coordinates" ? "#4CAF50" : "white",
-              color: mode === "coordinates" ? "white" : "black",
-              cursor: "pointer",
-              fontSize: "14px",
-              whiteSpace: "nowrap",
-            }}
-          >
-            Highlight Coordinates
-          </button>
-          <button
-            onClick={() => setMode("coordinatesUnderPointer")}
-            style={{
-              padding: "8px 12px",
-              border: "1px solid #ccc",
-              borderRadius: "4px",
-              background:
-                mode === "coordinatesUnderPointer" ? "#4CAF50" : "white",
-              color: mode === "coordinatesUnderPointer" ? "white" : "black",
-              cursor: "pointer",
-              fontSize: "14px",
-              whiteSpace: "nowrap",
-            }}
-          >
-            Highlight Coordinates Under Pointer
-          </button>
-          <button
-            onClick={() => setMode("spider")}
-            style={{
-              padding: "8px 12px",
-              border: "1px solid #ccc",
-              borderRadius: "4px",
-              background: mode === "spider" ? "#4CAF50" : "white",
-              color: mode === "spider" ? "white" : "black",
-              cursor: "pointer",
-              fontSize: "14px",
-              whiteSpace: "nowrap",
-            }}
-          >
-            Spider
-          </button>
-          <button
-            onClick={() => setMode("spiderRocket")}
-            style={{
-              padding: "8px 12px",
-              border: "1px solid #ccc",
-              borderRadius: "4px",
-              background: mode === "spiderRocket" ? "#4CAF50" : "white",
-              color: mode === "spiderRocket" ? "white" : "black",
-              cursor: "pointer",
-              fontSize: "14px",
-              whiteSpace: "nowrap",
-            }}
-          >
-            Spider 🚀
-          </button>
-          <button
-            onClick={() => setMode("serious")}
-            style={{
-              padding: "8px 12px",
-              border: "1px solid #ccc",
-              borderRadius: "4px",
-              background: mode === "serious" ? "#4CAF50" : "white",
-              color: mode === "serious" ? "white" : "black",
-              cursor: "pointer",
-              fontSize: "14px",
-              whiteSpace: "nowrap",
-            }}
-          >
-            Serious
-          </button>
+            <VectorLayerButton
+              hasSavedVectorStyle={hasSavedVectorStyle}
+              onClear={clearVectorStyle}
+            />
+            <ModeButtons mode={mode} onModeChange={setMode} />
           </div>
         )}
 
-        {/* Radius Slider */}
-        <div style={{ borderTop: "1px solid #e0e0e0", paddingTop: "10px" }}>
-          <label
-            style={{
-              fontWeight: "bold",
-              fontSize: "14px",
-              marginBottom: "8px",
-              display: "block",
-            }}
-          >
-            Query Radius: {queryRadius}px
-          </label>
-          <Slider
-            min={5}
-            max={200}
-            value={queryRadius}
-            onChange={(value) => setQueryRadius(value)}
-          />
-        </div>
-        
-        {/* Tolerance Radius Slider - only show for spider, spiderRocket, and serious modes */}
-        {(mode === "spider" || mode === "spiderRocket" || mode === "serious") && (
-          <div style={{ borderTop: "1px solid #e0e0e0", paddingTop: "10px", marginTop: "10px" }}>
-            <label
-              style={{
-                fontWeight: "bold",
-                fontSize: "14px",
-                marginBottom: "8px",
-                display: "block",
-              }}
-            >
-              Tolerance Radius: {toleranceRadius}px
-            </label>
-            <Slider
-              min={5}
-              max={200}
-              value={toleranceRadius}
-              onChange={(value) => setToleranceRadius(value)}
-            />
-          </div>
-        )}
+        <RadiusSliders
+          queryRadius={queryRadius}
+          toleranceRadius={toleranceRadius}
+          mode={mode}
+          hasVectorLayer={vectorStyles.length > 0}
+          onQueryRadiusChange={setQueryRadius}
+          onToleranceRadiusChange={setToleranceRadius}
+        />
       </div>
 
       <ControlLayout ifStorybook={false}>
