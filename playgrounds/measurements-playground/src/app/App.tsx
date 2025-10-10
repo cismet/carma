@@ -32,8 +32,7 @@ import { VectorLayerButton } from "./components/VectorLayerButton";
 suppressReactCismapErrors();
 
 export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
-  const { responsiveState, gap, windowSize } = useContext<
-    typeof ResponsiveTopicMapContext
+  const { responsiveState, gap, windowSize } = useContext(ResponsiveTopicMapContext) as any;
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const { setSelection } = useSelection();
   useSelectionTopicMap();
@@ -62,7 +61,7 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
   const toleranceRadiusRef = useRef(toleranceRadius);
   const circleMarkerRef = useRef<any>(null);
   const toleranceCircleMarkerRef = useRef<any>(null);
-  const { zoomToFeature } = useContext(TopicMapDispatchContext);
+  const { zoomToFeature } = useContext(TopicMapDispatchContext) as any;
   const lightBoxDispatchContext = useContext(LightBoxDispatchContext);
 
   // Check if there's a saved vector style
