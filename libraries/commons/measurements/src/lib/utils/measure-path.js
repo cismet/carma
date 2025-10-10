@@ -475,10 +475,10 @@ L.Control.MeasurePolygon = L.Control.extend({
 
     map.on("mousemove", (event) => {
       const target = event.originalEvent.target;
-      const isDesctop = this.options.device === "Desktop" ? true : false;
+      const isDesktop = this.options.device === "Desktop" ? true : false;
       const mode = this.options.measurementMode;
 
-      if (isDesctop) {
+      if (isDesktop) {
         if (!this.options.customTooltip && mode === "measurement") {
           const popupPane = map._panes.popupPane;
 
