@@ -32,18 +32,20 @@ import { VectorLayerButton } from "./components/VectorLayerButton";
 suppressReactCismapErrors();
 
 export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
-  const { responsiveState, gap, windowSize } = useContext(ResponsiveTopicMapContext) as any;
+  const { responsiveState, gap, windowSize } = useContext(
+    ResponsiveTopicMapContext
+  ) as any;
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const { setSelection } = useSelection();
   useSelectionTopicMap();
   const [selectedFeature, setSelectedFeature] = useState<any>(undefined);
   const [maplibreMap, setMaplibreMap] = useState<any>(null);
   const [queryRadius, setQueryRadius] = useState(() => {
-    const saved = localStorage.getItem('measurements-radius');
+    const saved = localStorage.getItem("measurements-radius");
     return saved ? Number(saved) : 100;
   });
   const [toleranceRadius, setToleranceRadius] = useState(() => {
-    const saved = localStorage.getItem('measurements-tolerance-radius');
+    const saved = localStorage.getItem("measurements-tolerance-radius");
     return saved ? Number(saved) : 50;
   });
   const [mode, setMode] = useState<
@@ -54,7 +56,7 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
     | "spiderRocket"
     | "serious"
   >(() => {
-    const saved = localStorage.getItem('measurements-mode');
+    const saved = localStorage.getItem("measurements-mode");
     return (saved as any) || "features";
   });
   const queryRadiusRef = useRef(queryRadius);
@@ -65,29 +67,33 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
   const lightBoxDispatchContext = useContext(LightBoxDispatchContext);
 
   // Check if there's a saved vector style
-  const hasSavedVectorStyle = localStorage.getItem('measurements-vector-style') !== null;
+  const hasSavedVectorStyle =
+    localStorage.getItem("measurements-vector-style") !== null;
 
   // Clear saved vector style
   const clearVectorStyle = () => {
-    localStorage.removeItem('measurements-vector-style');
+    localStorage.removeItem("measurements-vector-style");
     window.location.reload(); // Reload to clear the map
   };
 
   // Keep ref in sync with state and save to localStorage
   useEffect(() => {
     queryRadiusRef.current = queryRadius;
-    localStorage.setItem('measurements-radius', String(queryRadius));
+    localStorage.setItem("measurements-radius", String(queryRadius));
   }, [queryRadius]);
-  
+
   // Keep tolerance radius ref in sync and save to localStorage
   useEffect(() => {
     toleranceRadiusRef.current = toleranceRadius;
-    localStorage.setItem('measurements-tolerance-radius', String(toleranceRadius));
+    localStorage.setItem(
+      "measurements-tolerance-radius",
+      String(toleranceRadius)
+    );
   }, [toleranceRadius]);
-  
+
   // Save mode to localStorage when it changes
   useEffect(() => {
-    localStorage.setItem('measurements-mode', mode || '');
+    localStorage.setItem("measurements-mode", mode || "");
   }, [mode]);
 
   // Set up MapLibre highlight layers when maplibreMap becomes available
@@ -171,7 +177,11 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
         id: "highlight-point-grey",
         type: "circle",
         source: "highlight",
-        filter: ["all", ["==", ["geometry-type"], "Point"], ["==", ["get", "grey"], true]],
+        filter: [
+          "all",
+          ["==", ["geometry-type"], "Point"],
+          ["==", ["get", "grey"], true],
+        ],
         paint: {
           "circle-radius": 8,
           "circle-color": "#888888",
@@ -180,13 +190,17 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
           "circle-stroke-color": "#ffffff",
         },
       });
-      
+
       // Highlight points (black for serious mode)
       maplibreMap.addLayer({
         id: "highlight-point-black",
         type: "circle",
         source: "highlight",
-        filter: ["all", ["==", ["geometry-type"], "Point"], ["==", ["get", "black"], true]],
+        filter: [
+          "all",
+          ["==", ["geometry-type"], "Point"],
+          ["==", ["get", "black"], true],
+        ],
         paint: {
           "circle-radius": 8,
           "circle-color": "#000000",
@@ -263,9 +277,13 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
           weight: 2,
           opacity: 0.5,
         }).addTo(leafletMap);
-        
+
         // Create new inner tolerance circle (only for spider, spiderRocket, and serious modes)
-        if (mode === "spider" || mode === "spiderRocket" || mode === "serious") {
+        if (
+          mode === "spider" ||
+          mode === "spiderRocket" ||
+          mode === "serious"
+        ) {
           toleranceCircleMarkerRef.current = L.circleMarker(e.latlng, {
             radius: toleranceRadius,
             color: "#00ff00",
@@ -747,7 +765,7 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
 
               // Get mouse pointer coordinates in lng/lat
               const mouseLatLng = maplibreMap.unproject([point.x, point.y]);
-              
+
               // Get current tolerance radius
               const currentToleranceRadius = toleranceRadiusRef.current;
 
@@ -941,13 +959,13 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
 
               // Get mouse pointer coordinates in lng/lat
               const mouseLatLng = maplibreMap.unproject([point.x, point.y]);
-              
+
               // Get current tolerance radius
               const currentToleranceRadius = toleranceRadiusRef.current;
 
               // Only show the closest point in black
               const blackPoint: any[] = [];
-              
+
               if (shortestIndex === -1) {
                 // No points found - show black dot at mouse pointer
                 blackPoint.push({
@@ -960,7 +978,7 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
                 });
               } else {
                 const closestItem = filteredPointsWithDistance[shortestIndex];
-                
+
                 // Check if winning dot is within tolerance radius
                 if (closestItem.distance <= currentToleranceRadius) {
                   // Show black point at the actual closest coordinate
@@ -978,9 +996,9 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
                       coordinates: [mouseLatLng.lng, mouseLatLng.lat],
                     },
                     properties: { black: true, mode: mode },
-                });
+                  });
+                }
               }
-            }
 
               // Update highlight source with only the black point
               maplibreMap.getSource("highlight").setData({
@@ -1078,7 +1096,9 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
           <div style={{ marginTop: "4px" }}>
             <LibFuzzySearch
               pixelwidth={
-                responsiveState === "normal" ? "300px" : (windowSize?.width || 300) - gap
+                responsiveState === "normal"
+                  ? "300px"
+                  : (windowSize?.width || 300) - gap
               }
             />
           </div>

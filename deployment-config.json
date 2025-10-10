@@ -306,6 +306,33 @@
       },
       "projectPath": "./dist/playgrounds/alkis-renderer-playground"
     },
+    "measurements-playground": {
+      "deployment": {
+        "manual": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "measurements-playground"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "measurements-playground"
+            }
+          }
+        },
+        "auto": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "measurements-playground"
+            }
+          }
+        }
+      },
+      "projectPath": "./dist/playgrounds/measurements-playground"
+    },
     "geoportal": {
       "deployment": {
         "manual": {
