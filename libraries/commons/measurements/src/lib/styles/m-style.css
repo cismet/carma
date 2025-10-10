@@ -128,3 +128,7 @@ path.custom-polyline.leaflet-interactive {
 .overlay-helper-ul-class {
   list-style: disc;
 }
+
+.lagis-map-card .leaflet-draw-custom-tooltip {
+  visibility: hidden !important;
+}
