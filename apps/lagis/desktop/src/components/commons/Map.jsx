@@ -66,6 +66,8 @@ import {
   MapMeasurementsObjects,
   MeasurementControl,
   InfoBoxMeasurement,
+  useMapMeasurementsContext,
+  MEASUREMENT_MODE,
 } from "@carma-commons/measurements";
 
 const { ScaleControl } = TransitiveReactLeaflet;
@@ -221,7 +223,6 @@ const Map = ({
   };
 
   useEffect(() => {
-    console.log("xxx mapWidth", mapWidth);
     if (refRoutedMap?.current) {
       const map = refRoutedMap.current.leafletMap.leafletElement;
       map.invalidateSize();
@@ -286,6 +287,7 @@ const Map = ({
 
   const { gazData } = useGazData();
   const { setSelection } = useSelection();
+  const { mode: measurementMode } = useMapMeasurementsContext();
 
   const onGazetteerSelection = (selection) => {
     if (!selection) {
@@ -438,7 +440,9 @@ const Map = ({
               <ZoomControl />
             </Control>
             <MeasurementControl showInfoBox={false} />
-            <InfoBoxMeasurement pixelWidth={pixelWidth} />
+            {measurementMode === MEASUREMENT_MODE.MEASUREMENT && (
+              <InfoBoxMeasurement pixelWidth={pixelWidth} />
+            )}
             <Control position="bottomleft" order={10}>
               <div style={{ marginTop: "4px" }}>
                 <LibFuzzySearch
