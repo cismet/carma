@@ -63,7 +63,19 @@ const MeasurementsProviderWrapper = ({
 
 // Root component with drag-and-drop functionality
 const RootComponent = () => {
-  const [vectorStylesArray, setVectorStylesArray] = useState<any[]>([]);
+  const [vectorStylesArray, setVectorStylesArray] = useState<any[]>(() => {
+    // Load from localStorage on mount
+    const saved = localStorage.getItem('measurements-vector-style');
+    if (saved) {
+      try {
+        return [JSON.parse(saved)];
+      } catch (e) {
+        console.error('Failed to parse saved vector style:', e);
+        return [];
+      }
+    }
+    return [];
+  });
 
   useEffect(() => {
     const handleDrop = async (event: DragEvent) => {
@@ -83,6 +95,9 @@ const RootComponent = () => {
             if (contentType?.includes("application/json")) {
               const jsonData = await response.json();
               console.log("JSON content fetched:", jsonData);
+
+              // Save to localStorage
+              localStorage.setItem('measurements-vector-style', JSON.stringify(jsonData));
 
               // Store the JSON object in the array
               setVectorStylesArray([jsonData]);
@@ -116,6 +131,9 @@ const RootComponent = () => {
 
               const jsonData = JSON.parse(processedContent);
               console.log("Parsed JSON from file:", jsonData);
+
+              // Save to localStorage
+              localStorage.setItem('measurements-vector-style', JSON.stringify(jsonData));
 
               // Add the parsed JSON to the vectorStylesArray
               setVectorStylesArray([jsonData]);
