@@ -661,7 +661,7 @@ L.Control.MeasurePolygon = L.Control.extend({
   },
 
   changeColorByActivePolyline: function (map, customID) {
-    map.eachLayer(function (layer) {
+    this._measureLayers.eachLayer(function (layer) {
       const polyline = layer;
       if (layer instanceof L.Polyline) {
         if (layer.customID === customID) {
@@ -678,7 +678,7 @@ L.Control.MeasurePolygon = L.Control.extend({
   changeColorByLastShape: function (map) {
     let lastPolyline = null;
 
-    map.eachLayer(function (layer) {
+    this._measureLayers.eachLayer(function (layer) {
       if (layer instanceof L.Polyline) {
         lastPolyline = layer;
         layer._path.classList.add("custom-polyline");
@@ -694,7 +694,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     const visiblePolylines = [];
     const mapBounds = map.getBounds();
 
-    map.eachLayer(function (layer) {
+    this._measureLayers.eachLayer(function (layer) {
       if (layer instanceof L.Polyline) {
         if (mapBounds.intersects(layer.getBounds())) {
           visiblePolylines.push(layer);
@@ -719,7 +719,7 @@ L.Control.MeasurePolygon = L.Control.extend({
   getAllPolylines: function (map) {
     const polylines = [];
 
-    map.eachLayer(function (layer) {
+    this._measureLayers.eachLayer(function (layer) {
       if (layer instanceof L.Polyline) {
         polylines.push(layer);
       }
@@ -729,9 +729,10 @@ L.Control.MeasurePolygon = L.Control.extend({
   },
 
   removePolylineById: function (map, customID) {
-    map.eachLayer(function (layer) {
+    const self = this;
+    this._measureLayers.eachLayer(function (layer) {
       if (layer instanceof L.Polyline && layer.customID === customID) {
-        map.removeLayer(layer);
+        self._measureLayers.removeLayer(layer);
       }
     });
   },
