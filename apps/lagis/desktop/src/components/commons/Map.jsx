@@ -124,6 +124,7 @@ const Map = ({
   const cardRef = useRef(null);
   const [mapWidth, setMapWidth] = useState(0);
   const [mapHeight, setMapHeight] = useState(window.innerHeight * 0.5); //uggly winning
+
   const {
     backgroundModes,
     selectedBackground,
@@ -177,6 +178,9 @@ const Map = ({
   const handleSetDonutWithDelay = (mode = "point") => {
     lastPointSearchTimeRef.current = Date.now();
     dispatch(storeShapeMode(mode));
+    if (mode === "point") {
+      setMeasurementMode("default");
+    }
   };
 
   useEffect(() => {
@@ -287,7 +291,8 @@ const Map = ({
 
   const { gazData } = useGazData();
   const { setSelection } = useSelection();
-  const { mode: measurementMode } = useMapMeasurementsContext();
+  const { mode: measurementMode, setMode: setMeasurementMode } =
+    useMapMeasurementsContext();
 
   const onGazetteerSelection = (selection) => {
     if (!selection) {
