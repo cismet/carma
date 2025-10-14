@@ -344,7 +344,9 @@ const Map = ({
         // <div className="flex items-center gap-3">
         <div>
           <span className="mr-6">Karte</span>
-          <HoveredLandparcelInfo />
+          {measurementMode !== MEASUREMENT_MODE.MEASUREMENT && (
+            <HoveredLandparcelInfo />
+          )}
         </div>
         // </div>
       }
@@ -425,7 +427,7 @@ const Map = ({
       headStyle={{ backgroundColor: "white" }}
       type="inner"
       className={`overflow-hidden shadow-md ${
-        measurementMode !== MEASUREMENT_MODE.MEASUREMENT ? "lagis-map-card" : ""
+        measurementMode === MEASUREMENT_MODE.MEASUREMENT ? "lagis-map-card" : ""
       }`}
       ref={cardRef}
     >
