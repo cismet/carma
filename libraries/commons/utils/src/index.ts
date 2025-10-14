@@ -62,6 +62,8 @@ export {
   convertBBox2Bounds,
 } from "./lib/proj4helpers";
 
+export { isHtmlString } from "./lib/regex";
+
 export {
   updateHashHistoryState,
   getHashParams,

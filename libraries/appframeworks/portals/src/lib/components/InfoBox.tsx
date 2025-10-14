@@ -12,6 +12,7 @@ import Button from "react-bootstrap/Button";
 import Icon from "react-cismap/commons/Icon";
 import IconLink from "react-cismap/commons/IconLink";
 import { Dropdown, Menu } from "antd";
+import { isHtmlString } from "@carma-commons/utils";
 
 interface InfoBoxProps {
   currentFeature?: any;
@@ -22,8 +23,8 @@ interface InfoBoxProps {
   fitAll?: any;
   panelClick?: any;
   pixelwidth: any;
-  header: any;
-  headerColor: any;
+  header: string;
+  headerColor: string;
   links?: any;
   title?: any;
   subtitle?: any;
@@ -163,20 +164,24 @@ export const InfoBox = ({
     <table style={{ width: "100%" }}>
       <tbody>
         <tr>
-          <td
-            style={{
-              textAlign: "left",
-              verticalAlign: "top",
-              background: headerBackgroundColor,
-              color: textColor,
-              opacity: "0.9",
-              paddingLeft: "3px",
-              paddingTop: "0px",
-              paddingBottom: "0px",
-            }}
-          >
-            {header}
-          </td>
+          {header && isHtmlString(header) ? (
+            parseHtml(header)
+          ) : (
+            <td
+              style={{
+                textAlign: "left",
+                verticalAlign: "top",
+                background: headerBackgroundColor,
+                color: textColor,
+                opacity: "0.9",
+                paddingLeft: "3px",
+                paddingTop: "0px",
+                paddingBottom: "0px",
+              }}
+            >
+              {header}
+            </td>
+          )}
         </tr>
       </tbody>
     </table>
