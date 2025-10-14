@@ -23,7 +23,7 @@ interface InfoBoxProps {
   fitAll?: any;
   panelClick?: any;
   pixelwidth: any;
-  header: string;
+  header: string | JSX.Element;
   headerColor: string;
   links?: any;
   title?: any;
@@ -164,7 +164,7 @@ export const InfoBox = ({
     <table style={{ width: "100%" }}>
       <tbody>
         <tr>
-          {header && isHtmlString(header) ? (
+          {typeof header === "string" && isHtmlString(header) ? (
             parseHtml(header)
           ) : (
             <td
