@@ -130,3 +130,7 @@ button:focus-visible {
   stroke: gray;
   pointer-events: auto !important;
 }
+
+.lagis-map-card path.leaflet-path-draggable {
+  pointer-events: auto !important;
+}
