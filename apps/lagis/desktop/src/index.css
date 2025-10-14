@@ -122,12 +122,11 @@ button:focus-visible {
   height: 100dvh;
 }
 
-path.leaflet-interactive {
-  /* stroke: #267bdcd4; */
+.lagis-map-card path.leaflet-interactive {
   pointer-events: none !important;
 }
 
-path.custom-polyline.leaflet-interactive {
+.lagis-map-card path.custom-polyline.leaflet-interactive {
   stroke: gray;
   pointer-events: auto !important;
 }
