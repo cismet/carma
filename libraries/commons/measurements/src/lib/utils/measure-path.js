@@ -477,6 +477,7 @@ L.Control.MeasurePolygon = L.Control.extend({
       const target = event.originalEvent.target;
       const isDesktop = this.options.device === "Desktop" ? true : false;
       const mode = this.options.measurementMode;
+      this._propagateEventToUnderlyingLayers(map, event, "mouseover");
 
       if (isDesktop) {
         if (!this.options.customTooltip && mode === "measurement") {
@@ -519,12 +520,89 @@ L.Control.MeasurePolygon = L.Control.extend({
     });
 
     map.on("mouseout", (event) => {
+      console.log("xxx mouseout");
       if (this.options.customTooltip) {
         this.options.customTooltip.style.visibility = "hidden";
       }
     });
 
     return iconsWrapper;
+  },
+
+  _propagateEventToUnderlyingLayers: function (map, event, eventType) {
+    // Get the lat/lng of the vertex
+    // const latlng = event.target.getLatLng();
+    const latlng =
+      event.target && event.target.getLatLng
+        ? event.target.getLatLng() // For vertex marker events
+        : event.latlng; // For map mousemove events
+
+    // Convert to container point
+    const point = map.latLngToContainerPoint(latlng);
+
+    // Find all layers at this point (excluding the measurement vertex itself)
+    const layers = [];
+    map.eachLayer((layer) => {
+      // Skip the measurement layers and the current target
+      if (layer === event.target || layer === this._measureLayers) {
+        return;
+      }
+
+      // Check if this layer is a GeoJSON or similar feature layer with mouseover handlers
+      if (
+        layer.feature &&
+        layer._events &&
+        (layer._events.mouseover || layer._events.mouseout)
+      ) {
+        let isInside = false;
+
+        // For polygon/polyline layers, check if point is inside
+        if (layer.getBounds) {
+          const bounds = layer.getBounds();
+          if (bounds.contains(latlng)) {
+            // For polygons, do a more precise check using Leaflet's internal method
+            if (
+              layer instanceof L.Polygon ||
+              (layer._latlngs && Array.isArray(layer._latlngs))
+            ) {
+              // Use a simple point-in-polygon check
+              // For now, just use bounds check as a proxy
+              isInside = true;
+            } else {
+              isInside = true;
+            }
+          }
+        } else if (layer.getLatLng) {
+          // For point markers
+          isInside = layer.getLatLng().equals(latlng);
+        }
+
+        if (isInside) {
+          layers.push(layer);
+        }
+      }
+    });
+
+    // Fire the event on the underlying layers
+    layers.forEach((layer) => {
+      if (eventType === "mouseover" && layer._events.mouseover) {
+        layer.fire("mouseover", {
+          latlng: latlng,
+          layerPoint: point,
+          containerPoint: point,
+          originalEvent: event.originalEvent,
+          target: layer,
+        });
+      } else if (eventType === "mouseout" && layer._events.mouseout) {
+        layer.fire("mouseout", {
+          latlng: latlng,
+          layerPoint: point,
+          containerPoint: point,
+          originalEvent: event.originalEvent,
+          target: layer,
+        });
+      }
+    });
   },
 
   _UpdateAreaPerimetro: function (layer) {
