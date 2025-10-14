@@ -89,7 +89,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     this._measureHandler = new L.Draw.Polygon(map, {
       showArea: true,
       shapeOptions: {
-        color: "blue",
+        color: "#267bdcd4",
         fillColor: null,
         fillOpacity: 0.2,
         stroke: true,
@@ -188,7 +188,7 @@ L.Control.MeasurePolygon = L.Control.extend({
       const preparePolygon = {
         coordinates: reversedCoordinates,
         options: {
-          color: "blue",
+          color: "#267bdcd4",
           fillColor: null,
           opacity: 0.5,
           weigt: 4,
@@ -846,8 +846,8 @@ L.Control.MeasurePolygon = L.Control.extend({
     prepeareCoordinates.push(prepeareCoordinates[0]);
 
     const options = {
-      color: "#3388ff",
-      fillColor: "#3388ff",
+      color: "#267bdcd4",
+      fillColor: "#267bdcd4",
       opacity: 1,
       weigt: 3,
     };
