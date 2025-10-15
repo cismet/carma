@@ -1116,6 +1116,7 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
 
       // Cleanup function to remove listeners and circles
       return () => {
+        mapContainer.removeEventListener("click", shiftClickUpward, true);
         leafletMap.off("mousemove", mousemoveHandler);
         leafletMap.off("mouseout", mouseoutHandler);
         if (circleMarkerRef.current) {
