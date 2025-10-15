@@ -1040,6 +1040,24 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
           return;
         }
 
+        // Don't intercept double-clicks (they're used to finish polygons/lines)
+        if (domEvent.detail === 2) {
+          console.log("xxx Skipping double-click");
+          return;
+        }
+
+        // Don't intercept clicks on SVG elements (measurement shapes)
+        const target = domEvent.target as HTMLElement;
+        if (
+          target.tagName === "path" ||
+          target.tagName === "svg" ||
+          target.classList.contains("leaflet-marker-icon") ||
+          target.classList.contains("leaflet-interactive")
+        ) {
+          console.log("xxx Skipping click on shape element");
+          return;
+        }
+
         // Mark as processed
         (domEvent as any)._clickShifted = true;
 
