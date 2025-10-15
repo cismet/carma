@@ -1035,38 +1035,40 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
 
       // Function to shift click position 40px upward
       const shiftClickUpward = (domEvent: MouseEvent) => {
+        console.log("xxx 111111");
         // Skip if already processed
-        if ((domEvent as any)._clickShifted) {
-          return;
-        }
+        // if ((domEvent as any)._clickShifted) {
+        //   console.log("xxx 222222");
+        //   return;
+        // }
 
         // Don't intercept double-clicks (they're used to finish polygons/lines)
         if (domEvent.detail === 2) {
-          console.log("xxx Skipping double-click");
+          console.log("xxx 333333");
           return;
         }
 
         // Don't intercept clicks on SVG elements (measurement shapes)
         const target = domEvent.target as HTMLElement;
-        if (
-          target.tagName === "path" ||
-          target.tagName === "svg" ||
-          target.classList.contains("leaflet-marker-icon") ||
-          target.classList.contains("leaflet-interactive")
-        ) {
-          console.log("xxx Skipping click on shape element");
-          return;
-        }
+        // if (
+        //   target.tagName === "path" ||
+        //   target.tagName === "svg" ||
+        //   target.classList.contains("leaflet-marker-icon") ||
+        //   target.classList.contains("leaflet-interactive")
+        // ) {
+        //   console.log("xxx 444444");
+        //   return;
+        // }
 
         // Mark as processed
-        (domEvent as any)._clickShifted = true;
+        // (domEvent as any)._clickShifted = true;
 
         // Stop the original event
         domEvent.preventDefault();
         domEvent.stopPropagation();
         domEvent.stopImmediatePropagation();
 
-        console.log("xxx Shifting click 40px upward");
+        console.log("xxx 555555 Shifting click 40px upward");
 
         // Get the click position in container coordinates
         const containerPoint = leafletMap.mouseEventToContainerPoint(domEvent);
@@ -1076,6 +1078,7 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
           containerPoint.x,
           containerPoint.y - 40
         );
+        console.log("xxx 6666666 Shifting click 40px upward");
 
         // Convert back to lat/lng
         const shiftedLatLng = leafletMap.containerPointToLatLng(
@@ -1083,7 +1086,7 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
         );
 
         console.log(
-          "yyy Original:",
+          "xx Original:",
           containerPoint,
           "Shifted:",
           shiftedContainerPoint,
@@ -1093,12 +1096,13 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
 
         // Fire a new click event with shifted coordinates
         setTimeout(() => {
+          console.log("xxx 88888 Shifting click 40px upward");
           leafletMap.fireEvent("click", {
             latlng: shiftedLatLng,
             layerPoint: leafletMap.latLngToLayerPoint(shiftedLatLng),
             containerPoint: shiftedContainerPoint,
             originalEvent: domEvent,
-            _isShifted: true,
+            // _isShifted: true,
           });
         }, 0);
       };
