@@ -81,15 +81,15 @@ export const enrichFeatureCollectionWithActions = (
     if (!treeActionsMap.has(treeId)) {
       treeActionsMap.set(treeId, []);
     }
-    
+
     // Enrich tree action with action definition reference (memory efficient)
     const enrichedAction = {
       ...ta,
       actionDefinition: actionMap.get(ta.fk_action),
     };
-    
+
     treeActionsMap.get(treeId)!.push(enrichedAction);
-    
+
     // Track max ID
     if (ta.id > maxTreeActionId) {
       maxTreeActionId = ta.id;
@@ -147,15 +147,15 @@ export const updateFeatureCollectionWithNewActions = (
     if (!newActionsMap.has(treeId)) {
       newActionsMap.set(treeId, []);
     }
-    
+
     // Enrich tree action with action definition reference (memory efficient)
     const enrichedAction = {
       ...ta,
       actionDefinition: actionMap.get(ta.fk_action),
     };
-    
+
     newActionsMap.get(treeId)!.push(enrichedAction);
-    
+
     // Track max ID
     if (ta.id > maxTreeActionId) {
       maxTreeActionId = ta.id;

@@ -36,18 +36,20 @@ const LoginForm = ({
 
   useEffect(() => {
     (async () => {
-      const userInCache = await localforage.getItem("@" + appKey + ".auth.user");
+      const userInCache = await localforage.getItem(
+        "@" + appKey + ".auth.user"
+      );
       // If you want to enable offline mode indicator, compute and check your data cache key here
       // setCacheDataAvailable(Boolean(await localforage.getItem(<your-cache-key>)));
       setCacheDataAvailable(false);
-      
+
       // Try to load devSecrets in development mode
       if (process.env.NODE_ENV !== "production") {
         try {
           const result = await fetch("devSecrets.json");
           const cheats = await result.json();
           console.log("devSecrets.json found");
-          
+
           if (cheats.cheatingUser) {
             setUser(cheats.cheatingUser);
           }
@@ -67,7 +69,7 @@ const LoginForm = ({
           setUser(userInCache);
         }
       }
-      
+
       if (userFieldRef?.current) {
         userFieldRef.current.focus();
         userFieldRef.current.select();
@@ -79,7 +81,8 @@ const LoginForm = ({
     fetch(`${APP_CONFIG.restService}users`, {
       method: "GET",
       headers: {
-        Authorization: "Basic " + btoa(user + "@" + APP_CONFIG.domain + ":" + pw),
+        Authorization:
+          "Basic " + btoa(user + "@" + APP_CONFIG.domain + ":" + pw),
         "Content-Type": "application/json",
       },
     })
@@ -134,7 +137,11 @@ const LoginForm = ({
           </div>
         </Modal.Title>
       </Modal.Header>
-      <Modal.Body style={modalBodyStyle} id="tz-baumbewirtschaftung-login" key="login">
+      <Modal.Body
+        style={modalBodyStyle}
+        id="tz-baumbewirtschaftung-login"
+        key="login"
+      >
         <Form>
           <Form.Group controlId="tz-baum-login">
             <Form.Label>WuNDa Benutzername</Form.Label>

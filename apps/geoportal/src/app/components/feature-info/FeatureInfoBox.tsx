@@ -259,7 +259,9 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
                 backgroundColor: headerColor,
               }}
             >
-              {parsedHeader ? truncateString(parsedHeader, 66) : "Informationen"}
+              {parsedHeader
+                ? truncateString(parsedHeader, 66)
+                : "Informationen"}
             </div>
           )
         }
