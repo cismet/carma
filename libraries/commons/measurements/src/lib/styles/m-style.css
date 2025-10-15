@@ -117,9 +117,10 @@
   border-radius: 50%;
 }
 
-path.leaflet-interactive {
-  stroke: #267bdcd4;
-}
+/* path.leaflet-interactive {
+ stroke: #267bdcd4;
+  pointer-events: none !important;
+} */
 
 path.custom-polyline.leaflet-interactive {
   stroke: gray;

@@ -89,7 +89,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     this._measureHandler = new L.Draw.Polygon(map, {
       showArea: true,
       shapeOptions: {
-        color: "blue",
+        color: "#267bdcd4",
         fillColor: null,
         fillOpacity: 0.2,
         stroke: true,
@@ -188,7 +188,7 @@ L.Control.MeasurePolygon = L.Control.extend({
       const preparePolygon = {
         coordinates: reversedCoordinates,
         options: {
-          color: "blue",
+          color: "#267bdcd4",
           fillColor: null,
           opacity: 0.5,
           weigt: 4,
@@ -475,10 +475,11 @@ L.Control.MeasurePolygon = L.Control.extend({
 
     map.on("mousemove", (event) => {
       const target = event.originalEvent.target;
-      const isDesctop = this.options.device === "Desktop" ? true : false;
+      const isDesktop = this.options.device === "Desktop" ? true : false;
       const mode = this.options.measurementMode;
+      // this._propagateEventToUnderlyingLayers(map, event, "mouseover");
 
-      if (isDesctop) {
+      if (isDesktop) {
         if (!this.options.customTooltip && mode === "measurement") {
           const popupPane = map._panes.popupPane;
 
@@ -526,6 +527,82 @@ L.Control.MeasurePolygon = L.Control.extend({
 
     return iconsWrapper;
   },
+
+  // _propagateEventToUnderlyingLayers: function (map, event, eventType) {
+  //   // Get the lat/lng of the vertex
+  //   // const latlng = event.target.getLatLng();
+  //   const latlng =
+  //     event.target && event.target.getLatLng
+  //       ? event.target.getLatLng() // For vertex marker events
+  //       : event.latlng; // For map mousemove events
+
+  //   // Convert to container point
+  //   const point = map.latLngToContainerPoint(latlng);
+
+  //   // Find all layers at this point (excluding the measurement vertex itself)
+  //   const layers = [];
+  //   map.eachLayer((layer) => {
+  //     // Skip the measurement layers and the current target
+  //     if (layer === event.target || layer === this._measureLayers) {
+  //       return;
+  //     }
+
+  //     // Check if this layer is a GeoJSON or similar feature layer with mouseover handlers
+  //     if (
+  //       layer.feature &&
+  //       layer._events &&
+  //       (layer._events.mouseover || layer._events.mouseout)
+  //     ) {
+  //       let isInside = false;
+
+  //       // For polygon/polyline layers, check if point is inside
+  //       if (layer.getBounds) {
+  //         const bounds = layer.getBounds();
+  //         if (bounds.contains(latlng)) {
+  //           // For polygons, do a more precise check using Leaflet's internal method
+  //           if (
+  //             layer instanceof L.Polygon ||
+  //             (layer._latlngs && Array.isArray(layer._latlngs))
+  //           ) {
+  //             // Use a simple point-in-polygon check
+  //             // For now, just use bounds check as a proxy
+  //             isInside = true;
+  //           } else {
+  //             isInside = true;
+  //           }
+  //         }
+  //       } else if (layer.getLatLng) {
+  //         // For point markers
+  //         isInside = layer.getLatLng().equals(latlng);
+  //       }
+
+  //       if (isInside) {
+  //         layers.push(layer);
+  //       }
+  //     }
+  //   });
+
+  //   // Fire the event on the underlying layers
+  //   layers.forEach((layer) => {
+  //     if (eventType === "mouseover" && layer._events.mouseover) {
+  //       layer.fire("mouseover", {
+  //         latlng: latlng,
+  //         layerPoint: point,
+  //         containerPoint: point,
+  //         originalEvent: event.originalEvent,
+  //         target: layer,
+  //       });
+  //     } else if (eventType === "mouseout" && layer._events.mouseout) {
+  //       layer.fire("mouseout", {
+  //         latlng: latlng,
+  //         layerPoint: point,
+  //         containerPoint: point,
+  //         originalEvent: event.originalEvent,
+  //         target: layer,
+  //       });
+  //     }
+  //   });
+  // },
 
   _UpdateAreaPerimetro: function (layer) {
     const latlngs = layer.getLatLngs()[0];
@@ -661,7 +738,7 @@ L.Control.MeasurePolygon = L.Control.extend({
   },
 
   changeColorByActivePolyline: function (map, customID) {
-    map.eachLayer(function (layer) {
+    this._measureLayers.eachLayer(function (layer) {
       const polyline = layer;
       if (layer instanceof L.Polyline) {
         if (layer.customID === customID) {
@@ -678,7 +755,7 @@ L.Control.MeasurePolygon = L.Control.extend({
   changeColorByLastShape: function (map) {
     let lastPolyline = null;
 
-    map.eachLayer(function (layer) {
+    this._measureLayers.eachLayer(function (layer) {
       if (layer instanceof L.Polyline) {
         lastPolyline = layer;
         layer._path.classList.add("custom-polyline");
@@ -694,7 +771,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     const visiblePolylines = [];
     const mapBounds = map.getBounds();
 
-    map.eachLayer(function (layer) {
+    this._measureLayers.eachLayer(function (layer) {
       if (layer instanceof L.Polyline) {
         if (mapBounds.intersects(layer.getBounds())) {
           visiblePolylines.push(layer);
@@ -719,7 +796,7 @@ L.Control.MeasurePolygon = L.Control.extend({
   getAllPolylines: function (map) {
     const polylines = [];
 
-    map.eachLayer(function (layer) {
+    this._measureLayers.eachLayer(function (layer) {
       if (layer instanceof L.Polyline) {
         polylines.push(layer);
       }
@@ -729,9 +806,10 @@ L.Control.MeasurePolygon = L.Control.extend({
   },
 
   removePolylineById: function (map, customID) {
-    map.eachLayer(function (layer) {
+    const self = this;
+    this._measureLayers.eachLayer(function (layer) {
       if (layer instanceof L.Polyline && layer.customID === customID) {
-        map.removeLayer(layer);
+        self._measureLayers.removeLayer(layer);
       }
     });
   },
@@ -768,8 +846,8 @@ L.Control.MeasurePolygon = L.Control.extend({
     prepeareCoordinates.push(prepeareCoordinates[0]);
 
     const options = {
-      color: "#3388ff",
-      fillColor: "#3388ff",
+      color: "#267bdcd4",
+      fillColor: "#267bdcd4",
       opacity: 1,
       weigt: 3,
     };

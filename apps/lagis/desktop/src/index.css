@@ -121,3 +121,16 @@ button:focus-visible {
   height: 100vh;
   height: 100dvh;
 }
+
+.lagis-map-card path.leaflet-interactive {
+  pointer-events: none !important;
+}
+
+.lagis-map-card path.custom-polyline.leaflet-interactive {
+  stroke: gray;
+  pointer-events: auto !important;
+}
+
+.lagis-map-card path.leaflet-path-draggable {
+  pointer-events: auto !important;
+}

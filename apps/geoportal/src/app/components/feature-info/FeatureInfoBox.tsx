@@ -35,7 +35,7 @@ import "../infoBox.css";
 import LoadingInfoBox from "./LoadingInfoBox";
 
 import versionData from "../../../version.json";
-import { getApplicationVersion } from "@carma-commons/utils";
+import { getApplicationVersion, isHtmlString } from "@carma-commons/utils";
 import { InfoBox, InfoBoxHeader, utils } from "@carma-appframeworks/portals";
 import { parseColor } from "../../helper/color";
 
@@ -250,14 +250,18 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
             : "Layer hinzufügen um Informationen abrufen zu können"
         }
         header={
-          <div
-            className="w-full"
-            style={{
-              backgroundColor: headerColor,
-            }}
-          >
-            {parsedHeader ? truncateString(parsedHeader, 66) : "Informationen"}
-          </div>
+          parsedHeader && isHtmlString(parsedHeader) ? (
+            parsedHeader
+          ) : (
+            <div
+              className="w-full"
+              style={{
+                backgroundColor: headerColor,
+              }}
+            >
+              {parsedHeader ? truncateString(parsedHeader, 66) : "Informationen"}
+            </div>
+          )
         }
         noCurrentFeatureContent=""
         secondaryInfoBoxElements={

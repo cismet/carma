@@ -36,6 +36,8 @@ import AlkisLandparcelPage from "./pages/AlkisLandparcelPage";
 import AlkisBookingSheetPage from "./pages/AlkisBookingSheetPage";
 import { AlkisNav } from "@carma-appframeworks/alkis";
 import { gazDataConfig } from "./config/gazData";
+import { MapMeasurementsProvider } from "@carma-commons/measurements";
+import { APP_KEY } from "./constants/lagis";
 
 const NavBarWrapper = () => {
   const dispatch = useDispatch();
@@ -127,9 +129,19 @@ ReactDOM.createRoot(document.getElementById("root")).render(
         <GazDataProvider config={gazDataConfig}>
           <SelectionProvider>
             <TopicMapContextProvider appKey="lagis-desktop.map">
-              <PersistGate locale={locale} loading={null} persistor={persistor}>
-                <RouterProvider router={router} />
-              </PersistGate>
+              <MapMeasurementsProvider
+                config={{
+                  localStorageKey: "@" + APP_KEY + ".app.measurements",
+                }}
+              >
+                <PersistGate
+                  locale={locale}
+                  loading={null}
+                  persistor={persistor}
+                >
+                  <RouterProvider router={router} />
+                </PersistGate>
+              </MapMeasurementsProvider>
             </TopicMapContextProvider>
           </SelectionProvider>
         </GazDataProvider>

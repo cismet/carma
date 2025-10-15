@@ -11,7 +11,9 @@ import { ResponsiveInfoBox } from "@carma-appframeworks/portals";
 import { useMapMeasurementsContext } from "./MapMeasurementsProvider";
 import { InfoBoxMeasurementProps, MeasurementShape } from "../..";
 
-export function InfoBoxMeasurement({}: InfoBoxMeasurementProps) {
+export function InfoBoxMeasurement({
+  pixelWidth = 350,
+}: InfoBoxMeasurementProps) {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const {
     shapes: measurementsData,
@@ -226,7 +228,7 @@ export function InfoBoxMeasurement({}: InfoBoxMeasurementProps) {
     <div>
       {visibleShapesData[currentMeasure] && (
         <ResponsiveInfoBox
-          pixelwidth={350}
+          pixelwidth={pixelWidth}
           panelClick={() => {}}
           header={
             <div
@@ -268,7 +270,7 @@ export function InfoBoxMeasurement({}: InfoBoxMeasurementProps) {
               </span>
               {drawingMode ? (
                 <Tooltip title="Aktuelle Messung abbrechen">
-                  <button
+                  <div
                     onClick={(e) => {
                       e.stopPropagation();
                       const map = routedMapRef.leafletMap.leafletElement;
@@ -279,7 +281,7 @@ export function InfoBoxMeasurement({}: InfoBoxMeasurementProps) {
                       icon={faBan}
                       className="cursor-pointer text-[16px] text-[#808080] hover:text-[#a0a0a0]"
                     />
-                  </button>
+                  </div>
                 </Tooltip>
               ) : (
                 <div className="flex justify-between items-center w-[12%] mt-1 gap-2">
@@ -350,7 +352,7 @@ export function InfoBoxMeasurement({}: InfoBoxMeasurementProps) {
         <ResponsiveInfoBox
           panelClick={() => {}}
           header={""}
-          pixelwidth={350}
+          pixelwidth={pixelWidth}
           isCollapsible={false}
           alwaysVisibleDiv={
             <div

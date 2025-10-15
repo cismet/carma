@@ -62,6 +62,13 @@ import { isAreaType } from "@carma/resources";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import { ZoomControl } from "@carma-mapping/components";
 import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextProvider";
+import {
+  MapMeasurementsObjects,
+  MeasurementControl,
+  InfoBoxMeasurement,
+  useMapMeasurementsContext,
+  MEASUREMENT_MODE,
+} from "@carma-commons/measurements";
 
 const { ScaleControl } = TransitiveReactLeaflet;
 
@@ -117,6 +124,7 @@ const Map = ({
   const cardRef = useRef(null);
   const [mapWidth, setMapWidth] = useState(0);
   const [mapHeight, setMapHeight] = useState(window.innerHeight * 0.5); //uggly winning
+
   const {
     backgroundModes,
     selectedBackground,
@@ -170,6 +178,9 @@ const Map = ({
   const handleSetDonutWithDelay = (mode = "point") => {
     lastPointSearchTimeRef.current = Date.now();
     dispatch(storeShapeMode(mode));
+    if (mode === "point") {
+      setMeasurementMode("default");
+    }
   };
 
   useEffect(() => {
@@ -280,6 +291,8 @@ const Map = ({
 
   const { gazData } = useGazData();
   const { setSelection } = useSelection();
+  const { mode: measurementMode, setMode: setMeasurementMode } =
+    useMapMeasurementsContext();
 
   const onGazetteerSelection = (selection) => {
     if (!selection) {
@@ -319,6 +332,10 @@ const Map = ({
       setRoutedMapRef(refRoutedMap.current);
     }
   }, [refRoutedMap]);
+
+  const isBreakpointForControls = 738 < mapWidth;
+  const pixelWidth = isBreakpointForControls ? 350 : mapWidth - 30;
+
   return (
     <Card
       size="small"
@@ -327,7 +344,9 @@ const Map = ({
         // <div className="flex items-center gap-3">
         <div>
           <span className="mr-6">Karte</span>
-          <HoveredLandparcelInfo />
+          {measurementMode !== MEASUREMENT_MODE.MEASUREMENT && (
+            <HoveredLandparcelInfo />
+          )}
         </div>
         // </div>
       }
@@ -407,7 +426,9 @@ const Map = ({
       bodyStyle={{ padding }}
       headStyle={{ backgroundColor: "white" }}
       type="inner"
-      className="overflow-hidden shadow-md"
+      className={`overflow-hidden shadow-md ${
+        measurementMode === MEASUREMENT_MODE.MEASUREMENT ? "lagis-map-card" : ""
+      }`}
       ref={cardRef}
     >
       <>
@@ -416,18 +437,44 @@ const Map = ({
             position: "absolute",
             top: "40px",
             left: "3px",
+            right: "3px",
             bottom: "0px",
+            width: "calc(100% - 6px)",
             zIndex: 600,
+            pointerEvents: "none",
           }}
         >
           <ControlLayout ifStorybook={false}>
             <Control position="topleft" order={10}>
               <ZoomControl />
             </Control>
+            <MeasurementControl
+              showInfoBox={false}
+              tooltip={
+                measurementMode === MEASUREMENT_MODE.MEASUREMENT
+                  ? "Messungsmodus ausschalten"
+                  : "Messungsmodus einschalten"
+              }
+            />
+            {measurementMode === MEASUREMENT_MODE.MEASUREMENT && (
+              <InfoBoxMeasurement pixelWidth={pixelWidth} />
+            )}
+            <Control position="bottomleft" order={10}>
+              <div style={{ marginTop: "4px" }}>
+                <LibFuzzySearch
+                  gazData={gazData}
+                  onSelection={onGazetteerSelection}
+                  pixelwidth={
+                    isBreakpointForControls ? "350px" : pixelWidth + "px"
+                  }
+                  placeholder="Geben Sie einen Suchbegriff ein"
+                />
+              </div>
+            </Control>
           </ControlLayout>
         </div>
         <RoutedMap
-          editable={false}
+          editable={true}
           style={mapStyle}
           key={"leafletRoutedMap"}
           zoomControlEnabled={false}
@@ -569,14 +616,15 @@ const Map = ({
             mode={mode}
           />
         </RoutedMap>
-        <div className="custom-left-control">
+        <MapMeasurementsObjects />
+        {/* <div className="custom-left-control">
           <LibFuzzySearch
             gazData={gazData}
             onSelection={onGazetteerSelection}
             pixelwidth="400px"
             placeholder="Geben Sie einen Suchbegriff ein"
           />
-        </div>
+        </div> */}
       </>
     </Card>
   );

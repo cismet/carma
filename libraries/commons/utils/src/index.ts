@@ -10,6 +10,8 @@ export { normalizeOptions } from "./lib/normalize-options";
 
 export { promiseWithTimeout } from "./lib/promise";
 
+export { isHtmlString } from "./lib/regex";
+
 export {
   updateHashHistoryState,
   getHashParams,
