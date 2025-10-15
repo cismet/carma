@@ -59,6 +59,7 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
     const saved = localStorage.getItem("measurements-mode");
     return (saved as any) || "features";
   });
+  const [seriousClosestPoint, setSeriousClosestPoint] = useState<any>(null);
   const queryRadiusRef = useRef(queryRadius);
   const toleranceRadiusRef = useRef(toleranceRadius);
   const circleMarkerRef = useRef<any>(null);
@@ -1000,6 +1001,9 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
                 }
               }
 
+              console.log("xxx blackPoint", blackPoint);
+              setSeriousClosestPoint(blackPoint[0].geometry.coordinates);
+
               // Update highlight source with only the black point
               maplibreMap.getSource("highlight").setData({
                 type: "FeatureCollection",
@@ -1108,6 +1112,11 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
         key={JSON.stringify(vectorStyles)}
         gazetteerSearchControl={true}
         gazetteerSearchComponent={EmptySearchComponent}
+        onclick={(e) => {
+          e.originalEvent?.preventDefault();
+          console.log("xxx e", e);
+          console.log("xxx seriousClosestPoint", seriousClosestPoint);
+        }}
         locatorControl={false}
         fullScreenControl={false}
         zoomControls={false}
