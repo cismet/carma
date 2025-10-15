@@ -1033,6 +1033,62 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
         }
       };
 
+      // Function to shift click position 40px upward
+      const shiftClickUpward = (domEvent: MouseEvent) => {
+        // Skip if already processed
+        if ((domEvent as any)._clickShifted) {
+          return;
+        }
+
+        // Mark as processed
+        (domEvent as any)._clickShifted = true;
+
+        // Stop the original event
+        domEvent.preventDefault();
+        domEvent.stopPropagation();
+        domEvent.stopImmediatePropagation();
+
+        console.log("xxx Shifting click 40px upward");
+
+        // Get the click position in container coordinates
+        const containerPoint = leafletMap.mouseEventToContainerPoint(domEvent);
+
+        // Shift 40px upward (subtract from y)
+        const shiftedContainerPoint = L.point(
+          containerPoint.x,
+          containerPoint.y - 40
+        );
+
+        // Convert back to lat/lng
+        const shiftedLatLng = leafletMap.containerPointToLatLng(
+          shiftedContainerPoint
+        );
+
+        console.log(
+          "yyy Original:",
+          containerPoint,
+          "Shifted:",
+          shiftedContainerPoint,
+          "LatLng:",
+          shiftedLatLng
+        );
+
+        // Fire a new click event with shifted coordinates
+        setTimeout(() => {
+          leafletMap.fireEvent("click", {
+            latlng: shiftedLatLng,
+            layerPoint: leafletMap.latLngToLayerPoint(shiftedLatLng),
+            containerPoint: shiftedContainerPoint,
+            originalEvent: domEvent,
+            _isShifted: true,
+          });
+        }, 0);
+      };
+
+      // Add DOM listener in CAPTURE phase to intercept before Leaflet
+      const mapContainer = leafletMap.getContainer();
+      mapContainer.addEventListener("click", shiftClickUpward, true);
+
       leafletMap.on("mousemove", mousemoveHandler);
       leafletMap.on("mouseout", mouseoutHandler);
 
