@@ -690,39 +690,31 @@ export const getPolygonByLeafletId = (map) => {
   });
   return polygon;
 };
-export const getPolygonPoints = (map) => {
+export const getPolygonPoints = (map: L.Map) => {
   const polygon = getPolygonByLeafletId(map);
-  if (polygon) {
-    const bounds = polygon.getBounds();
-
-    const { _northEast, _southWest } = bounds;
-    const northEast = map.latLngToContainerPoint(_northEast);
-    const southWest = map.latLngToContainerPoint(_southWest);
-    const northWest = {
-      x: southWest.x,
-      y: northEast.y,
-    };
-    const southEast = {
-      x: northEast.x,
-      y: southWest.y,
-    };
-
-    const points = {
-      northEast,
-      southWest,
-      northWest,
-      southEast,
-    };
-
-    return points;
-  } else {
-    return {
-      northEast: undefined,
-      southWest: undefined,
-      northWest: undefined,
-      southEast: undefined,
-    };
+  if (!polygon) {
+    return null;
   }
+
+  const bounds = polygon.getBounds();
+  const { _northEast, _southWest } = bounds;
+  const northEast = map.latLngToContainerPoint(_northEast);
+  const southWest = map.latLngToContainerPoint(_southWest);
+  const northWest = {
+    x: southWest.x,
+    y: northEast.y,
+  };
+  const southEast = {
+    x: northEast.x,
+    y: southWest.y,
+  };
+
+  return {
+    northEast,
+    southWest,
+    northWest,
+    southEast,
+  };
 };
 
 const createPreviewWrapperItems = (
@@ -832,8 +824,9 @@ export const addPreviewWrapper = (
   handleClosePrint
   // handleRedraw
 ) => {
-  const { northWest, northEast, southWest } = getPolygonPoints(map);
-  if (northWest && northEast && southWest) {
+  const points = getPolygonPoints(map);
+  if (points) {
+    const { northWest, northEast, southWest } = points;
     setPrevSizes(
       northWest,
       northEast,

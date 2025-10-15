@@ -56,7 +56,7 @@ const PrintPreview = () => {
   const [lastOrientation, setlastOrientation] = useState(orientation);
   const [stepAfterPrinting, setStepAfterPrinting] = useState(false);
   const [isHideContent, setIsHideContent] = useState(false);
-  const [previewSizes, setRreviewSizes] = useState({
+  const [previewSizes, setPreviewSizes] = useState({
     top: "0px",
     left: "0px",
     width: "0px",
@@ -70,36 +70,36 @@ const PrintPreview = () => {
   const scale = useSelector(getScale);
   const redrawPrev = useSelector(getRedrawPreview);
 
-  const changePreviewSizes = (map, orientation) => {
-    const polygon = getPolygonByLeafletId(map);
-    if (polygon) {
-      const { northWest, northEast, southWest } = getPolygonPoints(map);
-      const wrapWidth = northEast.x - northWest.x;
+  const changePreviewSizes = (map: L.Map, orientation: string) => {
+    const points = getPolygonPoints(map);
+    if (!points) return;
 
-      const isSmallMode =
+    const { northWest, northEast, southWest } = points;
+    const wrapWidth = northEast.x - northWest.x;
+
+    const isSmallMode =
+      orientation === "portrait"
+        ? getSmallSizePortrait(wrapWidth)
+        : getSmallSizeLandscape(wrapWidth);
+
+    setPreviewSizes({
+      top: northWest.y + "px",
+      left: northWest.x + "px",
+      width: wrapWidth + "px",
+      height: southWest.y - northWest.y + "px",
+      fontSize:
         orientation === "portrait"
-          ? getSmallSizePortrait(wrapWidth)
-          : getSmallSizeLandscape(wrapWidth);
-
-      setRreviewSizes({
-        top: northWest.y + "px",
-        left: northWest.x + "px",
-        width: wrapWidth + "px",
-        height: southWest.y - northWest.y + "px",
-        fontSize:
-          orientation === "portrait"
-            ? getFontSizeForPortrait(wrapWidth)
-            : getFontSizeForLandscape(wrapWidth),
-        isSmallMode: isSmallMode,
-      });
-    }
+          ? getFontSizeForPortrait(wrapWidth)
+          : getFontSizeForLandscape(wrapWidth),
+      isSmallMode: isSmallMode,
+    });
   };
 
-  const handleIsLoading = (status) => {
+  const handleIsLoading = (status: boolean) => {
     dispatch(changeIsLoading(status));
   };
 
-  const handleIsError = (status) => {
+  const handleIsError = (status: string) => {
     dispatch(changePrintError(status));
   };
 
@@ -161,17 +161,17 @@ const PrintPreview = () => {
         setIsHideContent(false);
       };
 
-      const onMapClick = (e) => {
-        const routedMap = e.originalEvent.target?.id === "routedMap";
-        const glLayer =
-          e.originalEvent.target?.classList.contains("leaflet-gl-layer");
+      const onMapClick = (e: L.LeafletMouseEvent) => {
+        const target = e.originalEvent.target as HTMLElement;
+        const routedMap = target?.id === "routedMap";
+        const glLayer = target?.classList.contains("leaflet-gl-layer");
 
         if (routedMap || glLayer) {
           dispatch(setUIMode("default"));
           deleteRectangleById(map);
         }
       };
-      const onEscKeyPress = (event) => {
+      const onEscKeyPress = (event: KeyboardEvent) => {
         if (event.key === "Escape") {
           dispatch(setUIMode("default"));
           deleteRectangleById(map);
