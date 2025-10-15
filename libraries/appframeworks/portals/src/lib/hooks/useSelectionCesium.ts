@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { GroundPrimitive, Scene } from "cesium";
+import { ClassificationType, GroundPrimitive, Scene } from "cesium";
 
 import {
-  CesiumOptions,
   MarkerPrimitiveData,
+  MarkerModelAsset,
   removeCesiumMarker,
   removeGroundPrimitiveById,
   useCesiumContext,
@@ -48,7 +48,7 @@ const isMarkerPrimitivePresent = (
     return false;
   }
 
-  if (markerData.selectionId !== selectionKey) {
+  if (markerData.selectionKey !== selectionKey) {
     return false;
   }
 
@@ -123,12 +123,14 @@ const areSelectionPolygonsPresent = (
 
 export const useSelectionCesium = (
   isActive: boolean,
-  cesiumOptions: CesiumOptions,
+  markerAsset?: MarkerModelAsset,
+  markerAnchorHeight?: number,
+  classificationType: ClassificationType = ClassificationType.BOTH,
   useCameraHeight: boolean = false,
   duration: number = 3,
   durationFactor: number = 0.2
 ) => {
-  const { withElevationProviders, sceneRef } = useCesiumContext();
+  const { sceneRef } = useCesiumContext();
 
   const { selection } = useSelection();
   const lastSelectionKeyRef = useRef<number | null>(null);
@@ -162,7 +164,7 @@ export const useSelectionCesium = (
       );
 
       const isReselectionWithMarker =
-        isMarkerPresent && selectedMarkerData?.selectionId === selectionKey;
+        isMarkerPresent && selectedMarkerData?.selectionKey === selectionKey;
 
       const isReselectionArea =
         selection.isAreaSelection === true &&
@@ -194,7 +196,9 @@ export const useSelectionCesium = (
       const skipMarkerUpdate = isReselectionWithMarker || isReselectionArea;
 
       const options = {
-        mapOptions: cesiumOptions,
+        markerAsset,
+        markerAnchorHeight,
+        classificationType,
         selectedPolygonId: SELECTED_POLYGON_ID,
         invertedSelectedPolygonId: INVERTED_SELECTED_POLYGON_ID,
         useCameraHeight,
@@ -206,8 +210,8 @@ export const useSelectionCesium = (
 
       const setMarkerDataWithMeta = (data: MarkerPrimitiveData | null) => {
         if (data) {
-          data.selectionId = selectionKey;
-          data.selectionTimestamp = selectionTimestamp;
+          data.selectionKey = selectionKey;
+          data.selectionTimestamp = selectionTimestamp ?? undefined;
           if (data.model && selectionKey != null) {
             data.model.id = String(selectionKey);
           }
@@ -217,7 +221,6 @@ export const useSelectionCesium = (
 
       cesiumHitTrigger(
         [selection],
-        withElevationProviders,
         selectedMarkerData,
         setMarkerDataWithMeta,
         options
@@ -232,11 +235,12 @@ export const useSelectionCesium = (
     selection,
     useCameraHeight,
     isActive,
-    cesiumOptions,
+    markerAsset,
+    markerAnchorHeight,
+    classificationType,
     duration,
     durationFactor,
     selectedMarkerData,
     sceneRef,
-    withElevationProviders,
   ]);
 };

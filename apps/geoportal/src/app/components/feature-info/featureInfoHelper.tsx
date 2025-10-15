@@ -6,7 +6,7 @@ import type {
   LayerProps,
 } from "@carma/types";
 import { FeatureInfoIcon } from "./FeatureInfoIcon";
-import { proj4crs3857def } from "@carma-commons/geo";
+import { proj4crs3857def } from "react-cismap/constants/gis";
 import {
   createUrl,
   functionToFeature,

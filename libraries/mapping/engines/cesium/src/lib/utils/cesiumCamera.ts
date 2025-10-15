@@ -1,6 +1,6 @@
 import { Camera, Cartesian2, Math as CesiumMath, type Scene } from "cesium";
 
-import type { Radians } from "@carma/types";
+import type { Radians } from "@carma/units/types";
 
 export const getCesiumFrustumPixelDimensionsForDistance = (
   scene: Scene,

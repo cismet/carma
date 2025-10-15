@@ -16,7 +16,7 @@ export const extractCarmaConfig = (
         }
         const objectString = keyword.slice(12);
         let colonIndex = objectString.indexOf(":");
-        const property = objectString.split(":")[0];
+        const property = objectString.split(":")[0] as string;
         let value =
           colonIndex !== -1
             ? objectString.substring(colonIndex + 1).trim()

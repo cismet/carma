@@ -1,38 +1,13 @@
 import { Cartesian3, Ellipsoid, Matrix4, Transforms } from "cesium";
-import type { Matrix3RowMajor, Vector3Arr } from "@carma/types";
-import type { ObliqueImageRecord, Proj4Converter } from "../types";
+import type { DerivedExteriorOrientation, ObliqueImageRecord } from "../types";
+import type { TypedConverter } from "@carma/geo/proj";
+import type { Vector3Arr } from "@carma/types";
 import { calculateUTMConvergence } from "./utmConvergence";
 
 const negateRow = <T extends readonly number[]>(
   row: T
 ): { [K in keyof T]: number } => {
   return row.map((value) => -value) as { [K in keyof T]: number };
-};
-
-export type RotationDescription = {
-  direction?: Vector3Arr;
-  up?: Vector3Arr;
-  m?: Matrix3RowMajor;
-  omega?: number;
-  phi?: number;
-  kappa?: number;
-};
-
-export type DerivedExteriorOrientation = {
-  position: {
-    sourceCRS: Vector3Arr;
-    wgs84?: Vector3Arr;
-    ecef?: Vector3Arr;
-  };
-  rotation: {
-    enu: {
-      sourceCRS: RotationDescription;
-      wgs84?: RotationDescription;
-    };
-    ecef?: RotationDescription;
-  };
-  utmConvergenceAngle?: number;
-  sourceCrs?: string;
 };
 
 export const enuToEcef = (
@@ -82,7 +57,7 @@ const correctForUTMConvergence = (
 
 export const computeDerivedExteriorOrientation = (
   record: ObliqueImageRecord,
-  { converter, sourceCrs }: Proj4Converter,
+  converter: TypedConverter,
   upMapping: { rowIndex: number; negate: boolean } = {
     rowIndex: 1,
     negate: false,
@@ -99,7 +74,7 @@ export const computeDerivedExteriorOrientation = (
     : m[upMapping.rowIndex];
 
   const derivedOrientation: DerivedExteriorOrientation = {
-    sourceCrs,
+    sourceCrs: converter.sourceCrs,
     position: {
       sourceCRS: [x, y, z],
       wgs84: [lon, lat, height],

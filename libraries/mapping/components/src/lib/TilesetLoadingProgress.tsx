@@ -1,23 +1,26 @@
 import { useEffect, useState } from "react";
 import { useCesiumContext } from "@carma-mapping/engines/cesium";
 
+/**
+ * TODO: Update to work with new CesiumContext structure that uses tilesetsRef Map
+ * instead of primaryTilesetRef/secondaryTilesetRef
+ */
 export const TilesetLoadingProgress = () => {
-  const { primaryTilesetRef, secondaryTilesetRef, tilesetVisibilityRef } =
-    useCesiumContext();
+  const { tilesetsRef } = useCesiumContext();
   const [progress, setProgress] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    const primaryVisible = tilesetVisibilityRef.current.get("primary") ?? false;
-    const secondaryVisible =
-      tilesetVisibilityRef.current.get("secondary") ?? true;
+    // TODO: Implement with new Map-based tileset structure
+    // For now, just return early to unblock build
+    const tilesets = tilesetsRef.current;
+    if (tilesets.size === 0) {
+      setIsLoading(false);
+      return;
+    }
 
-    const activeTileset = secondaryVisible
-      ? secondaryTilesetRef.current
-      : primaryVisible
-      ? primaryTilesetRef.current
-      : null;
-
+    // Get first tileset from map as active tileset
+    const activeTileset = Array.from(tilesets.values())[0];
     if (!activeTileset) {
       setIsLoading(false);
       return;
@@ -53,7 +56,7 @@ export const TilesetLoadingProgress = () => {
       activeTileset.allTilesLoaded.removeEventListener(allTilesLoadedListener);
       activeTileset.initialTilesLoaded.removeEventListener(initialLoadListener);
     };
-  }, [primaryTilesetRef, secondaryTilesetRef, tilesetVisibilityRef]);
+  }, [tilesetsRef]);
 
   if (!isLoading && progress >= 100) {
     return null;

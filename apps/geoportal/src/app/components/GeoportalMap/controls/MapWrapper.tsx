@@ -23,7 +23,7 @@ import {
   useGazData,
   useSelection,
 } from "@carma-appframeworks/portals";
-import { isAreaType, type EndpointKey } from "@carma-commons/resources";
+import { isAreaType } from "@carma/resources";
 import { detectWebGLContext } from "@carma-commons/dom/canvas";
 
 import {
@@ -49,7 +49,7 @@ import {
   ControlLayout,
   ControlLayoutCanvas,
 } from "@carma-mapping/map-controls-layout";
-import { useFeatureFlags } from "@carma-providers/feature-flag";
+import { useFeatureFlags } from "@carma/providers/feature-flag";
 import { MeasurementControl } from "@carma-commons/measurements";
 
 import { GeoportalMap } from "../GeoportalMap.tsx";
@@ -91,7 +91,6 @@ import {
 } from "../../../store/slices/ui.ts";
 
 import { CESIUM_CONFIG } from "../../../config/app.config";
-import { useDebug } from "./MapWrapper.useDebug.ts";
 
 // detect GPU support, disables 3d mode if not supported
 let hasGPU = false;
@@ -150,8 +149,6 @@ const MapWrapper = () => {
 
   const { zoomInLeaflet, zoomOutLeaflet } =
     useLeafletZoomControls(leafletMapRef);
-
-  useDebug();
 
   const { responsiveState, gap, windowSize } = useContext<
     typeof ResponsiveTopicMapContext
@@ -241,7 +238,7 @@ const MapWrapper = () => {
         ? SelectionMapMode.MODE_2D
         : SelectionMapMode.MODE_3D,
       selectionTimestamp: Date.now(),
-      isAreaSelection: isAreaType(selection.type as EndpointKey),
+      isAreaSelection: isAreaType(selection.type),
     };
 
     setSelection(Object.assign({}, selection, selectionMetaData));

@@ -9,7 +9,7 @@ import {
   Scene,
 } from "cesium";
 
-import type { Ratio, Radians } from "@carma/types";
+import type { Ratio, Radians } from "@carma/units/types";
 
 import { AnimationMap, cancelAnimation } from "../utils/animationMap";
 import { cesiumAnimateFov } from "../utils/cesiumAnimateFov";

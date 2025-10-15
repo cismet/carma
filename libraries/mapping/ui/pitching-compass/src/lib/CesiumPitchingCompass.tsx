@@ -7,8 +7,8 @@ import {
   ScreenSpaceEventType,
 } from "cesium";
 
-import type { Radians, Meters, Degrees } from "@carma/types";
-import { degToRad } from "@carma-commons/math";
+import type { Radians, Meters, Degrees } from "@carma/units/types";
+import { degToRad } from "@carma/units/helpers";
 import {
   useCesiumContext,
   animateCamera,
@@ -66,13 +66,10 @@ export const CesiumPitchingCompass = ({
     ((p: Radians, h: Radians) => void) | null
   >(null);
 
-  const { shouldSuspendPitchLimiterRef } = useCesiumContext();
-
   const handleMouseDown = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
       const scene = sceneRef.current;
       if (!isValidScene(scene)) return;
-      shouldSuspendPitchLimiterRef.current = true;
       cancelAnimation(scene, animationMapRef.current);
       setIsControlMouseDown(true);
       setInitialMouseX(event.clientX);
@@ -90,16 +87,15 @@ export const CesiumPitchingCompass = ({
         setInitialRange(range as Meters);
       }
     },
-    [shouldSuspendPitchLimiterRef, animationMapRef, sceneRef]
+    [animationMapRef, sceneRef]
   );
 
   const handleMouseUp = useCallback(() => {
-    shouldSuspendPitchLimiterRef.current = false;
     setIsControlMouseDown(false);
     const scene = sceneRef.current;
     if (!isValidScene(scene)) return;
     scene.camera.lookAtTransform(Matrix4.IDENTITY);
-  }, [shouldSuspendPitchLimiterRef, sceneRef]);
+  }, [sceneRef]);
 
   const handleMouseMove = useCallback(
     (event: MouseEvent) => {

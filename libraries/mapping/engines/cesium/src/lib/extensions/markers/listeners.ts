@@ -1,4 +1,4 @@
-import type { MarkerPrimitiveData } from "./index.d";
+import type { MarkerPrimitiveData } from "./types";
 
 import { updateTransform } from "./updateTransform";
 import { Scene } from "cesium";

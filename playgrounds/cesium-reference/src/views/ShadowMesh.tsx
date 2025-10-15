@@ -2,7 +2,7 @@ import { FC, useEffect, useRef, useState } from "react";
 import { Viewer, ShadowMode, JulianDate } from "cesium";
 import { Slider, Checkbox } from "antd";
 
-import { WUPP_MESH_2024 } from "@carma-commons/resources";
+import { WUPP_MESH_2024 } from "@carma/resources";
 import { cesiumConstructorOptions } from "../config";
 import useTileset from "../hooks/useTileset";
 import { useZoomToTilesetOnReady } from "../hooks/useZoomToTilesetOnReady";

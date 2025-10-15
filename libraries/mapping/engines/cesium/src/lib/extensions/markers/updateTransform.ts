@@ -7,9 +7,9 @@ import {
   Camera,
   Scene,
 } from "cesium";
-import { Radians } from "@carma/types";
+import type { Radians } from "@carma/units/types";
 
-import type { MarkerPrimitiveData } from "./index.d";
+import type { MarkerPrimitiveData } from "./types";
 import { isValidCamera } from "../../utils/instanceGates";
 
 type ScaleTranslation = {
@@ -122,9 +122,7 @@ export const updateTransform = (
 
     const rotationQuaternion = Quaternion.fromAxisAngle(
       Cartesian3.UNIT_Z,
-      (modelConfig.rotation === true ? 1 : modelConfig.rotation) *
-        animationSpeed *
-        deltaTime
+      animationSpeed * deltaTime
     );
 
     updatedModelMatrix = Matrix4.fromTranslationQuaternionRotationScale(

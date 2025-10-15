@@ -27,7 +27,7 @@ import {
   EmptySearchComponent,
   LibFuzzySearch,
 } from "@carma-mapping/fuzzy-search";
-import { isAreaType } from "@carma-commons/resources";
+import { isAreaType } from "@carma/resources";
 import { builtInGazetteerHitTrigger } from "react-cismap/tools/gazetteerHelper";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 

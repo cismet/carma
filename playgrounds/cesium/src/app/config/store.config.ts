@@ -1,6 +1,6 @@
 import { Cartesian3 } from "cesium";
 
-import { WUPPERTAL } from "@carma-commons/resources";
+import { WUPPERTAL } from "@carma/resources";
 import { CesiumState } from "@carma-mapping/engines/cesium";
 
 import { FOOTPRINT_GEOJSON_SOURCES } from "./dataSources.config";

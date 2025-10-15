@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { decodeCesiumCamera } from "../utils/cesiumHashParamsCodec";
-import { InitialCameraView } from "../CustomViewer";
+import type { InitialCameraView } from "../CesiumSceneComponent";
 import { getHashParams } from "@carma-commons/utils";
 
 // null means not set, undefined means no camera view found

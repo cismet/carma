@@ -18,7 +18,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import isEqual from "lodash/isEqual";
 
-import { serviceOptions } from "@carma-commons/resources";
+import { serviceOptions } from "@carma/resources";
 import { BackgroundLayer, Item, Layer } from "@carma/types";
 import { extractCarmaConfig } from "@carma-commons/utils";
 
@@ -31,7 +31,7 @@ import { getSelectedLayer, setSelectedLayer } from "../slices/mapLayers";
 import { setTriggerRefetch } from "../slices/ui";
 import { LayerButton, LayerIcon } from "@carma-mapping/components";
 
-import { useAuth } from "@carma-providers/auth";
+import { useAuth } from "@carma/providers/auth";
 import type { ActiveLayers } from "./NewLibModal";
 
 interface InfoCardProps {

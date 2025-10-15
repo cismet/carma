@@ -1,7 +1,7 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 
 import { Item } from "@carma/types";
-import { type FeatureFlagConfig } from "@carma-providers/feature-flag";
+import { type FeatureFlagConfig } from "@carma/providers/feature-flag";
 
 import type { RootState } from "..";
 

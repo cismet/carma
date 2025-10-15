@@ -10,7 +10,6 @@ import {
 
 import {
   getDegreesFromCartographic,
-  isValidViewer,
   tryWithValidScene,
   guardSampleTerrainMostDetailedAsync,
 } from "@carma-mapping/engines/cesium";
@@ -19,7 +18,6 @@ import { updateMarkerPosition } from "./marker";
 
 export const onCesiumClick = async (
   click,
-  viewerRef: MutableRefObject<Viewer | null>,
   sceneRef: MutableRefObject<Scene | null>,
   terrainProviderRef: MutableRefObject<CesiumTerrainProvider | null>,
   markerEntityRef: MutableRefObject<Entity | null>,
@@ -45,10 +43,8 @@ export const onCesiumClick = async (
 
   if (!groundPositionCartographic) return;
 
-  if (!isValidViewer(viewerRef.current)) return;
-
   updateMarkerPosition(
-    viewerRef.current,
+    sceneRef.current,
     markerEntityRef,
     highlightEntityRef,
     groundPositionCartographic

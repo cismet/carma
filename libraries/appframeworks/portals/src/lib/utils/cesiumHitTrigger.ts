@@ -1,16 +1,15 @@
 import type { SearchResultItem } from "@carma/types";
-import type {
-  CesiumOptions,
-  MarkerPrimitiveData,
-  CesiumContextType,
-} from "@carma-mapping/engines/cesium";
+import type { MarkerPrimitiveData } from "@carma-mapping/engines/cesium";
+import type { MarkerModelAsset } from "@carma-mapping/engines/cesium";
+import { ClassificationType } from "cesium";
 
 import { cesiumHandleSelection } from "./cesiumHandleSelection";
 import { getDerivedGeometries } from "./getDerivedGeometries";
-import { WithElevationProvidersCallback } from "@carma-mapping/engines/cesium";
 
 export type HitTriggerOptions = {
-  mapOptions: CesiumOptions;
+  classificationType?: ClassificationType;
+  markerAsset?: MarkerModelAsset;
+  markerAnchorHeight?: number;
   useCameraHeight?: boolean;
   duration: number; // duration for flyTo
   durationFactor?: number; // dynamic flyTo duration factor,
@@ -22,7 +21,6 @@ export type HitTriggerOptions = {
 
 export const cesiumHitTrigger = async (
   hit: SearchResultItem[],
-  withElevationProviders: WithElevationProvidersCallback,
   markerData: null | MarkerPrimitiveData,
   setMarkerData: (data: MarkerPrimitiveData | null) => void,
   options: HitTriggerOptions
@@ -30,7 +28,6 @@ export const cesiumHitTrigger = async (
   if (hit !== undefined && hit.length !== undefined && hit.length > 0) {
     const derivedGeometries = getDerivedGeometries(hit[0]);
     cesiumHandleSelection(
-      withElevationProviders,
       markerData,
       setMarkerData,
       derivedGeometries,

@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useRef, type MutableRefObject } from "react";
 
-import { Degrees } from "@carma/types";
+import type { Latitude, Longitude } from "@carma/geo/types";
 import { cesiumClearParamKeys } from "@carma-mapping/engines/cesium";
 import {
   useCarmaTopicMapContext,
   TopicMapCtxEvent,
 } from "@carma-mapping/engines/carma-cismap";
-import { isMapCenterZoomEquivalent } from "@carma-commons/geo";
+import { isMapCenterZoomEquivalent } from "@carma/geo/utils";
 
 import { useHashState } from "../contexts/HashStateProvider";
 import {
@@ -79,13 +79,16 @@ export function useLeafletLikeChangeHandler({
       if (target) {
         const eq = isMapCenterZoomEquivalent(
           {
-            center: { latitude: lat as Degrees, longitude: lng as Degrees },
+            center: {
+              latitude: lat as Latitude.deg,
+              longitude: lng as Longitude.deg,
+            },
             zoom,
           },
           {
             center: {
-              latitude: target.lat as Degrees,
-              longitude: target.lng as Degrees,
+              latitude: target.lat as Latitude.deg,
+              longitude: target.lng as Longitude.deg,
             },
             zoom: target.zoom,
           },
@@ -104,8 +107,12 @@ export function useLeafletLikeChangeHandler({
       // Skip writing if the map is already at the current hash location (within tolerance)
       try {
         const vals = getHashValues?.() || {};
-        const hLat = Number((vals as Record<string, unknown>).lat) as Degrees;
-        const hLng = Number((vals as Record<string, unknown>).lng) as Degrees;
+        const hLat = Number(
+          (vals as Record<string, unknown>).lat
+        ) as Latitude.deg;
+        const hLng = Number(
+          (vals as Record<string, unknown>).lng
+        ) as Longitude.deg;
         const hZoom = Number((vals as Record<string, unknown>).zoom) as number;
         const hasAll =
           Number.isFinite(hLat) &&
@@ -114,7 +121,10 @@ export function useLeafletLikeChangeHandler({
         if (hasAll) {
           const eq = isMapCenterZoomEquivalent(
             {
-              center: { latitude: lat as Degrees, longitude: lng as Degrees },
+              center: {
+                latitude: lat as Latitude.deg,
+                longitude: lng as Longitude.deg,
+              },
               zoom,
             },
             {

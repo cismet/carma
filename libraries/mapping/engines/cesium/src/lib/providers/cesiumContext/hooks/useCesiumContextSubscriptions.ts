@@ -1,22 +1,13 @@
 import { useEffect } from "react";
 import type { MutableRefObject } from "react";
-import { Scene } from "cesium";
+import { Color, type Scene } from "cesium";
+import type { SceneStyleConfig } from "@carma/types";
 import {
   CtxEvent,
-  SubscribeCesiumCtxFn,
-  EmitCesiumCtxFn,
+  type SubscribeCesiumCtxFn,
+  type EmitCesiumCtxFn,
 } from "../../../cesiumContextEventMap";
-import { SCENE_STYLES, TILESET_IDS } from "../../../constants";
-import {
-  setupPrimaryStyle,
-  setupSecondaryStyle,
-} from "../../../utils/sceneStyles";
 import { isValidScene } from "../../../utils/instanceGates";
-import type {
-  WithCallback,
-  TerrainProviderCallback,
-} from "../../../hooks/useValidInstances";
-import type { SceneStyles } from "../../../../index";
 
 /**
  * Custom hook that manages all event subscriptions for CesiumContext refs.
@@ -32,11 +23,8 @@ export const useCesiumContextSubscriptions = ({
   maxZoomDistanceRef,
   enableCollisionDetectionRef,
   currentSceneStyleRef,
-  tilesetVisibilityRef,
-  tilesetOpacityRef,
   homePositionRef,
   homeOffsetRef,
-  withTerrainProvider,
   sceneStyles,
 }: {
   subscribe: SubscribeCesiumCtxFn;
@@ -48,12 +36,9 @@ export const useCesiumContextSubscriptions = ({
   maxZoomDistanceRef: MutableRefObject<number>;
   enableCollisionDetectionRef: MutableRefObject<boolean>;
   currentSceneStyleRef: MutableRefObject<string | undefined>;
-  tilesetVisibilityRef: MutableRefObject<Map<string, boolean>>;
-  tilesetOpacityRef: MutableRefObject<Map<string, number>>;
   homePositionRef: MutableRefObject<{ x: number; y: number; z: number } | null>;
   homeOffsetRef: MutableRefObject<{ x: number; y: number; z: number } | null>;
-  withTerrainProvider: WithCallback<TerrainProviderCallback>;
-  sceneStyles?: SceneStyles;
+  sceneStyles?: SceneStyleConfig[];
 }) => {
   // Update isSuspendedRef when suspend/activate events are emitted
   useEffect(() => {
@@ -94,8 +79,8 @@ export const useCesiumContextSubscriptions = ({
     };
   }, [subscribe, isAnimatingRef]);
 
-  // Subscribe to camera controller setting events
-  useEffect(() => {
+  // DISABLED: Camera controller setting events (for minimal mode)
+  /* useEffect(() => {
     const unsubMinZoom = subscribe(CtxEvent.SetMinZoomDistance, (value) => {
       minZoomDistanceRef.current = value;
       const scene = sceneRef.current;
@@ -137,10 +122,10 @@ export const useCesiumContextSubscriptions = ({
     minZoomDistanceRef,
     maxZoomDistanceRef,
     enableCollisionDetectionRef,
-  ]);
+  ]); */
 
-  // Subscribe to scene style events and apply scene changes
-  useEffect(() => {
+  // DISABLED: Scene style events (for minimal mode)
+  /* useEffect(() => {
     const applySceneStyle = (newStyle: string) => {
       const scene = sceneRef.current;
       if (!isValidScene(scene)) {
@@ -152,49 +137,63 @@ export const useCesiumContextSubscriptions = ({
 
       console.debug("[CesiumContext] Applying scene style:", newStyle);
 
-      if (newStyle === SCENE_STYLES.PRIMARY) {
-        console.debug(
-          "[CesiumContext] Switching to PRIMARY style (Luftbild/Mesh mode)"
-        );
-        setupPrimaryStyle(scene, withTerrainProvider, sceneStyles?.primary);
-        console.debug(
-          "[CesiumContext] Hiding LOD2 (primary tileset), showing mesh (secondary tileset)"
-        );
-        emit(CtxEvent.SetTilesetVisibility, {
-          id: TILESET_IDS.PRIMARY,
-          visible: false,
-        });
-        emit(CtxEvent.SetTilesetVisibility, {
-          id: TILESET_IDS.SECONDARY,
-          visible: true,
-        });
-        // TODO: Get style config from context and set background
-        // if (primaryStyle?.backgroundColor) {
-        //   setCesiumBackgroundCssVar(primaryStyle.backgroundColor);
-        // }
-      } else if (newStyle === SCENE_STYLES.SECONDARY) {
-        console.debug(
-          "[CesiumContext] Switching to SECONDARY style (LOD2 mode)"
-        );
-        setupSecondaryStyle(scene, withTerrainProvider, sceneStyles?.secondary);
-        console.debug(
-          "[CesiumContext] Showing LOD2 (primary tileset), hiding mesh (secondary tileset)"
-        );
-        emit(CtxEvent.SetTilesetVisibility, {
-          id: TILESET_IDS.PRIMARY,
-          visible: true,
-        });
-        emit(CtxEvent.SetTilesetVisibility, {
-          id: TILESET_IDS.SECONDARY,
-          visible: false,
-        });
-        // TODO: Get style config from context and set background
-        // if (secondaryStyle?.backgroundColor) {
-        //   setCesiumBackgroundCssVar(secondaryStyle.backgroundColor);
-        // }
-      } else {
-        console.warn("[CesiumContext] Unknown scene style:", newStyle);
+      if (!Array.isArray(sceneStyles)) {
+        console.warn("[CesiumContext] Legacy object-based sceneStyles no longer supported");
+        return;
       }
+
+      const styleIndex = sceneStyles.findIndex(s => s.id === newStyle);
+      if (styleIndex === -1) {
+        console.warn(`[CesiumContext] Style ID "${newStyle}" not found in sceneStyles array`);
+        return;
+      }
+
+      const style = sceneStyles[styleIndex];
+      console.debug(`[CesiumContext] Applying style "${newStyle}" (slot ${styleIndex}):`, style);
+
+      if (style.backgroundColor) {
+        scene.backgroundColor = Color.fromBytes(...style.backgroundColor);
+      }
+
+      if (style.globe?.baseColor) {
+        scene.globe.baseColor = Color.fromBytes(...style.globe.baseColor);
+      }
+
+      const allTilesetIds = new Set<string>();
+      sceneStyles.forEach(s => {
+        s.tilesets?.forEach(t => allTilesetIds.add(t.id));
+      });
+
+      allTilesetIds.forEach(id => {
+        const isInCurrentStyle = style.tilesets?.some(t => t.id === id);
+        emit(CtxEvent.SetTilesetVisibility, { 
+          id, 
+          visible: isInCurrentStyle ?? false 
+        });
+      });
+
+      if (style.tilesets) {
+        style.tilesets.forEach(({ id, opacity }) => {
+          if (opacity !== undefined) {
+            emit(CtxEvent.SetTilesetOpacity, { id, opacity });
+          }
+        });
+      }
+
+      if (style.imagery) {
+        console.debug(`[CesiumContext] Managing ${style.imagery.length} imagery layers`);
+        scene.imageryLayers.removeAll();
+        
+        style.imagery.forEach(({ id, opacity }) => {
+          console.debug(`[CesiumContext] Would load imagery: ${id} (opacity: ${opacity ?? 1.0})`);
+        });
+      }
+
+      if (style.terrain) {
+        console.debug(`[CesiumContext] Would switch terrain to: ${style.terrain}`);
+      }
+
+      console.debug(`[CesiumContext] Successfully applied style "${newStyle}"`);
     };
 
     const unsubSetStyle = subscribe(CtxEvent.SetSceneStyle, (value) => {
@@ -204,13 +203,18 @@ export const useCesiumContextSubscriptions = ({
     });
 
     const unsubToggleStyle = subscribe(CtxEvent.ToggleSceneStyle, () => {
+      if (!Array.isArray(sceneStyles) || sceneStyles.length < 2) {
+        console.warn("[CesiumContext] Cannot toggle - need at least 2 styles in config");
+        return;
+      }
+
       const currentStyle = currentSceneStyleRef.current;
-      const newStyle =
-        currentStyle === SCENE_STYLES.PRIMARY
-          ? SCENE_STYLES.SECONDARY
-          : SCENE_STYLES.PRIMARY;
+      const currentIndex = sceneStyles.findIndex(s => s.id === currentStyle);
+      const nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % sceneStyles.length;
+      const newStyle = sceneStyles[nextIndex].id;
+      
       currentSceneStyleRef.current = newStyle;
-      console.debug("[CesiumContext] Toggle scene style:", newStyle);
+      console.debug(`[CesiumContext] Toggle: ${currentStyle} -> ${newStyle} (slot ${currentIndex} -> ${nextIndex})`);
       applySceneStyle(newStyle);
     });
 
@@ -218,10 +222,10 @@ export const useCesiumContextSubscriptions = ({
       unsubSetStyle();
       unsubToggleStyle();
     };
-  }, [subscribe, emit, currentSceneStyleRef, sceneRef, withTerrainProvider]);
+  }, [subscribe, emit, currentSceneStyleRef, sceneRef, sceneStyles]); */
 
-  // Subscribe to tileset visibility events
-  useEffect(() => {
+  // DISABLED: Tileset visibility/opacity events (deprecated refs)
+  /* useEffect(() => {
     const unsubSetVisibility = subscribe(
       CtxEvent.SetTilesetVisibility,
       ({ id, visible }) => {
@@ -251,10 +255,10 @@ export const useCesiumContextSubscriptions = ({
     return () => {
       unsubSetOpacity();
     };
-  }, [subscribe, tilesetOpacityRef]);
+  }, [subscribe, tilesetOpacityRef]); */
 
-  // Subscribe to home position events
-  useEffect(() => {
+  // DISABLED: Home position events (for minimal mode)
+  /* useEffect(() => {
     const unsubSetHomePosition = subscribe(
       CtxEvent.SetHomePosition,
       (position) => {
@@ -272,5 +276,5 @@ export const useCesiumContextSubscriptions = ({
       unsubSetHomePosition();
       unsubSetHomeOffset();
     };
-  }, [subscribe, homePositionRef, homeOffsetRef]);
+  }, [subscribe, homePositionRef, homeOffsetRef]); */
 };

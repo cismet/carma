@@ -1,4 +1,4 @@
-import type { OBLIQUE_PREVIEW_QUALITY } from "../constants";
+import type { ObliquePreviewQuality } from "../constants";
 import type { ObliqueImageRecordMap } from "../types";
 import type { CardinalDirectionEnum } from "./orientationUtils";
 
@@ -25,7 +25,7 @@ export const prefetchSiblingPreviewFor = (
   dir: CardinalDirectionEnum,
   imageRecords: ObliqueImageRecordMap | null,
   previewPath: string,
-  previewQualityLevel: OBLIQUE_PREVIEW_QUALITY
+  previewQualityLevel: ObliquePreviewQuality
 ) => {
   if (!imageRecords) return;
   const rec = imageRecords.get(imageId);

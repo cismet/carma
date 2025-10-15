@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import knn from "rbush-knn";
 
+import { normalizeOptions } from "@carma/commons/utils";
 import {
   sceneHasTweens,
   useCesiumContext,
@@ -31,7 +32,7 @@ interface UseObliqueNearestImageOptions {
   continuous?: boolean;
 }
 
-const defaultOptions: UseObliqueNearestImageOptions = {
+const defaultOptions: Required<UseObliqueNearestImageOptions> = {
   debounceTime: 150,
   k: NUM_NEAREST_IMAGES,
   continuous: false,
@@ -50,6 +51,10 @@ export function useObliqueNearestImage(
   options: UseObliqueNearestImageOptions = defaultOptions
 ) {
   const { sceneRef } = useCesiumContext();
+  const { k, debounceTime, continuous } = normalizeOptions(
+    options,
+    defaultOptions
+  );
   const lastSearchTimeRef = useRef<number>(0);
   const {
     converter,
@@ -111,11 +116,7 @@ export function useObliqueNearestImage(
       const usedOverride = typeof overrideHeading === "number";
       const timeDelta = now - lastSearchTimeRef.current;
       const bypassDebounce = !!args?.immediate;
-      if (
-        !usedOverride &&
-        !bypassDebounce &&
-        timeDelta < (options.debounceTime || defaultOptions.debounceTime)
-      ) {
+      if (!usedOverride && !bypassDebounce && timeDelta < debounceTime) {
         debug && console.debug("Skipping refreshSearch");
         return;
       }
@@ -155,7 +156,6 @@ export function useObliqueNearestImage(
           x: orbitPointCoords[0],
           y: orbitPointCoords[1],
         };
-        const k = options.k || defaultOptions.k;
         // TODO : validate this
         const frameId =
           (scene as unknown as { frameState?: { frameNumber?: number } })
@@ -270,8 +270,8 @@ export function useObliqueNearestImage(
       imageRecords,
       converter,
       headingOffset,
-      options.k,
-      options.debounceTime,
+      k,
+      debounceTime,
       orbitPoint,
       footprintCenterPointsRBushByCardinals,
       setSelectedImageDistance,
@@ -290,7 +290,7 @@ export function useObliqueNearestImage(
   // Optional continuous updates via camera.changed listener
   const timerIdRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
-    if (!options.continuous) return;
+    if (!continuous) return;
     const scene = sceneRef.current;
     if (
       !isObliqueMode ||
@@ -312,7 +312,7 @@ export function useObliqueNearestImage(
         if (!sceneHasTweens(scene) && !suspendSelectionSearch) {
           refreshSearch();
         }
-      }, options.debounceTime || defaultOptions.debounceTime);
+      }, debounceTime);
     };
 
     tryWithValidScene(scene, () => {
@@ -328,11 +328,11 @@ export function useObliqueNearestImage(
       }
     };
   }, [
-    options.continuous,
+    continuous,
     sceneRef,
     imageRecords,
     refreshSearch,
-    options.debounceTime,
+    debounceTime,
     isObliqueMode,
     suspendSelectionSearch,
   ]);

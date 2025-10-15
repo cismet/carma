@@ -1,6 +1,7 @@
 import { EasingFunction, PerspectiveFrustum, type Scene } from "cesium";
+import { AnimationMap, AnimationTypes } from "@carma/types";
 
-import { cancelAnimation, AnimationType, AnimationMap } from "./animationMap";
+import { cancelAnimation } from "./animationMap";
 import { CtxEvent, type EmitCesiumCtxFn } from "../cesiumContextEventMap";
 import { tryWithValidCamera, tryWithValidScene } from "./instanceGates";
 import { sceneRequestRender } from "./sceneRequestRender";
@@ -57,7 +58,7 @@ export const cesiumAnimateFov = (
         if (animationMap) {
           animationMap.set(scene, {
             id: animationFrameId,
-            type: AnimationType.FovChange,
+            type: AnimationTypes.FovChange,
             cancelable: true,
           });
         }
@@ -73,7 +74,7 @@ export const cesiumAnimateFov = (
     if (animationMap) {
       animationMap.set(scene, {
         id: animationFrameId,
-        type: AnimationType.FovChange,
+        type: AnimationTypes.FovChange,
         cancelable: true,
       });
     }

@@ -15,8 +15,13 @@ import {
   PerspectiveOffCenterFrustum,
 } from "cesium";
 
-import type { Degrees, LatLng, Altitude } from "@carma/types";
-import type { TilesetConfig } from "@carma-commons/resources";
+import type { TilesetConfig } from "@carma/types";
+import type {
+  Altitude,
+  Latitude,
+  Longitude,
+  LatLngAlt,
+} from "@carma/geo/types";
 
 import { pickSceneCenter } from "./pickers";
 import { isValidCamera, isValidScene } from "./instanceGates";
@@ -75,16 +80,14 @@ export function create3DTileStyle(
 
 const TOP_DOWN_DIRECTION = new Cartesian3(0, 0, -1);
 
-export const cameraToCartographicDegrees = (
-  camera: Camera
-): Required<LatLng.deg> => {
+export const cameraToCartographicDegrees = (camera: Camera): LatLngAlt.deg => {
   if (!isValidCamera(camera)) {
     throw new Error("camera is not valid");
   }
   const { latitude, longitude, height } = camera.positionCartographic.clone();
   return {
-    latitude: CesiumMath.toDegrees(latitude) as Degrees,
-    longitude: CesiumMath.toDegrees(longitude) as Degrees,
+    latitude: CesiumMath.toDegrees(latitude) as Latitude.deg,
+    longitude: CesiumMath.toDegrees(longitude) as Longitude.deg,
     altitude: height as Altitude.EllipsoidalWGS84Meters,
   };
 };

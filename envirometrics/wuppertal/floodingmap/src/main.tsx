@@ -13,7 +13,6 @@ import {
   SelectionProvider,
   HashStateProvider,
 } from "@carma-appframeworks/portals";
-import { DebugUiProvider } from "@carma-commons/debug";
 import { suppressReactCismapErrors } from "@carma-commons/utils";
 import {
   CesiumContextProvider,
@@ -50,10 +49,7 @@ const appWithContext = (
         infoBoxPixelWidth={370}
       >
         <HashStateProvider>
-          <CesiumContextProvider
-            providerConfig={CESIUM_CONFIG.providerConfig}
-            tilesetConfigs={CESIUM_CONFIG.tilesetConfigs}
-          >
+          <CesiumContextProvider config={CESIUM_CONFIG}>
             {enableSync ? syncedApp : <App />}
           </CesiumContextProvider>
         </HashStateProvider>
@@ -72,10 +68,8 @@ const root = createRoot(document.getElementById("root") as HTMLElement);
 
 root.render(
   <Provider store={store}>
-    <DebugUiProvider>
-      <PersistGate loading={null} persistor={persistor}>
-        <RouterProvider router={router} />
-      </PersistGate>
-    </DebugUiProvider>
+    <PersistGate loading={null} persistor={persistor}>
+      <RouterProvider router={router} />
+    </PersistGate>
   </Provider>
 );

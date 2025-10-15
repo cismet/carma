@@ -3,18 +3,14 @@ import { HashRouter, Route, Routes } from "react-router-dom";
 
 import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextProvider";
 
-import {
-  CustomViewer,
-  CesiumContextProvider,
-} from "@carma-mapping/engines/cesium";
-import { DebugUiProvider } from "@carma-commons/debug";
+import { CesiumContextProvider } from "@carma-mapping/engines/cesium";
 import { HashStateProvider } from "@carma-appframeworks/portals";
 import {
   BASEMAP_METROPOLE_RUHR_WMS_GRAUBLAU,
   WUPP_LOD2_TILESET,
   WUPP_MESH_2024,
   WUPP_TERRAIN_PROVIDER,
-} from "@carma-commons/resources";
+} from "@carma/resources";
 
 import { Navigation } from "./components/Navigation";
 import { viewerRoutes, otherRoutes } from "./routes";
@@ -41,61 +37,59 @@ export function App() {
         secondary: WUPP_LOD2_TILESET,
       }}
     >
-      <DebugUiProvider>
-        <HashRouter>
-          <HashStateProvider>
-            <Navigation
-              className="leaflet-bar"
-              style={{
-                position: "absolute",
-                top: 8,
-                left: "50%",
-                width: "auto",
-                display: "flex",
-                justifyContent: "center",
-                transform: "translate(-50%, 0)",
-                zIndex: 10,
-              }}
-              routes={[...viewerRoutes, ...otherRoutes]}
-            />
-            <Routes>
-              <Route
-                path="/*"
-                element={
-                  <TopicMapContextProvider>
+      <HashRouter>
+        <HashStateProvider>
+          <Navigation
+            className="leaflet-bar"
+            style={{
+              position: "absolute",
+              top: 8,
+              left: "50%",
+              width: "auto",
+              display: "flex",
+              justifyContent: "center",
+              transform: "translate(-50%, 0)",
+              zIndex: 10,
+            }}
+            routes={[...viewerRoutes, ...otherRoutes]}
+          />
+          <Routes>
+            <Route
+              path="/*"
+              element={
+                <TopicMapContextProvider>
+                  <div
+                    style={{
+                      position: "relative",
+                      width: "100vw",
+                      height: "100vh",
+                    }}
+                  >
+                    <div
+                      ref={viewerContainerRef}
+                      style={{ position: "absolute", inset: 0 }}
+                    />
+                    <CustomWidget containerRef={viewerContainerRef} />
                     <div
                       style={{
-                        position: "relative",
-                        width: "100vw",
-                        height: "100vh",
+                        pointerEvents: "none",
+                        position: "absolute",
+                        inset: 0,
+                        zIndex: 10,
                       }}
                     >
-                      <div
-                        ref={viewerContainerRef}
-                        style={{ position: "absolute", inset: 0 }}
-                      />
-                      <CustomViewer containerRef={viewerContainerRef} />
-                      <div
-                        style={{
-                          pointerEvents: "none",
-                          position: "absolute",
-                          inset: 0,
-                          zIndex: 10,
-                        }}
-                      >
-                        <div style={{ pointerEvents: "auto", height: "100%" }}>
-                          <Routes>{ViewerRoutes}</Routes>
-                        </div>
+                      <div style={{ pointerEvents: "auto", height: "100%" }}>
+                        <Routes>{ViewerRoutes}</Routes>
                       </div>
                     </div>
-                  </TopicMapContextProvider>
-                }
-              />
-              {OtherRoutes}
-            </Routes>
-          </HashStateProvider>
-        </HashRouter>
-      </DebugUiProvider>
+                  </div>
+                </TopicMapContextProvider>
+              }
+            />
+            {OtherRoutes}
+          </Routes>
+        </HashStateProvider>
+      </HashRouter>
     </CesiumContextProvider>
   );
 }

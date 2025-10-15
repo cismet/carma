@@ -16,13 +16,12 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 
 import {
-  CustomViewer,
+  CustomWidget,
   isValidCesiumTerrainProvider,
   useCesiumContext,
   useHomeControl,
   useZoomControls as useZoomControlsCesium,
 } from "@carma-mapping/engines/cesium";
-import { useTweakpaneCtx } from "@carma-commons/debug";
 import { useHashState } from "@carma-appframeworks/portals";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
@@ -39,45 +38,12 @@ export const HQ500 = () => {
   const container3dMapRef = useRef<HTMLDivElement>(null);
 
   // State and Selectors
-  const { viewerRef, withScene, withPrimaryTileset, requestRender } =
-    useCesiumContext();
+  const { sceneRef, requestRender } = useCesiumContext();
   const homeControl = useHomeControl();
   const {
     handleZoomIn: handleZoomInCesium,
     handleZoomOut: handleZoomOutCesium,
   } = useZoomControlsCesium();
-
-  useTweakpaneCtx({
-    folder: {
-      title: "map",
-    },
-    params: {
-      get renderCount() {
-        return rerenderCountRef.current;
-      },
-      get renderInterval() {
-        return lastRenderIntervalRef.current;
-      },
-      dpr: window.devicePixelRatio,
-      resolutionScale: viewerRef.current
-        ? viewerRef.current.resolutionScale
-        : 0,
-    },
-    inputs: [
-      { name: "renderCount", readonly: true, format: (v) => v.toFixed(0) },
-      {
-        name: "renderInterval",
-        readonly: true,
-        format: (v: number) => v.toFixed(0),
-      },
-      { name: "dpr", readonly: true, format: (v: number) => v.toFixed(1) },
-      {
-        name: "resolutionScale",
-        readonly: true,
-        format: (v: number) => v.toFixed(1),
-      },
-    ],
-  });
 
   console.debug("RENDER: [DEMOAPP] MAP");
   rerenderCountRef.current++;
@@ -90,10 +56,9 @@ export const HQ500 = () => {
   useEffect(() => {
     if (hq500Terrain) {
       const onTerrainReady = () => {
-        withPrimaryTileset((primaryTileset) => {
-          primaryTileset.show = true;
-        });
-        withScene((scene) => {
+        primaryTileset.show = true;
+        const scene = sceneRef.current;
+        if (scene) {
           scene.setTerrain(hq500Terrain);
           scene.backgroundColor = Color.DIMGREY;
           scene.globe.baseColor = new Color(0.3, 0.2, 0.8, 0.7);
@@ -104,7 +69,7 @@ export const HQ500 = () => {
           scene.screenSpaceCameraController.enableCollisionDetection = false;
           scene.terrainProvider = hq500Terrain.provider;
           console.debug("ccc [CESIUM] terrain ready");
-        });
+        }
         requestRender();
       };
       hq500Terrain.readyEvent.addEventListener(onTerrainReady);
@@ -114,7 +79,7 @@ export const HQ500 = () => {
           hq500Terrain.readyEvent.removeEventListener(onTerrainReady);
       };
     }
-  }, [withScene, hq500Terrain, requestRender, withPrimaryTileset]);
+  }, [sceneRef, hq500Terrain, requestRender]);
 
   return (
     <ControlLayout ifStorybook={false}>
@@ -152,7 +117,7 @@ export const HQ500 = () => {
             height: "100vh",
           }}
         >
-          <CustomViewer
+          <CustomWidget
             containerRef={container3dMapRef}
             cameraLimiterOptions={{
               pitchLimiter: false,
@@ -172,7 +137,7 @@ export const HQ500 = () => {
                 label: "app/hq500:3D",
               });
             }}
-          ></CustomViewer>
+          ></CustomWidget>
         </div>
       </ControlLayoutCanvas>
     </ControlLayout>

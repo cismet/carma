@@ -1,6 +1,6 @@
 import type { Camera } from "cesium";
 import { applyRollToHeadingForCameraNearNadir } from "./cesiumCamera";
-import { clamp } from "@carma-commons/math";
+import { clamp } from "@carma/units/helpers";
 
 // Compute CSS perspective in px from an FOV angle (radians) and a DOM dimension (px)
 export function fovToCssPerspectiveByFov(

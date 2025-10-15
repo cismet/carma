@@ -27,7 +27,9 @@ export function useCesiumDevConsoleTrigger(
     const localDev = (() => {
       try {
         return Boolean(
-          typeof import.meta !== "undefined" && import.meta.env?.DEV
+          typeof import.meta !== "undefined" &&
+            "env" in import.meta &&
+            (import.meta as { env?: { DEV?: boolean } }).env?.DEV
         );
       } catch {
         return false;

@@ -24,12 +24,14 @@
     ],
     "paths": {
       "@carma/types": ["libraries/types/src/index.d.ts"],
+      "@carma/units/types": ["libraries/commons/units/types/src/index.d.ts"],
+      "@carma/units/helpers": ["libraries/commons/units/helpers/src/index.ts"],
+      "@carma/*": ["libraries/*/src/index.ts"],
       "@carma-appframeworks/*": ["libraries/appframeworks/*/src/index.ts"],
       "@carma-collab/pecher/*": ["libraries/collaboration/carma-pecher-collab/src/*/index.jsx"],
       "@carma-collab/wuppertal/*": ["libraries/collaboration/carma-wuppertal-collab/src/*/index.ts"],
       "@carma-commons/*": ["libraries/commons/*/src/index.ts"],
       "@carma-mapping/*": ["libraries/mapping/*/src/index.ts"],
-      "@carma-providers/*": ["libraries/providers/*/src/index.ts"],
     },
     "skipLibCheck": true
   }

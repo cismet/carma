@@ -1,8 +1,8 @@
 import { Cartographic } from "cesium";
 
-import type { LatLng, Radians } from "@carma/types";
-import { TWO_PI } from "@carma-commons/math";
-import { EARTH_RADIUS } from "@carma-commons/geo";
+import type { LatLng, Latitude, Longitude } from "@carma/geo/types";
+import { TWO_PI } from "@carma/units/helpers";
+import { EARTH_RADIUS } from "@carma/geo/utils";
 
 export const generateRingFromDegrees = (
   centerDeg: LatLng.deg,
@@ -24,9 +24,10 @@ export const generateRingFromDegrees = (
     const angle = (TWO_PI * i) / samples;
     const dx = radiusInMeters * Math.cos(angle);
     const dy = radiusInMeters * Math.sin(angle);
-    const point = {
-      longitude: (center.longitude + dx * scaleFactor.longitude) as Radians,
-      latitude: (center.latitude + dy * scaleFactor.latitude) as Radians,
+    const point: LatLng.rad = {
+      longitude: (center.longitude +
+        dx * scaleFactor.longitude) as Longitude.rad,
+      latitude: (center.latitude + dy * scaleFactor.latitude) as Latitude.rad,
     };
 
     points.push(point);

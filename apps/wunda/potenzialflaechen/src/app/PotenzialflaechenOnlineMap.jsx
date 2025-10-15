@@ -34,7 +34,7 @@ import {
   EmptySearchComponent,
   LibFuzzySearch,
 } from "@carma-mapping/fuzzy-search";
-import { isAreaType } from "@carma-commons/resources";
+import { isAreaType } from "@carma/resources";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import {

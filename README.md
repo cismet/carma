@@ -110,11 +110,26 @@ All configurations should allow importing `.js`
 
 #### Types
 
-common custom carma types and type declarations for external libraries
-are to be added to their respective `/types/*.d.ts`
+Common custom CARMA types and type declarations for external libraries are organized following a **types/helpers separation pattern**:
 
-- [Branded units (Radians-first)](libraries/commons/types/BRANDED-UNITS.md)
-- Commons types index: [`libraries/commons/types/`](libraries/commons/types/)
+**Core Type Libraries:**
+- **[`@carma/types`](libraries/types/README.md)** - Shared high-level CARMA-specific types (interfaces only, no runtime code)
+- **[`@carma/units/types`](libraries/commons/units/types/README.md)** - Unit and measurement type definitions with branded types
+- **[`@carma/geo/types`](libraries/geo/types/README.md)** - Geographic coordinate and cartographic type definitions
+
+**Runtime Helper Libraries:**
+- **[`@carma/units/helpers`](libraries/commons/units/helpers/README.md)** - Unit conversions and branded arithmetic operations
+- **[`@carma/geo/helpers`](libraries/geo/helpers/README.md)** - Coordinate format conversions, validation, and normalization
+
+**Architecture Principle:**
+- **Types libraries** contain only TypeScript type definitions (`.d.ts` files) - no runtime code
+- **Helpers libraries** contain runtime utilities (validators, converters, guards) that operate on those types
+- This separation prevents circular dependencies and maintains clean architecture
+
+**Resources:**
+- [Branded units (Radians-first)](libraries/commons/units/types/BRANDED-UNITS.md)
+- [Geographic libraries overview](libraries/geo/README.md)
+- [Commons libraries overview](libraries/commons/README.md)
 
 #### verbatim Module Syntax
 

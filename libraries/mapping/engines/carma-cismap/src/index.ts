@@ -17,3 +17,8 @@ export {
   type SubscribeTopicMapCtxFn,
   type EmitTopicMapCtxFn,
 } from "./lib/carmaTopicMapContextEventMap";
+export {
+  type RoutedMapBoundingBox,
+  routedMapBBoxToTurfBBox,
+  turfBBoxToRoutedMapBBox,
+} from "./lib/types";

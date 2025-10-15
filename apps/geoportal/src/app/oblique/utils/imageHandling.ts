@@ -1,12 +1,16 @@
-import { AVIF_LEVELS, OBLIQUE_PREVIEW_QUALITY } from "../constants";
+import {
+  OBLIQUE_PREVIEW_QUALITIES,
+  AVIF_QUALITIES,
+  type ObliquePreviewQuality,
+} from "../constants";
 
-const isAvifLevel = (level: string): level is OBLIQUE_PREVIEW_QUALITY => {
-  return AVIF_LEVELS.includes(level as OBLIQUE_PREVIEW_QUALITY);
+const isAvifLevel = (level: ObliquePreviewQuality): boolean => {
+  return AVIF_QUALITIES.includes(level);
 };
 
 export function getPreviewImageUrl(
   previewPath: string,
-  level: OBLIQUE_PREVIEW_QUALITY,
+  level: ObliquePreviewQuality,
   imageId: string
 ): string {
   return `${previewPath}/${level}/${imageId}.${
@@ -17,7 +21,7 @@ export function getPreviewImageUrl(
 export const getImageUrls = (
   id: string | undefined,
   path: string | undefined,
-  level: OBLIQUE_PREVIEW_QUALITY
+  level: ObliquePreviewQuality
 ) => {
   if (!id || !path || id.length === 0 || path.length === 0) {
     return {
@@ -32,19 +36,19 @@ export const getImageUrls = (
 
   const previewUrlHq = getPreviewImageUrl(
     path,
-    OBLIQUE_PREVIEW_QUALITY.LEVEL_2,
+    OBLIQUE_PREVIEW_QUALITIES.LEVEL_2,
     id
   );
 
   const previewUrlOriginal = getPreviewImageUrl(
     path,
-    OBLIQUE_PREVIEW_QUALITY.LEVEL_1,
+    OBLIQUE_PREVIEW_QUALITIES.LEVEL_1,
     id
   );
 
   const downloadUrl = getPreviewImageUrl(
     path,
-    OBLIQUE_PREVIEW_QUALITY.LEVEL_2,
+    OBLIQUE_PREVIEW_QUALITIES.LEVEL_2,
     id
   );
 

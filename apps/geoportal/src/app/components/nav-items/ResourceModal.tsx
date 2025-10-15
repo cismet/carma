@@ -7,7 +7,7 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { useMapStyle, utils, MapStyleKeys } from "@carma-appframeworks/portals";
 import type { Item, Layer } from "@carma/types";
 import { LayerLib } from "@carma-mapping/layers";
-import { useAuth } from "@carma-providers/auth";
+import { useAuth } from "@carma/providers/auth";
 
 import { updateInfoElementsAfterRemovingFeature } from "../../store/slices/features";
 import {

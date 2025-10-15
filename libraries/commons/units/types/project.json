@@ -1,0 +1,44 @@
+{
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "name": "units",
+  "sourceRoot": "libraries/commons/units/types/src",
+  "projectType": "library",
+  "tags": ["scope:commons", "type:declarations"],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libraries/commons/units/types",
+        "main": "libraries/commons/units/types/src/index.d.ts",
+        "tsConfig": "libraries/commons/units/types/tsconfig.lib.json",
+        "assets": [
+          {
+            "input": "libraries/commons/units/types",
+            "glob": "BRANDED-UNITS.md",
+            "output": "."
+          },
+          {
+            "input": "libraries/commons/units/types",
+            "glob": "README.md",
+            "output": "."
+          },
+          {
+            "input": "libraries/commons/units/types/src",
+            "glob": "**/*.d.ts",
+            "output": "./src"
+          }
+        ]
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "libraries/commons/units/types/src/**/*.ts",
+          "libraries/commons/units/types/src/**/*.d.ts"
+        ]
+      }
+    }
+  }
+}

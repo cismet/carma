@@ -1,13 +1,11 @@
 import { Map as LeafletMap } from "leaflet";
 import { Map as MaplibreMap } from "maplibre-gl";
 
-import { Zoom256 } from "@carma/types";
+import type { Zoom256, LatLngZoom, LeafletLikeMap } from "@carma/types";
 import { zoom256as512 } from "@carma-mapping/engines/maplibre";
 
-// todo create and move to new mapping engine leafletLikes
-
-export type LatLngZoom = { lat: number; lng: number; zoom: number };
-export type LeafletLikeMap = LeafletMap | MaplibreMap;
+// Re-export for convenience
+export type { LatLngZoom, LeafletLikeMap };
 
 /**
  * Extracts the current center coordinates and zoom level from a Leaflet-like map.

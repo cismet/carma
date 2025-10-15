@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 
-import type { Radians } from "@carma/types";
+import type { Radians } from "@carma/units/types";
 
 import { CompassNeedleSVG } from "./CompassNeedleSVG";
 

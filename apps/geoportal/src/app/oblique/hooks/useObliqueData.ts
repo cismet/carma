@@ -5,8 +5,8 @@ import type {
   ExteriorOrientations,
   ObliqueImageRecord,
   ObliqueImageRecordMap,
-  Proj4Converter,
 } from "../types";
+import type { TypedConverter } from "@carma/geo/proj";
 
 import { fetchGeoJson, FootprintProperties } from "../utils/footprintUtils";
 import { getFootprintCenterpoints } from "../utils/footprintCenterpoints";
@@ -31,7 +31,7 @@ type UseObliqueDataResult = {
   exteriorOrientations: ExteriorOrientations | null;
   footprintData: FeatureCollection<Polygon, FootprintProperties> | null;
   footprintCenterpointsRBushByCardinals: RBushBySectorBlocks | null;
-  converter: Proj4Converter;
+  converter: TypedConverter;
   error: string | null;
 };
 
@@ -46,7 +46,7 @@ export function useObliqueData(
   shouldLoadData: boolean = false,
   exteriorOrientationsURI: string | null,
   footprintsURI: string | null,
-  converter: Proj4Converter,
+  converter: TypedConverter,
   offset = 0,
   fallbackDirectionConfig: Record<
     string,

@@ -1,8 +1,11 @@
 import type { Scene } from "cesium";
-import type { LatLng, LatLngZoom, Zoom, Zoom256 } from "@carma/types";
+import type { LatLngZoom } from "@carma/types";
+
+import type { Zoom, Zoom256 } from "@carma/units/types";
+import type { LatLng } from "@carma/geo/types";
+import { isZoom } from "@carma/units/helpers";
 
 import { normalizeOptions } from "@carma-commons/utils";
-import { isZoom } from "@carma-commons/geo";
 
 import { cameraToCartographicDegrees } from "./cesiumHelpers";
 import { cesiumCenterPixelSizeToLeafletZoom } from "./pixels";
@@ -59,5 +62,5 @@ export const getTiledMapCenterZoomEquivalent = async (
     throw new Error("latitude or longitude is undefined");
   }
 
-  return { latitude: center.latitude, longitude: center.longitude, zoom };
+  return { lat: center.latitude, lng: center.longitude, zoom };
 };

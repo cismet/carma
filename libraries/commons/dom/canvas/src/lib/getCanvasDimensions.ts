@@ -1,4 +1,4 @@
-import { CssPixelHeight, CssPixelWidth } from "@carma/types";
+import type { CssPixelHeight, CssPixelWidth } from "@carma/units/types";
 export type CanvasDimensions = { height: CssPixelHeight; width: CssPixelWidth };
 
 export const getCanvasDimensions = (

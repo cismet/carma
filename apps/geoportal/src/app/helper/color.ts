@@ -1,4 +1,4 @@
-import { sandboxedEvalExternal, utils } from "@carma-appframeworks/portals";
+import { sandboxedEvalExternal } from "@carma-appframeworks/portals";
 import { FeatureInfoProperties } from "@carma/types";
 
 const getFunctionRegex = () => {
@@ -13,7 +13,7 @@ export const parseColor = async (
     return color;
   } else if (getFunctionRegex().test(color)) {
     const result = await sandboxedEvalExternal("(" + color + ")", properties);
-    return result.toString();
+    return String(result);
   }
   return "#0078a8";
 };

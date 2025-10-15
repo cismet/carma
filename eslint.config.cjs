@@ -6,15 +6,45 @@ const react = require("eslint-plugin-react");
 const reactHooks = require("eslint-plugin-react-hooks");
 const reactRefresh = require("eslint-plugin-react-refresh");
 const globals = require("globals");
+const carmaPlugin = require("./scripts/eslint");
 
 delete globals.browser["AudioWorkletGlobalScope "]; // some weird bug
 
+// ============================================================================
+// CARMA-specific monorepo rules and configs
+// ============================================================================
+
+const TYPE_DECLARATIONS_PATTERN = "libraries/**/types/src/**/*.d.ts";
+
+
+const typeDeclarationsConfig = {
+  name: "CARMA Types Declarations (lightweight)",
+  files: [TYPE_DECLARATIONS_PATTERN],
+  plugins: {
+    "@typescript-eslint": tseslint.plugin,
+  },
+  languageOptions: {
+    parser: tseslint.parser,
+    parserOptions: {
+      ecmaVersion: 2022,
+      EXPERIMENTAL_useProjectService: false,
+    },
+    globals: {
+      ...globals.browser,
+    },
+  },
+  rules: {
+    '@typescript-eslint/no-unused-vars': 'off',
+    '@typescript-eslint/no-explicit-any': 'off',
+  },
+};
+
+// ============================================================================
+// Base configuration (generic rules, no paths)
+// ============================================================================
+
 const baseConfig = {
   name: "Base Config",
-  files: ["**/*.ts", "**/*.tsx"],
-  // Exclude pure declaration files from carma-types so they don't trigger expensive
-  // type-aware linting / default project fallback.
-  ignores: ["libraries/types/src/**/*.d.ts"],
   plugins: {
     import: importPlugin,
     "jsx-a11y": a11y,
@@ -23,6 +53,7 @@ const baseConfig = {
     "react-hooks": reactHooks,
     "react-refresh": reactRefresh,
     "@typescript-eslint": tseslint.plugin,
+    carma: carmaPlugin,
   },
   languageOptions: {
     parser: tseslint.parser,
@@ -113,29 +144,52 @@ const baseConfig = {
   },
 };
 
-// order here specific to least specific
-const carmaTypesDeclConfig = {
-  name: "CARMA Types Declarations (lightweight)",
-  files: ["libraries/types/src/**/*.d.ts"],
-  plugins: {
-    "@typescript-eslint": tseslint.plugin,
-  },
-  languageOptions: {
-    parser: tseslint.parser,
-    parserOptions: {
-      ecmaVersion: 2022,
-      // IMPORTANT: no project / no project service => avoids default project warning
-      EXPERIMENTAL_useProjectService: false,
-    },
-    globals: {
-      ...globals.browser,
-    },
-  },
-  rules: {
-    // Keep this minimal; declaration files often intentionally have 'unused' names
-    '@typescript-eslint/no-unused-vars': 'off',
-    '@typescript-eslint/no-explicit-any': 'off',
-  },
-};
+// ============================================================================
+// Final configuration
+// ============================================================================
 
-module.exports = [baseConfig, carmaTypesDeclConfig];
+function getCarmaConfigs(baseConfig) {
+  return [
+    // Strict rules for apps, libraries, and envirometrics
+    {
+      ...baseConfig,
+      name: "CARMA Strict Rules (apps/libraries)",
+      files: [
+        "apps/**/*.ts",
+        "apps/**/*.tsx",
+        "libraries/**/*.ts",
+        "libraries/**/*.tsx",
+        "envirometrics/**/*.ts",
+        "envirometrics/**/*.tsx",
+      ],
+      ignores: [TYPE_DECLARATIONS_PATTERN],
+      rules: {
+        ...baseConfig.rules,
+        "carma/no-direct-proj4": "error",
+        "carma/no-direct-cesium": "error",
+        "carma/no-direct-leaflet": "warn",
+        "carma/no-direct-maplibre": "warn",
+      },
+    },
+    // Relaxed rules for playground
+    {
+      ...baseConfig,
+      name: "Playground (relaxed rules)",
+      files: ["playground/**/*.ts", "playground/**/*.tsx"],
+      rules: {
+        ...baseConfig.rules,
+        "@typescript-eslint/no-explicit-any": "off",
+        "@typescript-eslint/no-unused-vars": "off",
+        "react/prop-types": "off",
+        "carma/no-direct-proj4": "off",
+        "carma/no-direct-cesium": "off",
+        "carma/no-direct-leaflet": "off",
+        "carma/no-direct-maplibre": "off",
+      },
+    },
+    // Lightweight config for type declarations
+    typeDeclarationsConfig,
+  ];
+}
+
+module.exports = getCarmaConfigs(baseConfig);

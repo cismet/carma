@@ -11,7 +11,7 @@ import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
 import { getCollabedHelpComponentConfig } from "@carma-collab/wuppertal/geoportal";
 import LoginForm from "../../../../LoginForm";
-import { useAuth } from "@carma-providers/auth";
+import { useAuth } from "@carma/providers/auth";
 
 export const useModalMenu = ({
   version,

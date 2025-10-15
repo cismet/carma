@@ -1,4 +1,8 @@
-import { clamp, type EasingFunction, Easing } from "@carma-commons/math";
+import { clamp } from "@carma/units/helpers";
+import type { EasingFunction } from "@carma/types";
+import { Easing } from "@carma-commons/math";
+
+// TODO move to new @carma-commons/animation package
 
 const DEFAULT_ANIMATION_DURATION = 500; // milliseconds
 
@@ -29,6 +33,7 @@ export function createAnimationState<T>(
 /**
  * Generic animation processor that updates an animation state and returns the interpolated value
  */
+
 export function processAnimation<T extends number>(
   animState: AnimationState<T>,
   requestRenderCallback: () => void

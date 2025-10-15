@@ -9,17 +9,17 @@ export {
   CesiumContextProvider,
 } from "./lib/providers/cesiumContext";
 
-export { CustomCesiumWidget } from "./lib/CustomCesiumWidget";
 export {
   CesiumErrorHandler as CesiumErrorHandling,
   type ForwardedCesiumError,
 } from "./lib/CesiumErrorHandler";
 
 export {
-  CustomViewer,
+  CesiumSceneComponent,
   type InitialCameraView,
   type CameraLimiterOptions,
-} from "./lib/CustomViewer";
+  type CesiumSceneComponentProps,
+} from "./lib/CesiumSceneComponent";
 export {
   DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS,
   TRANSITION_DELAY,
@@ -49,7 +49,7 @@ export {
   type SubscribeCesiumCtxFn,
   type EmitCesiumCtxFn,
 } from "./lib/cesiumContextEventMap";
-export { VIEWERSTATE_KEYS, TILESET_IDS, SCENE_STYLES } from "./lib/constants";
+export { VIEWERSTATE_KEYS } from "./lib/constants";
 export { CUSTOM_SHADERS_DEFINITIONS } from "./lib/shaders";
 
 // TODO: all the utils used elsewhere with no cesium dependency should be moved to common helper utils lib
@@ -60,12 +60,23 @@ export {
   MARKER_KEYS,
   type MarkerKey,
 } from "./lib/extensions/markers";
+export type {
+  MarkerPrimitiveData,
+  MarkerModelAsset,
+} from "./lib/extensions/markers/types";
+
+// Hooks for app integration
+export { useCesiumDevConsoleTrigger } from "./lib/hooks/useCesiumDevConsoleTrigger";
+export { useReloadOnCesiumRenderError } from "./lib/hooks/useReloadOnCesiumRenderError";
 
 export {
   type AnimationMap,
   cancelAnimation,
   initAnimationMap,
 } from "./lib/utils/animationMap";
+
+export * from "./lib/utils/cartesian2";
+export * from "./lib/utils/cartesian3";
 
 export {
   getOrbitPoint,
@@ -78,7 +89,14 @@ export {
   type CesiumAnimateFovOptions,
 } from "./lib/utils/cesiumAnimateFov";
 
-export { applyRollToHeadingForCameraNearNadir } from "./lib/utils/cesiumCamera";
+// Transition utilities (used by map-transition-2d-3d)
+export { animateInterpolateHeadingPitchRange } from "./lib/utils/cesiumAnimations";
+
+export {
+  applyRollToHeadingForCameraNearNadir,
+  getCesiumFrustumPixelDimensionsForDistance,
+} from "./lib/utils/cesiumCamera";
+
 export {
   cesiumCameraToCssTransform,
   cssPerspectiveFromCesiumCameraForElement,
@@ -92,29 +110,6 @@ export {
   triggerCesiumShowErrorPanel,
 } from "./lib/utils/cesiumErrorHandling";
 
-// Hooks for app integration
-export { useCesiumDevConsoleTrigger } from "./lib/hooks/useCesiumDevConsoleTrigger";
-export { useReloadOnCesiumRenderError } from "./lib/hooks/useReloadOnCesiumRenderError";
-export { type WithElevationProvidersCallback } from "./lib/hooks/useValidInstances";
-export {
-  getCesiumVersion,
-  checkWindowEnv,
-  assertWindowCesiumEnv,
-} from "./lib/utils/cesiumEnv";
-
-export {
-  encodeCesiumCamera,
-  decodeCesiumCamera,
-  cesiumCameraParamKeys,
-  cesiumClearParamKeys,
-} from "./lib/utils/cesiumHashParamsCodec";
-
-export {
-  fromColorRgbaArray,
-  isColorRgbaArray,
-  toColorRgbaArray,
-} from "./lib/utils/cesiumSerializer";
-
 export {
   invertedPolygonHierarchy,
   polygonHierarchyFromPolygonCoords,
@@ -122,45 +117,54 @@ export {
 } from "./lib/utils/cesiumGroundPrimitives";
 
 export {
-  getIsViewerReadyAsync,
-  setupCesiumEnvironment,
-} from "./lib/utils/cesiumSetup";
+  getCesiumVersion,
+  checkWindowEnv,
+  assertWindowCesiumEnv,
+} from "./lib/utils/cesiumEnv";
 
-export { getElevationAsync, type ElevationResult } from "./lib/utils/elevation";
-export { guardSampleTerrainMostDetailedAsync } from "./lib/utils/guardSampleTerrainMostDetailedAsync";
-
+// TODO deprecate
 export {
-  isValidCesiumTerrainProvider,
-  isValidEllipsoidTerrainProvider,
-  isValidEntity,
-  isValidEntityCollection,
-  isValidImageryLayer,
-  isValidImageryProvider,
-  isValidPrimitiveCollection,
-  isValidScreenSpaceEventHandler,
-  isValidScene,
-  isValidTileset,
-  isValidViewer,
-  withValidViewer,
-  tryWithValidCamera,
-  tryWithValidScene,
-} from "./lib/utils/instanceGates";
+  encodeCesiumCamera,
+  decodeCesiumCamera,
+  cesiumCameraParamKeys,
+  cesiumClearParamKeys,
+} from "./lib/utils/cesiumHashParamsCodec";
 
-export { pickSceneCenter } from "./lib/utils/pickers";
-
-// Transition utilities (used by map-transition-2d-3d)
-export { animateInterpolateHeadingPitchRange } from "./lib/utils/cesiumAnimations";
+// TODO split to topical utils
 export {
   getCameraHeightAboveGround,
   getTopDownCameraDeviationAngle,
   cameraToCartographicDegrees,
 } from "./lib/utils/cesiumHelpers";
+
+export {
+  fromColorRgbaArray,
+  isColorRgbaArray,
+  toColorRgbaArray,
+} from "./lib/utils/cesiumSerializer";
+
+export { setupCesiumEnvironment } from "./lib/utils/cesiumSetup";
+
+export * from "./lib/utils/color";
+
+export { getElevationAsync, type ElevationResult } from "./lib/utils/elevation";
+export { isValidFov } from "./lib/utils/fov";
+export {
+  isPerspectiveTypeFrustum,
+  isPerspectiveFrustum,
+  isPerspectiveOffCenterFrustum,
+} from "./lib/utils/frustum";
+export { guardSampleTerrainMostDetailedAsync } from "./lib/utils/guardSampleTerrainMostDetailedAsync";
+
+export * from "./lib/utils/headingPitchRange";
+export * from "./lib/utils/instanceGates";
+
+export { pickSceneCenter } from "./lib/utils/pickers";
+
 export {
   cesiumCenterPixelSizeToLeafletZoom,
   getScenePixelSize,
 } from "./lib/utils/pixels";
-export { getCesiumFrustumPixelDimensionsForDistance } from "./lib/utils/cesiumCamera";
-
 export {
   distanceFromZoomLevel,
   getHeadingPitchRangeFromHeight,
@@ -169,12 +173,9 @@ export {
 
 export { sceneHasTweens } from "./lib/utils/sceneHasTweens";
 export { sceneRequestRender } from "./lib/utils/sceneRequestRender";
+export * from "./lib/utils/screenSpaceEventHandler";
 
 export {
   getDegreesFromCartesian,
   getDegreesFromCartographic,
 } from "./lib/utils/units";
-
-// Re-export all the types as workaround
-// TODO move to common types
-export * from "./index.d";

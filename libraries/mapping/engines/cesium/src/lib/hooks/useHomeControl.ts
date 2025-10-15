@@ -7,7 +7,7 @@ import { CtxEvent } from "../cesiumContextEventMap";
 import { tryWithValidCamera } from "../utils/instanceGates";
 
 export const useHomeControl = () => {
-  const { sceneRef, isViewerReady, emit, homePositionRef } = useCesiumContext();
+  const { sceneRef, emit, homePositionRef } = useCesiumContext();
 
   const [homePos, setHomePos] = useState<Cartesian3 | null>(null);
 
@@ -23,7 +23,7 @@ export const useHomeControl = () => {
     // Notify subscribers that a Home fly has been triggered (hide overlays, etc.)
     emit?.(CtxEvent.GoHome, undefined);
     const scene = sceneRef.current;
-    if (isViewerReady && homePos && scene) {
+    if (homePos && scene) {
       // Clear any ongoing animation
       emit(CtxEvent.AnimationEnd, undefined);
       const boundingSphere = new BoundingSphere(homePos, 400);
@@ -32,7 +32,7 @@ export const useHomeControl = () => {
         camera.flyToBoundingSphere(boundingSphere);
       });
     }
-  }, [sceneRef, isViewerReady, homePos, emit]);
+  }, [sceneRef, homePos, emit]);
 
   return handleHomeClick;
 };

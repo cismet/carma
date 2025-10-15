@@ -11,7 +11,9 @@ import type {
   MarkerPrimitiveData,
   MarkerModelAsset,
   PolylineConfig,
-} from "./index.d";
+} from "./types";
+
+import { Radians } from "@carma/units/types";
 
 import { createOrUpdateStemline } from "./stemline";
 
@@ -59,12 +61,24 @@ export const buildMarkerData = async ({
     ...options,
   };
 
+  // Parse modelConfig to ensure all required fields are present
+  const parsedModelConfig: import("./types").ParsedMarkerModelAsset = {
+    ...modelConfig,
+    scale: modelConfig.scale ?? 1,
+    heading: (modelConfig.heading ?? 0) as Radians,
+    pitch: (modelConfig.pitch ?? 0) as Radians,
+    roll: (modelConfig.roll ?? 0) as Radians,
+    animationSpeed: modelConfig.animationSpeed ?? 1,
+  };
+
   const markerData: MarkerPrimitiveData = {
     id,
     modelMatrix: null,
     animatedModelMatrix: null,
-    modelConfig,
+    modelConfig: parsedModelConfig,
     model: null,
+    stemline: null,
+    animationSpeed: parsedModelConfig.animationSpeed,
   };
 
   const posCartesian = Cartesian3.fromRadians(
@@ -101,11 +115,13 @@ export const buildMarkerData = async ({
   markerData.model = markerModel;
 
   try {
-    if (options.stemline || modelConfig.stemline) {
-      createOrUpdateStemline(scene, markerData, [pos, groundPos], {
-        ...modelConfig.stemline,
-        ...options.stemline,
-      });
+    if (options.stemline) {
+      createOrUpdateStemline(
+        scene,
+        markerData,
+        [pos, groundPos],
+        options.stemline
+      );
     }
   } catch (error) {
     console.error("[CESIUM|MARKER] error adding/updating stemline", error);
@@ -130,13 +146,14 @@ const createModelFromConfig = async (
   modelMatrix: Matrix4,
   modelConfig: MarkerModelAsset
 ) => {
+  const modelUrl = modelConfig.uri || modelConfig.url || "";
   console.debug(
     "[CESIUM|MARKER|MODEL] creating marker model from file",
-    modelConfig.uri
+    modelUrl
   );
   return await Model.fromGltfAsync({
     id,
-    url: modelConfig.uri,
+    url: modelUrl,
     modelMatrix,
     scale: modelConfig.scale,
   });

@@ -11,3 +11,5 @@ export type NumericResult = {
   value: number | null;
   error?: string;
 };
+
+export type EasingFunction = (time: number) => number;

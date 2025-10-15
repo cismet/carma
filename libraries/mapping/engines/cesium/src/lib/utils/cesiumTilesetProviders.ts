@@ -1,13 +1,8 @@
 import { Cesium3DTileset, CustomShader, ShadowMode } from "cesium";
 
-import { TilesetConfig, TilesetType } from "@carma-commons/resources";
+import { TilesetConfig, TilesetTypes } from "@carma/types";
 
 import { CUSTOM_SHADERS_DEFINITIONS } from "../shaders";
-
-export type TilesetConfigs = {
-  primary: TilesetConfig;
-  secondary?: TilesetConfig;
-};
 
 const MESH_SHADER = CUSTOM_SHADERS_DEFINITIONS.UNLIT_ENHANCED_2024;
 
@@ -65,9 +60,9 @@ const loadMeshTileset = async (tileset: TilesetConfig) => {
 };
 
 export const loadTileset = async (tileset: TilesetConfig) => {
-  if (tileset.type === TilesetType.LOD2) {
+  if (tileset.type === TilesetTypes.LOD2) {
     return await loadLOD2Tileset(tileset);
-  } else if (tileset.type === TilesetType.MESH) {
+  } else if (tileset.type === TilesetTypes.MESH) {
     return await loadMeshTileset(tileset);
   } else {
     throw new Error(`Unknown tileset type: ${tileset.type}`);

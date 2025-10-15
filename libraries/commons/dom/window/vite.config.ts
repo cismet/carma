@@ -25,9 +25,8 @@ export default defineConfig({
     },
     lib: {
       entry: 'src/index.ts',
-      name: 'dom-window',
       fileName: 'index',
-      formats: ['es', 'cjs'],
+      formats: ['es'],
     },
     rollupOptions: {
       external: [],

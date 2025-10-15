@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { Viewer } from "cesium";
-import { WUPP_MESH_2024 } from "@carma-commons/resources";
+import { WUPP_MESH_2024 } from "@carma/resources";
 import { cesiumConstructorOptions } from "../config";
 import useTileset from "../hooks/useTileset";
 import { useZoomToTilesetOnReady } from "../hooks/useZoomToTilesetOnReady";

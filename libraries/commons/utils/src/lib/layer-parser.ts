@@ -78,7 +78,7 @@ export const extractInformation = async (layer: ExtendedLayer) => {
   }
   let legend = "";
   layer.Style.forEach((style) => {
-    if (style.LegendURL) {
+    if (style.LegendURL && style.LegendURL[0]) {
       legend = style.LegendURL[0].OnlineResource;
       return;
     }

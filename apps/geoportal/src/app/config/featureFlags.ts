@@ -1,4 +1,4 @@
-import { FeatureFlagConfig } from "@carma-providers/feature-flag";
+import { FeatureFlagConfig } from "@carma/providers/feature-flag";
 
 export const featureFlagConfig: FeatureFlagConfig = {
   isDeveloperMode: {

@@ -4,6 +4,8 @@ import {
   setUIShowLayerHideButtons,
 } from "../store/slices/ui";
 import { useEffect } from "react";
+import { WindowEventNames } from "@carma-commons/dom/window";
+import { DocumentEventNames } from "@carma-commons/dom/document";
 
 export const useKeyboardShortcuts = () => {
   const dispatch = useDispatch();
@@ -29,14 +31,21 @@ export const useKeyboardShortcuts = () => {
       }
     };
 
-    document.addEventListener("keydown", onKeyDown);
-    document.addEventListener("keyup", onKeyUp);
-    window.addEventListener("blur", onKeyUp);
+    // Separate handler for window blur (FocusEvent, not KeyboardEvent)
+    const onWindowBlur = () => {
+      if (allowUiChanges) {
+        dispatch(setUIShowLayerHideButtons(false));
+      }
+    };
+
+    document.addEventListener(DocumentEventNames.keydown, onKeyDown);
+    document.addEventListener(DocumentEventNames.keyup, onKeyUp);
+    window.addEventListener(WindowEventNames.blur, onWindowBlur);
 
     return () => {
-      document.removeEventListener("keydown", onKeyDown);
-      document.removeEventListener("keyup", onKeyUp);
-      window.removeEventListener("blur", onKeyUp);
+      document.removeEventListener(DocumentEventNames.keydown, onKeyDown);
+      document.removeEventListener(DocumentEventNames.keyup, onKeyUp);
+      window.removeEventListener(WindowEventNames.blur, onWindowBlur);
     };
   }, [allowUiChanges, dispatch]);
 };

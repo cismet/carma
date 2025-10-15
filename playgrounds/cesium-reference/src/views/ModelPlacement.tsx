@@ -11,7 +11,7 @@ import {
   BRUECKENENTWURF_GLB,
   WUPP_MESH_2024,
   createModelEntityConstructorOptions,
-} from "@carma-commons/resources";
+} from "@carma/resources";
 import { cesiumConstructorOptions } from "../config";
 import { useCameraPersistence } from "../hooks/useCameraPersistence";
 import { ModelPlacementUI } from "./ModelPlacement.UI";

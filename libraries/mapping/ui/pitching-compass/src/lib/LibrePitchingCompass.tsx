@@ -1,6 +1,8 @@
 import type { Map } from "maplibre-gl";
 import { CompassNeedleSVG } from "./CompassNeedleSVG";
 import { useEffect, useState } from "react";
+import { negativeOneEightyToOneEighty } from "@carma/units/helpers";
+import type { Degrees } from "@carma/units/types";
 
 interface LibrePitchingCompassProps {
   mapRef: React.RefObject<Map | null>;
@@ -28,7 +30,9 @@ export const LibrePitchingCompass = ({ mapRef }: LibrePitchingCompassProps) => {
         const deltaX = event.clientX - initialMouseX;
         const deltaY = event.clientY - initialMouseY;
 
-        const newHeading = (initialHeading + deltaX * 0.3) % 360;
+        const newHeading = negativeOneEightyToOneEighty(
+          (initialHeading + deltaX * 0.3) as Degrees
+        );
 
         const newPitch = Math.max(0, Math.min(85, initialPitch - deltaY * 0.3));
 

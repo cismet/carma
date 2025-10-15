@@ -1,38 +1,33 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useMemo, useRef } from "react";
 import type { ReactNode } from "react";
 
-import {
+import type {
   CesiumTerrainProvider,
-  EllipsoidTerrainProvider,
   ImageryLayer,
   Viewer,
   Cesium3DTileset,
   Scene,
+  Model,
 } from "cesium";
-import { createEventBus } from "@carma-providers/event-bus";
+import { createEventBus } from "@carma/providers/event-bus";
 
 import { CesiumContext, type CesiumContextType } from "./CesiumContext";
 import type { CesiumContextEventMap } from "../../cesiumContextEventMap";
 
-import { useValidInstances } from "../../hooks/useValidInstances";
 import { useCesiumContextSubscriptions } from "./hooks/useCesiumContextSubscriptions";
-import {
-  useImageryProviderLoader,
-  useImageryLayer,
-  useTerrainProviderLoader,
-  useSurfaceProviderLoader,
-  usePrimaryTilesetLoader,
-  useSecondaryTilesetLoader,
-  useModelsLoader,
-} from "./hooks/useCesiumProviderLoaders";
+// DISABLED: Provider loaders for minimal mode
+// import {
+//   useImageryProviderLoader,
+//   useImageryLayer,
+//   useTerrainProviderLoader,
+//   useSurfaceProviderLoader,
+//   useModelsLoader,
+// } from "./hooks/useCesiumProviderLoaders";
 
-import type { ProviderConfig } from "../../utils/cesiumProviders";
-import type { TilesetConfigs } from "../../utils/cesiumTilesetProviders";
-import type { CesiumConfig, SceneStyles } from "../../../index";
+import type { AnimationMap, CesiumConfig } from "@carma/types";
 
-import { initAnimationMap, AnimationMap } from "../../utils/animationMap";
+import { initAnimationMap } from "../../utils/animationMap";
 import { sceneRequestRender } from "../../utils/sceneRequestRender";
-import { TILESET_IDS, SCENE_STYLES } from "../../constants";
 
 export const CesiumContextProvider = ({
   children,
@@ -40,35 +35,35 @@ export const CesiumContextProvider = ({
 }: {
   children: ReactNode;
   config: CesiumConfig;
-}) => {
+}): React.ReactElement => {
   const {
-    providerConfig,
-    tilesetConfigs,
     models,
-    modelAssets,
-    tilesetVisibility,
-    tilesetOpacity,
+    tilesets,
     homePosition,
     homeOffset,
     cameraController,
     sceneStyles,
   } = config;
   // Use refs for Cesium instances to prevent re-renders
-  const viewerRef = useRef<Viewer | null>(null);
+  const widgetRef = useRef<Viewer | null>(null);
   const sceneRef = useRef<Scene | null>(null);
   const animationMapRef = useRef<AnimationMap | null>(initAnimationMap());
-  const ellipsoidTerrainProviderRef = useRef(new EllipsoidTerrainProvider());
-  const terrainProviderRef = useRef<CesiumTerrainProvider | null>(null);
-  const surfaceProviderRef = useRef<CesiumTerrainProvider | null>(null);
-  const imageryLayerRef = useRef<ImageryLayer | null>(null);
 
-  const primaryTilesetRef = useRef<Cesium3DTileset | null>(null);
-  const secondaryTilesetRef = useRef<Cesium3DTileset | null>(null);
+  // Provider refs - use Maps for arbitrary numbers of providers per type
+  const terrainProvidersRef = useRef<Map<string, CesiumTerrainProvider>>(
+    new Map()
+  );
+  const imageryLayersRef = useRef<Map<string, ImageryLayer>>(new Map());
+  const tilesetsRef = useRef<Map<string, Cesium3DTileset>>(new Map());
+  const modelsRef = useRef<Map<string, Model>>(new Map());
+
+  // State refs
   const shouldSuspendPitchLimiterRef = useRef(false);
   const shouldSuspendCameraLimitersRef = useRef(false);
-  const isSuspendedRef = useRef(true); // Start suspended (in 2D mode)
+  const isSuspendedRef = useRef(false); // Start in 3D mode
   const isAnimatingRef = useRef(false);
   const suspendSSCCRef = useRef(false);
+  const transitionStateRef = useRef<string | null>(null);
 
   // Camera controller settings from config
   const minZoomDistanceRef = useRef(cameraController?.minimumZoomDistance ?? 1);
@@ -79,26 +74,11 @@ export const CesiumContextProvider = ({
     cameraController?.enableCollisionDetection ?? false
   );
 
-  // Scene style settings - initialize to secondary if primary (LOD2) is visible
   const initialStyle =
-    tilesetVisibility?.primary !== false
-      ? SCENE_STYLES.SECONDARY
-      : SCENE_STYLES.PRIMARY;
+    Array.isArray(sceneStyles) && sceneStyles.length > 0
+      ? sceneStyles[0].id
+      : undefined;
   const currentSceneStyleRef = useRef<string | undefined>(initialStyle);
-
-  // Tileset visibility and styling
-  const tilesetVisibilityRef = useRef<Map<string, boolean>>(
-    new Map([
-      [TILESET_IDS.PRIMARY, tilesetVisibility?.primary ?? true],
-      [TILESET_IDS.SECONDARY, tilesetVisibility?.secondary ?? false],
-    ])
-  );
-  const tilesetOpacityRef = useRef<Map<string, number>>(
-    new Map([
-      [TILESET_IDS.PRIMARY, tilesetOpacity?.primary ?? 1.0],
-      [TILESET_IDS.SECONDARY, tilesetOpacity?.secondary ?? 1.0],
-    ])
-  );
 
   // Home position from config
   const homePositionRef = useRef<{ x: number; y: number; z: number } | null>(
@@ -109,25 +89,6 @@ export const CesiumContextProvider = ({
   );
 
   const dataSourcesRef = useRef<Record<string, any> | null>(null);
-  const modelsRef = useRef(modelAssets ?? null);
-
-  // explicitly trigger re-renders
-  const [isViewerReady, setIsViewerReady] = useState<boolean>(false);
-  // Tri-state: null (not started), false (applying), true (settled)
-  const [initialCameraSettled, setInitialCameraSettled] = useState<
-    boolean | null
-  >(null);
-
-  // Monotonic counter for initial camera applications
-  const [initialCameraEpoch, setInitialCameraEpoch] = useState<number>(0);
-
-  // DEPRECATED: Transition state is now managed by TransitionContextProvider
-  // Keeping these refs for backward compatibility, but they should not be used
-  // Use useTransitionContext() instead in new code
-  const transitionStateRef = useRef<string>("uninitialized");
-  const transitionLifecycleRef = useRef<
-    Record<string, () => void | Promise<void>>
-  >({});
 
   // Event bus for the Cesium context
   const { subscribe, emit } = useMemo(
@@ -135,20 +96,7 @@ export const CesiumContextProvider = ({
     []
   );
 
-  const instanceCallbacks = useValidInstances(
-    viewerRef,
-    sceneRef,
-    imageryLayerRef,
-    primaryTilesetRef,
-    secondaryTilesetRef,
-    terrainProviderRef,
-    ellipsoidTerrainProviderRef,
-    surfaceProviderRef
-  );
-
-  const { isValidViewer, withTerrainProvider } = instanceCallbacks;
-
-  // Consolidated event subscriptions for all context refs
+  // MINIMAL MODE: Only essential subscriptions enabled
   useCesiumContextSubscriptions({
     subscribe,
     emit,
@@ -159,51 +107,26 @@ export const CesiumContextProvider = ({
     maxZoomDistanceRef,
     enableCollisionDetectionRef,
     currentSceneStyleRef,
-    tilesetVisibilityRef,
-    tilesetOpacityRef,
     homePositionRef,
     homeOffsetRef,
-    withTerrainProvider,
     sceneStyles,
   });
 
-  // Load all providers and tilesets using named hooks
-  useImageryProviderLoader({ providerConfig, imageryLayerRef, isValidViewer });
-  useImageryLayer({ isViewerReady, sceneRef, imageryLayerRef });
-  useTerrainProviderLoader({
-    providerConfig,
-    terrainProviderRef,
-    isViewerReady,
-    isValidViewer,
-  });
-  useSurfaceProviderLoader({
-    providerConfig,
-    surfaceProviderRef,
-    isViewerReady,
-    isValidViewer,
-  });
-  usePrimaryTilesetLoader({
-    tilesetConfigs,
-    primaryTilesetRef,
-    isViewerReady,
-    isValidViewer,
-  });
-  useSecondaryTilesetLoader({
-    tilesetConfigs,
-    secondaryTilesetRef,
-    isViewerReady,
-    isValidViewer,
-  });
-  useModelsLoader({
-    models,
-    sceneRef,
-    isViewerReady,
-  });
-
-  const bumpInitialCameraEpoch = useCallback(
-    () => setInitialCameraEpoch((v) => v + 1),
-    [setInitialCameraEpoch]
-  );
+  // ALL PROVIDER LOADERS DISABLED for minimal mode
+  // useImageryProviderLoader({ providerConfig, imageryLayerRef, isValidViewer });
+  // useImageryLayer({ isViewerReady, sceneRef, imageryLayerRef });
+  // useTerrainProviderLoader({
+  //   providerConfig,
+  //   terrainProviderRef,
+  // });
+  // useSurfaceProviderLoader({
+  //   providerConfig,
+  //   surfaceProviderRef,
+  // });
+  // useModelsLoader({
+  //   models,
+  //   sceneRef,
+  // });
 
   const requestRender = useCallback(() => {
     sceneRef.current && sceneRequestRender(sceneRef.current);
@@ -211,65 +134,32 @@ export const CesiumContextProvider = ({
 
   const contextValue = useMemo<CesiumContextType>(
     () => ({
-      viewerRef,
+      widgetRef,
       sceneRef,
-      terrainProviderRef,
-      surfaceProviderRef,
-      animationMapRef,
-      primaryTilesetRef,
-      secondaryTilesetRef,
-      shouldSuspendPitchLimiterRef,
-      shouldSuspendCameraLimitersRef,
+      terrainProvidersRef,
+      imageryLayersRef,
+      tilesetsRef,
+      modelsRef,
       isSuspendedRef,
-      isAnimatingRef,
-      suspendSSCCRef,
+      homePositionRef,
       minZoomDistanceRef,
       maxZoomDistanceRef,
       enableCollisionDetectionRef,
       currentSceneStyleRef,
-      tilesetVisibilityRef,
-      tilesetOpacityRef,
-      homePositionRef,
-      homeOffsetRef,
-      dataSources: dataSourcesRef,
-      models: modelsRef,
-      setIsViewerReady,
-      initialCameraSettled,
-      setInitialCameraSettled,
-      transitionStateRef,
-      transitionLifecycleRef,
-      initialCameraEpoch,
-      setInitialCameraEpoch,
       subscribe,
       emit,
-      isViewerReady,
-      // NOTE: Workaround for CesiumGS/cesium#12543 — delay/repeat options exist
-      // to schedule additional renders in requestRenderMode when needed. These
-      // options should be deprecated once upstream behavior is improved.
+      isAnimatingRef,
+      transitionStateRef,
+      suspendSSCCRef,
+      shouldSuspendPitchLimiterRef,
+      shouldSuspendCameraLimitersRef,
       requestRender,
-      ...instanceCallbacks,
+      animationMapRef,
     }),
-    [
-      isViewerReady,
-      initialCameraSettled,
-      initialCameraEpoch,
-      bumpInitialCameraEpoch,
-      requestRender,
-      instanceCallbacks,
-      subscribe,
-      emit,
-      transitionStateRef,
-      transitionLifecycleRef,
-      modelsRef,
-      dataSourcesRef,
-    ]
+    [subscribe, emit, requestRender]
   );
 
-  console.debug(
-    "CesiumContextProvider Changed/Rendered",
-    isViewerReady,
-    contextValue
-  );
+  console.debug("CesiumContextProvider Changed/Rendered");
 
   return (
     <CesiumContext.Provider value={contextValue}>

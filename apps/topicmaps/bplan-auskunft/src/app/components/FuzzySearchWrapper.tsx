@@ -1,26 +1,30 @@
+import { useContext } from "react";
+import { useDispatch } from "react-redux";
+import type { UnknownAction } from "redux";
+import L from "leaflet";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faSearch } from "@fortawesome/free-solid-svg-icons";
+
+import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+
+import { ManagedProjections } from "@carma/geo/proj";
+import { ENDPOINTS, isAreaType } from "@carma/resources";
+import type { SearchResultItem } from "@carma/types";
 import {
   SelectionMetaData,
   useSelection,
   useSelectionTopicMap,
 } from "@carma-appframeworks/portals";
-import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
-import { type SearchResultItem } from "@carma/types";
 
-import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
-import { useContext } from "react";
-import { ENDPOINT, isAreaType } from "@carma-commons/resources";
-import { useDispatch } from "react-redux";
+import { getBoundingBoxForLeafletMap } from "@carma-mapping/engines/leaflet";
+import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
+
 import {
   getPlanFeatureByTitle,
   getPlanFeatures,
 } from "../../store/slices/bplaene";
-import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
-import L from "leaflet";
-import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faSearch } from "@fortawesome/free-solid-svg-icons";
-import type { UnknownAction } from "redux";
-import { getBoundingBoxForLeafletMap } from "@carma-mapping/engines/leaflet";
-import proj4 from "proj4";
+
 interface FuzzySearchProps {
   setFeatures: (hit) => void;
   setSelectedIndex: (idx) => void;
@@ -51,7 +55,7 @@ const FuzzySearchWrapper = ({
     const selectionMetaData: SelectionMetaData = {
       selectedFrom: "gazetteer",
       selectionTimestamp: Date.now(),
-      isAreaSelection: isAreaType(selection.type as ENDPOINT),
+      isAreaSelection: isAreaType(selection.type),
     };
     setSelection(Object.assign({}, selection, selectionMetaData));
 
@@ -86,7 +90,7 @@ const FuzzySearchWrapper = ({
       ) {
         const boundingBox = getBoundingBoxForLeafletMap(
           routedMapRef?.leafletMap,
-          proj4.defs("EPSG:25832")
+          ManagedProjections.EPSG25832
         );
         dispatch(
           getPlanFeatures({

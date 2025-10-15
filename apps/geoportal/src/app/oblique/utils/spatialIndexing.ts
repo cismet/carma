@@ -1,10 +1,10 @@
-import {
+import RBush from "rbush";
+import knn from "rbush-knn";
+import type {
   ObliqueImageRecord,
   ObliqueImageRecordMap,
   PointWithSector,
 } from "../types";
-import RBush from "rbush";
-import knn from "rbush-knn";
 import { CardinalDirectionEnum } from "./orientationUtils";
 
 export interface RBushItem extends PointWithSector {
@@ -23,7 +23,7 @@ interface SpatialIndexStorage {
 }
 
 interface SpatialIndexByCardinalStorage {
-  sectors: RBushBySectorBlocks;
+  sectors: RBushBySectorBlocks | null;
   crs: string | null; // To detect when records change
 }
 

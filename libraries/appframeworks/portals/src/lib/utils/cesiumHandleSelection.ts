@@ -27,14 +27,12 @@ import {
   polygonHierarchyFromPolygonCoords,
   removeCesiumMarker,
   removeGroundPrimitiveById,
-  type CesiumOptions,
   type MarkerPrimitiveData,
 } from "@carma-mapping/engines/cesium";
 
 import { HitTriggerOptions } from "./cesiumHitTrigger";
 import { DerivedGeometries } from "./getDerivedGeometries";
 import {
-  WithElevationProvidersCallback,
   tryWithValidScene,
   sceneRequestRender,
   isValidScene,
@@ -214,7 +212,7 @@ const handlePolygonSelection = (
   idSelected: string,
   idInverted: string,
   duration: number,
-  { isPrimaryStyle }: CesiumOptions,
+  classificationType: ClassificationType,
   skipFlyTo: boolean
 ) => {
   // Convert polygon to GroundPrimitive instead of Entity
@@ -238,9 +236,7 @@ const handlePolygonSelection = (
     geometryInstances: selectedGeometryInstance,
     allowPicking: false,
     releaseGeometryInstances: false,
-    classificationType: isPrimaryStyle
-      ? ClassificationType.CESIUM_3D_TILE
-      : ClassificationType.BOTH,
+    classificationType,
   });
   // For the inverted polygon
   const invertedPolygonGeometry = new PolygonGeometry({
@@ -262,9 +258,7 @@ const handlePolygonSelection = (
     geometryInstances: invertedGeometryInstance,
     allowPicking: false,
     releaseGeometryInstances: false, // needed to get ID
-    classificationType: isPrimaryStyle
-      ? ClassificationType.CESIUM_3D_TILE
-      : ClassificationType.BOTH,
+    classificationType,
   });
 
   tryWithValidScene(scene, () => {
@@ -302,140 +296,147 @@ const handlePolygonSelection = (
   }
 };
 export const cesiumHandleSelection = async (
-  withElevationProviders: WithElevationProvidersCallback,
   markerData: null | MarkerPrimitiveData,
   setMarkerData: (data: MarkerPrimitiveData | null) => void,
   { pos, zoom, polygon }: DerivedGeometries,
   options: HitTriggerOptions
 ) => {
-  const { mapOptions, duration, durationFactor = 0.2 } = options;
+  const {
+    markerAsset,
+    markerAnchorHeight,
+    classificationType = ClassificationType.BOTH,
+    duration,
+    durationFactor = 0.2,
+  } = options;
 
   const idSelected = options.selectedPolygonId ?? "selected-polygon";
   const idInverted =
     options.invertedSelectedPolygonId ?? "inverted-selected-polygon";
 
-  const { markerAsset, markerAnchorHeight } = mapOptions;
-
   const skipMarkerUpdate = Boolean(options.skipMarkerUpdate);
 
-  await withElevationProviders(
-    async (terrainProvider, surfaceProvider, scene) => {
-      // cleanup previous selection - use scene primitives only
+  async (terrainProvider, surfaceProvider, scene) => {
+    // cleanup previous selection - use scene primitives only
 
-      if (!skipMarkerUpdate) {
-        if (markerData) removeCesiumMarker(scene, markerData);
-        tryWithValidScene(scene, () => {
-          removeGroundPrimitiveById(scene, idSelected);
-          removeGroundPrimitiveById(scene, idInverted);
-          sceneRequestRender(scene);
-        });
-      }
-
-      const posCarto = Cartographic.fromDegrees(pos.lon, pos.lat, 0);
-
-      let posResult;
-      try {
-        [posResult] = await getElevationAsync(
-          surfaceProvider,
-          terrainProvider,
-          [posCarto]
-        );
-      } catch (error) {
-        console.warn("failed to get elevation for marker", error);
-        return;
-      }
-
-      const { terrain: terrainPosition, surface: surfacePositionRaw } =
-        posResult;
-      const surfacePosition = surfacePositionRaw ?? terrainPosition;
-
-      if (
-        !surfacePosition ||
-        surfacePosition.height < MIN_GROUND_HEIGHT ||
-        surfacePosition.height > MAX_GROUND_HEIGHT
-      ) {
-        console.warn(
-          "invalid ground position found for marker",
-          surfacePosition
-        );
-        return;
-      }
-
-      console.debug(
-        "GAZETTEER: [2D3D|CESIUM|MARKER] ground position",
-        terrainPosition,
-        surfacePosition
-      );
-
-      const skipFlyTo = Boolean(options.skipFlyTo);
-
-      if (polygon) {
-        if (!skipMarkerUpdate) {
-          handlePolygonSelection(
-            scene,
-            surfacePosition, // fly to surface elevation
-            polygon,
-            idSelected,
-            idInverted,
-            duration,
-            mapOptions,
-            skipFlyTo
-          );
-        }
-
-        if (!skipFlyTo) {
-          cesiumLookAtPoint(scene, surfacePosition, zoom, mapOptions, {
-            onComplete: () => {
-              console.debug(
-                "GAZETTEER: [2D3D|CESIUM|CAMERA] flyTo Point complete"
-              );
-            },
-            durationFactor,
-            maxDuration: duration,
-            useCameraHeight: options.useCameraHeight,
-          });
-          console.debug(
-            "GAZETTEER: [2D3D|CESIUM|CAMERA] look at Marker (Surface Elevation)"
-          );
-        }
-      } else if (defined(posResult)) {
-        if (markerData?.model?.isDestroyed()) {
-          console.debug(
-            "marker model destroyed (likely scene transition), will reinitialize"
-          );
-        }
-
-        if (markerAsset && !skipMarkerUpdate) {
-          updateMarkerPosition(
-            scene,
-            surfacePosition,
-            markerData,
-            setMarkerData,
-            {
-              markerAsset,
-              markerAnchorHeight,
-            }
-          );
-        }
-
-        if (!skipFlyTo) {
-          cesiumLookAtPoint(scene, surfacePosition, zoom, mapOptions, {
-            onComplete: () => {
-              console.debug(
-                "GAZETTEER: [2D3D|CESIUM|CAMERA] flyTo Point complete"
-              );
-            },
-            durationFactor,
-            maxDuration: duration,
-            useCameraHeight: options.useCameraHeight,
-          });
-          console.debug(
-            "GAZETTEER: [2D3D|CESIUM|CAMERA] look at Marker (Terrain Elevation)"
-          );
-        }
-      } else {
-        console.warn("no ground position found");
-      }
+    if (!skipMarkerUpdate) {
+      if (markerData) removeCesiumMarker(scene, markerData);
+      tryWithValidScene(scene, () => {
+        removeGroundPrimitiveById(scene, idSelected);
+        removeGroundPrimitiveById(scene, idInverted);
+        sceneRequestRender(scene);
+      });
     }
-  );
+
+    const posCarto = Cartographic.fromDegrees(pos.lon, pos.lat, 0);
+
+    let posResult;
+    try {
+      [posResult] = await getElevationAsync(surfaceProvider, terrainProvider, [
+        posCarto,
+      ]);
+    } catch (error) {
+      console.warn("failed to get elevation for marker", error);
+      return;
+    }
+
+    const { terrain: terrainPosition, surface: surfacePositionRaw } = posResult;
+    const surfacePosition = surfacePositionRaw ?? terrainPosition;
+
+    if (
+      !surfacePosition ||
+      surfacePosition.height < MIN_GROUND_HEIGHT ||
+      surfacePosition.height > MAX_GROUND_HEIGHT
+    ) {
+      console.warn("invalid ground position found for marker", surfacePosition);
+      return;
+    }
+
+    console.debug(
+      "GAZETTEER: [2D3D|CESIUM|MARKER] ground position",
+      terrainPosition,
+      surfacePosition
+    );
+
+    const skipFlyTo = Boolean(options.skipFlyTo);
+
+    if (polygon) {
+      if (!skipMarkerUpdate) {
+        handlePolygonSelection(
+          scene,
+          surfacePosition, // fly to surface elevation
+          polygon,
+          idSelected,
+          idInverted,
+          duration,
+          classificationType,
+          skipFlyTo
+        );
+      }
+
+      if (!skipFlyTo) {
+        cesiumLookAtPoint(
+          scene,
+          surfacePosition,
+          zoom,
+          {},
+          {
+            onComplete: () => {
+              console.debug(
+                "GAZETTEER: [2D3D|CESIUM|CAMERA] flyTo Point complete"
+              );
+            },
+            durationFactor,
+            maxDuration: duration,
+            useCameraHeight: options.useCameraHeight,
+          }
+        );
+        console.debug(
+          "GAZETTEER: [2D3D|CESIUM|CAMERA] look at Marker (Surface Elevation)"
+        );
+      }
+    } else if (defined(posResult)) {
+      if (markerData?.model?.isDestroyed()) {
+        console.debug(
+          "marker model destroyed (likely scene transition), will reinitialize"
+        );
+      }
+
+      if (markerAsset && !skipMarkerUpdate) {
+        updateMarkerPosition(
+          scene,
+          surfacePosition,
+          markerData,
+          setMarkerData,
+          {
+            markerAsset,
+            markerAnchorHeight,
+          }
+        );
+      }
+
+      if (!skipFlyTo) {
+        cesiumLookAtPoint(
+          scene,
+          surfacePosition,
+          zoom,
+          {},
+          {
+            onComplete: () => {
+              console.debug(
+                "GAZETTEER: [2D3D|CESIUM|CAMERA] flyTo Point complete"
+              );
+            },
+            durationFactor,
+            maxDuration: duration,
+            useCameraHeight: options.useCameraHeight,
+          }
+        );
+        console.debug(
+          "GAZETTEER: [2D3D|CESIUM|CAMERA] look at Marker (Terrain Elevation)"
+        );
+      }
+    } else {
+      console.warn("no ground position found");
+    }
+  };
 };

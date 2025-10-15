@@ -1,91 +1,52 @@
 import { createContext, type MutableRefObject } from "react";
-import {
-  type Viewer,
-  type Scene,
-  CesiumTerrainProvider,
-  Cesium3DTileset,
-} from "cesium";
+import { type Viewer, type Scene, CesiumTerrainProvider } from "cesium";
 
 import {
   EmitCesiumCtxFn,
   SubscribeCesiumCtxFn,
 } from "../../cesiumContextEventMap";
-import type {
-  CameraCallback,
-  EntitiesCallback,
-  SceneCallback,
-  TerrainProviderCallback,
-  TilesetCallback,
-  ViewerCallback,
-  WithCallback,
-  WithElevationProvidersCallback,
-} from "../../hooks/useValidInstances";
-import type { AnimationMap } from "../../utils/animationMap";
-import type { GeoJsonConfig } from "../../..";
-import type {
-  MarkerModelAsset,
-  ParsedMarkerModelAsset,
-} from "../../extensions/markers";
 import { DelayedRenderOptions } from "@carma-commons/dom/window";
+import type { AnimationMap } from "@carma/types";
+
+// Provider ref types for managing arbitrary numbers of providers
+export type ProviderRef<T> = {
+  key: string;
+  provider: T;
+};
 
 export interface CesiumContextType {
-  viewerRef: MutableRefObject<Viewer | null>;
-  // shorthand for viewer.scene
+  widgetRef: MutableRefObject<Viewer | null>;
   sceneRef: MutableRefObject<Scene | null>;
-  animationMapRef: MutableRefObject<AnimationMap | null>;
-  terrainProviderRef: MutableRefObject<CesiumTerrainProvider | null>;
-  surfaceProviderRef: MutableRefObject<CesiumTerrainProvider | null>;
-  shouldSuspendPitchLimiterRef: MutableRefObject<boolean>;
-  shouldSuspendCameraLimitersRef: MutableRefObject<boolean>;
+
+  // Provider refs - support arbitrary numbers per type
+  terrainProvidersRef: MutableRefObject<Map<string, CesiumTerrainProvider>>;
+  imageryLayersRef: MutableRefObject<Map<string, any>>;
+  tilesetsRef: MutableRefObject<Map<string, any>>;
+  modelsRef: MutableRefObject<Map<string, any>>;
+
+  // Core state refs
   isSuspendedRef: MutableRefObject<boolean>;
-  isAnimatingRef: MutableRefObject<boolean>;
-  suspendSSCCRef: MutableRefObject<boolean>;
-  primaryTilesetRef: MutableRefObject<Cesium3DTileset | null>;
-  secondaryTilesetRef: MutableRefObject<Cesium3DTileset | null>;
-  transitionStateRef: MutableRefObject<string>;
-  transitionLifecycleRef: MutableRefObject<
-    Record<string, () => void | Promise<void>>
-  >;
-  // Camera controller settings
+  homePositionRef: MutableRefObject<{ x: number; y: number; z: number } | null>;
   minZoomDistanceRef: MutableRefObject<number>;
   maxZoomDistanceRef: MutableRefObject<number>;
   enableCollisionDetectionRef: MutableRefObject<boolean>;
-  // Scene style settings
   currentSceneStyleRef: MutableRefObject<string | undefined>;
-  tilesetVisibilityRef: MutableRefObject<Map<string, boolean>>;
-  tilesetOpacityRef: MutableRefObject<Map<string, number>>;
-  // Home position
-  homePositionRef: MutableRefObject<{ x: number; y: number; z: number } | null>;
-  homeOffsetRef: MutableRefObject<{ x: number; y: number; z: number } | null>;
-  // Static configuration (immutable after init)
-  dataSources: MutableRefObject<Record<string, GeoJsonConfig> | null>;
-  models: MutableRefObject<Record<
-    string,
-    MarkerModelAsset | ParsedMarkerModelAsset
-  > | null>;
-  // Tri-state: null = not started, false = applying, true = settled
-  initialCameraSettled: boolean | null;
-  setInitialCameraSettled: (value: boolean | null) => void;
-  initialCameraEpoch: number;
-  setInitialCameraEpoch: (epoch: number) => void;
-  // For forcing Cesium re-renders (not React re-renders)
-  requestRender: (opts?: DelayedRenderOptions) => void;
-  isViewerReady: boolean;
-  setIsViewerReady: (ready: boolean) => void;
-  isValidViewer: () => boolean;
+
   // Event bus
   subscribe: SubscribeCesiumCtxFn;
   emit: EmitCesiumCtxFn;
-  // Shorthands for viewer validation
-  withViewer: WithCallback<ViewerCallback>;
-  withScene: WithCallback<SceneCallback>;
-  withCamera: WithCallback<CameraCallback>;
-  withEntities: WithCallback<EntitiesCallback>;
-  withPrimaryTileset: WithCallback<TilesetCallback>;
-  withSecondaryTileset: WithCallback<TilesetCallback>;
-  withTerrainProvider: WithCallback<TerrainProviderCallback>;
-  withSurfaceProvider: WithCallback<TerrainProviderCallback>;
-  withElevationProviders: WithElevationProvidersCallback;
+
+  // Animation and transition state
+  isAnimatingRef: MutableRefObject<boolean>;
+  transitionStateRef: MutableRefObject<string | null>;
+  suspendSSCCRef: MutableRefObject<boolean>;
+  shouldSuspendPitchLimiterRef: MutableRefObject<boolean>;
+  shouldSuspendCameraLimitersRef: MutableRefObject<boolean>;
+
+  // Render control
+  requestRender: (opts?: DelayedRenderOptions) => void;
+  animationMapRef: MutableRefObject<AnimationMap | null>;
 }
 
 export const CesiumContext = createContext<CesiumContextType | null>(null);
+CesiumContext.displayName = "CesiumContext";

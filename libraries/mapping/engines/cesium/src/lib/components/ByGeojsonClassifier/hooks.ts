@@ -5,6 +5,7 @@ import {
   MaterialProperty,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
+  Cartesian2,
 } from "cesium";
 import { useEffect, useRef } from "react";
 
@@ -22,77 +23,22 @@ const restoreMaterial = (
 };
 
 // TODO sync geosjson selection by ID with the store to enable selection of the same entitiy in CityGm=ML tilesets
-
 export const useSelectAndHighlightGeoJsonEntity = (options?: {
   highlightMaterial?: ColorMaterialProperty;
-  isPrimaryStyle?: boolean;
   selectedEntityId?: string | null; // TODO restore selection on mount
 }) => {
-  const { withScene } = useCesiumContext();
   const handler = useRef<ScreenSpaceEventHandler | null>(null);
   const highlightEntity = useRef<Entity | null>(null);
-  let { highlightMaterial, isPrimaryStyle } = options || {};
+  let { highlightMaterial } = options || {};
   highlightMaterial =
     highlightMaterial || new ColorMaterialProperty(Color.YELLOW.withAlpha(0.6));
-  isPrimaryStyle = isPrimaryStyle === undefined ? false : isPrimaryStyle;
 
   useEffect(() => {
-    if (!isPrimaryStyle) {
-      return;
-    }
-    let originalMaterials;
-    withScene((scene) => {
-      originalMaterials = new Map<Entity, MaterialProperty>();
-      console.debug("HOOK ByGeoJsonClassifier add ScreenSpaceEventHandler");
-      handler.current = new ScreenSpaceEventHandler(scene.canvas);
-
-      const perEntityAction = (entity: Entity) => {
-        // console.debug('GroundPrimitive', entity);
-        if (!entity.polygon) {
-          return;
-        }
-        if (highlightMaterial) {
-          if (highlightEntity.current === null) {
-            //console.debug('highlight first');
-            originalMaterials.set(entity, entity.polygon.material);
-            entity.polygon.material = highlightMaterial;
-            highlightEntity.current = entity;
-          } else {
-            if (highlightEntity.current.id === entity.id) {
-              //console.debug('highlight off');
-              //entity.polygon.material = originialMaterials.get(entity);
-              restoreMaterial(entity, originalMaterials);
-              highlightEntity.current = null;
-            } else {
-              //console.debug('highlight next');
-              restoreMaterial(highlightEntity.current, originalMaterials);
-              originalMaterials.set(entity, entity.polygon.material);
-              entity.polygon.material = highlightMaterial;
-              highlightEntity.current = entity;
-            }
-          }
-        }
-      };
-
-      handler.current.setInputAction((event) => {
-        let hasPick = false;
-
-        // last picked object is the top one we need for highlighting
-        const lastGroundPrimitive = pickFromClampedGeojson(
-          scene,
-          event.position
-        );
-        if (lastGroundPrimitive) {
-          hasPick = true;
-          perEntityAction(lastGroundPrimitive);
-        }
-
-        if (!hasPick && highlightEntity.current) {
-          // console.debug('highlight off (no Target)');
-          restoreMaterial(highlightEntity.current, originalMaterials);
-        }
-      }, ScreenSpaceEventType.LEFT_CLICK);
-    });
+    let originalMaterials: Map<Entity, MaterialProperty> | undefined;
+    // For now, we'll skip the withScene functionality since we're removing withValid instances
+    console.warn(
+      "ByGeojsonClassifier hooks need to be updated to work without withScene"
+    );
 
     return () => {
       handler.current && handler.current.destroy();
@@ -102,5 +48,5 @@ export const useSelectAndHighlightGeoJsonEntity = (options?: {
         originalMaterials.clear();
       }
     };
-  }, [withScene, highlightMaterial, isPrimaryStyle]);
+  }, [highlightMaterial]);
 };

@@ -1,7 +1,7 @@
 import React, { useRef, useCallback, useEffect } from "react";
 import { Flex, Collapse, theme, Switch, Typography } from "antd";
 
-import { WUPP_MESH_2024 } from "@carma-commons/resources";
+import { WUPP_MESH_2024 } from "@carma/resources";
 import { CesiumErrorHandling } from "@carma-mapping/engines/cesium";
 
 import {

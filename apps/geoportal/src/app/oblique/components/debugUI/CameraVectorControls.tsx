@@ -5,7 +5,7 @@ import type { Vector3Arr } from "@carma/types";
 
 import VectorInput from "./VectorInput";
 import { UnitVectorDisplay } from "./UnitVectorDisplay";
-import type { DerivedExteriorOrientation } from "../../utils/transformExteriorOrientation";
+import type { DerivedExteriorOrientation } from "../../types/orientations";
 
 interface CameraVectorControlsProps {
   imageId?: string;

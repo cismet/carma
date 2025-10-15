@@ -1,6 +1,6 @@
 import { useEffect, useCallback, useContext, createContext } from "react";
 import { useLocation } from "react-router-dom";
-import { useFeatureFlags } from "@carma-providers/feature-flag";
+import { useFeatureFlags } from "@carma/providers/feature-flag";
 
 // Matomo tracking modes
 export const MATOMO_MODE = {

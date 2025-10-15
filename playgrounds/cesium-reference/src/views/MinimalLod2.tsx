@@ -9,7 +9,7 @@ import {
   BASEMAP_METROPOLE_RUHR_WMS_GRAUBLAU,
   WUPP_LOD2_TILESET,
   WUPP_TERRAIN_PROVIDER,
-} from "@carma-commons/resources";
+} from "@carma/resources";
 import { cesiumConstructorOptions } from "../config";
 import useTileset from "../hooks/useTileset";
 import { useZoomToTilesetOnReady } from "../hooks/useZoomToTilesetOnReady";

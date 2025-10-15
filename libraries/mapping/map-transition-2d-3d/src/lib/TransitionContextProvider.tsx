@@ -1,5 +1,5 @@
 import { useMemo, useRef, type ReactNode } from "react";
-import { createEventBus } from "@carma-providers/event-bus";
+import { createEventBus } from "@carma/providers/event-bus";
 
 import {
   TransitionContext,

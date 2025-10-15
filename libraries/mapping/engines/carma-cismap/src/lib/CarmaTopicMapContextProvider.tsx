@@ -4,7 +4,7 @@ import {
   TopicMapContextProvider,
   TopicMapContext as ReactCismapTopicMapContext,
 } from "react-cismap/contexts/TopicMapContextProvider";
-import { createEventBus } from "@carma-providers/event-bus";
+import { createEventBus } from "@carma/providers/event-bus";
 
 import {
   CarmaTopicMapContext,

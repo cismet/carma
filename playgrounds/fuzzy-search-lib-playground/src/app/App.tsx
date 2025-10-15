@@ -11,7 +11,7 @@ import {
   TopicMapSelectionContent,
   useSelectionTopicMap,
 } from "@carma-appframeworks/portals";
-import { ENDPOINT, isAreaType } from "@carma-commons/resources";
+import { isAreaType } from "@carma/resources";
 
 suppressReactCismapErrors();
 
@@ -30,7 +30,7 @@ export function App() {
     const selectionMetaData: SelectionMetaData = {
       selectedFrom: "gazetteer",
       selectionTimestamp: Date.now(),
-      isAreaSelection: isAreaType(selection.type as ENDPOINT),
+      isAreaSelection: isAreaType(selection.type),
     };
     setSelection(Object.assign({}, selection, selectionMetaData));
   };

@@ -8,13 +8,13 @@ import proj4 from "proj4";
 import { setupCesiumEnvironment } from "@carma-mapping/engines/cesium";
 import { suppressReactCismapErrors } from "@carma-commons/utils";
 import { preventPinchZoom, cjsGlobalShim } from "@carma-commons/dom/window";
-import { proj4crs25832def, EPSG25832 } from "@carma-commons/geo";
+import { proj4crs25832def, ManagedProjections } from "@carma/geo/proj";
 
 import App from "./app/App";
 import store from "./app/store";
 import { CESIUM_CONFIG } from "./app/config/app.config";
 
-proj4.defs(EPSG25832, proj4crs25832def);
+proj4.defs(ManagedProjections.EPSG25832, proj4crs25832def);
 
 cjsGlobalShim();
 // Set up Cesium environment (CESIUM_BASE_URL) via engine helper

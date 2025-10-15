@@ -5,24 +5,22 @@ import {
   PerspectiveFrustum,
 } from "cesium";
 import { VIEWERSTATE_KEYS } from "../constants";
+import { CameraState } from "@carma/types";
 
 // Constants for URL parameter formatting
 const DEGREE_DIGITS = 7;
 const CAMERA_DEGREE_DIGITS = 2;
+
+export type StringifiedCameraState = Array<{
+  key: string;
+  value: string;
+}>;
 
 type HashCodec = {
   key: string;
   decode: (value: string) => number;
   encode: (value: number) => string;
 };
-
-export type CameraState = {
-  position: Cartographic;
-  heading?: number;
-  pitch?: number;
-  fov?: number;
-};
-export type StringifiedCameraState = { key: string; value: string }[];
 
 /**
  * Format a radian value to degrees with specified precision

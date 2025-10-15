@@ -7,9 +7,11 @@ import {
   type Scene,
 } from "cesium";
 
-import type { Radians } from "@carma/types";
+import type { Radians } from "@carma/units/types";
+import type { AnimationType } from "@carma/types";
+import { AnimationTypes } from "@carma/types";
 
-import { AnimationType, AnimationMap } from "./animationMap";
+import { AnimationMap } from "./animationMap";
 import {
   isValidScene,
   tryWithValidCamera,
@@ -125,7 +127,7 @@ export const animateCamera = (
   targetPitch: number,
   initialRange: number,
   duration: number,
-  animationType: AnimationType = AnimationType.ResetView
+  animationType: AnimationType = AnimationTypes.ResetView
 ) => {
   const previousAnimation = animationMap.get(scene);
 

@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { type Degrees, type Radians } from "@carma/types";
-import { degToRad, radToDeg, PI, PI_OVER_TWO } from "@carma-commons/math";
+import { type Degrees, type Radians } from "@carma/units/types";
+import { degToRad, radToDeg, PI, PI_OVER_TWO } from "@carma/units/helpers";
 import {
   CardinalDirectionEnum,
   getCardinalDirectionFromHeading,

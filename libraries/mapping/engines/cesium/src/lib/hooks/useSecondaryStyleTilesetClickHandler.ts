@@ -11,34 +11,25 @@ import {
 
 import { isValidScene, tryWithValidScene } from "../utils/instanceGates";
 import { useCesiumContext } from "./useCesiumContext";
-import { TILESET_IDS } from "../constants";
 
 export const useSecondaryStyleTilesetClickHandler = (
   disableSelection = true
 ) => {
-  const { isViewerReady, sceneRef, tilesetVisibilityRef } = useCesiumContext();
-  const isSecondaryStyle =
-    tilesetVisibilityRef.current.get(TILESET_IDS.SECONDARY) ?? true;
+  const { sceneRef, currentSceneStyleRef } = useCesiumContext();
+  const isTopoStyle = currentSceneStyleRef.current === "topo";
 
   useEffect(() => {
     const scene = sceneRef.current;
-    if (
-      !isViewerReady ||
-      !isSecondaryStyle ||
-      disableSelection ||
-      !isValidScene(scene)
-    )
-      return;
+    if (!isTopoStyle || disableSelection || !isValidScene(scene)) return;
     console.debug("HOOK: useGLTFTilesetClickHandler");
 
-    let selectedObject; // Store the currently selected feature
-    let lastColor;
+    let selectedObject: any = null;
+    let lastColor: any = null;
     const { canvas } = scene;
 
     const handler = new ScreenSpaceEventHandler(canvas);
 
-    handler.setInputAction((movement) => {
-      // If a feature was previously selected, revert its color
+    handler.setInputAction((movement: any) => {
       if (selectedObject) {
         selectedObject.color = lastColor;
         selectedObject.colorBlendMode = ColorBlendMode.HIGHLIGHT;
@@ -47,7 +38,7 @@ export const useSecondaryStyleTilesetClickHandler = (
 
       tryWithValidScene(scene, (scene) => {
         const pickedObject = scene.pick(movement.position);
-        console.debug("SCENE PICK: secondary", pickedObject);
+        console.debug("SCENE PICK: topo style", pickedObject);
         if (!pickedObject) return;
 
         if (pickedObject.primitive instanceof Cesium3DTileset) {
@@ -66,5 +57,5 @@ export const useSecondaryStyleTilesetClickHandler = (
     return () => {
       handler.destroy();
     };
-  }, [sceneRef, isViewerReady, isSecondaryStyle, disableSelection]);
+  }, [sceneRef, isTopoStyle, disableSelection]);
 };

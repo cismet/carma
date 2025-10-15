@@ -1,5 +1,5 @@
 import type { CSSProperties, FC } from "react";
-import { CssPixelHeight, CssPixelWidth } from "@carma/types";
+import type { CssPixelHeight, CssPixelWidth } from "@carma/units/types";
 
 export type BlendMode = "normal" | "difference" | "normal50";
 

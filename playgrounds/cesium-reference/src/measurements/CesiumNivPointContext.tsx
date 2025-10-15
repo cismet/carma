@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useMemo } from "react";
 import { useCesiumViewer } from "../contexts/CesiumViewerContext";
 import { useNivPoints } from "./hooks/useNivPoints";
-import { FESTPUNKTE_WUPPERTAL } from "@carma-commons/resources";
+import { FESTPUNKTE_WUPPERTAL } from "@carma/resources";
 import { Entity } from "cesium";
 
 interface CesiumNivPointContextType {

@@ -12,7 +12,7 @@ import {
   getGazData,
   type GazDataConfig,
 } from "@carma-commons/gazetteer";
-import { defaultGazDataConfig } from "@carma-commons/resources";
+import { defaultGazDataConfig } from "@carma/resources";
 
 interface GazDataContextType {
   gazData: GazDataItem[];

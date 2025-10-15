@@ -6,4 +6,4 @@ export type {
   PolylineConfig,
   MarkerOptions,
   ParsedMarkerModelAsset,
-} from "./index.d";
+} from "./types";

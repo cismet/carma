@@ -204,12 +204,12 @@ export const convertLayerStringToLayers = (
   const layers = layerString.split("|");
   return layers.map((layer) => {
     const [layerConfigName, opacity] = layer.split("@");
-    const config = defaultLayerConfig.namedLayers[layerConfigName];
+    const config = defaultLayerConfig.namedLayers?.[layerConfigName];
     return {
       ...config,
       visible,
-      layerType: config.type,
-      opacity: ((Number(opacity) || 1) / 100) * mainOpacity || 1,
+      layerType: config?.type,
+      opacity: ((Number(opacity) || 1) / 100) * (mainOpacity ?? 1),
     };
   });
 };

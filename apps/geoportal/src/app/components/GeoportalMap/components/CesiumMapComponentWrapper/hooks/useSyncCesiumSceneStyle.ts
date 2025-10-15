@@ -8,9 +8,9 @@ import {
 import { useCesiumContext, CtxEvent } from "@carma-mapping/engines/cesium";
 
 export const useSyncCesiumSceneStyle = (backgroundLayer: BackgroundLayer) => {
-  const { isValidViewer, emit } = useCesiumContext();
+  const { emit } = useCesiumContext();
   useEffect(() => {
-    if (isValidViewer() && backgroundLayer) {
+    if (backgroundLayer) {
       if (backgroundLayer.id === MapStyleKeys.AERIAL) {
         emit(CtxEvent.SetSceneStyle, ManagedCesiumStyleKeys.LOD2);
       } else {

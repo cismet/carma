@@ -7,8 +7,8 @@ import { useState } from "react";
 import {
   type ServiceOption,
   serviceOptions as defaultServiceOptions,
-} from "@carma-commons/resources";
-import { useFeatureFlags } from "@carma-providers/feature-flag";
+} from "@carma/resources";
+import { useFeatureFlags } from "@carma/providers/feature-flag";
 
 import type { LayerState } from "../types";
 import { SelectionItem } from "./SelectionProvider";

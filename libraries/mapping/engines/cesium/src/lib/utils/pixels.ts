@@ -8,8 +8,9 @@ import {
 
 // Mercator helpers are provided by @carma-commons/utils/mercator; no re-exports here.
 
-import { NumericResult, Meters, Radians } from "@carma/types";
-import { getZoomFromPixelResolutionAtLatitudeRad } from "@carma-commons/geo";
+import type { NumericResult } from "@carma/types";
+import { Meters, Radians } from "@carma/units/types";
+import { getZoomFromPixelResolutionAtLatitudeRad } from "@carma/geo/utils";
 import { generatePositionsForRing } from "./geometryGenerators";
 import { PICKMODE, pickScenePositions, pickSceneCenter } from "./pickers";
 import { isValidScene } from "./instanceGates";

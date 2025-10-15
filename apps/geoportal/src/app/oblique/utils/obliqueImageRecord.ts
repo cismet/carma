@@ -1,17 +1,17 @@
 import { Cartesian3 } from "cesium";
 
-import {
+import type {
   BasicObliqueImageRecord,
   ExteriorOrientationDataArray,
   ObliqueImageRecord,
-  Proj4Converter,
 } from "../types";
+import type { Matrix3RowMajor } from "@carma/types";
+import type { TypedConverter } from "@carma/geo/proj";
 import {
   getCardinalDirectionByLineAndCameraId,
   getApproximateHeadingBySector,
   CardinalDirectionEnum,
 } from "./orientationUtils";
-import type { Matrix3RowMajor } from "@carma/types";
 
 // TODO: quite specific for the provided, should be more generic or standardized
 const unpackIdInfo = (id: string) => {
@@ -32,7 +32,7 @@ const unpackIdInfo = (id: string) => {
 
 export const extendObliqueImageRecord = (
   image: BasicObliqueImageRecord,
-  { converter }: Proj4Converter,
+  converter: TypedConverter,
   offset: number,
   fallbackDirectionConfig: Record<string, Record<string, CardinalDirectionEnum>>
 ): ObliqueImageRecord => {
@@ -68,7 +68,7 @@ export const extendObliqueImageRecord = (
 export const mapExtOriArrToRecord = (
   id: string,
   arr: ExteriorOrientationDataArray
-): BasicObliqueImageRecord => {
+): BasicObliqueImageRecord | null => {
   const x = arr[0];
   const y = arr[1];
   const z = arr[2];

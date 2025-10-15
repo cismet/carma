@@ -14,6 +14,14 @@
       "options": {
         "outputPath": "dist/libraries/commons/math"
       }
+    },
+    "test": {
+      "executor": "@nx/vite:test",
+      "outputs": ["{workspaceRoot}/dist/.vite/math"],
+      "options": {
+        "config": "libraries/commons/math/vite.config.ts",
+        "passWithNoTests": false
+      }
     }
   }
 }

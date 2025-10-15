@@ -35,7 +35,7 @@ import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
-import { ENDPOINT, isAreaType } from "@carma-commons/resources";
+import { isAreaType } from "@carma/resources";
 import {
   SelectionMetaData,
   TopicMapSelectionContent,
@@ -56,7 +56,7 @@ import {
 } from "@carma-commons/utils";
 
 import {
-  CustomViewer,
+  CustomWidget,
   Compass,
   useCesiumContext,
   useHomeControl,
@@ -266,7 +266,7 @@ export const CarmaMap = ({
     const selectionMetaData: SelectionMetaData = {
       selectedFrom: "gazetteer",
       selectionTimestamp: Date.now(),
-      isAreaSelection: isAreaType(selection.type as ENDPOINT),
+      isAreaSelection: isAreaType(selection.type),
     };
     setSelection(Object.assign({}, selection, selectionMetaData));
   };
@@ -576,7 +576,7 @@ export const CarmaMap = ({
                 pointerEvents: isMode2d ? "none" : "auto",
               }}
             >
-              <CustomViewer
+              <CustomWidget
                 containerRef={container3dMapRef}
                 cameraLimiterOptions={CESIUM_CONFIG.camera}
                 onSceneChange={(e) => {
@@ -590,7 +590,7 @@ export const CarmaMap = ({
                     replace: true,
                   });
                 }}
-              ></CustomViewer>
+              ></CustomWidget>
             </div>
           )}
         </>

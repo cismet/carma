@@ -9,7 +9,7 @@ import {
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { useContext } from "react";
 import { FeatureCollectionDispatchContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
-import { isAreaType } from "@carma-commons/resources";
+import { isAreaType } from "@carma/resources";
 import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 const FuzzySearchWrapper = ({ searchTextPlaceholder }) => {

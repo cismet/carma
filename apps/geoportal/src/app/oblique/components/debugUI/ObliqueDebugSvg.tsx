@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { useCesiumContext } from "@carma-mapping/engines/cesium";
-import { radToDeg } from "@carma-commons/math";
-import type { Radians } from "@carma/types";
+import { useCesiumContext, isValidScene } from "@carma-mapping/engines/cesium";
+import { radToDeg } from "@carma/units/helpers";
+import type { Radians } from "@carma/units/types";
 import { Collapse } from "antd";
 
 import { useOblique } from "../../hooks/useOblique";
@@ -10,7 +10,7 @@ import {
   getCardinalDirectionFromHeading,
   getHeadingFromCardinalDirection,
 } from "../../utils/orientationUtils";
-import { OBLIQUE_PREVIEW_QUALITY } from "../../constants";
+import { OBLIQUE_PREVIEW_QUALITIES } from "../../constants";
 import { getPreviewImageUrl } from "../../utils/imageHandling";
 import { CAMERA_ID_TO_UP_VECTOR_MATRIX_MAPPING } from "../../config";
 import { ObliqueControlPanel } from "./ObliqueControlPanel";
@@ -33,10 +33,10 @@ export const ObliqueDebugSvg = () => {
   const [cropHeightFactor, setCropHeightFactor] = useState(400);
   const [imageRotation, setImageRotation] = useState(0); // 0, 90, 180, 270 degrees
   // Core contexts and refs
-  const { viewerRef, isValidViewer } = useCesiumContext();
+  const { sceneRef } = useCesiumContext();
   const { converter, headingOffset, previewPath, selectedImageRefresh } =
     useOblique();
-  const camera = viewerRef?.current?.camera;
+  const camera = sceneRef?.current?.camera;
 
   // Compute camera and sector values locally
   const cameraHeading = useMemo(() => {
@@ -90,6 +90,10 @@ export const ObliqueDebugSvg = () => {
   ]);
 
   const radiusPointCoords = useMemo<[number, number]>(() => {
+    if (cameraPosition === null) {
+      throw new Error("invalid camera position");
+    }
+
     return [
       cameraPosition[0] + pointOnRadius.x,
       cameraPosition[1] + pointOnRadius.y,
@@ -102,20 +106,23 @@ export const ObliqueDebugSvg = () => {
 
   // Subscribe to camera changes to refresh nearest images using centralized search
   useEffect(() => {
-    const viewer = viewerRef.current;
-    if (!isValidViewer() || typeof selectedImageRefresh !== "function") return;
+    const scene = sceneRef.current;
+    if (!isValidScene(scene) || typeof selectedImageRefresh !== "function")
+      return;
     const refresh = () => {
       const res = selectedImageRefresh({ computeOnly: true });
       if (res) setNearestImages(res);
     };
-    viewer.camera.changed.addEventListener(refresh);
+    scene?.camera?.changed?.addEventListener(refresh);
     refresh();
     return () => {
-      if (viewer && !viewer.isDestroyed()) {
-        viewer.camera.changed.removeEventListener(refresh);
-      }
+      scene?.camera?.changed?.removeEventListener(refresh);
     };
-  }, [viewerRef, selectedImageRefresh, isValidViewer]);
+  }, [sceneRef, selectedImageRefresh]);
+
+  if (cameraPosition === null) {
+    return null;
+  }
 
   // SVG dimensions
   const svgWidth = 800;
@@ -222,7 +229,7 @@ export const ObliqueDebugSvg = () => {
                 <image
                   href={getPreviewImageUrl(
                     previewPath,
-                    OBLIQUE_PREVIEW_QUALITY.LEVEL_5,
+                    OBLIQUE_PREVIEW_QUALITIES.LEVEL_5,
                     record.id
                   )}
                   x={`-${(cropWidthFactor - 100) / 2}%`}
@@ -618,7 +625,7 @@ export const ObliqueDebugSvg = () => {
               <image
                 href={getPreviewImageUrl(
                   previewPath,
-                  OBLIQUE_PREVIEW_QUALITY.LEVEL_5,
+                  OBLIQUE_PREVIEW_QUALITIES.LEVEL_5,
                   nearestImage.id
                 )}
                 x={0}

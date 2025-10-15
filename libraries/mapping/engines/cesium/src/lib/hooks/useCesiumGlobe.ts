@@ -1,14 +1,14 @@
 import { useEffect } from "react";
-import type { GlobeOptions } from "../CustomViewer";
+import type { GlobeOptions } from "../CesiumSceneComponent";
 import { useCesiumContext } from "./useCesiumContext";
 import { isValidScene } from "../utils/instanceGates";
 
 export const useCesiumGlobe = (globeOptions: GlobeOptions) => {
-  const { isViewerReady, sceneRef } = useCesiumContext();
+  const { sceneRef } = useCesiumContext();
 
   useEffect(() => {
     const scene = sceneRef.current;
-    if (isViewerReady && isValidScene(scene) && !scene.globe.isDestroyed()) {
+    if (isValidScene(scene) && !scene.globe.isDestroyed()) {
       const { globe } = scene;
       console.debug("HOOK: [CESIUM] globe setting changed");
       try {
@@ -47,7 +47,6 @@ export const useCesiumGlobe = (globeOptions: GlobeOptions) => {
       }
     }
   }, [
-    isViewerReady,
     sceneRef,
     globeOptions.baseColor,
     globeOptions.cartographicLimitRectangle,

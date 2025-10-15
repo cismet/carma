@@ -25,14 +25,14 @@ import {
   useSelectionTopicMap,
   useHashState,
 } from "@carma-appframeworks/portals";
-import { ENDPOINT, isAreaTypeWithGEP } from "@carma-commons/resources";
+import { isAreaTypeWithGEP } from "@carma/resources";
 import { getApplicationVersion } from "@carma-commons/utils";
 
 // TODO fix collab path names
 import { getCollabedHelpComponentConfig } from "@carma-collab/wuppertal/hochwassergefahrenkarte";
 
 import {
-  CustomViewer,
+  CustomWidget,
   getDegreesFromCartesian,
   MapTypeSwitcher,
   PitchingCompass,
@@ -98,14 +98,7 @@ function App({ sync = false }: { sync?: boolean }) {
   const initialCameraView = useCesiumInitialCameraFromSearchParams();
 
   // CONTROLS
-  const {
-    withViewer,
-    withTerrainProvider,
-    withSurfaceProvider,
-    animationMapRef,
-    isViewerReady,
-    requestRender,
-  } = useCesiumContext();
+  const { animationMapRef, requestRender } = useCesiumContext();
   const homeControl = useHomeControl();
   const {
     handleZoomIn: handleZoomInCesium,
@@ -151,7 +144,7 @@ function App({ sync = false }: { sync?: boolean }) {
     const selectionMetaData: SelectionMetaData = {
       selectedFrom: "gazetteer",
       selectionTimestamp: Date.now(),
-      isAreaSelection: isAreaTypeWithGEP(selection.type as ENDPOINT),
+      isAreaSelection: isAreaTypeWithGEP(selection.type),
     };
     setSelection(Object.assign({}, selection, selectionMetaData));
   };
@@ -186,15 +179,8 @@ function App({ sync = false }: { sync?: boolean }) {
         markerAsset,
         markerAnchorHeight,
         isPrimaryStyle: true,
-        withTerrainProvider,
-        withSurfaceProvider,
       }),
-      [
-        markerAsset,
-        markerAnchorHeight,
-        withTerrainProvider,
-        withSurfaceProvider,
-      ]
+      [markerAsset, markerAnchorHeight]
     )
   );
 
@@ -206,19 +192,6 @@ function App({ sync = false }: { sync?: boolean }) {
     // run only once on load
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  useEffect(() => {
-    if (!isViewerReady) return;
-    withViewer((viewer) => {
-      // remove default cesium credit because no ion resource is used
-      (
-        viewer as unknown as {
-          _cesiumWidget: { _creditContainer: { style: { display: string } } };
-        }
-      )._cesiumWidget._creditContainer.style.display = "none";
-      requestRender();
-    });
-  }, [isViewerReady, requestRender]);
 
   const enableControlStateToggle = (controlState) => {
     return controlState.selectedSimulation !== 2;
@@ -401,14 +374,14 @@ function App({ sync = false }: { sync?: boolean }) {
           pointerEvents: isMode2d ? "none" : "auto",
         }}
       >
-        <CustomViewer
+        <CustomWidget
           containerRef={container3dMapRef}
           cameraLimiterOptions={CESIUM_CONFIG.camera}
           initialCameraView={initialCameraView}
           constructorOptions={CONSTRUCTOR_OPTIONS}
           enableSceneStyles={false}
           onSceneChange={onCesiumSceneChange}
-        ></CustomViewer>
+        ></CustomWidget>
       </div>
     </div>
   );

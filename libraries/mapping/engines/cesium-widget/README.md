@@ -1,4 +1,8 @@
+
 # engines/cesium-widget
+
+# Deprecated Proof of Concept for using Widget only with CesiumJS
+# use @carma-mapping/engines/cesium instead witch is also Widget Based now
 
 ## Build
 

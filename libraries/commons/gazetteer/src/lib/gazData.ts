@@ -1,7 +1,7 @@
-import type { EndpointKey } from "@carma-commons/resources";
+import type { Endpoint } from "@carma/resources";
 import { md5FetchText } from "@carma-commons/fetching";
 export type GazDataSourceConfig = {
-  topic: EndpointKey;
+  topic: Endpoint;
   url: string;
   crs: string;
 };

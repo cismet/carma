@@ -1,9 +1,9 @@
 import {
   isEndpoint,
   NAMED_CATEGORIES,
-  type EndpointKey,
+  type Endpoint,
   isAreaType,
-} from "@carma-commons/resources";
+} from "@carma/resources";
 
 import {
   SearchResult,
@@ -23,8 +23,8 @@ import { FeatureCollectionDispatchContext } from "react-cismap/contexts/FeatureC
 import { useSelection } from "@carma-appframeworks/portals";
 
 export const renderCategoryTitle = (
-  category: EndpointKey,
-  namedCategories: Partial<Record<EndpointKey, string>>
+  category: Endpoint,
+  namedCategories: Partial<Record<Endpoint, string>>
 ) => {
   const title = namedCategories[category] || category;
   return <span>{title}</span>;

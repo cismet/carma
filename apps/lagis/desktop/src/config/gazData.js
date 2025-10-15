@@ -1,8 +1,8 @@
-import { createConfig, ENDPOINT } from "@carma-commons/resources";
+import { createConfig, ENDPOINTS } from "@carma/resources";
 
 const prefix = "GazDataForHitzeinderstadtByCismet";
 
-const endpoints = [ENDPOINT.ADRESSEN, ENDPOINT.POIS, ENDPOINT.KITAS];
+const endpoints = [ENDPOINTS.ADRESSEN, ENDPOINTS.POIS, ENDPOINTS.KITAS];
 
 const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 const crs = "3857";

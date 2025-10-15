@@ -8,6 +8,7 @@ import {
   Cesium3DTileFeature,
   Cartesian2,
   Cartesian3,
+  type Scene,
 } from "cesium";
 
 export type ClickTilesetData = {
@@ -33,9 +34,8 @@ export const useClickActionTileset = (
 
     const handler = new ScreenSpaceEventHandler(canvas);
 
-    const clickAction = ({
-      position,
-    }: ScreenSpaceEventHandler.PositionedEvent) => {
+    const clickAction = (event: { position: Cartesian2 }) => {
+      const { position } = event;
       if (!position) return;
       const pickedObjects = scene.drillPick(position, drillPickLimit);
       let feature;

@@ -1,7 +1,7 @@
-import type { Radians } from "@carma/types";
-import { zeroToTwoPi } from "@carma-commons/math";
-
 import type { ObliqueImageRecord, ObliqueImageRecordMap } from "../types";
+import type { Radians } from "@carma/units/types";
+import { zeroToTwoPi } from "@carma/units/helpers";
+
 import {
   CardinalDirectionEnum,
   getCardinalDirectionFromHeading,

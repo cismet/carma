@@ -1,54 +1,72 @@
-import { PerspectiveFrustum, type Scene } from "cesium";
+import { type PerspectiveFrustum, type Scene } from "cesium";
 
-import { CssPixelHeight, CssPixelWidth } from "@carma/types";
+import type {
+  CssPixelHeight,
+  CssPixelWidth,
+  Radians,
+} from "@carma/units/types";
 import { getWindowDimensions } from "@carma-commons/dom/window";
 import { getCanvasDimensions } from "@carma-commons/dom/canvas";
-import { tryWithValidScene } from "@carma-mapping/engines/cesium";
+import {
+  isValidFov,
+  isPerspectiveFrustum,
+  tryWithValidScene,
+} from "@carma-mapping/engines/cesium";
 
-const isSupportedFrustum = (
-  frustum: unknown
-): frustum is PerspectiveFrustum => {
-  return frustum instanceof PerspectiveFrustum;
-};
-
-const getSceneSyncedSize = (scene: Scene, overrideFov?: number): number => {
-  let maxCanvas: number | undefined;
-  let frustum: PerspectiveFrustum;
-  let width = 0;
-  let height = 0;
-
-  const wDim = getWindowDimensions(window);
-  if (!wDim) return;
-  const maxWindow = Math.max(wDim.width, wDim.height);
-
+const getSceneSyncedSize = (scene: Scene, overrideFov?: Radians): number => {
+  let syncedSize: number | null = null;
   tryWithValidScene(scene, (scene) => {
+    const wDim = getWindowDimensions(window);
+
+    const maxWindow: number = Math.max(wDim.width, wDim.height);
+
     const { canvas, camera } = scene;
-    ({ width, height } = getCanvasDimensions(canvas));
-    maxCanvas = Math.max(width, height);
-    if (isSupportedFrustum(camera?.frustum)) {
-      frustum = camera.frustum;
+    const { frustum } = camera;
+    const { width, height } = getCanvasDimensions(canvas);
+    const maxCanvas = Math.max(width, height);
+    if (!isPerspectiveFrustum(frustum)) {
+      throw new Error(
+        "getSceneSyncedSize: unsupported or missing frustum; skip"
+      );
     }
+
+    // use maxCanvas if available, otherwise fall back to maxWindow
+    const dim = maxCanvas > 0 ? maxCanvas : maxWindow;
+
+    if (overrideFov !== undefined && !isValidFov(overrideFov)) {
+      throw new Error("getSceneSyncedSize: invalid override fov supplied");
+    }
+
+    const hasOverrideFov = overrideFov !== undefined;
+    const cameraFov = frustum.fov;
+
+    if (!hasOverrideFov && !isValidFov(cameraFov)) {
+      throw new Error("getSceneSyncedSize: invalid fov fetched from camera");
+    }
+
+    const appliedFov = hasOverrideFov ? overrideFov : (cameraFov as Radians);
+
+    if (!isValidFov(appliedFov)) {
+      throw new Error("getSceneSyncedSize: invalid fov applied");
+    }
+
+    const fovFactor = Math.tan(appliedFov / 2);
+    syncedSize = Math.max(1, dim / fovFactor);
+    console.debug(
+      "getSceneSyncedSize: fov",
+      appliedFov,
+      "fovFactor",
+      fovFactor,
+      "syncedSize",
+      syncedSize
+    );
   });
 
-  if (!frustum) {
-    throw new Error("getSceneSyncedSize: unsupported or missing frustum; skip");
+  if (syncedSize === null) {
+    throw new Error("getSceneSyncedSize: failed to get synced size");
   }
 
-  // use maxCanvas if available, otherwise fall back to maxWindow
-  const dim = maxCanvas > 0 ? maxCanvas : maxWindow;
-
-  const fov =
-    typeof overrideFov === "number"
-      ? overrideFov
-      : frustum instanceof PerspectiveFrustum
-      ? frustum.fov
-      : undefined;
-  if (typeof fov === "number") {
-    const fovFactor = Math.tan(fov / 2);
-    return Math.max(1, dim / fovFactor);
-  } else {
-    throw new Error("getSceneSyncedSize: unsupported or missing frustum; skip");
-  }
+  return syncedSize;
 };
 
 export const getSceneSyncedDimensions = (
@@ -56,7 +74,7 @@ export const getSceneSyncedDimensions = (
   isVertical: boolean,
   imageAspectRatio: number,
   baseScaleFactor: number,
-  overrideFov?: number
+  overrideFov?: Radians
 ): { syncedWidth: CssPixelWidth; syncedHeight: CssPixelHeight } => {
   const widthScaleFactor =
     baseScaleFactor * (isVertical ? imageAspectRatio : 1);

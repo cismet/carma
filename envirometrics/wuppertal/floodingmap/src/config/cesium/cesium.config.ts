@@ -3,7 +3,7 @@ import {
   WUPP_MESH_2024,
   WUPP_TERRAIN_PROVIDER,
   WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
-} from "@carma-commons/resources";
+} from "@carma/resources";
 import { CesiumConfig } from "@carma-mapping/engines/cesium";
 
 import { APP_BASE_PATH } from "../app.config";

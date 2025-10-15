@@ -1,8 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useSelection } from "./SelectionProvider";
 import maplibregl from "maplibre-gl";
-import proj4 from "proj4";
-import { proj4crs3857def, proj4crs4326def } from "@carma-commons/geo";
+import { getFromWebMercatorToWGS84 } from "@carma/geo/proj";
 import * as turf from "@turf/turf";
 
 interface SelectionContentProps {
@@ -21,10 +20,7 @@ export const LibreMapSelectionContent = ({ map }: SelectionContentProps) => {
     if (selection) {
       if (selection.isAreaSelection) {
       } else {
-        const pos = proj4(proj4crs3857def, proj4crs4326def, [
-          selection.x,
-          selection.y,
-        ]);
+        const pos = getFromWebMercatorToWGS84([selection.x, selection.y]);
         setMarker(
           new maplibregl.Marker().setLngLat([pos[0], pos[1]]).addTo(map)
         );
@@ -84,11 +80,7 @@ export const LibreMapSelectionContent = ({ map }: SelectionContentProps) => {
           const transformedCoordinates =
             featureGeoJSON.geometry.coordinates.map((ring) => {
               return ring.map((coord) => {
-                const transformed = proj4(proj4crs3857def, proj4crs4326def, [
-                  coord[0],
-                  coord[1],
-                ]);
-                return transformed;
+                return getFromWebMercatorToWGS84([coord[0], coord[1]]);
               });
             });
 

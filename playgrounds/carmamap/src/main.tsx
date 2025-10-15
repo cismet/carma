@@ -4,7 +4,6 @@ import { RouterProvider, createHashRouter } from "react-router-dom";
 import { persistStore } from "redux-persist";
 import { PersistGate } from "redux-persist/integration/react";
 
-import { DebugUiProvider } from "@carma-commons/debug";
 import { suppressReactCismapErrors } from "@carma-commons/utils";
 
 import App from "./app/App";
@@ -31,10 +30,8 @@ const router = createHashRouter([
 
 root.render(
   <Provider store={store}>
-    <DebugUiProvider>
-      <PersistGate loading={null} persistor={persistor}>
-        <RouterProvider router={router} />
-      </PersistGate>
-    </DebugUiProvider>
+    <PersistGate loading={null} persistor={persistor}>
+      <RouterProvider router={router} />
+    </PersistGate>
   </Provider>
 );

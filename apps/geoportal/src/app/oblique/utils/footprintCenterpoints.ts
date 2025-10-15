@@ -1,4 +1,5 @@
-import { Proj4Converter, PointWithSector } from "../types";
+import type { PointWithSector } from "../types";
+import type { TypedConverter } from "@carma/geo/proj";
 import { lineString, lineIntersect } from "@turf/turf";
 import { getCardinalDirection } from "./orientationUtils";
 import type { Feature, FeatureCollection, Polygon } from "geojson";
@@ -8,12 +9,12 @@ const ID_PROPERTY_NAME = "FILENAME";
 
 const toPointWithSector = (
   feature: Feature<Polygon>,
-  { converter }: Proj4Converter
+  converter: TypedConverter
 ): PointWithSector => {
   const ring = feature.geometry.coordinates[0];
-  const id = feature.properties[ID_PROPERTY_NAME];
+  const id = feature.properties?.[ID_PROPERTY_NAME];
   const cardinal = getCardinalDirection(
-    feature.properties[ORIENTATION_PROPERTY_NAME]
+    feature.properties?.[ORIENTATION_PROPERTY_NAME]
   );
   if (ring.length !== 5) {
     console.warn("Invalid footprint coordinates", feature);
@@ -44,7 +45,7 @@ const toPointWithSector = (
 
 export const getFootprintCenterpoints = (
   geojson: FeatureCollection<Polygon>,
-  converter: Proj4Converter
+  converter: TypedConverter
 ): PointWithSector[] => {
   const centerpoints = geojson.features.map((feature) =>
     toPointWithSector(feature, converter)

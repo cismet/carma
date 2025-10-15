@@ -20,10 +20,10 @@ function initOrbitPointListener(scene: Scene) {
 
     const point = getOrbitPoint(scene);
     if (sharedOrbitPoint && point && point.equals(sharedOrbitPoint)) return;
-    sharedOrbitPoint = point;
+    sharedOrbitPoint = point ?? null;
     orbitPointSubscribers.forEach((subscriber) => {
       if (subscriber.enabled) {
-        subscriber.callback(point);
+        subscriber.callback(sharedOrbitPoint);
       }
     });
   };

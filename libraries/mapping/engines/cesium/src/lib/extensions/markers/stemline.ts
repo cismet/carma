@@ -8,8 +8,7 @@ import {
   type Scene,
 } from "cesium";
 
-import type { PolylineConfig } from "../../../";
-import type { MarkerPrimitiveData } from "./index.d";
+import type { PolylineConfig, MarkerPrimitiveData } from "./types";
 import { tryWithValidScene } from "../../utils/instanceGates";
 
 export const createOrUpdateStemline = (

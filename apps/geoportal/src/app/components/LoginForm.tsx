@@ -4,7 +4,7 @@ import { Button } from "antd";
 import "./login.css";
 import { useRef, useState, useEffect } from "react";
 import { useDispatch } from "react-redux";
-import { useAuth } from "@carma-providers/auth";
+import { useAuth } from "@carma/providers/auth";
 import { apiUrl } from "../constants/discover";
 
 interface LoginFormProps {

@@ -7,7 +7,7 @@ import {
   Color,
 } from "cesium";
 
-import { TilesetConfig } from "@carma-commons/resources";
+import { TilesetConfig } from "@carma/types";
 
 import { useClickActionTileset } from "./hooks";
 

@@ -1,7 +1,7 @@
 import type {
   EmitFn as EmitFnGeneric,
   SubscribeFn as SubscribeFnGeneric,
-} from "@carma-providers/event-bus";
+} from "@carma/providers/event-bus";
 
 export enum CtxEvent {
   Activate = "Activate",

@@ -1,11 +1,9 @@
 import { useEffect, useRef } from "react";
 import type { NearestObliqueImageRecord } from "../types";
 import { useOblique } from "./useOblique";
-import {
-  computeDerivedExteriorOrientation,
-  DerivedExteriorOrientation,
-} from "../utils/transformExteriorOrientation";
+import { computeDerivedExteriorOrientation } from "../utils/transformExteriorOrientation";
 import { CAMERA_ID_TO_UP_VECTOR_MATRIX_MAPPING } from "../config";
+import type { DerivedExteriorOrientation } from "../types/orientations";
 
 export const useExteriorOrientation = (
   selectedImage: NearestObliqueImageRecord

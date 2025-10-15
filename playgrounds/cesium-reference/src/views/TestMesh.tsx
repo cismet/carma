@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Cesium3DTilesInspector, Viewer, CesiumWidget } from "cesium";
 import { Slider, Divider } from "antd";
 
-import { WUPP_MESH_2024 } from "@carma-commons/resources";
+import { WUPP_MESH_2024 } from "@carma/resources";
 import { CesiumErrorHandling } from "@carma-mapping/engines/cesium";
 
 import useTileset from "../hooks/useTileset";

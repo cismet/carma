@@ -1,5 +1,5 @@
 import { PropsWithChildren } from "react";
-import { AuthProvider } from "@carma-providers/auth";
+import { AuthProvider } from "@carma/providers/auth";
 
 export const MockAuthProvider = ({
   children,

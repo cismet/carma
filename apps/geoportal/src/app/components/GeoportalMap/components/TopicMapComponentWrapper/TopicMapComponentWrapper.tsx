@@ -27,20 +27,20 @@ import {
 } from "@carma-appframeworks/portals";
 
 import { tooltipText } from "@carma-collab/wuppertal/geoportal";
-import { isAreaType, type EndpointKey } from "@carma-commons/resources";
+import { isAreaType } from "@carma/resources";
 import { getApplicationVersion } from "@carma-commons/utils";
 import { useOverlayTourContext } from "@carma-commons/ui/helper-overlay";
 import { InfoBoxMeasurement } from "@carma-commons/measurements";
 
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
-import { useFeatureFlags } from "@carma-providers/feature-flag";
+import { useFeatureFlags } from "@carma/providers/feature-flag";
 
 import PrintPreview from "../../../map-print/PrintPreview.tsx";
 import FeatureInfoBox from "../../../feature-info/FeatureInfoBox.tsx";
 
 import versionData from "../../../../../version.json";
 
-import { proj4crs3857def, proj4crs4326def } from "@carma-commons/geo";
+import { proj4crs3857def, proj4crs4326def } from "react-cismap/constants/gis";
 import { useLeafletZoomControls } from "@carma-mapping/engines/leaflet";
 import { useDispatchSachdatenInfoText } from "../../../../hooks/useDispatchSachdatenInfoText.ts";
 import { LEAFLET_CONFIG } from "../../../../config/app.config";
@@ -202,7 +202,7 @@ export const TopicMapComponentWrapper = ({
       if (layers.filter((l) => l.layerType === "vector").length === 0) return;
       if (
         (uiMode === UIMode.DEFAULT || uiMode === UIMode.FEATURE_INFO) &&
-        !isAreaType(selection.type as EndpointKey) &&
+        !isAreaType(selection.type) &&
         !isSuspendedRef.current
       ) {
         const selectedPos = proj4(proj4crs3857def, proj4crs4326def, [

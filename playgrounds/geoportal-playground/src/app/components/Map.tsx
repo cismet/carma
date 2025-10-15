@@ -32,7 +32,7 @@ import {
 } from "@carma-mapping/fuzzy-search";
 import { type SearchResultItem } from "@carma/types";
 
-import { ENDPOINT, isAreaType } from "@carma-commons/resources";
+import { isAreaType } from "@carma/resources";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
 const Map = () => {
@@ -74,7 +74,7 @@ const Map = () => {
     const selectionMetaData: SelectionMetaData = {
       selectedFrom: "gazetteer",
       selectionTimestamp: Date.now(),
-      isAreaSelection: isAreaType(selection.type as ENDPOINT),
+      isAreaSelection: isAreaType(selection.type),
     };
     setSelection(Object.assign({}, selection, selectionMetaData));
   };

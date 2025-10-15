@@ -1,5 +1,5 @@
-import { Viewer } from "cesium";
-import type { CesiumConfig } from "./../..";
+import type { CesiumWidget } from "cesium";
+import type { CesiumConfig } from "@carma/types";
 
 const CESIUM_PATHNAME = "__cesium__";
 
@@ -28,20 +28,18 @@ export const setupCesiumEnvironment = (input?: CesiumBaseUrlInput) => {
   window.CESIUM_BASE_URL = baseUrl;
 };
 
-export const getIsViewerReadyAsync = async (
-  viewer: Viewer,
-  setIsViewerReady: (value: boolean) => void
-) => {
-  // checking for viewer readyness
-  // https://github.com/CesiumGS/cesium/issues/4422#issuecomment-1668233567
+export const getIsWidgetReadyAsync = async (
+  widget: CesiumWidget,
+  onReady: () => void
+): Promise<void> => {
+  // checking for widget readiness by waiting for the first postRender event
+  // which indicates the scene is initialized and ready to render
   await new Promise<void>((resolve) => {
-    const removeEvent = viewer.scene.postRender.addEventListener(() => {
-      if (viewer.clockViewModel.canAnimate) {
-        console.log("Viewer is ready");
-        removeEvent();
-        setIsViewerReady(true);
-        resolve();
-      }
+    const removeEvent = widget.scene.postRender.addEventListener(() => {
+      console.log("Widget is ready");
+      removeEvent();
+      onReady();
+      resolve();
     });
   });
 };

@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { Degrees, Radians } from "@carma/types";
-import { degToRad, PI_OVER_TWO } from "@carma-commons/math";
-// MapLibre pitch is in degrees (0-85 typically)
+import { Degrees, Radians } from "@carma/units/types";
+import { degToRad, PI_OVER_TWO } from "@carma/units/helpers";
+
 const MAX_PITCH_DEGREES = 85 as Degrees;
-const PITCH_HORIZON_OFFSET = (Math.PI / 2 - 0.2) as Radians; // avoid showing completely flat from the side
+const PITCH_HORIZON_OFFSET = (PI_OVER_TWO - 0.2) as Radians;
 
 const maxPitch = degToRad(MAX_PITCH_DEGREES);
 

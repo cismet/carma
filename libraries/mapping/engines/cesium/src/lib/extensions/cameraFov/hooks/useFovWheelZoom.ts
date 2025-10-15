@@ -2,8 +2,8 @@ import { useCallback, useRef } from "react";
 import { useBlockDefaultZoomBehaviour } from "./useBlockDefaultZoomBehaviour";
 import { PerspectiveFrustum, type Scene } from "cesium";
 
-import type { Radians } from "@carma/types";
-import { isClose } from "@carma-commons/math";
+import type { Radians, Ratio } from "@carma/units/types";
+import { isClose } from "@carma/units/helpers";
 import { normalizeOptions } from "@carma-commons/utils";
 
 import { CtxEvent } from "../../../cesiumContextEventMap";
@@ -25,7 +25,7 @@ const viewerWheelHandlers = new WeakMap<Scene, (event: WheelEvent) => void>();
 export interface FovWheelZoomOptions {
   minFov?: Radians;
   maxFov?: Radians;
-  fovChangeRate?: Radians;
+  fovChangeRate?: Ratio;
   onAfterFovChange?: () => void;
   onFovChange?: (newFov: Radians, previousFov: Radians) => void;
   minFovChange?: Radians; // minimum change in FOV to trigger an update (radians), default 0.0001
@@ -66,7 +66,7 @@ export function useFovWheelZoom(
       const currentFov = scene.camera.frustum.fov as Radians;
       const nextFov = computeNextFov(
         currentFov,
-        event.deltaY as Radians,
+        event.deltaY,
         minFov,
         maxFov,
         fovChangeRate

@@ -3,22 +3,6 @@ import { getGazDataForTopicIds } from "react-cismap/tools/gazetteerHelper";
 
 import { host } from "../constants/bplaene";
 
-export type ENDPOINT =
-  | "adressen"
-  | "aenderungsv"
-  | "bezirke"
-  | "bpklimastandorte"
-  | "bplaene"
-  | "ebikes"
-  | "emob"
-  | "geps"
-  | "geps_reverse"
-  | "kitas"
-  | "prbr"
-  | "no2"
-  | "quartiere"
-  | "pois";
-
 export const getGazData = async (setGazData) => {
   const prefix = "GazData";
   const sources: Partial<Record<ENDPOINT, string | null>> = {};

@@ -1,5 +1,5 @@
-import { radToDeg, zeroToTwoPi } from "@carma-commons/math";
-import { Radians, Degrees } from "@carma/types";
+import { radToDeg, zeroToTwoPi } from "@carma/units/helpers";
+import type { Radians, Degrees } from "@carma/units/types";
 
 export const formatHeadingDegrees = (headingRadians: number): Degrees => {
   const normalized = zeroToTwoPi(headingRadians as Radians);

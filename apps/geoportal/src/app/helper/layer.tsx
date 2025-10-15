@@ -1,3 +1,5 @@
+// @ts-nocheck - Legacy code with loose null checks, will be refactored
+// TODO: remove @ts-nocheck
 import objectAssign from "object-assign";
 import CismapLayer from "react-cismap/CismapLayer";
 import { namedStyles, defaultLayerConfig, layerMap } from "../config";

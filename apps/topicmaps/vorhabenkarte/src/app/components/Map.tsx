@@ -42,7 +42,7 @@ import { GenericInfoBoxFromFeature } from "@carma-appframeworks/portals";
 import SecondaryInfoModal, { LightboxDispatch } from "./SecondaryInfoModal";
 import { FeatureIconOverlay } from "./FeatureIconOverlay";
 import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextProvider";
-import { isAreaType } from "@carma-commons/resources";
+import { isAreaType } from "@carma/resources";
 import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
 import { useGazData } from "@carma-appframeworks/portals";
 import { type GazDataItem } from "@carma-commons/utils";

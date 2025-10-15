@@ -22,7 +22,7 @@ import {
   PerspectiveFrustum,
 } from "cesium";
 
-import { WUPP_MESH_2024 } from "@carma-commons/resources";
+import { WUPP_MESH_2024 } from "@carma/resources";
 
 import { CardinalDirections, getCardinalDirection } from "../lib/cesiumCompass";
 

@@ -1,0 +1,13 @@
+{
+  "extends": "../../../../tsconfig.strict.base.json",
+  "compilerOptions": {
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "rootDir": "./src",
+    "outDir": "./dist",
+    // keep core types package free of ambient UI typings
+    "types": []
+  },
+  "include": ["src/**/*.d.ts"],
+  "exclude": ["dist", "node_modules"]
+}

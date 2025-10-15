@@ -95,7 +95,7 @@ export const useAppConfig = (
     // because it's not yet available
     // and needs to be configured by the config itself
     // use direct history state update instead
-    updateHashHistoryState({ [configKey]: undefined }, pathname, {
+    updateHashHistoryState({ [configKey]: "" }, pathname, {
       label: "remove config search parameter",
       replace: true,
     });

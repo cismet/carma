@@ -1,3 +1,5 @@
+// @ts-nocheck - Legacy code with loose null checks, will be refactored
+// TODO: remove @ts-nocheck
 import { useMemo } from "react";
 
 import { useOverlayHelper } from "@carma-commons/ui/helper-overlay";

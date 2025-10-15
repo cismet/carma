@@ -9,8 +9,7 @@ import {
   GeoJsonDataSource,
 } from "cesium";
 
-import { GeoJsonConfig } from "../../..";
-import { TILESET_IDS } from "../../constants";
+import type { GeoJsonConfig } from "@carma/geo/types";
 import { useCesiumContext } from "../../hooks/useCesiumContext";
 
 import { useSelectAndHighlightGeoJsonEntity } from "./hooks";
@@ -38,9 +37,6 @@ export const ByGeojsonClassifier = ({
   geojson,
   debug,
 }: ByGeoJsonClassifier) => {
-  const { tilesetVisibilityRef } = useCesiumContext();
-  const isPrimaryStyle =
-    tilesetVisibilityRef.current.get(TILESET_IDS.PRIMARY) ?? false;
   const classificationTypeProperty = new ConstantProperty(classificationType);
 
   const HIGHLIGHT_MATERIAL = new ColorMaterialProperty(
@@ -49,7 +45,6 @@ export const ByGeojsonClassifier = ({
 
   useSelectAndHighlightGeoJsonEntity({
     highlightMaterial: HIGHLIGHT_MATERIAL,
-    isPrimaryStyle,
     selectedEntityId:
       typeof selectionId === "string"
         ? selectionId
@@ -75,7 +70,7 @@ export const ByGeojsonClassifier = ({
 
   return (
     <ResiumGeoJsonDataSource
-      show={isPrimaryStyle}
+      show={true}
       data={geojson.url}
       clampToGround={true} // IMPORTANT, sets the entitity polygon height to undefined for classification to work
       onLoad={handleOnLoad}

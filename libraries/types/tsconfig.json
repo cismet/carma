@@ -4,8 +4,9 @@
     "declaration": true,
     "emitDeclarationOnly": true,
     "rootDir": "./src",
-    "outDir": "./dist"
+    "outDir": "./dist",
+    "types": [] // keep core types package free of ambient UI typings
   },
-  "include": ["src/**/*.d.ts"],
+  "include": ["src/**/*.d.ts", "src/lib/cesium/cesium-tileset.ts"],
   "exclude": ["dist", "node_modules"]
 }

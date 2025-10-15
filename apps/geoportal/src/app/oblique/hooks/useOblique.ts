@@ -1,5 +1,5 @@
 import { useContext } from "react";
-import { ObliqueContext } from "../components/ObliqueProvider";
+import { ObliqueContext } from "../context/ObliqueContext";
 
 // Custom hook to use the oblique data context
 export const useOblique = () => {

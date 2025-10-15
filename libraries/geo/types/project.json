@@ -1,0 +1,44 @@
+{
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "name": "geo/types",
+  "sourceRoot": "libraries/geo/types/src",
+  "projectType": "library",
+  "tags": ["scope:types", "type:declarations"],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libraries/geo/types",
+        "main": "libraries/geo/types/src/index.d.ts",
+        "tsConfig": "libraries/geo/types/tsconfig.json",
+        "assets": [
+          {
+            "input": "libraries/geo/types",
+            "glob": "BRANDED-UNITS.md",
+            "output": "."
+          },
+          {
+            "input": "libraries/geo/types",
+            "glob": "README.md",
+            "output": "."
+          },
+          {
+            "input": "libraries/geo/types/src",
+            "glob": "**/*.d.ts",
+            "output": "./src"
+          }
+        ]
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "libraries/geo/types/src/**/*.ts",
+          "libraries/geo/types/src/**/*.d.ts"
+        ]
+      }
+    }
+  }
+}

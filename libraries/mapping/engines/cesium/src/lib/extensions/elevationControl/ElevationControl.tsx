@@ -9,8 +9,6 @@ import {
 import { debounce } from "lodash";
 import { Cartesian3, Cartographic } from "cesium";
 
-import { useTweakpaneCtx } from "@carma-commons/debug";
-
 import { useCesiumContext } from "../../hooks/useCesiumContext";
 import { getPositionWithHeightAsync } from "../../utils/positions";
 import { isValidScene } from "../../utils/instanceGates";
@@ -83,7 +81,7 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
 
   const [maxDisplayHeight, setMaxDisplayHeight] = useState<number>(10000); // Adjust as needed
   const controlRef = useRef<HTMLDivElement>(null);
-  const { withElevationProviders, sceneRef } = useCesiumContext();
+  const { sceneRef } = useCesiumContext();
   const [alwaysShow, setAlwaysShow] = useState(false);
   const [clamp, setClamp] = useState(useClampedHeight);
   const [eventOption, setEventOption] = useState(updateEvent);
@@ -101,59 +99,6 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
     clamped: null,
   });
 
-  useTweakpaneCtx(
-    useMemo(
-      () => ({
-        folder: { title: "Elevation UI" },
-        params: {
-          get alwaysShow() {
-            return alwaysShow;
-          },
-          set alwaysShow(value: boolean) {
-            setAlwaysShow(value);
-          },
-          get clamp() {
-            return clamp;
-          },
-          set clamp(value: boolean) {
-            setClamp(value);
-          },
-          get eventOption() {
-            return eventOption;
-          },
-          set eventOption(
-            value: "cameraChanged" | "scenePreRender" | "scenePreUpdate"
-          ) {
-            setEventOption(value);
-          },
-        },
-        inputs: [
-          {
-            name: "alwaysShow",
-            label: "Always Show",
-            type: "boolean",
-          },
-          {
-            name: "clamp",
-            label: "Clamp Tileset Height",
-            type: "boolean",
-          },
-          {
-            name: "eventOption",
-            label: "Update Event",
-            type: "select",
-            options: {
-              cameraChanged: "cameraChanged",
-              scenePreRender: "scenePreRender",
-              scenePreUpdate: "scenePreUpdate",
-            },
-          },
-        ],
-      }),
-      []
-    )
-  );
-
   useEffect(() => {
     const scene = sceneRef.current;
     if (isValidScene(scene) && (alwaysShow || show)) {
@@ -163,48 +108,46 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
         const cameraPositionCartographic = scene.camera.positionCartographic;
         const currentCameraHeight = cameraPositionCartographic.height;
         setCameraHeightFmt(`${cameraPositionCartographic.height.toFixed(0)}m`);
-        getPositionWithHeightAsync(
-          withElevationProviders,
-          cameraPositionCartographic,
-          false
-        ).then((position) => {
-          if (!position) return;
-          setTerrainHeight(position.height);
-          setCameraRelHeightFmt(
-            `${(currentCameraHeight - position.height).toFixed(0)}m`
-          );
-          setTerrainHeightFmt(`${position.height.toFixed(0)}m`);
-          setCameraHeight(currentCameraHeight);
-          setEllipsoidHeight(localMinEllipsoidalHeight);
+        getPositionWithHeightAsync(cameraPositionCartographic, false).then(
+          (position) => {
+            if (!position) return;
+            setTerrainHeight(position.height);
+            setCameraRelHeightFmt(
+              `${(currentCameraHeight - position.height).toFixed(0)}m`
+            );
+            setTerrainHeightFmt(`${position.height.toFixed(0)}m`);
+            setCameraHeight(currentCameraHeight);
+            setEllipsoidHeight(localMinEllipsoidalHeight);
 
-          // Update maxDisplayHeight based on current heights
-          const maxHeight = Math.max(
-            currentCameraHeight,
-            position.height,
-            initialMaxElevation
-          );
-          setMaxDisplayHeight(Math.min(maxHeight * 1.1, 50000));
+            // Update maxDisplayHeight based on current heights
+            const maxHeight = Math.max(
+              currentCameraHeight,
+              position.height,
+              initialMaxElevation
+            );
+            setMaxDisplayHeight(Math.min(maxHeight * 1.1, 50000));
 
-          if (clamp) {
-            getPositionWithHeightAsync(
-              withElevationProviders,
-              cameraPositionCartographic,
-              true
-            ).then((clampedPosition) => {
-              if (!clampedPosition) return;
-              setClampedHeight(clampedPosition.height);
-              setCameraRelClampedHeightFmt(
-                `${(currentCameraHeight - clampedPosition.height).toFixed(0)}m`
+            if (clamp) {
+              getPositionWithHeightAsync(cameraPositionCartographic, true).then(
+                (clampedPosition) => {
+                  if (!clampedPosition) return;
+                  setClampedHeight(clampedPosition.height);
+                  setCameraRelClampedHeightFmt(
+                    `${(currentCameraHeight - clampedPosition.height).toFixed(
+                      0
+                    )}m`
+                  );
+                  setClampedRelHeightFmt(
+                    `${(clampedPosition.height - position.height).toFixed(1)}m`
+                  );
+                  isUpdating.current = false;
+                }
               );
-              setClampedRelHeightFmt(
-                `${(clampedPosition.height - position.height).toFixed(1)}m`
-              );
+            } else {
               isUpdating.current = false;
-            });
-          } else {
-            isUpdating.current = false;
+            }
           }
-        });
+        );
       };
 
       // todo provide these heights and position somewhere centralized state,
@@ -255,7 +198,6 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
     eventOption,
     localMinEllipsoidalHeight,
     initialMaxElevation,
-    withElevationProviders,
   ]);
 
   useEffect(() => {

@@ -1,12 +1,14 @@
+import { PI, PI_OVER_TWO } from "@carma/units/helpers";
+
 /**
  * Easing functions for animations.
- * Each function takes a time value between 0 and 1 and returns an eased value between 0 and 1.
- * Based on standard easing equations.
+ * All functions take a single parameter `time` in the range [0, 1]
+ * and return a value that represents the eased progress.
  *
  * @see https://easings.net/
  */
 
-export type EasingFunction = (time: number) => number;
+import type { EasingFunction } from "@carma/types";
 
 /**
  * Linear interpolation (no easing)
@@ -62,21 +64,21 @@ export const CUBIC_IN_OUT: EasingFunction = (time: number) => {
  * Sinusoidal ease-in
  */
 export const SINUSOIDAL_IN: EasingFunction = (time: number) => {
-  return 1 - Math.cos((time * Math.PI) / 2);
+  return 1 - Math.cos(time * PI_OVER_TWO);
 };
 
 /**
  * Sinusoidal ease-out
  */
 export const SINUSOIDAL_OUT: EasingFunction = (time: number) => {
-  return Math.sin((time * Math.PI) / 2);
+  return Math.sin(time * PI_OVER_TWO);
 };
 
 /**
  * Sinusoidal ease-in-out
  */
 export const SINUSOIDAL_IN_OUT: EasingFunction = (time: number) => {
-  return -(Math.cos(Math.PI * time) - 1) / 2;
+  return -(Math.cos(PI * time) - 1) / 2;
 };
 
 /**

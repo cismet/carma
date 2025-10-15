@@ -19,24 +19,7 @@ export const createLocalCesiumUtils = (viewer: Viewer | null) => {
     handleDelayedRender(renderOnce, opts);
   };
 
-  const withViewer = (cb: (viewer: Viewer) => void) => {
-    withValidViewer(viewer, cb);
-  };
-
-  const withScene = (cb: (scene: Viewer["scene"]) => void) => {
-    withValidViewer(viewer, (viewer) => cb(viewer.scene));
-  };
-
-  const withEntities = (cb: (entities: Viewer["entities"]) => void) => {
-    withValidViewer(viewer, (viewer) => {
-      if (viewer.entities) cb(viewer.entities);
-    });
-  };
-
   return {
     requestRender,
-    withViewer,
-    withScene,
-    withEntities,
   };
 };

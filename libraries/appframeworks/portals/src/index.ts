@@ -64,8 +64,6 @@ export {
   SelectionMapMode,
 } from "./lib/components/SelectionProvider";
 
-export { useEventBus } from "@carma-providers/event-bus";
-
 export { LibreMapSelectionContent } from "./lib/components/LibreMapSelectionContent";
 export { TopicMapSelectionContent } from "./lib/components/TopicMapSelectionContent";
 export { ProgressIndicator } from "./lib/components/ProgressIndicator";
@@ -85,9 +83,8 @@ export {
   getLatLngZoomFromLeafletLike,
   setViewLeafletLike,
   triggerLeafletLikeLocationChangeEvent,
-  type LatLngZoom,
-  type LeafletLikeMap,
 } from "./lib/utils/leafletLikeMapUtils";
+export type { LatLngZoom, LeafletLikeMap } from "@carma/types";
 export {
   useMapHashRoutingCesium,
   triggerCesiumSceneChangeEvent,

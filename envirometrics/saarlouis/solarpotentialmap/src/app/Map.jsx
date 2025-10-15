@@ -42,7 +42,7 @@ import {
   ZoomControl,
 } from "@carma-mapping/components";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
-import { isAreaTypeWithGEP } from "@carma-commons/resources";
+import { isAreaTypeWithGEP } from "@carma/resources";
 
 const parseSimulationsFromURL = (search) => {
   const params = new URLSearchParams(search);

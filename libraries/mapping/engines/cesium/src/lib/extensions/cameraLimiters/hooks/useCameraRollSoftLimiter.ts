@@ -23,8 +23,7 @@ const useCameraRollSoftLimiter = (
   const nadirThreshold = options.nadirThreshold || NADIR_THRESHOLD;
   const debug = options.debug ?? false;
 
-  const { shouldSuspendCameraLimitersRef, isSuspendedRef, emit, sceneRef } =
-    useCesiumContext();
+  const { isSuspendedRef, emit, sceneRef } = useCesiumContext();
 
   const onComplete = useCallback(
     () => emit(CtxEvent.AnimationEnd, undefined),
@@ -40,7 +39,6 @@ const useCameraRollSoftLimiter = (
     const camera = scene.camera;
     const moveEndListener = async () => {
       if (!isValidCamera(camera)) return;
-      if (shouldSuspendCameraLimitersRef?.current) return;
       if (camera.position && !isSuspendedRef.current) {
         const rollDeviation = CesiumMath.equalsEpsilon(
           camera.roll,
@@ -107,7 +105,6 @@ const useCameraRollSoftLimiter = (
     debug,
     nadirThreshold,
     rollThreshold,
-    shouldSuspendCameraLimitersRef,
   ]);
 };
 

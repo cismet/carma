@@ -52,6 +52,7 @@ export type HashSubscribeOptions = {
 };
 
 interface HashStateContextType {
+  hashParams: Record<string, string>;
   getHash: () => Record<string, string>;
   getHashValues: () => Record<string, unknown>;
   updateHash: (
@@ -219,11 +220,13 @@ export const HashStateProvider: React.FC<{
   });
 
   const value = useRef<HashStateContextType>({
+    hashParams: getHash(),
     getHash,
     getHashValues,
     updateHash,
     subscribe,
   });
+  value.current.hashParams = getHash();
   value.current.getHash = getHash;
   value.current.getHashValues = getHashValues;
   value.current.updateHash = updateHash;

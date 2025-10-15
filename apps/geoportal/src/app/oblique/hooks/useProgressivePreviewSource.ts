@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { OBLIQUE_PREVIEW_QUALITY } from "../constants";
+import { OBLIQUE_PREVIEW_QUALITIES } from "../constants";
 import { getPreviewImageUrl } from "../utils/imageHandling"; // reuse existing helper
 
 interface ProgressivePreviewOptions {
@@ -28,7 +28,7 @@ export const useProgressivePreviewSource = ({
     previewPath && imageId
       ? getPreviewImageUrl(
           previewPath,
-          OBLIQUE_PREVIEW_QUALITY.LEVEL_6,
+          OBLIQUE_PREVIEW_QUALITIES.LEVEL_6,
           imageId
         )
       : finalPreviewUrl ?? null;
@@ -49,7 +49,7 @@ export const useProgressivePreviewSource = ({
     }
     const lq = getPreviewImageUrl(
       previewPath,
-      OBLIQUE_PREVIEW_QUALITY.LEVEL_6,
+      OBLIQUE_PREVIEW_QUALITIES.LEVEL_6,
       imageId
     );
     lowQualityUrlRef.current = lq;

@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 import { Button } from "antd";
 import { Cartesian3, Color, Entity, Viewer, Math as CesiumMath } from "cesium";
-import { WUPP_MESH_2024 } from "@carma-commons/resources";
+import { WUPP_MESH_2024 } from "@carma/resources";
 import SensorShadow from "../lib/SensorShadow/src/SensorShadow";
 import useTileset from "../hooks/useTileset";
 

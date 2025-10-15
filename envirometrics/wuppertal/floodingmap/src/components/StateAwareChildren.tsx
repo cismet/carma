@@ -52,8 +52,7 @@ export const StateAwareChildren = () => {
   const conf = config.config;
 
   // CESIUM
-  const { isViewerReady, viewerRef, sceneRef, terrainProviderRef } =
-    useCesiumContext();
+  const { sceneRef, terrainProviderRef } = useCesiumContext();
   const [cesiumPickedPosition, setCesiumPickedPosition] = useState<
     [number, number] | null
   >(null);
@@ -71,12 +70,6 @@ export const StateAwareChildren = () => {
       controlState.currentFeatureInfoPosition
     ) {
       const asyncUpdate = async () => {
-        if (
-          !isViewerReady ||
-          !viewerRef.current ||
-          viewerRef.current.isDestroyed()
-        )
-          return;
         const { lat, lon } = getWebMercatorInWGS84(
           controlState.currentFeatureInfoPosition
         );
@@ -93,7 +86,6 @@ export const StateAwareChildren = () => {
         if (!groundPositionCartographic) return;
 
         updateMarkerPosition(
-          viewerRef.current!,
           markerEntityRef,
           highlightEntityRef,
           groundPositionCartographic
@@ -102,12 +94,9 @@ export const StateAwareChildren = () => {
       asyncUpdate();
     }
   }, [
-    isViewerReady,
-    viewerRef,
     terrainProviderRef,
     controlState.featureInfoModeActivated,
     controlState.currentFeatureInfoPosition,
-    isMode2d,
   ]);
 
   useEffect(() => {
@@ -123,16 +112,15 @@ export const StateAwareChildren = () => {
   }, [isMode2d]); // intentionally only trigger on mode change
 
   useEffect(() => {
-    if (viewerRef.current && controlState.featureInfoModeActivated) {
-      const viewer = viewerRef.current;
-
-      const handler = new ScreenSpaceEventHandler(viewer.scene.canvas);
+    const scene = sceneRef.current;
+    if (!isValidScene(scene)) return;
+    if (controlState.featureInfoModeActivated) {
+      const handler = new ScreenSpaceEventHandler(scene.canvas);
       handler.setInputAction(
         async (click) =>
           onCesiumClick(
             click,
-            viewerRef,
-            sceneRef,
+            scene,
             terrainProviderRef,
             markerEntityRef,
             highlightEntityRef,
@@ -145,37 +133,39 @@ export const StateAwareChildren = () => {
         handler.destroy();
         setCesiumPickedPosition(null);
 
-        if (viewer.isDestroyed()) return;
+        if (scene.isDestroyed()) return;
 
         if (markerEntityRef.current) {
-          viewer.entities.remove(markerEntityRef.current);
+          scene.entities.remove(markerEntityRef.current);
           markerEntityRef.current = null;
         }
         if (highlightEntityRef.current) {
-          viewer.entities.remove(highlightEntityRef.current);
+          scene.entities.remove(highlightEntityRef.current);
           highlightEntityRef.current = null;
         }
-        viewer.scene.requestRender();
+        scene.requestRender();
       };
     }
-  }, [viewerRef, controlState.featureInfoModeActivated]);
+  }, [sceneRef, controlState.featureInfoModeActivated]);
 
   // Add effect to cleanup marker when feature info mode is disabled
   useEffect(() => {
-    if (!controlState.featureInfoModeActivated && viewerRef.current) {
-      if (viewerRef.current.isDestroyed()) return;
+    const scene = sceneRef.current;
+    if (!isValidScene(scene)) return;
+    if (!controlState.featureInfoModeActivated && sceneRef.current) {
+      if (sceneRef.current.isDestroyed()) return;
 
       if (markerEntityRef.current) {
-        viewerRef.current.entities.remove(markerEntityRef.current);
+        sceneRef.current.entities.remove(markerEntityRef.current);
         markerEntityRef.current = null;
       }
       if (highlightEntityRef.current) {
-        viewerRef.current.entities.remove(highlightEntityRef.current);
+        sceneRef.current.entities.remove(highlightEntityRef.current);
         highlightEntityRef.current = null;
       }
       setCesiumPickedPosition(null);
     }
-  }, [viewerRef, controlState.featureInfoModeActivated]);
+  }, [sceneRef, controlState.featureInfoModeActivated]);
 
   useEffect(() => {
     if (

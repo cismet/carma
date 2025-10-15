@@ -31,132 +31,118 @@ const useCameraPitchEasingLimiter = (
   const pitchLimiter =
     options.pitchLimiter === undefined ? true : options.pitchLimiter;
   const {
-    isViewerReady,
-    shouldSuspendCameraLimitersRef,
+    sceneRef,
     isSuspendedRef,
     isAnimatingRef,
     enableCollisionDetectionRef,
-    withCamera,
-    withScene,
     transitionStateRef,
   } = useCesiumContext();
 
   const collisions = enableCollisionDetectionRef.current;
   console.debug("HOOKINIT [CESIUM|CAMERA] useCameraPitchEasingLimiter");
-
   const lastPitch = useRef<number | null>(null);
   const lastPosition = useRef<Cartographic | null>(null);
 
   useEffect(() => {
-    if (
-      !isSuspendedRef.current &&
-      collisions &&
-      pitchLimiter &&
-      isViewerReady
-    ) {
+    const scene = sceneRef.current;
+    if (!scene) return;
+
+    if (!isSuspendedRef.current && collisions && pitchLimiter) {
       console.debug("HOOK [CESIUM|CAMERA] EASING Pitch Limiter added");
       lastPitch.current = null;
 
       const onUpdate = async () => {
-        withCamera((camera) => {
-          if (shouldSuspendCameraLimitersRef?.current) return;
-          if (
-            shouldBlockUserInput(transitionStateRef.current) ||
+        const camera = scene.camera;
+        if (!camera) return;
+
+        if (
+          shouldBlockUserInput(transitionStateRef.current) ||
+          isAnimatingRef.current
+        ) {
+          console.debug(
+            "HOOK [CESIUM|CAMERA] EASING Pitch Limiter skipped while transitioning or animating",
+            "transitionState:",
+            transitionStateRef.current,
+            "shouldBlock:",
+            shouldBlockUserInput(transitionStateRef.current),
+            "isAnimating:",
             isAnimatingRef.current
-          ) {
-            console.debug(
-              "HOOK [CESIUM|CAMERA] EASING Pitch Limiter skipped while transitioning or animating",
-              "transitionState:",
-              transitionStateRef.current,
-              "shouldBlock:",
-              shouldBlockUserInput(transitionStateRef.current),
-              "isAnimating:",
-              isAnimatingRef.current
+          );
+          return;
+        }
+
+        const minPitchRad = CesiumMath.toRadians(-minPitchDeg);
+        const rangeRad = CesiumMath.toRadians(
+          Math.min(easingRangeDeg, 90 - minPitchDeg)
+        ); // Limit easing range to remainder of right angle
+        const minRangePitchRad = CesiumMath.toRadians(-minPitchDeg) - rangeRad;
+
+        const isPitchInRange = camera.pitch > minRangePitchRad;
+
+        //const isPitchTooLow = camera.pitch > minPitchRad;
+        if (isPitchInRange && lastPitch.current) {
+          const pitchDelta = lastPitch.current - camera.pitch;
+          if (pitchDelta) {
+            // only apply in both directions for consistent behavior
+            // if only applied when pitch down it would results in some ratchet-like behavior - moving the camera up
+            const unitIn = Math.abs(camera.pitch - minPitchRad) / rangeRad;
+            const unitEased = easing(unitIn);
+            const newDelta = pitchDelta * unitEased;
+            const newPitch = Math.min(
+              lastPitch.current - newDelta,
+              minPitchRad
             );
-            return;
-          }
 
-          const minPitchRad = CesiumMath.toRadians(-minPitchDeg);
-          const rangeRad = CesiumMath.toRadians(
-            Math.min(easingRangeDeg, 90 - minPitchDeg)
-          ); // Limit easing range to remainder of right angle
-          const minRangePitchRad =
-            CesiumMath.toRadians(-minPitchDeg) - rangeRad;
+            /*
+          console.debug(
+            "LISTENER HOOK [2D3D|CESIUM|CAMERA]: apply easing pitch limiter",
+            Math.round(unitIn * 100),
+            Math.round(unitEased * 100),
+            Math.round(CesiumMath.toDegrees(-newPitch))
+          );
+          */
 
-          const isPitchInRange = camera.pitch > minRangePitchRad;
-
-          //const isPitchTooLow = camera.pitch > minPitchRad;
-          if (isPitchInRange && lastPitch.current) {
-            const pitchDelta = lastPitch.current - camera.pitch;
-            if (pitchDelta) {
-              // only apply in both directions for consistent behavior
-              // if only applied when pitch down it would results in some ratchet-like behavior - moving the camera up
-              const unitIn = Math.abs(camera.pitch - minPitchRad) / rangeRad;
-              const unitEased = easing(unitIn);
-              const newDelta = pitchDelta * unitEased;
-              const newPitch = Math.min(
-                lastPitch.current - newDelta,
-                minPitchRad
-              );
-
-              /*
-            console.debug(
-              "LISTENER HOOK [2D3D|CESIUM|CAMERA]: apply easing pitch limiter",
-              Math.round(unitIn * 100),
-              Math.round(unitEased * 100),
-              Math.round(CesiumMath.toDegrees(-newPitch))
-            );
-            */
-
-              if (lastPitch.current !== null && lastPosition.current !== null) {
-                const { latitude, longitude, height } =
-                  camera.positionCartographic;
-                const lastHeight = lastPosition.current.height;
-                camera.setView({
-                  destination: Cartographic.toCartesian(
-                    new Cartographic(
-                      longitude,
-                      latitude,
-                      unitEased * height + (1 - unitEased) * lastHeight
-                    )
-                  ),
-                  orientation: {
-                    heading: camera.heading,
-                    pitch: newPitch,
-                    roll: camera.roll,
-                  },
-                });
-              }
+            if (lastPitch.current !== null && lastPosition.current !== null) {
+              const { latitude, longitude, height } =
+                camera.positionCartographic;
+              const lastHeight = lastPosition.current.height;
+              camera.setView({
+                destination: Cartographic.toCartesian(
+                  new Cartographic(
+                    longitude,
+                    latitude,
+                    unitEased * height + (1 - unitEased) * lastHeight
+                  )
+                ),
+                orientation: {
+                  heading: camera.heading,
+                  pitch: newPitch,
+                  roll: camera.roll,
+                },
+              });
             }
           }
-          lastPitch.current = camera.pitch;
-          lastPosition.current = camera.positionCartographic.clone();
-        });
+        }
+        lastPitch.current = camera.pitch;
+        lastPosition.current = camera.positionCartographic.clone();
       };
 
-      withScene((scene) => {
-        scene.preUpdate.addEventListener(onUpdate);
-      });
+      scene.preUpdate.addEventListener(onUpdate);
       return () => {
         console.debug("HOOK [CESIUM|CAMERA] Easing Pitch Limiter removed");
-        withScene((scene) => {
-          scene.preUpdate.removeEventListener(onUpdate);
-        });
+        scene.preUpdate.removeEventListener(onUpdate);
       };
     }
   }, [
+    sceneRef,
     collisions,
     easing,
     easingRangeDeg,
     isAnimatingRef,
     isSuspendedRef,
-    isViewerReady,
     pitchLimiter,
     minPitchDeg,
-    shouldSuspendCameraLimitersRef,
     transitionStateRef,
-    withCamera,
-    withScene,
   ]);
 };
 

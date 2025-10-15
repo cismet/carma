@@ -21,13 +21,8 @@ const useCameraPitchSoftLimiter = (
   const minPitchDeg = options.minPitchDeg || 22;
   const resetPitchOffsetDeg = options.resetPitchOffsetDeg || 8;
 
-  const {
-    sceneRef,
-    shouldSuspendCameraLimitersRef,
-    isSuspendedRef,
-    emit,
-    enableCollisionDetectionRef,
-  } = useCesiumContext();
+  const { sceneRef, isSuspendedRef, emit, enableCollisionDetectionRef } =
+    useCesiumContext();
   const collisions = enableCollisionDetectionRef.current;
 
   const onComplete = useCallback(
@@ -50,8 +45,7 @@ const useCameraPitchSoftLimiter = (
       const minPitchRad = CesiumMath.toRadians(-minPitchDeg);
 
       const moveEndListener = async () => {
-        if (shouldSuspendCameraLimitersRef?.current || !isValidScene(scene))
-          return;
+        if (!isValidScene(scene)) return;
         debug &&
           console.debug(
             "HOOK [2D3D|CESIUM] Soft Pitch Limiter",
@@ -108,7 +102,6 @@ const useCameraPitchSoftLimiter = (
     minPitchDeg,
     resetPitchOffsetDeg,
     debug,
-    shouldSuspendCameraLimitersRef,
   ]);
 };
 

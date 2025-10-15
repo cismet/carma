@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
-import type { Degrees } from "@carma/types";
+import type { Degrees } from "@carma/units/types";
 import { type Scene } from "cesium";
 
 import {
@@ -8,7 +8,7 @@ import {
   useCesiumCameraForceOblique,
   isValidScene,
 } from "@carma-mapping/engines/cesium";
-import { degToRad } from "@carma-commons/math";
+import { degToRad } from "@carma/units/helpers";
 
 import { useOblique } from "./useOblique";
 import { enterObliqueMode, leaveObliqueMode } from "../utils/cameraUtils";
@@ -17,7 +17,6 @@ const preUpdateHandlers = new WeakMap<Scene, (scene: Scene) => void>();
 
 export function useObliqueInitializer(debug = false) {
   const {
-    viewerRef,
     shouldSuspendPitchLimiterRef,
     requestRender,
     emit,
@@ -113,7 +112,6 @@ export function useObliqueInitializer(debug = false) {
     animationMapRef,
     emit,
     isObliqueMode,
-    viewerRef,
     sceneRef,
     fixedPitch,
     fixedHeight,

@@ -56,7 +56,7 @@ export const useHGKCesiumTerrain = (
   HGK_KEYS,
   HGK_TERRAIN_PROVIDER_URLS
 ) => {
-  const { viewerRef, isViewerReady } = useCesiumContext();
+  const { sceneRef } = useCesiumContext();
   const retryTimeoutRef = useRef<number | null>(null);
   const currentAttemptRef = useRef<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
@@ -79,11 +79,7 @@ export const useHGKCesiumTerrain = (
     const loadTerrain = (retry = 0) => {
       if (currentAttemptRef.current !== attemptId) return;
 
-      if (
-        !isViewerReady ||
-        !viewerRef.current ||
-        viewerRef.current.isDestroyed()
-      ) {
+ 
         console.debug(
           "hq Key changed, viewer not ready yet",
           hqKey,
@@ -115,26 +111,26 @@ export const useHGKCesiumTerrain = (
         retry
       );
 
-      const viewer = viewerRef.current;
-      if (!viewer) return;
+      const scene = sceneRef.current;
+      if (!scene) return;
 
       setTimeout(() => {
-        !viewer.isDestroyed() && prepareSceneForHGK(viewer);
+       prepareSceneForHGK(scene);
       }, 500);
-      viewer.scene.requestRender();
+      scene.requestRender();
 
-      getProvider(viewer, hqKey, HGK_TERRAIN_PROVIDER_URLS).then((provider) => {
+      getProvider(scene, hqKey, HGK_TERRAIN_PROVIDER_URLS).then((provider) => {
         if (
           currentAttemptRef.current !== attemptId ||
-          !viewer ||
-          viewer.isDestroyed()
+          !scene ||
+          scene.isDestroyed()
         )
           return;
 
-        if (provider && viewer.scene) {
+        if (provider && scene) {
           try {
-            viewer.scene.terrainProvider = provider;
-            viewer.scene.requestRender();
+            scene.terrainProvider = provider;
+            scene.requestRender();
           } catch (e) {
             console.warn("Error applying terrain provider:", e);
           }
@@ -153,8 +149,7 @@ export const useHGKCesiumTerrain = (
   }, [
     isHWS,
     selectedSimulation,
-    viewerRef,
-    isViewerReady,
+    sceneRef,
     HGK_KEYS,
     HGK_TERRAIN_PROVIDER_URLS,
     retryCount,

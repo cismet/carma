@@ -11,7 +11,7 @@ import type { LatLng, Map } from "leaflet";
 import CismapLayer from "react-cismap/CismapLayer";
 
 import type { Layer, FeatureInfo } from "@carma/types";
-import { useFeatureFlags } from "@carma-providers/feature-flag";
+import { useFeatureFlags } from "@carma/providers/feature-flag";
 
 import { setSelectedFeature } from "../../../../../store/slices/features";
 import { setLayersIdle } from "../../../../../store/slices/mapping";
@@ -96,8 +96,11 @@ export const useCreateCismapLayers = (
 
   const showTileBoundaries = flags?.debugTileBoundaries;
   const selectionHandler = (e: { hits: unknown[] }, layer: Layer) => {
+    if (e.hits.length === 0) {
+      return;
+    }
     setGlobalHits((old) => {
-      return { ...old, [layer.id]: e.hits };
+      return { ...old, [layer.id]: e.hits as VectorHit[] };
     });
   };
 
@@ -173,7 +176,7 @@ export const useCreateCismapLayers = (
         const hits = globalHits[key];
         if (hits) {
           hits.forEach((hit) => {
-            hit.setSelection(false);
+            hit.setSelection?.(false);
           });
           globalHits[key] = undefined;
         }
@@ -220,10 +223,10 @@ export const useCreateCismapLayers = (
         const hits = globalHits[selectedFeature.id];
         if (hits) {
           hits.forEach((hit) => {
-            if (hit.id === selectedFeature.properties.wmsProps.vectorId) {
-              hit.setSelection(true);
+            if (hit.id === selectedFeature.properties.wmsProps?.vectorId) {
+              hit.setSelection?.(true);
             } else {
-              hit.setSelection(false);
+              hit.setSelection?.(false);
             }
           });
         }

@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { type Viewer } from "cesium";
 
-import type { LatLng } from "@carma/types";
+import type { LatLng } from "@carma/geo/types";
 
 import { useCesiumContext } from "./useCesiumContext";
 
@@ -24,7 +24,7 @@ import {
   type StringifiedCameraState,
 } from "../utils/cesiumHashParamsCodec";
 
-import { VIEWERSTATE_KEYS, TILESET_IDS } from "../constants";
+import { VIEWERSTATE_KEYS } from "../constants";
 
 const toHashParams = (
   cesiumCameraState: StringifiedCameraState,
@@ -52,28 +52,23 @@ export const useOnSceneChange = (
     isSuspended?: boolean
   ) => void
 ) => {
-  const {
-    isValidViewer,
-    transitionStateRef,
-    withCamera,
-    isSuspendedRef,
-    tilesetVisibilityRef,
-  } = useCesiumContext();
-  const isSecondaryStyle =
-    tilesetVisibilityRef.current.get(TILESET_IDS.SECONDARY) ?? true;
+  const { sceneRef, transitionStateRef, isSuspendedRef, currentSceneStyleRef } =
+    useCesiumContext();
+  const isSecondaryStyle = currentSceneStyleRef.current === "topo";
 
   // todo handle style change explicitly not via tileset, is secondarystyle
   // todo consider declaring changed part of state in the callback, not full state only
 
   useEffect(() => {
+    const scene = sceneRef.current;
+    if (!scene?.camera) return;
+
     if (isTransitionState(transitionStateRef.current)) {
       return;
     }
-    if (isValidViewer() && !isSuspendedRef.current && onSceneChange) {
+    if (!isSuspendedRef.current && onSceneChange) {
       let cameraState: StringifiedCameraState | null = null;
-      withCamera((camera) => {
-        cameraState = encodeCesiumCamera(camera);
-      });
+      cameraState = encodeCesiumCamera(scene.camera);
       if (cameraState === null) {
         return;
       }
@@ -86,8 +81,8 @@ export const useOnSceneChange = (
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
+    sceneRef,
     isSuspendedRef,
-    withCamera,
     isSecondaryStyle,
     onSceneChange,
     transitionStateRef,
@@ -99,22 +94,21 @@ export const useOnSceneChange = (
       return;
     }
 
-    if (isValidViewer()) {
+    const scene = sceneRef.current;
+    if (scene?.camera) {
       console.debug(
         "HOOK: [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to update hash"
       );
       const moveEndListener = async () => {
         // let TopicMap/leaflet handle the view change in 2d Mode
-        let proceed = false;
+        const camera = scene.camera;
+        const proceed = Boolean(
+          camera && camera.position && !isSuspendedRef.current
+        );
         let camDeg: Required<LatLng.deg> | undefined;
-        withCamera((camera) => {
-          proceed = Boolean(
-            camera && camera.position && !isSuspendedRef.current
-          );
-          if (proceed) {
-            camDeg = cameraToCartographicDegrees(camera);
-          }
-        });
+        if (proceed) {
+          camDeg = cameraToCartographicDegrees(camera);
+        }
         if (proceed && camDeg) {
           console.debug(
             "LISTENER: Cesium moveEndListener encode viewer to hash",
@@ -123,10 +117,7 @@ export const useOnSceneChange = (
           );
 
           if (onSceneChange) {
-            let cameraState: StringifiedCameraState | null = null;
-            withCamera((camera) => {
-              cameraState = encodeCesiumCamera(camera);
-            });
+            const cameraState = encodeCesiumCamera(camera);
             if (cameraState === null) {
               return;
             }
@@ -140,26 +131,22 @@ export const useOnSceneChange = (
           }
         }
       };
-      withCamera((camera) => {
+      const camera = scene.camera;
+      if (camera) {
         camera.moveEnd.addEventListener(moveEndListener);
-      });
+      }
       return () => {
         // clear hash on unmount
         // onSceneChange?.({ hashParams: clear3dOnlyHashParams });
-        withCamera((camera) => {
+        const camera = scene.camera;
+        if (camera) {
           camera.moveEnd.removeEventListener(moveEndListener);
-        });
+        }
       };
     }
     // transitionStateRef is intentionally not in deps - we check its value inside the effect
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    withCamera,
-    isValidViewer,
-    isSecondaryStyle,
-    isSuspendedRef,
-    onSceneChange,
-  ]);
+  }, [isSecondaryStyle, isSuspendedRef, onSceneChange]);
 };
 
 export default useOnSceneChange;

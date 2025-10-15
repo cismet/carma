@@ -10,19 +10,13 @@ This workspace has been refactored into focused, single-purpose packages with cl
 
 #### `@carma-commons/constants`
 Shared constants and configuration values.
-- EPSG coordinate system definitions
-- Geographic constants
 - Resolution fractions for rendering
 - **No runtime logic** - pure constants
 
 #### `@carma-commons/math`
 Mathematical utilities and calculations.
-- Math constants (PI, TWO_PI, PI_OVER_TWO, etc.)
-- Angle normalization (negativePiToPi, zeroToTwoPi)
-- Conversion factors (DEG_TO_RAD_FACTOR, RAD_TO_DEG_FACTOR)
-- Number utilities (clamp, isClose, compoundScale)
 - Easing functions
-- Zoom calculations
+- Compound / geometric scaling
 
 #### `@carma-commons/units`
 Type-safe unit conversions with branded types.
@@ -30,13 +24,6 @@ Type-safe unit conversions with branded types.
 - Branded arithmetic operations (brandedAdd, brandedMul, etc.)
 - **Depends on:** `@carma-commons/math`
 
-#### `@carma-commons/geo`
-Geographic and coordinate system utilities.
-- Coordinate transformations
-- Mercator projection utilities
-- Proj4 helpers
-- Geographic calculations
-- **Depends on:** `@carma-commons/constants`
 
 #### `@carma-commons/dom-window`
 Browser window and DOM utilities.

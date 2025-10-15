@@ -24,11 +24,11 @@ import type {
   SavedLayerConfig,
 } from "@carma/types";
 import { utils } from "@carma-appframeworks/portals";
-import { useAuth } from "@carma-providers/auth";
+import { useAuth } from "@carma/providers/auth";
 import {
   useFeatureFlags,
   type FeatureFlagConfig,
-} from "@carma-providers/feature-flag";
+} from "@carma/providers/feature-flag";
 
 import {
   baseConfig as config,

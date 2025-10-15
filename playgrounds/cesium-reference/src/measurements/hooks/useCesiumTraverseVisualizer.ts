@@ -127,7 +127,7 @@ export function useCesiumTraverseVisualizer(
 
   // Create local Cesium utilities
   const cesiumUtils = useMemo(() => createLocalCesiumUtils(viewer), [viewer]);
-  const { requestRender, withViewer, withScene, withEntities } = cesiumUtils;
+  const { requestRender } = cesiumUtils;
 
   const [traverses, currentIds]: [TraverseMeasurementEntry[], Set<string>] =
     useMemo(() => {

@@ -1,20 +1,8 @@
 import { type Scene, Matrix4 } from "cesium";
 import { isValidScene } from "./instanceGates";
+import { AnimationMap, AnimationMapEntry } from "@carma/types";
 
-export enum AnimationType {
-  ResetView = "ResetView",
-  Tilt = "Tilt",
-  Rotate = "Rotate",
-  FovChange = "FovChange",
-}
-
-export type AnimationMapEntry = {
-  id: number;
-  type: AnimationType;
-  cancelable: boolean;
-  next?: AnimationMapEntry;
-};
-export type AnimationMap = WeakMap<Scene, AnimationMapEntry>;
+export type { AnimationMap, AnimationMapEntry };
 
 export const initAnimationMap = (): AnimationMap =>
   new WeakMap<Scene, AnimationMapEntry>();

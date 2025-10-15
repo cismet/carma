@@ -1,7 +1,8 @@
 import { type CSSProperties } from "react";
 
-import type { Radians } from "@carma/types";
-import { PI_OVER_TWO, clamp } from "@carma-commons/math";
+import type { Radians } from "@carma/units/types";
+import { PI_OVER_TWO } from "@carma/units/helpers";
+import { clamp } from "@carma/units/helpers";
 
 const PITCH_HORIZON_OFFSET = PI_OVER_TWO - 0.2; // avoid showing completely flat from the side
 
