@@ -1051,24 +1051,31 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
           shiftedContainerPoint
         );
 
-        // const finalCoords = {
-        //   latlng: { lat: closestPoint[1], lng: closestPoint[0] },
-        // };
+        // Use closestPoint if available, otherwise use shifted click position
+        let finalLatLng = shiftedLatLng;
 
-        // console.log("yyy shiftedLatLng", shiftedLatLng);
-        // console.log("yyy closestPoint", closestPoint);
-        // console.log("yyy finalCoords", finalCoords);
+        if (
+          closestPoint &&
+          closestPoint.geometry &&
+          closestPoint.geometry.coordinates
+        ) {
+          // GeoJSON coordinates are [lng, lat], Leaflet needs [lat, lng]
+          const [lng, lat] = closestPoint.geometry.coordinates;
+          finalLatLng = L.latLng(lat, lng);
+        }
+
+        console.log("yyy Using coordinates:", finalLatLng);
 
         if (currentDrawHandler) {
-          currentDrawHandler.addVertex(shiftedLatLng);
+          currentDrawHandler.addVertex(finalLatLng);
         }
 
         // Fire a new click event with shifted coordinates
-        // leafletMap.fire("click", {
-        //   latlng: shiftedLatLng,
-        //   containerPoint: shiftedContainerPoint,
-        //   originalEvent: domEvent,
-        // });
+        leafletMap.fire("click", {
+          latlng: finalLatLng,
+          containerPoint: shiftedContainerPoint,
+          originalEvent: domEvent,
+        });
       };
 
       // Add DOM listener in CAPTURE phase to intercept before Leaflet
