@@ -47,6 +47,9 @@ export interface MapMeasurementsContextType {
   updateTitle: (shapeId: string | number, customTitle: string) => void;
   setStartDrawing: (status: boolean) => void;
   startDrawing: boolean;
+  currentDrawHandler: any;
+  setCurrentDrawHandler: (handler: any) => void;
+  completeCurrentShape: () => void;
   config: MeasurementConfig;
 }
 

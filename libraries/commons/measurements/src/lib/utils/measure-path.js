@@ -71,6 +71,9 @@ L.Control.MeasurePolygon = L.Control.extend({
     cbUpdateAreaOfDrawingMeasurement: function () {
       console.debug("Callback function executed!");
     },
+    cbSetCurrentDrawHandler: function () {
+      console.debug("Callback function executed!");
+    },
     visiblePolylines: [],
     localShapeStore: [],
     ifDrawing: false,
@@ -126,6 +129,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     });
 
     this.options.currenLine = this._measureHandler;
+    this.options.cbSetCurrentDrawHandler(this._measureHandler);
 
     const tooltipContent = `
   <div>

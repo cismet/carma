@@ -46,6 +46,7 @@ export function MapMeasurementsObjects({
     setActiveShapeIfDrawCancelled,
     updateAreaOfDrawing,
     deleteVisibleShapeById,
+    setCurrentDrawHandler,
 
     // looks unuseful
     setStartDrawing,
@@ -97,6 +98,7 @@ export function MapMeasurementsObjects({
         cbChangeActiveCanceldShapeId: changeActiveCancelledShapeId,
         cbToggleMeasurementMode: toggleMeasurementModeHandler,
         cbUpdateAreaOfDrawingMeasurement: updateAreaOfDrawingMeasurementHandler,
+        cbSetCurrentDrawHandler: setCurrentDrawHandler,
       };
 
       const measurePolygonControl = (L.control as any).measurePolygon(
