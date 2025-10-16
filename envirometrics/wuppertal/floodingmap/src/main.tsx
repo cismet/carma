@@ -13,11 +13,10 @@ import {
   SelectionProvider,
   HashStateProvider,
 } from "@carma-appframeworks/portals";
-import { suppressReactCismapErrors } from "@carma-commons/utils";
 import {
   CesiumContextProvider,
   setupCesiumEnvironment,
-} from "@carma-mapping/engines/cesium";
+} from "./lib/cesium-engine-snapshot";
 
 import App from "./App";
 import store from "./store";
@@ -25,7 +24,6 @@ import { gazDataConfig } from "./config/gazData";
 import { SYNC_TOKEN } from "./config/app.config";
 import { CESIUM_CONFIG } from "./config/cesium/cesium.config";
 
-suppressReactCismapErrors();
 setupCesiumEnvironment(CESIUM_CONFIG);
 
 const persistor = persistStore(store);
@@ -49,7 +47,10 @@ const appWithContext = (
         infoBoxPixelWidth={370}
       >
         <HashStateProvider>
-          <CesiumContextProvider config={CESIUM_CONFIG}>
+          <CesiumContextProvider
+            providerConfig={(CESIUM_CONFIG as any).providerConfig}
+            tilesetConfigs={(CESIUM_CONFIG as any).tilesetConfigs}
+          >
             {enableSync ? syncedApp : <App />}
           </CesiumContextProvider>
         </HashStateProvider>

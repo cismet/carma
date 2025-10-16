@@ -24,5 +24,13 @@
     "alkis",
     "flur",
     "landparcel"
-  ]
+  ],
+  "search.exclude": {
+    "**/*-snapshot/**": true,
+    "**/*.snapshot/**": true
+  },
+  "files.exclude": {
+    "**/*-snapshot": false,
+    "**/*.snapshot": false
+  }
 }

@@ -75,6 +75,7 @@ export default defineConfig({
     sourcemap: false,
     commonjsOptions: { transformMixedEsModules: true },
     rollupOptions: {
+      external: [],
       onwarn: (warning, warn) => {
         // supress source map warnings on build
         if (

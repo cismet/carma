@@ -1,0 +1,98 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body {
+  overscroll-behavior: contain;
+}
+
+/* override tailwind base img display: image reset for proper infobox layout */
+.leaflet-control * img {
+  display: initial;
+}
+
+/* intermediate workaround for antd tooltip arrow to not show until bootstrap style interference is resolvedß */
+.ant-tooltip-arrow {
+  display: none !important;
+}
+
+/* quite specific workaround for selecting the UI should have classname to select from not the title */
+.isMode3d a[title="Stadtplan"],
+.isMode3d a[title="Top. Karte"] {
+  opacity: 0.5;
+  pointer-events: none;
+}
+
+.modal-footer img[alt="Logo DigiTal Zwilling"] {
+  max-height: 60px;
+}
+
+/* Make lists look good again */
+ul {
+  list-style: disc !important;
+  display: block;
+  list-style-type: disc;
+  margin-block-start: 1em;
+  margin-block-end: 1em;
+  margin-inline-start: 0px;
+  margin-inline-end: 0px;
+  padding-inline-start: 40px;
+  unicode-bidi: isolate;
+}
+
+.h4,
+h4 {
+  font-size: 18px !important;
+}
+
+.modal-content svg,
+.modal-content img {
+  display: inline;
+}
+
+.envirometricmap-container {
+  padding-left: max(0px, env(safe-area-inset-left));
+  padding-right: max(0px, env(safe-area-inset-right));
+  padding-top: max(0, env(safe-area-inset-top));
+}
+
+#routedMap {
+  position: unset !important;
+  background-color: unset !important;
+}
+
+div.leaflet-bottom.leaflet-right {
+  position: fixed;
+  right: max(10px, env(safe-area-inset-right));
+  bottom: max(10px, env(safe-area-inset-bottom));
+  margin-bottom: 0px !important;
+}
+
+div.leaflet-top.leaflet-right {
+  position: fixed;
+  right: max(10px, env(safe-area-inset-right));
+}
+
+div.leaflet-top.leaflet-left {
+  position: fixed;
+  left: max(10px, env(safe-area-inset-left));
+}
+
+.leaflet-right .leaflet-control {
+  margin-right: 0px !important;
+}
+
+.leaflet-left .leaflet-control {
+  margin-left: 0px !important;
+}
+
+div.envirometricmap-container > div > table {
+  width: calc(
+    100vw - 6.5rem - max(10px, env(safe-area-inset-left)) -
+      max(10px, env(safe-area-inset-right))
+  ) !important;
+  position: fixed !important;
+  left: 50% !important;
+  transform: translateX(-50%) !important;
+}

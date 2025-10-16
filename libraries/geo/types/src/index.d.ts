@@ -8,3 +8,6 @@ export * from "./lib/geographic-coordinates.d";
 export * from "./lib/geographic-positions.d";
 export * from "./lib/orientation.d";
 export * from "./lib/projections.d";
+
+// Re-export core units used in geo domain
+export type { Meters, Degrees, Radians, Ratio } from "@carma/units/types";

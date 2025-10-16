@@ -1,39 +1,31 @@
 import { useEffect, useMemo, useState } from "react";
 import { Checkbox, Radio, Select } from "antd";
 
-import { WUPP_MESH_2024 } from "@carma/resources";
+import { useControls } from "leva";
+// Widget component from cesium-widget snapshot (Nov 2024)
+import { Widget } from "../../../../lib/cesium-widget-snapshot/lib/Widget";
 
-import { Widget } from "./CesiumWidget";
+import { WUPP_MESH_2024 } from "@carma/resources";
+import type { LatLng } from "@carma/geo/types";
 
 import { FOOTPRINT_GEOJSON_SOURCES } from "../../../config/dataSources.config";
 
 const { Option } = Select;
 
-// Simplified position type using plain numbers
-type Position = {
-  longitude: number;
-  latitude: number;
-  altitude?: number;
-};
-
 type Poi = {
   label: string;
-  position: Position;
+  position: LatLng.deg;
   range?: number;
   clipBy?: {
     radius?: number;
-    polygon?: Position[];
+    polygon?: LatLng.deg[];
   };
 };
 
-const POI: Record<string, Poi> = {
+const POI = {
   TOELLETURM: {
     label: "Toelleturm",
-    position: {
-      longitude: 7.201578,
-      latitude: 51.256565,
-      altitude: 335 + 10,
-    },
+    position: { longitude: 7.201578, latitude: 51.256565, height: 335 + 10 },
     range: 30,
     clipBy: {
       radius: 15,
@@ -41,11 +33,7 @@ const POI: Record<string, Poi> = {
   },
   RATHAUS: {
     label: "Rathaus",
-    position: {
-      longitude: 7.19993,
-      latitude: 51.27225,
-      altitude: 170,
-    },
+    position: { longitude: 7.19993, latitude: 51.27225, height: 170 },
     range: 150,
     clipBy: {
       radius: 120,
@@ -53,11 +41,7 @@ const POI: Record<string, Poi> = {
   },
   KUGELGAS: {
     label: "Kugelgasbehälter",
-    position: {
-      longitude: 7.08586,
-      latitude: 51.24584,
-      altitude: 190,
-    },
+    position: { longitude: 7.08586, latitude: 51.24584, height: 190 },
     range: 60,
     clipBy: {
       radius: 30,
@@ -65,11 +49,7 @@ const POI: Record<string, Poi> = {
   },
   STADION: {
     label: "Stadion am Zoo",
-    position: {
-      longitude: 7.1049,
-      latitude: 51.23916,
-      altitude: 140,
-    },
+    position: { longitude: 7.1049, latitude: 51.23916, height: 140 },
     range: 185,
     clipBy: {
       radius: 140,
@@ -77,11 +57,7 @@ const POI: Record<string, Poi> = {
   },
   HBF: {
     label: "Hauptbahnhof",
-    position: {
-      longitude: 7.1485164,
-      latitude: 51.2559275,
-      altitude: 150,
-    },
+    position: { longitude: 7.1485164, latitude: 51.2559275, height: 150 },
     range: 80,
     clipBy: {
       radius: 60,
@@ -94,15 +70,47 @@ const options = Object.entries(POI).reduce((acc, [key, value]) => {
   return acc;
 }, {});
 
+// Position with altitude - simplified from LatLngRecord
+type PositionRecord = { longitude: number; latitude: number; height: number };
+
 function View() {
   const [poiKey, setPoiKey] = useState<string>("TOELLETURM");
   const [orthographic, setOrthographic] = useState<boolean>(true);
 
   const [poi, setPoi] = useState<Poi | null>(POI[poiKey]);
+  const [debug, setDebug] = useState<boolean>(false);
   const [animate, setAnimate] = useState<boolean>(false);
   const [clip, setClip] = useState<boolean>(false);
 
-  console.log("RENDER Widget Test View", { poi });
+  // Leva debug controls for Widget demo
+  useControls("Widget Demo", {
+    poi: {
+      value: poiKey,
+      options: Object.keys(POI),
+      onChange: (v) => {
+        setPoiKey(v);
+        setPoi(POI[v]);
+      },
+    },
+    clip: {
+      value: clip,
+      onChange: setClip,
+    },
+    debug: {
+      value: debug,
+      onChange: setDebug,
+    },
+    orthographic: {
+      value: orthographic,
+      onChange: setOrthographic,
+    },
+    animate: {
+      value: animate,
+      onChange: setAnimate,
+    },
+  });
+
+  console.log("RENDER Widget Test View", { poi, debug });
 
   const ViewToggle = () => (
     <div
@@ -216,20 +224,17 @@ function View() {
             const position = {
               longitude: lngCenter ?? longitude,
               latitude: latCenter ?? latitude,
-              altitude: height ?? 170,
+              height: height ?? 170,
             };
             feature &&
               setPoi({
                 label: feature?.properties![labelProperty],
-                position,
+                position: position as any,
                 range: 50,
                 clipBy: {
                   //radius: 100,
                   polygon: feature!.geometry!.coordinates[0][0].map(
-                    ([longitude, latitude]) => ({
-                      longitude,
-                      latitude,
-                    })
+                    ([longitude, latitude]) => ({ longitude, latitude } as any)
                   ),
                 },
               });
@@ -280,9 +285,10 @@ function View() {
             range={poi.range}
             clip={clip}
             clipRadius={poi.clipBy?.radius}
-            clipPolygon={poi.clipBy?.polygon}
+            clipPolygon={poi.clipBy?.polygon || []}
             orthographic={orthographic}
             pixelSize={{ width: 512, height: 512 }}
+            debug={debug}
             animate={animate}
           >
             {poi.label} {orthographic ? "orthografisch" : "perspektive"}

@@ -1,12 +1,17 @@
-import React, { useRef } from "react";
+import React from "react";
 import { HashRouter, Route, Routes } from "react-router-dom";
+import { Provider } from "react-redux";
 
 import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextProvider";
 
-import { CesiumContextProvider } from "@carma-mapping/engines/cesium";
-import { HashStateProvider } from "@carma-appframeworks/portals";
+import {
+  CustomViewerPlayground,
+  CesiumContextProvider,
+} from "../lib/cesium-engine-snapshot/src";
+import { LevaProvider } from "../lib/debug/LevaProvider";
 import {
   BASEMAP_METROPOLE_RUHR_WMS_GRAUBLAU,
+  METROPOLERUHR_WMTS_SPW2_WEBMERCATOR,
   WUPP_LOD2_TILESET,
   WUPP_MESH_2024,
   WUPP_TERRAIN_PROVIDER,
@@ -15,82 +20,68 @@ import {
 import { Navigation } from "./components/Navigation";
 import { viewerRoutes, otherRoutes } from "./routes";
 import { routeGenerator } from "./utils/routeGenerator";
+import { setupStore } from "./store";
+import defaultViewerState from "./config";
 
 import "leaflet/dist/leaflet.css";
 import "cesium/Build/Cesium/Widgets/widgets.css";
 
 const ViewerRoutes = routeGenerator(viewerRoutes);
 const OtherRoutes = routeGenerator(otherRoutes);
+const store = setupStore(defaultViewerState);
 
 export function App() {
-  const viewerContainerRef = useRef<HTMLDivElement>(null);
-
   return (
-    <CesiumContextProvider
-      //initialViewerState={defaultViewerState}
-      providerConfig={{
-        terrainProvider: WUPP_TERRAIN_PROVIDER,
-        imageryProvider: BASEMAP_METROPOLE_RUHR_WMS_GRAUBLAU,
-      }}
-      tilesetConfigs={{
-        primary: WUPP_MESH_2024,
-        secondary: WUPP_LOD2_TILESET,
-      }}
-    >
-      <HashRouter>
-        <HashStateProvider>
-          <Navigation
-            className="leaflet-bar"
-            style={{
-              position: "absolute",
-              top: 8,
-              left: "50%",
-              width: "auto",
-              display: "flex",
-              justifyContent: "center",
-              transform: "translate(-50%, 0)",
-              zIndex: 10,
-            }}
-            routes={[...viewerRoutes, ...otherRoutes]}
-          />
-          <Routes>
-            <Route
-              path="/*"
-              element={
-                <TopicMapContextProvider>
-                  <div
-                    style={{
-                      position: "relative",
-                      width: "100vw",
-                      height: "100vh",
-                    }}
-                  >
-                    <div
-                      ref={viewerContainerRef}
-                      style={{ position: "absolute", inset: 0 }}
-                    />
-                    <CesiumSceneComponent containerRef={viewerContainerRef} />
-                    <div
-                      style={{
-                        pointerEvents: "none",
-                        position: "absolute",
-                        inset: 0,
-                        zIndex: 10,
-                      }}
-                    >
-                      <div style={{ pointerEvents: "auto", height: "100%" }}>
-                        <Routes>{ViewerRoutes}</Routes>
-                      </div>
-                    </div>
-                  </div>
-                </TopicMapContextProvider>
-              }
+    <Provider store={store}>
+      <CesiumContextProvider
+        providerConfig={{
+          terrainProvider: WUPP_TERRAIN_PROVIDER,
+          imageryProvider: BASEMAP_METROPOLE_RUHR_WMS_GRAUBLAU,
+        }}
+        tilesetConfigs={{
+          primary: WUPP_MESH_2024,
+          secondary: WUPP_LOD2_TILESET,
+        }}
+      >
+        <LevaProvider>
+          <HashRouter>
+            <Navigation
+              className="leaflet-bar"
+              style={{
+                position: "absolute",
+                top: 8,
+                left: "50%",
+                width: "auto",
+                display: "flex",
+                justifyContent: "center",
+                transform: "translate(-50%, 0)",
+                zIndex: 10,
+              }}
+              routes={[...viewerRoutes, ...otherRoutes]}
             />
-            {OtherRoutes}
-          </Routes>
-        </HashStateProvider>
-      </HashRouter>
-    </CesiumContextProvider>
+            <Routes>
+              <Route
+                path="/*"
+                element={
+                  <TopicMapContextProvider>
+                    <CustomViewerPlayground
+                      minimapLayerUrl={
+                        METROPOLERUHR_WMTS_SPW2_WEBMERCATOR.layers[
+                          "spw2_orange"
+                        ].url
+                      }
+                    >
+                      <Routes>{...ViewerRoutes}</Routes>
+                    </CustomViewerPlayground>
+                  </TopicMapContextProvider>
+                }
+              />
+              {...OtherRoutes}
+            </Routes>
+          </HashRouter>
+        </LevaProvider>
+      </CesiumContextProvider>
+    </Provider>
   );
 }
 export default App;

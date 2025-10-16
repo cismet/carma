@@ -1,17 +1,15 @@
-// TODO: Redux can be removed entirely - use React Context or local state instead
 import { configureStore, Reducer, UnknownAction } from "@reduxjs/toolkit";
 import { createLogger } from "redux-logger";
 import { persistReducer } from "redux-persist";
 import { PersistPartial } from "redux-persist/lib/persistReducer";
 
-// TODO: Waiting for new API - getCesiumConfig, cesiumReducer, CesiumState removed
-// import {
-//   getCesiumConfig,
-//   cesiumReducer,
-//   CesiumState,
-// } from "@carma-mapping/engines/cesium";
+import {
+  getCesiumConfig,
+  cesiumReducer,
+  CesiumState,
+} from "../lib/cesium-engine-snapshot";
 
-// import { defaultCesiumState } from "../config/cesium/store.config";
+import { defaultCesiumState } from "../config/cesium/store.config";
 import { APP_KEY, STORAGE_PREFIX } from "../config/app.config";
 
 const devToolsEnabled =
@@ -52,17 +50,15 @@ if (stateLoggingEnabled === true) {
     });
 }
 
-// TODO: Redux can be removed - create empty store for now to prevent build errors
 const store = configureStore({
   reducer: {
-    // cesium: persistReducer(
-    //   getCesiumConfig({ appKey: APP_KEY, storagePrefix: STORAGE_PREFIX }),
-    //   cesiumReducer
-    // ) as Reducer<CesiumState & PersistPartial, UnknownAction, CesiumState>,
-    dummy: (state = {}) => state, // placeholder reducer
+    cesium: persistReducer(
+      getCesiumConfig({ appKey: APP_KEY, storagePrefix: STORAGE_PREFIX }),
+      cesiumReducer
+    ) as Reducer<CesiumState & PersistPartial, UnknownAction, CesiumState>,
   },
   preloadedState: {
-    // cesium: defaultCesiumState,
+    cesium: defaultCesiumState,
   },
   devTools: devToolsEnabled === true && inProduction === false,
   middleware,

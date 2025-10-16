@@ -4,7 +4,7 @@ import {
   WUPP_TERRAIN_PROVIDER,
   WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
 } from "@carma/resources";
-import type { CesiumConfig } from "@carma/types";
+import type { CesiumConfigSnapshot } from "../../lib/types/CesiumConfig.snapshot";
 
 import { APP_BASE_PATH } from "../app.config";
 
@@ -15,9 +15,8 @@ export const CONSTRUCTOR_OPTIONS: Viewer.ConstructorOptions = {
   contextOptions: { webgl: { alpha: false } },
 };
 
-// TODO: Waiting for new API - CesiumConfig type removed, using any for now
 // see also cesium State in store
-export const CESIUM_CONFIG: any = {
+export const CESIUM_CONFIG: CesiumConfigSnapshot = {
   transitions: {
     mapMode: {
       duration: 1000,
@@ -32,13 +31,13 @@ export const CESIUM_CONFIG: any = {
   baseUrl: `${APP_BASE_PATH}${CESIUM_PATHNAME}`,
   pathName: CESIUM_PATHNAME,
   providerConfig: {
-    terrainProvider: WUPP_TERRAIN_PROVIDER,
-    surfaceProvider: WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
+    terrainProvider: { url: WUPP_TERRAIN_PROVIDER.url },
+    surfaceProvider: { url: WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M.url },
   },
   tilesetConfigs: {
     primary: WUPP_MESH_2024,
   },
-};
+} as any;
 
 export const WATER_CESIUM_COLOR = new Color(0.4, 0.4, 0.85, 0.7);
 

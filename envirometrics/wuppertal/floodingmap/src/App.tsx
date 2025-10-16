@@ -1,6 +1,5 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
-// TODO: Redux can be removed - use local state or context instead
-// import { useDispatch, useSelector } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { useSearchParams } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -22,38 +21,31 @@ import {
   TopicMapSelectionContent,
   useGazData,
   useSelection,
-  useSelectionCesium,
   useSelectionTopicMap,
   useHashState,
 } from "@carma-appframeworks/portals";
-import { useLeafletZoomControls } from "@carma-mapping/engines/leaflet";
-import { isAreaTypeWithGEP } from "@carma/resources";
+import { ENDPOINTS, isAreaTypeWithGEP } from "@carma/resources";
 import { getApplicationVersion } from "@carma-commons/utils";
 
 // TODO fix collab path names
 import { getCollabedHelpComponentConfig } from "@carma-collab/wuppertal/hochwassergefahrenkarte";
 
 import {
-  CesiumSceneComponent,
+  CustomViewer,
   getDegreesFromCartesian,
-  // TODO: Waiting for new API - MapTypeSwitcher removed or moved
-  // MapTypeSwitcher,
-  // TODO: Waiting for new API - selectViewerHome removed
-  // selectViewerHome,
-  // TODO: Waiting for new API - selectViewerIsMode2d removed, use UI slice instead
-  // selectViewerIsMode2d,
-  // TODO: Waiting for new API - selectViewerModels removed
-  // selectViewerModels,
-  // TODO: Waiting for new API - setIsMode2d removed
-  // setIsMode2d,
+  MapTypeSwitcher,
+  PitchingCompass,
+  selectViewerHome,
+  selectViewerIsMode2d,
+  selectViewerModels,
+  setIsMode2d,
   useCesiumContext,
   useCesiumInitialCameraFromSearchParams,
   useHomeControl,
   useZoomControls,
+  useSelectionCesium,
   VIEWERSTATE_KEYS,
-} from "@carma-mapping/engines/cesium";
-// TODO: Waiting for new API - PitchingCompass renamed to LibrePitchingCompass
-// import { LibrePitchingCompass } from "@carma-mapping/ui/pitching-compass";
+} from "./lib/cesium-engine-snapshot";
 import {
   EmptySearchComponent,
   LibFuzzySearch,
@@ -74,9 +66,7 @@ import { StateAwareChildren } from "./components/StateAwareChildren";
 
 import versionData from "./version.json";
 
-// TODO: Waiting for new API - useLeafletZoomControls hook missing
-// import useLeafletZoomControls from "./hooks/useLeafletZoomControls";
-// import useLeafletZoomControls from "@carma-mapping/components";
+import useLeafletZoomControls from "./hooks/useLeafletZoomControls";
 
 import config from "./config";
 import { EMAIL, HOME_ZOOM } from "./config/app.config";
@@ -89,8 +79,7 @@ import "cesium/Build/Cesium/Widgets/widgets.css";
 
 function App({ sync = false }: { sync?: boolean }) {
   const version = getApplicationVersion(versionData);
-  // TODO: Redux can be removed
-  // const dispatch = useDispatch();
+  const dispatch = useDispatch();
   const { responsiveState, gap, windowSize } = useContext<
     typeof ResponsiveTopicMapContext
   >(ResponsiveTopicMapContext);
@@ -109,41 +98,41 @@ function App({ sync = false }: { sync?: boolean }) {
   const initialCameraView = useCesiumInitialCameraFromSearchParams();
 
   // CONTROLS
-  const { animationMapRef, requestRender } = useCesiumContext();
+  const ctx = useCesiumContext();
+  const { viewerRef, viewerAnimationMapRef, isViewerReady, requestRender } =
+    ctx;
   const homeControl = useHomeControl();
   const {
     handleZoomIn: handleZoomInCesium,
     handleZoomOut: handleZoomOutCesium,
-  } = useZoomControls();
+  } = useZoomControls(ctx);
+  const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
+
+  // LEAFLET related
   const { routedMapRef: routedMap } =
     useContext<typeof TopicMapContext>(TopicMapContext);
-  const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls(routedMap);
 
   // CESIUM related
 
   const container3dMapRef = useRef<HTMLDivElement>(null);
-  // TODO: Redux can be removed
-  // const homePosition = useSelector(selectViewerHome);
-  const homePosition = null;
+  const homePosition = useSelector(selectViewerHome);
 
   const homeCenter = useMemo(() => {
     if (!homePosition) {
       return null;
     }
-    // TODO: Waiting for new API
-    // const { longitude, latitude } = getDegreesFromCartesian(homePosition);
-    // const center = [latitude, longitude];
-    // return center;
-    return null;
+    const { longitude, latitude } = getDegreesFromCartesian(homePosition);
+    const center = [latitude, longitude];
+
+    return center;
   }, [homePosition]);
 
-  // TODO: Waiting for new API - Redux can be removed, use local state or context
-  const isMode2d = false; // useSelector(selectViewerIsMode2d);
+  const isMode2d = useSelector(selectViewerIsMode2d);
 
-  // TODO: Redux can be removed
-  // const models = useSelector(selectViewerModels);
-  // const markerAsset = models![CESIUM_CONFIG.markerKey!];
-  // const markerAnchorHeight = CESIUM_CONFIG.markerAnchorHeight ?? 10;
+  const models = useSelector(selectViewerModels);
+
+  const markerAsset = models![CESIUM_CONFIG.markerKey!];
+  const markerAnchorHeight = CESIUM_CONFIG.markerAnchorHeight ?? 10;
 
   // selection handling
   const { setSelection } = useSelection();
@@ -184,29 +173,40 @@ function App({ sync = false }: { sync?: boolean }) {
     }
   };
 
-  useSelectionTopicMap();
-  // TODO: Waiting for new API - useSelectionCesium signature changed
-  // useSelectionCesium(
-  //   !isMode2d,
-  //   useMemo(
-  //     () => ({
-  //       markerAsset,
-  //       markerAnchorHeight,
-  //       isPrimaryStyle: true,
-  //     }),
-  //     [markerAsset, markerAnchorHeight]
-  //   )
-  // );
+  const cesiumOptions = useMemo(
+    () => ({
+      markerAsset,
+      markerAnchorHeight,
+      isPrimaryStyle: true,
+      withTerrainProvider: (cb) => ctx.withTerrainProvider(cb),
+      withSurfaceProvider: (cb) => ctx.withSurfaceProvider(cb),
+    }),
+    [markerAsset, markerAnchorHeight]
+  );
 
-  // TODO: Redux can be removed - use local state instead
-  // useEffect(() => {
-  //   if (searchParams.has(VIEWERSTATE_KEYS.is3d)) {
-  //     const is3d = searchParams.get(VIEWERSTATE_KEYS.is3d) === "1";
-  //     dispatch(setIsMode2d(!is3d));
-  //   }
-  //   // run only once on load
-  //   // eslint-disable-next-line react-hooks/exhaustive-deps
-  // }, []);
+  useSelectionTopicMap();
+  useSelectionCesium(!isMode2d, cesiumOptions);
+
+  useEffect(() => {
+    if (searchParams.has(VIEWERSTATE_KEYS.is3d)) {
+      const is3d = searchParams.get(VIEWERSTATE_KEYS.is3d) === "1";
+      dispatch(setIsMode2d(!is3d));
+    }
+    // run only once on load
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    ctx.withViewer((viewer) => {
+      // remove default cesium credit because no ion resource is used
+      (
+        viewer as unknown as {
+          _cesiumWidget: { _creditContainer: { style: { display: string } } };
+        }
+      )._cesiumWidget._creditContainer.style.display = "none";
+      ctx.requestRender();
+    });
+  }, [ctx]);
 
   const enableControlStateToggle = (controlState) => {
     return controlState.selectedSimulation !== 2;
@@ -272,8 +272,7 @@ function App({ sync = false }: { sync?: boolean }) {
           <Control position="topleft" order={30}>
             <div className="flex flex-col">
               {/* <Tooltip title="Nach Norden ausrichten" placement="right"> */}
-              {/* TODO: Waiting for new API - PitchingCompass and MapTypeSwitcher removed */}
-              {/* <ControlButtonStyler
+              <ControlButtonStyler
                 useDisabledStyle={false}
                 className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
                 disabled={isMode2d}
@@ -282,15 +281,15 @@ function App({ sync = false }: { sync?: boolean }) {
                 title="Nach Norden ausrichten"
               >
                 <PitchingCompass />
-              </ControlButtonStyler> */}
+              </ControlButtonStyler>
               {/* </Tooltip> */}
 
-              {/* <MapTypeSwitcher
+              <MapTypeSwitcher
                 className="!rounded-t-none !border-t-[1px]"
                 duration={CESIUM_CONFIG.transitions.mapMode.duration}
                 nativeTooltip={true}
                 enableMobileWarning={true}
-              /> */}
+              />
             </div>
           </Control>
           <Control position="topleft" order={50}>
@@ -390,14 +389,14 @@ function App({ sync = false }: { sync?: boolean }) {
           pointerEvents: isMode2d ? "none" : "auto",
         }}
       >
-        <CesiumSceneComponent
+        <CustomViewer
           containerRef={container3dMapRef}
           cameraLimiterOptions={CESIUM_CONFIG.camera}
           initialCameraView={initialCameraView}
           constructorOptions={CONSTRUCTOR_OPTIONS}
           enableSceneStyles={false}
           onSceneChange={onCesiumSceneChange}
-        ></CesiumSceneComponent>
+        ></CustomViewer>
       </div>
     </div>
   );

@@ -17,17 +17,14 @@ import StyledWMSTileLayer from "react-cismap/StyledWMSTileLayer";
 import { isNumberArrayEqual } from "@carma-commons/utils";
 
 import {
-  isValidCesiumTerrainProvider,
+  getTerrainElevationAsync,
+  selectViewerIsMode2d,
   useCesiumContext,
-  guardSampleTerrainMostDetailedAsync,
-} from "@carma-mapping/engines/cesium";
-// TODO: Waiting for new API - selectViewerIsMode2d moved or removed
-// import { selectViewerIsMode2d } from "@carma-mapping/engines/cesium";
+} from "../lib/cesium-engine-snapshot";
 
 import { useHGKCesiumTerrain } from "../hooks/useHGKCesiumTerrain";
 import { onCesiumClick } from "../utils/cesiumHandlers";
-// TODO: Waiting for new API - geo utils need to be reimplemented
-// import { getWebMercatorInWGS84 } from "../utils/geo";
+import { getWebMercatorInWGS84 } from "../utils/geo";
 import { updateMarkerPosition } from "../utils/marker";
 
 import config from "../config";
@@ -43,8 +40,7 @@ export const StateAwareChildren = () => {
   const { controlState } = useContext<typeof EnviroMetricMapContext>(
     EnviroMetricMapContext
   );
-  // TODO: Waiting for new API - Redux can be removed
-  const isMode2d = false; // useSelector(selectViewerIsMode2d);
+  const isMode2d = useSelector(selectViewerIsMode2d);
 
   const { executeFeatureInfoRequest, setBackgroundIndex } = useContext<
     typeof EnviroMetricMapDispatchContext
@@ -55,13 +51,11 @@ export const StateAwareChildren = () => {
   const conf = config.config;
 
   // CESIUM
-  // TODO: Waiting for new API - terrainProviderRef not in context anymore
-  const { sceneRef } = useCesiumContext();
-  const terrainProviderRef = { current: null };
+  const cesiumContext = useCesiumContext();
+  const { isViewerReady, viewerRef } = cesiumContext;
   const [cesiumPickedPosition, setCesiumPickedPosition] = useState<
     [number, number] | null
   >(null);
-  // TODO: Use Primitive type instead of Entity for markers
   const markerEntityRef = useRef<Entity | null>(null);
   const highlightEntityRef = useRef<Entity | null>(null);
   const prevPositionRef = useRef<[number, number] | null>(null);
@@ -70,36 +64,46 @@ export const StateAwareChildren = () => {
   );
 
   useEffect(() => {
-    // TODO: Waiting for new API - geo utils need to be reimplemented
     // update 3d marker position from 2d while in 2d
-    // if (
-    //   controlState.featureInfoModeActivated &&
-    //   controlState.currentFeatureInfoPosition
-    // ) {
-    //   const asyncUpdate = async () => {
-    //     const { lat, lon } = getWebMercatorInWGS84(
-    //       controlState.currentFeatureInfoPosition
-    //     );
-    //     const cartographic = Cartographic.fromDegrees(lon, lat);
-    //     if (!isValidCesiumTerrainProvider(terrainProviderRef.current)) return;
-    //     const [groundPositionCartographic] =
-    //       await guardSampleTerrainMostDetailedAsync(
-    //         terrainProviderRef.current,
-    //         [cartographic]
-    //       );
-    //     if (!groundPositionCartographic) return;
-    //     updateMarkerPosition(
-    //       markerEntityRef,
-    //       highlightEntityRef,
-    //       groundPositionCartographic
-    //     );
-    //   };
-    //   asyncUpdate();
-    // }
+    if (
+      controlState.featureInfoModeActivated &&
+      controlState.currentFeatureInfoPosition
+    ) {
+      const asyncUpdate = async () => {
+        if (
+          !isViewerReady ||
+          !viewerRef.current ||
+          viewerRef.current.isDestroyed()
+        )
+          return;
+        const { lat, lon } = getWebMercatorInWGS84(
+          controlState.currentFeatureInfoPosition
+        );
+
+        const cartographic = Cartographic.fromDegrees(lon, lat);
+
+        const [groundPositionCartographic] = await getTerrainElevationAsync(
+          cesiumContext,
+          [cartographic]
+        );
+        if (!groundPositionCartographic) return;
+
+        updateMarkerPosition(
+          viewerRef.current!,
+          markerEntityRef,
+          highlightEntityRef,
+          groundPositionCartographic
+        );
+      };
+      asyncUpdate();
+    }
   }, [
-    terrainProviderRef,
+    isViewerReady,
+    viewerRef,
+    cesiumContext,
     controlState.featureInfoModeActivated,
     controlState.currentFeatureInfoPosition,
+    isMode2d,
   ]);
 
   useEffect(() => {
@@ -114,64 +118,58 @@ export const StateAwareChildren = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMode2d]); // intentionally only trigger on mode change
 
-  // TODO: Waiting for new API - use scene.primitives instead of entities
-  // Markers should be implemented as primitives on the scene, not entities
-  // useEffect(() => {
-  //   const scene = sceneRef.current;
-  //   if (!isValidScene(scene)) return;
-  //   if (controlState.featureInfoModeActivated) {
-  //     const handler = new ScreenSpaceEventHandler(scene.canvas);
-  //     handler.setInputAction(
-  //       async (click) =>
-  //         onCesiumClick(
-  //           click,
-  //           scene,
-  //           terrainProviderRef,
-  //           markerPrimitiveRef,
-  //           highlightPrimitiveRef,
-  //           setCesiumPickedPosition
-  //         ),
-  //       ScreenSpaceEventType.LEFT_CLICK
-  //     );
+  useEffect(() => {
+    if (viewerRef.current && controlState.featureInfoModeActivated) {
+      const viewer = viewerRef.current;
 
-  //     return () => {
-  //       handler.destroy();
-  //       setCesiumPickedPosition(null);
+      const handler = new ScreenSpaceEventHandler(viewer.scene.canvas);
+      handler.setInputAction(
+        async (click) =>
+          onCesiumClick(
+            click,
+            cesiumContext,
+            markerEntityRef,
+            highlightEntityRef,
+            setCesiumPickedPosition
+          ),
+        ScreenSpaceEventType.LEFT_CLICK
+      );
 
-  //       if (scene.isDestroyed()) return;
+      return () => {
+        handler.destroy();
+        setCesiumPickedPosition(null);
 
-  //       if (markerPrimitiveRef.current) {
-  //         scene.primitives.remove(markerPrimitiveRef.current);
-  //         markerPrimitiveRef.current = null;
-  //       }
-  //       if (highlightPrimitiveRef.current) {
-  //         scene.primitives.remove(highlightPrimitiveRef.current);
-  //         highlightPrimitiveRef.current = null;
-  //       }
-  //       scene.requestRender();
-  //     };
-  //   }
-  // }, [sceneRef, controlState.featureInfoModeActivated]);
+        if (viewer.isDestroyed()) return;
 
-  // TODO: Waiting for new API - use scene.primitives instead of entities
-  // Cleanup primitives when feature info mode is disabled
-  // useEffect(() => {
-  //   const scene = sceneRef.current;
-  //   if (!isValidScene(scene)) return;
-  //   if (!controlState.featureInfoModeActivated && sceneRef.current) {
-  //     if (sceneRef.current.isDestroyed()) return;
+        if (markerEntityRef.current) {
+          viewer.entities.remove(markerEntityRef.current);
+          markerEntityRef.current = null;
+        }
+        if (highlightEntityRef.current) {
+          viewer.entities.remove(highlightEntityRef.current);
+          highlightEntityRef.current = null;
+        }
+        viewer.scene.requestRender();
+      };
+    }
+  }, [cesiumContext, viewerRef, controlState.featureInfoModeActivated]);
 
-  //     if (markerPrimitiveRef.current) {
-  //       sceneRef.current.primitives.remove(markerPrimitiveRef.current);
-  //       markerPrimitiveRef.current = null;
-  //     }
-  //     if (highlightPrimitiveRef.current) {
-  //       sceneRef.current.primitives.remove(highlightPrimitiveRef.current);
-  //       highlightPrimitiveRef.current = null;
-  //     }
-  //     setCesiumPickedPosition(null);
-  //   }
-  // }, [sceneRef, controlState.featureInfoModeActivated]);
+  // Add effect to cleanup marker when feature info mode is disabled
+  useEffect(() => {
+    if (!controlState.featureInfoModeActivated && viewerRef.current) {
+      if (viewerRef.current.isDestroyed()) return;
+
+      if (markerEntityRef.current) {
+        viewerRef.current.entities.remove(markerEntityRef.current);
+        markerEntityRef.current = null;
+      }
+      if (highlightEntityRef.current) {
+        viewerRef.current.entities.remove(highlightEntityRef.current);
+        highlightEntityRef.current = null;
+      }
+      setCesiumPickedPosition(null);
+    }
+  }, [viewerRef, controlState.featureInfoModeActivated]);
 
   useEffect(() => {
     if (

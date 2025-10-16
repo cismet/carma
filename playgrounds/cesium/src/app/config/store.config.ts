@@ -1,9 +1,7 @@
-// TODO: update for new API without redux and with new scene config based API
-// @ts-nocheck
 import { Cartesian3 } from "cesium";
 
 import { WUPPERTAL } from "@carma/resources";
-import { CesiumState } from "@carma-mapping/engines/cesium";
+import { CesiumState } from "../../lib/cesium-engine-snapshot/src";
 
 import { FOOTPRINT_GEOJSON_SOURCES } from "./dataSources.config";
 import { MODEL_ASSETS } from "./assets.config";
@@ -16,11 +14,10 @@ const { x, y, z } = Cartesian3.fromDegrees(
   WUPPERTAL.position.altitude
 );
 
-// position relative to the home position
 const homeOffset = {
   x: 0,
-  y: -50000, // southwards
-  z: 45000, // elevation
+  y: -50000,
+  z: 45000,
 };
 
 export const defaultViewerState: CesiumState = {

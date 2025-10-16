@@ -18,7 +18,7 @@ import {
   VerticalOrigin,
   Math as CesiumMath,
 } from "cesium";
-import type { Marker3dData, MarkerData } from "@carma-mapping/engines/cesium";
+import { Marker3dData, MarkerData } from "../..";
 
 interface MarkerContainerProps {
   debug?: boolean;

@@ -1,5 +1,9 @@
 {
   "extends": ["../../tsconfig.legacy.base.json"],
   "files": [],
-  "references": []
+  "references": [],
+  "exclude": [
+    "**/*.spec.ts",
+    "**/*.spec.tsx"
+  ]
 }

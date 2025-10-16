@@ -15,53 +15,14 @@ import {
   HeadingPitchRange,
   OrthographicFrustum,
   ClippingPlaneCollection,
-  Cartographic,
 } from "cesium";
+import { generateRingFromDegrees } from "./utils";
 
 import type { FC, ReactNode } from "react";
-import { CUSTOM_SHADERS_DEFINITIONS } from "@carma-mapping/engines/cesium";
-import { TWO_PI } from "@carma/units/helpers";
-import { EARTH_RADIUS } from "@carma/geo/utils";
+import type { LatLng } from "@carma/geo/types";
+import { CUSTOM_SHADERS_DEFINITIONS } from "../../cesium-engine-snapshot/src";
 
 const unlit = new CustomShader(CUSTOM_SHADERS_DEFINITIONS.UNLIT_ENHANCED_2024);
-
-// Simplified position type using plain numbers
-type Position = {
-  longitude: number;
-  latitude: number;
-  altitude?: number;
-};
-
-const generateRingFromDegrees = (
-  centerDeg: Position,
-  radiusInMeters: number,
-  samples: number = 24
-): Position[] => {
-  const center = Cartographic.fromDegrees(
-    centerDeg.longitude,
-    centerDeg.latitude
-  );
-  const points: Position[] = [];
-
-  const scaleFactor = {
-    latitude: 1 / EARTH_RADIUS,
-    longitude: 1 / (EARTH_RADIUS * Math.cos(center.latitude)),
-  };
-
-  for (let i = 0; i < samples; i++) {
-    const angle = (TWO_PI * i) / samples;
-    const dx = radiusInMeters * Math.cos(angle);
-    const dy = radiusInMeters * Math.sin(angle);
-    const point: Position = {
-      longitude: center.longitude + dx * scaleFactor.longitude,
-      latitude: center.latitude + dy * scaleFactor.latitude,
-    };
-
-    points.push(point);
-  }
-  points[0] && points.push(points[0]); // Close the loop
-  return points;
-};
 
 const addDebugPrimitives = (widget: CesiumWidget, cartesian: Cartesian3) => {
   const pointCollection = new PointPrimitiveCollection();
@@ -86,18 +47,21 @@ const addDebugPrimitives = (widget: CesiumWidget, cartesian: Cartesian3) => {
     if (pointCollection && widget.scene.primitives.contains(pointCollection)) {
       widget.scene.primitives.remove(pointCollection);
     }
+    //pointCollection.removeAll();
+    //pointCollection.destroy();
     if (debugPrimitive && widget.scene.primitives.contains(debugPrimitive)) {
       widget.scene.primitives.remove(debugPrimitive);
     }
+    //debugPrimitive.destroy();
   };
 };
 
 export const Widget: FC<{
   pixelSize?: { width: number; height: number };
-  position: Position;
+  position: { longitude: number; latitude: number; height?: number };
   range?: number;
   clip?: boolean;
-  clipPolygon?: Position[];
+  clipPolygon: LatLng.deg[];
   clipRadius?: number;
   tilesetUrl: string;
   debug?: boolean;
@@ -113,11 +77,7 @@ export const Widget: FC<{
   clipRadius,
   clipPolygon,
   tilesetUrl,
-  position = {
-    longitude: 7.201578,
-    latitude: 51.256565,
-    altitude: 335,
-  },
+  position = { longitude: 7.201578, latitude: 51.256565, height: 335 },
   debug = false,
   animate = false,
 }) => {
@@ -130,7 +90,7 @@ export const Widget: FC<{
     const cartesian3 = Cartesian3.fromDegrees(
       position.longitude,
       position.latitude,
-      position.altitude ?? 0
+      position.height
     );
     setCartesian(cartesian3);
 
@@ -143,8 +103,13 @@ export const Widget: FC<{
         (async () => {
           console.debug("Loading tileset:", tilesetUrl);
           const newTileset = await Cesium3DTileset.fromUrl(tilesetUrl, {
+            //maximumScreenSpaceError: 4,
+            //baseScreenSpaceError: 128,
             foveatedScreenSpaceError: false,
             dynamicScreenSpaceError: false,
+            //skipLevels: 1,
+            //preferLeaves: true,
+            //preloadWhenHidden: true,
           });
           newTileset.customShader = unlit;
           setTileset(newTileset);
@@ -188,9 +153,13 @@ export const Widget: FC<{
         contextOptions: {
           webgl: {
             alpha: true,
+            //depth: true,
+            //stencil: true,
             antialias: true,
+            //preserveDrawingBuffer: true,
           },
         },
+        //useDefaultRenderLoop: true,
       });
 
       newWidget.scene.backgroundColor = Color.TRANSPARENT;
@@ -201,6 +170,9 @@ export const Widget: FC<{
       controller.enableCollisionDetection = false;
 
       setWidget(newWidget);
+      //const gl = widget.canvas.getContext('webgl');
+      //gl && gl.clearColor(0.0, 0.0, 0.0, 0.0);
+      //change after setting
     }
     return () => {
       if (widget) {
@@ -218,6 +190,7 @@ export const Widget: FC<{
       widget.scene.screenSpaceCameraController.minimumZoomDistance = range / 2;
       const boundingSphere = new BoundingSphere(cartesian, range);
       widget.camera.viewBoundingSphere(boundingSphere);
+      //widget.camera.frustum.far = Math.round(range * 4);
       console.debug("HOOK: Camera position updated:", cartesian);
       if (orthographic) {
         if (widget.camera.frustum instanceof PerspectiveFrustum) {
@@ -233,6 +206,7 @@ export const Widget: FC<{
           widget.camera.switchToPerspectiveFrustum();
         }
         widget.scene.screenSpaceCameraController.enableZoom = true;
+        //widget.camera.frustum.yOffset = 100;
       }
     }
     return;
@@ -279,20 +253,23 @@ export const Widget: FC<{
 
         if (clipPolygon && clipPolygon.length > 2) {
           clippingPolygon = new ClippingPolygon({
-            positions: clipPolygon.map((coord: Position) =>
+            positions: clipPolygon.map((coord) =>
               Cartesian3.fromDegrees(coord.longitude, coord.latitude)
             ),
           });
           console.debug("Clipping polygon created", clippingPolygon);
         } else if (clipRadius) {
           console.debug("Creating clipping circle:", clipRadius);
-          const ringCoords = generateRingFromDegrees(
-            { longitude: position.longitude, latitude: position.latitude },
-            clipRadius ?? 100
+          const circle = generateRingFromDegrees(
+            {
+              longitude: position.longitude,
+              latitude: position.latitude,
+            } as any,
+            clipRadius
           );
 
           clippingPolygon = new ClippingPolygon({
-            positions: ringCoords.map((coord: Position) =>
+            positions: circle.map((coord) =>
               Cartesian3.fromRadians(coord.longitude, coord.latitude)
             ),
           });
@@ -325,9 +302,11 @@ export const Widget: FC<{
           tileset.clippingPolygons
         );
         clippingPolygonCollection.removeAll();
+        //clippingPolygon && tileset.clippingPolygons.remove(clippingPolygon);
         tileset.clippingPolygons?.removeAll &&
           tileset.clippingPolygons.removeAll();
         tileset.clippingPlanes?.removeAll && tileset.clippingPlanes.removeAll();
+        //!clippingPolygonCollection.isDestroyed() && clippingPolygonCollection.destroy();
       }
     };
   }, [clip, clipRadius, clipPolygon, position, tileset, widget]);

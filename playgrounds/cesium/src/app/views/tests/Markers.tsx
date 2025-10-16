@@ -1,7 +1,7 @@
 import { useCesium } from "resium";
 import { MODEL_ASSETS as GLB, IMAGE_ASSETS } from "../../config/assets.config";
 import { useEffect } from "react";
-import { MarkerContainer } from "../../components/MarkerContainer";
+import { MarkerContainer } from "../../../lib/cesium-engine-snapshot/src";
 
 function View() {
   const { viewer } = useCesium();

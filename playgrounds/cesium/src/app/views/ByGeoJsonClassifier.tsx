@@ -1,18 +1,12 @@
-// @ts-nocheck
-// TODO fix typescript for strict mode
 import { useSelector } from "react-redux";
 
 import {
   ByGeojsonClassifier,
   selectViewerDataSources,
-} from "@carma-mapping/engines/cesium";
+} from "../../lib/cesium-engine-snapshot/src";
 
 function View() {
-  const dataSources = useSelector(selectViewerDataSources);
-
-  if (!dataSources) return null;
-
-  const footprintGeoJson = dataSources.footprintGeoJson;
+  const { footprintGeoJson } = useSelector(selectViewerDataSources);
 
   return footprintGeoJson && <ByGeojsonClassifier geojson={footprintGeoJson} />;
 }

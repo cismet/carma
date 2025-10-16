@@ -1,0 +1,45 @@
+import { MouseEvent, ReactNode } from "react";
+import { useDispatch, useSelector } from "react-redux";
+
+import { faCubes, faTreeCity } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+
+import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
+
+import { SceneStyles } from "../../..";
+import {
+  selectCurrentSceneStyle,
+  toggleCurrentSceneStyle,
+} from "../../slices/cesium";
+
+type SceneStyleToggleProps = {
+  children?: ReactNode;
+  initialStyle?: keyof SceneStyles;
+};
+
+export const SceneStyleToggle = (props: SceneStyleToggleProps) => {
+  const dispatch = useDispatch();
+  const currentSceneStyle = useSelector(selectCurrentSceneStyle);
+  const isPrimaryStyle = currentSceneStyle === "primary";
+  const handleToggle = (e: MouseEvent) => {
+    e.preventDefault();
+    dispatch(toggleCurrentSceneStyle());
+  };
+
+  return (
+    <ControlButtonStyler
+      title={
+        isPrimaryStyle
+          ? "Wechsel zur vereinfachten Ansicht"
+          : "Wechsel zur realistischen Ansicht"
+      }
+      onClick={handleToggle}
+    >
+      <FontAwesomeIcon
+        icon={isPrimaryStyle ? faCubes : faTreeCity}
+      ></FontAwesomeIcon>
+    </ControlButtonStyler>
+  );
+};
+
+export default SceneStyleToggle;

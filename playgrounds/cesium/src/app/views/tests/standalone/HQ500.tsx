@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useRef } from "react";
+import { useLocation } from "react-router-dom";
 
-import { CesiumTerrainProvider, Color, Terrain } from "cesium";
+import { CesiumTerrainProvider, Color, Terrain, TerrainProvider } from "cesium";
 
 import {
   Control,
   ControlButtonStyler,
   ControlLayout,
-  ControlLayoutCanvas,
 } from "@carma-mapping/map-controls-layout";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -15,20 +15,24 @@ import {
   faPlus,
 } from "@fortawesome/free-solid-svg-icons";
 
+// TODO: replaceHashRoutedHistory removed from portals
+// import { replaceHashRoutedHistory } from "@carma-appframeworks/portals";
 import {
-  isValidCesiumTerrainProvider,
+  CustomViewer,
+  Compass,
   useCesiumContext,
   useHomeControl,
   useZoomControls as useZoomControlsCesium,
-} from "@carma-mapping/engines/cesium";
-import { useHashState } from "@carma-appframeworks/portals";
+} from "../../../../lib/cesium-engine-snapshot/src";
+import { useControls } from "leva";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 
 const TERRAIN_HQ500_CM = "https://cesium-wupp-terrain.cismet.de/HQ500cm/";
+const TERRAIN_HQ500 = "https://cesium-wupp-terrain.cismet.de/HQ500/";
 
 export const HQ500 = () => {
-  const { updateHash } = useHashState();
+  const location = useLocation();
 
   const rerenderCountRef = useRef(0);
   const lastRenderTimeStampRef = useRef(Date.now());
@@ -37,12 +41,34 @@ export const HQ500 = () => {
   const container3dMapRef = useRef<HTMLDivElement>(null);
 
   // State and Selectors
-  const { sceneRef, requestRender } = useCesiumContext();
+  const { viewerRef, tilesetsRefs, imageryLayerRef } = useCesiumContext();
+  const viewer = viewerRef.current;
+  const primaryTileset = tilesetsRefs.primaryRef.current;
   const homeControl = useHomeControl();
   const {
     handleZoomIn: handleZoomInCesium,
     handleZoomOut: handleZoomOutCesium,
   } = useZoomControlsCesium();
+
+  // Leva debug controls for HQ500 demo
+  useControls("HQ500 Map", {
+    renderCount: {
+      value: rerenderCountRef.current,
+      disabled: true,
+    },
+    renderInterval: {
+      value: lastRenderIntervalRef.current,
+      disabled: true,
+    },
+    dpr: {
+      value: window.devicePixelRatio,
+      disabled: true,
+    },
+    resolutionScale: {
+      value: viewer ? viewer.resolutionScale : 0,
+      disabled: true,
+    },
+  });
 
   console.debug("RENDER: [DEMOAPP] MAP");
   rerenderCountRef.current++;
@@ -52,36 +78,33 @@ export const HQ500 = () => {
   const provider = CesiumTerrainProvider.fromUrl(TERRAIN_HQ500_CM);
   const hq500Terrain = useMemo(() => new Terrain(provider), [provider]);
 
-  /*
-  Todo: update for new scene config based API
   useEffect(() => {
-    if (hq500Terrain) {
-      const onTerrainReady = () => {
+    if (viewer && hq500Terrain && primaryTileset) {
+      const onTerrainReady = (terrainProvider: TerrainProvider) => {
         primaryTileset.show = true;
-        const scene = sceneRef.current;
-        if (scene) {
-          scene.setTerrain(hq500Terrain);
-          scene.backgroundColor = Color.DIMGREY;
-          scene.globe.baseColor = new Color(0.3, 0.2, 0.8, 0.7);
-          scene.globe.show = true;
-          scene.globe.translucency.enabled = true;
-          scene.globe.translucency.frontFaceAlpha = 1.0;
-          scene.globe.translucency.backFaceAlpha = 1.0;
-          scene.screenSpaceCameraController.enableCollisionDetection = false;
-          scene.terrainProvider = hq500Terrain.provider;
-          console.debug("ccc [CESIUM] terrain ready");
-        }
-        requestRender();
+        viewer.scene.setTerrain(hq500Terrain);
+        viewer.scene.backgroundColor = Color.DIMGREY;
+        viewer.scene.globe.baseColor = new Color(0.3, 0.2, 0.8, 0.7);
+        viewer.scene.globe.show = true;
+        viewer.scene.globe.translucency.enabled = true;
+        viewer.scene.globe.translucency.frontFaceAlpha = 1.0;
+        viewer.scene.globe.translucency.backFaceAlpha = 1.0;
+        viewer.scene.screenSpaceCameraController.enableCollisionDetection =
+          false;
+        viewer.scene.terrainProvider = hq500Terrain.provider;
+        console.debug(
+          "ccc [CESIUM] terrain ready",
+          viewer.imageryLayers.length
+        );
+        viewer.scene.requestRender();
       };
       hq500Terrain.readyEvent.addEventListener(onTerrainReady);
 
       return () => {
-        isValidCesiumTerrainProvider(hq500Terrain.provider) &&
-          hq500Terrain.readyEvent.removeEventListener(onTerrainReady);
+        hq500Terrain.readyEvent.removeEventListener(onTerrainReady);
       };
     }
-  }, [sceneRef, hq500Terrain, requestRender]);
-  */
+  }, [viewer, hq500Terrain, primaryTileset, imageryLayerRef]);
 
   return (
     <ControlLayout ifStorybook={false}>
@@ -111,7 +134,7 @@ export const HQ500 = () => {
           <FontAwesomeIcon icon={faHouseChimney} className="text-lg" />
         </ControlButtonStyler>
       </Control>
-      <ControlLayoutCanvas ref={wrapperRef}>
+      <div ref={wrapperRef}>
         <div
           ref={container3dMapRef}
           className={"map-container-3d"}
@@ -119,9 +142,9 @@ export const HQ500 = () => {
             height: "100vh",
           }}
         >
-          <CesiumSceneComponent
+          <CustomViewer
             containerRef={container3dMapRef}
-            cameraLimiterOptions={{
+            cameraOptions={{
               pitchLimiter: false,
             }}
             globeOptions={{
@@ -134,14 +157,12 @@ export const HQ500 = () => {
                 "[GEOPORTALMAP|HASH|SCENE|CESIUM]cesium scene changed",
                 e
               );
-              updateHash(e.hashParams, {
-                clearKeys: ["zoom"],
-                label: "app/hq500:3D",
-              });
+              // TODO: replaceHashRoutedHistory removed
+              // replaceHashRoutedHistory(e, location.pathname);
             }}
-          ></CesiumSceneComponent>
+          ></CustomViewer>
         </div>
-      </ControlLayoutCanvas>
+      </div>
     </ControlLayout>
   );
 };
