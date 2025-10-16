@@ -246,6 +246,7 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
     if (leafletMap && typeof leafletMap.on === "function") {
       // Import L from leaflet
       const L = (window as any).L;
+      let closestPoint: any = null;
 
       const mousemoveHandler = (e: any) => {
         // Check zoom level - only work if zoom >= 17
@@ -953,6 +954,7 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
               // Find the shortest distance
               let shortestDistance = Infinity;
               let shortestIndex = -1;
+
               filteredPointsWithDistance.forEach((item: any, index: number) => {
                 if (item.distance < shortestDistance) {
                   shortestDistance = item.distance;
@@ -1002,8 +1004,8 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
                   });
                 }
               }
-
-              setSeriousClosestPoint(blackPoint[0].geometry.coordinates);
+              closestPoint = blackPoint[0];
+              setSeriousClosestPoint(closestPoint);
 
               // Update highlight source with only the black point
               maplibreMap.getSource("highlight").setData({
@@ -1043,23 +1045,30 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
           containerPoint.x,
           containerPoint.y - 40
         );
-        console.log("xxx 6666666 Shifting click 40px upward");
 
         // Convert back to lat/lng
         const shiftedLatLng = leafletMap.containerPointToLatLng(
           shiftedContainerPoint
         );
 
+        // const finalCoords = {
+        //   latlng: { lat: closestPoint[1], lng: closestPoint[0] },
+        // };
+
+        // console.log("yyy shiftedLatLng", shiftedLatLng);
+        // console.log("yyy closestPoint", closestPoint);
+        // console.log("yyy finalCoords", finalCoords);
+
         if (currentDrawHandler) {
           currentDrawHandler.addVertex(shiftedLatLng);
         }
 
         // Fire a new click event with shifted coordinates
-        leafletMap.fire("click", {
-          latlng: shiftedLatLng,
-          containerPoint: shiftedContainerPoint,
-          originalEvent: domEvent,
-        });
+        // leafletMap.fire("click", {
+        //   latlng: shiftedLatLng,
+        //   containerPoint: shiftedContainerPoint,
+        //   originalEvent: domEvent,
+        // });
       };
 
       // Add DOM listener in CAPTURE phase to intercept before Leaflet
