@@ -1001,7 +1001,6 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
                 }
               }
 
-              console.log("xxx blackPoint", blackPoint);
               setSeriousClosestPoint(blackPoint[0].geometry.coordinates);
 
               // Update highlight source with only the black point
@@ -1035,42 +1034,6 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
 
       // Function to shift click position 40px upward
       const shiftClickUpward = (domEvent: MouseEvent) => {
-        console.log("xxx 111111");
-        // Skip if already processed
-        // if ((domEvent as any)._clickShifted) {
-        //   console.log("xxx 222222");
-        //   return;
-        // }
-
-        // Don't intercept double-clicks (they're used to finish polygons/lines)
-        if (domEvent.detail === 2) {
-          console.log("xxx 333333");
-          return;
-        }
-
-        // Don't intercept clicks on SVG elements (measurement shapes)
-        const target = domEvent.target as HTMLElement;
-        // if (
-        //   target.tagName === "path" ||
-        //   target.tagName === "svg" ||
-        //   target.classList.contains("leaflet-marker-icon") ||
-        //   target.classList.contains("leaflet-interactive")
-        // ) {
-        //   console.log("xxx 444444");
-        //   return;
-        // }
-
-        // Mark as processed
-        // (domEvent as any)._clickShifted = true;
-
-        // Stop the original event
-        domEvent.preventDefault();
-        domEvent.stopPropagation();
-        domEvent.stopImmediatePropagation();
-
-        console.log("xxx 555555 Shifting click 40px upward");
-
-        // Get the click position in container coordinates
         const containerPoint = leafletMap.mouseEventToContainerPoint(domEvent);
 
         // Shift 40px upward (subtract from y)
@@ -1085,26 +1048,12 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
           shiftedContainerPoint
         );
 
-        console.log(
-          "xx Original:",
-          containerPoint,
-          "Shifted:",
-          shiftedContainerPoint,
-          "LatLng:",
-          shiftedLatLng
-        );
-
         // Fire a new click event with shifted coordinates
-        setTimeout(() => {
-          console.log("xxx 88888 Shifting click 40px upward");
-          leafletMap.fireEvent("click", {
-            latlng: shiftedLatLng,
-            layerPoint: leafletMap.latLngToLayerPoint(shiftedLatLng),
-            containerPoint: shiftedContainerPoint,
-            originalEvent: domEvent,
-            // _isShifted: true,
-          });
-        }, 0);
+        leafletMap.fire("click", {
+          latlng: shiftedLatLng,
+          containerPoint: shiftedContainerPoint,
+          originalEvent: domEvent,
+        });
       };
 
       // Add DOM listener in CAPTURE phase to intercept before Leaflet
@@ -1191,11 +1140,6 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
         key={JSON.stringify(vectorStyles)}
         gazetteerSearchControl={true}
         gazetteerSearchComponent={EmptySearchComponent}
-        onclick={(e) => {
-          e.originalEvent?.preventDefault();
-          console.log("xxx e", e);
-          console.log("xxx seriousClosestPoint", seriousClosestPoint);
-        }}
         locatorControl={false}
         fullScreenControl={false}
         zoomControls={false}
