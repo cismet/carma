@@ -188,6 +188,8 @@ export const GenericInfoBoxFromFeature = (props) => {
               onClick={() => {
                 if (allFeatures.length > 0) {
                   fitBoundsForCollection();
+                } else {
+                  fitBoundsForCollection([]);
                 }
               }}
             >
