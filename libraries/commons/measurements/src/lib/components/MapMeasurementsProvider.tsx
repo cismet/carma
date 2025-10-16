@@ -61,6 +61,9 @@ export const MapMeasurementsContext = createContext<MapMeasurementsContextType>(
     updateTitle: (_shapeId: string | number, _customTitle: string) => {},
     setStartDrawing: (status: boolean) => {},
     startDrawing: false,
+    currentDrawHandler: null,
+    setCurrentDrawHandler: (handler: any) => {},
+    completeCurrentShape: () => {},
     config: defaultConfig,
   }
 );
@@ -103,6 +106,7 @@ export const MapMeasurementsProvider = ({
   const [mapMovingEnd, setMapMovingEnd] = useState(false);
   const [updateTitleStatus, setUpdateTitleStatus] = useState(false);
   const [startDrawing, setStartDrawing] = useState(false);
+  const [currentDrawHandler, setCurrentDrawHandler] = useState<any>(null);
 
   useEffect(() => {
     setFromLocalforage(mergedConfig.localStorageKey, setShapes, []);
@@ -259,6 +263,12 @@ export const MapMeasurementsProvider = ({
     setUpdateTitleStatus(true);
   };
 
+  const completeCurrentShape = () => {
+    if (currentDrawHandler && typeof currentDrawHandler.completeShape === 'function') {
+      currentDrawHandler.completeShape();
+    }
+  };
+
   return (
     <MapMeasurementsContext.Provider
       value={{
@@ -298,6 +308,9 @@ export const MapMeasurementsProvider = ({
         updateTitle,
         setStartDrawing,
         startDrawing,
+        currentDrawHandler,
+        setCurrentDrawHandler,
+        completeCurrentShape,
         config: mergedConfig,
       }}
     >
