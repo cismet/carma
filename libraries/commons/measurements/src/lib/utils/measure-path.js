@@ -371,6 +371,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     });
 
     map.on("draw:drawvertex", (event) => {
+      console.log("yyy draw:drawvertex", event);
       const layers = event.layers;
       const latlngs = [];
       let index = 0;

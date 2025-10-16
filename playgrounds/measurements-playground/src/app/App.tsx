@@ -1067,6 +1067,7 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
         console.log("yyy Using coordinates:", finalLatLng);
 
         if (currentDrawHandler) {
+          // currentDrawHandler.deleteLastVertex();
           currentDrawHandler.addVertex(finalLatLng);
         }
 
@@ -1173,28 +1174,28 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
         fullScreenControl={false}
         zoomControls={false}
         leafletMapProps={{ editable: true }}
-        infoBox={
-          selectedFeature && (
-            <InfoBox
-              pixelwidth={350}
-              currentFeature={selectedFeature}
-              hideNavigator={true}
-              header="Vector Layer Feature"
-              headerColor="#ff0000"
-              {...selectedFeature?.properties}
-              noCurrentFeatureTitle="No feature selected"
-              noCurrentFeatureContent="Click on a feature to see details"
-              links={links}
-              secondaryInfoBoxElements={[
-                <InfoBoxFotoPreview
-                  key="foto-preview"
-                  currentFeature={selectedFeature}
-                  lightBoxDispatchContext={lightBoxDispatchContext}
-                />,
-              ]}
-            />
-          )
-        }
+        // infoBox={
+        //   selectedFeature && (
+        //     <InfoBox
+        //       pixelwidth={350}
+        //       currentFeature={selectedFeature}
+        //       hideNavigator={true}
+        //       header="Vector Layer Feature"
+        //       headerColor="#ff0000"
+        //       {...selectedFeature?.properties}
+        //       noCurrentFeatureTitle="No feature selected"
+        //       noCurrentFeatureContent="Click on a feature to see details"
+        //       links={links}
+        //       secondaryInfoBoxElements={[
+        //         <InfoBoxFotoPreview
+        //           key="foto-preview"
+        //           currentFeature={selectedFeature}
+        //           lightBoxDispatchContext={lightBoxDispatchContext}
+        //         />,
+        //       ]}
+        //     />
+        //   )
+        // }
       >
         <MapMeasurementsObjects />
         <TopicMapSelectionContent />
