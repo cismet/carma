@@ -7,7 +7,10 @@ interface VectorLayerButtonProps {
   onClear: () => void;
 }
 
-export function VectorLayerButton({ hasSavedVectorStyle, onClear }: VectorLayerButtonProps) {
+export function VectorLayerButton({
+  hasSavedVectorStyle,
+  onClear,
+}: VectorLayerButtonProps) {
   if (!hasSavedVectorStyle) {
     return null;
   }

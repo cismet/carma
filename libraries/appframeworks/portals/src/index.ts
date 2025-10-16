@@ -24,6 +24,7 @@ export { Save } from "./lib/components/Save.tsx";
 export { Share } from "./lib/components/Share.tsx";
 export { FileUploader } from "./lib/components/FileUploader.tsx";
 export { CarmaMapProviderWrapper } from "./lib/components/CarmaMapProviderWrapper.tsx";
+export { CesiumMapComponentWrapper } from "./lib/components/CesiumMapComponentWrapper.tsx";
 export { FontAwesomeLikeIcon } from "./lib/components/FontAwesomeLikeIcon.tsx";
 export { InfoBox } from "./lib/components/InfoBox.tsx";
 export { ResponsiveInfoBox } from "./lib/components/ResponsiveInfoBox.tsx";
@@ -58,11 +59,12 @@ export { MessageOverlay } from "./lib/components/MessageOverlay";
 
 export {
   SelectionProvider,
-  type SelectionMetaData,
   useSelection,
   type SelectionItem,
+  type SelectionMetaData,
   SelectionMapMode,
 } from "./lib/components/SelectionProvider";
+export type { FeatureInfo } from "@carma/types";
 
 export { LibreMapSelectionContent } from "./lib/components/LibreMapSelectionContent";
 export { TopicMapSelectionContent } from "./lib/components/TopicMapSelectionContent";
@@ -71,14 +73,17 @@ export { ProgressIndicator } from "./lib/components/ProgressIndicator";
 export { useSelectionTopicMap } from "./lib/hooks/useSelectionTopicMap";
 export { useSelectionCesium } from "./lib/hooks/useSelectionCesium";
 export { useSelectionLibreMap } from "./lib/hooks/useSelectionLibreMap";
+export { useModelSelectionHandler } from "./lib/hooks/useModelSelectionHandler";
 export { useShareUrl, SHORTENER_URL } from "./lib/hooks/useShareUrl";
 export { useProgress } from "./lib/hooks/useProgress";
 export { useCesiumModels } from "./lib/hooks/useCesiumModels";
 export { useMapHashRoutingLeafletLike } from "./lib/hooks/useMapHashRoutingLeafletLike";
+export { useSyncCesiumSceneStyle } from "./lib/hooks/useSyncCesiumSceneStyle";
 export {
   useInitialViewModeFromUrl,
   type UseInitialViewModeFromUrlOptions,
 } from "./lib/hooks/useInitialViewModeFromUrl";
+export { useMapStyleBus } from "./lib/hooks/useMapStyleBus";
 export {
   getLatLngZoomFromLeafletLike,
   setViewLeafletLike,

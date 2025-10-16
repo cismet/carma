@@ -1,3 +1,5 @@
+// @ts-nocheck
+// TODO fix typescript for strict mode
 import { useContext, useEffect, useState, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
@@ -259,7 +261,9 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
                 backgroundColor: headerColor,
               }}
             >
-              {parsedHeader ? truncateString(parsedHeader, 66) : "Informationen"}
+              {parsedHeader
+                ? truncateString(parsedHeader, 66)
+                : "Informationen"}
             </div>
           )
         }

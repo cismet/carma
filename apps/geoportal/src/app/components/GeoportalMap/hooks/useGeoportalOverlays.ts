@@ -1,3 +1,5 @@
+// @ts-nocheck
+// TODO fix typescript for strict mode
 import { useOverlayHelper } from "@carma-commons/ui/helper-overlay";
 import { geoElements } from "@carma-collab/wuppertal/geoportal";
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";

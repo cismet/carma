@@ -26,7 +26,7 @@ import {
   ProgressIndicator,
   useProgress,
 } from "@carma-appframeworks/portals";
-import { cjsGlobalShim } from "@carma-commons/utils/window";
+import { cjsGlobalShim } from "@carma-commons/dom/window";
 
 cjsGlobalShim();
 

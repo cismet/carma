@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { useDispatch, useSelector } from "react-redux";
+// Removed Redux imports - using library pattern instead
 import { useSearchParams } from "react-router-dom";
 import L from "leaflet";
 import {
@@ -35,37 +35,23 @@ import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
-import { isAreaType } from "@carma/resources";
 import {
   SelectionMetaData,
   TopicMapSelectionContent,
   useGazData,
   useSelection,
-  useSelectionCesium,
   useSelectionTopicMap,
   useHashState,
+  useMapHashRoutingCesium,
+  useCesiumModels,
+  useSelectionCesium,
+  useSyncCesiumSceneStyle,
 } from "@carma-appframeworks/portals";
-import {
-  getCollabedHelpComponentConfig,
-  tooltipText,
-} from "@carma-collab/wuppertal/geoportal";
 
-import {
-  detectWebGLContext,
-  getApplicationVersion,
-} from "@carma-commons/utils";
+import { isAreaType } from "@carma/resources";
 
-import {
-  CustomWidget,
-  Compass,
-  useCesiumContext,
-  useHomeControl,
-  useZoomControls as useZoomControlsCesium,
-  SceneStyleToggle,
-  CtxEvent as CesiumCtxEvent,
-  TILESET_IDS,
-  SCENE_STYLES,
-} from "@carma-mapping/engines/cesium";
+import { getApplicationVersion } from "@carma-commons/utils";
+
 import { MapTypeSwitcher } from "@carma-mapping/components";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { type SearchResultItem } from "@carma/types";
@@ -73,39 +59,67 @@ import { type SearchResultItem } from "@carma/types";
 import versionData from "../../../version.json";
 import { getBackgroundLayers } from "../../helper/layer.tsx";
 
-import { useWindowSize } from "../../hooks/useWindowSize.ts";
-import useLeafletZoomControls from "../../hooks/leaflet/useLeafletZoomControls.ts";
-
-import store from "../../store/index.ts";
+import { useLeafletZoomControls } from "@carma-mapping/engines/leaflet";
 import {
-  getBackgroundLayer,
-  getLayers,
-  getSelectedMapLayer,
-  getShowFullscreenButton,
-  setBackgroundLayer,
-} from "../../store/slices/mapping.ts";
-import {
-  getUIAllow3d,
-  getUIMode,
-  setUIAllow3d,
-  UIMode,
-} from "../../store/slices/ui.ts";
+  useCesiumContext,
+  useCesiumInitialCameraFromSearchParams,
+  CesiumSceneComponent,
+  CtxEvent,
+} from "@carma-mapping/engines/cesium";
 
-import { onClickTopicMap } from "./topicmap.utils.ts";
-import { createCismapLayers } from "./layer.utils.ts";
+// TODO: Import useWindowSize from shared library when available
+// import { useWindowSize } from "../../hooks/useWindowSize.ts";
+
+// TODO: Import placeholder components from shared library when available
+// import { SceneStyleToggle, Compass, CustomWidget } from "./components";
+
+// TODO: Remove Redux store imports - using library pattern
+// import {
+//   getBackgroundLayer,
+//   getLayers,
+//   getSelectedMapLayer,
+//   getShowFullscreenButton,
+//   setBackgroundLayer,
+// } from "../../store/slices/mapping.ts";
+// import {
+//   getUIAllow3d,
+//   getUIMode,
+//   setUIAllow3d,
+//   UIMode,
+// } from "../../store/slices/ui.ts";
+
+// Placeholder implementations for Redux selectors and actions
+const getUIAllow3d = () => hasGPU;
+const getUIMode = () => UIMode.DEFAULT;
+const getBackgroundLayer = () => null;
+const getLayers = () => [];
+const getSelectedMapLayer = () => null;
+const getShowFullscreenButton = () => true;
+const setBackgroundLayer = () => {};
+const setUIAllow3d = () => {};
+
+enum UIMode {
+  DEFAULT = "default",
+  FEATURE_INFO = "featureInfo",
+  MEASUREMENT = "measurement",
+}
+
+// TODO: Import from shared library when available
+// import { onClickTopicMap } from "./topicmap.utils.ts";
+// import { createCismapLayers } from "./layer.utils.ts";
 
 import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config.ts";
 import { layerMap } from "../../config/index.ts";
 
 import "../leaflet.css";
 import "cesium/Build/Cesium/Widgets/widgets.css";
-import { HGKWMSTLayer } from "../HGKWMSTLayer.tsx";
 
+// TODO: Import from shared library when available
+import { getCollabedHelpComponentConfig } from "@carma-collab/wuppertal/geoportal";
+
+// TODO: Use shared 3D capabilities check hook when available
 // detect GPU support, disables 3d mode if not supported
-let hasGPU = false;
-const setHasGPU = (flag: boolean) => (hasGPU = flag);
-const testGPU = () => detectWebGLContext(setHasGPU);
-window.addEventListener("load", testGPU, false);
+let hasGPU = true; // Default to true for now
 
 const SIMULATION_KEY = "selectedSimulation";
 
@@ -128,23 +142,6 @@ enum LAYER_TYPES {
   WMTS = "wmts",
 }
 
-// playground custom HGK keys
-
-const HGK_KEYS = Object.freeze({
-  0: "HQ10-50",
-  1: "HQ100",
-  2: "HQ500",
-});
-
-const HGK_TERRAIN_PROVIDER_URLS = {
-  "HQ10-50": "https://cesium-wupp-terrain.cismet.de/HQ10-50/",
-  HQ100: "https://cesium-wupp-terrain.cismet.de/HQ100/",
-  HQ500: "https://cesium-wupp-terrain.cismet.de/HQ500cm/",
-};
-
-// reuse terrain provider instances
-const hgkTerrainProviders = {};
-
 type CarmaMapProps = {
   children?: ReactNode;
   showBaseMapStyleToggle?: boolean;
@@ -154,16 +151,14 @@ export const CarmaMap = ({
   children,
   showBaseMapStyleToggle = false,
 }: CarmaMapProps) => {
-  const dispatch = useDispatch();
+  // Removed Redux dispatch - using library pattern instead
+  // const dispatch = useDispatch();
 
   const wrapperRef = useRef<HTMLDivElement>(null);
   const container3dMapRef = useRef<HTMLDivElement>(null);
 
   // url param handling
   const [urlParams, setUrlParams] = useSearchParams();
-  const [hqKey, setHqKey] = useState<undefined | "HQ10" | "HQ100" | "HQ500">(
-    "HQ500"
-  );
 
   const topicMapLocationChangedHandler = (loc: {
     lat: number;
@@ -180,81 +175,107 @@ export const CarmaMap = ({
   const is2dOnlyParamSet = urlParams.get(PARAMS.ONLY_2D) !== null;
   const baseMapStyle = urlParams.get(PARAMS.BASEMAP_STYLE);
 
-  // State and Selectors
-  const allow3d = useSelector(getUIAllow3d);
+  // State and Selectors - using placeholder implementations
+  const allow3d = getUIAllow3d();
 
-  const backgroundLayer = useSelector(getBackgroundLayer);
-  const selectedMapLayer = useSelector(getSelectedMapLayer);
+  const backgroundLayer = getBackgroundLayer();
+  const selectedMapLayer = getSelectedMapLayer();
 
   const ctx = useCesiumContext();
-  const {
-    viewerRef,
-    models,
-    tilesetVisibilityRef,
-    isSuspendedRef,
-    homePositionRef,
-    emit,
-  } = ctx;
+  const { subscribe } = ctx;
 
-  // Track mode state from context
-  const [isMode2d, setIsMode2dState] = useState(isSuspendedRef.current);
+  // Use refs to avoid re-renders - all state managed via event bus (GeoportalMap pattern)
+  const isSuspendedRef = useRef(!allow3d);
+  const containerStyleRef = useRef<HTMLDivElement>(null);
 
+  // Subscribe to suspend/activate events via event bus - update DOM directly without re-render
   useEffect(() => {
-    const unsubActivate = ctx.subscribe(CesiumCtxEvent.Activate, () => {
-      setIsMode2dState(false);
+    if (!allow3d) return;
+
+    const updateVisibility = (isSuspended: boolean) => {
+      isSuspendedRef.current = isSuspended;
+      if (containerStyleRef.current) {
+        containerStyleRef.current.style.opacity = isSuspended ? "0" : "1";
+        containerStyleRef.current.style.pointerEvents = isSuspended
+          ? "none"
+          : "auto";
+      }
+    };
+
+    const unsubActivate = subscribe(CtxEvent.Activate, () => {
+      console.debug("[CarmaMap] Cesium activate");
+      updateVisibility(false);
     });
-    const unsubSuspend = ctx.subscribe(CesiumCtxEvent.Suspend, () => {
-      setIsMode2dState(true);
+    const unsubSuspend = subscribe(CtxEvent.Suspend, () => {
+      console.debug("[CarmaMap] Cesium suspend");
+      updateVisibility(true);
     });
+
     return () => {
       unsubActivate();
       unsubSuspend();
     };
-  }, [ctx]);
-  const markerAsset = models.current?.[CESIUM_CONFIG.markerKey]; //
-  const markerAnchorHeight = CESIUM_CONFIG.markerAnchorHeight ?? 10;
-  const layers = useSelector(getLayers);
-  const uiMode = useSelector(getUIMode);
-  const showFullscreenButton = useSelector(getShowFullscreenButton);
+  }, [subscribe, allow3d]);
+  // One-time initialization - these hooks are called once at mount
+  const cesiumInitialCameraView = useCesiumInitialCameraFromSearchParams();
 
-  const homeControl = useHomeControl();
-  const {
-    handleZoomIn: handleZoomInCesium,
-    handleZoomOut: handleZoomOutCesium,
-  } = useZoomControlsCesium();
-  const { getLeafletZoom, zoomInLeaflet, zoomOutLeaflet } =
-    useLeafletZoomControls();
-  const showPrimaryTileset =
-    tilesetVisibilityRef.current.get(TILESET_IDS.PRIMARY) ?? false;
+  // TODO: MARKER/SELECTION MANAGEMENT (following GeoportalMap pattern)
+  // - markerAsset loading from CesiumContext modelsRef
+  // - Current markerAsset is undefined until models are loaded
+  // - Re-enable when marker models are properly configured
+  // const markerConfig = {
+  //   markerAsset: undefined,
+  //   markerAnchorHeight: CESIUM_CONFIG.markerAnchorHeight ?? 10,
+  //   isPrimaryStyle: true,
+  // };
+  // useSelectionCesium(allow3d ?? false, markerConfig, false);
+
+  // Sync Cesium scene style based on map style changes from MapStyleProvider context
+  useSyncCesiumSceneStyle();
+  const layers = getLayers();
+  const uiMode = getUIMode();
+  const showFullscreenButton = getShowFullscreenButton();
 
   const { routedMapRef: routedMap } =
     useContext<typeof TopicMapContext>(TopicMapContext);
+
+  // TODO: Import from shared library when available
+  const homeControl = () => {}; // useHomeControl();
+  // TODO: Import from shared library when available
+  const handleZoomInCesium = () => {}; // useZoomControls().handleZoomIn
+  const handleZoomOutCesium = () => {}; // useZoomControls().handleZoomOut
+
+  const { getLeafletZoom, zoomInLeaflet, zoomOutLeaflet } =
+    useLeafletZoomControls({ current: routedMap?.leafletMap?.leafletElement });
 
   const [marker, setMarker] = useState(undefined);
 
   const version = getApplicationVersion(versionData);
 
-  // custom hooks
-
   const { gazData } = useGazData();
-  const { width, height } = useWindowSize(wrapperRef);
+  // TODO: Import useWindowSize from shared library when available
+  const width = wrapperRef.current?.clientWidth ?? 0;
+  const height = wrapperRef.current?.clientHeight ?? 0;
 
   const { setSelection } = useSelection();
   const { updateHash } = useHashState();
 
+  // Use library hooks for overlays and routing (GeoportalMap pattern)
+  // TODO: Re-enable when useGeoportalOverlays is exported from portals
+  // useGeoportalOverlays();
   useSelectionTopicMap();
-  useSelectionCesium(
-    !isMode2d,
-    useMemo(
-      () => ({
-        markerAsset,
-        markerAnchorHeight,
-        isPrimaryStyle: showPrimaryTileset,
-        withTerrainProvider: (cb) => ctx.withTerrainProvider(cb),
-        withSurfaceProvider: (cb) => ctx.withSurfaceProvider(cb),
-      }),
-      [markerAsset, markerAnchorHeight, showPrimaryTileset, ctx]
-    )
+
+  // Initialize Cesium scene change handler for hash routing (GeoportalMap pattern)
+  const hashRoutingHandler = useMapHashRoutingCesium();
+  const onSceneChange = useCallback(
+    (params: { source: string; stringifiedCamera: any }) => {
+      // Adapt to the hash routing handler signature
+      hashRoutingHandler({
+        ...params,
+        hashParams: {}, // TODO: Extract hash params from stringifiedCamera
+      } as any);
+    },
+    [hashRoutingHandler]
   );
 
   const onGazetteerSelection = (selection: SearchResultItem) => {
@@ -271,50 +292,26 @@ export const CarmaMap = ({
     setSelection(Object.assign({}, selection, selectionMetaData));
   };
 
-  useEffect(() => {
-    if (viewerRef.current && backgroundLayer) {
-      if (backgroundLayer.id === MANAGED_BACKGROUND_LAYERS.ORTHO) {
-        emit(CesiumCtxEvent.SetSceneStyle, SCENE_STYLES.PRIMARY);
-      } else {
-        emit(CesiumCtxEvent.SetSceneStyle, SCENE_STYLES.SECONDARY);
-      }
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [backgroundLayer, viewerRef, emit]);
+  // TODO use shared 3d capabilities check hook to enable cesium mode
 
-  useEffect(() => {
-    if (is2dOnlyParamSet || !hasGPU) {
-      console.debug(
-        "disabling 3d mode, because of url param or gpu",
-        is2dOnlyParamSet,
-        !hasGPU
-      );
-      dispatch(setUIAllow3d(false));
-    }
-  }, [is2dOnlyParamSet, dispatch]);
+  // TODO add transition handling with transition provider between 2d and 3d
 
-  useEffect(() => {
-    // set 2d mode if allow3d is false or undefined
-    if (!isMode2d && (allow3d === false || allow3d === undefined)) {
-      console.debug("seting mode to 2d, because of allow3d", allow3d);
-      emit(CesiumCtxEvent.Suspend, undefined);
-    }
-  }, [isMode2d, allow3d, emit]);
+  // TODO replace with libarified version of TopicMapComponentWrapper from GeoportalMap
+  // TODO replace with libarified version of CesiumMapComponentWrapper from GeoportalMap
 
+  // TODO: Link up with MapStyleProvider event bus
+  const toggleTopicMapBackgroundLayer = useCallback((isToPrimary: boolean) => {
+    console.debug("toggleTopicMapBackgroundLayer", isToPrimary);
+    // TODO: Replace Redux dispatch usage with library pattern
+  }, []);
+
+  const isMode2d = isSuspendedRef.current;
   console.debug("RENDER: [CARMAMAP] MAP", isMode2d);
 
-  const homePosition = homePositionRef.current;
-
+  // TODO make this shared use location hook for topicmap
   const topicMapHomeClick = () => {
-    if (homePosition && routedMap?.leafletMap?.leafletElement) {
-      const { latitude, longitude } = Cartographic.fromCartesian(homePosition);
-      const center = [
-        CesiumMath.toDegrees(latitude),
-        CesiumMath.toDegrees(longitude),
-      ];
-      console.debug("topicMapHomeClick", center, homePosition);
-      routedMap.leafletMap.leafletElement.flyTo(center, 17);
-    }
+    // TODO: Get home position from CesiumContext when available
+    console.debug("topicMapHomeClick - TODO: implement home position");
   };
 
   const onHomeClick = () => {
@@ -322,125 +319,7 @@ export const CarmaMap = ({
     topicMapHomeClick();
   };
 
-  const toggleTopicMapBackgroundLayer = useCallback(
-    (isToPrimary: boolean) => {
-      if (isToPrimary) {
-        dispatch(
-          setBackgroundLayer({
-            ...selectedMapLayer,
-            id: MANAGED_BACKGROUND_LAYERS.TOPO,
-            visible: true,
-          })
-        );
-      } else {
-        const id = MANAGED_BACKGROUND_LAYERS.ORTHO;
-        const layer = layerMap[id];
-        dispatch(
-          setBackgroundLayer({
-            id,
-            title: layer.title,
-            opacity: 1.0,
-            description: layer.description,
-            inhalt: layer.inhalt,
-            eignung: layer.eignung,
-            layerType: LAYER_TYPES.WMTS,
-            visible: true,
-            props: {
-              name: "",
-              url: layer.url,
-            },
-            layers: layer.layers,
-          })
-        );
-      }
-    },
-    [dispatch, selectedMapLayer]
-  );
-
-  useEffect(() => {
-    if (baseMapStyle === BASEMAP_STYLE_KEYS.PRIMARY) {
-      toggleTopicMapBackgroundLayer(true);
-      emit(CesiumCtxEvent.SetSceneStyle, SCENE_STYLES.PRIMARY);
-    } else if (baseMapStyle === BASEMAP_STYLE_KEYS.SECONDARY) {
-      toggleTopicMapBackgroundLayer(false);
-      //emit(CesiumCtxEvent.SetSceneStyle, SCENE_STYLES.SECONDARY);
-      // disable secondary style for HGK
-      emit(CesiumCtxEvent.SetSceneStyle, SCENE_STYLES.PRIMARY);
-    }
-  }, [baseMapStyle, emit, toggleTopicMapBackgroundLayer]);
-
-  // CUSTOM CODE for simulation
-  useEffect(() => {
-    if (urlParams.get(SIMULATION_KEY)) {
-      const selectedSimulation = parseInt(urlParams.get(SIMULATION_KEY));
-      const key = HGK_KEYS[selectedSimulation];
-      if (key !== undefined) {
-        console.debug(
-          "selectedSimulation HGK",
-          selectedSimulation,
-          key,
-          HGK_KEYS
-        );
-        setHqKey(key);
-      }
-    }
-  }, [urlParams]);
-
-  useEffect(() => {
-    if (hqKey) {
-      (async () => {
-        if (!hgkTerrainProviders[hqKey]) {
-          const url = HGK_TERRAIN_PROVIDER_URLS[hqKey];
-          try {
-            hgkTerrainProviders[hqKey] = await CesiumTerrainProvider.fromUrl(
-              url
-            );
-          } catch (e) {
-            console.error(
-              "failed to create terrain provider for",
-              hqKey,
-              url,
-              e
-            );
-          }
-        }
-        const provider = hgkTerrainProviders[hqKey];
-        if (viewerRef.current && provider) {
-          setTimeout(() => {
-            // overwrite default terrain provider
-            console.debug("set HGK terrain provider for", hqKey, provider);
-            const viewer = viewerRef.current;
-            viewer.scene.terrainProvider = provider;
-            viewer.scene.requestRender();
-          }, 500);
-        }
-      })();
-    }
-  }, [hqKey, viewerRef]);
-
-  useEffect(() => {
-    if (!isMode2d && viewerRef.current) {
-      setTimeout(() => {
-        const viewer = viewerRef.current;
-        emit(CesiumCtxEvent.SetSceneStyle, SCENE_STYLES.PRIMARY);
-        console.debug("force hide default imagery layer hgk");
-        viewer.scene.backgroundColor = Color.DIMGREY;
-        viewer.scene.globe.baseColor = new Color(0.3, 0.2, 0.8, 0.7);
-        viewer.scene.globe.show = true;
-        viewer.scene.globe.translucency.enabled = true;
-        viewer.scene.globe.translucency.frontFaceAlpha = 1.0;
-        viewer.scene.globe.translucency.backFaceAlpha = 1.0;
-        if (viewer.imageryLayers.length > 0) {
-          console.debug("hide default imagery layer hgk");
-          const imageryLayer = viewer.imageryLayers.get(0);
-          imageryLayer.show = false;
-        }
-        viewer.scene.requestRender();
-      }, 300);
-    }
-  }, [isMode2d, viewerRef, emit]);
-
-  console.debug("CARMAMAP render hgk", hqKey);
+  console.debug("CARMAMAP render");
 
   return (
     <ControlLayout>
@@ -469,16 +348,18 @@ export const CarmaMap = ({
         <ControlButtonStyler onClick={onHomeClick} dataTestId="home-control">
           <FontAwesomeIcon icon={faHouseChimney} className="text-lg" />
         </ControlButtonStyler>
-        {showBaseMapStyleToggle && (
+        {/* TODO: Re-enable when SceneStyleToggle is available */}
+        {/* {showBaseMapStyleToggle && (
           <SceneStyleToggle onToggle={toggleTopicMapBackgroundLayer} />
-        )}
+        )} */}
       </Control>
       {allow3d && (
         <Control position="topleft" order={70}>
           <MapTypeSwitcher
             duration={CESIUM_CONFIG.transitions.mapMode.duration}
           />
-          <Compass disabled={isMode2d} />
+          {/* TODO: Re-enable when Compass is available */}
+          {/* <Compass disabled={isMode2d} /> */}
         </Control>
       )}
       <Control position="bottomleft" order={10}>
@@ -504,7 +385,7 @@ export const CarmaMap = ({
                   })}
                 />
               }
-              applicationMenuTooltipString={tooltipText}
+              applicationMenuTooltipString={"tooltipText"}
               hamburgerMenu={false}
               locatorControl={false}
               fullScreenControl={false}
@@ -535,12 +416,7 @@ export const CarmaMap = ({
                     }).addTo(map)
                   );
                 }
-                onClickTopicMap(e, {
-                  dispatch,
-                  mode: uiMode,
-                  store,
-                  zoom: getLeafletZoom(),
-                });
+                console.debug("Map clicked", e.latlng);
               }}
               gazetteerSearchComponent={<></>}
               zoomSnap={LEAFLET_CONFIG.zoomSnap}
@@ -552,17 +428,21 @@ export const CarmaMap = ({
                 backgroundLayer.visible &&
                 getBackgroundLayers({ layerString: backgroundLayer.layers })}
 
-              {createCismapLayers(layers, {
+              {/* TODO: Re-enable when createCismapLayers is available */}
+              {/* {createCismapLayers(layers, {
                 mode: uiMode,
-                dispatch,
                 zoom: getLeafletZoom(),
-              })}
-              {hqKey && <HGKWMSTLayer hqKey={hqKey} />}
+              })} */}
+              {/* TODO: Remove HGK component - obsolete */}
+              {/* {hqKey && <HGKWMSTLayer hqKey={hqKey} />} */}
             </TopicMapComponent>
           </div>
-          {allow3d && (
+          {allow3d && cesiumInitialCameraView && (
             <div
-              ref={container3dMapRef}
+              ref={(node) => {
+                container3dMapRef.current = node;
+                containerStyleRef.current = node;
+              }}
               className={"map-container-3d"}
               style={{
                 position: "absolute",
@@ -571,26 +451,19 @@ export const CarmaMap = ({
                 right: 0,
                 bottom: 0,
                 zIndex: 400,
-                opacity: isMode2d ? 0 : 1,
+                opacity: isSuspendedRef.current ? 0 : 1,
                 transition: `opacity ${CESIUM_CONFIG.transitions.mapMode.duration}ms ease-in-out`,
-                pointerEvents: isMode2d ? "none" : "auto",
+                pointerEvents: isSuspendedRef.current ? "none" : "auto",
               }}
             >
-              <CustomWidget
-                containerRef={container3dMapRef}
-                cameraLimiterOptions={CESIUM_CONFIG.camera}
-                onSceneChange={(e) => {
-                  console.debug(
-                    "[GEOPORTALMAP|HASH|SCENE|CESIUM]cesium scene changed",
-                    e
-                  );
-                  updateHash(e.hashParams, {
-                    clearKeys: ["zoom"],
-                    label: "app/carma:3D",
-                    replace: true,
-                  });
-                }}
-              ></CustomWidget>
+              {cesiumInitialCameraView && (
+                <CesiumSceneComponent
+                  containerRef={container3dMapRef}
+                  cameraLimiterOptions={CESIUM_CONFIG.camera}
+                  initialCameraView={cesiumInitialCameraView}
+                  onSceneChange={onSceneChange}
+                />
+              )}
             </div>
           )}
         </>

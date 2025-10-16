@@ -16,7 +16,6 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 
 import {
-  CustomWidget,
   isValidCesiumTerrainProvider,
   useCesiumContext,
   useHomeControl,
@@ -53,6 +52,8 @@ export const HQ500 = () => {
   const provider = CesiumTerrainProvider.fromUrl(TERRAIN_HQ500_CM);
   const hq500Terrain = useMemo(() => new Terrain(provider), [provider]);
 
+  /*
+  Todo: update for new scene config based API
   useEffect(() => {
     if (hq500Terrain) {
       const onTerrainReady = () => {
@@ -80,6 +81,7 @@ export const HQ500 = () => {
       };
     }
   }, [sceneRef, hq500Terrain, requestRender]);
+  */
 
   return (
     <ControlLayout ifStorybook={false}>
@@ -117,7 +119,7 @@ export const HQ500 = () => {
             height: "100vh",
           }}
         >
-          <CustomWidget
+          <CesiumSceneComponent
             containerRef={container3dMapRef}
             cameraLimiterOptions={{
               pitchLimiter: false,
@@ -137,7 +139,7 @@ export const HQ500 = () => {
                 label: "app/hq500:3D",
               });
             }}
-          ></CustomWidget>
+          ></CesiumSceneComponent>
         </div>
       </ControlLayoutCanvas>
     </ControlLayout>

@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 // 3rd party Modules
 import LZString from "lz-string";
 import { ErrorBoundary } from "react-error-boundary";
-import { useDispatch, useSelector } from "react-redux";
+// TODO: Remove Redux usage - using library pattern instead
+// import { useDispatch, useSelector } from "react-redux";
 import { useSearchParams } from "react-router-dom";
 
 // 1st party Modules
@@ -23,14 +24,15 @@ import type { BackgroundLayer, Layer } from "@carma/types";
 import AppErrorFallback from "./components/AppErrorFallback";
 import { CarmaMap } from "./components/CarmaMap/CarmaMap";
 
-import type { AppDispatch } from "./store";
-import {
-  setBackgroundLayer,
-  setLayers,
-  setShowFullscreenButton,
-  setShowLocatorButton,
-} from "./store/slices/mapping";
-import { getUIAllowChanges } from "./store/slices/ui";
+// TODO: Remove Redux store references - using library pattern instead
+// import type { AppDispatch } from "./store";
+// import {
+//   setBackgroundLayer,
+//   setLayers,
+//   setShowFullscreenButton,
+//   setShowLocatorButton,
+// } from "./store/slices/mapping";
+// import { getUIAllowChanges } from "./store/slices/ui";
 
 import { CESIUM_CONFIG } from "./config/app.config";
 import { carmaMapStyleConfig } from "./config/mapStyleConfig";
@@ -53,9 +55,11 @@ type Config = {
 };
 
 function App({ published }: { published?: boolean }) {
-  const dispatch: AppDispatch = useDispatch();
+  // TODO: Remove Redux usage - using library pattern instead
+  // const dispatch: AppDispatch = useDispatch();
   const [searchParams, setSearchParams] = useSearchParams();
-  const allowUiChanges = useSelector(getUIAllowChanges);
+  // TODO: Replace with library pattern
+  // const allowUiChanges = useSelector(getUIAllowChanges);
 
   const [syncToken, setSyncToken] = useState(null);
 
@@ -69,11 +73,13 @@ function App({ published }: { published?: boolean }) {
       const newConfig: Config = JSON.parse(
         LZString.decompressFromEncodedURIComponent(data)
       );
-      dispatch(setLayers(newConfig.layers));
-      dispatch(setBackgroundLayer(newConfig.backgroundLayer));
+      // TODO: Replace Redux dispatch usage with library pattern
+      // dispatch(setLayers(newConfig.layers));
+      // dispatch(setBackgroundLayer(newConfig.backgroundLayer));
       if (newConfig.settings) {
-        dispatch(setShowFullscreenButton(newConfig.settings.showFullscreen));
-        dispatch(setShowLocatorButton(newConfig.settings.showLocator));
+        // TODO: Replace Redux dispatch usage with library pattern
+        // dispatch(setShowFullscreenButton(newConfig.settings.showFullscreen));
+        // dispatch(setShowLocatorButton(newConfig.settings.showLocator));
       }
       searchParams.delete("data");
       setSearchParams(searchParams);

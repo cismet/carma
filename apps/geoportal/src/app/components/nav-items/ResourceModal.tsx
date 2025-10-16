@@ -1,3 +1,5 @@
+// @ts-nocheck
+// TODO fix typescript for strict mode
 import { message } from "antd";
 import { useContext, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";

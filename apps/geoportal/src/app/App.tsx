@@ -38,13 +38,21 @@ import LoginForm from "./components/LoginForm";
 
 // import MapMeasurement from "./components/map-measure/MapMeasurement";
 import TopNavbar from "./components/TopNavbar";
-import { ObliqueProvider } from "./oblique/components/ObliqueProvider";
 import { MatomoTracker } from "./MatomoTracker";
+import { ObliqueProviderLazy } from "./components/ObliqueProviderLazy";
+import {
+  ObliqueLoaderProvider,
+  useObliqueLoader,
+} from "./contexts/ObliqueLoaderContext";
 
 import { useAppConfig } from "./hooks/useAppConfig";
 import { useManageLayers } from "./hooks/useManageLayers";
 import { useSyncToken } from "./hooks/useSyncToken";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
+import {
+  useSyncSelectionToRedux,
+  useSyncModelSelectionToRedux,
+} from "./hooks/useSyncSelectionToRedux";
 
 import { APP_KEY, layerMap } from "./config";
 import { geoportalMapStyleConfig } from "./config/mapStyleConfig";
@@ -52,7 +60,7 @@ import { geoportalMapStyleConfig } from "./config/mapStyleConfig";
 import { CESIUM_CONFIG, CONFIG_BASE_URL } from "./config/app.config";
 import { featureFlagConfig } from "./config/featureFlags";
 
-import { OBLIQUE_CONFIG, CAMERA_ID_TO_DIRECTION } from "./oblique/config";
+// OBLIQUE_CONFIG is now used in lazy loaded ObliqueProvider
 
 import { getCustomFeatureFlags } from "./store/slices/layers";
 import {
@@ -85,6 +93,14 @@ function App({ published }: { published?: boolean }) {
   const syncToken = useSyncToken();
   useKeyboardShortcuts();
   const customFeatureFlags = useSelector(getCustomFeatureFlags);
+
+  // Oblique lazy loading
+  const { isObliqueLoaded } = useObliqueLoader();
+
+  // TODO: Remove when Redux is fully removed
+  // Sync SelectionProvider state to Redux store
+  const handleSelectionChange = useSyncSelectionToRedux();
+  const handleModelSelectionChange = useSyncModelSelectionToRedux();
   const uiMode = useSelector(getUIMode);
   const mode =
     uiMode === UIMode.MEASUREMENT
@@ -105,75 +121,130 @@ function App({ published }: { published?: boolean }) {
   }
 
   const content = (
-    <FeatureFlagProvider
-      config={{ ...featureFlagConfig, ...customFeatureFlags }}
-    >
-      <MatomoTracker>
-        <CesiumDevConsoleIntegration />
-        <CarmaMapProviderWrapper
-          cesiumOptions={CESIUM_CONFIG}
-          overlayOptions={{
-            background: backgroundSettings,
-          }}
-          mapStyleConfig={geoportalMapStyleConfig}
-        >
-          <ObliqueProvider
-            config={OBLIQUE_CONFIG}
-            fallbackDirectionConfig={CAMERA_ID_TO_DIRECTION}
+    <ObliqueLoaderProvider>
+      <FeatureFlagProvider
+        config={{ ...featureFlagConfig, ...customFeatureFlags }}
+      >
+        <MatomoTracker>
+          <CesiumDevConsoleIntegration />
+          <CarmaMapProviderWrapper
+            cesiumOptions={CESIUM_CONFIG}
+            overlayOptions={{
+              background: backgroundSettings,
+            }}
+            mapStyleConfig={geoportalMapStyleConfig}
+            onSelectionChange={handleSelectionChange}
+            onModelSelectionChange={handleModelSelectionChange}
           >
-            <MapMeasurementsProvider
-              externalMode={mode}
-              setModeExternal={handleSetMode}
-              config={{
-                localStorageKey: "@" + APP_KEY + ".app.measurements",
-              }}
-            >
-              <ErrorBoundary FallbackComponent={AppErrorFallback}>
-                <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
-                  {isLoadingConfig && (
-                    <div
-                      id="loading"
-                      className="absolute flex flex-col items-center text-white justify-center h-screen w-full bg-black/50 z-[9999999999999]"
-                    >
-                      <h2>Lade Konfiguration</h2>
-                      <FontAwesomeIcon size="2x" icon={faSpinner} spin />
-                    </div>
-                  )}
-                  {!published && <TopNavbar />}
-                  <TilesetLoadingProgress />
-                  <MapMeasurementsObjects />
-                  <MapWrapper />
-                  <MobileWarningMessage
-                    headerText={mobileInfo.headerText}
-                    bodyText={mobileInfo.bodyText}
-                    confirmButtonText={mobileInfo.confirmButtonText}
-                  />
+            {isObliqueLoaded ? (
+              <ObliqueProviderLazy>
+                <MapMeasurementsProvider
+                  externalMode={mode}
+                  setModeExternal={handleSetMode}
+                  config={{
+                    localStorageKey: "@" + APP_KEY + ".app.measurements",
+                  }}
+                >
+                  <ErrorBoundary FallbackComponent={AppErrorFallback}>
+                    <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
+                      {isLoadingConfig && (
+                        <div
+                          id="loading"
+                          className="absolute flex flex-col items-center text-white justify-center h-screen w-full bg-black/50 z-[9999999999999]"
+                        >
+                          <h2>Lade Konfiguration</h2>
+                          <FontAwesomeIcon size="2x" icon={faSpinner} spin />
+                        </div>
+                      )}
+                      {!published && <TopNavbar />}
+                      <TilesetLoadingProgress />
+                      <MapMeasurementsObjects />
+                      <MapWrapper />
+                      <MobileWarningMessage
+                        headerText={mobileInfo.headerText}
+                        bodyText={mobileInfo.bodyText}
+                        confirmButtonText={mobileInfo.confirmButtonText}
+                      />
 
-                  <Modal
-                    open={showLoginModal}
-                    closable={false}
-                    footer={null}
-                    styles={{
-                      content: {
-                        padding: "0px",
-                        width: window.innerWidth < 600 ? "100%" : "450px",
-                      },
-                    }}
-                  >
-                    <LoginForm
-                      onSuccess={() => dispatch(setShowLoginModal(false))}
-                      closeLoginForm={() => dispatch(setShowLoginModal(false))}
-                      showHelpText={false}
-                      style={{ padding: "20px" }}
-                    />
-                  </Modal>
-                </div>
-              </ErrorBoundary>
-            </MapMeasurementsProvider>
-          </ObliqueProvider>
-        </CarmaMapProviderWrapper>
-      </MatomoTracker>
-    </FeatureFlagProvider>
+                      <Modal
+                        open={showLoginModal}
+                        closable={false}
+                        footer={null}
+                        styles={{
+                          content: {
+                            padding: "0px",
+                            width: window.innerWidth < 600 ? "100%" : "450px",
+                          },
+                        }}
+                      >
+                        <LoginForm
+                          onSuccess={() => dispatch(setShowLoginModal(false))}
+                          closeLoginForm={() =>
+                            dispatch(setShowLoginModal(false))
+                          }
+                          showHelpText={false}
+                          style={{ padding: "20px" }}
+                        />
+                      </Modal>
+                    </div>
+                  </ErrorBoundary>
+                </MapMeasurementsProvider>
+              </ObliqueProviderLazy>
+            ) : (
+              <MapMeasurementsProvider
+                externalMode={mode}
+                setModeExternal={handleSetMode}
+                config={{
+                  localStorageKey: "@" + APP_KEY + ".app.measurements",
+                }}
+              >
+                <ErrorBoundary FallbackComponent={AppErrorFallback}>
+                  <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
+                    {isLoadingConfig && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          top: 0,
+                          left: 0,
+                          width: "100%",
+                          height: "100%",
+                          display: "flex",
+                          justifyContent: "center",
+                          alignItems: "center",
+                          backgroundColor: "rgba(255, 255, 255, 0.8)",
+                          zIndex: 9999,
+                        }}
+                      >
+                        <div>Loading configuration...</div>
+                      </div>
+                    )}
+                    <TopNavbar />
+                    <MapWrapper />
+                    <Modal
+                      open={showLoginModal}
+                      onCancel={() => dispatch(setShowLoginModal(false))}
+                      footer={null}
+                      style={{
+                        zIndex: 99999999,
+                      }}
+                    >
+                      <LoginForm
+                        onSuccess={() => dispatch(setShowLoginModal(false))}
+                        closeLoginForm={() =>
+                          dispatch(setShowLoginModal(false))
+                        }
+                        showHelpText={false}
+                        style={{ padding: "20px" }}
+                      />
+                    </Modal>
+                  </div>
+                </ErrorBoundary>
+              </MapMeasurementsProvider>
+            )}
+          </CarmaMapProviderWrapper>
+        </MatomoTracker>
+      </FeatureFlagProvider>
+    </ObliqueLoaderProvider>
   );
 
   console.debug("RENDER: [GEOPORTAL] APP");

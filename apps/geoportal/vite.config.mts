@@ -58,6 +58,11 @@ export default defineConfig({
     // Reduce memory pressure during build
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
+      external: [
+        '@carma/types',
+        '@carma/geo/types',
+        '@carma/units/types',
+      ],
       output: {
         // Optimize chunks by load priority for better initial load & caching
         manualChunks: {

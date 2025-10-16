@@ -3,7 +3,14 @@
 import { Cartesian3, Color } from "cesium";
 
 import { WUPPERTAL } from "@carma/resources";
-import { CesiumState, toColorRgbaArray } from "@carma-mapping/engines/cesium";
+// TODO: Waiting for new API - CesiumState and toColorRgbaArray removed
+// import { CesiumState, toColorRgbaArray } from "@carma-mapping/engines/cesium";
+const toColorRgbaArray = (color: Color) => [
+  color.red,
+  color.green,
+  color.blue,
+  color.alpha,
+];
 
 import { MODEL_ASSETS } from "./assets.config";
 
@@ -23,7 +30,8 @@ const homeOffset = {
   z: 45000, // elevation
 };
 
-export const defaultCesiumState: CesiumState = {
+// TODO: Redux can be removed - this state is not used anymore
+export const defaultCesiumState: any = {
   isMode2d: true,
   homeOffset: homeOffset,
   homePosition,

@@ -47,10 +47,10 @@ type LightboxDispatch = {
 };
 const baseUrl = window.location.origin + window.location.pathname;
 
-const TZBaumbewirtschaftung = ({ 
+const TZBaumbewirtschaftung = ({
   jwt,
   onAuthError,
-}: { 
+}: {
   jwt?: string;
   onAuthError?: () => void;
 }) => {
@@ -79,11 +79,27 @@ const TZBaumbewirtschaftung = ({
     (async () => {
       try {
         // Load all three data sources using DAQ API
-        const [treesResult, treeActionsResult, actionsResult] = await Promise.all([
-          md5ActionFetchDAQ(appKey, APP_CONFIG.restService, jwt, APP_CONFIG.daqKeys.trees),
-          md5ActionFetchDAQ(appKey, APP_CONFIG.restService, jwt, APP_CONFIG.daqKeys.treeActions),
-          md5ActionFetchDAQ(appKey, APP_CONFIG.restService, jwt, APP_CONFIG.daqKeys.actions),
-        ]);
+        const [treesResult, treeActionsResult, actionsResult] =
+          await Promise.all([
+            md5ActionFetchDAQ(
+              appKey,
+              APP_CONFIG.restService,
+              jwt,
+              APP_CONFIG.daqKeys.trees
+            ),
+            md5ActionFetchDAQ(
+              appKey,
+              APP_CONFIG.restService,
+              jwt,
+              APP_CONFIG.daqKeys.treeActions
+            ),
+            md5ActionFetchDAQ(
+              appKey,
+              APP_CONFIG.restService,
+              jwt,
+              APP_CONFIG.daqKeys.actions
+            ),
+          ]);
 
         const treesFC = treesResult.data as any;
         const treeActions = treeActionsResult.data as any[];
@@ -95,9 +111,13 @@ const TZBaumbewirtschaftung = ({
 
         setFeatureCollection(enriched);
         setMaxTreeActionId(maxId);
-        
-        console.log(`Loaded ${treesFC.features.length} trees, ${treeActions.length} tree actions, max ID: ${maxId}`);
-        console.log(`Data timestamps - Trees: ${treesResult.time}, Actions: ${treeActionsResult.time}`);
+
+        console.log(
+          `Loaded ${treesFC.features.length} trees, ${treeActions.length} tree actions, max ID: ${maxId}`
+        );
+        console.log(
+          `Data timestamps - Trees: ${treesResult.time}, Actions: ${treeActionsResult.time}`
+        );
       } catch (error) {
         console.error("Error loading data:", error);
         // Handle 401 errors (JWT expired) by showing login modal again

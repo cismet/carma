@@ -30,6 +30,7 @@ export const useInitCesiumWidget = (
     minZoomDistanceRef,
     maxZoomDistanceRef,
     enableCollisionDetectionRef,
+    isSuspendedRef,
     emit,
   } = useCesiumContext();
 
@@ -50,12 +51,21 @@ export const useInitCesiumWidget = (
     if (!containerRef?.current) return;
     if (isInitializedRef.current) return;
 
+    // LAZY INIT: Only create Viewer when not suspended (3D mode active)
+    if (isSuspendedRef.current) {
+      console.debug(
+        "[CESIUM|INIT] Skipping viewer creation - suspended (2D mode)"
+      );
+      return;
+    }
+
     try {
       if (widgetRef.current && !widgetRef.current.isDestroyed()) {
         isInitializedRef.current = true;
         return;
       }
 
+      console.debug("[CESIUM|INIT] Creating Cesium Viewer (lazy init)");
       const widget = new Viewer(containerRef.current, options);
       widgetRef.current = widget;
       sceneRef.current = widget.scene;
@@ -88,7 +98,7 @@ export const useInitCesiumWidget = (
     }
 
     return () => {};
-  }, [containerRef, options, widgetRef, sceneRef, emit]);
+  }, [containerRef, options, widgetRef, sceneRef, isSuspendedRef, emit]);
 
   useEffect(() => {
     const scene = sceneRef.current;

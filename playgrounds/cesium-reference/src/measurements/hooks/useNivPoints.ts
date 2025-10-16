@@ -11,7 +11,8 @@ import {
   VerticalOrigin,
 } from "cesium";
 
-import { PROJ4_CONVERTERS } from "@carma-commons/utils";
+import { getFromWGS84Converter, ManagedProjections } from "@carma/geo/proj";
+
 import { NivPoint, TransformedNivPoint } from "../types/NivPointTypes";
 import { isPointMeasurementEntry } from "../types/MeasurementTypes";
 import { useCesiumMeasurements } from "../CesiumMeasurementsContext";
@@ -76,13 +77,11 @@ export const useNivPoints = (
         const rawData: NivPoint[] = await response.json();
 
         // Transform all points to session permanent objects
+        const converter = getFromWGS84Converter(ManagedProjections.EPSG25832);
         const transformedPoints: TransformedNivPoint[] = rawData.map(
           (point) => {
             // Transform UTM32 ETRS89 (EPSG:25832) to WGS84 (EPSG:4326)
-            const [longitude, latitude] = PROJ4_CONVERTERS.CRS25832.inverse([
-              point.x,
-              point.y,
-            ]);
+            const [longitude, latitude] = converter.inverse([point.x, point.y]);
 
             // Get elevation based on the selected standard
             const currentElevation = getElevationValue(point, verticalDatum);

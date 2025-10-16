@@ -27,7 +27,7 @@ export default defineConfig({
       entry: 'src/index.ts',
       name: 'formatters',
       fileName: 'index',
-      formats: ['es', 'cjs'],
+      formats: ['es'],
     },
     rollupOptions: {
       external: [],

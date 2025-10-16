@@ -19,7 +19,8 @@ import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
 import type { Item, Layer } from "@carma/types";
 import { useOverlayHelper } from "@carma-commons/ui/helper-overlay";
-import { cn, carmaWindow } from "@carma-commons/utils";
+import { cn } from "@carma-commons/utils";
+import { carmaWindow } from "@carma-commons/dom/window";
 import { LayerLib } from "@carma-mapping/layers";
 
 import { getThumbnails, setThumbnail } from "../store/slices/layers";

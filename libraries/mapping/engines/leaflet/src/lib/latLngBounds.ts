@@ -8,6 +8,7 @@ import {
 } from "@carma/geo/proj";
 import type { RoutedMapBoundingBox } from "@carma-mapping/engines/carma-cismap";
 import { latLngToTypedLngLatArr } from "./latLng";
+import * as L from "leaflet";
 
 /**
  * Type for Leaflet-compatible bounds: [[south, west], [north, east]]

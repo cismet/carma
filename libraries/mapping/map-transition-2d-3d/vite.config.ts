@@ -20,10 +20,10 @@ export default defineConfig({
       entry: 'src/index.ts',
       name: 'map-transition-2d-3d',
       fileName: 'index',
-      formats: ['es', 'cjs'],
+      formats: ['es'],
     },
     rollupOptions: {
-      external: ['react', 'react-dom', 'react/jsx-runtime'],
+      external: ['react', 'react-dom', 'react/jsx-runtime', '@carma/geo/types'],
     },
   },
 });

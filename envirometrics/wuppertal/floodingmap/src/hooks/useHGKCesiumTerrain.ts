@@ -79,66 +79,69 @@ export const useHGKCesiumTerrain = (
     const loadTerrain = (retry = 0) => {
       if (currentAttemptRef.current !== attemptId) return;
 
- 
-        console.debug(
-          "hq Key changed, viewer not ready yet",
-          hqKey,
-          selectedSimulation,
-          useHws,
-          retry
-        );
+      // TODO: Waiting for new API - retry logic needs to be reimplemented
+      // if (!sceneReady) {
+      //   console.debug(
+      //     "hq Key changed, viewer not ready yet",
+      //     hqKey,
+      //     selectedSimulation,
+      //     useHws,
+      //     retry
+      //   );
 
-        if (retry < MAX_RETRIES) {
-          const nextRetryDelay = RETRY_DELAY * Math.pow(2, retry);
+      //   if (retry < MAX_RETRIES) {
+      //     const nextRetryDelay = RETRY_DELAY * Math.pow(2, retry);
 
-          retryTimeoutRef.current = window.setTimeout(() => {
-            if (currentAttemptRef.current === attemptId) {
-              setRetryCount(retry + 1);
-              loadTerrain(retry + 1);
-            }
-          }, nextRetryDelay);
-        } else {
-          console.warn("HQ Max retries reached, not setting terrain provider");
-        }
-        return;
-      }
+      //     retryTimeoutRef.current = window.setTimeout(() => {
+      //       if (currentAttemptRef.current === attemptId) {
+      //         setRetryCount(retry + 1);
+      //         loadTerrain(retry + 1);
+      //       }
+      //     }, nextRetryDelay);
+      //   } else {
+      //     console.warn("HQ Max retries reached, not setting terrain provider");
+      //   }
+      //   return;
+      // }
 
+      // TODO: Waiting for new API - terrain loading needs to be reimplemented
       console.debug(
         "hq Key changed, viewer ready",
         hqKey,
         selectedSimulation,
-        useHws,
-        retry
+        useHws
+        // retry
       );
 
       const scene = sceneRef.current;
       if (!scene) return;
 
-      setTimeout(() => {
-       prepareSceneForHGK(scene);
-      }, 500);
+      // setTimeout(() => {
+      //  prepareSceneForHGK(scene);
+      // }, 500);
       scene.requestRender();
 
-      getProvider(scene, hqKey, HGK_TERRAIN_PROVIDER_URLS).then((provider) => {
-        if (
-          currentAttemptRef.current !== attemptId ||
-          !scene ||
-          scene.isDestroyed()
-        )
-          return;
+      // getProvider(scene, hqKey, HGK_TERRAIN_PROVIDER_URLS).then((provider) => {
+      //   if (
+      //     currentAttemptRef.current !== attemptId ||
+      //     !scene ||
+      //     scene.isDestroyed()
+      //   )
+      //     return;
 
-        if (provider && scene) {
-          try {
-            scene.terrainProvider = provider;
-            scene.requestRender();
-          } catch (e) {
-            console.warn("Error applying terrain provider:", e);
-          }
-        }
-      });
+      //   if (provider && scene) {
+      //     try {
+      //       scene.terrainProvider = provider;
+      //       scene.requestRender();
+      //     } catch (e) {
+      //       console.warn("Error applying terrain provider:", e);
+      //     }
+      //   }
+      // });
     };
 
-    loadTerrain(retryCount);
+    // TODO: Waiting for new API - loadTerrain function needs to be defined
+    // loadTerrain(retryCount);
 
     return () => {
       if (retryTimeoutRef.current !== null) {

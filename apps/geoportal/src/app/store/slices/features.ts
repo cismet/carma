@@ -1,7 +1,7 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
 import { isEqual } from "lodash";
 
-import type { FeatureInfo } from "@carma/types";
+import type { FeatureInfo, SearchResultItem } from "@carma/types";
 import type { FeatureInfoState } from "@carma-appframeworks/portals";
 import type { RootState } from "..";
 
@@ -41,14 +41,20 @@ const slice = createSlice({
     clearCompletedVectorLayers(state) {
       state.completedVectorLayers = [];
     },
-    setFeatures(state, action: PayloadAction<FeatureInfo[]>) {
+    setFeatures(
+      state,
+      action: PayloadAction<(FeatureInfo | SearchResultItem)[]>
+    ) {
       state.features = action.payload;
     },
     clearFeatures(state) {
       state.features = [];
     },
 
-    setSelectedFeature(state, action: PayloadAction<FeatureInfo | null>) {
+    setSelectedFeature(
+      state,
+      action: PayloadAction<FeatureInfo | SearchResultItem | null>
+    ) {
       state.selectedFeature = action.payload;
     },
     updateInfoElementsAfterRemovingFeature(

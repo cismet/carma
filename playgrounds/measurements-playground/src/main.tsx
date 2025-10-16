@@ -65,12 +65,12 @@ const MeasurementsProviderWrapper = ({
 const RootComponent = () => {
   const [vectorStylesArray, setVectorStylesArray] = useState<any[]>(() => {
     // Load from localStorage on mount
-    const saved = localStorage.getItem('measurements-vector-style');
+    const saved = localStorage.getItem("measurements-vector-style");
     if (saved) {
       try {
         return [JSON.parse(saved)];
       } catch (e) {
-        console.error('Failed to parse saved vector style:', e);
+        console.error("Failed to parse saved vector style:", e);
         return [];
       }
     }
@@ -97,7 +97,10 @@ const RootComponent = () => {
               console.log("JSON content fetched:", jsonData);
 
               // Save to localStorage
-              localStorage.setItem('measurements-vector-style', JSON.stringify(jsonData));
+              localStorage.setItem(
+                "measurements-vector-style",
+                JSON.stringify(jsonData)
+              );
 
               // Store the JSON object in the array
               setVectorStylesArray([jsonData]);
@@ -133,7 +136,10 @@ const RootComponent = () => {
               console.log("Parsed JSON from file:", jsonData);
 
               // Save to localStorage
-              localStorage.setItem('measurements-vector-style', JSON.stringify(jsonData));
+              localStorage.setItem(
+                "measurements-vector-style",
+                JSON.stringify(jsonData)
+              );
 
               // Add the parsed JSON to the vectorStylesArray
               setVectorStylesArray([jsonData]);

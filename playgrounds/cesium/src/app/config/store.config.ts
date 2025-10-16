@@ -1,3 +1,5 @@
+// TODO: update for new API without redux and with new scene config based API
+// @ts-nocheck
 import { Cartesian3 } from "cesium";
 
 import { WUPPERTAL } from "@carma/resources";

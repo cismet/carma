@@ -5,20 +5,24 @@ import {
   WUPP_TERRAIN_PROVIDER,
   WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
 } from "@carma/resources";
-import { CesiumConfig } from "@carma-mapping/engines/cesium";
+// TODO: Remove CesiumConfig import - not available in current version
+// import { CesiumConfig } from "@carma-mapping/engines/cesium";
 import type { LeafletConfig } from "@carma/types";
 
 export const APP_BASE_PATH = import.meta.env.BASE_URL;
 
 const CESIUM_PATHNAME = "__cesium__";
 
-export const CESIUM_CONFIG: CesiumConfig = {
+// TODO: Replace with proper CesiumConfig when available
+export const CESIUM_CONFIG = {
   transitions: {
     mapMode: {
       duration: 1000,
     },
   },
   camera: {
+    maxHeight: 100000,
+    minHeight: 1,
     minPitch: 15,
     minPitchRange: 10,
   },

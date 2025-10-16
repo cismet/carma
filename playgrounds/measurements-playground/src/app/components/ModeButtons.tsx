@@ -2,7 +2,13 @@
  * Mode selection buttons component
  */
 
-type Mode = "features" | "coordinates" | "coordinatesUnderPointer" | "spider" | "spiderRocket" | "serious";
+type Mode =
+  | "features"
+  | "coordinates"
+  | "coordinatesUnderPointer"
+  | "spider"
+  | "spiderRocket"
+  | "serious";
 
 interface ModeButtonsProps {
   mode: Mode | null;

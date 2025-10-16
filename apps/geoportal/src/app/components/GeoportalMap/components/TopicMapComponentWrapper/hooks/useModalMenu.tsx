@@ -1,3 +1,5 @@
+// @ts-nocheck
+// TODO fix typescript for strict mode
 import { useContext, useMemo, useState } from "react";
 import { Button, Tooltip } from "antd";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";

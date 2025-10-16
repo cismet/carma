@@ -4,7 +4,7 @@ import {
   WUPP_TERRAIN_PROVIDER,
   WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
 } from "@carma/resources";
-import { CesiumConfig } from "@carma-mapping/engines/cesium";
+import type { CesiumConfig } from "@carma/types";
 
 import { APP_BASE_PATH } from "../app.config";
 
@@ -15,8 +15,9 @@ export const CONSTRUCTOR_OPTIONS: Viewer.ConstructorOptions = {
   contextOptions: { webgl: { alpha: false } },
 };
 
+// TODO: Waiting for new API - CesiumConfig type removed, using any for now
 // see also cesium State in store
-export const CESIUM_CONFIG: CesiumConfig = {
+export const CESIUM_CONFIG: any = {
   transitions: {
     mapMode: {
       duration: 1000,

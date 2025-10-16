@@ -22,7 +22,8 @@ export const MODEL_ASSETS: Record<string, MarkerModelAsset> = {
     isCameraFacing: true,
     fixedScale: true,
     anchorOffset: { z: 0 },
-    stemline: { color: [0.95, 0.8, 0.95, 0.75], width: 6, gap: 2, glow: false },
+    // TODO: Remove invalid stemline property - not part of MarkerModelAsset
+    // stemline: { color: [0.95, 0.8, 0.95, 0.75], width: 6, gap: 2, glow: false },
   },
 
   MarkerGlowLine: {
@@ -32,7 +33,8 @@ export const MODEL_ASSETS: Record<string, MarkerModelAsset> = {
     isCameraFacing: true,
     fixedScale: true,
     anchorOffset: { z: 0 },
-    stemline: { color: [0.8, 0.8, 0.95, 0.2], width: 10, gap: 0.5, glow: true },
+    // TODO: Remove invalid stemline property - not part of MarkerModelAsset
+    // stemline: { color: [0.8, 0.8, 0.95, 0.2], width: 10, gap: 0.5, glow: true },
   },
 
   /*

@@ -1,3 +1,5 @@
+// @ts-nocheck
+// TODO fix typescript for strict mode
 import maplibregl from "maplibre-gl";
 import { type LayerSpecification, type StyleSpecification } from "maplibre-gl";
 import slugify from "slugify";

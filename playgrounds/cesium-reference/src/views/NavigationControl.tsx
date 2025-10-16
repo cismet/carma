@@ -22,13 +22,12 @@ import {
 } from "@carma-mapping/map-controls-layout";
 
 import {
-  getIsViewerReadyAsync,
   useZoomControls,
-  PitchingCompass,
   initAnimationMap,
   type AnimationMap,
   CesiumContextType,
 } from "@carma-mapping/engines/cesium";
+import { CesiumPitchingCompass as PitchingCompass } from "@carma-mapping/ui/pitching-compass";
 
 import useTileset from "../hooks/useTileset";
 import { useZoomToTilesetOnReady } from "../hooks/useZoomToTilesetOnReady";
@@ -63,8 +62,6 @@ const NavigationControlView: FC = () => {
         );
         const newImageryLayer = new ImageryLayer(imageryProvider);
         viewer.imageryLayers.add(newImageryLayer);
-
-        await getIsViewerReadyAsync(viewer, setIsViewerReady);
       }
     };
 

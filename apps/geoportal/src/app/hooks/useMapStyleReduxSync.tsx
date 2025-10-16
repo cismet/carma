@@ -1,11 +1,7 @@
 import { useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import {
-  MapStyleKeys,
-  ManagedCesiumStyleKeys,
-} from "@carma-appframeworks/portals";
-import { useCesiumContext, CtxEvent } from "@carma-mapping/engines/cesium";
+import { MapStyleKeys } from "@carma-appframeworks/portals";
 
 import { useMapStyle } from "./useGeoportalMapStyle";
 import {
@@ -17,15 +13,15 @@ import {
 import type { RootState } from "../store";
 
 /**
- * Custom hook to determine map layers from map styles and and layer selection
- * It updates the background layer and current scene style based on
- * - the current mapStyle from the MapStyleProvider
- * - the selected layer for each mapStyle from the Redux store.
+ * Custom hook to synchronize map style changes with Redux background layer state.
+ * When map style changes, it updates the corresponding Redux background layer
+ * based on the selected layer for each map style.
+ *
+ * Note: Cesium scene style synchronization is handled by useSyncCesiumSceneStyle hook
+ * via the event bus to avoid coupling Redux state with external APIs.
  */
-
 export const useMapStyleReduxSync = () => {
   const dispatch = useDispatch();
-  const { emit } = useCesiumContext();
   const { currentStyle } = useMapStyle();
 
   const selectedMapLayer = useSelector((state: RootState) =>
@@ -49,7 +45,6 @@ export const useMapStyleReduxSync = () => {
           opacity: backgroundLayer.opacity,
         })
       );
-      emit(CtxEvent.SetSceneStyle, ManagedCesiumStyleKeys.LOD2);
     } else if (currentStyle === MapStyleKeys.AERIAL) {
       dispatch(
         setBackgroundLayer({
@@ -59,7 +54,6 @@ export const useMapStyleReduxSync = () => {
           opacity: backgroundLayer.opacity,
         })
       );
-      emit(CtxEvent.SetSceneStyle, ManagedCesiumStyleKeys.MESH);
     }
   }, [
     currentStyle,
@@ -68,6 +62,5 @@ export const useMapStyleReduxSync = () => {
     backgroundLayer.visible,
     backgroundLayer.opacity,
     dispatch,
-    emit,
   ]);
 };

@@ -1,17 +1,11 @@
 import { createRoot } from "react-dom/client";
-import { Provider } from "react-redux";
 import { RouterProvider, createHashRouter } from "react-router-dom";
-import { persistStore } from "redux-persist";
-import { PersistGate } from "redux-persist/integration/react";
 
 import { suppressReactCismapErrors } from "@carma-commons/utils";
 
 import App from "./app/App";
-import store from "./app/store";
 import { CESIUM_CONFIG } from "./app/config/app.config";
 import { setupCesiumEnvironment } from "@carma-mapping/engines/cesium";
-
-const persistor = persistStore(store);
 
 suppressReactCismapErrors();
 
@@ -28,10 +22,4 @@ const router = createHashRouter([
   },
 ]);
 
-root.render(
-  <Provider store={store}>
-    <PersistGate loading={null} persistor={persistor}>
-      <RouterProvider router={router} />
-    </PersistGate>
-  </Provider>
-);
+root.render(<RouterProvider router={router} />);

@@ -199,7 +199,7 @@ function App() {
           setAuth({ checked: true, jwt: undefined });
         }}
       />
-      <Map 
+      <Map
         jwt={auth.jwt}
         onAuthError={() => {
           setAuth({ checked: true, jwt: undefined });

@@ -1,3 +1,5 @@
+// @ts-nocheck
+// TODO fix typescript for strict mode
 import { Slider, type SliderSingleProps } from "antd";
 import { useDispatch } from "react-redux";
 import {

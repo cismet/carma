@@ -27,10 +27,10 @@ export default defineConfig({
       entry: 'src/index.ts',
       name: 'geo',
       fileName: 'index',
-      formats: ['es', 'cjs'],
+      formats: ['es'],
     },
     rollupOptions: {
-      external: ['@turf/turf'],
+      external: ['@turf/turf', '@carma/geo/types'],
     },
   },
 });

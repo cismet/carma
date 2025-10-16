@@ -7,8 +7,7 @@ import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { useContext } from "react";
 import { isAreaType } from "@carma/resources";
-import proj4 from "proj4";
-import { proj4crs3857def, proj4crs4326def } from "@carma-mapping/utils";
+import { getFromWebMercatorToWGS84 } from "@carma/geo/proj";
 
 const FuzzySearchWrapper = ({
   featureGazData,
@@ -41,7 +40,7 @@ const FuzzySearchWrapper = ({
     if (routedMap && clickAfterGazetteerHit) {
       setTimeout(() => {
         const map = routedMap.leafletMap.leafletElement;
-        const selectedPos = proj4(proj4crs3857def, proj4crs4326def, [
+        const selectedPos = getFromWebMercatorToWGS84([
           selection.x,
           selection.y,
         ]);

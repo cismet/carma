@@ -69,7 +69,7 @@ export function App() {
                       ref={viewerContainerRef}
                       style={{ position: "absolute", inset: 0 }}
                     />
-                    <CustomWidget containerRef={viewerContainerRef} />
+                    <CesiumSceneComponent containerRef={viewerContainerRef} />
                     <div
                       style={{
                         pointerEvents: "none",

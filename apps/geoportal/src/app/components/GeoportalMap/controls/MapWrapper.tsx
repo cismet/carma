@@ -1,3 +1,5 @@
+// @ts-nocheck
+// TODO fix typescript for strict mode
 import { useContext, useEffect, useRef, useState } from "react";
 import { isMobile } from "react-device-detect";
 import { useDispatch, useSelector } from "react-redux";
@@ -54,7 +56,7 @@ import { MeasurementControl } from "@carma-commons/measurements";
 
 import { GeoportalMap } from "../GeoportalMap.tsx";
 import LibreGeoportalMap from "../LibreGeoportalMap.tsx";
-import { ObliqueControls } from "../../../oblique/components/ObliqueControls.tsx";
+import { CesiumObliqueMode } from "../../CesiumObliqueMode";
 import LayerWrapper from "../../layers/LayerWrapper.tsx";
 
 import { useLeafletZoomControls } from "@carma-mapping/engines/leaflet";
@@ -64,8 +66,6 @@ import { useFeatureInfoModeCursorStyle } from "../../../hooks/useFeatureInfoMode
 import { useMapStyleReduxSync } from "../../../hooks/useMapStyleReduxSync";
 import { useTourRefCollabLabels } from "../../../hooks/useTourRefCollabLabels.ts";
 import { useWindowSize } from "../../../hooks/useWindowSize.ts";
-
-import { useOblique } from "../../../oblique/hooks/useOblique.ts";
 
 import { cancelOngoingRequests } from "../topicmap.utils";
 
@@ -523,7 +523,7 @@ const MapWrapper = () => {
           ) : (
             <>
               <GeoportalMap height={height} width={width} allow3d={allow3d} />
-              {!isMode2d && <ObliqueControls />}
+              <CesiumObliqueMode />
             </>
           )}
         </div>

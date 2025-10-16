@@ -12,7 +12,8 @@ import { defaultGazDataConfig } from "@carma/resources";
 import { AuthProvider } from "@carma/providers/auth";
 
 import { GazDataProvider } from "./GazDataProvider";
-import { SelectionProvider } from "./SelectionProvider";
+import { SelectionProvider, type SelectionItem } from "./SelectionProvider";
+import type { FeatureInfo } from "@carma/types";
 import {
   MapStyleProvider,
   type MapStyleConfig,
@@ -35,6 +36,12 @@ type CarmaMapProviderWrapperProps = {
   hashKeyAliases?: Record<string, string>;
   hashCodecs?: HashCodecs;
   keyOrder?: string[];
+  // TODO: Remove onSelectionChange when Redux is fully removed from apps
+  // Optional callback for syncing selection to external state (e.g., Redux)
+  onSelectionChange?: (selection: SelectionItem | null) => void;
+  // TODO: Remove onModelSelectionChange when Redux is fully removed from apps
+  // Optional callback for syncing model selection to external state (e.g., Redux)
+  onModelSelectionChange?: (feature: FeatureInfo | null) => void;
 };
 
 export const CarmaMapProviderWrapper = ({
@@ -45,6 +52,8 @@ export const CarmaMapProviderWrapper = ({
   mapStyleConfig,
   hashKeyAliases,
   hashCodecs,
+  onSelectionChange,
+  onModelSelectionChange,
   keyOrder = [
     "lat",
     "lng",
@@ -87,7 +96,10 @@ export const CarmaMapProviderWrapper = ({
         <AuthProvider>
           <SandboxedEvalProvider>
             <GazDataProvider config={gazDataConfig}>
-              <SelectionProvider>
+              <SelectionProvider
+                onSelectionChange={onSelectionChange}
+                onModelSelectionChange={onModelSelectionChange}
+              >
                 <MapStyleProvider config={mapStyleConfig}>
                   <TransitionContextProvider>
                     <CarmaTopicMapContextProvider infoBoxPixelWidth={350}>

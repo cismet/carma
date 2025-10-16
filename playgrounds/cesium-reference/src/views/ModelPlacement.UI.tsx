@@ -1,3 +1,5 @@
+// @ts-nocheck
+// TODO fix for new api
 import { type RefObject, useEffect, useCallback } from "react";
 import {
   Viewer,

@@ -25,10 +25,10 @@ export default defineConfig({
       entry: "src/index.ts",
       name: "proj",
       fileName: "index",
-      formats: ["es", "cjs"],
+      formats: ["es"],
     },
     rollupOptions: {
-      external: [],
+      external: ["@carma/geo/types"],
     },
   },
 });

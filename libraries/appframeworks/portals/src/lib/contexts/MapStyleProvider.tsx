@@ -1,8 +1,18 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
 import { useHashState } from "./HashStateProvider";
-import { type MapStyleKey, MapStyleKeys, isMapStyleKey } from "../constants";
+import { type MapStyleKey, isMapStyleKey } from "../constants";
+import { useMapStyleBus } from "../hooks/useMapStyleBus";
 
+/**
+ * MapStyleProvider - React Context Provider for Map Style Management
+ *
+ * This provider implements a dual-pattern architecture:
+ * - React Context for UI components (immediate feedback)
+ * - Event Bus for external API control (no rerenders)
+ *
+ * Architecture Details: See docs/map-style-architecture.md
+ */
 export interface MapStyleConfig {
   defaultStyle: MapStyleKey;
   availableStyles: readonly MapStyleKey[];
@@ -28,6 +38,7 @@ export const MapStyleProvider = ({
 }: MapStyleProviderProps) => {
   const { defaultStyle } = config;
   const { updateHash, getHashValues } = useHashState();
+  const { emit } = useMapStyleBus();
   // get style on load from hash
   const hashedStyle = getHashValues().mapStyle;
 
@@ -45,6 +56,11 @@ export const MapStyleProvider = ({
       { label: "MapStyleProvider" }
     );
   }, [currentStyle, updateHash, defaultStyle]);
+
+  useEffect(() => {
+    // Emit the current style on mount and when it changes via event bus
+    emit(currentStyle);
+  }, [currentStyle, emit]);
 
   const value: MapStyleContextType = {
     currentStyle,

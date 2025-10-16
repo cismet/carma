@@ -26,10 +26,10 @@ export default defineConfig({
       entry: 'src/index.ts',
       name: 'carma-map-engines-carma-cismap',
       fileName: 'index',
-      formats: ['es', 'cjs'],
+      formats: ['es'],
     },
     rollupOptions: {
-      external: ['react', 'react/jsx-runtime'],
+      external: ['react', 'react/jsx-runtime', '@carma/geo/types'],
     },
   },
 

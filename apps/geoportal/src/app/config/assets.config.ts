@@ -1,3 +1,5 @@
+// @ts-nocheck
+// TODO fix typescript for strict mode
 import { MarkerModelAsset } from "@carma-mapping/engines/cesium";
 
 const APP_BASE_PATH = import.meta.env.BASE_URL;

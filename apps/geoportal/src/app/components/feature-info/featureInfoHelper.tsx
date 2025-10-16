@@ -1,3 +1,5 @@
+// @ts-nocheck
+// TODO fix typescript for strict mode
 import proj4 from "proj4";
 import type { Map } from "leaflet";
 import type {

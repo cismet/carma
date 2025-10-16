@@ -1,4 +1,5 @@
 export * from "./lib/altitudes.d";
+export * from "./lib/cardinal-directions.d";
 export * from "./lib/cartographic-coordinates.d";
 export * from "./lib/extents.d";
 export * from "./lib/geo.d";

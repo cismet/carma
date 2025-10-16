@@ -3,7 +3,8 @@
 import { Cartesian3, Color } from "cesium";
 
 import { WUPPERTAL } from "@carma/resources";
-import { CesiumState, toColorRgbaArray } from "@carma-mapping/engines/cesium";
+// TODO: Remove CesiumState import - not available in current version
+// import { CesiumState, toColorRgbaArray } from "@carma-mapping/engines/cesium";
 
 import { MODEL_ASSETS } from "./assets.config";
 
@@ -22,7 +23,8 @@ const homeOffset = {
   z: 45000, // elevation
 };
 
-export const defaultCesiumState: CesiumState = {
+// TODO: Replace with proper CesiumState when available
+export const defaultCesiumState = {
   isMode2d: true,
   homeOffset: homeOffset,
   homePosition,
@@ -40,15 +42,15 @@ export const defaultCesiumState: CesiumState = {
   },
   sceneStyles: {
     primary: {
-      backgroundColor: toColorRgbaArray(Color.GRAY),
+      backgroundColor: [0.5, 0.5, 0.5, 1.0], // TODO: Replace toColorRgbaArray(Color.GRAY)
       globe: {
         baseColor: [0, 0, 0, 0.01],
       },
     },
     secondary: {
-      backgroundColor: toColorRgbaArray(Color.WHITE),
+      backgroundColor: [1.0, 1.0, 1.0, 1.0], // TODO: Replace toColorRgbaArray(Color.WHITE)
       globe: {
-        baseColor: toColorRgbaArray(Color.WHITE),
+        baseColor: [1.0, 1.0, 1.0, 1.0], // TODO: Replace toColorRgbaArray(Color.WHITE)
       },
     },
   },

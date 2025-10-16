@@ -130,13 +130,13 @@ export interface MappingState extends LayerState {
 }
 
 export interface FeatureInfoState {
-  features: any[];
-  selectedFeature: any;
-  secondaryInfoBoxElements: any[];
+  features: (FeatureInfo | SearchResultItem)[];
+  selectedFeature: FeatureInfo | SearchResultItem | null;
+  secondaryInfoBoxElements: (FeatureInfo | SearchResultItem)[];
   infoText: string;
   preferredLayerId: string;
   preferredVectorLayerId?: number;
-  vectorInfo: any;
+  vectorInfo: FeatureInfo | SearchResultItem | undefined;
   vectorInfos: FeatureInfo[];
   nothingFoundIDs: string[];
   loading: boolean;

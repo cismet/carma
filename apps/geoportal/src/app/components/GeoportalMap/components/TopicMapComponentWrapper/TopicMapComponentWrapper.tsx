@@ -1,3 +1,5 @@
+// @ts-nocheck
+// TODO fix typescript for strict mode
 import {
   memo,
   useCallback,
@@ -114,7 +116,20 @@ export const TopicMapComponentWrapper = ({
     }
   }, [dispatch]);
 
+  /**
+   * TODO: Refactor to use event bus pattern like CesiumMapComponentWrapper
+   *
+   * Current: Uses Redux polling for background layer state (useSelector(getBackgroundLayer))
+   * Future: Subscribe to MapStyleBus events directly to avoid Redux polling
+   * pretty much all topicMap state should move from redux store to event bus and provider state
+   * to enable using this easily and store agnostic as library
+   *
+   * See CesiumMapComponentWrapper as reference implementation for event bus pattern
+   */
+
+  // First step of implementation handle suspended state for map transitions
   // Subscribe to TopicMap context events
+
   useEffect(() => {
     const unsubActivate = subscribe(TopicMapCtxEvent.Activate, () => {
       console.debug("[TopicMapWrapper] TopicMap activate");

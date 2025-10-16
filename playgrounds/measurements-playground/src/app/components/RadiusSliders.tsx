@@ -4,7 +4,13 @@
 
 import { Slider } from "antd";
 
-type Mode = "features" | "coordinates" | "coordinatesUnderPointer" | "spider" | "spiderRocket" | "serious";
+type Mode =
+  | "features"
+  | "coordinates"
+  | "coordinatesUnderPointer"
+  | "spider"
+  | "spiderRocket"
+  | "serious";
 
 interface RadiusSlidersProps {
   queryRadius: number;
@@ -23,7 +29,9 @@ export function RadiusSliders({
   onQueryRadiusChange,
   onToleranceRadiusChange,
 }: RadiusSlidersProps) {
-  const showToleranceSlider = hasVectorLayer && (mode === "spider" || mode === "spiderRocket" || mode === "serious");
+  const showToleranceSlider =
+    hasVectorLayer &&
+    (mode === "spider" || mode === "spiderRocket" || mode === "serious");
 
   return (
     <>
@@ -49,7 +57,13 @@ export function RadiusSliders({
 
       {/* Tolerance Radius Slider - only show for spider, spiderRocket, and serious modes */}
       {showToleranceSlider && (
-        <div style={{ borderTop: "1px solid #e0e0e0", paddingTop: "10px", marginTop: "10px" }}>
+        <div
+          style={{
+            borderTop: "1px solid #e0e0e0",
+            paddingTop: "10px",
+            marginTop: "10px",
+          }}
+        >
           <label
             style={{
               fontWeight: "bold",

@@ -1,5 +1,6 @@
 import { useContext, useEffect, useMemo, useRef, type ReactNode } from "react";
-// @ts-ignore - react-cismap has no type declarations
+
+import * as L from "leaflet";
 import {
   TopicMapContextProvider,
   TopicMapContext as ReactCismapTopicMapContext,

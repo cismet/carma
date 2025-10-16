@@ -18,14 +18,16 @@ import { isNumberArrayEqual } from "@carma-commons/utils";
 
 import {
   isValidCesiumTerrainProvider,
-  selectViewerIsMode2d,
   useCesiumContext,
   guardSampleTerrainMostDetailedAsync,
 } from "@carma-mapping/engines/cesium";
+// TODO: Waiting for new API - selectViewerIsMode2d moved or removed
+// import { selectViewerIsMode2d } from "@carma-mapping/engines/cesium";
 
 import { useHGKCesiumTerrain } from "../hooks/useHGKCesiumTerrain";
 import { onCesiumClick } from "../utils/cesiumHandlers";
-import { getWebMercatorInWGS84 } from "../utils/geo";
+// TODO: Waiting for new API - geo utils need to be reimplemented
+// import { getWebMercatorInWGS84 } from "../utils/geo";
 import { updateMarkerPosition } from "../utils/marker";
 
 import config from "../config";
@@ -41,7 +43,8 @@ export const StateAwareChildren = () => {
   const { controlState } = useContext<typeof EnviroMetricMapContext>(
     EnviroMetricMapContext
   );
-  const isMode2d = useSelector(selectViewerIsMode2d);
+  // TODO: Waiting for new API - Redux can be removed
+  const isMode2d = false; // useSelector(selectViewerIsMode2d);
 
   const { executeFeatureInfoRequest, setBackgroundIndex } = useContext<
     typeof EnviroMetricMapDispatchContext
@@ -52,10 +55,13 @@ export const StateAwareChildren = () => {
   const conf = config.config;
 
   // CESIUM
-  const { sceneRef, terrainProviderRef } = useCesiumContext();
+  // TODO: Waiting for new API - terrainProviderRef not in context anymore
+  const { sceneRef } = useCesiumContext();
+  const terrainProviderRef = { current: null };
   const [cesiumPickedPosition, setCesiumPickedPosition] = useState<
     [number, number] | null
   >(null);
+  // TODO: Use Primitive type instead of Entity for markers
   const markerEntityRef = useRef<Entity | null>(null);
   const highlightEntityRef = useRef<Entity | null>(null);
   const prevPositionRef = useRef<[number, number] | null>(null);
@@ -64,35 +70,32 @@ export const StateAwareChildren = () => {
   );
 
   useEffect(() => {
+    // TODO: Waiting for new API - geo utils need to be reimplemented
     // update 3d marker position from 2d while in 2d
-    if (
-      controlState.featureInfoModeActivated &&
-      controlState.currentFeatureInfoPosition
-    ) {
-      const asyncUpdate = async () => {
-        const { lat, lon } = getWebMercatorInWGS84(
-          controlState.currentFeatureInfoPosition
-        );
-
-        const cartographic = Cartographic.fromDegrees(lon, lat);
-
-        if (!isValidCesiumTerrainProvider(terrainProviderRef.current)) return;
-
-        const [groundPositionCartographic] =
-          await guardSampleTerrainMostDetailedAsync(
-            terrainProviderRef.current,
-            [cartographic]
-          );
-        if (!groundPositionCartographic) return;
-
-        updateMarkerPosition(
-          markerEntityRef,
-          highlightEntityRef,
-          groundPositionCartographic
-        );
-      };
-      asyncUpdate();
-    }
+    // if (
+    //   controlState.featureInfoModeActivated &&
+    //   controlState.currentFeatureInfoPosition
+    // ) {
+    //   const asyncUpdate = async () => {
+    //     const { lat, lon } = getWebMercatorInWGS84(
+    //       controlState.currentFeatureInfoPosition
+    //     );
+    //     const cartographic = Cartographic.fromDegrees(lon, lat);
+    //     if (!isValidCesiumTerrainProvider(terrainProviderRef.current)) return;
+    //     const [groundPositionCartographic] =
+    //       await guardSampleTerrainMostDetailedAsync(
+    //         terrainProviderRef.current,
+    //         [cartographic]
+    //       );
+    //     if (!groundPositionCartographic) return;
+    //     updateMarkerPosition(
+    //       markerEntityRef,
+    //       highlightEntityRef,
+    //       groundPositionCartographic
+    //     );
+    //   };
+    //   asyncUpdate();
+    // }
   }, [
     terrainProviderRef,
     controlState.featureInfoModeActivated,
@@ -111,61 +114,64 @@ export const StateAwareChildren = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMode2d]); // intentionally only trigger on mode change
 
-  useEffect(() => {
-    const scene = sceneRef.current;
-    if (!isValidScene(scene)) return;
-    if (controlState.featureInfoModeActivated) {
-      const handler = new ScreenSpaceEventHandler(scene.canvas);
-      handler.setInputAction(
-        async (click) =>
-          onCesiumClick(
-            click,
-            scene,
-            terrainProviderRef,
-            markerEntityRef,
-            highlightEntityRef,
-            setCesiumPickedPosition
-          ),
-        ScreenSpaceEventType.LEFT_CLICK
-      );
+  // TODO: Waiting for new API - use scene.primitives instead of entities
+  // Markers should be implemented as primitives on the scene, not entities
+  // useEffect(() => {
+  //   const scene = sceneRef.current;
+  //   if (!isValidScene(scene)) return;
+  //   if (controlState.featureInfoModeActivated) {
+  //     const handler = new ScreenSpaceEventHandler(scene.canvas);
+  //     handler.setInputAction(
+  //       async (click) =>
+  //         onCesiumClick(
+  //           click,
+  //           scene,
+  //           terrainProviderRef,
+  //           markerPrimitiveRef,
+  //           highlightPrimitiveRef,
+  //           setCesiumPickedPosition
+  //         ),
+  //       ScreenSpaceEventType.LEFT_CLICK
+  //     );
 
-      return () => {
-        handler.destroy();
-        setCesiumPickedPosition(null);
+  //     return () => {
+  //       handler.destroy();
+  //       setCesiumPickedPosition(null);
 
-        if (scene.isDestroyed()) return;
+  //       if (scene.isDestroyed()) return;
 
-        if (markerEntityRef.current) {
-          scene.entities.remove(markerEntityRef.current);
-          markerEntityRef.current = null;
-        }
-        if (highlightEntityRef.current) {
-          scene.entities.remove(highlightEntityRef.current);
-          highlightEntityRef.current = null;
-        }
-        scene.requestRender();
-      };
-    }
-  }, [sceneRef, controlState.featureInfoModeActivated]);
+  //       if (markerPrimitiveRef.current) {
+  //         scene.primitives.remove(markerPrimitiveRef.current);
+  //         markerPrimitiveRef.current = null;
+  //       }
+  //       if (highlightPrimitiveRef.current) {
+  //         scene.primitives.remove(highlightPrimitiveRef.current);
+  //         highlightPrimitiveRef.current = null;
+  //       }
+  //       scene.requestRender();
+  //     };
+  //   }
+  // }, [sceneRef, controlState.featureInfoModeActivated]);
 
-  // Add effect to cleanup marker when feature info mode is disabled
-  useEffect(() => {
-    const scene = sceneRef.current;
-    if (!isValidScene(scene)) return;
-    if (!controlState.featureInfoModeActivated && sceneRef.current) {
-      if (sceneRef.current.isDestroyed()) return;
+  // TODO: Waiting for new API - use scene.primitives instead of entities
+  // Cleanup primitives when feature info mode is disabled
+  // useEffect(() => {
+  //   const scene = sceneRef.current;
+  //   if (!isValidScene(scene)) return;
+  //   if (!controlState.featureInfoModeActivated && sceneRef.current) {
+  //     if (sceneRef.current.isDestroyed()) return;
 
-      if (markerEntityRef.current) {
-        sceneRef.current.entities.remove(markerEntityRef.current);
-        markerEntityRef.current = null;
-      }
-      if (highlightEntityRef.current) {
-        sceneRef.current.entities.remove(highlightEntityRef.current);
-        highlightEntityRef.current = null;
-      }
-      setCesiumPickedPosition(null);
-    }
-  }, [sceneRef, controlState.featureInfoModeActivated]);
+  //     if (markerPrimitiveRef.current) {
+  //       sceneRef.current.primitives.remove(markerPrimitiveRef.current);
+  //       markerPrimitiveRef.current = null;
+  //     }
+  //     if (highlightPrimitiveRef.current) {
+  //       sceneRef.current.primitives.remove(highlightPrimitiveRef.current);
+  //       highlightPrimitiveRef.current = null;
+  //     }
+  //     setCesiumPickedPosition(null);
+  //   }
+  // }, [sceneRef, controlState.featureInfoModeActivated]);
 
   useEffect(() => {
     if (

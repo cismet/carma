@@ -2,22 +2,27 @@ import { useEffect, useMemo, useState } from "react";
 import { Checkbox, Radio, Select } from "antd";
 
 import { WUPP_MESH_2024 } from "@carma/resources";
-import type { Degrees, Meters } from "@carma/units/types";
-import type { LatLng } from "@carma/types";
 
-import { Widget } from "@carma-mapping/engines/cesium-widget";
+import { Widget } from "./CesiumWidget";
 
 import { FOOTPRINT_GEOJSON_SOURCES } from "../../../config/dataSources.config";
 
 const { Option } = Select;
 
+// Simplified position type using plain numbers
+type Position = {
+  longitude: number;
+  latitude: number;
+  altitude?: number;
+};
+
 type Poi = {
   label: string;
-  position: LatLng.deg;
+  position: Position;
   range?: number;
   clipBy?: {
     radius?: number;
-    polygon?: LatLng.deg[];
+    polygon?: Position[];
   };
 };
 
@@ -28,7 +33,7 @@ const POI: Record<string, Poi> = {
       longitude: 7.201578,
       latitude: 51.256565,
       altitude: 335 + 10,
-    } as LatLng.deg,
+    },
     range: 30,
     clipBy: {
       radius: 15,
@@ -40,7 +45,7 @@ const POI: Record<string, Poi> = {
       longitude: 7.19993,
       latitude: 51.27225,
       altitude: 170,
-    } as LatLng.deg,
+    },
     range: 150,
     clipBy: {
       radius: 120,
@@ -52,7 +57,7 @@ const POI: Record<string, Poi> = {
       longitude: 7.08586,
       latitude: 51.24584,
       altitude: 190,
-    } as LatLng.deg,
+    },
     range: 60,
     clipBy: {
       radius: 30,
@@ -64,7 +69,7 @@ const POI: Record<string, Poi> = {
       longitude: 7.1049,
       latitude: 51.23916,
       altitude: 140,
-    } as LatLng.deg,
+    },
     range: 185,
     clipBy: {
       radius: 140,
@@ -76,7 +81,7 @@ const POI: Record<string, Poi> = {
       longitude: 7.1485164,
       latitude: 51.2559275,
       altitude: 150,
-    } as LatLng.deg,
+    },
     range: 80,
     clipBy: {
       radius: 60,
@@ -209,9 +214,9 @@ function View() {
             const lngCenter = (lngMin + lngMax) / 2;
 
             const position = {
-              longitude: (lngCenter ?? longitude) as Degrees,
-              latitude: (latCenter ?? latitude) as Degrees,
-              altitude: (height ?? 170) as Meters,
+              longitude: lngCenter ?? longitude,
+              latitude: latCenter ?? latitude,
+              altitude: height ?? 170,
             };
             feature &&
               setPoi({
@@ -222,8 +227,8 @@ function View() {
                   //radius: 100,
                   polygon: feature!.geometry!.coordinates[0][0].map(
                     ([longitude, latitude]) => ({
-                      longitude: longitude as Degrees,
-                      latitude: latitude as Degrees,
+                      longitude,
+                      latitude,
                     })
                   ),
                 },

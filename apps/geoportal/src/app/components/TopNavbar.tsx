@@ -41,7 +41,7 @@ import {
 import { getZenMode, getUIIsMode2d } from "../store/slices/ui";
 
 import { useMapStyle } from "../hooks/useGeoportalMapStyle";
-import { useOblique } from "../oblique/hooks/useOblique";
+import { useOblique } from "@carma-mapping/cesium-oblique-mode";
 
 import ActionButtons from "./nav-items/ActionButtons";
 
