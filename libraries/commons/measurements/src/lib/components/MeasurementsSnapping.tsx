@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import useMapLibreMap from "../hooks/useMapLibreMap";
+import { useMapLibreMap } from "../hooks/useMapLibreMap";
 import {
   TopicMapDispatchContext,
   TopicMapContext,
