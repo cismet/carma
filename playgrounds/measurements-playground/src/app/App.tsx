@@ -28,6 +28,7 @@ import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextPr
 import { ModeButtons } from "./components/ModeButtons";
 import { RadiusSliders } from "./components/RadiusSliders";
 import { VectorLayerButton } from "./components/VectorLayerButton";
+import { useMapMeasurementsContext } from "@carma-commons/measurements";
 
 suppressReactCismapErrors();
 
@@ -59,6 +60,7 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
     const saved = localStorage.getItem("measurements-mode");
     return (saved as any) || "features";
   });
+  const { currentDrawHandler } = useMapMeasurementsContext();
   const [seriousClosestPoint, setSeriousClosestPoint] = useState<any>(null);
   const queryRadiusRef = useRef(queryRadius);
   const toleranceRadiusRef = useRef(toleranceRadius);
@@ -1048,6 +1050,10 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
           shiftedContainerPoint
         );
 
+        if (currentDrawHandler) {
+          currentDrawHandler.addVertex(shiftedLatLng);
+        }
+
         // Fire a new click event with shifted coordinates
         leafletMap.fire("click", {
           latlng: shiftedLatLng,
@@ -1078,7 +1084,14 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
         }
       };
     }
-  }, [routedMapRef, queryRadius, toleranceRadius, maplibreMap, mode]);
+  }, [
+    routedMapRef,
+    queryRadius,
+    toleranceRadius,
+    maplibreMap,
+    mode,
+    currentDrawHandler,
+  ]);
 
   return (
     <div>
