@@ -5,4 +5,6 @@ export {
   useMapMeasurementsContext,
 } from "./lib/components/MapMeasurementsProvider";
 export { MapMeasurementsObjects } from "./lib/lib-measurements";
+export { MeasurementsSnapping } from "./lib/components/MeasurementsSnapping";
+export { useMapLibreMap } from "./lib/hooks/useMapLibreMap";
 export * from "./index.d";
