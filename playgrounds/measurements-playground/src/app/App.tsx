@@ -28,7 +28,10 @@ import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextPr
 import { ModeButtons } from "./components/ModeButtons";
 import { RadiusSliders } from "./components/RadiusSliders";
 import { VectorLayerButton } from "./components/VectorLayerButton";
-import { useMapMeasurementsContext } from "@carma-commons/measurements";
+import {
+  useMapMeasurementsContext,
+  useMapLibreMap,
+} from "@carma-commons/measurements";
 
 suppressReactCismapErrors();
 
@@ -40,7 +43,7 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
   const { setSelection } = useSelection();
   useSelectionTopicMap();
   const [selectedFeature, setSelectedFeature] = useState<any>(undefined);
-  const [maplibreMap, setMaplibreMap] = useState<any>(null);
+  const { maplibreMap, setMaplibreMap } = useMapLibreMap();
   const [queryRadius, setQueryRadius] = useState(() => {
     const saved = localStorage.getItem("measurements-radius");
     return saved ? Number(saved) : 100;
@@ -98,122 +101,6 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
   useEffect(() => {
     localStorage.setItem("measurements-mode", mode || "");
   }, [mode]);
-
-  // Set up MapLibre highlight layers when maplibreMap becomes available
-  useEffect(() => {
-    if (maplibreMap) {
-      // Add a source for highlighting features
-      maplibreMap.addSource("highlight", {
-        type: "geojson",
-        data: {
-          type: "FeatureCollection",
-          features: [],
-        },
-      });
-
-      // Add layers for different geometry types
-      // Highlight polygons/fills
-      maplibreMap.addLayer({
-        id: "highlight-fill",
-        type: "fill",
-        source: "highlight",
-        filter: ["==", ["geometry-type"], "Polygon"],
-        paint: {
-          "fill-color": "#ff0000",
-          "fill-opacity": 0.3,
-        },
-      });
-
-      // Highlight lines (for features)
-      maplibreMap.addLayer({
-        id: "highlight-line",
-        type: "line",
-        source: "highlight",
-        filter: [
-          "all",
-          ["==", ["geometry-type"], "LineString"],
-          ["!", ["has", "spider"]],
-        ],
-        paint: {
-          "line-color": "#ff0000",
-          "line-width": 3,
-        },
-      });
-
-      // Spider lines (grey)
-      maplibreMap.addLayer({
-        id: "highlight-spider-line",
-        type: "line",
-        source: "highlight",
-        filter: [
-          "all",
-          ["==", ["geometry-type"], "LineString"],
-          ["==", ["get", "spider"], true],
-        ],
-        paint: {
-          "line-color": "#888888",
-          "line-width": 2,
-          "line-dasharray": [2, 2],
-        },
-      });
-
-      // Highlight points (red)
-      maplibreMap.addLayer({
-        id: "highlight-point",
-        type: "circle",
-        source: "highlight",
-        filter: [
-          "all",
-          ["==", ["geometry-type"], "Point"],
-          ["!", ["has", "grey"]],
-        ],
-        paint: {
-          "circle-radius": 8,
-          "circle-color": "#ff0000",
-          "circle-opacity": 0.5,
-          "circle-stroke-width": 2,
-          "circle-stroke-color": "#ffffff",
-        },
-      });
-      // Highlight points (grey for spider rocket)
-      maplibreMap.addLayer({
-        id: "highlight-point-grey",
-        type: "circle",
-        source: "highlight",
-        filter: [
-          "all",
-          ["==", ["geometry-type"], "Point"],
-          ["==", ["get", "grey"], true],
-        ],
-        paint: {
-          "circle-radius": 8,
-          "circle-color": "#888888",
-          "circle-opacity": 0.5,
-          "circle-stroke-width": 2,
-          "circle-stroke-color": "#ffffff",
-        },
-      });
-
-      // Highlight points (black for serious mode)
-      maplibreMap.addLayer({
-        id: "highlight-point-black",
-        type: "circle",
-        source: "highlight",
-        filter: [
-          "all",
-          ["==", ["geometry-type"], "Point"],
-          ["==", ["get", "black"], true],
-        ],
-        paint: {
-          "circle-radius": 8,
-          "circle-color": "#000000",
-          "circle-opacity": 0.8,
-          "circle-stroke-width": 2,
-          "circle-stroke-color": "#ffffff",
-        },
-      });
-    }
-  }, [maplibreMap]);
 
   const pixelwidth =
     responsiveState === "normal" ? "300px" : (windowSize?.width || 300) - gap;
