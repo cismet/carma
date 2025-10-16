@@ -199,7 +199,7 @@ const Map = () => {
       <StyledWMSTileLayer
         key={"rechtsplan:aevVisible:"}
         url="https://maps.wuppertal.de/planung?SRS=EPSG:25832"
-        layers={"r102:fnp_clip"}
+        layers={"r102_fnp_clip"}
         version="1.1.1"
         transparent="true"
         format="image/png"
