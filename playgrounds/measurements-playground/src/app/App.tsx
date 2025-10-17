@@ -175,84 +175,86 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
                   setMaplibreMap(map);
                 },
                 onSelectionChanged: (e: any) => {
-                  const selectedFeature = e.hits[0];
-                  console.log(
-                    "xxxy selectedFeature",
-                    JSON.stringify(selectedFeature, null, 2)
-                  );
+                  if (e?.hits?.length > 0) {
+                    const selectedFeature = e.hits[0];
+                    console.log(
+                      "xxxy selectedFeature",
+                      JSON.stringify(selectedFeature, null, 2)
+                    );
 
-                  const p = selectedFeature.properties;
+                    const p = selectedFeature.properties;
 
-                  if (p.infobox_info) {
-                    selectedFeature.properties = {
-                      ...selectedFeature.properties,
-                      ...JSON.parse(p.infobox_info),
-                    };
-                    setSelectedFeature(selectedFeature);
-                  } else {
-                    //if style has /poi/ in it, then it is a POI layer
-                    if (style?.indexOf && style.indexOf("/poi/") > -1) {
-                      console.log("xxxx style ", style);
-
-                      const createInfoBoxInfo = (p: any) => {
-                        const identifications = JSON.parse(p.identifications);
-                        const mainlocationtype =
-                          identifications[0].identification;
-                        const info = {
-                          title: p.geographicidentifier,
-                          // additionalInfo: "bbb",
-                          subtitle: p.strasse,
-                          headerColor: p.schrift,
-                          header: mainlocationtype,
-                          url: p.url,
-                          tel: p.telefon,
-                        };
-                        return info;
-                      };
-
+                    if (p.infobox_info) {
                       selectedFeature.properties = {
                         ...selectedFeature.properties,
-                        ...createInfoBoxInfo(p),
+                        ...JSON.parse(p.infobox_info),
                       };
-
                       setSelectedFeature(selectedFeature);
-                    }
-                    //if style has /sgk_hausnummer/ in it
-                    else if (
-                      style?.indexOf &&
-                      style.indexOf("/sgk_hausnummern/") > -1
-                    ) {
-                      console.log("xxx------");
+                    } else {
+                      //if style has /poi/ in it, then it is a POI layer
+                      if (style?.indexOf && style.indexOf("/poi/") > -1) {
+                        console.log("xxxx style ", style);
 
-                      const conf = [
-                        "title:p.name+' '+p.hnummer",
-                        "header:'Adresse ('+p.adressart+')'",
-                        "headerColor:({1: '#006622', 2: '#0000CC', 3: '#FF6600', 4: '#CC0000', 5: '#7030A0'}[p.adresstyp] || '#000000')",
-                      ];
-                      // // Create the function as a string
-                      let functionString = `(function(p) {
+                        const createInfoBoxInfo = (p: any) => {
+                          const identifications = JSON.parse(p.identifications);
+                          const mainlocationtype =
+                            identifications[0].identification;
+                          const info = {
+                            title: p.geographicidentifier,
+                            // additionalInfo: "bbb",
+                            subtitle: p.strasse,
+                            headerColor: p.schrift,
+                            header: mainlocationtype,
+                            url: p.url,
+                            tel: p.telefon,
+                          };
+                          return info;
+                        };
+
+                        selectedFeature.properties = {
+                          ...selectedFeature.properties,
+                          ...createInfoBoxInfo(p),
+                        };
+
+                        setSelectedFeature(selectedFeature);
+                      }
+                      //if style has /sgk_hausnummer/ in it
+                      else if (
+                        style?.indexOf &&
+                        style.indexOf("/sgk_hausnummern/") > -1
+                      ) {
+                        console.log("xxx------");
+
+                        const conf = [
+                          "title:p.name+' '+p.hnummer",
+                          "header:'Adresse ('+p.adressart+')'",
+                          "headerColor:({1: '#006622', 2: '#0000CC', 3: '#FF6600', 4: '#CC0000', 5: '#7030A0'}[p.adresstyp] || '#000000')",
+                        ];
+                        // // Create the function as a string
+                        let functionString = `(function(p) {
                                           const info = {`;
 
-                      conf.forEach((rule) => {
-                        functionString += `${rule.trim()},\n`;
-                      });
+                        conf.forEach((rule) => {
+                          functionString += `${rule.trim()},\n`;
+                        });
 
-                      functionString += `
+                        functionString += `
                                           };
                                           return info;
                     })`;
-                      console.log("xxx functionString", functionString);
+                        console.log("xxx functionString", functionString);
 
-                      const tmpInfo = eval(functionString)(p);
+                        const tmpInfo = eval(functionString)(p);
 
-                      console.log("xxx tmpInfo", tmpInfo);
+                        console.log("xxx tmpInfo", tmpInfo);
 
-                      selectedFeature.properties = {
-                        ...selectedFeature.properties,
-                        ...tmpInfo,
-                      };
+                        selectedFeature.properties = {
+                          ...selectedFeature.properties,
+                          ...tmpInfo,
+                        };
 
-                      setSelectedFeature(selectedFeature);
+                        setSelectedFeature(selectedFeature);
+                      }
                     }
                   }
                 },
