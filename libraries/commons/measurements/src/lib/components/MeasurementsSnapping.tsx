@@ -1,16 +1,24 @@
-import { useEffect, useRef, useContext } from "react";
+import { useEffect, useRef, useContext, useState } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { adjustClickPosition } from "../utils/helper";
 
 export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
+  const [queryRadius, setQueryRadius] = useState(40);
+  const [toleranceRadius, setToleranceRadius] = useState(36);
 
-  const queryRadius = 24;
-  const toleranceRadius = 14;
   const queryRadiusRef = useRef(queryRadius);
   const toleranceRadiusRef = useRef(toleranceRadius);
   const circleMarkerRef = useRef<any>(null);
   const toleranceCircleMarkerRef = useRef<any>(null);
+
+  useEffect(() => {
+    queryRadiusRef.current = queryRadius;
+  }, [queryRadius]);
+
+  useEffect(() => {
+    toleranceRadiusRef.current = toleranceRadius;
+  }, [toleranceRadius]);
 
   useEffect(() => {
     const leafletMap = routedMapRef?.leafletMap?.leafletElement;
@@ -45,23 +53,23 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
         }
 
         // Create new outer circle at mouse position with radius in pixels
-        circleMarkerRef.current = L.circleMarker(e.latlng, {
-          radius: queryRadius,
-          color: "#ffffff",
-          fillColor: "#ffffff",
-          fillOpacity: 0.2,
-          weight: 2,
-          opacity: 0.5,
-        }).addTo(leafletMap);
+        // circleMarkerRef.current = L.circleMarker(e.latlng, {
+        //   radius: queryRadius,
+        //   color: "#ffffff",
+        //   fillColor: "#ffffff",
+        //   fillOpacity: 0.2,
+        //   weight: 2,
+        //   opacity: 0.5,
+        // }).addTo(leafletMap);
 
-        toleranceCircleMarkerRef.current = L.circleMarker(e.latlng, {
-          radius: toleranceRadius,
-          color: "#00ff00",
-          fillColor: "#00ff00",
-          fillOpacity: 0.15,
-          weight: 2,
-          opacity: 0.6,
-        }).addTo(leafletMap);
+        // toleranceCircleMarkerRef.current = L.circleMarker(e.latlng, {
+        //   radius: toleranceRadius,
+        //   color: "#00ff00",
+        //   fillColor: "#00ff00",
+        //   fillOpacity: 0.15,
+        //   weight: 2,
+        //   opacity: 0.6,
+        // }).addTo(leafletMap);
 
         // Get the MapLibre canvas position relative to the page
         if (maplibreMap) {
