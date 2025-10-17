@@ -6,10 +6,10 @@ import {
 } from "react-cismap/contexts/TopicMapContextProvider";
 import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
 
-export function MeasurementsSnapping() {
+export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
 
-  const { maplibreMap } = useMapLibreMap();
+  //   const { maplibreMap } = useMapLibreMap();
   const queryRadius = 165;
   const toleranceRadius = 77;
   const queryRadiusRef = useRef(queryRadius);
@@ -21,11 +21,8 @@ export function MeasurementsSnapping() {
 
   useEffect(() => {
     const leafletMap = routedMapRef?.leafletMap?.leafletElement;
-    console.log("xxx 1111", leafletMap);
 
     if (leafletMap && typeof leafletMap.on === "function") {
-      console.log("xxx leafletMap", leafletMap);
-      console.log("xxx maplibreMap", maplibreMap);
       // Import L from leaflet
       const L = (window as any).L;
       let closestPoint: any = null;
@@ -72,7 +69,6 @@ export function MeasurementsSnapping() {
           weight: 2,
           opacity: 0.6,
         }).addTo(leafletMap);
-        console.log("xxx circleMarkerRef", circleMarkerRef.current);
 
         // Get the MapLibre canvas position relative to the page
         if (maplibreMap) {
@@ -99,6 +95,8 @@ export function MeasurementsSnapping() {
               .layers.map((layer: any) => layer.id)
               .filter((id: string) => !id.startsWith("highlight-")),
           });
+
+          console.log("xxx features", features);
 
           if (features.length > 0) {
             maplibreMap.getCanvas().style.cursor = "pointer";
@@ -252,6 +250,8 @@ export function MeasurementsSnapping() {
               }
             }
             closestPoint = blackPoint[0];
+
+            console.log("xxx blackPoint", blackPoint);
 
             // Update highlight source with only the black point
             maplibreMap.getSource("highlight").setData({
