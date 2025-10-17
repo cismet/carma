@@ -5,6 +5,13 @@ export const useMapLibreMap = () => {
   useEffect(() => {
     // Highlight points (black for serious mode)
     if (maplibreMap) {
+      maplibreMap.addSource("highlight", {
+        type: "geojson",
+        data: {
+          type: "FeatureCollection",
+          features: [],
+        },
+      });
       maplibreMap.addLayer({
         id: "highlight-point-black",
         type: "circle",
