@@ -1,11 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useContext } from "react";
 import { useMapLibreMap } from "../hooks/useMapLibreMap";
 import {
   TopicMapDispatchContext,
   TopicMapContext,
 } from "react-cismap/contexts/TopicMapContextProvider";
+import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
 
 export function MeasurementsSnapping() {
+  const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
+
   const { maplibreMap } = useMapLibreMap();
   const queryRadius = 165;
   const toleranceRadius = 77;
@@ -19,7 +22,7 @@ export function MeasurementsSnapping() {
   useEffect(() => {
     const leafletMap = routedMapRef?.leafletMap?.leafletElement;
 
-    if (leafletMap && typeof leafletMap.on === "function") {
+    if (leafletMap && typeof leafletMap.on === "function" && maplibreMap) {
       // Import L from leaflet
       const L = (window as any).L;
       let closestPoint: any = null;
