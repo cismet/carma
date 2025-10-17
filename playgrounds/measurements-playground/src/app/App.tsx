@@ -130,6 +130,41 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
 
   return (
     <div>
+      {/* <div
+        style={{
+          position: "absolute",
+          top: 10,
+          left: "50%",
+          transform: "translateX(-50%)",
+          zIndex: 10000,
+          background: "white",
+          padding: "10px",
+          borderRadius: "4px",
+          boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+          display: "flex",
+          flexDirection: "column",
+          gap: "10px",
+        }}
+      >
+        {vectorStyles.length > 0 && (
+          <div style={{ display: "flex", flexDirection: "row", gap: "8px" }}>
+            <VectorLayerButton
+              hasSavedVectorStyle={hasSavedVectorStyle}
+              onClear={clearVectorStyle}
+            />
+            <ModeButtons mode={mode} onModeChange={setMode} />
+          </div>
+        )}
+
+        <RadiusSliders
+          queryRadius={queryRadius}
+          toleranceRadius={toleranceRadius}
+          mode={mode}
+          hasVectorLayer={vectorStyles.length > 0}
+          onQueryRadiusChange={setQueryRadius}
+          onToleranceRadiusChange={setToleranceRadius}
+        />
+      </div> */}
       <ControlLayout ifStorybook={false}>
         <Control position="topleft" order={10}>
           <ZoomControl />
