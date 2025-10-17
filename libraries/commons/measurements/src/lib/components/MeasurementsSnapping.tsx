@@ -1,24 +1,16 @@
-import { useEffect, useState, useRef, useContext } from "react";
-import { useMapLibreMap } from "../hooks/useMapLibreMap";
-import {
-  TopicMapDispatchContext,
-  TopicMapContext,
-} from "react-cismap/contexts/TopicMapContextProvider";
-import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
+import { useEffect, useRef, useContext } from "react";
+import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { adjustClickPosition } from "../utils/helper";
 
 export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
 
-  //   const { maplibreMap } = useMapLibreMap();
-  const queryRadius = 165;
-  const toleranceRadius = 77;
+  const queryRadius = 24;
+  const toleranceRadius = 14;
   const queryRadiusRef = useRef(queryRadius);
   const toleranceRadiusRef = useRef(toleranceRadius);
   const circleMarkerRef = useRef<any>(null);
   const toleranceCircleMarkerRef = useRef<any>(null);
-  const { zoomToFeature } = useContext(TopicMapDispatchContext) as any;
-  const lightBoxDispatchContext = useContext(LightBoxDispatchContext);
 
   useEffect(() => {
     const leafletMap = routedMapRef?.leafletMap?.leafletElement;
@@ -96,8 +88,6 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
               .layers.map((layer: any) => layer.id)
               .filter((id: string) => !id.startsWith("highlight-")),
           });
-
-          console.log("xxx features", features);
 
           if (features.length > 0) {
             maplibreMap.getCanvas().style.cursor = "pointer";
@@ -251,8 +241,6 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
               }
             }
             closestPoint = blackPoint[0];
-
-            console.log("xxx blackPoint", blackPoint);
 
             // Update highlight source with only the black point
             maplibreMap.getSource("highlight").setData({
