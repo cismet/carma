@@ -3,7 +3,7 @@ import {
   landparcelForPointGeomQuery,
   landParcelSearchQuery,
   sheetSearchQuery,
-} from "../utils/graphqlService";
+} from "./graphqlService";
 
 const WUNDA_API = "https://wunda-api.cismet.de";
 export const WUNDA_DOMAIN = "WUNDA_BLAU";

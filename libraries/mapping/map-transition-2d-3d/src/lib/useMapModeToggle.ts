@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useCesiumContext, CtxEvent } from "@carma-mapping/engines/cesium";
+import { useCesiumContext, CtxEvent } from "@carma-mapping/engines/cesium/core";
 import { useMapTransition } from "./useMapTransition";
 
 export type MapModeToggleOptions = {

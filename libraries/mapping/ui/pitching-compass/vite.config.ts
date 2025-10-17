@@ -42,7 +42,7 @@ export default defineConfig({
         'cesium',
         'maplibre-gl',
         '@carma/types',
-        '@carma-mapping/engines/cesium',
+        '@carma-mapping/engines/cesium/core',
       ],
     },
   },

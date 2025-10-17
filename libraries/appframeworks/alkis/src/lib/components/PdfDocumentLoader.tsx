@@ -2,7 +2,7 @@ import React from "react";
 import { FilePdfOutlined, LoadingOutlined } from "@ant-design/icons";
 import { Input, Spin } from "antd";
 import { loadPdfProduct } from "../utils/apiMethods";
-import { CustomCard } from "../components/CustomCard";
+import { CustomCard } from "./CustomCard";
 import { useState } from "react";
 
 const PdfDocumentLoader = ({ allPdfPermission, loadingCode, jwt }) => {

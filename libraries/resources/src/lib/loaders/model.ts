@@ -4,7 +4,16 @@ import {
   Transforms,
   ModelGraphics,
 } from "cesium";
-import type { ModelConfig } from "@carma/types";
+import type { ModelConfig } from "@carma-mapping/engines/cesium/core";
+
+// Re-export for loader - this will be removed when loaders move to cesium
+export {
+  Cartesian3,
+  HeadingPitchRoll,
+  Transforms,
+  ModelGraphics,
+} from "cesium";
+export type { ModelConfig } from "@carma-mapping/engines/cesium/core";
 
 export function createModelEntityConstructorOptions(config: ModelConfig) {
   const position = Cartesian3.fromDegrees(

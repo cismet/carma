@@ -5,11 +5,11 @@ import {
   MapStyleKeys,
   useInitialViewModeFromUrl,
 } from "@carma-appframeworks/portals";
-import { VIEWERSTATE_KEYS } from "@carma-mapping/engines/cesium";
 import { getHashParams } from "@carma-commons/utils";
 import { setUIIsMode2d } from "../store/slices/ui";
 
 import { useMapStyle } from "./useGeoportalMapStyle";
+import { VIEWERSTATE_KEYS } from "../config/app.config";
 
 export const useAppSearchParams = () => {
   const dispatch = useDispatch();

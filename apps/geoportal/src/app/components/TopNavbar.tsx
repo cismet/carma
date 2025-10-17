@@ -4,6 +4,7 @@ import {
   type CSSProperties,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -13,9 +14,9 @@ import {
   faBars,
   faChevronLeft,
   faChevronRight,
-  faImages,
   faLayerGroup,
   faPlane,
+  faImages,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Button, Radio, type RadioChangeEvent, Tooltip } from "antd";
@@ -24,13 +25,14 @@ import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
 import { MapStyleKeys } from "@carma-appframeworks/portals";
 import { geoElements } from "@carma-collab/wuppertal/geoportal";
+import { useFeatureFlags } from "@carma/providers/feature-flag";
+import { obliqueEventBus } from "../utils/obliqueState";
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 import {
   useOverlayHelper,
   useOverlayTourContext,
 } from "@carma-commons/ui/helper-overlay";
 import { cn } from "@carma-commons/utils";
-import { useFeatureFlags } from "@carma/providers/feature-flag";
 
 import {
   getBackgroundLayer,
@@ -41,7 +43,6 @@ import {
 import { getZenMode, getUIIsMode2d } from "../store/slices/ui";
 
 import { useMapStyle } from "../hooks/useGeoportalMapStyle";
-import { useOblique } from "@carma-mapping/cesium-oblique-mode";
 
 import ActionButtons from "./nav-items/ActionButtons";
 
@@ -50,11 +51,9 @@ import "./switch.css";
 
 const TopNavbar = () => {
   const dispatch = useDispatch();
-  const flags = useFeatureFlags();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showHelpTooltip, setShowHelpTooltip] = useState(false);
   const { showOverlayHandler } = useOverlayTourContext();
-  const { isObliqueMode, toggleObliqueMode } = useOblique();
   const { setCurrentStyle } = useMapStyle();
 
   const isTouchDevice =
@@ -63,7 +62,15 @@ const TopNavbar = () => {
   const { setAppMenuVisible } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
 
+  const flags = useFeatureFlags();
+  const [isObliqueActive, setIsObliqueActive] = useState(false);
   const shouldShow2dUI = useSelector(getUIIsMode2d);
+
+  // Track oblique mode state for button appearance
+  useEffect(() => {
+    const unsubscribe = obliqueEventBus.subscribe("toggle", setIsObliqueActive);
+    return unsubscribe;
+  }, []);
   const backgroundLayer = useSelector(getBackgroundLayer);
   const selectedMapLayer = useSelector(getSelectedMapLayer);
   const selectedLuftbildLayer = useSelector(getSelectedLuftbildLayer);
@@ -197,14 +204,14 @@ const TopNavbar = () => {
           {flags.featureFlagObliqueMode && !shouldShow2dUI && (
             <Tooltip
               title={
-                isObliqueMode
+                isObliqueActive
                   ? "Schrägansicht deaktivieren"
                   : "Schrägansicht aktivieren"
               }
             >
               <Button
-                type={isObliqueMode ? "primary" : "default"}
-                onClick={toggleObliqueMode}
+                type={isObliqueActive ? "primary" : "default"}
+                onClick={() => obliqueEventBus.emit("toggle", !isObliqueActive)}
                 className="mr-2 select-none"
               >
                 <FontAwesomeIcon icon={faPlane} rotation={270} />

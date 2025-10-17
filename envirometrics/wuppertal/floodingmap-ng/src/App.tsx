@@ -50,8 +50,7 @@ import {
   useCesiumInitialCameraFromSearchParams,
   useHomeControl,
   useZoomControls,
-  VIEWERSTATE_KEYS,
-} from "@carma-mapping/engines/cesium";
+} from "@carma-mapping/engines/cesium/core";
 // TODO: Waiting for new API - PitchingCompass renamed to LibrePitchingCompass
 // import { LibrePitchingCompass } from "@carma-mapping/ui/pitching-compass";
 import {

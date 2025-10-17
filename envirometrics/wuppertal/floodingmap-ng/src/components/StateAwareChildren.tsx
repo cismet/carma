@@ -20,9 +20,9 @@ import {
   isValidCesiumTerrainProvider,
   useCesiumContext,
   guardSampleTerrainMostDetailedAsync,
-} from "@carma-mapping/engines/cesium";
+} from "@carma-mapping/engines/cesium/core";
 // TODO: Waiting for new API - selectViewerIsMode2d moved or removed
-// import { selectViewerIsMode2d } from "@carma-mapping/engines/cesium";
+// import { selectViewerIsMode2d } from "@carma-mapping/engines/cesium/core";
 
 import { useHGKCesiumTerrain } from "../hooks/useHGKCesiumTerrain";
 import { onCesiumClick } from "../utils/cesiumHandlers";

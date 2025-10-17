@@ -4,7 +4,7 @@ import { Cartesian3, Color } from "cesium";
 
 import { WUPPERTAL } from "@carma/resources";
 // TODO: Waiting for new API - CesiumState and toColorRgbaArray removed
-// import { CesiumState, toColorRgbaArray } from "@carma-mapping/engines/cesium";
+// import { CesiumState, toColorRgbaArray } from "@carma-mapping/engines/cesium/core";
 const toColorRgbaArray = (color: Color) => [
   color.red,
   color.green,

@@ -1,3 +1,3 @@
-export * from "./coordinates";
-export * from "./extents";
-export * from "./orientation";
+export * from "./geographic-coordinates.d.ts";
+export * from "./extents.d.ts";
+export * from "./orientation.d.ts";

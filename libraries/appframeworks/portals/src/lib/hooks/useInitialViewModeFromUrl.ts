@@ -3,7 +3,7 @@ import { useEffect } from "react";
 import {
   useCesiumContext,
   CtxEvent as CesiumCtxEvent,
-} from "@carma-mapping/engines/cesium";
+} from "@carma-mapping/engines/cesium/core";
 import {
   useCarmaTopicMapContext,
   TopicMapCtxEvent,
@@ -32,7 +32,7 @@ export interface UseInitialViewModeFromUrlOptions {
  * @example
  * ```ts
  * useInitialViewModeFromUrl({
- *   is3dKey: VIEWERSTATE_KEYS.is3d,
+ *   is3dKey: "is3d",
  *   is3dEnabledValue: "1",
  *   setUIMode: (isMode2d) => dispatch(setUIIsMode2d(isMode2d))
  * });

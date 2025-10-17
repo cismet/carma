@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 
 import { MapStyleKeys, ManagedCesiumStyleKeys } from "../constants";
 import { useMapStyleBus } from "./useMapStyleBus";
-import { useCesiumContext, CtxEvent } from "@carma-mapping/engines/cesium";
+import { useCesiumContext, CtxEvent } from "@carma-mapping/engines/cesium/core";
 
 /**
  * Synchronizes Cesium scene style with the Portal MapStyle context via event bus.

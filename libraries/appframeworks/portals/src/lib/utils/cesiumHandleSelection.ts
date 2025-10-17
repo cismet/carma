@@ -28,7 +28,7 @@ import {
   removeCesiumMarker,
   removeGroundPrimitiveById,
   type MarkerPrimitiveData,
-} from "@carma-mapping/engines/cesium";
+} from "@carma-mapping/engines/cesium/core";
 
 import { HitTriggerOptions } from "./cesiumHitTrigger";
 import { DerivedGeometries } from "./getDerivedGeometries";
@@ -36,7 +36,7 @@ import {
   tryWithValidScene,
   sceneRequestRender,
   isValidScene,
-} from "@carma-mapping/engines/cesium";
+} from "@carma-mapping/engines/cesium/core";
 
 const DEFAULT_BOUNDING_SPHERE_ELEVATION = 200; // meters, default elevation for bounding sphere in GeoJSON Polygon
 const DEFAULT_BOUNDING_SPHERE_VIEW_MARGIN = 0.2; // 20% margin

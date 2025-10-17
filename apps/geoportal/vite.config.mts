@@ -60,8 +60,6 @@ export default defineConfig({
     rollupOptions: {
       external: [
         '@carma/types',
-        '@carma/geo/types',
-        '@carma/units/types',
       ],
       output: {
         // Optimize chunks by load priority for better initial load & caching

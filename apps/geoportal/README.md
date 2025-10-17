@@ -36,7 +36,7 @@ Library Layer
 ### Key Dependencies
 
 - **Mapping**: `@carma-mapping/engines/cesium`, `@carma-mapping/engines/leaflet`
-- **Oblique**: `@carma-mapping/cesium-oblique-mode`
+- **Oblique**: `@carma-mapping/engines/cesium/oblique-mode`
 - **Framework**: `@carma-appframeworks/portals`
 - **State**: `@reduxjs/toolkit`, `@carma/providers/hash-state`
 
@@ -169,7 +169,7 @@ apps/geoportal/
 - [Architecture Vision](./.dev-local/docs/geoportal-refactor/geoportal-architecture-current-vs-vision.md)
 - [State Management Patterns](./.dev-local/docs/geoportal-refactor/geoportal-architecture-current-vs-vision.md#state-management-patterns-event-bus-vs-refs-vs-usestate)
 - [Cesium Integration](../../libraries/mapping/engines/cesium/README.md)
-- [Oblique Mode](../../libraries/mapping/cesium-oblique-mode/README.md)
+- [Oblique Mode](../../libraries/mapping/engines/cesium/oblique-mode/README.md)
 
 ---
 

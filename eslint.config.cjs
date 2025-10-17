@@ -162,7 +162,7 @@ function getCarmaConfigs(baseConfig) {
         "envirometrics/**/*.ts",
         "envirometrics/**/*.tsx",
       ],
-      ignores: [TYPE_DECLARATIONS_PATTERN],
+      ignores: [TYPE_DECLARATIONS_PATTERN, "**/__stories__/**", "**/*.stories.*"],
       rules: {
         ...baseConfig.rules,
         "carma/no-direct-proj4": "error",

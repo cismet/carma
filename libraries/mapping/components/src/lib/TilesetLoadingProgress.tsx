@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useCesiumContext } from "@carma-mapping/engines/cesium";
+import { useCesiumContext } from "@carma-mapping/engines/cesium/core";
 
 /**
  * TODO: Update to work with new CesiumContext structure that uses tilesetsRef Map

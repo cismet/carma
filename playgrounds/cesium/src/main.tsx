@@ -3,7 +3,7 @@ import { App } from "./app/App";
 import { CESIUM_BASE_URL } from "./app/config/app.config";
 import { suppressReactCismapErrors } from "@carma-commons/utils";
 import defaultViewerState from "./app/config";
-import { setupCesiumEnvironment } from "@carma-mapping/engines/cesium";
+import { setupCesiumEnvironment } from "@carma-mapping/engines/cesium/core";
 
 suppressReactCismapErrors();
 

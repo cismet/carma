@@ -1,0 +1,11 @@
+{
+  "name": "@carma-mapping/engines-cesium",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {
+    "@carma-mapping/engines/cesium/api": "*"
+  },
+  "main": "./index.js",
+  "module": "./index.mjs",
+  "typings": "./index.d.ts"
+}

@@ -24,3 +24,8 @@ export const EMAIL = "hochwasser@stadt.wuppertal.de";
 export const HOME_ZOOM = 18;
 
 export const AERIAL_BACKGROUND_INDEX = 2;
+
+export const VIEWERSTATE_KEYS = Object.freeze({
+  is3d: "is3d",
+  mapStyle: "m",
+});

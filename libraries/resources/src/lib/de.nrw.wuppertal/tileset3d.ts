@@ -1,28 +1,65 @@
-import { ContentTypes, type TilesetConfig, TilesetTypes } from "@carma/types";
+import {
+  ContentTypes,
+  CityModelTypes,
+  TilesetFormats,
+  TilesetContentTypes,
+  type TilesetResourceConfig,
+} from "../types";
 
-export const WUPP_MESH_2020: TilesetConfig = {
+export const WUPP_MESH_2020: TilesetResourceConfig = {
   url: "https://wupp-3d-data.cismet.de/mesh/tileset.json",
-  key: "wupp-mesh-2020",
-  type: TilesetTypes.MESH,
+  content: {
+    format: TilesetFormats.B3DM,
+    contentType: TilesetContentTypes.MESH,
+    cityModelType: CityModelTypes.MESH,
+  },
+  renderPreset: {
+    customShader: "UNLIT_ENHANCED_2020" as any,
+  },
+  metadata: {
+    name: "Wuppertal Mesh 2020",
+    captureDate: "2020",
+  },
 };
 
-export const WUPP_MESH_2024: TilesetConfig = {
+export const WUPP_MESH_2024: TilesetResourceConfig = {
   url: "https://wupp-3d-data.cismet.de/mesh2024/tileset.json",
-  key: "wupp-mesh-2024",
-  type: TilesetTypes.MESH,
+  content: {
+    format: TilesetFormats.B3DM,
+    contentType: TilesetContentTypes.MESH,
+    cityModelType: CityModelTypes.MESH,
+  },
+  renderPreset: {
+    customShader: "UNLIT_ENHANCED_2024" as any,
+  },
+  metadata: {
+    name: "Wuppertal Mesh 2024",
+    captureDate: "2024",
+  },
 };
 
-export const WUPP_LOD2_TILESET: TilesetConfig = {
+export const WUPP_LOD2_TILESET: TilesetResourceConfig = {
   url: "https://wupp-3d-data.cismet.de/lod2/tileset.json",
-  key: "wupp-lod2",
-  type: TilesetTypes.LOD2,
-  contentTypes: [ContentTypes.BUILDINGS, ContentTypes.BRIDGES],
-  disableSelection: true,
+  content: {
+    format: TilesetFormats.B3DM,
+    contentType: TilesetContentTypes.OBJECT,
+    cityModelType: CityModelTypes.LOD2,
+    contentTypes: [ContentTypes.BUILDINGS, ContentTypes.BRIDGES],
+  },
+  metadata: {
+    name: "Wuppertal LOD2 Buildings",
+  },
 };
 
-export const WUPP_BAUMKATASTER_TILESET: TilesetConfig = {
+export const WUPP_BAUMKATASTER_TILESET: TilesetResourceConfig = {
   url: "https://wupp-3d-data.cismet.de/trees/tileset.json",
-  key: "wupp-baumkaster",
-  type: TilesetTypes.LOD4,
-  contentTypes: [ContentTypes.TREES],
+  content: {
+    format: TilesetFormats.I3DM,
+    contentType: TilesetContentTypes.OBJECT,
+    cityModelType: CityModelTypes.LOD4,
+    contentTypes: [ContentTypes.TREES],
+  },
+  metadata: {
+    name: "Wuppertal Tree Cadastre",
+  },
 };

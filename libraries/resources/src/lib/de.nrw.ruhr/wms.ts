@@ -1,5 +1,7 @@
 import { DEFAULT_WMS_IMAGE_PROVIDER_PARAMETERS } from "../wms";
 import type { WMSLayerDetails, WMSLayerMap } from "@carma/types";
+import { ImageryProviderTypes, type ImageryResourceConfig } from "../types";
+import type { Rectangle } from "cesium";
 
 const SPW2_WMTS_TILEMATRIX_LABELS = [
   "00",
@@ -25,44 +27,93 @@ const SPW2_WMTS_TILEMATRIX_LABELS = [
   "20",
 ];
 
-export const BASEMAP_METROPOLRUHR_WMS_GRUNDRISS = {
-  url: "https://geodaten.metropoleruhr.de/spw2/service",
-  layers: "spw2_light_grundriss",
-  parameters: DEFAULT_WMS_IMAGE_PROVIDER_PARAMETERS,
+export const BASEMAP_METROPOLE_RUHR_WMS_GRUNDRISS: ImageryResourceConfig = {
+  type: ImageryProviderTypes.WMS,
+  providerOptions: {
+    url: "https://geodaten.metropoleruhr.de/spw2/service",
+    layers: "spw2_light_grundriss",
+    parameters: DEFAULT_WMS_IMAGE_PROVIDER_PARAMETERS,
+  },
+  metadata: {
+    name: "Stadtplanwerk 2 Metropole Ruhr Basemap (Grundriss)",
+    credits: ["Metropole Ruhr"],
+  },
 };
 
-export const BASEMAP_METROPOLE_RUHR_WMS_GRAUBLAU = {
-  url: "https://geodaten.metropoleruhr.de/spw2/service",
-  layers: "spw2_graublau",
-  parameters: DEFAULT_WMS_IMAGE_PROVIDER_PARAMETERS,
+export const BASEMAP_METROPOLE_RUHR_WMS_GRAUBLAU: ImageryResourceConfig = {
+  type: ImageryProviderTypes.WMS,
+  providerOptions: {
+    url: "https://geodaten.metropoleruhr.de/spw2/service",
+    layers: "spw2_graublau",
+    parameters: DEFAULT_WMS_IMAGE_PROVIDER_PARAMETERS,
+  },
+  metadata: {
+    name: "Stadtplanwerk 2 Metropole Ruhr Basemap (Graublau)",
+    credits: ["Metropole Ruhr"],
+  },
 };
 
-export const BASEMAP_METROPOLRUHR_WMTS_GRAUBLAU = {
-  url: "https://geodaten.metropoleruhr.de/spw2/service",
-  layer: "spw2_graublau",
-  style: "default",
-  format: "image/png",
-  tileMatrixSetID: "webmercator",
-  tileMatrixLabels: SPW2_WMTS_TILEMATRIX_LABELS,
-  minimumLevel: 0,
-  maximumLevel: 20,
+export const BASEMAP_METROPOLE_RUHR_WMTS_GRAUBLAU: ImageryResourceConfig = {
+  type: ImageryProviderTypes.WMTS,
+  providerOptions: {
+    url: "https://geodaten.metropoleruhr.de/spw2/service",
+    layer: "spw2_graublau",
+    style: "default",
+    format: "image/png",
+    tileMatrixSetID: "webmercator",
+    tileMatrixLabels: SPW2_WMTS_TILEMATRIX_LABELS,
+    minimumLevel: 0,
+    maximumLevel: 20,
+    // this works for fixing stray requests
+    rectangle: {
+      west: 5,
+      south: 50,
+      east: 9.0,
+      north: 54,
+    } as Rectangle,
+  },
+  metadata: {
+    name: "Stadtplanwerk 2 Metropole Ruhr Basemap (Graublau)",
+    credits: ["Metropole Ruhr"],
+  },
 };
 
-export const BASEMAP_METROPOLE_RUHR_WMTS_GRAUBLAU_HQ = {
-  url: "https://geodaten.metropoleruhr.de/spw2/service",
-  layer: "spw2_graublau",
-  style: "default",
-  format: "image/png",
-  tileMatrixSetID: "webmercator_hq",
-  tileMatrixLabels: SPW2_WMTS_TILEMATRIX_LABELS,
-  minimumLevel: 0, // limiting here makes app behave way too slow
-  maximumLevel: 20, // as in Capabilities
+export const BASEMAP_METROPOLE_RUHR_WMTS_GRAUBLAU_HQ: ImageryResourceConfig = {
+  type: ImageryProviderTypes.WMTS,
+  providerOptions: {
+    url: "https://geodaten.metropoleruhr.de/spw2/service",
+    layer: "spw2_graublau",
+    style: "default",
+    format: "image/png",
+    tileMatrixSetID: "webmercator_hq",
+    tileMatrixLabels: SPW2_WMTS_TILEMATRIX_LABELS,
+    minimumLevel: 0, // limiting here makes app behave way too slow
+    maximumLevel: 20, // as in Capabilities
+    // this works for fixing stray requests
+    rectangle: {
+      west: 5,
+      south: 50,
+      east: 9.0,
+      north: 54,
+    } as Rectangle,
+  },
+  metadata: {
+    name: "Stadtplanwerk 2 Metropole Ruhr Basemap HQ (Graublau)",
+    credits: ["Metropole Ruhr"],
+  },
 };
 
-export const BASEMAP_METROPOLRUHR_WMS_EXTRALIGHT = {
-  url: "https://geodaten.metropoleruhr.de/spw2/service",
-  layers: "spw2_extralight",
-  parameters: DEFAULT_WMS_IMAGE_PROVIDER_PARAMETERS,
+export const BASEMAP_METROPOLE_RUHR_WMS_EXTRALIGHT: ImageryResourceConfig = {
+  type: ImageryProviderTypes.WMS,
+  providerOptions: {
+    url: "https://geodaten.metropoleruhr.de/spw2/service",
+    layers: "spw2_extralight",
+    parameters: DEFAULT_WMS_IMAGE_PROVIDER_PARAMETERS,
+  },
+  metadata: {
+    name: "Stadtplanwerk 2 Metropole Ruhr Basemap (Extralight)",
+    credits: ["Metropole Ruhr"],
+  },
 };
 
 // Stadtplanwerk 2
@@ -75,7 +126,7 @@ const SPW2_WEBMERCATOR_LAYERS: Omit<WMSLayerDetails, "url">[] = [
 ];
 
 // prepare for direct use with Leaflet without requesting service first
-export const METROPOLERUHR_WMTS_SPW2_WEBMERCATOR = {
+export const METROPOLE_RUHR_WMTS_SPW2_WEBMERCATOR = {
   serviceUrl:
     "https://geodaten.metropoleruhr.de/spw2?&service=WMTS&request=GetCapabilities",
   type: "WMTS",
@@ -93,7 +144,7 @@ export const METROPOLERUHR_WMTS_SPW2_WEBMERCATOR = {
   ),
 };
 
-export const METROPOLERUHR_WMTS_SPW2_WEBMERCATOR_HQ = {
+export const METROPOLE_RUHR_WMTS_SPW2_WEBMERCATOR_HQ = {
   serviceUrl:
     "https://geodaten.metropoleruhr.de/spw2?&service=WMTS&request=GetCapabilities",
   type: "WMTS",

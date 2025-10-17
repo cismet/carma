@@ -8,7 +8,7 @@ import {
 } from "cesium";
 import { ModelConfig } from "@carma/types";
 import { createModelEntityConstructorOptions } from "@carma/resources";
-import { useCesiumContext } from "@carma-mapping/engines/cesium";
+import { useCesiumContext } from "@carma-mapping/engines/cesium/core";
 import { DEFAULT_MODEL_HIGHLIGHT_SHADER } from "../utils/cesiumShaders";
 
 type PrimitiveLike = { isCesium3DTileset?: boolean };

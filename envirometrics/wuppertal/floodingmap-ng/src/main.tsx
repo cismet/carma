@@ -17,7 +17,7 @@ import { suppressReactCismapErrors } from "@carma-commons/utils";
 import {
   CesiumContextProvider,
   setupCesiumEnvironment,
-} from "@carma-mapping/engines/cesium";
+} from "@carma-mapping/engines/cesium/core";
 
 import App from "./App";
 import store from "./store";

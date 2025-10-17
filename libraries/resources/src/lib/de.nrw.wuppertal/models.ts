@@ -1,4 +1,8 @@
-import { ModelConfig } from "@carma/types";
+// TODO: Update to use ModelResourceConfig from resources
+// import type { ModelConfig } from "@carma-mapping/engines/cesium/core";
+
+// Temporarily commented out to break circular dependency
+// These should be converted to ModelResourceConfig
 
 export const BRUECKENENTWURF_GLB: ModelConfig = {
   position: {

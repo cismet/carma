@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useHashState } from "@carma-appframeworks/portals";
-import { useCesiumContext, CtxEvent } from "@carma-mapping/engines/cesium";
+import { useCesiumContext, CtxEvent } from "@carma-mapping/engines/cesium/core";
 
 export type CesiumSceneChangeEvent = { hashParams: Record<string, string> };
 

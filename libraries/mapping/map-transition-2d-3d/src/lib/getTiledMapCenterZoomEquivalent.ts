@@ -9,7 +9,7 @@ import { isZoom } from "@carma-commons/units/helpers";
 import {
   cameraToCartographicDegrees,
   cesiumCenterPixelSizeToLeafletZoom,
-} from "@carma-mapping/engines/cesium";
+} from "@carma-mapping/engines/cesium/core";
 
 type Options = {
   maxZoom?: Zoom256;

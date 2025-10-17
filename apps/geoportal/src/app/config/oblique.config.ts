@@ -9,7 +9,26 @@ import {
 } from "@carma/resources";
 import { degToRad } from "@carma/units/helpers";
 import { Easing } from "@carma-commons/math";
-import type { ObliqueDataProviderConfig } from "@carma-mapping/cesium-oblique-mode";
+import type { ObliqueDataProviderConfig } from "@carma-mapping/engines/cesium/oblique-mode";
+
+// Cardinal direction enum values (clockwise from North: N=0, E=1, S=2, W=3)
+// Using literal values to avoid importing from lazy-loaded library
+export const CAMERA_ID_TO_DIRECTION = Object.freeze({
+  // For even flight lines
+  EVEN: {
+    "170": 1, // East
+    "171": 2, // South
+    "174": 3, // West
+    "176": 0, // North
+  },
+  // For odd flight lines
+  ODD: {
+    "170": 3, // West
+    "171": 0, // North
+    "174": 1, // East
+    "176": 2, // South
+  },
+});
 
 export const OBLIQUE_CONFIG: ObliqueDataProviderConfig = {
   fixedPitch: degToRad(-45 as Degrees), // Pitch in radians
@@ -22,6 +41,7 @@ export const OBLIQUE_CONFIG: ObliqueDataProviderConfig = {
   crs: OBLIQUE_2024_ORIENTATIONS_CRS,
   exteriorOrientationsURI: OBLIQUE_2024_EXT_ORI_UTM32_URI,
   footprintsURI: OBLIQUE_2024_FPRFC_GEOJSON_URI,
+  cameraDirectionMapping: CAMERA_ID_TO_DIRECTION,
   animations: {
     flyToExteriorOrientation: {
       duration: 800,
@@ -53,25 +73,6 @@ export const OBLIQUE_CONFIG: ObliqueDataProviderConfig = {
 };
 
 export const NUM_NEAREST_IMAGES = 200;
-
-// Cardinal direction enum values (clockwise from North: N=0, E=1, S=2, W=3)
-// Using literal values to avoid importing from lazy-loaded library
-export const CAMERA_ID_TO_DIRECTION = Object.freeze({
-  // For even flight lines
-  EVEN: {
-    "170": 1, // East
-    "171": 2, // South
-    "174": 3, // West
-    "176": 0, // North
-  },
-  // For odd flight lines
-  ODD: {
-    "170": 3, // West
-    "171": 0, // North
-    "174": 1, // East
-    "176": 2, // South
-  },
-});
 
 export const CAMERA_ID_TO_UP_VECTOR_MATRIX_MAPPING = Object.freeze({
   "170": { rowIndex: 2, negate: true }, // forward

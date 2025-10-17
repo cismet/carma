@@ -16,7 +16,7 @@ import {
   getCameraHeightAboveGround,
   getElevationAsync,
   getScenePixelSize,
-} from "@carma-mapping/engines/cesium";
+} from "@carma-mapping/engines/cesium/core";
 
 // TODO: move to config or formalize the starting distance value
 const START_DISTANCE = 1000;

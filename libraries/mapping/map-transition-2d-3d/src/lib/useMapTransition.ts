@@ -25,7 +25,7 @@ import {
   isValidScene,
   isValidCamera,
   tryWithValidCamera,
-} from "@carma-mapping/engines/cesium";
+} from "@carma-mapping/engines/cesium/core";
 
 // Import transition context
 import { useTransitionContext } from "./useTransitionContext";

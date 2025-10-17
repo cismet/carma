@@ -1,18 +1,7 @@
-import type { Degrees, Radians } from "@carma/units/types";
-
-interface HeadingPitchRollDegrees {
-  heading?: Degrees;
-  pitch?: Degrees;
-  roll?: Degrees;
-}
-
-interface HeadingPitchRollRadians {
-  heading?: Radians;
-  pitch?: Radians;
-  roll?: Radians;
-}
-
-export namespace HeadingPitchRoll {
-  export type deg = HeadingPitchRollDegrees;
-  export type rad = HeadingPitchRollRadians;
-}
+// heading pitch roll is distinctly geographic since it requires a north reference
+// see: https://cesium.com/learn/cesiumjs/ref-doc/Camera.html
+//
+// but applied to cesium cameras here only so lives in
+// @see libraries/mapping/engines/cesium/core/src/lib/types/camera.d.ts
+// related for generic orientation
+// @see libraries/types/src/lib/math/orientation.d.ts

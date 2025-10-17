@@ -33,7 +33,7 @@ import {
   useHomeControl,
   useZoomControls as useZoomControlsCesium,
   CtxEvent,
-} from "@carma-mapping/engines/cesium";
+} from "@carma-mapping/engines/cesium/core";
 import { useCarmaTopicMapContext } from "@carma-mapping/engines/carma-cismap";
 import {
   MapTypeSwitcher,
@@ -56,7 +56,7 @@ import { MeasurementControl } from "@carma-commons/measurements";
 
 import { GeoportalMap } from "../GeoportalMap.tsx";
 import LibreGeoportalMap from "../LibreGeoportalMap.tsx";
-import { CesiumObliqueMode } from "../../CesiumObliqueMode";
+import { CesiumObliqueMode } from "../../CesiumObliqueMode.tsx";
 import LayerWrapper from "../../layers/LayerWrapper.tsx";
 
 import { useLeafletZoomControls } from "@carma-mapping/engines/leaflet";
@@ -138,13 +138,11 @@ const MapWrapper = () => {
   const homeControl = useHomeControl();
   const configSelection = useSelector(getConfigSelection);
 
-  const { isObliqueMode } = useOblique();
-
   const {
     handleZoomIn: handleZoomInCesium,
     handleZoomOut: handleZoomOutCesium,
   } = useZoomControlsCesium({
-    fovMode: isObliqueMode,
+    fovMode: false, // TODO: Hook up to oblique mode state when needed
   });
 
   const { zoomInLeaflet, zoomOutLeaflet } =

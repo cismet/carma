@@ -6,7 +6,7 @@ import {
   WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
 } from "@carma/resources";
 // TODO: Remove CesiumConfig import - not available in current version
-// import { CesiumConfig } from "@carma-mapping/engines/cesium";
+// import { CesiumConfig } from "@carma-mapping/engines/cesium/core";
 import type { LeafletConfig } from "@carma/types";
 
 export const APP_BASE_PATH = import.meta.env.BASE_URL;

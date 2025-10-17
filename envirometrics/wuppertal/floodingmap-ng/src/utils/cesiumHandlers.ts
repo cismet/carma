@@ -15,7 +15,7 @@ import {
   getDegreesFromCartographic,
   tryWithValidScene,
   guardSampleTerrainMostDetailedAsync,
-} from "@carma-mapping/engines/cesium";
+} from "@carma-mapping/engines/cesium/core";
 
 import { updateMarkerPosition } from "./marker";
 

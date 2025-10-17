@@ -16,15 +16,13 @@ module.exports = {
     "no-direct-cesium": createRestrictedImportRule({
       packageName: "cesium",
       allowedPaths: [
-        "**/libraries/mapping/engines/cesium/**",
-        "**/libraries/mapping/engines/cesium-widget/**",
+        "**/libraries/mapping/engines/cesium/api/**",
+        "**/libraries/mapping/engines/cesium/core/src/lib/widgetDefaults.ts",
       ],
-      wrapperPackages: [
-        "@carma-mapping/engines/cesium",
-        "@carma-mapping/engines/cesium-widget",
-      ],
-      message: "Import cesium only in @carma-mapping/engines/cesium",
-      allowTypeImports: true,
+      wrapperPackages: ["@carma-mapping/engines/cesium/api"],
+      message:
+        "Import cesium only through @carma/cesium (@carma-mapping/engines/cesium/api). Use the curated API surface for better manageability.",
+      allowTypeImports: false,
     }),
 
     "no-direct-leaflet": createRestrictedImportRule({

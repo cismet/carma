@@ -26,7 +26,7 @@ import {
   initAnimationMap,
   type AnimationMap,
   CesiumContextType,
-} from "@carma-mapping/engines/cesium";
+} from "@carma-mapping/engines/cesium/core";
 import { CesiumPitchingCompass as PitchingCompass } from "@carma-mapping/ui/pitching-compass";
 
 import useTileset from "../hooks/useTileset";

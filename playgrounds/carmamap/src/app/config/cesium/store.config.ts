@@ -4,7 +4,7 @@ import { Cartesian3, Color } from "cesium";
 
 import { WUPPERTAL } from "@carma/resources";
 // TODO: Remove CesiumState import - not available in current version
-// import { CesiumState, toColorRgbaArray } from "@carma-mapping/engines/cesium";
+// import { CesiumState, toColorRgbaArray } from "@carma-mapping/engines/cesium/core";
 
 import { MODEL_ASSETS } from "./assets.config";
 

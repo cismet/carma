@@ -9,7 +9,7 @@ import {
   useCesiumContext,
   useCesiumInitialCameraFromSearchParams,
   CtxEvent,
-} from "@carma-mapping/engines/cesium";
+} from "@carma-mapping/engines/cesium/core";
 
 import { useFeatureFlags } from "@carma/providers/feature-flag";
 

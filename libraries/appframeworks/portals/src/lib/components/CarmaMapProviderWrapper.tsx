@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 
 import { OverlayTourProvider } from "@carma-commons/ui/helper-overlay";
-import { CesiumContextProvider } from "@carma-mapping/engines/cesium";
+import { CesiumContextProvider } from "@carma-mapping/engines/cesium/core";
 import { CarmaTopicMapContextProvider } from "@carma-mapping/engines/carma-cismap";
 import { TransitionContextProvider } from "@carma-mapping/map-transition-2d-3d";
 import { MapViewStateProvider } from "@carma-mapping/map-view-state";

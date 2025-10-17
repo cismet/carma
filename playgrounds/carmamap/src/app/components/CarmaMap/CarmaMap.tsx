@@ -65,7 +65,7 @@ import {
   useCesiumInitialCameraFromSearchParams,
   CesiumSceneComponent,
   CtxEvent,
-} from "@carma-mapping/engines/cesium";
+} from "@carma-mapping/engines/cesium/core";
 
 // TODO: Import useWindowSize from shared library when available
 // import { useWindowSize } from "../../hooks/useWindowSize.ts";
@@ -268,7 +268,7 @@ export const CarmaMap = ({
   // Initialize Cesium scene change handler for hash routing (GeoportalMap pattern)
   const hashRoutingHandler = useMapHashRoutingCesium();
   const onSceneChange = useCallback(
-    (params: { source: string; stringifiedCamera: any }) => {
+    (params: { source: string; camera: Camera }) => {
       // Adapt to the hash routing handler signature
       hashRoutingHandler({
         ...params,

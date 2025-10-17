@@ -44,7 +44,6 @@ import {
   useHomeControl,
   useZoomControls,
   useSelectionCesium,
-  VIEWERSTATE_KEYS,
 } from "./lib/cesium-engine-snapshot";
 import {
   EmptySearchComponent,
@@ -69,7 +68,7 @@ import versionData from "./version.json";
 import useLeafletZoomControls from "./hooks/useLeafletZoomControls";
 
 import config from "./config";
-import { EMAIL, HOME_ZOOM } from "./config/app.config";
+import { EMAIL, HOME_ZOOM, VIEWERSTATE_KEYS } from "./config/app.config";
 import {
   CESIUM_CONFIG,
   CONSTRUCTOR_OPTIONS,

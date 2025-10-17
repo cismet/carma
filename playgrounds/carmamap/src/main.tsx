@@ -5,7 +5,7 @@ import { suppressReactCismapErrors } from "@carma-commons/utils";
 
 import App from "./app/App";
 import { CESIUM_CONFIG } from "./app/config/app.config";
-import { setupCesiumEnvironment } from "@carma-mapping/engines/cesium";
+import { setupCesiumEnvironment } from "@carma-mapping/engines/cesium/core";
 
 suppressReactCismapErrors();
 

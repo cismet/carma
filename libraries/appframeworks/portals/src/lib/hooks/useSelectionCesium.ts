@@ -10,7 +10,7 @@ import {
   isValidScene,
   tryWithValidScene,
   sceneRequestRender,
-} from "@carma-mapping/engines/cesium";
+} from "@carma-mapping/engines/cesium/core";
 
 import {
   SelectionMapMode,

@@ -1,4 +1,4 @@
-import { MarkerModelAsset } from "@carma-mapping/engines/cesium";
+import { MarkerModelAsset } from "@carma-mapping/engines/cesium/core";
 
 import { APP_BASE_PATH } from "../app.config";
 

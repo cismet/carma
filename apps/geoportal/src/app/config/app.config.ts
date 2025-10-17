@@ -12,7 +12,7 @@ import {
 } from "@carma/resources";
 
 import { Cartesian3 } from "cesium";
-import { toColorRgbaArray, Color } from "@carma-mapping/engines/cesium";
+import { toColorRgbaArray, Color } from "@carma-mapping/engines/cesium/core";
 import type { LeafletConfig, CesiumConfig } from "@carma/types";
 import { MODEL_ASSETS } from "./assets.config";
 
@@ -99,9 +99,9 @@ export const CESIUM_CONFIG: CesiumConfig = {
       globe: {
         baseColor: toColorRgbaArray(Color.WHITE),
       },
-      imagery: [{ id: "spw2_graublau", opacity: 0.5 }],
+      imageryLayers: [{ layer: "spw2_graublau", opacity: 0.5 }],
       tilesets: [{ id: "wupp-lod2" }],
-      terrain: "terrain",
+      terrainLayer: "terrain",
     },
     {
       key: "aerial",
@@ -120,4 +120,9 @@ export const CESIUM_CONFIG: CesiumConfig = {
 export const LEAFLET_CONFIG: LeafletConfig = {
   zoomSnap: 1.0,
   zoomDelta: 1.0,
+};
+
+export const VIEWERSTATE_KEYS = {
+  mapStyle: "m",
+  is3d: "is3d",
 };

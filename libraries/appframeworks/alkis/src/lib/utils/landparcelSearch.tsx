@@ -4,8 +4,8 @@ import {
   getAllAdditionalSheets,
   productsPdfWithPermission,
   searchLandparcelByName,
-} from "../utils/apiMethods";
-import { getLandparcelTitle, pdfProductsLandparcel } from "../utils/helper";
+} from "./apiMethods";
+import { getLandparcelTitle, pdfProductsLandparcel } from "./helper";
 import PdfDocumentLoader from "../components/PdfDocumentLoader";
 import { LandparcelInfo } from "../components/LandparcelInfo";
 export const getLandparcelHtml = async (
