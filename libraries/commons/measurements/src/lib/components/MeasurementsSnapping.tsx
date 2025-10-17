@@ -28,11 +28,9 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
       const L = (window as any).L;
       let closestPoint: any = null;
 
-      const mousemoveHandler = (e: any) => {
-        // Check zoom level - only work if zoom >= 17
-        const currentZoom = leafletMap.getZoom();
-        if (currentZoom < 17) {
-          // Remove circles if zoom is too low
+      // Centralized cleanup for markers, highlight, cursor, and closestPoint
+      const clearBlackPoint = () => {
+        try {
           if (circleMarkerRef.current) {
             leafletMap.removeLayer(circleMarkerRef.current);
             circleMarkerRef.current = null;
@@ -41,6 +39,31 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
             leafletMap.removeLayer(toleranceCircleMarkerRef.current);
             toleranceCircleMarkerRef.current = null;
           }
+          if (
+            maplibreMap &&
+            typeof maplibreMap.getSource === "function" &&
+            maplibreMap.getSource("highlight")
+          ) {
+            maplibreMap.getSource("highlight").setData({
+              type: "FeatureCollection",
+              features: [],
+            });
+          }
+          if (maplibreMap && maplibreMap.getCanvas) {
+            maplibreMap.getCanvas().style.cursor = "";
+          }
+          closestPoint = null;
+        } catch (_) {
+          // no-op safeguard
+        }
+      };
+
+      const mousemoveHandler = (e: any) => {
+        // Check zoom level - only work if zoom >= 17
+        const currentZoom = leafletMap.getZoom();
+        if (currentZoom < 17) {
+          // Zoom too low: centralized cleanup
+          clearBlackPoint();
           return; // Exit early
         }
 
