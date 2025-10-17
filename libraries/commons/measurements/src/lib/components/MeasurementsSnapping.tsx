@@ -21,8 +21,11 @@ export function MeasurementsSnapping() {
 
   useEffect(() => {
     const leafletMap = routedMapRef?.leafletMap?.leafletElement;
+    console.log("xxx 1111", leafletMap);
 
-    if (leafletMap && typeof leafletMap.on === "function" && maplibreMap) {
+    if (leafletMap && typeof leafletMap.on === "function") {
+      console.log("xxx leafletMap", leafletMap);
+      console.log("xxx maplibreMap", maplibreMap);
       // Import L from leaflet
       const L = (window as any).L;
       let closestPoint: any = null;
@@ -69,64 +72,54 @@ export function MeasurementsSnapping() {
           weight: 2,
           opacity: 0.6,
         }).addTo(leafletMap);
+        console.log("xxx circleMarkerRef", circleMarkerRef.current);
 
         // Get the MapLibre canvas position relative to the page
-        const canvas = maplibreMap.getCanvas();
-        const rect = canvas.getBoundingClientRect();
+        if (maplibreMap) {
+          const canvas = maplibreMap.getCanvas();
+          const rect = canvas.getBoundingClientRect();
 
-        // Calculate the mouse position relative to the MapLibre canvas
-        const point = {
-          x: e.originalEvent.clientX - rect.left,
-          y: e.originalEvent.clientY - rect.top,
-        };
+          // Calculate the mouse position relative to the MapLibre canvas
+          const point = {
+            x: e.originalEvent.clientX - rect.left,
+            y: e.originalEvent.clientY - rect.top,
+          };
 
-        const currentRadius = queryRadiusRef.current;
+          const currentRadius = queryRadiusRef.current;
 
-        const bbox = [
-          [point.x - currentRadius, point.y - currentRadius],
-          [point.x + currentRadius, point.y + currentRadius],
-        ];
+          const bbox = [
+            [point.x - currentRadius, point.y - currentRadius],
+            [point.x + currentRadius, point.y + currentRadius],
+          ];
 
-        // Query features but exclude our highlight layers to avoid feedback loop
-        let features = maplibreMap.queryRenderedFeatures(bbox, {
-          layers: maplibreMap
-            .getStyle()
-            .layers.map((layer: any) => layer.id)
-            .filter((id: string) => !id.startsWith("highlight-")),
-        });
+          // Query features but exclude our highlight layers to avoid feedback loop
+          let features = maplibreMap.queryRenderedFeatures(bbox, {
+            layers: maplibreMap
+              .getStyle()
+              .layers.map((layer: any) => layer.id)
+              .filter((id: string) => !id.startsWith("highlight-")),
+          });
 
-        if (features.length > 0) {
-          maplibreMap.getCanvas().style.cursor = "pointer";
-          // Mode 6: Serious - only show the closest point in black, no lines
-          const coordinatePoints: any[] = [];
+          if (features.length > 0) {
+            maplibreMap.getCanvas().style.cursor = "pointer";
+            // Mode 6: Serious - only show the closest point in black, no lines
+            const coordinatePoints: any[] = [];
 
-          features.forEach((feature: any) => {
-            const geometry = feature.geometry;
+            features.forEach((feature: any) => {
+              const geometry = feature.geometry;
 
-            // Extract coordinates based on geometry type
-            if (geometry.type === "Point") {
-              coordinatePoints.push({
-                type: "Feature",
-                geometry: {
-                  type: "Point",
-                  coordinates: geometry.coordinates,
-                },
-                properties: {},
-              });
-            } else if (geometry.type === "LineString") {
-              geometry.coordinates.forEach((coord: any) => {
+              // Extract coordinates based on geometry type
+              if (geometry.type === "Point") {
                 coordinatePoints.push({
                   type: "Feature",
                   geometry: {
                     type: "Point",
-                    coordinates: coord,
+                    coordinates: geometry.coordinates,
                   },
                   properties: {},
                 });
-              });
-            } else if (geometry.type === "Polygon") {
-              geometry.coordinates.forEach((ring: any) => {
-                ring.forEach((coord: any) => {
+              } else if (geometry.type === "LineString") {
+                geometry.coordinates.forEach((coord: any) => {
                   coordinatePoints.push({
                     type: "Feature",
                     geometry: {
@@ -136,34 +129,8 @@ export function MeasurementsSnapping() {
                     properties: {},
                   });
                 });
-              });
-            } else if (geometry.type === "MultiPoint") {
-              geometry.coordinates.forEach((coord: any) => {
-                coordinatePoints.push({
-                  type: "Feature",
-                  geometry: {
-                    type: "Point",
-                    coordinates: coord,
-                  },
-                  properties: {},
-                });
-              });
-            } else if (geometry.type === "MultiLineString") {
-              geometry.coordinates.forEach((line: any) => {
-                line.forEach((coord: any) => {
-                  coordinatePoints.push({
-                    type: "Feature",
-                    geometry: {
-                      type: "Point",
-                      coordinates: coord,
-                    },
-                    properties: {},
-                  });
-                });
-              });
-            } else if (geometry.type === "MultiPolygon") {
-              geometry.coordinates.forEach((polygon: any) => {
-                polygon.forEach((ring: any) => {
+              } else if (geometry.type === "Polygon") {
+                geometry.coordinates.forEach((ring: any) => {
                   ring.forEach((coord: any) => {
                     coordinatePoints.push({
                       type: "Feature",
@@ -175,91 +142,130 @@ export function MeasurementsSnapping() {
                     });
                   });
                 });
-              });
-            }
-          });
-
-          // Filter points to only those within the circle radius and calculate distances
-          const filteredPointsWithDistance = coordinatePoints
-            .map((pointFeature: any) => {
-              const coord = pointFeature.geometry.coordinates;
-              const projectedPoint = maplibreMap.project(coord);
-
-              const dx = projectedPoint.x - point.x;
-              const dy = projectedPoint.y - point.y;
-              const distance = Math.sqrt(dx * dx + dy * dy);
-
-              return { pointFeature, distance };
-            })
-            .filter((item: any) => item.distance <= currentRadius);
-
-          // Find the shortest distance
-          let shortestDistance = Infinity;
-          let shortestIndex = -1;
-
-          filteredPointsWithDistance.forEach((item: any, index: number) => {
-            if (item.distance < shortestDistance) {
-              shortestDistance = item.distance;
-              shortestIndex = index;
-            }
-          });
-
-          // Get mouse pointer coordinates in lng/lat
-          const mouseLatLng = maplibreMap.unproject([point.x, point.y]);
-
-          // Get current tolerance radius
-          const currentToleranceRadius = toleranceRadiusRef.current;
-
-          // Only show the closest point in black
-          const blackPoint: any[] = [];
-
-          if (shortestIndex === -1) {
-            // No points found - show black dot at mouse pointer
-            blackPoint.push({
-              type: "Feature",
-              geometry: {
-                type: "Point",
-                coordinates: [mouseLatLng.lng, mouseLatLng.lat],
-              },
-              properties: { black: true },
+              } else if (geometry.type === "MultiPoint") {
+                geometry.coordinates.forEach((coord: any) => {
+                  coordinatePoints.push({
+                    type: "Feature",
+                    geometry: {
+                      type: "Point",
+                      coordinates: coord,
+                    },
+                    properties: {},
+                  });
+                });
+              } else if (geometry.type === "MultiLineString") {
+                geometry.coordinates.forEach((line: any) => {
+                  line.forEach((coord: any) => {
+                    coordinatePoints.push({
+                      type: "Feature",
+                      geometry: {
+                        type: "Point",
+                        coordinates: coord,
+                      },
+                      properties: {},
+                    });
+                  });
+                });
+              } else if (geometry.type === "MultiPolygon") {
+                geometry.coordinates.forEach((polygon: any) => {
+                  polygon.forEach((ring: any) => {
+                    ring.forEach((coord: any) => {
+                      coordinatePoints.push({
+                        type: "Feature",
+                        geometry: {
+                          type: "Point",
+                          coordinates: coord,
+                        },
+                        properties: {},
+                      });
+                    });
+                  });
+                });
+              }
             });
-          } else {
-            const closestItem = filteredPointsWithDistance[shortestIndex];
 
-            // Check if winning dot is within tolerance radius
-            if (closestItem.distance <= currentToleranceRadius) {
-              // Show black point at the actual closest coordinate
-              blackPoint.push({
-                type: "Feature",
-                geometry: closestItem.pointFeature.geometry,
-                properties: { black: true },
-              });
-            } else {
-              // Winning dot is outside tolerance - show dot at mouse pointer
+            // Filter points to only those within the circle radius and calculate distances
+            const filteredPointsWithDistance = coordinatePoints
+              .map((pointFeature: any) => {
+                const coord = pointFeature.geometry.coordinates;
+                const projectedPoint = maplibreMap.project(coord);
+
+                const dx = projectedPoint.x - point.x;
+                const dy = projectedPoint.y - point.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                return { pointFeature, distance };
+              })
+              .filter((item: any) => item.distance <= currentRadius);
+
+            // Find the shortest distance
+            let shortestDistance = Infinity;
+            let shortestIndex = -1;
+
+            filteredPointsWithDistance.forEach((item: any, index: number) => {
+              if (item.distance < shortestDistance) {
+                shortestDistance = item.distance;
+                shortestIndex = index;
+              }
+            });
+
+            // Get mouse pointer coordinates in lng/lat
+            const mouseLatLng = maplibreMap.unproject([point.x, point.y]);
+
+            // Get current tolerance radius
+            const currentToleranceRadius = toleranceRadiusRef.current;
+
+            // Only show the closest point in black
+            const blackPoint: any[] = [];
+
+            if (shortestIndex === -1) {
+              // No points found - show black dot at mouse pointer
               blackPoint.push({
                 type: "Feature",
                 geometry: {
                   type: "Point",
                   coordinates: [mouseLatLng.lng, mouseLatLng.lat],
                 },
-                properties: { black: true, mode: "serious" },
+                properties: { black: true },
               });
-            }
-          }
-          closestPoint = blackPoint[0];
+            } else {
+              const closestItem = filteredPointsWithDistance[shortestIndex];
 
-          // Update highlight source with only the black point
-          maplibreMap.getSource("highlight").setData({
-            type: "FeatureCollection",
-            features: blackPoint,
-          });
-        } else {
-          maplibreMap.getCanvas().style.cursor = "";
-          // Clear highlights
-          maplibreMap.getSource("highlight").setData({
-            type: "FeatureCollection",
-            features: [],
-          });
+              // Check if winning dot is within tolerance radius
+              if (closestItem.distance <= currentToleranceRadius) {
+                // Show black point at the actual closest coordinate
+                blackPoint.push({
+                  type: "Feature",
+                  geometry: closestItem.pointFeature.geometry,
+                  properties: { black: true },
+                });
+              } else {
+                // Winning dot is outside tolerance - show dot at mouse pointer
+                blackPoint.push({
+                  type: "Feature",
+                  geometry: {
+                    type: "Point",
+                    coordinates: [mouseLatLng.lng, mouseLatLng.lat],
+                  },
+                  properties: { black: true, mode: "serious" },
+                });
+              }
+            }
+            closestPoint = blackPoint[0];
+
+            // Update highlight source with only the black point
+            maplibreMap.getSource("highlight").setData({
+              type: "FeatureCollection",
+              features: blackPoint,
+            });
+          } else {
+            maplibreMap.getCanvas().style.cursor = "";
+            // Clear highlights
+            maplibreMap.getSource("highlight").setData({
+              type: "FeatureCollection",
+              features: [],
+            });
+          }
         }
       };
 
