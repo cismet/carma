@@ -8,7 +8,7 @@
  */
 
 export const APP_CONFIG = {
-  // REST Service URL (without trailing slash for DAQ API compatibility)
+  // REST Service URL
   restService:
     import.meta.env.VITE_TZ_BAUMBEWIRTSCHAFTUNG_REST_SERVICE ||
     "https://wunda-cloud-api.cismet.de/",
