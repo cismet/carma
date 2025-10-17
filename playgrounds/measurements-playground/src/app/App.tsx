@@ -1,4 +1,3 @@
-import { useEffect, useRef } from "react";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import { suppressReactCismapErrors } from "@carma-commons/utils";
 import {
@@ -15,24 +14,11 @@ import { useContext, useState } from "react";
 import {
   TopicMapSelectionContent,
   useSelectionTopicMap,
-  useSelection,
 } from "@carma-appframeworks/portals";
 import CismapLayer from "react-cismap/CismapLayer";
-import InfoBox from "react-cismap/topicmaps/InfoBox";
 import { getActionLinksForFeature } from "react-cismap/tools/uiHelper";
-import {
-  TopicMapDispatchContext,
-  TopicMapContext,
-} from "react-cismap/contexts/TopicMapContextProvider";
-import InfoBoxFotoPreview from "react-cismap/topicmaps/InfoBoxFotoPreview";
-import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
-import { ModeButtons } from "./components/ModeButtons";
-import { RadiusSliders } from "./components/RadiusSliders";
-import { VectorLayerButton } from "./components/VectorLayerButton";
-import {
-  useMapMeasurementsContext,
-  useMapLibreMap,
-} from "@carma-commons/measurements";
+import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextProvider";
+import { useMapLibreMap } from "@carma-commons/measurements";
 
 suppressReactCismapErrors();
 
@@ -40,68 +26,11 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
   const { responsiveState, gap, windowSize } = useContext(
     ResponsiveTopicMapContext
   ) as any;
-  const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
-  const { setSelection } = useSelection();
   useSelectionTopicMap();
   const [selectedFeature, setSelectedFeature] = useState<any>(undefined);
   const { maplibreMap, setMaplibreMap } = useMapLibreMap();
-  const [queryRadius, setQueryRadius] = useState(() => {
-    const saved = localStorage.getItem("measurements-radius");
-    return saved ? Number(saved) : 100;
-  });
-  const [toleranceRadius, setToleranceRadius] = useState(() => {
-    const saved = localStorage.getItem("measurements-tolerance-radius");
-    return saved ? Number(saved) : 50;
-  });
-  const [mode, setMode] = useState<
-    | "features"
-    | "coordinates"
-    | "coordinatesUnderPointer"
-    | "spider"
-    | "spiderRocket"
-    | "serious"
-  >(() => {
-    const saved = localStorage.getItem("measurements-mode");
-    return (saved as any) || "features";
-  });
-  const { currentDrawHandler } = useMapMeasurementsContext();
-  const [seriousClosestPoint, setSeriousClosestPoint] = useState<any>(null);
-  const queryRadiusRef = useRef(queryRadius);
-  const toleranceRadiusRef = useRef(toleranceRadius);
-  const circleMarkerRef = useRef<any>(null);
-  const toleranceCircleMarkerRef = useRef<any>(null);
+
   const { zoomToFeature } = useContext(TopicMapDispatchContext) as any;
-  const lightBoxDispatchContext = useContext(LightBoxDispatchContext);
-
-  // Check if there's a saved vector style
-  const hasSavedVectorStyle =
-    localStorage.getItem("measurements-vector-style") !== null;
-
-  // Clear saved vector style
-  const clearVectorStyle = () => {
-    localStorage.removeItem("measurements-vector-style");
-    window.location.reload(); // Reload to clear the map
-  };
-
-  // Keep ref in sync with state and save to localStorage
-  useEffect(() => {
-    queryRadiusRef.current = queryRadius;
-    localStorage.setItem("measurements-radius", String(queryRadius));
-  }, [queryRadius]);
-
-  // Keep tolerance radius ref in sync and save to localStorage
-  useEffect(() => {
-    toleranceRadiusRef.current = toleranceRadius;
-    localStorage.setItem(
-      "measurements-tolerance-radius",
-      String(toleranceRadius)
-    );
-  }, [toleranceRadius]);
-
-  // Save mode to localStorage when it changes
-  useEffect(() => {
-    localStorage.setItem("measurements-mode", mode || "");
-  }, [mode]);
 
   const pixelwidth =
     responsiveState === "normal" ? "300px" : (windowSize?.width || 300) - gap;
