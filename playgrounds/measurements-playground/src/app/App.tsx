@@ -4,6 +4,9 @@ import {
   MeasurementControl,
   MapMeasurementsObjects,
   MeasurementsSnapping,
+  MEASUREMENT_MODE,
+  useMapMeasurementsContext,
+  useMapLibreMap,
 } from "@carma-commons/measurements";
 import { ZoomControl } from "@carma-mapping/components";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
@@ -18,7 +21,6 @@ import {
 import CismapLayer from "react-cismap/CismapLayer";
 import { getActionLinksForFeature } from "react-cismap/tools/uiHelper";
 import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextProvider";
-import { useMapLibreMap } from "@carma-commons/measurements";
 
 suppressReactCismapErrors();
 
@@ -29,7 +31,8 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
   useSelectionTopicMap();
   const [selectedFeature, setSelectedFeature] = useState<any>(undefined);
   const { maplibreMap, setMaplibreMap } = useMapLibreMap();
-
+  const { mode: measurementMode, setMode: setMeasurementMode } =
+    useMapMeasurementsContext();
   const { zoomToFeature } = useContext(TopicMapDispatchContext) as any;
 
   const pixelwidth =
@@ -87,7 +90,11 @@ export function App({ vectorStyles = [] }: { vectorStyles?: any[] }) {
       >
         <MapMeasurementsObjects />
         <TopicMapSelectionContent />
-        <MeasurementsSnapping maplibreMap={maplibreMap} />
+
+        {measurementMode === MEASUREMENT_MODE.MEASUREMENT && (
+          <MeasurementsSnapping maplibreMap={maplibreMap} />
+        )}
+
         {vectorStyles.map((style, index) => {
           return (
             <CismapLayer
