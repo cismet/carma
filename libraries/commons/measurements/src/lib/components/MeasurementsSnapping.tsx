@@ -14,6 +14,11 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
   const toleranceCircleMarkerRef = useRef<any>(null);
   const verticesRef = useRef<{ latlng: any; shapeId?: number | string }[]>([]);
   const blackCursorRef = useRef<any>(null);
+  const shapesRef = useRef(shapes);
+
+  useEffect(() => {
+    shapesRef.current = shapes;
+  }, [shapes]);
 
   useEffect(() => {
     queryRadiusRef.current = queryRadius;
@@ -208,7 +213,7 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
             });
 
             // Normalize measurement shapes into point features (lng,lat order)
-            shapes.forEach((shape: any) => {
+            shapesRef.current.forEach((shape: any) => {
               const type = (
                 shape.shapeType ||
                 shape.shapeTy ||
@@ -377,7 +382,7 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
         }
       };
     }
-  }, [routedMapRef, maplibreMap, shapes]);
+  }, [routedMapRef, maplibreMap]);
 
   // useEffect(() => {
   //   const leafletMap = routedMapRef?.leafletMap?.leafletElement;
