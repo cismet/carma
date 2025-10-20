@@ -22,10 +22,10 @@ export const useMapLibreMap = () => {
           ["==", ["get", "black"], true],
         ],
         paint: {
-          "circle-radius": 8,
+          "circle-radius": 5,
           "circle-color": "#000000",
           "circle-opacity": 0.8,
-          "circle-stroke-width": 2,
+          "circle-stroke-width": 1,
           "circle-stroke-color": "#ffffff",
         },
       });
