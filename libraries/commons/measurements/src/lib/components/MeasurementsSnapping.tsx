@@ -14,13 +14,6 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
   const toleranceCircleMarkerRef = useRef<any>(null);
   const verticesRef = useRef<{ latlng: any; shapeId?: number | string }[]>([]);
   const blackCursorRef = useRef<any>(null);
-  const isMeasurementLayer = (layer: any): boolean => {
-    const className = layer?.options?.className === "custom-polyline";
-
-    console.log("xxx ", className);
-
-    return className;
-  };
 
   useEffect(() => {
     queryRadiusRef.current = queryRadius;
@@ -37,13 +30,6 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
       // Import L from leaflet
       const L = (window as any).L;
       let closestPoint: any = null;
-
-      // leafletMap.eachLayer((layer: any) => {
-      //   const isItMeasurementLayer = isMeasurementLayer(layer);
-      //   if (isItMeasurementLayer) {
-      //     console.log("xxx isItMeasurementLayer", layer);
-      //   }
-      // });
 
       // Centralized cleanup for markers, highlight, cursor, and closestPoint
       const clearBlackPoint = () => {
@@ -231,7 +217,6 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
               const coords = shape.coordinates || [];
 
               if (type === "polygon") {
-                // coords may be [ ring1, ring2, ... ] or possibly a single ring (flat)
                 const rings = Array.isArray(coords[0][0]) ? coords : [coords];
                 rings.forEach((ring: any[]) => {
                   ring.forEach((pt: any[]) => {
@@ -242,22 +227,22 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
                         type: "Point",
                         coordinates: [pt[1], pt[0]],
                       },
-                      properties: { fromShape: true, shapeId: shape.shapeId },
+                      properties: {},
                     });
                   });
                 });
               } else {
-                // // polyline/line: coords is array of points
-                // coords.forEach((pt: any[]) => {
-                //   coordinatePoints.push({
-                //     type: "Feature",
-                //     geometry: {
-                //       type: "Point",
-                //       coordinates: [pt[1], pt[0]], // swap lat/lng to lng/lat
-                //     },
-                //     properties: { fromShape: true, shapeId: shape.shapeId },
-                //   });
-                // });
+                // polyline/line: coords is array of points
+                coords.forEach((pt: any[]) => {
+                  coordinatePoints.push({
+                    type: "Feature",
+                    geometry: {
+                      type: "Point",
+                      coordinates: [pt[1], pt[0]], // swap lat/lng to lng/lat
+                    },
+                    properties: {},
+                  });
+                });
               }
             });
 
