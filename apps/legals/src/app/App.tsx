@@ -55,6 +55,27 @@ export function App() {
               Impressum
             </Button>
           </Space>
+          <Title level={2} style={{ marginBottom: "30px" }}>
+            DigiTal-Zwilling TopicMaps Dokumente
+          </Title>
+          <Space direction="vertical" size="large" style={{ width: "100%" }}>
+            <Button
+              size="large"
+              icon={<FileTextOutlined />}
+              href={`${baseUrl}#/Datenschutzerklaerung_DigiTal-Zwilling_TopicMaps`}
+              style={{ width: "100%", height: "50px" }}
+            >
+              Datenschutzerklärung
+            </Button>
+            <Button
+              size="large"
+              icon={<InfoCircleOutlined />}
+              href={`${baseUrl}#/Impressum_DigiTal-Zwilling_TopicMaps`}
+              style={{ width: "100%", height: "50px" }}
+            >
+              Impressum
+            </Button>
+          </Space>
         </div>
       </Content>
     </Layout>

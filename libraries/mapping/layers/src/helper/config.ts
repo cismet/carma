@@ -1617,11 +1617,11 @@ export const baseConfig = {
         icon: "planung/BPlan_Innenraumsatzung",
       },
       {
-        name: "r102:fnp",
+        name: "r102_fnp",
         icon: "planung/FNP_2005_xplanung",
       },
       {
-        name: "r102:fnp_clip",
+        name: "r102_fnp_clip",
         icon: "planung/FNP_2005_xplanung",
       },
       {
@@ -1629,7 +1629,7 @@ export const baseConfig = {
         icon: "planung/FNP_aktualisierte_FNP-Arbeitskarte",
       },
       {
-        name: "r102:fnp_ngF",
+        name: "r102_fnp_ngF",
         pictureBoundingBox: [
           795100.3568795373, 6660908.960026704, 797389.8847423919,
           6662372.012521227,
@@ -1672,7 +1672,7 @@ export const baseConfig = {
         icon: "planung/FNP_Änderungsverfahren_aufgehoben",
       },
       {
-        name: "landschaft:lundsschutz",
+        name: "landschaft_lundsschutz",
         pictureBoundingBox: [
           793980.0766837327, 6660217.443786437, 796269.6045465872,
           6661680.496280962,
@@ -1680,7 +1680,7 @@ export const baseConfig = {
         icon: "planung/Landschaft-Naturschutz",
       },
       {
-        name: "lplan:festsetzung",
+        name: "lplan_festsetzung",
         pictureBoundingBox: [
           790674.1752103989, 6660065.764058432, 795253.2309361077,
           6662991.869047475,
@@ -1688,7 +1688,7 @@ export const baseConfig = {
         icon: "planung/Festsetzungstext",
       },
       {
-        name: "lpnord:festsetzung",
+        name: "lpnord_festsetzung",
         pictureBoundingBox: [
           786460.5840261785, 6664637.653812743, 788750.111889033,
           6666100.706307263,
@@ -1696,7 +1696,7 @@ export const baseConfig = {
         icon: "planung/LPlan_Nord_Festsetzungskarte",
       },
       {
-        name: "lpnord:entwicklung",
+        name: "lpnord_entwicklung",
         pictureBoundingBox: [
           786460.5840261785, 6664637.653812743, 788750.111889033,
           6666100.706307263,
@@ -1704,7 +1704,7 @@ export const baseConfig = {
         icon: "planung/LPlan_Nord_Entwicklungskarte",
       },
       {
-        name: "lpost:festsetzung",
+        name: "lpost_festsetzung",
         pictureBoundingBox: [
           799296.0331352534, 6665023.421939869, 801585.5609981079,
           6666486.474434387,
@@ -1712,7 +1712,7 @@ export const baseConfig = {
         icon: "planung/LPlan_Ost_Festsetzungskarte",
       },
       {
-        name: "lpost:entwicklung",
+        name: "lpost_entwicklung",
         pictureBoundingBox: [
           799296.0331352534, 6665023.421939869, 801585.5609981079,
           6666486.474434387,
@@ -1720,7 +1720,7 @@ export const baseConfig = {
         icon: "planung/LPlan_Ost_Entwicklungskarte",
       },
       {
-        name: "lpgelpe:festsetzung",
+        name: "lpgelpe_festsetzung",
         pictureBoundingBox: [
           798245.0239963323, 6661616.002538341, 799389.7879277592,
           6662347.528785604,
@@ -1728,7 +1728,7 @@ export const baseConfig = {
         icon: "planung/LPlan_Gelpe_Festsetzungskarte",
       },
       {
-        name: "lpgelpe:entwicklung",
+        name: "lpgelpe_entwicklung",
         pictureBoundingBox: [
           798245.0239963323, 6661616.002538341, 799389.7879277592,
           6662347.528785604,
@@ -1736,7 +1736,7 @@ export const baseConfig = {
         icon: "planung/LPlan_Gelpe_Entwicklungskarte",
       },
       {
-        name: "lpwest:festsetzung",
+        name: "lpwest_festsetzung",
         pictureBoundingBox: [
           792702.14511709, 6659814.95505937, 794991.6729799444,
           6661278.007553893,
@@ -1744,7 +1744,7 @@ export const baseConfig = {
         icon: "planung/LPlan_West_Festsetzungskarte",
       },
       {
-        name: "lpwest:entwicklung",
+        name: "lpwest_entwicklung",
         pictureBoundingBox: [
           792702.14511709, 6659814.95505937, 794991.6729799444,
           6661278.007553893,

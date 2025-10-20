@@ -81,7 +81,11 @@ export const useRoutedMapLocateControl = () => {
 
     return () => {
       if (locationInstance) {
-        locationInstance.stop();
+        try {
+          locationInstance.stop();
+        } catch (e) {
+          console.log("xxx error stopping location instance", e);
+        }
       }
     };
   }, [routedMap, locationInstance]);
@@ -93,7 +97,11 @@ export const useRoutedMapLocateControl = () => {
         locationInstance.start();
       } else {
         setIsLoading(false);
-        locationInstance.stop();
+        try {
+          locationInstance.stop();
+        } catch (e) {
+          console.log("xxx error stopping location instance", e);
+        }
       }
     }
   }, [isLocationActive, locationInstance]);

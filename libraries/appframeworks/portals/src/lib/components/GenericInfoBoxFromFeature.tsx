@@ -69,7 +69,7 @@ export const GenericInfoBoxFromFeature = (props) => {
   const {
     shownFeatures = [],
     selectedFeature,
-    allFeatures = 0,
+    allFeatures = [],
     filteredItems = [],
   } = featureCollectionContext;
   const { fitBoundsForCollection } =
@@ -186,7 +186,11 @@ export const GenericInfoBoxFromFeature = (props) => {
             <a
               className="pleaseRenderLikeALinkEvenWithoutAnHrefAttribute"
               onClick={() => {
-                fitBoundsForCollection();
+                if (allFeatures.length > 0) {
+                  fitBoundsForCollection();
+                } else {
+                  fitBoundsForCollection([]);
+                }
               }}
             >
               {getTotalNumberOfItems(filteredItems)}{" "}
