@@ -353,8 +353,62 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
   }, [routedMapRef, maplibreMap]);
 
   useEffect(() => {
-    // console.log("xxx shapes", shapes);
-  }, [shapes]);
+    const leafletMap = routedMapRef?.leafletMap?.leafletElement;
+
+    if (!leafletMap) return;
+
+    // Import Leaflet
+    const L = (window as any).L;
+
+    // Keep a ref to the black cursor circle
+    let blackCursorMarker: any = null;
+
+    const mousemoveShapesHandler = (e: any) => {
+      // Get mouse position in pixel coordinates (optional)
+      const container = leafletMap.getContainer();
+      const rect = container.getBoundingClientRect();
+      const point = {
+        x: e.originalEvent.clientX - rect.left,
+        y: e.originalEvent.clientY - rect.top,
+      };
+
+      // Create or move the black circle marker
+      const latlng = e.latlng;
+
+      if (!blackCursorMarker) {
+        blackCursorMarker = L.circleMarker(latlng, {
+          radius: 5, // ⬅️ size of the circle
+          color: "#000000", // stroke color
+          weight: 1, // stroke width
+          fillColor: "#000000", // fill color
+          fillOpacity: 0.8, // fill opacity
+          pane: "markerPane", // keeps it above base layers
+          interactive: false, // makes it not clickable
+        }).addTo(leafletMap);
+      } else {
+        blackCursorMarker.setLatLng(latlng);
+      }
+    };
+
+    const mouseoutHandler = () => {
+      if (blackCursorMarker) {
+        leafletMap.removeLayer(blackCursorMarker);
+        blackCursorMarker = null;
+      }
+    };
+
+    leafletMap.on("mousemove", mousemoveShapesHandler);
+    leafletMap.on("mouseout", mouseoutHandler);
+
+    return () => {
+      leafletMap.off("mousemove", mousemoveShapesHandler);
+      leafletMap.off("mouseout", mouseoutHandler);
+      if (blackCursorMarker) {
+        leafletMap.removeLayer(blackCursorMarker);
+        blackCursorMarker = null;
+      }
+    };
+  }, [routedMapRef, shapes]);
 
   return null;
 }
