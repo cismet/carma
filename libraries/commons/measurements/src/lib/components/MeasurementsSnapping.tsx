@@ -12,6 +12,13 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
   const toleranceRadiusRef = useRef(toleranceRadius);
   const circleMarkerRef = useRef<any>(null);
   const toleranceCircleMarkerRef = useRef<any>(null);
+  const isMeasurementLayer = (layer: any): boolean => {
+    const className = layer?.options?.className === "custom-polyline";
+
+    console.log("xxx ", className);
+
+    return className;
+  };
 
   useEffect(() => {
     queryRadiusRef.current = queryRadius;
@@ -28,6 +35,13 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
       // Import L from leaflet
       const L = (window as any).L;
       let closestPoint: any = null;
+
+      // leafletMap.eachLayer((layer: any) => {
+      //   const isItMeasurementLayer = isMeasurementLayer(layer);
+      //   if (isItMeasurementLayer) {
+      //     console.log("xxx isItMeasurementLayer", layer);
+      //   }
+      // });
 
       // Centralized cleanup for markers, highlight, cursor, and closestPoint
       const clearBlackPoint = () => {
@@ -339,7 +353,7 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
   }, [routedMapRef, maplibreMap]);
 
   useEffect(() => {
-    console.log("xxx shapes", shapes);
+    // console.log("xxx shapes", shapes);
   }, [shapes]);
 
   return null;
