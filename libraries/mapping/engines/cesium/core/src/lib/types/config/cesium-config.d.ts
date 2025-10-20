@@ -22,7 +22,7 @@ export type {
 export type CesiumConfig = {
   // Runtime asset paths (REQUIRED)
   baseUrl?: string; // Base URL for Cesium runtime assets (Workers, Assets, etc.) - defaults to "/cesium"
-  
+
   // Core Cesium configuration - pass through to Cesium constructors
   options?: CesiumWidget.ConstructorOptions;
   screenSpaceCameraController?: CesiumScreenSpaceCameraController.ConstructorOptions;

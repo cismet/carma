@@ -23,15 +23,17 @@ export function CesiumLevaControls({
   const { config, emit, currentSceneStyleRef, sceneRef } = useCesiumContext();
   const flyHome = useHomeControl();
   const { handleZoomIn, handleZoomOut } = useZoomControls({ fovMode: false });
-  const { handleZoomIn: handleFovZoomIn, handleZoomOut: handleFovZoomOut } = useZoomControls({ fovMode: true });
+  const { handleZoomIn: handleFovZoomIn, handleZoomOut: handleFovZoomOut } =
+    useZoomControls({ fovMode: true });
 
   // Create mock event for Leva button handlers
-  const createMockEvent = () => ({
-    preventDefault: () => {},
-    stopPropagation: () => {},
-    currentTarget: {},
-    target: {},
-  } as React.MouseEvent);
+  const createMockEvent = () =>
+    ({
+      preventDefault: () => {},
+      stopPropagation: () => {},
+      currentTarget: {},
+      target: {},
+    } as React.MouseEvent);
 
   const [currentStyle, setCurrentStyle] = useState(
     currentSceneStyleRef.current
@@ -78,7 +80,6 @@ export function CesiumLevaControls({
 
   // Camera position is now handled by the cameraPosition plugin
 
-
   // Build camera controls dynamically to handle null camera
   const cameraControls: Record<string, any> = {
     Controls: horizontalButtonRow({
@@ -92,7 +93,10 @@ export function CesiumLevaControls({
 
   // Only add position plugin if camera is available
   if (cameraRef) {
-    cameraControls.Position = cameraPosition({ camera: cameraRef, showECEF: false });
+    cameraControls.Position = cameraPosition({
+      camera: cameraRef,
+      showECEF: false,
+    });
   }
 
   useControls("Camera", cameraControls, [cameraRef]);
@@ -113,7 +117,6 @@ export function CesiumLevaControls({
   }
 
   useControls("Scene", sceneControls, [currentStyle]);
-
 
   return null;
 }

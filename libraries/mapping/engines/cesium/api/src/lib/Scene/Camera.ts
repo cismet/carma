@@ -1,4 +1,9 @@
-import type { Altitude, Latitude, Longitude, LatLngAlt } from "@carma/geo/types";
+import type {
+  Altitude,
+  Latitude,
+  Longitude,
+  LatLngAlt,
+} from "@carma/geo/types";
 import { radToDeg } from "@carma/units/helpers";
 import type { Radians } from "@carma/units/types";
 import { cartographicToUnitTyped } from "../Core/Cartographic";
@@ -14,7 +19,7 @@ const scratchHeadingPitchRange = new HeadingPitchRange();
 /**
  * Fly camera to target position with HeadingPitchRange orientation.
  * Wrapper around flyToBoundingSphere that creates the sphere on the fly.
- * 
+ *
  * @param camera - The Cesium camera
  * @param target - Point to look at (world coordinates)
  * @param hpr - Camera orientation relative to target (heading, pitch, range)
@@ -28,11 +33,11 @@ export const flyToTarget = (
 ): void => {
   scratchBoundingSphere.center = target;
   scratchBoundingSphere.radius = 0;
-  
+
   scratchHeadingPitchRange.heading = hpr.heading;
   scratchHeadingPitchRange.pitch = hpr.pitch;
   scratchHeadingPitchRange.range = hpr.range;
-  
+
   const options: {
     offset: HeadingPitchRange;
     duration?: number;

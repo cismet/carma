@@ -30,28 +30,34 @@ export interface ScreenPosition {
 /**
  * Visualization registration that maps Cesium objects to DOM/Canvas/SVG output
  */
-export interface VisualizationRegistration<TInput = unknown, TOutput = unknown> {
+export interface VisualizationRegistration<
+  TInput = unknown,
+  TOutput = unknown
+> {
   /** Unique identifier for this visualization */
   id: string;
-  
+
   /** Render target type */
   target: OverlayRenderTarget;
-  
-  /** 
+
+  /**
    * Extract Cesium positions from input data
    * Provider will automatically track these and provide screen coordinates
    */
   extractPositions: (input: TInput) => CesiumPosition[];
-  
+
   /**
    * Render function that receives input data and screen positions
    * Returns DOM nodes, canvas draw commands, or SVG elements
    */
-  render: (input: TInput, screenPositions: Map<string, ScreenPosition>) => TOutput;
-  
+  render: (
+    input: TInput,
+    screenPositions: Map<string, ScreenPosition>
+  ) => TOutput;
+
   /** Optional cleanup function */
   cleanup?: () => void;
-  
+
   /** Z-index for layering (higher = on top) */
   zIndex?: number;
 }
@@ -96,16 +102,16 @@ export interface CesiumOverlayContextValue {
   registerVisualization: <TInput, TOutput>(
     registration: VisualizationRegistration<TInput, TOutput>
   ) => void;
-  
+
   /** Unregister a visualization by ID */
   unregisterVisualization: (id: string) => void;
-  
+
   /** Update input data for a visualization */
   updateVisualization: <TInput>(id: string, input: TInput) => void;
-  
+
   /** Get screen position for a Cartesian3 coordinate */
   getScreenPosition: (cartesian3: Cartesian3) => ScreenPosition | null;
-  
+
   /** Cesium scene reference */
   scene: Scene | null;
 }

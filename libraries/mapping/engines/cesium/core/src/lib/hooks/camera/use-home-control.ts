@@ -34,7 +34,12 @@ export const useHomeControl = () => {
 
       const { target, orientation } = home;
 
-      console.log("[HOME CONTROL] Flying to home:", target, "orientation:", orientation);
+      console.log(
+        "[HOME CONTROL] Flying to home:",
+        target,
+        "orientation:",
+        orientation
+      );
 
       tryWithValidCamera(scene.camera, (camera) => {
         if (orientation) {

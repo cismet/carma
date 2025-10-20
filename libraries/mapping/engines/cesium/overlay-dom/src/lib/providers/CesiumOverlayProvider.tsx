@@ -27,10 +27,10 @@ interface CesiumOverlayProviderProps {
 
 /**
  * Provider for generic DOM/Canvas/SVG overlay system
- * 
+ *
  * Salvaged from cesium-reference playground measurements.
  * Updates screen positions on every Cesium postRender event for real-time sync.
- * 
+ *
  * @example
  * ```tsx
  * <CesiumOverlayProvider>
@@ -44,24 +44,27 @@ export function CesiumOverlayProvider({
 }: CesiumOverlayProviderProps) {
   const { sceneRef } = useCesiumContext();
   const [scene, setScene] = useState<Scene | null>(null);
-  
+
   // Registry of active visualizations
-  const visualizationsRef = useRef<Map<string, VisualizationRegistration<any, any>>>(
-    new Map()
-  );
-  
+  const visualizationsRef = useRef<
+    Map<string, VisualizationRegistration<any, any>>
+  >(new Map());
+
   // Input data for each visualization
   const visualizationDataRef = useRef<Map<string, any>>(new Map());
-  
+
   // Tracked positions and their screen coordinates
   const screenPositionsRef = useRef<Map<string, ScreenPosition>>(new Map());
 
   // Sync scene reference from context
-  useEffect(function syncSceneFromContext() {
-    if (sceneRef.current) {
-      setScene(sceneRef.current);
-    }
-  }, [sceneRef]);
+  useEffect(
+    function syncSceneFromContext() {
+      if (sceneRef.current) {
+        setScene(sceneRef.current);
+      }
+    },
+    [sceneRef]
+  );
 
   /**
    * Convert all tracked Cartesian3 positions to screen coordinates
@@ -93,7 +96,9 @@ export function CesiumOverlayProvider({
    * Register a new visualization
    */
   const registerVisualization = useCallback(
-    <TInput, TOutput>(registration: VisualizationRegistration<TInput, TOutput>) => {
+    <TInput, TOutput>(
+      registration: VisualizationRegistration<TInput, TOutput>
+    ) => {
       visualizationsRef.current.set(registration.id, registration);
     },
     []
@@ -114,10 +119,13 @@ export function CesiumOverlayProvider({
   /**
    * Update input data for a visualization
    */
-  const updateVisualization = useCallback(<TInput,>(id: string, input: TInput) => {
-    visualizationDataRef.current.set(id, input);
-    updateScreenPositions();
-  }, [updateScreenPositions]);
+  const updateVisualization = useCallback(
+    <TInput,>(id: string, input: TInput) => {
+      visualizationDataRef.current.set(id, input);
+      updateScreenPositions();
+    },
+    [updateScreenPositions]
+  );
 
   /**
    * Get screen position for a Cartesian3 coordinate
@@ -133,18 +141,21 @@ export function CesiumOverlayProvider({
   // Update screen positions on every Cesium render
   // postRender fires after scene is rendered, providing real-time position updates
   // More responsive than camera.changed which can lag
-  useEffect(function subscribeToPostRender() {
-    if (!scene) return;
-    if (visualizationsRef.current.size === 0) return;
+  useEffect(
+    function subscribeToPostRender() {
+      if (!scene) return;
+      if (visualizationsRef.current.size === 0) return;
 
-    const removeListener = scene.postRender.addEventListener(() => {
-      updateScreenPositions();
-    });
+      const removeListener = scene.postRender.addEventListener(() => {
+        updateScreenPositions();
+      });
 
-    return () => {
-      removeListener();
-    };
-  }, [scene, updateScreenPositions]);
+      return () => {
+        removeListener();
+      };
+    },
+    [scene, updateScreenPositions]
+  );
 
   const contextValue: CesiumOverlayContextValue = {
     registerVisualization,

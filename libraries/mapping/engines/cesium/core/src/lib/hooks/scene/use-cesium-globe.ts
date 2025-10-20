@@ -30,14 +30,13 @@ export const useCesiumGlobe = (globeOptions: GlobeOptions) => {
       } else {
         // Already a Color object
         globe.baseColor = globeOptions.baseColor;
-        console.debug(
-          `HOOK: [CESIUM] set globe baseColor (Color object)`
-        );
+        console.debug(`HOOK: [CESIUM] set globe baseColor (Color object)`);
       }
     }
 
     if (globeOptions.cartographicLimitRectangle !== undefined) {
-      globe.cartographicLimitRectangle = globeOptions.cartographicLimitRectangle;
+      globe.cartographicLimitRectangle =
+        globeOptions.cartographicLimitRectangle;
     }
 
     if (globeOptions.showGroundAtmosphere !== undefined) {

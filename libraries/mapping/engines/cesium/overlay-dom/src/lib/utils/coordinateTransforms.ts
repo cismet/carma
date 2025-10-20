@@ -5,10 +5,10 @@ import type { ScreenPosition } from "../types";
 
 /**
  * Convert Cartesian3 world position to screen coordinates
- * 
+ *
  * Salvaged from cesium-reference playground measurement utilities.
  * Handles visibility checks and behind-camera detection.
- * 
+ *
  * @param scene - Cesium scene
  * @param cartesian3 - World position
  * @returns Screen position with visibility info, or null if conversion fails
@@ -52,9 +52,9 @@ export function cartesianToScreen(
 
 /**
  * Convert screen coordinates to Cartesian3 world position
- * 
+ *
  * TODO: Implement if needed for interaction handling
- * 
+ *
  * @param _scene - Cesium scene
  * @param _screenX - Screen X coordinate
  * @param _screenY - Screen Y coordinate

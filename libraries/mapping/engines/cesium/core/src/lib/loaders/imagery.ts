@@ -42,7 +42,7 @@ export const loadCesiumWebMapTileServiceImageryLayer = async (
 
     // Extract providerOptions from the config wrapper
     const providerOptions = config.providerOptions as any;
-    
+
     const options = {
       ...providerOptions,
       tileWidth,
@@ -71,7 +71,7 @@ export const loadCesiumImageryLayer = async (
   signal: AbortSignal
 ) => {
   const type = config.type;
-  
+
   if (type === "wms") {
     return loadCesiumWebMapServiceImageryLayer(ref, config, signal);
   } else if (type === "wmts") {

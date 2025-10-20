@@ -1,6 +1,14 @@
 import { useEffect } from "react";
 import type { MutableRefObject } from "react";
-import { type Scene, Cartesian3, BoundingSphere, tryWithValidCamera, Color, Cesium3DTileset, ImageryLayer } from "@carma/cesium";
+import {
+  type Scene,
+  Cartesian3,
+  BoundingSphere,
+  tryWithValidCamera,
+  Color,
+  Cesium3DTileset,
+  ImageryLayer,
+} from "@carma/cesium";
 import type { SceneStyleConfig, CesiumConfig } from "../../types/config";
 import type { CameraViewOptions } from "../../types/camera";
 import {
@@ -92,7 +100,9 @@ export const useCesiumContextSubscriptions = ({
       const home = homeRef.current;
 
       if (!scene || !home) {
-        console.warn("[CesiumContext] Cannot fly home - missing scene or home config");
+        console.warn(
+          "[CesiumContext] Cannot fly home - missing scene or home config"
+        );
         return;
       }
 
@@ -179,7 +189,9 @@ export const useCesiumContextSubscriptions = ({
     const applySceneStyle = (newStyle: string) => {
       // Deduplicate - ignore if already applying this style
       if (currentStyle === newStyle) {
-        console.log(`[CesiumContext] Style "${newStyle}" already active, skipping`);
+        console.log(
+          `[CesiumContext] Style "${newStyle}" already active, skipping`
+        );
         return;
       }
 
@@ -191,8 +203,10 @@ export const useCesiumContextSubscriptions = ({
         return;
       }
 
-      const timestamp = new Date().toISOString().split('T')[1];
-      console.log(`[${timestamp}] [CesiumContext] Applying scene style: ${newStyle}`);
+      const timestamp = new Date().toISOString().split("T")[1];
+      console.log(
+        `[${timestamp}] [CesiumContext] Applying scene style: ${newStyle}`
+      );
       currentStyle = newStyle;
 
       if (!sceneStyle) {
@@ -200,18 +214,15 @@ export const useCesiumContextSubscriptions = ({
         return;
       }
 
-      const style = sceneStyle.styles?.find(s => s.id === newStyle);
+      const style = sceneStyle.styles?.find((s) => s.id === newStyle);
       if (!style) {
         console.warn(
           `[CesiumContext] Style id "${newStyle}" not found in sceneStyle.styles`
         );
         return;
       }
-      
-      console.debug(
-        `[CesiumContext] Applying style "${newStyle}":`,
-        style
-      );
+
+      console.debug(`[CesiumContext] Applying style "${newStyle}":`, style);
 
       // Apply backgroundColor from style
       if (style.backgroundColor) {
@@ -222,7 +233,10 @@ export const useCesiumContextSubscriptions = ({
           const cssColor = bgColor.toCssColorString();
           container.style.backgroundColor = cssColor;
         }
-        console.log(`[CesiumContext] Set backgroundColor:`, style.backgroundColor);
+        console.log(
+          `[CesiumContext] Set backgroundColor:`,
+          style.backgroundColor
+        );
       }
 
       // Apply globe settings from style
@@ -230,16 +244,21 @@ export const useCesiumContextSubscriptions = ({
         const [r, g, b, a] = style.globe.baseColor;
         scene.globe.baseColor = new Color(r, g, b, a);
         scene.globe.show = true;
-        
+
         // Enable translucency if alpha < 1
         if (a < 1.0) {
           scene.globe.translucency.enabled = true;
-          console.log(`[CesiumContext] Enabled globe translucency (alpha=${a})`);
+          console.log(
+            `[CesiumContext] Enabled globe translucency (alpha=${a})`
+          );
         } else {
           scene.globe.translucency.enabled = false;
         }
-        
-        console.log(`[CesiumContext] Set globe.baseColor (rgba):`, style.globe.baseColor);
+
+        console.log(
+          `[CesiumContext] Set globe.baseColor (rgba):`,
+          style.globe.baseColor
+        );
       }
 
       // Ensure globe is visible if imagery or terrain is present
@@ -272,25 +291,45 @@ export const useCesiumContextSubscriptions = ({
 
       // Collect ALL tileset IDs from sceneStyle config
       const allTilesetIds = new Set<string>();
-      sceneStyle.styles?.forEach(s => {
-        s.tilesets?.forEach(t => {
+      sceneStyle.styles?.forEach((s) => {
+        s.tilesets?.forEach((t) => {
           if (t.id) allTilesetIds.add(t.id);
         });
       });
 
       // Diff and apply tileset changes
-      console.log(`[CesiumContext] Loaded tilesets:`, Array.from(tilesetsRef.current.keys()));
-      console.log(`[CesiumContext] All available tileset IDs:`, Array.from(allTilesetIds));
-      console.log(`[CesiumContext] Desired tilesets:`, style.tilesets?.map(t => t.id) || []);
-      
-      const tilesetChanges = diffTilesets(tilesetsRef.current, style, allTilesetIds);
-      
-      console.log(`[CesiumContext] Style "${newStyle}": Tileset changes (${tilesetChanges.length}):`, tilesetChanges);
-      
+      console.log(
+        `[CesiumContext] Loaded tilesets:`,
+        Array.from(tilesetsRef.current.keys())
+      );
+      console.log(
+        `[CesiumContext] All available tileset IDs:`,
+        Array.from(allTilesetIds)
+      );
+      console.log(
+        `[CesiumContext] Desired tilesets:`,
+        style.tilesets?.map((t) => t.id) || []
+      );
+
+      const tilesetChanges = diffTilesets(
+        tilesetsRef.current,
+        style,
+        allTilesetIds
+      );
+
+      console.log(
+        `[CesiumContext] Style "${newStyle}": Tileset changes (${tilesetChanges.length}):`,
+        tilesetChanges
+      );
+
       tilesetChanges.forEach(({ id, action, opacity }) => {
-        console.log(`  → ${id}: ${action.toUpperCase()}${opacity !== undefined ? ` opacity=${opacity}` : ''}`);
+        console.log(
+          `  → ${id}: ${action.toUpperCase()}${
+            opacity !== undefined ? ` opacity=${opacity}` : ""
+          }`
+        );
         emit(CtxEvent.SetTilesetVisibility, { id, visible: action === "show" });
-        
+
         if (opacity !== undefined) {
           emit(CtxEvent.SetTilesetOpacity, { id, opacity });
         }
@@ -298,28 +337,43 @@ export const useCesiumContextSubscriptions = ({
 
       // Collect ALL imagery IDs from sceneStyle config
       const allImageryIds = new Set<string>();
-      sceneStyle.styles?.forEach(s => {
-        s.imageryLayers?.forEach(il => {
+      sceneStyle.styles?.forEach((s) => {
+        s.imageryLayers?.forEach((il) => {
           if (il.id) allImageryIds.add(il.id);
         });
       });
 
       // Diff and apply imagery changes
-      const imageryChanges = diffImageryLayers(imageryLayersRef.current, style, allImageryIds);
-      
+      const imageryChanges = diffImageryLayers(
+        imageryLayersRef.current,
+        style,
+        allImageryIds
+      );
+
       if (imageryChanges.length > 0) {
-        console.groupCollapsed(`[CesiumContext] Style "${newStyle}": Updating imagery (${imageryChanges.length} changes)`);
+        console.groupCollapsed(
+          `[CesiumContext] Style "${newStyle}": Updating imagery (${imageryChanges.length} changes)`
+        );
         imageryChanges.forEach(({ id, action, opacity }) => {
-          console.log(`  ${id}: ${action.toUpperCase()}${opacity !== undefined ? ` opacity=${opacity}` : ''}`);
-          emit(CtxEvent.SetImageryVisibility, { id, visible: action === "show" });
-          
+          console.log(
+            `  ${id}: ${action.toUpperCase()}${
+              opacity !== undefined ? ` opacity=${opacity}` : ""
+            }`
+          );
+          emit(CtxEvent.SetImageryVisibility, {
+            id,
+            visible: action === "show",
+          });
+
           if (opacity !== undefined) {
             emit(CtxEvent.SetImageryOpacity, { id, opacity });
           }
         });
         console.groupEnd();
       } else {
-        console.log(`[CesiumContext] Style "${newStyle}": No imagery changes needed`);
+        console.log(
+          `[CesiumContext] Style "${newStyle}": No imagery changes needed`
+        );
       }
 
       // TODO: Terrain switching not yet implemented
@@ -393,7 +447,9 @@ export const useCesiumContextSubscriptions = ({
       }
 
       const currentStyle = currentSceneStyleRef.current;
-      const currentIndex = sceneStyle.styles.findIndex((s) => s.id === currentStyle);
+      const currentIndex = sceneStyle.styles.findIndex(
+        (s) => s.id === currentStyle
+      );
       const nextIndex =
         currentIndex === -1 ? 0 : (currentIndex + 1) % sceneStyle.styles.length;
       const newStyle = sceneStyle.styles[nextIndex].id;

@@ -109,7 +109,7 @@ export const CesiumMapComponentWrapper = ({
 
   // Initialize Cesium camera change handler for hash routing
   const hashRoutingHandler = useMapHashRoutingCesium();
-  
+
   // Adapt camera change to hash routing format
   const onCameraChanged = (params: { source: string; camera: any }) => {
     // TODO: Extract hash params from camera state

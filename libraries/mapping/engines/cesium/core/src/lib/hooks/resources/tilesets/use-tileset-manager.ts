@@ -32,7 +32,9 @@ const hideOtherMeshTilesets = (
 const addTilesetToScene = (scene: Scene, tileset: Cesium3DTileset): void => {
   if (!scene.primitives.contains(tileset)) {
     scene.primitives.add(tileset);
-    console.log(`[CESIUM|TILESET] ✓ Added to scene.primitives (total: ${scene.primitives.length})`);
+    console.log(
+      `[CESIUM|TILESET] ✓ Added to scene.primitives (total: ${scene.primitives.length})`
+    );
   }
 };
 
@@ -42,10 +44,17 @@ const configureTilesetDefaults = (tileset: Cesium3DTileset): void => {
 };
 
 export const useTilesetManager = (tilesets: TilesetConfig[]) => {
-  const { sceneRef, subscribe, tilesetsRef: loadedTilesetsRef } = useCesiumContext();
-  
-  console.log('[TILESET|MANAGER] Initialized with tileset configs:', tilesets.map(t => t.id));
-  
+  const {
+    sceneRef,
+    subscribe,
+    tilesetsRef: loadedTilesetsRef,
+  } = useCesiumContext();
+
+  console.log(
+    "[TILESET|MANAGER] Initialized with tileset configs:",
+    tilesets.map((t) => t.id)
+  );
+
   // DISABLED: Progress tracking temporarily disabled
   // const { tilesetProgress, attachProgressListener, updateProgress } =
   //   useTilesetProgress(loadedTilesetsRef.current);
@@ -56,7 +65,9 @@ export const useTilesetManager = (tilesets: TilesetConfig[]) => {
       if (!scene || loadedTilesetsRef.current.has(config.id)) return;
 
       try {
-        console.log(`[CESIUM|TILESET] Loading tileset: ${config.id} from ${config.url}`);
+        console.log(
+          `[CESIUM|TILESET] Loading tileset: ${config.id} from ${config.url}`
+        );
         // Pass scene to tileset constructor - required for proper integration
         const tileset = await loadTileset(config, scene);
 
@@ -108,7 +119,9 @@ export const useTilesetManager = (tilesets: TilesetConfig[]) => {
 
       const config = tilesets.find((t) => t.id === id);
       if (!config) {
-        console.log(`[TILESET|VIS] Config ${id} not in current tilesets array - will load on next render when resources update`);
+        console.log(
+          `[TILESET|VIS] Config ${id} not in current tilesets array - will load on next render when resources update`
+        );
         return;
       }
 

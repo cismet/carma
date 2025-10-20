@@ -7,10 +7,7 @@ import {
   CtxEvent,
   type EmitCesiumCtxFn,
 } from "../../../context/cesium-context-event-map";
-import {
-  tryWithValidCamera,
-  tryWithValidScene,
-} from "@carma/cesium";
+import { tryWithValidCamera, tryWithValidScene } from "@carma/cesium";
 import { sceneRequestRender } from "../../scene-request-render";
 
 export interface CesiumAnimateFovOptions {

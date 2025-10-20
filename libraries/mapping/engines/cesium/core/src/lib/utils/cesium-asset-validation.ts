@@ -31,7 +31,9 @@ export async function validateCesiumWorkers(
   } catch (error) {
     return {
       available: false,
-      error: `Failed to validate Cesium assets: ${error instanceof Error ? error.message : String(error)}`,
+      error: `Failed to validate Cesium assets: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
     };
   }
 }

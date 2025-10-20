@@ -7,10 +7,7 @@ import {
   type Scene,
 } from "@carma/cesium";
 import { Easing } from "@carma-commons/math";
-import {
-  isValidScene,
-  tryWithValidScene,
-} from "@carma/cesium";
+import { isValidScene, tryWithValidScene } from "@carma/cesium";
 
 // Scratch objects to avoid allocations during zoom operations
 const scratchTravelVector = new Cartesian3();

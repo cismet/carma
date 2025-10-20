@@ -19,15 +19,18 @@ export const useBackgroundColor = (backgroundColor?: ColorRgbaArray) => {
       const [r, g, b, a] = backgroundColor;
       const bgColor = new Color(r, g, b, a);
       scene.backgroundColor = bgColor;
-      
+
       // Also set the container background color for consistency
       const container = scene.canvas.parentElement;
       if (container) {
         const cssColor = bgColor.toCssColorString();
         container.style.backgroundColor = cssColor;
       }
-      
-      console.debug("[CESIUM|BACKGROUND] Background color set:", backgroundColor);
+
+      console.debug(
+        "[CESIUM|BACKGROUND] Background color set:",
+        backgroundColor
+      );
       scene.requestRender();
     }
   }, [sceneRef, backgroundColor]);

@@ -6,7 +6,7 @@ import type { ImageryProviderConfig } from "../../types/config/imagery";
 
 /**
  * Extracts ALL resource sources from scene style.
- * 
+ *
  * This is a pure resource extractor - it collects all available sources.
  * Resource initialization and activation happens in the individual managers.
  */
@@ -16,8 +16,8 @@ export const useSceneStyleResources = (config: CesiumConfig) => {
     if (!sceneStyle) {
       return { tilesets: [], terrain: [], imagery: [] };
     }
-    
-    return { 
+
+    return {
       tilesets: sceneStyle.sources?.tilesets || [],
       terrain: sceneStyle.sources?.terrain || [],
       imagery: sceneStyle.sources?.imagery || [],

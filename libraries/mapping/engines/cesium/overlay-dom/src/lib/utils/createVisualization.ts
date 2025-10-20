@@ -2,15 +2,15 @@ import type { VisualizationRegistration, OverlayRenderTarget } from "../types";
 
 /**
  * Helper to create a visualization registration
- * 
+ *
  * Provides type-safe builder for visualization registrations.
- * 
+ *
  * @example
  * ```tsx
  * const labelViz = createVisualization({
  *   id: "measurement-labels",
  *   target: "dom",
- *   extractPositions: (measurements) => 
+ *   extractPositions: (measurements) =>
  *     measurements.map(m => ({ cartesian3: m.position, id: m.id })),
  *   render: (measurements, screenPos) => (
  *     <>

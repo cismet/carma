@@ -83,7 +83,7 @@ const zoom = (
   // Pick positions - validate everything (Cesium can return invalid/destroyed objects)
   const scenePickPosition = scene.pickPosition?.(scratchScreenCenter);
   const pickRay = camera.getPickRay?.(scratchScreenCenter);
-  
+
   // Validate pick ray exists and has required properties
   if (!pickRay || !pickRay.origin || !pickRay.direction) {
     console.debug("[zoom] Invalid pick ray - aborting");
@@ -115,7 +115,7 @@ const zoom = (
   // Validate zoom constraints
   const maxDistance = scene.screenSpaceCameraController.maximumZoomDistance;
   const minDistance = scene.screenSpaceCameraController.minimumZoomDistance;
-  
+
   if (maxDistance === undefined || maxDistance === Number.POSITIVE_INFINITY) {
     console.warn(
       "Cesium maximumZoomDistance is undefined or infinite, zooming may not work as expected, set maximumZoomDistance in cesium config for ScreenSpaceCameraController"
@@ -171,9 +171,9 @@ const fovZoom = (
   minFov = DEFAULT_MIN_FOV
 ) => {
   cancelAnimation(scene, animationMap);
-  
+
   const { camera } = scene;
-  
+
   if (!(camera.frustum instanceof PerspectiveFrustum)) {
     console.debug("[fovZoom] Camera frustum is not PerspectiveFrustum");
     return;
@@ -229,7 +229,7 @@ export function useZoomControls(zoomOptions: Partial<ZoomOptions> = {}) {
             scene,
             animationMapRef.current,
             emit,
-            true,  // zoomIn = true for zoom in
+            true, // zoomIn = true for zoom in
             duration * 1000,
             moveRateFactor
           )
@@ -248,7 +248,7 @@ export function useZoomControls(zoomOptions: Partial<ZoomOptions> = {}) {
             scene,
             animationMapRef.current,
             emit,
-            false,  // zoomIn = false for zoom out
+            false, // zoomIn = false for zoom out
             duration * 1000,
             moveRateFactor
           )

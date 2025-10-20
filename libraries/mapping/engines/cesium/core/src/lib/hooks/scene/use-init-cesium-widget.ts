@@ -145,14 +145,20 @@ export const useInitCesiumWidget = (
         if (orientation) {
           // Use flyToTarget with 0 duration for instant positioning
           flyToTarget(widget.scene.camera, target, orientation, 0);
-          console.debug("[CESIUM|INIT] Camera positioned with HPR (instant)", home);
+          console.debug(
+            "[CESIUM|INIT] Camera positioned with HPR (instant)",
+            home
+          );
         } else {
           // Fallback to default HPR
           widget.scene.camera.setView({
             destination: target,
             orientation: DEFAULT_HPR,
           });
-          console.debug("[CESIUM|INIT] Camera positioned at target (no orientation)", home);
+          console.debug(
+            "[CESIUM|INIT] Camera positioned at target (no orientation)",
+            home
+          );
         }
       }
 

@@ -1,8 +1,5 @@
 import { useEffect } from "react";
-import {
-  isValidImageryLayer,
-  isValidScene,
-} from "@carma/cesium";
+import { isValidImageryLayer, isValidScene } from "@carma/cesium";
 import { useCesiumContext } from "../../context";
 import { Scene } from "@carma/cesium";
 

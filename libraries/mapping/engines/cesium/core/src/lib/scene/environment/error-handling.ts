@@ -76,37 +76,45 @@ export function configureCesiumErrorHandling(
           workersBaseUrl: workerBase ? `${workerBase}/Workers` : undefined,
           baseUrl: workerBase,
           requestRenderMode: widget.scene.requestRenderMode,
-          canvasSize: { width: widget.canvas.width, height: widget.canvas.height },
+          canvasSize: {
+            width: widget.canvas.width,
+            height: widget.canvas.height,
+          },
           sceneMode: scene.mode,
         };
 
         // Enhanced error details - check if it's the Scene object bug
         let errorDetails;
         if (err instanceof Error) {
-          errorDetails = { 
-            message: err.message, 
-            stack: err.stack, 
-            name: err.name 
+          errorDetails = {
+            message: err.message,
+            stack: err.stack,
+            name: err.name,
           };
-        } else if (err && typeof err === 'object' && !('message' in err) && 
-                   ('primitives' in err || 'camera' in err || 'globe' in err)) {
+        } else if (
+          err &&
+          typeof err === "object" &&
+          !("message" in err) &&
+          ("primitives" in err || "camera" in err || "globe" in err)
+        ) {
           // Cesium bug: Scene passed as error instead of actual Error
           // This is a known Cesium bug that happens occasionally but doesn't indicate a real problem
-          errorDetails = { 
-            type: 'Scene object (Cesium false positive)',
-            warning: 'Cesium passed Scene object instead of Error - this is typically harmless',
-            note: 'Scene is rendering successfully despite this event',
+          errorDetails = {
+            type: "Scene object (Cesium false positive)",
+            warning:
+              "Cesium passed Scene object instead of Error - this is typically harmless",
+            note: "Scene is rendering successfully despite this event",
             sceneInfo: {
               mode: scene.mode,
               requestRenderMode: scene.requestRenderMode,
               primitives: scene.primitives.length,
               imageryLayers: scene.imageryLayers.length,
-            }
+            },
           };
         } else {
           errorDetails = { raw: err, type: typeof err };
         }
-        
+
         const msg = "[Cesium] renderError intercepted";
         if (logLevel === "error") {
           console.error(msg, errorDetails, meta);

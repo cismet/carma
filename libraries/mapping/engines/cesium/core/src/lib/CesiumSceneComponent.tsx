@@ -51,7 +51,7 @@ export type CesiumSceneComponentProps = {
 
   // Runtime options (not in config)
   errorHandlerOptions?: CesiumErrorHandlerOptions;
-  
+
   // Key for forcing remount on error (increment to remount)
   resetKey?: number;
 };
@@ -74,18 +74,18 @@ export function CesiumSceneComponent(props: CesiumSceneComponentProps) {
 
   // Extract ALL available resource sources from config
   const { tilesets, terrain, imagery } = useSceneStyleResources(config);
-  
-  console.log('[SCENE] Extracted resources:', {
-    tilesets: tilesets.map(t => t.id),
-    terrain: terrain.map(t => t.id),
-    imagery: imagery.map(i => i.id)
+
+  console.log("[SCENE] Extracted resources:", {
+    tilesets: tilesets.map((t) => t.id),
+    terrain: terrain.map((t) => t.id),
+    imagery: imagery.map((i) => i.id),
   });
 
   // Managers receive all sources and handle activation based on style events
   const { tilesetProgress } = useTilesetManager(tilesets);
   useImageryManager(imagery);
   useTerrainManager(terrain);
-  
+
   // Scene appearance hooks (initial values, applySceneStyle overrides on style switch)
   useCesiumGlobe({});
   useShadows(false);

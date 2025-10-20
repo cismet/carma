@@ -14,7 +14,7 @@ const config: StorybookConfig = {
   async viteFinal(config) {
     // Find workspace root by going up from this .storybook directory
     const workspaceRoot = resolve(__dirname, "../../../../../..");
-    
+
     return mergeConfig(config, {
       plugins: [
         // Copy Cesium runtime assets (Workers, Assets, etc.)

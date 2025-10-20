@@ -7,4 +7,7 @@ export type * from "./types";
 
 // Utilities
 export { createVisualization } from "./utils/createVisualization";
-export { screenToCartesian, cartesianToScreen } from "./utils/coordinateTransforms";
+export {
+  screenToCartesian,
+  cartesianToScreen,
+} from "./utils/coordinateTransforms";

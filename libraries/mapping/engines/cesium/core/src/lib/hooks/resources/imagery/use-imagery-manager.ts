@@ -19,67 +19,73 @@ const getImageryId = (config: ImageryProviderConfig): string => {
 export const useImageryManager = (imageryConfigs: ImageryProviderConfig[]) => {
   const { sceneRef, subscribe, imageryLayersRef } = useCesiumContext();
 
-  console.log('[IMAGERY|MANAGER] Initialized with configs:', imageryConfigs.map(ic => ic.id));
+  console.log(
+    "[IMAGERY|MANAGER] Initialized with configs:",
+    imageryConfigs.map((ic) => ic.id)
+  );
 
   // Helper function to load imagery on-demand
-  const loadImageryOnDemand = useCallback(async (imageryConfig: ImageryProviderConfig) => {
-    const scene = sceneRef.current;
-    if (!scene) return;
+  const loadImageryOnDemand = useCallback(
+    async (imageryConfig: ImageryProviderConfig) => {
+      const scene = sceneRef.current;
+      if (!scene) return;
 
-    const id = getImageryId(imageryConfig);
+      const id = getImageryId(imageryConfig);
 
-    // Count current imagery layers in scene
-    console.log(
-      `[CESIUM|IMAGERY] Scene has ${scene.imageryLayers.length} imagery layers before loading ${id}`
-    );
-
-    if (imageryLayersRef.current.has(id)) {
-      const existingLayer = imageryLayersRef.current.get(id);
-      const isInScene =
-        existingLayer && scene.imageryLayers.contains(existingLayer);
+      // Count current imagery layers in scene
       console.log(
-        `[CESIUM|IMAGERY] Already loaded: ${id} (in scene: ${isInScene})`
-      );
-      return;
-    }
-
-    try {
-      console.debug("[CESIUM|IMAGERY] Lazy loading:", id);
-
-      const abortController = new AbortController();
-      const layerRef = { current: null as ImageryLayer | null };
-
-      await loadCesiumImageryLayer(
-        layerRef,
-        imageryConfig,
-        abortController.signal
+        `[CESIUM|IMAGERY] Scene has ${scene.imageryLayers.length} imagery layers before loading ${id}`
       );
 
-      if (layerRef.current && !abortController.signal.aborted) {
-        // Check if layer is already in scene before adding
-        if (!scene.imageryLayers.contains(layerRef.current)) {
-          scene.imageryLayers.add(layerRef.current);
-          console.log(`[CESIUM|IMAGERY] ✓ Added to scene: ${id}`);
-        } else {
-          console.warn(
-            `[CESIUM|IMAGERY] ⚠️ Layer already in scene, skipping add: ${id}`
+      if (imageryLayersRef.current.has(id)) {
+        const existingLayer = imageryLayersRef.current.get(id);
+        const isInScene =
+          existingLayer && scene.imageryLayers.contains(existingLayer);
+        console.log(
+          `[CESIUM|IMAGERY] Already loaded: ${id} (in scene: ${isInScene})`
+        );
+        return;
+      }
+
+      try {
+        console.debug("[CESIUM|IMAGERY] Lazy loading:", id);
+
+        const abortController = new AbortController();
+        const layerRef = { current: null as ImageryLayer | null };
+
+        await loadCesiumImageryLayer(
+          layerRef,
+          imageryConfig,
+          abortController.signal
+        );
+
+        if (layerRef.current && !abortController.signal.aborted) {
+          // Check if layer is already in scene before adding
+          if (!scene.imageryLayers.contains(layerRef.current)) {
+            scene.imageryLayers.add(layerRef.current);
+            console.log(`[CESIUM|IMAGERY] ✓ Added to scene: ${id}`);
+          } else {
+            console.warn(
+              `[CESIUM|IMAGERY] ⚠️ Layer already in scene, skipping add: ${id}`
+            );
+          }
+
+          // Start hidden - visibility controlled by scene styles
+          layerRef.current.show = false;
+          imageryLayersRef.current.set(id, layerRef.current);
+          scene.requestRender();
+
+          // Count imagery layers after adding
+          console.log(
+            `[CESIUM|IMAGERY] Scene now has ${scene.imageryLayers.length} imagery layers after loading ${id}`
           );
         }
-
-        // Start hidden - visibility controlled by scene styles
-        layerRef.current.show = false;
-        imageryLayersRef.current.set(id, layerRef.current);
-        scene.requestRender();
-
-        // Count imagery layers after adding
-        console.log(
-          `[CESIUM|IMAGERY] Scene now has ${scene.imageryLayers.length} imagery layers after loading ${id}`
-        );
+      } catch (error) {
+        console.error("[CESIUM|IMAGERY] Load error:", id, error);
       }
-    } catch (error) {
-      console.error("[CESIUM|IMAGERY] Load error:", id, error);
-    }
-  }, [sceneRef, imageryLayersRef]);
+    },
+    [sceneRef, imageryLayersRef]
+  );
 
   // Scene ready - don't load imagery yet, just mark as ready
   useEffect(() => {
@@ -112,15 +118,20 @@ export const useImageryManager = (imageryConfigs: ImageryProviderConfig[]) => {
       async (payload: any) => {
         console.log(`[IMAGERY|VIS] Raw event payload:`, payload);
         const { id, visible } = payload || {};
-        console.log(`[IMAGERY|VIS] Event received: ${id} -> ${visible ? 'SHOW' : 'HIDE'}`);
-        
+        console.log(
+          `[IMAGERY|VIS] Event received: ${id} -> ${visible ? "SHOW" : "HIDE"}`
+        );
+
         // Find the imagery config
         const imageryConfig = imageryConfigs.find(
           (ic) => getImageryId(ic) === id
         );
         if (!imageryConfig) {
           console.warn("[IMAGERY|VIS] Config not found for:", id);
-          console.log("[IMAGERY|VIS] Available configs:", imageryConfigs.map(ic => ic.id));
+          console.log(
+            "[IMAGERY|VIS] Available configs:",
+            imageryConfigs.map((ic) => ic.id)
+          );
           return;
         }
 
@@ -152,7 +163,13 @@ export const useImageryManager = (imageryConfigs: ImageryProviderConfig[]) => {
     );
 
     return unsubscribe;
-  }, [subscribe, sceneRef, imageryConfigs, imageryLayersRef, loadImageryOnDemand]);
+  }, [
+    subscribe,
+    sceneRef,
+    imageryConfigs,
+    imageryLayersRef,
+    loadImageryOnDemand,
+  ]);
 
   // Subscribe to imagery layer opacity events
   useEffect(() => {

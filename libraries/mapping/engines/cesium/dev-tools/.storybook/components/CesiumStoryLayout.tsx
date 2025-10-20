@@ -10,9 +10,7 @@ interface CesiumStoryLayoutProps {
  * Reusable storybook layout for Cesium core lib
  * Includes Leva controls for interactive debugging
  */
-export function CesiumStoryLayout({
-  children,
-}: CesiumStoryLayoutProps) {
+export function CesiumStoryLayout({ children }: CesiumStoryLayoutProps) {
   return (
     <div
       style={{
@@ -30,4 +28,3 @@ export function CesiumStoryLayout({
     </div>
   );
 }
-
