@@ -53,6 +53,14 @@ root.render(
           path: "/Impressum_DigiTal-Zwilling_Geoportal",
           element: <ImpressumWrapper />,
         },
+        {
+          path: "/Datenschutzerklaerung_DigiTal-Zwilling_TopicMaps",
+          element: <DatenschutzWrapper />,
+        },
+        {
+          path: "/Impressum_DigiTal-Zwilling_TopicMaps",
+          element: <ImpressumWrapper />,
+        },
       ])}
     />
   </StrictMode>
