@@ -19,7 +19,7 @@ import {
 } from "cesium";
 import { useControls, button, Leva } from "leva";
 import { type ModelConfig } from "@carma/resources";
-import { CUSTOM_SHADERS_DEFINITIONS } from "@carma-mapping/engines/cesium/core";
+import { SHADER_PRESETS } from "@carma-mapping/engines/cesium/shaders";
 
 interface ModelPlacementUIProps {
   viewerRef: RefObject<Viewer | null>;
@@ -29,7 +29,7 @@ interface ModelPlacementUIProps {
   tilesetRef: RefObject<Cesium3DTileset | null>;
 }
 // Create shader options from imported definitions
-const shaderOptions = Object.keys(CUSTOM_SHADERS_DEFINITIONS);
+const shaderOptions = Object.keys(SHADER_PRESETS);
 
 // Define PBR shaders that don't support fog/saturation controls
 const UNDEFINED_KEY = "UNDEFINED";

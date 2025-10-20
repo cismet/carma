@@ -42,6 +42,7 @@ testem.log
 Thumbs.db
 
 .nx
+.nx-graph*.json
 
 # Dev Secrets
 **/devSecrets.json

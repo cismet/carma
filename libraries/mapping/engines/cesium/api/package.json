@@ -1,5 +1,5 @@
 {
-  "name": "@carma-mapping/engines/cesium/api",
+  "name": "@carma-cesium/api",
   "version": "0.0.1",
   "private": true,
   "type": "module",

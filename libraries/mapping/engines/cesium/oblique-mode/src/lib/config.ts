@@ -1,4 +1,4 @@
-import { Color } from "cesium";
+import { Color } from "@carma/cesium";
 
 import type { Degrees, Meters } from "@carma/units/types";
 import {
@@ -12,7 +12,7 @@ import { Easing } from "@carma-commons/math";
 
 import { OBLIQUE_PREVIEW_QUALITIES } from "./constants";
 import { ObliqueDataProviderConfig } from "./types";
-import { CardinalDirectionEnum } from "./utils/orientationUtils";
+import { CardinalDirectionEnum } from "./utils";
 
 export const OBLIQUE_CONFIG: ObliqueDataProviderConfig = {
   fixedPitch: degToRad(-45 as Degrees), // Pitch in radians

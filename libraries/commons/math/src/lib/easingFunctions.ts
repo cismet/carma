@@ -8,28 +8,27 @@ import { PI, PI_OVER_TWO } from "@carma/units/helpers";
  * @see https://easings.net/
  */
 
-import type { EasingFunction } from "@carma/types";
+export type Easing = (time: number) => number;
 
 /**
  * Linear interpolation (no easing)
  */
-export const LINEAR_NONE: EasingFunction = (time: number) => time;
+export const LINEAR_NONE: Easing = (time: number) => time;
 
 /**
  * Quadratic ease-in
  */
-export const QUADRATIC_IN: EasingFunction = (time: number) => time * time;
+export const QUADRATIC_IN: Easing = (time: number) => time * time;
 
 /**
  * Quadratic ease-out
  */
-export const QUADRATIC_OUT: EasingFunction = (time: number) =>
-  time * (2 - time);
+export const QUADRATIC_OUT: Easing = (time: number) => time * (2 - time);
 
 /**
  * Quadratic ease-in-out
  */
-export const QUADRATIC_IN_OUT: EasingFunction = (time: number) => {
+export const QUADRATIC_IN_OUT: Easing = (time: number) => {
   if (time < 0.5) {
     return 2 * time * time;
   }
@@ -39,12 +38,12 @@ export const QUADRATIC_IN_OUT: EasingFunction = (time: number) => {
 /**
  * Cubic ease-in
  */
-export const CUBIC_IN: EasingFunction = (time: number) => time * time * time;
+export const CUBIC_IN: Easing = (time: number) => time * time * time;
 
 /**
  * Cubic ease-out
  */
-export const CUBIC_OUT: EasingFunction = (time: number) => {
+export const CUBIC_OUT: Easing = (time: number) => {
   const t = time - 1;
   return t * t * t + 1;
 };
@@ -52,7 +51,7 @@ export const CUBIC_OUT: EasingFunction = (time: number) => {
 /**
  * Cubic ease-in-out
  */
-export const CUBIC_IN_OUT: EasingFunction = (time: number) => {
+export const CUBIC_IN_OUT: Easing = (time: number) => {
   if (time < 0.5) {
     return 4 * time * time * time;
   }
@@ -63,42 +62,42 @@ export const CUBIC_IN_OUT: EasingFunction = (time: number) => {
 /**
  * Sinusoidal ease-in
  */
-export const SINUSOIDAL_IN: EasingFunction = (time: number) => {
+export const SINUSOIDAL_IN: Easing = (time: number) => {
   return 1 - Math.cos(time * PI_OVER_TWO);
 };
 
 /**
  * Sinusoidal ease-out
  */
-export const SINUSOIDAL_OUT: EasingFunction = (time: number) => {
+export const SINUSOIDAL_OUT: Easing = (time: number) => {
   return Math.sin(time * PI_OVER_TWO);
 };
 
 /**
  * Sinusoidal ease-in-out
  */
-export const SINUSOIDAL_IN_OUT: EasingFunction = (time: number) => {
+export const SINUSOIDAL_IN_OUT: Easing = (time: number) => {
   return -(Math.cos(PI * time) - 1) / 2;
 };
 
 /**
  * Exponential ease-in
  */
-export const EXPONENTIAL_IN: EasingFunction = (time: number) => {
+export const EXPONENTIAL_IN: Easing = (time: number) => {
   return time === 0 ? 0 : Math.pow(2, 10 * (time - 1));
 };
 
 /**
  * Exponential ease-out
  */
-export const EXPONENTIAL_OUT: EasingFunction = (time: number) => {
+export const EXPONENTIAL_OUT: Easing = (time: number) => {
   return time === 1 ? 1 : 1 - Math.pow(2, -10 * time);
 };
 
 /**
  * Exponential ease-in-out
  */
-export const EXPONENTIAL_IN_OUT: EasingFunction = (time: number) => {
+export const EXPONENTIAL_IN_OUT: Easing = (time: number) => {
   if (time === 0 || time === 1) return time;
 
   if (time < 0.5) {

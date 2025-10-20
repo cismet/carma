@@ -1,9 +1,6 @@
 import { CustomShaderConstructorOptions } from "../types";
-import {
-  CustomShaderMode,
-  LightingModel,
-  CustomShaderTranslucencyMode,
-} from "cesium";
+import { LightingModel } from "@carma/cesium";
+import { CustomShaderMode, CustomShaderTranslucencyMode } from "cesium";
 
 export const CLAY: CustomShaderConstructorOptions = {
   mode: CustomShaderMode.MODIFY_MATERIAL,

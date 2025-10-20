@@ -6,7 +6,7 @@ import {
   MapTransitionState,
   type TransitionContextType,
 } from "./TransitionContext";
-import type { TransitionContextEventMap } from "./transitionContextEventMap";
+import type { TransitionContextEventMap } from "./transition-context-event-map";
 
 export interface TransitionContextProviderProps {
   children: ReactNode;

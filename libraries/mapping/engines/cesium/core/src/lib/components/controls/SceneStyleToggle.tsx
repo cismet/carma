@@ -5,8 +5,8 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 
-import { useCesiumContext } from "../../hooks/useCesiumContext";
-import { CtxEvent } from "../../context/cesiumContextEventMap";
+import { useCesiumContext } from "../../context/hooks/use-cesium-context";
+import { CtxEvent } from "../../context/cesium-context-event-map";
 
 type SceneStyleToggleProps = {
   children?: ReactNode;

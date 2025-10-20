@@ -1,10 +1,11 @@
 import { useRef } from "react";
-import type { LeafletConfig, CesiumConfig } from "@carma/types";
+import type { LeafletConfig } from "@carma/types";
+import type { CesiumConfig } from "@carma/cesium/core";
 
 import { useGeoportalOverlays } from "./hooks/useGeoportalOverlays";
 // no UI mode handling here; wrapper handles 2D-specific UI flows
 import { TopicMapComponentWrapper } from "./components/TopicMapComponentWrapper";
-import { CesiumMapComponentWrapper } from "./components/CesiumMapComponentWrapper";
+import { CesiumMapComponentWrapper } from "@carma-appframeworks/portals";
 import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
 
 interface MapProps {

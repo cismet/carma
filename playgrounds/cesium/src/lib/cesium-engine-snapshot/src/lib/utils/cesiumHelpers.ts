@@ -28,7 +28,7 @@ import type {
   LatLngRecord,
   NumericResult,
 } from "../..";
-import type { TilesetConfig } from "@carma/types";
+import type { TilesetConfig } from "../types/tileset-snapshot-types";
 export type { ColorRgbaArray, LatLngRadians, LatLngRecord, NumericResult };
 
 // Constants

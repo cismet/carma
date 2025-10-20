@@ -25,7 +25,7 @@ import type {
 } from "@carma/geo/types";
 import type { Radians } from "@carma/units/types";
 import { radToDeg } from "@carma/units/helpers";
-import type { TilesetConfig } from "@carma/types";
+import type { TilesetConfig } from "../types/tileset-snapshot-types";
 
 import type { CesiumContextType } from "../CesiumContext";
 import { pickViewerCanvasCenter } from "./pickers";

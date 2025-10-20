@@ -5,11 +5,11 @@
 // Controlled component - state managed by app-level event bus
 
 import { useCesiumContext } from "@carma-mapping/engines/cesium/core";
-import type { Scene, Camera } from "cesium";
+import type { Scene, Camera } from "@carma/cesium";
 import { ObliqueProvider } from "../context/ObliqueProvider";
 import { ObliqueControls } from "./ObliqueControls";
 import type { ObliqueDataProviderConfig } from "../types";
-import { useObliqueInitializer } from "../hooks/useObliqueInitializer";
+import { useObliqueInitializer } from "../hooks/use-oblique-initializer";
 
 export interface CesiumObliqueModeProps {
   config: ObliqueDataProviderConfig;

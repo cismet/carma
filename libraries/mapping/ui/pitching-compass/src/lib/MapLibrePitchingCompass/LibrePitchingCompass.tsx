@@ -1,8 +1,8 @@
 import type { Map } from "maplibre-gl";
-import { CompassNeedleSVG } from "./CompassNeedleSVG";
+import { CompassNeedleSVG } from "../CompassNeedleSVG";
 import { useEffect, useState } from "react";
-import { negativeOneEightyToOneEighty } from "@carma/units/helpers";
-import type { Degrees } from "@carma/units/types";
+import { negativeOneEightyToOneEighty, degToRad } from "@carma/units/helpers";
+import type { Degrees, Radians } from "@carma/units/types";
 
 interface LibrePitchingCompassProps {
   mapRef: React.RefObject<Map | null>;
@@ -78,7 +78,10 @@ export const LibrePitchingCompass = ({ mapRef }: LibrePitchingCompassProps) => {
         alignItems: "center",
       }}
     >
-      <CompassNeedleSVG pitch={currentPitch} heading={currentHeading} />
+      <CompassNeedleSVG
+        pitch={degToRad(currentPitch as Degrees) as Radians}
+        heading={degToRad(currentHeading as Degrees) as Radians}
+      />
     </div>
   );
 };

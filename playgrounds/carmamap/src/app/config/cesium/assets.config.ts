@@ -1,4 +1,10 @@
-import { MarkerModelAsset } from "@carma-mapping/engines/cesium/core";
+// TODO: MarkerModelAsset removed in refactor - using inline type
+// import { MarkerModelAsset } from "@carma-mapping/engines/cesium/core";
+type MarkerModelAsset = {
+  uri: string;
+  scale?: number;
+  [key: string]: any;
+};
 
 import { APP_BASE_PATH } from "../app.config";
 

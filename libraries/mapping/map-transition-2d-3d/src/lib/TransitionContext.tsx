@@ -2,7 +2,7 @@ import { createContext, type MutableRefObject } from "react";
 import type {
   SubscribeTransitionCtxFn,
   EmitTransitionCtxFn,
-} from "./transitionContextEventMap";
+} from "./transition-context-event-map";
 
 export enum MapTransitionState {
   mode2d = "mode2d",

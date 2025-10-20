@@ -37,7 +37,7 @@ const MinimalLod2: FC = () => {
           );
 
           const imageryProvider = new WebMapServiceImageryProvider(
-            BASEMAP_METROPOLE_RUHR_WMS_GRAUBLAU
+            BASEMAP_METROPOLE_RUHR_WMS_GRAUBLAU.providerOptions
           );
           const newImageryLayer = new ImageryLayer(imageryProvider);
           viewer.imageryLayers.add(newImageryLayer);

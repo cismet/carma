@@ -49,3 +49,12 @@ export const rectangleToLike = (rect: Rectangle): RectangleLike => {
     north: rect.north,
   };
 };
+
+/**
+ * Convert a config rectangle (plain object or undefined) to a Cesium Rectangle
+ */
+export const rectangleFromConfig = (
+  config?: RectangleLike
+): Rectangle | undefined => {
+  return config ? rectangleFromLike(config) : undefined;
+};

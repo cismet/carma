@@ -23,22 +23,21 @@
       "@nx/react/typings/styled-jsx.d.ts"
     ],
     "paths": {
+      // Unified pattern: all packages use index.ts (type only packages re-export from index.d.ts)
       "@carma/*": ["libraries/*/src/index.ts"],
-      // todo normalize these to @carma/mapping folder pattern eventually
       "@carma-appframeworks/*": ["libraries/appframeworks/*/src/index.ts"],
       "@carma-commons/*": ["libraries/commons/*/src/index.ts"],
       "@carma-mapping/*": ["libraries/mapping/*/src/index.ts"],
-       // type only packages don't work with the index.ts pattern
-      "@carma/types": ["libraries/types/src/index.d.ts"],
-      "@carma/geo/types": ["libraries/geo/types/src/index.d.ts"],
-      "@carma/commons/units/types": ["libraries/commons/units/types/src/index.d.ts"],
-      // collaboration
+      
+      // Collaboration
       "@carma-collab/pecher/*": ["libraries/collaboration/carma-pecher-collab/src/*/index.jsx"],
       "@carma-collab/wuppertal/*": ["libraries/collaboration/carma-wuppertal-collab/src/*/index.ts"],
-      // shortcuts
+      
+      // Package shortcuts
       "@carma/cesium": ["libraries/mapping/engines/cesium/api/src/index.ts"],
-      "@carma/units/types": ["libraries/commons/units/types/src/index.d.ts"],
-      "@carma/units/helpers": ["libraries/commons/units/helpers/src/index.ts"],
+      "@carma/cesium/*": ["libraries/mapping/engines/cesium/*/src/index.ts"],
+      "@carma/math": ["libraries/commons/math/src/index.ts"],
+      "@carma/units/*": ["libraries/commons/units/*/src/index.ts"],
     },
     "skipLibCheck": true
   }

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import type { TilesetProgress } from "../hooks/useTilesetManager";
+import type { TilesetProgress } from "../hooks/resources/tilesets/use-tileset-progress";
 
 interface TilesetProgressBarsProps {
   tilesets: TilesetProgress[];

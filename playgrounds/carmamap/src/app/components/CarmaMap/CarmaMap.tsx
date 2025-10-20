@@ -43,8 +43,6 @@ import {
   useSelectionTopicMap,
   useHashState,
   useMapHashRoutingCesium,
-  useCesiumModels,
-  useSelectionCesium,
   useSyncCesiumSceneStyle,
 } from "@carma-appframeworks/portals";
 
@@ -62,10 +60,12 @@ import { getBackgroundLayers } from "../../helper/layer.tsx";
 import { useLeafletZoomControls } from "@carma-mapping/engines/leaflet";
 import {
   useCesiumContext,
-  useCesiumInitialCameraFromSearchParams,
+  // TODO: Refactor removed - useCesiumInitialCameraFromSearchParams not exported
+  // useCesiumInitialCameraFromSearchParams,
   CesiumSceneComponent,
   CtxEvent,
 } from "@carma-mapping/engines/cesium/core";
+import type { Camera } from "@carma/cesium";
 
 // TODO: Import useWindowSize from shared library when available
 // import { useWindowSize } from "../../hooks/useWindowSize.ts";
@@ -217,7 +217,9 @@ export const CarmaMap = ({
     };
   }, [subscribe, allow3d]);
   // One-time initialization - these hooks are called once at mount
-  const cesiumInitialCameraView = useCesiumInitialCameraFromSearchParams();
+  // TODO: Refactor removed - useCesiumInitialCameraFromSearchParams not exported
+  // const cesiumInitialCameraView = useCesiumInitialCameraFromSearchParams();
+  const cesiumInitialCameraView = null;
 
   // TODO: MARKER/SELECTION MANAGEMENT (following GeoportalMap pattern)
   // - markerAsset loading from CesiumContext modelsRef
@@ -265,9 +267,9 @@ export const CarmaMap = ({
   // useGeoportalOverlays();
   useSelectionTopicMap();
 
-  // Initialize Cesium scene change handler for hash routing (GeoportalMap pattern)
+  // Initialize Cesium camera change handler for hash routing (GeoportalMap pattern)
   const hashRoutingHandler = useMapHashRoutingCesium();
-  const onSceneChange = useCallback(
+  const onCameraChanged = useCallback(
     (params: { source: string; camera: Camera }) => {
       // Adapt to the hash routing handler signature
       hashRoutingHandler({
@@ -456,12 +458,11 @@ export const CarmaMap = ({
                 pointerEvents: isSuspendedRef.current ? "none" : "auto",
               }}
             >
+              {/* TODO: Refactor removed - CesiumSceneComponent props changed */}
               {cesiumInitialCameraView && (
                 <CesiumSceneComponent
                   containerRef={container3dMapRef}
-                  cameraLimiterOptions={CESIUM_CONFIG.camera}
-                  initialCameraView={cesiumInitialCameraView}
-                  onSceneChange={onSceneChange}
+                  onCameraChanged={onCameraChanged}
                 />
               )}
             </div>

@@ -1,7 +1,10 @@
 import { Cesium3DTileset, CustomShader, ShadowMode } from "cesium";
 
-import type { TilesetConfig, TilesetType } from "@carma/types";
-import { TilesetTypes } from "@carma/types";
+import type {
+  TilesetConfig,
+  TilesetType,
+} from "../types/tileset-snapshot-types";
+import { TilesetTypes } from "../types/tileset-snapshot-types";
 
 import { CUSTOM_SHADERS_DEFINITIONS, CustomShaderKeys } from "../shaders";
 

@@ -1,12 +1,49 @@
-import { Altitude, Latitude, Longitude, LatLngAlt } from "@carma/geo/types";
-
-// Re-export Camera class from Cesium
-import { Camera } from "cesium";
-export { Camera };
-
+import type { Altitude, Latitude, Longitude, LatLngAlt } from "@carma/geo/types";
 import { radToDeg } from "@carma/units/helpers";
 import type { Radians } from "@carma/units/types";
 import { cartographicToUnitTyped } from "../Core/Cartographic";
+
+// Re-export Camera class from Cesium
+import { Camera, Cartesian3, BoundingSphere, HeadingPitchRange } from "cesium";
+export { Camera };
+
+// Reusable scratch objects for flyToTarget
+const scratchBoundingSphere = new BoundingSphere();
+const scratchHeadingPitchRange = new HeadingPitchRange();
+
+/**
+ * Fly camera to target position with HeadingPitchRange orientation.
+ * Wrapper around flyToBoundingSphere that creates the sphere on the fly.
+ * 
+ * @param camera - The Cesium camera
+ * @param target - Point to look at (world coordinates)
+ * @param hpr - Camera orientation relative to target (heading, pitch, range)
+ * @param duration - Optional flight duration in seconds
+ */
+export const flyToTarget = (
+  camera: Camera,
+  target: Cartesian3,
+  hpr: { heading: number; pitch: number; range: number },
+  duration?: number
+): void => {
+  scratchBoundingSphere.center = target;
+  scratchBoundingSphere.radius = 0;
+  
+  scratchHeadingPitchRange.heading = hpr.heading;
+  scratchHeadingPitchRange.pitch = hpr.pitch;
+  scratchHeadingPitchRange.range = hpr.range;
+  
+  const options: {
+    offset: HeadingPitchRange;
+    duration?: number;
+  } = {
+    offset: scratchHeadingPitchRange,
+  };
+  if (duration !== undefined) {
+    options.duration = duration;
+  }
+  camera.flyToBoundingSphere(scratchBoundingSphere, options);
+};
 
 export const isValidCamera = (camera: unknown): camera is Camera =>
   camera instanceof Camera;

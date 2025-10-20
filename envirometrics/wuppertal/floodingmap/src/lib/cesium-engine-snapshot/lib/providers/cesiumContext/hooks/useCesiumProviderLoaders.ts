@@ -1,7 +1,14 @@
 import { useEffect, type MutableRefObject } from "react";
-import type { ImageryLayer, CesiumTerrainProvider, Scene } from "cesium";
-import { Model, Cartesian3, HeadingPitchRoll, Transforms } from "cesium";
-import type { ModelConfig } from "@carma/types";
+import {
+  type ImageryLayer,
+  type CesiumTerrainProvider,
+  type Scene,
+  Model,
+  Cartesian3,
+  HeadingPitchRoll,
+  Transforms,
+} from "@carma/cesium";
+import type { ModelConfig } from "../../../types/cesium-snapshot-types";
 
 import {
   loadCesiumImageryLayer,

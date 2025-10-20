@@ -10,23 +10,13 @@
       "outputs": ["{options.outputPath}"],
       "options": {
         "outputPath": "dist/libraries/types",
-        "main": "libraries/types/src/index.d.ts",
+        "main": "libraries/types/src/index.ts",
         "tsConfig": "libraries/types/tsconfig.lib.json",
         "assets": [
           {
-            "input": "libraries/types",
-            "glob": "BRANDED-UNITS.md",
-            "output": "."
-          },
-          {
-            "input": "libraries/types",
-            "glob": "README.md",
-            "output": "."
-          },
-          {
             "input": "libraries/types/src",
             "glob": "**/*.d.ts",
-            "output": "./src"
+            "output": "."
           }
         ]
       }

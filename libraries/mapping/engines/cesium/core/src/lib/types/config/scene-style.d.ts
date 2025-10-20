@@ -1,6 +1,7 @@
 import { TilesetConfig, TilesetStyle } from "./tileset";
 import { ImageryProviderConfig, ImageryLayerConfig } from "./imagery";
 import { CesiumTerrainProviderConfig } from "./terrain";
+import type { Globe } from "@carma/cesium";
 
 export type ColorRgbaArray = [number, number, number, number];
 
@@ -15,11 +16,11 @@ export type ColorRgbaArray = [number, number, number, number];
  */
 
 export type SceneStyle = {
+  id: string;
+  name?: string;
   shadows?: boolean; // Per-style shadow control (default: false)
   backgroundColor?: ColorRgbaArray;
-  globe?: {
-    baseColor: ColorRgbaArray;
-  };
+  globe?: Globe.ConstructorOptions; // Full Cesium Globe configuration per style
   imageryLayers?: Array<ImageryLayerConfig>;
   tilesets?: Array<TilesetStyle>;
   terrain?: CesiumTerrainProviderConfig.id;
@@ -37,10 +38,8 @@ type SceneStyleConfigSources = {
 };
 
 export type SceneStyleConfig = {
-  id: string;
-  name?: string;
   // SOURCES: Declare available resources with required IDs
   sources?: SceneStyleConfigSources;
-  // STYLES: Array of visual style variants for these sources
+  // STYLES: Array of visual style variants that use these sources
   styles?: Array<SceneStyle>;
 };

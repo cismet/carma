@@ -29,7 +29,10 @@ export const getHashParams = (hash?: string): Record<string, string> => {
   const locationHash = hash ?? window.location.hash.split("?")[1] ?? "";
 
   try {
-    return Object.fromEntries(new URLSearchParams(locationHash));
+    const params = new URLSearchParams(locationHash);
+    const entries: [string, string][] = [];
+    params.forEach((value, key) => entries.push([key, value]));
+    return Object.fromEntries(entries);
   } catch (error) {
     console.debug("Error parsing hash parameters:", error);
     return {};

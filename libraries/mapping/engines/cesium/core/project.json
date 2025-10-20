@@ -1,9 +1,9 @@
 {
-  "name": "cesium",
+  "name": "cesium/core",
   "$schema": "../../../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libraries/mapping/engines/cesium/core/src",
   "projectType": "library",
-  "tags": [],
+  "tags": ["type:library", "scope:cesium"],
   "targets": {
     "build": {
       "executor": "@nx/vite:build",
@@ -21,31 +21,6 @@
     },
     "lint": {
       "executor": "@nx/eslint:lint"
-    },
-    "storybook": {
-      "executor": "@nx/storybook:storybook",
-      "options": {
-        "port": 4401,
-        "configDir": "libraries/mapping/engines/cesium/core/.storybook"
-      },
-      "configurations": {
-        "ci": {
-          "quiet": true
-        }
-      }
-    },
-    "build-storybook": {
-      "executor": "@nx/storybook:build",
-      "outputs": ["{options.outputDir}"],
-      "options": {
-        "outputDir": "dist/storybook/engines-cesium-core",
-        "configDir": "libraries/mapping/engines/cesium/core/.storybook"
-      },
-      "configurations": {
-        "ci": {
-          "quiet": true
-        }
-      }
     }
   }
 }

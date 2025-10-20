@@ -5,7 +5,7 @@ import { zeroToTwoPi } from "@carma/units/helpers";
 import {
   CardinalDirectionEnum,
   getCardinalDirectionFromHeading,
-} from "./orientationUtils";
+} from "./orientation-utils";
 
 const MAX_CARTESIAN_DISTANCE_M = 350;
 

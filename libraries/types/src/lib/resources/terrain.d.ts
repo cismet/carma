@@ -1,6 +1,6 @@
 import type { Metadata } from "./metadata";
 import type { SurfaceModelType } from "./content";
-import type { CesiumTerrainProvider } from "cesium";
+import type { CesiumTerrainProvider } from "@carma/cesium";
 
 export const CesiumTerrainFormats = {
   QuantizedMesh: "quantizedMesh",

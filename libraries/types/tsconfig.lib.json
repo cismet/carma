@@ -6,7 +6,7 @@
     "stripInternal": true,
     "composite": true,
     "rootDir": "./src",
-    "outDir": "./dist/src"
+    "outDir": "../../dist/libraries/types"
   },
   "include": ["src/**/*.d.ts"],
   "exclude": []

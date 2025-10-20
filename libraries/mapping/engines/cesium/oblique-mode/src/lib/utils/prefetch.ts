@@ -1,9 +1,9 @@
 import type { ObliquePreviewQuality } from "../constants";
 import type { ObliqueImageRecordMap } from "../types";
-import type { CardinalDirectionEnum } from "./orientationUtils";
+import type { CardinalDirectionEnum } from "./orientation-utils";
 
 import { computeSiblingsByCardinal } from "./siblings";
-import { getImageUrls } from "./imageHandling";
+import { getImageUrls } from "./image-handling";
 
 /**
  * Lightweight browser cache warmer for a single image URL.

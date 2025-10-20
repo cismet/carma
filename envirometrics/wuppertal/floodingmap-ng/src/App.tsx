@@ -22,7 +22,6 @@ import {
   TopicMapSelectionContent,
   useGazData,
   useSelection,
-  useSelectionCesium,
   useSelectionTopicMap,
   useHashState,
 } from "@carma-appframeworks/portals";
@@ -35,7 +34,8 @@ import { getCollabedHelpComponentConfig } from "@carma-collab/wuppertal/hochwass
 
 import {
   CesiumSceneComponent,
-  getDegreesFromCartesian,
+  // TODO: Refactor removed - getDegreesFromCartesian not exported
+  // getDegreesFromCartesian,
   // TODO: Waiting for new API - MapTypeSwitcher removed or moved
   // MapTypeSwitcher,
   // TODO: Waiting for new API - selectViewerHome removed
@@ -47,7 +47,8 @@ import {
   // TODO: Waiting for new API - setIsMode2d removed
   // setIsMode2d,
   useCesiumContext,
-  useCesiumInitialCameraFromSearchParams,
+  // TODO: Refactor removed - useCesiumInitialCameraFromSearchParams not exported
+  // useCesiumInitialCameraFromSearchParams,
   useHomeControl,
   useZoomControls,
 } from "@carma-mapping/engines/cesium/core";
@@ -105,7 +106,9 @@ function App({ sync = false }: { sync?: boolean }) {
 
   const [searchParams] = useSearchParams();
 
-  const initialCameraView = useCesiumInitialCameraFromSearchParams();
+  // TODO: Refactor removed - useCesiumInitialCameraFromSearchParams not exported
+  // const initialCameraView = useCesiumInitialCameraFromSearchParams();
+  const initialCameraView = null;
 
   // CONTROLS
   const { animationMapRef, requestRender } = useCesiumContext();
@@ -389,13 +392,15 @@ function App({ sync = false }: { sync?: boolean }) {
           pointerEvents: isMode2d ? "none" : "auto",
         }}
       >
+        {/* TODO: Refactor removed - CesiumSceneComponent props changed:
+            - cameraLimiterOptions not in new API
+            - initialCameraView not in new API  
+            - constructorOptions moved
+            - enableSceneStyles not in new API
+        */}
         <CesiumSceneComponent
           containerRef={container3dMapRef}
-          cameraLimiterOptions={CESIUM_CONFIG.camera}
-          initialCameraView={initialCameraView}
-          constructorOptions={CONSTRUCTOR_OPTIONS}
-          enableSceneStyles={false}
-          onSceneChange={onCesiumSceneChange}
+          onCameraChanged={onCesiumSceneChange}
         ></CesiumSceneComponent>
       </div>
     </div>

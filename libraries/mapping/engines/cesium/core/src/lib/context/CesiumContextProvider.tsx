@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef } from "react";
+import React, { useCallback, useMemo, useRef } from "react";
 import type { ReactNode } from "react";
 
 import type {
@@ -8,14 +8,16 @@ import type {
   Cesium3DTileset,
   Scene,
   Model,
-} from "cesium";
+} from "@carma/cesium";
 import { createEventBus } from "@carma/providers/event-bus";
 
 import { CesiumContext, type CesiumContextType } from "./CesiumContext";
-import { CtxEvent, type CesiumContextEventMap } from "./cesiumContextEventMap";
-import { setupCesiumEnvironment } from "../environment";
+import type { CesiumContextEventMap } from "./cesium-context-event-map";
+import { setupCesiumEnvironment } from "../scene/environment";
 
-import { useCesiumContextSubscriptions } from "./hooks/useCesiumContextSubscriptions";
+import { useCesiumContextSubscriptions } from "./hooks/use-cesium-context-subscriptions";
+import { useApplyInitialSceneStyle } from "./hooks/use-apply-initial-scene-style";
+import { useSetupCameraPositionTracking } from "./hooks/use-setup-camera-position-tracking";
 // DISABLED: Provider loaders for minimal mode
 // import {
 //   useImageryProviderLoader,
@@ -25,10 +27,12 @@ import { useCesiumContextSubscriptions } from "./hooks/useCesiumContextSubscript
 //   useModelsLoader,
 // } from "./hooks/useCesiumProviderLoaders";
 
-import type { AnimationMap, CesiumConfig } from "@carma/types";
+import type { AnimationMap } from "@carma/types";
+import type { CesiumConfig } from "../types";
+import type { CameraViewOptions } from "../types/camera";
 
-import { initAnimationMap } from "../animations";
-import { sceneRequestRender } from "../scene-utilities";
+import { initAnimationMap } from "../scene/camera/animations";
+import { sceneRequestRender } from "../scene/scene-request-render";
 
 export const CesiumContextProvider = ({
   children,
@@ -43,14 +47,7 @@ export const CesiumContextProvider = ({
     setupCesiumEnvironment(config);
   }
 
-  const {
-    models,
-    tilesets,
-    homePosition,
-    homeOffset,
-    cameraController,
-    sceneStyles,
-  } = config;
+  const { screenSpaceCameraController, sceneStyle } = config;
 
   // Use refs for Cesium instances to prevent re-renders
   const widgetRef = useRef<CesiumWidget | null>(null);
@@ -66,36 +63,35 @@ export const CesiumContextProvider = ({
   const modelsRef = useRef<Map<string, Model>>(new Map());
 
   // State refs
-  const shouldSuspendPitchLimiterRef = useRef(false);
-  const shouldSuspendCameraLimitersRef = useRef(false);
-  const isSuspendedRef = useRef(false); // Start in 3D mode
+  const isSuspendedRef = useRef(false);
   const isAnimatingRef = useRef(false);
   const suspendSSCCRef = useRef(false);
   const transitionStateRef = useRef<string | null>(null);
+  const shouldSuspendPitchLimiterRef = useRef(false);
+  const shouldSuspendCameraLimitersRef = useRef(false);
 
   // Camera controller settings from config
-  const minZoomDistanceRef = useRef(cameraController?.minimumZoomDistance ?? 1);
-  const maxZoomDistanceRef = useRef(
-    cameraController?.maximumZoomDistance ?? Infinity
+  const minZoomDistanceRef = useRef<number>(
+    screenSpaceCameraController?.minimumZoomDistance ?? 1
   );
-  const enableCollisionDetectionRef = useRef(
-    cameraController?.enableCollisionDetection ?? false
+  const maxZoomDistanceRef = useRef<number>(
+    screenSpaceCameraController?.maximumZoomDistance ?? 20000
+  );
+  const enableCollisionDetectionRef = useRef<boolean>(
+    screenSpaceCameraController?.enableCollisionDetection ?? true
+  );
+
+  // Home position ref
+  const homeRef = useRef<CameraViewOptions | null>(
+    config.initialCamera ?? (config.initialCameraLookAt as any) ?? null
   );
 
   // Always use the first style as initial style
   const initialStyle =
-    Array.isArray(sceneStyles) && sceneStyles.length > 0
-      ? sceneStyles[0].id || sceneStyles[0].key
+    sceneStyle && sceneStyle.styles && sceneStyle.styles.length > 0
+      ? sceneStyle.styles[0].id
       : undefined;
   const currentSceneStyleRef = useRef<string | undefined>(initialStyle);
-
-  // Home position from config
-  const homePositionRef = useRef<{ x: number; y: number; z: number } | null>(
-    homePosition ?? null
-  );
-  const homeOffsetRef = useRef<{ x: number; y: number; z: number } | null>(
-    homeOffset ?? null
-  );
 
   const dataSourcesRef = useRef<Record<string, any> | null>(null);
 
@@ -111,30 +107,23 @@ export const CesiumContextProvider = ({
     emit,
     sceneRef,
     isSuspendedRef,
+    tilesetsRef,
+    imageryLayersRef,
     isAnimatingRef,
     minZoomDistanceRef,
     maxZoomDistanceRef,
     enableCollisionDetectionRef,
     currentSceneStyleRef,
-    homePositionRef,
-    homeOffsetRef,
-    sceneStyles,
+    homeRef,
+    sceneStyle,
     config,
   });
 
   // Apply initial scene style when scene is ready
-  useEffect(() => {
-    const unsubscribe = subscribe(CtxEvent.SceneReady, () => {
-      if (initialStyle) {
-        console.debug(
-          "[CesiumContext] Applying initial scene style:",
-          initialStyle
-        );
-        emit(CtxEvent.SetSceneStyle, initialStyle);
-      }
-    });
-    return unsubscribe;
-  }, [subscribe, emit, initialStyle]);
+  useApplyInitialSceneStyle(subscribe, emit, initialStyle);
+
+  // Track camera position changes and emit CameraChanged events
+  useSetupCameraPositionTracking(widgetRef, sceneRef, subscribe, emit);
 
   // ALL PROVIDER LOADERS DISABLED for minimal mode
   // useImageryProviderLoader({ providerConfig, imageryLayerRef, isValidViewer });
@@ -165,7 +154,7 @@ export const CesiumContextProvider = ({
       tilesetsRef,
       modelsRef,
       isSuspendedRef,
-      homePositionRef,
+      homeRef,
       minZoomDistanceRef,
       maxZoomDistanceRef,
       enableCollisionDetectionRef,

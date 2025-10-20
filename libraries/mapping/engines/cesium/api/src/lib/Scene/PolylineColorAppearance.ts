@@ -1,0 +1,1 @@
+export { PolylineColorAppearance } from "cesium";

@@ -1,11 +1,9 @@
-# shaders
+# @carma-mapping/engines/cesium/shaders
 
-This library was generated with [Nx](https://nx.dev).
+Custom GLSL shaders for Cesium 3D Tilesets.
 
-## Building
+## API
 
-Run `nx build shaders` to build the library.
-
-## Running unit tests
-
-Run `nx test shaders` to execute the unit tests via [Vitest](https://vitest.dev/).
+- `getCustomShader(config)` - Get or create shader
+- `ensureCustomShader(tileset, config)` - Apply shader to tileset
+- `createUnlitCustomShader()` - Unlit rendering shader

@@ -1,6 +1,7 @@
-import { ModelGraphics, Entity } from "cesium";
-import { FeatureInfoProperties } from "@carma/types";
-import { LatLng, HeadingPitchRoll } from "@carma/geo/types";
+import { ModelGraphics } from "@carma/cesium";
+import type { Entity } from "cesium"; // TODO: Refactor to use Primitives
+import { FeatureInfoProperties } from "../types";
+import { LatLngAlt, HeadingPitchRoll } from "@carma/geo/types";
 
 type Options = ModelGraphics.ConstructorOptions;
 
@@ -8,7 +9,7 @@ type Options = ModelGraphics.ConstructorOptions;
 export interface ModelConfig
   extends Partial<Omit<Entity.ConstructorOptions, "position" | "orientation">> {
   /** Geographic position in degrees and meters - gets converted to Cartesian3 */
-  position: LatLng.deg;
+  position: LatLngAlt.deg;
   /** Orientation in degrees - gets converted to quaternion */
   orientation?: HeadingPitchRoll.deg;
   model: Partial<Options> & Required<Pick<Options, "uri">>;

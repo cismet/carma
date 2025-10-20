@@ -1,9 +1,9 @@
 {
-  "name": "shaders",
+  "name": "cesium/shaders",
   "$schema": "../../../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libraries/mapping/engines/cesium/shaders/src",
   "projectType": "library",
-  "tags": [],
+  "tags": ["type:library", "scope:cesium"],
   "targets": {
     "build": {
       "executor": "@nx/vite:build",

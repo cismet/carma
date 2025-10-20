@@ -1,13 +1,12 @@
 import { useEffect } from "react";
 import type { MutableRefObject } from "react";
-import { Color, type Scene } from "cesium";
-import type { SceneStyleConfig } from "@carma/types";
+import { Color, type Scene, isValidScene } from "@carma/cesium";
+import type { SceneStyleConfig } from "../../../types/cesium-snapshot-types";
 import {
   CtxEvent,
   type SubscribeCesiumCtxFn,
   type EmitCesiumCtxFn,
 } from "../../../cesiumContextEventMap";
-import { isValidScene } from "../../../utils/instanceGates";
 
 /**
  * Custom hook that manages all event subscriptions for CesiumContext refs.

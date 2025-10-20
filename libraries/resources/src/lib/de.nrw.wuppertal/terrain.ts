@@ -1,4 +1,7 @@
-import { SurfaceModelTypes, type CesiumTerrainResourceConfig } from "../types";
+import {
+  SurfaceModelTypes,
+  type CesiumTerrainResourceConfig,
+} from "@carma/types";
 
 export const WUPP_TERRAIN_PROVIDER: CesiumTerrainResourceConfig = {
   url: "https://cesium-wupp-terrain.cismet.de/terrain2020",

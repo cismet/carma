@@ -5,7 +5,11 @@ import {
   Matrix4,
   ScreenSpaceEventHandler,
   ScreenSpaceEventType,
-} from "cesium";
+  isValidScene,
+  isValidScreenSpaceEventHandler,
+  tryWithValidCamera,
+  tryWithValidScene,
+} from "@carma/cesium";
 
 import type { Radians, Meters, Degrees } from "@carma/units/types";
 import { degToRad } from "@carma/units/helpers";
@@ -16,10 +20,6 @@ import {
   getOrbitPoint,
   PITCH,
   applyRollToHeadingForCameraNearNadir,
-  isValidScene,
-  isValidScreenSpaceEventHandler,
-  tryWithValidCamera,
-  tryWithValidScene,
   cancelAnimation,
 } from "@carma-mapping/engines/cesium/core";
 
@@ -70,20 +70,21 @@ export const CesiumPitchingCompass = ({
     (event: React.MouseEvent<HTMLDivElement>) => {
       const scene = sceneRef.current;
       if (!isValidScene(scene)) return;
-      cancelAnimation(scene, animationMapRef.current);
+      const validScene = scene;
+      cancelAnimation(validScene, animationMapRef.current);
       setIsControlMouseDown(true);
       setInitialMouseX(event.clientX);
       setInitialMouseY(event.clientY);
-      setInitialHeading(scene.camera.heading as Radians);
-      setInitialPitch(scene.camera.pitch as Radians);
+      setInitialHeading(validScene.camera.heading as Radians);
+      setInitialPitch(validScene.camera.pitch as Radians);
       needleOrientationRef.current?.(
-        scene.camera.pitch as Radians,
-        scene.camera.heading as Radians
+        validScene.camera.pitch as Radians,
+        validScene.camera.heading as Radians
       );
 
-      const target = getOrbitPoint(scene);
+      const target = getOrbitPoint(validScene);
       if (target) {
-        const range = Cartesian3.distance(target, scene.camera.positionWC);
+        const range = Cartesian3.distance(target, validScene.camera.positionWC);
         setInitialRange(range as Meters);
       }
     },
@@ -94,13 +95,15 @@ export const CesiumPitchingCompass = ({
     setIsControlMouseDown(false);
     const scene = sceneRef.current;
     if (!isValidScene(scene)) return;
-    scene.camera.lookAtTransform(Matrix4.IDENTITY);
+    const validScene = scene;
+    validScene.camera.lookAtTransform(Matrix4.IDENTITY);
   }, [sceneRef]);
 
   const handleMouseMove = useCallback(
     (event: MouseEvent) => {
       const scene = sceneRef.current;
       if (!isValidScene(scene) || !isControlMouseDown) return;
+      const validScene = scene;
       const { pitch, heading } = getHeadingPitchForMouseEvent(
         event,
         initialMouseX,
@@ -113,9 +116,9 @@ export const CesiumPitchingCompass = ({
         maxPitch
       );
 
-      const target = getOrbitPoint(scene);
+      const target = getOrbitPoint(validScene);
       if (target && initialRange !== null) {
-        tryWithValidCamera(scene.camera, (camera) => {
+        tryWithValidCamera(validScene.camera, (camera) => {
           camera.lookAt(
             target,
             new HeadingPitchRange(heading, pitch, initialRange)
@@ -143,10 +146,11 @@ export const CesiumPitchingCompass = ({
     // sets heading to 0 and pitch to pitchOblique
     const scene = sceneRef.current;
     if (!isValidScene(scene)) return;
-    const orbitPoint = getOrbitPoint(scene);
+    const validScene = scene;
+    const orbitPoint = getOrbitPoint(validScene);
     if (!orbitPoint || !animationMapRef.current) return;
     animateCamera(
-      scene,
+      validScene,
       animationMapRef.current,
       orbitPoint,
       0,
@@ -160,10 +164,11 @@ export const CesiumPitchingCompass = ({
     // sets heading to 0 and pitch to PITCH.ORTHO
     const scene = sceneRef.current;
     if (!isValidScene(scene)) return;
-    const orbitPoint = getOrbitPoint(scene);
+    const validScene = scene;
+    const orbitPoint = getOrbitPoint(validScene);
     if (!orbitPoint || !animationMapRef.current) return;
     animateCamera(
-      scene,
+      validScene,
       animationMapRef.current,
       orbitPoint,
       0,
@@ -188,12 +193,13 @@ export const CesiumPitchingCompass = ({
 
     try {
       if (!isValidScene(scene)) return;
-      const handler = new ScreenSpaceEventHandler(scene.canvas);
+      const validScene = scene;
+      const handler = new ScreenSpaceEventHandler(validScene.canvas);
       handler.setInputAction(() => {
-        cancelAnimation(scene, animationMap);
+        cancelAnimation(validScene, animationMap);
       }, ScreenSpaceEventType.LEFT_DOWN);
 
-      scene.camera.changed.addEventListener(getCameraOrientation);
+      validScene.camera.changed.addEventListener(getCameraOrientation);
 
       cleanup = () => {
         isValidScreenSpaceEventHandler(handler) && handler.destroy();
@@ -222,7 +228,8 @@ export const CesiumPitchingCompass = ({
     let cleanup;
     const scene = sceneRef.current;
     if (!isValidScene(scene)) return;
-    const camera = scene.camera;
+    const validScene = scene;
+    const camera = validScene.camera;
     const updateOrientation = () => {
       // correct heading for compass needle
       needleOrientationRef.current?.(
@@ -234,8 +241,8 @@ export const CesiumPitchingCompass = ({
     camera.changed.addEventListener(updateOrientation);
 
     cleanup = () => {
-      isValidScene(scene) &&
-        scene.camera.changed.removeEventListener(updateOrientation);
+      isValidScene(validScene) &&
+        validScene.camera.changed.removeEventListener(updateOrientation);
     };
     return () => cleanup?.();
   }, [sceneRef]);

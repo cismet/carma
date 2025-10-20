@@ -15,9 +15,9 @@ import type {
 } from "../types";
 import type { TypedConverter } from "@carma/geo/proj";
 
-import { FootprintProperties } from "../utils/footprintUtils";
-import { RBushBySectorBlocks } from "../utils/spatialIndexing";
-import type { CardinalDirectionEnum } from "../utils/orientationUtils";
+import { FootprintProperties } from "../utils";
+import { RBushBySectorBlocks } from "../utils";
+import type { CardinalDirectionEnum } from "../utils";
 import type { ObliquePreviewQuality } from "../constants";
 
 export interface ObliqueContextType {
@@ -28,7 +28,7 @@ export interface ObliqueContextType {
   imageRecords: ObliqueImageRecordMap | null;
   exteriorOrientations: ExteriorOrientations | null;
   footprintData: FeatureCollection<Polygon, FootprintProperties> | null;
-  footprintCenterpointsRBushByCardinals: RBushBySectorBlocks | null;
+  footprintCenterPointsRBushByCardinals: RBushBySectorBlocks | null;
 
   selectedImage: NearestObliqueImageRecord | null;
   setSelectedImage: (image: NearestObliqueImageRecord | null) => void;

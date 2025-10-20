@@ -1,4 +1,4 @@
-import { Cesium3DTileset, ShadowMode } from "cesium";
+import { Cesium3DTileset, ShadowMode } from "@carma/cesium";
 import type { TilesetResourceConfig } from "@carma/types";
 
 type MutableOptions =

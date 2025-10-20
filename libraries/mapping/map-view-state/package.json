@@ -1,5 +1,7 @@
 {
   "name": "@carma-mapping/map-view-state",
   "version": "0.0.1",
-  "type": "module"
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts"
 }

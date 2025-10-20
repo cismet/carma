@@ -6,11 +6,16 @@ import {
   type CesiumTerrainProvider,
   type Cesium3DTileset,
   type Model,
-} from "cesium";
+} from "@carma/cesium";
 
-import { EmitCesiumCtxFn, SubscribeCesiumCtxFn } from "./cesiumContextEventMap";
+import {
+  EmitCesiumCtxFn,
+  SubscribeCesiumCtxFn,
+} from "./cesium-context-event-map";
 import { DelayedRenderOptions } from "@carma-commons/dom/window";
-import type { AnimationMap, CesiumConfig } from "@carma/types";
+import type { AnimationMap } from "@carma/types";
+import type { CesiumConfig } from "../types";
+import type { CameraViewOptions } from "../types/camera";
 
 // Provider ref types for managing arbitrary numbers of providers
 export type ProviderRef<T> = {
@@ -30,7 +35,7 @@ export interface CesiumContextType {
 
   // Core state refs
   isSuspendedRef: MutableRefObject<boolean>;
-  homePositionRef: MutableRefObject<{ x: number; y: number; z: number } | null>;
+  homeRef: MutableRefObject<CameraViewOptions | null>;
   minZoomDistanceRef: MutableRefObject<number>;
   maxZoomDistanceRef: MutableRefObject<number>;
   enableCollisionDetectionRef: MutableRefObject<boolean>;

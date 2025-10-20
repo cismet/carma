@@ -1,4 +1,3 @@
-// Re-export PerspectiveFrustum class from Cesium
 import { PerspectiveFrustum } from "cesium";
 export { PerspectiveFrustum };
 

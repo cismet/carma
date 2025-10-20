@@ -1,6 +1,5 @@
 import { Cartesian3, Color } from "cesium";
-// Updated to use current location in @carma/geo/types
-import type { PlainCartesian3 } from "@carma/geo/types";
+import type { PlainCartesian3 } from "@carma/cesium";
 import { ColorRgbaArray } from "./cesiumHelpers";
 
 export const toPlainCartesian3 = (cartesian3: Cartesian3): PlainCartesian3 => {

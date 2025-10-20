@@ -1,6 +1,6 @@
 import type { ContentType, SurfaceModelType, CityModelType } from "./content";
 import type { Metadata } from "./metadata";
-import { CustomShaderOptions } from "@carma-mapping/engines/cesium/shaders";
+import type { CustomShaderOptions } from "@carma-mapping/engines/cesium/shaders";
 /**
  * Minimal type for custom shader options to avoid circular dependency
  * Full type is CustomShaderConstructorOptions from @carma-mapping/engines/cesium/shaders
@@ -37,16 +37,6 @@ export const TilesetContentTypes = {
 
 export type TilesetContentType =
   (typeof TilesetContentTypes)[keyof typeof TilesetContentTypes];
-
-/**
- * Tileset type classification for loading strategy
- */
-export const TilesetTypes = {
-  MESH: "mesh",
-  LOD2: "lod2",
-} as const;
-
-export type TilesetType = (typeof TilesetTypes)[keyof typeof TilesetTypes];
 
 export type TilesetRenderPreset = {
   customShader?: CustomShaderOptions;

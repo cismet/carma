@@ -12,7 +12,10 @@
  */
 
 import type { ColorRgbaArray } from "@carma/types";
-import type { MarkerModelAsset, ParsedMarkerModelAsset } from "@carma/types";
+import type {
+  MarkerModelAsset,
+  ParsedMarkerModelAsset,
+} from "../../src/lib/types/tileset-snapshot-types";
 
 export type PlainCartesian3 = { x: number; y: number; z: number };
 

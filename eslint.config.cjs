@@ -135,7 +135,11 @@ const baseConfig = {
     "import/resolver": {
       ...importPlugin.configs.typescript.settings["import/resolver"],
       typescript: {
-        project: ["./tsconfig.*.json"],
+        alwaysTryTypes: true,
+        project: [
+          `${__dirname}/tsconfig.base.json`,
+          `${__dirname}/tsconfig.*.json`,
+        ],
       },
     },
     react: {

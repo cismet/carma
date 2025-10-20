@@ -1,5 +1,5 @@
 import { createContext } from "react";
-import type { CameraState } from "@carma/types";
+import type { CameraStateDegrees } from "../adapters/cesiumAdapter";
 import type { LeafletMapState } from "../adapters/leafletAdapter";
 
 export type MapMode = "2d" | "3d";
@@ -16,10 +16,10 @@ export type MapViewStateContextType = {
   setMode: (mode: MapMode) => void;
 
   /**
-   * Decoded Cesium camera state (3D position)
+   * Decoded Cesium camera state (3D position) in degrees
    * Available when mode is "3d" or when hash contains Cesium params
    */
-  cesiumState: CameraState | null;
+  cesiumState: CameraStateDegrees | null;
 
   /**
    * Decoded Leaflet map state (2D position)
@@ -30,7 +30,7 @@ export type MapViewStateContextType = {
   /**
    * Update Cesium position and sync to URL hash
    */
-  updateCesiumPosition: (state: CameraState) => void;
+  updateCesiumPosition: (state: CameraStateDegrees) => void;
 
   /**
    * Update Leaflet position and sync to URL hash

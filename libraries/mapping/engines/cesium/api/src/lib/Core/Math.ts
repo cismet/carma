@@ -1,3 +1,5 @@
-// Re-export Math utilities from Cesium (as CesiumMath to avoid conflict)
-import { Math as CesiumMath } from "cesium";
-export { CesiumMath };
+// Re-export Math utilities from Cesium
+import { Math } from "cesium";
+
+// Avoid name conflict with Math from units
+export { Math as CesiumMath };

@@ -1,14 +1,12 @@
+import { Cartesian3, LightingModel } from "@carma/cesium";
 import {
-  Cartesian3,
   CustomShader,
   CustomShaderMode,
   CustomShaderTranslucencyMode,
-  LightingModel,
-  UniformSpecifier,
   UniformType,
 } from "cesium";
+import type { UniformSpecifier } from "cesium";
 import { UnlitShaderUniforms, CustomShaderConstructorOptions } from "./types";
-import * as PRESETS from "./presets";
 
 // Shared fragment shader for all UNLIT variants
 const UNLIT_FRAGMENT_SHADER = `
@@ -101,22 +99,6 @@ export const createUnlitUniforms = (
     value: uniforms.saturation,
   },
 });
-
-/**
- * Shader preset definitions - imported from individual preset files
- */
-export const SHADER_PRESETS = PRESETS;
-
-/**
- * Get a CustomShader instance from a preset definition
- * Only instantiates when called, not on import
- */
-export const getCustomShader = (
-  presetName: keyof typeof PRESETS
-): CustomShader => {
-  const preset = PRESETS[presetName];
-  return ensureCustomShader(preset);
-};
 
 /**
  * Ensures the input is a CustomShader instance

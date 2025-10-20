@@ -1,92 +1,73 @@
-// @ts-nocheck
-// TODO fix typescript for strict mode
 import { useEffect, useRef } from "react";
-
-import type { FeatureInfo } from "@carma/types";
 
 import {
   CesiumSceneComponent,
   useCesiumContext,
-  useCesiumInitialCameraFromSearchParams,
   CtxEvent,
+  type CesiumConfig,
 } from "@carma-mapping/engines/cesium/core";
 
-import { useFeatureFlags } from "@carma/providers/feature-flag";
-
-import { useModelSelectionHandler } from "../hooks/useModelSelectionHandler";
-import { useSelectionCesium } from "../hooks/useSelectionCesium";
-import { useCesiumModels } from "../hooks/useCesiumModels";
+// useSelectionCesium REMOVED - use declarative <CesiumSelectionMarker /> from @carma-cesium/selections
+// useCesiumModels REMOVED - use declarative <CesiumModel /> from @carma-cesium/models
 import { useMapHashRoutingCesium } from "../hooks/useMapHashRoutingCesium";
 import { useSyncCesiumSceneStyle } from "../hooks/useSyncCesiumSceneStyle";
-
-// Config type for Cesium options
-type CesiumConfig = {
-  models?: unknown[];
-  markerKey?: string;
-  markerAnchorHeight?: number;
-  transitions?: {
-    mapMode?: {
-      duration?: number;
-    };
-  };
-  camera?: unknown;
-};
 
 type CesiumMapComponentWrapperProps = {
   allow3d?: boolean;
   cesiumOptions: Partial<CesiumConfig>;
 };
 
-const emptyArr = [];
-
 export const CesiumMapComponentWrapper = ({
   allow3d,
   cesiumOptions,
 }: CesiumMapComponentWrapperProps) => {
-  const container3dMapRef = useRef<HTMLDivElement>(null);
-  const containerStyleRef = useRef<HTMLDivElement>(null);
+  const container3dMapRef = useRef<HTMLDivElement | null>(null);
+  const containerStyleRef = useRef<HTMLDivElement | null>(null);
   const { subscribe } = useCesiumContext();
 
   // Use refs to avoid re-renders - all state managed via event bus
   const isSuspendedRef = useRef(!allow3d);
 
-  // One-time initialization - these hooks are called once at mount
-  const cesiumInitialCameraView = useCesiumInitialCameraFromSearchParams();
-  const flags = useFeatureFlags();
-  const modelSelectionHandler = useModelSelectionHandler();
+  // Initial camera view handled via CesiumConfig in CesiumContextProvider
+  // MapViewState (URL hash) is managed by useMapHashRoutingCesium hook
 
   // TODO: Initialize oblique mode - app-specific, should be passed as prop or hook
   // useObliqueInitializer(flags?.isDebugMode);
 
-  // TODO: MODELS MANAGEMENT
-  // - Reimplement useCesiumModels to work via event bus
-  // - Subscribe to mode change events to enable/disable models dynamically
-  // - Models should be managed through CesiumContext refs, not props/state
-  // - Current implementation disabled to prevent re-renders
-  const modelConfig = {
-    models: cesiumOptions.models || emptyArr,
-    enabled: flags?.featureFlagBugaBridge && allow3d,
-    selection: {
-      enabled: flags?.featureFlagBugaBridge && allow3d,
-      deselectOnEmptyClick: true,
-      onSelect: (feature: unknown) =>
-        modelSelectionHandler(feature as FeatureInfo | null),
-    },
-  };
-  useCesiumModels(modelConfig);
+  // MODELS MANAGEMENT REMOVED:
+  // Legacy Entity-based useCesiumModels() hook removed.
+  // Use declarative <CesiumModel /> components from @carma-cesium/models instead.
+  // These use scene primitives (not entities) and follow the widget/scene paradigm.
+  //
+  // Migration example:
+  //   import { CesiumModel } from "@carma-cesium/models";
+  //   {models.map(config => <CesiumModel key={...} config={config} visible={true} enabled={allow3d} />)}
+  //
+  // Model selection can be implemented via ScreenSpaceEventHandler in the component
+  // or externally using scene.drillPick() for primitive-based picking.
 
-  // TODO: MARKER/SELECTION MANAGEMENT
-  // - Reimplement marker asset loading from CesiumContext modelsRef
-  // - Add terrain/surface provider refs to CesiumContext
-  // - Add tileset visibility refs to CesiumContext
-  // - Marker config should update via event bus when oblique mode changes
-  // - Current markerAsset is undefined - was: models?.[cesiumOptions.markerKey ?? DEFAULT_MARKER_KEYS.MARKER_GLOW_LINE]
-  const markerConfig = {
-    markerAsset: undefined,
-    markerAnchorHeight: cesiumOptions.markerAnchorHeight ?? 10,
-    isPrimaryStyle: true,
-  };
-  useSelectionCesium(allow3d ?? false, markerConfig, false);
+  // MARKER/SELECTION MANAGEMENT REMOVED:
+  // Legacy useSelectionCesium() hook removed (247 lines of complex state management).
+  // Use declarative <CesiumSelectionMarker /> component from @carma-cesium/selections instead.
+  //
+  // Migration example:
+  //   import { CesiumSelectionMarker } from "@carma-cesium/selections";
+  //
+  //   <CesiumSelectionMarker
+  //     enabled={allow3d}
+  //     markerConfig={{
+  //       position: calculatedCartographic,
+  //       groundPosition: groundCartographic,
+  //       modelConfig: { uri: markerAssetUri, scale: 1.0 },
+  //       stemline: { color: [1,0,0,1], width: 2 }
+  //     }}
+  //   />
+  //
+  // The new component:
+  // - Uses scene primitives (not entities)
+  // - Automatically subscribes to SelectionProvider
+  // - Cleaner separation of concerns
+  // - Apps handle position calculation (not buried in hook)
 
   // TODO: SCENE STYLE MANAGEMENT
   // - Reimplement scene style syncing via event bus
@@ -126,10 +107,16 @@ export const CesiumMapComponentWrapper = ({
     };
   }, [subscribe, allow3d]);
 
-  // Initialize Cesium scene change handler for hash routing
-  const onSceneChange = useMapHashRoutingCesium();
+  // Initialize Cesium camera change handler for hash routing
+  const hashRoutingHandler = useMapHashRoutingCesium();
+  
+  // Adapt camera change to hash routing format
+  const onCameraChanged = (params: { source: string; camera: any }) => {
+    // TODO: Extract hash params from camera state
+    hashRoutingHandler({ hashParams: {} });
+  };
 
-  if (!allow3d || cesiumInitialCameraView === null) {
+  if (!allow3d) {
     return null;
   }
 
@@ -148,17 +135,13 @@ export const CesiumMapComponentWrapper = ({
         bottom: 0,
         zIndex: 400,
         opacity: isSuspendedRef.current ? 0 : 1,
-        transition: `opacity ${
-          cesiumOptions.transitions?.mapMode?.duration ?? 1000
-        }ms ease-in-out`,
+        // Transition managed by map-transition-2d-3d library
         pointerEvents: isSuspendedRef.current ? "none" : "auto",
       }}
     >
       <CesiumSceneComponent
         containerRef={container3dMapRef}
-        cameraLimiterOptions={cesiumOptions.camera}
-        initialCameraView={cesiumInitialCameraView}
-        onSceneChange={onSceneChange}
+        onCameraChanged={onCameraChanged}
       />
     </div>
   );

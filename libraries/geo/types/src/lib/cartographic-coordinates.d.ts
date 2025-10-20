@@ -23,9 +23,3 @@ export interface Cartesian3Meters {
   y: Meters;
   z: Meters;
 }
-
-export interface PlainCartesian3 {
-  x: number;
-  y: number;
-  z: number;
-}

@@ -1,5 +1,5 @@
 {
-  "name": "@carma-mapping/engines-cesium-shaders",
+  "name": "@carma-cesium/shaders",
   "version": "0.0.1",
   "private": true,
   "type": "module",

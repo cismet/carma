@@ -1,0 +1,1 @@
+export { ColorGeometryInstanceAttribute } from "cesium";

@@ -12,7 +12,69 @@
  */
 
 import type { ColorRgbaArray } from "@carma/types";
-import type { MarkerModelAsset, ParsedMarkerModelAsset } from "@carma/types";
+
+// Snapshot types - these were removed from @carma/types in the refactor
+export type MarkerModelAsset = {
+  key?: string;
+  uri: string;
+  url?: string;
+  scale?: number;
+  rotation?: boolean;
+  isCameraFacing?: boolean;
+  fixedScale?: boolean;
+  anchorOffset?: { x?: number; y?: number; z?: number };
+  stemline?: {
+    color: [number, number, number, number];
+    width: number;
+    gap: number;
+    glow: boolean;
+  };
+};
+
+export type ParsedMarkerModelAsset = MarkerModelAsset & {
+  model?: any; // Cesium.Model
+};
+
+export type ModelConfig = {
+  position: {
+    longitude: number;
+    latitude: number;
+    altitude: number;
+  };
+  orientation?: {
+    heading?: number;
+    pitch?: number;
+    roll?: number;
+  };
+  model: {
+    uri: string;
+    scale?: number | { x: number; y: number; z: number };
+    show?: boolean;
+  };
+};
+
+export type SceneStyleConfig = {
+  id?: string;
+  backgroundColor?: ColorRgbaArray;
+  globe?: {
+    baseColor?: ColorRgbaArray;
+  };
+};
+
+// Old CesiumConfig structure from snapshot
+export type CesiumConfig = {
+  models?: ModelConfig[];
+  tilesets?: any[];
+  homePosition?: PlainCartesian3;
+  homeOffset?: PlainCartesian3;
+  cameraController?: {
+    enableCollisionDetection?: boolean;
+    minimumZoomDistance?: number;
+    maximumZoomDistance?: number;
+  };
+  sceneStyles?: SceneStyleConfig[];
+  [key: string]: any;
+};
 
 export type PlainCartesian3 = { x: number; y: number; z: number };
 
@@ -56,21 +118,4 @@ export type RootState = {
   cesium: CesiumState;
 };
 
-export type CesiumConfig = {
-  transitions: {
-    mapMode: {
-      duration: number;
-    };
-  };
-  camera: {
-    minPitch: number;
-    minPitchRange: number;
-  };
-  markerKey?: string;
-  markerAnchorHeight?: number;
-  baseUrl: string;
-  pathName: string;
-  providerConfig: any;
-  tilesetConfigs: any;
-  models?: any[];
-};
+// Note: CesiumConfig is defined above with the snapshot structure

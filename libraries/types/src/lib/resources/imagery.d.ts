@@ -5,7 +5,7 @@ import type {
   TileMapServiceImageryProvider,
   OpenStreetMapImageryProvider,
   SingleTileImageryProvider,
-} from "cesium";
+} from "@carma/cesium";
 
 type WMSOptions = WebMapServiceImageryProvider.ConstructorOptions;
 type WMTSOptions = WebMapTileServiceImageryProvider.ConstructorOptions;

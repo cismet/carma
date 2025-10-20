@@ -92,6 +92,16 @@
       "sourceMapPathOverrides": {
         "http://localhost:4200/src/*": "${workspaceFolder}/apps/topicmaps/tz-baumbewirtschaftung/src/*"
       }
+    },
+    {
+      "type": "chrome",
+      "request": "launch",
+      "name": "Cesium Storybook:4401",
+      "url": "http://localhost:4401",
+      "webRoot": "${workspaceFolder}",
+      "sourceMapPathOverrides": {
+        "http://localhost:4401/src/*": "${workspaceFolder}/libraries/mapping/engines/cesium/dev-tools/src/*"
+      }
     }
   ]
 }

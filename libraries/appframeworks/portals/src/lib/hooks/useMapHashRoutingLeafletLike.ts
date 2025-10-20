@@ -2,7 +2,7 @@ import { useEffect, useRef } from "react";
 import { Map as LeafletMap } from "leaflet";
 import { Map as MaplibreMap } from "maplibre-gl";
 
-import { cesiumClearParamKeys } from "@carma-mapping/engines/cesium/core";
+import { cesiumClearParamKeys } from "@carma-mapping/map-view-state";
 
 import { useLeafletLikePopstateNavigationHandler } from "./useLeafletLikePopstateNavigationHandler";
 import { useLeafletLikeChangeHandler } from "./useLeafletLikeChangeHandler";

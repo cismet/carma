@@ -1,4 +1,4 @@
-import type { MarkerModelAsset } from "@carma/types";
+import type { MarkerModelAsset } from "../../lib/cesium-engine-snapshot/lib/types/cesium-snapshot-types";
 
 import { APP_BASE_PATH } from "../app.config";
 

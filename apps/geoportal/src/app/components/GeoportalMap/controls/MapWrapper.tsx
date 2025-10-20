@@ -1,5 +1,3 @@
-// @ts-nocheck
-// TODO fix typescript for strict mode
 import { useContext, useEffect, useRef, useState } from "react";
 import { isMobile } from "react-device-detect";
 import { useDispatch, useSelector } from "react-redux";
@@ -148,12 +146,11 @@ const MapWrapper = () => {
   const { zoomInLeaflet, zoomOutLeaflet } =
     useLeafletZoomControls(leafletMapRef);
 
-  const { responsiveState, gap, windowSize } = useContext<
-    typeof ResponsiveTopicMapContext
-  >(ResponsiveTopicMapContext);
+  const contextValue = useContext(ResponsiveTopicMapContext) as any;
+  const { responsiveState, gap, windowSize } = contextValue ?? {};
 
   const [pos, setPos] = useState<[number, number] | null>(null);
-  const [layoutHeight, setLayoutHeight] = useState(null);
+  const [layoutHeight, setLayoutHeight] = useState<number | null>(null);
   const [isLocationActive, setIsLocationActive] = useState(false);
   const [hasMapMoved, setHasMapMoved] = useState(false);
   const [hasFoundLocation, setHasFoundLocation] = useState(false);
@@ -211,7 +208,7 @@ const MapWrapper = () => {
   useDispatchSachdatenInfoText();
   useMapStyleReduxSync();
 
-  const tourRefLabels = useTourRefCollabLabels();
+  const tourRefLabels = useTourRefCollabLabels() as any;
   const { gazData } = useGazData();
   const { width, height } = useWindowSize(wrapperRef);
 

@@ -7,18 +7,20 @@ import { radToDeg } from "@carma/units/helpers";
 import type { Radians } from "@carma/units/types";
 import { Collapse } from "antd";
 
-import { useOblique } from "../../hooks/useOblique";
+import { useOblique } from "../../context/use-oblique";
 import {
   CardinalNames,
   getCardinalDirectionFromHeading,
   getHeadingFromCardinalDirection,
-} from "../../utils/orientationUtils";
+} from "../../utils";
 import { OBLIQUE_PREVIEW_QUALITIES } from "../../constants";
-import { getPreviewImageUrl } from "../../utils/imageHandling";
+import {
+  getPreviewImageUrl,
+  computeDerivedExteriorOrientation,
+  calculateImageCoordsFromCartesian,
+} from "../../utils";
 import { CAMERA_ID_TO_UP_VECTOR_MATRIX_MAPPING } from "../../config";
 import { ObliqueControlPanel } from "./ObliqueControlPanel";
-import { computeDerivedExteriorOrientation } from "../../utils/transformExteriorOrientation";
-import { calculateImageCoordsFromCartesian } from "../../utils/obliqueReferenceUtils";
 import type { NearestObliqueImageRecord } from "../../types";
 
 export const ObliqueDebugSvg = () => {

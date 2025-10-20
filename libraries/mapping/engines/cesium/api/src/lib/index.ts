@@ -11,4 +11,5 @@
 
 export * from "./Core";
 export * from "./Scene";
-export * from "./Widget";
+export * from "./DataSources";
+export * from "./Widgets";

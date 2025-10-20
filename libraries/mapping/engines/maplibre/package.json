@@ -1,5 +1,5 @@
 {
-  "name": "@carma-mapping/maplibre-engine",
+  "name": "@carma-mapping/maplibre",
   "version": "0.0.1",
   "private": true,
   "dependencies": {},

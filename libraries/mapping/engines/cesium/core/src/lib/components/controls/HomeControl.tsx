@@ -4,7 +4,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 
-import { useHomeControl } from "../../hooks/useHomeControl";
+import { useHomeControl } from "../../hooks/camera/use-home-control";
 
 type HomeProps = {
   children?: ReactNode;

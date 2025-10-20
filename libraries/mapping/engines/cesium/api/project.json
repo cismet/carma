@@ -1,9 +1,9 @@
 {
-  "name": "api",
+  "name": "cesium/api",
   "$schema": "../../../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libraries/mapping/engines/cesium/api/src",
   "projectType": "library",
-  "tags": [],
+  "tags": ["type:library", "scope:cesium"],
   "targets": {
     "build": {
       "executor": "@nx/vite:build",

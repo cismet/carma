@@ -23,7 +23,7 @@ import {
 } from "@carma-appframeworks/portals";
 import {
   isAreaType,
-  METROPOLERUHR_WMTS_SPW2_WEBMERCATOR_HQ,
+  METROPOLE_RUHR_WMTS_SPW2_WEBMERCATOR_HQ,
 } from "@carma/resources";
 import { normalizeOptions } from "@carma-commons/utils";
 import { zoom256as512, zoom512as256 } from "@carma-mapping/engines/maplibre";
@@ -78,7 +78,7 @@ const defaultBackgroundStyle: StyleSpecification = {
   sources: {
     "source-amtlich": {
       type: "raster",
-      tiles: [METROPOLERUHR_WMTS_SPW2_WEBMERCATOR_HQ.layers.spw2_light.url],
+      tiles: [METROPOLE_RUHR_WMTS_SPW2_WEBMERCATOR_HQ.layers.spw2_light.url],
       //tileSize: 512,
     },
   },

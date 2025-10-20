@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import type { CameraState } from "@carma/types";
-import { Camera } from "cesium";
+import { Camera } from "@carma/cesium";
+import type { CameraStateDegrees } from "../adapters/cesiumAdapter";
 
 import { MapViewStateContext, type MapMode } from "./MapViewStateContext";
 import {
-  encodeCesiumCamera,
+  cameraToState,
+  encodeCameraState,
   decodeCesiumCamera,
   cesiumClearParamKeys,
 } from "../adapters/cesiumAdapter";
@@ -77,32 +78,21 @@ export const MapViewStateProvider = ({
 
   // Update Cesium position (from camera change)
   const updateCesiumPosition = useCallback(
-    (cameraOrState: Camera | CameraState) => {
+    (cameraOrState: Camera | CameraStateDegrees) => {
       try {
-        let encoded: Array<{ key: string; value: string }>;
+        // Convert Camera to CameraState if needed
+        const state =
+          cameraOrState instanceof Camera
+            ? cameraToState(cameraOrState)
+            : cameraOrState;
 
-        // Check if it's a Cesium Camera instance
-        if (cameraOrState instanceof Camera) {
-          encoded = encodeCesiumCamera(cameraOrState);
-        } else {
-          // It's a CameraState - encode it directly
-          // For now, we'll log a warning as we need the Camera for encoding
-          console.warn(
-            "[MapViewState] updateCesiumPosition expects a Cesium Camera instance"
-          );
-          return;
-        }
-
-        // Convert array format to object format for updateHash
-        const encodedObject = encoded.reduce((acc, { key, value }) => {
-          acc[key] = value;
-          return acc;
-        }, {} as Record<string, string>);
+        // Encode CameraState to URL hash parameters
+        const encoded = encodeCameraState(state);
 
         // Update hash with encoded params
-        updateHash(encodedObject, { replace: true });
+        updateHash(encoded, { replace: true });
 
-        console.debug("[MapViewState] Updated Cesium position:", encoded);
+        console.debug("[MapViewState] Updated Cesium position:", state);
       } catch (error) {
         console.error(
           "[MapViewState] Failed to update Cesium position:",

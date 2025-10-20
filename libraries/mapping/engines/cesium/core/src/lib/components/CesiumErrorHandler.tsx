@@ -4,17 +4,17 @@ import {
   withErrorBoundary,
 } from "react-error-boundary";
 import { useState, useEffect, useMemo } from "react";
-import { CesiumWidget } from "cesium";
-import { useCesiumContextOptional } from "../hooks/useCesiumContext";
-import {
-  useCesiumDevConsoleTrigger,
-  type CesiumDevConsoleTriggerOptions,
-} from "../hooks/useCesiumDevConsoleTrigger";
+import { CesiumWidget } from "@carma/cesium";
+import { useCesiumContext } from "../context/hooks/use-cesium-context";
+// import {
+//   useCesiumDevConsoleTrigger,
+//   type CesiumDevConsoleTriggerOptions,
+// } from "../hooks/dev/use-cesium-dev-console-trigger";
 import {
   useReloadOnCesiumRenderError,
   type ReloadOnCesiumRenderErrorOptions,
-} from "../hooks/useReloadOnCesiumRenderError";
-import { getCesiumVersion, checkWindowEnv } from "../environment";
+} from "../hooks/dev/use-reload-on-cesium-render-error";
+import { getCesiumVersion, checkWindowEnv } from "../scene/environment";
 
 export type ForwardedCesiumError = Error & {
   cesiumTitle?: string;
@@ -27,7 +27,7 @@ export type ForwardedCesiumError = Error & {
 };
 
 export type CesiumErrorHandlerOptions = {
-  devConsoleTrigger?: boolean | CesiumDevConsoleTriggerOptions;
+  // devConsoleTrigger?: boolean | CesiumDevConsoleTriggerOptions; // TODO: restore when dev console available
   reloadOnRenderError?: boolean | ReloadOnCesiumRenderErrorOptions;
 };
 
@@ -67,10 +67,10 @@ const overrideCesiumWidgetShowErrorPanel = (
   };
 };
 
-const deriveDevConsoleOptions = (
-  input: CesiumErrorHandlerOptions["devConsoleTrigger"]
-): CesiumDevConsoleTriggerOptions | undefined =>
-  typeof input === "object" ? input : { isDeveloperMode: input === true };
+// const deriveDevConsoleOptions = (
+//   input: CesiumErrorHandlerOptions["devConsoleTrigger"]
+// ): CesiumDevConsoleTriggerOptions | undefined =>
+//   typeof input === "object" ? input : { isDeveloperMode: input === true };
 
 const detectIsDev = (): boolean => {
   try {
@@ -107,29 +107,31 @@ export const CesiumErrorHandler = withErrorBoundary(
     );
 
     const { showBoundary } = useErrorBoundary();
-    const ctx = useCesiumContextOptional();
+    // const ctx = useCesiumContextOptional();
+    const ctx = null; // TODO: implement optional context hook
 
     // Memoize derived option objects for referential stability
     const isDev = useMemo(detectIsDev, []);
-    const devOpts = useMemo(
-      () => deriveDevConsoleOptions(props?.devConsoleTrigger),
-      [props?.devConsoleTrigger]
-    );
+    // const devOpts = useMemo(
+    //   () => deriveDevConsoleOptions(props?.devConsoleTrigger),
+    //   [props?.devConsoleTrigger]
+    // );
+    const devOpts = null; // TODO: restore when dev console trigger is available
     const reloadOpts = useMemo(
       () => deriveReloadOptions(isDev, props?.reloadOnRenderError),
       [isDev, props?.reloadOnRenderError]
     );
 
-    useCesiumDevConsoleTrigger(devOpts);
+    // useCesiumDevConsoleTrigger(devOpts); // TODO: restore
     useReloadOnCesiumRenderError(reloadOpts);
 
     useEffect(() => {
       console.debug(
         "overriding CesiumWidget.showErrorPanel with custom Error forwarder"
       );
-      const debugOnError = isDev && devOpts?.isDeveloperMode === true;
+      const debugOnError = false; // TODO: restore when dev console available
       overrideCesiumWidgetShowErrorPanel(setCesiumError, debugOnError);
-    }, [showBoundary, isDev, devOpts?.isDeveloperMode]);
+    }, [showBoundary, isDev]);
 
     useEffect(() => {
       if (cesiumError && showBoundary) {
@@ -159,7 +161,7 @@ export const CesiumErrorHandler = withErrorBoundary(
             );
           } catch {}
           // clear suppression for next error
-          window.CARMA_CESIUM_SUPPRESS_ERROR_BOUNDARY = false;
+          (window as any).CARMA_CESIUM_SUPPRESS_ERROR_BOUNDARY = false;
         } else {
           showBoundary(cesiumError);
         }

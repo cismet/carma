@@ -1,8 +1,7 @@
-# cesium-oblique-mode
+# @carma-mapping/engines/cesium/oblique-mode
 
-Oblique Imagery Viewer mode for Cesium. (oriented imagery)
-currently only supports a single dataset but is planned to support multiple datasets with known orientation definitions or camera poses.
+Oblique imagery viewer for Cesium (oriented imagery).
 
-## Running unit tests
+## Status
 
-Run `nx test cesium-oblique-mode` to execute the unit tests via [Vitest](https://vitest.dev/).
+Currently supports single dataset. Multi-dataset support with camera poses planned.

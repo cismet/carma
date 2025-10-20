@@ -126,9 +126,4 @@ export namespace Orientation {
   export type UpDirectionRight = UpDirectionRight;
   export type YawPitchRoll = YawPitchRoll;
   export type OmegaPhiKappa = OmegaPhiKappa;
-
-  /** 3×3 rotation matrix */
-  export type Matrix3 = Matrix3RowMajor;
-  /** @deprecated Use Matrix3 instead */
-  export type Matrix3RowMajor = Matrix3RowMajor;
 }

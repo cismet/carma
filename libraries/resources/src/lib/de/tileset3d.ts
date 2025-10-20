@@ -4,7 +4,7 @@ import {
   TilesetFormats,
   TilesetContentTypes,
   type TilesetResourceConfig,
-} from "../types";
+} from "@carma/types";
 
 export const TILESET_BASEMAP_DE: TilesetResourceConfig = {
   url: "https://web3d.basemap.de/cesium/buildings-fly/root.json",

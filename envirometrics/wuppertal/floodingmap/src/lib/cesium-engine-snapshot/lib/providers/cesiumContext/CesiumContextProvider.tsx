@@ -24,7 +24,8 @@ import { useCesiumContextSubscriptions } from "./hooks/useCesiumContextSubscript
 //   useModelsLoader,
 // } from "./hooks/useCesiumProviderLoaders";
 
-import type { AnimationMap, CesiumConfig } from "@carma/types";
+import type { AnimationMap } from "@carma/types";
+import type { CesiumConfig } from "../../types/cesium-snapshot-types";
 
 import { initAnimationMap } from "../../utils/animationMap";
 import { sceneRequestRender } from "../../utils/sceneRequestRender";

@@ -1,10 +1,10 @@
-import { CameraLookAtOptions } from "../camera";
+import { CameraLookAtOptions, CameraViewOptions } from "../camera";
 import { SceneStyleConfig } from "./scene-style";
 import {
   type CesiumWidget,
   type CesiumScreenSpaceCameraController,
   type Globe,
-} from "cesium";
+} from "@carma/cesium";
 
 /** Marker should be handled by the marker plugin
 // MARKERS
@@ -20,16 +20,19 @@ export type {
 */
 
 export type CesiumConfig = {
+  // Runtime asset paths (REQUIRED)
+  baseUrl?: string; // Base URL for Cesium runtime assets (Workers, Assets, etc.) - defaults to "/cesium"
+  
   // Core Cesium configuration - pass through to Cesium constructors
   options?: CesiumWidget.ConstructorOptions;
   screenSpaceCameraController?: CesiumScreenSpaceCameraController.ConstructorOptions;
-  globe?: Globe.ConstructorOptions;
 
   // CARMA scene management
-  sceneStyles?: SceneStyleConfig[]; // First style is always initial
+  sceneStyle?: SceneStyleConfig; // Single scene style configuration
 
   // Camera/home position (CARMA extensions)
-  initialCameraLookAt?: CameraLookAtOptions;
+  initialCamera?: CameraViewOptions; // destination + orientation (HPR)
+  initialCameraLookAt?: CameraLookAtOptions; // DEPRECATED: use initialCamera instead
   // Legacy fields (TODO: evaluate removal)
   /* TRANSITIONS
   not handled by the viewer itself

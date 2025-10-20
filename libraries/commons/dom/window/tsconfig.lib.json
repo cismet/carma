@@ -2,7 +2,8 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "../../../../dist/out-tsc",
-    "types": ["node", "vite/client"]
+    "types": ["node", "vite/client"],
+    "lib": ["ES2020", "DOM"]
   },
   "include": ["src/**/*.ts"],
   "exclude": [

@@ -1,0 +1,1 @@
+export { ColorMaterialProperty } from "cesium";

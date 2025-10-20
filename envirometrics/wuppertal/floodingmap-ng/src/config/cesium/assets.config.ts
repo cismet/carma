@@ -1,4 +1,10 @@
-import type { MarkerModelAsset } from "@carma/types";
+// TODO: MarkerModelAsset removed in refactor - using inline type
+// import type { MarkerModelAsset } from "@carma/types";
+type MarkerModelAsset = {
+  uri: string;
+  scale?: number;
+  [key: string]: any;
+};
 
 import { APP_BASE_PATH } from "../app.config";
 

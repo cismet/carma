@@ -11,8 +11,7 @@ import {
   WUPPERTAL,
 } from "@carma/resources";
 
-import { Cartesian3 } from "cesium";
-import { toColorRgbaArray, Color } from "@carma-mapping/engines/cesium/core";
+import { Cartesian3, toColorRgbaArray, Color } from "@carma/cesium";
 import type { LeafletConfig, CesiumConfig } from "@carma/types";
 import { MODEL_ASSETS } from "./assets.config";
 

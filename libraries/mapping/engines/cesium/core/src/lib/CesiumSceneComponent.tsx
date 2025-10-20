@@ -1,27 +1,30 @@
 import { type RefObject, useMemo, useRef } from "react";
-import { Color, CesiumWidget, Rectangle, Camera } from "cesium";
+import { Color, Rectangle, Camera } from "@carma/cesium";
 import { merge } from "lodash";
 
 import { type CesiumErrorHandlerOptions } from "./components/CesiumErrorHandler";
 
-import { useDisableSSCC } from "./hooks/useDisableSSCC";
-import { useCesiumGlobe } from "./hooks/useCesiumGlobe";
-import { useCesiumWhenSuspended } from "./hooks/useCesiumWhenSuspended";
-import { useInitCesiumWidget } from "./hooks/useInitCesiumWidget";
-import { useTilesetManager } from "./hooks/useTilesetManager";
-import { useImageryManager } from "./hooks/useImageryManager";
-import { useTerrainManager } from "./hooks/useTerrainManager";
-import { useShadows } from "./hooks/useShadows";
-import { useCesiumContext } from "./hooks/useCesiumContext";
+import { useCesiumGlobe } from "./hooks/scene/use-cesium-globe";
+import { useCesiumWhenSuspended } from "./hooks/scene/use-cesium-when-suspended";
+import { useInitCesiumWidget } from "./hooks/scene/use-init-cesium-widget";
+import { useSceneStyleResources } from "./hooks/scene/use-scene-style-resources";
+import { useTilesetManager } from "./hooks/resources/tilesets/use-tileset-manager";
+import { useImageryManager } from "./hooks/resources/imagery/use-imagery-manager";
+import { useTerrainManager } from "./hooks/resources/terrain/use-terrain-manager";
+import { useShadows } from "./hooks/scene/use-shadows";
+import { useBackgroundColor } from "./hooks/scene/use-background-color";
+import { useCesiumContext } from "./context/hooks/use-cesium-context";
 import {
   DEFAULT_WIDGET_CONSTRUCTOR_OPTIONS,
   TRANSITION_DELAY,
-} from "./widgetDefaults";
-import { TilesetProgressBars } from "./components/TilesetProgressBars";
+} from "./utils/widget-defaults";
+// DISABLED: TilesetProgressBars temporarily disabled
+// import { TilesetProgressBars } from "./components/TilesetProgressBars";
+import type { ColorRgbaArray } from "./types/config/scene-style";
 
 export type GlobeOptions = {
   // https://cesium.com/learn/cesiumjs/ref-doc/Globe.html
-  baseColor?: Color;
+  baseColor?: Color | ColorRgbaArray;
   cartographicLimitRectangle?: Rectangle;
   showGroundAtmosphere?: boolean;
   showSkirts?: boolean;
@@ -40,41 +43,21 @@ export type CameraLimiterOptions = {
   debug?: boolean;
 };
 
-export type InitialCameraView = {
-  heading?: number;
-  pitch?: number;
-  fov?: number;
-};
-
 export type CesiumSceneComponentProps = {
   containerRef?: RefObject<HTMLDivElement>; // Optional - will create internal ref if not provided
-  cameraLimiterOptions?: CameraLimiterOptions;
-  initialCameraView?: InitialCameraView;
-  globeOptions?: GlobeOptions;
-  constructorOptions?: Partial<ConstructorParameters<typeof CesiumWidget>[1]>;
-  onSceneChange?: (params: { source: string; camera: Camera }) => void;
-  enableSceneStyles?: boolean;
-  elevationControl?: {
-    enabled: boolean;
-    defaultScale?: "absolute" | "terrain";
-  };
+
+  // Event callbacks
+  onCameraChanged?: (params: { source: string; camera: Camera }) => void;
+
+  // Runtime options (not in config)
   errorHandlerOptions?: CesiumErrorHandlerOptions;
+  
+  // Key for forcing remount on error (increment to remount)
+  resetKey?: number;
 };
 
 export function CesiumSceneComponent(props: CesiumSceneComponentProps) {
-  const {
-    globeOptions = {
-      baseColor: Color.TRANSPARENT,
-      cartographicLimitRectangle: undefined,
-      showGroundAtmosphere: false,
-      showSkirts: false,
-    },
-    cameraLimiterOptions,
-    initialCameraView,
-    constructorOptions,
-    containerRef: externalContainerRef,
-    onSceneChange,
-  } = props;
+  const { containerRef: externalContainerRef, onCameraChanged } = props;
 
   // Create internal ref if none provided
   const internalContainerRef = useRef<HTMLDivElement>(null);
@@ -82,33 +65,31 @@ export function CesiumSceneComponent(props: CesiumSceneComponentProps) {
 
   const { config } = useCesiumContext();
 
-  // Extract TilesetConfigs from TilesetRecords
-  const tilesetConfigs = useMemo(() => {
-    if (!config?.tilesets) return [];
-    return config.tilesets.map((t) => t.config);
-  }, [config]);
-
-  // Extract imagery and terrain provider records
-  const imageryProviders = useMemo(
-    () => config?.imageryProviders || [],
-    [config]
-  );
-  const terrainProviders = useMemo(
-    () => config?.terrainProviders || [],
-    [config]
-  );
-
   const options = useMemo(
-    () => merge({}, DEFAULT_WIDGET_CONSTRUCTOR_OPTIONS, constructorOptions),
-    [constructorOptions]
+    () => merge({}, DEFAULT_WIDGET_CONSTRUCTOR_OPTIONS, config.options),
+    [config.options]
   );
 
   useInitCesiumWidget(containerRef, options);
-  const { tilesetProgress } = useTilesetManager(tilesetConfigs);
-  useImageryManager(imageryProviders);
-  useTerrainManager(terrainProviders);
-  useCesiumGlobe(globeOptions); // Enable and style the globe
-  useShadows(); // Configure shadow settings
+
+  // Extract ALL available resource sources from config
+  const { tilesets, terrain, imagery } = useSceneStyleResources(config);
+  
+  console.log('[SCENE] Extracted resources:', {
+    tilesets: tilesets.map(t => t.id),
+    terrain: terrain.map(t => t.id),
+    imagery: imagery.map(i => i.id)
+  });
+
+  // Managers receive all sources and handle activation based on style events
+  const { tilesetProgress } = useTilesetManager(tilesets);
+  useImageryManager(imagery);
+  useTerrainManager(terrain);
+  
+  // Scene appearance hooks (initial values, applySceneStyle overrides on style switch)
+  useCesiumGlobe({});
+  useShadows(false);
+  useBackgroundColor(undefined);
   useCesiumWhenSuspended(TRANSITION_DELAY);
 
   return (
@@ -120,7 +101,8 @@ export function CesiumSceneComponent(props: CesiumSceneComponentProps) {
           height: "100%",
         }}
       />
-      <TilesetProgressBars tilesets={tilesetProgress} />
+      {/* DISABLED: TilesetProgressBars temporarily disabled */}
+      {/* <TilesetProgressBars tilesets={tilesetProgress} /> */}
     </>
   );
 }

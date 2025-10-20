@@ -1,1 +1,1 @@
-export { useMemoMergedDefaultOptions } from "./lib/hooks/useMemoMergedDefaultOptions";
+export * from "./lib";

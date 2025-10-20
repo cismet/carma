@@ -10,6 +10,4 @@
  * https://github.com/CesiumGS/cesium/tree/main/packages/engine/Source
  */
 
-export * from "./lib/Core";
-export * from "./lib/Scene";
-export * from "./lib/Widget";
+export * from "./lib";

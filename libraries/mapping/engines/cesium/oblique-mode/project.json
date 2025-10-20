@@ -1,9 +1,9 @@
 {
-  "name": "oblique-mode",
+  "name": "cesium/oblique-mode",
   "$schema": "../../../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libraries/mapping/engines/cesium/oblique-mode/src",
   "projectType": "library",
-  "tags": [],
+  "tags": ["type:library", "scope:cesium"],
   "targets": {
     "lint": {
       "executor": "@nx/eslint:lint"

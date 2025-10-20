@@ -1,3 +1,5 @@
+# TODO update to current state 
+
 # Map Style Synchronization Architecture
 
 This document explains the event-driven architecture for synchronizing map style changes across different systems in CARMA applications.

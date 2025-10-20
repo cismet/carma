@@ -1,4 +1,50 @@
-import type { ImageryLayer, ImageryResourceConfig } from "cesium";
+import type { Metadata } from "@carma/types";
+
+/**
+ * supported imagery provider types add more if needed
+ */
+export const ImageryProviderTypes = {
+  WMS: "wms",
+  WMTS: "wmts",
+  TMS: "tms",
+  OSM: "osm",
+  SINGLE_TILE: "singleTile",
+} as const;
+
+export type ImageryProviderType =
+  (typeof ImageryProviderTypes)[keyof typeof ImageryProviderTypes];
+
+/**
+ * Imagery resource configuration
+ * Discriminated union based on provider type
+ * TypeScript will automatically narrow the options type based on the type field
+ */
+export type ImageryResourceConfig =
+  | {
+      type: "wms";
+      providerOptions: import("@carma/types").WebMapServiceProviderConfig;
+      metadata?: Metadata;
+    }
+  | {
+      type: "wmts";
+      providerOptions: import("@carma/types").WebMapTileServiceProviderConfig;
+      metadata?: Metadata;
+    }
+  | {
+      type: "tms";
+      providerOptions: import("cesium").TileMapServiceImageryProvider.ConstructorOptions;
+      metadata?: Metadata;
+    }
+  | {
+      type: "osm";
+      providerOptions: import("cesium").OpenStreetMapImageryProvider.ConstructorOptions;
+      metadata?: Metadata;
+    }
+  | {
+      type: "singleTile";
+      providerOptions: import("cesium").SingleTileImageryProvider.ConstructorOptions;
+      metadata?: Metadata;
+    };
 
 /**
  * Full imagery provider configuration
@@ -6,13 +52,20 @@ import type { ImageryLayer, ImageryResourceConfig } from "cesium";
  */
 
 /**
- * Imagery layer configuration for use in scene styles
- * Combines provider config with layer-specific display options
+ * Imagery provider configuration with ID
+ * Used in sources to declare available imagery providers
  */
 export type ImageryProviderConfig = ImageryResourceConfig & {
   id: string;
 };
 
-export type ImageryLayerConfig = ImageryProviderConfig & {
-  options: ImageryLayer.ConstructorOptions;
+/**
+ * Imagery layer reference in a scene style
+ * References an imagery provider by its ID and specifies display options
+ */
+export type ImageryLayerConfig = {
+  /** ID of the imagery provider from sources (references ImageryProviderConfig.id) */
+  id: string;
+  /** Opacity of the imagery layer (0-1) */
+  opacity?: number;
 };

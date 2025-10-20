@@ -1,5 +1,3 @@
-// @ts-nocheck - Legacy code with loose null checks, will be refactored
-// TODO: remove @ts-nocheck
 import {
   type CSSProperties,
   useCallback,
@@ -59,8 +57,8 @@ const TopNavbar = () => {
   const isTouchDevice =
     "ontouchstart" in window || navigator.maxTouchPoints > 0;
 
-  const { setAppMenuVisible } =
-    useContext<typeof UIDispatchContext>(UIDispatchContext);
+  const uiDispatch = useContext(UIDispatchContext) as any;
+  const setAppMenuVisible = uiDispatch?.setAppMenuVisible;
 
   const flags = useFeatureFlags();
   const [isObliqueActive, setIsObliqueActive] = useState(false);
@@ -85,20 +83,20 @@ const TopNavbar = () => {
     []
   );
 
-  const hintergrundTourRef = useOverlayHelper(hintergrundConfig);
-  const modalMenuTourRef = useOverlayHelper(modalMenuConfig);
+  const hintergrundTourRef = useOverlayHelper(hintergrundConfig!) as any;
+  const modalMenuTourRef = useOverlayHelper(modalMenuConfig!) as any;
 
   const overlayConfig = useMemo(() => {
     return {
       ...getCollabedHelpElementsConfig("HILFE_OVERLAY", geoElements),
       primary: {
-        ...getCollabedHelpElementsConfig("HILFE_OVERLAY", geoElements).primary,
+        ...getCollabedHelpElementsConfig("HILFE_OVERLAY", geoElements)?.primary,
         minWindowSize: 1024,
       },
     };
   }, []);
 
-  const helpOverlayTourRef = useOverlayHelper(overlayConfig);
+  const helpOverlayTourRef = useOverlayHelper(overlayConfig as any) as any;
 
   const toggleMobileMenu = useCallback(() => {
     setMobileMenuOpen(!mobileMenuOpen);
@@ -128,7 +126,7 @@ const TopNavbar = () => {
 
   const handleAppMenuVisible = useCallback(() => {
     setAppMenuVisible(true);
-  }, []); // setAppMenuVisible from context is stable
+  }, [setAppMenuVisible]);
 
   const mainStyle = useMemo((): CSSProperties => {
     return {

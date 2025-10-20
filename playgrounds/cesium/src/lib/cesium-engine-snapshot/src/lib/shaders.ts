@@ -1,5 +1,5 @@
 import { LightingModel } from "cesium";
-import type { CesiumCustomShaderOptions } from "@carma/types";
+import type { CesiumCustomShaderOptions } from "./types/tileset-snapshot-types";
 
 export enum CustomShaderKeys {
   CLAY = "CLAY",

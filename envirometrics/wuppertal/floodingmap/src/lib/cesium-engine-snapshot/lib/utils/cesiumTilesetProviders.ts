@@ -1,6 +1,6 @@
 import { Cesium3DTileset, CustomShader, ShadowMode } from "cesium";
 
-import type { TilesetConfig } from "@carma/types";
+import type { TilesetConfig } from "../types/tileset-snapshot-types";
 
 export enum TilesetType {
   MESH = "mesh",
@@ -71,9 +71,9 @@ const loadMeshTileset = async (tileset: TilesetConfig) => {
 };
 
 export const loadTileset = async (tileset: TilesetConfig) => {
-  if (tileset.type === TilesetType.LOD2) {
+  if (tileset.type === "LOD2") {
     return await loadLOD2Tileset(tileset);
-  } else if (tileset.type === TilesetType.MESH) {
+  } else if (tileset.type === "MESH") {
     return await loadMeshTileset(tileset);
   } else {
     throw new Error(`Unknown tileset type: ${tileset.type}`);

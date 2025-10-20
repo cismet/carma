@@ -1,5 +1,5 @@
-// Re-export ImageryLayer class from Cesium
 import { ImageryLayer } from "cesium";
+
 export { ImageryLayer };
 
 export const isValidImageryLayer = (

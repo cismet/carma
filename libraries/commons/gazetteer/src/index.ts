@@ -1,1 +1,1 @@
-export * from "./lib/gazData";
+export * from "./lib";

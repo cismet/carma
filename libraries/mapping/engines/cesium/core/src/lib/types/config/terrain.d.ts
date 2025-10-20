@@ -1,5 +1,5 @@
-import { CesiumTerrainProvider } from "cesium";
-import type { CesiumTerrainResourceConfig } from "@carma/types";
+import { CesiumTerrainProvider } from "@carma/cesium";
+import type { CesiumTerrainResourceConfig } from "../types";
 
 export type CesiumTerrainProviderConfig = CesiumTerrainResourceConfig & {
   id: string;

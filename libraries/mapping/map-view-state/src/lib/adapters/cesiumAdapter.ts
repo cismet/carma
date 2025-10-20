@@ -5,13 +5,24 @@
  * Moved from @carma-mapping/engines/cesium/utils/cesiumHashParamsCodec
  */
 
-import {
-  Camera,
-  Cartographic,
-  Math as CesiumMath,
-  PerspectiveFrustum,
-} from "cesium";
-import type { CameraState, StringifiedCameraState } from "@carma/types";
+import { Camera, CesiumMath, PerspectiveFrustum } from "@carma/cesium";
+import type { Degrees, Radians } from "@carma/units/types";
+import { radToDeg } from "@carma/units/helpers";
+
+/**
+ * Camera state for portal app - all angles in degrees (plain numbers)
+ * This is the external API for the portal app state
+ */
+export type CameraStateDegrees = {
+  longitude: number; // degrees
+  latitude: number; // degrees
+  height: number; // meters
+  heading?: number; // degrees
+  pitch?: number; // degrees
+  fov?: number; // degrees
+};
+
+export type StringifiedCameraState = Array<{ key: string; value: string }>;
 
 // Constants for URL parameter formatting
 const DEGREE_DIGITS = 7;
@@ -92,7 +103,29 @@ function isNumber(value: unknown): value is number {
 }
 
 /**
+ * Convert Cesium Camera to CameraStateDegrees (portal app state)
+ * Returns all angles in degrees for external consumption
+ */
+export const cameraToState = (camera: Camera): CameraStateDegrees => {
+  const { positionCartographic, pitch, heading, frustum } = camera;
+  const { longitude, latitude, height } = positionCartographic;
+  const fov = frustum instanceof PerspectiveFrustum ? frustum.fov : undefined;
+
+  const cameraState: CameraStateDegrees = {
+    longitude: radToDeg(longitude as Radians),
+    latitude: radToDeg(latitude as Radians),
+    height,
+    ...(heading !== undefined && { heading: radToDeg(heading as Radians) }),
+    ...(pitch !== undefined && { pitch: radToDeg(pitch as Radians) }),
+    ...(fov !== undefined && { fov: radToDeg(fov as Radians) }),
+  };
+
+  return cameraState;
+};
+
+/**
  * Encode Cesium camera to URL hash parameters
+ * @deprecated Use cameraToState + encodeCameraState instead
  */
 export const encodeCesiumCamera = (camera: Camera): StringifiedCameraState => {
   const { positionCartographic, pitch, heading, frustum } = camera;
@@ -119,11 +152,44 @@ export const encodeCesiumCamera = (camera: Camera): StringifiedCameraState => {
 };
 
 /**
- * Decode URL hash parameters to Cesium camera state
+ * Encode CameraStateDegrees to URL hash parameters (stringified)
+ * Note: Codecs expect radians internally, but we format as degrees in the URL
+ */
+export const encodeCameraState = (
+  state: CameraStateDegrees
+): Record<string, string> => {
+  const { longitude, latitude, height, heading, pitch, fov } = state;
+
+  // Codecs handle the degree formatting internally via formatRadians
+  // They expect numeric values (degrees are just numbers here)
+  const orderedParams: [number | undefined, HashCodec][] = [
+    [longitude as number, cameraCodec["longitude"]],
+    [latitude as number, cameraCodec["latitude"]],
+    [height as number, cameraCodec["height"]],
+    [heading as number | undefined, cameraCodec["heading"]],
+    [pitch as number | undefined, cameraCodec["pitch"]],
+    [fov as number | undefined, cameraCodec["fov"]],
+  ];
+
+  const encoded = orderedParams
+    .filter(([numberValue]) => isNumber(numberValue))
+    .reduce((acc, [numberValue, codec]) => {
+      acc[codec.key] = numberValue!.toFixed(
+        codec.key === "h" ? 2 : DEGREE_DIGITS
+      );
+      return acc;
+    }, {} as Record<string, string>);
+
+  return encoded;
+};
+
+/**
+ * Decode URL hash parameters to CameraStateDegrees (portal app state)
+ * Returns all angles in degrees for external consumption
  */
 export const decodeCesiumCamera = (
   hashParams: Record<string, string>
-): CameraState | null => {
+): CameraStateDegrees | null => {
   const decoded = Object.keys(cameraCodec).reduce((acc, key) => {
     const codec = cameraCodec[key];
     if (!codec) return acc;
@@ -140,26 +206,30 @@ export const decodeCesiumCamera = (
     return null;
   }
 
-  const position = Cartographic.fromRadians(longitude, latitude, height);
+  // Convert from radians to degrees
+  const longitudeDeg = radToDeg(longitude as Radians);
+  const latitudeDeg = radToDeg(latitude as Radians);
 
-  // Normalize pitch to Cesium's expected range
+  // Normalize pitch to Cesium's expected range in degrees
   // Input URLs may encode pitch in [0, 360). Example: 299.98° should map to -60.02°
-  let normalizedPitch: number | undefined = undefined;
+  let normalizedPitchDeg: number | undefined = undefined;
   if (isNumber(pitch)) {
-    let p = pitch as number;
-    // wrap to [-PI, PI]
-    if (p > CesiumMath.PI) p -= CesiumMath.TWO_PI;
-    if (p < -CesiumMath.PI) p += CesiumMath.TWO_PI;
-    // clamp to [-PI/2, PI/2]
-    p = CesiumMath.clamp(p, -CesiumMath.PI_OVER_TWO, CesiumMath.PI_OVER_TWO);
-    normalizedPitch = p;
+    let pDeg = radToDeg(pitch as Radians) as number;
+    // wrap to [-180, 180]
+    if (pDeg > 180) pDeg -= 360;
+    if (pDeg < -180) pDeg += 360;
+    // clamp to [-90, 90]
+    pDeg = Math.max(-90, Math.min(90, pDeg));
+    normalizedPitchDeg = pDeg;
   }
 
-  const cameraState: CameraState = {
-    position,
-    ...(heading !== null && { heading }),
-    ...(normalizedPitch !== undefined && { pitch: normalizedPitch }),
-    ...(fov !== null && { fov }),
+  const cameraState: CameraStateDegrees = {
+    longitude: longitudeDeg,
+    latitude: latitudeDeg,
+    height,
+    ...(heading !== null && { heading: radToDeg(heading as Radians) }),
+    ...(normalizedPitchDeg !== undefined && { pitch: normalizedPitchDeg }),
+    ...(fov !== null && { fov: radToDeg(fov as Radians) }),
   };
   return cameraState;
 };

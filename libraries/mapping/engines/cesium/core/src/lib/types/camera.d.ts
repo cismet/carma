@@ -37,6 +37,24 @@ export type CameraPositionAndOrientation = {
   direction: Cartesian3;
 };
 
+/**
+ * Camera view configuration using target + HeadingPitchRange
+ * Target-centric: looking AT a point from heading/pitch/range
+ * @see Camera.flyTo() with HeadingPitchRange
+ */
+export type CameraViewOptions = {
+  target: Cartesian3;
+  orientation: {
+    heading: number;
+    pitch: number;
+    range: number;
+  };
+};
+
+/**
+ * Camera lookAt configuration (DEPRECATED - use CameraViewOptions instead)
+ * @see Camera.lookAt()
+ */
 export type CameraLookAtOptions = {
   target: Cartesian3;
   offset: Cartesian3;
@@ -66,12 +84,22 @@ export type CameraPoseRadians = {
   pitch: Radians;
 };
 
-// for hash handler
+// for hash handler (internal - uses Radians via Cartographic)
 export type CameraState = {
   position: Cartographic;
-  heading?: number;
-  pitch?: number;
-  fov?: number;
+  heading?: Radians;
+  pitch?: Radians;
+  fov?: Radians;
+};
+
+// for portal app state (external - uses Degrees)
+export type CameraStateDegrees = {
+  longitude: Longitude.deg;
+  latitude: Latitude.deg;
+  height: Altitude.EllipsoidalWGS84Meters;
+  heading?: Degrees;
+  pitch?: Degrees;
+  fov?: Degrees;
 };
 
 export namespace CameraPose {

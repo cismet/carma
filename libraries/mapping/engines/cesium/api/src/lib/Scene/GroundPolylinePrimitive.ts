@@ -1,0 +1,1 @@
+export { GroundPolylinePrimitive } from "cesium";

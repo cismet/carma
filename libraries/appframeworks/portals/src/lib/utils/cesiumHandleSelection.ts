@@ -14,7 +14,7 @@ import {
   PolygonGeometry,
   type Model,
   Scene,
-} from "cesium";
+} from "@carma/cesium";
 
 import {
   addCesiumMarker,

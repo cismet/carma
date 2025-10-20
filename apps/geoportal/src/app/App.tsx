@@ -10,7 +10,7 @@ import { CrossTabCommunicationContextProvider } from "react-cismap/contexts/Cros
 // Monorepo Packages
 import {
   backgroundSettings,
-  mobileInfo,
+  // TODO: mobileInfo was removed from this import - trace usage or remove from collab package
 } from "@carma-collab/wuppertal/geoportal";
 import { CarmaMapProviderWrapper } from "@carma-appframeworks/portals";
 
@@ -24,6 +24,7 @@ import { useSyncToken } from "./hooks/useSyncToken";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 
 import { layerMap } from "./config";
+import { geoportalMapStyleConfig } from "./config/mapStyleConfig";
 import { CESIUM_CONFIG, CONFIG_BASE_URL } from "./config/app.config";
 
 import { getShowLoginModal } from "./store/slices/ui";
@@ -62,7 +63,7 @@ function App({ published }: { published?: boolean }) {
     <CarmaMapProviderWrapper
       overlayOptions={{ background: backgroundSettings }}
       cesiumOptions={CESIUM_CONFIG}
-      mapStyleConfig={mobileInfo}
+      mapStyleConfig={geoportalMapStyleConfig}
     >
       {syncToken ? (
         <CrossTabCommunicationContextProvider role="sync" token={syncToken}>

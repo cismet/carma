@@ -1,7 +1,11 @@
 import { DEFAULT_WMS_IMAGE_PROVIDER_PARAMETERS } from "../wms";
-import type { WMSLayerDetails, WMSLayerMap } from "@carma/types";
-import { ImageryProviderTypes, type ImageryResourceConfig } from "../types";
-import type { Rectangle } from "cesium";
+import type {
+  WMSLayerDetails,
+  WMSLayerMap,
+  ImageryResourceConfig,
+} from "@carma/types";
+import { ImageryProviderTypes } from "@carma/types";
+import type { Rectangle } from "@carma/cesium";
 
 const SPW2_WMTS_TILEMATRIX_LABELS = [
   "00",

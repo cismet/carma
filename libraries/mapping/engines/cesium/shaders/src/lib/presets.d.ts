@@ -1,4 +1,4 @@
-import { CustomShader, LightingModel } from "cesium";
+import { CustomShader, LightingModel } from "@carma/cesium";
 
 // Default highlight shader for selected 3D model entities
 export const DEFAULT_MODEL_HIGHLIGHT_SHADER = new CustomShader({

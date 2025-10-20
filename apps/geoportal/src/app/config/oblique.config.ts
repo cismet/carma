@@ -1,4 +1,4 @@
-import { Color } from "cesium";
+import { Color } from "@carma/cesium";
 
 import type { Degrees, Meters } from "@carma/units/types";
 import {

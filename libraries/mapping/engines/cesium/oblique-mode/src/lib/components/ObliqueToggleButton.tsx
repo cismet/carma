@@ -2,7 +2,7 @@ import { faImages, faPlane } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Button, Tooltip } from "antd";
 
-import { useOblique } from "../hooks/useOblique";
+import { useOblique } from "../context/use-oblique";
 
 type ObliqueToggleButtonProps = {
   className?: string;

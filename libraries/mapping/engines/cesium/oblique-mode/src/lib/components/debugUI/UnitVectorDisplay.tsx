@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import type { Vector3Arr } from "@carma/types";
+import type { Vec3 } from "@carma/types";
 import type { Radians } from "@carma/units/types";
 import { radToDeg } from "@carma/units/helpers";
 
@@ -13,7 +13,7 @@ const CESIUM_DEBUG_AXIS_COLORS = {
 
 interface UnitVectorDisplayProps {
   // Current XY components with Z component
-  vector: Vector3Arr;
+  vector: Vec3;
   // Control size
   baseSize?: number;
 }

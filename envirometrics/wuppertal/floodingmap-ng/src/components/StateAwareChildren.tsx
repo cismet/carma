@@ -17,9 +17,11 @@ import StyledWMSTileLayer from "react-cismap/StyledWMSTileLayer";
 import { isNumberArrayEqual } from "@carma-commons/utils";
 
 import {
-  isValidCesiumTerrainProvider,
+  // TODO: Refactor removed - isValidCesiumTerrainProvider not exported
+  // isValidCesiumTerrainProvider,
   useCesiumContext,
-  guardSampleTerrainMostDetailedAsync,
+  // TODO: Refactor removed - guardSampleTerrainMostDetailedAsync not exported
+  // guardSampleTerrainMostDetailedAsync,
 } from "@carma-mapping/engines/cesium/core";
 // TODO: Waiting for new API - selectViewerIsMode2d moved or removed
 // import { selectViewerIsMode2d } from "@carma-mapping/engines/cesium/core";

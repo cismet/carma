@@ -1,10 +1,10 @@
-import { CarmaConfig } from "@carma/types";
+import type { CarmaConfig } from "@carma/types";
 
 export const extractCarmaConfig = (
   keywords: string[] | undefined
-): CarmaConfig | null => {
-  let carmaConfig: CarmaConfig | null = {};
-  let infoboxMapping: string[] = [];
+): CarmaConfig => {
+  const carmaConfig: Partial<CarmaConfig> = {};
+  const infoboxMapping: string[] = [];
 
   if (keywords) {
     keywords.forEach((keyword) => {
@@ -15,22 +15,23 @@ export const extractCarmaConfig = (
           return;
         }
         const objectString = keyword.slice(12);
-        let colonIndex = objectString.indexOf(":");
-        const property = objectString.split(":")[0] as string;
-        let value =
+        const colonIndex = objectString.indexOf(":");
+        const property = objectString.split(":")[0] as keyof CarmaConfig;
+        const value =
           colonIndex !== -1
             ? objectString.substring(colonIndex + 1).trim()
             : "";
-        const object = { ...carmaConfig, [property]: value };
-        carmaConfig = object;
+        carmaConfig[property] = value as any;
       }
     });
   }
 
-  carmaConfig = {
-    ...carmaConfig,
-    infoboxMapping,
-  };
+  if (infoboxMapping.length > 0) {
+    return {
+      ...carmaConfig,
+      infoboxMapping,
+    };
+  }
 
   return carmaConfig;
 };

@@ -21,34 +21,33 @@ import { ContactMailButton } from "@carma-appframeworks/portals";
 import { useFeatureFlags } from "@carma/providers/feature-flag";
 
 import { ObliqueDebugSvg } from "./debugUI/ObliqueDebugSvg";
-import { ObliqueImagePreview } from "./ObliqueImagePreview";
+import { ObliqueImagePreview } from "./oblique-image-preview";
 import { ObliqueImageInfo } from "./debugUI/ObliqueImageInfo";
 import { CameraVectorControls } from "./debugUI/CameraVectorControls";
 import {
   debugComponentsContainerLeftStyle,
   debugComponentsContainerRightStyle,
 } from "./debugUI/styles";
-import { ObliqueDirectionControls } from "./ObliqueDirectionControls";
-import { ObliqueDirectionControlsCompact } from "./ObliqueDirectionControls.Compact";
-import ObliqueOrientationCube from "./ObliqueOrientationCube";
+import { ObliqueDirectionControls } from "./oblique-direction-controls";
+import { ObliqueDirectionControlsCompact } from "./oblique-direction-controls/Compact";
+import ObliqueOrientationCube from "./oblique-orientation-cube";
 
-import { useExteriorOrientation } from "../hooks/useExteriorOrientation";
-import { useFootprints } from "../hooks/useFootprints";
-import { useOblique } from "../hooks/useOblique";
-import { useObliqueCameraHandlers } from "../hooks/useObliqueCameraHandlers";
-import { useSiblingsByCardinal } from "../hooks/useSiblingsByCardinal";
-import { useObliqueDirectionKeybindings } from "../hooks/useObliqueDirectionKeybindings";
+import { useExteriorOrientation } from "../hooks/use-exterior-orientation";
+import { useFootprints } from "../hooks/use-footprints";
+import { useOblique } from "../context/use-oblique";
+import { useObliqueCameraHandlers } from "../hooks/use-oblique-camera-handlers";
+import { useSiblingsByCardinal } from "../hooks/use-siblings-by-cardinal";
+import { useObliqueDirectionKeybindings } from "../hooks/use-oblique-direction-keybindings";
 
-import { flyToExteriorOrientation } from "../utils/cameraUtils";
-import { downloadAsBlobAsync } from "../utils/downloads";
-import { getImageUrls } from "../utils/imageHandling";
 import {
+  flyToExteriorOrientation,
+  downloadAsBlobAsync,
+  getImageUrls,
   notifyPreviewVisibilityChange,
   subscribeToPreviewVisibility,
-} from "../utils/previewVisibility";
-
+  CardinalDirectionEnum,
+} from "../utils";
 import { CAMERA_ID_INTERIOR_ORIENTATION_PERCENTAGE_OFFSETS } from "../config";
-import { CardinalDirectionEnum } from "../utils/orientationUtils";
 
 interface ObliqueControlsProps {
   headingOffset?: number;

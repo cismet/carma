@@ -4,7 +4,8 @@ import {
   WUPP_TERRAIN_PROVIDER,
   WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
 } from "@carma/resources";
-import type { CesiumConfig } from "@carma/types";
+// TODO: CesiumConfig removed in refactor - using inline type
+// import type { CesiumConfig } from "@carma/types";
 
 import { APP_BASE_PATH } from "../app.config";
 

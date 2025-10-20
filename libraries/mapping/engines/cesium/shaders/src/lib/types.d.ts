@@ -1,7 +1,7 @@
+import type { LightingModel } from "@carma/cesium";
 import type {
   CustomShaderMode,
   CustomShaderTranslucencyMode,
-  LightingModel,
   UniformSpecifier,
   VaryingType,
 } from "cesium";

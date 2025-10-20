@@ -24,9 +24,9 @@ export type RotationRecord = {
 
 export type DerivedExteriorOrientation = {
   position: {
-    sourceCRS: Vector3Arr;
-    wgs84?: Vector3Arr;
-    ecef?: Vector3Arr;
+    sourceCRS: Vec3;
+    wgs84?: Vec3;
+    ecef?: Vec3;
   };
   rotation: {
     enu: {

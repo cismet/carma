@@ -3,7 +3,8 @@ import localForage from "localforage";
 import { createSelector, createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
 
-import type { LatLng, PlainCartesian3 } from "@carma/geo/types";
+import type { LatLng } from "@carma/geo/types";
+import type { PlainCartesian3 } from "@carma/cesium";
 
 import { type RootState, type CesiumState, SceneStyles } from "../..";
 import { fromPlainCartesian3 } from "../utils/cesiumSerializer";

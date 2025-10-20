@@ -9,13 +9,13 @@ import {
   CesiumContextProvider,
 } from "../lib/cesium-engine-snapshot/src";
 import { LevaProvider } from "../lib/debug/LevaProvider";
+import { METROPOLE_RUHR_WMTS_SPW2_WEBMERCATOR } from "@carma/resources";
 import {
-  BASEMAP_METROPOLE_RUHR_WMS_GRAUBLAU,
-  METROPOLERUHR_WMTS_SPW2_WEBMERCATOR,
-  WUPP_LOD2_TILESET,
-  WUPP_MESH_2024,
+  BASEMAP_METROPOLE_RUHR_SNAPSHOT,
+  WUPP_LOD2_TILESET_SNAPSHOT,
+  WUPP_MESH_2024_SNAPSHOT,
   WUPP_TERRAIN_PROVIDER,
-} from "@carma/resources";
+} from "./config/snapshot-resources";
 
 import { Navigation } from "./components/Navigation";
 import { viewerRoutes, otherRoutes } from "./routes";
@@ -36,11 +36,11 @@ export function App() {
       <CesiumContextProvider
         providerConfig={{
           terrainProvider: WUPP_TERRAIN_PROVIDER,
-          imageryProvider: BASEMAP_METROPOLE_RUHR_WMS_GRAUBLAU,
+          imageryProvider: BASEMAP_METROPOLE_RUHR_SNAPSHOT,
         }}
         tilesetConfigs={{
-          primary: WUPP_MESH_2024,
-          secondary: WUPP_LOD2_TILESET,
+          primary: WUPP_MESH_2024_SNAPSHOT,
+          secondary: WUPP_LOD2_TILESET_SNAPSHOT,
         }}
       >
         <LevaProvider>
@@ -66,7 +66,7 @@ export function App() {
                   <TopicMapContextProvider>
                     <CustomViewerPlayground
                       minimapLayerUrl={
-                        METROPOLERUHR_WMTS_SPW2_WEBMERCATOR.layers[
+                        METROPOLE_RUHR_WMTS_SPW2_WEBMERCATOR.layers[
                           "spw2_orange"
                         ].url
                       }

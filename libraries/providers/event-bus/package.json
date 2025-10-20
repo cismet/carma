@@ -1,6 +1,8 @@
 {
-  "name": "@carma/providers/event-bus",
+  "name": "@carma-providers/event-bus",
   "version": "0.0.1",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts"
 }

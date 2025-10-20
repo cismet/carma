@@ -71,12 +71,11 @@ export { TopicMapSelectionContent } from "./lib/components/TopicMapSelectionCont
 export { ProgressIndicator } from "./lib/components/ProgressIndicator";
 
 export { useSelectionTopicMap } from "./lib/hooks/useSelectionTopicMap";
-export { useSelectionCesium } from "./lib/hooks/useSelectionCesium";
+// useSelectionCesium REMOVED - use <CesiumSelectionMarker /> component from @carma-cesium/selections instead
 export { useSelectionLibreMap } from "./lib/hooks/useSelectionLibreMap";
 export { useModelSelectionHandler } from "./lib/hooks/useModelSelectionHandler";
 export { useShareUrl, SHORTENER_URL } from "./lib/hooks/useShareUrl";
 export { useProgress } from "./lib/hooks/useProgress";
-export { useCesiumModels } from "./lib/hooks/useCesiumModels";
 export { useMapHashRoutingLeafletLike } from "./lib/hooks/useMapHashRoutingLeafletLike";
 export { useSyncCesiumSceneStyle } from "./lib/hooks/useSyncCesiumSceneStyle";
 export {

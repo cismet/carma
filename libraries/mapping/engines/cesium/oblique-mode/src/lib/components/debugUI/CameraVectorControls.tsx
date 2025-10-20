@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Collapse } from "antd";
 import type { CollapseProps } from "antd";
-import type { Vector3Arr } from "@carma/types";
+import type { Vec3 } from "@carma/types";
 
 import VectorInput from "./VectorInput";
 import { UnitVectorDisplay } from "./UnitVectorDisplay";
@@ -10,9 +10,9 @@ import type { DerivedExteriorOrientation } from "../../types/orientations";
 interface CameraVectorControlsProps {
   imageId?: string;
   exteriorOrientation: DerivedExteriorOrientation;
-  directionVectorLocal: Vector3Arr;
-  upVector: Vector3Arr;
-  setUpVector: (vector: Vector3Arr) => void;
+  directionVectorLocal: Vec3;
+  upVector: Vec3;
+  setUpVector: (vector: Vec3) => void;
 }
 
 // --- Component: CameraVectorControls ---

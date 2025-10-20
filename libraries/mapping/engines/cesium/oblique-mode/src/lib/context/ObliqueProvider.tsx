@@ -18,27 +18,26 @@ import type {
   SelectedImageRefreshArgs,
 } from "../types";
 
-import { useObliqueData } from "../hooks/useObliqueData";
+import { useObliqueData } from "../hooks/use-oblique-data";
 import {
   useCesiumContext,
   getOrbitPoint,
   isValidScene,
   Color,
 } from "@carma-mapping/engines/cesium/core";
-import { useOrbitPoint } from "../hooks/useOrbitPoint";
+import { useOrbitPoint } from "../hooks/use-orbit-point";
 
-import type { CardinalDirectionEnum } from "../utils/orientationUtils";
+import type { CardinalDirectionEnum, RBushItem } from "../utils";
 import {
   getCardinalDirectionFromHeading,
   getHeadingFromCardinalDirection,
-} from "../utils/orientationUtils";
-import { calculateImageCoordsFromCartesian } from "../utils/obliqueReferenceUtils";
-import type { RBushItem } from "../utils/spatialIndexing";
+  calculateImageCoordsFromCartesian,
+} from "../utils";
 
 import { NUM_NEAREST_IMAGES } from "../config";
 import { getProj4Converter, ManagedProjections } from "@carma/geo/proj";
 import { prefetchSiblingPreviewFor } from "../utils/prefetch";
-import { useKnownSiblings } from "../hooks/useKnownSiblings";
+import { useKnownSiblings } from "../hooks/use-known-siblings";
 import { ObliqueContext } from "./ObliqueContext";
 import { PI, PI_OVER_TWO } from "@carma/units/helpers";
 import { Radians, Meters } from "@carma/units/types";
@@ -77,6 +76,7 @@ const defaultOptionalConfigOptions: Required<OptionalConfigOptions> = {
   maxFov: (PI * 0.66) as Radians,
   headingOffset: 0 as Radians, // Default no offset
   previewQualityLevel: OBLIQUE_PREVIEW_QUALITIES.LEVEL_3,
+  cameraDirectionMapping: {},
   animations: {
     flyToExteriorOrientation: {
       duration: 800,
@@ -171,7 +171,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     isLoading,
     isAllDataReady,
     exteriorOrientations,
-    footprintCenterpointsRBushByCardinals,
+    footprintCenterPointsRBushByCardinals,
     footprintData,
     error,
   } = useObliqueData(
@@ -277,7 +277,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
         }
 
         let filteredImages: NearestObliqueImageRecord[] = [];
-        const centerpoints = footprintCenterpointsRBushByCardinals;
+        const centerpoints = footprintCenterPointsRBushByCardinals;
         if (centerpoints && centerpoints.has(cameraCardinal)) {
           const sectorTree = centerpoints.get(cameraCardinal);
           if (sectorTree) {
@@ -365,7 +365,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
       converter,
       headingOffset,
       orbitPoint,
-      footprintCenterpointsRBushByCardinals,
+      footprintCenterPointsRBushByCardinals,
       setSelectedImageDistance,
       setSelectedImage,
       isObliqueMode,
@@ -567,7 +567,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     headingOffset,
     exteriorOrientations,
     footprintData,
-    footprintCenterpointsRBushByCardinals,
+    footprintCenterPointsRBushByCardinals,
     lockFootprint,
     setLockFootprint,
     suspendSelectionSearch,

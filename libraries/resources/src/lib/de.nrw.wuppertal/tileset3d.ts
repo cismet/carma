@@ -4,7 +4,7 @@ import {
   TilesetFormats,
   TilesetContentTypes,
   type TilesetResourceConfig,
-} from "../types";
+} from "@carma/types";
 
 export const WUPP_MESH_2020: TilesetResourceConfig = {
   url: "https://wupp-3d-data.cismet.de/mesh/tileset.json",

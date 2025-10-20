@@ -19,9 +19,9 @@ module.exports = {
         "**/libraries/mapping/engines/cesium/api/**",
         "**/libraries/mapping/engines/cesium/core/src/lib/widgetDefaults.ts",
       ],
-      wrapperPackages: ["@carma-mapping/engines/cesium/api"],
+      wrapperPackages: ["@carma/cesium"],
       message:
-        "Import cesium only through @carma/cesium (@carma-mapping/engines/cesium/api). Use the curated API surface for better manageability.",
+        "Import cesium only through @carma/cesium (@carma/cesium). Use the curated API surface for better manageability.",
       allowTypeImports: false,
     }),
 

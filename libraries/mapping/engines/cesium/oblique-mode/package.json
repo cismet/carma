@@ -1,5 +1,5 @@
 {
-  "name": "@carma/cesium-oblique-mode",
+  "name": "@carma-cesium/oblique-mode",
   "version": "0.0.1",
   "private": true,
   "main": "./index.js",
