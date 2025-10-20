@@ -221,6 +221,46 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
               }
             });
 
+            // Normalize measurement shapes into point features (lng,lat order)
+            shapes.forEach((shape: any) => {
+              const type = (
+                shape.shapeType ||
+                shape.shapeTy ||
+                ""
+              ).toLowerCase();
+              const coords = shape.coordinates || [];
+
+              if (type === "polygon") {
+                // coords may be [ ring1, ring2, ... ] or possibly a single ring (flat)
+                const rings = Array.isArray(coords[0][0]) ? coords : [coords];
+                rings.forEach((ring: any[]) => {
+                  ring.forEach((pt: any[]) => {
+                    // pt is [lat, lng] — swap to [lng, lat] for MapLibre
+                    coordinatePoints.push({
+                      type: "Feature",
+                      geometry: {
+                        type: "Point",
+                        coordinates: [pt[1], pt[0]],
+                      },
+                      properties: { fromShape: true, shapeId: shape.shapeId },
+                    });
+                  });
+                });
+              } else {
+                // // polyline/line: coords is array of points
+                // coords.forEach((pt: any[]) => {
+                //   coordinatePoints.push({
+                //     type: "Feature",
+                //     geometry: {
+                //       type: "Point",
+                //       coordinates: [pt[1], pt[0]], // swap lat/lng to lng/lat
+                //     },
+                //     properties: { fromShape: true, shapeId: shape.shapeId },
+                //   });
+                // });
+              }
+            });
+
             // Filter points to only those within the circle radius and calculate distances
             const filteredPointsWithDistance = coordinatePoints
               .map((pointFeature: any) => {
@@ -352,130 +392,130 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
         }
       };
     }
-  }, [routedMapRef, maplibreMap]);
+  }, [routedMapRef, maplibreMap, shapes]);
 
-  useEffect(() => {
-    const leafletMap = routedMapRef?.leafletMap?.leafletElement;
-    if (!leafletMap) return;
+  // useEffect(() => {
+  //   const leafletMap = routedMapRef?.leafletMap?.leafletElement;
+  //   if (!leafletMap) return;
 
-    const L = (window as any).L;
+  //   const L = (window as any).L;
 
-    // 1) Build flattened vertex list from shapes (runs when shapes change)
-    const buildVertices = (shapesList: any[]) => {
-      const vertices: any[] = [];
-      if (!Array.isArray(shapesList)) return vertices;
+  //   // 1) Build flattened vertex list from shapes (runs when shapes change)
+  //   const buildVertices = (shapesList: any[]) => {
+  //     const vertices: any[] = [];
+  //     if (!Array.isArray(shapesList)) return vertices;
 
-      shapesList.forEach((s) => {
-        const coords = s.coordinates || [];
-        const type = (s.shapeType || s.shapeTy || "").toLowerCase();
+  //     shapesList.forEach((s) => {
+  //       const coords = s.coordinates || [];
+  //       const type = (s.shapeType || s.shapeTy || "").toLowerCase();
 
-        if (type === "polygon") {
-          // Ensure ring structure (coords could be [ [pt,pt,...] ] or a single ring)
-          const rings = Array.isArray(coords[0][0]) ? coords : [coords];
-          rings.forEach((ring: any[]) => {
-            ring.forEach((pt) => {
-              // pt is [lat, lng]
-              vertices.push({
-                latlng: L.latLng(pt[0], pt[1]),
-                shapeId: s.shapeId ?? s.id,
-              });
-            });
-          });
-        } else {
-          // line / polyline: coords is array of [lat, lng]
-          coords.forEach((pt: any[]) => {
-            vertices.push({
-              latlng: L.latLng(pt[0], pt[1]),
-              shapeId: s.shapeId ?? s.id,
-            });
-          });
-        }
-      });
+  //       if (type === "polygon") {
+  //         // Ensure ring structure (coords could be [ [pt,pt,...] ] or a single ring)
+  //         const rings = Array.isArray(coords[0][0]) ? coords : [coords];
+  //         rings.forEach((ring: any[]) => {
+  //           ring.forEach((pt) => {
+  //             // pt is [lat, lng]
+  //             vertices.push({
+  //               latlng: L.latLng(pt[0], pt[1]),
+  //               shapeId: s.shapeId ?? s.id,
+  //             });
+  //           });
+  //         });
+  //       } else {
+  //         // line / polyline: coords is array of [lat, lng]
+  //         coords.forEach((pt: any[]) => {
+  //           vertices.push({
+  //             latlng: L.latLng(pt[0], pt[1]),
+  //             shapeId: s.shapeId ?? s.id,
+  //           });
+  //         });
+  //       }
+  //     });
 
-      return vertices;
-    };
+  //     return vertices;
+  //   };
 
-    verticesRef.current = buildVertices(shapes || []);
+  //   verticesRef.current = buildVertices(shapes || []);
 
-    // 2) Mousemove handler: compute closest vertex in container pixels
-    const onMouseMove = (e: any) => {
-      // pick query radius in pixels
-      const currentRadius = queryRadiusRef.current ?? 40;
-      const currentRadiusSq = currentRadius * currentRadius;
+  //   // 2) Mousemove handler: compute closest vertex in container pixels
+  //   const onMouseMove = (e: any) => {
+  //     // pick query radius in pixels
+  //     const currentRadius = queryRadiusRef.current ?? 40;
+  //     const currentRadiusSq = currentRadius * currentRadius;
 
-      // mouse container point (Leaflet convenience)
-      // Use leafletMap.mouseEventToContainerPoint or latlngToContainerPoint
-      // since you already have e.containerPoint sometimes; but we'll compute from client
-      const container = leafletMap.getContainer();
-      const rect = container.getBoundingClientRect();
-      // containerPoint in CSS pixels relative to container
-      const mousePoint = {
-        x: e.originalEvent.clientX - rect.left,
-        y: e.originalEvent.clientY - rect.top,
-      };
+  //     // mouse container point (Leaflet convenience)
+  //     // Use leafletMap.mouseEventToContainerPoint or latlngToContainerPoint
+  //     // since you already have e.containerPoint sometimes; but we'll compute from client
+  //     const container = leafletMap.getContainer();
+  //     const rect = container.getBoundingClientRect();
+  //     // containerPoint in CSS pixels relative to container
+  //     const mousePoint = {
+  //       x: e.originalEvent.clientX - rect.left,
+  //       y: e.originalEvent.clientY - rect.top,
+  //     };
 
-      // Prepare best
-      let best = {
-        d2: Infinity,
-        vertexLatLng: null as any,
-        shapeId: null as any,
-      };
+  //     // Prepare best
+  //     let best = {
+  //       d2: Infinity,
+  //       vertexLatLng: null as any,
+  //       shapeId: null as any,
+  //     };
 
-      const verts = verticesRef.current || [];
-      // iterate vertices and compute distance in container (pixel) space
-      for (let i = 0; i < verts.length; i++) {
-        const v = verts[i];
-        // convert vertex latlng to container point (pixel coords relative to container)
-        const pt = leafletMap.latLngToContainerPoint(v.latlng);
-        const dx = pt.x - mousePoint.x;
-        const dy = pt.y - mousePoint.y;
-        const d2 = dx * dx + dy * dy;
-        if (d2 < best.d2) {
-          best = { d2, vertexLatLng: v.latlng, shapeId: v.shapeId };
-        }
-      }
+  //     const verts = verticesRef.current || [];
+  //     // iterate vertices and compute distance in container (pixel) space
+  //     for (let i = 0; i < verts.length; i++) {
+  //       const v = verts[i];
+  //       // convert vertex latlng to container point (pixel coords relative to container)
+  //       const pt = leafletMap.latLngToContainerPoint(v.latlng);
+  //       const dx = pt.x - mousePoint.x;
+  //       const dy = pt.y - mousePoint.y;
+  //       const d2 = dx * dx + dy * dy;
+  //       if (d2 < best.d2) {
+  //         best = { d2, vertexLatLng: v.latlng, shapeId: v.shapeId };
+  //       }
+  //     }
 
-      // Create/move black cursor marker: store in ref so same instance is reused
-      if (!blackCursorRef.current) {
-        blackCursorRef.current = L.circleMarker(e.latlng, {
-          radius: 5,
-          color: "#000000",
-          weight: 1,
-          fillColor: "#000000",
-          fillOpacity: 0.8,
-          interactive: false,
-          pane: "markerPane",
-        }).addTo(leafletMap);
-      }
+  //     // Create/move black cursor marker: store in ref so same instance is reused
+  //     if (!blackCursorRef.current) {
+  //       blackCursorRef.current = L.circleMarker(e.latlng, {
+  //         radius: 5,
+  //         color: "#000000",
+  //         weight: 1,
+  //         fillColor: "#000000",
+  //         fillOpacity: 0.8,
+  //         interactive: false,
+  //         pane: "markerPane",
+  //       }).addTo(leafletMap);
+  //     }
 
-      // If best vertex inside query radius => snap to vertex; else follow mouse
-      if (best.d2 <= currentRadiusSq && best.vertexLatLng) {
-        blackCursorRef.current.setLatLng(best.vertexLatLng);
-      } else {
-        // set to raw mouse latlng (no snap)
-        blackCursorRef.current.setLatLng(e.latlng);
-      }
-    };
+  //     // If best vertex inside query radius => snap to vertex; else follow mouse
+  //     if (best.d2 <= currentRadiusSq && best.vertexLatLng) {
+  //       blackCursorRef.current.setLatLng(best.vertexLatLng);
+  //     } else {
+  //       // set to raw mouse latlng (no snap)
+  //       blackCursorRef.current.setLatLng(e.latlng);
+  //     }
+  //   };
 
-    const onMouseOut = () => {
-      if (blackCursorRef.current) {
-        leafletMap.removeLayer(blackCursorRef.current);
-        blackCursorRef.current = null;
-      }
-    };
+  //   const onMouseOut = () => {
+  //     if (blackCursorRef.current) {
+  //       leafletMap.removeLayer(blackCursorRef.current);
+  //       blackCursorRef.current = null;
+  //     }
+  //   };
 
-    leafletMap.on("mousemove", onMouseMove);
-    leafletMap.on("mouseout", onMouseOut);
+  //   leafletMap.on("mousemove", onMouseMove);
+  //   leafletMap.on("mouseout", onMouseOut);
 
-    return () => {
-      leafletMap.off("mousemove", onMouseMove);
-      leafletMap.off("mouseout", onMouseOut);
-      if (blackCursorRef.current) {
-        leafletMap.removeLayer(blackCursorRef.current);
-        blackCursorRef.current = null;
-      }
-    };
-  }, [routedMapRef, shapes]);
+  //   return () => {
+  //     leafletMap.off("mousemove", onMouseMove);
+  //     leafletMap.off("mouseout", onMouseOut);
+  //     if (blackCursorRef.current) {
+  //       leafletMap.removeLayer(blackCursorRef.current);
+  //       blackCursorRef.current = null;
+  //     }
+  //   };
+  // }, [routedMapRef, shapes]);
 
   return null;
 }
