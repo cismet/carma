@@ -1,12 +1,13 @@
 import { useEffect, useRef, useContext, useState } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { adjustClickPosition } from "../utils/helper";
+import { useMapMeasurementsContext } from "../components/MapMeasurementsProvider";
 
 export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const [queryRadius, setQueryRadius] = useState(40);
   const [toleranceRadius, setToleranceRadius] = useState(36);
-
+  const { shapes } = useMapMeasurementsContext();
   const queryRadiusRef = useRef(queryRadius);
   const toleranceRadiusRef = useRef(toleranceRadius);
   const circleMarkerRef = useRef<any>(null);
@@ -336,6 +337,10 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
       };
     }
   }, [routedMapRef, maplibreMap]);
+
+  useEffect(() => {
+    console.log("xxx shapes", shapes);
+  }, [shapes]);
 
   return null;
 }
