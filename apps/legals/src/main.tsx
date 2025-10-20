@@ -1,14 +1,12 @@
 import { StrictMode, useEffect } from "react";
 import * as ReactDOM from "react-dom/client";
 import App from "./app/App";
+import { RouterProvider, createHashRouter } from "react-router-dom";
 import {
-  RouterProvider,
-  createHashRouter,
-  useLocation,
-} from "react-router-dom";
-import {
-  Datenschutzerklärung,
-  Impressum,
+  DatenschutzerklärungGeoportal,
+  ImpressumGeoportal,
+  DatenschutzerklärungTopicMaps,
+  ImpressumTopicMaps,
 } from "@carma-collab/wuppertal/legals";
 
 // Title wrapper components
@@ -16,14 +14,28 @@ const DatenschutzWrapper = () => {
   useEffect(() => {
     document.title = "Datenschutzerklärung";
   }, []);
-  return <Datenschutzerklärung />;
+  return <DatenschutzerklärungGeoportal />;
 };
 
 const ImpressumWrapper = () => {
   useEffect(() => {
     document.title = "Impressum";
   }, []);
-  return <Impressum />;
+  return <ImpressumGeoportal />;
+};
+
+const DatenschutzTopicMapsWrapper = () => {
+  useEffect(() => {
+    document.title = "Datenschutzerklärung";
+  }, []);
+  return <DatenschutzerklärungTopicMaps />;
+};
+
+const ImpressumTopicMapsWrapper = () => {
+  useEffect(() => {
+    document.title = "Impressum";
+  }, []);
+  return <ImpressumTopicMaps />;
 };
 
 const HomeWrapper = () => {
@@ -55,11 +67,11 @@ root.render(
         },
         {
           path: "/Datenschutzerklaerung_DigiTal-Zwilling_TopicMaps",
-          element: <DatenschutzWrapper />,
+          element: <DatenschutzTopicMapsWrapper />,
         },
         {
           path: "/Impressum_DigiTal-Zwilling_TopicMaps",
-          element: <ImpressumWrapper />,
+          element: <ImpressumTopicMapsWrapper />,
         },
       ])}
     />
