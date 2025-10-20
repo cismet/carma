@@ -12,6 +12,8 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
   const toleranceRadiusRef = useRef(toleranceRadius);
   const circleMarkerRef = useRef<any>(null);
   const toleranceCircleMarkerRef = useRef<any>(null);
+  const verticesRef = useRef<{ latlng: any; shapeId?: number | string }[]>([]);
+  const blackCursorRef = useRef<any>(null);
   const isMeasurementLayer = (layer: any): boolean => {
     const className = layer?.options?.className === "custom-polyline";
 
@@ -354,58 +356,123 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
 
   useEffect(() => {
     const leafletMap = routedMapRef?.leafletMap?.leafletElement;
-
     if (!leafletMap) return;
 
-    // Import Leaflet
     const L = (window as any).L;
 
-    // Keep a ref to the black cursor circle
-    let blackCursorMarker: any = null;
+    // 1) Build flattened vertex list from shapes (runs when shapes change)
+    const buildVertices = (shapesList: any[]) => {
+      const vertices: any[] = [];
+      if (!Array.isArray(shapesList)) return vertices;
 
-    const mousemoveShapesHandler = (e: any) => {
-      // Get mouse position in pixel coordinates (optional)
+      shapesList.forEach((s) => {
+        const coords = s.coordinates || [];
+        const type = (s.shapeType || s.shapeTy || "").toLowerCase();
+
+        if (type === "polygon") {
+          // Ensure ring structure (coords could be [ [pt,pt,...] ] or a single ring)
+          const rings = Array.isArray(coords[0][0]) ? coords : [coords];
+          rings.forEach((ring: any[]) => {
+            ring.forEach((pt) => {
+              // pt is [lat, lng]
+              vertices.push({
+                latlng: L.latLng(pt[0], pt[1]),
+                shapeId: s.shapeId ?? s.id,
+              });
+            });
+          });
+        } else {
+          // line / polyline: coords is array of [lat, lng]
+          coords.forEach((pt: any[]) => {
+            vertices.push({
+              latlng: L.latLng(pt[0], pt[1]),
+              shapeId: s.shapeId ?? s.id,
+            });
+          });
+        }
+      });
+
+      return vertices;
+    };
+
+    verticesRef.current = buildVertices(shapes || []);
+
+    // 2) Mousemove handler: compute closest vertex in container pixels
+    const onMouseMove = (e: any) => {
+      // pick query radius in pixels
+      const currentRadius = queryRadiusRef.current ?? 40;
+      const currentRadiusSq = currentRadius * currentRadius;
+
+      // mouse container point (Leaflet convenience)
+      // Use leafletMap.mouseEventToContainerPoint or latlngToContainerPoint
+      // since you already have e.containerPoint sometimes; but we'll compute from client
       const container = leafletMap.getContainer();
       const rect = container.getBoundingClientRect();
-      const point = {
+      // containerPoint in CSS pixels relative to container
+      const mousePoint = {
         x: e.originalEvent.clientX - rect.left,
         y: e.originalEvent.clientY - rect.top,
       };
 
-      // Create or move the black circle marker
-      const latlng = e.latlng;
+      // Prepare best
+      let best = {
+        d2: Infinity,
+        vertexLatLng: null as any,
+        shapeId: null as any,
+      };
 
-      if (!blackCursorMarker) {
-        blackCursorMarker = L.circleMarker(latlng, {
-          radius: 5, // ⬅️ size of the circle
-          color: "#000000", // stroke color
-          weight: 1, // stroke width
-          fillColor: "#000000", // fill color
-          fillOpacity: 0.8, // fill opacity
-          pane: "markerPane", // keeps it above base layers
-          interactive: false, // makes it not clickable
+      const verts = verticesRef.current || [];
+      // iterate vertices and compute distance in container (pixel) space
+      for (let i = 0; i < verts.length; i++) {
+        const v = verts[i];
+        // convert vertex latlng to container point (pixel coords relative to container)
+        const pt = leafletMap.latLngToContainerPoint(v.latlng);
+        const dx = pt.x - mousePoint.x;
+        const dy = pt.y - mousePoint.y;
+        const d2 = dx * dx + dy * dy;
+        if (d2 < best.d2) {
+          best = { d2, vertexLatLng: v.latlng, shapeId: v.shapeId };
+        }
+      }
+
+      // Create/move black cursor marker: store in ref so same instance is reused
+      if (!blackCursorRef.current) {
+        blackCursorRef.current = L.circleMarker(e.latlng, {
+          radius: 5,
+          color: "#000000",
+          weight: 1,
+          fillColor: "#000000",
+          fillOpacity: 0.8,
+          interactive: false,
+          pane: "markerPane",
         }).addTo(leafletMap);
+      }
+
+      // If best vertex inside query radius => snap to vertex; else follow mouse
+      if (best.d2 <= currentRadiusSq && best.vertexLatLng) {
+        blackCursorRef.current.setLatLng(best.vertexLatLng);
       } else {
-        blackCursorMarker.setLatLng(latlng);
+        // set to raw mouse latlng (no snap)
+        blackCursorRef.current.setLatLng(e.latlng);
       }
     };
 
-    const mouseoutHandler = () => {
-      if (blackCursorMarker) {
-        leafletMap.removeLayer(blackCursorMarker);
-        blackCursorMarker = null;
+    const onMouseOut = () => {
+      if (blackCursorRef.current) {
+        leafletMap.removeLayer(blackCursorRef.current);
+        blackCursorRef.current = null;
       }
     };
 
-    leafletMap.on("mousemove", mousemoveShapesHandler);
-    leafletMap.on("mouseout", mouseoutHandler);
+    leafletMap.on("mousemove", onMouseMove);
+    leafletMap.on("mouseout", onMouseOut);
 
     return () => {
-      leafletMap.off("mousemove", mousemoveShapesHandler);
-      leafletMap.off("mouseout", mouseoutHandler);
-      if (blackCursorMarker) {
-        leafletMap.removeLayer(blackCursorMarker);
-        blackCursorMarker = null;
+      leafletMap.off("mousemove", onMouseMove);
+      leafletMap.off("mouseout", onMouseOut);
+      if (blackCursorRef.current) {
+        leafletMap.removeLayer(blackCursorRef.current);
+        blackCursorRef.current = null;
       }
     };
   }, [routedMapRef, shapes]);
