@@ -147,9 +147,9 @@ L.Control.MeasurePolygon = L.Control.extend({
 
     this._measureHandler.enable();
 
-    const latlng = event.latlng;
-
-    console.log("xxx snappingLatlng", this.options.snappingLatlng);
+    const latlng = this.options.snappingLatlng
+      ? this.options.snappingLatlng
+      : event.latlng;
 
     this.options.currenLine.addVertex(latlng);
 

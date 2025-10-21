@@ -7,7 +7,7 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const [queryRadius, setQueryRadius] = useState(40);
   const [toleranceRadius, setToleranceRadius] = useState(36);
-  const { shapes, mapMovingEnd: isMapMoving } = useMapMeasurementsContext();
+  const { shapes, setSnappingLatlng } = useMapMeasurementsContext();
   const queryRadiusRef = useRef(queryRadius);
   const toleranceRadiusRef = useRef(toleranceRadius);
   const circleMarkerRef = useRef<any>(null);
@@ -298,6 +298,11 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
               }
             }
             closestPoint = blackPoint[0];
+
+            const [lng, lat] = closestPoint.geometry.coordinates;
+            const finalLatLng = L.latLng(lat, lng);
+
+            setSnappingLatlng(finalLatLng);
 
             // Update highlight source with only the black point
             maplibreMap.getSource("highlight").setData({
