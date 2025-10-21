@@ -1,6 +1,9 @@
-import { Camera, Cartesian2, CesiumMath, type Scene } from "@carma/cesium";
+import { Camera, Cartesian2, Cartesian3, CesiumMath, type Scene } from "@carma/cesium";
 
 import type { Radians } from "@carma/units/types";
+
+// Camera direction when pointing straight down (nadir)
+const TOP_DOWN_DIRECTION = new Cartesian3(0, 0, -1);
 
 export const getCesiumFrustumPixelDimensionsForDistance = (
   scene: Scene,
@@ -53,6 +56,19 @@ export const getCesiumFrustumPixelDimensionsForDistance = (
     y,
     average: (x + y) / 2,
   };
+};
+
+/**
+ * Calculates the angular deviation between the camera's current direction and top-down (nadir) direction.
+ * Used for determining transition animation duration based on how far the camera needs to rotate.
+ *
+ * @param camera - The camera to measure deviation from
+ * @returns The angle in radians between current camera direction and straight down
+ */
+export const getTopDownCameraDeviationAngle = (camera: Camera): Radians => {
+  const currentDirection = camera.direction;
+  const angle = Cartesian3.angleBetween(currentDirection, TOP_DOWN_DIRECTION);
+  return Math.abs(angle) as Radians;
 };
 
 /**

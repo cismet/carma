@@ -39,17 +39,8 @@ export const getOrbitPoint = (scene: Scene): Cartesian3 | undefined => {
   let target: Cartesian3 | undefined = undefined;
 
   tryWithValidScene(scene, (scene) => {
-    // Reset scratch object to prevent accumulation
-    scratchScreenCenter.x = 0;
-    scratchScreenCenter.y = 0;
-
-    // Safety: clamp canvas dimensions to reasonable values
-    const MAX_DIMENSION = 4000;
-    const width = Math.min(scene.canvas.clientWidth, MAX_DIMENSION);
-    const height = Math.min(scene.canvas.clientHeight, MAX_DIMENSION);
-
-    scratchScreenCenter.x = width / 2;
-    scratchScreenCenter.y = height / 2;
+    scratchScreenCenter.x = scene.canvas.clientWidth / 2;
+    scratchScreenCenter.y = scene.canvas.clientHeight / 2;
     const ray = scene.camera.getPickRay(scratchScreenCenter);
     if (!ray) {
       return;

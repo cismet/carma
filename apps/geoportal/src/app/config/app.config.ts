@@ -41,16 +41,32 @@ export const CESIUM_CONFIG: Partial<CesiumConfig> = {
     modeTo3d: {
       step1_prepare2dView: {
         maxZoom: 20,
-        zoomOutDuration: 700,
+        zoomOutDurationMs: 700,
+        zoomOutTimeoutBufferMs: 100,
       },
-      step2_cameraAnimation: {
-        duration: 1000,
+      step2_initialRender: {
+        timeoutMs: 500,
+      },
+      step3_waitForResources: {
+        timeoutMs: 2000,
+      },
+      // step4_positionCamera: synchronous, no config needed
+      step5_cssFadeIn: {
+        durationMs: 1000,
+      },
+      step6_cameraAnimation: {
+        durationMs: 2000,
       },
     },
     modeTo2d: {
-      durationFactorCameraDeviation: 2,
-      durationFactorZoomDiff: 1,
-      maxDuration: 5,
+      step2_cameraTiltAnimation: {
+        durationFactorCameraDeviationMs: 1500,
+        durationFactorZoomDiffMs: 500,
+        maxDurationMs: 2000,
+      },
+      step3_cssFadeOut: {
+        durationMs: 1000,
+      },
     },
   },
   
@@ -69,9 +85,9 @@ export const CESIUM_CONFIG: Partial<CesiumConfig> = {
   },
   
   screenSpaceCameraController: {
-    enableCollisionDetection: true,
+    enableCollisionDetection: false, // Disabled to prevent camera jumps during transitions
     maximumZoomDistance: 50000,
-    minimumZoomDistance: 100,
+    minimumZoomDistance: 1, // Reduced to allow very close zoom
   },
   
   // New SceneStyleConfig format with sources and styles

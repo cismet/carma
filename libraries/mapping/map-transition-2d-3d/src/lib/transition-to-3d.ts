@@ -2,7 +2,6 @@ import type { MutableRefObject } from "react";
 import type { Map as LeafletMap } from "leaflet";
 import type { Scene, CesiumWidget } from "cesium";
 import {
-  Cartesian3,
   HeadingPitchRange,
   isValidScene,
   tryWithValidCamera,
@@ -65,14 +64,25 @@ export const createTransitionTo3d = (params: TransitionTo3dParams) => {
     onCancel,
   } = params;
 
-  const { step1_prepare2dView, step2_cameraAnimation } = config;
   const {
-    maxZoom,
-    zoomOutDuration,
-    zoomOutEaseLinearity,
-    zoomOutTimeoutBuffer,
+    step1_prepare2dView = {},
+    step2_initialRender = {},
+    step3_waitForResources = {},
+    step5_cssFadeIn = {},
+    step6_cameraAnimation = {},
+  } = config;
+
+  const {
+    maxZoom = 20,
+    zoomOutDurationMs = 700,
+    zoomOutEaseLinearity = 0.75,
+    zoomOutTimeoutBufferMs = 100,
   } = step1_prepare2dView;
-  const duration = step2_cameraAnimation.duration;
+
+  const { timeoutMs: initialRenderTimeoutMs = 500 } = step2_initialRender;
+  const { timeoutMs: resourcesTimeoutMs = 2000 } = step3_waitForResources;
+  const { durationMs: cssFadeInDurationMs = 1000 } = step5_cssFadeIn;
+  const { durationMs: cameraAnimationDurationMs = 2000 } = step6_cameraAnimation;
 
   const prepareLeafletForTransition = async (
     leaflet: LeafletMap | null | undefined
@@ -103,8 +113,7 @@ export const createTransitionTo3d = (params: TransitionTo3dParams) => {
 
     try {
       if (shouldZoomOut && Number.isFinite(maxZoom)) {
-        const durationMs = Math.max(0, zoomOutDuration);
-        const durationSeconds = durationMs / 1000;
+        const durationSeconds = Math.max(0, zoomOutDurationMs) / 1000;
         leaflet.flyTo(leaflet.getCenter(), maxZoom, {
           duration: durationSeconds,
           animate: durationSeconds > 0,
@@ -114,7 +123,7 @@ export const createTransitionTo3d = (params: TransitionTo3dParams) => {
 
       if (moveEndPromise) {
         const timeoutMs =
-          Math.max(0, zoomOutDuration) + Math.max(0, zoomOutTimeoutBuffer);
+          Math.max(0, zoomOutDurationMs) + Math.max(0, zoomOutTimeoutBufferMs);
         await promiseWithTimeout(moveEndPromise, timeoutMs);
       }
     } finally {
@@ -195,7 +204,7 @@ export const createTransitionTo3d = (params: TransitionTo3dParams) => {
           pos,
           last3dCameraOrientation,
           {
-            delay: 500, // Wait for CSS fade-in to complete
+            delay: cssFadeInDurationMs, // Wait for CSS fade-in to complete
             duration: last3dAnimationDuration * 1000,
             useCurrentDistance: true,
             cancelable: true,
@@ -214,8 +223,8 @@ export const createTransitionTo3d = (params: TransitionTo3dParams) => {
           undefined // keep current distance
         );
         animateInterpolateHeadingPitchRange(scene, pos, obliqueHPR, {
-          delay: 500, // Wait for CSS fade-in to complete
-          duration: duration, // Use config duration (1000ms default)
+          delay: cssFadeInDurationMs, // Wait for CSS fade-in to complete
+          duration: cameraAnimationDurationMs, // Use config duration (1000ms default)
           useCurrentDistance: true,
           cancelable: true,
           onComplete: onComplete3d,
@@ -266,7 +275,7 @@ export const createTransitionTo3d = (params: TransitionTo3dParams) => {
     // Request initial render to start loading and wait for it
     scene.requestRender();
     try {
-      await promiseWithTimeout(waitForAnimationFrames(1), 500, {
+      await promiseWithTimeout(waitForAnimationFrames(1), initialRenderTimeoutMs, {
         timeoutValue: undefined,
       });
       console.log("[CESIUM|2D3D|TO3D] ✓ Initial render completed");
@@ -279,7 +288,7 @@ export const createTransitionTo3d = (params: TransitionTo3dParams) => {
     );
     // Wait for all visible tilesets to load their initial tiles BEFORE positioning camera
     console.log(
-      "[CESIUM|2D3D|TO3D] Waiting for SceneResourcesReady event (timeout: 10s)..."
+      `[CESIUM|2D3D|TO3D] Waiting for SceneResourcesReady event (timeout: ${resourcesTimeoutMs}ms)...`
     );
     const resourcesStartTime = Date.now();
     try {
@@ -294,7 +303,7 @@ export const createTransitionTo3d = (params: TransitionTo3dParams) => {
             resolve();
           });
         }),
-        10000, // 10 second timeout for resource loading
+        resourcesTimeoutMs,
         "Scene resources ready timeout"
       );
     } catch (err) {
@@ -389,7 +398,6 @@ export const createTransitionTo3d = (params: TransitionTo3dParams) => {
     } else {
       console.warn("[CESIUM|2D3D|TO3D] ✗ Transition not completed, cancelling");
       onCancel(false);
-      return;
     }
   };
 };

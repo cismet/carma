@@ -74,9 +74,39 @@ describe("commons/utils mercator", () => {
       zoom,
       latitude
     );
-    expect(expectedResolution).toBeCloseTo(
-      EARTH_CIRCUMFERENCE / DEFAULT_LEAFLET_TILESIZE
-    );
+    // At zoom 0, should be earth circumference / tile size
+    const earthCircumferencePerTile =
+      EARTH_CIRCUMFERENCE / DEFAULT_LEAFLET_TILESIZE;
+    expect(expectedResolution).toBeCloseTo(earthCircumferencePerTile, 0);
+  });
+
+  test("ABSOLUTE: zoom 0 at equator should be ~156543 m/px (Web Mercator standard)", () => {
+    // Known correct value: at zoom 0, equator, one 256px tile covers Earth
+    // Resolution = 40075017m / 256px ≈ 156543.03 m/px
+    const zoom = 0;
+    const latitude = 0 as Radians;
+    const resolution = getPixelResolutionFromZoomAtLatitudeRad(zoom, latitude);
+    
+    // Standard Web Mercator value
+    expect(resolution).toBeCloseTo(156543.03, 0);
+  });
+
+  test("ABSOLUTE: zoom 19 at equator should be ~0.298 m/px", () => {
+    // At zoom 19: resolution = 156543.03 / 2^19 ≈ 0.2985 m/px
+    const zoom = 19;
+    const latitude = 0 as Radians;
+    const resolution = getPixelResolutionFromZoomAtLatitudeRad(zoom, latitude);
+    
+    expect(resolution).toBeCloseTo(0.2985, 3);
+  });
+
+  test("ABSOLUTE: reverse - 0.3 m/px at equator should be ~zoom 19", () => {
+    // Verify the inverse: if we have ~0.3 m/px, we should get zoom ~19
+    const meterResolution = 0.3 as Meters;
+    const latitude = 0 as Radians;
+    const zoom = getZoomFromPixelResolutionAtLatitudeRad(meterResolution, latitude);
+    
+    expect(zoom).toBeCloseTo(19, 0);
   });
 
   test("round trip from zoom to resolution", () => {

@@ -133,8 +133,18 @@ export const cesiumCenterPixelSizeToLeafletZoom = (
     return { value: null, error: "No pixel size found for camera position" };
   }
   let result: NumericResult = { value: null, error: "no camera found" };
+  // Apply inverse DPR factor for Leaflet compatibility
+  // Leaflet uses retina tiles but logical zoom levels, so we need to adjust
+  const actualDPR = window.devicePixelRatio || 1;
+  const LEAFLET_DPR_FACTOR = 1 / actualDPR;
+  const adjustedPixelResolution = (px / LEAFLET_DPR_FACTOR) as Meters;
+  
+  console.debug(
+    `[CESIUM->LEAFLET] Converting px=${px.toFixed(4)}m/px with DPR=${actualDPR} → adjusted=${adjustedPixelResolution.toFixed(4)}m/px`
+  );
+  
   const zoom = getZoomFromPixelResolutionAtLatitudeRad(
-    px as Meters,
+    adjustedPixelResolution,
     scene.camera.positionCartographic.latitude as Radians
   );
 

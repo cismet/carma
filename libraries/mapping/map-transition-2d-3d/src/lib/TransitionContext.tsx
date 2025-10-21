@@ -23,28 +23,46 @@ export type MapTransitionLifecycle = {
 export interface TransitionTo3dConfig {
   step1_prepare2dView?: {
     maxZoom?: number;
-    zoomOutDuration?: number;
+    zoomOutDurationMs?: number;
     zoomOutEaseLinearity?: number;
-    zoomOutTimeoutBuffer?: number;
+    zoomOutTimeoutBufferMs?: number;
   };
-  step2_cameraAnimation?: {
-    duration?: number;
+  step2_initialRender?: {
+    timeoutMs?: number;
+  };
+  step3_waitForResources?: {
+    timeoutMs?: number;
+  };
+  step4_positionCamera?: {
+    /** Camera positioning is synchronous, no duration needed */
+  };
+  step5_cssFadeIn?: {
+    durationMs?: number;
+  };
+  step6_cameraAnimation?: {
+    durationMs?: number;
   };
 }
 
 export interface TransitionTo2dConfig {
-  durationFactorCameraDeviation?: number;
-  durationFactorZoomDiff?: number;
-  maxDuration?: number;
+  step1_calculatePosition?: {
+    /** No timing config needed for synchronous calculations */
+  };
+  step2_cameraTiltAnimation?: {
+    durationFactorCameraDeviationMs?: number;
+    durationFactorZoomDiffMs?: number;
+    maxDurationMs?: number;
+  };
+  step3_cssFadeOut?: {
+    durationMs?: number;
+  };
 }
 
 /**
  * Configuration for map transitions between 2D and 3D modes
  */
 export interface TransitionConfig {
-  /** Settings for 2D → 3D transition */
   modeTo3d?: TransitionTo3dConfig;
-  /** Settings for 3D → 2D transition */
   modeTo2d?: TransitionTo2dConfig;
 }
 

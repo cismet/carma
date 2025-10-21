@@ -4,22 +4,13 @@ import { useCesiumContext } from "../../../context/hooks/use-cesium-context";
 import { CtxEvent } from "../../../context/cesium-context-event-map";
 
 type LoadedTilesets = Map<string, Cesium3DTileset>;
-type ProgressTrackers = Map<string, number>;
 type TileLoadCounters = Map<string, number>;
-
-const calculateProgress = (pending: number, processing: number): number => {
-  const isLoading = pending + processing > 0;
-  const total = pending + processing;
-  return isLoading ? Math.max(0, 100 - total) : 100;
-};
 
 export const useTilesetProgress = (
   loadedTilesets: LoadedTilesets,
-  minTileCount: number = 4,
-  enabled: boolean = false // Only for UI progress bars
+  minTileCount: number = 4
 ) => {
   const { emit } = useCesiumContext();
-  const progressTrackersRef = useRef<ProgressTrackers>(new Map());
   const tileLoadCountersRef = useRef<TileLoadCounters>(new Map());
   const initialTilesFiredRef = useRef<Set<string>>(new Set());
   const hasEmittedReadyRef = useRef(false);
@@ -53,12 +44,15 @@ export const useTilesetProgress = (
 
   const attachProgressListener = (id: string, tileset: Cesium3DTileset) => {
     // Check if tiles are already loaded (e.g., from cache)
+    const currentTilesProcessing = tileset.statistics?.numberOfTilesProcessing ?? 0;
     const currentTilesLoaded = tileset.statistics?.numberOfTilesLoaded ?? 0;
-    tileLoadCountersRef.current.set(id, currentTilesLoaded);
+    const totalTiles = currentTilesProcessing + currentTilesLoaded;
+    
+    tileLoadCountersRef.current.set(id, totalTiles);
 
-    if (currentTilesLoaded >= minTileCount) {
+    if (totalTiles >= minTileCount) {
       console.log(
-        `[TILESET|READY] ${id}: Already loaded (tilesLoaded=${currentTilesLoaded}, minRequired=${minTileCount})`
+        `[TILESET|READY] ${id}: Already has tiles (processing=${currentTilesProcessing}, loaded=${currentTilesLoaded}, total=${totalTiles}, minRequired=${minTileCount})`
       );
       initialTilesFiredRef.current.add(id);
       checkAndEmitSceneReady();
@@ -66,45 +60,59 @@ export const useTilesetProgress = (
     }
 
     // Track tile loading to know when we have enough tiles
-    const handleTileLoad = () => {
+    const checkReadyState = () => {
+      const tilesProcessing = tileset.statistics?.numberOfTilesProcessing ?? 0;
       const tilesLoaded = tileset.statistics?.numberOfTilesLoaded ?? 0;
-      tileLoadCountersRef.current.set(id, tilesLoaded);
+      const totalTiles = tilesProcessing + tilesLoaded;
+      
+      tileLoadCountersRef.current.set(id, totalTiles);
 
       const wasReady = initialTilesFiredRef.current.has(id);
-      const isReady = tilesLoaded >= minTileCount;
+      const isReady = totalTiles >= minTileCount;
 
       if (!wasReady && isReady) {
         console.log(
-          `[TILESET|READY] ${id}: Reached minimum tiles (tilesLoaded=${tilesLoaded}, minRequired=${minTileCount})`
+          `[TILESET|READY] ${id}: Reached minimum tiles (processing=${tilesProcessing}, loaded=${tilesLoaded}, total=${totalTiles}, minRequired=${minTileCount})`
         );
         initialTilesFiredRef.current.add(id);
 
-        // Unregister since we're now ready
-        tileset.tileLoad.removeEventListener(handleTileLoad);
+        // Unregister listeners since we're now ready
+        tileset.tileLoad.removeEventListener(checkReadyState);
+        tileset.loadProgress.removeEventListener(handleLoadProgress);
 
         // Check if scene is ready
         checkAndEmitSceneReady();
       }
     };
 
-    // Start listening for tile loads immediately
-    tileset.tileLoad.addEventListener(handleTileLoad);
+    // Listen to loadProgress (fires continuously during loading)
+    const handleLoadProgress = () => {
+      checkReadyState();
+    };
+    
+    tileset.loadProgress.addEventListener(handleLoadProgress);
+    
+    // Also listen to tileLoad as fallback
+    tileset.tileLoad.addEventListener(checkReadyState);
 
     // Also check initial state (in case tiles loaded before listener attached)
     const handleInitialTilesLoaded = () => {
+      const tilesProcessing = tileset.statistics?.numberOfTilesProcessing ?? 0;
       const tilesLoaded = tileset.statistics?.numberOfTilesLoaded ?? 0;
-      const isReady = tilesLoaded >= minTileCount;
+      const totalTiles = tilesProcessing + tilesLoaded;
+      const isReady = totalTiles >= minTileCount;
 
       console.log(
-        `[TILESET|READY] ${id}: initialTilesLoaded event (tilesLoaded=${tilesLoaded}, minRequired=${minTileCount}, ready=${isReady})`
+        `[TILESET|READY] ${id}: initialTilesLoaded event (processing=${tilesProcessing}, loaded=${tilesLoaded}, total=${totalTiles}, minRequired=${minTileCount}, ready=${isReady})`
       );
 
       if (isReady) {
         initialTilesFiredRef.current.add(id);
-        tileLoadCountersRef.current.set(id, tilesLoaded);
+        tileLoadCountersRef.current.set(id, totalTiles);
 
-        // Unregister tile load listener since we're ready
-        tileset.tileLoad.removeEventListener(handleTileLoad);
+        // Unregister all listeners since we're ready
+        tileset.tileLoad.removeEventListener(checkReadyState);
+        tileset.loadProgress.removeEventListener(handleLoadProgress);
 
         // Check if scene is ready
         checkAndEmitSceneReady();
@@ -116,20 +124,6 @@ export const useTilesetProgress = (
 
     // Register the initialTilesLoaded listener
     tileset.initialTilesLoaded.addEventListener(handleInitialTilesLoaded);
-
-    // Optional: Start tracking ongoing progress for UI (only if enabled)
-    if (enabled) {
-      const handleLoadProgress = (pending: number, processing: number) => {
-        const progress = calculateProgress(pending, processing);
-        progressTrackersRef.current.set(id, progress);
-
-        console.log(
-          `[TILESET|PROGRESS] ${id}: pending=${pending}, processing=${processing}, progress=${progress}%`
-        );
-      };
-
-      tileset.loadProgress.addEventListener(handleLoadProgress);
-    }
   };
 
   const updateProgress = () => {
@@ -139,12 +133,10 @@ export const useTilesetProgress = (
 
   useEffect(() => {
     // Capture refs at effect setup time
-    const progressTrackers = progressTrackersRef.current;
     const tileLoadCounters = tileLoadCountersRef.current;
     const initialTilesFired = initialTilesFiredRef.current;
 
     return () => {
-      progressTrackers.clear();
       tileLoadCounters.clear();
       initialTilesFired.clear();
       hasEmittedReadyRef.current = false;

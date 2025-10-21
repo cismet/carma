@@ -5,6 +5,7 @@ import {
   useCesiumContext,
   CtxEvent,
 } from "@carma-mapping/engines/cesium/core";
+import { useTransitionContext } from "@carma-mapping/map-transition-2d-3d";
 
 // useSelectionCesium REMOVED - use declarative <CesiumSelectionMarker /> from @carma-cesium/selections
 // useCesiumModels REMOVED - use declarative <CesiumModel /> from @carma-cesium/models
@@ -19,6 +20,11 @@ export const CesiumMapComponentWrapper = () => {
   const cesiumContainerRef = useRef<HTMLDivElement | null>(null);
   const containerStyleRef = useRef<HTMLDivElement | null>(null);
   const { subscribe, activationCount } = useCesiumContext();
+  const { config: transitionConfig } = useTransitionContext();
+
+  // Get CSS fade durations from config
+  const cssFadeInDurationMs = transitionConfig.modeTo3d?.step5_cssFadeIn?.durationMs ?? 1000;
+  const cssFadeOutDurationMs = transitionConfig.modeTo2d?.step3_cssFadeOut?.durationMs ?? 1000;
 
   // Use refs to avoid re-renders - all state managed via event bus
   const isSuspendedRef = useRef(true); // Start suspended (2D mode)
@@ -81,6 +87,9 @@ export const CesiumMapComponentWrapper = () => {
     const updateVisibility = (isSuspended: boolean) => {
       isSuspendedRef.current = isSuspended;
       if (containerStyleRef.current) {
+        // Update transition duration based on direction
+        const transitionDuration = isSuspended ? cssFadeOutDurationMs : cssFadeInDurationMs;
+        containerStyleRef.current.style.transition = `opacity ${transitionDuration}ms ease-in-out`;
         containerStyleRef.current.style.opacity = isSuspended ? "0" : "1";
         containerStyleRef.current.style.pointerEvents = isSuspended
           ? "none"
@@ -112,7 +121,7 @@ export const CesiumMapComponentWrapper = () => {
       unsubSceneVisible();
       unsubSuspend();
     };
-  }, [subscribe]);
+  }, [subscribe, cssFadeInDurationMs, cssFadeOutDurationMs]);
 
   // Initialize Cesium camera change handler for hash routing
   const hashRoutingHandler = useMapHashRoutingCesium();
@@ -135,7 +144,7 @@ export const CesiumMapComponentWrapper = () => {
         bottom: 0,
         zIndex: 400,
         opacity: 0, // Initial state: hidden (updated by useEffect)
-        transition: "opacity 300ms ease-in-out",
+        transition: `opacity ${cssFadeOutDurationMs}ms ease-in-out`, // Initial: fade-out duration (updated by useEffect)
         pointerEvents: "none", // Initial state: no interaction (updated by useEffect)
       }}
     >

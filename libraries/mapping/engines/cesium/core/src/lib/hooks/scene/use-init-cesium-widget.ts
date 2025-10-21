@@ -112,6 +112,26 @@ export const useInitCesiumWidget = (
       sceneRef.current = widget.scene;
       isInitializedRef.current = true;
 
+      // Apply screenSpaceCameraController settings from config
+      const sscc = widget.scene.screenSpaceCameraController;
+      if (config?.screenSpaceCameraController) {
+        const ssccConfig = config.screenSpaceCameraController;
+        if (ssccConfig.enableCollisionDetection !== undefined) {
+          sscc.enableCollisionDetection = ssccConfig.enableCollisionDetection;
+        }
+        if (ssccConfig.minimumZoomDistance !== undefined) {
+          sscc.minimumZoomDistance = ssccConfig.minimumZoomDistance;
+        }
+        if (ssccConfig.maximumZoomDistance !== undefined) {
+          sscc.maximumZoomDistance = ssccConfig.maximumZoomDistance;
+        }
+        console.debug("[CESIUM|INIT] ScreenSpaceCameraController configured", {
+          enableCollisionDetection: sscc.enableCollisionDetection,
+          minimumZoomDistance: sscc.minimumZoomDistance,
+          maximumZoomDistance: sscc.maximumZoomDistance,
+        });
+      }
+
       const handlePostRender = () => {
         const scene = sceneRef.current;
         const widget = widgetRef.current;
