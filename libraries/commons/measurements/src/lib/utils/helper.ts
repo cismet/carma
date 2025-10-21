@@ -65,8 +65,6 @@ export const adjustClickPositionLeaflet = (
   if (!closestPoint) {
     return false;
   }
-  console.log("xxx closestPoint", closestPoint);
-
   // const [lng, lat] = closestPoint.geometry.coordinates;
   // const finalLatLng = L.latLng(lat, lng);
 

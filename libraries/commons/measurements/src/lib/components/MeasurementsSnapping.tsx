@@ -362,7 +362,7 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
         leafletMap.off("mousemove", mousemoveHandler);
         leafletMap.off("mouseout", mouseoutHandler);
         mapContainer.removeEventListener("mouseup", adjustClickPosition);
-        mapContainer.removeEventListener("click", adjustClickPosition);
+        // mapContainer.removeEventListener("click", adjustClickPosition);
         if (circleMarkerRef.current) {
           leafletMap.removeLayer(circleMarkerRef.current);
           circleMarkerRef.current = null;
@@ -473,10 +473,13 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
       if (best.d2 <= currentRadiusSq && best.vertexLatLng) {
         closestPointRef.current = best.vertexLatLng;
         blackCursorRef.current.setLatLng(best.vertexLatLng);
+        if (setSnappingLatlng && best.vertexLatLng) {
+          setSnappingLatlng(best.vertexLatLng);
+        }
       } else {
         // set to raw mouse latlng (no snap)
         closestPointRef.current = e.latlng;
-        blackCursorRef.current.setLatLng(e.latlng);
+        // blackCursorRef.current.setLatLng(e.latlng);
       }
     };
 
@@ -507,6 +510,7 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
     return () => {
       leafletMap.off("mousemove", onMouseMove);
       leafletMap.off("mouseout", onMouseOut);
+      mapContainer.removeEventListener("mouseup", adjustClickPositionLeaflet);
       if (blackCursorRef.current) {
         leafletMap.removeLayer(blackCursorRef.current);
         blackCursorRef.current = null;
