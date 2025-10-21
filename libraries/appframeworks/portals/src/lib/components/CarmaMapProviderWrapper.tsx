@@ -3,7 +3,7 @@ import { useMemo } from "react";
 import { OverlayTourProvider } from "@carma-commons/ui/helper-overlay";
 import { CesiumContextProvider } from "@carma-mapping/engines/cesium/core";
 import { CarmaTopicMapContextProvider } from "@carma-mapping/engines/carma-cismap";
-import { TransitionContextProvider } from "@carma-mapping/map-transition-2d-3d";
+import { TransitionContextProvider, type TransitionConfig } from "@carma-mapping/map-transition-2d-3d";
 import { MapViewStateProvider } from "@carma-mapping/map-view-state";
 
 import { normalizeOptions } from "@carma-commons/utils";
@@ -31,6 +31,7 @@ type CarmaMapProviderWrapperProps = {
   children: React.ReactNode;
   overlayOptions: { background: { transparency: number; color: string } };
   cesiumOptions: any;
+  transitionsConfig?: TransitionConfig;
   gazDataConfig?: GazDataConfig;
   mapStyleConfig: MapStyleConfig;
   hashKeyAliases?: Record<string, string>;
@@ -48,6 +49,7 @@ export const CarmaMapProviderWrapper = ({
   children,
   overlayOptions,
   cesiumOptions,
+  transitionsConfig,
   gazDataConfig = defaultGazDataConfig,
   mapStyleConfig,
   hashKeyAliases,
@@ -101,9 +103,7 @@ export const CarmaMapProviderWrapper = ({
                 onModelSelectionChange={onModelSelectionChange}
               >
                 <MapStyleProvider config={mapStyleConfig}>
-                  <TransitionContextProvider
-                    config={cesiumOptions?.transitions}
-                  >
+                  <TransitionContextProvider config={transitionsConfig}>
                     <CarmaTopicMapContextProvider infoBoxPixelWidth={350}>
                       <OverlayTourProvider
                         transparency={transparency}

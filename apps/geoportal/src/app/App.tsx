@@ -47,6 +47,7 @@ import { geoportalMapStyleConfig } from "./config/mapStyleConfig";
 
 import {
   CESIUM_CONFIG,
+  TRANSITIONS_CONFIG,
   CONFIG_BASE_URL,
   VIEWERSTATE_KEYS,
 } from "./config/app.config";
@@ -110,6 +111,7 @@ function App({ published }: { published?: boolean }) {
         <CesiumDevConsoleIntegration />
         <CarmaMapProviderWrapper
           cesiumOptions={CESIUM_CONFIG}
+          transitionsConfig={TRANSITIONS_CONFIG}
           overlayOptions={{
             background: backgroundSettings,
           }}
