@@ -2,7 +2,7 @@ import {
   type CSSProperties,
   useCallback,
   useContext,
-  useEffect,
+  // useEffect, // Oblique mode disabled
   useMemo,
   useState,
 } from "react";
@@ -13,8 +13,8 @@ import {
   faChevronLeft,
   faChevronRight,
   faLayerGroup,
-  faPlane,
-  faImages,
+  // faPlane,  // Oblique mode disabled
+  // faImages, // Oblique mode disabled
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Button, Radio, type RadioChangeEvent, Tooltip } from "antd";
@@ -23,8 +23,8 @@ import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
 import { MapStyleKeys } from "@carma-appframeworks/portals";
 import { geoElements } from "@carma-collab/wuppertal/geoportal";
-import { useFeatureFlags } from "@carma/providers/feature-flag";
-import { obliqueEventBus } from "../utils/obliqueState";
+// import { useFeatureFlags } from "@carma/providers/feature-flag"; // Oblique mode disabled
+// import { obliqueEventBus } from "../utils/obliqueState"; // Oblique mode disabled
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 import {
   useOverlayHelper,
@@ -60,15 +60,15 @@ const TopNavbar = () => {
   const uiDispatch = useContext(UIDispatchContext) as any;
   const setAppMenuVisible = uiDispatch?.setAppMenuVisible;
 
-  const flags = useFeatureFlags();
-  const [isObliqueActive, setIsObliqueActive] = useState(false);
+  // const flags = useFeatureFlags(); // Oblique mode disabled
+  // const [isObliqueActive, setIsObliqueActive] = useState(false); // Oblique mode disabled
   const shouldShow2dUI = useSelector(getUIIsMode2d);
 
   // Track oblique mode state for button appearance
-  useEffect(() => {
-    const unsubscribe = obliqueEventBus.subscribe("toggle", setIsObliqueActive);
-    return unsubscribe;
-  }, []);
+  // useEffect(() => {
+  //   const unsubscribe = obliqueEventBus.subscribe("toggle", setIsObliqueActive);
+  //   return unsubscribe;
+  // }, []);
   const backgroundLayer = useSelector(getBackgroundLayer);
   const selectedMapLayer = useSelector(getSelectedMapLayer);
   const selectedLuftbildLayer = useSelector(getSelectedLuftbildLayer);
@@ -199,6 +199,7 @@ const TopNavbar = () => {
               />
             </button>
           </Tooltip>
+          {/* Oblique mode button temporarily disabled
           {flags.featureFlagObliqueMode && !shouldShow2dUI && (
             <Tooltip
               title={
@@ -217,6 +218,7 @@ const TopNavbar = () => {
               </Button>
             </Tooltip>
           )}
+          */}
           <div className="lg:flex hidden" ref={hintergrundTourRef}>
             {backgroundLayer && (
               <Radio.Group

@@ -5,11 +5,32 @@ import {
   TransitionContext,
   MapTransitionState,
   type TransitionContextType,
+  type TransitionConfig,
 } from "./TransitionContext";
 import type { TransitionContextEventMap } from "./transition-context-event-map";
 
+const DEFAULT_TRANSITION_CONFIG: Required<TransitionConfig> = {
+  modeTo3d: {
+    step1_prepare2dView: {
+      maxZoom: 20,
+      zoomOutDuration: 700,
+      zoomOutEaseLinearity: 0.75,
+      zoomOutTimeoutBuffer: 100,
+    },
+    step2_cameraAnimation: {
+      duration: 1000,
+    },
+  },
+  modeTo2d: {
+    durationFactorCameraDeviation: 2,
+    durationFactorZoomDiff: 1,
+    maxDuration: 5,
+  },
+};
+
 export interface TransitionContextProviderProps {
   children: ReactNode;
+  config?: TransitionConfig;
 }
 
 /**
@@ -26,11 +47,32 @@ export interface TransitionContextProviderProps {
  */
 export const TransitionContextProvider = ({
   children,
+  config = {},
 }: TransitionContextProviderProps) => {
   const transitionStateRef = useRef<MapTransitionState>(
     MapTransitionState.mode2d
   );
   const transitionLifecycleRef = useRef({});
+
+  const mergedConfig = useMemo<Required<TransitionConfig>>(
+    () => ({
+      modeTo3d: {
+        step1_prepare2dView: {
+          ...DEFAULT_TRANSITION_CONFIG.modeTo3d.step1_prepare2dView,
+          ...config.modeTo3d?.step1_prepare2dView,
+        },
+        step2_cameraAnimation: {
+          ...DEFAULT_TRANSITION_CONFIG.modeTo3d.step2_cameraAnimation,
+          ...config.modeTo3d?.step2_cameraAnimation,
+        },
+      },
+      modeTo2d: {
+        ...DEFAULT_TRANSITION_CONFIG.modeTo2d,
+        ...config.modeTo2d,
+      },
+    }),
+    [config]
+  );
 
   // Event bus for the Transition context
   const { subscribe, emit } = useMemo(
@@ -42,10 +84,11 @@ export const TransitionContextProvider = ({
     () => ({
       transitionStateRef,
       transitionLifecycleRef,
+      config: mergedConfig,
       subscribe,
       emit,
     }),
-    [subscribe, emit]
+    [mergedConfig, subscribe, emit]
   );
 
   console.debug("[TransitionContextProvider] Rendered", contextValue);

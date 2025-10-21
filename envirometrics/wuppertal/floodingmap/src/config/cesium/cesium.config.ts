@@ -18,8 +18,10 @@ export const CONSTRUCTOR_OPTIONS: Viewer.ConstructorOptions = {
 // see also cesium State in store
 export const CESIUM_CONFIG: CesiumConfigSnapshot = {
   transitions: {
-    mapMode: {
-      duration: 1000,
+    modeTo3d: {
+      step2_cameraAnimation: {
+        duration: 1000,
+      },
     },
   },
   camera: {

@@ -2,7 +2,7 @@ import {
   type MouseEvent,
   type ReactNode,
   forwardRef,
-  useState,
+  useRef,
   useCallback,
 } from "react";
 import { Tooltip } from "antd";
@@ -48,7 +48,8 @@ export const MapTypeSwitcher = forwardRef<Ref, Props>(
     },
     ref
   ) => {
-    const [hasConfirmed, setHasConfirmed] = useState(false);
+    // Use ref to avoid re-renders on confirmation state change
+    const hasConfirmedRef = useRef(false);
 
     // Use the mode toggle hook from transition library
     const { isMode2d, isTransitioning, toggleMode } = useMapModeToggle({
@@ -68,7 +69,7 @@ export const MapTypeSwitcher = forwardRef<Ref, Props>(
         // Mobile/tablet warning (UI concern - stays in component)
         if (
           isMode2d &&
-          !hasConfirmed &&
+          !hasConfirmedRef.current &&
           enableMobileWarning &&
           isMobileOrTablet
         ) {
@@ -76,27 +77,26 @@ export const MapTypeSwitcher = forwardRef<Ref, Props>(
             LOCALE_DE_WARNING_ENABLE_CESIUM_MODE
           );
           if (confirmed) {
-            setHasConfirmed(true);
+            hasConfirmedRef.current = true;
           } else {
             return;
           }
         }
 
-        // Core transition logic now in hook
+        // Core transition logic delegated to hook
         try {
           await toggleMode();
         } catch (error) {
           console.error("[MapTypeSwitcher] Transition failed:", error);
         }
       },
-      [isMode2d, hasConfirmed, enableMobileWarning, toggleMode]
+      [isMode2d, enableMobileWarning, toggleMode]
     );
 
-    console.debug(
-      "RENDER: [CESIUM|LEAFLET|2D3D] MapTypeSwitcher",
+    console.debug("[MapTypeSwitcher] Render", {
       isMode2d,
-      isTransitioning
-    );
+      isTransitioning,
+    });
 
     const cbs = (
       <ControlButtonStyler

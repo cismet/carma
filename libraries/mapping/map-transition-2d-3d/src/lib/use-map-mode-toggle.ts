@@ -1,7 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
-import { useCesiumContext, CtxEvent } from "@carma-mapping/engines/cesium/core";
+import { useState, useCallback } from "react";
+import { useCesiumContext } from "@carma-mapping/engines/cesium/core";
 import { useMapTransition } from "./use-map-transition";
-import { useTransitionContext } from "./use-transition-context";
 
 export type MapModeToggleOptions = {
   duration?: number;
@@ -23,29 +22,19 @@ export const useMapModeToggle = (options: MapModeToggleOptions = {}) => {
   const { duration, onComplete, onCancel, onTransitionStart, onTransitionEnd } =
     options;
 
-  const { subscribe, isSuspendedRef } = useCesiumContext();
+  const { isSuspendedRef } = useCesiumContext();
 
   // Track mode based on Cesium suspended state (suspended = 2D mode active)
   const [isMode2d, setIsMode2d] = useState(isSuspendedRef.current);
   const [isTransitioning, setIsTransitioning] = useState(false);
 
-  // Subscribe to Cesium context events to track mode
-  useEffect(() => {
-    const unsubActivate = subscribe(CtxEvent.Activate, () => {
-      setIsMode2d(false); // Cesium active = 3D mode
-    });
-    const unsubSuspend = subscribe(CtxEvent.Suspend, () => {
-      setIsMode2d(true); // Cesium suspended = 2D mode
-    });
-    return () => {
-      unsubActivate();
-      unsubSuspend();
-    };
-  }, [subscribe]);
+  // Mode is now controlled ONLY by transition completion, not Activate/Suspend events
+  // This prevents premature UI mode switching that causes component unmounts mid-transition
 
   const handleComplete = useCallback(
     (isTo2D: boolean) => {
       setIsTransitioning(false);
+      setIsMode2d(isTo2D);
       onTransitionEnd?.();
       onComplete?.(isTo2D);
     },
@@ -74,6 +63,7 @@ export const useMapModeToggle = (options: MapModeToggleOptions = {}) => {
 
     try {
       if (isMode2d) {
+        // transitionToMode3d handles its own initialization if needed
         await transitionToMode3d();
       } else {
         await transitionToMode2d();

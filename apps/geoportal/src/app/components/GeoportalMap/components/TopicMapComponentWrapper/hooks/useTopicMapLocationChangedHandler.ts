@@ -3,7 +3,8 @@ import { useCarmaTopicMapContext } from "@carma-mapping/engines/carma-cismap";
 import { useMapHashRoutingLeafletLike } from "@carma-appframeworks/portals";
 
 export const useTopicMapLocationChangedHandler = (
-  onAfterLocationChanged?: () => void
+  onAfterLocationChanged?: () => void,
+  isEnabled: boolean = true
 ) => {
   const { leafletMap } = useCarmaTopicMapContext();
 
@@ -17,7 +18,7 @@ export const useTopicMapLocationChangedHandler = (
   );
 
   const handler = useMapHashRoutingLeafletLike(
-    true, // Always enabled
+    isEnabled, // Respect suspended state - only update hash when TopicMap is active (not suspended by Cesium)
     handlerOptions
   );
 

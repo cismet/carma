@@ -82,7 +82,7 @@ export function CesiumSceneComponent(props: CesiumSceneComponentProps) {
   });
 
   // Managers receive all sources and handle activation based on style events
-  const { tilesetProgress } = useTilesetManager(tilesets);
+  useTilesetManager(tilesets); // Emits SceneResourcesReady via event bus (no state)
   useImageryManager(imagery);
   useTerrainManager(terrain);
 
@@ -92,19 +92,8 @@ export function CesiumSceneComponent(props: CesiumSceneComponentProps) {
   useBackgroundColor(undefined);
   useCesiumWhenSuspended(TRANSITION_DELAY);
 
-  return (
-    <>
-      <div
-        ref={containerRef}
-        style={{
-          width: "100%",
-          height: "100%",
-        }}
-      />
-      {/* DISABLED: TilesetProgressBars temporarily disabled */}
-      {/* <TilesetProgressBars tilesets={tilesetProgress} /> */}
-    </>
-  );
+  // Widget is created directly in containerRef - no need to render anything
+  return null;
 }
 
 export default CesiumSceneComponent;

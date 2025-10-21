@@ -15,6 +15,7 @@ import type { Radians, Meters, Degrees } from "@carma/units/types";
 import { degToRad } from "@carma/units/helpers";
 import {
   useCesiumContext,
+  CtxEvent,
   animateCamera,
   getHeadingPitchForMouseEvent,
   getOrbitPoint,
@@ -55,7 +56,7 @@ export const CesiumPitchingCompass = ({
   pitchOblique = PITCH.OBLIQUE as Radians,
   headingFactor = 1,
 }: RotateButtonProps) => {
-  const { animationMapRef, sceneRef } = useCesiumContext();
+  const { animationMapRef, sceneRef, subscribe } = useCesiumContext();
   const [isControlMouseDown, setIsControlMouseDown] = useState(false);
   const [initialMouseX, setInitialMouseX] = useState(0);
   const [initialMouseY, setInitialMouseY] = useState(0);
@@ -65,6 +66,7 @@ export const CesiumPitchingCompass = ({
   const needleOrientationRef = useRef<
     ((p: Radians, h: Radians) => void) | null
   >(null);
+  const cameraListenerRef = useRef<(() => void) | null>(null);
 
   const handleMouseDown = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
@@ -225,27 +227,57 @@ export const CesiumPitchingCompass = ({
   }, [handleMouseMove, handleMouseUp]);
 
   useEffect(() => {
-    let cleanup;
-    const scene = sceneRef.current;
-    if (!isValidScene(scene)) return;
-    const validScene = scene;
-    const camera = validScene.camera;
-    const updateOrientation = () => {
-      // correct heading for compass needle
-      needleOrientationRef.current?.(
-        camera.pitch as Radians,
-        applyRollToHeadingForCameraNearNadir(camera)
-      );
+    const attachCameraListener = () => {
+      const scene = sceneRef.current;
+      if (!isValidScene(scene)) {
+        console.debug("[Compass] Scene not ready, skipping camera listener");
+        return;
+      }
+      
+      // Remove existing listener first
+      if (cameraListenerRef.current) {
+        scene.camera.changed.removeEventListener(cameraListenerRef.current);
+        console.debug("[Compass] Removed old camera listener");
+      }
+      
+      const camera = scene.camera;
+      const updateOrientation = () => {
+        // correct heading for compass needle
+        needleOrientationRef.current?.(
+          camera.pitch as Radians,
+          applyRollToHeadingForCameraNearNadir(camera)
+        );
+      };
+      
+      camera.percentageChanged = 0.01;
+      camera.changed.addEventListener(updateOrientation);
+      cameraListenerRef.current = updateOrientation;
+      
+      // Update needle immediately with current camera orientation
+      updateOrientation();
+      
+      console.debug("[Compass] Camera listener attached and initial orientation set");
     };
-    camera.percentageChanged = 0.01;
-    camera.changed.addEventListener(updateOrientation);
+    
+    // Attach immediately if scene is ready
+    attachCameraListener();
+    
+    // Re-attach when Cesium activates (2D→3D transition)
+    const unsubscribeActivate = subscribe(CtxEvent.Activate, () => {
+      console.debug("[Compass] Activate event - reattaching camera listener");
+      attachCameraListener();
+    });
 
-    cleanup = () => {
-      isValidScene(validScene) &&
-        validScene.camera.changed.removeEventListener(updateOrientation);
+    return () => {
+      unsubscribeActivate();
+      const scene = sceneRef.current;
+      if (cameraListenerRef.current && isValidScene(scene)) {
+        scene.camera.changed.removeEventListener(cameraListenerRef.current);
+        cameraListenerRef.current = null;
+        console.debug("[Compass] Camera listener detached on cleanup");
+      }
     };
-    return () => cleanup?.();
-  }, [sceneRef]);
+  }, [sceneRef, subscribe]);
 
   return (
     // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions

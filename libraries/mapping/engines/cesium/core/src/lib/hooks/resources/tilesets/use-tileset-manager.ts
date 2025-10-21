@@ -1,12 +1,11 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useCallback } from "react";
 import { Cesium3DTileset, Scene } from "@carma/cesium";
 import { useCesiumContext } from "../../../context";
 import { CtxEvent } from "../../../context/cesium-context-event-map";
 import type { TilesetConfig } from "../../../types";
 import { TilesetContentTypes } from "@carma/types";
 import { loadTileset } from "../../../loaders";
-// DISABLED: Progress tracking temporarily disabled
-// import { useTilesetProgress } from "./use-tileset-progress";
+import { useTilesetProgress } from "./use-tileset-progress";
 
 type LoadedTilesets = Map<string, Cesium3DTileset>;
 
@@ -43,21 +42,31 @@ const configureTilesetDefaults = (tileset: Cesium3DTileset): void => {
   tileset.shadows = 0;
 };
 
-export const useTilesetManager = (tilesets: TilesetConfig[]) => {
+export const useTilesetManager = (
+  tilesets: TilesetConfig[],
+  trackProgress: boolean = false
+) => {
   const {
     sceneRef,
     subscribe,
     tilesetsRef: loadedTilesetsRef,
+    configRef,
   } = useCesiumContext();
+
+  const minTileCount = configRef.current?.tilesets?.minInitialTileCount ?? 4;
 
   console.log(
     "[TILESET|MANAGER] Initialized with tileset configs:",
-    tilesets.map((t) => t.id)
+    tilesets.map((t) => t.id),
+    `minTileCount=${minTileCount}, trackProgress=${trackProgress}`
   );
 
-  // DISABLED: Progress tracking temporarily disabled
-  // const { tilesetProgress, attachProgressListener, updateProgress } =
-  //   useTilesetProgress(loadedTilesetsRef.current);
+  // Track tileset progress for SceneResourcesReady event (no React state updates unless trackProgress=true)
+  const { attachProgressListener, updateProgress } = useTilesetProgress(
+    loadedTilesetsRef.current,
+    minTileCount,
+    trackProgress
+  );
 
   const loadTilesetOnDemand = useCallback(
     async (config: TilesetConfig) => {
@@ -71,8 +80,7 @@ export const useTilesetManager = (tilesets: TilesetConfig[]) => {
         // Pass scene to tileset constructor - required for proper integration
         const tileset = await loadTileset(config, scene);
 
-        // DISABLED: Progress tracking temporarily disabled
-        // attachProgressListener(config.id, tileset);
+        attachProgressListener(config.id, tileset);
         addTilesetToScene(scene, tileset);
         configureTilesetDefaults(tileset);
         loadedTilesetsRef.current.set(config.id, tileset);
@@ -173,17 +181,17 @@ export const useTilesetManager = (tilesets: TilesetConfig[]) => {
         console.groupEnd();
 
         sceneRef.current?.requestRender();
-        // DISABLED: Progress tracking temporarily disabled
-        // updateProgress();
+        updateProgress();
       });
     };
 
     return subscribe(CtxEvent.SetTilesetVisibility, handleVisibilityChange);
   }, [subscribe, sceneRef, tilesets, loadTilesetOnDemand]);
 
-  // DISABLED: Progress tracking temporarily disabled
-  // return { tilesetProgress };
-  return { tilesetProgress: [] };
+  // SceneResourcesReady is now emitted directly by useTilesetProgress via event bus
+  // No need for React state dependency here
+
+  return {};
 };
 
 export default useTilesetManager;

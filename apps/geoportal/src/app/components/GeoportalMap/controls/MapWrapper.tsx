@@ -33,6 +33,7 @@ import {
   CtxEvent,
 } from "@carma-mapping/engines/cesium/core";
 import { useCarmaTopicMapContext } from "@carma-mapping/engines/carma-cismap";
+import { useMapViewState } from "@carma-mapping/map-view-state";
 import {
   MapTypeSwitcher,
   FullscreenControl,
@@ -88,8 +89,6 @@ import {
   UIMode,
 } from "../../../store/slices/ui.ts";
 
-import { CESIUM_CONFIG } from "../../../config/app.config";
-
 // detect GPU support, disables 3d mode if not supported
 let hasGPU = false;
 const setHasGPU = (flag: boolean) => (hasGPU = flag);
@@ -111,22 +110,14 @@ const MapWrapper = () => {
   const lastRenderIntervalRef = useRef(0);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
-  // Emit events when mode transitions complete
-  const handleTransitionComplete = (isTo2D: boolean) => {
-    console.debug("[MapWrapper] Transition complete:", { isTo2D });
-
-    // Emit events to Cesium context
-    if (isTo2D) {
-      emitCesium(CtxEvent.Suspend, undefined);
-    } else {
-      emitCesium(CtxEvent.Activate, undefined);
-    }
-  };
-
   // State and Selectors
   const libreMapRef = useSelector(getLibreMapRef);
   const allow3d = useSelector(getUIAllow3d) && hasGPU;
-  const isMode2d = isSuspendedRef.current || !allow3d;
+  
+  // Get map mode from MapViewStateContext
+  const { mode } = useMapViewState();
+  const isMode2d = mode === "2d";
+  
   const uiMode = useSelector(getUIMode);
   const isModeMeasurement = uiMode === UIMode.MEASUREMENT;
   const isModeFeatureInfo = uiMode === UIMode.FEATURE_INFO;
@@ -229,7 +220,7 @@ const MapWrapper = () => {
     }
     const selectionMetaData: SelectionMetaData = {
       selectedFrom: "gazetteer",
-      selectedFromMapMode: isMode2d
+      selectedFromMapMode: isSuspendedRef.current
         ? SelectionMapMode.MODE_2D
         : SelectionMapMode.MODE_3D,
       selectionTimestamp: Date.now(),
@@ -246,7 +237,11 @@ const MapWrapper = () => {
     }
   }, [allow3d, emitCesium]);
 
-  console.debug("RENDER: [WRAPPER] MAP", isMode2d);
+  console.debug("[MapWrapper] Render", {
+    isMode2d,
+    allow3d,
+    zenMode,
+  });
   rerenderCountRef.current++;
   lastRenderIntervalRef.current = Date.now() - lastRenderTimeStampRef.current;
   lastRenderTimeStampRef.current = Date.now();
@@ -359,11 +354,8 @@ const MapWrapper = () => {
                 </Tooltip>
 
                 <MapTypeSwitcher
-                  // TODO: move Config to props
-                  duration={CESIUM_CONFIG.transitions.mapMode.duration}
                   className="!rounded-t-none !border-t-[1px]"
                   ref={tourRefLabels.toggle2d3d}
-                  onComplete={handleTransitionComplete}
                 />
                 {
                   // TODO implement cesium home action with generic home control for all mapping engines

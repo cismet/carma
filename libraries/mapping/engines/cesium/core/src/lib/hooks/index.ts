@@ -24,7 +24,11 @@ export {
 export * from "./resources/use-models-loader";
 
 // Scene lifecycle hooks
-export * from "./scene/use-init-cesium-widget";
+export { useInitCesiumWidget } from "./scene/use-init-cesium-widget";
+export {
+  useEnsureCesiumInitialized,
+  type InitialCesiumPosition,
+} from "./scene/use-ensure-cesium-initialized";
 export * from "./scene/use-cesium-globe";
 export * from "./scene/use-shadows";
 export * from "./scene/use-background-color";

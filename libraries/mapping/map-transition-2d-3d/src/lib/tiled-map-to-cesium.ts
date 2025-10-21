@@ -1,5 +1,5 @@
 // WEB MAPS TO CESIUM
-import { Cartographic, tryWithValidScene } from "@carma/cesium";
+import { Cartographic, Scene, isValidScene } from "@carma/cesium";
 
 import type { Zoom } from "@carma/types";
 import type { LatLng } from "@carma/geo/types";
@@ -46,258 +46,260 @@ const defaultTransitionOptions: Required<TransitionOptions> = {
 };
 
 export const tiledMapToCesium = async (
+  scene: Scene | null,
   { latitude, longitude }: LatLng.deg,
   zoom: Zoom,
   resolutionScale: number,
   options: TransitionOptions
 ): Promise<boolean> => {
+  if (!isValidScene(scene)) {
+    console.error("[tiledMapToCesium] Invalid scene provided");
+    return false;
+  }
+
+  const { camera, globe } = scene;
+  const terrainProvider = globe?.terrainProvider;
+  const surfaceProvider = terrainProvider; // Use terrain provider as surface provider
+
   let result = false;
-  async (terrainProvider, surfaceProvider, scene) => {
-    const { camera } = scene;
 
-    if (!isZoom(zoom)) {
-      console.warn("No zoom level available for transition");
-      return;
-    }
+  if (!isZoom(zoom)) {
+    console.warn("No zoom level available for transition");
+    return false;
+  }
 
-    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-      console.warn(
-        "No valid coordinates available for transition",
-        latitude,
-        longitude
-      );
-      return;
-    }
-
-    const lngRad = degToRad(longitude as Degrees);
-    const latRad = degToRad(latitude as Degrees);
-
-    const targetPixelResolution = getPixelResolutionFromZoomAtLatitudeRad(
-      zoom,
-      latRad as Radians
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    console.warn(
+      "No valid coordinates available for transition",
+      latitude,
+      longitude
     );
+    return false;
+  }
 
-    const {
-      epsilon,
-      limit,
-      cause,
-      onComplete,
-      fallbackHeight,
-      preferredElevationReference,
-    } = normalizeOptions(options, defaultTransitionOptions);
+  const lngRad = degToRad(longitude as Degrees);
+  const latRad = degToRad(latitude as Degrees);
 
-    const baseComputedPixelResolution =
-      getCesiumFrustumPixelDimensionsForDistance(
-        scene,
-        resolutionScale,
-        START_DISTANCE
-      )?.average;
+  const targetPixelResolution = getPixelResolutionFromZoomAtLatitudeRad(
+    zoom,
+    latRad as Radians
+  );
 
-    if (
-      baseComputedPixelResolution === null ||
-      baseComputedPixelResolution === undefined
-    ) {
-      console.warn(
-        "No base computed pixel resolution found for distance",
-        START_DISTANCE
-      );
-      return;
+  const {
+    epsilon,
+    limit,
+    cause,
+    onComplete,
+    fallbackHeight,
+    preferredElevationReference,
+  } = normalizeOptions(options, defaultTransitionOptions);
+
+  const baseComputedPixelResolution =
+    getCesiumFrustumPixelDimensionsForDistance(
+      scene,
+      resolutionScale,
+      START_DISTANCE
+    )?.average;
+
+  if (
+    baseComputedPixelResolution === null ||
+    baseComputedPixelResolution === undefined
+  ) {
+    console.warn(
+      "No base computed pixel resolution found for distance",
+      START_DISTANCE
+    );
+    return false;
+  }
+
+  const resolutionRatio = targetPixelResolution / baseComputedPixelResolution;
+
+  const computedDistance = START_DISTANCE * resolutionRatio;
+
+  let currentPixelResolution: number | null = null;
+  currentPixelResolution = getScenePixelSize(scene).value;
+
+  if (currentPixelResolution === null) {
+    console.warn("No pixel size found for camera position");
+    return false;
+  }
+
+  const cameraGroundPosition = Cartographic.fromRadians(
+    lngRad,
+    latRad,
+    fallbackHeight
+  );
+
+  let terrain, surface;
+  try {
+    const results = await getElevationAsync(surfaceProvider, terrainProvider, [
+      cameraGroundPosition,
+    ]);
+    const elevation = results[0];
+    if (!elevation) {
+      throw new Error("No elevation result returned");
     }
+    terrain = elevation.terrain;
+    surface = elevation.surface;
+  } catch (error) {
+    console.warn("Failed to get elevation for camera position", error);
+    return false;
+  }
 
-    const resolutionRatio = targetPixelResolution / baseComputedPixelResolution;
-
-    const computedDistance = START_DISTANCE * resolutionRatio;
-
-    let currentPixelResolution: number | null = null;
-    currentPixelResolution = getScenePixelSize(scene).value;
-
-    if (currentPixelResolution === null) {
-      console.warn("No pixel size found for camera position");
-      return;
-    }
-
-    const cameraGroundPosition = Cartographic.fromRadians(
-      lngRad,
-      latRad,
+  if (
+    preferredElevationReference === ElevationReference.TERRAIN &&
+    terrain?.height !== undefined
+  ) {
+    cameraGroundPosition.height = terrain.height;
+    console.debug(
+      "L2C [2D3D|CESIUM|CAMERA] terrain height applied",
+      terrain.height
+    );
+  } else if (
+    preferredElevationReference === ElevationReference.SURFACE &&
+    surface?.height !== undefined
+  ) {
+    cameraGroundPosition.height = surface.height;
+    console.debug(
+      "L2C [2D3D|CESIUM|CAMERA] surface height applied",
+      surface.height
+    );
+  } else {
+    cameraGroundPosition.height =
+      surface?.height ?? terrain?.height ?? fallbackHeight;
+    console.debug(
+      "L2C [2D3D|CESIUM|CAMERA] best available height applied",
+      cameraGroundPosition.height,
+      surface?.height,
+      terrain?.height,
       fallbackHeight
     );
+  }
 
-    let terrain, surface;
-    try {
-      const results = await getElevationAsync(
-        surfaceProvider,
-        terrainProvider,
-        [cameraGroundPosition]
+  const cameraDestinationCartographic = cameraGroundPosition.clone();
+  cameraDestinationCartographic.height += computedDistance;
+
+  const destination = Cartographic.toCartesian(cameraDestinationCartographic);
+
+  if (
+    !destination ||
+    !Number.isFinite(destination.x) ||
+    !Number.isFinite(destination.y) ||
+    !Number.isFinite(destination.z)
+  ) {
+    console.error(
+      "[TRANSITION|ERROR] Invalid destination calculated:",
+      destination
+    );
+    throw new Error("Invalid camera destination - contains NaN or Infinity");
+  }
+
+  console.debug(
+    `L2C [2D3D|CESIUM|CAMERA] cause: ${cause} lat: ${latitude} lng: ${longitude} z: ${zoom}`
+  );
+  console.debug("L2C [2D3D|CESIUM|CAMERA] destination", destination);
+  console.debug(
+    "L2C [2D3D|CESIUM|CAMERA] cameraDestinationCartographic",
+    cameraDestinationCartographic.height
+  );
+  console.debug(
+    "L2C [2D3D|CESIUM|CAMERA] cameraGroundPosition",
+    cameraGroundPosition.height
+  );
+  console.debug("L2C [2D3D|CESIUM|CAMERA] computedDistance", computedDistance);
+
+  window.requestAnimationFrame(() => {
+    if (isValidScene(scene)) {
+      scene.camera.setView({ destination });
+    }
+  });
+  let isQualifiedResult = true;
+  let { cameraHeightAboveGround, groundHeight } =
+    getCameraHeightAboveGround(scene);
+  const maxIterations = limit;
+  let iterations = 0;
+
+  if (currentPixelResolution === null) {
+    console.warn("No pixel size found for camera position");
+    return false;
+  }
+
+  let currentError = Math.abs(currentPixelResolution - targetPixelResolution);
+
+  // Iterative adjustment to match the target resolution
+  while (isQualifiedResult && currentError > epsilon) {
+    if (iterations >= maxIterations) {
+      console.warn(
+        "Maximum height finding iterations reached with no result, using best result."
       );
-      const elevation = results[0];
-      if (!elevation) {
-        throw new Error("No elevation result returned");
-      }
-      terrain = elevation.terrain;
-      surface = elevation.surface;
-    } catch (error) {
-      console.warn("Failed to get elevation for camera position", error);
-      return;
+      console.debug(
+        "L2C [2D3D] iterate",
+        iterations,
+        maxIterations,
+        epsilon,
+        currentError,
+        currentPixelResolution,
+        targetPixelResolution
+      );
+      isQualifiedResult = false;
     }
 
-    if (
-      preferredElevationReference === ElevationReference.TERRAIN &&
-      terrain?.height !== undefined
-    ) {
-      cameraGroundPosition.height = terrain.height;
-      console.debug(
-        "L2C [2D3D|CESIUM|CAMERA] terrain height applied",
-        terrain.height
+    const adjustmentFactor = targetPixelResolution / currentPixelResolution;
+    cameraHeightAboveGround *= adjustmentFactor;
+    const newCameraHeight = cameraHeightAboveGround + groundHeight;
+
+    if (!Number.isFinite(newCameraHeight)) {
+      console.error(
+        "[TRANSITION|ERROR] Invalid camera height calculated:",
+        newCameraHeight
       );
-    } else if (
-      preferredElevationReference === ElevationReference.SURFACE &&
-      surface?.height !== undefined
-    ) {
-      cameraGroundPosition.height = surface.height;
-      console.debug(
-        "L2C [2D3D|CESIUM|CAMERA] surface height applied",
-        surface.height
-      );
-    } else {
-      cameraGroundPosition.height =
-        surface?.height ?? terrain?.height ?? fallbackHeight;
-      console.debug(
-        "L2C [2D3D|CESIUM|CAMERA] best available height applied",
-        cameraGroundPosition.height,
-        surface?.height,
-        terrain?.height,
-        fallbackHeight
-      );
+      throw new Error("Invalid camera height - NaN or Infinity");
     }
 
-    const cameraDestinationCartographic = cameraGroundPosition.clone();
-    cameraDestinationCartographic.height += computedDistance;
-
-    const destination = Cartographic.toCartesian(cameraDestinationCartographic);
+    const updatedCameraDestinationCartographic = Cartographic.fromRadians(
+      lngRad,
+      latRad,
+      newCameraHeight
+    );
+    const updatedDestination = Cartographic.toCartesian(
+      updatedCameraDestinationCartographic
+    );
 
     if (
-      !destination ||
-      !Number.isFinite(destination.x) ||
-      !Number.isFinite(destination.y) ||
-      !Number.isFinite(destination.z)
+      !updatedDestination ||
+      !Number.isFinite(updatedDestination.x) ||
+      !Number.isFinite(updatedDestination.y) ||
+      !Number.isFinite(updatedDestination.z)
     ) {
       console.error(
-        "[TRANSITION|ERROR] Invalid destination calculated:",
-        destination
+        "[TRANSITION|ERROR] Invalid updated destination:",
+        updatedDestination
       );
-      throw new Error("Invalid camera destination - contains NaN or Infinity");
+      throw new Error(
+        "Invalid updated camera destination - contains NaN or Infinity"
+      );
     }
 
     console.debug(
-      `L2C [2D3D|CESIUM|CAMERA] cause: ${cause} lat: ${latitude} lng: ${longitude} z: ${zoom}`
+      "L2C [2D3D|CESIUM|CAMERA] setview",
+      iterations,
+      newCameraHeight
     );
-    console.debug("L2C [2D3D|CESIUM|CAMERA] destination", destination);
-    console.debug(
-      "L2C [2D3D|CESIUM|CAMERA] cameraDestinationCartographic",
-      cameraDestinationCartographic.height
-    );
-    console.debug(
-      "L2C [2D3D|CESIUM|CAMERA] cameraGroundPosition",
-      cameraGroundPosition.height
-    );
-    console.debug(
-      "L2C [2D3D|CESIUM|CAMERA] computedDistance",
-      computedDistance
-    );
-
-    window.requestAnimationFrame(() => {
-      tryWithValidScene(scene, () => {
-        scene.camera.setView({ destination });
-      });
+    camera.setView({
+      destination: updatedDestination,
     });
-    let isQualifiedResult = true;
-    let { cameraHeightAboveGround, groundHeight } =
-      getCameraHeightAboveGround(scene);
-    const maxIterations = limit;
-    let iterations = 0;
+    let newResolution: number | null = null;
+    newResolution = getScenePixelSize(scene).value;
 
+    currentPixelResolution = newResolution;
     if (currentPixelResolution === null) {
-      console.warn("No pixel size found for camera position");
-      return;
+      return false;
     }
-
-    let currentError = Math.abs(currentPixelResolution - targetPixelResolution);
-
-    // Iterative adjustment to match the target resolution
-    while (isQualifiedResult && currentError > epsilon) {
-      if (iterations >= maxIterations) {
-        console.warn(
-          "Maximum height finding iterations reached with no result, using best result."
-        );
-        console.debug(
-          "L2C [2D3D] iterate",
-          iterations,
-          maxIterations,
-          epsilon,
-          currentError,
-          currentPixelResolution,
-          targetPixelResolution
-        );
-        isQualifiedResult = false;
-      }
-
-      const adjustmentFactor = targetPixelResolution / currentPixelResolution;
-      cameraHeightAboveGround *= adjustmentFactor;
-      const newCameraHeight = cameraHeightAboveGround + groundHeight;
-
-      if (!Number.isFinite(newCameraHeight)) {
-        console.error(
-          "[TRANSITION|ERROR] Invalid camera height calculated:",
-          newCameraHeight
-        );
-        throw new Error("Invalid camera height - NaN or Infinity");
-      }
-
-      const updatedCameraDestinationCartographic = Cartographic.fromRadians(
-        lngRad,
-        latRad,
-        newCameraHeight
-      );
-      const updatedDestination = Cartographic.toCartesian(
-        updatedCameraDestinationCartographic
-      );
-
-      if (
-        !updatedDestination ||
-        !Number.isFinite(updatedDestination.x) ||
-        !Number.isFinite(updatedDestination.y) ||
-        !Number.isFinite(updatedDestination.z)
-      ) {
-        console.error(
-          "[TRANSITION|ERROR] Invalid updated destination:",
-          updatedDestination
-        );
-        throw new Error(
-          "Invalid updated camera destination - contains NaN or Infinity"
-        );
-      }
-
-      console.debug(
-        "L2C [2D3D|CESIUM|CAMERA] setview",
-        iterations,
-        newCameraHeight
-      );
-      camera.setView({
-        destination: updatedDestination,
-      });
-      let newResolution: number | null = null;
-      newResolution = getScenePixelSize(scene).value;
-
-      currentPixelResolution = newResolution;
-      if (currentPixelResolution === null) {
-        return;
-      }
-      currentError = Math.abs(currentPixelResolution - targetPixelResolution);
-      iterations++;
-    }
-    scene.requestRender();
-    onComplete?.();
-    result = true;
-  };
+    currentError = Math.abs(currentPixelResolution - targetPixelResolution);
+    iterations++;
+  }
+  scene.requestRender();
+  onComplete?.();
+  result = true;
   return result;
 };

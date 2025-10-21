@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Camera,
   Cartographic,
@@ -35,7 +35,9 @@ export const useInitCesiumWidget = (
     enableCollisionDetectionRef,
     isSuspendedRef,
     emit,
+    subscribe,
     config,
+    activationCount,
   } = useCesiumContext();
 
   const isInitializedRef = useRef(false);
@@ -182,11 +184,22 @@ export const useInitCesiumWidget = (
     }
 
     return () => {
-      // Cleanup: destroy widget on unmount
+      // Cleanup: destroy widget ONLY on actual unmount, not on re-renders
+      // Check if widget is still valid - if so, this is just a re-render, not unmount
       const widget = widgetRef.current;
 
       try {
         if (widget && !widget.isDestroyed()) {
+          // If scene is valid, this is likely a re-render with new options
+          // Don't destroy the widget as this breaks mid-transition
+          const scene = sceneRef.current;
+          if (scene && !scene.isDestroyed()) {
+            console.debug(
+              "[CESIUM|CLEANUP] Skipping widget destruction (scene still valid)"
+            );
+            return;
+          }
+
           console.debug("[CESIUM|CLEANUP] Destroying widget");
           widget.destroy();
           widgetRef.current = null;
@@ -205,6 +218,7 @@ export const useInitCesiumWidget = (
     emit,
     homeRef,
     config.baseUrl,
+    activationCount, // Re-run when Activate event fires
   ]);
 
   useEffect(() => {
@@ -235,20 +249,62 @@ export const useInitCesiumWidget = (
 
     if (!widget || !container) return;
 
-    const resizeObserver = new ResizeObserver(() => {
+    let resizeCount = 0;
+    const MAX_DIMENSION = 4000;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      resizeCount++;
+
       if (widget && !widget.isDestroyed() && containerRef?.current) {
         const newWidth = containerRef.current.clientWidth;
         const newHeight = containerRef.current.clientHeight;
 
-        // Only resize if dimensions actually changed and are valid
+        // Log every resize with full details
+        console.log(`[CESIUM|RESIZE] Event #${resizeCount}:`, {
+          containerDimensions: { newWidth, newHeight },
+          canvasDimensions: {
+            width: widget.canvas.width,
+            height: widget.canvas.height,
+            styleWidth: widget.canvas.style.width,
+            styleHeight: widget.canvas.style.height,
+          },
+          entries: entries.map((e) => ({
+            contentRect: e.contentRect,
+            target: e.target.className,
+          })),
+        });
+
+        // Detect absurd dimensions - log with stack trace
+        if (newWidth > MAX_DIMENSION || newHeight > MAX_DIMENSION) {
+          console.error(
+            `[CESIUM|RESIZE] ⚠️ ABSURD DIMENSIONS #${resizeCount}:`,
+            {
+              newWidth,
+              newHeight,
+              MAX_DIMENSION,
+            }
+          );
+          console.trace("[CESIUM|RESIZE] Stack trace:");
+        }
+
+        // Clamp dimensions
+        const clampedWidth = Math.min(newWidth, MAX_DIMENSION);
+        const clampedHeight = Math.min(newHeight, MAX_DIMENSION);
+
+        // Only resize if dimensions are reasonable and actually changed
         if (
-          newWidth > 0 &&
-          newHeight > 0 &&
-          (widget.canvas.width !== newWidth ||
-            widget.canvas.height !== newHeight)
+          clampedWidth > 0 &&
+          clampedHeight > 0 &&
+          (widget.canvas.width !== clampedWidth ||
+            widget.canvas.height !== clampedHeight)
         ) {
-          widget.canvas.width = newWidth;
-          widget.canvas.height = newHeight;
+          console.log(`[CESIUM|RESIZE] Applying resize #${resizeCount}:`, {
+            from: { width: widget.canvas.width, height: widget.canvas.height },
+            to: { width: clampedWidth, height: clampedHeight },
+          });
+
+          widget.canvas.width = clampedWidth;
+          widget.canvas.height = clampedHeight;
           widget.canvas.style.width = "100%";
           widget.canvas.style.height = "100%";
 
@@ -258,9 +314,18 @@ export const useInitCesiumWidget = (
       }
     });
 
+    console.log("[CESIUM|RESIZE] Setting up ResizeObserver", {
+      container: container.className,
+      initialSize: {
+        clientWidth: container.clientWidth,
+        clientHeight: container.clientHeight,
+      },
+    });
+
     resizeObserver.observe(container);
 
     return () => {
+      console.log(`[CESIUM|RESIZE] Disconnecting after ${resizeCount} events`);
       resizeObserver.disconnect();
     };
   }, [widgetRef, containerRef]);

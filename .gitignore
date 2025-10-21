@@ -66,4 +66,10 @@ deployment-config copy.json
 vite.config.*.timestamp*
 vitest.config.*.timestamp*
 
-_*/
+# Ignore underscore directories, but allow __stories__ specifically
+_[^_]*/
+__pycache__/
+__test__/
+__tests__/
+__mocks__/
+# Note: __stories__ is intentionally NOT listed here (allowed)

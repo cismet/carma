@@ -2,7 +2,6 @@
 // TODO fix typescript for strict mode
 import {
   BASEMAP_METROPOLE_RUHR_WMTS_GRAUBLAU_HQ,
-  BRUECKENENTWURF_GLB,
   WUPP_LOD2_TILESET,
   WUPP_MESH_2020,
   WUPP_MESH_2024,
@@ -11,8 +10,9 @@ import {
   WUPPERTAL,
 } from "@carma/resources";
 
-import { Cartesian3, toColorRgbaArray, Color } from "@carma/cesium";
-import type { LeafletConfig, CesiumConfig } from "@carma/types";
+import { Cartesian3, toColorRgbaArray, Color, HeadingPitchRange } from "@carma/cesium";
+import type { LeafletConfig } from "@carma/types";
+import type { CesiumConfig } from "@carma-mapping/engines/cesium/core";
 import { MODEL_ASSETS } from "./assets.config";
 
 export const APP_BASE_PATH = import.meta.env.BASE_URL;
@@ -28,91 +28,99 @@ const CESIUM_PATHNAME = "__cesium__";
 
 /**
  * Complete Cesium configuration for Geoportal
- * Includes provider config, tilesets, camera settings, and initialization values
+ * Uses new SceneStyleConfig format with sources and styles
+ * Maps 2D basemap styles to 3D scene styles:
+ *   - luftbild (aerial) → mesh-2024
+ *   - karte (topo) → lod2
  */
-export const CESIUM_CONFIG: CesiumConfig = {
+export const CESIUM_CONFIG: Partial<CesiumConfig> = {
+  baseUrl: `${APP_BASE_PATH}${CESIUM_PATHNAME}`,
+  
+  // Transition configuration for 2D↔3D mode switching
   transitions: {
-    mapMode: {
-      duration: 1000,
+    modeTo3d: {
+      step1_prepare2dView: {
+        maxZoom: 20,
+        zoomOutDuration: 700,
+      },
+      step2_cameraAnimation: {
+        duration: 1000,
+      },
+    },
+    modeTo2d: {
+      durationFactorCameraDeviation: 2,
+      durationFactorZoomDiff: 1,
+      maxDuration: 5,
     },
   },
-  camera: {
-    minPitch: 15,
-    minPitchRange: 10,
+  
+  // Initial camera using HeadingPitchRange (target-centric)
+  initialCamera: {
+    target: Cartesian3.fromDegrees(
+      WUPPERTAL.position.longitude,
+      WUPPERTAL.position.latitude,
+      WUPPERTAL.position.altitude
+    ),
+    orientation: {
+      heading: 0, // North
+      pitch: -0.785, // ~45° down
+      range: 600, // Distance from target
+    } as HeadingPitchRange,
   },
-  markerKey: "MarkerGlowLine",
-  markerAnchorHeight: 10,
-  baseUrl: `${APP_BASE_PATH}${CESIUM_PATHNAME}`,
-  pathName: CESIUM_PATHNAME,
-  models: [BRUECKENENTWURF_GLB],
-
-  // Initialization values for CesiumContextProvider
-  homePosition: Cartesian3.fromDegrees(
-    WUPPERTAL.position.longitude,
-    WUPPERTAL.position.latitude,
-    WUPPERTAL.position.altitude
-  ),
-  homeOffset: {
-    x: 0,
-    y: -50000, // southwards
-    z: 45000, // elevation
-  },
-  cameraController: {
+  
+  screenSpaceCameraController: {
     enableCollisionDetection: true,
     maximumZoomDistance: 50000,
     minimumZoomDistance: 100,
   },
-  imageryProviders: [
-    {
-      config: BASEMAP_METROPOLE_RUHR_WMTS_GRAUBLAU_HQ,
+  
+  // New SceneStyleConfig format with sources and styles
+  sceneStyle: {
+    sources: {
+      imagery: [
+        {
+          id: "spw2_graublau",
+          ...BASEMAP_METROPOLE_RUHR_WMTS_GRAUBLAU_HQ,
+        } as any,
+      ],
+      terrain: [
+        { id: "dem-2020", ...WUPP_TERRAIN_PROVIDER },
+        { id: "dsm-mesh-2024", ...WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M },
+      ],
+      tilesets: [
+        { id: "wupp-mesh-2024", ...WUPP_MESH_2024 },
+        { id: "wupp-mesh-2020", ...WUPP_MESH_2020 },
+        { id: "wupp-lod2", ...WUPP_LOD2_TILESET },
+      ],
     },
-  ],
-  terrainProviders: [
-    { key: "terrain", config: WUPP_TERRAIN_PROVIDER },
-    {
-      key: "dsm_mesh_2024",
-      config: WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
-    },
-  ],
-  tilesets: [
-    { config: WUPP_LOD2_TILESET },
-    { config: WUPP_MESH_2024 },
-    { config: WUPP_MESH_2020 },
-  ],
-  sceneStyles: [
-    {
-      key: "mesh_2024",
-      name: "Aerial (Mesh 2024)",
-      type: "aerial",
-      backgroundColor: toColorRgbaArray(Color.GRAY),
-      globe: {
-        baseColor: [0, 0, 0, 0.01],
+    
+    styles: [
+      {
+        id: "mesh-2024",
+        name: "Aerial (Mesh 2024)",
+        shadows: false,
+        backgroundColor: toColorRgbaArray(Color.GRAY),
+        globe: {
+          baseColor: [0, 0, 0, 1 / 255], // Nearly transparent
+        },
+        tilesets: [{ id: "wupp-mesh-2024" }],
+        terrain: "dem-2020",
       },
-      tilesets: [{ id: "wupp-mesh-2024" }],
-    },
-    {
-      key: "lod2",
-      name: "Topographic (LOD 2)",
-      type: "lod2",
-      backgroundColor: toColorRgbaArray(Color.WHITE),
-      globe: {
-        baseColor: toColorRgbaArray(Color.WHITE),
+      {
+        id: "lod2",
+        name: "Topographic (LOD2)",
+        shadows: false,
+        backgroundColor: toColorRgbaArray(Color.WHITE),
+        globe: {
+          baseColor: toColorRgbaArray(Color.WHITE),
+        },
+        imageryLayers: [{ id: "spw2_graublau", opacity: 1.0 }],
+        tilesets: [{ id: "wupp-lod2" }],
+        terrain: "dem-2020",
       },
-      imageryLayers: [{ layer: "spw2_graublau", opacity: 0.5 }],
-      tilesets: [{ id: "wupp-lod2" }],
-      terrainLayer: "terrain",
-    },
-    {
-      key: "aerial",
-      name: "Aerial (Mesh 2020)",
-      type: "aerial",
-      backgroundColor: toColorRgbaArray(Color.GRAY),
-      globe: {
-        baseColor: [0, 0, 0, 0.01],
-      },
-      tilesets: [{ id: "wupp-mesh-2020" }],
-    },
-  ],
+    ],
+  },
+  
   modelAssets: MODEL_ASSETS,
 };
 

@@ -4,12 +4,14 @@ import type {
 } from "@carma/providers/event-bus";
 
 export enum CtxEvent {
-  Activate = "Activate",
   Suspend = "Suspend",
+  Activate = "Activate",
+  SceneVisible = "SceneVisible", // Scene ready to be shown (after positioning)
   AnimationStart = "AnimationStart",
   AnimationEnd = "AnimationEnd",
   GoHome = "GoHome",
   SceneReady = "SceneReady",
+  SceneResourcesReady = "SceneResourcesReady",
   SuspendSSCC = "SuspendSSCC",
   ResumeSSCC = "ResumeSSCC",
   SetMinZoomDistance = "SetMinZoomDistance",
@@ -34,9 +36,11 @@ export type CesiumContextEventMap = {
   [CtxEvent.GoHome]: void;
   [CtxEvent.Suspend]: void;
   [CtxEvent.Activate]: void;
+  [CtxEvent.SceneVisible]: void;
   [CtxEvent.AnimationStart]: void;
   [CtxEvent.AnimationEnd]: void;
   [CtxEvent.SceneReady]: void;
+  [CtxEvent.SceneResourcesReady]: void;
   [CtxEvent.SuspendSSCC]: void;
   [CtxEvent.ResumeSSCC]: void;
   [CtxEvent.SetMinZoomDistance]: number;

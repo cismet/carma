@@ -1,4 +1,10 @@
-import React, { useCallback, useMemo, useRef } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { ReactNode } from "react";
 
 import type {
@@ -13,6 +19,7 @@ import { createEventBus } from "@carma/providers/event-bus";
 
 import { CesiumContext, type CesiumContextType } from "./CesiumContext";
 import type { CesiumContextEventMap } from "./cesium-context-event-map";
+import { CtxEvent } from "./cesium-context-event-map";
 import { setupCesiumEnvironment } from "../scene/environment";
 
 import { useCesiumContextSubscriptions } from "./hooks/use-cesium-context-subscriptions";
@@ -63,7 +70,9 @@ export const CesiumContextProvider = ({
   const modelsRef = useRef<Map<string, Model>>(new Map());
 
   // State refs
-  const isSuspendedRef = useRef(false);
+  // Start suspended (2D mode) by default - app should begin in 2D mode
+  // Will be activated (3D mode) only when explicitly requested
+  const isSuspendedRef = useRef(true);
   const isAnimatingRef = useRef(false);
   const suspendSSCCRef = useRef(false);
   const transitionStateRef = useRef<string | null>(null);
@@ -95,11 +104,29 @@ export const CesiumContextProvider = ({
 
   const dataSourcesRef = useRef<Record<string, any> | null>(null);
 
+  // Config ref for accessing config without causing re-renders
+  const configRef = useRef<CesiumConfig>(config);
+  // Update ref when config changes
+  useEffect(() => {
+    configRef.current = config;
+  }, [config]);
+
+  // Activation counter - increments when Activate event fires to trigger widget init
+  const [activationCount, setActivationCount] = useState(0);
+
   // Event bus for the Cesium context
   const { subscribe, emit } = useMemo(
     () => createEventBus<CesiumContextEventMap>(),
     []
   );
+
+  // Listen for Activate event to trigger initialization
+  useEffect(() => {
+    const unsubActivate = subscribe(CtxEvent.Activate, () => {
+      setActivationCount((prev) => prev + 1);
+    });
+    return () => unsubActivate();
+  }, [subscribe]);
 
   // MINIMAL MODE: Only essential subscriptions enabled
   useCesiumContextSubscriptions({
@@ -169,8 +196,10 @@ export const CesiumContextProvider = ({
       requestRender,
       animationMapRef,
       config,
+      configRef,
+      activationCount,
     }),
-    [subscribe, emit, requestRender, config]
+    [subscribe, emit, requestRender, config, activationCount]
   );
 
   console.debug("CesiumContextProvider Changed/Rendered");

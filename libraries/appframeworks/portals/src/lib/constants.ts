@@ -25,8 +25,8 @@ export const mapStyleShortNames: Record<MapStyleKey, string> = {
 } as const;
 
 export const ManagedCesiumStyleKeys = {
-  LOD2: "topo",
-  MESH: "aerial",
+  LOD2: "lod2",
+  MESH: "mesh-2024",
 } as const;
 
 export type ManagedCesiumStyleKey =

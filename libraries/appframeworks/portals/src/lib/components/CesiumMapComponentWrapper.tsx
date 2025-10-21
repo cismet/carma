@@ -4,7 +4,6 @@ import {
   CesiumSceneComponent,
   useCesiumContext,
   CtxEvent,
-  type CesiumConfig,
 } from "@carma-mapping/engines/cesium/core";
 
 // useSelectionCesium REMOVED - use declarative <CesiumSelectionMarker /> from @carma-cesium/selections
@@ -12,21 +11,20 @@ import {
 import { useMapHashRoutingCesium } from "../hooks/useMapHashRoutingCesium";
 import { useSyncCesiumSceneStyle } from "../hooks/useSyncCesiumSceneStyle";
 
-type CesiumMapComponentWrapperProps = {
-  allow3d?: boolean;
-  cesiumOptions: Partial<CesiumConfig>;
-};
-
-export const CesiumMapComponentWrapper = ({
-  allow3d,
-  cesiumOptions,
-}: CesiumMapComponentWrapperProps) => {
-  const container3dMapRef = useRef<HTMLDivElement | null>(null);
+/**
+ * Cesium map component wrapper - mounts Cesium scene only after activation (2D→3D transition).
+ * Config comes from CesiumContextProvider at app root level, not via props.
+ */
+export const CesiumMapComponentWrapper = () => {
+  const cesiumContainerRef = useRef<HTMLDivElement | null>(null);
   const containerStyleRef = useRef<HTMLDivElement | null>(null);
-  const { subscribe } = useCesiumContext();
+  const { subscribe, activationCount } = useCesiumContext();
 
   // Use refs to avoid re-renders - all state managed via event bus
-  const isSuspendedRef = useRef(!allow3d);
+  const isSuspendedRef = useRef(true); // Start suspended (2D mode)
+  
+  // Only render scene component after first activation (when switching to 3D)
+  const shouldMountScene = activationCount > 0;
 
   // Initial camera view handled via CesiumConfig in CesiumContextProvider
   // MapViewState (URL hash) is managed by useMapHashRoutingCesium hook
@@ -80,8 +78,6 @@ export const CesiumMapComponentWrapper = ({
 
   // Subscribe to suspend/activate events via event bus - update DOM directly without re-render
   useEffect(() => {
-    if (!allow3d) return;
-
     const updateVisibility = (isSuspended: boolean) => {
       isSuspendedRef.current = isSuspended;
       if (containerStyleRef.current) {
@@ -92,20 +88,31 @@ export const CesiumMapComponentWrapper = ({
       }
     };
 
+    // Set initial state (suspended in 2D mode)
+    updateVisibility(true);
+
     const unsubActivate = subscribe(CtxEvent.Activate, () => {
-      console.debug("[CesiumWrapper] Cesium activate");
-      updateVisibility(false);
+      console.debug("[CesiumWrapper] Cesium activate (no fade-in yet)");
+      isSuspendedRef.current = false; // Mark as active internally
+      // Don't change opacity here - wait for SceneVisible after positioning
     });
+    
+    const unsubSceneVisible = subscribe(CtxEvent.SceneVisible, () => {
+      console.debug("[CesiumWrapper] Scene visible - fade-in starts");
+      updateVisibility(false); // Fade-in to visible
+    });
+    
     const unsubSuspend = subscribe(CtxEvent.Suspend, () => {
       console.debug("[CesiumWrapper] Cesium suspend");
-      updateVisibility(true);
+      updateVisibility(true); // Fade-out immediately
     });
 
     return () => {
       unsubActivate();
+      unsubSceneVisible();
       unsubSuspend();
     };
-  }, [subscribe, allow3d]);
+  }, [subscribe]);
 
   // Initialize Cesium camera change handler for hash routing
   const hashRoutingHandler = useMapHashRoutingCesium();
@@ -116,16 +123,9 @@ export const CesiumMapComponentWrapper = ({
     hashRoutingHandler({ hashParams: {} });
   };
 
-  if (!allow3d) {
-    return null;
-  }
-
   return (
     <div
-      ref={(node) => {
-        container3dMapRef.current = node;
-        containerStyleRef.current = node;
-      }}
+      ref={containerStyleRef}
       className={"map-container-3d"}
       style={{
         position: "absolute",
@@ -134,15 +134,24 @@ export const CesiumMapComponentWrapper = ({
         right: 0,
         bottom: 0,
         zIndex: 400,
-        opacity: isSuspendedRef.current ? 0 : 1,
-        // Transition managed by map-transition-2d-3d library
-        pointerEvents: isSuspendedRef.current ? "none" : "auto",
+        opacity: 0, // Initial state: hidden (updated by useEffect)
+        transition: "opacity 300ms ease-in-out",
+        pointerEvents: "none", // Initial state: no interaction (updated by useEffect)
       }}
     >
-      <CesiumSceneComponent
-        containerRef={container3dMapRef}
-        onCameraChanged={onCameraChanged}
-      />
+      <div
+        ref={cesiumContainerRef}
+        style={{ width: "100%", height: "100%" }}
+      >
+        {/* Only mount CesiumSceneComponent after first activation (2D→3D transition)
+            This prevents resource managers from initializing during cold 2D start */}
+        {shouldMountScene && (
+          <CesiumSceneComponent
+            containerRef={cesiumContainerRef}
+            onCameraChanged={onCameraChanged}
+          />
+        )}
+      </div>
     </div>
   );
 };

@@ -101,7 +101,9 @@ export const CarmaMapProviderWrapper = ({
                 onModelSelectionChange={onModelSelectionChange}
               >
                 <MapStyleProvider config={mapStyleConfig}>
-                  <TransitionContextProvider>
+                  <TransitionContextProvider
+                    config={cesiumOptions?.transitions}
+                  >
                     <CarmaTopicMapContextProvider infoBoxPixelWidth={350}>
                       <OverlayTourProvider
                         transparency={transparency}

@@ -390,6 +390,7 @@ export const TopicMapComponentWrapper = ({
         mappingBoundsChanged={noop} // intentionally empty
         locationChangedHandler={topicMapLocationChangedHandler}
         outerLocationChangedHandlerExclusive={true}
+        //disableUseLocation={true}
         onclick={handleOnClick}
         gazetteerSearchControl={true}
         infoBox={infoBox}

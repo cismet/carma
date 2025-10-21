@@ -20,9 +20,38 @@ export type MapTransitionLifecycle = {
   [MapTransitionState.preTransitionTo3d]?: () => void | Promise<void>;
 };
 
+export interface TransitionTo3dConfig {
+  step1_prepare2dView?: {
+    maxZoom?: number;
+    zoomOutDuration?: number;
+    zoomOutEaseLinearity?: number;
+    zoomOutTimeoutBuffer?: number;
+  };
+  step2_cameraAnimation?: {
+    duration?: number;
+  };
+}
+
+export interface TransitionTo2dConfig {
+  durationFactorCameraDeviation?: number;
+  durationFactorZoomDiff?: number;
+  maxDuration?: number;
+}
+
+/**
+ * Configuration for map transitions between 2D and 3D modes
+ */
+export interface TransitionConfig {
+  /** Settings for 2D → 3D transition */
+  modeTo3d?: TransitionTo3dConfig;
+  /** Settings for 3D → 2D transition */
+  modeTo2d?: TransitionTo2dConfig;
+}
+
 export interface TransitionContextType {
   transitionStateRef: MutableRefObject<MapTransitionState>;
   transitionLifecycleRef: MutableRefObject<MapTransitionLifecycle>;
+  config: Required<TransitionConfig>;
   subscribe: SubscribeTransitionCtxFn;
   emit: EmitTransitionCtxFn;
 }

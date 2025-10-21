@@ -58,6 +58,10 @@ export interface CesiumContextType {
 
   // Original config for reference
   config: CesiumConfig;
+  configRef: MutableRefObject<CesiumConfig>;
+
+  // Activation trigger - increments when Activate event fires
+  activationCount: number;
 }
 
 export const CesiumContext = createContext<CesiumContextType | null>(null);

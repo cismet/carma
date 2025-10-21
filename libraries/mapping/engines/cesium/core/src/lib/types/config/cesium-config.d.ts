@@ -30,16 +30,16 @@ export type CesiumConfig = {
   // CARMA scene management
   sceneStyle?: SceneStyleConfig; // Single scene style configuration
 
+  // Tileset loading configuration
+  tilesets?: {
+    minInitialTileCount?: number; // Minimum number of tiles to load before considering tileset ready (default: 4)
+  };
+
   // Camera/home position (CARMA extensions)
   initialCamera?: CameraViewOptions; // destination + orientation (HPR)
   initialCameraLookAt?: CameraLookAtOptions; // DEPRECATED: use initialCamera instead
-  // Legacy fields (TODO: evaluate removal)
-  /* TRANSITIONS
-  not handled by the viewer itself
-  transitions?: {
-    mapMode: { duration: number };
-  };
-  */
+  // Transition configuration (handled by TransitionContextProvider, not CesiumContext)
+  transitions?: import("@carma-mapping/map-transition-2d-3d").TransitionConfig;
 
   /* CAMERA
   move to limiter plugin

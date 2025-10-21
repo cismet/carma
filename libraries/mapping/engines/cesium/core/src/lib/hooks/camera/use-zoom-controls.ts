@@ -76,9 +76,19 @@ const zoom = (
     wasCancelled = true;
   }
 
-  // Calculate screen center
-  scratchScreenCenter.x = canvas.clientWidth / 2;
-  scratchScreenCenter.y = canvas.clientHeight / 2;
+  // Reset scratch objects to prevent accumulation
+  scratchScreenCenter.x = 0;
+  scratchScreenCenter.y = 0;
+  scratchNewPosition.x = 0;
+  scratchNewPosition.y = 0;
+  scratchNewPosition.z = 0;
+
+  // Calculate screen center with safety clamping
+  const MAX_DIMENSION = 4000;
+  const width = Math.min(canvas.clientWidth, MAX_DIMENSION);
+  const height = Math.min(canvas.clientHeight, MAX_DIMENSION);
+  scratchScreenCenter.x = width / 2;
+  scratchScreenCenter.y = height / 2;
 
   // Pick positions - validate everything (Cesium can return invalid/destroyed objects)
   const scenePickPosition = scene.pickPosition?.(scratchScreenCenter);

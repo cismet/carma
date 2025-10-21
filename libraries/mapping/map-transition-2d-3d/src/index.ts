@@ -3,6 +3,9 @@ export {
   MapTransitionState,
   type TransitionContextType,
   type MapTransitionLifecycle,
+  type TransitionConfig,
+  type TransitionTo3dConfig,
+  type TransitionTo2dConfig,
 } from "./lib/TransitionContext";
 
 export {
