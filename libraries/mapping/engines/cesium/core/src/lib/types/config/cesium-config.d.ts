@@ -38,10 +38,6 @@ export type CesiumConfig = {
   // Camera/home position (CARMA extensions)
   initialCamera?: CameraViewOptions; // destination + orientation (HPR)
   initialCameraLookAt?: CameraLookAtOptions; // DEPRECATED: use initialCamera instead
-  // Transition configuration (handled by TransitionContextProvider, not CesiumContext)
-  // Note: Using 'any' to avoid circular dependency with map-transition-2d-3d
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  transitions?: any;
 
   /* CAMERA
   move to limiter plugin

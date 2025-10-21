@@ -13,6 +13,7 @@ import {
 import { Cartesian3, toColorRgbaArray, Color, HeadingPitchRange } from "@carma/cesium";
 import type { LeafletConfig } from "@carma/types";
 import type { CesiumConfig } from "@carma-mapping/engines/cesium/core";
+import type { TransitionConfig } from "@carma-mapping/map-transition-2d-3d";
 import { MODEL_ASSETS } from "./assets.config";
 
 export const APP_BASE_PATH = import.meta.env.BASE_URL;
@@ -33,42 +34,42 @@ const CESIUM_PATHNAME = "__cesium__";
  *   - luftbild (aerial) → mesh-2024
  *   - karte (topo) → lod2
  */
-export const CESIUM_CONFIG: Partial<CesiumConfig> = {
-  baseUrl: `${APP_BASE_PATH}${CESIUM_PATHNAME}`,
-  
-  // Transition configuration for 2D↔3D mode switching
-  transitions: {
-    modeTo3d: {
-      step1_prepare2dView: {
-        maxZoom: 20,
-        zoomOutDurationMs: 700,
-        zoomOutTimeoutBufferMs: 100,
-      },
-      step2_initialRender: {
-        timeoutMs: 500,
-      },
-      step3_waitForResources: {
-        timeoutMs: 2000,
-      },
-      // step4_positionCamera: synchronous, no config needed
-      step5_cssFadeIn: {
-        durationMs: 1000,
-      },
-      step6_cameraAnimation: {
-        durationMs: 2000,
-      },
+// Transition configuration for 2D↔3D mode switching
+export const TRANSITIONS_CONFIG: TransitionConfig = {
+  modeTo3d: {
+    step1_prepare2dView: {
+      maxZoom: 20,
+      zoomOutDurationMs: 700,
+      zoomOutTimeoutBufferMs: 100,
     },
-    modeTo2d: {
-      step2_cameraTiltAnimation: {
-        durationFactorCameraDeviationMs: 1500,
-        durationFactorZoomDiffMs: 500,
-        maxDurationMs: 2000,
-      },
-      step3_cssFadeOut: {
-        durationMs: 1000,
-      },
+    step2_initialRender: {
+      timeoutMs: 500,
+    },
+    step3_waitForResources: {
+      timeoutMs: 2000,
+    },
+    // step4_positionCamera: synchronous, no config needed
+    step5_cssFadeIn: {
+      durationMs: 1000,
+    },
+    step6_cameraAnimation: {
+      durationMs: 2000,
     },
   },
+  modeTo2d: {
+    step2_cameraTiltAnimation: {
+      durationFactorCameraDeviationMs: 1500,
+      durationFactorZoomDiffMs: 500,
+      maxDurationMs: 2000,
+    },
+    step3_cssFadeOut: {
+      durationMs: 1000,
+    },
+  },
+};
+
+export const CESIUM_CONFIG: Partial<CesiumConfig> = {
+  baseUrl: `${APP_BASE_PATH}${CESIUM_PATHNAME}`,
   
   // Initial camera using HeadingPitchRange (target-centric)
   initialCamera: {
