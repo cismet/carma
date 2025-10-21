@@ -29,7 +29,7 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
   useEffect(() => {
     const leafletMap = routedMapRef?.leafletMap?.leafletElement;
 
-    if (leafletMap && typeof leafletMap.on === "function" && !isMapMoving) {
+    if (leafletMap && typeof leafletMap.on === "function") {
       // Import L from leaflet
       const L = (window as any).L;
       let closestPoint: any = null;
@@ -361,6 +361,6 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
         }
       };
     }
-  }, [routedMapRef, maplibreMap, isMapMoving]);
+  }, [routedMapRef, maplibreMap]);
   return null;
 }
