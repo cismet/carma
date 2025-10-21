@@ -782,7 +782,7 @@ export const NewLibModal = ({
         ...prev,
         {
           id: "mapLayers",
-          categories: JSON.parse(JSON.stringify(allLayers)).reverse(),
+          categories: JSON.parse(JSON.stringify(allLayers)),
         },
       ];
     });
