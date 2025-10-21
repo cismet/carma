@@ -10,6 +10,10 @@ import {
   type Scene,
 } from "@carma/cesium";
 
+import { normalizeOptions, Logger } from "@carma-commons/utils";
+
+const logger = new Logger('Transition:2D');
+
 import type { TopicMapCtxEvent } from "@carma-mapping/engines/carma-cismap";
 import type { EmitFn as EmitCesiumFn } from "@carma-mapping/engines/cesium/core";
 import {
@@ -86,18 +90,18 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
   ) => {
     const leafletMap = leafletMapRef.current;
     if (!leafletMap) {
-      console.warn("leaflet not available no transition possible [zoom]");
+      logger.warn("leaflet not available no transition possible [zoom]");
       onCancel?.(true);
       throw new Error("Transition to 2D cancelled: leaflet not available");
     }
     const scene = sceneRef.current;
     if (!isValidScene(scene)) {
-      console.warn("cesium not available no transition possible [zoom]");
+      logger.warn("cesium not available no transition possible [zoom]");
       onCancel?.(true);
       throw new Error("Transition to 2D cancelled: scene not available");
     }
-    console.log(
-      "[CESIUM|2D3D|TO2D] ========== Starting Transition to 2D =========="
+    logger.info(
+      "========== Starting Transition to 2D =========="
     );
 
     transitionStateRef.current = MapTransitionState.preTransitionTo2d;
@@ -107,12 +111,12 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
         MapTransitionState.preTransitionTo2d
       );
     } catch (error) {
-      console.warn("[CESIUM|2D3D|TO2D] preTransitionTo2d failed", error);
+      logger.warn("[CESIUM|2D3D|TO2D] preTransitionTo2d failed", error);
       // continue with actual transition
     }
 
-    console.log(
-      "[CESIUM|2D3D|TO2D] ========== STEP 1: Calculate Camera Position & Zoom =========="
+    logger.debug(
+      "Attempting pick at scene center for ground position"
     );
 
     // Do not transition if we cannot pick ground from depth (ellipsoid-only is not allowed)
@@ -121,7 +125,7 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
 
     const sceneCamera = scene.camera;
     if (!isValidCamera(sceneCamera)) {
-      console.warn("[CESIUM|2D3D|TO2D] camera not valid");
+      logger.warn("[CESIUM|2D3D|TO2D] camera not valid");
       onCancel?.(true);
       throw new Error("Transition to 2D cancelled: camera not valid");
     }
@@ -131,8 +135,8 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
 
     const hasGroundPos = defined(groundPos) && defined(cartographic);
     if (!hasGroundPos) {
-      console.error(
-        "[CESIUM|2D3D|TO2D] ✗ No valid ground height (depth) found – cancel transition"
+      logger.error(
+        "✗ No valid ground height (depth) found – cancel transition"
       );
       transitionStateRef.current = MapState.mode3d;
       onCancel?.(true);
@@ -141,7 +145,7 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
       );
     }
 
-    console.log("[CESIUM|2D3D|TO2D] ✓ Ground position found");
+    logger.debug("✓ Ground position found");
 
     // Start transition visuals only after we know we can complete it
     const pos = groundPos as Cartesian3;
@@ -158,7 +162,7 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
       const currentZoom = cesiumCenterPixelSizeToLeafletZoom(scene).value;
 
       if (currentZoom === null) {
-        console.error("[CESIUM|2D3D|TO2D] ✗ Could not determine current zoom level");
+        logger.error("[CESIUM|2D3D|TO2D] ✗ Could not determine current zoom level");
         transitionStateRef.current = MapState.mode3d;
         onCancel?.(true);
         throw new Error(
@@ -179,15 +183,15 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
         distance = distance * heightFactor;
         height = groundHeight + distance;
 
-        console.log(
-          `[CESIUM|2D3D|TO2D] ✓ Zoom calculation: ${currentZoom.toFixed(2)} → ${targetZoom} (diff: ${zoomDiff.toFixed(2)})`
+        logger.log(
+          `[CESIUM|2D3D|TO2D] Zoom calculation: ${currentZoom.toFixed(2)} → ${targetZoom} (diff: ${zoomDiff.toFixed(2)})`
         );
       }
     } else {
-      console.log("[CESIUM|2D3D|TO2D] ⚠ No zoomSnap applied");
+      logger.log("[CESIUM|2D3D|TO2D] ⚠ No zoomSnap applied");
     }
 
-    console.log(
+    logger.log(
       "[CESIUM|2D3D|TO2D] ========== STEP 2: Tilt Camera to Nadir =========="
     );
 
@@ -198,65 +202,65 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
       (zoomDiff ?? 0) * durationFactorZoomDiffMs;
     const durationMs = Math.min(calculatedDurationMs, maxDurationTo2dMs); // Cap at configured max
     
-    console.log(
+    logger.log(
       `[CESIUM|2D3D|TO2D] Tilt animation duration: ${durationMs.toFixed(0)}ms (deviation: ${((cameraDeviation * 180) / Math.PI).toFixed(1)}°, zoomDiff: ${zoomDiff.toFixed(2)})`
     );
     
     setLast3dAnimationDuration(durationMs);
 
     const onComplete2d = async () => {
-      console.log(
+      logger.log(
         "[CESIUM|2D3D|TO2D] ========== STEP 3: Switch to 2D Map =========="
       );
 
       try {
         const { lat, lng, zoom } = await getTiledMapCenterZoomEquivalent(scene);
         if (!leafletMap) {
-          console.error("[CESIUM|2D3D|TO2D] ✗ Leaflet not available");
+          logger.error("[CESIUM|2D3D|TO2D] ✗ Leaflet not available");
           onCancel(false);
           throw new Error(
             "Transition to 2D cancelled: leaflet not available in onComplete"
           );
         }
         if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-          console.error("[CESIUM|2D3D|TO2D] ✗ Invalid coordinates");
+          logger.error("✗ Invalid coordinates");
           onCancel(false);
           throw new Error("Transition to 2D cancelled: invalid coordinates");
         }
         if (!Number.isFinite(zoom)) {
-          console.error("[CESIUM|2D3D|TO2D] ✗ Invalid zoom");
+          logger.error("✗ Invalid zoom");
           onCancel(false);
           throw new Error("Transition to 2D cancelled: invalid zoom");
         }
 
-        console.log(
-          `[CESIUM|2D3D|TO2D] Setting Leaflet view: [${lat.toFixed(6)}, ${lng.toFixed(6)}] zoom=${zoom}`
+        logger.debug(
+          `Setting Leaflet view: [${lat.toFixed(6)}, ${lng.toFixed(6)}] zoom=${zoom}`
         );
         leafletMap.setView([lat, lng], zoom, noAnimation);
-        console.log("[CESIUM|2D3D|TO2D] ✓ Leaflet view set");
+        logger.debug("✓ Leaflet view set");
       } catch (error) {
-        console.error("[CESIUM|2D3D|TO2D] ✗ Failed to determine center/zoom", error);
+        logger.error("✗ Failed to determine center/zoom", error);
         onCancel(false);
         throw new Error(`Transition to 2D cancelled: ${error}`);
       }
 
       // trigger the visual transition
       // Emit events: TopicMap becomes active, Cesium becomes suspended
-      console.log("[CESIUM|2D3D|TO2D] Activating TopicMap, suspending Cesium");
+      logger.debug("Activating TopicMap, suspending Cesium");
       emitTopicMapEvent(TopicMapCtxEvent.Activate);
       emitCesiumEvent(CtxEvent.Suspend, undefined);
-      console.log("[CESIUM|2D3D|TO2D] ✓ TopicMap activated, Cesium suspended");
+      logger.debug("✓ TopicMap activated, Cesium suspended");
 
       transitionStateRef.current = MapState.mode2d;
-      console.log("[CESIUM|2D3D|TO2D] ========== Transition to 2D Complete ==========");
+      logger.info("========== Transition to 2D Complete ===========");
       onComplete?.(true);
     };
 
     transitionStateRef.current = MapState.transitionTo2d;
 
     if (hasGroundPos) {
-      console.log(
-        `[CESIUM|2D3D|TO2D] Starting camera tilt animation (${durationMs.toFixed(0)}ms)...`
+      logger.debug(
+        `Starting camera tilt animation (${durationMs.toFixed(0)}ms)...`
       );
 
       animateInterpolateHeadingPitchRange(
@@ -271,7 +275,7 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
         }
       );
     } else {
-      console.error("[CESIUM|2D3D|TO2D] ✗ No ground position, cannot transition");
+      logger.error("✗ No ground position, cannot transition");
       onCancel(false);
       transitionStateRef.current = MapState.mode3d;
     }

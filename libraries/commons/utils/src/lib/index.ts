@@ -2,6 +2,7 @@ export * from "./arrays";
 export * from "./carma-config";
 export * from "./layer-parser";
 export * from "./log-react-cismap-errors";
+export * from "./logger";
 export * from "./normalize-options";
 export * from "./promise";
 export * from "./regex";

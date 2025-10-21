@@ -6,14 +6,16 @@ import type { Radians, Degrees } from "@carma/units/types";
 
 import { getPixelResolutionFromZoomAtLatitudeRad } from "@carma/geo/utils";
 import { isZoom, degToRad } from "@carma-commons/units/helpers";
-import { normalizeOptions } from "@carma-commons/utils";
+import { normalizeOptions, Logger } from "@carma-commons/utils";
+
 
 // Import utilities from cesium engine
 import {
   getCesiumFrustumPixelDimensionsForDistance,
   getCameraHeightAboveGround,
   getScenePixelSize,
-} from "@carma-mapping/engines/cesium/core";
+} from "@carma/cesium/core";
+const logger = new Logger('L2C');
 
 // TODO: move to config or formalize the starting distance value
 const START_DISTANCE = 1000;
@@ -49,7 +51,7 @@ export const tiledMapToCesium = async (
   options: TransitionOptions
 ): Promise<boolean> => {
   if (!isValidScene(scene)) {
-    console.error("[tiledMapToCesium] Invalid scene provided");
+    logger.error("Invalid scene provided");
     return false;
   }
 
@@ -59,12 +61,12 @@ export const tiledMapToCesium = async (
   let result = false;
 
   if (!isZoom(zoom)) {
-    console.warn("No zoom level available for transition");
+    logger.warn("No zoom level available for transition");
     return false;
   }
 
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
-    console.warn(
+    logger.warn(
       "No valid coordinates available for transition",
       latitude,
       longitude
@@ -86,16 +88,16 @@ export const tiledMapToCesium = async (
   const LEAFLET_DPR_FACTOR = 1 / actualDPR;
   const targetPixelResolution = baseTargetPixelResolution * LEAFLET_DPR_FACTOR;
   
-  console.log(
+  logger.debug(
     `L2C [2D3D|CESIUM|CAMERA] Cesium resolution scale: ${resolutionScale.toFixed(2)}`
   );
-  console.log(
+  logger.debug(
     `L2C [2D3D|CESIUM|CAMERA] Window DPR: ${actualDPR} (Leaflet DPR factor: ${LEAFLET_DPR_FACTOR})`
   );
-  console.log(
+  logger.debug(
     `L2C [2D3D|CESIUM|CAMERA] Base pixel resolution from zoom ${zoom}: ${baseTargetPixelResolution.toFixed(4)}m/px`
   );
-  console.log(
+  logger.debug(
     `L2C [2D3D|CESIUM|CAMERA] Target pixel resolution (DPR-adjusted): ${targetPixelResolution.toFixed(4)}m/px`
   );
 
@@ -116,7 +118,7 @@ export const tiledMapToCesium = async (
     baseComputedPixelResolution === null ||
     baseComputedPixelResolution === undefined
   ) {
-    console.warn(
+    logger.warn(
       "No base computed pixel resolution found for distance",
       START_DISTANCE
     );
@@ -126,7 +128,7 @@ export const tiledMapToCesium = async (
   const resolutionRatio = targetPixelResolution / baseComputedPixelResolution;
   const computedDistance = START_DISTANCE * resolutionRatio;
   
-  console.log(
+  logger.debug(
     `L2C [2D3D|CESIUM|CAMERA] Computed distance: ${computedDistance.toFixed(2)}m`
   );
 
@@ -134,12 +136,12 @@ export const tiledMapToCesium = async (
   currentPixelResolution = getScenePixelSize(scene).value;
 
   if (currentPixelResolution === null) {
-    console.warn("No pixel size found for camera position");
+    logger.warn("No pixel size found for camera position");
     return false;
   }
 
   // STEP 1: Position camera at fallback elevation + computed distance
-  console.log(
+  logger.debug(
     `L2C [2D3D|CESIUM|CAMERA] Initial positioning: target ground=${fallbackElevationM.toFixed(2)}m (fallback), range=${computedDistance.toFixed(2)}m from target`
   );
   const initialCameraHeight = fallbackElevationM + computedDistance;
@@ -170,7 +172,7 @@ export const tiledMapToCesium = async (
     
     if (isRealTerrain) {
       try {
-        console.log(
+        logger.debug(
           `L2C [2D3D|CESIUM|CAMERA] Sampling terrain at (${latitude.toFixed(6)}, ${longitude.toFixed(6)})...`
         );
         const sampledPositions = await guardSampleTerrainMostDetailed(
@@ -181,51 +183,51 @@ export const tiledMapToCesium = async (
         
         if (sampledPositions && sampledPositions[0]?.height !== undefined) {
           terrainElevation = sampledPositions[0].height;
-          console.log(
+          logger.debug(
             `L2C [2D3D|CESIUM|CAMERA] ✓ Terrain elevation: ${terrainElevation.toFixed(2)}m`
           );
         } else {
-          console.warn(
-            `L2C [2D3D|CESIUM|CAMERA] ⚠ No terrain sample, using fallback: ${fallbackElevationM}m`
+          logger.warn(
+            `[2D3D|CESIUM|CAMERA] ⚠ No terrain sample, using fallback: ${fallbackElevationM}m`
           );
         }
       } catch (error) {
-        console.warn(
-          `L2C [2D3D|CESIUM|CAMERA] ⚠ Terrain sampling failed, using fallback: ${fallbackElevationM}m`,
+        logger.warn(
+          `[2D3D|CESIUM|CAMERA] ⚠ Terrain sampling failed, using fallback: ${fallbackElevationM}m`,
           error
         );
       }
     } else {
-      console.log(
+      logger.debug(
         `L2C [2D3D|CESIUM|CAMERA] Terrain provider is ${providerTypeName}, using fallback: ${fallbackElevationM}m`
       );
     }
   } else {
-    console.warn(
-      `L2C [2D3D|CESIUM|CAMERA] ⚠ No terrain provider available, using fallback: ${fallbackElevationM}m`
+    logger.warn(
+      `[2D3D|CESIUM|CAMERA] ⚠ No terrain provider available, using fallback: ${fallbackElevationM}m`
     );
   }
 
   // STEP 4: Set final camera position with accurate terrain
   const finalCameraHeight = terrainElevation + computedDistance;
 
-  console.log(
+  logger.debug(
     `L2C [2D3D|CESIUM|CAMERA] Position: lat=${latitude.toFixed(6)} lng=${longitude.toFixed(6)} zoom=${zoom}`
   );
-  console.log(
+  logger.debug(
     `L2C [2D3D|CESIUM|CAMERA] Ground elevation (sampled): ${terrainElevation.toFixed(2)}m`
   );
-  console.log(
+  logger.debug(
     `L2C [2D3D|CESIUM|CAMERA] Range from ground: ${computedDistance.toFixed(2)}m (pure, from zoom)`
   );
-  console.log(
+  logger.debug(
     `L2C [2D3D|CESIUM|CAMERA] Camera height above sea level: ${finalCameraHeight.toFixed(2)}m (${terrainElevation.toFixed(2)}m + ${computedDistance.toFixed(2)}m)`
   );
-  console.log(
+  logger.debug(
     `L2C [2D3D|CESIUM|CAMERA] Target pixel resolution: ${targetPixelResolution.toFixed(4)}m/px`
   );
 
-  console.log(
+  logger.debug(
     `L2C [2D3D|CESIUM|CAMERA] Setting refined camera position: height=${finalCameraHeight.toFixed(2)}m`
   );
   
@@ -251,14 +253,14 @@ export const tiledMapToCesium = async (
   let iterations = 0;
 
   if (currentPixelResolution === null) {
-    console.warn("No pixel size found for camera position");
+    logger.warn("No pixel size found for camera position");
     return false;
   }
 
   let currentError = Math.abs(currentPixelResolution - targetPixelResolution);
 
   // Log initial pixel resolution
-  console.log(
+  logger.debug(
     `L2C [2D3D|CESIUM|CAMERA] Initial actual pixel resolution: ${currentPixelResolution.toFixed(4)}m/px (error: ${currentError.toFixed(4)})`
   );
 
@@ -270,8 +272,8 @@ export const tiledMapToCesium = async (
     const newCameraHeight = cameraHeightAboveGround + groundHeight;
 
     if (!Number.isFinite(newCameraHeight)) {
-      console.error(
-        "[TRANSITION|ERROR] Invalid camera height calculated:",
+      logger.error(
+        "Invalid camera height calculated:",
         newCameraHeight
       );
       throw new Error("Invalid camera height - NaN or Infinity");
@@ -292,7 +294,7 @@ export const tiledMapToCesium = async (
     
     currentPixelResolution = getScenePixelSize(scene).value;
     if (currentPixelResolution === null) {
-      console.warn("L2C [2D3D|CESIUM|CAMERA] No pixel resolution during iteration");
+      logger.warn("[2D3D|CESIUM|CAMERA] No pixel resolution during iteration");
       isQualifiedResult = false;
       break;
     }
@@ -300,12 +302,12 @@ export const tiledMapToCesium = async (
     currentError = Math.abs(currentPixelResolution - targetPixelResolution);
     iterations++;
     
-    console.log(
+    logger.debug(
       `L2C [2D3D|CESIUM|CAMERA] Micro-correction ${iterations}: actual=${currentPixelResolution.toFixed(4)}m/px error=${currentError.toFixed(4)} height=${newCameraHeight.toFixed(2)}m`
     );
     
     if (currentError <= epsilon) {
-      console.log(
+      logger.debug(
         `L2C [2D3D|CESIUM|CAMERA] ✓ Converged after ${iterations} iteration(s)`
       );
       break;
@@ -313,8 +315,8 @@ export const tiledMapToCesium = async (
   }
   
   if (iterations >= maxMicroCorrections && currentError > epsilon) {
-    console.warn(
-      `L2C [2D3D|CESIUM|CAMERA] ⚠ Stopped after ${maxMicroCorrections} micro-corrections, error=${currentError.toFixed(4)}`
+    logger.warn(
+      `[2D3D|CESIUM|CAMERA] ⚠ Stopped after ${maxMicroCorrections} micro-corrections, error=${currentError.toFixed(4)}`
     );
   }
   
