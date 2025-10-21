@@ -47,6 +47,7 @@ export function MapMeasurementsObjects({
     updateAreaOfDrawing,
     deleteVisibleShapeById,
     setCurrentDrawHandler,
+    snappingLatlng,
 
     // looks unuseful
     setStartDrawing,
@@ -81,6 +82,7 @@ export function MapMeasurementsObjects({
         msj_disable_tool: "Do you want to disable the tool?",
         device,
         shapes,
+        snappingLatlng,
         cbSaveShape: saveShapeHandler,
         cbUpdateShape: updateShapeHandler,
         cdDeleteShape: deleteShapeHandler,
@@ -183,6 +185,15 @@ export function MapMeasurementsObjects({
     moveToShape,
     currentMode,
   ]);
+
+  // keep snappingLatlng in sync with control options
+  useEffect(() => {
+    if (measureControl) {
+      try {
+        measureControl.options.snappingLatlng = snappingLatlng;
+      } catch (_) {}
+    }
+  }, [snappingLatlng, measureControl]);
 
   useEffect(() => {
     if (measureControl) {
