@@ -1,6 +1,6 @@
 import { useEffect, useRef, useContext, useState } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
-import { adjustClickPosition } from "../utils/helper";
+import { adjustClickPosition, toLatLngFromClosestPoint } from "../utils/helper";
 import { useMapMeasurementsContext } from "../components/MapMeasurementsProvider";
 
 export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
@@ -299,9 +299,7 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
             }
             closestPoint = blackPoint[0];
 
-            const [lng, lat] = closestPoint.geometry.coordinates;
-            const finalLatLng = L.latLng(lat, lng);
-
+            const finalLatLng = toLatLngFromClosestPoint(closestPoint);
             setSnappingLatlng(finalLatLng);
 
             // Update highlight source with only the black point
