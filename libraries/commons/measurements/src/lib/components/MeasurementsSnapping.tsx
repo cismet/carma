@@ -300,7 +300,9 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
             closestPoint = blackPoint[0];
 
             const finalLatLng = toLatLngFromClosestPoint(closestPoint);
-            setSnappingLatlng(finalLatLng);
+            if (finalLatLng && setSnappingLatlng) {
+              setSnappingLatlng(finalLatLng);
+            }
 
             // Update highlight source with only the black point
             maplibreMap.getSource("highlight").setData({

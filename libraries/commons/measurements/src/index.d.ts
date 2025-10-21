@@ -14,7 +14,7 @@ export interface MapMeasurementsContextType {
   visibleShapes: any[];
   setVisibleShapes: (shapes: any[]) => void;
   snappingLatlng?: any;
-  setSnappingLatlng?: (latlng: any) => void;
+  setSnappingLatlng?: (coords: any) => void;
 
   showAll: boolean;
   deleteAll: boolean;
