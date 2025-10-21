@@ -48,9 +48,14 @@ export const useHandleDrop = ({
           .then((response) => response.json())
           .then((data) => {
             if (data.metadata && data.metadata.carmaConf.layerInfo) {
+              const layerInfo = data.metadata.carmaConf.layerInfo;
               newItem = {
                 ...newItem,
-                ...data.metadata.carmaConf.layerInfo,
+                ...layerInfo,
+                keywords: [
+                  ...newItem.keywords,
+                  ...(layerInfo.keywords || []),
+                ],
               };
             }
           })
