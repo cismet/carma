@@ -137,11 +137,15 @@ export const cesiumCenterPixelSizeToLeafletZoom = (
   const actualDPR = window.devicePixelRatio || 1;
   const LEAFLET_DPR_FACTOR = 1 / actualDPR;
   const adjustedPixelResolution = (px / LEAFLET_DPR_FACTOR) as Meters;
-  
+
   console.debug(
-    `[CESIUM->LEAFLET] Converting px=${px.toFixed(4)}m/px with DPR=${actualDPR} → adjusted=${adjustedPixelResolution.toFixed(4)}m/px`
+    `[CESIUM->LEAFLET] Converting px=${px.toFixed(
+      4
+    )}m/px with DPR=${actualDPR} → adjusted=${adjustedPixelResolution.toFixed(
+      4
+    )}m/px`
   );
-  
+
   const zoom = getZoomFromPixelResolutionAtLatitudeRad(
     adjustedPixelResolution,
     scene.camera.positionCartographic.latitude as Radians

@@ -1,4 +1,10 @@
-import { Camera, Cartesian2, Cartesian3, CesiumMath, type Scene } from "@carma/cesium";
+import {
+  Camera,
+  Cartesian2,
+  Cartesian3,
+  CesiumMath,
+  type Scene,
+} from "@carma/cesium";
 
 import type { Radians } from "@carma/units/types";
 

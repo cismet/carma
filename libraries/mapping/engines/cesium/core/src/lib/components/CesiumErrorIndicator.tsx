@@ -18,7 +18,7 @@ export const CesiumErrorIndicator = () => {
         error?: Error;
         meta?: Record<string, unknown>;
       };
-      
+
       const error: CesiumError = {
         timestamp: new Date().toISOString(),
         message: detail.error?.message || "Unknown Cesium error",
@@ -29,7 +29,8 @@ export const CesiumErrorIndicator = () => {
     };
 
     window.addEventListener("carma:cesium:renderError", handleError);
-    return () => window.removeEventListener("carma:cesium:renderError", handleError);
+    return () =>
+      window.removeEventListener("carma:cesium:renderError", handleError);
   }, []);
 
   if (errors.length === 0) return null;
@@ -70,7 +71,9 @@ export const CesiumErrorIndicator = () => {
       <Modal
         title={
           <span>
-            <ExclamationCircleOutlined style={{ color: "#ff9800", marginRight: 8 }} />
+            <ExclamationCircleOutlined
+              style={{ color: "#ff9800", marginRight: 8 }}
+            />
             Cesium Error Log
           </span>
         }
@@ -94,7 +97,9 @@ export const CesiumErrorIndicator = () => {
               <div style={{ fontSize: 11, color: "#666", marginBottom: 4 }}>
                 {new Date(error.timestamp).toLocaleString()}
               </div>
-              <div style={{ fontWeight: 500, marginBottom: 4 }}>{error.message}</div>
+              <div style={{ fontWeight: 500, marginBottom: 4 }}>
+                {error.message}
+              </div>
               {error.stack && (
                 <details style={{ fontSize: 11, color: "#666", marginTop: 8 }}>
                   <summary style={{ cursor: "pointer" }}>Stack trace</summary>
@@ -115,9 +120,17 @@ export const CesiumErrorIndicator = () => {
             </div>
           ))}
         </div>
-        <div style={{ marginTop: 16, padding: 12, background: "#e3f2fd", borderRadius: 4 }}>
+        <div
+          style={{
+            marginTop: 16,
+            padding: 12,
+            background: "#e3f2fd",
+            borderRadius: 4,
+          }}
+        >
           <div style={{ fontSize: 12, color: "#1976d2" }}>
-            ℹ️ The 3D scene was automatically reinitialized. You can continue working normally.
+            ℹ️ The 3D scene was automatically reinitialized. You can continue
+            working normally.
           </div>
         </div>
       </Modal>

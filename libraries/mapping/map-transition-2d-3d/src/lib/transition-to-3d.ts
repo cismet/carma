@@ -82,7 +82,8 @@ export const createTransitionTo3d = (params: TransitionTo3dParams) => {
   const { timeoutMs: initialRenderTimeoutMs = 500 } = step2_initialRender;
   const { timeoutMs: resourcesTimeoutMs = 2000 } = step3_waitForResources;
   const { durationMs: cssFadeInDurationMs = 1000 } = step5_cssFadeIn;
-  const { durationMs: cameraAnimationDurationMs = 2000 } = step6_cameraAnimation;
+  const { durationMs: cameraAnimationDurationMs = 2000 } =
+    step6_cameraAnimation;
 
   const prepareLeafletForTransition = async (
     leaflet: LeafletMap | null | undefined
@@ -275,9 +276,13 @@ export const createTransitionTo3d = (params: TransitionTo3dParams) => {
     // Request initial render to start loading and wait for it
     scene.requestRender();
     try {
-      await promiseWithTimeout(waitForAnimationFrames(1), initialRenderTimeoutMs, {
-        timeoutValue: undefined,
-      });
+      await promiseWithTimeout(
+        waitForAnimationFrames(1),
+        initialRenderTimeoutMs,
+        {
+          timeoutValue: undefined,
+        }
+      );
       console.log("[CESIUM|2D3D|TO3D] ✓ Initial render completed");
     } catch (err) {
       console.warn("[CESIUM|2D3D|TO3D] ⚠ Initial render timeout:", err);

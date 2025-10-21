@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback } from "react";
 import type { Map as LeafletMap } from "leaflet";
 
-import { HeadingPitchRange, CesiumMath } from "@carma/cesium";
+import type { HeadingPitchRange } from "@carma/cesium";
 import { metersPerPixelAtLatitudeRad } from "@carma/geo/utils";
 import { degToRad } from "@carma/geo/helpers";
 import type { Radians } from "@carma/units/types";
@@ -57,11 +57,14 @@ type TransitionOptions = {
 
 /**
  * Converts Leaflet map position to Cesium initial position with HeadingPitchRange.
+ * Uses dynamic import to avoid loading Cesium in 2D mode.
  */
-const getLeafletPosition = (
+const getLeafletPosition = async (
   leafletMap: LeafletMap | null
-): InitialCesiumPosition | null => {
+): Promise<InitialCesiumPosition | null> => {
   if (!leafletMap) return null;
+
+  const { HeadingPitchRange, CesiumMath } = await import("@carma/cesium");
 
   const center = leafletMap.getCenter();
   const zoom = leafletMap.getZoom();
@@ -168,7 +171,7 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
   const transitionToMode3d = useCallback(async () => {
     // Guard: Ensure Cesium is initialized at current 2D position
     const leafletMap = leafletMapRef.current;
-    const initialPosition = getLeafletPosition(leafletMap);
+    const initialPosition = await getLeafletPosition(leafletMap);
 
     if (initialPosition) {
       await ensureInitialized(initialPosition);

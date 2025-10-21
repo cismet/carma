@@ -12,7 +12,7 @@ import {
 
 import { normalizeOptions, Logger } from "@carma-commons/utils";
 
-const logger = new Logger('Transition:2D');
+const logger = new Logger("Transition:2D");
 
 import type { TopicMapCtxEvent } from "@carma-mapping/engines/carma-cismap";
 import type { EmitFn as EmitCesiumFn } from "@carma-mapping/engines/cesium/core";
@@ -71,10 +71,7 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
     onCancel,
   } = params;
 
-  const {
-    step2_cameraTiltAnimation = {},
-    step3_cssFadeOut = {},
-  } = config;
+  const { step2_cameraTiltAnimation = {}, step3_cssFadeOut = {} } = config;
 
   const {
     durationFactorCameraDeviationMs = 1.5,
@@ -100,9 +97,7 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
       onCancel?.(true);
       throw new Error("Transition to 2D cancelled: scene not available");
     }
-    logger.info(
-      "========== Starting Transition to 2D =========="
-    );
+    logger.info("========== Starting Transition to 2D ==========");
 
     transitionStateRef.current = MapTransitionState.preTransitionTo2d;
     try {
@@ -115,9 +110,7 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
       // continue with actual transition
     }
 
-    logger.debug(
-      "Attempting pick at scene center for ground position"
-    );
+    logger.debug("Attempting pick at scene center for ground position");
 
     // Do not transition if we cannot pick ground from depth (ellipsoid-only is not allowed)
     const { scenePosition: groundPos, coordinates: cartographic } =
@@ -162,7 +155,9 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
       const currentZoom = cesiumCenterPixelSizeToLeafletZoom(scene).value;
 
       if (currentZoom === null) {
-        logger.error("[CESIUM|2D3D|TO2D] ✗ Could not determine current zoom level");
+        logger.error(
+          "[CESIUM|2D3D|TO2D] ✗ Could not determine current zoom level"
+        );
         transitionStateRef.current = MapState.mode3d;
         onCancel?.(true);
         throw new Error(
@@ -184,7 +179,9 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
         height = groundHeight + distance;
 
         logger.log(
-          `[CESIUM|2D3D|TO2D] Zoom calculation: ${currentZoom.toFixed(2)} → ${targetZoom} (diff: ${zoomDiff.toFixed(2)})`
+          `[CESIUM|2D3D|TO2D] Zoom calculation: ${currentZoom.toFixed(
+            2
+          )} → ${targetZoom} (diff: ${zoomDiff.toFixed(2)})`
         );
       }
     } else {
@@ -201,11 +198,15 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
       (cameraDeviation ?? 0) * durationFactorCameraDeviationMs +
       (zoomDiff ?? 0) * durationFactorZoomDiffMs;
     const durationMs = Math.min(calculatedDurationMs, maxDurationTo2dMs); // Cap at configured max
-    
+
     logger.log(
-      `[CESIUM|2D3D|TO2D] Tilt animation duration: ${durationMs.toFixed(0)}ms (deviation: ${((cameraDeviation * 180) / Math.PI).toFixed(1)}°, zoomDiff: ${zoomDiff.toFixed(2)})`
+      `[CESIUM|2D3D|TO2D] Tilt animation duration: ${durationMs.toFixed(
+        0
+      )}ms (deviation: ${((cameraDeviation * 180) / Math.PI).toFixed(
+        1
+      )}°, zoomDiff: ${zoomDiff.toFixed(2)})`
     );
-    
+
     setLast3dAnimationDuration(durationMs);
 
     const onComplete2d = async () => {
@@ -234,7 +235,9 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
         }
 
         logger.debug(
-          `Setting Leaflet view: [${lat.toFixed(6)}, ${lng.toFixed(6)}] zoom=${zoom}`
+          `Setting Leaflet view: [${lat.toFixed(6)}, ${lng.toFixed(
+            6
+          )}] zoom=${zoom}`
         );
         leafletMap.setView([lat, lng], zoom, noAnimation);
         logger.debug("✓ Leaflet view set");

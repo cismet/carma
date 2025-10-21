@@ -31,6 +31,12 @@ export const CesiumMapComponentWrapper = () => {
   
   // Only render scene component after first activation (when switching to 3D)
   const shouldMountScene = activationCount > 0;
+  
+  console.log("[CesiumMapComponentWrapper] Render", {
+    activationCount,
+    shouldMountScene,
+    hasContainer: !!cesiumContainerRef.current,
+  });
 
   // Initial camera view handled via CesiumConfig in CesiumContextProvider
   // MapViewState (URL hash) is managed by useMapHashRoutingCesium hook
@@ -148,9 +154,15 @@ export const CesiumMapComponentWrapper = () => {
         pointerEvents: "none", // Initial state: no interaction (updated by useEffect)
       }}
     >
+      {/* Cesium container - must have explicit dimensions for canvas sizing */}
       <div
         ref={cesiumContainerRef}
-        style={{ width: "100%", height: "100%" }}
+        style={{
+          width: "100%",
+          height: "100%",
+          position: "relative",
+          overflow: "hidden",
+        }}
       >
         {/* Only mount CesiumSceneComponent after first activation (2D→3D transition)
             This prevents resource managers from initializing during cold 2D start */}

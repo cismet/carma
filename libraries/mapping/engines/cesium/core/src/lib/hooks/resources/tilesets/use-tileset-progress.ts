@@ -44,10 +44,11 @@ export const useTilesetProgress = (
 
   const attachProgressListener = (id: string, tileset: Cesium3DTileset) => {
     // Check if tiles are already loaded (e.g., from cache)
-    const currentTilesProcessing = tileset.statistics?.numberOfTilesProcessing ?? 0;
+    const currentTilesProcessing =
+      tileset.statistics?.numberOfTilesProcessing ?? 0;
     const currentTilesLoaded = tileset.statistics?.numberOfTilesLoaded ?? 0;
     const totalTiles = currentTilesProcessing + currentTilesLoaded;
-    
+
     tileLoadCountersRef.current.set(id, totalTiles);
 
     if (totalTiles >= minTileCount) {
@@ -64,7 +65,7 @@ export const useTilesetProgress = (
       const tilesProcessing = tileset.statistics?.numberOfTilesProcessing ?? 0;
       const tilesLoaded = tileset.statistics?.numberOfTilesLoaded ?? 0;
       const totalTiles = tilesProcessing + tilesLoaded;
-      
+
       tileLoadCountersRef.current.set(id, totalTiles);
 
       const wasReady = initialTilesFiredRef.current.has(id);
@@ -89,9 +90,9 @@ export const useTilesetProgress = (
     const handleLoadProgress = () => {
       checkReadyState();
     };
-    
+
     tileset.loadProgress.addEventListener(handleLoadProgress);
-    
+
     // Also listen to tileLoad as fallback
     tileset.tileLoad.addEventListener(checkReadyState);
 

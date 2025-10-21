@@ -5,7 +5,7 @@ import type { Radians } from "@carma/units/types";
 import { CompassNeedleSVG } from "../CompassNeedleSVG";
 
 // Default to north-up (top-down view) for 2D mode fallback
-const DEFAULT_PITCH = -Math.PI / 2 as Radians; // -90° = straight down
+const DEFAULT_PITCH = (-Math.PI / 2) as Radians; // -90° = straight down
 const DEFAULT_HEADING = 0 as Radians; // North
 
 type Props = {

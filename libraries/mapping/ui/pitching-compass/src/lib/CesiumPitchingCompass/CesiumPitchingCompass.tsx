@@ -233,13 +233,13 @@ export const CesiumPitchingCompass = ({
         console.debug("[Compass] Scene not ready, skipping camera listener");
         return;
       }
-      
+
       // Remove existing listener first
       if (cameraListenerRef.current) {
         scene.camera.changed.removeEventListener(cameraListenerRef.current);
         console.debug("[Compass] Removed old camera listener");
       }
-      
+
       const camera = scene.camera;
       const updateOrientation = () => {
         // correct heading for compass needle
@@ -248,20 +248,22 @@ export const CesiumPitchingCompass = ({
           applyRollToHeadingForCameraNearNadir(camera)
         );
       };
-      
+
       camera.percentageChanged = 0.01;
       camera.changed.addEventListener(updateOrientation);
       cameraListenerRef.current = updateOrientation;
-      
+
       // Update needle immediately with current camera orientation
       updateOrientation();
-      
-      console.debug("[Compass] Camera listener attached and initial orientation set");
+
+      console.debug(
+        "[Compass] Camera listener attached and initial orientation set"
+      );
     };
-    
+
     // Attach immediately if scene is ready
     attachCameraListener();
-    
+
     // Re-attach when Cesium activates (2D→3D transition)
     const unsubscribeActivate = subscribe(CtxEvent.Activate, () => {
       console.debug("[Compass] Activate event - reattaching camera listener");
