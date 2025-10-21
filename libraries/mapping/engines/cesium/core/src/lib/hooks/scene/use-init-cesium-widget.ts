@@ -145,14 +145,14 @@ export const useInitCesiumWidget = (
           emit(CtxEvent.SceneReady, undefined);
           scene.postRender.removeEventListener(handlePostRender);
 
-          // TODO: Error handling temporarily disabled to debug rendering
-          // configureCesiumErrorHandling(widget, {
-          //   suppressErrorPanel: true,
-          //   suppressErrorBoundaryForwarding: true,
-          //   logLevel: "warn",
-          // });
+          // Configure error handling to suppress panels but allow recovery
+          configureCesiumErrorHandling(widget, {
+            suppressErrorPanel: true,
+            suppressErrorBoundaryForwarding: true,
+            logLevel: "warn",
+          });
           console.debug(
-            "[CESIUM|INIT] Initialization complete (error handling disabled for debugging)"
+            "[CESIUM|INIT] Initialization complete with error recovery enabled"
           );
         }
       };

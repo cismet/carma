@@ -22,6 +22,7 @@ import {
   useFeatureFlags,
 } from "@carma/providers/feature-flag";
 import { useCesiumDevConsoleTrigger } from "@carma-mapping/engines/cesium/dev-tools";
+import { CesiumErrorIndicator } from "@carma-mapping/engines/cesium/core";
 import {
   MapMeasurementsProvider,
   MapMeasurementsObjects,
@@ -128,6 +129,7 @@ function App({ published }: { published?: boolean }) {
                 localStorageKey: "@" + APP_KEY + ".app.measurements",
               }}
             >
+              <CesiumErrorIndicator />
               <ErrorBoundary FallbackComponent={AppErrorFallback}>
                 <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
                   {isLoadingConfig && (

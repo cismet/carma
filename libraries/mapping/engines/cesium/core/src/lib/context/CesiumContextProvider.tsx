@@ -56,6 +56,9 @@ export const CesiumContextProvider = ({
 
   const { screenSpaceCameraController, sceneStyle } = config;
 
+  // Remount key for error recovery - incrementing this will force widget re-initialization
+  const [remountKey, setRemountKey] = useState(0);
+  
   // Use refs for Cesium instances to prevent re-renders
   const widgetRef = useRef<CesiumWidget | null>(null);
   const sceneRef = useRef<Scene | null>(null);
@@ -202,10 +205,21 @@ export const CesiumContextProvider = ({
     [subscribe, emit, requestRender, config, activationCount]
   );
 
+  // Auto-recovery from Cesium errors
+  useEffect(() => {
+    const handleRecovery = () => {
+      console.warn("[CESIUM|RECOVERY] Detected error, remounting widget...");
+      setRemountKey((prev) => prev + 1);
+    };
+    
+    window.addEventListener("carma:cesium:renderError", handleRecovery);
+    return () => window.removeEventListener("carma:cesium:renderError", handleRecovery);
+  }, []);
+
   console.debug("CesiumContextProvider Changed/Rendered");
 
   return (
-    <CesiumContext.Provider value={contextValue}>
+    <CesiumContext.Provider value={contextValue} key={remountKey}>
       {children}
     </CesiumContext.Provider>
   );
