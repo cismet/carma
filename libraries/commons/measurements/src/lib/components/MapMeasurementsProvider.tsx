@@ -28,6 +28,8 @@ export const MapMeasurementsContext = createContext<MapMeasurementsContextType>(
     setActiveShape: (shape: ActiveShape) => {},
     visibleShapes: [],
     setVisibleShapes: (shapes: any[]) => {},
+    snappingLatlng: null,
+    setSnappingLatlng: (_latlng: any) => {},
     showAll: false,
     deleteAll: false,
     drawingShape: false,
@@ -96,6 +98,7 @@ export const MapMeasurementsProvider = ({
   const [activeShape, setActiveShape] = useState<ActiveShape>(null);
   const [shapes, setShapes] = useState<any[]>([]);
   const [visibleShapes, setVisibleShapes] = useState<any[]>([]);
+  const [snappingLatlng, setSnappingLatlng] = useState<any>(null);
   const [showAll, setShowAll] = useState(false);
   const [deleteAll, setDeleteAll] = useState(false);
   const [drawingShape, setDrawingShape] = useState(false);
@@ -281,6 +284,8 @@ export const MapMeasurementsProvider = ({
         setActiveShape,
         visibleShapes,
         setVisibleShapes,
+        snappingLatlng,
+        setSnappingLatlng,
         showAll,
         setShowAll,
         deleteAll,
