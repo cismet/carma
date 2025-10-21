@@ -473,14 +473,23 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
       if (best.d2 <= currentRadiusSq && best.vertexLatLng) {
         closestPointRef.current = best.vertexLatLng;
         blackCursorRef.current.setLatLng(best.vertexLatLng);
+        blackCursorRef.current.setStyle({
+          radius: 5,
+          color: "#ffffff",
+          weight: 1,
+          fillColor: "#000000",
+          fillOpacity: 0.8,
+        });
+
         if (setSnappingLatlng && best.vertexLatLng) {
           setSnappingLatlng(best.vertexLatLng);
         }
       } else {
         // set to raw mouse latlng (no snap)
+        blackCursorRef.current.setStyle({ radius: 1, weight: 0 });
         closestPointRef.current = e.latlng;
         blackCursorRef.current.setLatLng(e.latlng);
-        if (setSnappingLatlng && best.vertexLatLng) {
+        if (setSnappingLatlng) {
           setSnappingLatlng(null);
         }
       }
