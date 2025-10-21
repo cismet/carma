@@ -37,7 +37,6 @@ export const adjustClickPosition = (
 ) => {
   const containerPoint = leafletMap.mouseEventToContainerPoint(domEvent);
   const shiftedContainerPoint = L.point(containerPoint.x, containerPoint.y);
-  console.log("xxx closestPoint", closestPoint);
   // Use closestPoint if available, otherwise use shifted click position
   if (!closestPoint) {
     return false;
