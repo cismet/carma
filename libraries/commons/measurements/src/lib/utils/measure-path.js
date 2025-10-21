@@ -85,6 +85,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     customTooltip: null,
     device: null,
     clickAfterShapeSelection: false,
+    snappingLatlng: null,
   },
 
   drawingPolygons: function (map) {
@@ -147,6 +148,8 @@ L.Control.MeasurePolygon = L.Control.extend({
     this._measureHandler.enable();
 
     const latlng = event.latlng;
+
+    console.log("xxx snappingLatlng", this.options.snappingLatlng);
 
     this.options.currenLine.addVertex(latlng);
 

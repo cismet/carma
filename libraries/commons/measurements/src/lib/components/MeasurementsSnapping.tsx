@@ -338,12 +338,12 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
           adjustClickPosition(event, closestPoint, "mouseup", leafletMap),
         true
       );
-      mapContainer.addEventListener(
-        "click",
-        (event: MouseEvent) =>
-          adjustClickPosition(event, closestPoint, "click", leafletMap),
-        true
-      );
+      // mapContainer.addEventListener(
+      //   "click",
+      //   (event: MouseEvent) =>
+      //     adjustClickPosition(event, closestPoint, "click", leafletMap),
+      //   true
+      // );
 
       // Cleanup function to remove listeners and circles
       return () => {
