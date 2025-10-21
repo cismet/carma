@@ -12,8 +12,8 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
   const toleranceRadiusRef = useRef(toleranceRadius);
   const circleMarkerRef = useRef<any>(null);
   const toleranceCircleMarkerRef = useRef<any>(null);
-  const verticesRef = useRef<{ latlng: any; shapeId?: number | string }[]>([]);
-  const blackCursorRef = useRef<any>(null);
+  // const verticesRef = useRef<{ latlng: any; shapeId?: number | string }[]>([]);
+  // const blackCursorRef = useRef<any>(null);
   const shapesRef = useRef(shapes);
 
   useEffect(() => {
@@ -83,25 +83,6 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
           leafletMap.removeLayer(toleranceCircleMarkerRef.current);
         }
 
-        // Create new outer circle at mouse position with radius in pixels
-        // circleMarkerRef.current = L.circleMarker(e.latlng, {
-        //   radius: queryRadius,
-        //   color: "#ffffff",
-        //   fillColor: "#ffffff",
-        //   fillOpacity: 0.2,
-        //   weight: 2,
-        //   opacity: 0.5,
-        // }).addTo(leafletMap);
-
-        // toleranceCircleMarkerRef.current = L.circleMarker(e.latlng, {
-        //   radius: toleranceRadius,
-        //   color: "#00ff00",
-        //   fillColor: "#00ff00",
-        //   fillOpacity: 0.15,
-        //   weight: 2,
-        //   opacity: 0.6,
-        // }).addTo(leafletMap);
-
         // Get the MapLibre canvas position relative to the page
         if (maplibreMap) {
           const canvas = maplibreMap.getCanvas();
@@ -128,9 +109,8 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
               .filter((id: string) => !id.startsWith("highlight-")),
           });
 
-          if (features.length > 0) {
+          if (features.length > 0 || shapesRef.current.length > 0) {
             maplibreMap.getCanvas().style.cursor = "pointer";
-            // Mode 6: Serious - only show the closest point in black, no lines
             const coordinatePoints: any[] = [];
 
             features.forEach((feature: any) => {
@@ -223,6 +203,8 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
 
               if (type === "polygon") {
                 const rings = Array.isArray(coords[0][0]) ? coords : [coords];
+                console.log("xxx rings", rings.length);
+
                 rings.forEach((ring: any[]) => {
                   ring.forEach((pt: any[]) => {
                     // pt is [lat, lng] — swap to [lng, lat] for MapLibre
@@ -383,6 +365,7 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
       };
     }
   }, [routedMapRef, maplibreMap]);
+  return null;
 
   // useEffect(() => {
   //   const leafletMap = routedMapRef?.leafletMap?.leafletElement;
@@ -506,6 +489,4 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
   //     }
   //   };
   // }, [routedMapRef, shapes]);
-
-  return null;
 }
