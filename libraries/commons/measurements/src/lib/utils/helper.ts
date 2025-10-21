@@ -52,3 +52,12 @@ export const adjustClickPosition = (
     originalEvent: domEvent,
   });
 };
+
+// Prepare a Leaflet LatLng from a GeoJSON Point-like feature with coordinates [lng, lat]
+export const toLatLngFromClosestPoint = (closestPoint: any) => {
+  if (!closestPoint || !closestPoint.geometry || !closestPoint.geometry.coordinates) {
+    return null;
+  }
+  const [lng, lat] = closestPoint.geometry.coordinates;
+  return L.latLng(lat, lng);
+};
