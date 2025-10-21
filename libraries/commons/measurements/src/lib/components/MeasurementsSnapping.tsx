@@ -422,7 +422,7 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
     const onMouseMove = (e: any) => {
       // pick query radius in pixels
       const currentRadius = queryRadiusRef.current ?? 40;
-      const currentRadiusSq = currentRadius * currentRadius;
+      const currentRadiusSq = currentRadius * 20;
 
       // mouse container point (Leaflet convenience)
       // Use leafletMap.mouseEventToContainerPoint or latlngToContainerPoint
@@ -460,7 +460,7 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
       if (!blackCursorRef.current) {
         blackCursorRef.current = L.circleMarker(e.latlng, {
           radius: 5,
-          color: "#000000",
+          color: "#ffffff",
           weight: 1,
           fillColor: "#000000",
           fillOpacity: 0.8,
@@ -479,7 +479,10 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
       } else {
         // set to raw mouse latlng (no snap)
         closestPointRef.current = e.latlng;
-        // blackCursorRef.current.setLatLng(e.latlng);
+        blackCursorRef.current.setLatLng(e.latlng);
+        if (setSnappingLatlng && best.vertexLatLng) {
+          setSnappingLatlng(null);
+        }
       }
     };
 
