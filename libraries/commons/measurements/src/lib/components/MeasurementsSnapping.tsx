@@ -1,6 +1,10 @@
 import { useEffect, useRef, useContext, useState } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
-import { adjustClickPosition, toLatLngFromClosestPoint } from "../utils/helper";
+import {
+  adjustClickPosition,
+  adjustClickPositionLeaflet,
+  toLatLngFromClosestPoint,
+} from "../utils/helper";
 import { useMapMeasurementsContext } from "../components/MapMeasurementsProvider";
 
 export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
@@ -15,6 +19,7 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
   const shapesRef = useRef(shapes);
   const verticesRef = useRef<{ latlng: any; shapeId?: number | string }[]>([]);
   const blackCursorRef = useRef<any>(null);
+  const closestPointRef = useRef<any>(null);
 
   useEffect(() => {
     shapesRef.current = shapes;
@@ -466,13 +471,13 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
 
       // If best vertex inside query radius => snap to vertex; else follow mouse
       if (best.d2 <= currentRadiusSq && best.vertexLatLng) {
+        closestPointRef.current = best.vertexLatLng;
         blackCursorRef.current.setLatLng(best.vertexLatLng);
       } else {
         // set to raw mouse latlng (no snap)
+        closestPointRef.current = e.latlng;
         blackCursorRef.current.setLatLng(e.latlng);
       }
-
-      console.log("xxx verts", best);
     };
 
     const onMouseOut = () => {
@@ -481,6 +486,20 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
         blackCursorRef.current = null;
       }
     };
+
+    // Add DOM listener in CAPTURE phase to intercept before Leaflet
+    const mapContainer = leafletMap.getContainer();
+    mapContainer.addEventListener(
+      "mouseup",
+      (event: MouseEvent) =>
+        adjustClickPositionLeaflet(
+          event,
+          closestPointRef.current,
+          "mouseup",
+          leafletMap
+        ),
+      true
+    );
 
     leafletMap.on("mousemove", onMouseMove);
     leafletMap.on("mouseout", onMouseOut);

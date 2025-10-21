@@ -53,9 +53,50 @@ export const adjustClickPosition = (
   });
 };
 
+export const adjustClickPositionLeaflet = (
+  domEvent: MouseEvent,
+  closestPoint: any,
+  eventType: string,
+  leafletMap: any
+) => {
+  const containerPoint = leafletMap.mouseEventToContainerPoint(domEvent);
+  const shiftedContainerPoint = L.point(containerPoint.x, containerPoint.y);
+  // Use closestPoint if available, otherwise use shifted click position
+  if (!closestPoint) {
+    return false;
+  }
+  console.log("xxx closestPoint", closestPoint);
+
+  // const [lng, lat] = closestPoint.geometry.coordinates;
+  // const finalLatLng = L.latLng(lat, lng);
+
+  // Fire a new click event with shifted coordinates
+  leafletMap.fire(eventType, {
+    latlng: closestPoint,
+    containerPoint: shiftedContainerPoint,
+    originalEvent: domEvent,
+  });
+};
+
 // Prepare a Leaflet LatLng from a GeoJSON Point-like feature with coordinates [lng, lat]
 export const toLatLngFromClosestPoint = (closestPoint: any) => {
-  if (!closestPoint || !closestPoint.geometry || !closestPoint.geometry.coordinates) {
+  if (
+    !closestPoint ||
+    !closestPoint.geometry ||
+    !closestPoint.geometry.coordinates
+  ) {
+    return null;
+  }
+  const [lng, lat] = closestPoint.geometry.coordinates;
+  return L.latLng(lat, lng);
+};
+
+export const toLatLngFromClosestPointLeaflet = (closestPoint: any) => {
+  if (
+    !closestPoint ||
+    !closestPoint.geometry ||
+    !closestPoint.geometry.coordinates
+  ) {
     return null;
   }
   const [lng, lat] = closestPoint.geometry.coordinates;
