@@ -1,4 +1,3 @@
-// WEB MAPS TO CESIUM
 import { Cartographic, Scene, isValidScene, guardSampleTerrainMostDetailed, HeadingPitchRoll } from "@carma/cesium";
 
 import type { Zoom, SurfaceModelType } from "@carma/types";
@@ -76,15 +75,13 @@ export const tiledMapToCesium = async (
   const lngRad = degToRad(longitude as Degrees);
   const latRad = degToRad(latitude as Degrees);
 
-  // Zoom to pixel resolution is based on tile geometry (256px tiles)
-  // But Leaflet uses device pixel ratio (DPR) for retina displays
+  // Calculate target pixel resolution from Leaflet zoom level
   const baseTargetPixelResolution = getPixelResolutionFromZoomAtLatitudeRad(
     zoom,
     latRad as Radians
   );
   
-  // Apply DPR factor to match Leaflet's retina tile rendering
-  // Leaflet loads higher-res tiles on retina displays but uses logical zoom levels
+  // Adjust for device pixel ratio (Leaflet uses retina tiles on high-DPI displays)
   const actualDPR = window.devicePixelRatio || 1;
   const LEAFLET_DPR_FACTOR = 1 / actualDPR;
   const targetPixelResolution = baseTargetPixelResolution * LEAFLET_DPR_FACTOR;
@@ -127,8 +124,6 @@ export const tiledMapToCesium = async (
   }
 
   const resolutionRatio = targetPixelResolution / baseComputedPixelResolution;
-
-  // Distance calculation already accounts for DPR via targetPixelResolution
   const computedDistance = START_DISTANCE * resolutionRatio;
   
   console.log(
@@ -143,14 +138,10 @@ export const tiledMapToCesium = async (
     return false;
   }
 
-  // STEP 1: Position camera at fallback ground elevation + computed distance
-  // Fallback affects target height only, not the range/offset
+  // STEP 1: Position camera at fallback elevation + computed distance
   console.log(
     `L2C [2D3D|CESIUM|CAMERA] Initial positioning: target ground=${fallbackElevationM.toFixed(2)}m (fallback), range=${computedDistance.toFixed(2)}m from target`
   );
-  
-  // Set initial camera position using setView with Cartesian3 destination
-  // Camera at: fallback ground elevation + computed distance
   const initialCameraHeight = fallbackElevationM + computedDistance;
   const initialCameraCartographic = Cartographic.fromRadians(
     lngRad,
@@ -159,14 +150,9 @@ export const tiledMapToCesium = async (
   );
   const initialDestination = Cartographic.toCartesian(initialCameraCartographic);
   
-  // Set camera with nadir orientation (looking straight down)
   camera.setView({
     destination: initialDestination,
-    orientation: new HeadingPitchRoll(
-      0,              // heading: north
-      -Math.PI / 2,   // pitch: -90° (nadir, straight down)
-      0               // roll: no rotation
-    ),
+    orientation: new HeadingPitchRoll(0, -Math.PI / 2, 0), // Nadir view
   });
   
   // STEP 2: Wait one frame for scene to update
@@ -174,13 +160,11 @@ export const tiledMapToCesium = async (
     window.requestAnimationFrame(() => resolve());
   });
   
-  // STEP 3: Query accurate terrain elevation using sampleTerrainMostDetailed
-  // Use active CesiumTerrainProvider from scene (managed by terrain manager)
+  // STEP 3: Sample terrain elevation
   const queryPosition = Cartographic.fromRadians(lngRad, latRad, 0);
   let terrainElevation = fallbackElevationM;
   
   if (terrainProvider) {
-    // All managed terrain providers are CesiumTerrainProvider with metadata
     const providerTypeName = terrainProvider.constructor?.name || 'unknown';
     const isRealTerrain = providerTypeName === 'CesiumTerrainProvider';
     
@@ -245,8 +229,6 @@ export const tiledMapToCesium = async (
     `L2C [2D3D|CESIUM|CAMERA] Setting refined camera position: height=${finalCameraHeight.toFixed(2)}m`
   );
   
-  // Set camera position using setView (original working approach)
-  // Camera naturally points down (nadir) when positioned this way
   const finalCameraCartographic = Cartographic.fromRadians(
     lngRad,
     latRad,
@@ -254,14 +236,9 @@ export const tiledMapToCesium = async (
   );
   const finalDestination = Cartographic.toCartesian(finalCameraCartographic);
   
-  // Set camera with nadir orientation (looking straight down)
   camera.setView({
     destination: finalDestination,
-    orientation: new HeadingPitchRoll(
-      0,              // heading: north
-      -Math.PI / 2,   // pitch: -90° (nadir, straight down)
-      0               // roll: no rotation
-    ),
+    orientation: new HeadingPitchRoll(0, -Math.PI / 2, 0), // Nadir view
   });
   
   // Wait one frame for scene update before checking pixel resolution
