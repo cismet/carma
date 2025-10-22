@@ -339,7 +339,7 @@ export const getLayerStructure = ({
             foundLayer.props["url"] =
               wms.Capability.Request.GetMap.DCPType[0].HTTP.Get.OnlineResource;
           }
-          let tags = foundLayer.tags;
+          let tags = foundLayer.tags || [];
           let keywords = foundLayer.keywords;
           let hideLayer = false;
           keywords?.forEach((keyword) => {
@@ -352,7 +352,7 @@ export const getLayerStructure = ({
           }
           tags[0] =
             foundLayer.type === "link"
-              ? foundLayer.tags[0]
+              ? foundLayer.tags?.[0]
               : categoryObject.Title;
           foundLayer = { ...foundLayer, ...layer, tags, service };
           if (keywords && foundLayer?.keywords) {

@@ -745,7 +745,7 @@ const InfoCard = ({
             ))}
             {isVectorLayer && (
               <span>
-                {tags?.length > 0 && <span> · </span>}
+                {tags && tags.length > 0 && <span> · </span>}
                 <span>Vektorlayer</span>
               </span>
             )}
