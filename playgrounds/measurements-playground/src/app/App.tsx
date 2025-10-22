@@ -2,9 +2,7 @@ import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import { suppressReactCismapErrors } from "@carma-commons/utils";
 import {
   MeasurementControl,
-  MapMeasurementsObjects,
-  MeasurementsSnapping,
-  MEASUREMENT_MODE,
+  Measurements,
   useMapMeasurementsContext,
   useMapLibreMap,
 } from "@carma-commons/measurements";
@@ -153,12 +151,11 @@ export function App({
         zoomControls={false}
         leafletMapProps={{ editable: true }}
       >
-        <MapMeasurementsObjects />
+        <Measurements 
+          snappingEnabled={snappingEnabled}
+          snappingLayer={maplibreMap}
+        />
         <TopicMapSelectionContent />
-
-        {measurementMode === MEASUREMENT_MODE.MEASUREMENT && (
-          <MeasurementsSnapping maplibreMap={maplibreMap} />
-        )}
 
         {vectorStyles.map((style, index) => {
           return (
