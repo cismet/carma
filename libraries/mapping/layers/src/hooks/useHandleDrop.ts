@@ -1,7 +1,11 @@
 import { useEffect } from "react";
+import { message } from "antd";
 import WMSCapabilities from "wms-capabilities";
 import { SavedLayerConfig } from "@carma/types";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
+import { ActiveLayers } from "../components/NewLibModal";
+import type { Layer } from "@carma/types";
+import { utils } from "@carma-appframeworks/portals";
 
 // @ts-expect-error tbd
 const parser = new WMSCapabilities();
@@ -15,6 +19,8 @@ interface UseHandleDropProps {
     item: SavedLayerConfig | SavedLayerConfig[]
   ) => void;
   getDataFromJson: (data: any) => any;
+  activeLayers: ActiveLayers;
+  updateActiveLayer: (layer: Layer) => void;
 }
 
 export const useHandleDrop = ({
@@ -22,19 +28,25 @@ export const useHandleDrop = ({
   setSelectedNavItemIndex,
   addItemToCategory,
   getDataFromJson,
+  activeLayers,
+  updateActiveLayer,
 }: UseHandleDropProps) => {
   const flags = useFeatureFlags();
   useEffect(() => {
     const handleDrop = async (event: DragEvent) => {
       event.preventDefault();
-      setOpen(true);
-      setSelectedNavItemIndex(3);
       const url = event.dataTransfer?.getData("URL");
 
       const file = event?.dataTransfer?.files[0];
 
       if (url && url.endsWith(".json")) {
-        let newItem = {
+        // Check if this layer is already in active layers
+        const layerId = `custom:${url}`;
+        const existingLayer = activeLayers.find(
+          (layer) => layer.id === layerId
+        );
+
+        let newItem: any = {
           description: "",
           id: `custom:${url}`,
           layerType: "vector",
@@ -52,22 +64,45 @@ export const useHandleDrop = ({
               newItem = {
                 ...newItem,
                 ...layerInfo,
-                keywords: [
-                  ...newItem.keywords,
-                  ...(layerInfo.keywords || []),
-                ],
+                keywords: [...newItem.keywords, ...(layerInfo.keywords || [])],
               };
             }
           })
           .catch((error) => {
             console.error("Error fetching JSON to check metadata:", error);
           });
-        addItemToCategory(
-          "mapLayers",
-          { id: "custom", Title: "Externe Dienste" },
-          newItem as unknown as SavedLayerConfig // TODO: Fix type
-        );
+
+        if (existingLayer) {
+          try {
+            const updatedLayer = await utils.parseToMapLayer(
+              newItem,
+              false,
+              true
+            );
+
+            updateActiveLayer(updatedLayer);
+            addItemToCategory(
+              "mapLayers",
+              { id: "custom", Title: "Externe Dienste" },
+              newItem as unknown as SavedLayerConfig // TODO: Fix type
+            );
+            message.success("Layer wurde aktualisiert");
+          } catch (error) {
+            message.error("Fehler beim Aktualisieren des Layers");
+            console.error("Error updating layer:", error);
+          }
+        } else {
+          setOpen(true);
+          setSelectedNavItemIndex(3);
+          addItemToCategory(
+            "mapLayers",
+            { id: "custom", Title: "Externe Dienste" },
+            newItem as unknown as SavedLayerConfig // TODO: Fix type
+          );
+        }
       } else if (url) {
+        setOpen(true);
+        setSelectedNavItemIndex(3);
         fetch(url)
           .then((response) => {
             return response.text();
@@ -96,7 +131,8 @@ export const useHandleDrop = ({
 
       if (file && file.name.endsWith("style.json")) {
         // Handle file drop
-
+        setOpen(true);
+        setSelectedNavItemIndex(3);
         console.log("File dropped:", file.name, file);
 
         const reader = new FileReader();
@@ -139,6 +175,8 @@ export const useHandleDrop = ({
 
         reader.readAsText(file);
       } else if (file) {
+        setOpen(true);
+        setSelectedNavItemIndex(3);
         file
           .text()
           .then((text) => {
@@ -174,7 +212,14 @@ export const useHandleDrop = ({
       window.removeEventListener("drop", handleDrop);
       window.removeEventListener("dragover", handleDragOver);
     };
-  }, [setOpen, setSelectedNavItemIndex, addItemToCategory, getDataFromJson]);
+  }, [
+    setOpen,
+    setSelectedNavItemIndex,
+    addItemToCategory,
+    getDataFromJson,
+    activeLayers,
+    updateActiveLayer,
+  ]);
 };
 
 export default useHandleDrop;

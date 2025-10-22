@@ -436,6 +436,8 @@ export const NewLibModal = ({
     setSelectedNavItemIndex,
     addItemToCategory,
     getDataFromJson,
+    activeLayers,
+    updateActiveLayer,
   });
 
   useEffect(() => {
