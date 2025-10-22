@@ -286,7 +286,10 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
             properties: selectedFeature.properties.wmsProps,
           }}
           versionString={getApplicationVersion(versionData)}
-          Footer={genericSecondaryInfoFooterFactory({ skipTeilzwilling: true })}
+          Footer={genericSecondaryInfoFooterFactory({
+            skipTeilzwilling: true,
+            isTopicMap: false,
+          })}
           skipTeilzwilling={true}
         />
       )}
