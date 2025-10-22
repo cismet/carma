@@ -11,15 +11,15 @@ import type { RootState } from "../store";
 
 /**
  * PortalReduxSyncProvider - Centralized Redux synchronization for Portal state
- * 
+ *
  * This component sits between PortalProvider and the app components to sync
  * Portal context state to Redux. This keeps Redux imports isolated to this one
  * component instead of scattered throughout the app.
- * 
+ *
  * TODO: Remove this provider when Redux is fully replaced with PortalProvider state
  * This is a temporary bridge to maintain backward compatibility while migrating
  * from Redux to PortalProvider.
- * 
+ *
  * Architecture:
  *   PortalProvider (provides map state)
  *     ↓
@@ -27,7 +27,11 @@ import type { RootState } from "../store";
  *     ↓
  *   App Components (no Redux imports needed!)
  */
-export const PortalReduxSyncProvider = ({ children }: { children: ReactNode }) => {
+export const PortalReduxSyncProvider = ({
+  children,
+}: {
+  children: ReactNode;
+}) => {
   const dispatch = useDispatch();
   const { currentMapStyle } = usePortal();
 

@@ -1,12 +1,15 @@
 import type { CesiumConfig } from "@carma/cesium/types";
-import type {
-  CameraPoseDegrees,
-  CameraStateHeadingPitchRoll,
-} from "@carma/cesium";
 
 /**
  * Validated camera configuration with all required refs
  */
+
+/**
+ * Type guard to check if a value is a valid number (including branded types)
+ */
+const isValidNumber = (value: unknown): value is number => {
+  return typeof value === "number" && !isNaN(value) && isFinite(value);
+};
 
 /**
  * Validates Cesium config and returns validated camera configuration
@@ -16,6 +19,7 @@ import type {
  */
 export const validateCesiumConfig = (config: CesiumConfig): CesiumConfig => {
   const errors: string[] = [];
+  const warnings: string[] = [];
 
   // Validate required cameraHomePose
   if (!config.cameraHomePose) {
@@ -27,36 +31,61 @@ export const validateCesiumConfig = (config: CesiumConfig): CesiumConfig => {
 
   // Validate cameraHomePose structure if present
   if (config.cameraHomePose) {
-    const { longitude, latitude, height } = config.cameraHomePose;
+    const { longitude, latitude, altitude } = config.cameraHomePose;
 
-    if (typeof longitude !== "number") {
+    if (!isValidNumber(longitude)) {
       errors.push("[CesiumConfig] cameraHomePose.longitude must be a number");
+    } else if (typeof longitude !== "number") {
+      warnings.push("[CesiumConfig] cameraHomePose.longitude should be a plain number (not branded type)");
     }
-    if (typeof latitude !== "number") {
+
+    if (!isValidNumber(latitude)) {
       errors.push("[CesiumConfig] cameraHomePose.latitude must be a number");
+    } else if (typeof latitude !== "number") {
+      warnings.push("[CesiumConfig] cameraHomePose.latitude should be a plain number (not branded type)");
     }
-    if (typeof height !== "number") {
-      errors.push("[CesiumConfig] cameraHomePose.height must be a number");
+
+    if (!isValidNumber(altitude)) {
+      errors.push("[CesiumConfig] cameraHomePose.altitude must be a number");
+    } else if (typeof altitude !== "number") {
+      warnings.push("[CesiumConfig] cameraHomePose.altitude should be a plain number (not branded type)");
     }
 
     // Validate optional orientation
     if (
       config.cameraHomePose.heading !== undefined &&
-      typeof config.cameraHomePose.heading !== "number"
+      !isValidNumber(config.cameraHomePose.heading)
     ) {
       errors.push("[CesiumConfig] cameraHomePose.heading must be a number");
+    } else if (
+      config.cameraHomePose.heading !== undefined &&
+      typeof config.cameraHomePose.heading !== "number"
+    ) {
+      warnings.push("[CesiumConfig] cameraHomePose.heading should be a plain number (not branded type)");
     }
+
     if (
+      config.cameraHomePose.pitch !== undefined &&
+      !isValidNumber(config.cameraHomePose.pitch)
+    ) {
+      errors.push("[CesiumConfig] cameraHomePose.pitch must be a number");
+    } else if (
       config.cameraHomePose.pitch !== undefined &&
       typeof config.cameraHomePose.pitch !== "number"
     ) {
-      errors.push("[CesiumConfig] cameraHomePose.pitch must be a number");
+      warnings.push("[CesiumConfig] cameraHomePose.pitch should be a plain number (not branded type)");
     }
+
     if (
+      config.cameraHomePose.roll !== undefined &&
+      !isValidNumber(config.cameraHomePose.roll)
+    ) {
+      errors.push("[CesiumConfig] cameraHomePose.roll must be a number");
+    } else if (
       config.cameraHomePose.roll !== undefined &&
       typeof config.cameraHomePose.roll !== "number"
     ) {
-      errors.push("[CesiumConfig] cameraHomePose.roll must be a number");
+      warnings.push("[CesiumConfig] cameraHomePose.roll should be a plain number (not branded type)");
     }
   }
 
@@ -64,36 +93,61 @@ export const validateCesiumConfig = (config: CesiumConfig): CesiumConfig => {
   if (config.cameraInitialPose) {
     const { longitude, latitude, altitude } = config.cameraInitialPose;
 
-    if (typeof longitude !== "number") {
+    if (!isValidNumber(longitude)) {
       errors.push(
         "[CesiumConfig] cameraInitialPose.longitude must be a number"
       );
+    } else if (typeof longitude !== "number") {
+      warnings.push("[CesiumConfig] cameraInitialPose.longitude should be a plain number (not branded type)");
     }
-    if (typeof latitude !== "number") {
+
+    if (!isValidNumber(latitude)) {
       errors.push("[CesiumConfig] cameraInitialPose.latitude must be a number");
+    } else if (typeof latitude !== "number") {
+      warnings.push("[CesiumConfig] cameraInitialPose.latitude should be a plain number (not branded type)");
     }
-    if (typeof altitude !== "number") {
+
+    if (!isValidNumber(altitude)) {
       errors.push("[CesiumConfig] cameraInitialPose.altitude must be a number");
+    } else if (typeof altitude !== "number") {
+      warnings.push("[CesiumConfig] cameraInitialPose.altitude should be a plain number (not branded type)");
     }
 
     // Validate optional orientation
     if (
       config.cameraInitialPose.heading !== undefined &&
-      typeof config.cameraInitialPose.heading !== "number"
+      !isValidNumber(config.cameraInitialPose.heading)
     ) {
       errors.push("[CesiumConfig] cameraInitialPose.heading must be a number");
+    } else if (
+      config.cameraInitialPose.heading !== undefined &&
+      typeof config.cameraInitialPose.heading !== "number"
+    ) {
+      warnings.push("[CesiumConfig] cameraInitialPose.heading should be a plain number (not branded type)");
     }
+
     if (
+      config.cameraInitialPose.pitch !== undefined &&
+      !isValidNumber(config.cameraInitialPose.pitch)
+    ) {
+      errors.push("[CesiumConfig] cameraInitialPose.pitch must be a number");
+    } else if (
       config.cameraInitialPose.pitch !== undefined &&
       typeof config.cameraInitialPose.pitch !== "number"
     ) {
-      errors.push("[CesiumConfig] cameraInitialPose.pitch must be a number");
+      warnings.push("[CesiumConfig] cameraInitialPose.pitch should be a plain number (not branded type)");
     }
+
     if (
+      config.cameraInitialPose.roll !== undefined &&
+      !isValidNumber(config.cameraInitialPose.roll)
+    ) {
+      errors.push("[CesiumConfig] cameraInitialPose.roll must be a number");
+    } else if (
       config.cameraInitialPose.roll !== undefined &&
       typeof config.cameraInitialPose.roll !== "number"
     ) {
-      errors.push("[CesiumConfig] cameraInitialPose.roll must be a number");
+      warnings.push("[CesiumConfig] cameraInitialPose.roll should be a plain number (not branded type)");
     }
   }
 

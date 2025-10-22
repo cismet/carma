@@ -14,9 +14,7 @@ import { CarmaMapProviderWrapper } from "@carma-appframeworks/portals";
 import { mobileInfo } from "@carma-collab/wuppertal/geoportal";
 import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
 import { MobileWarningMessage } from "@carma-mapping/components";
-import {
-  FeatureFlagProvider,
-} from "@carma/providers/feature-flag";
+import { FeatureFlagProvider } from "@carma/providers/feature-flag";
 import {
   MapMeasurementsProvider,
   MapMeasurementsObjects,
@@ -133,9 +131,7 @@ function App({ published }: { published?: boolean }) {
                   >
                     <LoginForm
                       onSuccess={() => dispatch(setShowLoginModal(false))}
-                      closeLoginForm={() =>
-                        dispatch(setShowLoginModal(false))
-                      }
+                      closeLoginForm={() => dispatch(setShowLoginModal(false))}
                       showHelpText={false}
                       style={{ padding: "20px" }}
                     />

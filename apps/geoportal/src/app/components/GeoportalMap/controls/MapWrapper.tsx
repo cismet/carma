@@ -22,18 +22,18 @@ import {
   SelectionMapMode,
   useGazData,
   useSelection,
+  usePortal,
 } from "@carma-appframeworks/portals";
 import { isAreaType } from "@carma/resources";
 import { detectWebGLContext } from "@carma-commons/dom/canvas";
 
+import { useCarmaTopicMapContext } from "@carma-mapping/engines/carma-cismap";
 import {
   useCesiumContext,
   useHomeControl,
   useZoomControls as useZoomControlsCesium,
   CtxEvent,
 } from "@carma-mapping/engines/cesium/core";
-import { useCarmaTopicMapContext } from "@carma-mapping/engines/carma-cismap";
-import { useMapViewState } from "@carma-mapping/map-view-state";
 import {
   MapTypeSwitcher,
   FullscreenControl,
@@ -112,9 +112,9 @@ const MapWrapper = () => {
   const libreMapRef = useSelector(getLibreMapRef);
   const allow3d = useSelector(getUIAllow3d) && hasGPU;
 
-  // Get map mode from MapViewStateContext
-  const { mode } = useMapViewState();
-  const isMode2d = mode === "2d";
+  // Get map mode from PortalProvider context
+  const { currentEngine } = usePortal();
+  const isMode2d = currentEngine === "leaflet2d";
 
   const uiMode = useSelector(getUIMode);
   const isModeMeasurement = uiMode === UIMode.MEASUREMENT;
@@ -241,6 +241,14 @@ const MapWrapper = () => {
   rerenderCountRef.current++;
   lastRenderIntervalRef.current = Date.now() - lastRenderTimeStampRef.current;
   lastRenderTimeStampRef.current = Date.now();
+
+  console.debug(
+    "[MapWrapper] Render {isMode2d:",
+    isMode2d,
+    ", allow3d:",
+    allow3d,
+    "}"
+  );
 
   return (
     <ControlLayout>

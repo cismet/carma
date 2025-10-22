@@ -72,21 +72,6 @@ export const TRANSITIONS_CONFIG: TransitionConfig = {
 
 export const CESIUM_CONFIG: Partial<CesiumConfig> = {
   baseUrl: `${APP_BASE_PATH}${CESIUM_PATHNAME}`,
-
-  // Initial camera using HeadingPitchRange (target-centric)
-  initialCamera: {
-    target: Cartesian3.fromDegrees(
-      WUPPERTAL.position.longitude,
-      WUPPERTAL.position.latitude,
-      WUPPERTAL.position.altitude
-    ),
-    orientation: {
-      heading: 0, // North
-      pitch: -0.785, // ~45° down
-      range: 600, // Distance from target
-    } as HeadingPitchRange,
-  },
-
   screenSpaceCameraController: {
     enableCollisionDetection: false, // Disabled to prevent camera jumps during transitions
     maximumZoomDistance: 50000,
@@ -151,13 +136,16 @@ export const LEAFLET_CONFIG: LeafletConfig = {
 // Default 2D map position (for Leaflet, MapLibre)
 // Note: NOT yet unified across all engines - see https://github.com/cismet/carma/issues/214
 export const DEFAULT_MAP_POSITION = {
-  latitude: WUPPERTAL.position.latitude,
-  longitude: WUPPERTAL.position.longitude,
+  latitude: 51.27174, // WUPPERTAL.position.latitude
+  longitude: 7.20028, // WUPPERTAL.position.longitude
   zoom: 15, // Leaflet/MapLibre zoom level
 };
 
 // Default Cesium 3D camera location (heading, pitch, range)
 export const DEFAULT_CESIUM_CAMERA = {
+  latitude: 51.27174, // WUPPERTAL.position.latitude
+  longitude: 7.20028, // WUPPERTAL.position.longitude
+  altitude: 255, // WUPPERTAL.position.altitude + 100
   heading: 0, // North
   pitch: -0.785, // ~45° down
   range: 600, // Distance from target in meters

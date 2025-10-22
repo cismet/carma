@@ -22,7 +22,9 @@ const customAppKey = new URLSearchParams(window.location.hash).get("appKey");
 const inProduction = process.env.NODE_ENV === "production";
 console.info("in Production Mode:", inProduction);
 
-const logReduxParam = new URLSearchParams(window.location.search).get("logredux");
+const logReduxParam = new URLSearchParams(window.location.search).get(
+  "logredux"
+);
 // Enable Redux DevTools: always in dev, only with ?logredux=true in production
 const devToolsEnabled = !inProduction || logReduxParam === "true";
 console.debug("Redux DevTools enabled:", devToolsEnabled);
