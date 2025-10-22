@@ -421,7 +421,7 @@ export const getLayerStructure = ({
           foundLayer.props["url"] =
             wms.Capability.Request.GetMap.DCPType[0].HTTP.Get.OnlineResource;
 
-          let tags = foundLayer.tags;
+          let tags = foundLayer.tags || [];
           tags[0] = categoryObject.Title;
           foundLayer = {
             ...foundLayer,
