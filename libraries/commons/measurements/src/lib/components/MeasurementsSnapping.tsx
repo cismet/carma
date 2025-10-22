@@ -253,9 +253,10 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
 
           // Determine snapping point
           const blackPoint: any[] = [];
+          let isSnapped = false;
 
           if (shortestIndex === -1) {
-            // No points found - show indicator at mouse pointer
+            // No points found - use mouse pointer but don't show indicator
             blackPoint.push({
               type: "Feature",
               geometry: {
@@ -264,6 +265,7 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
               },
               properties: { black: true },
             });
+            isSnapped = false;
           } else {
             // Snap to the closest point found within query radius
             const closestItem = filteredPointsWithDistance[shortestIndex];
@@ -275,6 +277,7 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
               },
               properties: { black: true },
             });
+            isSnapped = true;
           }
           closestPoint = blackPoint[0];
 
@@ -289,9 +292,9 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
             snappingIndicatorRef.current = null;
           }
 
-          // Create Leaflet marker for snapping indicator
+          // Create Leaflet marker for snapping indicator ONLY when snapped
           // Match the size of measurement handles (8px total = 4px radius)
-          if (finalLatLng) {
+          if (finalLatLng && isSnapped) {
             snappingIndicatorRef.current = L.circleMarker(
               [finalLatLng.lat, finalLatLng.lng],
               {
