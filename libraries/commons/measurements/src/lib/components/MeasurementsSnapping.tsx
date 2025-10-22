@@ -2,18 +2,26 @@ import { useEffect, useRef, useContext, useState } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { adjustClickPosition, toLatLngFromClosestPoint } from "../utils/helper";
 import { useMapMeasurementsContext } from "../components/MapMeasurementsProvider";
+import { SnappingPoint } from "../snapping/types";
+import {
+  extractPointsFromGeometry,
+  extractPointsFromMeasurementShape,
+} from "../snapping/utils/coordinateExtraction";
 
 export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const { shapes, setSnappingLatlng, config } = useMapMeasurementsContext();
   const [queryRadius, setQueryRadius] = useState(config.snappingQueryRadius);
-  const [toleranceRadius, setToleranceRadius] = useState(config.snappingToleranceRadius);
+  const [toleranceRadius, setToleranceRadius] = useState(
+    config.snappingToleranceRadius
+  );
   const queryRadiusRef = useRef(queryRadius);
   const toleranceRadiusRef = useRef(toleranceRadius);
   const circleMarkerRef = useRef<any>(null);
   const toleranceCircleMarkerRef = useRef<any>(null);
   const shapesRef = useRef(shapes);
   const snappingEnabledRef = useRef(config.snappingEnabled);
+  const maplibreMapRef = useRef(maplibreMap);
 
   useEffect(() => {
     shapesRef.current = shapes;
@@ -32,6 +40,10 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
   }, [config.snappingEnabled]);
 
   useEffect(() => {
+    maplibreMapRef.current = maplibreMap;
+  }, [maplibreMap]);
+
+  useEffect(() => {
     const leafletMap = routedMapRef?.leafletMap?.leafletElement;
 
     // Clean up visual indicators and coordinates when snapping is disabled
@@ -40,7 +52,7 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
       if (setSnappingLatlng) {
         setSnappingLatlng(null);
       }
-      
+
       if (maplibreMap && typeof maplibreMap.getSource === "function") {
         try {
           const highlightSource = maplibreMap.getSource("highlight");
@@ -57,7 +69,7 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
       if (maplibreMap && maplibreMap.getCanvas) {
         maplibreMap.getCanvas().style.cursor = "";
       }
-      
+
       // Add handlers when snapping is disabled to prevent stale coordinates
       if (leafletMap && typeof leafletMap.on === "function") {
         const clearSnappingHandler = () => {
@@ -65,24 +77,24 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
             setSnappingLatlng(null);
           }
         };
-        
+
         leafletMap.on("mousemove", clearSnappingHandler);
-        
+
         // Add a mouseup handler that does NOT adjust click position
         const mapContainer = leafletMap.getContainer();
         const noAdjustHandler = (event: MouseEvent) => {
           // Do nothing - just let the event pass through normally
           // This prevents the old adjustClickPosition handler from being used
         };
-        
+
         mapContainer.addEventListener("mouseup", noAdjustHandler, true);
-        
+
         return () => {
           leafletMap.off("mousemove", clearSnappingHandler);
           mapContainer.removeEventListener("mouseup", noAdjustHandler, true);
         };
       }
-      
+
       return;
     }
 
@@ -138,9 +150,47 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
           leafletMap.removeLayer(toleranceCircleMarkerRef.current);
         }
 
-        // Get the MapLibre canvas position relative to the page
-        if (maplibreMap) {
-          const canvas = maplibreMap.getCanvas();
+        // Check if MapLibre is available and valid using the ref
+        // If not (e.g., after removing all vector layers), just return early
+        // and let normal Leaflet measurement behavior work without snapping
+        const currentMaplibreMap = maplibreMapRef.current;
+
+        if (!currentMaplibreMap) {
+          if (setSnappingLatlng) {
+            setSnappingLatlng(null);
+          }
+          return;
+        }
+
+        // Try to access MapLibre methods - if they fail, return early
+        try {
+          if (!currentMaplibreMap.getCanvas || !currentMaplibreMap.getStyle) {
+            if (setSnappingLatlng) {
+              setSnappingLatlng(null);
+            }
+            return;
+          }
+        } catch (error) {
+          // MapLibre is in invalid state
+          if (setSnappingLatlng) {
+            setSnappingLatlng(null);
+          }
+          return;
+        }
+
+        // MapLibre is valid, proceed with snapping logic
+        try {
+          // Check if MapLibre has a valid style - if not, it's in an invalid state
+          const style = currentMaplibreMap.getStyle();
+          if (!style) {
+            // MapLibre style is undefined - return early
+            if (setSnappingLatlng) {
+              setSnappingLatlng(null);
+            }
+            return;
+          }
+
+          const canvas = currentMaplibreMap.getCanvas();
           const rect = canvas.getBoundingClientRect();
 
           // Calculate the mouse position relative to the MapLibre canvas
@@ -157,222 +207,140 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
           ];
 
           // Query features but exclude our highlight layers to avoid feedback loop
-          let features = maplibreMap.queryRenderedFeatures(bbox, {
-            layers: maplibreMap
-              .getStyle()
-              .layers.map((layer: any) => layer.id)
-              .filter((id: string) => !id.startsWith("highlight-")),
+          let features: any[] = [];
+          try {
+            if (style && style.layers) {
+              features = currentMaplibreMap.queryRenderedFeatures(bbox, {
+                layers: style.layers
+                  .map((layer: any) => layer.id)
+                  .filter((id: string) => !id.startsWith("highlight-")),
+              });
+            }
+          } catch (error) {
+            console.warn("Error querying features:", error);
+            features = [];
+          }
+
+          // Always run snapping logic when snapping is enabled, even if no features
+          // This ensures the indicator shows and clicks work normally
+          currentMaplibreMap.getCanvas().style.cursor =
+            features.length > 0 || shapesRef.current.length > 0
+              ? "pointer"
+              : "";
+          const coordinatePoints: SnappingPoint[] = [];
+
+          // Extract points from vector features
+          features.forEach((feature: any) => {
+            const points = extractPointsFromGeometry(
+              feature.geometry,
+              "vector-features"
+            );
+            coordinatePoints.push(...points);
           });
 
-          if (features.length > 0 || shapesRef.current.length > 0) {
-            maplibreMap.getCanvas().style.cursor = "pointer";
-            const coordinatePoints: any[] = [];
+          // Extract points from measurement shapes
+          shapesRef.current.forEach((shape: any) => {
+            const points = extractPointsFromMeasurementShape(
+              shape,
+              "measurements"
+            );
+            coordinatePoints.push(...points);
+          });
 
-            features.forEach((feature: any) => {
-              const geometry = feature.geometry;
+          // Filter points to only those within the circle radius and calculate distances
+          const filteredPointsWithDistance = coordinatePoints
+            .map((snappingPoint: SnappingPoint) => {
+              const coord = snappingPoint.coordinates;
+              const projectedPoint = currentMaplibreMap.project(coord);
 
-              // Extract coordinates based on geometry type
-              if (geometry.type === "Point") {
-                coordinatePoints.push({
-                  type: "Feature",
-                  geometry: {
-                    type: "Point",
-                    coordinates: geometry.coordinates,
-                  },
-                  properties: {},
-                });
-              } else if (geometry.type === "LineString") {
-                geometry.coordinates.forEach((coord: any) => {
-                  coordinatePoints.push({
-                    type: "Feature",
-                    geometry: {
-                      type: "Point",
-                      coordinates: coord,
-                    },
-                    properties: {},
-                  });
-                });
-              } else if (geometry.type === "Polygon") {
-                geometry.coordinates.forEach((ring: any) => {
-                  ring.forEach((coord: any) => {
-                    coordinatePoints.push({
-                      type: "Feature",
-                      geometry: {
-                        type: "Point",
-                        coordinates: coord,
-                      },
-                      properties: {},
-                    });
-                  });
-                });
-              } else if (geometry.type === "MultiPoint") {
-                geometry.coordinates.forEach((coord: any) => {
-                  coordinatePoints.push({
-                    type: "Feature",
-                    geometry: {
-                      type: "Point",
-                      coordinates: coord,
-                    },
-                    properties: {},
-                  });
-                });
-              } else if (geometry.type === "MultiLineString") {
-                geometry.coordinates.forEach((line: any) => {
-                  line.forEach((coord: any) => {
-                    coordinatePoints.push({
-                      type: "Feature",
-                      geometry: {
-                        type: "Point",
-                        coordinates: coord,
-                      },
-                      properties: {},
-                    });
-                  });
-                });
-              } else if (geometry.type === "MultiPolygon") {
-                geometry.coordinates.forEach((polygon: any) => {
-                  polygon.forEach((ring: any) => {
-                    ring.forEach((coord: any) => {
-                      coordinatePoints.push({
-                        type: "Feature",
-                        geometry: {
-                          type: "Point",
-                          coordinates: coord,
-                        },
-                        properties: {},
-                      });
-                    });
-                  });
-                });
-              }
+              const dx = projectedPoint.x - point.x;
+              const dy = projectedPoint.y - point.y;
+              const distance = Math.sqrt(dx * dx + dy * dy);
+
+              return { snappingPoint, distance };
+            })
+            .filter((item) => item.distance <= currentRadius);
+
+          // Find the shortest distance
+          let shortestDistance = Infinity;
+          let shortestIndex = -1;
+
+          filteredPointsWithDistance.forEach((item: any, index: number) => {
+            if (item.distance < shortestDistance) {
+              shortestDistance = item.distance;
+              shortestIndex = index;
+            }
+          });
+
+          // Get mouse pointer coordinates in lng/lat
+          const mouseLatLng = currentMaplibreMap.unproject([point.x, point.y]);
+
+          // Get current tolerance radius
+          const currentToleranceRadius = toleranceRadiusRef.current;
+
+          // Only show the closest point in black
+          const blackPoint: any[] = [];
+
+          if (shortestIndex === -1) {
+            // No points found - show black dot at mouse pointer
+            blackPoint.push({
+              type: "Feature",
+              geometry: {
+                type: "Point",
+                coordinates: [mouseLatLng.lng, mouseLatLng.lat],
+              },
+              properties: { black: true },
             });
+          } else {
+            const closestItem = filteredPointsWithDistance[shortestIndex];
 
-            // Normalize measurement shapes into point features (lng,lat order)
-            shapesRef.current.forEach((shape: any) => {
-              const type = (
-                shape.shapeType ||
-                shape.shapeTy ||
-                ""
-              ).toLowerCase();
-              const coords = shape.coordinates || [];
-
-              if (type === "polygon") {
-                const rings = Array.isArray(coords[0][0]) ? coords : [coords];
-
-                rings.forEach((ring: any[]) => {
-                  ring.forEach((pt: any[]) => {
-                    // pt is [lat, lng] — swap to [lng, lat] for MapLibre
-                    coordinatePoints.push({
-                      type: "Feature",
-                      geometry: {
-                        type: "Point",
-                        coordinates: [pt[1], pt[0]],
-                      },
-                      properties: {},
-                    });
-                  });
-                });
-              } else {
-                // polyline/line: coords is array of points
-                coords.forEach((pt: any[]) => {
-                  coordinatePoints.push({
-                    type: "Feature",
-                    geometry: {
-                      type: "Point",
-                      coordinates: [pt[1], pt[0]], // swap lat/lng to lng/lat
-                    },
-                    properties: {},
-                  });
-                });
-              }
-            });
-
-            // Filter points to only those within the circle radius and calculate distances
-            const filteredPointsWithDistance = coordinatePoints
-              .map((pointFeature: any) => {
-                const coord = pointFeature.geometry.coordinates;
-                const projectedPoint = maplibreMap.project(coord);
-
-                const dx = projectedPoint.x - point.x;
-                const dy = projectedPoint.y - point.y;
-                const distance = Math.sqrt(dx * dx + dy * dy);
-
-                return { pointFeature, distance };
-              })
-              .filter((item: any) => item.distance <= currentRadius);
-
-            // Find the shortest distance
-            let shortestDistance = Infinity;
-            let shortestIndex = -1;
-
-            filteredPointsWithDistance.forEach((item: any, index: number) => {
-              if (item.distance < shortestDistance) {
-                shortestDistance = item.distance;
-                shortestIndex = index;
-              }
-            });
-
-            // Get mouse pointer coordinates in lng/lat
-            const mouseLatLng = maplibreMap.unproject([point.x, point.y]);
-
-            // Get current tolerance radius
-            const currentToleranceRadius = toleranceRadiusRef.current;
-
-            // Only show the closest point in black
-            const blackPoint: any[] = [];
-
-            if (shortestIndex === -1) {
-              // No points found - show black dot at mouse pointer
+            // Check if winning dot is within tolerance radius
+            if (closestItem.distance <= currentToleranceRadius) {
+              // Show black point at the actual closest coordinate
+              blackPoint.push({
+                type: "Feature",
+                geometry: {
+                  type: "Point",
+                  coordinates: closestItem.snappingPoint.coordinates,
+                },
+                properties: { black: true },
+              });
+            } else {
+              // Winning dot is outside tolerance - show dot at mouse pointer
               blackPoint.push({
                 type: "Feature",
                 geometry: {
                   type: "Point",
                   coordinates: [mouseLatLng.lng, mouseLatLng.lat],
                 },
-                properties: { black: true },
+                properties: { black: true, mode: "serious" },
               });
-            } else {
-              const closestItem = filteredPointsWithDistance[shortestIndex];
-
-              // Check if winning dot is within tolerance radius
-              if (closestItem.distance <= currentToleranceRadius) {
-                // Show black point at the actual closest coordinate
-                blackPoint.push({
-                  type: "Feature",
-                  geometry: closestItem.pointFeature.geometry,
-                  properties: { black: true },
-                });
-              } else {
-                // Winning dot is outside tolerance - show dot at mouse pointer
-                blackPoint.push({
-                  type: "Feature",
-                  geometry: {
-                    type: "Point",
-                    coordinates: [mouseLatLng.lng, mouseLatLng.lat],
-                  },
-                  properties: { black: true, mode: "serious" },
-                });
-              }
             }
-            closestPoint = blackPoint[0];
+          }
+          closestPoint = blackPoint[0];
 
-            const finalLatLng = toLatLngFromClosestPoint(closestPoint);
-            if (finalLatLng && setSnappingLatlng) {
-              setSnappingLatlng(finalLatLng);
-            }
+          const finalLatLng = toLatLngFromClosestPoint(closestPoint);
+          if (finalLatLng && setSnappingLatlng) {
+            setSnappingLatlng(finalLatLng);
+          }
 
-            // Update highlight source with only the black point
-            maplibreMap.getSource("highlight").setData({
+          // Update highlight source with only the black point
+          const highlightSource = currentMaplibreMap.getSource("highlight");
+          if (highlightSource) {
+            highlightSource.setData({
               type: "FeatureCollection",
               features: blackPoint,
             });
-          } else {
-            maplibreMap.getCanvas().style.cursor = "";
-            // Clear highlights
-            maplibreMap.getSource("highlight").setData({
-              type: "FeatureCollection",
-              features: [],
-            });
+          }
+        } catch (error) {
+          // MapLibre error during snapping - clear state and continue
+          console.warn(
+            "MapLibre error during snapping, falling back to normal mode:",
+            error
+          );
+          closestPoint = null;
+          if (setSnappingLatlng) {
+            setSnappingLatlng(null);
           }
         }
       };
@@ -423,6 +391,12 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
         }
       };
     }
-  }, [routedMapRef, maplibreMap, config.snappingEnabled, config.snappingMinZoom, setSnappingLatlng]);
+  }, [
+    routedMapRef,
+    maplibreMap,
+    config.snappingEnabled,
+    config.snappingMinZoom,
+    setSnappingLatlng,
+  ]);
   return null;
 }
