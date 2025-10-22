@@ -8,7 +8,13 @@ import {
   extractPointsFromMeasurementShape,
 } from "../snapping/utils/coordinateExtraction";
 
-export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
+export function MeasurementsSnapping({ 
+  maplibreMap,
+  enabled 
+}: { 
+  maplibreMap: any;
+  enabled?: boolean; // Optional: override config.snappingEnabled
+}) {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const { shapes, setSnappingLatlng, config } = useMapMeasurementsContext();
   const [queryRadius, setQueryRadius] = useState(config.snappingQueryRadius);
@@ -16,7 +22,10 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
   const circleMarkerRef = useRef<any>(null);
   const snappingIndicatorRef = useRef<any>(null); // Leaflet marker for snapping point
   const shapesRef = useRef(shapes);
-  const snappingEnabledRef = useRef(config.snappingEnabled);
+  
+  // Use prop if provided, otherwise fall back to config
+  const snappingEnabled = enabled !== undefined ? enabled : config.snappingEnabled;
+  const snappingEnabledRef = useRef(snappingEnabled);
   const maplibreMapRef = useRef(maplibreMap);
 
   useEffect(() => {
@@ -28,8 +37,8 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
   }, [queryRadius]);
 
   useEffect(() => {
-    snappingEnabledRef.current = config.snappingEnabled;
-  }, [config.snappingEnabled]);
+    snappingEnabledRef.current = snappingEnabled;
+  }, [snappingEnabled]);
 
   useEffect(() => {
     maplibreMapRef.current = maplibreMap;
@@ -39,7 +48,7 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
     const leafletMap = routedMapRef?.leafletMap?.leafletElement;
 
     // Clean up visual indicators and coordinates when snapping is disabled
-    if (!config.snappingEnabled) {
+    if (!snappingEnabled) {
       // Clear snapping coordinates immediately
       if (setSnappingLatlng) {
         setSnappingLatlng(null);
@@ -314,7 +323,7 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
   }, [
     routedMapRef,
     maplibreMap,
-    config.snappingEnabled,
+    snappingEnabled,
     config.snappingMinZoom,
     setSnappingLatlng,
   ]);

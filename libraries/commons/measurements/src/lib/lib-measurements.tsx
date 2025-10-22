@@ -12,12 +12,18 @@ import "./styles/m-style.css";
 import useDeviceDetection from "./hooks/useDeviceDetection";
 import { useMapMeasurementsContext } from "./components/MapMeasurementsProvider";
 import { MapMeasurementProps, MeasurementShapeDrawing } from "..";
+import { MeasurementsSnapping } from "./components/MeasurementsSnapping";
 
-export function MapMeasurementsObjects({
+export function Measurements({
   mode: propMode,
   polygonActiveIcon,
   polygonIcon,
-}: Partial<MapMeasurementProps>) {
+  snappingEnabled,
+  snappingLayer,
+}: Partial<MapMeasurementProps> & {
+  snappingEnabled?: boolean;
+  snappingLayer?: any; // MapLibre layer for snapping
+}) {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const {
     mode,
@@ -279,7 +285,17 @@ export function MapMeasurementsObjects({
 
   console.debug("RENDER: [MAPMEASUREMENT] MapMeasurement");
 
-  return <div></div>;
+  return (
+    <>
+      <div></div>
+      {snappingLayer && (
+        <MeasurementsSnapping 
+          maplibreMap={snappingLayer} 
+          enabled={snappingEnabled}
+        />
+      )}
+    </>
+  );
 }
 
 function filterArrByIds(
@@ -306,4 +322,16 @@ function findLargestNumber(measurements: MeasurementShapeDrawing[]): number {
   });
 
   return largestNumber;
+}
+
+/**
+ * @deprecated Use `Measurements` instead. This component will be removed in a future version.
+ */
+export function MapMeasurementsObjects(
+  props: Partial<MapMeasurementProps> & {
+    snappingEnabled?: boolean;
+    snappingLayer?: any;
+  }
+) {
+  return <Measurements {...props} />;
 }
