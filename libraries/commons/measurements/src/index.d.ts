@@ -121,6 +121,10 @@ export interface MeasurementConfig {
   editableTitle: boolean;
   infoBoxHeaderColor: string;
   localStorageKey: string;
+  snappingEnabled: boolean;
+  snappingQueryRadius: number;
+  snappingToleranceRadius: number;
+  snappingMinZoom: number;
 }
 
 export type PartialMeasurementConfig = Partial<MeasurementConfig>;

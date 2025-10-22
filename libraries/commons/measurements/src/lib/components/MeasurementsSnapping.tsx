@@ -5,14 +5,15 @@ import { useMapMeasurementsContext } from "../components/MapMeasurementsProvider
 
 export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
-  const [queryRadius, setQueryRadius] = useState(40);
-  const [toleranceRadius, setToleranceRadius] = useState(36);
-  const { shapes, setSnappingLatlng } = useMapMeasurementsContext();
+  const { shapes, setSnappingLatlng, config } = useMapMeasurementsContext();
+  const [queryRadius, setQueryRadius] = useState(config.snappingQueryRadius);
+  const [toleranceRadius, setToleranceRadius] = useState(config.snappingToleranceRadius);
   const queryRadiusRef = useRef(queryRadius);
   const toleranceRadiusRef = useRef(toleranceRadius);
   const circleMarkerRef = useRef<any>(null);
   const toleranceCircleMarkerRef = useRef<any>(null);
   const shapesRef = useRef(shapes);
+  const snappingEnabledRef = useRef(config.snappingEnabled);
 
   useEffect(() => {
     shapesRef.current = shapes;
@@ -27,7 +28,63 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
   }, [toleranceRadius]);
 
   useEffect(() => {
+    snappingEnabledRef.current = config.snappingEnabled;
+  }, [config.snappingEnabled]);
+
+  useEffect(() => {
     const leafletMap = routedMapRef?.leafletMap?.leafletElement;
+
+    // Clean up visual indicators and coordinates when snapping is disabled
+    if (!config.snappingEnabled) {
+      // Clear snapping coordinates immediately
+      if (setSnappingLatlng) {
+        setSnappingLatlng(null);
+      }
+      
+      if (maplibreMap && typeof maplibreMap.getSource === "function") {
+        try {
+          const highlightSource = maplibreMap.getSource("highlight");
+          if (highlightSource) {
+            highlightSource.setData({
+              type: "FeatureCollection",
+              features: [],
+            });
+          }
+        } catch (_) {
+          // no-op safeguard
+        }
+      }
+      if (maplibreMap && maplibreMap.getCanvas) {
+        maplibreMap.getCanvas().style.cursor = "";
+      }
+      
+      // Add handlers when snapping is disabled to prevent stale coordinates
+      if (leafletMap && typeof leafletMap.on === "function") {
+        const clearSnappingHandler = () => {
+          if (setSnappingLatlng) {
+            setSnappingLatlng(null);
+          }
+        };
+        
+        leafletMap.on("mousemove", clearSnappingHandler);
+        
+        // Add a mouseup handler that does NOT adjust click position
+        const mapContainer = leafletMap.getContainer();
+        const noAdjustHandler = (event: MouseEvent) => {
+          // Do nothing - just let the event pass through normally
+          // This prevents the old adjustClickPosition handler from being used
+        };
+        
+        mapContainer.addEventListener("mouseup", noAdjustHandler, true);
+        
+        return () => {
+          leafletMap.off("mousemove", clearSnappingHandler);
+          mapContainer.removeEventListener("mouseup", noAdjustHandler, true);
+        };
+      }
+      
+      return;
+    }
 
     if (leafletMap && typeof leafletMap.on === "function") {
       // Import L from leaflet
@@ -65,9 +122,9 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
       };
 
       const mousemoveHandler = (e: any) => {
-        // Check zoom level - only work if zoom >= 17
+        // Check zoom level - only work if zoom >= configured minimum
         const currentZoom = leafletMap.getZoom();
-        if (currentZoom < 17) {
+        if (currentZoom < config.snappingMinZoom) {
           // Zoom too low: centralized cleanup
           clearBlackPoint();
           return; // Exit early
@@ -337,12 +394,13 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
 
       // Add DOM listener in CAPTURE phase to intercept before Leaflet
       const mapContainer = leafletMap.getContainer();
-      mapContainer.addEventListener(
-        "mouseup",
-        (event: MouseEvent) =>
-          adjustClickPosition(event, closestPoint, "mouseup", leafletMap),
-        true
-      );
+      const mouseupHandler = (event: MouseEvent) => {
+        // Only adjust if snapping is enabled
+        if (snappingEnabledRef.current) {
+          adjustClickPosition(event, closestPoint, "mouseup", leafletMap);
+        }
+      };
+      mapContainer.addEventListener("mouseup", mouseupHandler, true);
       // mapContainer.addEventListener(
       //   "click",
       //   (event: MouseEvent) =>
@@ -354,8 +412,7 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
       return () => {
         leafletMap.off("mousemove", mousemoveHandler);
         leafletMap.off("mouseout", mouseoutHandler);
-        mapContainer.removeEventListener("mouseup", adjustClickPosition);
-        mapContainer.removeEventListener("click", adjustClickPosition);
+        mapContainer.removeEventListener("mouseup", mouseupHandler, true);
         if (circleMarkerRef.current) {
           leafletMap.removeLayer(circleMarkerRef.current);
           circleMarkerRef.current = null;
@@ -366,6 +423,6 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
         }
       };
     }
-  }, [routedMapRef, maplibreMap]);
+  }, [routedMapRef, maplibreMap, config.snappingEnabled, config.snappingMinZoom, setSnappingLatlng]);
   return null;
 }

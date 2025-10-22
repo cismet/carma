@@ -48,6 +48,7 @@ export function MapMeasurementsObjects({
     deleteVisibleShapeById,
     setCurrentDrawHandler,
     snappingLatlng,
+    config,
 
     // looks unuseful
     setStartDrawing,
@@ -83,6 +84,7 @@ export function MapMeasurementsObjects({
         device,
         shapes,
         snappingLatlng,
+        snappingEnabled: config.snappingEnabled,
         cbSaveShape: saveShapeHandler,
         cbUpdateShape: updateShapeHandler,
         cdDeleteShape: deleteShapeHandler,
@@ -186,14 +188,17 @@ export function MapMeasurementsObjects({
     currentMode,
   ]);
 
-  // keep snappingLatlng in sync with control options
+  // keep snappingLatlng and snappingEnabled in sync with control options
   useEffect(() => {
     if (measureControl) {
       try {
-        measureControl.options.snappingLatlng = snappingLatlng;
+        // Update both snappingEnabled and snappingLatlng
+        measureControl.options.snappingEnabled = config.snappingEnabled;
+        // Force null when snapping is disabled, otherwise use the actual value
+        measureControl.options.snappingLatlng = config.snappingEnabled ? snappingLatlng : null;
       } catch (_) {}
     }
-  }, [snappingLatlng, measureControl]);
+  }, [snappingLatlng, measureControl, config.snappingEnabled]);
 
   useEffect(() => {
     if (measureControl) {

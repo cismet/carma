@@ -16,6 +16,10 @@ const defaultConfig: MeasurementConfig = {
   editableTitle: true,
   infoBoxHeaderColor: "#3b82f6",
   localStorageKey: "measurementShapes",
+  snappingEnabled: true,
+  snappingQueryRadius: 40,
+  snappingToleranceRadius: 36,
+  snappingMinZoom: 17,
 };
 
 export const MapMeasurementsContext = createContext<MapMeasurementsContextType>(

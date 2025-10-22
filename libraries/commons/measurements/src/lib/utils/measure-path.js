@@ -86,6 +86,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     device: null,
     clickAfterShapeSelection: false,
     snappingLatlng: null,
+    snappingEnabled: true,
   },
 
   drawingPolygons: function (map) {
@@ -147,7 +148,7 @@ L.Control.MeasurePolygon = L.Control.extend({
 
     this._measureHandler.enable();
 
-    const latlng = this.options.snappingLatlng
+    const latlng = (this.options.snappingEnabled && this.options.snappingLatlng)
       ? this.options.snappingLatlng
       : event.latlng;
 
