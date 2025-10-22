@@ -19,6 +19,7 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
   const toleranceRadiusRef = useRef(toleranceRadius);
   const circleMarkerRef = useRef<any>(null);
   const toleranceCircleMarkerRef = useRef<any>(null);
+  const snappingIndicatorRef = useRef<any>(null); // Leaflet marker for snapping point
   const shapesRef = useRef(shapes);
   const snappingEnabledRef = useRef(config.snappingEnabled);
   const maplibreMapRef = useRef(maplibreMap);
@@ -53,19 +54,16 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
         setSnappingLatlng(null);
       }
 
-      if (maplibreMap && typeof maplibreMap.getSource === "function") {
+      // Remove Leaflet snapping indicator
+      if (leafletMap && snappingIndicatorRef.current) {
         try {
-          const highlightSource = maplibreMap.getSource("highlight");
-          if (highlightSource) {
-            highlightSource.setData({
-              type: "FeatureCollection",
-              features: [],
-            });
-          }
+          leafletMap.removeLayer(snappingIndicatorRef.current);
+          snappingIndicatorRef.current = null;
         } catch (_) {
           // no-op safeguard
         }
       }
+
       if (maplibreMap && maplibreMap.getCanvas) {
         maplibreMap.getCanvas().style.cursor = "";
       }
@@ -103,7 +101,7 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
       const L = (window as any).L;
       let closestPoint: any = null;
 
-      // Centralized cleanup for markers, highlight, cursor, and closestPoint
+      // Centralized cleanup for markers and closestPoint
       const clearBlackPoint = () => {
         try {
           if (circleMarkerRef.current) {
@@ -114,15 +112,9 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
             leafletMap.removeLayer(toleranceCircleMarkerRef.current);
             toleranceCircleMarkerRef.current = null;
           }
-          if (
-            maplibreMap &&
-            typeof maplibreMap.getSource === "function" &&
-            maplibreMap.getSource("highlight")
-          ) {
-            maplibreMap.getSource("highlight").setData({
-              type: "FeatureCollection",
-              features: [],
-            });
+          if (snappingIndicatorRef.current) {
+            leafletMap.removeLayer(snappingIndicatorRef.current);
+            snappingIndicatorRef.current = null;
           }
           if (maplibreMap && maplibreMap.getCanvas) {
             maplibreMap.getCanvas().style.cursor = "";
@@ -324,13 +316,26 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
             setSnappingLatlng(finalLatLng);
           }
 
-          // Update highlight source with only the black point
-          const highlightSource = currentMaplibreMap.getSource("highlight");
-          if (highlightSource) {
-            highlightSource.setData({
-              type: "FeatureCollection",
-              features: blackPoint,
-            });
+          // Remove old snapping indicator if exists
+          if (snappingIndicatorRef.current) {
+            leafletMap.removeLayer(snappingIndicatorRef.current);
+            snappingIndicatorRef.current = null;
+          }
+
+          // Create Leaflet marker for snapping indicator
+          if (finalLatLng) {
+            const isSnapped = closestPoint.properties?.black && !closestPoint.properties?.mode;
+            snappingIndicatorRef.current = L.circleMarker(
+              [finalLatLng.lat, finalLatLng.lng],
+              {
+                radius: 6,
+                color: isSnapped ? "#000000" : "#ff0000",
+                fillColor: isSnapped ? "#000000" : "#ff0000",
+                fillOpacity: 1,
+                weight: 2,
+                opacity: 1,
+              }
+            ).addTo(leafletMap);
           }
         } catch (error) {
           // MapLibre error during snapping - clear state and continue
@@ -346,7 +351,7 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
       };
 
       const mouseoutHandler = () => {
-        // Remove circles when mouse leaves map
+        // Remove circles and snapping indicator when mouse leaves map
         if (circleMarkerRef.current) {
           leafletMap.removeLayer(circleMarkerRef.current);
           circleMarkerRef.current = null;
@@ -354,6 +359,10 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
         if (toleranceCircleMarkerRef.current) {
           leafletMap.removeLayer(toleranceCircleMarkerRef.current);
           toleranceCircleMarkerRef.current = null;
+        }
+        if (snappingIndicatorRef.current) {
+          leafletMap.removeLayer(snappingIndicatorRef.current);
+          snappingIndicatorRef.current = null;
         }
       };
 
@@ -376,7 +385,7 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
       //   true
       // );
 
-      // Cleanup function to remove listeners and circles
+      // Cleanup function to remove listeners and markers
       return () => {
         leafletMap.off("mousemove", mousemoveHandler);
         leafletMap.off("mouseout", mouseoutHandler);
@@ -388,6 +397,10 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
         if (toleranceCircleMarkerRef.current) {
           leafletMap.removeLayer(toleranceCircleMarkerRef.current);
           toleranceCircleMarkerRef.current = null;
+        }
+        if (snappingIndicatorRef.current) {
+          leafletMap.removeLayer(snappingIndicatorRef.current);
+          snappingIndicatorRef.current = null;
         }
       };
     }
