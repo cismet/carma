@@ -35,7 +35,11 @@ export enum CtxEvent {
 export type CesiumContextEventMap = {
   [CtxEvent.GoHome]: void;
   [CtxEvent.Suspend]: void;
-  [CtxEvent.Activate]: void;
+  [CtxEvent.Activate]: {
+    source?: string; // e.g., "mapModeSwitcher", "onLoad", "userAction"
+    component?: string; // Component that triggered it
+    reason?: string; // Human-readable reason
+  } | void;
   [CtxEvent.SceneVisible]: void;
   [CtxEvent.AnimationStart]: void;
   [CtxEvent.AnimationEnd]: void;

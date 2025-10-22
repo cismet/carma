@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useCesiumContext } from "../../context";
-import { isValidScene } from "@carma/cesium";
+import { isValidScene } from "../../utils/lazy-validators";
 
 /**
  * Configures shadow settings for the scene

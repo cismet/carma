@@ -1,11 +1,11 @@
 import { createContext, type MutableRefObject } from "react";
-import {
-  type CesiumWidget,
-  type Scene,
-  type ImageryLayer,
-  type CesiumTerrainProvider,
-  type Cesium3DTileset,
-  type Model,
+import type {
+  CesiumWidget,
+  Scene,
+  ImageryLayer,
+  CesiumTerrainProvider,
+  Cesium3DTileset,
+  Model,
 } from "@carma/cesium";
 
 import {
@@ -16,6 +16,24 @@ import { DelayedRenderOptions } from "@carma-commons/dom/window";
 import type { AnimationMap } from "@carma/types";
 import type { CesiumConfig } from "../types";
 import type { CameraViewOptions } from "../types/camera";
+import type { CameraStatePrimitive } from "@carma/cesium/types";
+
+// Cesium widget instance record
+export interface CesiumInstanceRecord {
+  instanceId: string;
+  timestamp: number;
+  contextAgeMs: number;
+  widgetRef: MutableRefObject<CesiumWidget | null>;
+  config: CesiumConfig;
+  // Metadata about what triggered the initialization
+  trigger?: {
+    source: string; // e.g., "mapModeSwitcher", "onLoad", "userAction"
+    component?: string; // Component that triggered it
+    reason?: string; // Human-readable reason
+  };
+  // Last known camera state (for crash recovery)
+  lastCameraState?: CameraStatePrimitive;
+}
 
 // Provider ref types for managing arbitrary numbers of providers
 export type ProviderRef<T> = {
@@ -26,6 +44,9 @@ export type ProviderRef<T> = {
 export interface CesiumContextType {
   widgetRef: MutableRefObject<CesiumWidget | null>;
   sceneRef: MutableRefObject<Scene | null>;
+
+  // Last known camera state (updated on camera changes, used for crash recovery)
+  lastCameraStateRef: MutableRefObject<CameraStatePrimitive | null>;
 
   // Provider refs - support arbitrary numbers per type
   terrainProvidersRef: MutableRefObject<Map<string, CesiumTerrainProvider>>;
@@ -56,12 +77,12 @@ export interface CesiumContextType {
   requestRender: (opts?: DelayedRenderOptions) => void;
   animationMapRef: MutableRefObject<AnimationMap | null>;
 
-  // Original config for reference
+  // Original config (immutable after initialization)
   config: CesiumConfig;
-  configRef: MutableRefObject<CesiumConfig>;
 
-  // Activation trigger - increments when Activate event fires
-  activationCount: number;
+  // Cesium widget instance lifecycle history
+  // Tracks each time a Cesium widget instance was created (3D mode activation)
+  cesiumInstances: CesiumInstanceRecord[];
 }
 
 export const CesiumContext = createContext<CesiumContextType | null>(null);

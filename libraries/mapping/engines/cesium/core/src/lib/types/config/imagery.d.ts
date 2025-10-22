@@ -1,4 +1,9 @@
 import type { Metadata } from "@carma/types";
+import type {
+  TileMapServiceImageryProviderConstructorOptionsPrimitive,
+  OpenStreetMapImageryProviderConstructorOptionsPrimitive,
+  SingleTileImageryProviderConstructorOptionsPrimitive,
+} from "@carma/cesium/types";
 
 /**
  * supported imagery provider types add more if needed
@@ -32,17 +37,17 @@ export type ImageryResourceConfig =
     }
   | {
       type: "tms";
-      providerOptions: import("cesium").TileMapServiceImageryProvider.ConstructorOptions;
+      providerOptions: TileMapServiceImageryProviderConstructorOptionsPrimitive;
       metadata?: Metadata;
     }
   | {
       type: "osm";
-      providerOptions: import("cesium").OpenStreetMapImageryProvider.ConstructorOptions;
+      providerOptions: OpenStreetMapImageryProviderConstructorOptionsPrimitive;
       metadata?: Metadata;
     }
   | {
       type: "singleTile";
-      providerOptions: import("cesium").SingleTileImageryProvider.ConstructorOptions;
+      providerOptions: SingleTileImageryProviderConstructorOptionsPrimitive;
       metadata?: Metadata;
     };
 

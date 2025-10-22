@@ -1,4 +1,4 @@
-import { SceneMode, CesiumWidget } from "@carma/cesium";
+import type { SceneMode, CesiumWidget } from "@carma/cesium";
 import UAParser from "ua-parser-js";
 import type { ColorRgbaArray } from "@carma/types";
 

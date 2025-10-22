@@ -1,7 +1,5 @@
 import { useCallback } from "react";
 
-import { BoundingSphere, tryWithValidCamera, flyToTarget } from "@carma/cesium";
-
 import { useCesiumContext } from "../../context";
 import { CtxEvent } from "../../context/cesium-context-event-map";
 
@@ -41,16 +39,21 @@ export const useHomeControl = () => {
         orientation
       );
 
-      tryWithValidCamera(scene.camera, (camera) => {
-        if (orientation) {
-          // Use flyToTarget with 2 second animation
-          flyToTarget(camera, target, orientation, 2.0);
-        } else {
-          // Fallback: use bounding sphere around target
-          const boundingSphere = new BoundingSphere(target, 400);
-          camera.flyToBoundingSphere(boundingSphere, { duration: 2.0 });
-        }
-      });
+      (async () => {
+        const { tryWithValidCamera, flyToTarget, BoundingSphere, Cartesian3 } =
+          await import("@carma/cesium");
+        const targetCartesian3 = new Cartesian3(target.x, target.y, target.z);
+        tryWithValidCamera(scene.camera, (camera) => {
+          if (orientation) {
+            // Use flyToTarget with 2 second animation
+            flyToTarget(camera, targetCartesian3, orientation, 2.0);
+          } else {
+            // Fallback: use bounding sphere around target
+            const boundingSphere = new BoundingSphere(targetCartesian3, 400);
+            camera.flyToBoundingSphere(boundingSphere, { duration: 2.0 });
+          }
+        });
+      })();
     } else {
       console.warn(
         "[HOME CONTROL] Cannot fly home - missing scene or home config"

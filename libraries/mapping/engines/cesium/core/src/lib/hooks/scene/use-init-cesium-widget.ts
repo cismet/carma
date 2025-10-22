@@ -29,7 +29,7 @@ export const useInitCesiumWidget = (
     emit,
     subscribe,
     config,
-    activationCount,
+    cesiumInstances,
   } = useCesiumContext();
 
   const isInitializedRef = useRef(false);
@@ -66,9 +66,9 @@ export const useInitCesiumWidget = (
         container
           ? `${container.clientWidth}x${container.clientHeight}`
           : "null"
-      }, Initialized: ${
-        isInitializedRef.current
-      }, ActivationCount: ${activationCount}`
+      }, Initialized: ${isInitializedRef.current}, Instances: ${
+        cesiumInstances.length
+      }`
     );
 
     if (!container) {
@@ -118,9 +118,9 @@ export const useInitCesiumWidget = (
     }
 
     // LAZY INIT: Only create widget when activated (3D mode requested)
-    // Use activationCount instead of isSuspendedRef to avoid race condition
+    // Use cesiumInstances.length instead of isSuspendedRef to avoid race condition
     // isSuspendedRef is set by subscription which may not have run yet
-    if (activationCount === 0) {
+    if (cesiumInstances.length === 0) {
       console.debug(
         "[CESIUM|INIT] Skipping widget creation - not yet activated (2D mode)"
       );
@@ -143,6 +143,12 @@ export const useInitCesiumWidget = (
           flyToTarget: flyToTargetFn,
         } = await import("@carma/cesium");
         console.debug("[CESIUM|INIT] Cesium bundle loaded, creating widget");
+
+        // Initialize lazy validators now that Cesium is loaded
+        const { initializeLazyValidators } = await import(
+          "../../utils/lazy-validators"
+        );
+        await initializeLazyValidators();
 
         // Setup default camera view
         await setupDefaultCameraView(homeRef.current);
@@ -301,7 +307,7 @@ export const useInitCesiumWidget = (
     emit,
     homeRef,
     config.baseUrl,
-    activationCount, // Re-run when Activate event fires
+    cesiumInstances.length, // Re-run when Activate event fires
   ]);
 
   useEffect(() => {

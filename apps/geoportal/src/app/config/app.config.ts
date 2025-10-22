@@ -10,10 +10,11 @@ import {
   WUPPERTAL,
 } from "@carma/resources";
 
-import { Cartesian3, toColorRgbaArray, Color, HeadingPitchRange } from "@carma/cesium";
+import { Cartesian3, HeadingPitchRange } from "@carma/cesium";
 import type { LeafletConfig } from "@carma/types";
 import type { CesiumConfig } from "@carma-mapping/engines/cesium/core";
 import type { TransitionConfig } from "@carma-mapping/map-transition-2d-3d";
+import { COLORS } from "@carma-commons/utils";
 import { MODEL_ASSETS } from "./assets.config";
 
 export const APP_BASE_PATH = import.meta.env.BASE_URL;
@@ -70,7 +71,7 @@ export const TRANSITIONS_CONFIG: TransitionConfig = {
 
 export const CESIUM_CONFIG: Partial<CesiumConfig> = {
   baseUrl: `${APP_BASE_PATH}${CESIUM_PATHNAME}`,
-  
+
   // Initial camera using HeadingPitchRange (target-centric)
   initialCamera: {
     target: Cartesian3.fromDegrees(
@@ -84,13 +85,13 @@ export const CESIUM_CONFIG: Partial<CesiumConfig> = {
       range: 600, // Distance from target
     } as HeadingPitchRange,
   },
-  
+
   screenSpaceCameraController: {
     enableCollisionDetection: false, // Disabled to prevent camera jumps during transitions
     maximumZoomDistance: 50000,
     minimumZoomDistance: 1, // Reduced to allow very close zoom
   },
-  
+
   // New SceneStyleConfig format with sources and styles
   sceneStyle: {
     sources: {
@@ -110,15 +111,15 @@ export const CESIUM_CONFIG: Partial<CesiumConfig> = {
         { id: "wupp-lod2", ...WUPP_LOD2_TILESET },
       ],
     },
-    
+
     styles: [
       {
         id: "mesh-2024",
         name: "Aerial (Mesh 2024)",
         shadows: false,
-        backgroundColor: toColorRgbaArray(Color.GRAY),
+        backgroundColor: COLORS.GRAY,
         globe: {
-          baseColor: [0, 0, 0, 1 / 255], // Nearly transparent
+          baseColor: COLORS.NONZERO_TRANSPARENT_WHITE,
         },
         tilesets: [{ id: "wupp-mesh-2024" }],
         terrain: "dem-2020",
@@ -127,9 +128,9 @@ export const CESIUM_CONFIG: Partial<CesiumConfig> = {
         id: "lod2",
         name: "Topographic (LOD2)",
         shadows: false,
-        backgroundColor: toColorRgbaArray(Color.WHITE),
+        backgroundColor: COLORS.WHITE,
         globe: {
-          baseColor: toColorRgbaArray(Color.WHITE),
+          baseColor: COLORS.WHITE,
         },
         imageryLayers: [{ id: "spw2_graublau", opacity: 1.0 }],
         tilesets: [{ id: "wupp-lod2" }],
@@ -137,7 +138,7 @@ export const CESIUM_CONFIG: Partial<CesiumConfig> = {
       },
     ],
   },
-  
+
   modelAssets: MODEL_ASSETS,
 };
 

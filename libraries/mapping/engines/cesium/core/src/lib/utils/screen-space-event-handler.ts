@@ -1,13 +1,14 @@
-import {
-  type Scene,
-  ScreenSpaceEventHandler,
-  ScreenSpaceEventType,
-} from "@carma/cesium";
+import type { Scene } from "@carma/cesium";
 
-export const screenSpaceEventHandlerOnUserInteraction = (
+export const screenSpaceEventHandlerOnUserInteraction = async (
   scene: Scene,
   callback: () => void
 ) => {
+  // lazy load Cesium
+  const { ScreenSpaceEventHandler, ScreenSpaceEventType } = await import(
+    "@carma/cesium"
+  );
+
   const inputHandler = new ScreenSpaceEventHandler(scene.canvas);
 
   inputHandler.setInputAction(callback, ScreenSpaceEventType.LEFT_DOWN);

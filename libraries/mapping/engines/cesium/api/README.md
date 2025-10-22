@@ -37,3 +37,7 @@ Mirrors Cesium's engine source:
 ## Dependencies
 
 Only `cesium` + lightweight CARMA unit types (`@carma/geo/types`, `@carma/units/*`)
+
+## Primitive Conversion Helpers
+
+Helper methods for converting primitives from `@carma/cesium/types` to Cesium objects belong here, alongside the types they create.

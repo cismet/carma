@@ -1,0 +1,34 @@
+{
+  "$schema": "../../../../../node_modules/nx/schemas/project-schema.json",
+  "name": "cesium/types",
+  "sourceRoot": "libraries/mapping/engines/cesium/types/src",
+  "projectType": "library",
+  "tags": ["scope:cesium", "type:declarations"],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libraries/mapping/engines/cesium/types",
+        "main": "libraries/mapping/engines/cesium/types/src/index.ts",
+        "tsConfig": "libraries/mapping/engines/cesium/types/tsconfig.lib.json",
+        "assets": [
+          {
+            "input": "libraries/mapping/engines/cesium/types/src",
+            "glob": "**/*.d.ts",
+            "output": "."
+          }
+        ]
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "libraries/mapping/engines/cesium/types/src/**/*.ts",
+          "libraries/mapping/engines/cesium/types/src/**/*.d.ts"
+        ]
+      }
+    }
+  }
+}

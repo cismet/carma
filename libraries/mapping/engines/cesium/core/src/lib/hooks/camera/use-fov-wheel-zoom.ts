@@ -1,6 +1,6 @@
 import { useCallback, useRef } from "react";
 import { useBlockDefaultZoomBehaviour } from "./use-block-default-zoom-behaviour";
-import { PerspectiveFrustum, type Scene } from "@carma/cesium";
+import type { Scene } from "@carma/cesium";
 
 import type { Radians, Ratio } from "@carma/units/types";
 import { isClose } from "@carma/units/helpers";
@@ -16,7 +16,10 @@ import {
   computeNextFov,
 } from "../../scene/camera/fov";
 import { useCesiumContext } from "../../context/hooks/use-cesium-context";
-import { isValidScene } from "@carma/cesium";
+import {
+  isValidScene,
+  isPerspectiveFrustumSync,
+} from "../../utils/lazy-validators";
 import { sceneRequestRender } from "../../scene/scene-request-render";
 
 const sceneWheelHandlers = new WeakMap<Scene, (event: WheelEvent) => void>();
@@ -60,9 +63,11 @@ export function useFovWheelZoom(
       const scene = sceneRef.current;
       if (!isValidScene(scene) || !scene) return;
 
-      if (!(scene.camera.frustum instanceof PerspectiveFrustum)) return;
+      // Use sync validator - will fall back to property check if not initialized yet
+      if (!isPerspectiveFrustumSync(scene.camera.frustum)) return;
 
-      const currentFov = scene.camera.frustum.fov as Radians;
+      const frustum = scene.camera.frustum as { fov: number };
+      const currentFov = frustum.fov as Radians;
       const nextFov = computeNextFov(
         currentFov,
         event.deltaY,
@@ -72,7 +77,7 @@ export function useFovWheelZoom(
       );
       if (!isClose(nextFov, currentFov, minFovChange)) {
         onFovChange?.(nextFov, currentFov);
-        scene.camera.frustum.fov = nextFov;
+        frustum.fov = nextFov;
         sceneRequestRender(scene);
         // Emit via enum-typed context event
         emit?.(CtxEvent.FovChange, nextFov);

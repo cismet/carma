@@ -1,9 +1,8 @@
 import { useEffect, useCallback } from "react";
-import { Cesium3DTileset, Scene } from "@carma/cesium";
+import type { Cesium3DTileset, Scene } from "@carma/cesium";
 import { useCesiumContext } from "../../../context";
 import { CtxEvent } from "../../../context/cesium-context-event-map";
-import type { TilesetConfig } from "../../../types";
-import { TilesetContentTypes } from "@carma/types";
+import type { TilesetContentTypes } from "@carma/types";
 import { loadTileset } from "../../../loaders";
 import { useTilesetProgress } from "./use-tileset-progress";
 
@@ -50,10 +49,10 @@ export const useTilesetManager = (
     sceneRef,
     subscribe,
     tilesetsRef: loadedTilesetsRef,
-    configRef,
+    config,
   } = useCesiumContext();
 
-  const minTileCount = configRef.current?.tilesets?.minInitialTileCount ?? 4;
+  const minTileCount = config.tilesets?.minInitialTileCount ?? 4;
 
   console.log(
     "[TILESET|MANAGER] Initialized with tileset configs:",
@@ -61,11 +60,10 @@ export const useTilesetManager = (
     `minTileCount=${minTileCount}, trackProgress=${trackProgress}`
   );
 
-  // Track tileset progress for SceneResourcesReady event (no React state updates unless trackProgress=true)
+  // Track tileset progress for SceneResourcesReady event
   const { attachProgressListener, updateProgress } = useTilesetProgress(
     loadedTilesetsRef.current,
-    minTileCount,
-    trackProgress
+    minTileCount
   );
 
   const loadTilesetOnDemand = useCallback(
@@ -189,9 +187,6 @@ export const useTilesetManager = (
   }, [subscribe, sceneRef, tilesets, loadTilesetOnDemand]);
 
   // SceneResourcesReady is now emitted directly by useTilesetProgress via event bus
-  // No need for React state dependency here
-
-  return {};
 };
 
 export default useTilesetManager;

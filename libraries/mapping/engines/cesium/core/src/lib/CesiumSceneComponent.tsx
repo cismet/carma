@@ -1,9 +1,9 @@
 import { type RefObject, useMemo, useRef } from "react";
-import { Color, Rectangle, Camera } from "@carma/cesium";
+import type { Camera } from "@carma/cesium";
+import type { GlobeOptions } from "@carma/cesium/types";
 import { merge } from "lodash";
 
-import { type CesiumErrorHandlerOptions } from "./components/CesiumErrorHandler";
-
+import { CesiumErrorHandler } from "./components/CesiumErrorHandler";
 import { useCesiumGlobe } from "./hooks/scene/use-cesium-globe";
 import { useCesiumWhenSuspended } from "./hooks/scene/use-cesium-when-suspended";
 import { useInitCesiumWidget } from "./hooks/scene/use-init-cesium-widget";
@@ -14,21 +14,10 @@ import { useTerrainManager } from "./hooks/resources/terrain/use-terrain-manager
 import { useShadows } from "./hooks/scene/use-shadows";
 import { useBackgroundColor } from "./hooks/scene/use-background-color";
 import { useCesiumContext } from "./context/hooks/use-cesium-context";
-import {
-  DEFAULT_WIDGET_CONSTRUCTOR_OPTIONS,
-  TRANSITION_DELAY,
-} from "./utils/widget-defaults";
-// DISABLED: TilesetProgressBars temporarily disabled
-// import { TilesetProgressBars } from "./components/TilesetProgressBars";
-import type { ColorRgbaArray } from "./types/config/scene-style";
+import { DEFAULT_WIDGET_CONSTRUCTOR_OPTIONS } from "./utils/widget-defaults";
 
-export type GlobeOptions = {
-  // https://cesium.com/learn/cesiumjs/ref-doc/Globe.html
-  baseColor?: Color | ColorRgbaArray;
-  cartographicLimitRectangle?: Rectangle;
-  showGroundAtmosphere?: boolean;
-  showSkirts?: boolean;
-};
+// Re-export for backwards compatibility
+export type { GlobeOptions };
 
 export type CameraLimiterOptions = {
   pitchLimiter?: boolean;
@@ -49,15 +38,12 @@ export type CesiumSceneComponentProps = {
   // Event callbacks
   onCameraChanged?: (params: { source: string; camera: Camera }) => void;
 
-  // Runtime options (not in config)
-  errorHandlerOptions?: CesiumErrorHandlerOptions;
-
   // Key for forcing remount on error (increment to remount)
   resetKey?: number;
 };
 
 export function CesiumSceneComponent(props: CesiumSceneComponentProps) {
-  const { containerRef: externalContainerRef, onCameraChanged } = props;
+  const { containerRef: externalContainerRef } = props;
 
   // Create internal ref if none provided
   const internalContainerRef = useRef<HTMLDivElement>(null);
@@ -82,18 +68,18 @@ export function CesiumSceneComponent(props: CesiumSceneComponentProps) {
   });
 
   // Managers receive all sources and handle activation based on style events
-  useTilesetManager(tilesets); // Emits SceneResourcesReady via event bus (no state)
+  useTilesetManager(tilesets); // Emits SceneResourcesReady via event bus
   useImageryManager(imagery);
   useTerrainManager(terrain);
 
   // Scene appearance hooks (initial values, applySceneStyle overrides on style switch)
   useCesiumGlobe({});
-  useShadows(false);
-  useBackgroundColor(undefined);
-  useCesiumWhenSuspended(TRANSITION_DELAY);
+  useShadows({});
+  useBackgroundColor(); // No args - backgroundColor comes from style events
+  useCesiumWhenSuspended();
 
-  // Widget is created directly in containerRef - no need to render anything
-  return null;
+  // Render error handler to intercept Cesium errors
+  return <CesiumErrorHandler />;
 }
 
 export default CesiumSceneComponent;

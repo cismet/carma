@@ -1,4 +1,10 @@
-import { Camera, Cartesian3, BoundingSphere, HeadingPitchRange } from "cesium";
+import {
+  Camera,
+  Cartesian3,
+  BoundingSphere,
+  HeadingPitchRange,
+  PerspectiveFrustum,
+} from "cesium";
 
 import type {
   Altitude,
@@ -9,6 +15,7 @@ import type {
 import { radToDeg } from "@carma/units/helpers";
 import type { Radians } from "@carma/units/types";
 import { cartographicToUnitTyped } from "../Core/Cartographic";
+import type { CameraPrimitive } from "@carma/cesium/types";
 
 // Re-export Camera class from Cesium
 
@@ -95,4 +102,43 @@ export const cameraPositionCartographicDegrees = (
     longitude: radToDeg(longitude as Radians) as Longitude.deg,
     altitude: height as Altitude.EllipsoidalWGS84Meters,
   };
+};
+
+/**
+ * Restore camera state from CameraPrimitive (for crash recovery)
+ *
+ * Restores camera position, orientation vectors, and FOV.
+ * This is the fastest way to restore camera state - uses setView for proper
+ * coordinate frame handling, then restores FOV separately.
+ *
+ * Note: setView updates the camera's view matrix internally, which is what you want
+ * for proper rendering. The view matrix is derived from position/direction/up/right.
+ *
+ * @param camera - The Cesium camera to restore
+ * @param state - The saved camera state
+ */
+export const restoreCameraState = (
+  camera: Camera,
+  state: CameraPrimitive
+): void => {
+  // Restore position and orientation using setView
+  // This handles coordinate frames properly and updates view matrix
+  if (state.position && state.direction && state.up) {
+    camera.setView({
+      destination: state.position,
+      orientation: {
+        direction: state.direction,
+        right: state.right,
+        up: state.up,
+      },
+    });
+  }
+
+  // Restore FOV separately (not part of setView API)
+  if (
+    state.frustum?.fov !== undefined &&
+    camera.frustum instanceof PerspectiveFrustum
+  ) {
+    camera.frustum.fov = state.frustum.fov;
+  }
 };

@@ -35,6 +35,7 @@
       
       // Package shortcuts
       "@carma/cesium": ["libraries/mapping/engines/cesium/api/src/index.ts"],
+      "@carma/cesium/types": ["libraries/mapping/engines/cesium/types/src/index.ts"],
       "@carma/cesium/*": ["libraries/mapping/engines/cesium/*/src/index.ts"],
       "@carma/math": ["libraries/commons/math/src/index.ts"],
       "@carma/units/*": ["libraries/commons/units/*/src/index.ts"],

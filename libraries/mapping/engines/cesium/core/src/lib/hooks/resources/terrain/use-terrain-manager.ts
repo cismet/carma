@@ -1,5 +1,8 @@
 import { useEffect, useRef } from "react";
-import { CesiumTerrainProvider, EllipsoidTerrainProvider } from "@carma/cesium";
+import {
+  EllipsoidTerrainProvider,
+  type CesiumTerrainProvider,
+} from "@carma/cesium";
 import { useCesiumContext } from "../../../context";
 import { CtxEvent } from "../../../context/cesium-context-event-map";
 import { loadCesiumTerrainProvider } from "../../../loaders";

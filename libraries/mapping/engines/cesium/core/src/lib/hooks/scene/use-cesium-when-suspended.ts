@@ -1,7 +1,7 @@
 import { useEffect } from "react";
-import { isValidImageryLayer, isValidScene } from "@carma/cesium";
+import { isValidImageryLayer, isValidScene } from "../../utils/lazy-validators";
 import { useCesiumContext } from "../../context";
-import { Scene } from "@carma/cesium";
+import type { Scene } from "@carma/cesium";
 
 const hideLayers = (scene: Scene) => {
   const hideOnce = () => {

@@ -1,5 +1,6 @@
 export * from "./arrays";
 export * from "./carma-config";
+export * from "./colors";
 export * from "./layer-parser";
 export * from "./log-react-cismap-errors";
 export * from "./logger";

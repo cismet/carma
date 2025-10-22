@@ -1,10 +1,4 @@
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import type {
@@ -17,14 +11,21 @@ import type {
 } from "@carma/cesium";
 import { createEventBus } from "@carma/providers/event-bus";
 
-import { CesiumContext, type CesiumContextType } from "./CesiumContext";
+import {
+  CesiumContext,
+  type CesiumContextType,
+  type CesiumInstanceRecord,
+} from "./CesiumContext";
 import type { CesiumContextEventMap } from "./cesium-context-event-map";
-import { CtxEvent } from "./cesium-context-event-map";
 import { setupCesiumEnvironment } from "../scene/environment";
 
-import { useCesiumContextSubscriptions } from "./hooks/use-cesium-context-subscriptions";
-import { useApplyInitialSceneStyle } from "./hooks/use-apply-initial-scene-style";
-import { useSetupCameraPositionTracking } from "./hooks/use-setup-camera-position-tracking";
+import {
+  useContextSetupSubscriptions,
+  useContextSetupInitialStyle,
+  useContextSetupCameraTracking,
+  useContextSetupActivationListener,
+  useContextSetupErrorRecovery,
+} from "./hooks";
 // DISABLED: Provider loaders for minimal mode
 // import {
 //   useImageryProviderLoader,
@@ -44,9 +45,13 @@ import { sceneRequestRender } from "../scene/scene-request-render";
 export const CesiumContextProvider = ({
   children,
   config,
+  view,
+  initialStyleId,
 }: {
   children: ReactNode;
   config: CesiumConfig;
+  view?: CameraViewOptions | CameraPoseHeadingPitchRoll;
+  initialStyleId?: string;
 }): React.ReactElement => {
   // Auto-setup Cesium environment if not already done
   // This ensures window.CESIUM_BASE_URL is set without requiring app-level setup
@@ -63,6 +68,11 @@ export const CesiumContextProvider = ({
   const widgetRef = useRef<CesiumWidget | null>(null);
   const sceneRef = useRef<Scene | null>(null);
   const animationMapRef = useRef<AnimationMap | null>(initAnimationMap());
+
+  // Track last camera state for crash recovery
+  const lastCameraStateRef = useRef<
+    import("@carma/cesium/types").CameraStatePrimitive | null
+  >(null);
 
   // Provider refs - use Maps for arbitrary numbers of providers per type
   const terrainProvidersRef = useRef<Map<string, CesiumTerrainProvider>>(
@@ -107,15 +117,11 @@ export const CesiumContextProvider = ({
 
   const dataSourcesRef = useRef<Record<string, any> | null>(null);
 
-  // Config ref for accessing config without causing re-renders
-  const configRef = useRef<CesiumConfig>(config);
-  // Update ref when config changes
-  useEffect(() => {
-    configRef.current = config;
-  }, [config]);
-
-  // Activation counter - increments when Activate event fires to trigger widget init
-  const [activationCount, setActivationCount] = useState(0);
+  // Cesium widget instance lifecycle history
+  // Tracks each time a Cesium widget instance was created (3D mode activation)
+  const [cesiumInstances, setCesiumInstances] = useState<
+    CesiumInstanceRecord[]
+  >([]);
 
   // Event bus for the Cesium context
   const { subscribe, emit } = useMemo(
@@ -123,16 +129,16 @@ export const CesiumContextProvider = ({
     []
   );
 
-  // Listen for Activate event to trigger initialization
-  useEffect(() => {
-    const unsubActivate = subscribe(CtxEvent.Activate, () => {
-      setActivationCount((prev) => prev + 1);
-    });
-    return () => unsubActivate();
-  }, [subscribe]);
+  // Listen for Activate event to trigger Cesium widget instance creation
+  useContextSetupActivationListener(
+    subscribe,
+    setCesiumInstances,
+    widgetRef,
+    config
+  );
 
   // MINIMAL MODE: Only essential subscriptions enabled
-  useCesiumContextSubscriptions({
+  useContextSetupSubscriptions({
     subscribe,
     emit,
     sceneRef,
@@ -150,10 +156,10 @@ export const CesiumContextProvider = ({
   });
 
   // Apply initial scene style when scene is ready
-  useApplyInitialSceneStyle(subscribe, emit, initialStyle);
+  useContextSetupInitialStyle(subscribe, emit, initialStyle);
 
   // Track camera position changes and emit CameraChanged events
-  useSetupCameraPositionTracking(widgetRef, sceneRef, subscribe, emit);
+  useContextSetupCameraTracking(widgetRef, sceneRef, subscribe, emit);
 
   // ALL PROVIDER LOADERS DISABLED for minimal mode
   // useImageryProviderLoader({ providerConfig, imageryLayerRef, isValidViewer });
@@ -179,6 +185,7 @@ export const CesiumContextProvider = ({
     () => ({
       widgetRef,
       sceneRef,
+      lastCameraStateRef,
       terrainProvidersRef,
       imageryLayersRef,
       tilesetsRef,
@@ -199,23 +206,13 @@ export const CesiumContextProvider = ({
       requestRender,
       animationMapRef,
       config,
-      configRef,
-      activationCount,
+      cesiumInstances,
     }),
-    [subscribe, emit, requestRender, config, activationCount]
+    [subscribe, emit, requestRender, config, cesiumInstances]
   );
 
   // Auto-recovery from Cesium errors
-  useEffect(() => {
-    const handleRecovery = () => {
-      console.warn("[CESIUM|RECOVERY] Detected error, remounting widget...");
-      setRemountKey((prev) => prev + 1);
-    };
-
-    window.addEventListener("carma:cesium:renderError", handleRecovery);
-    return () =>
-      window.removeEventListener("carma:cesium:renderError", handleRecovery);
-  }, []);
+  useContextSetupErrorRecovery(setRemountKey);
 
   console.debug("CesiumContextProvider Changed/Rendered");
 

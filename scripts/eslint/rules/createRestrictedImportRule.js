@@ -7,7 +7,8 @@ const fs = require("fs");
  *
  * @param {Object} config - Rule configuration
  * @param {string} config.packageName - Package to restrict (e.g., 'proj4', 'cesium')
- * @param {string[]} config.allowedPaths - Glob patterns for allowed file paths
+ * @param {string[]} [config.allowedPaths] - Glob patterns for allowed file paths (rule doesn't apply here)
+ * @param {string[]} [config.includePaths] - Glob patterns for included file paths (rule ONLY applies here)
  * @param {string} [config.wrapperPackage] - Single wrapper package name (e.g., '@carma/geo/proj')
  * @param {string[]} [config.wrapperPackages] - Multiple wrapper package names
  * @param {string} config.message - Error message to display
@@ -17,7 +18,8 @@ const fs = require("fs");
 module.exports = function createRestrictedImportRule(config) {
   const {
     packageName,
-    allowedPaths,
+    allowedPaths = [],
+    includePaths = [],
     wrapperPackage,
     wrapperPackages,
     message,
@@ -43,7 +45,17 @@ module.exports = function createRestrictedImportRule(config) {
     create(context) {
       const filename = context.filename || context.getFilename();
 
-      // Check if current file is in an allowed path
+      // If includePaths is specified, ONLY apply rule to those paths
+      if (includePaths.length > 0) {
+        const isInIncludedPath = includePaths.some((pattern) =>
+          minimatch(filename, pattern, { matchBase: false })
+        );
+        if (!isInIncludedPath) {
+          return {};
+        }
+      }
+
+      // Check if current file is in an allowed path (rule doesn't apply)
       const isInAllowedPath = allowedPaths.some((pattern) =>
         minimatch(filename, pattern, { matchBase: false })
       );

@@ -1,187 +1,55 @@
-import {
-  type ErrorBoundaryProps,
-  useErrorBoundary,
-  withErrorBoundary,
-} from "react-error-boundary";
-import { useState, useEffect, useMemo } from "react";
-import { CesiumWidget } from "@carma/cesium";
-import { useCesiumContext } from "../context/hooks/use-cesium-context";
-// import {
-//   useCesiumDevConsoleTrigger,
-//   type CesiumDevConsoleTriggerOptions,
-// } from "../hooks/dev/use-cesium-dev-console-trigger";
-import {
-  useReloadOnCesiumRenderError,
-  type ReloadOnCesiumRenderErrorOptions,
-} from "../hooks/dev/use-reload-on-cesium-render-error";
-import { getCesiumVersion, checkWindowEnv } from "../scene/environment";
+import { useEffect } from "react";
 
-export type ForwardedCesiumError = Error & {
-  cesiumTitle?: string;
-  cesiumMessage?: string;
-  // snapshot of useful state at forward-time
-  forwarderAt?: string;
-  forwarderStack?: string;
-  carmaCesiumContext?: Record<string, unknown>;
-  originalStack?: string;
-};
-
-export type CesiumErrorHandlerOptions = {
-  // devConsoleTrigger?: boolean | CesiumDevConsoleTriggerOptions; // TODO: restore when dev console available
-  reloadOnRenderError?: boolean | ReloadOnCesiumRenderErrorOptions;
-};
-
-const overrideCesiumWidgetShowErrorPanel = (
-  setCesiumError: React.Dispatch<
-    React.SetStateAction<ForwardedCesiumError | null>
-  >,
-  debugOnError: boolean
-): void => {
-  CesiumWidget.prototype.showErrorPanel = function (
-    title: string,
-    message: string,
-    error: unknown
-  ) {
-    console.debug("[Cesium] showErrorPanel invoked");
-    if (debugOnError) {
-      // dev only: pause on any natural Cesium error when feature flag + local dev are active
-      debugger; // eslint-disable-line no-debugger
-    }
-    // Normalize any input (string/object) to a real Error instance
-    const base: Error =
-      error instanceof Error
-        ? error
-        : typeof error === "string"
-        ? new Error(error)
-        : new Error("Cesium error (non-Error thrown)");
-
-    const forwarded = base as ForwardedCesiumError;
-    forwarded.cesiumTitle = title;
-    forwarded.cesiumMessage = message;
-    forwarded.originalStack = base.stack;
-    // capture the forwarder stack to aid root-cause tracing
-    forwarded.forwarderStack = new Error(
-      "Forwarded from CesiumWidget.showErrorPanel"
-    ).stack;
-    setCesiumError(forwarded);
-  };
-};
-
-// const deriveDevConsoleOptions = (
-//   input: CesiumErrorHandlerOptions["devConsoleTrigger"]
-// ): CesiumDevConsoleTriggerOptions | undefined =>
-//   typeof input === "object" ? input : { isDeveloperMode: input === true };
-
-const detectIsDev = (): boolean => {
-  try {
-    return Boolean(
-      typeof import.meta !== "undefined" &&
-        "env" in import.meta &&
-        (import.meta as { env?: { DEV?: boolean } }).env?.DEV
-    );
-  } catch {
-    return false;
-  }
-};
-
-const deriveReloadOptions = (
-  isDev: boolean,
-  input: CesiumErrorHandlerOptions["reloadOnRenderError"]
-): ReloadOnCesiumRenderErrorOptions | undefined => {
-  if (typeof input === "object") {
-    return {
-      enabled: typeof input.enabled === "boolean" ? input.enabled : !isDev,
-      eventName: input.eventName,
-      onReloadRequested: input.onReloadRequested,
-    };
-  }
-  return {
-    enabled: input === undefined ? true : input === true,
-  };
-};
-
-export const CesiumErrorHandler = withErrorBoundary(
-  function CesiumErrorHandler(props: CesiumErrorHandlerOptions) {
-    const [cesiumError, setCesiumError] = useState<ForwardedCesiumError | null>(
-      null
-    );
-
-    const { showBoundary } = useErrorBoundary();
-    // const ctx = useCesiumContextOptional();
-    const ctx = null; // TODO: implement optional context hook
-
-    // Memoize derived option objects for referential stability
-    const isDev = useMemo(detectIsDev, []);
-    // const devOpts = useMemo(
-    //   () => deriveDevConsoleOptions(props?.devConsoleTrigger),
-    //   [props?.devConsoleTrigger]
-    // );
-    const devOpts = null; // TODO: restore when dev console trigger is available
-    const reloadOpts = useMemo(
-      () => deriveReloadOptions(isDev, props?.reloadOnRenderError),
-      [isDev, props?.reloadOnRenderError]
-    );
-
-    // useCesiumDevConsoleTrigger(devOpts); // TODO: restore
-    useReloadOnCesiumRenderError(reloadOpts);
-
-    useEffect(() => {
+/**
+ * Intercepts Cesium errors and dispatches them as custom events.
+ * The CesiumErrorIndicator component listens to these events and displays them.
+ */
+export const CesiumErrorHandler = () => {
+  useEffect(() => {
+    (async () => {
+      const { CesiumWidget } = await import("@carma/cesium");
       console.debug(
-        "overriding CesiumWidget.showErrorPanel with custom Error forwarder"
+        "[CesiumErrorHandler] Overriding CesiumWidget.showErrorPanel"
       );
-      const debugOnError = false; // TODO: restore when dev console available
-      overrideCesiumWidgetShowErrorPanel(setCesiumError, debugOnError);
-    }, [showBoundary, isDev]);
 
-    useEffect(() => {
-      if (cesiumError && showBoundary) {
-        cesiumError.forwarderAt = new Date().toISOString();
+      // Override Cesium's default error panel with custom event dispatch
+      CesiumWidget.prototype.showErrorPanel = function (
+        title: string,
+        message: string,
+        error: unknown
+      ) {
+        // Normalize to Error instance
+        const errorObj =
+          error instanceof Error
+            ? error
+            : typeof error === "string"
+            ? new Error(error)
+            : new Error("Cesium error (non-Error thrown)");
 
-        // Respect global suppression flag to avoid crashing the viewer
-        const suppressed = window.CARMA_CESIUM_SUPPRESS_ERROR_BOUNDARY;
-        if (suppressed) {
-          // Enrich logs with Cesium version and worker base URL
-          const baseUrl: string | undefined = checkWindowEnv().cesiumBaseUrl;
-          const meta = {
-            cesiumVersion: getCesiumVersion(),
-            baseUrl,
-            workersBaseUrl: baseUrl ? `${baseUrl}/Workers` : undefined,
-          };
-          console.warn(
-            "[Cesium] error forwarded (suppressed)",
-            cesiumError,
-            meta
-          );
-          // Emit the same app-level event as renderError handling for unified reactions (e.g., reload)
-          try {
-            window.dispatchEvent(
-              new CustomEvent("carma:cesium:renderError", {
-                detail: { error: cesiumError, meta },
-              })
-            );
-          } catch {}
-          // clear suppression for next error
-          (window as any).CARMA_CESIUM_SUPPRESS_ERROR_BOUNDARY = false;
-        } else {
-          showBoundary(cesiumError);
-        }
-        setCesiumError(null);
-      }
-    }, [cesiumError, showBoundary, ctx]);
+        console.error("[Cesium Error]", {
+          title,
+          message,
+          error: errorObj,
+        });
 
-    return null;
-  },
-  {
-    // render component intentionally missing to not override external ErrorBoundary
-    // withErrorBoundary is used to allow use of this component outside of ErrorBoundary contexts without causing errors because of the missing context
-    onError: (error, info) => {
-      console.error(
-        "Consider using ErrorBoundary to manage Cesium errors with app context",
-        error,
-        info
-      );
-    },
-  } as ErrorBoundaryProps
-);
+        // Dispatch event for CesiumErrorIndicator to catch
+        window.dispatchEvent(
+          new CustomEvent("carma:cesium:renderError", {
+            detail: {
+              error: errorObj,
+              meta: {
+                cesiumTitle: title,
+                cesiumMessage: message,
+                timestamp: Date.now(),
+              },
+            },
+          })
+        );
+      };
+    })();
+  }, []);
+
+  return null;
+};
 
 export default CesiumErrorHandler;

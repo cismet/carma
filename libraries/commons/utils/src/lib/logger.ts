@@ -13,9 +13,8 @@ export class Logger {
   constructor(prefix: string = '', level?: LogLevel) {
     this.prefix = prefix;
     // Default to SILENT in production, DEBUG in development
-    this.level = level ?? (process.env.NODE_ENV === 'production' 
-      ? LogLevel.SILENT 
-      : LogLevel.DEBUG);
+    const isProduction = typeof process !== 'undefined' && process.env?.['NODE_ENV'] === 'production';
+    this.level = level ?? (isProduction ? LogLevel.SILENT : LogLevel.DEBUG);
   }
 
   setLevel(level: LogLevel) {

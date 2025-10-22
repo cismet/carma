@@ -17,11 +17,18 @@ module.exports = {
       packageName: "cesium",
       allowedPaths: [
         "**/libraries/mapping/engines/cesium/api/**",
-        "**/libraries/mapping/engines/cesium/core/src/lib/widgetDefaults.ts",
+        "**/libraries/mapping/engines/cesium/types/**",
       ],
       wrapperPackages: ["@carma/cesium"],
       message:
-        "Import cesium only through @carma/cesium (@carma/cesium). Use the curated API surface for better manageability.",
+        "Import cesium only through @carma/cesium. Use the curated API surface for better manageability.",
+      allowTypeImports: false,
+    }),
+    "no-cesium-api-in-types": createRestrictedImportRule({
+      packageName: "@carma/cesium",
+      includePaths: ["**/libraries/mapping/engines/cesium/types/**"],
+      message:
+        "cesium/types must never import from @carma/cesium (cesium/api). Import directly from 'cesium' instead to avoid circular dependencies.",
       allowTypeImports: false,
     }),
 

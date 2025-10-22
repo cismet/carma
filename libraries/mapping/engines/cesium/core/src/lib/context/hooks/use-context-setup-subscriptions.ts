@@ -1,14 +1,6 @@
 import { useEffect } from "react";
 import type { MutableRefObject } from "react";
-import {
-  type Scene,
-  Cartesian3,
-  BoundingSphere,
-  tryWithValidCamera,
-  Color,
-  Cesium3DTileset,
-  ImageryLayer,
-} from "@carma/cesium";
+import type { Scene, Cesium3DTileset, ImageryLayer } from "@carma/cesium";
 import type { SceneStyleConfig, CesiumConfig } from "../../types/config";
 import type { CameraViewOptions } from "../../types/camera";
 import {
@@ -16,14 +8,14 @@ import {
   type SubscribeCesiumCtxFn,
   type EmitCesiumCtxFn,
 } from "../cesium-context-event-map";
-import { isValidScene } from "@carma/cesium";
+import { isValidScene } from "../../utils/lazy-validators";
 import { diffTilesets, diffImageryLayers } from "../../scene/style-diff";
 
 /**
  * Custom hook that manages all event subscriptions for CesiumContext refs.
  * Consolidates subscription logic to keep CesiumContextProvider clean.
  */
-export const useCesiumContextSubscriptions = ({
+export const useContextSetupSubscriptions = ({
   subscribe,
   emit,
   sceneRef,
@@ -113,24 +105,30 @@ export const useCesiumContextSubscriptions = ({
 
       const { target, orientation } = home;
 
-      tryWithValidCamera(scene.camera, (camera) => {
-        if (orientation) {
-          // Fly to position with HeadingPitchRange
-          camera.flyTo({
-            destination: target,
-            orientation: {
-              heading: orientation.heading,
-              pitch: orientation.pitch,
-              range: orientation.range,
-            },
-            duration: 2.0,
-          });
-        } else {
-          // Fallback: fly to bounding sphere around target
-          const boundingSphere = new BoundingSphere(target, 400);
-          camera.flyToBoundingSphere(boundingSphere, { duration: 2.0 });
-        }
-      });
+      (async () => {
+        const { tryWithValidCamera, BoundingSphere, Cartesian3 } = await import(
+          "@carma/cesium"
+        );
+        const targetCartesian3 = new Cartesian3(target.x, target.y, target.z);
+        tryWithValidCamera(scene.camera, (camera) => {
+          if (orientation) {
+            // Fly to position with HeadingPitchRange
+            camera.flyTo({
+              destination: targetCartesian3,
+              orientation: {
+                heading: orientation.heading,
+                pitch: orientation.pitch,
+                range: orientation.range,
+              },
+              duration: 2.0,
+            });
+          } else {
+            // Fallback: fly to bounding sphere around target
+            const boundingSphere = new BoundingSphere(targetCartesian3, 400);
+            camera.flyToBoundingSphere(boundingSphere, { duration: 2.0 });
+          }
+        });
+      })();
     });
 
     return () => {
@@ -225,40 +223,47 @@ export const useCesiumContextSubscriptions = ({
       console.debug(`[CesiumContext] Applying style "${newStyle}":`, style);
 
       // Apply backgroundColor from style
-      if (style.backgroundColor) {
-        const bgColor = Color.fromBytes(...style.backgroundColor);
-        scene.backgroundColor = bgColor;
-        const container = scene.canvas.parentElement;
-        if (container) {
-          const cssColor = bgColor.toCssColorString();
-          container.style.backgroundColor = cssColor;
-        }
-        console.log(
-          `[CesiumContext] Set backgroundColor:`,
-          style.backgroundColor
-        );
+      if (style.backgroundColor && Array.isArray(style.backgroundColor)) {
+        (async () => {
+          const { Color } = await import("@carma/cesium");
+          const [r, g, b, a] = style.backgroundColor!;
+          const bgColor = Color.fromBytes(r, g, b, a);
+          scene.backgroundColor = bgColor;
+          const container = scene.canvas.parentElement;
+          if (container) {
+            const cssColor = bgColor.toCssColorString();
+            container.style.backgroundColor = cssColor;
+          }
+          console.log(
+            `[CesiumContext] Set backgroundColor:`,
+            style.backgroundColor
+          );
+        })();
       }
 
       // Apply globe settings from style
       if (style.globe?.baseColor) {
-        const [r, g, b, a] = style.globe.baseColor;
-        scene.globe.baseColor = new Color(r, g, b, a);
-        scene.globe.show = true;
+        (async () => {
+          const { Color } = await import("@carma/cesium");
+          const [r, g, b, a] = style.globe!.baseColor;
+          scene.globe.baseColor = new Color(r, g, b, a);
+          scene.globe.show = true;
 
-        // Enable translucency if alpha < 1
-        if (a < 1.0) {
-          scene.globe.translucency.enabled = true;
+          // Enable translucency if alpha < 1
+          if (a < 1.0) {
+            scene.globe.translucency.enabled = true;
+            console.log(
+              `[CesiumContext] Enabled globe translucency (alpha=${a})`
+            );
+          } else {
+            scene.globe.translucency.enabled = false;
+          }
+
           console.log(
-            `[CesiumContext] Enabled globe translucency (alpha=${a})`
+            `[CesiumContext] Set globe.baseColor (rgba):`,
+            style.globe?.baseColor
           );
-        } else {
-          scene.globe.translucency.enabled = false;
-        }
-
-        console.log(
-          `[CesiumContext] Set globe.baseColor (rgba):`,
-          style.globe.baseColor
-        );
+        })();
       }
 
       // Ensure globe is visible if imagery or terrain is present

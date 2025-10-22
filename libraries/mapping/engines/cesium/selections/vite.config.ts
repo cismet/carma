@@ -7,7 +7,7 @@ import { nxCopyAssetsPlugin } from '@nx/vite/plugins/nx-copy-assets.plugin';
 
 export default defineConfig({
   root: __dirname,
-  cacheDir: '../../../../../node_modules/.vite/libraries/mapping/engines/cesium/selection-marker',
+  cacheDir: '../../../../../node_modules/.vite/libraries/mapping/engines/cesium/selections',
   plugins: [nxViteTsPaths(), nxCopyAssetsPlugin(['*.md']), dts({ entryRoot: 'src', tsconfigPath: path.join(__dirname, 'tsconfig.lib.json') })],
   // Uncomment this if you are using workers.
   // worker: {
@@ -16,7 +16,7 @@ export default defineConfig({
   // Configuration for building your library.
   // See: https://vitejs.dev/guide/build.html#library-mode
   build: {
-    outDir: '../../../../../dist/libraries/mapping/engines/cesium/selection-marker',
+    outDir: '../../../../../dist/libraries/mapping/engines/cesium/selections',
     emptyOutDir: true,
     reportCompressedSize: true,
     commonjsOptions: {
@@ -43,7 +43,7 @@ export default defineConfig({
     include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
     reporters: ['default'],
     coverage: {
-      reportsDirectory: '../../../../../coverage/libraries/mapping/engines/cesium/selection-marker',
+      reportsDirectory: '../../../../../coverage/libraries/mapping/engines/cesium/selections',
       provider: 'v8',
     }
   },

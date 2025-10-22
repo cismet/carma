@@ -1,4 +1,5 @@
-import { Cesium3DTileset, ShadowMode } from "@carma/cesium";
+import type { Cesium3DTileset, ShadowMode } from "@carma/cesium";
+import type { TilesetStyleOptionsPrimitive } from "@carma/cesium/types";
 import type { TilesetResourceConfig } from "@carma/types";
 
 type MutableOptions =
@@ -23,9 +24,9 @@ export type TilesetStyle = {
   // Advanced mutable properties
   colorBlendMode?: "HIGHLIGHT" | "REPLACE" | "MIX"; // How to blend colors
   // preference for quality might be overridden by scene style or in app
-  maximumScreenSpaceError?: number; // LOD quality (lower = higher quality)
-  backFaceCulling?: boolean; // Cull back faces
-  lightColor?: Cartesian3; // RGB light color
+  maximumScreenSpaceError?: number;
+  backFaceCulling?: boolean;
+  lightColor?: [number, number, number];
 };
 
 export type TilesetConfig = TilesetResourceConfig & {

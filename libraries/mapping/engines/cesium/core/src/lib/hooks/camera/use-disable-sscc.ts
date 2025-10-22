@@ -5,7 +5,7 @@ import { CtxEvent } from "../../context/cesium-context-event-map";
 import {
   isValidScene,
   isValidScreenSpaceCameraController,
-} from "@carma/cesium";
+} from "../../utils/lazy-validators";
 
 /**
  * Manages ScreenSpaceCameraController (SSCC) enabling/disabling based on:

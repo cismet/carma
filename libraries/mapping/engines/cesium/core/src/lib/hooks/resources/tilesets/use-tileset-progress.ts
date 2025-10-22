@@ -6,10 +6,21 @@ import { CtxEvent } from "../../../context/cesium-context-event-map";
 type LoadedTilesets = Map<string, Cesium3DTileset>;
 type TileLoadCounters = Map<string, number>;
 
+// Cesium3DTileset has a statistics property that's not in the type definition
+type Cesium3DTilesetWithStats = Cesium3DTileset & {
+  statistics?: {
+    numberOfTilesProcessing?: number;
+    numberOfTilesLoaded?: number;
+  };
+};
+
 export const useTilesetProgress = (
   loadedTilesets: LoadedTilesets,
   minTileCount: number = 4
-) => {
+): {
+  attachProgressListener: (id: string, tileset: Cesium3DTileset) => void;
+  updateProgress: () => void;
+} => {
   const { emit } = useCesiumContext();
   const tileLoadCountersRef = useRef<TileLoadCounters>(new Map());
   const initialTilesFiredRef = useRef<Set<string>>(new Set());
@@ -38,15 +49,17 @@ export const useTilesetProgress = (
           (id) => `${id}: ${tileLoadCountersRef.current.get(id)} tiles`
         )
       );
-      emit(CtxEvent.SceneResourcesReady);
+      emit(CtxEvent.SceneResourcesReady, undefined);
     }
   };
 
   const attachProgressListener = (id: string, tileset: Cesium3DTileset) => {
     // Check if tiles are already loaded (e.g., from cache)
+    const tilesetWithStats = tileset as Cesium3DTilesetWithStats;
     const currentTilesProcessing =
-      tileset.statistics?.numberOfTilesProcessing ?? 0;
-    const currentTilesLoaded = tileset.statistics?.numberOfTilesLoaded ?? 0;
+      tilesetWithStats.statistics?.numberOfTilesProcessing ?? 0;
+    const currentTilesLoaded =
+      tilesetWithStats.statistics?.numberOfTilesLoaded ?? 0;
     const totalTiles = currentTilesProcessing + currentTilesLoaded;
 
     tileLoadCountersRef.current.set(id, totalTiles);
@@ -62,11 +75,15 @@ export const useTilesetProgress = (
 
     // Track tile loading to know when we have enough tiles
     const checkReadyState = () => {
-      const tilesProcessing = tileset.statistics?.numberOfTilesProcessing ?? 0;
-      const tilesLoaded = tileset.statistics?.numberOfTilesLoaded ?? 0;
+      const tilesProcessing =
+        tilesetWithStats.statistics?.numberOfTilesProcessing ?? 0;
+      const tilesLoaded = tilesetWithStats.statistics?.numberOfTilesLoaded ?? 0;
       const totalTiles = tilesProcessing + tilesLoaded;
 
       tileLoadCountersRef.current.set(id, totalTiles);
+
+      // Update progress visualization
+      updateProgressState();
 
       const wasReady = initialTilesFiredRef.current.has(id);
       const isReady = totalTiles >= minTileCount;
@@ -98,8 +115,9 @@ export const useTilesetProgress = (
 
     // Also check initial state (in case tiles loaded before listener attached)
     const handleInitialTilesLoaded = () => {
-      const tilesProcessing = tileset.statistics?.numberOfTilesProcessing ?? 0;
-      const tilesLoaded = tileset.statistics?.numberOfTilesLoaded ?? 0;
+      const tilesProcessing =
+        tilesetWithStats.statistics?.numberOfTilesProcessing ?? 0;
+      const tilesLoaded = tilesetWithStats.statistics?.numberOfTilesLoaded ?? 0;
       const totalTiles = tilesProcessing + tilesLoaded;
       const isReady = totalTiles >= minTileCount;
 
@@ -127,8 +145,7 @@ export const useTilesetProgress = (
     tileset.initialTilesLoaded.addEventListener(handleInitialTilesLoaded);
   };
 
-  const updateProgress = () => {
-    // Check scene readiness when tilesets visibility changes
+  const updateProgressState = () => {
     checkAndEmitSceneReady();
   };
 
@@ -148,5 +165,5 @@ export const useTilesetProgress = (
     hasEmittedReadyRef.current = false;
   }, [loadedTilesets]);
 
-  return { attachProgressListener, updateProgress };
+  return { attachProgressListener, updateProgress: updateProgressState };
 };

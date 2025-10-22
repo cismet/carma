@@ -5,7 +5,7 @@ import {
   type EmitCesiumCtxFn,
 } from "../cesium-context-event-map";
 
-export const useApplyInitialSceneStyle = (
+export const useContextSetupInitialStyle = (
   subscribe: SubscribeCesiumCtxFn,
   emit: EmitCesiumCtxFn,
   initialStyle: string | undefined

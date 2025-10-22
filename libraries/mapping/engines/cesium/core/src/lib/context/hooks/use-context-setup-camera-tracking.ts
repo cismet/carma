@@ -6,7 +6,7 @@ import {
   type SubscribeCesiumCtxFn,
 } from "../cesium-context-event-map";
 
-export const useSetupCameraPositionTracking = (
+export const useContextSetupCameraTracking = (
   widgetRef: MutableRefObject<CesiumWidget | null>,
   sceneRef: MutableRefObject<Scene | null>,
   subscribe: SubscribeCesiumCtxFn,

@@ -17,7 +17,7 @@ export default defineConfig({
   ],
 
   build: {
-    outDir: '../../../dist/libraries/commons/units',
+    outDir: '../../../../dist/libraries/commons/units/helpers',
     reportCompressedSize: true,
     sourcemap: true,
     commonjsOptions: {

@@ -6,7 +6,7 @@ import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 
 export default defineConfig({
   root: __dirname,
-  cacheDir: '../../../node_modules/.vite/libraries/commons/geo',
+  cacheDir: '../../../node_modules/.vite/libraries/geo/utils',
 
   plugins: [
     nxViteTsPaths(),
@@ -17,7 +17,7 @@ export default defineConfig({
   ],
 
   build: {
-    outDir: '../../../dist/libraries/commons/geo',
+    outDir: '../../../dist/libraries/geo/utils',
     reportCompressedSize: true,
     sourcemap: true,
     commonjsOptions: {
