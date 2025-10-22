@@ -290,16 +290,17 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
           }
 
           // Create Leaflet marker for snapping indicator
+          // Match the size of measurement handles (8px total = 4px radius)
           if (finalLatLng) {
             snappingIndicatorRef.current = L.circleMarker(
               [finalLatLng.lat, finalLatLng.lng],
               {
-                radius: 6,
+                radius: 3.5,
                 color: "#000000",
                 fillColor: "#000000",
-                fillOpacity: 1,
-                weight: 2,
-                opacity: 1,
+                fillOpacity: 0.8,
+                weight: 1,
+                opacity: 0.8,
               }
             ).addTo(leafletMap);
           }
