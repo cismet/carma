@@ -867,7 +867,7 @@ export const NewLibModal = ({
       footer={<></>}
       width={"100%"}
       closeIcon={false}
-      wrapClassName="h-full !overflow-y-hidden"
+      wrapClassName="h-full !overflow-y-hidden hide-tabs"
       className="h-[88%]"
       styles={{
         content: {
