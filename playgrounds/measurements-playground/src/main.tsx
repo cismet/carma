@@ -1,4 +1,4 @@
-import { StrictMode, useEffect, useState } from "react";
+import { StrictMode, useEffect, useState, createContext } from "react";
 import * as ReactDOM from "react-dom/client";
 import { Provider, useSelector, useDispatch } from "react-redux";
 import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextProvider";
@@ -23,6 +23,15 @@ import {
 } from "@carma-appframeworks/portals";
 import { getUIMode, setUIMode, UIMode } from "./app/store/slices/ui";
 
+// Context for snapping control
+export const SnappingContext = createContext<{
+  snappingEnabled: boolean;
+  setSnappingEnabled: (enabled: boolean) => void;
+}>({
+  snappingEnabled: true,
+  setSnappingEnabled: () => {},
+});
+
 // Wrapper component to connect Redux to MapMeasurementsProvider
 const MeasurementsProviderWrapper = ({
   children,
@@ -31,9 +40,12 @@ const MeasurementsProviderWrapper = ({
 }) => {
   const uiMode = useSelector(getUIMode);
   const dispatch = useDispatch<AppDispatch>();
+  const [snappingEnabled, setSnappingEnabled] = useState(true);
+
   const measurementsConfig = {
     // Only override what you want to change
     editableTitle: true,
+    snappingEnabled: snappingEnabled,
     // infoBoxHeaderColor: "#22c55e",
   };
 
@@ -168,7 +180,12 @@ const RootComponent = () => {
     };
   }, []);
 
-  return <App vectorStyles={vectorStylesArray} />;
+  const clearAllVectorLayers = () => {
+    setVectorStylesArray([]);
+    localStorage.removeItem("measurements-vector-style");
+  };
+
+  return <App vectorStyles={vectorStylesArray} onClearAllLayers={clearAllVectorLayers} />;
 };
 
 const persistor = persistStore(store);
