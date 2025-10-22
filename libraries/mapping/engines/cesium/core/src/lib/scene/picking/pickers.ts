@@ -4,7 +4,6 @@ import {
   Cartographic,
   defined,
   GroundPrimitive,
-  CesiumMath,
   type Scene,
 } from "@carma/cesium";
 
@@ -12,6 +11,7 @@ import {
   getCanvasDimensions,
   type CanvasDimensions,
 } from "@carma-commons/dom/canvas";
+import { radToDegNumeric } from "@carma/units/helpers";
 
 import { getPixelSizeForPosition } from "./pixels";
 
@@ -265,9 +265,11 @@ export const getSceneViewportPolygonRing = (
   const geom: ([number, number] | null)[] = [...top, ...bottom.reverse()].map(
     (result) => {
       if (result && result.coordinates) {
+        // Input: Cartographic.latitude/longitude (radians as number)
+        // Output: degrees (number) for GeoJSON coordinates
         return [
-          CesiumMath.toDegrees(result.coordinates.latitude),
-          CesiumMath.toDegrees(result.coordinates.longitude),
+          radToDegNumeric(result.coordinates.latitude),
+          radToDegNumeric(result.coordinates.longitude),
         ];
       } else {
         console.debug("No valid mapping", result);

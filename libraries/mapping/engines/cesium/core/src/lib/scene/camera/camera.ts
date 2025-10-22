@@ -1,12 +1,7 @@
-import {
-  Camera,
-  Cartesian2,
-  Cartesian3,
-  CesiumMath,
-  type Scene,
-} from "@carma/cesium";
+import { Camera, Cartesian2, Cartesian3, type Scene } from "@carma/cesium";
 
 import type { Radians } from "@carma/units/types";
+import { PI_OVER_TWO, TWO_PI } from "@carma/units/helpers";
 
 // Camera direction when pointing straight down (nadir)
 const TOP_DOWN_DIRECTION = new Cartesian3(0, 0, -1);
@@ -89,10 +84,9 @@ export const applyRollToHeadingForCameraNearNadir = (
   camera: Camera,
   nadirRange = 0.2 as Radians
 ): Radians => {
-  const isInNadirRange =
-    Math.abs(camera.pitch + CesiumMath.PI_OVER_TWO) < nadirRange;
+  const isInNadirRange = Math.abs(camera.pitch + PI_OVER_TWO) < nadirRange;
   const rollCorrectedHeading = isInNadirRange
-    ? (camera.heading + camera.roll) % CesiumMath.TWO_PI
+    ? (camera.heading + camera.roll) % TWO_PI
     : camera.heading;
   return rollCorrectedHeading as Radians;
 };

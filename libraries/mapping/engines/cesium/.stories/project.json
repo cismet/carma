@@ -1,0 +1,41 @@
+{
+  "name": "cesium/stories",
+  "$schema": "../../../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libraries/mapping/engines/cesium/.stories/src",
+  "projectType": "application",
+  "tags": [
+    "type:storybook",
+    "scope:cesium",
+    "scope:dev-only"
+  ],
+  "targets": {
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "storybook": {
+      "executor": "@nx/storybook:storybook",
+      "options": {
+        "port": 4401,
+        "configDir": "libraries/mapping/engines/cesium/.stories/.storybook"
+      },
+      "configurations": {
+        "ci": {
+          "quiet": true
+        }
+      }
+    },
+    "build-storybook": {
+      "executor": "@nx/storybook:build",
+      "outputs": ["{options.outputDir}"],
+      "options": {
+        "outputDir": "dist/storybook/cesium-stories",
+        "configDir": "libraries/mapping/engines/cesium/.stories/.storybook"
+      },
+      "configurations": {
+        "ci": {
+          "quiet": true
+        }
+      }
+    }
+  }
+}

@@ -1,8 +1,3 @@
-export const defaultHashKeyAliases = {
-  mapStyle: "m",
-  isOblique: "oblq",
-} as const;
-
 export const MapStyleKeys = {
   TOPO: "karte",
   AERIAL: "luftbild",

@@ -1,4 +1,7 @@
-import { Cesium3DTileset, ShadowMode } from "@carma/cesium";
+import type { Cesium3DTileset, ShadowMode } from "@carma/cesium";
+
+// Avoid static import
+const DISABLED: ShadowMode.DISABLED = 0;
 
 /**
  * Performance defaults for 3D mesh tilesets (photogrammetry, terrain meshes)
@@ -22,7 +25,7 @@ import { Cesium3DTileset, ShadowMode } from "@carma/cesium";
  */
 export const MESH_PERFORMANCE_PRESET: Cesium3DTileset.ConstructorOptions = {
   preloadWhenHidden: false,
-  shadows: ShadowMode.DISABLED,
+  shadows: DISABLED,
 
   // Performance: Disable expensive operations
   enableCollision: false, // Use terrain collision instead (faster + smoother)

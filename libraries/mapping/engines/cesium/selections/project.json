@@ -15,7 +15,7 @@
       ],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "dist/libraries/mapping/cesium/selections"
+        "outputPath": "dist/libraries/mapping/engines/cesium/selections"
       },
       "configurations": {
         "development": {

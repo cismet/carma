@@ -48,16 +48,24 @@ export const useContextSetupSubscriptions = ({
 }) => {
   // Update isSuspendedRef when suspend/activate events are emitted
   useEffect(() => {
-    const unsubActivate = subscribe(CtxEvent.Activate, () => {
+    const unsubActivate = subscribe(CtxEvent.Activate, (triggerData) => {
+      console.debug("[CesiumContext] Activate event received", {
+        triggerData,
+        currentStyle: currentSceneStyleRef.current,
+      });
       isSuspendedRef.current = false;
 
+      // Wait for scene to be ready before reapplying style
       const currentStyle = currentSceneStyleRef.current;
       if (currentStyle) {
-        console.debug(
-          "[CesiumContext] Reapplying style on activate:",
-          currentStyle
-        );
-        emit(CtxEvent.SetSceneStyle, currentStyle);
+        const unsubSceneReady = subscribe(CtxEvent.SceneReady, () => {
+          console.debug(
+            "[CesiumContext] Reapplying style after scene ready:",
+            currentStyle
+          );
+          emit(CtxEvent.SetSceneStyle, currentStyle);
+          unsubSceneReady(); // Only apply once
+        });
       }
     });
     const unsubSuspend = subscribe(CtxEvent.Suspend, () => {

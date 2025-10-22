@@ -16,6 +16,7 @@ import type { CesiumConfig } from "@carma-mapping/engines/cesium/core";
 import type { TransitionConfig } from "@carma-mapping/map-transition-2d-3d";
 import { COLORS } from "@carma-commons/utils";
 import { MODEL_ASSETS } from "./assets.config";
+import { ManagedCesiumStyleKeys } from "@carma-appframeworks/portals";
 
 export const APP_BASE_PATH = import.meta.env.BASE_URL;
 export const ICON_PREFIX =
@@ -31,9 +32,9 @@ const CESIUM_PATHNAME = "__cesium__";
 /**
  * Complete Cesium configuration for Geoportal
  * Uses new SceneStyleConfig format with sources and styles
- * Maps 2D basemap styles to 3D scene styles:
- *   - luftbild (aerial) → mesh-2024
- *   - karte (topo) → lod2
+ * Style IDs use ManagedCesiumStyleKeys from portals library:
+ *   - luftbild (aerial) → ManagedCesiumStyleKeys.MESH
+ *   - karte (topo) → ManagedCesiumStyleKeys.LOD2
  */
 // Transition configuration for 2D↔3D mode switching
 export const TRANSITIONS_CONFIG: TransitionConfig = {
@@ -114,7 +115,7 @@ export const CESIUM_CONFIG: Partial<CesiumConfig> = {
 
     styles: [
       {
-        id: "mesh-2024",
+        id: ManagedCesiumStyleKeys.MESH,
         name: "Aerial (Mesh 2024)",
         shadows: false,
         backgroundColor: COLORS.GRAY,
@@ -125,7 +126,7 @@ export const CESIUM_CONFIG: Partial<CesiumConfig> = {
         terrain: "dem-2020",
       },
       {
-        id: "lod2",
+        id: ManagedCesiumStyleKeys.LOD2,
         name: "Topographic (LOD2)",
         shadows: false,
         backgroundColor: COLORS.WHITE,
@@ -147,7 +148,17 @@ export const LEAFLET_CONFIG: LeafletConfig = {
   zoomDelta: 1.0,
 };
 
-export const VIEWERSTATE_KEYS = {
-  mapStyle: "m",
-  is3d: "is3d",
+// Default 2D map position (for Leaflet, MapLibre)
+// Note: NOT yet unified across all engines - see https://github.com/cismet/carma/issues/214
+export const DEFAULT_MAP_POSITION = {
+  latitude: WUPPERTAL.position.latitude,
+  longitude: WUPPERTAL.position.longitude,
+  zoom: 15, // Leaflet/MapLibre zoom level
+};
+
+// Default Cesium 3D camera location (heading, pitch, range)
+export const DEFAULT_CESIUM_CAMERA = {
+  heading: 0, // North
+  pitch: -0.785, // ~45° down
+  range: 600, // Distance from target in meters
 };

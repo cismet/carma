@@ -2,12 +2,12 @@ import {
   Cartesian3,
   HeadingPitchRange,
   Matrix4,
-  CesiumMath,
   Cartesian2,
   type Scene,
 } from "@carma/cesium";
 
-import type { Radians } from "@carma/units/types";
+import type { Radians, Degrees } from "@carma/units/types";
+import { degToRad, TWO_PI, clamp, PI, PI_OVER_TWO } from "@carma/units/helpers";
 import type { AnimationType } from "@carma/types";
 import { AnimationTypes } from "@carma/types";
 
@@ -26,8 +26,8 @@ const scratchScreenCenter = new Cartesian2();
 
 export enum PITCH {
   HORIZONTAL = 0 as Radians,
-  OBLIQUE = CesiumMath.toRadians(-45) as Radians,
-  ORTHO = CesiumMath.toRadians(-90) as Radians,
+  OBLIQUE = degToRad(-45 as Degrees) as Radians,
+  ORTHO = degToRad(-90 as Degrees) as Radians,
 }
 
 /**
@@ -75,8 +75,8 @@ function runAnimation(
     const easeInOutQuad = t * (2 - t);
 
     let headingDifference = targetHeading - startHeading;
-    if (headingDifference > Math.PI) headingDifference -= 2 * Math.PI;
-    if (headingDifference < -Math.PI) headingDifference += 2 * Math.PI;
+    if (headingDifference > PI) headingDifference -= TWO_PI;
+    if (headingDifference < -PI) headingDifference += TWO_PI;
 
     const currentHeading = startHeading + headingDifference * easeInOutQuad;
     const currentPitch =
@@ -189,8 +189,8 @@ export const animateCamera = (
 };
 
 // TODO: figure out this bug
-// when pitch is at -Math.PI / 2 the HeadingPitchRange heading resets to 0;
-const OFFSET_NADIR = -Math.PI / 2 + 0.0001;
+// when pitch is at -PI_OVER_TWO the HeadingPitchRange heading resets to 0;
+const OFFSET_NADIR = -PI_OVER_TWO + 0.0001;
 
 /**
  * Get the heading and pitch for a mouse event.
@@ -220,16 +220,12 @@ export const getHeadingPitchForMouseEvent = (
   const absoluteMaxPitch = Math.min(maxPitch, 0);
   const deltaX = event.clientX - initialMouseX;
   const deltaY = event.clientY - initialMouseY;
-  const headingChange = (deltaX * 0.01 * headingFactor) % CesiumMath.TWO_PI;
-  const newHeading = (initialHeading + headingChange) % CesiumMath.TWO_PI;
+  const headingChange = (deltaX * 0.01 * headingFactor) % TWO_PI;
+  const newHeading = (initialHeading + headingChange) % TWO_PI;
   // default pitch direction is same as maplibre
   let pitchChange = -deltaY * 0.01 * pitchFactor;
 
-  const newPitchRaw = (initialPitch + pitchChange) % CesiumMath.TWO_PI;
-  const newPitch = CesiumMath.clamp(
-    newPitchRaw,
-    absoluteMinPitch,
-    absoluteMaxPitch
-  );
+  const newPitchRaw = (initialPitch + pitchChange) % TWO_PI;
+  const newPitch = clamp(newPitchRaw, absoluteMinPitch, absoluteMaxPitch);
   return { heading: newHeading as Radians, pitch: newPitch as Radians };
 };

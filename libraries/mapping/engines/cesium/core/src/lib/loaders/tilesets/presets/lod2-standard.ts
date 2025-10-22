@@ -1,4 +1,7 @@
-import { Cesium3DTileset, ShadowMode } from "@carma/cesium";
+import type { Cesium3DTileset, ShadowMode } from "@carma/cesium";
+
+// Avoid static import
+const DISABLED: ShadowMode.DISABLED = 0;
 
 /**
  * Performance defaults for LOD2 building tilesets
@@ -23,5 +26,5 @@ export const LOD2_PERFORMANCE_PRESET: Cesium3DTileset.ConstructorOptions = {
   enableCollision: false, // Use terrain collision instead
   enablePick: false,
   backFaceCulling: true,
-  shadows: ShadowMode.DISABLED,
+  shadows: DISABLED,
 };

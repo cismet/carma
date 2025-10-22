@@ -108,11 +108,12 @@ export const CesiumContextProvider = ({
     config.initialCamera ?? (config.initialCameraLookAt as any) ?? null
   );
 
-  // Always use the first style as initial style
+  // Use initialStyleId prop if provided, otherwise fall back to first style
   const initialStyle =
-    sceneStyle && sceneStyle.styles && sceneStyle.styles.length > 0
+    initialStyleId ||
+    (sceneStyle && sceneStyle.styles && sceneStyle.styles.length > 0
       ? sceneStyle.styles[0].id
-      : undefined;
+      : undefined);
   const currentSceneStyleRef = useRef<string | undefined>(initialStyle);
 
   const dataSourcesRef = useRef<Record<string, any> | null>(null);

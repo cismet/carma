@@ -1,5 +1,21 @@
-import type { Camera, PerspectiveFrustum } from "cesium";
+import type { Camera, PerspectiveFrustum, Cartesian3 } from "cesium";
 import type { Radians } from "@carma/units/types";
+
+/**
+ * DirectionUp orientation format for Camera.setView()
+ * Based on official Cesium API: https://cesium.com/learn/ion-sdk/ref-doc/global.html#DirectionUp
+ *
+ * Specifies camera orientation using direction and up vectors.
+ * The right vector is optional and will be computed if not provided.
+ */
+export interface DirectionUp {
+  /** The direction vector (normalized) */
+  direction: Cartesian3;
+  /** The up vector (normalized) */
+  up: Cartesian3;
+  /** The right vector (optional, computed from direction × up if not provided) */
+  right?: Cartesian3;
+}
 
 /**
  * Complete camera state for crash recovery

@@ -11,18 +11,12 @@ import { CrossTabCommunicationContextProvider } from "react-cismap/contexts/Cros
 
 // Monorepo Packages
 import { CarmaMapProviderWrapper } from "@carma-appframeworks/portals";
-import {
-  backgroundSettings,
-  mobileInfo,
-} from "@carma-collab/wuppertal/geoportal";
+import { mobileInfo } from "@carma-collab/wuppertal/geoportal";
 import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
 import { MobileWarningMessage } from "@carma-mapping/components";
 import {
   FeatureFlagProvider,
-  useFeatureFlags,
 } from "@carma/providers/feature-flag";
-import { useCesiumDevConsoleTrigger } from "@carma-mapping/engines/cesium/dev-tools";
-import { CesiumErrorIndicator } from "@carma-mapping/engines/cesium/core";
 import {
   MapMeasurementsProvider,
   MapMeasurementsObjects,
@@ -33,6 +27,7 @@ import {
 import AppErrorFallback from "./components/AppErrorFallback";
 import MapWrapper from "./components/GeoportalMap/controls/MapWrapper";
 import LoginForm from "./components/LoginForm";
+import { PortalReduxSyncProvider } from "./components/PortalReduxSyncProvider";
 
 // import MapMeasurement from "./components/map-measure/MapMeasurement";
 import TopNavbar from "./components/TopNavbar";
@@ -44,14 +39,8 @@ import { useSyncToken } from "./hooks/useSyncToken";
 import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 
 import { APP_KEY, layerMap } from "./config";
-import { geoportalMapStyleConfig } from "./config/mapStyleConfig";
-
-import {
-  CESIUM_CONFIG,
-  TRANSITIONS_CONFIG,
-  CONFIG_BASE_URL,
-  VIEWERSTATE_KEYS,
-} from "./config/app.config";
+import { portalConfig } from "./config/portalConfig";
+import { CONFIG_BASE_URL } from "./config/app.config";
 import { featureFlagConfig } from "./config/featureFlags";
 
 import { getCustomFeatureFlags } from "./store/slices/layers";
@@ -69,13 +58,6 @@ import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import "./index.css";
 // import { setDrawingShape } from "./store/slices/measurements";
-
-function CesiumDevConsoleIntegration() {
-  const flags = useFeatureFlags();
-  // Explicitly pass through flag; hook no longer performs URL inference
-  useCesiumDevConsoleTrigger({ isDeveloperMode: flags.isDeveloperMode });
-  return null;
-}
 
 function App({ published }: { published?: boolean }) {
   const dispatch = useDispatch();
@@ -109,19 +91,8 @@ function App({ published }: { published?: boolean }) {
       config={{ ...featureFlagConfig, ...customFeatureFlags }}
     >
       <MatomoTracker>
-        <CesiumDevConsoleIntegration />
-        <CarmaMapProviderWrapper
-          cesiumOptions={CESIUM_CONFIG}
-          transitionsConfig={TRANSITIONS_CONFIG}
-          overlayOptions={{
-            background: backgroundSettings,
-          }}
-          mapStyleConfig={geoportalMapStyleConfig}
-          hashKeyAliases={{
-            mapStyle: VIEWERSTATE_KEYS.mapStyle,
-            is3d: VIEWERSTATE_KEYS.is3d,
-          }}
-        >
+        <CarmaMapProviderWrapper portalConfig={portalConfig}>
+          <PortalReduxSyncProvider>
             <MapMeasurementsProvider
               externalMode={mode}
               setModeExternal={handleSetMode}
@@ -129,7 +100,6 @@ function App({ published }: { published?: boolean }) {
                 localStorageKey: "@" + APP_KEY + ".app.measurements",
               }}
             >
-              <CesiumErrorIndicator />
               <ErrorBoundary FallbackComponent={AppErrorFallback}>
                 <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
                   {isLoadingConfig && (
@@ -173,6 +143,7 @@ function App({ published }: { published?: boolean }) {
                 </div>
               </ErrorBoundary>
             </MapMeasurementsProvider>
+          </PortalReduxSyncProvider>
         </CarmaMapProviderWrapper>
       </MatomoTracker>
     </FeatureFlagProvider>

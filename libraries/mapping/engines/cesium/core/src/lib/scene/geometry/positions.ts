@@ -1,9 +1,10 @@
 import {
-  Camera,
   Cartesian3,
   Cartographic,
   HeadingPitchRange,
+  Camera,
 } from "@carma/cesium";
+import { PI_OVER_TWO } from "@carma/units/helpers";
 
 export const distanceFromZoomLevel = (zoom: number) => {
   return 40000000 / Math.pow(2, zoom);
@@ -13,7 +14,7 @@ export const getHeadingPitchRangeFromZoom = (
   zoom: number,
   {
     heading = 0,
-    pitch = Math.PI / 2,
+    pitch = PI_OVER_TWO,
   }: { heading?: number; pitch?: number } = {} // prior
 ) => {
   const range = distanceFromZoomLevel(zoom);

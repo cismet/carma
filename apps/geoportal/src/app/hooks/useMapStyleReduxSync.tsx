@@ -19,6 +19,11 @@ import type { RootState } from "../store";
  *
  * Note: Cesium scene style synchronization is handled by useSyncCesiumSceneStyle hook
  * via the event bus to avoid coupling Redux state with external APIs.
+ * 
+ * TODO: This hook must stay at component level (needs both PortalProvider and Redux contexts)
+ * However, the Redux logic should eventually be replaced with PortalProvider state.
+ * Future: Add styleCallbacks to PortalConfig that PortalProvider calls internally,
+ * eliminating the need for this hook and Redux entirely.
  */
 export const useMapStyleReduxSync = () => {
   const dispatch = useDispatch();

@@ -1,11 +1,11 @@
 import {
   Cartesian3,
-  Matrix4,
-  CesiumMath,
   HeadingPitchRange,
-  Scene,
+  Matrix4,
+  type Scene,
 } from "@carma/cesium";
-import { Easing } from "@carma-commons/math";
+import { PI_OVER_TWO } from "@carma/units/helpers";
+import { Easing, lerp, clamp, lerpAngle } from "@carma-commons/math";
 import { tryWithValidScene } from "@carma/cesium";
 import { sceneRequestRender } from "../../scene-request-render";
 
@@ -44,7 +44,7 @@ interface CesiumAnimateOrbitsOptions {
 export function animateInterpolateHeadingPitchRange(
   scene: Scene,
   destination: Cartesian3,
-  hpr: HeadingPitchRange = new HeadingPitchRange(0, -Math.PI / 2, 0),
+  hpr: HeadingPitchRange = new HeadingPitchRange(0, -PI_OVER_TWO, 0),
   {
     delay = 0,
     duration = 1000,
@@ -106,25 +106,12 @@ export function animateInterpolateHeadingPitchRange(
     endHpr: HeadingPitchRange,
     t: number
   ): HeadingPitchRange => {
-    const interpolateAngle = (
-      start: number,
-      end: number,
-      t: number
-    ): number => {
-      const delta = CesiumMath.negativePiToPi(end - start);
-      return start + delta * t;
-    };
-
-    const currentHeading = interpolateAngle(
-      startHpr.heading,
-      endHpr.heading,
-      t
-    );
-    const currentPitch = CesiumMath.lerp(startHpr.pitch, endHpr.pitch, t);
-    const currentRange = CesiumMath.clamp(
+    const currentHeading = lerpAngle(startHpr.heading, endHpr.heading, t);
+    const currentPitch = lerp(startHpr.pitch, endHpr.pitch, t);
+    const currentRange = clamp(
       useCurrentDistance
         ? startHpr.range
-        : CesiumMath.lerp(startHpr.range, endHpr.range, t),
+        : lerp(startHpr.range, endHpr.range, t),
       minRange,
       maxRange
     );

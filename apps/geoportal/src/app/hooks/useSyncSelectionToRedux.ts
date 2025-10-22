@@ -8,7 +8,9 @@ import {
 } from "../store/slices/features.ts";
 
 /**
- * TODO: Remove this hook when Redux is fully removed from the geoportal app
+ * TODO: This Redux sync should be managed by PortalProvider context instead
+ * Move this logic into portalConfig.selectionCallbacks to consolidate state management
+ * and avoid importing Redux above TopicMapComponentWrapper level.
  *
  * Syncs SelectionProvider state to Redux store
  * This is a temporary bridge to maintain backward compatibility
@@ -34,7 +36,9 @@ export const useSyncSelectionToRedux = () => {
 };
 
 /**
- * TODO: Remove this hook when Redux is fully removed from the geoportal app
+ * TODO: This Redux sync should be managed by PortalProvider context instead
+ * Move this logic into portalConfig.selectionCallbacks to consolidate state management
+ * and avoid importing Redux above TopicMapComponentWrapper level.
  *
  * Syncs SelectionProvider modelSelection state to Redux store
  * This handles 3D model selection (FeatureInfo) separately from topicmap selection

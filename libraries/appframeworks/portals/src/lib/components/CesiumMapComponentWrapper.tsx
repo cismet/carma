@@ -23,15 +23,17 @@ export const CesiumMapComponentWrapper = () => {
   const { config: transitionConfig } = useTransitionContext();
 
   // Get CSS fade durations from config
-  const cssFadeInDurationMs = transitionConfig.modeTo3d?.step5_cssFadeIn?.durationMs ?? 1000;
-  const cssFadeOutDurationMs = transitionConfig.modeTo2d?.step3_cssFadeOut?.durationMs ?? 1000;
+  const cssFadeInDurationMs =
+    transitionConfig.modeTo3d?.step5_cssFadeIn?.durationMs ?? 1000;
+  const cssFadeOutDurationMs =
+    transitionConfig.modeTo2d?.step3_cssFadeOut?.durationMs ?? 1000;
 
   // Use refs to avoid re-renders - all state managed via event bus
   const isSuspendedRef = useRef(true); // Start suspended (2D mode)
-  
+
   // Only render scene component after first activation (when switching to 3D)
   const shouldMountScene = activationCount > 0;
-  
+
   console.log("[CesiumMapComponentWrapper] Render", {
     activationCount,
     shouldMountScene,
@@ -94,7 +96,9 @@ export const CesiumMapComponentWrapper = () => {
       isSuspendedRef.current = isSuspended;
       if (containerStyleRef.current) {
         // Update transition duration based on direction
-        const transitionDuration = isSuspended ? cssFadeOutDurationMs : cssFadeInDurationMs;
+        const transitionDuration = isSuspended
+          ? cssFadeOutDurationMs
+          : cssFadeInDurationMs;
         containerStyleRef.current.style.transition = `opacity ${transitionDuration}ms ease-in-out`;
         containerStyleRef.current.style.opacity = isSuspended ? "0" : "1";
         containerStyleRef.current.style.pointerEvents = isSuspended
@@ -111,12 +115,12 @@ export const CesiumMapComponentWrapper = () => {
       isSuspendedRef.current = false; // Mark as active internally
       // Don't change opacity here - wait for SceneVisible after positioning
     });
-    
+
     const unsubSceneVisible = subscribe(CtxEvent.SceneVisible, () => {
       console.debug("[CesiumWrapper] Scene visible - fade-in starts");
       updateVisibility(false); // Fade-in to visible
     });
-    
+
     const unsubSuspend = subscribe(CtxEvent.Suspend, () => {
       console.debug("[CesiumWrapper] Cesium suspend");
       updateVisibility(true); // Fade-out immediately

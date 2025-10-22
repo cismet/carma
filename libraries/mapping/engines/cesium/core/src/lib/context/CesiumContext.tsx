@@ -18,6 +18,12 @@ import type { CesiumConfig } from "../types";
 import type { CameraViewOptions } from "../types/camera";
 import type { CameraStatePrimitive } from "@carma/cesium/types";
 
+export type CesiumInstanceTrigger = {
+  source: string;
+  component?: string;
+  reason?: string;
+};
+
 // Cesium widget instance record
 export interface CesiumInstanceRecord {
   instanceId: string;
@@ -26,11 +32,7 @@ export interface CesiumInstanceRecord {
   widgetRef: MutableRefObject<CesiumWidget | null>;
   config: CesiumConfig;
   // Metadata about what triggered the initialization
-  trigger?: {
-    source: string; // e.g., "mapModeSwitcher", "onLoad", "userAction"
-    component?: string; // Component that triggered it
-    reason?: string; // Human-readable reason
-  };
+  trigger?: CesiumInstanceTrigger;
   // Last known camera state (for crash recovery)
   lastCameraState?: CameraStatePrimitive;
 }

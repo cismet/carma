@@ -38,7 +38,7 @@ const defaultFootprintsStyle: ObliqueFootprintsStyle = {
   outlineOpacity: 1,
 };
 
-const cleanupOutlineEntity = (
+const cleanupOutlinePrimitive = (
   scene: Scene | null,
   ref: MutableRefObject<GroundPolylinePrimitive | null>,
   debug = false,
@@ -107,13 +107,13 @@ export const useFootprints = (debug = false): void => {
         cancelAnimationFrame(animationFrameIdRef.current);
         animationFrameIdRef.current = null;
       }
-      cleanupOutlineEntity(scene, outlineEntityRef, debug, requestRender);
+      cleanupOutlinePrimitive(scene, outlineEntityRef, debug, requestRender);
     };
   }, [sceneRef, debug, requestRender]);
 
   useEffect(() => {
     if (prevObliqueMode.current && !isObliqueMode) {
-      cleanupOutlineEntity(
+      cleanupOutlinePrimitive(
         sceneRef.current,
         outlineEntityRef,
         debug,
@@ -218,7 +218,7 @@ export const useFootprints = (debug = false): void => {
         startAnimation(opacityAnimationRef.current, outlineOpacity, 0.0, {
           forceStart: true,
           onComplete: () => {
-            cleanupOutlineEntity(
+            cleanupOutlinePrimitive(
               sceneRef.current,
               outlineEntityRef,
               debug,
@@ -261,7 +261,7 @@ export const useFootprints = (debug = false): void => {
 
     lastImageIdRef.current = currentImageId;
 
-    cleanupOutlineEntity(
+    cleanupOutlinePrimitive(
       sceneRef.current,
       outlineEntityRef,
       debug,

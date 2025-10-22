@@ -55,7 +55,11 @@ export const useEnsureCesiumInitialized = () => {
       });
 
       // Activate Cesium
-      emitCesiumEvent(CtxEvent.Activate, undefined);
+      emitCesiumEvent(CtxEvent.Activate, {
+        source: "ensure-cesium-initialized",
+        component: "use-ensure-cesium-initialized",
+        reason: "Initial Cesium setup",
+      });
 
       // Wait for scene ready
       await promiseWithTimeout(

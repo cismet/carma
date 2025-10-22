@@ -1,6 +1,6 @@
 import type { Camera } from "@carma/cesium";
 import { applyRollToHeadingForCameraNearNadir } from "./camera";
-import { clamp } from "@carma/units/helpers";
+import { PI_OVER_TWO, clamp } from "@carma/units/helpers";
 
 // Compute CSS perspective in px from an FOV angle (radians) and a DOM dimension (px)
 export function fovToCssPerspectiveByFov(
@@ -65,7 +65,7 @@ export function cesiumCameraToCssTransform(
 ) {
   const { offsetRad, targetEl, fallback = 1600 } = opts;
   const headingRad = applyRollToHeadingForCameraNearNadir(camera);
-  const mappedPitchRad = camera.pitch + Math.PI / 2; // align top/bottom as default plane
+  const mappedPitchRad = camera.pitch + PI_OVER_TWO; // align top/bottom as default plane
   const headingAdjRad = headingRad - offsetRad; // compensate imagery north offset
   const transform = `rotateX(${mappedPitchRad}rad) rotateZ(${-headingAdjRad}rad)`;
   const inverseTransform = `rotateZ(${headingAdjRad}rad) rotateX(${-mappedPitchRad}rad)`;

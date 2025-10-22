@@ -1,6 +1,7 @@
-import { Cartographic, CesiumMath } from "@carma/cesium";
+import { Cartographic } from "@carma/cesium";
 import { EARTH_RADIUS } from "@carma/geo/utils";
 import type { LatLng, Latitude, Longitude } from "@carma/geo/types";
+import { TWO_PI } from "@carma/units/helpers";
 
 export const generatePositionsForRing = (
   n = 8,
@@ -13,7 +14,7 @@ export const generatePositionsForRing = (
     return positions;
   }
   for (let i = 0; i < n; i++) {
-    const angle = (i / n) * Math.PI * 2;
+    const angle = (i / n) * TWO_PI;
     const x = cx + Math.cos(angle) * radius;
     const y = cy + Math.sin(angle) * radius;
     positions.push([x, y]);
@@ -38,7 +39,7 @@ export const generateRingFromDegrees = (
   };
 
   for (let i = 0; i < samples; i++) {
-    const angle = (CesiumMath.TWO_PI * i) / samples;
+    const angle = (TWO_PI * i) / samples;
     const dx = radiusInMeters * Math.cos(angle);
     const dy = radiusInMeters * Math.sin(angle);
     points.push({

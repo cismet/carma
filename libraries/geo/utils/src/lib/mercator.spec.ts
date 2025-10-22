@@ -86,7 +86,7 @@ describe("commons/utils mercator", () => {
     const zoom = 0;
     const latitude = 0 as Radians;
     const resolution = getPixelResolutionFromZoomAtLatitudeRad(zoom, latitude);
-    
+
     // Standard Web Mercator value
     expect(resolution).toBeCloseTo(156543.03, 0);
   });
@@ -96,7 +96,7 @@ describe("commons/utils mercator", () => {
     const zoom = 19;
     const latitude = 0 as Radians;
     const resolution = getPixelResolutionFromZoomAtLatitudeRad(zoom, latitude);
-    
+
     expect(resolution).toBeCloseTo(0.2985, 3);
   });
 
@@ -104,8 +104,11 @@ describe("commons/utils mercator", () => {
     // Verify the inverse: if we have ~0.3 m/px, we should get zoom ~19
     const meterResolution = 0.3 as Meters;
     const latitude = 0 as Radians;
-    const zoom = getZoomFromPixelResolutionAtLatitudeRad(meterResolution, latitude);
-    
+    const zoom = getZoomFromPixelResolutionAtLatitudeRad(
+      meterResolution,
+      latitude
+    );
+
     expect(zoom).toBeCloseTo(19, 0);
   });
 

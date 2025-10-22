@@ -5,6 +5,7 @@ import React, {
   useEffect,
   useMemo,
   useRef,
+  useState,
 } from "react";
 import {
   getHashParams,
@@ -51,6 +52,27 @@ export type HashSubscribeOptions = {
   labels?: string[];
 };
 
+// Field configuration for hash state management
+export interface HashFieldConfig {
+  // The key name in the hash (e.g., 'm' for mapStyle)
+  key: string;
+
+  // Optional: The internal value name (e.g., 'mapStyle' when key is 'm')
+  // If not provided, key is used as valueName
+  valueName?: string;
+
+  // Optional: Codec for encoding/decoding this field
+  codec?: {
+    encode?: (value: unknown) => string | undefined;
+    decode?: (value: string) => unknown;
+  };
+}
+
+export interface HashStateConfig {
+  // Array of field configurations (order matters for URL)
+  fields: HashFieldConfig[];
+}
+
 interface HashStateContextType {
   hashParams: Record<string, string>;
   getHash: () => Record<string, string>;
@@ -63,32 +85,55 @@ interface HashStateContextType {
     listener: (e: HashChangeEvent) => void,
     opts?: HashSubscribeOptions
   ) => () => void;
+  isInitialized: boolean;
 }
 
 const HashStateContext = createContext<HashStateContextType | undefined>(
   undefined
 );
 
-const getAliasReverseLookup = (aliases: Record<string, string>) => {
-  const reverseLookup: Record<string, string> = {};
-  for (const [original, alias] of Object.entries(aliases)) {
-    reverseLookup[alias] = original;
-  }
-  return reverseLookup;
-};
-
 export const HashStateProvider: React.FC<{
   children: React.ReactNode;
-  keyAliases?: Record<string, string>;
-  hashCodecs?: HashCodecs;
-  keyOrder?: string[];
-}> = ({ children, keyAliases, hashCodecs, keyOrder }) => {
+  config: HashStateConfig;
+}> = ({ children, config }) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const aliasReverseLookup = useMemo(
-    () => getAliasReverseLookup(keyAliases || {}),
-    [keyAliases]
-  );
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Build lookups from config
+  const { keyAliases, aliasReverseLookup, hashCodecs, keyOrder } =
+    useMemo(() => {
+      const aliases: Record<string, string> = {};
+      const reverseAliases: Record<string, string> = {};
+      const codecs: HashCodecs = {};
+      const order: string[] = [];
+
+      config.fields.forEach((field) => {
+        const { key, valueName, codec } = field;
+        const name = valueName || key;
+
+        // Build key order
+        order.push(key);
+
+        // Build aliases if valueName differs from key
+        if (valueName && valueName !== key) {
+          aliases[name] = key;
+          reverseAliases[key] = name;
+        }
+
+        // Build codecs if provided
+        if (codec) {
+          codecs[name] = codec;
+        }
+      });
+
+      return {
+        keyAliases: aliases,
+        aliasReverseLookup: reverseAliases,
+        hashCodecs: codecs,
+        keyOrder: order,
+      };
+    }, [config]);
   const listenersRef = useRef<
     Set<{ listener: (e: HashChangeEvent) => void; opts?: HashSubscribeOptions }>
   >(new Set());
@@ -219,18 +264,25 @@ export const HashStateProvider: React.FC<{
     prevRawRef,
   });
 
+  // Mark as initialized after first render when hash state has settled
+  useEffect(() => {
+    setIsInitialized(true);
+  }, []);
+
   const value = useRef<HashStateContextType>({
     hashParams: getHash(),
     getHash,
     getHashValues,
     updateHash,
     subscribe,
+    isInitialized,
   });
   value.current.hashParams = getHash();
   value.current.getHash = getHash;
   value.current.getHashValues = getHashValues;
   value.current.updateHash = updateHash;
   value.current.subscribe = subscribe;
+  value.current.isInitialized = isInitialized;
 
   return (
     <HashStateContext.Provider value={value.current}>

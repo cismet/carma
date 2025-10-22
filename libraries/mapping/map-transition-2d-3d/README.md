@@ -169,6 +169,33 @@ This library sits between mapping engines as a neutral coordinator:
    └───────────────────────┘
 ```
 
+### Workspace Folder Hiding Pattern
+
+This package follows the workspace folder hiding pattern for cleaner project organization:
+
+- **`src/index.ts`** - Contains only: `export * from "./lib"`
+- **`src/lib/index.ts`** - Contains the complete export manifest of all public APIs
+- **Benefits:**
+  - Cleaner file tree in workspace explorer
+  - Focused development experience
+  - Better organization and discoverability
+  - Hides implementation details from the workspace view
+
+All exports are final in `src/lib/index.ts`. The `src/index.ts` file serves only as a clean entry point that re-exports everything from the `lib` directory.
+
+**VS Code Configuration:**
+To complete the workspace folder hiding pattern, add this to your workspace settings:
+
+```json
+{
+  "files.exclude": {
+    "**/libraries/**/src/index.ts": true
+  }
+}
+```
+
+This will hide `src/index.ts` files from the workspace explorer, making the file tree cleaner and more focused on the actual implementation files in the `src/lib` directory.
+
 ### Key Design Principles
 
 1. **Engine Agnostic** - No direct dependencies on Cesium or Leaflet

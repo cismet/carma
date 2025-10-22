@@ -1,11 +1,6 @@
-import { clampToToleranceRange } from "@carma/units/helpers";
-import {
-  Cartesian3,
-  CesiumMath,
-  defined,
-  Cartographic,
-  type Scene,
-} from "@carma/cesium";
+import { clampToToleranceRange, degToRad, clamp } from "@carma/units/helpers";
+import type { Degrees } from "@carma/units/types";
+import { Cartesian3, defined, Cartographic, type Scene } from "@carma/cesium";
 import { Easing } from "@carma-commons/math";
 import { isValidScene, tryWithValidScene } from "@carma/cesium";
 
@@ -13,7 +8,7 @@ import { isValidScene, tryWithValidScene } from "@carma/cesium";
 const scratchTravelVector = new Cartesian3();
 const scratchNewPosition = new Cartesian3();
 
-const PITCH_TOLERANCE_THRESHOLD = CesiumMath.toRadians(10);
+const PITCH_TOLERANCE_THRESHOLD = degToRad(10 as Degrees);
 const HEIGHT_TOLERANCE_THRESHOLD = 150.0;
 
 interface CameraObliqueAnimationState {
@@ -102,7 +97,7 @@ export const cesiumCameraForceOblique = (
           zoomTravelDistance = 0;
         }
         // Clamp travel distance to avoid huge jumps
-        zoomTravelDistance = CesiumMath.clamp(zoomTravelDistance, -100, 100);
+        zoomTravelDistance = clamp(zoomTravelDistance, -100, 100);
         Cartesian3.multiplyByScalar(
           cameraDir,
           zoomTravelDistance,

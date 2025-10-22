@@ -1,5 +1,11 @@
-import type { Entity } from "cesium";
-import { Color, ColorMaterialProperty, ConstantProperty } from "@carma/cesium";
+import {
+  Color,
+  ColorGeometryInstanceAttribute,
+  GeometryInstance,
+  GroundPrimitive,
+  PolygonGeometry,
+} from "@carma/cesium";
+import { polygonHierarchyFromPolygonCoords } from "@carma-mapping/engines/cesium/core";
 
 import type { Feature, FeatureCollection, Polygon } from "geojson";
 export interface FootprintProperties {
@@ -41,19 +47,60 @@ export const createFilteredGeoJson = (
   }
 };
 
-export const configureFootprintEntity = (entity: Entity) => {
-  if (entity.polygon) {
-    // Configure polygon to create a simple extruded polygon with no top
-    entity.polygon.height = new ConstantProperty(0);
-    entity.polygon.extrudedHeight = new ConstantProperty(50); // Wall height in meters
-    entity.polygon.closeTop = new ConstantProperty(false); // No top surface
-    entity.polygon.closeBottom = new ConstantProperty(true); // Keep bottom surface
-    entity.polygon.outline = new ConstantProperty(true);
-    entity.polygon.outlineColor = new ConstantProperty(Color.WHITE);
-    entity.polygon.outlineWidth = new ConstantProperty(2);
-    entity.polygon.material = new ColorMaterialProperty(
-      Color.WHITE.withAlpha(0.3)
-    );
-  }
-  return entity;
+/**
+ * Creates a properly configured GroundPrimitive for footprint visualization
+ * Equivalent to the old Entity configuration but using immutable primitives
+ *
+ * @example
+ * ```typescript
+ * // Instead of Entity configuration:
+ * const entity = new Entity();
+ * configureFootprintEntity(entity); // Old way
+ * scene.entities.add(entity);
+ *
+ * // Use primitive configuration:
+ * const primitive = createFootprintPrimitive(polygonCoords, "footprint-1");
+ * scene.groundPrimitives.add(primitive); // New way
+ * ```
+ *
+ * @param polygonCoords - Array of coordinate rings [[[lng, lat], [lng, lat], ...]]
+ * @param id - Unique identifier for the primitive
+ * @returns Configured GroundPrimitive ready for scene insertion
+ */
+export const createFootprintPrimitive = (
+  polygonCoords: number[][][],
+  id: string
+): GroundPrimitive => {
+  // Convert polygon coordinates to Cesium polygon hierarchy
+  const polygonHierarchy = polygonHierarchyFromPolygonCoords(polygonCoords);
+
+  // Create polygon geometry with extruded walls (equivalent to Entity polygon config)
+  const polygonGeometry = new PolygonGeometry({
+    polygonHierarchy,
+    height: 0, // Base height (equivalent to entity.polygon.height)
+    extrudedHeight: 50, // Wall height (equivalent to entity.polygon.extrudedHeight)
+    // Note: closeTop/closeBottom are not directly configurable in PolygonGeometry
+    // Instead, we rely on the material and appearance for visual effect
+  });
+
+  // Create geometry instance with material and outline configuration
+  const geometryInstance = new GeometryInstance({
+    geometry: polygonGeometry,
+    id,
+    attributes: {
+      // Material equivalent: white with alpha (equivalent to entity.polygon.material)
+      color: ColorGeometryInstanceAttribute.fromColor(
+        Color.WHITE.withAlpha(0.3)
+      ),
+    },
+  });
+
+  // Create ground primitive with outline appearance
+  return new GroundPrimitive({
+    geometryInstances: geometryInstance,
+    allowPicking: false,
+    releaseGeometryInstances: false,
+    // Note: GroundPrimitive automatically handles terrain classification
+    // Outline appearance is handled by the material in the geometry instance
+  });
 };

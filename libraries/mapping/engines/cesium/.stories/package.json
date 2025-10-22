@@ -1,0 +1,6 @@
+{
+  "name": "@carma-cesium/stories",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Storybook app for Cesium components (dev/test only)"
+}

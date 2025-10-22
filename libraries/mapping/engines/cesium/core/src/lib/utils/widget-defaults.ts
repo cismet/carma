@@ -1,10 +1,13 @@
-import type { SceneMode, CesiumWidget } from "@carma/cesium";
+import type { CesiumWidget, SceneMode } from "@carma/cesium";
 import UAParser from "ua-parser-js";
 import type { ColorRgbaArray } from "@carma/types";
 
 export const TRANSITION_DELAY = 1000;
 export const CESIUM_TARGET_FRAME_RATE = 120;
 const isMobile = new UAParser().getDevice().type === "mobile";
+
+// avoid static import
+const SCENE3D: SceneMode.SCENE3D = 3;
 
 export const DEFAULT_BACKGROUND_COLOR: ColorRgbaArray = [1, 1, 1, 1];
 
@@ -30,7 +33,7 @@ export const DEFAULT_WIDGET_CONSTRUCTOR_OPTIONS: ConstructorParameters<
       powerPreference: isMobile ? "default" : "high-performance",
     },
   },
-  sceneMode: SceneMode.SCENE3D,
+  sceneMode: SCENE3D,
   skyBox: false,
   showRenderLoopErrors: false,
   // Disable default providers - we manage these explicitly

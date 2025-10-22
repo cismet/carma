@@ -1,4 +1,5 @@
 import { useEffect, type MutableRefObject } from "react";
+import { radToDeg } from "@carma/units/helpers";
 import type { CesiumWidget, Scene } from "@carma/cesium";
 import {
   CtxEvent,
@@ -37,8 +38,8 @@ export const useContextSetupCameraTracking = (
           if (!pos) return;
 
           emit(CtxEvent.CameraChanged, {
-            lat: (pos.latitude * 180) / Math.PI,
-            lng: (pos.longitude * 180) / Math.PI,
+            lat: radToDeg(pos.latitude),
+            lng: radToDeg(pos.longitude),
             alt: pos.height,
           });
         };

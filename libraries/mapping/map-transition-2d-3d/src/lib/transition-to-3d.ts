@@ -266,7 +266,11 @@ export const createTransitionTo3d = (params: TransitionTo3dParams) => {
     );
     // Emit events FIRST: Cesium becomes active, TopicMap becomes suspended
     // This triggers tileset loading
-    emitCesiumEvent(CtxEvent.Activate, undefined);
+    emitCesiumEvent(CtxEvent.Activate, {
+      source: "transition-to-3d",
+      component: "MapModeToggle",
+      reason: "User toggled 2D→3D",
+    });
     emitTopicMapEvent(TopicMapCtxEvent.Suspend);
     console.log("[CESIUM|2D3D|TO3D] ✓ Cesium activated, TopicMap suspended");
 

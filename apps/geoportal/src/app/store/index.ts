@@ -1,6 +1,5 @@
 import { configureStore } from "@reduxjs/toolkit";
 
-import { createLogger } from "redux-logger";
 import { persistReducer } from "redux-persist";
 import localForage from "localforage";
 
@@ -20,43 +19,19 @@ console.info("store initializing ....");
 
 const customAppKey = new URLSearchParams(window.location.hash).get("appKey");
 
-const devToolsEnabled =
-  new URLSearchParams(window.location.search).get("devToolsEnabled") === "true";
-console.debug("devToolsEnabled:", devToolsEnabled);
-const stateLoggingEnabledFromSearch = new URLSearchParams(
-  window.location.search
-).get("stateLoggingEnabled");
-
 const inProduction = process.env.NODE_ENV === "production";
-
 console.info("in Production Mode:", inProduction);
-const stateLoggingEnabled =
-  (stateLoggingEnabledFromSearch !== null &&
-    stateLoggingEnabledFromSearch !== "false") ||
-  !inProduction;
 
-console.info(
-  "stateLoggingEnabled:",
-  stateLoggingEnabledFromSearch,
-  "x",
-  stateLoggingEnabled
-);
-const logger = createLogger({
-  collapsed: true,
-});
+const logReduxParam = new URLSearchParams(window.location.search).get("logredux");
+// Enable Redux DevTools: always in dev, only with ?logredux=true in production
+const devToolsEnabled = !inProduction || logReduxParam === "true";
+console.debug("Redux DevTools enabled:", devToolsEnabled);
 
-let middleware;
-if (stateLoggingEnabled === true) {
-  middleware = (getDefaultMiddleware) =>
-    getDefaultMiddleware({
-      serializableCheck: false,
-    }).concat(logger);
-} else {
-  middleware = (getDefaultMiddleware) =>
-    getDefaultMiddleware({
-      serializableCheck: false,
-    });
-}
+// No need for redux-logger - Redux DevTools extension already captures all actions
+const middleware = (getDefaultMiddleware) =>
+  getDefaultMiddleware({
+    serializableCheck: false,
+  });
 
 const uiConfig = {
   key: "@" + (customAppKey || APP_KEY) + "." + STORAGE_PREFIX + ".app.config",
@@ -122,7 +97,7 @@ const store = configureStore({
     ),
     print: persistReducer(printConfig, printReducer),
   },
-  devTools: devToolsEnabled === true && inProduction === false,
+  devTools: devToolsEnabled,
   middleware,
 });
 

@@ -15,7 +15,7 @@ import type {
 import { radToDeg } from "@carma/units/helpers";
 import type { Radians } from "@carma/units/types";
 import { cartographicToUnitTyped } from "../Core/Cartographic";
-import type { CameraPrimitive } from "@carma/cesium/types";
+import type { CameraPrimitive, DirectionUp } from "@carma/cesium/types";
 
 // Re-export Camera class from Cesium
 
@@ -123,14 +123,17 @@ export const restoreCameraState = (
 ): void => {
   // Restore position and orientation using setView
   // This handles coordinate frames properly and updates view matrix
+  // DirectionUp format: { direction, up, right? }
   if (state.position && state.direction && state.up) {
+    const orientation: DirectionUp = {
+      direction: state.direction,
+      up: state.up,
+      right: state.right, // Optional but valid in DirectionUp
+    };
+
     camera.setView({
       destination: state.position,
-      orientation: {
-        direction: state.direction,
-        right: state.right,
-        up: state.up,
-      },
+      orientation,
     });
   }
 

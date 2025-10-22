@@ -1,43 +1,11 @@
-import {
-  Cartesian3,
-  HeadingPitchRoll,
-  Transforms,
-  ModelGraphics,
-  Model,
-} from "@carma/cesium";
+import type { Cartesian3, HeadingPitchRoll, Transforms } from "@carma/cesium";
 import type { ModelConfig } from "../types/config";
 
-export function createModelEntityConstructorOptions(config: ModelConfig) {
-  const position = Cartesian3.fromDegrees(
-    config.position.longitude,
-    config.position.latitude,
-    config.position.altitude
-  );
+export async function loadModelPrimitive(
+  config: ModelConfig
+): Promise<unknown> {
+  const { Model } = await import("@carma/cesium");
 
-  const hpr = HeadingPitchRoll.fromDegrees(
-    config.orientation?.heading ?? 0,
-    config.orientation?.pitch ?? 0,
-    config.orientation?.roll ?? 0
-  );
-  const orientation = Transforms.headingPitchRollQuaternion(position, hpr);
-
-  const modelOptions: ModelGraphics.ConstructorOptions = {
-    scale: 1.0,
-    show: true,
-    ...config.model,
-  };
-
-  const entityOptions = {
-    ...config,
-    position,
-    orientation,
-    model: modelOptions,
-  };
-
-  return entityOptions;
-}
-
-export async function loadModelPrimitive(config: ModelConfig): Promise<Model> {
   const position = Cartesian3.fromDegrees(
     config.position.longitude,
     config.position.latitude,
@@ -53,7 +21,7 @@ export async function loadModelPrimitive(config: ModelConfig): Promise<Model> {
   const modelMatrix = Transforms.headingPitchRollToFixedFrame(position, hpr);
 
   const model = await Model.fromGltfAsync({
-    url: config.model.uri as string,
+    url: config.model.url as string,
     modelMatrix,
   });
 

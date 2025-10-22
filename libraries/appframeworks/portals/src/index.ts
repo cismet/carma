@@ -48,12 +48,23 @@ export {
   type HashChangeEvent,
   type HashChangeSource,
   type HashSubscribeOptions,
+  type HashFieldConfig,
+  type HashStateConfig,
+  type HashCodec,
+  type HashCodecs,
 } from "./lib/contexts/HashStateProvider";
+export { defaultHashCodecs } from "./lib/utils/hashState";
 export {
-  MapStyleProvider,
-  useMapStyle,
+  PortalProvider,
+  usePortal,
+  useMapStateUrlSync, // Backward compatibility alias
+  useMapStyle, // Backward compatibility alias
+  type PortalConfig,
   type MapStyleConfig,
-} from "./lib/contexts/MapStyleProvider";
+  type MapPosition2D,
+  type InitialCameraLocation,
+  type MapEngine,
+} from "./lib/contexts/PortalProvider";
 
 export { MessageOverlay } from "./lib/components/MessageOverlay";
 
@@ -78,10 +89,7 @@ export { useShareUrl, SHORTENER_URL } from "./lib/hooks/useShareUrl";
 export { useProgress } from "./lib/hooks/useProgress";
 export { useMapHashRoutingLeafletLike } from "./lib/hooks/useMapHashRoutingLeafletLike";
 export { useSyncCesiumSceneStyle } from "./lib/hooks/useSyncCesiumSceneStyle";
-export {
-  useInitialViewModeFromUrl,
-  type UseInitialViewModeFromUrlOptions,
-} from "./lib/hooks/useInitialViewModeFromUrl";
+// useInitialViewModeFromUrl - DEPRECATED, use PortalProvider instead (exported below)
 export { useMapStyleBus } from "./lib/hooks/useMapStyleBus";
 export {
   getLatLngZoomFromLeafletLike,
@@ -107,3 +115,10 @@ export {
 } from "./lib/utils/featureInfo";
 
 export { getActionLinksForFeature } from "./lib/components/helper";
+
+// Deprecated - kept for backward compatibility, will be removed in future
+// Use PortalProvider instead
+export {
+  useInitialViewModeFromUrl,
+  type UseInitialViewModeFromUrlOptions,
+} from "./lib/hooks/useInitialViewModeFromUrl";
