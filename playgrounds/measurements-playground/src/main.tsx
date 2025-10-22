@@ -56,7 +56,9 @@ const MeasurementsProviderWrapper = ({
       // Skip config if you want to use default values
       config={measurementsConfig}
     >
-      {children}
+      <SnappingContext.Provider value={{ snappingEnabled, setSnappingEnabled }}>
+        {children}
+      </SnappingContext.Provider>
     </MapMeasurementsProvider>
   );
 };
