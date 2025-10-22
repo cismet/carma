@@ -12,13 +12,8 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const { shapes, setSnappingLatlng, config } = useMapMeasurementsContext();
   const [queryRadius, setQueryRadius] = useState(config.snappingQueryRadius);
-  const [toleranceRadius, setToleranceRadius] = useState(
-    config.snappingToleranceRadius
-  );
   const queryRadiusRef = useRef(queryRadius);
-  const toleranceRadiusRef = useRef(toleranceRadius);
   const circleMarkerRef = useRef<any>(null);
-  const toleranceCircleMarkerRef = useRef<any>(null);
   const snappingIndicatorRef = useRef<any>(null); // Leaflet marker for snapping point
   const shapesRef = useRef(shapes);
   const snappingEnabledRef = useRef(config.snappingEnabled);
@@ -31,10 +26,6 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
   useEffect(() => {
     queryRadiusRef.current = queryRadius;
   }, [queryRadius]);
-
-  useEffect(() => {
-    toleranceRadiusRef.current = toleranceRadius;
-  }, [toleranceRadius]);
 
   useEffect(() => {
     snappingEnabledRef.current = config.snappingEnabled;
@@ -108,10 +99,6 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
             leafletMap.removeLayer(circleMarkerRef.current);
             circleMarkerRef.current = null;
           }
-          if (toleranceCircleMarkerRef.current) {
-            leafletMap.removeLayer(toleranceCircleMarkerRef.current);
-            toleranceCircleMarkerRef.current = null;
-          }
           if (snappingIndicatorRef.current) {
             leafletMap.removeLayer(snappingIndicatorRef.current);
             snappingIndicatorRef.current = null;
@@ -134,12 +121,9 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
           return; // Exit early
         }
 
-        // Remove old circles if exist
+        // Remove old circle if exists
         if (circleMarkerRef.current) {
           leafletMap.removeLayer(circleMarkerRef.current);
-        }
-        if (toleranceCircleMarkerRef.current) {
-          leafletMap.removeLayer(toleranceCircleMarkerRef.current);
         }
 
         // Check if MapLibre is available and valid using the ref
@@ -267,14 +251,11 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
           // Get mouse pointer coordinates in lng/lat
           const mouseLatLng = currentMaplibreMap.unproject([point.x, point.y]);
 
-          // Get current tolerance radius
-          const currentToleranceRadius = toleranceRadiusRef.current;
-
-          // Only show the closest point in black
+          // Determine snapping point
           const blackPoint: any[] = [];
 
           if (shortestIndex === -1) {
-            // No points found - show black dot at mouse pointer
+            // No points found - show indicator at mouse pointer
             blackPoint.push({
               type: "Feature",
               geometry: {
@@ -284,30 +265,16 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
               properties: { black: true },
             });
           } else {
+            // Snap to the closest point found within query radius
             const closestItem = filteredPointsWithDistance[shortestIndex];
-
-            // Check if winning dot is within tolerance radius
-            if (closestItem.distance <= currentToleranceRadius) {
-              // Show black point at the actual closest coordinate
-              blackPoint.push({
-                type: "Feature",
-                geometry: {
-                  type: "Point",
-                  coordinates: closestItem.snappingPoint.coordinates,
-                },
-                properties: { black: true },
-              });
-            } else {
-              // Winning dot is outside tolerance - show dot at mouse pointer
-              blackPoint.push({
-                type: "Feature",
-                geometry: {
-                  type: "Point",
-                  coordinates: [mouseLatLng.lng, mouseLatLng.lat],
-                },
-                properties: { black: true, mode: "serious" },
-              });
-            }
+            blackPoint.push({
+              type: "Feature",
+              geometry: {
+                type: "Point",
+                coordinates: closestItem.snappingPoint.coordinates,
+              },
+              properties: { black: true },
+            });
           }
           closestPoint = blackPoint[0];
 
@@ -324,13 +291,12 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
 
           // Create Leaflet marker for snapping indicator
           if (finalLatLng) {
-            const isSnapped = closestPoint.properties?.black && !closestPoint.properties?.mode;
             snappingIndicatorRef.current = L.circleMarker(
               [finalLatLng.lat, finalLatLng.lng],
               {
                 radius: 6,
-                color: isSnapped ? "#000000" : "#ff0000",
-                fillColor: isSnapped ? "#000000" : "#ff0000",
+                color: "#000000",
+                fillColor: "#000000",
                 fillOpacity: 1,
                 weight: 2,
                 opacity: 1,
@@ -351,14 +317,10 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
       };
 
       const mouseoutHandler = () => {
-        // Remove circles and snapping indicator when mouse leaves map
+        // Remove circle and snapping indicator when mouse leaves map
         if (circleMarkerRef.current) {
           leafletMap.removeLayer(circleMarkerRef.current);
           circleMarkerRef.current = null;
-        }
-        if (toleranceCircleMarkerRef.current) {
-          leafletMap.removeLayer(toleranceCircleMarkerRef.current);
-          toleranceCircleMarkerRef.current = null;
         }
         if (snappingIndicatorRef.current) {
           leafletMap.removeLayer(snappingIndicatorRef.current);
@@ -393,10 +355,6 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
         if (circleMarkerRef.current) {
           leafletMap.removeLayer(circleMarkerRef.current);
           circleMarkerRef.current = null;
-        }
-        if (toleranceCircleMarkerRef.current) {
-          leafletMap.removeLayer(toleranceCircleMarkerRef.current);
-          toleranceCircleMarkerRef.current = null;
         }
         if (snappingIndicatorRef.current) {
           leafletMap.removeLayer(snappingIndicatorRef.current);
