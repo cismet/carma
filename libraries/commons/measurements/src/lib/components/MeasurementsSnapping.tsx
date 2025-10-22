@@ -54,11 +54,17 @@ export function MeasurementsSnapping({
         setSnappingLatlng(null);
       }
 
-      // Remove Leaflet snapping indicator
-      if (leafletMap && snappingIndicatorRef.current) {
+      // Remove all Leaflet markers
+      if (leafletMap) {
         try {
-          leafletMap.removeLayer(snappingIndicatorRef.current);
-          snappingIndicatorRef.current = null;
+          if (snappingIndicatorRef.current) {
+            leafletMap.removeLayer(snappingIndicatorRef.current);
+            snappingIndicatorRef.current = null;
+          }
+          if (circleMarkerRef.current) {
+            leafletMap.removeLayer(circleMarkerRef.current);
+            circleMarkerRef.current = null;
+          }
         } catch (_) {
           // no-op safeguard
         }
@@ -181,7 +187,9 @@ export function MeasurementsSnapping({
         }
 
         // 2. Extract from measurement shapes (independent of MapLibre)
-        shapesRef.current.forEach((shape: any) => {
+        // Use shapesRef which is kept in sync via useEffect
+        const currentShapes = shapesRef.current;
+        currentShapes.forEach((shape: any) => {
           const points = extractPointsFromMeasurementShape(
             shape,
             "measurements"

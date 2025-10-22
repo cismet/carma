@@ -288,7 +288,7 @@ export function Measurements({
   return (
     <>
       <div></div>
-      {snappingLayer && (
+      {currentMode === "measurement" && (
         <MeasurementsSnapping 
           maplibreMap={snappingLayer} 
           enabled={snappingEnabled}
