@@ -9,10 +9,10 @@ import {
 } from "../snapping/utils/coordinateExtraction";
 
 export function MeasurementsSnapping({ 
-  maplibreMap,
+  maplibreMaps,
   enabled 
 }: { 
-  maplibreMap: any;
+  maplibreMaps: any[];
   enabled?: boolean; // Optional: override config.snappingEnabled
 }) {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
@@ -26,7 +26,7 @@ export function MeasurementsSnapping({
   // Use prop if provided, otherwise fall back to config
   const snappingEnabled = enabled !== undefined ? enabled : config.snappingEnabled;
   const snappingEnabledRef = useRef(snappingEnabled);
-  const maplibreMapRef = useRef(maplibreMap);
+  const maplibreMapsRef = useRef(maplibreMaps);
 
   useEffect(() => {
     shapesRef.current = shapes;
@@ -41,8 +41,8 @@ export function MeasurementsSnapping({
   }, [snappingEnabled]);
 
   useEffect(() => {
-    maplibreMapRef.current = maplibreMap;
-  }, [maplibreMap]);
+    maplibreMapsRef.current = maplibreMaps;
+  }, [maplibreMaps]);
 
   useEffect(() => {
     const leafletMap = routedMapRef?.leafletMap?.leafletElement;
@@ -70,9 +70,12 @@ export function MeasurementsSnapping({
         }
       }
 
-      if (maplibreMap && maplibreMap.getCanvas) {
-        maplibreMap.getCanvas().style.cursor = "";
-      }
+      // Clear cursor on all MapLibre maps
+      maplibreMaps.forEach((map) => {
+        if (map && map.getCanvas) {
+          map.getCanvas().style.cursor = "";
+        }
+      });
 
       // Add handlers when snapping is disabled to prevent stale coordinates
       if (leafletMap && typeof leafletMap.on === "function") {
@@ -118,9 +121,12 @@ export function MeasurementsSnapping({
             leafletMap.removeLayer(snappingIndicatorRef.current);
             snappingIndicatorRef.current = null;
           }
-          if (maplibreMap && maplibreMap.getCanvas) {
-            maplibreMap.getCanvas().style.cursor = "";
-          }
+          // Clear cursor on all MapLibre maps
+          maplibreMaps.forEach((map) => {
+            if (map && map.getCanvas) {
+              map.getCanvas().style.cursor = "";
+            }
+          });
           closestPoint = null;
         } catch (_) {
           // no-op safeguard
@@ -141,7 +147,7 @@ export function MeasurementsSnapping({
           leafletMap.removeLayer(circleMarkerRef.current);
         }
 
-        const currentMaplibreMap = maplibreMapRef.current;
+        const currentMaplibreMaps = maplibreMapsRef.current;
         
         // Get mouse position in lat/lng using Leaflet (always available)
         const mouseLatLng = leafletMap.mouseEventToLatLng(e.originalEvent);
@@ -150,41 +156,43 @@ export function MeasurementsSnapping({
         const currentRadius = queryRadiusRef.current;
         const coordinatePoints: SnappingPoint[] = [];
 
-        // 1. Extract from vector features (if MapLibre is available)
-        if (currentMaplibreMap && currentMaplibreMap.getStyle && currentMaplibreMap.getCanvas) {
-          try {
-            const style = currentMaplibreMap.getStyle();
-            if (style && style.layers) {
-              const canvas = currentMaplibreMap.getCanvas();
-              const rect = canvas.getBoundingClientRect();
-              const point = {
-                x: e.originalEvent.clientX - rect.left,
-                y: e.originalEvent.clientY - rect.top,
-              };
+        // 1. Extract from vector features (loop through all MapLibre maps)
+        currentMaplibreMaps.forEach((currentMaplibreMap) => {
+          if (currentMaplibreMap && currentMaplibreMap.getStyle && currentMaplibreMap.getCanvas) {
+            try {
+              const style = currentMaplibreMap.getStyle();
+              if (style && style.layers) {
+                const canvas = currentMaplibreMap.getCanvas();
+                const rect = canvas.getBoundingClientRect();
+                const point = {
+                  x: e.originalEvent.clientX - rect.left,
+                  y: e.originalEvent.clientY - rect.top,
+                };
 
-              const bbox = [
-                [point.x - currentRadius, point.y - currentRadius],
-                [point.x + currentRadius, point.y + currentRadius],
-              ];
+                const bbox = [
+                  [point.x - currentRadius, point.y - currentRadius],
+                  [point.x + currentRadius, point.y + currentRadius],
+                ];
 
-              const features = currentMaplibreMap.queryRenderedFeatures(bbox, {
-                layers: style.layers
-                  .map((layer: any) => layer.id)
-                  .filter((id: string) => !id.startsWith("highlight-")),
-              });
+                const features = currentMaplibreMap.queryRenderedFeatures(bbox, {
+                  layers: style.layers
+                    .map((layer: any) => layer.id)
+                    .filter((id: string) => !id.startsWith("highlight-")),
+                });
 
-              features.forEach((feature: any) => {
-                const points = extractPointsFromGeometry(
-                  feature.geometry,
-                  "vector-features"
-                );
-                coordinatePoints.push(...points);
-              });
+                features.forEach((feature: any) => {
+                  const points = extractPointsFromGeometry(
+                    feature.geometry,
+                    "vector-features"
+                  );
+                  coordinatePoints.push(...points);
+                });
+              }
+            } catch (error) {
+              console.warn("Error extracting vector features:", error);
             }
-          } catch (error) {
-            console.warn("Error extracting vector features:", error);
           }
-        }
+        });
 
         // 2. Extract from measurement shapes (independent of MapLibre)
         // Use shapesRef which is kept in sync via useEffect
@@ -330,7 +338,7 @@ export function MeasurementsSnapping({
     }
   }, [
     routedMapRef,
-    maplibreMap,
+    maplibreMaps,
     snappingEnabled,
     config.snappingMinZoom,
     setSnappingLatlng,

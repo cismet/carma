@@ -19,10 +19,10 @@ export function Measurements({
   polygonActiveIcon,
   polygonIcon,
   snappingEnabled,
-  snappingLayer,
+  snappingLayers,
 }: Partial<MapMeasurementProps> & {
   snappingEnabled?: boolean;
-  snappingLayer?: any; // MapLibre layer for snapping
+  snappingLayers?: any[]; // MapLibre layers for snapping
 }) {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const {
@@ -290,7 +290,7 @@ export function Measurements({
       <div></div>
       {currentMode === "measurement" && (
         <MeasurementsSnapping 
-          maplibreMap={snappingLayer} 
+          maplibreMaps={snappingLayers || []} 
           enabled={snappingEnabled}
         />
       )}

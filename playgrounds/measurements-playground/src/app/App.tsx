@@ -36,6 +36,7 @@ export function App({
   useSelectionTopicMap();
   const [selectedFeature, setSelectedFeature] = useState<any>(undefined);
   const { maplibreMap, setMaplibreMap } = useMapLibreMap();
+  const [maplibreMaps, setMaplibreMaps] = useState<any[]>([]);
   const { mode: measurementMode, setMode: setMeasurementMode } =
     useMapMeasurementsContext();
   const { zoomToFeature } = useContext(TopicMapDispatchContext) as any;
@@ -163,7 +164,7 @@ export function App({
       >
         <Measurements
           snappingEnabled={snappingEnabled}
-          snappingLayer={maplibreMap}
+          snappingLayers={maplibreMaps}
         />
         <TopicMapSelectionContent />
 
@@ -181,6 +182,7 @@ export function App({
                 logMapLibreErrors: true,
                 onMapLibreCoreMapReady: (map: any) => {
                   setMaplibreMap(map);
+                  setMaplibreMaps((prev) => [...prev, map]);
                 },
               }}
             />
