@@ -1,5 +1,12 @@
 import type { Camera, PerspectiveFrustum, Cartesian3 } from "cesium";
 import type { Radians } from "@carma/units/types";
+import type {
+  Longitude,
+  Latitude,
+  Altitude,
+  Degrees,
+  Meters,
+} from "@carma/geo/types";
 
 /**
  * DirectionUp orientation format for Camera.setView()
@@ -14,7 +21,7 @@ export interface DirectionUp {
   /** The up vector (normalized) */
   up: Cartesian3;
   /** The right vector (optional, computed from direction × up if not provided) */
-  right?: Cartesian3;
+  right?: Cartesian3 | undefined;
 }
 
 /**

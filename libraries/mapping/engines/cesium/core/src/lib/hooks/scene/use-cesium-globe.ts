@@ -1,8 +1,11 @@
 import { useEffect } from "react";
-import type { GlobeOptionsPrimitive } from "@carma/cesium/types";
+import type { GlobeConstructorOptionsPrimitive } from "@carma/cesium/types";
+import { isValidScene } from "../../utils/lazy-validators";
 import { useCesiumContext } from "../../context";
 
-export const useCesiumGlobe = (globeOptions: GlobeOptionsPrimitive) => {
+export const useCesiumGlobe = (
+  globeOptions: GlobeConstructorOptionsPrimitive
+) => {
   const { sceneRef } = useCesiumContext();
 
   useEffect(() => {

@@ -1,5 +1,5 @@
 import type { Cesium3DTileset, ImageryLayer } from "@carma/cesium";
-import type { SceneStyle } from "../types/config";
+import type { SceneStyle } from "@carma/cesium/types";
 
 /**
  * Represents a change needed to sync scene state with desired style

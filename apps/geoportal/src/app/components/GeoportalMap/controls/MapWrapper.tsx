@@ -55,7 +55,7 @@ import { MeasurementControl } from "@carma-commons/measurements";
 
 import { GeoportalMap } from "../GeoportalMap.tsx";
 import LibreGeoportalMap from "../LibreGeoportalMap.tsx";
-import { CesiumObliqueMode } from "../../CesiumObliqueMode.tsx";
+// import { CesiumObliqueMode } from "../../CesiumObliqueMode.tsx";
 import LayerWrapper from "../../layers/LayerWrapper.tsx";
 
 import { useLeafletZoomControls } from "@carma-mapping/engines/leaflet";
@@ -111,11 +111,11 @@ const MapWrapper = () => {
   // State and Selectors
   const libreMapRef = useSelector(getLibreMapRef);
   const allow3d = useSelector(getUIAllow3d) && hasGPU;
-  
+
   // Get map mode from MapViewStateContext
   const { mode } = useMapViewState();
   const isMode2d = mode === "2d";
-  
+
   const uiMode = useSelector(getUIMode);
   const isModeMeasurement = uiMode === UIMode.MEASUREMENT;
   const isModeFeatureInfo = uiMode === UIMode.FEATURE_INFO;
@@ -504,10 +504,9 @@ const MapWrapper = () => {
           {showLibreMap && isMode2d ? (
             <LibreGeoportalMap />
           ) : (
-            <>
-              <GeoportalMap height={height} width={width} allow3d={allow3d} />
-              <CesiumObliqueMode />
-            </>
+            <GeoportalMap height={height} width={width} allow3d={allow3d}>
+              {/* TODO: oblique mode and custom models component here */}
+            </GeoportalMap>
           )}
         </div>
       </ControlLayoutCanvas>

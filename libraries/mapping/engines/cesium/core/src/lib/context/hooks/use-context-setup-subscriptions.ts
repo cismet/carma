@@ -1,8 +1,8 @@
 import { useEffect } from "react";
 import type { MutableRefObject } from "react";
 import type { Scene, Cesium3DTileset, ImageryLayer } from "@carma/cesium";
-import type { SceneStyleConfig, CesiumConfig } from "../../types/config";
-import type { CameraViewOptions } from "../../types/camera";
+import type { SceneStyleConfig, CesiumConfig } from "@carma/cesium/types";
+import type { CameraPoseDegrees } from "@carma/cesium";
 import {
   CtxEvent,
   type SubscribeCesiumCtxFn,
@@ -23,11 +23,8 @@ export const useContextSetupSubscriptions = ({
   tilesetsRef,
   imageryLayersRef,
   isAnimatingRef,
-  minZoomDistanceRef,
-  maxZoomDistanceRef,
-  enableCollisionDetectionRef,
   currentSceneStyleRef,
-  homeRef,
+  homeCameraRef,
   sceneStyle,
   config,
 }: {
@@ -38,11 +35,8 @@ export const useContextSetupSubscriptions = ({
   imageryLayersRef: MutableRefObject<Map<string, ImageryLayer>>;
   isSuspendedRef: MutableRefObject<boolean>;
   isAnimatingRef: MutableRefObject<boolean>;
-  minZoomDistanceRef: MutableRefObject<number>;
-  maxZoomDistanceRef: MutableRefObject<number>;
-  enableCollisionDetectionRef: MutableRefObject<boolean>;
   currentSceneStyleRef: MutableRefObject<string | undefined>;
-  homeRef: MutableRefObject<CameraViewOptions | null>;
+  homeCameraRef: MutableRefObject<CameraPoseDegrees | null>;
   sceneStyle?: SceneStyleConfig;
   config: CesiumConfig;
 }) => {
@@ -97,7 +91,7 @@ export const useContextSetupSubscriptions = ({
   useEffect(() => {
     const unsubGoHome = subscribe(CtxEvent.GoHome, () => {
       const scene = sceneRef.current;
-      const home = homeRef.current;
+      const home = homeCameraRef.current;
 
       if (!scene || !home) {
         console.warn(
@@ -111,38 +105,60 @@ export const useContextSetupSubscriptions = ({
       // Clear any ongoing animation
       emit(CtxEvent.AnimationEnd, undefined);
 
-      const { target, orientation } = home;
-
       (async () => {
-        const { tryWithValidCamera, BoundingSphere, Cartesian3 } = await import(
+        const { Cartesian3, Cartographic, CesiumMath } = await import(
           "@carma/cesium"
         );
-        const targetCartesian3 = new Cartesian3(target.x, target.y, target.z);
-        tryWithValidCamera(scene.camera, (camera) => {
-          if (orientation) {
-            // Fly to position with HeadingPitchRange
-            camera.flyTo({
-              destination: targetCartesian3,
-              orientation: {
-                heading: orientation.heading,
-                pitch: orientation.pitch,
-                range: orientation.range,
-              },
-              duration: 2.0,
-            });
-          } else {
-            // Fallback: fly to bounding sphere around target
-            const boundingSphere = new BoundingSphere(targetCartesian3, 400);
-            camera.flyToBoundingSphere(boundingSphere, { duration: 2.0 });
-          }
-        });
+
+        // Convert geographic position to Cartesian3
+        const cartographic = Cartographic.fromDegrees(
+          (home as any).longitude,
+          (home as any).latitude,
+          (home as any).height
+        );
+        const destination = Cartesian3.fromRadians(
+          cartographic.longitude,
+          cartographic.latitude,
+          cartographic.height
+        );
+
+        // Use setView for instant positioning or flyTo for animation
+        const camera = scene.camera;
+        const homeTyped = home as any;
+        if (
+          homeTyped.heading !== undefined ||
+          homeTyped.pitch !== undefined ||
+          homeTyped.roll !== undefined
+        ) {
+          // Use HeadingPitchRoll orientation if provided
+          camera.setView({
+            destination,
+            orientation: {
+              heading: CesiumMath.toRadians(homeTyped.heading ?? 0),
+              pitch: CesiumMath.toRadians(homeTyped.pitch ?? -90),
+              roll: CesiumMath.toRadians(homeTyped.roll ?? 0),
+            },
+          });
+        } else {
+          // Default: look down at the position
+          camera.setView({
+            destination,
+            orientation: {
+              heading: 0,
+              pitch: CesiumMath.toRadians(-90),
+              roll: 0,
+            },
+          });
+        }
+
+        console.debug("[CesiumContext] Camera positioned at home");
       })();
     });
 
     return () => {
       unsubGoHome();
     };
-  }, [subscribe, emit, sceneRef, homeRef]);
+  }, [subscribe, emit, sceneRef, homeCameraRef]);
 
   // DISABLED: Camera controller setting events (for minimal mode)
   /* useEffect(() => {

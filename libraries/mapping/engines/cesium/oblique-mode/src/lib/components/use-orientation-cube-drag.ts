@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { Degrees, Radians } from "@carma/units/types";
-import { Cartesian3, HeadingPitchRange, Matrix4 } from "@carma/cesium";
+import {
+  Cartesian3,
+  HeadingPitchRange,
+  Matrix4,
+  type Scene,
+} from "@carma/cesium";
 import {
   cancelAnimation,
   getOrbitPoint,
@@ -78,9 +83,9 @@ export function useOrientationCubeDrag({
 
   const handleMouseDown = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
-      if (!isValidScene(sceneRef.current)) return;
       const scene = sceneRef.current;
-      const { camera } = scene;
+      if (!isValidScene(scene)) return;
+      const { camera } = scene as Scene;
       if (event.button !== 0) return; // primary button only
       event.preventDefault();
       isPointerDownRef.current = true;
@@ -104,7 +109,7 @@ export function useOrientationCubeDrag({
   const handleMouseUp = useCallback(() => {
     const scene = sceneRef.current;
     if (!isValidScene(scene)) return;
-    const { camera } = scene;
+    const { camera } = scene as Scene;
     const wasDragging = isDraggingRef.current;
     isPointerDownRef.current = false;
     shouldSuspendPitchLimiterRef.current = false;

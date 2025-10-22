@@ -9,7 +9,7 @@ import {
   CtxEvent,
   type SubscribeCesiumCtxFn,
 } from "../cesium-context-event-map";
-import type { CesiumConfig } from "../../types";
+import type { CesiumConfig } from "@carma/cesium/types";
 import type { CesiumWidget } from "@carma/cesium";
 import type { CesiumInstanceRecord } from "../CesiumContext";
 
@@ -53,7 +53,9 @@ export const useContextSetupActivationListener = (
           contextAgeMs,
           widgetRef,
           config: configToStore,
-          trigger: triggerData || undefined,
+          trigger: triggerData
+            ? { source: triggerData.source || "unknown", ...triggerData }
+            : undefined,
         };
 
         const triggerInfo = triggerData

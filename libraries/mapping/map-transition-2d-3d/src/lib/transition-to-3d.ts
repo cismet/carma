@@ -9,6 +9,7 @@ import {
 
 import { promiseWithTimeout } from "@carma-commons/utils";
 import { isZoom } from "@carma-commons/units/helpers";
+import type { Longitude, Latitude } from "@carma/geo/types";
 import { waitForAnimationFrames } from "@carma-commons/dom/window";
 import { LeafletMapEventNames } from "@carma-mapping/engines/leaflet";
 
@@ -23,7 +24,11 @@ import {
   pickSceneCenter,
 } from "@carma-mapping/engines/cesium/core";
 
-import { MapTransitionState } from "./TransitionContext";
+import {
+  MapTransitionState,
+  type TransitionStageTracker,
+} from "./TransitionContext";
+import { startStage, endStage } from "./transition-stage-helpers";
 import { tiledMapToCesium } from "./tiled-map-to-cesium";
 
 const MapState = {
@@ -38,9 +43,10 @@ export type TransitionTo3dParams = {
   sceneRef: MutableRefObject<Scene | null>;
   widgetRef: MutableRefObject<CesiumWidget | null>; // Still needed for resolutionScale
   transitionStateRef: MutableRefObject<string>;
+  transitionStageTrackerRef: MutableRefObject<TransitionStageTracker>;
   last3dCameraOrientation: HeadingPitchRange | null;
   last3dAnimationDuration: number;
-  config: Required<TransitionTo3dConfig>;
+  config?: TransitionTo3dConfig;
   emitCesiumEvent: EmitCesiumFn;
   emitTopicMapEvent: (event: TopicMapCtxEvent, data: any) => void;
   subscribe: SubscribeCesiumFn;
@@ -54,6 +60,7 @@ export const createTransitionTo3d = (params: TransitionTo3dParams) => {
     sceneRef,
     widgetRef,
     transitionStateRef,
+    transitionStageTrackerRef,
     last3dCameraOrientation,
     last3dAnimationDuration,
     config,
@@ -70,20 +77,20 @@ export const createTransitionTo3d = (params: TransitionTo3dParams) => {
     step3_waitForResources = {},
     step5_cssFadeIn = {},
     step6_cameraAnimation = {},
-  } = config;
+  } = config ?? {};
 
   const {
     maxZoom = 20,
     zoomOutDurationMs = 700,
     zoomOutEaseLinearity = 0.75,
     zoomOutTimeoutBufferMs = 100,
-  } = step1_prepare2dView;
+  } = step1_prepare2dView ?? {};
 
-  const { timeoutMs: initialRenderTimeoutMs = 500 } = step2_initialRender;
-  const { timeoutMs: resourcesTimeoutMs = 2000 } = step3_waitForResources;
-  const { durationMs: cssFadeInDurationMs = 1000 } = step5_cssFadeIn;
+  const { timeoutMs: initialRenderTimeoutMs = 500 } = step2_initialRender ?? {};
+  const { timeoutMs: resourcesTimeoutMs = 2000 } = step3_waitForResources ?? {};
+  const { durationMs: cssFadeInDurationMs = 1000 } = step5_cssFadeIn ?? {};
   const { durationMs: cameraAnimationDurationMs = 2000 } =
-    step6_cameraAnimation;
+    step6_cameraAnimation ?? {};
 
   const prepareLeafletForTransition = async (
     leaflet: LeafletMap | null | undefined
@@ -154,6 +161,7 @@ export const createTransitionTo3d = (params: TransitionTo3dParams) => {
     console.debug("[CESIUM|2D3D|TO3D] Starting transition with valid scene");
 
     transitionStateRef.current = MapTransitionState.preTransitionTo3d;
+    startStage(transitionStageTrackerRef, "step1_prepare2dView");
 
     await prepareLeafletForTransition(leafletMap);
 
@@ -165,6 +173,7 @@ export const createTransitionTo3d = (params: TransitionTo3dParams) => {
       },
       "transitionToMode3d"
     );
+    endStage(transitionStageTrackerRef, "step1_prepare2dView");
 
     const onComplete3d = () => {
       console.debug("[CESIUM|2D3D|TO3D] onComplete3d - setting mode to mode3d");
@@ -246,37 +255,41 @@ export const createTransitionTo3d = (params: TransitionTo3dParams) => {
     const widget = widgetRef.current;
     if (!widget) {
       console.warn("widget not available");
-      onCancel(false);
+      onCancel?.(false);
       throw new Error("Transition to 3D cancelled: widget not available");
     }
 
     const resolutionScale = widget.resolutionScale;
     if (!Number.isFinite(resolutionScale) || resolutionScale === null) {
       console.warn("resolution scale not available");
-      onCancel(false);
+      onCancel?.(false);
       throw new Error(
         "Transition to 3D cancelled: resolution scale not available"
       );
     }
 
     transitionStateRef.current = MapTransitionState.transitionTo3d;
+    startStage(transitionStageTrackerRef, "step1_prepare2dView");
 
     console.log(
       "[CESIUM|2D3D|TO3D] ========== STEP 1: Activating Cesium =========="
     );
     // Emit events FIRST: Cesium becomes active, TopicMap becomes suspended
     // This triggers tileset loading
+    // TODO move into context triggering external stuff from the stageTracking
     emitCesiumEvent(CtxEvent.Activate, {
       source: "transition-to-3d",
       component: "MapModeToggle",
       reason: "User toggled 2D→3D",
     });
-    emitTopicMapEvent(TopicMapCtxEvent.Suspend);
+    emitTopicMapEvent(TopicMapCtxEvent.Suspend, undefined);
     console.log("[CESIUM|2D3D|TO3D] ✓ Cesium activated, TopicMap suspended");
+    endStage(transitionStageTrackerRef, "step1_prepare2dView");
 
     console.log(
       "[CESIUM|2D3D|TO3D] ========== STEP 2: Initial Render =========="
     );
+    startStage(transitionStageTrackerRef, "step2_initialRender");
     // Request initial render to start loading and wait for it
     scene.requestRender();
     try {
@@ -291,10 +304,12 @@ export const createTransitionTo3d = (params: TransitionTo3dParams) => {
     } catch (err) {
       console.warn("[CESIUM|2D3D|TO3D] ⚠ Initial render timeout:", err);
     }
+    endStage(transitionStageTrackerRef, "step2_initialRender");
 
     console.log(
       "[CESIUM|2D3D|TO3D] ========== STEP 3: Wait for Tilesets =========="
     );
+    startStage(transitionStageTrackerRef, "step3_waitForResources");
     // Wait for all visible tilesets to load their initial tiles BEFORE positioning camera
     console.log(
       `[CESIUM|2D3D|TO3D] Waiting for SceneResourcesReady event (timeout: ${resourcesTimeoutMs}ms)...`
@@ -312,8 +327,7 @@ export const createTransitionTo3d = (params: TransitionTo3dParams) => {
             resolve();
           });
         }),
-        resourcesTimeoutMs,
-        "Scene resources ready timeout"
+        resourcesTimeoutMs
       );
     } catch (err) {
       const elapsed = Date.now() - resourcesStartTime;
@@ -323,10 +337,12 @@ export const createTransitionTo3d = (params: TransitionTo3dParams) => {
       );
       // Continue anyway - resources might already be loaded
     }
+    endStage(transitionStageTrackerRef, "step3_waitForResources");
 
     console.log(
       "[CESIUM|2D3D|TO3D] ========== STEP 4: Position Camera =========="
     );
+    startStage(transitionStageTrackerRef, "step4_positionCamera");
 
     // Re-validate scene before positioning (might have been destroyed during wait)
     const sceneBeforePositioning = sceneRef.current;
@@ -348,7 +364,10 @@ export const createTransitionTo3d = (params: TransitionTo3dParams) => {
     try {
       await tiledMapToCesium(
         sceneBeforePositioning,
-        { latitude, longitude },
+        {
+          latitude: latitude as Latitude.deg,
+          longitude: longitude as Longitude.deg,
+        },
         zoom,
         resolutionScale,
         {
@@ -368,11 +387,13 @@ export const createTransitionTo3d = (params: TransitionTo3dParams) => {
       onCancel?.(false);
       throw new Error(`Transition to 3D cancelled: ${error}`);
     }
+    endStage(transitionStageTrackerRef, "step4_positionCamera");
 
     if (transitionCompleted) {
       console.log(
         "[CESIUM|2D3D|TO3D] ========== STEP 5: Finalize Transition =========="
       );
+      startStage(transitionStageTrackerRef, "step5_cssFadeIn");
 
       // Request render after camera positioning and wait
       sceneBeforePositioning.requestRender();
@@ -393,20 +414,23 @@ export const createTransitionTo3d = (params: TransitionTo3dParams) => {
       console.log(
         "[CESIUM|2D3D|TO3D] ✓ Scene visible event emitted - fade-in starts"
       );
+      endStage(transitionStageTrackerRef, "step5_cssFadeIn");
 
       transitionStateRef.current = MapTransitionState.postTransitionTo3d;
 
       console.log(
         "[CESIUM|2D3D|TO3D] ========== STEP 6: Start Camera Animation =========="
       );
+      startStage(transitionStageTrackerRef, "step6_cameraAnimation");
       // Start camera animation
       animateCesiumView();
+      endStage(transitionStageTrackerRef, "step6_cameraAnimation");
       console.log(
         "[CESIUM|2D3D|TO3D] ========== Transition Complete =========="
       );
     } else {
       console.warn("[CESIUM|2D3D|TO3D] ✗ Transition not completed, cancelling");
-      onCancel(false);
+      onCancel?.(false);
     }
   };
 };

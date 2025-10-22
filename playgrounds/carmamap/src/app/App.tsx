@@ -17,6 +17,7 @@ import { backgroundSettings } from "@carma-collab/wuppertal/geoportal";
 import {
   CarmaMapProviderWrapper,
   type Settings,
+  type PortalConfig,
 } from "@carma-appframeworks/portals";
 import type { BackgroundLayer, Layer } from "@carma/types";
 
@@ -34,7 +35,11 @@ import { CarmaMap } from "./components/CarmaMap/CarmaMap";
 // } from "./store/slices/mapping";
 // import { getUIAllowChanges } from "./store/slices/ui";
 
-import { CESIUM_CONFIG } from "./config/app.config";
+import {
+  CESIUM_CONFIG,
+  DEFAULT_MAP_POSITION,
+  DEFAULT_CESIUM_CAMERA,
+} from "./config/app.config";
 import { carmaMapStyleConfig } from "./config/mapStyleConfig";
 
 // Side-Effect Imports
@@ -86,14 +91,22 @@ function App({ published }: { published?: boolean }) {
     }
   }, [searchParams]);
 
+  const portalConfig: PortalConfig = {
+    portalConfig: {
+      hashConfig: [], // Will use default hash config
+      styleConfig: carmaMapStyleConfig,
+      defaultPosition: DEFAULT_MAP_POSITION,
+      defaultCameraLocation: DEFAULT_CESIUM_CAMERA,
+      cesiumConfig: CESIUM_CONFIG,
+      overlayConfig: {
+        transparency: backgroundSettings.transparency,
+        color: backgroundSettings.color,
+      },
+    },
+  };
+
   const content = (
-    <CarmaMapProviderWrapper
-      cesiumOptions={CESIUM_CONFIG}
-      overlayOptions={{
-        background: backgroundSettings,
-      }}
-      mapStyleConfig={carmaMapStyleConfig}
-    >
+    <CarmaMapProviderWrapper portalConfig={portalConfig}>
       <ErrorBoundary FallbackComponent={AppErrorFallback}>
         <div className="flex flex-col w-full " style={{ height: "100dvh" }}>
           <CarmaMap />

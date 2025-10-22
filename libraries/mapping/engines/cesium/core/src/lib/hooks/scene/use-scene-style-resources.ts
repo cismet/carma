@@ -1,8 +1,10 @@
 import { useMemo } from "react";
-import type { CesiumConfig } from "../../types/config";
-import type { TilesetConfig } from "../../types/config/tileset";
-import type { CesiumTerrainProviderConfig } from "../../types/config/terrain";
-import type { ImageryProviderConfig } from "../../types/config/imagery";
+import type {
+  CesiumConfig,
+  TilesetConfig,
+  CesiumTerrainProviderConfig,
+  ImageryProviderConfig,
+} from "@carma/cesium/types";
 
 /**
  * Extracts ALL resource sources from scene style.

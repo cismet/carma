@@ -17,7 +17,6 @@ module.exports = {
       packageName: "cesium",
       allowedPaths: [
         "**/libraries/mapping/engines/cesium/api/**",
-        "**/libraries/mapping/engines/cesium/types/**",
       ],
       wrapperPackages: ["@carma/cesium"],
       message:
@@ -28,7 +27,7 @@ module.exports = {
       packageName: "@carma/cesium",
       includePaths: ["**/libraries/mapping/engines/cesium/types/**"],
       message:
-        "cesium/types must never import from @carma/cesium (cesium/api). Import directly from 'cesium' instead to avoid circular dependencies.",
+        "cesium/types contains only basic primitives (Cartesian3, Color, Rectangle, etc.). Complex cesium-specific types are in @carma/cesium/api. Never import from @carma/cesium here to avoid circular dependencies.",
       allowTypeImports: false,
     }),
 

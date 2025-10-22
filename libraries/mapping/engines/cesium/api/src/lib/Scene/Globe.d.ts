@@ -1,5 +1,5 @@
 import type { Globe, Color, Rectangle } from "cesium";
-import type { ColorConstructor } from "./Color";
+import type { ColorConstructor } from "../Core/Color";
 
 /**
  * Globe constructor options with primitive color values

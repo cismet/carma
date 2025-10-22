@@ -68,7 +68,7 @@ export function configureCesiumErrorHandling(
       scene.renderError.addEventListener((err: unknown) => {
         // Allow downstream to choose whether to forward to React ErrorBoundary
         if (suppressErrorBoundaryForwarding) {
-          window.CARMA_CESIUM_SUPPRESS_ERROR_BOUNDARY = true;
+          (window as any).CARMA_CESIUM_SUPPRESS_ERROR_BOUNDARY = true;
         }
         const workerBase = checkWindowEnv().cesiumBaseUrl;
         const meta = {

@@ -2,7 +2,8 @@ import { useEffect, useCallback } from "react";
 import type { Cesium3DTileset, Scene } from "@carma/cesium";
 import { useCesiumContext } from "../../../context";
 import { CtxEvent } from "../../../context/cesium-context-event-map";
-import type { TilesetContentTypes } from "@carma/types";
+import { TilesetContentTypes } from "@carma/types";
+import type { TilesetConfig } from "@carma/cesium/types";
 import { loadTileset } from "../../../loaders";
 import { useTilesetProgress } from "./use-tileset-progress";
 
@@ -52,7 +53,7 @@ export const useTilesetManager = (
     config,
   } = useCesiumContext();
 
-  const minTileCount = config.tilesets?.minInitialTileCount ?? 4;
+  const minTileCount = config.minInitialTilesetTileCount ?? 4;
 
   console.log(
     "[TILESET|MANAGER] Initialized with tileset configs:",

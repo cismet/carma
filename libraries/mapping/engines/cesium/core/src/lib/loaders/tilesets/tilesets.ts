@@ -1,4 +1,5 @@
 import { Cesium3DTileset, CustomShader, Scene } from "@carma/cesium";
+import type { Cesium3DTilesetConstructorOptionsPrimitive } from "@carma/cesium";
 import { CityModelTypes, TilesetContentTypes } from "@carma/types";
 
 import {
@@ -6,12 +7,12 @@ import {
   ensureCustomShader,
   createUnlitCustomShader,
 } from "@carma-mapping/engines/cesium/shaders";
-import { TilesetConfig } from "../../types";
+import { TilesetConfig } from "@carma/cesium/types";
 import { MESH_PERFORMANCE_PRESET, LOD2_PERFORMANCE_PRESET } from "./presets";
 
 export const loadTileset = async (
   { url, options, style, renderPreset, content }: TilesetConfig,
-  scene: Scene
+  scene: Scene // Used for context, not passed to fromUrl
 ) => {
   let appliedShader: CustomShader | undefined;
 
@@ -38,14 +39,17 @@ export const loadTileset = async (
       ? LOD2_PERFORMANCE_PRESET
       : MESH_PERFORMANCE_PRESET;
 
-  const constructorOptions: Cesium3DTileset.ConstructorOptions = {
+  const constructorOptions: Cesium3DTilesetConstructorOptionsPrimitive = {
     ...performancePreset,
     ...options,
     ...style,
-    scene,
   };
 
+  // Note: scene is not passed to fromUrl, but is used by Cesium internally
+  // when the tileset is added to the scene
+
   const tileset = await Cesium3DTileset.fromUrl(url, constructorOptions);
+  tileset.show = true;
 
   if (appliedShader) {
     tileset.customShader = appliedShader;

@@ -6,7 +6,7 @@ import {
 import { useCesiumContext } from "../../../context";
 import { CtxEvent } from "../../../context/cesium-context-event-map";
 import { loadCesiumTerrainProvider } from "../../../loaders";
-import type { CesiumTerrainProviderConfig } from "../../../types/config/terrain";
+import type { CesiumTerrainProviderConfig } from "@carma/cesium/types";
 
 /**
  * Get terrain ID - use explicit id field or extract from config

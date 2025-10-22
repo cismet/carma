@@ -15,10 +15,9 @@ import type {
 import { radToDeg } from "@carma/units/helpers";
 import type { Radians } from "@carma/units/types";
 import { cartographicToUnitTyped } from "../Core/Cartographic";
-import type { CameraPrimitive, DirectionUp } from "@carma/cesium/types";
+import type { CameraPrimitive, DirectionUp } from "./Camera.d";
 
 // Re-export Camera class from Cesium
-
 export { Camera };
 
 // Reusable scratch objects for flyToTarget

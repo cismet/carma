@@ -12,10 +12,10 @@ type Emitter = (e: {
 export function useHashChangeEmit(args: {
   emit: Emitter;
   getHashValues: () => Record<string, unknown>;
-  aliasReverseLookup: Record<string, string>;
+  valueNameToKey: Record<string, string>;
   prevRawRef: MutableRefObject<Record<string, string>>;
 }) {
-  const { emit, getHashValues, aliasReverseLookup, prevRawRef } = args;
+  const { emit, getHashValues, valueNameToKey, prevRawRef } = args;
 
   useEffect(() => {
     const handle = (source: "popstate" | "hashchange") => () => {
@@ -23,7 +23,7 @@ export function useHashChangeEmit(args: {
       const afterRaw = getHashParams();
       const { changedKeys: changedAliasKeys, removedKeys: removedAliasKeys } =
         diffHashParams(beforeRaw, afterRaw);
-      const toOriginal = (k: string) => aliasReverseLookup[k] || k;
+      const toOriginal = (k: string) => valueNameToKey[k] || k;
       const changedKeys = [...new Set(changedAliasKeys.map(toOriginal))];
       const removedKeys = [...new Set(removedAliasKeys.map(toOriginal))];
       emit({
@@ -44,5 +44,5 @@ export function useHashChangeEmit(args: {
       window.removeEventListener("popstate", onPop);
       window.removeEventListener("hashchange", onHash);
     };
-  }, [emit, getHashValues, aliasReverseLookup, prevRawRef]);
+  }, [emit, getHashValues, valueNameToKey, prevRawRef]);
 }

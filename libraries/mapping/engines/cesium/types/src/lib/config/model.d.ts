@@ -11,6 +11,8 @@ export interface ModelConfig {
   /** Orientation in degrees - gets converted to quaternion */
   orientation?: HeadingPitchRoll.deg;
   model: Partial<Options> & Required<Pick<Options, "url">>;
+  /** Display name for the model */
+  name?: string;
   // linked information for feature info of topicmap
   properties: FeatureInfoProperties;
 }

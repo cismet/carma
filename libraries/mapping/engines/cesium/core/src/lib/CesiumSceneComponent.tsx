@@ -1,6 +1,6 @@
 import { type RefObject, useMemo, useRef } from "react";
 import type { Camera } from "@carma/cesium";
-import type { GlobeOptions } from "@carma/cesium/types";
+import type { GlobeConstructorOptionsPrimitive } from "@carma/cesium/types";
 import { merge } from "lodash";
 
 import { CesiumErrorHandler } from "./components/CesiumErrorHandler";
@@ -17,7 +17,7 @@ import { useCesiumContext } from "./context/hooks/use-cesium-context";
 import { DEFAULT_WIDGET_CONSTRUCTOR_OPTIONS } from "./utils/widget-defaults";
 
 // Re-export for backwards compatibility
-export type { GlobeOptions };
+export type { GlobeConstructorOptionsPrimitive };
 
 export type CameraLimiterOptions = {
   pitchLimiter?: boolean;
@@ -74,7 +74,7 @@ export function CesiumSceneComponent(props: CesiumSceneComponentProps) {
 
   // Scene appearance hooks (initial values, applySceneStyle overrides on style switch)
   useCesiumGlobe({});
-  useShadows({});
+  useShadows();
   useBackgroundColor(); // No args - backgroundColor comes from style events
   useCesiumWhenSuspended();
 

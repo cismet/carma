@@ -22,7 +22,7 @@ export const useInitCesiumWidget = (
   const {
     widgetRef,
     sceneRef,
-    homeRef,
+    homeCameraRef,
     minZoomDistanceRef,
     maxZoomDistanceRef,
     enableCollisionDetectionRef,
@@ -34,27 +34,6 @@ export const useInitCesiumWidget = (
 
   const isInitializedRef = useRef(false);
   const validationAttemptedRef = useRef(false);
-
-  // Setup default camera view when Cesium loads
-  const setupDefaultCameraView = async (home: { target?: any }) => {
-    if (!home?.target) return;
-
-    const { Camera, Cartographic, Rectangle, HeadingPitchRange, CesiumMath } =
-      await import("@carma/cesium");
-    const { longitude, latitude } = Cartographic.fromCartesian(home.target);
-    const rect = new Rectangle(
-      longitude - 0.001,
-      latitude - 0.001,
-      longitude + 0.001,
-      latitude + 0.001
-    );
-    Camera.DEFAULT_VIEW_RECTANGLE = rect;
-    Camera.DEFAULT_OFFSET = new HeadingPitchRange(
-      CesiumMath.toRadians(DEFAULT_HPR_VALUES.heading),
-      CesiumMath.toRadians(DEFAULT_HPR_VALUES.pitch),
-      DEFAULT_HPR_VALUES.range
-    );
-  };
 
   useEffect(() => {
     const container = containerRef?.current;
@@ -136,12 +115,9 @@ export const useInitCesiumWidget = (
         }
 
         console.debug("[CESIUM|INIT] Loading Cesium bundle...");
-        const {
-          CesiumWidget,
-          HeadingPitchRange,
-          CesiumMath,
-          flyToTarget: flyToTargetFn,
-        } = await import("@carma/cesium");
+        const { CesiumWidget, HeadingPitchRange, CesiumMath } = await import(
+          "@carma/cesium"
+        );
         console.debug("[CESIUM|INIT] Cesium bundle loaded, creating widget");
 
         // Initialize lazy validators now that Cesium is loaded
@@ -150,23 +126,23 @@ export const useInitCesiumWidget = (
         );
         await initializeLazyValidators();
 
-        // Setup default camera view
-        await setupDefaultCameraView(homeRef.current);
-
         console.debug("[CESIUM|INIT] options", options);
-        const widget = new CesiumWidget(containerRef.current, options);
+        const container = containerRef.current;
+        if (!container) throw new Error("Container ref is null");
+
+        const widget = new CesiumWidget(container, options);
         widgetRef.current = widget;
         sceneRef.current = widget.scene;
         isInitializedRef.current = true;
 
         console.log(
-          `[CESIUM|INIT] Widget created - Container: ${containerRef.current.clientWidth}x${containerRef.current.clientHeight}, Canvas: ${widget.canvas.width}x${widget.canvas.height}, Style: ${widget.canvas.style.width}x${widget.canvas.style.height}, ResScale: ${widget.resolutionScale}`
+          `[CESIUM|INIT] Widget created - Container: ${container.clientWidth}x${container.clientHeight}, Canvas: ${widget.canvas.width}x${widget.canvas.height}, Style: ${widget.canvas.style.width}x${widget.canvas.style.height}, ResScale: ${widget.resolutionScale}`
         );
 
         // CRITICAL: Explicitly size canvas to container
         // CesiumWidget doesn't automatically resize canvas to container dimensions
-        const containerWidth = containerRef.current.clientWidth;
-        const containerHeight = containerRef.current.clientHeight;
+        const containerWidth = container.clientWidth;
+        const containerHeight = container.clientHeight;
         widget.canvas.width = containerWidth;
         widget.canvas.height = containerHeight;
         widget.canvas.style.width = "100%";
@@ -226,32 +202,11 @@ export const useInitCesiumWidget = (
 
         widget.scene.postRender.addEventListener(handlePostRender);
 
-        // Set initial camera view to home position (instant, no animation)
-        const home = homeRef.current;
-        if (home) {
-          const { target, orientation } = home;
-
-          if (orientation) {
-            // Use flyToTarget with 0 duration for instant positioning
-            flyToTargetFn(widget.scene.camera, target, orientation, 0);
-            console.debug(
-              "[CESIUM|INIT] Camera positioned with HPR (instant)",
-              home
-            );
-          } else {
-            // Fallback: Use default orientation if not provided
-            const defaultHPR = new HeadingPitchRange(
-              CesiumMath.toRadians(DEFAULT_HPR_VALUES.heading),
-              CesiumMath.toRadians(DEFAULT_HPR_VALUES.pitch),
-              DEFAULT_HPR_VALUES.range
-            );
-            flyToTargetFn(widget.scene.camera, target, defaultHPR, 0);
-            console.debug(
-              "[CESIUM|INIT] Camera positioned at target (no orientation)",
-              home
-            );
-          }
-        }
+        // Camera positioning is handled by use-context-setup-subscriptions
+        // which listens to the SceneReady event and positions the camera
+        console.debug(
+          "[CESIUM|INIT] Widget initialized, camera will be positioned by context"
+        );
 
         // CRITICAL: Request initial render since we use requestRenderMode
         // Without this, nothing will display!
@@ -305,7 +260,7 @@ export const useInitCesiumWidget = (
     widgetRef,
     sceneRef,
     emit,
-    homeRef,
+    homeCameraRef,
     config.baseUrl,
     cesiumInstances.length, // Re-run when Activate event fires
   ]);

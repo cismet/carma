@@ -58,7 +58,7 @@ const NavigationControlView: FC = () => {
         );
 
         const imageryProvider = new WebMapServiceImageryProvider(
-          BASEMAP_METROPOLE_RUHR_WMS_GRAUBLAU.providerOptions
+          BASEMAP_METROPOLE_RUHR_WMS_GRAUBLAU.providerOptions as WebMapServiceImageryProvider.ConstructorOptions
         );
         const newImageryLayer = new ImageryLayer(imageryProvider);
         viewer.imageryLayers.add(newImageryLayer);

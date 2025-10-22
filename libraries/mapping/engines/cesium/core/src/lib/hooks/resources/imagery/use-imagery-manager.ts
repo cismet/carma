@@ -3,7 +3,7 @@ import type { ImageryLayer } from "@carma/cesium";
 import { useCesiumContext } from "../../../context";
 import { CtxEvent } from "../../../context/cesium-context-event-map";
 import { loadCesiumImageryLayer } from "../../../loaders";
-import type { ImageryProviderConfig } from "../../../types/config/imagery";
+import type { ImageryProviderConfig } from "@carma/cesium/types";
 
 /**
  * Get imagery ID - use explicit layer field or extract from config

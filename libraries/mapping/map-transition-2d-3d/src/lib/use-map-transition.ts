@@ -4,7 +4,7 @@ import type { Map as LeafletMap } from "leaflet";
 import type { HeadingPitchRange } from "@carma/cesium";
 import { metersPerPixelAtLatitudeRad } from "@carma/geo/utils";
 import { degToRad } from "@carma/geo/helpers";
-import type { Radians } from "@carma/units/types";
+import type { Radians, Degrees } from "@carma/geo/types";
 
 import {
   useCarmaTopicMapContext,
@@ -70,7 +70,7 @@ const getLeafletPosition = async (
   const zoom = leafletMap.getZoom();
   const canvasHeightPx = leafletMap.getContainer().clientHeight || 800;
 
-  const latRad = degToRad(center.lat) as Radians;
+  const latRad = degToRad(center.lat as Degrees) as Radians;
   const metersPerPx = metersPerPixelAtLatitudeRad(zoom, latRad);
   const fovRad = CesiumMath.toRadians(60); // Standard Cesium FOV
   const distance = (canvasHeightPx * metersPerPx) / (2 * Math.tan(fovRad / 2));
@@ -92,7 +92,8 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
   const { onComplete, onCancel } = options;
 
   const { leafletMapRef, emit: emitTopicMapEvent } = useCarmaTopicMapContext();
-  const { transitionStateRef, transitionLifecycleRef } = useTransitionContext();
+  const { transitionStateRef, transitionStageTrackerRef } =
+    useTransitionContext();
   const {
     widgetRef,
     sceneRef,
@@ -112,6 +113,7 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
       sceneRef,
       widgetRef,
       transitionStateRef,
+      transitionStageTrackerRef,
       last3dCameraOrientation,
       last3dAnimationDuration,
       config: contextConfig.modeTo3d,
@@ -126,6 +128,7 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
       sceneRef,
       widgetRef,
       transitionStateRef,
+      transitionStageTrackerRef,
       last3dCameraOrientation,
       last3dAnimationDuration,
       contextConfig.modeTo3d,
@@ -142,7 +145,7 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
       leafletMapRef,
       sceneRef,
       transitionStateRef,
-      transitionLifecycleRef,
+      transitionStageTrackerRef,
       setLast3dCameraOrientation,
       setLast3dAnimationDuration,
       config: contextConfig.modeTo2d,
@@ -155,7 +158,7 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
       leafletMapRef,
       sceneRef,
       transitionStateRef,
-      transitionLifecycleRef,
+      transitionStageTrackerRef,
       contextConfig.modeTo2d,
       emitCesiumEvent,
       emitTopicMapEvent,

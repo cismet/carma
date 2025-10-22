@@ -1,10 +1,8 @@
 import { TilesetConfig, TilesetStyle } from "./tileset";
 import { ImageryProviderConfig, ImageryLayerConfig } from "./imagery";
 import { CesiumTerrainProviderConfig } from "./terrain";
-import type {
-  GlobeConstructorOptionsPrimitive,
-  ColorConstructor,
-} from "@carma/cesium/types";
+import type { ColorConstructor } from "@carma/cesium/types";
+import type { GlobeConstructorOptionsPrimitive } from "@carma/cesium";
 
 export type { ColorConstructor, GlobeConstructorOptionsPrimitive };
 

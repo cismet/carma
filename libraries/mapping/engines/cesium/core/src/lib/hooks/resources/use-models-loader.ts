@@ -1,6 +1,6 @@
 import { useEffect, useRef, type MutableRefObject } from "react";
 import { Model, Scene } from "@carma/cesium";
-import type { ModelConfig } from "../../types/config";
+import type { ModelConfig } from "@carma/cesium/types";
 import { loadModelPrimitive } from "../../loaders/models";
 import { tryWithValidScene } from "@carma/cesium";
 
@@ -27,7 +27,7 @@ export const useModelsLoader = ({
             modelConfig.model.uri
           );
 
-          const model = await loadModelPrimitive(modelConfig);
+          const model = (await loadModelPrimitive(modelConfig)) as Model;
 
           tryWithValidScene(scene, () => {
             scene.primitives.add(model);

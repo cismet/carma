@@ -1,9 +1,17 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import type { ReactNode } from "react";
 import { useHashState } from "./HashStateProvider";
 import { type MapStyleKey, isMapStyleKey, MapStyleMapping } from "../constants";
 import { useMapStyleBus } from "../hooks/useMapStyleBus";
-import type { CesiumConfig } from "@carma-mapping/engines/cesium/core";
+import type { CesiumConfig } from "@carma-mapping/engines/cesium/types";
+import type { HashStateConfig } from "./HashStateProvider";
 import { SelectionProvider } from "../components/SelectionProvider";
 import { OverlayTourProvider } from "@carma-commons/ui/helper-overlay";
 import { CesiumContextProvider } from "@carma-mapping/engines/cesium/core";
@@ -93,16 +101,7 @@ export interface PortalConfig {
   // Complete portal configuration (single config object)
   portalConfig: {
     // Hash configuration
-    hashConfig: {
-      fields: Array<{
-        key: string;
-        valueName?: string;
-        codec?: {
-          encode?: (value: unknown) => string | undefined;
-          decode?: (value: string) => unknown;
-        };
-      }>;
-    };
+    hashConfig: HashStateConfig;
 
     // Style configuration
     styleConfig: MapStyleConfig;
@@ -227,17 +226,22 @@ export const PortalProvider = ({ children, config }: PortalProviderProps) => {
 
     const merged = {
       ...cesiumConfig,
-      sceneStyle: {
-        ...cesiumConfig.sceneStyle,
-        initialStyle: cesiumStyleId,
-      },
+      sceneStyle: cesiumConfig.sceneStyle,
+      initialStyle: cesiumStyleId,
       initialCamera: initialCameraLocation,
+      cameraInitialPose: initialCameraLocation,
+      cameraHomePose: defaultCameraLocation,
     };
 
     console.log("[PortalProvider] Merged Cesium config:", merged);
 
     return merged;
-  }, [cesiumConfig, initialMapStyle, initialCameraLocation]);
+  }, [
+    cesiumConfig,
+    initialMapStyle,
+    initialCameraLocation,
+    defaultCameraLocation,
+  ]);
 
   const [currentMapStyle, setCurrentMapStyle] =
     useState<MapStyleKey>(initialMapStyle);

@@ -5,6 +5,7 @@ import {
   TransitionContext,
   MapTransitionState,
   type TransitionContextType,
+  type TransitionStageTracker,
   type TransitionConfig,
 } from "./TransitionContext";
 import type { TransitionContextEventMap } from "./transition-context-event-map";
@@ -13,18 +14,34 @@ const DEFAULT_TRANSITION_CONFIG: Required<TransitionConfig> = {
   modeTo3d: {
     step1_prepare2dView: {
       maxZoom: 20,
-      zoomOutDuration: 700,
+      zoomOutDurationMs: 700,
       zoomOutEaseLinearity: 0.75,
-      zoomOutTimeoutBuffer: 100,
+      zoomOutTimeoutBufferMs: 100,
     },
-    step2_cameraAnimation: {
-      duration: 1000,
+    step2_initialRender: {
+      timeoutMs: 500,
+    },
+    step3_waitForResources: {
+      timeoutMs: 2000,
+    },
+    step4_positionCamera: {},
+    step5_cssFadeIn: {
+      durationMs: 1000,
+    },
+    step6_cameraAnimation: {
+      durationMs: 2000,
     },
   },
   modeTo2d: {
-    durationFactorCameraDeviation: 2,
-    durationFactorZoomDiff: 1,
-    maxDuration: 5,
+    step1_calculatePosition: {},
+    step2_cameraTiltAnimation: {
+      durationFactorCameraDeviationMs: 1.5,
+      durationFactorZoomDiffMs: 500,
+      maxDurationMs: 2000,
+    },
+    step3_cssFadeOut: {
+      durationMs: 1000,
+    },
   },
 };
 
@@ -52,7 +69,8 @@ export const TransitionContextProvider = ({
   const transitionStateRef = useRef<MapTransitionState>(
     MapTransitionState.mode2d
   );
-  const transitionLifecycleRef = useRef({});
+  // TODO have stage tracker handle sending events for external use eg css transitions etc
+  const transitionStageTrackerRef = useRef<TransitionStageTracker>({});
 
   const mergedConfig = useMemo<Required<TransitionConfig>>(
     () => ({
@@ -61,14 +79,40 @@ export const TransitionContextProvider = ({
           ...DEFAULT_TRANSITION_CONFIG.modeTo3d.step1_prepare2dView,
           ...config.modeTo3d?.step1_prepare2dView,
         },
-        step2_cameraAnimation: {
-          ...DEFAULT_TRANSITION_CONFIG.modeTo3d.step2_cameraAnimation,
-          ...config.modeTo3d?.step2_cameraAnimation,
+        step2_initialRender: {
+          ...DEFAULT_TRANSITION_CONFIG.modeTo3d.step2_initialRender,
+          ...config.modeTo3d?.step2_initialRender,
+        },
+        step3_waitForResources: {
+          ...DEFAULT_TRANSITION_CONFIG.modeTo3d.step3_waitForResources,
+          ...config.modeTo3d?.step3_waitForResources,
+        },
+        step4_positionCamera: {
+          ...DEFAULT_TRANSITION_CONFIG.modeTo3d.step4_positionCamera,
+          ...config.modeTo3d?.step4_positionCamera,
+        },
+        step5_cssFadeIn: {
+          ...DEFAULT_TRANSITION_CONFIG.modeTo3d.step5_cssFadeIn,
+          ...config.modeTo3d?.step5_cssFadeIn,
+        },
+        step6_cameraAnimation: {
+          ...DEFAULT_TRANSITION_CONFIG.modeTo3d.step6_cameraAnimation,
+          ...config.modeTo3d?.step6_cameraAnimation,
         },
       },
       modeTo2d: {
-        ...DEFAULT_TRANSITION_CONFIG.modeTo2d,
-        ...config.modeTo2d,
+        step1_calculatePosition: {
+          ...DEFAULT_TRANSITION_CONFIG.modeTo2d.step1_calculatePosition,
+          ...config.modeTo2d?.step1_calculatePosition,
+        },
+        step2_cameraTiltAnimation: {
+          ...DEFAULT_TRANSITION_CONFIG.modeTo2d.step2_cameraTiltAnimation,
+          ...config.modeTo2d?.step2_cameraTiltAnimation,
+        },
+        step3_cssFadeOut: {
+          ...DEFAULT_TRANSITION_CONFIG.modeTo2d.step3_cssFadeOut,
+          ...config.modeTo2d?.step3_cssFadeOut,
+        },
       },
     }),
     [config]
@@ -83,7 +127,7 @@ export const TransitionContextProvider = ({
   const contextValue = useMemo<TransitionContextType>(
     () => ({
       transitionStateRef,
-      transitionLifecycleRef,
+      transitionStageTrackerRef,
       config: mergedConfig,
       subscribe,
       emit,

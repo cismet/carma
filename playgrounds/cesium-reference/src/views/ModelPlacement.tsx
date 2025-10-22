@@ -1,20 +1,18 @@
 import React, { useEffect, useRef, useState } from "react";
 import {
-  Entity,
   Transforms,
   DebugModelMatrixPrimitive,
   Viewer,
   Cesium3DTileset,
   Cartesian3,
+  Model,
+  HeadingPitchRoll,
 } from "cesium";
 import { BRUECKENENTWURF_GLB, WUPP_MESH_2024 } from "@carma/resources";
-import { createModelEntityConstructorOptions } from "@carma-mapping/engines/cesium/core";
+import { loadModelPrimitive } from "@carma-mapping/engines/cesium/core";
 import { cesiumConstructorOptions } from "../config";
 import { useCameraPersistence } from "../hooks/useCameraPersistence";
 import { ModelPlacementUI } from "./ModelPlacement.UI";
-
-const modelConstructorOptions =
-  createModelEntityConstructorOptions(BRUECKENENTWURF_GLB);
 
 const tilesetOptions = {
   maximumScreenSpaceError: 1,
@@ -26,7 +24,7 @@ const tilesetOptions = {
 const ModelPlacement: React.FC = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const viewerRef = useRef<Viewer | null>(null);
-  const modelEntityRef = useRef<Entity | null>(null);
+  const modelRef = useRef<Model | null>(null);
   const debugPrimitiveRef = useRef<DebugModelMatrixPrimitive | null>(null);
   const tilesetRef = useRef<Cesium3DTileset | null>(null);
   const [viewer, setViewer] = useState<Viewer | null>(null);
@@ -35,24 +33,30 @@ const ModelPlacement: React.FC = () => {
 
   // Check camera distance after persistence is complete
   useEffect(() => {
-    if (viewer && modelEntityRef.current && wasRestored !== undefined) {
-      const distance = Cartesian3.distance(
-        viewer.camera.positionWC,
-        modelConstructorOptions.position
+    if (viewer && modelRef.current && wasRestored !== undefined) {
+      // Extract position from model matrix
+      const modelMatrix = modelRef.current.modelMatrix;
+      const position = Cartesian3.fromElements(
+        modelMatrix[12],
+        modelMatrix[13],
+        modelMatrix[14]
       );
+      const distance = Cartesian3.distance(viewer.camera.positionWC, position);
 
       if (distance > 5000) {
         console.debug(
           "restoring default position on load - distant camera detected"
         );
-        viewer.flyTo(modelEntityRef.current, {
-          offset: {
+        // Use camera controls instead of flyTo for Model primitive
+        viewer.camera.setView({
+          destination: position,
+          orientation: {
             heading: (Math.PI / 180) * 78,
             pitch: 0.05,
-            range: 1200,
+            roll: 0,
           },
-          duration: 0,
         });
+        viewer.camera.zoomIn(1200);
       }
     }
   }, [viewer, wasRestored]);
@@ -82,15 +86,14 @@ const ModelPlacement: React.FC = () => {
           }
 
           // Load model inline
-          const modelEntity = new Entity(modelConstructorOptions);
-          newViewer.entities.add(modelEntity);
-          modelEntityRef.current = modelEntity;
+          const model = (await loadModelPrimitive(
+            BRUECKENENTWURF_GLB
+          )) as Model;
+          newViewer.scene.primitives.add(model);
+          modelRef.current = model;
 
-          const modelMatrix = Transforms.eastNorthUpToFixedFrame(
-            modelConstructorOptions.position
-          );
           const localDebugPrimitive = new DebugModelMatrixPrimitive({
-            modelMatrix: modelMatrix,
+            modelMatrix: model.modelMatrix,
             length: 10.0,
             width: 3.0,
           });
@@ -122,7 +125,7 @@ const ModelPlacement: React.FC = () => {
       {viewer && (
         <ModelPlacementUI
           viewerRef={viewerRef}
-          modelEntityRef={modelEntityRef}
+          modelEntityRef={modelRef}
           debugPrimitiveRef={debugPrimitiveRef}
           modelConfig={BRUECKENENTWURF_GLB}
           tilesetRef={tilesetRef}

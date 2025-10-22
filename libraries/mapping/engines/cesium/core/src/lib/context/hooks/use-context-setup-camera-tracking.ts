@@ -1,5 +1,6 @@
 import { useEffect, type MutableRefObject } from "react";
 import { radToDeg } from "@carma/units/helpers";
+import type { Radians } from "@carma/units/types";
 import type { CesiumWidget, Scene } from "@carma/cesium";
 import {
   CtxEvent,
@@ -11,7 +12,8 @@ export const useContextSetupCameraTracking = (
   widgetRef: MutableRefObject<CesiumWidget | null>,
   sceneRef: MutableRefObject<Scene | null>,
   subscribe: SubscribeCesiumCtxFn,
-  emit: EmitCesiumCtxFn
+  emit: EmitCesiumCtxFn,
+  currentCameraStateRef?: MutableRefObject<any | null>
 ) => {
   useEffect(
     function setupCameraPositionTracking() {
@@ -38,10 +40,19 @@ export const useContextSetupCameraTracking = (
           if (!pos) return;
 
           emit(CtxEvent.CameraChanged, {
-            lat: radToDeg(pos.latitude),
-            lng: radToDeg(pos.longitude),
+            lat: radToDeg(pos.latitude as Radians),
+            lng: radToDeg(pos.longitude as Radians),
             alt: pos.height,
           });
+
+          // Update current camera state FOV for crash recovery
+          if (currentCameraStateRef?.current) {
+            const frustum = camera.frustum as any;
+            const fov = frustum?.fov;
+            if (fov !== undefined) {
+              currentCameraStateRef.current.fov = fov;
+            }
+          }
         };
 
         cameraListener = handleCameraPositionChange;
@@ -69,6 +80,6 @@ export const useContextSetupCameraTracking = (
         }
       };
     },
-    [widgetRef, sceneRef, subscribe, emit]
+    [widgetRef, sceneRef, subscribe, emit, currentCameraStateRef]
   );
 };

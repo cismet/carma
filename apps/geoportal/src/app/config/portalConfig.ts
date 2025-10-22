@@ -17,40 +17,36 @@ import {
  * Currently Redux is used for UI state sync, but this should be consolidated
  * into the portal context to avoid importing Redux everywhere above TopicMapComponentWrapper
  */
+
 // Hash URL configuration
-const hashConfig = {
-  fields: [
+const hashConfig = [
     // Position fields
-    { key: 'lat', codec: defaultHashCodecs.lat },
-    { key: 'lng', codec: defaultHashCodecs.lng },
-    { key: 'zoom', codec: defaultHashCodecs.zoom },
+    { hashParamKey: 'lat', codec: defaultHashCodecs.lat },
+    { hashParamKey: 'lng', codec: defaultHashCodecs.lng },
+    { hashParamKey: 'zoom', codec: defaultHashCodecs.zoom },
     
     // Map style: 'm' in URL → 'mapStyle' in code
     // Values: '0' = topo, '1' = aerial
     { 
-      key: 'm',
-      valueName: 'mapStyle',
+      hashParamKey: 'm',
+      propertyName: 'mapStyle',
       codec: defaultHashCodecs.mapStyle
     },
     
     // Engine mode: 'is3d' in URL → 'engine' in code
     // Values: '1' = cesium3d, undefined/absent = leaflet2d
     { 
-      key: 'is3d',
-      valueName: 'engine',
-      codec: {
-        decode: (v: string) => v === '1' ? 'cesium3d' : 'leaflet2d',
-        encode: (v: string) => v === 'cesium3d' ? '1' : undefined
-      }
+      hashParamKey: 'is3d',
+      propertyName: 'engine',
+      codec: defaultHashCodecs.engine
     },
     
     // 3D camera parameters
-    { key: 'h' }, // altitude
-    { key: 'heading', codec: defaultHashCodecs.heading },
-    { key: 'pitch', codec: defaultHashCodecs.pitch },
-    { key: 'range' }, // distance from target
-  ]
-};
+    { hashParamKey: 'h' }, // altitude
+    { hashParamKey: 'heading', codec: defaultHashCodecs.heading },
+    { hashParamKey: 'pitch', codec: defaultHashCodecs.pitch },
+    { hashParamKey: 'range' }, // distance from target
+];
 
 /**
  * Complete portal configuration for Geoportal

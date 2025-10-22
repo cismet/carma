@@ -45,3 +45,20 @@ export const LEAFLET_CONFIG: LeafletConfig = {
   zoomSnap: 1.0,
   zoomDelta: 1.0,
 };
+
+// Default map position for 2D view (Wuppertal, Germany)
+export const DEFAULT_MAP_POSITION = {
+  latitude: 51.256,
+  longitude: 7.15,
+  zoom: 13,
+};
+
+// Default camera position for 3D view
+export const DEFAULT_CESIUM_CAMERA = {
+  latitude: 51.256,
+  longitude: 7.15,
+  altitude: 1000,
+  heading: 0,
+  pitch: -45,
+  range: 1000,
+};

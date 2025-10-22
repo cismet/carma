@@ -1,5 +1,6 @@
 import type { CesiumWidget } from "@carma/cesium";
-import type { CesiumConfig } from "../../types";
+import type { CesiumConfig } from "@carma/cesium/types";
+import "@carma/cesium/types"; // Load ambient types (env.d.ts)
 
 // Monorepo convention: Cesium assets always served at /cesium
 const DEFAULT_CESIUM_BASE_URL = "/cesium";
@@ -20,7 +21,7 @@ export const setupCesiumEnvironment = (input?: CesiumBaseUrlInput) => {
         (input as any).baseUrl
       : DEFAULT_CESIUM_BASE_URL;
 
-  window.CESIUM_BASE_URL = baseUrl;
+  (window as any).CESIUM_BASE_URL = baseUrl;
   console.debug(`[CESIUM|SETUP] Base URL set to: ${baseUrl}`);
 };
 

@@ -18,7 +18,7 @@ import type {
   Cartesian3Primitive,
   ColorPrimitive,
   RectanglePrimitive,
-} from "@carma/cesium/types";
+} from "@carma/cesium";
 
 /**
  * Check if an object is a Cartesian3 primitive (has x, y, z properties)

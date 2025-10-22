@@ -35,31 +35,37 @@ import {
 //   useModelsLoader,
 // } from "./hooks/useCesiumProviderLoaders";
 
+import type { CesiumConfig } from "@carma/cesium/types";
+import type {
+  CameraPoseDegrees,
+  CameraStateHeadingPitchRoll,
+} from "@carma/cesium";
+
+type CameraState = CameraStateHeadingPitchRoll;
 import type { AnimationMap } from "@carma/types";
-import type { CesiumConfig } from "../types";
-import type { CameraViewOptions } from "../types/camera";
 
 import { initAnimationMap } from "../scene/camera/animations";
 import { sceneRequestRender } from "../scene/scene-request-render";
+import { validateCesiumConfig } from "./validate-cesium-config";
 
 export const CesiumContextProvider = ({
   children,
   config,
-  view,
-  initialStyleId,
 }: {
   children: ReactNode;
   config: CesiumConfig;
-  view?: CameraViewOptions | CameraPoseHeadingPitchRoll;
-  initialStyleId?: string;
 }): React.ReactElement => {
   // Auto-setup Cesium environment if not already done
   // This ensures window.CESIUM_BASE_URL is set without requiring app-level setup
-  if (!window.CESIUM_BASE_URL) {
+  if (!(window as any).CESIUM_BASE_URL) {
     setupCesiumEnvironment(config);
   }
 
-  const { screenSpaceCameraController, sceneStyle } = config;
+  const {
+    screenSpaceCameraController,
+    sceneStyle,
+    initialStyle: configInitialStyle,
+  } = config;
 
   // Remount key for error recovery - incrementing this will force widget re-initialization
   const [remountKey, setRemountKey] = useState(0);
@@ -70,9 +76,7 @@ export const CesiumContextProvider = ({
   const animationMapRef = useRef<AnimationMap | null>(initAnimationMap());
 
   // Track last camera state for crash recovery
-  const lastCameraStateRef = useRef<
-    import("@carma/cesium/types").CameraStatePrimitive | null
-  >(null);
+  const lastCameraStateRef = useRef<CameraStateHeadingPitchRoll | null>(null);
 
   // Provider refs - use Maps for arbitrary numbers of providers per type
   const terrainProvidersRef = useRef<Map<string, CesiumTerrainProvider>>(
@@ -103,14 +107,34 @@ export const CesiumContextProvider = ({
     screenSpaceCameraController?.enableCollisionDetection ?? true
   );
 
-  // Home position ref
-  const homeRef = useRef<CameraViewOptions | null>(
-    config.initialCamera ?? (config.initialCameraLookAt as any) ?? null
+  // Validate config once and memoize - config should be static
+  const validatedConfig = useMemo(() => validateCesiumConfig(config), [config]);
+  const { cameraHomePose, cameraInitialPose } = validatedConfig;
+
+  // Camera refs for home position
+  const homeCameraRef = useRef<CameraPoseDegrees | null>(
+    cameraHomePose ?? null
   );
 
-  // Use initialStyleId prop if provided, otherwise fall back to first style
+  // Current camera state ref - tracks FOV for crash recovery
+  // Convert from CameraPoseDegrees (height) to CameraStateHeadingPitchRoll (altitude)
+  const initialState = cameraInitialPose ?? cameraHomePose;
+  const currentCameraStateRef = useRef<CameraState>(
+    initialState
+      ? {
+          longitude: initialState.longitude,
+          latitude: initialState.latitude,
+          altitude: initialState.height,
+          heading: initialState.heading,
+          pitch: initialState.pitch,
+          roll: initialState.roll,
+        }
+      : null
+  );
+
+  // Use initialStyle from config, or fall back to first available style
   const initialStyle =
-    initialStyleId ||
+    configInitialStyle ||
     (sceneStyle && sceneStyle.styles && sceneStyle.styles.length > 0
       ? sceneStyle.styles[0].id
       : undefined);
@@ -147,11 +171,8 @@ export const CesiumContextProvider = ({
     tilesetsRef,
     imageryLayersRef,
     isAnimatingRef,
-    minZoomDistanceRef,
-    maxZoomDistanceRef,
-    enableCollisionDetectionRef,
     currentSceneStyleRef,
-    homeRef,
+    homeCameraRef,
     sceneStyle,
     config,
   });
@@ -160,7 +181,14 @@ export const CesiumContextProvider = ({
   useContextSetupInitialStyle(subscribe, emit, initialStyle);
 
   // Track camera position changes and emit CameraChanged events
-  useContextSetupCameraTracking(widgetRef, sceneRef, subscribe, emit);
+  // Also updates currentCameraStateRef with FOV for crash recovery
+  useContextSetupCameraTracking(
+    widgetRef,
+    sceneRef,
+    subscribe,
+    emit,
+    currentCameraStateRef
+  );
 
   // ALL PROVIDER LOADERS DISABLED for minimal mode
   // useImageryProviderLoader({ providerConfig, imageryLayerRef, isValidViewer });
@@ -192,7 +220,7 @@ export const CesiumContextProvider = ({
       tilesetsRef,
       modelsRef,
       isSuspendedRef,
-      homeRef,
+      homeCameraRef,
       minZoomDistanceRef,
       maxZoomDistanceRef,
       enableCollisionDetectionRef,

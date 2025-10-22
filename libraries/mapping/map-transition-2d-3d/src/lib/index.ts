@@ -2,7 +2,7 @@ export {
   TransitionContext,
   MapTransitionState,
   type TransitionContextType,
-  type MapTransitionLifecycle,
+  type TransitionStageTracker,
   type TransitionConfig,
   type TransitionTo3dConfig,
   type TransitionTo2dConfig,
@@ -22,10 +22,15 @@ export {
   type EmitTransitionCtxFn,
 } from "./transition-context-event-map";
 
+export { type TransitionLifecycleRef } from "./transition-lifecycle-helpers";
+
 export {
-  addMapTransitionLifecycleHandler,
-  runTransitionLifecycleHandlers,
-} from "./transition-lifecycle-helpers";
+  startStage,
+  endStage,
+  failStage,
+  getStageDuration,
+  getCompletedStages,
+} from "./transition-stage-helpers";
 
 // Main transition hook
 export {

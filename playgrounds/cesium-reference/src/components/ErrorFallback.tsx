@@ -1,10 +1,8 @@
-import { ForwardedCesiumError } from "@carma-mapping/engines/cesium/core";
-
 const ErrorFallback = ({
   error,
   resetErrorBoundary,
 }: {
-  error: ForwardedCesiumError;
+  error: Error;
   resetErrorBoundary: () => void;
 }) => {
   console.log("ErrorFallback", error);
@@ -22,8 +20,10 @@ const ErrorFallback = ({
       }}
     >
       Ein Fehler ist aufgetreten.
-      <h2>3D-Komponente (Cesium): {error.cesiumTitle}</h2>
-      <em>Fehlermeldung: {error.cesiumMessage}</em>
+      <h2>
+        3D-Komponente (Cesium): {(error as any).cesiumTitle || error.name}
+      </h2>
+      <em>Fehlermeldung: {(error as any).cesiumMessage || error.message}</em>
       <h4>Fehlermeldungstyp: {error.name}</h4>
       <pre>{error.stack}</pre>
       <button onClick={resetErrorBoundary}>Reset</button>

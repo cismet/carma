@@ -53,7 +53,7 @@ export {
   type HashCodec,
   type HashCodecs,
 } from "./lib/contexts/HashStateProvider";
-export { defaultHashCodecs } from "./lib/utils/hashState";
+export { defaultHashCodecs } from "./lib/contexts/hashState";
 export {
   PortalProvider,
   usePortal,
@@ -118,7 +118,8 @@ export { getActionLinksForFeature } from "./lib/components/helper";
 
 // Deprecated - kept for backward compatibility, will be removed in future
 // Use PortalProvider instead
-export {
-  useInitialViewModeFromUrl,
-  type UseInitialViewModeFromUrlOptions,
-} from "./lib/hooks/useInitialViewModeFromUrl";
+// TODO: useInitialViewModeFromUrl hook not yet implemented
+// export {
+//   useInitialViewModeFromUrl,
+//   type UseInitialViewModeFromUrlOptions,
+// } from "./lib/hooks/useInitialViewModeFromUrl";

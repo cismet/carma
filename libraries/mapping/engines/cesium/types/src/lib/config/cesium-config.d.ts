@@ -29,15 +29,16 @@ export type CesiumConfig = {
 
   // CARMA scene management
   sceneStyle?: SceneStyleConfig; // Single scene style configuration
+  initialStyle?: string; // Initial scene style ID to use on load
 
   // Tileset loading configuration
-  tilesets?: {
-    minInitialTileCount?: number; // Minimum number of tiles to load before considering tileset ready (default: 4)
-  };
+
+  minInitialTilesetTileCount?: number; // Minimum number of tiles to load before considering tileset ready (default: 4)
 
   // Camera/home position (CARMA extensions)
-  initialCamera?: CameraViewOptions; // destination + orientation (HPR)
-  initialCameraLookAt?: CameraLookAtOptions; // DEPRECATED: use initialCamera instead
+  // Priority: cameraInitialPose (URL) → cameraHomePose (config default)
+  cameraHomePose?: CameraViewOptions; // Home position (lon, lat, height) + HeadingPitchRange in degrees
+  cameraInitialPose?: CameraViewOptions; // Initial position (lon, lat, height) + HeadingPitchRoll in degrees - overrides home on init
 
   /* CAMERA
   move to limiter plugin

@@ -20,7 +20,7 @@ export type InitialCesiumPosition = {
 export const useEnsureCesiumInitialized = () => {
   const {
     sceneRef,
-    homeRef,
+    homeCameraRef,
     emit: emitCesiumEvent,
     subscribe,
   } = useCesiumContext();
@@ -42,11 +42,7 @@ export const useEnsureCesiumInitialized = () => {
 
       const { latitude, longitude, orientation } = initialPosition;
 
-      // Set home position for Cesium initialization
-      const target = Cartesian3.fromDegrees(longitude, latitude);
-      homeRef.current = { target, orientation };
-
-      console.debug("[Cesium|Init] Set home position", {
+      console.debug("[Cesium|Init] Initializing at position", {
         latitude,
         longitude,
         heading: orientation.heading,
@@ -71,7 +67,7 @@ export const useEnsureCesiumInitialized = () => {
           });
         }),
         5000,
-        "Cesium initialization timeout"
+        { onTimeoutResolveWith: () => undefined }
       );
 
       // Request initial render
@@ -88,7 +84,7 @@ export const useEnsureCesiumInitialized = () => {
         }
       }
     },
-    [sceneRef, homeRef, emitCesiumEvent, subscribe]
+    [sceneRef, emitCesiumEvent, subscribe]
   );
 
   return { ensureInitialized };

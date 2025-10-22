@@ -1,5 +1,22 @@
-import { HashCodec, HashCodecs } from "../contexts/HashStateProvider";
+import { HashCodec, HashCodecs } from "./HashStateProvider";
 import { mapStyleShortNames, defaultPrecisions } from "../constants";
+
+/**
+ * Generic helper for boolean-like codec mappings
+ * Maps a truthy string value to one state and falsy/absent to another
+ */
+export function createBooleanCodec<T>(
+  truthyValue: string,
+  truthyResult: T,
+  falsyResult: T
+): HashCodec {
+  return {
+    decode: (v: string | undefined) =>
+      v === truthyValue ? truthyResult : falsyResult,
+    encode: (v: unknown) =>
+      typeof v === "string" && v === truthyResult ? truthyValue : undefined,
+  };
+}
 
 const getStringLookupCodec = <T extends string>(
   mapping: Record<T, string>
@@ -45,4 +62,5 @@ export const defaultHashCodecs: HashCodecs = Object.freeze({
   heading: getNumberCodec(defaultPrecisions.heading),
   bearing: getNumberCodec(defaultPrecisions.bearing), // bearing is used by maplibre
   pitch: getNumberCodec(2),
+  engine: createBooleanCodec("1", "cesium3d", "leaflet2d"),
 });

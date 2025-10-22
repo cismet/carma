@@ -24,3 +24,6 @@ export * from "./GroundPolylineGeometry";
 export * from "./Ellipsoid";
 export * from "./OrthographicFrustum";
 export * from "./version";
+export * from "./TileMapServiceImageryProvider";
+export * from "./OpenStreetMapImageryProvider";
+export * from "./SingleTileImageryProvider";

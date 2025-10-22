@@ -68,3 +68,7 @@ export type CesiumContextEventMap = {
 // Helper type aliases bound to the Cesium context event map for ergonomics
 export type SubscribeCesiumCtxFn = SubscribeFnGeneric<CesiumContextEventMap>;
 export type EmitCesiumCtxFn = EmitFnGeneric<CesiumContextEventMap>;
+
+// Re-export generic types for use in other contexts
+export type EmitFn = EmitFnGeneric<CesiumContextEventMap>;
+export type SubscribeFn = SubscribeFnGeneric<CesiumContextEventMap>;

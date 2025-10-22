@@ -19,7 +19,9 @@ import { useSyncCesiumSceneStyle } from "../hooks/useSyncCesiumSceneStyle";
 export const CesiumMapComponentWrapper = () => {
   const cesiumContainerRef = useRef<HTMLDivElement | null>(null);
   const containerStyleRef = useRef<HTMLDivElement | null>(null);
-  const { subscribe, activationCount } = useCesiumContext();
+  const { subscribe } = useCesiumContext();
+  // TODO: activationCount not available in CesiumContextType
+  // const { subscribe, activationCount } = useCesiumContext();
   const { config: transitionConfig } = useTransitionContext();
 
   // Get CSS fade durations from config
@@ -32,10 +34,12 @@ export const CesiumMapComponentWrapper = () => {
   const isSuspendedRef = useRef(true); // Start suspended (2D mode)
 
   // Only render scene component after first activation (when switching to 3D)
-  const shouldMountScene = activationCount > 0;
+  // TODO: activationCount not available - use transitionStateRef instead
+  // const shouldMountScene = activationCount > 0;
+  const shouldMountScene = true; // Temporary: always mount
 
   console.log("[CesiumMapComponentWrapper] Render", {
-    activationCount,
+    // activationCount,
     shouldMountScene,
     hasContainer: !!cesiumContainerRef.current,
   });

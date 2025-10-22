@@ -26,10 +26,10 @@ import {
 
 import {
   MapTransitionState,
+  type TransitionStageTracker,
   type TransitionTo2dConfig,
 } from "./TransitionContext";
-import { runTransitionLifecycleHandlers } from "./transition-lifecycle-helpers";
-import type { TransitionLifecycleRef } from "./transition-lifecycle-helpers";
+import { startStage, endStage } from "./transition-stage-helpers";
 import { getTiledMapCenterZoomEquivalent } from "./get-tiled-map-center-zoom-equivalent";
 
 const MapState = {
@@ -46,10 +46,10 @@ export type TransitionTo2dParams = {
   leafletMapRef: MutableRefObject<LeafletMap | null>;
   sceneRef: MutableRefObject<Scene | null>;
   transitionStateRef: MutableRefObject<string>;
-  transitionLifecycleRef: TransitionLifecycleRef;
+  transitionStageTrackerRef: MutableRefObject<TransitionStageTracker>;
   setLast3dCameraOrientation: (hpr: HeadingPitchRange) => void;
   setLast3dAnimationDuration: (duration: number) => void;
-  config: Required<TransitionTo2dConfig>;
+  config?: TransitionTo2dConfig;
   emitCesiumEvent: EmitCesiumFn;
   emitTopicMapEvent: (event: TopicMapCtxEvent, data: any) => void;
   onComplete?: (isTo2d: boolean) => void;
@@ -61,7 +61,7 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
     leafletMapRef,
     sceneRef,
     transitionStateRef,
-    transitionLifecycleRef,
+    transitionStageTrackerRef,
     setLast3dCameraOrientation,
     setLast3dAnimationDuration,
     config,
@@ -71,7 +71,8 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
     onCancel,
   } = params;
 
-  const { step2_cameraTiltAnimation = {}, step3_cssFadeOut = {} } = config;
+  const { step2_cameraTiltAnimation = {}, step3_cssFadeOut = {} } =
+    config ?? {};
 
   const {
     durationFactorCameraDeviationMs = 1.5,
@@ -100,17 +101,10 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
     logger.info("========== Starting Transition to 2D ==========");
 
     transitionStateRef.current = MapTransitionState.preTransitionTo2d;
-    try {
-      await runTransitionLifecycleHandlers(
-        transitionLifecycleRef,
-        MapTransitionState.preTransitionTo2d
-      );
-    } catch (error) {
-      logger.warn("[CESIUM|2D3D|TO2D] preTransitionTo2d failed", error);
-      // continue with actual transition
-    }
+    startStage(transitionStageTrackerRef, "step1_calculatePosition");
 
     logger.debug("Attempting pick at scene center for ground position");
+    endStage(transitionStageTrackerRef, "step1_calculatePosition");
 
     // Do not transition if we cannot pick ground from depth (ellipsoid-only is not allowed)
     const { scenePosition: groundPos, coordinates: cartographic } =
@@ -218,19 +212,19 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
         const { lat, lng, zoom } = await getTiledMapCenterZoomEquivalent(scene);
         if (!leafletMap) {
           logger.error("[CESIUM|2D3D|TO2D] ✗ Leaflet not available");
-          onCancel(false);
+          onCancel?.(false);
           throw new Error(
             "Transition to 2D cancelled: leaflet not available in onComplete"
           );
         }
         if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
           logger.error("✗ Invalid coordinates");
-          onCancel(false);
+          onCancel?.(false);
           throw new Error("Transition to 2D cancelled: invalid coordinates");
         }
         if (!Number.isFinite(zoom)) {
           logger.error("✗ Invalid zoom");
-          onCancel(false);
+          onCancel?.(false);
           throw new Error("Transition to 2D cancelled: invalid zoom");
         }
 
@@ -243,14 +237,14 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
         logger.debug("✓ Leaflet view set");
       } catch (error) {
         logger.error("✗ Failed to determine center/zoom", error);
-        onCancel(false);
+        onCancel?.(false);
         throw new Error(`Transition to 2D cancelled: ${error}`);
       }
 
       // trigger the visual transition
       // Emit events: TopicMap becomes active, Cesium becomes suspended
       logger.debug("Activating TopicMap, suspending Cesium");
-      emitTopicMapEvent(TopicMapCtxEvent.Activate);
+      emitTopicMapEvent(TopicMapCtxEvent.Activate, undefined);
       emitCesiumEvent(CtxEvent.Suspend, undefined);
       logger.debug("✓ TopicMap activated, Cesium suspended");
 
@@ -260,6 +254,7 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
     };
 
     transitionStateRef.current = MapState.transitionTo2d;
+    startStage(transitionStageTrackerRef, "step2_cameraTiltAnimation");
 
     if (hasGroundPos) {
       logger.debug(
@@ -279,7 +274,7 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
       );
     } else {
       logger.error("✗ No ground position, cannot transition");
-      onCancel(false);
+      onCancel?.(false);
       transitionStateRef.current = MapState.mode3d;
     }
   };

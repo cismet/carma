@@ -5,7 +5,7 @@ import {
   rectangleFromConfig,
 } from "@carma/cesium";
 import type { MutableRefObject } from "react";
-import type { ImageryProviderConfig } from "../types/config/imagery";
+import type { ImageryProviderConfig } from "@carma/cesium/types";
 
 const nativeTileSize = 128;
 

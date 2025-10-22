@@ -15,9 +15,38 @@ export enum MapTransitionState {
   postTransitionTo3d = "postTransitionTo3d",
 }
 
-export type MapTransitionLifecycle = {
-  [MapTransitionState.preTransitionTo2d]?: () => void | Promise<void>;
-  [MapTransitionState.preTransitionTo3d]?: () => void | Promise<void>;
+/**
+ * Stage tracking for transition progress
+ * Records which steps have been completed during a transition
+ */
+export type TransitionStageTracker = {
+  // To3D transition stages
+  step1_prepare2dView?: { startTime: number; endTime?: number; error?: Error };
+  step2_initialRender?: { startTime: number; endTime?: number; error?: Error };
+  step3_waitForResources?: {
+    startTime: number;
+    endTime?: number;
+    error?: Error;
+  };
+  step4_positionCamera?: { startTime: number; endTime?: number; error?: Error };
+  step5_cssFadeIn?: { startTime: number; endTime?: number; error?: Error };
+  step6_cameraAnimation?: {
+    startTime: number;
+    endTime?: number;
+    error?: Error;
+  };
+  // To2D transition stages
+  step1_calculatePosition?: {
+    startTime: number;
+    endTime?: number;
+    error?: Error;
+  };
+  step2_cameraTiltAnimation?: {
+    startTime: number;
+    endTime?: number;
+    error?: Error;
+  };
+  step3_cssFadeOut?: { startTime: number; endTime?: number; error?: Error };
 };
 
 export interface TransitionTo3dConfig {
@@ -68,7 +97,7 @@ export interface TransitionConfig {
 
 export interface TransitionContextType {
   transitionStateRef: MutableRefObject<MapTransitionState>;
-  transitionLifecycleRef: MutableRefObject<MapTransitionLifecycle>;
+  transitionStageTrackerRef: MutableRefObject<TransitionStageTracker>;
   config: Required<TransitionConfig>;
   subscribe: SubscribeTransitionCtxFn;
   emit: EmitTransitionCtxFn;

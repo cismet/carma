@@ -23,7 +23,7 @@ import { SHADER_PRESETS } from "@carma-mapping/engines/cesium/shaders";
 
 interface ModelPlacementUIProps {
   viewerRef: RefObject<Viewer | null>;
-  modelEntityRef: RefObject<Entity | null>;
+  modelEntityRef: RefObject<Model | null>;
   debugPrimitiveRef: RefObject<DebugModelMatrixPrimitive | null>;
   modelConfig: ModelConfig;
   tilesetRef: RefObject<Cesium3DTileset | null>;
@@ -51,19 +51,16 @@ export const ModelPlacementUI = ({
   const updateModelTransform = useCallback(
     (lat: number, lon: number, heading: number) => {
       const currentViewer = viewerRef.current;
-      const modelEntity = modelEntityRef.current;
+      const model = modelEntityRef.current;
       const debugPrimitive = debugPrimitiveRef.current;
 
-      if (currentViewer && modelEntity && debugPrimitive) {
+      if (currentViewer && model && debugPrimitive) {
         // Create new position from lat/long
         const newPosition = Cartesian3.fromDegrees(
           lon,
           lat,
           modelConfig.position.altitude
         );
-
-        // Update model position
-        modelEntity.position = new ConstantPositionProperty(newPosition);
 
         // Create orientation from heading only (pitch=0, roll=0)
         const hpr = new HeadingPitchRoll(
@@ -72,16 +69,14 @@ export const ModelPlacementUI = ({
           0 // roll
         );
 
-        // Update model orientation
-        modelEntity.orientation = new ConstantProperty(
-          Transforms.headingPitchRollQuaternion(newPosition, hpr)
-        );
-
-        // Update debug primitive matrix
+        // Update model matrix for the Model primitive
         const modelMatrix = Transforms.headingPitchRollToFixedFrame(
           newPosition,
           hpr
         );
+        model.modelMatrix = modelMatrix;
+
+        // Update debug primitive matrix
         debugPrimitive.modelMatrix = modelMatrix;
         viewerRef.current.scene.requestRender();
       }

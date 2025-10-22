@@ -8,7 +8,7 @@
     "scope:cesium"
   ],
   "targets": {
-    "build": {
+    "no_build": {
       "executor": "@nx/vite:build",
       "outputs": [
         "{options.outputPath}"

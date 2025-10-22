@@ -13,6 +13,7 @@ import {
   updateHashHistoryState,
   diffHashParams,
 } from "@carma-commons/utils";
+import { createBooleanCodec, defaultHashCodecs } from "./hashState";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useHashChangeEmit } from "../hooks/useHashChangeEmit";
 
@@ -55,23 +56,20 @@ export type HashSubscribeOptions = {
 // Field configuration for hash state management
 export interface HashFieldConfig {
   // The key name in the hash (e.g., 'm' for mapStyle)
-  key: string;
+  hashParamKey: string;
 
-  // Optional: The internal value name (e.g., 'mapStyle' when key is 'm')
-  // If not provided, key is used as valueName
-  valueName?: string;
+  // Optional: The internal property name (e.g., 'mapStyle' when hashParamKey is 'm')
+  // If not provided, hashParamKey is used as propertyName
+  propertyName?: string;
 
   // Optional: Codec for encoding/decoding this field
   codec?: {
     encode?: (value: unknown) => string | undefined;
-    decode?: (value: string) => unknown;
+    decode?: (value: string | undefined) => unknown;
   };
 }
 
-export interface HashStateConfig {
-  // Array of field configurations (order matters for URL)
-  fields: HashFieldConfig[];
-}
+export type HashStateConfig = HashFieldConfig[];
 
 interface HashStateContextType {
   hashParams: Record<string, string>;
@@ -92,48 +90,60 @@ const HashStateContext = createContext<HashStateContextType | undefined>(
   undefined
 );
 
+const defaultHashConfig = Object.entries(defaultHashCodecs).map(
+  ([key, codec]) => ({
+    hashParamKey: key,
+    propertyName: key,
+    codec,
+  })
+);
+
 export const HashStateProvider: React.FC<{
   children: React.ReactNode;
-  config: HashStateConfig;
+  config?: HashStateConfig;
 }> = ({ children, config }) => {
+  config = config ?? defaultHashConfig;
+
   const location = useLocation();
   const navigate = useNavigate();
   const [isInitialized, setIsInitialized] = useState(false);
 
   // Build lookups from config
-  const { keyAliases, aliasReverseLookup, hashCodecs, keyOrder } =
-    useMemo(() => {
-      const aliases: Record<string, string> = {};
-      const reverseAliases: Record<string, string> = {};
-      const codecs: HashCodecs = {};
-      const order: string[] = [];
+  const { keyToValueName, valueNameToKey, codecs } = useMemo(() => {
+    const keyToValueName: Record<string, string> = {};
+    const valueNameToKey: Record<string, string> = {};
+    const codecs: HashCodecs = {};
+    const fieldOrder: string[] = [];
 
-      config.fields.forEach((field) => {
-        const { key, valueName, codec } = field;
-        const name = valueName || key;
+    config.forEach((field) => {
+      const { hashParamKey, propertyName, codec } = field;
+      const name = propertyName || hashParamKey;
 
-        // Build key order
-        order.push(key);
+      // Build field order from config
+      fieldOrder.push(hashParamKey);
 
-        // Build aliases if valueName differs from key
-        if (valueName && valueName !== key) {
-          aliases[name] = key;
-          reverseAliases[key] = name;
-        }
+      // Build mappings if propertyName differs from hashParamKey
+      if (propertyName && propertyName !== hashParamKey) {
+        keyToValueName[hashParamKey] = name;
+        valueNameToKey[name] = hashParamKey;
+      }
 
-        // Build codecs if provided
-        if (codec) {
-          codecs[name] = codec;
-        }
-      });
+      // Build codecs if provided
+      if (codec) {
+        codecs[name] = {
+          encode: codec.encode || ((v) => String(v)),
+          decode: codec.decode || ((v) => v),
+        };
+      }
+    });
 
-      return {
-        keyAliases: aliases,
-        aliasReverseLookup: reverseAliases,
-        hashCodecs: codecs,
-        keyOrder: order,
-      };
-    }, [config]);
+    return {
+      keyToValueName,
+      valueNameToKey,
+      codecs,
+      fieldOrder,
+    };
+  }, [config]);
   const listenersRef = useRef<
     Set<{ listener: (e: HashChangeEvent) => void; opts?: HashSubscribeOptions }>
   >(new Set());
@@ -145,15 +155,13 @@ export const HashStateProvider: React.FC<{
     const params = getHashParams();
     const values: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(params)) {
-      const fullKey = aliasReverseLookup[key] || key;
+      const fullKey = valueNameToKey[key] || key;
       const newValue =
-        hashCodecs && hashCodecs[fullKey]
-          ? hashCodecs[fullKey].decode(value)
-          : value;
+        codecs && codecs[fullKey] ? codecs[fullKey].decode(value) : value;
       values[fullKey] = newValue;
     }
     return values;
-  }, [hashCodecs, aliasReverseLookup]);
+  }, [codecs, valueNameToKey]);
 
   const emit = useCallback((e: HashChangeEvent) => {
     listenersRef.current.forEach(({ listener, opts }) => {
@@ -197,11 +205,11 @@ export const HashStateProvider: React.FC<{
       if (params) {
         for (const [key, value] of Object.entries(params)) {
           const newValue =
-            hashCodecs && hashCodecs[key]
-              ? hashCodecs[key].encode(value)
-              : value;
+            codecs && codecs[key] ? codecs[key].encode(value) : value;
           const newKey =
-            keyAliases && keyAliases[key] !== undefined ? keyAliases[key] : key;
+            keyToValueName && keyToValueName[key] !== undefined
+              ? keyToValueName[key]
+              : key;
 
           if (newValue === undefined) {
             undefinedKeys.push(newKey);
@@ -215,7 +223,6 @@ export const HashStateProvider: React.FC<{
 
       updateHashHistoryState(newParams, location.pathname, {
         removeKeys: clearAndUndefinedKeys,
-        keyOrder,
         label: label || "unspecified",
         replace,
         //navigate,
@@ -224,7 +231,7 @@ export const HashStateProvider: React.FC<{
       const afterRaw = getHashParams();
       const { changedKeys: changedAliasKeys, removedKeys: removedAliasKeys } =
         diffHashParams(beforeRaw, afterRaw);
-      const toOriginal = (k: string) => aliasReverseLookup[k] || k;
+      const toOriginal = (k: string) => valueNameToKey[k] || k;
       const changedKeys = [...new Set(changedAliasKeys.map(toOriginal))];
       const removedKeys = [...new Set(removedAliasKeys.map(toOriginal))];
 
@@ -248,19 +255,19 @@ export const HashStateProvider: React.FC<{
     },
     [
       location.pathname,
-      keyAliases,
-      hashCodecs,
-      keyOrder,
+      keyToValueName,
+      codecs,
+      //fieldOrder,
       emit,
       getHashValues,
-      aliasReverseLookup,
+      valueNameToKey,
     ]
   );
 
   useHashChangeEmit({
     emit: (e) => emit(e as any),
     getHashValues,
-    aliasReverseLookup,
+    valueNameToKey,
     prevRawRef,
   });
 

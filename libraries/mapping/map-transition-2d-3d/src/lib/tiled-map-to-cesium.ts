@@ -4,6 +4,7 @@ import {
   isValidScene,
   guardSampleTerrainMostDetailed,
   HeadingPitchRoll,
+  isValidCesiumTerrainProvider,
 } from "@carma/cesium";
 
 import type { Zoom, SurfaceModelType } from "@carma/types";
@@ -182,44 +183,34 @@ export const tiledMapToCesium = async (
   const queryPosition = Cartographic.fromRadians(lngRad, latRad, 0);
   let terrainElevation = fallbackElevationM;
 
-  if (terrainProvider) {
-    const providerTypeName = terrainProvider.constructor?.name || "unknown";
-    const isRealTerrain = providerTypeName === "CesiumTerrainProvider";
+  if (isValidCesiumTerrainProvider(terrainProvider)) {
+    try {
+      logger.debug(
+        `L2C [2D3D|CESIUM|CAMERA] Sampling terrain at (${latitude.toFixed(
+          6
+        )}, ${longitude.toFixed(6)})...`
+      );
+      const sampledPositions = await guardSampleTerrainMostDetailed(
+        terrainProvider,
+        [queryPosition],
+        false // Don't reject on tile fail
+      );
 
-    if (isRealTerrain) {
-      try {
+      if (sampledPositions && sampledPositions[0]?.height !== undefined) {
+        terrainElevation = sampledPositions[0].height;
         logger.debug(
-          `L2C [2D3D|CESIUM|CAMERA] Sampling terrain at (${latitude.toFixed(
-            6
-          )}, ${longitude.toFixed(6)})...`
+          `L2C [2D3D|CESIUM|CAMERA] ✓ Terrain elevation: ${terrainElevation.toFixed(
+            2
+          )}m`
         );
-        const sampledPositions = await guardSampleTerrainMostDetailed(
-          terrainProvider,
-          [queryPosition],
-          false // Don't reject on tile fail
-        );
-
-        if (sampledPositions && sampledPositions[0]?.height !== undefined) {
-          terrainElevation = sampledPositions[0].height;
-          logger.debug(
-            `L2C [2D3D|CESIUM|CAMERA] ✓ Terrain elevation: ${terrainElevation.toFixed(
-              2
-            )}m`
-          );
-        } else {
-          logger.warn(
-            `[2D3D|CESIUM|CAMERA] ⚠ No terrain sample, using fallback: ${fallbackElevationM}m`
-          );
-        }
-      } catch (error) {
-        logger.warn(
-          `[2D3D|CESIUM|CAMERA] ⚠ Terrain sampling failed, using fallback: ${fallbackElevationM}m`,
-          error
+      } else {
+        logger.debug(
+          `L2C [2D3D|CESIUM|CAMERA] ⚠ No terrain elevation available, using fallback: ${fallbackElevationM}m`
         );
       }
-    } else {
-      logger.debug(
-        `L2C [2D3D|CESIUM|CAMERA] Terrain provider is ${providerTypeName}, using fallback: ${fallbackElevationM}m`
+    } catch (error) {
+      logger.warn(
+        `L2C [2D3D|CESIUM|CAMERA] ⚠ Terrain sampling failed: ${error}. Using fallback: ${fallbackElevationM}m`
       );
     }
   } else {
