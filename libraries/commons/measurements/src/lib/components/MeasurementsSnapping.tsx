@@ -126,136 +126,92 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
           leafletMap.removeLayer(circleMarkerRef.current);
         }
 
-        // Check if MapLibre is available and valid using the ref
-        // If not (e.g., after removing all vector layers), just return early
-        // and let normal Leaflet measurement behavior work without snapping
         const currentMaplibreMap = maplibreMapRef.current;
+        
+        // Get mouse position in lat/lng using Leaflet (always available)
+        const mouseLatLng = leafletMap.mouseEventToLatLng(e.originalEvent);
+        const mousePoint = leafletMap.latLngToContainerPoint(mouseLatLng);
+        
+        const currentRadius = queryRadiusRef.current;
+        const coordinatePoints: SnappingPoint[] = [];
 
-        if (!currentMaplibreMap) {
-          if (setSnappingLatlng) {
-            setSnappingLatlng(null);
-          }
-          return;
-        }
-
-        // Try to access MapLibre methods - if they fail, return early
-        try {
-          if (!currentMaplibreMap.getCanvas || !currentMaplibreMap.getStyle) {
-            if (setSnappingLatlng) {
-              setSnappingLatlng(null);
-            }
-            return;
-          }
-        } catch (error) {
-          // MapLibre is in invalid state
-          if (setSnappingLatlng) {
-            setSnappingLatlng(null);
-          }
-          return;
-        }
-
-        // MapLibre is valid, proceed with snapping logic
-        try {
-          // Check if MapLibre has a valid style - if not, it's in an invalid state
-          const style = currentMaplibreMap.getStyle();
-          if (!style) {
-            // MapLibre style is undefined - return early
-            if (setSnappingLatlng) {
-              setSnappingLatlng(null);
-            }
-            return;
-          }
-
-          const canvas = currentMaplibreMap.getCanvas();
-          const rect = canvas.getBoundingClientRect();
-
-          // Calculate the mouse position relative to the MapLibre canvas
-          const point = {
-            x: e.originalEvent.clientX - rect.left,
-            y: e.originalEvent.clientY - rect.top,
-          };
-
-          const currentRadius = queryRadiusRef.current;
-
-          const bbox = [
-            [point.x - currentRadius, point.y - currentRadius],
-            [point.x + currentRadius, point.y + currentRadius],
-          ];
-
-          // Query features but exclude our highlight layers to avoid feedback loop
-          let features: any[] = [];
+        // 1. Extract from vector features (if MapLibre is available)
+        if (currentMaplibreMap && currentMaplibreMap.getStyle && currentMaplibreMap.getCanvas) {
           try {
+            const style = currentMaplibreMap.getStyle();
             if (style && style.layers) {
-              features = currentMaplibreMap.queryRenderedFeatures(bbox, {
+              const canvas = currentMaplibreMap.getCanvas();
+              const rect = canvas.getBoundingClientRect();
+              const point = {
+                x: e.originalEvent.clientX - rect.left,
+                y: e.originalEvent.clientY - rect.top,
+              };
+
+              const bbox = [
+                [point.x - currentRadius, point.y - currentRadius],
+                [point.x + currentRadius, point.y + currentRadius],
+              ];
+
+              const features = currentMaplibreMap.queryRenderedFeatures(bbox, {
                 layers: style.layers
                   .map((layer: any) => layer.id)
                   .filter((id: string) => !id.startsWith("highlight-")),
               });
+
+              features.forEach((feature: any) => {
+                const points = extractPointsFromGeometry(
+                  feature.geometry,
+                  "vector-features"
+                );
+                coordinatePoints.push(...points);
+              });
             }
           } catch (error) {
-            console.warn("Error querying features:", error);
-            features = [];
+            console.warn("Error extracting vector features:", error);
           }
+        }
 
-          // Always run snapping logic when snapping is enabled, even if no features
-          // This ensures the indicator shows and clicks work normally
-          currentMaplibreMap.getCanvas().style.cursor =
-            features.length > 0 || shapesRef.current.length > 0
-              ? "pointer"
-              : "";
-          const coordinatePoints: SnappingPoint[] = [];
+        // 2. Extract from measurement shapes (independent of MapLibre)
+        shapesRef.current.forEach((shape: any) => {
+          const points = extractPointsFromMeasurementShape(
+            shape,
+            "measurements"
+          );
+          coordinatePoints.push(...points);
+        });
 
-          // Extract points from vector features
-          features.forEach((feature: any) => {
-            const points = extractPointsFromGeometry(
-              feature.geometry,
-              "vector-features"
-            );
-            coordinatePoints.push(...points);
-          });
+        // Filter points to only those within the query radius and calculate distances
+        // Use Leaflet for coordinate projection (works without MapLibre)
+        const filteredPointsWithDistance = coordinatePoints
+          .map((snappingPoint: SnappingPoint) => {
+            const coord = snappingPoint.coordinates;
+            const pointLatLng = L.latLng(coord[1], coord[0]); // [lng, lat] -> L.latLng(lat, lng)
+            const projectedPoint = leafletMap.latLngToContainerPoint(pointLatLng);
 
-          // Extract points from measurement shapes
-          shapesRef.current.forEach((shape: any) => {
-            const points = extractPointsFromMeasurementShape(
-              shape,
-              "measurements"
-            );
-            coordinatePoints.push(...points);
-          });
+            const dx = projectedPoint.x - mousePoint.x;
+            const dy = projectedPoint.y - mousePoint.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
 
-          // Filter points to only those within the circle radius and calculate distances
-          const filteredPointsWithDistance = coordinatePoints
-            .map((snappingPoint: SnappingPoint) => {
-              const coord = snappingPoint.coordinates;
-              const projectedPoint = currentMaplibreMap.project(coord);
+            return { snappingPoint, distance };
+          })
+          .filter((item) => item.distance <= currentRadius);
 
-              const dx = projectedPoint.x - point.x;
-              const dy = projectedPoint.y - point.y;
-              const distance = Math.sqrt(dx * dx + dy * dy);
+        // Find the shortest distance
+        let shortestDistance = Infinity;
+        let shortestIndex = -1;
 
-              return { snappingPoint, distance };
-            })
-            .filter((item) => item.distance <= currentRadius);
+        filteredPointsWithDistance.forEach((item: any, index: number) => {
+          if (item.distance < shortestDistance) {
+            shortestDistance = item.distance;
+            shortestIndex = index;
+          }
+        });
 
-          // Find the shortest distance
-          let shortestDistance = Infinity;
-          let shortestIndex = -1;
+        // Determine snapping point
+        const blackPoint: any[] = [];
+        let isSnapped = false;
 
-          filteredPointsWithDistance.forEach((item: any, index: number) => {
-            if (item.distance < shortestDistance) {
-              shortestDistance = item.distance;
-              shortestIndex = index;
-            }
-          });
-
-          // Get mouse pointer coordinates in lng/lat
-          const mouseLatLng = currentMaplibreMap.unproject([point.x, point.y]);
-
-          // Determine snapping point
-          const blackPoint: any[] = [];
-          let isSnapped = false;
-
-          if (shortestIndex === -1) {
+        if (shortestIndex === -1) {
             // No points found - use mouse pointer but don't show indicator
             blackPoint.push({
               type: "Feature",
@@ -277,46 +233,35 @@ export function MeasurementsSnapping({ maplibreMap }: { maplibreMap: any }) {
               },
               properties: { black: true },
             });
-            isSnapped = true;
-          }
-          closestPoint = blackPoint[0];
+          isSnapped = true;
+        }
+        closestPoint = blackPoint[0];
 
-          const finalLatLng = toLatLngFromClosestPoint(closestPoint);
-          if (finalLatLng && setSnappingLatlng) {
-            setSnappingLatlng(finalLatLng);
-          }
+        const finalLatLng = toLatLngFromClosestPoint(closestPoint);
+        if (finalLatLng && setSnappingLatlng) {
+          setSnappingLatlng(finalLatLng);
+        }
 
-          // Remove old snapping indicator if exists
-          if (snappingIndicatorRef.current) {
-            leafletMap.removeLayer(snappingIndicatorRef.current);
-            snappingIndicatorRef.current = null;
-          }
+        // Remove old snapping indicator if exists
+        if (snappingIndicatorRef.current) {
+          leafletMap.removeLayer(snappingIndicatorRef.current);
+          snappingIndicatorRef.current = null;
+        }
 
-          // Create Leaflet marker for snapping indicator ONLY when snapped
-          // Match the size of measurement handles (8px total = 4px radius)
-          if (finalLatLng && isSnapped) {
-            snappingIndicatorRef.current = L.circleMarker(
-              [finalLatLng.lat, finalLatLng.lng],
-              {
-                radius: 3.5,
-                color: "#000000",
-                fillColor: "#000000",
-                fillOpacity: 0.8,
-                weight: 1,
-                opacity: 0.8,
-              }
-            ).addTo(leafletMap);
-          }
-        } catch (error) {
-          // MapLibre error during snapping - clear state and continue
-          console.warn(
-            "MapLibre error during snapping, falling back to normal mode:",
-            error
-          );
-          closestPoint = null;
-          if (setSnappingLatlng) {
-            setSnappingLatlng(null);
-          }
+        // Create Leaflet marker for snapping indicator ONLY when snapped
+        // Match the size of measurement handles (8px total = 4px radius)
+        if (finalLatLng && isSnapped) {
+          snappingIndicatorRef.current = L.circleMarker(
+            [finalLatLng.lat, finalLatLng.lng],
+            {
+              radius: 3.5,
+              color: "#000000",
+              fillColor: "#000000",
+              fillOpacity: 0.8,
+              weight: 1,
+              opacity: 0.8,
+            }
+          ).addTo(leafletMap);
         }
       };
 
