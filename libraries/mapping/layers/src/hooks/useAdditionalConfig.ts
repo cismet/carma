@@ -151,9 +151,20 @@ export const useAdditionalConfig = ({
   // Process sensor config for sensors
   useEffect(() => {
     if (sensorConfig.length > 0) {
-      const hasSensors = sensorConfig.some(
-        (config) => config.layers && config.layers.length > 0
-      );
+      const hasSensors = sensorConfig.some((config) => {
+        if (!config.layers || config.layers.length === 0) {
+          return false;
+        }
+        // Check if any layers pass the feature flag filter
+        const availableLayers = config.layers.filter((layer) => {
+          if (layer.ff) {
+            const ff = layer.ff as string;
+            return flags[ff];
+          }
+          return true;
+        });
+        return availableLayers.length > 0;
+      });
 
       // Update sidebar elements to enable/disable sensors based on data
       setSidebarElements((prev) =>
