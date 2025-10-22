@@ -82,7 +82,9 @@ const RootComponent = () => {
     const saved = localStorage.getItem("measurements-vector-style");
     if (saved) {
       try {
-        return [JSON.parse(saved)];
+        const parsed = JSON.parse(saved);
+        // Handle both old format (single object) and new format (array)
+        return Array.isArray(parsed) ? parsed : [parsed];
       } catch (e) {
         console.error("Failed to parse saved vector style:", e);
         return [];
@@ -110,14 +112,16 @@ const RootComponent = () => {
               const jsonData = await response.json();
               console.log("JSON content fetched:", jsonData);
 
-              // Save to localStorage
-              localStorage.setItem(
-                "measurements-vector-style",
-                JSON.stringify(jsonData)
-              );
-
-              // Store the JSON object in the array
-              setVectorStylesArray([jsonData]);
+              // Add to existing layers instead of replacing
+              setVectorStylesArray((prev) => {
+                const updatedArray = [...prev, jsonData];
+                // Save updated array to localStorage
+                localStorage.setItem(
+                  "measurements-vector-style",
+                  JSON.stringify(updatedArray)
+                );
+                return updatedArray;
+              });
             } else {
               console.warn("The content is not JSON");
             }
@@ -149,14 +153,16 @@ const RootComponent = () => {
               const jsonData = JSON.parse(processedContent);
               console.log("Parsed JSON from file:", jsonData);
 
-              // Save to localStorage
-              localStorage.setItem(
-                "measurements-vector-style",
-                JSON.stringify(jsonData)
-              );
-
-              // Add the parsed JSON to the vectorStylesArray
-              setVectorStylesArray([jsonData]);
+              // Add to existing layers instead of replacing
+              setVectorStylesArray((prev) => {
+                const updatedArray = [...prev, jsonData];
+                // Save updated array to localStorage
+                localStorage.setItem(
+                  "measurements-vector-style",
+                  JSON.stringify(updatedArray)
+                );
+                return updatedArray;
+              });
             }
           } catch (error) {
             console.error("Failed to parse the file as JSON:", error);
