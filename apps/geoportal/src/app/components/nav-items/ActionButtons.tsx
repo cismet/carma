@@ -37,6 +37,7 @@ import {
 } from "../../store/slices/ui";
 import Print from "../map-print/Print";
 import CustomPopover from "./CustomPopover";
+import ShareContent from "../ShareContent";
 
 const disabledClass = "text-gray-300";
 const disabledImageOpacity = "opacity-20";
@@ -165,7 +166,7 @@ const ActionButtons = () => {
         disabled={!shouldShow2dUI}
       />
       <CustomPopover
-        content={<div>Share content placeholder</div>}
+        content={<ShareContent />}
         icon={faShareNodes}
         testId="teilen-btn"
         tooltip="Teilen"

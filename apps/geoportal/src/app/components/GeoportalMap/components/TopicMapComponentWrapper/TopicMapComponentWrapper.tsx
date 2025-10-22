@@ -62,6 +62,10 @@ import {
   setSecondaryInfoBoxElements,
   setSelectedFeature,
 } from "../../../../store/slices/features.ts";
+import {
+  getPrintError,
+  changePrintError,
+} from "../../../../store/slices/print.ts";
 import { getBackgroundLayers } from "../../../../helper/layer.tsx";
 import { useCreateCismapLayers } from "./hooks/useCreateCismapLayer.ts";
 import { useTopicMapLocationChangedHandler } from "./hooks/useTopicMapLocationChangedHandler.ts";
@@ -96,6 +100,7 @@ export const TopicMapComponentWrapper = ({
   const showHamburgerMenu = useSelector(getShowHamburgerMenu);
   const selectedFeature = useSelector(getSelectedFeature);
   const loadingFeatureInfo = useSelector(getLoading);
+  const printError = useSelector(getPrintError);
   const flags = useFeatureFlags();
   const { isSuspendedRef, leafletMapRef, subscribe } =
     useCarmaTopicMapContext();
@@ -109,6 +114,16 @@ export const TopicMapComponentWrapper = ({
   const getTopicMap = useCallback(() => leafletMapRef.current, [leafletMapRef]);
 
   const layerIdleRef = useRef(layersIdle);
+
+  // Handle print error timeout - clear error after 5 seconds
+  useEffect(() => {
+    if (printError) {
+      const timer = setTimeout(() => {
+        dispatch(changePrintError(null));
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [printError, dispatch]);
 
   const updateLayersIdleState = useCallback(() => {
     if (layerIdleRef.current) {
