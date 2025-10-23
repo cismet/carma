@@ -27,6 +27,7 @@ export function MeasurementsSnapping({
   const snappingEnabledRef = useRef(snappingEnabled);
   const maplibreMapsRef = useRef(maplibreMaps);
   const lastHoveredMarkerRef = useRef<any>(null);
+  const isDraggingVertexRef = useRef(false);
 
   useEffect(() => {
     shapesRef.current = shapes;
@@ -134,6 +135,12 @@ export function MeasurementsSnapping({
       };
 
       const mousemoveHandler = (e: any) => {
+        // Skip snapping indicator during vertex drag if snappingOnUpdate is disabled
+        if (isDraggingVertexRef.current && !config.snappingOnUpdate) {
+          clearBlackPoint();
+          return;
+        }
+        
         // Check zoom level - only work if zoom >= configured minimum
         const currentZoom = leafletMap.getZoom();
         if (currentZoom < config.snappingMinZoom) {
@@ -375,6 +382,8 @@ export function MeasurementsSnapping({
 
       // Phase 4: Show snap indicator during vertex drag
       const vertexDragHandler = (e: any) => {
+        isDraggingVertexRef.current = true;
+        
         if (!snappingEnabledRef.current || !config.snappingOnUpdate) return;
         
         const vertex = e.vertex;
@@ -504,6 +513,8 @@ export function MeasurementsSnapping({
 
       // Phase 4: Snap vertex AFTER drag ends
       const vertexDragEndHandler = (e: any) => {
+        isDraggingVertexRef.current = false;
+        
         if (!snappingEnabledRef.current || !config.snappingOnUpdate) return;
         
         const vertex = e.vertex;
