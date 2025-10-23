@@ -168,3 +168,26 @@ export function triggerCesiumShowErrorPanel(
     console.warn("Failed to trigger showErrorPanel", e);
   }
 }
+
+/**
+ * Detects if an error is a WebGL error that requires scene reinitialization.
+ * 
+ * Common WebGL errors that indicate the scene needs to be recreated:
+ * - INVALID_OPERATION: Operation not allowed in current WebGL state
+ * - INVALID_FRAMEBUFFER_OPERATION: Framebuffer is incomplete
+ * - "deleted object": Attempting to use deleted WebGL resources
+ * - "framebuffer": Generic framebuffer errors
+ * 
+ * @param error - The error to check (can be Error, string, or unknown)
+ * @returns true if the error indicates a WebGL issue requiring scene reinit
+ */
+export function isWebGLErrorRequiringReinit(error: unknown): boolean {
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  
+  return (
+    errorMessage.includes("INVALID_OPERATION") ||
+    errorMessage.includes("INVALID_FRAMEBUFFER_OPERATION") ||
+    errorMessage.includes("deleted object") ||
+    errorMessage.includes("framebuffer")
+  );
+}

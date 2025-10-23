@@ -14,11 +14,20 @@ import type { CesiumConfig } from "@carma-mapping/engines/cesium/types";
 import { convertCameraStateToInternalFormat } from "@carma/cesium";
 import type { CameraStateHeadingPitchRoll } from "@carma/cesium";
 import type { HashStateConfig } from "./HashStateProvider";
-import { SelectionProvider } from "../components/SelectionProvider";
 import { OverlayTourProvider } from "@carma-commons/ui/helper-overlay";
-import { CesiumContextProvider } from "@carma-mapping/engines/cesium/core";
-import { CarmaTopicMapContextProvider } from "@carma-mapping/engines/carma-cismap";
-import { TransitionContextProvider } from "@carma-mapping/map-transition-2d-3d";
+import {
+  CesiumContextProvider,
+  useCesiumContext,
+} from "@carma-mapping/engines/cesium/core";
+import {
+  CarmaTopicMapContextProvider,
+  useCarmaTopicMapContext,
+} from "@carma-mapping/engines/carma-cismap";
+import {
+  TransitionContextProvider,
+  useTransitionContext,
+  TransitionCtxEvent,
+} from "@carma-mapping/map-transition-2d-3d";
 import { LeafletConfig } from "@carma/types";
 
 /**
@@ -121,6 +130,9 @@ export interface PortalConfig {
 
   // Transition configuration for 2D↔3D
   transitionsConfig?: any; // TransitionConfig
+
+  // UI configuration
+  infoBoxPixelWidth?: number; // Default: 350
 
   // App configuration
   appBasePath?: string;
@@ -300,6 +312,78 @@ export const PortalProvider = ({ children, config }: PortalProviderProps) => {
     setIsInitialized(true);
   }, []);
 
+  // Subscribe to transition events to update engine state and emit engine activation/suspension
+  // This centralizes ALL engine availability control close to PortalContext
+  const TransitionEngineSync = () => {
+    const { subscribe } = useTransitionContext();
+    const { emit: emitCesium } = useCesiumContext();
+    const { emit: emitTopicMap } = useCarmaTopicMapContext();
+
+    useEffect(() => {
+      // Import event types dynamically to avoid circular deps
+      const setupListeners = async () => {
+        const { CtxEvent } = await import("@carma-mapping/engines/cesium/core");
+        const { TopicMapCtxEvent } = await import(
+          "@carma-mapping/engines/carma-cismap"
+        );
+
+        const unsubscribeTo3dStart = subscribe(
+          TransitionCtxEvent.TransitionTo3dStart,
+          () => {
+            console.debug(
+              "[PortalProvider] Transition to 3D: Activating Cesium, suspending TopicMap"
+            );
+            // Update UI state
+            setCurrentEngine("cesium3d");
+            
+            // Activate Cesium engine
+            emitCesium(CtxEvent.Activate, {
+              source: "portal-transition",
+              component: "TransitionEngineSync",
+              reason: "2D→3D transition started",
+            });
+            
+            // Suspend TopicMap engine
+            emitTopicMap(TopicMapCtxEvent.Suspend, undefined);
+          }
+        );
+
+        const unsubscribeTo2dStart = subscribe(
+          TransitionCtxEvent.TransitionTo2dStart,
+          () => {
+            console.debug(
+              "[PortalProvider] Transition to 2D: Activating TopicMap, suspending Cesium"
+            );
+            // Update UI state
+            setCurrentEngine("leaflet2d");
+            
+            // Activate TopicMap engine
+            emitTopicMap(TopicMapCtxEvent.Activate, undefined);
+            
+            // Suspend Cesium engine
+            emitCesium(CtxEvent.Suspend, undefined);
+          }
+        );
+
+        return () => {
+          unsubscribeTo3dStart();
+          unsubscribeTo2dStart();
+        };
+      };
+
+      let cleanup: (() => void) | undefined;
+      setupListeners().then((fn) => {
+        cleanup = fn;
+      });
+
+      return () => {
+        cleanup?.();
+      };
+    }, [subscribe, emitCesium, emitTopicMap]);
+
+    return null;
+  };
+
   // Location update handlers (called by hash routing hooks)
   const updateMapPosition = useCallback(
     (position: Partial<MapPosition2D>) => {
@@ -394,24 +478,23 @@ export const PortalProvider = ({ children, config }: PortalProviderProps) => {
     return null;
   }
 
-  const { overlayConfig, transitionsConfig } = config;
+  const { overlayConfig, transitionsConfig, infoBoxPixelWidth = 350 } = config;
 
   return (
     <PortalContext.Provider value={value}>
-      <SelectionProvider>
-        <TransitionContextProvider config={transitionsConfig}>
-          <CarmaTopicMapContextProvider infoBoxPixelWidth={350}>
-            <OverlayTourProvider
-              transparency={overlayConfig?.transparency || 0.7}
-              color={overlayConfig?.color || "#000000"}
-            >
-              <CesiumContextProvider config={mergedCesiumConfig}>
-                {children}
-              </CesiumContextProvider>
-            </OverlayTourProvider>
-          </CarmaTopicMapContextProvider>
-        </TransitionContextProvider>
-      </SelectionProvider>
+      <TransitionContextProvider config={transitionsConfig}>
+        <CarmaTopicMapContextProvider infoBoxPixelWidth={infoBoxPixelWidth}>
+          <OverlayTourProvider
+            transparency={overlayConfig?.transparency || 0.7}
+            color={overlayConfig?.color || "#000000"}
+          >
+            <CesiumContextProvider config={mergedCesiumConfig}>
+              <TransitionEngineSync />
+              {children}
+            </CesiumContextProvider>
+          </OverlayTourProvider>
+        </CarmaTopicMapContextProvider>
+      </TransitionContextProvider>
     </PortalContext.Provider>
   );
 };

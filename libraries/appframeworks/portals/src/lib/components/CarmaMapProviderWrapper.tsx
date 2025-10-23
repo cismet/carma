@@ -6,6 +6,7 @@ import { GazDataProvider } from "./GazDataProvider";
 import { PortalProvider, type PortalConfig } from "../contexts/PortalProvider";
 import { HashStateProvider } from "../contexts/HashStateProvider";
 import { SandboxedEvalProvider } from "./SandboxedEvalProvider";
+import { SelectionProvider } from "./SelectionProvider";
 
 type CarmaMapProviderWrapperProps = {
   children: React.ReactNode;
@@ -33,7 +34,9 @@ export const CarmaMapProviderWrapper = ({
       <AuthProvider>
         <SandboxedEvalProvider>
           <GazDataProvider config={gazDataConfig}>
-            <PortalProvider config={portalConfig}>{children}</PortalProvider>
+            <SelectionProvider>
+              <PortalProvider config={portalConfig}>{children}</PortalProvider>
+            </SelectionProvider>
           </GazDataProvider>
         </SandboxedEvalProvider>
       </AuthProvider>

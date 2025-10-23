@@ -1,4 +1,4 @@
-import { useMemo, useRef, type ReactNode } from "react";
+import { useMemo, useRef, useEffect, type ReactNode } from "react";
 import { createEventBus } from "@carma/providers/event-bus";
 
 import {
@@ -9,6 +9,7 @@ import {
   type TransitionConfig,
 } from "./TransitionContext";
 import type { TransitionContextEventMap } from "./transition-context-event-map";
+import { TransitionCtxEvent } from "./transition-context-event-map";
 
 const DEFAULT_TRANSITION_CONFIG: Required<TransitionConfig> = {
   modeTo3d: {
@@ -134,6 +135,70 @@ export const TransitionContextProvider = ({
     }),
     [mergedConfig, subscribe, emit]
   );
+
+  // Watch for transition state changes and emit completion events
+  useEffect(() => {
+    const checkInterval = setInterval(() => {
+      const currentState = transitionStateRef.current;
+      
+      // Emit events when entering final states
+      if (currentState === MapTransitionState.mode3d) {
+        const tracker = transitionStageTrackerRef.current;
+        // Check if we just completed a transition (has transition stages)
+        if (tracker.step6_cameraAnimation?.endTime) {
+          console.debug("[TransitionContextProvider] Emitting TransitionTo3dComplete");
+          emit(TransitionCtxEvent.TransitionTo3dComplete, undefined);
+          // Clear tracker to avoid re-emitting
+          transitionStageTrackerRef.current = {};
+        }
+      } else if (currentState === MapTransitionState.mode2d) {
+        const tracker = transitionStageTrackerRef.current;
+        // Check if we just completed a transition (has transition stages)
+        if (tracker.step2_cameraTiltAnimation?.endTime) {
+          console.debug("[TransitionContextProvider] Emitting TransitionTo2dComplete");
+          emit(TransitionCtxEvent.TransitionTo2dComplete, undefined);
+          // Clear tracker to avoid re-emitting
+          transitionStageTrackerRef.current = {};
+        }
+      }
+    }, 100); // Check every 100ms
+
+    return () => clearInterval(checkInterval);
+  }, [emit]);
+
+  // Watch for engine switching events based on transition state changes
+  useEffect(() => {
+    let lastState = transitionStateRef.current;
+
+    const checkInterval = setInterval(() => {
+      const currentState = transitionStateRef.current;
+      
+      if (currentState === lastState) {
+        return; // No change
+      }
+
+      console.debug(
+        `[TransitionContextProvider] State change: ${lastState} → ${currentState}`
+      );
+
+      // Emit engine switching events when entering transition states
+      if (currentState === MapTransitionState.transitionTo3d) {
+        console.debug(
+          "[TransitionContextProvider] Switching engines: Cesium active, TopicMap suspended"
+        );
+        emit(TransitionCtxEvent.TransitionTo3dStart, undefined);
+      } else if (currentState === MapTransitionState.transitionTo2d) {
+        console.debug(
+          "[TransitionContextProvider] Switching engines: TopicMap active, Cesium suspended"
+        );
+        emit(TransitionCtxEvent.TransitionTo2dStart, undefined);
+      }
+
+      lastState = currentState;
+    }, 50); // Check every 50ms for responsive engine switching
+
+    return () => clearInterval(checkInterval);
+  }, [emit]);
 
   console.debug("[TransitionContextProvider] Rendered", contextValue);
 

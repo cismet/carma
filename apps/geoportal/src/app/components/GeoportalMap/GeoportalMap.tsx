@@ -182,6 +182,7 @@ export const GeoportalMap = () => {
           {/* adds padding for topnavbar*/}
           <GeoportalControls
             isMode2d={isMode2d}
+            currentEngine={currentEngine}
             allow3d={allow3d}
             showLibreMap={showLibreMap}
             libreMapRef={libreMapRef}

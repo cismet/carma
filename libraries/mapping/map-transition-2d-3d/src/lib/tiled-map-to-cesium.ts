@@ -1,11 +1,4 @@
-import {
-  Cartographic,
-  Scene,
-  isValidScene,
-  guardSampleTerrainMostDetailed,
-  HeadingPitchRoll,
-  isValidCesiumTerrainProvider,
-} from "@carma/cesium";
+import type { Scene } from "@carma/cesium";
 
 import type { Zoom, SurfaceModelType } from "@carma/types";
 import type { LatLng } from "@carma/geo/types";
@@ -55,6 +48,15 @@ export const tiledMapToCesium = async (
   resolutionScale: number,
   options: TransitionOptions
 ): Promise<boolean> => {
+  // Dynamic import of Cesium runtime functions to comply with lazy-loading
+  const {
+    isValidScene,
+    guardSampleTerrainMostDetailed,
+    isValidCesiumTerrainProvider,
+    Cartographic,
+    HeadingPitchRoll,
+  } = await import("@carma/cesium");
+
   if (!isValidScene(scene)) {
     logger.error("Invalid scene provided");
     return false;

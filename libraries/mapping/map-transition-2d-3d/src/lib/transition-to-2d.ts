@@ -1,21 +1,16 @@
 import type { MutableRefObject } from "react";
 import type { Map as LeafletMap } from "leaflet";
-import {
+import type {
   Cartesian3,
   Cartographic,
   HeadingPitchRange,
-  defined,
-  isValidScene,
-  isValidCamera,
-  type Scene,
+  Scene,
 } from "@carma/cesium";
 
-import { normalizeOptions, Logger } from "@carma-commons/utils";
+import { Logger } from "@carma-commons/utils";
 
 const logger = new Logger("Transition:2D");
 
-import type { TopicMapCtxEvent } from "@carma-mapping/engines/carma-cismap";
-import type { EmitFn as EmitCesiumFn } from "@carma-mapping/engines/cesium/core";
 import {
   animateInterpolateHeadingPitchRange,
   getCameraHeightAboveGround,
@@ -50,8 +45,6 @@ export type TransitionTo2dParams = {
   setLast3dCameraOrientation: (hpr: HeadingPitchRange) => void;
   setLast3dAnimationDuration: (duration: number) => void;
   config?: TransitionTo2dConfig;
-  emitCesiumEvent: EmitCesiumFn;
-  emitTopicMapEvent: (event: TopicMapCtxEvent, data: any) => void;
   onComplete?: (isTo2d: boolean) => void;
   onCancel?: (isTo2D: boolean) => void;
 };
@@ -65,14 +58,11 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
     setLast3dCameraOrientation,
     setLast3dAnimationDuration,
     config,
-    emitCesiumEvent,
-    emitTopicMapEvent,
     onComplete,
     onCancel,
   } = params;
 
-  const { step2_cameraTiltAnimation = {}, step3_cssFadeOut = {} } =
-    config ?? {};
+  const { step2_cameraTiltAnimation = {} } = config ?? {};
 
   const {
     durationFactorCameraDeviationMs = 1.5,
@@ -80,12 +70,16 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
     maxDurationMs: maxDurationTo2dMs = 2000,
   } = step2_cameraTiltAnimation;
 
-  const { durationMs: cssFadeOutDurationMs = 1000 } = step3_cssFadeOut;
+  return async () => {
+    // Dynamic import of Cesium types to comply with lazy-loading
+    const {
+      Cartesian3,
+      HeadingPitchRange,
+      defined,
+      isValidScene,
+      isValidCamera,
+    } = await import("@carma/cesium");
 
-  return async (
-    CtxEvent: typeof import("@carma-mapping/engines/cesium/core").CtxEvent,
-    TopicMapCtxEvent: typeof import("@carma-mapping/engines/carma-cismap").TopicMapCtxEvent
-  ) => {
     const leafletMap = leafletMapRef.current;
     if (!leafletMap) {
       logger.warn("leaflet not available no transition possible [zoom]");
@@ -241,12 +235,10 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
         throw new Error(`Transition to 2D cancelled: ${error}`);
       }
 
-      // trigger the visual transition
-      // Emit events: TopicMap becomes active, Cesium becomes suspended
-      logger.debug("Activating TopicMap, suspending Cesium");
-      emitTopicMapEvent(TopicMapCtxEvent.Activate, undefined);
-      emitCesiumEvent(CtxEvent.Suspend, undefined);
-      logger.debug("✓ TopicMap activated, Cesium suspended");
+      // NOTE: Engine switching (TopicMap activate, Cesium suspend) is now handled
+      // by TransitionContextProvider watching the transitionStateRef
+      // This keeps transition logic clean and centralized
+      logger.debug("✓ Transition to 2D complete");
 
       transitionStateRef.current = MapState.mode2d;
       logger.info("========== Transition to 2D Complete ===========");

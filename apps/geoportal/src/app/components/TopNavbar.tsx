@@ -21,7 +21,8 @@ import { Button, Radio, type RadioChangeEvent, Tooltip } from "antd";
 
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
-import { MapStyleKeys } from "@carma-appframeworks/portals";
+import { MapStyleKeys, usePortal } from "@carma-appframeworks/portals";
+import { EngineAvailability, isFeatureDisabled } from "../utils/mapEngineAvailability";
 import { geoElements } from "@carma-collab/wuppertal/geoportal";
 // import { useFeatureFlags } from "@carma/providers/feature-flag"; // Oblique mode disabled
 // import { obliqueEventBus } from "../utils/obliqueState"; // Oblique mode disabled
@@ -38,7 +39,7 @@ import {
   getSelectedMapLayer,
   setSelectedLayerIndex,
 } from "../store/slices/mapping";
-import { getZenMode, getUIIsMode2d } from "../store/slices/ui";
+import { getZenMode } from "../store/slices/ui";
 
 import { useMapStyle } from "../hooks/useGeoportalMapStyle";
 
@@ -62,7 +63,7 @@ const TopNavbar = () => {
 
   // const flags = useFeatureFlags(); // Oblique mode disabled
   // const [isObliqueActive, setIsObliqueActive] = useState(false); // Oblique mode disabled
-  const shouldShow2dUI = useSelector(getUIIsMode2d);
+  const { currentEngine } = usePortal();
 
   // Track oblique mode state for button appearance
   // useEffect(() => {
@@ -227,7 +228,7 @@ const TopNavbar = () => {
               >
                 <Tooltip
                   title={
-                    shouldShow2dUI
+                    currentEngine === "leaflet2d"
                       ? selectedMapLayer.title
                       : "LoD2-Gebäude (NRW)"
                   }
@@ -241,7 +242,7 @@ const TopNavbar = () => {
                 </Tooltip>
                 <Tooltip
                   title={
-                    shouldShow2dUI
+                    currentEngine === "leaflet2d"
                       ? selectedLuftbildLayer.title
                       : "3D-Mesh 03/24"
                   }
@@ -257,7 +258,7 @@ const TopNavbar = () => {
                   <Radio.Button
                     className="select-none"
                     value="openBaseLayerView"
-                    disabled={!shouldShow2dUI}
+                    disabled={isFeatureDisabled(currentEngine, EngineAvailability.LEAFLET_2D)}
                   >
                     <FontAwesomeIcon
                       id="openBaseLayerView"

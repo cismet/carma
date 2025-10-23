@@ -6,10 +6,7 @@ import { metersPerPixelAtLatitudeRad } from "@carma/geo/utils";
 import { degToRad } from "@carma/geo/helpers";
 import type { Radians, Degrees } from "@carma/geo/types";
 
-import {
-  useCarmaTopicMapContext,
-  TopicMapCtxEvent,
-} from "@carma-mapping/engines/carma-cismap";
+import { useCarmaTopicMapContext } from "@carma-mapping/engines/carma-cismap";
 
 // Import from cesium engine
 import {
@@ -91,7 +88,7 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
 
   const { onComplete, onCancel } = options;
 
-  const { leafletMapRef, emit: emitTopicMapEvent } = useCarmaTopicMapContext();
+  const { leafletMapRef } = useCarmaTopicMapContext();
   const { transitionStateRef, transitionStageTrackerRef } =
     useTransitionContext();
   const {
@@ -118,7 +115,6 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
       last3dAnimationDuration,
       config: contextConfig.modeTo3d,
       emitCesiumEvent,
-      emitTopicMapEvent,
       subscribe,
       onComplete,
       onCancel,
@@ -133,7 +129,6 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
       last3dAnimationDuration,
       contextConfig.modeTo3d,
       emitCesiumEvent,
-      emitTopicMapEvent,
       subscribe,
       onComplete,
       onCancel,
@@ -149,8 +144,6 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
       setLast3dCameraOrientation,
       setLast3dAnimationDuration,
       config: contextConfig.modeTo2d,
-      emitCesiumEvent,
-      emitTopicMapEvent,
       onComplete,
       onCancel,
     }),
@@ -160,8 +153,6 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
       transitionStateRef,
       transitionStageTrackerRef,
       contextConfig.modeTo2d,
-      emitCesiumEvent,
-      emitTopicMapEvent,
       onComplete,
       onCancel,
     ]
@@ -183,11 +174,11 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
     }
 
     // Now transition (scene guaranteed ready with terrain loaded)
-    return transitionTo3dFactory(CtxEvent, TopicMapCtxEvent);
+    return transitionTo3dFactory(CtxEvent);
   }, [leafletMapRef, ensureInitialized, transitionTo3dFactory]);
 
   const transitionToMode2d = useCallback(() => {
-    return transitionTo2dFactory(CtxEvent, TopicMapCtxEvent);
+    return transitionTo2dFactory();
   }, [transitionTo2dFactory]);
   return { transitionToMode2d, transitionToMode3d };
 };

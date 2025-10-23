@@ -33,8 +33,10 @@ import {
   SelectionMetaData,
   SelectionMapMode,
   type SelectionItem,
+  type MapEngine,
 } from "@carma-appframeworks/portals";
 import { isAreaType } from "@carma/resources";
+import { EngineAvailability, isFeatureDisabled } from "../../utils/mapEngineAvailability";
 
 import LayerWrapper from "../layers/LayerWrapper.tsx";
 import { useTourRefCollabLabels } from "../../hooks/useTourRefCollabLabels.ts";
@@ -53,6 +55,7 @@ import { getUIMode, toggleUIMode, UIMode } from "../../store/slices/ui.ts";
 
 interface GeoportalControlsProps {
   isMode2d: boolean;
+  currentEngine: MapEngine;
   allow3d: boolean;
   showLibreMap: boolean;
   libreMapRef: MutableRefObject<MaplibreMap | null>;
@@ -66,6 +69,7 @@ interface GeoportalControlsProps {
 
 export const GeoportalControls = ({
   isMode2d,
+  currentEngine,
   allow3d,
   showLibreMap,
   libreMapRef,
@@ -201,7 +205,7 @@ export const GeoportalControls = ({
       <MeasurementControl
         position="topleft"
         order={60}
-        disabled={!isMode2d || (isMode2d && showLibreMap)}
+        disabled={isFeatureDisabled(currentEngine, EngineAvailability.LEAFLET_2D) || (isMode2d && showLibreMap)}
         useDisabledStyle={isMode2d && showLibreMap}
         tooltip={
           !isMode2d
@@ -223,8 +227,8 @@ export const GeoportalControls = ({
           placement="right"
         >
           <ControlButtonStyler
-            disabled={!isMode2d}
-            useDisabledStyle={!isMode2d}
+            disabled={isFeatureDisabled(currentEngine, EngineAvailability.LEAFLET_2D)}
+            useDisabledStyle={isFeatureDisabled(currentEngine, EngineAvailability.LEAFLET_2D)}
             onClick={handleFeatureInfoClick}
             className="font-semibold"
             ref={tourRefLabels.featureInfo}

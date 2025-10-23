@@ -8,12 +8,12 @@ import type { Longitude, Latitude } from "@carma/geo/types";
 import { waitForAnimationFrames } from "@carma-commons/dom/window";
 import { LeafletMapEventNames } from "@carma-mapping/engines/leaflet";
 
-import type { TopicMapCtxEvent } from "@carma-mapping/engines/carma-cismap";
 import {
   EmitFn as EmitCesiumFn,
   SubscribeFn as SubscribeCesiumFn,
   animateInterpolateHeadingPitchRange,
   pickSceneCenter,
+  isWebGLErrorRequiringReinit,
 } from "@carma-mapping/engines/cesium/core";
 import type { HeadingPitchRange } from "@carma/cesium";
 
@@ -40,7 +40,6 @@ export type TransitionTo3dParams = {
   last3dAnimationDuration: number;
   config?: TransitionTo3dConfig;
   emitCesiumEvent: EmitCesiumFn;
-  emitTopicMapEvent: (event: TopicMapCtxEvent, data: any) => void;
   subscribe: SubscribeCesiumFn;
   onComplete?: (isTo2d: boolean) => void;
   onCancel?: (isTo2D: boolean) => void;
@@ -57,7 +56,6 @@ export const createTransitionTo3d = (params: TransitionTo3dParams) => {
     last3dAnimationDuration,
     config,
     emitCesiumEvent,
-    emitTopicMapEvent,
     subscribe,
     onComplete,
     onCancel,
@@ -132,8 +130,7 @@ export const createTransitionTo3d = (params: TransitionTo3dParams) => {
   };
 
   return async (
-    CtxEvent: typeof import("@carma-mapping/engines/cesium/core").CtxEvent,
-    TopicMapCtxEvent: typeof import("@carma-mapping/engines/carma-cismap").TopicMapCtxEvent
+    CtxEvent: typeof import("@carma-mapping/engines/cesium/core").CtxEvent
   ) => {
     const leafletMap = leafletMapRef.current;
     const scene = sceneRef.current;
@@ -262,27 +259,12 @@ export const createTransitionTo3d = (params: TransitionTo3dParams) => {
     startStage(transitionStageTrackerRef, "step1_prepare2dView");
 
     console.log(
-      "[CESIUM|2D3D|TO3D] ========== STEP 1: Activating Cesium =========="
+      "[CESIUM|2D3D|TO3D] ========== STEP 1: Starting Transition =========="
     );
-    // Emit events FIRST: Cesium becomes active, TopicMap becomes suspended
-    // This triggers tileset loading
-    // Pass current 2D position as initialPose to update camera state ref
-    // initialPose expects degrees - will be converted to radians by activation listener
-    emitCesiumEvent(CtxEvent.Activate, {
-      source: "transition-to-3d",
-      component: "MapModeToggle",
-      reason: "User toggled 2D→3D",
-      initialPose: {
-        latitude, // degrees
-        longitude, // degrees
-        altitude: 0, // Will be calculated from zoom
-        heading: 0, // degrees (north)
-        pitch: -90, // degrees (looking down)
-        roll: 0, // degrees
-      },
-    });
-    emitTopicMapEvent(TopicMapCtxEvent.Suspend, undefined);
-    console.log("[CESIUM|2D3D|TO3D] ✓ Cesium activated, TopicMap suspended");
+    // NOTE: Engine activation (Cesium activate, TopicMap suspend) is now handled
+    // by TransitionContextProvider watching the transitionStateRef
+    // This keeps transition logic clean and centralized
+    console.log("[CESIUM|2D3D|TO3D] ✓ Transition state set");
     endStage(transitionStageTrackerRef, "step1_prepare2dView");
 
     console.log(
@@ -384,15 +366,7 @@ export const createTransitionTo3d = (params: TransitionTo3dParams) => {
       console.error("[CESIUM|2D3D|TO3D] ✗ Camera positioning failed:", error);
 
       // Check if it's a WebGL error that requires scene reinit
-      const errorMessage =
-        error instanceof Error ? error.message : String(error);
-      const isWebGLError =
-        errorMessage.includes("INVALID_OPERATION") ||
-        errorMessage.includes("INVALID_FRAMEBUFFER_OPERATION") ||
-        errorMessage.includes("deleted object") ||
-        errorMessage.includes("framebuffer");
-
-      if (isWebGLError) {
+      if (isWebGLErrorRequiringReinit(error)) {
         console.warn(
           "[CESIUM|2D3D|TO3D] ⚠ WebGL error detected - requesting scene reinit"
         );
