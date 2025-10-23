@@ -4,6 +4,7 @@ import SecondaryInfoPanelSection from "react-cismap/topicmaps/SecondaryInfoPanel
 import SecondaryInfo from "react-cismap/topicmaps/SecondaryInfo";
 import Footer from "./Footer";
 import { getWegeartIcon } from "../helper/iconFactory";
+import versionData from "../../version.json";
 import { Button, Descriptions } from "antd";
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -11,6 +12,8 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import ElevationChart from "./ElevationChart";
 import Verlauf from "./Verlauf";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+import { SecondaryInfoFooter } from "@carma-collab/wuppertal/klimaorte";
+import { getApplicationVersion } from "@carma-commons/utils";
 
 const productionMode = process.env.NODE_ENV === "production";
 
@@ -133,7 +136,9 @@ const InfoPanel = () => {
           )}
         </div>
       }
-      footer={<Footer />}
+      footer={
+        <SecondaryInfoFooter version={getApplicationVersion(versionData)} />
+      }
       subSections={subsections}
     />
   );
