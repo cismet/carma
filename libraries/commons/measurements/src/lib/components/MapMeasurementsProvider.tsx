@@ -122,6 +122,24 @@ export const MapMeasurementsProvider = ({
   const [currentDrawHandler, setCurrentDrawHandler] = useState<any>(null);
   const [status, setStatus] = useState<MeasurementMapStatus>("INACTIVE");
 
+  // Update status when mode changes
+  useEffect(() => {
+    if (mode === MEASUREMENT_MODE.MEASUREMENT) {
+      setStatus("WAITING");
+    } else {
+      setStatus("INACTIVE");
+    }
+  }, [mode]);
+
+  // Update status when drawing starts/ends
+  useEffect(() => {
+    if (drawingShape) {
+      setStatus("DRAWING");
+    } else if (mode === MEASUREMENT_MODE.MEASUREMENT) {
+      setStatus("WAITING");
+    }
+  }, [drawingShape, mode]);
+
   useEffect(() => {
     setFromLocalforage(mergedConfig.localStorageKey, setShapes, []);
   }, []);

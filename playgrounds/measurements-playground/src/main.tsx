@@ -48,6 +48,8 @@ const MeasurementsProviderWrapper = ({
     snappingEnabled: snappingEnabled,
     snappingOnUpdate: false,
     debugOutputMapStatus: true,
+    localStorageKey: "@MEASUREMENT_PLAYGROUNDY.app.measurements",
+
     // infoBoxHeaderColor: "#22c55e",
   };
 
