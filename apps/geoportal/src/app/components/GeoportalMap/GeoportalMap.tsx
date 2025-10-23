@@ -41,6 +41,7 @@ import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from 
 
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import type { FeatureInfo } from "@carma/types";
+import { Measurements } from "@carma-commons/measurements";
 
 import {
   useOverlayHelper,
@@ -617,6 +618,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
             leafletMap: routedMap?.leafletMap?.leafletElement,
           })}
           <PrintPreview />
+          <Measurements />
         </TopicMapComponent>
       </div>
       {allow3d && cesiumInitialCameraView !== null && (

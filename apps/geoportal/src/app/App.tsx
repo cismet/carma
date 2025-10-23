@@ -25,7 +25,6 @@ import {
 import { useCesiumDevConsoleTrigger } from "@carma-mapping/engines/cesium";
 import {
   MapMeasurementsProvider,
-  MapMeasurementsObjects,
   MEASUREMENT_MODE,
 } from "@carma-commons/measurements";
 
@@ -102,6 +101,15 @@ function App({ published }: { published?: boolean }) {
     return null;
   }
 
+  const measurementsConfig = {
+    // Only override what you want to change
+    editableTitle: true,
+    snappingEnabled: true,
+    snappingOnUpdate: false,
+    // infoBoxHeaderColor: "#22c55e",
+    localStorageKey: "@" + APP_KEY + ".app.measurements",
+  };
+
   const content = (
     <FeatureFlagProvider
       config={{ ...featureFlagConfig, ...customFeatureFlags }}
@@ -123,9 +131,7 @@ function App({ published }: { published?: boolean }) {
               <MapMeasurementsProvider
                 externalMode={mode}
                 setModeExternal={handleSetMode}
-                config={{
-                  localStorageKey: "@" + APP_KEY + ".app.measurements",
-                }}
+                config={measurementsConfig}
               >
                 <ErrorBoundary FallbackComponent={AppErrorFallback}>
                   <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
@@ -139,7 +145,6 @@ function App({ published }: { published?: boolean }) {
                       </div>
                     )}
                     {!published && <TopNavbar />}
-                    <MapMeasurementsObjects />
                     <MapWrapper />
                     <MobileWarningMessage
                       headerText={mobileInfo.headerText}

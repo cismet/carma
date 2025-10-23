@@ -28,6 +28,8 @@ export function MeasurementsSnapping({
   const maplibreMapsRef = useRef(maplibreMaps);
   const lastHoveredMarkerRef = useRef<any>(null);
   const isDraggingVertexRef = useRef(false);
+  const currentDrawHandlerRef = useRef(currentDrawHandler);
+  const lastSnappedCoordRef = useRef<[number, number] | null>(null);
 
   useEffect(() => {
     shapesRef.current = shapes;
@@ -44,6 +46,10 @@ export function MeasurementsSnapping({
   useEffect(() => {
     maplibreMapsRef.current = maplibreMaps;
   }, [maplibreMaps]);
+
+  useEffect(() => {
+    currentDrawHandlerRef.current = currentDrawHandler;
+  }, [currentDrawHandler]);
 
   useEffect(() => {
     const leafletMap = routedMapRef?.leafletMap?.leafletElement;
@@ -220,12 +226,13 @@ export function MeasurementsSnapping({
         });
 
         // 3. Extract from in-progress drawing (if currently drawing)
+        const currentDrawHandlerValue = currentDrawHandlerRef.current;
         if (
-          currentDrawHandler &&
-          currentDrawHandler._poly &&
-          currentDrawHandler._poly._latlngs
+          currentDrawHandlerValue &&
+          currentDrawHandlerValue._poly &&
+          currentDrawHandlerValue._poly._latlngs
         ) {
-          const drawingLatLngs = currentDrawHandler._poly._latlngs;
+          const drawingLatLngs = currentDrawHandlerValue._poly._latlngs;
           drawingLatLngs.forEach((latlng: any) => {
             coordinatePoints.push({
               coordinates: [latlng.lng, latlng.lat],
@@ -302,8 +309,8 @@ export function MeasurementsSnapping({
 
         // Trigger vertex marker hover for tooltip/area preview (Phase 3)
         // Check if we snapped to the first vertex of in-progress drawing
-        if (isSnapped && currentDrawHandler && currentDrawHandler._markers && shortestIndex !== -1) {
-          const latlngs = currentDrawHandler._poly?._latlngs;
+        if (isSnapped && currentDrawHandlerValue && currentDrawHandlerValue._markers && shortestIndex !== -1) {
+          const latlngs = currentDrawHandlerValue._poly?._latlngs;
           if (latlngs && latlngs.length >= 3) {
             const firstVertex = latlngs[0];
             const snappedItem = filteredPointsWithDistance[shortestIndex];
@@ -317,7 +324,7 @@ export function MeasurementsSnapping({
               Math.abs(snappedCoord[0] - firstVertex.lng) < threshold
             ) {
               // Fire mouseover on first vertex marker to show area preview
-              const firstMarker = currentDrawHandler._markers[0];
+              const firstMarker = currentDrawHandlerValue._markers[0];
               if (firstMarker && lastHoveredMarkerRef.current !== firstMarker) {
                 lastHoveredMarkerRef.current = firstMarker;
                 firstMarker.fire("mouseover", { target: firstMarker });
@@ -342,26 +349,40 @@ export function MeasurementsSnapping({
           }
         }
 
-        // Remove old snapping indicator if exists
-        if (snappingIndicatorRef.current) {
-          leafletMap.removeLayer(snappingIndicatorRef.current);
-          snappingIndicatorRef.current = null;
-        }
+        // Only update indicator if snap position changed
+        const currentCoord: [number, number] | null = finalLatLng && isSnapped 
+          ? [finalLatLng.lng, finalLatLng.lat] 
+          : null;
+        
+        const lastCoord = lastSnappedCoordRef.current;
+        const coordChanged = !lastCoord || !currentCoord ||
+          Math.abs(lastCoord[0] - currentCoord[0]) > 0.00001 ||
+          Math.abs(lastCoord[1] - currentCoord[1]) > 0.00001;
 
-        // Create Leaflet marker for snapping indicator ONLY when snapped
-        // Match the size of measurement handles (8px total = 4px radius)
-        if (finalLatLng && isSnapped) {
-          snappingIndicatorRef.current = L.circleMarker(
-            [finalLatLng.lat, finalLatLng.lng],
-            {
-              radius: 3.5,
-              color: "#000000",
-              fillColor: "#000000",
-              fillOpacity: 0.8,
-              weight: 1,
-              opacity: 0.8,
-            }
-          ).addTo(leafletMap);
+        if (coordChanged) {
+          // Remove old snapping indicator if exists
+          if (snappingIndicatorRef.current) {
+            leafletMap.removeLayer(snappingIndicatorRef.current);
+            snappingIndicatorRef.current = null;
+          }
+
+          // Create Leaflet marker for snapping indicator ONLY when snapped
+          // Match the size of measurement handles (8px total = 4px radius)
+          if (finalLatLng && isSnapped) {
+            snappingIndicatorRef.current = L.circleMarker(
+              [finalLatLng.lat, finalLatLng.lng],
+              {
+                radius: 3.5,
+                color: "#000000",
+                fillColor: "#000000",
+                fillOpacity: 0.8,
+                weight: 1,
+                opacity: 0.8,
+              }
+            ).addTo(leafletMap);
+          }
+          
+          lastSnappedCoordRef.current = currentCoord;
         }
       };
 
@@ -644,7 +665,7 @@ export function MeasurementsSnapping({
             closestPoint,
             "mouseup",
             leafletMap,
-            currentDrawHandler
+            currentDrawHandlerRef.current
           );
         }
       };
@@ -675,11 +696,9 @@ export function MeasurementsSnapping({
     }
   }, [
     routedMapRef,
-    maplibreMaps,
     snappingEnabled,
     config.snappingMinZoom,
     setSnappingLatlng,
-    currentDrawHandler,
   ]);
   return null;
 }
