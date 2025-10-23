@@ -11,6 +11,7 @@ export enum CtxEvent {
   AnimationEnd = "AnimationEnd",
   GoHome = "GoHome",
   SceneReady = "SceneReady",
+  TerrainReady = "TerrainReady", // First terrain provider loaded and active
   SceneResourcesReady = "SceneResourcesReady",
   ReinitScene = "ReinitScene", // Reinitialize scene after WebGL error
   SuspendSSCC = "SuspendSSCC",
@@ -53,6 +54,7 @@ export type CesiumContextEventMap = {
   [CtxEvent.AnimationStart]: void;
   [CtxEvent.AnimationEnd]: void;
   [CtxEvent.SceneReady]: void;
+  [CtxEvent.TerrainReady]: { id: string };
   [CtxEvent.SceneResourcesReady]: void;
   [CtxEvent.ReinitScene]: { reason: string };
   [CtxEvent.SuspendSSCC]: void;

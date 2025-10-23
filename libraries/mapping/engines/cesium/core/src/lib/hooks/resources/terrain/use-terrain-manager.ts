@@ -22,7 +22,7 @@ const getTerrainId = (config: CesiumTerrainProviderConfig): string => {
 export const useTerrainManager = (
   terrainConfigs: CesiumTerrainProviderConfig[]
 ) => {
-  const { sceneRef, subscribe } = useCesiumContext();
+  const { sceneRef, subscribe, emit } = useCesiumContext();
 
   // Track loaded terrain providers by id
   const loadedProvidersRef = useRef<Map<string, CesiumTerrainProvider>>(
@@ -105,6 +105,9 @@ export const useTerrainManager = (
             activeProviderIdRef.current = id;
             console.log(`[CESIUM|TERRAIN] ✓ Set as active: ${id}`);
             scene.requestRender();
+
+            // Emit TerrainReady event for initialization flow
+            emit(CtxEvent.TerrainReady, { id });
           }
         } catch (error) {
           console.error("[CESIUM|TERRAIN] Load error:", id, error);
@@ -117,7 +120,7 @@ export const useTerrainManager = (
       loadedProvidersRef.current.clear();
       activeProviderIdRef.current = null;
     };
-  }, [terrainConfigs, sceneRef, subscribe]);
+  }, [terrainConfigs, sceneRef, subscribe, emit]);
 
   // Subscribe to terrain provider switch events
   useEffect(() => {

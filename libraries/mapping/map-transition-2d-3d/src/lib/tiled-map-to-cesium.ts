@@ -18,7 +18,6 @@ import { normalizeOptions, Logger } from "@carma-commons/utils";
 // Import utilities from cesium engine
 import {
   getCesiumFrustumPixelDimensionsForDistance,
-  getCameraHeightAboveGround,
   getScenePixelSize,
 } from "@carma/cesium/core";
 const logger = new Logger("L2C");
@@ -145,14 +144,6 @@ export const tiledMapToCesium = async (
     )}m`
   );
 
-  let currentPixelResolution: number | null = null;
-  currentPixelResolution = getScenePixelSize(scene).value;
-
-  if (currentPixelResolution === null) {
-    logger.warn("No pixel size found for camera position");
-    return false;
-  }
-
   // STEP 1: Position camera at fallback elevation + computed distance
   logger.debug(
     `L2C [2D3D|CESIUM|CAMERA] Initial positioning: target ground=${fallbackElevationM.toFixed(
@@ -266,15 +257,22 @@ export const tiledMapToCesium = async (
     orientation: new HeadingPitchRoll(0, -Math.PI / 2, 0), // Nadir view
   });
 
-  // Wait one frame for scene update before checking pixel resolution
+  // CRITICAL: Wait for scene to render with new camera position
+  // One frame is NOT enough - scene needs time to update internal state
+  // Request render and wait for 2 frames to ensure pixel size is accurate
+  scene.requestRender();
   await new Promise<void>((resolve) => {
-    window.requestAnimationFrame(() => resolve());
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => resolve());
+    });
   });
+
   // STEP 5: Micro-corrections if needed
   let isQualifiedResult = true;
-  let { cameraHeightAboveGround, groundHeight } =
-    getCameraHeightAboveGround(scene);
   let iterations = 0;
+
+  // Read pixel resolution AFTER positioning and waiting for scene update
+  let currentPixelResolution = getScenePixelSize(scene).value;
 
   if (currentPixelResolution === null) {
     logger.warn("No pixel size found for camera position");
@@ -297,9 +295,14 @@ export const tiledMapToCesium = async (
     currentError > epsilon &&
     iterations < maxMicroCorrections
   ) {
+    // Get CURRENT camera height from its actual position (don't reuse mutated values)
+    const currentCameraHeight = Cartographic.fromCartesian(
+      camera.position
+    ).height;
+
+    // Newton-Raphson: newHeight = currentHeight * (target / current)
     const adjustmentFactor = targetPixelResolution / currentPixelResolution;
-    cameraHeightAboveGround *= adjustmentFactor;
-    const newCameraHeight = cameraHeightAboveGround + groundHeight;
+    const newCameraHeight = currentCameraHeight * adjustmentFactor;
 
     if (!Number.isFinite(newCameraHeight)) {
       logger.error("Invalid camera height calculated:", newCameraHeight);
@@ -319,6 +322,12 @@ export const tiledMapToCesium = async (
     camera.setView({
       destination: updatedDestination,
       orientation: new HeadingPitchRoll(0, -Math.PI / 2, 0),
+    });
+
+    // Wait for scene to update before reading pixel resolution
+    scene.requestRender();
+    await new Promise<void>((resolve) => {
+      window.requestAnimationFrame(() => resolve());
     });
 
     currentPixelResolution = getScenePixelSize(scene).value;

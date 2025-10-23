@@ -177,10 +177,12 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
     const initialPosition = await getLeafletPosition(leafletMap);
 
     if (initialPosition) {
-      await ensureInitialized(initialPosition);
+      // Wait for terrain to be loaded before starting transition
+      // This ensures terrain elevation sampling will work reliably
+      await ensureInitialized(initialPosition, { waitForTerrain: true });
     }
 
-    // Now transition (scene guaranteed ready)
+    // Now transition (scene guaranteed ready with terrain loaded)
     return transitionTo3dFactory(CtxEvent, TopicMapCtxEvent);
   }, [leafletMapRef, ensureInitialized, transitionTo3dFactory]);
 

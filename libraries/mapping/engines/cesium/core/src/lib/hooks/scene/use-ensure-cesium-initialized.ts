@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { Cartesian3, HeadingPitchRange, isValidScene } from "@carma/cesium";
+import { HeadingPitchRange, isValidScene } from "@carma/cesium";
 
 import { useCesiumContext } from "../../context/hooks/use-cesium-context";
 import { CtxEvent } from "../../context/cesium-context-event-map";
@@ -10,6 +10,15 @@ export type InitialCesiumPosition = {
   latitude: number;
   longitude: number;
   orientation: HeadingPitchRange;
+};
+
+export type EnsureInitializedOptions = {
+  /**
+   * Wait for terrain provider to be loaded before resolving.
+   * This ensures terrain elevation sampling will work reliably.
+   * @default false
+   */
+  waitForTerrain?: boolean;
 };
 
 /**
@@ -26,7 +35,11 @@ export const useEnsureCesiumInitialized = () => {
   } = useCesiumContext();
 
   const ensureInitialized = useCallback(
-    async (initialPosition: InitialCesiumPosition) => {
+    async (
+      initialPosition: InitialCesiumPosition,
+      options?: EnsureInitializedOptions
+    ) => {
+      const { waitForTerrain = false } = options ?? {};
       const scene = sceneRef.current;
 
       // Already initialized
@@ -69,6 +82,22 @@ export const useEnsureCesiumInitialized = () => {
         5000,
         { onTimeoutResolveWith: () => undefined }
       );
+
+      // Optionally wait for terrain to be loaded
+      if (waitForTerrain) {
+        console.debug("[Cesium|Init] Waiting for terrain provider...");
+        await promiseWithTimeout(
+          new Promise<void>((resolve) => {
+            const unsubscribe = subscribe(CtxEvent.TerrainReady, ({ id }) => {
+              console.debug(`[Cesium|Init] Terrain ready: ${id}`);
+              unsubscribe();
+              resolve();
+            });
+          }),
+          3000,
+          { onTimeoutResolveWith: () => undefined }
+        );
+      }
 
       // Request initial render
       const initializedScene = sceneRef.current;
