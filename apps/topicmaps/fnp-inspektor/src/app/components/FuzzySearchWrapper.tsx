@@ -7,7 +7,7 @@ import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { type SearchResultItem } from "@carma/types";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { useContext } from "react";
-import { isAreaType } from "@carma/resources";
+import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import { useDispatch } from "react-redux";
 import { useSearchParams } from "react-router-dom";
 import L from "leaflet";
@@ -49,7 +49,7 @@ const FuzzySearchWrapper = ({
     const selectionMetaData: SelectionMetaData = {
       selectedFrom: "gazetteer",
       selectionTimestamp: Date.now(),
-      isAreaSelection: isAreaType(selection.type),
+      isAreaSelection: isAreaType(selection.type as ENDPOINT),
     };
     setSelection(Object.assign({}, selection, selectionMetaData));
 

@@ -1,6 +1,11 @@
 // Bring in ambient Window globals for consumers of this package
 import "./lib/types/env";
 
+console.warn(
+  "⚠️  DEPRECATED: @carma-mapping/cesium-engine-snapshot is deprecated and will be removed in a future version.",
+  "please update app to work with new cesium framework @carma/cesium"
+);
+
 export * from "./lib/slices/cesium";
 export type {
   CesiumState,

@@ -39,6 +39,7 @@ import {
   CESIUM_CONFIG,
   DEFAULT_MAP_POSITION,
   DEFAULT_CESIUM_CAMERA,
+  LEAFLET_CONFIG,
 } from "./config/app.config";
 import { carmaMapStyleConfig } from "./config/mapStyleConfig";
 
@@ -92,16 +93,17 @@ function App({ published }: { published?: boolean }) {
   }, [searchParams]);
 
   const portalConfig: PortalConfig = {
-    portalConfig: {
-      hashConfig: [], // Will use default hash config
-      styleConfig: carmaMapStyleConfig,
-      defaultPosition: DEFAULT_MAP_POSITION,
-      defaultCameraLocation: DEFAULT_CESIUM_CAMERA,
-      cesiumConfig: CESIUM_CONFIG,
-      overlayConfig: {
-        transparency: backgroundSettings.transparency,
-        color: backgroundSettings.color,
-      },
+    hashConfig: [], // Will use default hash config
+    styleConfig: carmaMapStyleConfig,
+    homePosition: DEFAULT_MAP_POSITION,
+    homePose3d: DEFAULT_CESIUM_CAMERA,
+    defaultPosition: DEFAULT_MAP_POSITION,
+    defaultCameraLocation: DEFAULT_CESIUM_CAMERA,
+    cesiumConfig: CESIUM_CONFIG,
+    leafletConfig: LEAFLET_CONFIG,
+    overlayConfig: {
+      transparency: backgroundSettings.transparency,
+      color: backgroundSettings.color,
     },
   };
 

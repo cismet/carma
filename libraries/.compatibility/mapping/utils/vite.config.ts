@@ -6,7 +6,7 @@ import { nxViteTsPaths } from '@nx/vite/plugins/nx-tsconfig-paths.plugin';
 
 export default defineConfig({
   root: __dirname,
-  cacheDir: '../../../node_modules/.vite/libraries/mapping/utils',
+  cacheDir: '../../../../node_modules/.vite/libraries/mapping/utils',
 
   plugins: [
     nxViteTsPaths(),
@@ -24,7 +24,7 @@ export default defineConfig({
   // Configuration for building your library.
   // See: https://vitejs.dev/guide/build.html#library-mode
   build: {
-    outDir: '../../../dist/libraries/mapping/utils',
+    outDir: '../../../../dist/libraries/mapping/utils',
     reportCompressedSize: true,
     commonjsOptions: {
       transformMixedEsModules: true,
@@ -47,14 +47,14 @@ export default defineConfig({
   test: {
     globals: true,
     cache: {
-      dir: '../../../node_modules/.vitest',
+      dir: '../../../../node_modules/.vitest',
     },
     environment: 'node',
     include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
 
     reporters: ['default'],
     coverage: {
-      reportsDirectory: '../../../coverage/libraries/mapping/utils',
+      reportsDirectory: '../../../../coverage/libraries/mapping/utils',
       provider: 'v8',
     },
   },

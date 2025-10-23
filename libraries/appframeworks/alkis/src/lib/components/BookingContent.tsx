@@ -1,14 +1,14 @@
 import React, { useState } from "react";
-import { AdditionalSheet } from "./AdditionalSheet";
-import { CustomCard } from "./CustomCard";
+import { AdditionalSheet } from "../components/AdditionalSheet";
+import { CustomCard } from "../components/CustomCard";
 import {
   additionalSheetExtractor,
   bookingColors,
   getAdditionalTextForBooking,
   getBookingByLandparcelCode,
 } from "../utils/helper";
-import PdfDocumentLoader from "./PdfDocumentLoader";
-import { Map } from "./Map";
+import PdfDocumentLoader from "../components/PdfDocumentLoader";
+import { Map } from "../components/Map";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
 import { Breadcrumb, Divider } from "antd";
 import {

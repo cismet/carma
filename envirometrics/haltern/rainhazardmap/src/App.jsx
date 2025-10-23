@@ -24,7 +24,7 @@ import {
 } from "@carma-mapping/components";
 import ContactButton from "./components/ContactButton";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
-import { isAreaTypeWithGEP } from "@carma/resources";
+import { isAreaTypeWithGEP } from "@carma-commons/resources";
 import {
   useSelection,
   useSelectionTopicMap,

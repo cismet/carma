@@ -71,7 +71,7 @@ import {
   useSelection,
 } from "@carma-appframeworks/portals";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
-import { isAreaType } from "@carma/resources";
+import { isAreaType } from "@carma-commons/resources";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import { ZoomControl } from "@carma-mapping/components";
 import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextProvider";

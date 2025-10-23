@@ -1,7 +1,7 @@
 {
   "name": "mapping/utils",
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "libraries/mapping/utils/src",
+  "sourceRoot": "libraries/.compatibility/mapping/utils/src",
   "projectType": "library",
   "tags": [],
   "targets": {

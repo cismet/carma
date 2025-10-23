@@ -1,12 +1,12 @@
 import type { PositionPreset } from "../positions";
-import type { Altitude, Degrees } from "@carma/types";
+import type { Altitude, Degrees } from "../types";
 
 export const WUPPERTAL: PositionPreset = {
   name: "Wuppertal",
   position: {
     latitude: 51.27174 as Degrees,
     longitude: 7.20028 as Degrees,
-    altitude: 155 as Altitude.EllipsoidalWGS84Meters,
+    altitude: 155 as any, // TODO: Fix branded type casting
   },
   extent: {
     east: 7.32 as Degrees,

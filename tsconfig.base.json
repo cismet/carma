@@ -40,9 +40,9 @@
       "@carma/math": ["libraries/commons/math/src/index.ts"],
       "@carma/units/*": ["libraries/commons/units/*/src/index.ts"],
 
-      // TODO: compatibility mapping should be deprecated
+      // compatibility layer for legacy resources
       "@carma-commons/resources": ["libraries/.compatibility/commons/resources/src/index.ts"],
-      "@carma-commons/utils/window": ["libraries/.compatibility/commons/dom/window/src/index.ts"],
+      "@carma-commons/utils/window": ["libraries/commons/dom/window/src/index.ts"],
       "@carma-mapping/utils": ["libraries/.compatibility/mapping/utils/src/index.ts"],
     },
     "skipLibCheck": true

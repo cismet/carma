@@ -3,8 +3,8 @@ import {
   getAdditionalSheetAsync,
   getBookingOfficesBySheetId,
   productsPdfWithPermission,
-} from "./apiMethods";
-import { getLandRegisterDistrict, pdfProductsSheet } from "./helper";
+} from "../utils/apiMethods";
+import { getLandRegisterDistrict, pdfProductsSheet } from "../utils/helper";
 import { BookingContent } from "../components/BookingContent";
 
 export const getSheetHtml = async (

@@ -1,4 +1,4 @@
-import { createConfig, ENDPOINTS } from "@carma/resources";
+import { createConfig, ENDPOINT } from "@carma-commons/resources";
 
 const prefix = "GazDataStarkregenTholey";
 

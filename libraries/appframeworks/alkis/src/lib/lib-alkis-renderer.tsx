@@ -1,6 +1,6 @@
 import { AlkisRendererProps } from "..";
 import { useEffect, useState } from "react";
-import { getLandparcelHtml } from "./utils/landparcelSearch";
+import { getLandparcelHtml } from "../lib/utils/landparcelSearch";
 import { Divider, Skeleton, Spin } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import { CustomCard } from "./components/CustomCard";

@@ -1,7 +1,7 @@
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faMinus, faPlus } from "@fortawesome/free-solid-svg-icons";
-import { useLeafletZoomControls } from "@carma-mapping/engines/leaflet";
+import { useLeafletZoomControls } from "../../../hooks/useLeafletZoomControls";
 
 export const ZoomControl = ({ routedMapRef }) => {
   const { zoomInLeaflet, zoomOutLeaflet } =

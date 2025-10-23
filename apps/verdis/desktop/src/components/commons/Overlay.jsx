@@ -4,20 +4,34 @@ import {
   faArrowUp,
   faBullseye,
 } from "@fortawesome/free-solid-svg-icons";
+import proj4 from "proj4";
 import { vccPasswd } from "../../constants/verdis";
 import { useSelector } from "react-redux";
 import { getVirtualCity } from "../../store/slices/search";
-import { getBoundingBoxForLeafletMap } from "@carma-mapping/engines/leaflet";
-import { ManagedProjections } from "@carma/geo/proj";
+
+function getBoundingBoxForLeafletMap(leafletMap) {
+  const bounds = leafletMap.leafletElement.getBounds();
+  const projectedNE = proj4(proj4.defs("EPSG:4326"), proj4.defs("EPSG:25832"), [
+    bounds._northEast.lng,
+    bounds._northEast.lat,
+  ]);
+  const projectedSW = proj4(proj4.defs("EPSG:4326"), proj4.defs("EPSG:25832"), [
+    bounds._southWest.lng,
+    bounds._southWest.lat,
+  ]);
+  return {
+    left: projectedSW[0],
+    top: projectedNE[1],
+    right: projectedNE[0],
+    bottom: projectedSW[1],
+  };
+}
 
 const Overlay = ({ mapWidth, mapHeight, mapRef }) => {
   let mapBBox, mapCenter;
 
   if (mapRef?.current?.leafletMap?.leafletElement) {
-    mapBBox = getBoundingBoxForLeafletMap(
-      mapRef?.current?.leafletMap,
-      ManagedProjections.EPSG25832
-    );
+    mapBBox = getBoundingBoxForLeafletMap(mapRef?.current?.leafletMap);
     //calculate the center from the bbox
     mapCenter = {
       x: (mapBBox.left + mapBBox.right) / 2,

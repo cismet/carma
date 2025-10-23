@@ -30,7 +30,7 @@ import {
   useSelectionTopicMap,
 } from "@carma-appframeworks/portals";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
-import { isAreaType } from "@carma/resources";
+import { isAreaType } from "@carma-commons/resources";
 
 const Ehrenamtkarte = ({ bookmarks, setBookmarks }) => {
   const {

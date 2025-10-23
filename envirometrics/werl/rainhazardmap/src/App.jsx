@@ -32,7 +32,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCompress, faExpand } from "@fortawesome/free-solid-svg-icons";
 import ContactButton from "./components/ContactButton";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
-import { isAreaTypeWithGEP } from "@carma/resources";
+import { isAreaTypeWithGEP } from "@carma-commons/resources";
 
 function App() {
   const version = getApplicationVersion(versionData);

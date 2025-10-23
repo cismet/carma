@@ -1,3 +1,9 @@
+console.warn(
+  "⚠️  DEPRECATED: cesium-engine-snapshot is deprecated and will be removed in a future version.",
+  "please update app to work with new cesium framework @carma/cesium"
+);
+
+
 export * from "./lib/slices/cesium";
 
 export { CesiumContextProvider } from "./lib/CesiumContextProvider";

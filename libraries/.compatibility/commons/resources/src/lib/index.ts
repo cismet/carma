@@ -1,10 +1,11 @@
-export * from ".endpoints";
+export * from "./types";
+export * from "./endpoints";
 
-export * from ".service-options";
-export * from ".tilesets";
-export * from ".loaders/model";
+export * from "./service-options";
+export * from "./tilesets";
+export * from "./loaders/model";
 
-export * from "./de/tileset3d.ts";
+export * from "./de/tileset3d";
 export * from "./de/wms";
 
 export * from "./de.nrw.ruhr/wms";

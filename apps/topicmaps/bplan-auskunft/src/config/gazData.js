@@ -1,14 +1,14 @@
-import { createConfig, ENDPOINTS } from "@carma/resources";
+import { createConfig, ENDPOINT } from "@carma-commons/resources";
 
 const prefix = "GazDataForHochwasserkarteByCismet";
 
 const endpoints = [
-  ENDPOINTS.ADRESSEN,
-  ENDPOINTS.BEZIRKE,
-  ENDPOINTS.QUARTIERE,
-  ENDPOINTS.POIS,
-  ENDPOINTS.KITAS,
-  ENDPOINTS.BPLAENE,
+  ENDPOINT.ADRESSEN,
+  ENDPOINT.BEZIRKE,
+  ENDPOINT.QUARTIERE,
+  ENDPOINT.POIS,
+  ENDPOINT.KITAS,
+  ENDPOINT.BPLAENE,
 ];
 const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 const crs = "25832";

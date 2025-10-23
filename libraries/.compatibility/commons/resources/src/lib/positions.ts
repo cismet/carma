@@ -1,7 +1,11 @@
-import type { Extent, LatLng } from "@carma/types";
+import type { AltitudeEllipsoidalWGS84Meters, Degrees, Extent } from "./types";
 
 export type PositionPreset = {
   name: string;
-  position: LatLng.deg;
+  position: {
+    latitude: Degrees;
+    longitude: Degrees;
+    altitude?: AltitudeEllipsoidalWGS84Meters;
+  };
   extent?: Extent.deg;
 };
