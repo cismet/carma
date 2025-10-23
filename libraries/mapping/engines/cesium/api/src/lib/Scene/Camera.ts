@@ -184,9 +184,6 @@ export const convertCameraStateToInternalFormat = (
     pitch: degToRad(
       (pitch ?? defaults?.pitch ?? -PI_OVER_TWO) as Degrees
     ) as Radians,
-    roll:
-      roll !== undefined || defaults?.roll !== undefined
-        ? (degToRad((roll ?? defaults?.roll ?? 0) as Degrees) as Radians)
-        : undefined,
+    ...(roll !== undefined && { roll: degToRad(roll as Degrees) as Radians }),
   };
 };

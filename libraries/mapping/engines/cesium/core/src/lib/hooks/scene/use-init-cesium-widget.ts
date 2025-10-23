@@ -173,15 +173,14 @@ export const useInitCesiumWidget = (
           widget.canvas.style.width = "100%";
           widget.canvas.style.height = "100%";
 
-          // Update camera frustum aspect ratio
+          // Update camera frustum aspect ratio (only for PerspectiveFrustum)
           const camera = widget.scene.camera;
-          if (camera.frustum) {
+          if (camera.frustum && "aspectRatio" in camera.frustum) {
             camera.frustum.aspectRatio = containerWidth / containerHeight;
+            console.log(
+              `[CESIUM|INIT] After manual resize - Canvas: ${widget.canvas.width}x${widget.canvas.height}, AspectRatio: ${camera.frustum.aspectRatio}`
+            );
           }
-
-          console.log(
-            `[CESIUM|INIT] After manual resize - Canvas: ${widget.canvas.width}x${widget.canvas.height}, AspectRatio: ${camera.frustum?.aspectRatio}`
-          );
         }
 
         // Apply screenSpaceCameraController settings from config

@@ -6,9 +6,8 @@ import { faLayerGroup, faMap } from "@fortawesome/free-solid-svg-icons";
 
 import type { Layer } from "@carma/types";
 
-import { ICON_PREFIX } from "../../config/app.config";
 import { iconColorMap, iconMap } from "./items";
-import { FontAwesomeLikeIcon } from "@carma-appframeworks/portals";
+import { FontAwesomeLikeIcon, usePortal } from "@carma-appframeworks/portals";
 
 interface LayerIconProps {
   layer: Layer;
@@ -23,6 +22,8 @@ const LayerIcon = ({
   isBaseLayer,
   id,
 }: LayerIconProps) => {
+  const { iconPrefix } = usePortal();
+  const prefix = iconPrefix || "";
   const [imgError, setImgError] = useState(!layer.other?.icon);
 
   const iconName =
@@ -34,15 +35,15 @@ const LayerIcon = ({
       const img = new Image();
       img.onload = () => setImgError(false);
       img.onerror = () => setImgError(true);
-      img.src = ICON_PREFIX + `${iconName}.png`;
+      img.src = prefix + `${iconName}.png`;
     }
-  }, [iconName]);
+  }, [iconName, prefix]);
 
   return (
     <>
       {iconName && !imgError ? (
         <FontAwesomeLikeIcon
-          src={ICON_PREFIX + `${iconName}.png`}
+          src={prefix + `${iconName}.png`}
           alt="Layer Icon"
           className="text-base"
           id={id}

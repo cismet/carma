@@ -21,8 +21,9 @@ export const useContextSetupErrorRecovery = (
       setRemountKey((prev) => prev + 1);
     };
 
-    // Listen for window events (legacy)
-    window.addEventListener("carma:cesium:renderError", handleRecovery);
+    // Listen for window events (legacy) - wrap in event listener
+    const windowErrorHandler = () => handleRecovery("renderError");
+    window.addEventListener("carma:cesium:renderError", windowErrorHandler);
 
     // Listen for ReinitScene events from event bus (WebGL errors)
     const unsubscribe = subscribe(CtxEvent.ReinitScene, ({ reason }) => {
@@ -31,7 +32,10 @@ export const useContextSetupErrorRecovery = (
     });
 
     return () => {
-      window.removeEventListener("carma:cesium:renderError", handleRecovery);
+      window.removeEventListener(
+        "carma:cesium:renderError",
+        windowErrorHandler
+      );
       unsubscribe();
     };
   }, [setRemountKey, subscribe]);

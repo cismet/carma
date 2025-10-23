@@ -12,12 +12,14 @@ import { type MapStyleKey, isMapStyleKey, MapStyleMapping } from "../constants";
 import { useMapStyleBus } from "../hooks/useMapStyleBus";
 import type { CesiumConfig } from "@carma-mapping/engines/cesium/types";
 import { convertCameraStateToInternalFormat } from "@carma/cesium";
+import type { CameraStateHeadingPitchRoll } from "@carma/cesium";
 import type { HashStateConfig } from "./HashStateProvider";
 import { SelectionProvider } from "../components/SelectionProvider";
 import { OverlayTourProvider } from "@carma-commons/ui/helper-overlay";
 import { CesiumContextProvider } from "@carma-mapping/engines/cesium/core";
 import { CarmaTopicMapContextProvider } from "@carma-mapping/engines/carma-cismap";
 import { TransitionContextProvider } from "@carma-mapping/map-transition-2d-3d";
+import { LeafletConfig } from "@carma/types";
 
 /**
  * PortalProvider - Complete portal context provider
@@ -92,43 +94,39 @@ interface PortalContextType {
   // Cesium config with initialStyle and initialCamera merged in
   cesiumConfig: CesiumConfig;
 
-  // Portal config
-  portalConfig: PortalConfig["portalConfig"];
+  // PortalConfig properties
+  portalConfig: PortalConfig;
 }
 
 const PortalContext = createContext<PortalContextType | undefined>(undefined);
 
 export interface PortalConfig {
-  // Complete portal configuration (single config object)
-  portalConfig: {
-    // Hash configuration
-    hashConfig: HashStateConfig;
+  hashConfig: HashStateConfig;
+  styleConfig: MapStyleConfig;
 
-    // Style configuration
-    styleConfig: MapStyleConfig;
+  // Position defaults
+  defaultPosition: MapPosition2D;
+  // todo unify with defaultPosition, for now use position with altitude plus heading pitch roll(!) camera based
+  defaultCameraLocation?: Partial<InitialCameraLocation>;
+  homePosition: MapPosition2D;
+  // todo unify with homePosition, for now use position with altitude plus heading pitch range(!) object based
+  homePose3d?: Partial<InitialCameraLocation>;
 
-    // Position defaults
-    defaultPosition: MapPosition2D;
-    defaultCameraLocation?: Partial<InitialCameraLocation>;
-
-    // Cesium configuration
-    cesiumConfig: CesiumConfig;
-
-    // Overlay UI configuration
-    overlayConfig?: {
-      transparency?: number;
-      color?: string;
-    };
-
-    // Transition configuration for 2D↔3D
-    transitionsConfig?: any; // TransitionConfig
-
-    // Selection callbacks (TODO: Remove when Redux is fully removed)
-    selectionCallbacks?: {
-      onSelectionChange?: (selection: any) => void;
-      onModelSelectionChange?: (feature: any) => void;
-    };
+  leafletConfig: LeafletConfig;
+  cesiumConfig: CesiumConfig;
+  overlayConfig?: {
+    transparency?: number;
+    color?: string;
   };
+
+  // Transition configuration for 2D↔3D
+  transitionsConfig?: any; // TransitionConfig
+
+  // App configuration
+  appBasePath?: string;
+  iconPrefix?: string;
+  configBaseUrl?: string;
+  minMobileWidth?: number;
 }
 
 interface PortalProviderProps {
@@ -137,13 +135,8 @@ interface PortalProviderProps {
 }
 
 export const PortalProvider = ({ children, config }: PortalProviderProps) => {
-  const {
-    styleConfig,
-    cesiumConfig,
-    defaultPosition,
-    defaultCameraLocation,
-    selectionCallbacks,
-  } = config.portalConfig;
+  const { styleConfig, cesiumConfig, defaultPosition, defaultCameraLocation } =
+    config;
   const { defaultStyle } = styleConfig;
   const { updateHash, getHashValues } = useHashState();
   const { emit } = useMapStyleBus();
@@ -225,15 +218,41 @@ export const PortalProvider = ({ children, config }: PortalProviderProps) => {
       originalConfig: cesiumConfig,
     });
 
+    // Convert InitialCameraLocation to CameraStateHeadingPitchRoll format
+    // Both use the same structure, just need to ensure all required fields are present
+    const initialCameraState = initialCameraLocation
+      ? ({
+          latitude: initialCameraLocation.latitude,
+          longitude: initialCameraLocation.longitude,
+          altitude: initialCameraLocation.altitude,
+          heading: initialCameraLocation.heading,
+          pitch: initialCameraLocation.pitch,
+          roll: 0, // InitialCameraLocation doesn't have roll, default to 0
+        } as CameraStateHeadingPitchRoll)
+      : undefined;
+
+    const defaultCameraState = defaultCameraLocation
+      ? ({
+          latitude: defaultCameraLocation.latitude,
+          longitude: defaultCameraLocation.longitude,
+          altitude: defaultCameraLocation.altitude,
+          heading: defaultCameraLocation.heading,
+          pitch: defaultCameraLocation.pitch,
+          roll: 0, // InitialCameraLocation doesn't have roll, default to 0
+        } as CameraStateHeadingPitchRoll)
+      : undefined;
+
     const merged = {
       ...cesiumConfig,
       sceneStyle: cesiumConfig.sceneStyle,
       initialStyle: cesiumStyleId,
       initialCamera: initialCameraLocation,
-      cameraInitialPose: convertCameraStateToInternalFormat(
-        initialCameraLocation
-      ),
-      cameraHomePose: convertCameraStateToInternalFormat(defaultCameraLocation),
+      cameraInitialPose: initialCameraState
+        ? convertCameraStateToInternalFormat(initialCameraState)
+        : undefined,
+      cameraHomePose: defaultCameraState
+        ? convertCameraStateToInternalFormat(defaultCameraState)
+        : undefined,
     };
 
     console.log("[PortalProvider] Merged Cesium config:", merged);
@@ -352,7 +371,7 @@ export const PortalProvider = ({ children, config }: PortalProviderProps) => {
       updateMapPosition,
       updateCameraLocation,
       cesiumConfig: mergedCesiumConfig,
-      portalConfig: config.portalConfig,
+      portalConfig: config,
     }),
     [
       isInitialized,
@@ -365,7 +384,7 @@ export const PortalProvider = ({ children, config }: PortalProviderProps) => {
       updateMapPosition,
       updateCameraLocation,
       mergedCesiumConfig,
-      config.portalConfig,
+      config,
     ]
   );
 
@@ -375,14 +394,11 @@ export const PortalProvider = ({ children, config }: PortalProviderProps) => {
     return null;
   }
 
-  const { overlayConfig, transitionsConfig } = config.portalConfig;
+  const { overlayConfig, transitionsConfig } = config;
 
   return (
     <PortalContext.Provider value={value}>
-      <SelectionProvider
-        onSelectionChange={selectionCallbacks?.onSelectionChange}
-        onModelSelectionChange={selectionCallbacks?.onModelSelectionChange}
-      >
+      <SelectionProvider>
         <TransitionContextProvider config={transitionsConfig}>
           <CarmaTopicMapContextProvider infoBoxPixelWidth={350}>
             <OverlayTourProvider

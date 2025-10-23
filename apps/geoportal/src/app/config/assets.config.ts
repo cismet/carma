@@ -70,5 +70,3 @@ export const MODEL_ASSETS: Record<string, MarkerModelAsset> = {
     fixedScale: true,
   },
 };
-
-export default { MODEL_ASSETS, IMAGE_ASSETS };

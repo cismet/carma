@@ -15,6 +15,7 @@ import {
   animateInterpolateHeadingPitchRange,
   pickSceneCenter,
 } from "@carma-mapping/engines/cesium/core";
+import type { HeadingPitchRange } from "@carma/cesium";
 
 import {
   MapTransitionState,
@@ -395,7 +396,7 @@ export const createTransitionTo3d = (params: TransitionTo3dParams) => {
         console.warn(
           "[CESIUM|2D3D|TO3D] ⚠ WebGL error detected - requesting scene reinit"
         );
-        emitCesium(CtxEvent.ReinitScene, {
+        emitCesiumEvent(CtxEvent.ReinitScene, {
           reason: "WebGL framebuffer error during 2D→3D transition",
         });
       }

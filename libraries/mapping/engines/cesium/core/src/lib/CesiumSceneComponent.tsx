@@ -1,4 +1,4 @@
-import { type RefObject, useMemo, useRef } from "react";
+import { ReactNode, type RefObject, useMemo, useRef } from "react";
 import type { Camera } from "@carma/cesium";
 import type { GlobeConstructorOptionsPrimitive } from "@carma/cesium/types";
 import { merge } from "lodash";
@@ -33,22 +33,19 @@ export type CameraLimiterOptions = {
 };
 
 export type CesiumSceneComponentProps = {
-  containerRef?: RefObject<HTMLDivElement>; // Optional - will create internal ref if not provided
-
+  containerRef: RefObject<HTMLDivElement>;
   // Event callbacks
   onCameraChanged?: (params: { source: string; camera: Camera }) => void;
-
   // Key for forcing remount on error (increment to remount)
   resetKey?: number;
+  // Children to render inside the scene
+  children?: ReactNode;
 };
 
-export function CesiumSceneComponent(props: CesiumSceneComponentProps) {
-  const { containerRef: externalContainerRef } = props;
-
-  // Create internal ref if none provided
-  const internalContainerRef = useRef<HTMLDivElement>(null);
-  const containerRef = externalContainerRef || internalContainerRef;
-
+export function CesiumSceneComponent({
+  containerRef,
+  children,
+}: CesiumSceneComponentProps) {
   const { config } = useCesiumContext();
 
   const options = useMemo(
@@ -79,7 +76,12 @@ export function CesiumSceneComponent(props: CesiumSceneComponentProps) {
   useCesiumWhenSuspended();
 
   // Render error handler to intercept Cesium errors
-  return <CesiumErrorHandler />;
+  return (
+    <>
+      <CesiumErrorHandler />
+      {children}
+    </>
+  );
 }
 
 export default CesiumSceneComponent;

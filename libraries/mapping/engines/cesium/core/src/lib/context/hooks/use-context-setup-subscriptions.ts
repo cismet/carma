@@ -1,8 +1,12 @@
 import { useEffect } from "react";
 import type { MutableRefObject } from "react";
-import type { Scene, Cesium3DTileset, ImageryLayer } from "@carma/cesium";
+import type {
+  Scene,
+  Cesium3DTileset,
+  ImageryLayer,
+  CameraPoseRadians,
+} from "@carma/cesium";
 import type { SceneStyleConfig, CesiumConfig } from "@carma/cesium/types";
-import type { CameraPoseDegrees } from "@carma/cesium";
 import {
   CtxEvent,
   type SubscribeCesiumCtxFn,
@@ -36,7 +40,7 @@ export const useContextSetupSubscriptions = ({
   isSuspendedRef: MutableRefObject<boolean>;
   isAnimatingRef: MutableRefObject<boolean>;
   currentSceneStyleRef: MutableRefObject<string | undefined>;
-  homeCameraRef: MutableRefObject<CameraPoseDegrees | null>;
+  homeCameraRef: MutableRefObject<CameraPoseRadians | null>;
   sceneStyle?: SceneStyleConfig;
   config: CesiumConfig;
 }) => {

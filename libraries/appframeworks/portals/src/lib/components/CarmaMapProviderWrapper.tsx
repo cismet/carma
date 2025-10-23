@@ -20,7 +20,7 @@ export const CarmaMapProviderWrapper = ({
   gazDataConfig = defaultGazDataConfig,
   portalConfig,
 }: CarmaMapProviderWrapperProps) => {
-  const { hashConfig } = portalConfig.portalConfig;
+  const { hashConfig } = portalConfig;
 
   if (gazDataConfig.crs !== "3857") {
     console.warn(

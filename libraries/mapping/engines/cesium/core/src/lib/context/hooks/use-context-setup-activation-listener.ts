@@ -10,11 +10,8 @@ import {
   type SubscribeCesiumCtxFn,
 } from "../cesium-context-event-map";
 import type { CesiumConfig } from "@carma/cesium/types";
-import type { CesiumWidget, CameraStateHeadingPitchRoll } from "@carma/cesium";
+import type { CesiumWidget, CameraPrimitive } from "@carma/cesium";
 import type { CesiumInstanceRecord } from "../CesiumContext";
-import { degToRad, PI_OVER_TWO } from "@carma/units/helpers";
-import type { Degrees } from "@carma/units/types";
-import type { Longitude, Altitude } from "@carma/geo/types";
 
 // Generate unique instance IDs using crypto.randomUUID()
 const generateInstanceId = () => `cesium-instance-${crypto.randomUUID()}`;
@@ -28,38 +25,17 @@ export const useContextSetupActivationListener = (
   setCesiumInstances: Dispatch<SetStateAction<CesiumInstanceRecord[]>>,
   widgetRef: MutableRefObject<CesiumWidget | null>,
   config: CesiumConfig,
-  currentCameraStateRef: MutableRefObject<CameraStateHeadingPitchRoll | null>
+  currentCameraStateRef: MutableRefObject<CameraPrimitive | null>
 ) => {
   // Track context mount time (not app start time)
   const contextMountTimeRef = useRef(Date.now());
 
   useEffect(() => {
     const unsubActivate = subscribe(CtxEvent.Activate, async (triggerData) => {
-      // Update camera state ref if initialPose is provided (e.g., from transition)
-      if (triggerData?.initialPose) {
-        const { latitude, longitude, altitude, heading, pitch, roll } =
-          triggerData.initialPose;
-
-        console.debug(
-          "[CesiumContext] Updating camera state from Activate event (degrees)",
-          triggerData.initialPose
-        );
-
-        // Convert degrees to radians using our helpers
-        currentCameraStateRef.current = {
-          latitude: degToRad(latitude as Degrees) as Longitude.deg,
-          longitude: degToRad(longitude as Degrees) as Longitude.deg,
-          altitude: altitude as Altitude.EllipsoidalWGS84Meters,
-          heading: degToRad((heading ?? 0) as Degrees) as Degrees,
-          pitch: degToRad((pitch ?? -PI_OVER_TWO) as Degrees) as Degrees,
-          roll: degToRad((roll ?? 0) as Degrees) as Degrees,
-        };
-
-        console.debug(
-          "[CesiumContext] Camera state updated (radians)",
-          currentCameraStateRef.current
-        );
-      }
+      // Camera state will be updated from actual camera after widget initialization
+      // initialPose is used for camera.setView(), not for storing state
+      // The actual camera vectors (position, direction, up, right) will be captured
+      // after the camera is positioned
 
       const instanceId = generateInstanceId();
       const timestamp = Date.now();

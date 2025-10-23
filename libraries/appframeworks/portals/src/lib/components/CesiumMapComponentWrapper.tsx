@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { ReactNode, useEffect, useRef } from "react";
 
 import {
   CesiumSceneComponent,
@@ -16,7 +16,11 @@ import { useSyncCesiumSceneStyle } from "../hooks/useSyncCesiumSceneStyle";
  * Cesium map component wrapper - mounts Cesium scene only after activation (2D→3D transition).
  * Config comes from CesiumContextProvider at app root level, not via props.
  */
-export const CesiumMapComponentWrapper = () => {
+export const CesiumMapComponentWrapper = ({
+  children,
+}: {
+  children?: ReactNode;
+}) => {
   const cesiumContainerRef = useRef<HTMLDivElement | null>(null);
   const containerStyleRef = useRef<HTMLDivElement | null>(null);
   const { subscribe } = useCesiumContext();
@@ -178,7 +182,9 @@ export const CesiumMapComponentWrapper = () => {
           <CesiumSceneComponent
             containerRef={cesiumContainerRef}
             onCameraChanged={onCameraChanged}
-          />
+          >
+            {children}
+          </CesiumSceneComponent>
         )}
       </div>
     </div>

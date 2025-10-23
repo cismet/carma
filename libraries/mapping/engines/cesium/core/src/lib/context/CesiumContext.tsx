@@ -16,10 +16,9 @@ import { DelayedRenderOptions } from "@carma-commons/dom/window";
 import type { AnimationMap } from "@carma/types";
 import type { CesiumConfig } from "@carma/cesium/types";
 import type {
-  CameraStateHeadingPitchRoll,
   CameraPoseHeadingPitchRoll,
   CameraPrimitive,
-  CameraPoseDegrees,
+  CameraPoseRadians,
 } from "@carma/cesium";
 
 export type CesiumInstanceTrigger = {
@@ -37,8 +36,8 @@ export interface CesiumInstanceRecord {
   config: CesiumConfig;
   // Metadata about what triggered the initialization
   trigger?: CesiumInstanceTrigger;
-  // Last known camera state (for crash recovery)
-  lastCameraState?: CameraStateHeadingPitchRoll;
+  // Last known camera state (for crash recovery) - internal Cesium state
+  lastCameraState?: CameraPrimitive;
 }
 
 // Provider ref types for managing arbitrary numbers of providers
@@ -52,7 +51,8 @@ export interface CesiumContextType {
   sceneRef: MutableRefObject<Scene | null>;
 
   // Last known camera state (updated on camera changes, used for crash recovery)
-  lastCameraStateRef: MutableRefObject<CameraStateHeadingPitchRoll | null>;
+  // Internal Cesium state: position (Cartesian3), direction/up/right vectors
+  lastCameraStateRef: MutableRefObject<CameraPrimitive | null>;
 
   // Provider refs - support arbitrary numbers per type
   terrainProvidersRef: MutableRefObject<Map<string, CesiumTerrainProvider>>;
@@ -62,7 +62,7 @@ export interface CesiumContextType {
 
   // Core state refs
   isSuspendedRef: MutableRefObject<boolean>;
-  homeCameraRef: MutableRefObject<CameraPoseDegrees | null>;
+  homeCameraRef: MutableRefObject<CameraPoseRadians | null>;
   minZoomDistanceRef: MutableRefObject<number>;
   maxZoomDistanceRef: MutableRefObject<number>;
   enableCollisionDetectionRef: MutableRefObject<boolean>;

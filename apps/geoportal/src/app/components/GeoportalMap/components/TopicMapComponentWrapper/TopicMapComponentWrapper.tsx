@@ -45,7 +45,7 @@ import versionData from "../../../../../version.json";
 import { proj4crs3857def, proj4crs4326def } from "react-cismap/constants/gis";
 import { useLeafletZoomControls } from "@carma-mapping/engines/leaflet";
 import { useDispatchSachdatenInfoText } from "../../../../hooks/useDispatchSachdatenInfoText.ts";
-import { LEAFLET_CONFIG } from "../../../../config/app.config";
+import { usePortal } from "@carma-appframeworks/portals";
 import { UIMode, getUIMode } from "../../../../store/slices/ui.ts";
 import {
   getLayers,
@@ -82,7 +82,6 @@ import { useModalMenu } from "./hooks/useModalMenu.tsx";
 type TopicMapComponentWrapperProps = {
   height: number;
   width: number;
-  leafletOptions?: Partial<LeafletConfig>;
 };
 
 const noop = () => {};
@@ -90,9 +89,10 @@ const noop = () => {};
 export const TopicMapComponentWrapper = ({
   height,
   width,
-  leafletOptions,
 }: TopicMapComponentWrapperProps) => {
   const dispatch = useDispatch();
+  const { portalConfig } = usePortal();
+  const { zoomSnap, zoomDelta } = portalConfig.leafletConfig;
   const uiMode = useSelector(getUIMode);
   const layers = useSelector(getLayers);
   const layersIdle = useSelector(getLayersIdle);
@@ -409,8 +409,8 @@ export const TopicMapComponentWrapper = ({
         onclick={handleOnClick}
         gazetteerSearchControl={true}
         infoBox={infoBox}
-        zoomSnap={leafletOptions?.zoomSnap ?? LEAFLET_CONFIG.zoomSnap}
-        zoomDelta={leafletOptions?.zoomDelta ?? LEAFLET_CONFIG.zoomDelta}
+        zoomSnap={zoomSnap}
+        zoomDelta={zoomDelta}
       >
         <TopicMapSelectionContent />
         {backgroundLayerElement}

@@ -36,12 +36,7 @@ import {
 // } from "./hooks/useCesiumProviderLoaders";
 
 import type { CesiumConfig } from "@carma/cesium/types";
-import type {
-  CameraPoseRadians,
-  CameraStateHeadingPitchRoll,
-} from "@carma/cesium";
-
-type CameraState = CameraStateHeadingPitchRoll;
+import type { CameraPoseRadians, CameraPrimitive } from "@carma/cesium";
 import type { AnimationMap } from "@carma/types";
 
 import { initAnimationMap } from "../scene/camera/animations";
@@ -75,8 +70,8 @@ export const CesiumContextProvider = ({
   const sceneRef = useRef<Scene | null>(null);
   const animationMapRef = useRef<AnimationMap | null>(initAnimationMap());
 
-  // Track last camera state for crash recovery
-  const lastCameraStateRef = useRef<CameraStateHeadingPitchRoll | null>(null);
+  // Track last camera state for crash recovery (internal Cesium state)
+  const lastCameraStateRef = useRef<CameraPrimitive | null>(null);
 
   // Provider refs - use Maps for arbitrary numbers of providers per type
   const terrainProvidersRef = useRef<Map<string, CesiumTerrainProvider>>(
@@ -111,26 +106,15 @@ export const CesiumContextProvider = ({
   const validatedConfig = useMemo(() => validateCesiumConfig(config), [config]);
   const { cameraHomePose, cameraInitialPose } = validatedConfig;
 
-  // Camera refs for home position (radians)
+  // Camera refs for home position (radians) - only used for "fly to home" functionality
   const homeCameraRef = useRef<CameraPoseRadians | null>(
     cameraHomePose ?? null
   );
 
-  // Current camera state ref - tracks FOV for crash recovery
-  // Convert from CameraPoseDegrees (height) to CameraStateHeadingPitchRoll (altitude)
-  const initialState = cameraInitialPose ?? cameraHomePose;
-  const currentCameraStateRef = useRef<CameraState>(
-    initialState
-      ? {
-          longitude: initialState.longitude,
-          latitude: initialState.latitude,
-          altitude: initialState.height,
-          heading: initialState.heading,
-          pitch: initialState.pitch,
-          roll: initialState.roll,
-        }
-      : null
-  );
+  // Current camera state ref - internal Cesium state (position, direction, up, right vectors)
+  // Will be populated from actual camera after widget initialization
+  // Used for crash recovery - stores the actual camera vectors, not pose parameters
+  const currentCameraStateRef = useRef<CameraPrimitive | null>(null);
 
   // Use initialStyle from config, or fall back to first available style
   const initialStyle =

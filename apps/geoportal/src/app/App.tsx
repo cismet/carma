@@ -23,7 +23,7 @@ import {
 
 // Local Modules
 import AppErrorFallback from "./components/AppErrorFallback";
-import MapWrapper from "./components/GeoportalMap/controls/MapWrapper";
+import GeoportalMap from "./components/GeoportalMap";
 import LoginForm from "./components/LoginForm";
 import { PortalReduxSyncProvider } from "./components/PortalReduxSyncProvider";
 
@@ -38,7 +38,6 @@ import { useKeyboardShortcuts } from "./hooks/useKeyboardShortcuts";
 
 import { APP_KEY, layerMap } from "./config";
 import { portalConfig } from "./config/portalConfig";
-import { CONFIG_BASE_URL } from "./config/app.config";
 import { featureFlagConfig } from "./config/featureFlags";
 
 import { getCustomFeatureFlags } from "./store/slices/layers";
@@ -60,7 +59,10 @@ import "./index.css";
 function App({ published }: { published?: boolean }) {
   const dispatch = useDispatch();
   const showLoginModal = useSelector(getShowLoginModal);
-  const isLoadingConfig = useAppConfig(CONFIG_BASE_URL, layerMap);
+  const isLoadingConfig = useAppConfig(
+    portalConfig.configBaseUrl || "",
+    layerMap
+  );
   useManageLayers(layerMap);
   const syncToken = useSyncToken();
   useKeyboardShortcuts();
@@ -111,7 +113,7 @@ function App({ published }: { published?: boolean }) {
                   )}
                   {!published && <TopNavbar />}
                   <MapMeasurementsObjects />
-                  <MapWrapper />
+                  <GeoportalMap />
                   <MobileWarningMessage
                     headerText={mobileInfo.headerText}
                     bodyText={mobileInfo.bodyText}

@@ -1,13 +1,103 @@
-import type { PortalConfig } from "@carma-appframeworks/portals";
-import { defaultHashCodecs } from "@carma-appframeworks/portals";
-import { backgroundSettings } from "@carma-collab/wuppertal/geoportal";
-import { geoportalMapStyleConfig } from "./mapStyleConfig";
 import {
-  CESIUM_CONFIG,
-  TRANSITIONS_CONFIG,
-  DEFAULT_MAP_POSITION,
-  DEFAULT_CESIUM_CAMERA,
-} from "./app.config";
+  type MapStyleConfig,
+  type PortalConfig,
+  defaultHashCodecs,
+  MapStyleKeys,
+} from "@carma-appframeworks/portals";
+import { backgroundSettings } from "@carma-collab/wuppertal/geoportal";
+import { CESIUM_CONFIG } from "./cesium.config";
+import type { TransitionConfig } from "@carma/mapping/map-transition-2d-3d";
+import { LEAFLET_CONFIG } from "./leaflet";
+import { WUPPERTAL } from "@carma/resources";
+import { Altitude, Degrees, Latitude, Meters } from "@carma/geo/types";
+
+// App configuration constants
+export const APP_BASE_PATH = import.meta.env.BASE_URL;
+export const ICON_PREFIX =
+  "https://www.wuppertal.de/geoportal/geoportal_icon_legends/";
+export const CONFIG_BASE_URL =
+  "https://ceepr.cismet.de/config/wuppertal/_dev_geoportal/";
+export const MIN_MOBILE_WIDTH = 600;
+
+const geoportalMapStyleConfig: MapStyleConfig = {
+  defaultStyle: MapStyleKeys.TOPO,
+  availableStyles: [MapStyleKeys.TOPO, MapStyleKeys.AERIAL] as const,
+};
+
+/**
+ * Complete Cesium configuration for Geoportal
+ * Uses new SceneStyleConfig format with sources and styles
+ * Style IDs use ManagedCesiumStyleKeys from portals library:
+ *   - luftbild (aerial) → ManagedCesiumStyleKeys.MESH
+ *   - karte (topo) → ManagedCesiumStyleKeys.LOD2
+ */
+// Transition configuration for 2D↔3D mode switching
+export const TRANSITIONS_CONFIG: TransitionConfig = {
+  modeTo3d: {
+    step1_prepare2dView: {
+      maxZoom: 20,
+      zoomOutDurationMs: 700,
+      zoomOutTimeoutBufferMs: 100,
+    },
+    step2_initialRender: {
+      timeoutMs: 500,
+    },
+    step3_waitForResources: {
+      timeoutMs: 2000,
+    },
+    // step4_positionCamera: synchronous, no config needed
+    step5_cssFadeIn: {
+      durationMs: 1000,
+    },
+    step6_cameraAnimation: {
+      durationMs: 2000,
+    },
+  },
+  modeTo2d: {
+    step2_cameraTiltAnimation: {
+      durationFactorCameraDeviationMs: 1500,
+      durationFactorZoomDiffMs: 500,
+      maxDurationMs: 2000,
+    },
+    step3_cssFadeOut: {
+      durationMs: 1000,
+    },
+  },
+};
+
+// Default 2D map position (for Leaflet, MapLibre)
+// Note: NOT yet unified across all engines - see https://github.com/cismet/carma/issues/214
+export const DEFAULT_MAP_POSITION = {
+  latitude: WUPPERTAL.position.latitude as Degrees,
+  longitude: WUPPERTAL.position.longitude as Degrees,
+  zoom: 15, // Leaflet/MapLibre zoom level
+};
+
+export const HOME_POSITION = {
+  latitude: WUPPERTAL.position.latitude as Degrees,
+  longitude: WUPPERTAL.position.longitude as Degrees,
+  zoom: 18, // Leaflet/MapLibre zoom level
+};
+
+// Default Cesium 3D camera location (heading, pitch, range)
+// Wuppertal Rathaus position from resource
+export const DEFAULT_CESIUM_CAMERA = {
+  latitude: WUPPERTAL.position.latitude as Degrees,
+  longitude: WUPPERTAL.position.longitude as Degrees,
+  altitude: 10000 as Altitude.EllipsoidalWGS84Meters, // Camera altitude above sea level (Wuppertal ground ~155m + 645m height)
+  heading: 0 as Degrees, // North
+  pitch: -90 as Degrees, // degrees -90 is nadir
+  roll: 0 as Degrees, // Distance from target in meters
+};
+
+export const HOME_CESIUM_CAMERA = {
+  latitude: WUPPERTAL.position.latitude as Degrees,
+  longitude: WUPPERTAL.position.longitude as Degrees,
+  altitude: WUPPERTAL.position.altitude as Altitude.EllipsoidalWGS84Meters, // target point altitude
+  heading: 0 as Degrees, // North
+  pitch: -90 as Degrees, // degrees -90 is nadir
+  range: 500 as Meters, // Distance from target in meters
+};
 
 /**
  * Complete portal configuration for Geoportal
@@ -53,28 +143,31 @@ const hashConfig = [
  * Single config object that contains all map/portal state configuration
  */
 export const portalConfig: PortalConfig = {
-  portalConfig: {
-    hashConfig,
+  hashConfig,
 
-    // Map style configuration
-    styleConfig: geoportalMapStyleConfig,
+  // Map style configuration
+  styleConfig: geoportalMapStyleConfig,
 
-    // Default map position (2D)
-    defaultPosition: DEFAULT_MAP_POSITION,
+  // Default map position (2D)
+  defaultPosition: DEFAULT_MAP_POSITION,
+  // Default camera location (3D)
+  defaultCameraLocation: DEFAULT_CESIUM_CAMERA,
+  homePosition: DEFAULT_MAP_POSITION,
+  homePose3d: DEFAULT_CESIUM_CAMERA,
+  leafletConfig: LEAFLET_CONFIG,
+  cesiumConfig: CESIUM_CONFIG,
 
-    // Default camera location (3D)
-    defaultCameraLocation: DEFAULT_CESIUM_CAMERA,
-
-    // Cesium 3D engine configuration
-    cesiumConfig: CESIUM_CONFIG,
-
-    // Overlay UI configuration
-    overlayConfig: {
-      transparency: backgroundSettings.transparency,
-      color: backgroundSettings.color,
-    },
-
-    // 2D↔3D transition configuration
-    transitionsConfig: TRANSITIONS_CONFIG,
+  overlayConfig: {
+    transparency: backgroundSettings.transparency,
+    color: backgroundSettings.color,
   },
+
+  // 2D↔3D transition configuration
+  transitionsConfig: TRANSITIONS_CONFIG,
+
+  // App configuration
+  appBasePath: APP_BASE_PATH,
+  iconPrefix: ICON_PREFIX,
+  configBaseUrl: CONFIG_BASE_URL,
+  minMobileWidth: MIN_MOBILE_WIDTH,
 };
