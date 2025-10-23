@@ -3,6 +3,7 @@ import {
   ActiveShape,
   MapMeasurementsContextType,
   MeasurementConfig,
+  MeasurementMapStatus,
   PartialMeasurementConfig,
 } from "../../";
 import { setFromLocalforage, saveToLocalforage } from "../utils/helper";
@@ -21,6 +22,8 @@ const defaultConfig: MeasurementConfig = {
   snappingQueryRadius: 40,
   snappingToleranceRadius: 36,
   snappingMinZoom: 17,
+  debugOutputMapStatus: false,
+  debugOutputMapStatusPosition: { x: 65, y: 15 },
 };
 
 export const MapMeasurementsContext = createContext<MapMeasurementsContextType>(
@@ -72,6 +75,8 @@ export const MapMeasurementsContext = createContext<MapMeasurementsContextType>(
     setCurrentDrawHandler: (handler: any) => {},
     completeCurrentShape: () => {},
     config: defaultConfig,
+    status: "INACTIVE" as MeasurementMapStatus,
+    setStatus: (status: MeasurementMapStatus) => {},
   }
 );
 
@@ -115,6 +120,7 @@ export const MapMeasurementsProvider = ({
   const [updateTitleStatus, setUpdateTitleStatus] = useState(false);
   const [startDrawing, setStartDrawing] = useState(false);
   const [currentDrawHandler, setCurrentDrawHandler] = useState<any>(null);
+  const [status, setStatus] = useState<MeasurementMapStatus>("INACTIVE");
 
   useEffect(() => {
     setFromLocalforage(mergedConfig.localStorageKey, setShapes, []);
@@ -272,7 +278,10 @@ export const MapMeasurementsProvider = ({
   };
 
   const completeCurrentShape = () => {
-    if (currentDrawHandler && typeof currentDrawHandler.completeShape === 'function') {
+    if (
+      currentDrawHandler &&
+      typeof currentDrawHandler.completeShape === "function"
+    ) {
       currentDrawHandler.completeShape();
     }
   };
@@ -322,6 +331,8 @@ export const MapMeasurementsProvider = ({
         setCurrentDrawHandler,
         completeCurrentShape,
         config: mergedConfig,
+        status,
+        setStatus,
       }}
     >
       {children}

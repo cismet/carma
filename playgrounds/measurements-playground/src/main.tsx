@@ -47,6 +47,7 @@ const MeasurementsProviderWrapper = ({
     editableTitle: true,
     snappingEnabled: snappingEnabled,
     snappingOnUpdate: false,
+    debugOutputMapStatus: true,
     // infoBoxHeaderColor: "#22c55e",
   };
 
@@ -192,7 +193,12 @@ const RootComponent = () => {
     localStorage.removeItem("measurements-vector-style");
   };
 
-  return <App vectorStyles={vectorStylesArray} onClearAllLayers={clearAllVectorLayers} />;
+  return (
+    <App
+      vectorStyles={vectorStylesArray}
+      onClearAllLayers={clearAllVectorLayers}
+    />
+  );
 };
 
 const persistor = persistStore(store);

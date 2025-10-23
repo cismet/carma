@@ -13,6 +13,7 @@ import useDeviceDetection from "./hooks/useDeviceDetection";
 import { useMapMeasurementsContext } from "./components/MapMeasurementsProvider";
 import { MapMeasurementProps, MeasurementShapeDrawing } from "..";
 import { MeasurementsSnapping } from "./components/MeasurementsSnapping";
+import { MeasurementStatusDebug } from "./components/MeasurementStatusDebug";
 
 export function Measurements({
   mode: propMode,
@@ -286,6 +287,7 @@ export function Measurements({
   return (
     <>
       <div></div>
+      <MeasurementStatusDebug />
       {currentMode === "measurement" && (
         <MeasurementsSnapping 
           maplibreMaps={snappingLayers || []} 

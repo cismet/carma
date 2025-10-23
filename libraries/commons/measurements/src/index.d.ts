@@ -4,6 +4,14 @@ export enum MEASUREMENT_MODE {
   MEASUREMENT = "measurement",
 }
 
+export type MeasurementMapStatus = 
+  | "INACTIVE" // not active
+  | "WAITING" // moving around not dragging anything and waiting for other stuff
+  | "DRAWING" // either lines or polygons but in the process
+  | "EDITING" // dragging vertices around
+  | "MOVING" // dragging whole objects around
+  | "OUTSIDE"; // when the map has not the focus (renaming, gazetteer search, menu, ...)
+
 export interface MapMeasurementsContextType {
   mode: MEASUREMENT_MODE;
   setMode: (mode: MEASUREMENT_MODE) => void;
@@ -53,6 +61,8 @@ export interface MapMeasurementsContextType {
   setCurrentDrawHandler: (handler: any) => void;
   completeCurrentShape: () => void;
   config: MeasurementConfig;
+  status: MeasurementMapStatus;
+  setStatus: (status: MeasurementMapStatus) => void;
 }
 
 export interface MeasurementShapeDrawing {
@@ -126,6 +136,8 @@ export interface MeasurementConfig {
   snappingQueryRadius: number;
   snappingToleranceRadius: number;
   snappingMinZoom: number;
+  debugOutputMapStatus: boolean;
+  debugOutputMapStatusPosition: { x: number; y: number };
 }
 
 export type PartialMeasurementConfig = Partial<MeasurementConfig>;
