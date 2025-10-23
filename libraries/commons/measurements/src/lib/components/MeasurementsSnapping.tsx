@@ -624,7 +624,11 @@ export function MeasurementsSnapping({
             vertex.latlng.lat = snappedCoord[1];
             vertex.latlng.lng = snappedCoord[0];
             vertex.update();
-            // Update the layer
+            // Force complete refresh of the editor to recalculate middle markers
+            if (e.layer.editor) {
+              // Reset the editor to force recalculation
+              e.layer.editor.reset();
+            }
             e.layer.redraw();
           }
         }

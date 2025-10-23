@@ -47,15 +47,15 @@ export const adjustClickPosition = (
   const finalLatLng = L.latLng(lat, lng);
 
   // Check if we're drawing and snapped to first vertex (polygon closure)
-  // Only close if we actually snapped to a drawing-in-progress point (not just nearby)
   if (currentDrawHandler && currentDrawHandler._poly && currentDrawHandler._poly._latlngs) {
     const latlngs = currentDrawHandler._poly._latlngs;
-    if (latlngs.length >= 3 && closestPoint.properties?.source === "drawing-in-progress") {
+    if (latlngs.length >= 3) {
       const firstVertex = latlngs[0];
       const snappedCoord = closestPoint.geometry.coordinates;
       const threshold = 0.0001; // ~11 meters
       
-      // Check if the snapped point IS the first vertex
+      // Check if the snapped point matches the first vertex coordinates
+      // (regardless of source - could be drawing-in-progress, vector-features, or measurements)
       if (Math.abs(snappedCoord[1] - firstVertex.lat) < threshold &&
           Math.abs(snappedCoord[0] - firstVertex.lng) < threshold) {
         // Try to find and click the first vertex marker directly
