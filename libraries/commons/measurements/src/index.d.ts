@@ -122,6 +122,7 @@ export interface MeasurementConfig {
   infoBoxHeaderColor: string;
   localStorageKey: string;
   snappingEnabled: boolean;
+  snappingOnUpdate: boolean;
   snappingQueryRadius: number;
   snappingToleranceRadius: number;
   snappingMinZoom: number;

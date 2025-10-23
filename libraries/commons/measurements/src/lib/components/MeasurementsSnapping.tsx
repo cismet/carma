@@ -388,7 +388,7 @@ export function MeasurementsSnapping({
 
       // Phase 4: Show snap indicator during vertex drag
       const vertexDragHandler = (e: any) => {
-        if (!snappingEnabledRef.current) return;
+        if (!snappingEnabledRef.current || !config.snappingOnUpdate) return;
         
         const vertex = e.vertex;
         if (!vertex) return;
@@ -517,7 +517,7 @@ export function MeasurementsSnapping({
 
       // Phase 4: Snap vertex AFTER drag ends
       const vertexDragEndHandler = (e: any) => {
-        if (!snappingEnabledRef.current) return;
+        if (!snappingEnabledRef.current || !config.snappingOnUpdate) return;
         
         const vertex = e.vertex;
         if (!vertex) return;

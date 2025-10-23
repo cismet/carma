@@ -17,6 +17,7 @@ const defaultConfig: MeasurementConfig = {
   infoBoxHeaderColor: "#3b82f6",
   localStorageKey: "measurementShapes",
   snappingEnabled: true,
+  snappingOnUpdate: false,
   snappingQueryRadius: 40,
   snappingToleranceRadius: 36,
   snappingMinZoom: 17,

@@ -46,6 +46,7 @@ const MeasurementsProviderWrapper = ({
     // Only override what you want to change
     editableTitle: true,
     snappingEnabled: snappingEnabled,
+    snappingOnUpdate: false,
     // infoBoxHeaderColor: "#22c55e",
   };
 
