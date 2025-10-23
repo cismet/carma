@@ -1,11 +1,6 @@
 import type { MutableRefObject } from "react";
 import type { Map as LeafletMap } from "leaflet";
-import type { Scene, CesiumWidget } from "cesium";
-import {
-  HeadingPitchRange,
-  isValidScene,
-  tryWithValidCamera,
-} from "@carma/cesium";
+import type { Scene, CesiumWidget } from "@carma/cesium";
 
 import { promiseWithTimeout } from "@carma-commons/utils";
 import { isZoom } from "@carma-commons/units/helpers";
@@ -14,18 +9,16 @@ import { waitForAnimationFrames } from "@carma-commons/dom/window";
 import { LeafletMapEventNames } from "@carma-mapping/engines/leaflet";
 
 import type { TopicMapCtxEvent } from "@carma-mapping/engines/carma-cismap";
-import type {
-  CtxEvent,
+import {
   EmitFn as EmitCesiumFn,
   SubscribeFn as SubscribeCesiumFn,
-} from "@carma-mapping/engines/cesium/core";
-import {
   animateInterpolateHeadingPitchRange,
   pickSceneCenter,
 } from "@carma-mapping/engines/cesium/core";
 
 import {
   MapTransitionState,
+  type TransitionTo3dConfig,
   type TransitionStageTracker,
 } from "./TransitionContext";
 import { startStage, endStage } from "./transition-stage-helpers";
@@ -35,8 +28,6 @@ const MapState = {
   uninitialized: "uninitialized",
   ...MapTransitionState,
 };
-
-import type { TransitionTo3dConfig } from "./TransitionContext";
 
 export type TransitionTo3dParams = {
   leafletMapRef: MutableRefObject<LeafletMap | null>;
@@ -147,9 +138,9 @@ export const createTransitionTo3d = (params: TransitionTo3dParams) => {
     const scene = sceneRef.current;
 
     // Scene is guaranteed to be initialized by useMapTransition
-    if (!isValidScene(scene) || !leafletMap) {
+    if (!scene || !leafletMap) {
       console.warn("[CESIUM|2D3D|TO3D] Scene or leaflet not available", {
-        sceneValid: isValidScene(scene),
+        sceneValid: !scene,
         leafletMap: !!leafletMap,
       });
       onCancel?.(false);
@@ -164,15 +155,13 @@ export const createTransitionTo3d = (params: TransitionTo3dParams) => {
     startStage(transitionStageTrackerRef, "step1_prepare2dView");
 
     await prepareLeafletForTransition(leafletMap);
+    const { HeadingPitchRange, isValidScene } = await import("@carma/cesium");
 
-    // cancel any ongoing flight
-    tryWithValidCamera(
-      scene.camera,
-      (camera) => {
-        camera.cancelFlight();
-      },
-      "transitionToMode3d"
-    );
+    try {
+      scene?.camera?.cancelFlight?.();
+    } catch (error) {
+      console.error("[CESIUM|2D3D|TO3D] Error cancelling flight", error);
+    }
     endStage(transitionStageTrackerRef, "step1_prepare2dView");
 
     const onComplete3d = () => {
@@ -276,11 +265,20 @@ export const createTransitionTo3d = (params: TransitionTo3dParams) => {
     );
     // Emit events FIRST: Cesium becomes active, TopicMap becomes suspended
     // This triggers tileset loading
-    // TODO move into context triggering external stuff from the stageTracking
+    // Pass current 2D position as initialPose to update camera state ref
+    // initialPose expects degrees - will be converted to radians by activation listener
     emitCesiumEvent(CtxEvent.Activate, {
       source: "transition-to-3d",
       component: "MapModeToggle",
       reason: "User toggled 2D→3D",
+      initialPose: {
+        latitude, // degrees
+        longitude, // degrees
+        altitude: 0, // Will be calculated from zoom
+        heading: 0, // degrees (north)
+        pitch: -90, // degrees (looking down)
+        roll: 0, // degrees
+      },
     });
     emitTopicMapEvent(TopicMapCtxEvent.Suspend, undefined);
     console.log("[CESIUM|2D3D|TO3D] ✓ Cesium activated, TopicMap suspended");
@@ -383,6 +381,25 @@ export const createTransitionTo3d = (params: TransitionTo3dParams) => {
       );
     } catch (error) {
       console.error("[CESIUM|2D3D|TO3D] ✗ Camera positioning failed:", error);
+
+      // Check if it's a WebGL error that requires scene reinit
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
+      const isWebGLError =
+        errorMessage.includes("INVALID_OPERATION") ||
+        errorMessage.includes("INVALID_FRAMEBUFFER_OPERATION") ||
+        errorMessage.includes("deleted object") ||
+        errorMessage.includes("framebuffer");
+
+      if (isWebGLError) {
+        console.warn(
+          "[CESIUM|2D3D|TO3D] ⚠ WebGL error detected - requesting scene reinit"
+        );
+        emitCesium(CtxEvent.ReinitScene, {
+          reason: "WebGL framebuffer error during 2D→3D transition",
+        });
+      }
+
       transitionStateRef.current = MapTransitionState.mode2d;
       onCancel?.(false);
       throw new Error(`Transition to 3D cancelled: ${error}`);

@@ -34,6 +34,7 @@ export const useInitCesiumWidget = (
 
   const isInitializedRef = useRef(false);
   const validationAttemptedRef = useRef(false);
+  const resizeCalledRef = useRef(false);
 
   useEffect(() => {
     const container = containerRef?.current;
@@ -130,27 +131,58 @@ export const useInitCesiumWidget = (
         const container = containerRef.current;
         if (!container) throw new Error("Container ref is null");
 
+        // Ensure container has valid dimensions before creating widget
+        const containerWidth = container.clientWidth;
+        const containerHeight = container.clientHeight;
+        console.debug(
+          `[CESIUM|INIT] Container dimensions before widget creation: ${containerWidth}x${containerHeight}`
+        );
+
+        if (containerWidth === 0 || containerHeight === 0) {
+          throw new Error(
+            `Container has invalid dimensions: ${containerWidth}x${containerHeight}`
+          );
+        }
+
         const widget = new CesiumWidget(container, options);
         widgetRef.current = widget;
         sceneRef.current = widget.scene;
         isInitializedRef.current = true;
 
         console.log(
-          `[CESIUM|INIT] Widget created - Container: ${container.clientWidth}x${container.clientHeight}, Canvas: ${widget.canvas.width}x${widget.canvas.height}, Style: ${widget.canvas.style.width}x${widget.canvas.style.height}, ResScale: ${widget.resolutionScale}`
+          `[CESIUM|INIT] Widget created - Container: ${containerWidth}x${containerHeight}, Canvas: ${widget.canvas.width}x${widget.canvas.height}, Style: ${widget.canvas.style.width}x${widget.canvas.style.height}, ResScale: ${widget.resolutionScale}`
         );
 
-        // CRITICAL: Explicitly size canvas to container
-        // CesiumWidget doesn't automatically resize canvas to container dimensions
-        const containerWidth = container.clientWidth;
-        const containerHeight = container.clientHeight;
-        widget.canvas.width = containerWidth;
-        widget.canvas.height = containerHeight;
-        widget.canvas.style.width = "100%";
-        widget.canvas.style.height = "100%";
+        // CesiumWidget creates canvas with default 600x300 size
+        // Manually set canvas dimensions (widget.resize() incorrectly applies DPR)
+        if (
+          !resizeCalledRef.current &&
+          (widget.canvas.width !== containerWidth ||
+            widget.canvas.height !== containerHeight)
+        ) {
+          console.log(
+            `[CESIUM|INIT] Canvas size mismatch, manually resizing canvas`
+          );
+          resizeCalledRef.current = true;
 
-        console.log(
-          `[CESIUM|INIT] Canvas resized - Container: ${containerWidth}x${containerHeight}, Canvas: ${widget.canvas.width}x${widget.canvas.height}, Style: ${widget.canvas.style.width}x${widget.canvas.style.height}`
-        );
+          // Set canvas pixel dimensions
+          widget.canvas.width = containerWidth;
+          widget.canvas.height = containerHeight;
+
+          // Set canvas CSS dimensions
+          widget.canvas.style.width = "100%";
+          widget.canvas.style.height = "100%";
+
+          // Update camera frustum aspect ratio
+          const camera = widget.scene.camera;
+          if (camera.frustum) {
+            camera.frustum.aspectRatio = containerWidth / containerHeight;
+          }
+
+          console.log(
+            `[CESIUM|INIT] After manual resize - Canvas: ${widget.canvas.width}x${widget.canvas.height}, AspectRatio: ${camera.frustum?.aspectRatio}`
+          );
+        }
 
         // Apply screenSpaceCameraController settings from config
         const sscc = widget.scene.screenSpaceCameraController;

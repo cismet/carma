@@ -1,9 +1,9 @@
-import { CameraLookAtOptions, CameraViewOptions } from "../camera";
 import { SceneStyleConfig } from "./scene-style";
 import {
   type CesiumWidget,
   type CesiumScreenSpaceCameraController,
   type Globe,
+  type CameraPoseRadians,
 } from "@carma/cesium";
 
 /** Marker should be handled by the marker plugin
@@ -37,8 +37,9 @@ export type CesiumConfig = {
 
   // Camera/home position (CARMA extensions)
   // Priority: cameraInitialPose (URL) → cameraHomePose (config default)
-  cameraHomePose?: CameraViewOptions; // Home position (lon, lat, height) + HeadingPitchRange in degrees
-  cameraInitialPose?: CameraViewOptions; // Initial position (lon, lat, height) + HeadingPitchRoll in degrees - overrides home on init
+  // Uses internal Cesium format: radians for angles, height (not altitude)
+  cameraHomePose?: CameraPoseRadians; // Home position (lon, lat, height in radians/meters) + HeadingPitchRoll
+  cameraInitialPose?: CameraPoseRadians; // Initial position (lon, lat, height in radians/meters) + HeadingPitchRoll - overrides home on init
 
   /* CAMERA
   move to limiter plugin

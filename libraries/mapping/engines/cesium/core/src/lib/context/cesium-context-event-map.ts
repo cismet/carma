@@ -12,6 +12,7 @@ export enum CtxEvent {
   GoHome = "GoHome",
   SceneReady = "SceneReady",
   SceneResourcesReady = "SceneResourcesReady",
+  ReinitScene = "ReinitScene", // Reinitialize scene after WebGL error
   SuspendSSCC = "SuspendSSCC",
   ResumeSSCC = "ResumeSSCC",
   SetMinZoomDistance = "SetMinZoomDistance",
@@ -39,12 +40,21 @@ export type CesiumContextEventMap = {
     source?: string; // e.g., "mapModeSwitcher", "onLoad", "userAction"
     component?: string; // Component that triggered it
     reason?: string; // Human-readable reason
+    initialPose?: {
+      latitude: number;
+      longitude: number;
+      altitude: number;
+      heading?: number;
+      pitch?: number;
+      roll?: number;
+    };
   } | void;
   [CtxEvent.SceneVisible]: void;
   [CtxEvent.AnimationStart]: void;
   [CtxEvent.AnimationEnd]: void;
   [CtxEvent.SceneReady]: void;
   [CtxEvent.SceneResourcesReady]: void;
+  [CtxEvent.ReinitScene]: { reason: string };
   [CtxEvent.SuspendSSCC]: void;
   [CtxEvent.ResumeSSCC]: void;
   [CtxEvent.SetMinZoomDistance]: number;

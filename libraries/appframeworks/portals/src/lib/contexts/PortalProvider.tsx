@@ -11,6 +11,7 @@ import { useHashState } from "./HashStateProvider";
 import { type MapStyleKey, isMapStyleKey, MapStyleMapping } from "../constants";
 import { useMapStyleBus } from "../hooks/useMapStyleBus";
 import type { CesiumConfig } from "@carma-mapping/engines/cesium/types";
+import { convertCameraStateToInternalFormat } from "@carma/cesium";
 import type { HashStateConfig } from "./HashStateProvider";
 import { SelectionProvider } from "../components/SelectionProvider";
 import { OverlayTourProvider } from "@carma-commons/ui/helper-overlay";
@@ -229,8 +230,10 @@ export const PortalProvider = ({ children, config }: PortalProviderProps) => {
       sceneStyle: cesiumConfig.sceneStyle,
       initialStyle: cesiumStyleId,
       initialCamera: initialCameraLocation,
-      cameraInitialPose: initialCameraLocation,
-      cameraHomePose: defaultCameraLocation,
+      cameraInitialPose: convertCameraStateToInternalFormat(
+        initialCameraLocation
+      ),
+      cameraHomePose: convertCameraStateToInternalFormat(defaultCameraLocation),
     };
 
     console.log("[PortalProvider] Merged Cesium config:", merged);

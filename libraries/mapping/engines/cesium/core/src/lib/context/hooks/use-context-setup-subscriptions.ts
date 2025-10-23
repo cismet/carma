@@ -106,52 +106,41 @@ export const useContextSetupSubscriptions = ({
       emit(CtxEvent.AnimationEnd, undefined);
 
       (async () => {
-        const { Cartesian3, Cartographic, CesiumMath } = await import(
-          "@carma/cesium"
-        );
+        const { Cartesian3, flyToTarget } = await import("@carma/cesium");
 
-        // Convert geographic position to Cartesian3
-        const cartographic = Cartographic.fromDegrees(
-          (home as any).longitude,
-          (home as any).latitude,
-          (home as any).height
-        );
-        const destination = Cartesian3.fromRadians(
-          cartographic.longitude,
-          cartographic.latitude,
-          cartographic.height
-        );
-
-        // Use setView for instant positioning or flyTo for animation
-        const camera = scene.camera;
+        // Convert geographic position (radians) to Cartesian3 target point
+        // home is CameraPoseRadians - already in radians
         const homeTyped = home as any;
-        if (
-          homeTyped.heading !== undefined ||
-          homeTyped.pitch !== undefined ||
-          homeTyped.roll !== undefined
-        ) {
-          // Use HeadingPitchRoll orientation if provided
-          camera.setView({
-            destination,
-            orientation: {
-              heading: CesiumMath.toRadians(homeTyped.heading ?? 0),
-              pitch: CesiumMath.toRadians(homeTyped.pitch ?? -90),
-              roll: CesiumMath.toRadians(homeTyped.roll ?? 0),
-            },
-          });
-        } else {
-          // Default: look down at the position
-          camera.setView({
-            destination,
-            orientation: {
-              heading: 0,
-              pitch: CesiumMath.toRadians(-90),
-              roll: 0,
-            },
-          });
-        }
 
-        console.debug("[CesiumContext] Camera positioned at home");
+        // Target point on the ground (use ground altitude, not camera altitude)
+        const targetPoint = Cartesian3.fromRadians(
+          homeTyped.longitude,
+          homeTyped.latitude,
+          0 // Ground level - we want to look AT this point
+        );
+
+        // Calculate range from camera height
+        // If height is provided, use it as camera altitude above ground
+        // Otherwise use a default range
+        const range = homeTyped.height ?? 800; // Default 800m range
+
+        // Use flyToTarget helper with HeadingPitchRange
+        // This positions camera to look AT the target from the specified distance
+        const camera = scene.camera;
+        flyToTarget(
+          camera,
+          targetPoint,
+          {
+            heading: homeTyped.heading ?? 0, // Already in radians
+            pitch: homeTyped.pitch ?? -0.785, // ~-45° in radians (looking down at angle)
+            range: range,
+          },
+          2.0 // 2 second animation duration
+        );
+
+        console.debug(
+          "[CesiumContext] Flying to home position (looking at target)"
+        );
       })();
     });
 

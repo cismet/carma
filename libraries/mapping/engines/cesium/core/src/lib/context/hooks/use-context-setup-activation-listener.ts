@@ -10,8 +10,11 @@ import {
   type SubscribeCesiumCtxFn,
 } from "../cesium-context-event-map";
 import type { CesiumConfig } from "@carma/cesium/types";
-import type { CesiumWidget } from "@carma/cesium";
+import type { CesiumWidget, CameraStateHeadingPitchRoll } from "@carma/cesium";
 import type { CesiumInstanceRecord } from "../CesiumContext";
+import { degToRad, PI_OVER_TWO } from "@carma/units/helpers";
+import type { Degrees } from "@carma/units/types";
+import type { Longitude, Altitude } from "@carma/geo/types";
 
 // Generate unique instance IDs using crypto.randomUUID()
 const generateInstanceId = () => `cesium-instance-${crypto.randomUUID()}`;
@@ -24,13 +27,40 @@ export const useContextSetupActivationListener = (
   subscribe: SubscribeCesiumCtxFn,
   setCesiumInstances: Dispatch<SetStateAction<CesiumInstanceRecord[]>>,
   widgetRef: MutableRefObject<CesiumWidget | null>,
-  config: CesiumConfig
+  config: CesiumConfig,
+  currentCameraStateRef: MutableRefObject<CameraStateHeadingPitchRoll | null>
 ) => {
   // Track context mount time (not app start time)
   const contextMountTimeRef = useRef(Date.now());
 
   useEffect(() => {
-    const unsubActivate = subscribe(CtxEvent.Activate, (triggerData) => {
+    const unsubActivate = subscribe(CtxEvent.Activate, async (triggerData) => {
+      // Update camera state ref if initialPose is provided (e.g., from transition)
+      if (triggerData?.initialPose) {
+        const { latitude, longitude, altitude, heading, pitch, roll } =
+          triggerData.initialPose;
+
+        console.debug(
+          "[CesiumContext] Updating camera state from Activate event (degrees)",
+          triggerData.initialPose
+        );
+
+        // Convert degrees to radians using our helpers
+        currentCameraStateRef.current = {
+          latitude: degToRad(latitude as Degrees) as Longitude.deg,
+          longitude: degToRad(longitude as Degrees) as Longitude.deg,
+          altitude: altitude as Altitude.EllipsoidalWGS84Meters,
+          heading: degToRad((heading ?? 0) as Degrees) as Degrees,
+          pitch: degToRad((pitch ?? -PI_OVER_TWO) as Degrees) as Degrees,
+          roll: degToRad((roll ?? 0) as Degrees) as Degrees,
+        };
+
+        console.debug(
+          "[CesiumContext] Camera state updated (radians)",
+          currentCameraStateRef.current
+        );
+      }
+
       const instanceId = generateInstanceId();
       const timestamp = Date.now();
       const contextAgeMs = timestamp - contextMountTimeRef.current;

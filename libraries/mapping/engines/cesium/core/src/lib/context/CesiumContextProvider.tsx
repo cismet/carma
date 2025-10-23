@@ -37,7 +37,7 @@ import {
 
 import type { CesiumConfig } from "@carma/cesium/types";
 import type {
-  CameraPoseDegrees,
+  CameraPoseRadians,
   CameraStateHeadingPitchRoll,
 } from "@carma/cesium";
 
@@ -111,8 +111,8 @@ export const CesiumContextProvider = ({
   const validatedConfig = useMemo(() => validateCesiumConfig(config), [config]);
   const { cameraHomePose, cameraInitialPose } = validatedConfig;
 
-  // Camera refs for home position
-  const homeCameraRef = useRef<CameraPoseDegrees | null>(
+  // Camera refs for home position (radians)
+  const homeCameraRef = useRef<CameraPoseRadians | null>(
     cameraHomePose ?? null
   );
 
@@ -159,7 +159,8 @@ export const CesiumContextProvider = ({
     subscribe,
     setCesiumInstances,
     widgetRef,
-    config
+    validatedConfig,
+    currentCameraStateRef
   );
 
   // MINIMAL MODE: Only essential subscriptions enabled
@@ -241,7 +242,7 @@ export const CesiumContextProvider = ({
   );
 
   // Auto-recovery from Cesium errors
-  useContextSetupErrorRecovery(setRemountKey);
+  useContextSetupErrorRecovery(setRemountKey, subscribe);
 
   console.debug("CesiumContextProvider Changed/Rendered");
 

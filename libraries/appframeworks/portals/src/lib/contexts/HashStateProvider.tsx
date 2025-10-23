@@ -155,13 +155,13 @@ export const HashStateProvider: React.FC<{
     const params = getHashParams();
     const values: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(params)) {
-      const fullKey = valueNameToKey[key] || key;
+      const fullKey = keyToValueName[key] || key;
       const newValue =
         codecs && codecs[fullKey] ? codecs[fullKey].decode(value) : value;
       values[fullKey] = newValue;
     }
     return values;
-  }, [codecs, valueNameToKey]);
+  }, [codecs, keyToValueName]);
 
   const emit = useCallback((e: HashChangeEvent) => {
     listenersRef.current.forEach(({ listener, opts }) => {
@@ -207,8 +207,8 @@ export const HashStateProvider: React.FC<{
           const newValue =
             codecs && codecs[key] ? codecs[key].encode(value) : value;
           const newKey =
-            keyToValueName && keyToValueName[key] !== undefined
-              ? keyToValueName[key]
+            valueNameToKey && valueNameToKey[key] !== undefined
+              ? valueNameToKey[key]
               : key;
 
           if (newValue === undefined) {
