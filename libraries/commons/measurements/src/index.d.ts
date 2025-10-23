@@ -13,6 +13,8 @@ export interface MapMeasurementsContextType {
   setActiveShape: (shape: ActiveShape) => void;
   visibleShapes: any[];
   setVisibleShapes: (shapes: any[]) => void;
+  snappingLatlng?: any;
+  setSnappingLatlng?: (coords: any) => void;
 
   showAll: boolean;
   deleteAll: boolean;
@@ -47,6 +49,9 @@ export interface MapMeasurementsContextType {
   updateTitle: (shapeId: string | number, customTitle: string) => void;
   setStartDrawing: (status: boolean) => void;
   startDrawing: boolean;
+  currentDrawHandler: any;
+  setCurrentDrawHandler: (handler: any) => void;
+  completeCurrentShape: () => void;
   config: MeasurementConfig;
 }
 

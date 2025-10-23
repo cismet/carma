@@ -71,6 +71,9 @@ L.Control.MeasurePolygon = L.Control.extend({
     cbUpdateAreaOfDrawingMeasurement: function () {
       console.debug("Callback function executed!");
     },
+    cbSetCurrentDrawHandler: function () {
+      console.debug("Callback function executed!");
+    },
     visiblePolylines: [],
     localShapeStore: [],
     ifDrawing: false,
@@ -82,6 +85,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     customTooltip: null,
     device: null,
     clickAfterShapeSelection: false,
+    snappingLatlng: null,
   },
 
   drawingPolygons: function (map) {
@@ -126,6 +130,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     });
 
     this.options.currenLine = this._measureHandler;
+    this.options.cbSetCurrentDrawHandler(this._measureHandler);
 
     const tooltipContent = `
   <div>
@@ -142,7 +147,9 @@ L.Control.MeasurePolygon = L.Control.extend({
 
     this._measureHandler.enable();
 
-    const latlng = event.latlng;
+    const latlng = this.options.snappingLatlng
+      ? this.options.snappingLatlng
+      : event.latlng;
 
     this.options.currenLine.addVertex(latlng);
 
@@ -367,6 +374,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     });
 
     map.on("draw:drawvertex", (event) => {
+      console.log("yyy draw:drawvertex", event);
       const layers = event.layers;
       const latlngs = [];
       let index = 0;
@@ -447,6 +455,10 @@ L.Control.MeasurePolygon = L.Control.extend({
         };
         this.options.cbSetDrawingShape(shapesObj);
       }
+    });
+
+    map.on("draw:drawstop", (e) => {
+      console.log("yyy draw:drawstop", e);
     });
 
     map.on("draw:canceled", () => {

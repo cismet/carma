@@ -28,6 +28,8 @@ export const MapMeasurementsContext = createContext<MapMeasurementsContextType>(
     setActiveShape: (shape: ActiveShape) => {},
     visibleShapes: [],
     setVisibleShapes: (shapes: any[]) => {},
+    snappingLatlng: null,
+    setSnappingLatlng: (_latlng: any) => {},
     showAll: false,
     deleteAll: false,
     drawingShape: false,
@@ -61,6 +63,9 @@ export const MapMeasurementsContext = createContext<MapMeasurementsContextType>(
     updateTitle: (_shapeId: string | number, _customTitle: string) => {},
     setStartDrawing: (status: boolean) => {},
     startDrawing: false,
+    currentDrawHandler: null,
+    setCurrentDrawHandler: (handler: any) => {},
+    completeCurrentShape: () => {},
     config: defaultConfig,
   }
 );
@@ -93,6 +98,7 @@ export const MapMeasurementsProvider = ({
   const [activeShape, setActiveShape] = useState<ActiveShape>(null);
   const [shapes, setShapes] = useState<any[]>([]);
   const [visibleShapes, setVisibleShapes] = useState<any[]>([]);
+  const [snappingLatlng, setSnappingLatlng] = useState<any>(null);
   const [showAll, setShowAll] = useState(false);
   const [deleteAll, setDeleteAll] = useState(false);
   const [drawingShape, setDrawingShape] = useState(false);
@@ -103,6 +109,7 @@ export const MapMeasurementsProvider = ({
   const [mapMovingEnd, setMapMovingEnd] = useState(false);
   const [updateTitleStatus, setUpdateTitleStatus] = useState(false);
   const [startDrawing, setStartDrawing] = useState(false);
+  const [currentDrawHandler, setCurrentDrawHandler] = useState<any>(null);
 
   useEffect(() => {
     setFromLocalforage(mergedConfig.localStorageKey, setShapes, []);
@@ -259,6 +266,12 @@ export const MapMeasurementsProvider = ({
     setUpdateTitleStatus(true);
   };
 
+  const completeCurrentShape = () => {
+    if (currentDrawHandler && typeof currentDrawHandler.completeShape === 'function') {
+      currentDrawHandler.completeShape();
+    }
+  };
+
   return (
     <MapMeasurementsContext.Provider
       value={{
@@ -271,6 +284,8 @@ export const MapMeasurementsProvider = ({
         setActiveShape,
         visibleShapes,
         setVisibleShapes,
+        snappingLatlng,
+        setSnappingLatlng,
         showAll,
         setShowAll,
         deleteAll,
@@ -298,6 +313,9 @@ export const MapMeasurementsProvider = ({
         updateTitle,
         setStartDrawing,
         startDrawing,
+        currentDrawHandler,
+        setCurrentDrawHandler,
+        completeCurrentShape,
         config: mergedConfig,
       }}
     >

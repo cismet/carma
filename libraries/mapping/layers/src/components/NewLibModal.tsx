@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { isEqual } from "lodash";
 import { useHandleDrop } from "../hooks/useHandleDrop";
+import { useAdditionalConfig } from "../hooks/useAdditionalConfig";
 
 import {
   faBook,
@@ -11,6 +12,7 @@ import {
   faSearch,
   faStar,
   faX,
+  IconDefinition,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useDebounce } from "@uidotdev/usehooks";
@@ -110,18 +112,6 @@ export interface LibModalProps {
   unauthorizedCallback?: () => void;
 }
 
-const sidebarElements = [
-  { icon: faStar, text: "Favoriten", id: "favorites" },
-  { icon: faList, text: "Entdecken", id: "discover" },
-  { icon: faBook, text: "Teilzwillinge", id: "partialTwins" },
-  { icon: faMap, text: "Kartenebenen", id: "mapLayers" },
-  { icon: faMapPin, text: "Sensoren", id: "sensors", disabled: true },
-  { icon: faSearch, text: "Suchergebnisse", id: "searchResults" },
-];
-
-const additionalConfigUrl =
-  "https://wupp-digitaltwin-assets.cismet.de/data/additionalLayerConfig.json";
-
 export const NewLibModal = ({
   open,
   setOpen,
@@ -139,6 +129,21 @@ export const NewLibModal = ({
   store,
   unauthorizedCallback,
 }: LibModalProps) => {
+  const [sidebarElements, setSidebarElements] = useState<
+    {
+      icon: IconDefinition;
+      text: string;
+      id: string;
+      disabled?: boolean;
+    }[]
+  >([
+    { icon: faStar, text: "Favoriten", id: "favorites" },
+    { icon: faList, text: "Entdecken", id: "discover" },
+    { icon: faBook, text: "Teilzwillinge", id: "partialTwins" },
+    { icon: faMap, text: "Kartenebenen", id: "mapLayers" },
+    { icon: faMapPin, text: "Sensoren", id: "sensors" },
+    { icon: faSearch, text: "Suchergebnisse", id: "searchResults" },
+  ]);
   const [preview, setPreview] = useState(false);
   const [layers, setLayers] = useState<any[]>([]);
   const allLayers = useSelector(getAllLayers);
@@ -163,9 +168,7 @@ export const NewLibModal = ({
     shownCategories[0]?.id
   );
   const [discoverItems, setDiscoverItems] = useState<any[]>([]);
-  const [additionalConfig, setAdditionalConfig] = useState<any[]>([]);
   const [loadingData, setLoadingData] = useState(false);
-  const [loadingAdditionalConfig, setLoadingAdditionalConfig] = useState(true);
   const debouncedSearchTerm = useDebounce(searchValue, 300);
 
   const triggerRefetch = useSelector(getTriggerRefetch);
@@ -200,30 +203,6 @@ export const NewLibModal = ({
           console.error("Error fetching gp_entdecken: ", e);
         });
     }
-  };
-
-  const fetchAdditionalConfig = () => {
-    fetch(additionalConfigUrl)
-      .then((response) => response.json())
-      .then((data) => {
-        data.forEach((config) => {
-          config.layers.forEach((layer) => {
-            if (layer.ff as string) {
-              setFeatureFlags?.({
-                [layer.ff]: {
-                  default: false,
-                  alias: layer.ff,
-                },
-              });
-            }
-          });
-        });
-        setAdditionalConfig(data);
-      })
-      .catch((error) => {
-        setLoadingAdditionalConfig(false);
-        console.error("Error fetching additional config:", error);
-      });
   };
 
   useEffect(() => {
@@ -436,11 +415,15 @@ export const NewLibModal = ({
     setSelectedNavItemIndex,
     addItemToCategory,
     getDataFromJson,
+    activeLayers,
+    updateActiveLayer,
   });
 
-  useEffect(() => {
-    fetchAdditionalConfig();
-  }, []);
+  const { loadingAdditionalConfig } = useAdditionalConfig({
+    setFeatureFlags,
+    addItemToCategory,
+    setSidebarElements,
+  });
 
   useEffect(() => {
     const loadCapabilites = async () => {
@@ -635,56 +618,6 @@ export const NewLibModal = ({
   }, [discoverItems]);
 
   useEffect(() => {
-    if (additionalConfig.length > 0) {
-      additionalConfig.forEach((config, i) => {
-        let layers = config.layers
-          .filter((layer) => {
-            if (layer.ff) {
-              const ff = layer.ff as string;
-              return flags[ff];
-            }
-            return true;
-          })
-          .map((layer) => {
-            return {
-              ...layer,
-              serviceName: config.serviceName || layer.serviceName,
-            };
-          });
-
-        if (layers.length === 0) {
-          return;
-        }
-        if (config.Title) {
-          addItemToCategory(
-            "mapLayers",
-            { id: config.serviceName, Title: config.Title },
-            layers
-          );
-        } else {
-          layers.forEach((layer) => {
-            if (layer.replaceId || layer.mergeId) {
-              dispatch(addReplaceLayers(layer));
-            } else {
-              addItemToCategory(
-                "mapLayers",
-                { id: layer.serviceName, Title: layer.path },
-                layer
-              );
-            }
-          });
-        }
-
-        if (i === additionalConfig.length - 1) {
-          setLoadingAdditionalConfig(false);
-        }
-      });
-    } else {
-      setLoadingAdditionalConfig(false);
-    }
-  }, [additionalConfig, flags]);
-
-  useEffect(() => {
     if (getNumOfCustomLayers() === 0 && selectedNavItemIndex === 0) {
       setSelectedNavItemIndex(3);
     }
@@ -782,7 +715,7 @@ export const NewLibModal = ({
         ...prev,
         {
           id: "mapLayers",
-          categories: JSON.parse(JSON.stringify(allLayers)).reverse(),
+          categories: JSON.parse(JSON.stringify(allLayers)),
         },
       ];
     });
@@ -934,7 +867,7 @@ export const NewLibModal = ({
       footer={<></>}
       width={"100%"}
       closeIcon={false}
-      wrapClassName="h-full !overflow-y-hidden"
+      wrapClassName="h-full !overflow-y-hidden hide-tabs"
       className="h-[88%]"
       styles={{
         content: {

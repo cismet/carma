@@ -269,20 +269,23 @@ export function InfoBoxMeasurement({
                 />
               </span>
               {drawingMode ? (
-                <Tooltip title="Aktuelle Messung abbrechen">
-                  <div
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const map = routedMapRef.leafletMap.leafletElement;
-                      map.fire("draw:canceled");
-                    }}
-                  >
-                    <FontAwesomeIcon
-                      icon={faBan}
-                      className="cursor-pointer text-[16px] text-[#808080] hover:text-[#a0a0a0]"
-                    />
-                  </div>
-                </Tooltip>
+                <>
+                  {" "}
+                  <Tooltip title="Aktuelle Messung abbrechen">
+                    <div
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const map = routedMapRef.leafletMap.leafletElement;
+                        map.fire("draw:canceled");
+                      }}
+                    >
+                      <FontAwesomeIcon
+                        icon={faBan}
+                        className="cursor-pointer text-[16px] text-[#808080] hover:text-[#a0a0a0]"
+                      />
+                    </div>
+                  </Tooltip>
+                </>
               ) : (
                 <div className="flex justify-between items-center w-[12%] mt-1 gap-2">
                   <Icon

@@ -133,14 +133,14 @@ export type Config = {
 export type Item = {
   title: string;
   description: string;
-  tags: string[];
+  tags?: string[];
   thumbnail?: string;
   copyright?: string;
   keywords?: string[];
   icon?: string;
   alternativeIcon?: string;
   service?: Service;
-  name: string;
+  name?: string;
   queryable?: boolean;
   useInFeatureInfo?: boolean;
   pictureBoundingBox?: [number, number, number, number];
