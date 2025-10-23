@@ -386,6 +386,252 @@ export function MeasurementsSnapping({
       leafletMap.on("mousemove", mousemoveHandler);
       leafletMap.on("mouseout", mouseoutHandler);
 
+      // Phase 4: Show snap indicator during vertex drag
+      const vertexDragHandler = (e: any) => {
+        if (!snappingEnabledRef.current) return;
+        
+        const vertex = e.vertex;
+        if (!vertex) return;
+
+        // Get current vertex position during drag
+        const vertexLatLng = vertex.latlng;
+        const vertexPoint = leafletMap.latLngToContainerPoint(vertexLatLng);
+        
+        const currentRadius = queryRadiusRef.current;
+        const coordinatePoints: SnappingPoint[] = [];
+
+        // Extract snap points from vector features
+        const currentMaplibreMaps = maplibreMapsRef.current;
+        currentMaplibreMaps.forEach((currentMaplibreMap) => {
+          if (
+            currentMaplibreMap &&
+            currentMaplibreMap.getStyle &&
+            currentMaplibreMap.getCanvas
+          ) {
+            try {
+              const style = currentMaplibreMap.getStyle();
+              if (style && style.layers) {
+                const canvas = currentMaplibreMap.getCanvas();
+                const rect = canvas.getBoundingClientRect();
+                
+                // Convert Leaflet container point to MapLibre canvas point
+                const mapContainer = leafletMap.getContainer();
+                const mapRect = mapContainer.getBoundingClientRect();
+                const canvasX = vertexPoint.x + mapRect.left - rect.left;
+                const canvasY = vertexPoint.y + mapRect.top - rect.top;
+                
+                const bbox = [
+                  [canvasX - currentRadius, canvasY - currentRadius],
+                  [canvasX + currentRadius, canvasY + currentRadius],
+                ];
+
+                const features = currentMaplibreMap.queryRenderedFeatures(bbox, {
+                  layers: style.layers
+                    .map((layer: any) => layer.id)
+                    .filter((id: string) => !id.startsWith("highlight-")),
+                });
+
+                features.forEach((feature: any) => {
+                  const points = extractPointsFromGeometry(
+                    feature.geometry,
+                    "vector-features"
+                  );
+                  coordinatePoints.push(...points);
+                });
+              }
+            } catch (error) {
+              console.warn("Error extracting vector features:", error);
+            }
+          }
+        });
+
+        // Extract from other measurement shapes
+        const currentShapes = shapesRef.current;
+        currentShapes.forEach((shape: any) => {
+          const points = extractPointsFromMeasurementShape(shape);
+          coordinatePoints.push(...points);
+        });
+
+        // Filter out the vertex being dragged (exclude self-snapping)
+        const threshold = 0.00001; // Very small threshold to identify same point
+        const filteredCoordinatePoints = coordinatePoints.filter((point) => {
+          const pointLatLng = L.latLng(point.coordinates[1], point.coordinates[0]);
+          return !(
+            Math.abs(pointLatLng.lat - vertexLatLng.lat) < threshold &&
+            Math.abs(pointLatLng.lng - vertexLatLng.lng) < threshold
+          );
+        });
+
+        // Find closest point within radius
+        const filteredPointsWithDistance = filteredCoordinatePoints
+          .map((snappingPoint: SnappingPoint) => {
+            const coord = snappingPoint.coordinates;
+            const pointLatLng = L.latLng(coord[1], coord[0]);
+            const projectedPoint = leafletMap.latLngToContainerPoint(pointLatLng);
+
+            const dx = projectedPoint.x - vertexPoint.x;
+            const dy = projectedPoint.y - vertexPoint.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            return { snappingPoint, distance };
+          })
+          .filter((item) => item.distance <= currentRadius);
+
+        // Remove old indicator
+        if (snappingIndicatorRef.current) {
+          leafletMap.removeLayer(snappingIndicatorRef.current);
+          snappingIndicatorRef.current = null;
+        }
+
+        if (filteredPointsWithDistance.length > 0) {
+          // Find shortest distance
+          let shortestDistance = Infinity;
+          let shortestIndex = -1;
+          filteredPointsWithDistance.forEach((item, index) => {
+            if (item.distance < shortestDistance) {
+              shortestDistance = item.distance;
+              shortestIndex = index;
+            }
+          });
+
+          if (shortestIndex !== -1) {
+            const closestItem = filteredPointsWithDistance[shortestIndex];
+            const snappedCoord = closestItem.snappingPoint.coordinates;
+            // Show snap indicator at target location
+            snappingIndicatorRef.current = L.circleMarker(
+              [snappedCoord[1], snappedCoord[0]],
+              {
+                radius: 3.5,
+                color: "#000000",
+                fillColor: "#000000",
+                fillOpacity: 0.8,
+                weight: 1,
+                opacity: 0.8,
+              }
+            ).addTo(leafletMap);
+          }
+        }
+      };
+
+      leafletMap.on("editable:vertex:drag", vertexDragHandler);
+
+      // Phase 4: Snap vertex AFTER drag ends
+      const vertexDragEndHandler = (e: any) => {
+        if (!snappingEnabledRef.current) return;
+        
+        const vertex = e.vertex;
+        if (!vertex) return;
+
+        // Get final vertex position after drag
+        const vertexLatLng = vertex.latlng;
+        const vertexPoint = leafletMap.latLngToContainerPoint(vertexLatLng);
+        
+        const currentRadius = queryRadiusRef.current;
+        const coordinatePoints: SnappingPoint[] = [];
+
+        // Extract snap points from vector features
+        const currentMaplibreMaps = maplibreMapsRef.current;
+        currentMaplibreMaps.forEach((currentMaplibreMap) => {
+          if (
+            currentMaplibreMap &&
+            currentMaplibreMap.getStyle &&
+            currentMaplibreMap.getCanvas
+          ) {
+            try {
+              const style = currentMaplibreMap.getStyle();
+              if (style && style.layers) {
+                const canvas = currentMaplibreMap.getCanvas();
+                const rect = canvas.getBoundingClientRect();
+                
+                // Convert Leaflet container point to MapLibre canvas point
+                const mapContainer = leafletMap.getContainer();
+                const mapRect = mapContainer.getBoundingClientRect();
+                const canvasX = vertexPoint.x + mapRect.left - rect.left;
+                const canvasY = vertexPoint.y + mapRect.top - rect.top;
+                
+                const bbox = [
+                  [canvasX - currentRadius, canvasY - currentRadius],
+                  [canvasX + currentRadius, canvasY + currentRadius],
+                ];
+
+                const features = currentMaplibreMap.queryRenderedFeatures(bbox, {
+                  layers: style.layers
+                    .map((layer: any) => layer.id)
+                    .filter((id: string) => !id.startsWith("highlight-")),
+                });
+
+                features.forEach((feature: any) => {
+                  const points = extractPointsFromGeometry(
+                    feature.geometry,
+                    "vector-features"
+                  );
+                  coordinatePoints.push(...points);
+                });
+              }
+            } catch (error) {
+              console.warn("Error extracting vector features:", error);
+            }
+          }
+        });
+
+        // Extract from other measurement shapes
+        const currentShapes = shapesRef.current;
+        currentShapes.forEach((shape: any) => {
+          const points = extractPointsFromMeasurementShape(shape);
+          coordinatePoints.push(...points);
+        });
+
+        // Filter out the vertex being dragged (exclude self-snapping)
+        const threshold = 0.00001; // Very small threshold to identify same point
+        const filteredCoordinatePoints = coordinatePoints.filter((point) => {
+          const pointLatLng = L.latLng(point.coordinates[1], point.coordinates[0]);
+          return !(
+            Math.abs(pointLatLng.lat - vertexLatLng.lat) < threshold &&
+            Math.abs(pointLatLng.lng - vertexLatLng.lng) < threshold
+          );
+        });
+
+        // Find closest point within radius
+        const filteredPointsWithDistance = filteredCoordinatePoints
+          .map((snappingPoint: SnappingPoint) => {
+            const coord = snappingPoint.coordinates;
+            const pointLatLng = L.latLng(coord[1], coord[0]);
+            const projectedPoint = leafletMap.latLngToContainerPoint(pointLatLng);
+
+            const dx = projectedPoint.x - vertexPoint.x;
+            const dy = projectedPoint.y - vertexPoint.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            return { snappingPoint, distance };
+          })
+          .filter((item) => item.distance <= currentRadius);
+
+        if (filteredPointsWithDistance.length > 0) {
+          // Find shortest distance
+          let shortestDistance = Infinity;
+          let shortestIndex = -1;
+          filteredPointsWithDistance.forEach((item, index) => {
+            if (item.distance < shortestDistance) {
+              shortestDistance = item.distance;
+              shortestIndex = index;
+            }
+          });
+
+          if (shortestIndex !== -1) {
+            const closestItem = filteredPointsWithDistance[shortestIndex];
+            const snappedCoord = closestItem.snappingPoint.coordinates;
+            // Snap vertex to final position
+            vertex.latlng.lat = snappedCoord[1];
+            vertex.latlng.lng = snappedCoord[0];
+            vertex.update();
+            // Update the layer
+            e.layer.redraw();
+          }
+        }
+      };
+
+      leafletMap.on("editable:vertex:dragend", vertexDragEndHandler);
+
       // Add DOM listener in CAPTURE phase to intercept before Leaflet
       const mapContainer = leafletMap.getContainer();
       const mouseupHandler = (event: MouseEvent) => {
@@ -412,6 +658,8 @@ export function MeasurementsSnapping({
       return () => {
         leafletMap.off("mousemove", mousemoveHandler);
         leafletMap.off("mouseout", mouseoutHandler);
+        leafletMap.off("editable:vertex:drag", vertexDragHandler);
+        leafletMap.off("editable:vertex:dragend", vertexDragEndHandler);
         mapContainer.removeEventListener("mouseup", mouseupHandler, true);
         if (circleMarkerRef.current) {
           leafletMap.removeLayer(circleMarkerRef.current);
