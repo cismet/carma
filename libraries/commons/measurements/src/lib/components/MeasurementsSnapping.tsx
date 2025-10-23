@@ -16,7 +16,7 @@ export function MeasurementsSnapping({
   enabled?: boolean; // Optional: override config.snappingEnabled
 }) {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
-  const { shapes, setSnappingLatlng, config } = useMapMeasurementsContext();
+  const { shapes, setSnappingLatlng, config, currentDrawHandler } = useMapMeasurementsContext();
   const [queryRadius, setQueryRadius] = useState(config.snappingQueryRadius);
   const queryRadiusRef = useRef(queryRadius);
   const circleMarkerRef = useRef<any>(null);
@@ -205,6 +205,17 @@ export function MeasurementsSnapping({
           coordinatePoints.push(...points);
         });
 
+        // 3. Extract from in-progress drawing (if currently drawing)
+        if (currentDrawHandler && currentDrawHandler._poly && currentDrawHandler._poly._latlngs) {
+          const drawingLatLngs = currentDrawHandler._poly._latlngs;
+          drawingLatLngs.forEach((latlng: any) => {
+            coordinatePoints.push({
+              coordinates: [latlng.lng, latlng.lat],
+              source: "drawing-in-progress",
+            });
+          });
+        }
+
         // Filter points to only those within the query radius and calculate distances
         // Use Leaflet for coordinate projection (works without MapLibre)
         const filteredPointsWithDistance = coordinatePoints
@@ -310,7 +321,7 @@ export function MeasurementsSnapping({
       const mouseupHandler = (event: MouseEvent) => {
         // Only adjust if snapping is enabled
         if (snappingEnabledRef.current) {
-          adjustClickPosition(event, closestPoint, "mouseup", leafletMap);
+          adjustClickPosition(event, closestPoint, "mouseup", leafletMap, currentDrawHandler);
         }
       };
       mapContainer.addEventListener("mouseup", mouseupHandler, true);
@@ -342,6 +353,7 @@ export function MeasurementsSnapping({
     snappingEnabled,
     config.snappingMinZoom,
     setSnappingLatlng,
+    currentDrawHandler,
   ]);
   return null;
 }

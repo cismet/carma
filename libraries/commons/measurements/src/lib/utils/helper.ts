@@ -33,7 +33,8 @@ export const adjustClickPosition = (
   domEvent: MouseEvent,
   closestPoint: any,
   eventType: string,
-  leafletMap: any
+  leafletMap: any,
+  currentDrawHandler?: any
 ) => {
   const containerPoint = leafletMap.mouseEventToContainerPoint(domEvent);
   const shiftedContainerPoint = L.point(containerPoint.x, containerPoint.y);
@@ -45,12 +46,41 @@ export const adjustClickPosition = (
   const [lng, lat] = closestPoint.geometry.coordinates;
   const finalLatLng = L.latLng(lat, lng);
 
-  // Fire a new click event with shifted coordinates
+  // Check if we're drawing and snapped to first vertex (polygon closure)
+  if (currentDrawHandler && currentDrawHandler._poly && currentDrawHandler._poly._latlngs) {
+    const latlngs = currentDrawHandler._poly._latlngs;
+    if (latlngs.length >= 3) {
+      const firstVertex = latlngs[0];
+      const threshold = 0.0001; // ~11 meters
+      
+      // Check if snapped point matches first vertex
+      if (Math.abs(finalLatLng.lat - firstVertex.lat) < threshold &&
+          Math.abs(finalLatLng.lng - firstVertex.lng) < threshold) {
+        // Try to find and click the first vertex marker directly
+        // The vertex markers are in _markers array with customHandle property
+        if (currentDrawHandler._markers && currentDrawHandler._markers.length > 0) {
+          const firstMarker = currentDrawHandler._markers[0];
+          if (firstMarker) {
+            // Fire click event on the first vertex marker, not the map
+            firstMarker.fire('click', {
+              latlng: firstVertex,
+              target: firstMarker,
+            });
+            return true; // Don't fire synthetic map event
+          }
+        }
+      }
+    }
+  }
+
+  // Fire a new click event with shifted coordinates on the map
   leafletMap.fire(eventType, {
     latlng: finalLatLng,
     containerPoint: shiftedContainerPoint,
     originalEvent: domEvent,
   });
+  
+  return false;
 };
 
 // Prepare a Leaflet LatLng from a GeoJSON Point-like feature with coordinates [lng, lat]
