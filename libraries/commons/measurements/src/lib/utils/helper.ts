@@ -54,8 +54,8 @@ export const adjustClickPosition = (
       const snappedCoord = closestPoint.geometry.coordinates;
       const threshold = 0.0001; // ~11 meters
       
-      // Check if the snapped point matches the first vertex coordinates
-      // (regardless of source - could be drawing-in-progress, vector-features, or measurements)
+      // Check if snapped point matches first vertex coordinates (regardless of source)
+      // This handles closing when snapping to vector features at same location as first vertex
       if (Math.abs(snappedCoord[1] - firstVertex.lat) < threshold &&
           Math.abs(snappedCoord[0] - firstVertex.lng) < threshold) {
         // Try to find and click the first vertex marker directly

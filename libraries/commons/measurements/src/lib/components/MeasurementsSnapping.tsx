@@ -303,33 +303,23 @@ export function MeasurementsSnapping({
           if (latlngs && latlngs.length >= 3) {
             const firstVertex = latlngs[0];
             const snappedItem = filteredPointsWithDistance[shortestIndex];
+            const snappedCoord = snappedItem.snappingPoint.coordinates;
+            const threshold = 0.0001; // ~11 meters
             
-            // Check if snapped to drawing-in-progress AND it's the first vertex
-            if (snappedItem.snappingPoint.source === "drawing-in-progress") {
-              const snappedCoord = snappedItem.snappingPoint.coordinates;
-              const threshold = 0.0001; // ~11 meters
-              
-              if (
-                Math.abs(snappedCoord[1] - firstVertex.lat) < threshold &&
-                Math.abs(snappedCoord[0] - firstVertex.lng) < threshold
-              ) {
-                // Fire mouseover on first vertex marker
-                const firstMarker = currentDrawHandler._markers[0];
-                if (firstMarker && lastHoveredMarkerRef.current !== firstMarker) {
-                  lastHoveredMarkerRef.current = firstMarker;
-                  firstMarker.fire("mouseover", { target: firstMarker });
-                }
-              } else {
-                // Snapped to different vertex - fire mouseout
-                if (lastHoveredMarkerRef.current) {
-                  lastHoveredMarkerRef.current.fire("mouseout", {
-                    target: lastHoveredMarkerRef.current,
-                  });
-                  lastHoveredMarkerRef.current = null;
-                }
+            // Check if snapped point matches first vertex coordinates (regardless of source)
+            // This handles both drawing-in-progress points AND vector features at same location
+            if (
+              Math.abs(snappedCoord[1] - firstVertex.lat) < threshold &&
+              Math.abs(snappedCoord[0] - firstVertex.lng) < threshold
+            ) {
+              // Fire mouseover on first vertex marker to show area preview
+              const firstMarker = currentDrawHandler._markers[0];
+              if (firstMarker && lastHoveredMarkerRef.current !== firstMarker) {
+                lastHoveredMarkerRef.current = firstMarker;
+                firstMarker.fire("mouseover", { target: firstMarker });
               }
             } else {
-              // Snapped to non-drawing point - fire mouseout
+              // Snapped to different point - fire mouseout
               if (lastHoveredMarkerRef.current) {
                 lastHoveredMarkerRef.current.fire("mouseout", {
                   target: lastHoveredMarkerRef.current,
