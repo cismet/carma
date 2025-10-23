@@ -335,14 +335,14 @@ export const PortalProvider = ({ children, config }: PortalProviderProps) => {
             );
             // Update UI state
             setCurrentEngine("cesium3d");
-            
+
             // Activate Cesium engine
             emitCesium(CtxEvent.Activate, {
               source: "portal-transition",
               component: "TransitionEngineSync",
               reason: "2D→3D transition started",
             });
-            
+
             // Suspend TopicMap engine
             emitTopicMap(TopicMapCtxEvent.Suspend, undefined);
           }
@@ -356,10 +356,10 @@ export const PortalProvider = ({ children, config }: PortalProviderProps) => {
             );
             // Update UI state
             setCurrentEngine("leaflet2d");
-            
+
             // Activate TopicMap engine
             emitTopicMap(TopicMapCtxEvent.Activate, undefined);
-            
+
             // Suspend Cesium engine
             emitCesium(CtxEvent.Suspend, undefined);
           }

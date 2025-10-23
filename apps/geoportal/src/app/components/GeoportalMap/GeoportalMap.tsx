@@ -124,7 +124,6 @@ export const GeoportalMap = () => {
   // custom hooks
   useDispatchSachdatenInfoText();
   useGeoportalOverlays();
-  // useMapStyleReduxSync() - now handled by PortalReduxSyncProvider
 
   const { width, height } = useWindowSize(wrapperRef);
 

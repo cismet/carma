@@ -140,13 +140,15 @@ export const TransitionContextProvider = ({
   useEffect(() => {
     const checkInterval = setInterval(() => {
       const currentState = transitionStateRef.current;
-      
+
       // Emit events when entering final states
       if (currentState === MapTransitionState.mode3d) {
         const tracker = transitionStageTrackerRef.current;
         // Check if we just completed a transition (has transition stages)
         if (tracker.step6_cameraAnimation?.endTime) {
-          console.debug("[TransitionContextProvider] Emitting TransitionTo3dComplete");
+          console.debug(
+            "[TransitionContextProvider] Emitting TransitionTo3dComplete"
+          );
           emit(TransitionCtxEvent.TransitionTo3dComplete, undefined);
           // Clear tracker to avoid re-emitting
           transitionStageTrackerRef.current = {};
@@ -155,7 +157,9 @@ export const TransitionContextProvider = ({
         const tracker = transitionStageTrackerRef.current;
         // Check if we just completed a transition (has transition stages)
         if (tracker.step2_cameraTiltAnimation?.endTime) {
-          console.debug("[TransitionContextProvider] Emitting TransitionTo2dComplete");
+          console.debug(
+            "[TransitionContextProvider] Emitting TransitionTo2dComplete"
+          );
           emit(TransitionCtxEvent.TransitionTo2dComplete, undefined);
           // Clear tracker to avoid re-emitting
           transitionStageTrackerRef.current = {};
@@ -172,7 +176,7 @@ export const TransitionContextProvider = ({
 
     const checkInterval = setInterval(() => {
       const currentState = transitionStateRef.current;
-      
+
       if (currentState === lastState) {
         return; // No change
       }

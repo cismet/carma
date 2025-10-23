@@ -3,6 +3,7 @@ import {
   Cartesian3,
   BoundingSphere,
   HeadingPitchRange,
+  Matrix4,
   PerspectiveFrustum,
 } from "cesium";
 
@@ -186,4 +187,67 @@ export const convertCameraStateToInternalFormat = (
     ) as Radians,
     ...(roll !== undefined && { roll: degToRad(roll as Degrees) as Radians }),
   };
+};
+
+/**
+ * Capture the current camera state in world coordinates (latest render state).
+ *
+ * This is a low-overhead operation that:
+ * - Uses the WC (World Coordinate) properties which call updateMembers() internally
+ * - Captures position, direction, up, right vectors from the last render
+ * - Optionally includes FOV from the frustum
+ *
+ * Used for:
+ * - Crash recovery (storing camera state)
+ * - Orbit mode release (preserving current position)
+ * - Camera state tracking
+ *
+ * @param camera - The Cesium camera
+ * @param includeFov - Whether to capture FOV (default: true)
+ * @returns Camera state in world coordinates with optional FOV
+ */
+export const captureCurrentCameraState = (
+  camera: Camera,
+  includeFov: boolean = true
+): CameraPrimitive => {
+  const state: CameraPrimitive = {
+    position: camera.positionWC.clone(),
+    direction: camera.directionWC.clone(),
+    up: camera.upWC.clone(),
+    right: camera.rightWC.clone(),
+    frustum: {},
+  };
+
+  if (includeFov && camera.frustum instanceof PerspectiveFrustum) {
+    state.frustum.fov = camera.frustum.fov;
+  }
+
+  return state;
+};
+
+/**
+ * Release camera from orbit/lookAt mode while preserving current position.
+ *
+ * This solves the common problem where calling `camera.lookAtTransform(Matrix4.IDENTITY)`
+ * causes the camera to snap to an old cached position. Instead, this function:
+ * 1. Captures the current camera state in WORLD COORDINATES (latest render state)
+ * 2. Releases the lookAt transform
+ * 3. Restores the exact current position to prevent unwanted snapping
+ *
+ * Use this when ending drag operations or orbit controls to ensure smooth transitions.
+ *
+ * @param camera - The Cesium camera to release from orbit mode
+ */
+export const releaseCameraFromOrbitMode = (camera: Camera): void => {
+  // Capture current camera state in world coordinates (latest render state)
+  const state = captureCurrentCameraState(camera, false);
+
+  // Release the lookAt transform (exits orbit mode)
+  camera.lookAtTransform(Matrix4.IDENTITY);
+
+  // Restore the camera state to prevent snapping to old position
+  if (state.position) camera.position = state.position;
+  if (state.direction) camera.direction = state.direction;
+  if (state.up) camera.up = state.up;
+  if (state.right) camera.right = state.right;
 };

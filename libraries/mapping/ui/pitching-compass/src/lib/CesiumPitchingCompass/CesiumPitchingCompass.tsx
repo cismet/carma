@@ -7,6 +7,7 @@ import {
   ScreenSpaceEventType,
   isValidScene,
   isValidScreenSpaceEventHandler,
+  releaseCameraFromOrbitMode,
   tryWithValidCamera,
   tryWithValidScene,
 } from "@carma/cesium";
@@ -96,7 +97,18 @@ export const CesiumPitchingCompass = ({
   const handleMouseUp = useCallback(() => {
     setIsControlMouseDown(false);
     // Camera should stay at current position after drag ends
-  }, []);
+    // Only release orbit mode if we were actually dragging
+    const scene = sceneRef.current;
+    if (isValidScene(scene) && isControlMouseDown) {
+      tryWithValidCamera(scene.camera, (camera) => {
+        // Only release if we have an active lookAt transform
+        if (!camera.transform.equals(Matrix4.IDENTITY)) {
+          releaseCameraFromOrbitMode(camera);
+        }
+        scene.requestRender();
+      });
+    }
+  }, [sceneRef, isControlMouseDown]);
 
   const handleMouseMove = useCallback(
     (event: MouseEvent) => {

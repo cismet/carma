@@ -45,13 +45,20 @@ export const useContextSetupCameraTracking = (
             alt: pos.height,
           });
 
-          // Update current camera state FOV for crash recovery
+          // Update current camera state for crash recovery (position, direction, up, right, FOV)
           if (currentCameraStateRef?.current) {
-            const frustum = camera.frustum as any;
-            const fov = frustum?.fov;
-            if (fov !== undefined) {
-              currentCameraStateRef.current.fov = fov;
-            }
+            // Dynamic import to avoid static import of lazy-loaded cesium/api
+            import("@carma/cesium")
+              .then(({ captureCurrentCameraState }) => {
+                const cameraState = captureCurrentCameraState(camera, true);
+                currentCameraStateRef.current = cameraState;
+              })
+              .catch((err) => {
+                console.error(
+                  "[CesiumContext] Failed to capture camera state",
+                  err
+                );
+              });
           }
         };
 
