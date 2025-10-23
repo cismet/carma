@@ -282,7 +282,10 @@ export function MeasurementsSnapping({
               type: "Point",
               coordinates: closestItem.snappingPoint.coordinates,
             },
-            properties: { black: true },
+            properties: { 
+              black: true,
+              source: closestItem.snappingPoint.source, // Pass source for polygon closure check
+            },
           });
           isSnapped = true;
         }
@@ -294,26 +297,39 @@ export function MeasurementsSnapping({
         }
 
         // Trigger vertex marker hover for tooltip/area preview (Phase 3)
-        if (isSnapped && currentDrawHandler && currentDrawHandler._markers) {
+        // Check if we snapped to the first vertex of in-progress drawing
+        if (isSnapped && currentDrawHandler && currentDrawHandler._markers && shortestIndex !== -1) {
           const latlngs = currentDrawHandler._poly?._latlngs;
           if (latlngs && latlngs.length >= 3) {
             const firstVertex = latlngs[0];
-            const threshold = 0.0001; // ~11 meters
-
-            // Check if snapping to first vertex
-            if (
-              finalLatLng &&
-              Math.abs(finalLatLng.lat - firstVertex.lat) < threshold &&
-              Math.abs(finalLatLng.lng - firstVertex.lng) < threshold
-            ) {
-              // Fire mouseover on first vertex marker
-              const firstMarker = currentDrawHandler._markers[0];
-              if (firstMarker && lastHoveredMarkerRef.current !== firstMarker) {
-                lastHoveredMarkerRef.current = firstMarker;
-                firstMarker.fire("mouseover", { target: firstMarker });
+            const snappedItem = filteredPointsWithDistance[shortestIndex];
+            
+            // Check if snapped to drawing-in-progress AND it's the first vertex
+            if (snappedItem.snappingPoint.source === "drawing-in-progress") {
+              const snappedCoord = snappedItem.snappingPoint.coordinates;
+              const threshold = 0.0001; // ~11 meters
+              
+              if (
+                Math.abs(snappedCoord[1] - firstVertex.lat) < threshold &&
+                Math.abs(snappedCoord[0] - firstVertex.lng) < threshold
+              ) {
+                // Fire mouseover on first vertex marker
+                const firstMarker = currentDrawHandler._markers[0];
+                if (firstMarker && lastHoveredMarkerRef.current !== firstMarker) {
+                  lastHoveredMarkerRef.current = firstMarker;
+                  firstMarker.fire("mouseover", { target: firstMarker });
+                }
+              } else {
+                // Snapped to different vertex - fire mouseout
+                if (lastHoveredMarkerRef.current) {
+                  lastHoveredMarkerRef.current.fire("mouseout", {
+                    target: lastHoveredMarkerRef.current,
+                  });
+                  lastHoveredMarkerRef.current = null;
+                }
               }
             } else {
-              // Fire mouseout if we were hovering
+              // Snapped to non-drawing point - fire mouseout
               if (lastHoveredMarkerRef.current) {
                 lastHoveredMarkerRef.current.fire("mouseout", {
                   target: lastHoveredMarkerRef.current,
@@ -323,7 +339,7 @@ export function MeasurementsSnapping({
             }
           }
         } else {
-          // Fire mouseout if we were hovering
+          // Not snapped or no drawing - fire mouseout if we were hovering
           if (lastHoveredMarkerRef.current) {
             lastHoveredMarkerRef.current.fire("mouseout", {
               target: lastHoveredMarkerRef.current,
