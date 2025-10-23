@@ -95,11 +95,8 @@ export const CesiumPitchingCompass = ({
 
   const handleMouseUp = useCallback(() => {
     setIsControlMouseDown(false);
-    const scene = sceneRef.current;
-    if (!isValidScene(scene)) return;
-    const validScene = scene;
-    validScene.camera.lookAtTransform(Matrix4.IDENTITY);
-  }, [sceneRef]);
+    // Camera should stay at current position after drag ends
+  }, []);
 
   const handleMouseMove = useCallback(
     (event: MouseEvent) => {
