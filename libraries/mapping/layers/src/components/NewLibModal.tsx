@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { isEqual } from "lodash";
 import { useHandleDrop } from "../hooks/useHandleDrop";
 import { useAdditionalConfig } from "../hooks/useAdditionalConfig";
+import { useLoadCapabilities } from "../hooks/useLoadCapabilities";
 
 import {
   faBook,
@@ -18,7 +19,6 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useDebounce } from "@uidotdev/usehooks";
 import { Button, Input, Modal } from "antd";
 import Fuse from "fuse.js";
-import WMSCapabilities from "wms-capabilities";
 import type {
   BackgroundLayer,
   Item,
@@ -33,15 +33,7 @@ import {
 } from "@carma-providers/feature-flag";
 
 import {
-  baseConfig as config,
-  partianTwinConfig,
-  serviceConfig,
-} from "../helper/config";
-import {
   flattenLayer,
-  getLayerStructure,
-  mergeStructures,
-  normalizeObject,
   wmsLayerToGenericItem,
 } from "../helper/layerHelper";
 import LayerTabs from "./LayerTabs";
@@ -55,12 +47,8 @@ import "./modal.css";
 import { md5ActionFetchDAQ, md5FetchJSON } from "@carma-commons/utils";
 import ItemSkeleton from "./ItemSkeleton";
 import {
-  addloadingCapabilitiesIDs,
   addReplaceLayers,
-  removeloadingCapabilitiesIDs,
-  setLoadingCapabilities,
   setSelectedLayer,
-  setAllLayers,
   getAllLayers,
 } from "../slices/mapLayers";
 import { useDispatch, useSelector } from "react-redux";
@@ -68,10 +56,6 @@ import type { Store } from "redux";
 import { getTriggerRefetch, setTriggerRefetch } from "../slices/ui";
 
 const { Search } = Input;
-
-// TODO: fix interface
-// @ts-expect-error tbd
-const parser = new WMSCapabilities();
 
 type LayerCategories = {
   Title: string;
@@ -147,7 +131,6 @@ export const NewLibModal = ({
   const [preview, setPreview] = useState(false);
   const [layers, setLayers] = useState<any[]>([]);
   const allLayers = useSelector(getAllLayers);
-  const services = serviceConfig;
   const [searchValue, setSearchValue] = useState("");
   const [isSearching, setIsSearching] = useState(false);
   const [showItems, setShowItems] = useState(false);
@@ -425,145 +408,16 @@ export const NewLibModal = ({
     setSidebarElements,
   });
 
-  useEffect(() => {
-    const loadCapabilites = async () => {
-      let newLayers: any[] = [];
-      dispatch(setLoadingCapabilities(true));
-      for (let key in services) {
-        if (services[key].url) {
-          dispatch(addloadingCapabilitiesIDs(services[key].name));
-          fetch(
-            `${services[key].url}?service=WMS&request=GetCapabilities&version=1.1.1`
-          )
-            .then(async (response) => {
-              return response.text();
-            })
-            .then((text) => {
-              const result = parser.toJSON(text);
-              if (result) {
-                if (config) {
-                  const tmpLayer = getLayerStructure({
-                    config,
-                    wms: result,
-                    serviceName: services[key].name,
-                    skipTopicMaps: true,
-                    store: store,
-                  });
-
-                  tmpLayer.forEach((category) => {
-                    if (category.layers.length > 0) {
-                      activeLayers.forEach(async (activeLayer) => {
-                        const foundLayer = category.layers.find(
-                          (layer) => layer.id === activeLayer.id
-                        );
-                        if (foundLayer) {
-                          const updatedLayer = await utils.parseToMapLayer(
-                            foundLayer,
-                            false,
-                            activeLayer.visible,
-                            activeLayer.opacity
-                          );
-
-                          const normalizedActiveLayer =
-                            normalizeObject(activeLayer);
-                          const normalizedUpdatedLayer =
-                            normalizeObject(updatedLayer);
-
-                          if (
-                            !isEqual(
-                              normalizedActiveLayer,
-                              normalizedUpdatedLayer
-                            )
-                          ) {
-                            updateActiveLayer(updatedLayer);
-                          }
-                        }
-                      });
-                    }
-                  });
-                  const mergedLayer = mergeStructures(tmpLayer, newLayers);
-
-                  newLayers = mergedLayer;
-                  let tmp: Layer[] = [];
-                  tmp = newLayers;
-
-                  dispatch(setAllLayers(tmp));
-                  dispatch(setLoadingCapabilities(false));
-                  dispatch(removeloadingCapabilitiesIDs(services[key].name));
-                } else {
-                  getDataFromJson(result);
-                  dispatch(setLoadingCapabilities(false));
-                  dispatch(removeloadingCapabilitiesIDs(services[key].name));
-                }
-              }
-            })
-            .catch((error) => {
-              console.error(error);
-              dispatch(setLoadingCapabilities(false));
-              dispatch(removeloadingCapabilitiesIDs(services[key].name));
-            });
-        } else {
-          if (services[key].type === "topicmaps") {
-          } else {
-            const tmpLayer = getLayerStructure({
-              config,
-              serviceName: services[key].name,
-              skipTopicMaps: true,
-              store,
-            });
-            const mergedLayer = mergeStructures(tmpLayer, newLayers);
-            newLayers = mergedLayer;
-            let tmp: Layer[] = [];
-
-            tmp = newLayers;
-            setLayers(tmp);
-            dispatch(setAllLayers(tmp));
-          }
-        }
-      }
-
-      // Partial Twins Category
-      const partialTwinsCategories: {
-        Title: string;
-        id: string;
-        layers: SavedLayerConfig[];
-      }[] = [];
-
-      for (let key in partianTwinConfig) {
-        partialTwinsCategories.push(partianTwinConfig[key]);
-      }
-
-      setShownCategories((prev) => {
-        if (prev.find((item) => item.id === "partialTwins")) {
-          prev.splice(
-            prev.findIndex((item) => item.id === "partialTwins"),
-            1
-          );
-        }
-        return [
-          ...prev,
-          { id: "partialTwins", categories: partialTwinsCategories },
-        ];
-      });
-
-      setTmpAllCategories((prev) => {
-        if (prev.find((item) => item.id === "partialTwins")) {
-          prev.splice(
-            prev.findIndex((item) => item.id === "partialTwins"),
-            1
-          );
-        }
-        return [
-          ...prev,
-          { id: "partialTwins", categories: partialTwinsCategories },
-        ];
-      });
-    };
-
-    if (!loadingAdditionalConfig) {
-      loadCapabilites();
-    }
-  }, [loadingAdditionalConfig]);
+  useLoadCapabilities({
+    loadingAdditionalConfig,
+    activeLayers,
+    updateActiveLayer,
+    setLayers,
+    setShownCategories,
+    setTmpAllCategories,
+    getDataFromJson,
+    store,
+  });
 
   useEffect(() => {
     if (discoverItems?.length === 0) {
