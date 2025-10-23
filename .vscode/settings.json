@@ -29,20 +29,11 @@
   "search.exclude": {
     "**/*-snapshot/**": true,
     "**/*.snapshot/**": true,
+    "libraries/.compatibility/**": true,
     "package-lock.json": true,
   },
-  "explorer.compactFolders": true,
   "explorer.fileNesting.enabled": true,
-  "explorer.fileNesting.expand": false,
   "explorer.fileNesting.patterns": {
     "project.json": "package.json, tsconfig*.json, vite.config.ts"
-  },
-  "cSpell.customDictionaries": {
-    "custom-dictionary-folder---": {
-      "name": "custom-dictionary-folder---",
-      "path": "${workspaceFolder:./}/.cspell/custom-dictionary-folder---.txt",
-      "addWords": true,
-      "scope": "folder"
-    }
   }
 }

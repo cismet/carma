@@ -39,6 +39,11 @@
       "@carma/cesium/*": ["libraries/mapping/engines/cesium/*/src/index.ts"],
       "@carma/math": ["libraries/commons/math/src/index.ts"],
       "@carma/units/*": ["libraries/commons/units/*/src/index.ts"],
+
+      // TODO: compatibility mapping should be deprecated
+      "@carma-commons/resources": ["libraries/.compatibility/commons/resources/src/index.ts"],
+      "@carma-commons/utils/window": ["libraries/.compatibility/commons/dom/window/src/index.ts"],
+      "@carma-mapping/utils": ["libraries/.compatibility/mapping/utils/src/index.ts"],
     },
     "skipLibCheck": true
   }

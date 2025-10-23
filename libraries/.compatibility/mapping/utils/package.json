@@ -1,0 +1,9 @@
+{
+  "name": "@carma-mapping/utils",
+  "version": "0.0.1",
+  "private": true,
+  "dependencies": {},
+  "main": "./index.js",
+  "module": "./index.mjs",
+  "typings": "./index.d.ts"
+}
