@@ -163,7 +163,6 @@ export function App({
         leafletMapProps={{ editable: true }}
       >
         <Measurements
-          snappingEnabled={snappingEnabled}
           snappingLayers={maplibreMaps}
         />
         <TopicMapSelectionContent />

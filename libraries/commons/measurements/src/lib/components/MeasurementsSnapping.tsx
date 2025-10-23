@@ -10,10 +10,8 @@ import {
 
 export function MeasurementsSnapping({
   maplibreMaps,
-  enabled,
 }: {
   maplibreMaps: any[];
-  enabled?: boolean; // Optional: override config.snappingEnabled
 }) {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const { shapes, setSnappingLatlng, config, currentDrawHandler } =
@@ -24,9 +22,8 @@ export function MeasurementsSnapping({
   const snappingIndicatorRef = useRef<any>(null); // Leaflet marker for snapping point
   const shapesRef = useRef(shapes);
 
-  // Use prop if provided, otherwise fall back to config
-  const snappingEnabled =
-    enabled !== undefined ? enabled : config.snappingEnabled;
+  // Use config directly
+  const snappingEnabled = config.snappingEnabled;
   const snappingEnabledRef = useRef(snappingEnabled);
   const maplibreMapsRef = useRef(maplibreMaps);
   const lastHoveredMarkerRef = useRef<any>(null);
