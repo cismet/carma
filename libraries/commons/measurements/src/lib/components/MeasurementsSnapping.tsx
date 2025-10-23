@@ -8,23 +8,25 @@ import {
   extractPointsFromMeasurementShape,
 } from "../snapping/utils/coordinateExtraction";
 
-export function MeasurementsSnapping({ 
+export function MeasurementsSnapping({
   maplibreMaps,
-  enabled 
-}: { 
+  enabled,
+}: {
   maplibreMaps: any[];
   enabled?: boolean; // Optional: override config.snappingEnabled
 }) {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
-  const { shapes, setSnappingLatlng, config, currentDrawHandler } = useMapMeasurementsContext();
+  const { shapes, setSnappingLatlng, config, currentDrawHandler } =
+    useMapMeasurementsContext();
   const [queryRadius, setQueryRadius] = useState(config.snappingQueryRadius);
   const queryRadiusRef = useRef(queryRadius);
   const circleMarkerRef = useRef<any>(null);
   const snappingIndicatorRef = useRef<any>(null); // Leaflet marker for snapping point
   const shapesRef = useRef(shapes);
-  
+
   // Use prop if provided, otherwise fall back to config
-  const snappingEnabled = enabled !== undefined ? enabled : config.snappingEnabled;
+  const snappingEnabled =
+    enabled !== undefined ? enabled : config.snappingEnabled;
   const snappingEnabledRef = useRef(snappingEnabled);
   const maplibreMapsRef = useRef(maplibreMaps);
   const lastHoveredMarkerRef = useRef<any>(null);
@@ -149,17 +151,21 @@ export function MeasurementsSnapping({
         }
 
         const currentMaplibreMaps = maplibreMapsRef.current;
-        
+
         // Get mouse position in lat/lng using Leaflet (always available)
         const mouseLatLng = leafletMap.mouseEventToLatLng(e.originalEvent);
         const mousePoint = leafletMap.latLngToContainerPoint(mouseLatLng);
-        
+
         const currentRadius = queryRadiusRef.current;
         const coordinatePoints: SnappingPoint[] = [];
 
         // 1. Extract from vector features (loop through all MapLibre maps)
         currentMaplibreMaps.forEach((currentMaplibreMap) => {
-          if (currentMaplibreMap && currentMaplibreMap.getStyle && currentMaplibreMap.getCanvas) {
+          if (
+            currentMaplibreMap &&
+            currentMaplibreMap.getStyle &&
+            currentMaplibreMap.getCanvas
+          ) {
             try {
               const style = currentMaplibreMap.getStyle();
               if (style && style.layers) {
@@ -175,11 +181,14 @@ export function MeasurementsSnapping({
                   [point.x + currentRadius, point.y + currentRadius],
                 ];
 
-                const features = currentMaplibreMap.queryRenderedFeatures(bbox, {
-                  layers: style.layers
-                    .map((layer: any) => layer.id)
-                    .filter((id: string) => !id.startsWith("highlight-")),
-                });
+                const features = currentMaplibreMap.queryRenderedFeatures(
+                  bbox,
+                  {
+                    layers: style.layers
+                      .map((layer: any) => layer.id)
+                      .filter((id: string) => !id.startsWith("highlight-")),
+                  }
+                );
 
                 features.forEach((feature: any) => {
                   const points = extractPointsFromGeometry(
@@ -207,7 +216,11 @@ export function MeasurementsSnapping({
         });
 
         // 3. Extract from in-progress drawing (if currently drawing)
-        if (currentDrawHandler && currentDrawHandler._poly && currentDrawHandler._poly._latlngs) {
+        if (
+          currentDrawHandler &&
+          currentDrawHandler._poly &&
+          currentDrawHandler._poly._latlngs
+        ) {
           const drawingLatLngs = currentDrawHandler._poly._latlngs;
           drawingLatLngs.forEach((latlng: any) => {
             coordinatePoints.push({
@@ -223,7 +236,8 @@ export function MeasurementsSnapping({
           .map((snappingPoint: SnappingPoint) => {
             const coord = snappingPoint.coordinates;
             const pointLatLng = L.latLng(coord[1], coord[0]); // [lng, lat] -> L.latLng(lat, lng)
-            const projectedPoint = leafletMap.latLngToContainerPoint(pointLatLng);
+            const projectedPoint =
+              leafletMap.latLngToContainerPoint(pointLatLng);
 
             const dx = projectedPoint.x - mousePoint.x;
             const dy = projectedPoint.y - mousePoint.y;
@@ -249,27 +263,27 @@ export function MeasurementsSnapping({
         let isSnapped = false;
 
         if (shortestIndex === -1) {
-            // No points found - use mouse pointer but don't show indicator
-            blackPoint.push({
-              type: "Feature",
-              geometry: {
-                type: "Point",
-                coordinates: [mouseLatLng.lng, mouseLatLng.lat],
-              },
-              properties: { black: true },
-            });
-            isSnapped = false;
-          } else {
-            // Snap to the closest point found within query radius
-            const closestItem = filteredPointsWithDistance[shortestIndex];
-            blackPoint.push({
-              type: "Feature",
-              geometry: {
-                type: "Point",
-                coordinates: closestItem.snappingPoint.coordinates,
-              },
-              properties: { black: true },
-            });
+          // No points found - use mouse pointer but don't show indicator
+          blackPoint.push({
+            type: "Feature",
+            geometry: {
+              type: "Point",
+              coordinates: [mouseLatLng.lng, mouseLatLng.lat],
+            },
+            properties: { black: true },
+          });
+          isSnapped = false;
+        } else {
+          // Snap to the closest point found within query radius
+          const closestItem = filteredPointsWithDistance[shortestIndex];
+          blackPoint.push({
+            type: "Feature",
+            geometry: {
+              type: "Point",
+              coordinates: closestItem.snappingPoint.coordinates,
+            },
+            properties: { black: true },
+          });
           isSnapped = true;
         }
         closestPoint = blackPoint[0];
@@ -285,21 +299,25 @@ export function MeasurementsSnapping({
           if (latlngs && latlngs.length >= 3) {
             const firstVertex = latlngs[0];
             const threshold = 0.0001; // ~11 meters
-            
+
             // Check if snapping to first vertex
-            if (finalLatLng && 
-                Math.abs(finalLatLng.lat - firstVertex.lat) < threshold &&
-                Math.abs(finalLatLng.lng - firstVertex.lng) < threshold) {
+            if (
+              finalLatLng &&
+              Math.abs(finalLatLng.lat - firstVertex.lat) < threshold &&
+              Math.abs(finalLatLng.lng - firstVertex.lng) < threshold
+            ) {
               // Fire mouseover on first vertex marker
               const firstMarker = currentDrawHandler._markers[0];
               if (firstMarker && lastHoveredMarkerRef.current !== firstMarker) {
                 lastHoveredMarkerRef.current = firstMarker;
-                firstMarker.fire('mouseover', { target: firstMarker });
+                firstMarker.fire("mouseover", { target: firstMarker });
               }
             } else {
               // Fire mouseout if we were hovering
               if (lastHoveredMarkerRef.current) {
-                lastHoveredMarkerRef.current.fire('mouseout', { target: lastHoveredMarkerRef.current });
+                lastHoveredMarkerRef.current.fire("mouseout", {
+                  target: lastHoveredMarkerRef.current,
+                });
                 lastHoveredMarkerRef.current = null;
               }
             }
@@ -307,7 +325,9 @@ export function MeasurementsSnapping({
         } else {
           // Fire mouseout if we were hovering
           if (lastHoveredMarkerRef.current) {
-            lastHoveredMarkerRef.current.fire('mouseout', { target: lastHoveredMarkerRef.current });
+            lastHoveredMarkerRef.current.fire("mouseout", {
+              target: lastHoveredMarkerRef.current,
+            });
             lastHoveredMarkerRef.current = null;
           }
         }
@@ -355,7 +375,13 @@ export function MeasurementsSnapping({
       const mouseupHandler = (event: MouseEvent) => {
         // Only adjust if snapping is enabled
         if (snappingEnabledRef.current) {
-          adjustClickPosition(event, closestPoint, "mouseup", leafletMap, currentDrawHandler);
+          adjustClickPosition(
+            event,
+            closestPoint,
+            "mouseup",
+            leafletMap,
+            currentDrawHandler
+          );
         }
       };
       mapContainer.addEventListener("mouseup", mouseupHandler, true);
