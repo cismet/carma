@@ -3,7 +3,7 @@ import { useDispatch } from "react-redux";
 import {
   useFeatureFlags,
   type FeatureFlagConfig,
-} from "@carma-providers/feature-flag";
+} from "@carma/providers/feature-flag";
 import { addReplaceLayers } from "../slices/mapLayers";
 import type { SavedLayerConfig } from "@carma/types";
 
