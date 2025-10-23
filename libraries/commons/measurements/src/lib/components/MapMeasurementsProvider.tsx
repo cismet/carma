@@ -267,7 +267,10 @@ export const MapMeasurementsProvider = ({
   };
 
   const completeCurrentShape = () => {
-    if (currentDrawHandler && typeof currentDrawHandler.completeShape === 'function') {
+    if (
+      currentDrawHandler &&
+      typeof currentDrawHandler.completeShape === "function"
+    ) {
       currentDrawHandler.completeShape();
     }
   };

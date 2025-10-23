@@ -1,93 +1,44 @@
 import { useContext, useEffect, useRef, useState } from "react";
-import { isMobile } from "react-device-detect";
 import { useDispatch, useSelector } from "react-redux";
 
 import { Tooltip } from "antd";
 
-import {
-  faEyeSlash,
-  faHouseChimney,
-  faInfo,
-  faMinus,
-  faMountainCity,
-  faPlus,
-} from "@fortawesome/free-solid-svg-icons";
+import { faEyeSlash } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
-import type { SearchResultItem } from "@carma/types";
 import {
   CesiumMapComponentWrapper,
-  SelectionMetaData,
-  SelectionMapMode,
-  useGazData,
-  useSelection,
   usePortal,
 } from "@carma-appframeworks/portals";
-import { isAreaType } from "@carma/resources";
 import { detectWebGLContext } from "@carma-commons/dom/canvas";
 
 import { useCarmaTopicMapContext } from "@carma-mapping/engines/carma-cismap";
-import {
-  useCesiumContext,
-  useHomeControl,
-  useZoomControls as useZoomControlsCesium,
-  CtxEvent,
-} from "@carma-mapping/engines/cesium/core";
-import {
-  MapTypeSwitcher,
-  FullscreenControl,
-  RoutedMapLocateControl,
-} from "@carma-mapping/components";
-import {
-  CesiumPitchingCompass,
-  LibrePitchingCompass,
-} from "@carma-mapping/ui/pitching-compass";
-import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
+import { useCesiumContext, CtxEvent } from "@carma-mapping/engines/cesium/core";
+
 import {
   Control,
-  ControlButtonStyler,
   ControlLayout,
   ControlLayoutCanvas,
 } from "@carma-mapping/map-controls-layout";
 import { useFeatureFlags } from "@carma/providers/feature-flag";
-import { MeasurementControl } from "@carma-commons/measurements";
 
 import { TopicMapComponentWrapper } from "./components/TopicMapComponentWrapper";
+import { GeoportalControls } from "./GeoportalControls";
 import { useGeoportalOverlays } from "./hooks/useGeoportalOverlays";
 import LibreGeoportalMap from "./LibreGeoportalMap.tsx";
 // import { CesiumObliqueMode } from "../../CesiumObliqueMode.tsx";
-import LayerWrapper from "../layers/LayerWrapper.tsx";
 
-import { useLeafletZoomControls } from "@carma-mapping/engines/leaflet";
 import { useDispatchSachdatenInfoText } from "../../hooks/useDispatchSachdatenInfoText.ts";
 import { useFeatureInfoModeCursorStyle } from "../../hooks/useFeatureInfoModeCursorStyle.ts";
-import { useTourRefCollabLabels } from "../../hooks/useTourRefCollabLabels.ts";
 import { useWindowSize } from "../../hooks/useWindowSize.ts";
 
-import { cancelOngoingRequests } from "./topicmap.utils.ts";
-
-import {
-  setFeatures,
-  setPreferredLayerId,
-  setSecondaryInfoBoxElements,
-  setSelectedFeature,
-} from "../../store/slices/features.ts";
 import {
   getConfigSelection,
   getLibreMapRef,
-  getShowFullscreenButton,
-  getShowLocatorButton,
 } from "../../store/slices/mapping.ts";
-import {
-  getUIAllow3d,
-  getUIMode,
-  getZenMode,
-  setZenMode,
-  toggleUIMode,
-  UIMode,
-} from "../../store/slices/ui.ts";
+import { getUIAllow3d, getZenMode, setZenMode } from "../../store/slices/ui.ts";
 
 // detect GPU support, disables 3d mode if not supported
 let hasGPU = false;
@@ -105,9 +56,6 @@ export const GeoportalMap = () => {
 
   const showLibreMap = flags.featureFlagLibreMap;
 
-  const rerenderCountRef = useRef(0);
-  const lastRenderTimeStampRef = useRef(Date.now());
-  const lastRenderIntervalRef = useRef(0);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   // State and Selectors
@@ -117,35 +65,15 @@ export const GeoportalMap = () => {
   // Get map mode from PortalProvider context
   const { currentEngine } = usePortal();
   const isMode2d = currentEngine === "leaflet2d";
-
-  const uiMode = useSelector(getUIMode);
-  const isModeMeasurement = uiMode === UIMode.MEASUREMENT;
-  const isModeFeatureInfo = uiMode === UIMode.FEATURE_INFO;
-  const showFullscreenButton = useSelector(getShowFullscreenButton);
-  const showLocatorButton = useSelector(getShowLocatorButton);
   const zenMode = useSelector(getZenMode);
-  const homeControl = useHomeControl();
   const configSelection = useSelector(getConfigSelection);
-
-  const {
-    handleZoomIn: handleZoomInCesium,
-    handleZoomOut: handleZoomOutCesium,
-  } = useZoomControlsCesium({
-    fovMode: false, // TODO: Hook up to oblique mode state when needed
-  });
-
-  const { zoomInLeaflet, zoomOutLeaflet } =
-    useLeafletZoomControls(leafletMapRef);
 
   const contextValue = useContext(ResponsiveTopicMapContext) as any;
   const { responsiveState, gap, windowSize } = contextValue ?? {};
 
-  const [pos, setPos] = useState<[number, number] | null>(null);
-  const [layoutHeight, setLayoutHeight] = useState<number | null>(null);
   const [isLocationActive, setIsLocationActive] = useState(false);
   const [hasMapMoved, setHasMapMoved] = useState(false);
   const [hasFoundLocation, setHasFoundLocation] = useState(false);
-  const [showTerrain, setShowTerrain] = useState(false);
 
   const [zenButtonHidden, setZenButtonHidden] = useState(false);
   const [isHoveringZenButton, setIsHoveringZenButton] = useState(false);
@@ -198,36 +126,9 @@ export const GeoportalMap = () => {
   useGeoportalOverlays();
   // useMapStyleReduxSync() - now handled by PortalReduxSyncProvider
 
-  const tourRefLabels = useTourRefCollabLabels() as any;
-  const { gazData } = useGazData();
   const { width, height } = useWindowSize(wrapperRef);
 
-  const handleToggleFeatureInfo = () => {
-    cancelOngoingRequests();
-    dispatch(toggleUIMode(UIMode.FEATURE_INFO));
-  };
-
   useFeatureInfoModeCursorStyle();
-
-  const { setSelection } = useSelection();
-
-  const onGazetteerSelection = (selection: SearchResultItem) => {
-    if (!selection) {
-      console.debug("onGazetteerSelection", selection);
-      setSelection(null);
-      return;
-    }
-    const selectionMetaData: SelectionMetaData = {
-      selectedFrom: "gazetteer",
-      selectedFromMapMode: isSuspendedRef.current
-        ? SelectionMapMode.MODE_2D
-        : SelectionMapMode.MODE_3D,
-      selectionTimestamp: Date.now(),
-      isAreaSelection: isAreaType(selection.type),
-    };
-
-    setSelection(Object.assign({}, selection, selectionMetaData));
-  };
 
   useEffect(() => {
     // Suspend Cesium if 3D is not allowed
@@ -236,21 +137,8 @@ export const GeoportalMap = () => {
     }
   }, [allow3d, emitCesium]);
 
-  console.debug("[MapWrapper] Render", {
-    isMode2d,
-    allow3d,
-    zenMode,
-  });
-  rerenderCountRef.current++;
-  lastRenderIntervalRef.current = Date.now() - lastRenderTimeStampRef.current;
-  lastRenderTimeStampRef.current = Date.now();
-
   console.debug(
-    "[MapWrapper] Render {isMode2d:",
-    isMode2d,
-    ", allow3d:",
-    allow3d,
-    "}"
+    `[MapWrapper] Render isMode2d: ${isMode2d}, allow3d: ${allow3d}`
   );
 
   return (
@@ -292,215 +180,18 @@ export const GeoportalMap = () => {
       ) : (
         <div className="pt-16">
           {/* adds padding for topnavbar*/}
-          <Control position="topleft" order={10}>
-            <div ref={tourRefLabels.zoom} className="flex flex-col">
-              <Tooltip title="Maßstab vergrößern (Zoom in)" placement="right">
-                <ControlButtonStyler
-                  onClick={(event) => {
-                    if (isMode2d) {
-                      if (showLibreMap) {
-                        if (libreMapRef.current) {
-                          libreMapRef.current.zoomIn();
-                        }
-                      } else {
-                        zoomInLeaflet();
-                      }
-                    } else {
-                      handleZoomInCesium(event);
-                    }
-                  }}
-                  className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
-                  dataTestId="zoom-in-control"
-                >
-                  <FontAwesomeIcon icon={faPlus} className="text-base" />
-                </ControlButtonStyler>
-              </Tooltip>
-              <Tooltip title="Maßstab verkleinern (Zoom out)" placement="right">
-                <ControlButtonStyler
-                  onClick={(event) => {
-                    if (isMode2d) {
-                      if (showLibreMap) {
-                        if (libreMapRef.current) {
-                          libreMapRef.current.zoomOut();
-                        }
-                      } else {
-                        zoomOutLeaflet();
-                      }
-                    } else {
-                      handleZoomOutCesium(event);
-                    }
-                  }}
-                  className="!rounded-t-none !border-t-[1px]"
-                  dataTestId="zoom-out-control"
-                >
-                  <FontAwesomeIcon icon={faMinus} className="text-base" />
-                </ControlButtonStyler>
-              </Tooltip>
-            </div>
-          </Control>
-          {allow3d && (
-            <Control position="topleft" order={10}>
-              <div className="flex flex-col">
-                <Tooltip
-                  title="mit gedrückter Maustaste drehen und kippen"
-                  placement="right"
-                >
-                  <ControlButtonStyler
-                    useDisabledStyle={false}
-                    className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
-                    ref={tourRefLabels.alignNorth}
-                    dataTestId="compass-control"
-                    disabled={isMode2d && !showLibreMap}
-                  >
-                    {showLibreMap ? (
-                      <LibrePitchingCompass mapRef={libreMapRef} />
-                    ) : (
-                      <CesiumPitchingCompass />
-                    )}
-                  </ControlButtonStyler>
-                </Tooltip>
-
-                <MapTypeSwitcher
-                  className="!rounded-t-none !border-t-[1px]"
-                  ref={tourRefLabels.toggle2d3d}
-                />
-                {
-                  // TODO implement cesium home action with generic home control for all mapping engines
-                }
-              </div>
-            </Control>
-          )}
-          <Control position="topleft" order={20}>
-            {showFullscreenButton && (
-              <FullscreenControl tourRef={tourRefLabels?.fullScreen} />
-            )}
-          </Control>
-          {showLocatorButton && isMobile && (
-            <Control position="topleft" order={30}>
-              <RoutedMapLocateControl
-                tourRefLabels={tourRefLabels}
-                disabled={false}
-                nativeTooltip={true}
-              />
-            </Control>
-          )}
-          <Control position="topleft" order={40}>
-            <Tooltip title="Auf Rathaus Barmen positionieren" placement="right">
-              <ControlButtonStyler
-                ref={tourRefLabels.home}
-                onClick={() => {
-                  if (showLibreMap) {
-                    if (libreMapRef.current) {
-                      libreMapRef.current.flyTo({
-                        center: [7.199918031692506, 51.272570027476256],
-                        zoom: 17,
-                        essential: true,
-                      });
-                    }
-                  } else {
-                    const map = leafletMapRef.current;
-                    if (map) {
-                      map.flyTo([51.272570027476256, 7.199918031692506], 18);
-                      homeControl();
-                    }
-                  }
-                }}
-                dataTestId="home-control"
-              >
-                <FontAwesomeIcon icon={faHouseChimney} className="text-lg" />
-              </ControlButtonStyler>
-            </Tooltip>
-          </Control>
-          <MeasurementControl
-            position="topleft"
-            order={60}
-            disabled={!isMode2d || (isMode2d && showLibreMap)}
-            useDisabledStyle={isMode2d && showLibreMap}
-            tooltip={
-              !isMode2d
-                ? "zum Messen zu 2D-Modus wechseln"
-                : isModeMeasurement
-                ? "Messungsmodus ausschalten"
-                : "Messungsmodus einschalten"
-            }
-            tooltipPlacement="right"
-            showInfoBox={false}
+          <GeoportalControls
+            isMode2d={isMode2d}
+            allow3d={allow3d}
+            showLibreMap={showLibreMap}
+            libreMapRef={libreMapRef}
+            leafletMapRef={leafletMapRef}
+            isSuspendedRef={isSuspendedRef}
+            configSelection={configSelection}
+            responsiveState={responsiveState}
+            gap={gap}
+            windowSize={windowSize}
           />
-          <Control position="topleft" order={50}>
-            <Tooltip
-              title={
-                isModeFeatureInfo
-                  ? "Modus Multi-Sachdatenabfrage ausschalten"
-                  : "Modus Multi-Sachdatenabfrage einschalten"
-              }
-              placement="right"
-            >
-              <ControlButtonStyler
-                disabled={!isMode2d}
-                useDisabledStyle={!isMode2d}
-                onClick={() => {
-                  handleToggleFeatureInfo();
-                  dispatch(setSelectedFeature(null));
-                  dispatch(setSecondaryInfoBoxElements([]));
-                  dispatch(setFeatures([]));
-                  setPos(null);
-                  dispatch(setPreferredLayerId(""));
-                }}
-                className="font-semibold"
-                ref={tourRefLabels.featureInfo}
-                dataTestId="feature-info-control"
-              >
-                <FontAwesomeIcon
-                  icon={faInfo}
-                  className={isModeFeatureInfo ? "text-[#1677ff]" : ""}
-                />
-              </ControlButtonStyler>
-            </Tooltip>
-          </Control>
-          {showLibreMap && (
-            <Control position="topleft" order={80}>
-              <Tooltip title={"Terrain"} placement="right">
-                <ControlButtonStyler
-                  onClick={() => {
-                    if (libreMapRef.current.terrain) {
-                      libreMapRef.current?.setTerrain(null);
-                      setShowTerrain(false);
-                    } else {
-                      libreMapRef.current?.setTerrain({
-                        source: "terrainSource",
-                        exaggeration: 1,
-                      });
-                      setShowTerrain(true);
-                    }
-                  }}
-                  className="font-semibold"
-                >
-                  <FontAwesomeIcon
-                    icon={faMountainCity}
-                    className={showTerrain ? "text-[#1677ff]" : ""}
-                  />
-                </ControlButtonStyler>
-              </Tooltip>
-            </Control>
-          )}
-          <Control position="topcenter" order={10}>
-            {isMode2d && <LayerWrapper />}
-          </Control>
-          <Control position="bottomleft" order={10}>
-            <div ref={tourRefLabels.gazetteer} className={`h-full w-full`}>
-              <LibFuzzySearch
-                gazData={gazData}
-                onSelection={onGazetteerSelection}
-                placeholder="Wohin?"
-                pixelwidth={
-                  responsiveState === "normal"
-                    ? "300px"
-                    : windowSize.width - gap
-                }
-                selection={configSelection}
-              />
-            </div>
-          </Control>
         </div>
       )}
       <ControlLayoutCanvas>

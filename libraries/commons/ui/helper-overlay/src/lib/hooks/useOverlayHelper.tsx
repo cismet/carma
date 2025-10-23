@@ -5,7 +5,7 @@ import { isElementHidden } from "../utils/helper";
 import { useWindowSize } from "@uidotdev/usehooks";
 
 export const useOverlayHelper = (options: OptionsOverlayHelper) => {
-  const [ref, setRef] = useState<HTMLElement | undefined>(undefined);
+  const [ref, setRef] = useState<HTMLElement | null>(null);
   const [isVisible, setIsVisible] = useState<boolean>(false);
   const { addConfig, removeConfig } = useOverlayTourContext();
   const size = useWindowSize();
@@ -62,7 +62,7 @@ export const useOverlayHelper = (options: OptionsOverlayHelper) => {
   useLayoutEffect(() => {
     let config: OverlayHelperConfig = {
       key,
-      el: ref,
+      el: ref ?? undefined,
       content,
       containerPos,
       contentPos,
@@ -73,7 +73,7 @@ export const useOverlayHelper = (options: OptionsOverlayHelper) => {
 
     const shouldShowOverlay =
       (isVisible || options.primary.position) &&
-      (options.primary.position || !isElementHidden(ref)) &&
+      (options.primary.position || !isElementHidden(ref ?? undefined)) &&
       !(size.width && minWindowSize && size.width < minWindowSize);
 
     if (shouldShowOverlay) {

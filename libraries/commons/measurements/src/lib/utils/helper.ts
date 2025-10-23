@@ -55,7 +55,11 @@ export const adjustClickPosition = (
 
 // Prepare a Leaflet LatLng from a GeoJSON Point-like feature with coordinates [lng, lat]
 export const toLatLngFromClosestPoint = (closestPoint: any) => {
-  if (!closestPoint || !closestPoint.geometry || !closestPoint.geometry.coordinates) {
+  if (
+    !closestPoint ||
+    !closestPoint.geometry ||
+    !closestPoint.geometry.coordinates
+  ) {
     return null;
   }
   const [lng, lat] = closestPoint.geometry.coordinates;
