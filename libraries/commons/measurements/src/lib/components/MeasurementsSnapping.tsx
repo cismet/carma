@@ -27,6 +27,7 @@ export function MeasurementsSnapping({
   const snappingEnabled = enabled !== undefined ? enabled : config.snappingEnabled;
   const snappingEnabledRef = useRef(snappingEnabled);
   const maplibreMapsRef = useRef(maplibreMaps);
+  const lastHoveredMarkerRef = useRef<any>(null);
 
   useEffect(() => {
     shapesRef.current = shapes;
@@ -276,6 +277,39 @@ export function MeasurementsSnapping({
         const finalLatLng = toLatLngFromClosestPoint(closestPoint);
         if (finalLatLng && setSnappingLatlng) {
           setSnappingLatlng(finalLatLng);
+        }
+
+        // Trigger vertex marker hover for tooltip/area preview (Phase 3)
+        if (isSnapped && currentDrawHandler && currentDrawHandler._markers) {
+          const latlngs = currentDrawHandler._poly?._latlngs;
+          if (latlngs && latlngs.length >= 3) {
+            const firstVertex = latlngs[0];
+            const threshold = 0.0001; // ~11 meters
+            
+            // Check if snapping to first vertex
+            if (finalLatLng && 
+                Math.abs(finalLatLng.lat - firstVertex.lat) < threshold &&
+                Math.abs(finalLatLng.lng - firstVertex.lng) < threshold) {
+              // Fire mouseover on first vertex marker
+              const firstMarker = currentDrawHandler._markers[0];
+              if (firstMarker && lastHoveredMarkerRef.current !== firstMarker) {
+                lastHoveredMarkerRef.current = firstMarker;
+                firstMarker.fire('mouseover', { target: firstMarker });
+              }
+            } else {
+              // Fire mouseout if we were hovering
+              if (lastHoveredMarkerRef.current) {
+                lastHoveredMarkerRef.current.fire('mouseout', { target: lastHoveredMarkerRef.current });
+                lastHoveredMarkerRef.current = null;
+              }
+            }
+          }
+        } else {
+          // Fire mouseout if we were hovering
+          if (lastHoveredMarkerRef.current) {
+            lastHoveredMarkerRef.current.fire('mouseout', { target: lastHoveredMarkerRef.current });
+            lastHoveredMarkerRef.current = null;
+          }
         }
 
         // Remove old snapping indicator if exists
