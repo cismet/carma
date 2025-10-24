@@ -187,6 +187,7 @@ export function MeasurementsSnapping({
             fillOpacity: 0.15,
             weight: 1,
             opacity: 0.4,
+            interactive: false, // Don't capture mouse events
           }).addTo(leafletMap);
         }
         const coordinatePoints: SnappingPoint[] = [];
