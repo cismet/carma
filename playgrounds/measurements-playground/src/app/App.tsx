@@ -93,63 +93,115 @@ export function App({
               borderRadius: "4px",
               boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
               display: "flex",
-              alignItems: "center",
-              gap: "12px",
+              flexDirection: "column",
+              gap: "8px",
               fontSize: "14px",
             }}
           >
-            <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-              <input
-                type="checkbox"
-                id="snapping-toggle"
-                checked={snappingEnabled}
-                onChange={(e) => setSnappingEnabled(e.target.checked)}
-                style={{ cursor: "pointer" }}
-              />
-              <label
-                htmlFor="snapping-toggle"
-                style={{ cursor: "pointer", margin: 0, userSelect: "none" }}
+            {/* First row: Snapping toggle and Clear button */}
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <div
+                style={{ display: "flex", alignItems: "center", gap: "8px" }}
               >
-                Enable Snapping
-              </label>
+                <input
+                  type="checkbox"
+                  id="snapping-toggle"
+                  checked={snappingEnabled}
+                  onChange={(e) => setSnappingEnabled(e.target.checked)}
+                  style={{ cursor: "pointer" }}
+                />
+                <label
+                  htmlFor="snapping-toggle"
+                  style={{ cursor: "pointer", margin: 0, userSelect: "none" }}
+                >
+                  Enable Snapping
+                </label>
+              </div>
+
+              {vectorStyles.length > 0 && (
+                <>
+                  <div
+                    style={{
+                      width: "1px",
+                      height: "20px",
+                      backgroundColor: "#ddd",
+                    }}
+                  />
+                  <button
+                    onClick={onClearAllLayers}
+                    title="Remove all vector layers"
+                    style={{
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      padding: "4px 8px",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      fontSize: "14px",
+                      color: "#dc2626",
+                      transition: "color 0.2s",
+                    }}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.color = "#991b1b")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.color = "#dc2626")
+                    }
+                  >
+                    <span style={{ fontSize: "16px" }}>🗑️</span>
+                    <span>Clear Layers ({vectorStyles.length})</span>
+                  </button>
+                </>
+              )}
             </div>
 
-            {vectorStyles.length > 0 && (
-              <>
-                <div
-                  style={{
-                    width: "1px",
-                    height: "20px",
-                    backgroundColor: "#ddd",
-                  }}
-                />
-                <button
-                  onClick={onClearAllLayers}
-                  title="Remove all vector layers"
-                  style={{
-                    background: "none",
-                    border: "none",
-                    cursor: "pointer",
-                    padding: "4px 8px",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "6px",
-                    fontSize: "14px",
-                    color: "#dc2626",
-                    transition: "color 0.2s",
-                  }}
-                  onMouseEnter={(e) =>
-                    (e.currentTarget.style.color = "#991b1b")
-                  }
-                  onMouseLeave={(e) =>
-                    (e.currentTarget.style.color = "#dc2626")
-                  }
-                >
-                  <span style={{ fontSize: "16px" }}>🗑️</span>
-                  <span>Clear Layers ({vectorStyles.length})</span>
-                </button>
-              </>
-            )}
+            {/* Second row: Vector layer links */}
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
+                fontSize: "13px",
+              }}
+            >
+              Drop these:{" "}
+              <a
+                href="https://tiles.cismet.de/poi/style.json"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  color: "#2563eb",
+                  textDecoration: "none",
+                  transition: "color 0.2s",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = "#1d4ed8")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "#2563eb")}
+              >
+                POIs
+              </a>
+              <div
+                style={{
+                  width: "1px",
+                  height: "12px",
+                  backgroundColor: "#ddd",
+                }}
+              />
+              <a
+                href="https://tiles.cismet.de/alkis/flurstuecke.black.style.json"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  color: "#2563eb",
+                  textDecoration: "none",
+                  transition: "color 0.2s",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.color = "#1d4ed8")}
+                onMouseLeave={(e) => (e.currentTarget.style.color = "#2563eb")}
+              >
+                ALKIS
+              </a>
+            </div>
           </div>
         </Control>
       </ControlLayout>
