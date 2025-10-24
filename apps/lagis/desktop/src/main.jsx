@@ -131,6 +131,12 @@ ReactDOM.createRoot(document.getElementById("root")).render(
             <TopicMapContextProvider appKey="lagis-desktop.map">
               <MapMeasurementsProvider
                 config={{
+                  editableTitle: true,
+                  snappingEnabled: true,
+                  snappingOnUpdate: false,
+                  snappingRadiusVisible: false,
+                  snappingQueryRadius: 40,
+                  snappingMinZoom: 15,
                   localStorageKey: "@" + APP_KEY + ".app.measurements",
                 }}
               >

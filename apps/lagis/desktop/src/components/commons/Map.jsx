@@ -68,6 +68,7 @@ import {
   InfoBoxMeasurement,
   useMapMeasurementsContext,
   MEASUREMENT_MODE,
+  Measurements,
 } from "@carma-commons/measurements";
 
 const { ScaleControl } = TransitiveReactLeaflet;
