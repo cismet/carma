@@ -130,6 +130,9 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const markerAsset = models[CESIUM_CONFIG.markerKey]; //
   const markerAnchorHeight = CESIUM_CONFIG.markerAnchorHeight ?? 10;
   const layers = useSelector(getLayers);
+  const maplibreMaps = layers
+    .filter((l) => l.layerType === "vector" && l.visible && l.maplibreMap)
+    .map((l) => l.maplibreMap);
   const uiMode = useSelector(getUIMode);
   const isModeMeasurement = uiMode === UIMode.MEASUREMENT;
   const isModeFeatureInfo = uiMode === UIMode.FEATURE_INFO;
@@ -618,7 +621,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
             leafletMap: routedMap?.leafletMap?.leafletElement,
           })}
           <PrintPreview />
-          <Measurements />
+          <Measurements snappingLayers={maplibreMaps} />
         </TopicMapComponent>
       </div>
       {allow3d && cesiumInitialCameraView !== null && (
