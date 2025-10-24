@@ -133,7 +133,6 @@ export interface MeasurementConfig {
   snappingEnabled: boolean;
   snappingOnUpdate: boolean;
   snappingQueryRadius: number;
-  snappingToleranceRadius: number;
   snappingMinZoom: number;
   snappingRadiusVisible: boolean;
   debugOutputMapStatus: boolean;

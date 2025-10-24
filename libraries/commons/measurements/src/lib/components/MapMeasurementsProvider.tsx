@@ -20,7 +20,6 @@ const defaultConfig: MeasurementConfig = {
   snappingEnabled: true,
   snappingOnUpdate: false,
   snappingQueryRadius: 40,
-  snappingToleranceRadius: 36,
   snappingMinZoom: 17,
   snappingRadiusVisible: false,
   debugOutputMapStatus: false,

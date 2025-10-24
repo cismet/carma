@@ -17,7 +17,6 @@ export interface MousePosition {
 export interface SnappingContext {
   mousePosition: MousePosition;
   queryRadius: number;
-  toleranceRadius: number;
   maplibreMap: any;
   leafletMap: any;
 }
