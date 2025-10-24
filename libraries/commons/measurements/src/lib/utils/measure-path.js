@@ -218,10 +218,15 @@ L.Control.MeasurePolygon = L.Control.extend({
     }
     this.options.cbSetUpdateStatusHandler(true);
     
-    // Set status to MOVING when dragging whole shape (not vertices)
-    if (this.options.cbSetMapStatus && 
-        (event.type === "editable:drag" || event.type === "editable:dragstart")) {
-      this.options.cbSetMapStatus("MOVING");
+    // Set status based on drag type
+    if (this.options.cbSetMapStatus) {
+      if (event.type === "editable:drag" || event.type === "editable:dragstart") {
+        // Dragging whole shape
+        this.options.cbSetMapStatus("MOVING");
+      } else if (event.type === "editable:vertex:drag" || event.type === "editable:vertex:deleted") {
+        // Dragging vertices or deleting vertex
+        this.options.cbSetMapStatus("EDITING");
+      }
     }
     
     const polyline = event.target;
@@ -337,6 +342,10 @@ L.Control.MeasurePolygon = L.Control.extend({
 
       layer.on("editable:vertex:dragend", () => {
         this.options.cbSetUpdateStatusHandler(false);
+        // Reset status to WAITING when vertex editing ends
+        if (this.options.cbSetMapStatus) {
+          this.options.cbSetMapStatus("WAITING");
+        }
       });
       
       // Reset status to WAITING when drag ends
@@ -909,6 +918,10 @@ L.Control.MeasurePolygon = L.Control.extend({
 
     polygon.on("editable:vertex:dragend", () => {
       this.options.cbSetUpdateStatusHandler(false);
+      // Reset status to WAITING when vertex editing ends
+      if (this.options.cbSetMapStatus) {
+        this.options.cbSetMapStatus("WAITING");
+      }
     });
     
     // Reset status to WAITING when drag ends
@@ -991,6 +1004,10 @@ L.Control.MeasurePolygon = L.Control.extend({
 
         savedShape.on("editable:vertex:dragend", () => {
           this.options.cbSetUpdateStatusHandler(false);
+          // Reset status to WAITING when vertex editing ends
+          if (this.options.cbSetMapStatus) {
+            this.options.cbSetMapStatus("WAITING");
+          }
         });
         
         // Reset status to WAITING when drag ends
