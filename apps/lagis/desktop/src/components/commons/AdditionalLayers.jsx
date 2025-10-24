@@ -117,52 +117,63 @@ export const configuration = {
     initialActive: false,
     title: drawerTextsHelper.alkisLandparcels,
     conf: {
-      type: "graphql",
-      referenceSystemDefinition: MappingConstants.proj4crs3857def,
-      query: `
-      query MyQuery($bbPoly: geometry) {
-        alkis_landparcel(where: {geom: {geo_field: {_st_intersects: $bbPoly}}}) {
-          gemarkung
-          flur
-          fstck_nenner
-          fstck_zaehler
-          id
-          geom {
-            geo_field
-          }
-        }
-      }`,
-      endpoint: REST_SERVICE_WUNDA + "/graphql/WUNDA_BLAU/execute",
-      fetchAllowed: (bbPoly) => {
-        const area = getArea25832(bbPoly);
-        const maxAreaForSearch = 130000;
-
-        return area < maxAreaForSearch && area !== 0;
-      },
-      style: {
-        color: "#00000040",
-        fillColor: "#00000020",
-        weight: 2,
-      },
-      hoveredStyle: {
-        color: "#00000040",
-        fillColor: "#00000020",
-        weight: 4,
-      },
-      useHover: true,
-      createFeature: createFeatureArray,
-      // ---- Events ----
-      onMouseOver: (feature) => {
-        setHoveredProperties(feature.properties);
-      },
-      onMouseOut: () => {
-        setHoveredProperties({});
-      },
-      onStatus: (status) => {
-        console.log("statusxx", status);
-      },
+      type: "vector",
+      style: "https://tiles.cismet.de/alkis/flurstuecke.only.grey.style.json",
+      //   offlineAvailable: true,
+      //   offlineDataStoreKey: "wuppBasemap",
+      pane: "additionalLayers2",
     },
   },
+  // alkisLandparcels: {
+  //   initialActive: false,
+  //   title: drawerTextsHelper.alkisLandparcels,
+  //   conf: {
+  //     type: "graphql",
+  //     referenceSystemDefinition: MappingConstants.proj4crs3857def,
+  //     query: `
+  //     query MyQuery($bbPoly: geometry) {
+  //       alkis_landparcel(where: {geom: {geo_field: {_st_intersects: $bbPoly}}}) {
+  //         gemarkung
+  //         flur
+  //         fstck_nenner
+  //         fstck_zaehler
+  //         id
+  //         geom {
+  //           geo_field
+  //         }
+  //       }
+  //     }`,
+  //     endpoint: REST_SERVICE_WUNDA + "/graphql/WUNDA_BLAU/execute",
+  //     fetchAllowed: (bbPoly) => {
+  //       const area = getArea25832(bbPoly);
+  //       const maxAreaForSearch = 130000;
+
+  //       return area < maxAreaForSearch && area !== 0;
+  //     },
+  //     style: {
+  //       color: "#00000040",
+  //       fillColor: "#00000020",
+  //       weight: 2,
+  //     },
+  //     hoveredStyle: {
+  //       color: "#00000040",
+  //       fillColor: "#00000020",
+  //       weight: 4,
+  //     },
+  //     useHover: true,
+  //     createFeature: createFeatureArray,
+  //     // ---- Events ----
+  //     onMouseOver: (feature) => {
+  //       setHoveredProperties(feature.properties);
+  //     },
+  //     onMouseOut: () => {
+  //       setHoveredProperties({});
+  //     },
+  //     onStatus: (status) => {
+  //       console.log("statusxx", status);
+  //     },
+  //   },
+  // },
 };
 
 export default function AdditionalLayers({
