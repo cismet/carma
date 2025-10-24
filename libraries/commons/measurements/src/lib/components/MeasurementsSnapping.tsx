@@ -152,6 +152,19 @@ export function MeasurementsSnapping({
           return;
         }
 
+        // Check if ALT key is pressed - if so, disable snapping temporarily
+        if (e.originalEvent.altKey) {
+          clearBlackPoint();
+          if (circleMarkerRef.current) {
+            leafletMap.removeLayer(circleMarkerRef.current);
+            circleMarkerRef.current = null;
+          }
+          if (setSnappingLatlng) {
+            setSnappingLatlng(null);
+          }
+          return; // Exit early - no snapping while ALT is pressed
+        }
+
         // Check zoom level - only work if zoom >= configured minimum
         const currentZoom = leafletMap.getZoom();
         if (currentZoom < config.snappingMinZoom) {
