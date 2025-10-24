@@ -151,7 +151,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     // Store original click position before Leaflet.Draw modifies it
     this._lastOriginalClick = null;
     
-    map.on('click', (e) => {
+    const storeClickPosition = (e) => {
       if (this._measureHandler && this._measureHandler._enabled) {
         // Store the ORIGINAL click position
         this._lastOriginalClick = {
@@ -159,7 +159,10 @@ L.Control.MeasurePolygon = L.Control.extend({
           containerPoint: map.latLngToContainerPoint(e.latlng)
         };
       }
-    });
+    };
+    
+    map.on('click', storeClickPosition);
+    map.on('touchstart', storeClickPosition); // Also handle touch events on mobile
     const latlng = (this.options.snappingEnabled && this.options.snappingLatlng)
       ? this.options.snappingLatlng
       : event.latlng;
@@ -441,18 +444,22 @@ L.Control.MeasurePolygon = L.Control.extend({
             return; // Not the first vertex, let Leaflet.Draw handle it normally
           }
           
-          // Check if original click is within snapping radius OR if snapping is active and brought us here
-          const maxClickDistance = this.options.snappingQueryRadius || 40;
-          const isWithinSnappingRadius = pixelDistance <= maxClickDistance;
-          const isSnappedToFirstVertex = this.options.snappingEnabled && 
-                                        this.options.snappingLatlng &&
-                                        Math.abs(this.options.snappingLatlng.lat - markerLatLng.lat) < 0.0000001 &&
-                                        Math.abs(this.options.snappingLatlng.lng - markerLatLng.lng) < 0.0000001;
-          
-          if (!isWithinSnappingRadius && !isSnappedToFirstVertex) {
-            // Don't process this click - it shouldn't close the polygon
-            return;
+          // Only apply distance check when snapping is enabled (desktop)
+          // On mobile, snapping is disabled so let Leaflet.Draw handle closure normally
+          if (this.options.snappingEnabled) {
+            // Check if original click is within snapping radius OR if snapping is active and brought us here
+            const maxClickDistance = this.options.snappingQueryRadius || 40;
+            const isWithinSnappingRadius = pixelDistance <= maxClickDistance;
+            const isSnappedToFirstVertex = this.options.snappingLatlng &&
+                                          Math.abs(this.options.snappingLatlng.lat - markerLatLng.lat) < 0.0000001 &&
+                                          Math.abs(this.options.snappingLatlng.lng - markerLatLng.lng) < 0.0000001;
+            
+            if (!isWithinSnappingRadius && !isSnappedToFirstVertex) {
+              // Don't process this click - it shouldn't close the polygon
+              return;
+            }
           }
+          // On mobile (snapping disabled), always allow closure when clicking first vertex
           this.options.shapeMode = "polygon";
           this.options.currenLine.completeShape();
         };
