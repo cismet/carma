@@ -47,6 +47,7 @@ const MeasurementsProviderWrapper = ({
     editableTitle: true,
     snappingEnabled: snappingEnabled,
     snappingOnUpdate: false,
+    snappingRadiusVisible: true,
     debugOutputMapStatus: true,
     localStorageKey: "@MEASUREMENT_PLAYGROUNDY.app.measurements",
 

@@ -172,6 +172,23 @@ export function MeasurementsSnapping({
         const mousePoint = leafletMap.latLngToContainerPoint(mouseLatLng);
 
         const currentRadius = queryRadiusRef.current;
+        
+        // Show radius circle if enabled and in WAITING or DRAWING status
+        if (config.snappingRadiusVisible && 
+            (statusRef.current === "WAITING" || statusRef.current === "DRAWING")) {
+          // Convert pixel radius to meters for the circle
+          const metersPerPixel = 156543.03392 * Math.cos(mouseLatLng.lat * Math.PI / 180) / Math.pow(2, currentZoom);
+          const radiusInMeters = currentRadius * metersPerPixel;
+          
+          circleMarkerRef.current = L.circle(mouseLatLng, {
+            radius: radiusInMeters,
+            color: "#ffffff",
+            fillColor: "#ffffff",
+            fillOpacity: 0.15,
+            weight: 1,
+            opacity: 0.4,
+          }).addTo(leafletMap);
+        }
         const coordinatePoints: SnappingPoint[] = [];
 
         // 1. Extract from vector features (loop through all MapLibre maps)
