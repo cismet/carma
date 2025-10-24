@@ -136,7 +136,13 @@ export const MapMeasurementsProvider = ({
     if (drawingShape) {
       setStatus("DRAWING");
     } else if (mode === MEASUREMENT_MODE.MEASUREMENT) {
-      setStatus("WAITING");
+      // Only set to WAITING if not already in EDITING or MOVING state
+      setStatus((currentStatus) => {
+        if (currentStatus === "EDITING" || currentStatus === "MOVING") {
+          return currentStatus;
+        }
+        return "WAITING";
+      });
     }
   }, [drawingShape, mode]);
 

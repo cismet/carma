@@ -14,7 +14,7 @@ export function MeasurementsSnapping({
   maplibreMaps: any[];
 }) {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
-  const { shapes, setSnappingLatlng, config, currentDrawHandler } =
+  const { shapes, setSnappingLatlng, config, currentDrawHandler, status } =
     useMapMeasurementsContext();
   const [queryRadius, setQueryRadius] = useState(config.snappingQueryRadius);
   const queryRadiusRef = useRef(queryRadius);
@@ -30,6 +30,7 @@ export function MeasurementsSnapping({
   const isDraggingVertexRef = useRef(false);
   const currentDrawHandlerRef = useRef(currentDrawHandler);
   const lastSnappedCoordRef = useRef<[number, number] | null>(null);
+  const statusRef = useRef(status);
 
   useEffect(() => {
     shapesRef.current = shapes;
@@ -38,6 +39,10 @@ export function MeasurementsSnapping({
   useEffect(() => {
     queryRadiusRef.current = queryRadius;
   }, [queryRadius]);
+
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
 
   useEffect(() => {
     snappingEnabledRef.current = snappingEnabled;
@@ -146,7 +151,7 @@ export function MeasurementsSnapping({
           clearBlackPoint();
           return;
         }
-        
+
         // Check zoom level - only work if zoom >= configured minimum
         const currentZoom = leafletMap.getZoom();
         if (currentZoom < config.snappingMinZoom) {
@@ -293,7 +298,7 @@ export function MeasurementsSnapping({
               type: "Point",
               coordinates: closestItem.snappingPoint.coordinates,
             },
-            properties: { 
+            properties: {
               black: true,
               source: closestItem.snappingPoint.source, // Pass source for polygon closure check
             },
@@ -309,14 +314,19 @@ export function MeasurementsSnapping({
 
         // Trigger vertex marker hover for tooltip/area preview (Phase 3)
         // Check if we snapped to the first vertex of in-progress drawing
-        if (isSnapped && currentDrawHandlerValue && currentDrawHandlerValue._markers && shortestIndex !== -1) {
+        if (
+          isSnapped &&
+          currentDrawHandlerValue &&
+          currentDrawHandlerValue._markers &&
+          shortestIndex !== -1
+        ) {
           const latlngs = currentDrawHandlerValue._poly?._latlngs;
           if (latlngs && latlngs.length >= 3) {
             const firstVertex = latlngs[0];
             const snappedItem = filteredPointsWithDistance[shortestIndex];
             const snappedCoord = snappedItem.snappingPoint.coordinates;
             const threshold = 0.0001; // ~11 meters
-            
+
             // Check if snapped point matches first vertex coordinates (regardless of source)
             // This handles both drawing-in-progress points AND vector features at same location
             if (
@@ -350,12 +360,13 @@ export function MeasurementsSnapping({
         }
 
         // Only update indicator if snap position changed
-        const currentCoord: [number, number] | null = finalLatLng && isSnapped 
-          ? [finalLatLng.lng, finalLatLng.lat] 
-          : null;
-        
+        const currentCoord: [number, number] | null =
+          finalLatLng && isSnapped ? [finalLatLng.lng, finalLatLng.lat] : null;
+
         const lastCoord = lastSnappedCoordRef.current;
-        const coordChanged = !lastCoord || !currentCoord ||
+        const coordChanged =
+          !lastCoord ||
+          !currentCoord ||
           Math.abs(lastCoord[0] - currentCoord[0]) > 0.00001 ||
           Math.abs(lastCoord[1] - currentCoord[1]) > 0.00001;
 
@@ -368,7 +379,11 @@ export function MeasurementsSnapping({
 
           // Create Leaflet marker for snapping indicator ONLY when snapped
           // Match the size of measurement handles (8px total = 4px radius)
-          if (finalLatLng && isSnapped) {
+          if (
+            finalLatLng &&
+            isSnapped &&
+            (statusRef.current === "WAITING" || statusRef.current === "DRAWING")
+          ) {
             snappingIndicatorRef.current = L.circleMarker(
               [finalLatLng.lat, finalLatLng.lng],
               {
@@ -381,7 +396,7 @@ export function MeasurementsSnapping({
               }
             ).addTo(leafletMap);
           }
-          
+
           lastSnappedCoordRef.current = currentCoord;
         }
       };
@@ -404,16 +419,16 @@ export function MeasurementsSnapping({
       // Phase 4: Show snap indicator during vertex drag
       const vertexDragHandler = (e: any) => {
         isDraggingVertexRef.current = true;
-        
+
         if (!snappingEnabledRef.current || !config.snappingOnUpdate) return;
-        
+
         const vertex = e.vertex;
         if (!vertex) return;
 
         // Get current vertex position during drag
         const vertexLatLng = vertex.latlng;
         const vertexPoint = leafletMap.latLngToContainerPoint(vertexLatLng);
-        
+
         const currentRadius = queryRadiusRef.current;
         const coordinatePoints: SnappingPoint[] = [];
 
@@ -430,23 +445,26 @@ export function MeasurementsSnapping({
               if (style && style.layers) {
                 const canvas = currentMaplibreMap.getCanvas();
                 const rect = canvas.getBoundingClientRect();
-                
+
                 // Convert Leaflet container point to MapLibre canvas point
                 const mapContainer = leafletMap.getContainer();
                 const mapRect = mapContainer.getBoundingClientRect();
                 const canvasX = vertexPoint.x + mapRect.left - rect.left;
                 const canvasY = vertexPoint.y + mapRect.top - rect.top;
-                
+
                 const bbox = [
                   [canvasX - currentRadius, canvasY - currentRadius],
                   [canvasX + currentRadius, canvasY + currentRadius],
                 ];
 
-                const features = currentMaplibreMap.queryRenderedFeatures(bbox, {
-                  layers: style.layers
-                    .map((layer: any) => layer.id)
-                    .filter((id: string) => !id.startsWith("highlight-")),
-                });
+                const features = currentMaplibreMap.queryRenderedFeatures(
+                  bbox,
+                  {
+                    layers: style.layers
+                      .map((layer: any) => layer.id)
+                      .filter((id: string) => !id.startsWith("highlight-")),
+                  }
+                );
 
                 features.forEach((feature: any) => {
                   const points = extractPointsFromGeometry(
@@ -472,7 +490,10 @@ export function MeasurementsSnapping({
         // Filter out the vertex being dragged (exclude self-snapping)
         const threshold = 0.00001; // Very small threshold to identify same point
         const filteredCoordinatePoints = coordinatePoints.filter((point) => {
-          const pointLatLng = L.latLng(point.coordinates[1], point.coordinates[0]);
+          const pointLatLng = L.latLng(
+            point.coordinates[1],
+            point.coordinates[0]
+          );
           return !(
             Math.abs(pointLatLng.lat - vertexLatLng.lat) < threshold &&
             Math.abs(pointLatLng.lng - vertexLatLng.lng) < threshold
@@ -484,7 +505,8 @@ export function MeasurementsSnapping({
           .map((snappingPoint: SnappingPoint) => {
             const coord = snappingPoint.coordinates;
             const pointLatLng = L.latLng(coord[1], coord[0]);
-            const projectedPoint = leafletMap.latLngToContainerPoint(pointLatLng);
+            const projectedPoint =
+              leafletMap.latLngToContainerPoint(pointLatLng);
 
             const dx = projectedPoint.x - vertexPoint.x;
             const dy = projectedPoint.y - vertexPoint.y;
@@ -535,16 +557,16 @@ export function MeasurementsSnapping({
       // Phase 4: Snap vertex AFTER drag ends
       const vertexDragEndHandler = (e: any) => {
         isDraggingVertexRef.current = false;
-        
+
         if (!snappingEnabledRef.current || !config.snappingOnUpdate) return;
-        
+
         const vertex = e.vertex;
         if (!vertex) return;
 
         // Get final vertex position after drag
         const vertexLatLng = vertex.latlng;
         const vertexPoint = leafletMap.latLngToContainerPoint(vertexLatLng);
-        
+
         const currentRadius = queryRadiusRef.current;
         const coordinatePoints: SnappingPoint[] = [];
 
@@ -561,23 +583,26 @@ export function MeasurementsSnapping({
               if (style && style.layers) {
                 const canvas = currentMaplibreMap.getCanvas();
                 const rect = canvas.getBoundingClientRect();
-                
+
                 // Convert Leaflet container point to MapLibre canvas point
                 const mapContainer = leafletMap.getContainer();
                 const mapRect = mapContainer.getBoundingClientRect();
                 const canvasX = vertexPoint.x + mapRect.left - rect.left;
                 const canvasY = vertexPoint.y + mapRect.top - rect.top;
-                
+
                 const bbox = [
                   [canvasX - currentRadius, canvasY - currentRadius],
                   [canvasX + currentRadius, canvasY + currentRadius],
                 ];
 
-                const features = currentMaplibreMap.queryRenderedFeatures(bbox, {
-                  layers: style.layers
-                    .map((layer: any) => layer.id)
-                    .filter((id: string) => !id.startsWith("highlight-")),
-                });
+                const features = currentMaplibreMap.queryRenderedFeatures(
+                  bbox,
+                  {
+                    layers: style.layers
+                      .map((layer: any) => layer.id)
+                      .filter((id: string) => !id.startsWith("highlight-")),
+                  }
+                );
 
                 features.forEach((feature: any) => {
                   const points = extractPointsFromGeometry(
@@ -603,7 +628,10 @@ export function MeasurementsSnapping({
         // Filter out the vertex being dragged (exclude self-snapping)
         const threshold = 0.00001; // Very small threshold to identify same point
         const filteredCoordinatePoints = coordinatePoints.filter((point) => {
-          const pointLatLng = L.latLng(point.coordinates[1], point.coordinates[0]);
+          const pointLatLng = L.latLng(
+            point.coordinates[1],
+            point.coordinates[0]
+          );
           return !(
             Math.abs(pointLatLng.lat - vertexLatLng.lat) < threshold &&
             Math.abs(pointLatLng.lng - vertexLatLng.lng) < threshold
@@ -615,7 +643,8 @@ export function MeasurementsSnapping({
           .map((snappingPoint: SnappingPoint) => {
             const coord = snappingPoint.coordinates;
             const pointLatLng = L.latLng(coord[1], coord[0]);
-            const projectedPoint = leafletMap.latLngToContainerPoint(pointLatLng);
+            const projectedPoint =
+              leafletMap.latLngToContainerPoint(pointLatLng);
 
             const dx = projectedPoint.x - vertexPoint.x;
             const dy = projectedPoint.y - vertexPoint.y;
