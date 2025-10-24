@@ -117,6 +117,7 @@ const Map = ({
   const mode = useSelector(getShapeMode);
 
   const [overlayFeature, setOverlayFeature] = useState(null);
+  const [alkisMap, setAlkisMap] = useState(null);
 
   const data = extractor(dataIn);
   const padding = 5;
@@ -606,6 +607,7 @@ const Map = ({
                 onHoverUpdate={(feature) => {
                   dispatch(setHoveredLandparcel(landparcelToString(feature)));
                 }}
+                onAlkisMapReady={setAlkisMap}
               />
             </>
           )}
@@ -616,7 +618,7 @@ const Map = ({
             mode={mode}
           />
         </RoutedMap>
-        <Measurements />
+        <Measurements snappingLayers={alkisMap ? [alkisMap] : []} />
         {/* <div className="custom-left-control">
           <LibFuzzySearch
             gazData={gazData}

@@ -183,6 +183,7 @@ export default function AdditionalLayers({
   jwt,
   onHoverUpdate,
   onGraphqlLayerStatus = (status) => {},
+  onAlkisMapReady,
 }) {
   return (
     <>
@@ -191,16 +192,21 @@ export default function AdditionalLayers({
 
         if (layerConf) {
           let moreProps = {};
-          if (layerConf.conf.type === "graphql") {
-            moreProps.jwt = jwt;
-            moreProps.mapRef = mapRef;
-            moreProps.onMouseOut = () => {
-              onHoverUpdate({});
-            };
-            moreProps.onMouseOver = (feature) => {
-              onHoverUpdate(feature.properties);
-            };
-            moreProps.onStatus = onGraphqlLayerStatus;
+          // if (layerConf.conf.type === "graphql") {
+          //   moreProps.jwt = jwt;
+          //   moreProps.mapRef = mapRef;
+          //   moreProps.onMouseOut = () => {
+          //     onHoverUpdate({});
+          //   };
+          //   moreProps.onMouseOver = (feature) => {
+          //     onHoverUpdate(feature.properties);
+          //   };
+          //   moreProps.onStatus = onGraphqlLayerStatus;
+          // }
+
+          // Add callback for ALKIS layer
+          if (layerKey === "alkisLandparcels" && onAlkisMapReady) {
+            moreProps.onMapLibreCoreMapReady = onAlkisMapReady;
           }
 
           return (
