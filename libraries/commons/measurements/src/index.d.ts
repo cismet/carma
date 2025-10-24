@@ -9,8 +9,7 @@ export type MeasurementMapStatus =
   | "WAITING" // moving around not dragging anything and waiting for other stuff
   | "DRAWING" // either lines or polygons but in the process
   | "EDITING" // dragging vertices around
-  | "MOVING" // dragging whole objects around
-  | "OUTSIDE"; // when the map has not the focus (renaming, gazetteer search, menu, ...)
+  | "MOVING"; // dragging whole objects around
 
 export interface MapMeasurementsContextType {
   mode: MEASUREMENT_MODE;
