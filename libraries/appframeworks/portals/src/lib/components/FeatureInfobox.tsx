@@ -7,11 +7,8 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { additionalInfoFactory } from "@carma-collab/wuppertal/geoportal";
 import { genericSecondaryInfoFooterFactory } from "@carma-collab/wuppertal/commons";
 import { getApplicationVersion, type VersionData } from "@carma-commons/utils";
-import {
-  InfoBox,
-  utils,
-  getActionLinksForFeature,
-} from "@carma-appframeworks/portals";
+
+import { InfoBox, zoomToFeature, getActionLinksForFeature } from "..";
 
 interface InfoboxProps {
   selectedFeature: any;
@@ -46,7 +43,7 @@ export const FeatureInfobox = ({
       },
       displayZoomToFeature: true,
       zoomToFeature: () => {
-        utils.zoomToFeature(selectedFeature, routedMapRef);
+        zoomToFeature(selectedFeature, routedMapRef);
       },
     });
   }

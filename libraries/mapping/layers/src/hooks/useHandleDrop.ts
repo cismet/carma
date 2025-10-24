@@ -5,10 +5,10 @@ import { SavedLayerConfig } from "@carma/types";
 import { useFeatureFlags } from "@carma/providers/feature-flag";
 import { ActiveLayers } from "../components/NewLibModal";
 import type { Layer } from "@carma/types";
-import { utils } from "@carma-appframeworks/portals";
+import { parseToMapLayer } from "@carma-appframeworks/portals";
 
-// @ts-expect-error tbd
-const parser = new WMSCapabilities();
+// TODO verify params
+const parser = new WMSCapabilities("", undefined);
 
 interface UseHandleDropProps {
   setOpen: (open: boolean) => void;
@@ -74,11 +74,7 @@ export const useHandleDrop = ({
 
         if (existingLayer) {
           try {
-            const updatedLayer = await utils.parseToMapLayer(
-              newItem,
-              false,
-              true
-            );
+            const updatedLayer = await parseToMapLayer(newItem, false, true);
 
             updateActiveLayer(updatedLayer);
             addItemToCategory(

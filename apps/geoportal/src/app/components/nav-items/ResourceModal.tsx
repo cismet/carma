@@ -6,7 +6,7 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
-import { useMapStyle, utils, MapStyleKeys } from "@carma-appframeworks/portals";
+import { useMapStyle, parseToMapLayer, type MapStyleKeys } from "@carma-appframeworks/portals";
 import type { Item, Layer } from "@carma/types";
 import { LayerLib } from "@carma-mapping/layers";
 import { useAuth } from "@carma/providers/auth";
@@ -142,7 +142,7 @@ const ResourceModal = () => {
       return;
     }
 
-    newLayer = await utils.parseToMapLayer(layer, forceWMS, true);
+    newLayer = await parseToMapLayer(layer, forceWMS, true);
 
     if (activeLayers.find((activeLayer) => activeLayer.id === id)) {
       try {

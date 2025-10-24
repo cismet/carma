@@ -27,12 +27,7 @@ export type EnsureInitializedOptions = {
  * If not, initializes at the provided position and waits for scene ready.
  */
 export const useEnsureCesiumInitialized = () => {
-  const {
-    sceneRef,
-    homeCameraRef,
-    emit: emitCesiumEvent,
-    subscribe,
-  } = useCesiumContext();
+  const { sceneRef, emit: emitCesiumEvent, subscribe } = useCesiumContext();
 
   const ensureInitialized = useCallback(
     async (

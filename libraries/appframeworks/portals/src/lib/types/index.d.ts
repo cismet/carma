@@ -1,6 +1,11 @@
-import type { CismapLayerProps, Layer } from "@carma/types";
-import { SELECTED_LAYER_INDEX, SelectionItem } from "../..";
+import type { MutableRefObject } from "react";
+import type { Map as MaplibreMap } from "maplibre-gl";
 
+import type { CismapLayerProps, Layer } from "@carma/types";
+import type { SelectedLayerIndex } from "../constants";
+import type { SelectionItem } from "../components/SelectionProvider";
+
+export type * from "./GeoportalEventMap";
 // TODO elevate some of the type here to carma-commons
 
 export type GeoportalCollection = {
@@ -106,7 +111,7 @@ export type Settings = {
 
 export interface LayerState {
   layers: Layer[];
-  selectedLayerIndex: SELECTED_LAYER_INDEX | number;
+  selectedLayerIndex: SelectedLayerIndex | number;
   selectedMapLayer: BackgroundLayer;
   selectedLuftbildLayer: BackgroundLayer;
   backgroundLayer: BackgroundLayer;
@@ -124,7 +129,7 @@ export interface MappingState extends LayerState {
   focusMode: boolean;
   startDrawing: boolean;
   clickFromInfoView: boolean;
-  libreMapRef: any;
+  libreMapRef: MutableRefObject<MaplibreMap> | null;
   configSelection?: SelectionItem;
   layersIdle: boolean;
 }
@@ -142,5 +147,3 @@ export interface FeatureInfoState {
   loading: boolean;
   completedVectorLayers: string[];
 }
-
-export type { GeoportalEventMap } from "./GeoportalEventMap";

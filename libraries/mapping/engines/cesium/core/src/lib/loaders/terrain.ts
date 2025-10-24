@@ -1,14 +1,34 @@
-import { CesiumTerrainProvider, Scene } from "@carma/cesium";
-import { tryWithValidScene } from "@carma/cesium";
+import {
+  CesiumTerrainProvider,
+  Scene,
+  tryWithValidScene,
+  rectangleFromConfig,
+} from "@carma/cesium";
 import type { MutableRefObject } from "react";
 
 export const loadCesiumTerrainProvider = async (
   ref: MutableRefObject<CesiumTerrainProvider | null>,
   url: string,
-  signal: AbortSignal
+  signal: AbortSignal,
+  rectangle?: any
 ) => {
   try {
     const provider = await CesiumTerrainProvider.fromUrl(url);
+
+    // Apply rectangle bounds if provided
+    if (rectangle) {
+      const bounds = rectangleFromConfig(rectangle);
+      if (bounds) {
+        // Note: CesiumTerrainProvider doesn't directly support rectangle bounds
+        // The rectangle bounds are typically handled at the scene level
+        // or through the globe's cartographicLimitRectangle
+        console.debug(
+          "[CESIUM|TERRAIN] Rectangle bounds provided but not directly supported by CesiumTerrainProvider:",
+          bounds
+        );
+      }
+    }
+
     if (!signal.aborted) {
       ref.current = provider;
     }

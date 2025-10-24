@@ -12,6 +12,42 @@ Welcome to CARMA, a monolithic repository (monorepo) powered by Nx, designed to 
 - **Vite Bundler:** Employs Vite for fast and lean builds, enhancing development with rapid updates and optimized production builds.
 - **GIS-Focused:** Tailored for developing GIS applications, integrating mapping technologies seamlessly with modern web technologies.
 - **React Framework:** Built with React to create interactive UIs efficiently, making the application reactive and user-friendly.
+- **Modular Architecture:** Clean separation between Cesium 3D engine, commons utilities, and type definitions with strict dependency management.
+
+## 📚 Project Maps & Documentation
+
+For comprehensive navigation of the CARMA codebase, see the **[Project Maps](./.dev-local/projectmaps/README.md)** directory:
+
+- **[Cesium API Index](./.dev-local/projectmaps/cesium-api-index.md)** - Curated Cesium API surface
+- **[Cesium Core Methods](./.dev-local/projectmaps/cesium-core-methods.md)** - React wrapper and scene management  
+- **[Commons Index](./.dev-local/projectmaps/commons-index.md)** - Shared utilities and core functionality
+- **[Types Index](./.dev-local/projectmaps/types-index.md)** - TypeScript type definitions
+- **[Math & Units](./.dev-local/projectmaps/math-units-index.md)** - Mathematical utilities and type-safe units
+- **[Geo Services](./.dev-local/projectmaps/geo-services-index.md)** - Geographic service types
+- **[Geoportal Index](./.dev-local/projectmaps/geoportal-index.md)** - Production geoportal application
+- **[Portals Index](./.dev-local/projectmaps/portals-index.md)** - Portal framework and provider architecture
+- **[Map Transition Index](./.dev-local/projectmaps/map-transition-index.md)** - 2D/3D transition coordination
+- **[Leaflet Index](./.dev-local/projectmaps/leaflet-index.md)** - Leaflet-specific utilities and conversions
+
+These indexes help prevent code duplication and maintain clean architecture boundaries.
+
+## 🚫 Anti-Duplication Guidelines
+
+To prevent code duplication and maintain clean architecture:
+
+1. **Check Project Maps First** - Always consult the relevant project map before implementing new functionality
+2. **Follow Package Boundaries** - Respect the dependency layers and import rules
+3. **Use Established Patterns** - Reference existing implementations for consistency
+4. **Update Indexes** - Keep project maps current when adding new features
+
+### Package Dependency Rules
+```
+Layer 0 (foundational): @carma/types, @carma-commons/constants, @carma-commons/math
+Layer 1: @carma-commons/units (depends on math)
+Layer 2: @carma-commons/geo (depends on constants, units, math)
+Layer 3 (isolated): @carma-commons/dom-*, @carma-commons/formatters
+Layer 4: @carma-commons/react (depends on utils)
+```
 
 ## Getting Started
 

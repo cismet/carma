@@ -1,13 +1,17 @@
 /**
- * Cesium Camera State Adapter
+ * Hash Parameter Utilities
  *
- * Converts between URL hash parameters and Cesium camera state.
- * Moved from @carma-mapping/engines/cesium/utils/cesiumHashParamsCodec
+ * Consolidated hash parameter encoding/decoding logic for map frameworks.
+ * Moved from @carma-mapping/map-view-state adapters.
  */
 
 import { Camera, CesiumMath, PerspectiveFrustum } from "@carma/cesium";
 import type { Degrees, Radians } from "@carma/units/types";
 import { radToDeg } from "@carma/units/helpers";
+
+// ============================================================================
+// TYPES
+// ============================================================================
 
 /**
  * Camera state for portal app - all angles in degrees (plain numbers)
@@ -22,11 +26,51 @@ export type CameraStateDegrees = {
   fov?: number; // degrees
 };
 
-export type StringifiedCameraState = Array<{ key: string; value: string }>;
+/**
+ * Leaflet map position state
+ */
+export type LeafletMapState = {
+  lat: number;
+  lng: number;
+  zoom: number;
+};
+
+// ============================================================================
+// CONSTANTS
+// ============================================================================
 
 // Constants for URL parameter formatting
 const DEGREE_DIGITS = 7;
 const CAMERA_DEGREE_DIGITS = 2;
+
+/**
+ * URL parameter keys used by Cesium camera state
+ */
+export const cesiumCameraParamKeys = [
+  "lng",
+  "lat",
+  "h",
+  "heading",
+  "pitch",
+  "fov",
+];
+
+/**
+ * Parameter keys that should be cleared when switching from 3D to 2D
+ * Keeps lng/lat as they're used in 2D mode too
+ */
+export const cesiumClearParamKeys = cesiumCameraParamKeys.filter(
+  (k) => !["lng", "lat"].includes(k)
+);
+
+/**
+ * URL parameter keys used by Leaflet map state
+ */
+export const leafletMapParamKeys = ["lat", "lng", "zoom"];
+
+// ============================================================================
+// CESIUM ADAPTER
+// ============================================================================
 
 type HashCodec = {
   key: string;
@@ -78,21 +122,6 @@ const cameraCodec: Record<string, HashCodec> = {
   },
 };
 
-/**
- * URL parameter keys used by Cesium camera state
- */
-export const cesiumCameraParamKeys = Object.values(cameraCodec).map(
-  (codec) => codec.key
-);
-
-/**
- * Parameter keys that should be cleared when switching from 3D to 2D
- * Keeps lng/lat as they're used in 2D mode too
- */
-export const cesiumClearParamKeys = cesiumCameraParamKeys.filter(
-  (k) => !["lng", "lat"].includes(k)
-);
-
 function isNumber(value: unknown): value is number {
   return (
     value !== undefined &&
@@ -121,34 +150,6 @@ export const cameraToState = (camera: Camera): CameraStateDegrees => {
   };
 
   return cameraState;
-};
-
-/**
- * Encode Cesium camera to URL hash parameters
- * @deprecated Use cameraToState + encodeCameraState instead
- */
-export const encodeCesiumCamera = (camera: Camera): StringifiedCameraState => {
-  const { positionCartographic, pitch, heading, frustum } = camera;
-  const { longitude, latitude, height } = positionCartographic;
-  const fov = frustum instanceof PerspectiveFrustum ? frustum.fov : undefined;
-
-  const orderedParams: [number | undefined, HashCodec][] = [
-    [longitude, cameraCodec["longitude"]],
-    [latitude, cameraCodec["latitude"]],
-    [height, cameraCodec["height"]],
-    [heading, cameraCodec["heading"]],
-    [pitch, cameraCodec["pitch"]],
-    [fov, cameraCodec["fov"]],
-  ];
-
-  const stringifiedOrderedParams = orderedParams
-    .filter(([numberValue]) => isNumber(numberValue))
-    .map(([numberValue, codec]) => ({
-      key: codec.key,
-      value: codec.encode(numberValue as number),
-    }));
-
-  return stringifiedOrderedParams;
 };
 
 /**
@@ -232,4 +233,38 @@ export const decodeCesiumCamera = (
     ...(fov !== null && { fov: radToDeg(fov as Radians) }),
   };
   return cameraState;
+};
+
+// ============================================================================
+// LEAFLET ADAPTER
+// ============================================================================
+
+/**
+ * Encode Leaflet map state to URL hash parameters
+ */
+export const encodeLeafletMap = (
+  state: LeafletMapState
+): Record<string, string> => {
+  return {
+    lat: state.lat.toFixed(7),
+    lng: state.lng.toFixed(7),
+    zoom: state.zoom.toString(),
+  };
+};
+
+/**
+ * Decode URL hash parameters to Leaflet map state
+ */
+export const decodeLeafletMap = (
+  hashParams: Record<string, string>
+): LeafletMapState | null => {
+  const lat = Number(hashParams.lat);
+  const lng = Number(hashParams.lng);
+  const zoom = Number(hashParams.zoom);
+
+  if (!isFinite(lat) || !isFinite(lng) || !isFinite(zoom)) {
+    return null;
+  }
+
+  return { lat, lng, zoom };
 };

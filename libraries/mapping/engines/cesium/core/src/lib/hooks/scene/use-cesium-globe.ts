@@ -1,64 +1,76 @@
-import { useEffect } from "react";
-import type { GlobeConstructorOptionsPrimitive } from "@carma/cesium/types";
-import { isValidScene } from "../../utils/lazy-validators";
+import { useEffect, type MutableRefObject } from "react";
 import { useCesiumContext } from "../../context";
 
+/**
+ * Hook that manages globe appearance settings from style configuration.
+ *
+ * Registers callback with styleCallbacksRef.onGlobeSettingsChange
+ * Called by useSceneStyleSwitcher when style changes.
+ *
+ * Note: Globe visibility (show) is managed by useTerrainManager
+ * This hook only handles visual appearance (baseColor, translucency, etc.)
+ */
 export const useCesiumGlobe = (
-  globeOptions: GlobeConstructorOptionsPrimitive
+  styleCallbacksRef: MutableRefObject<{
+    onGlobeSettingsChange?: (settings: any) => void;
+  }>
 ) => {
   const { sceneRef } = useCesiumContext();
 
-  useEffect(() => {
+  // Register callback IMMEDIATELY (synchronous, not in useEffect)
+  // This ensures callback is ready when useSceneStyleSwitcher runs
+  styleCallbacksRef.current.onGlobeSettingsChange = async (settings) => {
     const scene = sceneRef.current;
-    if (!isValidScene(scene) || !scene) return;
+    if (!scene?.globe) {
+      console.warn("[Globe] Scene not available for globe settings change");
+      return;
+    }
 
-    (async () => {
-      const { Color } = await import("@carma/cesium");
-      const { globe } = scene;
-      console.debug("HOOK: [CESIUM] globe setting changed");
+    console.log("[Globe] Applying settings:", settings);
+    const { Color } = await import("@carma/cesium");
+    const { globe } = scene;
 
-      // Always ensure globe is visible
-      globe.show = true;
+    // Apply baseColor (visual appearance)
+    if (settings.baseColor && Array.isArray(settings.baseColor)) {
+      const [r, g, b, a] = settings.baseColor;
+      globe.baseColor = new Color(r, g, b, a);
+      console.log(`[Globe] Set baseColor: rgba(${r}, ${g}, ${b}, ${a})`);
 
-      if (globeOptions.baseColor) {
-        // baseColor can be a Color object or an array [r, g, b, a] in 0-1 range
-        if (Array.isArray(globeOptions.baseColor)) {
-          const [r, g, b, a] = globeOptions.baseColor;
-          const color = new Color(r, g, b, a);
-          globe.baseColor = color;
-          console.debug(
-            `HOOK: [CESIUM] set globe baseColor (array)`,
-            globeOptions.baseColor
-          );
-        } else {
-          // Already a Color object
-          globe.baseColor = globeOptions.baseColor;
-          console.debug(`HOOK: [CESIUM] set globe baseColor (Color object)`);
-        }
+      // Enable translucency if alpha < 1
+      globe.translucency.enabled = a < 1.0;
+      if (a < 1.0) {
+        console.log(`[Globe] Enabled translucency (alpha=${a})`);
       }
+    }
 
-      if (globeOptions.cartographicLimitRectangle !== undefined) {
-        globe.cartographicLimitRectangle =
-          globeOptions.cartographicLimitRectangle;
-      }
+    // Disable skirts by default (can be overridden by style config)
+    globe.showSkirts = settings.showSkirts ?? false;
 
-      if (globeOptions.showGroundAtmosphere !== undefined) {
-        globe.showGroundAtmosphere = globeOptions.showGroundAtmosphere;
-      }
+    // Disable ground atmosphere by default (can be overridden by style config)
+    globe.showGroundAtmosphere = settings.showGroundAtmosphere ?? false;
 
-      if (globeOptions.showSkirts !== undefined) {
-        globe.showSkirts = globeOptions.showSkirts;
-      }
+    // Apply cartographic limit if provided
+    if (settings.cartographicLimitRectangle !== undefined) {
+      globe.cartographicLimitRectangle = settings.cartographicLimitRectangle;
+    }
 
-      scene.requestRender();
-    })();
-  }, [
-    sceneRef,
-    globeOptions.baseColor,
-    globeOptions.cartographicLimitRectangle,
-    globeOptions.showGroundAtmosphere,
-    globeOptions.showSkirts,
-  ]);
+    // Ensure globe is visible for mesh view (even without terrain)
+    // This prevents the "weird black stuff" background issue
+    globe.show = settings.showGlobe ?? true;
+
+    console.log(`[Globe] Globe visibility set to: ${globe.show}`);
+
+    scene.requestRender();
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      styleCallbacksRef.current.onGlobeSettingsChange = undefined;
+    };
+    // Note: styleCallbacksRef is a ref (stable), doesn't need to be in deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 };
 
 export default useCesiumGlobe;

@@ -8,28 +8,20 @@ import {
   isCesiumBaseUrlConfigured,
 } from "../../utils/cesium-asset-validation";
 
-// Default HPR values (will be created with actual imports)
-const DEFAULT_HPR_VALUES = {
-  heading: 0, // degrees
-  pitch: -45, // degrees
-  range: 700,
-};
-
 export const useInitCesiumWidget = (
   containerRef?: React.RefObject<HTMLDivElement>,
+  isActive?: boolean,
   options?: ConstructorParameters<typeof CesiumWidget>[1]
 ) => {
   const {
     widgetRef,
     sceneRef,
-    homeCameraRef,
+    homeCamera,
     minZoomDistanceRef,
     maxZoomDistanceRef,
     enableCollisionDetectionRef,
     emit,
-    subscribe,
     config,
-    cesiumInstances,
   } = useCesiumContext();
 
   const isInitializedRef = useRef(false);
@@ -46,9 +38,7 @@ export const useInitCesiumWidget = (
         container
           ? `${container.clientWidth}x${container.clientHeight}`
           : "null"
-      }, Initialized: ${isInitializedRef.current}, Instances: ${
-        cesiumInstances.length
-      }`
+      }, Initialized: ${isInitializedRef.current}, isActive: ${isActive}`
     );
 
     if (!container) {
@@ -97,12 +87,10 @@ export const useInitCesiumWidget = (
       });
     }
 
-    // LAZY INIT: Only create widget when activated (3D mode requested)
-    // Use cesiumInstances.length instead of isSuspendedRef to avoid race condition
-    // isSuspendedRef is set by subscription which may not have run yet
-    if (cesiumInstances.length === 0) {
+    // LAZY INIT: Only create widget when isActive prop is true
+    if (!isActive) {
       console.debug(
-        "[CESIUM|INIT] Skipping widget creation - not yet activated (2D mode)"
+        "[CESIUM|INIT] Skipping widget creation - not active (2D mode)"
       );
       return;
     }
@@ -116,9 +104,7 @@ export const useInitCesiumWidget = (
         }
 
         console.debug("[CESIUM|INIT] Loading Cesium bundle...");
-        const { CesiumWidget, HeadingPitchRange, CesiumMath } = await import(
-          "@carma/cesium"
-        );
+        const { CesiumWidget } = await import("@carma/cesium");
         console.debug("[CESIUM|INIT] Cesium bundle loaded, creating widget");
 
         // Initialize lazy validators now that Cesium is loaded
@@ -287,13 +273,13 @@ export const useInitCesiumWidget = (
     };
   }, [
     containerRef,
+    isActive, // Re-run when isActive changes
     options,
     widgetRef,
     sceneRef,
     emit,
-    homeCameraRef,
+    homeCamera,
     config.baseUrl,
-    cesiumInstances.length, // Re-run when Activate event fires
   ]);
 
   useEffect(() => {
@@ -392,6 +378,8 @@ export const useInitCesiumWidget = (
       resizeObserver.disconnect();
     };
   }, [widgetRef, containerRef]);
+
+  return { widgetRef, sceneRef };
 };
 
 export default useInitCesiumWidget;

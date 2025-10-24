@@ -1,50 +1,53 @@
 import { useEffect } from "react";
 import type { MutableRefObject } from "react";
-import type {
-  Scene,
-  Cesium3DTileset,
-  ImageryLayer,
-  CameraPoseRadians,
-} from "@carma/cesium";
-import type { SceneStyleConfig, CesiumConfig } from "@carma/cesium/types";
+import type { SceneStyleConfig } from "@carma/cesium/types";
 import {
   CtxEvent,
   type SubscribeCesiumCtxFn,
-  type EmitCesiumCtxFn,
 } from "../cesium-context-event-map";
-import { isValidScene } from "../../utils/lazy-validators";
-import { diffTilesets, diffImageryLayers } from "../../scene/style-diff";
 
 /**
  * Custom hook that manages all event subscriptions for CesiumContext refs.
  * Consolidates subscription logic to keep CesiumContextProvider clean.
+ *
+ * Architecture:
+ * - External consumers emit events via the bus (SetSceneStyle, ToggleSceneStyle, GoHome, etc)
+ * - Context receives events and handles them appropriately:
+ *
+ * **Style Changes** (Scene Coordination): Uses callback pattern
+ *   - Context calls registered callback: sceneStyleApplierRef.current(styleId)
+ *   - Scene hook registers callback on mount
+ *   - This is for scene lifecycle coordination
+ *
+ * **Commands** (Direct Execution): Context manipulates scene directly
+ *   - GoHome: Context directly flies camera using sceneRef
+ *   - Suspend/Activate: Context updates isSuspendedRef
+ *   - These are one-time commands, not lifecycle coordination
  */
 export const useContextSetupSubscriptions = ({
   subscribe,
   emit,
   sceneRef,
   isSuspendedRef,
-  tilesetsRef,
-  imageryLayersRef,
   isAnimatingRef,
   currentSceneStyleRef,
-  homeCameraRef,
+  sceneStyleApplierRef,
+  homeCamera,
   sceneStyle,
-  config,
 }: {
   subscribe: SubscribeCesiumCtxFn;
-  emit: EmitCesiumCtxFn;
-  sceneRef: MutableRefObject<Scene | null | false>;
-  tilesetsRef: MutableRefObject<Map<string, Cesium3DTileset>>;
-  imageryLayersRef: MutableRefObject<Map<string, ImageryLayer>>;
+  emit: any; // EmitCesiumCtxFn
+  sceneRef: MutableRefObject<any>; // Scene | null | false
   isSuspendedRef: MutableRefObject<boolean>;
   isAnimatingRef: MutableRefObject<boolean>;
   currentSceneStyleRef: MutableRefObject<string | undefined>;
-  homeCameraRef: MutableRefObject<CameraPoseRadians | null>;
+  sceneStyleApplierRef: MutableRefObject<((styleId: string) => void) | null>;
+  homeCamera: MutableRefObject<any>; // CameraPoseRadians | null
   sceneStyle?: SceneStyleConfig;
-  config: CesiumConfig;
 }) => {
   // Update isSuspendedRef when suspend/activate events are emitted
+  // Note: Portal sets currentSceneStyleRef BEFORE emitting Activate
+  // Scene component reads ref on mount - no need for context to coordinate
   useEffect(() => {
     const unsubActivate = subscribe(CtxEvent.Activate, (triggerData) => {
       console.debug("[CesiumContext] Activate event received", {
@@ -52,19 +55,8 @@ export const useContextSetupSubscriptions = ({
         currentStyle: currentSceneStyleRef.current,
       });
       isSuspendedRef.current = false;
-
-      // Wait for scene to be ready before reapplying style
-      const currentStyle = currentSceneStyleRef.current;
-      if (currentStyle) {
-        const unsubSceneReady = subscribe(CtxEvent.SceneReady, () => {
-          console.debug(
-            "[CesiumContext] Reapplying style after scene ready:",
-            currentStyle
-          );
-          emit(CtxEvent.SetSceneStyle, currentStyle);
-          unsubSceneReady(); // Only apply once
-        });
-      }
+      // Note: Portal has already set currentSceneStyleRef before activation
+      // Scene hooks will read ref on mount - no coordination needed here
     });
     const unsubSuspend = subscribe(CtxEvent.Suspend, () => {
       isSuspendedRef.current = true;
@@ -73,7 +65,7 @@ export const useContextSetupSubscriptions = ({
       unsubActivate();
       unsubSuspend();
     };
-  }, [subscribe, isSuspendedRef, currentSceneStyleRef, emit]);
+  }, [subscribe, isSuspendedRef, currentSceneStyleRef]);
 
   // Update isAnimatingRef when animation events are emitted
   useEffect(() => {
@@ -91,11 +83,12 @@ export const useContextSetupSubscriptions = ({
     };
   }, [subscribe, isAnimatingRef]);
 
-  // Handle GoHome event - fly camera to home position
+  // Handle GoHome event - context logic that directly manipulates scene
+  // This is NOT scene coordination - it's a command that context executes
   useEffect(() => {
     const unsubGoHome = subscribe(CtxEvent.GoHome, () => {
       const scene = sceneRef.current;
-      const home = homeCameraRef.current;
+      const home = homeCamera.current;
 
       if (!scene || !home) {
         console.warn(
@@ -113,7 +106,6 @@ export const useContextSetupSubscriptions = ({
         const { Cartesian3, flyToTarget } = await import("@carma/cesium");
 
         // Convert geographic position (radians) to Cartesian3 target point
-        // home is CameraPoseRadians - already in radians
         const homeTyped = home as any;
 
         // Target point on the ground (use ground altitude, not camera altitude)
@@ -124,34 +116,31 @@ export const useContextSetupSubscriptions = ({
         );
 
         // Calculate range from camera height
-        // If height is provided, use it as camera altitude above ground
-        // Otherwise use a default range
         const range = homeTyped.height ?? 800; // Default 800m range
 
         // Use flyToTarget helper with HeadingPitchRange
-        // This positions camera to look AT the target from the specified distance
         const camera = scene.camera;
         flyToTarget(
           camera,
           targetPoint,
           {
-            heading: homeTyped.heading ?? 0, // Already in radians
-            pitch: homeTyped.pitch ?? -0.785, // ~-45° in radians (looking down at angle)
+            heading: homeTyped.heading ?? 0,
+            pitch: homeTyped.pitch ?? -0.785, // ~-45° in radians
             range: range,
           },
           2.0 // 2 second animation duration
         );
 
-        console.debug(
-          "[CesiumContext] Flying to home position (looking at target)"
-        );
+        console.debug("[CesiumContext] Flying to home position complete");
       })();
     });
 
     return () => {
       unsubGoHome();
     };
-  }, [subscribe, emit, sceneRef, homeCameraRef]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [subscribe]);
+  // Note: emit, sceneRef, homeCamera are stable refs - accessing .current doesn't require deps
 
   // DISABLED: Camera controller setting events (for minimal mode)
   /* useEffect(() => {
@@ -198,267 +187,25 @@ export const useContextSetupSubscriptions = ({
     enableCollisionDetectionRef,
   ]); */
 
+  // Subscribe to style change events from EXTERNAL consumers
+  // Context coordinates via callback ref (internal scene coordination)
+  // Scene component registers its applier function in sceneStyleApplierRef
   useEffect(() => {
-    let currentStyle: string | null = null;
+    const unsubSetStyle = subscribe(
+      CtxEvent.SetSceneStyle,
+      (styleId: string) => {
+        console.debug("[CesiumContext] SetSceneStyle event received:", styleId);
+        currentSceneStyleRef.current = styleId;
 
-    const applySceneStyle = (newStyle: string) => {
-      // Deduplicate - ignore if already applying this style
-      if (currentStyle === newStyle) {
-        console.log(
-          `[CesiumContext] Style "${newStyle}" already active, skipping`
-        );
-        return;
-      }
-
-      const scene = sceneRef.current;
-      if (!isValidScene(scene) || !scene) {
-        console.warn(
-          "[CesiumContext] Cannot apply scene style - invalid scene"
-        );
-        return;
-      }
-
-      const timestamp = new Date().toISOString().split("T")[1];
-      console.log(
-        `[${timestamp}] [CesiumContext] Applying scene style: ${newStyle}`
-      );
-      currentStyle = newStyle;
-
-      if (!sceneStyle) {
-        console.warn("[CesiumContext] No sceneStyle configured");
-        return;
-      }
-
-      const style = sceneStyle.styles?.find((s) => s.id === newStyle);
-      if (!style) {
-        console.warn(
-          `[CesiumContext] Style id "${newStyle}" not found in sceneStyle.styles`
-        );
-        return;
-      }
-
-      console.debug(`[CesiumContext] Applying style "${newStyle}":`, style);
-
-      // Apply backgroundColor from style
-      if (style.backgroundColor && Array.isArray(style.backgroundColor)) {
-        (async () => {
-          const { Color } = await import("@carma/cesium");
-          const [r, g, b, a] = style.backgroundColor!;
-          const bgColor = Color.fromBytes(r, g, b, a);
-          scene.backgroundColor = bgColor;
-          const container = scene.canvas.parentElement;
-          if (container) {
-            const cssColor = bgColor.toCssColorString();
-            container.style.backgroundColor = cssColor;
-          }
-          console.log(
-            `[CesiumContext] Set backgroundColor:`,
-            style.backgroundColor
-          );
-        })();
-      }
-
-      // Apply globe settings from style
-      if (style.globe?.baseColor) {
-        (async () => {
-          const { Color } = await import("@carma/cesium");
-          const [r, g, b, a] = style.globe!.baseColor;
-          scene.globe.baseColor = new Color(r, g, b, a);
-          scene.globe.show = true;
-
-          // Enable translucency if alpha < 1
-          if (a < 1.0) {
-            scene.globe.translucency.enabled = true;
-            console.log(
-              `[CesiumContext] Enabled globe translucency (alpha=${a})`
-            );
-          } else {
-            scene.globe.translucency.enabled = false;
-          }
-
-          console.log(
-            `[CesiumContext] Set globe.baseColor (rgba):`,
-            style.globe?.baseColor
-          );
-        })();
-      }
-
-      // Ensure globe is visible if imagery or terrain is present
-      if (style.imageryLayers && style.imageryLayers.length > 0) {
-        scene.globe.show = true;
-        console.log(`[CesiumContext] Globe show=true (has imagery)`);
-      }
-
-      // Apply shadow settings from style
-      const shadowsEnabled = style.shadows ?? false;
-      scene.globe.enableLighting = shadowsEnabled;
-      scene.shadowMap.enabled = shadowsEnabled;
-      if (!shadowsEnabled && scene.globe.terrainProvider) {
-        (scene.globe.terrainProvider as any).castShadows = false;
-        (scene.globe.terrainProvider as any).receiveShadows = false;
-      }
-      console.log(`[CesiumContext] Shadows enabled:`, shadowsEnabled);
-
-      // TODO: tilesets, imageryProviders, terrainProviders removed from CesiumConfig
-      // These are now managed differently - need to update this code
-      /*
-      const allTilesetIds = new Set<string>();
-      if (config.tilesets) {
-        config.tilesets.forEach((t) => {
-          const tilesetId = t.id || t.config.id;
-          if (tilesetId) allTilesetIds.add(tilesetId);
-        });
-      }
-      */
-
-      // Collect ALL tileset IDs from sceneStyle config
-      const allTilesetIds = new Set<string>();
-      sceneStyle.styles?.forEach((s) => {
-        s.tilesets?.forEach((t) => {
-          if (t.id) allTilesetIds.add(t.id);
-        });
-      });
-
-      // Diff and apply tileset changes
-      console.log(
-        `[CesiumContext] Loaded tilesets:`,
-        Array.from(tilesetsRef.current.keys())
-      );
-      console.log(
-        `[CesiumContext] All available tileset IDs:`,
-        Array.from(allTilesetIds)
-      );
-      console.log(
-        `[CesiumContext] Desired tilesets:`,
-        style.tilesets?.map((t) => t.id) || []
-      );
-
-      const tilesetChanges = diffTilesets(
-        tilesetsRef.current,
-        style,
-        allTilesetIds
-      );
-
-      console.log(
-        `[CesiumContext] Style "${newStyle}": Tileset changes (${tilesetChanges.length}):`,
-        tilesetChanges
-      );
-
-      tilesetChanges.forEach(({ id, action, opacity }) => {
-        console.log(
-          `  → ${id}: ${action.toUpperCase()}${
-            opacity !== undefined ? ` opacity=${opacity}` : ""
-          }`
-        );
-        emit(CtxEvent.SetTilesetVisibility, { id, visible: action === "show" });
-
-        if (opacity !== undefined) {
-          emit(CtxEvent.SetTilesetOpacity, { id, opacity });
+        // Call scene's registered callback (NOT direct scene manipulation)
+        const applier = sceneStyleApplierRef.current;
+        if (applier) {
+          applier(styleId);
+        } else {
+          console.warn("[CesiumContext] No scene style applier registered yet");
         }
-      });
-
-      // Collect ALL imagery IDs from sceneStyle config
-      const allImageryIds = new Set<string>();
-      sceneStyle.styles?.forEach((s) => {
-        s.imageryLayers?.forEach((il) => {
-          if (il.id) allImageryIds.add(il.id);
-        });
-      });
-
-      // Diff and apply imagery changes
-      const imageryChanges = diffImageryLayers(
-        imageryLayersRef.current,
-        style,
-        allImageryIds
-      );
-
-      if (imageryChanges.length > 0) {
-        console.groupCollapsed(
-          `[CesiumContext] Style "${newStyle}": Updating imagery (${imageryChanges.length} changes)`
-        );
-        imageryChanges.forEach(({ id, action, opacity }) => {
-          console.log(
-            `  ${id}: ${action.toUpperCase()}${
-              opacity !== undefined ? ` opacity=${opacity}` : ""
-            }`
-          );
-          emit(CtxEvent.SetImageryVisibility, {
-            id,
-            visible: action === "show",
-          });
-
-          if (opacity !== undefined) {
-            emit(CtxEvent.SetImageryOpacity, { id, opacity });
-          }
-        });
-        console.groupEnd();
-      } else {
-        console.log(
-          `[CesiumContext] Style "${newStyle}": No imagery changes needed`
-        );
       }
-
-      // TODO: Terrain switching not yet implemented
-      // if (style.terrain) {
-      //   emit(CtxEvent.SetTerrainProvider, { id: style.terrain });
-      // }
-
-      // Request render to ensure visual updates
-      scene.requestRender();
-
-      // Wait for next frame to log actual primitive states after visibility updates
-      requestAnimationFrame(() => {
-        console.groupCollapsed(
-          `[CesiumContext] Scene primitives after style "${newStyle}"`
-        );
-        for (let i = 0; i < scene.primitives.length; i++) {
-          const primitive = scene.primitives.get(i);
-          const primitiveType = primitive.constructor.name;
-
-          if (primitiveType === "Cesium3DTileset") {
-            const tileset = primitive as any;
-            console.log(
-              `  [${i}] Tileset: ${tileset.url || "unknown"} - show: ${
-                tileset.show
-              }`
-            );
-          } else {
-            const show = (primitive as any).show;
-            console.log(
-              `  [${i}] ${primitiveType} - show: ${
-                show !== undefined ? show : "N/A"
-              }`
-            );
-          }
-        }
-        console.log(`Total primitives: ${scene.primitives.length}`);
-        console.groupEnd();
-
-        console.groupCollapsed(
-          `[CesiumContext] Imagery layers after style "${newStyle}"`
-        );
-        for (let i = 0; i < scene.imageryLayers.length; i++) {
-          const layer = scene.imageryLayers.get(i);
-          console.log(
-            `  [${i}] ${layer.imageryProvider.constructor.name} - show: ${layer.show}, alpha: ${layer.alpha}`
-          );
-        }
-        console.log(`Total imagery layers: ${scene.imageryLayers.length}`);
-        console.groupEnd();
-
-        console.log(
-          `[CesiumContext] Shadow state: enableLighting=${scene.globe.enableLighting}, shadowMap.enabled=${scene.shadowMap.enabled}`
-        );
-      });
-
-      console.debug(`[CesiumContext] Successfully applied style "${newStyle}"`);
-    };
-
-    const unsubSetStyle = subscribe(CtxEvent.SetSceneStyle, (value: string) => {
-      currentSceneStyleRef.current = value;
-      console.debug("[CesiumContext] Set scene style:", value);
-      applySceneStyle(value);
-    });
+    );
 
     const unsubToggleStyle = subscribe(CtxEvent.ToggleSceneStyle, () => {
       if (!sceneStyle || !sceneStyle.styles || sceneStyle.styles.length < 2) {
@@ -476,18 +223,25 @@ export const useContextSetupSubscriptions = ({
         currentIndex === -1 ? 0 : (currentIndex + 1) % sceneStyle.styles.length;
       const newStyle = sceneStyle.styles[nextIndex].id;
 
-      currentSceneStyleRef.current = newStyle;
       console.debug(
         `[CesiumContext] Toggle: ${currentStyle} -> ${newStyle} (slot ${currentIndex} -> ${nextIndex})`
       );
-      applySceneStyle(newStyle);
+
+      // Update ref and call scene's registered callback
+      currentSceneStyleRef.current = newStyle;
+      const applier = sceneStyleApplierRef.current;
+      if (applier) {
+        applier(newStyle);
+      } else {
+        console.warn("[CesiumContext] No scene style applier registered yet");
+      }
     });
 
     return () => {
       unsubSetStyle();
       unsubToggleStyle();
     };
-  }, [subscribe, emit, currentSceneStyleRef, sceneRef, sceneStyle, config]);
+  }, [subscribe, currentSceneStyleRef, sceneStyleApplierRef, sceneStyle]);
 
   // DISABLED: Tileset visibility/opacity events (deprecated refs)
   /* useEffect(() => {

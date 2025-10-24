@@ -4,10 +4,10 @@ import { useCesiumContext } from "../../context";
 import { CtxEvent } from "../../context/cesium-context-event-map";
 
 export const useHomeControl = () => {
-  const { sceneRef, emit, homeCameraRef } = useCesiumContext();
+  const { sceneRef, emit, homeCamera } = useCesiumContext();
 
   const handleHomeClick = useCallback(() => {
-    const home = homeCameraRef.current;
+    const home = homeCamera.current;
     const scene = sceneRef.current;
 
     console.log("[HOME CONTROL] Home button clicked", {
@@ -24,7 +24,7 @@ export const useHomeControl = () => {
 
     // Emit GoHome event - camera positioning is handled by use-context-setup-subscriptions
     emit(CtxEvent.GoHome, undefined);
-  }, [sceneRef, homeCameraRef, emit]);
+  }, [sceneRef, homeCamera, emit]);
 
   return handleHomeClick;
 };

@@ -145,7 +145,7 @@ export const TransitionContextProvider = ({
       if (currentState === MapTransitionState.mode3d) {
         const tracker = transitionStageTrackerRef.current;
         // Check if we just completed a transition (has transition stages)
-        if (tracker.step6_cameraAnimation?.endTime) {
+        if (tracker[MapTransitionState.to3d_step6_cameraAnimation]?.endTime) {
           console.debug(
             "[TransitionContextProvider] Emitting TransitionTo3dComplete"
           );
@@ -156,7 +156,9 @@ export const TransitionContextProvider = ({
       } else if (currentState === MapTransitionState.mode2d) {
         const tracker = transitionStageTrackerRef.current;
         // Check if we just completed a transition (has transition stages)
-        if (tracker.step2_cameraTiltAnimation?.endTime) {
+        if (
+          tracker[MapTransitionState.to2d_step2_cameraTiltAnimation]?.endTime
+        ) {
           console.debug(
             "[TransitionContextProvider] Emitting TransitionTo2dComplete"
           );
@@ -185,13 +187,24 @@ export const TransitionContextProvider = ({
         `[TransitionContextProvider] State change: ${lastState} → ${currentState}`
       );
 
-      // Emit engine switching events when entering transition states
-      if (currentState === MapTransitionState.transitionTo3d) {
+      // Emit engine switching events when entering first transition stage
+      // Check if transitioning TO 3D (from 2D stable state)
+      if (
+        lastState === MapTransitionState.mode2d &&
+        (currentState === MapTransitionState.to3d_step1_prepare2dView ||
+          currentState.toString().startsWith("to3d_"))
+      ) {
         console.debug(
           "[TransitionContextProvider] Switching engines: Cesium active, TopicMap suspended"
         );
         emit(TransitionCtxEvent.TransitionTo3dStart, undefined);
-      } else if (currentState === MapTransitionState.transitionTo2d) {
+      }
+      // Check if transitioning TO 2D (from 3D stable state)
+      else if (
+        lastState === MapTransitionState.mode3d &&
+        (currentState === MapTransitionState.to2d_step1_calculatePosition ||
+          currentState.toString().startsWith("to2d_"))
+      ) {
         console.debug(
           "[TransitionContextProvider] Switching engines: TopicMap active, Cesium suspended"
         );

@@ -1,18 +1,20 @@
 import { createSelector, createSlice } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
+import type { Map as MaplibreMap } from "maplibre-gl";
 
 import type { BackgroundLayer, Layer, SavedLayerConfig } from "@carma/types";
 import {
-  SELECTED_LAYER_INDEX,
-  SelectionItem,
   MapStyleKeys,
+  SELECTED_LAYER_INDEX,
   type MappingState,
+  type SelectionItem,
 } from "@carma-appframeworks/portals";
 
 import { RootState } from "..";
 import { layerMap } from "../../config";
 
 const defaultOpacity = 0.2;
+
 
 const initialState: MappingState = {
   layers: [],
@@ -267,7 +269,7 @@ const slice = createSlice({
     setClickFromInfoView(state, action: PayloadAction<boolean>) {
       state.clickFromInfoView = action.payload;
     },
-    setLibreMapRef(state, action: PayloadAction<any>) {
+    setLibreMapRef(state, action: PayloadAction<React.MutableRefObject<MaplibreMap> | null>) {
       state.libreMapRef = action.payload;
     },
     setConfigSelection(state, action: PayloadAction<SelectionItem>) {

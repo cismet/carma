@@ -1,6 +1,6 @@
 import { useCallback, useEffect, MutableRefObject } from "react";
 import { Map as LeafletMap } from "leaflet";
-import { Map as MaplibreMap } from "maplibre-gl";
+import type { Map as MaplibreMap } from "maplibre-gl";
 
 import { LeafletMapEventNames } from "@carma-mapping/engines/leaflet";
 import { MaplibreMapEventNames } from "@carma-mapping/engines/maplibre";

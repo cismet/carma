@@ -4,51 +4,75 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import type { ReactNode } from "react";
 import { useHashState } from "./HashStateProvider";
-import { type MapStyleKey, isMapStyleKey, MapStyleMapping } from "../constants";
+import {
+  type MapStyleKey,
+  type ManagedEngineKey,
+  ManagedEngineKeys,
+} from "../constants";
 import { useMapStyleBus } from "../hooks/useMapStyleBus";
 import type { CesiumConfig } from "@carma-mapping/engines/cesium/types";
 import { convertCameraStateToInternalFormat } from "@carma/cesium";
 import type { CameraStateHeadingPitchRoll } from "@carma/cesium";
 import type { HashStateConfig } from "./HashStateProvider";
 import { OverlayTourProvider } from "@carma-commons/ui/helper-overlay";
-import {
-  CesiumContextProvider,
-  useCesiumContext,
-} from "@carma-mapping/engines/cesium/core";
-import {
-  CarmaTopicMapContextProvider,
-  useCarmaTopicMapContext,
-} from "@carma-mapping/engines/carma-cismap";
-import {
-  TransitionContextProvider,
-  useTransitionContext,
-  TransitionCtxEvent,
-} from "@carma-mapping/map-transition-2d-3d";
+import { CesiumContextProvider } from "@carma-mapping/engines/cesium/core";
+import { CarmaTopicMapContextProvider } from "@carma-mapping/engines/carma-cismap";
+import { TransitionContextProvider } from "@carma-mapping/map-transition-2d-3d";
 import { LeafletConfig } from "@carma/types";
+import { validatePortalCesiumConfig } from "./validate-portal-config";
+import { TransitionEngineSync } from "../components/TransitionEngineSync";
+import { parseInitialPortalState } from "./parse-initial-portal-state";
 
 /**
- * PortalProvider - Complete portal context provider
+ * PortalProvider - Complete portal context provider & 2D↔3D orchestrator
  *
- * Responsibilities:
+ * === ORCHESTRATION FLOW (2D→3D) ===
+ * 1. **MapTypeSwitcher** requests 3D mode
+ *    → Calls useMapModeToggle().toggle()
+ *    → Calls useMapTransition().transitionToMode3d()
+ *
+ * 2. **PortalContext** enables 3D engine
+ *    → TransitionEngineSync listens to TransitionTo3dStart event
+ *    → Emits CtxEvent.Activate (to Cesium context)
+ *    → Emits TopicMapCtxEvent.Suspend (to TopicMap)
+ *
+ * 3. **CesiumMapComponentWrapper** (Portal level) acts as gate
+ *    → Receives Activate event
+ *    → Sets refs: currentSceneStyleRef.current = initialMapStyle
+ *    → Sets refs: initialCamera.current = cameraState
+ *    → Allows mount: setShouldMountScene(true)
+ *
+ * 4. **CesiumSceneComponent** mounts and registers
+ *    → Reads refs on mount (style, camera)
+ *    → Registers callbacks (style applier)
+ *    → Emits SceneReady event
+ *
+ * 5. **Context** is passive infrastructure
+ *    → Owns refs, event bus, static config
+ *    → Forwards events (no orchestration logic)
+ *    → Scene registers, context doesn't manage
+ *
+ * === RESPONSIBILITIES ===
  * - READ from URL: Parse hash for map style, engine mode, and location
  * - WRITE to URL: Update hash when state changes
  * - Provide map state (style, engine, position, camera)
+ * - Orchestrate engine switching (Activate/Suspend events)
  * - Wrap children with all portal-level providers:
  *   - SelectionProvider (selection state)
  *   - TransitionContextProvider (2D↔3D transitions)
  *   - CarmaTopicMapContextProvider (TopicMap integration)
  *   - OverlayTourProvider (overlay UI)
- *   - CesiumContextProvider (Cesium 3D engine)
- * - Emit style changes via event bus
+ *   - CesiumContextProvider (Cesium 3D engine - passive)
  *
  * All initial state must be determined before children render.
  */
 
-export type MapEngine = "cesium3d" | "leaflet2d";
+export type MapEngine = ManagedEngineKey;
 
 export interface MapStyleConfig {
   defaultStyle: MapStyleKey;
@@ -64,15 +88,21 @@ export interface MapPosition2D {
   zoom: number;
 }
 
-// Cesium 3D camera location (without zoom, uses heading/pitch/range instead)
+// Cesium 3D camera location
 // Describes camera position and orientation in 3D space
+//
+// Two modes supported:
+// 1. Absolute positioning: lat/lng/altitude + heading/pitch/roll/fov (used in URL)
+// 2. Object-centric: lat/lng/altitude + heading/pitch/range (for home position)
 export interface InitialCameraLocation {
   latitude: number;
   longitude: number;
-  altitude?: number; // Height above ground
-  heading?: number; // Rotation around z-axis
-  pitch?: number; // Rotation around y-axis (tilt)
-  range?: number; // Distance from target in meters
+  altitude?: number; // Height above ground/ellipsoid
+  heading?: number; // Rotation around z-axis (0 = North)
+  pitch?: number; // Rotation around y-axis (tilt, -90 = straight down)
+  roll?: number; // Rotation around x-axis (typically 0 for level horizon)
+  fov?: number; // Field of view in degrees (absolute positioning)
+  range?: number; // Distance from target in meters (object-centric positioning)
 }
 
 interface PortalContextType {
@@ -83,24 +113,25 @@ interface PortalContextType {
   initialMapStyle: MapStyleKey;
   initialEngine: MapEngine;
 
-  // Initial position in 2D format (lat/lng/zoom) - for Leaflet, MapLibre
-  initialMapPosition: MapPosition2D;
-
-  // Initial camera in 3D format (lat/lng/altitude/heading/pitch/range) - for Cesium
-  initialCameraLocation: InitialCameraLocation;
-
-  // Runtime state (can change via user interaction)
   currentMapStyle: MapStyleKey;
   setCurrentMapStyle: (style: MapStyleKey) => void;
-
   currentEngine: MapEngine;
   setCurrentEngine: (engine: MapEngine) => void;
 
-  // Location update handlers (called by hash routing hooks)
-  updateMapPosition: (position: Partial<MapPosition2D>) => void;
-  updateCameraLocation: (camera: Partial<InitialCameraLocation>) => void;
+  // Configuration
+  mapStyleToCesiumStyleMapping: Record<MapStyleKey, string>;
 
-  // Cesium config with initialStyle and initialCamera merged in
+  // Initial state (from URL)
+  initialMapStyle: MapStyleKey;
+  initialEngine: MapEngine;
+  initialMapPosition: MapPosition2D;
+  initialCameraLocation: InitialCameraLocation;
+
+  // Helpers
+  updateMapPosition: (position: Partial<MapPosition2D>) => void;
+  updateCameraLocation: (location: Partial<InitialCameraLocation>) => void;
+
+  // Cesium config
   cesiumConfig: CesiumConfig;
 
   // PortalConfig properties
@@ -113,16 +144,20 @@ export interface PortalConfig {
   hashConfig: HashStateConfig;
   styleConfig: MapStyleConfig;
 
-  // Position defaults
-  defaultPosition: MapPosition2D;
-  // todo unify with defaultPosition, for now use position with altitude plus heading pitch roll(!) camera based
-  defaultCameraLocation?: Partial<InitialCameraLocation>;
-  homePosition: MapPosition2D;
-  // todo unify with homePosition, for now use position with altitude plus heading pitch range(!) object based
-  homePose3d?: Partial<InitialCameraLocation>;
+  // Mapping from portal map styles (2D) to Cesium scene styles (3D)
+  // This is app-specific - each app defines which Cesium styles match their 2D styles
+  mapStyleToCesiumStyleMapping: Record<MapStyleKey, string>;
 
+  // Default positions
+  defaultPosition: MapPosition2D;
+  homePosition: MapPosition2D;
+  defaultCameraLocation?: InitialCameraLocation;
+  homePose3d?: InitialCameraLocation;
+
+  // Engine configurations
   leafletConfig: LeafletConfig;
   cesiumConfig: CesiumConfig;
+
   overlayConfig?: {
     transparency?: number;
     color?: string;
@@ -147,12 +182,28 @@ interface PortalProviderProps {
 }
 
 export const PortalProvider = ({ children, config }: PortalProviderProps) => {
-  const { styleConfig, cesiumConfig, defaultPosition, defaultCameraLocation } =
-    config;
+  const {
+    styleConfig,
+    cesiumConfig,
+    defaultPosition,
+    defaultCameraLocation,
+    homePosition,
+    homePose3d,
+  } = config;
   const { defaultStyle } = styleConfig;
   const { updateHash, getHashValues } = useHashState();
   const { emit } = useMapStyleBus();
   const [isInitialized, setIsInitialized] = useState(false);
+
+  // Validate Cesium config synchronously before rendering (happens once per component lifetime)
+  const validationDoneRef = useRef(false);
+  if (!validationDoneRef.current) {
+    validationDoneRef.current = true;
+    validatePortalCesiumConfig(
+      cesiumConfig,
+      config.mapStyleToCesiumStyleMapping
+    );
+  }
 
   // READ from URL: Get all initial values from hash in one call
   const {
@@ -163,119 +214,13 @@ export const PortalProvider = ({ children, config }: PortalProviderProps) => {
   } = useMemo(() => {
     const hashValues = getHashValues();
 
-    // Map style
-    const mapStyle =
-      isMapStyleKey(hashValues.mapStyle) &&
-      styleConfig.availableStyles.includes(hashValues.mapStyle)
-        ? hashValues.mapStyle
-        : defaultStyle;
-
-    // Engine (2D vs 3D)
-    const engine: MapEngine =
-      hashValues.engine === "cesium3d" ? "cesium3d" : "leaflet2d";
-
-    // 2D position format (lat/lng/zoom) - for Leaflet, MapLibre
-    const mapPosition: MapPosition2D = {
-      latitude: hashValues.lat
-        ? parseFloat(hashValues.lat as string)
-        : defaultPosition.latitude,
-      longitude: hashValues.lng
-        ? parseFloat(hashValues.lng as string)
-        : defaultPosition.longitude,
-      zoom: hashValues.zoom
-        ? parseFloat(hashValues.zoom as string)
-        : defaultPosition.zoom,
-    };
-
-    // 3D camera location (lat/lng/altitude/heading/pitch/range) - for Cesium
-    const cameraLocation: InitialCameraLocation = {
-      latitude: mapPosition.latitude,
-      longitude: mapPosition.longitude,
-      altitude: hashValues.h
-        ? parseFloat(hashValues.h as string)
-        : defaultCameraLocation?.altitude,
-      heading: hashValues.heading
-        ? parseFloat(hashValues.heading as string)
-        : defaultCameraLocation?.heading,
-      pitch: hashValues.pitch
-        ? parseFloat(hashValues.pitch as string)
-        : defaultCameraLocation?.pitch,
-      range: hashValues.range
-        ? parseFloat(hashValues.range as string)
-        : defaultCameraLocation?.range,
-    };
-
-    return {
-      initialMapStyle: mapStyle,
-      initialEngine: engine,
-      initialMapPosition: mapPosition,
-      initialCameraLocation: cameraLocation,
-    };
-  }, [
-    getHashValues,
-    styleConfig.availableStyles,
-    defaultStyle,
-    defaultPosition,
-    defaultCameraLocation,
-  ]);
-
-  // Merge initial style and camera location into Cesium config
-  const mergedCesiumConfig = useMemo((): CesiumConfig => {
-    const cesiumStyleId = MapStyleMapping[initialMapStyle];
-
-    console.log("[PortalProvider] Merging Cesium config:", {
-      initialMapStyle,
-      cesiumStyleId,
-      initialCameraLocation,
-      originalConfig: cesiumConfig,
+    return parseInitialPortalState({
+      hashValues,
+      styleConfig,
+      defaultPosition,
+      defaultCameraLocation,
     });
-
-    // Convert InitialCameraLocation to CameraStateHeadingPitchRoll format
-    // Both use the same structure, just need to ensure all required fields are present
-    const initialCameraState = initialCameraLocation
-      ? ({
-          latitude: initialCameraLocation.latitude,
-          longitude: initialCameraLocation.longitude,
-          altitude: initialCameraLocation.altitude,
-          heading: initialCameraLocation.heading,
-          pitch: initialCameraLocation.pitch,
-          roll: 0, // InitialCameraLocation doesn't have roll, default to 0
-        } as CameraStateHeadingPitchRoll)
-      : undefined;
-
-    const defaultCameraState = defaultCameraLocation
-      ? ({
-          latitude: defaultCameraLocation.latitude,
-          longitude: defaultCameraLocation.longitude,
-          altitude: defaultCameraLocation.altitude,
-          heading: defaultCameraLocation.heading,
-          pitch: defaultCameraLocation.pitch,
-          roll: 0, // InitialCameraLocation doesn't have roll, default to 0
-        } as CameraStateHeadingPitchRoll)
-      : undefined;
-
-    const merged = {
-      ...cesiumConfig,
-      sceneStyle: cesiumConfig.sceneStyle,
-      initialStyle: cesiumStyleId,
-      initialCamera: initialCameraLocation,
-      cameraInitialPose: initialCameraState
-        ? convertCameraStateToInternalFormat(initialCameraState)
-        : undefined,
-      cameraHomePose: defaultCameraState
-        ? convertCameraStateToInternalFormat(defaultCameraState)
-        : undefined,
-    };
-
-    console.log("[PortalProvider] Merged Cesium config:", merged);
-
-    return merged;
-  }, [
-    cesiumConfig,
-    initialMapStyle,
-    initialCameraLocation,
-    defaultCameraLocation,
-  ]);
+  }, [getHashValues, styleConfig, defaultPosition, defaultCameraLocation]);
 
   const [currentMapStyle, setCurrentMapStyle] =
     useState<MapStyleKey>(initialMapStyle);
@@ -297,7 +242,12 @@ export const PortalProvider = ({ children, config }: PortalProviderProps) => {
   // updateHash uses valueName keys, so we use 'engine' which gets encoded to the hash key
   useEffect(() => {
     updateHash(
-      { engine: currentEngine === "cesium3d" ? "cesium3d" : undefined },
+      {
+        engine:
+          currentEngine === ManagedEngineKeys.CESIUM_3D
+            ? ManagedEngineKeys.CESIUM_3D
+            : undefined,
+      },
       { label: "PortalProvider:engine" }
     );
   }, [currentEngine, updateHash]);
@@ -312,77 +262,8 @@ export const PortalProvider = ({ children, config }: PortalProviderProps) => {
     setIsInitialized(true);
   }, []);
 
-  // Subscribe to transition events to update engine state and emit engine activation/suspension
-  // This centralizes ALL engine availability control close to PortalContext
-  const TransitionEngineSync = () => {
-    const { subscribe } = useTransitionContext();
-    const { emit: emitCesium } = useCesiumContext();
-    const { emit: emitTopicMap } = useCarmaTopicMapContext();
-
-    useEffect(() => {
-      // Import event types dynamically to avoid circular deps
-      const setupListeners = async () => {
-        const { CtxEvent } = await import("@carma-mapping/engines/cesium/core");
-        const { TopicMapCtxEvent } = await import(
-          "@carma-mapping/engines/carma-cismap"
-        );
-
-        const unsubscribeTo3dStart = subscribe(
-          TransitionCtxEvent.TransitionTo3dStart,
-          () => {
-            console.debug(
-              "[PortalProvider] Transition to 3D: Activating Cesium, suspending TopicMap"
-            );
-            // Update UI state
-            setCurrentEngine("cesium3d");
-
-            // Activate Cesium engine
-            emitCesium(CtxEvent.Activate, {
-              source: "portal-transition",
-              component: "TransitionEngineSync",
-              reason: "2D→3D transition started",
-            });
-
-            // Suspend TopicMap engine
-            emitTopicMap(TopicMapCtxEvent.Suspend, undefined);
-          }
-        );
-
-        const unsubscribeTo2dStart = subscribe(
-          TransitionCtxEvent.TransitionTo2dStart,
-          () => {
-            console.debug(
-              "[PortalProvider] Transition to 2D: Activating TopicMap, suspending Cesium"
-            );
-            // Update UI state
-            setCurrentEngine("leaflet2d");
-
-            // Activate TopicMap engine
-            emitTopicMap(TopicMapCtxEvent.Activate, undefined);
-
-            // Suspend Cesium engine
-            emitCesium(CtxEvent.Suspend, undefined);
-          }
-        );
-
-        return () => {
-          unsubscribeTo3dStart();
-          unsubscribeTo2dStart();
-        };
-      };
-
-      let cleanup: (() => void) | undefined;
-      setupListeners().then((fn) => {
-        cleanup = fn;
-      });
-
-      return () => {
-        cleanup?.();
-      };
-    }, [subscribe, emitCesium, emitTopicMap]);
-
-    return null;
-  };
+  // Engine switching orchestration handled by TransitionEngineSync component
+  // (lives here because it needs access to all engine contexts)
 
   // Location update handlers (called by hash routing hooks)
   const updateMapPosition = useCallback(
@@ -452,9 +333,10 @@ export const PortalProvider = ({ children, config }: PortalProviderProps) => {
       setCurrentMapStyle,
       currentEngine,
       setCurrentEngine,
+      mapStyleToCesiumStyleMapping: config.mapStyleToCesiumStyleMapping,
       updateMapPosition,
       updateCameraLocation,
-      cesiumConfig: mergedCesiumConfig,
+      cesiumConfig,
       portalConfig: config,
     }),
     [
@@ -467,7 +349,7 @@ export const PortalProvider = ({ children, config }: PortalProviderProps) => {
       currentEngine,
       updateMapPosition,
       updateCameraLocation,
-      mergedCesiumConfig,
+      cesiumConfig,
       config,
     ]
   );
@@ -488,8 +370,36 @@ export const PortalProvider = ({ children, config }: PortalProviderProps) => {
             transparency={overlayConfig?.transparency || 0.7}
             color={overlayConfig?.color || "#000000"}
           >
-            <CesiumContextProvider config={mergedCesiumConfig}>
-              <TransitionEngineSync />
+            <CesiumContextProvider
+              config={cesiumConfig}
+              homeCameraPose={
+                homePose3d || {
+                  latitude: homePosition.latitude,
+                  longitude: homePosition.longitude,
+                  altitude: 10000, // Default altitude if not specified
+                  heading: 0,
+                  pitch: -90,
+                  roll: 0,
+                }
+              }
+              initialCameraPose={
+                defaultCameraLocation
+                  ? {
+                      latitude:
+                        defaultCameraLocation.latitude ||
+                        defaultPosition.latitude,
+                      longitude:
+                        defaultCameraLocation.longitude ||
+                        defaultPosition.longitude,
+                      altitude: defaultCameraLocation.altitude || 10000,
+                      heading: defaultCameraLocation.heading || 0,
+                      pitch: defaultCameraLocation.pitch || -90,
+                      roll: 0,
+                    }
+                  : undefined
+              }
+            >
+              <TransitionEngineSync setCurrentEngine={setCurrentEngine} />
               {children}
             </CesiumContextProvider>
           </OverlayTourProvider>

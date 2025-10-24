@@ -1,5 +1,8 @@
-import { Cartographic, CesiumTerrainProvider } from "@carma/cesium";
-import { guardSampleTerrainMostDetailed } from "@carma/cesium";
+import {
+  Cartographic,
+  CesiumTerrainProvider,
+  guardSampleTerrainMostDetailed,
+} from "@carma/cesium";
 
 export type ElevationResult = {
   terrain: Cartographic;

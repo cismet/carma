@@ -1,9 +1,9 @@
 import { isNaN } from "lodash";
+import envelope from "@turf/envelope";
 
 import type { FeatureInfoProperties, Item, Layer } from "@carma/types";
 import { extractCarmaConfig } from "@carma-commons/utils";
-import envelope from "@turf/envelope";
-import L from "leaflet";
+import type { Map as LeafletMap } from "leaflet";
 import { sandboxedEvalExternal } from "../components/SandboxedEvalProvider";
 
 export const parseDescription = (description: string) => {
@@ -263,7 +263,7 @@ export const zoomToFeature = (
   selectedFeature: any,
   routedMapRef: {
     leafletMap: {
-      leafletElement: L.Map;
+      leafletElement: LeafletMap;
     };
   },
   padding: [number, number] = [0, 0]

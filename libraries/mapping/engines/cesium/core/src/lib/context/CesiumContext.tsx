@@ -2,24 +2,17 @@ import { createContext, type MutableRefObject } from "react";
 import type {
   CesiumWidget,
   Scene,
-  ImageryLayer,
-  CesiumTerrainProvider,
-  Cesium3DTileset,
-  Model,
+  CameraPrimitive,
+  CameraPoseRadians,
 } from "@carma/cesium";
 
 import {
   EmitCesiumCtxFn,
   SubscribeCesiumCtxFn,
 } from "./cesium-context-event-map";
-import { DelayedRenderOptions } from "@carma-commons/dom/window";
+import type { DelayedRenderOptions } from "@carma-commons/dom/window";
 import type { AnimationMap } from "@carma/types";
 import type { CesiumConfig } from "@carma/cesium/types";
-import type {
-  CameraPoseHeadingPitchRoll,
-  CameraPrimitive,
-  CameraPoseRadians,
-} from "@carma/cesium";
 
 export type CesiumInstanceTrigger = {
   source: string;
@@ -37,7 +30,7 @@ export interface CesiumInstanceRecord {
   // Metadata about what triggered the initialization
   trigger?: CesiumInstanceTrigger;
   // Last known camera state (for crash recovery) - internal Cesium state
-  lastCameraState?: CameraPrimitive;
+  cameraState?: CameraPrimitive;
 }
 
 // Provider ref types for managing arbitrary numbers of providers
@@ -50,27 +43,57 @@ export interface CesiumContextType {
   widgetRef: MutableRefObject<CesiumWidget | null>;
   sceneRef: MutableRefObject<Scene | null>;
 
-  // Last known camera state (updated on camera changes, used for crash recovery)
-  // Internal Cesium state: position (Cartesian3), direction/up/right vectors
-  lastCameraStateRef: MutableRefObject<CameraPrimitive | null>;
-
-  // Provider refs - support arbitrary numbers per type
-  terrainProvidersRef: MutableRefObject<Map<string, CesiumTerrainProvider>>;
-  imageryLayersRef: MutableRefObject<Map<string, ImageryLayer>>;
-  tilesetsRef: MutableRefObject<Map<string, Cesium3DTileset>>;
-  modelsRef: MutableRefObject<Map<string, Model>>;
+  // NOTE: Provider refs (terrain, imagery, tilesets, models) moved to CesiumSceneComponent
+  // These are scene-owned resources, not context-level shared state
 
   // Core state refs
   isSuspendedRef: MutableRefObject<boolean>;
-  homeCameraRef: MutableRefObject<CameraPoseRadians | null>;
+  homeCamera: MutableRefObject<CameraPoseRadians | null>;
+  initialCamera: MutableRefObject<CameraPoseRadians | null>;
+
+  // Camera tracking - TWO separate states:
+  // 1. currentCameraRef: Updated every frame for crash recovery and live display
+  // 2. moveendCameraRef: Updated when camera stops moving (like Leaflet's moveend/zoomend)
+  //    Used for URL hash updates and other actions triggered on camera settle
+  currentCameraRef: MutableRefObject<CameraPrimitive | null>;
+  moveendCameraRef: MutableRefObject<CameraPrimitive | null>;
+
   minZoomDistanceRef: MutableRefObject<number>;
   maxZoomDistanceRef: MutableRefObject<number>;
   enableCollisionDetectionRef: MutableRefObject<boolean>;
   currentSceneStyleRef: MutableRefObject<string | undefined>;
 
-  // Event bus
+  // Internal scene coordination (refs + callbacks, NOT event bus)
+  // Scene updates these refs and registers callbacks on mount
+  availableSceneStylesRef: MutableRefObject<string[]>;
+  sceneStyleApplierRef: MutableRefObject<((styleId: string) => void) | null>;
+  sceneCameraTrackerRef: MutableRefObject<
+    ((action: "start" | "stop") => void) | null
+  >;
+
+  // Scene style readiness coordination (internal, ref-based)
+  // SceneStyleManager reports when all resources for current style are loaded
+  sceneStyleReadyStateRef: MutableRefObject<{
+    currentStyle: string | null;
+    isReady: boolean;
+    requiredResources: string[];
+    readyResources: string[];
+  }>;
+  sceneStyleReadyCallbackRef: MutableRefObject<
+    ((isReady: boolean, styleId: string) => void) | null
+  >;
+
+  // Event bus (for EXTERNAL consumers only - app components, etc)
   subscribe: SubscribeCesiumCtxFn;
   emit: EmitCesiumCtxFn;
+
+  // Scene initialization gate (synchronous validation)
+  // Wrapper calls this to prepare refs before mounting scene
+  // cameraState: Optional CameraPrimitive (internal Cesium format: position, direction, up, right, fov)
+  prepareSceneInit: (
+    style: string,
+    cameraState?: CameraPrimitive | null
+  ) => boolean;
 
   // Animation and transition state
   isAnimatingRef: MutableRefObject<boolean>;

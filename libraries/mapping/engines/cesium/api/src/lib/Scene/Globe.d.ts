@@ -10,6 +10,7 @@ export type GlobeConstructorOptionsPrimitive = Omit<
   "baseColor"
 > & {
   baseColor?: ColorConstructor;
+  showGlobe?: boolean;
 };
 
 /**
@@ -21,4 +22,5 @@ export type GlobeOptions = {
   cartographicLimitRectangle?: Rectangle;
   showGroundAtmosphere?: boolean;
   showSkirts?: boolean;
+  showGlobe?: boolean;
 };

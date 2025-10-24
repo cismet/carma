@@ -1,5 +1,5 @@
 import { Map as LeafletMap } from "leaflet";
-import { Map as MaplibreMap } from "maplibre-gl";
+import type { Map as MaplibreMap } from "maplibre-gl";
 
 import type { Zoom256, LatLngZoom, LeafletLikeMap } from "@carma/types";
 import { zoom256as512 } from "@carma-mapping/engines/maplibre";

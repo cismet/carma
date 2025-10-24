@@ -1,18 +1,12 @@
-import type { Scene } from "@carma/cesium";
+import type { Scene, PerspectiveFrustum } from "@carma/cesium";
 
 import type { Zoom, SurfaceModelType } from "@carma/types";
 import type { LatLng } from "@carma/geo/types";
 import type { Radians, Degrees } from "@carma/units/types";
 
-import { getPixelResolutionFromZoomAtLatitudeRad } from "@carma/geo/utils";
 import { isZoom, degToRad } from "@carma-commons/units/helpers";
 import { normalizeOptions, Logger } from "@carma-commons/utils";
 
-// Import utilities from cesium engine
-import {
-  getCesiumFrustumPixelDimensionsForDistance,
-  getScenePixelSize,
-} from "@carma/cesium/core";
 const logger = new Logger("L2C");
 
 // TODO: move to config or formalize the starting distance value
@@ -27,6 +21,10 @@ type TransitionOptions = {
   /** Preferred surface model type: 'dem' (terrain only), 'dsm' (terrain + objects), 'water' */
   preferredSurfaceType?: SurfaceModelType;
   terrainSafetyBufferM?: number;
+  /** Enable micro-adjustment stage (default: false) */
+  enableMicroAdjustments?: boolean;
+  /** Maximum allowed range deviation from initial position (default: 0.1 = 10%) */
+  maxRangeDeviationRatio?: number;
 };
 
 const noop = () => {};
@@ -39,6 +37,8 @@ const defaultTransitionOptions: Required<TransitionOptions> = {
   fallbackElevationM: 350,
   preferredSurfaceType: "dem", // Prefer DEM (Digital Elevation Model - terrain only)
   terrainSafetyBufferM: 300,
+  enableMicroAdjustments: false,
+  maxRangeDeviationRatio: 0.1, // 10% max deviation
 };
 
 export const tiledMapToCesium = async (
@@ -48,14 +48,32 @@ export const tiledMapToCesium = async (
   resolutionScale: number,
   options: TransitionOptions
 ): Promise<boolean> => {
-  // Dynamic import of Cesium runtime functions to comply with lazy-loading
-  const {
-    isValidScene,
-    guardSampleTerrainMostDetailed,
-    isValidCesiumTerrainProvider,
-    Cartographic,
-    HeadingPitchRoll,
-  } = await import("@carma/cesium");
+  logger.debug(
+    "[2D3D|CESIUM|CAMERA] tiledMapToCesium called, starting dynamic imports..."
+  );
+
+  // Dynamic import of all lazy-loaded dependencies
+  const importStart = Date.now();
+  const [
+    {
+      isValidScene,
+      guardSampleTerrainMostDetailed,
+      isValidCesiumTerrainProvider,
+      Cartographic,
+      HeadingPitchRoll,
+    },
+    { getPixelResolutionFromZoomAtLatitudeRad },
+    { getFrustumPixelDimensionsForDistance, getScenePixelSize },
+  ] = await Promise.all([
+    import("@carma/cesium"),
+    import("@carma/geo/utils"),
+    import("@carma/cesium/core"),
+  ]);
+
+  const importDuration = Date.now() - importStart;
+  logger.debug(
+    `[2D3D|CESIUM|CAMERA] ✓ Dynamic imports completed in ${importDuration}ms`
+  );
 
   if (!isValidScene(scene)) {
     logger.error("Invalid scene provided");
@@ -114,17 +132,21 @@ export const tiledMapToCesium = async (
     )}m/px`
   );
 
-  const { epsilon, onComplete, fallbackElevationM } = normalizeOptions(
-    options,
-    defaultTransitionOptions
-  );
+  const {
+    epsilon,
+    onComplete,
+    fallbackElevationM,
+    enableMicroAdjustments,
+    maxRangeDeviationRatio,
+  } = normalizeOptions(options, defaultTransitionOptions);
 
-  const baseComputedPixelResolution =
-    getCesiumFrustumPixelDimensionsForDistance(
-      scene,
-      resolutionScale,
-      START_DISTANCE
-    )?.average;
+  const baseComputedPixelResolution = getFrustumPixelDimensionsForDistance(
+    scene.camera.frustum as PerspectiveFrustum,
+    scene.drawingBufferWidth,
+    scene.drawingBufferHeight,
+    START_DISTANCE,
+    resolutionScale
+  )?.average;
 
   if (
     baseComputedPixelResolution === null ||
@@ -259,19 +281,43 @@ export const tiledMapToCesium = async (
     orientation: new HeadingPitchRoll(0, -Math.PI / 2, 0), // Nadir view
   });
 
+  // Store camera state after initial positioning with terrain elevation
+  const { captureCurrentCameraState, restoreCameraState } = await import(
+    "@carma/cesium"
+  );
+  const savedCameraState = captureCurrentCameraState(camera, true);
+  const initialRange = computedDistance;
+
+  logger.debug(
+    `L2C [2D3D|CESIUM|CAMERA] ✓ Saved camera state after terrain positioning (range: ${initialRange.toFixed(
+      2
+    )}m)`
+  );
+
   // CRITICAL: Wait for scene to render with new camera position
-  // One frame is NOT enough - scene needs time to update internal state
-  // Request render and wait for 2 frames to ensure pixel size is accurate
+  // Scene needs multiple frames to:
+  // 1. Apply camera position
+  // 2. Update frustum
+  // 3. Stabilize rendering state
+  // Wait for 4+ frames to ensure pixel size is read from correct view
   scene.requestRender();
   await new Promise<void>((resolve) => {
-    window.requestAnimationFrame(() => {
-      window.requestAnimationFrame(() => resolve());
-    });
+    let frameCount = 0;
+    const waitFrames = () => {
+      frameCount++;
+      if (frameCount < 4) {
+        window.requestAnimationFrame(waitFrames);
+      } else {
+        resolve();
+      }
+    };
+    window.requestAnimationFrame(waitFrames);
   });
 
-  // STEP 5: Micro-corrections if needed
+  // STEP 5: Micro-corrections if needed (OPTIONAL)
   let isQualifiedResult = true;
   let iterations = 0;
+  let shouldRestoreSavedState = false;
 
   // Read pixel resolution AFTER positioning and waiting for scene update
   let currentPixelResolution = getScenePixelSize(scene).value;
@@ -290,8 +336,15 @@ export const tiledMapToCesium = async (
     )}m/px (error: ${currentError.toFixed(4)})`
   );
 
-  // Micro-correction loop (max 3 iterations instead of 20)
-  const maxMicroCorrections = 3;
+  // Micro-correction loop (OPTIONAL - disabled by default)
+  const maxMicroCorrections = enableMicroAdjustments ? 3 : 0;
+
+  if (!enableMicroAdjustments) {
+    logger.debug(
+      `L2C [2D3D|CESIUM|CAMERA] Micro-adjustments disabled, using initial positioning`
+    );
+  }
+
   while (
     isQualifiedResult &&
     currentError > epsilon &&
@@ -342,6 +395,11 @@ export const tiledMapToCesium = async (
     currentError = Math.abs(currentPixelResolution - targetPixelResolution);
     iterations++;
 
+    // Calculate current range from ground (reuse newCameraHeight from above)
+    const currentRange = newCameraHeight - terrainElevation;
+    const rangeDifference = Math.abs(currentRange - initialRange);
+    const rangeDeviationRatio = rangeDifference / initialRange;
+
     logger.debug(
       `L2C [2D3D|CESIUM|CAMERA] Micro-correction ${iterations}: actual=${currentPixelResolution.toFixed(
         4
@@ -349,6 +407,26 @@ export const tiledMapToCesium = async (
         2
       )}m`
     );
+    logger.debug(
+      `L2C [2D3D|CESIUM|CAMERA] Range: initial=${initialRange.toFixed(
+        2
+      )}m, current=${currentRange.toFixed(2)}m, diff=${rangeDifference.toFixed(
+        2
+      )}m (${(rangeDeviationRatio * 100).toFixed(1)}%)`
+    );
+
+    // Check if correction is too far off (>10% deviation)
+    if (rangeDeviationRatio > maxRangeDeviationRatio) {
+      logger.warn(
+        `L2C [2D3D|CESIUM|CAMERA] ⚠ Range deviation ${(
+          rangeDeviationRatio * 100
+        ).toFixed(1)}% exceeds threshold ${(
+          maxRangeDeviationRatio * 100
+        ).toFixed(1)}% - will restore saved state`
+      );
+      shouldRestoreSavedState = true;
+      break;
+    }
 
     if (currentError <= epsilon) {
       logger.debug(
@@ -357,6 +435,34 @@ export const tiledMapToCesium = async (
       break;
     }
   }
+
+  // Restore saved state if corrections went too far off
+  if (shouldRestoreSavedState) {
+    logger.debug(
+      `L2C [2D3D|CESIUM|CAMERA] Restoring saved camera state from initial positioning`
+    );
+    restoreCameraState(camera, savedCameraState);
+    scene.requestRender();
+    await new Promise<void>((resolve) => {
+      window.requestAnimationFrame(() => resolve());
+    });
+  }
+
+  // Always log final range comparison
+  const actualFinalCameraHeight = Cartographic.fromCartesian(
+    camera.position
+  ).height;
+  const finalRange = actualFinalCameraHeight - terrainElevation;
+  const finalRangeDifference = Math.abs(finalRange - initialRange);
+  const finalRangeDeviationRatio = finalRangeDifference / initialRange;
+
+  logger.debug(
+    `L2C [2D3D|CESIUM|CAMERA] Final range comparison: initial=${initialRange.toFixed(
+      2
+    )}m, final=${finalRange.toFixed(2)}m, diff=${finalRangeDifference.toFixed(
+      2
+    )}m (${(finalRangeDeviationRatio * 100).toFixed(1)}%)`
+  );
 
   if (iterations >= maxMicroCorrections && currentError > epsilon) {
     logger.warn(

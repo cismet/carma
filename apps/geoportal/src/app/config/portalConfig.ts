@@ -5,7 +5,7 @@ import {
   MapStyleKeys,
 } from "@carma-appframeworks/portals";
 import { backgroundSettings } from "@carma-collab/wuppertal/geoportal";
-import { CESIUM_CONFIG } from "./cesium.config";
+import { CESIUM_CONFIG, GeoportalCesiumStyleKeys } from "./cesium.config";
 import type { TransitionConfig } from "@carma/mapping/map-transition-2d-3d";
 import { LEAFLET_CONFIG } from "./leaflet";
 import { WUPPERTAL } from "@carma/resources";
@@ -27,13 +27,17 @@ const geoportalMapStyleConfig: MapStyleConfig = {
 /**
  * Complete Cesium configuration for Geoportal
  * Uses new SceneStyleConfig format with sources and styles
- * Style IDs use ManagedCesiumStyleKeys from portals library:
- *   - luftbild (aerial) → ManagedCesiumStyleKeys.MESH
- *   - karte (topo) → ManagedCesiumStyleKeys.LOD2
+ * Style IDs use GeoportalCesiumStyleKeys:
+ *   - luftbild (aerial) → GeoportalCesiumStyleKeys.MESH ("mesh-2024")
+ *   - karte (topo) → GeoportalCesiumStyleKeys.LOD2 ("lod2")
  */
 // Transition configuration for 2D↔3D mode switching
 export const TRANSITIONS_CONFIG: TransitionConfig = {
   modeTo3d: {
+    // Wuppertal-specific: Max elevation ~400m (Barmen hills)
+    // Used when terrain provider not yet available during transition
+    fallbackGroundElevationM: 400,
+    
     step1_prepare2dView: {
       maxZoom: 20,
       zoomOutDurationMs: 700,
@@ -79,24 +83,27 @@ export const HOME_POSITION = {
   zoom: 18, // Leaflet/MapLibre zoom level
 };
 
-// Default Cesium 3D camera location (heading, pitch, range)
-// Wuppertal Rathaus position from resource
+// Default Cesium 3D camera location (Portal format: altitude + degrees)
+// Camera-centric: Camera position in absolute coordinates
 export const DEFAULT_CESIUM_CAMERA = {
   latitude: WUPPERTAL.position.latitude as Degrees,
   longitude: WUPPERTAL.position.longitude as Degrees,
-  altitude: 10000 as Altitude.EllipsoidalWGS84Meters, // Camera altitude above sea level (Wuppertal ground ~155m + 645m height)
+  altitude: 10000 as Altitude.EllipsoidalWGS84Meters, // Camera altitude above sea level
   heading: 0 as Degrees, // North
-  pitch: -90 as Degrees, // degrees -90 is nadir
-  roll: 0 as Degrees, // Distance from target in meters
+  pitch: -90 as Degrees, // Looking straight down (nadir)
+  roll: 0 as Degrees,
 };
 
+// Home Cesium camera with HPR offset (heading/pitch/range)
+// Object-centric: Look at target point with offset
+// Note: This format uses 'range' (distance from target) instead of 'altitude'
 export const HOME_CESIUM_CAMERA = {
   latitude: WUPPERTAL.position.latitude as Degrees,
   longitude: WUPPERTAL.position.longitude as Degrees,
-  altitude: WUPPERTAL.position.altitude as Altitude.EllipsoidalWGS84Meters, // target point altitude
+  altitude: WUPPERTAL.position.altitude as Altitude.EllipsoidalWGS84Meters, // Target point altitude
   heading: 0 as Degrees, // North
-  pitch: -90 as Degrees, // degrees -90 is nadir
-  range: 500 as Meters, // Distance from target in meters
+  pitch: -90 as Degrees, // Looking down
+  range: 500 as Meters, // Distance from target (object-centric)
 };
 
 /**
@@ -147,6 +154,12 @@ export const portalConfig: PortalConfig = {
 
   // Map style configuration
   styleConfig: geoportalMapStyleConfig,
+  
+  // Mapping from portal map styles to Cesium scene styles
+  mapStyleToCesiumStyleMapping: {
+    [MapStyleKeys.TOPO]: GeoportalCesiumStyleKeys.LOD2,      // "karte" → "lod2"
+    [MapStyleKeys.AERIAL]: GeoportalCesiumStyleKeys.MESH,    // "luftbild" → "mesh-2024"
+  },
 
   // Default map position (2D)
   defaultPosition: DEFAULT_MAP_POSITION,

@@ -1,5 +1,7 @@
 // @ts-nocheck
 // TODO fix typescript for strict mode
+// TODO why are there two versions of FeatureInfoBox?
+// see also libraries/appframeworks/portals/src/lib/components/FeatureInfobox.tsx
 import { useContext, useEffect, useState, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
@@ -38,7 +40,7 @@ import LoadingInfoBox from "./LoadingInfoBox";
 
 import versionData from "../../../version.json";
 import { getApplicationVersion, isHtmlString } from "@carma-commons/utils";
-import { InfoBox, InfoBoxHeader, utils } from "@carma-appframeworks/portals";
+import { InfoBox, InfoBoxHeader, parseHeader, zoomToFeature } from "@carma-appframeworks/portals";
 import { parseColor } from "../../helper/color";
 
 interface InfoBoxProps {
@@ -135,7 +137,7 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
       },
       displayZoomToFeature: true,
       zoomToFeature: () => {
-        utils.zoomToFeature(selectedFeature, routedMapRef, [60, 60]);
+        zoomToFeature(selectedFeature, routedMapRef, [60, 60]);
       },
     });
   }
@@ -164,7 +166,7 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
     const updateHeaderAndColor = async () => {
       // Parse header if it exists
       if (selectedFeature?.properties?._header) {
-        const header = await utils.parseHeader(
+        const header = await parseHeader(
           selectedFeature.properties._header,
           selectedFeature.properties.wmsProps ?? {}
         );

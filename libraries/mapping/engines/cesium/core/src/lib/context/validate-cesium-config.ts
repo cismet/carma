@@ -21,13 +21,8 @@ export const validateCesiumConfig = (config: CesiumConfig): CesiumConfig => {
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  // Validate required cameraHomePose
-  if (!config.cameraHomePose) {
-    errors.push(
-      "[CesiumConfig] Missing required cameraHomePose. " +
-        "Home camera position is required for go-home functionality."
-    );
-  }
+  // Note: cameraHomePose is now a prop on CesiumContextProvider, not part of config
+  // Validation happens in the provider when converting from Portal format
 
   // Validate cameraHomePose structure if present
   if (config.cameraHomePose) {

@@ -1,4 +1,4 @@
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useRef, type MutableRefObject } from "react";
 import type { ImageryLayer } from "@carma/cesium";
 import { useCesiumContext } from "../../../context";
 import { CtxEvent } from "../../../context/cesium-context-event-map";
@@ -16,8 +16,18 @@ const getImageryId = (config: ImageryProviderConfig): string => {
  * Manages multiple imagery layers with key-based deduplication
  * Prevents adding the same imagery layer twice to the scene
  */
-export const useImageryManager = (imageryConfigs: ImageryProviderConfig[]) => {
-  const { sceneRef, subscribe, imageryLayersRef } = useCesiumContext();
+export const useImageryManager = (
+  imageryConfigs: ImageryProviderConfig[],
+  styleCallbacksRef?: MutableRefObject<{
+    onImageryLayersChange?: (
+      layers: Array<{ id: string; opacity: number }>
+    ) => void;
+  }>
+) => {
+  const { sceneRef, subscribe } = useCesiumContext();
+
+  // Scene-owned ref: Track loaded imagery layers (destroyed on unmount)
+  const imageryLayersRef = useRef<Map<string, ImageryLayer>>(new Map());
 
   console.log(
     "[IMAGERY|MANAGER] Initialized with configs:",
@@ -187,6 +197,66 @@ export const useImageryManager = (imageryConfigs: ImageryProviderConfig[]) => {
 
     return unsubscribe;
   }, [subscribe, sceneRef, imageryLayersRef]);
+
+  // Register callback for style changes
+  useEffect(() => {
+    if (!styleCallbacksRef) return;
+
+    const handleImageryLayersChange = async (
+      layers: Array<{ id: string; opacity: number }>
+    ) => {
+      console.log("[IMAGERY|STYLE] Style change received:", layers);
+
+      const scene = sceneRef.current;
+      if (!scene) return;
+
+      // Hide all current imagery layers first
+      for (const [id, layer] of imageryLayersRef.current) {
+        if (!layer.isDestroyed() && scene.imageryLayers.contains(layer)) {
+          layer.show = false;
+        }
+      }
+
+      // Show and set opacity for requested layers
+      for (const { id, opacity } of layers) {
+        const layer = imageryLayersRef.current.get(id);
+        if (
+          layer &&
+          !layer.isDestroyed() &&
+          scene.imageryLayers.contains(layer)
+        ) {
+          layer.show = true;
+          layer.alpha = opacity;
+          console.log(
+            `[IMAGERY|STYLE] Updated layer ${id}: show=true, opacity=${opacity}`
+          );
+        } else {
+          // Load layer if not already loaded
+          const imageryConfig = imageryConfigs.find(
+            (ic) => getImageryId(ic) === id
+          );
+          if (imageryConfig) {
+            console.log(`[IMAGERY|STYLE] Loading new layer: ${id}`);
+            await loadImageryOnDemand(imageryConfig);
+            const newLayer = imageryLayersRef.current.get(id);
+            if (newLayer && !newLayer.isDestroyed()) {
+              newLayer.alpha = opacity;
+            }
+          }
+        }
+      }
+
+      scene.requestRender();
+    };
+
+    styleCallbacksRef.current.onImageryLayersChange = handleImageryLayersChange;
+
+    return () => {
+      if (styleCallbacksRef.current) {
+        styleCallbacksRef.current.onImageryLayersChange = undefined;
+      }
+    };
+  }, [styleCallbacksRef, sceneRef, imageryConfigs, loadImageryOnDemand]);
 };
 
 export default useImageryManager;

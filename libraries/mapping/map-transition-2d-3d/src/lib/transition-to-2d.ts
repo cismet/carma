@@ -5,19 +5,15 @@ import type {
   Cartographic,
   HeadingPitchRange,
   Scene,
+  CesiumWidget,
 } from "@carma/cesium";
 
 import { Logger } from "@carma-commons/utils";
+import { radToDeg } from "@carma/units/helpers";
 
 const logger = new Logger("Transition:2D");
 
-import {
-  animateInterpolateHeadingPitchRange,
-  getCameraHeightAboveGround,
-  getTopDownCameraDeviationAngle,
-  pickSceneCenter,
-  cesiumCenterPixelSizeToLeafletZoom,
-} from "@carma-mapping/engines/cesium/core";
+// Cesium core functions will be dynamically imported to comply with lazy-loading
 
 import {
   MapTransitionState,
@@ -25,12 +21,6 @@ import {
   type TransitionTo2dConfig,
 } from "./TransitionContext";
 import { startStage, endStage } from "./transition-stage-helpers";
-import { getTiledMapCenterZoomEquivalent } from "./get-tiled-map-center-zoom-equivalent";
-
-const MapState = {
-  uninitialized: "uninitialized",
-  ...MapTransitionState,
-};
 
 const noAnimation = {
   animate: false,
@@ -40,7 +30,8 @@ const noAnimation = {
 export type TransitionTo2dParams = {
   leafletMapRef: MutableRefObject<LeafletMap | null>;
   sceneRef: MutableRefObject<Scene | null>;
-  transitionStateRef: MutableRefObject<string>;
+  widgetRef: MutableRefObject<CesiumWidget | null>;
+  transitionStateRef: MutableRefObject<MapTransitionState>;
   transitionStageTrackerRef: MutableRefObject<TransitionStageTracker>;
   setLast3dCameraOrientation: (hpr: HeadingPitchRange) => void;
   setLast3dAnimationDuration: (duration: number) => void;
@@ -53,6 +44,7 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
   const {
     leafletMapRef,
     sceneRef,
+    widgetRef,
     transitionStateRef,
     transitionStageTrackerRef,
     setLast3dCameraOrientation,
@@ -71,7 +63,7 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
   } = step2_cameraTiltAnimation;
 
   return async () => {
-    // Dynamic import of Cesium types to comply with lazy-loading
+    // Dynamic import of Cesium types and functions to comply with lazy-loading
     const {
       Cartesian3,
       HeadingPitchRange,
@@ -79,6 +71,12 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
       isValidScene,
       isValidCamera,
     } = await import("@carma/cesium");
+    const {
+      animateInterpolateHeadingPitchRange,
+      getTopDownCameraDeviationAngle,
+      pickSceneCenter,
+      cesiumCenterPixelSizeToLeafletZoom,
+    } = await import("@carma-mapping/engines/cesium/core");
 
     const leafletMap = leafletMapRef.current;
     if (!leafletMap) {
@@ -94,11 +92,17 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
     }
     logger.info("========== Starting Transition to 2D ==========");
 
-    transitionStateRef.current = MapTransitionState.preTransitionTo2d;
-    startStage(transitionStageTrackerRef, "step1_calculatePosition");
+    startStage(
+      transitionStateRef,
+      transitionStageTrackerRef,
+      MapTransitionState.to2d_step1_calculatePosition
+    );
 
     logger.debug("Attempting pick at scene center for ground position");
-    endStage(transitionStageTrackerRef, "step1_calculatePosition");
+    endStage(
+      transitionStageTrackerRef,
+      MapTransitionState.to2d_step1_calculatePosition
+    );
 
     // Do not transition if we cannot pick ground from depth (ellipsoid-only is not allowed)
     const { scenePosition: groundPos, coordinates: cartographic } =
@@ -119,7 +123,7 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
       logger.error(
         "✗ No valid ground height (depth) found – cancel transition"
       );
-      transitionStateRef.current = MapState.mode3d;
+      transitionStateRef.current = MapTransitionState.mode3d;
       onCancel?.(true);
       throw new Error(
         "Transition to 2D cancelled: no valid ground height found"
@@ -134,57 +138,108 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
     distance = Cartesian3.distance(pos, sceneCamera.position);
     height = carto.height + distance;
 
-    // evaluate angles for animation duration
-    let zoomDiff = 0;
+    // ========== Calculate target zoom level (once) ==========
+    const currentZoom = cesiumCenterPixelSizeToLeafletZoom(scene).value;
+    if (currentZoom === null) {
+      logger.error(
+        "[CESIUM|2D3D|TO2D] ✗ Could not determine current zoom level"
+      );
+      transitionStateRef.current = MapTransitionState.mode3d;
+      onCancel?.(true);
+      throw new Error(
+        "Transition to 2D cancelled: could not determine zoom level"
+      );
+    }
 
+    // Apply zoom snap if configured
+    let targetZoom = currentZoom;
     const { zoomSnap } = leafletMap.options;
+
+    logger.log(`[CESIUM|2D3D|TO2D] zoomSnap from Leaflet options: ${zoomSnap}`);
+
     if (zoomSnap) {
       // Move the cesium camera to the next zoom snap level of leaflet before transitioning
-      const currentZoom = cesiumCenterPixelSizeToLeafletZoom(scene).value;
+      // smaller values is further away
+      const intMultiple = currentZoom * (1 / zoomSnap);
+      targetZoom =
+        intMultiple % 1 < 0.75 // prefer zooming out
+          ? Math.floor(intMultiple) * zoomSnap
+          : Math.ceil(intMultiple) * zoomSnap;
 
-      if (currentZoom === null) {
-        logger.error(
-          "[CESIUM|2D3D|TO2D] ✗ Could not determine current zoom level"
-        );
-        transitionStateRef.current = MapState.mode3d;
-        onCancel?.(true);
-        throw new Error(
-          "Transition to 2D cancelled: could not determine zoom level"
-        );
-      } else {
-        // go to the next integer zoom snap level
-        // smaller values is further away
-        const intMultiple = currentZoom * (1 / zoomSnap);
-        const targetZoom =
-          intMultiple % 1 < 0.75 // prefer zooming out
-            ? Math.floor(intMultiple) * zoomSnap
-            : Math.ceil(intMultiple) * zoomSnap;
-        zoomDiff = currentZoom - targetZoom;
-        const heightFactor = Math.pow(2, zoomDiff);
-        const { groundHeight } = getCameraHeightAboveGround(scene);
-
-        distance = distance * heightFactor;
-        height = groundHeight + distance;
-
-        logger.log(
-          `[CESIUM|2D3D|TO2D] Zoom calculation: ${currentZoom.toFixed(
-            2
-          )} → ${targetZoom} (diff: ${zoomDiff.toFixed(2)})`
-        );
-      }
+      logger.log(
+        `[CESIUM|2D3D|TO2D] Zoom snap: ${currentZoom.toFixed(
+          2
+        )} → ${targetZoom}`
+      );
     } else {
       logger.log("[CESIUM|2D3D|TO2D] ⚠ No zoomSnap applied");
     }
 
-    logger.log(
-      "[CESIUM|2D3D|TO2D] ========== STEP 2: Tilt Camera to Nadir =========="
+    // Calculate the correct range for the target zoom level
+    // Use the same method as tiledMapToCesium to ensure consistency
+    const { getPixelResolutionFromZoomAtLatitudeRad } = await import(
+      "@carma/geo/utils"
+    );
+    const { getFrustumPixelDimensionsForDistance } = await import(
+      "@carma/cesium/core"
     );
 
-    // Calculate animation duration based on camera deviation and zoom change
+    const START_DISTANCE = 1000;
+    const latRad = carto.latitude as any; // Cartographic.latitude is Radians (branded)
+    const baseTargetPixelResolution = getPixelResolutionFromZoomAtLatitudeRad(
+      targetZoom,
+      latRad as any
+    );
+    const actualDPR = window.devicePixelRatio || 1;
+    const LEAFLET_DPR_FACTOR = 1 / actualDPR;
+    const targetPixelResolution =
+      baseTargetPixelResolution * LEAFLET_DPR_FACTOR;
+
+    const widget = widgetRef?.current;
+    const resolutionScale = widget?.resolutionScale ?? 1.0;
+    const baseComputedPixelResolution = getFrustumPixelDimensionsForDistance(
+      scene.camera.frustum as any, // PerspectiveFrustum
+      scene.drawingBufferWidth,
+      scene.drawingBufferHeight,
+      START_DISTANCE,
+      resolutionScale
+    )?.average;
+
+    if (!baseComputedPixelResolution) {
+      logger.error("[CESIUM|2D3D|TO2D] Could not compute pixel resolution");
+      onCancel?.(true);
+      throw new Error(
+        "Transition to 2D cancelled: could not compute pixel resolution"
+      );
+    }
+
+    const resolutionRatio = targetPixelResolution / baseComputedPixelResolution;
+    const computedDistance = START_DISTANCE * resolutionRatio;
+
+    // Use the computed distance as the range for the nadir view
+    // Use orbit point ground height, not camera ground height
+    const orbitGroundHeight = carto.height;
+    distance = computedDistance;
+    height = orbitGroundHeight + distance;
+
+    logger.log(
+      `[CESIUM|2D3D|TO2D] Range calculation for zoom ${targetZoom}: ${distance.toFixed(
+        2
+      )}m (orbit ground: ${orbitGroundHeight.toFixed(
+        2
+      )}m, total height: ${height.toFixed(2)}m)`
+    );
+
+    logger.log(
+      "[CESIUM|2D3D|TO2D] ========== STEP 2: Calculate Camera to Nadir Animation Duration =========="
+    );
+
+    // Calculate animation duration based on camera deviation
     const cameraDeviation = getTopDownCameraDeviationAngle(sceneCamera);
+    const zoomDiff = Math.abs(currentZoom - targetZoom);
     const calculatedDurationMs =
       (cameraDeviation ?? 0) * durationFactorCameraDeviationMs +
-      (zoomDiff ?? 0) * durationFactorZoomDiffMs;
+      zoomDiff * durationFactorZoomDiffMs;
     const durationMs = Math.min(calculatedDurationMs, maxDurationTo2dMs); // Cap at configured max
 
     logger.log(
@@ -197,62 +252,68 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
 
     setLast3dAnimationDuration(durationMs);
 
-    const onComplete2d = async () => {
-      logger.log(
-        "[CESIUM|2D3D|TO2D] ========== STEP 3: Switch to 2D Map =========="
-      );
+    // ========== STEP 3: Set Leaflet View (BEFORE animation) ==========
+    logger.log(
+      "[CESIUM|2D3D|TO2D] ========== STEP 3: Position 2D Map (before tilt) =========="
+    );
 
-      try {
-        const { lat, lng, zoom } = await getTiledMapCenterZoomEquivalent(scene);
-        if (!leafletMap) {
-          logger.error("[CESIUM|2D3D|TO2D] ✗ Leaflet not available");
-          onCancel?.(false);
-          throw new Error(
-            "Transition to 2D cancelled: leaflet not available in onComplete"
-          );
-        }
-        if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-          logger.error("✗ Invalid coordinates");
-          onCancel?.(false);
-          throw new Error("Transition to 2D cancelled: invalid coordinates");
-        }
-        if (!Number.isFinite(zoom)) {
-          logger.error("✗ Invalid zoom");
-          onCancel?.(false);
-          throw new Error("Transition to 2D cancelled: invalid zoom");
-        }
+    // Use the orbit point (ground position) for lat/lng, not camera position
+    const lat = radToDeg(carto.latitude as any); // Cartographic lat/lng are Radians (branded)
+    const lng = radToDeg(carto.longitude as any);
 
-        logger.debug(
-          `Setting Leaflet view: [${lat.toFixed(6)}, ${lng.toFixed(
-            6
-          )}] zoom=${zoom}`
-        );
-        leafletMap.setView([lat, lng], zoom, noAnimation);
-        logger.debug("✓ Leaflet view set");
-      } catch (error) {
-        logger.error("✗ Failed to determine center/zoom", error);
-        onCancel?.(false);
-        throw new Error(`Transition to 2D cancelled: ${error}`);
-      }
+    // Log position comparison for debugging
+    const cameraLat = radToDeg(
+      sceneCamera.positionCartographic.latitude as any
+    );
+    const cameraLng = radToDeg(
+      sceneCamera.positionCartographic.longitude as any
+    );
+    logger.log(
+      `[CESIUM|2D3D|TO2D] Position: orbit=[${lat.toFixed(6)}, ${lng.toFixed(
+        6
+      )}] camera=[${cameraLat.toFixed(6)}, ${cameraLng.toFixed(6)}]`
+    );
 
-      // NOTE: Engine switching (TopicMap activate, Cesium suspend) is now handled
-      // by TransitionContextProvider watching the transitionStateRef
-      // This keeps transition logic clean and centralized
-      logger.debug("✓ Transition to 2D complete");
+    // Use the target zoom we calculated earlier (already snapped if needed)
+    const zoom = targetZoom;
 
-      transitionStateRef.current = MapState.mode2d;
-      logger.info("========== Transition to 2D Complete ===========");
-      onComplete?.(true);
-    };
+    if (!leafletMap) {
+      logger.error("[CESIUM|2D3D|TO2D] ✗ Leaflet not available");
+      onCancel?.(false);
+      throw new Error("Transition to 2D cancelled: leaflet not available");
+    }
 
-    transitionStateRef.current = MapState.transitionTo2d;
-    startStage(transitionStageTrackerRef, "step2_cameraTiltAnimation");
+    logger.debug(
+      `Setting Leaflet view (orbit point): [${lat.toFixed(6)}, ${lng.toFixed(
+        6
+      )}] zoom=${zoom} - tiles will load during animation`
+    );
+    leafletMap.setView([lat, lng], zoom, noAnimation);
+    logger.debug("✓ Leaflet view set - tiles loading in background");
 
-    if (hasGroundPos) {
-      logger.debug(
-        `Starting camera tilt animation (${durationMs.toFixed(0)}ms)...`
-      );
+    // ========== STEP 4: Animate Camera to Nadir ==========
+    startStage(
+      transitionStateRef,
+      transitionStageTrackerRef,
+      MapTransitionState.to2d_step2_cameraTiltAnimation
+    );
 
+    if (!hasGroundPos) {
+      logger.error("✗ No ground position, cannot transition");
+      onCancel?.(false);
+      transitionStateRef.current = MapTransitionState.mode3d;
+      return;
+    }
+
+    logger.debug(
+      `Starting camera animation to nadir around orbit point (${durationMs.toFixed(
+        0
+      )}ms)...`
+    );
+
+    // Animate camera: pitch up to nadir while orbiting around the center ground point
+    // Interpolate both pitch AND range to match the target zoom level
+    await new Promise<void>((resolve) => {
       animateInterpolateHeadingPitchRange(
         scene,
         pos,
@@ -260,14 +321,49 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
         {
           setPrevious: setLast3dCameraOrientation,
           duration: durationMs,
-          onComplete: onComplete2d,
+          onComplete: () => {
+            logger.debug(
+              "✓ Camera animation to nadir complete - onComplete callback fired"
+            );
+            endStage(
+              transitionStageTrackerRef,
+              MapTransitionState.to2d_step2_cameraTiltAnimation
+            );
+            resolve();
+          },
           cancelable: false,
+          useCurrentDistance: false, // Interpolate range to match zoom snap
         }
       );
-    } else {
-      logger.error("✗ No ground position, cannot transition");
-      onCancel?.(false);
-      transitionStateRef.current = MapState.mode3d;
-    }
+    });
+
+    // ========== STEP 6: Trigger Fade Transition ==========
+    // NOW start the CSS fade-out stage AFTER pitch animation onComplete callback
+    // This ensures the fade happens only after the camera animation is truly done
+    logger.debug("✓ Starting fade transition - animation onComplete has fired");
+
+    startStage(
+      transitionStateRef,
+      transitionStageTrackerRef,
+      MapTransitionState.to2d_step3_cssFadeOut
+    );
+
+    // Wait for CSS fade to complete (get duration from config)
+    const { step3_cssFadeOut = {} } = config ?? {};
+    const fadeDurationMs = step3_cssFadeOut.durationMs ?? 1000;
+
+    logger.debug(`Waiting for CSS fade (${fadeDurationMs}ms)...`);
+    await new Promise<void>((resolve) => {
+      setTimeout(() => resolve(), fadeDurationMs);
+    });
+
+    logger.debug("✓ CSS fade complete");
+    endStage(
+      transitionStageTrackerRef,
+      MapTransitionState.to2d_step3_cssFadeOut
+    );
+    transitionStateRef.current = MapTransitionState.mode2d;
+    logger.info("========== Transition to 2D Complete ===========");
+    onComplete?.(true);
   };
 };

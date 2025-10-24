@@ -1,6 +1,8 @@
 import type { SearchResultItem } from "@carma/types";
-import type { MarkerPrimitiveData } from "@carma-mapping/engines/cesium/core";
-import type { MarkerModelAsset } from "@carma-mapping/engines/cesium/core";
+import type {
+  MarkerPrimitiveData,
+  MarkerModelAsset,
+} from "@carma-mapping/engines/cesium/core";
 import { ClassificationType } from "@carma/cesium";
 
 import { cesiumHandleSelection } from "./cesiumHandleSelection";

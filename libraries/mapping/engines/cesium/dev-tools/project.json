@@ -32,7 +32,8 @@
         "{options.reportsDirectory}"
       ],
       "options": {
-        "reportsDirectory": "../../../../../coverage/libraries/mapping/engines/cesium/dev-tools"
+        "reportsDirectory": "../../../../../coverage/libraries/mapping/engines/cesium/dev-tools",
+        "environment": "jsdom"
       }
     },
     "lint": {

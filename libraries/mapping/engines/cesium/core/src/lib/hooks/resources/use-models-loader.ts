@@ -1,8 +1,7 @@
 import { useEffect, useRef, type MutableRefObject } from "react";
-import { Model, Scene } from "@carma/cesium";
+import { Model, Scene, tryWithValidScene } from "@carma/cesium";
 import type { ModelConfig } from "@carma/cesium/types";
 import { loadModelPrimitive } from "../../loaders/models";
-import { tryWithValidScene } from "@carma/cesium";
 
 export const useModelsLoader = ({
   models,

@@ -34,6 +34,7 @@ import {
   SelectionMapMode,
   type SelectionItem,
   type MapEngine,
+  usePortalZoomControls,
 } from "@carma-appframeworks/portals";
 import { isAreaType } from "@carma/resources";
 import { EngineAvailability, isFeatureDisabled } from "../../utils/mapEngineAvailability";
@@ -85,6 +86,7 @@ export const GeoportalControls = ({
   const tourRefLabels = useTourRefCollabLabels();
   const { gazData } = useGazData();
   const { setSelection } = useSelection();
+  const { handleZoomIn, handleZoomOut } = usePortalZoomControls({ libreMapRef });
 
   const uiMode = useSelector(getUIMode);
   const isModeMeasurement = uiMode === UIMode.MEASUREMENT;
@@ -149,12 +151,10 @@ export const GeoportalControls = ({
   return (
     <>
       <Control position="topleft" order={10}>
-        <UnifiedZoomControl
+        <UnifiedZoomControl 
           tourRef={tourRefLabels.zoom}
-          fovMode={!isMode2d}
-          isMode2d={isMode2d}
-          showLibreMap={showLibreMap}
-          libreMapRef={libreMapRef}
+          onZoomIn={handleZoomIn}
+          onZoomOut={handleZoomOut}
         />
       </Control>
       {allow3d && (

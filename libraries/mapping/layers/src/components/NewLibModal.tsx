@@ -25,7 +25,7 @@ import type {
   Layer,
   SavedLayerConfig,
 } from "@carma/types";
-import { utils } from "@carma-appframeworks/portals";
+import { parseToMapLayer } from "@carma-appframeworks/portals";
 import { useAuth } from "@carma/providers/auth";
 import {
   useFeatureFlags,
@@ -457,7 +457,7 @@ export const NewLibModal = ({
                           (layer) => layer.id === activeLayer.id
                         );
                         if (foundLayer) {
-                          const updatedLayer = await utils.parseToMapLayer(
+                          const updatedLayer = await parseToMapLayer(
                             foundLayer,
                             false,
                             activeLayer.visible,

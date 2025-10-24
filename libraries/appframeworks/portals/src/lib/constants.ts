@@ -1,3 +1,11 @@
+export const ManagedEngineKeys = {
+  LEAFLET_2D: "leaflet2d",
+  CESIUM_3D: "cesium3d",
+} as const;
+
+export type ManagedEngineKey =
+  (typeof ManagedEngineKeys)[keyof typeof ManagedEngineKeys];
+
 export const MapStyleKeys = {
   TOPO: "karte",
   AERIAL: "luftbild",
@@ -14,45 +22,19 @@ export const isMapStyleKey = (value: unknown): value is MapStyleKey => {
   );
 };
 
+/**
+ * Short names for URL hash encoding of map styles.
+ * Used by defaultHashCodecs.mapStyle to compress URLs.
+ *
+ * Mapping:
+ * - "karte" (TOPO) → "0" in URL
+ * - "luftbild" (AERIAL) → "1" in URL
+ *
+ * @see hashState.ts - getStringLookupCodec creates bidirectional codec
+ */
 export const mapStyleShortNames: Record<MapStyleKey, string> = {
   [MapStyleKeys.TOPO]: "0",
   [MapStyleKeys.AERIAL]: "1",
-} as const;
-
-export const ManagedCesiumStyleKeys = {
-  LOD2: "lod2",
-  MESH: "mesh-2024",
-} as const;
-
-export type ManagedCesiumStyleKey =
-  (typeof ManagedCesiumStyleKeys)[keyof typeof ManagedCesiumStyleKeys];
-
-/**
- * Default tileset identifiers for Cesium 3D content
- * Used by CesiumContext to manage tileset visibility
- */
-export const DEFAULT_TILESET_IDS = {
-  PRIMARY: "primary",
-  SECONDARY: "secondary",
-} as const;
-
-export type TilesetId =
-  (typeof DEFAULT_TILESET_IDS)[keyof typeof DEFAULT_TILESET_IDS];
-
-/**
- * Default marker asset keys for 3D markers
- */
-export const DEFAULT_MARKER_KEYS = {
-  MARKER_GLOW_LINE: "MarkerGlowLine",
-} as const;
-
-export type MarkerKey =
-  (typeof DEFAULT_MARKER_KEYS)[keyof typeof DEFAULT_MARKER_KEYS];
-
-// mapping of 2d map styles to cesium styles
-export const MapStyleMapping: Record<MapStyleKey, ManagedCesiumStyleKey> = {
-  [MapStyleKeys.AERIAL]: ManagedCesiumStyleKeys.MESH,
-  [MapStyleKeys.TOPO]: ManagedCesiumStyleKeys.LOD2,
 } as const;
 
 export type MapStyleShortName =
@@ -75,3 +57,11 @@ export const defaultPrecisions: PrecisionOptions = {
   bearing: 2,
   pitch: 2,
 } as const;
+
+export const SELECTED_LAYER_INDEX = {
+  NO_SELECTION: -2,
+  BACKGROUND_LAYER: -1,
+} as const;
+
+export type SelectedLayerIndex =
+  (typeof SELECTED_LAYER_INDEX)[keyof typeof SELECTED_LAYER_INDEX];

@@ -2,12 +2,10 @@ import React, { useCallback, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import type {
-  CesiumTerrainProvider,
-  ImageryLayer,
   CesiumWidget,
-  Cesium3DTileset,
   Scene,
-  Model,
+  CameraPoseRadians,
+  CameraPrimitive,
 } from "@carma/cesium";
 import { createEventBus } from "@carma/providers/event-bus";
 
@@ -17,50 +15,113 @@ import {
   type CesiumInstanceRecord,
 } from "./CesiumContext";
 import type { CesiumContextEventMap } from "./cesium-context-event-map";
+import { CtxEvent } from "./cesium-context-event-map";
 import { setupCesiumEnvironment } from "../scene/environment";
 
 import {
   useContextSetupSubscriptions,
-  useContextSetupInitialStyle,
-  useContextSetupCameraTracking,
   useContextSetupActivationListener,
   useContextSetupErrorRecovery,
 } from "./hooks";
-// DISABLED: Provider loaders for minimal mode
-// import {
-//   useImageryProviderLoader,
-//   useImageryLayer,
-//   useTerrainProviderLoader,
-//   useSurfaceProviderLoader,
-//   useModelsLoader,
-// } from "./hooks/useCesiumProviderLoaders";
 
 import type { CesiumConfig } from "@carma/cesium/types";
-import type { CameraPoseRadians, CameraPrimitive } from "@carma/cesium";
 import type { AnimationMap } from "@carma/types";
 
 import { initAnimationMap } from "../scene/camera/animations";
 import { sceneRequestRender } from "../scene/scene-request-render";
 import { validateCesiumConfig } from "./validate-cesium-config";
+import { validateSceneStyle } from "./validation";
+import {
+  convertPortalPoseToCesiumPose,
+  validateCameraPosePortal,
+  type CameraPosePortal,
+} from "../utils/camera-pose-converter";
+
+/**
+ * CesiumContextProvider Architecture Rules
+ *
+ * ## No Re-renders Paradigm
+ * - Provider uses refs and callbacks exclusively - NO state changes that cause re-renders
+ * - Config is STATIC after initialization - should never change during component lifetime
+ * - All dynamic values stored in refs (sceneRef, cameraRef, etc.)
+ * - Context value is memoized and stable
+ *
+ * ## Scene Initialization Flow (2D → 3D Transition)
+ *
+ * ### Portal Must Set Prerequisites BEFORE Scene Activation:
+ * 1. **Portal sets required refs** (from useCesiumContext):
+ *    ```tsx
+ *    currentSceneStyleRef.current = "lod2";
+ *    initialCamera.current = { latitude, longitude, altitude, heading, pitch, roll };
+ *    ```
+ *
+ * 2. **Portal activates scene** by setting isActive prop:
+ *    ```tsx
+ *    <CesiumSceneComponent isActive={true} containerRef={ref} />
+ *    ```
+ *
+ * 3. **Scene mounts and reads refs:**
+ *    - `useSceneStyleSwitcher` reads `currentSceneStyleRef.current` and applies initial style
+ *    - `useSceneCameraTracking` starts tracking (camera positioning handled by transition)
+ *    - All initialization via refs - no props, no events
+ *
+ * **Critical:** Portal MUST set refs before setting isActive={true}. Scene hooks read these
+ * refs on mount to initialize properly. If refs aren't set, scene will warn and use defaults.
+ *
+ * ## Internal vs External Coordination
+ *
+ * ### Internal Coordination (Context ↔ Scene Component):
+ * **Use: Refs + Callbacks** (NOT event bus)
+ * - Scene registers callbacks in context refs on mount
+ * - Scene updates context refs directly (e.g., availableSceneStylesRef)
+ * - Context calls scene's registered callbacks (e.g., sceneStyleApplierRef.current(styleId))
+ * - Scene hooks fetch refs from context (no parameter passing)
+ * - Examples:
+ *   - availableSceneStylesRef: Scene publishes available style IDs
+ *   - sceneStyleApplierRef: Scene registers style application function
+ *   - currentSceneStyleRef: Portal sets before activation, scene reads on mount
+ *   - currentCameraRef: Scene updates every frame for crash recovery
+ *
+ * ### External Coordination (App Components ↔ Context):
+ * **Use: Event Bus** (subscribe/emit)
+ * - External consumers emit events (SetSceneStyle, ToggleSceneStyle, GoHome, etc.)
+ * - Context receives events and coordinates via internal refs/callbacks
+ * - Examples:
+ *   - MapTypeSwitcher emits SetSceneStyle → Context calls sceneStyleApplierRef.current()
+ *   - Portal wrapper reads moveendCameraRef for hash updates
+ *
+ * ### Why This Separation?
+ * - **Performance**: Direct ref access is faster than event bus for internal coordination
+ * - **Lifecycle**: Refs survive scene remounts, event subscriptions need cleanup
+ * - **Clear boundaries**: Event bus is public API, refs are internal implementation
+ * - **No re-renders**: Ref updates don't trigger React re-renders
+ * - **Lazy loading**: Portal can set refs before scene component even exists
+ */
+
+export type CesiumContextProviderProps = {
+  children: ReactNode;
+  config: CesiumConfig;
+  /** Home camera pose (Portal format: degrees + altitude) - required for go-home functionality */
+  homeCameraPose: CameraPosePortal;
+  /** Initial camera pose (Portal format: degrees + altitude) - optional override for first load */
+  initialCameraPose?: CameraPosePortal;
+};
 
 export const CesiumContextProvider = ({
   children,
   config,
-}: {
-  children: ReactNode;
-  config: CesiumConfig;
-}): React.ReactElement => {
+  homeCameraPose,
+  initialCameraPose,
+}: CesiumContextProviderProps): React.ReactElement => {
   // Auto-setup Cesium environment if not already done
   // This ensures window.CESIUM_BASE_URL is set without requiring app-level setup
-  if (!(window as any).CESIUM_BASE_URL) {
+  if (
+    !(window as typeof window & { CESIUM_BASE_URL?: string }).CESIUM_BASE_URL
+  ) {
     setupCesiumEnvironment(config);
   }
 
-  const {
-    screenSpaceCameraController,
-    sceneStyle,
-    initialStyle: configInitialStyle,
-  } = config;
+  const { screenSpaceCameraController, sceneStyle } = config;
 
   // Remount key for error recovery - incrementing this will force widget re-initialization
   const [remountKey, setRemountKey] = useState(0);
@@ -70,16 +131,59 @@ export const CesiumContextProvider = ({
   const sceneRef = useRef<Scene | null>(null);
   const animationMapRef = useRef<AnimationMap | null>(initAnimationMap());
 
-  // Track last camera state for crash recovery (internal Cesium state)
-  const lastCameraStateRef = useRef<CameraPrimitive | null>(null);
+  // Camera state tracking - TWO separate refs:
+  // 1. currentCameraRef: Updated every frame for crash recovery and live display
+  const currentCameraRef = useRef<CameraPrimitive | null>(null);
+  // 2. moveendCameraRef: Updated when camera stops moving (like Leaflet moveend)
+  const moveendCameraRef = useRef<CameraPrimitive | null>(null);
 
-  // Provider refs - use Maps for arbitrary numbers of providers per type
-  const terrainProvidersRef = useRef<Map<string, CesiumTerrainProvider>>(
-    new Map()
-  );
-  const imageryLayersRef = useRef<Map<string, ImageryLayer>>(new Map());
-  const tilesetsRef = useRef<Map<string, Cesium3DTileset>>(new Map());
-  const modelsRef = useRef<Map<string, Model>>(new Map());
+  // Current scene style ID (e.g., "lod2", "mesh-2024")
+  // Portal must set this BEFORE scene initialization
+  // Scene reads this value on mount to apply initial style
+  const currentSceneStyleRef = useRef<string | undefined>(undefined);
+
+  // Internal scene coordination: Scene updates these refs on mount
+  // Available style IDs from scene configuration
+  const availableSceneStylesRef = useRef<string[]>([]);
+  // Scene registers its style applier function here
+  // Context calls this when external consumers emit SetSceneStyle/ToggleSceneStyle events
+  const sceneStyleApplierRef = useRef<((styleId: string) => void) | null>(null);
+  // Scene registers its camera tracker function here
+  // Context can call this to start/stop camera tracking
+  const sceneCameraTrackerRef = useRef<
+    ((action: "start" | "stop") => void) | null
+  >(null);
+
+  // Scene style readiness coordination (internal, ref-based)
+  // SceneStyleManager reports when all resources for current style are loaded
+  const sceneStyleReadyStateRef = useRef<{
+    currentStyle: string | null;
+    isReady: boolean;
+    requiredResources: string[];
+    readyResources: string[];
+  }>({
+    currentStyle: null,
+    isReady: false,
+    requiredResources: [],
+    readyResources: [],
+  });
+
+  // Callback for context to receive style ready notifications from SceneStyleManager
+  // Context can use this to emit events to external consumers or coordinate transitions
+  const sceneStyleReadyCallbackRef = useRef<
+    ((isReady: boolean, styleId: string) => void) | null
+  >((isReady: boolean, styleId: string) => {
+    console.log(
+      `[CesiumContext] Style readiness callback: ${styleId} → ${
+        isReady ? "READY" : "LOADING"
+      }`
+    );
+
+    // Context can emit event to external consumers (e.g., for UI feedback)
+    if (isReady) {
+      emit(CtxEvent.SceneResourcesReady, undefined);
+    }
+  });
 
   // State refs
   // Start suspended (2D mode) by default - app should begin in 2D mode
@@ -104,27 +208,28 @@ export const CesiumContextProvider = ({
 
   // Validate config once and memoize - config should be static
   const validatedConfig = useMemo(() => validateCesiumConfig(config), [config]);
-  const { cameraHomePose, cameraInitialPose } = validatedConfig;
 
-  // Camera refs for home position (radians) - only used for "fly to home" functionality
-  const homeCameraRef = useRef<CameraPoseRadians | null>(
-    cameraHomePose ?? null
+  // Validate and convert camera poses from Portal format (degrees + altitude) to Cesium format (radians + height)
+  const cameraHomePoseRadians = useMemo(() => {
+    validateCameraPosePortal(homeCameraPose, "homeCameraPose");
+    return convertPortalPoseToCesiumPose(homeCameraPose);
+  }, [homeCameraPose]);
+
+  const cameraInitialPoseRadians = useMemo(() => {
+    if (!initialCameraPose) return null;
+    validateCameraPosePortal(initialCameraPose, "initialCameraPose");
+    return convertPortalPoseToCesiumPose(initialCameraPose);
+  }, [initialCameraPose]);
+
+  // Camera pose refs (Cesium internal format)
+  const homeCamera = useRef<CameraPoseRadians>(cameraHomePoseRadians);
+  const initialCamera = useRef<CameraPoseRadians | null>(
+    cameraInitialPoseRadians
   );
 
-  // Current camera state ref - internal Cesium state (position, direction, up, right vectors)
-  // Will be populated from actual camera after widget initialization
-  // Used for crash recovery - stores the actual camera vectors, not pose parameters
-  const currentCameraStateRef = useRef<CameraPrimitive | null>(null);
-
-  // Use initialStyle from config, or fall back to first available style
-  const initialStyle =
-    configInitialStyle ||
-    (sceneStyle && sceneStyle.styles && sceneStyle.styles.length > 0
-      ? sceneStyle.styles[0].id
-      : undefined);
-  const currentSceneStyleRef = useRef<string | undefined>(initialStyle);
-
-  const dataSourcesRef = useRef<Record<string, any> | null>(null);
+  // Update refs when props change (should be rare - props are static)
+  homeCamera.current = cameraHomePoseRadians;
+  initialCamera.current = cameraInitialPoseRadians;
 
   // Cesium widget instance lifecycle history
   // Tracks each time a Cesium widget instance was created (3D mode activation)
@@ -138,80 +243,82 @@ export const CesiumContextProvider = ({
     []
   );
 
-  // Listen for Activate event to trigger Cesium widget instance creation
+  // Listen for Activate event to track Cesium widget instance lifecycle
   useContextSetupActivationListener(
     subscribe,
     setCesiumInstances,
     widgetRef,
-    validatedConfig,
-    currentCameraStateRef
+    validatedConfig
   );
 
   // MINIMAL MODE: Only essential subscriptions enabled
+  // NOTE: Provider refs (tilesets, imagery) removed - now owned by CesiumSceneComponent
   useContextSetupSubscriptions({
     subscribe,
     emit,
     sceneRef,
     isSuspendedRef,
-    tilesetsRef,
-    imageryLayersRef,
     isAnimatingRef,
     currentSceneStyleRef,
-    homeCameraRef,
+    sceneStyleApplierRef,
+    homeCamera,
     sceneStyle,
-    config,
   });
 
-  // Apply initial scene style when scene is ready
-  useContextSetupInitialStyle(subscribe, emit, initialStyle);
-
-  // Track camera position changes and emit CameraChanged events
-  // Also updates currentCameraStateRef with FOV for crash recovery
-  useContextSetupCameraTracking(
-    widgetRef,
-    sceneRef,
-    subscribe,
-    emit,
-    currentCameraStateRef
-  );
-
-  // ALL PROVIDER LOADERS DISABLED for minimal mode
-  // useImageryProviderLoader({ providerConfig, imageryLayerRef, isValidViewer });
-  // useImageryLayer({ isViewerReady, sceneRef, imageryLayerRef });
-  // useTerrainProviderLoader({
-  //   providerConfig,
-  //   terrainProviderRef,
-  // });
-  // useSurfaceProviderLoader({
-  //   providerConfig,
-  //   surfaceProviderRef,
-  // });
-  // useModelsLoader({
-  //   models,
-  //   sceneRef,
-  // });
+  // Camera tracking moved to CesiumSceneComponent (scene-level hook)
+  // Scene component now updates context's currentCameraRef
 
   const requestRender = useCallback(() => {
     sceneRef.current && sceneRequestRender(sceneRef.current);
   }, [sceneRef]);
 
+  // Scene initialization gate: Synchronously prepares refs for scene mount
+  // Returns true if ready to mount scene
+  // style: Scene style ID to initialize with
+  const prepareSceneInit = useCallback(
+    (style: string) => {
+      console.log("[CesiumContext] prepareSceneInit called", {
+        style,
+      });
+
+      // Validate style against config (throws if invalid)
+      validateSceneStyle(style, config);
+
+      // Set validated style
+      currentSceneStyleRef.current = style;
+
+      console.log("[CesiumContext] ✓ Scene init prepared", {
+        style: currentSceneStyleRef.current,
+        hasCamera: !!initialCamera.current,
+        hasSceneStyle: !!config.sceneStyle,
+      });
+
+      return true; // Ready to mount
+    },
+    [currentSceneStyleRef, config]
+  );
+
   const contextValue = useMemo<CesiumContextType>(
     () => ({
       widgetRef,
       sceneRef,
-      lastCameraStateRef,
-      terrainProvidersRef,
-      imageryLayersRef,
-      tilesetsRef,
-      modelsRef,
       isSuspendedRef,
-      homeCameraRef,
+      homeCamera,
+      initialCamera,
+      currentCameraRef,
+      moveendCameraRef,
       minZoomDistanceRef,
       maxZoomDistanceRef,
       enableCollisionDetectionRef,
       currentSceneStyleRef,
+      availableSceneStylesRef,
+      sceneStyleApplierRef,
+      sceneCameraTrackerRef,
+      sceneStyleReadyStateRef,
+      sceneStyleReadyCallbackRef,
       subscribe,
       emit,
+      prepareSceneInit,
       isAnimatingRef,
       transitionStateRef,
       suspendSSCCRef,
@@ -222,7 +329,7 @@ export const CesiumContextProvider = ({
       config,
       cesiumInstances,
     }),
-    [subscribe, emit, requestRender, config, cesiumInstances]
+    [subscribe, emit, prepareSceneInit, requestRender, config, cesiumInstances]
   );
 
   // Auto-recovery from Cesium errors

@@ -1,4 +1,3 @@
-import { ManagedCesiumStyleKeys } from "@carma/appframeworks/portals";
 import type { CesiumConfig } from "@carma/cesium/types";
 import { COLORS } from "@carma/commons/utils";
 import {
@@ -9,6 +8,15 @@ import {
   WUPP_TERRAIN_PROVIDER,
   WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
 } from "@carma/resources";
+
+/**
+ * Geoportal-specific Cesium scene style identifiers
+ * These are used in the Cesium config and mapped to portal map styles
+ */
+export const GeoportalCesiumStyleKeys = {
+  LOD2: "lod2",
+  MESH: "mesh-2024",
+} as const;
 
 const CESIUM_PATHNAME = "__cesium__";
 
@@ -29,7 +37,7 @@ export const CESIUM_CONFIG: Partial<CesiumConfig> = {
         {
           id: "spw2_graublau",
           ...BASEMAP_METROPOLE_RUHR_WMTS_GRAUBLAU_HQ,
-        } as any,
+        },
       ],
       terrain: [
         { id: "dem-2020", ...WUPP_TERRAIN_PROVIDER },
@@ -44,18 +52,23 @@ export const CESIUM_CONFIG: Partial<CesiumConfig> = {
 
     styles: [
       {
-        id: ManagedCesiumStyleKeys.MESH,
+        id: GeoportalCesiumStyleKeys.MESH,
         name: "Aerial (Mesh 2024)",
         shadows: false,
         backgroundColor: COLORS.GRAY,
         globe: {
-          baseColor: COLORS.NONZERO_TRANSPARENT_WHITE,
+        //baseColor: COLORS.NONZERO_TRANSPARENT_WHITE,
+        baseColor: COLORS.GRAY,
+        showSkirts: false,
+        shadows: 0, // shadowmode disabled
+        preloadSiblings: true,
+        prelaodAncestors: true,
         },
         tilesets: [{ id: "wupp-mesh-2024" }],
-        terrain: "dem-2020",
+        //terrain: "dem-2020",
       },
       {
-        id: ManagedCesiumStyleKeys.LOD2,
+        id: GeoportalCesiumStyleKeys.LOD2,
         name: "Topographic (LOD2)",
         shadows: false,
         backgroundColor: COLORS.WHITE,

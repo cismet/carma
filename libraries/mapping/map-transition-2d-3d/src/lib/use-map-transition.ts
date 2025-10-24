@@ -1,86 +1,40 @@
 import { useState, useMemo, useCallback } from "react";
-import type { Map as LeafletMap } from "leaflet";
 
 import type { HeadingPitchRange } from "@carma/cesium";
-import { metersPerPixelAtLatitudeRad } from "@carma/geo/utils";
-import { degToRad } from "@carma/geo/helpers";
-import type { Radians, Degrees } from "@carma/geo/types";
+import type { LatLng } from "@carma/geo/types";
 
 import { useCarmaTopicMapContext } from "@carma-mapping/engines/carma-cismap";
+import { getLeafletPosition } from "@carma-mapping/engines/leaflet";
 
 // Import from cesium engine
-import {
-  useCesiumContext,
-  CtxEvent,
-  useEnsureCesiumInitialized,
-  type InitialCesiumPosition,
-} from "@carma-mapping/engines/cesium/core";
+import { useCesiumContext, CtxEvent } from "@carma-mapping/engines/cesium/core";
+import { leafletToTopdownCesiumPose } from "@carma/cesium/core";
 
 // Import transition context
 import { useTransitionContext } from "./use-transition-context";
-import { MapTransitionState } from "./TransitionContext";
+import { MapTransitionState, isTransitioningState } from "./TransitionContext";
 
 // Import transition implementations
 import { createTransitionTo3d } from "./transition-to-3d";
 import { createTransitionTo2d } from "./transition-to-2d";
 
 export const isTransitionState = (state: unknown): boolean => {
-  return [
-    MapTransitionState.preTransitionTo2d,
-    MapTransitionState.transitionTo2d,
-    MapTransitionState.postTransitionTo2d,
-    MapTransitionState.preTransitionTo3d,
-    MapTransitionState.transitionTo3d,
-    MapTransitionState.postTransitionTo3d,
-  ].includes(state as MapTransitionState);
+  // Check if state is a valid MapTransitionState and is transitioning (not mode2d/mode3d)
+  return (
+    Object.values(MapTransitionState).includes(state as MapTransitionState) &&
+    isTransitioningState(state as MapTransitionState)
+  );
 };
 
 export const shouldBlockUserInput = (state: unknown): boolean => {
-  // Post-transition states should NOT block user input
-  if (
-    state === MapTransitionState.postTransitionTo3d ||
-    state === MapTransitionState.postTransitionTo2d
-  ) {
-    return false;
-  }
-  // All other transition states should block
+  // All transition states should block user input
+  // Stable states (mode2d, mode3d) should not block
   return isTransitionState(state);
 };
 
 type TransitionOptions = {
   onComplete?: (isTo2d: boolean) => void;
   onCancel?: (isTo2D: boolean) => void;
-};
-
-/**
- * Converts Leaflet map position to Cesium initial position with HeadingPitchRange.
- * Uses dynamic import to avoid loading Cesium in 2D mode.
- */
-const getLeafletPosition = async (
-  leafletMap: LeafletMap | null
-): Promise<InitialCesiumPosition | null> => {
-  if (!leafletMap) return null;
-
-  const { HeadingPitchRange, CesiumMath } = await import("@carma/cesium");
-
-  const center = leafletMap.getCenter();
-  const zoom = leafletMap.getZoom();
-  const canvasHeightPx = leafletMap.getContainer().clientHeight || 800;
-
-  const latRad = degToRad(center.lat as Degrees) as Radians;
-  const metersPerPx = metersPerPixelAtLatitudeRad(zoom, latRad);
-  const fovRad = CesiumMath.toRadians(60); // Standard Cesium FOV
-  const distance = (canvasHeightPx * metersPerPx) / (2 * Math.tan(fovRad / 2));
-
-  return {
-    latitude: center.lat,
-    longitude: center.lng,
-    orientation: new HeadingPitchRange(
-      0, // heading: north
-      -Math.PI / 2, // pitch: straight down (top-down view)
-      distance // range: calculated from zoom
-    ),
-  };
 };
 
 export const useMapTransition = (options: TransitionOptions = {}) => {
@@ -97,7 +51,6 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
     emit: emitCesiumEvent,
     subscribe,
   } = useCesiumContext();
-  const { ensureInitialized } = useEnsureCesiumInitialized();
 
   const [last3dCameraOrientation, setLast3dCameraOrientation] =
     useState<HeadingPitchRange | null>(null);
@@ -139,20 +92,24 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
     () => ({
       leafletMapRef,
       sceneRef,
+      widgetRef,
       transitionStateRef,
       transitionStageTrackerRef,
       setLast3dCameraOrientation,
       setLast3dAnimationDuration,
       config: contextConfig.modeTo2d,
+      emitCesiumEvent,
       onComplete,
       onCancel,
     }),
     [
       leafletMapRef,
       sceneRef,
+      widgetRef,
       transitionStateRef,
       transitionStageTrackerRef,
       contextConfig.modeTo2d,
+      emitCesiumEvent,
       onComplete,
       onCancel,
     ]
@@ -163,24 +120,147 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
   const transitionTo2dFactory = createTransitionTo2d(transition2dParams);
 
   const transitionToMode3d = useCallback(async () => {
-    // Guard: Ensure Cesium is initialized at current 2D position
+    // Pre-flight checks and pose calculation BEFORE calling transition
     const leafletMap = leafletMapRef.current;
-    const initialPosition = await getLeafletPosition(leafletMap);
+    let scene = sceneRef.current;
+    let widget = widgetRef.current;
 
-    if (initialPosition) {
-      // Wait for terrain to be loaded before starting transition
-      // This ensures terrain elevation sampling will work reliably
-      await ensureInitialized(initialPosition, { waitForTerrain: true });
+    // If no scene, we need to activate it first (first time 2D→3D)
+    if (!scene) {
+      console.log(
+        "[useMapTransition] No scene available - activating for first time"
+      );
+
+      // Emit Activate event - portal wrapper will:
+      // 1. Set currentSceneStyleRef and initialCamera refs
+      // 2. Mount CesiumSceneComponent (isActive=true)
+      // 3. Scene hooks will read refs on mount
+      emitCesiumEvent(CtxEvent.Activate, { source: "map-mode-toggle" });
+
+      // Wait for scene to be ready
+      console.log("[useMapTransition] Waiting for scene to initialize...");
+      await new Promise<void>((resolve) => {
+        const unsubSceneReady = subscribe(CtxEvent.SceneReady, () => {
+          console.log(
+            "[useMapTransition] Scene ready - waiting for content to be presentable..."
+          );
+          unsubSceneReady();
+
+          // Now wait for minimum content to be loaded (tilesets, terrain, imagery have minimum tiles/data)
+          const unsubContentPresentable = subscribe(
+            CtxEvent.SceneContentPresentable,
+            () => {
+              console.log(
+                "[useMapTransition] Content presentable - stabilizing before transition..."
+              );
+              unsubContentPresentable();
+
+              // Add small delay to let rapid-fire Activate events settle
+              // Portal emits multiple Activate events during transition setup
+              // Need to wait for React reconciliation to finish
+              setTimeout(() => {
+                console.log(
+                  "[useMapTransition] Stabilization complete - continuing transition"
+                );
+                resolve();
+              }, 100); // 100ms delay for stabilization
+            }
+          );
+
+          // Timeout fallback for content (10 seconds)
+          setTimeout(() => {
+            console.warn(
+              "[useMapTransition] Content presentable timeout - continuing anyway"
+            );
+            unsubContentPresentable();
+            resolve();
+          }, 10000);
+        });
+
+        // Timeout fallback for scene (5 seconds)
+        setTimeout(() => {
+          console.warn("[useMapTransition] Scene ready timeout");
+          unsubSceneReady();
+          resolve();
+        }, 5000);
+      });
+
+      // Re-read refs after scene initialization
+      scene = sceneRef.current;
+      widget = widgetRef.current;
+
+      if (!scene) {
+        console.error(
+          "[useMapTransition] Scene still not available after activation"
+        );
+        transitionStateRef.current = MapTransitionState.mode3d;
+        onComplete?.(false);
+        return;
+      }
     }
 
-    // Now transition (scene guaranteed ready with terrain loaded)
-    return transitionTo3dFactory(CtxEvent);
-  }, [leafletMapRef, ensureInitialized, transitionTo3dFactory]);
+    // If no widget, can't compute pose
+    if (!widget) {
+      console.warn("[useMapTransition] No widget available");
+      onCancel?.(false);
+      return;
+    }
+
+    // If no leaflet map, can't derive position
+    if (!leafletMap) {
+      console.warn("[useMapTransition] No leaflet map available");
+      onCancel?.(false);
+      return;
+    }
+
+    // Extract Leaflet position
+    const leafletPosition = getLeafletPosition(leafletMap);
+    const { lat, lng, zoom } = leafletPosition;
+
+    // Compute Cesium pose from Leaflet position (with fallback elevation)
+    // Use contextConfig from hook call at top of component
+    const fallbackHeightM = contextConfig.modeTo3d?.fallbackGroundElevationM;
+
+    const poseWithFallback = leafletToTopdownCesiumPose(
+      scene,
+      { latitude: lat, longitude: lng } as LatLng.deg,
+      zoom,
+      widget.resolutionScale,
+      fallbackHeightM !== undefined ? { fallbackHeightM } : undefined
+    );
+
+    if (!poseWithFallback) {
+      console.warn("[useMapTransition] Failed to compute Cesium pose");
+      onCancel?.(false);
+      return;
+    }
+
+    console.log(
+      "[useMapTransition] Computed pose with fallback elevation:",
+      poseWithFallback
+    );
+    console.log(
+      `[useMapTransition] Elevation: ${poseWithFallback.height}m (source: ${poseWithFallback.elevationSource})`
+    );
+
+    // NOW call transition with guaranteed scene and pose with fallback elevation
+    // transition-to-3d can assume these are available
+    await transitionTo3dFactory(poseWithFallback);
+  }, [
+    leafletMapRef,
+    sceneRef,
+    widgetRef,
+    transitionStateRef,
+    onComplete,
+    onCancel,
+    transitionTo3dFactory,
+    emitCesiumEvent,
+    subscribe,
+    contextConfig.modeTo3d?.fallbackGroundElevationM,
+  ]);
 
   const transitionToMode2d = useCallback(() => {
     return transitionTo2dFactory();
   }, [transitionTo2dFactory]);
   return { transitionToMode2d, transitionToMode3d };
 };
-
-export default useMapTransition;

@@ -1,19 +1,20 @@
-import { ReactNode, type RefObject, useMemo, useRef } from "react";
-import type { Camera } from "@carma/cesium";
+import {
+  ReactNode,
+  type RefObject,
+  useMemo,
+  useEffect,
+  useRef,
+  memo,
+} from "react";
 import type { GlobeConstructorOptionsPrimitive } from "@carma/cesium/types";
 import { merge } from "lodash";
 
 import { CesiumErrorHandler } from "./components/CesiumErrorHandler";
-import { useCesiumGlobe } from "./hooks/scene/use-cesium-globe";
+import { SceneStyleManager } from "./components/SceneStyleManager";
 import { useCesiumWhenSuspended } from "./hooks/scene/use-cesium-when-suspended";
 import { useInitCesiumWidget } from "./hooks/scene/use-init-cesium-widget";
-import { useSceneStyleResources } from "./hooks/scene/use-scene-style-resources";
-import { useTilesetManager } from "./hooks/resources/tilesets/use-tileset-manager";
-import { useImageryManager } from "./hooks/resources/imagery/use-imagery-manager";
-import { useTerrainManager } from "./hooks/resources/terrain/use-terrain-manager";
-import { useShadows } from "./hooks/scene/use-shadows";
-import { useBackgroundColor } from "./hooks/scene/use-background-color";
 import { useCesiumContext } from "./context/hooks/use-cesium-context";
+import { useSceneCameraTracking } from "./hooks/scene/use-scene-camera-tracking";
 import { DEFAULT_WIDGET_CONSTRUCTOR_OPTIONS } from "./utils/widget-defaults";
 
 // Re-export for backwards compatibility
@@ -34,51 +35,65 @@ export type CameraLimiterOptions = {
 
 export type CesiumSceneComponentProps = {
   containerRef: RefObject<HTMLDivElement>;
-  // Event callbacks
-  onCameraChanged?: (params: { source: string; camera: Camera }) => void;
   // Key for forcing remount on error (increment to remount)
   resetKey?: number;
   // Children to render inside the scene
   children?: ReactNode;
+  // Note: Scene only mounts when activated - suspension handled by wrapper CSS
+  // All initialization data (style, camera) fetched from context refs internally
 };
 
 export function CesiumSceneComponent({
   containerRef,
   children,
 }: CesiumSceneComponentProps) {
-  const { config } = useCesiumContext();
+  // Lifecycle tracking
+  const mountCountRef = useRef(0);
+  const renderCountRef = useRef(0);
+
+  useEffect(() => {
+    const currentMount = mountCountRef.current + 1;
+    mountCountRef.current = currentMount;
+    console.log(`[SCENE] 🟢 MOUNTED (mount #${currentMount})`);
+
+    return () => {
+      console.log(`[SCENE] 🔴 UNMOUNTING (was mount #${currentMount})`);
+    };
+  }, []);
+
+  renderCountRef.current++;
+  console.log(
+    `[SCENE] RENDER #${renderCountRef.current} (mount #${mountCountRef.current})`
+  );
+
+  // Fetch config and style data from context
+  const { config, widgetRef } = useCesiumContext();
 
   const options = useMemo(
     () => merge({}, DEFAULT_WIDGET_CONSTRUCTOR_OPTIONS, config.options),
     [config.options]
   );
 
-  useInitCesiumWidget(containerRef, options);
+  // Extract style configuration for prop passing
+  const sceneStyle = config.sceneStyle;
 
-  // Extract ALL available resource sources from config
-  const { tilesets, terrain, imagery } = useSceneStyleResources(config);
+  // Widget initialization: Scene only mounts when active, so init immediately
+  useInitCesiumWidget(containerRef, true, options);
 
-  console.log("[SCENE] Extracted resources:", {
-    tilesets: tilesets.map((t) => t.id),
-    terrain: terrain.map((t) => t.id),
-    imagery: imagery.map((i) => i.id),
-  });
+  // Camera tracking: Updates refs directly (internal coordination only)
+  useSceneCameraTracking();
 
-  // Managers receive all sources and handle activation based on style events
-  useTilesetManager(tilesets); // Emits SceneResourcesReady via event bus
-  useImageryManager(imagery);
-  useTerrainManager(terrain);
-
-  // Scene appearance hooks (initial values, applySceneStyle overrides on style switch)
-  useCesiumGlobe({});
-  useShadows();
-  useBackgroundColor(); // No args - backgroundColor comes from style events
+  // Suspension handling
   useCesiumWhenSuspended();
 
-  // Render error handler to intercept Cesium errors
+  // Render scene components:
+  // - Error handler intercepts Cesium errors
+  // - SceneStyleManager coordinates styles and resource loading (receives style config via props)
+  // - User children
   return (
     <>
-      <CesiumErrorHandler />
+      <CesiumErrorHandler widgetRef={widgetRef} />
+      <SceneStyleManager sceneStyle={sceneStyle} />
       {children}
     </>
   );

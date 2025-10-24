@@ -2,8 +2,7 @@ import {
   handleDelayedRender,
   type DelayedRenderOptions,
 } from "@carma-commons/dom/window";
-import { tryWithValidScene } from "@carma/cesium";
-import { Scene } from "@carma/cesium";
+import { tryWithValidScene, Scene } from "@carma/cesium";
 
 export const sceneRequestRender = (
   scene: Scene,

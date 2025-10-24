@@ -86,7 +86,8 @@ export const useTerrainManager = (
             await loadCesiumTerrainProvider(
               providerRef,
               terrainConfig.url,
-              abortController.signal
+              abortController.signal,
+              terrainConfig.rectangle
             );
 
             if (!providerRef.current || abortController.signal.aborted) {

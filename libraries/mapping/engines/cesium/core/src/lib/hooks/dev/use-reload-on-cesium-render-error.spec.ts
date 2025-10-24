@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
-import { useReloadOnCesiumRenderError } from "./useReloadOnCesiumRenderError";
+import { useReloadOnCesiumRenderError } from "./use-reload-on-cesium-render-error";
 import { carmaWindow } from "@carma-commons/dom/window";
 
 describe("useReloadOnCesiumRenderError", () => {

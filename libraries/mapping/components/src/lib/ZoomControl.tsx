@@ -1,17 +1,11 @@
-import { useEffect } from "react";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faMinus, faPlus } from "@fortawesome/free-solid-svg-icons";
-import { useLeafletZoomControls } from "@carma-mapping/utils";
+import { useLeafletZoomControlsInTopicMapContext } from "@carma-mapping/engines/leaflet";
 
 export const ZoomControl = () => {
-  useEffect(() => {
-    console.info(
-      "[Deprecation] ZoomControl is deprecated. Use TopicMapZoomControl for apps with CarmaTopicMapContextProvider."
-    );
-  }, []);
-
-  const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
+  const { zoomInLeaflet, zoomOutLeaflet } =
+    useLeafletZoomControlsInTopicMapContext();
 
   return (
     <div data-test-id="zoom-control" className="flex flex-col">

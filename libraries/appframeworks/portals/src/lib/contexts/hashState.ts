@@ -54,8 +54,16 @@ const getNumberCodec = (fixed?: number, trailingZeros = false): HashCodec => ({
     value !== undefined ? parseFloat(value) : undefined,
 });
 
+/**
+ * Default hash codecs for URL encoding/decoding.
+ *
+ * - mapStyle: Uses mapStyleShortNames for compression ("karte" <-> "0")
+ * - lat/lng/zoom: Numeric with precision from defaultPrecisions
+ * - engine: Boolean codec ("1" = cesium3d, absent = leaflet2d)
+ * - heading/bearing/pitch: Numeric position parameters
+ */
 export const defaultHashCodecs: HashCodecs = Object.freeze({
-  mapStyle: getStringLookupCodec(mapStyleShortNames),
+  mapStyle: getStringLookupCodec(mapStyleShortNames), // "karte" <-> "0", "luftbild" <-> "1"
   lat: getNumberCodec(defaultPrecisions.latitude),
   lng: getNumberCodec(defaultPrecisions.longitude),
   zoom: getNumberCodec(defaultPrecisions.zoom),

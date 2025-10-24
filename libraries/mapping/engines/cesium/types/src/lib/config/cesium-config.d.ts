@@ -29,11 +29,11 @@ export type CesiumConfig = {
 
   // CARMA scene management
   sceneStyle?: SceneStyleConfig; // Single scene style configuration
-  initialStyle?: string; // Initial scene style ID to use on load
+  // Note: initialStyle removed - portal sets currentSceneStyleRef before scene initialization
 
   // Tileset loading configuration
 
-  minInitialTilesetTileCount?: number; // Minimum number of tiles to load before considering tileset ready (default: 4)
+  minInitialTilesetTileCount?: number; // Minimum number of tiles to load before considering tileset ready (default: 10)
 
   // Camera/home position (CARMA extensions)
   // Priority: cameraInitialPose (URL) → cameraHomePose (config default)

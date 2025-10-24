@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, type MutableRefObject } from "react";
 
 import type { Latitude, Longitude } from "@carma/geo/types";
-import { cesiumClearParamKeys } from "@carma-mapping/map-view-state";
+import { cesiumClearParamKeys } from "../utils/hashParams";
 import {
   useCarmaTopicMapContext,
   TopicMapCtxEvent,

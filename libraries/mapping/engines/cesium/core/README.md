@@ -6,30 +6,7 @@ React wrapper for CesiumJS with scene styles, event-driven architecture, and 2D/
 
 Production-ready. Used in geoportal and portals lib.
 
-## Design decisions
-
-- Context-based state (ref-based, no prop drilling)
-- Scene style system (multiple tilesets, terrain, imagery)
-- Event-driven (subscribe/emit) no rerendering for Cesium API level methods by default
-- Performance optimized (request render mode)
-
-## API
-
-**Hooks:**
-- `useCesiumContext()` - Scene ref, emit/subscribe, style state
-- `useHomeControl()` - Home position
-- `useZoomControls()` - Zoom controls
-
-**Events:**
-- `SetSceneStyle`, `ToggleSceneStyle`
-- `SetTilesetVisibility`
-- `Suspend` / `Activate` (2D/3D mode)
-
-## Configuration
-
-See implementations:
-- `apps/geoportal/src/app/config/`
-- `libraries/appframeworks/portals/`
+## Quick Start
 
 ## Setup
 
@@ -74,6 +51,14 @@ const config = {
 
 **See implementation:**
 - `apps/geoportal/src/app/` - Production app setup
+
+## Development
+
+For architecture details, camera initialization, and development notes, see:
+- [DEVELOPMENT.md](./DEVELOPMENT.md) - Architecture and design patterns
+- [CAMERA-INITIALIZATION.md](./CAMERA-INITIALIZATION.md) - Camera initialization system
+- [ARCHITECTURE-REFACTOR.md](./ARCHITECTURE-REFACTOR.md) - Provider refs migration
+
 ## Resources
 
 - [Cesium with Vite](https://community.cesium.com/t/is-there-a-good-way-to-use-cesium-with-vite/27545)

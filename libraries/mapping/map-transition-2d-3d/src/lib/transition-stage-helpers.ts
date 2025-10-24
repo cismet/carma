@@ -1,15 +1,22 @@
 import type { MutableRefObject } from "react";
-import type { TransitionStageTracker } from "./TransitionContext";
-
-export type StageKey = keyof TransitionStageTracker;
+import {
+  MapTransitionState,
+  type TransitionStageTracker,
+} from "./TransitionContext";
 
 /**
- * Mark the start of a transition stage
+ * Mark the start of a transition stage.
+ * Updates both the transition state and timing metadata.
  */
 export const startStage = (
+  stateRef: MutableRefObject<MapTransitionState>,
   trackerRef: MutableRefObject<TransitionStageTracker>,
-  stage: StageKey
+  stage: MapTransitionState
 ): void => {
+  // Update current state
+  stateRef.current = stage;
+
+  // Record timing metadata
   trackerRef.current = {
     ...trackerRef.current,
     [stage]: {
@@ -23,7 +30,7 @@ export const startStage = (
  */
 export const endStage = (
   trackerRef: MutableRefObject<TransitionStageTracker>,
-  stage: StageKey
+  stage: MapTransitionState
 ): void => {
   const current = trackerRef.current[stage];
   if (current) {
@@ -40,10 +47,9 @@ export const endStage = (
 /**
  * Mark a stage as failed with an error
  */
-// todo: implement usage or remove
 export const failStage = (
   trackerRef: MutableRefObject<TransitionStageTracker>,
-  stage: StageKey,
+  stage: MapTransitionState,
   error: Error
 ): void => {
   const current = trackerRef.current[stage];
@@ -64,7 +70,7 @@ export const failStage = (
  */
 export const getStageDuration = (
   trackerRef: MutableRefObject<TransitionStageTracker>,
-  stage: StageKey
+  stage: MapTransitionState
 ): number | null => {
   const stageData = trackerRef.current[stage];
   if (!stageData || !stageData.endTime) return null;
@@ -76,11 +82,11 @@ export const getStageDuration = (
  */
 export const getCompletedStages = (
   trackerRef: MutableRefObject<TransitionStageTracker>
-): Array<{ stage: StageKey; duration: number; error?: Error }> => {
+): Array<{ stage: MapTransitionState; duration: number; error?: Error }> => {
   return Object.entries(trackerRef.current)
     .filter(([, data]) => data && data.endTime)
     .map(([stage, data]) => ({
-      stage: stage as StageKey,
+      stage: stage as MapTransitionState,
       duration: data!.endTime! - data!.startTime,
       error: data!.error,
     }));

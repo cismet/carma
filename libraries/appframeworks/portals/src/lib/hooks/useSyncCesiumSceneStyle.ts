@@ -1,32 +1,42 @@
 import { useEffect, useRef } from "react";
 
-import { MapStyleKeys, ManagedCesiumStyleKeys } from "../constants";
 import { useMapStyleBus } from "./useMapStyleBus";
 import { useCesiumContext, CtxEvent } from "@carma-mapping/engines/cesium/core";
+import { usePortal } from "../contexts/PortalProvider";
 
 /**
- * Synchronizes Cesium scene style with the Portal MapStyle context via event bus.
- * Uses bus approach to avoid React rerenders when only controlling external APIs.
- * Automatically switches between LOD2 and Mesh scene styles based on map style changes.
+ * Syncs MapStyleProvider state to Cesium scene style.
+ *
+ * Listens to map style changes (via event bus) and emits SetSceneStyle events
+ * to update the Cesium scene using the app's configured mapping.
+ *
+ * This hook should be called at portal-wrapper level (has access to both
+ * MapStyleProvider and CesiumContext).
  */
 export const useSyncCesiumSceneStyle = () => {
   const { emit } = useCesiumContext();
   const { subscribe } = useMapStyleBus();
-  const currentStyleRef = useRef<string | null>(null);
+  const { mapStyleToCesiumStyleMapping } = usePortal();
+  const hasSetInitialStyleRef = useRef(false);
 
   useEffect(() => {
-    // Subscribe to map style changes via event bus
     const unsubscribe = subscribe((style) => {
-      currentStyleRef.current = style;
+      if (!hasSetInitialStyleRef.current) {
+        hasSetInitialStyleRef.current = true;
+        return; // Skip initial emit
+      }
 
-      // Map Portal MapStyle to Cesium scene styles
-      if (style === MapStyleKeys.AERIAL) {
-        emit(CtxEvent.SetSceneStyle, ManagedCesiumStyleKeys.MESH);
-      } else if (style === MapStyleKeys.TOPO) {
-        emit(CtxEvent.SetSceneStyle, ManagedCesiumStyleKeys.LOD2);
+      // Map Portal MapStyle to Cesium scene style using app config
+      const cesiumStyleId = mapStyleToCesiumStyleMapping[style];
+      if (cesiumStyleId) {
+        emit(CtxEvent.SetSceneStyle, cesiumStyleId);
+      } else {
+        console.warn(
+          `[useSyncCesiumSceneStyle] No Cesium style mapped for portal style '${style}'`
+        );
       }
     });
 
     return unsubscribe;
-  }, [emit, subscribe]);
+  }, [emit, subscribe, mapStyleToCesiumStyleMapping]);
 };

@@ -17,7 +17,14 @@ export const loadCesiumWebMapServiceImageryLayer = async (
   try {
     // Extract providerOptions from the config wrapper
     const providerOptions = config.providerOptions as any;
-    const imageryProvider = new WebMapServiceImageryProvider(providerOptions);
+
+    const options = {
+      ...providerOptions,
+      rectangle: rectangleFromConfig(providerOptions.rectangle),
+    };
+
+    console.debug("[CESIUM|WMS] adding WMS provider", options);
+    const imageryProvider = new WebMapServiceImageryProvider(options);
     const newImageryLayer = new ImageryLayer(imageryProvider);
     if (!signal.aborted) {
       ref.current = newImageryLayer;

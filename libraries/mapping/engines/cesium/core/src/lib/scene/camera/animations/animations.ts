@@ -118,14 +118,15 @@ export function animateInterpolateHeadingPitchRange(
 
     return new HeadingPitchRange(currentHeading, currentPitch, currentRange);
   };
-
   const animate = (time: number) => {
     if (isCanceled || !initialHPR) return;
     const elapsed = time - startTime;
     const t = Math.min(elapsed / duration, 1); // normalize to [0, 1]
-    //console.debug('animate', duration, elapsed, t, frameIndex);
+    const easedT = easing(t);
 
-    const orientation = interpolateHpr(initialHPR, hpr, easing(t));
+    const orientation = interpolateHpr(initialHPR, hpr, easedT);
+
+    //console.debug(`[ANIM] currentHPR: h=${orientation.heading.toFixed(3)}, p=${orientation.pitch.toFixed(3)}, r=${orientation.range.toFixed(2)}`);
 
     tryWithValidScene(scene, (scene) => {
       scene.camera.lookAtTransform(Matrix4.IDENTITY);

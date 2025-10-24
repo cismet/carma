@@ -10,22 +10,23 @@ import {
   type SubscribeCesiumCtxFn,
 } from "../cesium-context-event-map";
 import type { CesiumConfig } from "@carma/cesium/types";
-import type { CesiumWidget, CameraPrimitive } from "@carma/cesium";
+import type { CesiumWidget } from "@carma/cesium";
 import type { CesiumInstanceRecord } from "../CesiumContext";
 
 // Generate unique instance IDs using crypto.randomUUID()
 const generateInstanceId = () => `cesium-instance-${crypto.randomUUID()}`;
 
 /**
- * Listens for Activate events and tracks Cesium widget instance lifecycle
- * This triggers widget initialization when switching to 3D mode
+ * Listens for Activate events and tracks Cesium widget instance lifecycle.
+ *
+ * NOTE: This ONLY tracks instances for debugging/analytics.
+ * Widget initialization is now handled by CesiumSceneComponent via isActive prop.
  */
 export const useContextSetupActivationListener = (
   subscribe: SubscribeCesiumCtxFn,
   setCesiumInstances: Dispatch<SetStateAction<CesiumInstanceRecord[]>>,
   widgetRef: MutableRefObject<CesiumWidget | null>,
-  config: CesiumConfig,
-  currentCameraStateRef: MutableRefObject<CameraPrimitive | null>
+  config: CesiumConfig
 ) => {
   // Track context mount time (not app start time)
   const contextMountTimeRef = useRef(Date.now());

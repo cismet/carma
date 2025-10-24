@@ -16,7 +16,8 @@ type Cesium3DTilesetWithStats = Cesium3DTileset & {
 
 export const useTilesetProgress = (
   loadedTilesets: LoadedTilesets,
-  minTileCount: number = 4
+  minTileCount: number = 4,
+  onTilesetPresentable?: (id: string) => void
 ): {
   attachProgressListener: (id: string, tileset: Cesium3DTileset) => void;
   updateProgress: () => void;
@@ -27,29 +28,46 @@ export const useTilesetProgress = (
   const hasEmittedReadyRef = useRef(false);
 
   const checkAndEmitSceneReady = () => {
-    if (hasEmittedReadyRef.current) return;
+    console.log(
+      `[TILESET|PROGRESS] checkAndEmitSceneReady called (hasEmitted=${hasEmittedReadyRef.current})`
+    );
+
+    if (hasEmittedReadyRef.current) {
+      console.log(`[TILESET|PROGRESS] Already emitted, skipping check`);
+      return;
+    }
 
     const visibleTilesets = Array.from(loadedTilesets.entries())
       .filter(([, tileset]) => tileset.show)
       .map(([id]) => id);
 
-    if (visibleTilesets.length === 0) return;
+    console.log(`[TILESET|PROGRESS] Visible tilesets:`, visibleTilesets);
 
-    const allReady = visibleTilesets.every((id) => {
+    if (visibleTilesets.length === 0) {
+      console.log(`[TILESET|PROGRESS] No visible tilesets, skipping emit`);
+      return;
+    }
+
+    const readinessStatus = visibleTilesets.map((id) => {
       const initialFired = initialTilesFiredRef.current.has(id);
       const tilesLoaded = tileLoadCountersRef.current.get(id) ?? 0;
-      return initialFired && tilesLoaded >= minTileCount;
+      const isReady = initialFired && tilesLoaded >= minTileCount;
+      return { id, initialFired, tilesLoaded, minTileCount, isReady };
     });
+
+    console.log(`[TILESET|PROGRESS] Readiness status:`, readinessStatus);
+
+    const allReady = readinessStatus.every((s) => s.isReady);
 
     if (allReady) {
       hasEmittedReadyRef.current = true;
       console.log(
-        "[TILESET|PROGRESS] All visible tilesets ready, emitting SceneResourcesReady",
-        visibleTilesets.map(
-          (id) => `${id}: ${tileLoadCountersRef.current.get(id)} tiles`
-        )
+        "[TILESET|PROGRESS] ✅ All visible tilesets ready, emitting SceneResourcesReady",
+        readinessStatus.map((s) => `${s.id}: ${s.tilesLoaded} tiles`)
       );
       emit(CtxEvent.SceneResourcesReady, undefined);
+    } else {
+      console.log(`[TILESET|PROGRESS] Not all ready yet, waiting...`);
     }
   };
 
@@ -69,6 +87,7 @@ export const useTilesetProgress = (
         `[TILESET|READY] ${id}: Already has tiles (processing=${currentTilesProcessing}, loaded=${currentTilesLoaded}, total=${totalTiles}, minRequired=${minTileCount})`
       );
       initialTilesFiredRef.current.add(id);
+      onTilesetPresentable?.(id); // Report as presentable
       checkAndEmitSceneReady();
       return; // Skip event listeners
     }
@@ -93,6 +112,7 @@ export const useTilesetProgress = (
           `[TILESET|READY] ${id}: Reached minimum tiles (processing=${tilesProcessing}, loaded=${tilesLoaded}, total=${totalTiles}, minRequired=${minTileCount})`
         );
         initialTilesFiredRef.current.add(id);
+        onTilesetPresentable?.(id); // Report as presentable
 
         // Unregister listeners since we're now ready
         tileset.tileLoad.removeEventListener(checkReadyState);
@@ -128,6 +148,7 @@ export const useTilesetProgress = (
       if (isReady) {
         initialTilesFiredRef.current.add(id);
         tileLoadCountersRef.current.set(id, totalTiles);
+        onTilesetPresentable?.(id); // Report as presentable
 
         // Unregister all listeners since we're ready
         tileset.tileLoad.removeEventListener(checkReadyState);

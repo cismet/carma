@@ -1,15 +1,17 @@
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useRef, type MutableRefObject } from "react";
 import type { Cesium3DTileset, Scene } from "@carma/cesium";
 import { useCesiumContext } from "../../../context";
-import { CtxEvent } from "../../../context/cesium-context-event-map";
-import { TilesetContentTypes } from "@carma/types";
 import type { TilesetConfig } from "@carma/cesium/types";
 import { loadTileset } from "../../../loaders";
 import { useTilesetProgress } from "./use-tileset-progress";
 
 type LoadedTilesets = Map<string, Cesium3DTileset>;
 
-const hideOtherMeshTilesets = (
+// MESH mutual exclusion is now handled by style config
+// Each style specifies exactly which tilesets to show (e.g., mesh-2024 shows only wupp-mesh-2024)
+// No need for runtime MESH hiding logic anymore - keeping this for reference
+/*
+const _unused_hideOtherMeshTilesets = (
   currentId: string,
   tilesets: TilesetConfig[],
   loadedTilesets: LoadedTilesets
@@ -27,6 +29,7 @@ const hideOtherMeshTilesets = (
       }
     });
 };
+*/
 
 const addTilesetToScene = (scene: Scene, tileset: Cesium3DTileset): void => {
   if (!scene.primitives.contains(tileset)) {
@@ -44,14 +47,15 @@ const configureTilesetDefaults = (tileset: Cesium3DTileset): void => {
 
 export const useTilesetManager = (
   tilesets: TilesetConfig[],
+  styleCallbacksRef: MutableRefObject<{
+    onTilesetsChange?: (tilesetRefs: Array<{ id: string }>) => void;
+  }>,
   trackProgress: boolean = false
 ) => {
-  const {
-    sceneRef,
-    subscribe,
-    tilesetsRef: loadedTilesetsRef,
-    config,
-  } = useCesiumContext();
+  const { sceneRef, config } = useCesiumContext();
+
+  // Scene-owned ref: Track loaded tilesets (destroyed on unmount)
+  const loadedTilesetsRef = useRef<Map<string, Cesium3DTileset>>(new Map());
 
   const minTileCount = config.minInitialTilesetTileCount ?? 4;
 
@@ -70,13 +74,13 @@ export const useTilesetManager = (
   const loadTilesetOnDemand = useCallback(
     async (config: TilesetConfig) => {
       const scene = sceneRef.current;
-      if (!scene || loadedTilesetsRef.current.has(config.id)) return;
+      if (!scene) {
+        console.error("[CESIUM|TILESET] Scene not available");
+        return;
+      }
 
+      console.log(`[CESIUM|TILESET] Loading: ${config.id}`);
       try {
-        console.log(
-          `[CESIUM|TILESET] Loading tileset: ${config.id} from ${config.url}`
-        );
-        // Pass scene to tileset constructor - required for proper integration
         const tileset = await loadTileset(config, scene);
 
         attachProgressListener(config.id, tileset);
@@ -90,15 +94,82 @@ export const useTilesetManager = (
         throw error;
       }
     },
-    [sceneRef]
+    [sceneRef, attachProgressListener]
   );
 
+  // Register callback SYNCHRONOUSLY during render (NOT in useEffect)
+  // This ensures callback is ready when useSceneStyleSwitcher calls it
+  // Must be after loadTilesetOnDemand is defined to avoid closure issues
+  console.log(
+    "[TILESET|MANAGER] Registering onTilesetsChange callback (synchronous)"
+  );
+
+  styleCallbacksRef.current.onTilesetsChange = async (tilesetRefs) => {
+    const scene = sceneRef.current;
+    if (!scene) {
+      console.warn(
+        "[TILESET|MANAGER] Scene not available for tileset visibility change"
+      );
+      return;
+    }
+
+    console.log(
+      "[TILESET|MANAGER] onTilesetsChange called with:",
+      tilesetRefs.map((t) => t.id)
+    );
+
+    // Hide all tilesets first
+    for (const [id, tileset] of loadedTilesetsRef.current) {
+      if (!tileset.isDestroyed()) {
+        tileset.show = false;
+        console.log(`[TILESET|MANAGER] Hiding tileset: ${id}`);
+      }
+    }
+
+    // Load and show requested tilesets
+    for (const ref of tilesetRefs) {
+      const config = tilesets.find((t) => t.id === ref.id);
+      if (!config) {
+        console.warn(`[TILESET|MANAGER] Config not found for: ${ref.id}`);
+        continue;
+      }
+
+      // Load if not already loaded
+      if (!loadedTilesetsRef.current.has(ref.id)) {
+        console.log(`[TILESET|MANAGER] Loading tileset: ${ref.id}`);
+        await loadTilesetOnDemand(config);
+      }
+
+      // Show the tileset
+      const tileset = loadedTilesetsRef.current.get(ref.id);
+      if (tileset && !tileset.isDestroyed()) {
+        tileset.show = true;
+        console.log(
+          `[TILESET|MANAGER] ✓ Set visible: ${ref.id} (show=${tileset.show})`
+        );
+      }
+    }
+
+    // Log state before calling updateProgress
+    console.log(
+      `[TILESET|MANAGER] Calling updateProgress - loaded tilesets:`,
+      Array.from(loadedTilesetsRef.current.entries()).map(
+        ([id, t]) => `${id}(show=${t.show})`
+      )
+    );
+
+    // Update progress tracking for SceneResourcesReady event
+    updateProgress();
+    scene.requestRender();
+  };
+
+  // Cleanup on unmount
   useEffect(() => {
-    const unsubscribe = subscribe(CtxEvent.SceneReady, async () => {});
-
     return () => {
-      unsubscribe();
+      // Unregister callback on unmount
+      styleCallbacksRef.current.onTilesetsChange = undefined;
 
+      // Destroy all loaded tilesets
       const scene = sceneRef.current;
       if (scene && !scene.isDestroyed()) {
         for (const [, tileset] of loadedTilesetsRef.current) {
@@ -110,84 +181,9 @@ export const useTilesetManager = (
       }
       loadedTilesetsRef.current.clear();
     };
-  }, [sceneRef, subscribe]);
-
-  useEffect(() => {
-    const handleVisibilityChange = async ({
-      id,
-      visible,
-    }: {
-      id: string;
-      visible: boolean;
-    }) => {
-      console.log(
-        `[TILESET|VIS] Event received: ${id} -> ${visible ? "SHOW" : "HIDE"}`
-      );
-
-      const config = tilesets.find((t) => t.id === id);
-      if (!config) {
-        console.log(
-          `[TILESET|VIS] Config ${id} not in current tilesets array - will load on next render when resources update`
-        );
-        return;
-      }
-
-      console.log(
-        `[TILESET|VIS] Config type: ${
-          config.content?.contentType
-        }, loaded: ${loadedTilesetsRef.current.has(id)}`
-      );
-
-      if (!loadedTilesetsRef.current.has(id) && visible) {
-        await loadTilesetOnDemand(config);
-      }
-
-      const tileset = loadedTilesetsRef.current.get(id);
-      if (!tileset || tileset.isDestroyed()) {
-        console.log(`[TILESET|VIS] Tileset not available or destroyed: ${id}`);
-        return;
-      }
-
-      console.log(`[TILESET|VIS] Before change - ${id}.show: ${tileset.show}`);
-
-      requestAnimationFrame(() => {
-        if (tileset.isDestroyed()) return;
-
-        // Set visibility first
-        tileset.show = visible;
-        console.log(`[TILESET|VIS] After change - ${id}.show: ${tileset.show}`);
-
-        // If showing a MESH, hide other MESH tilesets (only one MESH visible at a time)
-        if (
-          visible &&
-          config.content?.contentType === TilesetContentTypes.MESH
-        ) {
-          console.log(
-            `[TILESET|VIS] Hiding other MESH tilesets because ${id} is being shown`
-          );
-          hideOtherMeshTilesets(id, tilesets, loadedTilesetsRef.current);
-        }
-
-        // Log all tileset states
-        console.group(`[TILESET|VIS] All tileset states:`);
-        for (const [tsId, ts] of loadedTilesetsRef.current) {
-          console.log(
-            `  ${tsId}: show=${ts.show}, type=${
-              tilesets.find((t) => t.id === tsId)?.content?.contentType
-            }`
-          );
-        }
-        console.groupEnd();
-
-        sceneRef.current?.requestRender();
-        updateProgress();
-      });
-    };
-
-    return subscribe(CtxEvent.SetTilesetVisibility, handleVisibilityChange);
-  }, [subscribe, sceneRef, tilesets, loadTilesetOnDemand]);
-
-  // SceneResourcesReady is now emitted directly by useTilesetProgress via event bus
+    // Note: Refs are stable and don't need to be in dependency array
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 };
 
 export default useTilesetManager;

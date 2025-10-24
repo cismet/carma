@@ -11,8 +11,9 @@ export enum CtxEvent {
   AnimationEnd = "AnimationEnd",
   GoHome = "GoHome",
   SceneReady = "SceneReady",
+  SceneContentPresentable = "SceneContentPresentable", // Minimum content loaded - scene can be shown to user
   TerrainReady = "TerrainReady", // First terrain provider loaded and active
-  SceneResourcesReady = "SceneResourcesReady",
+  SceneResourcesReady = "SceneResourcesReady", // All resources fully loaded
   ReinitScene = "ReinitScene", // Reinitialize scene after WebGL error
   SuspendSSCC = "SuspendSSCC",
   ResumeSSCC = "ResumeSSCC",
@@ -31,7 +32,8 @@ export enum CtxEvent {
   SetHomePosition = "SetHomePosition",
   SetHomeOffset = "SetHomeOffset",
   FovChange = "FovChange",
-  CameraChanged = "CameraChanged",
+  CameraChanged = "CameraChanged", // Fires every frame during camera movement (for live display)
+  CameraMoveend = "CameraMoveend", // Fires when camera/FOV stops moving (like Leaflet moveend/zoomend)
 }
 
 export type CesiumContextEventMap = {
@@ -54,6 +56,7 @@ export type CesiumContextEventMap = {
   [CtxEvent.AnimationStart]: void;
   [CtxEvent.AnimationEnd]: void;
   [CtxEvent.SceneReady]: void;
+  [CtxEvent.SceneContentPresentable]: void;
   [CtxEvent.TerrainReady]: { id: string };
   [CtxEvent.SceneResourcesReady]: void;
   [CtxEvent.ReinitScene]: { reason: string };
@@ -74,7 +77,8 @@ export type CesiumContextEventMap = {
   [CtxEvent.SetHomePosition]: { x: number; y: number; z: number };
   [CtxEvent.SetHomeOffset]: { x: number; y: number; z: number };
   [CtxEvent.FovChange]: number;
-  [CtxEvent.CameraChanged]: { lat: number; lng: number; alt: number };
+  [CtxEvent.CameraChanged]: { lat: number; lng: number; alt: number }; // Every frame
+  [CtxEvent.CameraMoveend]: { lat: number; lng: number; alt: number }; // Debounced (like Leaflet moveend)
 };
 
 // Helper type aliases bound to the Cesium context event map for ergonomics
