@@ -217,6 +217,13 @@ L.Control.MeasurePolygon = L.Control.extend({
       this.options.customTooltip.style.visibility = "hidden";
     }
     this.options.cbSetUpdateStatusHandler(true);
+    
+    // Set status to MOVING when dragging whole shape (not vertices)
+    if (this.options.cbSetMapStatus && 
+        (event.type === "editable:drag" || event.type === "editable:dragstart")) {
+      this.options.cbSetMapStatus("MOVING");
+    }
+    
     const polyline = event.target;
     const layer = event.layer;
     this.options.cbSetActiveShape(layer.customID);
@@ -330,6 +337,13 @@ L.Control.MeasurePolygon = L.Control.extend({
 
       layer.on("editable:vertex:dragend", () => {
         this.options.cbSetUpdateStatusHandler(false);
+      });
+      
+      // Reset status to WAITING when drag ends
+      layer.on("editable:dragend", () => {
+        if (this.options.cbSetMapStatus) {
+          this.options.cbSetMapStatus("WAITING");
+        }
       });
 
       // Add style to polygon
@@ -896,6 +910,13 @@ L.Control.MeasurePolygon = L.Control.extend({
     polygon.on("editable:vertex:dragend", () => {
       this.options.cbSetUpdateStatusHandler(false);
     });
+    
+    // Reset status to WAITING when drag ends
+    polygon.on("editable:dragend", () => {
+      if (this.options.cbSetMapStatus) {
+        this.options.cbSetMapStatus("WAITING");
+      }
+    });
 
     this.options.polygonMode = false;
 
@@ -970,6 +991,13 @@ L.Control.MeasurePolygon = L.Control.extend({
 
         savedShape.on("editable:vertex:dragend", () => {
           this.options.cbSetUpdateStatusHandler(false);
+        });
+        
+        // Reset status to WAITING when drag ends
+        savedShape.on("editable:dragend", () => {
+          if (this.options.cbSetMapStatus) {
+            this.options.cbSetMapStatus("WAITING");
+          }
         });
       });
     }

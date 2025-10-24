@@ -54,6 +54,7 @@ export function Measurements({
     setCurrentDrawHandler,
     snappingLatlng,
     config,
+    setStatus,
 
     // looks unuseful
     setStartDrawing,
@@ -108,6 +109,7 @@ export function Measurements({
         cbToggleMeasurementMode: toggleMeasurementModeHandler,
         cbUpdateAreaOfDrawingMeasurement: updateAreaOfDrawingMeasurementHandler,
         cbSetCurrentDrawHandler: setCurrentDrawHandler,
+        cbSetMapStatus: setStatus,
       };
 
       const measurePolygonControl = (L.control as any).measurePolygon(
