@@ -10,29 +10,30 @@ const LOG_INTERVAL = 100; // Log warning messages at 0 and every 100th occurrenc
 const LOG_MESSAGE =
   "console is actively suppressing legacy react-cismap warnings and errors";
 
-export const suppressReactCismapErrors = () => {
+export const suppressReactCismapErrors = (silenceEverything = false) => {
   let suppressedCount = 0;
   const originalWarn = console.warn.bind(console);
   const originalError = console.error.bind(console);
 
-  console.warn = (message, ...args) => {
-    if (
-      message &&
-      message.includes &&
-      WARN_MESSAGE_PATTERNS.some((pattern) => message.includes(pattern))
-    ) {
-      if (suppressedCount % LOG_INTERVAL === 0) {
-        originalWarn(LOG_MESSAGE);
+  if (!silenceEverything) {
+    console.warn = (message, ...args) => {
+      if (
+        message &&
+        message.includes &&
+        WARN_MESSAGE_PATTERNS.some((pattern) => message.includes(pattern))
+      ) {
+        if (suppressedCount % LOG_INTERVAL === 0) {
+          originalWarn(LOG_MESSAGE);
+        }
+        suppressedCount++;
+        return;
       }
-      suppressedCount++;
-      return;
-    }
-    originalWarn(message, ...args);
-  };
-
+      originalWarn(message, ...args);
+    };
+  }
   console.error = (message, ...args) => {
     if (args.some((arg) => arg && arg.includes && arg.includes(REACT_CISMAP))) {
-      if (suppressedCount % LOG_INTERVAL === 0) {
+      if (!silenceEverything && suppressedCount % LOG_INTERVAL === 0) {
         originalError(LOG_MESSAGE);
       }
       suppressedCount++;

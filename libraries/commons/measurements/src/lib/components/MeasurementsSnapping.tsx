@@ -327,7 +327,46 @@ export function MeasurementsSnapping({
 
         const finalLatLng = toLatLngFromClosestPoint(closestPoint);
         if (finalLatLng && setSnappingLatlng) {
-          setSnappingLatlng(finalLatLng);
+          // Check if we're snapping to the first vertex of an in-progress drawing
+          // If so, only allow snapping if we're within the query radius (prevents premature polygon closure)
+          let shouldSnap = true;
+          if (
+            currentDrawHandlerValue &&
+            currentDrawHandlerValue._markers &&
+            currentDrawHandlerValue._poly?._latlngs &&
+            currentDrawHandlerValue._poly._latlngs.length >= 3
+          ) {
+            const firstVertex = currentDrawHandlerValue._poly._latlngs[0];
+            const threshold = 0.0001; // ~11 meters
+            
+            // Check if finalLatLng matches first vertex
+            if (
+              Math.abs(finalLatLng.lat - firstVertex.lat) < threshold &&
+              Math.abs(finalLatLng.lng - firstVertex.lng) < threshold
+            ) {
+              // We're trying to snap to first vertex - check pixel distance from mouse
+              const map = routedMapRef.current?.leafletMap?.leafletElement;
+              if (map && e.latlng) {
+                const mousePoint = map.latLngToContainerPoint(e.latlng);
+                const vertexPoint = map.latLngToContainerPoint(firstVertex);
+                const pixelDistance = Math.sqrt(
+                  Math.pow(mousePoint.x - vertexPoint.x, 2) +
+                  Math.pow(mousePoint.y - vertexPoint.y, 2)
+                );
+                
+                // Only snap if mouse is within query radius
+                if (pixelDistance > queryRadius) {
+                  shouldSnap = false;
+                }
+              }
+            }
+          }
+          
+          if (shouldSnap) {
+            setSnappingLatlng(finalLatLng);
+          } else {
+            setSnappingLatlng(null);
+          }
         }
 
         // Trigger vertex marker hover for tooltip/area preview (Phase 3)

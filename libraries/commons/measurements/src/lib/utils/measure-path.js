@@ -148,6 +148,18 @@ L.Control.MeasurePolygon = L.Control.extend({
 
     this._measureHandler.enable();
 
+    // Store original click position before Leaflet.Draw modifies it
+    this._lastOriginalClick = null;
+    
+    map.on('click', (e) => {
+      if (this._measureHandler && this._measureHandler._enabled) {
+        // Store the ORIGINAL click position
+        this._lastOriginalClick = {
+          latlng: L.latLng(e.latlng.lat, e.latlng.lng),
+          containerPoint: map.latLngToContainerPoint(e.latlng)
+        };
+      }
+    });
     const latlng = (this.options.snappingEnabled && this.options.snappingLatlng)
       ? this.options.snappingLatlng
       : event.latlng;
@@ -217,7 +229,7 @@ L.Control.MeasurePolygon = L.Control.extend({
       this.options.customTooltip.style.visibility = "hidden";
     }
     this.options.cbSetUpdateStatusHandler(true);
-    
+
     // Set status based on drag type
     if (this.options.cbSetMapStatus) {
       if (event.type === "editable:drag" || event.type === "editable:dragstart") {
@@ -228,7 +240,7 @@ L.Control.MeasurePolygon = L.Control.extend({
         this.options.cbSetMapStatus("EDITING");
       }
     }
-    
+
     const polyline = event.target;
     const layer = event.layer;
     this.options.cbSetActiveShape(layer.customID);
@@ -347,7 +359,7 @@ L.Control.MeasurePolygon = L.Control.extend({
           this.options.cbSetMapStatus("WAITING");
         }
       });
-      
+
       // Reset status to WAITING when drag ends
       layer.on("editable:dragend", () => {
         if (this.options.cbSetMapStatus) {
@@ -398,20 +410,54 @@ L.Control.MeasurePolygon = L.Control.extend({
     });
 
     map.on("draw:drawvertex", (event) => {
-      console.log("yyy draw:drawvertex", event);
       const layers = event.layers;
       const latlngs = [];
       let index = 0;
       let firsHovering = false;
 
       layers.eachLayer((layer) => {
+        const markerLatLng = layer.getLatLng();
         layer.customHandle = index++;
-        layer.on("click", (e) => {
-          if (e.target.customHandle === 0) {
-            this.options.shapeMode = "polygon";
-            this.options.currenLine.completeShape();
+
+
+        // Store reference to the click handler so we can check conditions
+        const vertexClickHandler = (e) => {
+          const clickLatLng = e.latlng;
+          const markerLatLng = e.target.getLatLng();
+          
+          // Use the ORIGINAL click position stored in map click handler
+          const originalClick = this._lastOriginalClick;
+          
+          // Calculate pixel distance using ORIGINAL click position
+          const clickPoint = originalClick ? originalClick.containerPoint : this._map.latLngToContainerPoint(clickLatLng);
+          const markerPoint = this._map.latLngToContainerPoint(markerLatLng);
+          const pixelDistance = Math.sqrt(
+            Math.pow(clickPoint.x - markerPoint.x, 2) +
+            Math.pow(clickPoint.y - markerPoint.y, 2)
+          );
+
+          // Only process first vertex clicks (for closing polygon)
+          if (e.target.customHandle !== 0) {
+            return; // Not the first vertex, let Leaflet.Draw handle it normally
           }
-        });
+          
+          // Check if original click is within snapping radius OR if snapping is active and brought us here
+          const maxClickDistance = this.options.snappingQueryRadius || 40;
+          const isWithinSnappingRadius = pixelDistance <= maxClickDistance;
+          const isSnappedToFirstVertex = this.options.snappingEnabled && 
+                                        this.options.snappingLatlng &&
+                                        Math.abs(this.options.snappingLatlng.lat - markerLatLng.lat) < 0.0000001 &&
+                                        Math.abs(this.options.snappingLatlng.lng - markerLatLng.lng) < 0.0000001;
+          
+          if (!isWithinSnappingRadius && !isSnappedToFirstVertex) {
+            // Don't process this click - it shouldn't close the polygon
+            return;
+          }
+          this.options.shapeMode = "polygon";
+          this.options.currenLine.completeShape();
+        };
+        
+        layer.on("click", vertexClickHandler);
         layer.on("mouseover", (e) => {
           const coordinates = this._measureHandler._poly._latlngs;
           const latLngArray = coordinates.map((c) => [c.lat, c.lng]);
@@ -481,9 +527,6 @@ L.Control.MeasurePolygon = L.Control.extend({
       }
     });
 
-    map.on("draw:drawstop", (e) => {
-      console.log("yyy draw:drawstop", e);
-    });
 
     map.on("draw:canceled", () => {
       this.options.checkonedrawpoligon = true;
@@ -923,7 +966,7 @@ L.Control.MeasurePolygon = L.Control.extend({
         this.options.cbSetMapStatus("WAITING");
       }
     });
-    
+
     // Reset status to WAITING when drag ends
     polygon.on("editable:dragend", () => {
       if (this.options.cbSetMapStatus) {
@@ -1009,7 +1052,7 @@ L.Control.MeasurePolygon = L.Control.extend({
             this.options.cbSetMapStatus("WAITING");
           }
         });
-        
+
         // Reset status to WAITING when drag ends
         savedShape.on("editable:dragend", () => {
           if (this.options.cbSetMapStatus) {

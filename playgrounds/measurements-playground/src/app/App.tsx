@@ -21,7 +21,7 @@ import { getActionLinksForFeature } from "react-cismap/tools/uiHelper";
 import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { SnappingContext } from "../main";
 
-suppressReactCismapErrors();
+suppressReactCismapErrors(true);
 
 export function App({
   vectorStyles = [],
@@ -162,9 +162,7 @@ export function App({
         zoomControls={false}
         leafletMapProps={{ editable: true }}
       >
-        <Measurements
-          snappingLayers={maplibreMaps}
-        />
+        <Measurements snappingLayers={maplibreMaps} />
         <TopicMapSelectionContent />
 
         {vectorStyles.map((style, index) => {
