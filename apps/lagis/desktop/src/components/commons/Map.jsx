@@ -63,7 +63,6 @@ import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import { ZoomControl } from "@carma-mapping/components";
 import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextProvider";
 import {
-  MapMeasurementsObjects,
   MeasurementControl,
   InfoBoxMeasurement,
   useMapMeasurementsContext,
@@ -617,7 +616,7 @@ const Map = ({
             mode={mode}
           />
         </RoutedMap>
-        <MapMeasurementsObjects />
+        <Measurements />
         {/* <div className="custom-left-control">
           <LibFuzzySearch
             gazData={gazData}
