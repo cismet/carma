@@ -116,7 +116,7 @@ export const useLoadCapabilities = ({
               const result = parser.toJSON(text);
               if (result) {
                 if (config) {
-                  const tmpLayer = getLayerStructure({
+                  const layerStructure = getLayerStructure({
                     config,
                     wms: result,
                     serviceName: services[key].name,
@@ -124,7 +124,7 @@ export const useLoadCapabilities = ({
                     store: store,
                   });
 
-                  tmpLayer.forEach((category) => {
+                  layerStructure.forEach((category) => {
                     if (category.layers.length > 0) {
                       activeLayers.forEach(async (activeLayer) => {
                         const foundLayer = category.layers.find(
@@ -155,7 +155,7 @@ export const useLoadCapabilities = ({
                       });
                     }
                   });
-                  const mergedLayer = mergeStructures(tmpLayer, newLayers);
+                  const mergedLayer = mergeStructures(layerStructure, newLayers);
 
                   newLayers = mergedLayer;
                   let tmp: Layer[] = [];
@@ -179,13 +179,13 @@ export const useLoadCapabilities = ({
         } else {
           if (services[key].type === "topicmaps") {
           } else {
-            const tmpLayer = getLayerStructure({
+            const layerStructure = getLayerStructure({
               config,
               serviceName: services[key].name,
               skipTopicMaps: true,
               store,
             });
-            const mergedLayer = mergeStructures(tmpLayer, newLayers);
+            const mergedLayer = mergeStructures(layerStructure, newLayers);
             newLayers = mergedLayer;
             let tmp: Layer[] = [];
 
