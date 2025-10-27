@@ -7,29 +7,20 @@ import type {
   CameraPoseRadians,
   CameraPrimitive,
 } from "@carma/cesium";
-import { createEventBus } from "@carma/providers/event-bus";
-
 import {
   CesiumContext,
   type CesiumContextType,
   type CesiumInstanceRecord,
 } from "./CesiumContext";
-import type { CesiumContextEventMap } from "./cesium-context-event-map";
-import { CtxEvent } from "./cesium-context-event-map";
 import { setupCesiumEnvironment } from "../scene/environment";
 
-import {
-  useContextSetupSubscriptions,
-  useContextSetupActivationListener,
-  useContextSetupErrorRecovery,
-} from "./hooks";
+// Event bus hooks removed - using direct refs and callbacks instead
 
 import type { CesiumConfig } from "@carma/cesium/types";
 import type { AnimationMap } from "@carma/types";
 
 import { initAnimationMap } from "../scene/camera/animations";
 import { sceneRequestRender } from "../scene/scene-request-render";
-import { validateCesiumConfig } from "./validate-cesium-config";
 import { validateSceneStyle } from "./validation";
 import {
   convertPortalPoseToCesiumPose,
@@ -121,10 +112,10 @@ export const CesiumContextProvider = ({
     setupCesiumEnvironment(config);
   }
 
-  const { screenSpaceCameraController, sceneStyle } = config;
+  const { screenSpaceCameraController } = config;
 
   // Remount key for error recovery - incrementing this will force widget re-initialization
-  const [remountKey, setRemountKey] = useState(0);
+  const [remountKey] = useState(0);
 
   // Use refs for Cesium instances to prevent re-renders
   const widgetRef = useRef<CesiumWidget | null>(null);
@@ -169,7 +160,7 @@ export const CesiumContextProvider = ({
   });
 
   // Callback for context to receive style ready notifications from SceneStyleManager
-  // Context can use this to emit events to external consumers or coordinate transitions
+  // Context can use this to coordinate transitions
   const sceneStyleReadyCallbackRef = useRef<
     ((isReady: boolean, styleId: string) => void) | null
   >((isReady: boolean, styleId: string) => {
@@ -178,11 +169,6 @@ export const CesiumContextProvider = ({
         isReady ? "READY" : "LOADING"
       }`
     );
-
-    // Context can emit event to external consumers (e.g., for UI feedback)
-    if (isReady) {
-      emit(CtxEvent.SceneResourcesReady, undefined);
-    }
   });
 
   // State refs
@@ -206,8 +192,7 @@ export const CesiumContextProvider = ({
     screenSpaceCameraController?.enableCollisionDetection ?? true
   );
 
-  // Validate config once and memoize - config should be static
-  const validatedConfig = useMemo(() => validateCesiumConfig(config), [config]);
+  // Config validation removed - using direct refs and callbacks instead
 
   // Validate and convert camera poses from Portal format (degrees + altitude) to Cesium format (radians + height)
   const cameraHomePoseRadians = useMemo(() => {
@@ -233,37 +218,9 @@ export const CesiumContextProvider = ({
 
   // Cesium widget instance lifecycle history
   // Tracks each time a Cesium widget instance was created (3D mode activation)
-  const [cesiumInstances, setCesiumInstances] = useState<
-    CesiumInstanceRecord[]
-  >([]);
+  const [cesiumInstances] = useState<CesiumInstanceRecord[]>([]);
 
-  // Event bus for the Cesium context
-  const { subscribe, emit } = useMemo(
-    () => createEventBus<CesiumContextEventMap>(),
-    []
-  );
-
-  // Listen for Activate event to track Cesium widget instance lifecycle
-  useContextSetupActivationListener(
-    subscribe,
-    setCesiumInstances,
-    widgetRef,
-    validatedConfig
-  );
-
-  // MINIMAL MODE: Only essential subscriptions enabled
-  // NOTE: Provider refs (tilesets, imagery) removed - now owned by CesiumSceneComponent
-  useContextSetupSubscriptions({
-    subscribe,
-    emit,
-    sceneRef,
-    isSuspendedRef,
-    isAnimatingRef,
-    currentSceneStyleRef,
-    sceneStyleApplierRef,
-    homeCamera,
-    sceneStyle,
-  });
+  // Event bus removed - using direct refs and callbacks instead
 
   // Camera tracking moved to CesiumSceneComponent (scene-level hook)
   // Scene component now updates context's currentCameraRef
@@ -316,8 +273,6 @@ export const CesiumContextProvider = ({
       sceneCameraTrackerRef,
       sceneStyleReadyStateRef,
       sceneStyleReadyCallbackRef,
-      subscribe,
-      emit,
       prepareSceneInit,
       isAnimatingRef,
       transitionStateRef,
@@ -329,11 +284,10 @@ export const CesiumContextProvider = ({
       config,
       cesiumInstances,
     }),
-    [subscribe, emit, prepareSceneInit, requestRender, config, cesiumInstances]
+    [prepareSceneInit, requestRender, config, cesiumInstances]
   );
 
-  // Auto-recovery from Cesium errors
-  useContextSetupErrorRecovery(setRemountKey, subscribe);
+  // Auto-recovery from Cesium errors - using direct refs instead of event bus
 
   console.debug("CesiumContextProvider Changed/Rendered");
 

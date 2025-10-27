@@ -16,11 +16,8 @@ const logger = new Logger("Transition:2D");
 // Cesium core functions will be dynamically imported to comply with lazy-loading
 
 import {
-  MapTransitionState,
-  type TransitionStageTracker,
   type TransitionTo2dConfig,
 } from "./TransitionContext";
-import { startStage, endStage } from "./transition-stage-helpers";
 
 const noAnimation = {
   animate: false,
@@ -31,13 +28,15 @@ export type TransitionTo2dParams = {
   leafletMapRef: MutableRefObject<LeafletMap | null>;
   sceneRef: MutableRefObject<Scene | null>;
   widgetRef: MutableRefObject<CesiumWidget | null>;
-  transitionStateRef: MutableRefObject<MapTransitionState>;
-  transitionStageTrackerRef: MutableRefObject<TransitionStageTracker>;
   setLast3dCameraOrientation: (hpr: HeadingPitchRange) => void;
   setLast3dAnimationDuration: (duration: number) => void;
   config?: TransitionTo2dConfig;
-  onComplete?: (isTo2d: boolean) => void;
-  onCancel?: (isTo2D: boolean) => void;
+  
+  // Callbacks for side effects (engine switching, CSS fades, etc)
+  onTransitionStart?: () => void; // Called at start - emit TopicMap.Activate
+  onCameraAnimationComplete?: () => void; // Called after camera tilt - trigger CSS fade + emit Cesium.Suspend
+  onComplete?: (isTo2d: boolean) => void; // Called at end
+  onCancel?: (isTo2D: boolean, stage: string) => void; // Called on cancel with stage info for debugging
 };
 
 export const createTransitionTo2d = (params: TransitionTo2dParams) => {
@@ -45,22 +44,21 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
     leafletMapRef,
     sceneRef,
     widgetRef,
-    transitionStateRef,
-    transitionStageTrackerRef,
     setLast3dCameraOrientation,
     setLast3dAnimationDuration,
     config,
+    onTransitionStart,
+    onCameraAnimationComplete,
     onComplete,
     onCancel,
   } = params;
 
-  const { step2_cameraTiltAnimation = {} } = config ?? {};
-
   const {
-    durationFactorCameraDeviationMs = 1.5,
-    durationFactorZoomDiffMs = 500,
-    maxDurationMs: maxDurationTo2dMs = 2000,
-  } = step2_cameraTiltAnimation;
+    step2_cameraTiltDurationFactorDeviationMs = 1.5,
+    step2_cameraTiltDurationFactorZoomMs = 500,
+    step2_cameraTiltMaxDurationMs = 2000,
+    step3_cssFadeOutDurationMs = 1000,
+  } = config ?? {};
 
   return async () => {
     // Dynamic import of Cesium types and functions to comply with lazy-loading
@@ -76,33 +74,25 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
       getTopDownCameraDeviationAngle,
       pickSceneCenter,
       cesiumCenterPixelSizeToLeafletZoom,
-    } = await import("@carma-mapping/engines/cesium/core");
+    } = await import("@carma/cesium/core");
 
     const leafletMap = leafletMapRef.current;
     if (!leafletMap) {
       logger.warn("leaflet not available no transition possible [zoom]");
-      onCancel?.(true);
+      onCancel?.(true, "pre-check");
       throw new Error("Transition to 2D cancelled: leaflet not available");
     }
     const scene = sceneRef.current;
     if (!isValidScene(scene)) {
       logger.warn("cesium not available no transition possible [zoom]");
-      onCancel?.(true);
+      onCancel?.(true, "pre-check");
       throw new Error("Transition to 2D cancelled: scene not available");
     }
+    
     logger.info("========== Starting Transition to 2D ==========");
-
-    startStage(
-      transitionStateRef,
-      transitionStageTrackerRef,
-      MapTransitionState.to2d_step1_calculatePosition
-    );
+    onTransitionStart?.(); // Emit TopicMap.Activate
 
     logger.debug("Attempting pick at scene center for ground position");
-    endStage(
-      transitionStageTrackerRef,
-      MapTransitionState.to2d_step1_calculatePosition
-    );
 
     // Do not transition if we cannot pick ground from depth (ellipsoid-only is not allowed)
     const { scenePosition: groundPos, coordinates: cartographic } =
@@ -111,7 +101,7 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
     const sceneCamera = scene.camera;
     if (!isValidCamera(sceneCamera)) {
       logger.warn("[CESIUM|2D3D|TO2D] camera not valid");
-      onCancel?.(true);
+      onCancel?.(true, "invalid-camera");
       throw new Error("Transition to 2D cancelled: camera not valid");
     }
 
@@ -123,8 +113,7 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
       logger.error(
         "✗ No valid ground height (depth) found – cancel transition"
       );
-      transitionStateRef.current = MapTransitionState.mode3d;
-      onCancel?.(true);
+      onCancel?.(true, "ground-pick");
       throw new Error(
         "Transition to 2D cancelled: no valid ground height found"
       );
@@ -144,8 +133,7 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
       logger.error(
         "[CESIUM|2D3D|TO2D] ✗ Could not determine current zoom level"
       );
-      transitionStateRef.current = MapTransitionState.mode3d;
-      onCancel?.(true);
+      onCancel?.(true, "zoom-calculation");
       throw new Error(
         "Transition to 2D cancelled: could not determine zoom level"
       );
@@ -207,7 +195,7 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
 
     if (!baseComputedPixelResolution) {
       logger.error("[CESIUM|2D3D|TO2D] Could not compute pixel resolution");
-      onCancel?.(true);
+      onCancel?.(true, "pixel-resolution-calculation");
       throw new Error(
         "Transition to 2D cancelled: could not compute pixel resolution"
       );
@@ -238,9 +226,9 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
     const cameraDeviation = getTopDownCameraDeviationAngle(sceneCamera);
     const zoomDiff = Math.abs(currentZoom - targetZoom);
     const calculatedDurationMs =
-      (cameraDeviation ?? 0) * durationFactorCameraDeviationMs +
-      zoomDiff * durationFactorZoomDiffMs;
-    const durationMs = Math.min(calculatedDurationMs, maxDurationTo2dMs); // Cap at configured max
+      (cameraDeviation ?? 0) * step2_cameraTiltDurationFactorDeviationMs +
+      zoomDiff * step2_cameraTiltDurationFactorZoomMs;
+    const durationMs = Math.min(calculatedDurationMs, step2_cameraTiltMaxDurationMs);
 
     logger.log(
       `[CESIUM|2D3D|TO2D] Tilt animation duration: ${durationMs.toFixed(
@@ -279,7 +267,7 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
 
     if (!leafletMap) {
       logger.error("[CESIUM|2D3D|TO2D] ✗ Leaflet not available");
-      onCancel?.(false);
+      onCancel?.(true, "leaflet-not-available-step3");
       throw new Error("Transition to 2D cancelled: leaflet not available");
     }
 
@@ -292,16 +280,9 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
     logger.debug("✓ Leaflet view set - tiles loading in background");
 
     // ========== STEP 4: Animate Camera to Nadir ==========
-    startStage(
-      transitionStateRef,
-      transitionStageTrackerRef,
-      MapTransitionState.to2d_step2_cameraTiltAnimation
-    );
-
     if (!hasGroundPos) {
       logger.error("✗ No ground position, cannot transition");
-      onCancel?.(false);
-      transitionStateRef.current = MapTransitionState.mode3d;
+      onCancel?.(false, "ground-check-animation");
       return;
     }
 
@@ -325,10 +306,7 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
             logger.debug(
               "✓ Camera animation to nadir complete - onComplete callback fired"
             );
-            endStage(
-              transitionStageTrackerRef,
-              MapTransitionState.to2d_step2_cameraTiltAnimation
-            );
+            onCameraAnimationComplete?.(); // Trigger CSS fade + emit Cesium.Suspend
             resolve();
           },
           cancelable: false,
@@ -337,32 +315,16 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
       );
     });
 
-    // ========== STEP 6: Trigger Fade Transition ==========
-    // NOW start the CSS fade-out stage AFTER pitch animation onComplete callback
-    // This ensures the fade happens only after the camera animation is truly done
-    logger.debug("✓ Starting fade transition - animation onComplete has fired");
+    // ========== STEP 6: CSS Fade-Out ==========
+    logger.debug("✓ Starting CSS fade-out");
 
-    startStage(
-      transitionStateRef,
-      transitionStageTrackerRef,
-      MapTransitionState.to2d_step3_cssFadeOut
-    );
-
-    // Wait for CSS fade to complete (get duration from config)
-    const { step3_cssFadeOut = {} } = config ?? {};
-    const fadeDurationMs = step3_cssFadeOut.durationMs ?? 1000;
-
-    logger.debug(`Waiting for CSS fade (${fadeDurationMs}ms)...`);
+    // Wait for CSS fade to complete
+    logger.debug(`Waiting for CSS fade (${step3_cssFadeOutDurationMs}ms)...`);
     await new Promise<void>((resolve) => {
-      setTimeout(() => resolve(), fadeDurationMs);
+      setTimeout(() => resolve(), step3_cssFadeOutDurationMs);
     });
 
     logger.debug("✓ CSS fade complete");
-    endStage(
-      transitionStageTrackerRef,
-      MapTransitionState.to2d_step3_cssFadeOut
-    );
-    transitionStateRef.current = MapTransitionState.mode2d;
     logger.info("========== Transition to 2D Complete ===========");
     onComplete?.(true);
   };

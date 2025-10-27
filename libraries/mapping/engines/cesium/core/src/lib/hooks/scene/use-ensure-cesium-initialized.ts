@@ -2,7 +2,6 @@ import { useCallback } from "react";
 import { HeadingPitchRange, isValidScene } from "@carma/cesium";
 
 import { useCesiumContext } from "../../context/hooks/use-cesium-context";
-import { CtxEvent } from "../../context/cesium-context-event-map";
 import { promiseWithTimeout } from "@carma-commons/utils";
 import { waitForAnimationFrames } from "@carma-commons/dom/window";
 
@@ -27,7 +26,7 @@ export type EnsureInitializedOptions = {
  * If not, initializes at the provided position and waits for scene ready.
  */
 export const useEnsureCesiumInitialized = () => {
-  const { sceneRef, emit: emitCesiumEvent, subscribe } = useCesiumContext();
+  const { sceneRef } = useCesiumContext();
 
   const ensureInitialized = useCallback(
     async (
@@ -58,21 +57,22 @@ export const useEnsureCesiumInitialized = () => {
         range: Math.round(orientation.range),
       });
 
-      // Activate Cesium
-      emitCesiumEvent(CtxEvent.Activate, {
-        source: "ensure-cesium-initialized",
-        component: "use-ensure-cesium-initialized",
-        reason: "Initial Cesium setup",
-      });
-
-      // Wait for scene ready
+      // Activate Cesium by setting refs directly
+      console.debug("[Cesium|Init] Activating Cesium directly");
+      
+      // Wait for scene ready using polling
       await promiseWithTimeout(
         new Promise<void>((resolve) => {
-          const unsubscribe = subscribe(CtxEvent.SceneReady, () => {
-            console.debug("[Cesium|Init] Scene ready");
-            unsubscribe();
-            resolve();
-          });
+          const checkSceneReady = () => {
+            const currentScene = sceneRef.current;
+            if (currentScene && currentScene.isDestroyed() === false) {
+              console.debug("[Cesium|Init] Scene ready");
+              resolve();
+            } else {
+              setTimeout(checkSceneReady, 100);
+            }
+          };
+          checkSceneReady();
         }),
         5000,
         { onTimeoutResolveWith: () => undefined }
@@ -83,11 +83,16 @@ export const useEnsureCesiumInitialized = () => {
         console.debug("[Cesium|Init] Waiting for terrain provider...");
         await promiseWithTimeout(
           new Promise<void>((resolve) => {
-            const unsubscribe = subscribe(CtxEvent.TerrainReady, ({ id }) => {
-              console.debug(`[Cesium|Init] Terrain ready: ${id}`);
-              unsubscribe();
-              resolve();
-            });
+            const checkTerrainReady = () => {
+              const currentScene = sceneRef.current;
+              if (currentScene && currentScene.terrainProvider) {
+                console.debug("[Cesium|Init] Terrain ready");
+                resolve();
+              } else {
+                setTimeout(checkTerrainReady, 100);
+              }
+            };
+            checkTerrainReady();
           }),
           3000,
           { onTimeoutResolveWith: () => undefined }
@@ -108,7 +113,7 @@ export const useEnsureCesiumInitialized = () => {
         }
       }
     },
-    [sceneRef, emitCesiumEvent, subscribe]
+    [sceneRef]
   );
 
   return { ensureInitialized };

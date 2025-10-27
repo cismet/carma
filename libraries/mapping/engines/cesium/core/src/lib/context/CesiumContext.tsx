@@ -6,10 +6,7 @@ import type {
   CameraPoseRadians,
 } from "@carma/cesium";
 
-import {
-  EmitCesiumCtxFn,
-  SubscribeCesiumCtxFn,
-} from "./cesium-context-event-map";
+// Event bus removed - using direct refs and callbacks instead
 import type { DelayedRenderOptions } from "@carma-commons/dom/window";
 import type { AnimationMap } from "@carma/types";
 import type { CesiumConfig } from "@carma/cesium/types";
@@ -83,9 +80,7 @@ export interface CesiumContextType {
     ((isReady: boolean, styleId: string) => void) | null
   >;
 
-  // Event bus (for EXTERNAL consumers only - app components, etc)
-  subscribe: SubscribeCesiumCtxFn;
-  emit: EmitCesiumCtxFn;
+  // Event bus removed - using direct refs and callbacks instead
 
   // Scene initialization gate (synchronous validation)
   // Wrapper calls this to prepare refs before mounting scene

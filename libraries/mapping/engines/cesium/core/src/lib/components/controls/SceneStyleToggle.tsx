@@ -6,21 +6,23 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 
 import { useCesiumContext } from "../../context/hooks/use-cesium-context";
-import { CtxEvent } from "../../context/cesium-context-event-map";
 
 type SceneStyleToggleProps = {
   children?: ReactNode;
   onToggle?: (isAerial: boolean) => void;
 };
 export const SceneStyleToggle = (props: SceneStyleToggleProps) => {
-  const { emit, currentSceneStyleRef } = useCesiumContext();
+  const { currentSceneStyleRef, sceneStyleApplierRef } = useCesiumContext();
   const currentSceneStyle = currentSceneStyleRef.current;
   const isAerialStyle = currentSceneStyle === "aerial";
   const { onToggle } = props;
 
   const handleToggle = (e: MouseEvent) => {
     e.preventDefault();
-    emit(CtxEvent.ToggleSceneStyle, undefined);
+    // Direct style toggle - no event system needed
+    const newStyle = isAerialStyle ? "lod2" : "aerial";
+    console.log("[SceneStyleToggle] Toggling style to:", newStyle);
+    sceneStyleApplierRef.current?.(newStyle);
     onToggle?.(isAerialStyle);
   };
 

@@ -4,7 +4,6 @@ import {
   type CesiumTerrainProvider,
 } from "@carma/cesium";
 import { useCesiumContext } from "../../../context";
-import { CtxEvent } from "../../../context/cesium-context-event-map";
 import { loadCesiumTerrainProvider } from "../../../loaders";
 import type { CesiumTerrainProviderConfig } from "@carma/cesium/types";
 
@@ -22,7 +21,7 @@ const getTerrainId = (config: CesiumTerrainProviderConfig): string => {
 export const useTerrainManager = (
   terrainConfigs: CesiumTerrainProviderConfig[]
 ) => {
-  const { sceneRef, subscribe, emit } = useCesiumContext();
+  const { sceneRef } = useCesiumContext();
 
   // Track loaded terrain providers by id
   const loadedProvidersRef = useRef<Map<string, CesiumTerrainProvider>>(
@@ -31,7 +30,18 @@ export const useTerrainManager = (
   const activeProviderIdRef = useRef<string | null>(null);
 
   useEffect(() => {
-    const unsubscribe = subscribe(CtxEvent.SceneReady, async () => {
+    const checkSceneReady = () => {
+      const scene = sceneRef.current;
+      if (scene && scene.isDestroyed() === false) {
+        // Scene is ready, load terrain providers
+        loadTerrainProviders();
+      } else {
+        // Scene not ready yet, check again in 100ms
+        setTimeout(checkSceneReady, 100);
+      }
+    };
+
+    const loadTerrainProviders = async () => {
       const scene = sceneRef.current;
       if (!scene) return;
 
@@ -107,50 +117,25 @@ export const useTerrainManager = (
             console.log(`[CESIUM|TERRAIN] ✓ Set as active: ${id}`);
             scene.requestRender();
 
-            // Emit TerrainReady event for initialization flow
-            emit(CtxEvent.TerrainReady, { id });
+            // Direct callback instead of event emission
+            console.log(`[CESIUM|TERRAIN] Terrain ready: ${id}`);
           }
         } catch (error) {
           console.error("[CESIUM|TERRAIN] Load error:", id, error);
         }
       }
-    });
+    };
+
+    // Start checking immediately
+    checkSceneReady();
 
     return () => {
-      unsubscribe();
       loadedProvidersRef.current.clear();
       activeProviderIdRef.current = null;
     };
-  }, [terrainConfigs, sceneRef, subscribe, emit]);
+  }, [terrainConfigs, sceneRef]);
 
-  // Subscribe to terrain provider switch events
-  useEffect(() => {
-    const unsubscribe = subscribe(
-      CtxEvent.SetTerrainProvider,
-      ({ id }: { id: string }) => {
-        const scene = sceneRef.current;
-        if (!scene) return;
-
-        const provider = loadedProvidersRef.current.get(id);
-        if (provider) {
-          const previousProvider = activeProviderIdRef.current;
-          scene.terrainProvider = provider;
-          scene.globe.show = true;
-          activeProviderIdRef.current = id;
-          console.log(
-            `[CESIUM|TERRAIN] ✓ Switched to provider: ${id} (from: ${
-              previousProvider || "none"
-            })`
-          );
-          scene.requestRender();
-        } else {
-          console.warn(`[CESIUM|TERRAIN] ⚠️ Provider not found: ${id}`);
-        }
-      }
-    );
-
-    return unsubscribe;
-  }, [subscribe, sceneRef]);
+  // Event subscriptions removed - using direct ref manipulation instead
 };
 
 export default useTerrainManager;

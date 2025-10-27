@@ -1,7 +1,6 @@
 import { useEffect, useCallback, useRef, type MutableRefObject } from "react";
 import type { ImageryLayer } from "@carma/cesium";
 import { useCesiumContext } from "../../../context";
-import { CtxEvent } from "../../../context/cesium-context-event-map";
 import { loadCesiumImageryLayer } from "../../../loaders";
 import type { ImageryProviderConfig } from "@carma/cesium/types";
 
@@ -24,7 +23,7 @@ export const useImageryManager = (
     ) => void;
   }>
 ) => {
-  const { sceneRef, subscribe } = useCesiumContext();
+  const { sceneRef } = useCesiumContext();
 
   // Scene-owned ref: Track loaded imagery layers (destroyed on unmount)
   const imageryLayersRef = useRef<Map<string, ImageryLayer>>(new Map());
@@ -99,15 +98,22 @@ export const useImageryManager = (
 
   // Scene ready - don't load imagery yet, just mark as ready
   useEffect(() => {
-    const unsubscribe = subscribe(CtxEvent.SceneReady, async () => {
-      console.debug(
-        "[CESIUM|IMAGERY] Scene ready - imagery will load on-demand"
-      );
-    });
+    const checkSceneReady = () => {
+      const scene = sceneRef.current;
+      if (scene && scene.isDestroyed() === false) {
+        console.debug(
+          "[CESIUM|IMAGERY] Scene ready - imagery will load on-demand"
+        );
+      } else {
+        // Scene not ready yet, check again in 100ms
+        setTimeout(checkSceneReady, 100);
+      }
+    };
+
+    // Start checking immediately
+    checkSceneReady();
 
     return () => {
-      unsubscribe();
-
       // Cleanup on unmount
       const scene = sceneRef.current;
       if (scene && !scene.isDestroyed()) {
@@ -119,84 +125,9 @@ export const useImageryManager = (
       }
       imageryLayersRef.current.clear();
     };
-  }, [imageryConfigs, sceneRef, subscribe, imageryLayersRef]);
+  }, [imageryConfigs, sceneRef, imageryLayersRef]);
 
-  // Subscribe to imagery layer visibility events - load on first visibility request
-  useEffect(() => {
-    const unsubscribe = subscribe(
-      CtxEvent.SetImageryVisibility,
-      async (payload: any) => {
-        console.log(`[IMAGERY|VIS] Raw event payload:`, payload);
-        const { id, visible } = payload || {};
-        console.log(
-          `[IMAGERY|VIS] Event received: ${id} -> ${visible ? "SHOW" : "HIDE"}`
-        );
-
-        // Find the imagery config
-        const imageryConfig = imageryConfigs.find(
-          (ic) => getImageryId(ic) === id
-        );
-        if (!imageryConfig) {
-          console.warn("[IMAGERY|VIS] Config not found for:", id);
-          console.log(
-            "[IMAGERY|VIS] Available configs:",
-            imageryConfigs.map((ic) => ic.id)
-          );
-          return;
-        }
-
-        // Lazy load if not already loaded and being made visible
-        if (!imageryLayersRef.current.has(id) && visible) {
-          console.debug(
-            "[CESIUM|IMAGERY] Lazy loading on first visibility:",
-            id
-          );
-          await loadImageryOnDemand(imageryConfig);
-        }
-
-        // Update visibility - use requestAnimationFrame to avoid race conditions
-        const layer = imageryLayersRef.current.get(id);
-        if (layer && !layer.isDestroyed()) {
-          requestAnimationFrame(() => {
-            if (!layer.isDestroyed()) {
-              layer.show = visible;
-              console.log(
-                `[CESIUM|IMAGERY] ${
-                  visible ? "✓ SHOWN" : "✗ HIDDEN"
-                }: ${id} (show=${layer.show})`
-              );
-              sceneRef.current?.requestRender();
-            }
-          });
-        }
-      }
-    );
-
-    return unsubscribe;
-  }, [
-    subscribe,
-    sceneRef,
-    imageryConfigs,
-    imageryLayersRef,
-    loadImageryOnDemand,
-  ]);
-
-  // Subscribe to imagery layer opacity events
-  useEffect(() => {
-    const unsubscribe = subscribe(
-      CtxEvent.SetImageryOpacity,
-      ({ id, opacity }: { id: string; opacity: number }) => {
-        const layer = imageryLayersRef.current.get(id);
-        if (layer && !layer.isDestroyed()) {
-          layer.alpha = opacity;
-          console.debug("[CESIUM|IMAGERY] Opacity:", id, opacity);
-          sceneRef.current?.requestRender();
-        }
-      }
-    );
-
-    return unsubscribe;
-  }, [subscribe, sceneRef, imageryLayersRef]);
+  // Event subscriptions removed - using direct ref manipulation instead
 
   // Register callback for style changes
   useEffect(() => {

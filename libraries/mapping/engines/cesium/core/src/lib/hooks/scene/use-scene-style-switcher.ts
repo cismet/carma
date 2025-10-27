@@ -1,6 +1,5 @@
 import { useEffect, useRef, type MutableRefObject } from "react";
 import { useCesiumContext } from "../../context/hooks/use-cesium-context";
-import { CtxEvent } from "../../context/cesium-context-event-map";
 
 /**
  * Scene-level hook that coordinates scene style switching AND resource loading.
@@ -55,7 +54,7 @@ export const useSceneStyleSwitcher = (
     currentSceneStyleRef,
     availableSceneStylesRef,
     sceneStyleApplierRef,
-    subscribe,
+    sceneRef,
   } = useCesiumContext();
 
   const sceneStyle = config.sceneStyle;
@@ -289,98 +288,106 @@ export const useSceneStyleSwitcher = (
     sceneStyleApplierRef.current = applySceneStyle;
     console.log("[SceneStyleSwitcher] Registered style applier with context");
 
-    // Wait for scene to be ready before applying initial style
-    const unsubscribe = subscribe(CtxEvent.SceneReady, () => {
-      console.log("[SceneStyleSwitcher] Scene ready - applying initial style");
+    // Wait for scene to be ready before applying initial style using polling
+    const checkSceneReady = () => {
+      const scene = sceneRef.current;
+      if (scene && scene.isDestroyed() === false) {
+        console.log("[SceneStyleSwitcher] Scene ready - applying initial style");
 
-      const initialStyle = currentSceneStyleRef.current;
-      if (!initialStyle) {
-        console.warn("[SceneStyleSwitcher] No initial style set in context");
-        return;
-      }
+        const initialStyle = currentSceneStyleRef.current;
+        if (!initialStyle) {
+          console.warn("[SceneStyleSwitcher] No initial style set in context");
+          return;
+        }
 
-      const style = sceneStyle?.styles?.find((s) => s.id === initialStyle);
-      if (!style) {
-        console.warn(`[SceneStyleSwitcher] Style "${initialStyle}" not found`);
-        return;
-      }
+        const style = sceneStyle?.styles?.find((s) => s.id === initialStyle);
+        if (!style) {
+          console.warn(`[SceneStyleSwitcher] Style "${initialStyle}" not found`);
+          return;
+        }
 
-      console.log(`[SceneStyleSwitcher] Calling style callbacks for:`, style);
+        console.log(`[SceneStyleSwitcher] Calling style callbacks for:`, style);
 
-      // Reset resource trackers for initial style
-      resourceTrackerRef.current.required.clear();
-      resourceTrackerRef.current.ready.clear();
-      resourceTrackerRef.current.hasEmitted = false;
+        // Reset resource trackers for initial style
+        resourceTrackerRef.current.required.clear();
+        resourceTrackerRef.current.ready.clear();
+        resourceTrackerRef.current.hasEmitted = false;
 
-      presentableTrackerRef.current.required.clear();
-      presentableTrackerRef.current.presentable.clear();
-      presentableTrackerRef.current.hasEmitted = false;
+        presentableTrackerRef.current.required.clear();
+        presentableTrackerRef.current.presentable.clear();
+        presentableTrackerRef.current.hasEmitted = false;
 
-      // Determine required resources from style config (use actual resource IDs)
-      if (style.tilesets && style.tilesets.length > 0) {
-        style.tilesets.forEach((t) => {
-          if (t.id) {
-            console.log(
-              `[StyleSwitcher|Resources] ${t.id} → REQUIRED (initial)`
-            );
-            resourceTrackerRef.current.required.add(t.id);
-            presentableTrackerRef.current.required.add(t.id);
-          }
-        });
-      }
-      if (style.terrain) {
-        console.log(
-          `[StyleSwitcher|Resources] ${style.terrain} → REQUIRED (initial)`
+        // Determine required resources from style config (use actual resource IDs)
+        if (style.tilesets && style.tilesets.length > 0) {
+          style.tilesets.forEach((t) => {
+            if (t.id) {
+              console.log(
+                `[StyleSwitcher|Resources] ${t.id} → REQUIRED (initial)`
+              );
+              resourceTrackerRef.current.required.add(t.id);
+              presentableTrackerRef.current.required.add(t.id);
+            }
+          });
+        }
+        if (style.terrain) {
+          console.log(
+            `[StyleSwitcher|Resources] ${style.terrain} → REQUIRED (initial)`
+          );
+          resourceTrackerRef.current.required.add(style.terrain);
+          presentableTrackerRef.current.required.add(style.terrain);
+        }
+        if (style.imageryLayers && style.imageryLayers.length > 0) {
+          style.imageryLayers.forEach((l) => {
+            console.log(`[StyleSwitcher|Resources] ${l.id} → REQUIRED (initial)`);
+            resourceTrackerRef.current.required.add(l.id);
+            presentableTrackerRef.current.required.add(l.id);
+          });
+        }
+        if (style.globe) {
+          console.log(`[StyleSwitcher|Resources] globe → REQUIRED (initial)`);
+          resourceTrackerRef.current.required.add("globe");
+          presentableTrackerRef.current.required.add("globe");
+        }
+        if (style.backgroundColor) {
+          console.log(
+            `[StyleSwitcher|Resources] background → REQUIRED (initial)`
+          );
+          resourceTrackerRef.current.required.add("background");
+          presentableTrackerRef.current.required.add("background");
+        }
+
+        // Call all registered callbacks with style settings
+        // Filter tilesets with required IDs only
+        const validTilesets = (style.tilesets || []).filter(
+          (t): t is { id: string } => !!t.id
         );
-        resourceTrackerRef.current.required.add(style.terrain);
-        presentableTrackerRef.current.required.add(style.terrain);
-      }
-      if (style.imageryLayers && style.imageryLayers.length > 0) {
-        style.imageryLayers.forEach((l) => {
-          console.log(`[StyleSwitcher|Resources] ${l.id} → REQUIRED (initial)`);
-          resourceTrackerRef.current.required.add(l.id);
-          presentableTrackerRef.current.required.add(l.id);
-        });
-      }
-      if (style.globe) {
-        console.log(`[StyleSwitcher|Resources] globe → REQUIRED (initial)`);
-        resourceTrackerRef.current.required.add("globe");
-        presentableTrackerRef.current.required.add("globe");
-      }
-      if (style.backgroundColor) {
-        console.log(
-          `[StyleSwitcher|Resources] background → REQUIRED (initial)`
+        styleCallbacksRef.current.onTilesetsChange?.(validTilesets);
+        styleCallbacksRef.current.onBackgroundColorChange?.(
+          style.backgroundColor
         );
-        resourceTrackerRef.current.required.add("background");
-        presentableTrackerRef.current.required.add("background");
-      }
+        styleCallbacksRef.current.onShadowsChange?.(style.shadows ?? false);
+        styleCallbacksRef.current.onGlobeSettingsChange?.(style.globe || {});
+        // Filter imagery layers with required fields
+        const validImageryLayers = (style.imageryLayers || []).map((l) => ({
+          id: l.id,
+          opacity: l.opacity ?? 1,
+        }));
+        styleCallbacksRef.current.onImageryLayersChange?.(validImageryLayers);
+        if (style.terrain) {
+          styleCallbacksRef.current.onTerrainChange?.(style.terrain);
+        }
 
-      // Call all registered callbacks with style settings
-      // Filter tilesets with required IDs only
-      const validTilesets = (style.tilesets || []).filter(
-        (t): t is { id: string } => !!t.id
-      );
-      styleCallbacksRef.current.onTilesetsChange?.(validTilesets);
-      styleCallbacksRef.current.onBackgroundColorChange?.(
-        style.backgroundColor
-      );
-      styleCallbacksRef.current.onShadowsChange?.(style.shadows ?? false);
-      styleCallbacksRef.current.onGlobeSettingsChange?.(style.globe || {});
-      // Filter imagery layers with required fields
-      const validImageryLayers = (style.imageryLayers || []).map((l) => ({
-        id: l.id,
-        opacity: l.opacity ?? 1,
-      }));
-      styleCallbacksRef.current.onImageryLayersChange?.(validImageryLayers);
-      if (style.terrain) {
-        styleCallbacksRef.current.onTerrainChange?.(style.terrain);
+        console.log("[SceneStyleSwitcher] Initial style callbacks invoked");
+      } else {
+        // Scene not ready yet, check again in 100ms
+        setTimeout(checkSceneReady, 100);
       }
+    };
 
-      console.log("[SceneStyleSwitcher] Initial style callbacks invoked");
-    });
+    // Start checking immediately
+    checkSceneReady();
 
     return () => {
-      unsubscribe();
       sceneStyleApplierRef.current = null;
       console.log(
         "[SceneStyleSwitcher] Unregistered style applier from context"

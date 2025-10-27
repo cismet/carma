@@ -3,10 +3,7 @@ import { Easing } from "@carma-commons/math";
 import { AnimationMap, AnimationTypes } from "@carma/types";
 
 import { cancelAnimation } from "./animation-map";
-import {
-  CtxEvent,
-  type EmitCesiumCtxFn,
-} from "../../../context/cesium-context-event-map";
+// Event system removed - using direct callbacks instead
 import { tryWithValidCamera, tryWithValidScene } from "@carma/cesium";
 import { sceneRequestRender } from "../../scene-request-render";
 
@@ -22,7 +19,7 @@ export interface CesiumAnimateFovOptions {
 export const cesiumAnimateFov = (
   scene: Scene,
   animationMap: AnimationMap,
-  emit: EmitCesiumCtxFn,
+  onFovChange?: (fov: number) => void,
   {
     startFov,
     targetFov,
@@ -54,8 +51,8 @@ export const cesiumAnimateFov = (
       });
       sceneRequestRender(scene);
       onRender?.(newFov);
-      // Emit per-frame FOV changes via Cesium context bus
-      emit?.(CtxEvent.FovChange, newFov);
+      // Direct callback instead of event emission
+      onFovChange?.(newFov);
 
       if (progress < 1) {
         animationFrameId = requestAnimationFrame(animate);

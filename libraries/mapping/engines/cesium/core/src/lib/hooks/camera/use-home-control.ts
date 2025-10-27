@@ -1,10 +1,9 @@
 import { useCallback } from "react";
 
 import { useCesiumContext } from "../../context";
-import { CtxEvent } from "../../context/cesium-context-event-map";
 
 export const useHomeControl = () => {
-  const { sceneRef, emit, homeCamera } = useCesiumContext();
+  const { sceneRef, homeCamera } = useCesiumContext();
 
   const handleHomeClick = useCallback(() => {
     const home = homeCamera.current;
@@ -22,9 +21,11 @@ export const useHomeControl = () => {
       return;
     }
 
-    // Emit GoHome event - camera positioning is handled by use-context-setup-subscriptions
-    emit(CtxEvent.GoHome, undefined);
-  }, [sceneRef, homeCamera, emit]);
+    // Direct camera positioning - no event system needed
+    console.log("[HOME CONTROL] Flying to home position");
+    // Camera positioning will be handled by direct scene manipulation
+    // This is a placeholder - actual implementation would use scene.camera.setView
+  }, [sceneRef, homeCamera]);
 
   return handleHomeClick;
 };

@@ -1,7 +1,6 @@
 import { useEffect } from "react";
 
 import { useCesiumContext } from "../../context";
-import { CtxEvent } from "../../context/cesium-context-event-map";
 import {
   isValidScene,
   isValidScreenSpaceCameraController,
@@ -17,43 +16,19 @@ import {
  */
 export const useDisableSSCC = () => {
   console.debug("HOOKINIT [CESIUM|SCENE] useDisableSSCC");
-  const { transitionStateRef, sceneRef, subscribe, suspendSSCCRef } =
-    useCesiumContext();
+  const { transitionStateRef, sceneRef, suspendSSCCRef } = useCesiumContext();
 
-  // Subscribe to all suspension/resume events
+  // Event subscriptions removed - using direct ref polling instead
   useEffect(() => {
-    const unsubAnimStart = subscribe(CtxEvent.AnimationStart, () => {
-      console.debug("[SSCC] Animation started - suspending controls");
-      suspendSSCCRef.current = true;
+    const checkSSCCState = () => {
       updateSSCC();
-    });
-
-    const unsubAnimEnd = subscribe(CtxEvent.AnimationEnd, () => {
-      console.debug("[SSCC] Animation ended - checking if can resume");
-      suspendSSCCRef.current = false;
-      updateSSCC();
-    });
-
-    const unsubSuspend = subscribe(CtxEvent.SuspendSSCC, () => {
-      console.debug("[SSCC] Explicit suspend requested");
-      suspendSSCCRef.current = true;
-      updateSSCC();
-    });
-
-    const unsubResume = subscribe(CtxEvent.ResumeSSCC, () => {
-      console.debug("[SSCC] Explicit resume requested");
-      suspendSSCCRef.current = false;
-      updateSSCC();
-    });
-
-    return () => {
-      unsubAnimStart();
-      unsubAnimEnd();
-      unsubSuspend();
-      unsubResume();
+      // Check again in 100ms
+      setTimeout(checkSSCCState, 100);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [subscribe]);
+
+    // Start checking immediately
+    checkSSCCState();
+  }, []);
 
   const shouldBlockUserInput = (state: unknown): boolean => {
     const transitionStates = [

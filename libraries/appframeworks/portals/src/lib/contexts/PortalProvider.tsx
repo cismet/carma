@@ -25,7 +25,6 @@ import { CarmaTopicMapContextProvider } from "@carma-mapping/engines/carma-cisma
 import { TransitionContextProvider } from "@carma-mapping/map-transition-2d-3d";
 import { LeafletConfig } from "@carma/types";
 import { validatePortalCesiumConfig } from "./validate-portal-config";
-import { TransitionEngineSync } from "../components/TransitionEngineSync";
 import { parseInitialPortalState } from "./parse-initial-portal-state";
 
 /**
@@ -35,11 +34,10 @@ import { parseInitialPortalState } from "./parse-initial-portal-state";
  * 1. **MapTypeSwitcher** requests 3D mode
  *    → Calls useMapModeToggle().toggle()
  *    → Calls useMapTransition().transitionToMode3d()
- *
- * 2. **PortalContext** enables 3D engine
- *    → TransitionEngineSync listens to TransitionTo3dStart event
- *    → Emits CtxEvent.Activate (to Cesium context)
- *    → Emits TopicMapCtxEvent.Suspend (to TopicMap)
+ * 
+ * 2. **Transition callbacks** handle engine switching
+ *    → onTransitionStart emits CtxEvent.Activate (to Cesium context)
+ *    → onTransitionStart emits TopicMapCtxEvent.Suspend (to TopicMap)
  *
  * 3. **CesiumMapComponentWrapper** (Portal level) acts as gate
  *    → Receives Activate event
@@ -262,8 +260,8 @@ export const PortalProvider = ({ children, config }: PortalProviderProps) => {
     setIsInitialized(true);
   }, []);
 
-  // Engine switching orchestration handled by TransitionEngineSync component
-  // (lives here because it needs access to all engine contexts)
+  // Engine switching now handled by callbacks in transition functions
+  // See use-map-transition.ts for onTransitionStart/onCameraAnimationComplete callbacks
 
   // Location update handlers (called by hash routing hooks)
   const updateMapPosition = useCallback(
@@ -399,7 +397,6 @@ export const PortalProvider = ({ children, config }: PortalProviderProps) => {
                   : undefined
               }
             >
-              <TransitionEngineSync setCurrentEngine={setCurrentEngine} />
               {children}
             </CesiumContextProvider>
           </OverlayTourProvider>

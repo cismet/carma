@@ -6,7 +6,7 @@ import type { Radians, Ratio } from "@carma/units/types";
 import { isClose } from "@carma/units/helpers";
 import { normalizeOptions, blockWheelEvent } from "@carma-commons/utils";
 
-import { CtxEvent } from "../../context/cesium-context-event-map";
+// Event system removed - using direct callbacks instead
 
 import {
   DEFAULT_MAX_FOV,
@@ -55,7 +55,7 @@ export function useFovWheelZoom(
     minFovChange,
   } = normalizeOptions(options, defaultFovWheelZoomOptions);
 
-  const { sceneRef, emit } = useCesiumContext();
+  const { sceneRef } = useCesiumContext();
 
   const handleWheel = useCallback(
     (event: WheelEvent) => {
@@ -79,14 +79,13 @@ export function useFovWheelZoom(
         onFovChange?.(nextFov, currentFov);
         frustum.fov = nextFov;
         sceneRequestRender(scene);
-        // Emit via enum-typed context event
-        emit?.(CtxEvent.FovChange, nextFov);
+        // Direct callback instead of event emission
+        // FOV change is handled by the onFovChange callback
         onAfterFovChange?.();
       }
     },
     [
       sceneRef,
-      emit,
       minFov,
       maxFov,
       fovChangeRate,

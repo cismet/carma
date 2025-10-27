@@ -4,7 +4,6 @@ import {
   useMemo,
   useEffect,
   useRef,
-  memo,
 } from "react";
 import type { GlobeConstructorOptionsPrimitive } from "@carma/cesium/types";
 import { merge } from "lodash";

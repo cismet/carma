@@ -1,11 +1,10 @@
 /**
  * WebMapTileServiceImageryProvider with extended config support
  */
-import { WebMapTileServiceImageryProvider, Rectangle } from "cesium";
+import { WebMapTileServiceImageryProvider } from "cesium";
 import type { Degrees } from "@carma/units/types";
 
 export { WebMapTileServiceImageryProvider };
-export { rectangleFromConfig } from "../Core/Rectangle";
 
 /**
  * Rectangle bounds as plain object with coordinates in DEGREES.

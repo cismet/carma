@@ -1,7 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { CesiumWidget } from "@carma/cesium";
 import { useCesiumContext } from "../../context";
-import { CtxEvent } from "../../context/cesium-context-event-map";
 import { configureCesiumErrorHandling } from "../../scene/environment/error-handling";
 import {
   validateCesiumWorkers,
@@ -20,7 +19,7 @@ export const useInitCesiumWidget = (
     minZoomDistanceRef,
     maxZoomDistanceRef,
     enableCollisionDetectionRef,
-    emit,
+    sceneStyleReadyCallbackRef,
     config,
   } = useCesiumContext();
 
@@ -202,7 +201,8 @@ export const useInitCesiumWidget = (
           }
 
           if (widget.canvas.width > 0 && widget.canvas.height > 0) {
-            emit(CtxEvent.SceneReady, undefined);
+            // Direct callback instead of event emission
+            sceneStyleReadyCallbackRef.current?.(true, "scene-ready");
             scene.postRender.removeEventListener(handlePostRender);
 
             // Configure error handling to suppress panels but allow recovery
@@ -277,7 +277,7 @@ export const useInitCesiumWidget = (
     options,
     widgetRef,
     sceneRef,
-    emit,
+    sceneStyleReadyCallbackRef,
     homeCamera,
     config.baseUrl,
   ]);

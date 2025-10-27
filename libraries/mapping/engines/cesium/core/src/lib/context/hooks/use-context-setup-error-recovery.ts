@@ -1,16 +1,13 @@
 import { useEffect, type Dispatch, type SetStateAction } from "react";
-import type { SubscribeFn } from "../cesium-context-event-map";
-import { CtxEvent } from "../cesium-context-event-map";
 
 /**
  * Auto-recovery from Cesium render errors
  * Listens for:
  * - carma:cesium:renderError window events
- * - CtxEvent.ReinitScene event bus events (WebGL errors during transitions)
+ * - Direct ref polling for error state (WebGL errors during transitions)
  */
 export const useContextSetupErrorRecovery = (
-  setRemountKey: Dispatch<SetStateAction<number>>,
-  subscribe: SubscribeFn
+  setRemountKey: Dispatch<SetStateAction<number>>
 ) => {
   useEffect(() => {
     const handleRecovery = (reason?: string) => {
@@ -25,18 +22,14 @@ export const useContextSetupErrorRecovery = (
     const windowErrorHandler = () => handleRecovery("renderError");
     window.addEventListener("carma:cesium:renderError", windowErrorHandler);
 
-    // Listen for ReinitScene events from event bus (WebGL errors)
-    const unsubscribe = subscribe(CtxEvent.ReinitScene, ({ reason }) => {
-      console.warn("[CESIUM|RECOVERY] ReinitScene event received:", reason);
-      handleRecovery(reason);
-    });
+    // Event bus removed - using direct ref polling instead
+    // WebGL errors will be handled by direct ref manipulation
 
     return () => {
       window.removeEventListener(
         "carma:cesium:renderError",
         windowErrorHandler
       );
-      unsubscribe();
     };
-  }, [setRemountKey, subscribe]);
+  }, [setRemountKey]);
 };

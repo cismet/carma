@@ -1,7 +1,6 @@
 import { useEffect, useRef } from "react";
 import type { Cesium3DTileset } from "@carma/cesium";
 import { useCesiumContext } from "../../../context/hooks/use-cesium-context";
-import { CtxEvent } from "../../../context/cesium-context-event-map";
 
 type LoadedTilesets = Map<string, Cesium3DTileset>;
 type TileLoadCounters = Map<string, number>;
@@ -22,7 +21,7 @@ export const useTilesetProgress = (
   attachProgressListener: (id: string, tileset: Cesium3DTileset) => void;
   updateProgress: () => void;
 } => {
-  const { emit } = useCesiumContext();
+  const { sceneStyleReadyCallbackRef } = useCesiumContext();
   const tileLoadCountersRef = useRef<TileLoadCounters>(new Map());
   const initialTilesFiredRef = useRef<Set<string>>(new Set());
   const hasEmittedReadyRef = useRef(false);
@@ -65,7 +64,8 @@ export const useTilesetProgress = (
         "[TILESET|PROGRESS] ✅ All visible tilesets ready, emitting SceneResourcesReady",
         readinessStatus.map((s) => `${s.id}: ${s.tilesLoaded} tiles`)
       );
-      emit(CtxEvent.SceneResourcesReady, undefined);
+      // Direct callback instead of event emission
+      sceneStyleReadyCallbackRef.current?.(true, "tilesets-ready");
     } else {
       console.log(`[TILESET|PROGRESS] Not all ready yet, waiting...`);
     }

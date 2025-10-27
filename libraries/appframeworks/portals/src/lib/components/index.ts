@@ -19,5 +19,4 @@ export * from "./MessageOverlay";
 export * from "./TopicMapSelectionContent";
 export * from "./LibreMapSelectionContent";
 export * from "./ProgressIndicator";
-export * from "./TransitionEngineSync";
 export * from "./helper";

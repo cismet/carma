@@ -11,4 +11,4 @@
  */
 
 export * from "./lib";
-export * from "./index.d";
+export type * from "./index.d";
