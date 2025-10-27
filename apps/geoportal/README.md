@@ -26,7 +26,7 @@ App Layer (this app)
 └─ App-specific providers (Oblique, Measurements)
 
 Library Layer
-├─ CarmaMapProviderWrapper (unified provider stack)
+├─ PortalProvider (unified provider stack)
 ├─ MapViewStateProvider (hash routing, view state)
 ├─ CesiumContext (3D scene management)
 ├─ ObliqueProvider (oblique imagery coordination)

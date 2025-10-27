@@ -1,6 +1,6 @@
 import { type ReactNode } from "react";
 import { Tooltip } from "antd";
-import { usePortal } from "@carma-appframeworks/portals";
+import { usePortalMapEngine } from "@carma-appframeworks/portals";
 import {
   type AvailableEngine,
   isFeatureDisabled,
@@ -27,7 +27,7 @@ interface EngineAwareButtonProps {
 
 /**
  * Button wrapper that automatically handles engine availability
- * 
+ *
  * @example
  * ```tsx
  * <EngineAwareButton
@@ -51,8 +51,9 @@ export const EngineAwareButton = ({
   disabledClassName = "opacity-20",
   additionalDisabled = false,
 }: EngineAwareButtonProps) => {
-  const { currentEngine } = usePortal();
-  const isDisabled = isFeatureDisabled(currentEngine, availableOn) || additionalDisabled;
+  const { current: currentEngine } = usePortalMapEngine();
+  const isDisabled =
+    isFeatureDisabled(currentEngine, availableOn) || additionalDisabled;
 
   return (
     <Tooltip title={tooltip}>

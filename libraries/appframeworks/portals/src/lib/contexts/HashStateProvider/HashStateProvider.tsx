@@ -15,7 +15,7 @@ import {
 } from "@carma-commons/utils";
 import { createBooleanCodec, defaultHashCodecs } from "./hashState";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useHashChangeEmit } from "../hooks/useHashChangeEmit";
+import { useHashChangeEmit } from "../../hooks/useHashChangeEmit";
 
 interface HashUpdateOptions {
   clearKeys?: string[];
@@ -107,6 +107,12 @@ export const HashStateProvider: React.FC<{
   const location = useLocation();
   const navigate = useNavigate();
   const [isInitialized, setIsInitialized] = useState(false);
+
+  console.log("[HashStateProvider] Render:", {
+    isInitialized,
+    config: config?.length || 0,
+    location: location.pathname + location.hash,
+  });
 
   // Build lookups from config
   const { keyToValueName, valueNameToKey, codecs } = useMemo(() => {
@@ -273,6 +279,7 @@ export const HashStateProvider: React.FC<{
 
   // Mark as initialized after first render when hash state has settled
   useEffect(() => {
+    console.log("[HashStateProvider] Setting isInitialized to true");
     setIsInitialized(true);
   }, []);
 

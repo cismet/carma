@@ -6,7 +6,11 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
-import { useMapStyle, parseToMapLayer, type MapStyleKeys } from "@carma-appframeworks/portals";
+import {
+  parseToMapLayer,
+  type MapStyleKeys,
+} from "@carma-appframeworks/portals";
+import { useMapStyle } from "../../hooks/useGeoportalMapStyle";
 import type { Item, Layer } from "@carma/types";
 import { LayerLib } from "@carma-mapping/layers";
 import { useAuth } from "@carma/providers/auth";

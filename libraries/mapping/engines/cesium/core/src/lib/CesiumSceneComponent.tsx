@@ -1,10 +1,4 @@
-import {
-  ReactNode,
-  type RefObject,
-  useMemo,
-  useEffect,
-  useRef,
-} from "react";
+import { ReactNode, type RefObject, useMemo, useEffect, useRef } from "react";
 import type { GlobeConstructorOptionsPrimitive } from "@carma/cesium/types";
 import { merge } from "lodash";
 

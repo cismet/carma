@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Radio } from "antd";
 
-import { useMapStyle, MapStyleKeys } from "@carma-appframeworks/portals";
+import { MapStyleKeys } from "@carma-appframeworks/portals";
+import { useMapStyle } from "../../hooks/useGeoportalMapStyle";
 
 import {
   getBackgroundLayer,

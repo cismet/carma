@@ -5,7 +5,8 @@
   "projectType": "application",
   "tags": [],
   "targets": {
-    "build": {
+    /* TODO rename to build and re-enable once PortalContext has settled API */
+    "no_build": {
       "executor": "@nx/vite:build",
       "outputs": ["{options.outputPath}"],
       "defaultConfiguration": "production",

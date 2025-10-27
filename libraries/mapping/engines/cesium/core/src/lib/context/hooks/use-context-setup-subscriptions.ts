@@ -39,16 +39,10 @@ export const useContextSetupSubscriptions = ({
   sceneStyle?: SceneStyleConfig;
 }) => {
   // Event subscriptions removed - using direct ref manipulation instead
-
   // Animation state management removed - using direct ref manipulation instead
-
   // GoHome event handling removed - using direct ref manipulation instead
-
   // Camera controller setting events removed - using direct ref manipulation instead
-
   // Style change events removed - using direct ref manipulation instead
-
   // Tileset visibility/opacity events removed - using direct ref manipulation instead
-
   // Home position events removed - using direct ref manipulation instead
 };

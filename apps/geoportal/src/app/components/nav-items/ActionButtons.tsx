@@ -137,7 +137,9 @@ const ActionButtons = () => {
         />
       </EngineAwareButton>
       <EngineAwareButton
-        tooltip={`Hintergrundkarte ${focusMode ? "zurücksetzen" : "abschwächen"}`}
+        tooltip={`Hintergrundkarte ${
+          focusMode ? "zurücksetzen" : "abschwächen"
+        }`}
         availableOn={EngineAvailability.LEAFLET_2D}
         onClick={handleToggleFocusMode}
         testId="hintergrundkarte-btn"

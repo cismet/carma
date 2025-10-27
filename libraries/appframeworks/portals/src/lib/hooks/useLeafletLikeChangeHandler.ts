@@ -2,10 +2,7 @@ import { useCallback, useEffect, useRef, type MutableRefObject } from "react";
 
 import type { Latitude, Longitude } from "@carma/geo/types";
 import { cesiumClearParamKeys } from "../utils/hashParams";
-import {
-  useCarmaTopicMapContext,
-  TopicMapCtxEvent,
-} from "@carma-mapping/engines/carma-cismap";
+import { useCarmaTopicMapContext } from "@carma-mapping/engines/carma-cismap";
 import { isMapCenterZoomEquivalent } from "@carma/geo/utils";
 
 import { useHashState } from "../contexts/HashStateProvider";
@@ -36,21 +33,9 @@ export function useLeafletLikeChangeHandler({
   onAfterLocationChanged,
 }: UseLeafletLikeChangeHandlerOptions) {
   const { updateHash, getHashValues } = useHashState();
-  const { subscribe, isSuspendedRef } = useCarmaTopicMapContext();
+  const { isSuspendedRef } = useCarmaTopicMapContext();
 
-  // Subscribe to TopicMap context events
-  useEffect(() => {
-    const unsubActive = subscribe(TopicMapCtxEvent.Activate, () => {
-      console.debug("[TopicMapHashRouting] TopicMap active");
-    });
-    const unsubSuspended = subscribe(TopicMapCtxEvent.Suspend, () => {
-      console.debug("[TopicMapHashRouting] TopicMap suspended");
-    });
-    return () => {
-      unsubActive();
-      unsubSuspended();
-    };
-  }, [subscribe]);
+  // Note: Event bus pattern removed - TopicMap context now uses direct callback pattern
 
   return useCallback(
     ({ lat, lng, zoom }: LatLngZoom) => {

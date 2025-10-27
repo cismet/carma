@@ -40,7 +40,12 @@ import LoadingInfoBox from "./LoadingInfoBox";
 
 import versionData from "../../../version.json";
 import { getApplicationVersion, isHtmlString } from "@carma-commons/utils";
-import { InfoBox, InfoBoxHeader, parseHeader, zoomToFeature } from "@carma-appframeworks/portals";
+import {
+  InfoBox,
+  InfoBoxHeader,
+  parseHeader,
+  zoomToFeature,
+} from "@carma-appframeworks/portals";
 import { parseColor } from "../../helper/color";
 
 interface InfoBoxProps {

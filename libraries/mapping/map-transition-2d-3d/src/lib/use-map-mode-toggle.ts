@@ -9,6 +9,7 @@ export type MapModeToggleOptions = {
   onCancel?: (isTo2D: boolean) => void;
   onTransitionStart?: () => void;
   onTransitionEnd?: () => void;
+  onEngineChange?: (engine: "leaflet2d" | "cesium3d") => void;
 };
 
 /**
@@ -20,7 +21,7 @@ export type MapModeToggleOptions = {
  * @returns toggleMode - Function to trigger mode transition
  */
 export const useMapModeToggle = (options: MapModeToggleOptions = {}) => {
-  const { duration, onComplete, onCancel, onTransitionStart, onTransitionEnd } =
+  const { duration, onComplete, onCancel, onTransitionStart, onTransitionEnd, onEngineChange } =
     options;
 
   const { isSuspendedRef } = useCesiumContext();
@@ -52,6 +53,7 @@ export const useMapModeToggle = (options: MapModeToggleOptions = {}) => {
     ...(duration !== undefined && { duration }),
     onComplete: handleComplete,
     onCancel: handleCancel,
+    onEngineChange,
   });
 
   const toggleMode = useCallback(async () => {

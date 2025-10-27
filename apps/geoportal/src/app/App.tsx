@@ -10,7 +10,7 @@ import { faSpinner } from "@fortawesome/free-solid-svg-icons";
 import { CrossTabCommunicationContextProvider } from "react-cismap/contexts/CrossTabCommunicationContextProvider";
 
 // Monorepo Packages
-import { CarmaMapProviderWrapper } from "@carma-appframeworks/portals";
+import { PortalContextProvider } from "@carma-appframeworks/portals";
 import { mobileInfo } from "@carma-collab/wuppertal/geoportal";
 import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
 import { MobileWarningMessage } from "@carma-mapping/components";
@@ -91,7 +91,7 @@ function App({ published }: { published?: boolean }) {
       config={{ ...featureFlagConfig, ...customFeatureFlags }}
     >
       <MatomoTracker>
-        <CarmaMapProviderWrapper portalConfig={portalConfig}>
+        <PortalContextProvider config={portalConfig}>
           <PortalReduxSyncProvider>
             <MapMeasurementsProvider
               externalMode={mode}
@@ -142,7 +142,7 @@ function App({ published }: { published?: boolean }) {
               </ErrorBoundary>
             </MapMeasurementsProvider>
           </PortalReduxSyncProvider>
-        </CarmaMapProviderWrapper>
+        </PortalContextProvider>
       </MatomoTracker>
     </FeatureFlagProvider>
   );

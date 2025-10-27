@@ -48,96 +48,88 @@ graph TB
   - Handle user interactions (clicks, selections)
   - Update React context state
 
-### MapStyleProvider (React Context + Event Bus)
-**Purpose**: Bridge between React and event-driven systems
-- **Location**: `src/lib/contexts/MapStyleProvider.tsx`
-- **Dual Role**:
-  - Provides React context for UI components
-  - Emits events to the bus for external API control
-- **Hash Integration**: Syncs with URL hash parameters
-
-### Event Bus (`useMapStyleBus()`)
-**Purpose**: Framework-agnostic event broadcasting
-- **Location**: `src/lib/hooks/useMapStyleBus.ts`
+### PortalStateContext (Reactive State Management)
+**Purpose**: URL + React state as single source of truth
+- **Location**: `src/lib/contexts/PortalStateContext.tsx`
 - **Features**:
-  - Type-safe event system
-  - No React dependencies
-  - Automatic cleanup
+  - Reactive `useState` alongside refs for consumer re-renders
+  - Automatic URL hash synchronization
+  - No event bus needed - React's built-in reactivity
 
-### External API Controllers
-
-#### useSyncCesiumSceneStyle (Event Bus Subscriber)
-**Purpose**: Control Cesium 3D scene styles
-- **Location**: `src/lib/hooks/useSyncCesiumSceneStyle.ts`
+### PortalReduxSyncProvider (Bridge to Legacy Redux)
+**Purpose**: Sync Portal state to Redux for backward compatibility
+- **Location**: `apps/geoportal/src/app/components/PortalReduxSyncProvider.tsx`
 - **Responsibilities**:
-  - Subscribe to map style changes via event bus
-  - Map Portal styles to Cesium scene styles:
-    - `AERIAL` → `MESH` (3D mesh buildings)
-    - `TOPO` → `LOD2` (2D-like representation)
-  - Emit Cesium context events
+  - Listen to PortalContext state changes via `usePortalMapStyle()`
+  - Forward changes to Redux for TopicMap compatibility
+  - Must be child of PortalContextProvider
 - **Benefits**:
-  - No React rerenders for API control
-  - Decoupled from React lifecycle
-
-#### useMapStyleReduxSync (Event Bus Subscriber)
-**Purpose**: Synchronize with Redux state management
-- **Location**: `apps/geoportal/src/app/hooks/useMapStyleReduxSync.tsx`
-- **Responsibilities**:
-  - Subscribe to map style changes via event bus
-  - Update Redux background layer state based on selected layers
-  - No direct Cesium API calls (decoupled)
+  - Keeps Portal components Redux-free
+  - Maintains backward compatibility with TopicMap
 
 ## Data Flow
 
-### User Changes Map Style
-1. **UI Component** calls `setCurrentStyle()` on React context
-2. **MapStyleProvider** updates React state AND emits event to bus
-3. **Event Bus** broadcasts change to all subscribers
-4. **External Controllers** receive events and update their respective systems
+### User Changes Map Style (e.g., TopNavbar)
+1. **UI Component** calls `setCurrentStyle()` from `usePortalMapStyle()`
+2. **PortalContext** updates both ref AND state (triggers re-renders)
+3. **Hash** automatically updated via `updateHash()`
+4. **PortalReduxSyncProvider** (via `useEffect`) syncs to Redux
+5. **TopicMap** updates based on Redux state
 
-### Example Implementation: Geoportal Integration
-See `apps/geoportal/src/app/hooks/useMapStyleReduxSync.tsx` for a complete example of how this architecture is implemented in the Geoportal application.
+### Example Implementation: Geoportal
+```
+TopNavbar → setCurrentStyle("aerial")
+  ↓
+PortalContext (reactive state + URL)
+  ↓
+PortalReduxSyncProvider (useEffect listener)
+  ↓
+Redux setBackgroundLayer()
+  ↓
+TopicMap updates ✅
+```
 
 ## Benefits
 
-### ✅ **No Unnecessary Rerenders**
-- External API control doesn't trigger React component updates
-- UI components only rerender when their specific state changes
+### ✅ **Reactive & Simple**
+- React's built-in reactivity (useState) - no custom event system
+- Automatic re-renders when state changes
 
 ### ✅ **Clean Separation of Concerns**
-- UI components handle user interactions
-- External controllers handle API integration
-- Event bus decouples the layers
+- Portal components: Pure React (no Redux)
+- PortalReduxSyncProvider: Bridge layer
+- TopicMap: Legacy Redux
 
-### ✅ **Framework Agnostic**
-- Event bus works independently of React
-- Can be used in any JavaScript environment
+### ✅ **Single Source of Truth**
+- URL hash + PortalContext state
+- No sync issues between multiple state systems
 
 ### ✅ **Type Safety**
-- Full TypeScript support throughout the chain
-- Compile-time guarantees for event payloads
+- Full TypeScript support throughout
+- Compile-time guarantees
 
 ### ✅ **Testable**
 - Each layer can be tested independently
-- Easy to mock event bus for unit tests
+- Standard React testing patterns
 
 ## Usage Patterns
 
-### For UI Components
+### For Portal UI Components
 ```typescript
-// React context for UI interactions
-const { currentStyle, setCurrentStyle } = useMapStyle();
+// Read/write Portal state (triggers re-renders)
+const { current: currentStyle, set: setCurrentStyle } = usePortalMapStyle();
+
+// Change style
+setCurrentStyle(MapStyleKeys.AERIAL);
 ```
 
-### For External API Control
+### For Redux Sync (App-Level)
 ```typescript
-// Event bus for API synchronization
-const { subscribe } = useMapStyleBus();
+// In PortalReduxSyncProvider
+const { current: currentMapStyle } = usePortalMapStyle();
+
 useEffect(() => {
-  const unsubscribe = subscribe((style) => {
-    // Control external APIs without React rerenders
-    controlCesiumScene(style);
-  });
-  return unsubscribe;
-}, []);
+  // Sync to Redux when Portal state changes
+  dispatch(setBackgroundLayer(...));
+}, [currentMapStyle]);
 ```

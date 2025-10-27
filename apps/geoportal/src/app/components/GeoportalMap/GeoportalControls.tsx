@@ -25,7 +25,11 @@ import {
 } from "@carma-mapping/map-controls-layout";
 import { MeasurementControl } from "@carma-commons/measurements";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
-import { useHomeControl } from "@carma-mapping/engines/cesium/core";
+import {
+  useHomeControl,
+  useZoomControls,
+} from "@carma-mapping/engines/cesium/core";
+import { useLeafletZoomControls } from "@carma-mapping/engines/leaflet";
 import type { SearchResultItem } from "@carma/types";
 import {
   useGazData,
@@ -34,10 +38,14 @@ import {
   SelectionMapMode,
   type SelectionItem,
   type MapEngine,
+  usePortalHomePosition,
   usePortalZoomControls,
 } from "@carma-appframeworks/portals";
 import { isAreaType } from "@carma/resources";
-import { EngineAvailability, isFeatureDisabled } from "../../utils/mapEngineAvailability";
+import {
+  EngineAvailability,
+  isFeatureDisabled,
+} from "../../utils/mapEngineAvailability";
 
 import LayerWrapper from "../layers/LayerWrapper.tsx";
 import { useTourRefCollabLabels } from "../../hooks/useTourRefCollabLabels.ts";
@@ -82,11 +90,43 @@ export const GeoportalControls = ({
   windowSize,
 }: GeoportalControlsProps) => {
   const dispatch = useDispatch();
-  const homeControl = useHomeControl();
   const tourRefLabels = useTourRefCollabLabels();
   const { gazData } = useGazData();
   const { setSelection } = useSelection();
-  const { handleZoomIn, handleZoomOut } = usePortalZoomControls({ libreMapRef });
+
+  // Get Portal's flyToHome - it updates hash, engine contexts respond
+  const { flyToHome } = usePortalHomePosition();
+
+  // Oblique mode state (for FOV zoom when enabled)
+  // TODO: Hook up to oblique mode toggle when feature is re-enabled
+  const [isObliqueActive, setIsObliqueActive] = useState(false);
+
+  // Cesium-specific controls (fovMode enables FOV-based zoom for oblique mode)
+  const cesiumHomeControl = useHomeControl();
+  const { handleZoomIn: zoomInCesium, handleZoomOut: zoomOutCesium } =
+    useZoomControls({
+      fovMode: isObliqueActive,
+    });
+
+  // Leaflet zoom controls
+  const { zoomInLeaflet, zoomOutLeaflet } =
+    useLeafletZoomControls(leafletMapRef);
+
+  // Portal routes zoom to active engine
+  const { handleZoomIn, handleZoomOut } = usePortalZoomControls({
+    zoomInLeaflet,
+    zoomOutLeaflet,
+    libreMapRef,
+    zoomInCesium,
+    zoomOutCesium,
+  });
+
+  // Home button calls Portal's flyToHome
+  // Portal calls engine context's flyHome callback (no hash needed if already at home)
+  const handleHomeClick = useCallback(() => {
+    console.log("[GeoportalControls] Home button clicked");
+    flyToHome(); // Portal routes to active engine's flyHome callback
+  }, [flyToHome]);
 
   const uiMode = useSelector(getUIMode);
   const isModeMeasurement = uiMode === UIMode.MEASUREMENT;
@@ -122,24 +162,6 @@ export const GeoportalControls = ({
     [setSelection, isSuspendedRef]
   );
 
-  const handleHomeClick = useCallback(() => {
-    if (showLibreMap) {
-      if (libreMapRef.current) {
-        libreMapRef.current.flyTo({
-          center: [7.199918031692506, 51.272570027476256],
-          zoom: 17,
-          essential: true,
-        });
-      }
-    } else {
-      const map = leafletMapRef.current;
-      if (map) {
-        map.flyTo([51.272570027476256, 7.199918031692506], 18);
-        homeControl();
-      }
-    }
-  }, [showLibreMap, libreMapRef, leafletMapRef, homeControl]);
-
   const handleFeatureInfoClick = useCallback(() => {
     handleToggleFeatureInfo();
     dispatch(setSelectedFeature(null));
@@ -151,7 +173,7 @@ export const GeoportalControls = ({
   return (
     <>
       <Control position="topleft" order={10}>
-        <UnifiedZoomControl 
+        <UnifiedZoomControl
           tourRef={tourRefLabels.zoom}
           onZoomIn={handleZoomIn}
           onZoomOut={handleZoomOut}
@@ -205,7 +227,10 @@ export const GeoportalControls = ({
       <MeasurementControl
         position="topleft"
         order={60}
-        disabled={isFeatureDisabled(currentEngine, EngineAvailability.LEAFLET_2D) || (isMode2d && showLibreMap)}
+        disabled={
+          isFeatureDisabled(currentEngine, EngineAvailability.LEAFLET_2D) ||
+          (isMode2d && showLibreMap)
+        }
         useDisabledStyle={isMode2d && showLibreMap}
         tooltip={
           !isMode2d
@@ -227,8 +252,14 @@ export const GeoportalControls = ({
           placement="right"
         >
           <ControlButtonStyler
-            disabled={isFeatureDisabled(currentEngine, EngineAvailability.LEAFLET_2D)}
-            useDisabledStyle={isFeatureDisabled(currentEngine, EngineAvailability.LEAFLET_2D)}
+            disabled={isFeatureDisabled(
+              currentEngine,
+              EngineAvailability.LEAFLET_2D
+            )}
+            useDisabledStyle={isFeatureDisabled(
+              currentEngine,
+              EngineAvailability.LEAFLET_2D
+            )}
             onClick={handleFeatureInfoClick}
             className="font-semibold"
             ref={tourRefLabels.featureInfo}

@@ -1,5 +1,5 @@
-import { HashCodec, HashCodecs } from "./HashStateProvider";
-import { mapStyleShortNames, defaultPrecisions } from "../constants";
+import { HashCodec, HashCodecs } from ".";
+import { mapStyleShortNames, defaultPrecisions } from "../../constants";
 
 /**
  * Generic helper for boolean-like codec mappings

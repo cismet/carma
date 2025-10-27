@@ -13,9 +13,7 @@ import {
 
 import type { CesiumPoseWithFallback } from "@carma/cesium/core";
 
-import {
-  type TransitionTo3dConfig,
-} from "./TransitionContext";
+import { type TransitionTo3dConfig } from "./TransitionContext";
 import { tiledMapToCesium } from "./tiled-map-to-cesium";
 
 export type TransitionTo3dParams = {
@@ -25,7 +23,7 @@ export type TransitionTo3dParams = {
   last3dCameraOrientation: HeadingPitchRange | null;
   last3dAnimationDuration: number;
   config?: TransitionTo3dConfig;
-  
+
   // Callbacks for side effects (engine switching, CSS fades, etc)
   onTransitionStart?: () => void; // Called at start - emit Cesium.Activate + TopicMap.Suspend
   onSceneReady?: () => void; // Called when scene is ready for positioning
@@ -110,9 +108,7 @@ export const createTransitionTo3d =
         }
 
         if (moveEndPromise) {
-          const timeoutMs =
-            Math.max(0, step1_zoomOutDurationMs) +
-            200; // 200ms buffer timeout
+          const timeoutMs = Math.max(0, step1_zoomOutDurationMs) + 200; // 200ms buffer timeout
           await promiseWithTimeout(moveEndPromise, timeoutMs);
         }
       } finally {
@@ -289,9 +285,12 @@ export const createTransitionTo3d =
               resolve();
             },
             onError: (error) => {
-              console.error("[CESIUM|2D3D|TO3D] ✗ Camera positioning failed:", error);
+              console.error(
+                "[CESIUM|2D3D|TO3D] ✗ Camera positioning failed:",
+                error
+              );
               reject(error);
-            }
+            },
           }
         );
       });
@@ -328,9 +327,7 @@ export const createTransitionTo3d =
         "[CESIUM|2D3D|TO3D] ✓ Render completed after positioning (2 frames)"
       );
     } else {
-      console.warn(
-        "[CESIUM|2D3D|TO3D] Scene not available for render request"
-      );
+      console.warn("[CESIUM|2D3D|TO3D] Scene not available for render request");
     }
 
     // Notify that camera is positioned - this triggers CSS fade-in
@@ -344,7 +341,5 @@ export const createTransitionTo3d =
     );
     // Start camera animation
     animateCesiumView();
-    console.log(
-      "[CESIUM|2D3D|TO3D] ========== Transition Complete =========="
-    );
+    console.log("[CESIUM|2D3D|TO3D] ========== Transition Complete ==========");
   };

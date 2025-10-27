@@ -15,10 +15,7 @@ import { useDispatch, useSelector } from "react-redux";
 
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
-import {
-  useCarmaTopicMapContext,
-  TopicMapCtxEvent,
-} from "@carma-mapping/engines/carma-cismap";
+import { useCarmaTopicMapContext } from "@carma-mapping/engines/carma-cismap";
 
 import type { LeafletConfig } from "@carma/types";
 import {
@@ -26,6 +23,7 @@ import {
   TopicMapSelectionContent,
   useGazData,
   useSelectionTopicMap,
+  type MapView,
 } from "@carma-appframeworks/portals";
 
 import { tooltipText } from "@carma-collab/wuppertal/geoportal";
@@ -45,8 +43,9 @@ import versionData from "../../../../../version.json";
 import { proj4crs3857def, proj4crs4326def } from "react-cismap/constants/gis";
 import { useLeafletZoomControls } from "@carma-mapping/engines/leaflet";
 import { useDispatchSachdatenInfoText } from "../../../../hooks/useDispatchSachdatenInfoText.ts";
-import { usePortal } from "@carma-appframeworks/portals";
+import { usePortalContext } from "@carma-appframeworks/portals";
 import { UIMode, getUIMode } from "../../../../store/slices/ui.ts";
+import { useModalMenu } from "./hooks/useModalMenu";
 import {
   getLayers,
   getLayersIdle,
@@ -77,7 +76,6 @@ import {
   useUpdateFeatureInfoOnFlag,
   useUpdateFeatureInfoOnLayersChange,
 } from "./hooks/useFeatureInfoLifecycle.ts";
-import { useModalMenu } from "./hooks/useModalMenu.tsx";
 
 type TopicMapComponentWrapperProps = {
   height: number;
@@ -91,8 +89,13 @@ export const TopicMapComponentWrapper = ({
   width,
 }: TopicMapComponentWrapperProps) => {
   const dispatch = useDispatch();
-  const { portalConfig } = usePortal();
-  const { zoomSnap, zoomDelta } = portalConfig.leafletConfig;
+  const { portalConfig } = usePortalContext();
+  const { zoomSnap, zoomDelta } = portalConfig.leaflet;
+
+  // Get CarmaTopicMapContext for MapView data
+  const carmaTopicMapContext = useCarmaTopicMapContext();
+
+  // Redux selectors - log to track if they're causing re-renders
   const uiMode = useSelector(getUIMode);
   const layers = useSelector(getLayers);
   const layersIdle = useSelector(getLayersIdle);
@@ -102,8 +105,21 @@ export const TopicMapComponentWrapper = ({
   const loadingFeatureInfo = useSelector(getLoading);
   const printError = useSelector(getPrintError);
   const flags = useFeatureFlags();
-  const { isSuspendedRef, leafletMapRef, subscribe } =
-    useCarmaTopicMapContext();
+
+  // Log Redux state changes to identify re-render causes
+  console.log("[TopicMapComponentWrapper] Redux state:", {
+    uiMode,
+    layersCount: layers?.length,
+    layersIdle,
+    backgroundLayerVisible: backgroundLayer?.visible,
+    showHamburgerMenu,
+    hasSelectedFeature: !!selectedFeature,
+    loadingFeatureInfo,
+    hasPrintError: !!printError,
+    flagsCount: Object.keys(flags).length,
+  });
+
+  const { isSuspendedRef, leafletMapRef } = useCarmaTopicMapContext();
   const { setAppMenuVisible } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
   const { setSecondaryWithKey, showOverlayHandler } = useOverlayTourContext();
@@ -142,21 +158,37 @@ export const TopicMapComponentWrapper = ({
    * See CesiumMapComponentWrapper as reference implementation for event bus pattern
    */
 
-  // First step of implementation handle suspended state for map transitions
-  // Subscribe to TopicMap context events
+  // Note: Event bus pattern removed - TopicMap context now uses direct callback pattern
 
-  useEffect(() => {
-    const unsubActivate = subscribe(TopicMapCtxEvent.Activate, () => {
-      console.debug("[TopicMapWrapper] TopicMap activate");
-    });
-    const unsubSuspend = subscribe(TopicMapCtxEvent.Suspend, () => {
-      console.debug("[TopicMapWrapper] TopicMap suspend");
-    });
-    return () => {
-      unsubActivate();
-      unsubSuspend();
-    };
-  }, [subscribe]);
+  // Extract MapView data from CarmaTopicMapContext (assembled by PortalContext)
+  // Use refs to prevent render loops from frequent MapView updates
+  const currentMapViewRef = useRef<MapView | null>(null);
+  const homeMapViewRef = useRef<MapView | null>(null);
+
+  // Update refs directly without useEffect to avoid dependency issues
+  const newCurrentMapView = carmaTopicMapContext?.getCurrentMapView() || null;
+  const newHomeMapView = carmaTopicMapContext?.getHomeMapView() || null;
+
+  // Only update if values actually changed
+  if (
+    JSON.stringify(newCurrentMapView) !==
+    JSON.stringify(currentMapViewRef.current)
+  ) {
+    currentMapViewRef.current = newCurrentMapView;
+  }
+  if (
+    JSON.stringify(newHomeMapView) !== JSON.stringify(homeMapViewRef.current)
+  ) {
+    homeMapViewRef.current = newHomeMapView;
+  }
+
+  console.log("[TopicMapComponentWrapper] MapView data from PortalContext:", {
+    hasCarmaTopicMapContext: !!carmaTopicMapContext,
+    hasCurrentMapView: !!currentMapViewRef.current,
+    hasHomeMapView: !!homeMapViewRef.current,
+    currentMapView: currentMapViewRef.current,
+    homeMapView: homeMapViewRef.current,
+  });
 
   const topicMapLocationChangedHandler = useTopicMapLocationChangedHandler(
     updateLayersIdleState
@@ -374,18 +406,48 @@ export const TopicMapComponentWrapper = ({
     }
     return <div></div>;
   }, [
-    isSuspendedRef,
     isModeMeasurement,
     selectedFeature,
     loadingFeatureInfo,
     pos,
     flags.featureFlagBugaBridge,
     uiMode,
+    isSuspendedRef,
   ]);
 
   useLeafletZoomEndFlag(getTopicMap, setShouldUpdateFeatureInfo);
 
   console.debug("RENDER [GEOPORTAL|TOPICMAP]");
+
+  // Get fallback values from refs without triggering re-renders
+  const getFallbackPosition = useCallback(() => {
+    const currentMapView = currentMapViewRef.current;
+    if (currentMapView) {
+      return {
+        lat: currentMapView.center[0],
+        lng: currentMapView.center[1],
+      };
+    }
+    return { lat: 51.25861849982617, lng: 7.15101022370511 }; // Default Wuppertal position
+  }, []);
+
+  const getFallbackZoom = useCallback(() => {
+    const currentMapView = currentMapViewRef.current;
+    if (currentMapView) {
+      return currentMapView.zoom;
+    }
+    return 15; // Default zoom level
+  }, []);
+
+  console.log(
+    "[TopicMapComponentWrapper] Rendering TopicMapComponent with props:",
+    {
+      fallbackPosition: getFallbackPosition(),
+      fallbackZoom: getFallbackZoom(),
+      zoomSnap,
+      zoomDelta,
+    }
+  );
 
   return (
     <div className={"map-container-2d"} style={{ zIndex: 400 }}>
@@ -411,6 +473,8 @@ export const TopicMapComponentWrapper = ({
         infoBox={infoBox}
         zoomSnap={zoomSnap}
         zoomDelta={zoomDelta}
+        fallbackPosition={getFallbackPosition()}
+        fallbackZoom={getFallbackZoom()}
       >
         <TopicMapSelectionContent />
         {backgroundLayerElement}

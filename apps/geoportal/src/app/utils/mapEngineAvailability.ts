@@ -37,13 +37,13 @@ export const isFeatureDisabled = (
 export const EngineAvailability = {
   /** Only available in 2D Leaflet mode */
   LEAFLET_2D: ["leaflet2d"] as AvailableEngine[],
-  
+
   /** Only available in 3D Cesium mode */
   CESIUM_3D: ["cesium3d"] as AvailableEngine[],
-  
+
   /** Available in both 2D and 3D */
   ALL_ENGINES: ["leaflet2d", "cesium3d"] as AvailableEngine[],
-  
+
   /** Available in 2D modes (Leaflet and MapLibre) */
   ALL_2D: ["leaflet2d", "maplibre"] as AvailableEngine[],
 } as const;

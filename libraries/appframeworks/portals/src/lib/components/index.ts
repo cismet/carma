@@ -2,7 +2,6 @@
 export * from "./Save.tsx";
 export * from "./Share.tsx";
 export * from "./FileUploader.tsx";
-export * from "./CarmaMapProviderWrapper.tsx";
 export * from "./CesiumMapComponentWrapper.tsx";
 export * from "./FontAwesomeLikeIcon.tsx";
 export * from "./InfoBox.tsx";

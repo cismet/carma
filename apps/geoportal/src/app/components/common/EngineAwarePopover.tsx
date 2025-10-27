@@ -1,6 +1,6 @@
 import type { IconProp } from "@fortawesome/fontawesome-svg-core";
 import type { ReactNode } from "react";
-import { usePortal } from "@carma-appframeworks/portals";
+import { usePortalMapEngine } from "@carma-appframeworks/portals";
 import {
   type AvailableEngine,
   isFeatureDisabled,
@@ -28,7 +28,7 @@ interface EngineAwarePopoverProps {
 
 /**
  * Popover wrapper that automatically handles engine availability
- * 
+ *
  * @example
  * ```tsx
  * <EngineAwarePopover
@@ -50,8 +50,9 @@ export const EngineAwarePopover = ({
   shiftClickHandler,
   additionalDisabled = false,
 }: EngineAwarePopoverProps) => {
-  const { currentEngine } = usePortal();
-  const isDisabled = isFeatureDisabled(currentEngine, availableOn) || additionalDisabled;
+  const { current: currentEngine } = usePortalMapEngine();
+  const isDisabled =
+    isFeatureDisabled(currentEngine, availableOn) || additionalDisabled;
 
   return (
     <CustomPopover

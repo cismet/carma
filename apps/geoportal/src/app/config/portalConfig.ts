@@ -6,10 +6,10 @@ import {
 } from "@carma-appframeworks/portals";
 import { backgroundSettings } from "@carma-collab/wuppertal/geoportal";
 import { CESIUM_CONFIG, GeoportalCesiumStyleKeys } from "./cesium.config";
-import type { TransitionConfig } from "@carma/mapping/map-transition-2d-3d";
 import { LEAFLET_CONFIG } from "./leaflet";
-import { WUPPERTAL } from "@carma/resources";
-import { Altitude, Degrees, Latitude, Meters } from "@carma/geo/types";
+import type { TransitionConfig } from "@carma/mapping/map-transition-2d-3d";
+import { WUPPERTAL, defaultGazDataConfig } from "@carma/resources";
+import { Altitude, Degrees, Meters } from "@carma/geo/types";
 
 // App configuration constants
 export const APP_BASE_PATH = import.meta.env.BASE_URL;
@@ -36,36 +36,20 @@ export const TRANSITIONS_CONFIG: TransitionConfig = {
   modeTo3d: {
     // Wuppertal-specific: Max elevation ~400m (Barmen hills)
     // Used when terrain provider not yet available during transition
-    fallbackGroundElevationM: 400,
-    
-    step1_prepare2dView: {
-      maxZoom: 20,
-      zoomOutDurationMs: 700,
-      zoomOutTimeoutBufferMs: 100,
-    },
-    step2_initialRender: {
-      timeoutMs: 500,
-    },
-    step3_waitForResources: {
-      timeoutMs: 2000,
-    },
-    // step4_positionCamera: synchronous, no config needed
-    step5_cssFadeIn: {
-      durationMs: 1000,
-    },
-    step6_cameraAnimation: {
-      durationMs: 2000,
-    },
+    step4_fallbackGroundElevationM: 400,
+
+    step1_prepare2dViewMaxZoom: 20,
+    step1_zoomOutDurationMs: 700,
+    step2_initialRenderTimeoutMs: 500,
+    step3_resourceWaitTimeoutMs: 2000,
+    step5_cssFadeInDurationMs: 1000,
+    step6_cameraAnimationDurationMs: 2000,
   },
   modeTo2d: {
-    step2_cameraTiltAnimation: {
-      durationFactorCameraDeviationMs: 1500,
-      durationFactorZoomDiffMs: 500,
-      maxDurationMs: 2000,
-    },
-    step3_cssFadeOut: {
-      durationMs: 1000,
-    },
+    step2_cameraTiltDurationFactorDeviationMs: 1500,
+    step2_cameraTiltDurationFactorZoomMs: 500,
+    step2_cameraTiltMaxDurationMs: 2000,
+    step3_cssFadeOutDurationMs: 1000,
   },
 };
 
@@ -154,29 +138,34 @@ export const portalConfig: PortalConfig = {
 
   // Map style configuration
   styleConfig: geoportalMapStyleConfig,
-  
+
   // Mapping from portal map styles to Cesium scene styles
-  mapStyleToCesiumStyleMapping: {
-    [MapStyleKeys.TOPO]: GeoportalCesiumStyleKeys.LOD2,      // "karte" → "lod2"
-    [MapStyleKeys.AERIAL]: GeoportalCesiumStyleKeys.MESH,    // "luftbild" → "mesh-2024"
+  mapStyleMappings: {
+    cesium: {
+      [MapStyleKeys.TOPO]: GeoportalCesiumStyleKeys.LOD2, // "karte" → "lod2"
+      [MapStyleKeys.AERIAL]: GeoportalCesiumStyleKeys.MESH, // "luftbild" → "mesh-2024"
+    },
   },
 
   // Default map position (2D)
   defaultPosition: DEFAULT_MAP_POSITION,
   // Default camera location (3D)
   defaultCameraLocation: DEFAULT_CESIUM_CAMERA,
-  homePosition: DEFAULT_MAP_POSITION,
-  homePose3d: DEFAULT_CESIUM_CAMERA,
-  leafletConfig: LEAFLET_CONFIG,
-  cesiumConfig: CESIUM_CONFIG,
+  homePosition: HOME_POSITION,
+  homePose3d: HOME_CESIUM_CAMERA,
 
-  overlayConfig: {
+  // Nested config objects
+  cesium: CESIUM_CONFIG,
+  leaflet: LEAFLET_CONFIG,
+  gazData: defaultGazDataConfig,
+  overlay: {
     transparency: backgroundSettings.transparency,
     color: backgroundSettings.color,
   },
-
-  // 2D↔3D transition configuration
-  transitionsConfig: TRANSITIONS_CONFIG,
+  transitions: TRANSITIONS_CONFIG,
+  topicMap: {
+    infoBoxPixelWidth: 350,
+  },
 
   // App configuration
   appBasePath: APP_BASE_PATH,

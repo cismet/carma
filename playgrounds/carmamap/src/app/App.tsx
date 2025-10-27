@@ -15,9 +15,10 @@ import { CrossTabCommunicationContextProvider } from "react-cismap/contexts/Cros
 import { backgroundSettings } from "@carma-collab/wuppertal/geoportal";
 
 import {
-  CarmaMapProviderWrapper,
+  PortalContextProvider,
   type Settings,
   type PortalConfig,
+  MapStyleKeys,
 } from "@carma-appframeworks/portals";
 import type { BackgroundLayer, Layer } from "@carma/types";
 
@@ -42,6 +43,7 @@ import {
   LEAFLET_CONFIG,
 } from "./config/app.config";
 import { carmaMapStyleConfig } from "./config/mapStyleConfig";
+import { WUPPERTAL, defaultGazDataConfig } from "@carma/resources";
 
 // Side-Effect Imports
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -105,16 +107,22 @@ function App({ published }: { published?: boolean }) {
       transparency: backgroundSettings.transparency,
       color: backgroundSettings.color,
     },
+    // Required properties
+    mapStyleToCesiumStyleMapping: {
+      [MapStyleKeys.TOPO]: "lod2",     // "karte" → "lod2"
+      [MapStyleKeys.AERIAL]: "mesh",   // "luftbild" → "mesh"
+    },
+    gazDataConfig: defaultGazDataConfig,
   };
 
   const content = (
-    <CarmaMapProviderWrapper portalConfig={portalConfig}>
+    <PortalContextProvider config={portalConfig}>
       <ErrorBoundary FallbackComponent={AppErrorFallback}>
         <div className="flex flex-col w-full " style={{ height: "100dvh" }}>
           <CarmaMap />
         </div>
       </ErrorBoundary>
-    </CarmaMapProviderWrapper>
+    </PortalContextProvider>
   );
 
   return syncToken ? (

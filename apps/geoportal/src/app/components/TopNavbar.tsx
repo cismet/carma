@@ -21,8 +21,11 @@ import { Button, Radio, type RadioChangeEvent, Tooltip } from "antd";
 
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
-import { MapStyleKeys, usePortal } from "@carma-appframeworks/portals";
-import { EngineAvailability, isFeatureDisabled } from "../utils/mapEngineAvailability";
+import { MapStyleKeys, usePortalMapEngine } from "@carma-appframeworks/portals";
+import {
+  EngineAvailability,
+  isFeatureDisabled,
+} from "../utils/mapEngineAvailability";
 import { geoElements } from "@carma-collab/wuppertal/geoportal";
 // import { useFeatureFlags } from "@carma/providers/feature-flag"; // Oblique mode disabled
 // import { obliqueEventBus } from "../utils/obliqueState"; // Oblique mode disabled
@@ -53,7 +56,7 @@ const TopNavbar = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showHelpTooltip, setShowHelpTooltip] = useState(false);
   const { showOverlayHandler } = useOverlayTourContext();
-  const { setCurrentStyle } = useMapStyle();
+  const { currentStyle, setCurrentStyle } = useMapStyle();
 
   const isTouchDevice =
     "ontouchstart" in window || navigator.maxTouchPoints > 0;
@@ -63,7 +66,7 @@ const TopNavbar = () => {
 
   // const flags = useFeatureFlags(); // Oblique mode disabled
   // const [isObliqueActive, setIsObliqueActive] = useState(false); // Oblique mode disabled
-  const { currentEngine } = usePortal();
+  const { current: currentEngine } = usePortalMapEngine();
 
   // Track oblique mode state for button appearance
   // useEffect(() => {
@@ -223,7 +226,7 @@ const TopNavbar = () => {
           <div className="lg:flex hidden" ref={hintergrundTourRef}>
             {backgroundLayer && (
               <Radio.Group
-                value={backgroundLayer.id}
+                value={currentStyle}
                 onChange={handleBackgroundLayerChange}
               >
                 <Tooltip
@@ -258,7 +261,10 @@ const TopNavbar = () => {
                   <Radio.Button
                     className="select-none"
                     value="openBaseLayerView"
-                    disabled={isFeatureDisabled(currentEngine, EngineAvailability.LEAFLET_2D)}
+                    disabled={isFeatureDisabled(
+                      currentEngine,
+                      EngineAvailability.LEAFLET_2D
+                    )}
                   >
                     <FontAwesomeIcon
                       id="openBaseLayerView"

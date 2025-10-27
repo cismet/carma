@@ -15,9 +15,7 @@ const logger = new Logger("Transition:2D");
 
 // Cesium core functions will be dynamically imported to comply with lazy-loading
 
-import {
-  type TransitionTo2dConfig,
-} from "./TransitionContext";
+import { type TransitionTo2dConfig } from "./TransitionContext";
 
 const noAnimation = {
   animate: false,
@@ -31,7 +29,7 @@ export type TransitionTo2dParams = {
   setLast3dCameraOrientation: (hpr: HeadingPitchRange) => void;
   setLast3dAnimationDuration: (duration: number) => void;
   config?: TransitionTo2dConfig;
-  
+
   // Callbacks for side effects (engine switching, CSS fades, etc)
   onTransitionStart?: () => void; // Called at start - emit TopicMap.Activate
   onCameraAnimationComplete?: () => void; // Called after camera tilt - trigger CSS fade + emit Cesium.Suspend
@@ -88,7 +86,7 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
       onCancel?.(true, "pre-check");
       throw new Error("Transition to 2D cancelled: scene not available");
     }
-    
+
     logger.info("========== Starting Transition to 2D ==========");
     onTransitionStart?.(); // Emit TopicMap.Activate
 
@@ -228,7 +226,10 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
     const calculatedDurationMs =
       (cameraDeviation ?? 0) * step2_cameraTiltDurationFactorDeviationMs +
       zoomDiff * step2_cameraTiltDurationFactorZoomMs;
-    const durationMs = Math.min(calculatedDurationMs, step2_cameraTiltMaxDurationMs);
+    const durationMs = Math.min(
+      calculatedDurationMs,
+      step2_cameraTiltMaxDurationMs
+    );
 
     logger.log(
       `[CESIUM|2D3D|TO2D] Tilt animation duration: ${durationMs.toFixed(

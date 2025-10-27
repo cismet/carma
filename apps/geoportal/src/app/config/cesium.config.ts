@@ -57,12 +57,12 @@ export const CESIUM_CONFIG: Partial<CesiumConfig> = {
         shadows: false,
         backgroundColor: COLORS.GRAY,
         globe: {
-        //baseColor: COLORS.NONZERO_TRANSPARENT_WHITE,
-        baseColor: COLORS.GRAY,
-        showSkirts: false,
-        shadows: 0, // shadowmode disabled
-        preloadSiblings: true,
-        prelaodAncestors: true,
+          //baseColor: COLORS.NONZERO_TRANSPARENT_WHITE,
+          baseColor: COLORS.GRAY,
+          showSkirts: false,
+          shadows: 0, // shadowmode disabled
+          preloadSiblings: true,
+          prelaodAncestors: true,
         },
         tilesets: [{ id: "wupp-mesh-2024" }],
         //terrain: "dem-2020",

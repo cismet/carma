@@ -21,18 +21,17 @@ import { createTransitionTo2d } from "./transition-to-2d";
 type TransitionOptions = {
   onComplete?: (isTo2d: boolean) => void;
   onCancel?: (isTo2D: boolean) => void;
+  onEngineChange?: (engine: "leaflet2d" | "cesium3d") => void;
 };
 
 export const useMapTransition = (options: TransitionOptions = {}) => {
   const { config: contextConfig, isTransitioningRef } = useTransitionContext();
 
-  const { onComplete, onCancel } = options;
+  const { onComplete, onCancel, onEngineChange } = options;
 
-  const { leafletMapRef, emit: emitTopicMapEvent } = useCarmaTopicMapContext();
-  const {
-    widgetRef,
-    sceneRef,
-  } = useCesiumContext();
+  const { leafletMapRef, emitSuspend, emitActivate } =
+    useCarmaTopicMapContext();
+  const { widgetRef, sceneRef } = useCesiumContext();
 
   const [last3dCameraOrientation, setLast3dCameraOrientation] =
     useState<HeadingPitchRange | null>(null);
@@ -50,22 +49,26 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
       onTransitionStart: async () => {
         isTransitioningRef.current = true;
         console.debug("[Transition] 2D→3D: Starting transition");
-        
+
         // Dynamic imports to avoid circular deps
-        const { TopicMapCtxEvent } = await import("@carma-mapping/engines/carma-cismap");
-        
         // Suspend TopicMap engine
-        emitTopicMapEvent(TopicMapCtxEvent.Suspend, undefined);
+        emitSuspend();
       },
       onSceneReady: () => {
         console.debug("[Transition] 2D→3D: Scene ready");
       },
       onCameraPositioned: () => {
-        console.debug("[Transition] 2D→3D: Camera positioned, CSS fade-in starts");
+        console.debug(
+          "[Transition] 2D→3D: Camera positioned, CSS fade-in starts"
+        );
       },
       onComplete: (isTo2d: boolean) => {
         isTransitioningRef.current = false;
         console.debug("[Transition] 2D→3D: Complete");
+        
+        // Notify engine change (consumer updates PortalContext/URL)
+        onEngineChange?.("cesium3d");
+        
         onComplete?.(isTo2d);
       },
       onCancel: (isTo2d: boolean, stage: string) => {
@@ -82,7 +85,8 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
       last3dAnimationDuration,
       contextConfig.modeTo3d,
       isTransitioningRef,
-      emitTopicMapEvent,
+      emitSuspend,
+      onEngineChange,
       onComplete,
       onCancel,
     ]
@@ -99,25 +103,30 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
       onTransitionStart: async () => {
         isTransitioningRef.current = true;
         console.debug("[Transition] 3D→2D: Activating TopicMap");
-        
+
         // Dynamic imports to avoid circular deps
-        const { TopicMapCtxEvent } = await import("@carma-mapping/engines/carma-cismap");
-        
+
         // Activate TopicMap engine immediately
-        emitTopicMapEvent(TopicMapCtxEvent.Activate, undefined);
-        
+        emitActivate();
+
         // DON'T suspend Cesium here - it stays visible during camera tilt animation
         // Suspend happens in onCameraAnimationComplete callback
       },
       onCameraAnimationComplete: async () => {
-        console.debug("[Transition] 3D→2D: Camera animation complete, starting CSS fade");
-        
+        console.debug(
+          "[Transition] 3D→2D: Camera animation complete, starting CSS fade"
+        );
+
         // CSS fade-out will be handled by the transition logic
         // No need to emit Cesium events
       },
       onComplete: (isTo2d: boolean) => {
         isTransitioningRef.current = false;
         console.debug("[Transition] 3D→2D: Complete");
+        
+        // Notify engine change (consumer updates PortalContext/URL)
+        onEngineChange?.("leaflet2d");
+        
         onComplete?.(isTo2d);
       },
       onCancel: (isTo2d: boolean, stage: string) => {
@@ -132,7 +141,8 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
       widgetRef,
       contextConfig.modeTo2d,
       isTransitioningRef,
-      emitTopicMapEvent,
+      emitActivate,
+      onEngineChange,
       onComplete,
       onCancel,
     ]
@@ -156,14 +166,16 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
 
       // Direct scene activation - set refs and wait for scene to be ready
       console.log("[useMapTransition] Activating scene directly...");
-      
+
       // Wait for scene to be ready using polling
       console.log("[useMapTransition] Waiting for scene to be ready...");
       await new Promise<void>((resolve) => {
         const checkSceneReady = () => {
           const currentScene = sceneRef.current;
           if (currentScene && currentScene.isDestroyed() === false) {
-            console.log("[useMapTransition] Scene ready - continuing transition");
+            console.log(
+              "[useMapTransition] Scene ready - continuing transition"
+            );
             resolve();
           } else {
             // Scene not ready yet, check again in 100ms
@@ -176,7 +188,9 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
 
         // Timeout fallback (3 seconds)
         setTimeout(() => {
-          console.warn("[useMapTransition] Scene ready timeout - continuing anyway");
+          console.warn(
+            "[useMapTransition] Scene ready timeout - continuing anyway"
+          );
           resolve();
         }, 3000);
       });
@@ -214,7 +228,8 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
 
     // Compute Cesium pose from Leaflet position (with fallback elevation)
     // Use contextConfig from hook call at top of component
-    const fallbackHeightM = contextConfig.modeTo3d?.step4_fallbackGroundElevationM;
+    const fallbackHeightM =
+      contextConfig.modeTo3d?.step4_fallbackGroundElevationM;
 
     // Dynamic import to avoid circular deps
     const { leafletToTopdownCesiumPose } = await import("@carma/cesium/core");

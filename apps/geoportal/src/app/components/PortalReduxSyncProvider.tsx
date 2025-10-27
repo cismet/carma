@@ -1,6 +1,6 @@
 import { useEffect, type ReactNode } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { MapStyleKeys, usePortal } from "@carma-appframeworks/portals";
+import { MapStyleKeys, usePortalMapStyle } from "@carma-appframeworks/portals";
 import {
   setBackgroundLayer,
   getSelectedMapLayer,
@@ -10,22 +10,22 @@ import {
 import type { RootState } from "../store";
 
 /**
- * PortalReduxSyncProvider - Centralized Redux synchronization for Portal state
+ * PortalReduxSyncProvider - Reactive sync from PortalContext to Redux
  *
- * This component sits between PortalProvider and the app components to sync
- * Portal context state to Redux. This keeps Redux imports isolated to this one
- * component instead of scattered throughout the app.
- *
- * TODO: Remove this provider when Redux is fully replaced with PortalProvider state
- * This is a temporary bridge to maintain backward compatibility while migrating
- * from Redux to PortalProvider.
+ * This component syncs map style changes from PortalContext to Redux
+ * whenever they occur (from URL, TopNavbar, or other Portal components).
  *
  * Architecture:
- *   PortalProvider (provides map state)
+ *   TopNavbar (changes PortalContext only)
  *     ↓
- *   PortalReduxSyncProvider (syncs to Redux) ← THIS COMPONENT
+ *   PortalContext (URL + reactive state)
  *     ↓
- *   App Components (no Redux imports needed!)
+ *   PortalReduxSyncProvider (forwards to Redux) ← THIS COMPONENT
+ *     ↓
+ *   TopicMap (uses Redux for layer logic)
+ *
+ * This keeps Portal components Redux-free while maintaining backward
+ * compatibility with TopicMap's Redux-based layer management.
  */
 export const PortalReduxSyncProvider = ({
   children,
@@ -33,7 +33,7 @@ export const PortalReduxSyncProvider = ({
   children: ReactNode;
 }) => {
   const dispatch = useDispatch();
-  const { currentMapStyle } = usePortal();
+  const { current: currentMapStyle } = usePortalMapStyle();
 
   // Redux selectors
   const selectedMapLayer = useSelector((state: RootState) =>
@@ -46,8 +46,15 @@ export const PortalReduxSyncProvider = ({
     getBackgroundLayer(state)
   );
 
-  // Sync map style changes to Redux background layer
+  // One-way sync: Portal → Redux (ONLY when Portal state changes)
   useEffect(() => {
+    if (!currentMapStyle) return;
+
+    console.log(
+      "[PortalReduxSyncProvider] Portal style changed, syncing to Redux:",
+      currentMapStyle
+    );
+
     if (currentMapStyle === MapStyleKeys.TOPO) {
       dispatch(
         setBackgroundLayer({
@@ -67,17 +74,14 @@ export const PortalReduxSyncProvider = ({
         })
       );
     }
-  }, [
-    currentMapStyle,
-    selectedMapLayer,
-    selectedLuftbildLayer,
-    backgroundLayer.visible,
-    backgroundLayer.opacity,
-    dispatch,
-  ]);
 
-  // Future: Add more sync logic here (position, camera, etc.)
-  // This keeps all Redux sync in one place
+    console.log(
+      "[PortalReduxSyncProvider] Redux synced - TopicMap should update"
+    );
+    // IMPORTANT: ONLY react to currentMapStyle (Portal is the source)
+    // Redux values are READ but NOT in dependencies (one-way sync)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentMapStyle, dispatch]);
 
   return <>{children}</>;
 };

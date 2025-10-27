@@ -46,7 +46,6 @@ export interface CesiumContextType {
   // Core state refs
   isSuspendedRef: MutableRefObject<boolean>;
   homeCamera: MutableRefObject<CameraPoseRadians | null>;
-  initialCamera: MutableRefObject<CameraPoseRadians | null>;
 
   // Camera tracking - TWO separate states:
   // 1. currentCameraRef: Updated every frame for crash recovery and live display

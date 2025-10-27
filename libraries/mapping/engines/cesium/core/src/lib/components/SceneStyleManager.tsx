@@ -369,7 +369,9 @@ export const SceneStyleManager = ({ sceneStyle }: SceneStyleManagerProps) => {
           });
         }
         if (style.globe) {
-          console.log(`[SceneStyleManager|Resources] globe → REQUIRED (initial)`);
+          console.log(
+            `[SceneStyleManager|Resources] globe → REQUIRED (initial)`
+          );
           resourceTrackerRef.current.required.add("globe");
         }
         if (style.backgroundColor) {

@@ -10,12 +10,12 @@ import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopic
 
 import {
   CesiumMapComponentWrapper,
-  usePortal,
+  usePortalMapEngine,
 } from "@carma-appframeworks/portals";
 import { detectWebGLContext } from "@carma-commons/dom/canvas";
 
 import { useCarmaTopicMapContext } from "@carma-mapping/engines/carma-cismap";
-import { useCesiumContext, CtxEvent } from "@carma-mapping/engines/cesium/core";
+import { useCesiumContext } from "@carma-mapping/engines/cesium/core";
 
 import {
   Control,
@@ -51,8 +51,8 @@ window.addEventListener("load", testGPU, false);
 export const GeoportalMap = () => {
   const dispatch = useDispatch();
   const flags = useFeatureFlags();
-  const { emit: emitCesium, isSuspendedRef } = useCesiumContext();
-  const { emit: emitTopicMap, leafletMapRef } = useCarmaTopicMapContext();
+  const { isSuspendedRef } = useCesiumContext();
+  const { leafletMapRef } = useCarmaTopicMapContext();
 
   const showLibreMap = flags.featureFlagLibreMap;
 
@@ -63,7 +63,7 @@ export const GeoportalMap = () => {
   const allow3d = useSelector(getUIAllow3d) && hasGPU;
 
   // Get map mode from PortalProvider context
-  const { currentEngine } = usePortal();
+  const { current: currentEngine } = usePortalMapEngine();
   const isMode2d = currentEngine === "leaflet2d";
   const zenMode = useSelector(getZenMode);
   const configSelection = useSelector(getConfigSelection);
@@ -132,9 +132,11 @@ export const GeoportalMap = () => {
   useEffect(() => {
     // Suspend Cesium if 3D is not allowed
     if (allow3d === false || allow3d === undefined) {
-      emitCesium(CtxEvent.Suspend, undefined);
+      isSuspendedRef.current = true;
+    } else {
+      isSuspendedRef.current = false;
     }
-  }, [allow3d, emitCesium]);
+  }, [allow3d, isSuspendedRef]);
 
   console.debug(
     `[MapWrapper] Render isMode2d: ${isMode2d}, allow3d: ${allow3d}`
@@ -207,8 +209,10 @@ export const GeoportalMap = () => {
             <LibreGeoportalMap />
           ) : (
             <>
-              <TopicMapComponentWrapper height={height} width={width} />
-              {allow3d && <CesiumMapComponentWrapper />}
+              {isMode2d && (
+                <TopicMapComponentWrapper height={height} width={width} />
+              )}
+              {!isMode2d && allow3d && <CesiumMapComponentWrapper />}
             </>
           )}
         </div>

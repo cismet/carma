@@ -59,7 +59,7 @@ export const useEnsureCesiumInitialized = () => {
 
       // Activate Cesium by setting refs directly
       console.debug("[Cesium|Init] Activating Cesium directly");
-      
+
       // Wait for scene ready using polling
       await promiseWithTimeout(
         new Promise<void>((resolve) => {

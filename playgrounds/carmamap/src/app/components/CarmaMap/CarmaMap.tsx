@@ -43,7 +43,7 @@ import {
   useSelectionTopicMap,
   useHashState,
   useMapHashRoutingCesium,
-  useSyncCesiumSceneStyle,
+  usePortalMapStyle,
 } from "@carma-appframeworks/portals";
 
 import { isAreaType } from "@carma/resources";
@@ -182,40 +182,52 @@ export const CarmaMap = ({
   const selectedMapLayer = getSelectedMapLayer();
 
   const ctx = useCesiumContext();
-  const { subscribe } = ctx;
-
-  // Use refs to avoid re-renders - all state managed via event bus (GeoportalMap pattern)
-  const isSuspendedRef = useRef(!allow3d);
+  const { isSuspendedRef } = ctx;
   const containerStyleRef = useRef<HTMLDivElement>(null);
 
-  // Subscribe to suspend/activate events via event bus - update DOM directly without re-render
+  // Sync suspension state with cesium context
   useEffect(() => {
-    if (!allow3d) return;
+    if (!allow3d) {
+      isSuspendedRef.current = true;
+    } else {
+      isSuspendedRef.current = false;
+    }
+  }, [allow3d, isSuspendedRef]);
 
-    const updateVisibility = (isSuspended: boolean) => {
-      isSuspendedRef.current = isSuspended;
+  // Update DOM visibility based on suspension state
+  useEffect(() => {
+    const updateVisibility = () => {
       if (containerStyleRef.current) {
-        containerStyleRef.current.style.opacity = isSuspended ? "0" : "1";
-        containerStyleRef.current.style.pointerEvents = isSuspended
+        containerStyleRef.current.style.opacity = isSuspendedRef.current ? "0" : "1";
+        containerStyleRef.current.style.pointerEvents = isSuspendedRef.current
           ? "none"
           : "auto";
       }
     };
 
-    const unsubActivate = subscribe(CtxEvent.Activate, () => {
-      console.debug("[CarmaMap] Cesium activate");
-      updateVisibility(false);
-    });
-    const unsubSuspend = subscribe(CtxEvent.Suspend, () => {
-      console.debug("[CarmaMap] Cesium suspend");
-      updateVisibility(true);
-    });
+    // Initial update
+    updateVisibility();
 
-    return () => {
-      unsubActivate();
-      unsubSuspend();
-    };
-  }, [subscribe, allow3d]);
+    // Set up interval to check for changes (since refs don't trigger re-renders)
+    const interval = setInterval(updateVisibility, 100);
+
+    return () => clearInterval(interval);
+  }, [isSuspendedRef]);
+
+  // Sync Cesium scene style based on map style changes from Portal context
+  const { current: currentMapStyle, mapStyleToCesiumStyleMapping } = usePortalMapStyle();
+  const cesiumContext = useCesiumContext();
+  
+  useEffect(() => {
+    if (!allow3d || !cesiumContext.sceneStyleApplierRef.current) return;
+    
+    const cesiumStyle = mapStyleToCesiumStyleMapping[currentMapStyle];
+    if (cesiumStyle) {
+      console.log(`[CarmaMap] Syncing Cesium scene style: ${currentMapStyle} -> ${cesiumStyle}`);
+      cesiumContext.sceneStyleApplierRef.current(cesiumStyle);
+    }
+  }, [currentMapStyle, mapStyleToCesiumStyleMapping, allow3d, cesiumContext.sceneStyleApplierRef]);
+
   // One-time initialization - these hooks are called once at mount
   // TODO: Refactor removed - useCesiumInitialCameraFromSearchParams not exported
   // const cesiumInitialCameraView = useCesiumInitialCameraFromSearchParams();
@@ -232,8 +244,6 @@ export const CarmaMap = ({
   // };
   // useSelectionCesium(allow3d ?? false, markerConfig, false);
 
-  // Sync Cesium scene style based on map style changes from MapStyleProvider context
-  useSyncCesiumSceneStyle();
   const layers = getLayers();
   const uiMode = getUIMode();
   const showFullscreenButton = getShowFullscreenButton();

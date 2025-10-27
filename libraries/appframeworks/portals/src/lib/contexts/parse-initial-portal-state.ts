@@ -38,6 +38,13 @@ export function parseInitialPortalState({
     range?: number;
   };
 }) {
+  console.log("[parseInitialPortalState] Input:", {
+    hashValues,
+    defaultStyle: styleConfig.defaultStyle,
+    defaultPosition,
+    defaultCameraLocation,
+  });
+
   const { defaultStyle } = styleConfig;
 
   // Map style - validate against available styles
@@ -106,10 +113,13 @@ export function parseInitialPortalState({
         roll: 0,
       };
 
-  return {
+  const result = {
     initialMapStyle: mapStyle,
     initialEngine: engine,
     initialMapPosition: mapPosition,
     initialCameraLocation: cameraLocation,
   };
+
+  console.log("[parseInitialPortalState] Result:", result);
+  return result;
 }

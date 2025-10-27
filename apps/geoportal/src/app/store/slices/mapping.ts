@@ -15,7 +15,6 @@ import { layerMap } from "../../config";
 
 const defaultOpacity = 0.2;
 
-
 const initialState: MappingState = {
   layers: [],
   savedLayerConfigs: [],
@@ -269,7 +268,10 @@ const slice = createSlice({
     setClickFromInfoView(state, action: PayloadAction<boolean>) {
       state.clickFromInfoView = action.payload;
     },
-    setLibreMapRef(state, action: PayloadAction<React.MutableRefObject<MaplibreMap> | null>) {
+    setLibreMapRef(
+      state,
+      action: PayloadAction<React.MutableRefObject<MaplibreMap> | null>
+    ) {
       state.libreMapRef = action.payload;
     },
     setConfigSelection(state, action: PayloadAction<SelectionItem>) {

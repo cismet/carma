@@ -7,7 +7,10 @@ import { faLayerGroup, faMap } from "@fortawesome/free-solid-svg-icons";
 import type { Layer } from "@carma/types";
 
 import { iconColorMap, iconMap } from "./items";
-import { FontAwesomeLikeIcon, usePortal } from "@carma-appframeworks/portals";
+import {
+  FontAwesomeLikeIcon,
+  usePortalContext,
+} from "@carma-appframeworks/portals";
 
 interface LayerIconProps {
   layer: Layer;
@@ -22,7 +25,8 @@ const LayerIcon = ({
   isBaseLayer,
   id,
 }: LayerIconProps) => {
-  const { iconPrefix } = usePortal();
+  const { portalConfig } = usePortalContext();
+  const iconPrefix = portalConfig.iconPrefix;
   const prefix = iconPrefix || "";
   const [imgError, setImgError] = useState(!layer.other?.icon);
 

@@ -292,7 +292,9 @@ export const useSceneStyleSwitcher = (
     const checkSceneReady = () => {
       const scene = sceneRef.current;
       if (scene && scene.isDestroyed() === false) {
-        console.log("[SceneStyleSwitcher] Scene ready - applying initial style");
+        console.log(
+          "[SceneStyleSwitcher] Scene ready - applying initial style"
+        );
 
         const initialStyle = currentSceneStyleRef.current;
         if (!initialStyle) {
@@ -302,7 +304,9 @@ export const useSceneStyleSwitcher = (
 
         const style = sceneStyle?.styles?.find((s) => s.id === initialStyle);
         if (!style) {
-          console.warn(`[SceneStyleSwitcher] Style "${initialStyle}" not found`);
+          console.warn(
+            `[SceneStyleSwitcher] Style "${initialStyle}" not found`
+          );
           return;
         }
 
@@ -338,7 +342,9 @@ export const useSceneStyleSwitcher = (
         }
         if (style.imageryLayers && style.imageryLayers.length > 0) {
           style.imageryLayers.forEach((l) => {
-            console.log(`[StyleSwitcher|Resources] ${l.id} → REQUIRED (initial)`);
+            console.log(
+              `[StyleSwitcher|Resources] ${l.id} → REQUIRED (initial)`
+            );
             resourceTrackerRef.current.required.add(l.id);
             presentableTrackerRef.current.required.add(l.id);
           });

@@ -22,11 +22,6 @@ import type { AnimationMap } from "@carma/types";
 import { initAnimationMap } from "../scene/camera/animations";
 import { sceneRequestRender } from "../scene/scene-request-render";
 import { validateSceneStyle } from "./validation";
-import {
-  convertPortalPoseToCesiumPose,
-  validateCameraPosePortal,
-  type CameraPosePortal,
-} from "../utils/camera-pose-converter";
 
 /**
  * CesiumContextProvider Architecture Rules
@@ -92,17 +87,11 @@ import {
 export type CesiumContextProviderProps = {
   children: ReactNode;
   config: CesiumConfig;
-  /** Home camera pose (Portal format: degrees + altitude) - required for go-home functionality */
-  homeCameraPose: CameraPosePortal;
-  /** Initial camera pose (Portal format: degrees + altitude) - optional override for first load */
-  initialCameraPose?: CameraPosePortal;
 };
 
 export const CesiumContextProvider = ({
   children,
   config,
-  homeCameraPose,
-  initialCameraPose,
 }: CesiumContextProviderProps): React.ReactElement => {
   // Auto-setup Cesium environment if not already done
   // This ensures window.CESIUM_BASE_URL is set without requiring app-level setup
@@ -194,27 +183,8 @@ export const CesiumContextProvider = ({
 
   // Config validation removed - using direct refs and callbacks instead
 
-  // Validate and convert camera poses from Portal format (degrees + altitude) to Cesium format (radians + height)
-  const cameraHomePoseRadians = useMemo(() => {
-    validateCameraPosePortal(homeCameraPose, "homeCameraPose");
-    return convertPortalPoseToCesiumPose(homeCameraPose);
-  }, [homeCameraPose]);
-
-  const cameraInitialPoseRadians = useMemo(() => {
-    if (!initialCameraPose) return null;
-    validateCameraPosePortal(initialCameraPose, "initialCameraPose");
-    return convertPortalPoseToCesiumPose(initialCameraPose);
-  }, [initialCameraPose]);
-
   // Camera pose refs (Cesium internal format)
-  const homeCamera = useRef<CameraPoseRadians>(cameraHomePoseRadians);
-  const initialCamera = useRef<CameraPoseRadians | null>(
-    cameraInitialPoseRadians
-  );
-
-  // Update refs when props change (should be rare - props are static)
-  homeCamera.current = cameraHomePoseRadians;
-  initialCamera.current = cameraInitialPoseRadians;
+  const homeCamera = useRef<CameraPoseRadians | null>(null);
 
   // Cesium widget instance lifecycle history
   // Tracks each time a Cesium widget instance was created (3D mode activation)
@@ -246,7 +216,7 @@ export const CesiumContextProvider = ({
 
       console.log("[CesiumContext] ✓ Scene init prepared", {
         style: currentSceneStyleRef.current,
-        hasCamera: !!initialCamera.current,
+        hasCamera: !!homeCamera.current,
         hasSceneStyle: !!config.sceneStyle,
       });
 
@@ -261,7 +231,6 @@ export const CesiumContextProvider = ({
       sceneRef,
       isSuspendedRef,
       homeCamera,
-      initialCamera,
       currentCameraRef,
       moveendCameraRef,
       minZoomDistanceRef,

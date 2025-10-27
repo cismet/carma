@@ -26,20 +26,14 @@ This playground serves as a **reference implementation** demonstrating how to bu
 
 ### 📋 Architecture Goals
 
-#### **Event Bus Pattern**
+#### **Reactive State Pattern**
 ```typescript
-// UI Components use React context for immediate feedback
-const { currentStyle, setCurrentStyle } = useMapStyle();
+// UI Components use Portal context with reactive state
+const { current: currentStyle, set: setCurrentStyle } = usePortalMapStyle();
 
-// External APIs subscribe to events (no React rerenders)
-const { subscribe } = useMapStyleBus();
-useEffect(() => {
-  const unsubscribe = subscribe((style) => {
-    // Control Cesium without triggering React updates
-    controlCesiumScene(style);
-  });
-  return unsubscribe;
-}, []);
+// Style changes automatically trigger re-renders via useState
+// URL hash synced automatically
+setCurrentStyle(MapStyleKeys.AERIAL);
 ```
 
 #### **Library-Based State Management**
@@ -52,15 +46,14 @@ useEffect(() => {
 This playground demonstrates how to build a Geoportal application using the **new library architecture**:
 
 1. **UI Layer**: React components for user interactions
-2. **Event Bus**: Framework-agnostic communication layer
+2. **State Layer**: PortalContext with reactive useState
 3. **API Layer**: External system integration (Cesium, Leaflet, etc.)
-4. **State Layer**: Library-based state management
+4. **URL Sync**: Automatic hash parameter synchronization
 
 ## Future Development
 
 ### **Immediate Next Steps**
-- [ ] Implement proper state management library
-- [ ] Integrate with MapStyleProvider for event bus pattern
+- [x] Reactive state management with PortalContext
 - [ ] Replace placeholder components with real implementations
 - [ ] Add comprehensive testing
 
