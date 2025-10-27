@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { isEqual } from "lodash";
 import WMSCapabilities from "wms-capabilities";
 import type { Layer, SavedLayerConfig } from "@carma/types";
@@ -12,6 +12,7 @@ import {
   removeloadingCapabilitiesIDs,
   setLoadingCapabilities,
   setAllLayers,
+  getAllLayers,
 } from "../slices/mapLayers";
 import {
   baseConfig as config,
@@ -76,14 +77,35 @@ export const useLoadCapabilities = ({
 }: UseLoadCapabilitiesProps) => {
   const dispatch = useDispatch();
   const services = serviceConfig;
+  const allLayers = useSelector(getAllLayers);
 
   useEffect(() => {
     const loadCapabilites = async () => {
       let newLayers: any[] = [];
-      dispatch(setLoadingCapabilities(true));
+
+      // Check if any service needs to load capabilities
+      let needsLoading = false;
+      for (let key in services) {
+        const hasExistingLayers = allLayers.some(
+          (layer) => layer.id === services[key].name
+        );
+        if (!hasExistingLayers) {
+          needsLoading = true;
+          break;
+        }
+      }
+
+      dispatch(setLoadingCapabilities(needsLoading));
+
       for (let key in services) {
         if (services[key].url) {
-          dispatch(addloadingCapabilitiesIDs(services[key].name));
+          const hasExistingLayers = allLayers.some(
+            (layer) => layer.id === services[key].name
+          );
+          if (!hasExistingLayers) {
+            dispatch(addloadingCapabilitiesIDs(services[key].name));
+          }
+
           fetch(
             `${services[key].url}?service=WMS&request=GetCapabilities&version=1.1.1`
           )
