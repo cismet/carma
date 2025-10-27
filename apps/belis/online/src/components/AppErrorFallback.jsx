@@ -45,7 +45,7 @@ const FallbackComponent = ({ error, resetErrorBoundary }) => {
   };
 
   let mailToHref =
-    "mailto:th@cismet.de?subject=Fehler%20in%20BelIS-Online" +
+    "mailto:bugs@cismet.de?subject=Fehler%20in%20BelIS-Online" +
     "&body=" +
     encodeURI(
       `Sehr geehrte Damen und Herren,${br}${br}` +
@@ -150,7 +150,7 @@ const FallbackComponent = ({ error, resetErrorBoundary }) => {
               <h4 style={{ color: "white" }}>Straßen und Verkehr</h4>
               <h4 style={{ color: "white" }}>104.25 Öffentliche Beleuchtung</h4>
               <h4 style={{ color: "white" }}>
-                {/* <a style={{ color: "white" }} href='mailto:th@cismet.de'>
+                {/* <a style={{ color: "white" }} href='mailto:bugs@cismet.de'>
                   regengeld@stadt.wuppertal.de
                 </a> */}
               </h4>

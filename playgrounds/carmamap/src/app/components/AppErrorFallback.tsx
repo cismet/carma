@@ -34,7 +34,7 @@ const AppErrorFallback = ({ error, resetErrorBoundary }) => {
   };
 
   let mailToHref =
-    "mailto:david.glogaza@cismet.de?subject=Fehler%20im%20CarmaMap%20Wuppertal" +
+    "mailto:bugs@cismet.de?subject=Fehler%20im%20CarmaMap%20Wuppertal" +
     "&body=" +
     encodeURI(
       `Sehr geehrte Damen und Herren,${br}${br}` +

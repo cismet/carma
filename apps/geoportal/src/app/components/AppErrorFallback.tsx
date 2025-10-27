@@ -54,7 +54,7 @@ export interface AppErrorFallbackProps {
 const defaultMail: Required<Pick<AppErrorMailConfig, "to" | "subject">> & {
   bodyTemplate: NonNullable<AppErrorMailConfig["bodyTemplate"]>;
 } = {
-  to: "david.glogaza@cismet.de",
+  to: "bugs@cismet.de",
   subject: "Fehler im Geoportal Wuppertal",
   bodyTemplate: ({ br, appName }) =>
     `Sehr geehrte Damen und Herren,${br}${br}` +
