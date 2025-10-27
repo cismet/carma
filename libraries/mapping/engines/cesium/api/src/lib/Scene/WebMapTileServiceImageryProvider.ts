@@ -1,7 +1,7 @@
 /**
  * WebMapTileServiceImageryProvider with extended config support
  */
-import { WebMapTileServiceImageryProvider } from "cesium";
+import { WebMapTileServiceImageryProvider, Rectangle } from "cesium";
 import type { Degrees } from "@carma/units/types";
 
 export { WebMapTileServiceImageryProvider };

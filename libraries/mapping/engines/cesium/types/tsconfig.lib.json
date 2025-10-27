@@ -4,9 +4,10 @@
     "declaration": true,
     "emitDeclarationOnly": true,
     "stripInternal": true,
-    "composite": true,
+    "composite": false,
     "rootDir": "./src",
-    "outDir": "../../../../../dist/libraries/mapping/engines/cesium/types"
+    "outDir": "../../../../../dist/libraries/mapping/engines/cesium/types",
+    "skipLibCheck": true
   },
   "include": ["src/**/*.d.ts"],
   "exclude": []

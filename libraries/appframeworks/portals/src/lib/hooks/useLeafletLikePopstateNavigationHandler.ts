@@ -1,9 +1,12 @@
 import { useCallback, useEffect, MutableRefObject } from "react";
-import { Map as LeafletMap } from "leaflet";
-import type { Map as MaplibreMap } from "maplibre-gl";
-
-import { LeafletMapEventNames } from "@carma-mapping/engines/leaflet";
-import { MaplibreMapEventNames } from "@carma-mapping/engines/maplibre";
+import {
+  LeafletMap,
+  LeafletMapEventNames,
+} from "@carma-mapping/engines/leaflet";
+import {
+  MaplibreMap,
+  MaplibreMapEventNames,
+} from "@carma-mapping/engines/maplibre";
 
 import { useHashState } from "../contexts/HashStateProvider";
 import {

@@ -1,12 +1,14 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
+    "composite": false,
     "outDir": "../../../../../dist/out-tsc",
     "declaration": true,
     "types": [
       "node",
       "vite/client"
-    ]
+    ],
+    "skipLibCheck": true
   },
   "include": [
     "src/**/*.ts"

@@ -11,7 +11,7 @@ import {
 import { Tooltip } from "antd";
 import { useControls } from "leva";
 
-import { useCesiumContext, CtxEvent } from "@carma-mapping/engines/cesium/core";
+import { useCesiumContext } from "@carma-mapping/engines/cesium/core";
 import {
   addMapTransitionLifecycleHandler,
   MapTransitionState,
@@ -79,7 +79,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const siblingsByCardinal = useSiblingsByCardinal();
   const {
     sceneRef,
-    subscribe,
     shouldSuspendPitchLimiterRef,
     shouldSuspendCameraLimitersRef,
     requestRender,
@@ -117,13 +116,10 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     setSuspendSelectionSearch(isPreviewVisible);
   }, [isPreviewVisible, setSuspendSelectionSearch]);
 
-  // Close preview when a Home fly is triggered
-  useEffect(() => {
-    const unsubscribe = subscribe(CtxEvent.GoHome, () => {
-      setIsPreviewVisible(false);
-    });
-    return unsubscribe;
-  }, [subscribe]);
+  // TODO: Close preview when flyHome is triggered
+  // This should be coordinated through Portal context, NOT through CesiumContext callbacks
+  // Portal should manage flyHome coordination and notify ObliqueProvider if needed
+  // Example: Portal.flyHome() → calls CesiumContext.flyHome() → Portal notifies ObliqueProvider
   // Disable camera limiters while preview is visible
   useEffect(() => {
     if (shouldSuspendPitchLimiterRef)

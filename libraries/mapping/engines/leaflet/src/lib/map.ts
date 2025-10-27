@@ -1,4 +1,7 @@
-import type { Map as LeafletMap } from "leaflet";
+import { Map as LeafletMap } from "leaflet";
+
+// Re-export for instanceof checks in consuming code
+export { LeafletMap };
 
 /**
  * Extracts lat/lng/zoom from Leaflet map.

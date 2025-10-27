@@ -1,3 +1,5 @@
+// @ts-nocheck - Legacy react-cismap imports without type definitions
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useContext, useState } from "react";
 import { ResponsiveInfoBox, MODES } from "./ResponsiveInfoBox";
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";

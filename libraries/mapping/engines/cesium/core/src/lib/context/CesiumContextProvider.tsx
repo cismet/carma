@@ -190,7 +190,9 @@ export const CesiumContextProvider = ({
   // Tracks each time a Cesium widget instance was created (3D mode activation)
   const [cesiumInstances] = useState<CesiumInstanceRecord[]>([]);
 
-  // Event bus removed - using direct refs and callbacks instead
+  // Portal callback coordination (matches TopicMapContext pattern)
+  const onCameraUpdateRef = useRef<(() => void) | null>(null);
+  const onFovChangeCallbackRef = useRef<((fov: number) => void) | null>(null);
 
   // Camera tracking moved to CesiumSceneComponent (scene-level hook)
   // Scene component now updates context's currentCameraRef
@@ -198,6 +200,30 @@ export const CesiumContextProvider = ({
   const requestRender = useCallback(() => {
     sceneRef.current && sceneRequestRender(sceneRef.current);
   }, [sceneRef]);
+
+  // Portal callback setter - Portal registers its callback here
+  const onCameraUpdate = useCallback((callback: () => void) => {
+    onCameraUpdateRef.current = callback;
+    console.log("[CesiumContext] Camera update callback registered");
+  }, []);
+
+  // Fly to home - Portal calls this when home button is clicked
+  const flyHome = useCallback(() => {
+    const camera = homeCamera.current;
+    if (!camera || !sceneRef.current) {
+      console.warn("[CesiumContext] flyHome: No camera or scene available");
+      return;
+    }
+
+    // TODO: Implement camera animation to home position
+    // This should use Cesium camera flyTo with homeCamera.current
+    console.log("[CesiumContext] flyHome called", camera);
+
+    // After animation completes, trigger Portal callback
+    if (onCameraUpdateRef.current) {
+      onCameraUpdateRef.current();
+    }
+  }, []);
 
   // Scene initialization gate: Synchronously prepares refs for scene mount
   // Returns true if ready to mount scene
@@ -242,6 +268,8 @@ export const CesiumContextProvider = ({
       sceneCameraTrackerRef,
       sceneStyleReadyStateRef,
       sceneStyleReadyCallbackRef,
+      onCameraUpdate,
+      flyHome,
       prepareSceneInit,
       isAnimatingRef,
       transitionStateRef,
@@ -250,10 +278,11 @@ export const CesiumContextProvider = ({
       shouldSuspendCameraLimitersRef,
       requestRender,
       animationMapRef,
+      onFovChangeCallbackRef,
       config,
       cesiumInstances,
     }),
-    [prepareSceneInit, requestRender, config, cesiumInstances]
+    [prepareSceneInit, requestRender, onCameraUpdate, flyHome, config, cesiumInstances]
   );
 
   // Auto-recovery from Cesium errors - using direct refs instead of event bus

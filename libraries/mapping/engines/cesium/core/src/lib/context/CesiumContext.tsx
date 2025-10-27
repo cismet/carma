@@ -79,7 +79,11 @@ export interface CesiumContextType {
     ((isReady: boolean, styleId: string) => void) | null
   >;
 
-  // Event bus removed - using direct refs and callbacks instead
+  // Portal callback coordination (matches TopicMapContext pattern)
+  // Portal registers callback to be notified of camera updates
+  onCameraUpdate: (callback: () => void) => void;
+  // Portal calls this to trigger fly home animation
+  flyHome: () => void;
 
   // Scene initialization gate (synchronous validation)
   // Wrapper calls this to prepare refs before mounting scene
@@ -99,6 +103,10 @@ export interface CesiumContextType {
   // Render control
   requestRender: (opts?: DelayedRenderOptions) => void;
   animationMapRef: MutableRefObject<AnimationMap | null>;
+
+  // FOV change callback for external consumers (e.g., ObliqueProvider overlay)
+  // Note: This is NOT for Portal coordination, but for UI overlays that need FOV updates
+  onFovChangeCallbackRef: MutableRefObject<((fov: number) => void) | null>;
 
   // Original config (immutable after initialization)
   config: CesiumConfig;

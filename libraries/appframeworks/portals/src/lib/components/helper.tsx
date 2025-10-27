@@ -1,3 +1,5 @@
+// @ts-nocheck - Legacy react-cismap imports without type definitions
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import IconLink from "react-cismap/commons/IconLink";
 
 interface ActionLinksConfig {

@@ -1,5 +1,5 @@
-import { Map as LeafletMap } from "leaflet";
-import type { Map as MaplibreMap } from "maplibre-gl";
+import { LeafletMap } from "@carma-mapping/engines/leaflet";
+import { MaplibreMap } from "@carma-mapping/engines/maplibre";
 
 import type { Zoom256, LatLngZoom, LeafletLikeMap } from "@carma/types";
 import { zoom256as512 } from "@carma-mapping/engines/maplibre";
@@ -34,9 +34,12 @@ export const setViewLeafletLike = (
   map: LeafletLikeMap,
   { lat, lng, zoom }: LatLngZoom
 ): void => {
-  if (map instanceof MaplibreMap) {
+  // Duck typing: MapLibre uses jumpTo, Leaflet uses setView
+  if ("jumpTo" in map && typeof map.jumpTo === "function") {
+    // MapLibre map
     map.jumpTo({ center: [lng, lat], zoom: zoom256as512(zoom as Zoom256) });
-  } else if (map instanceof LeafletMap) {
+  } else if ("setView" in map && typeof map.setView === "function") {
+    // Leaflet map
     map.setView({ lat, lng }, zoom);
   }
 };

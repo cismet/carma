@@ -19,7 +19,6 @@ export function useObliqueInitializer(debug = false) {
   const {
     shouldSuspendPitchLimiterRef,
     requestRender,
-    emit,
     animationMapRef,
     sceneRef,
   } = useCesiumContext();
@@ -91,7 +90,6 @@ export function useObliqueInitializer(debug = false) {
       leaveObliqueMode(
         scene,
         animationMapRef.current,
-        emit,
         originalFovRef,
         () => {
           disableCameraForceOblique();
@@ -110,7 +108,6 @@ export function useObliqueInitializer(debug = false) {
   }, [
     debug,
     animationMapRef,
-    emit,
     isObliqueMode,
     sceneRef,
     fixedPitch,

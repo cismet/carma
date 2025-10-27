@@ -1,2 +1,2 @@
 import type { Map as LeafletMap } from "leaflet";
-export { LeafletMap };
+export type { LeafletMap };

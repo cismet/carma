@@ -1,6 +1,7 @@
 {
   "extends": "./tsconfig.json",
   "compilerOptions": {
+    "composite": false,
     "outDir": "../../../../../dist/out-tsc",
     "declaration": true,
     "types": [
@@ -8,7 +9,8 @@
       "@nx/react/typings/cssmodule.d.ts",
       "@nx/react/typings/image.d.ts",
       "vite/client"
-    ]
+    ],
+    "skipLibCheck": true
   },
   "include": [
     "src/**/*.js",

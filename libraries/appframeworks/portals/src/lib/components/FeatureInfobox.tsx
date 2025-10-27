@@ -1,3 +1,5 @@
+// @ts-nocheck - Legacy react-cismap imports without type definitions
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import InfoBoxFotoPreview from "react-cismap/topicmaps/InfoBoxFotoPreview";
 import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
 

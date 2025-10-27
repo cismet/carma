@@ -25,7 +25,6 @@ import {
   computeNextFov,
 } from "../../scene/camera";
 import { useCesiumContext } from "../../context";
-import { EmitCesiumCtxFn } from "../../context/cesium-context-event-map";
 
 type ZoomOptions = {
   duration?: number;
@@ -164,7 +163,7 @@ const zoom = (
 const fovZoom = (
   scene: Scene,
   animationMap: AnimationMap,
-  emit: EmitCesiumCtxFn,
+  onFovChangeCallback: ((fov: number) => void) | null,
   zoomIn: boolean,
   duration: number,
   moveRateFactor: number,
@@ -197,11 +196,12 @@ const fovZoom = (
   );
 
   // Use the same per-frame animation helper; it updates on each render
-  cesiumAnimateFov(scene, animationMap, emit, {
+  cesiumAnimateFov(scene, animationMap, {
     startFov: currentFov,
     targetFov,
     duration,
     easingFunction: Easing.SINUSOIDAL_IN_OUT,
+    onFovChange: onFovChangeCallback ?? undefined,
   });
 };
 
@@ -218,7 +218,7 @@ export function useZoomControls(zoomOptions: Partial<ZoomOptions> = {}) {
     ...zoomOptions,
   };
 
-  const { sceneRef, animationMapRef, emit } = useCesiumContext();
+  const { sceneRef, animationMapRef, onFovChangeCallbackRef } = useCesiumContext();
 
   const handleZoomIn = useCallback(
     (event: React.MouseEvent) => {
@@ -229,14 +229,14 @@ export function useZoomControls(zoomOptions: Partial<ZoomOptions> = {}) {
         ? fovZoom(
             scene,
             animationMapRef.current,
-            emit,
+            onFovChangeCallbackRef.current,
             true, // zoomIn = true for zoom in
             duration * 1000,
             moveRateFactor
           )
         : zoom(scene, animationMapRef.current, false, duration, moveRateFactor);
     },
-    [animationMapRef, duration, moveRateFactor, emit, fovMode, sceneRef]
+    [animationMapRef, duration, moveRateFactor, onFovChangeCallbackRef, fovMode, sceneRef]
   );
 
   const handleZoomOut = useCallback(
@@ -248,14 +248,14 @@ export function useZoomControls(zoomOptions: Partial<ZoomOptions> = {}) {
         ? fovZoom(
             scene,
             animationMapRef.current,
-            emit,
+            onFovChangeCallbackRef.current,
             false, // zoomIn = false for zoom out
             duration * 1000,
             moveRateFactor
           )
         : zoom(scene, animationMapRef.current, true, duration, moveRateFactor);
     },
-    [animationMapRef, duration, emit, moveRateFactor, fovMode, sceneRef]
+    [animationMapRef, duration, onFovChangeCallbackRef, moveRateFactor, fovMode, sceneRef]
   );
 
   return { handleZoomIn, handleZoomOut };

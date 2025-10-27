@@ -25,7 +25,6 @@ import {
   type AnimationMap,
   cesiumAnimateFov,
   getOrbitPoint,
-  EmitCesiumCtxFn,
   isValidFov,
 } from "@carma-mapping/engines/cesium/core";
 
@@ -220,7 +219,6 @@ export const enterObliqueMode = (
 export const leaveObliqueMode = (
   scene: Scene,
   animationMap: AnimationMap | null,
-  emit: EmitCesiumCtxFn,
   originalFovRef: MutableRefObject<number | null>,
   onComplete: () => void
 ) => {
@@ -247,7 +245,7 @@ export const leaveObliqueMode = (
       const adaptiveLeaveDuration =
         LEAVE_BASE_DURATION * Math.abs(currentFov - targetFov);
 
-      cesiumAnimateFov(scene, animationMap, emit, {
+      cesiumAnimateFov(scene, animationMap, {
         startFov: currentFov,
         targetFov,
         duration: adaptiveLeaveDuration,

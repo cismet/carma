@@ -1,3 +1,5 @@
+// @ts-nocheck - Legacy react-cismap imports without type definitions
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import React, { useContext, useEffect } from "react";
 import { getActionLinksForFeature } from "react-cismap/tools/uiHelper";
 import { InfoBox } from "@carma-appframeworks/portals";

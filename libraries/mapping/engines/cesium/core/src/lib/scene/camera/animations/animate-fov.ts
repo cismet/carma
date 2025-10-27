@@ -14,12 +14,12 @@ export interface CesiumAnimateFovOptions {
   easingFunction?: (time: number) => number;
   onRender?: (currentFov: number) => void;
   onComplete?: () => void;
+  onFovChange?: (fov: number) => void;
 }
 
 export const cesiumAnimateFov = (
   scene: Scene,
   animationMap: AnimationMap,
-  onFovChange?: (fov: number) => void,
   {
     startFov,
     targetFov,
@@ -27,6 +27,7 @@ export const cesiumAnimateFov = (
     easingFunction = Easing.SINUSOIDAL_IN_OUT,
     onRender,
     onComplete,
+    onFovChange,
   }: CesiumAnimateFovOptions
 ): void => {
   tryWithValidScene(scene, (scene) => {

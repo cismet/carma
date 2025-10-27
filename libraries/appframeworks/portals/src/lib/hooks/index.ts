@@ -1,7 +1,6 @@
 export * from "./useHashChangeEmit";
 export * from "./useLeafletLikeChangeHandler";
 export * from "./useLeafletLikePopstateNavigationHandler";
-export * from "./useMapHashRoutingCesium";
 export * from "./useMapHashRoutingLeafletLike";
 export * from "./useModelSelectionHandler";
 export * from "./useProgress";
