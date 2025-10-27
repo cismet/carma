@@ -135,20 +135,20 @@ export const NewLibModal = ({
   const [isSearching, setIsSearching] = useState(false);
   const [showItems, setShowItems] = useState(false);
   const [selectedNavItemIndex, setSelectedNavItemIndex] = useState(0);
-  const [tmpAllCategories, setTmpAllCategories] = useState<
+  const [allCategories, setAllCategories] = useState<
     {
       id: string;
       categories: LayerCategories[];
     }[]
   >([]);
-  const [shownCategories, setShownCategories] = useState<
+  const [filteredCategories, setFilteredCategories] = useState<
     {
       id: string;
       categories: LayerCategories[];
     }[]
   >([]);
   const [currentShownCategory, setCurrentShownCategory] = useState(
-    shownCategories[0]?.id
+    filteredCategories[0]?.id
   );
   const [discoverItems, setDiscoverItems] = useState<any[]>([]);
   const [loadingData, setLoadingData] = useState(false);
@@ -205,7 +205,7 @@ export const NewLibModal = ({
     if (value) {
       const results = fuse.search(value);
 
-      const copiedCategories = JSON.parse(JSON.stringify(tmpAllCategories));
+      const copiedCategories = JSON.parse(JSON.stringify(allCategories));
 
       const categoriesWithResults = copiedCategories.map((category) => {
         category.categories.map((tmp) => {
@@ -274,16 +274,16 @@ export const NewLibModal = ({
         }
       }
 
-      setShownCategories(categoriesWithResults);
+      setFilteredCategories(categoriesWithResults);
     } else {
-      if (tmpAllCategories.length > 0) {
-        setShownCategories(tmpAllCategories);
+      if (allCategories.length > 0) {
+        setFilteredCategories(allCategories);
       }
     }
     setIsSearching(false);
   };
 
-  const flattenedLayers = tmpAllCategories.flatMap((obj) =>
+  const flattenedLayers = allCategories.flatMap((obj) =>
     obj.categories.flatMap((obj) => obj.layers)
   );
   const fuse = new Fuse(flattenedLayers, {
@@ -389,8 +389,8 @@ export const NewLibModal = ({
       return newCategories;
     };
 
-    setShownCategories(createNewCategories);
-    setTmpAllCategories(createNewCategories);
+    setFilteredCategories(createNewCategories);
+    setAllCategories(createNewCategories);
   };
 
   useHandleDrop({
@@ -413,8 +413,8 @@ export const NewLibModal = ({
     activeLayers,
     updateActiveLayer,
     setLayers,
-    setShownCategories,
-    setTmpAllCategories,
+    setFilteredCategories,
+    setAllCategories,
     getDataFromJson,
     store,
   });
@@ -450,7 +450,7 @@ export const NewLibModal = ({
       });
     }
 
-    setShownCategories((prev) => {
+    setFilteredCategories((prev) => {
       if (prev.find((item) => item.id === "discover")) {
         prev.splice(
           prev.findIndex((item) => item.id === "discover"),
@@ -460,7 +460,7 @@ export const NewLibModal = ({
       return [...prev, { id: "discover", categories: discoverCategories }];
     });
 
-    setTmpAllCategories((prev) => {
+    setAllCategories((prev) => {
       if (prev.find((item) => item.id === "discover")) {
         prev.splice(
           prev.findIndex((item) => item.id === "discover"),
@@ -478,7 +478,7 @@ export const NewLibModal = ({
 
     if (customCategories) {
       if (!searchValue) {
-        setShownCategories((prev) => {
+        setFilteredCategories((prev) => {
           if (prev.find((item) => item.id === "favorites")) {
             prev.splice(
               prev.findIndex((item) => item.id === "favorites"),
@@ -489,7 +489,7 @@ export const NewLibModal = ({
         });
       }
 
-      setTmpAllCategories((prev) => {
+      setAllCategories((prev) => {
         if (prev.find((item) => item.id === "favorites")) {
           prev.splice(
             prev.findIndex((item) => item.id === "favorites"),
@@ -558,7 +558,7 @@ export const NewLibModal = ({
       );
     });
 
-    setTmpAllCategories((prev) => {
+    setAllCategories((prev) => {
       if (prev.find((item) => item.id === "mapLayers")) {
         prev.splice(
           prev.findIndex((item) => item.id === "mapLayers"),
@@ -583,7 +583,7 @@ export const NewLibModal = ({
     if (searchValue) {
       search(debouncedSearchTerm);
     }
-  }, [tmpAllCategories]);
+  }, [allCategories]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -594,11 +594,11 @@ export const NewLibModal = ({
   }, [open]);
 
   useEffect(() => {
-    if (shownCategories) {
+    if (filteredCategories) {
       let firstIdWithItems = "";
 
       const gridItemIDs = categoriesToShownLayers(
-        shownCategories,
+        filteredCategories,
         sidebarElements[selectedNavItemIndex].id
       )?.map((category) => {
         if (category.layers.length > 0) {
@@ -620,7 +620,7 @@ export const NewLibModal = ({
       const scrollTop = event.target.scrollTop;
 
       const gridItemIDs = categoriesToShownLayers(
-        shownCategories,
+        filteredCategories,
         sidebarElements[selectedNavItemIndex].id
       ).map((category) => {
         if (category.layers.length > 0) {
@@ -668,7 +668,7 @@ export const NewLibModal = ({
     return () => {
       scrollContainer?.removeEventListener("scroll", handleScroll);
     };
-  }, [shownCategories, selectedNavItemIndex, debouncedSearchTerm]);
+  }, [filteredCategories, selectedNavItemIndex, debouncedSearchTerm]);
 
   const categoriesToShownLayers = (categories, shownId) => {
     if (shownId === "searchResults") {
@@ -756,7 +756,7 @@ export const NewLibModal = ({
                     isSearching || !searchValue
                       ? 0
                       : getNumberOfLayers(
-                          categoriesToShownLayers(shownCategories, element.id)
+                          categoriesToShownLayers(filteredCategories, element.id)
                         )
                   }
                   showNumberOfItems={!!searchValue && !!debouncedSearchTerm}
@@ -840,7 +840,7 @@ export const NewLibModal = ({
             <div className="flex w-full gap-2">
               <LayerTabs
                 layers={categoriesToShownLayers(
-                  shownCategories,
+                  filteredCategories,
                   sidebarElements[selectedNavItemIndex].id
                 )}
                 activeId={currentShownCategory}
@@ -868,7 +868,7 @@ export const NewLibModal = ({
               {showItems && (
                 <ItemGrid
                   categories={categoriesToShownLayers(
-                    shownCategories,
+                    filteredCategories,
                     sidebarElements[selectedNavItemIndex].id
                   )}
                   setAdditionalLayers={setAdditionalLayers}

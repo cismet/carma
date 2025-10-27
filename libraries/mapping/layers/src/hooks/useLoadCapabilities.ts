@@ -34,7 +34,7 @@ interface UseLoadCapabilitiesProps {
   activeLayers: ActiveLayers;
   updateActiveLayer: (layer: Layer) => void;
   setLayers: (layers: any[]) => void;
-  setShownCategories: React.Dispatch<
+  setFilteredCategories: React.Dispatch<
     React.SetStateAction<
       {
         id: string;
@@ -46,7 +46,7 @@ interface UseLoadCapabilitiesProps {
       }[]
     >
   >;
-  setTmpAllCategories: React.Dispatch<
+  setAllCategories: React.Dispatch<
     React.SetStateAction<
       {
         id: string;
@@ -70,8 +70,8 @@ export const useLoadCapabilities = ({
   activeLayers,
   updateActiveLayer,
   setLayers,
-  setShownCategories,
-  setTmpAllCategories,
+  setFilteredCategories,
+  setAllCategories,
   getDataFromJson,
   store,
 }: UseLoadCapabilitiesProps) => {
@@ -205,7 +205,7 @@ export const useLoadCapabilities = ({
         partialTwinsCategories.push(partianTwinConfig[key]);
       }
 
-      setShownCategories((prev) => {
+      setFilteredCategories((prev) => {
         if (prev.find((item) => item.id === "partialTwins")) {
           prev.splice(
             prev.findIndex((item) => item.id === "partialTwins"),
@@ -218,7 +218,7 @@ export const useLoadCapabilities = ({
         ];
       });
 
-      setTmpAllCategories((prev) => {
+      setAllCategories((prev) => {
         if (prev.find((item) => item.id === "partialTwins")) {
           prev.splice(
             prev.findIndex((item) => item.id === "partialTwins"),
