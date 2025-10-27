@@ -158,10 +158,9 @@ export const useLoadCapabilities = ({
                   const mergedLayer = mergeStructures(layerStructure, newLayers);
 
                   newLayers = mergedLayer;
-                  let tmp: Layer[] = [];
-                  tmp = newLayers;
+                  const updatedLayers: Layer[] = newLayers;
 
-                  dispatch(setAllLayers(tmp));
+                  dispatch(setAllLayers(updatedLayers));
                   dispatch(setLoadingCapabilities(false));
                   dispatch(removeloadingCapabilitiesIDs(services[key].name));
                 } else {
@@ -187,11 +186,10 @@ export const useLoadCapabilities = ({
             });
             const mergedLayer = mergeStructures(layerStructure, newLayers);
             newLayers = mergedLayer;
-            let tmp: Layer[] = [];
+            const updatedLayers: Layer[] = newLayers;
 
-            tmp = newLayers;
-            setLayers(tmp);
-            dispatch(setAllLayers(tmp));
+            setLayers(updatedLayers);
+            dispatch(setAllLayers(updatedLayers));
           }
         }
       }
