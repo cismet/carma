@@ -55,11 +55,16 @@ export const MapTypeSwitcher = forwardRef<Ref, Props>(
     // Use ref to avoid re-renders on confirmation state change
     const hasConfirmedRef = useRef(false);
 
-    // Sync engine state with PortalContext
-    const { set: setCurrentEngine } = usePortalMapEngine();
+    // Get current engine from PortalContext - this is the source of truth
+    const { current: currentEngine, set: setCurrentEngine } =
+      usePortalMapEngine();
 
-    // Use the mode toggle hook from transition library
-    const { isMode2d, isTransitioning, toggleMode } = useMapModeToggle({
+    // Derive mode from portal's current engine (any non-cesium engine = 2D)
+    const isMode2d = currentEngine !== ManagedEngineKeys.CESIUM_3D;
+
+    // Use the mode toggle hook from transition library (for transition logic only)
+    const { isTransitioning, toggleMode } = useMapModeToggle({
+      currentEngine, // Pass portal's current engine to hook
       duration,
       onComplete,
       onCancel,
@@ -105,10 +110,11 @@ export const MapTypeSwitcher = forwardRef<Ref, Props>(
           console.error("[MapTypeSwitcher] Transition failed:", error);
         }
       },
-      [isMode2d, enableMobileWarning, toggleMode, setCurrentEngine]
+      [isMode2d, enableMobileWarning, toggleMode]
     );
 
     console.debug("[MapTypeSwitcher] Render", {
+      currentEngine,
       isMode2d,
       isTransitioning,
     });

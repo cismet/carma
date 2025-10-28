@@ -1,9 +1,9 @@
-import { useState, useCallback } from "react";
-import { useCesiumContext } from "@carma-mapping/engines/cesium/core";
+import { useCallback } from "react";
 import { useMapTransition } from "./use-map-transition";
 import { useTransitionContext } from "./use-transition-context";
 
 export type MapModeToggleOptions = {
+  currentEngine: "leaflet2d" | "maplibre2d" | "cesium3d";
   duration?: number;
   onComplete?: (isTo2D: boolean) => void;
   onCancel?: (isTo2D: boolean) => void;
@@ -14,14 +14,14 @@ export type MapModeToggleOptions = {
 
 /**
  * Hook for toggling between 2D and 3D map modes.
- * Tracks current mode via Cesium suspended state.
+ * Derives current mode from PortalContext's engine state (passed as parameter).
  *
- * @returns isMode2d - Current mode (true = 2D, false = 3D)
  * @returns isTransitioning - Whether a transition is in progress
  * @returns toggleMode - Function to trigger mode transition
  */
-export const useMapModeToggle = (options: MapModeToggleOptions = {}) => {
+export const useMapModeToggle = (options: MapModeToggleOptions) => {
   const {
+    currentEngine,
     duration,
     onComplete,
     onCancel,
@@ -30,16 +30,14 @@ export const useMapModeToggle = (options: MapModeToggleOptions = {}) => {
     onEngineChange,
   } = options;
 
-  const { isSuspendedRef } = useCesiumContext();
   const { isTransitioningRef } = useTransitionContext();
 
-  // Track mode based on Cesium suspended state (suspended = 2D mode active)
-  const [isMode2d, setIsMode2d] = useState(isSuspendedRef.current);
+  // Derive mode from portal's current engine (passed as parameter)
+  const isMode2d = currentEngine !== "cesium3d";
 
   const handleComplete = useCallback(
     (isTo2D: boolean) => {
-      // isTransitioning now derived from context state - no local state to update
-      setIsMode2d(isTo2D);
+      // isTransitioning now derived from context state
       onTransitionEnd?.();
       onComplete?.(isTo2D);
     },
@@ -89,7 +87,6 @@ export const useMapModeToggle = (options: MapModeToggleOptions = {}) => {
   ]);
 
   return {
-    isMode2d,
     isTransitioning: isTransitioningRef.current,
     toggleMode,
   };

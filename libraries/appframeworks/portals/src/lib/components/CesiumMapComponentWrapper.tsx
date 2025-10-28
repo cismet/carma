@@ -1,27 +1,23 @@
-import { ReactNode, useRef, Suspense, lazy } from "react";
+/* eslint-disable @nx/enforce-module-boundaries */
+/* Lazy loading disabled for transition wiring - cesium/core imported directly */
 
-// Lazy load the heavy Cesium scene component
-// This ensures Cesium is only loaded when the scene is actually supposed to render
-const CesiumSceneComponentLazy = lazy(() =>
-  import("@carma/cesium/core").then((module) => ({
-    default: module.CesiumSceneComponent,
-  }))
-);
-
-// TODO collect configurable text strings for component in own file provider or method
-const TEXT_LOADING_3D_SCENE = "Laden der 3D-Szene...";
+import { ReactNode, useEffect, useRef } from "react";
+// eslint-disable-next-line carma/no-direct-cesium
+import { CesiumSceneComponent, useCesiumContext } from "@carma/cesium/core";
+import { usePortalCesiumInstance } from "../contexts";
 
 /**
  * CesiumMapComponentWrapper - Portal-level wrapper for Cesium 3D scene
  *
  * RESPONSIBILITIES:
- * - Lazy load Cesium scene component
  * - Provide container element for Cesium scene
+ * - Bridge portal's ready callback to cesium context (has access to both)
  *
  * STATE MANAGEMENT:
  * - Scene handles its own activation/suspension via CesiumContext
  * - PortalContext manages all state (currentMapStyle, camera, etc.)
- * - This wrapper just handles rendering - no portal or cesium context dependencies
+ * - Wrapper bridges callback between portal and cesium contexts
+ * - Camera initialization handled by CesiumContext from portal config
  */
 export const CesiumMapComponentWrapper = ({
   children,
@@ -29,6 +25,18 @@ export const CesiumMapComponentWrapper = ({
   children?: ReactNode;
 }) => {
   const cesiumContainerRef = useRef<HTMLDivElement | null>(null);
+  
+  // Bridge portal callback to cesium context
+  const { readyCallbackRef: portalCallbackRef } = usePortalCesiumInstance();
+  const { onSceneReadyCallbackRef: cesiumCallbackRef } = useCesiumContext();
+  
+  // Pass portal's callback to cesium when available
+  useEffect(() => {
+    if (portalCallbackRef.current && !cesiumCallbackRef.current) {
+      console.log("[CesiumMapComponentWrapper] Bridging portal callback to cesium context");
+      cesiumCallbackRef.current = portalCallbackRef.current;
+    }
+  }, [portalCallbackRef, cesiumCallbackRef]);
 
   return (
     <div
@@ -51,32 +59,12 @@ export const CesiumMapComponentWrapper = ({
           overflow: "hidden",
         }}
       >
-        <Suspense
-          fallback={
-            <div
-              style={{
-                width: "100%",
-                height: "100%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                backgroundColor: "rgba(255, 255, 255, 0.2)",
-                backdropFilter: "blur(10px)",
-                color: "white",
-                fontSize: "14px",
-              }}
-            >
-              {TEXT_LOADING_3D_SCENE}
-            </div>
-          }
+        <CesiumSceneComponent
+          key="cesium-scene"
+          containerRef={cesiumContainerRef}
         >
-          <CesiumSceneComponentLazy
-            key="cesium-scene"
-            containerRef={cesiumContainerRef}
-          >
-            {children}
-          </CesiumSceneComponentLazy>
-        </Suspense>
+          {children}
+        </CesiumSceneComponent>
       </div>
     </div>
   );

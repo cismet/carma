@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
 import type {
@@ -193,6 +193,26 @@ export const CesiumContextProvider = ({
   // Portal callback coordination (matches TopicMapContext pattern)
   const onCameraUpdateRef = useRef<(() => void) | null>(null);
   const onFovChangeCallbackRef = useRef<((fov: number) => void) | null>(null);
+  
+  // Portal scene ready callback - Portal sets this to be notified when scene initializes
+  const onSceneReadyCallbackRef = useRef<(() => void) | null>(null);
+  const hasNotifiedSceneReadyRef = useRef(false);
+
+  // Notify portal when scene is ready
+  useEffect(() => {
+    if (
+      sceneRef.current &&
+      !sceneRef.current.isDestroyed() &&
+      !hasNotifiedSceneReadyRef.current &&
+      onSceneReadyCallbackRef.current
+    ) {
+      console.log("[CesiumContext] Scene ready - notifying portal");
+      hasNotifiedSceneReadyRef.current = true;
+      const callback = onSceneReadyCallbackRef.current;
+      onSceneReadyCallbackRef.current = null; // Clear after calling
+      callback();
+    }
+  });
 
   // Camera tracking moved to CesiumSceneComponent (scene-level hook)
   // Scene component now updates context's currentCameraRef
@@ -343,6 +363,7 @@ export const CesiumContextProvider = ({
       requestRender,
       animationMapRef,
       onFovChangeCallbackRef,
+      onSceneReadyCallbackRef,
       config,
       cesiumInstances,
     }),

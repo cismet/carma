@@ -15,7 +15,6 @@ import {
 } from "@carma-commons/utils";
 import { createBooleanCodec, defaultHashCodecs } from "./hashState";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useHashChangeEmit } from "../../hooks/useHashChangeEmit";
 
 interface HashUpdateOptions {
   clearKeys?: string[];
@@ -79,11 +78,7 @@ interface HashStateContextType {
     params: Record<string, unknown> | undefined,
     options?: HashUpdateOptions
   ) => void;
-  subscribe: (
-    listener: (e: HashChangeEvent) => void,
-    opts?: HashSubscribeOptions
-  ) => () => void;
-  isInitialized: boolean;
+  onHashInitialized: (callback: (hashValues: Record<string, unknown>) => void) => void;
 }
 
 const HashStateContext = createContext<HashStateContextType | undefined>(
@@ -98,21 +93,26 @@ const defaultHashConfig = Object.entries(defaultHashCodecs).map(
   })
 );
 
-export const HashStateProvider: React.FC<{
+interface HashStateProviderProps {
   children: React.ReactNode;
   config?: HashStateConfig;
-}> = ({ children, config }) => {
+}
+
+export const HashStateProvider = ({
+  children,
+  config,
+}: HashStateProviderProps) => {
   config = config ?? defaultHashConfig;
 
   const location = useLocation();
   const navigate = useNavigate();
-  const [isInitialized, setIsInitialized] = useState(false);
+  const isInitializedRef = useRef(false);
+  const callbacksRef = useRef<Array<(hashValues: Record<string, unknown>) => void>>([]);
 
-  console.log("[HashStateProvider] Render:", {
-    isInitialized,
-    config: config?.length || 0,
-    location: location.pathname + location.hash,
-  });
+  console.debug("[HashStateProvider] Render:", 
+    config?.length || 0,
+    location.pathname + location.hash,
+  );
 
   // Build lookups from config
   const { keyToValueName, valueNameToKey, codecs } = useMemo(() => {
@@ -150,12 +150,11 @@ export const HashStateProvider: React.FC<{
       fieldOrder,
     };
   }, [config]);
-  const listenersRef = useRef<
-    Set<{ listener: (e: HashChangeEvent) => void; opts?: HashSubscribeOptions }>
-  >(new Set());
+
   const prevRawRef = useRef<Record<string, string>>(getHashParams());
   // returns the current hash parameters as an object as is with aliased keys
   const getHash = useCallback(() => getHashParams(), []);
+
   // return the decoded hash values with their original keys, not aliases
   const getHashValues = useCallback(() => {
     const params = getHashParams();
@@ -169,30 +168,15 @@ export const HashStateProvider: React.FC<{
     return values;
   }, [codecs, keyToValueName]);
 
-  const emit = useCallback((e: HashChangeEvent) => {
-    listenersRef.current.forEach(({ listener, opts }) => {
-      const keyFilterOk =
-        !opts?.keys ||
-        opts.keys.some((k) =>
-          new Set([...e.changedKeys, ...e.removedKeys]).has(k)
-        );
-      const labelFilterOk =
-        !opts?.labels ||
-        (e.label !== undefined && opts.labels.includes(e.label));
-      if (keyFilterOk && labelFilterOk) listener(e);
-    });
-  }, []);
-
-  const subscribe = useCallback<HashStateContextType["subscribe"]>(
-    (listener, opts) => {
-      const entry = { listener, opts };
-      listenersRef.current.add(entry);
-      return () => {
-        listenersRef.current.delete(entry);
-      };
-    },
-    []
-  );
+  const onHashInitialized = useCallback((callback: (hashValues: Record<string, unknown>) => void) => {
+    if (isInitializedRef.current) {
+      // Already initialized, call immediately with current hash values
+      callback(getHashValues());
+    } else {
+      // Not initialized yet, queue the callback
+      callbacksRef.current.push(callback);
+    }
+  }, [getHashValues]);
 
   const updateHash = useCallback(
     (
@@ -235,28 +219,10 @@ export const HashStateProvider: React.FC<{
       });
 
       const afterRaw = getHashParams();
-      const { changedKeys: changedAliasKeys, removedKeys: removedAliasKeys } =
-        diffHashParams(beforeRaw, afterRaw);
-      const toOriginal = (k: string) => valueNameToKey[k] || k;
-      const changedKeys = [...new Set(changedAliasKeys.map(toOriginal))];
-      const removedKeys = [...new Set(removedAliasKeys.map(toOriginal))];
-
-      const eventPayload = {
-        raw: afterRaw,
-        values: getHashValues(),
-        changedKeys,
-        removedKeys,
-        label,
-        replace,
-        source: "update" as const,
-      };
-      console.debug("[HashState] emit:update", {
-        label,
-        replace,
-        changedKeys,
-        removedKeys,
+      console.debug("[HashStateProvider] updateHash", {
+        beforeRaw,
+        afterRaw,
       });
-      emit(eventPayload);
       prevRawRef.current = afterRaw;
     },
     [
@@ -264,42 +230,44 @@ export const HashStateProvider: React.FC<{
       keyToValueName,
       codecs,
       //fieldOrder,
-      emit,
       getHashValues,
       valueNameToKey,
     ]
   );
 
-  useHashChangeEmit({
-    emit: (e) => emit(e as any),
-    getHashValues,
-    valueNameToKey,
-    prevRawRef,
-  });
-
   // Mark as initialized after first render when hash state has settled
   useEffect(() => {
-    console.log("[HashStateProvider] Setting isInitialized to true");
-    setIsInitialized(true);
+    const hashValues = getHashValues();
+    console.log(
+      "[HashStateProvider] Setting isInitialized to true",
+      hashValues
+    );
+    isInitializedRef.current = true;
+    
+    // Invoke all queued callbacks
+    if (callbacksRef.current.length > 0) {
+      console.log(
+        `[HashStateProvider] Invoking ${callbacksRef.current.length} queued callback(s)`
+      );
+      callbacksRef.current.forEach((cb) => cb(hashValues));
+      callbacksRef.current = []; // Clear the queue
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const value = useRef<HashStateContextType>({
-    hashParams: getHash(),
-    getHash,
-    getHashValues,
-    updateHash,
-    subscribe,
-    isInitialized,
-  });
-  value.current.hashParams = getHash();
-  value.current.getHash = getHash;
-  value.current.getHashValues = getHashValues;
-  value.current.updateHash = updateHash;
-  value.current.subscribe = subscribe;
-  value.current.isInitialized = isInitialized;
+  const value = useMemo(
+    () => ({
+      hashParams: getHash(),
+      getHash,
+      getHashValues,
+      updateHash,
+      onHashInitialized,
+    }),
+    [getHash, getHashValues, updateHash, onHashInitialized]
+  );
 
   return (
-    <HashStateContext.Provider value={value.current}>
+    <HashStateContext.Provider value={value}>
       {children}
     </HashStateContext.Provider>
   );

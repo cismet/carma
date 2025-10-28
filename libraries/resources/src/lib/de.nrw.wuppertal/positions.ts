@@ -1,4 +1,4 @@
-import type { Latitude, Longitude, Altitude } from "@carma/geo/types";
+import type { Latitude, Longitude, Altitude, Degrees } from "@carma/geo/types";
 import type { PositionPreset } from "@carma/types";
 
 /**
@@ -37,8 +37,8 @@ import type { PositionPreset } from "@carma/types";
 export const WUPPERTAL: PositionPreset = {
   name: "Wuppertal",
   position: {
-    latitude: 51.27174 as Latitude.deg,
-    longitude: 7.20028 as Longitude.deg,
+    latitude: 51.27174 as Degrees,
+    longitude: 7.20028 as Degrees,
     altitude: 155 as Altitude.EllipsoidalWGS84Meters,
   },
   extent: {

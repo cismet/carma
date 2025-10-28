@@ -22,12 +22,16 @@ type TransitionOptions = {
   onComplete?: (isTo2d: boolean) => void;
   onCancel?: (isTo2D: boolean) => void;
   onEngineChange?: (engine: "leaflet2d" | "cesium3d") => void;
+  duration?: number;
 };
 
-export const useMapTransition = (options: TransitionOptions = {}) => {
+export const useMapTransition = ({
+  onComplete,
+  onCancel,
+  onEngineChange,
+  duration,
+}: TransitionOptions = {}) => {
   const { config: contextConfig, isTransitioningRef } = useTransitionContext();
-
-  const { onComplete, onCancel, onEngineChange } = options;
 
   const { leafletMapRef, emitSuspend, emitActivate } =
     useCarmaTopicMapContext();
@@ -164,36 +168,19 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
         "[useMapTransition] No scene available - activating for first time"
       );
 
-      // Direct scene activation - set refs and wait for scene to be ready
-      console.log("[useMapTransition] Activating scene directly...");
+      // Use callback-based activation - no polling!
+      console.log(
+        "[useMapTransition] Calling activateCesium with ready callback..."
+      );
 
-      // Wait for scene to be ready using polling
-      console.log("[useMapTransition] Waiting for scene to be ready...");
+      /*
       await new Promise<void>((resolve) => {
-        const checkSceneReady = () => {
-          const currentScene = sceneRef.current;
-          if (currentScene && currentScene.isDestroyed() === false) {
-            console.log(
-              "[useMapTransition] Scene ready - continuing transition"
-            );
-            resolve();
-          } else {
-            // Scene not ready yet, check again in 100ms
-            setTimeout(checkSceneReady, 100);
-          }
-        };
-
-        // Start checking immediately
-        checkSceneReady();
-
-        // Timeout fallback (3 seconds)
-        setTimeout(() => {
-          console.warn(
-            "[useMapTransition] Scene ready timeout - continuing anyway"
-          );
+        activateCesium(() => {
+          console.log("[useMapTransition] Scene ready callback fired - continuing");
           resolve();
-        }, 3000);
-      });
+        });
+      })        ;
+      */
 
       // Re-read refs after scene initialization
       scene = sceneRef.current;

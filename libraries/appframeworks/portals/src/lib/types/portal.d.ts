@@ -4,6 +4,7 @@ import type { TransitionConfig } from "@carma-mapping/map-transition-2d-3d";
 import type { GazDataConfig } from "@carma-commons/gazetteer";
 import type { HashStateConfig } from "./HashStateProvider";
 import type { LeafletConfig } from "@carma/types";
+import type { CameraStateHeadingPitchRoll } from "@carma/cesium";
 
 /**
  * Portal-specific types for context providers and configuration
@@ -11,23 +12,6 @@ import type { LeafletConfig } from "@carma/types";
 
 export type MapEngine =
   (typeof ManagedEngineKeys)[keyof typeof ManagedEngineKeys];
-
-export type MapPosition2D = {
-  latitude: number;
-  longitude: number;
-  zoom: number;
-};
-
-// Object centric camera location for possible synce with Maplibre 3d camera location description
-export type CameraLocation = {
-  latitude: number;
-  longitude: number;
-  altitude?: number;
-  heading?: number;
-  pitch?: number;
-  range?: number; // distance from the camera to the point of interest
-  fov?: number; // field of view in degrees
-};
 
 export type MapStyleConfig = {
   defaultStyle: MapStyleKey;
@@ -45,10 +29,11 @@ export type MapStyleMappings = {
 export type PortalConfig = {
   hashConfig: HashStateConfig;
   styleConfig: MapStyleConfig;
-  defaultPosition: MapPosition2D;
-  defaultCameraLocation: CameraLocation;
-  homePosition: MapPosition2D;
-  homePose3d: CameraLocation;
+  // keep close to LeafletConfig and CesiumConfig
+  defaultView: MapView;
+  defaultCamera: CameraStateHeadingPitchRoll;
+  homeView: MapView;
+  homeCamera: CameraStateHeadingPitchRoll;
   mapStyleMappings: MapStyleMappings;
   cesium: CesiumConfig;
   leaflet: LeafletConfig;

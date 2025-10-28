@@ -35,19 +35,10 @@ export type CesiumConfig = {
 
   minInitialTilesetTileCount?: number; // Minimum number of tiles to load before considering tileset ready (default: 10)
 
-  // Camera/home position (CARMA extensions)
-  // Priority: cameraInitialPose (URL) → cameraHomePose (config default)
-  // Uses internal Cesium format: radians for angles, height (not altitude)
-  cameraHomePose?: CameraPoseRadians; // Home position (lon, lat, height in radians/meters) + HeadingPitchRoll
-  cameraInitialPose?: CameraPoseRadians; // Initial position (lon, lat, height in radians/meters) + HeadingPitchRoll - overrides home on init
+  // camera HomePose is a value
+  // currentCameraState are tracked refs on the CesiumContext but not part of the config and are set before init form the consumer app
+  // e.g. see PortalContext
 
-  /* CAMERA
-  move to limiter plugin
-  camera?: {
-    minPitch: number;
-    minPitchRange: number;
-  };
-  */
 
   // TODO: Migrate to plugin system
   /* MARKERS

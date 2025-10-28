@@ -10,6 +10,10 @@ import { LEAFLET_CONFIG } from "./leaflet";
 import type { TransitionConfig } from "@carma/mapping/map-transition-2d-3d";
 import { WUPPERTAL, defaultGazDataConfig } from "@carma/resources";
 import { Altitude, Degrees, Meters } from "@carma/geo/types";
+import { degToRad } from "@carma/units/helpers";
+// eslint-disable-next-line carma/no-direct-cesium
+import { Camera, Cartesian3, Ellipsoid } from "cesium";
+import { CameraStateHeadingPitchRoll } from "@carma/mapping/engines/cesium/api";
 
 // App configuration constants
 export const APP_BASE_PATH = import.meta.env.BASE_URL;
@@ -56,38 +60,43 @@ export const TRANSITIONS_CONFIG: TransitionConfig = {
 // Default 2D map position (for Leaflet, MapLibre)
 // Note: NOT yet unified across all engines - see https://github.com/cismet/carma/issues/214
 export const DEFAULT_MAP_POSITION = {
-  latitude: WUPPERTAL.position.latitude as Degrees,
-  longitude: WUPPERTAL.position.longitude as Degrees,
+  center: {
+    latitude: WUPPERTAL.position.latitude as Degrees,
+    longitude: WUPPERTAL.position.longitude as Degrees,
+  },
   zoom: 15, // Leaflet/MapLibre zoom level
 };
 
 export const HOME_POSITION = {
-  latitude: WUPPERTAL.position.latitude as Degrees,
-  longitude: WUPPERTAL.position.longitude as Degrees,
+  center: {
+    latitude: WUPPERTAL.position.latitude as Degrees,
+    longitude: WUPPERTAL.position.longitude as Degrees,
+  },
   zoom: 18, // Leaflet/MapLibre zoom level
 };
 
 // Default Cesium 3D camera location (Portal format: altitude + degrees)
 // Camera-centric: Camera position in absolute coordinates
-export const DEFAULT_CESIUM_CAMERA = {
-  latitude: WUPPERTAL.position.latitude as Degrees,
-  longitude: WUPPERTAL.position.longitude as Degrees,
-  altitude: 10000 as Altitude.EllipsoidalWGS84Meters, // Camera altitude above sea level
-  heading: 0 as Degrees, // North
-  pitch: -90 as Degrees, // Looking straight down (nadir)
+export const DEFAULT_CESIUM_CAMERA: CameraStateHeadingPitchRoll = {
+  latitude: WUPPERTAL.position.latitude,
+  longitude: WUPPERTAL.position.longitude,
+  altitude: (WUPPERTAL.position.altitude +
+    10000) as Altitude.EllipsoidalWGS84Meters,
+  heading: 0 as Degrees,
+  pitch: -90 as Degrees,
   roll: 0 as Degrees,
 };
 
-// Home Cesium camera with HPR offset (heading/pitch/range)
-// Object-centric: Look at target point with offset
-// Note: This format uses 'range' (distance from target) instead of 'altitude'
+// for convenience also camera-centric so need some manual offset calculation
 export const HOME_CESIUM_CAMERA = {
-  latitude: WUPPERTAL.position.latitude as Degrees,
-  longitude: WUPPERTAL.position.longitude as Degrees,
-  altitude: WUPPERTAL.position.altitude as Altitude.EllipsoidalWGS84Meters, // Target point altitude
+  // 0,01° = ~1,1km
+  latitude: (WUPPERTAL.position.latitude - 0.08) as Degrees, // slightly south
+  longitude: WUPPERTAL.position.longitude,
+  altitude: (WUPPERTAL.position.altitude +
+    700) as Altitude.EllipsoidalWGS84Meters, // Target point altitude
   heading: 0 as Degrees, // North
-  pitch: -90 as Degrees, // Looking down
-  range: 500 as Meters, // Distance from target (object-centric)
+  pitch: -45 as Degrees, // Looking down
+  roll: 0 as Degrees,
 };
 
 /**
@@ -148,11 +157,11 @@ export const portalConfig: PortalConfig = {
   },
 
   // Default map position (2D)
-  defaultPosition: DEFAULT_MAP_POSITION,
+  defaultView: DEFAULT_MAP_POSITION,
   // Default camera location (3D)
-  defaultCameraLocation: DEFAULT_CESIUM_CAMERA,
-  homePosition: HOME_POSITION,
-  homePose3d: HOME_CESIUM_CAMERA,
+  defaultCamera: DEFAULT_CESIUM_CAMERA,
+  homeView: HOME_POSITION,
+  homeCamera: HOME_CESIUM_CAMERA,
 
   // Nested config objects
   cesium: CESIUM_CONFIG,

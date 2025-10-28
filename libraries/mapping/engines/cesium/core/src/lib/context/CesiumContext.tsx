@@ -90,6 +90,10 @@ export interface CesiumContextType {
   fovZoomOut: () => void;
   flyHome: () => void;
 
+  // Portal callback registration for scene ready notification
+  // Portal sets this callback to be notified when scene initializes
+  onSceneReadyCallbackRef: MutableRefObject<(() => void) | null>;
+
   // Scene initialization gate (synchronous validation)
   // Wrapper calls this to prepare refs before mounting scene
   // cameraState: Optional CameraPrimitive (internal Cesium format: position, direction, up, right, fov)

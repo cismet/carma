@@ -1,12 +1,6 @@
 import type { Camera, PerspectiveFrustum, Cartesian3 } from "cesium";
 import type { Radians } from "@carma/units/types";
-import type {
-  Longitude,
-  Latitude,
-  Altitude,
-  Degrees,
-  Meters,
-} from "@carma/geo/types";
+import type { Altitude, Degrees, Meters } from "@carma/geo/types";
 
 /**
  * DirectionUp orientation format for Camera.setView()
@@ -60,8 +54,8 @@ export type CameraPrimitive = Partial<
 // 0 heading is north, (-90 ; -PI/2) pitch is looking down. Roll is 0.
 
 export type CameraPoseDegrees = {
-  longitude: Longitude.deg;
-  latitude: Latitude.deg;
+  longitude: Degrees;
+  latitude: Degrees;
   height: Altitude.EllipsoidalWGS84Meters;
   heading?: Degrees;
   pitch?: Degrees;
@@ -94,8 +88,8 @@ export namespace CameraPoseHeadingPitchRoll {
 
 // for portal app state (external - uses Degrees)
 export type CameraStateHeadingPitchRoll = {
-  longitude: Longitude.deg;
-  latitude: Latitude.deg;
+  longitude: Degrees;
+  latitude: Degrees;
   altitude: Altitude.EllipsoidalWGS84Meters;
   heading?: Degrees;
   pitch?: Degrees;

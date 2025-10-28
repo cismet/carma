@@ -40,6 +40,7 @@ export type TilesetRecord = {
   config: TilesetConfig;
 };
 
+// obsolete config only for us with legacy cesium engine
 export type CesiumConfigSnapshot = {
   transitions: {
     mapMode: {
