@@ -230,8 +230,8 @@ const Map = ({
 
   // Phase 2: Register hover listener on Leaflet map, query MapLibre features
   useEffect(() => {
-    console.log("alkisMap changed:", alkisMap);
-    console.log("refRoutedMap.current:", refRoutedMap.current);
+    // console.log("alkisMap changed:", alkisMap);
+    // console.log("refRoutedMap.current:", refRoutedMap.current);
 
     if (!alkisMap || !refRoutedMap.current) {
       console.log("Waiting for both alkisMap and Leaflet map");
@@ -239,7 +239,6 @@ const Map = ({
     }
 
     const leafletMap = refRoutedMap.current.leafletMap.leafletElement;
-    console.log("Registering mousemove listener on Leaflet map");
 
     let throttleTimeout = null;
     let lastLandparcelString = null;
