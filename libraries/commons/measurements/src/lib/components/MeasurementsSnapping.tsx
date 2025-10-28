@@ -285,7 +285,7 @@ export function MeasurementsSnapping({
           drawingLatLngs.forEach((latlng: any) => {
             coordinatePoints.push({
               coordinates: [latlng.lng, latlng.lat],
-              source: "drawing-in-progress",
+              sourceId: "drawing-in-progress",
             });
           });
         }
@@ -344,7 +344,7 @@ export function MeasurementsSnapping({
             },
             properties: {
               black: true,
-              source: closestItem.snappingPoint.source, // Pass source for polygon closure check
+              source: closestItem.snappingPoint.sourceId, // Pass source for polygon closure check
             },
           });
           isSnapped = true;
@@ -574,7 +574,7 @@ export function MeasurementsSnapping({
         // Extract from other measurement shapes
         const currentShapes = shapesRef.current;
         currentShapes.forEach((shape: any) => {
-          const points = extractPointsFromMeasurementShape(shape);
+          const points = extractPointsFromMeasurementShape(shape, "measurements");
           coordinatePoints.push(...points);
         });
 
@@ -719,7 +719,7 @@ export function MeasurementsSnapping({
         // Extract from other measurement shapes
         const currentShapes = shapesRef.current;
         currentShapes.forEach((shape: any) => {
-          const points = extractPointsFromMeasurementShape(shape);
+          const points = extractPointsFromMeasurementShape(shape, "measurements");
           coordinatePoints.push(...points);
         });
 

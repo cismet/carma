@@ -55,6 +55,7 @@ interface VectorLayerProps {
   showTileBoundaries?: boolean;
   onSelectionChanged?: (e: { hits: any[]; hit: any; latlng: LatLng }) => void;
   onStyleIdle?: (e: any) => void;
+  onMapLibreCoreMapReady?: (map: any) => void;
 }
 
 const createCismapLayer = (props: WMTSLayerProps | VectorLayerProps) => {
