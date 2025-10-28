@@ -1,4 +1,4 @@
-import { StrictMode, useEffect, useState } from "react";
+import { StrictMode, useEffect, useState, createContext } from "react";
 import * as ReactDOM from "react-dom/client";
 import { Provider, useSelector, useDispatch } from "react-redux";
 import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextProvider";
@@ -23,6 +23,15 @@ import {
 } from "@carma-appframeworks/portals";
 import { getUIMode, setUIMode, UIMode } from "./app/store/slices/ui";
 
+// Context for snapping control
+export const SnappingContext = createContext<{
+  snappingEnabled: boolean;
+  setSnappingEnabled: (enabled: boolean) => void;
+}>({
+  snappingEnabled: true,
+  setSnappingEnabled: () => {},
+});
+
 // Wrapper component to connect Redux to MapMeasurementsProvider
 const MeasurementsProviderWrapper = ({
   children,
@@ -31,9 +40,17 @@ const MeasurementsProviderWrapper = ({
 }) => {
   const uiMode = useSelector(getUIMode);
   const dispatch = useDispatch<AppDispatch>();
+  const [snappingEnabled, setSnappingEnabled] = useState(true);
+
   const measurementsConfig = {
     // Only override what you want to change
     editableTitle: true,
+    snappingEnabled: snappingEnabled,
+    snappingOnUpdate: false,
+    snappingRadiusVisible: true,
+    debugOutputMapStatus: true,
+    localStorageKey: "@MEASUREMENT_PLAYGROUNDY.app.measurements",
+
     // infoBoxHeaderColor: "#22c55e",
   };
 
@@ -56,7 +73,9 @@ const MeasurementsProviderWrapper = ({
       // Skip config if you want to use default values
       config={measurementsConfig}
     >
-      {children}
+      <SnappingContext.Provider value={{ snappingEnabled, setSnappingEnabled }}>
+        {children}
+      </SnappingContext.Provider>
     </MapMeasurementsProvider>
   );
 };
@@ -68,7 +87,9 @@ const RootComponent = () => {
     const saved = localStorage.getItem("measurements-vector-style");
     if (saved) {
       try {
-        return [JSON.parse(saved)];
+        const parsed = JSON.parse(saved);
+        // Handle both old format (single object) and new format (array)
+        return Array.isArray(parsed) ? parsed : [parsed];
       } catch (e) {
         console.error("Failed to parse saved vector style:", e);
         return [];
@@ -96,14 +117,16 @@ const RootComponent = () => {
               const jsonData = await response.json();
               console.log("JSON content fetched:", jsonData);
 
-              // Save to localStorage
-              localStorage.setItem(
-                "measurements-vector-style",
-                JSON.stringify(jsonData)
-              );
-
-              // Store the JSON object in the array
-              setVectorStylesArray([jsonData]);
+              // Add to existing layers instead of replacing
+              setVectorStylesArray((prev) => {
+                const updatedArray = [...prev, jsonData];
+                // Save updated array to localStorage
+                localStorage.setItem(
+                  "measurements-vector-style",
+                  JSON.stringify(updatedArray)
+                );
+                return updatedArray;
+              });
             } else {
               console.warn("The content is not JSON");
             }
@@ -135,14 +158,16 @@ const RootComponent = () => {
               const jsonData = JSON.parse(processedContent);
               console.log("Parsed JSON from file:", jsonData);
 
-              // Save to localStorage
-              localStorage.setItem(
-                "measurements-vector-style",
-                JSON.stringify(jsonData)
-              );
-
-              // Add the parsed JSON to the vectorStylesArray
-              setVectorStylesArray([jsonData]);
+              // Add to existing layers instead of replacing
+              setVectorStylesArray((prev) => {
+                const updatedArray = [...prev, jsonData];
+                // Save updated array to localStorage
+                localStorage.setItem(
+                  "measurements-vector-style",
+                  JSON.stringify(updatedArray)
+                );
+                return updatedArray;
+              });
             }
           } catch (error) {
             console.error("Failed to parse the file as JSON:", error);
@@ -166,7 +191,17 @@ const RootComponent = () => {
     };
   }, []);
 
-  return <App vectorStyles={vectorStylesArray} />;
+  const clearAllVectorLayers = () => {
+    setVectorStylesArray([]);
+    localStorage.removeItem("measurements-vector-style");
+  };
+
+  return (
+    <App
+      vectorStyles={vectorStylesArray}
+      onClearAllLayers={clearAllVectorLayers}
+    />
+  );
 };
 
 const persistor = persistStore(store);

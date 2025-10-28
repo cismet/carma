@@ -1,8 +1,10 @@
 import "react-cismap/topicMaps.css";
 import "leaflet/dist/leaflet.css";
-import { Card, Tooltip, Button, Tag } from "antd";
+import { Card, Tooltip, Tag } from "antd";
+
 import PropTypes from "prop-types";
 import { useContext, useEffect, useRef, useState } from "react";
+import { GEMARKUNGEN } from "../ui/generalConstant";
 import {
   FeatureCollectionDisplay,
   MappingConstants,
@@ -26,7 +28,6 @@ import {
   setGeneralGeometrySelected,
   setGraphqlLayerStatus,
   setHasFittedBounds,
-  setMapInstance,
   setShowBackground,
   setShowCurrentFeatureCollection,
   setShowInspectMode,
@@ -63,11 +64,11 @@ import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import { ZoomControl } from "@carma-mapping/components";
 import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextProvider";
 import {
-  MapMeasurementsObjects,
   MeasurementControl,
   InfoBoxMeasurement,
   useMapMeasurementsContext,
   MEASUREMENT_MODE,
+  Measurements,
 } from "@carma-commons/measurements";
 
 const { ScaleControl } = TransitiveReactLeaflet;
@@ -117,6 +118,7 @@ const Map = ({
   const mode = useSelector(getShapeMode);
 
   const [overlayFeature, setOverlayFeature] = useState(null);
+  const [alkisMap, setAlkisMap] = useState(null);
 
   const data = extractor(dataIn);
   const padding = 5;
@@ -225,6 +227,72 @@ const Map = ({
     updateWhenIdle: false,
     position: "topright",
   };
+
+  // Register hover listener on Leaflet map to query MapLibre features
+  useEffect(() => {
+    if (!alkisMap || !refRoutedMap.current) {
+      return;
+    }
+
+    const leafletMap = refRoutedMap.current.leafletMap.leafletElement;
+
+    let throttleTimeout = null;
+    let lastLandparcelString = null;
+
+    const handleMouseMove = (e) => {
+      // Throttle: skip if already processing
+      if (throttleTimeout) return;
+
+      throttleTimeout = setTimeout(() => {
+        throttleTimeout = null;
+      }, 100); // 100ms throttle
+
+      // Get point relative to MapLibre canvas
+      const canvas = alkisMap.getCanvas();
+      const rect = canvas.getBoundingClientRect();
+      const point = [
+        e.originalEvent.clientX - rect.left,
+        e.originalEvent.clientY - rect.top,
+      ];
+
+      const features = alkisMap.queryRenderedFeatures(point);
+
+      if (features && features.length > 0) {
+        const feature = features[0];
+        const props = feature.properties;
+
+        // Format: "Gemarkung Flur Zähler/Nenner"
+        const gemarkungName =
+          GEMARKUNGEN[props.gemarkungsnummer] || props.gemarkungsnummer;
+        const flur = parseInt(props.flurnummer, 10);
+        const zaehler = parseInt(props.zaehler, 10);
+        const nenner = props.nenner ? `/${parseInt(props.nenner, 10)}` : "";
+
+        const landparcelString = `${gemarkungName} ${flur} ${zaehler}${nenner}`;
+        
+        // Only dispatch if value changed
+        if (landparcelString !== lastLandparcelString) {
+          dispatch(setHoveredLandparcel(landparcelString));
+          lastLandparcelString = landparcelString;
+        }
+      } else {
+        // Clear when no feature under cursor
+        if (lastLandparcelString !== undefined) {
+          dispatch(setHoveredLandparcel(undefined));
+          lastLandparcelString = undefined;
+        }
+      }
+    };
+
+    leafletMap.on("mousemove", handleMouseMove);
+
+    return () => {
+      if (throttleTimeout) {
+        clearTimeout(throttleTimeout);
+      }
+      leafletMap.off("mousemove", handleMouseMove);
+    };
+  }, [alkisMap]);
 
   useEffect(() => {
     if (refRoutedMap?.current) {
@@ -344,9 +412,7 @@ const Map = ({
         // <div className="flex items-center gap-3">
         <div>
           <span className="mr-6">Karte</span>
-          {measurementMode !== MEASUREMENT_MODE.MEASUREMENT && (
-            <HoveredLandparcelInfo />
-          )}
+          <HoveredLandparcelInfo />
         </div>
         // </div>
       }
@@ -473,8 +539,10 @@ const Map = ({
             </Control>
           </ControlLayout>
         </div>
+
         <RoutedMap
-          editable={true}
+          // editable={true}
+          leafletMapProps={{ editable: true }}
           style={mapStyle}
           key={"leafletRoutedMap"}
           zoomControlEnabled={false}
@@ -499,6 +567,10 @@ const Map = ({
             // console.log("xxx boundingBox Changed", boundingBox);
           }}
           ondblclick={(event) => {
+            // Don't switch landparcel when in measurement mode
+            if (measurementMode === MEASUREMENT_MODE.MEASUREMENT) {
+              return;
+            }
             //if data contains a ondblclick handler, call it
             if (data.ondblclick) {
               data.ondblclick(
@@ -606,6 +678,7 @@ const Map = ({
                 onHoverUpdate={(feature) => {
                   dispatch(setHoveredLandparcel(landparcelToString(feature)));
                 }}
+                onAlkisMapReady={setAlkisMap}
               />
             </>
           )}
@@ -615,8 +688,9 @@ const Map = ({
             jwt={jwt}
             mode={mode}
           />
+          <Measurements snappingLayers={alkisMap ? [alkisMap] : []} />
         </RoutedMap>
-        <MapMeasurementsObjects />
+
         {/* <div className="custom-left-control">
           <LibFuzzySearch
             gazData={gazData}

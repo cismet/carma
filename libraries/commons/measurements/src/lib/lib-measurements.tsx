@@ -12,12 +12,17 @@ import "./styles/m-style.css";
 import useDeviceDetection from "./hooks/useDeviceDetection";
 import { useMapMeasurementsContext } from "./components/MapMeasurementsProvider";
 import { MapMeasurementProps, MeasurementShapeDrawing } from "..";
+import { MeasurementsSnapping } from "./components/MeasurementsSnapping";
+import { MeasurementStatusDebug } from "./components/MeasurementStatusDebug";
 
-export function MapMeasurementsObjects({
+export function Measurements({
   mode: propMode,
   polygonActiveIcon,
   polygonIcon,
-}: Partial<MapMeasurementProps>) {
+  snappingLayers,
+}: Partial<MapMeasurementProps> & {
+  snappingLayers?: any[]; // MapLibre layers for snapping
+}) {
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const {
     mode,
@@ -48,6 +53,8 @@ export function MapMeasurementsObjects({
     deleteVisibleShapeById,
     setCurrentDrawHandler,
     snappingLatlng,
+    config,
+    setStatus,
 
     // looks unuseful
     setStartDrawing,
@@ -83,6 +90,7 @@ export function MapMeasurementsObjects({
         device,
         shapes,
         snappingLatlng,
+        snappingEnabled: config.snappingEnabled,
         cbSaveShape: saveShapeHandler,
         cbUpdateShape: updateShapeHandler,
         cdDeleteShape: deleteShapeHandler,
@@ -101,6 +109,7 @@ export function MapMeasurementsObjects({
         cbToggleMeasurementMode: toggleMeasurementModeHandler,
         cbUpdateAreaOfDrawingMeasurement: updateAreaOfDrawingMeasurementHandler,
         cbSetCurrentDrawHandler: setCurrentDrawHandler,
+        cbSetMapStatus: setStatus,
       };
 
       const measurePolygonControl = (L.control as any).measurePolygon(
@@ -186,14 +195,17 @@ export function MapMeasurementsObjects({
     currentMode,
   ]);
 
-  // keep snappingLatlng in sync with control options
+  // keep snappingLatlng and snappingEnabled in sync with control options
   useEffect(() => {
     if (measureControl) {
       try {
-        measureControl.options.snappingLatlng = snappingLatlng;
+        // Update both snappingEnabled and snappingLatlng
+        measureControl.options.snappingEnabled = config.snappingEnabled;
+        // Force null when snapping is disabled, otherwise use the actual value
+        measureControl.options.snappingLatlng = config.snappingEnabled ? snappingLatlng : null;
       } catch (_) {}
     }
-  }, [snappingLatlng, measureControl]);
+  }, [snappingLatlng, measureControl, config.snappingEnabled]);
 
   useEffect(() => {
     if (measureControl) {
@@ -274,7 +286,17 @@ export function MapMeasurementsObjects({
 
   console.debug("RENDER: [MAPMEASUREMENT] MapMeasurement");
 
-  return <div></div>;
+  return (
+    <>
+      <div></div>
+      <MeasurementStatusDebug />
+      {currentMode === "measurement" && (
+        <MeasurementsSnapping 
+          maplibreMaps={snappingLayers || []} 
+        />
+      )}
+    </>
+  );
 }
 
 function filterArrByIds(
@@ -301,4 +323,16 @@ function findLargestNumber(measurements: MeasurementShapeDrawing[]): number {
   });
 
   return largestNumber;
+}
+
+/**
+ * @deprecated Use `Measurements` instead. This component will be removed in a future version.
+ */
+export function MapMeasurementsObjects(
+  props: Partial<MapMeasurementProps> & {
+    snappingEnabled?: boolean;
+    snappingLayer?: any;
+  }
+) {
+  return <Measurements {...props} />;
 }

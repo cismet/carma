@@ -14,7 +14,7 @@ import type { Layer } from "@carma/types";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 
 import { setSelectedFeature } from "../../../store/slices/features";
-import { setLayersIdle } from "../../../store/slices/mapping";
+import { setLayersIdle, updateLayer } from "../../../store/slices/mapping";
 
 import { UIMode } from "../../../store/slices/ui";
 import {
@@ -255,6 +255,10 @@ export const useCreateCismapLayers = (
             selectionEnabled: true,
             manualSelectionManagement: true,
             maxSelectionCount: 10,
+            onMapLibreCoreMapReady: (map) => {
+              console.log("MapLibre map ready for layer:", layer.id, map);
+              dispatch(updateLayer({ ...layer, maplibreMap: map }));
+            },
             onStyleIdle: (e) => {
               setIdleLayers((old) => {
                 return { ...old, [layer.id]: true };

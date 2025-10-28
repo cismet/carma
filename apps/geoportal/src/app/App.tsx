@@ -25,7 +25,6 @@ import {
 import { useCesiumDevConsoleTrigger } from "@carma-mapping/engines/cesium";
 import {
   MapMeasurementsProvider,
-  MapMeasurementsObjects,
   MEASUREMENT_MODE,
 } from "@carma-commons/measurements";
 
@@ -75,6 +74,35 @@ function CesiumDevConsoleIntegration() {
   return null;
 }
 
+function MeasurementsWrapper({
+  children,
+  baseConfig,
+  externalMode,
+  setModeExternal,
+}: {
+  children: React.ReactNode;
+  baseConfig: any;
+  externalMode: MEASUREMENT_MODE;
+  setModeExternal: (mode: MEASUREMENT_MODE) => void;
+}) {
+  const flags = useFeatureFlags();
+  
+  const config = {
+    ...baseConfig,
+    snappingEnabled: flags.isSnappingEnabled ?? baseConfig.snappingEnabled,
+  };
+
+  return (
+    <MapMeasurementsProvider
+      externalMode={externalMode}
+      setModeExternal={setModeExternal}
+      config={config}
+    >
+      {children}
+    </MapMeasurementsProvider>
+  );
+}
+
 function App({ published }: { published?: boolean }) {
   const dispatch = useDispatch();
   const showLoginModal = useSelector(getShowLoginModal);
@@ -102,6 +130,15 @@ function App({ published }: { published?: boolean }) {
     return null;
   }
 
+  const measurementsConfig = {
+    // Only override what you want to change
+    editableTitle: true,
+    snappingEnabled: false, // Will be overridden by feature flag
+    snappingOnUpdate: false,
+    // infoBoxHeaderColor: "#22c55e",
+    localStorageKey: "@" + APP_KEY + ".app.measurements",
+  };
+
   const content = (
     <FeatureFlagProvider
       config={{ ...featureFlagConfig, ...customFeatureFlags }}
@@ -120,12 +157,10 @@ function App({ published }: { published?: boolean }) {
               config={OBLIQUE_CONFIG}
               fallbackDirectionConfig={CAMERA_ID_TO_DIRECTION}
             >
-              <MapMeasurementsProvider
+              <MeasurementsWrapper
                 externalMode={mode}
                 setModeExternal={handleSetMode}
-                config={{
-                  localStorageKey: "@" + APP_KEY + ".app.measurements",
-                }}
+                baseConfig={measurementsConfig}
               >
                 <ErrorBoundary FallbackComponent={AppErrorFallback}>
                   <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
@@ -139,7 +174,6 @@ function App({ published }: { published?: boolean }) {
                       </div>
                     )}
                     {!published && <TopNavbar />}
-                    <MapMeasurementsObjects />
                     <MapWrapper />
                     <MobileWarningMessage
                       headerText={mobileInfo.headerText}
@@ -169,7 +203,7 @@ function App({ published }: { published?: boolean }) {
                     </Modal>
                   </div>
                 </ErrorBoundary>
-              </MapMeasurementsProvider>
+              </MeasurementsWrapper>
             </ObliqueProvider>
           </CarmaMapProviderWrapper>
         </DebugUiProvider>

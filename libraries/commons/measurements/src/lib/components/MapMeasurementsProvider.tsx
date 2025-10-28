@@ -3,6 +3,7 @@ import {
   ActiveShape,
   MapMeasurementsContextType,
   MeasurementConfig,
+  MeasurementMapStatus,
   PartialMeasurementConfig,
 } from "../../";
 import { setFromLocalforage, saveToLocalforage } from "../utils/helper";
@@ -12,10 +13,25 @@ enum MEASUREMENT_MODE {
   MEASUREMENT = "measurement",
 }
 
+// Detect mobile devices
+const isMobileDevice = () => {
+  const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
+  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
+  const isSmallScreen = typeof window !== 'undefined' && window.matchMedia("(max-width: 768px)").matches;
+  return isMobileUA || isSmallScreen;
+};
+
 const defaultConfig: MeasurementConfig = {
   editableTitle: true,
   infoBoxHeaderColor: "#3b82f6",
   localStorageKey: "measurementShapes",
+  snappingEnabled: !isMobileDevice(), // Disable snapping on mobile
+  snappingOnUpdate: false,
+  snappingQueryRadius: 40,
+  snappingMinZoom: 17,
+  snappingRadiusVisible: false,
+  debugOutputMapStatus: false,
+  debugOutputMapStatusPosition: { x: 65, y: 15 },
 };
 
 export const MapMeasurementsContext = createContext<MapMeasurementsContextType>(
@@ -67,6 +83,8 @@ export const MapMeasurementsContext = createContext<MapMeasurementsContextType>(
     setCurrentDrawHandler: (handler: any) => {},
     completeCurrentShape: () => {},
     config: defaultConfig,
+    status: "INACTIVE" as MeasurementMapStatus,
+    setStatus: (status: MeasurementMapStatus) => {},
   }
 );
 
@@ -91,9 +109,11 @@ export const MapMeasurementsProvider = ({
   const setMode = setModeExternal ?? setInternalMode;
 
   // Merge provided config with defaults
+  // Force disable snapping on mobile devices regardless of config
   const mergedConfig: MeasurementConfig = {
     ...defaultConfig,
     ...config,
+    snappingEnabled: isMobileDevice() ? false : (config.snappingEnabled ?? defaultConfig.snappingEnabled),
   };
   const [activeShape, setActiveShape] = useState<ActiveShape>(null);
   const [shapes, setShapes] = useState<any[]>([]);
@@ -110,6 +130,31 @@ export const MapMeasurementsProvider = ({
   const [updateTitleStatus, setUpdateTitleStatus] = useState(false);
   const [startDrawing, setStartDrawing] = useState(false);
   const [currentDrawHandler, setCurrentDrawHandler] = useState<any>(null);
+  const [status, setStatus] = useState<MeasurementMapStatus>("INACTIVE");
+
+  // Update status when mode changes
+  useEffect(() => {
+    if (mode === MEASUREMENT_MODE.MEASUREMENT) {
+      setStatus("WAITING");
+    } else {
+      setStatus("INACTIVE");
+    }
+  }, [mode]);
+
+  // Update status when drawing starts/ends
+  useEffect(() => {
+    if (drawingShape) {
+      setStatus("DRAWING");
+    } else if (mode === MEASUREMENT_MODE.MEASUREMENT) {
+      // Only set to WAITING if not already in EDITING or MOVING state
+      setStatus((currentStatus) => {
+        if (currentStatus === "EDITING" || currentStatus === "MOVING") {
+          return currentStatus;
+        }
+        return "WAITING";
+      });
+    }
+  }, [drawingShape, mode]);
 
   useEffect(() => {
     setFromLocalforage(mergedConfig.localStorageKey, setShapes, []);
@@ -267,7 +312,10 @@ export const MapMeasurementsProvider = ({
   };
 
   const completeCurrentShape = () => {
-    if (currentDrawHandler && typeof currentDrawHandler.completeShape === 'function') {
+    if (
+      currentDrawHandler &&
+      typeof currentDrawHandler.completeShape === "function"
+    ) {
       currentDrawHandler.completeShape();
     }
   };
@@ -317,6 +365,8 @@ export const MapMeasurementsProvider = ({
         setCurrentDrawHandler,
         completeCurrentShape,
         config: mergedConfig,
+        status,
+        setStatus,
       }}
     >
       {children}
