@@ -128,18 +128,19 @@ ReactDOM.createRoot(document.getElementById("root")).render(
       <Provider store={store}>
         <GazDataProvider config={gazDataConfig}>
           <SelectionProvider>
-            <TopicMapContextProvider appKey="lagis-desktop.map">
-              <MapMeasurementsProvider
-                config={{
-                  editableTitle: true,
-                  snappingEnabled: true,
-                  snappingOnUpdate: false,
-                  snappingRadiusVisible: false,
-                  snappingQueryRadius: 40,
-                  snappingMinZoom: 15,
-                  localStorageKey: "@" + APP_KEY + ".app.measurements",
-                }}
-              >
+            <MapMeasurementsProvider
+              config={{
+                editableTitle: true,
+                snappingEnabled: true,
+                snappingOnUpdate: false,
+                snappingRadiusVisible: false,
+                debugOutputMapStatus: true,
+                snappingQueryRadius: 40,
+                snappingMinZoom: 15,
+                localStorageKey: "@" + APP_KEY + ".app.measurements",
+              }}
+            >
+              <TopicMapContextProvider appKey="lagis-desktop.map">
                 <PersistGate
                   locale={locale}
                   loading={null}
@@ -147,8 +148,8 @@ ReactDOM.createRoot(document.getElementById("root")).render(
                 >
                   <RouterProvider router={router} />
                 </PersistGate>
-              </MapMeasurementsProvider>
-            </TopicMapContextProvider>
+              </TopicMapContextProvider>
+            </MapMeasurementsProvider>
           </SelectionProvider>
         </GazDataProvider>
       </Provider>

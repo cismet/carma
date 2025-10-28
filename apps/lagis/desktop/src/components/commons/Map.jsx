@@ -1,6 +1,7 @@
 import "react-cismap/topicMaps.css";
 import "leaflet/dist/leaflet.css";
-import { Card, Tooltip, Button, Tag } from "antd";
+import { Card, Tooltip, Tag } from "antd";
+
 import PropTypes from "prop-types";
 import { useContext, useEffect, useRef, useState } from "react";
 import {
@@ -26,7 +27,6 @@ import {
   setGeneralGeometrySelected,
   setGraphqlLayerStatus,
   setHasFittedBounds,
-  setMapInstance,
   setShowBackground,
   setShowCurrentFeatureCollection,
   setShowInspectMode,
@@ -474,8 +474,10 @@ const Map = ({
             </Control>
           </ControlLayout>
         </div>
+
         <RoutedMap
-          editable={true}
+          // editable={true}
+          leafletMapProps={{ editable: true }}
           style={mapStyle}
           key={"leafletRoutedMap"}
           zoomControlEnabled={false}
@@ -617,8 +619,9 @@ const Map = ({
             jwt={jwt}
             mode={mode}
           />
+          <Measurements snappingLayers={alkisMap ? [alkisMap] : []} />
         </RoutedMap>
-        <Measurements snappingLayers={alkisMap ? [alkisMap] : []} />
+
         {/* <div className="custom-left-control">
           <LibFuzzySearch
             gazData={gazData}
