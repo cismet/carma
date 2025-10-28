@@ -18,12 +18,12 @@ export type GeoportalCollection = {
 
 export interface FeatureInfoState {
   features: (FeatureInfo | SearchResultItem)[];
-  selectedFeature: FeatureInfo | SearchResultItem | null;
-  secondaryInfoBoxElements: (FeatureInfo | SearchResultItem)[];
+  selectedFeature: FeatureInfo | null; // Only FeatureInfo - SearchResultItem is for gazetteer search, not selection
+  secondaryInfoBoxElements: FeatureInfo[]; // Only FeatureInfo - overlapping WMS features
   infoText: string;
   preferredLayerId: string;
   preferredVectorLayerId?: number;
-  vectorInfo: FeatureInfo | SearchResultItem | undefined;
+  vectorInfo: FeatureInfo | undefined; // Only FeatureInfo - vector layer features
   vectorInfos: FeatureInfo[];
   nothingFoundIDs: string[];
   loading: boolean;

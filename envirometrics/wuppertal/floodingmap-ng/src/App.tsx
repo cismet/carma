@@ -397,10 +397,10 @@ function App({ sync = false }: { sync?: boolean }) {
             - initialCameraView not in new API  
             - constructorOptions moved
             - enableSceneStyles not in new API
+            - onCameraChanged removed (use CesiumContext event bus instead)
         */}
         <CesiumSceneComponent
           containerRef={container3dMapRef}
-          onCameraChanged={onCesiumSceneChange}
         ></CesiumSceneComponent>
       </div>
     </div>

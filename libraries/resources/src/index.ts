@@ -1,3 +1,5 @@
+/// <reference types="vite/client" />
+
 export * from "./lib/endpoints";
 export * from "./lib/service-options";
 

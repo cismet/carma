@@ -2,7 +2,6 @@ import {
   type CSSProperties,
   useCallback,
   useContext,
-  // useEffect, // Oblique mode disabled
   useMemo,
   useState,
 } from "react";
@@ -28,7 +27,6 @@ import {
 } from "../utils/mapEngineAvailability";
 import { geoElements } from "@carma-collab/wuppertal/geoportal";
 // import { useFeatureFlags } from "@carma/providers/feature-flag"; // Oblique mode disabled
-// import { obliqueEventBus } from "../utils/obliqueState"; // Oblique mode disabled
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 import {
   useOverlayHelper,
@@ -65,14 +63,7 @@ const TopNavbar = () => {
   const setAppMenuVisible = uiDispatch?.setAppMenuVisible;
 
   // const flags = useFeatureFlags(); // Oblique mode disabled
-  // const [isObliqueActive, setIsObliqueActive] = useState(false); // Oblique mode disabled
   const { current: currentEngine } = usePortalMapEngine();
-
-  // Track oblique mode state for button appearance
-  // useEffect(() => {
-  //   const unsubscribe = obliqueEventBus.subscribe("toggle", setIsObliqueActive);
-  //   return unsubscribe;
-  // }, []);
   const backgroundLayer = useSelector(getBackgroundLayer);
   const selectedMapLayer = useSelector(getSelectedMapLayer);
   const selectedLuftbildLayer = useSelector(getSelectedLuftbildLayer);

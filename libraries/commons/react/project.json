@@ -1,5 +1,5 @@
 {
-  "name": "react",
+  "name": "react-utils",
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libraries/commons/react/src",
   "projectType": "library",

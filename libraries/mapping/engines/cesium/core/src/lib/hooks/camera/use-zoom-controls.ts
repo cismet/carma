@@ -48,7 +48,7 @@ const defaultZoomOptions: Required<ZoomOptions> = {
 const scratchScreenCenter = new Cartesian2();
 const scratchNewPosition = new Cartesian3();
 
-const zoom = (
+export const zoom = (
   scene: Scene,
   animationMap: AnimationMap,
   isZoomOut = false,
@@ -160,7 +160,7 @@ const zoom = (
   });
 };
 
-const fovZoom = (
+export const fovZoom = (
   scene: Scene,
   animationMap: AnimationMap,
   onFovChangeCallback: ((fov: number) => void) | null,
@@ -218,7 +218,8 @@ export function useZoomControls(zoomOptions: Partial<ZoomOptions> = {}) {
     ...zoomOptions,
   };
 
-  const { sceneRef, animationMapRef, onFovChangeCallbackRef } = useCesiumContext();
+  const { sceneRef, animationMapRef, onFovChangeCallbackRef } =
+    useCesiumContext();
 
   const handleZoomIn = useCallback(
     (event: React.MouseEvent) => {
@@ -236,7 +237,14 @@ export function useZoomControls(zoomOptions: Partial<ZoomOptions> = {}) {
           )
         : zoom(scene, animationMapRef.current, false, duration, moveRateFactor);
     },
-    [animationMapRef, duration, moveRateFactor, onFovChangeCallbackRef, fovMode, sceneRef]
+    [
+      animationMapRef,
+      duration,
+      moveRateFactor,
+      onFovChangeCallbackRef,
+      fovMode,
+      sceneRef,
+    ]
   );
 
   const handleZoomOut = useCallback(
@@ -255,7 +263,14 @@ export function useZoomControls(zoomOptions: Partial<ZoomOptions> = {}) {
           )
         : zoom(scene, animationMapRef.current, true, duration, moveRateFactor);
     },
-    [animationMapRef, duration, onFovChangeCallbackRef, moveRateFactor, fovMode, sceneRef]
+    [
+      animationMapRef,
+      duration,
+      onFovChangeCallbackRef,
+      moveRateFactor,
+      fovMode,
+      sceneRef,
+    ]
   );
 
   return { handleZoomIn, handleZoomOut };

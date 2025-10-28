@@ -1,10 +1,6 @@
 import { createContext, type MutableRefObject } from "react";
 import { type Viewer, type Scene, CesiumTerrainProvider } from "cesium";
 
-import {
-  EmitCesiumCtxFn,
-  SubscribeCesiumCtxFn,
-} from "../../cesiumContextEventMap";
 import { DelayedRenderOptions } from "@carma-commons/dom/window";
 import type { AnimationMap } from "@carma/types";
 
@@ -31,10 +27,6 @@ export interface CesiumContextType {
   maxZoomDistanceRef: MutableRefObject<number>;
   enableCollisionDetectionRef: MutableRefObject<boolean>;
   currentSceneStyleRef: MutableRefObject<string | undefined>;
-
-  // Event bus
-  subscribe: SubscribeCesiumCtxFn;
-  emit: EmitCesiumCtxFn;
 
   // Animation and transition state
   isAnimatingRef: MutableRefObject<boolean>;

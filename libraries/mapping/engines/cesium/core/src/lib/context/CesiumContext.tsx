@@ -82,7 +82,12 @@ export interface CesiumContextType {
   // Portal callback coordination (matches TopicMapContext pattern)
   // Portal registers callback to be notified of camera updates
   onCameraUpdate: (callback: () => void) => void;
-  // Portal calls this to trigger fly home animation
+  // Portal calls these for zoom/home controls
+  zoomIn: () => void;
+  zoomOut: () => void;
+  // FOV zoom for oblique mode (adjusts field of view instead of camera distance)
+  fovZoomIn: () => void;
+  fovZoomOut: () => void;
   flyHome: () => void;
 
   // Scene initialization gate (synchronous validation)

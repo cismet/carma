@@ -1,6 +1,6 @@
 {
   "extends": "../../tsconfig.legacy.base.json",
-  "compilerOptions": { "strict": false },
+  "compilerOptions": { "strict": false, "skipLibCheck": true },
   "files": [],
   "references": []
 }

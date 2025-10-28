@@ -36,8 +36,8 @@ export const createTransitionTo3d =
   (params: TransitionTo3dParams) =>
   async (poseWithFallback: CesiumPoseWithFallback) => {
     // Scene guaranteed to exist - dynamically import cesium functions
+    const { HeadingPitchRange } = await import("@carma/cesium");
     const {
-      HeadingPitchRange,
       animateInterpolateHeadingPitchRange,
       pickSceneCenter,
       isWebGLErrorRequiringReinit,

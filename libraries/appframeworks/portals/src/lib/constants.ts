@@ -1,5 +1,6 @@
 export const ManagedEngineKeys = {
   LEAFLET_2D: "leaflet2d",
+  MAPLIBRE_2D: "maplibre2d",
   CESIUM_3D: "cesium3d",
 } as const;
 

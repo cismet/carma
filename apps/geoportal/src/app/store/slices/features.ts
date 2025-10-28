@@ -51,10 +51,7 @@ const slice = createSlice({
       state.features = [];
     },
 
-    setSelectedFeature(
-      state,
-      action: PayloadAction<FeatureInfo | SearchResultItem | null>
-    ) {
+    setSelectedFeature(state, action: PayloadAction<FeatureInfo | null>) {
       state.selectedFeature = action.payload;
     },
     updateInfoElementsAfterRemovingFeature(
@@ -138,9 +135,9 @@ const slice = createSlice({
     },
     updateSecondaryInfoBoxElements(state, action: PayloadAction<FeatureInfo>) {
       const feature = action.payload;
-      state.secondaryInfoBoxElements = state.features.filter(
-        (f) => !isEqual(f, feature)
-      );
+      state.secondaryInfoBoxElements = state.features
+        .filter((f): f is FeatureInfo => "id" in f && "properties" in f)
+        .filter((f) => !isEqual(f, feature));
     },
     removeSecondaryInfoBoxElement(state, action: PayloadAction<FeatureInfo>) {
       const feature = action.payload;

@@ -20,7 +20,7 @@ const initialState: MappingState = {
   savedLayerConfigs: [],
   selectedLayerIndex: SELECTED_LAYER_INDEX.NO_SELECTION,
   paleOpacityValue: defaultOpacity,
-  libreMapRef: null,
+  // libreMapRef moved to component state - refs should not be in Redux
   layersIdle: false,
 
   selectedMapLayer: {
@@ -268,12 +268,7 @@ const slice = createSlice({
     setClickFromInfoView(state, action: PayloadAction<boolean>) {
       state.clickFromInfoView = action.payload;
     },
-    setLibreMapRef(
-      state,
-      action: PayloadAction<React.MutableRefObject<MaplibreMap> | null>
-    ) {
-      state.libreMapRef = action.payload;
-    },
+    // setLibreMapRef removed - refs should not be in Redux
     setConfigSelection(state, action: PayloadAction<SelectionItem>) {
       state.configSelection = action.payload;
     },
@@ -318,7 +313,7 @@ export const {
   setStartDrawing,
 
   toggleUseInFeatureInfo,
-  setLibreMapRef,
+  // setLibreMapRef removed
   setConfigSelection,
   setLayersIdle,
 } = slice.actions;
@@ -362,7 +357,7 @@ export const getShowMeasurementButton = (state: RootState) =>
 export const getShowRightScrollButton = (state: RootState) =>
   state.mapping.showRightScrollButton;
 export const getStartDrawing = (state: RootState) => state.mapping.startDrawing;
-export const getLibreMapRef = (state: RootState) => state.mapping.libreMapRef;
+// getLibreMapRef removed - use component ref instead
 export const getConfigSelection = (state: RootState) =>
   state.mapping.configSelection;
 export const getLayersIdle = (state: RootState) => state.mapping.layersIdle;

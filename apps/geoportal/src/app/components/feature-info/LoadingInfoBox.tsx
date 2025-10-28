@@ -10,6 +10,7 @@ import { useContext, useEffect, useState } from "react";
 import { getQueryableLayers } from "../GeoportalMap/utils";
 import { getHashParams } from "@carma-commons/utils";
 import { InfoBox } from "@carma-appframeworks/portals";
+import type { FeatureInfo } from "@carma/types";
 
 type RenderedElements = {
   additionalInfo?: boolean;
@@ -60,14 +61,16 @@ const LoadingInfoBox = () => {
     );
   });
 
-  const getHeader = () => {
+  const getHeader = (): string => {
     if (selectedFeature) {
-      return selectedFeature.properties.header;
+      return selectedFeature.properties.header ?? "";
     } else {
-      return preferredLayerId &&
+      return (
+        (preferredLayerId &&
         queryableLayers.find((l) => l.id === preferredLayerId)
-        ? queryableLayers.find((l) => l.id === preferredLayerId)?.title
-        : queryableLayers[queryableLayers.length - 1].title;
+          ? queryableLayers.find((l) => l.id === preferredLayerId)?.title
+          : queryableLayers[queryableLayers.length - 1]?.title) ?? ""
+      );
     }
   };
 

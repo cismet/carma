@@ -1,4 +1,4 @@
-import { createContext, useRef, useEffect, useState } from "react";
+import { createContext, useRef, useEffect, useState, useMemo } from "react";
 import { AuthProvider } from "@carma/providers/auth";
 import { SandboxedEvalProvider } from "../components/SandboxedEvalProvider";
 import { GazDataProvider } from "../components/GazDataProvider";
@@ -10,6 +10,7 @@ import {
   CarmaTopicMapContextProvider,
   useCarmaTopicMapContext,
 } from "@carma-mapping/engines/carma-cismap";
+import { MapLibreContextProvider } from "@carma-mapping/engines/maplibre";
 import { OverlayTourProvider } from "@carma-commons/ui/helper-overlay";
 
 import { validatePortalCesiumConfig } from "./validate-portal-config";
@@ -111,7 +112,12 @@ export const PortalContextProvider = ({
 }: PortalProviderProps) => {
   // Apply defaults for optional configs
   const gazData = validateGazDataCrs(config.gazData || defaultGazDataConfig);
-  const topicMap = config.topicMap || { infoBoxPixelWidth: 350 };
+  
+  // Stabilize topicMap config to prevent re-renders
+  const topicMap = useMemo(
+    () => config.topicMap || { infoBoxPixelWidth: 350 },
+    [config.topicMap]
+  );
 
   // Validate required configs
   if (!config.cesium) {
@@ -146,16 +152,18 @@ export const PortalContextProvider = ({
               <TransitionContextProvider config={config.transitions}>
                 <CesiumContextProvider config={config.cesium}>
                   <CarmaTopicMapContextProvider config={topicMap}>
-                    <OverlayTourProvider
-                      transparency={overlayTransparency}
-                      color={overlayColor}
-                    >
-                      <HashStateProvider config={config.hashConfig}>
-                        <PortalStateProvider config={config}>
-                          <PortalGate>{children}</PortalGate>
-                        </PortalStateProvider>
-                      </HashStateProvider>
-                    </OverlayTourProvider>
+                    <MapLibreContextProvider>
+                      <OverlayTourProvider
+                        transparency={overlayTransparency}
+                        color={overlayColor}
+                      >
+                        <HashStateProvider config={config.hashConfig}>
+                          <PortalStateProvider config={config}>
+                            <PortalGate>{children}</PortalGate>
+                          </PortalStateProvider>
+                        </HashStateProvider>
+                      </OverlayTourProvider>
+                    </MapLibreContextProvider>
                   </CarmaTopicMapContextProvider>
                 </CesiumContextProvider>
               </TransitionContextProvider>

@@ -95,8 +95,8 @@ export const useCreateCismapLayers = (
   const flags = useFeatureFlags();
 
   const showTileBoundaries = flags?.debugTileBoundaries;
-  const selectionHandler = (e: { hits: unknown[] }, layer: Layer) => {
-    if (e.hits.length === 0) {
+  const selectionHandler = (e: { hits?: unknown[] }, layer: Layer) => {
+    if (!e.hits || e.hits.length === 0) {
       return;
     }
     setGlobalHits((old) => {

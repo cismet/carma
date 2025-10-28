@@ -15,4 +15,7 @@ export {
   type RoutedMapBoundingBox,
   routedMapBBoxToTurfBBox,
   turfBBoxToRoutedMapBBox,
+  // Legacy deprecated functions (backwards compatibility only)
+  latLngBoundsToProjectedBBox,
+  getBoundingBoxForLeafletMap,
 } from "./lib/types";

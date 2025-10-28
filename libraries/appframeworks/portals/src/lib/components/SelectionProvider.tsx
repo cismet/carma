@@ -3,6 +3,7 @@ import {
   useCallback,
   useContext,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import type { Feature } from "geojson";
@@ -32,7 +33,7 @@ interface SelectionContextType {
   // Future: 2D mode with MapLibre might also support models
   modelSelection: FeatureInfo | null;
   setModelSelection: (feature: FeatureInfo | null) => void;
-  // todo Include overlay in selectionItme
+  // todo Include overlay in selection 
   overlayFeature: Feature | null;
   setOverlayFeature: (feature: Feature | null) => void;
 }
@@ -47,7 +48,8 @@ const areSelectionsEqual = (
 ): boolean => {
   if (a === b) return true;
   if (!a || !b) return false;
-  return a.sorter === b.sorter && a.selectionTimestamp === b.selectionTimestamp;
+  // Only compare by sorter - timestamp is for detecting NEW selections, not equality
+  return a.sorter === b.sorter;
 };
 
 interface SelectionProviderProps {
@@ -65,44 +67,57 @@ export function SelectionProvider({
   onSelectionChange,
   onModelSelectionChange,
 }: SelectionProviderProps) {
-  const [selection, setSelection] = useState<SelectionItem | null>(null);
-  const [modelSelection, setModelSelection] = useState<FeatureInfo | null>(
-    null
-  );
+  // Keep state for consumers that need re-renders, but prevent loops with equality checks
+  const [selection, setSelectionState] = useState<SelectionItem | null>(null);
+  const [modelSelection, setModelSelectionState] = useState<FeatureInfo | null>(null);
   const [overlayFeature, setOverlayFeature] = useState<Feature | null>(null);
+  
+  const onSelectionChangeRef = useRef(onSelectionChange);
+  const onModelSelectionChangeRef = useRef(onModelSelectionChange);
+
+  // Update callback refs on every render
+  onSelectionChangeRef.current = onSelectionChange;
+  onModelSelectionChangeRef.current = onModelSelectionChange;
 
   const checkedSetSelection = useCallback(
     (newSelection: SelectionItem | null) => {
-      if (newSelection && areSelectionsEqual(newSelection, selection)) {
-        console.debug(
-          "SelectionProvider: checkedSetSelection - same selection, skipping"
-        );
-        return;
-      }
-      setSelection(newSelection);
-      // TODO: Remove this callback when Redux is fully removed
-      // Sync to external state management (e.g., Redux) if provided
-      onSelectionChange?.(newSelection);
+      setSelectionState((prev) => {
+        // Check equality by content (sorter + timestamp), not reference
+        if (newSelection && areSelectionsEqual(newSelection, prev)) {
+          console.debug(
+            "SelectionProvider: checkedSetSelection - same selection, skipping state update"
+          );
+          return prev; // Return same reference to prevent re-render
+        }
+        // TODO: Remove this callback when Redux is fully removed
+        // Sync to external state management (e.g., Redux) if provided
+        onSelectionChangeRef.current?.(newSelection);
+        return newSelection;
+      });
     },
-    [selection, onSelectionChange]
+    [] // Stable - no dependencies
   );
 
   const checkedSetModelSelection = useCallback(
     (newFeature: FeatureInfo | null) => {
-      if (newFeature?.id === modelSelection?.id) {
-        console.debug(
-          "SelectionProvider: checkedSetModelSelection - same feature, skipping"
-        );
-        return;
-      }
-      setModelSelection(newFeature);
-      // TODO: Remove this callback when Redux is fully removed
-      // Sync to external state management (e.g., Redux) if provided
-      onModelSelectionChange?.(newFeature);
+      setModelSelectionState((prev) => {
+        // Check equality by ID, not reference
+        if (newFeature?.id === prev?.id) {
+          console.debug(
+            "SelectionProvider: checkedSetModelSelection - same feature, skipping state update"
+          );
+          return prev; // Return same reference to prevent re-render
+        }
+        // TODO: Remove this callback when Redux is fully removed
+        // Sync to external state management (e.g., Redux) if provided
+        onModelSelectionChangeRef.current?.(newFeature);
+        return newFeature;
+      });
     },
-    [modelSelection, onModelSelectionChange]
+    [] // Stable - no dependencies
   );
 
+  // Stable context value - callbacks never change
   const value = useMemo(
     () => ({
       selection,
@@ -112,14 +127,7 @@ export function SelectionProvider({
       overlayFeature,
       setOverlayFeature,
     }),
-    [
-      selection,
-      checkedSetSelection,
-      modelSelection,
-      checkedSetModelSelection,
-      overlayFeature,
-      setOverlayFeature,
-    ]
+    [selection, checkedSetSelection, modelSelection, checkedSetModelSelection, overlayFeature]
   );
 
   return (

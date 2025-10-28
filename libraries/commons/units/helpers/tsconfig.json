@@ -1,5 +1,10 @@
 {
   "extends": "../../../../tsconfig.strict.base.json",
   "files": [],
-  "include": []
+  "include": [],
+  "references": [
+    {
+      "path": "./tsconfig.lib.json"
+    }
+  ]
 }

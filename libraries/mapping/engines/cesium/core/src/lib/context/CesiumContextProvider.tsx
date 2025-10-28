@@ -207,6 +207,66 @@ export const CesiumContextProvider = ({
     console.log("[CesiumContext] Camera update callback registered");
   }, []);
 
+  // Zoom controls - Portal calls these when zoom buttons are clicked
+  const zoomIn = useCallback(() => {
+    const scene = sceneRef.current;
+    const animationMap = animationMapRef.current;
+    if (!scene || !animationMap) return;
+
+    // Normal distance-based zoom (zoomOut parameter = false for zoom in)
+    // Note: Using dynamic import to avoid circular dependency
+    import("../hooks/camera/use-zoom-controls").then(({ zoom }) => {
+      zoom(scene, animationMap, false, 0.5, 1);
+    });
+  }, [sceneRef, animationMapRef]);
+
+  const zoomOut = useCallback(() => {
+    const scene = sceneRef.current;
+    const animationMap = animationMapRef.current;
+    if (!scene || !animationMap) return;
+
+    // Normal distance-based zoom (zoomOut parameter = true for zoom out)
+    import("../hooks/camera/use-zoom-controls").then(({ zoom }) => {
+      zoom(scene, animationMap, true, 0.5, 1);
+    });
+  }, [sceneRef, animationMapRef]);
+
+  const fovZoomIn = useCallback(() => {
+    const scene = sceneRef.current;
+    const animationMap = animationMapRef.current;
+    if (!scene || !animationMap) return;
+
+    // FOV-based zoom for oblique mode (zoomIn parameter = true)
+    import("../hooks/camera/use-zoom-controls").then(({ fovZoom }) => {
+      fovZoom(
+        scene,
+        animationMap,
+        onFovChangeCallbackRef.current,
+        true,
+        500,
+        1
+      );
+    });
+  }, [sceneRef, animationMapRef, onFovChangeCallbackRef]);
+
+  const fovZoomOut = useCallback(() => {
+    const scene = sceneRef.current;
+    const animationMap = animationMapRef.current;
+    if (!scene || !animationMap) return;
+
+    // FOV-based zoom for oblique mode (zoomIn parameter = false)
+    import("../hooks/camera/use-zoom-controls").then(({ fovZoom }) => {
+      fovZoom(
+        scene,
+        animationMap,
+        onFovChangeCallbackRef.current,
+        false,
+        500,
+        1
+      );
+    });
+  }, [sceneRef, animationMapRef, onFovChangeCallbackRef]);
+
   // Fly to home - Portal calls this when home button is clicked
   const flyHome = useCallback(() => {
     const camera = homeCamera.current;
@@ -269,6 +329,10 @@ export const CesiumContextProvider = ({
       sceneStyleReadyStateRef,
       sceneStyleReadyCallbackRef,
       onCameraUpdate,
+      zoomIn,
+      zoomOut,
+      fovZoomIn,
+      fovZoomOut,
       flyHome,
       prepareSceneInit,
       isAnimatingRef,
@@ -282,7 +346,18 @@ export const CesiumContextProvider = ({
       config,
       cesiumInstances,
     }),
-    [prepareSceneInit, requestRender, onCameraUpdate, flyHome, config, cesiumInstances]
+    [
+      prepareSceneInit,
+      requestRender,
+      onCameraUpdate,
+      zoomIn,
+      zoomOut,
+      fovZoomIn,
+      fovZoomOut,
+      flyHome,
+      config,
+      cesiumInstances,
+    ]
   );
 
   // Auto-recovery from Cesium errors - using direct refs instead of event bus

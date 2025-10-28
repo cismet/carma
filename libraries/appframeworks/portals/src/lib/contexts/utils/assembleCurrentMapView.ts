@@ -1,8 +1,5 @@
-import type {
-  MapView,
-  HashValues,
-  PortalPositionConfig,
-} from "../types/map-view";
+import type { MapView } from "@carma-mapping/engines/leaflet";
+import type { HashValues, PortalPositionConfig } from "../../types";
 
 /**
  * Assembles the current map view from various sources in priority order:
@@ -24,15 +21,13 @@ export function assembleCurrentMapView({
 }): MapView {
   // Priority 1: URL hash parameters from context
   if (
-    typeof hashValues.lat === "number" &&
-    typeof hashValues.lng === "number"
+    typeof hashValues.latitude === "number" &&
+    typeof hashValues.longitude === "number" &&
+    typeof hashValues.zoom === "number"
   ) {
     return {
-      center: [hashValues.lat, hashValues.lng],
-      zoom:
-        typeof hashValues.zoom === "number"
-          ? hashValues.zoom
-          : portalConfig.defaultPosition.zoom,
+      center: { lat: hashValues.latitude, lng: hashValues.longitude },
+      zoom: hashValues.zoom,
     };
   }
 
@@ -48,10 +43,10 @@ export function assembleCurrentMapView({
 
   // Priority 4: Portal config defaults
   return {
-    center: [
-      portalConfig.defaultPosition.latitude,
-      portalConfig.defaultPosition.longitude,
-    ],
+    center: {
+      lat: portalConfig.defaultPosition.latitude,
+      lng: portalConfig.defaultPosition.longitude,
+    },
     zoom: portalConfig.defaultPosition.zoom,
   };
 }

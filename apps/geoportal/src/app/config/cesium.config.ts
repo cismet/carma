@@ -37,7 +37,7 @@ export const CESIUM_CONFIG: Partial<CesiumConfig> = {
         {
           id: "spw2_graublau",
           ...BASEMAP_METROPOLE_RUHR_WMTS_GRAUBLAU_HQ,
-        },
+        } as any, // Type assertion needed - resource configs are compatible but types are strict
       ],
       terrain: [
         { id: "dem-2020", ...WUPP_TERRAIN_PROVIDER },

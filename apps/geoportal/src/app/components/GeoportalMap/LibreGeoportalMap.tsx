@@ -13,6 +13,8 @@ import {
 } from "maplibre-gl";
 import proj4 from "proj4";
 
+import { useMapLibreContext } from "@carma-mapping/engines/maplibre";
+
 import { Zoom256, Zoom512 } from "@carma/types";
 import {
   LibreMapSelectionContent,
@@ -35,11 +37,8 @@ import {
   getSelectedFeature,
   setSelectedFeature,
 } from "../../store/slices/features";
-import {
-  getBackgroundLayer,
-  getLayers,
-  setLibreMapRef,
-} from "../../store/slices/mapping";
+import { getBackgroundLayer, getLayers } from "../../store/slices/mapping";
+// setLibreMapRef removed - not storing refs in Redux
 import { getUIMode, UIMode } from "../../store/slices/ui";
 
 import LibreFeatureInfoBox from "../feature-info/LibreFeatureInfoBox";
@@ -110,6 +109,7 @@ const LibreGeoportalMap = ({
   mapOptions?: LibreGeoportalMapOptions;
 }) => {
   const { getHashValues } = useHashState();
+  const { mapRef: contextMapRef } = useMapLibreContext(); // Get mapRef from context
   const normalizedMapOptions = useMemo(
     () => normalizeOptions(mapOptions, defaultMapOptions),
     [mapOptions]
@@ -275,7 +275,10 @@ const LibreGeoportalMap = ({
         ...appliedMapOptions,
       });
 
-      dispatch(setLibreMapRef(map));
+      // Set map instance in MapLibreContext for Portal zoom controls
+      contextMapRef.current = map.current;
+
+      // dispatch(setLibreMapRef(map)); // Removed - refs shouldn't be in Redux
 
       map.current.on("idle", () => {
         isIdleRef.current = true;
@@ -594,7 +597,7 @@ const LibreGeoportalMap = ({
       });
 
       map.current.on("remove", () => {
-        dispatch(setLibreMapRef(null));
+        // dispatch(setLibreMapRef(null)); // Removed - refs shouldn't be in Redux
       });
     }
 

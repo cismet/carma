@@ -26,6 +26,7 @@ export type CameraLocation = {
   heading?: number;
   pitch?: number;
   range?: number; // distance from the camera to the point of interest
+  fov?: number; // field of view in degrees
 };
 
 export type MapStyleConfig = {

@@ -1,102 +1,70 @@
 import { useCallback } from "react";
-import type { MutableRefObject } from "react";
 import { useMapEngine } from "../contexts/PortalStateContext";
 import { ManagedEngineKeys } from "../constants";
+import { useCarmaTopicMapContext } from "@carma-mapping/engines/carma-cismap";
+import { useCesiumContext } from "@carma-mapping/engines/cesium/core";
+import { useMapLibreContext } from "@carma-mapping/engines/maplibre";
 
 /**
- * Engine-specific zoom implementations provided by the app
+ * Portal zoom controls - delegates to active engine context
+ *
+ * Engine contexts provide zoom callbacks:
+ * - TopicMapContext: `zoomIn/zoomOut` for Leaflet
+ * - MapLibreContext: `zoomIn/zoomOut` for MapLibre (feature flag)
+ * - CesiumContext: `zoomIn/zoomOut` for normal 3D, `fovZoomIn/fovZoomOut` for oblique mode
+ *
+ * Portal routes to the active engine based on `currentEngine`.
  */
-export interface ZoomImplementations {
-  // Leaflet zoom (TopicMap)
-  zoomInLeaflet?: () => void;
-  zoomOutLeaflet?: () => void;
-
-  // LibreMap zoom (if enabled in 2D mode)
-  libreMapRef?: MutableRefObject<{
-    zoomIn: () => void;
-    zoomOut: () => void;
-  } | null>;
-
-  // Cesium zoom (3D mode) - supports both regular zoom and FOV zoom (oblique mode)
-  zoomInCesium?: (event: React.MouseEvent<HTMLButtonElement>) => void;
-  zoomOutCesium?: (event: React.MouseEvent<HTMLButtonElement>) => void;
-}
 
 /**
- * usePortalZoomControls - Routes zoom requests to active engine
+ * usePortalZoomControls - Routes zoom requests to active engine context
  *
- * Portal handles the routing logic based on currentEngine.
- * App provides thin implementations via ZoomImplementations.
- *
- * This avoids circular dependencies by accepting callbacks instead
- * of importing engine hooks directly.
+ * Portal delegates to engine context callbacks based on currentEngine.
+ * No manual wiring required from the app.
  *
  * @example
  * ```tsx
- * // In app (GeoportalControls)
- * const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls(leafletMapRef);
- *
- * // For Cesium: fovMode enables FOV-based zoom for oblique mode
- * const { handleZoomIn: zoomInCesium, handleZoomOut: zoomOutCesium } = useZoomControls({
- *   fovMode: isObliqueMode
- * });
- *
- * const { handleZoomIn, handleZoomOut } = usePortalZoomControls({
- *   zoomInLeaflet,
- *   zoomOutLeaflet,
- *   libreMapRef,
- *   zoomInCesium,
- *   zoomOutCesium,
- * });
+ * // App just calls the hook - Portal handles engine routing
+ * const { handleZoomIn, handleZoomOut } = usePortalZoomControls();
  *
  * <UnifiedZoomControl onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} />
  * ```
  */
-export const usePortalZoomControls = (implementations: ZoomImplementations) => {
+export const usePortalZoomControls = () => {
   const { current: currentEngine } = useMapEngine();
-  const {
-    zoomInLeaflet,
-    zoomOutLeaflet,
-    libreMapRef,
-    zoomInCesium,
-    zoomOutCesium,
-  } = implementations;
 
-  const hasLibreMap = libreMapRef?.current != null;
+  // Get engine contexts - these provide zoom callbacks
+  const topicMapContext = useCarmaTopicMapContext();
+  const mapLibreContext = useMapLibreContext();
+  const cesiumContext = useCesiumContext();
 
-  const handleZoomIn = useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>) => {
-      if (currentEngine === ManagedEngineKeys.LEAFLET_2D) {
-        // 2D mode: LibreMap or Leaflet
-        if (hasLibreMap) {
-          libreMapRef?.current?.zoomIn();
-        } else {
-          zoomInLeaflet?.();
-        }
-      } else {
-        // 3D mode: Cesium
-        zoomInCesium?.(event);
-      }
-    },
-    [currentEngine, hasLibreMap, libreMapRef, zoomInLeaflet, zoomInCesium]
-  );
+  const handleZoomIn = useCallback(() => {
+    if (currentEngine === ManagedEngineKeys.MAPLIBRE_2D) {
+      // MapLibre 2D mode
+      mapLibreContext.zoomIn();
+    } else if (currentEngine === ManagedEngineKeys.LEAFLET_2D) {
+      // Leaflet 2D mode
+      topicMapContext?.zoomIn();
+    } else {
+      // 3D mode: Delegate to CesiumContext
+      // TODO: Use fovZoomIn when oblique mode is active
+      cesiumContext?.zoomIn();
+    }
+  }, [currentEngine, topicMapContext, mapLibreContext, cesiumContext]);
 
-  const handleZoomOut = useCallback(
-    (event: React.MouseEvent<HTMLButtonElement>) => {
-      if (currentEngine === ManagedEngineKeys.LEAFLET_2D) {
-        // 2D mode: LibreMap or Leaflet
-        if (hasLibreMap) {
-          libreMapRef?.current?.zoomOut();
-        } else {
-          zoomOutLeaflet?.();
-        }
-      } else {
-        // 3D mode: Cesium
-        zoomOutCesium?.(event);
-      }
-    },
-    [currentEngine, hasLibreMap, libreMapRef, zoomOutLeaflet, zoomOutCesium]
-  );
+  const handleZoomOut = useCallback(() => {
+    if (currentEngine === ManagedEngineKeys.MAPLIBRE_2D) {
+      // MapLibre 2D mode
+      mapLibreContext.zoomOut();
+    } else if (currentEngine === ManagedEngineKeys.LEAFLET_2D) {
+      // Leaflet 2D mode
+      topicMapContext?.zoomOut();
+    } else {
+      // 3D mode: Delegate to CesiumContext
+      // TODO: Use fovZoomOut when oblique mode is active
+      cesiumContext?.zoomOut();
+    }
+  }, [currentEngine, topicMapContext, mapLibreContext, cesiumContext]);
 
   return {
     handleZoomIn,

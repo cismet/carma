@@ -1,29 +1,24 @@
-// @ts-nocheck
-// TODO fix typescript for strict mode
 import {
-  memo,
-  useCallback,
   useContext,
   useEffect,
   useMemo,
   useRef,
   useState,
+  useCallback,
 } from "react";
 import L from "leaflet";
-import proj4 from "proj4";
 import { useDispatch, useSelector } from "react-redux";
 
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 import { useCarmaTopicMapContext } from "@carma-mapping/engines/carma-cismap";
 
-import type { LeafletConfig } from "@carma/types";
 import {
   SelectionItem,
   TopicMapSelectionContent,
   useGazData,
   useSelectionTopicMap,
-  type MapView,
+  usePortalContext,
 } from "@carma-appframeworks/portals";
 
 import { tooltipText } from "@carma-collab/wuppertal/geoportal";
@@ -40,10 +35,9 @@ import FeatureInfoBox from "../../../feature-info/FeatureInfoBox.tsx";
 
 import versionData from "../../../../../version.json";
 
-import { proj4crs3857def, proj4crs4326def } from "react-cismap/constants/gis";
+import { getFromWebMercatorToWGS84 } from "@carma/geo/proj";
 import { useLeafletZoomControls } from "@carma-mapping/engines/leaflet";
 import { useDispatchSachdatenInfoText } from "../../../../hooks/useDispatchSachdatenInfoText.ts";
-import { usePortalContext } from "@carma-appframeworks/portals";
 import { UIMode, getUIMode } from "../../../../store/slices/ui.ts";
 import { useModalMenu } from "./hooks/useModalMenu";
 import {
@@ -127,68 +121,27 @@ export const TopicMapComponentWrapper = ({
   const { getLeafletZoom } = useLeafletZoomControls(leafletMapRef);
   const { gazData } = useGazData();
 
-  const getTopicMap = useCallback(() => leafletMapRef.current, [leafletMapRef]);
+  const getTopicMap = useCallback(() => leafletMapRef.current, []); // leafletMapRef is stable ref from context
 
-  const layerIdleRef = useRef(layersIdle);
+  const lastSelectionRef = useRef<number | null>(null);
+  const pendingSelectionRef = useRef<{ lat: number; lng: number } | null>(null);
 
   // Handle print error timeout - clear error after 5 seconds
   useEffect(() => {
     if (printError) {
       const timer = setTimeout(() => {
-        dispatch(changePrintError(null));
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        dispatch(changePrintError(null as any));
       }, 5000);
       return () => clearTimeout(timer);
     }
   }, [printError, dispatch]);
 
-  const updateLayersIdleState = useCallback(() => {
-    if (layerIdleRef.current) {
+  const updateLayersIdleState = () => {
+    if (layersIdle) {
       dispatch(setLayersIdle(false));
     }
-  }, [dispatch]);
-
-  /**
-   * TODO: Refactor to use event bus pattern like CesiumMapComponentWrapper
-   *
-   * Current: Uses Redux polling for background layer state (useSelector(getBackgroundLayer))
-   * Future: Subscribe to MapStyleBus events directly to avoid Redux polling
-   * pretty much all topicMap state should move from redux store to event bus and provider state
-   * to enable using this easily and store agnostic as library
-   *
-   * See CesiumMapComponentWrapper as reference implementation for event bus pattern
-   */
-
-  // Note: Event bus pattern removed - TopicMap context now uses direct callback pattern
-
-  // Extract MapView data from CarmaTopicMapContext (assembled by PortalContext)
-  // Use refs to prevent render loops from frequent MapView updates
-  const currentMapViewRef = useRef<MapView | null>(null);
-  const homeMapViewRef = useRef<MapView | null>(null);
-
-  // Update refs directly without useEffect to avoid dependency issues
-  const newCurrentMapView = carmaTopicMapContext?.getCurrentMapView() || null;
-  const newHomeMapView = carmaTopicMapContext?.getHomeMapView() || null;
-
-  // Only update if values actually changed
-  if (
-    JSON.stringify(newCurrentMapView) !==
-    JSON.stringify(currentMapViewRef.current)
-  ) {
-    currentMapViewRef.current = newCurrentMapView;
-  }
-  if (
-    JSON.stringify(newHomeMapView) !== JSON.stringify(homeMapViewRef.current)
-  ) {
-    homeMapViewRef.current = newHomeMapView;
-  }
-
-  console.log("[TopicMapComponentWrapper] MapView data from PortalContext:", {
-    hasCarmaTopicMapContext: !!carmaTopicMapContext,
-    hasCurrentMapView: !!currentMapViewRef.current,
-    hasHomeMapView: !!homeMapViewRef.current,
-    currentMapView: currentMapViewRef.current,
-    homeMapView: homeMapViewRef.current,
-  });
+  };
 
   const topicMapLocationChangedHandler = useTopicMapLocationChangedHandler(
     updateLayersIdleState
@@ -246,38 +199,46 @@ export const TopicMapComponentWrapper = ({
         );
 
         setPos([e.latlng.lat, e.latlng.lng]);
+      } else if (uiMode === UIMode.DEFAULT) {
+        // Clear feature info when clicking map in default mode
+        dispatch(setSelectedFeature(null));
+        dispatch(setSecondaryInfoBoxElements([]));
+        dispatch(setFeatures([]));
       }
 
       onClickTopicMap(e, {
         dispatch,
         mode: uiMode,
         store,
-        zoom: getLeafletZoom(),
+        zoom: getLeafletZoom() ?? 15, // Fallback zoom if map not ready
         map,
       });
     },
-    [uiMode, marker, markerAccent, getTopicMap, getLeafletZoom, dispatch]
+    [uiMode, marker, markerAccent, getTopicMap, getLeafletZoom, dispatch, store]
   );
 
   const onComplete = useCallback(
     (selection: SelectionItem) => {
+      if (lastSelectionRef.current === selection.sorter) {
+        return;
+      }
+      lastSelectionRef.current = selection.sorter;
+
       if (layers.filter((l) => l.layerType === "vector").length === 0) return;
       if (
         (uiMode === UIMode.DEFAULT || uiMode === UIMode.FEATURE_INFO) &&
         !isAreaType(selection.type) &&
         !isSuspendedRef.current
       ) {
-        const selectedPos = proj4(proj4crs3857def, proj4crs4326def, [
+        // Convert from Web Mercator (EPSG:3857) to WGS84 (EPSG:4326)
+        const [lng, lat] = getFromWebMercatorToWGS84([
           selection.x,
           selection.y,
         ]);
+
         if (layersIdle) {
           const map = getTopicMap();
-          const updatedPos: L.LatLngLiteral = {
-            lat: selectedPos[1],
-            lng: selectedPos[0],
-          };
-          const latlngPoint = L.latLng(updatedPos);
+          const latlngPoint = L.latLng({ lat, lng });
           if (map) {
             const evt = {
               latlng: latlngPoint,
@@ -286,20 +247,37 @@ export const TopicMapComponentWrapper = ({
             } as unknown as L.LeafletMouseEvent;
             map.fireEvent("click", evt);
           }
+          pendingSelectionRef.current = null; // Clear pending
         } else {
-          setTimeout(() => {
-            onComplete(selection);
-          }, 20);
+          // Store coordinates to process when layers become idle
+          pendingSelectionRef.current = { lat, lng };
         }
       }
     },
     [layers, uiMode, isSuspendedRef, layersIdle, getTopicMap]
   );
 
+  // Process pending selection when layers become idle
+  useEffect(() => {
+    if (layersIdle && pendingSelectionRef.current) {
+      const pending = pendingSelectionRef.current;
+      pendingSelectionRef.current = null;
+
+      const map = getTopicMap();
+      const latlngPoint = L.latLng({ lat: pending.lat, lng: pending.lng });
+      if (map) {
+        const evt = {
+          latlng: latlngPoint,
+          layerPoint: map.latLngToLayerPoint(latlngPoint),
+          containerPoint: map.latLngToContainerPoint(latlngPoint),
+        } as unknown as L.LeafletMouseEvent;
+        map.fireEvent("click", evt);
+      }
+    }
+  }, [layersIdle, getTopicMap]);
+
   const selectionTopicMapOptions = useMemo(
-    () => ({
-      onComplete,
-    }),
+    () => ({ onComplete }),
     [onComplete]
   );
 
@@ -400,7 +378,7 @@ export const TopicMapComponentWrapper = ({
     if (!isSuspendedRef.current) {
       if (isModeMeasurement) return <InfoBoxMeasurement key={uiMode} />;
       if (selectedFeature || loadingFeatureInfo)
-        return <FeatureInfoBox pos={pos} />;
+        return <FeatureInfoBox pos={pos ?? undefined} />;
     } else if (flags.featureFlagBugaBridge && selectedFeature) {
       return <FeatureInfoBox />;
     }
@@ -419,35 +397,9 @@ export const TopicMapComponentWrapper = ({
 
   console.debug("RENDER [GEOPORTAL|TOPICMAP]");
 
-  // Get fallback values from refs without triggering re-renders
-  const getFallbackPosition = useCallback(() => {
-    const currentMapView = currentMapViewRef.current;
-    if (currentMapView) {
-      return {
-        lat: currentMapView.center[0],
-        lng: currentMapView.center[1],
-      };
-    }
-    return { lat: 51.25861849982617, lng: 7.15101022370511 }; // Default Wuppertal position
-  }, []);
-
-  const getFallbackZoom = useCallback(() => {
-    const currentMapView = currentMapViewRef.current;
-    if (currentMapView) {
-      return currentMapView.zoom;
-    }
-    return 15; // Default zoom level
-  }, []);
-
-  console.log(
-    "[TopicMapComponentWrapper] Rendering TopicMapComponent with props:",
-    {
-      fallbackPosition: getFallbackPosition(),
-      fallbackZoom: getFallbackZoom(),
-      zoomSnap,
-      zoomDelta,
-    }
-  );
+  // Get initial position from CarmaTopicMapContext (set by PortalContext on init)
+  // is guaranteed to have value due to gating in portal context provider
+  const { center, zoom } = carmaTopicMapContext.getCurrentMapView();
 
   return (
     <div className={"map-container-2d"} style={{ zIndex: 400 }}>
@@ -473,8 +425,8 @@ export const TopicMapComponentWrapper = ({
         infoBox={infoBox}
         zoomSnap={zoomSnap}
         zoomDelta={zoomDelta}
-        fallbackPosition={getFallbackPosition()}
-        fallbackZoom={getFallbackZoom()}
+        fallbackPosition={center}
+        fallbackZoom={zoom}
       >
         <TopicMapSelectionContent />
         {backgroundLayerElement}
@@ -485,4 +437,4 @@ export const TopicMapComponentWrapper = ({
   );
 };
 
-export default memo(TopicMapComponentWrapper);
+export default TopicMapComponentWrapper;

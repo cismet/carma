@@ -21,8 +21,14 @@ export type MapModeToggleOptions = {
  * @returns toggleMode - Function to trigger mode transition
  */
 export const useMapModeToggle = (options: MapModeToggleOptions = {}) => {
-  const { duration, onComplete, onCancel, onTransitionStart, onTransitionEnd, onEngineChange } =
-    options;
+  const {
+    duration,
+    onComplete,
+    onCancel,
+    onTransitionStart,
+    onTransitionEnd,
+    onEngineChange,
+  } = options;
 
   const { isSuspendedRef } = useCesiumContext();
   const { isTransitioningRef } = useTransitionContext();

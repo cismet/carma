@@ -9,12 +9,9 @@ import type {
   Scene,
   Model,
 } from "cesium";
-import { createEventBus } from "@carma/providers/event-bus";
 
 import { CesiumContext, type CesiumContextType } from "./CesiumContext";
-import type { CesiumContextEventMap } from "../../cesiumContextEventMap";
 
-import { useCesiumContextSubscriptions } from "./hooks/useCesiumContextSubscriptions";
 // DISABLED: Provider loaders for minimal mode
 // import {
 //   useImageryProviderLoader,
@@ -91,29 +88,8 @@ export const CesiumContextProvider = ({
 
   const dataSourcesRef = useRef<Record<string, any> | null>(null);
 
-  // Event bus for the Cesium context
-  const { subscribe, emit } = useMemo(
-    () => createEventBus<CesiumContextEventMap>(),
-    []
-  );
 
-  // MINIMAL MODE: Only essential subscriptions enabled
-  useCesiumContextSubscriptions({
-    subscribe,
-    emit,
-    sceneRef,
-    isSuspendedRef,
-    isAnimatingRef,
-    minZoomDistanceRef,
-    maxZoomDistanceRef,
-    enableCollisionDetectionRef,
-    currentSceneStyleRef,
-    homePositionRef,
-    homeOffsetRef,
-    sceneStyles,
-  });
-
-  // ALL PROVIDER LOADERS DISABLED for minimal mode
+ // ALL PROVIDER LOADERS DISABLED for minimal mode
   // useImageryProviderLoader({ providerConfig, imageryLayerRef, isValidViewer });
   // useImageryLayer({ isViewerReady, sceneRef, imageryLayerRef });
   // useTerrainProviderLoader({
@@ -147,8 +123,6 @@ export const CesiumContextProvider = ({
       maxZoomDistanceRef,
       enableCollisionDetectionRef,
       currentSceneStyleRef,
-      subscribe,
-      emit,
       isAnimatingRef,
       transitionStateRef,
       suspendSSCCRef,
@@ -157,7 +131,7 @@ export const CesiumContextProvider = ({
       requestRender,
       animationMapRef,
     }),
-    [subscribe, emit, requestRender]
+    [requestRender]
   );
 
   console.debug("CesiumContextProvider Changed/Rendered");

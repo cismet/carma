@@ -1,9 +1,7 @@
-import { useCallback, useState, type MutableRefObject } from "react";
+import { useCallback, useContext, useState } from "react";
 import { isMobile } from "react-device-detect";
 import { useDispatch, useSelector } from "react-redux";
 import { Tooltip } from "antd";
-import type { LeafletMap } from "@carma-mapping/engines/leaflet";
-import type { MaplibreMap } from "@carma-mapping/engines/maplibre";
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -25,22 +23,20 @@ import {
 } from "@carma-mapping/map-controls-layout";
 import { MeasurementControl } from "@carma-commons/measurements";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
-import {
-  useHomeControl,
-  useZoomControls,
-} from "@carma-mapping/engines/cesium/core";
-import { useLeafletZoomControls } from "@carma-mapping/engines/leaflet";
 import type { SearchResultItem } from "@carma/types";
 import {
   useGazData,
   useSelection,
   SelectionMetaData,
   SelectionMapMode,
-  type SelectionItem,
-  type MapEngine,
   usePortalHomePosition,
   usePortalZoomControls,
+  usePortalMapEngine,
 } from "@carma-appframeworks/portals";
+import { useCesiumContext } from "@carma-mapping/engines/cesium/core";
+import { useMapLibreContext } from "@carma-mapping/engines/maplibre";
+import { useFeatureFlags } from "@carma/providers/feature-flag";
+import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { isAreaType } from "@carma/resources";
 import {
   EngineAvailability,
@@ -60,66 +56,38 @@ import {
   getShowFullscreenButton,
   getShowLocatorButton,
 } from "../../store/slices/mapping.ts";
-import { getUIMode, toggleUIMode, UIMode } from "../../store/slices/ui.ts";
+import {
+  getUIAllow3d,
+  getUIMode,
+  toggleUIMode,
+  UIMode,
+} from "../../store/slices/ui.ts";
 
-interface GeoportalControlsProps {
-  isMode2d: boolean;
-  currentEngine: MapEngine;
-  allow3d: boolean;
-  showLibreMap: boolean;
-  libreMapRef: MutableRefObject<MaplibreMap | null>;
-  leafletMapRef: MutableRefObject<LeafletMap | null>;
-  isSuspendedRef: React.RefObject<boolean>;
-  configSelection: SelectionItem | undefined;
-  responsiveState: string;
-  gap: number;
-  windowSize: { width: number; height: number };
-}
-
-export const GeoportalControls = ({
-  isMode2d,
-  currentEngine,
-  allow3d,
-  showLibreMap,
-  libreMapRef,
-  leafletMapRef,
-  isSuspendedRef,
-  configSelection,
-  responsiveState,
-  gap,
-  windowSize,
-}: GeoportalControlsProps) => {
+// No props needed - fetch from contexts
+export const GeoportalControls = () => {
   const dispatch = useDispatch();
   const tourRefLabels = useTourRefCollabLabels();
   const { gazData } = useGazData();
-  const { setSelection } = useSelection();
+  const { setSelection, selection: configSelection } = useSelection();
+
+  // Fetch from contexts instead of props
+  const { current: currentEngine } = usePortalMapEngine();
+  const isMode2d = currentEngine === "leaflet2d";
+  const { isSuspendedRef } = useCesiumContext();
+  const { mapRef: libreMapRef } = useMapLibreContext(); // Get MapLibre ref from context
+  const flags = useFeatureFlags();
+  const showLibreMap = flags.featureFlagLibreMap;
+  const allow3d = useSelector(getUIAllow3d); // hasGPU check happens in parent
+
+  // Responsive context
+  const contextValue = useContext(ResponsiveTopicMapContext) as any;
+  const { responsiveState, gap, windowSize } = contextValue ?? {};
 
   // Get Portal's flyToHome - it updates hash, engine contexts respond
   const { flyToHome } = usePortalHomePosition();
 
-  // Oblique mode state (for FOV zoom when enabled)
-  // TODO: Hook up to oblique mode toggle when feature is re-enabled
-  const [isObliqueActive, setIsObliqueActive] = useState(false);
-
-  // Cesium-specific controls (fovMode enables FOV-based zoom for oblique mode)
-  const cesiumHomeControl = useHomeControl();
-  const { handleZoomIn: zoomInCesium, handleZoomOut: zoomOutCesium } =
-    useZoomControls({
-      fovMode: isObliqueActive,
-    });
-
-  // Leaflet zoom controls
-  const { zoomInLeaflet, zoomOutLeaflet } =
-    useLeafletZoomControls(leafletMapRef);
-
-  // Portal routes zoom to active engine
-  const { handleZoomIn, handleZoomOut } = usePortalZoomControls({
-    zoomInLeaflet,
-    zoomOutLeaflet,
-    libreMapRef,
-    zoomInCesium,
-    zoomOutCesium,
-  });
+  // Portal handles all zoom routing internally via engine contexts
+  const { handleZoomIn, handleZoomOut } = usePortalZoomControls();
 
   // Home button calls Portal's flyToHome
   // Portal calls engine context's flyHome callback (no hash needed if already at home)
@@ -310,7 +278,7 @@ export const GeoportalControls = ({
             pixelwidth={
               responsiveState === "normal" ? "300px" : windowSize.width - gap
             }
-            selection={configSelection}
+            selection={configSelection ?? undefined}
           />
         </div>
       </Control>

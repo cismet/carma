@@ -2,17 +2,14 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "composite": false,
-    "noEmit": false,
     "outDir": "../../../../../dist/out-tsc",
     "types": ["node", "vite/client"],
-    "lib": ["ES2021", "DOM"],
     "skipLibCheck": true
   },
   "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.d.ts"],
   "exclude": [
     "vite.config.ts",
     "src/**/*.spec.ts",
-    "src/**/*.test.ts",
-    "src/__stories__/**"
+    "src/**/*.spec.tsx"
   ]
 }

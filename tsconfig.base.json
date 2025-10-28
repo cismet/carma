@@ -42,8 +42,14 @@
 
       // compatibility layer for legacy resources
       "@carma-commons/resources": ["libraries/.compatibility/commons/resources/src/index.ts"],
-      "@carma-commons/utils/window": ["libraries/commons/dom/window/src/index.ts"],
+      "@carma-commons/utils/gaz": ["libraries/.compatibility/mapping/utils/src/index.ts"],
       "@carma-mapping/utils": ["libraries/.compatibility/mapping/utils/src/index.ts"],
+
+      // should resolve also namespace imports like utils/fetching
+      "@carma-commons/utils": ["libraries/commons/utils/src/index.ts"], 
+      "@carma-commons/utils/fetching": ["libraries/commons/utils/src/index.ts"], 
+      "@carma-commons/utils/window": ["libraries/commons/dom/window/src/index.ts"],
+
     },
     "skipLibCheck": true
   }

@@ -1,5 +1,6 @@
 import type { MapStyleKey } from "../constants";
 import { isMapStyleKey, ManagedEngineKeys } from "../constants";
+import type { HashValues } from "../types";
 
 /**
  * Parses initial portal state from URL hash values.
@@ -7,7 +8,7 @@ import { isMapStyleKey, ManagedEngineKeys } from "../constants";
  *
  * This centralizes all URL → State parsing logic for the portal.
  *
- * @param hashValues - Raw hash values from HashStateProvider
+ * @param hashValues - Decoded hash values from HashStateProvider (latitude, longitude, zoom, etc.)
  * @param styleConfig - Map style configuration
  * @param defaultPosition - Default 2D map position
  * @param defaultCameraLocation - Default 3D camera location
@@ -19,7 +20,7 @@ export function parseInitialPortalState({
   defaultPosition,
   defaultCameraLocation,
 }: {
-  hashValues: Record<string, unknown>;
+  hashValues: HashValues;
   styleConfig: {
     defaultStyle: MapStyleKey;
     availableStyles: readonly MapStyleKey[];
@@ -36,6 +37,7 @@ export function parseInitialPortalState({
     heading?: number;
     pitch?: number;
     range?: number;
+    fov?: number;
   };
 }) {
   console.log("[parseInitialPortalState] Input:", {
@@ -61,15 +63,16 @@ export function parseInitialPortalState({
       : ManagedEngineKeys.LEAFLET_2D;
 
   // 2D position format (lat/lng/zoom) - for Leaflet, MapLibre
-  // Required: lat AND lng must both be present in URL
+  // Required: latitude AND longitude must both be present in URL
   // Optional: zoom (falls back to default if missing)
   const hasPosition =
-    typeof hashValues.lat === "number" && typeof hashValues.lng === "number";
+    typeof hashValues.latitude === "number" &&
+    typeof hashValues.longitude === "number";
 
   const mapPosition = hasPosition
     ? {
-        latitude: hashValues.lat as number,
-        longitude: hashValues.lng as number,
+        latitude: hashValues.latitude as number,
+        longitude: hashValues.longitude as number,
         zoom:
           typeof hashValues.zoom === "number"
             ? hashValues.zoom
@@ -79,14 +82,14 @@ export function parseInitialPortalState({
 
   // 3D camera location (absolute positioning: lat/lng/h/heading/pitch/fov)
   // Required: lat AND lng must both be present in URL
-  // Optional: h (altitude), heading, pitch, fov (all fall back to defaults if missing)
+  // Optional: altitude, heading, pitch, fov (all fall back to defaults if missing)
   const cameraLocation = hasPosition
     ? {
-        latitude: hashValues.lat as number,
-        longitude: hashValues.lng as number,
+        latitude: hashValues.latitude as number,
+        longitude: hashValues.longitude as number,
         altitude:
-          typeof hashValues.h === "number"
-            ? hashValues.h
+          typeof hashValues.altitude === "number"
+            ? hashValues.altitude
             : defaultCameraLocation?.altitude,
         heading:
           typeof hashValues.heading === "number"

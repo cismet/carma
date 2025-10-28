@@ -21,7 +21,7 @@ import type {
   MapStyleConfig,
   MapStyleMappings,
 } from "../types/portal";
-import type { MapView } from "../types/map-view";
+import type { MapView } from "@carma-mapping/engines/leaflet";
 import type { CesiumConfig } from "@carma-mapping/engines/cesium/types";
 import type { LeafletConfig } from "@carma/types";
 
@@ -264,12 +264,18 @@ export const PortalStateProvider: React.FC<PortalStateProviderProps> = ({
 
         // Update MapView refs
         currentMapViewRef.current = {
-          center: [position.current2D.latitude, position.current2D.longitude],
+          center: {
+            lat: position.current2D.latitude,
+            lng: position.current2D.longitude,
+          },
           zoom: position.current2D.zoom,
         };
 
         homeMapViewRef.current = {
-          center: [position.home2D.latitude, position.home2D.longitude],
+          center: {
+            lat: position.home2D.latitude,
+            lng: position.home2D.longitude,
+          },
           zoom: position.home2D.zoom,
         };
 

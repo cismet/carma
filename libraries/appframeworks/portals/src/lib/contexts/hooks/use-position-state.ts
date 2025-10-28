@@ -45,12 +45,12 @@ export const usePositionState = (
 
     // Check URL hash for current position
     if (
-      typeof hashValues.lat === "number" &&
-      typeof hashValues.lng === "number"
+      typeof hashValues.latitude === "number" &&
+      typeof hashValues.longitude === "number"
     ) {
       const urlPosition = {
-        latitude: hashValues.lat as number,
-        longitude: hashValues.lng as number,
+        latitude: hashValues.latitude as number,
+        longitude: hashValues.longitude as number,
         zoom:
           typeof hashValues.zoom === "number"
             ? hashValues.zoom
@@ -87,15 +87,15 @@ export const usePositionState = (
 
     // Check URL hash for current camera
     if (
-      typeof hashValues.lat === "number" &&
-      typeof hashValues.lng === "number"
+      typeof hashValues.latitude === "number" &&
+      typeof hashValues.longitude === "number"
     ) {
       const urlCamera = {
-        latitude: hashValues.lat as number,
-        longitude: hashValues.lng as number,
+        latitude: hashValues.latitude as number,
+        longitude: hashValues.longitude as number,
         altitude:
-          typeof hashValues.h === "number"
-            ? hashValues.h
+          typeof hashValues.altitude === "number"
+            ? hashValues.altitude
             : initialCameraLocation.altitude,
         heading:
           typeof hashValues.heading === "number"

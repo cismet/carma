@@ -1,10 +1,10 @@
 import {
+  memo,
   useContext,
   useEffect,
   useMemo,
   useRef,
   useCallback,
-  memo,
   type ReactNode,
 } from "react";
 
@@ -18,7 +18,7 @@ import {
   CarmaTopicMapContext,
   type CarmaTopicMapContextType,
 } from "./CarmaTopicMapContext";
-import type { MapView } from "@carma-appframeworks/portals";
+import type { MapView } from "@carma-mapping/engines/leaflet";
 
 export interface TopicMapConfig {
   infoBoxPixelWidth?: number;
@@ -31,10 +31,10 @@ export interface CarmaTopicMapContextProviderProps {
 
 /**
  * Inner component that accesses react-cismap context and provides leafletMap
- * Note: This component will re-render on every map move due to react-cismap context changes
- * but the context value is memoized to prevent unnecessary child re-renders
+ * Memoized to prevent unnecessary re-renders when parent updates
+ * The context value is also memoized to prevent child re-renders
  */
-const CarmaTopicMapContextInner = ({ children }: { children: ReactNode }) => {
+const CarmaTopicMapContextInner = memo(({ children }: { children: ReactNode }) => {
   const reactCismapContext = useContext(ReactCismapTopicMapContext);
   const isSuspendedRef = useRef(false);
   const leafletMapRef = useRef<L.Map | undefined>(undefined);
@@ -63,30 +63,51 @@ const CarmaTopicMapContextInner = ({ children }: { children: ReactNode }) => {
   }, []);
 
   // MapView setters - update ref and notify Portal
-  const setCurrentMapView = useCallback((mapView: MapView) => {
-    console.log("[TopicMapContext] setCurrentMapView:", mapView);
-    currentMapViewRef.current = mapView;
-    triggerMapViewUpdate();
-  }, [triggerMapViewUpdate]);
+  const setCurrentMapView = useCallback(
+    (mapView: MapView) => {
+      console.log("[TopicMapContext] setCurrentMapView:", mapView);
+      currentMapViewRef.current = mapView;
+      triggerMapViewUpdate();
+    },
+    [triggerMapViewUpdate]
+  );
 
-  const setHomeMapView = useCallback((mapView: MapView) => {
-    console.log("[TopicMapContext] setHomeMapView:", mapView);
-    homeMapViewRef.current = mapView;
-    triggerMapViewUpdate();
-  }, [triggerMapViewUpdate]);
+  const setHomeMapView = useCallback(
+    (mapView: MapView) => {
+      console.log("[TopicMapContext] setHomeMapView:", mapView);
+      homeMapViewRef.current = mapView;
+      triggerMapViewUpdate();
+    },
+    [triggerMapViewUpdate]
+  );
 
   // MapView getters - return current ref values
   const getCurrentMapView = useCallback(() => currentMapViewRef.current, []);
   const getHomeMapView = useCallback(() => homeMapViewRef.current, []);
+
+  // Zoom controls - called by Portal when zoom buttons clicked
+  const zoomIn = useCallback(() => {
+    const map = leafletMapRef.current;
+    if (map) {
+      map.zoomIn();
+    }
+  }, []);
+
+  const zoomOut = useCallback(() => {
+    const map = leafletMapRef.current;
+    if (map) {
+      map.zoomOut();
+    }
+  }, []);
 
   // Fly to home - called by Portal when home button clicked
   const flyHome = useCallback(() => {
     const homeView = homeMapViewRef.current;
     const map = leafletMapRef.current;
     console.log("[TopicMapContext] flyHome", { homeView, hasMap: !!map });
-    
+
     if (map && homeView) {
-      // MapView uses center: [lat, lng] format
+      // MapView uses center: { lat, lng } format (LatLngLiteral)
       map.flyTo(homeView.center, homeView.zoom);
     }
   }, []);
@@ -112,6 +133,24 @@ const CarmaTopicMapContextInner = ({ children }: { children: ReactNode }) => {
     }
   }, [leafletMap]);
 
+  // Stable getters for react-cismap context values (prevent consumer re-renders)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const routedMapRefRef = useRef<any>();
+  const referenceSystemRef = useRef<string>();
+  const referenceSystemDefinitionRef = useRef<string>();
+
+  // Update refs from react-cismap context
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  routedMapRefRef.current = (reactCismapContext as any).realRoutedMapRef;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  referenceSystemRef.current = (reactCismapContext as any).referenceSystem;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  referenceSystemDefinitionRef.current = (reactCismapContext as any).referenceSystemDefinition;
+
+  const getRoutedMapRef = useCallback(() => routedMapRefRef.current, []);
+  const getReferenceSystem = useCallback(() => referenceSystemRef.current, []);
+  const getReferenceSystemDefinition = useCallback(() => referenceSystemDefinitionRef.current, []);
+
   const contextValue = useMemo<CarmaTopicMapContextType>(
     () => ({
       isSuspendedRef,
@@ -120,16 +159,26 @@ const CarmaTopicMapContextInner = ({ children }: { children: ReactNode }) => {
       setHomeMapView,
       getCurrentMapView,
       getHomeMapView,
+      zoomIn,
+      zoomOut,
       flyHome,
       onMapViewUpdate,
+      getRoutedMapRef,
+      getReferenceSystem,
+      getReferenceSystemDefinition,
     }),
     [
       setCurrentMapView,
       setHomeMapView,
       getCurrentMapView,
       getHomeMapView,
+      zoomIn,
+      zoomOut,
       flyHome,
       onMapViewUpdate,
+      getRoutedMapRef,
+      getReferenceSystem,
+      getReferenceSystemDefinition,
     ]
   );
 
@@ -138,14 +187,17 @@ const CarmaTopicMapContextInner = ({ children }: { children: ReactNode }) => {
       {children}
     </CarmaTopicMapContext.Provider>
   );
-};
+});
+
+CarmaTopicMapContextInner.displayName = "CarmaTopicMapContextInner";
 
 /**
  * Augments react-cismap TopicMapContextProvider with position data management.
  * Provides setters and getters for position data that Portal context can use.
  * Manages suspended state and leaflet map reference.
+ * Memoized to prevent unnecessary re-renders when parent updates.
  */
-export const CarmaTopicMapContextProvider = ({
+export const CarmaTopicMapContextProvider = memo(({
   children,
   config,
 }: CarmaTopicMapContextProviderProps) => {
@@ -156,6 +208,8 @@ export const CarmaTopicMapContextProvider = ({
       <CarmaTopicMapContextInner>{children}</CarmaTopicMapContextInner>
     </TopicMapContextProvider>
   );
-};
+});
+
+CarmaTopicMapContextProvider.displayName = "CarmaTopicMapContextProvider";
 
 export default CarmaTopicMapContextProvider;

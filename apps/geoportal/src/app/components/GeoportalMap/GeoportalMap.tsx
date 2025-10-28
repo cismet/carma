@@ -28,16 +28,13 @@ import { TopicMapComponentWrapper } from "./components/TopicMapComponentWrapper"
 import { GeoportalControls } from "./GeoportalControls";
 import { useGeoportalOverlays } from "./hooks/useGeoportalOverlays";
 import LibreGeoportalMap from "./LibreGeoportalMap.tsx";
-// import { CesiumObliqueMode } from "../../CesiumObliqueMode.tsx";
 
 import { useDispatchSachdatenInfoText } from "../../hooks/useDispatchSachdatenInfoText.ts";
 import { useFeatureInfoModeCursorStyle } from "../../hooks/useFeatureInfoModeCursorStyle.ts";
 import { useWindowSize } from "../../hooks/useWindowSize.ts";
 
-import {
-  getConfigSelection,
-  getLibreMapRef,
-} from "../../store/slices/mapping.ts";
+import { getConfigSelection } from "../../store/slices/mapping.ts";
+// getLibreMapRef removed - using local ref instead
 import { getUIAllow3d, getZenMode, setZenMode } from "../../store/slices/ui.ts";
 
 // detect GPU support, disables 3d mode if not supported
@@ -57,9 +54,10 @@ export const GeoportalMap = () => {
   const showLibreMap = flags.featureFlagLibreMap;
 
   const wrapperRef = useRef<HTMLDivElement>(null);
+  // Local ref for LibreMap - not stored in Redux
+  const libreMapRef = useRef<any>(null); // Type: MaplibreMap | null
 
   // State and Selectors
-  const libreMapRef = useSelector(getLibreMapRef);
   const allow3d = useSelector(getUIAllow3d) && hasGPU;
 
   // Get map mode from PortalProvider context
@@ -181,19 +179,7 @@ export const GeoportalMap = () => {
       ) : (
         <div className="pt-16">
           {/* adds padding for topnavbar*/}
-          <GeoportalControls
-            isMode2d={isMode2d}
-            currentEngine={currentEngine}
-            allow3d={allow3d}
-            showLibreMap={showLibreMap}
-            libreMapRef={libreMapRef}
-            leafletMapRef={leafletMapRef}
-            isSuspendedRef={isSuspendedRef}
-            configSelection={configSelection}
-            responsiveState={responsiveState}
-            gap={gap}
-            windowSize={windowSize}
-          />
+          <GeoportalControls />
         </div>
       )}
       <ControlLayoutCanvas>

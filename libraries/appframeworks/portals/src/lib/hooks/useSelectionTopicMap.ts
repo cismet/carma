@@ -1,10 +1,10 @@
-import { useContext, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import type { Map } from "leaflet";
 
 import { builtInGazetteerHitTrigger } from "react-cismap/tools/gazetteerHelper";
-import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import { SelectionItem, useSelection } from "../components/SelectionProvider";
+import { useCarmaTopicMapContext } from "@carma-mapping/engines/carma-cismap";
 
 const NEW_SELECTION_TIMEOUT = 200;
 const noop = () => {};
@@ -16,19 +16,20 @@ type SelectionTopicMapOptions = {
 export const useSelectionTopicMap = ({
   onComplete,
 }: SelectionTopicMapOptions = {}) => {
-  const { selection, setSelection, setOverlayFeature } = useSelection();
+  const { selection, setOverlayFeature } = useSelection();
   const lastSelectionKey = useRef<number | null>(null);
   const lastSelectionTimestamp = useRef<number | null>(null);
+  const onCompleteRef = useRef(onComplete);
 
-  const topicMapCtx = useContext<typeof TopicMapContext>(TopicMapContext);
+  // Keep ref updated without causing effect to re-run
+  useEffect(() => {
+    onCompleteRef.current = onComplete;
+  }, [onComplete]);
 
-  const {
-    //routedMapRef: routedMap,
-    realRoutedMapRef: routedMapRef,
-    referenceSystem,
-    referenceSystemDefinition,
-  } = topicMapCtx;
-  console.debug("topicMapCtx", topicMapCtx);
+  // Use CarmaTopicMapContext with stable getters instead of react-cismap context
+  const carmaTopicMapCtx = useCarmaTopicMapContext();
+  const { getRoutedMapRef, getReferenceSystem, getReferenceSystemDefinition } =
+    carmaTopicMapCtx;
 
   useEffect(() => {
     if (selection === null) {
@@ -57,31 +58,29 @@ export const useSelectionTopicMap = ({
           "HOOK: useSelectionTopicMap selection LEAFLET",
           selection
         );
-        const { leafletElement } = routedMapRef.current?.leafletMap;
+        const routedMapRef = getRoutedMapRef();
+        const { leafletElement } = routedMapRef?.current?.leafletMap;
 
         // TODO replace builtin react-cismap trigger, handle topicMap map move and polygon generation for overlayFeature with CarmaMap
         builtInGazetteerHitTrigger(
           [selection],
           leafletElement,
-          referenceSystem,
-          referenceSystemDefinition,
+          getReferenceSystem(),
+          getReferenceSystemDefinition(),
           noop, //  handleSetSelection with CarmaMap directly
           setOverlayFeature
         );
 
         if (leafletElement) {
-          onComplete?.(selection, leafletElement);
+          onCompleteRef.current?.(selection, leafletElement);
         }
       }
     }
   }, [
     selection,
-    routedMapRef,
-    referenceSystem,
-    referenceSystemDefinition,
-    setSelection,
-    onComplete,
     setOverlayFeature,
-  ]);
-  return topicMapCtx;
+    getRoutedMapRef,
+    getReferenceSystem,
+    getReferenceSystemDefinition,
+  ]); // Stable getters from CarmaTopicMapContext
 };

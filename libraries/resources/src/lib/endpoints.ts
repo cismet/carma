@@ -44,7 +44,12 @@ export const DEFAULT_GAZ_SOURCES: Endpoint[] = [
   // ENDPOINTS.VORHABEN,
 ];
 
-export const DEFAULT_HOST = import.meta.env.VITE_WUPP_ASSET_BASEURL;
+export const DEFAULT_HOST = import.meta.env["VITE_WUPP_ASSET_BASEURL"];
+
+if (typeof DEFAULT_HOST !== "string") {
+  throw new Error(`VITE_WUPP_ASSET_BASEURL is not a string: ${DEFAULT_HOST}`);
+}
+
 export const DEFAULT_PROJ = "3857";
 export const DEFAULT_NRW_PROJ = "25832";
 

@@ -13,10 +13,10 @@ import type { CesiumWidget } from "@carma/cesium";
 export const CesiumErrorHandler = ({
   widgetRef,
 }: {
-  widgetRef: MutableRefObject<CesiumWidget | null>;
+  widgetRef?: MutableRefObject<CesiumWidget | null>;
 }) => {
   useEffect(() => {
-    const widget = widgetRef.current;
+    const widget = widgetRef?.current;
     if (!widget) {
       console.warn(
         "[CesiumErrorHandler] Widget not available, skipping error handler setup"

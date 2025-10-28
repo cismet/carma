@@ -3,7 +3,6 @@ import {
   useCesiumContext,
   useHomeControl,
   useZoomControls,
-  CtxEvent,
 } from "@carma-mapping/engines/cesium/core";
 import { useEffect, useState } from "react";
 import { horizontalButtonRow } from "./horizontal-button-row-plugin";
@@ -20,7 +19,7 @@ interface CesiumLevaControlsProps {
 export function CesiumLevaControls({
   onOpenEditor,
 }: CesiumLevaControlsProps = {}) {
-  const { config, emit, currentSceneStyleRef, sceneRef } = useCesiumContext();
+  const { config, currentSceneStyleRef, sceneRef } = useCesiumContext();
   const flyHome = useHomeControl();
   const { handleZoomIn, handleZoomOut } = useZoomControls({ fovMode: false });
   const { handleZoomIn: handleFovZoomIn, handleZoomOut: handleFovZoomOut } =
@@ -60,11 +59,6 @@ export function CesiumLevaControls({
 
   // Subscribe to scene style changes
   useEffect(() => {
-    const unsubscribe =
-      emit && config.sceneStyle && typeof emit === "function"
-        ? () => {}
-        : () => {};
-
     // Update when style changes
     const interval = setInterval(() => {
       if (currentSceneStyleRef.current !== currentStyle) {
@@ -74,9 +68,8 @@ export function CesiumLevaControls({
 
     return () => {
       clearInterval(interval);
-      if (typeof unsubscribe === "function") unsubscribe();
     };
-  }, [emit, currentSceneStyleRef, currentStyle, config.sceneStyle]);
+  }, [currentSceneStyleRef, currentStyle, config.sceneStyle]);
 
   // Camera position is now handled by the cameraPosition plugin
 
@@ -106,8 +99,9 @@ export function CesiumLevaControls({
       value: currentStyle,
       options: styleOptions,
       onChange: (value: string) => {
-        emit(CtxEvent.SetSceneStyle, value);
+        // Style changes are tracked via currentSceneStyleRef polling above
         setCurrentStyle(value);
+        currentSceneStyleRef.current = value;
       },
     },
   };

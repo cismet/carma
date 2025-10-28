@@ -11,7 +11,10 @@ import UAParser from "ua-parser-js";
 
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import { useMapModeToggle } from "@carma-mapping/map-transition-2d-3d";
-import { usePortalMapEngine, ManagedEngineKeys } from "@carma-appframeworks/portals";
+import {
+  usePortalMapEngine,
+  ManagedEngineKeys,
+} from "@carma-appframeworks/portals";
 
 type Props = {
   duration?: number;
@@ -51,7 +54,7 @@ export const MapTypeSwitcher = forwardRef<Ref, Props>(
   ) => {
     // Use ref to avoid re-renders on confirmation state change
     const hasConfirmedRef = useRef(false);
-    
+
     // Sync engine state with PortalContext
     const { set: setCurrentEngine } = usePortalMapEngine();
 
@@ -62,7 +65,11 @@ export const MapTypeSwitcher = forwardRef<Ref, Props>(
       onCancel,
       onEngineChange: (engine) => {
         // Sync to PortalContext/URL on transition complete
-        setCurrentEngine(engine === "cesium3d" ? ManagedEngineKeys.CESIUM_3D : ManagedEngineKeys.LEAFLET_2D);
+        setCurrentEngine(
+          engine === "cesium3d"
+            ? ManagedEngineKeys.CESIUM_3D
+            : ManagedEngineKeys.LEAFLET_2D
+        );
       },
     });
 

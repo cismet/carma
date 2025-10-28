@@ -65,10 +65,10 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
       onComplete: (isTo2d: boolean) => {
         isTransitioningRef.current = false;
         console.debug("[Transition] 2D→3D: Complete");
-        
+
         // Notify engine change (consumer updates PortalContext/URL)
         onEngineChange?.("cesium3d");
-        
+
         onComplete?.(isTo2d);
       },
       onCancel: (isTo2d: boolean, stage: string) => {
@@ -123,10 +123,10 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
       onComplete: (isTo2d: boolean) => {
         isTransitioningRef.current = false;
         console.debug("[Transition] 3D→2D: Complete");
-        
+
         // Notify engine change (consumer updates PortalContext/URL)
         onEngineChange?.("leaflet2d");
-        
+
         onComplete?.(isTo2d);
       },
       onCancel: (isTo2d: boolean, stage: string) => {

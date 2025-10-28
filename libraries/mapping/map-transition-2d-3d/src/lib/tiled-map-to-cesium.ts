@@ -17,6 +17,7 @@ type TransitionOptions = {
   limit?: number;
   cause?: string;
   onComplete?: Function;
+  onError?: (error: Error) => void;
   fallbackElevationM?: number;
   /** Preferred surface model type: 'dem' (terrain only), 'dsm' (terrain + objects), 'water' */
   preferredSurfaceType?: SurfaceModelType;
@@ -34,6 +35,7 @@ const defaultTransitionOptions: Required<TransitionOptions> = {
   limit: 20,
   cause: "not specified",
   onComplete: noop,
+  onError: noop,
   fallbackElevationM: 350,
   preferredSurfaceType: "dem", // Prefer DEM (Digital Elevation Model - terrain only)
   terrainSafetyBufferM: 300,

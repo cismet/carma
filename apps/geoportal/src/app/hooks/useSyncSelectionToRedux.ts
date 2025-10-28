@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { useDispatch } from "react-redux";
-import type { SelectionItem, FeatureInfo } from "@carma-appframeworks/portals";
+import type { SelectionItem } from "@carma-appframeworks/portals";
+import type { FeatureInfo } from "@carma/types";
 import {
   setFeatures,
   setSecondaryInfoBoxElements,
@@ -22,7 +23,8 @@ export const useSyncSelectionToRedux = () => {
   return useCallback(
     (selection: SelectionItem | null) => {
       if (selection) {
-        dispatch(setSelectedFeature(selection));
+        // TODO: Fix type - SelectionItem and FeatureInfo should share common interface
+        dispatch(setSelectedFeature(selection as any));
         dispatch(setSecondaryInfoBoxElements([]));
         dispatch(setFeatures([selection]));
       } else {

@@ -1,5 +1,5 @@
-import type { MutableRefObject } from "react";
-import type { Map as MaplibreMap } from "maplibre-gl";
+// import type { MutableRefObject } from "react"; // Removed - no longer storing refs in Redux
+// import type { Map as MaplibreMap } from "maplibre-gl"; // Removed - no longer storing refs in Redux
 import type { Layer } from "@carma/types";
 import type { SelectedLayerIndex } from "../constants";
 import type { SelectionItem } from "../components/SelectionProvider";
@@ -37,7 +37,7 @@ export interface MappingState extends LayerState {
   focusMode: boolean;
   startDrawing: boolean;
   clickFromInfoView: boolean;
-  libreMapRef: MutableRefObject<MaplibreMap> | null;
+  // libreMapRef removed - refs should not be in Redux (causes "excessively deep type" errors)
   configSelection?: SelectionItem;
   layersIdle: boolean;
 }
