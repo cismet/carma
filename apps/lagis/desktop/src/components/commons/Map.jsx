@@ -228,13 +228,9 @@ const Map = ({
     position: "topright",
   };
 
-  // Phase 2: Register hover listener on Leaflet map, query MapLibre features
+  // Register hover listener on Leaflet map to query MapLibre features
   useEffect(() => {
-    // console.log("alkisMap changed:", alkisMap);
-    // console.log("refRoutedMap.current:", refRoutedMap.current);
-
     if (!alkisMap || !refRoutedMap.current) {
-      console.log("Waiting for both alkisMap and Leaflet map");
       return;
     }
 
@@ -273,10 +269,9 @@ const Map = ({
         const nenner = props.nenner ? `/${parseInt(props.nenner, 10)}` : "";
 
         const landparcelString = `${gemarkungName} ${flur} ${zaehler}${nenner}`;
-
+        
         // Only dispatch if value changed
         if (landparcelString !== lastLandparcelString) {
-          // console.log(`(${features.length}) Landparcel:`, landparcelString);
           dispatch(setHoveredLandparcel(landparcelString));
           lastLandparcelString = landparcelString;
         }
@@ -292,7 +287,6 @@ const Map = ({
     leafletMap.on("mousemove", handleMouseMove);
 
     return () => {
-      console.log("Removing mousemove listener from Leaflet map");
       if (throttleTimeout) {
         clearTimeout(throttleTimeout);
       }
@@ -418,9 +412,7 @@ const Map = ({
         // <div className="flex items-center gap-3">
         <div>
           <span className="mr-6">Karte</span>
-          {measurementMode !== MEASUREMENT_MODE.MEASUREMENT && (
-            <HoveredLandparcelInfo />
-          )}
+          <HoveredLandparcelInfo />
         </div>
         // </div>
       }
