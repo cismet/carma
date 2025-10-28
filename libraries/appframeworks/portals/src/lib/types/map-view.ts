@@ -16,19 +16,3 @@ export interface HashValues {
   mapStyle?: string;
   // ... other hash values
 }
-
-/**
- * Portal config for position defaults
- */
-export interface PortalPositionConfig {
-  defaultPosition: {
-    latitude: number;
-    longitude: number;
-    zoom: number;
-  };
-  homePosition: {
-    latitude: number;
-    longitude: number;
-    zoom: number;
-  };
-}

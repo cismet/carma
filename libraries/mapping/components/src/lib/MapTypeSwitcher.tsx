@@ -12,7 +12,7 @@ import UAParser from "ua-parser-js";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import { useMapModeToggle } from "@carma-mapping/map-transition-2d-3d";
 import {
-  usePortalMapEngine,
+  useActiveEngines,
   ManagedEngineKeys,
 } from "@carma-appframeworks/portals";
 
@@ -54,13 +54,10 @@ export const MapTypeSwitcher = forwardRef<Ref, Props>(
   ) => {
     // Use ref to avoid re-renders on confirmation state change
     const hasConfirmedRef = useRef(false);
-
-    // Get current engine from PortalContext - this is the source of truth
-    const { current: currentEngine, set: setCurrentEngine } =
-      usePortalMapEngine();
+    const { isCesiumActive } = useActiveEngines();
 
     // Derive mode from portal's current engine (any non-cesium engine = 2D)
-    const isMode2d = currentEngine !== ManagedEngineKeys.CESIUM_3D;
+    const isMode2d = !isCesiumActive;
 
     // Use the mode toggle hook from transition library (for transition logic only)
     const { isTransitioning, toggleMode } = useMapModeToggle({

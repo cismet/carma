@@ -1,9 +1,9 @@
 import { createContext, useRef, useEffect, useState, useMemo } from "react";
 import { AuthProvider } from "@carma/providers/auth";
-import { SandboxedEvalProvider } from "../components/SandboxedEvalProvider";
-import { GazDataProvider } from "../components/GazDataProvider";
+import { SandboxedEvalProvider } from "../../components/SandboxedEvalProvider";
+import { GazDataProvider } from "../../components/GazDataProvider";
 import { defaultGazDataConfig } from "@carma/resources";
-import { SelectionProvider } from "../components/SelectionProvider";
+import { SelectionProvider } from "../../components/SelectionProvider";
 import { TransitionContextProvider } from "@carma-mapping/map-transition-2d-3d";
 import { CesiumContextProvider } from "@carma-mapping/engines/cesium/core";
 import {
@@ -13,10 +13,10 @@ import {
 import { MapLibreContextProvider } from "@carma-mapping/engines/maplibre";
 import { OverlayTourProvider } from "@carma-commons/ui/helper-overlay";
 
-import { validatePortalCesiumConfig } from "./validate-portal-config";
+import { validatePortalCesiumConfig } from "../validate-portal-config";
 import { PortalStateProvider } from "./PortalStateContext";
-import { HashStateProvider } from "./HashStateProvider";
-import type { PortalProviderProps, PortalConfig } from "../types/portal";
+import { HashStateProvider } from "../HashStateProvider";
+import type { PortalProviderProps, PortalConfig } from "../../types/portal";
 import type { GazDataConfig } from "@carma-commons/gazetteer";
 
 // Helper function to validate gazData CRS and apply defaults
@@ -112,7 +112,7 @@ export const PortalContextProvider = ({
 }: PortalProviderProps) => {
   // Apply defaults for optional configs
   const gazData = validateGazDataCrs(config.gazData || defaultGazDataConfig);
-  
+
   // Stabilize topicMap config to prevent re-renders
   const topicMap = useMemo(
     () => config.topicMap || { infoBoxPixelWidth: 350 },

@@ -20,7 +20,11 @@ import { Button, Radio, type RadioChangeEvent, Tooltip } from "antd";
 
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
-import { MapStyleKeys, usePortalMapEngine } from "@carma-appframeworks/portals";
+import {
+  MapStyleKeys,
+  usePortalContext,
+  ManagedEngineKeys,
+} from "@carma-appframeworks/portals";
 import {
   EngineAvailability,
   isFeatureDisabled,
@@ -63,7 +67,10 @@ const TopNavbar = () => {
   const setAppMenuVisible = uiDispatch?.setAppMenuVisible;
 
   // const flags = useFeatureFlags(); // Oblique mode disabled
-  const { current: currentEngine } = usePortalMapEngine();
+  const { isCesiumActive } = usePortalContext();
+  const currentEngine = isCesiumActive()
+    ? ManagedEngineKeys.CESIUM_3D
+    : ManagedEngineKeys.LEAFLET_2D;
   const backgroundLayer = useSelector(getBackgroundLayer);
   const selectedMapLayer = useSelector(getSelectedMapLayer);
   const selectedLuftbildLayer = useSelector(getSelectedLuftbildLayer);

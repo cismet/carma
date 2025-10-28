@@ -13,15 +13,10 @@ import type {
   Longitude,
   LatLngAlt,
 } from "@carma/geo/types";
-import { degToRad, radToDeg, PI_OVER_TWO, TWO_PI } from "@carma/units/helpers";
-import type { Degrees, Radians, Meters } from "@carma/units/types";
+import { radToDeg, PI_OVER_TWO, TWO_PI } from "@carma/units/helpers";
+import type { Radians } from "@carma/units/types";
 import { cartographicToUnitTyped } from "../Core/Cartographic";
-import type {
-  CameraPrimitive,
-  CameraPoseRadians,
-  CameraStateHeadingPitchRoll,
-  DirectionUp,
-} from "./Camera.d";
+import type { CameraPrimitive, DirectionUp } from "./Camera.d";
 
 // Re-export Camera class from Cesium
 export { Camera };
@@ -184,44 +179,6 @@ export const restoreCameraState = (
   ) {
     camera.frustum.fov = state.frustum.fov;
   }
-};
-
-/**
- * Convert external camera state format to Cesium internal format
- *
- * Converts:
- * - altitude → height (rename)
- * - degrees → radians (latitude, longitude, heading, pitch, roll)
- *
- * @param state - External camera state (degrees, altitude)
- * @param defaults - Optional default values for missing fields
- * @returns Internal camera pose format (radians, height) or undefined if state is undefined
- */
-export const convertCameraStateToInternalFormat = (
-  state: CameraStateHeadingPitchRoll | undefined,
-  defaults?: {
-    altitude?: number;
-    heading?: number;
-    pitch?: number;
-    roll?: number;
-  }
-): CameraPoseRadians | undefined => {
-  if (!state) return undefined;
-
-  const { altitude, heading, pitch, roll, latitude, longitude } = state;
-
-  return {
-    latitude: degToRad(latitude as Degrees) as Radians,
-    longitude: degToRad(longitude as Degrees) as Radians,
-    height: (altitude ?? defaults?.altitude ?? 250) as Meters,
-    heading: degToRad(
-      (heading ?? defaults?.heading ?? 0) as Degrees
-    ) as Radians,
-    pitch: degToRad(
-      (pitch ?? defaults?.pitch ?? -PI_OVER_TWO) as Degrees
-    ) as Radians,
-    ...(roll !== undefined && { roll: degToRad(roll as Degrees) as Radians }),
-  };
 };
 
 /**

@@ -8,6 +8,7 @@ import { ManagedProjections } from "@carma/geo/proj";
 import { convertTurfBBoxToLeafletBounds } from "@carma-mapping/engines/leaflet";
 import type { Degrees } from "@carma/units/types";
 import * as L from "leaflet";
+import { convertLayerStringToLayers } from "../helper/layer-string-to-layer";
 
 const getMercatorScale = (scale: number, latDegrees: number): number => {
   return scale * getMercatorScaleFactorAtLatitudeDeg(latDegrees as Degrees);
@@ -18,7 +19,6 @@ import PrintPrevTexts from "../components/map-print/PrintPrevTexts";
 import ClosePrintButton from "../components/map-print/ClosePrintButton";
 import UpdateScalePrintButton from "../components/map-print/UpdateScalePrintButton";
 import { constant } from "lodash";
-import { convertLayerStringToLayers } from "../config";
 let reactRoot = null;
 interface DraggablePolygonOptions extends L.PolylineOptions {
   draggable?: boolean;

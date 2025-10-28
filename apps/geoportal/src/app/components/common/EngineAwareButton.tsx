@@ -1,6 +1,9 @@
 import { type ReactNode } from "react";
 import { Tooltip } from "antd";
-import { usePortalMapEngine } from "@carma-appframeworks/portals";
+import {
+  usePortalContext,
+  ManagedEngineKeys,
+} from "@carma-appframeworks/portals";
 import {
   type AvailableEngine,
   isFeatureDisabled,
@@ -51,7 +54,10 @@ export const EngineAwareButton = ({
   disabledClassName = "opacity-20",
   additionalDisabled = false,
 }: EngineAwareButtonProps) => {
-  const { current: currentEngine } = usePortalMapEngine();
+  const { isCesiumActive } = usePortalContext();
+  const currentEngine = isCesiumActive()
+    ? ManagedEngineKeys.CESIUM_3D
+    : ManagedEngineKeys.LEAFLET_2D;
   const isDisabled =
     isFeatureDisabled(currentEngine, availableOn) || additionalDisabled;
 

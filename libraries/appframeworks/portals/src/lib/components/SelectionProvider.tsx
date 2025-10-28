@@ -33,7 +33,7 @@ interface SelectionContextType {
   // Future: 2D mode with MapLibre might also support models
   modelSelection: FeatureInfo | null;
   setModelSelection: (feature: FeatureInfo | null) => void;
-  // todo Include overlay in selection 
+  // todo Include overlay in selection
   overlayFeature: Feature | null;
   setOverlayFeature: (feature: Feature | null) => void;
 }
@@ -69,9 +69,11 @@ export function SelectionProvider({
 }: SelectionProviderProps) {
   // Keep state for consumers that need re-renders, but prevent loops with equality checks
   const [selection, setSelectionState] = useState<SelectionItem | null>(null);
-  const [modelSelection, setModelSelectionState] = useState<FeatureInfo | null>(null);
+  const [modelSelection, setModelSelectionState] = useState<FeatureInfo | null>(
+    null
+  );
   const [overlayFeature, setOverlayFeature] = useState<Feature | null>(null);
-  
+
   const onSelectionChangeRef = useRef(onSelectionChange);
   const onModelSelectionChangeRef = useRef(onModelSelectionChange);
 
@@ -127,7 +129,13 @@ export function SelectionProvider({
       overlayFeature,
       setOverlayFeature,
     }),
-    [selection, checkedSetSelection, modelSelection, checkedSetModelSelection, overlayFeature]
+    [
+      selection,
+      checkedSetSelection,
+      modelSelection,
+      checkedSetModelSelection,
+      overlayFeature,
+    ]
   );
 
   return (

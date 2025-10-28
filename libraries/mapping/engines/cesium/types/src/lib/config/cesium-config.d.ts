@@ -39,7 +39,6 @@ export type CesiumConfig = {
   // currentCameraState are tracked refs on the CesiumContext but not part of the config and are set before init form the consumer app
   // e.g. see PortalContext
 
-
   // TODO: Migrate to plugin system
   /* MARKERS
   markerKey?: string;

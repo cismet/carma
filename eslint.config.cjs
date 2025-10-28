@@ -166,7 +166,7 @@ function getCarmaConfigs(baseConfig) {
         "envirometrics/**/*.ts",
         "envirometrics/**/*.tsx",
       ],
-      ignores: [TYPE_DECLARATIONS_PATTERN, "**/__stories__/**", "**/*.stories.*"],
+      ignores: [TYPE_DECLARATIONS_PATTERN, "**/__stories__/**", "**/*.stories.*", "libraries/mapping/engines/leaflet/src/index.d.ts"],
       rules: {
         ...baseConfig.rules,
         "carma/no-direct-proj4": "error",

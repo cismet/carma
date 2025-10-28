@@ -50,7 +50,7 @@ graph TB
 
 ### PortalStateContext (Reactive State Management)
 **Purpose**: URL + React state as single source of truth
-- **Location**: `src/lib/contexts/PortalStateContext.tsx`
+- **Location**: [PortalStateContext.tsx](../src/lib/contexts/PortalContext/PortalStateContext.tsx)
 - **Features**:
   - Reactive `useState` alongside refs for consumer re-renders
   - Automatic URL hash synchronization

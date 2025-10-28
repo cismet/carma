@@ -1,0 +1,119 @@
+import { useCallback, useEffect } from "react";
+import { usePortalContext } from "../contexts/PortalContext";
+import { useCesiumContext } from "@carma/mapping/engines/cesium/core";
+import { ManagedEngineKeys } from "../constants";
+
+/**
+ * Hook to sync Cesium scene style ID with portal context
+ *
+ * Maps portal MapStyleKey to Cesium style IDs using portalConfig.mapStyleMappings.cesium
+ * and sets the current style in the Cesium context. This is important for maintaining
+ * consistent styling between 2D and 3D views during transitions.
+ *
+ * ## RESPONSIBILITIES:
+ * - Monitors portal mapStyleRef changes
+ * - Maps portal styles to Cesium scene styles
+ * - Applies styles to Cesium context when active
+ * - Handles suspension/activation state changes
+ *
+ * ## SEPARATION OF CONCERNS:
+ * - This hook: Handles ALL Cesium style logic (syncing + setStyle method)
+ * - CesiumMapComponentWrapper: Uses setStyle for engine records, no style logic
+ * - PortalStateContext: Coordinates setMapStyle calls across all engines
+ *
+ * Should be used in:
+ * - CesiumSceneComponent on initialization (auto-sync only)
+ * - CesiumMapComponentWrapper (get setStyle for engine records + auto-sync)
+ *
+ * @example
+ * ```tsx
+ * // Get setStyle method for engine records + auto-syncing
+ * const { setStyle } = useCesiumStyleSync();
+ *
+ * // Use setStyle in Cesium engine record
+ * const cesiumEngine = {
+ *   engine: "cesium3d",
+ *   setStyle,
+ *   // ... other properties
+ * };
+ * ```
+ */
+export const useCesiumStyleSync = () => {
+  const { mapStyleRef, portalConfig, isCesiumActive } = usePortalContext();
+  const { sceneStyleApplierRef, currentSceneStyleRef } = useCesiumContext();
+
+  useEffect(() => {
+    // Get the current portal style
+    const portalStyle = mapStyleRef.current;
+
+    // Map portal style to Cesium style ID
+    const cesiumStyleId = portalConfig.mapStyleMappings.cesium[portalStyle];
+
+    if (!cesiumStyleId) {
+      console.warn(
+        "[useCesiumStyleSync] No Cesium style mapping found for portal style:",
+        portalStyle
+      );
+      return;
+    }
+
+    // Always update the current style in the context (even when suspended)
+    // This ensures the correct style is available when Cesium becomes active
+    if (currentSceneStyleRef.current !== cesiumStyleId) {
+      console.log(
+        "[useCesiumStyleSync] Updating Cesium scene style:",
+        portalStyle,
+        "->",
+        cesiumStyleId
+      );
+
+      // Set the new style in the context
+      currentSceneStyleRef.current = cesiumStyleId;
+
+      // Only apply the style if Cesium is active and scene is ready
+      if (isCesiumActive() && sceneStyleApplierRef.current) {
+        sceneStyleApplierRef.current(cesiumStyleId);
+      } else if (!isCesiumActive()) {
+        console.debug(
+          "[useCesiumStyleSync] Cesium is suspended - style updated in context only",
+          "(will be applied when Cesium becomes active)"
+        );
+      } else if (!sceneStyleApplierRef.current) {
+        console.debug(
+          "[useCesiumStyleSync] Scene style applier not available yet",
+          "(scene will use style when it initializes)"
+        );
+      }
+    }
+  }, [
+    mapStyleRef.current,
+    portalConfig.mapStyleMappings.cesium,
+    isCesiumActive,
+    currentSceneStyleRef,
+    sceneStyleApplierRef,
+  ]);
+
+  /**
+   * Set style method for Cesium engine records
+   * This is called when PortalStateContext calls engine.setStyle(styleId)
+   *
+   * @param styleId - The portal MapStyleKey (e.g., "karte", "luftbild")
+   */
+  const setStyle = useCallback(
+    (styleId: string) => {
+      console.log(
+        "[useCesiumStyleSync] Cesium engine setStyle called with:",
+        styleId
+      );
+
+      // Update the portal style ref - this will trigger the useEffect above
+      // to sync the change to the Cesium context
+      mapStyleRef.current = styleId as any;
+    },
+    [mapStyleRef]
+  );
+
+  return {
+    setStyle, // For Cesium engine records
+  };
+};

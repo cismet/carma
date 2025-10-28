@@ -6,13 +6,12 @@ import {
 } from "@carma-appframeworks/portals";
 import { backgroundSettings } from "@carma-collab/wuppertal/geoportal";
 import { CESIUM_CONFIG, GeoportalCesiumStyleKeys } from "./cesium.config";
-import { LEAFLET_CONFIG } from "./leaflet";
+import { LEAFLET_CONFIG } from "./leaflet.config";
 import type { TransitionConfig } from "@carma/mapping/map-transition-2d-3d";
 import { WUPPERTAL, defaultGazDataConfig } from "@carma/resources";
-import { Altitude, Degrees, Meters } from "@carma/geo/types";
-import { degToRad } from "@carma/units/helpers";
+import { Altitude, type Degrees } from "@carma/geo/types";
+import type { MapView } from "@carma/mapping/engines/leaflet";
 // eslint-disable-next-line carma/no-direct-cesium
-import { Camera, Cartesian3, Ellipsoid } from "cesium";
 import { CameraStateHeadingPitchRoll } from "@carma/mapping/engines/cesium/api";
 
 // App configuration constants
@@ -59,18 +58,18 @@ export const TRANSITIONS_CONFIG: TransitionConfig = {
 
 // Default 2D map position (for Leaflet, MapLibre)
 // Note: NOT yet unified across all engines - see https://github.com/cismet/carma/issues/214
-export const DEFAULT_MAP_POSITION = {
+export const DEFAULT_MAP_POSITION: MapView = {
   center: {
-    latitude: WUPPERTAL.position.latitude as Degrees,
-    longitude: WUPPERTAL.position.longitude as Degrees,
+    lat: WUPPERTAL.position.latitude as Degrees,
+    lng: WUPPERTAL.position.longitude as Degrees,
   },
   zoom: 15, // Leaflet/MapLibre zoom level
 };
 
-export const HOME_POSITION = {
+export const HOME_POSITION: MapView = {
   center: {
-    latitude: WUPPERTAL.position.latitude as Degrees,
-    longitude: WUPPERTAL.position.longitude as Degrees,
+    lat: WUPPERTAL.position.latitude as Degrees,
+    lng: WUPPERTAL.position.longitude as Degrees,
   },
   zoom: 18, // Leaflet/MapLibre zoom level
 };

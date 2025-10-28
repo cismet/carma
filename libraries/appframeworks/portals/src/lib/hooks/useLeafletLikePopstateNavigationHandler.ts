@@ -80,7 +80,8 @@ export function useLeafletLikePopstateNavigationHandler({
   navMoveInProgressRef,
   popstateTargetRef,
 }: UseLeafletLikePopstateNavigationHandlerOptions): void {
-  const { subscribe } = useHashState();
+  // TODO: Fix subscribe method - it doesn't exist in HashStateContextType
+  // const { subscribe } = useHashState();
 
   const clearOnMoveEndLike = useCallback(() => {
     deferToNextFrame(() => {
@@ -94,6 +95,8 @@ export function useLeafletLikePopstateNavigationHandler({
     if (!enabled) return;
     if (!leafletLikeMap) return;
 
+    // TODO: Re-implement popstate handling when subscribe is available
+    /*
     const handlePopstateNavigation = (e: {
       source: string;
       values: Record<string, unknown>;
@@ -125,9 +128,10 @@ export function useLeafletLikePopstateNavigationHandler({
     });
 
     return unsub;
+    */
   }, [
     enabled,
-    subscribe,
+    // subscribe,
     leafletLikeMap,
     clearOnMoveEndLike,
     navMoveInProgressRef,

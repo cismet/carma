@@ -29,9 +29,8 @@ import {
   useSelection,
   SelectionMetaData,
   SelectionMapMode,
-  usePortalHomePosition,
+  usePortalHomeControl,
   usePortalZoomControls,
-  usePortalMapEngine,
 } from "@carma-appframeworks/portals";
 import { useCesiumContext } from "@carma-mapping/engines/cesium/core";
 import { useMapLibreContext } from "@carma-mapping/engines/maplibre";
@@ -83,18 +82,18 @@ export const GeoportalControls = () => {
   const contextValue = useContext(ResponsiveTopicMapContext) as any;
   const { responsiveState, gap, windowSize } = contextValue ?? {};
 
-  // Get Portal's flyToHome - it updates hash, engine contexts respond
-  const { flyToHome } = usePortalHomePosition();
+  // Get Portal's handleHome - it coordinates across all engines
+  const { handleHome } = usePortalHomeControl();
 
   // Portal handles all zoom routing internally via engine contexts
   const { handleZoomIn, handleZoomOut } = usePortalZoomControls();
 
-  // Home button calls Portal's flyToHome
-  // Portal calls engine context's flyHome callback (no hash needed if already at home)
+  // Home button calls Portal's handleHome
+  // Portal routes to active engine's flyHome callback (no hash needed if already at home)
   const handleHomeClick = useCallback(() => {
     console.log("[GeoportalControls] Home button clicked");
-    flyToHome(); // Portal routes to active engine's flyHome callback
-  }, [flyToHome]);
+    handleHome(); // Portal routes to active engine's flyHome callback
+  }, [handleHome]);
 
   const uiMode = useSelector(getUIMode);
   const isModeMeasurement = uiMode === UIMode.MEASUREMENT;

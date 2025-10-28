@@ -4,7 +4,6 @@ export * from "./camera/use-zoom-controls";
 export * from "./camera/use-disable-sscc";
 export * from "./camera/use-block-default-zoom-behaviour";
 export * from "./camera/use-fov-wheel-zoom";
-export * from "./camera/use-determine-initial-camera-state";
 // TODO: oblique camera force hook disabled for core build
 // export * from "./use-cesium-camera-force-oblique";
 

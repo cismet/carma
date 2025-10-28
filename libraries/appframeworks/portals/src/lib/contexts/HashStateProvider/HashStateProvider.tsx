@@ -78,7 +78,9 @@ interface HashStateContextType {
     params: Record<string, unknown> | undefined,
     options?: HashUpdateOptions
   ) => void;
-  onHashInitialized: (callback: (hashValues: Record<string, unknown>) => void) => void;
+  onHashInitialized: (
+    callback: (hashValues: Record<string, unknown>) => void
+  ) => void;
 }
 
 const HashStateContext = createContext<HashStateContextType | undefined>(
@@ -107,11 +109,14 @@ export const HashStateProvider = ({
   const location = useLocation();
   const navigate = useNavigate();
   const isInitializedRef = useRef(false);
-  const callbacksRef = useRef<Array<(hashValues: Record<string, unknown>) => void>>([]);
+  const callbacksRef = useRef<
+    Array<(hashValues: Record<string, unknown>) => void>
+  >([]);
 
-  console.debug("[HashStateProvider] Render:", 
+  console.debug(
+    "[HashStateProvider] Render:",
     config?.length || 0,
-    location.pathname + location.hash,
+    location.pathname + location.hash
   );
 
   // Build lookups from config
@@ -168,15 +173,18 @@ export const HashStateProvider = ({
     return values;
   }, [codecs, keyToValueName]);
 
-  const onHashInitialized = useCallback((callback: (hashValues: Record<string, unknown>) => void) => {
-    if (isInitializedRef.current) {
-      // Already initialized, call immediately with current hash values
-      callback(getHashValues());
-    } else {
-      // Not initialized yet, queue the callback
-      callbacksRef.current.push(callback);
-    }
-  }, [getHashValues]);
+  const onHashInitialized = useCallback(
+    (callback: (hashValues: Record<string, unknown>) => void) => {
+      if (isInitializedRef.current) {
+        // Already initialized, call immediately with current hash values
+        callback(getHashValues());
+      } else {
+        // Not initialized yet, queue the callback
+        callbacksRef.current.push(callback);
+      }
+    },
+    [getHashValues]
+  );
 
   const updateHash = useCallback(
     (
@@ -243,7 +251,7 @@ export const HashStateProvider = ({
       hashValues
     );
     isInitializedRef.current = true;
-    
+
     // Invoke all queued callbacks
     if (callbacksRef.current.length > 0) {
       console.log(

@@ -7,10 +7,7 @@ import {
   WUPP_MESH_2024,
   WUPP_TERRAIN_PROVIDER,
   WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
-  WUPPERTAL,
 } from "@carma/resources";
-import { Altitude, Degrees } from "@carma/geo/types";
-import { Meters } from "@carma/units/types";
 
 /**
  * Geoportal-specific Cesium scene style identifiers

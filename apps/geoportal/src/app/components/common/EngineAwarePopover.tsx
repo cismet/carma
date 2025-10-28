@@ -1,6 +1,9 @@
 import type { IconProp } from "@fortawesome/fontawesome-svg-core";
 import type { ReactNode } from "react";
-import { usePortalMapEngine } from "@carma-appframeworks/portals";
+import {
+  usePortalContext,
+  ManagedEngineKeys,
+} from "@carma-appframeworks/portals";
 import {
   type AvailableEngine,
   isFeatureDisabled,
@@ -50,7 +53,10 @@ export const EngineAwarePopover = ({
   shiftClickHandler,
   additionalDisabled = false,
 }: EngineAwarePopoverProps) => {
-  const { current: currentEngine } = usePortalMapEngine();
+  const { isCesiumActive } = usePortalContext();
+  const currentEngine = isCesiumActive()
+    ? ManagedEngineKeys.CESIUM_3D
+    : ManagedEngineKeys.LEAFLET_2D;
   const isDisabled =
     isFeatureDisabled(currentEngine, availableOn) || additionalDisabled;
 

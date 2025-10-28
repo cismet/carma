@@ -1,6 +1,6 @@
 import { useEffect, type ReactNode } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { MapStyleKeys, usePortalMapStyle } from "@carma-appframeworks/portals";
+import { MapStyleKeys, usePortalContext } from "@carma-appframeworks/portals";
 import {
   setBackgroundLayer,
   getSelectedMapLayer,
@@ -33,7 +33,7 @@ export const PortalReduxSyncProvider = ({
   children: ReactNode;
 }) => {
   const dispatch = useDispatch();
-  const { current: currentMapStyle } = usePortalMapStyle();
+  const { mapStyleRef } = usePortalContext();
 
   // Redux selectors
   const selectedMapLayer = useSelector((state: RootState) =>
@@ -48,6 +48,7 @@ export const PortalReduxSyncProvider = ({
 
   // One-way sync: Portal → Redux (ONLY when Portal state changes)
   useEffect(() => {
+    const currentMapStyle = mapStyleRef.current;
     if (!currentMapStyle) return;
 
     console.log(
@@ -78,10 +79,10 @@ export const PortalReduxSyncProvider = ({
     console.log(
       "[PortalReduxSyncProvider] Redux synced - TopicMap should update"
     );
-    // IMPORTANT: ONLY react to currentMapStyle (Portal is the source)
+    // IMPORTANT: ONLY react to mapStyleRef.current (Portal is the source)
     // Redux values are READ but NOT in dependencies (one-way sync)
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentMapStyle, dispatch]);
+  }, [mapStyleRef.current, dispatch]);
 
   return <>{children}</>;
 };

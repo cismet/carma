@@ -3,4 +3,4 @@ export * from "./hooks";
 export * from "./latLng";
 export * from "./latLngBounds";
 export * from "./map";
-export type * from "./types";
+export * from "./mapView";

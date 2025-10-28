@@ -1,70 +1,98 @@
 import { useCallback } from "react";
-import { useMapEngine } from "../contexts/PortalStateContext";
+import { useActiveEngines } from "./use-active-engines";
 import { ManagedEngineKeys } from "../constants";
-import { useCarmaTopicMapContext } from "@carma-mapping/engines/carma-cismap";
-import { useCesiumContext } from "@carma-mapping/engines/cesium/core";
-import { useMapLibreContext } from "@carma-mapping/engines/maplibre";
 
 /**
- * Portal zoom controls - delegates to active engine context
+ * usePortalZoomControls - Routes zoom requests to active engine based on engine records
  *
- * Engine contexts provide zoom callbacks:
- * - TopicMapContext: `zoomIn/zoomOut` for Leaflet
- * - MapLibreContext: `zoomIn/zoomOut` for MapLibre (feature flag)
- * - CesiumContext: `zoomIn/zoomOut` for normal 3D, `fovZoomIn/fovZoomOut` for oblique mode
+ * Portal delegates to engine records based on current engine state.
+ * Uses zoom methods from engine records for all non-suspended frameworks.
+ * Handles FOV zooming for Cesium in oblique mode when available.
  *
- * Portal routes to the active engine based on `currentEngine`.
- */
-
-/**
- * usePortalZoomControls - Routes zoom requests to active engine context
- *
- * Portal delegates to engine context callbacks based on currentEngine.
- * No manual wiring required from the app.
+ * Engine records provide zoom callbacks:
+ * - LeafletEngineRecord: `zoomIn/zoomOut` for Leaflet 2D
+ * - CesiumEngineRecord: `zoomIn/zoomOut` for normal 3D, `fovZoomIn/fovZoomOut` for oblique mode
  *
  * @example
  * ```tsx
- * // App just calls the hook - Portal handles engine routing
  * const { handleZoomIn, handleZoomOut } = usePortalZoomControls();
  *
  * <UnifiedZoomControl onZoomIn={handleZoomIn} onZoomOut={handleZoomOut} />
  * ```
  */
 export const usePortalZoomControls = () => {
-  const { current: currentEngine } = useMapEngine();
-
-  // Get engine contexts - these provide zoom callbacks
-  const topicMapContext = useCarmaTopicMapContext();
-  const mapLibreContext = useMapLibreContext();
-  const cesiumContext = useCesiumContext();
+  const { activeEngines } = useActiveEngines();
 
   const handleZoomIn = useCallback(() => {
-    if (currentEngine === ManagedEngineKeys.MAPLIBRE_2D) {
-      // MapLibre 2D mode
-      mapLibreContext.zoomIn();
-    } else if (currentEngine === ManagedEngineKeys.LEAFLET_2D) {
-      // Leaflet 2D mode
-      topicMapContext?.zoomIn();
-    } else {
-      // 3D mode: Delegate to CesiumContext
-      // TODO: Use fovZoomIn when oblique mode is active
-      cesiumContext?.zoomIn();
+    if (activeEngines?.length < 1) {
+      console.warn(
+        "[usePortalZoomControls] No active engines found for zoom in"
+      );
+      return;
     }
-  }, [currentEngine, topicMapContext, mapLibreContext, cesiumContext]);
+
+    // Call zoomIn on all active engines
+    activeEngines.forEach((engine) => {
+      if ("zoomIn" in engine && typeof engine.zoomIn === "function") {
+        // For Cesium engines, prioritize FOV zoom if available (oblique mode)
+        if (engine.engine === ManagedEngineKeys.CESIUM_3D) {
+          if ("fovZoomIn" in engine && typeof engine.fovZoomIn === "function") {
+            console.log(
+              "[usePortalZoomControls] Using fovZoomIn for Cesium 3D"
+            );
+            engine.fovZoomIn();
+          } else {
+            console.log(
+              "[usePortalZoomControls] Using normal zoomIn for Cesium 3D"
+            );
+            engine.zoomIn();
+          }
+        } else {
+          console.log(
+            `[usePortalZoomControls] Using zoomIn for ${engine.engine}`
+          );
+          engine.zoomIn();
+        }
+      }
+    });
+  }, [activeEngines]);
 
   const handleZoomOut = useCallback(() => {
-    if (currentEngine === ManagedEngineKeys.MAPLIBRE_2D) {
-      // MapLibre 2D mode
-      mapLibreContext.zoomOut();
-    } else if (currentEngine === ManagedEngineKeys.LEAFLET_2D) {
-      // Leaflet 2D mode
-      topicMapContext?.zoomOut();
-    } else {
-      // 3D mode: Delegate to CesiumContext
-      // TODO: Use fovZoomOut when oblique mode is active
-      cesiumContext?.zoomOut();
+    if (activeEngines?.length < 1) {
+      console.warn(
+        "[usePortalZoomControls] No active engines found for zoom out"
+      );
+      return;
     }
-  }, [currentEngine, topicMapContext, mapLibreContext, cesiumContext]);
+
+    // Call zoomOut on all active engines
+    activeEngines.forEach((engine) => {
+      if ("zoomOut" in engine && typeof engine.zoomOut === "function") {
+        // For Cesium engines, prioritize FOV zoom if available (oblique mode)
+        if (engine.engine === ManagedEngineKeys.CESIUM_3D) {
+          if (
+            "fovZoomOut" in engine &&
+            typeof engine.fovZoomOut === "function"
+          ) {
+            console.log(
+              "[usePortalZoomControls] Using fovZoomOut for Cesium 3D"
+            );
+            engine.fovZoomOut();
+          } else {
+            console.log(
+              "[usePortalZoomControls] Using normal zoomOut for Cesium 3D"
+            );
+            engine.zoomOut();
+          }
+        } else {
+          console.log(
+            `[usePortalZoomControls] Using zoomOut for ${engine.engine}`
+          );
+          engine.zoomOut();
+        }
+      }
+    });
+  }, [activeEngines]);
 
   return {
     handleZoomIn,

@@ -1,18 +1,17 @@
-import { usePortalMapStyle } from "@carma-appframeworks/portals";
+import { usePortalContext } from "@carma-appframeworks/portals";
 import { MapStyleKeys, type MapStyleKey } from "@carma-appframeworks/portals";
 
 export const useMapStyle = () => {
-  const { current: currentStringStyle, set: setStringStyle } =
-    usePortalMapStyle();
+  const { mapStyleRef, setMapStyle } = usePortalContext();
 
   const currentStyle = Object.values(MapStyleKeys).includes(
-    currentStringStyle as MapStyleKey
+    mapStyleRef.current as MapStyleKey
   )
-    ? (currentStringStyle as MapStyleKey)
+    ? (mapStyleRef.current as MapStyleKey)
     : MapStyleKeys.TOPO;
 
   const setCurrentStyle = (style: MapStyleKey) => {
-    setStringStyle(style);
+    setMapStyle(style);
   };
 
   return {

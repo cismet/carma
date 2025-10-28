@@ -10,7 +10,7 @@ import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopic
 
 import {
   CesiumMapComponentWrapper,
-  usePortalMapEngine,
+  usePortalContext,
 } from "@carma-appframeworks/portals";
 import { detectWebGLContext } from "@carma-commons/dom/canvas";
 
@@ -61,8 +61,8 @@ export const GeoportalMap = () => {
   const allow3d = useSelector(getUIAllow3d) && hasGPU;
 
   // Get map mode from PortalProvider context
-  const { current: currentEngine } = usePortalMapEngine();
-  const isMode2d = currentEngine === "leaflet2d";
+  const { isCesiumActive } = usePortalContext();
+  const isMode2d = !isCesiumActive();
   const zenMode = useSelector(getZenMode);
   const configSelection = useSelector(getConfigSelection);
 
