@@ -567,6 +567,10 @@ const Map = ({
             // console.log("xxx boundingBox Changed", boundingBox);
           }}
           ondblclick={(event) => {
+            // Don't switch landparcel when in measurement mode
+            if (measurementMode === MEASUREMENT_MODE.MEASUREMENT) {
+              return;
+            }
             //if data contains a ondblclick handler, call it
             if (data.ondblclick) {
               data.ondblclick(
