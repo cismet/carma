@@ -47,24 +47,33 @@ export const adjustClickPosition = (
   const finalLatLng = L.latLng(lat, lng);
 
   // Check if we're drawing and snapped to first vertex (polygon closure)
-  if (currentDrawHandler && currentDrawHandler._poly && currentDrawHandler._poly._latlngs) {
+  // ONLY trigger if the snap source is the drawing-in-progress (not external features)
+  if (
+    currentDrawHandler &&
+    currentDrawHandler._poly &&
+    currentDrawHandler._poly._latlngs
+  ) {
     const latlngs = currentDrawHandler._poly._latlngs;
     if (latlngs.length >= 3) {
       const firstVertex = latlngs[0];
       const snappedCoord = closestPoint.geometry.coordinates;
-      const threshold = 0.0001; // ~11 meters
-      
-      // Check if snapped point matches first vertex coordinates (regardless of source)
-      // This handles closing when snapping to vector features at same location as first vertex
-      if (Math.abs(snappedCoord[1] - firstVertex.lat) < threshold &&
-          Math.abs(snappedCoord[0] - firstVertex.lng) < threshold) {
+      // Trigger polygon closure if snapped coordinates EXACTLY match the first vertex
+      // Use very tight threshold (1e-10) to ensure it's the exact same point, not just nearby
+      const exactMatchThreshold = 1e-10;
+      if (
+        Math.abs(snappedCoord[1] - firstVertex.lat) < exactMatchThreshold &&
+        Math.abs(snappedCoord[0] - firstVertex.lng) < exactMatchThreshold
+      ) {
         // Try to find and click the first vertex marker directly
         // The vertex markers are in _markers array with customHandle property
-        if (currentDrawHandler._markers && currentDrawHandler._markers.length > 0) {
+        if (
+          currentDrawHandler._markers &&
+          currentDrawHandler._markers.length > 0
+        ) {
           const firstMarker = currentDrawHandler._markers[0];
           if (firstMarker) {
             // Fire click event on the first vertex marker, not the map
-            firstMarker.fire('click', {
+            firstMarker.fire("click", {
               latlng: firstVertex,
               target: firstMarker,
             });
@@ -81,13 +90,17 @@ export const adjustClickPosition = (
     containerPoint: shiftedContainerPoint,
     originalEvent: domEvent,
   });
-  
+
   return false;
 };
 
 // Prepare a Leaflet LatLng from a GeoJSON Point-like feature with coordinates [lng, lat]
 export const toLatLngFromClosestPoint = (closestPoint: any) => {
-  if (!closestPoint || !closestPoint.geometry || !closestPoint.geometry.coordinates) {
+  if (
+    !closestPoint ||
+    !closestPoint.geometry ||
+    !closestPoint.geometry.coordinates
+  ) {
     return null;
   }
   const [lng, lat] = closestPoint.geometry.coordinates;

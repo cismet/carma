@@ -121,6 +121,7 @@ export function MeasurementsSnapping({
       // Import L from leaflet
       const L = (window as any).L;
       let closestPoint: any = null;
+      const closestPointRef = { current: null as any }; // Stable ref to preserve closestPoint
 
       // Centralized cleanup for markers and closestPoint
       const clearBlackPoint = () => {
@@ -140,6 +141,7 @@ export function MeasurementsSnapping({
             }
           });
           closestPoint = null;
+          closestPointRef.current = null;
         } catch (_) {
           // no-op safeguard
         }
@@ -185,14 +187,18 @@ export function MeasurementsSnapping({
         const mousePoint = leafletMap.latLngToContainerPoint(mouseLatLng);
 
         const currentRadius = queryRadiusRef.current;
-        
+
         // Show radius circle if enabled and in WAITING or DRAWING status
-        if (config.snappingRadiusVisible && 
-            (statusRef.current === "WAITING" || statusRef.current === "DRAWING")) {
+        if (
+          config.snappingRadiusVisible &&
+          (statusRef.current === "WAITING" || statusRef.current === "DRAWING")
+        ) {
           // Convert pixel radius to meters for the circle
-          const metersPerPixel = 156543.03392 * Math.cos(mouseLatLng.lat * Math.PI / 180) / Math.pow(2, currentZoom);
+          const metersPerPixel =
+            (156543.03392 * Math.cos((mouseLatLng.lat * Math.PI) / 180)) /
+            Math.pow(2, currentZoom);
           const radiusInMeters = currentRadius * metersPerPixel;
-          
+
           circleMarkerRef.current = L.circle(mouseLatLng, {
             radius: radiusInMeters,
             color: "#ffffff",
@@ -231,8 +237,15 @@ export function MeasurementsSnapping({
                   bbox,
                   {
                     layers: style.layers
-                      .map((layer: any) => layer.id)
-                      .filter((id: string) => !id.startsWith("highlight-")),
+                      .filter((layer: any) => {
+                        // Skip layers with skipSnapping metadata
+                        const skipSnapping =
+                          layer.metadata?.carmaConf?.skipSnapping;
+                        return (
+                          !skipSnapping && !layer.id.startsWith("highlight-")
+                        ); // if we have a layer with highlight- dont snap (thats only important if we are doing the snap vis dot in maplibre directly not atm. but we will keep it in here)
+                      })
+                      .map((layer: any) => layer.id),
                   }
                 );
 
@@ -337,6 +350,7 @@ export function MeasurementsSnapping({
           isSnapped = true;
         }
         closestPoint = blackPoint[0];
+        closestPointRef.current = blackPoint[0];
 
         const finalLatLng = toLatLngFromClosestPoint(closestPoint);
         if (finalLatLng && setSnappingLatlng) {
@@ -351,7 +365,7 @@ export function MeasurementsSnapping({
           ) {
             const firstVertex = currentDrawHandlerValue._poly._latlngs[0];
             const threshold = 0.0001; // ~11 meters
-            
+
             // Check if finalLatLng matches first vertex
             if (
               Math.abs(finalLatLng.lat - firstVertex.lat) < threshold &&
@@ -364,9 +378,9 @@ export function MeasurementsSnapping({
                 const vertexPoint = map.latLngToContainerPoint(firstVertex);
                 const pixelDistance = Math.sqrt(
                   Math.pow(mousePoint.x - vertexPoint.x, 2) +
-                  Math.pow(mousePoint.y - vertexPoint.y, 2)
+                    Math.pow(mousePoint.y - vertexPoint.y, 2)
                 );
-                
+
                 // Only snap if mouse is within query radius
                 if (pixelDistance > queryRadius) {
                   shouldSnap = false;
@@ -374,7 +388,7 @@ export function MeasurementsSnapping({
               }
             }
           }
-          
+
           if (shouldSnap) {
             setSnappingLatlng(finalLatLng);
           } else {
@@ -531,8 +545,15 @@ export function MeasurementsSnapping({
                   bbox,
                   {
                     layers: style.layers
-                      .map((layer: any) => layer.id)
-                      .filter((id: string) => !id.startsWith("highlight-")),
+                      .filter((layer: any) => {
+                        // Skip layers with skipSnapping metadata
+                        const skipSnapping =
+                          layer.metadata?.carmaConf?.skipSnapping;
+                        return (
+                          !skipSnapping && !layer.id.startsWith("highlight-")
+                        );
+                      })
+                      .map((layer: any) => layer.id),
                   }
                 );
 
@@ -669,8 +690,15 @@ export function MeasurementsSnapping({
                   bbox,
                   {
                     layers: style.layers
-                      .map((layer: any) => layer.id)
-                      .filter((id: string) => !id.startsWith("highlight-")),
+                      .filter((layer: any) => {
+                        // Skip layers with skipSnapping metadata
+                        const skipSnapping =
+                          layer.metadata?.carmaConf?.skipSnapping;
+                        return (
+                          !skipSnapping && !layer.id.startsWith("highlight-")
+                        );
+                      })
+                      .map((layer: any) => layer.id),
                   }
                 );
 
@@ -759,9 +787,10 @@ export function MeasurementsSnapping({
       const mouseupHandler = (event: MouseEvent) => {
         // Only adjust if snapping is enabled
         if (snappingEnabledRef.current) {
+          const snapPoint = closestPointRef.current;
           adjustClickPosition(
             event,
-            closestPoint,
+            snapPoint,
             "mouseup",
             leafletMap,
             currentDrawHandlerRef.current
