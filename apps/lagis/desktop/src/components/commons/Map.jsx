@@ -4,6 +4,7 @@ import { Card, Tooltip, Tag } from "antd";
 
 import PropTypes from "prop-types";
 import { useContext, useEffect, useRef, useState } from "react";
+import { GEMARKUNGEN } from "../ui/generalConstant";
 import {
   FeatureCollectionDisplay,
   MappingConstants,
@@ -226,6 +227,79 @@ const Map = ({
     updateWhenIdle: false,
     position: "topright",
   };
+
+  // Phase 2: Register hover listener on Leaflet map, query MapLibre features
+  useEffect(() => {
+    console.log("alkisMap changed:", alkisMap);
+    console.log("refRoutedMap.current:", refRoutedMap.current);
+
+    if (!alkisMap || !refRoutedMap.current) {
+      console.log("Waiting for both alkisMap and Leaflet map");
+      return;
+    }
+
+    const leafletMap = refRoutedMap.current.leafletMap.leafletElement;
+    console.log("Registering mousemove listener on Leaflet map");
+
+    let throttleTimeout = null;
+    let lastLandparcelString = null;
+
+    const handleMouseMove = (e) => {
+      // Throttle: skip if already processing
+      if (throttleTimeout) return;
+
+      throttleTimeout = setTimeout(() => {
+        throttleTimeout = null;
+      }, 100); // 100ms throttle
+
+      // Get point relative to MapLibre canvas
+      const canvas = alkisMap.getCanvas();
+      const rect = canvas.getBoundingClientRect();
+      const point = [
+        e.originalEvent.clientX - rect.left,
+        e.originalEvent.clientY - rect.top,
+      ];
+
+      const features = alkisMap.queryRenderedFeatures(point);
+
+      if (features && features.length > 0) {
+        const feature = features[0];
+        const props = feature.properties;
+
+        // Format: "Gemarkung Flur Zähler/Nenner"
+        const gemarkungName =
+          GEMARKUNGEN[props.gemarkungsnummer] || props.gemarkungsnummer;
+        const flur = parseInt(props.flurnummer, 10);
+        const zaehler = parseInt(props.zaehler, 10);
+        const nenner = props.nenner ? `/${parseInt(props.nenner, 10)}` : "";
+
+        const landparcelString = `${gemarkungName} ${flur} ${zaehler}${nenner}`;
+
+        // Only dispatch if value changed
+        if (landparcelString !== lastLandparcelString) {
+          // console.log(`(${features.length}) Landparcel:`, landparcelString);
+          dispatch(setHoveredLandparcel(landparcelString));
+          lastLandparcelString = landparcelString;
+        }
+      } else {
+        // Clear when no feature under cursor
+        if (lastLandparcelString !== undefined) {
+          dispatch(setHoveredLandparcel(undefined));
+          lastLandparcelString = undefined;
+        }
+      }
+    };
+
+    leafletMap.on("mousemove", handleMouseMove);
+
+    return () => {
+      console.log("Removing mousemove listener from Leaflet map");
+      if (throttleTimeout) {
+        clearTimeout(throttleTimeout);
+      }
+      leafletMap.off("mousemove", handleMouseMove);
+    };
+  }, [alkisMap]);
 
   useEffect(() => {
     if (refRoutedMap?.current) {
