@@ -238,7 +238,7 @@ L.Control.MeasurePolygon = L.Control.extend({
       if (event.type === "editable:drag" || event.type === "editable:dragstart") {
         // Dragging whole shape
         this.options.cbSetMapStatus("MOVING");
-      } else if (event.type === "editable:vertex:drag" || event.type === "editable:vertex:deleted") {
+      } else if (event.type === "editable:vertex:drag" ) {
         // Dragging vertices or deleting vertex
         this.options.cbSetMapStatus("EDITING");
       }
