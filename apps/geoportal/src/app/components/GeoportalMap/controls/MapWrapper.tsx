@@ -424,6 +424,7 @@ const MapWrapper = () => {
             }
             tooltipPlacement="right"
             showInfoBox={false}
+            ref={tourRefLabels.measurement}
           />
           <Control position="topleft" order={50}>
             <Tooltip
