@@ -31,6 +31,7 @@ import {
   SelectionMapMode,
   usePortalHomeControl,
   usePortalZoomControls,
+  useActiveEngines,
 } from "@carma-appframeworks/portals";
 import { useCesiumContext } from "@carma-mapping/engines/cesium/core";
 import { useMapLibreContext } from "@carma-mapping/engines/maplibre";
@@ -70,8 +71,10 @@ export const GeoportalControls = () => {
   const { setSelection, selection: configSelection } = useSelection();
 
   // Fetch from contexts instead of props
-  const { current: currentEngine } = usePortalMapEngine();
-  const isMode2d = currentEngine === "leaflet2d";
+  const { isCesiumActive, activeEngines } = useActiveEngines();
+  const isMode2d = !isCesiumActive;
+  const currentEngine =
+    activeEngines.length > 0 ? activeEngines[0].engine : "leaflet2d";
   const { isSuspendedRef } = useCesiumContext();
   const { mapRef: libreMapRef } = useMapLibreContext(); // Get MapLibre ref from context
   const flags = useFeatureFlags();

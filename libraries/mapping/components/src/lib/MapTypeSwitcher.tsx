@@ -13,6 +13,7 @@ import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import { useMapModeToggle } from "@carma-mapping/map-transition-2d-3d";
 import {
   useActiveEngines,
+  usePortalContext,
   ManagedEngineKeys,
 } from "@carma-appframeworks/portals";
 
@@ -54,7 +55,11 @@ export const MapTypeSwitcher = forwardRef<Ref, Props>(
   ) => {
     // Use ref to avoid re-renders on confirmation state change
     const hasConfirmedRef = useRef(false);
-    const { isCesiumActive } = useActiveEngines();
+    const { isCesiumActive, activeEngines } = useActiveEngines();
+    const { enginesRef } = usePortalContext();
+
+    // Get current engine from active engines, default to leaflet2d
+    const currentEngine = activeEngines.length > 0 ? activeEngines[0].engine : "leaflet2d";
 
     // Derive mode from portal's current engine (any non-cesium engine = 2D)
     const isMode2d = !isCesiumActive;
@@ -66,12 +71,9 @@ export const MapTypeSwitcher = forwardRef<Ref, Props>(
       onComplete,
       onCancel,
       onEngineChange: (engine) => {
-        // Sync to PortalContext/URL on transition complete
-        setCurrentEngine(
-          engine === "cesium3d"
-            ? ManagedEngineKeys.CESIUM_3D
-            : ManagedEngineKeys.LEAFLET_2D
-        );
+        // Note: Engine state is managed by PortalContext
+        // The transition library handles the visual transition
+        console.debug("[MapTypeSwitcher] Engine change requested:", engine);
       },
     });
 

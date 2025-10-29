@@ -14,11 +14,12 @@ import {
   TopicMapContext as ReactCismapTopicMapContext,
 } from "react-cismap/contexts/TopicMapContextProvider";
 
+import type { MapView } from "@carma-mapping/engines/leaflet";
+
 import {
   CarmaTopicMapContext,
   type CarmaTopicMapContextType,
 } from "./CarmaTopicMapContext";
-import type { MapView } from "@carma-mapping/engines/leaflet";
 
 export interface TopicMapConfig {
   infoBoxPixelWidth?: number;

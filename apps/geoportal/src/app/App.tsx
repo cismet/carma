@@ -10,12 +10,7 @@ import { faSpinner } from "@fortawesome/free-solid-svg-icons";
 import { CrossTabCommunicationContextProvider } from "react-cismap/contexts/CrossTabCommunicationContextProvider";
 
 // Monorepo Packages
-import {
-  PortalContextProvider,
-  MapStyleKeys,
-  type MapStyleKey,
-  usePortalContext,
-} from "@carma-appframeworks/portals";
+import { PortalContextProvider } from "@carma-appframeworks/portals";
 import { mobileInfo } from "@carma-collab/wuppertal/geoportal";
 import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
 import { MobileWarningMessage } from "@carma-mapping/components";
@@ -30,63 +25,7 @@ import {
 import AppErrorFallback from "./components/AppErrorFallback";
 import GeoportalMap from "./components/GeoportalMap";
 import LoginForm from "./components/LoginForm";
-import { PortalReduxSyncProvider } from "./components/PortalReduxSyncProvider";
-
-// TopicMap sync provider component
-const TopicMapSyncProvider = ({ children }: { children: React.ReactNode }) => {
-  const dispatch = useDispatch();
-
-  // Redux selectors for topicmap sync
-  const selectedMapLayer = useSelector((state) => getSelectedMapLayer(state));
-  const selectedLuftbildLayer = useSelector((state) =>
-    getSelectedLuftbildLayer(state)
-  );
-  const backgroundLayer = useSelector((state) => getBackgroundLayer(state));
-
-  const { setTopicMapSyncCallback } = usePortalContext();
-
-  // Topicmap sync callback
-  const handleTopicMapSync = useCallback(
-    (styleId: MapStyleKey) => {
-      console.log(
-        "[TopicMapSyncProvider] TopicMap sync callback triggered for style:",
-        styleId
-      );
-
-      if (styleId === MapStyleKeys.TOPO) {
-        dispatch(
-          setBackgroundLayer({
-            ...selectedMapLayer,
-            id: MapStyleKeys.TOPO,
-            visible: backgroundLayer.visible,
-            opacity: backgroundLayer.opacity,
-          })
-        );
-      } else if (styleId === MapStyleKeys.AERIAL) {
-        dispatch(
-          setBackgroundLayer({
-            ...selectedLuftbildLayer,
-            id: MapStyleKeys.AERIAL,
-            visible: backgroundLayer.visible,
-            opacity: backgroundLayer.opacity,
-          })
-        );
-      }
-
-      console.log(
-        "[TopicMapSyncProvider] TopicMap sync completed - Redux updated"
-      );
-    },
-    [dispatch, selectedMapLayer, selectedLuftbildLayer, backgroundLayer]
-  );
-
-  // Set callback with PortalContext (simplified - no cleanup needed for Redux syncer)
-  useEffect(() => {
-    setTopicMapSyncCallback(handleTopicMapSync);
-  }, [handleTopicMapSync, setTopicMapSyncCallback]);
-
-  return <>{children}</>;
-};
+import { TopicMapReduxSyncProvider } from "./components/TopicMapReduxSyncProvider";
 
 // import MapMeasurement from "./components/map-measure/MapMeasurement";
 import TopNavbar from "./components/TopNavbar";
@@ -101,12 +40,6 @@ import { portalConfig, featureFlagConfig, APP_KEY, layerMap } from "./config";
 
 import { getCustomFeatureFlags } from "./store/slices/layers";
 import {
-  setBackgroundLayer,
-  getSelectedMapLayer,
-  getSelectedLuftbildLayer,
-  getBackgroundLayer,
-} from "./store/slices/mapping";
-import {
   getShowLoginModal,
   getUIMode,
   setShowLoginModal,
@@ -119,8 +52,6 @@ import "bootstrap/dist/css/bootstrap.min.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import "./index.css";
-// import { setDrawingShape } from "./store/slices/measurements";
-import { useCallback, useEffect } from "react";
 
 function App({ published }: { published?: boolean }) {
   const dispatch = useDispatch();
@@ -158,60 +89,56 @@ function App({ published }: { published?: boolean }) {
     >
       <MatomoTracker>
         <PortalContextProvider config={portalConfig}>
-          <TopicMapSyncProvider>
-            <PortalReduxSyncProvider>
-              <MapMeasurementsProvider
-                externalMode={mode}
-                setModeExternal={handleSetMode}
-                config={{
-                  localStorageKey: "@" + APP_KEY + ".app.measurements",
-                }}
-              >
-                <ErrorBoundary FallbackComponent={AppErrorFallback}>
-                  <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
-                    {isLoadingConfig && (
-                      <div
-                        id="loading"
-                        className="absolute flex flex-col items-center text-white justify-center h-screen w-full bg-black/50 z-[9999999999999]"
-                      >
-                        <h2>Lade Konfiguration</h2>
-                        <FontAwesomeIcon size="2x" icon={faSpinner} spin />
-                      </div>
-                    )}
-                    {!published && <TopNavbar />}
-                    <MapMeasurementsObjects />
-                    <GeoportalMap />
-                    <MobileWarningMessage
-                      headerText={mobileInfo.headerText}
-                      bodyText={mobileInfo.bodyText}
-                      confirmButtonText={mobileInfo.confirmButtonText}
-                    />
-
-                    <Modal
-                      open={showLoginModal}
-                      closable={false}
-                      footer={null}
-                      styles={{
-                        content: {
-                          padding: "0px",
-                          width: window.innerWidth < 600 ? "100%" : "450px",
-                        },
-                      }}
+          <TopicMapReduxSyncProvider>
+            <MapMeasurementsProvider
+              externalMode={mode}
+              setModeExternal={handleSetMode}
+              config={{
+                localStorageKey: "@" + APP_KEY + ".app.measurements",
+              }}
+            >
+              <ErrorBoundary FallbackComponent={AppErrorFallback}>
+                <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
+                  {isLoadingConfig && (
+                    <div
+                      id="loading"
+                      className="absolute flex flex-col items-center text-white justify-center h-screen w-full bg-black/50 z-[9999999999999]"
                     >
-                      <LoginForm
-                        onSuccess={() => dispatch(setShowLoginModal(false))}
-                        closeLoginForm={() =>
-                          dispatch(setShowLoginModal(false))
-                        }
-                        showHelpText={false}
-                        style={{ padding: "20px" }}
-                      />
-                    </Modal>
-                  </div>
-                </ErrorBoundary>
-              </MapMeasurementsProvider>
-            </PortalReduxSyncProvider>
-          </TopicMapSyncProvider>
+                      <h2>Lade Konfiguration</h2>
+                      <FontAwesomeIcon size="2x" icon={faSpinner} spin />
+                    </div>
+                  )}
+                  {!published && <TopNavbar />}
+                  <MapMeasurementsObjects />
+                  <GeoportalMap />
+                  <MobileWarningMessage
+                    headerText={mobileInfo.headerText}
+                    bodyText={mobileInfo.bodyText}
+                    confirmButtonText={mobileInfo.confirmButtonText}
+                  />
+
+                  <Modal
+                    open={showLoginModal}
+                    closable={false}
+                    footer={null}
+                    styles={{
+                      content: {
+                        padding: "0px",
+                        width: window.innerWidth < 600 ? "100%" : "450px",
+                      },
+                    }}
+                  >
+                    <LoginForm
+                      onSuccess={() => dispatch(setShowLoginModal(false))}
+                      closeLoginForm={() => dispatch(setShowLoginModal(false))}
+                      showHelpText={false}
+                      style={{ padding: "20px" }}
+                    />
+                  </Modal>
+                </div>
+              </ErrorBoundary>
+            </MapMeasurementsProvider>
+          </TopicMapReduxSyncProvider>
         </PortalContextProvider>
       </MatomoTracker>
     </FeatureFlagProvider>

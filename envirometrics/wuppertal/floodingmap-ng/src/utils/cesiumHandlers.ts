@@ -14,8 +14,8 @@ import {
 import {
   getDegreesFromCartographic,
   tryWithValidScene,
-  guardSampleTerrainMostDetailedAsync,
-} from "@carma-mapping/engines/cesium/core";
+  sampleTerrainMostDetailedGuardedAsync,
+} from "@carma/cesium";
 
 import { updateMarkerPosition } from "./marker";
 
@@ -40,7 +40,7 @@ export const onCesiumClick = async (
   const { latitude, longitude } = getDegreesFromCartographic(cartographic);
 
   const [groundPositionCartographic] =
-    await guardSampleTerrainMostDetailedAsync(terrainProviderRef.current!, [
+    await sampleTerrainMostDetailedGuardedAsync(terrainProviderRef.current!, [
       cartographic,
     ]);
 

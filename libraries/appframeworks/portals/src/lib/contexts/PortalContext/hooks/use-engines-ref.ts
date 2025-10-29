@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from "react";
 import type { MapEngine, MapEngineRecord } from "../../../types/portal";
+import type { ManagedEngineRecord } from "../../../types/map-engines";
 import { ManagedEngineKeys } from "../../../constants";
 
 /**
@@ -18,7 +19,8 @@ export const useEnginesRef = (
   const activeEngines = useMemo(
     () =>
       enginesRef.current.filter(
-        (engine) => engine.isReady && !engine.isSuspended
+        (engine): engine is ManagedEngineRecord =>
+          engine.isReady && !engine.isSuspended
       ),
     [enginesRef] // Only depends on the ref object, not its content
   );
@@ -28,11 +30,7 @@ export const useEnginesRef = (
    * Type-safe execution with proper engine record typing
    */
   const forEachActiveEngine = useCallback(
-    (
-      callback: (
-        engine: Extract<MapEngineRecord, { isReady: true; isSuspended: false }>
-      ) => void
-    ) => {
+    (callback: (engine: ManagedEngineRecord) => void) => {
       activeEngines.forEach(callback);
     },
     [activeEngines]
@@ -43,11 +41,7 @@ export const useEnginesRef = (
    * Type-safe mapping with proper engine record typing
    */
   const mapToActiveEngines = useCallback(
-    <T>(
-      callback: (
-        engine: Extract<MapEngineRecord, { isReady: true; isSuspended: false }>
-      ) => T
-    ): T[] => {
+    <T>(callback: (engine: ManagedEngineRecord) => T): T[] => {
       return activeEngines.map(callback);
     },
     [activeEngines]

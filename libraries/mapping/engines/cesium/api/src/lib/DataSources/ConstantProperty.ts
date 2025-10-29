@@ -1,1 +1,0 @@
-export { ConstantProperty } from "cesium";

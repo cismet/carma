@@ -1,7 +1,7 @@
 import {
   Cartographic,
   CesiumTerrainProvider,
-  guardSampleTerrainMostDetailed,
+  sampleTerrainMostDetailedGuardedAsync,
 } from "@carma/cesium";
 
 export type ElevationResult = {
@@ -19,13 +19,13 @@ export async function getElevationAsync(
   positions: Cartographic[],
   rejectOnTileFail: boolean = true
 ): Promise<ElevationResult[]> {
-  const surfaceResult = await guardSampleTerrainMostDetailed(
+  const surfaceResult = await sampleTerrainMostDetailedGuardedAsync(
     surfaceProvider,
     positions,
     rejectOnTileFail,
     true
   );
-  const terrainResult = await guardSampleTerrainMostDetailed(
+  const terrainResult = await sampleTerrainMostDetailedGuardedAsync(
     terrainProvider,
     positions,
     rejectOnTileFail,

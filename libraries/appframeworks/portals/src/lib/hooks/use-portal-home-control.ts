@@ -34,7 +34,7 @@ export const usePortalHomeControl = () => {
         console.log(
           `[usePortalHomeControl] Calling flyHome on ${engine.engine}`
         );
-        engine.flyHome();
+        engine.flyHome?.();
       }
     });
   }, [forEachActiveEngine, hasActiveEngines]);

@@ -2,7 +2,11 @@ import { createContext } from "react";
 
 import type { MutableRefObject } from "react";
 import type { MapStyleKey } from "../../constants";
-import type { MapEngine, PortalConfig } from "../../types/portal";
+import type {
+  MapEngine,
+  MapEngineRecord,
+  PortalConfig,
+} from "../../types/portal";
 import type { MapView } from "@carma-mapping/engines/leaflet";
 import type { CameraPrimitive } from "@carma/cesium";
 
@@ -24,6 +28,8 @@ export interface PortalContextType {
   // Callback registration (simplified - no unregister needed for Redux syncer)
   setTopicMapSyncCallback: (callback: (styleId: MapStyleKey) => void) => void;
   // Engine state
+  activeEngines: MapEngineRecord[];
+  forEachActiveEngine: (callback: (engine: MapEngineRecord) => void) => void;
   isCesiumActive: () => boolean;
 }
 
@@ -31,3 +37,6 @@ export interface PortalContextType {
 export const PortalContext = createContext<PortalContextType | undefined>(
   undefined
 );
+
+// Re-export MapEngineRecord for other components
+export type { MapEngineRecord } from "../../types/portal";

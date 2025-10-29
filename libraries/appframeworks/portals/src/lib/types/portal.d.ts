@@ -31,9 +31,9 @@ export type PortalConfig = {
   styleConfig: MapStyleConfig;
   // keep close to LeafletConfig and CesiumConfig
   defaultView: MapView;
-  defaultCamera: CameraStateHeadingPitchRoll;
+  defaultCamera: CameraStateHeadingPitchRoll.deg;
   homeView: MapView;
-  homeCamera: CameraStateHeadingPitchRoll;
+  homeCamera: CameraStateHeadingPitchRoll.deg;
   mapStyleMappings: MapStyleMappings;
   cesium: CesiumConfig;
   leaflet: LeafletConfig;
@@ -55,3 +55,6 @@ export interface PortalProviderProps {
   children: React.ReactNode;
   config: PortalConfig;
 }
+
+// Re-export MapEngineRecord from map-engines.d.ts
+export type { MapEngineRecord } from "./map-engines";

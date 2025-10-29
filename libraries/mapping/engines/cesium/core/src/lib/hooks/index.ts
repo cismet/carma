@@ -1,5 +1,4 @@
 // Camera hooks
-export * from "./camera/use-home-control";
 export * from "./camera/use-zoom-controls";
 export * from "./camera/use-disable-sscc";
 export * from "./camera/use-block-default-zoom-behaviour";

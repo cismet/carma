@@ -3,7 +3,7 @@ import type {
   CesiumWidget,
   Scene,
   CameraPrimitive,
-  CameraPoseRadians,
+  HeadingPitchRollPrimitive,
 } from "@carma/cesium";
 
 // Event bus removed - using direct refs and callbacks instead
@@ -45,13 +45,13 @@ export interface CesiumContextType {
 
   // Core state refs
   isSuspendedRef: MutableRefObject<boolean>;
-  homeCamera: MutableRefObject<CameraPoseRadians | null>;
+  isActive: boolean; // Added for CesiumMapComponentWrapper
 
   // Camera tracking - TWO separate states:
-  // 1. currentCameraRef: Updated every frame for crash recovery and live display
+  // 1. cameraRef: Updated every frame for crash recovery and live display
   // 2. moveendCameraRef: Updated when camera stops moving (like Leaflet's moveend/zoomend)
   //    Used for URL hash updates and other actions triggered on camera settle
-  currentCameraRef: MutableRefObject<CameraPrimitive | null>;
+  cameraRef: MutableRefObject<CameraPrimitive | null>;
   moveendCameraRef: MutableRefObject<CameraPrimitive | null>;
 
   minZoomDistanceRef: MutableRefObject<number>;
@@ -82,13 +82,6 @@ export interface CesiumContextType {
   // Portal callback coordination (matches TopicMapContext pattern)
   // Portal registers callback to be notified of camera updates
   onCameraUpdate: (callback: () => void) => void;
-  // Portal calls these for zoom/home controls
-  zoomIn: () => void;
-  zoomOut: () => void;
-  // FOV zoom for oblique mode (adjusts field of view instead of camera distance)
-  fovZoomIn: () => void;
-  fovZoomOut: () => void;
-  flyHome: () => void;
 
   // Portal callback registration for scene ready notification
   // Portal sets this callback to be notified when scene initializes

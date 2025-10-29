@@ -10,7 +10,7 @@ import type { ReactNode } from "react";
 import type {
   CesiumWidget,
   Scene,
-  CameraPoseRadians,
+  HeadingPitchRollPrimitive,
   CameraPrimitive,
 } from "@carma/cesium";
 import {
@@ -189,8 +189,8 @@ export const CesiumContextProvider = ({
 
   // Config validation removed - using direct refs and callbacks instead
 
-  // Camera pose refs (Cesium internal format)
-  const homeCamera = useRef<CameraPoseRadians | null>(null);
+  // Camera tracking refs
+  const cameraRef = useRef<CameraPrimitive | null>(null);
 
   // Cesium widget instance lifecycle history
   // Tracks each time a Cesium widget instance was created (3D mode activation)
@@ -233,83 +233,9 @@ export const CesiumContextProvider = ({
     console.log("[CesiumContext] Camera update callback registered");
   }, []);
 
-  // Zoom controls - Portal calls these when zoom buttons are clicked
-  const zoomIn = useCallback(() => {
-    const scene = sceneRef.current;
-    const animationMap = animationMapRef.current;
-    if (!scene || !animationMap) return;
+  // Zoom controls removed - should be handled at UI/app level
 
-    // Normal distance-based zoom (zoomOut parameter = false for zoom in)
-    // Note: Using dynamic import to avoid circular dependency
-    import("../hooks/camera/use-zoom-controls").then(({ zoom }) => {
-      zoom(scene, animationMap, false, 0.5, 1);
-    });
-  }, [sceneRef, animationMapRef]);
-
-  const zoomOut = useCallback(() => {
-    const scene = sceneRef.current;
-    const animationMap = animationMapRef.current;
-    if (!scene || !animationMap) return;
-
-    // Normal distance-based zoom (zoomOut parameter = true for zoom out)
-    import("../hooks/camera/use-zoom-controls").then(({ zoom }) => {
-      zoom(scene, animationMap, true, 0.5, 1);
-    });
-  }, [sceneRef, animationMapRef]);
-
-  const fovZoomIn = useCallback(() => {
-    const scene = sceneRef.current;
-    const animationMap = animationMapRef.current;
-    if (!scene || !animationMap) return;
-
-    // FOV-based zoom for oblique mode (zoomIn parameter = true)
-    import("../hooks/camera/use-zoom-controls").then(({ fovZoom }) => {
-      fovZoom(
-        scene,
-        animationMap,
-        onFovChangeCallbackRef.current,
-        true,
-        500,
-        1
-      );
-    });
-  }, [sceneRef, animationMapRef, onFovChangeCallbackRef]);
-
-  const fovZoomOut = useCallback(() => {
-    const scene = sceneRef.current;
-    const animationMap = animationMapRef.current;
-    if (!scene || !animationMap) return;
-
-    // FOV-based zoom for oblique mode (zoomIn parameter = false)
-    import("../hooks/camera/use-zoom-controls").then(({ fovZoom }) => {
-      fovZoom(
-        scene,
-        animationMap,
-        onFovChangeCallbackRef.current,
-        false,
-        500,
-        1
-      );
-    });
-  }, [sceneRef, animationMapRef, onFovChangeCallbackRef]);
-
-  // Fly to home - Portal calls this when home button is clicked
-  const flyHome = useCallback(() => {
-    const camera = homeCamera.current;
-    if (!camera || !sceneRef.current) {
-      console.warn("[CesiumContext] flyHome: No camera or scene available");
-      return;
-    }
-
-    // TODO: Implement camera animation to home position
-    // This should use Cesium camera flyTo with homeCamera.current
-    console.log("[CesiumContext] flyHome called", camera);
-
-    // After animation completes, trigger Portal callback
-    if (onCameraUpdateRef.current) {
-      onCameraUpdateRef.current();
-    }
-  }, []);
+  // Fly to home functionality moved to portal level (app-specific)
 
   // Scene initialization gate: Synchronously prepares refs for scene mount
   // Returns true if ready to mount scene
@@ -328,7 +254,6 @@ export const CesiumContextProvider = ({
 
       console.log("[CesiumContext] ✓ Scene init prepared", {
         style: currentSceneStyleRef.current,
-        hasCamera: !!homeCamera.current,
         hasSceneStyle: !!config.sceneStyle,
       });
 
@@ -342,8 +267,8 @@ export const CesiumContextProvider = ({
       widgetRef,
       sceneRef,
       isSuspendedRef,
-      homeCamera,
-      currentCameraRef,
+      isActive: !isSuspendedRef.current && !!sceneRef.current,
+      cameraRef,
       moveendCameraRef,
       minZoomDistanceRef,
       maxZoomDistanceRef,
@@ -355,11 +280,6 @@ export const CesiumContextProvider = ({
       sceneStyleReadyStateRef,
       sceneStyleReadyCallbackRef,
       onCameraUpdate,
-      zoomIn,
-      zoomOut,
-      fovZoomIn,
-      fovZoomOut,
-      flyHome,
       prepareSceneInit,
       isAnimatingRef,
       transitionStateRef,
@@ -377,13 +297,10 @@ export const CesiumContextProvider = ({
       prepareSceneInit,
       requestRender,
       onCameraUpdate,
-      zoomIn,
-      zoomOut,
-      fovZoomIn,
-      fovZoomOut,
-      flyHome,
       config,
       cesiumInstances,
+      isSuspendedRef,
+      sceneRef,
     ]
   );
 

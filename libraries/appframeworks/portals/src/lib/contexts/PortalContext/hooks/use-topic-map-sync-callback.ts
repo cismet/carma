@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import type { MapStyleKey } from "../../types/portal";
+import type { MapStyleKey } from "../../../constants";
 
 /**
  * Internal hook for managing topicmap sync callback registration

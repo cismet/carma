@@ -8,11 +8,10 @@ import type { HashValues } from "../../types";
 import type { MapView } from "@carma-mapping/engines/leaflet";
 import { validateMapView } from "@carma-mapping/engines/leaflet";
 import type { CameraPrimitive } from "@carma/cesium";
-import {
-  validateCameraStateHeadingPitchRoll,
-  transformHeadingPitchRollToPrimitive,
-} from "@carma/cesium/core";
-import type { MapEngineRecord, PortalConfig } from "./types.d";
+import { transformHeadingPitchRollToPrimitive } from "@carma/cesium/core";
+import { validateCameraStateHeadingPitchRoll } from "@carma/cesium";
+import type { CameraStateHeadingPitchRoll } from "@carma/cesium";
+import type { MapEngineRecord, PortalConfig } from "../../types/portal";
 
 /**
  * Parses initial portal state from URL hash values.
@@ -138,7 +137,7 @@ export function getInitialPortalState(
     const homeCameraPrimitive = transformHeadingPitchRollToPrimitive(
       config.homeCamera
     );
-    homeCameraRef.current = homeCameraPrimitive;
+    homeCameraRef.current = homeCameraPrimitive ?? null;
     console.debug(
       "[getInitialPortalState] Setting home camera",
       homeCameraRef.current
@@ -158,8 +157,10 @@ export function getInitialPortalState(
   if (cameraRef.current === null) {
     const hasHashCamera = validateCameraStateHeadingPitchRoll(hashValues);
     if (hasHashCamera) {
-      const cameraPrimitive = transformHeadingPitchRollToPrimitive(hashValues);
-      cameraRef.current = cameraPrimitive;
+      const cameraPrimitive = transformHeadingPitchRollToPrimitive(
+        hashValues as CameraStateHeadingPitchRoll.deg
+      );
+      cameraRef.current = cameraPrimitive ?? null;
       console.debug(
         "[getInitialPortalState] Setting initial camera from hash",
         cameraRef.current
@@ -168,7 +169,7 @@ export function getInitialPortalState(
       const cameraPrimitive = transformHeadingPitchRollToPrimitive(
         config.defaultCamera
       );
-      cameraRef.current = cameraPrimitive;
+      cameraRef.current = cameraPrimitive ?? null;
       console.debug(
         "[getInitialPortalState] Setting initial camera from config",
         cameraRef.current

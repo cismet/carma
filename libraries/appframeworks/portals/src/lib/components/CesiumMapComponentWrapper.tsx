@@ -100,10 +100,13 @@ export const CesiumMapComponentWrapper = ({
 
     const cesiumEngine: CesiumEngineRecord = {
       engine: "cesium3d",
-      isReady: isActive,
+      isReady: isActive as true,
       isSuspended: isSuspendedRef.current,
+      zoomOut: () => {}, // TODO: Implement
+      zoomIn: () => {}, // TODO: Implement
+      flyHome: () => {}, // TODO: Implement
+      setCamera: () => {}, // TODO: Implement
       setStyle: setStyle,
-      // TODO: Add other Cesium-specific methods (zoom, camera, etc.)
       debug: {
         config: portalConfig.cesium,
         timestamp: Date.now(),

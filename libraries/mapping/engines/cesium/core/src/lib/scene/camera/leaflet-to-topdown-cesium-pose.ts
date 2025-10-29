@@ -1,7 +1,7 @@
 import type { Zoom } from "@carma/types";
 import type { LatLng, Altitude } from "@carma/geo/types";
 import type { Meters, Radians, Degrees } from "@carma/units/types";
-import type { Scene, CameraPoseRadians } from "@carma/cesium";
+import type { Scene, HeadingPitchRollPrimitive } from "@carma/cesium";
 import {
   degToRad,
   MINUS_PI_OVER_TWO,
@@ -20,7 +20,11 @@ export type ElevationSource = "fallback" | "terrain";
  * Uses a conservative fallback height until terrain can be sampled.
  * Check `elevationSource` to determine if terrain sampling is needed.
  */
-export type CesiumPoseWithFallback = CameraPoseRadians & {
+export type CesiumPoseWithFallback = HeadingPitchRollPrimitive.rad & {
+  /** Position in radians */
+  latitude: Radians;
+  longitude: Radians;
+  height: Meters;
   /** Range/distance from ground (computed from zoom level) */
   range: number;
   /** Source of elevation: 'fallback' (constant) or 'terrain' (sampled) */

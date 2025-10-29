@@ -1,11 +1,12 @@
-// use when not initialized
-type BasicEngineRecord = {
+// Base type for uninitialized engines
+type BaseEngineRecord = {
   engine: MapEngine;
   isReady: false;
   isSuspended: true;
 };
 
-type LeafletEngineRecord = BasicEngineRecord & {
+// Leaflet engine record (initialized)
+type LeafletEngineRecord = {
   engine: "leaflet2d";
   isReady: true;
   isSuspended: boolean;
@@ -20,7 +21,8 @@ type LeafletEngineRecord = BasicEngineRecord & {
   };
 };
 
-type CesiumEngineRecord = BasicEngineRecord & {
+// Cesium engine record (initialized)
+type CesiumEngineRecord = {
   engine: "cesium3d";
   isReady: true;
   isSuspended: boolean;
@@ -37,7 +39,11 @@ type CesiumEngineRecord = BasicEngineRecord & {
   };
 };
 
+// All possible engine records (including uninitialized)
 export type MapEngineRecord =
+  | BaseEngineRecord
   | LeafletEngineRecord
-  | CesiumEngineRecord
-  | BasicEngineRecord;
+  | CesiumEngineRecord;
+
+// Helper type for active engines (ready and not suspended)
+export type ManagedEngineRecord = LeafletEngineRecord | CesiumEngineRecord;

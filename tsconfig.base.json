@@ -35,17 +35,18 @@
       
       // Package shortcuts
       "@carma/cesium": ["libraries/mapping/engines/cesium/api/src/index.ts"],
-      "@carma/cesium/types": ["libraries/mapping/engines/cesium/types/src/index.ts"],
       "@carma/cesium/*": ["libraries/mapping/engines/cesium/*/src/index.ts"],
+      // todo consider moving up math and units to top level to make shortcut needless
       "@carma/math": ["libraries/commons/math/src/index.ts"],
       "@carma/units/*": ["libraries/commons/units/*/src/index.ts"],
 
       // compatibility layer for legacy resources
+      // TODO remove ASAP
       "@carma-commons/resources": ["libraries/.compatibility/commons/resources/src/index.ts"],
       "@carma-commons/utils/gaz": ["libraries/.compatibility/mapping/utils/src/index.ts"],
       "@carma-mapping/utils": ["libraries/.compatibility/mapping/utils/src/index.ts"],
 
-      // should resolve also namespace imports like utils/fetching
+      // compatibility layer for legacy resources - should resolve also namespace imports like utils/fetching
       "@carma-commons/utils": ["libraries/commons/utils/src/index.ts"], 
       "@carma-commons/utils/fetching": ["libraries/commons/utils/src/index.ts"], 
       "@carma-commons/utils/window": ["libraries/commons/dom/window/src/index.ts"],

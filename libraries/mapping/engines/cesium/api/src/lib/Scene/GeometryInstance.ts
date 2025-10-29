@@ -1,1 +1,0 @@
-export { GeometryInstance } from "cesium";

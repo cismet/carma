@@ -76,7 +76,7 @@ export const HOME_POSITION: MapView = {
 
 // Default Cesium 3D camera location (Portal format: altitude + degrees)
 // Camera-centric: Camera position in absolute coordinates
-export const DEFAULT_CESIUM_CAMERA: CameraStateHeadingPitchRoll = {
+export const DEFAULT_CESIUM_CAMERA: CameraStateHeadingPitchRoll.deg = {
   latitude: WUPPERTAL.position.latitude,
   longitude: WUPPERTAL.position.longitude,
   altitude: (WUPPERTAL.position.altitude +
@@ -87,7 +87,7 @@ export const DEFAULT_CESIUM_CAMERA: CameraStateHeadingPitchRoll = {
 };
 
 // for convenience also camera-centric so need some manual offset calculation
-export const HOME_CESIUM_CAMERA = {
+export const HOME_CESIUM_CAMERA: CameraStateHeadingPitchRoll.deg = {
   // 0,01° = ~1,1km
   latitude: (WUPPERTAL.position.latitude - 0.08) as Degrees, // slightly south
   longitude: WUPPERTAL.position.longitude,

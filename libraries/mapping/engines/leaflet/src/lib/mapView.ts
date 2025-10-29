@@ -1,13 +1,25 @@
-import type { MapView } from "./types/MapView.d";
+import type { LatLngLiteral } from "leaflet";
+
+/**
+ * Strict MapView with explicit lat/lng object (subset of LatLngExpression)
+ */
+export type MapView = {
+  center: LatLngLiteral;
+  zoom: number;
+};
 
 export const validateMapView = (view: unknown): view is MapView => {
-  return (
+  const isMapView =
     view &&
     typeof view === "object" &&
-    view.center &&
+    "center" in view &&
     typeof view.center === "object" &&
+    view.center !== null &&
+    "lat" in view.center &&
+    "lng" in view.center &&
     typeof view.center.lat === "number" &&
     typeof view.center.lng === "number" &&
-    typeof view.zoom === "number"
-  );
+    "zoom" in view &&
+    typeof view.zoom === "number";
+  return Boolean(isMapView);
 };

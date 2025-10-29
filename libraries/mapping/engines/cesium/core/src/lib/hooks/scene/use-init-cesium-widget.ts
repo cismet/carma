@@ -15,7 +15,6 @@ export const useInitCesiumWidget = (
   const {
     widgetRef,
     sceneRef,
-    homeCamera,
     minZoomDistanceRef,
     maxZoomDistanceRef,
     enableCollisionDetectionRef,
@@ -278,7 +277,6 @@ export const useInitCesiumWidget = (
     widgetRef,
     sceneRef,
     sceneStyleReadyCallbackRef,
-    homeCamera,
     config.baseUrl,
   ]);
 

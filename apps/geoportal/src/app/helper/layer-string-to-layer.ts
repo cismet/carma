@@ -1,3 +1,5 @@
+import { defaultLayerConfig } from "../config";
+
 export const convertLayerStringToLayers = (
   layerString: string,
   visible: boolean,

@@ -1,7 +1,6 @@
 import { useControls, button } from "leva";
 import {
   useCesiumContext,
-  useHomeControl,
   useZoomControls,
 } from "@carma-mapping/engines/cesium/core";
 import { useEffect, useState } from "react";
@@ -20,7 +19,7 @@ export function CesiumLevaControls({
   onOpenEditor,
 }: CesiumLevaControlsProps = {}) {
   const { config, currentSceneStyleRef, sceneRef } = useCesiumContext();
-  const flyHome = useHomeControl();
+  // const flyHome = useHomeControl(); // TODO: Re-implement home control at app level
   const { handleZoomIn, handleZoomOut } = useZoomControls({ fovMode: false });
   const { handleZoomIn: handleFovZoomIn, handleZoomOut: handleFovZoomOut } =
     useZoomControls({ fovMode: true });
@@ -76,7 +75,7 @@ export function CesiumLevaControls({
   // Build camera controls dynamically to handle null camera
   const cameraControls: Record<string, any> = {
     Controls: horizontalButtonRow({
-      HOME: () => flyHome(),
+      // HOME: () => flyHome(), // TODO: Re-implement home control at app level
       "+": () => handleZoomIn(createMockEvent()),
       "-": () => handleZoomOut(createMockEvent()),
       "FOV+": () => handleFovZoomIn(createMockEvent()),

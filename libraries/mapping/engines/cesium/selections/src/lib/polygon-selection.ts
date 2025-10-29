@@ -7,14 +7,14 @@ import {
   Color,
   ColorGeometryInstanceAttribute,
   defined,
-  EasingFunction,
   GeometryInstance,
   GroundPrimitive,
   HeadingPitchRange,
   PerspectiveFrustum,
   PolygonGeometry,
   type Scene,
-} from "cesium";
+  tryWithValidScene,
+} from "@carma/cesium";
 
 import {
   addCesiumMarker,
@@ -27,9 +27,10 @@ import {
   polygonHierarchyFromPolygonCoords,
   invertedPolygonHierarchy,
   getElevationAsync,
-  tryWithValidScene,
   sceneRequestRender,
 } from "@carma-mapping/engines/cesium/core";
+
+import { Easing } from "@carma-commons/math";
 
 const DEFAULT_BOUNDING_SPHERE_ELEVATION = 200; // meters, default elevation for bounding sphere in GeoJSON Polygon
 const DEFAULT_BOUNDING_SPHERE_VIEW_MARGIN = 0.2; // 20% margin
@@ -167,7 +168,7 @@ const cesiumLookAtPoint = (
         roll: 0,
       },
       duration: Math.min(range * durationFactor, maxDuration),
-      easingFunction: EasingFunction.QUADRATIC_IN_OUT,
+      easingFunction: Easing.QUADRATIC_IN_OUT,
       complete: () => {
         console.info("[CESIUM|ANIMATION] Flyto Complete", destination);
         options.onComplete && options.onComplete();

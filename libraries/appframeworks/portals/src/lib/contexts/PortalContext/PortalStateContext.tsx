@@ -92,8 +92,8 @@ export const PortalStateProvider = ({
           enginesRef,
           mapStyleRef,
           viewRef,
-          cameraRef,
           homeViewRef,
+          cameraRef,
           homeCameraRef
         );
 

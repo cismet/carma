@@ -21,12 +21,8 @@ import { useCesiumContext } from "../../context/hooks/use-cesium-context";
  * ```
  */
 export const useSceneCameraTracking = () => {
-  const {
-    sceneRef,
-    currentCameraRef,
-    moveendCameraRef,
-    sceneCameraTrackerRef,
-  } = useCesiumContext();
+  const { sceneRef, cameraRef, moveendCameraRef, sceneCameraTrackerRef } =
+    useCesiumContext();
   useEffect(
     function setupCameraPositionTracking() {
       let cameraListener: (() => void) | null = null;
@@ -53,8 +49,8 @@ export const useSceneCameraTracking = () => {
               const cameraState = captureCurrentCameraState(camera, true);
 
               // Update context's currentCameraRef for crash recovery (every frame)
-              if (currentCameraRef) {
-                currentCameraRef.current = cameraState;
+              if (cameraRef) {
+                cameraRef.current = cameraState;
               }
 
               // Debounced moveend tracking (like Leaflet moveend/zoomend)
@@ -119,6 +115,6 @@ export const useSceneCameraTracking = () => {
         startStopTracking("stop");
       };
     },
-    [sceneRef, currentCameraRef, moveendCameraRef, sceneCameraTrackerRef]
+    [sceneRef, cameraRef, moveendCameraRef, sceneCameraTrackerRef]
   );
 };

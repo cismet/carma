@@ -1,6 +1,4 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
-// TODO: Redux can be removed - use local state or context instead
-// import { useDispatch, useSelector } from "react-redux";
 import { useSearchParams } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -24,6 +22,9 @@ import {
   useSelection,
   useSelectionTopicMap,
   useHashState,
+  useActiveEngines,
+  PortalContextProvider,
+  usePortalHomeControl,
 } from "@carma-appframeworks/portals";
 import { useLeafletZoomControls } from "@carma-mapping/engines/leaflet";
 import { isAreaTypeWithGEP } from "@carma/resources";
@@ -34,33 +35,11 @@ import { getCollabedHelpComponentConfig } from "@carma-collab/wuppertal/hochwass
 
 import {
   CesiumSceneComponent,
-  // TODO: Refactor removed - getDegreesFromCartesian not exported
-  // getDegreesFromCartesian,
-  // TODO: Waiting for new API - MapTypeSwitcher removed or moved
-  // MapTypeSwitcher,
-  // TODO: Waiting for new API - selectViewerHome removed
-  // selectViewerHome,
-  // TODO: Waiting for new API - selectViewerIsMode2d removed, use UI slice instead
-  // selectViewerIsMode2d,
-  // TODO: Waiting for new API - selectViewerModels removed
-  // selectViewerModels,
-  // TODO: Waiting for new API - setIsMode2d removed
-  // setIsMode2d,
   useCesiumContext,
-  // TODO: Refactor removed - useCesiumInitialCameraFromSearchParams not exported
-  // useCesiumInitialCameraFromSearchParams,
-  useHomeControl,
   useZoomControls,
 } from "@carma-mapping/engines/cesium/core";
-// TODO: Waiting for new API - PitchingCompass renamed to LibrePitchingCompass
-// import { LibrePitchingCompass } from "@carma-mapping/ui/pitching-compass";
 import {
-  EmptySearchComponent,
-  LibFuzzySearch,
-} from "@carma-mapping/fuzzy-search";
-import { type SearchResultItem } from "@carma/types";
-
-import {
+  MapTypeSwitcher,
   FullscreenControl,
   RoutedMapLocateControl,
 } from "@carma-mapping/components";
@@ -69,14 +48,15 @@ import {
   ControlButtonStyler,
   ControlLayout,
 } from "@carma-mapping/map-controls-layout";
+import {
+  EmptySearchComponent,
+  LibFuzzySearch,
+} from "@carma-mapping/fuzzy-search";
+import { type SearchResultItem } from "@carma/types";
 
 import { StateAwareChildren } from "./components/StateAwareChildren";
 
 import versionData from "./version.json";
-
-// TODO: Waiting for new API - useLeafletZoomControls hook missing
-// import useLeafletZoomControls from "./hooks/useLeafletZoomControls";
-// import useLeafletZoomControls from "@carma-mapping/components";
 
 import config from "./config";
 import { EMAIL, HOME_ZOOM } from "./config/app.config";
@@ -89,8 +69,6 @@ import "cesium/Build/Cesium/Widgets/widgets.css";
 
 function App({ sync = false }: { sync?: boolean }) {
   const version = getApplicationVersion(versionData);
-  // TODO: Redux can be removed
-  // const dispatch = useDispatch();
   const { responsiveState, gap, windowSize } = useContext<
     typeof ResponsiveTopicMapContext
   >(ResponsiveTopicMapContext);
@@ -106,13 +84,13 @@ function App({ sync = false }: { sync?: boolean }) {
 
   const [searchParams] = useSearchParams();
 
-  // TODO: Refactor removed - useCesiumInitialCameraFromSearchParams not exported
-  // const initialCameraView = useCesiumInitialCameraFromSearchParams();
-  const initialCameraView = null;
+  // NEW ARCHITECTURE: Use PortalContext for engine state
+  const { isCesiumActive } = useActiveEngines();
+  const isMode2d = !isCesiumActive;
 
   // CONTROLS
   const { animationMapRef, requestRender } = useCesiumContext();
-  const homeControl = useHomeControl();
+  const homeControl = usePortalHomeControl();
   const {
     handleZoomIn: handleZoomInCesium,
     handleZoomOut: handleZoomOutCesium,
@@ -122,37 +100,21 @@ function App({ sync = false }: { sync?: boolean }) {
   const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls(routedMap);
 
   // CESIUM related
-
   const container3dMapRef = useRef<HTMLDivElement>(null);
-  // TODO: Redux can be removed
-  // const homePosition = useSelector(selectViewerHome);
   const homePosition = null;
 
   const homeCenter = useMemo(() => {
     if (!homePosition) {
       return null;
     }
-    // TODO: Waiting for new API
-    // const { longitude, latitude } = getDegreesFromCartesian(homePosition);
-    // const center = [latitude, longitude];
-    // return center;
     return null;
   }, [homePosition]);
-
-  // TODO: Waiting for new API - Redux can be removed, use local state or context
-  const isMode2d = false; // useSelector(selectViewerIsMode2d);
-
-  // TODO: Redux can be removed
-  // const models = useSelector(selectViewerModels);
-  // const markerAsset = models![CESIUM_CONFIG.markerKey!];
-  // const markerAnchorHeight = CESIUM_CONFIG.markerAnchorHeight ?? 10;
 
   // selection handling
   const { setSelection } = useSelection();
 
   const onGazetteerSelection = (selection: SearchResultItem | null) => {
     if (!selection) {
-      //console.debug("onGazetteerSelection", selection);
       setSelection(null);
       return;
     }
@@ -172,7 +134,7 @@ function App({ sync = false }: { sync?: boolean }) {
   };
 
   const onHomeClick = () => {
-    homeControl();
+    homeControl.handleHome();
     homeControlLeaflet();
   };
 
@@ -187,28 +149,6 @@ function App({ sync = false }: { sync?: boolean }) {
   };
 
   useSelectionTopicMap();
-  // TODO: Waiting for new API - useSelectionCesium signature changed
-  // useSelectionCesium(
-  //   !isMode2d,
-  //   useMemo(
-  //     () => ({
-  //       markerAsset,
-  //       markerAnchorHeight,
-  //       isPrimaryStyle: true,
-  //     }),
-  //     [markerAsset, markerAnchorHeight]
-  //   )
-  // );
-
-  // TODO: Redux can be removed - use local state instead
-  // useEffect(() => {
-  //   if (searchParams.has(VIEWERSTATE_KEYS.is3d)) {
-  //     const is3d = searchParams.get(VIEWERSTATE_KEYS.is3d) === "1";
-  //     dispatch(setIsMode2d(!is3d));
-  //   }
-  //   // run only once on load
-  //   // eslint-disable-next-line react-hooks/exhaustive-deps
-  // }, []);
 
   const enableControlStateToggle = (controlState) => {
     return controlState.selectedSimulation !== 2;
@@ -229,13 +169,9 @@ function App({ sync = false }: { sync?: boolean }) {
     />
   );
 
-  if (initialCameraView === null) {
-    // viewer from URL not yet evaluated, don't render anything yet
-    return null;
-  }
-
   return (
-    <div className="fixed w-full h-full">
+    <PortalContextProvider config={config}>
+      <div className="fixed w-full h-full">
       <div
         className="controls-container"
         style={{
@@ -249,7 +185,6 @@ function App({ sync = false }: { sync?: boolean }) {
         <ControlLayout ifStorybook={false}>
           <Control position="topleft" order={10}>
             <div className="flex flex-col">
-              {/* <Tooltip title="Maßstab vergrößern (Zoom in)" placement="right"> */}
               <ControlButtonStyler
                 onClick={isMode2d ? zoomInLeaflet : handleZoomInCesium}
                 className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
@@ -258,8 +193,6 @@ function App({ sync = false }: { sync?: boolean }) {
               >
                 <FontAwesomeIcon icon={faPlus} className="text-base" />
               </ControlButtonStyler>
-              {/* </Tooltip> */}
-              {/* <Tooltip title="Maßstab verkleinern (Zoom out)" placement="right"> */}
               <ControlButtonStyler
                 onClick={isMode2d ? zoomOutLeaflet : handleZoomOutCesium}
                 className="!rounded-t-none !border-t-[1px]"
@@ -268,31 +201,16 @@ function App({ sync = false }: { sync?: boolean }) {
               >
                 <FontAwesomeIcon icon={faMinus} className="text-base" />
               </ControlButtonStyler>
-              {/* </Tooltip> */}
             </div>
           </Control>
           <Control position="topleft" order={30}>
             <div className="flex flex-col">
-              {/* <Tooltip title="Nach Norden ausrichten" placement="right"> */}
-              {/* TODO: Waiting for new API - PitchingCompass and MapTypeSwitcher removed */}
-              {/* <ControlButtonStyler
-                useDisabledStyle={false}
-                className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
-                disabled={isMode2d}
-                //ref={tourRefLabels.alignNorth}
-                dataTestId="compass-control"
-                title="Nach Norden ausrichten"
-              >
-                <PitchingCompass />
-              </ControlButtonStyler> */}
-              {/* </Tooltip> */}
-
-              {/* <MapTypeSwitcher
+              <MapTypeSwitcher
                 className="!rounded-t-none !border-t-[1px]"
                 duration={CESIUM_CONFIG.transitions.mapMode.duration}
                 nativeTooltip={true}
                 enableMobileWarning={true}
-              /> */}
+              />
             </div>
           </Control>
           <Control position="topleft" order={50}>
@@ -307,12 +225,6 @@ function App({ sync = false }: { sync?: boolean }) {
           </Control>
 
           <Control position="topleft" order={70}>
-            {/* <Tooltip
-              title={
-                "Zur Startposition:\nÜberflutungsbereich Unterdörnen, Barmen"
-              }
-              placement="right"
-            > */}
             <ControlButtonStyler
               onClick={onHomeClick}
               dataTestId="home-control"
@@ -322,7 +234,6 @@ function App({ sync = false }: { sync?: boolean }) {
             >
               <FontAwesomeIcon icon={faHouseChimney} className="text-lg" />
             </ControlButtonStyler>
-            {/* </Tooltip> */}
           </Control>
           <Control position="bottomleft" order={10}>
             <div className="pl-1">
@@ -392,18 +303,12 @@ function App({ sync = false }: { sync?: boolean }) {
           pointerEvents: isMode2d ? "none" : "auto",
         }}
       >
-        {/* TODO: Refactor removed - CesiumSceneComponent props changed:
-            - cameraLimiterOptions not in new API
-            - initialCameraView not in new API  
-            - constructorOptions moved
-            - enableSceneStyles not in new API
-            - onCameraChanged removed (use CesiumContext event bus instead)
-        */}
         <CesiumSceneComponent
           containerRef={container3dMapRef}
         ></CesiumSceneComponent>
       </div>
     </div>
+    </PortalContextProvider>
   );
 }
 

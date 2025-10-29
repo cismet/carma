@@ -8,17 +8,15 @@ export type {
 // Marker API (for advanced use)
 export { addCesiumMarker, removeCesiumMarker } from "./markers/manager";
 
-// Polygon selection API (moved from portals)
-export {
-  cesiumHandleSelection,
-  createFootprintPrimitive,
-} from "./polygon-selection";
+// Selection handling API
+export { cesiumHandleSelection } from "./cesiumHandleSelection";
+export { cesiumHitTrigger } from "./cesiumHitTrigger";
 
+// Types from selection handlers
 export type {
   HitTriggerOptions,
-  MarkerModelAsset,
   DerivedGeometries,
-} from "./polygon-selection";
+} from "./cesiumHandleSelection";
 
 // Types
 export type {

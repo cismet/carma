@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { usePortalContext } from "../contexts/PortalContext";
 import type { MapEngine, MapEngineRecord } from "../types/portal";
+import type { ManagedEngineRecord } from "../types/map-engines";
 import { ManagedEngineKeys } from "../constants";
 
 /**
@@ -24,20 +25,19 @@ export const useActiveEngines = () => {
   const { enginesRef } = usePortalContext();
 
   // Filter to get only active engines (ready and not suspended)
-  const activeEngines = enginesRef.current.filter(
-    (engine) => engine.isReady && !engine.isSuspended
-  );
+  const isActiveEngine = (
+    engine: MapEngineRecord
+  ): engine is ManagedEngineRecord => engine.isReady && !engine.isSuspended;
+
+  const activeEngines: ManagedEngineRecord[] =
+    enginesRef.current.filter(isActiveEngine);
 
   /**
    * Execute a callback function on each active engine
    * Type-safe execution with proper engine record typing
    */
   const forEachActiveEngine = useCallback(
-    (
-      callback: (
-        engine: Extract<MapEngineRecord, { isReady: true; isSuspended: false }>
-      ) => void
-    ) => {
+    (callback: (engine: ManagedEngineRecord) => void) => {
       activeEngines.forEach(callback);
     },
     [activeEngines]
@@ -48,11 +48,7 @@ export const useActiveEngines = () => {
    * Type-safe mapping with proper engine record typing
    */
   const mapToActiveEngines = useCallback(
-    <T>(
-      callback: (
-        engine: Extract<MapEngineRecord, { isReady: true; isSuspended: false }>
-      ) => T
-    ): T[] => {
+    <T>(callback: (engine: ManagedEngineRecord) => T): T[] => {
       return activeEngines.map(callback);
     },
     [activeEngines]

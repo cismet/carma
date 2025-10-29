@@ -1,5 +1,6 @@
 import { useCallback } from "react";
-import type { MapStyleKey, MapEngineRecord } from "../../types/portal";
+import type { MapStyleKey } from "../../../constants";
+import type { ManagedEngineRecord } from "../../../types/map-engines";
 
 /**
  * Internal hook for managing map style changes across active engines
@@ -8,9 +9,7 @@ import type { MapStyleKey, MapEngineRecord } from "../../types/portal";
 export const useMapStyle = (
   mapStyleRef: React.MutableRefObject<MapStyleKey>,
   forEachActiveEngine: (
-    callback: (
-      engine: Extract<MapEngineRecord, { isReady: true; isSuspended: false }>
-    ) => void
+    callback: (engine: ManagedEngineRecord) => void
   ) => void,
   topicMapSyncCallbackRef: React.MutableRefObject<
     ((styleId: MapStyleKey) => void) | null

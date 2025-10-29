@@ -7,7 +7,7 @@ import {
   ScreenSpaceEventType,
   isValidScene,
   isValidScreenSpaceEventHandler,
-  releaseCameraFromOrbitMode,
+    releaseCameraFromOrbitMode,
   tryWithValidCamera,
   tryWithValidScene,
 } from "@carma/cesium";

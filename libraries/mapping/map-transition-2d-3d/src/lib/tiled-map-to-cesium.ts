@@ -59,7 +59,7 @@ export const tiledMapToCesium = async (
   const [
     {
       isValidScene,
-      guardSampleTerrainMostDetailed,
+      sampleTerrainMostDetailedGuardedAsync,
       isValidCesiumTerrainProvider,
       Cartographic,
       HeadingPitchRoll,
@@ -207,7 +207,7 @@ export const tiledMapToCesium = async (
           6
         )}, ${longitude.toFixed(6)})...`
       );
-      const sampledPositions = await guardSampleTerrainMostDetailed(
+      const sampledPositions = await sampleTerrainMostDetailedGuardedAsync(
         terrainProvider,
         [queryPosition],
         false // Don't reject on tile fail

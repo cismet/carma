@@ -1,15 +1,76 @@
 /**
- * Cesium Engine namespace
+ * Cesium Engine API - Flat Export Structure
  *
- * This module mirrors the structure of Cesium's engine source:
- * https://github.com/CesiumGS/cesium/tree/main/packages/engine/Source
- *
- *
- * reexports for use in rest of carma monorepo to avoid direct imports of cesium
- * and is opinionated on not using viewer and entityCollections
+ * All Cesium types and utilities exported directly
+ * No artificial folder hierarchy - matches Cesium's flat API
  */
 
-export * from "./Core";
+// Pure re-exports from Cesium
+export {
+  CesiumWidget,
+  ClassificationType,
+  ClippingPlaneCollection,
+  ClippingPolygonCollection,
+  ColorGeometryInstanceAttribute,
+  ColorMaterialProperty,
+  ConstantProperty,
+  defined,
+  Ellipsoid,
+  Entity,
+  // EasingFunction // EquivalentEasing is @carma-commons/math
+  GeometryInstance,
+  GroundPolylineGeometry,
+  GroundPolylinePrimitive,
+  LightingModel,
+  Math as CesiumMath,
+  Material,
+  Matrix3,
+  Matrix4,
+  PolygonGeometry,
+  PolygonHierarchy,
+  Polyline,
+  PolylineCollection,
+  PolylineColorAppearance,
+  PrimitiveCollection,
+  Quaternion,
+  Ray,
+  SceneMode,
+  SceneTransforms,
+  ScreenSpaceCameraController,
+  ScreenSpaceEventType,
+  // Shaders, // moved to @carma-mapping/engines/cesium/shaders
+  ShadowMode,
+  Transforms,
+  WebMapServiceImageryProvider,
+} from "cesium";
+
+// augmented exports
+export * from "./BoundingSphere";
+export * from "./Camera";
+export * from "./Cartesian2";
+export * from "./Cartesian3";
+export * from "./Cartographic";
+export * from "./Cesium3DTileset";
+export * from "./CesiumTerrainProvider";
+export * from "./Color";
+export * from "./CustomShader";
+export * from "./EllipsoidTerrainProvider";
+export * from "./Globe";
+export * from "./GroundPrimitive";
+export * from "./HeadingPitchRange";
+export * from "./HeadingPitchRoll";
+export * from "./ImageryLayer";
+export * from "./ImageryProvider";
+export * from "./Model";
+export * from "./ModelGraphics";
+export * from "./OpenStreetMapImageryProvider";
+export * from "./PerspectiveFrustum";
+export * from "./Rectangle";
+export * from "./sampleTerrainMostDetailed";
 export * from "./Scene";
-export * from "./DataSources";
-export * from "./Widgets";
+// eslint-disable-next-line import/export
+export * from "./ScreenSpaceEventHandler";
+export * from "./SingleTileImageryProvider";
+export * from "./TileMapServiceImageryProvider";
+export * from "./version";
+export * from "./WebMapTileServiceImageryProvider";
