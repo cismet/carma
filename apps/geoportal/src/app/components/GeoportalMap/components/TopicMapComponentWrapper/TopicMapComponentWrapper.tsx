@@ -228,17 +228,23 @@ export const TopicMapComponentWrapper = ({
 
   const onComplete = useCallback(
     (selection: SelectionItem) => {
-      if (lastSelectionRef.current === selection.sorter) {
-        return;
-      }
+      console.log("[TopicMapComponentWrapper] onComplete called with:", selection);
+      // Removed duplicate check to allow re-selecting same gazetteer item
+      // if (lastSelectionRef.current === selection.sorter) {
+      //   console.log("[TopicMapComponentWrapper] Skipping duplicate selection");
+      //   return;
+      // }
       lastSelectionRef.current = selection.sorter;
 
-      if (layers.filter((l) => l.layerType === "vector").length === 0) return;
+      if (layers.filter((l) => l.layerType === "vector").length === 0) {
+        console.log("[TopicMapComponentWrapper] No vector layers, skipping");
+        return;
+      }
       if (
-        (uiMode === UIMode.DEFAULT || uiMode === UIMode.FEATURE_INFO) &&
         !isAreaType(selection.type) &&
         !isSuspendedRef.current
       ) {
+        console.log("[TopicMapComponentWrapper] Processing selection, layersIdle:", layersIdle);
         // Convert from Web Mercator (EPSG:3857) to WGS84 (EPSG:4326)
         const [lng, lat] = getFromWebMercatorToWGS84([
           selection.x,
@@ -246,24 +252,32 @@ export const TopicMapComponentWrapper = ({
         ]);
 
         if (layersIdle) {
+          console.log("[TopicMapComponentWrapper] Layers idle, firing click event at:", lat, lng);
           const map = getTopicMap();
           const latlngPoint = L.latLng({ lat, lng });
           if (map) {
-            const evt = {
-              latlng: latlngPoint,
-              layerPoint: map.latLngToLayerPoint(latlngPoint),
-              containerPoint: map.latLngToContainerPoint(latlngPoint),
-            } as unknown as L.LeafletMouseEvent;
-            map.fireEvent("click", evt);
+            // Add delay to allow builtInGazetteerHitTrigger to complete map pan
+            setTimeout(() => {
+              const evt = {
+                latlng: latlngPoint,
+                layerPoint: map.latLngToLayerPoint(latlngPoint),
+                containerPoint: map.latLngToContainerPoint(latlngPoint),
+              } as unknown as L.LeafletMouseEvent;
+              map.fireEvent("click", evt);
+              console.log("[TopicMapComponentWrapper] Click event fired after delay");
+            }, 500); // Wait 500ms for map pan to complete
           }
           pendingSelectionRef.current = null; // Clear pending
         } else {
+          console.log("[TopicMapComponentWrapper] Layers not idle, storing pending selection");
           // Store coordinates to process when layers become idle
           pendingSelectionRef.current = { lat, lng };
         }
+      } else {
+        console.log("[TopicMapComponentWrapper] Selection skipped - area type:", isAreaType(selection.type), "suspended:", isSuspendedRef.current);
       }
     },
-    [layers, uiMode, isSuspendedRef, layersIdle, getTopicMap]
+    [layers, isSuspendedRef, layersIdle, getTopicMap]
   );
 
   // Process pending selection when layers become idle

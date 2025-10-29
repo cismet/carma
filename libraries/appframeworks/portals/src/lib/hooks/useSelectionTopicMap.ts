@@ -60,6 +60,8 @@ export const useSelectionTopicMap = ({
         );
         const routedMapRef = getRoutedMapRef();
         const { leafletElement } = routedMapRef?.current?.leafletMap;
+        
+        console.log("[useSelectionTopicMap] leafletElement available:", !!leafletElement, "routedMapRef:", !!routedMapRef);
 
         // TODO replace builtin react-cismap trigger, handle topicMap map move and polygon generation for overlayFeature with CarmaMap
         builtInGazetteerHitTrigger(
@@ -72,7 +74,10 @@ export const useSelectionTopicMap = ({
         );
 
         if (leafletElement) {
+          console.log("[useSelectionTopicMap] Calling onComplete with selection:", selection);
           onCompleteRef.current?.(selection, leafletElement);
+        } else {
+          console.log("[useSelectionTopicMap] Skipping onComplete - no leafletElement");
         }
       }
     }
