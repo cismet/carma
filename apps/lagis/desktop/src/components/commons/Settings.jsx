@@ -113,7 +113,9 @@ const AdditionalLayerRow = ({
         defaultValue={opacity * 100}
         disabled={false}
         className="w-full"
-        onAfterChange={(value) => opacityChanged(layerkey, value / 100)}
+        onAfterChange={(value) =>
+          opacityChanged(layerkey, value === 0 ? 0.001 : value / 100)
+        }
       />
     </div>
   );
@@ -139,7 +141,9 @@ const BackgroundLayerRow = ({
           defaultValue={opacity * 100}
           disabled={false}
           className="w-full"
-          onAfterChange={(value) => opacityChanged(layerkey, value / 100)}
+          onAfterChange={(value) =>
+            opacityChanged(layerkey, value === 0 ? 0.001 : value / 100)
+          }
         />
       </div>
       {layerkey === "trueOrtho" && activeBackgroundLayer === "trueOrtho" && (
