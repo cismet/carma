@@ -33,11 +33,13 @@ import {
   usePortalZoomControls,
   useActiveEngines,
 } from "@carma-appframeworks/portals";
+import { useCarmaTopicMapContext } from "@carma-mapping/engines/carma-cismap";
 import { useCesiumContext } from "@carma-mapping/engines/cesium/core";
 import { useMapLibreContext } from "@carma-mapping/engines/maplibre";
 import { useFeatureFlags } from "@carma/providers/feature-flag";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { isAreaType } from "@carma/resources";
+import { builtInGazetteerHitTrigger } from "react-cismap/tools/gazetteerHelper";
 import {
   EngineAvailability,
   isFeatureDisabled,
@@ -68,7 +70,11 @@ export const GeoportalControls = () => {
   const dispatch = useDispatch();
   const tourRefLabels = useTourRefCollabLabels();
   const { gazData } = useGazData();
-  const { setSelection, selection: configSelection } = useSelection();
+  const { setSelection, selection: configSelection, setOverlayFeature } = useSelection();
+  
+  // Get TopicMap context for direct map access
+  const carmaTopicMapCtx = useCarmaTopicMapContext();
+  const { getRoutedMapRef, getReferenceSystem, getReferenceSystemDefinition } = carmaTopicMapCtx;
 
   // Fetch from contexts instead of props
   const { isCesiumActive, activeEngines } = useActiveEngines();
@@ -118,18 +124,59 @@ export const GeoportalControls = () => {
         setSelection(null);
         return;
       }
-      const selectionMetaData: SelectionMetaData = {
-        selectedFrom: "gazetteer",
-        selectedFromMapMode: isSuspendedRef.current
-          ? SelectionMapMode.MODE_2D
-          : SelectionMapMode.MODE_3D,
-        selectionTimestamp: Date.now(),
-        isAreaSelection: isAreaType(selection.type),
-      };
-
-      setSelection(Object.assign({}, selection, selectionMetaData));
+      
+      // Check if this is a different selection than current
+      const currentSelection = configSelection;
+      const isNewItem = currentSelection?.sorter !== selection.sorter;
+      
+      if (isNewItem) {
+        // New item - set selection to trigger feature info
+        const selectionMetaData: SelectionMetaData = {
+          selectedFrom: "gazetteer",
+          selectedFromMapMode: isSuspendedRef.current
+            ? SelectionMapMode.MODE_2D
+            : SelectionMapMode.MODE_3D,
+          selectionTimestamp: Date.now(), // Keep timestamp for NEW_SELECTION_TIMEOUT logic
+          isAreaSelection: isAreaType(selection.type),
+        };
+        console.log("[onGazetteerSelection] New item, setting selection");
+        setSelection(Object.assign({}, selection, selectionMetaData));
+      } else {
+        // Same item - recenter directly without changing selection state
+        console.log("[onGazetteerSelection] Same item, recentering directly");
+        
+        const routedMapRef = getRoutedMapRef();
+        const { leafletElement } = routedMapRef?.current?.leafletMap;
+        
+        if (leafletElement) {
+          // Create selection metadata for the gazetteer trigger
+          const selectionMetaData: SelectionMetaData = {
+            selectedFrom: "gazetteer",
+            selectedFromMapMode: isSuspendedRef.current
+              ? SelectionMapMode.MODE_2D
+              : SelectionMapMode.MODE_3D,
+            selectionTimestamp: currentSelection?.selectionTimestamp || null,
+            isAreaSelection: isAreaType(selection.type),
+          };
+          
+          const fullSelection = Object.assign({}, selection, selectionMetaData);
+          
+          // Trigger recentering directly without feature info
+          builtInGazetteerHitTrigger(
+            [fullSelection],
+            leafletElement,
+            getReferenceSystem(),
+            getReferenceSystemDefinition(),
+            () => {}, // No setGazetteerHit callback
+            setOverlayFeature,
+            undefined // No furtherGazeteerHitTrigger callback (no feature info)
+          );
+        } else {
+          console.log("[onGazetteerSelection] No map available for recentering");
+        }
+      }
     },
-    [setSelection, isSuspendedRef]
+    [setSelection, configSelection, isSuspendedRef, getRoutedMapRef, getReferenceSystem, getReferenceSystemDefinition, setOverlayFeature]
   );
 
   const handleFeatureInfoClick = useCallback(() => {
