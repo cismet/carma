@@ -122,6 +122,8 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const lastRenderTimeStampRef = useRef(Date.now());
   const lastRenderIntervalRef = useRef(0);
   const container3dMapRef = useRef<HTMLDivElement>(null);
+  // Store MapLibre maps outside Redux to avoid serialization issues
+  const maplibreMapsRef = useRef<Map<string, any>>(new Map());
 
   // State and Selectors
   const backgroundLayer = useSelector(getBackgroundLayer);
@@ -131,8 +133,8 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const markerAnchorHeight = CESIUM_CONFIG.markerAnchorHeight ?? 10;
   const layers = useSelector(getLayers);
   const maplibreMaps = layers
-    .filter((l) => l.layerType === "vector" && l.visible && l.maplibreMap)
-    .map((l) => l.maplibreMap);
+    .filter((l) => l.layerType === "vector" && l.visible)
+    .map((l) => maplibreMapsRef.current.get(l.id));
   const uiMode = useSelector(getUIMode);
   const isModeMeasurement = uiMode === UIMode.MEASUREMENT;
   const isModeFeatureInfo = uiMode === UIMode.FEATURE_INFO;
@@ -619,6 +621,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
             zoom: getLeafletZoom(),
             selectedFeature,
             leafletMap: routedMap?.leafletMap?.leafletElement,
+            maplibreMapsRef,
           })}
           <PrintPreview />
           <Measurements snappingLayers={maplibreMaps} />

@@ -6,7 +6,7 @@ import {
   useState,
 } from "react";
 import type { Dispatch } from "@reduxjs/toolkit";
-import type { LatLng, Map } from "leaflet";
+import type { LatLng, Map as LeafletMap } from "leaflet";
 
 import CismapLayer from "react-cismap/CismapLayer";
 
@@ -70,12 +70,14 @@ export const useCreateCismapLayers = (
     zoom,
     selectedFeature,
     leafletMap,
+    maplibreMapsRef,
   }: {
     mode: UIMode;
     dispatch: Dispatch;
     zoom: number;
     selectedFeature: any;
-    leafletMap: Map;
+    leafletMap: LeafletMap;
+    maplibreMapsRef?: React.MutableRefObject<Map<string, any>>;
   }
 ) => {
   const [globalHits, setGlobalHits] = useState({});
@@ -258,7 +260,10 @@ export const useCreateCismapLayers = (
             maxSelectionCount: 10,
             onMapLibreCoreMapReady: (map) => {
               console.log("MapLibre map ready for layer:", layer.id, map);
-              dispatch(updateLayer({ ...layer, maplibreMap: map }));
+              // Store map reference outside of Redux to avoid serialization issues
+              if (maplibreMapsRef) {
+                maplibreMapsRef.current.set(layer.id, map);
+              }
             },
             onStyleIdle: (e) => {
               setIdleLayers((old) => {

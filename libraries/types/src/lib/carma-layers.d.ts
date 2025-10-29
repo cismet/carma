@@ -50,7 +50,6 @@ export type Layer = {
   conf?: CarmaConfig;
   icon?: string;
   other?: OtherLayerProps;
-  maplibreMap?: any; // MapLibre map instance for vector layers
 } & (
   | {
       layerType: "wmts" | "wmts-nt";
