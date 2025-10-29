@@ -15,7 +15,7 @@ import {
 import { detectWebGLContext } from "@carma-commons/dom/canvas";
 
 import { useCarmaTopicMapContext } from "@carma-mapping/engines/carma-cismap";
-import { useCesiumContext } from "@carma-mapping/engines/cesium/core";
+// useCesiumContext removed - geoportal should only interact with Cesium through PortalContext
 
 import {
   Control,
@@ -48,7 +48,7 @@ window.addEventListener("load", testGPU, false);
 export const GeoportalMap = () => {
   const dispatch = useDispatch();
   const flags = useFeatureFlags();
-  const { isSuspendedRef } = useCesiumContext();
+  // isSuspendedRef removed - suspension is now managed by PortalContext
   const { leafletMapRef } = useCarmaTopicMapContext();
 
   const showLibreMap = flags.featureFlagLibreMap;
@@ -127,15 +127,6 @@ export const GeoportalMap = () => {
 
   useFeatureInfoModeCursorStyle();
 
-  useEffect(() => {
-    // Suspend Cesium if 3D is not allowed
-    if (allow3d === false || allow3d === undefined) {
-      isSuspendedRef.current = true;
-    } else {
-      isSuspendedRef.current = false;
-    }
-  }, [allow3d, isSuspendedRef]);
-
   console.debug(
     `[MapWrapper] Render isMode2d: ${isMode2d}, allow3d: ${allow3d}`
   );
@@ -195,10 +186,8 @@ export const GeoportalMap = () => {
             <LibreGeoportalMap />
           ) : (
             <>
-              {isMode2d && (
-                <TopicMapComponentWrapper height={height} width={width} />
-              )}
-              {!isMode2d && allow3d && <CesiumMapComponentWrapper />}
+              <TopicMapComponentWrapper height={height} width={width} />
+              {allow3d && <CesiumMapComponentWrapper key="cesium-3d" />}
             </>
           )}
         </div>

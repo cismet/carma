@@ -56,7 +56,8 @@ export const CesiumPitchingCompass = ({
   pitchOblique = PITCH.OBLIQUE as Radians,
   headingFactor = 1,
 }: RotateButtonProps) => {
-  const { animationMapRef, sceneRef, isSuspendedRef } = useCesiumContext();
+  // isSuspendedRef removed from CesiumContext - suspension managed by PortalContext
+  const { animationMapRef, sceneRef } = useCesiumContext();
   const [isControlMouseDown, setIsControlMouseDown] = useState(false);
   const [initialMouseX, setInitialMouseX] = useState(0);
   const [initialMouseY, setInitialMouseY] = useState(0);
@@ -283,13 +284,14 @@ export const CesiumPitchingCompass = ({
     };
   }, [attachCameraListener]);
 
-  // Re-attach camera listener when Cesium becomes active (2D→3D transition)
+  // Re-attach camera listener when scene becomes available
+  // Note: Suspension state removed - this now just attaches when scene is ready
   useEffect(() => {
-    if (!isSuspendedRef.current) {
-      console.debug("[Compass] Cesium active - reattaching camera listener");
+    if (sceneRef.current) {
+      console.debug("[Compass] Scene available - reattaching camera listener");
       attachCameraListener();
     }
-  }, [isSuspendedRef.current, attachCameraListener]);
+  }, [sceneRef, attachCameraListener]);
 
   return (
     // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions

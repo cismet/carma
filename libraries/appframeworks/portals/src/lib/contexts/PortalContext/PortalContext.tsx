@@ -8,7 +8,7 @@ import type {
   PortalConfig,
 } from "../../types/portal";
 import type { MapView } from "@carma-mapping/engines/leaflet";
-import type { CameraPrimitive } from "@carma/cesium";
+import type { CameraState } from "@carma/cesium";
 
 export interface PortalContextType {
   // Gate status - indicates if portal has passed initialization gate
@@ -18,9 +18,9 @@ export interface PortalContextType {
   getMapStyle: () => MapStyleKey;
   getEngines: () => MapEngineRecord[];
   getView: () => MapView | null;
-  getCamera: () => CameraPrimitive | null;
+  getCamera: () => CameraState | null;
   getHomeView: () => MapView | null;
-  getHomeCamera: () => CameraPrimitive | null;
+  getHomeCamera: () => CameraState | null;
   
   // Core state updaters - mutate values
   setEngines: (engines: MapEngineRecord[] | ((prev: MapEngineRecord[]) => MapEngineRecord[])) => void;

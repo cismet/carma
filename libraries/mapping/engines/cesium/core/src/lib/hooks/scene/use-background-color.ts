@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useCesiumContext } from "../../context";
-import { isValidScene } from "../../utils/lazy-validators";
+import { isValidScene, Color } from "@carma/cesium";
 import type { ColorRgbaArray } from "@carma/types";
 
 /**
@@ -14,26 +14,23 @@ export const useBackgroundColor = (backgroundColor?: ColorRgbaArray) => {
     if (!isValidScene(scene) || !scene) return;
 
     if (backgroundColor) {
-      (async () => {
-        const { Color } = await import("@carma/cesium");
-        // backgroundColor is [r, g, b, a] in 0-1 range (normalized)
-        const [r, g, b, a] = backgroundColor;
-        const bgColor = new Color(r, g, b, a);
-        scene.backgroundColor = bgColor;
+      // backgroundColor is [r, g, b, a] in 0-1 range (normalized)
+      const [r, g, b, a] = backgroundColor;
+      const bgColor = new Color(r, g, b, a);
+      scene.backgroundColor = bgColor;
 
-        // Also set the container background color for consistency
-        const container = scene.canvas.parentElement;
-        if (container) {
-          const cssColor = bgColor.toCssColorString();
-          container.style.backgroundColor = cssColor;
-        }
+      // Also set the container background color for consistency
+      const container = scene.canvas.parentElement;
+      if (container) {
+        const cssColor = bgColor.toCssColorString();
+        container.style.backgroundColor = cssColor;
+      }
 
-        console.debug(
-          "[CESIUM|BACKGROUND] Background color set:",
-          backgroundColor
-        );
-        scene.requestRender();
-      })();
+      console.debug(
+        "[CESIUM|BACKGROUND] Background color set:",
+        backgroundColor
+      );
+      scene.requestRender();
     }
   }, [sceneRef, backgroundColor]);
 };

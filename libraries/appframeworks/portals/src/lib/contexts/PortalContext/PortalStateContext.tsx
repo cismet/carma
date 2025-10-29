@@ -5,7 +5,7 @@ import type { MapView } from "@carma-mapping/engines/leaflet";
 import { useCesiumContext } from "@carma/mapping/engines/cesium/core";
 import type { CesiumConfig } from "@carma-mapping/engines/cesium/types";
 import type { LeafletConfig } from "@carma/types";
-import type { CameraPrimitive } from "@carma/cesium";
+import type { CameraState } from "@carma/cesium";
 
 import { useHashState } from "../HashStateProvider";
 
@@ -32,16 +32,23 @@ const createSetEngines = (
   enginesRef: React.MutableRefObject<MapEngineRecord[]>,
   forceUpdate: () => void
 ) => {
-  return (engines: MapEngineRecord[] | ((prev: MapEngineRecord[]) => MapEngineRecord[])) => {
-    const newEngines = typeof engines === 'function' 
-      ? engines(enginesRef.current) 
-      : engines;
-    
+  return (
+    engines:
+      | MapEngineRecord[]
+      | ((prev: MapEngineRecord[]) => MapEngineRecord[])
+  ) => {
+    const newEngines =
+      typeof engines === "function" ? engines(enginesRef.current) : engines;
+
     console.debug("[PortalStateProvider] Engines updated:", {
-      previous: enginesRef.current.map(e => `${e.engine}: ready=${e.isReady}, suspended=${e.isSuspended}`),
-      new: newEngines.map(e => `${e.engine}: ready=${e.isReady}, suspended=${e.isSuspended}`)
+      previous: enginesRef.current.map(
+        (e) => `${e.engine}: ready=${e.isReady}, suspended=${e.isSuspended}`
+      ),
+      new: newEngines.map(
+        (e) => `${e.engine}: ready=${e.isReady}, suspended=${e.isSuspended}`
+      ),
     });
-    
+
     enginesRef.current = newEngines;
     forceUpdate(); // Trigger re-render to update activeEngines
   };
@@ -52,26 +59,31 @@ const createUpdateEngine = (
   forceUpdate: () => void
 ) => {
   return (engineType: MapEngine, updates: Partial<MapEngineRecord>) => {
-    const engineIndex = enginesRef.current.findIndex(e => e.engine === engineType);
+    const engineIndex = enginesRef.current.findIndex(
+      (e) => e.engine === engineType
+    );
     if (engineIndex === -1) {
-      console.warn("[PortalStateProvider] Engine not found for update:", engineType);
+      console.warn(
+        "[PortalStateProvider] Engine not found for update:",
+        engineType
+      );
       return;
     }
 
     const previousEngine = enginesRef.current[engineIndex];
     const updatedEngine = { ...previousEngine, ...updates };
-    
+
     console.debug("[PortalStateProvider] Engine updated:", {
       engineType,
       previous: {
         ready: previousEngine.isReady,
-        suspended: previousEngine.isSuspended
+        suspended: previousEngine.isSuspended,
       },
       updates,
       result: {
         ready: updatedEngine.isReady,
-        suspended: updatedEngine.isSuspended
-      }
+        suspended: updatedEngine.isSuspended,
+      },
     });
 
     enginesRef.current[engineIndex] = updatedEngine;
@@ -102,20 +114,24 @@ export const PortalStateProvider = ({
   config,
 }: PortalStateProviderProps) => {
   const { onHashInitialized } = useHashState();
-  
+
   // Canonical force update hook
   // See: https://react.dev/reference/react/useState#forcing-a-component-to-reset
   const forceUpdate = useCallback(() => {
     setState({});
   }, []);
   const [, setState] = useState({});
-  
+
   // Cache the ready state to prevent re-evaluation once ready
-  const readyStateCacheRef = useRef<{ ready: boolean; reason: string } | null>(null);
-  
+  const readyStateCacheRef = useRef<{ ready: boolean; reason: string } | null>(
+    null
+  );
+
   // Success callback to run when hash initialization completes
   const onHashInitializationSuccess = () => {
-    console.debug("[PortalStateProvider] Hash initialization success callback triggered");
+    console.debug(
+      "[PortalStateProvider] Hash initialization success callback triggered"
+    );
     // Force re-render to check gate again
     forceUpdate();
   };
@@ -141,8 +157,8 @@ export const PortalStateProvider = ({
   const viewRef = useRef<MapView | null>(null);
   const homeViewRef = useRef<MapView | null>(null);
   // 3D
-  const cameraRef = useRef<CameraPrimitive | null>(null);
-  const homeCameraRef = useRef<CameraPrimitive | null>(null);
+  const cameraRef = useRef<CameraState | null>(null);
+  const homeCameraRef = useRef<CameraState | null>(null);
 
   // Use extracted hook for active engine management with stable references
   const { activeEngines, forEachActiveEngine, isCesiumActive } =
@@ -152,7 +168,9 @@ export const PortalStateProvider = ({
   useEffect(() => {
     // Only re-check if not already ready and hash is initialized
     if (isPortalInitializedRef.current && !readyStateCacheRef.current?.ready) {
-      console.debug("[PortalStateProvider] Dependencies changed, re-checking gate");
+      console.debug(
+        "[PortalStateProvider] Dependencies changed, re-checking gate"
+      );
       forceUpdate();
     }
   }, [
@@ -169,7 +187,13 @@ export const PortalStateProvider = ({
   const getMapStyle = useCallback(() => mapStyleRef.current, []);
   const getEngines = useCallback(() => enginesRef.current, []);
   const getView = useCallback(() => viewRef.current, []);
-  const getCamera = useCallback(() => cameraRef.current, []);
+  const getCamera = useCallback(() => {
+    console.log(
+      "[PortalContext] 🎥 CAMERA GET - Camera requested from PortalContext:",
+      cameraRef.current
+    );
+    return cameraRef.current;
+  }, []);
   const getHomeView = useCallback(() => homeViewRef.current, []);
   const getHomeCamera = useCallback(() => homeCameraRef.current, []);
 
@@ -200,7 +224,7 @@ export const PortalStateProvider = ({
         );
 
         isPortalInitializedRef.current = true;
-        
+
         // Call success callback
         onHashInitializationSuccess();
 
@@ -244,7 +268,7 @@ export const PortalStateProvider = ({
   const value: PortalContextType = {
     // Gate status
     passedGate: renderState.ready,
-    
+
     // Getter functions for reading current values
     getMapStyle,
     getEngines,
@@ -252,11 +276,11 @@ export const PortalStateProvider = ({
     getCamera,
     getHomeView,
     getHomeCamera,
-    
+
     // Updater functions for mutating refs
     setEngines,
     updateEngine,
-    
+
     portalConfig: config,
     // Callback refs
     topicMapSyncCallbackRef,
@@ -279,9 +303,14 @@ export const PortalStateProvider = ({
       "\nMissing requirements for initialization:",
       {
         hashInitialized: isPortalInitializedRef.current ? "✅" : "❌",
-        activeEngines: activeEngines?.length > 0 ? `✅ (${activeEngines.map((e) => e.engine).join(", ")})` : "❌ (none)",
-        styleSelected: mapStyleRef.current ? `✅ (${mapStyleRef.current})` : "❌ (none)",
-        homeViewSet: (homeViewRef.current || homeCameraRef.current) ? "✅" : "❌",
+        activeEngines:
+          activeEngines?.length > 0
+            ? `✅ (${activeEngines.map((e) => e.engine).join(", ")})`
+            : "❌ (none)",
+        styleSelected: mapStyleRef.current
+          ? `✅ (${mapStyleRef.current})`
+          : "❌ (none)",
+        homeViewSet: homeViewRef.current || homeCameraRef.current ? "✅" : "❌",
         viewReady: viewRef.current ? "✅" : "❌",
         cameraReady: cameraRef.current ? "✅" : "❌",
       }

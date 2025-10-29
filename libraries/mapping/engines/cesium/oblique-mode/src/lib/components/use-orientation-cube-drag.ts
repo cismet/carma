@@ -33,8 +33,9 @@ const PITCH_FACTOR = 1;
 export function useOrientationCubeDrag({
   dragThresholdPx = 2,
 }: UseOrientationCubeDragParams = {}): UseOrientationCubeDragReturn {
-  const { animationMapRef, shouldSuspendPitchLimiterRef, sceneRef } =
-    useCesiumContext();
+  // TODO: shouldSuspendPitchLimiterRef removed from CesiumContext
+  const { animationMapRef, sceneRef } = useCesiumContext();
+  const shouldSuspendPitchLimiterRef = { current: false }; // Temporary stub
   const [isDragging, setIsDragging] = useState(false);
   const isDraggingRef = useRef(false);
   const isPointerDownRef = useRef(false);

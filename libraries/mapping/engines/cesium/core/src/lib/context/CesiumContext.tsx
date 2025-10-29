@@ -2,8 +2,7 @@ import { createContext, type MutableRefObject } from "react";
 import type {
   CesiumWidget,
   Scene,
-  CameraPrimitive,
-  HeadingPitchRollPrimitive,
+  CameraState,
 } from "@carma/cesium";
 
 // Event bus removed - using direct refs and callbacks instead
@@ -27,7 +26,7 @@ export interface CesiumInstanceRecord {
   // Metadata about what triggered the initialization
   trigger?: CesiumInstanceTrigger;
   // Last known camera state (for crash recovery) - internal Cesium state
-  cameraState?: CameraPrimitive;
+  cameraState?: CameraState;
 }
 
 // Provider ref types for managing arbitrary numbers of providers
@@ -43,16 +42,14 @@ export interface CesiumContextType {
   // NOTE: Provider refs (terrain, imagery, tilesets, models) moved to CesiumSceneComponent
   // These are scene-owned resources, not context-level shared state
 
-  // Core state refs
-  isSuspendedRef: MutableRefObject<boolean>;
-  isActive: boolean; // Added for CesiumMapComponentWrapper
-
-  // Camera tracking - TWO separate states:
-  // 1. cameraRef: Updated every frame for crash recovery and live display
-  // 2. moveendCameraRef: Updated when camera stops moving (like Leaflet's moveend/zoomend)
+  // Camera tracking - handled by PortalContext
+  // Note: Suspension state is now managed by PortalContext, not here
+  // moveendCameraRef: Updated when camera stops moving (like Leaflet's moveend/zoomend)
   //    Used for URL hash updates and other actions triggered on camera settle
-  cameraRef: MutableRefObject<CameraPrimitive | null>;
-  moveendCameraRef: MutableRefObject<CameraPrimitive | null>;
+  getMoveEndCamera: () => CameraState | null;
+  setMoveEndCamera: (camera: CameraState | null) => void;
+  getCamera: () => CameraState | null;
+  setCamera: (camera: CameraState | null) => void;
 
   minZoomDistanceRef: MutableRefObject<number>;
   maxZoomDistanceRef: MutableRefObject<number>;
@@ -87,20 +84,13 @@ export interface CesiumContextType {
   // Portal sets this callback to be notified when scene initializes
   onSceneReadyCallbackRef: MutableRefObject<(() => void) | null>;
 
-  // Scene initialization gate (synchronous validation)
-  // Wrapper calls this to prepare refs before mounting scene
-  // cameraState: Optional CameraPrimitive (internal Cesium format: position, direction, up, right, fov)
-  prepareSceneInit: (
-    style: string,
-    cameraState?: CameraPrimitive | null
-  ) => boolean;
+  // Animation state - internal to Cesium, exposed via getter/setter (not ref)
+  getIsAnimating: () => boolean;
+  setIsAnimating: (value: boolean) => void;
 
-  // Animation and transition state
-  isAnimatingRef: MutableRefObject<boolean>;
-  transitionStateRef: MutableRefObject<string | null>;
-  suspendSSCCRef: MutableRefObject<boolean>;
-  shouldSuspendPitchLimiterRef: MutableRefObject<boolean>;
-  shouldSuspendCameraLimitersRef: MutableRefObject<boolean>;
+  // Other state removed - now managed by PortalContext/transition provider
+  // - transitionStateRef -> transition provider logic
+  // - suspendSSCCRef, shouldSuspendPitchLimiterRef, shouldSuspendCameraLimitersRef -> removed
 
   // Render control
   requestRender: (opts?: DelayedRenderOptions) => void;

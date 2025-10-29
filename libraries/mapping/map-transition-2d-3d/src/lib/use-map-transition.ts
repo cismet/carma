@@ -8,11 +8,11 @@ import { getLeafletPosition } from "@carma-mapping/engines/leaflet";
 
 // Import transition context
 import { useTransitionContext } from "./use-transition-context";
-
 // eslint-disable-next-line carma/no-direct-cesium
 import { useCarmaTopicMapContext } from "@carma-mapping/engines/carma-cismap";
-// eslint-disable-next-line carma/no-direct-cesium
+// eslint-disable-next-line carma/no-direct-cesium, carma/no-lazy-cesium
 import { useCesiumContext } from "@carma-mapping/engines/cesium/core";
+import { usePortalContext } from "@carma-appframeworks/portals";
 
 // Import transition implementations
 import { createTransitionTo3d } from "./transition-to-3d";
@@ -33,9 +33,10 @@ export const useMapTransition = ({
 }: TransitionOptions = {}) => {
   const { config: contextConfig, isTransitioningRef } = useTransitionContext();
 
-  const { leafletMapRef, emitSuspend, emitActivate } =
+  const { leafletMapRef, emitSuspend } =
     useCarmaTopicMapContext();
   const { widgetRef, sceneRef } = useCesiumContext();
+  const { getEngines } = usePortalContext();
 
   const [last3dCameraOrientation, setLast3dCameraOrientation] =
     useState<HeadingPitchRange | null>(null);
@@ -110,8 +111,8 @@ export const useMapTransition = ({
 
         // Dynamic imports to avoid circular deps
 
-        // Activate TopicMap engine immediately
-        emitActivate();
+        // TopicMap engine activation handled by PortalContext
+        // No manual activation needed
 
         // DON'T suspend Cesium here - it stays visible during camera tilt animation
         // Suspend happens in onCameraAnimationComplete callback
@@ -145,7 +146,6 @@ export const useMapTransition = ({
       widgetRef,
       contextConfig.modeTo2d,
       isTransitioningRef,
-      emitActivate,
       onEngineChange,
       onComplete,
       onCancel,
@@ -157,52 +157,118 @@ export const useMapTransition = ({
   const transitionTo2dFactory = createTransitionTo2d(transition2dParams);
 
   const transitionToMode3d = useCallback(async () => {
-    // Pre-flight checks and pose calculation BEFORE calling transition
-    const leafletMap = leafletMapRef.current;
-    let scene = sceneRef.current;
-    let widget = widgetRef.current;
+    console.log("[useMapTransition] ===== STARTING 3D TRANSITION =====");
+    
+    // Force fresh engine state - get multiple times to ensure we have latest
+    console.log("[useMapTransition] Forcing fresh engine state...");
+    const firstEngines = getEngines();
+    console.log("[useMapTransition] First fetch:", firstEngines.length, "engines");
+    
+    // Small delay and fetch again to ensure we have the latest state
+    await new Promise(resolve => setTimeout(resolve, 10));
+    const engines = getEngines();
+    console.log("[useMapTransition] Second fetch:", engines.length, "engines");
+    console.log("[useMapTransition] Available engines:", engines.map(e => ({
+      engineType: e.engineType,
+      engine: e.engine,
+      isReady: e.isReady,
+      isSuspended: e.isSuspended,
+      hasInstance: !!e.instance
+    })));
+    
+    // Try different ways to find the engines
+    const leafletEngine = engines.find(e => 
+      e.engineType === 'leaflet2d' || 
+      e.engine === 'leaflet2d' ||
+      e.engineType?.includes('leaflet')
+    ) as any;
+    const cesiumEngine = engines.find(e => 
+      e.engineType === 'cesium3d' || 
+      e.engine === 'cesium3d' ||
+      e.engineType?.includes('cesium')
+    ) as any;
 
-    // If no scene, we need to activate it first (first time 2D→3D)
-    if (!scene) {
-      console.log(
-        "[useMapTransition] No scene available - activating for first time"
-      );
+    console.log("[useMapTransition] Found engines:", {
+      leaflet: leafletEngine ? { 
+        engineType: leafletEngine.engineType, 
+        engine: leafletEngine.engine,
+        isReady: leafletEngine.isReady, 
+        isSuspended: leafletEngine.isSuspended 
+      } : 'NOT FOUND',
+      cesium: cesiumEngine ? { 
+        engineType: cesiumEngine.engineType, 
+        engine: cesiumEngine.engine,
+        isReady: cesiumEngine.isReady, 
+        isSuspended: cesiumEngine.isSuspended 
+      } : 'NOT FOUND',
+      allEngineTypes: engines.map(e => e.engineType || e.engine)
+    });
 
-      // Use callback-based activation - no polling!
-      console.log(
-        "[useMapTransition] Calling activateCesium with ready callback..."
-      );
-
-      /*
-      await new Promise<void>((resolve) => {
-        activateCesium(() => {
-          console.log("[useMapTransition] Scene ready callback fired - continuing");
-          resolve();
-        });
-      })        ;
-      */
-
-      // Re-read refs after scene initialization
-      scene = sceneRef.current;
-      widget = widgetRef.current;
-
-      if (!scene) {
-        console.error(
-          "[useMapTransition] Scene still not available after activation"
-        );
-        onComplete?.(false);
-        return;
-      }
+    // Pre-flight checks
+    if (!leafletEngine?.isReady || leafletEngine.isSuspended) {
+      console.warn("[useMapTransition] Leaflet engine not ready or suspended");
+      onCancel?.(false);
+      return;
     }
 
-    // If no widget, can't compute pose
+    if (!cesiumEngine?.isReady) {
+      console.log("[useMapTransition] Cesium engine not ready - waiting for scene to initialize");
+      
+      // Cesium is always mounted (visibility:hidden in 2D mode), just wait for it to be ready
+      // Wait for scene to become ready (poll for up to 5 seconds)
+      let attempts = 0;
+      const maxAttempts = 50; // 50 * 100ms = 5 seconds
+      
+      while (attempts < maxAttempts) {
+        attempts++;
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
+        const currentEngines = getEngines();
+        const currentCesiumEngine = currentEngines.find(e => e.engineType === 'cesium3d' || e.engine === 'cesium3d') as any;
+        
+        console.log(`[useMapTransition] Check ${attempts}/${maxAttempts}:`, {
+          isReady: currentCesiumEngine?.isReady,
+          isSuspended: currentCesiumEngine?.isSuspended,
+          hasInstance: !!currentCesiumEngine?.instance
+        });
+        
+        if (currentCesiumEngine?.isReady) {
+          console.log("[useMapTransition] Cesium engine is now ready!");
+          break;
+        }
+      }
+      
+      // Final check
+      const finalEngines = getEngines();
+      const finalCesiumEngine = finalEngines.find(e => e.engineType === 'cesium3d' || e.engine === 'cesium3d') as any;
+      
+      if (!finalCesiumEngine?.isReady) {
+        console.error("[useMapTransition] Cesium engine never became ready after 5 seconds");
+        onCancel?.(false);
+        return;
+      }
+    } else {
+      console.log("[useMapTransition] Both engines ready for transition");
+    }
+
+    // Get actual map instances from engines
+    const leafletMap = leafletMapRef.current;
+    const scene = sceneRef.current;
+    const widget = widgetRef.current;
+
+    // Final checks with actual instances
+    if (!scene) {
+      console.error("[useMapTransition] No scene available - Cesium not initialized");
+      onComplete?.(false);
+      return;
+    }
+
     if (!widget) {
       console.warn("[useMapTransition] No widget available");
       onCancel?.(false);
       return;
     }
 
-    // If no leaflet map, can't derive position
     if (!leafletMap) {
       console.warn("[useMapTransition] No leaflet map available");
       onCancel?.(false);
@@ -250,6 +316,7 @@ export const useMapTransition = ({
     leafletMapRef,
     sceneRef,
     widgetRef,
+    getEngines,
     onComplete,
     onCancel,
     transitionTo3dFactory,

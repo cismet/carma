@@ -1,5 +1,12 @@
 import { useEffect, useRef } from "react";
-import type { CesiumWidget } from "@carma/cesium";
+
+import {
+  CesiumWidget,
+  isPerspectiveFrustum,
+  isCameraStateHeadingPitchRoll,
+  Cartographic,
+} from "@carma/cesium";
+
 import { useCesiumContext } from "../../context";
 import { configureCesiumErrorHandling } from "../../scene/environment/error-handling";
 import {
@@ -19,6 +26,7 @@ export const useInitCesiumWidget = (
     maxZoomDistanceRef,
     enableCollisionDetectionRef,
     sceneStyleReadyCallbackRef,
+    getCamera,
     config,
   } = useCesiumContext();
 
@@ -85,164 +93,195 @@ export const useInitCesiumWidget = (
       });
     }
 
-    // LAZY INIT: Only create widget when isActive prop is true
-    if (!isActive) {
-      console.debug(
-        "[CESIUM|INIT] Skipping widget creation - not active (2D mode)"
-      );
-      return;
-    }
+    try {
+      if (widgetRef.current && !widgetRef.current.isDestroyed()) {
+        isInitializedRef.current = true;
+        return;
+      }
 
-    // Dynamic import: Load Cesium bundle only when activating 3D mode
-    (async () => {
-      try {
-        if (widgetRef.current && !widgetRef.current.isDestroyed()) {
-          isInitializedRef.current = true;
+      console.debug("[CESIUM|INIT] Creating widget");
+
+      console.debug("[CESIUM|INIT] options", options);
+      const container = containerRef.current;
+      if (!container) throw new Error("Container ref is null");
+
+      // Ensure container has valid dimensions before creating widget
+      const containerWidth = container.clientWidth;
+      const containerHeight = container.clientHeight;
+      console.debug(
+        `[CESIUM|INIT] Container dimensions before widget creation: ${containerWidth}x${containerHeight}`
+      );
+
+      if (containerWidth === 0 || containerHeight === 0) {
+        throw new Error(
+          `Container has invalid dimensions: ${containerWidth}x${containerHeight}`
+        );
+      }
+
+      const widget = new CesiumWidget(container, options);
+      widgetRef.current = widget;
+      sceneRef.current = widget.scene;
+      isInitializedRef.current = true;
+
+      const camera = widget.camera;
+      const isValidCamera = isValidCamera(camera);
+      if (!isValidCamera) {
+        console.error("[CESIUM|INIT] Invalid camera state detected.");
+        return;
+      }
+
+      // Log initial camera position right after widget creation
+      console.log(
+        "[CESIUM|INIT] 🎥 CAMERA SETTING - Widget created with DEFAULT camera:",
+        {
+          position: camera.position,
+          heading: camera.heading,
+          pitch: camera.pitch,
+          roll: camera.roll,
+        }
+      );
+
+      const initialCamera = getCamera();
+      const isRecord = isCameraStateRecord(initialCamera);
+      const isStateHPR = isCameraStateHeadingPitchRoll(initialCamera);
+
+      if (isStateHPR)
+        console.log("[CESIUM|INIT] Applying initial camera from url or config");
+
+      if (isRecord)
+        console.log(
+          "[CESIUM|INIT] Applying initial camera from url or config with HPR"
+        );
+
+      if ((isStateHPR || isRecord) && isValidCamera(camera)) {
+        setViewFromCameraState(camera, initialCamera);
+      } else {
+        console.warn(
+          "[CESIUM|INIT] 🎥 CAMERA SETTING - No initial camera in context refs, should not happen within PortalContext"
+        );
+      }
+
+      console.log(
+        "[CESIUM|INIT]",
+        [
+          ...Object.values(Cartographic.fromCartesian(widget.camera.position)),
+        ].join(", ")
+      );
+      console.log(
+        `[CESIUM|INIT] Widget created - Container: ${containerWidth}x${containerHeight}, Canvas: ${widget.canvas.width}x${widget.canvas.height}, Style: ${widget.canvas.style.width}x${widget.canvas.style.height}, ResScale: ${widget.resolutionScale}`
+      );
+      console.log(
+        "[CESIUM|INIT]",
+        [
+          ...Object.values(Cartographic.fromCartesian(widget.camera.position)),
+        ].join(", ")
+      );
+      console.log(
+        `[CESIUM|INIT] Widget created - Container: ${containerWidth}x${containerHeight}, Canvas: ${widget.canvas.width}x${widget.canvas.height}, Style: ${widget.canvas.style.width}x${widget.canvas.style.height}, ResScale: ${widget.resolutionScale}`
+      );
+
+      // CesiumWidget creates canvas with default 600x300 size
+      // Manually set canvas dimensions (widget.resize() incorrectly applies DPR)
+      if (
+        !resizeCalledRef.current &&
+        (widget.canvas.width !== containerWidth ||
+          widget.canvas.height !== containerHeight)
+      ) {
+        console.log(
+          `[CESIUM|INIT] Canvas size mismatch, manually resizing canvas`
+        );
+        resizeCalledRef.current = true;
+
+        // Set canvas pixel dimensions
+        widget.canvas.width = containerWidth;
+        widget.canvas.height = containerHeight;
+
+        // Set canvas CSS dimensions
+        widget.canvas.style.width = "100%";
+        widget.canvas.style.height = "100%";
+
+        // Update camera frustum aspect ratio (only for PerspectiveFrustum)
+        const camera = widget.scene.camera;
+        if (camera.frustum && isPerspectiveFrustum(camera.frustum)) {
+          camera.frustum.aspectRatio = containerWidth / containerHeight;
+          console.log(
+            `[CESIUM|INIT] After manual resize - Canvas: ${widget.canvas.width}x${widget.canvas.height}, AspectRatio: ${camera.frustum.aspectRatio}`
+          );
+        }
+      }
+
+      // Apply screenSpaceCameraController settings from config
+      const sscc = widget.scene.screenSpaceCameraController;
+      if (config?.screenSpaceCameraController) {
+        const ssccConfig = config.screenSpaceCameraController;
+        if (ssccConfig.enableCollisionDetection !== undefined) {
+          sscc.enableCollisionDetection = ssccConfig.enableCollisionDetection;
+        }
+        if (ssccConfig.minimumZoomDistance !== undefined) {
+          sscc.minimumZoomDistance = ssccConfig.minimumZoomDistance;
+        }
+        if (ssccConfig.maximumZoomDistance !== undefined) {
+          sscc.maximumZoomDistance = ssccConfig.maximumZoomDistance;
+        }
+        console.debug("[CESIUM|INIT] ScreenSpaceCameraController configured", {
+          enableCollisionDetection: sscc.enableCollisionDetection,
+          minimumZoomDistance: sscc.minimumZoomDistance,
+          maximumZoomDistance: sscc.maximumZoomDistance,
+        });
+      }
+
+      const handlePostRender = () => {
+        const scene = sceneRef.current;
+        const widget = widgetRef.current;
+
+        if (!scene || !widget) {
+          scene?.postRender.removeEventListener(handlePostRender);
           return;
         }
 
-        console.debug("[CESIUM|INIT] Loading Cesium bundle...");
-        const { CesiumWidget } = await import("@carma/cesium");
-        console.debug("[CESIUM|INIT] Cesium bundle loaded, creating widget");
-
-        // Initialize lazy validators now that Cesium is loaded
-        const { initializeLazyValidators } = await import(
-          "../../utils/lazy-validators"
-        );
-        await initializeLazyValidators();
-
-        console.debug("[CESIUM|INIT] options", options);
-        const container = containerRef.current;
-        if (!container) throw new Error("Container ref is null");
-
-        // Ensure container has valid dimensions before creating widget
-        const containerWidth = container.clientWidth;
-        const containerHeight = container.clientHeight;
-        console.debug(
-          `[CESIUM|INIT] Container dimensions before widget creation: ${containerWidth}x${containerHeight}`
-        );
-
-        if (containerWidth === 0 || containerHeight === 0) {
-          throw new Error(
-            `Container has invalid dimensions: ${containerWidth}x${containerHeight}`
-          );
-        }
-
-        const widget = new CesiumWidget(container, options);
-        widgetRef.current = widget;
-        sceneRef.current = widget.scene;
-        isInitializedRef.current = true;
-
-        console.log(
-          `[CESIUM|INIT] Widget created - Container: ${containerWidth}x${containerHeight}, Canvas: ${widget.canvas.width}x${widget.canvas.height}, Style: ${widget.canvas.style.width}x${widget.canvas.style.height}, ResScale: ${widget.resolutionScale}`
-        );
-
-        // CesiumWidget creates canvas with default 600x300 size
-        // Manually set canvas dimensions (widget.resize() incorrectly applies DPR)
-        if (
-          !resizeCalledRef.current &&
-          (widget.canvas.width !== containerWidth ||
-            widget.canvas.height !== containerHeight)
-        ) {
-          console.log(
-            `[CESIUM|INIT] Canvas size mismatch, manually resizing canvas`
-          );
-          resizeCalledRef.current = true;
-
-          // Set canvas pixel dimensions
-          widget.canvas.width = containerWidth;
-          widget.canvas.height = containerHeight;
-
-          // Set canvas CSS dimensions
-          widget.canvas.style.width = "100%";
-          widget.canvas.style.height = "100%";
-
-          // Update camera frustum aspect ratio (only for PerspectiveFrustum)
-          const camera = widget.scene.camera;
-          if (camera.frustum && "aspectRatio" in camera.frustum) {
-            camera.frustum.aspectRatio = containerWidth / containerHeight;
-            console.log(
-              `[CESIUM|INIT] After manual resize - Canvas: ${widget.canvas.width}x${widget.canvas.height}, AspectRatio: ${camera.frustum.aspectRatio}`
-            );
-          }
-        }
-
-        // Apply screenSpaceCameraController settings from config
-        const sscc = widget.scene.screenSpaceCameraController;
-        if (config?.screenSpaceCameraController) {
-          const ssccConfig = config.screenSpaceCameraController;
-          if (ssccConfig.enableCollisionDetection !== undefined) {
-            sscc.enableCollisionDetection = ssccConfig.enableCollisionDetection;
-          }
-          if (ssccConfig.minimumZoomDistance !== undefined) {
-            sscc.minimumZoomDistance = ssccConfig.minimumZoomDistance;
-          }
-          if (ssccConfig.maximumZoomDistance !== undefined) {
-            sscc.maximumZoomDistance = ssccConfig.maximumZoomDistance;
-          }
-          console.debug(
-            "[CESIUM|INIT] ScreenSpaceCameraController configured",
-            {
-              enableCollisionDetection: sscc.enableCollisionDetection,
-              minimumZoomDistance: sscc.minimumZoomDistance,
-              maximumZoomDistance: sscc.maximumZoomDistance,
-            }
-          );
-        }
-
-        const handlePostRender = () => {
-          const scene = sceneRef.current;
-          const widget = widgetRef.current;
-
-          if (!scene || !widget) {
-            scene?.postRender.removeEventListener(handlePostRender);
-            return;
-          }
-
-          if (widget.canvas.width > 0 && widget.canvas.height > 0) {
-            // Direct callback instead of event emission
-            sceneStyleReadyCallbackRef.current?.(true, "scene-ready");
-            scene.postRender.removeEventListener(handlePostRender);
-
-            // Configure error handling to suppress panels but allow recovery
-            configureCesiumErrorHandling(widget, {
-              suppressErrorPanel: true,
-              suppressErrorBoundaryForwarding: true,
-              logLevel: "warn",
-            });
-            console.debug(
-              "[CESIUM|INIT] Initialization complete with error recovery enabled"
-            );
-          }
-        };
-
-        widget.scene.postRender.addEventListener(handlePostRender);
-
-        // Camera positioning is handled by use-context-setup-subscriptions
-        // which listens to the SceneReady event and positions the camera
-        console.debug(
-          "[CESIUM|INIT] Widget initialized, camera will be positioned by context"
-        );
-
-        // CRITICAL: Request initial render since we use requestRenderMode
-        // Without this, nothing will display!
-        // BUT: Only if canvas has valid dimensions
         if (widget.canvas.width > 0 && widget.canvas.height > 0) {
-          widget.scene.requestRender();
-          console.debug("[CESIUM|INIT] Initial render requested");
-        } else {
-          console.warn(
-            "[CESIUM|INIT] Skipping initial render - canvas has zero size",
-            {
-              width: widget.canvas.width,
-              height: widget.canvas.height,
-            }
+          // Direct callback instead of event emission
+          sceneStyleReadyCallbackRef.current?.(true, "scene-ready");
+          scene.postRender.removeEventListener(handlePostRender);
+
+          // Configure error handling to suppress panels but allow recovery
+          configureCesiumErrorHandling(widget, {
+            suppressErrorPanel: true,
+            suppressErrorBoundaryForwarding: true,
+            logLevel: "warn",
+          });
+          console.debug(
+            "[CESIUM|INIT] Initialization complete with error recovery enabled"
           );
         }
-      } catch (error) {
-        console.error("[CESIUM|INIT] Error:", error);
+      };
+
+      widget.scene.postRender.addEventListener(handlePostRender);
+
+      // Camera positioning is handled by use-context-setup-subscriptions
+      // which listens to the SceneReady event and positions the camera
+      console.debug(
+        "[CESIUM|INIT] Widget initialized, camera will be positioned by context"
+      );
+
+      // CRITICAL: Request initial render since we use requestRenderMode
+      // Without this, nothing will display!
+      // BUT: Only if canvas has valid dimensions
+      if (widget.canvas.width > 0 && widget.canvas.height > 0) {
+        widget.scene.requestRender();
+        console.debug("[CESIUM|INIT] Initial render requested");
+      } else {
+        console.warn(
+          "[CESIUM|INIT] Skipping initial render - canvas has zero size",
+          {
+            width: widget.canvas.width,
+            height: widget.canvas.height,
+          }
+        );
       }
-    })();
+    } catch (error) {
+      console.error("[CESIUM|INIT] Error:", error);
+    }
 
     return () => {
       // Cleanup: destroy widget ONLY on actual unmount, not on re-renders

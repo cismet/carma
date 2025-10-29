@@ -16,7 +16,7 @@ cjsGlobalShim();
 
 const persistor = persistStore(store);
 
-suppressReactCismapErrors();
+//suppressReactCismapErrors();
 
 preventPinchZoom();
 

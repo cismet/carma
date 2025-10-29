@@ -16,7 +16,7 @@ export {
   ConstantProperty,
   defined,
   Ellipsoid,
-  Entity,
+  // Entity intentionally left out - use PrimitiveCollections in Scene instead
   // EasingFunction // EquivalentEasing is @carma-commons/math
   GeometryInstance,
   GroundPolylineGeometry,
@@ -36,11 +36,11 @@ export {
   Ray,
   SceneMode,
   SceneTransforms,
-  ScreenSpaceCameraController,
   ScreenSpaceEventType,
   // Shaders, // moved to @carma-mapping/engines/cesium/shaders
   ShadowMode,
   Transforms,
+  // Viewer intentionally left out - use CesiumWidget instead
   WebMapServiceImageryProvider,
 } from "cesium";
 
@@ -69,6 +69,7 @@ export * from "./Rectangle";
 export * from "./sampleTerrainMostDetailed";
 export * from "./Scene";
 // eslint-disable-next-line import/export
+export * from "./ScreenSpaceCameraController";
 export * from "./ScreenSpaceEventHandler";
 export * from "./SingleTileImageryProvider";
 export * from "./TileMapServiceImageryProvider";

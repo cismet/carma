@@ -17,7 +17,7 @@ const generateInstanceId = () => `cesium-instance-${crypto.randomUUID()}`;
  * Listens for Activate events and tracks Cesium widget instance lifecycle.
  *
  * NOTE: This ONLY tracks instances for debugging/analytics.
- * Widget initialization is now handled by CesiumSceneComponent via isActive prop.
+ * Widget initialization is now handled by CesiumSceneComponent automatically.
  */
 export const useContextSetupActivationListener = (
   setCesiumInstances: Dispatch<SetStateAction<CesiumInstanceRecord[]>>,

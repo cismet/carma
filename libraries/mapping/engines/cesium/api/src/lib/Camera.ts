@@ -6,6 +6,7 @@ import {
   Matrix4,
   PerspectiveFrustum,
   Cartesian2,
+  HeadingPitchRollValues,
 } from "cesium";
 
 import type {
@@ -14,29 +15,44 @@ import type {
   Longitude,
   LatLngAlt,
 } from "@carma/geo/types";
-import { radToDeg, PI_OVER_TWO, TWO_PI } from "@carma/units/helpers";
+import { radToDeg, degToRad, PI_OVER_TWO, TWO_PI, ZERO_PI, MINUS_PI_OVER_TWO } from "@carma/units/helpers";
 import type { Radians, Degrees } from "@carma/units/types";
 import { cartographicToUnitTyped } from "./Cartographic";
 
-export interface CameraPrimitive {
+export { Camera };
+
+export type CameraStateRecord = {
   position: Cartesian3;
   direction: Cartesian3;
   up: Cartesian3;
   right?: Cartesian3;
   fov?: number;
   frustum?: { fov?: number };
-}
+};
 
-export interface DirectionUp {
+export const isCameraStateRecord = (
+  camera: unknown
+): camera is CameraStateRecord => {
+  const candidate = camera as CameraStateRecord;
+  return (
+    candidate &&
+    typeof candidate === "object" &&
+    candidate.position !== undefined &&
+    candidate.direction !== undefined &&
+    candidate.up !== undefined
+  );
+};
+
+export type DirectionUp = {
   direction: Cartesian3;
   up: Cartesian3;
   right?: Cartesian3;
-}
+};
 
 /**
  * Camera state with position and heading, pitch, roll angles
  */
-type CameraStateHeadingPitchRollDegrees = {
+export type CameraStateHeadingPitchRoll = {
   longitude: Degrees;
   latitude: Degrees;
   altitude: Altitude.EllipsoidalWGS84Meters;
@@ -46,22 +62,22 @@ type CameraStateHeadingPitchRollDegrees = {
   fov?: Degrees;
 };
 
-type CameraStateHeadingPitchRollRadians = {
-  longitude: Radians;
-  latitude: Radians;
-  altitude: Altitude.EllipsoidalWGS84Meters;
-  heading: Radians;
-  pitch: Radians;
-  roll?: Radians;
-  fov?: Radians;
+export const isCameraStateHeadingPitchRoll = (
+  camera: unknown
+): camera is CameraStateHeadingPitchRoll => {
+  const candidate = camera as CameraStateHeadingPitchRoll;
+  return (
+    candidate &&
+    typeof candidate === "object" &&
+    candidate.longitude !== undefined &&
+    candidate.latitude !== undefined &&
+    candidate.altitude !== undefined &&
+    candidate.heading !== undefined &&
+    candidate.pitch !== undefined
+  );
 };
 
-export namespace CameraStateHeadingPitchRoll {
-  export type deg = CameraStateHeadingPitchRollDegrees;
-  export type rad = CameraStateHeadingPitchRollRadians;
-}
-
-export { Camera };
+export type CameraState = CameraStateRecord | CameraStateHeadingPitchRoll;
 
 // Camera direction when pointing straight down (nadir)
 const TOP_DOWN_DIRECTION = new Cartesian3(0, 0, -1);
@@ -182,7 +198,7 @@ export const cameraPositionCartographicDegrees = (
 };
 
 /**
- * Restore camera state from CameraPrimitive (for crash recovery)
+ * Restore camera state from CameraState (for crash recovery)
  *
  * Restores camera position, orientation vectors, and FOV.
  * This is the fastest way to restore camera state - uses setView for proper
@@ -194,32 +210,44 @@ export const cameraPositionCartographicDegrees = (
  * @param camera - The Cesium camera to restore
  * @param state - The saved camera state
  */
-export const restoreCameraState = (
+export const setViewFromCameraState = (
   camera: Camera,
-  state: CameraPrimitive
+  state: CameraState
 ): void => {
-  // Restore position and orientation using setView
-  // This handles coordinate frames properly and updates view matrix
-  // DirectionUp format: { direction, up, right? }
-  if (state.position && state.direction && state.up) {
+  if (isCameraStateRecord(state)) {
+    // Restore position and orientation using setView
+    // This handles coordinate frames properly and updates view matrix
+    // DirectionUp format: { direction, up, right? }
+    const { position, direction, up, right } = state;
+    const destination = position;
     const orientation: DirectionUp = {
-      direction: state.direction,
-      up: state.up,
-      ...(state.right && { right: state.right }), // Only include if defined
+      direction,
+      up,
     };
-
-    camera.setView({
-      destination: state.position,
-      orientation,
-    });
+    if (right) {
+      orientation.right = right;
+    }
+    camera.setView({ destination, orientation });
+  } else if (isCameraStateHeadingPitchRoll(state)) {
+    const destination = Cartesian3.fromDegrees(
+      state.longitude,
+      state.latitude,
+      state.altitude
+    );
+    const orientation: HeadingPitchRollValues = {
+      heading: degToRad(state.heading),
+      pitch: degToRad(state.pitch),
+      roll: degToRad(state.roll),
+    };
+    camera.setView({ destination, orientation });
+  } else {
+    console.error("Invalid camera state format for recovery");
+    return;
   }
 
   // Restore FOV separately (not part of setView API)
-  if (
-    state.frustum?.fov !== undefined &&
-    camera.frustum instanceof PerspectiveFrustum
-  ) {
-    camera.frustum.fov = state.frustum.fov;
+  if (state.fov !== undefined && camera.frustum instanceof PerspectiveFrustum) {
+    camera.frustum.fov = state.fov;
   }
 };
 
@@ -243,13 +271,15 @@ export const restoreCameraState = (
 export const captureCurrentCameraState = (
   camera: Camera,
   includeFov: boolean = true
-): CameraPrimitive => {
-  const state: CameraPrimitive = {
+): CameraStateRecord => {
+  const state: CameraStateRecord = {
+    // need to use world coordinates to capture the latest render state,
+    // only state that acts as a getter
     position: camera.positionWC.clone(),
     direction: camera.directionWC.clone(),
     up: camera.upWC.clone(),
     right: camera.rightWC.clone(),
-    frustum: {},
+    _type: "cameraStateRecord",
   };
 
   if (
@@ -257,8 +287,7 @@ export const captureCurrentCameraState = (
     camera.frustum instanceof PerspectiveFrustum &&
     camera.frustum.fov !== undefined
   ) {
-    state.frustum = state.frustum || {};
-    state.frustum.fov = camera.frustum.fov;
+    state.fov = camera.frustum.fov;
   }
 
   return state;
@@ -340,98 +369,61 @@ export const getFrustumPixelDimensionsForDistance = (
 /**
  * Validate camera state in HeadingPitchRoll format
  *
- * Type guard function that validates unknown input as CameraStateHeadingPitchRoll.deg
+ * Type guard function that validates unknown input as CameraStateHeadingPitchRoll
+ * like from url values
  * @returns true if valid, false if invalid
  */
 export function validateCameraStateHeadingPitchRoll(
-  state: unknown,
-  fieldName: string = "cameraState"
-): state is CameraStateHeadingPitchRoll.deg {
-  const errors: string[] = [];
-
-  // Type guard to ensure state is an object
+  state: unknown
+): [boolean, CameraStateHeadingPitchRoll | null] {
   if (!state || typeof state !== "object") {
-    return false;
+    return [false, null];
   }
 
-  // Validate latitude (-90 to 90)
-  if (
-    !("latitude" in state) ||
-    typeof (state as any).latitude !== "number" ||
-    !isFinite((state as any).latitude)
-  ) {
-    errors.push(`${fieldName}.latitude must be a finite number`);
-  } else if ((state as any).latitude < -90 || (state as any).latitude > 90) {
-    errors.push(`${fieldName}.latitude must be between -90 and 90 degrees`);
+  const obj = state as CameraStateHeadingPitchRoll;
+
+  const latitude = obj.latitude;
+  const longitude = obj.longitude;
+  const altitude = obj.altitude;
+
+  const hasPosition =
+    Number.isFinite(latitude) &&
+    Number.isFinite(longitude) &&
+    Number.isFinite(altitude);
+
+  if (!hasPosition) {
+    console.debug("Invalid camera state: missing or invalid position");
+    return [false, null];
   }
 
-  // Validate longitude (-180 to 180)
-  if (
-    !("longitude" in state) ||
-    typeof (state as any).longitude !== "number" ||
-    !isFinite((state as any).longitude)
-  ) {
-    errors.push(`${fieldName}.longitude must be a finite number`);
-  } else if (
-    (state as any).longitude < -180 ||
-    (state as any).longitude > 180
-  ) {
-    errors.push(`${fieldName}.longitude must be between -180 and 180 degrees`);
+  const result: CameraStateHeadingPitchRoll = {
+    latitude: latitude as Degrees,
+    longitude: longitude as Degrees,
+    altitude: altitude as Altitude.EllipsoidalWGS84Meters,
+    heading: ZERO_PI,
+    pitch: MINUS_PI_OVER_TWO,
+    roll: ZERO_PI,
+    fov: undefined,
+  };
+
+  const hasOrientation =
+    Number.isFinite(obj.heading) &&
+    Number.isFinite(obj.pitch) &&
+    obj.roll !== undefined &&
+    Number.isFinite(obj.roll);
+
+  if (!hasOrientation) {
+    console.warn("Invalid camera state: missing or invalid orientation");
+    return [false, result];
   }
 
-  // Validate altitude
-  if (
-    !("altitude" in state) ||
-    typeof (state as any).altitude !== "number" ||
-    !isFinite((state as any).altitude)
-  ) {
-    errors.push(`${fieldName}.altitude must be a finite number`);
+  result.heading = obj.heading;
+  result.pitch = obj.pitch;
+  result.roll = obj.roll;
+
+  if (obj.fov !== undefined && Number.isFinite(obj.fov)) {
+    result.fov = obj.fov;
   }
 
-  // Validate optional heading
-  if ("heading" in state && (state as any).heading !== undefined) {
-    if (
-      typeof (state as any).heading !== "number" ||
-      !isFinite((state as any).heading)
-    ) {
-      errors.push(`${fieldName}.heading must be a finite number`);
-    }
-  }
-
-  // Validate optional pitch
-  if ("pitch" in state && (state as any).pitch !== undefined) {
-    if (
-      typeof (state as any).pitch !== "number" ||
-      !isFinite((state as any).pitch)
-    ) {
-      errors.push(`${fieldName}.pitch must be a finite number`);
-    } else if ((state as any).pitch < -90 || (state as any).pitch > 90) {
-      errors.push(`${fieldName}.pitch must be between -90 and 90 degrees`);
-    }
-  }
-
-  // Validate optional roll
-  if ("roll" in state && (state as any).roll !== undefined) {
-    if (typeof (state as any).roll !== "number" || !isFinite((state as any).roll)) {
-      errors.push(`${fieldName}.roll must be a finite number`);
-    }
-  }
-
-  // Validate optional FOV
-  if ("fov" in state && (state as any).fov !== undefined) {
-    if (typeof (state as any).fov !== "number" || !isFinite((state as any).fov)) {
-      errors.push(`${fieldName}.fov must be a finite number`);
-    } else if ((state as any).fov <= 0 || (state as any).fov >= 180) {
-      errors.push(
-        `${fieldName}.fov must be between 0 and 180 degrees (exclusive)`
-      );
-    }
-  }
-
-  if (errors.length > 0) {
-    console.error(`[Camera State Validation Failed]\n${errors.join("\n")}`);
-    return false;
-  }
-
-  return true;
+  return [true, result];
 }

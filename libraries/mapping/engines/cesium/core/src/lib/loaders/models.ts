@@ -1,11 +1,9 @@
 import type { ModelConfig } from "@carma/cesium/types";
+import { Model, HeadingPitchRoll, Cartesian3, Transforms } from "@carma/cesium";
 
 export async function loadModelPrimitive(
   config: ModelConfig
 ): Promise<unknown> {
-  const { Model, HeadingPitchRoll, Cartesian3, Transforms } = await import(
-    "@carma/cesium"
-  );
 
   const position = Cartesian3.fromDegrees(
     config.position.longitude,

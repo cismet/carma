@@ -77,13 +77,16 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     selectedImageRefresh,
   } = useOblique();
   const siblingsByCardinal = useSiblingsByCardinal();
+  // TODO: shouldSuspendPitchLimiterRef, shouldSuspendCameraLimitersRef removed from CesiumContext
+  // These need to be managed differently (possibly in PortalContext or as local state)
   const {
     sceneRef,
-    shouldSuspendPitchLimiterRef,
-    shouldSuspendCameraLimitersRef,
     requestRender,
-    transitionLifecycleRef,
   } = useCesiumContext();
+  
+  // Temporary stubs - oblique mode needs refactoring
+  const shouldSuspendPitchLimiterRef = { current: false };
+  const shouldSuspendCameraLimitersRef = { current: false };
   const imageId = selectedImage?.record?.id;
   const cameraId = selectedImage?.record?.cameraId;
   const { isDebugMode, isObliqueUiEval } = useFeatureFlags();

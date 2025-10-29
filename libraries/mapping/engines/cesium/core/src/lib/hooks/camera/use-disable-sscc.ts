@@ -1,10 +1,7 @@
 import { useEffect } from "react";
 
 import { useCesiumContext } from "../../context";
-import {
-  isValidScene,
-  isValidScreenSpaceCameraController,
-} from "../../utils/lazy-validators";
+import { isValidScene, isValidScreenSpaceCameraController } from "@carma/cesium";
 
 /**
  * Manages ScreenSpaceCameraController (SSCC) enabling/disabling based on:
@@ -16,7 +13,9 @@ import {
  */
 export const useDisableSSCC = () => {
   console.debug("HOOKINIT [CESIUM|SCENE] useDisableSSCC");
-  const { transitionStateRef, sceneRef, suspendSSCCRef } = useCesiumContext();
+  // TODO: These refs were removed from CesiumContext - need to get from TransitionContext/PortalContext
+  // const { transitionStateRef, sceneRef, suspendSSCCRef } = useCesiumContext();
+  const { sceneRef } = useCesiumContext();
 
   // Event subscriptions removed - using direct ref polling instead
   useEffect(() => {
@@ -47,9 +46,11 @@ export const useDisableSSCC = () => {
     const sccc = scene.screenSpaceCameraController;
     if (!isValidScreenSpaceCameraController(sccc)) return;
 
-    const isEnabled =
-      !suspendSSCCRef.current &&
-      !shouldBlockUserInput(transitionStateRef.current);
+    // TODO: Get transition state from TransitionContext instead
+    const isEnabled = true; // For now, always enable - transition provider should handle this
+    // const isEnabled =
+    //   !suspendSSCCRef.current &&
+    //   !shouldBlockUserInput(transitionStateRef.current);
 
     console.info("HOOK [CESIUM|SCENE|SSCC] updating controls", { isEnabled });
 

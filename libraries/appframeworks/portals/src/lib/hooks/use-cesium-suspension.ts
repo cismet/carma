@@ -1,7 +1,7 @@
 import { useEffect } from "react";
-import { isValidImageryLayer, isValidScene } from "../../utils/lazy-validators";
-import { useCesiumContext } from "../../context";
-import type { Scene } from "@carma/cesium";
+import { useCesiumContext } from "@carma/cesium/core";
+import { type Scene, isValidScene, isValidImageryLayer } from "@carma/cesium";
+import { usePortalContext } from "../contexts/PortalContext";
 
 const hideLayers = (scene: Scene) => {
   const hideOnce = () => {
@@ -38,34 +38,38 @@ const showLayers = (scene: Scene) => {
 /**
  * Reduces resource usage when Cesium is suspended (not active/visible).
  * Hides imagery layers to save memory and GPU resources.
+ * Uses PortalContext as the single source of truth for suspension state.
+ *
+ * @returns {boolean} Current suspension state
  */
-export const useCesiumWhenSuspended = (delay = 0) => {
-  const { sceneRef, isSuspendedRef } = useCesiumContext();
+export const useCesiumSuspension = (): boolean => {
+  const { sceneRef } = useCesiumContext();
+  const { getEngines } = usePortalContext();
+
+  // Get current suspension state from PortalContext (single source of truth)
+  const engines = getEngines();
+  const cesiumEngine = engines.find((e) => e.engine === "cesium3d");
+  const isSuspended = cesiumEngine?.isSuspended ?? true;
+
   useEffect(() => {
     const scene = sceneRef.current;
     if (!scene) return;
     if (!isValidScene(scene)) return;
-    console.debug("HOOK: [CESIUM] useCesiumWhenSuspended", {
-      suspended: isSuspendedRef.current,
+
+    console.debug("[useCesiumSuspension] Handling suspension state", {
+      suspended: isSuspended,
     });
-    if (isSuspendedRef.current) {
-      if (delay > 0) {
-        setTimeout(() => {
-          console.debug(
-            "HOOK: [CESIUM] hiding cesium imagery layer with delay",
-            delay
-          );
-          hideLayers(scene);
-        }, delay);
-      } else {
-        console.debug("HOOK: [CESIUM] hiding cesium imagery layer undelayed");
-        hideLayers(scene);
-      }
+
+    if (isSuspended) {
+      console.debug("[useCesiumSuspension] Hiding cesium imagery layers");
+      hideLayers(scene);
     } else {
-      console.debug("HOOK: [CESIUM] showing cesium imagery layer");
+      console.debug("[useCesiumSuspension] Showing cesium imagery layers");
       showLayers(scene);
     }
-  }, [delay, sceneRef, isSuspendedRef]);
+  }, [isSuspended, sceneRef]);
+
+  return isSuspended;
 };
 
-export default useCesiumWhenSuspended;
+export default useCesiumSuspension;

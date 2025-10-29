@@ -1,16 +1,20 @@
 import type { MutableRefObject } from "react";
+
+import type { MapView } from "@carma-mapping/engines/leaflet";
+import { validateMapView } from "@carma-mapping/engines/leaflet";
+import {
+  Camera,
+  type CameraState,
+  Rectangle,
+  validateCameraStateHeadingPitchRoll,
+} from "@carma/cesium";
+
 import {
   isMapStyleKey,
   ManagedEngineKeys,
   type MapStyleKey,
 } from "../../constants";
 import type { HashValues } from "../../types";
-import type { MapView } from "@carma-mapping/engines/leaflet";
-import { validateMapView } from "@carma-mapping/engines/leaflet";
-import type { CameraPrimitive } from "@carma/cesium";
-import { transformHeadingPitchRollToPrimitive } from "@carma/cesium/core";
-import { validateCameraStateHeadingPitchRoll } from "@carma/cesium";
-import type { CameraStateHeadingPitchRoll } from "@carma/cesium";
 import type { MapEngineRecord, PortalConfig } from "../../types/portal";
 
 /**
@@ -32,10 +36,13 @@ export const getInitialPortalState = (
   mapStyleRef: MutableRefObject<MapStyleKey>,
   viewRef: MutableRefObject<MapView | null>,
   homeViewRef: MutableRefObject<MapView | null>,
-  cameraRef: MutableRefObject<CameraPrimitive | null>,
-  homeCameraRef: MutableRefObject<CameraPrimitive | null>
+  cameraRef: MutableRefObject<CameraState | null>,
+  homeCameraRef: MutableRefObject<CameraState | null>
 ) => {
-  console.log("[getInitialPortalState] Starting initialization with hashValues:", hashValues);
+  console.log(
+    "[getInitialPortalState] Starting initialization with hashValues:",
+    hashValues
+  );
   // settle map style
   if (mapStyleRef.current === null) {
     const hashStyle = hashValues.mapStyle;
@@ -53,8 +60,11 @@ export const getInitialPortalState = (
   }
 
   // settle engines
-  console.log("[getInitialPortalState] Settling engines. hashValues.engine =", hashValues.engine);
-  
+  console.log(
+    "[getInitialPortalState] Settling engines. hashValues.engine =",
+    hashValues.engine
+  );
+
   if (hashValues.engine === ManagedEngineKeys.CESIUM_3D) {
     console.log("[getInitialPortalState] Setting initial engine to 3D");
     for (const engine of enginesRef.current) {
@@ -66,7 +76,9 @@ export const getInitialPortalState = (
     }
   } else {
     // default to 2D
-    console.log("[getInitialPortalState] Setting initial engine to 2D (default)");
+    console.log(
+      "[getInitialPortalState] Setting initial engine to 2D (default)"
+    );
     for (const engine of enginesRef.current) {
       if (engine.engine === ManagedEngineKeys.LEAFLET_2D) {
         engine.isSuspended = false;
@@ -75,9 +87,10 @@ export const getInitialPortalState = (
       }
     }
   }
-  
-  console.log("[getInitialPortalState] Engine states after settling:", 
-    enginesRef.current.map(e => `${e.engine}: suspended=${e.isSuspended}`)
+
+  console.log(
+    "[getInitialPortalState] Engine states after settling:",
+    enginesRef.current.map((e) => `${e.engine}: suspended=${e.isSuspended}`)
   );
 
   const hasHomeView = validateMapView(config.homeView);
@@ -110,7 +123,7 @@ export const getInitialPortalState = (
       typeof hashValues.longitude === "number" &&
       isFinite(hashValues.latitude) &&
       isFinite(hashValues.longitude);
-    
+
     if (hasHashPosition) {
       viewRef.current = {
         center: {
@@ -137,55 +150,68 @@ export const getInitialPortalState = (
     console.debug("[getInitialPortalState] Map view already set, skipping");
   }
 
-  const hasHomeCamera = validateCameraStateHeadingPitchRoll(config.homeCamera);
+  const [hasHomeCamera, homeCamera] = validateCameraStateHeadingPitchRoll(
+    config.homeCamera
+  );
   if (!hasHomeCamera) {
     throw new Error("No valid home camera in config");
   }
 
   //settle home camera
   if (homeCameraRef.current === null) {
-    const homeCameraPrimitive = transformHeadingPitchRollToPrimitive(
-      config.homeCamera
-    );
-    homeCameraRef.current = homeCameraPrimitive ?? null;
+    homeCameraRef.current = homeCamera;
     console.debug(
-      "[getInitialPortalState] Setting home camera",
+      "[getInitialPortalState] Setting home camera (radians)",
       homeCameraRef.current
     );
   } else {
     console.debug("[getInitialPortalState] Home camera already set, skipping");
   }
 
-  const hasDefaultCamera = validateCameraStateHeadingPitchRoll(
+  const [hasDefaultCamera, defaultCamera] = validateCameraStateHeadingPitchRoll(
     config.defaultCamera
   );
   if (!hasDefaultCamera) {
     throw new Error("No valid default camera in config");
   }
 
+  const defaultCameraRectangle = Rectangle.fromDegrees(
+    // nothing scientific here just a bout a 20km square at 50 north
+    // west
+    defaultCamera.longitude - 0.15,
+    // south
+    defaultCamera.latitude - 0.10,
+    // east
+    defaultCamera.longitude + 0.15,
+    // north
+    defaultCamera.latitude + 0.10
+  );
+
+  console.debug(
+    "[getInitialPortalState] Setting default camera rectangle derived from initial camera",
+    defaultCameraRectangle
+  );
+  Camera.DEFAULT_VIEW_RECTANGLE = defaultCameraRectangle;
+
+  const [hasHashCamera, hashCamera] =
+    validateCameraStateHeadingPitchRoll(hashValues);
+
   // settle initial camera
   if (cameraRef.current === null) {
-    const hasHashCamera = validateCameraStateHeadingPitchRoll(hashValues);
     if (hasHashCamera) {
-      const cameraPrimitive = transformHeadingPitchRollToPrimitive(
-        hashValues as CameraStateHeadingPitchRoll.deg
-      );
-      cameraRef.current = cameraPrimitive ?? null;
+      cameraRef.current = hashCamera;
       console.debug(
-        "[getInitialPortalState] Setting initial camera from hash",
+        "[getInitialPortalState] Setting initial camera from hash (radians)",
         cameraRef.current
       );
     } else {
-      const cameraPrimitive = transformHeadingPitchRollToPrimitive(
-        config.defaultCamera
-      );
-      cameraRef.current = cameraPrimitive ?? null;
+      cameraRef.current = defaultCamera;
       console.debug(
-        "[getInitialPortalState] Setting initial camera from config",
+        "[getInitialPortalState] Setting initial camera from config (radians)",
         cameraRef.current
       );
     }
   } else {
     console.debug("[getInitialPortalState] Camera already set, skipping");
   }
-}
+};

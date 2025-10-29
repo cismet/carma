@@ -16,8 +16,8 @@ import { enterObliqueMode, leaveObliqueMode } from "../utils/camera-utils";
 const preUpdateHandlers = new WeakMap<Scene, (scene: Scene) => void>();
 
 export function useObliqueInitializer(debug = false) {
+  // TODO: shouldSuspendPitchLimiterRef removed from CesiumContext
   const {
-    shouldSuspendPitchLimiterRef,
     requestRender,
     animationMapRef,
     sceneRef,
@@ -50,7 +50,7 @@ export function useObliqueInitializer(debug = false) {
       sceneRef,
       fixedPitch,
       fixedHeight,
-      shouldSuspendPitchLimiterRef
+      { current: false } // TODO: shouldSuspendPitchLimiterRef removed - needs refactoring
     );
 
   useEffect(() => {

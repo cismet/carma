@@ -25,7 +25,6 @@ export * from "./scene/use-ensure-cesium-initialized";
 export * from "./scene/use-cesium-globe";
 export * from "./scene/use-shadows";
 export * from "./scene/use-background-color";
-export * from "./scene/use-cesium-when-suspended";
 
 // Dev hooks
 export * from "./dev/use-reload-on-cesium-render-error";

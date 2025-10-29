@@ -1,4 +1,4 @@
-import { createContext, useRef, useEffect, useState, useMemo } from "react";
+import React, { createContext, useRef, useEffect, useState, useMemo } from "react";
 import { AuthProvider } from "@carma/providers/auth";
 import { SandboxedEvalProvider } from "../../components/SandboxedEvalProvider";
 import { GazDataProvider } from "../../components/GazDataProvider";
@@ -76,13 +76,11 @@ export const PortalContextProvider = ({
     [config.topicMap]
   );
 
+  // Config is static - use directly
+
   // Validate required configs
   if (!config.cesium) {
     throw new Error("Cesium config is required");
-  }
-
-  if (!config.topicMap) {
-    throw new Error("Topic map config is required");
   }
 
   // Validate Cesium config synchronously before rendering (happens once per component lifetime)
@@ -106,24 +104,24 @@ export const PortalContextProvider = ({
           <GazDataProvider config={gazData}>
             {/* TODO: SelectionProvider direct access will be deprecated - use PortalContextProvider methods instead */}
             <SelectionProvider>
-              <TransitionContextProvider config={config.transitions}>
-                <CesiumContextProvider config={config.cesium}>
-                  <CarmaTopicMapContextProvider config={topicMap}>
-                    <MapLibreContextProvider>
-                      <OverlayTourProvider
-                        transparency={overlayTransparency}
-                        color={overlayColor}
-                      >
-                        <HashStateProvider config={config.hashConfig}>
-                          <PortalStateProvider config={config}>
+              <CesiumContextProvider config={config.cesium}>
+                <CarmaTopicMapContextProvider config={topicMap}>
+                  <MapLibreContextProvider>
+                    <OverlayTourProvider
+                      transparency={overlayTransparency}
+                      color={overlayColor}
+                    >
+                      <HashStateProvider config={config.hashConfig}>
+                        <PortalStateProvider config={config}>
+                          <TransitionContextProvider config={config.transitions}>
                             {children}
-                          </PortalStateProvider>
-                        </HashStateProvider>
-                      </OverlayTourProvider>
-                    </MapLibreContextProvider>
-                  </CarmaTopicMapContextProvider>
-                </CesiumContextProvider>
-              </TransitionContextProvider>
+                          </TransitionContextProvider>
+                        </PortalStateProvider>
+                      </HashStateProvider>
+                    </OverlayTourProvider>
+                  </MapLibreContextProvider>
+                </CarmaTopicMapContextProvider>
+              </CesiumContextProvider>
             </SelectionProvider>
           </GazDataProvider>
         </SandboxedEvalProvider>
@@ -132,4 +130,4 @@ export const PortalContextProvider = ({
   );
 };
 
-export default PortalContextProvider;
+export default React.memo(PortalContextProvider);

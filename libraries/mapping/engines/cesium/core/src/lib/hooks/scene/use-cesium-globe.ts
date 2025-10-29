@@ -1,5 +1,6 @@
 import { useEffect, type MutableRefObject } from "react";
 import { useCesiumContext } from "../../context";
+import { Color } from "@carma/cesium";
 
 /**
  * Hook that manages globe appearance settings from style configuration.
@@ -19,7 +20,7 @@ export const useCesiumGlobe = (
 
   // Register callback IMMEDIATELY (synchronous, not in useEffect)
   // This ensures callback is ready when useSceneStyleSwitcher runs
-  styleCallbacksRef.current.onGlobeSettingsChange = async (settings) => {
+  styleCallbacksRef.current.onGlobeSettingsChange = (settings) => {
     const scene = sceneRef.current;
     if (!scene?.globe) {
       console.warn("[Globe] Scene not available for globe settings change");
@@ -27,7 +28,6 @@ export const useCesiumGlobe = (
     }
 
     console.log("[Globe] Applying settings:", settings);
-    const { Color } = await import("@carma/cesium");
     const { globe } = scene;
 
     // Apply baseColor (visual appearance)

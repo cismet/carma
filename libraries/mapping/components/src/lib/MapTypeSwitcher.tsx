@@ -55,18 +55,13 @@ export const MapTypeSwitcher = forwardRef<Ref, Props>(
   ) => {
     // Use ref to avoid re-renders on confirmation state change
     const hasConfirmedRef = useRef(false);
-    const { isCesiumActive, activeEngines } = useActiveEngines();
-    const { enginesRef } = usePortalContext();
-
-    // Get current engine from active engines, default to leaflet2d
-    const currentEngine = activeEngines.length > 0 ? activeEngines[0].engine : "leaflet2d";
+    const { isCesiumActive } = useActiveEngines();
 
     // Derive mode from portal's current engine (any non-cesium engine = 2D)
     const isMode2d = !isCesiumActive;
 
-    // Use the mode toggle hook from transition library (for transition logic only)
+    // Use the mode toggle hook from transition library (now PortalContext-aware)
     const { isTransitioning, toggleMode } = useMapModeToggle({
-      currentEngine, // Pass portal's current engine to hook
       duration,
       onComplete,
       onCancel,
@@ -113,7 +108,6 @@ export const MapTypeSwitcher = forwardRef<Ref, Props>(
     );
 
     console.debug("[MapTypeSwitcher] Render", {
-      currentEngine,
       isMode2d,
       isTransitioning,
     });

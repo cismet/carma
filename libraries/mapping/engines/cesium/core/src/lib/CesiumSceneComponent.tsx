@@ -1,10 +1,9 @@
-import { ReactNode, type RefObject, useMemo, useEffect, useRef } from "react";
+import React, { ReactNode, type RefObject, useMemo, useEffect, useRef } from "react";
 import type { GlobeConstructorOptionsPrimitive } from "@carma/cesium/types";
 import { merge } from "lodash";
 
 import { CesiumErrorHandler } from "./components/CesiumErrorHandler";
 import { SceneStyleManager } from "./components/SceneStyleManager";
-import { useCesiumWhenSuspended } from "./hooks/scene/use-cesium-when-suspended";
 import { useInitCesiumWidget } from "./hooks/scene/use-init-cesium-widget";
 import { useCesiumContext } from "./context/hooks/use-cesium-context";
 import { useSceneCameraTracking } from "./hooks/scene/use-scene-camera-tracking";
@@ -55,9 +54,12 @@ export function CesiumSceneComponent({
   }, []);
 
   renderCountRef.current++;
-  console.log(
-    `[SCENE] RENDER #${renderCountRef.current} (mount #${mountCountRef.current})`
-  );
+  // Reduced logging - only log first few renders to detect issues
+  if (renderCountRef.current <= 3) {
+    console.log(
+      `[SCENE] RENDER #${renderCountRef.current} (mount #${mountCountRef.current})`
+    );
+  }
 
   // Fetch config and style data from context
   const { config, widgetRef } = useCesiumContext();
@@ -76,9 +78,6 @@ export function CesiumSceneComponent({
   // Camera tracking: Updates refs directly (internal coordination only)
   useSceneCameraTracking();
 
-  // Suspension handling
-  useCesiumWhenSuspended();
-
   // Render scene components:
   // - Error handler intercepts Cesium errors
   // - SceneStyleManager coordinates styles and resource loading (receives style config via props)
@@ -92,4 +91,7 @@ export function CesiumSceneComponent({
   );
 }
 
-export default CesiumSceneComponent;
+export default React.memo(CesiumSceneComponent, (prevProps, nextProps) => {
+  // Only re-render if children actually change
+  return prevProps.children === nextProps.children;
+});
