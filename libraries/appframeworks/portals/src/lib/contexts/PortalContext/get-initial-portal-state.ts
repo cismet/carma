@@ -25,7 +25,7 @@ import type { MapEngineRecord, PortalConfig } from "../../types/portal";
  * @param defaultCameraLocation - Default 3D camera location
  * @returns Parsed initial state for portal
  */
-export function getInitialPortalState(
+export const getInitialPortalState = (
   config: PortalConfig,
   hashValues: HashValues,
   enginesRef: MutableRefObject<MapEngineRecord[]>,
@@ -34,7 +34,8 @@ export function getInitialPortalState(
   homeViewRef: MutableRefObject<MapView | null>,
   cameraRef: MutableRefObject<CameraPrimitive | null>,
   homeCameraRef: MutableRefObject<CameraPrimitive | null>
-) {
+) => {
+  console.log("[getInitialPortalState] Starting initialization with hashValues:", hashValues);
   // settle map style
   if (mapStyleRef.current === null) {
     const hashStyle = hashValues.mapStyle;
@@ -52,6 +53,8 @@ export function getInitialPortalState(
   }
 
   // settle engines
+  console.log("[getInitialPortalState] Settling engines. hashValues.engine =", hashValues.engine);
+  
   if (hashValues.engine === ManagedEngineKeys.CESIUM_3D) {
     console.log("[getInitialPortalState] Setting initial engine to 3D");
     for (const engine of enginesRef.current) {
@@ -63,7 +66,7 @@ export function getInitialPortalState(
     }
   } else {
     // default to 2D
-    console.log("[getInitialPortalState] Setting initial engine to 2D");
+    console.log("[getInitialPortalState] Setting initial engine to 2D (default)");
     for (const engine of enginesRef.current) {
       if (engine.engine === ManagedEngineKeys.LEAFLET_2D) {
         engine.isSuspended = false;
@@ -72,6 +75,10 @@ export function getInitialPortalState(
       }
     }
   }
+  
+  console.log("[getInitialPortalState] Engine states after settling:", 
+    enginesRef.current.map(e => `${e.engine}: suspended=${e.isSuspended}`)
+  );
 
   const hasHomeView = validateMapView(config.homeView);
   if (!hasHomeView) {
@@ -100,7 +107,10 @@ export function getInitialPortalState(
   if (viewRef.current === null) {
     const hasHashPosition =
       typeof hashValues.latitude === "number" &&
-      typeof hashValues.longitude === "number";
+      typeof hashValues.longitude === "number" &&
+      isFinite(hashValues.latitude) &&
+      isFinite(hashValues.longitude);
+    
     if (hasHashPosition) {
       viewRef.current = {
         center: {
@@ -108,7 +118,7 @@ export function getInitialPortalState(
           lng: hashValues.longitude as number,
         },
         zoom:
-          typeof hashValues.zoom === "number"
+          typeof hashValues.zoom === "number" && isFinite(hashValues.zoom)
             ? hashValues.zoom
             : config.defaultView.zoom,
       };

@@ -358,9 +358,9 @@ export function validateCameraStateHeadingPitchRoll(
   if (
     !("latitude" in state) ||
     typeof (state as any).latitude !== "number" ||
-    isNaN((state as any).latitude)
+    !isFinite((state as any).latitude)
   ) {
-    errors.push(`${fieldName}.latitude must be a number`);
+    errors.push(`${fieldName}.latitude must be a finite number`);
   } else if ((state as any).latitude < -90 || (state as any).latitude > 90) {
     errors.push(`${fieldName}.latitude must be between -90 and 90 degrees`);
   }
@@ -369,9 +369,9 @@ export function validateCameraStateHeadingPitchRoll(
   if (
     !("longitude" in state) ||
     typeof (state as any).longitude !== "number" ||
-    isNaN((state as any).longitude)
+    !isFinite((state as any).longitude)
   ) {
-    errors.push(`${fieldName}.longitude must be a number`);
+    errors.push(`${fieldName}.longitude must be a finite number`);
   } else if (
     (state as any).longitude < -180 ||
     (state as any).longitude > 180
@@ -383,18 +383,18 @@ export function validateCameraStateHeadingPitchRoll(
   if (
     !("altitude" in state) ||
     typeof (state as any).altitude !== "number" ||
-    isNaN((state as any).altitude)
+    !isFinite((state as any).altitude)
   ) {
-    errors.push(`${fieldName}.altitude must be a number`);
+    errors.push(`${fieldName}.altitude must be a finite number`);
   }
 
   // Validate optional heading
   if ("heading" in state && (state as any).heading !== undefined) {
     if (
       typeof (state as any).heading !== "number" ||
-      isNaN((state as any).heading)
+      !isFinite((state as any).heading)
     ) {
-      errors.push(`${fieldName}.heading must be a number`);
+      errors.push(`${fieldName}.heading must be a finite number`);
     }
   }
 
@@ -402,9 +402,9 @@ export function validateCameraStateHeadingPitchRoll(
   if ("pitch" in state && (state as any).pitch !== undefined) {
     if (
       typeof (state as any).pitch !== "number" ||
-      isNaN((state as any).pitch)
+      !isFinite((state as any).pitch)
     ) {
-      errors.push(`${fieldName}.pitch must be a number`);
+      errors.push(`${fieldName}.pitch must be a finite number`);
     } else if ((state as any).pitch < -90 || (state as any).pitch > 90) {
       errors.push(`${fieldName}.pitch must be between -90 and 90 degrees`);
     }
@@ -412,15 +412,15 @@ export function validateCameraStateHeadingPitchRoll(
 
   // Validate optional roll
   if ("roll" in state && (state as any).roll !== undefined) {
-    if (typeof (state as any).roll !== "number" || isNaN((state as any).roll)) {
-      errors.push(`${fieldName}.roll must be a number`);
+    if (typeof (state as any).roll !== "number" || !isFinite((state as any).roll)) {
+      errors.push(`${fieldName}.roll must be a finite number`);
     }
   }
 
   // Validate optional FOV
   if ("fov" in state && (state as any).fov !== undefined) {
-    if (typeof (state as any).fov !== "number" || isNaN((state as any).fov)) {
-      errors.push(`${fieldName}.fov must be a number`);
+    if (typeof (state as any).fov !== "number" || !isFinite((state as any).fov)) {
+      errors.push(`${fieldName}.fov must be a finite number`);
     } else if ((state as any).fov <= 0 || (state as any).fov >= 180) {
       errors.push(
         `${fieldName}.fov must be between 0 and 180 degrees (exclusive)`

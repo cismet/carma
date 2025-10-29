@@ -39,12 +39,12 @@ import { ManagedEngineKeys } from "../constants";
  * ```
  */
 export const useCesiumStyleSync = () => {
-  const { mapStyleRef, portalConfig, isCesiumActive } = usePortalContext();
+  const { getMapStyle, setMapStyle, portalConfig, isCesiumActive } = usePortalContext();
   const { sceneStyleApplierRef, currentSceneStyleRef } = useCesiumContext();
 
   useEffect(() => {
     // Get the current portal style
-    const portalStyle = mapStyleRef.current;
+    const portalStyle = getMapStyle();
 
     // Map portal style to Cesium style ID
     const cesiumStyleId = portalConfig.mapStyleMappings.cesium[portalStyle];
@@ -86,7 +86,7 @@ export const useCesiumStyleSync = () => {
       }
     }
   }, [
-    mapStyleRef.current,
+    getMapStyle,
     portalConfig.mapStyleMappings.cesium,
     isCesiumActive,
     currentSceneStyleRef,
@@ -106,11 +106,11 @@ export const useCesiumStyleSync = () => {
         styleId
       );
 
-      // Update the portal style ref - this will trigger the useEffect above
-      // to sync the change to the Cesium context
-      mapStyleRef.current = styleId as any;
+      // Update the portal style using the controlled setter
+      // this will trigger the useEffect above to sync the change to the Cesium context
+      setMapStyle(styleId as any);
     },
-    [mapStyleRef]
+    [setMapStyle]
   );
 
   return {

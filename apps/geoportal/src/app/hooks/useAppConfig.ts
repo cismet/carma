@@ -89,6 +89,7 @@ export const useAppConfig = (
     if (config === undefined) {
       setIsLoadingConfig(false);
       console.info("[CONFIG] No config key provided in hash parameters.");
+      console.debug("[CONFIG] Setting isLoadingConfig to false");
       return;
     }
     // can't use HashStateProvider here

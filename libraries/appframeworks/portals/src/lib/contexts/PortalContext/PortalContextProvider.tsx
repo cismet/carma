@@ -43,51 +43,6 @@ interface PortalContextType {
 const PortalContext = createContext<PortalContextType | undefined>(undefined);
 
 /**
- * Gating component that ensures CarmaTopicMapContext has currentMapView before rendering children
- */
-const PortalGate = ({ children }: { children: React.ReactNode }) => {
-  const carmaTopicMapContext = useCarmaTopicMapContext();
-  const [isReady, setIsReady] = useState(false);
-
-  useEffect(() => {
-    console.log("[PortalGate] Checking CarmaTopicMapContext readiness:", {
-      hasContext: !!carmaTopicMapContext,
-      hasCurrentMapView: !!carmaTopicMapContext?.getCurrentMapView(),
-      hasHomeMapView: !!carmaTopicMapContext?.getHomeMapView(),
-    });
-
-    // Check if we have both current and home map views available
-    if (
-      carmaTopicMapContext?.getCurrentMapView() &&
-      carmaTopicMapContext?.getHomeMapView()
-    ) {
-      console.log("[PortalGate] CarmaTopicMapContext is ready, opening gates");
-      setIsReady(true);
-    }
-  }, [carmaTopicMapContext]);
-
-  if (!isReady) {
-    console.log("[PortalGate] Waiting for CarmaTopicMapContext to be ready...");
-    return (
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          height: "100vh",
-          fontSize: "18px",
-          color: "#666",
-        }}
-      >
-        Initializing map context...
-      </div>
-    );
-  }
-
-  return <>{children}</>;
-};
-
-/**
  * PortalContextProvider - Outer context for config extraction and provider orchestration
  *
  * === RESPONSIBILITIES ===
@@ -98,12 +53,14 @@ const PortalGate = ({ children }: { children: React.ReactNode }) => {
  *   - AuthProvider (authentication)
  *   - SandboxedEvalProvider (sandboxed evaluation)
  *   - GazDataProvider (gazetteer data)
- *   - SelectionProvider (selection state)
- *   - TransitionContextProvider (2D↔3D transitions)
- *   - CesiumContextProvider (3D scene management)
- *   - CarmaTopicMapContextProvider (topic map context)
+ *   - SelectionProvider (feature selection)
+ *   - TransitionContextProvider (2D/3D transitions)
+ *   - CesiumContextProvider (Cesium 3D engine)
+ *   - CarmaTopicMapContextProvider (Leaflet 2D engine)
+ *   - MapLibreContextProvider (MapLibre engine)
  *   - OverlayTourProvider (overlay tours)
- *   - PortalStateProvider (inner state management)
+ *   - HashStateProvider (URL hash state)
+ *   - PortalStateProvider (state management and gating)
  */
 
 export const PortalContextProvider = ({
@@ -159,7 +116,7 @@ export const PortalContextProvider = ({
                       >
                         <HashStateProvider config={config.hashConfig}>
                           <PortalStateProvider config={config}>
-                            <PortalGate>{children}</PortalGate>
+                            {children}
                           </PortalStateProvider>
                         </HashStateProvider>
                       </OverlayTourProvider>

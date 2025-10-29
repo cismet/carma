@@ -60,6 +60,8 @@ function App({ published }: { published?: boolean }) {
     portalConfig.configBaseUrl || "",
     layerMap
   );
+  
+  console.debug("[CONFIG] APP - isLoadingConfig state:", isLoadingConfig);
   useManageLayers(layerMap);
   const syncToken = useSyncToken();
   useKeyboardShortcuts();

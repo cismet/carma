@@ -22,7 +22,7 @@ import { ManagedEngineKeys } from "../constants";
  * ```
  */
 export const useActiveEngines = () => {
-  const { enginesRef } = usePortalContext();
+  const { getEngines } = usePortalContext();
 
   // Filter to get only active engines (ready and not suspended)
   const isActiveEngine = (
@@ -30,7 +30,7 @@ export const useActiveEngines = () => {
   ): engine is ManagedEngineRecord => engine.isReady && !engine.isSuspended;
 
   const activeEngines: ManagedEngineRecord[] =
-    enginesRef.current.filter(isActiveEngine);
+    getEngines().filter(isActiveEngine);
 
   /**
    * Execute a callback function on each active engine

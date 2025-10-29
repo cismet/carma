@@ -11,13 +11,21 @@ import type { MapView } from "@carma-mapping/engines/leaflet";
 import type { CameraPrimitive } from "@carma/cesium";
 
 export interface PortalContextType {
-  // Core state refs
-  mapStyleRef: MutableRefObject<MapStyleKey>;
-  enginesRef: MutableRefObject<MapEngineRecord[]>;
-  viewRef: MutableRefObject<MapView | null>;
-  cameraRef: MutableRefObject<CameraPrimitive | null>;
-  homeViewRef: MutableRefObject<MapView | null>;
-  homeCameraRef: MutableRefObject<CameraPrimitive | null>;
+  // Gate status - indicates if portal has passed initialization gate
+  passedGate: boolean;
+  
+  // Core state getters - read current values
+  getMapStyle: () => MapStyleKey;
+  getEngines: () => MapEngineRecord[];
+  getView: () => MapView | null;
+  getCamera: () => CameraPrimitive | null;
+  getHomeView: () => MapView | null;
+  getHomeCamera: () => CameraPrimitive | null;
+  
+  // Core state updaters - mutate values
+  setEngines: (engines: MapEngineRecord[] | ((prev: MapEngineRecord[]) => MapEngineRecord[])) => void;
+  updateEngine: (engineType: MapEngine, updates: Partial<MapEngineRecord>) => void;
+  
   portalConfig: PortalConfig;
   // Callback refs
   topicMapSyncCallbackRef: MutableRefObject<

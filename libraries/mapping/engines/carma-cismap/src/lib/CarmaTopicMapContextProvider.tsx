@@ -127,13 +127,18 @@ const CarmaTopicMapContextInner = memo(
 
     // Update the ref when leaflet map changes
     useEffect(() => {
+      const previousMap = leafletMapRef.current;
       leafletMapRef.current = leafletMap;
-      if (leafletMap) {
+      
+      if (leafletMap && leafletMap !== previousMap) {
+        console.debug("[TopicMapContext] Leaflet map instance updated");
         leafletMap.whenReady(() => {
           console.debug("[TopicMapContext] Leaflet map ready");
+          // Trigger MapView update to notify Portal that map is ready
+          triggerMapViewUpdate();
         });
       }
-    }, [leafletMap]);
+    }, [leafletMap, triggerMapViewUpdate]);
 
     // Stable getters for react-cismap context values (prevent consumer re-renders)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

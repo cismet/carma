@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 import { useActiveEngines } from "./use-active-engines";
 import { ManagedEngineKeys } from "../constants";
+import { usePortalContext } from "../contexts/PortalContext";
 import type { ManagedEngineRecord } from "../types/map-engines";
 
 /**
@@ -23,11 +24,14 @@ import type { ManagedEngineRecord } from "../types/map-engines";
  */
 export const usePortalZoomControls = () => {
   const { activeEngines } = useActiveEngines();
+  const { getEngines } = usePortalContext();
 
   const handleZoomIn = useCallback(() => {
     if (activeEngines?.length < 1) {
       console.warn(
-        "[usePortalZoomControls] No active engines found for zoom in"
+        "[usePortalZoomControls] No active engines found for zoom in",
+        activeEngines,
+        getEngines()
       );
       return;
     }
@@ -67,7 +71,9 @@ export const usePortalZoomControls = () => {
   const handleZoomOut = useCallback(() => {
     if (activeEngines?.length < 1) {
       console.warn(
-        "[usePortalZoomControls] No active engines found for zoom out"
+        "[usePortalZoomControls] No active engines found for zoom out",
+        activeEngines,
+        getEngines()
       );
       return;
     }

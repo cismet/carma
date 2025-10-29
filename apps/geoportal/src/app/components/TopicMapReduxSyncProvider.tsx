@@ -39,7 +39,7 @@ export const TopicMapReduxSyncProvider = ({
   children: ReactNode;
 }) => {
   const dispatch = useDispatch();
-  const { mapStyleRef, setTopicMapSyncCallback } = usePortalContext();
+  const { getMapStyle, setTopicMapSyncCallback } = usePortalContext();
 
   // Redux selectors
   const selectedMapLayer = useSelector((state: RootState) =>
@@ -94,7 +94,7 @@ export const TopicMapReduxSyncProvider = ({
 
   // Path 2: Reactive sync (Portal → Redux)
   useEffect(() => {
-    const currentMapStyle = mapStyleRef.current;
+    const currentMapStyle = getMapStyle();
     if (!currentMapStyle) return;
 
     console.log(
@@ -125,10 +125,11 @@ export const TopicMapReduxSyncProvider = ({
     console.log(
       "[TopicMapReduxSyncProvider] Redux synced - TopicMap should update"
     );
-    // IMPORTANT: ONLY react to mapStyleRef.current (Portal is the source)
+    // IMPORTANT: ONLY react to getMapStyle() (Portal is the source)
     // Redux values are READ but NOT in dependencies (one-way sync from Portal)
+    // Note: getMapStyle is stable (memoized), so we include it to track changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mapStyleRef.current, dispatch]);
+  }, [getMapStyle, dispatch]);
 
   return <>{children}</>;
 };

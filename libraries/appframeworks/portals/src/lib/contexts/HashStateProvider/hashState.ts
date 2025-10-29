@@ -51,7 +51,7 @@ const getNumberCodec = (fixed?: number, trailingZeros = false): HashCodec => ({
     return undefined;
   },
   decode: (value: string | undefined) =>
-    value !== undefined ? parseFloat(value) : undefined,
+    value !== undefined && value !== "" ? parseFloat(value) : undefined,
 });
 
 /**

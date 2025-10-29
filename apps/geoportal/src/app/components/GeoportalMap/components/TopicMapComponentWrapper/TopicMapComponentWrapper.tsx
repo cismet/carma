@@ -78,12 +78,21 @@ type TopicMapComponentWrapperProps = {
 
 const noop = () => {};
 
+/**
+ * ESSENTIAL PORTAL WRAPPER for 2D Leaflet map instance setup
+ *
+ * This component is essential for setting up the Leaflet map instance within the portal architecture.
+ * It reads initial state from PortalContext refs (guaranteed by portal gating) and configures the TopicMap.
+ *
+ * NOTE: Currently in apps/geoportal due to Redux integrations, but should eventually move to @carma-appframeworks/portals
+ * alongside CesiumMapComponentWrapper for consistency.
+ */
 export const TopicMapComponentWrapper = ({
   height,
   width,
 }: TopicMapComponentWrapperProps) => {
   const dispatch = useDispatch();
-  const { portalConfig } = usePortalContext();
+  const { portalConfig, updateEngine, getEngines, passedGate, getView, getHomeView } = usePortalContext();
   const { zoomSnap, zoomDelta } = portalConfig.leaflet;
 
   // Get CarmaTopicMapContext for MapView data
@@ -397,9 +406,125 @@ export const TopicMapComponentWrapper = ({
 
   console.debug("RENDER [GEOPORTAL|TOPICMAP]");
 
-  // Get initial position from CarmaTopicMapContext (set by PortalContext on init)
-  // is guaranteed to have value due to gating in portal context provider
-  const { center, zoom } = carmaTopicMapContext.getCurrentMapView();
+  // Get initial position from PortalContext view (set by getInitialPortalState)
+  // Portal gating guarantees this is available when passedGate is true
+  const view = getView();
+  
+  if (!passedGate || !view) {
+    console.error(
+      "[TopicMapComponentWrapper] CRITICAL: Portal gate not passed or view is null. " +
+        "This indicates a portal initialization bug.",
+      { passedGate, view }
+    );
+    throw new Error("Portal initialization failed: gate not passed or view not set");
+  }
+
+  const { center, zoom } = view;
+
+  // Function to update the Leaflet engine record
+  const updateLeafletEngineRecord = useCallback(() => {
+    // Get current engines to check if leaflet2d is ready
+    const engines = getEngines();
+    const leafletEngine = engines.find(
+      (engine) => engine.engine === "leaflet2d"
+    );
+
+    if (leafletEngine && !leafletEngine.isReady) {
+      console.log(
+        "[TopicMapComponentWrapper] Marking Leaflet engine as ready"
+      );
+
+      // Get the actual Leaflet map instance
+      const leafletMap = carmaTopicMapContext.leafletMapRef.current;
+
+      if (!leafletMap) {
+        console.error(
+          "[TopicMapComponentWrapper] Leaflet map instance not available"
+        );
+        return;
+      }
+
+      // Update the engine using the controlled updater function
+      updateEngine("leaflet2d", {
+        isReady: true,
+        zoomOut: (onComplete?: () => void) => {
+          console.debug("[TopicMapComponentWrapper] Engine zoomOut called");
+          leafletMap.zoomOut();
+          onComplete?.();
+        },
+        zoomIn: (onComplete?: () => void) => {
+          console.debug("[TopicMapComponentWrapper] Engine zoomIn called");
+          leafletMap.zoomIn();
+          onComplete?.();
+        },
+        flyHome: (onComplete?: () => void) => {
+          console.debug("[TopicMapComponentWrapper] Engine flyHome called");
+          const homeView = getHomeView();
+
+          if (!homeView) {
+            console.warn("[TopicMapComponentWrapper] No home view available");
+            onComplete?.();
+            return;
+          }
+
+          console.debug("[TopicMapComponentWrapper] Flying to home:", homeView);
+
+          const handleMoveEnd = () => {
+            console.debug("[TopicMapComponentWrapper] flyHome moveend fired");
+            leafletMap.off("moveend", handleMoveEnd);
+            onComplete?.();
+          };
+
+          leafletMap.on("moveend", handleMoveEnd);
+          leafletMap.flyTo(homeView.center, homeView.zoom, {
+            animate: true,
+            duration: 2,
+          });
+        },
+        setStyle: (style: string) => {
+          console.debug(
+            "[TopicMapComponentWrapper] Engine setStyle called with:",
+            style
+          );
+          // TODO: Implement style switching for Leaflet
+        },
+        setCamera: (camera: any) => {
+          console.debug(
+            "[TopicMapComponentWrapper] Engine setCamera called with:",
+            camera
+          );
+          // TODO: Implement camera setting for Leaflet (convert to MapView)
+        },
+        debug: {
+          config: portalConfig.leaflet,
+          timestamp: Date.now(),
+        },
+      });
+    }
+  }, [carmaTopicMapContext, updateEngine, portalConfig.leaflet, getEngines]);
+
+  // Register callback for when the Leaflet map is ready
+  useEffect(() => {
+    console.debug("[TopicMapComponentWrapper] Registering map ready callback");
+
+    // Register callback to be notified when map is ready
+    carmaTopicMapContext.onMapViewUpdate(() => {
+      console.debug(
+        "[TopicMapComponentWrapper] MapView update received, checking if map is ready"
+      );
+
+      // Update engine record when map is ready
+      updateLeafletEngineRecord();
+    });
+
+    // Also check if map is already available and update engine record
+    if (carmaTopicMapContext.leafletMapRef.current) {
+      console.debug(
+        "[TopicMapComponentWrapper] Leaflet map already available, updating engine record"
+      );
+      updateLeafletEngineRecord();
+    }
+  }, [carmaTopicMapContext, updateLeafletEngineRecord]);
 
   return (
     <div className={"map-container-2d"} style={{ zIndex: 400 }}>
