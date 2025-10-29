@@ -20,33 +20,37 @@ export const useShareUrl = () => {
     closePopover?: () => void;
     selection?: SelectionItem;
   }) => {
-    const { layers, backgroundLayer, selectedLuftbildLayer, selectedMapLayer } =
-      layerState;
-    const currentParams = getHashParams();
-    const lat = currentParams.lat || 51.27256992259917;
-    const lng = currentParams.lng || 7.199920713901521;
-    const zoom = currentParams.zoom || 18;
-
-    const newSearchParams = new URLSearchParams(currentParams);
-
-    const view = {
-      center: [lat, lng],
-      zoom: zoom,
-    };
-    const newConfig = {
-      backgroundLayer: {
-        ...backgroundLayer,
-        selectedLayerId:
-          backgroundLayer.id === "luftbild"
-            ? selectedLuftbildLayer.id
-            : selectedMapLayer.id,
-      },
-      layers,
-      view,
-      selection,
-    };
-    const jsonString = JSON.stringify(newConfig);
     try {
+      const {
+        layers,
+        backgroundLayer,
+        selectedLuftbildLayer,
+        selectedMapLayer,
+      } = layerState;
+      const currentParams = getHashParams();
+      const lat = currentParams.lat || 51.27256992259917;
+      const lng = currentParams.lng || 7.199920713901521;
+      const zoom = currentParams.zoom || 18;
+
+      const newSearchParams = new URLSearchParams(currentParams);
+
+      const view = {
+        center: [lat, lng],
+        zoom: zoom,
+      };
+      const newConfig = {
+        backgroundLayer: {
+          ...backgroundLayer,
+          selectedLayerId:
+            backgroundLayer.id === "luftbild"
+              ? selectedLuftbildLayer.id
+              : selectedMapLayer.id,
+        },
+        layers,
+        view,
+        selection,
+      };
+      const jsonString = JSON.stringify(newConfig);
       const baseUrl = window.location.origin + window.location.pathname;
       let combinedHash = "";
       newSearchParams.forEach((value, key) => {
