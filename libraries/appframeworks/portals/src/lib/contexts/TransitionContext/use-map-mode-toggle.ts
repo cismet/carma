@@ -29,7 +29,7 @@ export const useMapModeToggle = (options: MapModeToggleOptions) => {
     onEngineChange,
   } = options;
 
-  const { isTransitioningRef, currentMode, onCesiumFadeInRef } = useTransitionContext();
+  const { isTransitioningRef, currentMode, onCesiumFadeInRef, onCesiumFadeOutRef } = useTransitionContext();
   const isMode2d = currentMode === "2d";
 
   // Log initial state for debugging
@@ -62,6 +62,10 @@ export const useMapModeToggle = (options: MapModeToggleOptions) => {
     onCesiumFadeIn: () => {
       // Call the registered callback from context
       onCesiumFadeInRef.current?.();
+    },
+    onCesiumFadeOut: () => {
+      // Call the registered callback from context
+      onCesiumFadeOutRef.current?.();
     },
   });
 

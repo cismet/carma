@@ -1,7 +1,8 @@
 import { useCallback, useEffect } from "react";
 import { usePortalContext } from "../contexts/PortalContext";
 import { useCesiumContext } from "@carma/mapping/engines/cesium/core";
-import { ManagedEngineKeys } from "../constants";
+import { useTransitionContext } from "../contexts/TransitionContext";
+import type { MapStyleKey } from "../constants";
 
 /**
  * Hook to sync Cesium scene style ID from portal context with Cesium context
@@ -11,15 +12,26 @@ import { ManagedEngineKeys } from "../constants";
  *
  */
 export const useCesiumStyleSync = () => {
-  const { getMapStyle, setMapStyle, portalConfig, getIsCesiumActive } = usePortalContext();
+  console.log("[useCesiumStyleSync] ===== HOOK ENTRY POINT =====");
+  const { getMapStyle, setMapStyle, portalConfig } = usePortalContext();
+  console.log("[useCesiumStyleSync] Got PortalContext");
   const { getSceneStyleApplier, getCurrentSceneStyle, setCurrentSceneStyle } = useCesiumContext();
+  console.log("[useCesiumStyleSync] Got CesiumContext");
+  const { currentMode } = useTransitionContext();
+  console.log("[useCesiumStyleSync] Got TransitionContext, currentMode:", currentMode);
+
+  console.log("[useCesiumStyleSync] Hook called/rendered");
 
   useEffect(() => {
+    console.log("[useCesiumStyleSync] ===== useEffect TRIGGERED =====");
+    
     // Get the current portal style
     const portalStyle = getMapStyle();
+    console.log("[useCesiumStyleSync] Current portal style:", portalStyle);
 
     // Map portal style to Cesium style ID
     const cesiumStyleId = portalConfig.mapStyleMappings.cesium[portalStyle];
+    console.log("[useCesiumStyleSync] Mapped to Cesium style:", cesiumStyleId);
 
     if (!cesiumStyleId) {
       console.warn(
@@ -29,9 +41,14 @@ export const useCesiumStyleSync = () => {
       return;
     }
 
+    const currentCesiumStyle = getCurrentSceneStyle();
+    const isCesiumActive = currentMode === "3d";
+    console.log("[useCesiumStyleSync] Current Cesium context style:", currentCesiumStyle);
+    console.log("[useCesiumStyleSync] Is Cesium active (3D mode)?", isCesiumActive);
+
     // Always update the current style in the context (even when suspended)
     // This ensures the correct style is available when Cesium becomes active
-    if (getCurrentSceneStyle() !== cesiumStyleId) {
+    if (currentCesiumStyle !== cesiumStyleId) {
       console.log(
         "[useCesiumStyleSync] Updating Cesium scene style:",
         portalStyle,
@@ -44,12 +61,13 @@ export const useCesiumStyleSync = () => {
 
       // Only apply the style if Cesium is active and scene is ready
       const applier = getSceneStyleApplier();
-      if (getIsCesiumActive() && applier) {
+      if (isCesiumActive && applier) {
+        console.log("[useCesiumStyleSync] Applying style to scene (Cesium is active)");
         applier(cesiumStyleId);
-      } else if (!getIsCesiumActive()) {
+      } else if (!isCesiumActive) {
         console.debug(
-          "[useCesiumStyleSync] Cesium is suspended - style updated in context only",
-          "(will be applied when Cesium becomes active)"
+          "[useCesiumStyleSync] Cesium is suspended (2D mode) - style updated in context only",
+          "(will be applied when switching to 3D mode)"
         );
       } else if (!applier) {
         console.debug(
@@ -61,7 +79,7 @@ export const useCesiumStyleSync = () => {
   }, [
     getMapStyle,
     portalConfig.mapStyleMappings.cesium,
-    getIsCesiumActive,
+    currentMode,
     getCurrentSceneStyle,
     setCurrentSceneStyle,
     getSceneStyleApplier,
@@ -82,7 +100,7 @@ export const useCesiumStyleSync = () => {
 
       // Update the portal style using the controlled setter
       // this will trigger the useEffect above to sync the change to the Cesium context
-      setMapStyle(styleId as any);
+      setMapStyle(styleId as MapStyleKey);
     },
     [setMapStyle]
   );

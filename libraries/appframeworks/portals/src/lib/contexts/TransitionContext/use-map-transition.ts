@@ -19,6 +19,7 @@ type TransitionOptions = {
   onCancel?: (isTo2D: boolean) => void;
   onEngineChange?: (engine: "leaflet2d" | "cesium3d") => void;
   onCesiumFadeIn?: () => void;
+  onCesiumFadeOut?: () => void;
   duration?: number;
 };
 
@@ -27,6 +28,7 @@ export const useMapTransition = ({
   onCancel,
   onEngineChange,
   onCesiumFadeIn,
+  onCesiumFadeOut,
   duration,
 }: TransitionOptions = {}) => {
   const {
@@ -105,9 +107,8 @@ export const useMapTransition = ({
         isTransitioningRef.current = false;
         console.debug("[Transition] 2D→3D: Complete");
 
-        // Update engine suspension states: Cesium active, Leaflet suspended
-        // This automatically updates currentMode (derived from suspension state)
-        console.log("[Transition] 2D→3D: Updating engine suspension states");
+        // Update engine suspension states - TransitionContext will detect and update currentMode
+        console.debug("[Transition] 2D→3D: Updating engine suspension states");
         updateEngine("cesium3d", { isSuspended: false });
         updateEngine("leaflet2d", { isSuspended: true });
 
@@ -164,16 +165,15 @@ export const useMapTransition = ({
           "[Transition] 3D→2D: Camera animation complete, starting CSS fade"
         );
 
-        // CSS fade-out will be handled by the transition logic
-        // No need to emit Cesium events
+        // Trigger CSS fade-out callback
+        onCesiumFadeOut?.();
       },
       onComplete: (isTo2d: boolean) => {
         isTransitioningRef.current = false;
         console.debug("[Transition] 3D→2D: Complete");
 
-        // Update engine suspension states: Leaflet active, Cesium suspended
-        // This automatically updates currentMode (derived from suspension state)
-        console.log("[Transition] 3D→2D: Updating engine suspension states");
+        // Update engine suspension states - TransitionContext will detect and update currentMode
+        console.debug("[Transition] 3D→2D: Updating engine suspension states");
         updateEngine("leaflet2d", { isSuspended: false });
         updateEngine("cesium3d", { isSuspended: true });
 
@@ -196,6 +196,7 @@ export const useMapTransition = ({
       contextConfig.modeTo2d,
       isTransitioningRef,
       updateEngine,
+      onCesiumFadeOut,
       onEngineChange,
       onComplete,
       onCancel,

@@ -146,7 +146,7 @@ export const PortalStateProvider = ({
   children,
   config,
 }: PortalStateProviderProps) => {
-  const { onHashInitialized } = useHashState();
+  const { onHashInitialized, updateHash } = useHashState();
 
   // Canonical force update hook
   // See: https://react.dev/reference/react/useState#forcing-a-component-to-reset
@@ -200,7 +200,13 @@ export const PortalStateProvider = ({
   const setMapStyle = useCallback((newStyle: MapStyleKey) => {
     const processedStyle = mapStyleInterceptor(newStyle);
     mapStyleRef.current = processedStyle;
-  }, [mapStyleInterceptor]);
+    
+    // Update hash with the encoded mapStyle value
+    updateHash(
+      { mapStyle: processedStyle },
+      { label: "PortalContext:mapStyle" }
+    );
+  }, [mapStyleInterceptor, updateHash]);
 
   const getView = useCallback(() => viewRef.current, []);
   const setView = useCallback((view: MapView | null) => {
@@ -275,6 +281,20 @@ export const PortalStateProvider = ({
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Apply initial mapStyle to engines after initialization
+  // This ensures engines receive the initial style from hash
+  useEffect(() => {
+    if (isPortalInitializedRef.current && mapStyleRef.current && activeEngines.length > 0) {
+      console.log(
+        "[PortalStateProvider] Applying initial mapStyle to engines:",
+        mapStyleRef.current
+      );
+      // Use the interceptor to notify all engines of the initial style
+      mapStyleInterceptor(mapStyleRef.current);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mapStyleInterceptor, activeEngines]);
 
   // Extract internal hooks for better organization
   const { setTopicMapSyncCallback } = useTopicMapSyncCallback(

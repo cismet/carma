@@ -27,6 +27,7 @@ export interface TransitionContextType {
   isTransitioningRef: MutableRefObject<boolean>;
   currentMode: "2d" | "3d"; // Derived from engine suspension state
   onCesiumFadeInRef: MutableRefObject<(() => void) | null>;
+  onCesiumFadeOutRef: MutableRefObject<(() => void) | null>;
   
   // Engine state management - injected from portal layer (PURE ENGINES PARADIGM)
   getEngines: GetEnginesFn;

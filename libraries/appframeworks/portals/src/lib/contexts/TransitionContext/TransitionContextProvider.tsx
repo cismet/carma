@@ -55,6 +55,7 @@ export const TransitionContextProvider = ({
 }: TransitionContextProviderProps) => {
   const isTransitioningRef = useRef<boolean>(false);
   const onCesiumFadeInRef = useRef<(() => void) | null>(null);
+  const onCesiumFadeOutRef = useRef<(() => void) | null>(null);
 
   // Derive currentMode from engine suspension state (single source of truth)
   // Use state to make it reactive to engine updates
@@ -88,7 +89,7 @@ export const TransitionContextProvider = ({
     return () => clearInterval(interval);
   }, [getEngines, currentMode]);
 
-  // Extract getContainer from Cesium engine and create fade-in function
+  // Extract getContainer from Cesium engine and create fade-in/out functions
   useEffect(() => {
     const engines = getEngines();
     const cesiumEngine = engines.find(e => e.engine === "cesium3d") as any;
@@ -98,6 +99,13 @@ export const TransitionContextProvider = ({
         if (container) {
           // Trigger CSS fade-in by setting opacity to 1
           container.style.opacity = '1';
+        }
+      };
+      onCesiumFadeOutRef.current = () => {
+        const container = cesiumEngine.getContainer();
+        if (container) {
+          // Trigger CSS fade-out by setting opacity to 0
+          container.style.opacity = '0';
         }
       };
     }
@@ -123,6 +131,7 @@ export const TransitionContextProvider = ({
       isTransitioningRef,
       currentMode, // Derived, updates automatically when engine suspension changes
       onCesiumFadeInRef,
+      onCesiumFadeOutRef,
 
       // Engine state management - pass through from portal layer (PURE ENGINES PARADIGM)
       getEngines,

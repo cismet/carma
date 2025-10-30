@@ -7,6 +7,7 @@ import type { Scene } from "@carma/cesium";
 import { usePortalContext } from "../contexts/PortalContext";
 import { useCesiumSuspension } from "../hooks/use-cesium-suspension";
 import { useCesiumEngineMethods } from "../hooks/use-cesium-engine-methods";
+import { useCesiumStyleSync } from "../hooks/use-cesium-style-sync";
 
 /**
  * Check if scene is valid (exists and not destroyed)
@@ -114,6 +115,12 @@ export const CesiumMapComponentWrapper = ({
     setStyle,
     debugInfo,
   } = useCesiumEngineMethods(portalConfig);
+
+  // CRITICAL: Activate style sync - monitors portal map style changes and applies to Cesium
+  // This must run in the wrapper to ensure style changes are applied when active
+  console.log("[CesiumMapComponentWrapper] About to call useCesiumStyleSync");
+  useCesiumStyleSync();
+  console.log("[CesiumMapComponentWrapper] useCesiumStyleSync called");
 
   const contextCamera = getCesiumCtxCamera();
   // Set initial camera state synchronously before scene renders
