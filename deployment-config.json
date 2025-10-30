@@ -1047,7 +1047,7 @@
           },
           "live": {
             "pages": {
-              "org": "carma-dev-deployments",
+              "org": "digital-twin-wuppertal-live",
               "prj": "lagis-desktop"
             }
           }
