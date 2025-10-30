@@ -155,7 +155,10 @@ export const useLoadCapabilities = ({
                       });
                     }
                   });
-                  const mergedLayer = mergeStructures(layerStructure, newLayers);
+                  const mergedLayer = mergeStructures(
+                    layerStructure,
+                    newLayers
+                  );
 
                   newLayers = mergedLayer;
                   const updatedLayers: Layer[] = newLayers;

@@ -1,4 +1,4 @@
-import { SnappingPoint } from '../types';
+import { SnappingPoint } from "../types";
 
 /**
  * Extract snapping points from a GeoJSON geometry
@@ -15,66 +15,66 @@ export function extractPointsFromGeometry(
   }
 
   switch (geometry.type) {
-    case 'Point':
+    case "Point":
       points.push({
         coordinates: geometry.coordinates,
         sourceId,
-        metadata: { geometryType: 'Point' },
+        metadata: { geometryType: "Point" },
       });
       break;
 
-    case 'LineString':
+    case "LineString":
       geometry.coordinates.forEach((coord: any) => {
         points.push({
           coordinates: coord,
           sourceId,
-          metadata: { geometryType: 'LineString' },
+          metadata: { geometryType: "LineString" },
         });
       });
       break;
 
-    case 'Polygon':
+    case "Polygon":
       geometry.coordinates.forEach((ring: any) => {
         ring.forEach((coord: any) => {
           points.push({
             coordinates: coord,
             sourceId,
-            metadata: { geometryType: 'Polygon' },
+            metadata: { geometryType: "Polygon" },
           });
         });
       });
       break;
 
-    case 'MultiPoint':
+    case "MultiPoint":
       geometry.coordinates.forEach((coord: any) => {
         points.push({
           coordinates: coord,
           sourceId,
-          metadata: { geometryType: 'MultiPoint' },
+          metadata: { geometryType: "MultiPoint" },
         });
       });
       break;
 
-    case 'MultiLineString':
+    case "MultiLineString":
       geometry.coordinates.forEach((line: any) => {
         line.forEach((coord: any) => {
           points.push({
             coordinates: coord,
             sourceId,
-            metadata: { geometryType: 'MultiLineString' },
+            metadata: { geometryType: "MultiLineString" },
           });
         });
       });
       break;
 
-    case 'MultiPolygon':
+    case "MultiPolygon":
       geometry.coordinates.forEach((polygon: any) => {
         polygon.forEach((ring: any) => {
           ring.forEach((coord: any) => {
             points.push({
               coordinates: coord,
               sourceId,
-              metadata: { geometryType: 'MultiPolygon' },
+              metadata: { geometryType: "MultiPolygon" },
             });
           });
         });
@@ -102,10 +102,10 @@ export function extractPointsFromMeasurementShape(
     return points;
   }
 
-  const type = (shape.shapeType || shape.shapeTy || '').toLowerCase();
+  const type = (shape.shapeType || shape.shapeTy || "").toLowerCase();
   const coords = shape.coordinates;
 
-  if (type === 'polygon') {
+  if (type === "polygon") {
     // Handle both single polygon and multi-polygon formats
     const rings = Array.isArray(coords[0][0]) ? coords : [coords];
 
@@ -117,7 +117,7 @@ export function extractPointsFromMeasurementShape(
           sourceId,
           metadata: {
             shapeId: shape.shapeId,
-            geometryType: 'polygon',
+            geometryType: "polygon",
           },
         });
       });
@@ -131,7 +131,7 @@ export function extractPointsFromMeasurementShape(
         sourceId,
         metadata: {
           shapeId: shape.shapeId,
-          geometryType: 'polyline',
+          geometryType: "polyline",
         },
       });
     });

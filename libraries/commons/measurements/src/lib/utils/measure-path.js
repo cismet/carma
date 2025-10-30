@@ -150,22 +150,23 @@ L.Control.MeasurePolygon = L.Control.extend({
 
     // Store original click position before Leaflet.Draw modifies it
     this._lastOriginalClick = null;
-    
+
     const storeClickPosition = (e) => {
       if (this._measureHandler && this._measureHandler._enabled) {
         // Store the ORIGINAL click position
         this._lastOriginalClick = {
           latlng: L.latLng(e.latlng.lat, e.latlng.lng),
-          containerPoint: map.latLngToContainerPoint(e.latlng)
+          containerPoint: map.latLngToContainerPoint(e.latlng),
         };
       }
     };
-    
-    map.on('click', storeClickPosition);
-    map.on('touchstart', storeClickPosition); // Also handle touch events on mobile
-    const latlng = (this.options.snappingEnabled && this.options.snappingLatlng)
-      ? this.options.snappingLatlng
-      : event.latlng;
+
+    map.on("click", storeClickPosition);
+    map.on("touchstart", storeClickPosition); // Also handle touch events on mobile
+    const latlng =
+      this.options.snappingEnabled && this.options.snappingLatlng
+        ? this.options.snappingLatlng
+        : event.latlng;
 
     this.options.currenLine.addVertex(latlng);
 
@@ -235,10 +236,13 @@ L.Control.MeasurePolygon = L.Control.extend({
 
     // Set status based on drag type
     if (this.options.cbSetMapStatus) {
-      if (event.type === "editable:drag" || event.type === "editable:dragstart") {
+      if (
+        event.type === "editable:drag" ||
+        event.type === "editable:dragstart"
+      ) {
         // Dragging whole shape
         this.options.cbSetMapStatus("MOVING");
-      } else if (event.type === "editable:vertex:drag" ) {
+      } else if (event.type === "editable:vertex:drag") {
         // Dragging vertices or deleting vertex
         this.options.cbSetMapStatus("EDITING");
       }
@@ -422,38 +426,42 @@ L.Control.MeasurePolygon = L.Control.extend({
         const markerLatLng = layer.getLatLng();
         layer.customHandle = index++;
 
-
         // Store reference to the click handler so we can check conditions
         const vertexClickHandler = (e) => {
           const clickLatLng = e.latlng;
           const markerLatLng = e.target.getLatLng();
-          
+
           // Use the ORIGINAL click position stored in map click handler
           const originalClick = this._lastOriginalClick;
-          
+
           // Calculate pixel distance using ORIGINAL click position
-          const clickPoint = originalClick ? originalClick.containerPoint : this._map.latLngToContainerPoint(clickLatLng);
+          const clickPoint = originalClick
+            ? originalClick.containerPoint
+            : this._map.latLngToContainerPoint(clickLatLng);
           const markerPoint = this._map.latLngToContainerPoint(markerLatLng);
           const pixelDistance = Math.sqrt(
             Math.pow(clickPoint.x - markerPoint.x, 2) +
-            Math.pow(clickPoint.y - markerPoint.y, 2)
+              Math.pow(clickPoint.y - markerPoint.y, 2)
           );
 
           // Only process first vertex clicks (for closing polygon)
           if (e.target.customHandle !== 0) {
             return; // Not the first vertex, let Leaflet.Draw handle it normally
           }
-          
+
           // Only apply distance check when snapping is enabled (desktop)
           // On mobile, snapping is disabled so let Leaflet.Draw handle closure normally
           if (this.options.snappingEnabled) {
             // Check if original click is within snapping radius OR if snapping is active and brought us here
             const maxClickDistance = this.options.snappingQueryRadius || 40;
             const isWithinSnappingRadius = pixelDistance <= maxClickDistance;
-            const isSnappedToFirstVertex = this.options.snappingLatlng &&
-                                          Math.abs(this.options.snappingLatlng.lat - markerLatLng.lat) < 0.0000001 &&
-                                          Math.abs(this.options.snappingLatlng.lng - markerLatLng.lng) < 0.0000001;
-            
+            const isSnappedToFirstVertex =
+              this.options.snappingLatlng &&
+              Math.abs(this.options.snappingLatlng.lat - markerLatLng.lat) <
+                0.0000001 &&
+              Math.abs(this.options.snappingLatlng.lng - markerLatLng.lng) <
+                0.0000001;
+
             if (!isWithinSnappingRadius && !isSnappedToFirstVertex) {
               // Don't process this click - it shouldn't close the polygon
               return;
@@ -463,7 +471,7 @@ L.Control.MeasurePolygon = L.Control.extend({
           this.options.shapeMode = "polygon";
           this.options.currenLine.completeShape();
         };
-        
+
         layer.on("click", vertexClickHandler);
         layer.on("mouseover", (e) => {
           const coordinates = this._measureHandler._poly._latlngs;
@@ -533,7 +541,6 @@ L.Control.MeasurePolygon = L.Control.extend({
         this.options.cbSetDrawingShape(shapesObj);
       }
     });
-
 
     map.on("draw:canceled", () => {
       this.options.checkonedrawpoligon = true;

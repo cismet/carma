@@ -1,22 +1,21 @@
-import {  setupAllMocks } from "@carma-commons/e2e";
+import { setupAllMocks } from "@carma-commons/e2e";
 import { test, expect } from "@playwright/test";
 
 test.describe("geoportal fuzzy search test", () => {
   test.beforeEach(async ({ context, page }) => {
-
     await setupAllMocks(context);
 
-        // ---- Log browser console to CI output ----
-        // page.on("console", (msg) => {
-        //   console.log(`[browser:${msg.type()}] ${msg.text()}`);
-        // });
-    
-        // ---- Log ALL requests/responses to help spot wrong patterns ----
-        // page.on("request", (r) => console.log("[req]", r.method(), r.url()));
-        // page.on("response", async (r) =>
-        //   console.log("[res]", r.status(), r.url())
-        // );
-    
+    // ---- Log browser console to CI output ----
+    // page.on("console", (msg) => {
+    //   console.log(`[browser:${msg.type()}] ${msg.text()}`);
+    // });
+
+    // ---- Log ALL requests/responses to help spot wrong patterns ----
+    // page.on("request", (r) => console.log("[req]", r.method(), r.url()));
+    // page.on("response", async (r) =>
+    //   console.log("[res]", r.status(), r.url())
+    // );
+
     // Mock the additionalLayerConfig.json endpoint
     await context.route("**/data/additionalLayerConfig.json*", (route) =>
       route.fulfill({
@@ -64,18 +63,23 @@ test.describe("geoportal fuzzy search test", () => {
 
     // Retry briefly in case Fuse index/gaz data is still initializing in CI
     await expect
-      .poll(async () => {
-        const dropdownCount = await page.locator(".fuzzy-dropdownwrapper").count();
-        if (dropdownCount === 0) {
-          // retrigger input to fire onSearch again
-          await searchInput.click();
-          await page.keyboard.press("Backspace");
-          await page.keyboard.type("A", { delay: 20 });
-        }
-        return dropdownCount;
-      }, { timeout: 15000 })
+      .poll(
+        async () => {
+          const dropdownCount = await page
+            .locator(".fuzzy-dropdownwrapper")
+            .count();
+          if (dropdownCount === 0) {
+            // retrigger input to fire onSearch again
+            await searchInput.click();
+            await page.keyboard.press("Backspace");
+            await page.keyboard.type("A", { delay: 20 });
+          }
+          return dropdownCount;
+        },
+        { timeout: 15000 }
+      )
       .toBeGreaterThan(0);
-      
+
     await page.waitForSelector(".fuzzy-dropdownwrapper", {
       state: "attached",
       timeout: 15000,

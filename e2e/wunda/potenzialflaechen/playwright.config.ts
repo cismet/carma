@@ -16,13 +16,15 @@ export default defineConfig({
     viewport: null,
     trace: "on-first-retry",
     screenshot: "only-on-failure",
-        navigationTimeout: 15_000, actionTimeout: 10_000,
+    navigationTimeout: 15_000,
+    actionTimeout: 10_000,
   },
   projects: [
     {
       name: "chrome",
       use: {
-            navigationTimeout: 15_000, actionTimeout: 10_000,
+        navigationTimeout: 15_000,
+        actionTimeout: 10_000,
         channel: process.env.PW_CHANNEL || undefined,
       },
     },

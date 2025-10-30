@@ -15,9 +15,14 @@ enum MEASUREMENT_MODE {
 
 // Detect mobile devices
 const isMobileDevice = () => {
-  const userAgent = typeof navigator !== 'undefined' ? navigator.userAgent : '';
-  const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
-  const isSmallScreen = typeof window !== 'undefined' && window.matchMedia("(max-width: 768px)").matches;
+  const userAgent = typeof navigator !== "undefined" ? navigator.userAgent : "";
+  const isMobileUA =
+    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+      userAgent
+    );
+  const isSmallScreen =
+    typeof window !== "undefined" &&
+    window.matchMedia("(max-width: 768px)").matches;
   return isMobileUA || isSmallScreen;
 };
 
@@ -113,7 +118,9 @@ export const MapMeasurementsProvider = ({
   const mergedConfig: MeasurementConfig = {
     ...defaultConfig,
     ...config,
-    snappingEnabled: isMobileDevice() ? false : (config.snappingEnabled ?? defaultConfig.snappingEnabled),
+    snappingEnabled: isMobileDevice()
+      ? false
+      : config.snappingEnabled ?? defaultConfig.snappingEnabled,
   };
   const [activeShape, setActiveShape] = useState<ActiveShape>(null);
   const [shapes, setShapes] = useState<any[]>([]);

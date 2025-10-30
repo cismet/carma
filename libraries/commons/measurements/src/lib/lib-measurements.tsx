@@ -202,7 +202,9 @@ export function Measurements({
         // Update both snappingEnabled and snappingLatlng
         measureControl.options.snappingEnabled = config.snappingEnabled;
         // Force null when snapping is disabled, otherwise use the actual value
-        measureControl.options.snappingLatlng = config.snappingEnabled ? snappingLatlng : null;
+        measureControl.options.snappingLatlng = config.snappingEnabled
+          ? snappingLatlng
+          : null;
       } catch (_) {}
     }
   }, [snappingLatlng, measureControl, config.snappingEnabled]);
@@ -291,9 +293,7 @@ export function Measurements({
       <div></div>
       <MeasurementStatusDebug />
       {currentMode === "measurement" && (
-        <MeasurementsSnapping 
-          maplibreMaps={snappingLayers || []} 
-        />
+        <MeasurementsSnapping maplibreMaps={snappingLayers || []} />
       )}
     </>
   );

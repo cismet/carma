@@ -32,10 +32,7 @@ import {
   type FeatureFlagConfig,
 } from "@carma-providers/feature-flag";
 
-import {
-  flattenLayer,
-  wmsLayerToGenericItem,
-} from "../helper/layerHelper";
+import { flattenLayer, wmsLayerToGenericItem } from "../helper/layerHelper";
 import LayerTabs from "./LayerTabs";
 import { SidebarItem } from "./SidebarItems";
 
@@ -756,7 +753,10 @@ export const NewLibModal = ({
                     isSearching || !searchValue
                       ? 0
                       : getNumberOfLayers(
-                          categoriesToShownLayers(filteredCategories, element.id)
+                          categoriesToShownLayers(
+                            filteredCategories,
+                            element.id
+                          )
                         )
                   }
                   showNumberOfItems={!!searchValue && !!debouncedSearchTerm}

@@ -574,7 +574,10 @@ export function MeasurementsSnapping({
         // Extract from other measurement shapes
         const currentShapes = shapesRef.current;
         currentShapes.forEach((shape: any) => {
-          const points = extractPointsFromMeasurementShape(shape, "measurements");
+          const points = extractPointsFromMeasurementShape(
+            shape,
+            "measurements"
+          );
           coordinatePoints.push(...points);
         });
 
@@ -719,7 +722,10 @@ export function MeasurementsSnapping({
         // Extract from other measurement shapes
         const currentShapes = shapesRef.current;
         currentShapes.forEach((shape: any) => {
-          const points = extractPointsFromMeasurementShape(shape, "measurements");
+          const points = extractPointsFromMeasurementShape(
+            shape,
+            "measurements"
+          );
           coordinatePoints.push(...points);
         });
 

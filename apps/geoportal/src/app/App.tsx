@@ -86,7 +86,7 @@ function MeasurementsWrapper({
   setModeExternal: (mode: MEASUREMENT_MODE) => void;
 }) {
   const flags = useFeatureFlags();
-  
+
   const config = {
     ...baseConfig,
     snappingEnabled: flags.isSnappingEnabled ?? baseConfig.snappingEnabled,

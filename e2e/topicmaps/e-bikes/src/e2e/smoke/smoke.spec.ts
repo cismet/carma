@@ -1,9 +1,21 @@
 import { test } from "@playwright/test";
-import { runMapSmokeTest, setupSmokeTest, setupAllMocks } from "@carma-commons/e2e";
+import {
+  runMapSmokeTest,
+  setupSmokeTest,
+  setupAllMocks,
+} from "@carma-commons/e2e";
 
 test.describe("e-bikes smoke test", () => {
   test.beforeEach(async ({ context, page }) => {
-    await setupAllMocks(context, ["bezirke", "quartiere", 'poi', 'kitas', "pois", "ebikes", "ebikes.data"]);
+    await setupAllMocks(context, [
+      "bezirke",
+      "quartiere",
+      "poi",
+      "kitas",
+      "pois",
+      "ebikes",
+      "ebikes.data",
+    ]);
     await setupSmokeTest(page, "/", {
       navigationTimeout: 30000,
       waitForNetworkIdle: true,

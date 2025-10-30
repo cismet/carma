@@ -1,9 +1,21 @@
 import { test } from "@playwright/test";
-import { runMapSmokeTest, setupSmokeTest, setupAllMocks, mockTopicMapData, mockAdditionalData } from "@carma-commons/e2e";
+import {
+  runMapSmokeTest,
+  setupSmokeTest,
+  setupAllMocks,
+  mockTopicMapData,
+  mockAdditionalData,
+} from "@carma-commons/e2e";
 
 test.describe("stadtplan smoke test", () => {
-  test.beforeEach(async ({context, page }) => {
-    await setupAllMocks(context, ["bezirke", "quartiere", 'poi', 'kitas', "pois",]);
+  test.beforeEach(async ({ context, page }) => {
+    await setupAllMocks(context, [
+      "bezirke",
+      "quartiere",
+      "poi",
+      "kitas",
+      "pois",
+    ]);
 
     await mockTopicMapData(context, "poi", [
       {
@@ -16,22 +28,21 @@ test.describe("stadtplan smoke test", () => {
           crs: {
             type: "name",
             properties: {
-              name: "EPSG:25832"
-            }
+              name: "EPSG:25832",
+            },
           },
-          coordinates: [371420.692539062, 5679302.684169922]
+          coordinates: [371420.692539062, 5679302.684169922],
         },
         mainlocationtype: {
           id: 15,
           name: "Grünanlagen und Wälder",
           signatur: "Icon_Parkanlage_farbig.svg",
-          lebenslagen: ["Erholung", "Freizeit"]
-        }
+          lebenslagen: ["Erholung", "Freizeit"],
+        },
       },
-    ]); 
+    ]);
 
-    await mockAdditionalData(context, '**/data/poi.farben.json*', []);
-
+    await mockAdditionalData(context, "**/data/poi.farben.json*", []);
 
     await setupSmokeTest(page, "/", {
       navigationTimeout: 30000,

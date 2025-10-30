@@ -4,7 +4,7 @@ export enum MEASUREMENT_MODE {
   MEASUREMENT = "measurement",
 }
 
-export type MeasurementMapStatus = 
+export type MeasurementMapStatus =
   | "INACTIVE" // not active
   | "WAITING" // moving around not dragging anything and waiting for other stuff
   | "DRAWING" // either lines or polygons but in the process

@@ -310,7 +310,8 @@ export function InfoBoxMeasurement({
           collapsibleDiv={
             <div>
               <div className="text-[12px] mb-1">
-                {visibleShapesData[currentMeasure]?.area ? "Umfang" : "Strecke"}: {visibleShapesData[currentMeasure].distance}
+                {visibleShapesData[currentMeasure]?.area ? "Umfang" : "Strecke"}
+                : {visibleShapesData[currentMeasure].distance}
                 {visibleShapesData[currentMeasure]?.area && (
                   <>
                     <span className="mx-2">|</span>
