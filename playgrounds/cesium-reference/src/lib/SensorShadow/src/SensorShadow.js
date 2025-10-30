@@ -1,20 +1,19 @@
-import defaultValue from "@cesium/engine/Source/Core/defaultValue";
-import Color from "@cesium/engine/Source/Core/Color";
-import Camera from "@cesium/engine/Source/Scene/Camera";
-import PerspectiveFrustum from "@cesium/engine/Source/Core/PerspectiveFrustum";
-import CesiumMath from "@cesium/engine/Source/Core/Math";
-import ShadowMap from "@cesium/engine/Source/Scene/ShadowMap";
 import {
+  Color,
+  Camera,
+  PerspectiveFrustum,
+  Math as CesiumMath,
+  ShadowMap,
   PositionProperty,
   ConstantPositionProperty,
   Cartesian2,
   Cartesian3,
   Cartesian4,
   EllipsoidTerrainProvider,
+  PostProcessStage,
+  DeveloperError,
 } from "@cesium/engine";
-import PostProcessStage from "@cesium/engine/Source/Scene/PostProcessStage";
 import fsShader from "./SensorShadow.fragment.shader.glsl";
-import DeveloperError from "@cesium/engine/Source/Core/DeveloperError";
 
 const defaultValues = {
   cameraPosition: new ConstantPositionProperty(),
@@ -72,20 +71,16 @@ class SensorShadow {
         ? options.viewPosition
         : new ConstantPositionProperty(options.viewPosition);
 
-    this.viewAreaColor = defaultValue(
-      options.viewAreaColor,
-      defaultValues.viewAreaColor
-    );
+    this.viewAreaColor =
+      options.viewAreaColor ?? defaultValues.viewAreaColor;
 
-    this.shadowAreaColor = defaultValue(
-      options.shadowAreaColor,
-      defaultValues.shadowAreaColor
-    );
+    this.shadowAreaColor =
+      options.shadowAreaColor ?? defaultValues.shadowAreaColor;
 
-    this.alpha = defaultValue(options.alpha, defaultValues.alpha);
-    this.size = defaultValue(options.size, defaultValues.size);
-    this.frustum = defaultValue(options.frustum, defaultValues.frustum);
-    this.depthBias = defaultValue(options.depthBias, defaultValues.depthBias);
+    this.alpha = options.alpha ?? defaultValues.alpha;
+    this.size = options.size ?? defaultValues.size;
+    this.frustum = options.frustum ?? defaultValues.frustum;
+    this.depthBias = options.depthBias ?? defaultValues.depthBias;
 
     this.preUpdateListener = null;
 
