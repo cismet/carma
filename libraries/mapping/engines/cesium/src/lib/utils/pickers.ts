@@ -83,13 +83,35 @@ export const pickViewerCanvasPositions = (
 
   ctx.withScene((scene) => {
     if (scene.pickPositionSupported === false) {
-      console.debug("Scene pickPositionSupported is false");
+      console.debug("[CESIUM|PICKER] Scene pickPositionSupported is false");
+      return results;
+    }
+
+    // Check if scene is ready for picking
+    if (scene.isDestroyed()) {
+      console.debug("[CESIUM|PICKER] Scene is destroyed");
       return results;
     }
 
     const canvasDimensions: CanvasDimensions = getCanvasDimensions(
       scene.canvas as HTMLCanvasElement
     );
+
+    // Log canvas and WebGL context state for debugging
+    const canvas = scene.canvas as HTMLCanvasElement;
+    const gl = canvas.getContext("webgl2") || canvas.getContext("webgl");
+    console.debug("[CESIUM|PICKER] Canvas/WebGL state:", {
+      canvasWidth: canvas.width,
+      canvasHeight: canvas.height,
+      canvasClientWidth: canvas.clientWidth,
+      canvasClientHeight: canvas.clientHeight,
+      drawingBufferWidth: gl?.drawingBufferWidth,
+      drawingBufferHeight: gl?.drawingBufferHeight,
+      contextLost: gl?.isContextLost(),
+      sceneIsDestroyed: scene.isDestroyed(),
+      sceneMode: scene.mode,
+    });
+
     // store previous settings
     const prev = {
       depthTestAgainstTerrain: scene.globe.depthTestAgainstTerrain,
@@ -99,6 +121,15 @@ export const pickViewerCanvasPositions = (
     // apply overrides
     scene.pickTranslucentDepth = pickTranslucentDepth;
     scene.globe.depthTestAgainstTerrain = depthTestAgainstTerrain;
+    scene.useDepthPicking = true;
+
+    console.debug(
+      "[CESIUM|PICKER] Picking with options:",
+      pickTranslucentDepth,
+      depthTestAgainstTerrain,
+      scene.pickPositionSupported
+    );
+
     try {
       results = positions.map((position) => {
         const windowPosition = getCanvasWindowPosition(
@@ -114,13 +145,23 @@ export const pickViewerCanvasPositions = (
           coordinates: null,
         };
 
-        const scenePosition = scene.pickPosition(
-          windowPosition
-        ) as Cartesian3 | null;
+        // Guard against framebuffer errors during scene initialization
+        let scenePosition: Cartesian3 | null = null;
+        try {
+          scenePosition = scene.pickPosition(
+            windowPosition
+          ) as Cartesian3 | null;
+        } catch (error) {
+          console.debug(
+            "[CESIUM|PICKER] pickPosition failed (scene may be initializing)",
+            error instanceof Error ? error.message : error
+          );
+          return result;
+        }
 
         if (!defined(scenePosition)) {
           console.debug(
-            "No scene position found at the picked position.",
+            "[CESIUM|PICKER] No scene position found at the picked position.",
             position[0],
             position[1],
             windowPosition

@@ -66,6 +66,9 @@ export interface CesiumContextType {
   withSurfaceProvider: (
     cb: (provider: CesiumTerrainProvider, viewer: Viewer) => void
   ) => boolean;
+  // Direct getters for terrain providers (don't require viewer)
+  getTerrainProvider: () => CesiumTerrainProvider | null;
+  getSurfaceProvider: () => CesiumTerrainProvider | null;
 }
 
 export const CesiumContext = createContext<CesiumContextType | null>(null);

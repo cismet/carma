@@ -174,6 +174,17 @@ export const useValidInstances = (
     [surfaceProviderRef, withTerrainProviderRef]
   );
 
+  // Direct getters for terrain providers (don't require viewer)
+  const getTerrainProvider = useCallback(
+    (): CesiumTerrainProvider | null => terrainProviderRef.current,
+    [terrainProviderRef]
+  );
+
+  const getSurfaceProvider = useCallback(
+    (): CesiumTerrainProvider | null => surfaceProviderRef.current,
+    [surfaceProviderRef]
+  );
+
   return {
     withViewer,
     isValidViewer,
@@ -191,5 +202,7 @@ export const useValidInstances = (
     withEllipsoidTerrainProvider,
     withTerrainProvider,
     withSurfaceProvider,
+    getTerrainProvider,
+    getSurfaceProvider,
   };
 };

@@ -3,47 +3,19 @@ import { Cartographic, Math as CesiumMath } from "cesium";
 
 import type { LatLng, Zoom } from "@carma/types";
 
+import { normalizeOptions, isZoom } from "@carma-commons/utils";
+
+import type { CesiumContextType } from "../../CesiumContext";
+
+import { getCameraHeightAboveGround } from "../cesiumHelpers";
+import { getScenePixelSize } from "../pixels";
+
+import { calculateCameraDistance } from "./cameraDistance";
+import { applyElevationToPosition } from "./applyElevation";
 import {
-  asRadians,
-  getPixelResolutionFromZoomAtLatitudeRad,
-  normalizeOptions,
-  isZoom,
-} from "@carma-commons/utils";
-
-import type { CesiumContextType } from "../CesiumContext";
-
-import { getCesiumCameraPixelDimensionForDistance } from "./cesiumCamera";
-import { getCameraHeightAboveGround } from "./cesiumHelpers";
-import { getElevationAsync } from "./elevation";
-import { getScenePixelSize } from "./pixels";
-
-// TODO: move to config or formalize the starting distance value
-const START_DISTANCE = 1000;
-
-export enum ElevationReference {
-  SURFACE = "surface",
-  TERRAIN = "terrain",
-}
-
-type TransitionOptions = {
-  epsilon?: number;
-  limit?: number;
-  cause?: string;
-  onComplete?: Function;
-  fallbackHeight?: number;
-  preferredElevationReference?: ElevationReference;
-};
-
-const noop = () => {};
-
-const defaultTransitionOptions: Required<TransitionOptions> = {
-  epsilon: 0.1,
-  limit: 20,
-  cause: "not specified",
-  onComplete: noop,
-  fallbackHeight: 350,
-  preferredElevationReference: ElevationReference.SURFACE,
-};
+  type TransitionOptions,
+  defaultTransitionOptions,
+} from "./elevationReference";
 
 /**
  * Transitions a web map to a Cesium camera position.
@@ -68,18 +40,18 @@ export const tiledMapToCesium = async (
   options: TransitionOptions
 ): Promise<boolean> => {
   if (!ctx.isValidViewer()) {
-    console.warn("No viewer available for transition");
+    console.warn("[CESIUM|TRANSITION] No viewer available for transition");
     return false;
   }
 
   if (!isZoom(zoom)) {
-    console.warn("No zoom level available for transition");
+    console.warn("[CESIUM|TRANSITION] No zoom level available for transition");
     return false;
   }
 
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
     console.warn(
-      "No valid coordinates available for transition",
+      "[CESIUM|TRANSITION] No valid coordinates available for transition",
       latitude,
       longitude
     );
@@ -88,11 +60,6 @@ export const tiledMapToCesium = async (
 
   const lngRad = CesiumMath.toRadians(longitude);
   const latRad = CesiumMath.toRadians(latitude);
-
-  const targetPixelResolution = getPixelResolutionFromZoomAtLatitudeRad(
-    zoom,
-    asRadians(latRad)
-  );
 
   const {
     epsilon,
@@ -103,77 +70,35 @@ export const tiledMapToCesium = async (
     preferredElevationReference,
   } = normalizeOptions(options, defaultTransitionOptions);
 
-  const baseComputedPixelResolution = getCesiumCameraPixelDimensionForDistance(
-    ctx,
-    START_DISTANCE
-  )?.average;
+  // Calculate camera distance based on zoom and latitude
+  const computedDistance = calculateCameraDistance(ctx, latitude, zoom);
 
-  if (
-    baseComputedPixelResolution === null ||
-    baseComputedPixelResolution === undefined
-  ) {
-    console.warn(
-      "No base computed pixel resolution found for distance",
-      START_DISTANCE
-    );
+  if (computedDistance === null) {
+    console.warn("[CESIUM|TRANSITION] Failed to calculate camera distance");
     return false;
   }
-
-  const resolutionRatio = targetPixelResolution / baseComputedPixelResolution;
-
-  const computedDistance = START_DISTANCE * resolutionRatio;
 
   let currentPixelResolution = getScenePixelSize(ctx).value;
 
   if (currentPixelResolution === null) {
-    console.warn("No pixel size found for camera position");
+    console.warn("[CESIUM|TRANSITION] No pixel size found for camera position");
     return false;
   }
 
+  // Initialize ground position with fallback height
   const cameraGroundPosition = Cartographic.fromRadians(
     lngRad,
     latRad,
     fallbackHeight
   );
 
-  const [elevation] = await getElevationAsync(ctx, [cameraGroundPosition]);
-
-  if (!elevation) {
-    console.warn("No elevation found for camera position");
-    return false;
-  }
-
-  const { terrain, surface } = elevation;
-
-  if (
-    preferredElevationReference === ElevationReference.TERRAIN &&
-    terrain?.height !== undefined
-  ) {
-    cameraGroundPosition.height = terrain.height;
-    console.debug(
-      "L2C [2D3D|CESIUM|CAMERA] terrain height applied",
-      terrain.height
-    );
-  } else if (
-    preferredElevationReference === ElevationReference.SURFACE &&
-    surface?.height !== undefined
-  ) {
-    cameraGroundPosition.height = surface.height;
-    console.debug(
-      "L2C [2D3D|CESIUM|CAMERA] surface height applied",
-      surface.height
-    );
-  } else {
-    cameraGroundPosition.height =
-      surface?.height ?? terrain?.height ?? fallbackHeight;
-    console.debug(
-      "L2C [2D3D|CESIUM|CAMERA] best available height applied",
-      cameraGroundPosition.height,
-      surface?.height,
-      terrain?.height,
-      fallbackHeight
-    );
-  }
+  // Apply elevation data (non-blocking)
+  await applyElevationToPosition(
+    ctx,
+    cameraGroundPosition,
+    preferredElevationReference,
+    fallbackHeight
+  );
 
   const cameraDestinationCartographic = cameraGroundPosition.clone();
   cameraDestinationCartographic.height += computedDistance;
@@ -181,24 +106,25 @@ export const tiledMapToCesium = async (
   const destination = Cartographic.toCartesian(cameraDestinationCartographic);
 
   console.debug(
-    `L2C [2D3D|CESIUM|CAMERA] cause: ${cause} lat: ${latitude} lng: ${longitude} z: ${zoom}`
+    `[CESIUM|TRANSITION] cause: ${cause} lat: ${latitude} lng: ${longitude} z: ${zoom}`
   );
-  console.debug("L2C [2D3D|CESIUM|CAMERA] destination", destination);
+  console.debug("[CESIUM|TRANSITION] destination", destination);
   console.debug(
-    "L2C [2D3D|CESIUM|CAMERA] cameraDestinationCartographic",
+    "[CESIUM|TRANSITION] cameraDestinationCartographic height",
     cameraDestinationCartographic.height
   );
   console.debug(
-    "L2C [2D3D|CESIUM|CAMERA] cameraGroundPosition",
+    "[CESIUM|TRANSITION] cameraGroundPosition height",
     cameraGroundPosition.height
   );
-  console.debug("L2C [2D3D|CESIUM|CAMERA] computedDistance", computedDistance);
+  console.debug("[CESIUM|TRANSITION] computedDistance", computedDistance);
 
   window.requestAnimationFrame(() => {
     ctx.withCamera((camera) => {
       camera.setView({ destination });
     });
   });
+
   let isQualifiedResult = true;
   let { cameraHeightAboveGround, groundHeight } =
     getCameraHeightAboveGround(ctx);
@@ -206,7 +132,16 @@ export const tiledMapToCesium = async (
   let iterations = 0;
 
   if (currentPixelResolution === null) {
-    console.warn("No pixel size found for camera position");
+    console.warn("[CESIUM|TRANSITION] No pixel size found for camera position");
+    return false;
+  }
+
+  // Get target pixel resolution for comparison
+  const targetPixelResolution = getScenePixelSize(ctx).value;
+  if (targetPixelResolution === null) {
+    console.warn(
+      "[CESIUM|TRANSITION] No target pixel resolution for comparison"
+    );
     return false;
   }
 
@@ -216,10 +151,10 @@ export const tiledMapToCesium = async (
   while (isQualifiedResult && currentError > epsilon) {
     if (iterations >= maxIterations) {
       console.warn(
-        "Maximum height finding iterations reached with no result, using best result."
+        "[CESIUM|TRANSITION] Maximum height finding iterations reached with no result, using best result."
       );
       console.debug(
-        "L2C [2D3D] iterate",
+        "[CESIUM|TRANSITION] iterate",
         iterations,
         maxIterations,
         epsilon,
@@ -244,7 +179,7 @@ export const tiledMapToCesium = async (
     );
 
     console.debug(
-      "L2C [2D3D|CESIUM|CAMERA] setview",
+      "[CESIUM|TRANSITION] setview iteration",
       iterations,
       newCameraHeight
     );

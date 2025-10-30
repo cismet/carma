@@ -1,7 +1,3 @@
-import type {
-  WebMapServiceProviderConfig,
-  WebMapTileServiceProviderConfig,
-} from "@carma/types";
 import {
   CesiumTerrainProvider,
   ImageryLayer,
@@ -17,8 +13,8 @@ export interface ProviderConfig {
     url: string;
   };
   imageryProvider?:
-    | WebMapServiceProviderConfig
-    | WebMapTileServiceProviderConfig;
+    | WebMapTileServiceImageryProvider.ConstructorOptions
+    | WebMapServiceImageryProvider.ConstructorOptions;
 }
 
 const nativeTileSize = 128;
@@ -42,7 +38,7 @@ export const loadCesiumTerrainProvider = async (
 
 export const loadCesiumWebMapServiceImageryLayer = async (
   ref: React.MutableRefObject<ImageryLayer | null>,
-  config: WebMapServiceProviderConfig,
+  config: WebMapServiceImageryProvider.ConstructorOptions,
   signal: AbortSignal
 ) => {
   try {
@@ -59,20 +55,24 @@ export const loadCesiumWebMapServiceImageryLayer = async (
 };
 
 const isWebMapServiceConfig = (
-  config: WebMapServiceProviderConfig | WebMapTileServiceProviderConfig
-): config is WebMapServiceProviderConfig => {
+  config:
+    | WebMapServiceImageryProvider.ConstructorOptions
+    | WebMapTileServiceImageryProvider.ConstructorOptions
+): config is WebMapServiceImageryProvider.ConstructorOptions => {
   return "layers" in config && "parameters" in config;
 };
 
 const isWebMapTileServiceConfig = (
-  config: WebMapServiceProviderConfig | WebMapTileServiceProviderConfig
-): config is WebMapTileServiceProviderConfig => {
+  config:
+    | WebMapServiceImageryProvider.ConstructorOptions
+    | WebMapTileServiceImageryProvider.ConstructorOptions
+): config is WebMapTileServiceImageryProvider.ConstructorOptions => {
   return "layer" in config && "style" in config && "tileMatrixSetID" in config;
 };
 
 export const loadCesiumWebMapTileServiceImageryLayer = async (
   ref: React.MutableRefObject<ImageryLayer | null>,
-  config: WebMapTileServiceProviderConfig,
+  config: WebMapTileServiceImageryProvider.ConstructorOptions,
   signal: AbortSignal
 ) => {
   try {
@@ -105,7 +105,9 @@ export const loadCesiumWebMapTileServiceImageryLayer = async (
 // Generic loader that uses type guards to determine which provider to use
 export const loadCesiumImageryLayer = async (
   ref: React.MutableRefObject<ImageryLayer | null>,
-  config: WebMapServiceProviderConfig | WebMapTileServiceProviderConfig,
+  config:
+    | WebMapServiceImageryProvider.ConstructorOptions
+    | WebMapTileServiceImageryProvider.ConstructorOptions,
   signal: AbortSignal
 ) => {
   if (isWebMapServiceConfig(config)) {
