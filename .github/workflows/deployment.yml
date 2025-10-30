@@ -42,6 +42,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       project_list: ${{ steps.set_up_matrix.outputs.project_list }}
+      e2e_list: ${{ steps.generate_e2e_list.outputs.e2e_list }}
       is_affected: ${{ steps.list_affected_projects.outputs.project_list != '' }}
       node-modules-cache-key: ${{ steps.node-cache-key.outputs.key }}
 
@@ -183,6 +184,66 @@ jobs:
           # echo "$result_json"
           echo "::set-output name=project_list::$result_json"
           echo "PROJECT_LIST=${result_json}" >> $GITHUB_ENV
+
+      - name: Generate E2E project list
+        if: steps.list_affected_projects.outputs.project_list != ''
+        id: generate_e2e_list
+        run: |
+          # Get the project list from the matrix setup
+          projects='${{ steps.set_up_matrix.outputs.project_list }}'
+
+          # Load e2e-test-config.json
+          e2e_config=$(cat e2e-test-config.json)
+
+          # Initialize empty array for E2E projects
+          e2e_projects="[]"
+
+          if [ "$projects" != "[]" ] && [ "$projects" != "" ]; then
+            # Parse the JSON array and check each project for E2E existence
+            e2e_list="["
+            first=true
+            
+            # Extract project names from JSON array
+            project_names=$(echo "$projects" | jq -r '.[]')
+            
+            for project in $project_names; do
+              e2e_proj="e2e-$project"
+              echo "Checking for E2E project: $e2e_proj"
+              
+              # Check if E2E project exists in nx workspace
+              if npx nx show project "$e2e_proj" >/dev/null 2>&1; then
+                echo "✅ E2E project '$e2e_proj' found in nx workspace"
+                
+                # Check if project exists in e2e-test-config.json and has smoke: true
+                smoke_test=$(echo "$e2e_config" | jq -r --arg project "$project" '.projects[$project].smoke // false')
+                
+                if [ "$smoke_test" = "true" ]; then
+                  echo "✅ Project '$project' has smoke test enabled in e2e-test-config.json"
+                  if [ "$first" = true ]; then
+                    e2e_list="$e2e_list\"$e2e_proj\""
+                    first=false
+                  else
+                    e2e_list="$e2e_list, \"$e2e_proj\""
+                  fi
+                else
+                  echo "❌ Project '$project' not found in e2e-test-config.json or smoke test disabled"
+                fi
+              else
+                echo "❌ E2E project '$e2e_proj' not found in nx workspace"
+              fi
+            done
+            
+            e2e_list="$e2e_list]"
+            e2e_projects="$e2e_list"
+          fi
+
+          echo "::set-output name=e2e_list::$e2e_projects"
+          echo "E2E_LIST=$e2e_projects" >> $GITHUB_ENV
+
+      - name: Debug E2E project list
+        run: |
+          echo "The E2E project list is: ${{ steps.generate_e2e_list.outputs.e2e_list }}"
+
       - name: Show project list
         run: |
           echo "The project list is |${{ steps.set_up_matrix.outputs.project_list }}|"
@@ -416,6 +477,87 @@ jobs:
           INPUT_PLATFORMS="linux/amd64" INPUT_TAGS="${{ env.CONTAINER_IMAGE }}latest,${{ env.CONTAINER_IMAGE }}${{env.VERSION}}" ${{ env.ADDITIONAL_ENVS }} npx nx run ${{ matrix.project }}:container
         shell: bash
 
+  smokeTest:
+    needs: [determine_projects]
+    runs-on: ubuntu-latest
+    if: ${{ needs.determine_projects.outputs.is_affected == 'true' && (github.event.inputs['project-name'] || github.event.client_payload['project-name']) == '' && needs.determine_projects.outputs.e2e_list != '[]' }}
+    permissions:
+      actions: write
+      contents: read
+    strategy:
+      fail-fast: true
+      matrix:
+        project: ${{ fromJson(needs.determine_projects.outputs.e2e_list) }}
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: "recursive"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: add cismet-dev registry secret to .npmrc
+        shell: bash
+        run: |
+          touch .npmrc
+          echo "${{ secrets.CISMET_DEV_REGISTRY_SECRET_4_DOT_NPMRC }}" >> .npmrc
+
+      - name: Restore node_modules from cache
+        id: smoke-test-node-cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ needs.determine_projects.outputs.node-modules-cache-key }}
+
+      - name: Install dependencies
+        if: steps.smoke-test-node-cache.outputs.cache-hit != 'true'
+        run: npm install
+
+      - name: Run E2E tests for project
+        run: |
+          echo "Running E2E tests for project: ${{ matrix.project }}"
+          echo "This corresponds to the E2E test job for ${{ matrix.project }}"
+
+      - name: Run E2E tests
+        run: PW_CHANNEL=chrome npx nx e2e ${{ matrix.project }} --grep="smoke/" --skip-nx-cache --skipInstall
+
+      - name: Report the smoke test failure
+        if: failure()
+        run: |
+          {
+            echo "## ❌ Smoke Test Failed for \`${{ matrix.project }}\`"
+            echo ""
+            echo "### 🔁 Run locally via command"
+            echo ""
+            echo '```bash'
+            echo "npx nx e2e ${{ matrix.project }} --grep=smoke/ --skip-nx-cache --skipInstall"
+            echo '```'
+            echo ""
+            echo "### ⚡ Re-run only the last failed"
+            echo ""
+            echo '```bash'
+            echo "npx nx e2e ${{ matrix.project }} --grep=smoke/ --skip-nx-cache --skipInstall --last-failed"
+            echo '```'
+          } >> $GITHUB_STEP_SUMMARY
+
+      - name: Cancel workflow on smoke test failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const run_id = process.env.GITHUB_RUN_ID;
+            await github.rest.actions.cancelWorkflowRun({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              run_id,
+            });
+            core.info(`Requested cancellation of workflow run ${run_id} due to smoke test failure.`)
+
   single_build:
     runs-on: ubuntu-latest
     if: ${{ (github.event.inputs['project-name'] || github.event.client_payload['project-name']) != '' && (github.event.inputs['project-name'] || github.event.client_payload['project-name']) != '*' }}
@@ -616,6 +758,30 @@ jobs:
       - name: Install dependencies
         if: steps.single-job-node-cache.outputs.cache-hit != 'true'
         run: npm install
+
+      - name: Check E2E live configuration
+        id: check_e2e_live
+        run: |
+          project_name="${{ github.event.inputs['project-name'] }}"
+          echo "Checking E2E live configuration for project: $project_name"
+
+          # Load e2e-test-config.json
+          e2e_config=$(cat e2e-test-config.json)
+
+          # Check if project exists in e2e-test-config.json and has live: true
+          live_test=$(echo "$e2e_config" | jq -r --arg project "$project_name" '.projects[$project].live // false')
+
+          if [ "$live_test" = "true" ]; then
+            echo "✅ Project '$project_name' has live test enabled"
+            echo "should_run_e2e=true" >> $GITHUB_OUTPUT
+          else
+            echo "❌ Project '$project_name' not found in e2e-test-config.json or live test disabled"
+            echo "should_run_e2e=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Run E2E tests
+        if: steps.check_e2e_live.outputs.should_run_e2e == 'true'
+        run: PW_CHANNEL=chrome npx nx e2e e2e-${{ github.event.inputs['project-name'] }} --grep="live/" --skip-nx-cache --skipInstall --parallel=1
 
       - name: Build project
         run: |
