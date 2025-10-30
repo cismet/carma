@@ -269,7 +269,7 @@ const Map = ({
         const nenner = props.nenner ? `/${parseInt(props.nenner, 10)}` : "";
 
         const landparcelString = `${gemarkungName} ${flur} ${zaehler}${nenner}`;
-        
+
         // Only dispatch if value changed
         if (landparcelString !== lastLandparcelString) {
           dispatch(setHoveredLandparcel(landparcelString));
@@ -409,12 +409,10 @@ const Map = ({
       size="small"
       hoverable={false}
       title={
-        // <div className="flex items-center gap-3">
         <div>
           <span className="mr-6">Karte</span>
           <HoveredLandparcelInfo />
         </div>
-        // </div>
       }
       extra={
         <div className="flex items-center gap-3">
