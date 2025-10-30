@@ -24,7 +24,7 @@ import {
   getTopDownCameraDeviationAngle,
 } from "../utils/cesiumHelpers";
 import { getTiledMapCenterZoomEquivalent } from "../utils/getTiledMapCenterZoomEquivalent";
-import { tiledMapToCesium } from "../utils/tiledMapToCesium";
+import { tiledMapToCesium } from "../utils/transitions";
 import { pickViewerCanvasCenter } from "../utils/pickers";
 import { cesiumCenterPixelSizeToLeafletZoom } from "../utils/pixels";
 
@@ -141,7 +141,36 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
     };
 
     const animateCesiumView = () => {
-      const pos = pickViewerCanvasCenter(cesiumContext).scenePosition;
+      // Only attempt to pick position if we need to restore a previous view
+      if (!prevHPR) {
+        console.debug(
+          "[CESIUM|2D3D|TO3D] no previous HPR to restore, completing transition"
+        );
+        onComplete3d();
+        return;
+      }
+
+      // Guard against scene not being ready
+      if (!cesiumContext.isValidViewer()) {
+        console.warn(
+          "[CESIUM|2D3D|TO3D] viewer not valid, completing transition without animation"
+        );
+        onComplete3d();
+        return;
+      }
+
+      // Try to pick center position, but don't fail if it doesn't work
+      let pos: Cartesian3 | null = null;
+      try {
+        pos = pickViewerCanvasCenter(cesiumContext).scenePosition;
+      } catch (error) {
+        console.warn(
+          "[CESIUM|2D3D|TO3D] failed to pick center position, completing transition without animation",
+          error
+        );
+        onComplete3d();
+        return;
+      }
 
       if (pos && prevHPR) {
         console.debug(
@@ -158,7 +187,7 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
         });
       } else {
         console.debug(
-          "[CESIUM|2D3D|TO3D] to change to 3d camera position applied zoom",
+          "[CESIUM|2D3D|TO3D] no valid position or HPR, completing transition",
           pos,
           prevHPR
         );
@@ -192,9 +221,14 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
 
     const leaflet = routedMapRef.current?.leafletMap?.leafletElement;
 
-    // Do not transition if we cannot pick ground from depth (ellipsoid-only is not allowed)
-    const { scenePosition: groundPos, coordinates: cartographic } =
-      pickViewerCanvasCenter(cesiumContext, { getCoordinates: true });
+    // Use pickPosition to get terrain-aware ground position at screen center
+    const centerPickResult = pickViewerCanvasCenter(cesiumContext, {
+      depthTestAgainstTerrain: true,
+      getCoordinates: true,
+    });
+
+    const groundPos = centerPickResult.scenePosition;
+    const cartographic = centerPickResult.coordinates;
 
     cesiumContext.withCamera((camera) => {
       let height = camera.positionCartographic.height;
@@ -314,6 +348,7 @@ export const useMapTransition = (options: TransitionOptions = {}) => {
             duration: duration * 1000,
             onComplete: onComplete2d,
             cancelable: false,
+            useCurrentDistance: false, // Interpolate range to match zoom snap target
           }
         );
       }

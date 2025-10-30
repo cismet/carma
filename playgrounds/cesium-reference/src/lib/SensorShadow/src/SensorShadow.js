@@ -71,8 +71,7 @@ class SensorShadow {
         ? options.viewPosition
         : new ConstantPositionProperty(options.viewPosition);
 
-    this.viewAreaColor =
-      options.viewAreaColor ?? defaultValues.viewAreaColor;
+    this.viewAreaColor = options.viewAreaColor ?? defaultValues.viewAreaColor;
 
     this.shadowAreaColor =
       options.shadowAreaColor ?? defaultValues.shadowAreaColor;

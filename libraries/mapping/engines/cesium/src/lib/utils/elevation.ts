@@ -1,4 +1,4 @@
-import { Cartographic, CesiumTerrainProvider } from "cesium";
+import { Cartographic } from "cesium";
 import type { CesiumContextType } from "../CesiumContext";
 import { guardSampleTerrainMostDetailedAsync } from "./guardSampleTerrainMostDetailedAsync";
 
@@ -14,9 +14,12 @@ export async function getTerrainElevationAsync(
   rejectOnTileFail: boolean = true,
   clonePositions: boolean = true
 ): Promise<Cartographic[]> {
-  let provider: CesiumTerrainProvider | undefined = undefined;
-  ctx.withTerrainProvider((p) => (provider = p));
-  if (!provider) return [];
+  const provider = ctx.getTerrainProvider();
+  if (!provider) {
+    console.debug("[CESIUM|ELEVATION] No terrain provider available");
+    return [];
+  }
+  console.debug("[CESIUM|ELEVATION] Sampling terrain provider (DEM)");
   return guardSampleTerrainMostDetailedAsync(
     provider,
     positions,
@@ -31,9 +34,12 @@ export async function getSurfaceElevationAsync(
   rejectOnTileFail: boolean = true,
   clonePositions: boolean = true
 ): Promise<Cartographic[]> {
-  let provider: CesiumTerrainProvider | undefined = undefined;
-  ctx.withSurfaceProvider((p) => (provider = p));
-  if (!provider) return [];
+  const provider = ctx.getSurfaceProvider();
+  if (!provider) {
+    console.debug("[CESIUM|ELEVATION] No surface provider available");
+    return [];
+  }
+  console.debug("[CESIUM|ELEVATION] Sampling surface provider (DSM)");
   return guardSampleTerrainMostDetailedAsync(
     provider,
     positions,
@@ -63,17 +69,27 @@ export async function getElevationAsync(
     true
   );
 
-  if (
-    surfaceResult.length !== positions.length ||
-    terrainResult.length !== positions.length
-  ) {
-    console.warn("[CESIUM|ELEVATION] elevation sampling failed");
+  const hasSurfaceProvider = surfaceResult.length > 0;
+  const hasTerrainProvider = terrainResult.length > 0;
+
+  if (!hasTerrainProvider) {
+    console.warn("[CESIUM|ELEVATION] terrain provider failed or not available");
+    return [];
+  }
+
+  if (terrainResult.length !== positions.length) {
+    console.warn("[CESIUM|ELEVATION] terrain sampling failed");
+    return [];
+  }
+
+  if (hasSurfaceProvider && surfaceResult.length !== positions.length) {
+    console.warn("[CESIUM|ELEVATION] surface sampling failed");
     return [];
   }
 
   return positions.map((position, i) => ({
     position,
     terrain: terrainResult[i],
-    surface: surfaceResult[i],
+    surface: hasSurfaceProvider ? surfaceResult[i] : undefined,
   }));
 }
