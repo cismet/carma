@@ -8,9 +8,7 @@ const { TextArea } = Input;
 const mockExtractor = (input) => {
   return "";
 };
-const onChange = (e) => {
-  // console.log(`checked = ${e.target.checked}`);
-};
+const onChange = (e) => {};
 const Notes = ({
   dataIn,
   extractor = mockExtractor,
