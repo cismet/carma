@@ -110,6 +110,14 @@ test.describe("Geoportal add map layers", () => {
     await expect(modal).toBeVisible();
     const cards = page.locator('[data-test-id="card-layer-prev"]');
 
+    // Search for layer
+    const searchBox = page.getByRole("searchbox", {
+      name: "Suchbegriff eingeben",
+    });
+    await searchBox.click();
+
+    await page.keyboard.type(LAYER_UI_MAP_TEXT, { delay: 100 });
+
     await page.waitForTimeout(300);
     await expect.poll(() => cards.count()).toBe(1);
 

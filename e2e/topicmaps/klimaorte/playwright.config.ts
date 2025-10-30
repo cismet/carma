@@ -14,13 +14,12 @@ export default defineConfig({
     baseURL: "http://localhost:4222",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
-    channel: process.env.CI ? "chrome" : undefined,
   },
   projects: [
     {
-      name: "chromium",
+      name: "chrome",
       use: {
-        channel: process.env.CI ? "chrome" : undefined,
+        channel: process.env.PW_CHANNEL || undefined,
       },
     },
   ],

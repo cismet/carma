@@ -1,16 +1,11 @@
 import { test } from "@playwright/test";
 
-import {
-  runMapSmokeTest,
-  setupSmokeTest,
-  setupAllMocks,
-  mockTopicMapData,
-} from "@carma-commons/e2e";
+import { runMapSmokeTest, setupSmokeTest, setupAllMocks, mockTopicMapData } from "@carma-commons/e2e";
 
 test.describe("baederkarte smoke test", () => {
   test.beforeEach(async ({ context, page }) => {
     await setupAllMocks(context);
-
+    
     // Mock baeder data using the universal function
     await mockTopicMapData(context, "baeder", [
       {
@@ -28,22 +23,22 @@ test.describe("baederkarte smoke test", () => {
           crs: {
             type: "name",
             properties: {
-              name: "EPSG:25832",
-            },
+              name: "EPSG:25832"
+            }
           },
-          coordinates: [365254.600742188, 5676822.244472656],
+          coordinates: [365254.600742188, 5676822.244472656]
         },
         mainlocationtype: {
           id: 5,
           name: "Schwimmbäder",
-          lebenslagen: ["Freizeit", "Sport"],
+          lebenslagen: ["Freizeit", "Sport"]
         },
         more: {
           typ: "Freibad",
           betreiber: "Verein",
-          zugang: "öffentlich",
-        },
-      },
+          zugang: "öffentlich"
+        }
+      }
     ]);
     await setupSmokeTest(page, "/", {
       navigationTimeout: 30000,

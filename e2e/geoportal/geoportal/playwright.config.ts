@@ -14,13 +14,15 @@ export default defineConfig({
     baseURL: "http://localhost:4222",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
-    channel: process.env.CI ? "chrome" : undefined,
+    navigationTimeout: 15_000, // Reduce navigation timeout
+    actionTimeout: 10_000, // Add action timeout
   },
   projects: [
     {
-      name: "chromium",
+      name: "chrome",
       use: {
-        channel: process.env.CI ? "chrome" : undefined,
+        // Use PW_CHANNEL to select system Chrome; otherwise bundled Chromium
+        channel: process.env.PW_CHANNEL || undefined,
       },
     },
   ],

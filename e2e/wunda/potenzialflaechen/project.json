@@ -1,5 +1,5 @@
 {
-  "name": "e2e-potenzialflaechen",
+  "name": "e2e-potenzialflaechen-online",
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "e2e/wunda/potenzialflaechen/src",
   "projectType": "application",

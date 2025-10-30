@@ -6,7 +6,7 @@ test.describe("Geoportal refresh", () => {
     await setupAllMocks(context);
     await page.goto("/");
   });
-
+  
   test("Refresh button reloads page and switches off measurement mode", async ({
     page,
   }) => {
