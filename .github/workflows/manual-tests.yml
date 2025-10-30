@@ -1,0 +1,59 @@
+name: Manual E2E Tests
+run-name: >
+  🙌 : Manual E2E Tests
+on:
+  workflow_dispatch:
+    inputs:
+      project-name:
+        description: "Nx project name (e.g., x-and-ride)"
+        required: true
+        type: string
+
+jobs:
+  e2e:
+    name: "E2E Tests: ${{ github.event.inputs['project-name'] }}"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: "recursive"
+      - name: Update Submodules
+        run: git submodule update --remote --recursive
+      - name: Print Collaboration Version numbers
+        run: |
+          echo "-------------------------------"
+          echo "All Collaboration Submodules:"
+          echo
+          find libraries -type f -name "package.json" -path "*/*-submodule/package.json" \
+          -exec sh -c 'dir=$(dirname "$1"); echo "$(basename "$dir"): $(grep -m1 \"version\" "$1" | sed -E "s/[[:space:]]*\"version\":[[:space:]]*\"([^\"]+)\",/\\1/")"' _ {} \;
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: add cismet-dev registry secret to .npmrc
+        shell: bash
+        run: |
+          touch .npmrc
+          echo "${{ secrets.CISMET_DEV_REGISTRY_SECRET_4_DOT_NPMRC }}" >> .npmrc
+
+      - name: Generate node_modules cache key
+        id: node-cache-key
+        run: |
+          echo "key=node-modules-${{ runner.os }}-node-20-${{ hashFiles('package-lock.json') }}" >> $GITHUB_OUTPUT
+
+      - name: Restore node_modules from cache
+        id: e2e-manual-node-cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ steps.node-cache-key.outputs.key }}
+
+      - name: Install dependencies
+        if: steps.e2e-manual-node-cache.outputs.cache-hit != 'true'
+        run: npm install
+
+      - name: Run E2E tests (all tests)
+        run: PW_CHANNEL=chrome npx nx e2e e2e-${{ github.event.inputs['project-name'] }} --skip-nx-cache --skipInstall --parallel=1
