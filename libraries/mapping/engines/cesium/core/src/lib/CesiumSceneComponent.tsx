@@ -64,10 +64,16 @@ export function CesiumSceneComponent({
   // Fetch config and style data from context
   const { config, widgetRef } = useCesiumContext();
 
-  const options = useMemo(
-    () => merge({}, DEFAULT_WIDGET_CONSTRUCTOR_OPTIONS, config.options),
-    [config.options]
-  );
+  const options = useMemo(() => {
+    const merged = merge({}, DEFAULT_WIDGET_CONSTRUCTOR_OPTIONS, config.options);
+    console.log("[SCENE] Widget constructor options:", {
+      defaults: DEFAULT_WIDGET_CONSTRUCTOR_OPTIONS,
+      configOptions: config.options,
+      merged: merged,
+      resolutionScale: merged.resolutionScale,
+    });
+    return merged;
+  }, [config.options]);
 
   // Extract style configuration for prop passing
   const sceneStyle = config.sceneStyle;

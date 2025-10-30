@@ -17,6 +17,7 @@ type Props = {
   className?: string;
   nativeTooltip?: boolean;
   enableMobileWarning?: boolean;
+  onEngineChange?: (engine: "leaflet2d" | "cesium3d") => void;
 };
 
 const parser = new UAParser();
@@ -39,6 +40,7 @@ export const MapTypeSwitcher = forwardRef<Ref, Props>(
       className,
       nativeTooltip = false,
       enableMobileWarning = false,
+      onEngineChange,
     },
     ref
   ) => {
@@ -50,7 +52,9 @@ export const MapTypeSwitcher = forwardRef<Ref, Props>(
     const isMode2d = currentMode === "2d";
 
     // Use the mode toggle hook from transition library
-    const { isTransitioning, toggleMode } = useMapModeToggle({});
+    const { isTransitioning, toggleMode } = useMapModeToggle({
+      onEngineChange,
+    });
 
     const switchInfoText = isMode2d
       ? LOCALE_DE_SWITCH_TO_3D_MODE

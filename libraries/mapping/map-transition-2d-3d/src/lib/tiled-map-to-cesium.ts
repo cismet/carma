@@ -59,10 +59,10 @@ const defaultTransitionOptions: Required<TransitionOptions> = {
 };
 
 export const tiledMapToCesium = async (
-  scene: Scene | null,
-  { latitude, longitude }: LatLng.deg,
+  scene: Scene,
+  position: { latitude: number; longitude: number },
   zoom: Zoom,
-  resolutionScale: number,
+  pixelRatio: number, // eslint-disable-line @typescript-eslint/no-unused-vars -- Kept for API compatibility
   options: TransitionOptions
 ): Promise<boolean> => {
   logger.debug(
@@ -74,6 +74,7 @@ export const tiledMapToCesium = async (
     return false;
   }
 
+  const { latitude, longitude } = position;
   const { camera, globe } = scene;
   const terrainProvider = globe?.terrainProvider;
 
@@ -102,28 +103,30 @@ export const tiledMapToCesium = async (
     latRad as Radians
   );
 
-  // Adjust for device pixel ratio (Leaflet uses retina tiles on high-DPI displays)
+  console.log("baseTargetPixelResolution", baseTargetPixelResolution);
+
+  // Apply DPR factor to match Leaflet's retina tile rendering
+  // Leaflet loads higher-res tiles on retina displays but uses logical zoom levels
   const actualDPR = window.devicePixelRatio || 1;
   const LEAFLET_DPR_FACTOR = 1 / actualDPR;
   const targetPixelResolution = baseTargetPixelResolution * LEAFLET_DPR_FACTOR;
 
   logger.debug(
-    `L2C [2D3D|CESIUM|CAMERA] Cesium resolution scale: ${resolutionScale.toFixed(
-      2
-    )}`
+    `L2C [2D3D|CESIUM|CAMERA] ========== RESOLUTION BREAKDOWN ==========`
   );
   logger.debug(
-    `L2C [2D3D|CESIUM|CAMERA] Window DPR: ${actualDPR} (Leaflet DPR factor: ${LEAFLET_DPR_FACTOR})`
-  );
-  logger.debug(
-    `L2C [2D3D|CESIUM|CAMERA] Base pixel resolution from zoom ${zoom}: ${baseTargetPixelResolution.toFixed(
+    `L2C [2D3D|CESIUM|CAMERA] Base target: ${baseTargetPixelResolution.toFixed(
       4
     )}m/px`
   );
   logger.debug(
-    `L2C [2D3D|CESIUM|CAMERA] Target pixel resolution (DPR-adjusted): ${targetPixelResolution.toFixed(
+    `L2C [2D3D|CESIUM|CAMERA] Target (with DPR): ${targetPixelResolution.toFixed(
       4
     )}m/px`
+  );
+  logger.debug(`L2C [2D3D|CESIUM|CAMERA] Window DPR: ${actualDPR}`);
+  logger.debug(
+    `L2C [2D3D|CESIUM|CAMERA] DrawingBuffer: ${scene.drawingBufferWidth}x${scene.drawingBufferHeight}`
   );
 
   const {
@@ -135,11 +138,11 @@ export const tiledMapToCesium = async (
   } = normalizeOptions(options, defaultTransitionOptions);
 
   const baseComputedPixelResolution = getFrustumPixelDimensionsForDistance(
-    scene.camera.frustum as PerspectiveFrustum,
+    camera.frustum as any,
     scene.drawingBufferWidth,
     scene.drawingBufferHeight,
     START_DISTANCE,
-    resolutionScale
+    1 / actualDPR // Resolution scale factor (e.g., 1.0), NOT pixel resolution in m/px
   )?.average;
 
   if (

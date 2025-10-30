@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, useEffect, type ReactNode } from "react";
+import { useRef, useState, useEffect, useMemo, type ReactNode } from "react";
 
 import {
   type TransitionConfig,
@@ -56,12 +56,37 @@ export const TransitionContextProvider = ({
   const isTransitioningRef = useRef<boolean>(false);
   const onCesiumFadeInRef = useRef<(() => void) | null>(null);
 
-  // Get initial mode from Cesium suspension state (suspended = 2d, active = 3d)
-  const initialMode = useMemo(() => {
-    return isCesiumSuspended ?? true ? "2d" : "3d";
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // Derive currentMode from engine suspension state (single source of truth)
+  // Use state to make it reactive to engine updates
+  const [currentMode, setCurrentMode] = useState<"2d" | "3d">(() => {
+    const engines = getEngines();
+    const cesiumEngine = engines.find(e => e.engine === "cesium3d");
+    const isCesiumActive = cesiumEngine?.isSuspended === false;
+    return isCesiumActive ? "3d" : "2d";
+  });
 
-  const [currentMode, setCurrentMode] = useState<"2d" | "3d">(initialMode);
+  // Poll engine state and update currentMode when suspension changes
+  useEffect(() => {
+    const checkEngineState = () => {
+      const engines = getEngines();
+      const cesiumEngine = engines.find(e => e.engine === "cesium3d");
+      const isCesiumActive = cesiumEngine?.isSuspended === false;
+      const newMode = isCesiumActive ? "3d" : "2d";
+      
+      if (newMode !== currentMode) {
+        console.log(`[TransitionContext] Mode changed: ${currentMode} → ${newMode}`);
+        setCurrentMode(newMode);
+      }
+    };
+
+    // Check immediately
+    checkEngineState();
+
+    // Poll every 100ms to detect engine state changes
+    // This ensures UI updates even if context doesn't get notified directly
+    const interval = setInterval(checkEngineState, 100);
+    return () => clearInterval(interval);
+  }, [getEngines, currentMode]);
 
   // Extract getContainer from Cesium engine and create fade-in function
   useEffect(() => {
@@ -96,8 +121,7 @@ export const TransitionContextProvider = ({
     () => ({
       config: mergedConfig,
       isTransitioningRef,
-      currentMode,
-      setCurrentMode,
+      currentMode, // Derived, updates automatically when engine suspension changes
       onCesiumFadeInRef,
 
       // Engine state management - pass through from portal layer (PURE ENGINES PARADIGM)

@@ -33,6 +33,7 @@ export const useMapTransition = ({
     config: contextConfig,
     isTransitioningRef,
     getEngines,
+    updateEngine,
   } = useTransitionContext();
 
   // Helper methods to get fresh instances on demand (PURE ENGINES PARADIGM)
@@ -104,6 +105,12 @@ export const useMapTransition = ({
         isTransitioningRef.current = false;
         console.debug("[Transition] 2D→3D: Complete");
 
+        // Update engine suspension states: Cesium active, Leaflet suspended
+        // This automatically updates currentMode (derived from suspension state)
+        console.log("[Transition] 2D→3D: Updating engine suspension states");
+        updateEngine("cesium3d", { isSuspended: false });
+        updateEngine("leaflet2d", { isSuspended: true });
+
         // Notify engine change (consumer updates PortalContext/URL)
         onEngineChange?.("cesium3d");
 
@@ -123,6 +130,7 @@ export const useMapTransition = ({
       last3dAnimationDuration,
       contextConfig.modeTo3d,
       isTransitioningRef,
+      updateEngine,
       onCesiumFadeIn,
       onEngineChange,
       onComplete,
@@ -163,6 +171,12 @@ export const useMapTransition = ({
         isTransitioningRef.current = false;
         console.debug("[Transition] 3D→2D: Complete");
 
+        // Update engine suspension states: Leaflet active, Cesium suspended
+        // This automatically updates currentMode (derived from suspension state)
+        console.log("[Transition] 3D→2D: Updating engine suspension states");
+        updateEngine("leaflet2d", { isSuspended: false });
+        updateEngine("cesium3d", { isSuspended: true });
+
         // Notify engine change (consumer updates PortalContext/URL)
         onEngineChange?.("leaflet2d");
 
@@ -181,6 +195,7 @@ export const useMapTransition = ({
       getLeafletPixelRatio,
       contextConfig.modeTo2d,
       isTransitioningRef,
+      updateEngine,
       onEngineChange,
       onComplete,
       onCancel,
@@ -340,20 +355,20 @@ export const useMapTransition = ({
     const fallbackHeightM =
       contextConfig.modeTo3d?.step4_fallbackGroundElevationM;
 
-    const cesiumResolutionScale = getCesiumResolutionScale();
+    const cesiumPixelRatio = getCesiumResolutionScale(); // Getter returns scene.pixelRatio
     const leafletPixelRatio = getLeafletPixelRatio();
     
-    console.log("[useMapTransition] Resolution/Scale values:", {
-      cesiumResolutionScale,
-      leafletPixelRatio,
-      windowDevicePixelRatio: window.devicePixelRatio,
-    });
+    console.log("[useMapTransition] ========== TRANSITION RESOLUTION VALUES ==========");
+    console.log("[useMapTransition] Cesium pixelRatio:", cesiumPixelRatio);
+    console.log("[useMapTransition] Leaflet pixelRatio:", leafletPixelRatio);
+    console.log("[useMapTransition] Window devicePixelRatio:", window.devicePixelRatio);
+    console.log("[useMapTransition] ========================================================");
 
     const poseWithFallback = leafletToTopdownCesiumPose(
       scene,
       { latitude: lat, longitude: lng } as LatLng.deg,
       zoom,
-      cesiumResolutionScale,
+      cesiumPixelRatio,
       fallbackHeightM !== undefined ? { fallbackHeightM } : undefined
     );
 
@@ -385,8 +400,54 @@ export const useMapTransition = ({
     contextConfig.modeTo3d?.step4_fallbackGroundElevationM,
   ]);
 
-  const transitionToMode2d = useCallback(() => {
+  const transitionToMode2d = useCallback(async () => {
+    console.log("[useMapTransition] ===== STARTING 2D TRANSITION =====");
+    
+    // Get fresh engine states
+    const engines = getEngines();
+    const cesiumEngine = engines.find(
+      (e) => e.engineType === "cesium3d" || e.engine === "cesium3d"
+    ) as any;
+    const leafletEngine = engines.find(
+      (e) => e.engineType === "leaflet2d" || e.engine === "leaflet2d"
+    ) as any;
+
+    console.log("[useMapTransition] Found engines:", {
+      cesium: cesiumEngine
+        ? {
+            engineType: cesiumEngine.engineType,
+            engine: cesiumEngine.engine,
+            isReady: cesiumEngine.isReady,
+            isSuspended: cesiumEngine.isSuspended,
+          }
+        : "NOT FOUND",
+      leaflet: leafletEngine
+        ? {
+            engineType: leafletEngine.engineType,
+            engine: leafletEngine.engine,
+            isReady: leafletEngine.isReady,
+            isSuspended: leafletEngine.isSuspended,
+          }
+        : "NOT FOUND",
+    });
+
+    // Pre-flight checks for 3D→2D
+    if (!cesiumEngine?.isReady || cesiumEngine.isSuspended) {
+      console.warn("[useMapTransition] Cesium engine not ready or suspended (already in 2D mode?)");
+      onCancel?.(true);
+      return;
+    }
+
+    // Leaflet can be suspended when in 3D mode - that's expected
+    // It will be unsuspended by the transition completion callback
+    if (!leafletEngine?.isReady) {
+      console.warn("[useMapTransition] Leaflet engine not ready");
+      onCancel?.(true);
+      return;
+    }
+
+    console.log("[useMapTransition] All engine checks passed, starting 2D transition");
     return transitionTo2dFactory();
-  }, [transitionTo2dFactory]);
+  }, [transitionTo2dFactory, getEngines, onCancel]);
   return { transitionToMode2d, transitionToMode3d };
 };

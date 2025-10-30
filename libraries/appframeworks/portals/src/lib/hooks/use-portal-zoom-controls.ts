@@ -2,7 +2,6 @@ import { useCallback } from "react";
 import { useActiveEngines } from "./use-active-engines";
 import { ManagedEngineKeys } from "../constants";
 import { usePortalContext } from "../contexts/PortalContext";
-import type { ManagedEngineRecord } from "../types/map-engines";
 
 /**
  * usePortalZoomControls - Routes zoom requests to active engine based on engine records
@@ -36,6 +35,15 @@ export const usePortalZoomControls = () => {
       return;
     }
 
+    console.log("[usePortalZoomControls] Zoom in - checking engines:", {
+      activeEngines: activeEngines.map(e => ({
+        engine: e.engine,
+        isReady: e.isReady,
+        isSuspended: e.isSuspended,
+        hasZoomIn: "zoomIn" in e
+      }))
+    });
+
     // Call zoomIn on all active engines
     activeEngines.forEach((engine) => {
       // Only process initialized engines that have zoom methods
@@ -45,19 +53,13 @@ export const usePortalZoomControls = () => {
         "zoomIn" in engine &&
         typeof engine.zoomIn === "function"
       ) {
-        // For Cesium engines, prioritize FOV zoom if available (oblique mode)
+        // For Cesium engines, use normal zoom by default
+        // FOV zoom can be enabled separately when needed (e.g., oblique mode UI controls)
         if (engine.engine === ManagedEngineKeys.CESIUM_3D) {
-          if ("fovZoomIn" in engine && typeof engine.fovZoomIn === "function") {
-            console.log(
-              "[usePortalZoomControls] Using fovZoomIn for Cesium 3D"
-            );
-            engine.fovZoomIn?.();
-          } else {
-            console.log(
-              "[usePortalZoomControls] Using normal zoomIn for Cesium 3D"
-            );
-            engine.zoomIn?.();
-          }
+          console.log(
+            "[usePortalZoomControls] Using normal zoomIn for Cesium 3D"
+          );
+          engine.zoomIn?.();
         } else {
           console.log(
             `[usePortalZoomControls] Using zoomIn for ${engine.engine}`
@@ -66,7 +68,7 @@ export const usePortalZoomControls = () => {
         }
       }
     });
-  }, [activeEngines]);
+  }, [activeEngines, getEngines]);
 
   const handleZoomOut = useCallback(() => {
     if (activeEngines?.length < 1) {
@@ -78,6 +80,15 @@ export const usePortalZoomControls = () => {
       return;
     }
 
+    console.log("[usePortalZoomControls] Zoom out - checking engines:", {
+      activeEngines: activeEngines.map(e => ({
+        engine: e.engine,
+        isReady: e.isReady,
+        isSuspended: e.isSuspended,
+        hasZoomOut: "zoomOut" in e
+      }))
+    });
+
     // Call zoomOut on all active engines
     activeEngines.forEach((engine) => {
       // Only process initialized engines that have zoom methods
@@ -87,22 +98,13 @@ export const usePortalZoomControls = () => {
         "zoomOut" in engine &&
         typeof engine.zoomOut === "function"
       ) {
-        // For Cesium engines, prioritize FOV zoom if available (oblique mode)
+        // For Cesium engines, use normal zoom by default
+        // FOV zoom can be enabled separately when needed (e.g., oblique mode UI controls)
         if (engine.engine === ManagedEngineKeys.CESIUM_3D) {
-          if (
-            "fovZoomOut" in engine &&
-            typeof engine.fovZoomOut === "function"
-          ) {
-            console.log(
-              "[usePortalZoomControls] Using fovZoomOut for Cesium 3D"
-            );
-            engine.fovZoomOut?.();
-          } else {
-            console.log(
-              "[usePortalZoomControls] Using normal zoomOut for Cesium 3D"
-            );
-            engine.zoomOut?.();
-          }
+          console.log(
+            "[usePortalZoomControls] Using normal zoomOut for Cesium 3D"
+          );
+          engine.zoomOut?.();
         } else {
           console.log(
             `[usePortalZoomControls] Using zoomOut for ${engine.engine}`
@@ -111,7 +113,7 @@ export const usePortalZoomControls = () => {
         }
       }
     });
-  }, [activeEngines]);
+  }, [activeEngines, getEngines]);
 
   return {
     handleZoomIn,

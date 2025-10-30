@@ -44,7 +44,7 @@ export type CesiumPoseWithFallback = HeadingPitchRollPrimitive.rad & {
  * @param scene - Cesium scene (needed for frustum calculations)
  * @param latLng - Latitude/longitude from Leaflet map center
  * @param zoom - Zoom level from Leaflet map
- * @param resolutionScale - Cesium widget resolution scale
+ * @param pixelRatio - UNUSED (kept for API compatibility). Cesium compensates internally
  * @param options - Optional configuration
  * @param options.fallbackHeightM - Fallback ground elevation in meters (default: 10000m)
  * @returns Pose with fallback elevation and source indicator
@@ -53,7 +53,7 @@ export const leafletToTopdownCesiumPose = (
   scene: Scene,
   { latitude, longitude }: LatLng.deg,
   zoom: Zoom,
-  resolutionScale: number,
+  pixelRatio: number,  // eslint-disable-line @typescript-eslint/no-unused-vars -- Kept for API compatibility
   options?: {
     fallbackHeightM?: number;
   }
@@ -63,7 +63,7 @@ export const leafletToTopdownCesiumPose = (
     scene,
     { latitude, longitude },
     zoom,
-    resolutionScale
+    pixelRatio
   );
 
   if (range === null) {

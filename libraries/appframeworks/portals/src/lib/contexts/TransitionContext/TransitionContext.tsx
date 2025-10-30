@@ -25,8 +25,7 @@ export type UpdateEngineFn = (
 export interface TransitionContextType {
   config: Required<TransitionConfig>;
   isTransitioningRef: MutableRefObject<boolean>;
-  currentMode: "2d" | "3d";
-  setCurrentMode: (mode: "2d" | "3d") => void;
+  currentMode: "2d" | "3d"; // Derived from engine suspension state
   onCesiumFadeInRef: MutableRefObject<(() => void) | null>;
   
   // Engine state management - injected from portal layer (PURE ENGINES PARADIGM)

@@ -461,6 +461,7 @@ export const TopicMapComponentWrapper = ({
       // Update the engine using the controlled updater function
       updateEngine("leaflet2d", {
         isReady: true,
+        isSuspended: false, // Start active in 2D mode (managed by TransitionContext during mode switches)
         instance: () => leafletMap, // Store getter function for fresh access
         getPixelRatio: () => window.devicePixelRatio,
         zoomOut: (onComplete?: () => void) => {

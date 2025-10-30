@@ -22,16 +22,15 @@ const START_DISTANCE = 1000;
  * @param scene - Cesium scene (needed for frustum calculations)
  * @param latLng - Target latitude/longitude
  * @param zoom - Leaflet zoom level
- * @param resolutionScale - Cesium widget resolution scale
+ * @param pixelRatio - UNUSED (kept for API compatibility). Cesium compensates internally, we only adjust Leaflet side
  * @returns Range in meters from ground, or null if calculation failed
  */
 export const computeRangeFromZoom = (
   scene: Scene,
-  { latitude, longitude }: LatLng.deg,
+  { latitude }: LatLng.deg,
   zoom: Zoom,
-  resolutionScale: number
+  pixelRatio: number  // eslint-disable-line @typescript-eslint/no-unused-vars -- Kept for API compatibility
 ): Meters | null => {
-  const lngRad = degToRad(longitude as Degrees);
   const latRad = degToRad(latitude as Degrees);
 
   // Calculate target pixel resolution from Leaflet zoom level
@@ -50,7 +49,7 @@ export const computeRangeFromZoom = (
     scene.drawingBufferWidth,
     scene.drawingBufferHeight,
     START_DISTANCE,
-    resolutionScale
+    pixelRatio
   )?.average;
 
   if (

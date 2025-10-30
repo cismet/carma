@@ -83,9 +83,12 @@ export const GeoportalControls = () => {
   const { getRoutedMapRef, getReferenceSystem, getReferenceSystemDefinition } =
     carmaTopicMapCtx;
 
-  // Fetch from contexts instead of props
-  const { getIsCesiumActive, activeEngines } = useActiveEngines();
-  const isMode2d = !getIsCesiumActive;
+  // Get current mode from TransitionContext (single source of truth)
+  const { currentMode } = useTransitionContext();
+  const isMode2d = currentMode === "2d";
+  
+  // Also get engines for other purposes
+  const { activeEngines } = useActiveEngines();
   const currentEngine =
     activeEngines.length > 0 ? activeEngines[0].engine : "leaflet2d";
   const { mapRef: libreMapRef } = useMapLibreContext(); // Get MapLibre ref from context
@@ -133,6 +136,21 @@ export const GeoportalControls = () => {
   const showLocatorButton = useSelector(getShowLocatorButton);
 
   const [showTerrain, setShowTerrain] = useState(false);
+
+  // React to mode changes - enable/disable pointer events on Cesium canvas
+  useEffect(() => {
+    console.log("[GeoportalControls] Mode changed to:", currentMode);
+    
+    // Get Cesium container from engine record
+    const engines = getEngines();
+    const cesiumEngine = engines.find((e) => e.engine === "cesium3d");
+    const cesiumContainer = cesiumEngine?.getContainer?.() as HTMLElement | null;
+    
+    if (cesiumContainer) {
+      cesiumContainer.style.pointerEvents = currentMode === "3d" ? "auto" : "none";
+      console.log(`[GeoportalControls] Cesium pointer events: ${currentMode === "3d" ? "enabled" : "disabled"}`);
+    }
+  }, [currentMode, getEngines]);
 
   const handleToggleFeatureInfo = useCallback(() => {
     cancelOngoingRequests();

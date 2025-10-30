@@ -156,11 +156,6 @@ export const CesiumMapComponentWrapper = ({
     const scene = sceneRef.current;
     const widget = widgetRef.current;
 
-    // Get current suspension state from PortalContext (single source of truth)
-    const engines = getEngines();
-    const cesiumEngine = engines.find((e) => e.engine === "cesium3d");
-    const isSuspended = cesiumEngine?.isSuspended ?? true;
-
     // Scene is ready when it exists and is not destroyed, regardless of suspension
     // Suspension is about visibility/interactivity, NOT readiness
     const isValid = isValidScene(scene);
@@ -180,18 +175,34 @@ export const CesiumMapComponentWrapper = ({
 
     console.log("[CesiumMapComponentWrapper] Engine readiness changed:", {
       isValid,
-      isSuspended,
       hasScene: !!scene,
       hasWidget: !!widget,
     });
 
     prevIsReadyRef.current = true;
 
+    console.log("[CesiumMapComponentWrapper] Resolution values at registration:", {
+      widgetResolutionScale: widget.resolutionScale,
+      scenePixelRatio: scene.pixelRatio,
+      windowDevicePixelRatio: window.devicePixelRatio,
+      usingScenePixelRatio: true,
+    });
+
+    // Register engine capabilities - suspension state managed by TransitionContext
     updateEngine("cesium3d", {
       isReady: true,
-      isSuspended: isSuspended,
+      isSuspended: true, // Start suspended in 2D mode (unsuspended by TransitionContext on 2D→3D)
       instance: () => sceneRef.current, // Store Scene getter for fresh access
-      getResolutionScale: () => widgetRef.current?.resolutionScale ?? 1.0,
+      getResolutionScale: () => {
+        const scene = sceneRef.current;
+        // ONLY return pixelRatio (device DPR) - ignore widget.resolutionScale (performance setting)
+        const pixelRatio = scene?.pixelRatio ?? 1.0;
+        console.log("[CesiumMapComponentWrapper] getResolutionScale called:", {
+          pixelRatio: pixelRatio,
+          note: "Returning ONLY pixelRatio - resolutionScale is just a performance setting, not used for transitions",
+        });
+        return pixelRatio;
+      },
       getContainer: getContainer, // Provide container for transition animations
       zoomOut: engineZoomOut,
       zoomIn: engineZoomIn,
