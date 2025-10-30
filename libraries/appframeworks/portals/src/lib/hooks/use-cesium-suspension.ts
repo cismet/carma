@@ -60,6 +60,8 @@ export const useCesiumSuspension = (): boolean => {
       suspended: isSuspended,
     });
 
+    /*
+
     if (isSuspended) {
       console.debug("[useCesiumSuspension] Hiding cesium imagery layers");
       hideLayers(scene);
@@ -67,6 +69,7 @@ export const useCesiumSuspension = (): boolean => {
       console.debug("[useCesiumSuspension] Showing cesium imagery layers");
       showLayers(scene);
     }
+    */
   }, [isSuspended, sceneRef]);
 
   return isSuspended;

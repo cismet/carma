@@ -16,12 +16,13 @@ type Cesium3DTilesetWithStats = Cesium3DTileset & {
 export const useTilesetProgress = (
   loadedTilesets: LoadedTilesets,
   minTileCount: number = 4,
-  onTilesetPresentable?: (id: string) => void
+  onTilesetPresentable?: (id: string) => void,
+  onTilesetReady?: (id: string) => void
 ): {
   attachProgressListener: (id: string, tileset: Cesium3DTileset) => void;
   updateProgress: () => void;
 } => {
-  const { sceneStyleReadyCallbackRef } = useCesiumContext();
+  const { getSceneStyleReadyCallback } = useCesiumContext();
   const tileLoadCountersRef = useRef<TileLoadCounters>(new Map());
   const initialTilesFiredRef = useRef<Set<string>>(new Set());
   const hasEmittedReadyRef = useRef(false);
@@ -65,7 +66,8 @@ export const useTilesetProgress = (
         readinessStatus.map((s) => `${s.id}: ${s.tilesLoaded} tiles`)
       );
       // Direct callback instead of event emission
-      sceneStyleReadyCallbackRef.current?.(true, "tilesets-ready");
+      const callback = getSceneStyleReadyCallback();
+      callback?.(true, "tilesets-ready");
     } else {
       console.log(`[TILESET|PROGRESS] Not all ready yet, waiting...`);
     }
@@ -112,7 +114,8 @@ export const useTilesetProgress = (
           `[TILESET|READY] ${id}: Reached minimum tiles (processing=${tilesProcessing}, loaded=${tilesLoaded}, total=${totalTiles}, minRequired=${minTileCount})`
         );
         initialTilesFiredRef.current.add(id);
-        onTilesetPresentable?.(id); // Report as presentable
+        onTilesetPresentable?.(id);
+        onTilesetReady?.(id);
 
         // Unregister listeners since we're now ready
         tileset.tileLoad.removeEventListener(checkReadyState);
@@ -148,7 +151,8 @@ export const useTilesetProgress = (
       if (isReady) {
         initialTilesFiredRef.current.add(id);
         tileLoadCountersRef.current.set(id, totalTiles);
-        onTilesetPresentable?.(id); // Report as presentable
+        onTilesetPresentable?.(id);
+        onTilesetReady?.(id);
 
         // Unregister all listeners since we're ready
         tileset.tileLoad.removeEventListener(checkReadyState);

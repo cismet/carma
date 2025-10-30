@@ -3,6 +3,7 @@ import type {
   CesiumWidget,
   Scene,
   CameraState,
+  Camera,
 } from "@carma/cesium";
 
 // Event bus removed - using direct refs and callbacks instead
@@ -49,32 +50,35 @@ export interface CesiumContextType {
   getMoveEndCamera: () => CameraState | null;
   setMoveEndCamera: (camera: CameraState | null) => void;
   getCamera: () => CameraState | null;
-  setCamera: (camera: CameraState | null) => void;
+  setCamera: (cameraOrCameraState: CameraState | Camera) => void;
 
   minZoomDistanceRef: MutableRefObject<number>;
   maxZoomDistanceRef: MutableRefObject<number>;
   enableCollisionDetectionRef: MutableRefObject<boolean>;
-  currentSceneStyleRef: MutableRefObject<string | undefined>;
 
-  // Internal scene coordination (refs + callbacks, NOT event bus)
-  // Scene updates these refs and registers callbacks on mount
-  availableSceneStylesRef: MutableRefObject<string[]>;
-  sceneStyleApplierRef: MutableRefObject<((styleId: string) => void) | null>;
-  sceneCameraTrackerRef: MutableRefObject<
-    ((action: "start" | "stop") => void) | null
-  >;
-
-  // Scene style readiness coordination (internal, ref-based)
-  // SceneStyleManager reports when all resources for current style are loaded
-  sceneStyleReadyStateRef: MutableRefObject<{
+  // Internal scene coordination (getters/setters)
+  getCurrentSceneStyle: () => string | undefined;
+  setCurrentSceneStyle: (style: string | undefined) => void;
+  getAvailableSceneStyles: () => string[];
+  setAvailableSceneStyles: (styles: string[]) => void;
+  getSceneStyleApplier: () => ((styleId: string) => void) | null;
+  setSceneStyleApplier: (applier: ((styleId: string) => void) | null) => void;
+  getSceneCameraTracker: () => ((action: "start" | "stop") => void) | null;
+  setSceneCameraTracker: (tracker: ((action: "start" | "stop") => void) | null) => void;
+  getSceneStyleReadyState: () => {
     currentStyle: string | null;
     isReady: boolean;
     requiredResources: string[];
     readyResources: string[];
-  }>;
-  sceneStyleReadyCallbackRef: MutableRefObject<
-    ((isReady: boolean, styleId: string) => void) | null
-  >;
+  };
+  setSceneStyleReadyState: (state: {
+    currentStyle: string | null;
+    isReady: boolean;
+    requiredResources: string[];
+    readyResources: string[];
+  }) => void;
+  getSceneStyleReadyCallback: () => ((isReady: boolean, styleId: string) => void) | null;
+  setSceneStyleReadyCallback: (callback: ((isReady: boolean, styleId: string) => void) | null) => void;
 
   // Portal callback coordination (matches TopicMapContext pattern)
   // Portal registers callback to be notified of camera updates

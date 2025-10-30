@@ -1,21 +1,31 @@
 import type { MutableRefObject } from "react";
 import type { Map as LeafletMap } from "leaflet";
 import type {
-  Cartesian3,
   Cartographic,
-  HeadingPitchRange,
   Scene,
   CesiumWidget,
 } from "@carma/cesium";
+import {
+  Cartesian3,
+  HeadingPitchRange,
+  defined,
+  isValidScene,
+  isValidCamera,
+} from "@carma/cesium";
+import {
+  animateInterpolateHeadingPitchRange,
+  getTopDownCameraDeviationAngle,
+  pickSceneCenter,
+  cesiumCenterPixelSizeToLeafletZoom,
+  getFrustumPixelDimensionsForDistance,
+} from "@carma/cesium/core";
+import { getPixelResolutionFromZoomAtLatitudeRad } from "@carma/geo/utils";
 
 import { Logger } from "@carma-commons/utils";
 import { radToDeg } from "@carma/units/helpers";
+import { type TransitionTo2dConfig } from "./transition-config-types";
 
 const logger = new Logger("Transition:2D");
-
-// Cesium core functions will be dynamically imported to comply with lazy-loading
-
-import { type TransitionTo2dConfig } from "./TransitionContext";
 
 const noAnimation = {
   animate: false,
@@ -59,21 +69,6 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
   } = config ?? {};
 
   return async () => {
-    // Dynamic import of Cesium types and functions to comply with lazy-loading
-    const {
-      Cartesian3,
-      HeadingPitchRange,
-      defined,
-      isValidScene,
-      isValidCamera,
-    } = await import("@carma/cesium");
-    const {
-      animateInterpolateHeadingPitchRange,
-      getTopDownCameraDeviationAngle,
-      pickSceneCenter,
-      cesiumCenterPixelSizeToLeafletZoom,
-    } = await import("@carma/cesium/core");
-
     const leafletMap = leafletMapRef.current;
     if (!leafletMap) {
       logger.warn("leaflet not available no transition possible [zoom]");
@@ -163,13 +158,6 @@ export const createTransitionTo2d = (params: TransitionTo2dParams) => {
 
     // Calculate the correct range for the target zoom level
     // Use the same method as tiledMapToCesium to ensure consistency
-    const { getPixelResolutionFromZoomAtLatitudeRad } = await import(
-      "@carma/geo/utils"
-    );
-    const { getFrustumPixelDimensionsForDistance } = await import(
-      "@carma/cesium/core"
-    );
-
     const START_DISTANCE = 1000;
     const latRad = carto.latitude as any; // Cartographic.latitude is Radians (branded)
     const baseTargetPixelResolution = getPixelResolutionFromZoomAtLatitudeRad(

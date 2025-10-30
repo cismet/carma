@@ -85,8 +85,8 @@ function App({ sync = false }: { sync?: boolean }) {
   const [searchParams] = useSearchParams();
 
   // NEW ARCHITECTURE: Use PortalContext for engine state
-  const { isCesiumActive } = useActiveEngines();
-  const isMode2d = !isCesiumActive;
+  const { getIsCesiumActive } = useActiveEngines();
+  const isMode2d = !getIsCesiumActive;
 
   // CONTROLS
   const { animationMapRef, requestRender } = useCesiumContext();
@@ -207,7 +207,6 @@ function App({ sync = false }: { sync?: boolean }) {
             <div className="flex flex-col">
               <MapTypeSwitcher
                 className="!rounded-t-none !border-t-[1px]"
-                duration={CESIUM_CONFIG.transitions.mapMode.duration}
                 nativeTooltip={true}
                 enableMobileWarning={true}
               />

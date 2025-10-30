@@ -11,7 +11,7 @@ export const registerManagedProjections = (
   projections: ManagedProjectionMap,
   defs: ManagedDefMap
 ) => {
-  console.group("Managed projection registration");
+  console.groupCollapsed("Managed projection registration");
 
   for (const proj of Object.values(projections)) {
     if (Proj4Predefined.includes(proj)) {

@@ -61,8 +61,8 @@ export const GeoportalMap = () => {
   const allow3d = useSelector(getUIAllow3d) && hasGPU;
 
   // Get map mode from PortalProvider context
-  const { isCesiumActive } = usePortalContext();
-  const isMode2d = !isCesiumActive();
+  const { getIsCesiumActive } = usePortalContext();
+  const isMode2d = !getIsCesiumActive();
   const zenMode = useSelector(getZenMode);
   const configSelection = useSelector(getConfigSelection);
 

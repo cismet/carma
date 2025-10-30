@@ -3,10 +3,10 @@ import { createContext } from "react";
 import type { MutableRefObject } from "react";
 import type { MapStyleKey } from "../../constants";
 import type {
-  MapEngine,
   MapEngineRecord,
-  PortalConfig,
-} from "../../types/portal";
+  ManagedEngineRecord,
+  EngineRecords,
+} from "../../types/map-engines";
 import type { MapView } from "@carma-mapping/engines/leaflet";
 import type { CameraState } from "@carma/cesium";
 
@@ -16,29 +16,31 @@ export interface PortalContextType {
   
   // Core state getters - read current values
   getMapStyle: () => MapStyleKey;
-  getEngines: () => MapEngineRecord[];
+  getEngines: () => EngineRecords;
   getView: () => MapView | null;
   getCamera: () => CameraState | null;
   getHomeView: () => MapView | null;
   getHomeCamera: () => CameraState | null;
   
-  // Core state updaters - mutate values
-  setEngines: (engines: MapEngineRecord[] | ((prev: MapEngineRecord[]) => MapEngineRecord[])) => void;
-  updateEngine: (engineType: MapEngine, updates: Partial<MapEngineRecord>) => void;
+  // Core state setters - mutate values
+  setMapStyle: (styleId: MapStyleKey) => void;
+  setView: (view: MapView | null) => void;
+  setCamera: (camera: CameraState | null) => void;
+  setHomeView: (view: MapView | null) => void;
+  setHomeCamera: (camera: CameraState | null) => void;
+  updateEngine: (engineType: MapEngine, updates: Record<string, unknown>) => void; // Upsert: creates or updates
   
   portalConfig: PortalConfig;
   // Callback refs
   topicMapSyncCallbackRef: MutableRefObject<
     ((styleId: MapStyleKey) => void) | null
   >;
-  // Style management
-  setMapStyle: (styleId: MapStyleKey) => void;
   // Callback registration (simplified - no unregister needed for Redux syncer)
   setTopicMapSyncCallback: (callback: (styleId: MapStyleKey) => void) => void;
   // Engine state
-  activeEngines: MapEngineRecord[];
+  activeEngines: EngineRecords;
   forEachActiveEngine: (callback: (engine: MapEngineRecord) => void) => void;
-  isCesiumActive: () => boolean;
+  getIsCesiumActive: () => boolean;
 }
 
 // Interfaces moved from types/portal.ts to be closer to the provider

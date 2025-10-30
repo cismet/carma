@@ -9,6 +9,7 @@ import type { ReactNode } from "react";
 
 import {
   Camera,
+  captureCurrentCameraState,
   type CameraState,
   type CesiumWidget,
   type Scene,
@@ -40,55 +41,9 @@ import { validateSceneStyle } from "./validation";
  *
  * ## Scene Initialization Flow (2D → 3D Transition)
  *
- * ### Portal Must Set Prerequisites BEFORE Scene Activation:
- * 1. **Portal sets required refs** (from useCesiumContext):
- *    ```tsx
- *    currentSceneStyleRef.current = "lod2";
- *    initialCamera.current = { latitude, longitude, altitude, heading, pitch, roll };
- *    ```
- *
- * 2. **Scene component mounts** and initializes automatically:
- *    ```tsx
- *    <CesiumSceneComponent containerRef={ref} />
- *    ```
- *
- * 3. **Scene mounts and reads refs:**
- *    - `useSceneStyleSwitcher` reads `currentSceneStyleRef.current` and applies initial style
- *    - `useSceneCameraTracking` starts tracking (camera positioning handled by transition)
- *    - All initialization via refs - no props, no events
- *
- * **Critical:** Portal MUST set refs before scene component mounts. Scene hooks read these
- * refs on mount to initialize properly. If refs aren't set, scene will warn and use defaults.
- *
- * ## Internal vs External Coordination
- *
- * ### Internal Coordination (Context ↔ Scene Component):
- * **Use: Refs + Callbacks** (NOT event bus)
- * - Scene registers callbacks in context refs on mount
- * - Scene updates context refs directly (e.g., availableSceneStylesRef)
- * - Context calls scene's registered callbacks (e.g., sceneStyleApplierRef.current(styleId))
- * - Scene hooks fetch refs from context (no parameter passing)
- * - Examples:
- *   - availableSceneStylesRef: Scene publishes available style IDs
- *   - sceneStyleApplierRef: Scene registers style application function
- *   - currentSceneStyleRef: Portal sets before activation, scene reads on mount
- *   - currentCameraRef: Scene updates every frame for crash recovery
- *
- * ### External Coordination (App Components ↔ Context):
- * **Use: Event Bus** (subscribe/emit)
- * - External consumers emit events (SetSceneStyle, ToggleSceneStyle, GoHome, etc.)
- * - Context receives events and coordinates via internal refs/callbacks
- * - Examples:
- *   - MapTypeSwitcher emits SetSceneStyle → Context calls sceneStyleApplierRef.current()
- *   - Portal wrapper reads moveendCameraRef for hash updates
- *
- * ### Why This Separation?
- * - **Performance**: Direct ref access is faster than event bus for internal coordination
- * - **Lifecycle**: Refs survive scene remounts, event subscriptions need cleanup
- * - **Clear boundaries**: Event bus is public API, refs are internal implementation
- * - **No re-renders**: Ref updates don't trigger React re-renders
- * - **Lazy loading**: Portal can set refs before scene component even exists
- */
+ * ### Portal Must Set Prerequisites BEFORE Scene Activation
+ * 
+ **/
 
 export type CesiumContextProviderProps = {
   children: ReactNode;
@@ -128,12 +83,15 @@ export const CesiumContextProvider = ({
   // Portal must set this BEFORE scene initialization
   // Scene reads this value on mount to apply initial style
   const currentSceneStyleRef = useRef<string | undefined>(undefined);
+
   // Internal scene coordination: Scene updates these refs on mount
   // Available style IDs from scene configuration
   const availableSceneStylesRef = useRef<string[]>([]);
+
   // Scene registers its style applier function here
   // Context calls this when external consumers emit SetSceneStyle/ToggleSceneStyle events
   const sceneStyleApplierRef = useRef<((styleId: string) => void) | null>(null);
+
   // Scene registers its camera tracker function here
   // Context can call this to start/stop camera tracking
   const sceneCameraTrackerRef = useRef<
@@ -154,21 +112,25 @@ export const CesiumContextProvider = ({
     readyResources: [],
   });
 
+  // Accessors created using helper pattern
+
   // Callback for context to receive style ready notifications from SceneStyleManager
   // Context can use this to coordinate transitions
   const sceneStyleReadyCallbackRef = useRef<
     ((isReady: boolean, styleId: string) => void) | null
   >((isReady: boolean, styleId: string) => {
     console.log(
-      `[CesiumContext] Style readiness callback: ${styleId} → ${
-        isReady ? "READY" : "LOADING"
-      }`
+      "[CesiumContext|StyleReady] Style readiness callback:",
+      styleId,
+      isReady
     );
   });
 
+  // Callback accessor created using helper pattern
+
   // Animation state - internal to Cesium, exposed via getter/setter
   const isAnimatingRef = useRef(false);
-  
+
   // Other state refs removed - now managed by PortalContext or transition provider
   // - transitionStateRef -> transition provider logic
   // - suspendSSCCRef, shouldSuspendPitchLimiterRef, shouldSuspendCameraLimitersRef -> removed for now
@@ -192,20 +154,64 @@ export const CesiumContextProvider = ({
   // Tracks each time a Cesium widget instance was created (3D mode activation)
   const [cesiumInstances] = useState<CesiumInstanceRecord[]>([]);
 
-  // Animation state getter/setter (don't expose ref directly)
+  // Manual getter/setter methods for all refs
+  const getCurrentSceneStyle = useCallback(() => currentSceneStyleRef.current, []);
+  const setCurrentSceneStyle = useCallback((style: string | undefined) => {
+    currentSceneStyleRef.current = style;
+  }, []);
+
+  const getAvailableSceneStyles = useCallback(() => availableSceneStylesRef.current, []);
+  const setAvailableSceneStyles = useCallback((styles: string[]) => {
+    availableSceneStylesRef.current = styles;
+  }, []);
+
+  const getSceneStyleApplier = useCallback(() => sceneStyleApplierRef.current, []);
+  const setSceneStyleApplier = useCallback((applier: ((styleId: string) => void) | null) => {
+    sceneStyleApplierRef.current = applier;
+  }, []);
+
+  const getSceneCameraTracker = useCallback(() => sceneCameraTrackerRef.current, []);
+  const setSceneCameraTracker = useCallback((tracker: ((action: "start" | "stop") => void) | null) => {
+    sceneCameraTrackerRef.current = tracker;
+  }, []);
+
+  const getSceneStyleReadyState = useCallback(() => sceneStyleReadyStateRef.current, []);
+  const setSceneStyleReadyState = useCallback((state: {
+    currentStyle: string | null;
+    isReady: boolean;
+    requiredResources: string[];
+    readyResources: string[];
+  }) => {
+    sceneStyleReadyStateRef.current = state;
+  }, []);
+
+  const getSceneStyleReadyCallback = useCallback(() => sceneStyleReadyCallbackRef.current, []);
+  const setSceneStyleReadyCallback = useCallback((callback: ((isReady: boolean, styleId: string) => void) | null) => {
+    sceneStyleReadyCallbackRef.current = callback;
+  }, []);
+
   const getIsAnimating = useCallback(() => isAnimatingRef.current, []);
   const setIsAnimating = useCallback((value: boolean) => {
     isAnimatingRef.current = value;
   }, []);
 
+  // Camera getters/setters with specialized handling for Camera instances
   const getCamera = useCallback(() => cameraRef.current, []);
-  const setCamera = useCallback((cameraOrCameraState: CameraState| Camera) => {
-    cameraRef.current = cameraOrCameraState instanceof Camera ? captureCurrentCameraState(cameraOrCameraState, true) : cameraOrCameraState;
+  const setCamera = useCallback((cameraOrCameraState: CameraState | Camera | null) => {
+    if (cameraOrCameraState instanceof Camera) {
+      cameraRef.current = captureCurrentCameraState(cameraOrCameraState, true);
+    } else {
+      cameraRef.current = cameraOrCameraState;
+    }
   }, []);
 
   const getMoveEndCamera = useCallback(() => moveendCameraRef.current, []);
-  const setMoveEndCamera = useCallback((cameraOrCameraState: CameraState| Camera) => {
-    moveendCameraRef.current = cameraOrCameraState instanceof Camera ? captureCurrentCameraState(cameraOrCameraState, true) : cameraOrCameraState;
+  const setMoveEndCamera = useCallback((cameraOrCameraState: CameraState | Camera | null) => {
+    if (cameraOrCameraState instanceof Camera) {
+      moveendCameraRef.current = captureCurrentCameraState(cameraOrCameraState, true);
+    } else {
+      moveendCameraRef.current = cameraOrCameraState;
+    }
   }, []);
 
   // Portal callback coordination (matches TopicMapContext pattern)
@@ -245,21 +251,31 @@ export const CesiumContextProvider = ({
     console.log("[CesiumContext] Camera update callback registered");
   }, []);
 
-
   const contextValue = useMemo<CesiumContextType>(
     () => ({
       widgetRef,
       sceneRef,
-      moveendCameraRef,
       minZoomDistanceRef,
       maxZoomDistanceRef,
       enableCollisionDetectionRef,
-      currentSceneStyleRef,
-      availableSceneStylesRef,
-      sceneStyleApplierRef,
-      sceneCameraTrackerRef,
-      sceneStyleReadyStateRef,
-      sceneStyleReadyCallbackRef,
+      getCurrentSceneStyle,
+      setCurrentSceneStyle,
+      getAvailableSceneStyles,
+      setAvailableSceneStyles,
+      getSceneStyleApplier,
+      setSceneStyleApplier,
+      getSceneCameraTracker,
+      setSceneCameraTracker,
+      getSceneStyleReadyState,
+      setSceneStyleReadyState,
+      getSceneStyleReadyCallback,
+      setSceneStyleReadyCallback,
+      getIsAnimating,
+      setIsAnimating,
+      getCamera,
+      setCamera,
+      getMoveEndCamera,
+      setMoveEndCamera,
       onCameraUpdate,
       requestRender,
       animationMapRef,
@@ -267,25 +283,30 @@ export const CesiumContextProvider = ({
       onSceneReadyCallbackRef,
       config,
       cesiumInstances,
-      getIsAnimating,
-      setIsAnimating,
-      getCamera,
-      setCamera,
-      getMoveEndCamera,
-      setMoveEndCamera,
     }),
     [
-      requestRender,
-      onCameraUpdate,
-      config,
-      cesiumInstances,
-      sceneRef,
+      getCurrentSceneStyle,
+      setCurrentSceneStyle,
+      getAvailableSceneStyles,
+      setAvailableSceneStyles,
+      getSceneStyleApplier,
+      setSceneStyleApplier,
+      getSceneCameraTracker,
+      setSceneCameraTracker,
+      getSceneStyleReadyState,
+      setSceneStyleReadyState,
+      getSceneStyleReadyCallback,
+      setSceneStyleReadyCallback,
       getIsAnimating,
       setIsAnimating,
       getCamera,
       setCamera,
       getMoveEndCamera,
       setMoveEndCamera,
+      onCameraUpdate,
+      requestRender,
+      config,
+      cesiumInstances,
     ]
   );
 

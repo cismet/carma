@@ -1,4 +1,11 @@
-import { useRef, useEffect, useState, useCallback, ReactNode } from "react";
+import {
+  useRef,
+  useEffect,
+  useState,
+  useCallback,
+  ReactNode,
+  useMemo,
+} from "react";
 
 import { useCarmaTopicMapContext } from "@carma-mapping/engines/carma-cismap";
 import type { MapView } from "@carma-mapping/engines/leaflet";
@@ -6,11 +13,13 @@ import { useCesiumContext } from "@carma/mapping/engines/cesium/core";
 import type { CesiumConfig } from "@carma-mapping/engines/cesium/types";
 import type { LeafletConfig } from "@carma/types";
 import type { CameraState } from "@carma/cesium";
+import { TransitionContextProvider } from "../TransitionContext";
 
 import { useHashState } from "../HashStateProvider";
 
 import type { MapEngine, PortalConfig } from "../../types/portal";
 import type { HashValues } from "../../types";
+import type { EngineRecords } from "../../types/map-engines";
 
 import { getInitialPortalState } from "./get-initial-portal-state";
 import { ManagedEngineKeys } from "../../constants";
@@ -22,56 +31,45 @@ import {
 } from "./PortalContext";
 import { evaluatePortalGate } from "./portal-gate-check";
 
-import { useEnginesRef, useMapStyle, useTopicMapSyncCallback } from "./hooks";
+import { useEnginesRef, useTopicMapSyncCallback } from "./hooks";
 
 /**
- * Static updater functions - extracted to keep component body clean
+ * Static updater function - upserts engine (creates if missing, updates if exists)
  */
-
-const createSetEngines = (
-  enginesRef: React.MutableRefObject<MapEngineRecord[]>,
-  forceUpdate: () => void
-) => {
-  return (
-    engines:
-      | MapEngineRecord[]
-      | ((prev: MapEngineRecord[]) => MapEngineRecord[])
-  ) => {
-    const newEngines =
-      typeof engines === "function" ? engines(enginesRef.current) : engines;
-
-    console.debug("[PortalStateProvider] Engines updated:", {
-      previous: enginesRef.current.map(
-        (e) => `${e.engine}: ready=${e.isReady}, suspended=${e.isSuspended}`
-      ),
-      new: newEngines.map(
-        (e) => `${e.engine}: ready=${e.isReady}, suspended=${e.isSuspended}`
-      ),
-    });
-
-    enginesRef.current = newEngines;
-    forceUpdate(); // Trigger re-render to update activeEngines
-  };
-};
-
 const createUpdateEngine = (
-  enginesRef: React.MutableRefObject<MapEngineRecord[]>,
+  enginesRef: React.MutableRefObject<EngineRecords>,
   forceUpdate: () => void
 ) => {
-  return (engineType: MapEngine, updates: Partial<MapEngineRecord>) => {
+  return (engineType: MapEngine, updates: Record<string, unknown>) => {
     const engineIndex = enginesRef.current.findIndex(
       (e) => e.engine === engineType
     );
+
     if (engineIndex === -1) {
-      console.warn(
-        "[PortalStateProvider] Engine not found for update:",
-        engineType
-      );
+      // CREATE - engine doesn't exist, add it
+      const newEngine = {
+        engine: engineType,
+        isReady: false,
+        isSuspended: true,
+        ...updates,
+      } satisfies MapEngineRecord;
+
+      console.debug("[PortalStateProvider] Engine created:", {
+        engineType,
+        state: {
+          ready: newEngine.isReady,
+          suspended: newEngine.isSuspended,
+        },
+      });
+
+      enginesRef.current = [...enginesRef.current, newEngine];
+      forceUpdate();
       return;
     }
 
+    // UPDATE - engine exists, merge updates
     const previousEngine = enginesRef.current[engineIndex];
-    const updatedEngine = { ...previousEngine, ...updates };
+    const updatedEngine = { ...previousEngine, ...updates } as MapEngineRecord;
 
     console.debug("[PortalStateProvider] Engine updated:", {
       engineType,
@@ -87,11 +85,46 @@ const createUpdateEngine = (
     });
 
     enginesRef.current[engineIndex] = updatedEngine;
-    forceUpdate(); // Trigger re-render to update activeEngines
+    forceUpdate();
   };
 };
 
-const initialEngines: MapEngineRecord[] = [
+/**
+ * Static interceptor for map style changes - notifies engines and callbacks
+ */
+const createMapStyleInterceptor = (
+  forEachActiveEngine: (
+    callback: (engine: ManagedEngineRecord) => void
+  ) => void,
+  topicMapSyncCallbackRef: React.MutableRefObject<
+    ((styleId: MapStyleKey) => void) | null
+  >
+) => {
+  return (newStyle: MapStyleKey): MapStyleKey => {
+    console.log("[PortalContext] Setting map style to", newStyle);
+
+    // Apply style to all active engines that support setStyle
+    forEachActiveEngine((engine) => {
+      if ("setStyle" in engine && typeof engine.setStyle === "function") {
+        console.log(`[PortalContext] Setting style on ${engine.engine}`);
+        engine.setStyle(newStyle);
+      }
+    });
+
+    // Call topicmap sync callback if registered
+    if (topicMapSyncCallbackRef.current) {
+      console.log(
+        "[PortalContext] Calling topicmap sync callback for style:",
+        newStyle
+      );
+      topicMapSyncCallbackRef.current(newStyle);
+    }
+
+    return newStyle;
+  };
+};
+
+const initialEngines: EngineRecords = [
   {
     engine: "leaflet2d",
     isReady: false,
@@ -136,69 +169,70 @@ export const PortalStateProvider = ({
     forceUpdate();
   };
 
-  // consider generic refSubscription approach if we get more customers and refs to monitor
-
   // Topicmap sync callback ref - allows external registration without prop drilling
   const topicMapSyncCallbackRef = useRef<
     ((styleId: MapStyleKey) => void) | null
   >(null);
 
-  const carmaTopicMapContext = useCarmaTopicMapContext();
-  const cesiumContext = useCesiumContext();
-  // add maplibre here later
-
   const isPortalInitializedRef = useRef<boolean | null>(null);
 
-  // Top-level refs for engine state management and initialization tracking
+  // Refs for state management
   const mapStyleRef = useRef<MapStyleKey>(config.styleConfig.defaultStyle);
-  const enginesRef = useRef<MapEngineRecord[]>(initialEngines);
-  // MapView refs for coordination with engines
-  // 2D
+  const enginesRef = useRef<EngineRecords>(initialEngines);
   const viewRef = useRef<MapView | null>(null);
   const homeViewRef = useRef<MapView | null>(null);
-  // 3D
   const cameraRef = useRef<CameraState | null>(null);
   const homeCameraRef = useRef<CameraState | null>(null);
 
   // Use extracted hook for active engine management with stable references
-  const { activeEngines, forEachActiveEngine, isCesiumActive } =
+  const { activeEngines, forEachActiveEngine, getIsCesiumActive } =
     useEnginesRef(enginesRef);
 
-  // Force re-check when critical dependencies change (only during initialization)
-  useEffect(() => {
-    // Only re-check if not already ready and hash is initialized
-    if (isPortalInitializedRef.current && !readyStateCacheRef.current?.ready) {
-      console.debug(
-        "[PortalStateProvider] Dependencies changed, re-checking gate"
-      );
-      forceUpdate();
-    }
-  }, [
-    // Track critical dependencies that affect gate readiness
-    mapStyleRef.current,
-    viewRef.current,
-    cameraRef.current,
-    homeViewRef.current,
-    homeCameraRef.current,
-    enginesRef.current.length, // Track engine count instead of activeEngines
-  ]);
+  // Create map style interceptor (must be memoized for stable reference)
+  const mapStyleInterceptor = useMemo(
+    () =>
+      createMapStyleInterceptor(forEachActiveEngine, topicMapSyncCallbackRef),
+    [forEachActiveEngine]
+  );
 
-  // Getter functions for reading current values
+  // Manual getter/setter methods for all refs
   const getMapStyle = useCallback(() => mapStyleRef.current, []);
-  const getEngines = useCallback(() => enginesRef.current, []);
+  const setMapStyle = useCallback((newStyle: MapStyleKey) => {
+    const processedStyle = mapStyleInterceptor(newStyle);
+    mapStyleRef.current = processedStyle;
+  }, [mapStyleInterceptor]);
+
   const getView = useCallback(() => viewRef.current, []);
+  const setView = useCallback((view: MapView | null) => {
+    viewRef.current = view;
+  }, []);
+
+  const getHomeView = useCallback(() => homeViewRef.current, []);
+  const setHomeView = useCallback((view: MapView | null) => {
+    homeViewRef.current = view;
+  }, []);
+
+  const getHomeCamera = useCallback(() => homeCameraRef.current, []);
+  const setHomeCamera = useCallback((camera: CameraState | null) => {
+    homeCameraRef.current = camera;
+  }, []);
+
   const getCamera = useCallback(() => {
+    const value = cameraRef.current;
     console.log(
       "[PortalContext] 🎥 CAMERA GET - Camera requested from PortalContext:",
-      cameraRef.current
+      value
     );
-    return cameraRef.current;
+    return value;
   }, []);
-  const getHomeView = useCallback(() => homeViewRef.current, []);
-  const getHomeCamera = useCallback(() => homeCameraRef.current, []);
+  const setCamera = useCallback((camera: CameraState | null) => {
+    cameraRef.current = camera;
+  }, []);
 
-  // Updater functions - created once using static factory functions
-  const setEngines = createSetEngines(enginesRef, forceUpdate);
+  // Engines getter (special - doesn't use accessors)
+  const getEngines = useCallback(() => enginesRef.current, []);
+
+  // Updater function - upserts engine (creates or updates)
   const updateEngine = createUpdateEngine(enginesRef, forceUpdate);
 
   // Initialize state from hash and config when hash is ready
@@ -243,11 +277,6 @@ export const PortalStateProvider = ({
   }, []);
 
   // Extract internal hooks for better organization
-  const { setMapStyle } = useMapStyle(
-    mapStyleRef,
-    forEachActiveEngine,
-    topicMapSyncCallbackRef
-  );
   const { setTopicMapSyncCallback } = useTopicMapSyncCallback(
     topicMapSyncCallbackRef
   );
@@ -269,32 +298,29 @@ export const PortalStateProvider = ({
     // Gate status
     passedGate: renderState.ready,
 
-    // Getter functions for reading current values
+    // Manual getters/setters
     getMapStyle,
-    getEngines,
+    setMapStyle,
     getView,
-    getCamera,
+    setView,
     getHomeView,
+    setHomeView,
     getHomeCamera,
+    setHomeCamera,
+    getCamera,
+    setCamera,
 
-    // Updater functions for mutating refs
-    setEngines,
+    // Engines (special handling - upsert only)
+    getEngines,
     updateEngine,
 
     portalConfig: config,
-    // Callback refs
     topicMapSyncCallbackRef,
-    // Style management
-    setMapStyle,
-    // Callback registration (simplified)
     setTopicMapSyncCallback,
-    // Engine state
     activeEngines,
     forEachActiveEngine,
-    isCesiumActive,
+    getIsCesiumActive,
   };
-
-  // DUPLICATE FUNCTION REMOVED - isReadyToRender already defined above
 
   if (!renderState.ready) {
     console.log(
@@ -346,7 +372,19 @@ export const PortalStateProvider = ({
       camera: cameraRef.current,
     }
   );
+
   return (
-    <PortalContext.Provider value={value}>{children}</PortalContext.Provider>
+    <PortalContext.Provider value={value}>
+      <TransitionContextProvider
+        config={config.transitions}
+        getEngines={getEngines}
+        updateEngine={updateEngine}
+        isCesiumSuspended={
+          enginesRef.current.find((e) => e.engine === "cesium3d")?.isSuspended
+        }
+      >
+        {children}
+      </TransitionContextProvider>
+    </PortalContext.Provider>
   );
 };

@@ -1,38 +1,50 @@
-import { useEffect } from "react";
+import { useEffect, type MutableRefObject } from "react";
+import { Color } from "@carma/cesium";
 import { useCesiumContext } from "../../context";
-import { isValidScene, Color } from "@carma/cesium";
-import type { ColorRgbaArray } from "@carma/types";
 
-/**
- * Applies background color to the scene
- */
-export const useBackgroundColor = (backgroundColor?: ColorRgbaArray) => {
+export const useBackgroundColor = (
+  styleCallbacksRef: MutableRefObject<{
+    onBackgroundColorChange?: (color: [number, number, number, number]) => void;
+  }>,
+  onBackgroundReady?: () => void
+) => {
   const { sceneRef } = useCesiumContext();
 
   useEffect(() => {
-    const scene = sceneRef.current;
-    if (!isValidScene(scene) || !scene) return;
+    const handleBackgroundColorChange = (
+      backgroundColor: [number, number, number, number]
+    ) => {
+      const scene = sceneRef.current;
+      if (!scene) return;
 
-    if (backgroundColor) {
-      // backgroundColor is [r, g, b, a] in 0-1 range (normalized)
       const [r, g, b, a] = backgroundColor;
       const bgColor = new Color(r, g, b, a);
       scene.backgroundColor = bgColor;
 
-      // Also set the container background color for consistency
       const container = scene.canvas.parentElement;
       if (container) {
         const cssColor = bgColor.toCssColorString();
         container.style.backgroundColor = cssColor;
+        scene.canvas.style.backgroundColor = cssColor;
+
+        console.debug(
+          "[CESIUM|BACKGROUND] Background color set:",
+          backgroundColor,
+          "CSS color:",
+          cssColor
+        );
       }
-
-      console.debug(
-        "[CESIUM|BACKGROUND] Background color set:",
-        backgroundColor
-      );
       scene.requestRender();
-    }
-  }, [sceneRef, backgroundColor]);
-};
+    };
 
-export default useBackgroundColor;
+    const currentCallbacks = styleCallbacksRef.current;
+    currentCallbacks.onBackgroundColorChange = (backgroundColor) => {
+      handleBackgroundColorChange(backgroundColor);
+      onBackgroundReady?.();
+    };
+
+    return () => {
+      currentCallbacks.onBackgroundColorChange = undefined;
+    };
+  }, [sceneRef, styleCallbacksRef, onBackgroundReady]);
+};

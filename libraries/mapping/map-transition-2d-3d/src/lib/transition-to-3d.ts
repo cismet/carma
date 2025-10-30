@@ -1,6 +1,11 @@
 import type { MutableRefObject } from "react";
 import type { Map as LeafletMap } from "leaflet";
-import type { Scene, CesiumWidget, HeadingPitchRange } from "@carma/cesium";
+import {
+  type Scene,
+  type CesiumWidget,
+  HeadingPitchRange,
+  isValidScene,
+} from "@carma/cesium";
 
 import { promiseWithTimeout } from "@carma-commons/utils";
 import { isZoom } from "@carma-commons/units/helpers";
@@ -11,15 +16,20 @@ import {
   getLeafletPosition,
 } from "@carma-mapping/engines/leaflet";
 
-import type { CesiumPoseWithFallback } from "@carma/cesium/core";
+import {
+  type CesiumPoseWithFallback,
+  animateInterpolateHeadingPitchRange,
+  pickSceneCenter,
+  isWebGLErrorRequiringReinit,
+} from "@carma/cesium/core";
 
-import { type TransitionTo3dConfig } from "./TransitionContext";
+import { type TransitionTo3dConfig } from "./transition-config-types";
 import { tiledMapToCesium } from "./tiled-map-to-cesium";
 
 export type TransitionTo3dParams = {
-  leafletMapRef: MutableRefObject<LeafletMap | null>;
-  sceneRef: MutableRefObject<Scene | null>;
-  widgetRef: MutableRefObject<CesiumWidget | null>;
+  getLeafletMap: () => LeafletMap | null;
+  getCesiumScene: () => Scene | null;
+  getCesiumResolutionScale: () => number;
   last3dCameraOrientation: HeadingPitchRange | null;
   last3dAnimationDuration: number;
   config?: TransitionTo3dConfig;
@@ -36,18 +46,11 @@ export const createTransitionTo3d =
   (params: TransitionTo3dParams) =>
   async (poseWithFallback: CesiumPoseWithFallback) => {
     // Scene guaranteed to exist - dynamically import cesium functions
-    const { HeadingPitchRange } = await import("@carma/cesium");
-    const {
-      animateInterpolateHeadingPitchRange,
-      pickSceneCenter,
-      isWebGLErrorRequiringReinit,
-      isValidScene,
-    } = await import("@carma/cesium/core");
 
     const {
-      leafletMapRef,
-      sceneRef,
-      widgetRef,
+      getLeafletMap,
+      getCesiumScene,
+      getCesiumResolutionScale,
       last3dCameraOrientation,
       last3dAnimationDuration,
       config,
@@ -118,8 +121,8 @@ export const createTransitionTo3d =
 
     // Incomplete pose provided by useMapTransition - guaranteed to exist
     // Scene is guaranteed to exist (checked in useMapTransition)
-    const leafletMap = leafletMapRef.current;
-    const scene = sceneRef.current!; // Non-null assertion safe here
+    const leafletMap = getLeafletMap();
+    const scene = getCesiumScene()!; // Non-null assertion safe here
 
     console.log(
       "[CESIUM|2D3D|TO3D] Received pose with fallback elevation:",
@@ -156,7 +159,7 @@ export const createTransitionTo3d =
     };
 
     const animateCesiumView = () => {
-      const scene = sceneRef.current;
+      const scene = getCesiumScene();
       if (!scene) {
         console.warn(
           "[CESIUM|2D3D|TO3D] scene not available for animation, completing transition anyway"
@@ -233,7 +236,7 @@ export const createTransitionTo3d =
     // Tiles will continue loading during camera animation (no need to wait)
 
     // Re-validate scene before positioning (might have been destroyed)
-    const sceneBeforePositioning = sceneRef.current;
+    const sceneBeforePositioning = getCesiumScene();
     if (!isValidScene(sceneBeforePositioning)) {
       console.error(
         "[CESIUM|2D3D|TO3D] ✗ Scene was destroyed during transition"
@@ -247,14 +250,13 @@ export const createTransitionTo3d =
     // NOW position the camera with tilesets loaded
     const cameraStartTime = Date.now();
 
-    // Extract values from Leaflet map and Cesium widget using existing helper
-    const currentLeafletMap = leafletMapRef.current;
-    const widget = widgetRef.current;
+    // Extract values from Leaflet map and Cesium resolution scale
+    const currentLeafletMap = getLeafletMap();
 
-    if (!currentLeafletMap || !widget) {
-      console.error("[CESIUM|2D3D|TO3D] Missing Leaflet map or Cesium widget");
-      onCancel?.(false, "missing-map-or-widget");
-      throw new Error("Transition to 3D cancelled: missing map or widget");
+    if (!currentLeafletMap) {
+      console.error("[CESIUM|2D3D|TO3D] Missing Leaflet map");
+      onCancel?.(false, "missing-map");
+      throw new Error("Transition to 3D cancelled: missing map");
     }
 
     const {
@@ -262,7 +264,7 @@ export const createTransitionTo3d =
       lng: longitude,
       zoom,
     } = getLeafletPosition(currentLeafletMap);
-    const resolutionScale = widget.resolutionScale;
+    const resolutionScale = getCesiumResolutionScale();
 
     try {
       // Wait for camera positioning to complete

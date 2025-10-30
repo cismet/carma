@@ -1,6 +1,7 @@
 import type { MutableRefObject } from "react";
 
-import type { MapEngineRecord, PortalConfig } from "../../types/portal";
+import type { PortalConfig } from "../../types/portal";
+import type { EngineRecords } from "../../types/map-engines";
 import type { MapStyleKey } from "../../constants";
 import type { MapView } from "@carma-mapping/engines/leaflet";
 import type { CameraState } from "@carma/cesium";
@@ -14,7 +15,7 @@ interface PortalGateInputs {
   config: PortalConfig;
   readyStateCacheRef: MutableRefObject<PortalRenderState | null>;
   isPortalInitializedRef: MutableRefObject<boolean | null>;
-  enginesRef: MutableRefObject<MapEngineRecord[]>;
+  enginesRef: MutableRefObject<EngineRecords>;
   mapStyleRef: MutableRefObject<MapStyleKey | null>;
   viewRef: MutableRefObject<MapView | null>;
   cameraRef: MutableRefObject<CameraState | null>;

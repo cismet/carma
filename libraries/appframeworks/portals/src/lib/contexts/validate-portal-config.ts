@@ -16,7 +16,8 @@ export function validatePortalCesiumConfig(
   cesiumConfig: CesiumConfig | undefined,
   mapStyleMapping: Record<MapStyleKey, string>
 ): void {
-  console.log("[PortalProvider] Validating Cesium config", {
+  console.groupCollapsed("validatePortalCesiumConfig");
+  console.debug("[PortalProvider] Validating Cesium config", {
     hasCesiumConfig: !!cesiumConfig,
     hasSceneStyle: !!cesiumConfig?.sceneStyle,
     hasStyles: !!cesiumConfig?.sceneStyle?.styles,
@@ -73,5 +74,6 @@ export function validatePortalCesiumConfig(
     }
   }
 
-  console.log("[PortalProvider] ✓ Cesium config validated successfully");
+  console.debug("[PortalProvider] ✓ Cesium config validated successfully");
+  console.groupEnd();
 }

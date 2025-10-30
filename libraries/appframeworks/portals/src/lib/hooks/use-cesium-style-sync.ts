@@ -11,8 +11,8 @@ import { ManagedEngineKeys } from "../constants";
  *
  */
 export const useCesiumStyleSync = () => {
-  const { getMapStyle, setMapStyle, portalConfig, isCesiumActive } = usePortalContext();
-  const { sceneStyleApplierRef, currentSceneStyleRef } = useCesiumContext();
+  const { getMapStyle, setMapStyle, portalConfig, getIsCesiumActive } = usePortalContext();
+  const { getSceneStyleApplier, getCurrentSceneStyle, setCurrentSceneStyle } = useCesiumContext();
 
   useEffect(() => {
     // Get the current portal style
@@ -31,7 +31,7 @@ export const useCesiumStyleSync = () => {
 
     // Always update the current style in the context (even when suspended)
     // This ensures the correct style is available when Cesium becomes active
-    if (currentSceneStyleRef.current !== cesiumStyleId) {
+    if (getCurrentSceneStyle() !== cesiumStyleId) {
       console.log(
         "[useCesiumStyleSync] Updating Cesium scene style:",
         portalStyle,
@@ -40,17 +40,18 @@ export const useCesiumStyleSync = () => {
       );
 
       // Set the new style in the context
-      currentSceneStyleRef.current = cesiumStyleId;
+      setCurrentSceneStyle(cesiumStyleId);
 
       // Only apply the style if Cesium is active and scene is ready
-      if (isCesiumActive() && sceneStyleApplierRef.current) {
-        sceneStyleApplierRef.current(cesiumStyleId);
-      } else if (!isCesiumActive()) {
+      const applier = getSceneStyleApplier();
+      if (getIsCesiumActive() && applier) {
+        applier(cesiumStyleId);
+      } else if (!getIsCesiumActive()) {
         console.debug(
           "[useCesiumStyleSync] Cesium is suspended - style updated in context only",
           "(will be applied when Cesium becomes active)"
         );
-      } else if (!sceneStyleApplierRef.current) {
+      } else if (!applier) {
         console.debug(
           "[useCesiumStyleSync] Scene style applier not available yet",
           "(scene will use style when it initializes)"
@@ -60,9 +61,10 @@ export const useCesiumStyleSync = () => {
   }, [
     getMapStyle,
     portalConfig.mapStyleMappings.cesium,
-    isCesiumActive,
-    currentSceneStyleRef,
-    sceneStyleApplierRef,
+    getIsCesiumActive,
+    getCurrentSceneStyle,
+    setCurrentSceneStyle,
+    getSceneStyleApplier,
   ]);
 
   /**

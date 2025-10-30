@@ -32,14 +32,15 @@ import type { MapEngineRecord, PortalConfig } from "../../types/portal";
 export const getInitialPortalState = (
   config: PortalConfig,
   hashValues: HashValues,
-  enginesRef: MutableRefObject<MapEngineRecord[]>,
+  enginesRef: MutableRefObject<EngineRecords>,
   mapStyleRef: MutableRefObject<MapStyleKey>,
   viewRef: MutableRefObject<MapView | null>,
   homeViewRef: MutableRefObject<MapView | null>,
   cameraRef: MutableRefObject<CameraState | null>,
   homeCameraRef: MutableRefObject<CameraState | null>
 ) => {
-  console.log(
+  console.groupCollapsed("getInitialPortalState");
+  console.debug(
     "[getInitialPortalState] Starting initialization with hashValues:",
     hashValues
   );
@@ -178,13 +179,13 @@ export const getInitialPortalState = (
   const defaultCameraRectangle = Rectangle.fromDegrees(
     // nothing scientific here just a bout a 20km square at 50 north
     // west
-    defaultCamera.longitude - 0.15,
+    defaultCamera!.longitude - 0.15,
     // south
-    defaultCamera.latitude - 0.10,
+    defaultCamera!.latitude - 0.1,
     // east
-    defaultCamera.longitude + 0.15,
+    defaultCamera!.longitude + 0.15,
     // north
-    defaultCamera.latitude + 0.10
+    defaultCamera!.latitude + 0.1
   );
 
   console.debug(
@@ -214,4 +215,5 @@ export const getInitialPortalState = (
   } else {
     console.debug("[getInitialPortalState] Camera already set, skipping");
   }
+  console.groupEnd();
 };

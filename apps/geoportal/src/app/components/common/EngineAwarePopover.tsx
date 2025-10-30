@@ -53,8 +53,8 @@ export const EngineAwarePopover = ({
   shiftClickHandler,
   additionalDisabled = false,
 }: EngineAwarePopoverProps) => {
-  const { isCesiumActive } = usePortalContext();
-  const currentEngine = isCesiumActive()
+  const { getIsCesiumActive } = usePortalContext();
+  const currentEngine = getIsCesiumActive()
     ? ManagedEngineKeys.CESIUM_3D
     : ManagedEngineKeys.LEAFLET_2D;
   const isDisabled =

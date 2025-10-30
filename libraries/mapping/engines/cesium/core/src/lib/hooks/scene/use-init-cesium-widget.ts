@@ -4,6 +4,9 @@ import {
   CesiumWidget,
   isPerspectiveFrustum,
   isCameraStateHeadingPitchRoll,
+  isCameraStateRecord,
+  isValidCamera,
+  setViewFromCameraState,
   Cartographic,
 } from "@carma/cesium";
 
@@ -25,7 +28,7 @@ export const useInitCesiumWidget = (
     minZoomDistanceRef,
     maxZoomDistanceRef,
     enableCollisionDetectionRef,
-    sceneStyleReadyCallbackRef,
+    getSceneStyleReadyCallback,
     getCamera,
     config,
   } = useCesiumContext();
@@ -124,8 +127,8 @@ export const useInitCesiumWidget = (
       isInitializedRef.current = true;
 
       const camera = widget.camera;
-      const isValidCamera = isValidCamera(camera);
-      if (!isValidCamera) {
+      const cameraIsValid = isValidCamera(camera);
+      if (!cameraIsValid) {
         console.error("[CESIUM|INIT] Invalid camera state detected.");
         return;
       }
@@ -241,7 +244,8 @@ export const useInitCesiumWidget = (
 
         if (widget.canvas.width > 0 && widget.canvas.height > 0) {
           // Direct callback instead of event emission
-          sceneStyleReadyCallbackRef.current?.(true, "scene-ready");
+          const callback = getSceneStyleReadyCallback();
+          callback?.(true, "scene-ready");
           scene.postRender.removeEventListener(handlePostRender);
 
           // Configure error handling to suppress panels but allow recovery
@@ -315,7 +319,7 @@ export const useInitCesiumWidget = (
     options,
     widgetRef,
     sceneRef,
-    sceneStyleReadyCallbackRef,
+    getSceneStyleReadyCallback,
     config.baseUrl,
   ]);
 

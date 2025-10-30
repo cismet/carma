@@ -461,6 +461,8 @@ export const TopicMapComponentWrapper = ({
       // Update the engine using the controlled updater function
       updateEngine("leaflet2d", {
         isReady: true,
+        instance: () => leafletMap, // Store getter function for fresh access
+        getPixelRatio: () => window.devicePixelRatio,
         zoomOut: (onComplete?: () => void) => {
           console.debug("[TopicMapComponentWrapper] Engine zoomOut called");
           leafletMap.zoomOut();

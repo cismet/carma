@@ -67,8 +67,8 @@ const TopNavbar = () => {
   const setAppMenuVisible = uiDispatch?.setAppMenuVisible;
 
   // const flags = useFeatureFlags(); // Oblique mode disabled
-  const { isCesiumActive } = usePortalContext();
-  const currentEngine = isCesiumActive()
+  const { getIsCesiumActive } = usePortalContext();
+  const currentEngine = getIsCesiumActive()
     ? ManagedEngineKeys.CESIUM_3D
     : ManagedEngineKeys.LEAFLET_2D;
   const backgroundLayer = useSelector(getBackgroundLayer);

@@ -4,7 +4,6 @@ import { SandboxedEvalProvider } from "../../components/SandboxedEvalProvider";
 import { GazDataProvider } from "../../components/GazDataProvider";
 import { defaultGazDataConfig } from "@carma/resources";
 import { SelectionProvider } from "../../components/SelectionProvider";
-import { TransitionContextProvider } from "@carma-mapping/map-transition-2d-3d";
 import { CesiumContextProvider } from "@carma-mapping/engines/cesium/core";
 import {
   CarmaTopicMapContextProvider,
@@ -34,6 +33,7 @@ const validateGazDataCrs = (gazData: GazDataConfig) => {
 
   return { ...gazData, crs };
 };
+
 
 // Context for outer wrapper (just config)
 interface PortalContextType {
@@ -113,9 +113,7 @@ export const PortalContextProvider = ({
                     >
                       <HashStateProvider config={config.hashConfig}>
                         <PortalStateProvider config={config}>
-                          <TransitionContextProvider config={config.transitions}>
-                            {children}
-                          </TransitionContextProvider>
+                          {children}
                         </PortalStateProvider>
                       </HashStateProvider>
                     </OverlayTourProvider>

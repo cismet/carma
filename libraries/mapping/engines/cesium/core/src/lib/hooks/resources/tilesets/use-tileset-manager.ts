@@ -50,7 +50,8 @@ export const useTilesetManager = (
   styleCallbacksRef: MutableRefObject<{
     onTilesetsChange?: (tilesetRefs: Array<{ id: string }>) => void;
   }>,
-  trackProgress: boolean = false
+  trackProgress: boolean = false,
+  onTilesetReady?: (id: string) => void
 ) => {
   const { sceneRef, config } = useCesiumContext();
 
@@ -68,7 +69,9 @@ export const useTilesetManager = (
   // Track tileset progress for SceneResourcesReady event
   const { attachProgressListener, updateProgress } = useTilesetProgress(
     loadedTilesetsRef.current,
-    minTileCount
+    minTileCount,
+    undefined,
+    onTilesetReady
   );
 
   const loadTilesetOnDemand = useCallback(

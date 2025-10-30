@@ -19,7 +19,8 @@ const getTerrainId = (config: CesiumTerrainProviderConfig): string => {
  * Only one terrain provider can be active at a time
  */
 export const useTerrainManager = (
-  terrainConfigs: CesiumTerrainProviderConfig[]
+  terrainConfigs: CesiumTerrainProviderConfig[],
+  onTerrainReady?: (id: string) => void
 ) => {
   const { sceneRef } = useCesiumContext();
 
@@ -108,17 +109,15 @@ export const useTerrainManager = (
           }
 
           loadedProvidersRef.current.set(id, provider);
-          console.log(`[CESIUM|TERRAIN] ✓ Loaded provider: ${id}`);
+          console.log(`[CESIUM|TERRAIN] Loaded provider: ${id}`);
 
           // Set as active if it's the first one
           if (!activeProviderIdRef.current && terrainConfigs.length > 0) {
             scene.terrainProvider = provider;
             activeProviderIdRef.current = id;
-            console.log(`[CESIUM|TERRAIN] ✓ Set as active: ${id}`);
+            console.log(`[CESIUM|TERRAIN] Set as active: ${id}`);
+            onTerrainReady?.(id);
             scene.requestRender();
-
-            // Direct callback instead of event emission
-            console.log(`[CESIUM|TERRAIN] Terrain ready: ${id}`);
           }
         } catch (error) {
           console.error("[CESIUM|TERRAIN] Load error:", id, error);

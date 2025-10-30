@@ -1,7 +1,22 @@
-import type { Scene, PerspectiveFrustum } from "@carma/cesium";
+import {
+  type Scene,
+  PerspectiveFrustum,
+  isValidScene,
+  sampleTerrainMostDetailedGuardedAsync,
+  isValidCesiumTerrainProvider,
+  Cartographic,
+  HeadingPitchRoll,
+  captureCurrentCameraState,
+  setViewFromCameraState,
+} from "@carma/cesium";
 
+import {
+  getFrustumPixelDimensionsForDistance,
+  getScenePixelSize,
+} from "@carma/cesium/core";
 import type { Zoom, SurfaceModelType } from "@carma/types";
 import type { LatLng } from "@carma/geo/types";
+import { getPixelResolutionFromZoomAtLatitudeRad } from "@carma/geo/utils";
 import type { Radians, Degrees } from "@carma/units/types";
 
 import { isZoom, degToRad } from "@carma-commons/units/helpers";
@@ -52,29 +67,6 @@ export const tiledMapToCesium = async (
 ): Promise<boolean> => {
   logger.debug(
     "[2D3D|CESIUM|CAMERA] tiledMapToCesium called, starting dynamic imports..."
-  );
-
-  // Dynamic import of all lazy-loaded dependencies
-  const importStart = Date.now();
-  const [
-    {
-      isValidScene,
-      sampleTerrainMostDetailedGuardedAsync,
-      isValidCesiumTerrainProvider,
-      Cartographic,
-      HeadingPitchRoll,
-    },
-    { getPixelResolutionFromZoomAtLatitudeRad },
-    { getFrustumPixelDimensionsForDistance, getScenePixelSize },
-  ] = await Promise.all([
-    import("@carma/cesium"),
-    import("@carma/geo/utils"),
-    import("@carma/cesium/core"),
-  ]);
-
-  const importDuration = Date.now() - importStart;
-  logger.debug(
-    `[2D3D|CESIUM|CAMERA] ✓ Dynamic imports completed in ${importDuration}ms`
   );
 
   if (!isValidScene(scene)) {
@@ -284,9 +276,6 @@ export const tiledMapToCesium = async (
   });
 
   // Store camera state after initial positioning with terrain elevation
-  const { captureCurrentCameraState, restoreCameraState } = await import(
-    "@carma/cesium"
-  );
   const savedCameraState = captureCurrentCameraState(camera, true);
   const initialRange = computedDistance;
 
@@ -443,7 +432,7 @@ export const tiledMapToCesium = async (
     logger.debug(
       `L2C [2D3D|CESIUM|CAMERA] Restoring saved camera state from initial positioning`
     );
-    restoreCameraState(camera, savedCameraState);
+    setViewFromCameraState(camera, savedCameraState);
     scene.requestRender();
     await new Promise<void>((resolve) => {
       window.requestAnimationFrame(() => resolve());

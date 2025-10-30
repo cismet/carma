@@ -1,5 +1,3 @@
-import { createContext, type MutableRefObject } from "react";
-
 /**
  * Transition config with order indicated by property names
  */
@@ -24,15 +22,3 @@ export interface TransitionConfig {
   modeTo3d?: TransitionTo3dConfig;
   modeTo2d?: TransitionTo2dConfig;
 }
-
-/**
- * Minimal transition context - just config, no event bus or state tracking
- */
-export interface TransitionContextType {
-  config: Required<TransitionConfig>;
-  isTransitioningRef: MutableRefObject<boolean>;
-}
-
-export const TransitionContext = createContext<TransitionContextType | null>(
-  null
-);

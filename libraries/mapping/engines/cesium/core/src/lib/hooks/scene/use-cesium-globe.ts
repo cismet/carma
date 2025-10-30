@@ -14,7 +14,8 @@ import { Color } from "@carma/cesium";
 export const useCesiumGlobe = (
   styleCallbacksRef: MutableRefObject<{
     onGlobeSettingsChange?: (settings: any) => void;
-  }>
+  }>,
+  onGlobeReady?: () => void
 ) => {
   const { sceneRef } = useCesiumContext();
 
@@ -60,6 +61,7 @@ export const useCesiumGlobe = (
 
     console.log(`[Globe] Globe visibility set to: ${globe.show}`);
 
+    onGlobeReady?.();
     scene.requestRender();
   };
 

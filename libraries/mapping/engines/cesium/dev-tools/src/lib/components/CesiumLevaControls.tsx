@@ -18,7 +18,8 @@ interface CesiumLevaControlsProps {
 export function CesiumLevaControls({
   onOpenEditor,
 }: CesiumLevaControlsProps = {}) {
-  const { config, currentSceneStyleRef, sceneRef } = useCesiumContext();
+  const { config, getCurrentSceneStyle, setCurrentSceneStyle, sceneRef } =
+    useCesiumContext();
   // const flyHome = useHomeControl(); // TODO: Re-implement home control at app level
   const { handleZoomIn, handleZoomOut } = useZoomControls({ fovMode: false });
   const { handleZoomIn: handleFovZoomIn, handleZoomOut: handleFovZoomOut } =
@@ -34,7 +35,7 @@ export function CesiumLevaControls({
     } as React.MouseEvent);
 
   const [currentStyle, setCurrentStyle] = useState(
-    currentSceneStyleRef.current
+    getCurrentSceneStyle()
   );
   const [cameraRef, setCameraRef] = useState(sceneRef.current?.camera || null);
 
@@ -60,15 +61,16 @@ export function CesiumLevaControls({
   useEffect(() => {
     // Update when style changes
     const interval = setInterval(() => {
-      if (currentSceneStyleRef.current !== currentStyle) {
-        setCurrentStyle(currentSceneStyleRef.current);
+      const latestStyle = getCurrentSceneStyle();
+      if (latestStyle !== currentStyle) {
+        setCurrentStyle(latestStyle);
       }
     }, 100);
 
     return () => {
       clearInterval(interval);
     };
-  }, [currentSceneStyleRef, currentStyle, config.sceneStyle]);
+  }, [getCurrentSceneStyle, currentStyle, config.sceneStyle]);
 
   // Camera position is now handled by the cameraPosition plugin
 
@@ -98,9 +100,9 @@ export function CesiumLevaControls({
       value: currentStyle,
       options: styleOptions,
       onChange: (value: string) => {
-        // Style changes are tracked via currentSceneStyleRef polling above
+        // Style changes are tracked via getCurrentSceneStyle polling above
         setCurrentStyle(value);
-        currentSceneStyleRef.current = value;
+        setCurrentSceneStyle(value);
       },
     },
   };

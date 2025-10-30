@@ -77,7 +77,7 @@ export const useActiveEngines = () => {
   /**
    * Check if Cesium is specifically active
    */
-  const isCesiumActive = activeEngines.some(
+  const getIsCesiumActive = activeEngines.some(
     (engine) => engine.engine === ManagedEngineKeys.CESIUM_3D
   );
 
@@ -87,7 +87,7 @@ export const useActiveEngines = () => {
     mapToActiveEngines,
     isEngineActive,
     getActiveEngine,
-    isCesiumActive,
+    getIsCesiumActive,
     hasActiveEngines: activeEngines.length > 0,
   };
 };

@@ -1,4 +1,5 @@
 // Built-in Modules
+import { useCallback, useMemo, type ReactNode } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 // 3rd party Modules
@@ -10,7 +11,10 @@ import { faSpinner } from "@fortawesome/free-solid-svg-icons";
 import { CrossTabCommunicationContextProvider } from "react-cismap/contexts/CrossTabCommunicationContextProvider";
 
 // Monorepo Packages
-import { PortalContextProvider } from "@carma-appframeworks/portals";
+import {
+  PortalContextProvider,
+  usePortalContext,
+} from "@carma-appframeworks/portals";
 import { mobileInfo } from "@carma-collab/wuppertal/geoportal";
 import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
 import { MobileWarningMessage } from "@carma-mapping/components";
@@ -60,7 +64,7 @@ function App({ published }: { published?: boolean }) {
     portalConfig.configBaseUrl || "",
     layerMap
   );
-  
+
   console.debug("[CONFIG] APP - isLoadingConfig state:", isLoadingConfig);
   useManageLayers(layerMap);
   const syncToken = useSyncToken();
@@ -71,13 +75,23 @@ function App({ published }: { published?: boolean }) {
     uiMode === UIMode.MEASUREMENT
       ? MEASUREMENT_MODE.MEASUREMENT
       : MEASUREMENT_MODE.DEFAULT;
-  const handleSetMode = (newMode: MEASUREMENT_MODE) => {
-    const newUIMode =
-      newMode === MEASUREMENT_MODE.MEASUREMENT
-        ? UIMode.MEASUREMENT
-        : UIMode.DEFAULT;
-    dispatch(setUIMode(newUIMode));
-  };
+  const handleSetMode = useCallback(
+    (newMode: MEASUREMENT_MODE) => {
+      const newUIMode =
+        newMode === MEASUREMENT_MODE.MEASUREMENT
+          ? UIMode.MEASUREMENT
+          : UIMode.DEFAULT;
+      dispatch(setUIMode(newUIMode));
+    },
+    [dispatch]
+  );
+
+  const normalizedFeatureFlagConfig = useMemo(() => {
+    return {
+      ...featureFlagConfig,
+      ...customFeatureFlags,
+    };
+  }, [customFeatureFlags]);
 
   if (isLoadingConfig === null) {
     // wait for the loading state to be determined to prevent re-rendering
@@ -86,9 +100,7 @@ function App({ published }: { published?: boolean }) {
   }
 
   const content = (
-    <FeatureFlagProvider
-      config={{ ...featureFlagConfig, ...customFeatureFlags }}
-    >
+    <FeatureFlagProvider config={normalizedFeatureFlagConfig}>
       <MatomoTracker>
         <PortalContextProvider config={portalConfig}>
           <TopicMapReduxSyncProvider>
@@ -145,8 +157,6 @@ function App({ published }: { published?: boolean }) {
       </MatomoTracker>
     </FeatureFlagProvider>
   );
-
-  console.debug("RENDER: [GEOPORTAL] APP");
 
   return syncToken ? (
     <CrossTabCommunicationContextProvider role="sync" token={syncToken}>

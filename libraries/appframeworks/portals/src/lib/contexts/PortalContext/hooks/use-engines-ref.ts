@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from "react";
 import type { MapEngine, MapEngineRecord } from "../../../types/portal";
-import type { ManagedEngineRecord } from "../../../types/map-engines";
+import type { ManagedEngineRecord, EngineRecords } from "../../../types/map-engines";
 import { ManagedEngineKeys } from "../../../constants";
 
 /**
@@ -11,7 +11,7 @@ import { ManagedEngineKeys } from "../../../constants";
  * This is derived state - all logic is based on the enginesRef parameter
  */
 export const useEnginesRef = (
-  enginesRef: React.MutableRefObject<MapEngineRecord[]>
+  enginesRef: React.MutableRefObject<EngineRecords>
 ) => {
   // Memoize active engines to prevent re-renders when ref content doesn't change
   // Note: This will only update when the ref object itself changes, not its content
@@ -71,7 +71,7 @@ export const useEnginesRef = (
    * Check if Cesium is specifically active
    * Returns a memoized function for API compatibility
    */
-  const isCesiumActive = useCallback(
+  const getIsCesiumActive = useCallback(
     () =>
       activeEngines.some(
         (engine) => engine.engine === ManagedEngineKeys.CESIUM_3D
@@ -96,7 +96,7 @@ export const useEnginesRef = (
       mapToActiveEngines,
       isEngineActive,
       getActiveEngine,
-      isCesiumActive,
+      getIsCesiumActive,
       hasActiveEngines,
     }),
     [
@@ -105,7 +105,7 @@ export const useEnginesRef = (
       mapToActiveEngines,
       isEngineActive,
       getActiveEngine,
-      isCesiumActive,
+      getIsCesiumActive,
       hasActiveEngines,
     ]
   );

@@ -10,17 +10,9 @@ import { Tooltip } from "antd";
 import UAParser from "ua-parser-js";
 
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
-import { useMapModeToggle } from "@carma-mapping/map-transition-2d-3d";
-import {
-  useActiveEngines,
-  usePortalContext,
-  ManagedEngineKeys,
-} from "@carma-appframeworks/portals";
+import { useMapModeToggle, useTransitionContext } from "@carma-appframeworks/portals";
 
 type Props = {
-  duration?: number;
-  onComplete?: (isTo2D: boolean) => void;
-  onCancel?: (isTo2D: boolean) => void;
   children?: ReactNode;
   className?: string;
   nativeTooltip?: boolean;
@@ -44,9 +36,6 @@ type Ref = HTMLButtonElement;
 export const MapTypeSwitcher = forwardRef<Ref, Props>(
   (
     {
-      onComplete,
-      onCancel,
-      duration,
       className,
       nativeTooltip = false,
       enableMobileWarning = false,
@@ -55,22 +44,13 @@ export const MapTypeSwitcher = forwardRef<Ref, Props>(
   ) => {
     // Use ref to avoid re-renders on confirmation state change
     const hasConfirmedRef = useRef(false);
-    const { isCesiumActive } = useActiveEngines();
+    
+    // Get current mode from transition context
+    const { currentMode } = useTransitionContext();
+    const isMode2d = currentMode === "2d";
 
-    // Derive mode from portal's current engine (any non-cesium engine = 2D)
-    const isMode2d = !isCesiumActive;
-
-    // Use the mode toggle hook from transition library (now PortalContext-aware)
-    const { isTransitioning, toggleMode } = useMapModeToggle({
-      duration,
-      onComplete,
-      onCancel,
-      onEngineChange: (engine) => {
-        // Note: Engine state is managed by PortalContext
-        // The transition library handles the visual transition
-        console.debug("[MapTypeSwitcher] Engine change requested:", engine);
-      },
-    });
+    // Use the mode toggle hook from transition library
+    const { isTransitioning, toggleMode } = useMapModeToggle({});
 
     const switchInfoText = isMode2d
       ? LOCALE_DE_SWITCH_TO_3D_MODE

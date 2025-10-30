@@ -18,7 +18,7 @@ import { useCesiumContext } from "../../context/hooks/use-cesium-context";
  * ```
  */
 export const useSceneCameraTracking = () => {
-  const { sceneRef, setCamera, setMoveEndCamera, sceneCameraTrackerRef } =
+  const { sceneRef, setCamera, setMoveEndCamera, setSceneCameraTracker } =
     useCesiumContext();
   useEffect(
     function setupCameraPositionTracking() {
@@ -98,18 +98,18 @@ export const useSceneCameraTracking = () => {
         }
       };
 
-      sceneCameraTrackerRef.current = startStopTracking;
+      setSceneCameraTracker(startStopTracking);
       console.log("[Scene] Registered camera tracker with context");
 
       // Start tracking immediately
       startStopTracking("start");
 
       return () => {
-        sceneCameraTrackerRef.current = null;
+        setSceneCameraTracker(null);
         console.log("[Scene] Unregistered camera tracker from context");
         startStopTracking("stop");
       };
     },
-    [sceneRef, setCamera, setMoveEndCamera, sceneCameraTrackerRef]
+    [sceneRef, setCamera, setMoveEndCamera, setSceneCameraTracker]
   );
 };

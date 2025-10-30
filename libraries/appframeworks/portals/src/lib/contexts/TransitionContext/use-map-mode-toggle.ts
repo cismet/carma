@@ -1,10 +1,9 @@
 import { useCallback } from "react";
+import { isValidScene } from "@carma/cesium";
 import { useMapTransition } from "./use-map-transition";
 import { useTransitionContext } from "./use-transition-context";
-import { usePortalContext } from "@carma-appframeworks/portals";
 
 export type MapModeToggleOptions = {
-  // currentEngine is no longer needed - derived from PortalContext
   duration?: number;
   onComplete?: (isTo2D: boolean) => void;
   onCancel?: (isTo2D: boolean) => void;
@@ -15,7 +14,7 @@ export type MapModeToggleOptions = {
 
 /**
  * Hook for toggling between 2D and 3D map modes.
- * Derives current mode from PortalContext's engine state automatically.
+ * Gets current mode from TransitionContext.
  *
  * @returns isTransitioning - Whether a transition is in progress
  * @returns toggleMode - Function to trigger mode transition
@@ -30,33 +29,12 @@ export const useMapModeToggle = (options: MapModeToggleOptions) => {
     onEngineChange,
   } = options;
 
-  // Get current engine from PortalContext
-  const { getEngines } = usePortalContext();
-  const engines = getEngines();
-  const activeEngines = engines.filter(e => e.isReady && !e.isSuspended);
-  const currentEngine = activeEngines.length > 0 ? activeEngines[0].engine : "leaflet2d";
-
-  // Derive current mode from engine (2D if not cesium)
-  const isMode2d = currentEngine !== "cesium3d";
+  const { isTransitioningRef, currentMode, onCesiumFadeInRef } = useTransitionContext();
+  const isMode2d = currentMode === "2d";
 
   // Log initial state for debugging
   console.log("[MapModeToggle] ===== HOOK INITIALIZED =====");
-  console.log("[MapModeToggle] Engine state:", {
-    totalEngines: engines.length,
-    activeEngines: activeEngines.length,
-    currentEngine,
-    isMode2d,
-    allEngineTypes: engines.map(e => e.engineType || e.engine),
-    engines: engines.map(e => ({
-      engineType: e.engineType,
-      engine: e.engine,
-      isReady: e.isReady,
-      isSuspended: e.isSuspended,
-      hasInstance: !!e.instance
-    }))
-  });
-
-  const { isTransitioningRef } = useTransitionContext();
+  console.log("[MapModeToggle] Current mode:", { currentMode, isMode2d });
 
   const handleComplete = useCallback(
     (isTo2D: boolean) => {
@@ -81,11 +59,15 @@ export const useMapModeToggle = (options: MapModeToggleOptions) => {
     onComplete: handleComplete,
     onCancel: handleCancel,
     onEngineChange,
+    onCesiumFadeIn: () => {
+      // Call the registered callback from context
+      onCesiumFadeInRef.current?.();
+    },
   });
 
   const toggleMode = useCallback(async () => {
     console.log("[MapModeToggle] ===== TOGGLE MODE CLICKED =====");
-    console.log("[MapModeToggle] Current state:", { isMode2d, isTransitioning: isTransitioningRef.current });
+    console.log("[MapModeToggle] Current state:", { currentMode, isMode2d, isTransitioning: isTransitioningRef.current });
     
     // isTransitioning now derived from context state - transition functions manage the state
     onTransitionStart?.();
@@ -108,8 +90,8 @@ export const useMapModeToggle = (options: MapModeToggleOptions) => {
       throw error;
     }
   }, [
+    currentMode,
     isMode2d,
-    getEngines,
     transitionToMode3d,
     transitionToMode2d,
     onTransitionStart,

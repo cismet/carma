@@ -56,6 +56,8 @@ export const getGazDataFromSources = (
   let sorter = 0;
   const gazData: GazDataItem[] = [];
 
+  console.groupCollapsed("getGazDataFromSources");
+
   sources.forEach((source) => {
     const { topic, payload, crs, url } = source;
     if (typeof payload !== "string") {
@@ -138,6 +140,8 @@ export const getGazDataFromSources = (
       }
     );
   });
+
+  console.groupEnd();
 
   return gazData;
 };

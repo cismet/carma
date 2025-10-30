@@ -1,17 +1,19 @@
-
-import { ReactNode, useEffect, useRef, useCallback, useMemo } from "react";
+import { ReactNode, useEffect, useRef, useCallback, useState } from "react";
 import {
   CesiumSceneComponent,
   useCesiumContext,
-  useZoomControls,
 } from "@carma/cesium/core";
+import type { Scene } from "@carma/cesium";
 import { usePortalContext } from "../contexts/PortalContext";
-import { useCesiumStyleSync } from "../hooks/use-cesium-style-sync";
 import { useCesiumSuspension } from "../hooks/use-cesium-suspension";
-import {
-  CameraState,
-  setViewFromCameraState,
-} from "@carma/mapping/engines/cesium/api";
+import { useCesiumEngineMethods } from "../hooks/use-cesium-engine-methods";
+
+/**
+ * Check if scene is valid (exists and not destroyed)
+ */
+const isValidScene = (scene: Scene | null): scene is Scene => {
+  return !!scene && !scene.isDestroyed();
+};
 
 /**
  * CesiumMapComponentWrapper - Portal-level wrapper for Cesium 3D scene
@@ -74,8 +76,13 @@ export const CesiumMapComponentWrapper = ({
 }: {
   children?: ReactNode;
 }) => {
+  console.groupCollapsed("[CesiumMapComponentWrapper] Component rendering");
   console.log("[CesiumMapComponentWrapper] Component rendering");
   const cesiumContainerRef = useRef<HTMLDivElement | null>(null);
+  const mapContainer3dRef = useRef<HTMLDivElement | null>(null);
+  const prevIsReadyRef = useRef<boolean>(false);
+  // Transition visibility state - starts hidden, fades in when camera positioned
+  const [isVisible, setIsVisible] = useState(false);
 
   // Get portal context for engine management
   const {
@@ -92,127 +99,21 @@ export const CesiumMapComponentWrapper = ({
     sceneRef,
     getCamera: getCesiumCtxCamera,
     setCamera: setCesiumCtxCamera,
-    currentSceneStyleRef,
+    getCurrentSceneStyle,
+    setCurrentSceneStyle,
   } = useCesiumContext();
 
-  // also set style from portal context to cesium context
-  const { setStyle } = useCesiumStyleSync();
-
-  // Get zoom controls for engine record
-  const { handleZoomIn: zoomIn, handleZoomOut: zoomOut } = useZoomControls({
-    fovMode: false,
-  });
-  const { handleZoomIn: fovZoomIn, handleZoomOut: fovZoomOut } =
-    useZoomControls({ fovMode: true });
-
-  /**
-   * Fly to home camera position
-   */
-  const flyHome = useCallback(
-    (onComplete?: () => void) => {
-      console.debug("[CesiumMapComponentWrapper] Engine flyHome called");
-
-      const widget = widgetRef.current;
-      if (!widget) {
-        console.warn(
-          "[CesiumMapComponentWrapper] No widget available for flyHome"
-        );
-        onComplete?.();
-        return;
-      }
-
-      const homeCamera = getHomeCamera();
-      if (!homeCamera) {
-        console.warn("[CesiumMapComponentWrapper] No home camera available");
-        onComplete?.();
-        return;
-      }
-
-      const { camera } = widget;
-      if (!camera) {
-        console.warn(
-          "[CesiumMapComponentWrapper] No camera available for flyHome"
-        );
-        onComplete?.();
-        return;
-      }
-
-      console.log("[CesiumMapComponentWrapper] TODO: flyHome not implemented");
-
-      console.debug("[CesiumMapComponentWrapper] FlyHome completed");
-      onComplete?.();
-    },
-    [widgetRef, getHomeCamera]
-  );
-
-  /**
-   * Set camera from CameraState (for transitions)
-   */
-  const setCamera = useCallback(
-    (camera: CameraState) => {
-      console.debug("[CesiumMapComponentWrapper] setCamera called", camera);
-      const widget = widgetRef.current;
-      if (!widget?.camera) {
-        console.warn(
-          "[CesiumMapComponentWrapper] No camera available for setCamera"
-        );
-        return;
-      }
-      // Apply camera state
-      setViewFromCameraState(widget.camera, camera);
-    },
-    [widgetRef]
-  );
-
-  const engineZoomOut = useCallback(
-    (onComplete?: () => void) => {
-      console.debug("[CesiumMapComponentWrapper] Engine zoomOut called");
-      zoomOut({ preventDefault: () => {}, stopPropagation: () => {} } as any);
-      onComplete?.();
-    },
-    [zoomOut]
-  );
-
-  const engineZoomIn = useCallback(
-    (onComplete?: () => void) => {
-      console.debug("[CesiumMapComponentWrapper] Engine zoomIn called");
-      zoomIn({ preventDefault: () => {}, stopPropagation: () => {} } as any);
-      onComplete?.();
-    },
-    [zoomIn]
-  );
-
-  const engineFovZoomOut = useCallback(
-    (onComplete?: () => void) => {
-      console.debug("[CesiumMapComponentWrapper] Engine fovZoomOut called");
-      fovZoomOut({
-        preventDefault: () => {},
-        stopPropagation: () => {},
-      } as any);
-      onComplete?.();
-    },
-    [fovZoomOut]
-  );
-
-  const engineFovZoomIn = useCallback(
-    (onComplete?: () => void) => {
-      console.debug("[CesiumMapComponentWrapper] Engine fovZoomIn called");
-      fovZoomIn({ preventDefault: () => {}, stopPropagation: () => {} } as any);
-      onComplete?.();
-    },
-    [fovZoomIn]
-  );
-
-  const debugInfo = useMemo(
-    () => ({
-      config: portalConfig.cesium,
-      timestamp: Date.now(),
-    }),
-    [portalConfig.cesium]
-  );
-
-  // Track previous isReady state to prevent unnecessary updates
-  const prevIsReadyRef = useRef<boolean>(false);
+  // Get all engine methods (zoom, camera, style, debug)
+  const {
+    engineZoomIn,
+    engineZoomOut,
+    engineFovZoomIn,
+    engineFovZoomOut,
+    flyHome,
+    setCamera,
+    setStyle,
+    debugInfo,
+  } = useCesiumEngineMethods(portalConfig);
 
   const contextCamera = getCesiumCtxCamera();
   // Set initial camera state synchronously before scene renders
@@ -220,10 +121,12 @@ export const CesiumMapComponentWrapper = ({
   if (contextCamera === null) {
     const initialCamera = getInitialCamera();
 
-    console.debug(
-      "[CesiumMapComponentWrapper] Setting initial camera in context"
-    );
-    setCesiumCtxCamera(initialCamera);
+    if (initialCamera) {
+      console.debug(
+        "[CesiumMapComponentWrapper] Setting initial camera in context"
+      );
+      setCesiumCtxCamera(initialCamera);
+    }
   } else {
     console.debug(
       "[CesiumMapComponentWrapper] Engine was already mounted leaving camera for reinitialization"
@@ -231,24 +134,25 @@ export const CesiumMapComponentWrapper = ({
   }
 
   // Gate: Only render scene when both camera and style are available in Cesium context
+  const currentSceneStyle = getCurrentSceneStyle();
+  
   const isSceneReady =
-    contextCamera !== null && currentSceneStyleRef.current !== null;
+    contextCamera !== null && currentSceneStyle !== null;
 
   if (!isSceneReady) {
-    console.debug(
-      "[CesiumMapComponentWrapper] Gate - Waiting for camera and style to be available",
-      {
-        hasCamera: contextCamera !== null,
-        hasStyle: currentSceneStyleRef.current !== null,
-      }
-    );
+    console.debug("[CesiumMapComponentWrapper] Gate - Waiting ");
   }
+
+  // Expose container getter for transition system (must be before initCesiumEngineRecord)
+  const getContainer = useCallback(() => {
+    return mapContainer3dRef.current;
+  }, []);
 
   /**
    * Create or update Cesium engine record
    * This registers the engine with PortalContext so the portal context can provide unified style and map management
    */
-  const updateCesiumEngineRecord = useCallback(() => {
+  const initCesiumEngineRecord = useCallback(() => {
     const scene = sceneRef.current;
     const widget = widgetRef.current;
 
@@ -257,51 +161,67 @@ export const CesiumMapComponentWrapper = ({
     const cesiumEngine = engines.find((e) => e.engine === "cesium3d");
     const isSuspended = cesiumEngine?.isSuspended ?? true;
 
-    const isValid = !isSuspended && !!scene && !scene.isDestroyed();
+    // Scene is ready when it exists and is not destroyed, regardless of suspension
+    // Suspension is about visibility/interactivity, NOT readiness
+    const isValid = isValidScene(scene);
 
-    const isInitial = isValid && !prevIsReadyRef.current;
-
-    // Skip update if isReady state hasn't changed
-    if (prevIsReadyRef.current === isValid) {
+    if (!isValid) {
+      console.debug("[CesiumMapComponentWrapper] Engine has no valid scene");
       return;
     }
 
-    prevIsReadyRef.current = isValid;
+    const isInitial = prevIsReadyRef.current === false;
 
-    isValid &&
-      isInitial &&
-      updateEngine("cesium3d", {
-        isReady: isValid as true,
-        isSuspended: isSuspended,
-        instance: widget, // Add the actual Cesium widget instance
-        zoomOut: engineZoomOut,
-        zoomIn: engineZoomIn,
-        fovZoomOut: engineFovZoomOut,
-        fovZoomIn: engineFovZoomIn,
-        flyHome: flyHome,
-        setCamera: setCamera,
-        setStyle: setStyle,
-        debug: debugInfo,
-      });
+    // skip on rerender if scene is not valid or is not initial
+    if (!isInitial) {
+      console.debug("[CesiumMapComponentWrapper] Engine is already ready");
+      return;
+    }
+
+    console.log("[CesiumMapComponentWrapper] Engine readiness changed:", {
+      isValid,
+      isSuspended,
+      hasScene: !!scene,
+      hasWidget: !!widget,
+    });
+
+    prevIsReadyRef.current = true;
+
+    updateEngine("cesium3d", {
+      isReady: true,
+      isSuspended: isSuspended,
+      instance: () => sceneRef.current, // Store Scene getter for fresh access
+      getResolutionScale: () => widgetRef.current?.resolutionScale ?? 1.0,
+      getContainer: getContainer, // Provide container for transition animations
+      zoomOut: engineZoomOut,
+      zoomIn: engineZoomIn,
+      fovZoomOut: engineFovZoomOut,
+      fovZoomIn: engineFovZoomIn,
+      flyHome: flyHome,
+      setCamera: setCamera,
+      setStyle: setStyle,
+      debug: debugInfo,
+    });
   }, [
     getEngines,
     sceneRef,
     widgetRef,
-    setStyle,
     updateEngine,
-    debugInfo,
-    flyHome,
-    setCamera,
     engineZoomIn,
     engineZoomOut,
     engineFovZoomIn,
     engineFovZoomOut,
+    flyHome,
+    setCamera,
+    setStyle,
+    getContainer,
+    debugInfo,
   ]);
 
   // Update engine record reactively when scene or suspension state changes
   useEffect(() => {
-    updateCesiumEngineRecord();
-  }, [updateCesiumEngineRecord]);
+    initCesiumEngineRecord();
+  }, [initCesiumEngineRecord]);
 
   // Clean up engine record on unmount
   // NOTE: We don't call updateEngine here because it would trigger a re-render
@@ -316,8 +236,18 @@ export const CesiumMapComponentWrapper = ({
   // Handle suspension state - hide/show imagery layers to save resources
   const isSuspended = useCesiumSuspension();
 
+  // Reset visibility when suspended (for next transition)
+  useEffect(() => {
+    if (isSuspended) {
+      setIsVisible(false);
+    }
+  }, [isSuspended]);
+
+  console.groupEnd();
+
   return (
     <div
+      ref={mapContainer3dRef}
       className={"map-container-3d"}
       style={{
         position: "absolute",
@@ -326,10 +256,13 @@ export const CesiumMapComponentWrapper = ({
         right: 0,
         bottom: 0,
         zIndex: 400,
-        // Debug: Show 50% opacity when suspended
-        opacity: isSuspended ? 0.5 : 1,
+        // Smooth transition: hidden when suspended, fades in when visible
+        opacity: isSuspended ? 0 : isVisible ? 1 : 0,
+        transition: "opacity 300ms ease-in-out",
+        pointerEvents: isSuspended || !isVisible ? "none" : "auto",
       }}
     >
+      {/* leave the cesium container alone from css updates, use map-container-3d */}
       <div
         ref={cesiumContainerRef}
         style={{

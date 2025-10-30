@@ -20,6 +20,7 @@ export type {
 */
 
 export type CesiumConfig = {
+  // Views and Home Camera are consumer app settings, config just provides scene setup and styles
   // Runtime asset paths (REQUIRED)
   baseUrl?: string; // Base URL for Cesium runtime assets (Workers, Assets, etc.) - defaults to "/cesium"
 
@@ -29,15 +30,8 @@ export type CesiumConfig = {
 
   // CARMA scene management
   sceneStyle?: SceneStyleConfig; // Single scene style configuration
-  // Note: initialStyle removed - portal sets currentSceneStyleRef before scene initialization
-
   // Tileset loading configuration
-
   minInitialTilesetTileCount?: number; // Minimum number of tiles to load before considering tileset ready (default: 10)
-
-  // camera HomePose is a value
-  // currentCameraState are tracked refs on the CesiumContext but not part of the config and are set before init form the consumer app
-  // e.g. see PortalContext
 
   // TODO: Migrate to plugin system
   /* MARKERS

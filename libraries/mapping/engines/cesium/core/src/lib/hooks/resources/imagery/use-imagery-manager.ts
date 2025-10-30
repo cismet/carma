@@ -21,7 +21,8 @@ export const useImageryManager = (
     onImageryLayersChange?: (
       layers: Array<{ id: string; opacity: number }>
     ) => void;
-  }>
+  }>,
+  onImageryReady?: (id: string) => void
 ) => {
   const { sceneRef } = useCesiumContext();
 
@@ -72,21 +73,21 @@ export const useImageryManager = (
           // Check if layer is already in scene before adding
           if (!scene.imageryLayers.contains(layerRef.current)) {
             scene.imageryLayers.add(layerRef.current);
-            console.log(`[CESIUM|IMAGERY] ✓ Added to scene: ${id}`);
+            console.log(`[CESIUM|IMAGERY] Added to scene: ${id}`);
           } else {
             console.warn(
-              `[CESIUM|IMAGERY] ⚠️ Layer already in scene, skipping add: ${id}`
+              `[CESIUM|IMAGERY] Layer already in scene, skipping add: ${id}`
             );
           }
 
           // Start hidden - visibility controlled by scene styles
           layerRef.current.show = false;
           imageryLayersRef.current.set(id, layerRef.current);
+          onImageryReady?.(id);
           scene.requestRender();
 
-          // Count imagery layers after adding
           console.log(
-            `[CESIUM|IMAGERY] Scene now has ${scene.imageryLayers.length} imagery layers after loading ${id}`
+            `[CESIUM|IMAGERY] Scene now has ${scene.imageryLayers.length} imagery layers`
           );
         }
       } catch (error) {

@@ -6,7 +6,7 @@ import {
   Matrix4,
   PerspectiveFrustum,
   Cartesian2,
-  HeadingPitchRollValues,
+  type HeadingPitchRollValues,
 } from "cesium";
 
 import type {
@@ -27,7 +27,7 @@ export type CameraStateRecord = {
   up: Cartesian3;
   right?: Cartesian3;
   fov?: number;
-  frustum?: { fov?: number };
+  _type?: string; // Type discriminator for debugging
 };
 
 export const isCameraStateRecord = (
@@ -237,8 +237,12 @@ export const setViewFromCameraState = (
     const orientation: HeadingPitchRollValues = {
       heading: degToRad(state.heading),
       pitch: degToRad(state.pitch),
-      roll: degToRad(state.roll),
+      roll: ZERO_PI,
     };
+
+    if (state.roll !== undefined) {
+      orientation.roll = degToRad(state.roll);
+    }
     camera.setView({ destination, orientation });
   } else {
     console.error("Invalid camera state format for recovery");
@@ -279,7 +283,6 @@ export const captureCurrentCameraState = (
     direction: camera.directionWC.clone(),
     up: camera.upWC.clone(),
     right: camera.rightWC.clone(),
-    _type: "cameraStateRecord",
   };
 
   if (
@@ -400,10 +403,9 @@ export function validateCameraStateHeadingPitchRoll(
     latitude: latitude as Degrees,
     longitude: longitude as Degrees,
     altitude: altitude as Altitude.EllipsoidalWGS84Meters,
-    heading: ZERO_PI,
-    pitch: MINUS_PI_OVER_TWO,
-    roll: ZERO_PI,
-    fov: undefined,
+    heading: radToDeg(ZERO_PI),
+    pitch: radToDeg(MINUS_PI_OVER_TWO),
+    roll: radToDeg(ZERO_PI),
   };
 
   const hasOrientation =
@@ -419,7 +421,9 @@ export function validateCameraStateHeadingPitchRoll(
 
   result.heading = obj.heading;
   result.pitch = obj.pitch;
-  result.roll = obj.roll;
+  if (obj.roll !== undefined) {
+    result.roll = obj.roll;
+  }
 
   if (obj.fov !== undefined && Number.isFinite(obj.fov)) {
     result.fov = obj.fov;

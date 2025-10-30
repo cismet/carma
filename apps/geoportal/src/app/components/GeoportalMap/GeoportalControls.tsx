@@ -1,4 +1,4 @@
-import { useCallback, useContext, useState } from "react";
+import { useCallback, useContext, useState, useEffect } from "react";
 import { isMobile } from "react-device-detect";
 import { useDispatch, useSelector } from "react-redux";
 import { Tooltip } from "antd";
@@ -32,6 +32,8 @@ import {
   usePortalHomeControl,
   usePortalZoomControls,
   useActiveEngines,
+  usePortalContext,
+  useTransitionContext,
 } from "@carma-appframeworks/portals";
 import { useCarmaTopicMapContext } from "@carma-mapping/engines/carma-cismap";
 import { useCesiumContext } from "@carma-mapping/engines/cesium/core";
@@ -70,18 +72,22 @@ export const GeoportalControls = () => {
   const dispatch = useDispatch();
   const tourRefLabels = useTourRefCollabLabels();
   const { gazData } = useGazData();
-  const { setSelection, selection: configSelection, setOverlayFeature } = useSelection();
-  
+  const {
+    setSelection,
+    selection: configSelection,
+    setOverlayFeature,
+  } = useSelection();
+
   // Get TopicMap context for direct map access
   const carmaTopicMapCtx = useCarmaTopicMapContext();
-  const { getRoutedMapRef, getReferenceSystem, getReferenceSystemDefinition } = carmaTopicMapCtx;
+  const { getRoutedMapRef, getReferenceSystem, getReferenceSystemDefinition } =
+    carmaTopicMapCtx;
 
   // Fetch from contexts instead of props
-  const { isCesiumActive, activeEngines } = useActiveEngines();
-  const isMode2d = !isCesiumActive;
+  const { getIsCesiumActive, activeEngines } = useActiveEngines();
+  const isMode2d = !getIsCesiumActive;
   const currentEngine =
     activeEngines.length > 0 ? activeEngines[0].engine : "leaflet2d";
-  const { isSuspendedRef } = useCesiumContext();
   const { mapRef: libreMapRef } = useMapLibreContext(); // Get MapLibre ref from context
   const flags = useFeatureFlags();
   const showLibreMap = flags.featureFlagLibreMap;
@@ -96,6 +102,22 @@ export const GeoportalControls = () => {
 
   // Portal handles all zoom routing internally via engine contexts
   const { handleZoomIn, handleZoomOut } = usePortalZoomControls();
+
+  // Get engines and transition context for coordination
+  const { getEngines } = usePortalContext();
+  const { onCesiumFadeInRef } = useTransitionContext();
+
+  // Register fade-in callback with TransitionContext
+  // (mode syncing is now automatic via TransitionContext)
+  useEffect(() => {
+    onCesiumFadeInRef.current = () => {
+      const engines = getEngines();
+      const cesiumEngine = engines.find((e) => e.engine === "cesium3d");
+      if (cesiumEngine && "triggerFadeIn" in cesiumEngine && typeof cesiumEngine.triggerFadeIn === "function") {
+        cesiumEngine.triggerFadeIn();
+      }
+    };
+  }, [getEngines, onCesiumFadeInRef]);
 
   // Home button calls Portal's handleHome
   // Portal routes to active engine's flyHome callback (no hash needed if already at home)
@@ -124,18 +146,16 @@ export const GeoportalControls = () => {
         setSelection(null);
         return;
       }
-      
+
       // Check if this is a different selection than current
       const currentSelection = configSelection;
       const isNewItem = currentSelection?.sorter !== selection.sorter;
-      
+
       if (isNewItem) {
         // New item - set selection to trigger feature info
         const selectionMetaData: SelectionMetaData = {
           selectedFrom: "gazetteer",
-          selectedFromMapMode: isSuspendedRef.current
-            ? SelectionMapMode.MODE_2D
-            : SelectionMapMode.MODE_3D,
+          selectedFromMapMode: SelectionMapMode.MODE_2D,
           selectionTimestamp: Date.now(), // Keep timestamp for NEW_SELECTION_TIMEOUT logic
           isAreaSelection: isAreaType(selection.type),
         };
@@ -144,23 +164,21 @@ export const GeoportalControls = () => {
       } else {
         // Same item - recenter directly without changing selection state
         console.log("[onGazetteerSelection] Same item, recentering directly");
-        
+
         const routedMapRef = getRoutedMapRef();
         const { leafletElement } = routedMapRef?.current?.leafletMap;
-        
+
         if (leafletElement) {
           // Create selection metadata for the gazetteer trigger
           const selectionMetaData: SelectionMetaData = {
             selectedFrom: "gazetteer",
-            selectedFromMapMode: isSuspendedRef.current
-              ? SelectionMapMode.MODE_2D
-              : SelectionMapMode.MODE_3D,
+            selectedFromMapMode: SelectionMapMode.MODE_2D,
             selectionTimestamp: currentSelection?.selectionTimestamp || null,
             isAreaSelection: isAreaType(selection.type),
           };
-          
+
           const fullSelection = Object.assign({}, selection, selectionMetaData);
-          
+
           // Trigger recentering directly without feature info
           builtInGazetteerHitTrigger(
             [fullSelection],
@@ -172,11 +190,20 @@ export const GeoportalControls = () => {
             undefined // No furtherGazeteerHitTrigger callback (no feature info)
           );
         } else {
-          console.log("[onGazetteerSelection] No map available for recentering");
+          console.log(
+            "[onGazetteerSelection] No map available for recentering"
+          );
         }
       }
     },
-    [setSelection, configSelection, isSuspendedRef, getRoutedMapRef, getReferenceSystem, getReferenceSystemDefinition, setOverlayFeature]
+    [
+      setSelection,
+      configSelection,
+      getRoutedMapRef,
+      getReferenceSystem,
+      getReferenceSystemDefinition,
+      setOverlayFeature,
+    ]
   );
 
   const handleFeatureInfoClick = useCallback(() => {
