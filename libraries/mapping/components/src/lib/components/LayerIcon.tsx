@@ -16,6 +16,11 @@ interface LayerIconProps {
   id?: string;
 }
 
+const isUrl = (str: string | undefined): boolean => {
+  if (!str) return false;
+  return str.startsWith('http://') || str.startsWith('https://');
+};
+
 export const LayerIcon = ({
   layer,
   iconPrefix = ICON_PREFIX,
@@ -29,20 +34,27 @@ export const LayerIcon = ({
     layer.other?.icon ||
     layer.other?.path?.toLowerCase() + "/" + layer.other?.name;
 
+  const isIconUrl = isUrl(layer.other?.icon);
+  const iconSrc = isIconUrl
+    ? layer.other?.icon
+    : iconName
+    ? iconPrefix + `${iconName}.png`
+    : undefined;
+
   useEffect(() => {
-    if (iconName) {
+    if (iconSrc) {
       const img = new Image();
       img.onload = () => setImgError(false);
       img.onerror = () => setImgError(true);
-      img.src = iconPrefix + `${iconName}.png`;
+      img.src = iconSrc;
     }
-  }, [iconName]);
+  }, [iconSrc]);
 
   return (
     <>
-      {iconName && !imgError ? (
+      {iconSrc && !imgError ? (
         <FontAwesomeLikeIcon
-          src={iconPrefix + `${iconName}.png`}
+          src={iconSrc}
           alt="Layer Icon"
           className="text-base"
           id={id}
