@@ -5,7 +5,7 @@ import { Col, Container, Row } from "react-bootstrap";
 import { getApplicationVersion } from "@carma-commons/utils";
 import store from "../store";
 import { Button } from "antd";
-
+import wupperwurm from "../assets/wupperwurm.svg";
 // Import version data - adjust path as needed
 // import versionData from "../version.json";
 
@@ -15,7 +15,7 @@ const AppErrorFallback = ({ error, resetErrorBoundary }) => {
     errorStack: undefined,
     stringifiedStack: undefined,
   });
-  
+
   // Fallback version if version.json doesn't exist
   const version = "1.0.0"; // Replace with: getApplicationVersion(versionData);
 
@@ -120,18 +120,18 @@ const AppErrorFallback = ({ error, resetErrorBoundary }) => {
           {version}
         </div>
       </div>
-      
+
       <div style={{ marginRight: 25, marginLeft: 25 }}>
         <Row className="show-grid">
           <Col style={{ marginTop: 30 }} xs={12} md={12}>
             <h1 style={{ color: "white" }}>
-              <img alt="" width={180} src="/images/wuppertal-white.svg" />
+              <img alt="" width={180} src={wupperwurm} />
             </h1>
             <h2 style={{ color: "white" }}>LagIS Desktop</h2>
           </Col>
         </Row>
       </div>
-      
+
       <div style={{ margin: 25, overflow: "auto" }}>
         <h2>Es ist ein Fehler aufgetreten. Das tut uns leid. ¯\_(ツ)_/¯</h2>
 
