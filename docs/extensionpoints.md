@@ -73,6 +73,7 @@ Die Single Icon Legende wird in den Layerbuttons, sowie in der Layer Info View d
     "icon": "url || path", // Wie oben beschrieben
     "thumbnail": "https://tiles.cismet.de//hoehenlinien/assets/hoehenlinien.png",
     "ff": "string", // Feature Flag die genutzt werden kann damit der Layer nicht immer angezeigt wird
+    "vectorLegend": "string", // Für Vector Legenden
     "props": {
           "Style": [
             {
@@ -81,7 +82,7 @@ Die Single Icon Legende wird in den Layerbuttons, sowie in der Layer Info View d
               "LegendURL": [
                 {
                   "Format": "image/png",
-                  "OnlineResource": "https://www.wuppertal.de/geoportal/legenden/default_R102_ALKIS_Vektor_FlstGeb_gelb.png", // Verlinkung auf die Legende. Sollte nach dem Urlaub vereinfacht werden. Aktuell noch die Struktur der WMS Legenden
+                  "OnlineResource": "https://www.wuppertal.de/geoportal/legenden/default_R102_ALKIS_Vektor_FlstGeb_gelb.png", // Struktur kommt noch von den wms Legenden. Für Vector Styles kann einfach vectorLegend verwendet werden
                   "size": [231, 358]
                 }
               ]
