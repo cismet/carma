@@ -129,25 +129,6 @@ const TZBaumbewirtschaftung = ({
     })();
   }, [jwt]);
 
-  useEffect(() => {
-    if (
-      selectedFeature &&
-      selectedFeature.properties?.info?.fotoCaptions &&
-      selectedFeature.properties?.info?.fotoCaptions.length > 0
-    ) {
-      console.log("xxx xxx selectedFeature", selectedFeature);
-      lightBoxDispatchContext.setCaptions(
-        selectedFeature.properties?.info?.fotoCaptions
-      );
-      // const photos = selectedFeature.properties.originalPhotos;
-      // const urls = selectedFeature.properties.fotos;
-      // const titleArr = photos.map((p) => p.anzeige);
-      // lightBoxDispatchContext.setPhotoUrls(urls);
-      // lightBoxDispatchContext.setCaptions(titleArr);
-      // lightBoxDispatchContext.setIndex(0);
-    }
-  }, [selectedFeature]);
-
   const treeStyle = useTreeStyle(featureCollection, markerSymbolSize);
 
   return (
