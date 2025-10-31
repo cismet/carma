@@ -118,15 +118,17 @@ export const InfoBox = ({
   ) as LightboxDispatch;
 
   useEffect(() => {
+    const fotoCaptions =
+      currentFeature?.properties?.info?.fotoCaptions ||
+      currentFeature?.properties?.fotoCaptions;
+
     if (
       currentFeature &&
-      currentFeature.properties?.info?.fotoCaptions &&
-      currentFeature.properties?.info?.fotoCaptions.length > 0 &&
+      fotoCaptions &&
+      fotoCaptions.length > 0 &&
       lightBoxDispatchContext?.setCaptions
     ) {
-      lightBoxDispatchContext.setCaptions(
-        currentFeature.properties?.info?.fotoCaptions
-      );
+      lightBoxDispatchContext.setCaptions(fotoCaptions);
     }
   }, [currentFeature]);
 
