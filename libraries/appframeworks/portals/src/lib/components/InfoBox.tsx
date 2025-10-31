@@ -1,4 +1,4 @@
-import { useContext, useState } from "react";
+import { useContext, useEffect, useState } from "react";
 import { ResponsiveInfoBox, MODES } from "./ResponsiveInfoBox";
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 import {
@@ -6,6 +6,7 @@ import {
   FeatureCollectionDispatchContext,
 } from "react-cismap/contexts/FeatureCollectionContextProvider";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
 import Color from "color";
 import parseHtml from "html-react-parser";
 import Button from "react-bootstrap/Button";
@@ -47,6 +48,14 @@ interface InfoBoxProps {
   infoBoxBottomResMargin?: number;
   bigMobileIconsInsteadOfCollapsing?: boolean;
 }
+
+type LightboxDispatch = {
+  setPhotoUrls: (urls: string[]) => void;
+  setIndex: (i: number) => void;
+  setTitle: (t: string) => void;
+  setCaptions: (t: string[]) => void;
+  setVisible: (v: boolean) => void;
+};
 
 export const InfoBox = ({
   currentFeature,
@@ -104,6 +113,22 @@ export const InfoBox = ({
   const { additionalStylingInfo } = useContext<typeof TopicMapStylingContext>(
     TopicMapStylingContext
   );
+  const lightBoxDispatchContext = useContext(
+    LightBoxDispatchContext
+  ) as LightboxDispatch;
+
+  useEffect(() => {
+    if (
+      currentFeature &&
+      currentFeature.properties?.info?.fotoCaptions &&
+      currentFeature.properties?.info?.fotoCaptions.length > 0 &&
+      lightBoxDispatchContext?.setCaptions
+    ) {
+      lightBoxDispatchContext.setCaptions(
+        currentFeature.properties?.info?.fotoCaptions
+      );
+    }
+  }, [currentFeature]);
 
   // Determine the actual collapsed state
   const isCollapsed =
