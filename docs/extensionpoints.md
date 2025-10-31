@@ -20,7 +20,7 @@ Die Single Icon Legende wird in den Layerbuttons, sowie in der Layer Info View d
 
 # Infobox
 
-```json
+```json5
 {
     "header": "string | html",
     "headerColor": "string",
@@ -45,7 +45,7 @@ Die Single Icon Legende wird in den Layerbuttons, sowie in der Layer Info View d
 
 # Additional Configs
 
-```json
+```json5
 {
     "Title": "string", // Titel der Kategorie im Modal
     "serviceName": "string", // Wird intern genutzt um unique ids zu generieren falls es mehrere Layer mit der gleichen id aber in unterschiedlichen Kategorien gibt.
@@ -54,7 +54,7 @@ Die Single Icon Legende wird in den Layerbuttons, sowie in der Layer Info View d
 ```
 
 # Layer Informationen
-```json
+```json5
 {
     "replaceId": "wuppKarten:expsw",
     "title": "string",
