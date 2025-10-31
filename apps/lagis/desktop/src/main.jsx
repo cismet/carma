@@ -8,6 +8,8 @@ import store from "./store";
 import { ConfigProvider } from "antd";
 import { RouterProvider, createHashRouter } from "react-router-dom";
 import locale from "antd/locale/de_DE";
+import { ErrorBoundary } from "react-error-boundary";
+import AppErrorFallback from "./components/AppErrorFallback";
 import ErrorPage from "./components/ui/errors-template/ErrorsPage";
 import Overview from "./pages/Overview";
 import AppLayout from "./pages/AppLayout";
@@ -124,35 +126,37 @@ const queryClient = new QueryClient();
 const persistor = persistStore(store);
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <ConfigProvider locale={locale}>
-      <Provider store={store}>
-        <GazDataProvider config={gazDataConfig}>
-          <SelectionProvider>
-            <MapMeasurementsProvider
-              config={{
-                editableTitle: true,
-                snappingEnabled: true,
-                snappingOnUpdate: false,
-                snappingRadiusVisible: false,
-                debugOutputMapStatus: false,
-                snappingQueryRadius: 40,
-                snappingMinZoom: 15,
-                localStorageKey: "@" + APP_KEY + ".app.measurements",
-              }}
-            >
-              <TopicMapContextProvider appKey="lagis-desktop.map">
-                <PersistGate
-                  locale={locale}
-                  loading={null}
-                  persistor={persistor}
-                >
-                  <RouterProvider router={router} />
-                </PersistGate>
-              </TopicMapContextProvider>
-            </MapMeasurementsProvider>
-          </SelectionProvider>
-        </GazDataProvider>
-      </Provider>
-    </ConfigProvider>
+    <ErrorBoundary FallbackComponent={AppErrorFallback}>
+      <ConfigProvider locale={locale}>
+        <Provider store={store}>
+          <GazDataProvider config={gazDataConfig}>
+            <SelectionProvider>
+              <MapMeasurementsProvider
+                config={{
+                  editableTitle: true,
+                  snappingEnabled: true,
+                  snappingOnUpdate: false,
+                  snappingRadiusVisible: false,
+                  debugOutputMapStatus: false,
+                  snappingQueryRadius: 40,
+                  snappingMinZoom: 15,
+                  localStorageKey: "@" + APP_KEY + ".app.measurements",
+                }}
+              >
+                <TopicMapContextProvider appKey="lagis-desktop.map">
+                  <PersistGate
+                    locale={locale}
+                    loading={null}
+                    persistor={persistor}
+                  >
+                    <RouterProvider router={router} />
+                  </PersistGate>
+                </TopicMapContextProvider>
+              </MapMeasurementsProvider>
+            </SelectionProvider>
+          </GazDataProvider>
+        </Provider>
+      </ConfigProvider>
+    </ErrorBoundary>
   </React.StrictMode>
 );
