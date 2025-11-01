@@ -1,0 +1,189 @@
+name: PR Deployment
+
+run-name: >
+  🔍 PR #${{ github.event.pull_request.number }} - 
+  ${{ github.event.pull_request.title }}
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+jobs:
+  parse_pr_description:
+    runs-on: ubuntu-latest
+    outputs:
+      project_list: ${{ steps.parse_deploy_projects.outputs.project_list }}
+      has_projects: ${{ steps.parse_deploy_projects.outputs.has_projects }}
+      node-modules-cache-key: ${{ steps.node-cache-key.outputs.key }}
+
+    permissions:
+      contents: read
+      pull-requests: read
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: "recursive"
+
+      - name: Update Submodules
+        run: git submodule update --remote --recursive
+
+      - name: Print Collaboration Version numbers
+        run: |
+          echo "-------------------------------"
+          echo "All Collaboration Submodules:"
+          echo
+          find libraries -type f -name "package.json" -path "*/*-submodule/package.json" \
+          -exec sh -c 'dir=$(dirname "$1"); echo "$(basename "$dir"): $(grep -m1 \"version\" "$1" | sed -E "s/[[:space:]]*\"version\":[[:space:]]*\"([^\"]+)\",/\\1/")"' _ {} \;
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: add cismet-dev registry secret to .npmrc
+        shell: bash
+        run: |
+          touch .npmrc
+          echo "${{ secrets.CISMET_DEV_REGISTRY_SECRET_4_DOT_NPMRC }}" >> .npmrc
+
+      - name: Generate node_modules cache key
+        id: node-cache-key
+        run: |
+          echo "key=node-modules-${{ runner.os }}-node-20-${{ hashFiles('package-lock.json') }}" >> $GITHUB_OUTPUT
+
+      - uses: actions/cache@v4
+        id: parse-job-node-cache
+        with:
+          path: node_modules
+          key: ${{ steps.node-cache-key.outputs.key }}
+
+      - name: Install dependencies
+        if: steps.parse-job-node-cache.outputs.cache-hit != 'true'
+        run: npm install
+
+      - name: Parse PR description for deploy projects
+        id: parse_deploy_projects
+        run: |
+          # Get PR description
+          PR_BODY='${{ github.event.pull_request.body }}'
+          
+          echo "==================================="
+          echo "PR Description:"
+          echo "$PR_BODY"
+          echo "==================================="
+          
+          # Extract deploy array using grep and sed
+          # Looking for pattern: deploy: ["project1","project2"]
+          DEPLOY_LINE=$(echo "$PR_BODY" | grep -o 'deploy:[[:space:]]*\[.*\]' || echo "")
+          
+          echo "Found deploy line: $DEPLOY_LINE"
+          
+          if [ -z "$DEPLOY_LINE" ]; then
+            echo "No deploy directive found in PR description"
+            echo "project_list=[]" >> $GITHUB_OUTPUT
+            echo "has_projects=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Extract the JSON array part
+          PROJECTS_JSON=$(echo "$DEPLOY_LINE" | sed -E 's/deploy:[[:space:]]*(\[.*\])/\1/')
+          
+          echo "Extracted JSON: $PROJECTS_JSON"
+          
+          # Validate it's valid JSON
+          if ! echo "$PROJECTS_JSON" | jq empty 2>/dev/null; then
+            echo "Invalid JSON format in deploy directive"
+            echo "project_list=[]" >> $GITHUB_OUTPUT
+            echo "has_projects=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Load deployment configuration to validate projects exist
+          config=$(cat deployment-config.json)
+          deployment_projects=$(echo "$config" | jq -r '.projects | keys | .[]')
+          
+          echo "==================================="
+          echo "Available projects in deployment-config.json:"
+          echo "$deployment_projects"
+          echo "==================================="
+          
+          # Parse requested projects and validate them
+          requested_projects=$(echo "$PROJECTS_JSON" | jq -r '.[]')
+          valid_projects="[]"
+          
+          echo "==================================="
+          echo "Requested projects from PR:"
+          echo "$requested_projects"
+          echo "==================================="
+          
+          # Build array of valid projects
+          valid_array=()
+          for project in $requested_projects; do
+            # Check if project exists in deployment config
+            if echo "$deployment_projects" | grep -q "^${project}$"; then
+              echo "✅ Project '$project' found in deployment configuration"
+              valid_array+=("$project")
+            else
+              echo "❌ Project '$project' NOT found in deployment configuration - skipping"
+            fi
+          done
+          
+          # Convert to JSON array
+          if [ ${#valid_array[@]} -gt 0 ]; then
+            valid_projects=$(printf '%s\n' "${valid_array[@]}" | jq -R . | jq -s .)
+            echo "has_projects=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_projects=false" >> $GITHUB_OUTPUT
+          fi
+          
+          echo "==================================="
+          echo "Valid projects to deploy:"
+          echo "$valid_projects"
+          echo "==================================="
+          
+          echo "project_list=$valid_projects" >> $GITHUB_OUTPUT
+
+      - name: Echo parsed projects (Phase 1)
+        run: |
+          echo "==================================="
+          echo "📦 PHASE 1: Parsed Deploy Projects"
+          echo "==================================="
+          echo ""
+          echo "Projects to deploy:"
+          echo '${{ steps.parse_deploy_projects.outputs.project_list }}' | jq -r '.[]' | while read project; do
+            echo "  - $project"
+          done
+          echo ""
+          echo "Has projects: ${{ steps.parse_deploy_projects.outputs.has_projects }}"
+          echo "==================================="
+
+      - name: Summary
+        run: |
+          {
+            echo "## 🚀 PR Deployment - Phase 1"
+            echo ""
+            echo "### Parsed Projects"
+            echo ""
+            if [ "${{ steps.parse_deploy_projects.outputs.has_projects }}" = "true" ]; then
+              echo "The following projects will be deployed:"
+              echo ""
+              echo '```json'
+              echo '${{ steps.parse_deploy_projects.outputs.project_list }}'
+              echo '```'
+              echo ""
+              echo "**Projects:**"
+              echo '${{ steps.parse_deploy_projects.outputs.project_list }}' | jq -r '.[]' | while read project; do
+                echo "- \`$project\`"
+              done
+            else
+              echo "ℹ️ No valid projects found in PR description."
+              echo ""
+              echo "To deploy projects, add the following to your PR description:"
+              echo '```'
+              echo 'deploy: ["project1","project2"]'
+              echo '```'
+            fi
+          } >> $GITHUB_STEP_SUMMARY

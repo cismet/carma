@@ -1,4 +1,5 @@
 {
+  "pr-deployment-project": "carma-pr-deployment",
   "projects": {
     "stadtplan": {
       "deployment": {
