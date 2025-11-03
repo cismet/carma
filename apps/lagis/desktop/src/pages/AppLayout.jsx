@@ -43,13 +43,12 @@ const AppLayout = () => {
           {fetchLandParcelError && (
             <Alert
               type="danger"
-              headline="Verbindungsprobleme."
+              headline="Fehler beim Laden"
               onDismiss={() => {
                 dispatch(setFetchLandParcelError(false));
               }}
             >
-              Im Moment können wir keine Verbindung zu unseren Diensten
-              aufbauen.
+              Flurstücksdaten konnten nicht geladen werden.
             </Alert>
           )}
         </div>
