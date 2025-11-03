@@ -30,6 +30,10 @@ import { SyncOutlined } from "@ant-design/icons";
 import { defaultLinksColor, removeLeadingZeros } from "../../core/tools/helper";
 import { setHasFittedBounds } from "../../store/slices/mapping";
 import LandParcelHistoryNav from "../navigation/lp-history/LandParcelHistoryNav";
+// TEMPORARY: Test component that throws an error
+const ErrorTestComponent = () => {
+  throw new Error("Testing ErrorBoundary - this is intentional!");
+};
 
 function paramsToObject(entries) {
   const result = {};
@@ -216,6 +220,8 @@ const LandParcelChooser = ({
 
   return (
     <>
+      {/* TEMPORARY: Test ErrorBoundary - remove this component after testing */}
+      <ErrorTestComponent />
       <div className="mr-3">
         <LandParcelHistoryNav />
       </div>
