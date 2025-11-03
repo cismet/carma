@@ -377,7 +377,7 @@ const SecondaryInfoModal = ({
           </div>
         </div>
 
-        <Accordion style={{ marginBottom: 6 }} defaultActiveKey={"0"}>
+        <Accordion style={{ marginBottom: 6 }}>
           <Panel header={"Baumdaten"} eventKey="0" bsStyle="success">
             <Descriptions column={1} layout="horizontal" bordered size="small">
               {treeDetails}
