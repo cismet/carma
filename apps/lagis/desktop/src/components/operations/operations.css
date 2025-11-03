@@ -1,6 +1,28 @@
 .cross-data .ant-tabs {
   height: 100%;
 }
+
+/* Fix tab bar layout to display tabs side by side */
+.cross-data .ant-tabs .ant-tabs-nav {
+  margin-bottom: 16px;
+}
+
+.cross-data .ant-tabs .ant-tabs-nav .ant-tabs-nav-wrap {
+  display: flex;
+  width: 100%;
+}
+
+.cross-data .ant-tabs .ant-tabs-nav .ant-tabs-nav-list {
+  display: flex;
+  width: 100%;
+}
+
+.cross-data .ant-tabs .ant-tabs-tab {
+  flex: 1;
+  text-align: center;
+  justify-content: center;
+}
+
 .cross-data .ant-tabs .ant-tabs-content-holder .ant-tabs-content {
   display: flex;
   flex-direction: column;
