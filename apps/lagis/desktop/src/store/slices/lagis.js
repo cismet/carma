@@ -77,48 +77,58 @@ const slice = createSlice({
 });
 
 export default slice;
-export const fetchFlurstueck = (schluessel_id, alkis_id, navigate) => {
+export const fetchFlurstueck = (
+  schluessel_id,
+  alkis_id,
+  navigate,
+  setError
+) => {
   return async (dispatch, getState) => {
     const jwt = getState().auth.jwt;
     if (jwt) {
-      const result = await fetchGraphQL(
-        queries.getLagisLandparcelByFlurstueckSchluesselId,
-        {
-          schluessel_id,
-          alkis_id,
-        },
-        jwt
-      );
+      try {
+        const result = await fetchGraphQL(
+          queries.getLagisLandparcelByFlurstueckSchluesselId,
+          {
+            schluessel_id,
+            alkis_id,
+          },
+          jwt
+        );
 
-      if (result.status === 401) {
-        return navigate("/login");
+        if (result.status === 401) {
+          return navigate("/login");
+        }
+
+        const f = result?.data.flurstueck[0];
+        f.alkisLandparcel = result?.data.extended_alkis_flurstueck[0];
+
+        dispatch(storeLagisLandparcel(f));
+        dispatch(storeAlkisLandparcel(f.alkisLandparcel));
+
+        let geo =
+          result?.data.flurstueck[0].extended_geom?.geo_field ||
+          result?.data.flurstueck[0].alkisLandparcel?.geometrie;
+
+        if (!geo) {
+          const resultGeo = await getGeomFromWuNDa(alkis_id, jwt, navigate);
+          geo = resultGeo.data.flurstueck[0].extended_geom.geo_field;
+        }
+        dispatch(storeGeometry(geo));
+
+        if (geo) {
+          await fetchRebe(getBuffer25832(geo, -1), jwt, dispatch);
+          await fetchMipa(getBuffer25832(geo, -1), jwt, dispatch);
+        } else {
+          dispatch(storeRebe());
+          dispatch(storeMipa());
+        }
+
+        await fetchHistory(schluessel_id, jwt, dispatch);
+      } catch (error) {
+        console.error("error in fetchFlurstueck", error);
+        setError(true);
       }
-
-      const f = result?.data.flurstueck[0];
-      f.alkisLandparcel = result?.data.extended_alkis_flurstueck[0];
-
-      dispatch(storeLagisLandparcel(f));
-      dispatch(storeAlkisLandparcel(f.alkisLandparcel));
-
-      let geo =
-        result?.data.flurstueck[0].extended_geom?.geo_field ||
-        result?.data.flurstueck[0].alkisLandparcel?.geometrie;
-
-      if (!geo) {
-        const resultGeo = await getGeomFromWuNDa(alkis_id, jwt, navigate);
-        geo = resultGeo.data.flurstueck[0].extended_geom.geo_field;
-      }
-      dispatch(storeGeometry(geo));
-
-      if (geo) {
-        await fetchRebe(getBuffer25832(geo, -1), jwt, dispatch);
-        await fetchMipa(getBuffer25832(geo, -1), jwt, dispatch);
-      } else {
-        dispatch(storeRebe());
-        dispatch(storeMipa());
-      }
-
-      await fetchHistory(schluessel_id, jwt, dispatch);
     }
   };
 };

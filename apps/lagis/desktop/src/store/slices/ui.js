@@ -6,7 +6,7 @@ const initialState = {
   backgroundLayerOpacities: {},
   activeAdditionalLayers: [],
   additionalLayerOpacities: {},
-  fetchLandParcelError: true,
+  fetchLandParcelError: false,
   hoveredLandparcel: undefined,
   mapLoading: false,
   selectedTrueOrthoYear: 2024,

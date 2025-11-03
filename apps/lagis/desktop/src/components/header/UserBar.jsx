@@ -16,14 +16,14 @@ import {
   storeHistory,
   fetchFlurstueck,
 } from "../../store/slices/lagis";
-import { getSyncLandparcel } from "../../store/slices/ui";
+import {
+  getSyncLandparcel,
+  setFetchLandParcelError,
+} from "../../store/slices/ui";
 import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import LandParcelChooser from "../chooser/LandParcelChooser";
 import { removeLeadingZeros } from "../../core/tools/helper";
-import { ErrorBoundary } from "react-error-boundary";
-import AppErrorFallback from "../AppErrorFallback";
-import LPChooserErrorFallback from "../LPChooserErrorFallback";
 
 const UserBar = () => {
   const dispatch = useDispatch();
@@ -55,7 +55,11 @@ const UserBar = () => {
         gemarkungen={landmarks ? landmarks : []}
         flurstueckChoosen={(fstck) => {
           if (fstck.lfk) {
-            dispatch(fetchFlurstueck(fstck.lfk, fstck.alkis_id, navigate));
+            dispatch(
+              fetchFlurstueck(fstck.lfk, fstck.alkis_id, navigate, () =>
+                dispatch(setFetchLandParcelError(true))
+              )
+            );
             handleOpenLandparcelInJavaApp(fstck);
           }
         }}
