@@ -1,3 +1,4 @@
+import { Tag } from "antd";
 import { useEffect, useState } from "react";
 import StackTrace from "stacktrace-js";
 
@@ -20,15 +21,17 @@ const LPChooserErrorFallback = ({ error, resetErrorBoundary }) => {
   }, [error]);
 
   return (
-    <div
-      style={{
-        backgroundColor: "white",
-        width: "100%",
-        height: "100%",
-      }}
+    <Tag
+      closeIcon
+      color="red"
+      onClose={() => resetErrorBoundary()}
+      className="mr-0 text-sm h-8 flex items-center"
     >
-      <h2>Es ist ein Fehler aufgetreten. Das tut uns leid. ¯\_(ツ)_/¯</h2>
-    </div>
+      <span>
+        Wir konnten die Flurstücksdaten nicht laden. Bitte versuchen Sie es noch
+        einmal
+      </span>
+    </Tag>
   );
 };
 
