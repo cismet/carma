@@ -17,6 +17,7 @@ interface InfoboxProps {
   selectedFeature: any;
   versionData: VersionData;
   bigMobileIconsInsteadOfCollapsing?: boolean;
+  collapsible?: boolean;
   Modal?: React.ComponentType<any> | null;
 }
 
@@ -24,6 +25,7 @@ export const FeatureInfobox = ({
   selectedFeature,
   versionData,
   bigMobileIconsInsteadOfCollapsing = false,
+  collapsible = true,
   Modal = additionalInfoFactory(
     (selectedFeature?.properties?.info || selectedFeature?.properties)?.modal
   ) as React.ComponentType<any> | null,
@@ -114,6 +116,7 @@ export const FeatureInfobox = ({
         }
         links={links}
         bigMobileIconsInsteadOfCollapsing={bigMobileIconsInsteadOfCollapsing}
+        collapsible={collapsible}
       />
       {openModal && Modal && (
         <Modal

@@ -37,6 +37,7 @@ interface InfoBoxProps {
   noCurrentFeatureTitle?: any;
   noCurrentFeatureContent?: any;
   isCollapsible?: any;
+  collapsible?: boolean;
   hideNavigator?: any;
   handleResponsiveDesign?: any;
   infoStyle?: any;
@@ -79,6 +80,7 @@ export const InfoBox = ({
   noCurrentFeatureTitle,
   noCurrentFeatureContent,
   isCollapsible = true,
+  collapsible = true,
   hideNavigator = false,
   handleResponsiveDesign = true,
   infoStyle = {},
@@ -603,7 +605,7 @@ export const InfoBox = ({
       header={llVis}
       collapsedInfoBox={isCollapsed}
       setCollapsedInfoBox={setIsCollapsed}
-      isCollapsible={isCollapsible}
+      isCollapsible={collapsible}
       handleResponsiveDesign={handleResponsiveDesign}
       infoStyle={infoStyle}
       secondaryInfoBoxElements={finalSecondaryElements}
