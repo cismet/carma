@@ -182,6 +182,7 @@ const TZBaumbewirtschaftung = ({
             zoomControls={false}
             infoBox={
               <FeatureInfobox
+                collapsible={responsiveState !== "small"}
                 selectedFeature={selectedFeature}
                 versionData={versionData}
                 bigMobileIconsInsteadOfCollapsing={true}
