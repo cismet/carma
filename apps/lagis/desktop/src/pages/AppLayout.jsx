@@ -46,7 +46,7 @@ const AppLayout = () => {
           {fetchLandParcelError && (
             <Alert
               type="danger"
-              headline="Fehler beim Laden"
+              headline="Verbindungsprobleme"
               onDismiss={() => {
                 dispatch(setFetchLandParcelError(false));
               }}
@@ -57,7 +57,7 @@ const AppLayout = () => {
           {fetchDocumentsError && (
             <Alert
               type="danger"
-              headline="Fehler beim Laden"
+              headline="Verbindungsprobleme"
               onDismiss={() => {
                 dispatch(setFetchDocumentsError(false));
               }}
