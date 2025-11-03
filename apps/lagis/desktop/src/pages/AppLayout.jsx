@@ -10,8 +10,15 @@ import { MobileWarningMessage } from "@carma-mapping/components";
 import { mobileInfo } from "@carma-collab/wuppertal/lagis-desktop";
 import { ErrorBoundary } from "react-error-boundary";
 import AppErrorFallback from "../components/AppErrorFallback";
+import {
+  getFetchLandParcelError,
+  setFetchLandParcelError,
+} from "../store/slices/ui";
+import { useSelector, useDispatch } from "react-redux";
 
 const AppLayout = () => {
+  const dispatch = useDispatch();
+  const fetchLandParcelError = useSelector(getFetchLandParcelError);
   const [urlParams, setUrlParams] = useSearchParams();
   const [parametersForLink, setParametersForLink] = useState();
   useUrlSyncGemarkunFlurFlurstueckHook();
@@ -33,15 +40,18 @@ const AppLayout = () => {
     <>
       <AlertContainer position="top-right">
         <div>
-          <Alert
-            type="danger"
-            headline="Verbindungsprobleme."
-            onDismiss={() => {
-              // setConnectionProblem(false);
-            }}
-          >
-            Im Moment können wir keine Verbindung zu unseren Diensten aufbauen.
-          </Alert>
+          {fetchLandParcelError && (
+            <Alert
+              type="danger"
+              headline="Verbindungsprobleme."
+              onDismiss={() => {
+                dispatch(setFetchLandParcelError(false));
+              }}
+            >
+              Im Moment können wir keine Verbindung zu unseren Diensten
+              aufbauen.
+            </Alert>
+          )}
         </div>
       </AlertContainer>
       <ErrorBoundary FallbackComponent={AppErrorFallback}>

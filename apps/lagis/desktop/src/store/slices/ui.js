@@ -6,6 +6,7 @@ const initialState = {
   backgroundLayerOpacities: {},
   activeAdditionalLayers: [],
   additionalLayerOpacities: {},
+  fetchLandParcelError: true,
   hoveredLandparcel: undefined,
   mapLoading: false,
   selectedTrueOrthoYear: 2024,
@@ -48,6 +49,10 @@ const slice = createSlice({
       state.selectedTrueOrthoYear = action.payload;
       return state;
     },
+    setFetchLandParcelError(state, action) {
+      state.fetchLandParcelError = action.payload;
+      return state;
+    },
   },
 });
 
@@ -62,6 +67,7 @@ export const {
   setHoveredLandparcel,
   setMapLoading,
   setSelectedTrueOrthoYear,
+  setFetchLandParcelError,
 } = slice.actions;
 
 export const getSyncLandparcel = (state) => {
@@ -88,4 +94,7 @@ export const getHoveredLandparcel = (state) => {
 };
 export const getSelectedTrueOrthoYear = (state) => {
   return state.ui.selectedTrueOrthoYear;
+};
+export const getFetchLandParcelError = (state) => {
+  return state.ui.fetchLandParcelError;
 };
