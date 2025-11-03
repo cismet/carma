@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import SidebarMenu from "../components/navigation/SidebarMenu";
 import UserBar from "../components/header/UserBar";
-import FooterSection from "../components/navigation/FooterSection";
+import { Alert, AlertContainer } from "react-bs-notifier";
 import { Outlet } from "react-router-dom";
 import { useSearchParams } from "react-router-dom";
 import useUrlSyncGemarkunFlurFlurstueckHook from "../hooks/useUrlSyncGemarkunFlurFlurstueckHook";
@@ -31,6 +31,19 @@ const AppLayout = () => {
   }, [urlParams, parametersForLink]);
   return (
     <>
+      <AlertContainer position="top-right">
+        <div>
+          <Alert
+            type="danger"
+            headline="Verbindungsprobleme."
+            onDismiss={() => {
+              // setConnectionProblem(false);
+            }}
+          >
+            Im Moment können wir keine Verbindung zu unseren Diensten aufbauen.
+          </Alert>
+        </div>
+      </AlertContainer>
       <ErrorBoundary FallbackComponent={AppErrorFallback}>
         <div
           style={{
