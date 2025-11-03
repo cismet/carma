@@ -30,7 +30,6 @@ import { SyncOutlined } from "@ant-design/icons";
 import { defaultLinksColor, removeLeadingZeros } from "../../core/tools/helper";
 import { setHasFittedBounds } from "../../store/slices/mapping";
 import LandParcelHistoryNav from "../navigation/lp-history/LandParcelHistoryNav";
-import { useErrorBoundary } from "react-error-boundary";
 
 function paramsToObject(entries) {
   const result = {};
@@ -59,7 +58,6 @@ const LandParcelChooser = ({
   const landparcelInternaDataStructure = useSelector(
     getLandparcelInternaDataStructure
   );
-  const { showBoundary } = useErrorBoundary();
 
   useEffect(() => {
     if (all && all.length > 1) {
@@ -123,7 +121,6 @@ const LandParcelChooser = ({
       flur: selectedFlur.flur,
       ...selectedFlur.flurstuecke[flurstueckLabel],
     });
-    showBoundary("xxx");
     setTimeout(() => {
       dispatch(setHasFittedBounds(false));
     }, 800);
