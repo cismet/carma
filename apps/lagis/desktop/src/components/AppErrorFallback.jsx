@@ -36,6 +36,7 @@ const AppErrorFallback = ({ error, resetErrorBoundary }) => {
     mapping: state.mapping,
     ui: state.ui,
     gazData: state.gazData,
+    landParcels: state.landParcels,
   };
 
   let mailToHref =
