@@ -31,59 +31,59 @@ const AppLayout = () => {
   }, [urlParams, parametersForLink]);
   return (
     <>
-      <ErrorBoundary FallbackComponent={AppErrorFallback}>
+      {/* <ErrorBoundary FallbackComponent={AppErrorFallback}> */}
+      <div
+        style={{
+          background: "#F1F1F1",
+        }}
+        // className="w-full overflow-clip adaptive-full-screen"
+        className={`${TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}`}
+      >
         <div
-          style={{
-            background: "#F1F1F1",
-          }}
-          // className="w-full overflow-clip adaptive-full-screen"
-          className={`${TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}`}
+          // className="flex h-[calc(100%-16px)]"
+          className="flex h-full"
+          style={{ paddingRight: "16px" }}
         >
+          <div className="h-full">
+            <SidebarMenu parametersForLink={parametersForLink} />
+          </div>
           <div
-            // className="flex h-[calc(100%-16px)]"
-            className="flex h-full"
-            style={{ paddingRight: "16px" }}
+            className="flex-1 w-[calc(100%-341px)] flex flex-col justify-between gap-2"
+            style={{ paddingLeft: "16px" }}
           >
-            <div className="h-full">
-              <SidebarMenu parametersForLink={parametersForLink} />
-            </div>
             <div
-              className="flex-1 w-[calc(100%-341px)] flex flex-col justify-between gap-2"
-              style={{ paddingLeft: "16px" }}
+              className="h-[32px]"
+              style={{
+                // paddingTop: "8px"
+                paddingTop: "max(8px, env(safe-area-inset-top))",
+              }}
             >
-              <div
-                className="h-[32px]"
-                style={{
-                  // paddingTop: "8px"
-                  paddingTop: "max(8px, env(safe-area-inset-top))",
-                }}
-              >
-                <UserBar />
-              </div>
+              <UserBar />
+            </div>
 
-              <div
-                className="h-[calc(100%-50px)] w-full"
-                style={{
-                  paddingBottom: "max(8px, env(safe-area-inset-bottom))",
-                }}
-              >
-                <Outlet />
-              </div>
+            <div
+              className="h-[calc(100%-50px)] w-full"
+              style={{
+                paddingBottom: "max(8px, env(safe-area-inset-bottom))",
+              }}
+            >
+              <Outlet />
+            </div>
 
-              {/* <div className="h-[calc(1%-10px)]">
+            {/* <div className="h-[calc(1%-10px)]">
             <FooterSection />
           </div> */}
-            </div>
           </div>
         </div>
-        <MobileWarningMessage
-          headerText={mobileInfo.headerText}
-          bodyText={mobileInfo.bodyText}
-          confirmButtonText={mobileInfo.confirmButtonText}
-          isHardMode={mobileInfo.isHardMode}
-          messageWidth={993}
-        />
-      </ErrorBoundary>
+      </div>
+      <MobileWarningMessage
+        headerText={mobileInfo.headerText}
+        bodyText={mobileInfo.bodyText}
+        confirmButtonText={mobileInfo.confirmButtonText}
+        isHardMode={mobileInfo.isHardMode}
+        messageWidth={993}
+      />
+      {/* </ErrorBoundary> */}
     </>
   );
 };
