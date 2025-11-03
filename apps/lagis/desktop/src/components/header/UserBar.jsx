@@ -21,6 +21,10 @@ import { useSelector, useDispatch } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import LandParcelChooser from "../chooser/LandParcelChooser";
 import { removeLeadingZeros } from "../../core/tools/helper";
+import { ErrorBoundary } from "react-error-boundary";
+import AppErrorFallback from "../AppErrorFallback";
+import LPChooserErrorFallback from "../LPChooserErrorFallback";
+
 const UserBar = () => {
   const dispatch = useDispatch();
   const userLogin = useSelector(getLogin);
@@ -45,16 +49,18 @@ const UserBar = () => {
   };
   return (
     <div className="flex items-center">
-      <LandParcelChooser
-        all={landParcels ? landParcels : []}
-        gemarkungen={landmarks ? landmarks : []}
-        flurstueckChoosen={(fstck) => {
-          if (fstck.lfk) {
-            dispatch(fetchFlurstueck(fstck.lfk, fstck.alkis_id, navigate));
-            handleOpenLandparcelInJavaApp(fstck);
-          }
-        }}
-      />
+      <ErrorBoundary FallbackComponent={LPChooserErrorFallback}>
+        <LandParcelChooser
+          all={landParcels ? landParcels : []}
+          gemarkungen={landmarks ? landmarks : []}
+          flurstueckChoosen={(fstck) => {
+            if (fstck.lfk) {
+              dispatch(fetchFlurstueck(fstck.lfk, fstck.alkis_id, navigate));
+              handleOpenLandparcelInJavaApp(fstck);
+            }
+          }}
+        />
+      </ErrorBoundary>
       <div className="ml-auto flex gap-1 items-center">
         <div className="logout ml-auto pl-1 flex items-center">
           <Tooltip title="Ausloggen" placement="right">
