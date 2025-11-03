@@ -36,7 +36,7 @@ import { officesExtractor } from "../core/extractors/overviewExtractors";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { convertLatLngToXY } from "../core/tools/mappingTools";
 import { getFstckForPoint } from "../store/slices/search";
-import { setMapLoading } from "../store/slices/ui";
+import { setFetchLandParcelError, setMapLoading } from "../store/slices/ui";
 import { setHasFittedBounds } from "../store/slices/mapping";
 const Overview = ({
   dashboardVisible = false,
@@ -158,11 +158,18 @@ const Overview = ({
                   dispatch(setHasFittedBounds(false));
                 }, 800);
                 dispatch(
-                  getFstckForPoint(xy[0], xy[1], () => {
-                    setTimeout(() => {
-                      dispatch(setMapLoading(false));
-                    }, 100);
-                  })
+                  getFstckForPoint(
+                    xy[0],
+                    xy[1],
+                    () => {
+                      setTimeout(() => {
+                        dispatch(setMapLoading(false));
+                      }, 100);
+                    },
+                    () => {
+                      dispatch(setFetchLandParcelError(true));
+                    }
+                  )
                 );
               },
             }}

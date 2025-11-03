@@ -117,7 +117,7 @@ export const getLoading = (state) => {
   return state.search.loading;
 };
 
-export const getFstckForPoint = (x, y, done) => {
+export const getFstckForPoint = (x, y, done, setError) => {
   return async (dispatch, getState) => {
     const jwt = getState().auth.jwt;
     try {
@@ -138,6 +138,7 @@ export const getFstckForPoint = (x, y, done) => {
       dispatch(switchToLandparcel(payload));
     } catch (e) {
       console.log("error in getFstckForPoint", e);
+      setError(true);
       done();
     }
   };
