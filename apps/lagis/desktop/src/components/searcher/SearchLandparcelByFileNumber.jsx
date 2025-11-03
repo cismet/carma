@@ -14,6 +14,7 @@ import {
 import ShowNumberFilesSearchResult from "./ShowNumberFilesSearchResult";
 import { searchContractExtractor } from "../../core/extractors/searchExtractor";
 import { useNavigate } from "react-router-dom";
+import { setFetchDocumentsError } from "../../store/slices/ui";
 const SearchLandparcelByFileNumber = ({ collapsed, setCollapsed }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -24,7 +25,9 @@ const SearchLandparcelByFileNumber = ({ collapsed, setCollapsed }) => {
   const [searchValue, setSearchValue] = useState("");
 
   const fetchFlurstuckeByContractAndMipaHandler = async (value) => {
-    await getFlurstuckeByContractAndMipa(value, dispatch, jwt, navigate);
+    await getFlurstuckeByContractAndMipa(value, dispatch, jwt, navigate, () =>
+      dispatch(setFetchDocumentsError(true))
+    );
   };
   return (
     <div

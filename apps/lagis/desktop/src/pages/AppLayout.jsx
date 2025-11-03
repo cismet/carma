@@ -13,12 +13,15 @@ import AppErrorFallback from "../components/AppErrorFallback";
 import {
   getFetchLandParcelError,
   setFetchLandParcelError,
+  getFetchDocumentsError,
+  setFetchDocumentsError,
 } from "../store/slices/ui";
 import { useSelector, useDispatch } from "react-redux";
 
 const AppLayout = () => {
   const dispatch = useDispatch();
   const fetchLandParcelError = useSelector(getFetchLandParcelError);
+  const fetchDocumentsError = useSelector(getFetchDocumentsError);
   const [urlParams, setUrlParams] = useSearchParams();
   const [parametersForLink, setParametersForLink] = useState();
   useUrlSyncGemarkunFlurFlurstueckHook();
@@ -49,6 +52,17 @@ const AppLayout = () => {
               }}
             >
               Flurstücksdaten konnten nicht geladen werden.
+            </Alert>
+          )}
+          {fetchDocumentsError && (
+            <Alert
+              type="danger"
+              headline="Fehler beim Laden"
+              onDismiss={() => {
+                dispatch(setFetchDocumentsError(false));
+              }}
+            >
+              Dokumente konnten nicht geladen werden.
             </Alert>
           )}
         </div>

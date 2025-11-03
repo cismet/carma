@@ -39,7 +39,8 @@ export const getFlurstuckeByContractAndMipa = async (
   searchValue,
   dispatch,
   jwt,
-  navigate
+  navigate,
+  setError
 ) => {
   if (searchValue === "") {
     dispatch(storeContractFlurstucke(undefined));
@@ -49,14 +50,20 @@ export const getFlurstuckeByContractAndMipa = async (
   dispatch(storeContractFlurstucke(undefined));
   dispatch(storeMipaFlurstucke(undefined));
   dispatch(storeLoading(true));
-  await getFlurstuckeByFileNumberHandle(searchValue, dispatch, jwt, navigate);
-  await getFlurstuckelByMipaFileNumberHandle(
-    searchValue,
-    dispatch,
-    jwt,
-    navigate
-  );
-  dispatch(storeLoading(false));
+  try {
+    await getFlurstuckeByFileNumberHandle(searchValue, dispatch, jwt, navigate);
+    await getFlurstuckelByMipaFileNumberHandle(
+      searchValue,
+      dispatch,
+      jwt,
+      navigate
+    );
+    dispatch(storeLoading(false));
+  } catch (error) {
+    console.error("error in getFlurstuckeByContractAndMipa", error);
+    setError(true);
+    dispatch(storeLoading(false));
+  }
 };
 
 const getFlurstuckeByFileNumberHandle = async (
