@@ -20,6 +20,8 @@ const LPChooserErrorFallback = ({ error, resetErrorBoundary }) => {
     });
   }, [error]);
 
+  return <></>;
+
   return (
     <Tag
       closeIcon
