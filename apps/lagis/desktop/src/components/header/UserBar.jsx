@@ -49,7 +49,6 @@ const UserBar = () => {
   };
   return (
     <div className="flex items-center">
-      {/* <ErrorBoundary FallbackComponent={LPChooserErrorFallback}> */}
       <LandParcelChooser
         all={landParcels ? landParcels : []}
         gemarkungen={landmarks ? landmarks : []}
@@ -64,7 +63,6 @@ const UserBar = () => {
           }
         }}
       />
-      {/* </ErrorBoundary> */}
       <div className="ml-auto flex gap-1 items-center">
         <div className="logout ml-auto pl-1 flex items-center">
           <Tooltip title="Ausloggen" placement="right">
