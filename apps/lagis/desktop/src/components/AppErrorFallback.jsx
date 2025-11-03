@@ -1,10 +1,11 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import StackTrace from "stacktrace-js";
 import localforage from "localforage";
-import { Col, Container, Row } from "react-bootstrap";
+import { Button, Collapse, Typography, Divider, Space, Row, Col } from "antd";
+import { isMobile, isTablet, isDesktop } from "react-device-detect";
+import UAParser from "ua-parser-js";
 import { getApplicationVersion } from "@carma-commons/utils";
 import store from "../store";
-import { Button } from "antd";
 import wupperwurm from "../assets/wupperwurm.svg";
 // Import version data - adjust path as needed
 // import versionData from "../version.json";
@@ -15,6 +16,14 @@ const AppErrorFallback = ({ error, resetErrorBoundary }) => {
     errorStack: undefined,
     stringifiedStack: undefined,
   });
+
+  const parser = useMemo(() => new UAParser(), []);
+  const isMobileUA = parser.getDevice().type === "mobile";
+  const isTabletUA = parser.getDevice().type === "tablet";
+  const isDesktopUA = !isMobileUA && !isTabletUA;
+  const isTouchDevice =
+    typeof window !== "undefined" &&
+    ("ontouchstart" in window || navigator.maxTouchPoints > 0);
 
   // Fallback version if version.json doesn't exist
   const version = "1.0.0"; // Replace with: getApplicationVersion(versionData);
@@ -80,132 +89,132 @@ const AppErrorFallback = ({ error, resetErrorBoundary }) => {
 
   return (
     <div
-      style={{
-        backgroundColor: "white",
-        width: "100%",
-        height: "100%",
-        minHeight: "100vh",
-        background: "url('/lagis/images/error.jpg')",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        backgroundRepeat: "no-repeat",
-      }}
+      className="relative w-full min-h-screen bg-cover bg-center bg-no-repeat"
+      style={{ backgroundImage: "url('/lagis/images/error.jpg')" }}
     >
+      {/* Header */}
       <div
-        style={{
-          position: "absolute",
-          top: "0px",
-          left: "0px",
-          width: "100%",
-          height: "140px",
-          backgroundColor: "rgba(0,0,0,0.4)",
-        }}
-      />
-
-      <div
-        style={{
-          position: "absolute",
-          bottom: "0px",
-          left: "0px",
-          width: "100%",
-        }}
+        className="w-full"
+        style={{ backgroundColor: "rgba(0,0,0,0.4)" }}
       >
-        <div
-          style={{
-            fontSize: "9px",
-            textAlign: "right",
-            color: "rgba(256,256,256,0.5)",
-            margin: 4,
-          }}
-        >
-          {version}
+        <div className="container mx-auto px-6 py-6">
+          <Row align="middle" justify="space-between" gutter={[16, 16]}>
+            <Col xs={24} md={12}>
+              <h1 className="m-0">
+                <img
+                  alt=""
+                  width={180}
+                  src={wupperwurm}
+                />
+              </h1>
+              <h2
+                className="m-0 mt-2"
+                style={{ color: "#ffffff" }}
+              >
+                LagIS Desktop
+              </h2>
+            </Col>
+            <Col xs={24} md={12} className="md:text-right">
+              <Typography.Paragraph className="!text-white m-0">
+                <pre className="m-0 !text-white bg-transparent whitespace-pre-wrap break-words outline-none focus:outline-none ring-0">
+                  {navigator.userAgent}
+                </pre>
+                {isMobile && <span title="mobile">📱 </span>}
+                {isMobileUA && <span title="mobile">(📱) </span>}
+                {isTablet && <span title="tablet">🧮 </span>}
+                {isTabletUA && <span title="tablet">(🧮) </span>}
+                {isDesktop && <span title="desktop">🖥️ </span>}
+                {isDesktopUA && <span title="desktop">(🖥️) </span>}
+                {isTouchDevice && <span title="touch">👇 </span>}
+                <span title="cpu">CPU </span>
+                {navigator.hardwareConcurrency}
+                <span title="ram"> RAM </span>
+                {(navigator).deviceMemory || "n/a"}
+              </Typography.Paragraph>
+            </Col>
+          </Row>
         </div>
       </div>
 
-      <div style={{ marginRight: 25, marginLeft: 25 }}>
-        <Row className="show-grid">
-          <Col style={{ marginTop: 30 }} xs={12} md={12}>
-            <h1 style={{ color: "white" }}>
-              <img alt="" width={180} src={wupperwurm} />
-            </h1>
-            <h2 style={{ color: "white" }}>LagIS Desktop</h2>
-          </Col>
-        </Row>
+      {/* App Version (bottom right) */}
+      <div className="absolute bottom-0 right-0 text-[9px] text-white/50 m-1">
+        {version}
       </div>
 
-      <div style={{ margin: 25, overflow: "auto" }}>
-        <h2>Es ist ein Fehler aufgetreten. Das tut uns leid. ¯\_(ツ)_/¯</h2>
+      {/* Body */}
+      <div className="container mx-auto px-6 mt-6">
+        <Typography.Title level={2}>
+          Es ist ein Fehler aufgetreten. Das tut uns leid. ¯\_(ツ)_/¯
+        </Typography.Title>
 
-        <div
-          style={{ overflow: "auto", height: "20%", backgroundColor: "#fff9" }}
-        >
-          <h3>
-            <pre style={{ backgroundColor: "#fff9" }}>{error.message}</pre>
-          </h3>
-          <pre style={{ height: "80%", backgroundColor: "#fff9" }}>
-            {errorStack?.stringifiedStack ||
-              "weitere Informationen werden geladen ..."}
-          </pre>
-          <br />
-        </div>
+        <Typography.Title level={4}>Fehlermeldung</Typography.Title>
+        <Typography.Paragraph>
+          <pre>{error.message}</pre>
+        </Typography.Paragraph>
 
-        <h4 style={{ marginTop: 50 }}>
-          Sie können die Entwickler unterstützen, indem Sie den Fehler an uns
-          melden.
-        </h4>
+        <Collapse bordered={false} ghost={true} defaultActiveKey={[]}>
+          <Collapse.Panel header="Error stack" key="errorStack">
+            <pre>
+              {errorStack?.stringifiedStack ||
+                "weitere Informationen werden geladen ..."}
+            </pre>
+          </Collapse.Panel>
 
-        <h4>
-          Bitte schicken Sie uns dazu eine <a href={mailToHref}>Mail</a> und
-          fügen Sie bitte den Report, den Sie mit dem orangenen Button erzeugen
-          können, als Anhang hinzu.
-          <br />
-          <br />
+          <Collapse.Panel header="Technische Details" key="techDetails">
+            <Typography.Paragraph>
+              <Typography.Text strong>Browser:</Typography.Text>{" "}
+              <Typography.Text code>{navigator.userAgent}</Typography.Text>
+            </Typography.Paragraph>
+          </Collapse.Panel>
+        </Collapse>
+        <Divider />
+
+        <Typography.Title level={4}>
+          Bitte helfen Sie uns bei der Fehlerbehebung
+        </Typography.Title>
+        <Typography.Paragraph>
+          Senden Sie uns bitte eine <a href={mailToHref}>E-Mail</a> und fügen
+          Sie den mit dem orangenen Button erzeugten Report als Anhang hinzu.
+        </Typography.Paragraph>
+
+        <Space size="middle">
           <Button
-            style={{ marginLeft: 20, backgroundColor: "orange" }}
+            className="!text-black"
+            style={{ backgroundColor: "orange" }}
             onClick={() => {
-              var dataStr =
+              const dataStr =
                 "data:text/plain;charset=utf-8," +
                 encodeURIComponent(attachmentText);
-              var downloadAnchorNode = document.createElement("a");
-              downloadAnchorNode.setAttribute("href", dataStr);
-              downloadAnchorNode.setAttribute(
-                "download",
-                "problemReport.lagis-desktop.txt"
-              );
-              window.document.body.appendChild(downloadAnchorNode);
-              downloadAnchorNode.click();
-              downloadAnchorNode.remove();
+              const a = document.createElement("a");
+              a.setAttribute("href", dataStr);
+              a.setAttribute("download", "problemReport.lagis-desktop.txt");
+              window.document.body.appendChild(a);
+              a.click();
+              a.remove();
             }}
           >
             Problemreport erzeugen (sehr groß)
           </Button>
-        </h4>
-        <br />
-        <h4>
-          Mit dem folgenden Button können Sie den Zustand der Applikation
-          verändern:
-          <br /> <br />
+
           <Button
-            style={{ marginLeft: 20, backgroundColor: "yellow" }}
+            className="!text-black"
+            style={{ backgroundColor: "yellow" }}
             onClick={() => {
-              let confirmation = window.confirm(
-                "Mit dieser Aktion werden die gespeicherten Einstellungen wie ausgewählte Layer," +
-                  " Messungen, u.ä. gelöscht.\n\n" +
-                  "Sind Sie sicher, dass Sie Ihre Einstellungen zurücksetzen wollen?"
+              const confirmation = window.confirm(
+                "Mit dieser Aktion werden die gespeicherten Einstellungen wie ausgewählte Layer, Messungen, u.ä. gelöscht.\n\nSind Sie sicher, dass Sie Ihre Einstellungen zurücksetzen wollen?"
               );
               if (confirmation) {
                 console.info("resetting settings");
                 localforage.clear();
-                // Optionally call resetErrorBoundary to try recovering
                 if (resetErrorBoundary) {
                   resetErrorBoundary();
                 }
               }
             }}
           >
-            Zurücksetzen des gespeicherten Zustandes
+            Gespeicherten Zustand zurücksetzen
           </Button>
-        </h4>
+        </Space>
       </div>
     </div>
   );
