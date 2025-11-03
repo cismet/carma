@@ -93,24 +93,14 @@ const AppErrorFallback = ({ error, resetErrorBoundary }) => {
       style={{ backgroundImage: "url('/lagis/images/error.jpg')" }}
     >
       {/* Header */}
-      <div
-        className="w-full"
-        style={{ backgroundColor: "rgba(0,0,0,0.4)" }}
-      >
+      <div className="w-full" style={{ backgroundColor: "rgba(0,0,0,0.4)" }}>
         <div className="container mx-auto px-6 py-6">
           <Row align="middle" justify="space-between" gutter={[16, 16]}>
             <Col xs={24} md={12}>
               <h1 className="m-0">
-                <img
-                  alt=""
-                  width={180}
-                  src={wupperwurm}
-                />
+                <img alt="" width={180} src={wupperwurm} />
               </h1>
-              <h2
-                className="m-0 mt-2"
-                style={{ color: "#ffffff" }}
-              >
+              <h2 className="m-0 mt-2" style={{ color: "#ffffff" }}>
                 LagIS Desktop
               </h2>
             </Col>
@@ -129,7 +119,7 @@ const AppErrorFallback = ({ error, resetErrorBoundary }) => {
                 <span title="cpu">CPU </span>
                 {navigator.hardwareConcurrency}
                 <span title="ram"> RAM </span>
-                {(navigator).deviceMemory || "n/a"}
+                {navigator.deviceMemory || "n/a"}
               </Typography.Paragraph>
             </Col>
           </Row>
@@ -158,13 +148,6 @@ const AppErrorFallback = ({ error, resetErrorBoundary }) => {
               {errorStack?.stringifiedStack ||
                 "weitere Informationen werden geladen ..."}
             </pre>
-          </Collapse.Panel>
-
-          <Collapse.Panel header="Technische Details" key="techDetails">
-            <Typography.Paragraph>
-              <Typography.Text strong>Browser:</Typography.Text>{" "}
-              <Typography.Text code>{navigator.userAgent}</Typography.Text>
-            </Typography.Paragraph>
           </Collapse.Panel>
         </Collapse>
         <Divider />

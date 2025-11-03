@@ -18,6 +18,10 @@ import {
 } from "../store/slices/ui";
 import { useSelector, useDispatch } from "react-redux";
 
+const ErrorTestComponent = () => {
+  throw new Error("Testing ErrorBoundary - this is intentional!");
+};
+
 const AppLayout = () => {
   const dispatch = useDispatch();
   const fetchLandParcelError = useSelector(getFetchLandParcelError);
@@ -68,6 +72,7 @@ const AppLayout = () => {
         </div>
       </AlertContainer>
       <ErrorBoundary FallbackComponent={AppErrorFallback}>
+        {/* <ErrorTestComponent /> */}
         <div
           style={{
             background: "#F1F1F1",
