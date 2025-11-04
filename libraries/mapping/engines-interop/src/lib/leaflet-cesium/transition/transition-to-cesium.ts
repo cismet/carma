@@ -1,10 +1,12 @@
-import type { Scene, HeadingPitchRange } from "@carma/cesium";
+import type { Scene, HeadingPitchRange, CesiumTerrainProvider } from "@carma/cesium";
 import type { Map as LeafletMap } from "leaflet";
 import { isValidScene } from "@carma/cesium";
 import { TransitionStage, type TransitionToCesiumOptions } from "./types";
 import { prepareLeafletForTransition } from "./utils/leaflet-preparation";
 import { restoreCesiumCameraView } from "./utils/camera-restore";
 import { promiseWithTimeout } from "@carma-commons/utils/promise";
+import { tiledMapToCesium } from "../utils/cesium/tiled-map-to-cesium";
+import { defaultTransitionOptions } from "../utils/cesium/elevation-reference";
 
 /**
  * Pure function: Orchestrates transition from Leaflet (2D) to Cesium (3D)
@@ -15,6 +17,10 @@ export const transitionToCesium = async (
   leaflet: LeafletMap,
   cesiumContainer: HTMLElement,
   resolutionScale: number,
+  terrainProviders: {
+    TERRAIN?: CesiumTerrainProvider;
+    SURFACE?: CesiumTerrainProvider;
+  },
   targetHPR: HeadingPitchRange | null,
   onTransitionStage: (stage: TransitionStage, message: string) => void,
   onTransitionComplete: (() => void) | undefined,
@@ -80,6 +86,23 @@ export const transitionToCesium = async (
       lng: center.lng,
       zoom,
     });
+
+    // Position Cesium camera using terrain providers for elevation
+    const cameraPositioned = await tiledMapToCesium(
+      scene,
+      {
+        terrain: terrainProviders.TERRAIN,
+        surface: terrainProviders.SURFACE,
+      },
+      resolutionScale,
+      { latitude: center.lat, longitude: center.lng },
+      zoom,
+      defaultTransitionOptions
+    );
+
+    if (!cameraPositioned) {
+      console.warn("[CESIUM] [CESIUM|2D3D|TO3D] Failed to position camera");
+    }
 
     // Stage 3: Wait for initial render and resources
     onTransitionStage(

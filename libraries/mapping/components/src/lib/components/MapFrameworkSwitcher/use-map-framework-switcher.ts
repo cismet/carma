@@ -9,8 +9,10 @@ import type { LeafletMap } from "@carma-mapping/engines/leaflet";
 import { CesiumTerrainProvider, isValidScene, type Scene } from "@carma/cesium";
 
 import {
+  transitionToCesium,
   transitionToLeaflet,
   TransitionDirection,
+  TransitionStage,
   type TransitionOptions,
 } from "@carma-mapping/engines-interop";
 import { validateRequirements } from "./utils/validate-requirements";
@@ -59,6 +61,7 @@ export const useMapFrameworkSwitcher = (
     const scene = getCesiumScene();
     const cesiumContainer = getCesiumContainer();
     const resolutionScale = getResolutionScale();
+    const terrainProviders = getCesiumTerrainProviders();
 
     const hasValidRequirements = validateRequirements(
       scene,
@@ -78,11 +81,27 @@ export const useMapFrameworkSwitcher = (
       setIsTransitioning(true);
       options.onTransitionStart?.(TransitionDirection.TO_CESIUM);
       
-      //await transitionToCesium(scene, leaflet, ...
-      
-      setActiveFramework('cesium');
-      options.onActiveFrameworkChange(TransitionDirection.TO_CESIUM);
-      options.onTransitionComplete?.(TransitionDirection.TO_CESIUM);
+      await transitionToCesium(
+        scene,
+        leaflet,
+        cesiumContainer,
+        resolutionScale || 1.0,
+        terrainProviders,
+        targetHPR,
+        (stage: TransitionStage, message: string) => {
+          console.debug(`[CESIUM] Transition stage: ${stage} - ${message}`);
+        },
+        () => {
+          setActiveFramework('cesium');
+          options.onActiveFrameworkChange(TransitionDirection.TO_CESIUM);
+          options.onTransitionComplete?.(TransitionDirection.TO_CESIUM);
+        },
+        (error: Error) => {
+          console.error('[CESIUM] Transition error:', error);
+          options.onTransitionFailed?.(TransitionDirection.TO_CESIUM);
+        },
+        options.options?.toCesium
+      );
     } catch (error) {
       console.error('[CESIUM] Transition to 3D failed:', error);
       options.onTransitionFailed?.(TransitionDirection.TO_CESIUM);
@@ -96,6 +115,9 @@ export const useMapFrameworkSwitcher = (
 
     const scene = getCesiumScene();
     const leaflet = getLeafletMap();
+    const cesiumContainer = getCesiumContainer();
+    const resolutionScale = getResolutionScale();
+    const terrainProviders = getCesiumTerrainProviders();
 
     if (!leaflet) {
       console.warn(
@@ -109,16 +131,41 @@ export const useMapFrameworkSwitcher = (
       );
       return;
     }
+    if (!cesiumContainer) {
+      console.warn(
+        "[CESIUM] [CESIUM|2D3D|TO2D] cesium container not available"
+      );
+      return;
+    }
 
     try {
       setIsTransitioning(true);
       options.onTransitionStart?.(TransitionDirection.TO_LEAFLET);
       
-      //await transitionToLeaflet
+      const result = await transitionToLeaflet(
+        scene,
+        leaflet,
+        cesiumContainer,
+        resolutionScale || 1.0,
+        terrainProviders,
+        (stage: TransitionStage, message: string) => {
+          console.debug(`[CESIUM] Transition stage: ${stage} - ${message}`);
+        },
+        () => {
+          setActiveFramework('leaflet');
+          options.onActiveFrameworkChange(TransitionDirection.TO_LEAFLET);
+          options.onTransitionComplete?.(TransitionDirection.TO_LEAFLET);
+        },
+        (error: Error) => {
+          console.error('[CESIUM] Transition error:', error);
+          options.onTransitionFailed?.(TransitionDirection.TO_LEAFLET);
+        },
+        options.options?.toLeaflet
+      );
       
-      setActiveFramework('leaflet');
-      options.onActiveFrameworkChange(TransitionDirection.TO_LEAFLET);
-      options.onTransitionComplete?.(TransitionDirection.TO_LEAFLET);
+      // Store the target HPR and duration for the next transition back to Cesium
+      setTargetHPR(result.targetHPR);
+      setTargetDuration(result.duration);
     } catch (error) {
       console.error('[CESIUM] Transition to 2D failed:', error);
       options.onTransitionFailed?.(TransitionDirection.TO_LEAFLET);

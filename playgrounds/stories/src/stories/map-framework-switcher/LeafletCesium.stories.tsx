@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Button, Card, Tag } from 'antd';
+import { Button, Card, Radio, Tag } from 'antd';
 import { CesiumWidget, CesiumTerrainProvider, Cartesian3, Cesium3DTileset, EllipsoidTerrainProvider, Cartographic, sampleTerrainMostDetailedGuardedAsync } from '@carma/cesium';
 import { degToRadNumeric } from '@carma/units/helpers';
 import {
@@ -11,14 +11,13 @@ import {
 } from '@carma-commons/resources';
 import { TransitionStage } from '@carma-mapping/engines-interop';
 import { MapFrameworkSwitcher, useMapFrameworkSwitcher } from '@carma-mapping/components';
-import { useControls, button } from 'leva';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'cesium/Build/Cesium/Widgets/widgets.css';
 
 // Configure Cesium base URL for Storybook
 if (typeof window !== 'undefined') {
-  (window as any).CESIUM_BASE_URL = '/node_modules/cesium/Build/Cesium/';
+  (window as any).CESIUM_BASE_URL = '/__cesium__/';
 }
 
 // Wuppertal aerial imagery WMS layer
@@ -37,6 +36,8 @@ const LeafletCesium = () => {
   const [terrainType, setTerrainType] = useState<'TERRAIN' | 'MESH'>('MESH');
   const [surfaceHeight, setSurfaceHeight] = useState<number | null>(null);
   const [terrainHeight, setTerrainHeight] = useState<number | null>(null);
+  const [leafletDPR, setLeafletDPR] = useState<number>(window.devicePixelRatio || 1);
+  const [cesiumResolutionScale, setCesiumResolutionScale] = useState<number>(1);
   const [pointerEventsEnabled, setPointerEventsEnabled] = useState(false);
   
   const leafletContainerRef = useRef<HTMLDivElement>(null);
@@ -48,9 +49,50 @@ const LeafletCesium = () => {
     TERRAIN: CesiumTerrainProvider | null;
     SURFACE: CesiumTerrainProvider | null;
   }>({ TERRAIN: null, SURFACE: null });
+
+  // Getter functions for the hook
+  const getLeafletMap = useCallback(() => leafletMapRef.current, []);
   
-  // Sample terrain height handler
-  const handleSampleTerrain = useCallback(async () => {
+  const getCesiumScene = useCallback(() => cesiumWidgetRef.current?.scene ?? null, []);
+  
+  const getCesiumContainer = useCallback(() => cesiumContainerRef.current, []);
+  
+  const getCesiumTerrainProviders = useCallback(() => {
+    return {
+      TERRAIN: terrainProvidersRef.current.TERRAIN ?? ({} as CesiumTerrainProvider),
+      SURFACE: terrainProvidersRef.current.SURFACE ?? ({} as CesiumTerrainProvider),
+    };
+  }, []);
+  
+  const getResolutionScale = useCallback(() => 1.0, []);
+
+  const switcherOptions = useMemo(() => ({
+    onActiveFrameworkChange: (direction: any) => {
+      console.log('[TRANSITION] Framework changed:', direction);
+    },
+    onTransitionStart: (direction: any) => {
+      console.log('[TRANSITION] Started:', direction);
+    },
+    onTransitionComplete: (direction: any) => {
+      console.log('[TRANSITION] Completed:', direction);
+    },
+    onTransitionFailed: (direction: any) => {
+      console.error('[TRANSITION] Failed:', direction);
+    },
+  }), []);
+
+  // Map framework switcher hook
+  const { activeFramework, isTransitioning, toggle } = useMapFrameworkSwitcher(
+    getLeafletMap,
+    getCesiumScene,
+    getCesiumContainer,
+    getCesiumTerrainProviders,
+    getResolutionScale,
+    switcherOptions
+  );
+
+  // Terrain sampling method - can be called anytime
+  const sampleTerrainAtCurrentLocation = useCallback(async () => {
     if (!leafletMapRef.current) {
       return;
     }
@@ -96,49 +138,6 @@ const LeafletCesium = () => {
       }
     }
   }, []);
-  
-  // Leva controls for debugging
-  const { opacity, clipPercentage } = useControls('Cesium Container', {
-    opacity: { value: 1, min: 0, max: 1, step: 0.01 },
-    clipPercentage: { value: 30, min: 0, max: 100, step: 1, label: 'Clip %' },
-  });
-  
-  useControls('Actions', {
-    'Toggle Pointer Events': button(() => setPointerEventsEnabled(prev => !prev)),
-    'Sample Terrain Height': button(handleSampleTerrain),
-  });
-
-  // Getter functions for the hook
-  const getLeafletMap = useCallback(() => leafletMapRef.current, []);
-  
-  const getCesiumScene = useCallback(() => cesiumWidgetRef.current?.scene ?? null, []);
-  
-  const getCesiumContainer = useCallback(() => cesiumContainerRef.current, []);
-  
-  const getCesiumTerrainProviders = useCallback(() => {
-    return {
-      TERRAIN: terrainProvidersRef.current.TERRAIN ?? ({} as CesiumTerrainProvider),
-      SURFACE: terrainProvidersRef.current.SURFACE ?? ({} as CesiumTerrainProvider),
-    };
-  }, []);
-  
-  const getResolutionScale = useCallback(() => 1.0, []);
-
-  const switcherOptions = useMemo(() => ({
-    onActiveFrameworkChange: () => {
-      // Optional: handle framework changes
-    }
-  }), []);
-
-  // Map framework switcher hook
-  const { activeFramework, isTransitioning, toggle } = useMapFrameworkSwitcher(
-    getLeafletMap,
-    getCesiumScene,
-    getCesiumContainer,
-    getCesiumTerrainProviders,
-    getResolutionScale,
-    switcherOptions
-  );
 
   // Initialize maps
   useEffect(() => {
@@ -147,10 +146,23 @@ const LeafletCesium = () => {
     const initMaps = () => {
       if (!leafletContainerRef.current || !cesiumContainerRef.current) return;
 
+      // Track terrain provider loading
+      let terrainLoaded = false;
+      let surfaceLoaded = false;
+      
+      const checkAndSample = () => {
+        if (terrainLoaded && surfaceLoaded && leafletMapRef.current) {
+          // Both providers ready - sample immediately
+          sampleTerrainAtCurrentLocation();
+        }
+      };
+
       // Initialize terrain providers (ready but not applied to scene yet)
       CesiumTerrainProvider.fromUrl(WUPP_TERRAIN_PROVIDER.url)
         .then((terrain) => {
           terrainProvidersRef.current.TERRAIN = terrain;
+          terrainLoaded = true;
+          checkAndSample();
         })
         .catch((error) => {
           console.warn('TERRAIN provider failed to initialize:', error);
@@ -159,23 +171,8 @@ const LeafletCesium = () => {
       CesiumTerrainProvider.fromUrl(WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M.url)
         .then((terrain) => {
           terrainProvidersRef.current.SURFACE = terrain;
-        })
-        .catch((error) => {
-          console.warn('SURFACE provider failed to initialize:', error);
-        });
-
-      // Initialize terrain providers (ready but not applied to scene yet)
-      CesiumTerrainProvider.fromUrl(WUPP_TERRAIN_PROVIDER.url)
-        .then((terrain) => {
-          terrainProvidersRef.current.TERRAIN = terrain;
-        })
-        .catch((error) => {
-          console.warn('TERRAIN provider failed to initialize:', error);
-        });
-
-      CesiumTerrainProvider.fromUrl(WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M.url)
-        .then((terrain) => {
-          terrainProvidersRef.current.SURFACE = terrain;
+          surfaceLoaded = true;
+          checkAndSample();
         })
         .catch((error) => {
           console.warn('SURFACE provider failed to initialize:', error);
@@ -186,7 +183,8 @@ const LeafletCesium = () => {
         const leafletMap = L.map(leafletContainerRef.current, {
           center: [WUPPERTAL.position.latitude, WUPPERTAL.position.longitude],
           zoom: 15,
-          zoomControl: true,
+          zoomControl: false,
+          attributionControl: false,
         });
 
         // Add Wuppertal aerial imagery (Luftbild) WMS layer
@@ -204,7 +202,7 @@ const LeafletCesium = () => {
         leafletMapRef.current = leafletMap;
         
         // Attach moveend event to sample terrain on map move
-        leafletMap.on('moveend', handleSampleTerrain);
+        leafletMap.on('moveend', sampleTerrainAtCurrentLocation);
       } catch (error) {
         console.error('Leaflet initialization error:', error);
       }
@@ -225,15 +223,22 @@ const LeafletCesium = () => {
         });
 
         cesiumWidgetRef.current = widget;
+        
+        // Capture Cesium resolution scale
+        setCesiumResolutionScale(widget.resolutionScale);
 
         // Load 2024 mesh as 3D tileset after widget is ready
         Cesium3DTileset.fromUrl(WUPP_MESH_2024.url)
           .then((tileset) => {
             if (widget.scene && !widget.isDestroyed()) {
+              tileset.maximumScreenSpaceError = 4;
               widget.scene.primitives.add(tileset);
               tilesetRef.current = tileset;
               widget.scene.requestRender();
               console.log('Tileset loaded and added to scene');
+              
+              // Sample terrain after tileset loads
+              sampleTerrainAtCurrentLocation();
             }
           })
           .catch((error) => {
@@ -264,7 +269,7 @@ const LeafletCesium = () => {
     return () => {
       try {
         if (leafletMapRef.current) {
-          leafletMapRef.current.off('moveend', handleSampleTerrain);
+          leafletMapRef.current.off('moveend', sampleTerrainAtCurrentLocation);
           leafletMapRef.current.remove();
           leafletMapRef.current = null;
         }
@@ -282,7 +287,7 @@ const LeafletCesium = () => {
       }
       
       try {
-        if (cesiumWidgetRef.current) {
+        if (cesiumWidgetRef.current && !cesiumWidgetRef.current.isDestroyed()) {
           cesiumWidgetRef.current.destroy();
           cesiumWidgetRef.current = null;
         }
@@ -290,32 +295,7 @@ const LeafletCesium = () => {
         console.error('Error cleaning up Cesium:', error);
       }
     };
-  }, [terrainType, handleSampleTerrain]);
-
-  // Apply Leva controls to Cesium container (removed - now using inline styles)
-
-  // Update terrain provider
-  const handleTerrainToggle = () => {
-    const newTerrain = terrainType === 'MESH' ? 'TERRAIN' : 'MESH';
-    setTerrainType(newTerrain);
-    
-    if (!cesiumWidgetRef.current) return;
-
-    const terrainUrl = newTerrain === 'MESH' 
-      ? WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M.url 
-      : WUPP_TERRAIN_PROVIDER.url;
-    
-    CesiumTerrainProvider.fromUrl(terrainUrl)
-      .then((terrain) => {
-        if (cesiumWidgetRef.current?.scene) {
-          cesiumWidgetRef.current.scene.terrainProvider = terrain;
-          cesiumWidgetRef.current.scene.requestRender();
-        }
-      })
-      .catch((error) => {
-        console.warn('Terrain provider failed to load:', error);
-      });
-  };
+  }, [sampleTerrainAtCurrentLocation]);
 
   return (
     <div style={{ width: '100%', height: '100vh', position: 'relative' }}>
@@ -342,10 +322,10 @@ const LeafletCesium = () => {
           top: 0,
           left: 0,
           zIndex: 2,
-          opacity: opacity,
-          pointerEvents: pointerEventsEnabled ? 'auto' : 'none',
+          opacity: activeFramework === 'cesium' ? 1 : 0,
+          pointerEvents: activeFramework === 'cesium' ? 'auto' : 'none',
           background: 'repeating-conic-gradient(#ff6600 0% 25%, transparent 0% 50%) 50% / 20px 20px',
-          clipPath: `inset(0 ${100 - clipPercentage}% 0 0)`,
+          transition: 'opacity 600ms ease-in-out',
         }}
       />
       
@@ -354,7 +334,7 @@ const LeafletCesium = () => {
         style={{
           position: 'absolute',
           top: '16px',
-          right: '16px',
+          left: '16px',
           zIndex: 1000,
           display: 'flex',
           gap: '8px',
@@ -366,54 +346,71 @@ const LeafletCesium = () => {
           onToggle={toggle}
           nativeTooltip={true}
         />
-        <Button onClick={handleTerrainToggle}>
-          Terrain: {terrainType}
-        </Button>
       </div>
       
       {/* Status Card */}
       <Card
-        title="Switcher Status"
         size="small"
         style={{
           position: 'absolute',
           bottom: '16px',
           left: '16px',
           zIndex: 1000,
-          width: '250px',
         }}
       >
         <div style={{ marginBottom: '8px' }}>
-          <strong>Active Framework:</strong>{' '}
+          <strong>Active Framework</strong>{' '}
           <Tag color={activeFramework === 'cesium' ? 'blue' : 'green'}>
             {activeFramework.toUpperCase()}
           </Tag>
         </div>
         
-        <div style={{ marginBottom: '8px' }}>
-          <strong>Transitioning:</strong>{' '}
+        <div style={{ marginBottom: '12px' }}>
+          <strong>Transitioning</strong>{' '}
           <Tag color={isTransitioning ? 'orange' : 'default'}>
             {isTransitioning ? 'YES' : 'NO'}
           </Tag>
         </div>
         
-        {surfaceHeight !== null && (
-          <div style={{ marginBottom: '8px' }}>
-            <strong>Surface (DSM):</strong>{' '}
-            <Tag color="purple">
-              {surfaceHeight.toFixed(2)}m
+        {/* Cesium Section */}
+        <div style={{ marginBottom: '12px', paddingTop: '8px', borderTop: '1px solid #f0f0f0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginBottom: '4px', flexWrap: 'wrap' }}>
+            <Tag color={cesiumContainerRef.current ? 'green' : 'red'}>
+              {cesiumContainerRef.current ? 'Container' : 'No Container'}
             </Tag>
+            <Tag color={cesiumWidgetRef.current ? 'green' : 'red'}>
+              {cesiumWidgetRef.current ? 'Widget' : 'No Widget'}
+            </Tag>
+            <Tag color="blue">
+              {cesiumWidgetRef.current?.scene?.drawingBufferWidth || 0}×{cesiumWidgetRef.current?.scene?.drawingBufferHeight || 0}
+            </Tag>
+            <Tag color="geekblue">DPR {leafletDPR % 1 === 0 ? leafletDPR : leafletDPR.toFixed(2)}</Tag>
+            <Tag color="magenta">Scale {cesiumResolutionScale % 1 === 0 ? cesiumResolutionScale : cesiumResolutionScale.toFixed(2)}</Tag>
           </div>
-        )}
+        </div>
         
-        {terrainHeight !== null && (
-          <div>
-            <strong>Terrain (DEM):</strong>{' '}
-            <Tag color="cyan">
-              {terrainHeight.toFixed(2)}m
-            </Tag>
+        <div style={{ paddingTop: '8px', borderTop: '1px solid #f0f0f0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', flexWrap: 'wrap' }}>
+            <Radio.Group 
+              value={terrainType} 
+              onChange={(e) => setTerrainType(e.target.value)}
+              size="small"
+            >
+              <Radio.Button value="TERRAIN">DEM</Radio.Button>
+              <Radio.Button value="MESH">DSM</Radio.Button>
+            </Radio.Group>
+            {terrainHeight !== null && (
+              <Tag color="cyan">
+                DEM {terrainHeight.toFixed(2)}m
+              </Tag>
+            )}
+            {surfaceHeight !== null && (
+              <Tag color="purple">
+                DSM {surfaceHeight.toFixed(2)}m
+              </Tag>
+            )}
           </div>
-        )}
+        </div>
       </Card>
     </div>
   );

@@ -3,6 +3,7 @@ import {
   Cartographic,
   type CesiumTerrainProvider,
   type Scene,
+  isValidScene,
 } from "@carma/cesium";
 
 import type { LatLng, Zoom } from "@carma/types";
@@ -15,9 +16,8 @@ import {
   type TransitionOptions,
   defaultTransitionOptions,
 } from "./elevation-reference";
-import { isValidScene } from "libraries/mapping/engines/cesium/legacy/src/lib/utils/instanceGates";
 import { getCameraHeightAboveGround } from "./get-camera-height-above-ground";
-import { getScenePixelSize } from "libraries/mapping/engines/cesium/legacy/src/lib/utils/pixels";
+import { getScenePixelSize } from "@carma-mapping/engines/cesium";
 
 export const tiledMapToCesium = async (
   scene: Scene,

@@ -12,7 +12,7 @@ const config: StorybookConfig = {
     options: {
       
       builder: {
-        viteConfigPath: 'playgrounds/stories/vite.config.ts',
+        viteConfigPath: 'playgrounds/stories/vite.config.mts',
       },
       
     },

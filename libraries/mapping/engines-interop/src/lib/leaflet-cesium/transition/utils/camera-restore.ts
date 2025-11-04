@@ -59,15 +59,10 @@ export const restoreCesiumCameraView = (
       duration,
     });
     
-    // Directly animate scene camera to the target position with HPR
-    // Using scene.camera.flyTo with heading/pitch/range orientation
+    // Use lookAt which properly handles HeadingPitchRange with distance (range)
     scene.camera.flyTo({
       destination: pos,
-      orientation: {
-        heading: targetHPR.heading,
-        pitch: targetHPR.pitch,
-        roll: 0,
-      },
+      orientation: targetHPR, // HeadingPitchRange object with heading, pitch, range
       duration: duration / 1000, // Convert ms to seconds for Cesium
       complete: onComplete,
     });

@@ -1,4 +1,4 @@
-import type { HeadingPitchRange, Scene } from "@carma/cesium";
+import type { HeadingPitchRange, Scene, CesiumTerrainProvider } from "@carma/cesium";
 import { isValidScene } from "@carma/cesium";
 import type { Map as LeafletMap } from "leaflet";
 import { TransitionStage, type TransitionToLeafletOptions } from "./types";
@@ -19,6 +19,10 @@ export const transitionToLeaflet = async (
   leaflet: LeafletMap,
   cesiumContainer: HTMLElement,
   resolutionScale: number,
+  terrainProviders: {
+    TERRAIN?: CesiumTerrainProvider;
+    SURFACE?: CesiumTerrainProvider;
+  },
   onTransitionStage: (stage: TransitionStage, message: string) => void,
   onTransitionComplete: (() => void) | undefined,
   onTransitionError: ((error: Error) => void) | undefined,
