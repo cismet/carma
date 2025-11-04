@@ -9,6 +9,7 @@ import store from "../store";
 import wupperwurm from "../assets/wupperwurm.svg";
 // Import version data - adjust path as needed
 // import versionData from "../version.json";
+const baseUrl = window.location.origin + window.location.pathname;
 
 const AppErrorFallback = ({ error, resetErrorBoundary }) => {
   const br = "\n";
