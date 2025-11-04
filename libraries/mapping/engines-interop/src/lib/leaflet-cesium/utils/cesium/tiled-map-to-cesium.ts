@@ -17,7 +17,7 @@ import {
   defaultTransitionOptions,
 } from "./elevation-reference";
 import { getCameraHeightAboveGround } from "./get-camera-height-above-ground";
-import { getScenePixelSize } from "@carma-mapping/engines/cesium";
+import { getScenePixelSize } from "@carma-mapping/engines/cesium/legacy";
 
 export const tiledMapToCesium = async (
   scene: Scene,

@@ -15,8 +15,10 @@ export const getPixelDimensionsForDistance = (
   const { drawingBufferHeight, drawingBufferWidth } = scene;
 
   const hasDimensions =
-    Number.isFinite(drawingBufferHeight) && Number.isFinite(drawingBufferWidth);
-  drawingBufferHeight > 0 && drawingBufferWidth > 0;
+    Number.isFinite(drawingBufferHeight) &&
+    Number.isFinite(drawingBufferWidth) &&
+    drawingBufferHeight > 0 &&
+    drawingBufferWidth > 0;
 
   if (!hasDimensions) {
     console.warn("Cesium scene does not have valid drawing buffer dimensions");
@@ -30,10 +32,6 @@ export const getPixelDimensionsForDistance = (
     resolutionScale,
     new Cartesian2()
   );
-
-  if (!hasDimensions) {
-    return null;
-  }
 
   const { x, y } = pixelDimensions;
 

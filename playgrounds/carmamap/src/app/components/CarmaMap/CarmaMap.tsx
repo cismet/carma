@@ -29,7 +29,10 @@ import {
   faMinus,
   faPlus,
 } from "@fortawesome/free-solid-svg-icons";
-import { FullscreenControl } from "@carma-mapping/components";
+import {
+  FullscreenControl,
+  MapFrameworkSwitcher,
+} from "@carma-mapping/components";
 
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
@@ -456,7 +459,10 @@ export const CarmaMap = ({
       </Control>
       {allow3d && (
         <Control position="topleft" order={70}>
-          <MapFrameworkSwitcher />
+          {
+            // TODO fix when implemented in geoportal
+            // <MapFrameworkSwitcher />
+          }
           <Compass disabled={isMode2d} />
         </Control>
       )}

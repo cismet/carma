@@ -1,7 +1,7 @@
 import type { MutableRefObject } from "react";
 import { Cartographic, type Cartesian3, type Entity } from "cesium";
+import { getDegreesFromCartographic } from "@carma/cesium";
 import {
-  getDegreesFromCartographic,
   getTerrainElevationAsync,
   type CesiumContextType,
 } from "@carma-mapping/engines/cesium";

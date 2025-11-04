@@ -14,7 +14,7 @@ import type { FeatureCollection, Polygon } from "geojson";
 
 import { useHashState } from "@carma-appframeworks/portals";
 
-import type { Radians } from "@carma/types";
+import type { Radians } from "@carma/geo/types";
 
 import type {
   ExteriorOrientations,

@@ -73,7 +73,7 @@ export const animateCesiumToTopDownLeafletLikeView = (
       "[CESIUM] [CESIUM|2D3D|TO2D] No valid ground height (depth) found – cancel transition"
     );
     onTransitionCancel();
-    return;
+    return false;
   }
 
   const pos = groundPos as Cartesian3;

@@ -26,7 +26,7 @@ export const DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS: Viewer.ConstructorOptions = {
 
   // Disable default providers
   baseLayer: false,
-  terrainProvider: false,
+  terrainProvider: undefined,
   globe: false,
 
   // Hide UI components

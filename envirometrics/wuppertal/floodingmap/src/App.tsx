@@ -24,7 +24,6 @@ import {
   useSelectionCesium,
   useSelectionTopicMap,
   useHashState,
-  useMapTransition,
 } from "@carma-appframeworks/portals";
 import { ENDPOINT, isAreaTypeWithGEP } from "@carma-commons/resources";
 import { getApplicationVersion } from "@carma-commons/utils";
@@ -32,9 +31,10 @@ import { getApplicationVersion } from "@carma-commons/utils";
 // TODO fix collab path names
 import { getCollabedHelpComponentConfig } from "@carma-collab/wuppertal/hochwassergefahrenkarte";
 
+import { getDegreesFromCartesian } from "@carma/cesium";
+
 import {
   CustomViewer,
-  getDegreesFromCartesian,
   PitchingCompass,
   selectViewerHome,
   selectViewerIsMode2d,
@@ -56,6 +56,7 @@ import {
   FullscreenControl,
   RoutedMapLocateControl,
   MapFrameworkSwitcher,
+  useMapFrameworkSwitcher,
 } from "@carma-mapping/components";
 import {
   Control,
@@ -133,9 +134,8 @@ function App({ sync = false }: { sync?: boolean }) {
   const models = useSelector(selectViewerModels);
 
   // transitions (portals hook integrates with TopicMapContext + Redux)
-  const { transitionToMode2d, transitionToMode3d } = useMapTransition({
-    duration: CESIUM_CONFIG.transitions.mapMode.duration,
-  });
+  // todo wire up MapFrameworkSwitcher to this hook see geoportal example
+  // const { transitionToMode2d, transitionToMode3d } = useMapFrameworkSwitcher();
 
   const markerAsset = models![CESIUM_CONFIG.markerKey!];
   const markerAnchorHeight = CESIUM_CONFIG.markerAnchorHeight ?? 10;
@@ -291,19 +291,9 @@ function App({ sync = false }: { sync?: boolean }) {
               </ControlButtonStyler>
               {/* </Tooltip> */}
 
-              <MapFrameworkSwitcher
-                className="!rounded-t-none !border-t-[1px]"
-                nativeTooltip={true}
-                enableMobileWarning={true}
-                getMapMode={() => (isMode2d ? "2d" : "3d")}
-                getLeaflet={() => routedMap?.leafletMap?.leafletElement ?? null}
-                getCesium={() => ctx}
-                getCesiumContainerProps={() => ({
-                  element: container3dMapRef.current,
-                })}
-                transitionToMode2d={transitionToMode2d}
-                transitionToMode3d={transitionToMode3d}
-              />
+              {
+                //<MapFrameworkSwitcher>
+              }
             </div>
           </Control>
           <Control position="topleft" order={50}>
