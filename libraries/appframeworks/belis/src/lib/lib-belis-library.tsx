@@ -50,11 +50,11 @@ interface BelisMapProps {
   jwt: string;
   setBounds: (mapBounds: LatLngBounds) => void;
   setMapRef: (mapRef: LeafletMap) => void;
-  setZoom: (z: string | null) => void;
+  setZoom: (z: number | null) => void;
   loadObjects: (opts: {
     boundingBox: any;
     inFocusMode: boolean;
-    zoom: string | null;
+    zoom: number | null;
     jwt: string;
     force?: boolean;
   }) => void;
@@ -222,15 +222,22 @@ export function BelisMap({
       if (mapBounds && mapSize) {
         const boundingBox = convertBounds2BBox(mapBounds);
         const z = urlSearchParams.get("zoom");
+        let zoomNum: number | null = null;
+        if (z !== null) {
+          zoomNum = parseFloat(z);
+        } else {
+          console.warn("[BELISMAP] zoom is not specified, cannot load objects");
+          return;
+        }
 
-        if (zoom !== z) {
-          setZoom(z);
+        if (zoom !== zoomNum && Number.isFinite(zoomNum)) {
+          setZoom(zoomNum);
         }
         if (featureCollectionMode === MODES.OBJECTS) {
           loadObjects({
             boundingBox,
             inFocusMode,
-            zoom: z,
+            zoom: zoomNum,
             jwt: jwt,
             force: true,
           });
