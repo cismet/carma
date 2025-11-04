@@ -22,7 +22,7 @@ import {
   getHeadingPitchRangeFromHeight,
   getHeadingPitchRangeFromZoom,
   invertedPolygonHierarchy,
-  pickViewerCanvasCenter,
+  pickSceneCanvasCenter,
   polygonHierarchyFromPolygonCoords,
   removeCesiumMarker,
   removeGroundPrimitiveById,
@@ -145,7 +145,7 @@ const cesiumLookAtPoint = async (
   } = {}
 ) => {
   ctx.withScene((scene) => {
-    const currentCenterPos = pickViewerCanvasCenter(ctx).scenePosition;
+    const currentCenterPos = pickSceneCanvasCenter(scene).scenePosition;
     const center = Cartographic.toCartesian(targetPosition);
 
     const maxDuration = options.maxDuration ?? MAX_FLYTO_DURATION;

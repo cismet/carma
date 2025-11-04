@@ -4,5 +4,9 @@
     "allowJs": true
   },
   "files": [],
-  "references": [],
+  "references": [
+    {
+      "path": "./tsconfig.lib.json"
+    }
+  ],
 }

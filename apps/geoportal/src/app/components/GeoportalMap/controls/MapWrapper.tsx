@@ -29,16 +29,15 @@ import type { SearchResultItem } from "@carma/types";
 import { detectWebGLContext } from "@carma-commons/utils";
 
 import {
-  MapTypeSwitcher,
   PitchingCompass,
-  selectViewerIsMode2d,
   selectViewerModels,
-  setIsMode2d,
   useCesiumContext,
   useHomeControl,
   useZoomControls as useZoomControlsCesium,
 } from "@carma-mapping/engines/cesium";
 import {
+  MapFrameworkSwitcher,
+  useMapFrameworkSwitcher,
   FullscreenControl,
   LibrePitchingCompass,
   RoutedMapLocateControl,
@@ -92,7 +91,6 @@ import {
 } from "../../../store/slices/ui.ts";
 
 import { CESIUM_CONFIG } from "../../../config/app.config";
-import { useDebug } from "./MapWrapper.useDebug.ts";
 
 // detect GPU support, disables 3d mode if not supported
 let hasGPU = false;
@@ -102,7 +100,12 @@ window.addEventListener("load", testGPU, false);
 
 // TODO: centralize the hash params update behavior
 
-const MapWrapper = () => {
+type MapWrapperProps = {
+  isMode2d: boolean;
+  setIsMode2d: (isMode2d: boolean) => void;
+};
+
+const MapWrapper = ({ isMode2d, setIsMode2d }: MapWrapperProps) => {
   const dispatch = useDispatch();
   const flags = useFeatureFlags();
 
@@ -116,8 +119,9 @@ const MapWrapper = () => {
   // State and Selectors
   const libreMapRef = useSelector(getLibreMapRef);
   const allow3d = useSelector(getUIAllow3d) && hasGPU;
-  const isMode2d = useSelector(selectViewerIsMode2d) || !allow3d;
   const models = useSelector(selectViewerModels);
+
+  const effectiveMode2d = isMode2d || !allow3d;
   const uiMode = useSelector(getUIMode);
   const isModeMeasurement = uiMode === UIMode.MEASUREMENT;
   const isModeFeatureInfo = uiMode === UIMode.FEATURE_INFO;
@@ -128,6 +132,17 @@ const MapWrapper = () => {
   const homeControl = useHomeControl();
   const configSelection = useSelector(getConfigSelection);
 
+  // map mode transitions (use mapping/components hook with getters/callbacks)
+  const { transitionToMode2d, transitionToMode3d } = useMapTransition({
+    getCesiumContext: () => ctx,
+    getLeafletMap: () => routedMap?.leafletMap?.leafletElement ?? null,
+    getCesiumContainer: () => (ctx?.viewerRef.current?.container as HTMLElement) ?? null,
+    onMapModeSwitch: (mode) => setIsMode2d(mode === '2d'),
+    options: {
+      duration: CESIUM_CONFIG.transitions.mapMode.duration,
+    },
+  });
+
   const { isObliqueMode } = useOblique();
 
   const {
@@ -137,8 +152,6 @@ const MapWrapper = () => {
     fovMode: isObliqueMode,
   });
   const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
-
-  useDebug();
 
   const { routedMapRef: routedMap } =
     useContext<typeof TopicMapContext>(TopicMapContext);
@@ -240,7 +253,7 @@ const MapWrapper = () => {
   useEffect(() => {
     // set 2d mode if allow3d is false or undefined
     if (allow3d === false || allow3d === undefined) {
-      dispatch(setIsMode2d(true));
+      setIsMode2d(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allow3d]);
@@ -357,11 +370,16 @@ const MapWrapper = () => {
                   </ControlButtonStyler>
                 </Tooltip>
 
-                <MapTypeSwitcher
-                  // TODO: move Config to props
-                  duration={CESIUM_CONFIG.transitions.mapMode.duration}
+                <MapFrameworkSwitcher
                   className="!rounded-t-none !border-t-[1px]"
                   ref={tourRefLabels.toggle2d3d}
+                  getMapMode={() => (isMode2d ? "2d" : "3d")}
+                  getLeaflet={() => routedMap?.leafletMap?.leafletElement ?? null}
+                  getCesium={() => ctx}
+                  getCesiumContainerProps={() => ({ element: null })}
+                  transitionToMode2d={transitionToMode2d}
+                  transitionToMode3d={transitionToMode3d}
+                  onMapModeSwitch={(mode) => setIsMode2d(mode === "2d")}
                 />
                 {
                   // TODO implement cesium home action with generic home control for all mapping engines

@@ -1,13 +1,16 @@
 // collate into a shallow version of window namespace
+import { logOnce } from "../console";
 import { carmaWindowLocation as location } from "./location";
-import { getWindowDimensions as getDimensions } from "./getWindowDimensions";
+
+logOnce(
+  "@carma-commons/utils window is deprecated, use @carma-commons/dom/window instead"
+);
+
 export const carmaWindow = {
   location,
-  getDimensions,
 };
 
 // as individual exports
-export { getWindowDimensions } from "./getWindowDimensions";
 export { handleDelayedRender } from "./handleDelayedRender";
 
 export { cjsGlobalShim } from "./cjsGlobalShim";

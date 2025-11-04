@@ -123,20 +123,20 @@
     "@nx/react": {
       "application": {
         "babel": true,
-        "bundler": "vite",
+        "style": "css",
         "linter": "eslint",
-        "skipFormat": true,
-        "style": "css"
+        "bundler": "vite",
+        "skipFormat": true
       },
       "component": {
         "style": "css"
       },
       "library": {
-        "bundler": "none",
+        "style": "css",
         "linter": "eslint",
+        "bundler": "none",
         "skipFormat": true,
         "skipTsConfig": true,
-        "style": "css",
         "unitTestRunner": "vitest"
       }
     },

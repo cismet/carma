@@ -3,17 +3,19 @@
   "include": [
     "apps/**/*.ts",
     "apps/**/*.tsx",
+    "envirometrics/**/*.ts",
+    "envirometrics/**/*.tsx",
     "libraries/**/*.ts",
     "libraries/**/*.tsx",
     "playgrounds/**/*.ts",
     "playgrounds/**/*.tsx",
     "services/**/*.ts",
+    "services/**/*.tsx"
   ],
   "exclude": [
-    "dist",
-    "node_modules",
-    // Declaration-only root types (handled by lightweight ESLint block)
-    "libraries/types/src/**/*.d.ts"
+    "libraries/collaboration/**",
+    "**/.storybook/**",
+    "**/src/__stories__/**"
   ],
   "compilerOptions": {
     "noEmit": true

@@ -1,4 +1,5 @@
 // Built-in Modules
+import { useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 // 3rd party Modules
@@ -15,7 +16,6 @@ import {
   backgroundSettings,
   mobileInfo,
 } from "@carma-collab/wuppertal/geoportal";
-import { DebugUiProvider } from "@carma-commons/debug";
 import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
 import { MobileWarningMessage } from "@carma-mapping/components";
 import {
@@ -124,6 +124,18 @@ function App({ published }: { published?: boolean }) {
     dispatch(setUIMode(newUIMode));
   };
 
+  // Map mode state (app-level, initialized from URL)
+  const getInitialMode2d = () => {
+    const hash = window.location.hash;
+    // Check if cesium scene params exist in hash (indicates 3D mode)
+    return !(
+      hash.includes("cp=") ||
+      hash.includes("ch=") ||
+      hash.includes("ct=")
+    );
+  };
+  const [isMode2d, setIsMode2d] = useState(getInitialMode2d);
+
   if (isLoadingConfig === null) {
     // wait for the loading state to be determined to prevent re-rendering
     console.debug("[CONFIG] APP - Waiting for config loading state...");
@@ -145,68 +157,64 @@ function App({ published }: { published?: boolean }) {
     >
       <MatomoTracker>
         <CesiumDevConsoleIntegration />
-        <DebugUiProvider>
-          <CarmaMapProviderWrapper
-            cesiumOptions={CESIUM_CONFIG}
-            overlayOptions={{
-              background: backgroundSettings,
-            }}
-            mapStyleConfig={geoportalMapStyleConfig}
+        <CarmaMapProviderWrapper
+          cesiumOptions={CESIUM_CONFIG}
+          overlayOptions={{
+            background: backgroundSettings,
+          }}
+          mapStyleConfig={geoportalMapStyleConfig}
+        >
+          <ObliqueProvider
+            config={OBLIQUE_CONFIG}
+            fallbackDirectionConfig={CAMERA_ID_TO_DIRECTION}
           >
-            <ObliqueProvider
-              config={OBLIQUE_CONFIG}
-              fallbackDirectionConfig={CAMERA_ID_TO_DIRECTION}
+            <MeasurementsWrapper
+              externalMode={mode}
+              setModeExternal={handleSetMode}
+              baseConfig={measurementsConfig}
             >
-              <MeasurementsWrapper
-                externalMode={mode}
-                setModeExternal={handleSetMode}
-                baseConfig={measurementsConfig}
-              >
-                <ErrorBoundary FallbackComponent={AppErrorFallback}>
-                  <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
-                    {isLoadingConfig && (
-                      <div
-                        id="loading"
-                        className="absolute flex flex-col items-center text-white justify-center h-screen w-full bg-black/50 z-[9999999999999]"
-                      >
-                        <h2>Lade Konfiguration</h2>
-                        <FontAwesomeIcon size="2x" icon={faSpinner} spin />
-                      </div>
-                    )}
-                    {!published && <TopNavbar />}
-                    <MapWrapper />
-                    <MobileWarningMessage
-                      headerText={mobileInfo.headerText}
-                      bodyText={mobileInfo.bodyText}
-                      confirmButtonText={mobileInfo.confirmButtonText}
-                    />
-
-                    <Modal
-                      open={showLoginModal}
-                      closable={false}
-                      footer={null}
-                      styles={{
-                        content: {
-                          padding: "0px",
-                          width: window.innerWidth < 600 ? "100%" : "450px",
-                        },
-                      }}
+              <ErrorBoundary FallbackComponent={AppErrorFallback}>
+                <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
+                  {isLoadingConfig && (
+                    <div
+                      id="loading"
+                      className="absolute flex flex-col items-center text-white justify-center h-screen w-full bg-black/50 z-[9999999999999]"
                     >
-                      <LoginForm
-                        onSuccess={() => dispatch(setShowLoginModal(false))}
-                        closeLoginForm={() =>
-                          dispatch(setShowLoginModal(false))
-                        }
-                        showHelpText={false}
-                        style={{ padding: "20px" }}
-                      />
-                    </Modal>
-                  </div>
-                </ErrorBoundary>
-              </MeasurementsWrapper>
-            </ObliqueProvider>
-          </CarmaMapProviderWrapper>
-        </DebugUiProvider>
+                      <h2>Lade Konfiguration</h2>
+                      <FontAwesomeIcon size="2x" icon={faSpinner} spin />
+                    </div>
+                  )}
+                  {!published && <TopNavbar />}
+                  <MapWrapper isMode2d={isMode2d} setIsMode2d={setIsMode2d} />
+                  <MobileWarningMessage
+                    headerText={mobileInfo.headerText}
+                    bodyText={mobileInfo.bodyText}
+                    confirmButtonText={mobileInfo.confirmButtonText}
+                  />
+
+                  <Modal
+                    open={showLoginModal}
+                    closable={false}
+                    footer={null}
+                    styles={{
+                      content: {
+                        padding: "0px",
+                        width: window.innerWidth < 600 ? "100%" : "450px",
+                      },
+                    }}
+                  >
+                    <LoginForm
+                      onSuccess={() => dispatch(setShowLoginModal(false))}
+                      closeLoginForm={() => dispatch(setShowLoginModal(false))}
+                      showHelpText={false}
+                      style={{ padding: "20px" }}
+                    />
+                  </Modal>
+                </div>
+              </ErrorBoundary>
+            </MeasurementsWrapper>
+          </ObliqueProvider>
+        </CarmaMapProviderWrapper>
       </MatomoTracker>
     </FeatureFlagProvider>
   );

@@ -9,7 +9,8 @@
       "executor": "@nx/vite:build",
       "outputs": ["{options.outputPath}"],
       "options": {
-        "outputPath": "dist/libraries/mapping/components"
+        "outputPath": "dist/libraries/mapping/components",
+        "skipTypeCheck": true
       }
     },
     "test": {

@@ -24,6 +24,7 @@ import {
   useSelectionCesium,
   useSelectionTopicMap,
   useHashState,
+  useMapTransition,
 } from "@carma-appframeworks/portals";
 import { ENDPOINT, isAreaTypeWithGEP } from "@carma-commons/resources";
 import { getApplicationVersion } from "@carma-commons/utils";
@@ -34,7 +35,6 @@ import { getCollabedHelpComponentConfig } from "@carma-collab/wuppertal/hochwass
 import {
   CustomViewer,
   getDegreesFromCartesian,
-  MapTypeSwitcher,
   PitchingCompass,
   selectViewerHome,
   selectViewerIsMode2d,
@@ -55,6 +55,7 @@ import { type SearchResultItem } from "@carma/types";
 import {
   FullscreenControl,
   RoutedMapLocateControl,
+  MapFrameworkSwitcher,
 } from "@carma-mapping/components";
 import {
   Control,
@@ -130,6 +131,11 @@ function App({ sync = false }: { sync?: boolean }) {
   const isMode2d = useSelector(selectViewerIsMode2d);
 
   const models = useSelector(selectViewerModels);
+
+  // transitions (portals hook integrates with TopicMapContext + Redux)
+  const { transitionToMode2d, transitionToMode3d } = useMapTransition({
+    duration: CESIUM_CONFIG.transitions.mapMode.duration,
+  });
 
   const markerAsset = models![CESIUM_CONFIG.markerKey!];
   const markerAnchorHeight = CESIUM_CONFIG.markerAnchorHeight ?? 10;
@@ -285,11 +291,16 @@ function App({ sync = false }: { sync?: boolean }) {
               </ControlButtonStyler>
               {/* </Tooltip> */}
 
-              <MapTypeSwitcher
+              <MapFrameworkSwitcher
                 className="!rounded-t-none !border-t-[1px]"
-                duration={CESIUM_CONFIG.transitions.mapMode.duration}
                 nativeTooltip={true}
                 enableMobileWarning={true}
+                getMapMode={() => (isMode2d ? "2d" : "3d")}
+                getLeaflet={() => routedMap?.leafletMap?.leafletElement ?? null}
+                getCesium={() => ctx}
+                getCesiumContainerProps={() => ({ element: container3dMapRef.current })}
+                transitionToMode2d={transitionToMode2d}
+                transitionToMode3d={transitionToMode3d}
               />
             </div>
           </Control>

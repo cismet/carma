@@ -1,9 +1,16 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
+    // Override strict settings for legacy code
     "noImplicitAny": false,
+    "strictNullChecks": false,
+    "exactOptionalPropertyTypes": false,
+    "noImplicitReturns": false,
+    "noPropertyAccessFromIndexSignature": false,
     "allowJs": true,
     "verbatimModuleSyntax": false,
-    "isolatedModules": true
+    "isolatedModules": true,
+    "noUnusedLocals": false,
+    "noUnusedParameters": false
   }
 }

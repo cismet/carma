@@ -1,7 +1,7 @@
-import type { Extent, LatLng } from "@carma/types";
+import type { Extent, LatLngAlt } from "@carma/geo/types";
 
 export type PositionPreset = {
   name: string;
-  position: LatLng.deg;
+  position: LatLngAlt.deg;
   extent?: Extent.deg;
 };

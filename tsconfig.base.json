@@ -1,5 +1,5 @@
 {
-  "extends": "./tsconfig.base.options.json",
+  "extends": "@tsconfig/strictest",
   "compileOnSave": false,
   "include": [
     "${configDir}/src/**/*.js",
@@ -10,9 +10,27 @@
     "${configDir}/*.config.ts",
     "${configDir}/*.config.cjs",
     "${configDir}/*.config.mjs",
-    "${configDir}/*.config.mts",
+    "${configDir}/*.config.mts"
   ],
   "compilerOptions": {
+    "target": "es2022",
+    "useDefineForClassFields": true,
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ],
+    "module": "preserve",
+    "skipLibCheck": true,
+    "allowImportingTsExtensions": true,
+    "jsx": "react-jsx",
+    "noEmit": true,
+    "strict": true,
+    "sourceMap": true,
+    "moduleDetection": "force",
+    "allowJs": false,
+    "checkJs": false,
+    "noPropertyAccessFromIndexSignature": false,
     "rootDir": ".",
     "baseUrl": ".",
     "types": [
@@ -23,15 +41,60 @@
       "@nx/react/typings/styled-jsx.d.ts"
     ],
     "paths": {
-      "@carma/types": ["libraries/types/src/index.d.ts"],
-      "@carma-appframeworks/*": ["libraries/appframeworks/*/src/index.ts"],
-      "@carma-collab/pecher/*": ["libraries/collaboration/carma-pecher-collab/src/*/index.jsx"],
-      "@carma-collab/wuppertal/*": ["libraries/collaboration/carma-wuppertal-collab/src/*/index.ts"],
-      "@carma-commons/*": ["libraries/commons/*/src/index.ts"],
-      "@carma-commons/utils/*": ["libraries/commons/utils/src/lib/*/index.ts"],
-      "@carma-mapping/*": ["libraries/mapping/*/src/index.ts"],
-      "@carma-providers/*": ["libraries/providers/*/src/index.ts"],
-    },
-    "skipLibCheck": true
+      "@carma-appframeworks/*": [
+        "libraries/appframeworks/*/src/index.ts"
+      ],
+      "@carma-commons/*": [
+        "libraries/commons/*/src/index.ts"
+      ],
+      "@carma-commons/utils/*": [
+        "libraries/commons/utils/src/lib/*/index.ts"
+      ],
+      "@carma-mapping/*": [
+        "libraries/mapping/*/src/index.ts"
+      ],
+      "@carma-providers/*": [
+        "libraries/providers/*/src/index.ts"
+      ],
+      "@carma/types": [
+        "libraries/types/src/index.d.ts"
+      ],
+      "@carma-collab/pecher/*": [
+        "libraries/collaboration/carma-pecher-collab/src/*/index.jsx"
+      ],
+      "@carma-collab/wuppertal/*": [
+        "libraries/collaboration/carma-wuppertal-collab/src/*/index.ts"
+      ],
+      "@carma/cesium": [
+        "libraries/mapping/engines/cesium/api/src/index.ts"
+      ],
+      "@carma/geo": [
+        "libraries/mapping/engines/cesium/api/src/index.ts"
+      ],
+      "@carma/geo/helpers": [
+        "libraries/commons/geo/helpers/src/index.ts"
+      ],
+      "@carma/geo/proj": [
+        "libraries/commons/geo/proj/src/index.ts"
+      ],
+      "@carma/geo/types": [
+        "libraries/commons/geo/types/src/index.d.ts"
+      ],
+      "@carma/geo/utils": [
+        "libraries/commons/geo/utils/src/index.ts"
+      ],
+      "@carma/math": [
+        "libraries/commons/math/src/index.ts"
+      ],
+      "@carma/units/helpers": [
+        "libraries/commons/units/helpers/src/index.ts"
+      ],
+      "@carma/units/types": [
+        "libraries/commons/units/types/src/index.d.ts"
+      ],
+      "@carma-mapping/engines/cesium": [
+        "libraries/mapping/engines/cesium/legacy/src/index.ts"
+      ]
+    }
   }
 }

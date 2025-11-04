@@ -13,7 +13,6 @@ import {
   SelectionProvider,
   HashStateProvider,
 } from "@carma-appframeworks/portals";
-import { DebugUiProvider } from "@carma-commons/debug";
 import { suppressReactCismapErrors } from "@carma-commons/utils";
 import {
   CesiumContextProvider,
@@ -72,10 +71,8 @@ const root = createRoot(document.getElementById("root") as HTMLElement);
 
 root.render(
   <Provider store={store}>
-    <DebugUiProvider>
-      <PersistGate loading={null} persistor={persistor}>
-        <RouterProvider router={router} />
-      </PersistGate>
-    </DebugUiProvider>
+    <PersistGate loading={null} persistor={persistor}>
+      <RouterProvider router={router} />
+    </PersistGate>
   </Provider>
 );

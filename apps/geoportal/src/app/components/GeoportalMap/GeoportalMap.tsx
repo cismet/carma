@@ -39,6 +39,7 @@ import {
 } from "@carma-collab/wuppertal/geoportal";
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 
+import { useWhyDidYouRender } from '@carma-commons/utils/react';
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import type { FeatureInfo } from "@carma/types";
 import { Measurements } from "@carma-commons/measurements";
@@ -52,7 +53,6 @@ import { getApplicationVersion } from "@carma-commons/utils";
 import {
   CustomViewer,
   selectShowPrimaryTileset,
-  selectViewerIsMode2d,
   selectViewerModels,
   setCurrentSceneStyle,
   useCesiumContext,
@@ -121,13 +121,23 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const rerenderCountRef = useRef(0);
   const lastRenderTimeStampRef = useRef(Date.now());
   const lastRenderIntervalRef = useRef(0);
+  const container2dMapRef = useRef<HTMLDivElement>(null);
   const container3dMapRef = useRef<HTMLDivElement>(null);
   // Store MapLibre maps outside Redux to avoid serialization issues
   const maplibreMapsRef = useRef<Map<string, any>>(new Map());
 
   // State and Selectors
   const backgroundLayer = useSelector(getBackgroundLayer);
-  const isMode2d = useSelector(selectViewerIsMode2d) || !allow3d;
+  
+  // Map mode state (app-level, initialized from URL)
+  const getInitialMode2d = () => {
+    if (!allow3d) return true;
+    const hash = window.location.hash;
+    // Check if cesium scene params exist in hash (indicates 3D mode)
+    return !(hash.includes('cp=') || hash.includes('ch=') || hash.includes('ct='));
+  };
+  const [isMode2d, setIsMode2d] = useState(getInitialMode2d);
+  
   const models = useSelector(selectViewerModels);
   const markerAsset = models[CESIUM_CONFIG.markerKey]; //
   const markerAnchorHeight = CESIUM_CONFIG.markerAnchorHeight ?? 10;
@@ -190,6 +200,19 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const flags = useFeatureFlags();
   const { isDebugMode } = flags;
   const cesiumInitialCameraView = useCesiumInitialCameraFromSearchParams();
+  
+  // One-time gate: Cesium can only initialize once we have determined initial position
+  // Once true, stays true forever (stored in ref to prevent re-renders)
+  const cesiumCanInitializeRef = useRef(false);
+  const cesiumInitialCameraViewRef = useRef<typeof cesiumInitialCameraView>(undefined);
+  
+  // Lock the gate once we have a valid initial position (from URL or will use config default)
+  if (cesiumInitialCameraView !== null && !cesiumCanInitializeRef.current) {
+    console.debug("[CESIUM|INIT|GATE] Initial camera position determined, unlocking Cesium initialization");
+    cesiumCanInitializeRef.current = true;
+    cesiumInitialCameraViewRef.current = cesiumInitialCameraView;
+  }
+  
   const { isObliqueMode } = useObliqueInitializer(isDebugMode);
 
   const updateLayersIdleState = useCallback(() => {
@@ -229,6 +252,12 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const { gazData } = useGazData();
 
   useFeatureInfoModeCursorStyle();
+
+  useWhyDidYouRender("GeoportalMap", {
+    height,
+    width,
+    allow3d
+  });
 
   const onComplete = (selection: SelectionItem) => {
     if (layers.filter((l) => l.layerType === "vector").length === 0) return;
@@ -627,7 +656,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
           <Measurements snappingLayers={maplibreMaps} />
         </TopicMapComponent>
       </div>
-      {allow3d && cesiumInitialCameraView !== null && (
+      {allow3d && cesiumCanInitializeRef.current && (
         <div
           ref={container3dMapRef}
           className={"map-container-3d"}
@@ -638,7 +667,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
             right: 0,
             bottom: 0,
             zIndex: 400,
-            opacity: isMode2d ? 0 : 1,
+            opacity: isMode2d ? 0.01 : 1,
             transition: `opacity ${CESIUM_CONFIG.transitions.mapMode.duration}ms ease-in-out`,
             pointerEvents: isMode2d ? "none" : "auto",
           }}
@@ -646,7 +675,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
           <CustomViewer
             containerRef={container3dMapRef}
             cameraLimiterOptions={CESIUM_CONFIG.camera}
-            initialCameraView={cesiumInitialCameraView}
+            initialCameraView={cesiumInitialCameraViewRef.current ?? undefined}
             onSceneChange={onSceneChange}
           />
         </div>

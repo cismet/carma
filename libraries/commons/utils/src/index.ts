@@ -1,17 +1,15 @@
+
+// namespaced exports
+// prefer use namespace when importing to keep import statements clean
+// {react} @carma-commons/utils/
+
 export { useMemoMergedDefaultOptions } from "./lib/react/hooks/useMemoMergedDefaultOptions";
 
 export { isNumberArrayEqual } from "./lib/arrays";
 
 export { extractCarmaConfig } from "./lib/carmaConfig";
 
-export * from "./lib/constants";
-
-export {
-  createEventBus,
-  type EventBus,
-  type SubscribeFn,
-  type EmitFn,
-} from "./lib/event-bus";
+export { logOnce } from "./lib/console";
 
 export {
   md5FetchText,
@@ -26,21 +24,6 @@ export {
   type GazDataSourceConfig,
 } from "./lib/gazData";
 
-export {
-  metersPerPixel,
-  distanceMeters,
-  pixelsBetweenGeographicLocations,
-  isLocationVisuallyEquivalentAtZoom,
-  isMapCenterZoomEquivalent,
-} from "./lib/geo";
-
-export {
-  getMercatorScaleFactorAtLatitudeRad,
-  getZoomFromPixelResolutionAtLatitudeRad,
-  getPixelResolutionFromZoomAtLatitudeRad,
-  clampLatitudeToWebMercatorExtent,
-} from "./lib/mercator";
-
 export { extractInformation } from "./lib/layer-parser";
 
 export { suppressReactCismapErrors } from "./lib/log-react-cismap-errors";
@@ -51,10 +34,11 @@ export {
   clampToToleranceRange,
   clamp,
   isClose,
-  compoundScale,
 } from "./lib/numbers";
 
 export { preventPinchZoom } from "./lib/prevent-pinch-zoom.ts";
+
+export * from "./lib/promise";
 
 export {
   PROJ4_CONVERTERS,
@@ -77,27 +61,6 @@ export {
   TAILWIND_CLASSNAMES_FULLSCREEN_FIXED,
 } from "./lib/styles-tailwind";
 
-export {
-  brandedNegate,
-  brandedAdd,
-  brandedSub,
-  brandedMul,
-  brandedDiv,
-  brandedAbs,
-  brandedMin,
-  brandedMax,
-  brandedClamp,
-  unbrandNumber,
-} from "./lib/typescript-branded-ops";
-
-export {
-  asDegrees,
-  asRadians,
-  degToRad,
-  radToDeg,
-  asMeters,
-} from "./lib/units";
-
 export { getApplicationVersion } from "./lib/version";
 
 export type { VersionData } from "./lib/version";
@@ -105,5 +68,3 @@ export type { VersionData } from "./lib/version";
 export { detectWebGLContext } from "./lib/webgl";
 
 export * from "./lib/window";
-
-export { isZoom, isZoomClose } from "./lib/zoom";

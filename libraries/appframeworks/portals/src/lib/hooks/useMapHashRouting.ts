@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { useHashState } from "../contexts/HashStateProvider";
 
 import { cesiumClearParamKeys } from "@carma-mapping/engines/cesium";
-import { isMapCenterZoomEquivalent } from "@carma-commons/utils";
+import { isMapCenterZoomEquivalent } from "@carma/geo/utils";
 import { Degrees } from "@carma/types";
 
 export type LatLngZoom = { lat: number; lng: number; zoom: number };

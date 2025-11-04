@@ -57,7 +57,6 @@ import {
 
 import {
   CustomViewer,
-  MapTypeSwitcher,
   Compass,
   selectShowPrimaryTileset,
   selectViewerIsMode2d,
@@ -457,9 +456,7 @@ export const CarmaMap = ({
       </Control>
       {allow3d && (
         <Control position="topleft" order={70}>
-          <MapTypeSwitcher
-            duration={CESIUM_CONFIG.transitions.mapMode.duration}
-          />
+          <MapFrameworkSwitcher />
           <Compass disabled={isMode2d} />
         </Control>
       )}

@@ -6,9 +6,6 @@ import { viteStaticCopy } from "vite-plugin-static-copy";
 
 const CESIUM_PATHNAME = "__cesium__";
 
-
-
-
 export default defineConfig({
   root: __dirname,
   cacheDir: "../../node_modules/.vite/apps/geoportal",
@@ -52,9 +49,6 @@ export default defineConfig({
     sourcemap: process.env.NODE_ENV === 'production' ? 'hidden' : true,
     // Disable minification in development for readable stack traces
     minify: process.env.NODE_ENV === 'production' ? 'esbuild' : false,
-    commonjsOptions: {
-      transformMixedEsModules: true,
-    },
     // Reduce memory pressure during build
     chunkSizeWarningLimit: 1000,
     rollupOptions: {

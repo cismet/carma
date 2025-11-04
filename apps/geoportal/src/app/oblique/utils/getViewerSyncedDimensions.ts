@@ -1,6 +1,6 @@
-import { CssPixelHeight, CssPixelWidth } from "@carma/types";
-import { getWindowDimensions } from "@carma-commons/utils";
-import { getCanvasDimensions } from "@carma-commons/utils/canvas";
+import { CssPixelHeight, CssPixelWidth } from "@carma/units/types";
+import { getWindowDimensions } from "@carma-commons/dom/window";
+import { getCanvasDimensions } from "@carma-commons/dom/canvas";
 import { useCesiumContext } from "@carma-mapping/engines/cesium";
 import { PerspectiveFrustum } from "cesium";
 
@@ -12,7 +12,6 @@ const getViewerSyncedSize = (
   let frustum: unknown;
 
   const wDim = getWindowDimensions(window);
-  if (!wDim) return;
   const maxWindow = Math.max(wDim.width, wDim.height);
 
   ctx.withViewer((viewer) => {

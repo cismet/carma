@@ -52,8 +52,7 @@
         "production": {
           "buildTarget": "geoportal:build:production"
         }
-      },
-      "dependsOn": ["build"]
+      }
     },
     "preview:direct": {
       "executor": "nx:run-commands",

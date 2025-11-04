@@ -6,15 +6,46 @@ const react = require("eslint-plugin-react");
 const reactHooks = require("eslint-plugin-react-hooks");
 const reactRefresh = require("eslint-plugin-react-refresh");
 const globals = require("globals");
+const carmaPlugin = require("./scripts/eslint/carma.eslint.plugin");
+const { noReduxConfig, noReactConfig, allowlistConfig } = carmaPlugin;
 
 delete globals.browser["AudioWorkletGlobalScope "]; // some weird bug
 
+// ============================================================================
+// CARMA-specific monorepo rules and configs
+// ============================================================================
+
+const TYPE_DECLARATIONS_PATTERN = "libraries/**/types/src/**/*.d.ts";
+
+
+const typeDeclarationsConfig = {
+  name: "CARMA Types Declarations (lightweight)",
+  files: [TYPE_DECLARATIONS_PATTERN],
+  plugins: {
+    "@typescript-eslint": tseslint.plugin,
+  },
+  languageOptions: {
+    parser: tseslint.parser,
+    parserOptions: {
+      ecmaVersion: 2022,
+      EXPERIMENTAL_useProjectService: false,
+    },
+    globals: {
+      ...globals.browser,
+    },
+  },
+  rules: {
+    '@typescript-eslint/no-unused-vars': 'off',
+    '@typescript-eslint/no-explicit-any': 'off',
+  },
+};
+
+// ============================================================================
+// Base configuration (generic rules, no paths)
+// ============================================================================
+
 const baseConfig = {
   name: "Base Config",
-  files: ["**/*.ts", "**/*.tsx"],
-  // Exclude pure declaration files from carma-types so they don't trigger expensive
-  // type-aware linting / default project fallback.
-  ignores: ["libraries/types/src/**/*.d.ts"],
   plugins: {
     import: importPlugin,
     "jsx-a11y": a11y,
@@ -23,6 +54,7 @@ const baseConfig = {
     "react-hooks": reactHooks,
     "react-refresh": reactRefresh,
     "@typescript-eslint": tseslint.plugin,
+    carma: carmaPlugin,
   },
   languageOptions: {
     parser: tseslint.parser,
@@ -30,7 +62,7 @@ const baseConfig = {
       ecmaVersion: 2022,
       tsconfigRootDir: __dirname,
       // Use explicit central project to avoid default project fallback & perf warning
-      project: ["./tsconfig.eslint.json"],
+      project: ['./tsconfig.eslint.json', 'playgrounds/stories/tsconfig.storybook.json'],
       //allowDefaultProjectForFiles: [        "./*.json"      ], // TODO Limit Scope
       ecmaFeatures: {
         jsx: true,
@@ -86,7 +118,13 @@ const baseConfig = {
       "error",
       {
         enforceBuildableLibDependency: true,
-        allow: [],
+        // type only is fine
+        allow: [
+          "@carma/types",
+          "@carma/geo/types",
+          "@carma/units/types",
+          "@carma/cesium-types",
+        ],
         depConstraints: [
           {
             sourceTag: "*",
@@ -104,7 +142,11 @@ const baseConfig = {
     "import/resolver": {
       ...importPlugin.configs.typescript.settings["import/resolver"],
       typescript: {
-        project: ["./tsconfig.*.json"],
+        alwaysTryTypes: true,
+        project: [
+          `${__dirname}/tsconfig.base.json`,
+          `${__dirname}/tsconfig.*.json`,
+        ],
       },
     },
     react: {
@@ -113,29 +155,89 @@ const baseConfig = {
   },
 };
 
-// order here specific to least specific
-const carmaTypesDeclConfig = {
-  name: "CARMA Types Declarations (lightweight)",
-  files: ["libraries/types/src/**/*.d.ts"],
-  plugins: {
-    "@typescript-eslint": tseslint.plugin,
-  },
-  languageOptions: {
-    parser: tseslint.parser,
-    parserOptions: {
-      ecmaVersion: 2022,
-      // IMPORTANT: no project / no project service => avoids default project warning
-      EXPERIMENTAL_useProjectService: false,
-    },
-    globals: {
-      ...globals.browser,
-    },
-  },
-  rules: {
-    // Keep this minimal; declaration files often intentionally have 'unused' names
-    '@typescript-eslint/no-unused-vars': 'off',
-    '@typescript-eslint/no-explicit-any': 'off',
-  },
-};
+// ============================================================================
+// Final configuration
+// ============================================================================
 
-module.exports = [baseConfig, carmaTypesDeclConfig];
+function getCarmaConfigs(baseConfig) {
+  return [
+    // Strict rules for apps, libraries, and envirometrics
+    {
+      ...baseConfig,
+      name: "CARMA Strict Rules (apps/libraries)",
+      files: [
+        "apps/**/*.ts",
+        "apps/**/*.tsx",
+        "libraries/**/*.ts",
+        "libraries/**/*.tsx",
+        "envirometrics/**/*.ts",
+        "envirometrics/**/*.tsx",
+      ],
+      ignores: [TYPE_DECLARATIONS_PATTERN, "**/__stories__/**", "**/*.stories.*"],
+      rules: {
+        ...baseConfig.rules,
+        "carma/no-direct-proj4": "warn",
+        "carma/no-direct-cesium": "warn",
+        "carma/no-direct-leaflet": "off",
+        "carma/no-direct-maplibre": "off",
+      },
+    },
+    // Path-specific import restrictions using helper functions (see scripts/eslint/restrictedImports.js)
+    noReduxConfig(
+      baseConfig,
+      ["libraries/**/*.ts", "libraries/**/*.tsx"],
+      [TYPE_DECLARATIONS_PATTERN]
+    ),
+    noReactConfig(baseConfig, [
+      "libraries/mapping/engines-interop/**/*.ts",
+      "libraries/commons/geo/**/*.ts",
+      "libraries/commons/math/**/*.ts",
+      "libraries/commons/units/**/*.ts",
+      "libraries/commons/utils/**/*.ts",
+    ]),
+    // Allow React imports in hooks directories (React-specific by nature)
+    {
+      ...baseConfig,
+      name: "Hooks (React allowed)",
+      files: ["**/hooks/**/*.ts", "**/hooks/**/*.tsx"],
+      rules: {
+        ...baseConfig.rules,
+        "no-restricted-imports": "off",
+      },
+    },
+    allowlistConfig(baseConfig, {
+      name: "Cesium API (allowlist)",
+      files: [
+        "libraries/mapping/engines/cesium/api/**/*.ts",
+        "libraries/mapping/engines/cesium/api/**/*.tsx",
+      ],
+      ignores: [
+        "libraries/mapping/engines/cesium/api/**/*.config.*",
+        "libraries/mapping/engines/cesium/api/**/*.d.ts",
+      ],
+      allowedPackages: ["cesium", "@carma/units/*", "@carma/geo/*"],
+      message:
+        "Cesium API can only import: cesium, @carma/units/*, @carma/geo/*. All other packages are blocked.",
+    }),
+    // Relaxed rules for playground
+    {
+      ...baseConfig,
+      name: "Playground (relaxed rules)",
+      files: ["playground/**/*.ts", "playground/**/*.tsx"],
+      rules: {
+        ...baseConfig.rules,
+        "@typescript-eslint/no-explicit-any": "off",
+        "@typescript-eslint/no-unused-vars": "off",
+        "react/prop-types": "off",
+        "carma/no-direct-proj4": "off",
+        "carma/no-direct-cesium": "off",
+        "carma/no-direct-leaflet": "off",
+        "carma/no-direct-maplibre": "off",
+      },
+    },
+    // Lightweight config for type declarations
+    typeDeclarationsConfig,
+  ];
+}
+
+module.exports = getCarmaConfigs(baseConfig);

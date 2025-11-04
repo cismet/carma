@@ -55,15 +55,3 @@ export namespace HeadingPitchRoll {
   export type deg = HeadingPitchRollDegrees;
   export type rad = HeadingPitchRollRadians;
 }
-
-export interface Cartesian3Meters {
-  x: Meters;
-  y: Meters;
-  z: Meters;
-}
-
-export interface PlainCartesian3 {
-  x: number;
-  y: number;
-  z: number;
-}

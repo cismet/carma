@@ -3,7 +3,6 @@ import type { MutableRefObject, WheelEvent as ReactWheelEvent } from "react";
 import {
   useCesiumContext,
   useFovWheelZoom,
-  CtxEvent,
 } from "@carma-mapping/engines/cesium";
 
 export interface ForwardZoomEventsBindings {
@@ -78,9 +77,12 @@ export function useForwardZoomEventsToCesium(): ForwardZoomEventsBindings {
     };
   }, [handleWheel]);
 
+  /*
+  replace with app/portals level callback
   useEffect(() => {
     return ctx.subscribe?.(CtxEvent.FovChange, (fov) => setFovOverride(fov));
   }, [ctx]);
+  */
 
   return { rootRef, onWheel, fovOverride };
 }

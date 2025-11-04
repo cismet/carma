@@ -1,4 +1,4 @@
-import { Cartographic, Math as CesiumMath } from "cesium";
+import { Cartographic, CesiumMath } from "@carma/cesium";
 
 import type { LatLng, Radians } from "@carma/types";
 

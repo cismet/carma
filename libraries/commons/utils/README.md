@@ -17,3 +17,5 @@ nx test utils
 ```sh
 nx lint utils
 ```
+
+TODO consolidate utils and remove most helpers methods into their more specialized packages, math, geo, units, etc, carma.
