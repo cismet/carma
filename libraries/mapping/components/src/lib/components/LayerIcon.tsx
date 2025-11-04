@@ -18,7 +18,7 @@ interface LayerIconProps {
 
 const isUrl = (str: string | undefined): boolean => {
   if (!str) return false;
-  return str.startsWith('http://') || str.startsWith('https://');
+  return str.startsWith("http://") || str.startsWith("https://");
 };
 
 export const LayerIcon = ({
