@@ -9,7 +9,7 @@ import store from "../store";
 import wupperwurm from "../assets/wupperwurm.svg";
 // Import version data - adjust path as needed
 // import versionData from "../version.json";
-const baseUrl = window.location.origin + window.location.pathname;
+const baseUrl = window.location.origin + window.location.pathname.replace(/\/$/, '') + '/';
 
 const AppErrorFallback = ({ error, resetErrorBoundary }) => {
   const br = "\n";
@@ -91,7 +91,7 @@ const AppErrorFallback = ({ error, resetErrorBoundary }) => {
   return (
     <div
       className="relative w-full min-h-screen bg-cover bg-center bg-no-repeat"
-      style={{ backgroundImage: "url('/lagis/images/error.jpg')" }}
+      style={{ backgroundImage: `url('${baseUrl}images/error.jpg')` }}
     >
       {/* Header */}
       <div className="w-full" style={{ backgroundColor: "rgba(0,0,0,0.4)" }}>
