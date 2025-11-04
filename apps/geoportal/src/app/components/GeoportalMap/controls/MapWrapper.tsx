@@ -37,7 +37,6 @@ import {
 } from "@carma-mapping/engines/cesium";
 import {
   MapFrameworkSwitcher,
-  useMapFrameworkSwitcher,
   FullscreenControl,
   LibrePitchingCompass,
   RoutedMapLocateControl,
@@ -57,6 +56,7 @@ import LibreGeoportalMap from "../LibreGeoportalMap.tsx";
 import { ObliqueControls } from "../../../oblique/components/ObliqueControls.tsx";
 import LayerWrapper from "../../layers/LayerWrapper.tsx";
 
+import { useGeoportalFrameworkSwitcher } from "./use-geoportal-framework-switcher.ts";
 import useLeafletZoomControls from "../../../hooks/leaflet/useLeafletZoomControls.ts";
 import { useAppSearchParams } from "../../../hooks/useAppSearchParams";
 import { useDispatchSachdatenInfoText } from "../../../hooks/useDispatchSachdatenInfoText.ts";
@@ -89,8 +89,6 @@ import {
   toggleUIMode,
   UIMode,
 } from "../../../store/slices/ui.ts";
-
-import { CESIUM_CONFIG } from "../../../config/app.config";
 
 // detect GPU support, disables 3d mode if not supported
 let hasGPU = false;
@@ -132,16 +130,12 @@ const MapWrapper = ({ isMode2d, setIsMode2d }: MapWrapperProps) => {
   const homeControl = useHomeControl();
   const configSelection = useSelector(getConfigSelection);
 
-  // map mode transitions (use mapping/components hook with getters/callbacks)
-  const { transitionToMode2d, transitionToMode3d } = useMapTransition({
-    getCesiumContext: () => ctx,
-    getLeafletMap: () => routedMap?.leafletMap?.leafletElement ?? null,
-    getCesiumContainer: () => (ctx?.viewerRef.current?.container as HTMLElement) ?? null,
-    onMapModeSwitch: (mode) => setIsMode2d(mode === '2d'),
-    options: {
-      duration: CESIUM_CONFIG.transitions.mapMode.duration,
-    },
-  });
+  // Map framework switcher (2D ↔ 3D transitions)
+  const { activeFramework, isTransitioning, toggle } =
+    useGeoportalFrameworkSwitcher({
+      cesiumContext: ctx,
+      setIsMode2d,
+    });
 
   const { isObliqueMode } = useOblique();
 
@@ -153,11 +147,12 @@ const MapWrapper = ({ isMode2d, setIsMode2d }: MapWrapperProps) => {
   });
   const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
 
-  const { routedMapRef: routedMap } =
-    useContext<typeof TopicMapContext>(TopicMapContext);
   const { responsiveState, gap, windowSize } = useContext<
     typeof ResponsiveTopicMapContext
   >(ResponsiveTopicMapContext);
+
+  const { routedMapRef: routedMap } =
+    useContext<typeof TopicMapContext>(TopicMapContext);
 
   const [pos, setPos] = useState<[number, number] | null>(null);
   const [layoutHeight, setLayoutHeight] = useState(null);
@@ -371,16 +366,13 @@ const MapWrapper = ({ isMode2d, setIsMode2d }: MapWrapperProps) => {
                 </Tooltip>
 
                 <MapFrameworkSwitcher
-                  className="!rounded-t-none !border-t-[1px]"
-                  ref={tourRefLabels.toggle2d3d}
-                  getMapMode={() => (isMode2d ? "2d" : "3d")}
-                  getLeaflet={() => routedMap?.leafletMap?.leafletElement ?? null}
-                  getCesium={() => ctx}
-                  getCesiumContainerProps={() => ({ element: null })}
-                  transitionToMode2d={transitionToMode2d}
-                  transitionToMode3d={transitionToMode3d}
-                  onMapModeSwitch={(mode) => setIsMode2d(mode === "2d")}
+                  activeFramework={activeFramework}
+                  isTransitioning={isTransitioning}
+                  onToggle={toggle}
+                  enableMobileWarning={true}
+                  nativeTooltip={true}
                 />
+
                 {
                   // TODO implement cesium home action with generic home control for all mapping engines
                 }
