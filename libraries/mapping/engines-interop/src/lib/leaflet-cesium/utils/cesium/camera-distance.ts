@@ -1,16 +1,13 @@
-import { CesiumMath, Scene } from "@carma/cesium"
+import { CesiumMath, Scene } from "@carma/cesium";
 import type { Zoom } from "@carma/types";
 import { degToRad } from "@carma/units/helpers";
 import type { Degrees, LatLng } from "@carma/geo/types";
-import {
-  getPixelResolutionFromZoomAtLatitudeRad,
-} from "@carma/geo/utils";
+import { getPixelResolutionFromZoomAtLatitudeRad } from "@carma/geo/utils";
 
 import { getPixelDimensionsForDistance } from "./get-pixel-dimensions-for-distance";
 
 // TODO: move to config or formalize the starting distance value
 const START_DISTANCE = 1000;
-
 
 export function calculateCameraDistance(
   scene: Scene,
@@ -48,24 +45,17 @@ export function calculateCameraDistance(
   return computedDistance;
 }
 
-/**
- * Inverse function: calculates the zoom level from latitude, camera distance, and pixel size.
- * Useful for determining what zoom level corresponds to a given camera position.
- *
- * @param ctx - The Cesium context
- * @param latitude - Latitude in degrees
- * @param distance - Camera distance above ground in meters
- * @returns Web map zoom level, or null if calculation fails
- */
 export function calculateZoomFromDistance(
-  ctx: CesiumContextType,
+  scene: Scene,
+  resolutionScale: number,
   latitude: number,
   distance: number
 ): number | null {
   const latRad = CesiumMath.toRadians(latitude);
 
   const baseComputedPixelResolution = getPixelDimensionsForDistance(
-    ctx,
+    scene,
+    resolutionScale,
     START_DISTANCE
   )?.average;
 
@@ -82,7 +72,8 @@ export function calculateZoomFromDistance(
 
   // Current pixel resolution at given distance
   const currentPixelDimension = getPixelDimensionsForDistance(
-    ctx,
+    scene,
+    resolutionScale,
     distance
   )?.average;
 

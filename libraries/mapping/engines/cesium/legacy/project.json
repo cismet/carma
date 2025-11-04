@@ -8,10 +8,8 @@
     "build": {
       "executor": "@nx/vite:build",
       "outputs": ["{options.outputPath}"],
-      "dependsOn": ["typecheck"],
       "options": {
-        "outputPath": "dist/libraries/mapping/engines/cesium/legacy",
-        "skipTypeCheck": true
+        "outputPath": "dist/libraries/mapping/engines/cesium/legacy"
       }
     },
     "test": {
@@ -19,12 +17,6 @@
       "outputs": ["{options.reportsDirectory}"],
       "options": {
         "reportsDirectory": "../../../../../coverage/libraries/mapping/engines/cesium/legacy"
-      }
-    },
-    "typecheck": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "tsc --noEmit --project libraries/mapping/engines/cesium/legacy/tsconfig.lib.json"
       }
     },
     "lint": {

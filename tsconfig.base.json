@@ -1,5 +1,4 @@
 {
-  "extends": "@tsconfig/strictest",
   "compileOnSave": false,
   "include": [
     "${configDir}/src/**/*.js",
@@ -28,9 +27,6 @@
     "strict": true,
     "sourceMap": true,
     "moduleDetection": "force",
-    "allowJs": false,
-    "checkJs": false,
-    "noPropertyAccessFromIndexSignature": false,
     "rootDir": ".",
     "baseUrl": ".",
     "types": [

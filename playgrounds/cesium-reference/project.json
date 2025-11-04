@@ -10,8 +10,7 @@
       "outputs": ["{options.outputPath}"],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "dist/playgrounds/cesium-reference",
-        "skipTypeCheck": true
+        "outputPath": "dist/playgrounds/cesium-reference"
       },
       "configurations": {
         "development": {

@@ -3,7 +3,7 @@ import { useHashState } from "../contexts/HashStateProvider";
 
 import { cesiumClearParamKeys } from "@carma-mapping/engines/cesium";
 import { isMapCenterZoomEquivalent } from "@carma/geo/utils";
-import { Degrees } from "@carma/types";
+import { Degrees } from "@carma/units/types";
 
 export type LatLngZoom = { lat: number; lng: number; zoom: number };
 export type CesiumSceneChangeEvent = { hashParams: Record<string, string> };

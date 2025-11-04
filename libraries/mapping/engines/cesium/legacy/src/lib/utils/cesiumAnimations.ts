@@ -1,11 +1,12 @@
 import {
   Cartesian3,
   Matrix4,
-  Math as CesiumMath,
+  CesiumMath,
   HeadingPitchRange,
-  EasingFunction,
-} from "cesium";
-import { CesiumContextType } from "../CesiumContext";
+  Scene,
+  isValidCamera,
+} from "@carma/cesium";
+import { Easing } from "@carma-commons/math";
 
 const DEFAULT_MIN_RANGE = 10;
 const DEFAULT_MAX_RANGE = 40000;
@@ -23,24 +24,8 @@ interface CesiumAnimateOrbitsOptions {
   maxRange?: number;
 }
 
-/**
- * Rotates and tilts the Cesium camera around the center of the screen.
- * @param ctx - The Cesium context instance.
- * @param destination - The position to look at.
- * @param hpr - the target heading, pitch, and range of the camera.
- * @param options - Options for the completion of the animation.
- * @param options.duration - The duration of the animation in milliseconds. Defaults to 1000.
- * @param options.cancelable - If true, the animation can be canceled by user interaction. Defaults to true.
- * @param options.minRange - Minimum camera range in meters. Defaults to 10.
- * @param options.maxRange - Maximum camera range in meters. Defaults to 40000.
- * @param options.easing - The easing function to use for the animation. Defaults to EasingFunction.CUBIC_IN_OUT.
- * @param options.onCancel - A callback function to be called when the animation is canceled.
- * @param options.onComplete - A callback function to be called when the animation completes.
- * @param options.setPrevious - A callback function to be called with the initial heading, pitch, and range of the camera.
- * @param options.useCurrentDistance - use current Distance/Range instead of last views one.
- */
 export function animateInterpolateHeadingPitchRange(
-  ctx: CesiumContextType,
+  scene: Scene,
   destination: Cartesian3,
   hpr: HeadingPitchRange = new HeadingPitchRange(0, -Math.PI / 2, 0),
   {
@@ -50,18 +35,25 @@ export function animateInterpolateHeadingPitchRange(
     onCancel,
     cancelable = true,
     useCurrentDistance = true,
-    easing = EasingFunction.CUBIC_IN_OUT,
+    easing = Easing.CUBIC_IN_OUT,
     setPrevious,
     minRange = DEFAULT_MIN_RANGE,
     maxRange = DEFAULT_MAX_RANGE,
   }: CesiumAnimateOrbitsOptions = {}
 ): () => void {
+
+
+  const { camera, canvas } = scene;
+  if (!isValidCamera(camera)) {
+    console.warn(
+      "[CESIUM|ANIMATE] Cannot animate camera - camera is not valid"
+    );
+    return () => {};
+  }
   // Get current camera state
   let initialHPR: HeadingPitchRange | null = null;
-  ctx.withCamera((camera) => {
     const range = Cartesian3.distance(camera.position, destination);
     initialHPR = new HeadingPitchRange(camera.heading, camera.pitch, range);
-  });
 
   if (!initialHPR) {
     return () => {};
@@ -89,16 +81,12 @@ export function animateInterpolateHeadingPitchRange(
       animationFrameId = null;
       isCanceled = true;
     }
-    ctx.withViewer((viewer) => {
-      viewer.canvas.removeEventListener("pointerdown", onUserInteraction);
-      viewer.camera.lookAtTransform(Matrix4.IDENTITY);
-    });
+      canvas.removeEventListener("pointerdown", onUserInteraction);
+      camera.lookAtTransform(Matrix4.IDENTITY);
     onCancel?.();
   };
 
-  ctx.withCanvas((canvas) => {
     canvas.addEventListener("pointerdown", onUserInteraction);
-  });
 
   const interpolateHpr = (
     startHpr: HeadingPitchRange,
@@ -139,22 +127,16 @@ export function animateInterpolateHeadingPitchRange(
 
     const orientation = interpolateHpr(initialHPR, hpr, easing(t));
 
-    ctx.withCamera((camera) => {
       camera.lookAtTransform(Matrix4.IDENTITY);
       camera.lookAt(destination, orientation);
-    });
 
-    ctx.requestRender();
+    scene.requestRender();
 
     if (t < 1) {
       animationFrameId = requestAnimationFrame(animate);
     } else {
-      ctx.withCamera((camera) => {
         camera.lookAtTransform(Matrix4.IDENTITY);
-      });
-      ctx.withCanvas((canvas) => {
         canvas.removeEventListener("pointerdown", onUserInteraction);
-      });
       onComplete?.();
     }
   };

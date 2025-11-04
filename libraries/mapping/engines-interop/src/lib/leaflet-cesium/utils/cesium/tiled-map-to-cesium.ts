@@ -17,6 +17,7 @@ import {
 } from "./elevation-reference";
 import { isValidScene } from "libraries/mapping/engines/cesium/legacy/src/lib/utils/instanceGates";
 import { getCameraHeightAboveGround } from "./get-camera-height-above-ground";
+import { getScenePixelSize } from "libraries/mapping/engines/cesium/legacy/src/lib/utils/pixels";
 
 export const tiledMapToCesium = async (
   scene: Scene,
@@ -181,10 +182,8 @@ export const tiledMapToCesium = async (
       iterations,
       newCameraHeight
     );
-    ctx.withCamera((camera) => {
-      camera.setView({
-        destination: updatedDestination,
-      });
+    scene.camera.setView({
+      destination: updatedDestination,
     });
     const newResolution = getScenePixelSize(scene).value;
     if (newResolution === null) {
@@ -194,7 +193,7 @@ export const tiledMapToCesium = async (
     currentError = Math.abs(currentPixelResolution - targetPixelResolution);
     iterations++;
   }
-  ctx.requestRender();
+  scene.requestRender();
   onComplete?.();
   return true;
 };

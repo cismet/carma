@@ -18,7 +18,7 @@ const useTransitionTimeout = (timeOut = DEFAULT_TIMEOUT) => {
 
   useEffect(() => {
     // reset isTransitioning after 2 seconds
-    let timeoutId: NodeJS.Timeout | null = null;
+    let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
     if (viewer && isTransitioning) {
       console.info(

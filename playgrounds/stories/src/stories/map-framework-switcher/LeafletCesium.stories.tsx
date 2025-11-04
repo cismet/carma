@@ -1,16 +1,17 @@
 import type { Meta, StoryObj } from '@storybook/react';
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Card, Tag } from 'antd';
-import { CesiumWidget, CesiumTerrainProvider, Cartesian3 } from '@carma/cesium';
+import { CesiumWidget, CesiumTerrainProvider, Cartesian3, Cesium3DTileset, EllipsoidTerrainProvider, Cartographic, sampleTerrainMostDetailedGuardedAsync } from '@carma/cesium';
 import { degToRadNumeric } from '@carma/units/helpers';
 import {
   WUPP_TERRAIN_PROVIDER,
   WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
+  WUPP_MESH_2024,
   WUPPERTAL,
 } from '@carma-commons/resources';
 import { TransitionStage } from '@carma-mapping/engines-interop';
-import { MapFrameworkSwitcher } from '@carma-mapping/components';
-import { useMapFrameworkSwitcher } from './use-map-framework-switcher';
+import { MapFrameworkSwitcher, useMapFrameworkSwitcher } from '@carma-mapping/components';
+import { useControls, button } from 'leva';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import 'cesium/Build/Cesium/Widgets/widgets.css';
@@ -34,38 +35,155 @@ const WUPPERTAL_LUFTBILD_WMS = {
  */
 const LeafletCesium = () => {
   const [terrainType, setTerrainType] = useState<'TERRAIN' | 'MESH'>('MESH');
+  const [surfaceHeight, setSurfaceHeight] = useState<number | null>(null);
+  const [terrainHeight, setTerrainHeight] = useState<number | null>(null);
+  const [pointerEventsEnabled, setPointerEventsEnabled] = useState(false);
   
-  const containerRef = useRef<HTMLDivElement>(null);
+  const leafletContainerRef = useRef<HTMLDivElement>(null);
+  const cesiumContainerRef = useRef<HTMLDivElement>(null);
   const leafletMapRef = useRef<L.Map | null>(null);
   const cesiumWidgetRef = useRef<CesiumWidget | null>(null);
-  const cesiumContainerRef = useRef<HTMLDivElement | null>(null);
+  const tilesetRef = useRef<Cesium3DTileset | null>(null);
+  const terrainProvidersRef = useRef<{
+    TERRAIN: CesiumTerrainProvider | null;
+    SURFACE: CesiumTerrainProvider | null;
+  }>({ TERRAIN: null, SURFACE: null });
+  
+  // Sample terrain height handler
+  const handleSampleTerrain = useCallback(async () => {
+    if (!leafletMapRef.current) {
+      return;
+    }
+    
+    const center = leafletMapRef.current.getCenter();
+    const position = Cartographic.fromDegrees(center.lng, center.lat);
+    
+    // Sample SURFACE provider (DSM - Digital Surface Model)
+    if (terrainProvidersRef.current.SURFACE) {
+      try {
+        const surfaceResults = await sampleTerrainMostDetailedGuardedAsync(
+          terrainProvidersRef.current.SURFACE,
+          [position],
+          true,
+          true
+        );
+        
+        if (surfaceResults && surfaceResults[0]?.height !== undefined) {
+          setSurfaceHeight(surfaceResults[0].height);
+          console.log(`SURFACE height at [${center.lat.toFixed(6)}, ${center.lng.toFixed(6)}]: ${surfaceResults[0].height.toFixed(2)}m`);
+        }
+      } catch (error) {
+        console.error('Failed to sample SURFACE terrain:', error);
+      }
+    }
+    
+    // Sample TERRAIN provider (DEM - Digital Elevation Model)
+    if (terrainProvidersRef.current.TERRAIN) {
+      try {
+        const terrainResults = await sampleTerrainMostDetailedGuardedAsync(
+          terrainProvidersRef.current.TERRAIN,
+          [position],
+          true,
+          true
+        );
+        
+        if (terrainResults && terrainResults[0]?.height !== undefined) {
+          setTerrainHeight(terrainResults[0].height);
+          console.log(`TERRAIN height at [${center.lat.toFixed(6)}, ${center.lng.toFixed(6)}]: ${terrainResults[0].height.toFixed(2)}m`);
+        }
+      } catch (error) {
+        console.error('Failed to sample TERRAIN:', error);
+      }
+    }
+  }, []);
+  
+  // Leva controls for debugging
+  const { opacity, clipPercentage } = useControls('Cesium Container', {
+    opacity: { value: 1, min: 0, max: 1, step: 0.01 },
+    clipPercentage: { value: 30, min: 0, max: 100, step: 1, label: 'Clip %' },
+  });
+  
+  useControls('Actions', {
+    'Toggle Pointer Events': button(() => setPointerEventsEnabled(prev => !prev)),
+    'Sample Terrain Height': button(handleSampleTerrain),
+  });
+
+  // Getter functions for the hook
+  const getLeafletMap = useCallback(() => leafletMapRef.current, []);
+  
+  const getCesiumScene = useCallback(() => cesiumWidgetRef.current?.scene ?? null, []);
+  
+  const getCesiumContainer = useCallback(() => cesiumContainerRef.current, []);
+  
+  const getCesiumTerrainProviders = useCallback(() => {
+    return {
+      TERRAIN: terrainProvidersRef.current.TERRAIN ?? ({} as CesiumTerrainProvider),
+      SURFACE: terrainProvidersRef.current.SURFACE ?? ({} as CesiumTerrainProvider),
+    };
+  }, []);
+  
+  const getResolutionScale = useCallback(() => 1.0, []);
+
+  const switcherOptions = useMemo(() => ({
+    onActiveFrameworkChange: () => {
+      // Optional: handle framework changes
+    }
+  }), []);
 
   // Map framework switcher hook
-  const switcher = useMapFrameworkSwitcher({
-    initialFramework: 'leaflet',
-    leafletMapRef,
-    cesiumWidgetRef,
-    cesiumContainerRef,
-  });
+  const { activeFramework, isTransitioning, toggle } = useMapFrameworkSwitcher(
+    getLeafletMap,
+    getCesiumScene,
+    getCesiumContainer,
+    getCesiumTerrainProviders,
+    getResolutionScale,
+    switcherOptions
+  );
 
   // Initialize maps
   useEffect(() => {
-    if (!containerRef.current) return;
+    if (!leafletContainerRef.current || !cesiumContainerRef.current) return;
 
     const initMaps = () => {
-      if (!containerRef.current) return;
+      if (!leafletContainerRef.current || !cesiumContainerRef.current) return;
+
+      // Initialize terrain providers (ready but not applied to scene yet)
+      CesiumTerrainProvider.fromUrl(WUPP_TERRAIN_PROVIDER.url)
+        .then((terrain) => {
+          terrainProvidersRef.current.TERRAIN = terrain;
+        })
+        .catch((error) => {
+          console.warn('TERRAIN provider failed to initialize:', error);
+        });
+
+      CesiumTerrainProvider.fromUrl(WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M.url)
+        .then((terrain) => {
+          terrainProvidersRef.current.SURFACE = terrain;
+        })
+        .catch((error) => {
+          console.warn('SURFACE provider failed to initialize:', error);
+        });
+
+      // Initialize terrain providers (ready but not applied to scene yet)
+      CesiumTerrainProvider.fromUrl(WUPP_TERRAIN_PROVIDER.url)
+        .then((terrain) => {
+          terrainProvidersRef.current.TERRAIN = terrain;
+        })
+        .catch((error) => {
+          console.warn('TERRAIN provider failed to initialize:', error);
+        });
+
+      CesiumTerrainProvider.fromUrl(WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M.url)
+        .then((terrain) => {
+          terrainProvidersRef.current.SURFACE = terrain;
+        })
+        .catch((error) => {
+          console.warn('SURFACE provider failed to initialize:', error);
+        });
 
       try {
         // Create Leaflet map
-        const leafletContainer = document.createElement('div');
-        leafletContainer.style.width = '100%';
-        leafletContainer.style.height = '100%';
-        leafletContainer.style.position = 'absolute';
-        leafletContainer.style.top = '0';
-        leafletContainer.style.left = '0';
-        containerRef.current.appendChild(leafletContainer);
-
-        const leafletMap = L.map(leafletContainer, {
+        const leafletMap = L.map(leafletContainerRef.current, {
           center: [WUPPERTAL.position.latitude, WUPPERTAL.position.longitude],
           zoom: 15,
           zoomControl: true,
@@ -84,42 +202,42 @@ const LeafletCesium = () => {
         setTimeout(() => leafletMap.invalidateSize(), 100);
 
         leafletMapRef.current = leafletMap;
+        
+        // Attach moveend event to sample terrain on map move
+        leafletMap.on('moveend', handleSampleTerrain);
       } catch (error) {
         console.error('Leaflet initialization error:', error);
       }
 
       try {
-        // Create Cesium widget
-        const cesiumContainer = document.createElement('div');
-        cesiumContainer.style.width = '100%';
-        cesiumContainer.style.height = '100%';
-        cesiumContainer.style.position = 'absolute';
-        cesiumContainer.style.top = '0';
-        cesiumContainer.style.left = '0';
-        cesiumContainer.style.opacity = '0';
-        cesiumContainer.style.pointerEvents = 'none';
-        containerRef.current.appendChild(cesiumContainer);
-        cesiumContainerRef.current = cesiumContainer;
-
-        const widget = new CesiumWidget(cesiumContainer, {
-          requestRenderMode: false,
+        // Create empty div for credit container
+        const creditContainer = document.createElement('div');
+        creditContainer.style.display = 'none';
+        
+        // Create Cesium widget with no default terrain
+        const widget = new CesiumWidget(cesiumContainerRef.current, {
+          requestRenderMode: true,
           maximumRenderTimeChange: Infinity,
+          skyBox: false,
+          skyAtmosphere: false,
+          terrainProvider: new EllipsoidTerrainProvider(),
+          creditContainer: creditContainer,
         });
 
-        // Set initial terrain provider
-        const terrainUrl = terrainType === 'MESH' 
-          ? WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M.url 
-          : WUPP_TERRAIN_PROVIDER.url;
-        
-        CesiumTerrainProvider.fromUrl(terrainUrl)
-          .then((terrain) => {
-            if (widget.scene) {
-              widget.scene.terrainProvider = terrain;
+        cesiumWidgetRef.current = widget;
+
+        // Load 2024 mesh as 3D tileset after widget is ready
+        Cesium3DTileset.fromUrl(WUPP_MESH_2024.url)
+          .then((tileset) => {
+            if (widget.scene && !widget.isDestroyed()) {
+              widget.scene.primitives.add(tileset);
+              tilesetRef.current = tileset;
               widget.scene.requestRender();
+              console.log('Tileset loaded and added to scene');
             }
           })
           .catch((error) => {
-            console.warn('Terrain provider failed to load:', error);
+            console.warn('3D Tileset failed to load:', error);
           });
 
         // Position camera over Wuppertal
@@ -136,8 +254,6 @@ const LeafletCesium = () => {
             roll: 0,
           },
         });
-
-        cesiumWidgetRef.current = widget;
       } catch (error) {
         console.error('Cesium initialization error:', error);
       }
@@ -148,11 +264,21 @@ const LeafletCesium = () => {
     return () => {
       try {
         if (leafletMapRef.current) {
+          leafletMapRef.current.off('moveend', handleSampleTerrain);
           leafletMapRef.current.remove();
           leafletMapRef.current = null;
         }
       } catch (error) {
         console.error('Error cleaning up Leaflet:', error);
+      }
+      
+      try {
+        if (tilesetRef.current && !tilesetRef.current.isDestroyed()) {
+          tilesetRef.current.destroy();
+          tilesetRef.current = null;
+        }
+      } catch (error) {
+        console.error('Error cleaning up tileset:', error);
       }
       
       try {
@@ -163,16 +289,10 @@ const LeafletCesium = () => {
       } catch (error) {
         console.error('Error cleaning up Cesium:', error);
       }
-      
-      try {
-        if (containerRef.current) {
-          containerRef.current.innerHTML = '';
-        }
-      } catch (error) {
-        console.error('Error cleaning up container:', error);
-      }
     };
-  }, [terrainType]);
+  }, [terrainType, handleSampleTerrain]);
+
+  // Apply Leva controls to Cesium container (removed - now using inline styles)
 
   // Update terrain provider
   const handleTerrainToggle = () => {
@@ -199,14 +319,33 @@ const LeafletCesium = () => {
 
   return (
     <div style={{ width: '100%', height: '100vh', position: 'relative' }}>
+      {/* Leaflet container - base layer */}
       <div
-        ref={containerRef}
+        ref={leafletContainerRef}
         style={{
           width: '100%',
           height: '100%',
           position: 'absolute',
           top: 0,
           left: 0,
+          zIndex: 1,
+        }}
+      />
+      
+      {/* Cesium container - overlay with debugging background */}
+      <div
+        ref={cesiumContainerRef}
+        style={{
+          width: '100%',
+          height: '100%',
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          zIndex: 2,
+          opacity: opacity,
+          pointerEvents: pointerEventsEnabled ? 'auto' : 'none',
+          background: 'repeating-conic-gradient(#ff6600 0% 25%, transparent 0% 50%) 50% / 20px 20px',
+          clipPath: `inset(0 ${100 - clipPercentage}% 0 0)`,
         }}
       />
       
@@ -222,9 +361,9 @@ const LeafletCesium = () => {
         }}
       >
         <MapFrameworkSwitcher
-          activeFramework={switcher.activeFramework}
-          isTransitioning={switcher.isTransitioning}
-          onToggle={switcher.toggle}
+          activeFramework={activeFramework}
+          isTransitioning={isTransitioning}
+          onToggle={toggle}
           nativeTooltip={true}
         />
         <Button onClick={handleTerrainToggle}>
@@ -232,61 +371,49 @@ const LeafletCesium = () => {
         </Button>
       </div>
       
-      {/* Transition State Watcher */}
+      {/* Status Card */}
       <Card
-        title="Transition State"
+        title="Switcher Status"
         size="small"
         style={{
           position: 'absolute',
           bottom: '16px',
-          right: '16px',
+          left: '16px',
           zIndex: 1000,
-          width: '350px',
-          maxHeight: '400px',
-          overflow: 'auto',
+          width: '250px',
         }}
       >
-        <div style={{ marginBottom: '12px' }}>
-          <strong>Current Stage:</strong>{' '}
-          <Tag color={
-            switcher.currentStage === TransitionStage.ERROR ? 'red' :
-            switcher.currentStage === TransitionStage.COMPLETE ? 'green' :
-            switcher.isTransitioning ? 'blue' : 'default'
-          }>
-            {switcher.currentStage}
+        <div style={{ marginBottom: '8px' }}>
+          <strong>Active Framework:</strong>{' '}
+          <Tag color={activeFramework === 'cesium' ? 'blue' : 'green'}>
+            {activeFramework.toUpperCase()}
           </Tag>
         </div>
         
-        <div>
-          <strong>Recent Logs:</strong>
-          <div style={{ 
-            maxHeight: '250px', 
-            overflow: 'auto',
-            marginTop: '8px',
-            fontSize: '12px',
-          }}>
-            {switcher.transitionLogs.slice().reverse().map((log, idx) => (
-              <div key={idx} style={{ 
-                padding: '4px 0', 
-                borderBottom: idx < switcher.transitionLogs.length - 1 ? '1px solid #f0f0f0' : 'none' 
-              }}>
-                <div style={{ color: '#999' }}>
-                  {log.timestamp.toLocaleTimeString()}
-                </div>
-                <div>
-                  <Tag color={
-                    log.stage === TransitionStage.ERROR ? 'red' :
-                    log.stage === TransitionStage.COMPLETE ? 'green' :
-                    'blue'
-                  }>
-                    {log.stage}
-                  </Tag>
-                  {log.message}
-                </div>
-              </div>
-            ))}
-          </div>
+        <div style={{ marginBottom: '8px' }}>
+          <strong>Transitioning:</strong>{' '}
+          <Tag color={isTransitioning ? 'orange' : 'default'}>
+            {isTransitioning ? 'YES' : 'NO'}
+          </Tag>
         </div>
+        
+        {surfaceHeight !== null && (
+          <div style={{ marginBottom: '8px' }}>
+            <strong>Surface (DSM):</strong>{' '}
+            <Tag color="purple">
+              {surfaceHeight.toFixed(2)}m
+            </Tag>
+          </div>
+        )}
+        
+        {terrainHeight !== null && (
+          <div>
+            <strong>Terrain (DEM):</strong>{' '}
+            <Tag color="cyan">
+              {terrainHeight.toFixed(2)}m
+            </Tag>
+          </div>
+        )}
       </Card>
     </div>
   );

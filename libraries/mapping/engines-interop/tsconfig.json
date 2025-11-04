@@ -1,14 +1,5 @@
 {
-  "extends": "../../../tsconfig.base.json",
-  "compilerOptions": {
-    "module": "esnext",
-    "lib": ["ES2023", "DOM"],
-    "moduleResolution": "bundler",
-    "jsx": "react-jsx",
-    "allowSyntheticDefaultImports": true,
-    "esModuleInterop": false,
-    "strict": false
-  },
+  "extends": "../../../tsconfig.legacy.base.json",
   "files": [],
   "include": [],
   "references": [

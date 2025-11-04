@@ -17,6 +17,9 @@ import {
 } from "@carma-mapping/engines/cesium/legacy";
 
 import { noAnimation } from "../constants";
+import { getTiledMapCenterZoomEquivalent } from "../../utils/leaflet/get-tiled-map-center-zoom-equivalent";
+import { getCameraHeightAboveGround } from "../../utils/cesium/get-camera-height-above-ground";
+import { sceneCenterPixelSizeToLeafletZoom } from "../../utils/cesium/scene-center-pixel-size-to-leaflet-zoom";
 
 type AnimateCesiumToTopDownOptions = {
   scene: Scene;
@@ -169,7 +172,7 @@ export const animateCesiumToTopDownLeafletLikeView = (
     );
 
     animateInterpolateHeadingPitchRange(
-      cesiumContext,
+      scene,
       pos,
       new HeadingPitchRange(0, -Math.PI / 2, distance),
       {

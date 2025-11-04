@@ -13,8 +13,7 @@
       "outputs": ["{options.outputPath}"],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "dist/libraries/commons/debug",
-        "skipTypeCheck": true
+        "outputPath": "dist/libraries/commons/debug"
       },
       "configurations": {
         "development": {

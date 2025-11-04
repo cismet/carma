@@ -26,6 +26,7 @@ export default defineConfig({
   build: {
     outDir: "../../../../../dist/libraries/mapping/engines/cesium/legacy",
     reportCompressedSize: true,
+    sourcemap: process.env.NODE_ENV === "production" ? "hidden" : true,
     commonjsOptions: {
       transformMixedEsModules: true,
     },

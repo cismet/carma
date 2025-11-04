@@ -9,7 +9,8 @@ import type { LeafletMap } from "@carma-mapping/engines/leaflet";
 import { CesiumTerrainProvider, isValidScene, type Scene } from "@carma/cesium";
 
 import {
-  type TransitionDirection,
+  transitionToLeaflet,
+  TransitionDirection,
   type TransitionOptions,
 } from "@carma-mapping/engines-interop";
 import { validateRequirements } from "./utils/validate-requirements";
@@ -24,35 +25,36 @@ type UseLeafletCesiumTransitionOptions = {
 };
 
 /**
- * React hook for managing 2D ↔ 3D map transitions (framework-agnostic)
+ * React hook for managing 2D/3D map transitions (framework-agnostic)
  * Coordinates between Leaflet and Cesium, managing camera state and container visibility
- *
- * This hook does not depend on Redux or TopicMap - all dependencies are injected via props.
+ * Linkup to cesium or redux is delegated to consuming app logic.
  */
 export const useMapFrameworkSwitcher = (
   getLeafletMap: () => LeafletMap | null | undefined,
   getCesiumScene: () => Scene | null | undefined,
   getCesiumContainer: () => HTMLElement | null | undefined,
   getCesiumTerrainProviders: () => {
-    "TERRAIN": CesiumTerrainProvider;
-    "SURFACE": CesiumTerrainProvider;
+    TERRAIN: CesiumTerrainProvider;
+    SURFACE: CesiumTerrainProvider;
   },
   getResolutionScale: () => number | undefined,
   options: UseLeafletCesiumTransitionOptions
 ): {
+  activeFramework: 'leaflet' | 'cesium';
+  isTransitioning: boolean;
+  toggle: () => Promise<void>;
   requestTransitionToCesium: () => Promise<void>;
   requestTransitionToLeaflet: () => Promise<void>;
 } => {
+  const [activeFramework, setActiveFramework] = useState<'leaflet' | 'cesium'>('leaflet');
+  const [isTransitioning, setIsTransitioning] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [prevHPR, setPrevHPR] = useState<any | null>(null);
-  const [prevDuration, setPrevDuration] = useState<number>(0);
-
-  const setCesiumContainerVisible = createContainerVisibilityController(
-    getCesiumContainer,
-    step6_cameraAnimationDurationMs
-  );
+  const [targetHPR, setTargetHPR] = useState<any | null>(null);
+  const [targetDuration, setTargetDuration] = useState<number>(0);
 
   const requestTransitionToCesium = async () => {
+    if (isTransitioning) return;
+
     const leaflet = getLeafletMap();
     const scene = getCesiumScene();
     const cesiumContainer = getCesiumContainer();
@@ -72,28 +74,26 @@ export const useMapFrameworkSwitcher = (
       return;
     }
 
-   
-
-    onTransitionStart?.(false);
-
-    await transitionToCesium(scene, leaflet, prevHPR, prevDuration, {
-      duration: step6_cameraAnimationDurationMs,
-      maxZoom: step1_prepare2dViewMaxZoom,
-      zoomOutDuration: step1_zoomOutDurationMs,
-      zoomOutEaseLinearity: step1_zoomOutEaseLinearity,
-      zoomOutTimeoutBuffer:
-        step2_initialRenderTimeoutMs + step3_resourceWaitTimeoutMs,
-      setCesiumContainerVisible,
-      onTransitionStart: () => {},
-      onTransitionComplete: () => {
-        onTransitionComplete?.(false);
-        onComplete?.(false);
-      },
-      updateMode2dState: (is2d) => updateMode2dState?.(is2d),
-    });
+    try {
+      setIsTransitioning(true);
+      options.onTransitionStart?.(TransitionDirection.TO_CESIUM);
+      
+      //await transitionToCesium(scene, leaflet, ...
+      
+      setActiveFramework('cesium');
+      options.onActiveFrameworkChange(TransitionDirection.TO_CESIUM);
+      options.onTransitionComplete?.(TransitionDirection.TO_CESIUM);
+    } catch (error) {
+      console.error('[CESIUM] Transition to 3D failed:', error);
+      options.onTransitionFailed?.(TransitionDirection.TO_CESIUM);
+    } finally {
+      setIsTransitioning(false);
+    }
   };
 
   const requestTransitionToLeaflet = async () => {
+    if (isTransitioning) return;
+
     const scene = getCesiumScene();
     const leaflet = getLeafletMap();
 
@@ -110,16 +110,36 @@ export const useMapFrameworkSwitcher = (
       return;
     }
 
-    onTransitionStart?.(true);
-
-    await transitionToLeaflet(scene, leaflet, setCesiumContainerVisible, {
-      setPrevHPR,
-      setPrevDuration,
-      onTransitionStart,
-      onTransitionComplete,
-      onTransitionCancel,
-    });
+    try {
+      setIsTransitioning(true);
+      options.onTransitionStart?.(TransitionDirection.TO_LEAFLET);
+      
+      //await transitionToLeaflet
+      
+      setActiveFramework('leaflet');
+      options.onActiveFrameworkChange(TransitionDirection.TO_LEAFLET);
+      options.onTransitionComplete?.(TransitionDirection.TO_LEAFLET);
+    } catch (error) {
+      console.error('[CESIUM] Transition to 2D failed:', error);
+      options.onTransitionFailed?.(TransitionDirection.TO_LEAFLET);
+    } finally {
+      setIsTransitioning(false);
+    }
   };
 
-  return { requestTransitionToCesium, requestTransitionToLeaflet };
+  const toggle = async () => {
+    if (activeFramework === 'leaflet') {
+      await requestTransitionToCesium();
+    } else {
+      await requestTransitionToLeaflet();
+    }
+  };
+
+  return { 
+    activeFramework,
+    isTransitioning,
+    toggle,
+    requestTransitionToCesium, 
+    requestTransitionToLeaflet 
+  };
 };

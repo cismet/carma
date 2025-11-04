@@ -13,8 +13,7 @@
       "outputs": ["{options.outputPath}"],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "dist/libraries/mapping/map-controls-layout",
-        "skipTypeCheck": true
+        "outputPath": "dist/libraries/mapping/map-controls-layout"
       },
       "configurations": {
         "development": {
