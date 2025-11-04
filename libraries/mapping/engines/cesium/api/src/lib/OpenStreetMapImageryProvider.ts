@@ -11,10 +11,12 @@ export { OpenStreetMapImageryProvider };
  * Serializable config that accepts rectangle as BBox in degrees
  * for easier user configuration outside Cesium
  */
-export type OpenStreetMapImageryProviderConstructorOptionsJson =
-  Omit<OpenStreetMapImageryProvider.ConstructorOptions, "rectangle"> & {
-    rectangle?: BBox;
-  };
+export type OpenStreetMapImageryProviderConstructorOptionsJson = Omit<
+  OpenStreetMapImageryProvider.ConstructorOptions,
+  "rectangle"
+> & {
+  rectangle?: BBox;
+};
 
 export const openStreetMapImageryProviderConstructorOptionsFromJson = (
   options: OpenStreetMapImageryProviderConstructorOptionsJson

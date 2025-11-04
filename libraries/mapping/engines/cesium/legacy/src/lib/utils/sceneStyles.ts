@@ -1,4 +1,8 @@
-import { ClassificationType, Color, colorFromConstructorArgs } from "@carma/cesium";
+import {
+  ClassificationType,
+  Color,
+  colorFromConstructorArgs,
+} from "@carma/cesium";
 
 import type { CesiumContextType } from "../CesiumContext";
 import { getGroundPrimitiveById } from "./cesiumGroundPrimitives";

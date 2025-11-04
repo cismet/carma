@@ -5,7 +5,9 @@ import { Radians } from "@carma/units/types";
 
 import { logOnce } from "@carma-commons/utils";
 
-logOnce("Deprecated: Use @carma/cesium for conversion with pure cesium scope or conversion to generic geo types");
+logOnce(
+  "Deprecated: Use @carma/cesium for conversion with pure cesium scope or conversion to generic geo types"
+);
 
 export const getDegreesFromCartographic = (
   cartographic: Cartographic

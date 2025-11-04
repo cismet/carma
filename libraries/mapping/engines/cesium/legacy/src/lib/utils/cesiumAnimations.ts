@@ -41,8 +41,6 @@ export function animateInterpolateHeadingPitchRange(
     maxRange = DEFAULT_MAX_RANGE,
   }: CesiumAnimateOrbitsOptions = {}
 ): () => void {
-
-
   const { camera, canvas } = scene;
   if (!isValidCamera(camera)) {
     console.warn(
@@ -52,8 +50,8 @@ export function animateInterpolateHeadingPitchRange(
   }
   // Get current camera state
   let initialHPR: HeadingPitchRange | null = null;
-    const range = Cartesian3.distance(camera.position, destination);
-    initialHPR = new HeadingPitchRange(camera.heading, camera.pitch, range);
+  const range = Cartesian3.distance(camera.position, destination);
+  initialHPR = new HeadingPitchRange(camera.heading, camera.pitch, range);
 
   if (!initialHPR) {
     return () => {};
@@ -81,12 +79,12 @@ export function animateInterpolateHeadingPitchRange(
       animationFrameId = null;
       isCanceled = true;
     }
-      canvas.removeEventListener("pointerdown", onUserInteraction);
-      camera.lookAtTransform(Matrix4.IDENTITY);
+    canvas.removeEventListener("pointerdown", onUserInteraction);
+    camera.lookAtTransform(Matrix4.IDENTITY);
     onCancel?.();
   };
 
-    canvas.addEventListener("pointerdown", onUserInteraction);
+  canvas.addEventListener("pointerdown", onUserInteraction);
 
   const interpolateHpr = (
     startHpr: HeadingPitchRange,
@@ -127,16 +125,16 @@ export function animateInterpolateHeadingPitchRange(
 
     const orientation = interpolateHpr(initialHPR, hpr, easing(t));
 
-      camera.lookAtTransform(Matrix4.IDENTITY);
-      camera.lookAt(destination, orientation);
+    camera.lookAtTransform(Matrix4.IDENTITY);
+    camera.lookAt(destination, orientation);
 
     scene.requestRender();
 
     if (t < 1) {
       animationFrameId = requestAnimationFrame(animate);
     } else {
-        camera.lookAtTransform(Matrix4.IDENTITY);
-        canvas.removeEventListener("pointerdown", onUserInteraction);
+      camera.lookAtTransform(Matrix4.IDENTITY);
+      canvas.removeEventListener("pointerdown", onUserInteraction);
       onComplete?.();
     }
   };

@@ -2,7 +2,6 @@
 import { Color } from "cesium";
 export { Color };
 
-
 // see also @carma-commons/utils colors.ts for predefined colors in cesium compatible format
 
 /**

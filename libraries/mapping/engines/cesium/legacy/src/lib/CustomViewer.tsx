@@ -90,7 +90,9 @@ export function CustomViewer(props: CustomViewerProps) {
   } = props;
 
   const options: Viewer.ConstructorOptions = useMemo(() => {
-    console.debug("[CESIUM] CustomViewer: Creating new options object via useMemo");
+    console.debug(
+      "[CESIUM] CustomViewer: Creating new options object via useMemo"
+    );
     return merge({}, DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS, constructorOptions);
   }, [constructorOptions]);
 

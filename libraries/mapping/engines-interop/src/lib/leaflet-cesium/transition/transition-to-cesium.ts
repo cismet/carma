@@ -12,7 +12,7 @@ import type { TargetHeadingPitch } from "./transition-to-leaflet";
 /**
  * Pure function: Orchestrates transition from Leaflet (2D) to Cesium (3D)
  * No React or context dependencies - just Cesium Scene and Leaflet Map
- * 
+ *
  * targetHeadingPitch contains only heading/pitch from previous 3D view.
  * Range (distance) is always calculated from current Leaflet zoom level.
  */

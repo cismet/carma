@@ -53,10 +53,6 @@ export const cartesian3ToJson = (cartesian3: Cartesian3): Cartesian3Json => {
 /**
  * Convert JSON object to Cesium Cartesian3
  */
-export const cartesian3FromJson = ({
-  x,
-  y,
-  z,
-}: Cartesian3Json): Cartesian3 => {
+export const cartesian3FromJson = ({ x, y, z }: Cartesian3Json): Cartesian3 => {
   return new Cartesian3(x, y, z);
 };

@@ -42,16 +42,20 @@ export const useMapFrameworkSwitcher = (
   getResolutionScale: () => number | undefined,
   options: UseLeafletCesiumTransitionOptions
 ): {
-  activeFramework: 'leaflet' | 'cesium';
+  activeFramework: "leaflet" | "cesium";
   isTransitioning: boolean;
   toggle: () => Promise<void>;
   requestTransitionToCesium: () => Promise<void>;
   requestTransitionToLeaflet: () => Promise<void>;
 } => {
-  const [activeFramework, setActiveFramework] = useState<'leaflet' | 'cesium'>('leaflet');
+  const [activeFramework, setActiveFramework] = useState<"leaflet" | "cesium">(
+    "leaflet"
+  );
   const [isTransitioning, setIsTransitioning] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [targetHeadingPitch, setTargetHeadingPitch] = useState<any | null>(null);
+  const [targetHeadingPitch, setTargetHeadingPitch] = useState<any | null>(
+    null
+  );
 
   const requestTransitionToCesium = async () => {
     if (isTransitioning) return;
@@ -79,7 +83,7 @@ export const useMapFrameworkSwitcher = (
     try {
       setIsTransitioning(true);
       options.onTransitionStart?.(TransitionDirection.TO_CESIUM);
-      
+
       await transitionToCesium(
         scene,
         leaflet,
@@ -91,22 +95,22 @@ export const useMapFrameworkSwitcher = (
           console.debug(`[CESIUM] Transition stage: ${stage} - ${message}`);
         },
         () => {
-          setActiveFramework('cesium');
+          setActiveFramework("cesium");
           setIsTransitioning(false); // Clear transitioning state on completion
           options.onActiveFrameworkChange(TransitionDirection.TO_CESIUM);
           options.onTransitionComplete?.(TransitionDirection.TO_CESIUM);
         },
         (error: Error) => {
-          console.error('[CESIUM] Transition error:', error);
+          console.error("[CESIUM] Transition error:", error);
           setIsTransitioning(false);
           options.onTransitionFailed?.(TransitionDirection.TO_CESIUM);
         },
         options.options?.toCesium
       );
     } catch (error) {
-      console.error('[CESIUM] Transition to 3D failed:', error);
+      console.error("[CESIUM] Transition to 3D failed:", error);
       setIsTransitioning(false);
-      setActiveFramework('leaflet');
+      setActiveFramework("leaflet");
       options.onTransitionFailed?.(TransitionDirection.TO_CESIUM);
     }
   };
@@ -134,12 +138,10 @@ export const useMapFrameworkSwitcher = (
       return;
     }
 
-   
-
     try {
       setIsTransitioning(true);
       options.onTransitionStart?.(TransitionDirection.TO_LEAFLET);
-      
+
       const result = await transitionToLeaflet(
         scene,
         leaflet,
@@ -150,41 +152,41 @@ export const useMapFrameworkSwitcher = (
           console.debug(`[CESIUM] Transition stage: ${stage} - ${message}`);
         },
         () => {
-          setActiveFramework('leaflet');
+          setActiveFramework("leaflet");
           setIsTransitioning(false); // Clear transitioning state on completion
           options.onActiveFrameworkChange(TransitionDirection.TO_LEAFLET);
           options.onTransitionComplete?.(TransitionDirection.TO_LEAFLET);
         },
         (error: Error) => {
-          console.error('[CESIUM] Transition error:', error);
+          console.error("[CESIUM] Transition error:", error);
           setIsTransitioning(false); // Clear transitioning state on error
           options.onTransitionFailed?.(TransitionDirection.TO_LEAFLET);
         },
         options.options?.toLeaflet
       );
-      
+
       setTargetHeadingPitch(result.targetHeadingPitch);
     } catch (error) {
-      console.error('[CESIUM] Transition to Leaflet failed:', error);
+      console.error("[CESIUM] Transition to Leaflet failed:", error);
       setIsTransitioning(false);
-      setActiveFramework('cesium');
+      setActiveFramework("cesium");
       options.onTransitionFailed?.(TransitionDirection.TO_LEAFLET);
     }
   };
 
   const toggle = async () => {
-    if (activeFramework === 'leaflet') {
+    if (activeFramework === "leaflet") {
       await requestTransitionToCesium();
     } else {
       await requestTransitionToLeaflet();
     }
   };
 
-  return { 
+  return {
     activeFramework,
     isTransitioning,
     toggle,
-    requestTransitionToCesium, 
-    requestTransitionToLeaflet 
+    requestTransitionToCesium,
+    requestTransitionToLeaflet,
   };
 };

@@ -18,22 +18,22 @@ interface RenderInfo {
 /**
  * Debug utility to track why a component re-rendered.
  * Logs changed props, state values, and render frequency.
- * 
+ *
  * IMPORTANT: This should NOT cause re-renders itself - it only reads refs
  * and logs during the render phase.
- * 
+ *
  * @param componentName - Name to identify the component in logs
  * @param props - Current props object to track
  * @param state - Optional state values to track (pass as object)
  * @param options - Configuration options
- * 
+ *
  * @example
  * ```tsx
  * function MyComponent({ isMode2d, height, width }) {
  *   const [count, setCount] = useState(0);
- *   
+ *
  *   useWhyDidYouRender("MyComponent", { isMode2d, height, width }, { count });
- *   
+ *
  *   return <div>...</div>;
  * }
  * ```
@@ -48,11 +48,7 @@ export function useWhyDidYouRender(
     includeRefs?: Record<string, React.RefObject<any>>;
   } = {}
 ): RenderInfo {
-  const {
-    enabled = true,
-    logOnMount = false,
-    includeRefs = {},
-  } = options;
+  const { enabled = true, logOnMount = false, includeRefs = {} } = options;
 
   const renderCountRef = useRef(0);
   const lastRenderTimeRef = useRef(Date.now());
@@ -103,10 +99,12 @@ export function useWhyDidYouRender(
   // Check refs if provided
   const refInfo: Record<string, any> = {};
   Object.entries(includeRefs).forEach(([key, ref]) => {
-    refInfo[key] = ref.current ? {
-      exists: true,
-      type: ref.current?.constructor?.name,
-    } : { exists: false };
+    refInfo[key] = ref.current
+      ? {
+          exists: true,
+          type: ref.current?.constructor?.name,
+        }
+      : { exists: false };
   });
 
   // Log changes
@@ -114,8 +112,10 @@ export function useWhyDidYouRender(
   if (isMount && !logOnMount) {
     // Skip mount logging if disabled
   } else {
-    const hasChanges = Object.keys(changedProps).length > 0 || Object.keys(changedState).length > 0;
-    
+    const hasChanges =
+      Object.keys(changedProps).length > 0 ||
+      Object.keys(changedState).length > 0;
+
     if (isMount || hasChanges) {
       const logData: any = {
         component: componentName,
@@ -162,9 +162,11 @@ export function useWhyDidYouRender(
  */
 export function useRenderLog(componentName: string, enabled = true) {
   const renderCountRef = useRef(0);
-  
+
   if (!enabled) return;
-  
+
   renderCountRef.current++;
-  console.debug(`[CESIUM] [DEBUG|RENDER] ${componentName} rendered #${renderCountRef.current}`);
+  console.debug(
+    `[CESIUM] [DEBUG|RENDER] ${componentName} rendered #${renderCountRef.current}`
+  );
 }

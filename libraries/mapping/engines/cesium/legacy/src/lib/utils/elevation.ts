@@ -3,7 +3,9 @@ import { logOnce } from "@carma-commons/utils";
 import type { CesiumContextType } from "../CesiumContext";
 import { guardSampleTerrainMostDetailedAsync } from "./guardSampleTerrainMostDetailedAsync";
 
-logOnce("[CESIUM|ELEVATION] Using legacy elevation utils, consider migrating to new @carma/cesium elevation helpers.");
+logOnce(
+  "[CESIUM|ELEVATION] Using legacy elevation utils, consider migrating to new @carma/cesium elevation helpers."
+);
 
 export type ElevationResult = {
   terrain: Cartographic;

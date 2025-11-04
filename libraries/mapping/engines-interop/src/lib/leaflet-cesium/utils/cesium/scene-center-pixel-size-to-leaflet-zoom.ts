@@ -1,6 +1,6 @@
 import { type Scene } from "@carma/cesium";
 import type { Meters, Radians } from "@carma/units/types";
-import type { NumericResult } from "@carma/types"
+import type { NumericResult } from "@carma/types";
 import {
   getScenePixelSize,
   PICKMODE,

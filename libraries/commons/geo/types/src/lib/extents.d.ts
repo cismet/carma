@@ -17,4 +17,9 @@ export namespace Extent {
 }
 
 // compatible with turf BBox and geojson but typed with units
-export type BBox = [west: Degrees, south: Degrees, east: Degrees, north: Degrees  ] 
+export type BBox = [
+  west: Degrees,
+  south: Degrees,
+  east: Degrees,
+  north: Degrees
+];

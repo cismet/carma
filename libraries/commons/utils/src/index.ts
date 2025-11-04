@@ -1,4 +1,3 @@
-
 // namespaced exports
 // prefer use namespace when importing to keep import statements clean
 // {react} @carma-commons/utils/
@@ -30,11 +29,7 @@ export { suppressReactCismapErrors } from "./lib/log-react-cismap-errors";
 
 export { normalizeOptions } from "./lib/normalizeOptions";
 
-export {
-  clampToToleranceRange,
-  clamp,
-  isClose,
-} from "./lib/numbers";
+export { clampToToleranceRange, clamp, isClose } from "./lib/numbers";
 
 export { preventPinchZoom } from "./lib/prevent-pinch-zoom.ts";
 

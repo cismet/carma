@@ -16,11 +16,9 @@ interface PrimitiveColorState {
   originalColor: Color;
 }
 
-const restoreColor = (
-  primitiveState: PrimitiveColorState | null
-) => {
+const restoreColor = (primitiveState: PrimitiveColorState | null) => {
   if (!primitiveState) return;
-  
+
   const { primitive, id, originalColor } = primitiveState;
   const attributes = primitive.getGeometryInstanceAttributes(id);
   if (attributes && attributes.color) {
@@ -37,16 +35,16 @@ const setHighlightColor = (
   if (!attributes || !attributes.color) {
     return null;
   }
-  
+
   const originalColor = Color.fromBytes(
     attributes.color[0],
     attributes.color[1],
     attributes.color[2],
     attributes.color[3]
   );
-  
+
   attributes.color = ColorGeometryInstanceAttribute.toValue(color);
-  
+
   return {
     primitive,
     id,
@@ -66,7 +64,10 @@ export const useSelectAndHighlightGeoJsonEntity = (
 ) => {
   const handler = useRef<ScreenSpaceEventHandler | null>(null);
   const highlightedPrimitive = useRef<PrimitiveColorState | null>(null);
-  const { highlightColor = Color.YELLOW.withAlpha(0.6), isPrimaryStyle = false } = options || {};
+  const {
+    highlightColor = Color.YELLOW.withAlpha(0.6),
+    isPrimaryStyle = false,
+  } = options || {};
 
   useEffect(() => {
     if (!isPrimaryStyle) {
@@ -82,12 +83,12 @@ export const useSelectAndHighlightGeoJsonEntity = (
         // Get the geometry instance ID from the primitive
         // Note: GeoJSON features create geometry instances with the feature ID
         const geometryInstanceIds = (primitive as any)._instanceIds || [];
-        
+
         if (geometryInstanceIds.length === 0) {
           console.warn("No geometry instance IDs found on GroundPrimitive");
           return;
         }
-        
+
         // Use the first ID (for single-feature primitives) or implement selection logic
         const id = geometryInstanceIds[0];
 
@@ -119,7 +120,7 @@ export const useSelectAndHighlightGeoJsonEntity = (
 
         // Pick the top GroundPrimitive from clamped GeoJSON
         const pickedPrimitive = pickFromClampedGeojson(scene, event.position);
-        
+
         if (pickedPrimitive) {
           handlePrimitiveClick(pickedPrimitive);
         } else if (highlightedPrimitive.current) {

@@ -9,4 +9,7 @@ export { ZoomControl } from "./lib/components/ZoomControl";
 export { MobileWarningMessage } from "./lib/components/MobileWarningMessage";
 export { LayerButton } from "./lib/components/LayerButton";
 export { LayerIcon } from "./lib/components/LayerIcon";
-export { MapFrameworkSwitcher, useMapFrameworkSwitcher } from "./lib/components/MapFrameworkSwitcher";
+export {
+  MapFrameworkSwitcher,
+  useMapFrameworkSwitcher,
+} from "./lib/components/MapFrameworkSwitcher";

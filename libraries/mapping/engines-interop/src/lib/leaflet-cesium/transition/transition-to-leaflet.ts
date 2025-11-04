@@ -1,4 +1,8 @@
-import type { HeadingPitchRange, Scene, CesiumTerrainProvider } from "@carma/cesium";
+import type {
+  HeadingPitchRange,
+  Scene,
+  CesiumTerrainProvider,
+} from "@carma/cesium";
 import { isValidScene } from "@carma/cesium";
 import type { Map as LeafletMap } from "leaflet";
 import { TransitionStage, type TransitionToLeafletOptions } from "./types";
@@ -117,7 +121,9 @@ export const transitionToLeaflet = async (
 
     // Return the captured heading/pitch (not range) and duration
     if (!capturedHeadingPitch) {
-      throw new Error("Failed to capture target heading/pitch during transition");
+      throw new Error(
+        "Failed to capture target heading/pitch during transition"
+      );
     }
 
     return {

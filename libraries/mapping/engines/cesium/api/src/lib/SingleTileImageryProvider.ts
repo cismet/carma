@@ -11,10 +11,12 @@ export { SingleTileImageryProvider };
  * Serializable config that accepts rectangle as BBox in degrees
  * for easier user configuration outside Cesium
  */
-export type SingleTileImageryProviderConstructorOptionsJson =
-  Omit<SingleTileImageryProvider.ConstructorOptions, "rectangle"> & {
-    rectangle?: BBox;
-  };
+export type SingleTileImageryProviderConstructorOptionsJson = Omit<
+  SingleTileImageryProvider.ConstructorOptions,
+  "rectangle"
+> & {
+  rectangle?: BBox;
+};
 
 export const singleTileImageryProviderConstructorOptionsFromJson = (
   options: SingleTileImageryProviderConstructorOptionsJson

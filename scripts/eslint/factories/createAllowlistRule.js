@@ -54,9 +54,7 @@ module.exports = function createAllowlistRule(config) {
           // Pattern with wildcard (e.g., '@carma/geo/*')
           if (pattern.endsWith("/*")) {
             const prefix = pattern.slice(0, -2);
-            return (
-              importPath === prefix || importPath.startsWith(`${prefix}/`)
-            );
+            return importPath === prefix || importPath.startsWith(`${prefix}/`);
           }
 
           // Pattern matches subpaths (e.g., 'cesium' matches 'cesium/Source/...')

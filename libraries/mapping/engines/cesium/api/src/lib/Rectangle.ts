@@ -13,7 +13,7 @@ export type RectangleJsonRaw = Pick<
 
 // see also @carma/geo/types Extent.rad
 
-export type RectangleJson = Extent.rad
+export type RectangleJson = Extent.rad;
 
 export type RectangleConstructorArgs = [
   west: Radians,
@@ -29,7 +29,12 @@ export type RectangleConstructorArgs = [
  */
 
 // geojson and turf suggested format for configs (Degrees)
-export const rectangleFromBBox = ([west, south, east, north]: BBox): Rectangle => {
+export const rectangleFromBBox = ([
+  west,
+  south,
+  east,
+  north,
+]: BBox): Rectangle => {
   return Rectangle.fromDegrees(west, south, east, north);
 };
 
@@ -40,12 +45,14 @@ export const rectangleToBBox = (rect: Rectangle): BBox => {
     radToDeg(rect.east as Radians),
     radToDeg(rect.north as Radians),
   ];
-}
+};
 
 /**
  * Convert a RectangleLike serializable object to a Cesium Rectangle instance (Radians!)
  */
-export const rectangleFromJson = (rect: RectangleJson |  RectangleJsonRaw): Rectangle => {
+export const rectangleFromJson = (
+  rect: RectangleJson | RectangleJsonRaw
+): Rectangle => {
   return new Rectangle(rect.west, rect.south, rect.east, rect.north);
 };
 

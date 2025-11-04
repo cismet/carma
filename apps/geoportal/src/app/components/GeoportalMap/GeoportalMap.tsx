@@ -39,7 +39,7 @@ import {
 } from "@carma-collab/wuppertal/geoportal";
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 
-import { useWhyDidYouRender } from '@carma-commons/utils/react';
+import { useWhyDidYouRender } from "@carma-commons/utils/react";
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import type { FeatureInfo } from "@carma/types";
 import { Measurements } from "@carma-commons/measurements";
@@ -128,16 +128,20 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
 
   // State and Selectors
   const backgroundLayer = useSelector(getBackgroundLayer);
-  
+
   // Map mode state (app-level, initialized from URL)
   const getInitialMode2d = () => {
     if (!allow3d) return true;
     const hash = window.location.hash;
     // Check if cesium scene params exist in hash (indicates 3D mode)
-    return !(hash.includes('cp=') || hash.includes('ch=') || hash.includes('ct='));
+    return !(
+      hash.includes("cp=") ||
+      hash.includes("ch=") ||
+      hash.includes("ct=")
+    );
   };
   const [isMode2d, setIsMode2d] = useState(getInitialMode2d);
-  
+
   const models = useSelector(selectViewerModels);
   const markerAsset = models[CESIUM_CONFIG.markerKey]; //
   const markerAnchorHeight = CESIUM_CONFIG.markerAnchorHeight ?? 10;
@@ -200,19 +204,22 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const flags = useFeatureFlags();
   const { isDebugMode } = flags;
   const cesiumInitialCameraView = useCesiumInitialCameraFromSearchParams();
-  
+
   // One-time gate: Cesium can only initialize once we have determined initial position
   // Once true, stays true forever (stored in ref to prevent re-renders)
   const cesiumCanInitializeRef = useRef(false);
-  const cesiumInitialCameraViewRef = useRef<typeof cesiumInitialCameraView>(undefined);
-  
+  const cesiumInitialCameraViewRef =
+    useRef<typeof cesiumInitialCameraView>(undefined);
+
   // Lock the gate once we have a valid initial position (from URL or will use config default)
   if (cesiumInitialCameraView !== null && !cesiumCanInitializeRef.current) {
-    console.debug("[CESIUM|INIT|GATE] Initial camera position determined, unlocking Cesium initialization");
+    console.debug(
+      "[CESIUM|INIT|GATE] Initial camera position determined, unlocking Cesium initialization"
+    );
     cesiumCanInitializeRef.current = true;
     cesiumInitialCameraViewRef.current = cesiumInitialCameraView;
   }
-  
+
   const { isObliqueMode } = useObliqueInitializer(isDebugMode);
 
   const updateLayersIdleState = useCallback(() => {
@@ -256,7 +263,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   useWhyDidYouRender("GeoportalMap", {
     height,
     width,
-    allow3d
+    allow3d,
   });
 
   const onComplete = (selection: SelectionItem) => {

@@ -21,7 +21,7 @@ const viewerWheelHandlers = new WeakMap<Viewer, (event: WheelEvent) => void>();
 export interface FovWheelZoomOptions {
   minFov?: Radians;
   maxFov?: Radians;
-  fovChangeRate?: Ratio
+  fovChangeRate?: Ratio;
   onAfterFovChange?: () => void;
   onFovChange?: (newFov: Radians, previousFov: Radians) => void;
   minFovChange?: Radians; // minimum change in FOV to trigger an update (radians), default 0.0001

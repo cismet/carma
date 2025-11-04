@@ -5,7 +5,7 @@ import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 
 type MapFrameworkSwitcherProps = {
   /** Current active framework: 'leaflet' (2D) or 'cesium' (3D) */
-  activeFramework: 'leaflet' | 'cesium';
+  activeFramework: "leaflet" | "cesium";
   /** Whether a transition is currently in progress */
   isTransitioning?: boolean;
   /** Callback when the switch button is clicked */
@@ -48,17 +48,12 @@ export const MapFrameworkSwitcher = ({
   switchTo2DText = LOCALE_DE_SWITCH_TO_2D_MODE,
 }: MapFrameworkSwitcherProps) => {
   const [hasConfirmed, setHasConfirmed] = useState(false);
-  const isMode2d = activeFramework === 'leaflet';
+  const isMode2d = activeFramework === "leaflet";
 
   const handleSwitchMapMode = async (e: MouseEvent) => {
     e.preventDefault();
 
-    if (
-      isMode2d &&
-      !hasConfirmed &&
-      enableMobileWarning &&
-      isMobileOrTablet
-    ) {
+    if (isMode2d && !hasConfirmed && enableMobileWarning && isMobileOrTablet) {
       const confirmed = window.confirm(LOCALE_DE_WARNING_ENABLE_CESIUM_MODE);
       if (confirmed) setHasConfirmed(true);
       else return;

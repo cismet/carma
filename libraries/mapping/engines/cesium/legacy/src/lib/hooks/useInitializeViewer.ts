@@ -104,14 +104,18 @@ export const useInitializeViewer = (
   }, [home]);
 
   useEffect(() => {
-    console.debug("[CESIUM] HOOK: [CESIUM|INIT] init CustomViewer useEffect triggered");
+    console.debug(
+      "[CESIUM] HOOK: [CESIUM|INIT] init CustomViewer useEffect triggered"
+    );
     const containerEl = containerRef?.current;
-    
+
     if (containerEl) {
       try {
         // Reuse existing viewer if it exists and isn't destroyed
         if (isValidViewer()) {
-          console.debug("[CESIUM] HOOK: [CESIUM|INIT] Reusing existing viewer instance - no recreation needed");
+          console.debug(
+            "[CESIUM] HOOK: [CESIUM|INIT] Reusing existing viewer instance - no recreation needed"
+          );
           return;
         }
 
@@ -184,7 +188,9 @@ export const useInitializeViewer = (
         };
 
         withScene((scene, viewer) => {
-          console.debug("[CESIUM] [CESIUM|INIT|CAMERA] add listener for camera limiter");
+          console.debug(
+            "[CESIUM] [CESIUM|INIT|CAMERA] add listener for camera limiter"
+          );
           viewer.camera.changed.addEventListener(handleValidCameraPosition);
           cameraChangedHandlerMap.set(viewer, handleValidCameraPosition);
 
@@ -204,17 +210,18 @@ export const useInitializeViewer = (
           hasViewer: !!viewerRef.current,
           isViewerValid: isValidViewer(),
           isViewerDestroyed: viewerRef.current?.isDestroyed(),
-          reason: "Effect dependencies changed - investigating which dependency caused re-init"
+          reason:
+            "Effect dependencies changed - investigating which dependency caused re-init",
         }
       );
-      
+
       // Log which dependencies might have changed
       console.debug("[CESIUM] [CESIUM|INIT|CLEANUP] Effect dependency check:", {
         hasOptions: !!options,
         hasContainerEl: !!containerEl,
         hasInitialCameraView: !!initialCameraView,
         hasHome: !!home,
-        maxZoom
+        maxZoom,
       });
     };
   }, [
@@ -241,7 +248,7 @@ export const useInitializeViewer = (
         minZoom,
         maxZoom,
         enableCollisionDetection,
-        isMode2d
+        isMode2d,
       });
 
       const sscc: ScreenSpaceCameraController =
@@ -257,19 +264,29 @@ export const useInitializeViewer = (
       sscc.minimumZoomDistance = minZoom ?? 1;
       sscc.maximumZoomDistance = maxZoom ?? Infinity;
     });
-  }, [withScene, isSecondaryStyle, maxZoom, minZoom, enableCollisionDetection, isMode2d]);
+  }, [
+    withScene,
+    isSecondaryStyle,
+    maxZoom,
+    minZoom,
+    enableCollisionDetection,
+    isMode2d,
+  ]);
 
   useEffect(() => {
-    console.debug("[CESIUM] HOOK: [CESIUM|INIT|POSITION] useInitializeViewer position", {
-      hasInitialCameraView: !!initialCameraView,
-      isViewerReady,
-      isMode2d,
-      hasHome: !!home,
-      hasHomeOffset: !!homeOffset
-    });
-    
+    console.debug(
+      "[CESIUM] HOOK: [CESIUM|INIT|POSITION] useInitializeViewer position",
+      {
+        hasInitialCameraView: !!initialCameraView,
+        isViewerReady,
+        isMode2d,
+        hasHome: !!home,
+        hasHomeOffset: !!homeOffset,
+      }
+    );
+
     if (!isViewerReady) return;
-    
+
     // Begin determining/applying initial camera (or home fallback if absent)
     setInitialCameraSettled(false);
     if (!initialCameraView) {
@@ -420,16 +437,19 @@ export const useInitializeViewer = (
     if (viewerRef.current && containerRef?.current) {
       const viewer = viewerRef.current;
       const container = containerRef.current;
-      
+
       const resizeObserver = new ResizeObserver(() => {
-        console.debug("[CESIUM] HOOK: [CESIUM|RESIZE] resize cesium container", {
-          hasViewer: !!viewer,
-          isDestroyed: viewer?.isDestroyed(),
-          hasContainer: !!container,
-          newWidth: container?.clientWidth,
-          newHeight: container?.clientHeight
-        });
-        
+        console.debug(
+          "[CESIUM] HOOK: [CESIUM|RESIZE] resize cesium container",
+          {
+            hasViewer: !!viewer,
+            isDestroyed: viewer?.isDestroyed(),
+            hasContainer: !!container,
+            newWidth: container?.clientWidth,
+            newHeight: container?.clientHeight,
+          }
+        );
+
         if (viewer && !viewer.isDestroyed() && container) {
           viewer.canvas.width = container.clientWidth;
           viewer.canvas.height = container.clientHeight;
@@ -437,13 +457,15 @@ export const useInitializeViewer = (
           viewer.canvas.style.height = "100%";
         }
       });
-      
+
       if (container) {
         resizeObserver.observe(container);
       }
-      
+
       return () => {
-        console.debug("[CESIUM] [CESIUM|RESIZE|CLEANUP] Disconnecting resize observer");
+        console.debug(
+          "[CESIUM] [CESIUM|RESIZE|CLEANUP] Disconnecting resize observer"
+        );
         resizeObserver.disconnect();
       };
     }

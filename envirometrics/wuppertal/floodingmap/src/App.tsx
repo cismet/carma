@@ -298,7 +298,9 @@ function App({ sync = false }: { sync?: boolean }) {
                 getMapMode={() => (isMode2d ? "2d" : "3d")}
                 getLeaflet={() => routedMap?.leafletMap?.leafletElement ?? null}
                 getCesium={() => ctx}
-                getCesiumContainerProps={() => ({ element: container3dMapRef.current })}
+                getCesiumContainerProps={() => ({
+                  element: container3dMapRef.current,
+                })}
                 transitionToMode2d={transitionToMode2d}
                 transitionToMode3d={transitionToMode3d}
               />

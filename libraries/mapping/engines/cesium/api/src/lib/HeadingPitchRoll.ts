@@ -18,5 +18,3 @@ export type HeadingPitchRollDegreesJson = {
   pitch: Degrees;
   roll: Degrees;
 };
-
-

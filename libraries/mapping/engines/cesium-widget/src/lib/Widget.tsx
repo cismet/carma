@@ -16,9 +16,9 @@ import {
   HeadingPitchRange,
   OrthographicFrustum,
   ClippingPlaneCollection,
-// TODO delete or upgrade the widget demo to use the new Cesium from @carma/cesium
-// playground use only and also obsolete
-// eslint-disable-next-line carma/no-direct-cesium
+  // TODO delete or upgrade the widget demo to use the new Cesium from @carma/cesium
+  // playground use only and also obsolete
+  // eslint-disable-next-line carma/no-direct-cesium
 } from "cesium";
 import { generateRingFromDegrees } from "./utils";
 

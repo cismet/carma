@@ -1,7 +1,7 @@
-import type { Map as LeafletMap } from 'leaflet';
-import { isZoom } from '@carma-commons/units/helpers';
-import { promiseWithTimeout } from '@carma-commons/utils/promise';
-import { LeafletMapStateChangeEvents } from '@carma-mapping/engines/leaflet';
+import type { Map as LeafletMap } from "leaflet";
+import { isZoom } from "@carma-commons/units/helpers";
+import { promiseWithTimeout } from "@carma-commons/utils/promise";
+import { LeafletMapStateChangeEvents } from "@carma-mapping/engines/leaflet";
 
 type LeafletPrepOptions = {
   maxZoom: number;
@@ -22,7 +22,12 @@ export const prepareLeafletForTransition = async (
     return;
   }
 
-  const { maxZoom, zoomOutDuration, zoomOutEaseLinearity, zoomOutTimeoutBuffer } = options;
+  const {
+    maxZoom,
+    zoomOutDuration,
+    zoomOutEaseLinearity,
+    zoomOutTimeoutBuffer,
+  } = options;
   const cleanups: Array<() => void> = [];
 
   const zoom = leaflet.getZoom();

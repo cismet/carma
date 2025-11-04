@@ -8,7 +8,7 @@ export { CesiumWidget };
 
 /**
  * Minimal widget constructor options with no default assets loaded.
- * 
+ *
  * Overrides Cesium defaults to create a lightweight widget:
  * - scene3DOnly: true (default: false) - Forces 3D-only mode
  * - baseLayer: false (default: true) - No default imagery
@@ -18,7 +18,7 @@ export { CesiumWidget };
  * - useBrowserRecommendedResolution: true (default: true) - Use CSS pixels, not device pixels
  * - contextOptions.webgl.alpha: true (default: false) - Transparent background support
  * - contextOptions.webgl.antialias: true (default: true) - Smooth edges
- * 
+ *
  * Not set (uses Cesium defaults):
  * // skyBox: undefined (default: new SkyBox with stars) - Keep stars for visual context
  * // clock: new Clock()
@@ -72,11 +72,15 @@ type ConvenienceOptions = {
  */
 export const createMinimalCesiumWidget = (
   container: HTMLElement | string,
-  options?: Record<string, unknown>,
+  options?: Record<string, unknown>
   // extraOptions?: ConvenienceOptions
 ): CesiumWidget => {
-  const contextOptions = options?.['contextOptions'] as Record<string, unknown> | undefined;
-  const webglOptions = contextOptions?.['webgl'] as Record<string, unknown> | undefined;
+  const contextOptions = options?.["contextOptions"] as
+    | Record<string, unknown>
+    | undefined;
+  const webglOptions = contextOptions?.["webgl"] as
+    | Record<string, unknown>
+    | undefined;
 
   const mergedOptions = {
     ...MINIMAL_WIDGET_OPTIONS,

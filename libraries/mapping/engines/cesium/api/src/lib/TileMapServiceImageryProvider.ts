@@ -11,10 +11,12 @@ export { TileMapServiceImageryProvider };
  * Serializable config that accepts rectangle as BBox in degrees
  * for easier user configuration outside Cesium
  */
-export type TileMapServiceImageryProviderConstructorOptionsJson =
-  Omit<TileMapServiceImageryProvider.ConstructorOptions, "rectangle"> & {
-    rectangle?: BBox;
-  };
+export type TileMapServiceImageryProviderConstructorOptionsJson = Omit<
+  TileMapServiceImageryProvider.ConstructorOptions,
+  "rectangle"
+> & {
+  rectangle?: BBox;
+};
 
 export const tileMapServiceImageryProviderConstructorOptionsFromJson = (
   options: TileMapServiceImageryProviderConstructorOptionsJson

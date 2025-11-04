@@ -92,7 +92,7 @@ function ElevationControl(options: Partial<ElevationControlProps> = {}) {
     terrain: null,
     clamped: null,
   });
-  
+
   useEffect(() => {
     if (viewer && (alwaysShow || show)) {
       const update = () => {

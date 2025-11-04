@@ -1,4 +1,8 @@
-import { cameraPositionCartographicDegrees, isValidScene, type Scene } from "@carma/cesium";
+import {
+  cameraPositionCartographicDegrees,
+  isValidScene,
+  type Scene,
+} from "@carma/cesium";
 
 import { sceneCenterPixelSizeToLeafletZoom } from "../cesium/scene-center-pixel-size-to-leaflet-zoom";
 
@@ -18,12 +22,10 @@ const defaultOptions: Required<Options> = {
   minZoom: 10 as Zoom256,
 };
 
-
 export const getTiledMapCenterZoomEquivalent = async (
   scene: Scene,
   options?: Options
 ): Promise<LatLngZoom> => {
-
   if (!isValidScene(scene)) {
     throw new Error("scene is not valid");
   }
@@ -49,8 +51,8 @@ export const getTiledMapCenterZoomEquivalent = async (
     zoom = minZoom;
   }
 
-    center = cameraPositionCartographicDegrees(camera);
-    console.debug("[2D3D] fetched center", { center, zoom });
+  center = cameraPositionCartographicDegrees(camera);
+  console.debug("[2D3D] fetched center", { center, zoom });
 
   if (
     center === undefined ||

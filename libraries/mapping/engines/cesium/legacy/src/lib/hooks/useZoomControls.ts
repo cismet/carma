@@ -1,11 +1,6 @@
 import { useCallback } from "react";
 
-import {
-  Cartesian2,
-  Cartesian3,
-  Ray,
-  PerspectiveFrustum,
-} from "@carma/cesium";
+import { Cartesian2, Cartesian3, Ray, PerspectiveFrustum } from "@carma/cesium";
 
 import { Easing } from "@carma-commons/math";
 

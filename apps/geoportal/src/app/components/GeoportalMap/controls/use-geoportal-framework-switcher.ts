@@ -68,7 +68,7 @@ export const useGeoportalFrameworkSwitcher = ({
 
   const handleActiveFrameworkChange = useCallback(
     (direction: TransitionDirection) => {
-      console.log('[GEOPORTAL] Framework changed:', direction);
+      console.log("[GEOPORTAL] Framework changed:", direction);
       // TransitionDirection: TO_CESIUM = 1, TO_LEAFLET = 2
       setIsMode2d(direction === 2);
     },
@@ -77,7 +77,7 @@ export const useGeoportalFrameworkSwitcher = ({
 
   const handleTransitionStart = useCallback(
     (direction: TransitionDirection) => {
-      console.log('[GEOPORTAL] Transition started:', direction);
+      console.log("[GEOPORTAL] Transition started:", direction);
       onTransitionStart?.(direction);
     },
     [onTransitionStart]
@@ -85,7 +85,7 @@ export const useGeoportalFrameworkSwitcher = ({
 
   const handleTransitionComplete = useCallback(
     (direction: TransitionDirection) => {
-      console.log('[GEOPORTAL] Transition completed:', direction);
+      console.log("[GEOPORTAL] Transition completed:", direction);
       onTransitionComplete?.(direction);
     },
     [onTransitionComplete]
@@ -93,7 +93,7 @@ export const useGeoportalFrameworkSwitcher = ({
 
   const handleTransitionFailed = useCallback(
     (direction: TransitionDirection) => {
-      console.error('[GEOPORTAL] Transition failed:', direction);
+      console.error("[GEOPORTAL] Transition failed:", direction);
       onTransitionFailed?.(direction);
     },
     [onTransitionFailed]
@@ -106,7 +106,12 @@ export const useGeoportalFrameworkSwitcher = ({
       onTransitionComplete: handleTransitionComplete,
       onTransitionFailed: handleTransitionFailed,
     }),
-    [handleActiveFrameworkChange, handleTransitionStart, handleTransitionComplete, handleTransitionFailed]
+    [
+      handleActiveFrameworkChange,
+      handleTransitionStart,
+      handleTransitionComplete,
+      handleTransitionFailed,
+    ]
   );
 
   return useMapFrameworkSwitcher(

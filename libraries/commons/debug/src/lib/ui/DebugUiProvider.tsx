@@ -44,7 +44,10 @@ export const DebugUiProvider: React.FC<{
     (event: KeyboardEvent) => {
       if (!effectiveEnabled) return;
       if (eventKeys.includes(event.key)) {
-        console.debug("NOT IMPLEMENTED debug UI, was enabled via keypress", event.key);
+        console.debug(
+          "NOT IMPLEMENTED debug UI, was enabled via keypress",
+          event.key
+        );
       }
     },
     [effectiveEnabled]

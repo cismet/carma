@@ -58,10 +58,7 @@ export { guardPrimitiveCollection } from "./guardPrimitiveCollection";
 export { guardTileset } from "./guardTileset";
 
 // Setup and environment
-export {
-  getIsViewerReadyAsync,
-  setupCesiumEnvironment,
-} from "./cesiumSetup";
+export { getIsViewerReadyAsync, setupCesiumEnvironment } from "./cesiumSetup";
 export {
   getCesiumVersion,
   checkWindowEnv,

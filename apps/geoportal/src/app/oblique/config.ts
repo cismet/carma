@@ -5,7 +5,7 @@ import {
   OBLIQUE_2024_EXT_ORI_UTM32_URI,
   OBLIQUE_2024_FPRFC_GEOJSON_URI,
 } from "@carma-commons/resources";
-import { Degrees} from "@carma/units/types";
+import { Degrees } from "@carma/units/types";
 import { degToRad } from "@carma-commons/units/helpers";
 
 import { OBLIQUE_PREVIEW_QUALITY } from "./constants";
