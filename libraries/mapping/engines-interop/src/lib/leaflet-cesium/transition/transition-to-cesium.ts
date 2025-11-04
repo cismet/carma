@@ -1,4 +1,4 @@
-import type { Scene, HeadingPitchRange, CesiumTerrainProvider } from "@carma/cesium";
+import type { Scene, CesiumTerrainProvider } from "@carma/cesium";
 import type { Map as LeafletMap } from "leaflet";
 import { isValidScene } from "@carma/cesium";
 import { TransitionStage, type TransitionToCesiumOptions } from "./types";
@@ -7,10 +7,14 @@ import { restoreCesiumCameraView } from "./utils/camera-restore";
 import { promiseWithTimeout } from "@carma-commons/utils/promise";
 import { tiledMapToCesium } from "../utils/cesium/tiled-map-to-cesium";
 import { defaultTransitionOptions } from "../utils/cesium/elevation-reference";
+import type { TargetHeadingPitch } from "./transition-to-leaflet";
 
 /**
  * Pure function: Orchestrates transition from Leaflet (2D) to Cesium (3D)
  * No React or context dependencies - just Cesium Scene and Leaflet Map
+ * 
+ * targetHeadingPitch contains only heading/pitch from previous 3D view.
+ * Range (distance) is always calculated from current Leaflet zoom level.
  */
 export const transitionToCesium = async (
   scene: Scene,
@@ -21,7 +25,7 @@ export const transitionToCesium = async (
     TERRAIN?: CesiumTerrainProvider;
     SURFACE?: CesiumTerrainProvider;
   },
-  targetHPR: HeadingPitchRange | null,
+  targetHeadingPitch: TargetHeadingPitch | null,
   onTransitionStage: (stage: TransitionStage, message: string) => void,
   onTransitionComplete: (() => void) | undefined,
   onTransitionError: ((error: Error) => void) | undefined,
@@ -29,7 +33,7 @@ export const transitionToCesium = async (
 ): Promise<void> => {
   // Extract options with defaults
   const {
-    step1_prepare2dViewMaxZoom = 18,
+    step1_prepare2dViewMaxZoom = 20,
     step1_zoomOutDurationMs = 1000,
     step1_zoomOutEaseLinearity = 0.5,
     step2_initialRenderTimeoutMs = 100,
@@ -40,7 +44,7 @@ export const transitionToCesium = async (
   console.debug("[CESIUM] [CESIUM|2D3D|TO3D] Starting transition to 3D mode", {
     hasLeaflet: !!leaflet,
     hasScene: isValidScene(scene),
-    targetHPR,
+    targetHeadingPitch,
   });
 
   try {
@@ -152,10 +156,10 @@ export const transitionToCesium = async (
       }
     };
 
-    // Try to restore camera to target view
+    // Try to restore camera heading/pitch (range comes from zoom-based position)
     const animationStarted = restoreCesiumCameraView(
       scene,
-      targetHPR,
+      targetHeadingPitch,
       step6_cameraAnimationDurationMs,
       handleComplete
     );

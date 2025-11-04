@@ -1,27 +1,35 @@
-import { type Scene, Cartesian3, type HeadingPitchRange, isValidScene } from '@carma/cesium';
-import { pickSceneCanvasCenter } from '@carma-mapping/engines/cesium/legacy';
+import { type Scene, Cartesian3, HeadingPitchRange, isValidScene } from '@carma/cesium';
+import { 
+  pickSceneCanvasCenter,
+  animateInterpolateHeadingPitchRange,
+} from '@carma-mapping/engines/cesium/legacy';
+import type { TargetHeadingPitch } from '../transition-to-leaflet';
 
 /**
- * Restores camera to target 3D view using saved HPR
- * Returns true if animation started, false if completed immediately
+ * Restores camera heading/pitch to saved 3D view.
+ * Range (distance) is preserved from current camera position (set by zoom level).
+ * Returns true if animation started, false if completed immediately.
+ * 
+ * NOTE: Could restore previous range if still in same zoom bracket, but currently
+ * always uses range from zoom-based camera position for consistency.
  */
 export const restoreCesiumCameraView = (
   scene: Scene,
-  targetHPR: HeadingPitchRange | null,
+  targetHeadingPitch: TargetHeadingPitch | null,
   duration: number,
   onComplete: () => void
 ): boolean => {
   // Only attempt to pick position if we need to restore a target view
-  if (!targetHPR) {
+  if (!targetHeadingPitch) {
     console.debug(
-      '[CESIUM] [CESIUM|2D3D|TO3D] no target HPR to restore, completing transition without animation'
+      '[CESIUM] [CESIUM|2D3D|TO3D] no target heading/pitch to restore, completing transition without animation'
     );
     onComplete();
     return false;
   }
 
   console.debug('[CESIUM] [CESIUM|2D3D|TO3D] attempting to pick center and restore camera', {
-    targetHPR,
+    targetHeadingPitch,
     duration,
   });
 
@@ -52,26 +60,44 @@ export const restoreCesiumCameraView = (
     return false;
   }
 
-  if (pos && targetHPR) {
+  if (pos && targetHeadingPitch) {
+    // Get current camera range (set by zoom level in tiledMapToCesium)
+    const currentRange = Cartesian3.distance(pos, scene.camera.position);
+    
     console.debug('[CESIUM] [CESIUM|2D3D|TO3D] starting camera animation to restore 3D view', {
       pos,
-      targetHPR,
+      targetHeadingPitch,
+      currentRange,
       duration,
     });
     
-    // Use lookAt which properly handles HeadingPitchRange with distance (range)
-    scene.camera.flyTo({
-      destination: pos,
-      orientation: targetHPR, // HeadingPitchRange object with heading, pitch, range
-      duration: duration / 1000, // Convert ms to seconds for Cesium
-      complete: onComplete,
-    });
+    // Create target HeadingPitchRange with heading/pitch from save + current range
+    // The range will NOT be interpolated (useCurrentDistance: true keeps zoom-based distance)
+    const targetHPR = new HeadingPitchRange(
+      targetHeadingPitch.heading,
+      targetHeadingPitch.pitch,
+      currentRange // This value is ignored when useCurrentDistance: true
+    );
+    
+    // Use the proper animation function that rotates around a point
+    // useCurrentDistance: true ensures range stays at zoom-based value (no interpolation)
+    animateInterpolateHeadingPitchRange(
+      scene,
+      pos,
+      targetHPR,
+      {
+        duration,
+        useCurrentDistance: true, // CRITICAL: Keep zoom-based range, don't interpolate
+        cancelable: false,
+        onComplete,
+      }
+    );
     
     return true;
   } else {
     console.warn(
-      '[CESIUM] [CESIUM|2D3D|TO3D] no valid position or HPR, completing transition without animation',
-      { hasPos: !!pos, hasTargetHPR: !!targetHPR }
+      '[CESIUM] [CESIUM|2D3D|TO3D] no valid position or heading/pitch, completing transition without animation',
+      { hasPos: !!pos, hasTargetHeadingPitch: !!targetHeadingPitch }
     );
     onComplete();
     return false;

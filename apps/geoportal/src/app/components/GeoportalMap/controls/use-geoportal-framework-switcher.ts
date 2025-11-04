@@ -14,6 +14,9 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 type UseGeoportalFrameworkSwitcherOptions = {
   cesiumContext: CesiumContextType | null;
   setIsMode2d: (isMode2d: boolean) => void;
+  onTransitionStart?: (direction: TransitionDirection) => void;
+  onTransitionComplete?: (direction: TransitionDirection) => void;
+  onTransitionFailed?: (direction: TransitionDirection) => void;
 };
 
 /**
@@ -23,6 +26,9 @@ type UseGeoportalFrameworkSwitcherOptions = {
 export const useGeoportalFrameworkSwitcher = ({
   cesiumContext: ctx,
   setIsMode2d,
+  onTransitionStart,
+  onTransitionComplete,
+  onTransitionFailed,
 }: UseGeoportalFrameworkSwitcherOptions) => {
   const { routedMapRef: routedMap } =
     useContext<typeof TopicMapContext>(TopicMapContext);
@@ -62,17 +68,45 @@ export const useGeoportalFrameworkSwitcher = ({
 
   const handleActiveFrameworkChange = useCallback(
     (direction: TransitionDirection) => {
+      console.log('[GEOPORTAL] Framework changed:', direction);
       // TransitionDirection: TO_CESIUM = 1, TO_LEAFLET = 2
       setIsMode2d(direction === 2);
     },
     [setIsMode2d]
   );
 
+  const handleTransitionStart = useCallback(
+    (direction: TransitionDirection) => {
+      console.log('[GEOPORTAL] Transition started:', direction);
+      onTransitionStart?.(direction);
+    },
+    [onTransitionStart]
+  );
+
+  const handleTransitionComplete = useCallback(
+    (direction: TransitionDirection) => {
+      console.log('[GEOPORTAL] Transition completed:', direction);
+      onTransitionComplete?.(direction);
+    },
+    [onTransitionComplete]
+  );
+
+  const handleTransitionFailed = useCallback(
+    (direction: TransitionDirection) => {
+      console.error('[GEOPORTAL] Transition failed:', direction);
+      onTransitionFailed?.(direction);
+    },
+    [onTransitionFailed]
+  );
+
   const switcherOptions = useMemo(
     () => ({
       onActiveFrameworkChange: handleActiveFrameworkChange,
+      onTransitionStart: handleTransitionStart,
+      onTransitionComplete: handleTransitionComplete,
+      onTransitionFailed: handleTransitionFailed,
     }),
-    [handleActiveFrameworkChange]
+    [handleActiveFrameworkChange, handleTransitionStart, handleTransitionComplete, handleTransitionFailed]
   );
 
   return useMapFrameworkSwitcher(

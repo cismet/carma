@@ -7,7 +7,6 @@
 
 // Pure re-exports from Cesium
 export {
-  CesiumWidget,
   ClassificationType,
   ClippingPlaneCollection,
   ClippingPolygonCollection,
@@ -53,6 +52,7 @@ export * from "./Cartesian3";
 export * from "./Cartographic";
 export * from "./Cesium3DTileset";
 export * from "./CesiumTerrainProvider";
+export * from "./CesiumWidget";
 export * from "./Color";
 export * from "./CustomShader";
 export * from "./EllipsoidTerrainProvider";

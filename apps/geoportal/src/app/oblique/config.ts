@@ -5,17 +5,18 @@ import {
   OBLIQUE_2024_EXT_ORI_UTM32_URI,
   OBLIQUE_2024_FPRFC_GEOJSON_URI,
 } from "@carma-commons/resources";
-import { degToRad, asDegrees } from "@carma-commons/utils";
+import { Degrees} from "@carma/units/types";
+import { degToRad } from "@carma-commons/units/helpers";
 
 import { OBLIQUE_PREVIEW_QUALITY } from "./constants";
 import { ObliqueDataProviderConfig } from "./types";
 import { CardinalDirectionEnum } from "./utils/orientationUtils";
 export const OBLIQUE_CONFIG: ObliqueDataProviderConfig = {
-  fixedPitch: degToRad(asDegrees(-45)), // Pitch in radians
+  fixedPitch: degToRad(-45 as Degrees), // Pitch in radians
   fixedHeight: 900, // Height in meters
-  minFov: degToRad(asDegrees(10)), // Minimum field of view in radians
-  maxFov: degToRad(asDegrees(120)), // Maximum field of view in radians
-  headingOffset: degToRad(asDegrees(-34.3)), // Heading offset in radians
+  minFov: degToRad(10 as Degrees), // Minimum field of view in radians
+  maxFov: degToRad(120 as Degrees), // Maximum field of view in radians
+  headingOffset: degToRad(-34.3 as Degrees), // Heading offset in radians
   previewQualityLevel: OBLIQUE_PREVIEW_QUALITY.LEVEL_3,
   previewPath: OBLIQUE_2024_PREVIEW_PATH,
   crs: OBLIQUE_2024_ORIENTATIONS_CRS,

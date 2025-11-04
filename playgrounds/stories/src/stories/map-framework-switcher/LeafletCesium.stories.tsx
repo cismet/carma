@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Button, Card, Radio, Tag } from 'antd';
-import { CesiumWidget, CesiumTerrainProvider, Cartesian3, Cesium3DTileset, EllipsoidTerrainProvider, Cartographic, sampleTerrainMostDetailedGuardedAsync } from '@carma/cesium';
+import { createMinimalCesiumWidget, CesiumWidget, CesiumTerrainProvider, Cartesian3, Cesium3DTileset, EllipsoidTerrainProvider, Cartographic, sampleTerrainMostDetailedGuardedAsync } from '@carma/cesium';
 import { degToRadNumeric } from '@carma/units/helpers';
 import {
   WUPP_TERRAIN_PROVIDER,
@@ -183,18 +183,25 @@ const LeafletCesium = () => {
         const leafletMap = L.map(leafletContainerRef.current, {
           center: [WUPPERTAL.position.latitude, WUPPERTAL.position.longitude],
           zoom: 15,
+          minZoom: 10, // Fixed: was 23 (too restrictive), should be reasonable minimum
           zoomControl: false,
           attributionControl: false,
         });
 
         // Add Wuppertal aerial imagery (Luftbild) WMS layer
-        L.tileLayer.wms(WUPPERTAL_LUFTBILD_WMS.url, {
+        const wmsLayer = L.tileLayer.wms(WUPPERTAL_LUFTBILD_WMS.url, {
           layers: WUPPERTAL_LUFTBILD_WMS.layers,
           format: WUPPERTAL_LUFTBILD_WMS.format,
           transparent: WUPPERTAL_LUFTBILD_WMS.transparent,
           attribution: WUPPERTAL_LUFTBILD_WMS.attribution,
           maxZoom: 20,
         }).addTo(leafletMap);
+        
+        console.log('[LEAFLET] WMS layer added:', {
+          url: WUPPERTAL_LUFTBILD_WMS.url,
+          layers: WUPPERTAL_LUFTBILD_WMS.layers,
+          layerAdded: !!wmsLayer,
+        });
 
         // Force Leaflet to recalculate size
         setTimeout(() => leafletMap.invalidateSize(), 100);
@@ -208,19 +215,8 @@ const LeafletCesium = () => {
       }
 
       try {
-        // Create empty div for credit container
-        const creditContainer = document.createElement('div');
-        creditContainer.style.display = 'none';
-        
-        // Create Cesium widget with no default terrain
-        const widget = new CesiumWidget(cesiumContainerRef.current, {
-          requestRenderMode: true,
-          maximumRenderTimeChange: Infinity,
-          skyBox: false,
-          skyAtmosphere: false,
-          terrainProvider: new EllipsoidTerrainProvider(),
-          creditContainer: creditContainer,
-        });
+        // Create Cesium widget - enable globe for transitions (depthTestAgainstTerrain requires it)
+        const widget = createMinimalCesiumWidget(cesiumContainerRef.current);
 
         cesiumWidgetRef.current = widget;
         
@@ -228,10 +224,19 @@ const LeafletCesium = () => {
         setCesiumResolutionScale(widget.resolutionScale);
 
         // Load 2024 mesh as 3D tileset after widget is ready
-        Cesium3DTileset.fromUrl(WUPP_MESH_2024.url)
+        // Using geoportal DEFAULT_MESH_OPTIONS from cesiumTilesetProviders.ts
+        Cesium3DTileset.fromUrl(WUPP_MESH_2024.url, {
+          preloadWhenHidden: false,
+          scene: widget.scene,
+          shadows: 0, // ShadowMode.DISABLED
+          enableCollision: false,
+          maximumScreenSpaceError: 6,
+          skipLevelOfDetail: true,
+          skipScreenSpaceErrorFactor: 128,
+          baseScreenSpaceError: 4096,
+        })
           .then((tileset) => {
             if (widget.scene && !widget.isDestroyed()) {
-              tileset.maximumScreenSpaceError = 4;
               widget.scene.primitives.add(tileset);
               tilesetRef.current = tileset;
               widget.scene.requestRender();
@@ -324,7 +329,6 @@ const LeafletCesium = () => {
           zIndex: 2,
           opacity: activeFramework === 'cesium' ? 1 : 0,
           pointerEvents: activeFramework === 'cesium' ? 'auto' : 'none',
-          background: 'repeating-conic-gradient(#ff6600 0% 25%, transparent 0% 50%) 50% / 20px 20px',
           transition: 'opacity 600ms ease-in-out',
         }}
       />

@@ -137,18 +137,21 @@ export const pickSceneCanvasPositions = (
     sceneMode: scene.mode,
     morphTime: scene.morphTime,
     globeIsDestroyed: scene.globe?.isDestroyed?.() ?? "no isDestroyed method",
+    hasGlobe: !!scene.globe,
     hasTerrainProvider: !!scene.terrainProvider,
   });
 
-  // store previous settings
+  // store previous settings (guard globe access)
   const prev = {
-    depthTestAgainstTerrain: scene.globe.depthTestAgainstTerrain,
+    depthTestAgainstTerrain: scene.globe?.depthTestAgainstTerrain ?? false,
     pickTranslucentDepth: scene.pickTranslucentDepth,
   };
 
   // apply overrides
   scene.pickTranslucentDepth = pickTranslucentDepth;
-  scene.globe.depthTestAgainstTerrain = depthTestAgainstTerrain;
+  if (scene.globe) {
+    scene.globe.depthTestAgainstTerrain = depthTestAgainstTerrain;
+  }
   scene.useDepthPicking = true;
 
   console.debug(
@@ -226,7 +229,9 @@ export const pickSceneCanvasPositions = (
     });
   } finally {
     scene.pickTranslucentDepth = prev.pickTranslucentDepth;
-    scene.globe.depthTestAgainstTerrain = prev.depthTestAgainstTerrain;
+    if (scene.globe) {
+      scene.globe.depthTestAgainstTerrain = prev.depthTestAgainstTerrain;
+    }
   }
   return results;
 };

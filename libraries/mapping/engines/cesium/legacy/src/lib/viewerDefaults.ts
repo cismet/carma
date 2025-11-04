@@ -24,9 +24,13 @@ export const DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS: Viewer.ConstructorOptions = {
     },
   },
 
+  // Disable default providers
+  baseLayer: false,
+  terrainProvider: false,
+  globe: false,
+
   // Hide UI components
   animation: false,
-  baseLayer: false,
   baseLayerPicker: false,
   fullscreenButton: false,
   geocoder: false,

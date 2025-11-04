@@ -4,15 +4,25 @@ import type { Map as LeafletMap } from "leaflet";
 import { TransitionStage, type TransitionToLeafletOptions } from "./types";
 import { animateCesiumToTopDownLeafletLikeView as animateCameraTo2d } from "./utils/animate-cesium-to-top-down-leaflet-like-view";
 
+/**
+ * Captured camera orientation for restoration after 2D→3D transition.
+ * Only heading and pitch are stored - range always comes from Leaflet zoom level.
+ */
+export type TargetHeadingPitch = {
+  heading: number;
+  pitch: number;
+};
+
 export type TransitionToLeafletResult = {
-  targetHPR: HeadingPitchRange;
+  targetHeadingPitch: TargetHeadingPitch;
   duration: number;
 };
 
 /**
  * Pure function: Orchestrates transition from Cesium (3D) to Leaflet (2D)
  * No React or context dependencies - just Cesium Scene and Leaflet Map
- * Returns the HPR and duration for use in the next transition back to Cesium
+ * Returns heading/pitch (not range) and duration for use in the next transition back to Cesium.
+ * Range is always derived from Leaflet zoom level during 2D→3D transition.
  */
 export const transitionToLeaflet = async (
   scene: Scene,
@@ -35,8 +45,8 @@ export const transitionToLeaflet = async (
     hasScene: isValidScene(scene),
   });
 
-  // Capture the target HPR for return
-  let capturedHPR: HeadingPitchRange | null = null;
+  // Capture the target heading/pitch (not range) for return
+  let capturedHeadingPitch: TargetHeadingPitch | null = null;
 
   try {
     onTransitionStage(
@@ -83,15 +93,19 @@ export const transitionToLeaflet = async (
       }
     };
 
-    const handleTargetHPR = (hpr: HeadingPitchRange) => {
-      capturedHPR = hpr;
+    const handleTargetHeadingPitch = (hpr: HeadingPitchRange) => {
+      // Extract only heading and pitch, ignore range (always comes from zoom)
+      capturedHeadingPitch = {
+        heading: hpr.heading,
+        pitch: hpr.pitch,
+      };
     };
 
     animateCameraTo2d(scene, leaflet, {
       scene,
       leaflet,
       onAnimationComplete: handleAnimationComplete,
-      setPrevHPR: handleTargetHPR,
+      setPrevHPR: handleTargetHeadingPitch,
       setPrevDuration: () => {}, // Duration is returned directly
       onTransitionCancel: () => {
         onTransitionStage(TransitionStage.ERROR, "Transition cancelled");
@@ -101,13 +115,13 @@ export const transitionToLeaflet = async (
       },
     });
 
-    // Return the captured HPR and duration
-    if (!capturedHPR) {
-      throw new Error("Failed to capture target HPR during transition");
+    // Return the captured heading/pitch (not range) and duration
+    if (!capturedHeadingPitch) {
+      throw new Error("Failed to capture target heading/pitch during transition");
     }
 
     return {
-      targetHPR: capturedHPR,
+      targetHeadingPitch: capturedHeadingPitch,
       duration: step1_cameraAnimationDurationMs,
     };
   } catch (error) {
