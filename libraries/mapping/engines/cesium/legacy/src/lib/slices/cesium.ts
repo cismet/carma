@@ -16,7 +16,6 @@ export enum VIEWER_TRANSITION_STATE {
 }
 
 const initialState: CesiumState = {
-  isMode2d: false,
   isAnimating: false,
   currentTransition: VIEWER_TRANSITION_STATE.NONE,
   homeOffset: null,
@@ -45,7 +44,7 @@ export const getCesiumConfig = ({
   return {
     key: `@${appKey}.${storagePrefix}.app.cesium`,
     storage: localForage,
-    whitelist: ["isMode2d", "showPrimaryTileset", "showSecondaryTileset"],
+    whitelist: ["showPrimaryTileset", "showSecondaryTileset"],
   };
 };
 
@@ -61,10 +60,6 @@ const sliceCesium = createSlice({
     },
     toggleIsAnimating: (state: CesiumState) => {
       state.isAnimating = !state.isAnimating;
-    },
-
-    setIsMode2d: (state: CesiumState, action: PayloadAction<boolean>) => {
-      state.isMode2d = action.payload;
     },
 
     setTransitionTo2d: (state: CesiumState) => {
@@ -143,8 +138,6 @@ const sliceCesium = createSlice({
 });
 
 export const {
-  setIsMode2d,
-
   setHomePosition,
   setHomeOffset,
 
@@ -179,7 +172,6 @@ export const selectViewerIsTransitioning = ({ cesium }: RootState) =>
   cesium.currentTransition !== undefined &&
   cesium.currentTransition !== VIEWER_TRANSITION_STATE.NONE;
 
-export const selectViewerIsMode2d = ({ cesium }: RootState) => cesium.isMode2d;
 export const selectViewerDataSources = ({ cesium }: RootState) =>
   cesium.dataSources;
 export const selectViewerModels = ({ cesium }: RootState) => cesium.models;

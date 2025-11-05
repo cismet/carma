@@ -22,7 +22,6 @@ import {
   selectScreenSpaceCameraControllerMinimumZoomDistance,
   selectScreenSpaceCameraControllerEnableCollisionDetection,
   selectShowSecondaryTileset,
-  selectViewerIsMode2d,
   selectViewerHome,
   selectViewerHomeOffset,
 } from "../slices/cesium";
@@ -79,8 +78,6 @@ export const useInitializeViewer = (
   const enableCollisionDetection = useSelector(
     selectScreenSpaceCameraControllerEnableCollisionDetection
   );
-
-  const isMode2d = useSelector(selectViewerIsMode2d);
 
   // Store camera position and orientation vectors
   const lastGoodCameraState = useRef<CameraState | null>(null);
@@ -254,14 +251,7 @@ export const useInitializeViewer = (
       sscc.minimumZoomDistance = minZoom ?? 1;
       sscc.maximumZoomDistance = maxZoom ?? Infinity;
     });
-  }, [
-    withScene,
-    isSecondaryStyle,
-    maxZoom,
-    minZoom,
-    enableCollisionDetection,
-    isMode2d,
-  ]);
+  }, [withScene, isSecondaryStyle, maxZoom, minZoom, enableCollisionDetection]);
 
   useEffect(() => {
     if (!isViewerReady) return;
@@ -331,7 +321,7 @@ export const useInitializeViewer = (
         scene.postRender.addEventListener(enableLimitersNextFrame);
       });
     }
-    if (!isMode2d && initialCameraView) {
+    if (initialCameraView) {
       const { position, heading, pitch, fov } = initialCameraView;
       if (position) {
         const restoredHeight = CesiumMath.clamp(
@@ -402,7 +392,6 @@ export const useInitializeViewer = (
     initialCameraView,
     home,
     homeOffset,
-    isMode2d,
     maxZoom,
     withViewer,
     withCamera,

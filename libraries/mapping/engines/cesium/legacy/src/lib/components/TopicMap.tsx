@@ -6,18 +6,20 @@ import { useSelector } from "react-redux";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import StyledWMSTileLayer from "react-cismap/StyledWMSTileLayer";
 
-import {
-  selectShowPrimaryTileset,
-  selectViewerIsMode2d,
-} from "../slices/cesium";
+import { selectShowPrimaryTileset } from "../slices/cesium";
 
 // TODO sync this setting across app
 const DEFAULT_MODE_2D_3D_CHANGE_FADE_DURATION = 1000;
 
 // TODO remove this component replace with cesium overlayed on provied leaflet instance
-export const TopicMap = ({ forceShow = false } = {}) => {
+export const TopicMap = ({
+  forceShow = false,
+  isVisible = true,
+}: {
+  forceShow?: boolean;
+  isVisible?: boolean;
+} = {}) => {
   const isPrimaryStyle = useSelector(selectShowPrimaryTileset);
-  const isMode2d = useSelector(selectViewerIsMode2d);
 
   const componentRef = useRef<null | HTMLDivElement>(null);
 
@@ -57,17 +59,17 @@ export const TopicMap = ({ forceShow = false } = {}) => {
     }
   }, [isPrimaryStyle]);
 
-  console.debug("RENDER: TopicMap isMode2d", isMode2d);
+  console.debug("RENDER: TopicMap isVisible", isVisible);
 
   return (
     <div
       ref={componentRef}
       style={{
-        opacity: isMode2d || forceShow ? 1 : 0,
+        opacity: isVisible || forceShow ? 1 : 0,
         transition: `opacity ${DEFAULT_MODE_2D_3D_CHANGE_FADE_DURATION}ms ease-in-out`,
-        pointerEvents: isMode2d || forceShow ? "auto" : "none",
+        pointerEvents: isVisible || forceShow ? "auto" : "none",
       }}
-      //className={isMode2d ? 'fade-in' : 'fade-out'}
+      //className={isVisible ? 'fade-in' : 'fade-out'}
     >
       <TopicMapComponent
         gazData={[]}

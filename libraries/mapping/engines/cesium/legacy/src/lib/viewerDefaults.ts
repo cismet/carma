@@ -1,12 +1,11 @@
 import { SceneMode, Viewer } from "cesium";
+import { COLORS } from "@carma-commons/utils";
 import UAParser from "ua-parser-js";
-import type { ColorRgbaArray } from "@carma/types";
 
-export const TRANSITION_DELAY = 1000;
 export const CESIUM_TARGET_FRAME_RATE = 120;
 const isMobile = new UAParser().getDevice().type === "mobile";
 
-export const DEFAULT_BACKGROUND_COLOR: ColorRgbaArray = [1, 1, 1, 1];
+export const DEFAULT_BACKGROUND_COLOR = COLORS.WHITE;
 
 export const DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS: Viewer.ConstructorOptions = {
   msaaSamples: 4,

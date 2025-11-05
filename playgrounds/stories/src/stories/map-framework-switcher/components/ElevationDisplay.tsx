@@ -2,28 +2,18 @@ import { Card, Radio } from "antd";
 import { useEffect, useState, useMemo, useRef } from "react";
 import { getPixelResolutionFromZoomAtLatitudeRad } from "@carma/geo/utils";
 import { radToDegNumeric, degToRadNumeric } from "@carma/units/helpers";
-import type { Scene, CesiumTerrainProvider } from "@carma/cesium";
 import { Cartographic } from "@carma/cesium";
 import { guardSampleTerrainMostDetailedAsync } from "@carma-mapping/engines/cesium/legacy";
-import type { Map as LeafletMap } from "leaflet";
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
-interface ElevationDisplayProps {
-  cesiumScene: Scene | null;
-  leafletMap: LeafletMap | null;
-  terrainProvider: CesiumTerrainProvider | null;
-  surfaceProvider: CesiumTerrainProvider | null; // DSM is also a CesiumTerrainProvider
-  devicePixelRatio: number;
-  activeFramework: "leaflet" | "cesium";
-}
+export const ElevationDisplay = () => {
+  const { activeFramework, isCesium, refs } = useMapFrameworkSwitcherContext();
 
-export const ElevationDisplay = ({
-  cesiumScene,
-  leafletMap,
-  terrainProvider,
-  surfaceProvider,
-  devicePixelRatio,
-  activeFramework,
-}: ElevationDisplayProps) => {
+  // Get refs from context
+  const cesiumScene = refs.getCesiumScene();
+  const leafletMap = refs.getLeafletMap();
+  const terrainProviders = refs.getCesiumTerrainProviders();
+  const devicePixelRatio = refs.getResolutionScale() ?? window.devicePixelRatio;
   const [terrainElevation, setTerrainElevation] = useState<number | null>(null);
   const [surfaceElevation, setSurfaceElevation] = useState<number | null>(null);
   const [cameraElevation, setCameraElevation] = useState<number | null>(null);
@@ -52,7 +42,7 @@ export const ElevationDisplay = ({
         setZoomLevel(zoom);
 
         // Update camera elevation if in Cesium mode
-        if (cesiumScene && activeFramework === "cesium") {
+        if (cesiumScene && isCesium) {
           const camera = cesiumScene.camera;
           const cartographic = camera.positionCartographic;
           setCameraElevation(cartographic.height);
@@ -72,10 +62,10 @@ export const ElevationDisplay = ({
         // Sample terrain elevation at map center
         const position = Cartographic.fromDegrees(center.lng, center.lat);
 
-        if (terrainProvider) {
+        if (terrainProviders.TERRAIN) {
           const terrainPos = Cartographic.clone(position);
           const terrainSamples = await guardSampleTerrainMostDetailedAsync(
-            terrainProvider,
+            terrainProviders.TERRAIN,
             [terrainPos]
           );
           if (terrainSamples && terrainSamples.length > 0) {
@@ -83,10 +73,10 @@ export const ElevationDisplay = ({
           }
         }
 
-        if (surfaceProvider) {
+        if (terrainProviders.SURFACE) {
           const surfacePos = Cartographic.clone(position);
           const surfaceSamples = await guardSampleTerrainMostDetailedAsync(
-            surfaceProvider,
+            terrainProviders.SURFACE,
             [surfacePos]
           );
           if (surfaceSamples && surfaceSamples.length > 0) {
@@ -103,7 +93,7 @@ export const ElevationDisplay = ({
 
     // Also listen to camera changes if in Cesium mode
     let cameraChangedHandler: (() => void) | null = null;
-    if (cesiumScene && activeFramework === "cesium") {
+    if (cesiumScene && isCesium) {
       cameraChangedHandler = () => {
         updateElevations();
       };
@@ -122,8 +112,7 @@ export const ElevationDisplay = ({
   }, [
     cesiumScene,
     leafletMap,
-    terrainProvider,
-    surfaceProvider,
+    terrainProviders,
     activeFramework,
     devicePixelRatio,
   ]);
@@ -335,7 +324,7 @@ export const ElevationDisplay = ({
             </div>
 
             {/* Camera Column - only show in Cesium mode - split bar showing AGL + selected ground elevation */}
-            {activeFramework === "cesium" && (
+            {isCesium && (
               <div
                 style={{
                   width: "32px",

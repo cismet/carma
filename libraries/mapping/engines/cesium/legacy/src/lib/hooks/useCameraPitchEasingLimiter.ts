@@ -8,7 +8,6 @@ import { useCesiumContext } from "./useCesiumContext";
 import {
   selectScreenSpaceCameraControllerEnableCollisionDetection,
   selectViewerIsAnimating,
-  selectViewerIsMode2d,
   selectViewerIsTransitioning,
 } from "../slices/cesium";
 
@@ -20,6 +19,7 @@ const useCameraPitchEasingLimiter = (
     easingRangeDeg?: number;
     easing?: (x: number) => number;
     pitchLimiter?: boolean;
+    enabled?: boolean;
   } = {}
 ) => {
   const minPitchDeg = options.minPitchDeg ?? DEFAULT_MIN_PITCH;
@@ -27,10 +27,10 @@ const useCameraPitchEasingLimiter = (
   const easing = options.easing ?? EasingFunction.CIRCULAR_IN;
   const pitchLimiter =
     options.pitchLimiter === undefined ? true : options.pitchLimiter;
+  const enabled = options.enabled ?? true;
   const viewer = useCesiumViewer();
   const { shouldSuspendCameraLimitersRef } = useCesiumContext();
 
-  const isMode2d = useSelector(selectViewerIsMode2d);
   const isAnimating = useSelector(selectViewerIsAnimating);
 
   const isTransitioning = useSelector(selectViewerIsTransitioning);
@@ -44,7 +44,7 @@ const useCameraPitchEasingLimiter = (
   const lastPosition = useRef<Cartographic | null>(null);
 
   useEffect(() => {
-    if (viewer && !isMode2d && collisions && pitchLimiter) {
+    if (viewer && enabled && collisions && pitchLimiter) {
       const { camera, scene } = viewer;
       console.debug("HOOK [CESIUM|CAMERA] EASING Pitch Limiter added");
       lastPitch.current = null;
@@ -123,7 +123,7 @@ const useCameraPitchEasingLimiter = (
   }, [
     viewer,
     collisions,
-    isMode2d,
+    enabled,
     pitchLimiter,
     easing,
     easingRangeDeg,

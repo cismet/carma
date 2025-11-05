@@ -1,4 +1,4 @@
-import { useContext, useEffect, useRef, useState, useCallback } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import { isMobile } from "react-device-detect";
 import { useDispatch, useSelector } from "react-redux";
 
@@ -31,8 +31,6 @@ import { detectWebGLContext } from "@carma-commons/utils";
 import {
   PitchingCompass,
   selectViewerModels,
-  selectViewerIsMode2d,
-  setIsMode2d as setIsMode2dAction,
   useCesiumContext,
   useHomeControl,
   useZoomControls as useZoomControlsCesium,
@@ -42,6 +40,7 @@ import {
   FullscreenControl,
   LibrePitchingCompass,
   RoutedMapLocateControl,
+  useMapFrameworkSwitcherContext,
 } from "@carma-mapping/components";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import {
@@ -58,7 +57,6 @@ import LibreGeoportalMap from "../LibreGeoportalMap.tsx";
 import { ObliqueControls } from "../../../oblique/components/ObliqueControls.tsx";
 import LayerWrapper from "../../layers/LayerWrapper.tsx";
 
-import { useGeoportalFrameworkSwitcher } from "./use-geoportal-framework-switcher.ts";
 import useLeafletZoomControls from "../../../hooks/leaflet/useLeafletZoomControls.ts";
 import { useAppSearchParams } from "../../../hooks/useAppSearchParams";
 import { useDispatchSachdatenInfoText } from "../../../hooks/useDispatchSachdatenInfoText.ts";
@@ -110,15 +108,16 @@ const MapWrapper = () => {
   const lastRenderTimeStampRef = useRef(Date.now());
   const lastRenderIntervalRef = useRef(0);
   const wrapperRef = useRef<HTMLDivElement>(null);
-  const cesiumContainerRef = useRef<HTMLDivElement>(null);
 
   // State and Selectors
   const libreMapRef = useSelector(getLibreMapRef);
   const allow3d = useSelector(getUIAllow3d) && hasGPU;
   const models = useSelector(selectViewerModels);
-  const isMode2d = useSelector(selectViewerIsMode2d);
 
-  const effectiveMode2d = isMode2d || !allow3d;
+  // Get framework switcher state from context
+  const { isLeaflet, isCesium } = useMapFrameworkSwitcherContext();
+
+  const effectiveMode2d = isLeaflet || !allow3d;
   const uiMode = useSelector(getUIMode);
   const isModeMeasurement = uiMode === UIMode.MEASUREMENT;
   const isModeFeatureInfo = uiMode === UIMode.FEATURE_INFO;
@@ -128,23 +127,6 @@ const MapWrapper = () => {
   const ctx = useCesiumContext();
   const homeControl = useHomeControl();
   const configSelection = useSelector(getConfigSelection);
-
-  // Callback to update Redux when framework changes
-  const handleSetIsMode2d = useCallback(
-    (isMode2d: boolean) => {
-      dispatch(setIsMode2dAction(isMode2d));
-    },
-    [dispatch]
-  );
-
-  // Map framework switcher (2D ↔ 3D transitions)
-  const { activeFramework, isTransitioning, toggle } =
-    useGeoportalFrameworkSwitcher({
-      cesiumContext: ctx,
-      cesiumContainerRef,
-      setIsMode2d: handleSetIsMode2d,
-      initialIsMode2d: isMode2d,
-    });
 
   const { isObliqueMode } = useOblique();
 
@@ -244,7 +226,7 @@ const MapWrapper = () => {
     }
     const selectionMetaData: SelectionMetaData = {
       selectedFrom: "gazetteer",
-      selectedFromMapMode: isMode2d
+      selectedFromMapMode: isLeaflet
         ? SelectionMapMode.MODE_2D
         : SelectionMapMode.MODE_3D,
       selectionTimestamp: Date.now(),
@@ -254,15 +236,6 @@ const MapWrapper = () => {
     setSelection(Object.assign({}, selection, selectionMetaData));
   };
 
-  useEffect(() => {
-    // set 2d mode if allow3d is false or undefined
-    if (allow3d === false || allow3d === undefined) {
-      dispatch(setIsMode2dAction(true));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allow3d]);
-
-  console.debug("RENDER: [WRAPPER] MAP", isMode2d);
   rerenderCountRef.current++;
   lastRenderIntervalRef.current = Date.now() - lastRenderTimeStampRef.current;
   lastRenderTimeStampRef.current = Date.now();
@@ -311,7 +284,7 @@ const MapWrapper = () => {
               <Tooltip title="Maßstab vergrößern (Zoom in)" placement="right">
                 <ControlButtonStyler
                   onClick={(event) => {
-                    if (isMode2d) {
+                    if (isLeaflet) {
                       if (showLibreMap) {
                         if (libreMapRef.current) {
                           libreMapRef.current.zoomIn();
@@ -332,7 +305,7 @@ const MapWrapper = () => {
               <Tooltip title="Maßstab verkleinern (Zoom out)" placement="right">
                 <ControlButtonStyler
                   onClick={(event) => {
-                    if (isMode2d) {
+                    if (isLeaflet) {
                       if (showLibreMap) {
                         if (libreMapRef.current) {
                           libreMapRef.current.zoomOut();
@@ -364,7 +337,7 @@ const MapWrapper = () => {
                     className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
                     ref={tourRefLabels.alignNorth}
                     dataTestId="compass-control"
-                    disabled={isMode2d && !showLibreMap}
+                    disabled={isLeaflet && !showLibreMap}
                   >
                     {showLibreMap ? (
                       <LibrePitchingCompass mapRef={libreMapRef} />
@@ -375,9 +348,6 @@ const MapWrapper = () => {
                 </Tooltip>
 
                 <MapFrameworkSwitcher
-                  activeFramework={activeFramework}
-                  isTransitioning={isTransitioning}
-                  onToggle={toggle}
                   enableMobileWarning={true}
                   nativeTooltip={true}
                 />
@@ -432,10 +402,10 @@ const MapWrapper = () => {
           <MeasurementControl
             position="topleft"
             order={60}
-            disabled={!isMode2d || (isMode2d && showLibreMap)}
-            useDisabledStyle={isMode2d && showLibreMap}
+            disabled={!isLeaflet || (isLeaflet && showLibreMap)}
+            useDisabledStyle={isLeaflet && showLibreMap}
             tooltip={
-              !isMode2d
+              isCesium
                 ? "zum Messen zu 2D-Modus wechseln"
                 : isModeMeasurement
                 ? "Messungsmodus ausschalten"
@@ -455,8 +425,8 @@ const MapWrapper = () => {
               placement="right"
             >
               <ControlButtonStyler
-                disabled={!isMode2d}
-                useDisabledStyle={!isMode2d}
+                disabled={!isLeaflet}
+                useDisabledStyle={!isLeaflet}
                 onClick={() => {
                   handleToggleFeatureInfo();
                   dispatch(setSelectedFeature(null));
@@ -503,7 +473,7 @@ const MapWrapper = () => {
             </Control>
           )}
           <Control position="topcenter" order={10}>
-            {isMode2d && <LayerWrapper />}
+            {isLeaflet && <LayerWrapper />}
           </Control>
           <Control position="bottomleft" order={10}>
             <div ref={tourRefLabels.gazetteer} className={`h-full w-full`}>
@@ -531,17 +501,12 @@ const MapWrapper = () => {
             marginTop: zenMode ? "0px" : "-56px",
           }}
         >
-          {showLibreMap && isMode2d ? (
+          {showLibreMap && isLeaflet ? (
             <LibreGeoportalMap />
           ) : (
             <>
-              <GeoportalMap
-                height={height}
-                width={width}
-                allow3d={allow3d}
-                cesiumContainerRef={cesiumContainerRef}
-              />
-              {!isMode2d && <ObliqueControls />}
+              <GeoportalMap height={height} width={width} allow3d={allow3d} />
+              {isCesium && <ObliqueControls />}
             </>
           )}
         </div>

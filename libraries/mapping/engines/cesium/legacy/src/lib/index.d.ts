@@ -1,6 +1,5 @@
-import type { Cartesian3Json } from "@carma/cesium";
+import type { Cartesian3Json, ColorConstructorArgs } from "@carma/cesium";
 import type { ModelConfig } from "@carma-commons/resources";
-import type { ColorRgbaArray } from "@carma/types";
 
 import type { ProviderConfig } from "./utils/cesiumProviders";
 import type { TilesetConfigs } from "./utils/cesiumTilesetProviders";
@@ -46,9 +45,9 @@ export type TerrainProviderConfig = {
 };
 
 export type SceneStyle = {
-  backgroundColor: ColorRgbaArray;
+  backgroundColor: ColorConstructorArgs;
   globe: {
-    baseColor: ColorRgbaArray;
+    baseColor: ColorConstructorArgs;
   };
 };
 
@@ -79,7 +78,6 @@ export interface CesiumState {
   isAnimating?: boolean;
   currentTransition?: VIEWER_TRANSITION_STATE;
   currentSceneStyle?: keyof SceneStyles;
-  isMode2d: boolean;
   homePosition: null | Cartesian3Json;
   homeOffset: null | Cartesian3Json;
   showPrimaryTileset: boolean; // tileset is the base 3D model equivalent to a basemap
@@ -120,7 +118,6 @@ export type SceneStateDescription = {
 
 export type AppState = {
   isAnimating?: boolean;
-  isMode2d?: boolean;
   isSecondaryStyle?: boolean;
   zoom?: number;
 };

@@ -17,7 +17,10 @@ import {
   mobileInfo,
 } from "@carma-collab/wuppertal/geoportal";
 import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
-import { MobileWarningMessage } from "@carma-mapping/components";
+import {
+  MapFrameworkSwitcherProvider,
+  MobileWarningMessage,
+} from "@carma-mapping/components";
 import {
   FeatureFlagProvider,
   useFeatureFlags,
@@ -145,68 +148,71 @@ function App({ published }: { published?: boolean }) {
     >
       <MatomoTracker>
         <CesiumDevConsoleIntegration />
-        <CarmaMapProviderWrapper
-          cesiumOptions={CESIUM_CONFIG}
-          overlayOptions={{
-            background: backgroundSettings,
-          }}
-          mapStyleConfig={geoportalMapStyleConfig}
-        >
-          <ObliqueProvider
-            config={OBLIQUE_CONFIG}
-            fallbackDirectionConfig={CAMERA_ID_TO_DIRECTION}
+        <MapFrameworkSwitcherProvider initialFramework="leaflet">
+          <CarmaMapProviderWrapper
+            cesiumOptions={CESIUM_CONFIG}
+            overlayOptions={{
+              background: backgroundSettings,
+            }}
+            mapStyleConfig={geoportalMapStyleConfig}
           >
-            <MeasurementsWrapper
-              externalMode={mode}
-              setModeExternal={handleSetMode}
-              baseConfig={measurementsConfig}
+            <ObliqueProvider
+              config={OBLIQUE_CONFIG}
+              fallbackDirectionConfig={CAMERA_ID_TO_DIRECTION}
             >
-              <ErrorBoundary FallbackComponent={AppErrorFallback}>
-                <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
-                  {isLoadingConfig && (
-                    <div
-                      id="loading"
-                      className="absolute flex flex-col items-center text-white justify-center h-screen w-full bg-black/50 z-[9999999999999]"
-                    >
-                      <h2>Lade Konfiguration</h2>
-                      <FontAwesomeIcon size="2x" icon={faSpinner} spin />
-                    </div>
-                  )}
-                  {!published && <TopNavbar />}
-                  <MapWrapper />
-                  <MobileWarningMessage
-                    headerText={mobileInfo.headerText}
-                    bodyText={mobileInfo.bodyText}
-                    confirmButtonText={mobileInfo.confirmButtonText}
-                  />
-
-                  <Modal
-                    open={showLoginModal}
-                    closable={false}
-                    footer={null}
-                    styles={{
-                      content: {
-                        padding: "0px",
-                        width: window.innerWidth < 600 ? "100%" : "450px",
-                      },
-                    }}
-                  >
-                    <LoginForm
-                      onSuccess={() => dispatch(setShowLoginModal(false))}
-                      closeLoginForm={() => dispatch(setShowLoginModal(false))}
-                      showHelpText={false}
-                      style={{ padding: "20px" }}
+              <MeasurementsWrapper
+                externalMode={mode}
+                setModeExternal={handleSetMode}
+                baseConfig={measurementsConfig}
+              >
+                <ErrorBoundary FallbackComponent={AppErrorFallback}>
+                  <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
+                    {isLoadingConfig && (
+                      <div
+                        id="loading"
+                        className="absolute flex flex-col items-center text-white justify-center h-screen w-full bg-black/50 z-[9999999999999]"
+                      >
+                        <h2>Lade Konfiguration</h2>
+                        <FontAwesomeIcon size="2x" icon={faSpinner} spin />
+                      </div>
+                    )}
+                    {!published && <TopNavbar />}
+                    <MapWrapper />
+                    <MobileWarningMessage
+                      headerText={mobileInfo.headerText}
+                      bodyText={mobileInfo.bodyText}
+                      confirmButtonText={mobileInfo.confirmButtonText}
                     />
-                  </Modal>
-                </div>
-              </ErrorBoundary>
-            </MeasurementsWrapper>
-          </ObliqueProvider>
-        </CarmaMapProviderWrapper>
+
+                    <Modal
+                      open={showLoginModal}
+                      closable={false}
+                      footer={null}
+                      styles={{
+                        content: {
+                          padding: "0px",
+                          width: window.innerWidth < 600 ? "100%" : "450px",
+                        },
+                      }}
+                    >
+                      <LoginForm
+                        onSuccess={() => dispatch(setShowLoginModal(false))}
+                        closeLoginForm={() =>
+                          dispatch(setShowLoginModal(false))
+                        }
+                        showHelpText={false}
+                        style={{ padding: "20px" }}
+                      />
+                    </Modal>
+                  </div>
+                </ErrorBoundary>
+              </MeasurementsWrapper>
+            </ObliqueProvider>
+          </CarmaMapProviderWrapper>
+        </MapFrameworkSwitcherProvider>
       </MatomoTracker>
     </FeatureFlagProvider>
   );
-
   console.debug("RENDER: [GEOPORTAL] APP");
 
   return syncToken ? (

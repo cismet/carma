@@ -62,9 +62,7 @@ import {
   CustomViewer,
   Compass,
   selectShowPrimaryTileset,
-  selectViewerIsMode2d,
   selectViewerModels,
-  setIsMode2d,
   useCesiumContext,
   useHomeControl,
   useZoomControls as useZoomControlsCesium,
@@ -72,6 +70,7 @@ import {
   SceneStyleToggle,
   selectViewerHome,
 } from "@carma-mapping/engines/cesium";
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { type SearchResultItem } from "@carma/types";
 
@@ -188,7 +187,8 @@ export const CarmaMap = ({
   // State and Selectors
   const allow3d = useSelector(getUIAllow3d);
 
-  const isMode2d = useSelector(selectViewerIsMode2d);
+  const { isLeaflet, isCesium, setActiveFrameworkLeaflet } =
+    useMapFrameworkSwitcherContext();
 
   const backgroundLayer = useSelector(getBackgroundLayer);
   const selectedMapLayer = useSelector(getSelectedMapLayer);
@@ -228,7 +228,7 @@ export const CarmaMap = ({
 
   useSelectionTopicMap();
   useSelectionCesium(
-    !isMode2d,
+    isCesium,
     useMemo(
       () => ({
         markerAsset,
@@ -266,6 +266,8 @@ export const CarmaMap = ({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [backgroundLayer]);
 
+  // move this test to the mapframeworkswitcher?
+  // for cesium only app we should not need it
   useEffect(() => {
     if (is2dOnlyParamSet || !hasGPU) {
       console.debug(
@@ -279,13 +281,13 @@ export const CarmaMap = ({
 
   useEffect(() => {
     // set 2d mode if allow3d is false or undefined
-    if (!isMode2d && (allow3d === false || allow3d === undefined)) {
-      console.debug("seting mode to 2d, because of allow3d", allow3d);
-      dispatch(setIsMode2d(true));
+    if (isCesium && (allow3d === false || allow3d === undefined)) {
+      console.debug("setting mode to 2d, because of allow3d", allow3d);
+      setActiveFrameworkLeaflet;
     }
-  }, [isMode2d, allow3d, dispatch]);
+  }, [isCesium, allow3d, dispatch]);
 
-  console.debug("RENDER: [CARMAMAP] MAP", isMode2d);
+  console.debug("RENDER: [CARMAMAP] MAP", isLeaflet);
 
   const homePosition = useSelector(selectViewerHome);
 
@@ -403,7 +405,7 @@ export const CarmaMap = ({
   }, [hqKey, viewerRef]);
 
   useEffect(() => {
-    if (!isMode2d && viewerRef.current) {
+    if (isCesium && viewerRef.current) {
       setTimeout(() => {
         const viewer = viewerRef.current;
         setCurrentSceneStyle("primary");
@@ -422,7 +424,7 @@ export const CarmaMap = ({
         viewer.scene.requestRender();
       }, 300);
     }
-  }, [isMode2d, viewerRef]);
+  }, [isCesium, viewerRef]);
 
   console.debug("CARMAMAP render hgk", hqKey);
 
@@ -431,14 +433,14 @@ export const CarmaMap = ({
       <Control position="topleft" order={10}>
         <div className="flex flex-col">
           <ControlButtonStyler
-            onClick={isMode2d ? zoomInLeaflet : handleZoomInCesium}
+            onClick={isLeaflet ? zoomInLeaflet : handleZoomInCesium}
             className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
             dataTestId="zoom-in-control"
           >
             <FontAwesomeIcon icon={faPlus} className="text-base" />
           </ControlButtonStyler>
           <ControlButtonStyler
-            onClick={isMode2d ? zoomOutLeaflet : handleZoomOutCesium}
+            onClick={isLeaflet ? zoomOutLeaflet : handleZoomOutCesium}
             className="!rounded-t-none !border-t-[1px]"
             dataTestId="zoom-out-control"
           >
@@ -463,7 +465,7 @@ export const CarmaMap = ({
             // TODO fix when implemented in geoportal
             // <MapFrameworkSwitcher />
           }
-          <Compass disabled={isMode2d} />
+          <Compass disabled={isLeaflet} />
         </Control>
       )}
       <Control position="bottomleft" order={10}>
@@ -556,9 +558,9 @@ export const CarmaMap = ({
                 right: 0,
                 bottom: 0,
                 zIndex: 400,
-                opacity: isMode2d ? 0 : 1,
+                opacity: isLeaflet ? 0 : 1,
                 transition: `opacity ${CESIUM_CONFIG.transitions.mapMode.duration}ms ease-in-out`,
-                pointerEvents: isMode2d ? "none" : "auto",
+                pointerEvents: isLeaflet ? "none" : "auto",
               }}
             >
               <CustomViewer

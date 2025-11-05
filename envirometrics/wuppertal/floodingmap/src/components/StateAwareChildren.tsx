@@ -1,5 +1,4 @@
 import { useContext, useEffect, useRef, useState } from "react";
-import { useSelector } from "react-redux";
 
 import {
   Cartographic,
@@ -18,9 +17,9 @@ import { isNumberArrayEqual } from "@carma-commons/utils";
 
 import {
   getTerrainElevationAsync,
-  selectViewerIsMode2d,
   useCesiumContext,
 } from "@carma-mapping/engines/cesium";
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
 import { useHGKCesiumTerrain } from "../hooks/useHGKCesiumTerrain";
 import { onCesiumClick } from "../utils/cesiumHandlers";
@@ -40,7 +39,7 @@ export const StateAwareChildren = () => {
   const { controlState } = useContext<typeof EnviroMetricMapContext>(
     EnviroMetricMapContext
   );
-  const isMode2d = useSelector(selectViewerIsMode2d);
+  const { isLeaflet } = useMapFrameworkSwitcherContext();
 
   const { executeFeatureInfoRequest, setBackgroundIndex } = useContext<
     typeof EnviroMetricMapDispatchContext
@@ -103,12 +102,12 @@ export const StateAwareChildren = () => {
     cesiumContext,
     controlState.featureInfoModeActivated,
     controlState.currentFeatureInfoPosition,
-    isMode2d,
+    isLeaflet,
   ]);
 
   useEffect(() => {
     // force background to aerial in 2d
-    if (isMode2d) {
+    if (isLeaflet) {
       setBackgroundIndex(selectedBackground2dRef.current);
     } else {
       // store 2d background layer style before forcing to aerial
@@ -116,7 +115,7 @@ export const StateAwareChildren = () => {
       setBackgroundIndex(AERIAL_BACKGROUND_INDEX);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMode2d]); // intentionally only trigger on mode change
+  }, [isLeaflet]); // intentionally only trigger on mode change
 
   useEffect(() => {
     if (viewerRef.current && controlState.featureInfoModeActivated) {

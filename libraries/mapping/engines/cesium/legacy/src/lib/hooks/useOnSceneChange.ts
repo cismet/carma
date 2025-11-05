@@ -4,7 +4,6 @@ import { Camera, type Viewer } from "cesium";
 
 import {
   selectShowSecondaryTileset,
-  selectViewerIsMode2d,
   selectViewerIsTransitioning,
 } from "../slices/cesium";
 
@@ -19,11 +18,11 @@ import { VIEWERSTATE_KEYS } from "../constants";
 
 const toHashParams = (
   cesiumCameraState: StringifiedCameraState,
-  args: { isSecondaryStyle: boolean; isMode2d: boolean }
+  args: { isSecondaryStyle: boolean; isCesiumActive: boolean }
 ) => {
   const viewerState = {
     [VIEWERSTATE_KEYS.mapStyle]: args.isSecondaryStyle ? "0" : "1",
-    [VIEWERSTATE_KEYS.is3d]: args.isMode2d ? "0" : "1",
+    [VIEWERSTATE_KEYS.is3d]: args.isCesiumActive ? "1" : "0",
   };
 
   const hashParams = cesiumCameraState.reduce((acc, { key, value }) => {
@@ -39,13 +38,12 @@ export const useOnSceneChange = (
     e: { hashParams: Record<string, string> },
     viewer?: Viewer,
     cesiumCameraState?: StringifiedCameraState | null,
-    isSecondaryStyle?: boolean,
-    isMode2d?: boolean
-  ) => void
+    isSecondaryStyle?: boolean
+  ) => void,
+  isCesiumActive: boolean = true
 ) => {
   const ctx = useCesiumContext();
   const isSecondaryStyle = useSelector(selectShowSecondaryTileset);
-  const isMode2d = useSelector(selectViewerIsMode2d);
   const isTransitioning = useSelector(selectViewerIsTransitioning);
 
   // todo handle style change explicitly not via tileset, is secondarystyle
@@ -56,7 +54,7 @@ export const useOnSceneChange = (
     if (isTransitioning) {
       return;
     }
-    if (ctx.isValidViewer() && !isMode2d) {
+    if (ctx.isValidViewer() && isCesiumActive) {
       console.debug(
         "HOOK: update Hash, route or style changed",
         isSecondaryStyle
@@ -71,7 +69,7 @@ export const useOnSceneChange = (
         }
         const hashParams = toHashParams(cameraState, {
           isSecondaryStyle,
-          isMode2d,
+          isCesiumActive,
         });
         hashParams.zoom = "";
         onSceneChange({ hashParams });
@@ -80,7 +78,7 @@ export const useOnSceneChange = (
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ctx, isMode2d, isSecondaryStyle, isTransitioning]);
+  }, [ctx, isCesiumActive, isSecondaryStyle, isTransitioning]);
 
   useEffect(() => {
     // update hash hook
@@ -99,7 +97,7 @@ export const useOnSceneChange = (
           camera = c;
         });
 
-        if (camera && !isMode2d) {
+        if (camera && isCesiumActive) {
           console.debug(
             "LISTENER: Cesium moveEndListener encode viewer to hash",
             isSecondaryStyle
@@ -113,7 +111,7 @@ export const useOnSceneChange = (
             }
             const hashParams = toHashParams(cameraState, {
               isSecondaryStyle,
-              isMode2d,
+              isCesiumActive,
             });
             onSceneChange({ hashParams });
           } else {
@@ -126,13 +124,13 @@ export const useOnSceneChange = (
       });
       return () => {
         // clear hash on unmount
-        // onSceneChange?.({ hashParams: clear3dOnlyHashParams });
+        // onSceneChange?.({ hashParams: clearCesiumOnlyHashParams });
         ctx.withViewer((viewer) => {
           viewer.camera.moveEnd.removeEventListener(moveEndListener);
         });
       };
     }
-  }, [ctx, isSecondaryStyle, isMode2d, onSceneChange, isTransitioning]);
+  }, [ctx, isSecondaryStyle, isCesiumActive, onSceneChange, isTransitioning]);
 };
 
 export default useOnSceneChange;

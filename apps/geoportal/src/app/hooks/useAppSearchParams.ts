@@ -1,14 +1,15 @@
 import { useEffect } from "react";
-import { useDispatch } from "react-redux";
 
-import { setIsMode2d, VIEWERSTATE_KEYS } from "@carma-mapping/engines/cesium";
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { getHashParams } from "@carma-commons/utils";
 
+import { URL_PARAM_KEYS } from "../config/app.config";
 import { useMapStyle } from "./useGeoportalMapStyle";
 import { MapStyleKeys } from "../constants/MapStyleKeys";
 
 export const useAppSearchParams = () => {
-  const dispatch = useDispatch();
+  const { setActiveFrameworkCesium, setActiveFrameworkLeaflet } =
+    useMapFrameworkSwitcherContext();
   const { setCurrentStyle } = useMapStyle();
 
   useEffect(() => {
@@ -16,29 +17,27 @@ export const useAppSearchParams = () => {
     console.debug("useAppSearchParams - hashParams:", hashParams);
 
     // Handle 3D mode parameter
-    if (hashParams[VIEWERSTATE_KEYS.is3d] !== undefined) {
-      const is3d = hashParams[VIEWERSTATE_KEYS.is3d];
+    if (hashParams[URL_PARAM_KEYS.is3d] !== undefined) {
+      const is3d = hashParams[URL_PARAM_KEYS.is3d];
       console.log("[useAppSearchParams] is3d parameter present:", is3d);
       if (is3d === "1") {
-        console.log(
-          "[useAppSearchParams] Setting isMode2d = false (3D/Cesium)"
-        );
-        dispatch(setIsMode2d(false));
+        console.log("[useAppSearchParams] Setting framework to cesium (3D)");
+        setActiveFrameworkCesium();
       } else {
         console.log(
-          "[useAppSearchParams] is3d present but not '1', defaulting to 2D"
+          "[useAppSearchParams] is3d present but not '1', defaulting to leaflet (LeafletLike)"
         );
-        dispatch(setIsMode2d(true));
+        setActiveFrameworkLeaflet();
       }
     } else {
       console.log(
-        "[useAppSearchParams] is3d parameter NOT present, setting isMode2d = true (2D/Leaflet)"
+        "[useAppSearchParams] is3d parameter NOT present, setting framework to leaflet (LeafletLike)"
       );
-      dispatch(setIsMode2d(true));
+      setActiveFrameworkLeaflet();
     }
 
-    if (hashParams[VIEWERSTATE_KEYS.mapStyle] !== undefined) {
-      const mapStyleParam = hashParams[VIEWERSTATE_KEYS.mapStyle];
+    if (hashParams[URL_PARAM_KEYS.mapStyle] !== undefined) {
+      const mapStyleParam = hashParams[URL_PARAM_KEYS.mapStyle];
       console.debug("useAppSearchParams - mapStyle param:", mapStyleParam);
       // For backward compatibility with cesium engine: "1" = primary (aerial/mesh), "0" = secondary (topo/lod)
       const isPrimaryStyle = mapStyleParam === "1";

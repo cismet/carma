@@ -20,10 +20,7 @@ import useTransitionTimeout from "./hooks/useTransitionTimeout";
 import { useTilesets } from "./hooks/useTilesets";
 import { useSceneStyles } from "./hooks/useSceneStyles";
 import { StringifiedCameraState } from "./utils/cesiumHashParamsCodec";
-import {
-  DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS,
-  TRANSITION_DELAY,
-} from "./viewerDefaults";
+import { DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS } from "./viewerDefaults";
 
 export type GlobeOptions = {
   // https://cesium.com/learn/cesiumjs/ref-doc/Globe.html
@@ -57,8 +54,7 @@ export type CustomViewerProps = {
     e: { hashParams: Record<string, string> },
     viewer?: Viewer,
     cesiumCameraState?: StringifiedCameraState | null,
-    isSecondaryStyle?: boolean,
-    isMode2d?: boolean
+    isSecondaryStyle?: boolean
   ) => void;
   postInit?: () => void;
   enableSceneStyles?: boolean;
@@ -107,8 +103,7 @@ export function CustomViewer(props: CustomViewerProps) {
   useCameraPitchSoftLimiter(cameraLimiterOptions);
   useCameraPitchEasingLimiter(cameraLimiterOptions);
 
-  // TEMPORARILY DISABLED: Testing if hiding imagery layers causes WebGL resource issues
-  // useCesiumWhenHidden(TRANSITION_DELAY);
+  // useCesiumWhenHidden hook removed - Cesium is always active now
 
   useTilesets();
   useSceneStyles(enableSceneStyles);

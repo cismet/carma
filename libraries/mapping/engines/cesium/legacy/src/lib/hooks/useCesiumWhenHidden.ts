@@ -1,6 +1,4 @@
 import { useEffect } from "react";
-import { selectViewerIsMode2d } from "../slices/cesium";
-import { useSelector } from "react-redux";
 import { CesiumContextType } from "../CesiumContext";
 import { isValidImageryLayer } from "../utils/instanceGates";
 import { useCesiumContext } from "./useCesiumContext";
@@ -43,14 +41,19 @@ const showLayers = (ctx: CesiumContextType) => {
   });
 };
 
-// reduce resoures use when cesium is not visible
+// reduce resources use when cesium is not visible
+// NOTE: Currently disabled - Cesium is always active using requestRender mode
 export const useCesiumWhenHidden = (delay = 0) => {
   const ctx = useCesiumContext();
-  const isMode2d = useSelector(selectViewerIsMode2d);
   console.debug("HOOKINIT: [CESIUM] useCesiumWhenHidden");
   useEffect(() => {
-    console.debug("HOOK: [CESIUM] useCesiumWhenHidden", isMode2d);
-    if (isMode2d) {
+    console.debug("HOOK: [CESIUM] useCesiumWhenHidden - DISABLED");
+    // Cesium is always active, no need to hide/show layers
+    return;
+
+    // OLD CODE (kept for reference if we need to re-enable):
+    /*
+    if (isLeaflet) {
       if (delay > 0) {
         setTimeout(() => {
           console.debug(
@@ -67,7 +70,8 @@ export const useCesiumWhenHidden = (delay = 0) => {
       console.debug("HOOK: [CESIUM] showing cesium imagery layer");
       showLayers(ctx);
     }
-  }, [delay, ctx, isMode2d]);
+    */
+  }, [delay, ctx]);
 };
 
 export default useCesiumWhenHidden;

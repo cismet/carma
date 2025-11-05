@@ -3,7 +3,6 @@ export * from "./lib/carma-layers.d";
 export * from "./lib/cesium-config.d";
 export * from "./lib/cesium-shaders.d";
 export * from "./lib/cismap-search.d";
-export * from "./lib/data-structures.d";
 export * from "./lib/feature-info.d";
 export * from "./lib/geo.d";
 export * from "./lib/geo-tiled-web-map.d";

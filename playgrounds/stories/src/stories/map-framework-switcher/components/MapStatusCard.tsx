@@ -1,30 +1,26 @@
 import { Card, Tag, Statistic } from "antd";
-import type { Scene } from "@carma/cesium";
-import type { Map as LeafletMap } from "leaflet";
-import type { TransitionStage } from "@carma-mapping/engines-interop";
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
 interface MapStatusCardProps {
-  cesiumScene: Scene | null;
-  leafletMap: LeafletMap | null;
-  activeFramework: "leaflet" | "cesium";
-  cesiumResolutionScale: number;
-  cesiumContainer: HTMLElement | null;
-  devicePixelRatio: number;
-  // Transition props
-  currentStage: TransitionStage | null;
-  lastZoom: number | null;
-  lastDistance: number | null;
-  lastTerrainHeight: number | null;
-  currentFOV: number | null;
+  lastZoom?: number | null;
+  lastDistance?: number | null;
+  lastTerrainHeight?: number | null;
+  currentFOV?: number | null;
 }
 
 export const MapStatusCard = ({
-  cesiumScene,
-  activeFramework,
-  cesiumResolutionScale,
-  cesiumContainer,
-  devicePixelRatio,
-}: MapStatusCardProps) => {
+  lastZoom,
+  lastDistance,
+  lastTerrainHeight,
+  currentFOV,
+}: MapStatusCardProps = {}) => {
+  const { activeFramework, isCesium, refs } = useMapFrameworkSwitcherContext();
+
+  // Get refs from context
+  const cesiumScene = refs.getCesiumScene();
+  const cesiumContainer = refs.getCesiumContainer();
+  const cesiumResolutionScale = refs.getResolutionScale() ?? 1;
+  const devicePixelRatio = window.devicePixelRatio;
   return (
     <div
       style={{
@@ -38,7 +34,7 @@ export const MapStatusCard = ({
       <Card size="small">
         <div style={{ marginBottom: "8px" }}>
           <strong>Active Framework</strong>{" "}
-          <Tag color={activeFramework === "cesium" ? "blue" : "green"}>
+          <Tag color={isCesium ? "blue" : "green"}>
             {activeFramework.toUpperCase()}
           </Tag>
         </div>
@@ -105,6 +101,45 @@ export const MapStatusCard = ({
             />
           </div>
         </div>
+
+        {/* Last Transition Metrics */}
+        {(lastZoom !== null ||
+          lastDistance !== null ||
+          lastTerrainHeight !== null ||
+          currentFOV !== null) && (
+          <div
+            style={{
+              paddingTop: "8px",
+              borderTop: "1px solid #f0f0f0",
+            }}
+          >
+            <div style={{ marginBottom: "8px" }}>
+              <strong>Last Transition</strong>
+            </div>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+                flexWrap: "wrap",
+              }}
+            >
+              {lastZoom !== null && lastZoom !== undefined && (
+                <Tag color="cyan">Zoom {lastZoom.toFixed(1)}</Tag>
+              )}
+              {lastDistance !== null && lastDistance !== undefined && (
+                <Tag color="cyan">Dist {lastDistance.toFixed(0)}m</Tag>
+              )}
+              {lastTerrainHeight !== null &&
+                lastTerrainHeight !== undefined && (
+                  <Tag color="cyan">Ground {lastTerrainHeight.toFixed(1)}m</Tag>
+                )}
+              {currentFOV !== null && currentFOV !== undefined && (
+                <Tag color="cyan">FOV {currentFOV.toFixed(1)}°</Tag>
+              )}
+            </div>
+          </div>
+        )}
       </Card>
     </div>
   );

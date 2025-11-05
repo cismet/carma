@@ -18,10 +18,7 @@ export {
   type InitialCameraView,
   type CameraLimiterOptions,
 } from "./CustomViewer";
-export {
-  DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS,
-  TRANSITION_DELAY,
-} from "./viewerDefaults";
+export { DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS } from "./viewerDefaults";
 
 export { ByGeojsonClassifier } from "./components/ByGeojsonClassifier";
 export { ByTilesetClassifier } from "./components/ByTilesetClassifier";

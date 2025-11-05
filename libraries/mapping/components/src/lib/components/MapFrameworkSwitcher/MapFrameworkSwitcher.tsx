@@ -2,14 +2,9 @@ import { type MouseEvent, useState } from "react";
 import { Tooltip } from "antd";
 import UAParser from "ua-parser-js";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
+import { useMapFrameworkSwitcherContext } from "./MapFrameworkSwitcherContext";
 
 type MapFrameworkSwitcherProps = {
-  /** Current active framework: 'leaflet' (2D) or 'cesium' (3D) */
-  activeFramework: "leaflet" | "cesium";
-  /** Whether a transition is currently in progress */
-  isTransitioning?: boolean;
-  /** Callback when the switch button is clicked */
-  onToggle: () => void;
   /** Force button to be enabled even during transitions */
   forceEnabled?: boolean;
   /** Additional CSS class */
@@ -37,9 +32,6 @@ const LOCALE_DE_SWITCH_TO_3D_MODE = `Zur 3D-Ansicht wechseln`;
 const LOCALE_DE_SWITCH_TO_2D_MODE = `Zur 2D-Ansicht wechseln`;
 
 export const MapFrameworkSwitcher = ({
-  activeFramework,
-  isTransitioning = false,
-  onToggle,
   forceEnabled,
   className,
   nativeTooltip = false,
@@ -47,42 +39,46 @@ export const MapFrameworkSwitcher = ({
   switchTo3DText = LOCALE_DE_SWITCH_TO_3D_MODE,
   switchTo2DText = LOCALE_DE_SWITCH_TO_2D_MODE,
 }: MapFrameworkSwitcherProps) => {
+  const { isTransitioning, toggle, isReady, isLeaflet } =
+    useMapFrameworkSwitcherContext();
   const [hasConfirmed, setHasConfirmed] = useState(false);
-  const isMode2d = activeFramework === "leaflet";
 
   const handleSwitchMapMode = async (e: MouseEvent) => {
     e.preventDefault();
 
-    if (isMode2d && !hasConfirmed && enableMobileWarning && isMobileOrTablet) {
+    if (isLeaflet && !hasConfirmed && enableMobileWarning && isMobileOrTablet) {
       const confirmed = window.confirm(LOCALE_DE_WARNING_ENABLE_CESIUM_MODE);
       if (confirmed) setHasConfirmed(true);
       else return;
     }
 
-    onToggle();
+    await toggle();
   };
 
-  const switchInfoText = isMode2d ? switchTo3DText : switchTo2DText;
+  const switchInfoText = isLeaflet ? switchTo3DText : switchTo2DText;
+
+  // Disable button if not ready or transitioning (unless forceEnabled)
+  const isDisabled = (!isReady || isTransitioning) && !forceEnabled;
 
   return nativeTooltip ? (
     <ControlButtonStyler
       className={("font-semibold " + (className || "")).trim()}
       onClick={handleSwitchMapMode}
-      disabled={isTransitioning && !forceEnabled}
+      disabled={isDisabled}
       title={switchInfoText}
-      dataTestId={isMode2d ? "3d-control" : "2d-control"}
+      dataTestId={isLeaflet ? "3d-control" : "2d-control"}
     >
-      {isMode2d ? "3D" : "2D"}
+      {isLeaflet ? "3D" : "2D"}
     </ControlButtonStyler>
   ) : (
     <Tooltip title={switchInfoText} placement="right">
       <ControlButtonStyler
         className={("font-semibold " + (className || "")).trim()}
         onClick={handleSwitchMapMode}
-        disabled={isTransitioning && !forceEnabled}
-        dataTestId={isMode2d ? "3d-control" : "2d-control"}
+        disabled={isDisabled}
+        dataTestId={isLeaflet ? "3d-control" : "2d-control"}
       >
-        {isMode2d ? "3D" : "2D"}
+        {isLeaflet ? "3D" : "2D"}
       </ControlButtonStyler>
     </Tooltip>
   );

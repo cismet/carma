@@ -1,12 +1,8 @@
 import { useCallback, useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import { Math as CesiumMath } from "cesium";
 
-import {
-  clearIsAnimating,
-  selectViewerIsMode2d,
-  setIsAnimating,
-} from "../slices/cesium";
+import { clearIsAnimating, setIsAnimating } from "../slices/cesium";
 import { useCesiumViewer } from "./useCesiumViewer";
 import { useCesiumContext } from "./useCesiumContext";
 
@@ -25,7 +21,6 @@ const useCameraRollSoftLimiter = ({
 } = {}) => {
   const viewer = useCesiumViewer();
   const dispatch = useDispatch();
-  const isMode2d = useSelector(selectViewerIsMode2d);
   const { shouldSuspendCameraLimitersRef } = useCesiumContext();
 
   const onComplete = useCallback(
@@ -41,7 +36,7 @@ const useCameraRollSoftLimiter = ({
         );
       const moveEndListener = async () => {
         if (shouldSuspendCameraLimitersRef?.current) return;
-        if (viewer.camera.position && !isMode2d) {
+        if (viewer.camera.position) {
           const rollDeviation = CesiumMath.equalsEpsilon(
             viewer.camera.roll,
             0,
@@ -99,7 +94,6 @@ const useCameraRollSoftLimiter = ({
     }
   }, [
     viewer,
-    isMode2d,
     pitchLimiter,
     onComplete,
     dispatch,

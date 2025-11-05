@@ -22,7 +22,13 @@ export const useSceneStyles = (enabled = true) => {
   const secondaryStyle = useSelector(selectSceneStyleSecondary);
 
   useEffect(() => {
-    if (!enabled || !ctx.isValidViewer() || currentSceneStyle === undefined)
+    // Wait for viewer to be fully ready (including imageryLayers collection)
+    if (
+      !enabled ||
+      !ctx.isValidViewer() ||
+      !ctx.isViewerReady ||
+      currentSceneStyle === undefined
+    )
       return;
     console.debug("currentSceneStyle change", currentSceneStyle);
     if (currentSceneStyle === "primary" && primaryStyle) {
@@ -38,7 +44,15 @@ export const useSceneStyles = (enabled = true) => {
     } else {
       throw new Error(`Unknown style: ${currentSceneStyle}`);
     }
-  }, [dispatch, enabled, currentSceneStyle, primaryStyle, secondaryStyle, ctx]);
+  }, [
+    dispatch,
+    enabled,
+    currentSceneStyle,
+    primaryStyle,
+    secondaryStyle,
+    ctx,
+    ctx.isViewerReady,
+  ]);
 };
 
 export default useSceneStyles;

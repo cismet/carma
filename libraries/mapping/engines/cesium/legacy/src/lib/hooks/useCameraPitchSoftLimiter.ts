@@ -6,7 +6,6 @@ import { useCesiumViewer } from "./useCesiumViewer";
 import { useCesiumContext } from "./useCesiumContext";
 import {
   selectScreenSpaceCameraControllerEnableCollisionDetection,
-  selectViewerIsMode2d,
   setIsAnimating,
   clearIsAnimating,
 } from "../slices/cesium";
@@ -28,7 +27,6 @@ const useCameraPitchSoftLimiter = (
 
   const viewer = useCesiumViewer();
   const dispatch = useDispatch();
-  const isMode2d = useSelector(selectViewerIsMode2d);
   const collisions = useSelector(
     selectScreenSpaceCameraControllerEnableCollisionDetection
   );
@@ -41,8 +39,8 @@ const useCameraPitchSoftLimiter = (
   );
 
   useEffect(() => {
-    // todo use scene not viewer
-    if (viewer && !isMode2d && collisions && pitchLimiter) {
+    // Note: This hook always runs when viewer exists - Cesium is always active
+    if (viewer && collisions && pitchLimiter) {
       debug &&
         console.debug(
           "HOOK [2D3D|CESIUM] viewer changed add new Cesium MoveEnd Listener to correct camera pitch"
@@ -116,7 +114,6 @@ const useCameraPitchSoftLimiter = (
   }, [
     viewer,
     collisions,
-    isMode2d,
     pitchLimiter,
     onComplete,
     dispatch,

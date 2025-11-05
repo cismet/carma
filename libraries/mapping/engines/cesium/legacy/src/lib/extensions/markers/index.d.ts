@@ -1,9 +1,13 @@
+import type {
+  ColorConstructorArgs,
+  Model,
+  Matrix4,
+  PolylineCollection,
+} from "@carma/cesium";
 import type { ModelConfig } from "@carma-commons/resources";
-import type { ColorRgbaArray } from "@carma/types";
-import type { Model, Matrix4, PolylineCollection } from "cesium";
 
 export type PolylineConfig = {
-  color?: ColorRgbaArray;
+  color?: ColorConstructorArgs;
   width?: number;
   gap?: number;
   glow?: boolean;

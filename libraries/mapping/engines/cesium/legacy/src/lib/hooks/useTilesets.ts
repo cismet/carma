@@ -4,10 +4,8 @@ import { useSelector } from "react-redux";
 import {
   selectShowPrimaryTileset,
   selectShowSecondaryTileset,
-  selectViewerIsMode2d,
 } from "../slices/cesium";
 
-import { TRANSITION_DELAY } from "../viewerDefaults";
 import { guardScene } from "../utils/guardScene";
 import { guardTileset } from "../utils/guardTileset";
 
@@ -18,8 +16,6 @@ export const useTilesets = () => {
   const showPrimary = useSelector(selectShowPrimaryTileset);
   const ctx = useCesiumContext();
   const showSecondary = useSelector(selectShowSecondaryTileset);
-
-  const isMode2d = useSelector(selectViewerIsMode2d);
 
   useEffect(() => {
     let added = false;
@@ -91,30 +87,13 @@ export const useTilesets = () => {
   useSecondaryStyleTilesetClickHandler();
 
   useEffect(() => {
-    const hideTilesets = () => {
-      // render offscreen with ultra low res to reduce memory usage
-      console.debug("HOOK: hide tilesets in 2d");
-      ctx.withPrimaryTileset((tileset) =>
-        guardTileset(tileset, "useTilesets-primary").show(false)
-      );
-      ctx.withSecondaryTileset((tileset) =>
-        guardTileset(tileset, "useTilesets-secondary").show(false)
-      );
-    };
-
-    if (isMode2d) {
-      setTimeout(() => {
-        hideTilesets();
-      }, TRANSITION_DELAY);
-      return;
-    } else {
-      ctx.withPrimaryTileset((tileset) =>
-        guardTileset(tileset, "useTilesets-primary").show(showPrimary)
-      );
-      ctx.withSecondaryTileset((tileset) =>
-        guardTileset(tileset, "useTilesets-secondary").show(showSecondary)
-      );
-      return;
-    }
-  }, [ctx, isMode2d, showPrimary, showSecondary]);
+    // Show/hide tilesets based on style selection
+    // Parent controls when Cesium is visible, not this hook
+    ctx.withPrimaryTileset((tileset) =>
+      guardTileset(tileset, "useTilesets-primary").show(showPrimary)
+    );
+    ctx.withSecondaryTileset((tileset) =>
+      guardTileset(tileset, "useTilesets-secondary").show(showSecondary)
+    );
+  }, [ctx, showPrimary, showSecondary]);
 };

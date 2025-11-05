@@ -53,11 +53,14 @@ import {
   CustomViewer,
   selectShowPrimaryTileset,
   selectViewerModels,
-  selectViewerIsMode2d,
   setCurrentSceneStyle,
   useCesiumContext,
   useCesiumInitialCameraFromSearchParams,
 } from "@carma-mapping/engines/cesium";
+import {
+  useMapFrameworkSwitcherContext,
+  useRegisterMapFramework,
+} from "@carma-mapping/components";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import { useAuth } from "@carma-providers/auth";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
@@ -105,19 +108,14 @@ import { CESIUM_CONFIG, LEAFLET_CONFIG } from "../../config/app.config";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 import "../leaflet.css";
+
 interface MapProps {
   height: number;
   width: number;
   allow3d?: boolean;
-  cesiumContainerRef?: React.RefObject<HTMLDivElement>;
 }
 
-export const GeoportalMap = ({
-  height,
-  width,
-  allow3d,
-  cesiumContainerRef: externalCesiumContainerRef,
-}: MapProps) => {
+export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const dispatch = useDispatch();
 
   // Contexts
@@ -128,22 +126,18 @@ export const GeoportalMap = ({
   const lastRenderTimeStampRef = useRef(Date.now());
   const lastRenderIntervalRef = useRef(0);
   const container2dMapRef = useRef<HTMLDivElement>(null);
-  const internalContainer3dMapRef = useRef<HTMLDivElement>(null);
-  // Use external ref if provided, otherwise use internal ref
-  const container3dMapRef =
-    externalCesiumContainerRef ?? internalContainer3dMapRef;
+  const container3dMapRef = useRef<HTMLDivElement>(null);
   // Store MapLibre maps outside Redux to avoid serialization issues
   const maplibreMapsRef = useRef<Map<string, any>>(new Map());
 
   // State and Selectors
   const backgroundLayer = useSelector(getBackgroundLayer);
-  const isMode2d = useSelector(selectViewerIsMode2d);
-
-  // Keep current isMode2d in ref to avoid recreating handler when it changes
-  const isMode2dRef = useRef(isMode2d);
-  useEffect(() => {
-    isMode2dRef.current = isMode2d;
-  }, [isMode2d]);
+  const {
+    activeFramework: currentFramework,
+    isLeaflet,
+    isCesium,
+    getIsLeaflet, // Stable getter for callbacks
+  } = useMapFrameworkSwitcherContext();
 
   const models = useSelector(selectViewerModels);
   const markerAsset = models[CESIUM_CONFIG.markerKey]; //
@@ -237,9 +231,9 @@ export const GeoportalMap = ({
 
   useCesiumModels({
     models: CESIUM_CONFIG.models || [],
-    enabled: flags.featureFlagBugaBridge && !isMode2d,
+    enabled: flags.featureFlagBugaBridge && isCesium,
     selection: {
-      enabled: flags.featureFlagBugaBridge && !isMode2d,
+      enabled: flags.featureFlagBugaBridge && isCesium,
       deselectOnEmptyClick: true,
       onSelect: (feature) =>
         modelSelectionDispatcher(feature as FeatureInfo | null),
@@ -248,16 +242,35 @@ export const GeoportalMap = ({
 
   const { handleTopicMapLocationChange, handleCesiumSceneChange } =
     useMapHashRouting({
-      isMode2d,
+      isLeafletLike: isLeaflet,
       getLeafletMap: () => routedMap?.leafletMap?.leafletElement,
       getLeafletZoom,
       labels: {
-        clear3d: "GPM:2D:clear3d",
-        write2d: "GPM:2D:writeLocation",
+        clearCesium: "GPM:2D:clearCesium",
+        writeLeafletLike: "GPM:2D:writeLocation",
         topicMapLocation: "GPM:TopicMap:locationChangedHandler",
         cesiumScene: "GPM:3D",
       },
     });
+
+  // Map framework switcher (2D ↔ 3D transitions)
+  // Register maps with context for framework switching
+  useRegisterMapFramework({
+    leafletMap: routedMap?.leafletMap?.leafletElement ?? null,
+    cesiumScene: (() => {
+      let scene = null;
+      ctx.withScene((s) => {
+        scene = s;
+      });
+      return scene;
+    })(),
+    cesiumContainer: container3dMapRef.current,
+    terrainProviders: {
+      TERRAIN: ctx.getTerrainProvider() ?? undefined,
+      SURFACE: ctx.getSurfaceProvider() ?? undefined,
+    },
+    resolutionScale: ctx.viewerRef?.current?.resolutionScale ?? 1.0,
+  });
 
   const { gazData } = useGazData();
 
@@ -275,7 +288,7 @@ export const GeoportalMap = ({
     if (
       (uiMode === UIMode.DEFAULT || uiMode === UIMode.FEATURE_INFO) &&
       !isAreaType(selection.type as ENDPOINT) &&
-      isMode2d
+      isLeaflet
     ) {
       const selectedPos = proj4(proj4crs3857def, proj4crs4326def, [
         selection.x,
@@ -319,7 +332,7 @@ export const GeoportalMap = ({
 
   useSelectionTopicMap({ onComplete });
   useSelectionCesium(
-    !isMode2d,
+    isCesium,
     useMemo(
       () => ({
         markerAsset,
@@ -402,14 +415,14 @@ export const GeoportalMap = ({
   }, [routedMap]);
 
   const renderInfoBox = () => {
-    if (isMode2d) {
+    if (isLeaflet) {
       if (isModeMeasurement) {
         return <InfoBoxMeasurement key={uiMode} />;
       }
       if (selectedFeature || loadingFeatureInfo) {
         return <FeatureInfoBox pos={pos} />;
       }
-    } else if (flags.featureFlagBugaBridge && selectedFeature) {
+    } else if (isCesium && flags.featureFlagBugaBridge && selectedFeature) {
       // TODO unify with point queries for position information?
       return <FeatureInfoBox />;
     }
@@ -431,34 +444,34 @@ export const GeoportalMap = ({
 
   const topicMapLocationChangedHandler = useCallback(
     (p: { lat: number; lng: number; zoom: number }) => {
-      if (!isMode2dRef.current) {
+      if (!getIsLeaflet()) {
         console.debug(
-          "[TopicMap|DEBUG] Location changed handler triggered while in 3D mode"
+          "[TopicMap|DEBUG] Location changed handler triggered while not in Leaflet mode"
         );
         return;
       }
       handleTopicMapLocationChange(p);
       updateLayersIdleState();
     },
-    [handleTopicMapLocationChange, updateLayersIdleState]
+    [getIsLeaflet, handleTopicMapLocationChange, updateLayersIdleState]
   );
 
   const onSceneChange = useCallback(
     (e: { hashParams: Record<string, string> }) => {
-      if (isMode2dRef.current) {
+      if (getIsLeaflet()) {
         console.debug(
-          "[CESIUM|DEBUG|CESIUM_WARN] Cesium scene change triggered while in 2D mode"
+          "[CESIUM|DEBUG|CESIUM_WARN] Cesium scene change triggered while in Leaflet mode"
         );
         return;
       }
       handleCesiumSceneChange(e);
     },
-    [handleCesiumSceneChange]
+    [getIsLeaflet, handleCesiumSceneChange]
   );
 
   // TODO Move out Controls to own component
 
-  console.debug("RENDER: [GEOPORTAL] MAP", isMode2d);
+  console.debug("RENDER: [GEOPORTAL] MAP - framework:", currentFramework);
   rerenderCountRef.current++;
   lastRenderIntervalRef.current = Date.now() - lastRenderTimeStampRef.current;
   lastRenderTimeStampRef.current = Date.now();

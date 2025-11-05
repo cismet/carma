@@ -55,3 +55,9 @@ export const LEAFLET_CONFIG: LeafletConfig = {
   zoomSnap: 1.0,
   zoomDelta: 1.0,
 };
+
+// URL hash parameter keys for viewer state
+export const URL_PARAM_KEYS = {
+  mapStyle: "m",
+  is3d: "is3d",
+} as const;

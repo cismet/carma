@@ -11,5 +11,13 @@ export { LayerButton } from "./lib/components/LayerButton";
 export { LayerIcon } from "./lib/components/LayerIcon";
 export {
   MapFrameworkSwitcher,
-  useMapFrameworkSwitcher,
+  MapFrameworkSwitcherProvider,
+  useMapFrameworkSwitcherContext,
+  useRegisterMapFramework,
+  CARMA_MAP_FRAMEWORKS,
+  type CarmaMapFramework,
+  type MapFrameworkSwitcherState,
+  type MapFrameworkSwitcherRefs,
+  type MapFrameworkSwitcherContextValue,
+  type EngineState,
 } from "./lib/components/MapFrameworkSwitcher";

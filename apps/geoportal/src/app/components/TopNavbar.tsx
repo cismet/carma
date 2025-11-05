@@ -27,7 +27,7 @@ import {
   useOverlayTourContext,
 } from "@carma-commons/ui/helper-overlay";
 import { cn } from "@carma-commons/utils";
-import { selectViewerIsMode2d } from "@carma-mapping/engines/cesium";
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 
 import {
@@ -62,7 +62,7 @@ const TopNavbar = () => {
   const { setAppMenuVisible } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
 
-  const isMode2d = useSelector(selectViewerIsMode2d);
+  const { isLeaflet, isCesium } = useMapFrameworkSwitcherContext();
   const backgroundLayer = useSelector(getBackgroundLayer);
   const selectedMapLayer = useSelector(getSelectedMapLayer);
   const selectedLuftbildLayer = useSelector(getSelectedLuftbildLayer);
@@ -193,7 +193,7 @@ const TopNavbar = () => {
               />
             </button>
           </Tooltip>
-          {flags.featureFlagObliqueMode && !isMode2d && (
+          {flags.featureFlagObliqueMode && isCesium && (
             <Tooltip
               title={
                 isObliqueMode
@@ -219,7 +219,7 @@ const TopNavbar = () => {
               >
                 <Tooltip
                   title={
-                    isMode2d ? selectedMapLayer.title : "LoD2-Gebäude (NRW)"
+                    isLeaflet ? selectedMapLayer.title : "LoD2-Gebäude (NRW)"
                   }
                 >
                   <Radio.Button
@@ -231,7 +231,7 @@ const TopNavbar = () => {
                 </Tooltip>
                 <Tooltip
                   title={
-                    isMode2d ? selectedLuftbildLayer.title : "3D-Mesh 03/24"
+                    isLeaflet ? selectedLuftbildLayer.title : "3D-Mesh 03/24"
                   }
                 >
                   <Radio.Button
@@ -245,7 +245,7 @@ const TopNavbar = () => {
                   <Radio.Button
                     className="select-none"
                     value="openBaseLayerView"
-                    disabled={!isMode2d}
+                    disabled={!isLeaflet}
                   >
                     <FontAwesomeIcon
                       id="openBaseLayerView"

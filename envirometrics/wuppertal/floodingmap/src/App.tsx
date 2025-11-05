@@ -1,5 +1,5 @@
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useSelector } from "react-redux";
 import { useSearchParams } from "react-router-dom";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -37,14 +37,11 @@ import {
   CustomViewer,
   PitchingCompass,
   selectViewerHome,
-  selectViewerIsMode2d,
   selectViewerModels,
-  setIsMode2d,
   useCesiumContext,
   useCesiumInitialCameraFromSearchParams,
   useHomeControl,
   useZoomControls,
-  VIEWERSTATE_KEYS,
 } from "@carma-mapping/engines/cesium";
 import {
   EmptySearchComponent,
@@ -56,7 +53,7 @@ import {
   FullscreenControl,
   RoutedMapLocateControl,
   MapFrameworkSwitcher,
-  useMapFrameworkSwitcher,
+  useMapFrameworkSwitcherContext,
 } from "@carma-mapping/components";
 import {
   Control,
@@ -81,7 +78,6 @@ import "cesium/Build/Cesium/Widgets/widgets.css";
 
 function App({ sync = false }: { sync?: boolean }) {
   const version = getApplicationVersion(versionData);
-  const dispatch = useDispatch();
   const { responsiveState, gap, windowSize } = useContext<
     typeof ResponsiveTopicMapContext
   >(ResponsiveTopicMapContext);
@@ -129,7 +125,8 @@ function App({ sync = false }: { sync?: boolean }) {
     return center;
   }, [homePosition]);
 
-  const isMode2d = useSelector(selectViewerIsMode2d);
+  const { isCesium, setActiveFrameworkCesium, isLeaflet } =
+    useMapFrameworkSwitcherContext();
 
   const models = useSelector(selectViewerModels);
 
@@ -170,7 +167,7 @@ function App({ sync = false }: { sync?: boolean }) {
   };
 
   const onCesiumSceneChange = (e) => {
-    if (!isMode2d) {
+    if (isCesium) {
       updateHash(e.hashParams, {
         clearKeys: ["zoom"],
         label: "app/hgk:3D",
@@ -181,7 +178,7 @@ function App({ sync = false }: { sync?: boolean }) {
 
   useSelectionTopicMap();
   useSelectionCesium(
-    !isMode2d,
+    isCesium,
     useMemo(
       () => ({
         markerAsset,
@@ -195,9 +192,9 @@ function App({ sync = false }: { sync?: boolean }) {
   );
 
   useEffect(() => {
-    if (searchParams.has(VIEWERSTATE_KEYS.is3d)) {
-      const is3d = searchParams.get(VIEWERSTATE_KEYS.is3d) === "1";
-      dispatch(setIsMode2d(!is3d));
+    if (searchParams.has("is3d")) {
+      const is3d = searchParams.get("is3d") === "1";
+      is3d && setActiveFrameworkCesium();
     }
     // run only once on load
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -256,7 +253,7 @@ function App({ sync = false }: { sync?: boolean }) {
             <div className="flex flex-col">
               {/* <Tooltip title="Maßstab vergrößern (Zoom in)" placement="right"> */}
               <ControlButtonStyler
-                onClick={isMode2d ? zoomInLeaflet : handleZoomInCesium}
+                onClick={isLeaflet ? zoomInLeaflet : handleZoomInCesium}
                 className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
                 dataTestId="zoom-in-control"
                 title="Maßstab vergrößern (Zoom in)"
@@ -266,7 +263,7 @@ function App({ sync = false }: { sync?: boolean }) {
               {/* </Tooltip> */}
               {/* <Tooltip title="Maßstab verkleinern (Zoom out)" placement="right"> */}
               <ControlButtonStyler
-                onClick={isMode2d ? zoomOutLeaflet : handleZoomOutCesium}
+                onClick={isLeaflet ? zoomOutLeaflet : handleZoomOutCesium}
                 className="!rounded-t-none !border-t-[1px]"
                 dataTestId="zoom-out-control"
                 title="Maßstab verkleinern (Zoom out)"
@@ -282,7 +279,7 @@ function App({ sync = false }: { sync?: boolean }) {
               <ControlButtonStyler
                 useDisabledStyle={false}
                 className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
-                disabled={isMode2d}
+                disabled={isLeaflet}
                 //ref={tourRefLabels.alignNorth}
                 dataTestId="compass-control"
                 title="Nach Norden ausrichten"
@@ -302,7 +299,7 @@ function App({ sync = false }: { sync?: boolean }) {
           <Control position="topleft" order={60}>
             <RoutedMapLocateControl
               tourRefLabels={null}
-              disabled={!isMode2d}
+              disabled={isCesium}
               nativeTooltip={true}
             />
           </Control>
@@ -342,7 +339,7 @@ function App({ sync = false }: { sync?: boolean }) {
 
       <div
         className={
-          isMode2d
+          isLeaflet
             ? "envirometricmap-container isMode2d"
             : "envirometricmap-container isMode3d"
         }
@@ -388,9 +385,6 @@ function App({ sync = false }: { sync?: boolean }) {
           right: 0,
           bottom: 0,
           zIndex: 400,
-          opacity: isMode2d ? 0 : 1,
-          transition: `opacity ${CESIUM_CONFIG.transitions.mapMode.duration}ms ease-in-out`,
-          pointerEvents: isMode2d ? "none" : "auto",
         }}
       >
         <CustomViewer

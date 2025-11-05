@@ -2,6 +2,8 @@
 // prefer use namespace when importing to keep import statements clean
 // {react} @carma-commons/utils/
 
+export * from "./lib";
+
 export { useMemoMergedDefaultOptions } from "./lib/react/hooks/useMemoMergedDefaultOptions";
 
 export { isNumberArrayEqual } from "./lib/arrays";

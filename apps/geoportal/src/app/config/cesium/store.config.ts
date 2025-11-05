@@ -25,7 +25,6 @@ const homeOffset = {
 };
 
 export const defaultCesiumState: CesiumState = {
-  isMode2d: true,
   homeOffset: homeOffset,
   homePosition,
   showPrimaryTileset: false,

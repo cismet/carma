@@ -24,7 +24,7 @@ export type TransitionToLeafletResult = {
 };
 
 /**
- * Pure function: Orchestrates transition from Cesium (3D) to Leaflet (2D)
+ * Pure function: Orchestrates transition from Cesium (3D) to Leaflet (LeafletLike)
  * No React or context dependencies - just Cesium Scene and Leaflet Map
  * Returns heading/pitch (not range) and duration for use in the next transition back to Cesium.
  * Range is always derived from Leaflet zoom level during 2D→3D transition.

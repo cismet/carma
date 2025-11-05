@@ -10,7 +10,7 @@ import { defaultTransitionOptions } from "../utils/cesium/elevation-reference";
 import type { TargetHeadingPitch } from "./transition-to-leaflet";
 
 /**
- * Pure function: Orchestrates transition from Leaflet (2D) to Cesium (3D)
+ * Pure function: Orchestrates transition from Leaflet (LeafletLike) to Cesium (3D)
  * No React or context dependencies - just Cesium Scene and Leaflet Map
  *
  * targetHeadingPitch contains only heading/pitch from previous 3D view.
