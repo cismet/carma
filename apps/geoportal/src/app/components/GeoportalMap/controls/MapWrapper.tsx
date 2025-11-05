@@ -1,4 +1,4 @@
-import { useContext, useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState, useCallback } from "react";
 import { isMobile } from "react-device-detect";
 import { useDispatch, useSelector } from "react-redux";
 
@@ -31,6 +31,8 @@ import { detectWebGLContext } from "@carma-commons/utils";
 import {
   PitchingCompass,
   selectViewerModels,
+  selectViewerIsMode2d,
+  setIsMode2d as setIsMode2dAction,
   useCesiumContext,
   useHomeControl,
   useZoomControls as useZoomControlsCesium,
@@ -98,12 +100,7 @@ window.addEventListener("load", testGPU, false);
 
 // TODO: centralize the hash params update behavior
 
-type MapWrapperProps = {
-  isMode2d: boolean;
-  setIsMode2d: (isMode2d: boolean) => void;
-};
-
-const MapWrapper = ({ isMode2d, setIsMode2d }: MapWrapperProps) => {
+const MapWrapper = () => {
   const dispatch = useDispatch();
   const flags = useFeatureFlags();
 
@@ -113,11 +110,13 @@ const MapWrapper = ({ isMode2d, setIsMode2d }: MapWrapperProps) => {
   const lastRenderTimeStampRef = useRef(Date.now());
   const lastRenderIntervalRef = useRef(0);
   const wrapperRef = useRef<HTMLDivElement>(null);
+  const cesiumContainerRef = useRef<HTMLDivElement>(null);
 
   // State and Selectors
   const libreMapRef = useSelector(getLibreMapRef);
   const allow3d = useSelector(getUIAllow3d) && hasGPU;
   const models = useSelector(selectViewerModels);
+  const isMode2d = useSelector(selectViewerIsMode2d);
 
   const effectiveMode2d = isMode2d || !allow3d;
   const uiMode = useSelector(getUIMode);
@@ -130,11 +129,21 @@ const MapWrapper = ({ isMode2d, setIsMode2d }: MapWrapperProps) => {
   const homeControl = useHomeControl();
   const configSelection = useSelector(getConfigSelection);
 
+  // Callback to update Redux when framework changes
+  const handleSetIsMode2d = useCallback(
+    (isMode2d: boolean) => {
+      dispatch(setIsMode2dAction(isMode2d));
+    },
+    [dispatch]
+  );
+
   // Map framework switcher (2D ↔ 3D transitions)
   const { activeFramework, isTransitioning, toggle } =
     useGeoportalFrameworkSwitcher({
       cesiumContext: ctx,
-      setIsMode2d,
+      cesiumContainerRef,
+      setIsMode2d: handleSetIsMode2d,
+      initialIsMode2d: isMode2d,
     });
 
   const { isObliqueMode } = useOblique();
@@ -248,7 +257,7 @@ const MapWrapper = ({ isMode2d, setIsMode2d }: MapWrapperProps) => {
   useEffect(() => {
     // set 2d mode if allow3d is false or undefined
     if (allow3d === false || allow3d === undefined) {
-      setIsMode2d(true);
+      dispatch(setIsMode2dAction(true));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [allow3d]);
@@ -526,7 +535,12 @@ const MapWrapper = ({ isMode2d, setIsMode2d }: MapWrapperProps) => {
             <LibreGeoportalMap />
           ) : (
             <>
-              <GeoportalMap height={height} width={width} allow3d={allow3d} />
+              <GeoportalMap
+                height={height}
+                width={width}
+                allow3d={allow3d}
+                cesiumContainerRef={cesiumContainerRef}
+              />
               {!isMode2d && <ObliqueControls />}
             </>
           )}

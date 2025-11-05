@@ -86,6 +86,13 @@ const deriveReloadOptions = (
   input: CesiumErrorHandlerOptions["reloadOnRenderError"]
 ): ReloadOnCesiumRenderErrorOptions | undefined => {
   if (typeof input === "object") {
+    console.debug(
+      "[Cesium] reloadOnRenderError options derived from object input",
+      {
+        input,
+        isDev,
+      }
+    );
     return {
       enabled: typeof input.enabled === "boolean" ? input.enabled : !isDev,
       eventName: input.eventName,
@@ -118,7 +125,7 @@ export const CesiumErrorHandler = withErrorBoundary(
     );
 
     useCesiumDevConsoleTrigger(devOpts);
-    useReloadOnCesiumRenderError(reloadOpts);
+    //useReloadOnCesiumRenderError(reloadOpts);
 
     useEffect(() => {
       console.debug(

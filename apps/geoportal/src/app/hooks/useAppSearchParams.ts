@@ -18,10 +18,22 @@ export const useAppSearchParams = () => {
     // Handle 3D mode parameter
     if (hashParams[VIEWERSTATE_KEYS.is3d] !== undefined) {
       const is3d = hashParams[VIEWERSTATE_KEYS.is3d];
+      console.log("[useAppSearchParams] is3d parameter present:", is3d);
       if (is3d === "1") {
+        console.log(
+          "[useAppSearchParams] Setting isMode2d = false (3D/Cesium)"
+        );
         dispatch(setIsMode2d(false));
+      } else {
+        console.log(
+          "[useAppSearchParams] is3d present but not '1', defaulting to 2D"
+        );
+        dispatch(setIsMode2d(true));
       }
     } else {
+      console.log(
+        "[useAppSearchParams] is3d parameter NOT present, setting isMode2d = true (2D/Leaflet)"
+      );
       dispatch(setIsMode2d(true));
     }
 

@@ -139,6 +139,13 @@ export const animateCesiumToTopDownLeafletLikeView = (
     try {
       const { latitude, longitude, zoom } =
         await getTiledMapCenterZoomEquivalent(scene);
+      console.log("[2D3D|TRANSITION] Setting Leaflet view after animation:", {
+        latitude,
+        longitude,
+        zoom,
+        hasLeaflet: !!leaflet,
+      });
+
       if (!leaflet) {
         console.warn(
           "[CESIUM] leaflet not available no transition possible [zoom]"
@@ -155,6 +162,7 @@ export const animateCesiumToTopDownLeafletLikeView = (
       }
 
       leaflet.setView([latitude, longitude], zoom, noAnimation);
+      console.log("[2D3D|TRANSITION] Leaflet view set successfully");
     } catch (error) {
       console.error(
         "[CESIUM] could not determine center zoom equivalent",

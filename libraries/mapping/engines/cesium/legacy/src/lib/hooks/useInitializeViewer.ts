@@ -85,8 +85,6 @@ export const useInitializeViewer = (
   // Store camera position and orientation vectors
   const lastGoodCameraState = useRef<CameraState | null>(null);
 
-  console.debug("[CESIUM] HOOK: useInitializeViewer");
-
   // override cesium default home
   useEffect(() => {
     // align Cesium Default fallback with local home
@@ -104,9 +102,6 @@ export const useInitializeViewer = (
   }, [home]);
 
   useEffect(() => {
-    console.debug(
-      "[CESIUM] HOOK: [CESIUM|INIT] init CustomViewer useEffect triggered"
-    );
     const containerEl = containerRef?.current;
 
     if (containerEl) {
@@ -243,14 +238,6 @@ export const useInitializeViewer = (
 
   useEffect(() => {
     withScene((scene) => {
-      console.debug("[CESIUM] HOOK:[CESIUM|INIT|SCENE] setup scene settings", {
-        isSecondaryStyle,
-        minZoom,
-        maxZoom,
-        enableCollisionDetection,
-        isMode2d,
-      });
-
       const sscc: ScreenSpaceCameraController =
         scene.screenSpaceCameraController;
 
@@ -277,17 +264,6 @@ export const useInitializeViewer = (
   ]);
 
   useEffect(() => {
-    console.debug(
-      "[CESIUM] HOOK: [CESIUM|INIT|POSITION] useInitializeViewer position",
-      {
-        hasInitialCameraView: !!initialCameraView,
-        isViewerReady,
-        isMode2d,
-        hasHome: !!home,
-        hasHomeOffset: !!homeOffset,
-      }
-    );
-
     if (!isViewerReady) return;
 
     // Begin determining/applying initial camera (or home fallback if absent)
@@ -436,22 +412,18 @@ export const useInitializeViewer = (
   ]);
 
   useEffect(() => {
-    console.debug("[CESIUM] HOOK: useInitializeViewer useEffect resize");
     if (viewerRef.current && containerRef?.current) {
       const viewer = viewerRef.current;
       const container = containerRef.current;
 
       const resizeObserver = new ResizeObserver(() => {
-        console.debug(
-          "[CESIUM] HOOK: [CESIUM|RESIZE] resize cesium container",
-          {
-            hasViewer: !!viewer,
-            isDestroyed: viewer?.isDestroyed(),
-            hasContainer: !!container,
-            newWidth: container?.clientWidth,
-            newHeight: container?.clientHeight,
-          }
-        );
+        console.debug("[CESIUM|RESIZE] resize cesium container", {
+          hasViewer: !!viewer,
+          isDestroyed: viewer?.isDestroyed(),
+          hasContainer: !!container,
+          newWidth: container?.clientWidth,
+          newHeight: container?.clientHeight,
+        });
 
         if (viewer && !viewer.isDestroyed() && container) {
           viewer.canvas.width = container.clientWidth;

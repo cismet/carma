@@ -96,20 +96,25 @@ export const transitionToCesium = async (
     });
 
     // Position Cesium camera using terrain providers for elevation
-    const cameraPositioned = await tiledMapToCesium(
-      scene,
-      {
-        terrain: terrainProviders.TERRAIN,
-        surface: terrainProviders.SURFACE,
-      },
-      resolutionScale,
-      { latitude: center.lat, longitude: center.lng },
-      zoom,
-      defaultTransitionOptions
-    );
+    const { success: cameraPositioned, groundPosition } =
+      await tiledMapToCesium(
+        scene,
+        {
+          terrain: terrainProviders.TERRAIN,
+          surface: terrainProviders.SURFACE,
+        },
+        resolutionScale,
+        { latitude: center.lat, longitude: center.lng },
+        zoom,
+        defaultTransitionOptions
+      );
 
     if (!cameraPositioned) {
       console.warn("[CESIUM] [CESIUM|2D3D|TO3D] Failed to position camera");
+    }
+
+    if (!groundPosition) {
+      console.warn("[CESIUM] [CESIUM|2D3D|TO3D] No ground position available");
     }
 
     // Stage 3: Wait for initial render and resources
@@ -197,8 +202,10 @@ export const transitionToCesium = async (
     };
 
     // Try to restore camera heading/pitch (range comes from zoom-based position)
+    // Use ground position from terrain sampling instead of picking from buffer
     const animationStarted = restoreCesiumCameraView(
       scene,
+      groundPosition,
       targetHeadingPitch,
       step6_cameraAnimationDurationMs,
       handleComplete,

@@ -3,7 +3,7 @@
  */
 
 // eslint-disable-next-line @typescript-eslint/no-restricted-imports
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 import type { LeafletMap } from "@carma-mapping/engines/leaflet";
 import { CesiumTerrainProvider, type Scene } from "@carma/cesium";
@@ -19,6 +19,7 @@ import { validateRequirements } from "./utils/validate-requirements";
 
 type UseLeafletCesiumTransitionOptions = {
   preferedTerrainProvider?: "TERRAIN" | "SURFACE";
+  initialIsMode2d?: boolean;
   onTransitionStart?: (transitionDirection: TransitionDirection) => void;
   onTransitionComplete?: (transitionDirection: TransitionDirection) => void;
   onTransitionFailed?: (transitionDirection: TransitionDirection) => void;
@@ -48,30 +49,59 @@ export const useMapFrameworkSwitcher = (
   requestTransitionToCesium: () => Promise<void>;
   requestTransitionToLeaflet: () => Promise<void>;
 } => {
+  // Initialize based on isMode2d ONLY on first mount - use useState lazy initializer
   const [activeFramework, setActiveFramework] = useState<"leaflet" | "cesium">(
-    "leaflet"
+    () => {
+      const initialFramework =
+        options.initialIsMode2d !== false ? "leaflet" : "cesium";
+      console.log("[FRAMEWORK-SWITCHER] Hook FIRST MOUNT initialization:", {
+        initialIsMode2d: options.initialIsMode2d,
+        initialFramework,
+      });
+      return initialFramework;
+    }
   );
+
   const [isTransitioning, setIsTransitioning] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [targetHeadingPitch, setTargetHeadingPitch] = useState<any | null>(
     null
   );
 
-  // Initialize Cesium container visibility on mount
+  // Track if we've set initial CSS to avoid re-running on every render
+  const hasSetInitialCssRef = useRef(false);
+
+  // Initialize Cesium container visibility - watch for container to become available
   useEffect(() => {
     const cesiumContainer = getCesiumContainer();
-    if (cesiumContainer) {
+    console.log("[FRAMEWORK-SWITCHER] Container CSS effect:", {
+      activeFramework,
+      hasContainer: !!cesiumContainer,
+      hasSetInitialCss: hasSetInitialCssRef.current,
+    });
+
+    if (cesiumContainer && !hasSetInitialCssRef.current) {
       // Set initial state based on active framework
       if (activeFramework === "leaflet") {
         cesiumContainer.style.opacity = "0";
         cesiumContainer.style.pointerEvents = "none";
+        console.log(
+          "[FRAMEWORK-SWITCHER] Container CSS set to HIDDEN (Leaflet mode)"
+        );
       } else {
         cesiumContainer.style.opacity = "1";
         cesiumContainer.style.pointerEvents = "auto";
+        console.log(
+          "[FRAMEWORK-SWITCHER] Container CSS set to VISIBLE (Cesium mode)"
+        );
       }
+      hasSetInitialCssRef.current = true;
+    } else if (!cesiumContainer) {
+      console.warn(
+        "[FRAMEWORK-SWITCHER] Container not yet available, will retry on next render"
+      );
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Run only once on mount with initial activeFramework value
+  }); // No dependencies - run on every render until container is available and CSS is set
 
   const requestTransitionToCesium = async () => {
     if (isTransitioning) return;

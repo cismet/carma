@@ -31,15 +31,15 @@ export const tiledMapToCesium = async (
   { latitude, longitude }: LatLng.deg,
   zoom: Zoom,
   options: TransitionOptions
-): Promise<boolean> => {
+): Promise<{ success: boolean; groundPosition: Cartesian3 | null }> => {
   if (!isValidScene(scene)) {
     console.warn("[CESIUM|TRANSITION] No viewer available for transition");
-    return false;
+    return { success: false, groundPosition: null };
   }
 
   if (!isZoom(zoom)) {
     console.warn("[CESIUM|TRANSITION] No zoom level available for transition");
-    return false;
+    return { success: false, groundPosition: null };
   }
 
   if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
@@ -48,7 +48,7 @@ export const tiledMapToCesium = async (
       latitude,
       longitude
     );
-    return false;
+    return { success: false, groundPosition: null };
   }
 
   const lngRad = degToRad(longitude);
@@ -67,7 +67,7 @@ export const tiledMapToCesium = async (
 
   if (computedDistance === null) {
     console.warn("[CESIUM|TRANSITION] Failed to calculate camera distance");
-    return false;
+    return { success: false, groundPosition: null };
   }
 
   console.log("[CESIUM|TRANSITION] === Camera Distance Calculation ===");
@@ -101,8 +101,11 @@ export const tiledMapToCesium = async (
 
   if (!scene) {
     console.warn("[CESIUM|TRANSITION] No scene available for transition");
-    return false;
+    return { success: false, groundPosition: null };
   }
+
+  // Convert ground position to Cartesian3 for camera rotation
+  const groundPosition = Cartographic.toCartesian(cameraGroundPosition);
 
   // CRITICAL: Only add the computed distance (above ground) to terrain elevation
   // Previously we were adding to total elevation which was incorrect
@@ -131,6 +134,7 @@ export const tiledMapToCesium = async (
   window.requestAnimationFrame(() => {
     scene.camera.setView({ destination });
 
+    /*
     // DEBUG: Compare pixel resolutions after camera positioning
     // This is NOT part of transition logic, just for debugging
     window.requestAnimationFrame(() => {
@@ -226,6 +230,7 @@ export const tiledMapToCesium = async (
         }
       }
     });
+    */
   });
 
   // COMMENTED OUT: Iterative adjustment loop that used picker for ground height
@@ -239,7 +244,7 @@ export const tiledMapToCesium = async (
 
   if (currentPixelResolution === null) {
     console.warn("[CESIUM|TRANSITION] No pixel size found for camera position");
-    return false;
+    return { success: false, groundPosition: null };
   }
 
   // Get target pixel resolution for comparison
@@ -248,7 +253,7 @@ export const tiledMapToCesium = async (
     console.warn(
       "[CESIUM|TRANSITION] No target pixel resolution for comparison"
     );
-    return false;
+    return { success: false, groundPosition: null };
   }
 
   let currentError = Math.abs(currentPixelResolution - targetPixelResolution);
@@ -294,7 +299,7 @@ export const tiledMapToCesium = async (
     });
     const newResolution = getScenePixelSize(scene).value;
     if (newResolution === null) {
-      return false;
+      return { success: false, groundPosition: null };
     }
     currentPixelResolution = newResolution;
     currentError = Math.abs(currentPixelResolution - targetPixelResolution);
@@ -304,5 +309,5 @@ export const tiledMapToCesium = async (
 
   scene.requestRender();
   onComplete?.();
-  return true;
+  return { success: true, groundPosition };
 };

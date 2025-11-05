@@ -3,9 +3,10 @@
  * Connects TopicMapContext and CesiumContext to the framework switcher
  */
 
+import type { RefObject } from "react";
 import { useCallback, useContext, useMemo } from "react";
 
-import type { Scene, CesiumTerrainProvider } from "@carma/cesium";
+import type { Scene } from "@carma/cesium";
 import { TransitionDirection } from "@carma-mapping/engines-interop";
 import { useMapFrameworkSwitcher } from "@carma-mapping/components";
 import type { CesiumContextType } from "@carma-mapping/engines/cesium";
@@ -13,7 +14,9 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 type UseGeoportalFrameworkSwitcherOptions = {
   cesiumContext: CesiumContextType | null;
+  cesiumContainerRef: RefObject<HTMLDivElement>;
   setIsMode2d: (isMode2d: boolean) => void;
+  initialIsMode2d: boolean;
   onTransitionStart?: (direction: TransitionDirection) => void;
   onTransitionComplete?: (direction: TransitionDirection) => void;
   onTransitionFailed?: (direction: TransitionDirection) => void;
@@ -25,13 +28,20 @@ type UseGeoportalFrameworkSwitcherOptions = {
  */
 export const useGeoportalFrameworkSwitcher = ({
   cesiumContext: ctx,
+  cesiumContainerRef,
   setIsMode2d,
+  initialIsMode2d,
   onTransitionStart,
   onTransitionComplete,
   onTransitionFailed,
 }: UseGeoportalFrameworkSwitcherOptions) => {
   const { routedMapRef: routedMap } =
     useContext<typeof TopicMapContext>(TopicMapContext);
+
+  console.log("[GEOPORTAL] Framework switcher initialized:", {
+    initialIsMode2d,
+    initialFramework: initialIsMode2d ? "leaflet" : "cesium",
+  });
 
   // Memoized getters to prevent unnecessary rerenders
   const getLeafletMap = useCallback(
@@ -48,16 +58,16 @@ export const useGeoportalFrameworkSwitcher = ({
   }, [ctx]);
 
   const getCesiumContainer = useCallback(
-    () => (ctx?.viewerRef.current?.container as HTMLElement) ?? null,
-    [ctx]
+    () => cesiumContainerRef.current,
+    [cesiumContainerRef]
   );
 
   const getCesiumTerrainProviders = useCallback(() => {
     const terrain = ctx?.getTerrainProvider();
     const surface = ctx?.getSurfaceProvider();
     return {
-      TERRAIN: terrain ?? ({} as CesiumTerrainProvider),
-      SURFACE: surface ?? ({} as CesiumTerrainProvider),
+      TERRAIN: terrain ?? undefined,
+      SURFACE: surface ?? undefined,
     };
   }, [ctx]);
 
@@ -101,12 +111,14 @@ export const useGeoportalFrameworkSwitcher = ({
 
   const switcherOptions = useMemo(
     () => ({
+      initialIsMode2d,
       onActiveFrameworkChange: handleActiveFrameworkChange,
       onTransitionStart: handleTransitionStart,
       onTransitionComplete: handleTransitionComplete,
       onTransitionFailed: handleTransitionFailed,
     }),
     [
+      initialIsMode2d,
       handleActiveFrameworkChange,
       handleTransitionStart,
       handleTransitionComplete,

@@ -37,7 +37,6 @@ const useCameraPitchEasingLimiter = (
   const collisions = useSelector(
     selectScreenSpaceCameraControllerEnableCollisionDetection
   );
-  console.debug("HOOKINIT [CESIUM|CAMERA] useCameraPitchEasingLimiter");
 
   const isAnimatingRef = useRef(isAnimating);
   const isTransitioningRef = useRef(isTransitioning);

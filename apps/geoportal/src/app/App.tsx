@@ -124,18 +124,6 @@ function App({ published }: { published?: boolean }) {
     dispatch(setUIMode(newUIMode));
   };
 
-  // Map mode state (app-level, initialized from URL)
-  const getInitialMode2d = () => {
-    const hash = window.location.hash;
-    // Check if cesium scene params exist in hash (indicates 3D mode)
-    return !(
-      hash.includes("cp=") ||
-      hash.includes("ch=") ||
-      hash.includes("ct=")
-    );
-  };
-  const [isMode2d, setIsMode2d] = useState(getInitialMode2d);
-
   if (isLoadingConfig === null) {
     // wait for the loading state to be determined to prevent re-rendering
     console.debug("[CONFIG] APP - Waiting for config loading state...");
@@ -185,7 +173,7 @@ function App({ published }: { published?: boolean }) {
                     </div>
                   )}
                   {!published && <TopNavbar />}
-                  <MapWrapper isMode2d={isMode2d} setIsMode2d={setIsMode2d} />
+                  <MapWrapper />
                   <MobileWarningMessage
                     headerText={mobileInfo.headerText}
                     bodyText={mobileInfo.bodyText}

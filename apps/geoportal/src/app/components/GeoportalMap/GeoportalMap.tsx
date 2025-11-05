@@ -27,7 +27,6 @@ import {
   TopicMapSelectionContent,
   useGazData,
   useMapHashRouting,
-  createLocationChangeHandler,
   useSelectionCesium,
   useSelectionTopicMap,
   useCesiumModels,
@@ -54,6 +53,7 @@ import {
   CustomViewer,
   selectShowPrimaryTileset,
   selectViewerModels,
+  selectViewerIsMode2d,
   setCurrentSceneStyle,
   useCesiumContext,
   useCesiumInitialCameraFromSearchParams,
@@ -109,9 +109,15 @@ interface MapProps {
   height: number;
   width: number;
   allow3d?: boolean;
+  cesiumContainerRef?: React.RefObject<HTMLDivElement>;
 }
 
-export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
+export const GeoportalMap = ({
+  height,
+  width,
+  allow3d,
+  cesiumContainerRef: externalCesiumContainerRef,
+}: MapProps) => {
   const dispatch = useDispatch();
 
   // Contexts
@@ -122,25 +128,22 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const lastRenderTimeStampRef = useRef(Date.now());
   const lastRenderIntervalRef = useRef(0);
   const container2dMapRef = useRef<HTMLDivElement>(null);
-  const container3dMapRef = useRef<HTMLDivElement>(null);
+  const internalContainer3dMapRef = useRef<HTMLDivElement>(null);
+  // Use external ref if provided, otherwise use internal ref
+  const container3dMapRef =
+    externalCesiumContainerRef ?? internalContainer3dMapRef;
   // Store MapLibre maps outside Redux to avoid serialization issues
   const maplibreMapsRef = useRef<Map<string, any>>(new Map());
 
   // State and Selectors
   const backgroundLayer = useSelector(getBackgroundLayer);
+  const isMode2d = useSelector(selectViewerIsMode2d);
 
-  // Map mode state (app-level, initialized from URL)
-  const getInitialMode2d = () => {
-    if (!allow3d) return true;
-    const hash = window.location.hash;
-    // Check if cesium scene params exist in hash (indicates 3D mode)
-    return !(
-      hash.includes("cp=") ||
-      hash.includes("ch=") ||
-      hash.includes("ct=")
-    );
-  };
-  const [isMode2d, setIsMode2d] = useState(getInitialMode2d);
+  // Keep current isMode2d in ref to avoid recreating handler when it changes
+  const isMode2dRef = useRef(isMode2d);
+  useEffect(() => {
+    isMode2dRef.current = isMode2d;
+  }, [isMode2d]);
 
   const models = useSelector(selectViewerModels);
   const markerAsset = models[CESIUM_CONFIG.markerKey]; //
@@ -426,29 +429,32 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [shouldUpdateFeatureInfo]);
 
-  const topicMapLocationChangedHandler = useMemo(
-    () =>
-      createLocationChangeHandler({
-        isMode2d,
-        onChange: handleTopicMapLocationChange,
-        onAfter: updateLayersIdleState,
-        onMismatch: () =>
-          console.debug(
-            "[TopicMap|DEBUG] Location changed handler triggered while in 3D mode"
-          ),
-      }),
-    [isMode2d, handleTopicMapLocationChange, updateLayersIdleState]
+  const topicMapLocationChangedHandler = useCallback(
+    (p: { lat: number; lng: number; zoom: number }) => {
+      if (!isMode2dRef.current) {
+        console.debug(
+          "[TopicMap|DEBUG] Location changed handler triggered while in 3D mode"
+        );
+        return;
+      }
+      handleTopicMapLocationChange(p);
+      updateLayersIdleState();
+    },
+    [handleTopicMapLocationChange, updateLayersIdleState]
   );
 
-  const onSceneChange = (e: { hashParams: Record<string, string> }) => {
-    if (isMode2d) {
-      console.debug(
-        "[CESIUM|DEBUG|CESIUM_WARN] Cesium scene change triggered while in 2D mode"
-      );
-      return;
-    }
-    handleCesiumSceneChange(e);
-  };
+  const onSceneChange = useCallback(
+    (e: { hashParams: Record<string, string> }) => {
+      if (isMode2dRef.current) {
+        console.debug(
+          "[CESIUM|DEBUG|CESIUM_WARN] Cesium scene change triggered while in 2D mode"
+        );
+        return;
+      }
+      handleCesiumSceneChange(e);
+    },
+    [handleCesiumSceneChange]
+  );
 
   // TODO Move out Controls to own component
 
@@ -674,9 +680,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
             right: 0,
             bottom: 0,
             zIndex: 400,
-            opacity: isMode2d ? 0.01 : 1,
-            transition: `opacity ${CESIUM_CONFIG.transitions.mapMode.duration}ms ease-in-out`,
-            pointerEvents: isMode2d ? "none" : "auto",
+            // CSS transition managed by useMapFrameworkSwitcher hook
           }}
         >
           <CustomViewer
