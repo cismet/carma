@@ -110,20 +110,25 @@ export const animateCesiumToTopDownLeafletLikeView = (
       height = groundHeight + distance;
 
       console.debug(
-        "[CESIUM] TRANSITION TO 2D [2D|3D] zoomSnap",
-        zoomSnap,
-        currentZoom,
-        targetZoom,
-        heightFactor,
-        distance,
-        distanceBefore,
-        height,
-        heightBefore,
-        zoomDiff
+        "[CESIUM] [CESIUM|2D3D|TO2D] Adjusting camera for zoomSnap",
+        {
+          zoomSnap,
+          currentZoom,
+          targetZoom,
+          heightFactor,
+          distanceBefore,
+          distanceAfter: distance,
+          heightBefore,
+          heightAfter: height,
+          zoomDiff,
+        }
       );
     }
   } else {
-    console.info("[CESIUM] no zoomSnap applied", leaflet);
+    console.debug(
+      "[CESIUM] [CESIUM|2D3D|TO2D] No zoomSnap - using current zoom",
+      { leafletOptions: leaflet.options }
+    );
   }
 
   const duration =
@@ -164,6 +169,20 @@ export const animateCesiumToTopDownLeafletLikeView = (
   console.debug("[CESIUM] [Animation|2D3D] duration zoom", distance);
 
   if (hasGroundPos) {
+    // Log current camera and pixel resolution before starting animation
+    const currentHeight = camera.positionCartographic.height;
+    const currentDistance = Cartesian3.distance(pos, camera.position);
+
+    console.debug(
+      "[CESIUM] [CESIUM|2D3D|TO2D] BEFORE animation - current state",
+      {
+        currentHeight,
+        currentDistance,
+        targetHeight: height,
+        targetDistance: distance,
+      }
+    );
+
     // rotate around the groundposition at center
     console.debug(
       "[CESIUM] [CESIUM|2D3D|TO2D] setting prev HPR zoom",

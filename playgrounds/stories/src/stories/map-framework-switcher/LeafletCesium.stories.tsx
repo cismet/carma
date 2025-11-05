@@ -1,13 +1,11 @@
 import type { Meta, StoryObj } from "@storybook/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Button, Card, Radio, Tag } from "antd";
 import {
   createMinimalCesiumWidget,
   CesiumWidget,
   CesiumTerrainProvider,
   Cartesian3,
   Cesium3DTileset,
-  EllipsoidTerrainProvider,
   Cartographic,
   sampleTerrainMostDetailedGuardedAsync,
 } from "@carma/cesium";
@@ -23,6 +21,9 @@ import {
   MapFrameworkSwitcher,
   useMapFrameworkSwitcher,
 } from "@carma-mapping/components";
+import { ElevationDisplay } from "./components/ElevationDisplay";
+import { MapStatusCard } from "./components/MapStatusCard";
+import { FovControl } from "./components/FovControl";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "cesium/Build/Cesium/Widgets/widgets.css";
@@ -45,14 +46,16 @@ const WUPPERTAL_LUFTBILD_WMS = {
  * Leaflet + Cesium Widget with transition state tracking
  */
 const LeafletCesium = () => {
-  const [terrainType, setTerrainType] = useState<"TERRAIN" | "MESH">("MESH");
-  const [surfaceHeight, setSurfaceHeight] = useState<number | null>(null);
-  const [terrainHeight, setTerrainHeight] = useState<number | null>(null);
-  const [leafletDPR, setLeafletDPR] = useState<number>(
-    window.devicePixelRatio || 1
+  // Only transition-tracking state remains in main component
+  const [lastZoom, setLastZoom] = useState<number | null>(null);
+  const [lastDistance, setLastDistance] = useState<number | null>(null);
+  const [lastTerrainHeight, setLastTerrainHeight] = useState<number | null>(
+    null
   );
-  const [cesiumResolutionScale, setCesiumResolutionScale] = useState<number>(1);
-  const [pointerEventsEnabled, setPointerEventsEnabled] = useState(false);
+  const [currentFOV, setCurrentFOV] = useState<number | null>(null);
+  const [currentStage, setCurrentStage] = useState<TransitionStage | null>(
+    null
+  );
 
   const leafletContainerRef = useRef<HTMLDivElement>(null);
   const cesiumContainerRef = useRef<HTMLDivElement>(null);
@@ -76,28 +79,74 @@ const LeafletCesium = () => {
 
   const getCesiumTerrainProviders = useCallback(() => {
     return {
-      TERRAIN:
-        terrainProvidersRef.current.TERRAIN ?? ({} as CesiumTerrainProvider),
-      SURFACE:
-        terrainProvidersRef.current.SURFACE ?? ({} as CesiumTerrainProvider),
+      TERRAIN: terrainProvidersRef.current.TERRAIN ?? undefined,
+      SURFACE: terrainProvidersRef.current.SURFACE ?? undefined,
     };
   }, []);
 
   const getResolutionScale = useCallback(() => 1.0, []);
 
+  // Transition timing constants
+  const CSS_TRANSITION_DURATION_MS = 2000; // 2s fade-in
+  const CAMERA_ANIMATION_DURATION_MS = 3000; // 3s camera animation
+
   const switcherOptions = useMemo(
     () => ({
       onActiveFrameworkChange: (direction: any) => {
         console.log("[TRANSITION] Framework changed:", direction);
+        setCurrentStage(null); // Clear stage when framework changes
       },
       onTransitionStart: (direction: any) => {
         console.log("[TRANSITION] Started:", direction);
+        setCurrentStage(TransitionStage.PREPARE_2D);
+        if (direction === 1 && leafletMapRef.current) {
+          // Capture zoom and distance before transition
+          setLastZoom(leafletMapRef.current.getZoom());
+
+          // Capture terrain height at center
+          const center = leafletMapRef.current.getCenter();
+          const position = Cartographic.fromDegrees(center.lng, center.lat);
+
+          if (terrainProvidersRef.current.SURFACE) {
+            sampleTerrainMostDetailedGuardedAsync(
+              terrainProvidersRef.current.SURFACE,
+              [position],
+              true,
+              true
+            )
+              .then((results) => {
+                if (results && results[0]?.height !== undefined) {
+                  setLastTerrainHeight(results[0].height);
+                }
+              })
+              .catch((err) => console.error("Failed to sample terrain:", err));
+          }
+        }
       },
       onTransitionComplete: (direction: any) => {
         console.log("[TRANSITION] Completed:", direction);
+        setCurrentStage(TransitionStage.COMPLETE);
+        if (direction === 1 && cesiumWidgetRef.current?.camera) {
+          const camera = cesiumWidgetRef.current.camera;
+          const height = camera.positionCartographic.height;
+          setLastDistance(height);
+
+          // Capture actual FOV from camera
+          if (camera.frustum && "fov" in camera.frustum) {
+            setCurrentFOV((camera.frustum as any).fov * (180 / Math.PI));
+          }
+        }
       },
       onTransitionFailed: (direction: any) => {
         console.error("[TRANSITION] Failed:", direction);
+        setCurrentStage(TransitionStage.ERROR);
+      },
+      onTransitionStage: (stage: TransitionStage) => {
+        setCurrentStage(stage);
+      },
+      transitionOptions: {
+        step4_cssTransitionDurationMs: CSS_TRANSITION_DURATION_MS, // CSS fade-in duration
+        step6_cameraAnimationDurationMs: CAMERA_ANIMATION_DURATION_MS, // Camera animation duration
       },
     }),
     []
@@ -113,62 +162,6 @@ const LeafletCesium = () => {
     switcherOptions
   );
 
-  // Terrain sampling method - can be called anytime
-  const sampleTerrainAtCurrentLocation = useCallback(async () => {
-    if (!leafletMapRef.current) {
-      return;
-    }
-
-    const center = leafletMapRef.current.getCenter();
-    const position = Cartographic.fromDegrees(center.lng, center.lat);
-
-    // Sample SURFACE provider (DSM - Digital Surface Model)
-    if (terrainProvidersRef.current.SURFACE) {
-      try {
-        const surfaceResults = await sampleTerrainMostDetailedGuardedAsync(
-          terrainProvidersRef.current.SURFACE,
-          [position],
-          true,
-          true
-        );
-
-        if (surfaceResults && surfaceResults[0]?.height !== undefined) {
-          setSurfaceHeight(surfaceResults[0].height);
-          console.log(
-            `SURFACE height at [${center.lat.toFixed(6)}, ${center.lng.toFixed(
-              6
-            )}]: ${surfaceResults[0].height.toFixed(2)}m`
-          );
-        }
-      } catch (error) {
-        console.error("Failed to sample SURFACE terrain:", error);
-      }
-    }
-
-    // Sample TERRAIN provider (DEM - Digital Elevation Model)
-    if (terrainProvidersRef.current.TERRAIN) {
-      try {
-        const terrainResults = await sampleTerrainMostDetailedGuardedAsync(
-          terrainProvidersRef.current.TERRAIN,
-          [position],
-          true,
-          true
-        );
-
-        if (terrainResults && terrainResults[0]?.height !== undefined) {
-          setTerrainHeight(terrainResults[0].height);
-          console.log(
-            `TERRAIN height at [${center.lat.toFixed(6)}, ${center.lng.toFixed(
-              6
-            )}]: ${terrainResults[0].height.toFixed(2)}m`
-          );
-        }
-      } catch (error) {
-        console.error("Failed to sample TERRAIN:", error);
-      }
-    }
-  }, []);
-
   // Initialize maps
   useEffect(() => {
     if (!leafletContainerRef.current || !cesiumContainerRef.current) return;
@@ -176,23 +169,11 @@ const LeafletCesium = () => {
     const initMaps = () => {
       if (!leafletContainerRef.current || !cesiumContainerRef.current) return;
 
-      // Track terrain provider loading
-      let terrainLoaded = false;
-      let surfaceLoaded = false;
-
-      const checkAndSample = () => {
-        if (terrainLoaded && surfaceLoaded && leafletMapRef.current) {
-          // Both providers ready - sample immediately
-          sampleTerrainAtCurrentLocation();
-        }
-      };
-
       // Initialize terrain providers (ready but not applied to scene yet)
       CesiumTerrainProvider.fromUrl(WUPP_TERRAIN_PROVIDER.url)
         .then((terrain) => {
           terrainProvidersRef.current.TERRAIN = terrain;
-          terrainLoaded = true;
-          checkAndSample();
+          console.log("[TERRAIN] TERRAIN provider initialized successfully");
         })
         .catch((error) => {
           console.warn("TERRAIN provider failed to initialize:", error);
@@ -201,8 +182,7 @@ const LeafletCesium = () => {
       CesiumTerrainProvider.fromUrl(WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M.url)
         .then((terrain) => {
           terrainProvidersRef.current.SURFACE = terrain;
-          surfaceLoaded = true;
-          checkAndSample();
+          console.log("[TERRAIN] SURFACE provider initialized successfully");
         })
         .catch((error) => {
           console.warn("SURFACE provider failed to initialize:", error);
@@ -212,10 +192,13 @@ const LeafletCesium = () => {
         // Create Leaflet map
         const leafletMap = L.map(leafletContainerRef.current, {
           center: [WUPPERTAL.position.latitude, WUPPERTAL.position.longitude],
-          zoom: 15,
-          minZoom: 10, // Fixed: was 23 (too restrictive), should be reasonable minimum
+          zoom: 17,
+          minZoom: 8,
+          maxZoom: 22,
           zoomControl: false,
           attributionControl: false,
+          zoomSnap: 1,
+          zoomDelta: 1,
         });
 
         // Add Wuppertal aerial imagery (Luftbild) WMS layer
@@ -225,7 +208,7 @@ const LeafletCesium = () => {
             format: WUPPERTAL_LUFTBILD_WMS.format,
             transparent: WUPPERTAL_LUFTBILD_WMS.transparent,
             attribution: WUPPERTAL_LUFTBILD_WMS.attribution,
-            maxZoom: 20,
+            maxZoom: 22,
           })
           .addTo(leafletMap);
 
@@ -239,9 +222,6 @@ const LeafletCesium = () => {
         setTimeout(() => leafletMap.invalidateSize(), 100);
 
         leafletMapRef.current = leafletMap;
-
-        // Attach moveend event to sample terrain on map move
-        leafletMap.on("moveend", sampleTerrainAtCurrentLocation);
       } catch (error) {
         console.error("Leaflet initialization error:", error);
       }
@@ -251,9 +231,6 @@ const LeafletCesium = () => {
         const widget = createMinimalCesiumWidget(cesiumContainerRef.current);
 
         cesiumWidgetRef.current = widget;
-
-        // Capture Cesium resolution scale
-        setCesiumResolutionScale(widget.resolutionScale);
 
         // Load 2024 mesh as 3D tileset after widget is ready
         // Using geoportal DEFAULT_MESH_OPTIONS from cesiumTilesetProviders.ts
@@ -273,9 +250,6 @@ const LeafletCesium = () => {
               tilesetRef.current = tileset;
               widget.scene.requestRender();
               console.log("Tileset loaded and added to scene");
-
-              // Sample terrain after tileset loads
-              sampleTerrainAtCurrentLocation();
             }
           })
           .catch((error) => {
@@ -306,7 +280,6 @@ const LeafletCesium = () => {
     return () => {
       try {
         if (leafletMapRef.current) {
-          leafletMapRef.current.off("moveend", sampleTerrainAtCurrentLocation);
           leafletMapRef.current.remove();
           leafletMapRef.current = null;
         }
@@ -332,7 +305,7 @@ const LeafletCesium = () => {
         console.error("Error cleaning up Cesium:", error);
       }
     };
-  }, [sampleTerrainAtCurrentLocation]);
+  }, []);
 
   return (
     <div style={{ width: "100%", height: "100vh", position: "relative" }}>
@@ -349,7 +322,7 @@ const LeafletCesium = () => {
         }}
       />
 
-      {/* Cesium container - overlay with debugging background */}
+      {/* Cesium container - overlay (opacity controlled by transition function) */}
       <div
         ref={cesiumContainerRef}
         style={{
@@ -359,21 +332,18 @@ const LeafletCesium = () => {
           top: 0,
           left: 0,
           zIndex: 2,
-          opacity: activeFramework === "cesium" ? 1 : 0,
-          pointerEvents: activeFramework === "cesium" ? "auto" : "none",
-          transition: "opacity 600ms ease-in-out",
+          // Opacity and pointer-events controlled by transition function
+          // No transition property here - function handles it internally
         }}
       />
 
-      {/* Controls */}
+      {/* Map Framework Switcher - Top Left */}
       <div
         style={{
           position: "absolute",
           top: "16px",
           left: "16px",
           zIndex: 1000,
-          display: "flex",
-          gap: "8px",
         }}
       >
         <MapFrameworkSwitcher
@@ -384,96 +354,33 @@ const LeafletCesium = () => {
         />
       </div>
 
-      {/* Status Card */}
-      <Card
-        size="small"
-        style={{
-          position: "absolute",
-          bottom: "16px",
-          left: "16px",
-          zIndex: 1000,
-        }}
-      >
-        <div style={{ marginBottom: "8px" }}>
-          <strong>Active Framework</strong>{" "}
-          <Tag color={activeFramework === "cesium" ? "blue" : "green"}>
-            {activeFramework.toUpperCase()}
-          </Tag>
-        </div>
+      {/* FOV Control - Top Right (with viewport & FOV cone visualizations) */}
+      <FovControl cesiumWidget={cesiumWidgetRef.current} />
 
-        <div style={{ marginBottom: "12px" }}>
-          <strong>Transitioning</strong>{" "}
-          <Tag color={isTransitioning ? "orange" : "default"}>
-            {isTransitioning ? "YES" : "NO"}
-          </Tag>
-        </div>
+      {/* Map Status Card - Bottom Left */}
+      <MapStatusCard
+        cesiumScene={cesiumWidgetRef.current?.scene || null}
+        leafletMap={leafletMapRef.current}
+        activeFramework={activeFramework}
+        cesiumResolutionScale={cesiumWidgetRef.current?.resolutionScale || 1}
+        cesiumContainer={cesiumContainerRef.current}
+        devicePixelRatio={window.devicePixelRatio || 1}
+        currentStage={currentStage}
+        lastZoom={lastZoom}
+        lastDistance={lastDistance}
+        lastTerrainHeight={lastTerrainHeight}
+        currentFOV={currentFOV}
+      />
 
-        {/* Cesium Section */}
-        <div
-          style={{
-            marginBottom: "12px",
-            paddingTop: "8px",
-            borderTop: "1px solid #f0f0f0",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "4px",
-              marginBottom: "4px",
-              flexWrap: "wrap",
-            }}
-          >
-            <Tag color={cesiumContainerRef.current ? "green" : "red"}>
-              {cesiumContainerRef.current ? "Container" : "No Container"}
-            </Tag>
-            <Tag color={cesiumWidgetRef.current ? "green" : "red"}>
-              {cesiumWidgetRef.current ? "Widget" : "No Widget"}
-            </Tag>
-            <Tag color="blue">
-              {cesiumWidgetRef.current?.scene?.drawingBufferWidth || 0}×
-              {cesiumWidgetRef.current?.scene?.drawingBufferHeight || 0}
-            </Tag>
-            <Tag color="geekblue">
-              DPR {leafletDPR % 1 === 0 ? leafletDPR : leafletDPR.toFixed(2)}
-            </Tag>
-            <Tag color="magenta">
-              Scale{" "}
-              {cesiumResolutionScale % 1 === 0
-                ? cesiumResolutionScale
-                : cesiumResolutionScale.toFixed(2)}
-            </Tag>
-          </div>
-        </div>
-
-        <div style={{ paddingTop: "8px", borderTop: "1px solid #f0f0f0" }}>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "8px",
-              marginBottom: "8px",
-              flexWrap: "wrap",
-            }}
-          >
-            <Radio.Group
-              value={terrainType}
-              onChange={(e) => setTerrainType(e.target.value)}
-              size="small"
-            >
-              <Radio.Button value="TERRAIN">DEM</Radio.Button>
-              <Radio.Button value="MESH">DSM</Radio.Button>
-            </Radio.Group>
-            {terrainHeight !== null && (
-              <Tag color="cyan">DEM {terrainHeight.toFixed(2)}m</Tag>
-            )}
-            {surfaceHeight !== null && (
-              <Tag color="purple">DSM {surfaceHeight.toFixed(2)}m</Tag>
-            )}
-          </div>
-        </div>
-      </Card>
+      {/* Elevation Display - Bottom Right */}
+      <ElevationDisplay
+        cesiumScene={cesiumWidgetRef.current?.scene || null}
+        leafletMap={leafletMapRef.current}
+        terrainProvider={terrainProvidersRef.current.TERRAIN}
+        surfaceProvider={terrainProvidersRef.current.SURFACE}
+        devicePixelRatio={window.devicePixelRatio || 1}
+        activeFramework={activeFramework}
+      />
     </div>
   );
 };

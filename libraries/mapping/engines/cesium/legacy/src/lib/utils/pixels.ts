@@ -3,10 +3,11 @@ import { NumericResult } from "@carma/types";
 
 import {
   type Camera,
-  Cartesian2,
   Cartesian3,
   defined,
   Scene,
+  PerspectiveFrustum,
+  getFrustumPixelDimensionsForDistance,
 } from "@carma/cesium";
 import { generatePositionsForRing } from "./geometryGenerators";
 import {
@@ -24,13 +25,23 @@ export const getPixelSizeForPosition = (
   if (defined(position)) {
     // Calculate pixel size directly without creating BoundingSphere for better performance
     const distance = Cartesian3.distance(position, camera.position);
-    const pixelDimensions = camera.frustum.getPixelDimensions(
+
+    if (!(camera.frustum instanceof PerspectiveFrustum)) {
+      return null;
+    }
+
+    const pixelDimensions = getFrustumPixelDimensionsForDistance(
+      camera.frustum,
       drawingBufferWidth,
       drawingBufferHeight,
       distance,
-      1,
-      new Cartesian2()
+      1 // resolutionScale
     );
+
+    if (!pixelDimensions) {
+      return null;
+    }
+
     return Math.max(pixelDimensions.x, pixelDimensions.y);
   }
   return null;

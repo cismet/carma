@@ -14,3 +14,6 @@ export {
   transitionToLeaflet,
   type TransitionToLeafletResult,
 } from "./lib/leaflet-cesium/transition/transition-to-leaflet";
+
+// Utility functions for camera distance calculations
+export { calculateCameraDistance } from "./lib/leaflet-cesium/utils/cesium/camera-distance";

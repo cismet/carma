@@ -56,7 +56,15 @@ export type TransitionToCesiumOptions = {
   step1_zoomOutEaseLinearity?: number;
   step2_initialRenderTimeoutMs?: number;
   step3_resourceWaitTimeoutMs?: number;
+  /** CSS transition duration for Cesium container opacity fade-in (ms). Default: 1000 */
+  step4_cssTransitionDurationMs?: number;
+  /** Additional delay after CSS transition before starting camera animation (ms). Default: 200 */
+  step5_postCssDelayMs?: number;
   step6_cameraAnimationDurationMs?: number;
+  /** Default camera heading in degrees (used when no previous 3D view exists). Default: 0° */
+  defaultHeadingDeg?: number;
+  /** Default camera pitch in degrees (used when no previous 3D view exists). Default: -45° */
+  defaultPitchDeg?: number;
 };
 
 /**
@@ -64,6 +72,8 @@ export type TransitionToCesiumOptions = {
  */
 export type TransitionToLeafletOptions = {
   step1_cameraAnimationDurationMs?: number;
+  /** CSS transition duration for Cesium container opacity fade-out (ms). Default: 1000 */
+  step2_cssTransitionDurationMs?: number;
 };
 
 /**
@@ -84,9 +94,13 @@ export const DEFAULT_TRANSITION_OPTIONS = {
     step1_zoomOutEaseLinearity: 0.75,
     step2_initialRenderTimeoutMs: 100,
     step3_resourceWaitTimeoutMs: 100,
+    step4_cssTransitionDurationMs: 1000,
     step6_cameraAnimationDurationMs: 1000,
+    defaultHeadingDeg: 0,
+    defaultPitchDeg: -45,
   },
   toLeaflet: {
     step1_cameraAnimationDurationMs: 1000,
+    step2_cssTransitionDurationMs: 1000,
   },
 } as const satisfies Required<TransitionOptions>;

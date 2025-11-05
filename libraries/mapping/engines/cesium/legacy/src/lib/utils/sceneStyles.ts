@@ -53,8 +53,10 @@ export const setupPrimaryStyle = (
   style?: Partial<SceneStyle>
 ) => {
   ctx.withScene((scene) => {
-    scene.globe.baseColor =
-      colorFromConstructorArgs(style?.globe?.baseColor) ?? Color.LIGHTGREY;
+    if (scene.globe) {
+      scene.globe.baseColor =
+        colorFromConstructorArgs(style?.globe?.baseColor) ?? Color.LIGHTGREY;
+    }
     scene.backgroundColor =
       colorFromConstructorArgs(style?.backgroundColor) ?? new Color(0, 0, 0, 0);
 
@@ -76,7 +78,12 @@ export const setupPrimaryStyle = (
 
   // If an imagery layer exists and is present in the collection, hide it for primary style
   ctx.withImageryLayer((imageryLayer, viewer) => {
+    if (!viewer.imageryLayers) {
+      console.warn("[STYLES|IMAGERY] imagery layers collection not available");
+      return;
+    }
     if (imageryLayer.isDestroyed()) return;
+
     const layers = viewer.imageryLayers;
     let present = false;
     for (let i = 0; i < layers.length; i++) {
@@ -98,8 +105,10 @@ export const setupSecondaryStyle = (
   style?: Partial<SceneStyle>
 ) => {
   ctx.withScene((scene) => {
-    scene.globe.baseColor =
-      colorFromConstructorArgs(style?.globe?.baseColor) ?? Color.WHITE;
+    if (scene.globe) {
+      scene.globe.baseColor =
+        colorFromConstructorArgs(style?.globe?.baseColor) ?? Color.WHITE;
+    }
     scene.backgroundColor =
       colorFromConstructorArgs(style?.backgroundColor) ?? new Color(0, 0, 0, 0);
 
@@ -108,10 +117,17 @@ export const setupSecondaryStyle = (
       ctx.withScene((scene) => {
         const addOnce = () => {
           ctx.withImageryLayer((imageryLayer, viewer) => {
+            if (!viewer.imageryLayers) {
+              console.warn(
+                "[STYLES|IMAGERY] imagery layers collection not available"
+              );
+              return;
+            }
             if (imageryLayer.isDestroyed()) {
               console.debug("[STYLES|IMAGERY] skip add/show; layer destroyed");
               return;
             }
+
             const layers = viewer.imageryLayers;
             let alreadyAdded = false;
             for (let i = 0; i < layers.length; i++) {

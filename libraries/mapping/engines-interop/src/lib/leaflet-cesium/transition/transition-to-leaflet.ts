@@ -7,6 +7,7 @@ import { isValidScene } from "@carma/cesium";
 import type { Map as LeafletMap } from "leaflet";
 import { TransitionStage, type TransitionToLeafletOptions } from "./types";
 import { animateCesiumToTopDownLeafletLikeView as animateCameraTo2d } from "./utils/animate-cesium-to-top-down-leaflet-like-view";
+import { promiseWithTimeout } from "@carma-commons/utils/promise";
 
 /**
  * Captured camera orientation for restoration after 2D→3D transition.
@@ -42,7 +43,10 @@ export const transitionToLeaflet = async (
   onTransitionError: ((error: Error) => void) | undefined,
   options: TransitionToLeafletOptions = {}
 ): Promise<TransitionToLeafletResult> => {
-  const { step1_cameraAnimationDurationMs = 1000 } = options;
+  const {
+    step1_cameraAnimationDurationMs = 1000,
+    step2_cssTransitionDurationMs = 1000,
+  } = options;
 
   console.debug("[CESIUM] [CESIUM|2D3D|TO2D] Starting transition to 2D mode", {
     hasLeaflet: !!leaflet,
@@ -82,16 +86,25 @@ export const transitionToLeaflet = async (
       "[CESIUM] [CSS] [CESIUM|2D3D|TO2D] Starting transition visuals"
     );
 
-    const handleAnimationComplete = () => {
+    const handleAnimationComplete = async () => {
       // Fade out Cesium container
       onTransitionStage(TransitionStage.FADE_IN_3D, "Fading out 3D view");
       console.debug("[CSS|2D3D|TO2D] Fading out Cesium container");
 
+      // Set up CSS transition and trigger fade-out
+      cesiumContainer.style.transition = `opacity ${step2_cssTransitionDurationMs}ms ease-in-out`;
       cesiumContainer.style.opacity = "0";
       cesiumContainer.style.pointerEvents = "none";
 
-      onTransitionStage(TransitionStage.COMPLETE, "Transition to 2D complete");
+      // Wait for fade-out to complete before marking transition complete
+      await promiseWithTimeout(
+        new Promise((resolve) =>
+          setTimeout(resolve, step2_cssTransitionDurationMs)
+        ),
+        step2_cssTransitionDurationMs + 100
+      );
 
+      onTransitionStage(TransitionStage.COMPLETE, "Transition to 2D complete");
       if (onTransitionComplete) {
         onTransitionComplete();
       }

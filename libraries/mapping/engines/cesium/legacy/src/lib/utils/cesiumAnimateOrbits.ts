@@ -32,6 +32,9 @@ export const getOrbitPoint = (
 ): Cartesian3 | undefined => {
   let target: Cartesian3 | undefined;
   ctx.withScene((scene) => {
+    if (!scene.globe) {
+      return;
+    }
     const screenCenter = new Cartesian2(
       scene.canvas.clientWidth / 2,
       scene.canvas.clientHeight / 2

@@ -1,7 +1,6 @@
 import {
   Cartographic,
   type CesiumTerrainProvider,
-  type Scene,
   isValidCesiumTerrainProvider,
   sampleTerrainMostDetailedGuardedAsync,
 } from "@carma/cesium";
@@ -28,21 +27,58 @@ export async function applyElevationToPosition(
     terrainProviders[preferredReference]
   );
 
+  console.log("[CESIUM|TRANSITION] applyElevationToPosition called:", {
+    preferredReference,
+    hasPreferredProvider,
+    fallbackHeight,
+    positionLat: ((position.latitude * 180) / Math.PI).toFixed(6),
+    positionLon: ((position.longitude * 180) / Math.PI).toFixed(6),
+  });
+
   if (hasPreferredProvider) {
     const provider = terrainProviders[preferredReference]!;
+    console.log("[CESIUM|TRANSITION] Sampling terrain with provider...");
+
     const updatedPosition = await sampleTerrainMostDetailedGuardedAsync(
       provider,
       [position],
       true,
       true
-    ).then((results) => results[0]);
-    if (updatedPosition !== undefined) {
+    )
+      .then((results) => {
+        console.log("[CESIUM|TRANSITION] Terrain sampling results:", {
+          hasResults: !!results,
+          resultCount: results?.length,
+          firstResult: results?.[0],
+          height: results?.[0]?.height,
+        });
+        return results[0];
+      })
+      .catch((error) => {
+        console.error("[CESIUM|TRANSITION] Terrain sampling failed:", error);
+        return undefined;
+      });
+
+    if (updatedPosition !== undefined && updatedPosition.height !== undefined) {
+      console.log(
+        "[CESIUM|TRANSITION] Terrain elevation successfully applied:",
+        updatedPosition.height.toFixed(2),
+        "m"
+      );
       return updatedPosition;
+    } else {
+      console.warn(
+        "[CESIUM|TRANSITION] Terrain sampling returned undefined or no height"
+      );
     }
+  } else {
+    console.warn(
+      "[CESIUM|TRANSITION] No valid preferred terrain provider available"
+    );
   }
 
   console.error(
-    `[CESIUM|ELEVATION] Failed to apply elevation using preferred reference: ${preferredReference}, applying fallback height.`
+    `[CESIUM|ELEVATION] Failed to apply elevation using preferred reference: ${preferredReference}, applying fallback height: ${fallbackHeight}m`
   );
   return fallbackPosition;
 }

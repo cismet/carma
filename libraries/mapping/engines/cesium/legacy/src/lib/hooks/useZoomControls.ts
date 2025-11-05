@@ -50,6 +50,11 @@ const zoom = (
     const canvas = viewer.canvas;
     const globe = viewer.scene.globe;
 
+    if (!globe) {
+      console.debug("[CESIUM] globe not initialized yet, skipping zoom");
+      return;
+    }
+
     if (sceneHasTweens(viewer)) {
       camera.completeFlight();
       console.debug("completing previous zoom or other flyTo animation");

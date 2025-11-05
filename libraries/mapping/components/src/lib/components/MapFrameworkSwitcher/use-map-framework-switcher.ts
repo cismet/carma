@@ -3,10 +3,10 @@
  */
 
 // eslint-disable-next-line @typescript-eslint/no-restricted-imports
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import type { LeafletMap } from "@carma-mapping/engines/leaflet";
-import { CesiumTerrainProvider, isValidScene, type Scene } from "@carma/cesium";
+import { CesiumTerrainProvider, type Scene } from "@carma/cesium";
 
 import {
   transitionToCesium,
@@ -56,6 +56,22 @@ export const useMapFrameworkSwitcher = (
   const [targetHeadingPitch, setTargetHeadingPitch] = useState<any | null>(
     null
   );
+
+  // Initialize Cesium container visibility on mount
+  useEffect(() => {
+    const cesiumContainer = getCesiumContainer();
+    if (cesiumContainer) {
+      // Set initial state based on active framework
+      if (activeFramework === "leaflet") {
+        cesiumContainer.style.opacity = "0";
+        cesiumContainer.style.pointerEvents = "none";
+      } else {
+        cesiumContainer.style.opacity = "1";
+        cesiumContainer.style.pointerEvents = "auto";
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Run only once on mount with initial activeFramework value
 
   const requestTransitionToCesium = async () => {
     if (isTransitioning) return;

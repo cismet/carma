@@ -1,13 +1,8 @@
-import { CesiumMath, Scene } from "@carma/cesium";
+import { CesiumMath, Scene, PerspectiveFrustum } from "@carma/cesium";
 import type { Zoom } from "@carma/types";
 import { degToRad } from "@carma/units/helpers";
-import type { Degrees, LatLng } from "@carma/geo/types";
+import type { Degrees } from "@carma/geo/types";
 import { getPixelResolutionFromZoomAtLatitudeRad } from "@carma/geo/utils";
-
-import { getPixelDimensionsForDistance } from "./get-pixel-dimensions-for-distance";
-
-// TODO: move to config or formalize the starting distance value
-const START_DISTANCE = 1000;
 
 export function calculateCameraDistance(
   scene: Scene,
@@ -22,25 +17,61 @@ export function calculateCameraDistance(
     latRad
   );
 
-  const baseComputedPixelResolution = getPixelDimensionsForDistance(
-    scene,
-    resolutionScale,
-    START_DISTANCE
-  )?.average;
+  const { camera, drawingBufferHeight, drawingBufferWidth } = scene;
 
-  if (
-    baseComputedPixelResolution === null ||
-    baseComputedPixelResolution === undefined
-  ) {
+  if (!camera?.frustum || !(camera.frustum instanceof PerspectiveFrustum)) {
     console.warn(
-      "[CESIUM|TRANSITION] No base computed pixel resolution found for distance",
-      START_DISTANCE
+      "[CESIUM|TRANSITION] Camera frustum not available or not perspective"
     );
     return null;
   }
 
-  const resolutionRatio = targetPixelResolution / baseComputedPixelResolution;
-  const computedDistance = START_DISTANCE * resolutionRatio;
+  if (!Number.isFinite(drawingBufferHeight) || drawingBufferHeight <= 0) {
+    console.warn("[CESIUM|TRANSITION] Invalid drawing buffer height");
+    return null;
+  }
+
+  if (!Number.isFinite(drawingBufferWidth) || drawingBufferWidth <= 0) {
+    console.warn("[CESIUM|TRANSITION] Invalid drawing buffer width");
+    return null;
+  }
+
+  // The FOV always corresponds to the longer edge dimension for cesium
+  const aspectRatio = drawingBufferWidth / drawingBufferHeight;
+  const fov = camera.frustum.fov; // FOV in radians
+
+  // Use longer edge and its corresponding FOV
+  const longerEdge = Math.max(drawingBufferWidth, drawingBufferHeight);
+
+  const effectiveRadiusPixels = longerEdge / 2;
+
+  // For perspective projection:
+  // Solving for distance:
+
+  const dpr = window.devicePixelRatio || 1;
+
+  const tanHalfFov = Math.tan(fov / 2);
+  const computedDistance =
+    (targetPixelResolution * effectiveRadiusPixels * resolutionScale) /
+    tanHalfFov;
+
+  console.log("[CESIUM|TRANSITION] === calculateCameraDistance DEBUG ===");
+  console.log("[CESIUM|TRANSITION] Inputs:", {
+    zoom,
+    latitude,
+    resolutionScale,
+    drawingBufferWidth,
+    drawingBufferHeight,
+    longerEdge,
+    aspectRatio: aspectRatio.toFixed(3),
+    fovDeg: ((fov * 180) / Math.PI).toFixed(2),
+    fovRad: fov.toFixed(4),
+  });
+  console.log("[CESIUM|TRANSITION] Calculated:", {
+    targetPixelResolution: targetPixelResolution.toFixed(4) + " m/px",
+    tanHalfFov: tanHalfFov.toFixed(4),
+    computedDistance: computedDistance.toFixed(2) + " m",
+  });
 
   return computedDistance;
 }
@@ -53,45 +84,32 @@ export function calculateZoomFromDistance(
 ): number | null {
   const latRad = CesiumMath.toRadians(latitude);
 
-  const baseComputedPixelResolution = getPixelDimensionsForDistance(
-    scene,
-    resolutionScale,
-    START_DISTANCE
-  )?.average;
+  const { camera, drawingBufferHeight } = scene;
 
-  if (
-    baseComputedPixelResolution === null ||
-    baseComputedPixelResolution === undefined
-  ) {
+  if (!camera?.frustum || !(camera.frustum instanceof PerspectiveFrustum)) {
     console.warn(
-      "[CESIUM|TRANSITION] No base computed pixel resolution found for distance",
-      START_DISTANCE
+      "[CESIUM|TRANSITION] Camera frustum not available or not perspective"
     );
     return null;
   }
 
-  // Current pixel resolution at given distance
-  const currentPixelDimension = getPixelDimensionsForDistance(
-    scene,
-    resolutionScale,
-    distance
-  )?.average;
-
-  if (currentPixelDimension === null || currentPixelDimension === undefined) {
-    console.warn(
-      "[CESIUM|TRANSITION] No pixel resolution found for distance",
-      distance
-    );
+  if (!Number.isFinite(drawingBufferHeight) || drawingBufferHeight <= 0) {
+    console.warn("[CESIUM|TRANSITION] Invalid drawing buffer height");
     return null;
   }
+
+  const fov = camera.frustum.fov; // vertical FOV in radians
+
+  // Calculate current pixel resolution from distance and FOV
+  // pixelResolution = (2 * distance * tan(fov/2)) / (heightInPixels * resolutionScale)
+  const tanHalfFov = Math.tan(fov / 2);
+  const metersPerPixel =
+    (2 * distance * tanHalfFov) / (drawingBufferHeight * resolutionScale);
 
   // Find zoom level that produces this pixel resolution
-  // Using binary search or reverse calculation
-  // For now, approximate using the inverse of the zoom-to-resolution formula
   const EARTH_CIRCUMFERENCE = 40075016.686; // meters at equator
   const TILE_SIZE = 256;
 
-  const metersPerPixel = currentPixelDimension;
   const metersPerPixelAtEquator = metersPerPixel / Math.cos(latRad);
   const zoom = Math.log2(
     EARTH_CIRCUMFERENCE / (metersPerPixelAtEquator * TILE_SIZE)

@@ -38,7 +38,11 @@ export const transitionToCesium = async (
     step1_zoomOutEaseLinearity = 0.5,
     step2_initialRenderTimeoutMs = 100,
     step3_resourceWaitTimeoutMs = 500,
+    step4_cssTransitionDurationMs = 1000,
+    step5_postCssDelayMs = 200,
     step6_cameraAnimationDurationMs = 1500,
+    defaultHeadingDeg = 0,
+    defaultPitchDeg = -45,
   } = options;
 
   console.debug("[CESIUM] [CESIUM|2D3D|TO3D] Starting transition to 3D mode", {
@@ -138,9 +142,45 @@ export const transitionToCesium = async (
       "[CESIUM] [CSS] [CESIUM|2D3D|TO3D] Step 4: Making Cesium container visible"
     );
 
-    // Directly manipulate container CSS
+    // Set up CSS transition property (if not already set)
+    cesiumContainer.style.transition = `opacity ${step4_cssTransitionDurationMs}ms ease-in-out`;
+
+    // Force initial opacity to 0 and pointer-events to none
+    cesiumContainer.style.opacity = "0";
+    cesiumContainer.style.pointerEvents = "none";
+
+    // Force a reflow to ensure the initial state is applied
+    void cesiumContainer.offsetHeight;
+
+    // Now trigger the transition to opacity 1
     cesiumContainer.style.opacity = "1";
     cesiumContainer.style.pointerEvents = "auto";
+
+    // Wait for CSS transition to complete before starting camera animation
+    console.debug(
+      "[CESIUM] [CSS] [CESIUM|2D3D|TO3D] Waiting for CSS transition:",
+      step4_cssTransitionDurationMs,
+      "ms"
+    );
+
+    // Wait for CSS fade-in to complete
+    await promiseWithTimeout(
+      new Promise((resolve) =>
+        setTimeout(resolve, step4_cssTransitionDurationMs)
+      ),
+      step4_cssTransitionDurationMs + 100
+    );
+
+    // Stage 4.5: Additional delay to ensure CSS is fully complete
+    console.debug(
+      "[CESIUM] [CSS] [CESIUM|2D3D|TO3D] Post-CSS delay:",
+      step5_postCssDelayMs,
+      "ms"
+    );
+    await promiseWithTimeout(
+      new Promise((resolve) => setTimeout(resolve, step5_postCssDelayMs)),
+      step5_postCssDelayMs + 100
+    );
 
     // Stage 5: Animate camera to final position (if previous HPR exists)
     onTransitionStage(TransitionStage.ANIMATE_CAMERA, "Animating camera");
@@ -161,7 +201,9 @@ export const transitionToCesium = async (
       scene,
       targetHeadingPitch,
       step6_cameraAnimationDurationMs,
-      handleComplete
+      handleComplete,
+      defaultHeadingDeg,
+      defaultPitchDeg
     );
 
     if (!animationStarted) {

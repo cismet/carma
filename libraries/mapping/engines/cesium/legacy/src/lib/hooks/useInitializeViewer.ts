@@ -254,11 +254,14 @@ export const useInitializeViewer = (
       const sscc: ScreenSpaceCameraController =
         scene.screenSpaceCameraController;
 
-      scene.globe.depthTestAgainstTerrain = true;
-      // Terrain would show up as opaques surface over mesh if not set transparent
-      scene.globe.translucency.enabled = true;
-      scene.globe.translucency.frontFaceAlpha = isSecondaryStyle ? 1.0 : 0.0;
-      scene.globe.translucency.backFaceAlpha = isSecondaryStyle ? 1.0 : 0.0;
+      // Guard: scene.globe might not be initialized yet during early setup
+      if (scene.globe) {
+        scene.globe.depthTestAgainstTerrain = true;
+        // Terrain would show up as opaques surface over mesh if not set transparent
+        scene.globe.translucency.enabled = true;
+        scene.globe.translucency.frontFaceAlpha = isSecondaryStyle ? 1.0 : 0.0;
+        scene.globe.translucency.backFaceAlpha = isSecondaryStyle ? 1.0 : 0.0;
+      }
 
       sscc.enableCollisionDetection = enableCollisionDetection;
       sscc.minimumZoomDistance = minZoom ?? 1;
