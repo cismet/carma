@@ -537,15 +537,9 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       // During transitions, don't update hash - let transition handle it
       // This prevents TopicMapContextProvider from reading and re-applying the hash
       if (getIsTransitioning()) {
-        console.debug(
-          "[TopicMap|DEBUG] Location changed handler suppressed during transition"
-        );
         return;
       }
       if (!getIsLeaflet()) {
-        console.debug(
-          "[TopicMap|DEBUG] Location changed handler triggered while not in Leaflet mode"
-        );
         return;
       }
       handleTopicMapLocationChange(p);
@@ -555,7 +549,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       getIsLeaflet,
       getIsTransitioning,
       handleTopicMapLocationChange,
-      //updateLayersIdleState,
+      updateLayersIdleState,
     ]
   );
 

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { GroundPrimitive, Scene } from "cesium";
+import { GroundPrimitive, Scene } from "@carma/cesium";
 
 import {
   CesiumOptions,
@@ -8,13 +8,15 @@ import {
   removeGroundPrimitiveById,
   useCesiumContext,
 } from "@carma-mapping/engines/cesium";
-import type { CesiumContextType } from "@carma-mapping/engines/cesium";
 
 import {
   SelectionMapMode,
   useSelection,
 } from "../components/SelectionProvider";
-import { cesiumHitTrigger } from "../utils/cesiumHitTrigger";
+import { cesiumHandleAreaSelection } from "../utils/cesium-handle-area-selection";
+import { cesiumHandlePointSelection } from "../utils/cesium-handle-point-selection";
+import { getDerivedGeometries } from "../utils/getDerivedGeometries";
+import type { HitTriggerOptions } from "../utils/cesium-selection-types";
 
 export const SELECTED_POLYGON_ID = "searchgaz-highlight-polygon";
 export const INVERTED_SELECTED_POLYGON_ID = "searchgaz-inverted-polygon";
@@ -125,6 +127,7 @@ export const useSelectionCesium = (
   const { selection } = useSelection();
   const lastSelectionKeyRef = useRef<number | null>(null);
   const lastSelectionTimestampRef = useRef<number | null>(null);
+  const shouldAddSelectionInCesiumRef = useRef<boolean>(false);
   const wasActiveRef = useRef<boolean>(false);
   const [selectedMarkerData, setSelectedMarkerData] =
     useState<MarkerPrimitiveData | null>(null);
@@ -135,10 +138,10 @@ export const useSelectionCesium = (
   useEffect(() => {
     if (!isActive && wasActiveRef.current) {
       console.debug(
-        "[CESIUM-SELECTION] Cesium becoming inactive - resetting refs"
+        "[CESIUM-SELECTION] Cesium becoming inactive - keeping selection refs to prevent re-animation"
       );
-      lastSelectionKeyRef.current = null;
-      lastSelectionTimestampRef.current = null;
+      // DON'T clear lastSelectionKeyRef - we need it to detect duplicates when re-activating
+      shouldAddSelectionInCesiumRef.current = false;
       wasActiveRef.current = false;
       return;
     }
@@ -156,19 +159,36 @@ export const useSelectionCesium = (
     if (selection) {
       const selectionKey = selection.sorter ?? null;
       const selectionTimestamp = selection.selectionTimestamp ?? null;
+      const selectionMapMode = selection.selectedFromMapMode ?? null;
 
       const isDuplicateSelection =
         lastSelectionKeyRef.current === selectionKey &&
         lastSelectionTimestampRef.current === selectionTimestamp;
 
+      // Check if we should add this selection when Cesium becomes active
+      const shouldSkipBecauseNotPending =
+        !shouldAddSelectionInCesiumRef.current &&
+        lastSelectionKeyRef.current === selectionKey;
+
       console.debug("[CESIUM-SELECTION] Processing selection", {
         selectionKey,
         lastKey: lastSelectionKeyRef.current,
         isDuplicate: isDuplicateSelection,
+        selectionMapMode,
+        shouldAddInCesium: shouldAddSelectionInCesiumRef.current,
+        shouldSkipBecauseNotPending,
       });
 
       if (isDuplicateSelection) {
         console.debug("HOOK: useSelectionCesium - same selection, skipping");
+        return;
+      }
+
+      // Skip if this selection doesn't need to be added (already handled or made in Cesium)
+      if (shouldSkipBecauseNotPending) {
+        console.debug(
+          "HOOK: useSelectionCesium - selection not pending, skipping"
+        );
         return;
       }
 
@@ -212,22 +232,23 @@ export const useSelectionCesium = (
 
       lastSelectionKeyRef.current = selectionKey;
       lastSelectionTimestampRef.current = selectionTimestamp;
+      
+      // Set flag for selections from Leaflet (2D mode) - they need to be added when Cesium becomes active
+      // Clear flag for selections from Cesium (3D mode) - they're already in Cesium
+      shouldAddSelectionInCesiumRef.current = 
+        selectionMapMode === SelectionMapMode.MODE_2D;
+
+      console.debug(
+        "[CESIUM-SELECTION] Should add selection in Cesium:",
+        shouldAddSelectionInCesiumRef.current,
+        "for mode",
+        selectionMapMode
+      );
 
       const skipFlyTo =
         selection.selectedFromMapMode === SelectionMapMode.MODE_2D;
 
       const skipMarkerUpdate = isReselectionWithMarker || isReselectionArea;
-
-      const options = {
-        mapOptions: cesiumOptions,
-        selectedPolygonId: SELECTED_POLYGON_ID,
-        invertedSelectedPolygonId: INVERTED_SELECTED_POLYGON_ID,
-        useCameraHeight,
-        duration,
-        durationFactor,
-        skipFlyTo,
-        skipMarkerUpdate,
-      };
 
       const setMarkerDataWithMeta = (data: MarkerPrimitiveData | null) => {
         if (data) {
@@ -240,17 +261,61 @@ export const useSelectionCesium = (
         setSelectedMarkerData(data);
       };
 
-      cesiumHitTrigger(
-        [selection],
-        scene,
-        getTerrainProvider(),
-        getSurfaceProvider(),
-        selectedMarkerData,
-        setMarkerDataWithMeta,
-        options
-      );
+      const derivedGeometries = getDerivedGeometries(selection);
+      const { polygon } = derivedGeometries;
+
+      const commonOptions: HitTriggerOptions = {
+        mapOptions: cesiumOptions,
+        selectedPolygonId: SELECTED_POLYGON_ID,
+        invertedSelectedPolygonId: INVERTED_SELECTED_POLYGON_ID,
+        useCameraHeight,
+        duration,
+        durationFactor,
+        skipFlyTo,
+        skipMarkerUpdate,
+      };
+
+      if (polygon) {
+        // Area selection - clean up marker first
+        if (!skipMarkerUpdate && selectedMarkerData) {
+          removeCesiumMarker(scene, selectedMarkerData);
+          scene.requestRender();
+        }
+
+        cesiumHandleAreaSelection(
+          scene,
+          getTerrainProvider(),
+          getSurfaceProvider(),
+          derivedGeometries,
+          commonOptions
+        );
+        
+        // Clear flag after adding selection
+        shouldAddSelectionInCesiumRef.current = false;
+      } else {
+        // Point selection - clean up area primitives first
+        if (!skipMarkerUpdate) {
+          removeGroundPrimitiveById(scene, SELECTED_POLYGON_ID);
+          removeGroundPrimitiveById(scene, INVERTED_SELECTED_POLYGON_ID);
+          scene.requestRender();
+        }
+
+        cesiumHandlePointSelection(
+          scene,
+          getTerrainProvider(),
+          getSurfaceProvider(),
+          selectedMarkerData,
+          setMarkerDataWithMeta,
+          derivedGeometries,
+          commonOptions
+        );
+        
+        // Clear flag after adding selection
+        shouldAddSelectionInCesiumRef.current = false;
+      }
     } else {
       lastSelectionKeyRef.current = null;
+      shouldAddSelectionInCesiumRef.current = false;
       const scene = getScene();
       if (!scene) {
         console.warn(
