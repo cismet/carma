@@ -117,12 +117,13 @@ interface MapProps {
   allow3d?: boolean;
 }
 
+const CLICK_DELAY_MS = 200;
+
 export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const dispatch = useDispatch();
 
   // Contexts
   const {
-    viewerRef,
     withTerrainProvider,
     withSurfaceProvider,
     getSurfaceProvider,
@@ -337,34 +338,50 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const onComplete = useCallback(
     (selection: SelectionItem) => {
       if (layers.filter((l) => l.layerType === "vector").length === 0) return;
-      const layersIdle = getLayersIdle(store.getState());
+      // Note: This callback is only called from useSelectionTopicMap for Leaflet selections
+      // No need to check getIsLeaflet() here - it's redundant and causes stale closure issues
       if (
         (uiMode === UIMode.DEFAULT || uiMode === UIMode.FEATURE_INFO) &&
-        !isAreaType(selection.type as ENDPOINT) &&
-        getIsLeaflet()
+        !isAreaType(selection.type as ENDPOINT)
       ) {
         const selectedPos = proj4(proj4crs3857def, proj4crs4326def, [
           selection.x,
           selection.y,
         ]);
         const leaflet = getLeafletMap();
-        if (layersIdle && leaflet) {
+
+        if (!leaflet) {
+          console.debug(
+            "[GAZETTEER-SELECTION] No leaflet map available, retrying..."
+          );
+          setTimeout(() => {
+            onComplete(selection);
+          }, 20);
+          return;
+        }
+
+        // builtInGazetteerHitTrigger moves the map and loads layers before calling this
+        // We need to delay the virtual click to ensure layers have rendered
+        console.debug(
+          "[GAZETTEER-SELECTION] Scheduling virtual click after delay..."
+        );
+        setTimeout(() => {
           const updatedPos = { lat: selectedPos[1], lng: selectedPos[0] };
           const latlngPoint = L.latLng(updatedPos);
 
+          console.debug(
+            "[GAZETTEER-SELECTION] Firing virtual click",
+            updatedPos
+          );
           leaflet.fireEvent("click", {
             latlng: latlngPoint,
             layerPoint: leaflet.latLngToLayerPoint(latlngPoint),
             containerPoint: leaflet.latLngToContainerPoint(latlngPoint),
           });
-        } else {
-          setTimeout(() => {
-            onComplete(selection);
-          }, 20);
-        }
+        }, CLICK_DELAY_MS);
       }
     },
-    [layers, uiMode, getIsLeaflet, getLeafletMap]
+    [layers, uiMode, getLeafletMap]
   );
 
   const updateFeatureInfoLeaflet = useCallback(() => {
