@@ -34,6 +34,7 @@ interface PickOptions {
   getPixelSize?: boolean;
   getCoordinates?: boolean;
   pickTranslucentDepth?: boolean;
+  resolutionScale?: number;
 }
 // ...
 
@@ -76,6 +77,7 @@ export const pickSceneCanvasPositions = (
     getCoordinates = false,
     depthTestAgainstTerrain = true,
     pickTranslucentDepth = true,
+    resolutionScale = 1.0,
   }: PickOptions = {}
 ): PickResult[] => {
   if (!isValidScene(scene)) {
@@ -214,7 +216,8 @@ export const pickSceneCanvasPositions = (
           scenePosition,
           camera,
           drawingBufferWidth,
-          drawingBufferHeight
+          drawingBufferHeight,
+          resolutionScale
         );
       }
 

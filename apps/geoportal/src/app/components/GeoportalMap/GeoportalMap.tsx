@@ -292,19 +292,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const frameworkOptions = useMemo(() => {
     // Gate: Only register when both frameworks have initialized
     // Prevents registering null values that would keep the switcher disabled
-
-    console.debug(
-      "[GPM|DEBUG] Registering map frameworks with switcher context",
-      {
-        isViewerReady,
-        leafletMap,
-        cesiumScene,
-        cesiumContainer,
-        terrainProvider,
-        surfaceProvider,
-        resolutionScale: viewerRef?.current?.resolutionScale ?? 1.0,
-      }
-    );
     if (
       !leafletMap ||
       !cesiumScene ||
@@ -323,7 +310,10 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
         TERRAIN: terrainProvider ?? null,
         SURFACE: surfaceProvider ?? null,
       },
-      resolutionScale: viewerRef?.current?.resolutionScale ?? 1.0,
+      // When useBrowserRecommendedResolution: false, Cesium renders at device pixels
+      // but reports resolutionScale = 1.0. For transition calculations, we need the
+      // actual device pixel ratio to correctly calculate zoom/distance equivalence.
+      resolutionScale: window.devicePixelRatio,
     };
   }, [
     leafletMap,
@@ -331,7 +321,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     cesiumContainer,
     terrainProvider,
     surfaceProvider,
-    viewerRef,
     isViewerReady,
     routedMapRef,
   ]);
@@ -544,7 +533,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
         return;
       }
       handleTopicMapLocationChange(p);
-      //updateLayersIdleState();
+      updateLayersIdleState();
     },
     [
       getIsLeaflet,
@@ -562,7 +551,8 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
         );
         return;
       }
-      handleCesiumSceneChange(e);
+      // TODO fix and re-enable
+      //handleCesiumSceneChange(e);
     },
     [getIsLeaflet, handleCesiumSceneChange]
   );

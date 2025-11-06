@@ -51,7 +51,7 @@ export const tryWithValidScene = (
  */
 export const waitForRenderFrames = (
   scene: Scene,
-  frameCount: number = 2,
+  frameCount: number = 1,
   stage: SceneRenderStage = "postRender"
 ): Promise<void> => {
   return new Promise<void>((resolve) => {

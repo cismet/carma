@@ -5,29 +5,27 @@
 
 import { useEffect, useRef, useState } from "react";
 import {
-  createMinimalCesiumWidget,
   CesiumWidget,
   CesiumTerrainProvider,
-  Cartesian3,
   Cesium3DTileset,
+  waitForRenderFrames,
 } from "@carma/cesium";
-import { degToRadNumeric } from "@carma/units/helpers";
-import {
-  WUPP_TERRAIN_PROVIDER,
-  WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
-  WUPP_MESH_2024,
-  WUPPERTAL,
-} from "@carma-commons/resources";
 import L from "leaflet";
+import {
+  initializeCesium,
+  initializeTerrainProviders,
+  loadTileset,
+  type CesiumSetupOptions,
+} from "../helpers/cesium-setup";
+import {
+  initializeLeaflet,
+  type LeafletSetupOptions,
+} from "../helpers/leaflet-setup";
 
-// Wuppertal aerial imagery WMS layer
-const WUPPERTAL_LUFTBILD_WMS = {
-  url: "https://geo.udsp.wuppertal.de/geoserver-cloud/ows",
-  layers: "GIS-102:trueortho2024",
-  format: "image/png",
-  transparent: true,
-  attribution: "© Stadt Wuppertal",
-};
+export interface LeafletCesiumSetupOptions {
+  cesium?: CesiumSetupOptions;
+  leaflet?: LeafletSetupOptions;
+}
 
 export interface LeafletCesiumRefs {
   leafletContainerRef: React.RefObject<HTMLDivElement>;
@@ -48,16 +46,21 @@ export interface UseLeafletCesiumSetupReturn extends LeafletCesiumRefs {
 /**
  * Hook to set up Leaflet + Cesium maps with Wuppertal configuration
  *
+ * @param options - Configuration options for Cesium and Leaflet
  * @returns Refs to containers and map instances, plus initialization state
  *
  * @example
- * const { leafletContainerRef, cesiumContainerRef, mapsInitialized, ... } = useLeafletCesiumSetup();
+ * const { leafletContainerRef, cesiumContainerRef, mapsInitialized, ... } = useLeafletCesiumSetup({
+ *   cesium: { useBrowserRecommendedResolution: false }
+ * });
  *
  * // Use in JSX:
  * <div ref={leafletContainerRef} />
  * <div ref={cesiumContainerRef} />
  */
-export const useLeafletCesiumSetup = (): UseLeafletCesiumSetupReturn => {
+export const useLeafletCesiumSetup = (
+  options: LeafletCesiumSetupOptions = {}
+): UseLeafletCesiumSetupReturn => {
   const [mapsInitialized, setMapsInitialized] = useState(false);
 
   const leafletContainerRef = useRef<HTMLDivElement>(null);
@@ -74,103 +77,46 @@ export const useLeafletCesiumSetup = (): UseLeafletCesiumSetupReturn => {
   useEffect(() => {
     if (!leafletContainerRef.current || !cesiumContainerRef.current) return;
 
-    const initMaps = () => {
+    const initMaps = async () => {
       if (!leafletContainerRef.current || !cesiumContainerRef.current) return;
 
-      // Initialize terrain providers
-      CesiumTerrainProvider.fromUrl(WUPP_TERRAIN_PROVIDER.url)
-        .then((terrain) => {
-          terrainProvidersRef.current.TERRAIN = terrain;
-          console.log("[TERRAIN] TERRAIN provider initialized");
-        })
-        .catch((error) => {
-          console.warn("TERRAIN provider failed:", error);
-        });
-
-      CesiumTerrainProvider.fromUrl(WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M.url)
-        .then((terrain) => {
-          terrainProvidersRef.current.SURFACE = terrain;
-          console.log("[TERRAIN] SURFACE provider initialized");
-        })
-        .catch((error) => {
-          console.warn("SURFACE provider failed:", error);
-        });
-
       try {
-        // Create Leaflet map
-        const leafletMap = L.map(leafletContainerRef.current, {
-          center: [WUPPERTAL.position.latitude, WUPPERTAL.position.longitude],
-          zoom: 17,
-          minZoom: 8,
-          maxZoom: 22,
-          zoomControl: false,
-          attributionControl: false,
-          zoomSnap: 1,
-          zoomDelta: 1,
-        });
-
-        // Add Wuppertal aerial imagery WMS layer
-        L.tileLayer
-          .wms(WUPPERTAL_LUFTBILD_WMS.url, {
-            layers: WUPPERTAL_LUFTBILD_WMS.layers,
-            format: WUPPERTAL_LUFTBILD_WMS.format,
-            transparent: WUPPERTAL_LUFTBILD_WMS.transparent,
-            attribution: WUPPERTAL_LUFTBILD_WMS.attribution,
-            maxZoom: 22,
-          })
-          .addTo(leafletMap);
-
-        setTimeout(() => leafletMap.invalidateSize(), 100);
-
+        // Initialize Leaflet with helper
+        const leafletMap = initializeLeaflet(
+          leafletContainerRef.current,
+          options.leaflet
+        );
         leafletMapRef.current = leafletMap;
       } catch (error) {
         console.error("Leaflet initialization error:", error);
       }
 
       try {
-        // Create Cesium widget
-        const widget = createMinimalCesiumWidget(cesiumContainerRef.current);
+        // Initialize terrain providers first (before widget creation)
+        const providers = await initializeTerrainProviders(
+          options.cesium?.terrainProviderUrl,
+          options.cesium?.surfaceProviderUrl
+        );
+        terrainProvidersRef.current = providers;
+
+        // Initialize Cesium with helper
+        const widget = initializeCesium(
+          cesiumContainerRef.current,
+          options.cesium
+        );
         cesiumWidgetRef.current = widget;
 
-        // Signal that maps are initialized
-        setMapsInitialized(true);
+        // Wait for scene to be ready before signaling initialization
+        // Use waitForRenderFrames helper to ensure scene is valid
+        waitForRenderFrames(widget.scene).then(() => {
+          setMapsInitialized(true);
+        });
 
-        // Load 3D tileset
-        Cesium3DTileset.fromUrl(WUPP_MESH_2024.url, {
-          preloadWhenHidden: false,
-          scene: widget.scene,
-          shadows: 0,
-          enableCollision: false,
-          maximumScreenSpaceError: 6,
-          skipLevelOfDetail: true,
-          skipScreenSpaceErrorFactor: 128,
-          baseScreenSpaceError: 4096,
-        })
-          .then((tileset) => {
-            if (widget.scene && !widget.isDestroyed()) {
-              widget.scene.primitives.add(tileset);
-              tilesetRef.current = tileset;
-              widget.scene.requestRender();
-              console.log("Tileset loaded");
-            }
-          })
-          .catch((error) => {
-            console.warn("3D Tileset failed to load:", error);
-          });
-
-        // Position camera over Wuppertal
-        const position = Cartesian3.fromDegrees(
-          WUPPERTAL.position.longitude,
-          WUPPERTAL.position.latitude,
-          500
-        );
-        widget.camera.setView({
-          destination: position,
-          orientation: {
-            heading: degToRadNumeric(0),
-            pitch: degToRadNumeric(-45),
-            roll: 0,
-          },
+        // Load tileset (async, don't block)
+        loadTileset(widget, options.cesium?.tilesetUrl).then((tileset) => {
+          if (tileset) {
+            tilesetRef.current = tileset;
+          }
         });
       } catch (error) {
         console.error("Cesium initialization error:", error);
@@ -207,7 +153,8 @@ export const useLeafletCesiumSetup = (): UseLeafletCesiumSetupReturn => {
         console.error("Error cleaning up Cesium:", error);
       }
     };
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty deps - initialize once on mount, cleanup on unmount
 
   return {
     leafletContainerRef,

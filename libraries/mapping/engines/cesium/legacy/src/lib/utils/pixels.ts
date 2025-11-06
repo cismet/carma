@@ -17,16 +17,20 @@ import {
 } from "./pickers";
 
 export const getPixelSizeForPosition = (
-  position: Cartesian3 | null,
-  camera: Camera, // validate Camera existence outside of this
+  scenePosition: Cartesian3 | null,
+  camera: Camera,
   drawingBufferWidth: number,
-  drawingBufferHeight: number
+  drawingBufferHeight: number,
+  resolutionScale = 1.0
 ) => {
-  if (defined(position)) {
-    // Calculate pixel size directly without creating BoundingSphere for better performance
-    const distance = Cartesian3.distance(position, camera.position);
+  if (scenePosition) {
+    const distance = Cartesian3.distance(scenePosition, camera.position);
+    if (distance <= 0) {
+      return null;
+    }
 
     if (!(camera.frustum instanceof PerspectiveFrustum)) {
+      console.warn("[CESIUM|PIXELS] Non-perspective frustum not supported");
       return null;
     }
 
@@ -35,19 +39,34 @@ export const getPixelSizeForPosition = (
       drawingBufferWidth,
       drawingBufferHeight,
       distance,
-      1 // resolutionScale
+      resolutionScale
     );
 
     if (!pixelDimensions) {
       return null;
     }
 
-    return Math.max(pixelDimensions.x, pixelDimensions.y);
+    const metersPerCSSPixel = Math.max(pixelDimensions.x, pixelDimensions.y);
+
+    console.log("[CESIUM|PIXELS] Resolution calculation:", {
+      drawingBufferWidth,
+      drawingBufferHeight,
+      distance: distance.toFixed(2),
+      resolutionScale,
+      metersPerCSSPixel: metersPerCSSPixel.toFixed(6),
+    });
+
+    return metersPerCSSPixel;
   }
   return null;
 };
 
-const sampleRingPixelSize = (scene: Scene, samples: number, radius: number) => {
+const sampleRingPixelSize = (
+  scene: Scene,
+  samples: number,
+  radius: number,
+  resolutionScale = 1.0
+) => {
   const positionCoords = generatePositionsForRing(samples, radius);
   const positions = pickSceneCanvasPositions(scene, positionCoords);
   const pixelSizes: (number | null)[] = [];
@@ -58,7 +77,8 @@ const sampleRingPixelSize = (scene: Scene, samples: number, radius: number) => {
       scenePosition,
       camera,
       drawingBufferWidth,
-      drawingBufferHeight
+      drawingBufferHeight,
+      resolutionScale
     );
     pixelSizes.push(pixelSize);
   });
@@ -87,8 +107,19 @@ const sampleRingPixelSize = (scene: Scene, samples: number, radius: number) => {
 export const getScenePixelSize = (
   scene: Scene,
   mode = PICKMODE.CENTER,
-  { samples = 10, radius = 0.2 }: { samples?: number; radius?: number } = {}
+  {
+    samples = 10,
+    radius = 0.2,
+    resolutionScale = 1.0,
+  }: { samples?: number; radius?: number; resolutionScale?: number } = {}
 ): NumericResult => {
+  console.log("[CESIUM|PIXELS|getScenePixelSize] Called with:", {
+    mode,
+    samples,
+    radius,
+    resolutionScale,
+  });
+
   // sample two position to get better approximation for full view extent
   if (radius >= 0.5) {
     console.warn(
@@ -104,7 +135,12 @@ export const getScenePixelSize = (
   switch (mode) {
     case PICKMODE.RING: {
       if (radius > 0) {
-        result.value = sampleRingPixelSize(scene, samples, radius);
+        result.value = sampleRingPixelSize(
+          scene,
+          samples,
+          radius,
+          resolutionScale
+        );
         break;
       }
       console.warn("radius is 0, skipping");
@@ -114,6 +150,7 @@ export const getScenePixelSize = (
     default: {
       const centerPos = pickSceneCanvasCenter(scene, {
         getPixelSize: true,
+        resolutionScale,
       });
       result.value = centerPos.pixelSize;
     }

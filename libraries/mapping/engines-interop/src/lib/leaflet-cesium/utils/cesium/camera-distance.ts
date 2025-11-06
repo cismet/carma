@@ -46,14 +46,13 @@ export function calculateCameraDistance(
   const effectiveRadiusPixels = longerEdge / 2;
 
   // For perspective projection:
-  // Solving for distance:
-
-  const dpr = window.devicePixelRatio || 1;
-
+  // Solving for distance from: metersPerCSSPixel = (2 * distance * tan(fov/2)) / (drawingBufferHeight * resolutionScale)
+  // Distance = (metersPerCSSPixel * drawingBufferHeight * resolutionScale) / (2 * tan(fov/2))
+  // Where resolutionScale converts device pixels → CSS pixels (typically window.devicePixelRatio)
   const tanHalfFov = Math.tan(fov / 2);
   const computedDistance =
-    (targetPixelResolution * effectiveRadiusPixels * resolutionScale) /
-    tanHalfFov;
+    (targetPixelResolution * effectiveRadiusPixels) /
+    (tanHalfFov * resolutionScale);
 
   console.log("[CESIUM|TRANSITION] === calculateCameraDistance DEBUG ===");
   console.log("[CESIUM|TRANSITION] Inputs:", {
@@ -68,7 +67,7 @@ export function calculateCameraDistance(
     fovRad: fov.toFixed(4),
   });
   console.log("[CESIUM|TRANSITION] Calculated:", {
-    targetPixelResolution: targetPixelResolution.toFixed(4) + " m/px",
+    targetPixelResolution: targetPixelResolution.toFixed(4) + " m/px (CSS)",
     tanHalfFov: tanHalfFov.toFixed(4),
     computedDistance: computedDistance.toFixed(2) + " m",
   });

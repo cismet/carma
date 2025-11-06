@@ -15,7 +15,10 @@ export { CesiumWidget };
  * - globe: false (default: true) - No globe rendering
  * - skyAtmosphere: false (default: true) - No atmosphere rendering
  * - requestRenderMode: true (default: false) - Render only on request for performance
- * - useBrowserRecommendedResolution: true (default: true) - Use CSS pixels, not device pixels
+ * - useBrowserRecommendedResolution: false (default: true) - Use device pixels for crisp rendering
+ *   NOTE: When false, Cesium's drawingBuffer is in device pixels, but viewer.resolutionScale reports 1.0.
+ *   For transitions: Pass window.devicePixelRatio as resolutionScale because Leaflet uses CSS pixels.
+ *   frustum.getPixelDimensions() needs resolutionScale to convert device pixels → CSS pixels.
  * - contextOptions.webgl.alpha: true (default: false) - Transparent background support
  * - contextOptions.webgl.antialias: true (default: true) - Smooth edges
  *
@@ -38,7 +41,9 @@ const MINIMAL_WIDGET_OPTIONS = {
   scene3DOnly: true,
   baseLayer: false,
   requestRenderMode: true,
-  useBrowserRecommendedResolution: true,
+  useBrowserRecommendedResolution: false,
+  // we handle attribution externally in the apps, and use no default Ion Assets
+  creditContainer: document.createElement("div"),
   contextOptions: {
     webgl: {
       alpha: true,

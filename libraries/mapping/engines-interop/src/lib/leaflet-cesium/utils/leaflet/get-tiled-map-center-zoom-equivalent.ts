@@ -15,11 +15,13 @@ import { isZoom } from "@carma/units/helpers";
 type Options = {
   maxZoom?: Zoom256;
   minZoom?: Zoom256;
+  resolutionScale?: number;
 };
 
 const defaultOptions: Required<Options> = {
   maxZoom: 22 as Zoom256,
   minZoom: 10 as Zoom256,
+  resolutionScale: 1.0,
 };
 
 export const getTiledMapCenterZoomEquivalent = async (
@@ -32,11 +34,17 @@ export const getTiledMapCenterZoomEquivalent = async (
 
   const { camera } = scene;
 
-  const { maxZoom, minZoom } = normalizeOptions(options, defaultOptions);
+  const { maxZoom, minZoom, resolutionScale } = normalizeOptions(
+    options,
+    defaultOptions
+  );
 
   let center: LatLng.deg | undefined;
 
-  let zoomValue = sceneCenterPixelSizeToLeafletZoom(scene).value;
+  let zoomValue = sceneCenterPixelSizeToLeafletZoom(
+    scene,
+    resolutionScale
+  ).value;
   if (!isZoom(zoomValue)) {
     throw new Error("zoom is not valid");
   }

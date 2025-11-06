@@ -8,9 +8,17 @@ import {
 import { getZoomFromPixelResolutionAtLatitudeRad } from "@carma/geo/utils";
 
 export const sceneCenterPixelSizeToLeafletZoom = (
-  scene: Scene
+  scene: Scene,
+  resolutionScale = 1.0
 ): NumericResult => {
-  const pixelSize = getScenePixelSize(scene, PICKMODE.RING);
+  console.log(
+    "[CESIUM|ZOOM] sceneCenterPixelSizeToLeafletZoom called with resolutionScale:",
+    resolutionScale
+  );
+
+  const pixelSize = getScenePixelSize(scene, PICKMODE.RING, {
+    resolutionScale,
+  });
   if (pixelSize.value === null) {
     console.warn("No pixel size found for camera position.", pixelSize.error);
     return { value: null, error: "No pixel size found for camera position" };

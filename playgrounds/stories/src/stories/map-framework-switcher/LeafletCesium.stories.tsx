@@ -360,6 +360,241 @@ Full-featured story with **metrics and controls for debugging**.
 - Cesium widget with high-resolution terrain
 - Real-time opacity transition between 2D/3D
 - Transition metrics tracking (zoom, distance, terrain height, FOV)
+
+**Resolution Scale Notes:**
+- Device Pixel Ratio: ${
+          typeof window !== "undefined" ? window.devicePixelRatio : "N/A"
+        }
+- useBrowserRecommendedResolution: true (CSS pixels, resolutionScale = 1.0 / DPR)
+- For crisp rendering, use false + pass window.devicePixelRatio to transitions
+        `,
+      },
+    },
+  },
+};
+
+// Story 4: Resolution Scale Test
+const ResolutionScaleTest = ({
+  useBrowserRecommendedResolution = false,
+  resolutionScale: customResolutionScale,
+}: {
+  useBrowserRecommendedResolution?: boolean;
+  resolutionScale?: number;
+}) => {
+  const {
+    leafletContainerRef,
+    cesiumContainerRef,
+    leafletMapRef,
+    cesiumWidgetRef,
+    terrainProvidersRef,
+    mapsInitialized,
+  } = useLeafletCesiumSetup({
+    cesium: { useBrowserRecommendedResolution },
+  });
+
+  const dpr = typeof window !== "undefined" ? window.devicePixelRatio : 1.0;
+
+  // Resolution scale for transitions - CRITICAL:
+  // Leaflet uses CSS pixels, Cesium drawingBuffer uses device pixels
+  // frustum.getPixelDimensions(..., resolutionScale) returns meters per CSS pixel
+  // When useBrowserRecommendedResolution: false:
+  //   - drawingBuffer = CSS size × DPR (e.g., 2568 = 1284 × 2)
+  //   - viewer.resolutionScale = 1.0 (wrong for our needs!)
+  //   - We need DPR to convert device pixels → CSS pixels for Leaflet
+  // When useBrowserRecommendedResolution: true:
+  //   - drawingBuffer = CSS size × 1.0 (e.g., 1284)
+  //   - viewer.resolutionScale = 1.0 / DPR = 0.5 (correct!)
+  const cesiumReportedScale = cesiumWidgetRef.current?.resolutionScale ?? 1.0;
+  const activeResolutionScale =
+    customResolutionScale ??
+    (useBrowserRecommendedResolution ? cesiumReportedScale : dpr);
+
+  // Register maps with correct resolutionScale for transitions
+  useRegisterMapFramework({
+    leafletMap: mapsInitialized ? leafletMapRef.current : null,
+    cesiumScene: mapsInitialized
+      ? cesiumWidgetRef.current?.scene ?? null
+      : null,
+    cesiumContainer: cesiumContainerRef.current,
+    terrainProviders: terrainProvidersRef.current,
+    // Use devicePixelRatio for crisp rendering with useBrowserRecommendedResolution: false
+    resolutionScale: activeResolutionScale,
+  });
+
+  const { activeFramework } = useMapFrameworkSwitcherContext();
+
+  return (
+    <div style={{ width: "100%", height: "100vh", position: "relative" }}>
+      {/* Leaflet container */}
+      <div
+        ref={leafletContainerRef}
+        style={{
+          width: "100%",
+          height: "100%",
+          position: "absolute",
+          top: 0,
+          left: 0,
+          zIndex: 1,
+        }}
+      />
+
+      {/* Cesium container */}
+      <div
+        ref={cesiumContainerRef}
+        style={{
+          width: "100%",
+          height: "100%",
+          position: "absolute",
+          top: 0,
+          left: 0,
+          zIndex: 2,
+        }}
+      />
+
+      {/* Framework switcher button */}
+      <div
+        style={{
+          position: "absolute",
+          top: "16px",
+          left: "16px",
+          zIndex: 1000,
+        }}
+      >
+        <MapFrameworkSwitcher nativeTooltip={true} />
+      </div>
+
+      {/* Resolution info panel */}
+      <div
+        style={{
+          position: "absolute",
+          top: "16px",
+          right: "16px",
+          zIndex: 1000,
+          background: "rgba(0,0,0,0.8)",
+          color: "white",
+          padding: "12px 16px",
+          borderRadius: "4px",
+          fontFamily: "monospace",
+          fontSize: "12px",
+        }}
+      >
+        <div>
+          <strong>Resolution Info:</strong>
+        </div>
+        <div>Device Pixel Ratio: {dpr.toFixed(2)}</div>
+        <div>
+          CSS Size: {cesiumContainerRef.current?.clientWidth ?? "N/A"}×
+          {cesiumContainerRef.current?.clientHeight ?? "N/A"}
+        </div>
+        <div>
+          Drawing Buffer:{" "}
+          {cesiumWidgetRef.current?.scene.drawingBufferWidth ?? "N/A"}×
+          {cesiumWidgetRef.current?.scene.drawingBufferHeight ?? "N/A"}
+        </div>
+        <div style={{ color: "#4ade80", marginTop: "8px" }}>
+          <strong>
+            Transition resolutionScale: {activeResolutionScale.toFixed(2)}
+          </strong>
+        </div>
+        <div style={{ opacity: 0.7, fontSize: "10px" }}>
+          Cesium reports: {cesiumReportedScale.toFixed(2)}
+          <br />
+          {!useBrowserRecommendedResolution &&
+            `Using DPR (${dpr.toFixed(2)}) for CSS pixel conversion`}
+          {useBrowserRecommendedResolution && "Using Cesium value (correct)"}
+        </div>
+        <div style={{ marginTop: "8px", fontSize: "10px", opacity: 0.8 }}>
+          useBrowserRecommendedResolution:{" "}
+          {useBrowserRecommendedResolution.toString()}
+          <br />
+          {!useBrowserRecommendedResolution &&
+            "→ Rendering at device pixels (crisp)"}
+          {useBrowserRecommendedResolution && "→ Rendering at CSS pixels"}
+        </div>
+      </div>
+
+      {/* Active framework indicator */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: "16px",
+          right: "16px",
+          zIndex: 1000,
+          background: "rgba(0,0,0,0.7)",
+          color: "white",
+          padding: "8px 16px",
+          borderRadius: "4px",
+          fontFamily: "monospace",
+        }}
+      >
+        Active: {activeFramework}
+      </div>
+    </div>
+  );
+};
+
+export const ResolutionScale: StoryObj<typeof ResolutionScaleTest> = {
+  args: {
+    useBrowserRecommendedResolution: false,
+    resolutionScale: undefined, // undefined = auto-detect (DPR when false, Cesium value when true)
+  },
+  argTypes: {
+    useBrowserRecommendedResolution: {
+      control: "boolean",
+      description:
+        "When false, Cesium renders at device pixels (crisp). When true, uses CSS pixels (default Cesium behavior).",
+      table: {
+        type: { summary: "boolean" },
+        defaultValue: { summary: "true (Cesium default)" },
+      },
+    },
+    resolutionScale: {
+      control: { type: "number", min: 0.5, max: 3, step: 0.1 },
+      description:
+        "Resolution scale for transitions. If undefined, uses window.devicePixelRatio when useBrowserRecommended=false, or 1.0 when true. Default: 1.0",
+      table: {
+        type: { summary: "number | undefined" },
+        defaultValue: { summary: "1.0 (CSS pixels)" },
+      },
+    },
+  },
+  render: (args) => (
+    <MapFrameworkSwitcherProvider initialFramework="leaflet">
+      <ResolutionScaleTest {...args} />
+    </MapFrameworkSwitcherProvider>
+  ),
+  parameters: {
+    docs: {
+      description: {
+        story: `
+**Resolution Scale Test Story**
+
+Tests transition calculations with configurable resolution settings.
+
+**The Critical Issue:**
+Leaflet uses **CSS pixels**, but Cesium's drawing buffer uses **device pixels**.
+Cesium's \`frustum.getPixelDimensions(drawingBufferWidth, drawingBufferHeight, distance, resolutionScale)\` 
+returns meters per **CSS pixel** when you pass the resolution scale parameter.
+
+**When \`useBrowserRecommendedResolution: false\` (crisp rendering):**
+- Drawing buffer: CSS width × DPR (e.g., 2568 = 1284 × 2.0)
+- Cesium reports \`viewer.resolutionScale = 1.0\` (WRONG for our purpose!)
+- We need \`resolutionScale = window.devicePixelRatio\` to convert device pixels → CSS pixels
+- **Solution:** Pass DPR to transitions
+
+**When \`useBrowserRecommendedResolution: true\` (CSS pixel rendering):**
+- Drawing buffer: CSS width × 1.0 (e.g., 1284)
+- Cesium reports \`viewer.resolutionScale = 1.0 / DPR = 0.5\` (CORRECT!)
+- **Solution:** Use Cesium's value
+
+**Why this matters:**
+- Leaflet zoom level is based on meters per CSS pixel
+- If we use wrong resolutionScale, camera distance calculation is off by DPR factor
+- On DPR=2 displays: zoom 17 becomes zoom 18 (or vice versa) - exactly 1 zoom level off!
+
+**Example URLs:**
+- Correct (uses DPR): \`?args=useBrowserRecommendedResolution:false\`
+- Test forced values: \`?args=useBrowserRecommendedResolution:false;resolutionScale:1\`
         `,
       },
     },

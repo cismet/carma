@@ -25,6 +25,7 @@ import { sceneCenterPixelSizeToLeafletZoom } from "../../utils/cesium/scene-cent
 type AnimateCesiumToTopDownOptions = {
   scene: Scene;
   leaflet: LeafletMap;
+  resolutionScale: number;
   onAnimationComplete: () => void;
   setTargetHeadingPitch: (HeadingPitch: HeadingPitchJson) => void;
   onTransitionCancel: () => void;
@@ -42,6 +43,7 @@ export const animateCesiumToTopDownLeafletLikeView = (
   scene: Scene,
   leaflet: LeafletMap,
   {
+    resolutionScale,
     onAnimationComplete,
     setTargetHeadingPitch,
     onTransitionCancel,
@@ -92,7 +94,10 @@ export const animateCesiumToTopDownLeafletLikeView = (
 
   if (zoomSnap) {
     // Move the cesium camera to the next zoom snap level of leaflet before transitioning
-    const currentZoom = sceneCenterPixelSizeToLeafletZoom(scene).value;
+    const currentZoom = sceneCenterPixelSizeToLeafletZoom(
+      scene,
+      resolutionScale
+    ).value;
     const heightBefore = height;
     const distanceBefore = distance;
 
@@ -141,7 +146,7 @@ export const animateCesiumToTopDownLeafletLikeView = (
   const onComplete2d = async () => {
     try {
       const { latitude, longitude, zoom } =
-        await getTiledMapCenterZoomEquivalent(scene);
+        await getTiledMapCenterZoomEquivalent(scene, { resolutionScale });
       console.log("[2D3D|TRANSITION] Setting Leaflet view after animation:", {
         latitude,
         longitude,

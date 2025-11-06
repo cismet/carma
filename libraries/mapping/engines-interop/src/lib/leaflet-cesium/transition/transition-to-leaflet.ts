@@ -105,6 +105,7 @@ export const transitionToLeaflet = async (
     animateCesiumToTopDownLeafletLikeView(scene, leaflet, {
       scene,
       leaflet,
+      resolutionScale,
       onAnimationComplete: handleAnimationComplete,
       setTargetHeadingPitch: handleTargetHeadingPitch,
       onTransitionCancel: () => {
