@@ -21,7 +21,7 @@ setupCesiumEnvironment(CESIUM_CONFIG);
 
 const persistor = persistStore(store);
 
-// suppressReactCismapErrors();
+suppressReactCismapErrors();
 
 preventPinchZoom();
 
