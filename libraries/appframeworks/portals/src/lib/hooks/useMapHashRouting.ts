@@ -199,18 +199,15 @@ export function useMapHashRouting({
         const zoomFromHash = e.values.zoom as number | undefined;
         const fallbackZoom = getLeafletZoom?.();
         const zoom = zoomFromHash ?? fallbackZoom;
-        
-        console.warn(
-          "[Routing][hash] 🔍 POPSTATE ZOOM DEBUG:",
-          {
-            zoomFromHash,
-            fallbackZoom,
-            finalZoom: zoom,
-            hashValues: e.values,
-            source: e.source,
-          }
-        );
-        
+
+        console.warn("[Routing][hash] POPSTATE ZOOM DEBUG:", {
+          zoomFromHash,
+          fallbackZoom,
+          finalZoom: zoom,
+          hashValues: e.values,
+          source: e.source,
+        });
+
         if (lat == null || lng == null || zoom == null) return;
         const map = getLeafletMap?.();
         if (!map) return;
@@ -239,13 +236,21 @@ export function useMapHashRouting({
         };
         scheduleClear("moveend");
         scheduleClear("zoomend");
-        console.warn("[Routing][hash] 🎯 CALLING map.setView", { lat, lng, zoom, stack: new Error().stack });
+        console.warn("[Routing][hash] CALLING map.setView", {
+          lat,
+          lng,
+          zoom,
+          stack: new Error().stack,
+        });
         if (typeof map.setView === "function") {
           map.setView({ lat, lng }, zoom);
         } else if (typeof map.panTo === "function") {
           map.panTo({ lat, lng });
           if (typeof map.setZoom === "function") {
-            console.warn("[Routing][hash] 🎯 CALLING map.setZoom", { zoom, stack: new Error().stack });
+            console.warn("[Routing][hash] CALLING map.setZoom", {
+              zoom,
+              stack: new Error().stack,
+            });
             map.setZoom(zoom);
           }
         }

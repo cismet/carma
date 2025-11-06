@@ -76,7 +76,9 @@ export const usePreloadProviders = (
         if (!signal.aborted) {
           const duration = performance.now() - startTime;
           console.info(
-            `[CESIUM|PRELOAD] All providers ready after ${duration.toFixed(0)}ms`
+            `[CESIUM|PRELOAD] All providers ready after ${duration.toFixed(
+              0
+            )}ms`
           );
           setIsReady(true);
         }

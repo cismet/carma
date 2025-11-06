@@ -18,3 +18,9 @@ export type HeadingPitchRollDegreesJson = {
   pitch: Degrees;
   roll: Degrees;
 };
+
+// partial type
+export type HeadingPitchJson = {
+  heading: Radians;
+  pitch: Radians;
+};

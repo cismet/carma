@@ -1,4 +1,8 @@
-import type { Scene, CesiumTerrainProvider } from "@carma/cesium";
+import type {
+  Scene,
+  CesiumTerrainProvider,
+  HeadingPitchJson,
+} from "@carma/cesium";
 import type { Map as LeafletMap } from "leaflet";
 import { isValidScene } from "@carma/cesium";
 import {
@@ -11,8 +15,7 @@ import { restoreCesiumCameraView } from "./utils/camera-restore";
 import { promiseWithTimeout } from "@carma-commons/utils/promise";
 import { tiledMapToCesium } from "../utils/cesium/tiled-map-to-cesium";
 import { defaultTransitionOptions } from "../utils/cesium/elevation-reference";
-import type { TargetHeadingPitch } from "./transition-to-leaflet";
-import { Degrees } from "libraries/commons/units/types/src/lib/base/angles";
+import { Degrees } from "@carma/units/types";
 
 /**
  * Pure function: Orchestrates transition from Leaflet (LeafletLike) to Cesium (3D)
@@ -30,7 +33,7 @@ export const transitionToCesium = async (
     TERRAIN?: CesiumTerrainProvider;
     SURFACE?: CesiumTerrainProvider;
   },
-  targetHeadingPitch: TargetHeadingPitch | null,
+  targetHeadingPitch: HeadingPitchJson | null,
   callbacks: TransitionCallbacks,
   options: TransitionToCesiumOptions = {}
 ): Promise<void> => {
@@ -75,10 +78,7 @@ export const transitionToCesium = async (
     onStageChange(TransitionStage.ZOOM_OUT, "Leaflet zoom completed");
 
     // Stage 2: Position Cesium camera to match Leaflet view
-    onStageChange(
-      TransitionStage.POSITION_3D_CAMERA,
-      "Positioning 3D camera"
-    );
+    onStageChange(TransitionStage.POSITION_3D_CAMERA, "Positioning 3D camera");
     console.debug(
       "[CESIUM] [CESIUM|2D3D|TO3D] Step 2: Positioning Cesium camera"
     );
@@ -224,10 +224,7 @@ export const transitionToCesium = async (
     }
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
-    onStageChange(
-      TransitionStage.ERROR,
-      `Transition failed: ${err.message}`
-    );
+    onStageChange(TransitionStage.ERROR, `Transition failed: ${err.message}`);
     console.error("[CESIUM] [CESIUM|2D3D|TO3D] Transition error:", error);
 
     if (onError) {

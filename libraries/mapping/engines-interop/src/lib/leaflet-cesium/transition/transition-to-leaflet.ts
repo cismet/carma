@@ -1,7 +1,7 @@
 import type {
-  HeadingPitchRange,
   Scene,
   CesiumTerrainProvider,
+  HeadingPitchJson,
 } from "@carma/cesium";
 import { isValidScene } from "@carma/cesium";
 import type { Map as LeafletMap } from "leaflet";
@@ -12,20 +12,6 @@ import {
 } from "./types";
 import { animateCesiumToTopDownLeafletLikeView } from "./utils/animate-cesium-to-top-down-leaflet-like-view";
 import { promiseWithTimeout } from "@carma-commons/utils/promise";
-
-/**
- * Captured camera orientation for restoration after 2D→3D transition.
- * Only heading and pitch are stored - range always comes from Leaflet zoom level.
- */
-export type TargetHeadingPitch = {
-  heading: number;
-  pitch: number;
-};
-
-export type TransitionToLeafletResult = {
-  targetHeadingPitch: TargetHeadingPitch;
-  duration: number;
-};
 
 /**
  * Pure function: Orchestrates transition from Cesium (3D) to Leaflet (LeafletLike)
@@ -44,7 +30,7 @@ export const transitionToLeaflet = async (
   },
   callbacks: TransitionToLeafletCallbacks,
   options: TransitionToLeafletOptions = {}
-): Promise<TransitionToLeafletResult> => {
+): Promise<HeadingPitchJson> => {
   const {
     step1_cameraAnimationDurationMs = 1000,
     step2_cssTransitionDurationMs = 1000,
@@ -58,13 +44,10 @@ export const transitionToLeaflet = async (
   });
 
   // Capture the target heading/pitch (not range) for return
-  let capturedHeadingPitch: TargetHeadingPitch | null = null;
+  let capturedHeadingPitch: HeadingPitchJson | null = null;
 
   try {
-    onStageChange(
-      TransitionStage.PREPARE_2D,
-      "Preparing for 2D transition"
-    );
+    onStageChange(TransitionStage.PREPARE_2D, "Preparing for 2D transition");
 
     // Wait a frame to ensure scene is fully ready after previous operations
     console.debug(
@@ -114,20 +97,16 @@ export const transitionToLeaflet = async (
       }
     };
 
-    const handleTargetHeadingPitch = (hpr: HeadingPitchRange) => {
+    const handleTargetHeadingPitch = (hp: HeadingPitchJson) => {
       // Extract only heading and pitch, ignore range (always comes from zoom)
-      capturedHeadingPitch = {
-        heading: hpr.heading,
-        pitch: hpr.pitch,
-      };
+      capturedHeadingPitch = { ...hp };
     };
 
     animateCesiumToTopDownLeafletLikeView(scene, leaflet, {
       scene,
       leaflet,
       onAnimationComplete: handleAnimationComplete,
-      setPrevHPR: handleTargetHeadingPitch,
-      setPrevDuration: () => {}, // Duration is returned directly
+      setTargetHeadingPitch: handleTargetHeadingPitch,
       onTransitionCancel: () => {
         onStageChange(TransitionStage.ERROR, "Transition cancelled");
         if (onError) {
@@ -144,16 +123,10 @@ export const transitionToLeaflet = async (
       );
     }
 
-    return {
-      targetHeadingPitch: capturedHeadingPitch,
-      duration: step1_cameraAnimationDurationMs,
-    };
+    return capturedHeadingPitch;
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
-    onStageChange(
-      TransitionStage.ERROR,
-      `Transition failed: ${err.message}`
-    );
+    onStageChange(TransitionStage.ERROR, `Transition failed: ${err.message}`);
     console.error("[CESIUM] [CESIUM|2D3D|TO2D] Transition error:", error);
 
     if (onError) {

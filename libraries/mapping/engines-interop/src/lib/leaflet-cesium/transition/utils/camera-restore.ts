@@ -2,12 +2,12 @@ import {
   type Scene,
   Cartesian3,
   HeadingPitchRange,
+  type HeadingPitchJson,
   isValidScene,
 } from "@carma/cesium";
 import { animateInterpolateHeadingPitchRange } from "@carma-mapping/engines/cesium/legacy";
 import { degToRad } from "@carma/units/helpers";
 import type { Degrees } from "@carma/units/types";
-import type { TargetHeadingPitch } from "../transition-to-leaflet";
 
 /**
  * Restores camera heading/pitch to saved 3D view.
@@ -23,14 +23,14 @@ import type { TargetHeadingPitch } from "../transition-to-leaflet";
 export const restoreCesiumCameraView = (
   scene: Scene,
   groundPosition: Cartesian3 | null,
-  targetHeadingPitch: TargetHeadingPitch | null,
+  targetHeadingPitch: HeadingPitchJson | null,
   duration: number,
   onComplete: () => void,
   defaultPitch: Degrees = -45 as Degrees,
-  defaultHeading: Degrees = 0 as Degrees,
+  defaultHeading: Degrees = 0 as Degrees
 ): boolean => {
   // Use provided target or create default from options
-  const effectiveHeadingPitch: TargetHeadingPitch = targetHeadingPitch || {
+  const effectiveHeadingPitch: HeadingPitchJson = targetHeadingPitch || {
     heading: degToRad(defaultHeading),
     pitch: degToRad(defaultPitch),
   };

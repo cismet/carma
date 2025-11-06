@@ -52,10 +52,7 @@ export const CarmaMapProviderWrapper = ({
           <SelectionProvider>
             <MapStyleProvider config={mapStyleConfig}>
               <TopicMapContextProvider infoBoxPixelWidth={350}>
-                <OverlayTourProvider
-                  transparency={transparency}
-                  color={color}
-                >
+                <OverlayTourProvider transparency={transparency} color={color}>
                   <CesiumContextProvider
                     //initialViewerState={defaultCesiumState}
                     // TODO move these to store/slice setup ?

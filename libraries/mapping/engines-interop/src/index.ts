@@ -10,10 +10,7 @@ export {
   type TransitionToLeafletOptions,
 } from "./lib/leaflet-cesium/transition/types";
 export { transitionToCesium } from "./lib/leaflet-cesium/transition/transition-to-cesium";
-export {
-  transitionToLeaflet,
-  type TransitionToLeafletResult,
-} from "./lib/leaflet-cesium/transition/transition-to-leaflet";
+export { transitionToLeaflet } from "./lib/leaflet-cesium/transition/transition-to-leaflet";
 
 // Utility functions for camera distance calculations
 export { calculateCameraDistance } from "./lib/leaflet-cesium/utils/cesium/camera-distance";

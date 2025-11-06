@@ -17,7 +17,11 @@ import {
 } from "react";
 
 import type { LeafletMap } from "@carma-mapping/engines/leaflet";
-import { CesiumTerrainProvider, type Scene } from "@carma/cesium";
+import {
+  CesiumTerrainProvider,
+  type Scene,
+  waitForRenderFrames,
+} from "@carma/cesium";
 import type { Radians } from "@carma/units/types";
 
 import {
@@ -102,7 +106,9 @@ export interface MapFrameworkSwitcherContextValue {
   registerRefs: (refs: Partial<MapFrameworkSwitcherRefs>) => void;
   refs: MapFrameworkSwitcherRefs;
 
-  registerCallbacks: (callbacks: Partial<MapFrameworkSwitcherCallbacks>) => void;
+  registerCallbacks: (
+    callbacks: Partial<MapFrameworkSwitcherCallbacks>
+  ) => void;
 }
 
 // ============================================================================
@@ -267,6 +273,11 @@ export const MapFrameworkSwitcherProvider = ({
     }
 
     try {
+      // Wait for Cesium to complete render cycles after React re-renders
+      // This ensures WebGL state is stable before transition operations
+      // See: https://github.com/CesiumGS/cesium/issues/11427
+      await waitForRenderFrames(scene, 5);
+
       setIsTransitioning(true);
 
       await transitionToCesium(
@@ -332,9 +343,15 @@ export const MapFrameworkSwitcherProvider = ({
     }
 
     try {
+      // Wait for Cesium to complete render cycles after React re-renders
+      // This ensures WebGL state is stable before picking operations
+      // See: https://github.com/CesiumGS/cesium/issues/11427
+      // pickTranslucentDepth can cause "destroyed object" errors during tile processing
+      await waitForRenderFrames(scene, 2);
+
       setIsTransitioning(true);
 
-      const result = await transitionToLeaflet(
+      const lastHeadingPitch = await transitionToLeaflet(
         scene,
         leaflet,
         cesiumContainer,
@@ -357,11 +374,16 @@ export const MapFrameworkSwitcherProvider = ({
       );
 
       // Store cesium camera state for when we return to 3D
-      if (result.targetHeadingPitch) {
-        lastEngineStateRef.current.cesium = {
-          heading: result.targetHeadingPitch.heading as Radians,
-          pitch: result.targetHeadingPitch.pitch as Radians,
-        };
+      if (lastHeadingPitch) {
+        if (!lastEngineStateRef.current.cesium) {
+          lastEngineStateRef.current.cesium = {
+            heading: lastHeadingPitch.heading,
+            pitch: lastHeadingPitch.pitch,
+          };
+        } else {
+          lastEngineStateRef.current.cesium.heading = lastHeadingPitch.heading;
+          lastEngineStateRef.current.cesium.pitch = lastHeadingPitch.pitch;
+        }
       }
     } catch (error) {
       console.error("[CESIUM] Transition to Leaflet failed:", error);

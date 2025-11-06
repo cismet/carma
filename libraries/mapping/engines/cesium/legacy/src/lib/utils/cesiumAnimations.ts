@@ -3,16 +3,18 @@ import {
   Matrix4,
   CesiumMath,
   HeadingPitchRange,
+  HeadingPitchJson,
   Scene,
   isValidCamera,
 } from "@carma/cesium";
 import { Easing } from "@carma-commons/math";
+import { Radians } from "@carma/units/types";
 
 const DEFAULT_MIN_RANGE = 10;
 const DEFAULT_MAX_RANGE = 40000;
 
 interface CesiumAnimateOrbitsOptions {
-  setPrevious?: (hpr: HeadingPitchRange) => void;
+  setTargetHeadingPitch?: (hp: HeadingPitchJson) => void;
   duration?: number;
   delay?: number; // ms
   onComplete?: () => void;
@@ -36,7 +38,7 @@ export function animateInterpolateHeadingPitchRange(
     cancelable = true,
     useCurrentDistance = true,
     easing = Easing.CUBIC_IN_OUT,
-    setPrevious,
+    setTargetHeadingPitch,
     minRange = DEFAULT_MIN_RANGE,
     maxRange = DEFAULT_MAX_RANGE,
   }: CesiumAnimateOrbitsOptions = {}
@@ -57,7 +59,11 @@ export function animateInterpolateHeadingPitchRange(
     return () => {};
   }
 
-  setPrevious?.(initialHPR);
+  // Capture target heading/pitch for external use
+  setTargetHeadingPitch?.({
+    heading: initialHPR.heading as Radians,
+    pitch: initialHPR.pitch as Radians,
+  });
 
   // Animation control variables
   let animationFrameId: number | null = null;

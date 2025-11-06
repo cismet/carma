@@ -9,6 +9,7 @@ import {
   getTopDownCameraDeviationAngle,
   isValidCamera,
   type Scene,
+  type HeadingPitchJson,
 } from "@carma/cesium";
 
 import {
@@ -25,7 +26,7 @@ type AnimateCesiumToTopDownOptions = {
   scene: Scene;
   leaflet: LeafletMap;
   onAnimationComplete: () => void;
-  setPrevHPR: (hpr: HeadingPitchRange) => void;
+  setTargetHeadingPitch: (HeadingPitch: HeadingPitchJson) => void;
   onTransitionCancel: () => void;
   onLeafletViewSet?: (params: {
     center: { lat: number; lng: number };
@@ -42,7 +43,7 @@ export const animateCesiumToTopDownLeafletLikeView = (
   leaflet: LeafletMap,
   {
     onAnimationComplete,
-    setPrevHPR,
+    setTargetHeadingPitch,
     onTransitionCancel,
     onLeafletViewSet,
   }: AnimateCesiumToTopDownOptions
@@ -175,21 +176,28 @@ export const animateCesiumToTopDownLeafletLikeView = (
         });
       }
 
-      console.warn(
-        "[2D3D|TRANSITION] CALLING leaflet.setView",
-        { latitude, longitude, snappedZoom, stack: new Error().stack }
-      );
+      console.warn("[2D3D|TRANSITION] CALLING leaflet.setView", {
+        latitude,
+        longitude,
+        snappedZoom,
+        stack: new Error().stack,
+      });
       leaflet.setView([latitude, longitude], snappedZoom, noAnimation);
       console.log("[2D3D|TRANSITION] Leaflet view set successfully");
 
       if (onLeafletViewSet) {
-        console.warn(
-          "[2D3D|TRANSITION] INVOKING onLeafletViewSet callback",
-          { center: { lat: latitude, lng: longitude }, zoom: snappedZoom }
-        );
-        onLeafletViewSet({ center: { lat: latitude, lng: longitude }, zoom: snappedZoom });
+        console.warn("[2D3D|TRANSITION] INVOKING onLeafletViewSet callback", {
+          center: { lat: latitude, lng: longitude },
+          zoom: snappedZoom,
+        });
+        onLeafletViewSet({
+          center: { lat: latitude, lng: longitude },
+          zoom: snappedZoom,
+        });
       } else {
-        console.warn("[2D3D|TRANSITION] NO onLeafletViewSet callback registered!");
+        console.warn(
+          "[2D3D|TRANSITION] NO onLeafletViewSet callback registered!"
+        );
       }
     } catch (error) {
       console.error(
@@ -224,7 +232,7 @@ export const animateCesiumToTopDownLeafletLikeView = (
       pos,
       new HeadingPitchRange(0, -Math.PI / 2, distance),
       {
-        setPrevious: setPrevHPR,
+        setTargetHeadingPitch,
         duration: duration * 1000,
         onComplete: onComplete2d,
         cancelable: false,
