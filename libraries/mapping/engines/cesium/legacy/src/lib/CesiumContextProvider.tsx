@@ -1,13 +1,18 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
+import { Viewer } from "cesium";
+
 import {
   CesiumTerrainProvider,
   EllipsoidTerrainProvider,
   ImageryLayer,
-  Viewer,
   Cesium3DTileset,
-} from "cesium";
+  Scene,
+  isValidScene,
+  isValidCesiumTerrainProvider,
+  isValidImageryLayer,
+} from "@carma/cesium";
 import { handleDelayedRender } from "@carma-commons/utils/window";
 
 import { CesiumContext, type CesiumContextType } from "./CesiumContext";
@@ -55,6 +60,40 @@ export const CesiumContextProvider = ({
   >(null);
   // Monotonic counter for initial camera applications
   const [initialCameraEpoch, setInitialCameraEpoch] = useState<number>(0);
+
+  const getScene = useCallback((): Scene | null => {
+    if (viewerRef.current) {
+      const scene = viewerRef.current.scene;
+      if (isValidScene(scene)) {
+        return scene;
+      }
+    }
+    return null;
+  }, []);
+
+  const getTerrainProvider = useCallback((): CesiumTerrainProvider | null => {
+    const provider = terrainProviderRef.current;
+    if (isValidCesiumTerrainProvider(provider)) {
+      return provider;
+    }
+    return null;
+  }, []);
+
+  const getSurfaceProvider = useCallback((): CesiumTerrainProvider | null => {
+    const provider = surfaceProviderRef.current;
+    if (isValidCesiumTerrainProvider(provider)) {
+      return provider;
+    }
+    return null;
+  }, []);
+
+  const getImageryLayer = useCallback((): ImageryLayer | null => {
+    const layer = imageryLayerRef.current;
+    if (isValidImageryLayer(layer)) {
+      return layer;
+    }
+    return null;
+  }, []);
 
   // Memoize refs object to prevent recreation on every render
   const providerRefs = useMemo(
@@ -159,9 +198,21 @@ export const CesiumContextProvider = ({
     [withViewer]
   );
 
+  console.debug(
+    "CesiumContextProvider Rendered",
+    isViewerReady,
+    initialCameraEpoch,
+    providersReady,
+    isViewerReady
+  );
+
   const contextValue = useMemo<CesiumContextType>(
     () => ({
       viewerRef,
+      getScene,
+      getTerrainProvider,
+      getSurfaceProvider,
+      getImageryLayer,
       viewerAnimationMapRef,
       shouldSuspendPitchLimiterRef,
       shouldSuspendCameraLimitersRef,
@@ -179,6 +230,10 @@ export const CesiumContextProvider = ({
       ...instanceCallbacks,
     }),
     [
+      getScene,
+      getTerrainProvider,
+      getSurfaceProvider,
+      getImageryLayer,
       isViewerReady,
       providersReady,
       initialCameraSettled,

@@ -121,8 +121,15 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const dispatch = useDispatch();
 
   // Contexts
-  const ctx = useCesiumContext();
-  const { withTerrainProvider, withSurfaceProvider } = ctx;
+  const {
+    viewerRef,
+    withTerrainProvider,
+    withSurfaceProvider,
+    getSurfaceProvider,
+    getTerrainProvider,
+    getScene,
+    isValidViewer: isValidViewerCtx,
+  } = useCesiumContext();
 
   const rerenderCountRef = useRef(0);
   const lastRenderTimeStampRef = useRef(Date.now());
@@ -135,10 +142,10 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   // State and Selectors
   const backgroundLayer = useSelector(getBackgroundLayer);
   const {
-    activeFramework: currentFramework,
-    isLeaflet,
-    isCesium,
-    getIsLeaflet, // Stable getter for callbacks
+    //activeFramework: currentFramework, trigger re-renders on framework change
+    // Stable getters for hooks and callbacks
+    getIsCesium,
+    getIsLeaflet,
     getIsTransitioning, // Check if framework transition in progress
   } = useMapFrameworkSwitcherContext();
 
@@ -182,8 +189,15 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   useOverlayHelper(layerButtonsOverlay);
   useOverlayHelper(mapInteractionOverlay);
 
-  const { routedMapRef: routedMap } =
-    useContext<typeof TopicMapContext>(TopicMapContext);
+  const {
+    // routedMapRef --- NOT a REF!
+    realRoutedMapRef: routedMapRef,
+  } = useContext<typeof TopicMapContext>(TopicMapContext);
+
+  const getLeafletMap = useCallback(
+    () => routedMapRef.current?.leafletMap?.leafletElement,
+    [routedMapRef]
+  );
 
   const { setAppMenuVisible } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
@@ -232,21 +246,25 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   useDispatchSachdatenInfoText();
   const modelSelectionDispatcher = useModelSelectionDispatcher();
 
-  useCesiumModels({
-    models: CESIUM_CONFIG.models || [],
-    enabled: flags.featureFlagBugaBridge && isCesium,
-    selection: {
+  const useCesiumModelOptions = useMemo(() => {
+    const isCesium = getIsCesium();
+    return {
+      models: CESIUM_CONFIG.models || [],
       enabled: flags.featureFlagBugaBridge && isCesium,
-      deselectOnEmptyClick: true,
-      onSelect: (feature) =>
-        modelSelectionDispatcher(feature as FeatureInfo | null),
-    },
-  });
+      selection: {
+        enabled: flags.featureFlagBugaBridge && isCesium,
+        deselectOnEmptyClick: true,
+        onSelect: (feature) =>
+          modelSelectionDispatcher(feature as FeatureInfo | null),
+      },
+    };
+  }, [flags.featureFlagBugaBridge, getIsCesium, modelSelectionDispatcher]);
+  useCesiumModels(useCesiumModelOptions);
 
-  const { handleTopicMapLocationChange, handleCesiumSceneChange } =
-    useMapHashRouting({
-      isLeafletLike: isLeaflet,
-      getLeafletMap: () => routedMap?.leafletMap?.leafletElement,
+  const routingOptions = useMemo(
+    () => ({
+      getIsLeafletLike: getIsLeaflet,
+      getLeafletMap,
       getLeafletZoom,
       labels: {
         clearCesium: "GPM:2D:clearCesium",
@@ -254,26 +272,31 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
         topicMapLocation: "GPM:TopicMap:locationChangedHandler",
         cesiumScene: "GPM:3D",
       },
-    });
+    }),
+    [getIsLeaflet, getLeafletMap, getLeafletZoom]
+  );
+
+  const { handleTopicMapLocationChange, handleCesiumSceneChange } =
+    useMapHashRouting(routingOptions);
 
   // Map framework switcher (2D ↔ 3D transitions)
   // Register maps with context for framework switching
-  useRegisterMapFramework({
-    leafletMap: routedMap?.leafletMap?.leafletElement ?? null,
-    cesiumScene: (() => {
-      let scene = null;
-      ctx.withScene((s) => {
-        scene = s;
-      });
-      return scene;
-    })(),
-    cesiumContainer: container3dMapRef.current,
-    terrainProviders: {
-      TERRAIN: ctx.getTerrainProvider() ?? undefined,
-      SURFACE: ctx.getSurfaceProvider() ?? undefined,
-    },
-    resolutionScale: ctx.viewerRef?.current?.resolutionScale ?? 1.0,
-  });
+
+  const frameworkOptions = useMemo(
+    () => ({
+      leafletMap: getLeafletMap(),
+      cesiumScene: getScene(),
+      cesiumContainer: container3dMapRef.current,
+      terrainProviders: {
+        TERRAIN: getTerrainProvider() ?? undefined,
+        SURFACE: getSurfaceProvider() ?? undefined,
+      },
+      resolutionScale: viewerRef?.current?.resolutionScale ?? 1.0,
+    }),
+    [getLeafletMap, getScene, getTerrainProvider, getSurfaceProvider, viewerRef]
+  );
+
+  useRegisterMapFramework(frameworkOptions);
 
   // Register geoportal-specific framework switcher callbacks
   useGeoportalFrameworkSwitcher();
@@ -282,75 +305,81 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
 
   useFeatureInfoModeCursorStyle();
 
-  const onComplete = (selection: SelectionItem) => {
-    if (layers.filter((l) => l.layerType === "vector").length === 0) return;
-    const layersIdle = getLayersIdle(store.getState());
-    if (
-      (uiMode === UIMode.DEFAULT || uiMode === UIMode.FEATURE_INFO) &&
-      !isAreaType(selection.type as ENDPOINT) &&
-      isLeaflet
-    ) {
-      const selectedPos = proj4(proj4crs3857def, proj4crs4326def, [
-        selection.x,
-        selection.y,
-      ]);
-      if (layersIdle) {
-        const map = routedMap?.leafletMap?.leafletElement;
-        const updatedPos = { lat: selectedPos[1], lng: selectedPos[0] };
-        const latlngPoint = L.latLng(updatedPos);
+  const onComplete = useCallback(
+    (selection: SelectionItem) => {
+      if (layers.filter((l) => l.layerType === "vector").length === 0) return;
+      const layersIdle = getLayersIdle(store.getState());
+      if (
+        (uiMode === UIMode.DEFAULT || uiMode === UIMode.FEATURE_INFO) &&
+        !isAreaType(selection.type as ENDPOINT) &&
+        getIsLeaflet()
+      ) {
+        const selectedPos = proj4(proj4crs3857def, proj4crs4326def, [
+          selection.x,
+          selection.y,
+        ]);
+        const leaflet = getLeafletMap();
+        if (layersIdle && leaflet) {
+          const updatedPos = { lat: selectedPos[1], lng: selectedPos[0] };
+          const latlngPoint = L.latLng(updatedPos);
 
-        if (map) {
-          map.fireEvent("click", {
+          leaflet.fireEvent("click", {
             latlng: latlngPoint,
-            layerPoint: map.latLngToLayerPoint(latlngPoint),
-            containerPoint: map.latLngToContainerPoint(latlngPoint),
+            layerPoint: leaflet.latLngToLayerPoint(latlngPoint),
+            containerPoint: leaflet.latLngToContainerPoint(latlngPoint),
           });
+        } else {
+          setTimeout(() => {
+            onComplete(selection);
+          }, 20);
         }
-      } else {
-        setTimeout(() => {
-          onComplete(selection);
-        }, 20);
       }
-    }
-  };
+    },
+    [layers, uiMode, getIsLeaflet, getLeafletMap]
+  );
 
-  const updateFeatureInfoLeaflet = () => {
+  const updateFeatureInfoLeaflet = useCallback(() => {
     setShouldUpdateFeatureInfo(false);
     if (!pos) return;
-    const map = routedMap?.leafletMap?.leafletElement;
 
     setTimeout(() => {
       const latlngPoint = L.latLng(pos);
-      map &&
-        map.fireEvent("click", {
+      const leaflet = getLeafletMap();
+      leaflet &&
+        leaflet.fireEvent("click", {
           latlng: latlngPoint,
-          layerPoint: map.latLngToLayerPoint(latlngPoint),
-          containerPoint: map.latLngToContainerPoint(latlngPoint),
+          layerPoint: leaflet.latLngToLayerPoint(latlngPoint),
+          containerPoint: leaflet.latLngToContainerPoint(latlngPoint),
         });
     }, 150);
-  };
+  }, [pos, getLeafletMap]);
 
-  useSelectionTopicMap({ onComplete });
-  useSelectionCesium(
-    isCesium,
-    useMemo(
-      () => ({
-        markerAsset,
-        markerAnchorHeight,
-        isPrimaryStyle: showPrimaryTileset,
-        withTerrainProvider,
-        withSurfaceProvider,
-      }),
-      [
-        markerAsset,
-        markerAnchorHeight,
-        showPrimaryTileset,
-        withTerrainProvider,
-        withSurfaceProvider,
-      ]
-    ),
-    isObliqueMode
+  const selectionCesiumOptions = useMemo(
+    () => ({
+      markerAsset,
+      markerAnchorHeight,
+      isPrimaryStyle: showPrimaryTileset,
+      withTerrainProvider,
+      withSurfaceProvider,
+    }),
+    [
+      markerAsset,
+      markerAnchorHeight,
+      showPrimaryTileset,
+      withTerrainProvider,
+      withSurfaceProvider,
+    ]
   );
+
+  const selectionTopicMapOptions = useMemo(
+    () => ({
+      onComplete,
+    }),
+    [onComplete]
+  );
+
+  useSelectionTopicMap(selectionTopicMapOptions);
+  useSelectionCesium(getIsCesium, selectionCesiumOptions, isObliqueMode);
 
   useEffect(() => {
     let layerType = "";
@@ -371,7 +400,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   useEffect(() => {
     // TODO wrap this with 3d component in own component?
     // INTIALIZE Cesium Tileset style from Geoportal/TopicMap background later style
-    if (ctx.isValidViewer() && backgroundLayer) {
+    if (isValidViewerCtx() && backgroundLayer) {
       if (backgroundLayer.id === "luftbild") {
         dispatch(setCurrentSceneStyle("primary"));
       } else {
@@ -382,17 +411,17 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   }, [backgroundLayer]);
 
   useEffect(() => {
-    const map = routedMap?.leafletMap?.leafletElement;
-    if (uiMode !== UIMode.FEATURE_INFO && marker !== undefined && map) {
-      map.removeLayer(marker);
-      map.removeLayer(markerAccent);
+    const leaflet = getLeafletMap();
+    if (uiMode !== UIMode.FEATURE_INFO && marker !== undefined && leaflet) {
+      leaflet.removeLayer(marker);
+      leaflet.removeLayer(markerAccent);
       dispatch(setSelectedFeature(null));
       dispatch(setSecondaryInfoBoxElements([]));
       dispatch(setFeatures([]));
       setPos(null);
       dispatch(setPreferredLayerId(""));
     }
-  }, [uiMode]);
+  }, [uiMode, getLeafletMap, marker, markerAccent, dispatch]);
 
   useEffect(() => {
     if (isModeFeatureInfo && pos) updateFeatureInfoLeaflet();
@@ -400,41 +429,57 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   }, [layers]);
 
   useEffect(() => {
-    const map = routedMap?.leafletMap?.leafletElement;
+    const leaflet = getLeafletMap();
 
     const handleZoomEnd = () => {
       setShouldUpdateFeatureInfo(true);
     };
 
-    map && map.on("zoomend", handleZoomEnd);
+    leaflet && leaflet.on("zoomend", handleZoomEnd);
 
     // Clean up the event listener when the component unmounts
     return () => {
-      map && map.off("zoomend", handleZoomEnd);
+      leaflet && leaflet.off("zoomend", handleZoomEnd);
     };
-  }, [routedMap]);
+  }, [getLeafletMap]);
 
-  const renderInfoBox = () => {
-    if (isLeaflet) {
+  const renderInfoBox = useCallback(() => {
+    if (getIsLeaflet()) {
       if (isModeMeasurement) {
         return <InfoBoxMeasurement key={uiMode} />;
       }
       if (selectedFeature || loadingFeatureInfo) {
         return <FeatureInfoBox pos={pos} />;
       }
-    } else if (isCesium && flags.featureFlagBugaBridge && selectedFeature) {
+    } else if (
+      getIsCesium() &&
+      flags.featureFlagBugaBridge &&
+      selectedFeature
+    ) {
       // TODO unify with point queries for position information?
       return <FeatureInfoBox />;
     }
 
     return <div></div>;
-  };
+  }, [
+    getIsLeaflet,
+    getIsCesium,
+    isModeMeasurement,
+    uiMode,
+    selectedFeature,
+    loadingFeatureInfo,
+    pos,
+    flags.featureFlagBugaBridge,
+  ]);
 
-  const showOverlayFromOutside = (key: string) => {
-    setAppMenuVisible(false);
-    setSecondaryWithKey(key);
-    showOverlayHandler();
-  };
+  const showOverlayFromOutside = useCallback(
+    (key: string) => {
+      setAppMenuVisible(false);
+      setSecondaryWithKey(key);
+      showOverlayHandler();
+    },
+    [setAppMenuVisible, setSecondaryWithKey, showOverlayHandler]
+  );
 
   useEffect(() => {
     if (shouldUpdateFeatureInfo) updateFeatureInfoLeaflet();
@@ -459,13 +504,13 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
         return;
       }
       handleTopicMapLocationChange(p);
-      updateLayersIdleState();
+      //updateLayersIdleState();
     },
     [
       getIsLeaflet,
       getIsTransitioning,
       handleTopicMapLocationChange,
-      updateLayersIdleState,
+      //updateLayersIdleState,
     ]
   );
 
@@ -482,9 +527,32 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     [getIsLeaflet, handleCesiumSceneChange]
   );
 
+  const createLayerOptions = useMemo(
+    () => ({
+      mode: uiMode,
+      dispatch,
+      zoom: getLeafletZoom(),
+      selectedFeature,
+      leafletMap: getLeafletMap(),
+      maplibreMapsRef,
+    }),
+    [
+      uiMode,
+      dispatch,
+      getLeafletZoom,
+      selectedFeature,
+      getLeafletMap,
+      maplibreMapsRef,
+    ]
+  );
+
   // TODO Move out Controls to own component
 
-  console.debug("RENDER: [GEOPORTAL] MAP - framework:", currentFramework);
+  console.debug(
+    "RENDER: [GEOPORTAL] MAP",
+    rerenderCountRef.current,
+    lastRenderIntervalRef.current
+  );
   rerenderCountRef.current++;
   lastRenderIntervalRef.current = Date.now() - lastRenderTimeStampRef.current;
   lastRenderTimeStampRef.current = Date.now();
@@ -556,7 +624,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
           locationChangedHandler={topicMapLocationChangedHandler}
           outerLocationChangedHandlerExclusive={true}
           onclick={(e) => {
-            const map = routedMap?.leafletMap?.leafletElement;
+            const map = getLeafletMap();
             if (!map) return;
 
             if (uiMode === UIMode.FEATURE_INFO) {
@@ -683,14 +751,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
               masterOpacity: backgroundLayer.opacity,
             })}
 
-          {useCreateCismapLayers(layers, {
-            mode: uiMode,
-            dispatch,
-            zoom: getLeafletZoom(),
-            selectedFeature,
-            leafletMap: routedMap?.leafletMap?.leafletElement,
-            maplibreMapsRef,
-          })}
+          {useCreateCismapLayers(layers, createLayerOptions)}
           <PrintPreview />
           <Measurements snappingLayers={maplibreMaps} />
         </TopicMapComponent>

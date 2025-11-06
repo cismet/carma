@@ -24,7 +24,7 @@ type LeafletLikeMap = {
 };
 
 export interface UseMapHashRoutingOptions {
-  isLeafletLike: boolean;
+  getIsLeafletLike: () => boolean;
   getLeafletMap?: () => LeafletLikeMap | null | undefined;
   getLeafletZoom?: () => number;
   cesiumClearKeys?: string[];
@@ -33,7 +33,7 @@ export interface UseMapHashRoutingOptions {
 }
 
 export function useMapHashRouting({
-  isLeafletLike,
+  getIsLeafletLike,
   getLeafletMap,
   getLeafletZoom,
   cesiumClearKeys = cesiumClearParamKeys,
@@ -50,7 +50,7 @@ export function useMapHashRouting({
   const handleTopicMapLocationChange = useCallback(
     ({ lat, lng, zoom }: LatLngZoom) => {
       console.debug("[Routing][hash]", lat, lng, zoom);
-      if (!isLeafletLike) return;
+      if (!getIsLeafletLike()) return;
       if (navMoveInProgressRef.current) {
         console.debug(
           "[Routing][hash] (Leaflet) suppress push: popstate navigation in progress",
@@ -130,7 +130,7 @@ export function useMapHashRouting({
       );
     },
     [
-      isLeafletLike,
+      getIsLeafletLike,
       updateHash,
       getHashValues,
       cesiumClearKeys,
@@ -141,19 +141,20 @@ export function useMapHashRouting({
 
   const handleCesiumSceneChange = useCallback(
     (e: CesiumSceneChangeEvent) => {
-      if (isLeafletLike) return;
+      if (getIsLeafletLike()) return;
       updateHash(e.hashParams, {
         clearKeys: ["zoom"],
         label: labels?.cesiumScene ?? "Map:3D:scene",
         replace: true, // don't push to history until cesium handled history navigation
       });
     },
-    [isLeafletLike, updateHash, labels?.cesiumScene]
+    [getIsLeafletLike, updateHash, labels?.cesiumScene]
   );
 
-  const prevIsModeLeafletLikeRef = useRef<boolean>(isLeafletLike);
+  const prevIsModeLeafletLikeRef = useRef<boolean>(getIsLeafletLike());
   useEffect(() => {
     const wasLeafletLike = prevIsModeLeafletLikeRef.current;
+    const isLeafletLike = getIsLeafletLike();
     if (!wasLeafletLike && isLeafletLike) {
       // Replace current entry to clear 3D-specific state
       updateHash(undefined, {
@@ -178,7 +179,7 @@ export function useMapHashRouting({
     }
     prevIsModeLeafletLikeRef.current = isLeafletLike;
   }, [
-    isLeafletLike,
+    getIsLeafletLike,
     updateHash,
     getLeafletMap,
     getLeafletZoom,
@@ -193,7 +194,7 @@ export function useMapHashRouting({
     const unsub = subscribe(
       (e) => {
         if (e.source !== "popstate") return;
-        if (!isLeafletLike) return;
+        if (!getIsLeafletLike()) return;
         const lat = e.values.lat as number | undefined;
         const lng = e.values.lng as number | undefined;
         const zoomFromHash = e.values.zoom as number | undefined;
@@ -258,7 +259,7 @@ export function useMapHashRouting({
       { keys: ["lat", "lng", "zoom"] }
     );
     return unsub;
-  }, [subscribe, isLeafletLike, getLeafletMap, getLeafletZoom]);
+  }, [subscribe, getIsLeafletLike, getLeafletMap, getLeafletZoom]);
 
   return { handleTopicMapLocationChange, handleCesiumSceneChange };
 }

@@ -63,6 +63,8 @@ export interface CesiumContextType {
   // Direct getters for terrain providers (don't require viewer)
   getTerrainProvider: () => CesiumTerrainProvider | null;
   getSurfaceProvider: () => CesiumTerrainProvider | null;
+  getImageryLayer: () => ImageryLayer | null;
+  getScene: () => Scene | null;
 }
 
 export const CesiumContext = createContext<CesiumContextType | null>(null);

@@ -85,16 +85,34 @@ module.exports = function createRestrictedImportRule(config) {
         return {};
       }
 
+      // Helper to check if import should be restricted
+      const isRestrictedPackageImport = (importPath) => {
+        // Skip relative/absolute paths (starts with ./ ../ or /)
+        if (importPath.startsWith(".") || importPath.startsWith("/")) {
+          return false;
+        }
+
+        // Skip local path aliases (starts with @)
+        if (importPath.startsWith("@")) {
+          return false;
+        }
+
+        // Skip any imports with file extensions (assets, not code)
+        if (/\.[a-z0-9]+$/i.test(importPath)) {
+          return false;
+        }
+
+        // Match exact package name OR subpaths (e.g., 'cesium' or 'cesium/Source/...')
+        return (
+          importPath === packageName || importPath.startsWith(`${packageName}/`)
+        );
+      };
+
       return {
         ImportDeclaration(node) {
           const importPath = node.source.value;
 
-          // Check if this import is for the restricted package
-          const isRestrictedImport =
-            importPath === packageName ||
-            importPath.startsWith(`${packageName}/`);
-
-          if (!isRestrictedImport) {
+          if (!isRestrictedPackageImport(importPath)) {
             return;
           }
 
@@ -124,11 +142,8 @@ module.exports = function createRestrictedImportRule(config) {
           }
 
           const importPath = node.source.value;
-          const isRestrictedImport =
-            importPath === packageName ||
-            importPath.startsWith(`${packageName}/`);
 
-          if (isRestrictedImport) {
+          if (isRestrictedPackageImport(importPath)) {
             context.report({
               node: node.source,
               messageId: "restricted",
