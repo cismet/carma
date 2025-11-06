@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from "react";
 import { useHashState } from "@carma-providers/hash-state";
 
 import { cesiumClearParamKeys } from "@carma-mapping/engines/cesium";
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { isMapCenterZoomEquivalent } from "@carma/geo/utils";
 import { Degrees } from "@carma/units/types";
 
@@ -24,7 +25,6 @@ type LeafletLikeMap = {
 };
 
 export interface UseMapHashRoutingOptions {
-  getIsLeafletLike: () => boolean;
   getLeafletMap?: () => LeafletLikeMap | null | undefined;
   getLeafletZoom?: () => number;
   cesiumClearKeys?: string[];
@@ -33,7 +33,6 @@ export interface UseMapHashRoutingOptions {
 }
 
 export function useMapHashRouting({
-  getIsLeafletLike,
   getLeafletMap,
   getLeafletZoom,
   cesiumClearKeys = cesiumClearParamKeys,
@@ -41,6 +40,8 @@ export function useMapHashRouting({
   pixelTolerance,
 }: UseMapHashRoutingOptions) {
   const { updateHash, subscribe, getHashValues } = useHashState();
+  const { getIsLeaflet, getIsCesium, getIsTransitioning } =
+    useMapFrameworkSwitcherContext();
 
   // Skip leaflet writes when the map move was initiated by a navigation (popstate)
   const navMoveInProgressRef = useRef(false);
@@ -50,7 +51,12 @@ export function useMapHashRouting({
   const handleTopicMapLocationChange = useCallback(
     ({ lat, lng, zoom }: LatLngZoom) => {
       console.debug("[Routing][hash]", lat, lng, zoom);
-      if (!getIsLeafletLike()) return;
+      if (!getIsLeaflet() || getIsTransitioning()) {
+        console.debug(
+          "[Routing][hash] (Leaflet) suppress push: not in Leaflet mode or transitioning"
+        );
+        return;
+      }
       if (navMoveInProgressRef.current) {
         console.debug(
           "[Routing][hash] (Leaflet) suppress push: popstate navigation in progress",
@@ -130,7 +136,8 @@ export function useMapHashRouting({
       );
     },
     [
-      getIsLeafletLike,
+      getIsLeaflet,
+      getIsTransitioning,
       updateHash,
       getHashValues,
       cesiumClearKeys,
@@ -141,21 +148,22 @@ export function useMapHashRouting({
 
   const handleCesiumSceneChange = useCallback(
     (e: CesiumSceneChangeEvent) => {
-      if (getIsLeafletLike()) return;
+      if (!getIsCesium() || getIsTransitioning()) return;
       updateHash(e.hashParams, {
         clearKeys: ["zoom"],
         label: labels?.cesiumScene ?? "Map:3D:scene",
         replace: true, // don't push to history until cesium handled history navigation
       });
     },
-    [getIsLeafletLike, updateHash, labels?.cesiumScene]
+    [getIsCesium, updateHash, labels?.cesiumScene, getIsTransitioning]
   );
 
-  const prevIsModeLeafletLikeRef = useRef<boolean>(getIsLeafletLike());
+  const prevIsModeLeafletLikeRef = useRef<boolean>(getIsLeaflet());
   useEffect(() => {
     const wasLeafletLike = prevIsModeLeafletLikeRef.current;
-    const isLeafletLike = getIsLeafletLike();
-    if (!wasLeafletLike && isLeafletLike) {
+    const isLeafletLike = getIsLeaflet();
+    // Only update hash when transitioning TO Leaflet AND not currently transitioning
+    if (!wasLeafletLike && isLeafletLike && !getIsTransitioning()) {
       // Replace current entry to clear 3D-specific state
       updateHash(undefined, {
         clearKeys: cesiumClearKeys,
@@ -179,7 +187,8 @@ export function useMapHashRouting({
     }
     prevIsModeLeafletLikeRef.current = isLeafletLike;
   }, [
-    getIsLeafletLike,
+    getIsLeaflet,
+    getIsTransitioning,
     updateHash,
     getLeafletMap,
     getLeafletZoom,
@@ -194,7 +203,7 @@ export function useMapHashRouting({
     const unsub = subscribe(
       (e) => {
         if (e.source !== "popstate") return;
-        if (!getIsLeafletLike()) return;
+        if (!getIsLeaflet()) return;
         const lat = e.values.lat as number | undefined;
         const lng = e.values.lng as number | undefined;
         const zoomFromHash = e.values.zoom as number | undefined;
@@ -259,7 +268,7 @@ export function useMapHashRouting({
       { keys: ["lat", "lng", "zoom"] }
     );
     return unsub;
-  }, [subscribe, getIsLeafletLike, getLeafletMap, getLeafletZoom]);
+  }, [subscribe, getIsLeaflet, getLeafletMap, getLeafletZoom]);
 
   return { handleTopicMapLocationChange, handleCesiumSceneChange };
 }

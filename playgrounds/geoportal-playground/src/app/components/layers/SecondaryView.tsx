@@ -17,7 +17,7 @@ import type { SliderSingleProps } from "antd";
 
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
-import { FontAwesomeLikeIcon } from "@carma-appframeworks/portals";
+import { FontAwesomeLikeIcon } from "@carma-mapping/components";
 import { cn } from "@carma-commons/utils";
 
 import {

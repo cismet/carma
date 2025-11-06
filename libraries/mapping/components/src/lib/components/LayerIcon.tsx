@@ -1,5 +1,5 @@
 import type { Layer } from "@carma/types";
-import { FontAwesomeLikeIcon } from "@carma-appframeworks/portals";
+import { FontAwesomeLikeIcon } from "./FontAwesomeLikeIcon";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useEffect, useState } from "react";
 import { faLayerGroup, faMap } from "@fortawesome/free-solid-svg-icons";

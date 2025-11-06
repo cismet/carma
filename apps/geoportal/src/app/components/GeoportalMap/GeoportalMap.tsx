@@ -265,7 +265,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
 
   const routingOptions = useMemo(
     () => ({
-      getIsLeafletLike: getIsLeaflet,
       getLeafletMap,
       getLeafletZoom,
       labels: {
@@ -275,7 +274,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
         cesiumScene: "GPM:3D",
       },
     }),
-    [getIsLeaflet, getLeafletMap, getLeafletZoom]
+    [getLeafletMap, getLeafletZoom]
   );
 
   const { handleTopicMapLocationChange, handleCesiumSceneChange } =
@@ -568,8 +567,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
         );
         return;
       }
-      // TODO fix and re-enable
-      //handleCesiumSceneChange(e);
+      handleCesiumSceneChange(e);
     },
     [getIsLeaflet, handleCesiumSceneChange]
   );
