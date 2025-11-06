@@ -151,7 +151,7 @@ const LibreGeoportalMap = ({
 
   // Centralized hash routing for MapLibre (2D-only in this component)
   const { handleTopicMapLocationChange } = useMapHashRouting({
-    isLeafletLike: true,
+    getIsLeafletLike: () => true,
     getLeafletMap: () => {
       const m = map.current;
       if (!m) return null;

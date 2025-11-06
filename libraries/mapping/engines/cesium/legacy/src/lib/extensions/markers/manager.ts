@@ -1,13 +1,12 @@
-import type { Cartographic, Model } from "cesium";
+import type { Cartographic, Model, Scene } from "cesium";
 
 import type { MarkerPrimitiveData, MarkerModelAsset, PolylineConfig } from ".";
-import type { CesiumContextType } from "../../CesiumContext";
 
 import { attachListeners, detachListeners } from "./listeners";
 import { buildMarkerData } from "./data";
 
 const addMarkerModelToScene = (
-  ctx: CesiumContextType,
+  scene: Scene,
   markerData: MarkerPrimitiveData
 ) => {
   const { model, id } = markerData;
@@ -22,15 +21,13 @@ const addMarkerModelToScene = (
     return false;
   }
 
-  ctx.withScene((scene) => {
-    scene.primitives.add(model);
-  });
+  scene.primitives.add(model);
 
   return true;
 };
 
 export const addCesiumMarker = async (
-  ctx: CesiumContextType,
+  scene: Scene,
   pos: Cartographic,
   groundPos: Cartographic,
   modelConfig: MarkerModelAsset,
@@ -43,29 +40,29 @@ export const addCesiumMarker = async (
   console.debug("[CESIUM|SCENE] addMarker", pos, modelConfig);
 
   const markerData = await buildMarkerData({
-    ctx,
+    scene,
     pos,
     groundPos,
     modelConfig,
     options,
   });
 
-  if (!addMarkerModelToScene(ctx, markerData)) {
+  if (!addMarkerModelToScene(scene, markerData)) {
     return undefined;
   }
 
-  attachListeners(ctx, markerData);
+  attachListeners(scene, markerData);
 
   markerData.cleanup = () => {
     console.debug("[CESIUM|MARKER] cleaning up listeners for", markerData.id);
-    detachListeners(ctx, markerData);
+    detachListeners(scene, markerData);
   };
 
   return markerData;
 };
 
 export const removeCesiumMarker = (
-  ctx: CesiumContextType,
+  scene: Scene,
   data: MarkerPrimitiveData | null | undefined
 ) => {
   console.debug(
@@ -77,44 +74,40 @@ export const removeCesiumMarker = (
     // remove listeners before removing the primitives
     // so no updates are triggered after the primitive is removed
     data.cleanup && data.cleanup();
-    ctx.withScene(async (scene) => {
-      try {
-        data.model &&
-          !data.model.isDestroyed() &&
-          !scene.primitives.isDestroyed() &&
-          scene.primitives.remove(data.model);
-      } catch (e) {
-        console.error("[CESIUM|MARKER] error removing model", e);
-      }
-      ctx.requestRender();
-    });
-    ctx.withScene(async (scene) => {
-      try {
-        const hasValidStemline = data.stemline && !data.stemline.isDestroyed();
+    try {
+      data.model &&
+        !data.model.isDestroyed() &&
+        !scene.primitives.isDestroyed() &&
+        scene.primitives.remove(data.model);
+    } catch (e) {
+      console.error("[CESIUM|MARKER] error removing model", e);
+    }
+    scene.requestRender();
+    try {
+      const hasValidStemline = data.stemline && !data.stemline.isDestroyed();
 
-        const hasValidCollection =
-          scene.primitives && !scene.primitives.isDestroyed();
+      const hasValidCollection =
+        scene.primitives && !scene.primitives.isDestroyed();
 
-        const isInCollection = scene.primitives.contains(data.stemline);
-        console.debug(
-          "[CESIUM|MARKER] removing stemline",
-          data.stemline,
-          hasValidStemline,
-          hasValidCollection,
-          isInCollection
-        );
-        if (hasValidStemline && hasValidCollection && isInCollection) {
-          scene.primitives.remove(data.stemline);
-        }
-      } catch (e) {
-        // Expected during scene reinitialization (2D↔3D transitions)
-        // Primitives from old scene are destroyed - silently skip
-        console.debug(
-          "[CESIUM|MARKER] stemline already destroyed (likely scene transition)",
-          e
-        );
+      const isInCollection = scene.primitives.contains(data.stemline);
+      console.debug(
+        "[CESIUM|MARKER] removing stemline",
+        data.stemline,
+        hasValidStemline,
+        hasValidCollection,
+        isInCollection
+      );
+      if (hasValidStemline && hasValidCollection && isInCollection) {
+        scene.primitives.remove(data.stemline);
       }
-      ctx.requestRender();
-    });
+    } catch (e) {
+      // Expected during scene reinitialization (2D↔3D transitions)
+      // Primitives from old scene are destroyed - silently skip
+      console.debug(
+        "[CESIUM|MARKER] stemline already destroyed (likely scene transition)",
+        e
+      );
+    }
+    scene.requestRender();
   }
 };

@@ -1,45 +1,35 @@
-import type { CesiumContextType } from "../../CesiumContext";
+import { isValidScene, Scene } from "@carma/cesium";
 import type { MarkerPrimitiveData } from "./index.d";
 
 import { updateTransform } from "./updateTransform";
 
-const detachPreUpdate = (ctx: CesiumContextType, data: MarkerPrimitiveData) => {
+export const detachListeners = (scene: Scene, data: MarkerPrimitiveData) => {
   if (!data.onPreUpdate) {
     return;
   }
 
-  ctx.withScene((scene) => {
-    scene.preUpdate.removeEventListener(data.onPreUpdate!);
-  });
+  if (!isValidScene(scene)) {
+    return;
+  }
+
+  scene.preUpdate.removeEventListener(data.onPreUpdate!);
 
   data.onPreUpdate = undefined;
 };
 
-export const detachListeners = (
-  ctx: CesiumContextType,
-  data: MarkerPrimitiveData
-) => {
-  detachPreUpdate(ctx, data);
-};
-
-export const attachListeners = (
-  ctx: CesiumContextType,
-  data: MarkerPrimitiveData
-) => {
+export const attachListeners = (scene: Scene, data: MarkerPrimitiveData) => {
   const config = data.modelConfig;
 
-  if (!config) {
+  if (!config || !isValidScene(scene)) {
     return;
   }
 
-  detachListeners(ctx, data);
+  detachListeners(scene, data);
 
-  const onPreUpdate = () => updateTransform(ctx, data);
+  const onPreUpdate = () => updateTransform(scene, data);
 
-  ctx.withScene((scene) => {
-    scene.preUpdate.addEventListener(onPreUpdate);
-  });
+  scene.preUpdate.addEventListener(onPreUpdate);
 
   data.onPreUpdate = onPreUpdate;
-  ctx.requestRender();
+  scene.requestRender();
 };

@@ -187,7 +187,7 @@ export const CarmaMap = ({
   // State and Selectors
   const allow3d = useSelector(getUIAllow3d);
 
-  const { isLeaflet, isCesium, setActiveFrameworkLeaflet } =
+  const { isLeaflet, isCesium, getIsCesium, setActiveFrameworkLeaflet } =
     useMapFrameworkSwitcherContext();
 
   const backgroundLayer = useSelector(getBackgroundLayer);
@@ -228,7 +228,7 @@ export const CarmaMap = ({
 
   useSelectionTopicMap();
   useSelectionCesium(
-    isCesium,
+    getIsCesium,
     useMemo(
       () => ({
         markerAsset,

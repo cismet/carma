@@ -1,8 +1,8 @@
 import type { SearchResultItem } from "@carma/types";
+import { CesiumTerrainProvider, Scene } from "@carma/cesium";
 import type {
   CesiumOptions,
   MarkerPrimitiveData,
-  CesiumContextType,
 } from "@carma-mapping/engines/cesium";
 
 import { cesiumHandleSelection } from "./cesiumHandleSelection";
@@ -21,7 +21,9 @@ export type HitTriggerOptions = {
 
 export const cesiumHitTrigger = async (
   hit: SearchResultItem[],
-  ctx: CesiumContextType,
+  scene: Scene,
+  terrainProvider: CesiumTerrainProvider,
+  surfaceProvider: CesiumTerrainProvider,
   markerData: null | MarkerPrimitiveData,
   setMarkerData: (data: MarkerPrimitiveData | null) => void,
   options: HitTriggerOptions
@@ -29,7 +31,9 @@ export const cesiumHitTrigger = async (
   if (hit !== undefined && hit.length !== undefined && hit.length > 0) {
     const derivedGeometries = getDerivedGeometries(hit[0]);
     cesiumHandleSelection(
-      ctx,
+      scene,
+      terrainProvider,
+      surfaceProvider,
       markerData,
       setMarkerData,
       derivedGeometries,

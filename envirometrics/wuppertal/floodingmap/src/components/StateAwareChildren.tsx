@@ -51,7 +51,7 @@ export const StateAwareChildren = () => {
 
   // CESIUM
   const cesiumContext = useCesiumContext();
-  const { isViewerReady, viewerRef } = cesiumContext;
+  const { isViewerReady, viewerRef, getTerrainProvider } = cesiumContext;
   const [cesiumPickedPosition, setCesiumPickedPosition] = useState<
     [number, number] | null
   >(null);
@@ -81,8 +81,11 @@ export const StateAwareChildren = () => {
 
         const cartographic = Cartographic.fromDegrees(lon, lat);
 
+        const terrainProvider = getTerrainProvider();
+        if (!terrainProvider) return;
+
         const [groundPositionCartographic] = await getTerrainElevationAsync(
-          cesiumContext,
+          terrainProvider,
           [cartographic]
         );
         if (!groundPositionCartographic) return;
@@ -98,6 +101,7 @@ export const StateAwareChildren = () => {
     }
   }, [
     isViewerReady,
+    getTerrainProvider,
     viewerRef,
     cesiumContext,
     controlState.featureInfoModeActivated,

@@ -95,15 +95,16 @@ function App({ sync = false }: { sync?: boolean }) {
 
   const initialCameraView = useCesiumInitialCameraFromSearchParams();
 
-  // CONTROLS
-  const ctx = useCesiumContext();
-  const { viewerRef, viewerAnimationMapRef, isViewerReady, requestRender } =
-    ctx;
-  const homeControl = useHomeControl();
   const {
     handleZoomIn: handleZoomInCesium,
     handleZoomOut: handleZoomOutCesium,
-  } = useZoomControls(ctx);
+    viewerRef,
+    viewerAnimationMapRef,
+    isViewerReady,
+    requestRender,
+  } = useCesiumContext();
+  const homeControl = useHomeControl();
+
   const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
 
   // LEAFLET related
@@ -178,7 +179,7 @@ function App({ sync = false }: { sync?: boolean }) {
 
   useSelectionTopicMap();
   useSelectionCesium(
-    isCesium,
+    getIsCesium(),
     useMemo(
       () => ({
         markerAsset,

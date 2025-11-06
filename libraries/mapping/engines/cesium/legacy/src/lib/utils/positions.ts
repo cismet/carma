@@ -1,4 +1,11 @@
-import { Camera, Cartesian3, Cartographic, HeadingPitchRange } from "cesium";
+import {
+  Camera,
+  Cartesian3,
+  Cartographic,
+  CesiumTerrainProvider,
+  HeadingPitchRange,
+  Scene,
+} from "cesium";
 
 import { getSurfaceElevationAsync } from "./elevation";
 import type { CesiumContextType } from "../CesiumContext";
@@ -32,7 +39,8 @@ export const getHeadingPitchRangeFromHeight = (
 };
 
 export const getPositionWithHeightAsync = async (
-  ctx: CesiumContextType,
+  scene: Scene,
+  surfaceProvider: CesiumTerrainProvider,
   position: Cartographic,
   useClampedHeight: boolean = false
 ) => {
@@ -45,12 +53,10 @@ export const getPositionWithHeightAsync = async (
     let clampedPosition: Cartesian3 | undefined;
     // Attempt to clamp the position to the tileset's height
     try {
-      await ctx.withScene(async (scene) => {
-        clampedPosition = await scene.clampToHeight(
-          cartesianPosition
-          //[tileset],
-        );
-      });
+      clampedPosition = scene.clampToHeight(
+        cartesianPosition
+        //[tileset],
+      );
 
       if (clampedPosition) {
         const clampedCartesian = clampedPosition;
@@ -92,7 +98,10 @@ export const getPositionWithHeightAsync = async (
     console.debug("[CESIUM|TERRAIN] Using surface for position", position);
 
     try {
-      const [surfacePosition] = await getSurfaceElevationAsync(ctx, [position]);
+      const [surfacePosition] = await getSurfaceElevationAsync(
+        surfaceProvider,
+        [position]
+      );
 
       if (surfacePosition instanceof Cartographic) {
         console.debug(

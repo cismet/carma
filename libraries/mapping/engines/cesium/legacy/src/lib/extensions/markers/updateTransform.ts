@@ -4,11 +4,12 @@ import {
   Matrix4,
   Quaternion,
   CesiumMath,
+  Camera,
+  Scene,
 } from "@carma/cesium";
 import { Radians } from "@carma/units/types";
 
 import type { MarkerPrimitiveData } from "./index.d";
-import type { CesiumContextType } from "../../CesiumContext";
 
 type ScaleTranslation = {
   scale: Cartesian3;
@@ -20,13 +21,11 @@ type CameraPose = {
   position: Cartesian3 | null;
 };
 
-const getCameraPose = (ctx: CesiumContextType): CameraPose => {
+const getCameraPose = (camera: Camera): CameraPose => {
   let heading: Radians | null = null;
   let position: Cartesian3 | null = null;
-  ctx.withCamera((camera) => {
-    heading = camera.heading as Radians;
-    position = camera.position;
-  });
+  heading = camera.heading as Radians;
+  position = camera.position;
   return {
     heading,
     position,
@@ -71,7 +70,7 @@ const computeHeadingMatrix = (heading: Radians, matrix: Matrix4): Matrix4 => {
 };
 
 export const updateTransform = (
-  ctx: CesiumContextType,
+  scene: Scene,
   data: MarkerPrimitiveData
 ): MarkerPrimitiveData => {
   const { modelMatrix, animatedModelMatrix, animationSpeed, modelConfig } =
@@ -86,7 +85,7 @@ export const updateTransform = (
     return data;
   }
 
-  const { position, heading } = getCameraPose(ctx);
+  const { position, heading } = getCameraPose(scene.camera);
   if (!position) {
     return data;
   }

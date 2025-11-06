@@ -5,7 +5,8 @@
   "projectType": "application",
   "tags": [],
   "targets": {
-    "build": {
+    // do not build until geoportal is fixed
+    "__no_build": {
       "executor": "@nx/vite:build",
       "outputs": ["{options.outputPath}"],
       "defaultConfiguration": "production",

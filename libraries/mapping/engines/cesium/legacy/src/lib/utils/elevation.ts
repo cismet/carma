@@ -1,6 +1,5 @@
-import { Cartographic } from "@carma/cesium";
+import { Cartographic, CesiumTerrainProvider } from "@carma/cesium";
 import { logOnce } from "@carma-commons/utils";
-import type { CesiumContextType } from "../CesiumContext";
 import { guardSampleTerrainMostDetailedAsync } from "./guardSampleTerrainMostDetailedAsync";
 
 logOnce(
@@ -14,12 +13,11 @@ export type ElevationResult = {
 };
 
 export async function getTerrainElevationAsync(
-  ctx: CesiumContextType,
+  provider: CesiumTerrainProvider,
   positions: Cartographic[],
   rejectOnTileFail: boolean = true,
   clonePositions: boolean = true
 ): Promise<Cartographic[]> {
-  const provider = ctx.getTerrainProvider();
   if (!provider) {
     console.debug("[CESIUM|ELEVATION] No terrain provider available");
     return [];
@@ -34,12 +32,11 @@ export async function getTerrainElevationAsync(
 }
 
 export async function getSurfaceElevationAsync(
-  ctx: CesiumContextType,
+  provider: CesiumTerrainProvider,
   positions: Cartographic[],
   rejectOnTileFail: boolean = true,
   clonePositions: boolean = true
 ): Promise<Cartographic[]> {
-  const provider = ctx.getSurfaceProvider();
   if (!provider) {
     console.debug("[CESIUM|ELEVATION] No surface provider available");
     return [];
@@ -57,18 +54,19 @@ export async function getSurfaceElevationAsync(
  * Prefer surface/mesh elevation when available, otherwise fall back to terrain.
  */
 export async function getElevationAsync(
-  ctx: CesiumContextType,
+  terrainProvider: CesiumTerrainProvider,
+  surfaceProvider: CesiumTerrainProvider,
   positions: Cartographic[],
   rejectOnTileFail: boolean = true
 ): Promise<ElevationResult[]> {
   const surfaceResult = await getSurfaceElevationAsync(
-    ctx,
+    surfaceProvider,
     positions,
     rejectOnTileFail,
     true
   );
   const terrainResult = await getTerrainElevationAsync(
-    ctx,
+    terrainProvider,
     positions,
     rejectOnTileFail,
     true

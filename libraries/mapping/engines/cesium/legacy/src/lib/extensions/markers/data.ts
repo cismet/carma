@@ -2,6 +2,7 @@ import {
   Cartesian3,
   Matrix4,
   Model,
+  Scene,
   Transforms,
   type Cartographic,
 } from "cesium";
@@ -11,7 +12,6 @@ import type {
   MarkerModelAsset,
   PolylineConfig,
 } from "./index.d";
-import type { CesiumContextType } from "../../CesiumContext";
 
 import { createOrUpdateStemline } from "./stemline";
 
@@ -20,7 +20,7 @@ const defaultMarkerOptions = {
 } as const;
 
 export type BuildMarkerParams = {
-  ctx: CesiumContextType;
+  scene: Scene;
   pos: Cartographic;
   groundPos: Cartographic;
   modelConfig: MarkerModelAsset;
@@ -32,7 +32,7 @@ export type BuildMarkerParams = {
 };
 
 export const buildMarkerData = async ({
-  ctx,
+  scene,
   pos,
   groundPos,
   modelConfig,
@@ -72,7 +72,7 @@ export const buildMarkerData = async ({
 
   try {
     if (options.stemline || modelConfig.stemline) {
-      createOrUpdateStemline(ctx, markerData, [pos, groundPos], {
+      createOrUpdateStemline(scene, markerData, [pos, groundPos], {
         ...modelConfig.stemline,
         ...options.stemline,
       });
