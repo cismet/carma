@@ -125,11 +125,31 @@ export const useSelectionCesium = (
   const { selection } = useSelection();
   const lastSelectionKeyRef = useRef<number | null>(null);
   const lastSelectionTimestampRef = useRef<number | null>(null);
+  const wasActiveRef = useRef<boolean>(false);
   const [selectedMarkerData, setSelectedMarkerData] =
     useState<MarkerPrimitiveData | null>(null);
 
+  // need rerender here!
+  const isActive = getIsActive();
+
   useEffect(() => {
-    if (!getIsActive() || !isValidViewer()) {
+    if (!isActive && wasActiveRef.current) {
+      console.debug(
+        "[CESIUM-SELECTION] Cesium becoming inactive - resetting refs"
+      );
+      lastSelectionKeyRef.current = null;
+      lastSelectionTimestampRef.current = null;
+      wasActiveRef.current = false;
+      return;
+    }
+
+    wasActiveRef.current = isActive;
+
+    if (!isActive || !isValidViewer()) {
+      console.debug("[CESIUM-SELECTION] Early return", {
+        isActive,
+        isValidViewer: isValidViewer(),
+      });
       return;
     }
 
@@ -140,6 +160,12 @@ export const useSelectionCesium = (
       const isDuplicateSelection =
         lastSelectionKeyRef.current === selectionKey &&
         lastSelectionTimestampRef.current === selectionTimestamp;
+
+      console.debug("[CESIUM-SELECTION] Processing selection", {
+        selectionKey,
+        lastKey: lastSelectionKeyRef.current,
+        isDuplicate: isDuplicateSelection,
+      });
 
       if (isDuplicateSelection) {
         console.debug("HOOK: useSelectionCesium - same selection, skipping");
@@ -235,7 +261,7 @@ export const useSelectionCesium = (
       cleanUpCesium(scene, selectedMarkerData, setSelectedMarkerData);
     }
   }, [
-    getIsActive,
+    isActive,
     getScene,
     isValidViewer,
     getSurfaceProvider,
