@@ -129,6 +129,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     getTerrainProvider,
     getScene,
     isValidViewer: isValidViewerCtx,
+    isViewerReady,
   } = useCesiumContext();
 
   const rerenderCountRef = useRef(0);
@@ -281,20 +282,59 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
 
   // Map framework switcher (2D ↔ 3D transitions)
   // Register maps with context for framework switching
+  // Only register when both maps are actually initialized (not null)
+  const leafletMap = getLeafletMap();
+  const cesiumScene = getScene();
+  const cesiumContainer = container3dMapRef.current;
+  const terrainProvider = getTerrainProvider();
+  const surfaceProvider = getSurfaceProvider();
 
-  const frameworkOptions = useMemo(
-    () => ({
-      leafletMap: getLeafletMap(),
-      cesiumScene: getScene(),
-      cesiumContainer: container3dMapRef.current,
+  const frameworkOptions = useMemo(() => {
+    // Gate: Only register when both frameworks have initialized
+    // Prevents registering null values that would keep the switcher disabled
+
+    console.debug(
+      "[GPM|DEBUG] Registering map frameworks with switcher context",
+      {
+        isViewerReady,
+        leafletMap,
+        cesiumScene,
+        cesiumContainer,
+        terrainProvider,
+        surfaceProvider,
+        resolutionScale: viewerRef?.current?.resolutionScale ?? 1.0,
+      }
+    );
+    if (
+      !leafletMap ||
+      !cesiumScene ||
+      !cesiumContainer ||
+      !isViewerReady ||
+      !routedMapRef.current
+    ) {
+      return null;
+    }
+
+    return {
+      leafletMap,
+      cesiumScene,
+      cesiumContainer,
       terrainProviders: {
-        TERRAIN: getTerrainProvider() ?? undefined,
-        SURFACE: getSurfaceProvider() ?? undefined,
+        TERRAIN: terrainProvider ?? null,
+        SURFACE: surfaceProvider ?? null,
       },
       resolutionScale: viewerRef?.current?.resolutionScale ?? 1.0,
-    }),
-    [getLeafletMap, getScene, getTerrainProvider, getSurfaceProvider, viewerRef]
-  );
+    };
+  }, [
+    leafletMap,
+    cesiumScene,
+    cesiumContainer,
+    terrainProvider,
+    surfaceProvider,
+    viewerRef,
+    isViewerReady,
+    routedMapRef,
+  ]);
 
   useRegisterMapFramework(frameworkOptions);
 

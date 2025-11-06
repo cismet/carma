@@ -23,16 +23,20 @@ interface UseRegisterMapFrameworkParams {
  * Register map instances with the framework switcher context
  * Call this hook once your maps are initialized
  */
-export const useRegisterMapFramework = ({
-  leafletMap,
-  cesiumScene,
-  cesiumContainer,
-  terrainProviders,
-  resolutionScale = 1.0,
-}: UseRegisterMapFrameworkParams) => {
+export const useRegisterMapFramework = (
+  options: UseRegisterMapFrameworkParams | null
+) => {
   const { registerRefs } = useMapFrameworkSwitcherContext();
-
   useEffect(() => {
+    if (!options) return;
+    const {
+      leafletMap,
+      cesiumScene,
+      cesiumContainer,
+      terrainProviders,
+      resolutionScale,
+    } = options;
+
     registerRefs({
       getLeafletMap: () => leafletMap,
       getCesiumScene: () => cesiumScene,
@@ -47,13 +51,5 @@ export const useRegisterMapFramework = ({
       }),
       getResolutionScale: () => resolutionScale,
     });
-  }, [
-    leafletMap,
-    cesiumScene,
-    cesiumContainer,
-    terrainProviders.TERRAIN,
-    terrainProviders.SURFACE,
-    resolutionScale,
-    registerRefs,
-  ]);
+  }, [options, registerRefs]);
 };
