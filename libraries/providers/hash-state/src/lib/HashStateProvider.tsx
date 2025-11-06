@@ -5,6 +5,7 @@ import React, {
   useEffect,
   useMemo,
   useRef,
+  startTransition,
 } from "react";
 import {
   getHashParams,
@@ -13,7 +14,12 @@ import {
   diffHashParams,
 } from "@carma-commons/utils";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useHashChangeEmit } from "../hooks/useHashChangeEmit";
+import { useHashChangeEmit } from "./useHashChangeEmit";
+import {
+  defaultHashCodecs,
+  defaultHashKeyAliases,
+  defaultHashKeyOrder,
+} from "./hashCodecs";
 
 interface HashUpdateOptions {
   clearKeys?: string[];
@@ -81,11 +87,16 @@ export const HashStateProvider: React.FC<{
   keyAliases?: Record<string, string>;
   hashCodecs?: HashCodecs;
   keyOrder?: string[];
-}> = ({ children, keyAliases, hashCodecs, keyOrder }) => {
+}> = ({
+  children,
+  keyAliases = defaultHashKeyAliases,
+  hashCodecs = defaultHashCodecs,
+  keyOrder = defaultHashKeyOrder,
+}) => {
   const location = useLocation();
   const navigate = useNavigate();
   const aliasReverseLookup = useMemo(
-    () => getAliasReverseLookup(keyAliases || {}),
+    () => getAliasReverseLookup(keyAliases),
     [keyAliases]
   );
   const listenersRef = useRef<
@@ -167,6 +178,7 @@ export const HashStateProvider: React.FC<{
 
       const clearAndUndefinedKeys = [...clearKeys, ...undefinedKeys];
 
+      // Urgent: Update URL immediately
       updateHashHistoryState(newParams, location.pathname, {
         removeKeys: clearAndUndefinedKeys,
         keyOrder,
@@ -182,14 +194,17 @@ export const HashStateProvider: React.FC<{
       const changedKeys = [...new Set(changedAliasKeys.map(toOriginal))];
       const removedKeys = [...new Set(removedAliasKeys.map(toOriginal))];
 
-      emit({
-        raw: afterRaw,
-        values: getHashValues(),
-        changedKeys,
-        removedKeys,
-        label,
-        replace,
-        source: "update",
+      // Non-urgent: React state updates deferred
+      startTransition(() => {
+        emit({
+          raw: afterRaw,
+          values: getHashValues(),
+          changedKeys,
+          removedKeys,
+          label,
+          replace,
+          source: "update",
+        });
       });
       prevRawRef.current = afterRaw;
     },

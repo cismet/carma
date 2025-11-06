@@ -1,13 +1,18 @@
 import type { Scene, CesiumTerrainProvider } from "@carma/cesium";
 import type { Map as LeafletMap } from "leaflet";
 import { isValidScene } from "@carma/cesium";
-import { TransitionStage, type TransitionToCesiumOptions } from "./types";
+import {
+  TransitionStage,
+  type TransitionToCesiumOptions,
+  type TransitionCallbacks,
+} from "./types";
 import { prepareLeafletForTransition } from "./utils/leaflet-preparation";
 import { restoreCesiumCameraView } from "./utils/camera-restore";
 import { promiseWithTimeout } from "@carma-commons/utils/promise";
 import { tiledMapToCesium } from "../utils/cesium/tiled-map-to-cesium";
 import { defaultTransitionOptions } from "../utils/cesium/elevation-reference";
 import type { TargetHeadingPitch } from "./transition-to-leaflet";
+import { Degrees } from "libraries/commons/units/types/src/lib/base/angles";
 
 /**
  * Pure function: Orchestrates transition from Leaflet (LeafletLike) to Cesium (3D)
@@ -26,9 +31,7 @@ export const transitionToCesium = async (
     SURFACE?: CesiumTerrainProvider;
   },
   targetHeadingPitch: TargetHeadingPitch | null,
-  onTransitionStage: (stage: TransitionStage, message: string) => void,
-  onTransitionComplete: (() => void) | undefined,
-  onTransitionError: ((error: Error) => void) | undefined,
+  callbacks: TransitionCallbacks,
   options: TransitionToCesiumOptions = {}
 ): Promise<void> => {
   // Extract options with defaults
@@ -41,9 +44,11 @@ export const transitionToCesium = async (
     step4_cssTransitionDurationMs = 1000,
     step5_postCssDelayMs = 200,
     step6_cameraAnimationDurationMs = 1500,
-    defaultHeadingDeg = 0,
-    defaultPitchDeg = -45,
+    defaultHeading = 0 as Degrees,
+    defaultPitch = -45 as Degrees,
   } = options;
+
+  const { onStageChange, onComplete, onError } = callbacks;
 
   console.debug("[CESIUM] [CESIUM|2D3D|TO3D] Starting transition to 3D mode", {
     hasLeaflet: !!leaflet,
@@ -53,7 +58,7 @@ export const transitionToCesium = async (
 
   try {
     // Stage 1: Prepare 2D view - zoom out if needed
-    onTransitionStage(
+    onStageChange(
       TransitionStage.PREPARE_2D,
       "Preparing 2D view for transition"
     );
@@ -67,10 +72,10 @@ export const transitionToCesium = async (
         step2_initialRenderTimeoutMs + step3_resourceWaitTimeoutMs,
     });
 
-    onTransitionStage(TransitionStage.ZOOM_OUT, "Leaflet zoom completed");
+    onStageChange(TransitionStage.ZOOM_OUT, "Leaflet zoom completed");
 
     // Stage 2: Position Cesium camera to match Leaflet view
-    onTransitionStage(
+    onStageChange(
       TransitionStage.POSITION_3D_CAMERA,
       "Positioning 3D camera"
     );
@@ -118,7 +123,7 @@ export const transitionToCesium = async (
     }
 
     // Stage 3: Wait for initial render and resources
-    onTransitionStage(
+    onStageChange(
       TransitionStage.WAIT_RESOURCES,
       "Waiting for resources to load"
     );
@@ -142,7 +147,7 @@ export const transitionToCesium = async (
     );
 
     // Stage 4: Fade in Cesium container
-    onTransitionStage(TransitionStage.FADE_IN_3D, "Fading in 3D view");
+    onStageChange(TransitionStage.FADE_IN_3D, "Fading in 3D view");
     console.debug(
       "[CESIUM] [CSS] [CESIUM|2D3D|TO3D] Step 4: Making Cesium container visible"
     );
@@ -188,16 +193,16 @@ export const transitionToCesium = async (
     );
 
     // Stage 5: Animate camera to final position (if previous HPR exists)
-    onTransitionStage(TransitionStage.ANIMATE_CAMERA, "Animating camera");
+    onStageChange(TransitionStage.ANIMATE_CAMERA, "Animating camera");
     console.debug(
       "[CESIUM] [CESIUM|2D3D|TO3D] Step 5: Attempting camera animation"
     );
 
     const handleComplete = () => {
-      onTransitionStage(TransitionStage.COMPLETE, "Transition to 3D complete");
+      onStageChange(TransitionStage.COMPLETE, "Transition to 3D complete");
       console.debug("[CESIUM] [CESIUM|2D3D|TO3D] Transition complete");
-      if (onTransitionComplete) {
-        onTransitionComplete();
+      if (onComplete) {
+        onComplete();
       }
     };
 
@@ -209,8 +214,8 @@ export const transitionToCesium = async (
       targetHeadingPitch,
       step6_cameraAnimationDurationMs,
       handleComplete,
-      defaultHeadingDeg,
-      defaultPitchDeg
+      defaultPitch,
+      defaultHeading
     );
 
     if (!animationStarted) {
@@ -219,14 +224,14 @@ export const transitionToCesium = async (
     }
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
-    onTransitionStage(
+    onStageChange(
       TransitionStage.ERROR,
       `Transition failed: ${err.message}`
     );
     console.error("[CESIUM] [CESIUM|2D3D|TO3D] Transition error:", error);
 
-    if (onTransitionError) {
-      onTransitionError(err);
+    if (onError) {
+      onError(err);
     }
 
     throw error;

@@ -90,6 +90,7 @@ export const useAppConfig = (
       console.info("[CONFIG] No config key provided in hash parameters.");
       return;
     }
+    // TODO use HashStateProvider Here since its toplevel now
     // can't use HashStateProvider here
     // because it's not yet available
     // and needs to be configured by the config itself

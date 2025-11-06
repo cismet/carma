@@ -11,6 +11,8 @@ import {
   useState,
   useRef,
   useCallback,
+  useMemo,
+  startTransition,
   type ReactNode,
 } from "react";
 
@@ -61,6 +63,13 @@ export interface MapFrameworkSwitcherRefs {
   getResolutionScale: () => number | undefined;
 }
 
+export interface MapFrameworkSwitcherCallbacks {
+  onLeafletViewSet?: (params: {
+    center: { lat: number; lng: number };
+    zoom: number;
+  }) => void;
+}
+
 export interface MapFrameworkSwitcherContextValue {
   // State
   activeFramework: CarmaMapFramework;
@@ -92,6 +101,8 @@ export interface MapFrameworkSwitcherContextValue {
   // Refs setup
   registerRefs: (refs: Partial<MapFrameworkSwitcherRefs>) => void;
   refs: MapFrameworkSwitcherRefs;
+
+  registerCallbacks: (callbacks: Partial<MapFrameworkSwitcherCallbacks>) => void;
 }
 
 // ============================================================================
@@ -159,6 +170,20 @@ export const MapFrameworkSwitcherProvider = ({
     getResolutionScale: () => undefined,
   });
 
+  // Refs for callbacks (rerender-free)
+  const callbacksRef = useRef<MapFrameworkSwitcherCallbacks>({});
+
+  // Register callbacks from app (rerender-free)
+  const registerCallbacks = useCallback(
+    (callbacks: Partial<MapFrameworkSwitcherCallbacks>) => {
+      callbacksRef.current = {
+        ...callbacksRef.current,
+        ...callbacks,
+      };
+    },
+    []
+  );
+
   // Register refs from app (called by app-specific hooks)
   const registerRefs = useCallback(
     (refs: Partial<MapFrameworkSwitcherRefs>) => {
@@ -173,9 +198,13 @@ export const MapFrameworkSwitcherProvider = ({
         !!refsRef.current.getCesiumScene() &&
         !!refsRef.current.getCesiumContainer();
 
-      setIsReady(nowReady);
+      // Non-urgent state update - use startTransition to avoid blocking
+      startTransition(() => {
+        setIsReady(nowReady);
+      });
 
       // Apply initial visibility to Cesium container based on active framework
+      // This is urgent visual feedback, keep outside startTransition
       const container = refsRef.current.getCesiumContainer();
       if (container) {
         if (isLeaflet) {
@@ -247,16 +276,18 @@ export const MapFrameworkSwitcherProvider = ({
         resolutionScale || 1.0,
         terrainProviders,
         lastEngineStateRef.current.cesium,
-        (stage: TransitionStage, message: string) => {
-          console.debug(`[CESIUM] Transition stage: ${stage} - ${message}`);
-        },
-        () => {
-          setActiveFrameworkCesium();
-          setIsTransitioning(false);
-        },
-        (error: Error) => {
-          console.error("[CESIUM] Transition error:", error);
-          setIsTransitioning(false);
+        {
+          onStageChange: (stage: TransitionStage, message: string) => {
+            console.debug(`[CESIUM] Transition stage: ${stage} - ${message}`);
+          },
+          onComplete: () => {
+            setActiveFrameworkCesium();
+            setIsTransitioning(false);
+          },
+          onError: (error: Error) => {
+            console.error("[CESIUM] Transition error:", error);
+            setIsTransitioning(false);
+          },
         }
       );
     } catch (error) {
@@ -309,16 +340,19 @@ export const MapFrameworkSwitcherProvider = ({
         cesiumContainer,
         resolutionScale || 1.0,
         terrainProviders,
-        (stage: TransitionStage, message: string) => {
-          console.debug(`[CESIUM] Transition stage: ${stage} - ${message}`);
-        },
-        () => {
-          setActiveFrameworkLeaflet();
-          setIsTransitioning(false);
-        },
-        (error: Error) => {
-          console.error("[CESIUM] Transition error:", error);
-          setIsTransitioning(false);
+        {
+          onStageChange: (stage: TransitionStage, message: string) => {
+            console.debug(`[CESIUM] Transition stage: ${stage} - ${message}`);
+          },
+          onComplete: () => {
+            setActiveFrameworkLeaflet();
+            setIsTransitioning(false);
+          },
+          onError: (error: Error) => {
+            console.error("[CESIUM] Transition error:", error);
+            setIsTransitioning(false);
+          },
+          onLeafletViewSet: callbacksRef.current.onLeafletViewSet,
         }
       );
 
@@ -357,29 +391,52 @@ export const MapFrameworkSwitcherProvider = ({
     requestTransitionToLeaflet,
   ]);
 
-  const value: MapFrameworkSwitcherContextValue = {
-    activeFramework,
-    isTransitioning,
-    isReady,
-    // Computed helpers
-    isLeaflet,
-    isCesium,
-    // Stable getters
-    getActiveFramework,
-    getIsLeaflet,
-    getIsCesium,
-    getIsTransitioning,
-    setActiveFramework,
-    setActiveFrameworkCesium,
-    setActiveFrameworkLeaflet,
-    setIsTransitioning,
-    // Transition functions
-    requestTransitionToCesium,
-    requestTransitionToLeaflet,
-    toggle,
-    registerRefs,
-    refs: refsRef.current,
-  };
+  const value: MapFrameworkSwitcherContextValue = useMemo(
+    () => ({
+      activeFramework,
+      isTransitioning,
+      isReady,
+      // Computed helpers
+      isLeaflet,
+      isCesium,
+      // Stable getters
+      getActiveFramework,
+      getIsLeaflet,
+      getIsCesium,
+      getIsTransitioning,
+      setActiveFramework,
+      setActiveFrameworkCesium,
+      setActiveFrameworkLeaflet,
+      setIsTransitioning,
+      // Transition functions
+      requestTransitionToCesium,
+      requestTransitionToLeaflet,
+      toggle,
+      registerRefs,
+      registerCallbacks,
+      refs: refsRef.current,
+    }),
+    [
+      activeFramework,
+      isTransitioning,
+      isReady,
+      isLeaflet,
+      isCesium,
+      getActiveFramework,
+      getIsLeaflet,
+      getIsCesium,
+      getIsTransitioning,
+      setActiveFramework,
+      setActiveFrameworkCesium,
+      setActiveFrameworkLeaflet,
+      setIsTransitioning,
+      requestTransitionToCesium,
+      requestTransitionToLeaflet,
+      toggle,
+      registerRefs,
+      registerCallbacks,
+    ]
+  );
 
   console.log("[FRAMEWORK-SWITCHER-CONTEXT] Provider render:", {
     activeFramework,

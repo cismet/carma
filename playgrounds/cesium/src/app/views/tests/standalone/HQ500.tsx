@@ -22,7 +22,7 @@ import {
   useHomeControl,
   useZoomControls as useZoomControlsCesium,
 } from "@carma-mapping/engines/cesium";
-import { useHashState } from "@carma-appframeworks/portals";
+import { useHashState } from "@carma-providers/hash-state";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 

@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { startTransition, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
@@ -33,13 +33,19 @@ export const useSceneStyles = (enabled = true) => {
     console.debug("currentSceneStyle change", currentSceneStyle);
     if (currentSceneStyle === "primary" && primaryStyle) {
       setupPrimaryStyle(ctx, primaryStyle);
-      dispatch(setShowPrimaryTileset(true));
-      dispatch(setShowSecondaryTileset(false));
+      // Non-urgent Redux state updates - separate from WebGL work
+      startTransition(() => {
+        dispatch(setShowPrimaryTileset(true));
+        dispatch(setShowSecondaryTileset(false));
+      });
       setCesiumBackgroundCssVar(primaryStyle.backgroundColor);
     } else if (currentSceneStyle === "secondary" && secondaryStyle) {
       setupSecondaryStyle(ctx, secondaryStyle);
-      dispatch(setShowPrimaryTileset(false));
-      dispatch(setShowSecondaryTileset(true));
+      // Non-urgent Redux state updates - separate from WebGL work
+      startTransition(() => {
+        dispatch(setShowPrimaryTileset(false));
+        dispatch(setShowSecondaryTileset(true));
+      });
       setCesiumBackgroundCssVar(secondaryStyle.backgroundColor);
     } else {
       throw new Error(`Unknown style: ${currentSceneStyle}`);

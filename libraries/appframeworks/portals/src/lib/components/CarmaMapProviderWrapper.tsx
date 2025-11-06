@@ -8,13 +8,11 @@ import {
   MapStyleProvider,
   type MapStyleConfig,
 } from "../contexts/MapStyleProvider";
-import { GazDataConfig, normalizeOptions } from "@carma-commons/utils";
+import { GazDataConfig } from "@carma-commons/utils";
 import { defaultGazDataConfig } from "@carma-commons/resources";
 import { AuthProvider } from "@carma-providers/auth";
 
-import { HashCodecs, HashStateProvider } from "../contexts/HashStateProvider";
-import { defaultHashCodecs, defaultHashKeyAliases } from "../utils/hashState";
-import { useMemo } from "react";
+import { type HashCodecs } from "@carma-providers/hash-state";
 import { SandboxedEvalProvider } from "./SandboxedEvalProvider";
 
 type CarmaMapProviderWrapperProps = {
@@ -23,8 +21,11 @@ type CarmaMapProviderWrapperProps = {
   cesiumOptions: { providerConfig: any; tilesetConfigs: any };
   gazDataConfig?: GazDataConfig;
   mapStyleConfig: MapStyleConfig;
+  /** @deprecated HashStateProvider should be placed higher in the tree. These props are ignored. */
   hashKeyAliases?: Record<string, string>;
+  /** @deprecated HashStateProvider should be placed higher in the tree. These props are ignored. */
   hashCodecs?: HashCodecs;
+  /** @deprecated HashStateProvider should be placed higher in the tree. These props are ignored. */
   keyOrder?: string[];
 };
 
@@ -34,33 +35,9 @@ export const CarmaMapProviderWrapper = ({
   cesiumOptions,
   gazDataConfig = defaultGazDataConfig,
   mapStyleConfig,
-  hashKeyAliases,
-  hashCodecs,
-  keyOrder = [
-    "lat",
-    "lng",
-    "zoom",
-    "h",
-    "heading",
-    "bearing",
-    "pitch",
-    "roll",
-    "fov",
-    "m",
-    "isOblique",
-  ],
 }: CarmaMapProviderWrapperProps) => {
   const { background } = overlayOptions;
   const { transparency, color } = background;
-
-  const aliases = useMemo(
-    () => normalizeOptions(hashKeyAliases, defaultHashKeyAliases),
-    [hashKeyAliases]
-  );
-  const codecs = useMemo(
-    () => normalizeOptions(hashCodecs, defaultHashCodecs),
-    [hashCodecs]
-  );
 
   if (gazDataConfig.crs !== "3857") {
     console.warn(
@@ -69,37 +46,31 @@ export const CarmaMapProviderWrapper = ({
   }
 
   return (
-    <HashStateProvider
-      keyAliases={aliases}
-      hashCodecs={codecs}
-      keyOrder={keyOrder}
-    >
-      <AuthProvider>
-        <SandboxedEvalProvider>
-          <GazDataProvider config={gazDataConfig}>
-            <SelectionProvider>
-              <MapStyleProvider config={mapStyleConfig}>
-                <TopicMapContextProvider infoBoxPixelWidth={350}>
-                  <OverlayTourProvider
-                    transparency={transparency}
-                    color={color}
+    <AuthProvider>
+      <SandboxedEvalProvider>
+        <GazDataProvider config={gazDataConfig}>
+          <SelectionProvider>
+            <MapStyleProvider config={mapStyleConfig}>
+              <TopicMapContextProvider infoBoxPixelWidth={350}>
+                <OverlayTourProvider
+                  transparency={transparency}
+                  color={color}
+                >
+                  <CesiumContextProvider
+                    //initialViewerState={defaultCesiumState}
+                    // TODO move these to store/slice setup ?
+                    providerConfig={cesiumOptions.providerConfig}
+                    tilesetConfigs={cesiumOptions.tilesetConfigs}
                   >
-                    <CesiumContextProvider
-                      //initialViewerState={defaultCesiumState}
-                      // TODO move these to store/slice setup ?
-                      providerConfig={cesiumOptions.providerConfig}
-                      tilesetConfigs={cesiumOptions.tilesetConfigs}
-                    >
-                      {children}
-                    </CesiumContextProvider>
-                  </OverlayTourProvider>
-                </TopicMapContextProvider>
-              </MapStyleProvider>
-            </SelectionProvider>
-          </GazDataProvider>
-        </SandboxedEvalProvider>
-      </AuthProvider>
-    </HashStateProvider>
+                    {children}
+                  </CesiumContextProvider>
+                </OverlayTourProvider>
+              </TopicMapContextProvider>
+            </MapStyleProvider>
+          </SelectionProvider>
+        </GazDataProvider>
+      </SandboxedEvalProvider>
+    </AuthProvider>
   );
 };
 

@@ -26,8 +26,11 @@ type AnimateCesiumToTopDownOptions = {
   leaflet: LeafletMap;
   onAnimationComplete: () => void;
   setPrevHPR: (hpr: HeadingPitchRange) => void;
-  setPrevDuration: (duration: number) => void;
   onTransitionCancel: () => void;
+  onLeafletViewSet?: (params: {
+    center: { lat: number; lng: number };
+    zoom: number;
+  }) => void;
 };
 
 /**
@@ -40,10 +43,19 @@ export const animateCesiumToTopDownLeafletLikeView = (
   {
     onAnimationComplete,
     setPrevHPR,
-    setPrevDuration,
     onTransitionCancel,
+    onLeafletViewSet,
   }: AnimateCesiumToTopDownOptions
 ): boolean => {
+  const camera = scene.camera;
+  if (!isValidCamera(camera)) {
+    console.info(
+      "[CESIUM] [CESIUM|2D3D|TO2D] No valid camera found – cancel transition"
+    );
+    onTransitionCancel();
+    return false;
+  }
+
   // Use pickPosition to get terrain-aware ground position at screen center
   const centerPickResult = pickSceneCanvasCenter(scene, {
     depthTestAgainstTerrain: true,
@@ -54,15 +66,6 @@ export const animateCesiumToTopDownLeafletLikeView = (
   const cartographic = centerPickResult.coordinates;
 
   let animationStarted = false;
-
-  const camera = scene.camera;
-  if (!isValidCamera(camera)) {
-    console.info(
-      "[CESIUM] [CESIUM|2D3D|TO2D] No valid camera found – cancel transition"
-    );
-    onTransitionCancel();
-    return false;
-  }
 
   let height = camera.positionCartographic.height;
   let distance = height;
@@ -133,7 +136,6 @@ export const animateCesiumToTopDownLeafletLikeView = (
 
   const duration =
     getTopDownCameraDeviationAngle(scene.camera) * 2 + zoomDiff * 1;
-  setPrevDuration(duration);
 
   const onComplete2d = async () => {
     try {
@@ -161,8 +163,34 @@ export const animateCesiumToTopDownLeafletLikeView = (
         return;
       }
 
-      leaflet.setView([latitude, longitude], zoom, noAnimation);
+      // Apply zoomSnap if configured
+      let snappedZoom = zoom;
+      const { zoomSnap } = leaflet.options;
+      if (zoomSnap && zoomSnap > 0) {
+        snappedZoom = Math.round(zoom / zoomSnap) * zoomSnap;
+        console.log("[2D3D|TRANSITION] Snapping zoom:", {
+          originalZoom: zoom,
+          zoomSnap,
+          snappedZoom,
+        });
+      }
+
+      console.warn(
+        "[2D3D|TRANSITION] CALLING leaflet.setView",
+        { latitude, longitude, snappedZoom, stack: new Error().stack }
+      );
+      leaflet.setView([latitude, longitude], snappedZoom, noAnimation);
       console.log("[2D3D|TRANSITION] Leaflet view set successfully");
+
+      if (onLeafletViewSet) {
+        console.warn(
+          "[2D3D|TRANSITION] INVOKING onLeafletViewSet callback",
+          { center: { lat: latitude, lng: longitude }, zoom: snappedZoom }
+        );
+        onLeafletViewSet({ center: { lat: latitude, lng: longitude }, zoom: snappedZoom });
+      } else {
+        console.warn("[2D3D|TRANSITION] NO onLeafletViewSet callback registered!");
+      }
     } catch (error) {
       console.error(
         "[CESIUM] could not determine center zoom equivalent",
@@ -189,13 +217,6 @@ export const animateCesiumToTopDownLeafletLikeView = (
         targetHeight: height,
         targetDistance: distance,
       }
-    );
-
-    // rotate around the groundposition at center
-    console.debug(
-      "[CESIUM] [CESIUM|2D3D|TO2D] setting prev HPR zoom",
-      groundPos,
-      height
     );
 
     animateInterpolateHeadingPitchRange(

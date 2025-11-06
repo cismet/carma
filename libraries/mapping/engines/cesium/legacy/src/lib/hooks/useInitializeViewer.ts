@@ -59,6 +59,7 @@ export const useInitializeViewer = (
     isValidViewer,
     isViewerReady,
     setIsViewerReady,
+    providersReady,
     shouldSuspendCameraLimitersRef,
     withScene,
     withCamera,
@@ -101,6 +102,14 @@ export const useInitializeViewer = (
   useEffect(() => {
     const containerEl = containerRef?.current;
 
+    // Wait for providers to be ready before creating viewer
+    if (!providersReady) {
+      console.debug(
+        "[CESIUM] HOOK: [CESIUM|INIT] Waiting for providers to be ready..."
+      );
+      return;
+    }
+
     if (containerEl) {
       try {
         // Reuse existing viewer if it exists and isn't destroyed
@@ -111,14 +120,10 @@ export const useInitializeViewer = (
           return;
         }
 
-        console.debug(
-          "[CESIUM] HOOK: [CESIUM|INIT] Creating NEW Viewer instance",
-          containerRef,
-          Date.now(),
-          options,
-          initialCameraView
-        );
         const viewer = new Viewer(containerEl, options);
+
+        console.info("[CESIUM|INIT] Viewer instance created", Date.now());
+
         viewerRef.current = viewer;
         // Configure centralized error handling: suppress Cesium panel, don't crash ErrorBoundary by default, log warn
         configureCesiumErrorHandling(viewer, {
@@ -220,6 +225,7 @@ export const useInitializeViewer = (
     options,
     containerRef,
     initialCameraView,
+    providersReady,
     viewerRef,
     home,
     maxZoom,

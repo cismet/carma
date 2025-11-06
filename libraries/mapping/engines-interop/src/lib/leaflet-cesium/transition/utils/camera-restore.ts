@@ -26,13 +26,13 @@ export const restoreCesiumCameraView = (
   targetHeadingPitch: TargetHeadingPitch | null,
   duration: number,
   onComplete: () => void,
-  defaultHeadingDeg = 0,
-  defaultPitchDeg = -45
+  defaultPitch: Degrees = -45 as Degrees,
+  defaultHeading: Degrees = 0 as Degrees,
 ): boolean => {
   // Use provided target or create default from options
   const effectiveHeadingPitch: TargetHeadingPitch = targetHeadingPitch || {
-    heading: degToRad(defaultHeadingDeg as Degrees),
-    pitch: degToRad(defaultPitchDeg as Degrees),
+    heading: degToRad(defaultHeading),
+    pitch: degToRad(defaultPitch),
   };
 
   console.debug("[CESIUM] [CESIUM|2D3D|TO3D] restoring camera view", {

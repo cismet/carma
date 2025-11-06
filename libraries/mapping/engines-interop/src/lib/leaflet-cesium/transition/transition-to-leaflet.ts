@@ -5,8 +5,12 @@ import type {
 } from "@carma/cesium";
 import { isValidScene } from "@carma/cesium";
 import type { Map as LeafletMap } from "leaflet";
-import { TransitionStage, type TransitionToLeafletOptions } from "./types";
-import { animateCesiumToTopDownLeafletLikeView as animateCameraTo2d } from "./utils/animate-cesium-to-top-down-leaflet-like-view";
+import {
+  TransitionStage,
+  type TransitionToLeafletOptions,
+  type TransitionToLeafletCallbacks,
+} from "./types";
+import { animateCesiumToTopDownLeafletLikeView } from "./utils/animate-cesium-to-top-down-leaflet-like-view";
 import { promiseWithTimeout } from "@carma-commons/utils/promise";
 
 /**
@@ -38,15 +42,15 @@ export const transitionToLeaflet = async (
     TERRAIN?: CesiumTerrainProvider;
     SURFACE?: CesiumTerrainProvider;
   },
-  onTransitionStage: (stage: TransitionStage, message: string) => void,
-  onTransitionComplete: (() => void) | undefined,
-  onTransitionError: ((error: Error) => void) | undefined,
+  callbacks: TransitionToLeafletCallbacks,
   options: TransitionToLeafletOptions = {}
 ): Promise<TransitionToLeafletResult> => {
   const {
     step1_cameraAnimationDurationMs = 1000,
     step2_cssTransitionDurationMs = 1000,
   } = options;
+
+  const { onStageChange, onComplete, onError, onLeafletViewSet } = callbacks;
 
   console.debug("[CESIUM] [CESIUM|2D3D|TO2D] Starting transition to 2D mode", {
     hasLeaflet: !!leaflet,
@@ -57,7 +61,7 @@ export const transitionToLeaflet = async (
   let capturedHeadingPitch: TargetHeadingPitch | null = null;
 
   try {
-    onTransitionStage(
+    onStageChange(
       TransitionStage.PREPARE_2D,
       "Preparing for 2D transition"
     );
@@ -78,7 +82,7 @@ export const transitionToLeaflet = async (
     );
 
     // Start transition visuals
-    onTransitionStage(
+    onStageChange(
       TransitionStage.ANIMATE_CAMERA,
       "Animating camera to top-down view"
     );
@@ -88,7 +92,7 @@ export const transitionToLeaflet = async (
 
     const handleAnimationComplete = async () => {
       // Fade out Cesium container
-      onTransitionStage(TransitionStage.FADE_IN_3D, "Fading out 3D view");
+      onStageChange(TransitionStage.FADE_IN_3D, "Fading out 3D view");
       console.debug("[CSS|2D3D|TO2D] Fading out Cesium container");
 
       // Set up CSS transition and trigger fade-out
@@ -104,9 +108,9 @@ export const transitionToLeaflet = async (
         step2_cssTransitionDurationMs + 100
       );
 
-      onTransitionStage(TransitionStage.COMPLETE, "Transition to 2D complete");
-      if (onTransitionComplete) {
-        onTransitionComplete();
+      onStageChange(TransitionStage.COMPLETE, "Transition to 2D complete");
+      if (onComplete) {
+        onComplete();
       }
     };
 
@@ -118,18 +122,19 @@ export const transitionToLeaflet = async (
       };
     };
 
-    animateCameraTo2d(scene, leaflet, {
+    animateCesiumToTopDownLeafletLikeView(scene, leaflet, {
       scene,
       leaflet,
       onAnimationComplete: handleAnimationComplete,
       setPrevHPR: handleTargetHeadingPitch,
       setPrevDuration: () => {}, // Duration is returned directly
       onTransitionCancel: () => {
-        onTransitionStage(TransitionStage.ERROR, "Transition cancelled");
-        if (onTransitionError) {
-          onTransitionError(new Error("Transition cancelled"));
+        onStageChange(TransitionStage.ERROR, "Transition cancelled");
+        if (onError) {
+          onError(new Error("Transition cancelled"));
         }
       },
+      onLeafletViewSet,
     });
 
     // Return the captured heading/pitch (not range) and duration
@@ -145,14 +150,14 @@ export const transitionToLeaflet = async (
     };
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
-    onTransitionStage(
+    onStageChange(
       TransitionStage.ERROR,
       `Transition failed: ${err.message}`
     );
     console.error("[CESIUM] [CESIUM|2D3D|TO2D] Transition error:", error);
 
-    if (onTransitionError) {
-      onTransitionError(err);
+    if (onError) {
+      onError(err);
     }
 
     throw error;

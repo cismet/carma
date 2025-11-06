@@ -7,7 +7,7 @@ import {
   CustomViewer,
   CesiumContextProvider,
 } from "@carma-mapping/engines/cesium";
-import { HashStateProvider } from "@carma-appframeworks/portals";
+import { HashStateProvider } from "@carma-providers/hash-state";
 import {
   BASEMAP_METROPOLE_RUHR_WMS_GRAUBLAU,
   WUPP_LOD2_TILESET,

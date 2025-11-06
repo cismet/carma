@@ -19,6 +19,7 @@ export interface CesiumContextType {
   shouldSuspendCameraLimitersRef: MutableRefObject<boolean>;
   isViewerReady: boolean;
   setIsViewerReady: (flag: boolean) => void;
+  providersReady: boolean;
   // null: not started determining; false: determining/applying; true: settled
   initialCameraSettled: boolean | null;
   setInitialCameraSettled: (flag: boolean | null) => void;
@@ -42,7 +43,7 @@ export interface CesiumContextType {
     cb: (entities: EntityCollection, viewer: Viewer) => void
   ) => boolean;
   withImageryLayer: (
-    cb: (imageryLayer: ImageryLayer, viewer: Viewer) => void
+    cb: (imageryLayer: ImageryLayer, scene: Scene) => void
   ) => boolean;
   withPrimaryTileset: (
     cb: (tileset: Cesium3DTileset, viewer: Viewer) => void

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import { useHashState } from "../contexts/HashStateProvider";
+import { useHashState } from "@carma-providers/hash-state";
 
 import { cesiumClearParamKeys } from "@carma-mapping/engines/cesium";
 import { isMapCenterZoomEquivalent } from "@carma/geo/utils";
@@ -49,6 +49,7 @@ export function useMapHashRouting({
 
   const handleTopicMapLocationChange = useCallback(
     ({ lat, lng, zoom }: LatLngZoom) => {
+      console.debug("[Routing][hash]", lat, lng, zoom);
       if (!isLeafletLike) return;
       if (navMoveInProgressRef.current) {
         console.debug(
@@ -195,8 +196,21 @@ export function useMapHashRouting({
         if (!isLeafletLike) return;
         const lat = e.values.lat as number | undefined;
         const lng = e.values.lng as number | undefined;
-        const zoom =
-          (e.values.zoom as number | undefined) ?? getLeafletZoom?.();
+        const zoomFromHash = e.values.zoom as number | undefined;
+        const fallbackZoom = getLeafletZoom?.();
+        const zoom = zoomFromHash ?? fallbackZoom;
+        
+        console.warn(
+          "[Routing][hash] 🔍 POPSTATE ZOOM DEBUG:",
+          {
+            zoomFromHash,
+            fallbackZoom,
+            finalZoom: zoom,
+            hashValues: e.values,
+            source: e.source,
+          }
+        );
+        
         if (lat == null || lng == null || zoom == null) return;
         const map = getLeafletMap?.();
         if (!map) return;
@@ -225,11 +239,15 @@ export function useMapHashRouting({
         };
         scheduleClear("moveend");
         scheduleClear("zoomend");
+        console.warn("[Routing][hash] 🎯 CALLING map.setView", { lat, lng, zoom, stack: new Error().stack });
         if (typeof map.setView === "function") {
           map.setView({ lat, lng }, zoom);
         } else if (typeof map.panTo === "function") {
           map.panTo({ lat, lng });
-          if (typeof map.setZoom === "function") map.setZoom(zoom);
+          if (typeof map.setZoom === "function") {
+            console.warn("[Routing][hash] 🎯 CALLING map.setZoom", { zoom, stack: new Error().stack });
+            map.setZoom(zoom);
+          }
         }
       },
       { keys: ["lat", "lng", "zoom"] }

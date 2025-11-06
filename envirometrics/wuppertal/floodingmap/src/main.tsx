@@ -11,8 +11,8 @@ import { CrossTabCommunicationContextProvider } from "react-cismap/contexts/Cros
 import {
   GazDataProvider,
   SelectionProvider,
-  HashStateProvider,
 } from "@carma-appframeworks/portals";
+import { HashStateProvider } from "@carma-providers/hash-state";
 import { suppressReactCismapErrors } from "@carma-commons/utils";
 import {
   CesiumContextProvider,
@@ -39,26 +39,26 @@ const syncedApp = (
 );
 
 const appWithContext = (
-  <GazDataProvider config={gazDataConfig}>
-    <SelectionProvider>
-      <TopicMapContextProvider
-        appKey={"Hochwasserkarte.Story.Wuppertal"}
-        //referenceSystem={MappingConstants.crs3857}
-        //referenceSystemDefinition={MappingConstants.proj4crs3857def}
-        // baseLayerConf={wuppertalConfig.overridingBaseLayerConf}
-        infoBoxPixelWidth={370}
-      >
-        <HashStateProvider>
+  <HashStateProvider>
+    <GazDataProvider config={gazDataConfig}>
+      <SelectionProvider>
+        <TopicMapContextProvider
+          appKey={"Hochwasserkarte.Story.Wuppertal"}
+          //referenceSystem={MappingConstants.crs3857}
+          //referenceSystemDefinition={MappingConstants.proj4crs3857def}
+          // baseLayerConf={wuppertalConfig.overridingBaseLayerConf}
+          infoBoxPixelWidth={370}
+        >
           <CesiumContextProvider
             providerConfig={CESIUM_CONFIG.providerConfig}
             tilesetConfigs={CESIUM_CONFIG.tilesetConfigs}
           >
             {enableSync ? syncedApp : <App />}
           </CesiumContextProvider>
-        </HashStateProvider>
-      </TopicMapContextProvider>
-    </SelectionProvider>
-  </GazDataProvider>
+        </TopicMapContextProvider>
+      </SelectionProvider>
+    </GazDataProvider>
+  </HashStateProvider>
 );
 
 const router = createHashRouter([

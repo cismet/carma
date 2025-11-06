@@ -23,10 +23,9 @@ export const DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS: Viewer.ConstructorOptions = {
     },
   },
 
-  // Disable default providers
+  // Disable default providers but keep globe for imageryLayers collection
   baseLayer: false,
   terrainProvider: undefined,
-  globe: false,
 
   // Hide UI components
   animation: false,

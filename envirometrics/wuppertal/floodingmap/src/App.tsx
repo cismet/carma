@@ -23,8 +23,8 @@ import {
   useSelection,
   useSelectionCesium,
   useSelectionTopicMap,
-  useHashState,
 } from "@carma-appframeworks/portals";
+import { useHashState } from "@carma-providers/hash-state";
 import { ENDPOINT, isAreaTypeWithGEP } from "@carma-commons/resources";
 import { getApplicationVersion } from "@carma-commons/utils";
 

@@ -1,3 +1,5 @@
+import { Degrees } from "libraries/commons/units/types/src/lib/base/angles";
+
 /**
  * Transition stages for tracking progress during 2D↔3D transitions
  */
@@ -47,32 +49,34 @@ export enum ToCesiumStages {
   ANIMATE_CESIUM_CAMERA = 6,
 }
 
-/**
- * Options for transition to Cesium (2D → 3D)
- */
+export type TransitionCallbacks = {
+  onStageChange: (stage: TransitionStage, message: string) => void;
+  onComplete?: () => void;
+  onError?: (error: Error) => void;
+};
+
+export type TransitionToLeafletCallbacks = TransitionCallbacks & {
+  onLeafletViewSet?: (params: {
+    center: { lat: number; lng: number };
+    zoom: number;
+  }) => void;
+};
+
 export type TransitionToCesiumOptions = {
   step1_prepare2dViewMaxZoom?: number;
   step1_zoomOutDurationMs?: number;
   step1_zoomOutEaseLinearity?: number;
   step2_initialRenderTimeoutMs?: number;
   step3_resourceWaitTimeoutMs?: number;
-  /** CSS transition duration for Cesium container opacity fade-in (ms). Default: 1000 */
   step4_cssTransitionDurationMs?: number;
-  /** Additional delay after CSS transition before starting camera animation (ms). Default: 200 */
   step5_postCssDelayMs?: number;
   step6_cameraAnimationDurationMs?: number;
-  /** Default camera heading in degrees (used when no previous 3D view exists). Default: 0° */
-  defaultHeadingDeg?: number;
-  /** Default camera pitch in degrees (used when no previous 3D view exists). Default: -45° */
-  defaultPitchDeg?: number;
+  defaultHeading?: Degrees;
+  defaultPitch?: Degrees;
 };
 
-/**
- * Options for transition to Leaflet (3D → 2D)
- */
 export type TransitionToLeafletOptions = {
   step1_cameraAnimationDurationMs?: number;
-  /** CSS transition duration for Cesium container opacity fade-out (ms). Default: 1000 */
   step2_cssTransitionDurationMs?: number;
 };
 
@@ -96,8 +100,8 @@ export const DEFAULT_TRANSITION_OPTIONS = {
     step3_resourceWaitTimeoutMs: 100,
     step4_cssTransitionDurationMs: 1000,
     step6_cameraAnimationDurationMs: 1000,
-    defaultHeadingDeg: 0,
-    defaultPitchDeg: -45,
+    defaultHeading: 0 as Degrees,
+    defaultPitch: -45 as Degrees,
   },
   toLeaflet: {
     step1_cameraAnimationDurationMs: 1000,

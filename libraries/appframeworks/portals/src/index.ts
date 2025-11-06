@@ -30,13 +30,6 @@ export {
 } from "./lib/components/SandboxedEvalProvider";
 
 export {
-  HashStateProvider,
-  useHashState,
-  type HashChangeEvent,
-  type HashChangeSource,
-  type HashSubscribeOptions,
-} from "./lib/contexts/HashStateProvider";
-export {
   MapStyleProvider,
   useMapStyle,
   type MapStyleConfig,

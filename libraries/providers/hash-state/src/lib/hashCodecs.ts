@@ -1,9 +1,24 @@
-import { HashCodec, HashCodecs } from "../contexts/HashStateProvider";
+import { HashCodec, HashCodecs } from "./HashStateProvider";
 
 export const defaultHashKeyAliases = {
   mapStyle: "m",
   isOblique: "oblq",
+  isCesium: "is3d",
 };
+
+export const defaultHashKeyOrder: string[] = [
+  "lat",
+  "lng",
+  "zoom",
+  "h",
+  "heading",
+  "bearing",
+  "pitch",
+  "roll",
+  "fov",
+  "m",
+  "isOblique",
+];
 
 // TODO move to a shared location
 enum MapStyleKeys {

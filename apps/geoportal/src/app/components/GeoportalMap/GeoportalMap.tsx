@@ -64,6 +64,7 @@ import {
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import { useAuth } from "@carma-providers/auth";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
+import { useHashState } from "@carma-providers/hash-state";
 
 import FeatureInfoBox from "../feature-info/FeatureInfoBox.tsx";
 import { InfoBoxMeasurement } from "@carma-commons/measurements";
@@ -79,6 +80,7 @@ import useLeafletZoomControls from "../../hooks/leaflet/useLeafletZoomControls.t
 import { useDispatchSachdatenInfoText } from "../../hooks/useDispatchSachdatenInfoText.ts";
 import { useFeatureInfoModeCursorStyle } from "../../hooks/useFeatureInfoModeCursorStyle.ts";
 import { useObliqueInitializer } from "../../oblique/hooks/useObliqueInitializer.ts";
+import { useGeoportalFrameworkSwitcher } from "./controls/use-geoportal-framework-switcher.ts";
 
 import { onClickTopicMap } from "./topicmap.utils.ts";
 import { useCreateCismapLayers } from "./hooks/useCreateCismapLayer.ts";
@@ -137,6 +139,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     isLeaflet,
     isCesium,
     getIsLeaflet, // Stable getter for callbacks
+    getIsTransitioning, // Check if framework transition in progress
   } = useMapFrameworkSwitcherContext();
 
   const models = useSelector(selectViewerModels);
@@ -272,15 +275,12 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     resolutionScale: ctx.viewerRef?.current?.resolutionScale ?? 1.0,
   });
 
+  // Register geoportal-specific framework switcher callbacks
+  useGeoportalFrameworkSwitcher();
+
   const { gazData } = useGazData();
 
   useFeatureInfoModeCursorStyle();
-
-  useWhyDidYouRender("GeoportalMap", {
-    height,
-    width,
-    allow3d,
-  });
 
   const onComplete = (selection: SelectionItem) => {
     if (layers.filter((l) => l.layerType === "vector").length === 0) return;
@@ -444,6 +444,14 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
 
   const topicMapLocationChangedHandler = useCallback(
     (p: { lat: number; lng: number; zoom: number }) => {
+      // During transitions, don't update hash - let transition handle it
+      // This prevents TopicMapContextProvider from reading and re-applying the hash
+      if (getIsTransitioning()) {
+        console.debug(
+          "[TopicMap|DEBUG] Location changed handler suppressed during transition"
+        );
+        return;
+      }
       if (!getIsLeaflet()) {
         console.debug(
           "[TopicMap|DEBUG] Location changed handler triggered while not in Leaflet mode"
@@ -453,7 +461,12 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       handleTopicMapLocationChange(p);
       updateLayersIdleState();
     },
-    [getIsLeaflet, handleTopicMapLocationChange, updateLayersIdleState]
+    [
+      getIsLeaflet,
+      getIsTransitioning,
+      handleTopicMapLocationChange,
+      updateLayersIdleState,
+    ]
   );
 
   const onSceneChange = useCallback(

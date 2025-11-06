@@ -12,13 +12,10 @@ import { handleDelayedRender } from "@carma-commons/utils/window";
 
 import { CesiumContext, type CesiumContextType } from "./CesiumContext";
 
-import {
-  loadCesiumImageryLayer,
-  loadCesiumTerrainProvider,
-  ProviderConfig,
-} from "./utils/cesiumProviders";
+import { ProviderConfig } from "./utils/cesiumProviders";
 import { loadTileset, TilesetConfigs } from "./utils/cesiumTilesetProviders";
 import { useValidInstances } from "./hooks/useValidInstances";
+import { usePreloadProviders } from "./hooks/usePreloadProviders";
 import { guardScene } from "./utils/guardScene";
 
 import {
@@ -59,6 +56,19 @@ export const CesiumContextProvider = ({
   // Monotonic counter for initial camera applications
   const [initialCameraEpoch, setInitialCameraEpoch] = useState<number>(0);
 
+  // Memoize refs object to prevent recreation on every render
+  const providerRefs = useMemo(
+    () => ({
+      terrainProviderRef,
+      surfaceProviderRef,
+      imageryLayerRef,
+    }),
+    [terrainProviderRef, surfaceProviderRef, imageryLayerRef]
+  );
+
+  // Pre-load all providers before viewer initialization
+  const providersReady = usePreloadProviders(providerRefs, providerConfig);
+
   const instanceCallbacks = useValidInstances(
     viewerRef,
     imageryLayerRef,
@@ -70,82 +80,6 @@ export const CesiumContextProvider = ({
   );
 
   const { withViewer, isValidViewer } = instanceCallbacks;
-
-  // Asynchronous initialization of providers and imageryLayer
-  useEffect(() => {
-    if (providerConfig.imageryProvider) {
-      const abortController = new AbortController();
-      const { signal } = abortController;
-
-      // ImageryLayer initialization
-      loadCesiumImageryLayer(
-        imageryLayerRef,
-        providerConfig.imageryProvider,
-        signal
-      );
-
-      return () => {
-        if (!isValidViewer()) {
-          console.error(
-            "[CESIUM|CONTEXT] Aborting imagery layer loading - viewer became invalid unexpectedly"
-          );
-          abortController.abort();
-        }
-      };
-    } else {
-      console.info("[CESIUM|CONTEXT] No imagery provider configured");
-    }
-  }, [providerConfig.imageryProvider, isValidViewer]);
-
-  useEffect(() => {
-    if (!isViewerReady) {
-      return;
-    } // avoids runtime issues with WebGL context not available
-
-    const abortController = new AbortController();
-    const { signal } = abortController;
-
-    loadCesiumTerrainProvider(
-      terrainProviderRef,
-      providerConfig.terrainProvider.url,
-      signal
-    );
-
-    return () => {
-      if (!isValidViewer()) {
-        console.error(
-          "[CESIUM|CONTEXT] Aborting terrain provider loading - viewer became invalid unexpectedly"
-        );
-        abortController.abort();
-      }
-    };
-  }, [providerConfig.terrainProvider.url, isViewerReady, isValidViewer]);
-
-  useEffect(() => {
-    if (!isViewerReady) {
-      return;
-    } // avoids runtime issues with WebGL context not available
-
-    if (providerConfig.surfaceProvider) {
-      const abortController = new AbortController();
-      const { signal } = abortController;
-
-      loadCesiumTerrainProvider(
-        surfaceProviderRef,
-        providerConfig.surfaceProvider.url,
-        signal
-      );
-
-      return () => {
-        if (!isValidViewer()) {
-          console.error(
-            "[CESIUM|CONTEXT] Aborting surface provider loading - viewer became invalid unexpectedly"
-          );
-          abortController.abort();
-        }
-      };
-    }
-  }, [providerConfig.surfaceProvider, isViewerReady, isValidViewer]);
 
   // Load Primary Tileset
   useEffect(() => {
@@ -232,6 +166,7 @@ export const CesiumContextProvider = ({
       shouldSuspendPitchLimiterRef,
       shouldSuspendCameraLimitersRef,
       setIsViewerReady,
+      providersReady,
       initialCameraSettled,
       setInitialCameraSettled,
       initialCameraEpoch,
@@ -245,6 +180,7 @@ export const CesiumContextProvider = ({
     }),
     [
       isViewerReady,
+      providersReady,
       initialCameraSettled,
       initialCameraEpoch,
       bumpInitialCameraEpoch,

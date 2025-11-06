@@ -7,8 +7,6 @@ import {
   type CesiumErrorHandlerOptions,
 } from "./CesiumErrorHandler";
 
-import ElevationControl from "./components/controls/ElevationControl";
-
 import useCameraRollSoftLimiter from "./hooks/useCameraRollSoftLimiter";
 import useCameraPitchEasingLimiter from "./hooks/useCameraPitchEasingLimiter";
 import useCameraPitchSoftLimiter from "./hooks/useCameraPitchSoftLimiter";
@@ -114,7 +112,6 @@ export function CustomViewer(props: CustomViewerProps) {
   return (
     <>
       <CesiumErrorHandler {...(props.errorHandlerOptions || {})} />
-      <ElevationControl show={false} />
     </>
   );
 }

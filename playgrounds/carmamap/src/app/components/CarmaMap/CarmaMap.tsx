@@ -46,8 +46,8 @@ import {
   useSelection,
   useSelectionCesium,
   useSelectionTopicMap,
-  useHashState,
 } from "@carma-appframeworks/portals";
+import { useHashState } from "@carma-providers/hash-state";
 import {
   getCollabedHelpComponentConfig,
   tooltipText,

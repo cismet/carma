@@ -14,7 +14,6 @@ import {
   useReloadOnCesiumRenderError,
   type ReloadOnCesiumRenderErrorOptions,
 } from "./hooks/useReloadOnCesiumRenderError";
-import { snapshotCesiumContext } from "./utils/cesiumContextSnapshot";
 import { getCesiumVersion, checkWindowEnv } from "./utils/cesiumEnv";
 
 export type ForwardedCesiumError = Error & {
@@ -138,9 +137,6 @@ export const CesiumErrorHandler = withErrorBoundary(
     useEffect(() => {
       if (cesiumError && showBoundary) {
         cesiumError.forwarderAt = new Date().toISOString();
-        if (ctx) {
-          cesiumError.carmaCesiumContext = snapshotCesiumContext(ctx);
-        }
         // Respect global suppression flag to avoid crashing the viewer
         const suppressed = window.CARMA_CESIUM_SUPPRESS_ERROR_BOUNDARY;
         if (suppressed) {

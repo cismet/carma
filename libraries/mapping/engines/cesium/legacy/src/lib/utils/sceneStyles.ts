@@ -77,14 +77,8 @@ export const setupPrimaryStyle = (
   });
 
   // If an imagery layer exists and is present in the collection, hide it for primary style
-  ctx.withImageryLayer((imageryLayer, viewer) => {
-    if (!viewer.imageryLayers) {
-      console.warn("[STYLES|IMAGERY] imagery layers collection not available");
-      return;
-    }
-    if (imageryLayer.isDestroyed()) return;
-
-    const layers = viewer.imageryLayers;
+  ctx.withImageryLayer((imageryLayer, scene) => {
+    const layers = scene.imageryLayers;
     let present = false;
     for (let i = 0; i < layers.length; i++) {
       if (layers.get(i) === imageryLayer) {
@@ -116,19 +110,8 @@ export const setupSecondaryStyle = (
       // Defer add/show to postRender to avoid mutating collection mid-frame
       ctx.withScene((scene) => {
         const addOnce = () => {
-          ctx.withImageryLayer((imageryLayer, viewer) => {
-            if (!viewer.imageryLayers) {
-              console.warn(
-                "[STYLES|IMAGERY] imagery layers collection not available"
-              );
-              return;
-            }
-            if (imageryLayer.isDestroyed()) {
-              console.debug("[STYLES|IMAGERY] skip add/show; layer destroyed");
-              return;
-            }
-
-            const layers = viewer.imageryLayers;
+          ctx.withImageryLayer((imageryLayer, scene) => {
+            const layers = scene.imageryLayers;
             let alreadyAdded = false;
             for (let i = 0; i < layers.length; i++) {
               if (layers.get(i) === imageryLayer) {
@@ -144,7 +127,7 @@ export const setupSecondaryStyle = (
               );
             }
             imageryLayer.show = true;
-            viewer.scene.requestRender();
+            scene.requestRender();
           });
           scene.postRender.removeEventListener(addOnce);
         };

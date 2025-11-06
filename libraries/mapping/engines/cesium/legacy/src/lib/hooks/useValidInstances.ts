@@ -1,12 +1,16 @@
 import { useCallback, type MutableRefObject } from "react";
+
+import { Viewer } from "cesium";
+
 import {
   CesiumTerrainProvider,
   ImageryProvider,
   EllipsoidTerrainProvider,
-  Viewer,
   ImageryLayer,
   Cesium3DTileset,
-} from "cesium";
+  Scene,
+  isValidScene,
+} from "@carma/cesium";
 
 import {
   isValidViewer as isValidViewerNoCtx,
@@ -62,13 +66,14 @@ export const useValidInstances = (
   const withImageryLayerRef = useCallback(
     (
       imageryLayerRef: MutableRefObject<ImageryLayer | null>,
-      cb: (imageryLayer: ImageryLayer, viewer: Viewer) => void
+      cb: (imageryLayer: ImageryLayer, scene: Scene) => void
     ): boolean => {
       if (
         isValidViewerNoCtx(viewerRef.current) &&
+        isValidScene(viewerRef.current.scene) &&
         isValidImageryLayer(imageryLayerRef.current)
       ) {
-        cb(imageryLayerRef.current, viewerRef.current);
+        cb(imageryLayerRef.current, viewerRef.current.scene);
         return true;
       }
       return false;
@@ -132,8 +137,8 @@ export const useValidInstances = (
 
   const withImageryLayer = useCallback(
     (cb) =>
-      withImageryLayerRef(imageryLayerRef, (imageryLayer, viewer) =>
-        cb(imageryLayer, viewer)
+      withImageryLayerRef(imageryLayerRef, (imageryLayer, scene) =>
+        cb(imageryLayer, scene)
       ),
     [imageryLayerRef, withImageryLayerRef]
   );

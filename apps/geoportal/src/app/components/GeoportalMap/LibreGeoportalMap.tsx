@@ -19,10 +19,10 @@ import { normalizeOptions } from "@carma-commons/utils";
 import {
   LibreMapSelectionContent,
   SelectionItem,
-  useHashState,
   useMapHashRouting,
   useSelectionLibreMap,
 } from "@carma-appframeworks/portals";
+import { useHashState } from "@carma-providers/hash-state";
 
 import { proj4crs3857def, proj4crs4326def } from "../../helper/gisHelper.js";
 
