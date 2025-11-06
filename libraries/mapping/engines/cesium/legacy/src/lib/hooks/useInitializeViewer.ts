@@ -1,19 +1,26 @@
 import { useEffect, useRef } from "react";
 import { useSelector } from "react-redux";
 
+// legacy viewer dependency should be widget only
+// eslint-disable-next-line carma/no-direct-cesium
+import { Viewer } from "cesium";
+
 import {
   BoundingSphere,
   Camera,
   Cartesian3,
   Cartographic,
-  Math as CesiumMath,
+  CesiumMath,
   HeadingPitchRange,
   Matrix4,
   PerspectiveFrustum,
   Rectangle,
   ScreenSpaceCameraController,
-  Viewer,
-} from "cesium";
+  colorFromConstructorArgs,
+  Color,
+  Globe,
+  Ellipsoid,
+} from "@carma/cesium";
 
 import { useCesiumContext } from "./useCesiumContext";
 
@@ -24,6 +31,9 @@ import {
   selectShowSecondaryTileset,
   selectViewerHome,
   selectViewerHomeOffset,
+  selectCurrentSceneStyle,
+  selectSceneStylePrimary,
+  selectSceneStyleSecondary,
 } from "../slices/cesium";
 
 import { configureCesiumErrorHandling } from "../utils/cesiumErrorHandling";
@@ -46,7 +56,7 @@ const initialViewSetMap: WeakMap<Viewer, boolean> = new WeakMap();
 const DEFAULT_HPR = new HeadingPitchRange(
   CesiumMath.toRadians(0),
   CesiumMath.toRadians(-45),
-  700
+  1500
 );
 
 export const useInitializeViewer = (
@@ -65,11 +75,17 @@ export const useInitializeViewer = (
     withCamera,
     withViewer,
     setInitialCameraSettled,
+    getTerrainProvider,
+    getSurfaceProvider,
+    getImageryLayer,
   } = useCesiumContext();
 
   const home = useSelector(selectViewerHome);
   const homeOffset = useSelector(selectViewerHomeOffset);
   const isSecondaryStyle = useSelector(selectShowSecondaryTileset);
+  const currentSceneStyle = useSelector(selectCurrentSceneStyle);
+  const primaryStyle = useSelector(selectSceneStylePrimary);
+  const secondaryStyle = useSelector(selectSceneStyleSecondary);
   const minZoom = useSelector(
     selectScreenSpaceCameraControllerMinimumZoomDistance
   );
@@ -87,13 +103,18 @@ export const useInitializeViewer = (
   useEffect(() => {
     // align Cesium Default fallback with local home
     if (home) {
+      const { longitude, latitude } = Cartographic.fromCartesian(home);
+      const rect = new Rectangle(
+        longitude - 0.001,
+        latitude - 0.001,
+        longitude + 0.001,
+        latitude + 0.001
+      );
+
       console.debug(
         "[CESIUM] HOOK: [CESIUM|INIT] override default cesium with configured home",
         home
       );
-      const { longitude, latitude } = Cartographic.fromCartesian(home);
-      const rect = new Rectangle(longitude, latitude, longitude, latitude);
-
       Camera.DEFAULT_VIEW_RECTANGLE = rect;
       Camera.DEFAULT_OFFSET = DEFAULT_HPR;
     }
@@ -120,11 +141,79 @@ export const useInitializeViewer = (
           return;
         }
 
-        const viewer = new Viewer(containerEl, options);
+        // Prepare initial configuration based on scene style
+        const isSecondary = currentSceneStyle === "secondary";
+        const styleToUse = isSecondary ? secondaryStyle : primaryStyle;
+
+        const terrainProvider = getTerrainProvider();
+
+        // Get imagery layer (will set visibility after creation)
+        const imageryLayer = getImageryLayer();
+
+        // Create and configure Globe with initial style settings
+        const globe = new Globe(Ellipsoid.WGS84);
+
+        // Set globe baseColor based on style
+        const globeBaseColor =
+          colorFromConstructorArgs(styleToUse?.globe?.baseColor) ??
+          (isSecondary ? Color.WHITE : Color.LIGHTGREY);
+        globe.baseColor = globeBaseColor;
+
+        // For primary style, enable translucency to make globe transparent
+        if (!isSecondary) {
+          globe.translucency.enabled = true;
+          globe.translucency.frontFaceAlpha = 0.0;
+          globe.translucency.backFaceAlpha = 0.0;
+        }
+
+        // Merge initial configuration into viewer options
+        const viewerOptions: Viewer.ConstructorOptions = {
+          ...options,
+          terrainProvider: terrainProvider || undefined,
+          globe: globe,
+          // baseLayer is set to false in defaults to prevent default imagery
+        };
+
+        const backgroundColor =
+          colorFromConstructorArgs(styleToUse?.backgroundColor) ??
+          new Color(0, 0, 0, 0.01);
+
+        console.info(
+          "[CESIUM|INIT] Creating viewer with pre-configured globe",
+          currentSceneStyle,
+          "terrain:",
+          isSecondary ? "SURFACE" : "TERRAIN",
+          "globeBaseColor:",
+          globeBaseColor,
+          "translucency:",
+          !isSecondary
+        );
+
+        const viewer = new Viewer(containerEl, viewerOptions);
+
+        // Set scene background color immediately after creation
+        if (viewer.scene) {
+          viewer.scene.backgroundColor = backgroundColor;
+          console.info(
+            "[CESIUM|INIT] Scene backgroundColor set:",
+            backgroundColor
+          );
+        }
+
+        // Add imagery layer with correct initial visibility
+        if (imageryLayer) {
+          viewer.imageryLayers.add(imageryLayer);
+          imageryLayer.show = isSecondary; // Show only for secondary style
+          console.info(
+            "[CESIUM|INIT] Initial imagery layer added, show:",
+            isSecondary
+          );
+        }
 
         console.info("[CESIUM|INIT] Viewer instance created", Date.now());
 
         viewerRef.current = viewer;
+
         // Configure centralized error handling: suppress Cesium panel, don't crash ErrorBoundary by default, log warn
         configureCesiumErrorHandling(viewer, {
           suppressErrorPanel: true,
@@ -237,6 +326,12 @@ export const useInitializeViewer = (
     withCamera,
     withViewer,
     setInitialCameraSettled,
+    currentSceneStyle,
+    primaryStyle,
+    secondaryStyle,
+    getTerrainProvider,
+    getSurfaceProvider,
+    getImageryLayer,
   ]);
 
   useEffect(() => {
