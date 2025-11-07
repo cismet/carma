@@ -46,7 +46,6 @@ const Ehrenamtkarte = ({ bookmarks, setBookmarks }) => {
   const { markerSymbolSize } = useContext(TopicMapStylingContext);
   const { clusteringOptions, selectedFeature, filteredItems, shownFeatures } =
     useContext(FeatureCollectionContext);
-  useUrlFeatureSelection();
 
   useEffect(() => {
     if (markerSymbolSize) {
@@ -63,6 +62,7 @@ const Ehrenamtkarte = ({ bookmarks, setBookmarks }) => {
   const { setSelection } = useSelection();
 
   useSelectionTopicMap();
+  useUrlFeatureSelection();
 
   const onGazetteerSelection = (selection) => {
     if (!selection) {
