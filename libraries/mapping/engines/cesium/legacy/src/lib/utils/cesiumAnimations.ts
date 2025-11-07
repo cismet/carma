@@ -3,12 +3,10 @@ import {
   Matrix4,
   CesiumMath,
   HeadingPitchRange,
-  HeadingPitchJson,
   Scene,
   isValidCamera,
 } from "@carma/cesium";
 import { Easing } from "@carma-commons/math";
-import { Radians } from "@carma/units/types";
 
 const DEFAULT_MIN_RANGE = 10;
 const DEFAULT_MAX_RANGE = 40000;

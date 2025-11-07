@@ -71,6 +71,7 @@ export const useInitializeViewer = (
     setIsViewerReady,
     providersReady,
     shouldSuspendCameraLimitersRef,
+    shouldSuspendResizeObserverRef,
     withScene,
     withCamera,
     withViewer,
@@ -507,19 +508,40 @@ export const useInitializeViewer = (
       const container = containerRef.current;
 
       const resizeObserver = new ResizeObserver(() => {
-        console.debug("[CESIUM|RESIZE] resize cesium container", {
-          hasViewer: !!viewer,
-          isDestroyed: viewer?.isDestroyed(),
-          hasContainer: !!container,
-          newWidth: container?.clientWidth,
-          newHeight: container?.clientHeight,
-        });
+        if (!viewer || viewer.isDestroyed() || !container) {
+          return;
+        }
 
-        if (viewer && !viewer.isDestroyed() && container) {
-          viewer.canvas.width = container.clientWidth;
-          viewer.canvas.height = container.clientHeight;
+        // CRITICAL: Don't resize during framework transitions
+        // Resizing canvas during transitions can cause WebGL context loss
+        if (shouldSuspendResizeObserverRef.current) {
+          console.debug(
+            "[CESIUM|RESIZE] ResizeObserver suspended during transition, skipping"
+          );
+          return;
+        }
+
+        const newWidth = container.clientWidth;
+        const newHeight = container.clientHeight;
+        const currentWidth = viewer.canvas.width;
+        const currentHeight = viewer.canvas.height;
+
+        // CRITICAL: Only resize if dimensions actually changed
+        // Setting canvas.width/height clears WebGL context even if same value!
+        // This was causing context loss during transitions
+        if (currentWidth !== newWidth || currentHeight !== newHeight) {
+          console.warn("[CESIUM|RESIZE] Canvas dimensions changed, resizing:", {
+            from: { width: currentWidth, height: currentHeight },
+            to: { width: newWidth, height: newHeight },
+          });
+          viewer.canvas.width = newWidth;
+          viewer.canvas.height = newHeight;
           viewer.canvas.style.width = "100%";
           viewer.canvas.style.height = "100%";
+        } else {
+          console.debug(
+            "[CESIUM|RESIZE] ResizeObserver fired but dimensions unchanged, skipping resize"
+          );
         }
       });
 
@@ -534,7 +556,7 @@ export const useInitializeViewer = (
         resizeObserver.disconnect();
       };
     }
-  }, [viewerRef, containerRef]);
+  }, [viewerRef, containerRef, shouldSuspendResizeObserverRef]);
 };
 
 export default useInitializeViewer;

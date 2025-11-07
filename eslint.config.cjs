@@ -215,9 +215,23 @@ function getCarmaConfigs(baseConfig) {
         "libraries/mapping/engines/cesium/api/**/*.config.*",
         "libraries/mapping/engines/cesium/api/**/*.d.ts",
       ],
-      allowedPackages: ["cesium", "@carma/units/*", "@carma/geo/*"],
+      allowedPackages: ["cesium", "@carma/units/*", "@carma/geo/*", "@carma/math"],
       message:
-        "Cesium API can only import: cesium, @carma/units/*, @carma/geo/*. All other packages are blocked.",
+        "Cesium API can only import: cesium, @carma/units/*, @carma/geo/*, @carma/math. All other packages are blocked.",
+    }),
+    allowlistConfig(baseConfig, {
+      name: "Math library (dependency-free)",
+      files: [
+        "libraries/commons/math/**/*.ts",
+      ],
+      ignores: [
+        "libraries/commons/math/**/*.config.*",
+        "libraries/commons/math/**/*.d.ts",
+        "libraries/commons/math/**/*.spec.ts",
+      ],
+      allowedPackages: [],
+      message:
+        "Math library must be dependency-free. No external imports allowed.",
     }),
     // Relaxed rules for playground
     {

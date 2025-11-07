@@ -10,11 +10,11 @@ import {
   type TransitionToCesiumOptions,
   type TransitionCallbacks,
 } from "./types";
-import { prepareLeafletForTransition } from "./utils/leaflet-preparation";
-import { restoreCesiumCameraView } from "./utils/camera-restore";
+import { prepareLeafletForTransition } from "./utils/leaflet/leaflet-preparation";
+import { restoreCesiumCameraView } from "./utils/cesium/camera-restore";
 import { promiseWithTimeout } from "@carma-commons/utils/promise";
-import { tiledMapToCesium } from "../utils/cesium/tiled-map-to-cesium";
-import { defaultTransitionOptions } from "../utils/cesium/elevation-reference";
+import { tiledMapToCesium } from "./utils/cesium/tiled-map-to-cesium";
+import { defaultTransitionOptions } from "./utils/cesium/elevation-reference";
 import { Degrees } from "@carma/units/types";
 
 /**

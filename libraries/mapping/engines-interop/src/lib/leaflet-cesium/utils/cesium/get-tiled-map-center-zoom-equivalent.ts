@@ -4,7 +4,7 @@ import {
   type Scene,
 } from "@carma/cesium";
 
-import { sceneCenterPixelSizeToLeafletZoom } from "../cesium/scene-center-pixel-size-to-leaflet-zoom";
+import { sceneCenterPixelSizeToLeafletZoom } from "./scene-center-pixel-size-to-leaflet-zoom";
 
 import type { LatLng, LatLngZoom, Zoom, Zoom256 } from "@carma/types";
 

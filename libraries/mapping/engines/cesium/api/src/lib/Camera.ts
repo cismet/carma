@@ -24,7 +24,12 @@ import {
   MINUS_PI_OVER_TWO,
 } from "@carma/units/helpers";
 import type { Radians, Degrees } from "@carma/units/types";
+import { shortestAngleDelta } from "@carma/math";
 import { cartographicToJson } from "./Cartographic";
+import type {
+  HeadingPitchJson,
+  HeadingPitchRollJson,
+} from "./HeadingPitchRoll";
 
 export { Camera };
 
@@ -108,6 +113,40 @@ export const getTopDownCameraDeviationAngle = (camera: Camera): Radians => {
 };
 
 /**
+ * Calculates angular differences between camera's current HPR and target HPR.
+ * Uses shortest angular distance for heading to handle wraparound correctly.
+ * Fills missing values: heading defaults to 0, pitch to -π/2 (top-down), roll to 0.
+ *
+ * @param camera - The camera to compare
+ * @param target - Target HPR (partial allowed, missing values use defaults)
+ * @returns Object with absolute angular differences for heading, pitch, roll
+ */
+export const getHeadingPitchRollDiff = (
+  camera: Camera,
+  target: Partial<HeadingPitchRollJson> = {}
+): { heading: Radians; pitch: Radians; roll: Radians } => {
+  const targetHeading = (target.heading ?? ZERO_PI) as Radians;
+  const targetPitch = (target.pitch ?? MINUS_PI_OVER_TWO) as Radians;
+  const targetRoll = (target.roll ?? ZERO_PI) as Radians;
+
+  const headingDiff = Math.abs(
+    shortestAngleDelta(camera.heading as Radians, targetHeading)
+  ) as Radians;
+  const pitchDiff = Math.abs(
+    shortestAngleDelta(camera.pitch as Radians, targetPitch)
+  ) as Radians;
+  const rollDiff = Math.abs(
+    shortestAngleDelta(camera.roll as Radians, targetRoll)
+  ) as Radians;
+
+  return {
+    heading: headingDiff,
+    pitch: pitchDiff,
+    roll: rollDiff,
+  };
+};
+
+/**
  * Corrects the camera's heading to account for roll when the camera's pitch is near the nadir.
  * This adjustment prevents the heading from flipping by 180 degrees when tilting above the nadir range.
  *
@@ -125,6 +164,16 @@ export const applyRollToHeadingForCameraNearNadir = (
     : camera.heading;
   return rollCorrectedHeading as Radians;
 };
+
+/**
+ * Convert camera heading and pitch to JSON format
+ * @param camera - The Cesium camera
+ * @returns HeadingPitchJson with heading and pitch in radians
+ */
+export const cameraToHeadingPitchJson = (camera: Camera): HeadingPitchJson => ({
+  heading: camera.heading as Radians,
+  pitch: camera.pitch as Radians,
+});
 
 /**
  * Fly camera to target position with HeadingPitchRange orientation.

@@ -68,7 +68,11 @@ const sampleRingPixelSize = (
   resolutionScale = 1.0
 ) => {
   const positionCoords = generatePositionsForRing(samples, radius);
-  const positions = pickSceneCanvasPositions(scene, positionCoords);
+  const positions = pickSceneCanvasPositions(
+    scene,
+    positionCoords,
+    "PIXEL_SIZE_RING"
+  );
   const pixelSizes: (number | null)[] = [];
 
   const { drawingBufferWidth, drawingBufferHeight, camera } = scene;
@@ -148,7 +152,7 @@ export const getScenePixelSize = (
     }
     case PICKMODE.CENTER:
     default: {
-      const centerPos = pickSceneCanvasCenter(scene, {
+      const centerPos = pickSceneCanvasCenter(scene, "PIXEL_SIZE", {
         getPixelSize: true,
         resolutionScale,
       });

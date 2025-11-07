@@ -7,6 +7,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
 } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
@@ -553,6 +554,22 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     ]
   );
 
+  const containerStyle: CSSProperties = useMemo(
+    () => ({
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      zIndex: 400,
+      // Prevent WebGL context from being resized to 0 during transitions
+      minWidth: "100%",
+      minHeight: "100%",
+      // CSS transition managed by useMapFrameworkSwitcher hook
+    }),
+    []
+  );
+
   const onSceneChange = useCallback(
     (e: { hashParams: Record<string, string> }) => {
       if (getIsLeaflet()) {
@@ -799,15 +816,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
         <div
           ref={container3dMapRef}
           className={"map-container-3d"}
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            zIndex: 400,
-            // CSS transition managed by useMapFrameworkSwitcher hook
-          }}
+          style={containerStyle}
         >
           <CustomViewer
             containerRef={container3dMapRef}

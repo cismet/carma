@@ -1,4 +1,4 @@
-import { type RefObject, useMemo } from "react";
+import { type RefObject, useMemo, memo } from "react";
 import { Color, Viewer, Rectangle, Cartographic } from "cesium";
 import { merge } from "lodash";
 
@@ -17,6 +17,7 @@ import { useOnSceneChange } from "./hooks/useOnSceneChange";
 import useTransitionTimeout from "./hooks/useTransitionTimeout";
 import { useTilesets } from "./hooks/useTilesets";
 import { useSceneStyles } from "./hooks/useSceneStyles";
+import { useContainerEventLogger } from "./hooks/useContainerEventLogger";
 import { StringifiedCameraState } from "./utils/cesiumHashParamsCodec";
 import { DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS } from "./viewerDefaults";
 
@@ -60,7 +61,7 @@ export type CustomViewerProps = {
   errorHandlerOptions?: CesiumErrorHandlerOptions;
 };
 
-export function CustomViewer(props: CustomViewerProps) {
+const CustomViewerComponent = (props: CustomViewerProps) => {
   console.debug("RENDER: [CESIUM] CustomViewer", {
     hasContainerRef: !!props.containerRef,
     hasInitialCameraView: !!props.initialCameraView,
@@ -95,6 +96,9 @@ export function CustomViewer(props: CustomViewerProps) {
 
   useTransitionTimeout();
 
+  // Monitor container events to diagnose WebGL context loss
+  useContainerEventLogger(containerRef, true);
+
   // camera enhancements
   useDisableSSCC();
   useCameraRollSoftLimiter(cameraLimiterOptions);
@@ -114,6 +118,10 @@ export function CustomViewer(props: CustomViewerProps) {
       <CesiumErrorHandler {...(props.errorHandlerOptions || {})} />
     </>
   );
-}
+};
+
+// Memoize to prevent re-renders during transitions that could invalidate WebGL context
+// Only re-render if actual props change (containerRef, options, callbacks)
+export const CustomViewer = memo(CustomViewerComponent);
 
 export default CustomViewer;

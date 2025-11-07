@@ -1,4 +1,5 @@
-import { Degrees } from "libraries/commons/units/types/src/lib/base/angles";
+import type { Degrees } from "@carma/units/types";
+import type { Altitude } from "@carma/geo/types";
 
 /**
  * Transition stages for tracking progress during 2D↔3D transitions
@@ -78,6 +79,9 @@ export type TransitionToCesiumOptions = {
 export type TransitionToLeafletOptions = {
   step1_cameraAnimationDurationMs?: number;
   step2_cssTransitionDurationMs?: number;
+  groundHeightFallback?: Altitude.EllipsoidalWGS84Meters;
+  /** Threshold for zoom snap rounding (0-1), default 0.75. Values below threshold round down, above round up. */
+  zoomSnapThreshold?: number;
 };
 
 /**

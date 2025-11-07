@@ -72,6 +72,7 @@ export const getCanvasCenterWindowPosition = (
 export const pickSceneCanvasPositions = (
   scene: Scene,
   positions: [number, number][] = [CENTER_POSITION],
+  label: string,
   {
     getPixelSize = false,
     getCoordinates = false,
@@ -80,21 +81,23 @@ export const pickSceneCanvasPositions = (
     resolutionScale = 1.0,
   }: PickOptions = {}
 ): PickResult[] => {
+  const logPrefix = `[CESIUM|PICKER|${label}]`;
+
   if (!isValidScene(scene)) {
-    console.warn("[CESIUM|PICKER] Invalid scene provided");
+    console.warn(`${logPrefix} Invalid scene provided`);
     return positions.map(noopMap);
   }
   const { camera, canvas } = scene;
   let results: PickResult[] = [];
 
   if (scene.pickPositionSupported === false) {
-    console.debug("[CESIUM|PICKER] Scene pickPositionSupported is false");
+    console.debug(`${logPrefix} Scene pickPositionSupported is false`);
     return results;
   }
 
   // Check if scene is ready for picking
   if (scene.isDestroyed()) {
-    console.debug("[CESIUM|PICKER] Scene is destroyed");
+    console.debug(`${logPrefix} Scene is destroyed`);
     return results;
   }
 
@@ -102,7 +105,7 @@ export const pickSceneCanvasPositions = (
 
   // Check WebGL context state before attempting any picking operations
   if (!gl || gl.isContextLost()) {
-    console.debug("[CESIUM|PICKER] WebGL context is lost or unavailable");
+    console.debug(`${logPrefix} WebGL context is lost or unavailable`);
     return results;
   }
 
@@ -110,7 +113,7 @@ export const pickSceneCanvasPositions = (
   const framebufferStatus = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
   if (framebufferStatus !== gl.FRAMEBUFFER_COMPLETE) {
     console.debug(
-      "[CESIUM|PICKER] Framebuffer is not complete, skipping pick",
+      `${logPrefix} Framebuffer is not complete, skipping pick`,
       framebufferStatus
     );
     return results;
@@ -119,7 +122,7 @@ export const pickSceneCanvasPositions = (
   // Check if scene is in a morphing/transition state
   if (scene.morphTime !== undefined && scene.morphTime !== 1.0) {
     console.debug(
-      "[CESIUM|PICKER] Scene is morphing, skipping pick",
+      `${logPrefix} Scene is morphing, skipping pick`,
       scene.morphTime
     );
     return results;
@@ -127,7 +130,7 @@ export const pickSceneCanvasPositions = (
 
   const canvasDimensions: CanvasDimensions = getCanvasDimensions(canvas);
 
-  console.debug("[CESIUM|PICKER] Canvas/WebGL state:", {
+  console.debug(`${logPrefix} Canvas/WebGL state:`, {
     canvasWidth: canvas.width,
     canvasHeight: canvas.height,
     canvasClientWidth: canvas.clientWidth,
@@ -157,7 +160,7 @@ export const pickSceneCanvasPositions = (
   scene.useDepthPicking = true;
 
   console.debug(
-    "[CESIUM|PICKER] Picking with options:",
+    `${logPrefix} Picking with options:`,
     pickTranslucentDepth,
     depthTestAgainstTerrain,
     scene.pickPositionSupported
@@ -180,6 +183,40 @@ export const pickSceneCanvasPositions = (
 
       // Guard against framebuffer errors during scene initialization
       let scenePosition: Cartesian3 | null = null;
+
+      // Double-check scene and WebGL context validity right before picking (race condition protection)
+      // pickPosition internally renders to framebuffer for depth picking, so we must ensure:
+      // 1. Scene is not destroyed
+      // 2. Globe is not destroyed (if exists)
+      // 3. WebGL context is still valid
+      // 4. Framebuffer is still complete
+      if (scene.isDestroyed() || (scene.globe && scene.globe.isDestroyed?.())) {
+        console.warn(
+          `${logPrefix} Scene or globe destroyed between check and pick - skipping`,
+          {
+            sceneIsDestroyed: scene.isDestroyed(),
+            globeIsDestroyed: scene.globe?.isDestroyed?.() ?? "unknown",
+          }
+        );
+        return result;
+      }
+
+      // Re-check WebGL context and framebuffer right before pickPosition
+      const glNow = canvas.getContext("webgl2") || canvas.getContext("webgl");
+      if (!glNow || glNow.isContextLost()) {
+        console.warn(`${logPrefix} WebGL context lost before pick - skipping`);
+        return result;
+      }
+
+      const fbStatusNow = glNow.checkFramebufferStatus(glNow.FRAMEBUFFER);
+      if (fbStatusNow !== glNow.FRAMEBUFFER_COMPLETE) {
+        console.warn(
+          `${logPrefix} Framebuffer incomplete before pick - skipping`,
+          fbStatusNow
+        );
+        return result;
+      }
+
       try {
         scenePosition = scene.pickPosition(windowPosition) as Cartesian3 | null;
       } catch (error) {
@@ -242,9 +279,10 @@ export const pickSceneCanvasPositions = (
 // helper shorthand
 export const pickSceneCanvasCenter = (
   scene: Scene,
+  label: string,
   options?: PickOptions
 ): PickResult => {
-  return pickSceneCanvasPositions(scene, [CENTER_POSITION], options)[0];
+  return pickSceneCanvasPositions(scene, [CENTER_POSITION], label, options)[0];
 };
 
 // get last ground primitive from picked objects
@@ -278,12 +316,17 @@ export function pickFromClampedGeojson(
   return getLastGroundPrimitive(pickedObjects);
 }
 
-const findTopPick = (scene: Scene, xPos = 0, targetPixelSize: number) => {
+const findTopPick = (
+  scene: Scene,
+  xPos = 0,
+  targetPixelSize: number,
+  label: string
+) => {
   let top: PickResult | null = null;
   let yPos = 0;
 
   while (top === null && yPos < 1) {
-    const [candidate] = pickSceneCanvasPositions(scene, [[xPos, yPos]], {
+    const [candidate] = pickSceneCanvasPositions(scene, [[xPos, yPos]], label, {
       getPixelSize: true,
       getCoordinates: true,
     });
@@ -300,6 +343,7 @@ const findTopPick = (scene: Scene, xPos = 0, targetPixelSize: number) => {
 
 export const getSceneViewportPolygonRing = (
   scene: Scene,
+  label: string,
   { resolutionRange = 4 }: { resolutionRange?: number } = {}
 ): [number, number][] | null => {
   const bottom = pickSceneCanvasPositions(
@@ -311,6 +355,7 @@ export const getSceneViewportPolygonRing = (
       //[0.75, 1],
       [1, 1],
     ],
+    label,
     {
       getPixelSize: true,
       getCoordinates: true,
@@ -331,7 +376,7 @@ export const getSceneViewportPolygonRing = (
     }, Infinity) * resolutionRange;
 
   const top = bottom.map((pos) => {
-    const result = findTopPick(scene, pos.position[0], targetPixelSize);
+    const result = findTopPick(scene, pos.position[0], targetPixelSize, label);
     if (result) {
       console.debug("Top pixel position found", pos.position[0], result);
       return result;

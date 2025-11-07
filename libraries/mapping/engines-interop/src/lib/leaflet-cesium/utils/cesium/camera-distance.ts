@@ -83,7 +83,7 @@ export function calculateZoomFromDistance(
 ): number | null {
   const latRad = CesiumMath.toRadians(latitude);
 
-  const { camera, drawingBufferHeight } = scene;
+  const { camera, drawingBufferHeight, drawingBufferWidth } = scene;
 
   if (!camera?.frustum || !(camera.frustum instanceof PerspectiveFrustum)) {
     console.warn(
@@ -97,13 +97,20 @@ export function calculateZoomFromDistance(
     return null;
   }
 
-  const fov = camera.frustum.fov; // vertical FOV in radians
+  if (!Number.isFinite(drawingBufferWidth) || drawingBufferWidth <= 0) {
+    console.warn("[CESIUM|TRANSITION] Invalid drawing buffer width");
+    return null;
+  }
+
+  // The FOV always corresponds to the longer edge dimension for cesium
+  const fov = camera.frustum.fov; // FOV in radians (longer edge)
+  const longerEdge = Math.max(drawingBufferWidth, drawingBufferHeight);
 
   // Calculate current pixel resolution from distance and FOV
-  // pixelResolution = (2 * distance * tan(fov/2)) / (heightInPixels * resolutionScale)
+  // pixelResolution = (2 * distance * tan(fov/2)) / (longerEdge * resolutionScale)
   const tanHalfFov = Math.tan(fov / 2);
   const metersPerPixel =
-    (2 * distance * tanHalfFov) / (drawingBufferHeight * resolutionScale);
+    (2 * distance * tanHalfFov) / (longerEdge * resolutionScale);
 
   // Find zoom level that produces this pixel resolution
   const EARTH_CIRCUMFERENCE = 40075016.686; // meters at equator

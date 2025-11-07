@@ -71,7 +71,10 @@ const OrbitControl = ({ showCenterPoint = true }: SpinningControlProps) => {
         console.warn("OrbitControl: no cesium scene available for orbiting");
         return;
       }
-      const position = pickSceneCanvasCenter(scene).scenePosition;
+      const position = pickSceneCanvasCenter(
+        scene,
+        "ORBIT_CONTROL"
+      ).scenePosition;
       orbitPointRef.current = position;
       lastRenderTimeRef.current = null;
       viewer.clock.onTick.addEventListener(orbitListener);

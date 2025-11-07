@@ -58,9 +58,13 @@ export const Compass = forwardRef<Ref, CompassProps>(
         if (defined(horizonTest)) {
           console.info("scene center below horizon");
           //const pos = getCanvasCenter(viewer);
-          const { scenePosition, coordinates } = pickSceneCanvasCenter(scene, {
-            getCoordinates: true,
-          });
+          const { scenePosition, coordinates } = pickSceneCanvasCenter(
+            scene,
+            "COMPASS",
+            {
+              getCoordinates: true,
+            }
+          );
           console.debug("pick compass", coordinates, scenePosition);
           if (scenePosition && coordinates) {
             const distance = Cartesian3.distance(

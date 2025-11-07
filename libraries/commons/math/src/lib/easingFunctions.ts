@@ -1,4 +1,4 @@
-import { PI, PI_OVER_TWO } from "@carma/units/helpers";
+import { PI, PI_OVER_TWO } from "./pi";
 
 /**
  * Easing functions for animations.
