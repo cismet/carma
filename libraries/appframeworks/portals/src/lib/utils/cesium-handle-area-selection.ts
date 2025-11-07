@@ -75,61 +75,66 @@ const handlePolygonSelection = (
   idInverted: string,
   duration: number,
   { isPrimaryStyle }: CesiumOptions,
-  skipFlyTo: boolean
+  skipFlyTo: boolean,
+  skipMarkerUpdate: boolean
 ) => {
-  // Convert polygon to GroundPrimitive instead of Entity
-  const selectedPolygonGeometry = new PolygonGeometry({
-    polygonHierarchy: polygonHierarchyFromPolygonCoords(polygon),
-    extrudedHeight: 1,
-    height: 0,
-  });
+  // Add/update polygon geometry only if not skipping marker update
+  if (!skipMarkerUpdate) {
+    // Convert polygon to GroundPrimitive instead of Entity
+    const selectedPolygonGeometry = new PolygonGeometry({
+      polygonHierarchy: polygonHierarchyFromPolygonCoords(polygon),
+      extrudedHeight: 1,
+      height: 0,
+    });
 
-  const selectedGeometryInstance = new GeometryInstance({
-    geometry: selectedPolygonGeometry,
-    id: idSelected,
-    attributes: {
-      color: ColorGeometryInstanceAttribute.fromColor(
-        Color.WHITE.withAlpha(0.01)
-      ),
-    },
-  });
+    const selectedGeometryInstance = new GeometryInstance({
+      geometry: selectedPolygonGeometry,
+      id: idSelected,
+      attributes: {
+        color: ColorGeometryInstanceAttribute.fromColor(
+          Color.WHITE.withAlpha(0.01)
+        ),
+      },
+    });
 
-  const selectedGroundPrimitive = new GroundPrimitive({
-    geometryInstances: selectedGeometryInstance,
-    allowPicking: false,
-    releaseGeometryInstances: false,
-    classificationType: isPrimaryStyle
-      ? ClassificationType.CESIUM_3D_TILE
-      : ClassificationType.BOTH,
-  });
-  // For the inverted polygon
-  const invertedPolygonGeometry = new PolygonGeometry({
-    polygonHierarchy: invertedPolygonHierarchy(polygon),
-    //height: 0,
-  });
+    const selectedGroundPrimitive = new GroundPrimitive({
+      geometryInstances: selectedGeometryInstance,
+      allowPicking: false,
+      releaseGeometryInstances: false,
+      classificationType: isPrimaryStyle
+        ? ClassificationType.CESIUM_3D_TILE
+        : ClassificationType.BOTH,
+    });
+    // For the inverted polygon
+    const invertedPolygonGeometry = new PolygonGeometry({
+      polygonHierarchy: invertedPolygonHierarchy(polygon),
+      //height: 0,
+    });
 
-  const invertedGeometryInstance = new GeometryInstance({
-    geometry: invertedPolygonGeometry,
-    id: idInverted,
-    attributes: {
-      color: ColorGeometryInstanceAttribute.fromColor(
-        Color.GRAY.withAlpha(0.66)
-      ),
-    },
-  });
+    const invertedGeometryInstance = new GeometryInstance({
+      geometry: invertedPolygonGeometry,
+      id: idInverted,
+      attributes: {
+        color: ColorGeometryInstanceAttribute.fromColor(
+          Color.GRAY.withAlpha(0.66)
+        ),
+      },
+    });
 
-  const invertedGroundPrimitive = new GroundPrimitive({
-    geometryInstances: invertedGeometryInstance,
-    allowPicking: false,
-    releaseGeometryInstances: false, // needed to get ID
-    classificationType: isPrimaryStyle
-      ? ClassificationType.CESIUM_3D_TILE
-      : ClassificationType.BOTH,
-  });
+    const invertedGroundPrimitive = new GroundPrimitive({
+      geometryInstances: invertedGeometryInstance,
+      allowPicking: false,
+      releaseGeometryInstances: false, // needed to get ID
+      classificationType: isPrimaryStyle
+        ? ClassificationType.CESIUM_3D_TILE
+        : ClassificationType.BOTH,
+    });
 
-  scene.groundPrimitives.add(selectedGroundPrimitive);
-  scene.groundPrimitives.add(invertedGroundPrimitive);
+    scene.groundPrimitives.add(selectedGroundPrimitive);
+    scene.groundPrimitives.add(invertedGroundPrimitive);
+  }
 
+  // Always handle flyTo logic (independent of marker update)
   if (!skipFlyTo) {
     const boundingSphere = getBoundingSphereFromCoordinatesAndHeight(
       polygon[0],
@@ -211,7 +216,7 @@ export const cesiumHandleAreaSelection = async (
     surfacePosition
   );
 
-  if (polygon && !skipMarkerUpdate) {
+  if (polygon) {
     handlePolygonSelection(
       scene,
       surfacePosition,
@@ -220,7 +225,8 @@ export const cesiumHandleAreaSelection = async (
       idInverted,
       duration,
       mapOptions,
-      skipFlyTo
+      skipFlyTo,
+      skipMarkerUpdate
     );
   }
 };

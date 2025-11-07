@@ -165,30 +165,16 @@ export const useSelectionCesium = (
         lastSelectionKeyRef.current === selectionKey &&
         lastSelectionTimestampRef.current === selectionTimestamp;
 
-      // Check if we should add this selection when Cesium becomes active
-      const shouldSkipBecauseNotPending =
-        !shouldAddSelectionInCesiumRef.current &&
-        lastSelectionKeyRef.current === selectionKey;
-
       console.debug("[CESIUM-SELECTION] Processing selection", {
         selectionKey,
         lastKey: lastSelectionKeyRef.current,
         isDuplicate: isDuplicateSelection,
         selectionMapMode,
         shouldAddInCesium: shouldAddSelectionInCesiumRef.current,
-        shouldSkipBecauseNotPending,
       });
 
       if (isDuplicateSelection) {
         console.debug("HOOK: useSelectionCesium - same selection, skipping");
-        return;
-      }
-
-      // Skip if this selection doesn't need to be added (already handled or made in Cesium)
-      if (shouldSkipBecauseNotPending) {
-        console.debug(
-          "HOOK: useSelectionCesium - selection not pending, skipping"
-        );
         return;
       }
 
@@ -200,6 +186,7 @@ export const useSelectionCesium = (
         return;
       }
 
+      // Check for reselections BEFORE skip logic
       const isMarkerPresent = isMarkerPrimitivePresent(
         scene,
         selectedMarkerData,
@@ -218,9 +205,25 @@ export const useSelectionCesium = (
           INVERTED_SELECTED_POLYGON_ID
         );
 
+      const isReselection = isReselectionWithMarker || isReselectionArea;
+
+      // Skip if this selection doesn't need to be added (already handled or made in Cesium)
+      // BUT allow re-selections to fly to the area again
+      const shouldSkipSelectionHandling =
+        !shouldAddSelectionInCesiumRef.current &&
+        lastSelectionKeyRef.current === selectionKey &&
+        !isReselection;
+
+      if (shouldSkipSelectionHandling) {
+        console.debug(
+          "HOOK: useSelectionCesium - selection not pending, skipping"
+        );
+        return;
+      }
+
       const shouldSkipBecauseMarkerAlreadyPresent =
         isMarkerPresent &&
-        !isReselectionWithMarker &&
+        !isReselection &&
         selection.selectedFromMapMode !== SelectionMapMode.MODE_3D;
 
       if (shouldSkipBecauseMarkerAlreadyPresent) {
@@ -232,10 +235,10 @@ export const useSelectionCesium = (
 
       lastSelectionKeyRef.current = selectionKey;
       lastSelectionTimestampRef.current = selectionTimestamp;
-      
+
       // Set flag for selections from Leaflet (2D mode) - they need to be added when Cesium becomes active
       // Clear flag for selections from Cesium (3D mode) - they're already in Cesium
-      shouldAddSelectionInCesiumRef.current = 
+      shouldAddSelectionInCesiumRef.current =
         selectionMapMode === SelectionMapMode.MODE_2D;
 
       console.debug(
@@ -245,10 +248,13 @@ export const useSelectionCesium = (
         selectionMapMode
       );
 
-      const skipFlyTo =
-        selection.selectedFromMapMode === SelectionMapMode.MODE_2D;
+      const skipMarkerUpdate = isReselection;
 
-      const skipMarkerUpdate = isReselectionWithMarker || isReselectionArea;
+      // Skip flyTo only for selections from Leaflet that are NOT re-selections
+      // Re-selections in Cesium should always fly to show the area again
+      const skipFlyTo =
+        selection.selectedFromMapMode === SelectionMapMode.MODE_2D &&
+        !isReselection;
 
       const setMarkerDataWithMeta = (data: MarkerPrimitiveData | null) => {
         if (data) {
@@ -289,7 +295,7 @@ export const useSelectionCesium = (
           derivedGeometries,
           commonOptions
         );
-        
+
         // Clear flag after adding selection
         shouldAddSelectionInCesiumRef.current = false;
       } else {
@@ -309,7 +315,7 @@ export const useSelectionCesium = (
           derivedGeometries,
           commonOptions
         );
-        
+
         // Clear flag after adding selection
         shouldAddSelectionInCesiumRef.current = false;
       }
