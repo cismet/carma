@@ -1,21 +1,38 @@
-import { Scene, defined } from "@carma/cesium";
-import { pickSceneCanvasCenter } from "@carma-mapping/engines/cesium/legacy";
+import {
+  CesiumTerrainProvider,
+  Scene,
+  defined,
+  sampleTerrainMostDetailedGuardedAsync,
+} from "@carma/cesium";
 
-export const getCameraHeightAboveGround = (scene: Scene) => {
-  const { scenePosition: pos, coordinates } = pickSceneCanvasCenter(scene, {
-    getCoordinates: true,
-  });
-
+export const getCameraHeightAboveGroundAsync = async (
+  scene: Scene,
+  terrainProvider: CesiumTerrainProvider
+) => {
   const { camera } = scene;
 
-  let cameraHeightAboveGround = 0;
-  let groundHeight: number = 0;
+  const [cameraGroundPos] = await sampleTerrainMostDetailedGuardedAsync(
+    terrainProvider,
+    [camera.positionCartographic]
+  );
 
-  if (defined(pos) && defined(coordinates)) {
-    groundHeight = coordinates.height;
+  let groundHeight: number;
+  let cameraHeightAboveGround: number;
+
+  if (defined(cameraGroundPos)) {
+    groundHeight = cameraGroundPos.height;
     cameraHeightAboveGround = camera.positionCartographic.height - groundHeight;
+    console.debug(
+      "Camera ground position found",
+      cameraGroundPos,
+      camera.positionCartographic.height,
+      "Camera height above ground:",
+      cameraHeightAboveGround
+    );
   } else {
-    console.warn("No ground position found under the camera.");
+    console.warn(
+      "No ground position found under the camera, using camera height to stay above ground."
+    );
     cameraHeightAboveGround = camera.positionCartographic.height;
   }
   return { cameraHeightAboveGround, groundHeight };

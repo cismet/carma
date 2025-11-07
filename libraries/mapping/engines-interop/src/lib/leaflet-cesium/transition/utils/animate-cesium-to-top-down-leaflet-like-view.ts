@@ -1,6 +1,7 @@
 import {
   Cartesian3,
   Cartographic,
+  CesiumTerrainProvider,
   defined,
   HeadingPitchRange,
 } from "@carma/cesium";
@@ -11,6 +12,7 @@ import {
   type Scene,
   type HeadingPitchJson,
 } from "@carma/cesium";
+import { Radians } from "@carma/units/types";
 
 import {
   pickSceneCanvasCenter,
@@ -19,7 +21,7 @@ import {
 
 import { noAnimation } from "../constants";
 import { getTiledMapCenterZoomEquivalent } from "../../utils/leaflet/get-tiled-map-center-zoom-equivalent";
-import { getCameraHeightAboveGround } from "../../utils/cesium/get-camera-height-above-ground";
+import { getCameraHeightAboveGroundAsync } from "../../utils/cesium/get-camera-height-above-ground";
 import { sceneCenterPixelSizeToLeafletZoom } from "../../utils/cesium/scene-center-pixel-size-to-leaflet-zoom";
 
 type AnimateCesiumToTopDownOptions = {
@@ -27,7 +29,6 @@ type AnimateCesiumToTopDownOptions = {
   leaflet: LeafletMap;
   resolutionScale: number;
   onAnimationComplete: () => void;
-  setTargetHeadingPitch: (HeadingPitch: HeadingPitchJson) => void;
   onTransitionCancel: () => void;
   onLeafletViewSet?: (params: {
     center: { lat: number; lng: number };
@@ -39,34 +40,58 @@ type AnimateCesiumToTopDownOptions = {
  * Animates Cesium camera to top-down 2D view
  * Returns true if animation started, false if cancelled
  */
-export const animateCesiumToTopDownLeafletLikeView = (
+export const animateCesiumToTopDownLeafletLikeViewAsync = async (
   scene: Scene,
   leaflet: LeafletMap,
+  terrainProvider: CesiumTerrainProvider,
   {
     resolutionScale,
     onAnimationComplete,
-    setTargetHeadingPitch,
     onTransitionCancel,
     onLeafletViewSet,
   }: AnimateCesiumToTopDownOptions
-): boolean => {
-  const camera = scene.camera;
+): Promise<HeadingPitchJson> => {
+  const { camera } = scene;
   if (!isValidCamera(camera)) {
     console.info(
       "[CESIUM] [CESIUM|2D3D|TO2D] No valid camera found – cancel transition"
     );
     onTransitionCancel();
-    return false;
+    throw new Error("Invalid camera");
   }
 
-  // Use pickPosition to get terrain-aware ground position at screen center
-  const centerPickResult = pickSceneCanvasCenter(scene, {
-    depthTestAgainstTerrain: true,
-    getCoordinates: true,
-  });
+  const lastHeadingPitch: HeadingPitchJson = {
+    heading: camera.heading as Radians,
+    pitch: camera.pitch as Radians,
+  };
 
-  const groundPos = centerPickResult.scenePosition;
-  const cartographic = centerPickResult.coordinates;
+  let groundPos: Cartesian3;
+  let cartographic: Cartographic;
+
+  try {
+    // Use pickPosition to get terrain-aware ground position at screen center
+    const centerPickResult = pickSceneCanvasCenter(scene, {
+      depthTestAgainstTerrain: true,
+      getCoordinates: true,
+    });
+
+    groundPos = centerPickResult.scenePosition;
+    cartographic = centerPickResult.coordinates;
+  } catch (error) {
+    console.error(
+      "[CESIUM] error during pickSceneCanvasCenter, using fallback",
+      error
+    );
+    // use centerPosition as current camera position with terrain elevation under the camera
+    // and directional offset
+    const elevation = (
+      await getCameraHeightAboveGroundAsync(scene, terrainProvider)
+    ).groundHeight;
+    const groundPosCarto = camera.positionCartographic.clone();
+    groundPosCarto.height = elevation;
+    groundPos = Cartographic.toCartesian(groundPosCarto);
+    cartographic = groundPosCarto;
+  }
 
   let animationStarted = false;
 
@@ -79,7 +104,7 @@ export const animateCesiumToTopDownLeafletLikeView = (
       "[CESIUM] [CESIUM|2D3D|TO2D] No valid ground height (depth) found – cancel transition"
     );
     onTransitionCancel();
-    return false;
+    return lastHeadingPitch;
   }
 
   const pos = groundPos as Cartesian3;
@@ -113,7 +138,10 @@ export const animateCesiumToTopDownLeafletLikeView = (
           : Math.ceil(intMultiple) * zoomSnap;
       zoomDiff = currentZoom - targetZoom;
       const heightFactor = Math.pow(2, zoomDiff);
-      const { groundHeight } = getCameraHeightAboveGround(scene);
+      const { groundHeight } = await getCameraHeightAboveGroundAsync(
+        scene,
+        terrainProvider
+      );
 
       distance = distance * heightFactor;
       height = groundHeight + distance;
@@ -158,15 +186,15 @@ export const animateCesiumToTopDownLeafletLikeView = (
         console.warn(
           "[CESIUM] leaflet not available no transition possible [zoom]"
         );
-        return;
+        return lastHeadingPitch;
       }
       if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
         console.warn("[CESIUM] latitude or longitude is undefined, skipping");
-        return;
+        return lastHeadingPitch;
       }
       if (!Number.isFinite(zoom)) {
         console.warn("[CESIUM] zoom is undefined, skipping");
-        return;
+        return lastHeadingPitch;
       }
 
       // Apply zoomSnap if configured
@@ -209,7 +237,7 @@ export const animateCesiumToTopDownLeafletLikeView = (
         "[CESIUM] could not determine center zoom equivalent",
         error
       );
-      return;
+      return lastHeadingPitch;
     }
 
     onAnimationComplete();
@@ -237,15 +265,13 @@ export const animateCesiumToTopDownLeafletLikeView = (
       pos,
       new HeadingPitchRange(0, -Math.PI / 2, distance),
       {
-        setTargetHeadingPitch,
         duration: duration * 1000,
         onComplete: onComplete2d,
         cancelable: false,
         useCurrentDistance: false, // Interpolate range to match zoom snap target
       }
     );
-    animationStarted = true;
+    //animationStarted = true;
   }
-
-  return animationStarted;
+  return lastHeadingPitch;
 };

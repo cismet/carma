@@ -14,7 +14,6 @@ const DEFAULT_MIN_RANGE = 10;
 const DEFAULT_MAX_RANGE = 40000;
 
 interface CesiumAnimateOrbitsOptions {
-  setTargetHeadingPitch?: (hp: HeadingPitchJson) => void;
   duration?: number;
   delay?: number; // ms
   onComplete?: () => void;
@@ -38,7 +37,6 @@ export function animateInterpolateHeadingPitchRange(
     cancelable = true,
     useCurrentDistance = true,
     easing = Easing.CUBIC_IN_OUT,
-    setTargetHeadingPitch,
     minRange = DEFAULT_MIN_RANGE,
     maxRange = DEFAULT_MAX_RANGE,
   }: CesiumAnimateOrbitsOptions = {}
@@ -58,12 +56,6 @@ export function animateInterpolateHeadingPitchRange(
   if (!initialHPR) {
     return () => {};
   }
-
-  // Capture target heading/pitch for external use
-  setTargetHeadingPitch?.({
-    heading: initialHPR.heading as Radians,
-    pitch: initialHPR.pitch as Radians,
-  });
 
   // Animation control variables
   let animationFrameId: number | null = null;

@@ -297,6 +297,8 @@ export const MapFrameworkSwitcherProvider = ({
           },
           onError: (error: Error) => {
             console.error("[CESIUM] Transition error:", error);
+            // Fall back to Leaflet since we assume it's always available
+            setActiveFrameworkLeaflet();
             setIsTransitioning(false);
           },
         }
@@ -367,6 +369,9 @@ export const MapFrameworkSwitcherProvider = ({
           },
           onError: (error: Error) => {
             console.error("[CESIUM] Transition error:", error);
+            // CRITICAL: Assume Leaflet is always available as fallback
+            // The error handler in transitionToLeaflet hides Cesium and falls back to Leaflet
+            setActiveFrameworkLeaflet();
             setIsTransitioning(false);
           },
           onLeafletViewSet: callbacksRef.current.onLeafletViewSet,
@@ -388,14 +393,11 @@ export const MapFrameworkSwitcherProvider = ({
     } catch (error) {
       console.error("[CESIUM] Transition to Leaflet failed:", error);
       setIsTransitioning(false);
-      setActiveFrameworkCesium();
+      // CRITICAL: Fall back to Leaflet since we assume it's always available
+      // The container has already been hidden by the error handler
+      setActiveFrameworkLeaflet();
     }
-  }, [
-    isTransitioning,
-    isReady,
-    setActiveFrameworkCesium,
-    setActiveFrameworkLeaflet,
-  ]);
+  }, [isTransitioning, isReady, setActiveFrameworkLeaflet]);
 
   // Toggle between frameworks
   const toggle = useCallback(async () => {

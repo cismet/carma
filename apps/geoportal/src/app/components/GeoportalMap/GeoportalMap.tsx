@@ -144,6 +144,8 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const backgroundLayer = useSelector(getBackgroundLayer);
   const {
     //activeFramework: currentFramework, trigger re-renders on framework change
+    // State values that trigger re-renders when framework changes
+    isCesium,
     // Stable getters for hooks and callbacks
     getIsCesium,
     getIsLeaflet,
@@ -248,7 +250,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const modelSelectionDispatcher = useModelSelectionDispatcher();
 
   const useCesiumModelOptions = useMemo(() => {
-    const isCesium = getIsCesium();
     return {
       models: CESIUM_CONFIG.models || [],
       enabled: flags.featureFlagBugaBridge && isCesium,
@@ -259,7 +260,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
           modelSelectionDispatcher(feature as FeatureInfo | null),
       },
     };
-  }, [flags.featureFlagBugaBridge, getIsCesium, modelSelectionDispatcher]);
+  }, [flags.featureFlagBugaBridge, isCesium, modelSelectionDispatcher]);
   useCesiumModels(useCesiumModelOptions);
 
   const routingOptions = useMemo(

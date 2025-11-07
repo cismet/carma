@@ -1,16 +1,17 @@
+import type { Map as LeafletMap } from "leaflet";
 import type {
   Scene,
   CesiumTerrainProvider,
   HeadingPitchJson,
 } from "@carma/cesium";
 import { isValidScene } from "@carma/cesium";
-import type { Map as LeafletMap } from "leaflet";
+import { Radians } from "@carma/units/types";
 import {
   TransitionStage,
   type TransitionToLeafletOptions,
   type TransitionToLeafletCallbacks,
 } from "./types";
-import { animateCesiumToTopDownLeafletLikeView } from "./utils/animate-cesium-to-top-down-leaflet-like-view";
+import { animateCesiumToTopDownLeafletLikeViewAsync } from "./utils/animate-cesium-to-top-down-leaflet-like-view";
 import { promiseWithTimeout } from "@carma-commons/utils/promise";
 
 /**
@@ -97,43 +98,57 @@ export const transitionToLeaflet = async (
       }
     };
 
-    const handleTargetHeadingPitch = (hp: HeadingPitchJson) => {
-      // Extract only heading and pitch, ignore range (always comes from zoom)
-      capturedHeadingPitch = { ...hp };
-    };
-
-    animateCesiumToTopDownLeafletLikeView(scene, leaflet, {
+    capturedHeadingPitch = await animateCesiumToTopDownLeafletLikeViewAsync(
       scene,
       leaflet,
-      resolutionScale,
-      onAnimationComplete: handleAnimationComplete,
-      setTargetHeadingPitch: handleTargetHeadingPitch,
-      onTransitionCancel: () => {
-        onStageChange(TransitionStage.ERROR, "Transition cancelled");
-        if (onError) {
-          onError(new Error("Transition cancelled"));
-        }
-      },
-      onLeafletViewSet,
-    });
+      terrainProviders.TERRAIN,
+      {
+        scene,
+        leaflet,
+        resolutionScale,
+        onAnimationComplete: handleAnimationComplete,
+        onTransitionCancel: () => {
+          onStageChange(TransitionStage.ERROR, "Transition cancelled");
+          if (onError) {
+            onError(new Error("Transition cancelled"));
+          }
+        },
+        onLeafletViewSet,
+      }
+    );
 
     // Return the captured heading/pitch (not range) and duration
     if (!capturedHeadingPitch) {
-      throw new Error(
-        "Failed to capture target heading/pitch during transition"
+      console.warn(
+        "[CESIUM] [CESIUM|2D3D|TO2D] No heading/pitch captured, using defaults"
       );
+      return {
+        heading: 0 as Radians,
+        pitch: -(Math.PI / 2) as Radians,
+      };
     }
 
     return capturedHeadingPitch;
-  } catch (error) {
+  } catch (error: unknown) {
     const err = error instanceof Error ? error : new Error(String(error));
     onStageChange(TransitionStage.ERROR, `Transition failed: ${err.message}`);
     console.error("[CESIUM] [CESIUM|2D3D|TO2D] Transition error:", error);
 
+    // Hard disable Cesium view on error - Leaflet is always our fallback
+    cesiumContainer.style.transition = `opacity ${step2_cssTransitionDurationMs}ms ease-in-out`;
+    cesiumContainer.style.opacity = "0";
+    cesiumContainer.style.pointerEvents = "none";
+
+    // CRITICAL: Call onError to update switcher state to Leaflet
+    // Without this, the switcher thinks it's still in Cesium mode
     if (onError) {
       onError(err);
     }
 
-    throw error;
+    // Return default heading/pitch since we're falling back to 2D
+    return {
+      heading: 0 as Radians,
+      pitch: -(Math.PI / 2) as Radians,
+    };
   }
 };
