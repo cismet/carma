@@ -23,11 +23,8 @@ export const useUrlFeatureSelection = () => {
     if (!initializingFeatures && !hasProcessedUrl.current) {
       let objectId: string | null = null;
 
-      const searchParams = new URLSearchParams(window.location.search);
-      objectId = searchParams.get("tmSelectionObject");
-
-      if (!objectId && window.location.hash) {
-        let hashString = window.location.hash.substring(1);
+      if (window.location.hash) {
+        let hashString = window.location.hash.substring(1); // Remove #
 
         if (hashString.includes("?")) {
           hashString = hashString.split("?")[1];
@@ -42,8 +39,6 @@ export const useUrlFeatureSelection = () => {
 
         setTimeout(() => {
           const currentUrl = new URL(window.location.href);
-
-          currentUrl.searchParams.delete("tmSelectionObject");
 
           if (currentUrl.hash) {
             let hashString = currentUrl.hash.substring(1);
