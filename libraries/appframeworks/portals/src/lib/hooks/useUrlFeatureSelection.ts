@@ -19,10 +19,6 @@ export const useUrlFeatureSelection = () => {
   const hasProcessedUrl = useRef(false);
 
   useEffect(() => {
-    console.log("xxx initializingFeatures", initializingFeatures);
-    console.log("xxx shownFeatures length", shownFeatures?.length || 0);
-
-    // Wait for both: features loaded AND features available AND not processed yet
     if (
       !initializingFeatures &&
       shownFeatures &&
@@ -32,7 +28,7 @@ export const useUrlFeatureSelection = () => {
       let objectId: string | null = null;
 
       if (window.location.hash) {
-        let hashString = window.location.hash.substring(1); // Remove #
+        let hashString = window.location.hash.substring(1);
 
         if (hashString.includes("?")) {
           hashString = hashString.split("?")[1];
@@ -43,62 +39,42 @@ export const useUrlFeatureSelection = () => {
       }
 
       if (objectId) {
-        console.log("xxx found tmSelectionObject:", objectId);
-        console.log("xxx available features:", shownFeatures.length);
-
-        // Find the feature first to make sure it exists
         const targetFeature = shownFeatures.find(
           (feature) => String(feature.properties.id) === String(objectId)
         );
 
         if (targetFeature) {
-          console.log(
-            "xxx found target feature:",
-            targetFeature.properties.titel
-          );
           setSelectedFeatureByPredicate(
             (feature) => String(feature.properties.id) === String(objectId)
           );
-
-          // Zoom to the feature after a short delay
-          setTimeout(() => {
-            zoomToFeature(targetFeature);
-          }, 100);
-        } else {
-          console.log(
-            "xxx target feature with id 15 not found in shownFeatures"
-          );
+          zoomToFeature(targetFeature);
         }
 
-        setTimeout(() => {
-          const currentUrl = new URL(window.location.href);
+        const currentUrl = new URL(window.location.href);
 
-          if (currentUrl.hash) {
-            let hashString = currentUrl.hash.substring(1);
+        if (currentUrl.hash) {
+          let hashString = currentUrl.hash.substring(1);
 
-            if (hashString.includes("?")) {
-              const [hashPath, hashQuery] = hashString.split("?");
-              const hashParams = new URLSearchParams(hashQuery);
-              hashParams.delete("tmSelectionObject");
+          if (hashString.includes("?")) {
+            const [hashPath, hashQuery] = hashString.split("?");
+            const hashParams = new URLSearchParams(hashQuery);
+            hashParams.delete("tmSelectionObject");
 
-              const remainingParams = hashParams.toString();
-              currentUrl.hash = remainingParams
-                ? `${hashPath}?${remainingParams}`
-                : hashPath;
-            } else {
-              const hashParams = new URLSearchParams(hashString);
-              hashParams.delete("tmSelectionObject");
-              currentUrl.hash = hashParams.toString();
-            }
+            const remainingParams = hashParams.toString();
+            currentUrl.hash = remainingParams
+              ? `${hashPath}?${remainingParams}`
+              : hashPath;
+          } else {
+            const hashParams = new URLSearchParams(hashString);
+            hashParams.delete("tmSelectionObject");
+            currentUrl.hash = hashParams.toString();
           }
+        }
 
-          window.history.replaceState({}, "", currentUrl.toString());
-          console.log("xxx removed tmSelectionObject from URL");
-        }, 3000);
+        window.history.replaceState({}, "", currentUrl.toString());
 
         hasProcessedUrl.current = true;
       }
-      console.log("xxx objectId", objectId);
     }
   }, [initializingFeatures, shownFeatures]);
 
