@@ -21,6 +21,7 @@ import {
 import {
   TopicMapSelectionContent,
   useSelectionTopicMap,
+  useUrlFeatureSelection,
 } from "@carma-appframeworks/portals";
 import {
   EmptySearchComponent,
@@ -52,6 +53,7 @@ const Map = () => {
     typeof ResponsiveTopicMapContext
   >(ResponsiveTopicMapContext);
   useSelectionTopicMap();
+  useUrlFeatureSelection();
 
   useEffect(() => {
     if (markerSymbolSize) {
@@ -61,8 +63,6 @@ const Map = () => {
       });
     }
   }, [markerSymbolSize]);
-
-  console.log("xxx itemsDictionary", itemsDictionary);
 
   useEffect(() => {
     const einrichtungen = getAllEinrichtungen().map(
