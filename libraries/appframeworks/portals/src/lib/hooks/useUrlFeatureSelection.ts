@@ -48,7 +48,7 @@ export const useUrlFeatureSelection = () => {
 
         // Find the feature first to make sure it exists
         const targetFeature = shownFeatures.find(
-          (feature) => String(feature.properties.id) === String(15)
+          (feature) => String(feature.properties.id) === String(objectId)
         );
 
         if (targetFeature) {
@@ -57,7 +57,7 @@ export const useUrlFeatureSelection = () => {
             targetFeature.properties.titel
           );
           setSelectedFeatureByPredicate(
-            (feature) => String(feature.properties.id) === String(21)
+            (feature) => String(feature.properties.id) === String(objectId)
           );
         } else {
           console.log(
