@@ -3,7 +3,6 @@ export {
   useHashState,
   type HashChangeEvent,
   type HashChangeSource,
-  type HashSubscribeOptions,
   type HashCodecs,
   type HashCodec,
   type HashKeyAliases,

@@ -1,40 +1,28 @@
 import { useEffect, type MutableRefObject } from "react";
-import { getHashParams, diffHashParams } from "@carma-commons/utils";
-
-type Emitter = (e: {
-  raw: Record<string, string>;
-  values: Record<string, unknown>;
-  changedKeys: string[];
-  removedKeys: string[];
-  source: "popstate";
-}) => void;
-
-const toUniqueStrings = (
-  keys: string[],
-  lookUp: Record<string, string>
-): string[] => [...new Set(keys.map((k: string) => lookUp[k] || k))];
+import { getHashParams } from "@carma-commons/utils";
+import { computeHashDiff } from "./utils";
+import type { HashChangeEvent } from "./HashStateProvider";
 
 /**
- * Listens to browser back/forward navigation (popstate) and emits hash changes.
+ * Listens to browser back/forward navigation (popstate) and calls the callback.
  * Does NOT listen to hashchange - hash is write-only after initial load.
  */
-export function usePopStateListener(args: {
-  emit: Emitter;
-  getHashValues: () => Record<string, unknown>;
-  aliasReverseLookup: Record<string, string>;
-  prevRawRef: MutableRefObject<Record<string, string>>;
-}) {
-  const { emit, getHashValues, aliasReverseLookup, prevRawRef } = args;
-
+export function usePopStateListener(
+  onPopState: (e: HashChangeEvent) => void,
+  prevRawRef: MutableRefObject<Record<string, string>>,
+  getHashValues: () => Record<string, unknown>,
+  aliasReverseLookup: Record<string, string>
+) {
   useEffect(() => {
-    const onPopState = () => {
+    const handlePopState = () => {
       const beforeRaw = prevRawRef.current || {};
       const afterRaw = getHashParams();
-      const { changedKeys: changedAliasKeys, removedKeys: removedAliasKeys } =
-        diffHashParams(beforeRaw, afterRaw);
-      const changedKeys = toUniqueStrings(changedAliasKeys, aliasReverseLookup);
-      const removedKeys = toUniqueStrings(removedAliasKeys, aliasReverseLookup);
-      emit({
+      const { changedKeys, removedKeys } = computeHashDiff(
+        beforeRaw,
+        afterRaw,
+        aliasReverseLookup
+      );
+      onPopState({
         raw: afterRaw,
         values: getHashValues(),
         changedKeys,
@@ -44,9 +32,9 @@ export function usePopStateListener(args: {
       prevRawRef.current = afterRaw;
     };
 
-    window.addEventListener("popstate", onPopState);
+    window.addEventListener("popstate", handlePopState);
     return () => {
-      window.removeEventListener("popstate", onPopState);
+      window.removeEventListener("popstate", handlePopState);
     };
-  }, [emit, getHashValues, aliasReverseLookup, prevRawRef]);
+  }, [onPopState, getHashValues, aliasReverseLookup, prevRawRef]);
 }

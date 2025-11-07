@@ -2,7 +2,6 @@ import React, {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useRef,
   startTransition,
@@ -11,10 +10,14 @@ import {
   getHashParams,
   normalizeOptions,
   updateHashHistoryState,
-  diffHashParams,
 } from "@carma-commons/utils";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { usePopStateListener } from "./usePopStateListener";
+import {
+  getAliasReverseLookup,
+  applyHashCodecs,
+  computeHashDiff,
+} from "./utils";
 import {
   defaultHashCodecs,
   defaultHashKeyAliases,
@@ -52,35 +55,20 @@ export type HashChangeEvent = {
   replace?: boolean;
   source: HashChangeSource;
 };
-export type HashSubscribeOptions = {
-  keys?: string[];
-  labels?: string[];
-};
 
 interface HashStateContextType {
   getHash: () => Record<string, string>;
   getHashValues: () => Record<string, unknown>;
   updateHash: (
-    params: Record<string, unknown> | undefined,
+    params?: Record<string, unknown>,
     options?: HashUpdateOptions
   ) => void;
-  subscribe: (
-    listener: (e: HashChangeEvent) => void,
-    opts?: HashSubscribeOptions
-  ) => () => void;
+  registerOnPopState: (callback: (e: HashChangeEvent) => void) => () => void;
 }
 
 const HashStateContext = createContext<HashStateContextType | undefined>(
   undefined
 );
-
-const getAliasReverseLookup = (aliases: Record<string, string>) => {
-  const reverseLookup: Record<string, string> = {};
-  for (const [original, alias] of Object.entries(aliases)) {
-    reverseLookup[alias] = original;
-  }
-  return reverseLookup;
-};
 
 export const HashStateProvider: React.FC<{
   children: React.ReactNode;
@@ -94,15 +82,34 @@ export const HashStateProvider: React.FC<{
   keyOrder = defaultHashKeyOrder,
 }) => {
   const location = useLocation();
-  const navigate = useNavigate();
   const aliasReverseLookup = useMemo(
     () => getAliasReverseLookup(keyAliases),
     [keyAliases]
   );
-  const listenersRef = useRef<
-    Set<{ listener: (e: HashChangeEvent) => void; opts?: HashSubscribeOptions }>
-  >(new Set());
+  const onPopStateCallbacksRef = useRef<Array<(e: HashChangeEvent) => void>>(
+    []
+  );
   const prevRawRef = useRef<Record<string, string>>(getHashParams());
+
+  const registerOnPopState = useCallback(
+    (callback: (e: HashChangeEvent) => void) => {
+      if (!onPopStateCallbacksRef.current.includes(callback)) {
+        onPopStateCallbacksRef.current.push(callback);
+      }
+      const cleanup = () => {
+        onPopStateCallbacksRef.current = onPopStateCallbacksRef.current.filter(
+          (cb) => cb !== callback
+        );
+      };
+      return cleanup;
+    },
+    []
+  );
+
+  const onPopState = useCallback((e: HashChangeEvent) => {
+    onPopStateCallbacksRef.current.forEach((callback) => callback(e));
+  }, []);
+
   // returns the current hash parameters as an object as is with aliased keys
   const getHash = useCallback(() => getHashParams(), []);
   // return the decoded hash values with their original keys, not aliases
@@ -120,31 +127,6 @@ export const HashStateProvider: React.FC<{
     return values;
   }, [hashCodecs, aliasReverseLookup]);
 
-  const emit = useCallback((e: HashChangeEvent) => {
-    listenersRef.current.forEach(({ listener, opts }) => {
-      const keyFilterOk =
-        !opts?.keys ||
-        opts.keys.some((k) =>
-          new Set([...e.changedKeys, ...e.removedKeys]).has(k)
-        );
-      const labelFilterOk =
-        !opts?.labels ||
-        (e.label !== undefined && opts.labels.includes(e.label));
-      if (keyFilterOk && labelFilterOk) listener(e);
-    });
-  }, []);
-
-  const subscribe = useCallback<HashStateContextType["subscribe"]>(
-    (listener, opts) => {
-      const entry = { listener, opts };
-      listenersRef.current.add(entry);
-      return () => {
-        listenersRef.current.delete(entry);
-      };
-    },
-    []
-  );
-
   const updateHash = useCallback(
     (
       params: Record<string, unknown> | undefined,
@@ -155,26 +137,10 @@ export const HashStateProvider: React.FC<{
         options,
         hashUpdateDefaults
       );
-      // build new params object with aliases applied
-      const newParams = {};
-      const undefinedKeys: string[] = [];
 
-      if (params) {
-        for (const [key, value] of Object.entries(params)) {
-          const newValue =
-            hashCodecs && hashCodecs[key]
-              ? hashCodecs[key].encode(value)
-              : value;
-          const newKey =
-            keyAliases && keyAliases[key] !== undefined ? keyAliases[key] : key;
-
-          if (newValue === undefined) {
-            undefinedKeys.push(newKey);
-          } else {
-            newParams[newKey] = newValue;
-          }
-        }
-      }
+      const { newParams, undefinedKeys } = params
+        ? applyHashCodecs(params, hashCodecs, keyAliases)
+        : { newParams: {}, undefinedKeys: [] };
 
       const clearAndUndefinedKeys = [...clearKeys, ...undefinedKeys];
 
@@ -188,24 +154,6 @@ export const HashStateProvider: React.FC<{
       });
 
       const afterRaw = getHashParams();
-      const { changedKeys: changedAliasKeys, removedKeys: removedAliasKeys } =
-        diffHashParams(beforeRaw, afterRaw);
-      const toOriginal = (k: string) => aliasReverseLookup[k] || k;
-      const changedKeys = [...new Set(changedAliasKeys.map(toOriginal))];
-      const removedKeys = [...new Set(removedAliasKeys.map(toOriginal))];
-
-      // Non-urgent: React state updates deferred
-      startTransition(() => {
-        emit({
-          raw: afterRaw,
-          values: getHashValues(),
-          changedKeys,
-          removedKeys,
-          label,
-          replace,
-          source: "update",
-        });
-      });
       prevRawRef.current = afterRaw;
     },
     [
@@ -213,32 +161,30 @@ export const HashStateProvider: React.FC<{
       keyAliases,
       hashCodecs,
       keyOrder,
-      emit,
       getHashValues,
       aliasReverseLookup,
     ]
   );
 
-  usePopStateListener({
-    emit: (e) => emit(e as any),
-    getHashValues,
-    aliasReverseLookup,
+  usePopStateListener(
+    onPopState,
     prevRawRef,
-  });
-
-  const value = useRef<HashStateContextType>({
-    getHash,
     getHashValues,
-    updateHash,
-    subscribe,
-  });
-  value.current.getHash = getHash;
-  value.current.getHashValues = getHashValues;
-  value.current.updateHash = updateHash;
-  value.current.subscribe = subscribe;
+    aliasReverseLookup
+  );
+
+  const value = useMemo(
+    () => ({
+      getHash,
+      getHashValues,
+      updateHash,
+      registerOnPopState,
+    }),
+    [getHash, getHashValues, updateHash, registerOnPopState]
+  );
 
   return (
-    <HashStateContext.Provider value={value.current}>
+    <HashStateContext.Provider value={value}>
       {children}
     </HashStateContext.Provider>
   );

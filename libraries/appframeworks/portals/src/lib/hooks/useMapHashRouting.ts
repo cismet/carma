@@ -1,5 +1,8 @@
 import { useCallback, useEffect, useRef } from "react";
-import { useHashState } from "@carma-providers/hash-state";
+import {
+  useHashState,
+  type HashChangeEvent,
+} from "@carma-providers/hash-state";
 
 import { cesiumClearParamKeys } from "@carma-mapping/engines/cesium";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
@@ -39,7 +42,7 @@ export function useMapHashRouting({
   labels,
   pixelTolerance,
 }: UseMapHashRoutingOptions) {
-  const { updateHash, subscribe, getHashValues } = useHashState();
+  const { updateHash, registerOnPopState, getHashValues } = useHashState();
   const { getIsLeaflet, getIsCesium, getIsTransitioning, activeFramework } =
     useMapFrameworkSwitcherContext();
 
@@ -257,75 +260,71 @@ export function useMapHashRouting({
   // Back/forward navigation: move the leaflet map to the historical location without writing a new hash
   useEffect(() => {
     if (!getLeafletMap) return;
-    const unsub = subscribe(
-      (e) => {
-        if (e.source !== "popstate") return;
-        if (!getIsLeaflet()) return;
-        const lat = e.values.lat as number | undefined;
-        const lng = e.values.lng as number | undefined;
-        const zoomFromHash = e.values.zoom as number | undefined;
-        const fallbackZoom = getLeafletZoom?.();
-        const zoom = zoomFromHash ?? fallbackZoom;
 
-        console.warn("[Routing][hash] POPSTATE ZOOM DEBUG:", {
-          zoomFromHash,
-          fallbackZoom,
-          finalZoom: zoom,
-          hashValues: e.values,
-          source: e.source,
-        });
+    const handlePopState = (e: HashChangeEvent) => {
+      if (e.source !== "popstate") return;
+      if (!getIsLeaflet()) return;
+      const lat = e.values.lat as number | undefined;
+      const lng = e.values.lng as number | undefined;
+      const zoomFromHash = e.values.zoom as number | undefined;
+      const fallbackZoom = getLeafletZoom?.();
+      const zoom = zoomFromHash ?? fallbackZoom;
 
-        if (lat == null || lng == null || zoom == null) return;
-        const map = getLeafletMap?.();
-        if (!map) return;
-        navMoveInProgressRef.current = true;
-        popstateTargetRef.current = { lat, lng, zoom };
-        console.debug(
-          "[Routing][hash] popstate begin -> restore leaflet view",
-          {
-            lat,
-            lng,
-            zoom,
-          }
-        );
-        const scheduleClear = (evt: string) => {
-          if (typeof map.once === "function") {
-            map.once(evt, () => {
-              setTimeout(() => {
-                navMoveInProgressRef.current = false;
-                console.debug(
-                  "[Routing][hash] popstate end -> resume leaflet writes",
-                  { via: evt }
-                );
-              }, 0);
-            });
-          }
-        };
-        scheduleClear("moveend");
-        scheduleClear("zoomend");
-        console.warn("[Routing][hash] CALLING map.setView", {
-          lat,
-          lng,
-          zoom,
-          stack: new Error().stack,
-        });
-        if (typeof map.setView === "function") {
-          map.setView({ lat, lng }, zoom);
-        } else if (typeof map.panTo === "function") {
-          map.panTo({ lat, lng });
-          if (typeof map.setZoom === "function") {
-            console.warn("[Routing][hash] CALLING map.setZoom", {
-              zoom,
-              stack: new Error().stack,
-            });
-            map.setZoom(zoom);
-          }
+      console.warn("[Routing][hash] POPSTATE ZOOM DEBUG:", {
+        zoomFromHash,
+        fallbackZoom,
+        finalZoom: zoom,
+        hashValues: e.values,
+        source: e.source,
+      });
+
+      if (lat == null || lng == null || zoom == null) return;
+      const map = getLeafletMap?.();
+      if (!map) return;
+      navMoveInProgressRef.current = true;
+      popstateTargetRef.current = { lat, lng, zoom };
+      console.debug("[Routing][hash] popstate begin -> restore leaflet view", {
+        lat,
+        lng,
+        zoom,
+      });
+      const scheduleClear = (evt: string) => {
+        if (typeof map.once === "function") {
+          map.once(evt, () => {
+            setTimeout(() => {
+              navMoveInProgressRef.current = false;
+              console.debug(
+                "[Routing][hash] popstate end -> resume leaflet writes",
+                { via: evt }
+              );
+            }, 0);
+          });
         }
-      },
-      { keys: ["lat", "lng", "zoom"] }
-    );
-    return unsub;
-  }, [subscribe, getIsLeaflet, getLeafletMap, getLeafletZoom]);
+      };
+      scheduleClear("moveend");
+      scheduleClear("zoomend");
+      console.warn("[Routing][hash] CALLING map.setView", {
+        lat,
+        lng,
+        zoom,
+        stack: new Error().stack,
+      });
+      if (typeof map.setView === "function") {
+        map.setView({ lat, lng }, zoom);
+      } else if (typeof map.panTo === "function") {
+        map.panTo({ lat, lng });
+        if (typeof map.setZoom === "function") {
+          console.warn("[Routing][hash] CALLING map.setZoom", {
+            zoom,
+            stack: new Error().stack,
+          });
+          map.setZoom(zoom);
+        }
+      }
+    };
+
+    return registerOnPopState(handlePopState);
+  }, [registerOnPopState, getIsLeaflet, getLeafletMap, getLeafletZoom]);
 
   return { handleTopicMapLocationChange, handleCesiumSceneChange };
 }
