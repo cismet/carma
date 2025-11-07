@@ -38,7 +38,6 @@ import {
 } from "@carma-collab/wuppertal/geoportal";
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 
-import { useWhyDidYouRender } from "@carma-commons/utils/react";
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import type { FeatureInfo } from "@carma/types";
 import { Measurements } from "@carma-commons/measurements";
