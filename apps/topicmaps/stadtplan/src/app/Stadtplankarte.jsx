@@ -11,6 +11,7 @@ import {
   GenericInfoBoxFromFeature,
   TopicMapSelectionContent,
   useSelectionTopicMap,
+  useUrlFeatureSelection,
 } from "@carma-appframeworks/portals";
 import {
   InfoBoxTextContent,
@@ -40,6 +41,7 @@ const Stadtplankarte = ({ poiColors }) => {
     ResponsiveTopicMapContext
   );
   useSelectionTopicMap();
+  useUrlFeatureSelection();
 
   useEffect(() => {
     if (markerSymbolSize) {
