@@ -31,6 +31,7 @@ import {
 } from "@carma-appframeworks/portals";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { isAreaType } from "@carma-commons/resources";
+import { useUrlFeatureSelection } from "@carma-appframeworks/portals";
 
 const Ehrenamtkarte = ({ bookmarks, setBookmarks }) => {
   const {
@@ -45,6 +46,7 @@ const Ehrenamtkarte = ({ bookmarks, setBookmarks }) => {
   const { markerSymbolSize } = useContext(TopicMapStylingContext);
   const { clusteringOptions, selectedFeature, filteredItems, shownFeatures } =
     useContext(FeatureCollectionContext);
+  useUrlFeatureSelection();
 
   useEffect(() => {
     if (markerSymbolSize) {

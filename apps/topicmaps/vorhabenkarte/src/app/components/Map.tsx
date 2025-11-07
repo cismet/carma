@@ -47,6 +47,7 @@ import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextPr
 import { useGazData } from "@carma-appframeworks/portals";
 import { type GazDataItem } from "@carma-commons/utils";
 import versionData from "../../version.json";
+import { useUrlFeatureSelection } from "@carma-appframeworks/portals";
 
 const Map = () => {
   const {
@@ -76,6 +77,8 @@ const Map = () => {
   const [gazDataWithProjects, setGazDataWithProjects] = useState<GazDataItem[]>(
     []
   );
+
+  useUrlFeatureSelection();
 
   const { gazData } = useGazData();
 
