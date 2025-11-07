@@ -59,6 +59,11 @@ export const useUrlFeatureSelection = () => {
           setSelectedFeatureByPredicate(
             (feature) => String(feature.properties.id) === String(objectId)
           );
+
+          // Zoom to the feature after a short delay
+          setTimeout(() => {
+            zoomToFeature(targetFeature);
+          }, 100);
         } else {
           console.log(
             "xxx target feature with id 15 not found in shownFeatures"
