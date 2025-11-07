@@ -6,10 +6,19 @@ type Emitter = (e: {
   values: Record<string, unknown>;
   changedKeys: string[];
   removedKeys: string[];
-  source: "popstate" | "hashchange";
+  source: "popstate";
 }) => void;
 
-export function useHashChangeEmit(args: {
+const toUniqueStrings = (
+  keys: string[],
+  lookUp: Record<string, string>
+): string[] => [...new Set(keys.map((k: string) => lookUp[k] || k))];
+
+/**
+ * Listens to browser back/forward navigation (popstate) and emits hash changes.
+ * Does NOT listen to hashchange - hash is write-only after initial load.
+ */
+export function usePopStateListener(args: {
   emit: Emitter;
   getHashValues: () => Record<string, unknown>;
   aliasReverseLookup: Record<string, string>;
@@ -18,31 +27,26 @@ export function useHashChangeEmit(args: {
   const { emit, getHashValues, aliasReverseLookup, prevRawRef } = args;
 
   useEffect(() => {
-    const handle = (source: "popstate" | "hashchange") => () => {
+    const onPopState = () => {
       const beforeRaw = prevRawRef.current || {};
       const afterRaw = getHashParams();
       const { changedKeys: changedAliasKeys, removedKeys: removedAliasKeys } =
         diffHashParams(beforeRaw, afterRaw);
-      const toOriginal = (k: string) => aliasReverseLookup[k] || k;
-      const changedKeys = [...new Set(changedAliasKeys.map(toOriginal))];
-      const removedKeys = [...new Set(removedAliasKeys.map(toOriginal))];
+      const changedKeys = toUniqueStrings(changedAliasKeys, aliasReverseLookup);
+      const removedKeys = toUniqueStrings(removedAliasKeys, aliasReverseLookup);
       emit({
         raw: afterRaw,
         values: getHashValues(),
         changedKeys,
         removedKeys,
-        source,
+        source: "popstate",
       });
       prevRawRef.current = afterRaw;
     };
 
-    const onPop = handle("popstate");
-    const onHash = handle("hashchange");
-    window.addEventListener("popstate", onPop);
-    window.addEventListener("hashchange", onHash);
+    window.addEventListener("popstate", onPopState);
     return () => {
-      window.removeEventListener("popstate", onPop);
-      window.removeEventListener("hashchange", onHash);
+      window.removeEventListener("popstate", onPopState);
     };
   }, [emit, getHashValues, aliasReverseLookup, prevRawRef]);
 }

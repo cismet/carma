@@ -14,7 +14,7 @@ import {
   diffHashParams,
 } from "@carma-commons/utils";
 import { useLocation, useNavigate } from "react-router-dom";
-import { useHashChangeEmit } from "./useHashChangeEmit";
+import { usePopStateListener } from "./usePopStateListener";
 import {
   defaultHashCodecs,
   defaultHashKeyAliases,
@@ -219,7 +219,7 @@ export const HashStateProvider: React.FC<{
     ]
   );
 
-  useHashChangeEmit({
+  usePopStateListener({
     emit: (e) => emit(e as any),
     getHashValues,
     aliasReverseLookup,
