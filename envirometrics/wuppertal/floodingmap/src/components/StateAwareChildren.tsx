@@ -126,17 +126,25 @@ export const StateAwareChildren = () => {
       const viewer = viewerRef.current;
 
       const handler = new ScreenSpaceEventHandler(viewer.scene.canvas);
-      handler.setInputAction(
-        async (click) =>
-          onCesiumClick(
-            click,
-            cesiumContext,
-            markerEntityRef,
-            highlightEntityRef,
-            setCesiumPickedPosition
-          ),
-        ScreenSpaceEventType.LEFT_CLICK
-      );
+      handler.setInputAction(async (click) => {
+        const terrainProvider = getTerrainProvider();
+        if (!terrainProvider) {
+          console.warn(
+            "[FLOODINGMAP] Cannot process click - terrain provider not available"
+          );
+          return;
+        }
+
+        await onCesiumClick(
+          click,
+          viewerRef,
+          viewer.scene,
+          terrainProvider,
+          markerEntityRef,
+          highlightEntityRef,
+          setCesiumPickedPosition
+        );
+      }, ScreenSpaceEventType.LEFT_CLICK);
 
       return () => {
         handler.destroy();
@@ -155,7 +163,7 @@ export const StateAwareChildren = () => {
         viewer.scene.requestRender();
       };
     }
-  }, [cesiumContext, viewerRef, controlState.featureInfoModeActivated]);
+  }, [viewerRef, getTerrainProvider, controlState.featureInfoModeActivated]);
 
   // Add effect to cleanup marker when feature info mode is disabled
   useEffect(() => {
@@ -196,7 +204,11 @@ export const StateAwareChildren = () => {
         lng: cesiumPickedPosition[1],
       });
     }
-  }, [cesiumPickedPosition, controlState.featureInfoModeActivated]);
+  }, [
+    cesiumPickedPosition,
+    controlState.featureInfoModeActivated,
+    executeFeatureInfoRequest,
+  ]);
 
   useHGKCesiumTerrain(
     controlState.selectedSimulation,

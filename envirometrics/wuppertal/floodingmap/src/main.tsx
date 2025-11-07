@@ -18,6 +18,7 @@ import {
   CesiumContextProvider,
   setupCesiumEnvironment,
 } from "@carma-mapping/engines/cesium";
+import { MapFrameworkSwitcherProvider } from "@carma-mapping/components";
 
 import App from "./App";
 import store from "./store";
@@ -49,12 +50,14 @@ const appWithContext = (
           // baseLayerConf={wuppertalConfig.overridingBaseLayerConf}
           infoBoxPixelWidth={370}
         >
-          <CesiumContextProvider
-            providerConfig={CESIUM_CONFIG.providerConfig}
-            tilesetConfigs={CESIUM_CONFIG.tilesetConfigs}
-          >
-            {enableSync ? syncedApp : <App />}
-          </CesiumContextProvider>
+          <MapFrameworkSwitcherProvider initialFramework="leaflet">
+            <CesiumContextProvider
+              providerConfig={CESIUM_CONFIG.providerConfig}
+              tilesetConfigs={CESIUM_CONFIG.tilesetConfigs}
+            >
+              {enableSync ? syncedApp : <App />}
+            </CesiumContextProvider>
+          </MapFrameworkSwitcherProvider>
         </TopicMapContextProvider>
       </SelectionProvider>
     </GazDataProvider>

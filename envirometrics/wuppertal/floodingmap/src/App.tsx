@@ -41,7 +41,6 @@ import {
   useCesiumContext,
   useCesiumInitialCameraFromSearchParams,
   useHomeControl,
-  useZoomControls,
 } from "@carma-mapping/engines/cesium";
 import {
   EmptySearchComponent,
@@ -54,6 +53,7 @@ import {
   RoutedMapLocateControl,
   MapFrameworkSwitcher,
   useMapFrameworkSwitcherContext,
+  useRegisterMapFramework,
 } from "@carma-mapping/components";
 import {
   Control,
@@ -66,6 +66,7 @@ import { StateAwareChildren } from "./components/StateAwareChildren";
 import versionData from "./version.json";
 
 import useLeafletZoomControls from "./hooks/useLeafletZoomControls";
+import { useFloodingmapFrameworkSwitcher } from "./hooks/useFloodingmapFrameworkSwitcher";
 
 import config from "./config";
 import { EMAIL, HOME_ZOOM } from "./config/app.config";
@@ -95,26 +96,54 @@ function App({ sync = false }: { sync?: boolean }) {
 
   const initialCameraView = useCesiumInitialCameraFromSearchParams();
 
-  const {
-    handleZoomIn: handleZoomInCesium,
-    handleZoomOut: handleZoomOutCesium,
-    viewerRef,
-    viewerAnimationMapRef,
-    isViewerReady,
-    requestRender,
-  } = useCesiumContext();
+  const ctx = useCesiumContext();
+  const { getScene, getTerrainProvider, getSurfaceProvider } = ctx;
   const homeControl = useHomeControl();
-
   const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
+  // TODO: Add Cesium zoom controls when switcher is fully active
+  const handleZoomInCesium = zoomInLeaflet;
+  const handleZoomOutCesium = zoomOutLeaflet;
 
   // LEAFLET related
   const { routedMapRef: routedMap } =
     useContext<typeof TopicMapContext>(TopicMapContext);
 
   // CESIUM related
-
   const container3dMapRef = useRef<HTMLDivElement>(null);
   const homePosition = useSelector(selectViewerHome);
+
+  // Register map frameworks with switcher
+  const frameworkOptions = useMemo(() => {
+    const leafletMap = routedMap?.leafletMap?.leafletElement;
+    const cesiumScene = getScene();
+    const cesiumContainer = container3dMapRef.current;
+    const terrainProvider = getTerrainProvider();
+    const surfaceProvider = getSurfaceProvider();
+
+    console.log("[FLOODINGMAP] Framework options check:", {
+      hasLeafletMap: !!leafletMap,
+      hasCesiumScene: !!cesiumScene,
+      hasCesiumContainer: !!cesiumContainer,
+      hasRoutedMap: !!routedMap,
+    });
+
+    if (!leafletMap || !cesiumScene || !cesiumContainer) {
+      return null;
+    }
+
+    return {
+      leafletMap,
+      cesiumScene,
+      cesiumContainer,
+      terrainProviders: {
+        TERRAIN: terrainProvider ?? null,
+        SURFACE: surfaceProvider ?? null,
+      },
+      resolutionScale: window.devicePixelRatio,
+    };
+  }, [routedMap, getScene, getTerrainProvider, getSurfaceProvider]);
+
+  useRegisterMapFramework(frameworkOptions);
 
   const homeCenter = useMemo(() => {
     if (!homePosition) {
@@ -126,7 +155,7 @@ function App({ sync = false }: { sync?: boolean }) {
     return center;
   }, [homePosition]);
 
-  const { isCesium, setActiveFrameworkCesium, isLeaflet } =
+  const { isCesium, setActiveFrameworkCesium, isLeaflet, getIsCesium } =
     useMapFrameworkSwitcherContext();
 
   const models = useSelector(selectViewerModels);
@@ -179,7 +208,7 @@ function App({ sync = false }: { sync?: boolean }) {
 
   useSelectionTopicMap();
   useSelectionCesium(
-    getIsCesium(),
+    getIsCesium,
     useMemo(
       () => ({
         markerAsset,
@@ -191,6 +220,9 @@ function App({ sync = false }: { sync?: boolean }) {
       [markerAsset, markerAnchorHeight, ctx]
     )
   );
+
+  // Register framework switcher callbacks
+  useFloodingmapFrameworkSwitcher();
 
   useEffect(() => {
     if (searchParams.has("is3d")) {
@@ -288,10 +320,7 @@ function App({ sync = false }: { sync?: boolean }) {
                 <PitchingCompass />
               </ControlButtonStyler>
               {/* </Tooltip> */}
-
-              {
-                //<MapFrameworkSwitcher>
-              }
+              <MapFrameworkSwitcher />
             </div>
           </Control>
           <Control position="topleft" order={50}>
