@@ -6,9 +6,9 @@ import {
 import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 export const useUrlFeatureSelection = () => {
-  const { initializingFeatures } = useContext<typeof FeatureCollectionContext>(
-    FeatureCollectionContext
-  );
+  const { initializingFeatures, shownFeatures } = useContext<
+    typeof FeatureCollectionContext
+  >(FeatureCollectionContext);
   const { setSelectedFeatureByPredicate } = useContext<
     typeof FeatureCollectionDispatchContext
   >(FeatureCollectionDispatchContext);
@@ -20,7 +20,15 @@ export const useUrlFeatureSelection = () => {
 
   useEffect(() => {
     console.log("xxx initializingFeatures", initializingFeatures);
-    if (!initializingFeatures && !hasProcessedUrl.current) {
+    console.log("xxx shownFeatures length", shownFeatures?.length || 0);
+
+    // Wait for both: features loaded AND features available AND not processed yet
+    if (
+      !initializingFeatures &&
+      shownFeatures &&
+      shownFeatures.length > 0 &&
+      !hasProcessedUrl.current
+    ) {
       let objectId: string | null = null;
 
       if (window.location.hash) {
@@ -36,6 +44,26 @@ export const useUrlFeatureSelection = () => {
 
       if (objectId) {
         console.log("xxx found tmSelectionObject:", objectId);
+        console.log("xxx available features:", shownFeatures.length);
+
+        // Find the feature first to make sure it exists
+        const targetFeature = shownFeatures.find(
+          (feature) => String(feature.properties.id) === String(15)
+        );
+
+        if (targetFeature) {
+          console.log(
+            "xxx found target feature:",
+            targetFeature.properties.titel
+          );
+          setSelectedFeatureByPredicate(
+            (feature) => String(feature.properties.id) === String(21)
+          );
+        } else {
+          console.log(
+            "xxx target feature with id 15 not found in shownFeatures"
+          );
+        }
 
         setTimeout(() => {
           const currentUrl = new URL(window.location.href);
@@ -67,7 +95,7 @@ export const useUrlFeatureSelection = () => {
       }
       console.log("xxx objectId", objectId);
     }
-  }, [initializingFeatures]);
+  }, [initializingFeatures, shownFeatures]);
 
   return null;
 };

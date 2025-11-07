@@ -78,12 +78,11 @@ const Map = () => {
     []
   );
 
-  useUrlFeatureSelection();
-
   const { gazData } = useGazData();
 
   const { setSelection } = useSelection();
   useSelectionTopicMap();
+  useUrlFeatureSelection();
 
   const onGazetteerSelection = (selection) => {
     if (!selection) {
