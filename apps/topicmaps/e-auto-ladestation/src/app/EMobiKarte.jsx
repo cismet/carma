@@ -15,6 +15,7 @@ import {
 import {
   TopicMapSelectionContent,
   useSelectionTopicMap,
+  useUrlFeatureSelection,
 } from "@carma-appframeworks/portals";
 import {
   EmptySearchComponent,
@@ -49,6 +50,7 @@ const EMobiKarte = () => {
     ResponsiveTopicMapContext
   );
   useSelectionTopicMap();
+  useUrlFeatureSelection();
 
   useEffect(() => {
     if (markerSymbolSize) {
