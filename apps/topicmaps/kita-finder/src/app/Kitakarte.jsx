@@ -24,6 +24,7 @@ import {
 import {
   TopicMapSelectionContent,
   useSelectionTopicMap,
+  useUrlFeatureSelection,
 } from "@carma-appframeworks/portals";
 import {
   EmptySearchComponent,
@@ -46,6 +47,7 @@ const KitaKarte = () => {
     ResponsiveTopicMapContext
   );
   useSelectionTopicMap();
+  useUrlFeatureSelection();
 
   // const { setSelectedFeatureByPredicate, setClusteringOptions } = useContext(
   //   FeatureCollectionDispatchContext
