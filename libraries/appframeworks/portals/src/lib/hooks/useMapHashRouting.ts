@@ -40,13 +40,17 @@ export function useMapHashRouting({
   pixelTolerance,
 }: UseMapHashRoutingOptions) {
   const { updateHash, subscribe, getHashValues } = useHashState();
-  const { getIsLeaflet, getIsCesium, getIsTransitioning } =
+  const { getIsLeaflet, getIsCesium, getIsTransitioning, activeFramework } =
     useMapFrameworkSwitcherContext();
 
   // Skip leaflet writes when the map move was initiated by a navigation (popstate)
   const navMoveInProgressRef = useRef(false);
   // Remember the popstate target to avoid immediate re-pushing nearly identical coords
   const popstateTargetRef = useRef<LatLngZoom | null>(null);
+  // Debounce timer for framework switch hash updates
+  const frameworkSwitchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
 
   const handleTopicMapLocationChange = useCallback(
     ({ lat, lng, zoom }: LatLngZoom) => {
@@ -195,6 +199,59 @@ export function useMapHashRouting({
     cesiumClearKeys,
     labels?.clearCesium,
     labels?.writeLeafletLike,
+  ]);
+
+  // Trigger hash update when framework switch completes (debounced)
+  useEffect(() => {
+    // Clear any pending timer
+    if (frameworkSwitchTimerRef.current) {
+      clearTimeout(frameworkSwitchTimerRef.current);
+    }
+
+    if (getIsTransitioning()) {
+      return;
+    }
+
+    // Debounce hash update by 200ms to ensure map has settled
+    frameworkSwitchTimerRef.current = setTimeout(() => {
+      console.log(
+        "[Routing][hash] Framework switch complete, triggering hash update",
+        {
+          activeFramework,
+        }
+      );
+
+      if (getIsLeaflet()) {
+        const map = getLeafletMap?.();
+        if (
+          map &&
+          typeof map.getCenter === "function" &&
+          typeof getLeafletZoom === "function"
+        ) {
+          const center = map.getCenter();
+          const zoom = getLeafletZoom();
+          handleTopicMapLocationChange({
+            lat: center.lat,
+            lng: center.lng,
+            zoom,
+          });
+        }
+      }
+      // Note: Cesium updates should be handled via setting camera position already
+    }, 200);
+
+    return () => {
+      if (frameworkSwitchTimerRef.current) {
+        clearTimeout(frameworkSwitchTimerRef.current);
+      }
+    };
+  }, [
+    activeFramework,
+    getIsTransitioning,
+    getIsLeaflet,
+    getLeafletMap,
+    getLeafletZoom,
+    handleTopicMapLocationChange,
   ]);
 
   // Back/forward navigation: move the leaflet map to the historical location without writing a new hash
