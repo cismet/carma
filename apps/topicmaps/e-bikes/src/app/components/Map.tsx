@@ -21,6 +21,7 @@ import {
 import {
   TopicMapSelectionContent,
   useSelectionTopicMap,
+  useUrlFeatureSelection,
 } from "@carma-appframeworks/portals";
 import {
   EmptySearchComponent,
@@ -57,6 +58,7 @@ const Map = () => {
     typeof ResponsiveTopicMapContext
   >(ResponsiveTopicMapContext);
   useSelectionTopicMap();
+  useUrlFeatureSelection();
   const { setSecondaryInfoVisible } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
 
