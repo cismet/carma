@@ -3,7 +3,7 @@ import type {
   CesiumTerrainProvider,
   HeadingPitchJson,
 } from "@carma/cesium";
-import { isValidScene } from "@carma/cesium";
+import { isValidScene, Cartographic, Cartesian3 } from "@carma/cesium";
 import {
   TransitionStage,
   type TransitionToCesiumOptions,
@@ -12,10 +12,12 @@ import {
 import { prepareLeafletForTransition } from "./utils/leaflet/leaflet-preparation";
 import { restoreCesiumCameraView } from "./utils/cesium/camera-restore";
 import { promiseWithTimeout } from "@carma-commons/utils/promise";
-import { tiledMapToCesium } from "./utils/tiled-map-to-cesium";
+import { calculateDistanceFromZoom } from "./zoom-distance-converter";
 import { defaultTransitionOptions } from "./utils/cesium/elevation-reference";
+import { applyElevationToPosition } from "./utils/cesium/apply-elevation";
 import { Degrees } from "@carma/units/types";
 import { type LeafletMap, getLeafletView } from "@carma/leaflet";
+import { degToRad, isZoom } from "@carma/units/helpers";
 
 /**
  * Pure function: Orchestrates transition from Leaflet (LeafletLike) to Cesium (3D)
@@ -98,26 +100,69 @@ export const transitionToCesium = async (
     const cssWidth = container.clientWidth;
     const cssHeight = container.clientHeight;
 
-    const { success: cameraPositioned, groundPosition } =
-      await tiledMapToCesium(
-        scene,
-        {
-          terrain: terrainProviders.TERRAIN,
-          surface: terrainProviders.SURFACE,
-        },
-        cssWidth,
-        cssHeight,
-        leafletView,
-        defaultTransitionOptions
-      );
+    // Position camera based on Leaflet zoom level
+    const { center, zoom } = leafletView;
+    const { lat, lng } = center;
 
-    if (!cameraPositioned) {
-      console.warn("[LEAFLET|TO_CESIUM] Failed to position camera");
+    if (!isZoom(zoom)) {
+      throw new Error("No zoom level available for transition");
     }
 
-    if (!groundPosition) {
-      console.warn("[LEAFLET|TO_CESIUM] No ground position available");
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
+      throw new Error(`Invalid coordinates: ${lat}, ${lng}`);
     }
+
+    const lngRad = degToRad(lng as Degrees);
+    const latRad = degToRad(lat as Degrees);
+
+    // Calculate camera distance based on zoom and latitude
+    const computedDistance = calculateDistanceFromZoom(
+      scene,
+      cssWidth,
+      cssHeight,
+      lat as Degrees,
+      zoom
+    );
+
+    if (computedDistance === null) {
+      throw new Error("Failed to calculate camera distance");
+    }
+
+    const { fallbackHeight, preferredElevationReference } =
+      defaultTransitionOptions;
+
+    // Apply elevation data (non-blocking) - returns updated position
+    const cameraGroundPosition = await applyElevationToPosition(
+      {
+        terrain: terrainProviders.TERRAIN,
+        surface: terrainProviders.SURFACE,
+      },
+      Cartographic.fromRadians(lngRad, latRad, fallbackHeight),
+      preferredElevationReference,
+      fallbackHeight
+    );
+
+    // Convert ground position to Cartesian3 for camera rotation
+    const groundPosition = Cartographic.toCartesian(cameraGroundPosition);
+
+    // Add computed distance (above ground) to terrain elevation
+    const cameraDestinationCartographic = cameraGroundPosition.clone();
+    cameraDestinationCartographic.height += computedDistance;
+
+    console.debug(
+      "[CESIUM|TRANSITION] Camera positioned: zoom",
+      zoom,
+      "→",
+      computedDistance.toFixed(0),
+      "m above terrain",
+      cameraGroundPosition.height.toFixed(0),
+      "m"
+    );
+
+    const destination = Cartographic.toCartesian(cameraDestinationCartographic);
+
+    scene.camera.setView({ destination });
+    scene.requestRender();
 
     // Stage 3: Wait for initial render and resources
     onStageChange(

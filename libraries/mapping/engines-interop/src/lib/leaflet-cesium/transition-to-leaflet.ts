@@ -18,9 +18,11 @@ import { animateInterpolateHeadingPitchRange } from "@carma-mapping/engines/cesi
 import { getGroundPosition } from "./utils/cesium/get-ground-position";
 import { calculateAnimationDuration } from "./utils/cesium/calculate-animation-duration";
 import { fadeOutContainer } from "./utils/dom-utils";
-import { getLeafletViewFromCesium } from "./utils/cesium/get-leaflet-view-from-cesium";
+import { calculateZoomFromDistance } from "./zoom-distance-converter";
 import { applyZoomSnapToView } from "./utils/cesium/adjust-for-zoom-snap";
 import { handleToLeafletTransitionError } from "./utils/cesium/handle-to-leaflet-transition-error";
+import { radToDegNumeric } from "@carma/units/helpers";
+import type { Degrees, Meters } from "@carma/units/types";
 
 /**
  * Pure function: Orchestrates transition from Cesium (3D) to Leaflet (2D)
@@ -76,13 +78,26 @@ export const transitionToLeaflet = async (
     const cssWidth = container.clientWidth;
     const cssHeight = container.clientHeight;
 
-    const initialView = getLeafletViewFromCesium(
+    // Calculate Leaflet zoom from Cesium camera distance
+    const lat = radToDegNumeric(cartographic.latitude);
+    const lng = radToDegNumeric(cartographic.longitude);
+
+    const zoom = calculateZoomFromDistance(
       scene,
-      cartographic,
-      initialDistance,
       cssWidth,
-      cssHeight
+      cssHeight,
+      lat as Degrees,
+      initialDistance as Meters
     );
+
+    if (zoom === null) {
+      throw new Error("Failed to calculate zoom from distance");
+    }
+
+    const initialView = {
+      center: { lat, lng },
+      zoom,
+    };
 
     const {
       view: finalView,
