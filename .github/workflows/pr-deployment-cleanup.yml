@@ -1,0 +1,79 @@
+name: PR Deployment Cleanup
+
+run-name: >
+  🧹 Cleanup PR #${{ github.event.pull_request.number }} deployment
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  cleanup:
+    name: 🧹 Remove PR Deployment
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout deployment repository
+        uses: actions/checkout@v4
+        with:
+          repository: cismet/carma-pr-deployments
+          ref: gh-pages
+          token: ${{ secrets.CISMET_CI_DEPLOY_PAT }}
+          fetch-depth: 1
+
+      - name: Remove PR deployment folder
+        run: |
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          
+          echo "==================================="
+          echo "Cleaning up PR #${PR_NUMBER} deployment"
+          echo "==================================="
+          
+          if [ -d "${PR_NUMBER}" ]; then
+            echo "✅ Found deployment folder: ${PR_NUMBER}/"
+            rm -rf "${PR_NUMBER}"
+            echo "🗑️  Removed folder: ${PR_NUMBER}/"
+          else
+            echo "ℹ️  No deployment folder found for PR #${PR_NUMBER}"
+            echo "Nothing to clean up."
+            exit 0
+          fi
+
+      - name: Commit and push deletion
+        run: |
+          PR_NUMBER="${{ github.event.pull_request.number }}"
+          
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+          if git diff --quiet && git diff --staged --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          
+          git add -A
+          git commit -m "🧹 Clean up PR #${PR_NUMBER} deployment"
+          git push origin gh-pages
+          
+          echo "==================================="
+          echo "✅ Successfully cleaned up PR #${PR_NUMBER}"
+          echo "==================================="
+
+      - name: Summary
+        run: |
+          {
+            echo "## 🧹 PR Deployment Cleanup"
+            echo ""
+            echo "Removed deployment for PR #${{ github.event.pull_request.number }}"
+            echo ""
+            echo "📋 [View Pull Request #${{ github.event.pull_request.number }}](${{ github.event.pull_request.html_url }})"
+            echo ""
+            if [ "${{ github.event.pull_request.merged }}" = "true" ]; then
+              echo "✅ PR was **merged**"
+            else
+              echo "❌ PR was **closed without merging**"
+            fi
+          } >> $GITHUB_STEP_SUMMARY
