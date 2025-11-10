@@ -38,7 +38,6 @@ export const getTiledMapCenterZoomEquivalent = async (
 
   let center: LatLng.deg | undefined;
 
-  // Get CSS viewport dimensions (Leaflet works in CSS pixels)
   const container = scene.canvas.parentElement;
   if (!container) {
     throw new Error("Canvas has no parent container");
@@ -46,7 +45,6 @@ export const getTiledMapCenterZoomEquivalent = async (
   const cssWidth = container.clientWidth;
   const cssHeight = container.clientHeight;
 
-  // Get camera height above ground
   const cameraHeight = camera.positionCartographic.height;
   const cameraLatitude = camera.positionCartographic.latitude;
 

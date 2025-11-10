@@ -1,44 +1,19 @@
 import { CesiumMath, Scene, PerspectiveFrustum } from "@carma/cesium";
 import type { Zoom } from "@carma/types";
 import { degToRad } from "@carma/units/helpers";
-import type { Degrees } from "@carma/geo/types";
-import { getPixelResolutionFromZoomAtLatitudeRad } from "@carma/geo/utils";
+import type { Degrees, Radians } from "@carma/geo/types";
+import type { Meters } from "@carma/units/types";
+import {
+  getPixelResolutionFromZoomAtLatitudeRad,
+  getZoomFromPixelResolutionAtLatitudeRad,
+} from "@carma/geo/utils";
 
 /**
- * Calculate ground radius covered by FOV at given distance
- * Pure geometric relationship - no buffer size needed!
+ * Calculate camera distance needed to match Leaflet zoom level
  *
- * @param distance - Camera distance from ground in meters
- * @param fovRadians - Field of view in radians
- * @returns Ground radius in meters
+ * Uses CSS viewport dimensions to match Leaflet's pixel-based zoom calculation.
+ * Cesium FOV geometry: groundRadius = distance × tan(fov/2)
  */
-export function getGroundRadiusFromFOV(
-  distance: number,
-  fovRadians: number
-): number {
-  return distance * Math.tan(fovRadians / 2);
-}
-
-/**
- * Calculate pixel resolution at given distance from FOV center
- *
- * @param distance - Camera distance from ground in meters
- * @param fovRadians - Field of view in radians
- * @returns Meters covered by FOV diameter at center
- *
- * Future: Add normalizedRadius parameter for oblique angle correction
- * normalizedRadius = sqrt(dx² + dy²) where dx, dy are normalized viewport coords
- */
-export function getPixelResolutionAtRadius(
-  distance: number,
-  fovRadians: number
-): number {
-  // At center: resolution = 2 × distance × tan(fov/2)
-  // At edge: resolution increases due to oblique angle (not yet implemented)
-  const groundRadius = getGroundRadiusFromFOV(distance, fovRadians);
-  return 2 * groundRadius; // Ground distance covered by FOV diameter
-}
-
 export function calculateCameraDistance(
   scene: Scene,
   cssViewportWidth: number,
@@ -47,8 +22,6 @@ export function calculateCameraDistance(
   zoom: Zoom
 ): number | null {
   const latRad = degToRad(latitude);
-
-  // Get target pixel resolution in meters per CSS pixel (from Leaflet zoom)
   const metersPerCssPixel = getPixelResolutionFromZoomAtLatitudeRad(
     zoom,
     latRad
@@ -73,21 +46,10 @@ export function calculateCameraDistance(
     return null;
   }
 
-  const fov = camera.frustum.fov; // FOV in radians (for longer edge)
+  const fov = camera.frustum.fov;
   const longerEdgeCss = Math.max(cssViewportWidth, cssViewportHeight);
 
-  // PURE GEOMETRY: No DPR needed!
-  //
-  // Leaflet defines zoom by: metersPerCSSPixel at center of viewport
-  // Cesium FOV defines: groundRadius = distance × tan(fov/2)
-  //
-  // To match Leaflet's zoom in Cesium:
-  // 1. Determine ground distance visible in viewport: cssPixels × metersPerCSSPixel
-  // 2. This is the ground diameter, so groundRadius = (cssPixels × metersPerCSSPixel) / 2
-  // 3. Solve for distance: distance × tan(fov/2) = groundRadius
-  //
-  // Result: distance = (cssPixels × metersPerCSSPixel) / (2 × tan(fov/2))
-
+  // Solve: distance × tan(fov/2) = (cssPixels × metersPerCSSPixel) / 2
   const tanHalfFov = Math.tan(fov / 2);
   const computedDistance =
     (metersPerCssPixel * longerEdgeCss) / (2 * tanHalfFov);
@@ -113,6 +75,11 @@ export function calculateCameraDistance(
   return computedDistance;
 }
 
+/**
+ * Calculate Leaflet zoom level from Cesium camera distance
+ *
+ * Inverse of calculateCameraDistance - converts camera height to Leaflet zoom.
+ */
 export function calculateZoomFromDistance(
   scene: Scene,
   cssViewportWidth: number,
@@ -141,24 +108,16 @@ export function calculateZoomFromDistance(
     return null;
   }
 
-  const fov = camera.frustum.fov; // FOV in radians (for longer edge)
+  const fov = camera.frustum.fov;
   const longerEdgeCss = Math.max(cssViewportWidth, cssViewportHeight);
 
-  // PURE GEOMETRY: No DPR needed!
-  // groundDiameter = 2 × distance × tan(fov/2)  [meters]
-  // metersPerCSSPixel = groundDiameter / cssPixels
-  const tanHalfFov = Math.tan(fov / 2);
-  const groundDiameter = 2 * distance * tanHalfFov;
-  const metersPerCSSPixel = groundDiameter / longerEdgeCss;
+  const groundRadius = distance * Math.tan(fov / 2);
+  const effectiveScreenRadius = longerEdgeCss / 2;
+  const metersPerCSSPixel = groundRadius / effectiveScreenRadius;
 
-  // Convert meters per CSS pixel to Leaflet zoom level
-  // Account for latitude (Web Mercator distortion)
-  const EARTH_CIRCUMFERENCE = 40075016.686; // meters at equator
-  const TILE_SIZE = 256; // CSS pixels
-
-  const metersPerPixelAtEquator = metersPerCSSPixel / Math.cos(latRad);
-  const zoom = Math.log2(
-    EARTH_CIRCUMFERENCE / (metersPerPixelAtEquator * TILE_SIZE)
+  const zoom = getZoomFromPixelResolutionAtLatitudeRad(
+    metersPerCSSPixel as Meters,
+    latRad as Radians
   );
 
   return zoom;
