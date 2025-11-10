@@ -1,5 +1,5 @@
 {
-  "name": "commons/geo/proj",
+  "name": "geo/proj",
   "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libraries/commons/geo/proj/src",
   "projectType": "library",

@@ -1,5 +1,5 @@
 {
-  "name": "@carma-mapping/engines-interop",
+  "name": "engines-interop",
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libraries/mapping/engines-interop/src",
   "projectType": "library",

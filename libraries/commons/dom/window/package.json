@@ -1,5 +1,5 @@
 {
-  "name": "@carma-commons/dom-window",
+  "name": "@carma/dom-window",
   "version": "0.0.1",
   "type": "module",
   "main": "./index.js",

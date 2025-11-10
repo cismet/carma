@@ -1,5 +1,5 @@
 {
-  "name": "@carma-commons/dom-canvas",
+  "name": "@carma/dom-canvas",
   "version": "0.0.1",
   "type": "module",
   "main": "./index.js",
