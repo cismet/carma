@@ -1,6 +1,7 @@
 import {
   useSelection,
   useSelectionTopicMap,
+  useUrlFeatureSelection,
 } from "@carma-appframeworks/portals";
 import {
   defaultTypeInference,
@@ -26,6 +27,10 @@ const FuzzySearchWrapper = ({ searchTextPlaceholder }) => {
     responsiveState === "normal" ? "300px" : windowSize.width - gap;
   const { setSelection } = useSelection();
   useSelectionTopicMap();
+  useUrlFeatureSelection(
+    (feature, objectId) =>
+      String(feature.properties.standort.id) === String(objectId)
+  );
 
   const onGazetteerSelection = (selection) => {
     if (!selection) {
