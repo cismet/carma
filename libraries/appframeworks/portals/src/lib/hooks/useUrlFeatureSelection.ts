@@ -47,8 +47,13 @@ export const useUrlFeatureSelection = (
         );
 
         if (targetFeature) {
-          setSelectedFeatureByPredicate(predicateArgument);
           zoomToFeature(targetFeature);
+
+          setTimeout(() => {
+            setSelectedFeatureByPredicate((feature) =>
+              predicateArgument(feature, objectId)
+            );
+          }, 200);
         }
 
         const currentUrl = new URL(window.location.href);
