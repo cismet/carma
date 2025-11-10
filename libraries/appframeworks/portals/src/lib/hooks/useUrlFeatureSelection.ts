@@ -5,7 +5,10 @@ import {
 } from "react-cismap/contexts/FeatureCollectionContextProvider";
 import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextProvider";
 
-export const useUrlFeatureSelection = () => {
+export const useUrlFeatureSelection = (
+  predicateArgument = (feature, objectId) =>
+    String(feature.properties.id) === String(objectId)
+) => {
   const { initializingFeatures, shownFeatures } = useContext<
     typeof FeatureCollectionContext
   >(FeatureCollectionContext);
@@ -39,14 +42,12 @@ export const useUrlFeatureSelection = () => {
       }
 
       if (objectId) {
-        const targetFeature = shownFeatures.find(
-          (feature) => String(feature.properties.id) === String(objectId)
+        const targetFeature = shownFeatures.find((feature) =>
+          predicateArgument(feature, objectId)
         );
 
         if (targetFeature) {
-          setSelectedFeatureByPredicate(
-            (feature) => String(feature.properties.id) === String(objectId)
-          );
+          setSelectedFeatureByPredicate(predicateArgument);
           zoomToFeature(targetFeature);
         }
 
