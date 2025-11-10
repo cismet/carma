@@ -4,11 +4,10 @@ Buildable declaration package providing unit and measurement type definitions wi
 
 ## Purpose
 
-This library contains **unit and measurement TypeScript type definitions only**. It should remain a pure type definition library without runtime code.
+This library contains **Share CARMA specific TypeScript type definitions only**. It must remain a pure type definition library without runtime code.
 
 ## What belongs here
 
-- ✅ Branded types for units: `Degrees`, `Radians`, `Meters`, etc.
 - ✅ Type aliases for measurements
 - ✅ Type-only declarations
 - ✅ Const type definitions

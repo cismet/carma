@@ -1,6 +1,6 @@
 {
   "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
-  "name": "commons/units/types",
+  "name": "units/types",
   "sourceRoot": "libraries/commons/units/types/src",
   "projectType": "library",
   "tags": ["scope:commons", "type:declarations"],
