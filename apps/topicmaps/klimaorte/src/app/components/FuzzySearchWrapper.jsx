@@ -29,7 +29,7 @@ const FuzzySearchWrapper = ({ searchTextPlaceholder }) => {
   useSelectionTopicMap();
   useUrlFeatureSelection(
     (feature, objectId) =>
-      String(feature.properties.standort.id) === String(objectId)
+      String(feature?.properties?.standort?.id) === String(objectId)
   );
 
   const onGazetteerSelection = (selection) => {
