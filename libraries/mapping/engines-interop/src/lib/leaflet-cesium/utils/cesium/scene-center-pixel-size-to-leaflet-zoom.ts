@@ -1,45 +1,45 @@
 import { type Scene } from "@carma/cesium";
 import type { Meters, Radians } from "@carma/units/types";
-import type { NumericResult } from "@carma/types";
 import { getZoomFromPixelResolutionAtLatitudeRad } from "@carma/geo/utils";
 
 /**
- * Calculate Leaflet zoom level from Cesium camera state
- * Uses Cesium's frustum.fov which automatically handles aspect ratio
+ * Calculate Leaflet zoom level from Cesium scene center camera height
+ * Pure geometric calculation - no DPR compensation needed!
+ *
+ * @param scene - Cesium scene (only needs camera FOV)
+ * @param cameraHeight - Camera height above ground in meters
+ * @param latitude - Latitude in radians for Web Mercator correction
+ * @param cssViewportWidth - Viewport width in CSS pixels (NOT drawing buffer!)
+ * @param cssViewportHeight - Viewport height in CSS pixels (NOT drawing buffer!)
  */
 export const sceneCenterPixelSizeToLeafletZoom = (
   scene: Scene,
-  resolutionScale = 1.0
-): NumericResult => {
-  const { camera, drawingBufferWidth, drawingBufferHeight } = scene;
+  cameraHeight: number,
+  latitude: number,
+  cssViewportWidth: number,
+  cssViewportHeight: number
+): number => {
+  const { camera } = scene;
 
-  if (!camera) {
-    return { value: null, error: "No camera found" };
-  }
-
-  const cameraHeight = camera.positionCartographic.height;
-
-  // Cesium's frustum.fov is ALWAYS for the longer edge dimension
+  // Get FOV from camera frustum
   const frustum = camera.frustum;
   const fov = "fov" in frustum ? frustum.fov : Math.PI / 3; // Default ~60 degrees
-  const longerEdge = Math.max(drawingBufferWidth, drawingBufferHeight);
 
-  // Ground distance visible = 2 * distance * tan(fov/2)
-  const groundDistance = 2 * cameraHeight * Math.tan(fov / 2);
+  // Use longer edge dimension (FOV always corresponds to longer edge in Cesium)
+  const longerEdgeCss = Math.max(cssViewportWidth, cssViewportHeight);
 
-  // Pixel resolution = ground distance per pixel
-  const pixelResolution = (groundDistance / longerEdge) * resolutionScale;
+  // Pure geometry: How much ground distance does the FOV cover?
+  const groundRadius = cameraHeight * Math.tan(fov / 2);
+  const groundDiameter = 2 * groundRadius;
 
-  // Convert to Leaflet zoom using latitude for accurate web mercator calculation
+  // Meters per CSS pixel (what Leaflet uses for zoom calculation)
+  const metersPerCssPixel = groundDiameter / longerEdgeCss;
+
+  // Convert to Leaflet zoom using latitude for Web Mercator projection
   const zoom = getZoomFromPixelResolutionAtLatitudeRad(
-    pixelResolution as Meters,
-    camera.positionCartographic.latitude as Radians
+    metersPerCssPixel as Meters,
+    latitude as Radians
   );
 
-  if (!Number.isFinite(zoom) || zoom === Infinity) {
-    console.warn("[CESIUM|ZOOM] Invalid zoom calculated:", zoom);
-    return { value: null, error: "Invalid zoom calculated" };
-  }
-
-  return { value: zoom };
+  return Number.isFinite(zoom) && zoom !== Infinity ? zoom : 12;
 };

@@ -25,7 +25,8 @@ export const tiledMapToCesium = async (
     terrain?: CesiumTerrainProvider;
     surface?: CesiumTerrainProvider;
   },
-  resolutionScale: number,
+  cssViewportWidth: number,
+  cssViewportHeight: number,
   view: LeafletView,
   options: TransitionOptions
 ): Promise<{ success: boolean; groundPosition: Cartesian3 | null }> => {
@@ -60,7 +61,8 @@ export const tiledMapToCesium = async (
   // Calculate camera distance based on zoom and latitude
   const computedDistance = calculateCameraDistance(
     scene,
-    resolutionScale,
+    cssViewportWidth,
+    cssViewportHeight,
     lat as Degrees,
     zoom
   );

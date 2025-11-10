@@ -10,35 +10,40 @@ export type LeafletView = {
 
 /**
  * Calculate Leaflet view (center + zoom) from Cesium camera state
- * Uses Cesium's frustum.fov which automatically handles aspect ratio
+ * Pure geometric calculation - no DPR compensation needed!
  *
- * @param scene - Cesium scene
+ * @param scene - Cesium scene (only needs camera FOV)
  * @param cartographic - Position to center the Leaflet map
- * @param distance - Distance from camera to ground position
- * @param resolutionScale - Resolution scale factor
+ * @param distance - Distance from camera to ground position in meters
+ * @param cssViewportWidth - Viewport width in CSS pixels (NOT drawing buffer!)
+ * @param cssViewportHeight - Viewport height in CSS pixels (NOT drawing buffer!)
  */
 export const getLeafletViewFromCesium = (
   scene: Scene,
   cartographic: Cartographic,
   distance: number,
-  resolutionScale: number = 1.0
+  cssViewportWidth: number,
+  cssViewportHeight: number
 ): LeafletView => {
-  const { camera, drawingBufferWidth, drawingBufferHeight } = scene;
+  const { camera } = scene;
 
-  // Cesium's frustum.fov is ALWAYS for the longer edge dimension
+  // Get FOV from camera frustum
   const frustum = camera.frustum;
   const fov = "fov" in frustum ? frustum.fov : Math.PI / 3; // Default ~60 degrees
-  const longerEdge = Math.max(drawingBufferWidth, drawingBufferHeight);
 
-  // Ground distance visible = 2 * distance * tan(fov/2)
-  const groundDistance = 2 * distance * Math.tan(fov / 2);
+  // Use longer edge dimension (FOV always corresponds to longer edge in Cesium)
+  const longerEdgeCss = Math.max(cssViewportWidth, cssViewportHeight);
 
-  // Pixel resolution = ground distance per pixel
-  const pixelResolution = (groundDistance / longerEdge) * resolutionScale;
+  // Pure geometry: How much ground distance does the FOV cover?
+  const groundRadius = distance * Math.tan(fov / 2);
+  const groundDiameter = 2 * groundRadius;
 
-  // Convert to Leaflet zoom using latitude for accurate web mercator calculation
+  // Meters per CSS pixel (what Leaflet uses for zoom calculation)
+  const metersPerCssPixel = groundDiameter / longerEdgeCss;
+
+  // Convert to Leaflet zoom using latitude for Web Mercator projection
   const zoom = getZoomFromPixelResolutionAtLatitudeRad(
-    pixelResolution as Meters,
+    metersPerCssPixel as Meters,
     cartographic.latitude as Radians
   );
 

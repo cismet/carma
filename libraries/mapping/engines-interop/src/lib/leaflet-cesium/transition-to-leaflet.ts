@@ -69,12 +69,21 @@ export const transitionToLeaflet = async (
 
     const { groundPos, cartographic, distance: initialDistance } = groundResult;
 
+    // Get CSS viewport dimensions (Leaflet works in CSS pixels)
+    const container = scene.canvas.parentElement;
+    if (!container) {
+      throw new Error("Canvas has no parent container");
+    }
+    const cssWidth = container.clientWidth;
+    const cssHeight = container.clientHeight;
+
     // Calculate initial Leaflet view and apply zoom snap adjustment
     const initialView = getLeafletViewFromCesium(
       scene,
       cartographic,
       initialDistance,
-      resolutionScale
+      cssWidth,
+      cssHeight
     );
 
     const {

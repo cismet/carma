@@ -91,6 +91,14 @@ export const transitionToCesium = async (
 
     console.debug("[LEAFLET|TO_CESIUM] Leaflet view:", leafletView);
 
+    // Get CSS viewport dimensions (Leaflet works in CSS pixels)
+    const container = scene.canvas.parentElement;
+    if (!container) {
+      throw new Error("Canvas has no parent container");
+    }
+    const cssWidth = container.clientWidth;
+    const cssHeight = container.clientHeight;
+
     // Position Cesium camera using terrain providers for elevation
     const { success: cameraPositioned, groundPosition } =
       await tiledMapToCesium(
@@ -99,7 +107,8 @@ export const transitionToCesium = async (
           terrain: terrainProviders.TERRAIN,
           surface: terrainProviders.SURFACE,
         },
-        resolutionScale,
+        cssWidth,
+        cssHeight,
         leafletView,
         defaultTransitionOptions
       );

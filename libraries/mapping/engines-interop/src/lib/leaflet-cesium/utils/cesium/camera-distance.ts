@@ -4,20 +4,57 @@ import { degToRad } from "@carma/units/helpers";
 import type { Degrees } from "@carma/geo/types";
 import { getPixelResolutionFromZoomAtLatitudeRad } from "@carma/geo/utils";
 
+/**
+ * Calculate ground radius covered by FOV at given distance
+ * Pure geometric relationship - no buffer size needed!
+ *
+ * @param distance - Camera distance from ground in meters
+ * @param fovRadians - Field of view in radians
+ * @returns Ground radius in meters
+ */
+export function getGroundRadiusFromFOV(
+  distance: number,
+  fovRadians: number
+): number {
+  return distance * Math.tan(fovRadians / 2);
+}
+
+/**
+ * Calculate pixel resolution at given distance from FOV center
+ *
+ * @param distance - Camera distance from ground in meters
+ * @param fovRadians - Field of view in radians
+ * @returns Meters covered by FOV diameter at center
+ *
+ * Future: Add normalizedRadius parameter for oblique angle correction
+ * normalizedRadius = sqrt(dx² + dy²) where dx, dy are normalized viewport coords
+ */
+export function getPixelResolutionAtRadius(
+  distance: number,
+  fovRadians: number
+): number {
+  // At center: resolution = 2 × distance × tan(fov/2)
+  // At edge: resolution increases due to oblique angle (not yet implemented)
+  const groundRadius = getGroundRadiusFromFOV(distance, fovRadians);
+  return 2 * groundRadius; // Ground distance covered by FOV diameter
+}
+
 export function calculateCameraDistance(
   scene: Scene,
-  resolutionScale: number,
+  cssViewportWidth: number,
+  cssViewportHeight: number,
   latitude: Degrees,
   zoom: Zoom
 ): number | null {
   const latRad = degToRad(latitude);
 
-  const targetPixelResolution = getPixelResolutionFromZoomAtLatitudeRad(
+  // Get target pixel resolution in meters per CSS pixel (from Leaflet zoom)
+  const metersPerCssPixel = getPixelResolutionFromZoomAtLatitudeRad(
     zoom,
     latRad
   );
 
-  const { camera, drawingBufferHeight, drawingBufferWidth } = scene;
+  const { camera } = scene;
 
   if (!camera?.frustum || !(camera.frustum instanceof PerspectiveFrustum)) {
     console.warn(
@@ -26,49 +63,50 @@ export function calculateCameraDistance(
     return null;
   }
 
-  if (!Number.isFinite(drawingBufferHeight) || drawingBufferHeight <= 0) {
-    console.warn("[CESIUM|TRANSITION] Invalid drawing buffer height");
+  if (!Number.isFinite(cssViewportHeight) || cssViewportHeight <= 0) {
+    console.warn("[CESIUM|TRANSITION] Invalid viewport height");
     return null;
   }
 
-  if (!Number.isFinite(drawingBufferWidth) || drawingBufferWidth <= 0) {
-    console.warn("[CESIUM|TRANSITION] Invalid drawing buffer width");
+  if (!Number.isFinite(cssViewportWidth) || cssViewportWidth <= 0) {
+    console.warn("[CESIUM|TRANSITION] Invalid viewport width");
     return null;
   }
 
-  // The FOV always corresponds to the longer edge dimension for cesium
-  const aspectRatio = drawingBufferWidth / drawingBufferHeight;
-  const fov = camera.frustum.fov; // FOV in radians
+  const fov = camera.frustum.fov; // FOV in radians (for longer edge)
+  const longerEdgeCss = Math.max(cssViewportWidth, cssViewportHeight);
 
-  // Use longer edge and its corresponding FOV
-  const longerEdge = Math.max(drawingBufferWidth, drawingBufferHeight);
+  // PURE GEOMETRY: No DPR needed!
+  //
+  // Leaflet defines zoom by: metersPerCSSPixel at center of viewport
+  // Cesium FOV defines: groundRadius = distance × tan(fov/2)
+  //
+  // To match Leaflet's zoom in Cesium:
+  // 1. Determine ground distance visible in viewport: cssPixels × metersPerCSSPixel
+  // 2. This is the ground diameter, so groundRadius = (cssPixels × metersPerCSSPixel) / 2
+  // 3. Solve for distance: distance × tan(fov/2) = groundRadius
+  //
+  // Result: distance = (cssPixels × metersPerCSSPixel) / (2 × tan(fov/2))
 
-  const effectiveRadiusPixels = longerEdge / 2;
-
-  // For perspective projection:
-  // Solving for distance from: metersPerCSSPixel = (2 * distance * tan(fov/2)) / (drawingBufferHeight * resolutionScale)
-  // Distance = (metersPerCSSPixel * drawingBufferHeight * resolutionScale) / (2 * tan(fov/2))
-  // Where resolutionScale converts device pixels → CSS pixels (typically window.devicePixelRatio)
   const tanHalfFov = Math.tan(fov / 2);
   const computedDistance =
-    (targetPixelResolution * effectiveRadiusPixels) /
-    (tanHalfFov * resolutionScale);
+    (metersPerCssPixel * longerEdgeCss) / (2 * tanHalfFov);
 
   console.log("[CESIUM|TRANSITION] === calculateCameraDistance DEBUG ===");
   console.log("[CESIUM|TRANSITION] Inputs:", {
     zoom,
     latitude,
-    resolutionScale,
-    drawingBufferWidth,
-    drawingBufferHeight,
-    longerEdge,
-    aspectRatio: aspectRatio.toFixed(3),
+    cssViewportWidth,
+    cssViewportHeight,
+    longerEdgeCss,
+    aspectRatio: (cssViewportWidth / cssViewportHeight).toFixed(3),
     fovDeg: ((fov * 180) / Math.PI).toFixed(2),
     fovRad: fov.toFixed(4),
   });
   console.log("[CESIUM|TRANSITION] Calculated:", {
-    targetPixelResolution: targetPixelResolution.toFixed(4) + " m/px (CSS)",
+    metersPerCssPixel: metersPerCssPixel.toFixed(4) + " m/CSS_px",
     tanHalfFov: tanHalfFov.toFixed(4),
+    groundRadius: (computedDistance * tanHalfFov).toFixed(2) + " m",
     computedDistance: computedDistance.toFixed(2) + " m",
   });
 
@@ -77,13 +115,14 @@ export function calculateCameraDistance(
 
 export function calculateZoomFromDistance(
   scene: Scene,
-  resolutionScale: number,
+  cssViewportWidth: number,
+  cssViewportHeight: number,
   latitude: number,
   distance: number
 ): number | null {
   const latRad = CesiumMath.toRadians(latitude);
 
-  const { camera, drawingBufferHeight, drawingBufferWidth } = scene;
+  const { camera } = scene;
 
   if (!camera?.frustum || !(camera.frustum instanceof PerspectiveFrustum)) {
     console.warn(
@@ -92,31 +131,32 @@ export function calculateZoomFromDistance(
     return null;
   }
 
-  if (!Number.isFinite(drawingBufferHeight) || drawingBufferHeight <= 0) {
-    console.warn("[CESIUM|TRANSITION] Invalid drawing buffer height");
+  if (!Number.isFinite(cssViewportHeight) || cssViewportHeight <= 0) {
+    console.warn("[CESIUM|TRANSITION] Invalid viewport height");
     return null;
   }
 
-  if (!Number.isFinite(drawingBufferWidth) || drawingBufferWidth <= 0) {
-    console.warn("[CESIUM|TRANSITION] Invalid drawing buffer width");
+  if (!Number.isFinite(cssViewportWidth) || cssViewportWidth <= 0) {
+    console.warn("[CESIUM|TRANSITION] Invalid viewport width");
     return null;
   }
 
-  // The FOV always corresponds to the longer edge dimension for cesium
-  const fov = camera.frustum.fov; // FOV in radians (longer edge)
-  const longerEdge = Math.max(drawingBufferWidth, drawingBufferHeight);
+  const fov = camera.frustum.fov; // FOV in radians (for longer edge)
+  const longerEdgeCss = Math.max(cssViewportWidth, cssViewportHeight);
 
-  // Calculate current pixel resolution from distance and FOV
-  // pixelResolution = (2 * distance * tan(fov/2)) / (longerEdge * resolutionScale)
+  // PURE GEOMETRY: No DPR needed!
+  // groundDiameter = 2 × distance × tan(fov/2)  [meters]
+  // metersPerCSSPixel = groundDiameter / cssPixels
   const tanHalfFov = Math.tan(fov / 2);
-  const metersPerPixel =
-    (2 * distance * tanHalfFov) / (longerEdge * resolutionScale);
+  const groundDiameter = 2 * distance * tanHalfFov;
+  const metersPerCSSPixel = groundDiameter / longerEdgeCss;
 
-  // Find zoom level that produces this pixel resolution
+  // Convert meters per CSS pixel to Leaflet zoom level
+  // Account for latitude (Web Mercator distortion)
   const EARTH_CIRCUMFERENCE = 40075016.686; // meters at equator
-  const TILE_SIZE = 256;
+  const TILE_SIZE = 256; // CSS pixels
 
-  const metersPerPixelAtEquator = metersPerPixel / Math.cos(latRad);
+  const metersPerPixelAtEquator = metersPerCSSPixel / Math.cos(latRad);
   const zoom = Math.log2(
     EARTH_CIRCUMFERENCE / (metersPerPixelAtEquator * TILE_SIZE)
   );

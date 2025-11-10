@@ -34,17 +34,29 @@ export const getTiledMapCenterZoomEquivalent = async (
 
   const { camera } = scene;
 
-  const { maxZoom, minZoom, resolutionScale } = normalizeOptions(
-    options,
-    defaultOptions
-  );
+  const { maxZoom, minZoom } = normalizeOptions(options, defaultOptions);
 
   let center: LatLng.deg | undefined;
 
+  // Get CSS viewport dimensions (Leaflet works in CSS pixels)
+  const container = scene.canvas.parentElement;
+  if (!container) {
+    throw new Error("Canvas has no parent container");
+  }
+  const cssWidth = container.clientWidth;
+  const cssHeight = container.clientHeight;
+
+  // Get camera height above ground
+  const cameraHeight = camera.positionCartographic.height;
+  const cameraLatitude = camera.positionCartographic.latitude;
+
   let zoomValue = sceneCenterPixelSizeToLeafletZoom(
     scene,
-    resolutionScale
-  ).value;
+    cameraHeight,
+    cameraLatitude,
+    cssWidth,
+    cssHeight
+  );
   if (!isZoom(zoomValue)) {
     throw new Error("zoom is not valid");
   }
