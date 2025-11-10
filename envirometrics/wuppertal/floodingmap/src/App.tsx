@@ -41,6 +41,7 @@ import {
   useCesiumContext,
   useCesiumInitialCameraFromSearchParams,
   useHomeControl,
+  useZoomControls as useZoomControlsCesium,
 } from "@carma-mapping/engines/cesium";
 import {
   EmptySearchComponent,
@@ -50,8 +51,8 @@ import { type SearchResultItem } from "@carma/types";
 
 import {
   FullscreenControl,
-  RoutedMapLocateControl,
   MapFrameworkSwitcher,
+  RoutedMapLocateControl,
   useMapFrameworkSwitcherContext,
   useRegisterMapFramework,
 } from "@carma-mapping/components";
@@ -99,10 +100,13 @@ function App({ sync = false }: { sync?: boolean }) {
   const ctx = useCesiumContext();
   const { getScene, getTerrainProvider, getSurfaceProvider } = ctx;
   const homeControl = useHomeControl();
+  const {
+    handleZoomIn: handleZoomInCesium,
+    handleZoomOut: handleZoomOutCesium,
+  } = useZoomControlsCesium(ctx, {
+    fovMode: false,
+  });
   const { zoomInLeaflet, zoomOutLeaflet } = useLeafletZoomControls();
-  // TODO: Add Cesium zoom controls when switcher is fully active
-  const handleZoomInCesium = zoomInLeaflet;
-  const handleZoomOutCesium = zoomOutLeaflet;
 
   // LEAFLET related
   const { routedMapRef: routedMap } =
@@ -320,7 +324,7 @@ function App({ sync = false }: { sync?: boolean }) {
                 <PitchingCompass />
               </ControlButtonStyler>
               {/* </Tooltip> */}
-              <MapFrameworkSwitcher />
+              <MapFrameworkSwitcher nativeTooltip={true} />
             </div>
           </Control>
           <Control position="topleft" order={50}>

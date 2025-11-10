@@ -191,6 +191,7 @@ const fovZoom = (
  * @param zoomOptions.moveRateFactor - The factor by which the camera's default zoom/moveRate increment be amplified by, default 1.
  */
 
+// TODO remove ctx dependency when switching to context hook, pass pure needed cesium objects or getters instead
 export function useZoomControls(
   ctx: CesiumContextType,
   zoomOptions: Partial<ZoomOptions> = {}

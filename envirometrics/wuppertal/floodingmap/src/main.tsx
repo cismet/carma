@@ -50,7 +50,7 @@ const appWithContext = (
           // baseLayerConf={wuppertalConfig.overridingBaseLayerConf}
           infoBoxPixelWidth={370}
         >
-          <MapFrameworkSwitcherProvider initialFramework="leaflet">
+          <MapFrameworkSwitcherProvider initialFramework="cesium">
             <CesiumContextProvider
               providerConfig={CESIUM_CONFIG.providerConfig}
               tilesetConfigs={CESIUM_CONFIG.tilesetConfigs}

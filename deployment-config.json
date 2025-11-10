@@ -398,6 +398,8 @@
       "projectPath": "./dist/playgrounds/geoportal-playground"
     },
     "carmamap-playground": {
+      "disabled": true,
+      "disabledReason": "Temporarily disabled during PR #449 Cesium engine refactor. Needs evaluation: update or delete. See issue #454",
       "deployment": {
         "manual": {
           "dev": {
@@ -545,6 +547,8 @@
       "projectPath": "./dist/playgrounds/techdemo"
     },
     "floodingmap-wuppertal": {
+      "disabled": true,
+      "disabledReason": "Temporarily disabled during PR #449 Cesium engine refactor. Needs testing before re-enabling. See issue #454",
       "deployment": {
         "manual": {
           "dev": {
@@ -788,6 +792,8 @@
       "projectPath": "./dist/apps/topicmaps/hitzeinderstadt"
     },
     "cesium-playground": {
+      "disabled": true,
+      "disabledReason": "Temporarily disabled during PR #449 Cesium engine refactor. Needs evaluation: update or delete. See issue #454",
       "deployment": {
         "manual": {
           "dev": {
