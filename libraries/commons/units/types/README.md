@@ -4,20 +4,18 @@ Buildable declaration package providing unit and measurement type definitions wi
 
 ## Purpose
 
-This library contains **Share CARMA specific TypeScript type definitions only**. It must remain a pure type definition library without runtime code.
+This library contains **Unit / Quantity of Measurements specific TypeScript type definitions only**. It must remain a pure type definition library without runtime code.
 
 ## What belongs here
 
-- ✅ Type aliases for measurements
-- ✅ Type-only declarations
-- ✅ Const type definitions
+- Type-only declarations
 
 ## What does NOT belong here
 
-- ❌ Converters or helper functions
-- ❌ Validators or type guards
-- ❌ Runtime code or implementations
-- ❌ Arithmetic operations
+- Converters or helper functions
+- Validators or type guards
+- Runtime code or implementations
+- Arithmetic operations
 
 **For runtime utilities, use [`@carma/units/helpers`](../helpers/README.md)** which provides:
 

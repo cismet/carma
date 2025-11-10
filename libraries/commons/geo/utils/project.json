@@ -1,5 +1,5 @@
 {
-  "name": "geo/utils",
+  "name": "geo-utils",
   "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libraries/commons/geo/utils/src",
   "projectType": "library",

@@ -1,5 +1,5 @@
 {
-  "name": "geo/helpers",
+  "name": "geo-helpers",
   "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libraries/commons/geo/helpers/src",
   "projectType": "library",

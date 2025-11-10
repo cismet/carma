@@ -1,6 +1,6 @@
 {
   "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
-  "name": "geo/types",
+  "name": "geo-types",
   "sourceRoot": "libraries/commons/geo/types/src",
   "projectType": "library",
   "tags": ["scope:types", "type:declarations"],

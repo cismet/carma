@@ -1,5 +1,5 @@
 {
-  "name": "mapping/map-controls-layout",
+  "name": "mapping-map-controls-layout",
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libraries/mapping/map-controls-layout/src",
   "projectType": "library",

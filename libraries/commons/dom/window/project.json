@@ -1,5 +1,5 @@
 {
-  "name": "dom/window",
+  "name": "dom-window",
   "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libraries/commons/dom/window/src",
   "projectType": "library",
