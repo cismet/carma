@@ -10,15 +10,6 @@ const CESIUM_PATHNAME = '__cesium__';
 export default defineConfig({
   root: __dirname,
   cacheDir: '../../node_modules/.vite/playgrounds/stories',
-  server:{
-    port: 4200,
-    host: 'localhost',
-    sourcemapIgnoreList: false, // Don't ignore any sources in source maps
-  },
-  preview:{
-    port: 4300,
-    host: 'localhost',
-  },
   plugins: [
     react(),
     nxViteTsPaths(),
@@ -34,23 +25,7 @@ export default defineConfig({
       silent: false,
     }),
   ],
-  // Uncomment this if you are using workers.
-  // worker: {
-  //  plugins: [ nxViteTsPaths() ],
-  // },
-  build: {
-    outDir: '../../dist/playgrounds/stories',
-    emptyOutDir: true,
-    reportCompressedSize: true,
-    sourcemap: true, // Enable source maps for production builds
-    commonjsOptions: {
-      transformMixedEsModules: true,
-    },
-  },
   optimizeDeps: {
-    include: ['cesium'], // Pre-bundle Cesium for better dev experience
-    esbuildOptions: {
-      sourcemap: true, // Enable source maps in dependency pre-bundling
-    },
+    include: ['cesium'],
   },
 });

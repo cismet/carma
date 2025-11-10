@@ -5,13 +5,13 @@
     "outDir": ""
   },
   "exclude": [
-    "src/**/*.spec.ts",
-    "src/**/*.spec.tsx",
+    "stories/**/*.spec.ts",
+    "stories/**/*.spec.tsx"
   ],
   "include": [
-    "src/**/*.stories.ts",
-    "src/**/*.stories.tsx",
-    "src/**/*.stories.mdx",
+    "stories/**/*.stories.ts",
+    "stories/**/*.stories.tsx",
+    "stories/**/*.stories.mdx",
     ".storybook/*.ts"
   ],
   "files": [

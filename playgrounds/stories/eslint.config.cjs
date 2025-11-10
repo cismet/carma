@@ -7,9 +7,7 @@ module.exports = [
     {
         files: [
             "**/*.ts",
-            "**/*.tsx",
-            "**/*.js",
-            "**/*.jsx"
+            "**/*.tsx"
         ],
         // Override or add rules here
         rules: {}
