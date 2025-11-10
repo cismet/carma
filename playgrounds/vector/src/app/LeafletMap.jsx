@@ -102,7 +102,12 @@ function App({ vectorStyles = [] }) {
     {
       title: "Stadtplan (RVR, tiled, wie im Geoportal)",
       mode: "default",
-      layerKey: "stadtplanTiled",
+      layerKey: "stadtplanTiled@100",
+    },
+    {
+      title: "Stadtplan (... + darkmode)",
+      mode: "night",
+      layerKey: "stadtplanTiledNight@100",
     },
     {
       title: "Stadtplan (RVR, zum Vergleich)",
