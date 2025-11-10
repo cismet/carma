@@ -1,9 +1,7 @@
-# nx and nx boilerplate stuff
+# nx and github vscode
 
+/.github
 /.nx
-
-# shared IDE settings
-
 /.vscode
 
 # package
@@ -11,10 +9,13 @@
 package.json
 package-lock.json
 
-*.md
-
 /coverage
 /dist
+/tmp
+
+# Markdown files
+
+*.md
 
 # configs from boilerplate and nx generators
 
