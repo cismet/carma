@@ -1,4 +1,4 @@
-import type { Ratio } from "@carma/types";
+// todo consolidate with carma-commons math library
 
 /**
  * @param v
@@ -43,27 +43,3 @@ export const clamp = (v: number, min?: number, max?: number): number => {
  */
 export const isClose = (a: number, b: number, epsilon: number): boolean =>
   Math.abs(a - b) <= epsilon;
-
-/**
- * Compound scaling: base * (1 + stepFraction) ^ steps
- * steps may be negative (inverse / zoom out) or fractional (high‑resolution devices).
- * @param base - starting value
- * @param changePerStep - fractional change per step, e.g. 0.1 for +10% per step
- * @param steps - number of steps, may be negative or fractional
- * @returns the scaled value
- */
-export const compoundScale = (
-  base: number,
-  changePerStep: Ratio,
-  steps: number
-): number => {
-  if (
-    !Number.isFinite(base) ||
-    !Number.isFinite(changePerStep) ||
-    !Number.isFinite(steps)
-  ) {
-    return base;
-  }
-  if (changePerStep === 0 || steps === 0) return base;
-  return base * Math.pow(1 + changePerStep, steps);
-};

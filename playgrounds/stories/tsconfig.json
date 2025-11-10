@@ -1,0 +1,10 @@
+{
+  "files": [],
+  "include": [],
+  "references": [
+    {
+      "path": "./tsconfig.storybook.json"
+    }
+  ],
+  "extends": "../../tsconfig.legacy.base.json"
+}

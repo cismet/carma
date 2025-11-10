@@ -1,0 +1,12 @@
+{
+  "name": "@carma/cesium-types",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Primitive type declarations for Cesium configuration (serializable, no runtime dependencies)",
+  "types": "./src/index.d.ts",
+  "exports": {
+    ".": "./src/index.d.ts"
+  },
+  "sideEffects": false,
+  "license": "MIT"
+}

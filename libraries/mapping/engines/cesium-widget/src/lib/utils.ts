@@ -1,7 +1,7 @@
-import { Cartographic, Math as CesiumMath } from "cesium";
+import { Cartographic, CesiumMath } from "@carma/cesium";
 
-import type { LatLng, Radians } from "@carma/types";
-
+import type { Radians } from "@carma/units/types";
+import type { LatLng } from "@carma/geo/types";
 export const EARTH_RADIUS = 6371008.7714;
 
 export const generateRingFromDegrees = (

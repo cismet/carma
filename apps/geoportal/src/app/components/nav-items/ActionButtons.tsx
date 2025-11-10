@@ -17,7 +17,7 @@ import { geoElements } from "@carma-collab/wuppertal/geoportal";
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 import { useOverlayHelper } from "@carma-commons/ui/helper-overlay";
 import { carmaWindow } from "@carma-commons/utils";
-import { selectViewerIsMode2d } from "@carma-mapping/engines/cesium";
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import {
   appendSavedLayerConfig,
   changeBackgroundOpacity,
@@ -52,8 +52,7 @@ const ActionButtons = () => {
   const layerState = useSelector(getLayerState);
   const { selection } = useSelection();
   const { copyShareUrl, contextHolder } = useShareUrl();
-
-  const isMode2d = useSelector(selectViewerIsMode2d);
+  const { isLeaflet, isCesium } = useMapFrameworkSwitcherContext();
   const focusMode = useSelector(getFocusMode);
   const activeLayers = useSelector(getLayers);
   const showPrintPopup = useSelector(getIfPopupOpend);
@@ -95,7 +94,7 @@ const ActionButtons = () => {
       </Tooltip>
       <Tooltip title="Karteninhalte hinzufügen">
         <button
-          disabled={!isMode2d}
+          disabled={!isLeaflet}
           onClick={() => {
             dispatch(setShowResourceModal(true));
           }}
@@ -106,7 +105,7 @@ const ActionButtons = () => {
             src={baseUrl + "icons/add-layers.png"}
             alt="Kartenebenen hinzufügen"
             className={`h-5 min-w-fit mb-0.5 cursor-pointer ${
-              isMode2d ? "" : disabledImageOpacity
+              isLeaflet ? "" : disabledImageOpacity
             }`}
           />
         </button>
@@ -116,7 +115,7 @@ const ActionButtons = () => {
       >
         <button
           className="h-[24.5px] min-w-fit"
-          disabled={!isMode2d}
+          disabled={isCesium}
           onClick={() => {
             dispatch(setFocusMode(!focusMode));
             dispatch(
@@ -137,7 +136,7 @@ const ActionButtons = () => {
             }
             alt="Kartenebenen hinzufügen"
             className={`h-5 min-w-fit mb-0.5 cursor-pointer ${
-              isMode2d ? "" : disabledImageOpacity
+              isLeaflet ? "" : disabledImageOpacity
             }`}
           />
         </button>
@@ -175,14 +174,14 @@ const ActionButtons = () => {
         icon={faFileExport}
         testId="speichern-btn"
         tooltip="Karte speichern"
-        disabled={!isMode2d}
+        disabled={!isLeaflet}
       />
       <CustomPopover
         content={<Print />}
         icon={printError ? faExclamation : faPrint}
         testId="print-btn"
         tooltip={printError ? printError : "Drucken"}
-        disabled={!isMode2d}
+        disabled={!isLeaflet}
         className={printError ? "text-red-600" : ""}
       />
       <CustomPopover

@@ -1,0 +1,19 @@
+{
+  "name": "dom-document",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libraries/commons/dom/document/src",
+  "projectType": "library",
+  "tags": ["type:util", "scope:commons", "scope:dom"],
+  "targets": {
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "build": {
+      "executor": "@nx/vite:build",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libraries/commons/dom/document"
+      }
+    }
+  }
+}

@@ -10,7 +10,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
-import { FontAwesomeLikeIcon } from "@carma-appframeworks/portals";
+import { FontAwesomeLikeIcon } from "@carma-mapping/components";
 import { Layer } from "@carma/types";
 
 import { changeOpacity, changeVisibility } from "../../store/slices/mapping";

@@ -1,0 +1,26 @@
+{
+  "name": "engines-interop",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libraries/mapping/engines-interop/src",
+  "projectType": "library",
+  "tags": ["type:library", "scope:mapping"],
+  "targets": {
+    "build": {
+      "executor": "@nx/vite:build",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libraries/mapping/engines-interop"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "test": {
+      "executor": "@nx/vite:test",
+      "outputs": ["{options.reportsDirectory}"],
+      "options": {
+        "reportsDirectory": "../../../coverage/libraries/mapping/engines-interop"
+      }
+    }
+  }
+}

@@ -13,7 +13,27 @@
       "sourceMapPathOverrides": {
         "http://localhost:4200/src/*": "${workspaceFolder}/apps/geoportal/src/*"
       }
-    }, {
+    },
+    {
+      "type": "chrome",
+      "request": "launch",
+      "name": "Geoportal Preview (cacheless):4300",
+      "url": "http://localhost:4300",
+      "webRoot": "${workspaceFolder}/dist/apps/geoportal",
+      "sourceMapPathOverrides": {
+        "http://localhost:4300/*": "${workspaceFolder}/dist/apps/geoportal/*"
+      },
+      "runtimeArgs": [
+        "--user-data-dir=${workspaceFolder}/.vscode/chrome-preview-profile",
+        "--incognito",
+        "--disable-application-cache",
+        "--disk-cache-size=0",
+        "--media-cache-size=0",
+        "--disable-extensions"
+      ],
+      "runtimeExecutable": "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+    },
+    {
       "type": "chrome",
       "request": "launch",
       "name": "MeasurementPlayground:4200",

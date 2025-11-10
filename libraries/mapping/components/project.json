@@ -1,5 +1,5 @@
 {
-  "name": "mapping/components",
+  "name": "mapping-components",
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libraries/mapping/components/src",
   "projectType": "library",

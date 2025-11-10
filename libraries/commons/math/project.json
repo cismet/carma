@@ -1,0 +1,27 @@
+{
+  "name": "math",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libraries/commons/math/src",
+  "projectType": "library",
+  "tags": ["type:util", "scope:commons"],
+  "targets": {
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "build": {
+      "executor": "@nx/vite:build",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libraries/commons/math"
+      }
+    },
+    "test": {
+      "executor": "@nx/vite:test",
+      "outputs": ["{workspaceRoot}/dist/.vite/math"],
+      "options": {
+        "config": "libraries/commons/math/vite.config.ts",
+        "passWithNoTests": false
+      }
+    }
+  }
+}

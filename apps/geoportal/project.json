@@ -52,6 +52,13 @@
         "production": {
           "buildTarget": "geoportal:build:production"
         }
+      }
+    },
+    "preview:direct": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "NODE_OPTIONS='--max-old-space-size=16384' vite preview --host localhost --port 4300",
+        "cwd": "apps/geoportal"
       },
       "dependsOn": ["build"]
     },

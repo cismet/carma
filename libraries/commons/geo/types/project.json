@@ -1,0 +1,18 @@
+{
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "name": "geo-types",
+  "sourceRoot": "libraries/commons/geo/types/src",
+  "projectType": "library",
+  "tags": ["scope:types", "type:declarations"],
+  "targets": {
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "libraries/commons/geo/types/src/**/*.ts",
+          "libraries/commons/geo/types/src/**/*.d.ts"
+        ]
+      }
+    }
+  }
+}

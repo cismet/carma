@@ -1,5 +1,6 @@
 import { getHashParams } from "@carma-commons/utils";
 import { FeatureFlagContext } from "./FeatureFlagContext";
+import { useCallback, useMemo } from "react";
 
 const DEFAULT_FEATURE_FLAG_PARAM = "ff";
 const FEATURE_FLAG_DISABLED_PREFIX = "-";
@@ -31,7 +32,7 @@ export const FeatureFlagProvider = ({
   config,
   featureFlagParam = DEFAULT_FEATURE_FLAG_PARAM,
 }: FeatureFlagProviderProps) => {
-  const flags = (() => {
+  const getFlags = useCallback(() => {
     const hashParams = getHashParams();
     const ffParam = hashParams[featureFlagParam];
     const enabledFlags = ffParam ? ffParam.split(FEATURE_FLAG_SEPARATOR) : [];
@@ -61,7 +62,9 @@ export const FeatureFlagProvider = ({
     console.debug("[Routing] FeatureFlagProvider: active flags", combinedFlags);
 
     return combinedFlags;
-  })();
+  }, [config]);
+
+  const flags = useMemo(getFlags, [getFlags]);
 
   return (
     <FeatureFlagContext.Provider value={flags}>

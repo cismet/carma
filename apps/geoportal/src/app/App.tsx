@@ -1,4 +1,5 @@
 // Built-in Modules
+import { useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 // 3rd party Modules
@@ -15,13 +16,16 @@ import {
   backgroundSettings,
   mobileInfo,
 } from "@carma-collab/wuppertal/geoportal";
-import { DebugUiProvider } from "@carma-commons/debug";
 import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
-import { MobileWarningMessage } from "@carma-mapping/components";
+import {
+  MapFrameworkSwitcherProvider,
+  MobileWarningMessage,
+} from "@carma-mapping/components";
 import {
   FeatureFlagProvider,
   useFeatureFlags,
 } from "@carma-providers/feature-flag";
+import { HashStateProvider } from "@carma-providers/hash-state";
 import { useCesiumDevConsoleTrigger } from "@carma-mapping/engines/cesium";
 import {
   MapMeasurementsProvider,
@@ -50,6 +54,14 @@ import { CESIUM_CONFIG, CONFIG_BASE_URL } from "./config/app.config";
 import { featureFlagConfig } from "./config/featureFlags";
 
 import { OBLIQUE_CONFIG, CAMERA_ID_TO_DIRECTION } from "./oblique/config";
+
+// Stable config objects
+const MEASUREMENTS_BASE_CONFIG = {
+  editableTitle: true,
+  snappingEnabled: false,
+  snappingOnUpdate: false,
+  localStorageKey: "@" + APP_KEY + ".app.measurements",
+};
 
 import { getCustomFeatureFlags } from "./store/slices/layers";
 import {
@@ -81,16 +93,20 @@ function MeasurementsWrapper({
   setModeExternal,
 }: {
   children: React.ReactNode;
-  baseConfig: any;
+  baseConfig: typeof MEASUREMENTS_BASE_CONFIG;
   externalMode: MEASUREMENT_MODE;
   setModeExternal: (mode: MEASUREMENT_MODE) => void;
 }) {
   const flags = useFeatureFlags();
 
-  const config = {
-    ...baseConfig,
-    snappingEnabled: flags.isSnappingEnabled ?? baseConfig.snappingEnabled,
-  };
+  // Memoize config to prevent recreation on every render
+  const config = useMemo(
+    () => ({
+      ...baseConfig,
+      snappingEnabled: flags.isSnappingEnabled ?? baseConfig.snappingEnabled,
+    }),
+    [flags.isSnappingEnabled]
+  );
 
   return (
     <MapMeasurementsProvider
@@ -124,93 +140,92 @@ function App({ published }: { published?: boolean }) {
     dispatch(setUIMode(newUIMode));
   };
 
+  // Memoize config objects to prevent recreation on every render
+  const featureFlagsMergedConfig = useMemo(
+    () => ({ ...featureFlagConfig, ...customFeatureFlags }),
+    [customFeatureFlags]
+  );
+
+  const overlayOptions = useMemo(
+    () => ({ background: backgroundSettings }),
+    []
+  );
+
   if (isLoadingConfig === null) {
     // wait for the loading state to be determined to prevent re-rendering
     console.debug("[CONFIG] APP - Waiting for config loading state...");
     return null;
   }
 
-  const measurementsConfig = {
-    // Only override what you want to change
-    editableTitle: true,
-    snappingEnabled: false, // Will be overridden by feature flag
-    snappingOnUpdate: false,
-    // infoBoxHeaderColor: "#22c55e",
-    localStorageKey: "@" + APP_KEY + ".app.measurements",
-  };
-
   const content = (
-    <FeatureFlagProvider
-      config={{ ...featureFlagConfig, ...customFeatureFlags }}
-    >
-      <MatomoTracker>
-        <CesiumDevConsoleIntegration />
-        <DebugUiProvider>
-          <CarmaMapProviderWrapper
-            cesiumOptions={CESIUM_CONFIG}
-            overlayOptions={{
-              background: backgroundSettings,
-            }}
-            mapStyleConfig={geoportalMapStyleConfig}
-          >
-            <ObliqueProvider
-              config={OBLIQUE_CONFIG}
-              fallbackDirectionConfig={CAMERA_ID_TO_DIRECTION}
+    <HashStateProvider>
+      <FeatureFlagProvider config={featureFlagsMergedConfig}>
+        <MatomoTracker>
+          <CesiumDevConsoleIntegration />
+          <MapFrameworkSwitcherProvider initialFramework="leaflet">
+            <CarmaMapProviderWrapper
+              cesiumOptions={CESIUM_CONFIG}
+              overlayOptions={overlayOptions}
+              mapStyleConfig={geoportalMapStyleConfig}
             >
-              <MeasurementsWrapper
-                externalMode={mode}
-                setModeExternal={handleSetMode}
-                baseConfig={measurementsConfig}
+              <ObliqueProvider
+                config={OBLIQUE_CONFIG}
+                fallbackDirectionConfig={CAMERA_ID_TO_DIRECTION}
               >
-                <ErrorBoundary FallbackComponent={AppErrorFallback}>
-                  <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
-                    {isLoadingConfig && (
-                      <div
-                        id="loading"
-                        className="absolute flex flex-col items-center text-white justify-center h-screen w-full bg-black/50 z-[9999999999999]"
-                      >
-                        <h2>Lade Konfiguration</h2>
-                        <FontAwesomeIcon size="2x" icon={faSpinner} spin />
-                      </div>
-                    )}
-                    {!published && <TopNavbar />}
-                    <MapWrapper />
-                    <MobileWarningMessage
-                      headerText={mobileInfo.headerText}
-                      bodyText={mobileInfo.bodyText}
-                      confirmButtonText={mobileInfo.confirmButtonText}
-                    />
-
-                    <Modal
-                      open={showLoginModal}
-                      closable={false}
-                      footer={null}
-                      styles={{
-                        content: {
-                          padding: "0px",
-                          width: window.innerWidth < 600 ? "100%" : "450px",
-                        },
-                      }}
-                    >
-                      <LoginForm
-                        onSuccess={() => dispatch(setShowLoginModal(false))}
-                        closeLoginForm={() =>
-                          dispatch(setShowLoginModal(false))
-                        }
-                        showHelpText={false}
-                        style={{ padding: "20px" }}
+                <MeasurementsWrapper
+                  externalMode={mode}
+                  setModeExternal={handleSetMode}
+                  baseConfig={MEASUREMENTS_BASE_CONFIG}
+                >
+                  <ErrorBoundary FallbackComponent={AppErrorFallback}>
+                    <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
+                      {isLoadingConfig && (
+                        <div
+                          id="loading"
+                          className="absolute flex flex-col items-center text-white justify-center h-screen w-full bg-black/50 z-[9999999999999]"
+                        >
+                          <h2>Lade Konfiguration</h2>
+                          <FontAwesomeIcon size="2x" icon={faSpinner} spin />
+                        </div>
+                      )}
+                      {!published && <TopNavbar />}
+                      <MapWrapper />
+                      <MobileWarningMessage
+                        headerText={mobileInfo.headerText}
+                        bodyText={mobileInfo.bodyText}
+                        confirmButtonText={mobileInfo.confirmButtonText}
                       />
-                    </Modal>
-                  </div>
-                </ErrorBoundary>
-              </MeasurementsWrapper>
-            </ObliqueProvider>
-          </CarmaMapProviderWrapper>
-        </DebugUiProvider>
-      </MatomoTracker>
-    </FeatureFlagProvider>
-  );
 
+                      <Modal
+                        open={showLoginModal}
+                        closable={false}
+                        footer={null}
+                        styles={{
+                          content: {
+                            padding: "0px",
+                            width: window.innerWidth < 600 ? "100%" : "450px",
+                          },
+                        }}
+                      >
+                        <LoginForm
+                          onSuccess={() => dispatch(setShowLoginModal(false))}
+                          closeLoginForm={() =>
+                            dispatch(setShowLoginModal(false))
+                          }
+                          showHelpText={false}
+                          style={{ padding: "20px" }}
+                        />
+                      </Modal>
+                    </div>
+                  </ErrorBoundary>
+                </MeasurementsWrapper>
+              </ObliqueProvider>
+            </CarmaMapProviderWrapper>
+          </MapFrameworkSwitcherProvider>
+        </MatomoTracker>
+      </FeatureFlagProvider>
+    </HashStateProvider>
+  );
   console.debug("RENDER: [GEOPORTAL] APP");
 
   return syncToken ? (

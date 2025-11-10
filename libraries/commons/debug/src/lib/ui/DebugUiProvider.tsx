@@ -1,12 +1,10 @@
 import React, { useRef, useEffect, useState, useCallback } from "react";
 import type { ReactNode } from "react";
-import type { Pane } from "tweakpane";
 import localForage from "localforage";
 
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 
 import { DebugUiContext } from "./DebugUiContext";
-import { createTweakpane, disposeTweakpane } from "./tweakpane/initPane";
 
 const eventKeys = ["~", "F1"];
 const localForageKey = "tweakpaneEnabled";
@@ -22,7 +20,6 @@ export const DebugUiProvider: React.FC<{
 }> = ({ children, enabled = false, position = { top: 64, left: 64 } }) => {
   const [isHidden, setIsHidden] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
-  const paneRef = useRef<Pane | null>(null);
 
   const { isDeveloperMode } = useFeatureFlags();
   const isLocalDevelopment = import.meta.env?.DEV === true;
@@ -31,14 +28,6 @@ export const DebugUiProvider: React.FC<{
   const effectiveEnabled = Boolean(
     enabled || isDeveloperMode || isLocalDevelopment
   );
-
-  const toggleTweakpane = useCallback(() => {
-    setIsHidden((prevState) => {
-      const newState = !prevState;
-      localForage.setItem(localForageKey, newState);
-      return newState;
-    });
-  }, []);
 
   useEffect(() => {
     if (!effectiveEnabled) return;
@@ -55,10 +44,13 @@ export const DebugUiProvider: React.FC<{
     (event: KeyboardEvent) => {
       if (!effectiveEnabled) return;
       if (eventKeys.includes(event.key)) {
-        toggleTweakpane();
+        console.debug(
+          "NOT IMPLEMENTED debug UI, was enabled via keypress",
+          event.key
+        );
       }
     },
-    [toggleTweakpane, effectiveEnabled]
+    [effectiveEnabled]
   );
 
   useEffect(() => {
@@ -69,29 +61,14 @@ export const DebugUiProvider: React.FC<{
     };
   }, [toggleOnKeypress, effectiveEnabled]);
 
-  useEffect(() => {
-    if (!effectiveEnabled) {
-      return;
-    }
-
-    if (!paneRef.current && containerRef.current) {
-      paneRef.current = createTweakpane(containerRef.current, toggleTweakpane);
-    }
-
-    return () => {
-      disposeTweakpane(paneRef.current);
-      paneRef.current = null;
-    };
-  }, [toggleTweakpane, effectiveEnabled]);
-
   const { top, left, right } = position;
 
   return (
-    <DebugUiContext.Provider value={{ enabled: effectiveEnabled, paneRef }}>
+    <DebugUiContext.Provider value={{ enabled: effectiveEnabled }}>
       {effectiveEnabled && (
         <div
           ref={containerRef}
-          id="tweakpane-container"
+          id="debug-ui-container"
           hidden={isHidden}
           style={{
             position: "absolute",

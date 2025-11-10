@@ -1,0 +1,12 @@
+{
+  "name": "@carma/units-types",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Type declarations for units, see units-helpers for runtime helpers.",
+  "types": "./src/index.d.ts",
+  "exports": {
+    ".": "./src/index.d.ts"
+  },
+  "sideEffects": false,
+  "license": "MIT"
+}

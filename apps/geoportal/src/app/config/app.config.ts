@@ -9,6 +9,7 @@ import {
 
 import type { CesiumConfig } from "@carma-mapping/engines/cesium";
 import type { LeafletConfig } from "@carma/types";
+import { Rectangle } from "cesium";
 
 export const APP_BASE_PATH = import.meta.env.BASE_URL;
 export const ICON_PREFIX =
@@ -38,7 +39,10 @@ export const CESIUM_CONFIG: CesiumConfig = {
   providerConfig: {
     terrainProvider: WUPP_TERRAIN_PROVIDER,
     surfaceProvider: WUPP_TERRAIN_PROVIDER_DSM_MESH_2024_1M,
-    imageryProvider: BASEMAP_METROPOLE_RUHR_WMTS_GRAUBLAU_HQ,
+    imageryProvider: {
+      ...BASEMAP_METROPOLE_RUHR_WMTS_GRAUBLAU_HQ,
+      rectangle: Rectangle.fromDegrees(4, 48, 10, 52),
+    },
   },
   tilesetConfigs: {
     primary: WUPP_MESH_2024,
@@ -51,3 +55,9 @@ export const LEAFLET_CONFIG: LeafletConfig = {
   zoomSnap: 1.0,
   zoomDelta: 1.0,
 };
+
+// URL hash parameter keys for viewer state
+export const URL_PARAM_KEYS = {
+  mapStyle: "m",
+  is3d: "is3d",
+} as const;

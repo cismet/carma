@@ -13,13 +13,6 @@
         "outputPath": "dist/libraries/providers/feature-flag"
       }
     },
-    "test": {
-      "executor": "@nx/vite:test",
-      "outputs": ["{options.reportsDirectory}"],
-      "options": {
-        "reportsDirectory": "../../../coverage/libraries/providers/feature-flag"
-      }
-    },
     "lint": {
       "executor": "@nx/eslint:lint"
     }

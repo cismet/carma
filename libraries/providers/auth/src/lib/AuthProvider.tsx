@@ -94,10 +94,10 @@ export function AuthProvider({
     [storagePrefix]
   );
 
-  const getUserGroups = useCallback(() => auth.userGroups, [auth]);
+  const getUserGroups = useCallback(() => auth.userGroups, [auth.userGroups]);
 
-  const getJWT = useCallback(() => auth.jwt, [auth]);
-  const getUser = useCallback(() => auth.user, [auth]);
+  const getJWT = useCallback(() => auth.jwt, [auth.jwt]);
+  const getUser = useCallback(() => auth.user, [auth.user]);
 
   const value = useMemo(
     () => ({

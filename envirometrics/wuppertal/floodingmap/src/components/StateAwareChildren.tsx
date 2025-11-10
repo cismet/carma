@@ -1,5 +1,4 @@
 import { useContext, useEffect, useRef, useState } from "react";
-import { useSelector } from "react-redux";
 
 import {
   Cartographic,
@@ -18,9 +17,9 @@ import { isNumberArrayEqual } from "@carma-commons/utils";
 
 import {
   getTerrainElevationAsync,
-  selectViewerIsMode2d,
   useCesiumContext,
 } from "@carma-mapping/engines/cesium";
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
 import { useHGKCesiumTerrain } from "../hooks/useHGKCesiumTerrain";
 import { onCesiumClick } from "../utils/cesiumHandlers";
@@ -40,7 +39,7 @@ export const StateAwareChildren = () => {
   const { controlState } = useContext<typeof EnviroMetricMapContext>(
     EnviroMetricMapContext
   );
-  const isMode2d = useSelector(selectViewerIsMode2d);
+  const { isLeaflet } = useMapFrameworkSwitcherContext();
 
   const { executeFeatureInfoRequest, setBackgroundIndex } = useContext<
     typeof EnviroMetricMapDispatchContext
@@ -52,7 +51,7 @@ export const StateAwareChildren = () => {
 
   // CESIUM
   const cesiumContext = useCesiumContext();
-  const { isViewerReady, viewerRef } = cesiumContext;
+  const { isViewerReady, viewerRef, getTerrainProvider } = cesiumContext;
   const [cesiumPickedPosition, setCesiumPickedPosition] = useState<
     [number, number] | null
   >(null);
@@ -82,8 +81,11 @@ export const StateAwareChildren = () => {
 
         const cartographic = Cartographic.fromDegrees(lon, lat);
 
+        const terrainProvider = getTerrainProvider();
+        if (!terrainProvider) return;
+
         const [groundPositionCartographic] = await getTerrainElevationAsync(
-          cesiumContext,
+          terrainProvider,
           [cartographic]
         );
         if (!groundPositionCartographic) return;
@@ -99,16 +101,17 @@ export const StateAwareChildren = () => {
     }
   }, [
     isViewerReady,
+    getTerrainProvider,
     viewerRef,
     cesiumContext,
     controlState.featureInfoModeActivated,
     controlState.currentFeatureInfoPosition,
-    isMode2d,
+    isLeaflet,
   ]);
 
   useEffect(() => {
     // force background to aerial in 2d
-    if (isMode2d) {
+    if (isLeaflet) {
       setBackgroundIndex(selectedBackground2dRef.current);
     } else {
       // store 2d background layer style before forcing to aerial
@@ -116,24 +119,32 @@ export const StateAwareChildren = () => {
       setBackgroundIndex(AERIAL_BACKGROUND_INDEX);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isMode2d]); // intentionally only trigger on mode change
+  }, [isLeaflet]); // intentionally only trigger on mode change
 
   useEffect(() => {
     if (viewerRef.current && controlState.featureInfoModeActivated) {
       const viewer = viewerRef.current;
 
       const handler = new ScreenSpaceEventHandler(viewer.scene.canvas);
-      handler.setInputAction(
-        async (click) =>
-          onCesiumClick(
-            click,
-            cesiumContext,
-            markerEntityRef,
-            highlightEntityRef,
-            setCesiumPickedPosition
-          ),
-        ScreenSpaceEventType.LEFT_CLICK
-      );
+      handler.setInputAction(async (click) => {
+        const terrainProvider = getTerrainProvider();
+        if (!terrainProvider) {
+          console.warn(
+            "[FLOODINGMAP] Cannot process click - terrain provider not available"
+          );
+          return;
+        }
+
+        await onCesiumClick(
+          click,
+          viewerRef,
+          viewer.scene,
+          terrainProvider,
+          markerEntityRef,
+          highlightEntityRef,
+          setCesiumPickedPosition
+        );
+      }, ScreenSpaceEventType.LEFT_CLICK);
 
       return () => {
         handler.destroy();
@@ -152,7 +163,7 @@ export const StateAwareChildren = () => {
         viewer.scene.requestRender();
       };
     }
-  }, [cesiumContext, viewerRef, controlState.featureInfoModeActivated]);
+  }, [viewerRef, getTerrainProvider, controlState.featureInfoModeActivated]);
 
   // Add effect to cleanup marker when feature info mode is disabled
   useEffect(() => {
@@ -193,7 +204,11 @@ export const StateAwareChildren = () => {
         lng: cesiumPickedPosition[1],
       });
     }
-  }, [cesiumPickedPosition, controlState.featureInfoModeActivated]);
+  }, [
+    cesiumPickedPosition,
+    controlState.featureInfoModeActivated,
+    executeFeatureInfoRequest,
+  ]);
 
   useHGKCesiumTerrain(
     controlState.selectedSimulation,

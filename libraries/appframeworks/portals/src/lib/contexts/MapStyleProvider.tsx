@@ -1,6 +1,6 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
-import { useHashState } from "./HashStateProvider";
+import { useHashState } from "@carma-providers/hash-state";
 
 export type MapStyle = string;
 
@@ -47,10 +47,13 @@ export const MapStyleProvider = ({
     );
   }, [currentStyle, updateHash, defaultStyle]);
 
-  const value: MapStyleContextType = {
-    currentStyle,
-    setCurrentStyle,
-  };
+  const value: MapStyleContextType = useMemo(
+    () => ({
+      currentStyle,
+      setCurrentStyle,
+    }),
+    [currentStyle, setCurrentStyle]
+  );
 
   return (
     <MapStyleContext.Provider value={value}>

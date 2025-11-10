@@ -1,0 +1,28 @@
+{
+  "name": "units-helpers",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libraries/commons/units/helpers/src",
+  "projectType": "library",
+  "tags": ["type:util", "scope:commons"],
+  "targets": {
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "build": {
+      "executor": "@nx/vite:build",
+      "outputs": ["{workspaceRoot}/dist/libraries/commons/units/helpers"],
+      "options": {
+        "outputPath": "dist/libraries/commons/units/helpers"
+      }
+    },
+    "test": {
+      "executor": "@nx/vite:test",
+      "outputs": ["{workspaceRoot}/dist/.vite/commons-units-helpers"],
+      "options": {
+        "config": "libraries/commons/units/helpers/vite.config.ts",
+        "passWithNoTests": false,
+        "reportsDirectory": "../../../../coverage/libraries/commons/units/helpers"
+      }
+    }
+  }
+}

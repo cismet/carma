@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useRef } from "react";
 
-import { type Viewer, type Scene, Math as CesiumMath } from "cesium";
+import type { Viewer } from "cesium";
+
+import { type Scene, CesiumMath } from "@carma/cesium";
 
 import {
   useCesiumContext,

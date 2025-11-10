@@ -22,8 +22,7 @@ import {
   useHomeControl,
   useZoomControls as useZoomControlsCesium,
 } from "@carma-mapping/engines/cesium";
-import { useTweakpaneCtx } from "@carma-commons/debug";
-import { useHashState } from "@carma-appframeworks/portals";
+import { useHashState } from "@carma-providers/hash-state";
 
 import "cesium/Build/Cesium/Widgets/widgets.css";
 
@@ -46,38 +45,6 @@ export const HQ500 = () => {
     handleZoomIn: handleZoomInCesium,
     handleZoomOut: handleZoomOutCesium,
   } = useZoomControlsCesium(ctx);
-
-  useTweakpaneCtx({
-    folder: {
-      title: "map",
-    },
-    params: {
-      get renderCount() {
-        return rerenderCountRef.current;
-      },
-      get renderInterval() {
-        return lastRenderIntervalRef.current;
-      },
-      dpr: window.devicePixelRatio,
-      resolutionScale: viewerRef.current
-        ? viewerRef.current.resolutionScale
-        : 0,
-    },
-    inputs: [
-      { name: "renderCount", readonly: true, format: (v) => v.toFixed(0) },
-      {
-        name: "renderInterval",
-        readonly: true,
-        format: (v: number) => v.toFixed(0),
-      },
-      { name: "dpr", readonly: true, format: (v: number) => v.toFixed(1) },
-      {
-        name: "resolutionScale",
-        readonly: true,
-        format: (v: number) => v.toFixed(1),
-      },
-    ],
-  });
 
   console.debug("RENDER: [DEMOAPP] MAP");
   rerenderCountRef.current++;

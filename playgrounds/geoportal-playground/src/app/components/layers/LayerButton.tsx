@@ -14,7 +14,7 @@ import {
   faX,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { FontAwesomeLikeIcon } from "@carma-appframeworks/portals";
+import { FontAwesomeLikeIcon } from "@carma-mapping/components";
 
 import type { Layer } from "@carma/types";
 import { cn } from "@carma-commons/utils";

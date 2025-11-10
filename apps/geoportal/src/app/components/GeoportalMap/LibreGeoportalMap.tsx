@@ -19,10 +19,10 @@ import { normalizeOptions } from "@carma-commons/utils";
 import {
   LibreMapSelectionContent,
   SelectionItem,
-  useHashState,
   useMapHashRouting,
   useSelectionLibreMap,
 } from "@carma-appframeworks/portals";
+import { useHashState } from "@carma-providers/hash-state";
 
 import { proj4crs3857def, proj4crs4326def } from "../../helper/gisHelper.js";
 
@@ -151,7 +151,6 @@ const LibreGeoportalMap = ({
 
   // Centralized hash routing for MapLibre (2D-only in this component)
   const { handleTopicMapLocationChange } = useMapHashRouting({
-    isMode2d: true,
     getLeafletMap: () => {
       const m = map.current;
       if (!m) return null;
@@ -173,8 +172,8 @@ const LibreGeoportalMap = ({
       return m ? zoom512as256(m.getZoom()) : normalizedMapOptions.zoom;
     },
     labels: {
-      clear3d: "LGM:2D:clear3d",
-      write2d: "LGM:2D:writeLocation",
+      clearCesium: "LGM:2D:clearCesium",
+      writeLeafletLike: "LGM:2D:writeLocation",
       topicMapLocation: "LGM:2D:location",
     },
   });

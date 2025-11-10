@@ -3,7 +3,8 @@
 import { Cartesian3, Color } from "cesium";
 
 import { WUPPERTAL } from "@carma-commons/resources";
-import { CesiumState, toColorRgbaArray } from "@carma-mapping/engines/cesium";
+import { CesiumState } from "@carma-mapping/engines/cesium";
+import { colorToConstructorArgs } from "@carma/cesium";
 
 import { MODEL_ASSETS } from "./assets.config";
 
@@ -24,7 +25,6 @@ const homeOffset = {
 };
 
 export const defaultCesiumState: CesiumState = {
-  isMode2d: true,
   homeOffset: homeOffset,
   homePosition,
   showPrimaryTileset: true,
@@ -41,15 +41,15 @@ export const defaultCesiumState: CesiumState = {
   },
   sceneStyles: {
     primary: {
-      backgroundColor: toColorRgbaArray(Color.GRAY),
+      backgroundColor: colorToConstructorArgs(Color.GRAY),
       globe: {
         baseColor: [0, 0, 0, 0.01],
       },
     },
     secondary: {
-      backgroundColor: toColorRgbaArray(Color.WHITE),
+      backgroundColor: colorToConstructorArgs(Color.WHITE),
       globe: {
-        baseColor: toColorRgbaArray(Color.WHITE),
+        baseColor: colorToConstructorArgs(Color.WHITE),
       },
     },
   },

@@ -12,7 +12,6 @@ import { useControls } from "leva";
 import {
   selectViewerIsTransitioning,
   useCesiumContext,
-  CtxEvent,
 } from "@carma-mapping/engines/cesium";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import { ContactMailButton } from "@carma-appframeworks/portals";
@@ -109,6 +108,8 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     setSuspendSelectionSearch(isPreviewVisible);
   }, [isPreviewVisible, setSuspendSelectionSearch]);
 
+  /*
+  replace with registering flyHomeCallback from hostFramework/app
   // Close preview when a Home fly is triggered
   useEffect(() => {
     const unsubscribe = ctx.subscribe(CtxEvent.Home, () => {
@@ -116,6 +117,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     });
     return unsubscribe;
   }, [ctx]);
+  */
   // Disable camera limiters while preview is visible
   useEffect(() => {
     if (shouldSuspendPitchLimiterRef)

@@ -1,5 +1,5 @@
 {
-  "name": "mapping/utils",
+  "name": "mapping-utils",
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "libraries/mapping/utils/src",
   "projectType": "library",

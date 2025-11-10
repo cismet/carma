@@ -1,6 +1,6 @@
-import { type Cesium3DTileset } from "cesium";
+import { type Cesium3DTileset, type Cartesian3Json } from "@carma/cesium";
 
-import type { CesiumCustomChaderOptions, PlainCartesian3 } from "@carma/types";
+import type { CesiumCustomShaderOptions } from "@carma/types";
 
 export enum TilesetType {
   MESH = "mesh",
@@ -23,8 +23,8 @@ export type TilesetConfig = {
   key: string;
   type: TilesetType;
   contentTypes?: ContentType[];
-  shader?: CesiumCustomChaderOptions;
-  translation?: PlainCartesian3;
+  shader?: CesiumCustomShaderOptions;
+  translation?: Cartesian3Json;
   idProperty?: string;
   disableSelection?: boolean;
   constructorOptions?: Cesium3DTileset.ConstructorOptions;

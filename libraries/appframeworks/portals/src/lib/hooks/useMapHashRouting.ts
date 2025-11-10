@@ -1,16 +1,20 @@
 import { useCallback, useEffect, useRef } from "react";
-import { useHashState } from "../contexts/HashStateProvider";
+import {
+  useHashState,
+  type HashChangeEvent,
+} from "@carma-providers/hash-state";
 
 import { cesiumClearParamKeys } from "@carma-mapping/engines/cesium";
-import { isMapCenterZoomEquivalent } from "@carma-commons/utils";
-import { Degrees } from "@carma/types";
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
+import { isMapCenterZoomEquivalent } from "@carma/geo/utils";
+import { Degrees } from "@carma/units/types";
 
 export type LatLngZoom = { lat: number; lng: number; zoom: number };
 export type CesiumSceneChangeEvent = { hashParams: Record<string, string> };
 
 type Labels = {
-  clear3d?: string;
-  write2d?: string;
+  clearCesium?: string;
+  writeLeafletLike?: string;
   topicMapLocation?: string;
   cesiumScene?: string;
 };
@@ -24,7 +28,6 @@ type LeafletLikeMap = {
 };
 
 export interface UseMapHashRoutingOptions {
-  isMode2d: boolean;
   getLeafletMap?: () => LeafletLikeMap | null | undefined;
   getLeafletZoom?: () => number;
   cesiumClearKeys?: string[];
@@ -33,31 +36,42 @@ export interface UseMapHashRoutingOptions {
 }
 
 export function useMapHashRouting({
-  isMode2d,
   getLeafletMap,
   getLeafletZoom,
   cesiumClearKeys = cesiumClearParamKeys,
   labels,
   pixelTolerance,
 }: UseMapHashRoutingOptions) {
-  const { updateHash, subscribe, getHashValues } = useHashState();
+  const { updateHash, registerOnPopState, getHashValues } = useHashState();
+  const { getIsLeaflet, getIsCesium, getIsTransitioning, activeFramework } =
+    useMapFrameworkSwitcherContext();
 
-  // Skip 2D writes when the map move was initiated by a navigation (popstate)
+  // Skip leaflet writes when the map move was initiated by a navigation (popstate)
   const navMoveInProgressRef = useRef(false);
   // Remember the popstate target to avoid immediate re-pushing nearly identical coords
   const popstateTargetRef = useRef<LatLngZoom | null>(null);
+  // Debounce timer for framework switch hash updates
+  const frameworkSwitchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
 
   const handleTopicMapLocationChange = useCallback(
     ({ lat, lng, zoom }: LatLngZoom) => {
-      if (!isMode2d) return;
+      console.debug("[Routing][hash]", lat, lng, zoom);
+      if (!getIsLeaflet() || getIsTransitioning()) {
+        console.debug(
+          "[Routing][hash] (Leaflet) suppress push: not in Leaflet mode or transitioning"
+        );
+        return;
+      }
       if (navMoveInProgressRef.current) {
         console.debug(
-          "[Routing][hash] (2D) suppress push: popstate navigation in progress",
+          "[Routing][hash] (Leaflet) suppress push: popstate navigation in progress",
           {
             lat,
             lng,
             zoom,
-            label: labels?.topicMapLocation ?? "Map:2D:location",
+            label: labels?.topicMapLocation ?? "Map:LeafletLike:location",
           }
         );
         return;
@@ -81,7 +95,7 @@ export function useMapHashRouting({
         );
         if (eq) {
           console.debug(
-            "[Routing][hash] (2D) skip push: equals popstate target within tolerance",
+            "[Routing][hash] (Leaflet) skip push: equals popstate target within tolerance",
             { lat, lng, zoom, target }
           );
           popstateTargetRef.current = null;
@@ -112,7 +126,7 @@ export function useMapHashRouting({
           );
           if (eq) {
             console.debug(
-              "[Routing][hash] (2D) skip push: equals current hash within tolerance",
+              "[Routing][hash] (LeafletLike) skip push: equals current hash within tolerance",
               { lat, lng, zoom, hLat, hLng, hZoom }
             );
             return;
@@ -129,7 +143,8 @@ export function useMapHashRouting({
       );
     },
     [
-      isMode2d,
+      getIsLeaflet,
+      getIsTransitioning,
       updateHash,
       getHashValues,
       cesiumClearKeys,
@@ -140,24 +155,26 @@ export function useMapHashRouting({
 
   const handleCesiumSceneChange = useCallback(
     (e: CesiumSceneChangeEvent) => {
-      if (isMode2d) return;
+      if (!getIsCesium() || getIsTransitioning()) return;
       updateHash(e.hashParams, {
         clearKeys: ["zoom"],
         label: labels?.cesiumScene ?? "Map:3D:scene",
         replace: true, // don't push to history until cesium handled history navigation
       });
     },
-    [isMode2d, updateHash, labels?.cesiumScene]
+    [getIsCesium, updateHash, labels?.cesiumScene, getIsTransitioning]
   );
 
-  const prevIsMode2dRef = useRef<boolean>(isMode2d);
+  const prevIsModeLeafletLikeRef = useRef<boolean>(getIsLeaflet());
   useEffect(() => {
-    const was2d = prevIsMode2dRef.current;
-    if (!was2d && isMode2d) {
+    const wasLeafletLike = prevIsModeLeafletLikeRef.current;
+    const isLeafletLike = getIsLeaflet();
+    // Only update hash when transitioning TO Leaflet AND not currently transitioning
+    if (!wasLeafletLike && isLeafletLike && !getIsTransitioning()) {
       // Replace current entry to clear 3D-specific state
       updateHash(undefined, {
         clearKeys: cesiumClearKeys,
-        label: labels?.clear3d ?? "Map:2D:clear3d",
+        label: labels?.clearCesium ?? "Map:2D:clearCesium",
         replace: true,
       });
       // Then push current 2D location
@@ -171,89 +188,143 @@ export function useMapHashRouting({
         const zoom = getLeafletZoom();
         updateHash(
           { lat: center.lat, lng: center.lng, zoom },
-          { label: labels?.write2d ?? "Map:2D:writeLocation" }
+          { label: labels?.writeLeafletLike ?? "Map:2D:writeLocation" }
         );
       }
     }
-    prevIsMode2dRef.current = isMode2d;
+    prevIsModeLeafletLikeRef.current = isLeafletLike;
   }, [
-    isMode2d,
+    getIsLeaflet,
+    getIsTransitioning,
     updateHash,
     getLeafletMap,
     getLeafletZoom,
     cesiumClearKeys,
-    labels?.clear3d,
-    labels?.write2d,
+    labels?.clearCesium,
+    labels?.writeLeafletLike,
   ]);
 
-  // Back/forward navigation: move the 2D map to the historical location without writing a new hash
+  // Trigger hash update when framework switch completes (debounced)
   useEffect(() => {
-    if (!getLeafletMap) return;
-    const unsub = subscribe(
-      (e) => {
-        if (e.source !== "popstate") return;
-        if (!isMode2d) return;
-        const lat = e.values.lat as number | undefined;
-        const lng = e.values.lng as number | undefined;
-        const zoom =
-          (e.values.zoom as number | undefined) ?? getLeafletZoom?.();
-        if (lat == null || lng == null || zoom == null) return;
-        const map = getLeafletMap?.();
-        if (!map) return;
-        navMoveInProgressRef.current = true;
-        popstateTargetRef.current = { lat, lng, zoom };
-        console.debug("[Routing][hash] popstate begin -> restore 2D view", {
-          lat,
-          lng,
-          zoom,
-        });
-        const scheduleClear = (evt: string) => {
-          if (typeof map.once === "function") {
-            map.once(evt, () => {
-              setTimeout(() => {
-                navMoveInProgressRef.current = false;
-                console.debug(
-                  "[Routing][hash] popstate end -> resume 2D writes",
-                  { via: evt }
-                );
-              }, 0);
-            });
-          }
-        };
-        scheduleClear("moveend");
-        scheduleClear("zoomend");
-        if (typeof map.setView === "function") {
-          map.setView({ lat, lng }, zoom);
-        } else if (typeof map.panTo === "function") {
-          map.panTo({ lat, lng });
-          if (typeof map.setZoom === "function") map.setZoom(zoom);
-        }
-      },
-      { keys: ["lat", "lng", "zoom"] }
-    );
-    return unsub;
-  }, [subscribe, isMode2d, getLeafletMap, getLeafletZoom]);
+    // Clear any pending timer
+    if (frameworkSwitchTimerRef.current) {
+      clearTimeout(frameworkSwitchTimerRef.current);
+    }
 
-  return { handleTopicMapLocationChange, handleCesiumSceneChange };
-}
-
-export function createLocationChangeHandler({
-  isMode2d,
-  onChange,
-  onAfter,
-  onMismatch,
-}: {
-  isMode2d: boolean;
-  onChange: (p: LatLngZoom) => void;
-  onAfter?: () => void;
-  onMismatch?: () => void;
-}) {
-  return (p: LatLngZoom) => {
-    if (!isMode2d) {
-      onMismatch?.();
+    if (getIsTransitioning()) {
       return;
     }
-    onChange(p);
-    onAfter?.();
-  };
+
+    // Debounce hash update by 200ms to ensure map has settled
+    frameworkSwitchTimerRef.current = setTimeout(() => {
+      console.log(
+        "[Routing][hash] Framework switch complete, triggering hash update",
+        {
+          activeFramework,
+        }
+      );
+
+      if (getIsLeaflet()) {
+        const map = getLeafletMap?.();
+        if (
+          map &&
+          typeof map.getCenter === "function" &&
+          typeof getLeafletZoom === "function"
+        ) {
+          const center = map.getCenter();
+          const zoom = getLeafletZoom();
+          handleTopicMapLocationChange({
+            lat: center.lat,
+            lng: center.lng,
+            zoom,
+          });
+        }
+      }
+      // Note: Cesium updates should be handled via setting camera position already
+    }, 200);
+
+    return () => {
+      if (frameworkSwitchTimerRef.current) {
+        clearTimeout(frameworkSwitchTimerRef.current);
+      }
+    };
+  }, [
+    activeFramework,
+    getIsTransitioning,
+    getIsLeaflet,
+    getLeafletMap,
+    getLeafletZoom,
+    handleTopicMapLocationChange,
+  ]);
+
+  // Back/forward navigation: move the leaflet map to the historical location without writing a new hash
+  useEffect(() => {
+    if (!getLeafletMap) return;
+
+    const handlePopState = (e: HashChangeEvent) => {
+      if (e.source !== "popstate") return;
+      if (!getIsLeaflet()) return;
+      const lat = e.values.lat as number | undefined;
+      const lng = e.values.lng as number | undefined;
+      const zoomFromHash = e.values.zoom as number | undefined;
+      const fallbackZoom = getLeafletZoom?.();
+      const zoom = zoomFromHash ?? fallbackZoom;
+
+      console.warn("[Routing][hash] POPSTATE ZOOM DEBUG:", {
+        zoomFromHash,
+        fallbackZoom,
+        finalZoom: zoom,
+        hashValues: e.values,
+        source: e.source,
+      });
+
+      if (lat == null || lng == null || zoom == null) return;
+      const map = getLeafletMap?.();
+      if (!map) return;
+      navMoveInProgressRef.current = true;
+      popstateTargetRef.current = { lat, lng, zoom };
+      console.debug("[Routing][hash] popstate begin -> restore leaflet view", {
+        lat,
+        lng,
+        zoom,
+      });
+      const scheduleClear = (evt: string) => {
+        if (typeof map.once === "function") {
+          map.once(evt, () => {
+            setTimeout(() => {
+              navMoveInProgressRef.current = false;
+              console.debug(
+                "[Routing][hash] popstate end -> resume leaflet writes",
+                { via: evt }
+              );
+            }, 0);
+          });
+        }
+      };
+      scheduleClear("moveend");
+      scheduleClear("zoomend");
+      console.warn("[Routing][hash] CALLING map.setView", {
+        lat,
+        lng,
+        zoom,
+        stack: new Error().stack,
+      });
+      if (typeof map.setView === "function") {
+        map.setView({ lat, lng }, zoom);
+      } else if (typeof map.panTo === "function") {
+        map.panTo({ lat, lng });
+        if (typeof map.setZoom === "function") {
+          console.warn("[Routing][hash] CALLING map.setZoom", {
+            zoom,
+            stack: new Error().stack,
+          });
+          map.setZoom(zoom);
+        }
+      }
+    };
+
+    return registerOnPopState(handlePopState);
+  }, [registerOnPopState, getIsLeaflet, getLeafletMap, getLeafletZoom]);
+
+  return { handleTopicMapLocationChange, handleCesiumSceneChange };
 }

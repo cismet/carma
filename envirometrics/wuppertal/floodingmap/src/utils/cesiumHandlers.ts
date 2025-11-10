@@ -1,39 +1,41 @@
 import type { MutableRefObject } from "react";
-import { Cartographic, type Cartesian3, type Entity } from "cesium";
+import { Cartographic, type Cartesian3, type Entity, Viewer } from "cesium";
 import {
   getDegreesFromCartographic,
-  getTerrainElevationAsync,
-  type CesiumContextType,
-} from "@carma-mapping/engines/cesium";
+  type Scene,
+  type CesiumTerrainProvider,
+} from "@carma/cesium";
+import { getTerrainElevationAsync } from "@carma-mapping/engines/cesium";
 
 import { updateMarkerPosition } from "./marker";
 
 export const onCesiumClick = async (
   click,
-  ctx: CesiumContextType,
+  viewerRef: MutableRefObject<Viewer | null>,
+  scene: Scene,
+  terrainProvider: CesiumTerrainProvider,
   markerEntityRef: MutableRefObject<Entity | null>,
   highlightEntityRef: MutableRefObject<Entity | null>,
   callback
 ) => {
   let cartesian: Cartesian3 | undefined;
 
-  ctx.withScene((scene) => {
-    cartesian = scene.pickPosition(click.position);
-  });
+  cartesian = scene.pickPosition(click.position);
 
   if (!cartesian) return;
 
   const cartographic = Cartographic.fromCartesian(cartesian);
   const { latitude, longitude } = getDegreesFromCartographic(cartographic);
 
-  const [groundPositionCartographic] = await getTerrainElevationAsync(ctx, [
-    cartographic,
-  ]);
+  const [groundPositionCartographic] = await getTerrainElevationAsync(
+    terrainProvider,
+    [cartographic]
+  );
 
   if (!groundPositionCartographic) return;
 
   updateMarkerPosition(
-    ctx.viewerRef.current!,
+    viewerRef.current!,
     markerEntityRef,
     highlightEntityRef,
     groundPositionCartographic

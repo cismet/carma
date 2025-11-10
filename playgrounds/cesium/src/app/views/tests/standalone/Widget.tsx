@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Checkbox, Radio, Select } from "antd";
 
-import { useTweakpaneCtx } from "@carma-commons/debug";
 import { WUPP_MESH_2024 } from "@carma-commons/resources";
-import type { Degrees, Meters, LatLng } from "@carma/types";
+import type { Degrees } from "@carma/units/types";
+import type { LatLngAlt, Altitude } from "@carma/geo/types";
 
 import { Widget } from "@carma-mapping/engines/cesium-widget";
 
@@ -13,11 +13,11 @@ const { Option } = Select;
 
 type Poi = {
   label: string;
-  position: LatLng.deg;
+  position: LatLngAlt.deg;
   range?: number;
   clipBy?: {
     radius?: number;
-    polygon?: LatLng.deg[];
+    polygon?: LatLngAlt.deg[];
   };
 };
 
@@ -28,7 +28,7 @@ const POI: Record<string, Poi> = {
       longitude: 7.201578,
       latitude: 51.256565,
       altitude: 335 + 10,
-    } as LatLng.deg,
+    } as LatLngAlt.deg,
     range: 30,
     clipBy: {
       radius: 15,
@@ -40,7 +40,7 @@ const POI: Record<string, Poi> = {
       longitude: 7.19993,
       latitude: 51.27225,
       altitude: 170,
-    } as LatLng.deg,
+    } as LatLngAlt.deg,
     range: 150,
     clipBy: {
       radius: 120,
@@ -52,7 +52,7 @@ const POI: Record<string, Poi> = {
       longitude: 7.08586,
       latitude: 51.24584,
       altitude: 190,
-    } as LatLng.deg,
+    } as LatLngAlt.deg,
     range: 60,
     clipBy: {
       radius: 30,
@@ -64,7 +64,7 @@ const POI: Record<string, Poi> = {
       longitude: 7.1049,
       latitude: 51.23916,
       altitude: 140,
-    } as LatLng.deg,
+    } as LatLngAlt.deg,
     range: 185,
     clipBy: {
       radius: 140,
@@ -76,7 +76,7 @@ const POI: Record<string, Poi> = {
       longitude: 7.1485164,
       latitude: 51.2559275,
       altitude: 150,
-    } as LatLng.deg,
+    } as LatLngAlt.deg,
     range: 80,
     clipBy: {
       radius: 60,
@@ -97,60 +97,6 @@ function View() {
   const [debug, setDebug] = useState<boolean>(false);
   const [animate, setAnimate] = useState<boolean>(false);
   const [clip, setClip] = useState<boolean>(false);
-
-  useTweakpaneCtx(
-    useMemo(
-      () => ({
-        folder: {
-          title: "MiniView CesiumWidget",
-        },
-        params: {
-          get poi() {
-            return poiKey;
-          },
-          set poi(v) {
-            setPoiKey(v);
-            setPoi(POI[v]);
-          },
-          get clip() {
-            return debug;
-          },
-          set clip(value: boolean) {
-            setClip(value);
-          },
-          get debug() {
-            return debug;
-          },
-          set debug(value: boolean) {
-            setDebug(value);
-          },
-          get orthographic() {
-            return orthographic;
-          },
-          set orthographic(value: boolean) {
-            setOrthographic(value);
-          },
-          get animate() {
-            return animate;
-          },
-          set animate(value: boolean) {
-            setAnimate(value);
-          },
-        },
-        inputs: [
-          {
-            name: "poi",
-            options,
-          },
-          { name: "clip", type: "boolean" },
-          { name: "debug", type: "boolean" },
-          { name: "orthographic", type: "boolean" },
-          { name: "animate", type: "boolean" },
-        ],
-      }),
-      []
-    )
-  );
 
   console.log("RENDER Widget Test View", { poi, debug });
 
@@ -266,7 +212,7 @@ function View() {
             const position = {
               longitude: (lngCenter ?? longitude) as Degrees,
               latitude: (latCenter ?? latitude) as Degrees,
-              altitude: (height ?? 170) as Meters,
+              altitude: (height ?? 170) as Altitude.EllipsoidalWGS84Meters,
             };
             feature &&
               setPoi({

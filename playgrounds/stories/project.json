@@ -1,0 +1,45 @@
+{
+  "name": "stories",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "playgrounds/stories/stories",
+  "projectType": "application",
+  "tags": [],
+  "targets": {
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "storybook": {
+      "executor": "@nx/storybook:storybook",
+      "options": {
+        "port": 4400,
+        "configDir": "playgrounds/stories/.storybook"
+      },
+      "configurations": {
+        "ci": {
+          "quiet": true
+        }
+      }
+    },
+    "build-storybook": {
+      "executor": "@nx/storybook:build",
+      "outputs": [
+        "{options.outputDir}"
+      ],
+      "options": {
+        "outputDir": "dist/storybook/stories",
+        "configDir": "playgrounds/stories/.storybook"
+      },
+      "configurations": {
+        "ci": {
+          "quiet": true
+        }
+      }
+    },
+    "test-storybook": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "test-storybook -c playgrounds/stories/.storybook --url=http://localhost:4400"
+      }
+    }
+  }
+}

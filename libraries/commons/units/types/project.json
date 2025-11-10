@@ -1,0 +1,18 @@
+{
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "name": "units-types",
+  "sourceRoot": "libraries/commons/units/types/src",
+  "projectType": "library",
+  "tags": ["scope:commons", "type:declarations"],
+  "targets": {
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": [
+          "libraries/commons/units/types/src/**/*.ts",
+          "libraries/commons/units/types/src/**/*.d.ts"
+        ]
+      }
+    }
+  }
+}

@@ -11,14 +11,14 @@ import { CrossTabCommunicationContextProvider } from "react-cismap/contexts/Cros
 import {
   GazDataProvider,
   SelectionProvider,
-  HashStateProvider,
 } from "@carma-appframeworks/portals";
-import { DebugUiProvider } from "@carma-commons/debug";
+import { HashStateProvider } from "@carma-providers/hash-state";
 import { suppressReactCismapErrors } from "@carma-commons/utils";
 import {
   CesiumContextProvider,
   setupCesiumEnvironment,
 } from "@carma-mapping/engines/cesium";
+import { MapFrameworkSwitcherProvider } from "@carma-mapping/components";
 
 import App from "./App";
 import store from "./store";
@@ -40,26 +40,28 @@ const syncedApp = (
 );
 
 const appWithContext = (
-  <GazDataProvider config={gazDataConfig}>
-    <SelectionProvider>
-      <TopicMapContextProvider
-        appKey={"Hochwasserkarte.Story.Wuppertal"}
-        //referenceSystem={MappingConstants.crs3857}
-        //referenceSystemDefinition={MappingConstants.proj4crs3857def}
-        // baseLayerConf={wuppertalConfig.overridingBaseLayerConf}
-        infoBoxPixelWidth={370}
-      >
-        <HashStateProvider>
-          <CesiumContextProvider
-            providerConfig={CESIUM_CONFIG.providerConfig}
-            tilesetConfigs={CESIUM_CONFIG.tilesetConfigs}
-          >
-            {enableSync ? syncedApp : <App />}
-          </CesiumContextProvider>
-        </HashStateProvider>
-      </TopicMapContextProvider>
-    </SelectionProvider>
-  </GazDataProvider>
+  <HashStateProvider>
+    <GazDataProvider config={gazDataConfig}>
+      <SelectionProvider>
+        <TopicMapContextProvider
+          appKey={"Hochwasserkarte.Story.Wuppertal"}
+          //referenceSystem={MappingConstants.crs3857}
+          //referenceSystemDefinition={MappingConstants.proj4crs3857def}
+          // baseLayerConf={wuppertalConfig.overridingBaseLayerConf}
+          infoBoxPixelWidth={370}
+        >
+          <MapFrameworkSwitcherProvider initialFramework="cesium">
+            <CesiumContextProvider
+              providerConfig={CESIUM_CONFIG.providerConfig}
+              tilesetConfigs={CESIUM_CONFIG.tilesetConfigs}
+            >
+              {enableSync ? syncedApp : <App />}
+            </CesiumContextProvider>
+          </MapFrameworkSwitcherProvider>
+        </TopicMapContextProvider>
+      </SelectionProvider>
+    </GazDataProvider>
+  </HashStateProvider>
 );
 
 const router = createHashRouter([
@@ -72,10 +74,8 @@ const root = createRoot(document.getElementById("root") as HTMLElement);
 
 root.render(
   <Provider store={store}>
-    <DebugUiProvider>
-      <PersistGate loading={null} persistor={persistor}>
-        <RouterProvider router={router} />
-      </PersistGate>
-    </DebugUiProvider>
+    <PersistGate loading={null} persistor={persistor}>
+      <RouterProvider router={router} />
+    </PersistGate>
   </Provider>
 );

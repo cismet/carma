@@ -1,0 +1,27 @@
+{
+  "name": "geo-proj",
+  "$schema": "../../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libraries/commons/geo/proj/src",
+  "projectType": "library",
+  "tags": ["type:util", "scope:geo"],
+  "targets": {
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "build": {
+      "executor": "@nx/vite:build",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libraries/commons/geo/proj"
+      }
+    },
+    "test": {
+      "executor": "@nx/vite:test",
+      "outputs": ["{workspaceRoot}/dist/.vite/proj"],
+      "options": {
+        "config": "libraries/commons/geo/proj/vite.config.ts",
+        "passWithNoTests": false
+      }
+    }
+  }
+}
