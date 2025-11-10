@@ -274,7 +274,6 @@ export const useSelectionCesium = (
         mapOptions: cesiumOptions,
         selectedPolygonId: SELECTED_POLYGON_ID,
         invertedSelectedPolygonId: INVERTED_SELECTED_POLYGON_ID,
-        useCameraHeight,
         duration,
         durationFactor,
         skipFlyTo,

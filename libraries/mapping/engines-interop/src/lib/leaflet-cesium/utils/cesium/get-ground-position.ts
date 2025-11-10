@@ -6,7 +6,7 @@ import {
   type Scene,
 } from "@carma/cesium";
 import type { Altitude } from "@carma/geo/types";
-import { pickSceneCanvasCenter } from "@carma-mapping/engines/cesium/legacy";
+import { pickScenePositions } from "@carma-mapping/engines/cesium/legacy";
 import { getCameraHeightAboveGroundAsync } from "./get-camera-height-above-ground";
 
 export type GroundPositionResult = {
@@ -18,6 +18,8 @@ export type GroundPositionResult = {
 
 const DEFAULT_FALLBACK_HEIGHT = 200 as Altitude.EllipsoidalWGS84Meters;
 
+const CENTER_PICK_POSITION: [number, number] = [0.5, 0.5];
+
 export const getGroundPosition = async (
   scene: Scene,
   terrainProvider: CesiumTerrainProvider,
@@ -28,18 +30,13 @@ export const getGroundPosition = async (
   let cartographic: Cartographic;
 
   try {
-    // CRITICAL: Disable pickTranslucentDepth during transitions
-    // It requires valid framebuffers which may be destroyed mid-operation
-    // causing "destroyed object" errors. Terrain-only picking is sufficient.
-    const centerPickResult = pickSceneCanvasCenter(
+    // CRITICAL: pickTranslucentDepth should be false at scene initialization
+    // to prevent framebuffer issues during transitions
+    const centerPickResult = pickScenePositions(
       scene,
-      "GET_GROUND_POSITION",
-      {
-        depthTestAgainstTerrain: true,
-        getCoordinates: true,
-        pickTranslucentDepth: false, // Disable to prevent framebuffer issues during transitions
-      }
-    );
+      [CENTER_PICK_POSITION],
+      "get ground pick"
+    )[0];
 
     // Check if picking succeeded before using the values
     if (

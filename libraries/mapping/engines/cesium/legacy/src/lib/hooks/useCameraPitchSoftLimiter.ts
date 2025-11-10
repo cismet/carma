@@ -9,7 +9,9 @@ import {
   setIsAnimating,
   clearIsAnimating,
 } from "../slices/cesium";
-import { pickSceneCanvasCenter } from "../utils/pickers";
+import { pickScenePositions } from "../utils/pick-position/pick-scene-positions";
+
+const CENTER_TEST_POSITION: [number, number] = [0.5, 0.5];
 
 const useCameraPitchSoftLimiter = (
   options: {
@@ -30,8 +32,7 @@ const useCameraPitchSoftLimiter = (
   const collisions = useSelector(
     selectScreenSpaceCameraControllerEnableCollisionDetection
   );
-  const ctx = useCesiumContext();
-  const { shouldSuspendCameraLimitersRef } = ctx;
+  const { getScene, shouldSuspendCameraLimitersRef } = useCesiumContext();
 
   const onComplete = useCallback(
     () => dispatch(clearIsAnimating()),
@@ -53,13 +54,7 @@ const useCameraPitchSoftLimiter = (
 
       const moveEndListener = async () => {
         if (shouldSuspendCameraLimitersRef?.current) return;
-
-        let scene;
-
-        ctx.withScene((s) => {
-          scene = s;
-        });
-
+        const scene = getScene();
         if (!scene) {
           console.warn(
             "HOOK [2D3D|CESIUM|CAMERA] moveEndListener: no cesium scene available for pitch limiter"
@@ -82,11 +77,13 @@ const useCameraPitchSoftLimiter = (
               viewer.camera.pitch,
               resetPitchRad
             );
-          // TODO Get CenterPos Lower from screen if distance is muliple of elevation. prevent pitch around distant point on horizon
-          const centerPos = pickSceneCanvasCenter(
+          // TODO have centralized picker for screen positions in render loop and context to avoid multiple pick calls per frame
+          // TODO Get CenterPos Lower from screen if distance is multiple of elevation. prevent pitch around distant point on horizon
+          const centerPos = pickScenePositions(
             scene,
-            "PITCH_LIMITER"
-          ).scenePosition;
+            [CENTER_TEST_POSITION],
+            "test for pitch limiter"
+          )[0].scenePosition;
           if (centerPos) {
             dispatch(setIsAnimating());
             const distance = Cartesian3.distance(

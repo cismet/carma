@@ -1,12 +1,11 @@
-import type { CssPixelHeight, CssPixelWidth } from "@carma/units/types";
-export type CanvasDimensions = { height: CssPixelHeight; width: CssPixelWidth };
+import type { CssPixels, CssPixelDimensions } from "@carma/units/types";
 
 export const getCanvasDimensions = (
   canvas: HTMLCanvasElement
-): CanvasDimensions => {
+): CssPixelDimensions => {
   return {
-    height: canvas.clientHeight as CssPixelHeight,
-    width: canvas.clientWidth as CssPixelWidth,
+    height: canvas.clientHeight as CssPixels,
+    width: canvas.clientWidth as CssPixels,
   };
 };
 

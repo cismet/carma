@@ -34,8 +34,7 @@ export {
 } from "./positions";
 
 // Pickers and pixels
-export { PICKMODE, pickSceneCanvasCenter } from "./pickers";
-export { getScenePixelSize } from "./pixels";
+export { pickScenePositions } from "./pick-position/pick-scene-positions";
 
 // Elevation
 export {

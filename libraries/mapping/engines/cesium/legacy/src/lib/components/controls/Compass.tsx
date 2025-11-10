@@ -17,7 +17,7 @@ import { useCesiumViewer } from "../../hooks/useCesiumViewer";
 import { useCesiumContext } from "../../hooks/useCesiumContext";
 import { selectScreenSpaceCameraControllerMinimumZoomDistance } from "../../slices/cesium";
 import { Tooltip } from "antd";
-import { pickSceneCanvasCenter } from "../../utils/pickers";
+import { pickScenePositions } from "../../utils/pick-position/pick-scene-positions";
 
 type CompassProps = {
   children?: ReactNode;
@@ -25,6 +25,8 @@ type CompassProps = {
 };
 
 type Ref = HTMLButtonElement;
+
+const ORBIT_CENTER_POSITION: [number, number] = [0.5, 0.7]; // A bit lower than center to adjust for typical pitch
 
 export const Compass = forwardRef<Ref, CompassProps>(
   ({ children, disabled }, ref) => {
@@ -58,13 +60,11 @@ export const Compass = forwardRef<Ref, CompassProps>(
         if (defined(horizonTest)) {
           console.info("scene center below horizon");
           //const pos = getCanvasCenter(viewer);
-          const { scenePosition, coordinates } = pickSceneCanvasCenter(
+          const { scenePosition, coordinates } = pickScenePositions(
             scene,
-            "COMPASS",
-            {
-              getCoordinates: true,
-            }
-          );
+            [ORBIT_CENTER_POSITION],
+            "compass"
+          )[0];
           console.debug("pick compass", coordinates, scenePosition);
           if (scenePosition && coordinates) {
             const distance = Cartesian3.distance(

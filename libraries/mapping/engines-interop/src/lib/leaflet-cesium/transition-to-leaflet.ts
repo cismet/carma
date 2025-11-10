@@ -43,7 +43,7 @@ export const transitionToLeaflet = async (
   const { step2_cssTransitionDurationMs = 1000 } = options;
   const { onStageChange, onComplete, onError, onLeafletViewSet } = callbacks;
 
-  console.debug("[CESIUM] [CESIUM|2D3D|TO2D] Starting transition to 2D mode");
+  console.debug("[CESIUM|TO_LEAFLET] Starting transition");
 
   try {
     onStageChange(TransitionStage.PREPARE_2D, "Preparing for 2D transition");
@@ -99,7 +99,7 @@ export const transitionToLeaflet = async (
       await fadeOutContainer(
         cesiumContainer,
         step2_cssTransitionDurationMs,
-        "[CSS|2D3D|TO2D] Fading out Cesium container"
+        "[CESIUM|TO_LEAFLET] Fading out Cesium container"
       );
       onStageChange(TransitionStage.COMPLETE, "Transition to 2D complete");
       onComplete?.();

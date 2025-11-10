@@ -1,2 +1,3 @@
 export { LeafletMapStateChangeEvents } from "./lib/events";
-export * from "./lib/map";
+export * from "./lib/LatLng";
+export * from "./lib/Map";

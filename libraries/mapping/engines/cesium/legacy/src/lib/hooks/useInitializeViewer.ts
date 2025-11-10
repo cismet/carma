@@ -71,7 +71,6 @@ export const useInitializeViewer = (
     setIsViewerReady,
     providersReady,
     shouldSuspendCameraLimitersRef,
-    shouldSuspendResizeObserverRef,
     withScene,
     withCamera,
     withViewer,
@@ -512,37 +511,10 @@ export const useInitializeViewer = (
           return;
         }
 
-        // CRITICAL: Don't resize during framework transitions
-        // Resizing canvas during transitions can cause WebGL context loss
-        if (shouldSuspendResizeObserverRef.current) {
-          console.debug(
-            "[CESIUM|RESIZE] ResizeObserver suspended during transition, skipping"
-          );
-          return;
-        }
-
-        const newWidth = container.clientWidth;
-        const newHeight = container.clientHeight;
-        const currentWidth = viewer.canvas.width;
-        const currentHeight = viewer.canvas.height;
-
-        // CRITICAL: Only resize if dimensions actually changed
-        // Setting canvas.width/height clears WebGL context even if same value!
-        // This was causing context loss during transitions
-        if (currentWidth !== newWidth || currentHeight !== newHeight) {
-          console.warn("[CESIUM|RESIZE] Canvas dimensions changed, resizing:", {
-            from: { width: currentWidth, height: currentHeight },
-            to: { width: newWidth, height: newHeight },
-          });
-          viewer.canvas.width = newWidth;
-          viewer.canvas.height = newHeight;
-          viewer.canvas.style.width = "100%";
-          viewer.canvas.style.height = "100%";
-        } else {
-          console.debug(
-            "[CESIUM|RESIZE] ResizeObserver fired but dimensions unchanged, skipping resize"
-          );
-        }
+        viewer.canvas.width = container.clientWidth;
+        viewer.canvas.height = container.clientHeight;
+        viewer.canvas.style.width = "100%";
+        viewer.canvas.style.height = "100%";
       });
 
       if (container) {
@@ -550,13 +522,10 @@ export const useInitializeViewer = (
       }
 
       return () => {
-        console.debug(
-          "[CESIUM] [CESIUM|RESIZE|CLEANUP] Disconnecting resize observer"
-        );
         resizeObserver.disconnect();
       };
     }
-  }, [viewerRef, containerRef, shouldSuspendResizeObserverRef]);
+  }, [viewerRef, containerRef]);
 };
 
 export default useInitializeViewer;

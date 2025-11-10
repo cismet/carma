@@ -17,7 +17,6 @@ export interface CesiumContextType {
   viewerAnimationMapRef: MutableRefObject<ViewerAnimationMap | null>;
   shouldSuspendPitchLimiterRef: MutableRefObject<boolean>;
   shouldSuspendCameraLimitersRef: MutableRefObject<boolean>;
-  shouldSuspendResizeObserverRef: MutableRefObject<boolean>;
   isViewerReady: boolean;
   setIsViewerReady: (flag: boolean) => void;
   providersReady: boolean;

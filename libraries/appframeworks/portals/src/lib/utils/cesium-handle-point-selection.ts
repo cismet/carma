@@ -104,9 +104,7 @@ const cesiumLookAtPoint = async (
   const cameraCartographic = scene.camera.positionCartographic;
   const currentRange = cameraCartographic.height;
 
-  const hpr = options.useCameraHeight
-    ? getHeadingPitchRangeFromHeight(scene.camera, targetPosition)
-    : getHeadingPitchRangeFromZoom(zoom - 1, scene.camera);
+  const hpr = getHeadingPitchRangeFromZoom(zoom - 1, scene.camera);
   const range = distanceFromZoomLevel(zoom - 2);
 
   // TODO ADD TEST FOR DURATION FACTOR
@@ -224,7 +222,6 @@ export const cesiumHandlePointSelection = async (
       },
       durationFactor,
       maxDuration: duration,
-      useCameraHeight: options.useCameraHeight,
     });
     console.debug(
       "GAZETTEER: [2D3D|CESIUM|CAMERA] look at Marker (Terrain Elevation)"

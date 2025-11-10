@@ -8,7 +8,7 @@ import {
 import { useEffect, useRef } from "react";
 
 import { CesiumContextType } from "../../CesiumContext";
-import { pickFromClampedGeojson } from "../../utils/pickers";
+import { pickFromClampedGeojson } from "../../utils/pick-position/pick-ground-primitive";
 
 interface PrimitiveColorState {
   primitive: GroundPrimitive;

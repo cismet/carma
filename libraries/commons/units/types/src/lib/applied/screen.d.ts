@@ -19,3 +19,18 @@ type CssPixelQuality<Q extends symbol> = CssPixels & {
 
 export type CssPixelWidth = CssPixelQuality<typeof widthSymbol>;
 export type CssPixelHeight = CssPixelQuality<typeof heightSymbol>;
+
+export type CssPixelDimensions = {
+  width: CssPixel;
+  height: CssPixel;
+};
+
+export type CssPixelDimensionArgs = [
+  width: CssPixelWidth,
+  height: CssPixelHeight
+];
+
+export type CssPixelPosition = {
+  x: CssPixels;
+  y: CssPixels;
+};

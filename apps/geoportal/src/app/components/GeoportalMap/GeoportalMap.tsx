@@ -562,9 +562,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       right: 0,
       bottom: 0,
       zIndex: 400,
-      // Prevent WebGL context from being resized to 0 during transitions
-      minWidth: "100%",
-      minHeight: "100%",
       // CSS transition managed by useMapFrameworkSwitcher hook
     }),
     []

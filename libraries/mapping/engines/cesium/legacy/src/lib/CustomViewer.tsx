@@ -1,4 +1,4 @@
-import { type RefObject, useMemo, memo } from "react";
+import { type RefObject, useMemo } from "react";
 import { Color, Viewer, Rectangle, Cartographic } from "cesium";
 import { merge } from "lodash";
 
@@ -17,7 +17,6 @@ import { useOnSceneChange } from "./hooks/useOnSceneChange";
 import useTransitionTimeout from "./hooks/useTransitionTimeout";
 import { useTilesets } from "./hooks/useTilesets";
 import { useSceneStyles } from "./hooks/useSceneStyles";
-import { useContainerEventLogger } from "./hooks/useContainerEventLogger";
 import { StringifiedCameraState } from "./utils/cesiumHashParamsCodec";
 import { DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS } from "./viewerDefaults";
 
@@ -62,13 +61,6 @@ export type CustomViewerProps = {
 };
 
 const CustomViewerComponent = (props: CustomViewerProps) => {
-  console.debug("RENDER: [CESIUM] CustomViewer", {
-    hasContainerRef: !!props.containerRef,
-    hasInitialCameraView: !!props.initialCameraView,
-    hasConstructorOptions: !!props.constructorOptions,
-    enableSceneStyles: props.enableSceneStyles,
-  });
-
   const {
     globeOptions = {
       baseColor: Color.TRANSPARENT,
@@ -84,20 +76,15 @@ const CustomViewerComponent = (props: CustomViewerProps) => {
     enableSceneStyles = true,
   } = props;
 
-  const options: Viewer.ConstructorOptions = useMemo(() => {
-    console.debug(
-      "[CESIUM] CustomViewer: Creating new options object via useMemo"
-    );
-    return merge({}, DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS, constructorOptions);
-  }, [constructorOptions]);
+  const options: Viewer.ConstructorOptions = useMemo(
+    () => merge({}, DEFAULT_VIEWER_CONSTRUCTOR_OPTIONS, constructorOptions),
+    [constructorOptions]
+  );
 
   useInitializeViewer(containerRef, options, initialCameraView);
   useCesiumGlobe(globeOptions);
 
   useTransitionTimeout();
-
-  // Monitor container events to diagnose WebGL context loss
-  useContainerEventLogger(containerRef, true);
 
   // camera enhancements
   useDisableSSCC();
@@ -120,8 +107,6 @@ const CustomViewerComponent = (props: CustomViewerProps) => {
   );
 };
 
-// Memoize to prevent re-renders during transitions that could invalidate WebGL context
-// Only re-render if actual props change (containerRef, options, callbacks)
-export const CustomViewer = memo(CustomViewerComponent);
+export const CustomViewer = CustomViewerComponent;
 
 export default CustomViewer;

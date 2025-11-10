@@ -2,7 +2,6 @@ import type { CesiumOptions } from "@carma-mapping/engines/cesium";
 
 export type HitTriggerOptions = {
   mapOptions: CesiumOptions;
-  useCameraHeight?: boolean;
   duration: number; // duration for flyTo
   durationFactor?: number; // dynamic flyTo duration factor,
   selectedPolygonId?: string;

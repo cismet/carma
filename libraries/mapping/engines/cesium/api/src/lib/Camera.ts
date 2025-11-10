@@ -5,7 +5,6 @@ import {
   HeadingPitchRange,
   Matrix4,
   PerspectiveFrustum,
-  Cartesian2,
   type HeadingPitchRollValues,
 } from "cesium";
 
@@ -378,52 +377,6 @@ export const releaseCameraFromOrbitMode = (camera: Camera): void => {
   if (state.direction) camera.direction = state.direction;
   if (state.up) camera.up = state.up;
   if (state.right) camera.right = state.right;
-};
-
-/**
- * Calculate pixel dimensions for a given distance using the camera frustum
- *
- * No Scene dependency - pure frustum calculation.
- *
- * @param frustum - Perspective frustum
- * @param drawingBufferWidth - Drawing buffer width in pixels
- * @param drawingBufferHeight - Drawing buffer height in pixels
- * @param distance - Distance from camera in meters
- * @param resolutionScale - Resolution scale factor
- * @returns Pixel dimensions {x, y, average} or null if calculation fails
- */
-export const getFrustumPixelDimensionsForDistance = (
-  frustum: PerspectiveFrustum,
-  drawingBufferWidth: number,
-  drawingBufferHeight: number,
-  distance: number,
-  resolutionScale: number
-): { x: number; y: number; average: number } | null => {
-  let pixelDimensions: Cartesian2 | null = null;
-
-  try {
-    pixelDimensions = frustum.getPixelDimensions(
-      drawingBufferWidth,
-      drawingBufferHeight,
-      distance,
-      resolutionScale,
-      new Cartesian2()
-    );
-  } catch (error) {
-    console.error(
-      "Failed to get pixel dimensions for distance",
-      distance,
-      error
-    );
-    return null;
-  }
-
-  if (!pixelDimensions) {
-    return null;
-  }
-
-  const { x, y } = pixelDimensions;
-  return { x, y, average: (x + y) / 2 };
 };
 
 /**

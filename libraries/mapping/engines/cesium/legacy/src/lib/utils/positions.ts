@@ -7,13 +7,25 @@ import {
   Scene,
 } from "cesium";
 
+import { logOnce } from "@carma-commons/utils";
 import { getSurfaceElevationAsync } from "./elevation";
-import type { CesiumContextType } from "../CesiumContext";
 
+/**
+ * @deprecated Legacy zoom-to-distance conversion with incorrect formula.
+ * Use proper geographic calculations from @carma-mapping/engines-interop instead.
+ * Will be replaced in future commit with correct conversion based on FOV and viewport dimensions.
+ */
 export const distanceFromZoomLevel = (zoom: number) => {
+  logOnce(
+    "[DEPRECATED] distanceFromZoomLevel uses incorrect formula (40000000 / 2^zoom) - will be replaced with proper conversion"
+  );
   return 40000000 / Math.pow(2, zoom);
 };
 
+/**
+ * @deprecated Legacy function using incorrect distanceFromZoomLevel.
+ * Use proper geographic calculations from @carma-mapping/engines-interop instead.
+ */
 export const getHeadingPitchRangeFromZoom = (
   zoom: number,
   {
@@ -21,6 +33,9 @@ export const getHeadingPitchRangeFromZoom = (
     pitch = Math.PI / 2,
   }: { heading?: number; pitch?: number } = {} // prior
 ) => {
+  logOnce(
+    "[DEPRECATED] getHeadingPitchRangeFromZoom relies on incorrect distanceFromZoomLevel - will be replaced"
+  );
   const range = distanceFromZoomLevel(zoom);
   return new HeadingPitchRange(heading, pitch, range);
 };

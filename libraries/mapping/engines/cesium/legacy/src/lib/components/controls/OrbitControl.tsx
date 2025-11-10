@@ -18,7 +18,7 @@ import {
 } from "../../slices/cesium";
 import { useCesiumViewer } from "../../hooks/useCesiumViewer";
 import { useCesiumContext } from "../../hooks/useCesiumContext";
-import { pickSceneCanvasCenter } from "../../utils/pickers";
+import { pickScenePositions } from "../../utils/pick-position/pick-scene-positions";
 
 // TODO use config/context
 const DEFAULT_ROTATION_SPEED = 0.0001;
@@ -30,11 +30,13 @@ type SpinningControlProps = {
 
 const orbitCenterPointId = "orbitCenterPoint";
 
+const ORBIT_CENTER_POSITION: [number, number] = [0.5, 0.6]; // A bit lower than center to adjust for typical pitch
+
 const OrbitControl = ({ showCenterPoint = true }: SpinningControlProps) => {
   const dispatch = useDispatch();
 
   const viewer = useCesiumViewer();
-  const ctx = useCesiumContext();
+  const { withViewer, getScene } = useCesiumContext();
   const orbitPointRef = useRef<Cartesian3 | null>(null);
   const lastRenderTimeRef = useRef<number | null>(null);
   const isAnimating = useSelector(selectViewerIsAnimating);
@@ -62,19 +64,17 @@ const OrbitControl = ({ showCenterPoint = true }: SpinningControlProps) => {
   const toggleOrbit = (viewer: Viewer) => {
     // todo use scene not viewer
     if (!isAnimating) {
-      let scene;
-      ctx.withScene((s) => {
-        scene = s;
-      });
+      const scene = getScene();
 
       if (!scene) {
         console.warn("OrbitControl: no cesium scene available for orbiting");
         return;
       }
-      const position = pickSceneCanvasCenter(
+      const position = pickScenePositions(
         scene,
-        "ORBIT_CONTROL"
-      ).scenePosition;
+        [ORBIT_CENTER_POSITION],
+        "test for orbit control"
+      )[0].scenePosition;
       orbitPointRef.current = position;
       lastRenderTimeRef.current = null;
       viewer.clock.onTick.addEventListener(orbitListener);
@@ -100,19 +100,19 @@ const OrbitControl = ({ showCenterPoint = true }: SpinningControlProps) => {
 
   const handleOrbit = (event: MouseEvent) => {
     event.preventDefault();
-    ctx.withViewer((viewer) => toggleOrbit(viewer));
+    withViewer((viewer) => toggleOrbit(viewer));
   };
 
   useEffect(() => {
     if (!isAnimating) {
-      ctx.withViewer((viewer) => {
+      withViewer((viewer) => {
         console.debug("stop orbiting by state", orbitPointRef.current);
         viewer.clock.onTick.removeEventListener(orbitListener);
         viewer.camera.constrainedAxis = undefined;
         showCenterPoint && viewer.entities.removeById(orbitCenterPointId);
       });
     }
-  }, [isAnimating, ctx, orbitListener, showCenterPoint]);
+  }, [isAnimating, withViewer, orbitListener, showCenterPoint]);
 
   return (
     <OnMapButton

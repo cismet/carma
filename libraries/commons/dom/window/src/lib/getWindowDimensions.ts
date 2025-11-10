@@ -1,9 +1,7 @@
-import type { CssPixelHeight, CssPixelWidth } from "@carma/units/types";
+import type { CssPixels, CssPixelDimensions } from "@carma/units/types";
 import { isWindow } from "./isWindow";
 
-export type CanvasDimensions = { height: CssPixelHeight; width: CssPixelWidth };
-
-export const getWindowDimensions = (window: Window): CanvasDimensions => {
+export const getWindowDimensions = (window: Window): CssPixelDimensions => {
   if (!isWindow(window))
     throw new Error("getWindowDimensions: window is not valid");
   const ih = window.innerHeight;
@@ -21,5 +19,5 @@ export const getWindowDimensions = (window: Window): CanvasDimensions => {
       innerHeight: ih,
     });
 
-  return { width: iw as CssPixelWidth, height: ih as CssPixelHeight };
+  return { width: iw as CssPixels, height: ih as CssPixels };
 };

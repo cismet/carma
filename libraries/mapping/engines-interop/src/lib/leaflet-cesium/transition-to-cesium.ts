@@ -3,7 +3,6 @@ import type {
   CesiumTerrainProvider,
   HeadingPitchJson,
 } from "@carma/cesium";
-import type { Map as LeafletMap } from "leaflet";
 import { isValidScene } from "@carma/cesium";
 import {
   TransitionStage,
@@ -13,9 +12,10 @@ import {
 import { prepareLeafletForTransition } from "./utils/leaflet/leaflet-preparation";
 import { restoreCesiumCameraView } from "./utils/cesium/camera-restore";
 import { promiseWithTimeout } from "@carma-commons/utils/promise";
-import { tiledMapToCesium } from "./utils/cesium/tiled-map-to-cesium";
+import { tiledMapToCesium } from "./utils/tiled-map-to-cesium";
 import { defaultTransitionOptions } from "./utils/cesium/elevation-reference";
 import { Degrees } from "@carma/units/types";
+import { type LeafletMap, getLeafletView } from "@carma/leaflet";
 
 /**
  * Pure function: Orchestrates transition from Leaflet (LeafletLike) to Cesium (3D)
@@ -53,7 +53,7 @@ export const transitionToCesium = async (
 
   const { onStageChange, onComplete, onError } = callbacks;
 
-  console.debug("[CESIUM] [CESIUM|2D3D|TO3D] Starting transition to 3D mode", {
+  console.debug("[LEAFLET|TO_CESIUM] Starting transition", {
     hasLeaflet: !!leaflet,
     hasScene: isValidScene(scene),
     targetHeadingPitch,
@@ -65,7 +65,6 @@ export const transitionToCesium = async (
       TransitionStage.PREPARE_2D,
       "Preparing 2D view for transition"
     );
-    console.debug("[CESIUM] [CESIUM|2D3D|TO3D] Step 1: Preparing Leaflet map");
 
     await prepareLeafletForTransition(leaflet, {
       maxZoom: step1_prepare2dViewMaxZoom,
@@ -79,9 +78,6 @@ export const transitionToCesium = async (
 
     // Stage 2: Position Cesium camera to match Leaflet view
     onStageChange(TransitionStage.POSITION_3D_CAMERA, "Positioning 3D camera");
-    console.debug(
-      "[CESIUM] [CESIUM|2D3D|TO3D] Step 2: Positioning Cesium camera"
-    );
 
     if (!isValidScene(scene)) {
       throw new Error("Scene became invalid during transition");
@@ -90,15 +86,10 @@ export const transitionToCesium = async (
     // Cancel any ongoing camera flights
     scene.camera.cancelFlight();
 
-    // Get Leaflet center and zoom for camera positioning
-    const center = leaflet.getCenter();
-    const zoom = leaflet.getZoom();
+    // Get Leaflet view for camera positioning
+    const leafletView = getLeafletView(leaflet);
 
-    console.debug("[CESIUM] [CESIUM|2D3D|TO3D] Leaflet center/zoom:", {
-      lat: center.lat,
-      lng: center.lng,
-      zoom,
-    });
+    console.debug("[LEAFLET|TO_CESIUM] Leaflet view:", leafletView);
 
     // Position Cesium camera using terrain providers for elevation
     const { success: cameraPositioned, groundPosition } =
@@ -109,26 +100,22 @@ export const transitionToCesium = async (
           surface: terrainProviders.SURFACE,
         },
         resolutionScale,
-        { latitude: center.lat, longitude: center.lng },
-        zoom,
+        leafletView,
         defaultTransitionOptions
       );
 
     if (!cameraPositioned) {
-      console.warn("[CESIUM] [CESIUM|2D3D|TO3D] Failed to position camera");
+      console.warn("[LEAFLET|TO_CESIUM] Failed to position camera");
     }
 
     if (!groundPosition) {
-      console.warn("[CESIUM] [CESIUM|2D3D|TO3D] No ground position available");
+      console.warn("[LEAFLET|TO_CESIUM] No ground position available");
     }
 
     // Stage 3: Wait for initial render and resources
     onStageChange(
       TransitionStage.WAIT_RESOURCES,
       "Waiting for resources to load"
-    );
-    console.debug(
-      "[CESIUM] [CESIUM|2D3D|TO3D] Step 3: Waiting for initial render"
     );
 
     const initialWaitMs = step2_initialRenderTimeoutMs;
@@ -138,7 +125,6 @@ export const transitionToCesium = async (
     );
 
     // Additional resource wait
-    console.debug("[CESIUM] [CESIUM|2D3D|TO3D] Waiting for resources");
     await promiseWithTimeout(
       new Promise((resolve) =>
         setTimeout(resolve, step3_resourceWaitTimeoutMs)
@@ -148,9 +134,6 @@ export const transitionToCesium = async (
 
     // Stage 4: Fade in Cesium container
     onStageChange(TransitionStage.FADE_IN_3D, "Fading in 3D view");
-    console.debug(
-      "[CESIUM] [CSS] [CESIUM|2D3D|TO3D] Step 4: Making Cesium container visible"
-    );
 
     // Set up CSS transition property (if not already set)
     cesiumContainer.style.transition = `opacity ${step4_cssTransitionDurationMs}ms ease-in-out`;
@@ -166,13 +149,6 @@ export const transitionToCesium = async (
     cesiumContainer.style.opacity = "1";
     cesiumContainer.style.pointerEvents = "auto";
 
-    // Wait for CSS transition to complete before starting camera animation
-    console.debug(
-      "[CESIUM] [CSS] [CESIUM|2D3D|TO3D] Waiting for CSS transition:",
-      step4_cssTransitionDurationMs,
-      "ms"
-    );
-
     // Wait for CSS fade-in to complete
     await promiseWithTimeout(
       new Promise((resolve) =>
@@ -182,11 +158,6 @@ export const transitionToCesium = async (
     );
 
     // Stage 4.5: Additional delay to ensure CSS is fully complete
-    console.debug(
-      "[CESIUM] [CSS] [CESIUM|2D3D|TO3D] Post-CSS delay:",
-      step5_postCssDelayMs,
-      "ms"
-    );
     await promiseWithTimeout(
       new Promise((resolve) => setTimeout(resolve, step5_postCssDelayMs)),
       step5_postCssDelayMs + 100
@@ -194,13 +165,10 @@ export const transitionToCesium = async (
 
     // Stage 5: Animate camera to final position (if previous HPR exists)
     onStageChange(TransitionStage.ANIMATE_CAMERA, "Animating camera");
-    console.debug(
-      "[CESIUM] [CESIUM|2D3D|TO3D] Step 5: Attempting camera animation"
-    );
 
     const handleComplete = () => {
       onStageChange(TransitionStage.COMPLETE, "Transition to 3D complete");
-      console.debug("[CESIUM] [CESIUM|2D3D|TO3D] Transition complete");
+      console.debug("[LEAFLET|TO_CESIUM] Complete");
       if (onComplete) {
         onComplete();
       }
@@ -225,7 +193,7 @@ export const transitionToCesium = async (
   } catch (error) {
     const err = error instanceof Error ? error : new Error(String(error));
     onStageChange(TransitionStage.ERROR, `Transition failed: ${err.message}`);
-    console.error("[CESIUM] [CESIUM|2D3D|TO3D] Transition error:", error);
+    console.error("[LEAFLET|TO_CESIUM] Error:", error);
 
     if (onError) {
       onError(err);
