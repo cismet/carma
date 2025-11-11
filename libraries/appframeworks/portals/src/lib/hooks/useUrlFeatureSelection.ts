@@ -3,7 +3,10 @@ import {
   FeatureCollectionContext,
   FeatureCollectionDispatchContext,
 } from "react-cismap/contexts/FeatureCollectionContextProvider";
-import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextProvider";
+import {
+  TopicMapContext,
+  TopicMapDispatchContext,
+} from "react-cismap/contexts/TopicMapContextProvider";
 
 export const useUrlFeatureSelection = (
   predicateArgument = (feature, objectId) =>
@@ -18,6 +21,7 @@ export const useUrlFeatureSelection = (
   const { zoomToFeature } = useContext<typeof TopicMapDispatchContext>(
     TopicMapDispatchContext
   );
+  const { history } = useContext<typeof TopicMapContext>(TopicMapContext);
 
   const hasProcessedUrl = useRef(false);
 
@@ -56,33 +60,29 @@ export const useUrlFeatureSelection = (
           }, 200);
         }
 
-        const currentUrl = new URL(window.location.href);
+        // Use the same history object that TopicMapComponent uses
+        const currentSearch = history.location.search;
+        const searchParams = new URLSearchParams(currentSearch);
+        searchParams.delete("tmSelectionObject");
 
-        if (currentUrl.hash) {
-          let hashString = currentUrl.hash.substring(1);
+        const newSearch = searchParams.toString();
+        const newPath = newSearch
+          ? `${history.location.pathname}?${newSearch}`
+          : history.location.pathname;
 
-          if (hashString.includes("?")) {
-            const [hashPath, hashQuery] = hashString.split("?");
-            const hashParams = new URLSearchParams(hashQuery);
-            hashParams.delete("tmSelectionObject");
-
-            const remainingParams = hashParams.toString();
-            currentUrl.hash = remainingParams
-              ? `${hashPath}?${remainingParams}`
-              : hashPath;
-          } else {
-            const hashParams = new URLSearchParams(hashString);
-            hashParams.delete("tmSelectionObject");
-            currentUrl.hash = hashParams.toString();
-          }
-        }
-
-        window.history.replaceState({}, "", currentUrl.toString());
+        history.replace(newPath);
 
         hasProcessedUrl.current = true;
       }
     }
-  }, [initializingFeatures, shownFeatures]);
+  }, [
+    initializingFeatures,
+    shownFeatures,
+    history,
+    predicateArgument,
+    setSelectedFeatureByPredicate,
+    zoomToFeature,
+  ]);
 
   return null;
 };
