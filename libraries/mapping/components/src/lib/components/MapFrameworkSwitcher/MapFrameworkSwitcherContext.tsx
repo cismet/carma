@@ -2,7 +2,6 @@
  * MapFrameworkSwitcherContext - Centralized state management for 2D/3D map transitions
  *
  * This replaces app-specific Redux state (e.g., isMode2d) with a reusable context
- * that works across any app using Leaflet ↔ Cesium transitions.
  */
 
 import {
@@ -28,6 +27,7 @@ import {
   transitionToCesium,
   transitionToLeaflet,
   TransitionStage,
+  type TransitionOptions,
 } from "@carma-mapping/engines-interop";
 import { validateRequirements } from "./utils/validate-requirements";
 
@@ -64,7 +64,6 @@ export interface MapFrameworkSwitcherRefs {
     TERRAIN: CesiumTerrainProvider;
     SURFACE: CesiumTerrainProvider;
   };
-  getResolutionScale: () => number | undefined;
 }
 
 export interface MapFrameworkSwitcherCallbacks {
@@ -125,11 +124,13 @@ const MapFrameworkSwitcherContext =
 interface MapFrameworkSwitcherProviderProps {
   children: ReactNode;
   initialFramework?: CarmaMapFramework;
+  transitionOptions?: TransitionOptions;
 }
 
 export const MapFrameworkSwitcherProvider = ({
   children,
   initialFramework = CARMA_MAP_FRAMEWORKS.LEAFLET,
+  transitionOptions = {},
 }: MapFrameworkSwitcherProviderProps) => {
   // Core state
   const [activeFramework, setActiveFramework] =
@@ -173,7 +174,6 @@ export const MapFrameworkSwitcherProvider = ({
       TERRAIN: null as unknown as CesiumTerrainProvider,
       SURFACE: null as unknown as CesiumTerrainProvider,
     }),
-    getResolutionScale: () => undefined,
   });
 
   // Refs for callbacks (rerender-free)
@@ -221,14 +221,6 @@ export const MapFrameworkSwitcherProvider = ({
           container.style.pointerEvents = "auto";
         }
       }
-
-      console.log("[FRAMEWORK-SWITCHER-CONTEXT] Refs registered:", {
-        hasLeafletMap: !!refsRef.current.getLeafletMap(),
-        hasCesiumScene: !!refsRef.current.getCesiumScene(),
-        hasCesiumContainer: !!refsRef.current.getCesiumContainer(),
-        containerVisibility: isLeaflet ? "hidden" : "visible",
-        nowReady,
-      });
     },
     [isLeaflet, isCesium]
   );
@@ -255,13 +247,11 @@ export const MapFrameworkSwitcherProvider = ({
     const leaflet = refsRef.current.getLeafletMap();
     const scene = refsRef.current.getCesiumScene();
     const cesiumContainer = refsRef.current.getCesiumContainer();
-    const resolutionScale = refsRef.current.getResolutionScale();
     const terrainProviders = refsRef.current.getCesiumTerrainProviders();
 
     const hasValidRequirements = validateRequirements(
       scene,
       cesiumContainer,
-      resolutionScale,
       leaflet
     );
 
@@ -284,12 +274,11 @@ export const MapFrameworkSwitcherProvider = ({
         scene,
         leaflet,
         cesiumContainer,
-        resolutionScale || 1.0,
         terrainProviders,
         lastEngineStateRef.current.cesium,
         {
           onStageChange: (stage: TransitionStage, message: string) => {
-            console.debug(`[CESIUM] Transition stage: ${stage} - ${message}`);
+            //console.debug(`[CESIUM] Transition stage: ${stage} - ${message}`);
           },
           onComplete: () => {
             setActiveFrameworkCesium();
@@ -301,7 +290,8 @@ export const MapFrameworkSwitcherProvider = ({
             setActiveFrameworkLeaflet();
             setIsTransitioning(false);
           },
-        }
+        },
+        transitionOptions?.toCesium || {}
       );
     } catch (error) {
       console.error("[CESIUM] Transition to 3D failed:", error);
@@ -313,6 +303,7 @@ export const MapFrameworkSwitcherProvider = ({
     isReady,
     setActiveFrameworkCesium,
     setActiveFrameworkLeaflet,
+    transitionOptions,
   ]);
 
   // Transition to Leaflet
@@ -327,13 +318,11 @@ export const MapFrameworkSwitcherProvider = ({
     const scene = refsRef.current.getCesiumScene();
     const leaflet = refsRef.current.getLeafletMap();
     const cesiumContainer = refsRef.current.getCesiumContainer();
-    const resolutionScale = refsRef.current.getResolutionScale();
     const terrainProviders = refsRef.current.getCesiumTerrainProviders();
 
     const hasValidRequirements = validateRequirements(
       scene,
       cesiumContainer,
-      resolutionScale,
       leaflet
     );
 
@@ -357,7 +346,6 @@ export const MapFrameworkSwitcherProvider = ({
         scene,
         leaflet,
         cesiumContainer,
-        resolutionScale || 1.0,
         terrainProviders,
         {
           onStageChange: (stage: TransitionStage, message: string) => {
@@ -375,7 +363,8 @@ export const MapFrameworkSwitcherProvider = ({
             setIsTransitioning(false);
           },
           onLeafletViewSet: callbacksRef.current.onLeafletViewSet,
-        }
+        },
+        transitionOptions?.toLeaflet || {}
       );
 
       // Store cesium camera state for when we return to 3D
@@ -397,7 +386,7 @@ export const MapFrameworkSwitcherProvider = ({
       // The container has already been hidden by the error handler
       setActiveFrameworkLeaflet();
     }
-  }, [isTransitioning, isReady, setActiveFrameworkLeaflet]);
+  }, [isTransitioning, isReady, setActiveFrameworkLeaflet, transitionOptions]);
 
   // Toggle between frameworks
   const toggle = useCallback(async () => {
@@ -461,13 +450,6 @@ export const MapFrameworkSwitcherProvider = ({
       registerCallbacks,
     ]
   );
-
-  console.log("[FRAMEWORK-SWITCHER-CONTEXT] Provider render:", {
-    activeFramework,
-    isTransitioning,
-    isReady,
-    hasToggle: !!toggle,
-  });
 
   return (
     <MapFrameworkSwitcherContext.Provider value={value}>

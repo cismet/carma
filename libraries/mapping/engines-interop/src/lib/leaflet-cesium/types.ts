@@ -1,9 +1,6 @@
 import type { Degrees } from "@carma/units/types";
 import type { Altitude } from "@carma/geo/types";
 
-/**
- * Transition stages for tracking progress during 2D↔3D transitions
- */
 export enum TransitionStage {
   IDLE = "IDLE",
   PREPARE_2D = "PREPARE_2D",
@@ -14,40 +11,6 @@ export enum TransitionStage {
   ANIMATE_CAMERA = "ANIMATE_CAMERA",
   COMPLETE = "COMPLETE",
   ERROR = "ERROR",
-}
-
-/**
- * Transition direction enum (used as values)
- */
-export enum TransitionDirection {
-  UNSET = 0,
-  TO_CESIUM = 1,
-  TO_LEAFLET = 2,
-}
-
-/**
- * Transition state enum (used as values)
- */
-export enum TransitionState {
-  UNSET = 0,
-  IS_CESIUM = 1,
-  IS_LEAFLET = 2,
-  TO_CESIUM = 3,
-  TO_LEAFLET = 4,
-}
-
-/**
- * Cesium transition stages enum (used as values)
- */
-export enum ToCesiumStages {
-  UNSET = 0,
-  VALIDATE_REQUIREMENTS = 1,
-  PREPOSITION_CESIUM = 2,
-  PREPARE_2D_VIEW = 2,
-  SYNC_VIEW_CESIUM = 3,
-  VALIDATE_CESIUM_PRESENTABLE = 4,
-  CSS_REVEAL_CESIUM_CONTAINER = 5,
-  ANIMATE_CESIUM_CAMERA = 6,
 }
 
 export type TransitionCallbacks = {
@@ -84,17 +47,11 @@ export type TransitionToLeafletOptions = {
   zoomSnapThreshold?: number;
 };
 
-/**
- * Combined transition options
- */
 export type TransitionOptions = {
   toCesium?: TransitionToCesiumOptions;
   toLeaflet?: TransitionToLeafletOptions;
 };
 
-/**
- * Default values for all transition options
- */
 export const DEFAULT_TRANSITION_OPTIONS = {
   toCesium: {
     step1_prepare2dViewMaxZoom: 20,

@@ -18,9 +18,11 @@ import { animateInterpolateHeadingPitchRange } from "@carma-mapping/engines/cesi
 import { getGroundPosition } from "./utils/cesium/get-ground-position";
 import { calculateAnimationDuration } from "./utils/cesium/calculate-animation-duration";
 import { fadeOutContainer } from "./utils/dom-utils";
-import { getLeafletViewFromCesium } from "./utils/cesium/get-leaflet-view-from-cesium";
+import { calculateZoomFromDistance } from "./zoom-distance-converter";
 import { applyZoomSnapToView } from "./utils/cesium/adjust-for-zoom-snap";
 import { handleToLeafletTransitionError } from "./utils/cesium/handle-to-leaflet-transition-error";
+import { radToDegNumeric } from "@carma/units/helpers";
+import type { Degrees, Meters } from "@carma/units/types";
 
 /**
  * Pure function: Orchestrates transition from Cesium (3D) to Leaflet (2D)
@@ -32,7 +34,6 @@ export const transitionToLeaflet = async (
   scene: Scene,
   leaflet: LeafletMap,
   cesiumContainer: HTMLElement,
-  resolutionScale: number,
   terrainProviders: {
     TERRAIN?: CesiumTerrainProvider;
     SURFACE?: CesiumTerrainProvider;
@@ -46,7 +47,7 @@ export const transitionToLeaflet = async (
   console.debug("[CESIUM|TO_LEAFLET] Starting transition");
 
   try {
-    onStageChange(TransitionStage.PREPARE_2D, "Preparing for 2D transition");
+    // onStageChange(TransitionStage.PREPARE_2D, "Preparing for 2D transition");
     // Wait for 2 frames to ensure WebGL state is stable for picking operations
     // pickTranslucentDepth can cause "destroyed object" errors during tile processing
     await ensureSceneReady(scene, 2);
@@ -54,10 +55,7 @@ export const transitionToLeaflet = async (
     const { camera } = scene;
     const lastHeadingPitch = cameraToHeadingPitchJson(camera);
 
-    onStageChange(
-      TransitionStage.ANIMATE_CAMERA,
-      "Animating camera to top-down view"
-    );
+    // onStageChange(TransitionStage.ANIMATE_CAMERA, "Animating camera to top-down view");
 
     const groundResult = await getGroundPosition(
       scene,
@@ -69,13 +67,33 @@ export const transitionToLeaflet = async (
 
     const { groundPos, cartographic, distance: initialDistance } = groundResult;
 
-    // Calculate initial Leaflet view and apply zoom snap adjustment
-    const initialView = getLeafletViewFromCesium(
+    const container = scene.canvas.parentElement;
+    if (!container) {
+      throw new Error("Canvas has no parent container");
+    }
+    const cssWidth = container.clientWidth;
+    const cssHeight = container.clientHeight;
+
+    // Calculate Leaflet zoom from Cesium camera distance
+    const lat = radToDegNumeric(cartographic.latitude);
+    const lng = radToDegNumeric(cartographic.longitude);
+
+    const zoom = calculateZoomFromDistance(
       scene,
-      cartographic,
-      initialDistance,
-      resolutionScale
+      cssWidth,
+      cssHeight,
+      lat as Degrees,
+      initialDistance as Meters
     );
+
+    if (zoom === null) {
+      throw new Error("Failed to calculate zoom from distance");
+    }
+
+    const initialView = {
+      center: { lat, lng },
+      zoom,
+    };
 
     const {
       view: finalView,
@@ -101,7 +119,7 @@ export const transitionToLeaflet = async (
         step2_cssTransitionDurationMs,
         "[CESIUM|TO_LEAFLET] Fading out Cesium container"
       );
-      onStageChange(TransitionStage.COMPLETE, "Transition to 2D complete");
+      //onStageChange(TransitionStage.COMPLETE, "Transition to 2D complete");
       onComplete?.();
     };
 

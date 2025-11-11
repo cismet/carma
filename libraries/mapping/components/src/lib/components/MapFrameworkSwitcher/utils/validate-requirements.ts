@@ -36,7 +36,6 @@ const isValidContainer = (container: unknown): boolean => {
 export const validateRequirements = (
   scene: unknown,
   cesiumContainer: HTMLDivElement | HTMLElement,
-  resolutionScale: number | undefined,
   leaflet: LeafletMap
 ): boolean => {
   if (isValidScene(scene) === false) {
@@ -49,17 +48,6 @@ export const validateRequirements = (
   if (!isValidContainer(cesiumContainer)) {
     console.warn(
       "[CESIUM|LEAFLET|TRANSITION] cesium container not available no transition possible"
-    );
-    return false;
-  }
-
-  if (
-    resolutionScale === undefined ||
-    !Number.isFinite(resolutionScale) ||
-    resolutionScale <= 0
-  ) {
-    console.warn(
-      "[CESIUM|LEAFLET|TRANSITION] resolution scale not available no transition possible [zoom]"
     );
     return false;
   }

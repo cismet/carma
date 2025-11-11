@@ -1,4 +1,4 @@
-import { type MouseEvent, useState } from "react";
+import { type CSSProperties, type MouseEvent, useState } from "react";
 import { Tooltip } from "antd";
 import UAParser from "ua-parser-js";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
@@ -17,6 +17,8 @@ type MapFrameworkSwitcherProps = {
   switchTo3DText?: string;
   /** Custom tooltip text for switching to 2D */
   switchTo2DText?: string;
+  /** Optional style object for positioning */
+  style?: CSSProperties;
 };
 
 export type { MapFrameworkSwitcherProps };
@@ -38,6 +40,7 @@ export const MapFrameworkSwitcher = ({
   enableMobileWarning = false,
   switchTo3DText = LOCALE_DE_SWITCH_TO_3D_MODE,
   switchTo2DText = LOCALE_DE_SWITCH_TO_2D_MODE,
+  style,
 }: MapFrameworkSwitcherProps) => {
   const { isTransitioning, toggle, isReady, isLeaflet } =
     useMapFrameworkSwitcherContext();
@@ -60,26 +63,25 @@ export const MapFrameworkSwitcher = ({
   // Disable button if not ready or transitioning (unless forceEnabled)
   const isDisabled = (!isReady || isTransitioning) && !forceEnabled;
 
-  return nativeTooltip ? (
+  const button = (
     <ControlButtonStyler
       className={("font-semibold " + (className || "")).trim()}
       onClick={handleSwitchMapMode}
       disabled={isDisabled}
-      title={switchInfoText}
+      title={nativeTooltip ? switchInfoText : undefined}
       dataTestId={isLeaflet ? "3d-control" : "2d-control"}
     >
       {isLeaflet ? "3D" : "2D"}
     </ControlButtonStyler>
+  );
+
+  const content = nativeTooltip ? (
+    button
   ) : (
     <Tooltip title={switchInfoText} placement="right">
-      <ControlButtonStyler
-        className={("font-semibold " + (className || "")).trim()}
-        onClick={handleSwitchMapMode}
-        disabled={isDisabled}
-        dataTestId={isLeaflet ? "3d-control" : "2d-control"}
-      >
-        {isLeaflet ? "3D" : "2D"}
-      </ControlButtonStyler>
+      {button}
     </Tooltip>
   );
+
+  return style ? <div style={style}>{content}</div> : content;
 };

@@ -1,7 +1,7 @@
 {
   "name": "stories",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "playgrounds/stories/stories",
+  "sourceRoot": "playgrounds/stories/src",
   "projectType": "application",
   "tags": [],
   "targets": {
@@ -22,9 +22,7 @@
     },
     "build-storybook": {
       "executor": "@nx/storybook:build",
-      "outputs": [
-        "{options.outputDir}"
-      ],
+      "outputs": ["{options.outputDir}"],
       "options": {
         "outputDir": "dist/storybook/stories",
         "configDir": "playgrounds/stories/.storybook"

@@ -37,7 +37,6 @@ export async function applyElevationToPosition(
 
   if (hasPreferredProvider) {
     const provider = terrainProviders[preferredReference]!;
-    console.log("[CESIUM|TRANSITION] Sampling terrain with provider...");
 
     const updatedPosition = await sampleTerrainMostDetailedGuardedAsync(
       provider,

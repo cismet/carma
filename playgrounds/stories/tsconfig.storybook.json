@@ -4,10 +4,7 @@
     "emitDecoratorMetadata": true,
     "outDir": ""
   },
-  "exclude": [
-    "stories/**/*.spec.ts",
-    "stories/**/*.spec.tsx"
-  ],
+  "exclude": ["stories/**/*.spec.ts", "stories/**/*.spec.tsx"],
   "include": [
     "stories/**/*.stories.ts",
     "stories/**/*.stories.tsx",
