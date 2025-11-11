@@ -50,12 +50,6 @@ export type TransitionToLeafletOptions = {
 export type TransitionOptions = {
   toCesium?: TransitionToCesiumOptions;
   toLeaflet?: TransitionToLeafletOptions;
-  /**
-   * Resolution match radius: 0.0 = center (nadir), 1.0 = edge (oblique), default 0.2
-   * Controls where in the FOV frustum zoom/distance matching occurs.
-   * Interpolates between center and edge distances to minimize overall visual error.
-   */
-  resolutionMatchRadius?: number;
 };
 
 export const DEFAULT_TRANSITION_OPTIONS = {
@@ -74,5 +68,4 @@ export const DEFAULT_TRANSITION_OPTIONS = {
     step1_cameraAnimationDurationMs: 1000,
     step2_cssTransitionDurationMs: 1000,
   },
-  resolutionMatchRadius: 0.2,
 } as const satisfies Required<TransitionOptions>;

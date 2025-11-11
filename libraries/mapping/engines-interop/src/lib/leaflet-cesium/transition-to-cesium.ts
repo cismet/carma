@@ -30,15 +30,13 @@ export const transitionToCesium = async (
   scene: Scene,
   leaflet: LeafletMap,
   cesiumContainer: HTMLElement,
-  resolutionScale: number,
   terrainProviders: {
     TERRAIN?: CesiumTerrainProvider;
     SURFACE?: CesiumTerrainProvider;
   },
   targetHeadingPitch: HeadingPitchJson | null,
   callbacks: TransitionCallbacks,
-  options: TransitionToCesiumOptions = {},
-  resolutionMatchRadius?: number
+  options: TransitionToCesiumOptions = {}
 ): Promise<void> => {
   // Extract options with defaults
   const {
@@ -114,8 +112,7 @@ export const transitionToCesium = async (
       cssWidth,
       cssHeight,
       lat as Degrees,
-      zoom,
-      resolutionMatchRadius
+      zoom
     );
 
     if (computedDistance === null) {

@@ -254,54 +254,8 @@ export const Debugging: StoryObj<typeof FullFeatured> = {
   ),
 };
 
-const ResolutionMatchRadiusTest = ({
-  resolutionMatchRadius = 0.2,
-}: {
-  resolutionMatchRadius?: number;
-}) => {
-  const {
-    leafletContainerRef,
-    cesiumContainerRef,
-    leafletMapRef,
-    cesiumWidgetRef,
-    terrainProvidersRef,
-    mapsInitialized,
-  } = useLeafletCesiumSetup();
-
-  useRegisterMapFramework({
-    leafletMap: mapsInitialized ? leafletMapRef.current : null,
-    cesiumScene: mapsInitialized
-      ? cesiumWidgetRef.current?.scene ?? null
-      : null,
-    cesiumContainer: cesiumContainerRef.current,
-    terrainProviders: terrainProvidersRef.current,
-    resolutionScale: 1.0,
-  });
-
-  return (
-    <MapContainers
-      leafletContainerRef={leafletContainerRef}
-      cesiumContainerRef={cesiumContainerRef}
-    >
-      <MapFrameworkSwitcher
-        nativeTooltip={true}
-        style={styles.topLeftAbsolute}
-      />
-      <ActiveFrameworkIndicator />
-      <div
-        style={{
-          position: "absolute",
-          top: 60,
-          left: 16,
-          background: "white",
-          padding: 12,
-          borderRadius: 8,
-          boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
-          maxWidth: 320,
-        }}
-      >
-        <div style={{ marginBottom: 8 }}>
-          <strong>resolutionMatchRadius:</strong>{" "}
+  ),
+};" "}
           {resolutionMatchRadius.toFixed(2)}
         </div>
         <div style={{ fontSize: "0.85em", color: "#666", marginBottom: 8 }}>

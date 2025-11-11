@@ -16,7 +16,6 @@ interface UseRegisterMapFrameworkParams {
     TERRAIN: CesiumTerrainProvider | null;
     SURFACE: CesiumTerrainProvider | null;
   };
-  resolutionScale?: number;
 }
 
 /**
@@ -29,13 +28,8 @@ export const useRegisterMapFramework = (
   const { registerRefs } = useMapFrameworkSwitcherContext();
   useEffect(() => {
     if (!options) return;
-    const {
-      leafletMap,
-      cesiumScene,
-      cesiumContainer,
-      terrainProviders,
-      resolutionScale,
-    } = options;
+    const { leafletMap, cesiumScene, cesiumContainer, terrainProviders } =
+      options;
 
     registerRefs({
       getLeafletMap: () => leafletMap,
@@ -49,7 +43,6 @@ export const useRegisterMapFramework = (
           terrainProviders.SURFACE ??
           (null as unknown as CesiumTerrainProvider),
       }),
-      getResolutionScale: () => resolutionScale,
     });
   }, [options, registerRefs]);
 };

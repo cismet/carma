@@ -64,7 +64,6 @@ export interface MapFrameworkSwitcherRefs {
     TERRAIN: CesiumTerrainProvider;
     SURFACE: CesiumTerrainProvider;
   };
-  getResolutionScale: () => number | undefined;
 }
 
 export interface MapFrameworkSwitcherCallbacks {
@@ -125,15 +124,13 @@ const MapFrameworkSwitcherContext =
 interface MapFrameworkSwitcherProviderProps {
   children: ReactNode;
   initialFramework?: CarmaMapFramework;
-  transitionOptions?: {
-    resolutionMatchRadius?: number;
-  };
+  transitionOptions?: TransitionOptions;
 }
 
 export const MapFrameworkSwitcherProvider = ({
   children,
   initialFramework = CARMA_MAP_FRAMEWORKS.LEAFLET,
-  transitionOptions,
+  transitionOptions = {},
 }: MapFrameworkSwitcherProviderProps) => {
   // Core state
   const [activeFramework, setActiveFramework] =
@@ -177,7 +174,6 @@ export const MapFrameworkSwitcherProvider = ({
       TERRAIN: null as unknown as CesiumTerrainProvider,
       SURFACE: null as unknown as CesiumTerrainProvider,
     }),
-    getResolutionScale: () => undefined,
   });
 
   // Refs for callbacks (rerender-free)
@@ -251,13 +247,11 @@ export const MapFrameworkSwitcherProvider = ({
     const leaflet = refsRef.current.getLeafletMap();
     const scene = refsRef.current.getCesiumScene();
     const cesiumContainer = refsRef.current.getCesiumContainer();
-    const resolutionScale = refsRef.current.getResolutionScale();
     const terrainProviders = refsRef.current.getCesiumTerrainProviders();
 
     const hasValidRequirements = validateRequirements(
       scene,
       cesiumContainer,
-      resolutionScale,
       leaflet
     );
 
@@ -280,7 +274,6 @@ export const MapFrameworkSwitcherProvider = ({
         scene,
         leaflet,
         cesiumContainer,
-        resolutionScale || 1.0,
         terrainProviders,
         lastEngineStateRef.current.cesium,
         {
@@ -298,8 +291,7 @@ export const MapFrameworkSwitcherProvider = ({
             setIsTransitioning(false);
           },
         },
-        {},
-        transitionOptions?.resolutionMatchRadius
+        transitionOptions?.toCesium || {}
       );
     } catch (error) {
       console.error("[CESIUM] Transition to 3D failed:", error);
@@ -326,13 +318,11 @@ export const MapFrameworkSwitcherProvider = ({
     const scene = refsRef.current.getCesiumScene();
     const leaflet = refsRef.current.getLeafletMap();
     const cesiumContainer = refsRef.current.getCesiumContainer();
-    const resolutionScale = refsRef.current.getResolutionScale();
     const terrainProviders = refsRef.current.getCesiumTerrainProviders();
 
     const hasValidRequirements = validateRequirements(
       scene,
       cesiumContainer,
-      resolutionScale,
       leaflet
     );
 
@@ -356,7 +346,6 @@ export const MapFrameworkSwitcherProvider = ({
         scene,
         leaflet,
         cesiumContainer,
-        resolutionScale || 1.0,
         terrainProviders,
         {
           onStageChange: (stage: TransitionStage, message: string) => {
@@ -375,8 +364,7 @@ export const MapFrameworkSwitcherProvider = ({
           },
           onLeafletViewSet: callbacksRef.current.onLeafletViewSet,
         },
-        {},
-        transitionOptions?.resolutionMatchRadius
+        transitionOptions?.toLeaflet || {}
       );
 
       // Store cesium camera state for when we return to 3D

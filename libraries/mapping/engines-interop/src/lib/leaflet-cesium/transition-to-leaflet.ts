@@ -34,14 +34,12 @@ export const transitionToLeaflet = async (
   scene: Scene,
   leaflet: LeafletMap,
   cesiumContainer: HTMLElement,
-  resolutionScale: number,
   terrainProviders: {
     TERRAIN?: CesiumTerrainProvider;
     SURFACE?: CesiumTerrainProvider;
   },
   callbacks: TransitionToLeafletCallbacks,
-  options: TransitionToLeafletOptions = {},
-  resolutionMatchRadius?: number
+  options: TransitionToLeafletOptions = {}
 ): Promise<HeadingPitchJson | undefined> => {
   const { step2_cssTransitionDurationMs = 1000 } = options;
   const { onStageChange, onComplete, onError, onLeafletViewSet } = callbacks;
@@ -85,8 +83,7 @@ export const transitionToLeaflet = async (
       cssWidth,
       cssHeight,
       lat as Degrees,
-      initialDistance as Meters,
-      resolutionMatchRadius
+      initialDistance as Meters
     );
 
     if (zoom === null) {

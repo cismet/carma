@@ -143,7 +143,6 @@ function App({ sync = false }: { sync?: boolean }) {
         TERRAIN: terrainProvider ?? null,
         SURFACE: surfaceProvider ?? null,
       },
-      resolutionScale: window.devicePixelRatio,
     };
   }, [routedMap, getScene, getTerrainProvider, getSurfaceProvider]);
 
