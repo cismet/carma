@@ -225,14 +225,6 @@ export const MapFrameworkSwitcherProvider = ({
           container.style.pointerEvents = "auto";
         }
       }
-
-      console.log("[FRAMEWORK-SWITCHER-CONTEXT] Refs registered:", {
-        hasLeafletMap: !!refsRef.current.getLeafletMap(),
-        hasCesiumScene: !!refsRef.current.getCesiumScene(),
-        hasCesiumContainer: !!refsRef.current.getCesiumContainer(),
-        containerVisibility: isLeaflet ? "hidden" : "visible",
-        nowReady,
-      });
     },
     [isLeaflet, isCesium]
   );
@@ -293,7 +285,7 @@ export const MapFrameworkSwitcherProvider = ({
         lastEngineStateRef.current.cesium,
         {
           onStageChange: (stage: TransitionStage, message: string) => {
-            console.debug(`[CESIUM] Transition stage: ${stage} - ${message}`);
+            //console.debug(`[CESIUM] Transition stage: ${stage} - ${message}`);
           },
           onComplete: () => {
             setActiveFrameworkCesium();
@@ -470,13 +462,6 @@ export const MapFrameworkSwitcherProvider = ({
       registerCallbacks,
     ]
   );
-
-  console.log("[FRAMEWORK-SWITCHER-CONTEXT] Provider render:", {
-    activeFramework,
-    isTransitioning,
-    isReady,
-    hasToggle: !!toggle,
-  });
 
   return (
     <MapFrameworkSwitcherContext.Provider value={value}>
