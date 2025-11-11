@@ -10,10 +10,8 @@ import { persistStore } from "redux-persist";
 import Map from "./app/components/Map";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
 import { MappingConstants } from "react-cismap";
-import {
-  GazDataProvider,
-  SelectionProvider,
-} from "@carma-appframeworks/portals";
+import { GazDataProvider } from "@carma-providers/gaz-data";
+import { SelectionProvider } from "@carma-providers/selection";
 import { gazDataConfig } from "./config/gazData";
 import { suppressReactCismapErrors } from "@carma-commons/utils";
 

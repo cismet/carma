@@ -1,5 +1,5 @@
 import { useContext, useEffect, useState } from "react";
-import { ResponsiveInfoBox, MODES } from "./ResponsiveInfoBox";
+import { ResponsiveInfoBox, MODES } from "@carma-commons/cismap";
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 import {
   FeatureCollectionContext,

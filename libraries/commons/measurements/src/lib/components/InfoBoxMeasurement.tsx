@@ -7,7 +7,7 @@ import { UIContext } from "react-cismap/contexts/UIContextProvider";
 import "../styles/infoBox.css";
 import { Tooltip } from "antd";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
-import { ResponsiveInfoBox } from "@carma-appframeworks/portals";
+import { ResponsiveInfoBox } from "@carma-commons/cismap";
 import { useMapMeasurementsContext } from "./MapMeasurementsProvider";
 import { InfoBoxMeasurementProps, MeasurementShape } from "../..";
 

@@ -11,7 +11,7 @@ import L from "leaflet";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 import { InfoBoxText } from "@carma-collab/wuppertal/bplan-auskunft";
-import { ResponsiveInfoBox } from "@carma-appframeworks/portals";
+import { ResponsiveInfoBox } from "@carma-commons/cismap";
 
 const BPlanInfo = ({
   pixelwidth,

@@ -11,7 +11,7 @@ import {
 import { useFeatureFlags } from "@carma-providers/feature-flag";
 
 import type { LayerState } from "../types";
-import { SelectionItem } from "./SelectionProvider";
+import { SelectionItem } from "@carma-providers/selection";
 import { useShareUrl } from "../hooks/useShareUrl";
 import { FileUploader } from "./FileUploader";
 import "./tabs.css";

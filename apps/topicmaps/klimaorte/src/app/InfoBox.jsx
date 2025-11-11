@@ -9,7 +9,7 @@ import { appModes } from "./helper/modeParser";
 import { getColorConsideringSeondarySelection } from "./helper/styler";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { InfoBoxTextContent } from "@carma-collab/wuppertal/klimaorte";
-import { GenericInfoBoxFromFeature } from "@carma-appframeworks/portals";
+import { GenericInfoBoxFromFeature } from "@carma-commons/cismap";
 
 const InfoBox = (props) => {
   let boxConfig = null;

@@ -13,10 +13,8 @@ import "react-cismap/topicMaps.css";
 import "./App.css";
 import Map from "./Map";
 import "./index.css";
-import {
-  backgroundConfWithFastOrtho2024,
-  useProgress,
-} from "@carma-appframeworks/portals";
+import { backgroundConfWithFastOrtho2024 } from "@carma-commons/resources";
+import { useProgress } from "@carma-commons/cismap";
 
 if (typeof global === "undefined") {
   window.global = window;

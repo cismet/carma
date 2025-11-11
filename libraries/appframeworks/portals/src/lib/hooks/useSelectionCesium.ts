@@ -9,10 +9,7 @@ import {
   useCesiumContext,
 } from "@carma-mapping/engines/cesium";
 
-import {
-  SelectionMapMode,
-  useSelection,
-} from "../components/SelectionProvider";
+import { SelectionMapMode, useSelection } from "@carma-providers/selection";
 import { cesiumHandleAreaSelection } from "../utils/cesium-handle-area-selection";
 import { cesiumHandlePointSelection } from "../utils/cesium-handle-point-selection";
 import { getDerivedGeometries } from "../utils/getDerivedGeometries";

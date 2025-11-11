@@ -9,13 +9,14 @@ export const TopicMapSelectionContent = () => {
 
   //console.debug("RENDER TopicMapSelectionContent", selection, overlayFeature);
 
+  const topicMapContext = useContext(TopicMapContext) as any;
   const {
     routedMapRef: routedMap,
     //realRoutedMapRef: routeMapRef,
     //referenceSystem,
     //referenceSystemDefinition,
     maskingPolygon,
-  } = useContext<typeof TopicMapContext>(TopicMapContext);
+  } = topicMapContext;
 
   if (!selection) {
     return null;

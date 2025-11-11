@@ -19,11 +19,11 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import {
   SelectionMetaData,
   TopicMapSelectionContent,
-  useGazData,
   useSelection,
   useSelectionCesium,
   useSelectionTopicMap,
-} from "@carma-appframeworks/portals";
+} from "@carma-providers/selection";
+import { useGazData } from "@carma-providers/gaz-data";
 import { useHashState } from "@carma-providers/hash-state";
 import { ENDPOINT, isAreaTypeWithGEP } from "@carma-commons/resources";
 import { getApplicationVersion } from "@carma-commons/utils";

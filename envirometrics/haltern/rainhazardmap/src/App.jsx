@@ -29,7 +29,7 @@ import {
   useSelection,
   useSelectionTopicMap,
   TopicMapSelectionContent,
-} from "@carma-appframeworks/portals";
+} from "@carma-providers/selection";
 
 function App() {
   const version = getApplicationVersion(versionData);

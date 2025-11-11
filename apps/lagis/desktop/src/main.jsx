@@ -27,10 +27,8 @@ import { PersistGate } from "redux-persist/integration/react";
 import { getJWT } from "./store/slices/auth";
 import { QueryClient } from "@tanstack/react-query";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
-import {
-  GazDataProvider,
-  SelectionProvider,
-} from "@carma-appframeworks/portals";
+import { GazDataProvider } from "@carma-providers/gaz-data";
+import { SelectionProvider } from "@carma-providers/selection";
 import { loadGazeteerEntries } from "./store/slices/gazData";
 import AlkisLandparcelPage from "./pages/AlkisLandparcelPage";
 import AlkisBookingSheetPage from "./pages/AlkisBookingSheetPage";

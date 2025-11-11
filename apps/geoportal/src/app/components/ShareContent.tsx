@@ -1,4 +1,5 @@
-import { Share, useSelection } from "@carma-appframeworks/portals";
+import { useSelection } from "@carma-providers/selection";
+import { Share } from "@carma-appframeworks/portals";
 import { useAuth } from "@carma-providers/auth";
 
 import { getLayerState } from "../store/slices/mapping";

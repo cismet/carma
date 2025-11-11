@@ -14,10 +14,12 @@
       },
       "configurations": {
         "development": {
-          "mode": "development"
+          "mode": "development",
+          "nodeOptions": "--max-old-space-size=16192"
         },
         "production": {
-          "mode": "production"
+          "mode": "production",
+          "nodeOptions": "--max-old-space-size=16192"
         }
       }
     },
@@ -44,7 +46,8 @@
       "defaultConfiguration": "development",
       "options": {
         "buildTarget": "geoportal:build",
-        "host": "0.0.0.0"
+        "host": "0.0.0.0",
+        "nodeOptions": "--max-old-space-size=16192"
       },
       "configurations": {
         "development": {
@@ -54,14 +57,6 @@
           "buildTarget": "geoportal:build:production"
         }
       }
-    },
-    "preview:direct": {
-      "executor": "nx:run-commands",
-      "options": {
-        "command": "NODE_OPTIONS='--max-old-space-size=16384' vite preview --host localhost --port 4300",
-        "cwd": "apps/geoportal"
-      },
-      "dependsOn": ["build"]
     },
     "test": {
       "executor": "@nx/vite:test",

@@ -11,9 +11,9 @@ import { FocusRectangle } from "./components/FocusRectangle";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import {
   TopicMapSelectionContent,
-  useGazData,
   useSelection,
-} from "@carma-appframeworks/portals";
+} from "@carma-providers/selection";
+import { useGazData } from "@carma-providers/gaz-data";
 import {
   FullscreenControl,
   RoutedMapLocateControl,

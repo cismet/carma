@@ -20,11 +20,9 @@ import {
 } from "@carma-commons/utils";
 import versionData from "../version.json";
 import { GenericDigitalTwinReferenceSection } from "@carma-collab/wuppertal/commons";
-import {
-  FeatureInfobox,
-  TopicMapSelectionContent,
-  useSelectionTopicMap,
-} from "@carma-appframeworks/portals";
+import { useSelectionTopicMap } from "@carma-providers/selection";
+import { TopicMapSelectionContent } from "@carma-providers/selection";
+import { FeatureInfobox } from "@carma-commons/cismap";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import FuzzySearchWrapper from "./components/FuzzySearchWrapper";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
@@ -37,7 +35,7 @@ import CismapLayer from "react-cismap/CismapLayer";
 import Menu from "./components/Menu";
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 import md5 from "md5";
-import { createVectorFeature } from "@carma-appframeworks/portals";
+import { createVectorFeature } from "@carma-commons/cismap";
 
 const host = import.meta.env.VITE_WUPP_ASSET_BASEURL;
 const downloadText = (text, filename) => {

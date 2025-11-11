@@ -22,10 +22,10 @@ import GazetteerSearchComponent from "react-cismap/GazetteerSearchComponent";
 import {
   SelectionMetaData,
   TopicMapSelectionContent,
-  useGazData,
   useSelection,
   useSelectionTopicMap,
-} from "@carma-appframeworks/portals";
+} from "@carma-providers/selection";
+import { useGazData } from "@carma-providers/gaz-data";
 import {
   EmptySearchComponent,
   LibFuzzySearch,

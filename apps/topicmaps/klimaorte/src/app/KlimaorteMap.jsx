@@ -37,7 +37,7 @@ import {
   searchTextPlaceholder,
   MenuTooltip,
 } from "@carma-collab/wuppertal/klimaorte";
-import { TopicMapSelectionContent } from "@carma-appframeworks/portals";
+import { TopicMapSelectionContent } from "@carma-providers/selection";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import FuzzySearchWrapper from "./components/FuzzySearchWrapper";
 import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";

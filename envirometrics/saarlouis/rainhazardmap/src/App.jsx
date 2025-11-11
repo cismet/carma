@@ -15,7 +15,7 @@ import {
   TopicMapSelectionContent,
   useSelection,
   useSelectionTopicMap,
-} from "@carma-appframeworks/portals";
+} from "@carma-providers/selection";
 import {
   Control,
   useAttributionControlStyling,

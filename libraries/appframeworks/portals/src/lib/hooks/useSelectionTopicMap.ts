@@ -3,7 +3,7 @@ import { useContext, useEffect, useRef } from "react";
 import { builtInGazetteerHitTrigger } from "react-cismap/tools/gazetteerHelper";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
-import { SelectionItem, useSelection } from "../components/SelectionProvider";
+import { SelectionItem, useSelection } from "@carma-providers/selection";
 import type { Map } from "leaflet";
 
 const NEW_SELECTION_TIMEOUT = 200;

@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 
-import { SelectionItem, useSelection } from "../components/SelectionProvider";
+import { SelectionItem, useSelection } from "@carma-providers/selection";
 import maplibregl from "maplibre-gl";
 import proj4 from "proj4";
 import { proj4crs3857def, proj4crs4326def } from "@carma-mapping/utils";

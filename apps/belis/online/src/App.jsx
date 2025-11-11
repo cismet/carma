@@ -24,10 +24,9 @@ import "./App.css";
 // import "antd/dist/antd.min.css";
 import Login from "./containers/Login";
 import { getBelisHash, getBelisVersion } from "./constants/versions";
-import {
-  GazDataProvider,
-  SelectionProvider,
-} from "@carma-appframeworks/portals";
+import { SelectionProvider } from "@carma-providers/selection";
+import { GazDataProvider } from "@carma-providers/gazdata";
+
 import { gazDataConfig } from "./config/gazData";
 
 let persistor = persistStore(store);

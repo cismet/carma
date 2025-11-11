@@ -23,11 +23,8 @@ import { getGazData } from "./helper/getGazData";
 import titleFactory from "./helper/titleFactory";
 import { MappingConstants } from "react-cismap";
 import Luftmessstationskarte from "./Luftmessstationskarte";
-import {
-  backgroundConfWithFastOrtho2024,
-  ProgressIndicator,
-  useProgress,
-} from "@carma-appframeworks/portals";
+import { backgroundConfWithFastOrtho2024 } from "@carma-commons/resources";
+import { ProgressIndicator, useProgress } from "@carma-commons/cismap";
 
 function App() {
   const [gazData, setGazData] = useState([]);

@@ -5,10 +5,8 @@ import store from "./app/store";
 import { RouterProvider, createHashRouter } from "react-router-dom";
 import { PersistGate } from "redux-persist/integration/react";
 import { persistStore } from "redux-persist";
-import {
-  GazDataProvider,
-  SelectionProvider,
-} from "@carma-appframeworks/portals";
+import { GazDataProvider } from "@carma-providers/gaz-data";
+import { SelectionProvider } from "@carma-providers/selection";
 import { MockAuthProvider } from "./app/providers/MockAuthProvider";
 import { gazDataConfig } from "./config/gazData";
 

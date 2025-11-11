@@ -63,10 +63,10 @@ import {
 import { getTeam } from "../core/store/slices/team";
 import {
   TopicMapSelectionContent,
-  useGazData,
   useSelection,
   useSelectionTopicMap,
-} from "@carma-appframeworks/portals";
+} from "@carma-providers/selection";
+import { useGazData } from "@carma-providers/gazdata";
 import {
   EmptySearchComponent,
   LibFuzzySearch,

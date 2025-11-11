@@ -13,6 +13,7 @@ export default defineConfig({
   server: {
     port: 4200,
     host: "localhost",
+    sourcemapIgnoreList: false, // Include all sourcemaps in dev server
     fs: {
       allow: ["../.."],
     },
@@ -52,9 +53,11 @@ export default defineConfig({
     // Reduce memory pressure during build
     chunkSizeWarningLimit: 1000,
     rollupOptions: {
+      // Limit parallel operations to reduce memory spikes
+      maxParallelFileOps: 20,
       output: {
         // Optimize chunks by load priority for better initial load & caching
-        manualChunks: {
+        manualChunks: process.env.NODE_ENV === 'production' ? {
           'vendor-react-core': [
             'react',
             'react-dom',
@@ -80,15 +83,20 @@ export default defineConfig({
           'vendor-cismap': ['react-cismap'],
           'vendor-cesium': ['cesium'],
           'vendor-maplibre': ['maplibre-gl'],
-        },
-        // Exclude vendor chunks from sourcemaps to save memory, but keep Cesium for debugging
-        sourcemapExcludeSources: true,
+        } : undefined,
+        // In development: include full source content for debugging
+        // In production: exclude vendor sources to save memory
+        sourcemapExcludeSources: process.env.NODE_ENV === 'production',
         sourcemapIgnoreList: (relativeSourcePath) => {
-          // Exclude all node_modules EXCEPT cesium from sourcemaps
-          return relativeSourcePath.includes('node_modules') && 
-                 !relativeSourcePath.includes('node_modules/cesium') &&
-                 !relativeSourcePath.includes('node_modules/leaflet') &&
-                 !relativeSourcePath.includes('node_modules/react-cismap');
+          // In production: Exclude all node_modules EXCEPT debugging libraries
+          if (process.env.NODE_ENV === 'production') {
+            return relativeSourcePath.includes('node_modules') && 
+                   !relativeSourcePath.includes('node_modules/cesium') &&
+                   !relativeSourcePath.includes('node_modules/leaflet') &&
+                   !relativeSourcePath.includes('node_modules/react-cismap');
+          }
+          // In development/preview: include all sourcemaps
+          return false;
         },
       },
     },

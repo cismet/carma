@@ -28,10 +28,8 @@ import StreetCleaningDetailsPage from "./pages/StreetCleaningDetails";
 import store from "./store";
 import { checkJWTValidation, getJWT } from "./store/slices/auth";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
-import {
-  GazDataProvider,
-  SelectionProvider,
-} from "@carma-appframeworks/portals";
+import { GazDataProvider } from "@carma-providers/gaz-data";
+import { SelectionProvider } from "@carma-providers/selection";
 import {
   additionalLayerConfiguration,
   backgroundConfigurations,

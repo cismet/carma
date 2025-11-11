@@ -11,7 +11,7 @@ import {
   createUrl,
   functionToFeature,
   objectToFeature,
-} from "@carma-appframeworks/portals";
+} from "@carma-commons/cismap";
 
 export const getLeafNodes = (node, result: any = {}): any => {
   if (node.nodeType === Node.ELEMENT_NODE) {

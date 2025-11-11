@@ -16,11 +16,8 @@ import {
 import titleFactory from "../helper/titleFactory";
 import createItemsDictionary from "../helper/createDictionary";
 import itemFilterFunction from "../helper/filter";
-import {
-  backgroundConfWithFastOrtho2024,
-  ProgressIndicator,
-  useProgress,
-} from "@carma-appframeworks/portals";
+import { backgroundConfWithFastOrtho2024 } from "@carma-commons/resources";
+import { ProgressIndicator, useProgress } from "@carma-commons/cismap";
 
 export function App() {
   const { progress, showProgress, handleProgressUpdate } = useProgress();

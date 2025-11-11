@@ -8,10 +8,8 @@ import { PersistGate } from "redux-persist/integration/react";
 import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextProvider";
 import { CrossTabCommunicationContextProvider } from "react-cismap/contexts/CrossTabCommunicationContextProvider";
 
-import {
-  GazDataProvider,
-  SelectionProvider,
-} from "@carma-appframeworks/portals";
+import { GazDataProvider } from "@carma-providers/gaz-data";
+import { SelectionProvider } from "@carma-providers/selection";
 import { HashStateProvider } from "@carma-providers/hash-state";
 import { suppressReactCismapErrors } from "@carma-commons/utils";
 import {

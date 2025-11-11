@@ -3,7 +3,7 @@ import {
   getFeatureCollection,
   getSelectedFeature,
 } from "../../store/slices/featureCollection";
-import { InfoBox } from "@carma-appframeworks/portals";
+import { InfoBox } from "@carma-commons/cismap";
 import { ControlLayout } from "@carma-mapping/map-controls-layout";
 import { getVCard } from "@carma-appframeworks/belis";
 

@@ -21,11 +21,8 @@ import "leaflet/dist/leaflet.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import "react-cismap/topicMaps.css";
 import { createItemsDictionary } from "./helper/createItemsDictionary";
-import {
-  backgroundConfWithFastOrtho2024,
-  ProgressIndicator,
-  useProgress,
-} from "@carma-appframeworks/portals";
+import { backgroundConfWithFastOrtho2024 } from "@carma-commons/resources";
+import { ProgressIndicator, useProgress } from "@carma-commons/cismap";
 import { cjsGlobalShim } from "@carma-commons/utils/window";
 
 cjsGlobalShim();

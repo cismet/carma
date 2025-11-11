@@ -17,12 +17,9 @@ import FeatureCollection from "./components/FeatureCollection";
 import InfoBox from "./components/InfoBox";
 import MyMenu from "./components/Menu";
 import InfoPanel from "./components/SecondaryInfo";
-import {
-  TopicMapSelectionContent,
-  useGazData,
-  useSelection,
-  useSelectionTopicMap,
-} from "@carma-appframeworks/portals";
+import { useSelection, useSelectionTopicMap } from "@carma-providers/selection";
+import { TopicMapSelectionContent } from "@carma-providers/selection";
+import { useGazData } from "@carma-providers/gaz-data";
 import {
   searchTextPlaceholder,
   MenuTooltip,

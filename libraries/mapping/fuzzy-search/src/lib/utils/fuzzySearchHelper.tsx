@@ -21,7 +21,7 @@ import Icon from "react-cismap/commons/Icon";
 import { stopwords } from "../config/stopwords.de-de";
 import { useContext } from "react";
 import { FeatureCollectionDispatchContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
-import { useSelection } from "@carma-appframeworks/portals";
+import { useSelection } from "@carma-providers/selection";
 
 export const renderCategoryTitle = (
   category: ENDPOINT,

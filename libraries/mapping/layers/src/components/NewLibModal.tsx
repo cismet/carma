@@ -25,7 +25,6 @@ import type {
   Layer,
   SavedLayerConfig,
 } from "@carma/types";
-import { utils } from "@carma-appframeworks/portals";
 import { useAuth } from "@carma-providers/auth";
 import {
   useFeatureFlags,

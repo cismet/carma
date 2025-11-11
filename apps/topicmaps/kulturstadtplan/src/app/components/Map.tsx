@@ -18,10 +18,8 @@ import {
   InfoBoxTextContent,
   InfoBoxTextTitle,
 } from "@carma-collab/wuppertal/kulturstadtplan";
-import {
-  TopicMapSelectionContent,
-  useSelectionTopicMap,
-} from "@carma-appframeworks/portals";
+import { useSelectionTopicMap } from "@carma-providers/selection";
+import { TopicMapSelectionContent } from "@carma-providers/selection";
 import {
   EmptySearchComponent,
   LibFuzzySearch,
@@ -34,7 +32,7 @@ import {
   ZoomControl,
 } from "@carma-mapping/components";
 import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
-import { GenericInfoBoxFromFeature } from "@carma-appframeworks/portals";
+import { GenericInfoBoxFromFeature } from "@carma-commons/cismap";
 
 const Map = () => {
   const { setClusteringOptions, setFilterState } = useContext<

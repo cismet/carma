@@ -153,6 +153,14 @@ L.Control.MeasurePolygon = L.Control.extend({
 
     const storeClickPosition = (e) => {
       if (this._measureHandler && this._measureHandler._enabled) {
+        // Guard against invalid coordinates during map transitions
+        if (!e.latlng || isNaN(e.latlng.lat) || isNaN(e.latlng.lng)) {
+          console.warn(
+            "[Measurements] Invalid latlng in click/touch event, skipping:",
+            e.latlng
+          );
+          return;
+        }
         // Store the ORIGINAL click position
         this._lastOriginalClick = {
           latlng: L.latLng(e.latlng.lat, e.latlng.lng),

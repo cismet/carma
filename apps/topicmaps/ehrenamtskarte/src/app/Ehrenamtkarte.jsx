@@ -24,11 +24,11 @@ import {
   searchTextPlaceholder,
 } from "@carma-collab/wuppertal/ehrenamtskarte";
 import {
-  TopicMapSelectionContent,
-  useGazData,
   useSelection,
   useSelectionTopicMap,
-} from "@carma-appframeworks/portals";
+  TopicMapSelectionContent,
+} from "@carma-providers/selection";
+import { useGazData } from "@carma-providers/gaz-data";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { isAreaType } from "@carma-commons/resources";
 

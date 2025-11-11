@@ -14,11 +14,8 @@ import {
 } from "../helper/styler";
 import itemFilterFunction from "../helper/filter";
 import titleFactory from "../helper/titleFactory";
-import {
-  backgroundConfWithFastOrtho2024,
-  ProgressIndicator,
-  useProgress,
-} from "@carma-appframeworks/portals";
+import { backgroundConfWithFastOrtho2024 } from "@carma-commons/resources";
+import { ProgressIndicator, useProgress } from "@carma-commons/cismap";
 import { defaultLayerConf } from "react-cismap/tools/layerFactory";
 
 export function App() {

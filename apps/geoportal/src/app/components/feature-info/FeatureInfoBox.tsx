@@ -28,7 +28,7 @@ import {
   setPreferredVectorLayerId,
 } from "../../store/slices/features";
 import { getLayers } from "../../store/slices/mapping";
-import { getCoordinates } from "../GeoportalMap/topicmap.utils";
+import { getCoordinates } from "@carma/geo/utils";
 import { truncateString, updateUrlWithCoordinates } from "./featureInfoHelper";
 
 import "../infoBox.css";

@@ -2,8 +2,8 @@ import { OverlayTourProvider } from "@carma-commons/ui/helper-overlay";
 import { CesiumContextProvider } from "@carma-mapping/engines/cesium";
 import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextProvider";
 
-import { GazDataProvider } from "./GazDataProvider";
-import { SelectionProvider } from "./SelectionProvider";
+import { GazDataProvider } from "@carma-providers/gaz-data";
+import { SelectionProvider } from "@carma-providers/selection";
 import {
   MapStyleProvider,
   type MapStyleConfig,

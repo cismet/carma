@@ -5,7 +5,7 @@ import CismapLayer from "react-cismap/CismapLayer";
 import { proj4crs25832def } from "react-cismap/constants/gis";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import ExtraMarker from "react-cismap/ExtraMarker";
-import { InfoBox } from "@carma-appframeworks/portals";
+import { InfoBox } from "@carma-commons/cismap";
 
 import { useDispatch, useSelector } from "react-redux";
 import { getLeafNodes } from "../helper/featureInfo";

@@ -12,7 +12,8 @@ import {
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Tooltip } from "antd";
 
-import { Save, useSelection, useShareUrl } from "@carma-appframeworks/portals";
+import { Save, useShareUrl } from "@carma-appframeworks/portals";
+import { useSelection } from "@carma-providers/selection";
 import { geoElements } from "@carma-collab/wuppertal/geoportal";
 import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from "@carma-collab/wuppertal/helper-overlay";
 import { useOverlayHelper } from "@carma-commons/ui/helper-overlay";

@@ -14,10 +14,8 @@ import {
   MenuTooltip,
   InfoBoxTextContent,
 } from "@carma-collab/wuppertal/luftmessstationen";
-import {
-  GenericInfoBoxFromFeature,
-  TopicMapSelectionContent,
-} from "@carma-appframeworks/portals";
+import { TopicMapSelectionContent } from "@carma-providers/selection";
+import { GenericInfoBoxFromFeature } from "@carma-commons/cismap";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import FuzzySearchWrapper from "./components/FuzzySearchWrapper";
 import {

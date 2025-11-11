@@ -65,11 +65,9 @@ import RectangleSearch from "../searchShapes/RectangleSearch";
 import ShapeSearchButton from "../ui/ShapeSearchButton";
 import { PointSearchButton, PointSearch } from "@carma-appframeworks/alkis";
 import { getShapeMode, storeShapeMode } from "../../store/slices/searchMode";
-import {
-  TopicMapSelectionContent,
-  useGazData,
-  useSelection,
-} from "@carma-appframeworks/portals";
+import { useSelection } from "@carma-providers/selection";
+import { TopicMapSelectionContent } from "@carma-providers/selection";
+import { useGazData } from "@carma-providers/gaz-data";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { isAreaType } from "@carma-commons/resources";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";

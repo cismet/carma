@@ -24,12 +24,9 @@ import {
   tooltipText,
   searchTextPlaceholder,
 } from "@carma-collab/wuppertal/umweltalarm";
-import {
-  TopicMapSelectionContent,
-  useGazData,
-  useSelection,
-  useSelectionTopicMap,
-} from "@carma-appframeworks/portals";
+import { useSelection, useSelectionTopicMap } from "@carma-providers/selection";
+import { TopicMapSelectionContent } from "@carma-providers/selection";
+import { useGazData } from "@carma-providers/gaz-data";
 import {
   EmptySearchComponent,
   LibFuzzySearch,

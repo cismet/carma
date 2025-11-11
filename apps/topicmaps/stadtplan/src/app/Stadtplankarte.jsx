@@ -7,11 +7,9 @@ import { LightBoxContext } from "react-cismap/contexts/LightBoxContextProvider";
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 import FeatureCollection from "react-cismap/FeatureCollection";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
-import {
-  GenericInfoBoxFromFeature,
-  TopicMapSelectionContent,
-  useSelectionTopicMap,
-} from "@carma-appframeworks/portals";
+import { useSelectionTopicMap } from "@carma-providers/selection";
+import { TopicMapSelectionContent } from "@carma-providers/selection";
+import { GenericInfoBoxFromFeature } from "@carma-commons/cismap";
 import {
   InfoBoxTextContent,
   InfoBoxTextTitle,

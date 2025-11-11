@@ -42,11 +42,11 @@ import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import {
   SelectionMetaData,
   TopicMapSelectionContent,
-  useGazData,
   useSelection,
   useSelectionCesium,
   useSelectionTopicMap,
-} from "@carma-appframeworks/portals";
+} from "@carma-providers/selection";
+import { useGazData } from "@carma-providers/gaz-data";
 import { useHashState } from "@carma-providers/hash-state";
 import {
   getCollabedHelpComponentConfig,

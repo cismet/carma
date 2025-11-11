@@ -9,10 +9,8 @@ import {
 } from "react-router-dom";
 import CodeMirror from "@uiw/react-codemirror";
 import { javascript } from "@codemirror/lang-javascript";
-import {
-  GazDataProvider,
-  SelectionProvider,
-} from "@carma-appframeworks/portals";
+import { GazDataProvider } from "@carma-providers/gaz-data";
+import { SelectionProvider } from "@carma-providers/selection";
 import LeafletMap from "./app/LeafletMap";
 import LibreMap from "./app/LibreMap";
 import LibreMap2 from "./app/LibreMap2";

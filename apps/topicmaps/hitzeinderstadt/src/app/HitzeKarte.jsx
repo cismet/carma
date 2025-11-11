@@ -22,10 +22,8 @@ import {
 } from "@carma-collab/wuppertal/hitzeinderstadt";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
-import {
-  TopicMapSelectionContent,
-  useSelectionTopicMap,
-} from "@carma-appframeworks/portals";
+import { useSelectionTopicMap } from "@carma-providers/selection";
+import { TopicMapSelectionContent } from "@carma-providers/selection";
 import {
   EmptySearchComponent,
   LibFuzzySearch,

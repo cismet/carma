@@ -24,10 +24,10 @@ import { Button } from "antd";
 import { defaultLayerConf } from "react-cismap/tools/layerFactory";
 import {
   TopicMapSelectionContent,
-  useGazData,
   useSelection,
   useSelectionTopicMap,
-} from "@carma-appframeworks/portals";
+} from "@carma-providers/selection";
+import { useGazData } from "@carma-providers/gaz-data";
 import {
   EmptySearchComponent,
   LibFuzzySearch,

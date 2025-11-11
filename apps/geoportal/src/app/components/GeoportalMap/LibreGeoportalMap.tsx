@@ -16,11 +16,11 @@ import {
   METROPOLERUHR_WMTS_SPW2_WEBMERCATOR_HQ,
 } from "@carma-commons/resources";
 import { normalizeOptions } from "@carma-commons/utils";
+import { useSelectionLibreMap } from "@carma-providers/selection";
 import {
   LibreMapSelectionContent,
   SelectionItem,
   useMapHashRouting,
-  useSelectionLibreMap,
 } from "@carma-appframeworks/portals";
 import { useHashState } from "@carma-providers/hash-state";
 

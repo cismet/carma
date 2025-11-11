@@ -1,13 +1,11 @@
 import React, { useContext, useEffect } from "react";
 import { getActionLinksForFeature } from "react-cismap/tools/uiHelper";
-import { InfoBox } from "@carma-appframeworks/portals";
 import Icon from "react-cismap/commons/Icon";
 import {
   FeatureCollectionContext,
   FeatureCollectionDispatchContext,
 } from "react-cismap/contexts/FeatureCollectionContextProvider";
 import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextProvider";
-// @ts-ignore
 import { ResponsiveTopicMapDispatchContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
 import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
@@ -15,6 +13,8 @@ import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextPr
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
 import InfoBoxFotoPreview from "react-cismap/topicmaps/InfoBoxFotoPreview";
+
+import { InfoBox } from "./InfoBox";
 
 export const getColorForProperties = (props = { color: "#dddddd" }) => {
   return props.color;

@@ -20,9 +20,10 @@ import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopic
 import {
   SelectionMetaData,
   SelectionMapMode,
-  useGazData,
   useSelection,
-} from "@carma-appframeworks/portals";
+} from "@carma-providers/selection";
+
+import { useGazData } from "@carma-providers/gaz-data";
 
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import type { SearchResultItem } from "@carma/types";

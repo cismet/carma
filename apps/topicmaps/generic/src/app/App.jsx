@@ -19,11 +19,9 @@ import Map from "./Map";
 import Menu from "./components/Menu";
 import { MappingConstants } from "react-cismap";
 import { defaultLayerConf } from "react-cismap/tools/layerFactory";
-import {
-  GazDataProvider,
-  SandboxedEvalProvider,
-  SelectionProvider,
-} from "@carma-appframeworks/portals";
+import { GazDataProvider } from "@carma-providers/gaz-data";
+import { SelectionProvider } from "@carma-providers/selection";
+import { SandboxedEvalProvider } from "@carma-providers/sandboxed-eval";
 import { gazDataConfig } from "../config/gazData";
 import WMSCapabilities from "wms-capabilities";
 

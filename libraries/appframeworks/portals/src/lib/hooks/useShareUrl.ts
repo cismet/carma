@@ -1,7 +1,7 @@
 import { useCopyToClipboard } from "@uidotdev/usehooks";
 import { message } from "antd";
 import type { LayerState } from "../types";
-import { SelectionItem } from "../components/SelectionProvider";
+import { SelectionItem } from "@carma-providers/selection";
 import { getHashParams } from "@carma-commons/utils";
 
 export const SHORTENER_URL =

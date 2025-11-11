@@ -9,9 +9,9 @@ import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import Menu from "./Menu";
 import { getPoiClusterIconCreatorFunction } from "./helper/styler";
 import {
-  TopicMapSelectionContent,
   useSelectionTopicMap,
-} from "@carma-appframeworks/portals";
+  TopicMapSelectionContent,
+} from "@carma-providers/selection";
 import {
   defaultTypeInference,
   EmptySearchComponent,
@@ -25,7 +25,7 @@ import {
 } from "@carma-mapping/components";
 import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
-import { GenericInfoBoxFromFeature } from "@carma-appframeworks/portals";
+import { GenericInfoBoxFromFeature } from "@carma-commons/cismap";
 
 const Baederkarte = () => {
   const { setSelectedFeatureByPredicate, setClusteringOptions } = useContext(

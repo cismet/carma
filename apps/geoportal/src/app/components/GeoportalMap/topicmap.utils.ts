@@ -6,8 +6,9 @@ import proj4 from "proj4";
 import {
   functionToFeature,
   objectToFeature,
-} from "@carma-appframeworks/portals";
+} from "@carma-commons/cismap";
 import type { Layer } from "@carma/types";
+import {getCoordinates} from "@carma/geo/utils";
 
 import {
   addCompletedVectorLayer,
@@ -276,18 +277,6 @@ const checkIfLayerIsFirst = (layer: Layer, layers: Layer[]) => {
 };
 */
 
-export const getCoordinates = (geometry) => {
-  switch (geometry.type) {
-    case "Polygon":
-      return geometry.coordinates[0][0];
-    case "MultiPolygon":
-      return geometry.coordinates[0][0][0];
-    case "LineString":
-      return geometry.coordinates[1];
-    default:
-      return geometry.coordinates;
-  }
-};
 
 const createVectorFeature = async (
   coordinates,

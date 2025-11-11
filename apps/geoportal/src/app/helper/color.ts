@@ -1,4 +1,5 @@
-import { sandboxedEvalExternal, utils } from "@carma-appframeworks/portals";
+import { sandboxedEvalExternal } from "@carma-providers/sandboxed-eval";
+import { utils } from "@carma-appframeworks/portals";
 import { FeatureInfoProperties } from "@carma/types";
 
 const getFunctionRegex = () => {

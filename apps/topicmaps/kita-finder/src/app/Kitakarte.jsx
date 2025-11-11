@@ -21,10 +21,8 @@ import {
 } from "./helper/styler";
 // import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
-import {
-  TopicMapSelectionContent,
-  useSelectionTopicMap,
-} from "@carma-appframeworks/portals";
+import { useSelectionTopicMap } from "@carma-providers/selection";
+import { TopicMapSelectionContent } from "@carma-providers/selection";
 import {
   EmptySearchComponent,
   LibFuzzySearch,
@@ -39,7 +37,7 @@ import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopic
 import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
 
 // import GenericInfoBoxFromFeature from "./components/GenericInfoBoxFromFeature";
-import { GenericInfoBoxFromFeature } from "@carma-appframeworks/portals";
+import { GenericInfoBoxFromFeature } from "@carma-commons/cismap";
 
 const KitaKarte = () => {
   const { responsiveState, gap, windowSize } = useContext(

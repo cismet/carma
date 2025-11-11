@@ -47,7 +47,7 @@ import {
   loadingText,
 } from "@carma-collab/wuppertal/fnp-inspektor";
 import type { UnknownAction } from "redux";
-import { TopicMapSelectionContent } from "@carma-appframeworks/portals";
+import { TopicMapSelectionContent } from "@carma-providers/selection";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import FuzzySearchWrapper from "./FuzzySearchWrapper";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";

@@ -6,11 +6,11 @@ import GenericInfoBoxFromFeature from "react-cismap/topicmaps/GenericInfoBoxFrom
 import { suppressReactCismapErrors } from "@carma-commons/utils";
 import {
   SelectionMetaData,
-  useGazData,
   useSelection,
   TopicMapSelectionContent,
   useSelectionTopicMap,
-} from "@carma-appframeworks/portals";
+} from "@carma-providers/selection";
+import { useGazData } from "@carma-providers/gaz-data";
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 
 suppressReactCismapErrors();

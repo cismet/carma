@@ -2,6 +2,8 @@ export * from "./lib/endpoints";
 
 export * from "./lib/service-options";
 export * from "./lib/tilesets";
+export * from "./lib/topicmap-configs";
+
 export * from "./lib/loaders/model";
 
 export * from "./lib/de/tileset3d.ts";

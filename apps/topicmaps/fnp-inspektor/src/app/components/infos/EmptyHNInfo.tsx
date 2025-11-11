@@ -2,7 +2,7 @@ import { MODES } from "react-cismap/topicmaps/ResponsiveInfoBox";
 import Icon from "react-cismap/commons/Icon";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 import { useContext } from "react";
-import { ResponsiveInfoBox } from "@carma-appframeworks/portals";
+import { ResponsiveInfoBox } from "@carma-commons/cismap";
 
 const EmptyHNInfo = () => {
   const { setAppMenuVisible } =

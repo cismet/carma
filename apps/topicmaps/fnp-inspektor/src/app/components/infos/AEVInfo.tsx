@@ -11,7 +11,7 @@ import Icon from "react-cismap/commons/Icon";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { useContext } from "react";
 import Color from "color";
-import { ResponsiveInfoBox } from "@carma-appframeworks/portals";
+import { ResponsiveInfoBox } from "@carma-commons/cismap";
 
 const AEVInfo = ({ secondaryInfoBoxElements }) => {
   const features = useSelector(getFeatureCollection);

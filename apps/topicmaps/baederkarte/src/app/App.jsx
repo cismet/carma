@@ -15,11 +15,8 @@ import {
   getPoiClusterIconCreatorFunction,
 } from "./helper/styler";
 import "./index.css";
-import {
-  backgroundConfWithFastOrtho2024,
-  ProgressIndicator,
-  useProgress,
-} from "@carma-appframeworks/portals";
+import { backgroundConfWithFastOrtho2024 } from "@carma-commons/resources";
+import { ProgressIndicator, useProgress } from "@carma-commons/cismap";
 
 if (typeof global === "undefined") {
   window.global = window;

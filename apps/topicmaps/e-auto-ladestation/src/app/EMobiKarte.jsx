@@ -12,10 +12,8 @@ import {
   UIContext,
   UIDispatchContext,
 } from "react-cismap/contexts/UIContextProvider";
-import {
-  TopicMapSelectionContent,
-  useSelectionTopicMap,
-} from "@carma-appframeworks/portals";
+import { useSelectionTopicMap } from "@carma-providers/selection";
+import { TopicMapSelectionContent } from "@carma-providers/selection";
 import {
   EmptySearchComponent,
   LibFuzzySearch,
@@ -32,7 +30,7 @@ import { getApplicationVersion } from "@carma-commons/utils";
 import versionData from "../version.json";
 import SIMComponentDictionary from "@carma-collab/wuppertal/secondary-info-modals";
 import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
-import { GenericInfoBoxFromFeature } from "@carma-appframeworks/portals";
+import { GenericInfoBoxFromFeature } from "@carma-commons/cismap";
 
 const SecondaryInfoModal = SIMComponentDictionary["eMobSIM"];
 

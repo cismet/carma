@@ -15,10 +15,8 @@ import Map from "./app/components/Map";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
 import convertItemToFeature from "./utils/convertItemToFeature";
 import { MappingConstants } from "react-cismap";
-import {
-  GazDataProvider,
-  SelectionProvider,
-} from "@carma-appframeworks/portals";
+import { GazDataProvider } from "@carma-providers/gaz-data";
+import { SelectionProvider } from "@carma-providers/selection";
 import { gazDataConfig } from "./config/gazData";
 
 const persistor = persistStore(store);

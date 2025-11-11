@@ -24,12 +24,14 @@ import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import GenericModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
 
 import {
-  SelectionItem,
-  TopicMapSelectionContent,
-  useGazData,
-  useMapHashRouting,
   useSelectionCesium,
   useSelectionTopicMap,
+} from "@carma-providers/selection";
+import { TopicMapSelectionContent } from "@carma-providers/selection";
+import { useGazData } from "@carma-providers/gaz-data";
+import {
+  SelectionItem,
+  useMapHashRouting,
   useCesiumModels,
 } from "@carma-appframeworks/portals";
 import {

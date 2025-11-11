@@ -15,7 +15,7 @@ import { useContext, useState } from "react";
 import {
   TopicMapSelectionContent,
   useSelectionTopicMap,
-} from "@carma-appframeworks/portals";
+} from "@carma-providers/selection";
 import CismapLayer from "react-cismap/CismapLayer";
 import { getActionLinksForFeature } from "react-cismap/tools/uiHelper";
 import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextProvider";

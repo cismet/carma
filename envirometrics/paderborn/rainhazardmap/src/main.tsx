@@ -6,10 +6,8 @@ import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvid
 import App from "./App";
 import reportWebVitals from "./reportWebVitals";
 import * as serviceWorkerRegistration from "./serviceWorkerRegistration";
-import {
-  GazDataProvider,
-  SelectionProvider,
-} from "@carma-appframeworks/portals";
+import { GazDataProvider } from "@carma-providers/gaz-data";
+import { SelectionProvider } from "@carma-providers/selection";
 import { gazDataConfig } from "./config/gazData";
 import paderbornConfig from "./config";
 const appKey = "cismetRainhazardMap.Paderborn";

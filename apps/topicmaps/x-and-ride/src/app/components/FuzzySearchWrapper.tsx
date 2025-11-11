@@ -2,7 +2,7 @@ import {
   SelectionMetaData,
   useSelection,
   useSelectionTopicMap,
-} from "@carma-appframeworks/portals";
+} from "@carma-providers/selection";
 import {
   defaultTypeInference,
   LibFuzzySearch,

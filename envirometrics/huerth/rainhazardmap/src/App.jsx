@@ -19,7 +19,7 @@ import {
   useSelection,
   useSelectionTopicMap,
   TopicMapSelectionContent,
-} from "@carma-appframeworks/portals";
+} from "@carma-providers/selection";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { isAreaTypeWithGEP } from "@carma-commons/resources";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";

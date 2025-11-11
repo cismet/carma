@@ -19,11 +19,8 @@ import "react-cismap/topicMaps.css";
 import { useSelector } from "react-redux";
 import { getFeatureRenderingOption } from "./store/slices/ui";
 import convertItemToFeature from "./helper/convertItemToFeature";
-import {
-  backgroundConfWithFastOrtho2024,
-  ProgressIndicator,
-  useProgress,
-} from "@carma-appframeworks/portals";
+import { backgroundConfWithFastOrtho2024 } from "@carma-commons/resources";
+import { ProgressIndicator, useProgress } from "@carma-commons/cismap";
 if (typeof global === "undefined") {
   window.global = window;
 }

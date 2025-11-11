@@ -1,7 +1,7 @@
 // prevent namespace collisions with other mapping libraries and JavaScript built-in Map type
-import { Map as LeafletMap, LatLng } from "leaflet";
+import { map as leafletMap, Map as LeafletMap, LatLng } from "leaflet";
 
-export { LeafletMap };
+export { LeafletMap, leafletMap };
 
 export type LeafletView = {
   center: LatLng;
