@@ -11,7 +11,11 @@ import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopic
 import { useContext } from "react";
 import { FeatureCollectionDispatchContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
 import { isAreaType } from "@carma-commons/resources";
-import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextProvider";
+import {
+  TopicMapContext,
+  TopicMapDispatchContext,
+} from "react-cismap/contexts/TopicMapContextProvider";
+import { appModes } from "../helper/modeParser";
 
 const FuzzySearchWrapper = ({ searchTextPlaceholder }) => {
   const { responsiveState, gap, windowSize } = useContext(
@@ -22,15 +26,20 @@ const FuzzySearchWrapper = ({ searchTextPlaceholder }) => {
   );
 
   const { zoomToFeature } = useContext(TopicMapDispatchContext);
+  const { appMode } = useContext(TopicMapContext);
 
   const pixelwidth =
     responsiveState === "normal" ? "300px" : windowSize.width - gap;
   const { setSelection } = useSelection();
   useSelectionTopicMap();
-  useUrlFeatureSelection(
-    (feature, objectId) =>
-      String(feature?.properties?.standort?.id) === String(objectId)
-  );
+  useUrlFeatureSelection((feature, objectId) => {
+    const idsArr = objectId.split(".");
+    if (appMode === appModes.ROUTEN) {
+      return String(feature?.properties?.key) === String(idsArr[0]);
+    } else {
+      return String(feature?.properties?.standort?.id) === String(idsArr[1]);
+    }
+  });
 
   const onGazetteerSelection = (selection) => {
     if (!selection) {
