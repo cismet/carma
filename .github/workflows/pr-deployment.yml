@@ -206,6 +206,7 @@ jobs:
       pull-requests: write
 
     strategy:
+      max-parallel: 1
       matrix:
         project: ${{ fromJson(needs.preparation.outputs.project_list) }}
 
