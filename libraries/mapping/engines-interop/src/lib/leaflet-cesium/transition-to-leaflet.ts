@@ -49,7 +49,7 @@ export const transitionToLeaflet = async (
   console.debug("[CESIUM|TO_LEAFLET] Starting transition");
 
   try {
-    onStageChange(TransitionStage.PREPARE_2D, "Preparing for 2D transition");
+    // onStageChange(TransitionStage.PREPARE_2D, "Preparing for 2D transition");
     // Wait for 2 frames to ensure WebGL state is stable for picking operations
     // pickTranslucentDepth can cause "destroyed object" errors during tile processing
     await ensureSceneReady(scene, 2);
@@ -57,10 +57,7 @@ export const transitionToLeaflet = async (
     const { camera } = scene;
     const lastHeadingPitch = cameraToHeadingPitchJson(camera);
 
-    onStageChange(
-      TransitionStage.ANIMATE_CAMERA,
-      "Animating camera to top-down view"
-    );
+    // onStageChange(TransitionStage.ANIMATE_CAMERA, "Animating camera to top-down view");
 
     const groundResult = await getGroundPosition(
       scene,
@@ -125,7 +122,7 @@ export const transitionToLeaflet = async (
         step2_cssTransitionDurationMs,
         "[CESIUM|TO_LEAFLET] Fading out Cesium container"
       );
-      onStageChange(TransitionStage.COMPLETE, "Transition to 2D complete");
+      //onStageChange(TransitionStage.COMPLETE, "Transition to 2D complete");
       onComplete?.();
     };
 

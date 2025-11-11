@@ -56,12 +56,6 @@ export const transitionToCesium = async (
 
   const { onStageChange, onComplete, onError } = callbacks;
 
-  console.debug("[LEAFLET|TO_CESIUM] Starting transition", {
-    hasLeaflet: !!leaflet,
-    hasScene: isValidScene(scene),
-    targetHeadingPitch,
-  });
-
   try {
     // Stage 1: Prepare 2D view - zoom out if needed
     onStageChange(
@@ -92,8 +86,6 @@ export const transitionToCesium = async (
     // Get Leaflet view for camera positioning
     const leafletView = getLeafletView(leaflet);
 
-    console.debug("[LEAFLET|TO_CESIUM] Leaflet view:", leafletView);
-
     const container = scene.canvas.parentElement;
     if (!container) {
       throw new Error("Canvas has no parent container");
@@ -115,8 +107,6 @@ export const transitionToCesium = async (
 
     const lngRad = degToRad(lng as Degrees);
     const latRad = degToRad(lat as Degrees);
-
-    console.debug("[TRANSITION] resolutionMatchRadius:", resolutionMatchRadius);
 
     // Calculate camera distance based on zoom and latitude
     const computedDistance = calculateDistanceFromZoom(
@@ -223,8 +213,7 @@ export const transitionToCesium = async (
     onStageChange(TransitionStage.ANIMATE_CAMERA, "Animating camera");
 
     const handleComplete = () => {
-      onStageChange(TransitionStage.COMPLETE, "Transition to 3D complete");
-      console.debug("[LEAFLET|TO_CESIUM] Complete");
+      //onStageChange(TransitionStage.COMPLETE, "Transition to 3D complete");
       if (onComplete) {
         onComplete();
       }

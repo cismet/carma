@@ -60,9 +60,16 @@ export function createZoomDistanceConverter(
   }
 
   const fov = camera.frustum.fov;
+  const halfFov = fov / 2;
   const longerEdgeCss = Math.max(cssViewportWidth, cssViewportHeight);
   const effectiveRadiusCss = longerEdgeCss / 2;
-  const halfFovTan = Math.tan(fov / 2);
+  const halfFovTan = Math.tan(halfFov);
+
+  // Find the angle to the match point on the ground plane
+  // resolutionMatchRadius interpolates ground position: 0 = center, 1 = perimeter
+  const groundRadiusNormalized = resolutionMatchRadius; // 0..1
+  const angleToMatchPoint = Math.atan(groundRadiusNormalized * halfFovTan);
+  const matchRadiusFactor = Math.cos(angleToMatchPoint); // decreases distance for off-center match
 
   return {
     zoomToDistance(zoom: Zoom, latitude: Degrees): Meters | null {
@@ -72,14 +79,16 @@ export function createZoomDistanceConverter(
         latRad
       );
       const distance = (metersPerCssPixel * effectiveRadiusCss) / halfFovTan;
-      return distance as Meters;
+      const effectiveDistance = distance * matchRadiusFactor;
+      return effectiveDistance as Meters;
     },
 
     distanceToZoom(distance: Meters, latitude: Degrees): Zoom | null {
       const latRad = degToRad(latitude);
-      const groundRadius = distance * halfFovTan;
+      const groundRadius = (distance / matchRadiusFactor) * halfFovTan;
       const metersPerCSSPixel = groundRadius / effectiveRadiusCss;
       const zoom = getZoomFromPixelResolutionAtLatitudeRad(
+        //metersPerCSSPixel as Meters,
         metersPerCSSPixel as Meters,
         latRad as Radians
       );

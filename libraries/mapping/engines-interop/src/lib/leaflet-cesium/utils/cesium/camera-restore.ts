@@ -65,31 +65,6 @@ export const restoreCesiumCameraView = (
     groundPosition,
     scene.camera.position
   );
-  const cameraHeight = scene.camera.positionCartographic.height;
-  const cameraHeading = scene.camera.heading;
-  const cameraPitch = scene.camera.pitch;
-
-  console.debug("[CESIUM] [CESIUM|2D3D|TO3D] BEFORE animation - camera state", {
-    cameraHeight,
-    currentRange,
-    cameraHeading: ((cameraHeading * 180) / Math.PI).toFixed(2) + "°",
-    cameraPitch: ((cameraPitch * 180) / Math.PI).toFixed(2) + "°",
-    targetHeading:
-      ((effectiveHeadingPitch.heading * 180) / Math.PI).toFixed(2) + "°",
-    targetPitch:
-      ((effectiveHeadingPitch.pitch * 180) / Math.PI).toFixed(2) + "°",
-  });
-
-  console.debug(
-    "[CESIUM] [CESIUM|2D3D|TO3D] starting camera animation to restore 3D view",
-    {
-      groundPosition,
-      effectiveHeadingPitch,
-      usingDefaults: !targetHeadingPitch,
-      currentRange,
-      duration,
-    }
-  );
 
   // Create target HeadingPitchRange with heading/pitch from save (or defaults) + current range
   // The range will NOT be interpolated (useCurrentDistance: true keeps zoom-based distance)
@@ -105,29 +80,7 @@ export const restoreCesiumCameraView = (
     duration,
     useCurrentDistance: true, // CRITICAL: Keep zoom-based range, don't interpolate
     cancelable: true, // Allow user to cancel animation by interacting with canvas
-    onComplete: () => {
-      // Log final camera state after animation
-      const finalHeight = scene.camera.positionCartographic.height;
-      const finalRange = Cartesian3.distance(
-        groundPosition,
-        scene.camera.position
-      );
-      const finalHeading = scene.camera.heading;
-      const finalPitch = scene.camera.pitch;
-
-      console.debug(
-        "[CESIUM] [CESIUM|2D3D|TO3D] AFTER animation - camera state",
-        {
-          finalHeight,
-          finalRange,
-          finalHeading: ((finalHeading * 180) / Math.PI).toFixed(2) + "°",
-          finalPitch: ((finalPitch * 180) / Math.PI).toFixed(2) + "°",
-          rangeChanged: (finalRange - currentRange).toFixed(2) + "m",
-        }
-      );
-
-      onComplete();
-    },
+    onComplete,
     onCancel: onComplete, // Complete transition even if user cancels animation
   });
 
