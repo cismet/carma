@@ -8,7 +8,11 @@ import {
   getZoomFromPixelResolutionAtLatitudeRad,
 } from "@carma/geo/utils";
 
-const DEFAULT_FOV_RADIUS_FACTOR = 0.2;
+/**
+ * Default resolution match radius: 0.2 means matching at 20% of the way from center to edge.
+ * This provides a good balance between center and edge, minimizing overall visual error.
+ */
+const DEFAULT_RESOLUTION_MATCH_RADIUS = 0.2;
 
 /**
  * Converter for bidirectional zoom ↔ distance conversions
@@ -23,12 +27,18 @@ export interface ZoomDistanceConverter {
  *
  * Useful when performing multiple conversions with the same viewport configuration.
  * Latitude is still parameterized since it changes during microcorrections.
+ *
+ * @param resolutionMatchRadius - Interpolation factor (0.0 = center, 1.0 = edge, default 0.2)
+ *   Controls where in the FOV frustum resolution/zoom matching occurs.
+ *   0.0 = match at viewport center (nadir, shortest distance)
+ *   1.0 = match at viewport edge (oblique, longest distance)
+ *   Intermediate values interpolate between center and edge distances.
  */
 export function createZoomDistanceConverter(
   scene: Scene,
   cssViewportWidth: number,
   cssViewportHeight: number,
-  fovRadiusFactor: number = DEFAULT_FOV_RADIUS_FACTOR
+  resolutionMatchRadius: number = DEFAULT_RESOLUTION_MATCH_RADIUS
 ): ZoomDistanceConverter | null {
   const { camera } = scene;
 
@@ -51,8 +61,8 @@ export function createZoomDistanceConverter(
 
   const fov = camera.frustum.fov;
   const longerEdgeCss = Math.max(cssViewportWidth, cssViewportHeight);
-  const samplingRadiusCss = (longerEdgeCss / 2) * fovRadiusFactor;
-  const tanAngle = Math.tan(fov / 2) * fovRadiusFactor;
+  const effectiveRadiusCss = longerEdgeCss / 2;
+  const halfFovTan = Math.tan(fov / 2);
 
   return {
     zoomToDistance(zoom: Zoom, latitude: Degrees): Meters | null {
@@ -61,14 +71,14 @@ export function createZoomDistanceConverter(
         zoom,
         latRad
       );
-      const distance = (metersPerCssPixel * samplingRadiusCss) / tanAngle;
+      const distance = (metersPerCssPixel * effectiveRadiusCss) / halfFovTan;
       return distance as Meters;
     },
 
     distanceToZoom(distance: Meters, latitude: Degrees): Zoom | null {
       const latRad = degToRad(latitude);
-      const groundRadiusAtSample = distance * tanAngle;
-      const metersPerCSSPixel = groundRadiusAtSample / samplingRadiusCss;
+      const groundRadius = distance * halfFovTan;
+      const metersPerCSSPixel = groundRadius / effectiveRadiusCss;
       const zoom = getZoomFromPixelResolutionAtLatitudeRad(
         metersPerCSSPixel as Meters,
         latRad as Radians
@@ -84,7 +94,7 @@ export function createZoomDistanceConverter(
  * Convenience wrapper for one-time conversions.
  * For multiple conversions, use `createZoomDistanceConverter()` instead.
  *
- * @param fovRadiusFactor - Where to measure distance match (0.0 = center, 1.0 = edge, default 0.2)
+ * @param resolutionMatchRadius - Where to measure distance match (0.0 = center, 1.0 = edge, default 0.2)
  */
 export function calculateDistanceFromZoom(
   scene: Scene,
@@ -92,13 +102,13 @@ export function calculateDistanceFromZoom(
   cssViewportHeight: number,
   latitude: Degrees,
   zoom: Zoom,
-  fovRadiusFactor: number = DEFAULT_FOV_RADIUS_FACTOR
+  resolutionMatchRadius: number = DEFAULT_RESOLUTION_MATCH_RADIUS
 ): Meters | null {
   const converter = createZoomDistanceConverter(
     scene,
     cssViewportWidth,
     cssViewportHeight,
-    fovRadiusFactor
+    resolutionMatchRadius
   );
   return converter?.zoomToDistance(zoom, latitude) ?? null;
 }
@@ -109,7 +119,7 @@ export function calculateDistanceFromZoom(
  * Convenience wrapper for one-time conversions.
  * For multiple conversions, use `createZoomDistanceConverter()` instead.
  *
- * @param fovRadiusFactor - Where to measure distance match (0.0 = center, 1.0 = edge, default 0.2)
+ * @param resolutionMatchRadius - Where to measure distance match (0.0 = center, 1.0 = edge, default 0.2)
  */
 export function calculateZoomFromDistance(
   scene: Scene,
@@ -117,13 +127,13 @@ export function calculateZoomFromDistance(
   cssViewportHeight: number,
   latitude: Degrees,
   distance: Meters,
-  fovRadiusFactor: number = DEFAULT_FOV_RADIUS_FACTOR
+  resolutionMatchRadius: number = DEFAULT_RESOLUTION_MATCH_RADIUS
 ): Zoom | null {
   const converter = createZoomDistanceConverter(
     scene,
     cssViewportWidth,
     cssViewportHeight,
-    fovRadiusFactor
+    resolutionMatchRadius
   );
   return converter?.distanceToZoom(distance, latitude) ?? null;
 }

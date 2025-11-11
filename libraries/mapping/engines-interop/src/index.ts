@@ -1,8 +1,5 @@
 // Reference React hook for map transitions (framework-agnostic, no Redux/TopicMap deps)
 export {
-  TransitionDirection,
-  TransitionState,
-  ToCesiumStages,
   TransitionStage,
   DEFAULT_TRANSITION_OPTIONS,
   type TransitionOptions,

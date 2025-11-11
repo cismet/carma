@@ -37,7 +37,8 @@ export const transitionToCesium = async (
   },
   targetHeadingPitch: HeadingPitchJson | null,
   callbacks: TransitionCallbacks,
-  options: TransitionToCesiumOptions = {}
+  options: TransitionToCesiumOptions = {},
+  resolutionMatchRadius?: number
 ): Promise<void> => {
   // Extract options with defaults
   const {
@@ -115,13 +116,16 @@ export const transitionToCesium = async (
     const lngRad = degToRad(lng as Degrees);
     const latRad = degToRad(lat as Degrees);
 
+    console.debug("[TRANSITION] resolutionMatchRadius:", resolutionMatchRadius);
+
     // Calculate camera distance based on zoom and latitude
     const computedDistance = calculateDistanceFromZoom(
       scene,
       cssWidth,
       cssHeight,
       lat as Degrees,
-      zoom
+      zoom,
+      resolutionMatchRadius
     );
 
     if (computedDistance === null) {

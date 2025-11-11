@@ -2,7 +2,6 @@
  * MapFrameworkSwitcherContext - Centralized state management for 2D/3D map transitions
  *
  * This replaces app-specific Redux state (e.g., isMode2d) with a reusable context
- * that works across any app using Leaflet ↔ Cesium transitions.
  */
 
 import {
@@ -28,6 +27,7 @@ import {
   transitionToCesium,
   transitionToLeaflet,
   TransitionStage,
+  type TransitionOptions,
 } from "@carma-mapping/engines-interop";
 import { validateRequirements } from "./utils/validate-requirements";
 
@@ -125,11 +125,15 @@ const MapFrameworkSwitcherContext =
 interface MapFrameworkSwitcherProviderProps {
   children: ReactNode;
   initialFramework?: CarmaMapFramework;
+  transitionOptions?: {
+    resolutionMatchRadius?: number;
+  };
 }
 
 export const MapFrameworkSwitcherProvider = ({
   children,
   initialFramework = CARMA_MAP_FRAMEWORKS.LEAFLET,
+  transitionOptions,
 }: MapFrameworkSwitcherProviderProps) => {
   // Core state
   const [activeFramework, setActiveFramework] =
@@ -301,7 +305,9 @@ export const MapFrameworkSwitcherProvider = ({
             setActiveFrameworkLeaflet();
             setIsTransitioning(false);
           },
-        }
+        },
+        {},
+        transitionOptions?.resolutionMatchRadius
       );
     } catch (error) {
       console.error("[CESIUM] Transition to 3D failed:", error);
@@ -313,6 +319,7 @@ export const MapFrameworkSwitcherProvider = ({
     isReady,
     setActiveFrameworkCesium,
     setActiveFrameworkLeaflet,
+    transitionOptions,
   ]);
 
   // Transition to Leaflet
@@ -375,7 +382,9 @@ export const MapFrameworkSwitcherProvider = ({
             setIsTransitioning(false);
           },
           onLeafletViewSet: callbacksRef.current.onLeafletViewSet,
-        }
+        },
+        {},
+        transitionOptions?.resolutionMatchRadius
       );
 
       // Store cesium camera state for when we return to 3D
@@ -397,7 +406,7 @@ export const MapFrameworkSwitcherProvider = ({
       // The container has already been hidden by the error handler
       setActiveFrameworkLeaflet();
     }
-  }, [isTransitioning, isReady, setActiveFrameworkLeaflet]);
+  }, [isTransitioning, isReady, setActiveFrameworkLeaflet, transitionOptions]);
 
   // Toggle between frameworks
   const toggle = useCallback(async () => {

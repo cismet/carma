@@ -253,3 +253,97 @@ export const Debugging: StoryObj<typeof FullFeatured> = {
     </MapFrameworkSwitcherProvider>
   ),
 };
+
+const ResolutionMatchRadiusTest = ({
+  resolutionMatchRadius = 0.2,
+}: {
+  resolutionMatchRadius?: number;
+}) => {
+  const {
+    leafletContainerRef,
+    cesiumContainerRef,
+    leafletMapRef,
+    cesiumWidgetRef,
+    terrainProvidersRef,
+    mapsInitialized,
+  } = useLeafletCesiumSetup();
+
+  useRegisterMapFramework({
+    leafletMap: mapsInitialized ? leafletMapRef.current : null,
+    cesiumScene: mapsInitialized
+      ? cesiumWidgetRef.current?.scene ?? null
+      : null,
+    cesiumContainer: cesiumContainerRef.current,
+    terrainProviders: terrainProvidersRef.current,
+    resolutionScale: 1.0,
+  });
+
+  return (
+    <MapContainers
+      leafletContainerRef={leafletContainerRef}
+      cesiumContainerRef={cesiumContainerRef}
+    >
+      <MapFrameworkSwitcher
+        nativeTooltip={true}
+        style={styles.topLeftAbsolute}
+      />
+      <ActiveFrameworkIndicator />
+      <div
+        style={{
+          position: "absolute",
+          top: 60,
+          left: 16,
+          background: "white",
+          padding: 12,
+          borderRadius: 8,
+          boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+          maxWidth: 320,
+        }}
+      >
+        <div style={{ marginBottom: 8 }}>
+          <strong>resolutionMatchRadius:</strong>{" "}
+          {resolutionMatchRadius.toFixed(2)}
+        </div>
+        <div style={{ fontSize: "0.85em", color: "#666", marginBottom: 8 }}>
+          {resolutionMatchRadius === 0 && "Center measurement"}
+          {resolutionMatchRadius === 0.2 && "Default (20% from center)"}
+          {resolutionMatchRadius === 1 && "Edge measurement"}
+        </div>
+        <div style={{ fontSize: "0.8em", color: "#555", lineHeight: 1.4 }}>
+          Controls where zoom↔distance matching occurs in the FOV frustum. 0 =
+          center (nadir, shortest distance). 0.2 = 20% radius (default, balances
+          center/edge error). 1 = edge (oblique, longest distance).
+        </div>
+      </div>
+    </MapContainers>
+  );
+};
+
+export const ResolutionMatchRadius: StoryObj<typeof ResolutionMatchRadiusTest> =
+  {
+    args: {
+      resolutionMatchRadius: 0.2,
+    },
+    argTypes: {
+      resolutionMatchRadius: {
+        control: { type: "range", min: 0, max: 1, step: 0.05 },
+        description: "Where to match resolution (0=center, 1=edge)",
+        table: {
+          type: { summary: "number" },
+          defaultValue: { summary: "0.2" },
+        },
+      },
+    },
+    render: (args) => (
+      <MapFrameworkSwitcherProvider
+        initialFramework="leaflet"
+        transitionOptions={{
+          resolutionMatchRadius: args.resolutionMatchRadius,
+        }}
+      >
+        <ResolutionMatchRadiusTest
+          resolutionMatchRadius={args.resolutionMatchRadius}
+        />
+      </MapFrameworkSwitcherProvider>
+    ),
+  };
