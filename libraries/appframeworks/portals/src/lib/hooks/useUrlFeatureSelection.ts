@@ -9,7 +9,7 @@ import {
 } from "react-cismap/contexts/TopicMapContextProvider";
 
 export const useUrlFeatureSelection = (
-  predicateArgument = (feature, objectId) =>
+  selectionCallBack = (feature: any, objectId: any) =>
     String(feature.properties.id) === String(objectId),
   ifUsePredicate = true
 ) => {
@@ -34,7 +34,6 @@ export const useUrlFeatureSelection = (
       !hasProcessedUrl.current
     ) {
       let objectId: string | null = null;
-
       if (window.location.hash) {
         let hashString = window.location.hash.substring(1);
 
@@ -49,7 +48,7 @@ export const useUrlFeatureSelection = (
       if (objectId) {
         if (ifUsePredicate) {
           const targetFeature = shownFeatures.find((feature) =>
-            predicateArgument(feature, objectId)
+            selectionCallBack(feature, objectId)
           );
 
           if (targetFeature) {
@@ -57,12 +56,12 @@ export const useUrlFeatureSelection = (
 
             setTimeout(() => {
               setSelectedFeatureByPredicate((feature) =>
-                predicateArgument(feature, objectId)
+                selectionCallBack(feature, objectId)
               );
             }, 200);
           }
         } else {
-          predicateArgument(feature, objectId);
+          selectionCallBack(shownFeatures, objectId);
         }
 
         // Use the same history object that TopicMapComponent uses
@@ -84,7 +83,7 @@ export const useUrlFeatureSelection = (
     initializingFeatures,
     shownFeatures,
     history,
-    predicateArgument,
+    selectionCallBack,
     setSelectedFeatureByPredicate,
     zoomToFeature,
   ]);
