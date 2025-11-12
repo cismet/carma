@@ -59,10 +59,11 @@ const FuzzySearchWrapper = ({
     });
 
     if (foundedFeatures.length > 0) {
-      // findedFeatures[0].selected = true;
-      setFeatures(foundedFeatures);
+      const hits = JSON.parse(JSON.stringify(foundedFeatures));
+      hits[0].selected = true;
+      setFeatures(hits);
       setSelectedIndex(0);
-      const projectedFC = L.Proj.geoJson([foundedFeatures[0]]);
+      const projectedFC = L.Proj.geoJson([hits[0]]);
       const bounds = projectedFC.getBounds();
       const map = routedMapRef?.leafletMap?.leafletElement;
       if (map === undefined) {
