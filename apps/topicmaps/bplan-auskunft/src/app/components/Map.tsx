@@ -39,7 +39,6 @@ const Map = () => {
   const [features, setFeatures] = useState<MapFeature[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [boundingBox, setBoundingBox] = useState(null);
-  // const [gazData, setGazData] = useState([]);
   const [searchParams, setSearchParams] = useSearchParams();
   let refRoutedMap = useRef(null);
   const zoom = searchParams.get("zoom");
