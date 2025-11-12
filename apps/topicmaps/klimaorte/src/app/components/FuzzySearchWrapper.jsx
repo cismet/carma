@@ -37,7 +37,10 @@ const FuzzySearchWrapper = ({ searchTextPlaceholder }) => {
     if (appMode === appModes.ROUTEN) {
       return String(feature?.properties?.key) === String(idsArr[0]);
     } else {
-      return String(feature?.properties?.standort?.id) === String(idsArr[1]);
+      return (
+        String(feature?.properties?.standort?.id) ===
+        String(idsArr.length === 2 ? idsArr[1] : idsArr[0])
+      );
     }
   });
 
