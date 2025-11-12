@@ -10,7 +10,8 @@ import {
 
 export const useUrlFeatureSelection = (
   predicateArgument = (feature, objectId) =>
-    String(feature.properties.id) === String(objectId)
+    String(feature.properties.id) === String(objectId),
+  ifUsePredicate = true
 ) => {
   const { initializingFeatures, shownFeatures } = useContext<
     typeof FeatureCollectionContext
@@ -46,18 +47,22 @@ export const useUrlFeatureSelection = (
       }
 
       if (objectId) {
-        const targetFeature = shownFeatures.find((feature) =>
-          predicateArgument(feature, objectId)
-        );
+        if (ifUsePredicate) {
+          const targetFeature = shownFeatures.find((feature) =>
+            predicateArgument(feature, objectId)
+          );
 
-        if (targetFeature) {
-          zoomToFeature(targetFeature);
+          if (targetFeature) {
+            zoomToFeature(targetFeature);
 
-          setTimeout(() => {
-            setSelectedFeatureByPredicate((feature) =>
-              predicateArgument(feature, objectId)
-            );
-          }, 200);
+            setTimeout(() => {
+              setSelectedFeatureByPredicate((feature) =>
+                predicateArgument(feature, objectId)
+              );
+            }, 200);
+          }
+        } else {
+          predicateArgument(feature, objectId);
         }
 
         // Use the same history object that TopicMapComponent uses
