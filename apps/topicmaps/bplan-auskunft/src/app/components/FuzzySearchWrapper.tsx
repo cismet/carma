@@ -2,15 +2,17 @@ import {
   SelectionMetaData,
   useSelection,
   useSelectionTopicMap,
+  useUrlFeatureSelection,
 } from "@carma-appframeworks/portals";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { type SearchResultItem } from "@carma/types";
-
+import { FeatureCollectionDispatchContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
-import { useContext } from "react";
+import { useContext, useEffect } from "react";
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import {
+  getBPLaene,
   getPlanFeatureByTitle,
   getPlanFeatures,
 } from "../../store/slices/bplaene";
@@ -35,14 +37,40 @@ const FuzzySearchWrapper = ({
   mapSearchAllowed,
 }: FuzzySearchProps) => {
   const dispatch = useDispatch();
+  const bplaene = useSelector(getBPLaene);
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const { responsiveState, gap, windowSize } = useContext<
     typeof ResponsiveTopicMapContext
   >(ResponsiveTopicMapContext);
+  const { setShownFeatures } = useContext<
+    typeof FeatureCollectionDispatchContext
+  >(FeatureCollectionDispatchContext);
 
   const { setSelection } = useSelection();
   useSelectionTopicMap();
+  useUrlFeatureSelection((features, objectId) => {
+    const foundedFeatures = [];
+    features.forEach((feature) => {
+      const targetFeature =
+        String(feature.properties?.nummer) === String(objectId);
+      if (targetFeature) {
+        foundedFeatures.push(feature);
+      }
+    });
 
+    if (foundedFeatures.length > 0) {
+      // findedFeatures[0].selected = true;
+      setFeatures(foundedFeatures);
+      setSelectedIndex(0);
+      const projectedFC = L.Proj.geoJson([foundedFeatures[0]]);
+      const bounds = projectedFC.getBounds();
+      const map = routedMapRef?.leafletMap?.leafletElement;
+      if (map === undefined) {
+        return;
+      }
+      map.fitBounds(bounds);
+    }
+  }, false);
   const onGazetteerSelection = (selection: SearchResultItem | null) => {
     if (!selection) {
       setSelection(null);
@@ -139,6 +167,12 @@ const FuzzySearchWrapper = ({
       }
     }, 100);
   };
+
+  useEffect(() => {
+    if (bplaene?.length > 0) {
+      setShownFeatures(bplaene);
+    }
+  }, [bplaene]);
   const searchIcon = (
     <FontAwesomeIcon
       icon={faSearch}
