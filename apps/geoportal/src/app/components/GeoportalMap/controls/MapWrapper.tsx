@@ -102,14 +102,6 @@ const MapWrapper = () => {
   const dispatch = useDispatch();
   const flags = useFeatureFlags();
 
-  // Detect mobile device or browser's device toolbar (responsive design mode)
-  const isMobileDevice =
-    isMobile ||
-    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-      navigator.userAgent
-    ) ||
-    "ontouchstart" in window;
-
   const showLibreMap = flags.featureFlagLibreMap;
 
   const rerenderCountRef = useRef(0);
@@ -407,24 +399,22 @@ const MapWrapper = () => {
               </ControlButtonStyler>
             </Tooltip>
           </Control>
-          {!isMobileDevice && (
-            <MeasurementControl
-              position="topleft"
-              order={60}
-              disabled={!isLeaflet || (isLeaflet && showLibreMap)}
-              useDisabledStyle={isLeaflet && showLibreMap}
-              tooltip={
-                isCesium
-                  ? "zum Messen zu 2D-Modus wechseln"
-                  : isModeMeasurement
-                  ? "Messungsmodus ausschalten"
-                  : "Messungsmodus einschalten"
-              }
-              tooltipPlacement="right"
-              showInfoBox={false}
-              ref={tourRefLabels.measurement}
-            />
-          )}
+          <MeasurementControl
+            position="topleft"
+            order={60}
+            disabled={!isLeaflet || (isLeaflet && showLibreMap)}
+            useDisabledStyle={isLeaflet && showLibreMap}
+            tooltip={
+              isCesium
+                ? "zum Messen zu 2D-Modus wechseln"
+                : isModeMeasurement
+                ? "Messungsmodus ausschalten"
+                : "Messungsmodus einschalten"
+            }
+            tooltipPlacement="right"
+            showInfoBox={false}
+            ref={tourRefLabels.measurement}
+          />
           <Control position="topleft" order={50}>
             <Tooltip
               title={

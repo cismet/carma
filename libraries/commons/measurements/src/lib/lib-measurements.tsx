@@ -68,16 +68,73 @@ export function Measurements({
     []
   );
   const [drawingShape, setDrawingLine] = useState(null);
+  
+  // Track last valid state for recovery
+  const lastValidStateRef = React.useRef<{
+    activeShape: any;
+    mode: string;
+    wasDrawing: boolean;
+  } | null>(null);
+  
+  // Track if map is in valid state
+  const [mapIsValid, setMapIsValid] = React.useState(false);
 
   const device = useDeviceDetection();
 
   const toggleMeasurementModeHandler = () => {
     toggleUIMode();
   };
+  
+  // Monitor map validity continuously
+  const checkMapValidity = React.useCallback(() => {
+    if (!routedMapRef?.leafletMap?.leafletElement) {
+      return false;
+    }
+    
+    const mapElement = routedMapRef.leafletMap.leafletElement;
+    
+    if (!mapElement._loaded) {
+      return false;
+    }
+    
+    try {
+      const testPoint = mapElement.latLngToContainerPoint([0, 0]);
+      if (!testPoint || isNaN(testPoint.x) || isNaN(testPoint.y)) {
+        return false;
+      }
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }, [routedMapRef]);
+  
+  // Update map validity state
+  React.useEffect(() => {
+    const isValid = checkMapValidity();
+    
+    if (isValid !== mapIsValid) {
+      if (!isValid && mapIsValid) {
+        // Map became invalid - save current state
+        console.debug('[Measurements] Map became invalid, saving state');
+        lastValidStateRef.current = {
+          activeShape,
+          mode: currentMode,
+          wasDrawing: ifDrawing,
+        };
+      } else if (isValid && !mapIsValid) {
+        // Map became valid - schedule state restoration
+        console.debug('[Measurements] Map became valid, will restore state');
+      }
+      setMapIsValid(isValid);
+    }
+  }, [routedMapRef, checkMapValidity, activeShape, currentMode, ifDrawing, mapIsValid]);
 
   useEffect(() => {
-    if (routedMapRef?.leafletMap && !measureControl) {
+    if (routedMapRef?.leafletMap && !measureControl && mapIsValid) {
       const mapExample = routedMapRef?.leafletMap?.leafletElement;
+      
+      console.debug('[Measurements] Initializing measurement control with valid map');
+      
       const customOptions = {
         position: "topright",
         // icon_lineActive: makeMeasureActiveIcon,
@@ -118,8 +175,44 @@ export function Measurements({
       measurePolygonControl.addTo(mapExample);
 
       setMeasureControl(measurePolygonControl);
+      
+      // Restore previous state if available
+      if (lastValidStateRef.current) {
+        console.debug('[Measurements] Restoring previous state:', lastValidStateRef.current);
+        const savedState = lastValidStateRef.current;
+        
+        // Restore mode if it was in measurement mode
+        if (savedState.mode === "measurement" && currentMode !== "measurement") {
+          // Mode will be restored by parent component
+        }
+        
+        // Restore active shape if there was one
+        if (savedState.activeShape && !savedState.wasDrawing) {
+          setTimeout(() => {
+            setActiveShape(savedState.activeShape);
+          }, 100);
+        }
+        
+        lastValidStateRef.current = null;
+      }
     }
-  }, [routedMapRef]);
+  }, [routedMapRef, mapIsValid]);
+  
+  // Cleanup when map becomes invalid
+  React.useEffect(() => {
+    if (!mapIsValid && measureControl) {
+      console.debug('[Measurements] Map invalid, cleaning up control');
+      try {
+        const mapExample = routedMapRef?.leafletMap?.leafletElement;
+        if (mapExample) {
+          mapExample.removeControl(measureControl);
+        }
+      } catch (e) {
+        console.warn('[Measurements] Error during cleanup:', e);
+      }
+      setMeasureControl(null);
+    }
+  }, [mapIsValid, measureControl, routedMapRef]);
 
   useEffect(() => {
     if (measureControl && activeShape) {
