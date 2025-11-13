@@ -12,12 +12,24 @@
       "options": {
         "outputPath": "dist/apps/geoportal"
       },
+      "inputs": [
+        "production",
+        "^production",
+        {
+          "externalDependencies": ["vite"]
+        }
+      ],
       "configurations": {
         "development": {
           "mode": "development"
         },
         "production": {
           "mode": "production"
+        },
+        "preview": {
+          "mode": "development",
+          "sourcemap": true,
+          "minify": false
         }
       }
     },
@@ -52,6 +64,9 @@
         },
         "production": {
           "buildTarget": "geoportal:build:production"
+        },
+        "preview": {
+          "buildTarget": "geoportal:build:preview"
         }
       }
     },
@@ -60,8 +75,53 @@
       "options": {
         "command": "NODE_OPTIONS='--max-old-space-size=16384' vite preview --host localhost --port 4300",
         "cwd": "apps/geoportal"
+      }
+    },
+    "preview:build": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "npx nx run geoportal:build:preview",
+          "NODE_OPTIONS='--max-old-space-size=16384' vite preview --host localhost --port 4300"
+        ],
+        "cwd": "apps/geoportal",
+        "parallel": false
+      }
+    },
+    "build:preview": {
+      "executor": "@nx/vite:build",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/apps/geoportal",
+        "mode": "development",
+        "sourcemap": true,
+        "minify": false
       },
-      "dependsOn": ["build"]
+      "inputs": [
+        "production",
+        "^production",
+        {
+          "externalDependencies": ["vite"]
+        }
+      ]
+    },
+    "watch:preview": {
+      "executor": "nx:run-commands",
+      "options": {
+        "command": "NODE_OPTIONS='--max-old-space-size=16384' vite build --watch --mode development --sourcemap --minify false",
+        "cwd": "apps/geoportal"
+      }
+    },
+    "dev:preview": {
+      "executor": "nx:run-commands",
+      "options": {
+        "commands": [
+          "NODE_OPTIONS='--max-old-space-size=16384' vite build --watch --mode development --sourcemap --minify false",
+          "sleep 5 && NODE_OPTIONS='--max-old-space-size=16384' vite preview --host localhost --port 4300"
+        ],
+        "cwd": "apps/geoportal",
+        "parallel": true
+      }
     },
     "test": {
       "executor": "@nx/vite:test",

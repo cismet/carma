@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, useRef, useCallback } from "react";
 import {
   ActiveShape,
   MapMeasurementsContextType,
@@ -49,8 +49,9 @@ export const MapMeasurementsContext = createContext<MapMeasurementsContextType>(
     setActiveShape: (shape: ActiveShape) => {},
     visibleShapes: [],
     setVisibleShapes: (shapes: any[]) => {},
-    snappingLatlng: null,
+    snappingLatlngRef: { current: null } as React.MutableRefObject<any>,
     setSnappingLatlng: (_latlng: any) => {},
+    subscribeToSnappingLatlng: () => () => {},
     showAll: false,
     deleteAll: false,
     drawingShape: false,
@@ -80,8 +81,8 @@ export const MapMeasurementsContext = createContext<MapMeasurementsContextType>(
     setDrawingWithLastActiveShape: () => {},
     setActiveShapeIfDrawCancelled: () => {},
     toggleMeasurementMode: () => {},
-    updateAreaOfDrawing: (newArea: number) => {},
-    updateTitle: (_shapeId: string | number, _customTitle: string) => {},
+    updateAreaOfDrawing: (newArea: string) => {},
+    updateTitle: (shapeId: string | number, customTitle: string) => {},
     setStartDrawing: (status: boolean) => {},
     startDrawing: false,
     currentDrawHandler: null,
@@ -125,10 +126,40 @@ export const MapMeasurementsProvider = ({
   const [activeShape, setActiveShape] = useState<ActiveShape>(null);
   const [shapes, setShapes] = useState<any[]>([]);
   const [visibleShapes, setVisibleShapes] = useState<any[]>([]);
-  const [snappingLatlng, setSnappingLatlng] = useState<any>(null);
+  
+  // snappingLatlng should NOT trigger re-renders - use ref + callback pattern
+  const snappingLatlngRef = useRef<any>(null);
+  const snappingLatlngCallbacksRef = useRef<Set<(latlng: any) => void>>(new Set());
+  
+  const setSnappingLatlng = useCallback((latlng: any) => {
+    snappingLatlngRef.current = latlng;
+    // Notify subscribers without triggering React re-render
+    snappingLatlngCallbacksRef.current.forEach(callback => {
+      try {
+        callback(latlng);
+      } catch (e) {
+        console.warn('[MeasurementsProvider] Error in snappingLatlng callback:', e);
+      }
+    });
+  }, []);
+  
+  const subscribeToSnappingLatlng = useCallback((callback: (latlng: any) => void) => {
+    snappingLatlngCallbacksRef.current.add(callback);
+    return () => {
+      snappingLatlngCallbacksRef.current.delete(callback);
+    };
+  }, []);
+  
   const [showAll, setShowAll] = useState(false);
   const [deleteAll, setDeleteAll] = useState(false);
   const [drawingShape, setDrawingShape] = useState(false);
+  
+  // Wrap setDrawingShape to log calls
+  const setDrawingShapeWithLog = useCallback((value: boolean) => {
+    console.warn(`[MapMeasurementsProvider] setDrawingShape(${value})`, new Error().stack);
+    setDrawingShape(value);
+  }, []);
+  
   const [lastActiveShapeBeforeDrawing, setLastActiveShapeBeforeDrawing] =
     useState<any>(null);
   const [moveToShape, setMoveToShape] = useState<any>(null);
@@ -138,6 +169,14 @@ export const MapMeasurementsProvider = ({
   const [startDrawing, setStartDrawing] = useState(false);
   const [currentDrawHandler, setCurrentDrawHandler] = useState<any>(null);
   const [status, setStatus] = useState<MeasurementMapStatus>("INACTIVE");
+
+  // DEBUG: Log Provider mount/unmount
+  useEffect(() => {
+    console.warn('[MapMeasurementsProvider] MOUNTED');
+    return () => {
+      console.error('[MapMeasurementsProvider] UNMOUNTED - THIS SHOULD NOT HAPPEN DURING MEASUREMENT!');
+    };
+  }, []);
 
   // Update status when mode changes
   useEffect(() => {
@@ -263,7 +302,8 @@ export const MapMeasurementsProvider = ({
     }
   };
 
-  const updateAreaOfDrawing = (newArea: number) => {
+  // NOTE: newArea is pre-formatted string like "123.45 m²" or "1.23 km²" from calculateArea()
+  const updateAreaOfDrawing = (newArea: string) => {
     setVisibleShapes((visibleShapes) => {
       const shape = visibleShapes.map((s) => {
         if (s.shapeId === 5555) {
@@ -339,14 +379,15 @@ export const MapMeasurementsProvider = ({
         setActiveShape,
         visibleShapes,
         setVisibleShapes,
-        snappingLatlng,
+        snappingLatlngRef,
         setSnappingLatlng,
+        subscribeToSnappingLatlng,
         showAll,
         setShowAll,
         deleteAll,
         setDeleteAll,
         drawingShape,
-        setDrawingShape,
+        setDrawingShape: setDrawingShapeWithLog,
         lastActiveShapeBeforeDrawing,
         setLastActiveShapeBeforeDrawing,
         moveToShape,

@@ -8,7 +8,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     icon_polygonInactive: "https://img.icons8.com/?size=48&id=98463&format=png",
     html_template: `<p><strong><span style="text-decoration: underline;">Results</span></strong></p>
 <p><strong>Area: </strong><br>_p_area</p>
-<p><strong>Perimeter : </strong><br>_p_perimetro</p>`,
+<p><strong>Perimeter : </strong><br>_p_perimeter</p>`,
     height: 130,
     width: 150,
     mode_btn: "",
@@ -421,7 +421,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     return iconsWrapper;
   },
 
-  _UpdateAreaPerimetro: function (layer) {
+  _UpdateAreaperimeter: function (layer) {
     const latlngs = layer.getLatLngs()[0];
 
     const options = {

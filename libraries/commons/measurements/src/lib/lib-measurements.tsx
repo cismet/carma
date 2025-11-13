@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useRef, memo } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import "leaflet/dist/leaflet.css";
 import "leaflet-draw/dist/leaflet.draw.css";
@@ -15,7 +15,7 @@ import { MapMeasurementProps, MeasurementShapeDrawing } from "..";
 import { MeasurementsSnapping } from "./components/MeasurementsSnapping";
 import { MeasurementStatusDebug } from "./components/MeasurementStatusDebug";
 
-export function Measurements({
+const MeasurementsInner = memo(function Measurements({
   mode: propMode,
   polygonActiveIcon,
   polygonIcon,
@@ -23,7 +23,7 @@ export function Measurements({
 }: Partial<MapMeasurementProps> & {
   snappingLayers?: any[]; // MapLibre layers for snapping
 }) {
-  const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
+  const { realRoutedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const {
     mode,
     activeShape,
@@ -52,7 +52,8 @@ export function Measurements({
     updateAreaOfDrawing,
     deleteVisibleShapeById,
     setCurrentDrawHandler,
-    snappingLatlng,
+    // snappingLatlng - DON'T consume here, causes re-render on every mousemove
+    snappingLatlngRef,
     config,
     setStatus,
 
@@ -85,53 +86,12 @@ export function Measurements({
     toggleUIMode();
   };
   
-  // Monitor map validity continuously
-  const checkMapValidity = React.useCallback(() => {
-    if (!routedMapRef?.leafletMap?.leafletElement) {
-      return false;
-    }
-    
-    const mapElement = routedMapRef.leafletMap.leafletElement;
-    
-    if (!mapElement._loaded) {
-      return false;
-    }
-    
-    try {
-      const testPoint = mapElement.latLngToContainerPoint([0, 0]);
-      if (!testPoint || isNaN(testPoint.x) || isNaN(testPoint.y)) {
-        return false;
-      }
-      return true;
-    } catch (e) {
-      return false;
-    }
-  }, [routedMapRef]);
-  
-  // Update map validity state
-  React.useEffect(() => {
-    const isValid = checkMapValidity();
-    
-    if (isValid !== mapIsValid) {
-      if (!isValid && mapIsValid) {
-        // Map became invalid - save current state
-        console.debug('[Measurements] Map became invalid, saving state');
-        lastValidStateRef.current = {
-          activeShape,
-          mode: currentMode,
-          wasDrawing: ifDrawing,
-        };
-      } else if (isValid && !mapIsValid) {
-        // Map became valid - schedule state restoration
-        console.debug('[Measurements] Map became valid, will restore state');
-      }
-      setMapIsValid(isValid);
-    }
-  }, [routedMapRef, checkMapValidity, activeShape, currentMode, ifDrawing, mapIsValid]);
 
+  
   useEffect(() => {
-    if (routedMapRef?.leafletMap && !measureControl && mapIsValid) {
-      const mapExample = routedMapRef?.leafletMap?.leafletElement;
+    const leafletMap = realRoutedMapRef.current?.leafletMap?.leafletElement;
+    if (leafletMap && !measureControl) {
+      const mapExample = leafletMap;
       
       console.debug('[Measurements] Initializing measurement control with valid map');
       
@@ -146,7 +106,7 @@ export function Measurements({
         msj_disable_tool: "Do you want to disable the tool?",
         device,
         shapes,
-        snappingLatlng,
+        snappingLatlng: snappingLatlngRef?.current,
         snappingEnabled: config.snappingEnabled,
         cbSaveShape: saveShapeHandler,
         cbUpdateShape: updateShapeHandler,
@@ -196,28 +156,30 @@ export function Measurements({
         lastValidStateRef.current = null;
       }
     }
-  }, [routedMapRef, mapIsValid]);
+  }, [realRoutedMapRef]);
   
-  // Cleanup when map becomes invalid
-  React.useEffect(() => {
-    if (!mapIsValid && measureControl) {
-      console.debug('[Measurements] Map invalid, cleaning up control');
-      try {
-        const mapExample = routedMapRef?.leafletMap?.leafletElement;
-        if (mapExample) {
-          mapExample.removeControl(measureControl);
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (measureControl) {
+        console.debug('[Measurements] Cleaning up control on unmount');
+        try {
+          const mapExample = realRoutedMapRef.current?.leafletMap?.leafletElement;
+          if (mapExample) {
+            mapExample.removeControl(measureControl);
+          }
+        } catch (e) {
+          console.warn('[Measurements] Error during cleanup:', e);
         }
-      } catch (e) {
-        console.warn('[Measurements] Error during cleanup:', e);
       }
-      setMeasureControl(null);
-    }
-  }, [mapIsValid, measureControl, routedMapRef]);
+    };
+  }, [measureControl, realRoutedMapRef]);
 
   useEffect(() => {
     if (measureControl && activeShape) {
       const shapeCoordinates = shapes.filter((s) => s.shapeId === activeShape);
-      const map = routedMapRef.leafletMap.leafletElement;
+      const map = realRoutedMapRef.current?.leafletMap?.leafletElement;
+      if (!map) return;
 
       if (ifDrawing) {
         setMoveToShape(null);
@@ -262,7 +224,8 @@ export function Measurements({
     }
 
     if (measureControl) {
-      const map = routedMapRef.leafletMap.leafletElement;
+      const map = realRoutedMapRef.current?.leafletMap?.leafletElement;
+      if (!map) return;
       measureControl.changeMeasurementMode(currentMode, map);
       const shapeCoordinates = shapes.filter((s) => s.shapeId === activeShape);
       if (shapeCoordinates[0]?.shapeId) {
@@ -286,6 +249,7 @@ export function Measurements({
     ifDrawing,
     moveToShape,
     currentMode,
+    realRoutedMapRef,
   ]);
 
   // keep snappingLatlng and snappingEnabled in sync with control options
@@ -296,11 +260,11 @@ export function Measurements({
         measureControl.options.snappingEnabled = config.snappingEnabled;
         // Force null when snapping is disabled, otherwise use the actual value
         measureControl.options.snappingLatlng = config.snappingEnabled
-          ? snappingLatlng
+          ? snappingLatlngRef?.current
           : null;
       } catch (_) {}
     }
-  }, [snappingLatlng, measureControl, config.snappingEnabled]);
+  }, [measureControl, config.snappingEnabled, snappingLatlngRef]);
 
   useEffect(() => {
     if (measureControl) {
@@ -379,6 +343,18 @@ export function Measurements({
     updateAreaOfDrawing(newArea);
   };
 
+  // Debug: Log what's causing rerenders
+  React.useEffect(() => {
+    console.debug('[Measurements] Rerender triggered. State:', {
+      activeShape,
+      shapesCount: shapes.length,
+      visibleShapesCount: visibleShapes.length,
+      currentMode,
+      ifDrawing,
+      snappingLatlng: !!snappingLatlngRef?.current,
+    });
+  });
+
   console.debug("RENDER: [MAPMEASUREMENT] MapMeasurement");
 
   return (
@@ -390,6 +366,12 @@ export function Measurements({
       )}
     </>
   );
+});
+
+export function Measurements(props: Partial<MapMeasurementProps> & {
+  snappingLayers?: any[];
+}) {
+  return <MeasurementsInner {...props} />;
 }
 
 function filterArrByIds(

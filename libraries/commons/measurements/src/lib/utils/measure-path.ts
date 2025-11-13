@@ -1,4 +1,212 @@
 // Create a class for the plugin
+import L from "leaflet";
+import "leaflet-draw";
+
+// Type augmentation for Leaflet
+declare module "leaflet" {
+  namespace Control {
+    interface MeasurementShapeData {
+      coordinates: number[][];
+      options: {
+        color: string;
+        fillColor: string | null;
+        opacity: number;
+        weigt: number;
+      };
+      shapeId: number | string;
+      distance: string; // Formatted string like "123.45 m" or "1.23 km"
+      number: number;
+      area?: string | null; // Formatted string like "123.45 m²" or "1.23 km²" (null for lines)
+      shapeType: "line" | "polygon";
+      customTitle?: string;
+    }
+
+    interface DrawHandler {
+      _poly?: { _latlngs: L.LatLng[] };
+      _enabled?: boolean;
+      enable(): void;
+      disable(): void;
+      completeShape?: () => void;
+      addVertex?(latlng: L.LatLng): void;
+    }
+
+    class MeasurePolygon extends Control {
+      options: MeasurePolygonOptions;
+      _map: L.Map;
+      _measureLayers: L.LayerGroup;
+      _measureHandler: L.Draw.Polyline | L.Draw.Polygon | DrawHandler;
+      _lastOriginalClick: { latlng: L.LatLng; containerPoint: L.Point };
+
+      drawingPolygons(map: L.Map): void;
+      drawingLines(map: L.Map, event: L.LeafletMouseEvent): void;
+      onAdd(map: L.Map): HTMLElement;
+      _clearMeasurements(): void;
+      changeColorByActivePolyline(map: L.Map, customID: number | string): void;
+      changeColorByLastShape(map: L.Map): void;
+      showLastPolylineOnFirstLoding(map: L.Map): void;
+      getVisiblePolylines(map: L.Map): L.Polyline[];
+      getVisiblePolylinesIds(polylines: L.Polyline[]): void;
+      getAllPolylines(map: L.Map): L.Polyline[];
+      removePolylineById(map: L.Map, customID: number | string): void;
+      fitMapToAllPolylines(map: L.Map): void;
+      fitMapToPolylines(map: L.Map, polylines: L.Polyline[]): void;
+      convertPolylineToPolygon(map: L.Map, layer: L.Polyline): void;
+      loadMeasurements(map?: L.Map): void;
+      _toggleMeasurementBtn(): void;
+      toggleMeasurementMode(ifChangeMode?: boolean, map?: L.Map): void;
+      _UpdateDistance(layer: L.Polyline): string;
+      _toggleMeasure(
+        id: string,
+        iconActive: string,
+        inactiveIcon: string
+      ): void;
+      calculateArea(coordinates: number[][]): string;
+      calculateDistance(latlngs: L.LatLng[]): number;
+      formatDistance(distance: number): string;
+      saveShapeHandler(
+        layer: L.Polyline,
+        distance: string | null,
+        area: string | null,
+        map: L.Map
+      ): void;
+      _onPolylineDrag(event: L.LeafletEvent): void;
+      replaceLineToPolygon(map: L.Map, layer: L.Polyline): MeasurementShapeData;
+      getVisibleShapeIdsArr(map: L.Map): (number | string)[];
+      _UpdateDistanceByLatLngs(coordinates: number[][]): string;
+      showActiveShape(map: L.Map, coordinates: number[][]): void;
+      changeMeasurementMode(mode: string, map: L.Map): void;
+      changeMeasurementsArr(arr: MeasurementShapeData[]): void;
+      findLastCreatedLayer(layerGroup: L.LayerGroup): L.Layer | null;
+      cancelDrawing(): void;
+      startDrawing(): void;
+      _onPolygonClick(map: L.Map, event: L.LeafletMouseEvent): void;
+      _UpdateAreaperimeter(layer: L.Polygon): void;
+    }
+
+    interface MeasurePolygonOptions extends ControlOptions {
+      icon_lineActive: string;
+      icon_lineInactive: string;
+      icon_polygonActive: string;
+      icon_polygonInactive: string;
+      html_template: string;
+      height: number;
+      width: number;
+      mode_btn: string;
+      color_polygon: string;
+      fillColor_polygon: string;
+      weight_polygon: string;
+      checkonedrawpoligon: boolean;
+      changeModeButtonActive: boolean;
+      msj_disable_tool: string;
+      shapes: MeasurementShapeData[];
+      activeShape: number | string | null;
+      shapeMode: "line" | "polygon";
+      measurementOrder: number;
+      moveToShape: boolean | MeasurementShapeData | null;
+      cb: () => void;
+      cbSaveShape: (shape: MeasurementShapeData) => void;
+      cdDeleteShape: (
+        id: number | string,
+        localShapeStore: MeasurementShapeData[]
+      ) => void;
+      cbUpdateShape: (
+        id: number | string,
+        newCoordinates: number[][],
+        newDistance: string,
+        newSquare: string | null
+      ) => void;
+      cbVisiblePolylinesChange: (ids: (number | string)[]) => void;
+      cbSetDrawingStatus: (status: boolean) => void;
+      cbSetDrawingShape: (shape: MeasurementShapeData | null) => void;
+      cbSetActiveShape: (id: number | string) => void;
+      cbSetUpdateStatusHandler: (status: boolean) => void;
+      cbMapMovingEndHandler: (status: boolean) => void;
+      cbSaveLastActiveShapeIdBeforeDrawingHandler: () => void;
+      cbChangeActiveCanceldShapeId: () => void;
+      cbToggleMeasurementMode: () => void;
+      cbGetMeasurementModeHandler: () => void;
+      cbDeleteVisibleShapeById: (id: number | string) => void;
+      cbUpdateAreaOfDrawingMeasurement: (area: string | null) => void;
+      cbSetCurrentDrawHandler: (handler: DrawHandler | null) => void;
+      cbSetMapStatus?: (status: string) => void;
+      visiblePolylines: (string | number)[];
+      localShapeStore: MeasurementShapeData[];
+      ifDrawing: boolean;
+      nativeMove: boolean;
+      currenLine: DrawHandler | null;
+      polygonMode: boolean;
+      measurementMode: string | boolean;
+      startDrawing: boolean;
+      customTooltip: HTMLElement | null;
+      device: "desktop" | "mobile" | "tablet" | "Desktop" | null;
+      clickAfterShapeSelection: boolean;
+      snappingLatlng: L.LatLng | null;
+      snappingEnabled: boolean;
+      snappingQueryRadius?: number;
+    }
+  }
+
+  namespace control {
+    function measurePolygon(
+      options?: Partial<Control.MeasurePolygonOptions>
+    ): Control.MeasurePolygon;
+  }
+
+  interface Polyline {
+    customID?: number | string;
+    customShape?: string;
+    _path?: SVGPathElement;
+    _leaflet_id?: number;
+    showMeasurements?: () => this;
+    enableEdit?: () => void;
+    disableEdit?: () => void;
+  }
+
+  interface Polygon {
+    customID?: number | string;
+    customShape?: string;
+    customHandle?: number;
+    _path?: SVGPathElement;
+    showMeasurements?: () => this;
+    enableEdit?: () => void;
+    disableEdit?: () => void;
+  }
+
+  interface Marker {
+    customHandle?: number;
+  }
+
+  interface Layer {
+    customID?: number | string;
+    customHandle?: number;
+    _path?: SVGPathElement;
+    enableEdit?: () => void;
+    disableEdit?: () => void;
+    getLatLng?: () => L.LatLng;
+  }
+
+  interface Map {
+    _panes?: { popupPane: HTMLElement; [key: string]: HTMLElement };
+  }
+
+  namespace Draw {
+    interface DrawMap extends L.Map {
+      mergeOptions(options: any): void;
+      addInitHook(fn: () => void): void;
+    }
+  }
+
+  interface LeafletEvent {
+    layerType?: string;
+    layers?: L.LayerGroup;
+  }
+
+  interface Layer {
+    _leaflet_id?: number;
+  }
+}
+
+// @ts-expect-error - Leaflet's extend pattern doesn't match TypeScript's class system
 L.Control.MeasurePolygon = L.Control.extend({
   options: {
     position: "topright",
@@ -8,7 +216,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     icon_polygonInactive: "https://img.icons8.com/?size=48&id=98463&format=png",
     html_template: `<p><strong><span style="text-decoration: underline;">Results</span></strong></p>
 <p><strong>Area: </strong><br>_p_area</p>
-<p><strong>Perimeter : </strong><br>_p_perimetro</p>`,
+<p><strong>Perimeter : </strong><br>_p_perimeter</p>`,
     height: 130,
     width: 150,
     mode_btn: "",
@@ -91,7 +299,7 @@ L.Control.MeasurePolygon = L.Control.extend({
 
   drawingPolygons: function (map) {
     this.options.shapeMode = "polygon";
-    this._measureHandler = new L.Draw.Polygon(map, {
+    this._measureHandler = new L.Draw.Polygon(map as any, {
       showArea: true,
       shapeOptions: {
         color: "#267bdcd4",
@@ -121,7 +329,7 @@ L.Control.MeasurePolygon = L.Control.extend({
       this.options.customTooltip.style.visibility = "hidden";
     }
     this.options.shapeMode = "line";
-    this._measureHandler = new L.Draw.Polyline(map, {
+    this._measureHandler = new L.Draw.Polyline(map as any, {
       showLength: true,
       shapeOptions: {
         weight: 3,
@@ -152,7 +360,13 @@ L.Control.MeasurePolygon = L.Control.extend({
     this._lastOriginalClick = null;
 
     const storeClickPosition = (e) => {
-      if (this._measureHandler && this._measureHandler._enabled) {
+      if (this._measureHandler && (this._measureHandler as L.Control.DrawHandler)._enabled) {
+        // Validate coordinates before storing
+        if (!e.latlng || isNaN(e.latlng.lat) || isNaN(e.latlng.lng)) {
+          console.warn("[measure-path] IGNORING storeClickPosition with invalid coordinates:", e.latlng);
+          return;
+        }
+        
         // Store the ORIGINAL click position
         this._lastOriginalClick = {
           latlng: L.latLng(e.latlng.lat, e.latlng.lng),
@@ -168,9 +382,19 @@ L.Control.MeasurePolygon = L.Control.extend({
         ? this.options.snappingLatlng
         : event.latlng;
 
+    // CRITICAL: Validate coordinates before adding vertex
+    // During map transitions, coordinates can become NaN
+    if (!latlng || isNaN(latlng.lat) || isNaN(latlng.lng)) {
+      console.warn(
+        "[measure-path] BLOCKING addVertex with invalid coordinates:",
+        latlng
+      );
+      return; // Don't add invalid vertex
+    }
+
     this.options.currenLine.addVertex(latlng);
 
-    const tooltip = document.querySelector(".leaflet-draw-tooltip");
+    const tooltip = document.querySelector(".leaflet-draw-tooltip") as HTMLElement;
 
     const pos = map.latLngToLayerPoint(latlng);
     L.DomUtil.setPosition(tooltip, pos);
@@ -350,6 +574,13 @@ L.Control.MeasurePolygon = L.Control.extend({
     });
 
     map.on("draw:created", (event) => {
+      console.warn("[measure-path] ========== draw:created FIRED ==========", {
+        stack: new Error().stack,
+        layerType: event.layerType,
+        vertexCount: event.layer.getLatLngs?.()?.length || 0,
+        timestamp: Date.now(),
+      });
+
       this.options.checkonedrawpoligon = false;
       this.options.ifDrawing = false;
 
@@ -393,6 +624,14 @@ L.Control.MeasurePolygon = L.Control.extend({
     });
 
     map.on("draw:drawstart", (event) => {
+      console.warn(
+        "[measure-path] ========== draw:drawstart FIRED ==========",
+        {
+          layerType: event.layerType,
+          timestamp: Date.now(),
+        }
+      );
+
       const mouseActive =
         L.Browser.touch && matchMedia("(hover:hover)").matches;
       if (
@@ -431,6 +670,16 @@ L.Control.MeasurePolygon = L.Control.extend({
           const clickLatLng = e.latlng;
           const markerLatLng = e.target.getLatLng();
 
+          // Validate coordinates - ignore clicks with NaN coordinates
+          if (!clickLatLng || isNaN(clickLatLng.lat) || isNaN(clickLatLng.lng)) {
+            console.warn("[measure-path] IGNORING vertexClickHandler with invalid clickLatLng:", clickLatLng);
+            return;
+          }
+          if (!markerLatLng || isNaN(markerLatLng.lat) || isNaN(markerLatLng.lng)) {
+            console.warn("[measure-path] IGNORING vertexClickHandler with invalid markerLatLng:", markerLatLng);
+            return;
+          }
+
           // Use the ORIGINAL click position stored in map click handler
           const originalClick = this._lastOriginalClick;
 
@@ -449,32 +698,46 @@ L.Control.MeasurePolygon = L.Control.extend({
             return; // Not the first vertex, let Leaflet.Draw handle it normally
           }
 
-          // Only apply distance check when snapping is enabled (desktop)
-          // On mobile, snapping is disabled so let Leaflet.Draw handle closure normally
-          if (this.options.snappingEnabled) {
-            // Check if original click is within snapping radius OR if snapping is active and brought us here
-            const maxClickDistance = this.options.snappingQueryRadius || 40;
-            const isWithinSnappingRadius = pixelDistance <= maxClickDistance;
+          // CRITICAL: Apply distance check on BOTH desktop AND mobile!
+          // Without this, accidental touches near (but not on) the first vertex
+          // would immediately close the measurement.
+          const maxClickDistance = this.options.snappingQueryRadius || 40;
+          
+          // Check if click is actually within acceptable distance
+          if (isNaN(pixelDistance) || pixelDistance > maxClickDistance) {
+            // Additional check: If snapping is enabled, check if we're snapped to first vertex
             const isSnappedToFirstVertex =
+              this.options.snappingEnabled &&
               this.options.snappingLatlng &&
-              Math.abs(this.options.snappingLatlng.lat - markerLatLng.lat) <
-                0.0000001 &&
-              Math.abs(this.options.snappingLatlng.lng - markerLatLng.lng) <
-                0.0000001;
+              Math.abs(this.options.snappingLatlng.lat - markerLatLng.lat) < 0.0000001 &&
+              Math.abs(this.options.snappingLatlng.lng - markerLatLng.lng) < 0.0000001;
 
-            if (!isWithinSnappingRadius && !isSnappedToFirstVertex) {
-              // Don't process this click - it shouldn't close the polygon
+            if (!isSnappedToFirstVertex) {
+              // Don't process this click - it's not close enough to close the polygon
+              console.warn(
+                "[measure-path] IGNORING vertex click - too far from first vertex or invalid distance",
+                { pixelDistance, maxClickDistance, clickPoint, markerPoint }
+              );
               return;
             }
           }
-          // On mobile (snapping disabled), always allow closure when clicking first vertex
+
+          console.warn(
+            "[measure-path] ========== Calling completeShape() from vertex click ==========",
+            {
+              stack: new Error().stack,
+              snappingEnabled: this.options.snappingEnabled,
+              targetHandle: e.target.customHandle,
+              timestamp: Date.now(),
+            }
+          );
           this.options.shapeMode = "polygon";
           this.options.currenLine.completeShape();
         };
 
         layer.on("click", vertexClickHandler);
         layer.on("mouseover", (e) => {
-          const coordinates = this._measureHandler._poly._latlngs;
+          const coordinates = (this._measureHandler as L.Control.DrawHandler)._poly._latlngs;
           const latLngArray = coordinates.map((c) => [c.lat, c.lng]);
           latLngArray.push(latLngArray[0]);
           const area = this.calculateArea(latLngArray);
@@ -523,7 +786,13 @@ L.Control.MeasurePolygon = L.Control.extend({
           distance,
           shapeId: 5555,
           number: this.options.measurementOrder,
-          shapeType: "line",
+          shapeType: "line" as const,
+          options: {
+            color: "#267bdcd4",
+            fillColor: null,
+            opacity: 0.5,
+            weigt: 3,
+          },
         };
 
         this.options.ifDrawing = true;
@@ -535,8 +804,14 @@ L.Control.MeasurePolygon = L.Control.extend({
           coordinates: [latlngs],
           distance,
           shapeId: 5555,
-          shapeType: "line",
+          shapeType: "line" as const,
           number: this.options.measurementOrder,
+          options: {
+            color: "#267bdcd4",
+            fillColor: null,
+            opacity: 0.5,
+            weigt: 3,
+          },
         };
         this.options.cbSetDrawingShape(shapesObj);
       }
@@ -594,16 +869,13 @@ L.Control.MeasurePolygon = L.Control.extend({
           // const offsetX = 20;
           const offsetX = 0;
           // L.DomUtil.setPosition(this.options.customTooltip, pos);
-          L.DomUtil.setPosition(this.options.customTooltip, {
-            x: pos.x + offsetX,
-            y: pos.y,
-          });
-          if (target.classList.contains("leaflet-div-icon")) {
+          L.DomUtil.setPosition(this.options.customTooltip, L.point(pos.x + offsetX, pos.y));
+          if ((target as HTMLElement).classList.contains("leaflet-div-icon")) {
             this.options.customTooltip.style.visibility = "hidden";
           }
           if (
-            (target.classList.contains("leaflet-container") ||
-              target.classList.contains("leaflet-gl-layer")) &&
+            ((target as HTMLElement).classList.contains("leaflet-container") ||
+              (target as HTMLElement).classList.contains("leaflet-gl-layer")) &&
             !this.options.ifDrawing
           ) {
             this.options.customTooltip.style.visibility = "visible";
@@ -697,7 +969,7 @@ L.Control.MeasurePolygon = L.Control.extend({
   //   });
   // },
 
-  _UpdateAreaPerimetro: function (layer) {
+  _UpdateAreaperimeter: function (layer) {
     const latlngs = layer.getLatLngs()[0];
 
     const options = {
@@ -709,7 +981,18 @@ L.Control.MeasurePolygon = L.Control.extend({
   _UpdateDistance: function (layer) {
     let totalDistance = 0;
     const isLine = layer.toGeoJSON().geometry.type === "LineString";
-    const latlngs = isLine ? layer.getLatLngs() : layer.getLatLngs()[0];
+    const latlngsRaw = isLine ? layer.getLatLngs() : layer.getLatLngs()[0];
+    
+    // Type guard: ensure we have LatLng[]
+    let latlngs: L.LatLng[];
+    if (Array.isArray(latlngsRaw)) {
+      // For polygons: getLatLngs()[0] returns LatLng[]
+      // For lines: getLatLngs() returns LatLng[]
+      latlngs = latlngsRaw as L.LatLng[];
+    } else {
+      // Single LatLng case (shouldn't happen but handle it)
+      latlngs = [latlngsRaw as L.LatLng];
+    }
 
     if (!isLine) {
       latlngs.push(latlngs[0]);
@@ -725,7 +1008,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     }
 
     if (!isLine) {
-      latlngs.pop(latlngs[latlngs.length - 1]);
+      latlngs.pop();
     }
 
     const formatPerimeter = (perimeter) => {
@@ -779,7 +1062,7 @@ L.Control.MeasurePolygon = L.Control.extend({
   calculateArea: function (latlngs) {
     const toRadians = (degree) => (degree * Math.PI) / 180;
 
-    if (latlngs.length < 3) return 0;
+    if (latlngs.length < 3) return "0 m²";
 
     const earthRadius = 6378137;
 
@@ -832,14 +1115,14 @@ L.Control.MeasurePolygon = L.Control.extend({
 
   changeColorByActivePolyline: function (map, customID) {
     this._measureLayers.eachLayer(function (layer) {
-      const polyline = layer;
+      const polyline = layer as L.Polyline;
       if (layer instanceof L.Polyline) {
-        if (layer.customID === customID) {
-          polyline._path.classList.remove("custom-polyline");
-          polyline.enableEdit();
+        if ((layer as L.Polyline).customID === customID) {
+          (polyline as L.Polyline)._path.classList.remove("custom-polyline");
+          (polyline as L.Polyline).enableEdit();
         } else {
-          polyline._path.classList.add("custom-polyline");
-          polyline.disableEdit();
+          (polyline as L.Polyline)._path.classList.add("custom-polyline");
+          (polyline as L.Polyline).disableEdit();
         }
       }
     });
@@ -909,7 +1192,7 @@ L.Control.MeasurePolygon = L.Control.extend({
 
   showActiveShape: function (map, coordinates) {
     this.options.moveToShape = true;
-    const bounds = L.latLngBounds(coordinates);
+    const bounds = L.latLngBounds(coordinates as L.LatLngExpression[]);
     map.fitBounds(bounds);
   },
 
@@ -918,7 +1201,7 @@ L.Control.MeasurePolygon = L.Control.extend({
       return;
     }
 
-    const allBounds = L.latLngBounds();
+    const allBounds = L.latLngBounds(polylines[0].getBounds().getNorthEast(), polylines[0].getBounds().getSouthWest());
 
     polylines.forEach((polyline) => {
       const polylineBounds = polyline.getBounds();
@@ -1007,6 +1290,7 @@ L.Control.MeasurePolygon = L.Control.extend({
   getVisibleShapeIdsArr: function (map) {
     const allPolyLines = this.getVisiblePolylines(map);
     this.getVisiblePolylinesIds(allPolyLines);
+    return this.options.visiblePolylines;
   },
 
   findLastCreatedLayer: function (layerGroup) {
@@ -1027,17 +1311,27 @@ L.Control.MeasurePolygon = L.Control.extend({
     if (this.options.shapes.length !== 0) {
       this.options.shapes.forEach((shape) => {
         const { coordinates, options, shapeId, shapeType } = shape;
-        const shapeName = shapeType === "line" ? "polyline" : "polygon";
 
-        const savedShape = L[shapeName](coordinates, {
-          showLength: true,
-          className: "custom-polyline",
-          shapeOptions: {
-            weight: 4,
-            color: "#267bdcd4",
-            opacity: 1,
-          },
-        });
+        const savedShape = shapeType === "line" 
+          ? L.polyline(coordinates as any, {
+              showLength: true,
+              className: "custom-polyline",
+              shapeOptions: {
+                weight: 4,
+                color: "#267bdcd4",
+                opacity: 1,
+              },
+            } as any)
+          : L.polygon(coordinates as any, {
+              showLength: true,
+              className: "custom-polyline",
+              shapeOptions: {
+                weight: 4,
+                color: "#267bdcd4",
+                opacity: 1,
+              },
+            } as any);
+        
         savedShape.customID = shapeId;
         savedShape.addTo(this._measureLayers).showMeasurements().enableEdit();
         savedShape.on("click", () => {
@@ -1079,11 +1373,11 @@ L.Control.MeasurePolygon = L.Control.extend({
 
   _toggleMeasurementBtn: function () {
     if (this.options.changeModeButtonActive) {
-      document.getElementById("img_plg_lines").src =
+      (document.getElementById("img_plg_lines") as HTMLImageElement).src =
         this.options.icon_lineInactive;
       this.options.changeModeButtonActive = false;
     } else {
-      document.getElementById("img_plg_lines").src =
+      (document.getElementById("img_plg_lines") as HTMLImageElement).src =
         this.options.icon_lineActive;
       this.options.changeModeButtonActive = true;
     }
@@ -1097,19 +1391,19 @@ L.Control.MeasurePolygon = L.Control.extend({
       // const drawBtn = document.getElementById("draw_shape");
       // drawBtn.classList.remove("hide-draw-btn");
 
-      document.getElementById("img_plg_lines").src =
+      (document.getElementById("img_plg_lines") as HTMLImageElement).src =
         this.options.icon_lineActive;
 
       // if (this.options.isFirstLoading) {
       //   this.options.isFirstLoading = false;
       // }
 
-      const customTooltip = document.querySelector("#routedMap");
+      const customTooltip = document.querySelector("#routedMap") as HTMLElement;
       customTooltip.style.cursor = "crosshair";
     } else {
       this._clearMeasurements();
 
-      const customTooltip = document.querySelector("#routedMap");
+      const customTooltip = document.querySelector("#routedMap") as HTMLElement;
       customTooltip.style.cursor = "pointer";
       if (this.options.currenLine) {
         this.options.currenLine.disable();
@@ -1118,7 +1412,7 @@ L.Control.MeasurePolygon = L.Control.extend({
       // const drawBtn = document.getElementById("draw_shape");
       // drawBtn.classList.add("hide-draw-btn");
       this.options.checkonedrawpoligon = false;
-      document.getElementById("img_plg_lines").src =
+      (document.getElementById("img_plg_lines") as HTMLImageElement).src =
         this.options.icon_lineInactive;
     }
 

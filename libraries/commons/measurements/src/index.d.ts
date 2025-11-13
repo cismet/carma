@@ -20,8 +20,9 @@ export interface MapMeasurementsContextType {
   setActiveShape: (shape: ActiveShape) => void;
   visibleShapes: any[];
   setVisibleShapes: (shapes: any[]) => void;
-  snappingLatlng?: any;
+  snappingLatlngRef?: React.MutableRefObject<any>;
   setSnappingLatlng?: (coords: any) => void;
+  subscribeToSnappingLatlng?: (callback: (latlng: any) => void) => () => void;
 
   showAll: boolean;
   deleteAll: boolean;
@@ -52,7 +53,8 @@ export interface MapMeasurementsContextType {
   setDrawingWithLastActiveShape: () => void;
   setActiveShapeIfDrawCancelled: () => void;
   toggleMeasurementMode: () => void;
-  updateAreaOfDrawing: (newArea: number) => void;
+  // NOTE: newArea is pre-formatted string like "123.45 m²" or "1.23 km²" from calculateArea()
+  updateAreaOfDrawing: (newArea: string) => void;
   updateTitle: (shapeId: string | number, customTitle: string) => void;
   setStartDrawing: (status: boolean) => void;
   startDrawing: boolean;
