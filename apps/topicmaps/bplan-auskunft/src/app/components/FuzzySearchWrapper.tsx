@@ -48,30 +48,32 @@ const FuzzySearchWrapper = ({
 
   const { setSelection } = useSelection();
   useSelectionTopicMap();
-  useUrlFeatureSelection((features, objectId) => {
-    const foundedFeatures = [];
-    features.forEach((feature) => {
-      const targetFeature =
-        String(feature.properties?.nummer) === String(objectId);
-      if (targetFeature) {
-        foundedFeatures.push(feature);
-      }
-    });
+  useUrlFeatureSelection({
+    manualCallback: (features, objectId) => {
+      const foundedFeatures = [];
+      features.forEach((feature) => {
+        const targetFeature =
+          String(feature.properties?.nummer) === String(objectId);
+        if (targetFeature) {
+          foundedFeatures.push(feature);
+        }
+      });
 
-    if (foundedFeatures.length > 0) {
-      const hits = JSON.parse(JSON.stringify(foundedFeatures));
-      hits[0].selected = true;
-      setFeatures(hits);
-      setSelectedIndex(0);
-      const projectedFC = L.Proj.geoJson([hits[0]]);
-      const bounds = projectedFC.getBounds();
-      const map = routedMapRef?.leafletMap?.leafletElement;
-      if (map === undefined) {
-        return;
+      if (foundedFeatures.length > 0) {
+        const hits = JSON.parse(JSON.stringify(foundedFeatures));
+        hits[0].selected = true;
+        setFeatures(hits);
+        setSelectedIndex(0);
+        const projectedFC = L.Proj.geoJson([hits[0]]);
+        const bounds = projectedFC.getBounds();
+        const map = routedMapRef?.leafletMap?.leafletElement;
+        if (map === undefined) {
+          return;
+        }
+        map.fitBounds(bounds);
       }
-      map.fitBounds(bounds);
-    }
-  }, false);
+    },
+  });
   const onGazetteerSelection = (selection: SearchResultItem | null) => {
     if (!selection) {
       setSelection(null);
