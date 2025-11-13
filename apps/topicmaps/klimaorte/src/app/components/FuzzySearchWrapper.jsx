@@ -32,16 +32,43 @@ const FuzzySearchWrapper = ({ searchTextPlaceholder }) => {
     responsiveState === "normal" ? "300px" : windowSize.width - gap;
   const { setSelection } = useSelection();
   useSelectionTopicMap();
-  useUrlFeatureSelection((feature, objectId) => {
-    const idsArr = objectId.split(".");
-    if (appMode === appModes.ROUTEN) {
-      return String(feature?.properties?.key) === String(idsArr[0]);
-    } else {
-      return (
-        String(feature?.properties?.standort?.id) ===
-        String(idsArr.length === 2 ? idsArr[1] : idsArr[0])
-      );
-    }
+  useUrlFeatureSelection({
+    manualCallback: (shownFeatures, objectId) => {
+      const idsArr = objectId.split(".");
+      if (appMode === appModes.ROUTEN) {
+        const targetFeature = shownFeatures.find(
+          (f) => String(f?.properties?.key) === String(idsArr[0])
+        );
+
+        if (targetFeature) {
+          zoomToFeature(targetFeature);
+          setSelectedFeatureByPredicate(
+            (f) => String(f?.properties?.key) === String(idsArr[0])
+          );
+
+          if (idsArr.length === 2) {
+            setSelectedFeatureByPredicate(
+              (f) => String(f?.properties?.standort?.id) === String(idsArr[1])
+            );
+          }
+        }
+      } else {
+        const targetFeature = shownFeatures.find(
+          (f) =>
+            String(f?.properties?.standort?.id) ===
+            String(idsArr.length === 2 ? idsArr[1] : idsArr[0])
+        );
+
+        if (targetFeature) {
+          zoomToFeature(targetFeature);
+          setSelectedFeatureByPredicate(
+            (f) =>
+              String(f?.properties?.standort?.id) ===
+              String(idsArr.length === 2 ? idsArr[1] : idsArr[0])
+          );
+        }
+      }
+    },
   });
 
   const onGazetteerSelection = (selection) => {
