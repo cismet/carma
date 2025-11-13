@@ -29,3 +29,16 @@ export const getPOIColors = async (setPoiColors) => {
     setPoiColors(data);
   });
 };
+
+export const getAlterTextFromFilterState = (alter) => {
+  switch (alter) {
+    case "unter2":
+      return "unter 2 Jahre";
+    case "ab2":
+      return "ab 2 Jahre";
+    case "ab3":
+      return "ab 3 Jahre";
+    default:
+      return "alle";
+  }
+};
