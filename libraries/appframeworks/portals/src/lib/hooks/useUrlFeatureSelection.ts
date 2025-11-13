@@ -65,6 +65,7 @@ export const useUrlFeatureSelection = ({
               );
             }, 200);
           }
+          // TODO: Investigate if there is a better way to do this
         } else {
           manualCallback(shownFeatures, objectId);
         }
