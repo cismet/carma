@@ -24,6 +24,7 @@ import {
   ProgressIndicator,
   useProgress,
 } from "@carma-appframeworks/portals";
+import { constants } from "./helper/constants";
 if (typeof global === "undefined") {
   window.global = window;
 }
@@ -37,7 +38,9 @@ function App() {
     filters[traeger.text] = true;
   });
 
-  filters.positiv = traegertypMap.map((traeger) => traeger.text);
+  filters.positiv = traegertypMap.map(
+    (traeger) => constants.TRAEGERTEXT_FOR_DESCRIPTION[traeger.c]
+  );
   filters.negativ = [];
 
   if (featureRenderingOption) {

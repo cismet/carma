@@ -16,6 +16,7 @@ import KitasPieChart from "./KitasPieChart";
 import { traegertypMap } from "./helper/filter";
 import { useSelector } from "react-redux";
 import { getFeatureRenderingOption } from "./store/slices/ui";
+import { constants } from "./helper/constants";
 
 const FilterUI = () => {
   const { filterState } = useContext(FeatureCollectionContext);
@@ -75,28 +76,29 @@ const FilterUI = () => {
                         readOnly={true}
                         key={"filter.kita.traeger." + item.c}
                         onClick={(e) => {
+                          const textForTitle =
+                            constants.TRAEGERTEXT_FOR_DESCRIPTION[item.c];
                           const newFilterState = { ...filterState };
                           if (e.target.checked) {
                             newFilterState[item.text] = true;
-                            // const itemText = newFilterState[item.text];
                             newFilterState.negativ =
                               newFilterState.negativ.filter(
-                                (negItem) => negItem !== item.text
+                                (negItem) => negItem !== textForTitle
                               );
 
                             newFilterState.positiv = [
                               ...newFilterState.positiv,
-                              item.text,
+                              textForTitle,
                             ];
                           } else {
                             newFilterState[item.text] = false;
                             newFilterState.positiv =
                               newFilterState.positiv.filter(
-                                (posItem) => posItem !== item.text
+                                (posItem) => posItem !== textForTitle
                               );
                             newFilterState.negativ = [
                               ...newFilterState.negativ,
-                              item.text,
+                              textForTitle,
                             ];
                           }
 
