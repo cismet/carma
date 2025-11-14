@@ -20,23 +20,23 @@ const getUmfangDescription = (filterState) => {
 };
 
 const getTrageTypeDescription = (filterState, traegertypMap) => {
-  const positiv = [];
-  const negativ = [];
+  const positiv = filterState.positiv || [];
+  const negativ = filterState.negativ || [];
 
-  traegertypMap.forEach((traeger) => {
-    const itemName = traeger.text.toLowerCase();
-    Object.keys(filterState).forEach((key) => {
-      if (key.toLowerCase() === itemName) {
-        if (filterState[key]) {
-          const description = constants.TRAEGERTEXT_FOR_DESCRIPTION[traeger.c];
-          positiv.push(description);
-        } else {
-          const description = constants.TRAEGERTEXT_FOR_DESCRIPTION[traeger.c];
-          negativ.push(description);
-        }
-      }
-    });
-  });
+  // traegertypMap.forEach((traeger) => {
+  //   const itemName = traeger.text.toLowerCase();
+  //   Object.keys(filterState).forEach((key) => {
+  //     if (key.toLowerCase() === itemName) {
+  //       if (filterState[key]) {
+  //         const description = constants.TRAEGERTEXT_FOR_DESCRIPTION[traeger.c];
+  //         positiv.push(description);
+  //       } else {
+  //         const description = constants.TRAEGERTEXT_FOR_DESCRIPTION[traeger.c];
+  //         negativ.push(description);
+  //       }
+  //     }
+  //   });
+  // });
 
   const tragerLength = positiv.length + negativ.length;
   if (tragerLength === positiv.length) return null;

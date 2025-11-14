@@ -6,6 +6,7 @@ import { traegertypMap } from "../helper/filter";
 const factory = ({ featureCollectionContext }) => {
   const { itemsDictionary, filteredItems, filterState, allFeatures } =
     featureCollectionContext;
+  console.log("xxx filter state", filterState);
   // old not working code
   // let themenstadtplanDesc = "alle Kitas | unter 2 + ab 2 Jahre | 35h pro Woche";
   // if (filterState) {

@@ -37,6 +37,9 @@ function App() {
     filters[traeger.text] = true;
   });
 
+  filters.positiv = traegertypMap.map((traeger) => traeger.text);
+  filters.negativ = [];
+
   if (featureRenderingOption) {
     return (
       <TopicMapContextProvider
@@ -58,6 +61,8 @@ function App() {
           alter: "ab3",
           normal: true,
           inklusion: true,
+          positiv: filters.positiv,
+          negativ: filters.negativ,
           ...filters,
         }}
         additionalStylingInfo={{ featureRenderingOption }}

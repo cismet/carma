@@ -78,8 +78,26 @@ const FilterUI = () => {
                           const newFilterState = { ...filterState };
                           if (e.target.checked) {
                             newFilterState[item.text] = true;
+                            // const itemText = newFilterState[item.text];
+                            newFilterState.negativ =
+                              newFilterState.negativ.filter(
+                                (negItem) => negItem !== item.text
+                              );
+
+                            newFilterState.positiv = [
+                              ...newFilterState.positiv,
+                              item.text,
+                            ];
                           } else {
                             newFilterState[item.text] = false;
+                            newFilterState.positiv =
+                              newFilterState.positiv.filter(
+                                (posItem) => posItem !== item.text
+                              );
+                            newFilterState.negativ = [
+                              ...newFilterState.negativ,
+                              item.text,
+                            ];
                           }
 
                           setFilterState(newFilterState);
