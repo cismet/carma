@@ -4,11 +4,10 @@ import { buildThemenKitasDescription } from "./titleFactoryHelper";
 import { traegertypMap } from "../helper/filter";
 
 const factory = ({ featureCollectionContext }) => {
-  const { itemsDictionary, filteredItems, filterState } =
+  const { itemsDictionary, filteredItems, filterState, allFeatures } =
     featureCollectionContext;
-  const lebenslagen = itemsDictionary?.lebenslagen || [];
-
-  let themenstadtplanDesc = "alle Kitas | unter 2 + ab 2 Jahre | 35h pro Woche";
+  // old not working code
+  // let themenstadtplanDesc = "alle Kitas | unter 2 + ab 2 Jahre | 35h pro Woche";
   // if (filterState) {
   //   if (
   //     filterState?.positiv?.length > 0 &&
@@ -29,18 +28,18 @@ const factory = ({ featureCollectionContext }) => {
   //       }
   //     }
   //   }
-
   const themenKitasDesc = buildThemenKitasDescription(
     filterState,
     traegertypMap
   );
-
+  if (!allFeatures || allFeatures.length === 0) {
+    return null;
+  }
   return (
     <div>
       <b>Mein Kita-Finder:</b> {themenKitasDesc.join(" | ")}
     </div>
   );
 };
-// };
 
 export default factory;
