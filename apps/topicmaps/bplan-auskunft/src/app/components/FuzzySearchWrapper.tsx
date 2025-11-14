@@ -23,6 +23,7 @@ import { faSearch } from "@fortawesome/free-solid-svg-icons";
 import type { UnknownAction } from "redux";
 import { getBoundingBoxForLeafletMap } from "@carma-mapping/utils";
 import proj4 from "proj4";
+import { getStatusByObjectId } from "../../utils/urlSelectionHelper";
 interface FuzzySearchProps {
   setFeatures: (hit) => void;
   setSelectedIndex: (idx) => void;
@@ -51,9 +52,14 @@ const FuzzySearchWrapper = ({
   useUrlFeatureSelection({
     manualCallback: (features, objectId) => {
       const foundedFeatures = [];
+      const extractedId = objectId ? objectId.split(".")[0] : [];
+      const status = getStatusByObjectId(objectId as string);
       features.forEach((feature) => {
-        const targetFeature =
-          String(feature.properties?.nummer) === String(objectId);
+        const targetFeature = status
+          ? String(feature.properties?.nummer) === String(extractedId) &&
+            String(feature.properties?.status) === String(status)
+          : String(feature.properties?.nummer) === String(objectId);
+
         if (targetFeature) {
           foundedFeatures.push(feature);
         }
