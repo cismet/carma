@@ -44,7 +44,11 @@ const getTrageTypeDescription = (filterState, traegertypMap) => {
   if (negativ.length <= tragerLength / 2 - 1) {
     return "ohne " + negativ.join(" und ");
   } else {
-    return "nur " + positiv.join(", ");
+    if (positiv.length > 2) {
+      return "nur " + positiv.join(", ");
+    } else {
+      return "nur " + positiv.join(" und ");
+    }
   }
 };
 
