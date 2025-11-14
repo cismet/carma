@@ -51,6 +51,7 @@ const MeasurementTitle = ({
   );
 };
 
+export { MeasurementTitle };
 export default MeasurementTitle;
 
 function capitalizeFirstLetter(text: string): string {

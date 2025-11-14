@@ -1,4 +1,4 @@
-import { useMapMeasurementsContext } from "./MapMeasurementsProvider";
+import { useMapMeasurementsContext } from "../context";
 
 export function MeasurementStatusDebug() {
   const { status, config } = useMapMeasurementsContext();

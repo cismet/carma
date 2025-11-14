@@ -1,7 +1,7 @@
 import { useEffect, useRef, useContext, useState } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { adjustClickPosition, toLatLngFromClosestPoint } from "../utils/helper";
-import { useMapMeasurementsContext } from "../components/MapMeasurementsProvider";
+import { useMapMeasurementsContext } from "../context";
 import { SnappingPoint } from "../snapping/types";
 import {
   extractPointsFromGeometry,

@@ -10,7 +10,7 @@ import "./utils/measure-path";
 import "leaflet-measure-path/leaflet-measure-path.css";
 import "./styles/m-style.css";
 import useDeviceDetection from "./hooks/useDeviceDetection";
-import { useMapMeasurementsContext } from "./components/MapMeasurementsProvider";
+import { useMapMeasurementsContext } from "./context";
 import { MapMeasurementProps, MeasurementShapeDrawing } from "..";
 import { MeasurementsSnapping } from "./components/MeasurementsSnapping";
 import { MeasurementStatusDebug } from "./components/MeasurementStatusDebug";
@@ -23,7 +23,8 @@ const MeasurementsInner = memo(function Measurements({
 }: Partial<MapMeasurementProps> & {
   snappingLayers?: any[]; // MapLibre layers for snapping
 }) {
-  const { realRoutedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
+  const { realRoutedMapRef } =
+    useContext<typeof TopicMapContext>(TopicMapContext);
   const {
     mode,
     activeShape,
@@ -69,14 +70,14 @@ const MeasurementsInner = memo(function Measurements({
     []
   );
   const [drawingShape, setDrawingLine] = useState(null);
-  
+
   // Track last valid state for recovery
   const lastValidStateRef = React.useRef<{
     activeShape: any;
     mode: string;
     wasDrawing: boolean;
   } | null>(null);
-  
+
   // Track if map is in valid state
   const [mapIsValid, setMapIsValid] = React.useState(false);
 
@@ -85,16 +86,16 @@ const MeasurementsInner = memo(function Measurements({
   const toggleMeasurementModeHandler = () => {
     toggleUIMode();
   };
-  
 
-  
   useEffect(() => {
     const leafletMap = realRoutedMapRef.current?.leafletMap?.leafletElement;
     if (leafletMap && !measureControl) {
       const mapExample = leafletMap;
-      
-      console.debug('[Measurements] Initializing measurement control with valid map');
-      
+
+      console.debug(
+        "[Measurements] Initializing measurement control with valid map"
+      );
+
       const customOptions = {
         position: "topright",
         // icon_lineActive: makeMeasureActiveIcon,
@@ -135,41 +136,48 @@ const MeasurementsInner = memo(function Measurements({
       measurePolygonControl.addTo(mapExample);
 
       setMeasureControl(measurePolygonControl);
-      
+
       // Restore previous state if available
       if (lastValidStateRef.current) {
-        console.debug('[Measurements] Restoring previous state:', lastValidStateRef.current);
+        console.debug(
+          "[Measurements] Restoring previous state:",
+          lastValidStateRef.current
+        );
         const savedState = lastValidStateRef.current;
-        
+
         // Restore mode if it was in measurement mode
-        if (savedState.mode === "measurement" && currentMode !== "measurement") {
+        if (
+          savedState.mode === "measurement" &&
+          currentMode !== "measurement"
+        ) {
           // Mode will be restored by parent component
         }
-        
+
         // Restore active shape if there was one
         if (savedState.activeShape && !savedState.wasDrawing) {
           setTimeout(() => {
             setActiveShape(savedState.activeShape);
           }, 100);
         }
-        
+
         lastValidStateRef.current = null;
       }
     }
   }, [realRoutedMapRef]);
-  
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (measureControl) {
-        console.debug('[Measurements] Cleaning up control on unmount');
+        console.debug("[Measurements] Cleaning up control on unmount");
         try {
-          const mapExample = realRoutedMapRef.current?.leafletMap?.leafletElement;
+          const mapExample =
+            realRoutedMapRef.current?.leafletMap?.leafletElement;
           if (mapExample) {
             mapExample.removeControl(measureControl);
           }
         } catch (e) {
-          console.warn('[Measurements] Error during cleanup:', e);
+          console.warn("[Measurements] Error during cleanup:", e);
         }
       }
     };
@@ -241,16 +249,7 @@ const MeasurementsInner = memo(function Measurements({
         );
       }
     }
-  }, [
-    activeShape,
-    measureControl,
-    showAll,
-    deleteAll,
-    ifDrawing,
-    moveToShape,
-    currentMode,
-    realRoutedMapRef,
-  ]);
+  }, [activeShape, measureControl, showAll, deleteAll, ifDrawing, moveToShape, currentMode, realRoutedMapRef]);
 
   // keep snappingLatlng and snappingEnabled in sync with control options
   useEffect(() => {
@@ -345,7 +344,7 @@ const MeasurementsInner = memo(function Measurements({
 
   // Debug: Log what's causing rerenders
   React.useEffect(() => {
-    console.debug('[Measurements] Rerender triggered. State:', {
+    console.debug("[Measurements] Rerender triggered. State:", {
       activeShape,
       shapesCount: shapes.length,
       visibleShapesCount: visibleShapes.length,
@@ -368,9 +367,11 @@ const MeasurementsInner = memo(function Measurements({
   );
 });
 
-export function Measurements(props: Partial<MapMeasurementProps> & {
-  snappingLayers?: any[];
-}) {
+export function Measurements(
+  props: Partial<MapMeasurementProps> & {
+    snappingLayers?: any[];
+  }
+) {
   return <MeasurementsInner {...props} />;
 }
 

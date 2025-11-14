@@ -3,7 +3,8 @@ export { MeasurementControl } from "./lib/components/MeasurementControl";
 export {
   MapMeasurementsProvider,
   useMapMeasurementsContext,
-} from "./lib/components/MapMeasurementsProvider";
+  defaultConfig,
+} from "./lib/context";
 export { Measurements, MapMeasurementsObjects } from "./lib/lib-measurements";
 export { MeasurementsSnapping } from "./lib/components/MeasurementsSnapping";
 export { MeasurementStatusDebug } from "./lib/components/MeasurementStatusDebug";

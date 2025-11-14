@@ -1,17 +1,13 @@
-import { createContext, useContext, useEffect, useState, useRef, useCallback } from "react";
-import {
+import { useEffect, useState, useRef, useCallback } from "react";
+import type {
   ActiveShape,
-  MapMeasurementsContextType,
   MeasurementConfig,
   MeasurementMapStatus,
   PartialMeasurementConfig,
-} from "../../";
+} from "./MapMeasurementsContext.d";
+import { MEASUREMENT_MODE } from "./MapMeasurementsContext.d";
+import { MapMeasurementsContext } from "./MapMeasurementsContext";
 import { setFromLocalforage, saveToLocalforage } from "../utils/helper";
-
-enum MEASUREMENT_MODE {
-  DEFAULT = "default",
-  MEASUREMENT = "measurement",
-}
 
 // Detect mobile devices
 const isMobileDevice = () => {
@@ -26,7 +22,7 @@ const isMobileDevice = () => {
   return isMobileUA || isSmallScreen;
 };
 
-const defaultConfig: MeasurementConfig = {
+export const defaultConfig: MeasurementConfig = {
   editableTitle: true,
   infoBoxHeaderColor: "#3b82f6",
   localStorageKey: "measurementShapes",
@@ -38,61 +34,6 @@ const defaultConfig: MeasurementConfig = {
   debugOutputMapStatus: false,
   debugOutputMapStatusPosition: { x: 65, y: 15 },
 };
-
-export const MapMeasurementsContext = createContext<MapMeasurementsContextType>(
-  {
-    mode: MEASUREMENT_MODE.DEFAULT,
-    setMode: (mode: MEASUREMENT_MODE) => {},
-    shapes: [],
-    setShapes: (shapes: any[]) => {},
-    activeShape: null,
-    setActiveShape: (shape: ActiveShape) => {},
-    visibleShapes: [],
-    setVisibleShapes: (shapes: any[]) => {},
-    snappingLatlngRef: { current: null } as React.MutableRefObject<any>,
-    setSnappingLatlng: (_latlng: any) => {},
-    subscribeToSnappingLatlng: () => () => {},
-    showAll: false,
-    deleteAll: false,
-    drawingShape: false,
-    lastActiveShapeBeforeDrawing: null,
-    moveToShape: null,
-    updateShape: false,
-    mapMovingEnd: false,
-    updateTitleStatus: false,
-    setDrawingShape: (drawingShape: boolean) => {},
-    setShowAll: (showAll: boolean) => {},
-    setDeleteAll: (deleteAll: boolean) => {},
-    setMoveToShape: (moveToShape: any) => {},
-    setUpdateShape: (updateShape: boolean) => {},
-    setMapMovingEnd: (mapMovingEnd: boolean) => {},
-    setUpdateTitleStatus: (updateTitleStatus: boolean) => {},
-    setLastActiveShapeBeforeDrawing: (lastActiveShapeBeforeDrawing: any) => {},
-    addShape: (layer: any) => {},
-    deleteShapeById: (shapeId: string) => {},
-    deleteVisibleShapeById: (shapeId: string) => {},
-    updateShapeById: (
-      shapeId: string,
-      newCoordinates?: any,
-      newDistance?: number,
-      newSquare?: number | null
-    ) => {},
-    setLastVisibleShapeActive: () => {},
-    setDrawingWithLastActiveShape: () => {},
-    setActiveShapeIfDrawCancelled: () => {},
-    toggleMeasurementMode: () => {},
-    updateAreaOfDrawing: (newArea: string) => {},
-    updateTitle: (shapeId: string | number, customTitle: string) => {},
-    setStartDrawing: (status: boolean) => {},
-    startDrawing: false,
-    currentDrawHandler: null,
-    setCurrentDrawHandler: (handler: any) => {},
-    completeCurrentShape: () => {},
-    config: defaultConfig,
-    status: "INACTIVE" as MeasurementMapStatus,
-    setStatus: (status: MeasurementMapStatus) => {},
-  }
-);
 
 export const MapMeasurementsProvider = ({
   children,
@@ -126,40 +67,51 @@ export const MapMeasurementsProvider = ({
   const [activeShape, setActiveShape] = useState<ActiveShape>(null);
   const [shapes, setShapes] = useState<any[]>([]);
   const [visibleShapes, setVisibleShapes] = useState<any[]>([]);
-  
+
   // snappingLatlng should NOT trigger re-renders - use ref + callback pattern
   const snappingLatlngRef = useRef<any>(null);
-  const snappingLatlngCallbacksRef = useRef<Set<(latlng: any) => void>>(new Set());
-  
+  const snappingLatlngCallbacksRef = useRef<Set<(latlng: any) => void>>(
+    new Set()
+  );
+
   const setSnappingLatlng = useCallback((latlng: any) => {
     snappingLatlngRef.current = latlng;
     // Notify subscribers without triggering React re-render
-    snappingLatlngCallbacksRef.current.forEach(callback => {
+    snappingLatlngCallbacksRef.current.forEach((callback) => {
       try {
         callback(latlng);
       } catch (e) {
-        console.warn('[MeasurementsProvider] Error in snappingLatlng callback:', e);
+        console.warn(
+          "[MeasurementsProvider] Error in snappingLatlng callback:",
+          e
+        );
       }
     });
   }, []);
-  
-  const subscribeToSnappingLatlng = useCallback((callback: (latlng: any) => void) => {
-    snappingLatlngCallbacksRef.current.add(callback);
-    return () => {
-      snappingLatlngCallbacksRef.current.delete(callback);
-    };
-  }, []);
-  
+
+  const subscribeToSnappingLatlng = useCallback(
+    (callback: (latlng: any) => void) => {
+      snappingLatlngCallbacksRef.current.add(callback);
+      return () => {
+        snappingLatlngCallbacksRef.current.delete(callback);
+      };
+    },
+    []
+  );
+
   const [showAll, setShowAll] = useState(false);
   const [deleteAll, setDeleteAll] = useState(false);
   const [drawingShape, setDrawingShape] = useState(false);
-  
+
   // Wrap setDrawingShape to log calls
   const setDrawingShapeWithLog = useCallback((value: boolean) => {
-    console.warn(`[MapMeasurementsProvider] setDrawingShape(${value})`, new Error().stack);
+    console.warn(
+      `[MapMeasurementsProvider] setDrawingShape(${value})`,
+      new Error().stack
+    );
     setDrawingShape(value);
   }, []);
-  
+
   const [lastActiveShapeBeforeDrawing, setLastActiveShapeBeforeDrawing] =
     useState<any>(null);
   const [moveToShape, setMoveToShape] = useState<any>(null);
@@ -172,9 +124,11 @@ export const MapMeasurementsProvider = ({
 
   // DEBUG: Log Provider mount/unmount
   useEffect(() => {
-    console.warn('[MapMeasurementsProvider] MOUNTED');
+    console.warn("[MapMeasurementsProvider] MOUNTED");
     return () => {
-      console.error('[MapMeasurementsProvider] UNMOUNTED - THIS SHOULD NOT HAPPEN DURING MEASUREMENT!');
+      console.error(
+        "[MapMeasurementsProvider] UNMOUNTED - THIS SHOULD NOT HAPPEN DURING MEASUREMENT!"
+      );
     };
   }, []);
 
@@ -421,13 +375,3 @@ export const MapMeasurementsProvider = ({
     </MapMeasurementsContext.Provider>
   );
 };
-
-export function useMapMeasurementsContext() {
-  const ctx = useContext(MapMeasurementsContext);
-  if (!ctx) {
-    throw new Error(
-      "useMapMeasurementsContext must be used within an MapMeasurementsProvider"
-    );
-  }
-  return ctx;
-}
