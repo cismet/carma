@@ -1,4 +1,5 @@
 import { getAlterTextFromFilterState } from "./helper";
+import { constants } from "./constants";
 
 const getInclusionDescription = (filterState) => {
   const { normal, inklusion } = filterState;
@@ -21,14 +22,17 @@ const getUmfangDescription = (filterState) => {
 const getTrageTypeDescription = (filterState, traegertypMap) => {
   const positiv = [];
   const negativ = [];
+
   traegertypMap.forEach((traeger) => {
     const itemName = traeger.text.toLowerCase();
     Object.keys(filterState).forEach((key) => {
       if (key.toLowerCase() === itemName) {
         if (filterState[key]) {
-          positiv.push(key);
+          const description = constants.TRAEGERTEXT_FOR_DESCRIPTION[traeger.c];
+          positiv.push(description);
         } else {
-          negativ.push(key);
+          const description = constants.TRAEGERTEXT_FOR_DESCRIPTION[traeger.c];
+          negativ.push(description);
         }
       }
     });
@@ -36,6 +40,7 @@ const getTrageTypeDescription = (filterState, traegertypMap) => {
 
   const tragerLength = positiv.length + negativ.length;
   if (tragerLength === positiv.length) return null;
+
   if (negativ.length <= tragerLength / 2 - 1) {
     return "ohne " + negativ.join(" und ");
   } else {
