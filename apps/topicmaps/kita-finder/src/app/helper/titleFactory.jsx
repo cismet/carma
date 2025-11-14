@@ -1,5 +1,8 @@
 import React from "react";
 import { getAlterTextFromFilterState } from "./helper";
+import { buildThemenKitasDescription } from "./titleFactoryHelper";
+import { traegertypMap } from "../helper/filter";
+
 const factory = ({ featureCollectionContext }) => {
   const { itemsDictionary, filteredItems, filterState } =
     featureCollectionContext;
@@ -27,35 +30,10 @@ const factory = ({ featureCollectionContext }) => {
   //     }
   //   }
 
-  const themenKitasDesc = [];
-  if (filterState) {
-    let schwerDesc = "alle Kitas";
-    let alterDesc = "Kinder";
-    if (filterState.normal && !filterState.inklusion) {
-      schwerDesc = "Kitas ohne Schwerpunkt Inklusion";
-    }
-    if (!filterState.normal && filterState.inklusion) {
-      schwerDesc = "Kitas mit Schwerpunkt Inklusion";
-    }
-
-    if (filterState.normal && filterState.inklusion) {
-      schwerDesc = "alle Kitas";
-    }
-
-    themenKitasDesc.push(schwerDesc);
-    alterDesc += " " + getAlterTextFromFilterState(filterState.alter);
-    themenKitasDesc.push(alterDesc);
-
-    if (filterState.umfang_45 || filterState.umfang_35) {
-      if (filterState.umfang_45 && filterState.umfang_35) {
-        themenKitasDesc.push("35h oder 45h pro Woche");
-      } else if (filterState.umfang_45 && !filterState.umfang_35) {
-        themenKitasDesc.push("45h pro Woche");
-      } else if (!filterState.umfang_45 && filterState.umfang_35) {
-        themenKitasDesc.push("35h pro Woche");
-      }
-    }
-  }
+  const themenKitasDesc = buildThemenKitasDescription(
+    filterState,
+    traegertypMap
+  );
 
   return (
     <div>
