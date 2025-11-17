@@ -1,8 +1,4 @@
-import {
-  SelectionMetaData,
-  useSelection,
-  useSelectionTopicMap,
-} from "@carma-appframeworks/portals";
+import { SelectionMetaData, useSelection } from "@carma-appframeworks/portals";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { type SearchResultItem } from "@carma/types";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
@@ -39,7 +35,6 @@ const FuzzySearchWrapper = ({
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
 
   const { setSelection } = useSelection();
-  useSelectionTopicMap();
 
   const onGazetteerSelection = (selection: SearchResultItem | null) => {
     if (!selection) {
