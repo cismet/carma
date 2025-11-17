@@ -354,7 +354,8 @@ L.Control.MeasurePolygon = L.Control.extend({
       (this._map as unknown as { _leaflet_id: number })._leaflet_id
     );
 
-    map.on("click", (event) => {
+    // Store handler references for proper cleanup
+    this._mapClickHandler = (event) => {
       const mode = this.options.measurementMode;
       if (!this.options.isDrawing && mode === "measurement") {
         this.drawingLines(map, event);
@@ -367,9 +368,10 @@ L.Control.MeasurePolygon = L.Control.extend({
         this.options.isDrawing = false;
         this.options.clickAfterShapeSelection = false;
       }
-    });
+    };
+    map.on("click", this._mapClickHandler);
 
-    map.on("draw:created", (event) => {
+    this._drawCreatedHandler = (event) => {
       console.warn("[measure-path] ========== draw:created FIRED ==========", {
         stack: new Error().stack,
         layerType: event.layerType,
@@ -417,9 +419,10 @@ L.Control.MeasurePolygon = L.Control.extend({
       this.options.isDrawing = false;
 
       this._measureHandler.disable();
-    });
+    };
+    map.on("draw:created", this._drawCreatedHandler);
 
-    map.on("draw:drawstart", (event) => {
+    this._drawDrawstartHandler = (event) => {
       console.warn(
         "[measure-path] ========== draw:drawstart FIRED ==========",
         {
@@ -449,9 +452,10 @@ L.Control.MeasurePolygon = L.Control.extend({
         shapeType: "line",
       };
       this.changeColorByActivePolyline(map, "ddfsc1231");
-    });
+    };
+    map.on("draw:drawstart", this._drawDrawstartHandler);
 
-    map.on("draw:drawvertex", (event) => {
+    this._drawDrawvertexHandler = (event) => {
       const layers = event.layers;
       const latlngs = [];
       let index = 0;
@@ -567,9 +571,10 @@ L.Control.MeasurePolygon = L.Control.extend({
         };
         this.options.cbSetDrawingShape(shapesObj);
       }
-    });
+    };
+    map.on("draw:drawvertex", this._drawDrawvertexHandler);
 
-    map.on("draw:canceled", () => {
+    this._drawCanceledHandler = () => {
       this.options.isDrawing = true;
       this.options.cbSetDrawingStatus(false);
 
@@ -584,16 +589,18 @@ L.Control.MeasurePolygon = L.Control.extend({
       this.options.cbDeleteVisibleShapeById(5555);
 
       this.options.cbChangeActiveCanceldShapeId();
-    });
+    };
+    map.on("draw:canceled", this._drawCanceledHandler);
 
-    map.on("moveend", () => {
+    this._moveendHandler = () => {
       const allPolyLines = this.getVisiblePolylines(map);
       this.getVisiblePolylinesIds(allPolyLines);
       this.options.cbMapMovingEndHandler(true);
       this.options.cbSetUpdateStatusHandler(false);
-    });
+    };
+    map.on("moveend", this._moveendHandler);
 
-    map.on("mousemove", (event) => {
+    this._mousemoveHandler = (event) => {
       const target = event.originalEvent.target;
       const isDesktop = this.options.device === "Desktop" ? true : false;
       const mode = this.options.measurementMode;
@@ -637,92 +644,48 @@ L.Control.MeasurePolygon = L.Control.extend({
           }
         }
       }
-    });
+    };
+    map.on("mousemove", this._mousemoveHandler);
 
-    map.on("mouseout", (event) => {
+    this._mouseoutHandler = (event) => {
       if (this.options.customTooltip) {
         this.options.customTooltip.style.visibility = "hidden";
       }
-    });
+    };
+    map.on("mouseout", this._mouseoutHandler);
 
     return iconsWrapper;
   },
 
-  // _propagateEventToUnderlyingLayers: function (map, event, eventType) {
-  //   // Get the lat/lng of the vertex
-  //   // const latlng = event.target.getLatLng();
-  //   const latlng =
-  //     event.target && event.target.getLatLng
-  //       ? event.target.getLatLng() // For vertex marker events
-  //       : event.latlng; // For map mousemove events
+  onRemove: function (map) {
+    // Clean up all event handlers to prevent memory leaks and duplicate handlers on HMR
+    console.log("[measure-path] onRemove: Cleaning up event handlers");
 
-  //   // Convert to container point
-  //   const point = map.latLngToContainerPoint(latlng);
+    // Remove only OUR specific event handlers by reference
+    if (this._mapClickHandler) map.off("click", this._mapClickHandler);
+    if (this._drawCreatedHandler)
+      map.off("draw:created", this._drawCreatedHandler);
+    if (this._drawDrawstartHandler)
+      map.off("draw:drawstart", this._drawDrawstartHandler);
+    if (this._drawDrawvertexHandler)
+      map.off("draw:drawvertex", this._drawDrawvertexHandler);
+    if (this._drawCanceledHandler)
+      map.off("draw:canceled", this._drawCanceledHandler);
+    if (this._moveendHandler) map.off("moveend", this._moveendHandler);
+    if (this._mousemoveHandler) map.off("mousemove", this._mousemoveHandler);
+    if (this._mouseoutHandler) map.off("mouseout", this._mouseoutHandler);
 
-  //   // Find all layers at this point (excluding the measurement vertex itself)
-  //   const layers = [];
-  //   map.eachLayer((layer) => {
-  //     // Skip the measurement layers and the current target
-  //     if (layer === event.target || layer === this._measureLayers) {
-  //       return;
-  //     }
+    // Remove measure layers
+    if (this._measureLayers) {
+      this._measureLayers.clearLayers();
+      map.removeLayer(this._measureLayers);
+    }
 
-  //     // Check if this layer is a GeoJSON or similar feature layer with mouseover handlers
-  //     if (
-  //       layer.feature &&
-  //       layer._events &&
-  //       (layer._events.mouseover || layer._events.mouseout)
-  //     ) {
-  //       let isInside = false;
-
-  //       // For polygon/polyline layers, check if point is inside
-  //       if (layer.getBounds) {
-  //         const bounds = layer.getBounds();
-  //         if (bounds.contains(latlng)) {
-  //           // For polygons, do a more precise check using Leaflet's internal method
-  //           if (
-  //             layer instanceof L.Polygon ||
-  //             (layer._latlngs && Array.isArray(layer._latlngs))
-  //           ) {
-  //             // Use a simple point-in-polygon check
-  //             // For now, just use bounds check as a proxy
-  //             isInside = true;
-  //           } else {
-  //             isInside = true;
-  //           }
-  //         }
-  //       } else if (layer.getLatLng) {
-  //         // For point markers
-  //         isInside = layer.getLatLng().equals(latlng);
-  //       }
-
-  //       if (isInside) {
-  //         layers.push(layer);
-  //       }
-  //     }
-  //   });
-
-  //   // Fire the event on the underlying layers
-  //   layers.forEach((layer) => {
-  //     if (eventType === "mouseover" && layer._events.mouseover) {
-  //       layer.fire("mouseover", {
-  //         latlng: latlng,
-  //         layerPoint: point,
-  //         containerPoint: point,
-  //         originalEvent: event.originalEvent,
-  //         target: layer,
-  //       });
-  //     } else if (eventType === "mouseout" && layer._events.mouseout) {
-  //       layer.fire("mouseout", {
-  //         latlng: latlng,
-  //         layerPoint: point,
-  //         containerPoint: point,
-  //         originalEvent: event.originalEvent,
-  //         target: layer,
-  //       });
-  //     }
-  //   });
-  // },
+    // Disable active drawing handler
+    if (this._measureHandler) {
+      this._measureHandler.disable();
+    }
+  },
 
   _UpdateAreaperimeter: function (layer) {
     const latlngs = layer.getLatLngs()[0];
