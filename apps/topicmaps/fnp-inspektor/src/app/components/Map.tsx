@@ -15,6 +15,7 @@ import EmptyAEVInfo from "./infos/EmptyAEVInfo";
 import EmptyHNInfo from "./infos/EmptyHNInfo";
 import { useDispatch, useSelector } from "react-redux";
 import {
+  getHauptnutzungenData,
   loadHauptnutzungen,
   searchForHauptnutzungen,
 } from "../../store/slices/hauptnutzungen";
@@ -59,7 +60,11 @@ import {
 import CustomScaleControl from "./CustomScaleControl";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
-import { useSelectionTopicMap } from "@carma-appframeworks/portals";
+import {
+  useSelectionTopicMap,
+  useUrlFeatureSelection,
+} from "@carma-appframeworks/portals";
+import { FeatureCollectionDispatchContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
 
 const { ScaleControl } = TransitiveReactLeaflet;
 
@@ -79,14 +84,23 @@ const Map = () => {
   let aevVisible = searchParams.get("aevVisible") !== null;
   const dispatch = useDispatch();
   const aevFeatures = useSelector(getData);
+  const hnFeatures = useSelector(getHauptnutzungenData);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState<number>(0);
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const { responsiveState } = useContext<typeof ResponsiveTopicMapContext>(
     ResponsiveTopicMapContext
   );
+  const { setShownFeatures } = useContext<
+    typeof FeatureCollectionDispatchContext
+  >(FeatureCollectionDispatchContext);
 
   useSelectionTopicMap();
+  useUrlFeatureSelection({
+    manualCallback: (features, objectId) => {
+      console.log("xxx features", features);
+    },
+  });
 
   const isMobile = responsiveState === "normal" ? false : true;
 
@@ -106,6 +120,12 @@ const Map = () => {
     dispatch(loadAEVs() as unknown as UnknownAction);
     // getGazData(setGazData);
   }, []);
+
+  useEffect(() => {
+    if (aevFeatures.length > 0 && hnFeatures.length > 0) {
+      setShownFeatures([...aevFeatures, ...hnFeatures]);
+    }
+  }, [aevFeatures, hnFeatures]);
 
   useEffect(() => {
     if (mode !== "arbeitskarte" && mode !== "rechtsplan") {
