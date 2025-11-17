@@ -513,7 +513,6 @@ const InfoCard = ({
                               {layer.backgroundLayer && (
                                 <LayerButton
                                   key={layer.id}
-                                  layer={layer.backgroundLayer}
                                   classNames={["px-3"]}
                                   useShadow={false}
                                 >
@@ -531,7 +530,6 @@ const InfoCard = ({
                               {layer.layers.map((layer) => (
                                 <LayerButton
                                   key={layer.id}
-                                  layer={layer}
                                   classNames={["px-3"]}
                                   useShadow={false}
                                 >
@@ -554,7 +552,6 @@ const InfoCard = ({
                             activeLayers.map((layer) => (
                               <LayerButton
                                 key={layer.id}
-                                layer={layer}
                                 classNames={["px-3"]}
                                 useShadow={false}
                               >

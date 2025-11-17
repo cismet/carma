@@ -3,7 +3,6 @@ import { HTMLAttributes, ReactNode, forwardRef, ForwardedRef } from "react";
 import { cn } from "@carma-commons/utils";
 
 interface LayerButtonProps extends HTMLAttributes<HTMLDivElement> {
-  layer: Layer;
   children?: ReactNode;
   classNames?: string[];
   useShadow?: boolean;
@@ -12,7 +11,6 @@ interface LayerButtonProps extends HTMLAttributes<HTMLDivElement> {
 export const LayerButton = forwardRef(
   (
     {
-      layer,
       children,
       classNames = [],
       useShadow = true,

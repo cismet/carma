@@ -142,7 +142,6 @@ const GeoportalLayerButton = ({
       id={`layer-${id}`}
     >
       <LayerButton
-        layer={layer}
         ref={setNodeRef}
         onClick={(e) => {
           e.stopPropagation();
