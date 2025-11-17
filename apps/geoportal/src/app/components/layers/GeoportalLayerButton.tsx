@@ -181,11 +181,7 @@ const GeoportalLayerButton = ({
           "pl-3",
         ]}
       >
-        <LayerIcon
-          layer={layer}
-          fallbackIcon={layer.icon}
-          iconPrefix="https://www.wuppertal.de/geoportal/geoportal_icon_legends/"
-        />
+        <LayerIcon layer={layer} fallbackIcon={layer.icon} />
         {layersLength > 0 && (
           <span className="text-base sm:hidden">{layersLength} Layer</span>
         )}

@@ -6,7 +6,11 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import { additionalInfoFactory } from "@carma-collab/wuppertal/geoportal";
 import { genericSecondaryInfoFooterFactory } from "@carma-collab/wuppertal/commons";
-import { getApplicationVersion, type VersionData } from "@carma-commons/utils";
+import {
+  getApplicationVersion,
+  updateUrl,
+  type VersionData,
+} from "@carma-commons/utils";
 import {
   InfoBox,
   utils,
@@ -110,6 +114,7 @@ export const FeatureInfobox = ({
                     feature?.properties?.fotos
                   }
                   lightBoxDispatchContext={lightBoxDispatchContext}
+                  urlManipulation={updateUrl}
                 />,
               ]
             : []

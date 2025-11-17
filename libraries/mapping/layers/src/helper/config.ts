@@ -535,7 +535,7 @@ export const topicMapsConfig: Config = {
       ],
       type: "link",
       thumbnail:
-        "https://www.wuppertal.de/geoportal/luftmessstationen/fotos/MP31",
+        "https://www.wuppertal.de/geoportal/luftmessstationen/fotos/MP31.jpg",
       keywords: [
         "carmaConf://opendata:https://offenedaten-wuppertal.de/dataset/luftmessstationen-wuppertal-passivsammler/resource/a60821e2-1053-4380-adca-06fefb0e3ef2",
       ],

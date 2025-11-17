@@ -8,6 +8,7 @@ import "./text.css";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import LayerInfoWrapper from "./LayerInfoWrapper";
 import { parseDescription } from "@carma-mapping/layers";
+import { updateUrl } from "@carma-commons/utils";
 
 interface LayerInfoProps {
   description: string;
@@ -129,7 +130,7 @@ const LayerInfo = ({ description, legend, zoomLevels }: LayerInfoProps) => {
                 {legend?.map((legend, i) => (
                   <img
                     key={`legend_${i}`}
-                    src={legend.OnlineResource}
+                    src={updateUrl(legend.OnlineResource)}
                     alt="Legende"
                     className="aspect-auto h-auto object-contain overflow-clip"
                   />

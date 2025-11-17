@@ -20,7 +20,7 @@ import isEqual from "lodash/isEqual";
 
 import { serviceOptions } from "@carma-commons/resources";
 import { BackgroundLayer, Item, Layer } from "@carma/types";
-import { extractCarmaConfig } from "@carma-commons/utils";
+import { extractCarmaConfig, updateUrl } from "@carma-commons/utils";
 
 import { parseDescription } from "../helper/layerHelper";
 import { Fragment, useState } from "react";
@@ -517,10 +517,7 @@ const InfoCard = ({
                                   classNames={["px-3"]}
                                   useShadow={false}
                                 >
-                                  <LayerIcon
-                                    layer={layer.backgroundLayer}
-                                    iconPrefix="https://www.wuppertal.de/geoportal/geoportal_icon_legends/"
-                                  />
+                                  <LayerIcon layer={layer.backgroundLayer} />
                                   <span className="text-base ml-1">
                                     {layer.backgroundLayer?.title}
                                   </span>
@@ -541,7 +538,6 @@ const InfoCard = ({
                                   <LayerIcon
                                     layer={layer}
                                     fallbackIcon={layer.icon}
-                                    iconPrefix="https://www.wuppertal.de/geoportal/geoportal_icon_legends/"
                                   />
                                   <span className="text-base ml-1">
                                     {layer.title}
@@ -565,7 +561,6 @@ const InfoCard = ({
                                 <LayerIcon
                                   layer={layer}
                                   fallbackIcon={layer.icon}
-                                  iconPrefix="https://www.wuppertal.de/geoportal/geoportal_icon_legends/"
                                 />
                                 <span className="text-base ml-1">
                                   {layer.title}
@@ -714,7 +709,7 @@ const InfoCard = ({
                   {legends?.map((legend, i) => (
                     <img
                       key={`legend_${i}`}
-                      src={legend.OnlineResource}
+                      src={updateUrl(legend.OnlineResource)}
                       alt="Legende"
                       className="h-fit"
                     />

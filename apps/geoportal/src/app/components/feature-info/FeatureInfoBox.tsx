@@ -35,7 +35,11 @@ import "../infoBox.css";
 import LoadingInfoBox from "./LoadingInfoBox";
 
 import versionData from "../../../version.json";
-import { getApplicationVersion, isHtmlString } from "@carma-commons/utils";
+import {
+  getApplicationVersion,
+  isHtmlString,
+  updateUrl,
+} from "@carma-commons/utils";
 import { InfoBox, InfoBoxHeader, utils } from "@carma-appframeworks/portals";
 import { parseColor } from "../../helper/color";
 
@@ -273,6 +277,7 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
                 <InfoBoxFotoPreview
                   currentFeature={selectedFeature}
                   lightBoxDispatchContext={lightBoxDispatchContext}
+                  urlManipulation={updateUrl}
                 />,
               ]
             : featureHeaders

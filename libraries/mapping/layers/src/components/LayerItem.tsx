@@ -16,7 +16,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { Button, Modal, Spin } from "antd";
 
 import { Item, Layer } from "@carma/types";
-import { cn, extractCarmaConfig } from "@carma-commons/utils";
+import { cn, extractCarmaConfig, updateUrl } from "@carma-commons/utils";
 import {
   extServiceText,
   extServiceBackgroundImage,
@@ -256,7 +256,7 @@ const LayerItem = ({
             </div>
           ) : layer.type !== "collection" || layer.thumbnail ? (
             <img
-              src={layer.thumbnail}
+              src={updateUrl(layer.thumbnail)}
               alt={title}
               loading="lazy"
               className={`object-cover relative h-full overflow-clip w-[calc(130%+7.2px)] ${
