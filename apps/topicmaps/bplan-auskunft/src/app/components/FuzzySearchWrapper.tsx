@@ -8,7 +8,7 @@ import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { type SearchResultItem } from "@carma/types";
 import { FeatureCollectionDispatchContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
-import { useContext, useEffect } from "react";
+import { useContext, useEffect, useRef } from "react";
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -41,6 +41,7 @@ const FuzzySearchWrapper = ({
   const dispatch = useDispatch();
   const [searchParams, setSearchParams] = useSearchParams();
   const bplaene = useSelector(getBPLaene);
+  const ifUrlHookedSelected = useRef(false);
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const { responsiveState, gap, windowSize } = useContext<
     typeof ResponsiveTopicMapContext
@@ -81,15 +82,18 @@ const FuzzySearchWrapper = ({
         map.fitBounds(bounds);
       }
 
-      setTimeout(() => {
-        const newParams = new URLSearchParams(searchParams);
-        newParams.delete("tmSelectionObject");
-        setSearchParams(newParams, { replace: true });
-        // searchParams.delete("tmSelectionObject");
-        // setSearchParams(searchParams);
-      }, 100);
+      ifUrlHookedSelected.current = true;
     },
   });
+
+  useEffect(() => {
+    const tmSelectionObject = searchParams.get("tmSelectionObject");
+    if (tmSelectionObject && ifUrlHookedSelected.current) {
+      searchParams.delete("tmSelectionObject");
+      setSearchParams(searchParams.toString());
+    }
+  }, [searchParams, setSearchParams]);
+
   const onGazetteerSelection = (selection: SearchResultItem | null) => {
     if (!selection) {
       setSelection(null);
