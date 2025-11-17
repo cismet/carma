@@ -16,6 +16,7 @@ import KitasPieChart from "./KitasPieChart";
 import { traegertypMap } from "./helper/filter";
 import { useSelector } from "react-redux";
 import { getFeatureRenderingOption } from "./store/slices/ui";
+import { constants } from "./helper/constants";
 
 const FilterUI = () => {
   const { filterState } = useContext(FeatureCollectionContext);
@@ -75,13 +76,40 @@ const FilterUI = () => {
                         readOnly={true}
                         key={"filter.kita.traeger." + item.c}
                         onClick={(e) => {
+                          const textForTitle =
+                            constants.TRAEGERTEXT_FOR_DESCRIPTION[item.c];
                           const newFilterState = { ...filterState };
                           if (e.target.checked) {
                             newFilterState[item.text] = true;
+                            if (
+                              newFilterState.positiv &&
+                              newFilterState.negativ
+                            ) {
+                              newFilterState.negativ =
+                                newFilterState.negativ.filter(
+                                  (negItem) => negItem !== textForTitle
+                                );
+                              newFilterState.positiv = [
+                                ...newFilterState.positiv,
+                                textForTitle,
+                              ];
+                            }
                           } else {
                             newFilterState[item.text] = false;
+                            if (
+                              newFilterState.positiv &&
+                              newFilterState.negativ
+                            ) {
+                              newFilterState.positiv =
+                                newFilterState.positiv.filter(
+                                  (posItem) => posItem !== textForTitle
+                                );
+                              newFilterState.negativ = [
+                                ...newFilterState.negativ,
+                                textForTitle,
+                              ];
+                            }
                           }
-
                           setFilterState(newFilterState);
                         }}
                         checked={filterState[item.text]}
