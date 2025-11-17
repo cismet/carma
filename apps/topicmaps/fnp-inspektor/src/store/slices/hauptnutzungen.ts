@@ -173,3 +173,7 @@ export function searchForHauptnutzungen({
 export default slice;
 
 export const { setData } = slice.actions;
+
+export const getHauptnutzungenData = (state) => {
+  return state.hauptnutzungen.data;
+};
