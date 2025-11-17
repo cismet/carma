@@ -155,7 +155,7 @@ export const parseToMapLayer = async (
             Number(carmaConf?.minZoom) || zoom?.minzoom || layer?.minZoom,
           maxZoom:
             Number(carmaConf?.maxZoom) || zoom?.maxzoom || layer?.maxZoom,
-          legend: layer?.props?.Style[0].LegendURL,
+          legend: layer?.props?.Style?.[0].LegendURL,
           metaData: layer?.props?.MetadataURL,
         },
         other: {
