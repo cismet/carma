@@ -4,10 +4,10 @@ export const getStatusByObjectId = (objectId: string) => {
   let statusString = "";
 
   switch (status[1]) {
-    case "nrw":
+    case "nrk":
       statusString = "nicht rechtskräftig";
       break;
-    case "rw":
+    case "rk":
       statusString = "rechtskräftig";
       break;
     default:
