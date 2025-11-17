@@ -98,7 +98,25 @@ const Map = () => {
   useSelectionTopicMap();
   useUrlFeatureSelection({
     manualCallback: (features, objectId) => {
-      console.log("xxx features", features);
+      const foundedFeatures = features.filter(
+        (feature) => feature.properties?.name === objectId
+      );
+
+      if (foundedFeatures.length > 0) {
+        if (mapMode.mode === "rechtsplan") {
+          dispatch(setFeatureCollection(foundedFeatures));
+          dispatch(setSelectedFeatureIndex(0));
+          searchParams.set("aevVisible", "true");
+          setSearchParams(searchParams);
+          const projectedFC = L.Proj.geoJson(foundedFeatures);
+          const bounds = projectedFC.getBounds();
+          const map = routedMapRef?.leafletMap?.leafletElement;
+          if (map === undefined) {
+            return;
+          }
+          map.fitBounds(bounds);
+        }
+      }
     },
   });
 
@@ -313,6 +331,7 @@ const Map = () => {
       const index = features.findIndex(
         (element) => element.id === event.target.feature.id
       );
+
       if (index !== -1) {
         dispatch(setSelectedFeatureIndex(index));
       }
