@@ -108,7 +108,6 @@ const MapWrapper = () => {
     /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
       navigator.userAgent
     ) ||
-    navigator.maxTouchPoints > 0 ||
     "ontouchstart" in window;
 
   const showLibreMap = flags.featureFlagLibreMap;
