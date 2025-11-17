@@ -371,7 +371,7 @@ L.Control.MeasurePolygon = L.Control.extend({
 
     console.log(
       "[measure-path] map click handler added",
-      this._map._leaflet_id
+      (this._map as unknown as { _leaflet_id: number })._leaflet_id
     );
 
     map.on("click", (event) => {

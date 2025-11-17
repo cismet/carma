@@ -1,5 +1,6 @@
 export { InfoBoxMeasurement } from "./lib/components/InfoBoxMeasurement";
 export { MeasurementControl } from "./lib/components/MeasurementControl";
+export { MeasurementTitle } from "./lib/components/MeasurementTitle";
 export {
   MapMeasurementsProvider,
   useMapMeasurementsContext,
