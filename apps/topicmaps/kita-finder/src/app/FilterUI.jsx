@@ -81,27 +81,35 @@ const FilterUI = () => {
                           const newFilterState = { ...filterState };
                           if (e.target.checked) {
                             newFilterState[item.text] = true;
-                            newFilterState.negativ =
-                              newFilterState.negativ.filter(
-                                (negItem) => negItem !== textForTitle
-                              );
-
-                            newFilterState.positiv = [
-                              ...newFilterState.positiv,
-                              textForTitle,
-                            ];
+                            if (
+                              newFilterState.positiv &&
+                              newFilterState.negativ
+                            ) {
+                              newFilterState.negativ =
+                                newFilterState.negativ.filter(
+                                  (negItem) => negItem !== textForTitle
+                                );
+                              newFilterState.positiv = [
+                                ...newFilterState.positiv,
+                                textForTitle,
+                              ];
+                            }
                           } else {
                             newFilterState[item.text] = false;
-                            newFilterState.positiv =
-                              newFilterState.positiv.filter(
-                                (posItem) => posItem !== textForTitle
-                              );
-                            newFilterState.negativ = [
-                              ...newFilterState.negativ,
-                              textForTitle,
-                            ];
+                            if (
+                              newFilterState.positiv &&
+                              newFilterState.negativ
+                            ) {
+                              newFilterState.positiv =
+                                newFilterState.positiv.filter(
+                                  (posItem) => posItem !== textForTitle
+                                );
+                              newFilterState.negativ = [
+                                ...newFilterState.negativ,
+                                textForTitle,
+                              ];
+                            }
                           }
-
                           setFilterState(newFilterState);
                         }}
                         checked={filterState[item.text]}
