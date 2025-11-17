@@ -32,6 +32,11 @@ import {
   RoutedMapLocateControl,
   ZoomControl,
 } from "@carma-mapping/components";
+import {
+  useSelectionTopicMap,
+  useUrlFeatureSelection,
+} from "@carma-appframeworks/portals";
+import { getStatusByObjectId } from "../../utils/urlSelectionHelper";
 
 const Map = () => {
   const dispatch = useDispatch();
@@ -43,6 +48,42 @@ const Map = () => {
   let refRoutedMap = useRef(null);
   const zoom = searchParams.get("zoom");
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
+  const ifUrlHookedSelected = useRef(false);
+
+  useSelectionTopicMap();
+  useUrlFeatureSelection({
+    manualCallback: (features, objectId) => {
+      const foundedFeatures = [];
+      const extractedId = objectId ? objectId.split(".")[0] : [];
+      const status = getStatusByObjectId(objectId as string);
+      features.forEach((feature) => {
+        const targetFeature = status
+          ? String(feature.properties?.nummer) === String(extractedId) &&
+            String(feature.properties?.status) === String(status)
+          : String(feature.properties?.nummer) === String(objectId);
+
+        if (targetFeature) {
+          foundedFeatures.push(feature);
+        }
+      });
+
+      if (foundedFeatures.length > 0) {
+        const hits = JSON.parse(JSON.stringify(foundedFeatures));
+        hits[0].selected = true;
+        setFeatures(hits);
+        setSelectedIndex(0);
+        const projectedFC = L.Proj.geoJson([hits[0]]);
+        const bounds = projectedFC.getBounds();
+        const map = routedMapRef?.leafletMap?.leafletElement;
+        if (map === undefined) {
+          return;
+        }
+        map.fitBounds(bounds);
+      }
+
+      ifUrlHookedSelected.current = true;
+    },
+  });
 
   interface MapFeature extends Layer {
     id: string;
@@ -150,6 +191,14 @@ const Map = () => {
     // getGazData(setGazData);
     document.title = `B-Plan-Auskunft Wuppertal`;
   }, []);
+
+  useEffect(() => {
+    const tmSelectionObject = searchParams.get("tmSelectionObject");
+    if (tmSelectionObject && ifUrlHookedSelected.current) {
+      searchParams.delete("tmSelectionObject");
+      setSearchParams(searchParams.toString());
+    }
+  }, [searchParams, setSearchParams]);
 
   function paramsToObject(entries) {
     const result = {};

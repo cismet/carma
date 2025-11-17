@@ -1,7 +1,6 @@
 import {
   SelectionMetaData,
   useSelection,
-  useSelectionTopicMap,
   useUrlFeatureSelection,
 } from "@carma-appframeworks/portals";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
@@ -39,9 +38,7 @@ const FuzzySearchWrapper = ({
   mapSearchAllowed,
 }: FuzzySearchProps) => {
   const dispatch = useDispatch();
-  const [searchParams, setSearchParams] = useSearchParams();
   const bplaene = useSelector(getBPLaene);
-  const ifUrlHookedSelected = useRef(false);
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const { responsiveState, gap, windowSize } = useContext<
     typeof ResponsiveTopicMapContext
@@ -51,48 +48,6 @@ const FuzzySearchWrapper = ({
   >(FeatureCollectionDispatchContext);
 
   const { setSelection } = useSelection();
-  useSelectionTopicMap();
-  useUrlFeatureSelection({
-    manualCallback: (features, objectId) => {
-      const foundedFeatures = [];
-      const extractedId = objectId ? objectId.split(".")[0] : [];
-      const status = getStatusByObjectId(objectId as string);
-      features.forEach((feature) => {
-        const targetFeature = status
-          ? String(feature.properties?.nummer) === String(extractedId) &&
-            String(feature.properties?.status) === String(status)
-          : String(feature.properties?.nummer) === String(objectId);
-
-        if (targetFeature) {
-          foundedFeatures.push(feature);
-        }
-      });
-
-      if (foundedFeatures.length > 0) {
-        const hits = JSON.parse(JSON.stringify(foundedFeatures));
-        hits[0].selected = true;
-        setFeatures(hits);
-        setSelectedIndex(0);
-        const projectedFC = L.Proj.geoJson([hits[0]]);
-        const bounds = projectedFC.getBounds();
-        const map = routedMapRef?.leafletMap?.leafletElement;
-        if (map === undefined) {
-          return;
-        }
-        map.fitBounds(bounds);
-      }
-
-      ifUrlHookedSelected.current = true;
-    },
-  });
-
-  useEffect(() => {
-    const tmSelectionObject = searchParams.get("tmSelectionObject");
-    if (tmSelectionObject && ifUrlHookedSelected.current) {
-      searchParams.delete("tmSelectionObject");
-      setSearchParams(searchParams.toString());
-    }
-  }, [searchParams, setSearchParams]);
 
   const onGazetteerSelection = (selection: SearchResultItem | null) => {
     if (!selection) {
