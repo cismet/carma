@@ -163,26 +163,6 @@ L.Control.MeasurePolygon = L.Control.extend({
 
     this._measureHandler.enable();
 
-    // Store original click position before Leaflet.Draw modifies it
-    this._lastOriginalClick = null;
-
-    const storeClickPosition = (e) => {
-      if (
-        this._measureHandler &&
-        (this._measureHandler as L.Control.DrawHandler)._enabled
-      ) {
-        // Store the ORIGINAL click position
-        this._lastOriginalClick = {
-          latlng: L.latLng(e.latlng.lat, e.latlng.lng),
-          containerPoint: map.latLngToContainerPoint(e.latlng),
-        };
-      }
-    };
-    console.log("[measure-path] store click handler added");
-
-    map.on("click", storeClickPosition);
-
-    //map.on("touchstart", storeClickPosition); // Also handle touch events on mobile
     const latlng =
       this.options.snappingEnabled && this.options.snappingLatlng
         ? this.options.snappingLatlng
@@ -483,46 +463,11 @@ L.Control.MeasurePolygon = L.Control.extend({
 
         // Store reference to the click handler so we can check conditions
         const vertexClickHandler = (e) => {
-          const clickLatLng = e.latlng;
-          const markerLatLng = e.target.getLatLng();
-
-          // Use the ORIGINAL click position stored in map click handler
-          const originalClick = this._lastOriginalClick;
-
-          // Calculate pixel distance using ORIGINAL click position
-          const clickPoint = originalClick
-            ? originalClick.containerPoint
-            : this._map.latLngToContainerPoint(clickLatLng);
-          const markerPoint = this._map.latLngToContainerPoint(markerLatLng);
-          const pixelDistance = Math.sqrt(
-            Math.pow(clickPoint.x - markerPoint.x, 2) +
-              Math.pow(clickPoint.y - markerPoint.y, 2)
-          );
-
           // Only process first vertex clicks (for closing polygon)
           if (e.target.customHandle !== 0) {
             return; // Not the first vertex, let Leaflet.Draw handle it normally
           }
 
-          // Only apply distance check when snapping is enabled (desktop)
-          // On mobile, snapping is disabled so let Leaflet.Draw handle closure normally
-          if (this.options.snappingEnabled) {
-            // Check if original click is within snapping radius OR if snapping is active and brought us here
-            const maxClickDistance = this.options.snappingQueryRadius || 40;
-            const isWithinSnappingRadius = pixelDistance <= maxClickDistance;
-            const isSnappedToFirstVertex =
-              this.options.snappingLatlng &&
-              Math.abs(this.options.snappingLatlng.lat - markerLatLng.lat) <
-                0.0000001 &&
-              Math.abs(this.options.snappingLatlng.lng - markerLatLng.lng) <
-                0.0000001;
-
-            if (!isWithinSnappingRadius && !isSnappedToFirstVertex) {
-              // Don't process this click - it shouldn't close the polygon
-              return;
-            }
-          }
-          // On mobile (snapping disabled), always allow closure when clicking first vertex
           console.warn(
             "[measure-path] ========== Calling completeShape() from vertex click ==========",
             {
