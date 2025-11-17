@@ -4,7 +4,7 @@ import SecondaryInfoPanelSection from "react-cismap/topicmaps/SecondaryInfoPanel
 import SecondaryInfo from "react-cismap/topicmaps/SecondaryInfo";
 import { SecondaryInfoFooter } from "@carma-collab/wuppertal/klimaorte";
 import versionData from "../../version.json";
-import { getApplicationVersion } from "@carma-commons/utils";
+import { getApplicationVersion, updateUrl } from "@carma-commons/utils";
 
 const InfoPanel = () => {
   const { selectedFeature, items } = useContext(FeatureCollectionContext);
@@ -164,7 +164,7 @@ const InfoPanel = () => {
                 float: "right",
                 paddingBottom: "5px",
               }}
-              src={foto}
+              src={updateUrl(foto)}
               width="250"
             />
           )}
