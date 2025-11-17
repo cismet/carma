@@ -281,6 +281,10 @@ L.Control.MeasurePolygon = L.Control.extend({
     this._measureLayers = L.layerGroup().addTo(map);
 
     map.on("draw:created", (event) => {
+      console.log('[MEASURE] draw:created event fired', {
+        layer: event.layer,
+        shapeMode: this.options.shapeMode
+      });
       this.options.checkonedrawpoligon = false;
       this.options.ifDrawing = false;
 
@@ -313,6 +317,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     });
 
     map.on("draw:drawstart", (event) => {
+      console.log('[MEASURE] draw:drawstart event fired');
       this.options.cbSaveLastActiveShapeIdBeforeDrawingHandler();
       this.options.measurementOrder = this.options.measurementOrder + 1;
       const shapesObj = {
@@ -326,6 +331,9 @@ L.Control.MeasurePolygon = L.Control.extend({
     });
 
     map.on("draw:drawvertex", (event) => {
+      console.log('[MEASURE] draw:drawvertex event fired', {
+        numLayers: Object.keys(event.layers._layers).length
+      });
       const layers = event.layers;
       const latlngs = [];
       let index = 0;
@@ -333,12 +341,25 @@ L.Control.MeasurePolygon = L.Control.extend({
 
       layers.eachLayer((layer) => {
         layer.customHandle = index++;
-        layer.on("click", (e) => {
+        
+        const clickHandler = (e) => {
+          console.log('[MEASURE] Vertex marker clicked:', {
+            customHandle: e.target.customHandle,
+            isFirstMarker: e.target.customHandle === 0,
+            shapeMode: this.options.shapeMode,
+            measureHandler: this._measureHandler,
+            latLng: e.latlng,
+            originalEvent: e.originalEvent
+          });
           if (e.target.customHandle === 0) {
+            console.log('[MEASURE] First marker clicked - attempting to close polygon');
+            console.log('[MEASURE] Before completeShape - markers:', this._measureHandler._markers ? this._measureHandler._markers.length : 'N/A');
             this.options.shapeMode = "polygon";
             this.options.currenLine.completeShape();
+            console.log('[MEASURE] After completeShape() called');
           }
-        });
+        };
+        layer.on("click", clickHandler);
         layer.on("mouseover", (e) => {
           const coordinates = this._measureHandler._poly._latlngs;
           const latLngArray = coordinates.map((c) => [c.lat, c.lng]);
