@@ -1,8 +1,4 @@
-import {
-  useSelection,
-  useSelectionTopicMap,
-  useUrlFeatureSelection,
-} from "@carma-appframeworks/portals";
+import { useSelection } from "@carma-appframeworks/portals";
 import {
   defaultTypeInference,
   LibFuzzySearch,
@@ -11,11 +7,7 @@ import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopic
 import { useContext } from "react";
 import { FeatureCollectionDispatchContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
 import { isAreaType } from "@carma-commons/resources";
-import {
-  TopicMapContext,
-  TopicMapDispatchContext,
-} from "react-cismap/contexts/TopicMapContextProvider";
-import { appModes } from "../helper/modeParser";
+import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 const FuzzySearchWrapper = ({ searchTextPlaceholder }) => {
   const { responsiveState, gap, windowSize } = useContext(
@@ -26,50 +18,10 @@ const FuzzySearchWrapper = ({ searchTextPlaceholder }) => {
   );
 
   const { zoomToFeature } = useContext(TopicMapDispatchContext);
-  const { appMode } = useContext(TopicMapContext);
 
   const pixelwidth =
     responsiveState === "normal" ? "300px" : windowSize.width - gap;
   const { setSelection } = useSelection();
-  useSelectionTopicMap();
-  useUrlFeatureSelection({
-    manualCallback: (shownFeatures, objectId) => {
-      const idsArr = objectId.split(".");
-      if (appMode === appModes.ROUTEN) {
-        const targetFeature = shownFeatures.find(
-          (f) => String(f?.properties?.key) === String(idsArr[0])
-        );
-
-        if (targetFeature) {
-          zoomToFeature(targetFeature);
-          setSelectedFeatureByPredicate(
-            (f) => String(f?.properties?.key) === String(idsArr[0])
-          );
-
-          if (idsArr.length === 2) {
-            setSelectedFeatureByPredicate(
-              (f) => String(f?.properties?.standort?.id) === String(idsArr[1])
-            );
-          }
-        }
-      } else {
-        const targetFeature = shownFeatures.find(
-          (f) =>
-            String(f?.properties?.standort?.id) ===
-            String(idsArr.length === 2 ? idsArr[1] : idsArr[0])
-        );
-
-        if (targetFeature) {
-          zoomToFeature(targetFeature);
-          setSelectedFeatureByPredicate(
-            (f) =>
-              String(f?.properties?.standort?.id) ===
-              String(idsArr.length === 2 ? idsArr[1] : idsArr[0])
-          );
-        }
-      }
-    },
-  });
 
   const onGazetteerSelection = (selection) => {
     if (!selection) {

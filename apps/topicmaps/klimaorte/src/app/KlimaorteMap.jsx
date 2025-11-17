@@ -41,6 +41,10 @@ import { TopicMapSelectionContent } from "@carma-appframeworks/portals";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import FuzzySearchWrapper from "./components/FuzzySearchWrapper";
 import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
+import {
+  useSelectionTopicMap,
+  useUrlFeatureSelection,
+} from "@carma-appframeworks/portals";
 
 function KlimaorteMap() {
   const { setSelectedFeatureByPredicate } = useContext(
@@ -56,6 +60,45 @@ function KlimaorteMap() {
   } = useContext(FeatureCollectionContext);
   const { zoomToFeature, setAppMode } = useContext(TopicMapDispatchContext);
   const { history, appMode } = useContext(TopicMapContext);
+  useSelectionTopicMap();
+  useUrlFeatureSelection({
+    manualCallback: (shownFeatures, objectId) => {
+      const idsArr = objectId.split(".");
+      if (appMode === appModes.ROUTEN) {
+        const targetFeature = shownFeatures.find(
+          (f) => String(f?.properties?.key) === String(idsArr[0])
+        );
+
+        if (targetFeature) {
+          zoomToFeature(targetFeature);
+          setSelectedFeatureByPredicate(
+            (f) => String(f?.properties?.key) === String(idsArr[0])
+          );
+
+          if (idsArr.length === 2) {
+            setSelectedFeatureByPredicate(
+              (f) => String(f?.properties?.standort?.id) === String(idsArr[1])
+            );
+          }
+        }
+      } else {
+        const targetFeature = shownFeatures.find(
+          (f) =>
+            String(f?.properties?.standort?.id) ===
+            String(idsArr.length === 2 ? idsArr[1] : idsArr[0])
+        );
+
+        if (targetFeature) {
+          zoomToFeature(targetFeature);
+          setSelectedFeatureByPredicate(
+            (f) =>
+              String(f?.properties?.standort?.id) ===
+              String(idsArr.length === 2 ? idsArr[1] : idsArr[0])
+          );
+        }
+      }
+    },
+  });
 
   useEffect(() => {
     if (appMode === undefined) {
