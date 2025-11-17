@@ -46,6 +46,7 @@ export const useUrlFeatureSelection = ({
           hashString = hashString.split("?")[1];
         }
 
+        console.log("xxx 111");
         const hashParams = new URLSearchParams(hashString);
         objectId = hashParams.get("tmSelectionObject");
       }

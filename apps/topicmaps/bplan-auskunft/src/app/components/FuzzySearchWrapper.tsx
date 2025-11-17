@@ -24,6 +24,7 @@ import type { UnknownAction } from "redux";
 import { getBoundingBoxForLeafletMap } from "@carma-mapping/utils";
 import proj4 from "proj4";
 import { getStatusByObjectId } from "../../utils/urlSelectionHelper";
+import { useSearchParams } from "react-router-dom";
 interface FuzzySearchProps {
   setFeatures: (hit) => void;
   setSelectedIndex: (idx) => void;
@@ -38,6 +39,7 @@ const FuzzySearchWrapper = ({
   mapSearchAllowed,
 }: FuzzySearchProps) => {
   const dispatch = useDispatch();
+  const [searchParams, setSearchParams] = useSearchParams();
   const bplaene = useSelector(getBPLaene);
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const { responsiveState, gap, windowSize } = useContext<
@@ -78,6 +80,14 @@ const FuzzySearchWrapper = ({
         }
         map.fitBounds(bounds);
       }
+
+      setTimeout(() => {
+        const newParams = new URLSearchParams(searchParams);
+        newParams.delete("tmSelectionObject");
+        setSearchParams(newParams, { replace: true });
+        // searchParams.delete("tmSelectionObject");
+        // setSearchParams(searchParams);
+      }, 100);
     },
   });
   const onGazetteerSelection = (selection: SearchResultItem | null) => {
