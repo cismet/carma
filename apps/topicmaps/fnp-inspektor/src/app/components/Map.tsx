@@ -59,6 +59,7 @@ import {
 import CustomScaleControl from "./CustomScaleControl";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
+import { useSelectionTopicMap } from "@carma-appframeworks/portals";
 
 const { ScaleControl } = TransitiveReactLeaflet;
 
@@ -84,6 +85,8 @@ const Map = () => {
   const { responsiveState } = useContext<typeof ResponsiveTopicMapContext>(
     ResponsiveTopicMapContext
   );
+
+  useSelectionTopicMap();
 
   const isMobile = responsiveState === "normal" ? false : true;
 
