@@ -172,7 +172,7 @@ const Map = () => {
   }, []);
 
   useEffect(() => {
-    if (aevFeatures.length > 0) {
+    if (aevFeatures && aevFeatures.length > 0) {
       setShownFeatures([...aevFeatures]);
     }
   }, [aevFeatures]);
