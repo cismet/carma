@@ -18,7 +18,7 @@ export const useUrlFeatureSelection = ({
     String(feature.properties.id) === String(objectId),
   manualCallback,
 }: UseUrlFeatureSelectionOptions = {}) => {
-  const { initializingFeatures, allFeatures } = useContext<
+  const { initializingFeatures, allFeatures, shownFeatures } = useContext<
     typeof FeatureCollectionContext
   >(FeatureCollectionContext);
   const { setSelectedFeatureByPredicate } = useContext<
@@ -36,6 +36,8 @@ export const useUrlFeatureSelection = ({
       !initializingFeatures &&
       allFeatures &&
       allFeatures.length > 0 &&
+      shownFeatures &&
+      shownFeatures.length > 0 &&
       !hasProcessedUrl.current
     ) {
       let objectId: string | null = null;
@@ -67,6 +69,7 @@ export const useUrlFeatureSelection = ({
           }
           // TODO: Investigate if there is a better way to do this
         } else {
+          // console.log("xxx allFeatures", allFeatures);
           manualCallback(allFeatures, objectId);
         }
 
@@ -91,6 +94,7 @@ export const useUrlFeatureSelection = ({
     history,
     setSelectedFeatureByPredicate,
     zoomToFeature,
+    shownFeatures,
   ]);
 
   return null;
