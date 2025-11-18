@@ -92,7 +92,7 @@ const Map = () => {
   const { responsiveState } = useContext<typeof ResponsiveTopicMapContext>(
     ResponsiveTopicMapContext
   );
-  const { setShownFeatures } = useContext<
+  const { setAllFeatures } = useContext<
     typeof FeatureCollectionDispatchContext
   >(FeatureCollectionDispatchContext);
 
@@ -173,7 +173,7 @@ const Map = () => {
 
   useEffect(() => {
     if (aevFeatures && aevFeatures.length > 0) {
-      setShownFeatures([...aevFeatures]);
+      setAllFeatures([...aevFeatures]);
     }
   }, [aevFeatures]);
 
