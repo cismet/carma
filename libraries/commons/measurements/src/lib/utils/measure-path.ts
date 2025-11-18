@@ -9,6 +9,7 @@ import {
   updateDistance,
   updateDistanceByLatLngs,
 } from "./measurement-geometry";
+import { createVertexClickHandler } from "./vertex-click-handler";
 
 // @ts-expect-error - Leaflet's extend pattern doesn't match TypeScript's class system
 L.Control.MeasurePolygon = L.Control.extend({
@@ -146,11 +147,19 @@ L.Control.MeasurePolygon = L.Control.extend({
     const originalFinishShape = (this._measureHandler as any)._finishShape;
     if (originalFinishShape) {
       (this._measureHandler as any)._finishShape = function (e) {
-        console.warn("[measure-path] 🔴 Leaflet.Draw _finishShape() called!", {
-          event: e ? { type: e.type, target: e.target?.className } : "no event",
-          stack: new Error().stack,
+        const eventInfo = e ? {
+          type: e.type,
+          originalType: e.originalEvent?.type,
+          pointerType: e.originalEvent?.pointerType,
+          target: e.target?.className,
+          timeStamp: e.timeStamp,
+        } : 'no event';
+        
+        console.error("[measure-path] _finishShape called", {
+          event: eventInfo,
           vertexCount: this._markers?.length || 0,
           timestamp: Date.now(),
+          stack: new Error().stack?.split('\n').slice(1, 6).join('\n'),
         });
         return originalFinishShape.apply(this, arguments);
       };
@@ -171,7 +180,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     const originalAddVertex = (this._measureHandler as any).addVertex;
     if (originalAddVertex) {
       (this._measureHandler as any).addVertex = function (latlng) {
-        console.log("[measure-path] 🟢 addVertex() called", {
+        console.log("[measure-path] addVertex() called", {
           latlng,
           currentVertexCount: this._markers?.length || 0,
           timestamp: Date.now(),
@@ -197,6 +206,35 @@ L.Control.MeasurePolygon = L.Control.extend({
     L.drawLocal.draw.handlers.polyline.tooltip.end = tooltipContent;
 
     this._measureHandler.enable();
+
+    // DIAGNOSTIC: Intercept Leaflet.Draw's built-in dblclick handler
+    const originalDblClick = (this._measureHandler as any)._onMouseDblClick;
+    if (originalDblClick) {
+      console.warn("[measure-path] Found Leaflet.Draw dblclick handler - intercepting");
+      (this._measureHandler as any)._onMouseDblClick = function (e) {
+        console.error("[measure-path] LEAFLET.DRAW DBLCLICK HANDLER FIRED", {
+          eventType: e?.type,
+          originalEvent: e?.originalEvent?.type,
+          pointerType: e?.originalEvent?.pointerType,
+          timeStamp: e?.timeStamp,
+          vertexCount: this._markers?.length || 0,
+          timestamp: Date.now(),
+          stack: new Error().stack,
+        });
+        return originalDblClick.apply(this, arguments);
+      };
+    } else {
+      console.log("[measure-path] No dblclick handler found on _measureHandler");
+    }
+
+    // DIAGNOSTIC: Log all active event listeners on the map
+    console.log("[measure-path] Active map event listeners:", {
+      hasClick: map.listens('click'),
+      hasDblClick: map.listens('dblclick'),
+      clickCount: map.listens('click', true),
+      dblclickCount: map.listens('dblclick', true),
+      timestamp: Date.now(),
+    });
 
     const latlng =
       this.options.snappingEnabled && this.options.snappingLatlng
@@ -381,7 +419,7 @@ L.Control.MeasurePolygon = L.Control.extend({
     this._mapClickHandler = (event) => {
       const mode = this.options.measurementMode;
 
-      console.log("[measure-path] 🗺️ Map clicked", {
+      console.log("[measure-path] Map clicked", {
         isDrawing: this.options.isDrawing,
         mode,
         clickAfterShapeSelection: this.options.clickAfterShapeSelection,
@@ -492,65 +530,29 @@ L.Control.MeasurePolygon = L.Control.extend({
       let index = 0;
       let firsHovering = false;
 
+      // Create handler once and reuse
+      if (!this._vertexClickHandler) {
+        this._vertexClickHandler = createVertexClickHandler(
+          this._measureHandler,
+          this.options,
+          () => this._measureHandler?._markers?.length || 0
+        );
+      }
+
       layers.eachLayer((layer) => {
         const markerLatLng = layer.getLatLng();
         layer.customHandle = index++;
 
-        // Store reference to the click handler so we can check conditions
-        const vertexClickHandler = (e) => {
-          console.warn("[measure-path] 🔵 Vertex clicked!", {
-            targetHandle: e.target.customHandle,
-            totalVertices: this._measureHandler?._markers?.length || 0,
-            isFirstVertex: e.target.customHandle === 0,
-            originalEventType: e.originalEvent?.type,
-            pointerType: e.originalEvent?.pointerType,
-            isTrusted: e.originalEvent?.isTrusted,
-            timestamp: Date.now(),
-          });
+        // Remove old handler, attach shared handler
+        layer.off("click", this._vertexClickHandler);
+        layer.on("click", this._vertexClickHandler);
 
-          // Only process first vertex clicks (for closing polygon)
-          if (e.target.customHandle !== 0) {
-            console.log("[measure-path] ↩️ Not first vertex, ignoring");
-            return; // Not the first vertex, let Leaflet.Draw handle it normally
-          }
-
-          // SAFETY: Require at least 3 vertices before allowing polygon closure
-          const vertexCount = this._measureHandler?._markers?.length || 0;
-          if (vertexCount < 3) {
-            console.warn(
-              "[measure-path] ⚠️ BLOCKING polygon closure - need at least 3 vertices",
-              { vertexCount }
-            );
-            return;
-          }
-
-          console.warn(
-            "[measure-path] ========== Calling completeShape() from vertex click ==========",
-            {
-              stack: new Error().stack,
-              snappingEnabled: this.options.snappingEnabled,
-              targetHandle: e.target.customHandle,
-              vertexCount,
-              timestamp: Date.now(),
-            }
-          );
-          this.options.shapeMode = "polygon";
-          this.options.currenLine.completeShape();
-        };
-
-        console.debug("[measure-path] Attaching vertex click handler");
-        // Only attach click handler to first vertex (handle 0) to prevent
-        // premature completion when clicking/touching other vertices
-        if (layer.customHandle === 0) {
-          layer.on("click", vertexClickHandler);
-        }
         layer.on("mouseover", (e) => {
           const coordinates = (this._measureHandler as L.Control.DrawHandler)
             ._poly._latlngs;
           const latLngArray = coordinates.map((c) => [c.lat, c.lng]);
           latLngArray.push(latLngArray[0]);
           const area = calculateArea(latLngArray);
-          // this.options.customTooltip.style.visibility = "hidden";
           if (e.target.customHandle === 0 && firsHovering) {
             this.options.cbUpdateAreaOfDrawingMeasurement(area);
             L.drawLocal.draw.handlers.polyline.tooltip.end = `Den Startpunkt anklicken, um die Fläche zu schließen.`;
@@ -567,7 +569,6 @@ L.Control.MeasurePolygon = L.Control.extend({
             </div>
           `;
             L.drawLocal.draw.handlers.polyline.tooltip.end = tooltipContent;
-
             this.options.cbUpdateAreaOfDrawingMeasurement(null);
           }
         });
