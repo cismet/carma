@@ -119,7 +119,7 @@ const Map = () => {
         }
       } else {
         // Search for Hauptnutzungen by object ID
-        if (hnFeatures.length > 0) {
+        if (hnFeatures && hnFeatures.length > 0) {
           const foundedHnFeatures = hnFeatures.filter(
             (feature) =>
               feature.properties?.id === objectId || feature.id === objectId
