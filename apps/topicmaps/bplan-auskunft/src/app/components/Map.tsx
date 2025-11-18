@@ -5,6 +5,7 @@ import { bplanFeatureStyler, bplanLabeler } from "../../utils/styler";
 import { useContext, useEffect, useRef, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
+  getBPLaene,
   getLoading,
   getPlanFeatureByTitle,
   getPlanFeatures,
@@ -37,10 +38,16 @@ import {
   useUrlFeatureSelection,
 } from "@carma-appframeworks/portals";
 import { getStatusByObjectId } from "../../utils/urlSelectionHelper";
+import { FeatureCollectionDispatchContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
 
 const Map = () => {
   const dispatch = useDispatch();
   const isLoading = useSelector(getLoading);
+  const bplaene = useSelector(getBPLaene);
+  const { setAllFeatures } = useContext<
+    typeof FeatureCollectionDispatchContext
+  >(FeatureCollectionDispatchContext);
+
   const [features, setFeatures] = useState<MapFeature[]>([]);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [boundingBox, setBoundingBox] = useState(null);
@@ -199,6 +206,11 @@ const Map = () => {
       setSearchParams(searchParams.toString());
     }
   }, [searchParams, setSearchParams]);
+  useEffect(() => {
+    if (bplaene?.length > 0) {
+      setAllFeatures(bplaene);
+    }
+  }, [bplaene]);
 
   function paramsToObject(entries) {
     const result = {};
