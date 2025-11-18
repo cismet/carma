@@ -18,7 +18,7 @@ export const useUrlFeatureSelection = ({
     String(feature.properties.id) === String(objectId),
   manualCallback,
 }: UseUrlFeatureSelectionOptions = {}) => {
-  const { initializingFeatures, shownFeatures } = useContext<
+  const { initializingFeatures, allFeatures } = useContext<
     typeof FeatureCollectionContext
   >(FeatureCollectionContext);
   const { setSelectedFeatureByPredicate } = useContext<
@@ -34,8 +34,8 @@ export const useUrlFeatureSelection = ({
   useEffect(() => {
     if (
       !initializingFeatures &&
-      shownFeatures &&
-      shownFeatures.length > 0 &&
+      allFeatures &&
+      allFeatures.length > 0 &&
       !hasProcessedUrl.current
     ) {
       let objectId: string | null = null;
@@ -52,7 +52,7 @@ export const useUrlFeatureSelection = ({
 
       if (objectId) {
         if (!manualCallback) {
-          const targetFeature = shownFeatures.find((feature) =>
+          const targetFeature = allFeatures.find((feature) =>
             findingPredicate(feature, objectId)
           );
 
@@ -67,7 +67,7 @@ export const useUrlFeatureSelection = ({
           }
           // TODO: Investigate if there is a better way to do this
         } else {
-          manualCallback(shownFeatures, objectId);
+          manualCallback(allFeatures, objectId);
         }
 
         // Use the same history object that TopicMapComponent uses
@@ -87,7 +87,7 @@ export const useUrlFeatureSelection = ({
     }
   }, [
     initializingFeatures,
-    shownFeatures,
+    allFeatures,
     history,
     setSelectedFeatureByPredicate,
     zoomToFeature,
