@@ -172,10 +172,15 @@ const Map = () => {
   }, []);
 
   useEffect(() => {
-    if (aevFeatures && aevFeatures.length > 0) {
+    if (
+      aevFeatures &&
+      aevFeatures.length > 0 &&
+      hnFeatures &&
+      hnFeatures.length > 0
+    ) {
       setAllFeatures([...aevFeatures]);
     }
-  }, [aevFeatures]);
+  }, [aevFeatures, hnFeatures]);
 
   useEffect(() => {
     const tmSelectionObject = searchParams.get("tmSelectionObject");
