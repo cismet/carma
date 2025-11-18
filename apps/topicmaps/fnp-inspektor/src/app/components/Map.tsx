@@ -98,12 +98,12 @@ const Map = () => {
   useSelectionTopicMap();
   useUrlFeatureSelection({
     manualCallback: (features, objectId) => {
-      const foundedFeatures = features.filter(
-        (feature) => feature.properties?.name === objectId
-      );
+      if (mapMode.mode === "rechtsplan") {
+        const foundedFeatures = features.filter(
+          (feature) => feature.properties?.name === objectId
+        );
 
-      if (foundedFeatures.length > 0) {
-        if (mapMode.mode === "rechtsplan") {
+        if (foundedFeatures.length > 0) {
           dispatch(setFeatureCollection(foundedFeatures));
           dispatch(setSelectedFeatureIndex(0));
           searchParams.set("aevVisible", "true");
@@ -115,6 +115,9 @@ const Map = () => {
             return;
           }
           map.fitBounds(bounds);
+        }
+      } else {
+        if (hnFeatures.length > 0) {
         }
       }
     },
