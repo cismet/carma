@@ -147,19 +147,21 @@ L.Control.MeasurePolygon = L.Control.extend({
     const originalFinishShape = (this._measureHandler as any)._finishShape;
     if (originalFinishShape) {
       (this._measureHandler as any)._finishShape = function (e) {
-        const eventInfo = e ? {
-          type: e.type,
-          originalType: e.originalEvent?.type,
-          pointerType: e.originalEvent?.pointerType,
-          target: e.target?.className,
-          timeStamp: e.timeStamp,
-        } : 'no event';
-        
+        const eventInfo = e
+          ? {
+              type: e.type,
+              originalType: e.originalEvent?.type,
+              pointerType: e.originalEvent?.pointerType,
+              target: e.target?.className,
+              timeStamp: e.timeStamp,
+            }
+          : "no event";
+
         console.error("[measure-path] _finishShape called", {
           event: eventInfo,
           vertexCount: this._markers?.length || 0,
           timestamp: Date.now(),
-          stack: new Error().stack?.split('\n').slice(1, 6).join('\n'),
+          stack: new Error().stack?.split("\n").slice(1, 6).join("\n"),
         });
         return originalFinishShape.apply(this, arguments);
       };
@@ -207,10 +209,30 @@ L.Control.MeasurePolygon = L.Control.extend({
 
     this._measureHandler.enable();
 
+    // Disable Leaflet.Draw's default marker click handlers completely
+    // We handle all vertex clicks in our custom handler
+    if ((this._measureHandler as any)._markers) {
+      console.log(
+        "[measure-path] Disabling Leaflet.Draw's default marker click handlers"
+      );
+      const originalOnMarkerClick = (this._measureHandler as any)
+        ._onMarkerClick;
+      if (originalOnMarkerClick) {
+        (this._measureHandler as any)._onMarkerClick = function () {
+          console.log(
+            "[measure-path] Leaflet.Draw marker click blocked - using custom handler"
+          );
+          // Do nothing - our custom handler takes full control
+        };
+      }
+    }
+
     // DIAGNOSTIC: Intercept Leaflet.Draw's built-in dblclick handler
     const originalDblClick = (this._measureHandler as any)._onMouseDblClick;
     if (originalDblClick) {
-      console.warn("[measure-path] Found Leaflet.Draw dblclick handler - intercepting");
+      console.warn(
+        "[measure-path] Found Leaflet.Draw dblclick handler - intercepting"
+      );
       (this._measureHandler as any)._onMouseDblClick = function (e) {
         console.error("[measure-path] LEAFLET.DRAW DBLCLICK HANDLER FIRED", {
           eventType: e?.type,
@@ -224,15 +246,17 @@ L.Control.MeasurePolygon = L.Control.extend({
         return originalDblClick.apply(this, arguments);
       };
     } else {
-      console.log("[measure-path] No dblclick handler found on _measureHandler");
+      console.log(
+        "[measure-path] No dblclick handler found on _measureHandler"
+      );
     }
 
     // DIAGNOSTIC: Log all active event listeners on the map
     console.log("[measure-path] Active map event listeners:", {
-      hasClick: map.listens('click'),
-      hasDblClick: map.listens('dblclick'),
-      clickCount: map.listens('click', true),
-      dblclickCount: map.listens('dblclick', true),
+      hasClick: map.listens("click"),
+      hasDblClick: map.listens("dblclick"),
+      clickCount: map.listens("click", true),
+      dblclickCount: map.listens("dblclick", true),
       timestamp: Date.now(),
     });
 
@@ -423,11 +447,22 @@ L.Control.MeasurePolygon = L.Control.extend({
         isDrawing: this.options.isDrawing,
         mode,
         clickAfterShapeSelection: this.options.clickAfterShapeSelection,
+        isFinishingShape: (this as any)._isFinishingShape,
         eventType: event.originalEvent?.type,
         targetClassName: event.originalEvent?.target?.className,
         latlng: event.latlng,
         timestamp: Date.now(),
       });
+
+      // Don't start new measurement if we're finishing one
+      if ((this as any)._isFinishingShape) {
+        console.log(
+          "[measure-path] Ignoring map click - currently finishing shape"
+        );
+        // Clear flag immediately so next click works
+        (this as any)._isFinishingShape = false;
+        return;
+      }
 
       if (!this.options.isDrawing && mode === "measurement") {
         this.drawingLines(map, event);
@@ -524,28 +559,38 @@ L.Control.MeasurePolygon = L.Control.extend({
       this.changeColorByActivePolyline(map, "ddfsc1231");
     };
 
+    // Create vertex click handler once and attach to map (event delegation)
+    // This handler listens to ALL map clicks but only processes clicks on vertex markers
+    if (!this._vertexClickHandler) {
+      // Initialize flag to track when we're finishing a shape
+      (this as any)._isFinishingShape = false;
+
+      this._vertexClickHandler = createVertexClickHandler(
+        () => this._measureHandler,
+        this.options,
+        () => this._measureHandler?._markers?.length || 0,
+        map,
+        () => (this as any)._isFinishingShape,
+        (value: boolean) => {
+          (this as any)._isFinishingShape = value;
+        }
+      );
+      // Attach to map once - event delegation pattern
+      // Handler will filter for vertex marker clicks internally
+      map.on("click", this._vertexClickHandler);
+      console.log("[measure-path] Attached delegated vertex handler to map");
+    }
+
     this._drawDrawvertexHandler = (event) => {
       const layers = event.layers;
       const latlngs = [];
       let index = 0;
       let firsHovering = false;
 
-      // Create handler once and reuse
-      if (!this._vertexClickHandler) {
-        this._vertexClickHandler = createVertexClickHandler(
-          () => this._measureHandler,
-          this.options,
-          () => this._measureHandler?._markers?.length || 0
-        );
-      }
-
       layers.eachLayer((layer) => {
         const markerLatLng = layer.getLatLng();
+        // Just set the handle index - no handler attachment needed
         layer.customHandle = index++;
-
-        // Remove old handler, attach shared handler
-        layer.off("click", this._vertexClickHandler);
-        layer.on("click", this._vertexClickHandler);
 
         layer.on("mouseover", (e) => {
           const coordinates = (this._measureHandler as L.Control.DrawHandler)
