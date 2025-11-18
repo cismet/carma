@@ -1,17 +1,11 @@
-import {
-  SelectionMetaData,
-  useSelection,
-  useUrlFeatureSelection,
-} from "@carma-appframeworks/portals";
+import { SelectionMetaData, useSelection } from "@carma-appframeworks/portals";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { type SearchResultItem } from "@carma/types";
-import { FeatureCollectionDispatchContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
-import { useContext, useEffect, useRef } from "react";
+import { useContext } from "react";
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
-import { useDispatch, useSelector } from "react-redux";
+import { useDispatch } from "react-redux";
 import {
-  getBPLaene,
   getPlanFeatureByTitle,
   getPlanFeatures,
 } from "../../store/slices/bplaene";
@@ -22,8 +16,7 @@ import { faSearch } from "@fortawesome/free-solid-svg-icons";
 import type { UnknownAction } from "redux";
 import { getBoundingBoxForLeafletMap } from "@carma-mapping/utils";
 import proj4 from "proj4";
-import { getStatusByObjectId } from "../../utils/urlSelectionHelper";
-import { useSearchParams } from "react-router-dom";
+
 interface FuzzySearchProps {
   setFeatures: (hit) => void;
   setSelectedIndex: (idx) => void;
@@ -38,14 +31,10 @@ const FuzzySearchWrapper = ({
   mapSearchAllowed,
 }: FuzzySearchProps) => {
   const dispatch = useDispatch();
-  const bplaene = useSelector(getBPLaene);
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const { responsiveState, gap, windowSize } = useContext<
     typeof ResponsiveTopicMapContext
   >(ResponsiveTopicMapContext);
-  const { setShownFeatures } = useContext<
-    typeof FeatureCollectionDispatchContext
-  >(FeatureCollectionDispatchContext);
 
   const { setSelection } = useSelection();
 
@@ -146,11 +135,6 @@ const FuzzySearchWrapper = ({
     }, 100);
   };
 
-  useEffect(() => {
-    if (bplaene?.length > 0) {
-      setShownFeatures(bplaene);
-    }
-  }, [bplaene]);
   const searchIcon = (
     <FontAwesomeIcon
       icon={faSearch}

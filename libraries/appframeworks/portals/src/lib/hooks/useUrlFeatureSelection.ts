@@ -37,7 +37,7 @@ export const useUrlFeatureSelection = ({
       allFeatures &&
       allFeatures.length > 0 &&
       shownFeatures &&
-      shownFeatures.length > 0 &&
+      // shownFeatures.length > 0 &&
       !hasProcessedUrl.current
     ) {
       let objectId: string | null = null;
