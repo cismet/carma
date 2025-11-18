@@ -117,7 +117,33 @@ const Map = () => {
           map.fitBounds(bounds);
         }
       } else {
+        // Search for Hauptnutzungen by object ID
         if (hnFeatures.length > 0) {
+          const foundedHnFeatures = hnFeatures.filter(
+            (feature) =>
+              feature.properties?.id === objectId || feature.id === objectId
+          );
+
+          if (foundedHnFeatures.length > 0) {
+            dispatch(
+              // @ts-expect-error legacy codebase exception
+              searchForHauptnutzungen({
+                point: {
+                  x: foundedHnFeatures[0].geometry.coordinates[0][0][0],
+                  y: foundedHnFeatures[0].geometry.coordinates[0][0][1],
+                },
+                done: (result) => {
+                  const projectedFC = L.Proj.geoJson(result);
+                  const bounds = projectedFC.getBounds();
+                  const map = routedMapRef?.leafletMap?.leafletElement;
+                  if (map === undefined) {
+                    return;
+                  }
+                  map.fitBounds(bounds);
+                },
+              })
+            );
+          }
         }
       }
     },
