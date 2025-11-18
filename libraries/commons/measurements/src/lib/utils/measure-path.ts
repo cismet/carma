@@ -533,7 +533,7 @@ L.Control.MeasurePolygon = L.Control.extend({
       // Create handler once and reuse
       if (!this._vertexClickHandler) {
         this._vertexClickHandler = createVertexClickHandler(
-          this._measureHandler,
+          () => this._measureHandler,
           this.options,
           () => this._measureHandler?._markers?.length || 0
         );

@@ -8,15 +8,24 @@ import { Layer, LeafletMouseEvent, Control, Marker } from "leaflet";
  * - Middle vertices: No action
  */
 export function createVertexClickHandler(
-  measureHandler: Control.DrawHandler & {
-    _markers?: Marker[];
-    _finishShape?: () => void;
-    _poly?: { _latlngs?: unknown[] };
-  },
+  getMeasureHandler: () =>
+    | (Control.DrawHandler & {
+        _markers?: Marker[];
+        _finishShape?: () => void;
+        _poly?: { _latlngs?: unknown[] };
+      })
+    | null
+    | undefined,
   options: Pick<Control.MeasurePolygonOptions, "shapeMode">,
   getCurrentVertexCount: () => number
 ) {
   return function (e: LeafletMouseEvent & { target: Layer }) {
+    const measureHandler = getMeasureHandler();
+    if (!measureHandler) {
+      console.warn("[measure-path] No measure handler available");
+      return;
+    }
+
     const clickedHandle = e.target.customHandle ?? 0;
     const vertexCount = getCurrentVertexCount();
     const isFirst = clickedHandle === 0;
