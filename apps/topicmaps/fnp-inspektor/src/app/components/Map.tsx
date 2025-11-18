@@ -88,6 +88,7 @@ const Map = () => {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState<number>(0);
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
+  const ifUrlHookedSelected = useRef(false);
   const { responsiveState } = useContext<typeof ResponsiveTopicMapContext>(
     ResponsiveTopicMapContext
   );
@@ -146,6 +147,8 @@ const Map = () => {
           }
         }
       }
+
+      ifUrlHookedSelected.current = true;
     },
   });
 
@@ -169,10 +172,18 @@ const Map = () => {
   }, []);
 
   useEffect(() => {
-    if (aevFeatures.length > 0 && hnFeatures.length > 0) {
-      setShownFeatures([...aevFeatures, ...hnFeatures]);
+    if (aevFeatures.length > 0) {
+      setShownFeatures([...aevFeatures]);
     }
-  }, [aevFeatures, hnFeatures]);
+  }, [aevFeatures]);
+
+  useEffect(() => {
+    const tmSelectionObject = searchParams.get("tmSelectionObject");
+    if (tmSelectionObject && ifUrlHookedSelected.current) {
+      searchParams.delete("tmSelectionObject");
+      setSearchParams(searchParams.toString());
+    }
+  }, [searchParams, setSearchParams]);
 
   useEffect(() => {
     if (mode !== "arbeitskarte" && mode !== "rechtsplan") {
