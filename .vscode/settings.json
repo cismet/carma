@@ -27,5 +27,6 @@
       "path": "./.vscode/carma-project-dictionary.txt",
       "addWords": true
     }
-  }
+  },
+  "debug.javascript.autoAttachFilter": "onlyWithFlag"
 }

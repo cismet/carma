@@ -1,4 +1,5 @@
-import { Layer, LeafletMouseEvent, Control, Marker } from "leaflet";
+import type { LeafletMouseEvent } from "@carma/leaflet";
+import type { Layer, Control, Marker } from "leaflet";
 
 /**
  * Handler for vertex clicks during measurement drawing

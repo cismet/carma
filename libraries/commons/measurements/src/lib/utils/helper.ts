@@ -1,5 +1,5 @@
 import localforage from "localforage";
-import L from "leaflet";
+import { point, latLng } from "@carma/leaflet";
 
 export const setFromLocalforage = async (
   lfKey: string,
@@ -38,14 +38,14 @@ export const adjustClickPosition = (
   currentDrawHandler?: any
 ) => {
   const containerPoint = leafletMap.mouseEventToContainerPoint(domEvent);
-  const shiftedContainerPoint = L.point(containerPoint.x, containerPoint.y);
+  const shiftedContainerPoint = point(containerPoint.x, containerPoint.y);
   // Use closestPoint if available, otherwise use shifted click position
   if (!closestPoint) {
     return false;
   }
 
   const [lng, lat] = closestPoint.geometry.coordinates;
-  const finalLatLng = L.latLng(lat, lng);
+  const finalLatLng = latLng(lat, lng);
 
   // Check if we're drawing and snapped to first vertex (polygon closure)
   // ONLY trigger if the snap source is the drawing-in-progress (not external features)
@@ -105,5 +105,5 @@ export const toLatLngFromClosestPoint = (closestPoint: any) => {
     return null;
   }
   const [lng, lat] = closestPoint.geometry.coordinates;
-  return L.latLng(lat, lng);
+  return latLng(lat, lng);
 };
