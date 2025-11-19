@@ -356,6 +356,32 @@ export const NewLibModal = ({
                     newSubCat?.layers.findIndex((l) => l.id === layer.id) ===
                     index
                 );
+
+                // Rearrange layers based on insertAfterId property
+                const layersWithInsertAfterId = newSubCat.layers.filter(
+                  (layer) => (layer as any).insertAfterId
+                );
+
+                if (layersWithInsertAfterId.length > 0) {
+                  // Remove layers with insertAfterId from their current positions
+                  newSubCat.layers = newSubCat.layers.filter(
+                    (layer) => !(layer as any).insertAfterId
+                  );
+
+                  layersWithInsertAfterId.forEach((layer) => {
+                    const insertAfterId = (layer as any).insertAfterId;
+                    const targetIndex = newSubCat!.layers.findIndex(
+                      (l) => l.id === insertAfterId
+                    );
+
+                    if (targetIndex !== -1) {
+                      newSubCat.layers.splice(targetIndex + 1, 0, layer);
+                    } else {
+                      // If id doesnt exist append to the end
+                      newSubCat.layers.push(layer);
+                    }
+                  });
+                }
               }
             }
           });
