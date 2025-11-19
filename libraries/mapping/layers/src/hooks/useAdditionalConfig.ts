@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import {
   useFeatureFlags,
   type FeatureFlagConfig,
 } from "@carma-providers/feature-flag";
-import { addReplaceLayers } from "../slices/mapLayers";
+import { addReplaceLayers, getCustomLayerConfig } from "../slices/mapLayers";
 import type { SavedLayerConfig } from "@carma/types";
 
 interface UseAdditionalConfigProps {
@@ -42,6 +42,8 @@ export const useAdditionalConfig = ({
   const [loadingSensorConfig, setLoadingSensorConfig] = useState(true);
   const dispatch = useDispatch();
   const flags = useFeatureFlags();
+
+  const customLayerConfig = useSelector(getCustomLayerConfig);
 
   const fetchAdditionalConfig = () => {
     fetch(additionalConfigUrl)
@@ -95,6 +97,12 @@ export const useAdditionalConfig = ({
     fetchAdditionalConfig();
     fetchSensorConfig();
   }, []);
+
+  useEffect(() => {
+    if (customLayerConfig) {
+      setAdditionalConfig(customLayerConfig);
+    }
+  }, [customLayerConfig]);
 
   // Process additional config for map layers
   useEffect(() => {

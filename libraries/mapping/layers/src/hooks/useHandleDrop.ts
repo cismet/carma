@@ -6,6 +6,8 @@ import { useFeatureFlags } from "@carma-providers/feature-flag";
 import { ActiveLayers } from "../components/NewLibModal";
 import type { Layer } from "@carma/types";
 import { utils } from "@carma-appframeworks/portals";
+import { useDispatch } from "react-redux";
+import { setCustomLayerConfig } from "../slices/mapLayers";
 
 // @ts-expect-error tbd
 const parser = new WMSCapabilities();
@@ -32,6 +34,7 @@ export const useHandleDrop = ({
   updateActiveLayer,
 }: UseHandleDropProps) => {
   const flags = useFeatureFlags();
+  const dispatch = useDispatch();
   useEffect(() => {
     const handleDrop = async (event: DragEvent) => {
       event.preventDefault();
@@ -175,6 +178,21 @@ export const useHandleDrop = ({
 
         reader.readAsText(file);
       } else if (file) {
+        if (
+          file.name.includes("config") &&
+          file.name.endsWith(".json") &&
+          window.location.hostname === "localhost"
+        ) {
+          file.text().then((content) => {
+            const result = JSON.parse(content);
+            if (result) {
+              dispatch(setCustomLayerConfig(result));
+            }
+          });
+          setOpen(true);
+          setSelectedNavItemIndex(3);
+          return;
+        }
         setOpen(true);
         setSelectedNavItemIndex(3);
         file
