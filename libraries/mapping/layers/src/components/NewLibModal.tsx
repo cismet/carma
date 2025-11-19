@@ -582,19 +582,58 @@ export const NewLibModal = ({
     });
 
     setAllCategories((prev) => {
-      if (prev.find((item) => item.id === "mapLayers")) {
-        prev.splice(
-          prev.findIndex((item) => item.id === "mapLayers"),
-          1
-        );
+      const newCategories = [...prev];
+      const currentMapLayers = newCategories.find(
+        (item) => item.id === "mapLayers"
+      )?.categories;
+
+      const mergedCategories = JSON.parse(JSON.stringify(allLayers));
+
+      if (currentMapLayers) {
+        currentMapLayers.forEach((currentCategory) => {
+          const mergedCategoryIndex = mergedCategories.findIndex(
+            (cat) => cat.id === currentCategory.id
+          );
+
+          if (mergedCategoryIndex !== -1) {
+            // Category exists in allLayers, check for additional layers
+            const mergedCategory = mergedCategories[mergedCategoryIndex];
+
+            currentCategory.layers.forEach((currentLayer) => {
+              // Check if this layer exists in the merged category
+              const layerExists = mergedCategory.layers.some(
+                (layer) => layer.id === currentLayer.id
+              );
+
+              if (!layerExists) {
+                // Add layer that doesn't exist in allLayers
+                mergedCategory.layers.push(currentLayer);
+              }
+            });
+          } else {
+            // Category doesn't exist in allLayers, add the entire category
+            mergedCategories.push(currentCategory);
+          }
+        });
       }
-      return [
-        ...prev,
-        {
+
+      const mapLayersIndex = newCategories.findIndex(
+        (item) => item.id === "mapLayers"
+      );
+
+      if (mapLayersIndex !== -1) {
+        newCategories[mapLayersIndex] = {
           id: "mapLayers",
-          categories: JSON.parse(JSON.stringify(allLayers)),
-        },
-      ];
+          categories: mergedCategories,
+        };
+      } else {
+        newCategories.push({
+          id: "mapLayers",
+          categories: mergedCategories,
+        });
+      }
+
+      return newCategories;
     });
 
     if (searchValue) {
