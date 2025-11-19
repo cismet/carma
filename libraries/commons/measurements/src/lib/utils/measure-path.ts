@@ -186,12 +186,21 @@ export const MeasurePolygon = Control.extend({
             }
           : "no event";
 
-        console.error("[measure-path] _finishShape called", {
-          event: eventInfo,
-          vertexCount: this._markers?.length || 0,
-          timestamp: Date.now(),
-          stack: new Error().stack?.split("\n").slice(1, 6).join("\n"),
-        });
+        // CRITICAL: Block Leaflet.Draw's native touch finishing
+        // We handle this manually in vertex-click-handler.ts to ensure consistent behavior
+        if (
+          e &&
+          (e.type?.startsWith("touch") ||
+            e.originalEvent?.type?.startsWith("touch") ||
+            e.originalEvent?.pointerType === "touch")
+        ) {
+          console.warn(
+            "[measure-path] Blocking native _finishShape on touch event",
+            eventInfo
+          );
+          return;
+        }
+
         return originalFinishShape.apply(this, arguments);
       };
     }
@@ -828,6 +837,10 @@ export const MeasurePolygon = Control.extend({
     if (this._moveendHandler) map.off("moveend", this._moveendHandler);
     if (this._mousemoveHandler) map.off("mousemove", this._mousemoveHandler);
     if (this._mouseoutHandler) map.off("mouseout", this._mouseoutHandler);
+
+    if (this._vertexClickHandler) {
+      map.off("click", this._vertexClickHandler);
+    }
 
     // Remove measure layers
     if (this._measureLayers) {
