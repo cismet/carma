@@ -217,6 +217,7 @@ export const MeasurePolygon = Control.extend({
       };
     }
 
+    const self = this;
     const originalAddVertex = (this._measureHandler as any).addVertex;
     if (originalAddVertex) {
       (this._measureHandler as any).addVertex = function (latlng) {
@@ -225,6 +226,7 @@ export const MeasurePolygon = Control.extend({
           currentVertexCount: this._markers?.length || 0,
           timestamp: Date.now(),
         });
+        (self as any)._lastVertexAdded = Date.now();
         return originalAddVertex.apply(this, arguments);
       };
     }
@@ -603,7 +605,8 @@ export const MeasurePolygon = Control.extend({
         () => (this as any)._isFinishingShape,
         (value: boolean) => {
           (this as any)._isFinishingShape = value;
-        }
+        },
+        () => (this as any)._lastVertexAdded || 0
       );
       // Attach to map once - event delegation pattern
       // Handler will filter for vertex marker clicks internally

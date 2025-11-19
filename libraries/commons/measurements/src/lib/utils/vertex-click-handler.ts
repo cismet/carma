@@ -21,7 +21,8 @@ export function createVertexClickHandler(
   getCurrentVertexCount: () => number,
   map?: any,
   getIsFinishingShape?: () => boolean,
-  setIsFinishingShape?: (value: boolean) => void
+  setIsFinishingShape?: (value: boolean) => void,
+  getLastVertexTimestamp?: () => number
 ) {
   const handler = function (e: LeafletMouseEvent) {
     const measureHandler = getMeasureHandler();
@@ -63,6 +64,19 @@ export function createVertexClickHandler(
       totalVertices: vertexCount,
       eventType: e.originalEvent?.type,
     });
+
+    // CRITICAL: Ignore clicks on the last vertex if it was just added (ghost clicks / touch bounce)
+    if (isLast && getLastVertexTimestamp) {
+      const lastAdded = getLastVertexTimestamp();
+      const now = Date.now();
+      if (now - lastAdded < 500) {
+        console.warn(
+          "[measure-path] Ignoring click on last vertex - too soon after addVertex",
+          { diff: now - lastAdded }
+        );
+        return;
+      }
+    }
 
     // First vertex: close polygon (requires 3+ vertices and valid polyline data)
     if (isFirst && vertexCount >= 3) {
