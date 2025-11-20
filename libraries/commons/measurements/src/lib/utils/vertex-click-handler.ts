@@ -1,5 +1,11 @@
-import type { LeafletMouseEvent } from "@carma/leaflet";
-import type { Layer, Control, Marker } from "leaflet";
+import type { LeafletMouseEvent, LeafletMap } from "@carma/leaflet";
+import type { Control, Marker } from "leaflet";
+
+type MeasureHandler = Control.DrawHandler & {
+  _markers?: Marker[];
+  _finishShape?: () => void;
+  _poly?: { _latlngs?: unknown[] };
+};
 
 /**
  * Handler for vertex clicks during measurement drawing
@@ -9,21 +15,53 @@ import type { Layer, Control, Marker } from "leaflet";
  * - Middle vertices: No action
  */
 export function createVertexClickHandler(
-  getMeasureHandler: () =>
-    | (Control.DrawHandler & {
-        _markers?: Marker[];
-        _finishShape?: () => void;
-        _poly?: { _latlngs?: unknown[] };
-      })
-    | null
-    | undefined,
+  getMeasureHandler: () => MeasureHandler | null | undefined,
   options: Pick<Control.MeasurePolygonOptions, "shapeMode">,
   getCurrentVertexCount: () => number,
-  map?: any,
+  map?: LeafletMap,
   getIsFinishingShape?: () => boolean,
   setIsFinishingShape?: (value: boolean) => void,
   getLastVertexTimestamp?: () => number
 ) {
+  // Helper to handle common shape finishing logic
+  const finishShape = (
+    measureHandler: MeasureHandler,
+    e: LeafletMouseEvent,
+    debugLabel: string
+  ) => {
+    console.warn(
+      `[measure-path] Finishing ${debugLabel} - triggering finish like double-click`
+    );
+
+    if (setIsFinishingShape) {
+      setIsFinishingShape(true);
+    }
+
+    // Disable the handler after draw:created event fires
+    if (map) {
+      map.once("draw:created", () => {
+        if (measureHandler.disable) {
+          measureHandler.disable();
+          console.log(
+            "[measure-path] Disabled measurement handler after draw:created - ready for new measurement"
+          );
+        }
+        // Reset flag on next tick to allow new measurements immediately
+        // but still block the current bubbling click
+        setTimeout(() => {
+          console.debug(`reset finish shape flag (${debugLabel})`);
+          if (setIsFinishingShape) setIsFinishingShape(false);
+        }, 0);
+      });
+    }
+
+    measureHandler._finishShape?.();
+
+    // Stop propagation to prevent map click handler from starting new measurement
+    e.originalEvent?.stopPropagation?.();
+    e.originalEvent?.preventDefault?.();
+  };
+
   const handler = function (e: LeafletMouseEvent) {
     const measureHandler = getMeasureHandler();
     if (!measureHandler) {
@@ -87,79 +125,15 @@ export function createVertexClickHandler(
         );
         return;
       }
-      console.warn(
-        "[measure-path] Closing polygon - triggering finish like double-click"
-      );
+
       options.shapeMode = "polygon";
-
-      // Set flag to prevent map click handler from starting new measurement
-      if (setIsFinishingShape) {
-        setIsFinishingShape(true);
-      }
-
-      // Disable the handler after draw:created event fires
-      if (map) {
-        map.once("draw:created", () => {
-          if (measureHandler.disable) {
-            measureHandler.disable();
-            console.log(
-              "[measure-path] Disabled measurement handler after draw:created - ready for new measurement"
-            );
-          }
-          // Reset flag on next tick to allow new measurements immediately
-          // but still block the current bubbling click
-          setTimeout(() => {
-            console.debug("reset finish shape flag (polygon)");
-            if (setIsFinishingShape) setIsFinishingShape(false);
-          }, 0);
-        });
-      }
-
-      // Trigger finish like double-click does
-      measureHandler._finishShape?.();
-
-      // Stop propagation to prevent map click handler from starting new measurement
-      e.originalEvent?.stopPropagation?.();
-      e.originalEvent?.preventDefault?.();
-
+      finishShape(measureHandler, e, "polygon");
       return;
     }
 
     // Last vertex: finish line
     if (isLast) {
-      console.warn(
-        "[measure-path] Finishing line - will disable handler after completion"
-      );
-
-      // Set flag to prevent map click handler from starting new measurement
-      if (setIsFinishingShape) {
-        setIsFinishingShape(true);
-      }
-
-      // Disable the handler after draw:created event fires
-      if (map) {
-        map.once("draw:created", () => {
-          if (measureHandler.disable) {
-            measureHandler.disable();
-            console.log(
-              "[measure-path] Disabled measurement handler after draw:created - ready for new measurement"
-            );
-          }
-          // Reset flag on next tick to allow new measurements immediately
-          // but still block the current bubbling click
-          setTimeout(() => {
-            console.debug("reset finish shape flag (line)");
-            if (setIsFinishingShape) setIsFinishingShape(false);
-          }, 0);
-        });
-      }
-
-      measureHandler._finishShape?.();
-
-      // Stop propagation to prevent map click handler from starting new measurement
-      e.originalEvent?.stopPropagation?.();
-      e.originalEvent?.preventDefault?.();
-
+      finishShape(measureHandler, e, "line");
       return;
     }
 
