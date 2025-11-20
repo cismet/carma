@@ -97,13 +97,6 @@ export function createVertexClickHandler(
         setIsFinishingShape(true);
       }
 
-      // Trigger finish like double-click does
-      measureHandler._finishShape?.();
-
-      // Stop propagation to prevent map click handler from starting new measurement
-      e.originalEvent?.stopPropagation?.();
-      e.originalEvent?.preventDefault?.();
-
       // Disable the handler after draw:created event fires
       if (map) {
         map.once("draw:created", () => {
@@ -113,8 +106,22 @@ export function createVertexClickHandler(
               "[measure-path] Disabled measurement handler after draw:created - ready for new measurement"
             );
           }
+          // Reset flag on next tick to allow new measurements immediately
+          // but still block the current bubbling click
+          setTimeout(() => {
+            console.debug("reset finish shape flag (polygon)");
+            if (setIsFinishingShape) setIsFinishingShape(false);
+          }, 0);
         });
       }
+
+      // Trigger finish like double-click does
+      measureHandler._finishShape?.();
+
+      // Stop propagation to prevent map click handler from starting new measurement
+      e.originalEvent?.stopPropagation?.();
+      e.originalEvent?.preventDefault?.();
+
       return;
     }
 
@@ -129,12 +136,6 @@ export function createVertexClickHandler(
         setIsFinishingShape(true);
       }
 
-      measureHandler._finishShape?.();
-
-      // Stop propagation to prevent map click handler from starting new measurement
-      e.originalEvent?.stopPropagation?.();
-      e.originalEvent?.preventDefault?.();
-
       // Disable the handler after draw:created event fires
       if (map) {
         map.once("draw:created", () => {
@@ -144,12 +145,21 @@ export function createVertexClickHandler(
               "[measure-path] Disabled measurement handler after draw:created - ready for new measurement"
             );
           }
+          // Reset flag on next tick to allow new measurements immediately
+          // but still block the current bubbling click
           setTimeout(() => {
-            console.debug("reset finish shape flag");
-            setIsFinishingShape(false);
-          }, 100);
+            console.debug("reset finish shape flag (line)");
+            if (setIsFinishingShape) setIsFinishingShape(false);
+          }, 0);
         });
       }
+
+      measureHandler._finishShape?.();
+
+      // Stop propagation to prevent map click handler from starting new measurement
+      e.originalEvent?.stopPropagation?.();
+      e.originalEvent?.preventDefault?.();
+
       return;
     }
 
