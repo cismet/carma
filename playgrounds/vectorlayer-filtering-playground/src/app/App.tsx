@@ -1,7 +1,7 @@
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import { suppressReactCismapErrors } from "@carma-commons/utils";
 import { useMapLibreMap } from "@carma-commons/measurements";
-import { ZoomControl } from "@carma-mapping/components";
+import { LayerButton, ZoomControl } from "@carma-mapping/components";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
@@ -14,6 +14,8 @@ import {
 import CismapLayer from "react-cismap/CismapLayer";
 import { getActionLinksForFeature } from "react-cismap/tools/uiHelper";
 import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextProvider";
+import { Layer } from "leaflet";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 suppressReactCismapErrors(true);
 
@@ -32,9 +34,18 @@ export function App({
   const { maplibreMap, setMaplibreMap } = useMapLibreMap();
   const { zoomToFeature } = useContext(TopicMapDispatchContext) as any;
   const [filterText, setFilterText] = useState<string>("");
+  const [defaultVectorStyle, setDefaultVectorStyle] = useState<string | null>(
+    null
+  );
 
   const pixelwidth =
     responsiveState === "normal" ? "300px" : (windowSize?.width || 300) - gap;
+
+  // Combine default vector style with user-provided styles
+  const allVectorStyles = [
+    ...(defaultVectorStyle ? [defaultVectorStyle] : []),
+    ...vectorStyles,
+  ];
 
   // Apply filter whenever filterText or maplibreMap changes
   useEffect(() => {
@@ -248,7 +259,7 @@ export function App({
                 }}
               />
               <a
-                href="https://tiles.cismet.de/poi/offentliche-toiletten.style.json"
+                href="https://tiles.cismet.de/toiletten/style.json"
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
@@ -266,7 +277,8 @@ export function App({
         </Control>
       </ControlLayout>
       <TopicMapComponent
-        key={JSON.stringify(vectorStyles)}
+        title="Vector Layer Filtering Playground"
+        key={JSON.stringify(allVectorStyles)}
         gazetteerSearchControl={true}
         gazetteerSearchComponent={EmptySearchComponent}
         locatorControl={false}
@@ -276,7 +288,7 @@ export function App({
       >
         <TopicMapSelectionContent />
 
-        {vectorStyles.map((style, index) => {
+        {allVectorStyles.map((style, index) => {
           return (
             <CismapLayer
               key={index}

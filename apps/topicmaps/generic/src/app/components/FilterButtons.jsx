@@ -9,6 +9,7 @@ export const FilterButtons = ({ maplibreMap }) => {
     kostenfrei: false,
     rollstuhlgerecht: false,
     wickeltisch: false,
+    dauergeoffnet: false,
   });
 
   // Apply filters to the map whenever selectedFilters or maplibreMap changes
@@ -29,7 +30,10 @@ export const FilterButtons = ({ maplibreMap }) => {
         .map((layer) => layer.id);
 
       console.log("xxx Target layers found:", targetLayerIds);
-      console.log("xxx All layers:", layers.map((l) => l.id));
+      console.log(
+        "xxx All layers:",
+        layers.map((l) => l.id)
+      );
 
       // Build the filter expression
       let filterExpression;
@@ -54,6 +58,11 @@ export const FilterButtons = ({ maplibreMap }) => {
         if (selectedFilters.wickeltisch) {
           // WICKELTIS === "ja" means changing table available
           conditions.push(["==", ["get", "WICKELTIS"], "ja"]);
+        }
+
+        if (selectedFilters.dauergeoffnet) {
+          // Q_24/7_OFF === "ja" means open 24/7
+          conditions.push(["==", ["get", "Q_24/7_OFF"], "ja"]);
         }
 
         // Combine conditions with 'all' operator (AND logic)
@@ -87,6 +96,7 @@ export const FilterButtons = ({ maplibreMap }) => {
         kostenfrei: false,
         rollstuhlgerecht: false,
         wickeltisch: false,
+        dauergeoffnet: false,
       });
     } else {
       // When any icon button is clicked, toggle it and deselect "Alle"
@@ -101,7 +111,8 @@ export const FilterButtons = ({ maplibreMap }) => {
         const hasIconSelection =
           newFilters.kostenfrei ||
           newFilters.rollstuhlgerecht ||
-          newFilters.wickeltisch;
+          newFilters.wickeltisch ||
+          newFilters.dauergeoffnet;
         if (!hasIconSelection) {
           newFilters.alle = true;
         }
@@ -142,7 +153,14 @@ export const FilterButtons = ({ maplibreMap }) => {
             : "3px solid transparent",
         }}
       >
-        <span>Alle</span>
+        <span
+          style={{
+            color: selectedFilters.alle ? "#4378ccCC" : "inherit",
+            textDecoration: selectedFilters.alle ? "underline" : "none",
+          }}
+        >
+          Alle
+        </span>
       </div>
       <div
         onClick={() => handleFilterClick("kostenfrei")}
@@ -164,9 +182,21 @@ export const FilterButtons = ({ maplibreMap }) => {
         <img
           src="https://tiles.cismet.de/toiletten/assets/icons/Infobox_Kostenfrei.svg"
           alt=""
-          style={{ width: "18px", height: "18px" }}
+          style={{
+            width: "18px",
+            height: "18px",
+            filter: selectedFilters.kostenfrei ? "none" : "grayscale(100%)",
+          }}
         />
-        <span className="filter-button-text">Kostenfrei</span>
+        <span
+          className="filter-button-text"
+          style={{
+            color: selectedFilters.kostenfrei ? "#4378ccCC" : "inherit",
+            textDecoration: selectedFilters.kostenfrei ? "underline" : "none",
+          }}
+        >
+          Kostenfrei
+        </span>
       </div>
       <div
         onClick={() => handleFilterClick("rollstuhlgerecht")}
@@ -188,9 +218,25 @@ export const FilterButtons = ({ maplibreMap }) => {
         <img
           src="https://tiles.cismet.de/toiletten/assets/icons/Infobox_Rollstuhlgerecht.svg"
           alt=""
-          style={{ width: "18px", height: "18px" }}
+          style={{
+            width: "18px",
+            height: "18px",
+            filter: selectedFilters.rollstuhlgerecht
+              ? "none"
+              : "grayscale(100%)",
+          }}
         />
-        <span className="filter-button-text">Rollstuhlgerecht</span>
+        <span
+          className="filter-button-text"
+          style={{
+            color: selectedFilters.rollstuhlgerecht ? "#4378ccCC" : "inherit",
+            textDecoration: selectedFilters.rollstuhlgerecht
+              ? "underline"
+              : "none",
+          }}
+        >
+          Rollstuhlgerecht
+        </span>
       </div>
       <div
         onClick={() => handleFilterClick("wickeltisch")}
@@ -212,9 +258,59 @@ export const FilterButtons = ({ maplibreMap }) => {
         <img
           src="https://tiles.cismet.de/toiletten/assets/icons/Infobox_Wickeltisch.svg"
           alt=""
-          style={{ width: "18px", height: "18px" }}
+          style={{
+            width: "18px",
+            height: "18px",
+            filter: selectedFilters.wickeltisch ? "none" : "grayscale(100%)",
+          }}
         />
-        <span className="filter-button-text">Wickeltisch</span>
+        <span
+          className="filter-button-text"
+          style={{
+            color: selectedFilters.wickeltisch ? "#4378ccCC" : "inherit",
+            textDecoration: selectedFilters.wickeltisch ? "underline" : "none",
+          }}
+        >
+          Wickeltisch
+        </span>
+      </div>
+      <div
+        onClick={() => handleFilterClick("dauergeoffnet")}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "6px",
+          backgroundColor: "white",
+          padding: "6px 12px",
+          borderRadius: "10px",
+          boxShadow: "0 2px 4px rgba(0,0,0,0.2)",
+          cursor: "pointer",
+          height: "32px",
+          border: selectedFilters.dauergeoffnet
+            ? "3px solid #4378ccCC"
+            : "3px solid transparent",
+        }}
+      >
+        <img
+          src="https://tiles.cismet.de/toiletten/assets/icons/Infobox_24_7_Geoeffnet.svg"
+          alt=""
+          style={{
+            width: "18px",
+            height: "18px",
+            filter: selectedFilters.dauergeoffnet ? "none" : "grayscale(100%)",
+          }}
+        />
+        <span
+          className="filter-button-text"
+          style={{
+            color: selectedFilters.dauergeoffnet ? "#4378ccCC" : "inherit",
+            textDecoration: selectedFilters.dauergeoffnet
+              ? "underline"
+              : "none",
+          }}
+        >
+          geöffnet
+        </span>
       </div>
     </div>
   );
