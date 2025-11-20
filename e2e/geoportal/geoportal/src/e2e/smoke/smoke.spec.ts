@@ -5,7 +5,7 @@ test.describe("geoportal smoke test", () => {
   test.beforeEach(async ({ context, page }) => {
     await setupAllMocks(context);
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    // await page.waitForLoadState("networkidle");
   });
 
   test("Map loads with key controls and buttons", async ({ page }) => {
