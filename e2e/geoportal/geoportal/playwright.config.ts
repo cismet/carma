@@ -16,6 +16,7 @@ export default defineConfig({
     screenshot: "only-on-failure",
     navigationTimeout: 15_000, // Reduce navigation timeout
     actionTimeout: 10_000, // Add action timeout
+    testIdAttribute: "data-test-id",
   },
   projects: [
     {

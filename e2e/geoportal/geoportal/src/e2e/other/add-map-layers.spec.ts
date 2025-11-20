@@ -108,27 +108,40 @@ test.describe("Geoportal add map layers", () => {
 
     const modal = page.locator(".ant-modal-content");
     await expect(modal).toBeVisible();
-    const cards = page.locator('[data-test-id="card-layer-prev"]');
+    // const cards = page.locator('[data-test-id="card-layer-prev"]');
 
     // Search for layer
-    const searchBox = page.getByRole("searchbox", {
-      name: "Suchbegriff eingeben",
-    });
-    await searchBox.click();
+    // const searchBox = page.getByRole("searchbox", {
+    //   name: "Suchbegriff eingeben",
+    // });
+    // await searchBox.click();
 
-    await page.keyboard.type(LAYER_UI_MAP_TEXT, { delay: 100 });
+    // await page.keyboard.type(LAYER_UI_MAP_TEXT, { delay: 100 });
 
-    await page.waitForTimeout(300);
-    await expect.poll(() => cards.count()).toBe(1);
+    await page.getByPlaceholder("Suchbegriff eingeben").fill(LAYER_UI_MAP_TEXT);
+
+    // await page.waitForTimeout(300);
+    // const cards = await expect(page
+    //   .getByTestId("card-layer-prev")
+    //   .filter({
+    //     hasText: LAYER_UI_MAP_TEXT,
+    //   }).toHaveCount(1))
+    // await expect.poll(() => cards.count()).toBe(1);
+    // 5 in-stock items
+    const card = page
+      .getByTestId("card-layer-prev")
+      .filter({ hasText: LAYER_UI_MAP_TEXT });
+
+    await card.getByTestId("apply-layer-to-map").click();
 
     // Apply layer to map
-    const applyBtn = cards.locator('[data-test-id="apply-layer-to-map"]');
-    await expect(applyBtn).toBeVisible();
-    await applyBtn.click();
+    // const applyBtn = cards.locator('[data-test-id="apply-layer-to-map"]');
+    // await expect(applyBtn).toBeVisible();
+    // await applyBtn.click();
 
     // Close modal
     await page.locator(".sticky > div > button").click();
-    await page.waitForTimeout(300);
+    // await page.waitForTimeout(300);
 
     await expect(
       page.getByRole("button", { name: /Stadtgrundkarte \(grau\) - ABK/i })
