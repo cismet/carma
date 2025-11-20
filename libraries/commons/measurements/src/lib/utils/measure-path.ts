@@ -583,13 +583,6 @@ export const MeasurePolygon = Control.extend({
       }
       this.options.cbSaveLastActiveShapeIdBeforeDrawingHandler();
       this.options.measurementOrder = this.options.measurementOrder + 1;
-      const shapesObj = {
-        coordinates: [[51.352635, 7.209284]],
-        distance: 0,
-        shapeId: 5555,
-        number: this.options.measurementOrder,
-        shapeType: "line",
-      };
       this.changeColorByActivePolyline(map, "ddfsc1231");
     };
 

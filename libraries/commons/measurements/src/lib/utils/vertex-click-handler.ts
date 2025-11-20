@@ -58,10 +58,6 @@ export function createVertexClickHandler(
     }
 
     measureHandler._finishShape?.();
-
-    // Stop propagation to prevent map click handler from starting new measurement
-    e.originalEvent?.stopPropagation?.();
-    e.originalEvent?.preventDefault?.();
   };
 
   const handler = function (e: LeafletMouseEvent) {
