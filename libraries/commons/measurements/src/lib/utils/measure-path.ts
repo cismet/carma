@@ -608,10 +608,6 @@ export const MeasurePolygon = Control.extend({
         },
         () => (this as any)._lastVertexAdded || 0
       );
-      // Attach to map once - event delegation pattern
-      // Handler will filter for vertex marker clicks internally
-      map.on("click", this._vertexClickHandler);
-      console.log("[measure-path] Attached delegated vertex handler to map");
     }
 
     this._drawDrawvertexHandler = (event) => {
@@ -649,8 +645,34 @@ export const MeasurePolygon = Control.extend({
               (this._measureHandler as any)._finishShape,
               this._measureHandler
             );
+
+            // Attach our custom handler to the marker
+            // This handler MUST stop propagation to prevent the map from seeing the click
+            layer.on("click", this._vertexClickHandler);
+
+            // CRITICAL: Stop native touchstart propagation on the DOM element
+            // Leaflet.Draw listens to 'touchstart' on the map container to add vertices.
+            // We must stop the event at the marker icon DOM level to prevent it from bubbling to the map.
+            // layer.on('touchstart') is too late because it's a Leaflet event, not a native DOM capture.
+            const icon = layer.getElement();
+            if (icon) {
+              L.DomEvent.on(icon, "touchstart", L.DomEvent.stopPropagation);
+              L.DomEvent.on(icon, "touchend", L.DomEvent.stopPropagation);
+              L.DomEvent.on(icon, "touchmove", L.DomEvent.stopPropagation);
+              console.log(
+                "[measure-path] Added native touch blockers to marker icon"
+              );
+            }
+
+            // Also stop Leaflet-level touchstart just in case
+            layer.on("touchstart", (e) => {
+              if (e.originalEvent) {
+                L.DomEvent.stopPropagation(e.originalEvent);
+              }
+            });
+
+            // We don't want to remove 'touchstart' listener we just added, so only remove touchend
             layer.off("touchend");
-            layer.off("touchstart");
 
             console.log("[measure-path] Removed Leaflet.Draw marker listeners");
           }
@@ -840,10 +862,6 @@ export const MeasurePolygon = Control.extend({
     if (this._moveendHandler) map.off("moveend", this._moveendHandler);
     if (this._mousemoveHandler) map.off("mousemove", this._mousemoveHandler);
     if (this._mouseoutHandler) map.off("mouseout", this._mouseoutHandler);
-
-    if (this._vertexClickHandler) {
-      map.off("click", this._vertexClickHandler);
-    }
 
     // Remove measure layers
     if (this._measureLayers) {

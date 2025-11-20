@@ -30,28 +30,25 @@ export function createVertexClickHandler(
       return; // No measure handler, ignore
     }
 
-    // Find if we clicked on a vertex marker by checking the markers
+    // CRITICAL: Stop propagation immediately to prevent the map from receiving this click
+    // This prevents Leaflet.Draw's map click handler from adding a new vertex when we click an existing one
+    if (e.originalEvent) {
+      e.originalEvent.stopPropagation();
+      e.originalEvent.preventDefault();
+    }
+    const clickedMarker = e.target as any;
+    const clickedHandle = clickedMarker.customHandle;
+
+    if (clickedHandle === undefined || clickedHandle === null) {
+      console.warn(
+        "[measure-path] Clicked marker has no handle index",
+        clickedMarker
+      );
+      return;
+    }
+
     const markers = measureHandler._markers;
-    if (!markers || markers.length === 0) {
-      return; // No markers yet
-    }
-
-    // Check if click is on any of the vertex markers
-    let clickedMarker = null;
-    let clickedHandle = -1;
-
-    for (let i = 0; i < markers.length; i++) {
-      const marker = markers[i] as any;
-      if (marker._icon && marker._icon.contains(e.originalEvent?.target)) {
-        clickedMarker = marker;
-        clickedHandle = marker.customHandle ?? i;
-        break;
-      }
-    }
-
-    if (clickedMarker === null) {
-      return; // Not a vertex marker click
-    }
+    if (!markers) return;
 
     const vertexCount = markers.length;
     const isFirst = clickedHandle === 0;
@@ -69,7 +66,7 @@ export function createVertexClickHandler(
     if (isLast && getLastVertexTimestamp) {
       const lastAdded = getLastVertexTimestamp();
       const now = Date.now();
-      if (now - lastAdded < 500) {
+      if (now - lastAdded < 200) {
         console.warn(
           "[measure-path] Ignoring click on last vertex - too soon after addVertex",
           { diff: now - lastAdded }
@@ -98,12 +95,6 @@ export function createVertexClickHandler(
       // Set flag to prevent map click handler from starting new measurement
       if (setIsFinishingShape) {
         setIsFinishingShape(true);
-      }
-
-      // Add the first vertex again to close the polygon, then finish
-      const firstLatLng = measureHandler._markers[0]?.getLatLng();
-      if (firstLatLng) {
-        measureHandler.addVertex?.(firstLatLng);
       }
 
       // Trigger finish like double-click does
@@ -153,6 +144,10 @@ export function createVertexClickHandler(
               "[measure-path] Disabled measurement handler after draw:created - ready for new measurement"
             );
           }
+          setTimeout(() => {
+            console.debug("reset finish shape flag");
+            setIsFinishingShape(false);
+          }, 100);
         });
       }
       return;
