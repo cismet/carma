@@ -1,6 +1,8 @@
 import type { LeafletMouseEvent, LeafletMap } from "@carma/leaflet";
 import type { Control, Marker } from "leaflet";
 
+const MEASUREMENT_VERTEX_ADD_DELAY_MS = 50;
+
 type MeasureHandler = Control.DrawHandler & {
   _markers?: Marker[];
   _finishShape?: () => void;
@@ -104,7 +106,7 @@ export function createVertexClickHandler(
     if (isLast && getLastVertexTimestamp) {
       const lastAdded = getLastVertexTimestamp();
       const now = Date.now();
-      if (now - lastAdded < 200) {
+      if (now - lastAdded < MEASUREMENT_VERTEX_ADD_DELAY_MS) {
         console.warn(
           "[measure-path] Ignoring click on last vertex - too soon after addVertex",
           { diff: now - lastAdded }

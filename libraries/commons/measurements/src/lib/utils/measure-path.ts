@@ -243,6 +243,8 @@ export const MeasurePolygon = Control.extend({
 
     L.drawLocal.draw.handlers.polyline.tooltip.start =
       "Klicken, um den Startpunkt der Messung zu setzen.";
+    L.drawLocal.draw.handlers.polygon.tooltip.start =
+      "Klicken, um den Startpunkt der Messung zu setzen.";
     L.drawLocal.draw.handlers.polyline.tooltip.cont =
       "Klicken (ggf. mehrmals), um die nächsten Punkte des Linienzuges zu setzen.";
     L.drawLocal.draw.handlers.polyline.tooltip.end = tooltipContent;
@@ -783,11 +785,11 @@ export const MeasurePolygon = Control.extend({
 
     this._mousemoveHandler = (event) => {
       const target = event.originalEvent.target;
-      const isDesktop = this.options.device === "Desktop" ? true : false;
+      // const isDesktop = this.options.device === "Desktop" ? true : false;
       const mode = this.options.measurementMode;
       // this._propagateEventToUnderlyingLayers(map, event, "mouseover");
 
-      if (isDesktop) {
+      if (true) {
         if (!this.options.customTooltip && mode === "measurement") {
           const popupPane = map._panes.popupPane;
 
@@ -894,6 +896,7 @@ export const MeasurePolygon = Control.extend({
       this.options.isDrawing = false;
     } else {
       this._measureHandler.enable();
+      this.options.isDrawingEmpty = true;
     }
   },
 
