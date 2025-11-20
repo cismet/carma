@@ -27,6 +27,7 @@ import {
 } from "@carma-appframeworks/portals";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import FuzzySearchWrapper from "./components/FuzzySearchWrapper";
+import { FilterButtons } from "./components/FilterButtons";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import {
   FullscreenControl,
@@ -89,7 +90,8 @@ function renderCismapLayers(
   markerSymbolSize,
   setGlobalHits,
   initialVisualSelection,
-  layerInformation
+  layerInformation,
+  setMaplibreMap
 ) {
   return (
     <>
@@ -128,6 +130,11 @@ function renderCismapLayers(
                   return ret;
                 });
               }}
+              onMapLibreCoreMapReady={(map) => {
+                if (setMaplibreMap) {
+                  setMaplibreMap(map);
+                }
+              }}
             />
           );
         })}
@@ -149,12 +156,13 @@ const Map = ({
   const [cl_key, setClKey] = useState("");
   const { routedMapRef } = useSelectionTopicMap() ?? {};
   const [selectedVectorObject, setSelectedVectorObject] = useState(undefined);
+  const [maplibreMap, setMaplibreMap] = useState(null);
   // console.log("xxx markerSymbolSize", markerSymbolSize);
 
   // lets assume we will only have vector layers
   useEffect(() => {
     const getFeature = async (infoboxMapping, hit) => {
-      // console.log("xxx infoboxMapping", infoboxMapping);
+      console.log("xxx infoboxMapping", infoboxMapping);
       const feature = await createVectorFeature(infoboxMapping, hit);
       setFeature(feature);
     };
@@ -269,6 +277,12 @@ const Map = ({
           </Control>
         )}
 
+        {config?.tm?.filteringEnabled && config?.tm?.vectorLayers && (
+          <Control position="topcenter" order={10}>
+            <FilterButtons maplibreMap={maplibreMap} />
+          </Control>
+        )}
+
         <SecondaryInfoModal
           feature={selectedFeature}
           footer={
@@ -316,7 +330,8 @@ const Map = ({
                 markerSymbolSize,
                 setGlobalHits,
                 selectedVectorObject,
-                layerInformation
+                layerInformation,
+                null
               )}
               previewFeatureCollectionCount={
                 config?.tm?.previewFeatureCollectionCount
@@ -348,7 +363,8 @@ const Map = ({
             markerSymbolSize,
             setGlobalHits,
             selectedVectorObject,
-            layerInformation
+            layerInformation,
+            setMaplibreMap
           )}
           {config.tm.noFeatureCollection !== true && (
             <>
