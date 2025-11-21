@@ -232,9 +232,9 @@ export const MeasurePolygon = Control.extend({
 `;
 
     L.drawLocal.draw.handlers.polyline.tooltip.start =
-      "Klicken, um den Startpunkt der Messung zu setzen.";
+      "Klicken, um den Startpunkt der Messung zu setzen.<br><span class='leaflet-draw-tooltip-subtext'>Snapping aktiv (Alt zum Deaktivieren)</span>";
     L.drawLocal.draw.handlers.polyline.tooltip.cont =
-      "Klicken (ggf. mehrmals), um die nächsten Punkte des Linienzuges zu setzen.";
+      "Klicken (ggf. mehrmals), um die nächsten Punkte des Linienzuges zu setzen.<br><span class='leaflet-draw-tooltip-subtext'>Snapping aktiv (Alt zum Deaktivieren)</span>";
     L.drawLocal.draw.handlers.polyline.tooltip.end = tooltipContent;
 
     this._measureHandler.enable();

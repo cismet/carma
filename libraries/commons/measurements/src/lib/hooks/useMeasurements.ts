@@ -139,15 +139,56 @@ export const useMeasurements = (snappingLayers: any[] = []) => {
         }
       };
 
-      const mousemoveHandler = (e: any) => {
+      // Store last mouse event to re-trigger handlers on key press
+      const lastMouseEventRef = { current: null as any };
+
+      const updateTooltipTemplate = (isPressed: boolean) => {
+        const snappingText = isPressed
+          ? "Snapping deaktiviert"
+          : `Snapping aktiv (${SNAPPING_MODIFIER_KEY} zum Deaktivieren)`;
+
+        if (
+          L.drawLocal &&
+          L.drawLocal.draw &&
+          L.drawLocal.draw.handlers &&
+          L.drawLocal.draw.handlers.polyline
+        ) {
+          L.drawLocal.draw.handlers.polyline.tooltip.start = `Klicken, um den Startpunkt der Messung zu setzen.<br><span class="leaflet-draw-tooltip-subtext">${snappingText}</span>`;
+          L.drawLocal.draw.handlers.polyline.tooltip.cont = `Klicken (ggf. mehrmals), um die nächsten Punkte des Linienzuges zu setzen.<br><span class="leaflet-draw-tooltip-subtext">${snappingText}</span>`;
+        }
+      };
+
+      const mousemoveHandler = (e: MouseEvent) => {
+        // Prevent infinite loop from synthetic events we generate for snapping
+        if ((e as any)._isSyntheticSnapped) {
+          return;
+        }
+
+        // If mouse button is pressed (e.g. panning), do not snap
+        if (e.buttons !== 0) {
+          if (!isDraggingVertexRef.current) {
+            clearBlackPoint();
+          }
+          return;
+        }
+
+        lastMouseEventRef.current = e;
+
+        // Update tooltip text based on Snapping Modifier Key
+        const isPressed = isSnappingModifierPressed(e);
+        updateTooltipTemplate(isPressed);
+
+        // Force update of current tooltip if it exists
+        // Removed to prevent clearing distance
+
         // Skip snapping indicator during vertex drag if snappingOnUpdate is disabled
         if (isDraggingVertexRef.current && !config.snappingOnUpdate) {
           clearBlackPoint();
           return;
         }
 
-        // Check if ALT key is pressed - if so, disable snapping temporarily
-        if (e.originalEvent.altKey) {
+        // Check if Snapping Modifier Key is pressed - if so, disable snapping temporarily
+        if (isPressed) {
           clearBlackPoint();
           if (circleMarkerRef.current) {
             leafletMap.removeLayer(circleMarkerRef.current);
@@ -158,7 +199,7 @@ export const useMeasurements = (snappingLayers: any[] = []) => {
             measureControl.options.snappingLatlng = null;
           }
           snappingLatlngRef.current = null;
-          return; // Exit early - no snapping while ALT is pressed
+          return; // Exit early - no snapping while modifier is pressed
         }
 
         // Check zoom level - only work if zoom >= configured minimum
@@ -171,7 +212,7 @@ export const useMeasurements = (snappingLayers: any[] = []) => {
         const currentSnappingLayers = snappingLayersRef.current;
 
         // Get mouse position in lat/lng using Leaflet (always available)
-        const mouseLatLng = leafletMap.mouseEventToLatLng(e.originalEvent);
+        const mouseLatLng = leafletMap.mouseEventToLatLng(e);
         const mousePoint = leafletMap.latLngToContainerPoint(mouseLatLng);
 
         const currentRadius = queryRadiusRef.current;
@@ -212,8 +253,8 @@ export const useMeasurements = (snappingLayers: any[] = []) => {
                 const canvas = currentMaplibreMap.getCanvas();
                 const rect = canvas.getBoundingClientRect();
                 const point = {
-                  x: e.originalEvent.clientX - rect.left,
-                  y: e.originalEvent.clientY - rect.top,
+                  x: e.clientX - rect.left,
+                  y: e.clientY - rect.top,
                 };
 
                 const bbox = [
@@ -365,8 +406,8 @@ export const useMeasurements = (snappingLayers: any[] = []) => {
             ) {
               // We're trying to snap to first vertex - check pixel distance from mouse
               const map = realRoutedMapRef.current?.leafletMap?.leafletElement;
-              if (map && e.latlng) {
-                const mousePoint = map.latLngToContainerPoint(e.latlng);
+              if (map && mouseLatLng) {
+                const mousePoint = map.latLngToContainerPoint(mouseLatLng);
                 const vertexPoint = map.latLngToContainerPoint(firstVertex);
                 const pixelDistance = Math.sqrt(
                   Math.pow(mousePoint.x - vertexPoint.x, 2) +
@@ -481,6 +522,33 @@ export const useMeasurements = (snappingLayers: any[] = []) => {
 
           lastSnappedCoordRef.current = currentCoord;
         }
+
+        // Dispatch synthetic event for Leaflet Draw if snapped
+        if (isSnapped && finalLatLng && !isPressed) {
+          e.stopPropagation();
+          e.stopImmediatePropagation();
+
+          const mapContainer = leafletMap.getContainer();
+          const rect = mapContainer.getBoundingClientRect();
+          const point = leafletMap.latLngToContainerPoint(finalLatLng);
+
+          const newEvent = new MouseEvent("mousemove", {
+            bubbles: true,
+            cancelable: true,
+            view: window,
+            clientX: rect.left + point.x,
+            clientY: rect.top + point.y,
+            screenX: e.screenX,
+            screenY: e.screenY,
+            altKey: e.altKey,
+            ctrlKey: e.ctrlKey,
+            shiftKey: e.shiftKey,
+            metaKey: e.metaKey,
+            buttons: e.buttons,
+          });
+          (newEvent as any)._isSyntheticSnapped = true;
+          mapContainer.dispatchEvent(newEvent);
+        }
       };
 
       const mouseoutHandler = () => {
@@ -495,7 +563,10 @@ export const useMeasurements = (snappingLayers: any[] = []) => {
         }
       };
 
-      leafletMap.on("mousemove", mousemoveHandler);
+      const container = leafletMap.getContainer();
+      container.addEventListener("mousemove", mousemoveHandler, {
+        capture: true,
+      });
       leafletMap.on("mouseout", mouseoutHandler);
 
       // Phase 4: Show snap indicator during vertex drag
@@ -802,13 +873,60 @@ export const useMeasurements = (snappingLayers: any[] = []) => {
       };
       mapContainer.addEventListener("mouseup", mouseupHandler, true);
 
+      // Keydown/keyup handlers for ALT key
+      const handleKeyToggle = (isPressed: boolean) => {
+        updateTooltipTemplate(isPressed);
+
+        if (lastMouseEventRef.current) {
+          const mapContainer = leafletMap.getContainer();
+          const originalEvent = lastMouseEventRef.current;
+
+          // Dispatch synthetic event to trigger Leaflet Draw update
+          const newEvent = new MouseEvent("mousemove", {
+            bubbles: true,
+            cancelable: true,
+            view: window,
+            clientX: originalEvent.clientX,
+            clientY: originalEvent.clientY,
+            screenX: originalEvent.screenX,
+            screenY: originalEvent.screenY,
+            altKey: isPressed,
+            ctrlKey: originalEvent.ctrlKey,
+            shiftKey: originalEvent.shiftKey,
+            metaKey: originalEvent.metaKey,
+            buttons: originalEvent.buttons,
+          });
+
+          mapContainer.dispatchEvent(newEvent);
+        }
+      };
+
+      const keydownHandler = (e: KeyboardEvent) => {
+        if (e.key === SNAPPING_MODIFIER_KEY) {
+          handleKeyToggle(true);
+        }
+      };
+
+      const keyupHandler = (e: KeyboardEvent) => {
+        if (e.key === SNAPPING_MODIFIER_KEY) {
+          handleKeyToggle(false);
+        }
+      };
+
+      document.addEventListener("keydown", keydownHandler);
+      document.addEventListener("keyup", keyupHandler);
+
       // Cleanup function to remove listeners and markers
       return () => {
-        leafletMap.off("mousemove", mousemoveHandler);
+        leafletMap
+          .getContainer()
+          .removeEventListener("mousemove", mousemoveHandler, true);
         leafletMap.off("mouseout", mouseoutHandler);
         leafletMap.off("editable:vertex:drag", vertexDragHandler);
         leafletMap.off("editable:vertex:dragend", vertexDragEndHandler);
         mapContainer.removeEventListener("mouseup", mouseupHandler, true);
+        document.removeEventListener("keydown", keydownHandler);
+        document.removeEventListener("keyup", keyupHandler);
         if (circleMarkerRef.current) {
           leafletMap.removeLayer(circleMarkerRef.current);
           circleMarkerRef.current = null;
@@ -1111,4 +1229,17 @@ export const useMeasurements = (snappingLayers: any[] = []) => {
       snappingLatlng: !!snappingLatlngRef?.current,
     });
   });
+
+  const SNAPPING_MODIFIER_KEY = "Alt";
+
+  const isSnappingModifierPressed = (event: any) => {
+    if (event.getModifierState) {
+      return event.getModifierState(SNAPPING_MODIFIER_KEY);
+    }
+    // Fallback for synthetic events or simple objects
+    if (SNAPPING_MODIFIER_KEY === "Alt") return event.altKey;
+    if (SNAPPING_MODIFIER_KEY === "Control") return event.ctrlKey;
+    if (SNAPPING_MODIFIER_KEY === "Shift") return event.shiftKey;
+    return false;
+  };
 };
