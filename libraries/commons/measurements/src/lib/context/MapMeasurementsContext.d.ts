@@ -5,11 +5,6 @@
 
 export type ActiveShape = null | number | string | any;
 
-export enum MEASUREMENT_MODE {
-  DEFAULT = "default",
-  MEASUREMENT = "measurement",
-}
-
 export type MeasurementMapStatus =
   | "INACTIVE" // not active
   | "WAITING" // moving around not dragging anything and waiting for other stuff

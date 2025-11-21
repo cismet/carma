@@ -16,4 +16,3 @@ export type {
   MeasurementMapStatus,
   PartialMeasurementConfig,
 } from "./MapMeasurementsContext.d";
-export { MEASUREMENT_MODE } from "./MapMeasurementsContext.d";

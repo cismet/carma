@@ -6,7 +6,6 @@ export {
   useMapMeasurementsContext,
   defaultConfig,
 } from "./lib/context";
-// export { Measurements } from "./lib/Measurements";
 export { useMapLibreMap } from "./lib/hooks/useMapLibreMap";
 export { useMeasurements } from "./lib/hooks/useMeasurements";
 export * from "./index.d";
