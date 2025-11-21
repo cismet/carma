@@ -127,33 +127,6 @@ export const MeasurePolygon = Control.extend({
     snappingEnabled: true,
   },
 
-  drawingPolygons: function (this: MeasurePolygonControl, map: LeafletMap) {
-    this.options.shapeMode = "polygon";
-    this._measureHandler = new L.Draw.Polygon(map as any, {
-      showArea: true,
-      shapeOptions: {
-        color: "#267bdcd4",
-        fillColor: null,
-        fillOpacity: 0.2,
-        stroke: true,
-      },
-    });
-
-    L.drawLocal.draw.handlers.polygon.tooltip.start =
-      "Klicken, um den Startpunkt der Messung zu setzen.";
-    L.drawLocal.draw.handlers.polygon.tooltip.cont =
-      "Klicken (ggf. mehrmals), um die nächsten Punkte des Linienzuges zu setzen.";
-    L.drawLocal.draw.handlers.polygon.tooltip.end = `Zum Beenden auf den letzten angelegt Punkt klicken.
-      Zum Messen einer Fläche auf den ersten angeleten.
-      Punkt klicken und die Fläche so schließen`;
-
-    this._toggleMeasure(
-      "img_plg_measure_polygon",
-      "icon_polygonActive",
-      "icon_polygonInactive"
-    );
-  },
-
   drawingLines: function (
     this: MeasurePolygonControl,
     map: LeafletMap,
@@ -1229,6 +1202,8 @@ export const MeasurePolygon = Control.extend({
   ) {
     const mode = this.options.measurementMode;
     if (mode === "measurement") {
+      L.drawLocal.draw.handlers.polyline.tooltip.start =
+        "Klicken, um den Startpunkt der Messung zu setzen.";
       this._clearMeasurements();
       this.loadMeasurements();
       // const drawBtn = document.getElementById("draw_shape");

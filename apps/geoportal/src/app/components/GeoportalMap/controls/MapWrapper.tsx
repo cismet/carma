@@ -50,7 +50,10 @@ import {
   ControlLayoutCanvas,
 } from "@carma-mapping/map-controls-layout";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
-import { MeasurementControl } from "@carma-commons/measurements";
+import {
+  MeasurementControl,
+  useMapMeasurementsContext,
+} from "@carma-commons/measurements";
 
 import { GeoportalMap } from "../GeoportalMap.tsx";
 import LibreGeoportalMap from "../LibreGeoportalMap.tsx";
@@ -87,6 +90,7 @@ import {
   getZenMode,
   setZenMode,
   toggleUIMode,
+  setUIMode,
   UIMode,
 } from "../../../store/slices/ui.ts";
 
@@ -129,6 +133,17 @@ const MapWrapper = () => {
   const configSelection = useSelector(getConfigSelection);
 
   const { isObliqueMode } = useOblique();
+
+  const { isMeasurementEnabled } = useMapMeasurementsContext();
+
+  useEffect(() => {
+    // sync legacy redux measurement mode with ui mode, remove once measurement provider handles this fully
+    if (isMeasurementEnabled && uiMode !== UIMode.MEASUREMENT) {
+      dispatch(setUIMode(UIMode.MEASUREMENT));
+    } else if (!isMeasurementEnabled && uiMode === UIMode.MEASUREMENT) {
+      dispatch(setUIMode(UIMode.DEFAULT));
+    }
+  }, [isMeasurementEnabled, uiMode, dispatch]);
 
   const {
     handleZoomIn: handleZoomInCesium,

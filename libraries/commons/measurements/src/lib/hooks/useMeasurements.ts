@@ -924,6 +924,13 @@ export const useMeasurements = () => {
     };
   }, [measureControl, realRoutedMapRef]);
 
+  // Sync device detection to control options
+  useEffect(() => {
+    if (measureControl) {
+      measureControl.options.device = device;
+    }
+  }, [measureControl, device]);
+
   useEffect(() => {
     if (measureControl && activeShape) {
       const shapeCoordinates = shapes.filter((s) => s.shapeId === activeShape);
@@ -988,9 +995,7 @@ export const useMeasurements = () => {
       }
 
       if (isMeasurementEnabled && visibleShapes.length === 0) {
-        const visibleShapesIds = measureControl.getVisibleShapeIdsArr(
-          measureControl._map
-        );
+        measureControl.getVisibleShapeIdsArr(measureControl._map);
       }
     }
   }, [
