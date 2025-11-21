@@ -126,7 +126,7 @@ export const FilterButtons = ({ maplibreMap }) => {
     <div
       style={{
         fontSize: "13px",
-        marginTop: "10px",
+        marginTop: "1px",
         display: "flex",
         flexWrap: "wrap",
         justifyContent: "center",
@@ -149,18 +149,11 @@ export const FilterButtons = ({ maplibreMap }) => {
           cursor: "pointer",
           height: "32px",
           border: selectedFilters.alle
-            ? "3px solid #4378ccCC"
-            : "3px solid transparent",
+            ? "1.5px solid #4378ccCC"
+            : "1.5px solid transparent",
         }}
       >
-        <span
-          style={{
-            color: selectedFilters.alle ? "#4378ccCC" : "inherit",
-            textDecoration: selectedFilters.alle ? "underline" : "none",
-          }}
-        >
-          Alle
-        </span>
+        <span>Alle</span>
       </div>
       <div
         onClick={() => handleFilterClick("kostenfrei")}
@@ -175,8 +168,8 @@ export const FilterButtons = ({ maplibreMap }) => {
           cursor: "pointer",
           height: "32px",
           border: selectedFilters.kostenfrei
-            ? "3px solid #4378ccCC"
-            : "3px solid transparent",
+            ? "1.5px solid #4378ccCC"
+            : "1.5px solid transparent",
         }}
       >
         <img
@@ -188,15 +181,7 @@ export const FilterButtons = ({ maplibreMap }) => {
             filter: selectedFilters.kostenfrei ? "none" : "grayscale(100%)",
           }}
         />
-        <span
-          className="filter-button-text"
-          style={{
-            color: selectedFilters.kostenfrei ? "#4378ccCC" : "inherit",
-            textDecoration: selectedFilters.kostenfrei ? "underline" : "none",
-          }}
-        >
-          Kostenfrei
-        </span>
+        <span className="filter-button-text">Kostenfrei</span>
       </div>
       <div
         onClick={() => handleFilterClick("rollstuhlgerecht")}
@@ -211,8 +196,8 @@ export const FilterButtons = ({ maplibreMap }) => {
           cursor: "pointer",
           height: "32px",
           border: selectedFilters.rollstuhlgerecht
-            ? "3px solid #4378ccCC"
-            : "3px solid transparent",
+            ? "1.5px solid #4378ccCC"
+            : "1.5px solid transparent",
         }}
       >
         <img
@@ -226,17 +211,7 @@ export const FilterButtons = ({ maplibreMap }) => {
               : "grayscale(100%)",
           }}
         />
-        <span
-          className="filter-button-text"
-          style={{
-            color: selectedFilters.rollstuhlgerecht ? "#4378ccCC" : "inherit",
-            textDecoration: selectedFilters.rollstuhlgerecht
-              ? "underline"
-              : "none",
-          }}
-        >
-          Rollstuhlgerecht
-        </span>
+        <span className="filter-button-text">Rollstuhlgerecht</span>
       </div>
       <div
         onClick={() => handleFilterClick("wickeltisch")}
@@ -251,8 +226,8 @@ export const FilterButtons = ({ maplibreMap }) => {
           cursor: "pointer",
           height: "32px",
           border: selectedFilters.wickeltisch
-            ? "3px solid #4378ccCC"
-            : "3px solid transparent",
+            ? "1.5px solid #4378ccCC"
+            : "1.5px solid transparent",
         }}
       >
         <img
@@ -264,15 +239,7 @@ export const FilterButtons = ({ maplibreMap }) => {
             filter: selectedFilters.wickeltisch ? "none" : "grayscale(100%)",
           }}
         />
-        <span
-          className="filter-button-text"
-          style={{
-            color: selectedFilters.wickeltisch ? "#4378ccCC" : "inherit",
-            textDecoration: selectedFilters.wickeltisch ? "underline" : "none",
-          }}
-        >
-          Wickeltisch
-        </span>
+        <span className="filter-button-text">Wickeltisch</span>
       </div>
       <div
         onClick={() => handleFilterClick("dauergeoffnet")}
@@ -287,8 +254,8 @@ export const FilterButtons = ({ maplibreMap }) => {
           cursor: "pointer",
           height: "32px",
           border: selectedFilters.dauergeoffnet
-            ? "3px solid #4378ccCC"
-            : "3px solid transparent",
+            ? "1.5px solid #4378ccCC"
+            : "1.5px solid transparent",
         }}
       >
         <img
@@ -300,17 +267,7 @@ export const FilterButtons = ({ maplibreMap }) => {
             filter: selectedFilters.dauergeoffnet ? "none" : "grayscale(100%)",
           }}
         />
-        <span
-          className="filter-button-text"
-          style={{
-            color: selectedFilters.dauergeoffnet ? "#4378ccCC" : "inherit",
-            textDecoration: selectedFilters.dauergeoffnet
-              ? "underline"
-              : "none",
-          }}
-        >
-          geöffnet
-        </span>
+        <span className="filter-button-text">Geöffnet</span>
       </div>
     </div>
   );
