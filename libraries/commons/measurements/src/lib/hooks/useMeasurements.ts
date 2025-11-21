@@ -107,7 +107,11 @@ export const useMeasurements = () => {
   useEffect(() => {
     const leafletMap = realRoutedMapRef.current?.leafletMap?.leafletElement;
 
-    if (leafletMap && typeof leafletMap.on === "function") {
+    if (
+      isMeasurementEnabled &&
+      leafletMap &&
+      typeof leafletMap.on === "function"
+    ) {
       // Import L from leaflet
       let closestPoint: SnappingPoint | null = null;
       const closestPointRef = { current: null as SnappingPoint | null }; // Stable ref to preserve closestPoint
@@ -158,12 +162,6 @@ export const useMeasurements = () => {
 
         // Check zoom level - only work if zoom >= configured minimum
         const currentZoom = leafletMap.getZoom();
-        if (currentZoom < config.snappingMinZoom) {
-          // Zoom too low: centralized cleanup
-          clearBlackPoint();
-          return; // Exit early
-        }
-
         // Remove old circle if exists
         if (circleMarkerRef.current) {
           leafletMap.removeLayer(circleMarkerRef.current);
@@ -812,7 +810,13 @@ export const useMeasurements = () => {
         }
       };
     }
-  }, [realRoutedMapRef, config.snappingMinZoom, setSnappingLatlng]);
+  }, [
+    realRoutedMapRef,
+    config.snappingMinZoom,
+    setSnappingLatlng,
+    snappingLayers,
+    isMeasurementEnabled,
+  ]);
 
   const [measureControl, setMeasureControl] = useState<any>(null);
   const [visiblePolylines, setVisiblePolylines] = useState<(string | number)[]>(
