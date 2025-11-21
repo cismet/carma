@@ -12,11 +12,5 @@ export type {
   MeasurementMapStatus,
 } from "./lib/context/MapMeasurementsContext.d";
 
-export { MEASUREMENT_MODE } from "./lib/context/MapMeasurementsContext.d";
-
 // Component types
-export type {
-  MeasurementShapeDrawing,
-  MeasurementShape,
-  UIModeType,
-} from "./lib/components/types.d";
+export type { MeasurementShape } from "./lib/types/MeasurementShape";

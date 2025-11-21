@@ -6,3 +6,5 @@
 
 // Leaflet extensions (large type augmentation)
 export * from "./leaflet-extensions.d";
+export * from "./MeasurementShape";
+export * from "./SnappingPoint";

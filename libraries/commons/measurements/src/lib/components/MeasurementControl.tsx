@@ -4,13 +4,33 @@ import {
   Control,
   ControlButtonStyler,
 } from "@carma-mapping/map-controls-layout";
-import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { InfoBoxMeasurement } from "./InfoBoxMeasurement";
-import { MeasurementControlProps } from "./types.d";
 // import { MEASUREMENT_MODE } from "../context";
 import { useMapMeasurementsContext } from "../context";
 import measureActive from "../assets/measure-active.png";
 import measureInactive from "../assets/measure.png";
+
+interface MeasurementControlProps {
+  isActive?: boolean;
+  onToggle?: () => void;
+  position?: "topleft" | "topright" | "bottomleft" | "bottomright";
+  order?: number;
+  iconBaseUrl?: string;
+  icons?: {
+    active: string;
+    inactive: string;
+  };
+  altText?: string;
+  iconClassName?: string;
+
+  // Universal features
+  disabled?: boolean;
+  useDisabledStyle?: boolean;
+  tooltip?: string | React.ReactNode;
+  tooltipPlacement?: "top" | "bottom" | "left" | "right";
+  className?: string;
+  showInfoBox?: boolean;
+}
 
 export const MeasurementControl = forwardRef<
   HTMLButtonElement,

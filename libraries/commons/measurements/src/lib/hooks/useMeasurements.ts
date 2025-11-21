@@ -11,18 +11,24 @@ import "leaflet-measure-path/leaflet-measure-path.css";
 import "../styles/m-style.css";
 import useDeviceDetection from "../hooks/useDeviceDetection";
 import { useMapMeasurementsContext } from "../context";
-import { MeasurementShapeDrawing } from "../../index.d";
 import {
   adjustClickPosition,
   toLatLngFromClosestPoint,
   filterArrByIds,
   findLargestNumber,
 } from "../utils/helper";
-import { SnappingPoint } from "../snapping/types";
+import { SnappingPoint } from "./../types";
 import {
   extractPointsFromGeometry,
   extractPointsFromMeasurementShape,
 } from "../snapping/utils/coordinateExtraction";
+
+export interface MeasurementShapeDrawing {
+  shapeId: number | string;
+  number: number;
+  coordinates?: unknown;
+  [key: string]: unknown;
+}
 
 export const useMeasurements = () => {
   const { realRoutedMapRef } =

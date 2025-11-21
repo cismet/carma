@@ -9,10 +9,11 @@ import { Tooltip } from "antd";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { ResponsiveInfoBox } from "@carma-appframeworks/portals";
 import { useMapMeasurementsContext } from "../context";
-import {
-  InfoBoxMeasurementProps,
-  MeasurementShape,
-} from "../components/types.d";
+import { MeasurementShape } from "../types/MeasurementShape";
+
+type InfoBoxMeasurementProps = {
+  pixelWidth?: number;
+};
 
 export function InfoBoxMeasurement({
   pixelWidth = 350,
