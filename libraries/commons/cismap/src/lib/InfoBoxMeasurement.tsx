@@ -188,7 +188,6 @@ export function InfoBoxMeasurement({
   const deleteShapeHandler = (e: React.MouseEvent) => {
     e.stopPropagation();
 
-    // the method activate delete process in  MapMeasurementsObjects
     setDeleteAll(true);
     // cleanUpdateMeasurementStatus();
     // setLastMeasureActive();

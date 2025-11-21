@@ -172,65 +172,6 @@ export const MeasurePolygon = Control.extend({
       },
     });
 
-    // DIAGNOSTIC: Hook into Leaflet.Draw's internal completion to see what triggers it
-    const originalFinishShape = (this._measureHandler as any)._finishShape;
-    if (originalFinishShape) {
-      (this._measureHandler as any)._finishShape = function (e) {
-        const eventInfo = e
-          ? {
-              type: e.type,
-              originalType: e.originalEvent?.type,
-              pointerType: e.originalEvent?.pointerType,
-              target: e.target?.className,
-              timeStamp: e.timeStamp,
-            }
-          : "no event";
-
-        // CRITICAL: Block Leaflet.Draw's native touch finishing
-        // We handle this manually in vertex-click-handler.ts to ensure consistent behavior
-        if (
-          e &&
-          (e.type?.startsWith("touch") ||
-            e.originalEvent?.type?.startsWith("touch") ||
-            e.originalEvent?.pointerType === "touch")
-        ) {
-          console.warn(
-            "[measure-path] Blocking native _finishShape on touch event",
-            eventInfo
-          );
-          return;
-        }
-
-        return originalFinishShape.apply(this, arguments);
-      };
-    }
-
-    const originalCompleteShape = (this._measureHandler as any).completeShape;
-    if (originalCompleteShape) {
-      (this._measureHandler as any).completeShape = function () {
-        console.warn("[measure-path] 🔴 completeShape() called!", {
-          stack: new Error().stack,
-          vertexCount: this._markers?.length || 0,
-          timestamp: Date.now(),
-        });
-        return originalCompleteShape.apply(this, arguments);
-      };
-    }
-
-    const self = this;
-    const originalAddVertex = (this._measureHandler as any).addVertex;
-    if (originalAddVertex) {
-      (this._measureHandler as any).addVertex = function (latlng) {
-        console.log("[measure-path] addVertex() called", {
-          latlng,
-          currentVertexCount: this._markers?.length || 0,
-          timestamp: Date.now(),
-        });
-        (self as any)._lastVertexAdded = Date.now();
-        return originalAddVertex.apply(this, arguments);
-      };
-    }
-
     this.options.currenLine = this._measureHandler;
     this.options.cbSetCurrentDrawHandler(this._measureHandler);
 
@@ -250,39 +191,6 @@ export const MeasurePolygon = Control.extend({
     L.drawLocal.draw.handlers.polyline.tooltip.end = tooltipContent;
 
     this._measureHandler.enable();
-
-    // DIAGNOSTIC: Intercept Leaflet.Draw's built-in dblclick handler
-    const originalDblClick = (this._measureHandler as any)._onMouseDblClick;
-    if (originalDblClick) {
-      console.warn(
-        "[measure-path] Found Leaflet.Draw dblclick handler - intercepting"
-      );
-      (this._measureHandler as any)._onMouseDblClick = function (e) {
-        console.error("[measure-path] LEAFLET.DRAW DBLCLICK HANDLER FIRED", {
-          eventType: e?.type,
-          originalEvent: e?.originalEvent?.type,
-          pointerType: e?.originalEvent?.pointerType,
-          timeStamp: e?.timeStamp,
-          vertexCount: this._markers?.length || 0,
-          timestamp: Date.now(),
-          stack: new Error().stack,
-        });
-        return originalDblClick.apply(this, arguments);
-      };
-    } else {
-      console.log(
-        "[measure-path] No dblclick handler found on _measureHandler"
-      );
-    }
-
-    // DIAGNOSTIC: Log all active event listeners on the map
-    console.log("[measure-path] Active map event listeners:", {
-      hasClick: map.listens("click"),
-      hasDblClick: map.listens("dblclick"),
-      clickCount: map.listens("click", true),
-      dblclickCount: map.listens("dblclick", true),
-      timestamp: Date.now(),
-    });
 
     const latlng =
       this.options.snappingEnabled && this.options.snappingLatlng
@@ -477,23 +385,8 @@ export const MeasurePolygon = Control.extend({
     this._mapClickHandler = (event) => {
       const mode = this.options.measurementMode;
 
-      console.log("[measure-path] Map clicked", {
-        isDrawing: this.options.isDrawing,
-        mode,
-        clickAfterShapeSelection: this.options.clickAfterShapeSelection,
-        isFinishingShape: (this as any)._isFinishingShape,
-        eventType: event.originalEvent?.type,
-        targetClassName: (event.originalEvent?.target as HTMLElement)
-          ?.className,
-        latlng: event.latlng,
-        timestamp: Date.now(),
-      });
-
       // Don't start new measurement if we're finishing one
       if ((this as any)._isFinishingShape) {
-        console.log(
-          "[measure-path] Ignoring map click - currently finishing shape"
-        );
         // Clear flag immediately so next click works
         (this as any)._isFinishingShape = false;
         return;
@@ -513,13 +406,6 @@ export const MeasurePolygon = Control.extend({
     };
 
     this._drawCreatedHandler = (event) => {
-      console.warn("[measure-path] ========== draw:created FIRED ==========", {
-        stack: new Error().stack,
-        layerType: event.layerType,
-        vertexCount: event.layer.getLatLngs?.()?.length || 0,
-        timestamp: Date.now(),
-      });
-
       this.options.isDrawing = false;
       this.options.isDrawingEmpty = true;
 

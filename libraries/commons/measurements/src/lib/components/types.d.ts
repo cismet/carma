@@ -12,12 +12,6 @@ export interface MeasurementShapeDrawing {
 
 export type UIModeType = string | "measurement" | "default";
 
-export interface MapMeasurementProps {
-  mode?: UIModeType;
-  polygonActiveIcon?: string;
-  polygonIcon?: string;
-}
-
 export interface MeasurementShape {
   shapeId: number | string;
   distance?: number;

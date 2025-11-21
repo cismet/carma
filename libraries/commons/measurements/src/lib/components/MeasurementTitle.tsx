@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { MeasurementTitleProps } from "../..";
+import { MeasurementTitleProps } from "./types.d";
 
 const MeasurementTitle = ({
   title,

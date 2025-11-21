@@ -17,10 +17,6 @@ export { MEASUREMENT_MODE } from "./lib/context/MapMeasurementsContext.d";
 // Component types
 export type {
   MeasurementShapeDrawing,
-  UIModeType,
-  MapMeasurementProps,
   MeasurementShape,
-  InfoBoxMeasurementProps,
-  MeasurementTitleProps,
-  MeasurementControlProps,
+  UIModeType,
 } from "./lib/components/types.d";

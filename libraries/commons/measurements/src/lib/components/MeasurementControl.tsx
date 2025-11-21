@@ -6,7 +6,8 @@ import {
 } from "@carma-mapping/map-controls-layout";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { InfoBoxMeasurement } from "./InfoBoxMeasurement";
-import { MeasurementControlProps, MEASUREMENT_MODE } from "../../index.d";
+import { MeasurementControlProps } from "./types.d";
+import { MEASUREMENT_MODE } from "../context";
 import { useMapMeasurementsContext } from "../context";
 import measureActive from "../assets/measure-active.png";
 import measureInactive from "../assets/measure.png";

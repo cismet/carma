@@ -6,7 +6,7 @@ export {
   useMapMeasurementsContext,
   defaultConfig,
 } from "./lib/context";
-export { Measurements, MapMeasurementsObjects } from "./lib/lib-measurements";
+export { Measurements } from "./lib/Measurements";
 export { MeasurementsSnapping } from "./lib/components/MeasurementsSnapping";
 export { MeasurementStatusDebug } from "./lib/components/MeasurementStatusDebug";
 export { useMapLibreMap } from "./lib/hooks/useMapLibreMap";

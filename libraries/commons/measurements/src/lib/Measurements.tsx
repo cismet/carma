@@ -11,18 +11,23 @@ import "leaflet-measure-path/leaflet-measure-path.css";
 import "./styles/m-style.css";
 import useDeviceDetection from "./hooks/useDeviceDetection";
 import { useMapMeasurementsContext } from "./context";
-import { MapMeasurementProps, MeasurementShapeDrawing } from "..";
+import { UIModeType, MeasurementShapeDrawing } from "..";
 import { MeasurementsSnapping } from "./components/MeasurementsSnapping";
 import { MeasurementStatusDebug } from "./components/MeasurementStatusDebug";
 
-const MeasurementsInner = memo(function Measurements({
+interface MapMeasurementProps {
+  mode?: UIModeType;
+  polygonActiveIcon?: string;
+  polygonIcon?: string;
+  snappingLayers?: any[]; // MapLibre layers for snapping
+}
+
+export const Measurements = ({
   mode: propMode,
   polygonActiveIcon,
   polygonIcon,
   snappingLayers,
-}: Partial<MapMeasurementProps> & {
-  snappingLayers?: any[]; // MapLibre layers for snapping
-}) {
+}: MapMeasurementProps) => {
   const { realRoutedMapRef } =
     useContext<typeof TopicMapContext>(TopicMapContext);
   const {
@@ -55,6 +60,7 @@ const MeasurementsInner = memo(function Measurements({
     setCurrentDrawHandler,
     // snappingLatlng - DON'T consume here, causes re-render on every mousemove
     snappingLatlngRef,
+    subscribeToSnappingLatlng,
     config,
     setStatus,
 
@@ -249,21 +255,54 @@ const MeasurementsInner = memo(function Measurements({
         );
       }
     }
-  }, [activeShape, measureControl, showAll, deleteAll, ifDrawing, moveToShape, currentMode, realRoutedMapRef]);
+  }, [
+    activeShape,
+    measureControl,
+    showAll,
+    deleteAll,
+    ifDrawing,
+    moveToShape,
+    currentMode,
+    realRoutedMapRef,
+  ]);
 
   // keep snappingLatlng and snappingEnabled in sync with control options
   useEffect(() => {
     if (measureControl) {
       try {
-        // Update both snappingEnabled and snappingLatlng
+        console.debug("[Measurements] Syncing snapping options:", {
+          enabled: config.snappingEnabled,
+          hasControl: !!measureControl,
+          snappingLatlng: snappingLatlngRef?.current,
+        });
+
+        // Update snappingEnabled immediately
         measureControl.options.snappingEnabled = config.snappingEnabled;
-        // Force null when snapping is disabled, otherwise use the actual value
+
+        // Initial sync of snappingLatlng
         measureControl.options.snappingLatlng = config.snappingEnabled
           ? snappingLatlngRef?.current
           : null;
-      } catch (_) {}
+
+        // Subscribe to updates to keep control in sync without re-renders
+        if (subscribeToSnappingLatlng) {
+          const unsubscribe = subscribeToSnappingLatlng((latlng) => {
+            if (measureControl && config.snappingEnabled) {
+              measureControl.options.snappingLatlng = latlng;
+            }
+          });
+          return unsubscribe;
+        }
+      } catch (e) {
+        console.error("[Measurements] Error syncing snapping options:", e);
+      }
     }
-  }, [measureControl, config.snappingEnabled, snappingLatlngRef]);
+  }, [
+    measureControl,
+    config.snappingEnabled,
+    snappingLatlngRef,
+    subscribeToSnappingLatlng,
+  ]);
 
   useEffect(() => {
     if (measureControl) {
@@ -358,22 +397,13 @@ const MeasurementsInner = memo(function Measurements({
 
   return (
     <>
-      <div></div>
       <MeasurementStatusDebug />
       {currentMode === "measurement" && (
         <MeasurementsSnapping maplibreMaps={snappingLayers || []} />
       )}
     </>
   );
-});
-
-export function Measurements(
-  props: Partial<MapMeasurementProps> & {
-    snappingLayers?: any[];
-  }
-) {
-  return <MeasurementsInner {...props} />;
-}
+};
 
 function filterArrByIds(
   arrIds: (string | number)[],
@@ -399,16 +429,4 @@ function findLargestNumber(measurements: MeasurementShapeDrawing[]): number {
   });
 
   return largestNumber;
-}
-
-/**
- * @deprecated Use `Measurements` instead. This component will be removed in a future version.
- */
-export function MapMeasurementsObjects(
-  props: Partial<MapMeasurementProps> & {
-    snappingEnabled?: boolean;
-    snappingLayer?: any;
-  }
-) {
-  return <Measurements {...props} />;
 }
