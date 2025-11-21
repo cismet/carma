@@ -505,6 +505,9 @@ export const MeasurePolygon = Control.extend({
         timestamp: Date.now(),
       });
 
+      // Reset finishing flag since the shape is successfully created
+      (this as any)._isFinishingShape = false;
+
       this.options.isDrawing = false;
       this.options.isDrawingEmpty = true;
 
