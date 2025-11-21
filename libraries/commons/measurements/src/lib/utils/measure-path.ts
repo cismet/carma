@@ -145,6 +145,24 @@ export const MeasurePolygon = Control.extend({
       },
     });
 
+    const self = this;
+
+    // Override _updateGuide to snap the preview line
+    const originalUpdateGuide = (this._measureHandler as any)._updateGuide;
+    if (originalUpdateGuide) {
+      (this._measureHandler as any)._updateGuide = function (point: any) {
+        if (self.options.snappingLatlng) {
+          // If we have a snapping point, use it for the guide line
+          // We need to convert the latlng to a layer point, as that's what _updateGuide expects
+          const snappedPoint = map.latLngToLayerPoint(
+            self.options.snappingLatlng
+          );
+          return originalUpdateGuide.call(this, snappedPoint);
+        }
+        return originalUpdateGuide.call(this, point);
+      };
+    }
+
     // DIAGNOSTIC: Hook into Leaflet.Draw's internal completion to see what triggers it
     const originalFinishShape = (this._measureHandler as any)._finishShape;
     if (originalFinishShape) {
@@ -190,7 +208,6 @@ export const MeasurePolygon = Control.extend({
       };
     }
 
-    const self = this;
     const originalAddVertex = (this._measureHandler as any).addVertex;
     if (originalAddVertex) {
       (this._measureHandler as any).addVertex = function (latlng) {
@@ -816,7 +833,12 @@ export const MeasurePolygon = Control.extend({
         }
 
         if (this.options.customTooltip && mode === "measurement") {
-          const pos = this._map.latLngToLayerPoint(event.latlng);
+          const latlng =
+            this.options.snappingEnabled && this.options.snappingLatlng
+              ? this.options.snappingLatlng
+              : event.latlng;
+
+          const pos = this._map.latLngToLayerPoint(latlng);
           // const offsetX = 20;
           const offsetX = 0;
           // DomUtil.setPosition(this.options.customTooltip, pos);
