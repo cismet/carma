@@ -39,6 +39,11 @@ export default defineConfig(({ mode }) => {
       'global': {},
     },
 
+    esbuild: {
+      // Drop console logs in production
+      pure: mode === 'production' ? ['console.log', 'console.debug', 'console.info'] : [],
+    },
+
   server: {
     port: 4200,
     host: "localhost",
