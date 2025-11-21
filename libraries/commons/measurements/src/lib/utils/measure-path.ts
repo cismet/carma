@@ -514,6 +514,13 @@ export const MeasurePolygon = Control.extend({
       this.options.cbSetDrawingStatus(false);
       this.options.cbSetDrawingShape(null);
 
+      // Re-enable edit on existing shapes
+      this._measureLayers.eachLayer((layer: any) => {
+        if (layer.enableEdit) {
+          layer.enableEdit();
+        }
+      });
+
       const layer = event.layer;
       // layer.on("dblclick", this._onPolygonClick.bind(this, map));
 
@@ -558,6 +565,13 @@ export const MeasurePolygon = Control.extend({
           timestamp: Date.now(),
         }
       );
+
+      // Disable edit on existing shapes to remove grab cursors and prevent interaction conflicts
+      this._measureLayers.eachLayer((layer: any) => {
+        if (layer.disableEdit) {
+          layer.disableEdit();
+        }
+      });
 
       const mouseActive = Browser.touch && matchMedia("(hover:hover)").matches;
       if (
@@ -753,6 +767,13 @@ export const MeasurePolygon = Control.extend({
       this.options.cbSetDrawingStatus(false);
 
       this._measureHandler.disable();
+
+      // Re-enable edit on existing shapes
+      this._measureLayers.eachLayer((layer: any) => {
+        if (layer.enableEdit) {
+          layer.enableEdit();
+        }
+      });
 
       this._toggleMeasure(
         "img_plg_lines",
