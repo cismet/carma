@@ -455,7 +455,9 @@ export const useMeasurements = () => {
           if (
             finalLatLng &&
             isSnapped &&
-            (statusRef.current === "WAITING" || statusRef.current === "DRAWING")
+            (statusRef.current === "WAITING" ||
+              statusRef.current === "DRAWING" ||
+              statusRef.current === "INACTIVE")
           ) {
             snappingIndicatorRef.current = L.circleMarker(
               [finalLatLng.lat, finalLatLng.lng],

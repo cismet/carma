@@ -302,7 +302,21 @@ export const MeasurePolygon = Control.extend({
     const shapeId = layer._leaflet_id;
     layer.customID = shapeId;
     console.log("[measure-path] layer click handler added", shapeId);
-    layer.on("click", () => {
+    layer.on("click", (e) => {
+      // If we are snapped and in measurement mode (and not currently drawing),
+      // we want to start a new measurement snapped to this point, NOT select the shape.
+      // Leaflet event propagation will handle the map click to start drawing.
+      if (
+        this.options.snappingLatlng &&
+        this.options.measurementMode === "measurement" &&
+        !this.options.isDrawing
+      ) {
+        console.debug(
+          "[measure-path] Click on shape ignored (snapping active) - letting map click handle it"
+        );
+        return;
+      }
+
       this.options.cbSetActiveShape(layer.customID);
       this.options.cbSetUpdateStatusHandler(false);
     });
