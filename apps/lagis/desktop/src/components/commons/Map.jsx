@@ -67,8 +67,7 @@ import {
   MeasurementControl,
   InfoBoxMeasurement,
   useMapMeasurementsContext,
-  MEASUREMENT_MODE,
-  Measurements,
+  useMeasurements,
 } from "@carma-commons/measurements";
 
 const { ScaleControl } = TransitiveReactLeaflet;
@@ -359,8 +358,17 @@ const Map = ({
 
   const { gazData } = useGazData();
   const { setSelection } = useSelection();
-  const { mode: measurementMode, setMode: setMeasurementMode } =
-    useMapMeasurementsContext();
+  const {
+    isMeasurementEnabled,
+    setMode: setMeasurementMode,
+    setSnappingLayers,
+  } = useMapMeasurementsContext();
+
+  useMeasurements();
+
+  useEffect(() => {
+    setSnappingLayers(alkisMap ? [alkisMap] : []);
+  }, [alkisMap, setSnappingLayers]);
 
   const onGazetteerSelection = (selection) => {
     if (!selection) {
@@ -491,7 +499,7 @@ const Map = ({
       headStyle={{ backgroundColor: "white" }}
       type="inner"
       className={`overflow-hidden shadow-md ${
-        measurementMode === MEASUREMENT_MODE.MEASUREMENT ? "lagis-map-card" : ""
+        isMeasurementEnabled ? "lagis-map-card" : ""
       }`}
       ref={cardRef}
     >
@@ -515,12 +523,12 @@ const Map = ({
             <MeasurementControl
               showInfoBox={false}
               tooltip={
-                measurementMode === MEASUREMENT_MODE.MEASUREMENT
+                isMeasurementEnabled
                   ? "Messungsmodus ausschalten"
                   : "Messungsmodus einschalten"
               }
             />
-            {measurementMode === MEASUREMENT_MODE.MEASUREMENT && (
+            {isMeasurementEnabled && (
               <InfoBoxMeasurement pixelWidth={pixelWidth} />
             )}
             <Control position="bottomleft" order={10}>
@@ -566,7 +574,7 @@ const Map = ({
           }}
           ondblclick={(event) => {
             // Don't switch landparcel when in measurement mode
-            if (measurementMode === MEASUREMENT_MODE.MEASUREMENT) {
+            if (isMeasurementEnabled) {
               return;
             }
             //if data contains a ondblclick handler, call it
@@ -686,7 +694,6 @@ const Map = ({
             jwt={jwt}
             mode={mode}
           />
-          <Measurements snappingLayers={alkisMap ? [alkisMap] : []} />
         </RoutedMap>
 
         {/* <div className="custom-left-control">
