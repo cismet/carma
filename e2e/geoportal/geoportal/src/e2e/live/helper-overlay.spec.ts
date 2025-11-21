@@ -10,10 +10,10 @@ test.describe("Geoportal overlay", () => {
   test("Overlay helper is visible and opens all secondary popups", async ({
     page,
   }) => {
-    const helperBtn = page.locator("[data-test-id=helper-overlay-btn]");
-    const overlayBg = page.locator("[data-test-id=overlay-helper-bg]");
-    const primaryItems = page.locator("[data-test-id=primary-with-secondary]");
-    const popover = page.locator(".ant-popover-content:visible");
+    const helperBtn = page.getByTestId("helper-overlay-btn");
+    const overlayBg = page.getByTestId("overlay-helper-bg");
+    const primaryItems = page.getByTestId("primary-with-secondary");
+    const popover = page.getByTestId("secondary-content");
 
     // Button visible
     await expect(helperBtn).toBeVisible();
@@ -33,11 +33,21 @@ test.describe("Geoportal overlay", () => {
       const el = primaryItems.nth(i);
 
       // Open
-      await el.click({ force: true });
-      // await expect(popover).toBeVisible();
-      console.log("xxx popover", popover);
+      await el.click();
+      await expect(popover).toBeVisible();
+
+      const firstPopoverWithText = page
+        .getByTestId("secondary-content")
+        .filter({ hasText: /.+/ })
+        .first();
+
+      console.log("xxx firstPopoverWithText", firstPopoverWithText);
+      // Verify it exists and is visible
+      await expect(firstPopoverWithText).toBeVisible();
+      await firstPopoverWithText.click();
+      // await expect(popover).toHaveCount(1);
       // await el.click({ force: true });
-      await expect(popover).toHaveCount(1);
+      await expect(popover).not.toBeVisible();
     }
 
     // First, try clicking the overlay background directly
