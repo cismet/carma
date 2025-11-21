@@ -41,7 +41,10 @@ import { getCollabedHelpComponentConfig as getCollabedHelpElementsConfig } from 
 
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import type { FeatureInfo } from "@carma/types";
-import { Measurements } from "@carma-commons/measurements";
+import {
+  useMeasurements,
+  useMapMeasurementsContext,
+} from "@carma-commons/measurements";
 
 import {
   useOverlayHelper,
@@ -157,9 +160,13 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const markerAsset = models[CESIUM_CONFIG.markerKey]; //
   const markerAnchorHeight = CESIUM_CONFIG.markerAnchorHeight ?? 10;
   const layers = useSelector(getLayers);
-  const maplibreMaps = layers
-    .filter((l) => l.layerType === "vector" && l.visible)
-    .map((l) => maplibreMapsRef.current.get(l.id));
+  const maplibreMaps = useMemo(
+    () =>
+      layers
+        .filter((l) => l.layerType === "vector" && l.visible)
+        .map((l) => maplibreMapsRef.current.get(l.id)),
+    [layers]
+  );
   const uiMode = useSelector(getUIMode);
   const isModeMeasurement = uiMode === UIMode.MEASUREMENT;
   const isModeFeatureInfo = uiMode === UIMode.FEATURE_INFO;
@@ -456,6 +463,8 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [backgroundLayer]);
 
+  useMeasurements();
+
   useEffect(() => {
     const leaflet = getLeafletMap();
     if (uiMode !== UIMode.FEATURE_INFO && marker !== undefined && leaflet) {
@@ -609,6 +618,12 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   rerenderCountRef.current++;
   lastRenderIntervalRef.current = Date.now() - lastRenderTimeStampRef.current;
   lastRenderTimeStampRef.current = Date.now();
+
+  const { setSnappingLayers } = useMapMeasurementsContext();
+
+  useEffect(() => {
+    setSnappingLayers(maplibreMaps);
+  }, [maplibreMaps, setSnappingLayers]);
 
   return (
     <>
@@ -806,7 +821,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
 
           {useCreateCismapLayers(layers, createLayerOptions)}
           <PrintPreview />
-          <Measurements snappingLayers={maplibreMaps} />
         </TopicMapComponent>
       </div>
       {allow3d && cesiumCanInitializeRef.current && (

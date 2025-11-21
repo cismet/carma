@@ -7,7 +7,7 @@ import {
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { InfoBoxMeasurement } from "./InfoBoxMeasurement";
 import { MeasurementControlProps } from "./types.d";
-import { MEASUREMENT_MODE } from "../context";
+// import { MEASUREMENT_MODE } from "../context";
 import { useMapMeasurementsContext } from "../context";
 import measureActive from "../assets/measure-active.png";
 import measureInactive from "../assets/measure.png";
@@ -40,13 +40,12 @@ export const MeasurementControl = forwardRef<
     },
     ref
   ) => {
-    const { mode, toggleMeasurementMode } = useMapMeasurementsContext();
+    const { isMeasurementEnabled, toggleMeasurementMode } =
+      useMapMeasurementsContext();
 
     // Use context values if props are not provided
     const isActive =
-      propIsActive !== undefined
-        ? propIsActive
-        : mode === MEASUREMENT_MODE.MEASUREMENT;
+      propIsActive !== undefined ? propIsActive : isMeasurementEnabled;
     const onToggle = propOnToggle || toggleMeasurementMode;
 
     const getUrlPrefix = () => {

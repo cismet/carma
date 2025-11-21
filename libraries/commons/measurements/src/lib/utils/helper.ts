@@ -107,3 +107,29 @@ export const toLatLngFromClosestPoint = (closestPoint: any) => {
   const [lng, lat] = closestPoint.geometry.coordinates;
   return latLng(lat, lng);
 };
+
+export function filterArrByIds(
+  arrIds: (string | number)[],
+  fullArray: any[]
+): any[] {
+  const finalResult: any[] = [];
+  fullArray.forEach((currentItem) => {
+    if (arrIds.includes(currentItem.shapeId)) {
+      finalResult.push(currentItem);
+    }
+  });
+
+  return finalResult;
+}
+
+export function findLargestNumber(measurements: any[]): number {
+  let largestNumber = 0;
+
+  measurements.forEach((item) => {
+    if (item.number > largestNumber) {
+      largestNumber = item.number;
+    }
+  });
+
+  return largestNumber;
+}

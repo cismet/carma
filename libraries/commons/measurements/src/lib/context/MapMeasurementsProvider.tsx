@@ -1,13 +1,14 @@
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import type {
   ActiveShape,
   MeasurementConfig,
   MeasurementMapStatus,
   PartialMeasurementConfig,
 } from "./MapMeasurementsContext.d";
-import { MEASUREMENT_MODE } from "./MapMeasurementsContext.d";
+// import { MEASUREMENT_MODE } from "./MapMeasurementsContext.d";
 import { MapMeasurementsContext } from "./MapMeasurementsContext";
 import { setFromLocalforage, saveToLocalforage } from "../utils/helper";
+import { normalizeOptions } from "@carma-commons/utils";
 
 // Detect mobile devices
 const isMobileDevice = () => {
@@ -37,36 +38,46 @@ export const defaultConfig: MeasurementConfig = {
 
 export const MapMeasurementsProvider = ({
   children,
-  externalMode,
-  setModeExternal,
   config = {},
+  snappingEnabled,
 }: {
   children: React.ReactNode;
-  externalMode?: MEASUREMENT_MODE;
-  setModeExternal?: (mode: MEASUREMENT_MODE) => void;
   config?: PartialMeasurementConfig;
+  snappingEnabled?: boolean;
 }) => {
-  // Internal mode state as fallback when external props not provided
-  const [internalMode, setInternalMode] = useState<MEASUREMENT_MODE>(
-    MEASUREMENT_MODE.DEFAULT
+  const [isMeasurementEnabled, setMeasurementEnabled] =
+    useState<boolean>(false);
+
+  const mergedConfig: MeasurementConfig = useMemo(() => {
+    const opts = normalizeOptions(config, defaultConfig);
+    if (snappingEnabled !== undefined) {
+      opts.snappingEnabled = snappingEnabled;
+    }
+    if (isMobileDevice()) {
+      opts.snappingEnabled = false;
+    }
+    return opts;
+  }, [config, snappingEnabled]);
+
+  const [isSnapping, setIsSnapping] = useState<boolean>(
+    mergedConfig.snappingEnabled
   );
 
-  // Use external mode/setMode if provided, otherwise use internal state
-  const mode = externalMode ?? internalMode;
-  const setMode = setModeExternal ?? setInternalMode;
+  useEffect(() => {
+    setIsSnapping(mergedConfig.snappingEnabled);
+  }, [mergedConfig.snappingEnabled]);
 
-  // Merge provided config with defaults
-  // Force disable snapping on mobile devices regardless of config
-  const mergedConfig: MeasurementConfig = {
-    ...defaultConfig,
-    ...config,
-    snappingEnabled: isMobileDevice()
-      ? false
-      : config.snappingEnabled ?? defaultConfig.snappingEnabled,
-  };
+  useEffect(() => {
+    console.debug("[MapMeasurementsProvider] Config initialized:", {
+      isMobile: isMobileDevice(),
+      snappingEnabled: mergedConfig.snappingEnabled,
+      providedConfig: config,
+    });
+  }, []);
   const [activeShape, setActiveShape] = useState<ActiveShape>(null);
   const [shapes, setShapes] = useState<any[]>([]);
   const [visibleShapes, setVisibleShapes] = useState<any[]>([]);
+  const [snappingLayers, setSnappingLayers] = useState<any[]>([]);
 
   // snappingLatlng should NOT trigger re-renders - use ref + callback pattern
   const snappingLatlngRef = useRef<any>(null);
@@ -134,18 +145,18 @@ export const MapMeasurementsProvider = ({
 
   // Update status when mode changes
   useEffect(() => {
-    if (mode === MEASUREMENT_MODE.MEASUREMENT) {
+    if (isMeasurementEnabled) {
       setStatus("WAITING");
     } else {
       setStatus("INACTIVE");
     }
-  }, [mode]);
+  }, [isMeasurementEnabled]);
 
   // Update status when drawing starts/ends
   useEffect(() => {
     if (drawingShape) {
       setStatus("DRAWING");
-    } else if (mode === MEASUREMENT_MODE.MEASUREMENT) {
+    } else if (isMeasurementEnabled) {
       // Only set to WAITING if not already in EDITING or MOVING state
       setStatus((currentStatus) => {
         if (currentStatus === "EDITING" || currentStatus === "MOVING") {
@@ -154,7 +165,7 @@ export const MapMeasurementsProvider = ({
         return "WAITING";
       });
     }
-  }, [drawingShape, mode]);
+  }, [drawingShape, isMeasurementEnabled]);
 
   useEffect(() => {
     setFromLocalforage(mergedConfig.localStorageKey, setShapes, []);
@@ -172,46 +183,49 @@ export const MapMeasurementsProvider = ({
   //   console.log("xxx activeShape", activeShape);
   // }, [activeShape]);
 
-  const addShape = (layer: any) => {
+  const addShape = useCallback((layer: any) => {
     setShapes((prevShapes) => [...prevShapes, layer]);
-  };
+  }, []);
 
-  const deleteShapeById = (shapeId: string) => {
+  const deleteShapeById = useCallback((shapeId: string) => {
     setShapes((currentShapes) =>
       currentShapes.filter((shape) => shape.shapeId !== shapeId)
     );
-  };
+  }, []);
 
-  const deleteVisibleShapeById = (shapeId: string) => {
+  const deleteVisibleShapeById = useCallback((shapeId: string) => {
     setVisibleShapes((currentVisibleShapes) =>
       currentVisibleShapes.filter((shape) => shape.shapeId !== shapeId)
     );
-  };
+  }, []);
 
-  const updateShapeById = (
-    shapeId: string,
-    newCoordinates?: any,
-    newDistance?: number,
-    newSquare?: number | null
-  ) => {
-    setUpdateShape(true);
-    setShapes((prevShapes) => {
-      return prevShapes.map((s) => {
-        if (s.shapeId === shapeId) {
-          return {
-            ...s,
-            coordinates: newCoordinates,
-            distance: newDistance,
-            area: newSquare,
-          };
-        } else {
-          return s;
-        }
+  const updateShapeById = useCallback(
+    (
+      shapeId: string,
+      newCoordinates?: any,
+      newDistance?: number,
+      newSquare?: number | null
+    ) => {
+      setUpdateShape(true);
+      setShapes((prevShapes) => {
+        return prevShapes.map((s) => {
+          if (s.shapeId === shapeId) {
+            return {
+              ...s,
+              coordinates: newCoordinates,
+              distance: newDistance,
+              area: newSquare,
+            };
+          } else {
+            return s;
+          }
+        });
       });
-    });
-  };
+    },
+    []
+  );
 
-  const setLastVisibleShapeActive = () => {
+  const setLastVisibleShapeActive = useCallback(() => {
     setShapes((currentShapes) => {
       const lastShapeId = currentShapes[currentShapes.length - 1]?.shapeId;
       if (lastShapeId) {
@@ -219,9 +233,9 @@ export const MapMeasurementsProvider = ({
       }
       return currentShapes;
     });
-  };
+  }, []);
 
-  const setDrawingWithLastActiveShape = () => {
+  const setDrawingWithLastActiveShape = useCallback(() => {
     setActiveShape((currentActiveShape) => {
       if (currentActiveShape) {
         setLastActiveShapeBeforeDrawing(currentActiveShape);
@@ -229,9 +243,9 @@ export const MapMeasurementsProvider = ({
       }
       return currentActiveShape;
     });
-  };
+  }, []);
 
-  const setActiveShapeIfDrawCancelled = () => {
+  const setActiveShapeIfDrawCancelled = useCallback(() => {
     setLastActiveShapeBeforeDrawing((lastActiveShape) => {
       setVisibleShapes((visible) => {
         if (lastActiveShape && visible[0]?.shapeId !== 55555) {
@@ -244,20 +258,20 @@ export const MapMeasurementsProvider = ({
       });
       return lastActiveShape;
     });
-  };
+  }, []);
 
-  const toggleMeasurementMode = () => {
-    if (mode === MEASUREMENT_MODE.DEFAULT) {
-      setMode(MEASUREMENT_MODE.MEASUREMENT);
+  const toggleMeasurementMode = useCallback(() => {
+    if (!isMeasurementEnabled) {
+      setMeasurementEnabled(true);
     } else {
-      setMode(MEASUREMENT_MODE.DEFAULT);
+      setMeasurementEnabled(false);
       setDrawingShape(false);
       setLastVisibleShapeActive();
     }
-  };
+  }, [isMeasurementEnabled, setLastVisibleShapeActive]);
 
   // NOTE: newArea is pre-formatted string like "123.45 m²" or "1.23 km²" from calculateArea()
-  const updateAreaOfDrawing = (newArea: string) => {
+  const updateAreaOfDrawing = useCallback((newArea: string) => {
     setVisibleShapes((visibleShapes) => {
       const shape = visibleShapes.map((s) => {
         if (s.shapeId === 5555) {
@@ -270,107 +284,150 @@ export const MapMeasurementsProvider = ({
       });
       return shape;
     });
-  };
+  }, []);
 
-  const updateTitle = (shapeId: string | number, customTitle: string) => {
-    setVisibleShapes((currentVisibleShapes) => {
-      const shapeFromVisible = currentVisibleShapes.find(
-        (s) => s.shapeId === shapeId
-      );
+  const updateTitle = useCallback(
+    (shapeId: string | number, customTitle: string) => {
+      setVisibleShapes((currentVisibleShapes) => {
+        const shapeFromVisible = currentVisibleShapes.find(
+          (s) => s.shapeId === shapeId
+        );
 
-      if (!shapeFromVisible) return currentVisibleShapes;
-      return currentVisibleShapes.map((shape) => {
-        if (shape.shapeId === shapeId) {
-          return {
-            ...shapeFromVisible,
-            customTitle,
-          };
-        }
-        return shape;
+        if (!shapeFromVisible) return currentVisibleShapes;
+        return currentVisibleShapes.map((shape) => {
+          if (shape.shapeId === shapeId) {
+            return {
+              ...shapeFromVisible,
+              customTitle,
+            };
+          }
+          return shape;
+        });
       });
-    });
 
-    // Update all shapes - find the shape first to preserve all properties
-    setShapes((currentShapes) => {
-      const shapeFromAllShapes = currentShapes.find(
-        (s) => s.shapeId === shapeId
-      );
-      if (!shapeFromAllShapes) return currentShapes;
+      // Update all shapes - find the shape first to preserve all properties
+      setShapes((currentShapes) => {
+        const shapeFromAllShapes = currentShapes.find(
+          (s) => s.shapeId === shapeId
+        );
+        if (!shapeFromAllShapes) return currentShapes;
 
-      return currentShapes.map((shape) => {
-        if (shape.shapeId === shapeId) {
-          return {
-            ...shapeFromAllShapes,
-            customTitle,
-          };
-        }
-        return shape;
+        return currentShapes.map((shape) => {
+          if (shape.shapeId === shapeId) {
+            return {
+              ...shapeFromAllShapes,
+              customTitle,
+            };
+          }
+          return shape;
+        });
       });
-    });
 
-    // Set update title status to trigger any necessary UI updates
-    setUpdateTitleStatus(true);
-  };
+      // Set update title status to trigger any necessary UI updates
+      setUpdateTitleStatus(true);
+    },
+    []
+  );
 
-  const completeCurrentShape = () => {
+  const completeCurrentShape = useCallback(() => {
     if (
       currentDrawHandler &&
       typeof currentDrawHandler.completeShape === "function"
     ) {
       currentDrawHandler.completeShape();
     }
-  };
+  }, [currentDrawHandler]);
+
+  const contextValue = useMemo(
+    () => ({
+      isMeasurementEnabled,
+      setMeasurementEnabled,
+      shapes,
+      setShapes,
+      addShape,
+      activeShape,
+      setActiveShape,
+      visibleShapes,
+      setVisibleShapes,
+      snappingLatlngRef,
+      setSnappingLatlng,
+      subscribeToSnappingLatlng,
+      showAll,
+      setShowAll,
+      deleteAll,
+      setDeleteAll,
+      drawingShape,
+      setDrawingShape: setDrawingShapeWithLog,
+      lastActiveShapeBeforeDrawing,
+      setLastActiveShapeBeforeDrawing,
+      moveToShape,
+      setMoveToShape,
+      updateShape,
+      setUpdateShape,
+      mapMovingEnd,
+      setMapMovingEnd,
+      updateTitleStatus,
+      setUpdateTitleStatus,
+      startDrawing,
+      setStartDrawing,
+      currentDrawHandler,
+      setCurrentDrawHandler,
+      status,
+      setStatus,
+      deleteShapeById,
+      deleteVisibleShapeById,
+      updateShapeById,
+      setLastVisibleShapeActive,
+      setDrawingWithLastActiveShape,
+      setActiveShapeIfDrawCancelled,
+      toggleMeasurementMode,
+      updateAreaOfDrawing,
+      updateTitle,
+      completeCurrentShape,
+      isSnapping,
+      setIsSnapping,
+      config: mergedConfig,
+      snappingLayers,
+      setSnappingLayers,
+    }),
+    [
+      isMeasurementEnabled,
+      shapes,
+      addShape,
+      activeShape,
+      visibleShapes,
+      setSnappingLatlng,
+      subscribeToSnappingLatlng,
+      showAll,
+      deleteAll,
+      drawingShape,
+      setDrawingShapeWithLog,
+      lastActiveShapeBeforeDrawing,
+      moveToShape,
+      updateShape,
+      mapMovingEnd,
+      updateTitleStatus,
+      startDrawing,
+      currentDrawHandler,
+      status,
+      deleteShapeById,
+      deleteVisibleShapeById,
+      updateShapeById,
+      setLastVisibleShapeActive,
+      setDrawingWithLastActiveShape,
+      setActiveShapeIfDrawCancelled,
+      toggleMeasurementMode,
+      updateAreaOfDrawing,
+      updateTitle,
+      completeCurrentShape,
+      isSnapping,
+      mergedConfig,
+      snappingLayers,
+    ]
+  );
 
   return (
-    <MapMeasurementsContext.Provider
-      value={{
-        mode,
-        setMode,
-        shapes,
-        setShapes,
-        addShape,
-        activeShape,
-        setActiveShape,
-        visibleShapes,
-        setVisibleShapes,
-        snappingLatlngRef,
-        setSnappingLatlng,
-        subscribeToSnappingLatlng,
-        showAll,
-        setShowAll,
-        deleteAll,
-        setDeleteAll,
-        drawingShape,
-        setDrawingShape: setDrawingShapeWithLog,
-        lastActiveShapeBeforeDrawing,
-        setLastActiveShapeBeforeDrawing,
-        moveToShape,
-        setMoveToShape,
-        updateShape,
-        setUpdateShape,
-        mapMovingEnd,
-        setMapMovingEnd,
-        updateTitleStatus,
-        setUpdateTitleStatus,
-        deleteShapeById,
-        deleteVisibleShapeById,
-        updateShapeById,
-        setLastVisibleShapeActive,
-        setDrawingWithLastActiveShape,
-        setActiveShapeIfDrawCancelled,
-        toggleMeasurementMode,
-        updateAreaOfDrawing,
-        updateTitle,
-        setStartDrawing,
-        startDrawing,
-        currentDrawHandler,
-        setCurrentDrawHandler,
-        completeCurrentShape,
-        config: mergedConfig,
-        status,
-        setStatus,
-      }}
-    >
+    <MapMeasurementsContext.Provider value={contextValue}>
       {children}
     </MapMeasurementsContext.Provider>
   );

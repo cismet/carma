@@ -1,31 +1,83 @@
-import { useEffect, useRef, useContext, useState } from "react";
+import React, { useState, useEffect, useContext, useRef } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
-import { adjustClickPosition, toLatLngFromClosestPoint } from "../utils/helper";
+import "leaflet/dist/leaflet.css";
+import "leaflet-draw/dist/leaflet.draw.css";
+import L from "leaflet";
+import "leaflet-draw";
+import "leaflet-editable";
+import "../utils/measure";
+import "../utils/measure-path";
+import "leaflet-measure-path/leaflet-measure-path.css";
+import "../styles/m-style.css";
+import useDeviceDetection from "../hooks/useDeviceDetection";
 import { useMapMeasurementsContext } from "../context";
+import { MeasurementShapeDrawing } from "../../index.d";
+import {
+  adjustClickPosition,
+  toLatLngFromClosestPoint,
+  filterArrByIds,
+  findLargestNumber,
+} from "../utils/helper";
 import { SnappingPoint } from "../snapping/types";
 import {
   extractPointsFromGeometry,
   extractPointsFromMeasurementShape,
 } from "../snapping/utils/coordinateExtraction";
 
-export function MeasurementsSnapping({
-  maplibreMaps,
-}: {
-  maplibreMaps: any[];
-}) {
-  const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
-  const { shapes, setSnappingLatlng, config, currentDrawHandler, status } =
-    useMapMeasurementsContext();
-  const [queryRadius, setQueryRadius] = useState(config.snappingQueryRadius);
-  const queryRadiusRef = useRef(queryRadius);
+export const useMeasurements = () => {
+  const { realRoutedMapRef } =
+    useContext<typeof TopicMapContext>(TopicMapContext);
+  const {
+    isMeasurementEnabled,
+    activeShape,
+    setActiveShape,
+    shapes,
+    setShapes,
+    addShape,
+    deleteAll,
+    setDeleteAll,
+    setUpdateShape,
+    visibleShapes,
+    setVisibleShapes,
+    drawingShape: ifDrawing,
+    setDrawingShape,
+    moveToShape,
+    setMoveToShape,
+    showAll,
+    setShowAll,
+    toggleMeasurementMode: toggleUIMode,
+    setMapMovingEnd,
+    deleteShapeById,
+    updateShapeById,
+    setLastVisibleShapeActive,
+    setDrawingWithLastActiveShape,
+    setActiveShapeIfDrawCancelled,
+    updateAreaOfDrawing,
+    deleteVisibleShapeById,
+    setCurrentDrawHandler,
+    // snappingLatlng - DON'T consume here, causes re-render on every mousemove
+    snappingLatlngRef,
+    subscribeToSnappingLatlng,
+    config,
+    setStatus,
+    status,
+    snappingLayers,
+    setSnappingLatlng,
+    currentDrawHandler,
+
+    // looks unuseful
+    setStartDrawing,
+  } = useMapMeasurementsContext();
+
+  // Snapping Logic Integration
+  const { snappingQueryRadius, snappingMinZoom } = config;
+
+  const queryRadiusRef = useRef(snappingQueryRadius);
   const circleMarkerRef = useRef<any>(null);
   const snappingIndicatorRef = useRef<any>(null); // Leaflet marker for snapping point
   const shapesRef = useRef(shapes);
 
-  // Use config directly
-  const snappingEnabled = config.snappingEnabled;
-  const snappingEnabledRef = useRef(snappingEnabled);
-  const maplibreMapsRef = useRef(maplibreMaps);
+  const snappingLayersRef = useRef(snappingLayers);
   const lastHoveredMarkerRef = useRef<any>(null);
   const isDraggingVertexRef = useRef(false);
   const currentDrawHandlerRef = useRef(currentDrawHandler);
@@ -37,91 +89,28 @@ export function MeasurementsSnapping({
   }, [shapes]);
 
   useEffect(() => {
-    queryRadiusRef.current = queryRadius;
-  }, [queryRadius]);
+    queryRadiusRef.current = snappingQueryRadius;
+  }, [snappingQueryRadius]);
 
   useEffect(() => {
     statusRef.current = status;
   }, [status]);
 
   useEffect(() => {
-    snappingEnabledRef.current = snappingEnabled;
-  }, [snappingEnabled]);
-
-  useEffect(() => {
-    maplibreMapsRef.current = maplibreMaps;
-  }, [maplibreMaps]);
+    snappingLayersRef.current = snappingLayers;
+  }, [snappingLayers]);
 
   useEffect(() => {
     currentDrawHandlerRef.current = currentDrawHandler;
   }, [currentDrawHandler]);
 
   useEffect(() => {
-    const leafletMap = routedMapRef?.leafletMap?.leafletElement;
-
-    // Clean up visual indicators and coordinates when snapping is disabled
-    if (!snappingEnabled) {
-      // Clear snapping coordinates immediately
-      if (setSnappingLatlng) {
-        setSnappingLatlng(null);
-      }
-
-      // Remove all Leaflet markers
-      if (leafletMap) {
-        try {
-          if (snappingIndicatorRef.current) {
-            leafletMap.removeLayer(snappingIndicatorRef.current);
-            snappingIndicatorRef.current = null;
-          }
-          if (circleMarkerRef.current) {
-            leafletMap.removeLayer(circleMarkerRef.current);
-            circleMarkerRef.current = null;
-          }
-        } catch (_) {
-          // no-op safeguard
-        }
-      }
-
-      // Clear cursor on all MapLibre maps
-      maplibreMaps.forEach((map) => {
-        if (map && map.getCanvas) {
-          map.getCanvas().style.cursor = "";
-        }
-      });
-
-      // Add handlers when snapping is disabled to prevent stale coordinates
-      if (leafletMap && typeof leafletMap.on === "function") {
-        const clearSnappingHandler = () => {
-          if (setSnappingLatlng) {
-            setSnappingLatlng(null);
-          }
-        };
-
-        leafletMap.on("mousemove", clearSnappingHandler);
-
-        // Add a mouseup handler that does NOT adjust click position
-        const mapContainer = leafletMap.getContainer();
-        const noAdjustHandler = (event: MouseEvent) => {
-          // Do nothing - just let the event pass through normally
-          // This prevents the old adjustClickPosition handler from being used
-        };
-
-        mapContainer.addEventListener("mouseup", noAdjustHandler, true);
-
-        return () => {
-          leafletMap.off("mousemove", clearSnappingHandler);
-          mapContainer.removeEventListener("mouseup", noAdjustHandler, true);
-        };
-      }
-
-      return;
-    }
+    const leafletMap = realRoutedMapRef.current?.leafletMap?.leafletElement;
 
     if (leafletMap && typeof leafletMap.on === "function") {
       // Import L from leaflet
-      const L = (window as any).L;
-      let closestPoint: any = null;
-      const closestPointRef = { current: null as any }; // Stable ref to preserve closestPoint
+      let closestPoint: SnappingPoint | null = null;
+      const closestPointRef = { current: null as SnappingPoint | null }; // Stable ref to preserve closestPoint
 
       // Centralized cleanup for markers and closestPoint
       const clearBlackPoint = () => {
@@ -135,7 +124,7 @@ export function MeasurementsSnapping({
             snappingIndicatorRef.current = null;
           }
           // Clear cursor on all MapLibre maps
-          maplibreMaps.forEach((map) => {
+          snappingLayers.forEach((map) => {
             if (map && map.getCanvas) {
               map.getCanvas().style.cursor = "";
             }
@@ -180,7 +169,7 @@ export function MeasurementsSnapping({
           leafletMap.removeLayer(circleMarkerRef.current);
         }
 
-        const currentMaplibreMaps = maplibreMapsRef.current;
+        const currentSnappingLayers = snappingLayersRef.current;
 
         // Get mouse position in lat/lng using Leaflet (always available)
         const mouseLatLng = leafletMap.mouseEventToLatLng(e.originalEvent);
@@ -212,7 +201,7 @@ export function MeasurementsSnapping({
         const coordinatePoints: SnappingPoint[] = [];
 
         // 1. Extract from vector features (loop through all MapLibre maps)
-        currentMaplibreMaps.forEach((currentMaplibreMap) => {
+        currentSnappingLayers.forEach((currentMaplibreMap) => {
           if (
             currentMaplibreMap &&
             currentMaplibreMap.getStyle &&
@@ -372,7 +361,7 @@ export function MeasurementsSnapping({
               Math.abs(finalLatLng.lng - firstVertex.lng) < threshold
             ) {
               // We're trying to snap to first vertex - check pixel distance from mouse
-              const map = routedMapRef.current?.leafletMap?.leafletElement;
+              const map = realRoutedMapRef.current?.leafletMap?.leafletElement;
               if (map && e.latlng) {
                 const mousePoint = map.latLngToContainerPoint(e.latlng);
                 const vertexPoint = map.latLngToContainerPoint(firstVertex);
@@ -382,7 +371,7 @@ export function MeasurementsSnapping({
                 );
 
                 // Only snap if mouse is within query radius
-                if (pixelDistance > queryRadius) {
+                if (pixelDistance > queryRadiusRef.current) {
                   shouldSnap = false;
                 }
               }
@@ -504,7 +493,7 @@ export function MeasurementsSnapping({
       const vertexDragHandler = (e: any) => {
         isDraggingVertexRef.current = true;
 
-        if (!snappingEnabledRef.current || !config.snappingOnUpdate) return;
+        if (!config.snappingOnUpdate) return;
 
         const vertex = e.vertex;
         if (!vertex) return;
@@ -517,7 +506,7 @@ export function MeasurementsSnapping({
         const coordinatePoints: SnappingPoint[] = [];
 
         // Extract snap points from vector features
-        const currentMaplibreMaps = maplibreMapsRef.current;
+        const currentMaplibreMaps = snappingLayersRef.current;
         currentMaplibreMaps.forEach((currentMaplibreMap) => {
           if (
             currentMaplibreMap &&
@@ -652,7 +641,7 @@ export function MeasurementsSnapping({
       const vertexDragEndHandler = (e: any) => {
         isDraggingVertexRef.current = false;
 
-        if (!snappingEnabledRef.current || !config.snappingOnUpdate) return;
+        if (!config.snappingOnUpdate) return;
 
         const vertex = e.vertex;
         if (!vertex) return;
@@ -665,7 +654,7 @@ export function MeasurementsSnapping({
         const coordinatePoints: SnappingPoint[] = [];
 
         // Extract snap points from vector features
-        const currentMaplibreMaps = maplibreMapsRef.current;
+        const currentMaplibreMaps = snappingLayersRef.current;
         currentMaplibreMaps.forEach((currentMaplibreMap) => {
           if (
             currentMaplibreMap &&
@@ -792,24 +781,17 @@ export function MeasurementsSnapping({
       const mapContainer = leafletMap.getContainer();
       const mouseupHandler = (event: MouseEvent) => {
         // Only adjust if snapping is enabled
-        if (snappingEnabledRef.current) {
-          const snapPoint = closestPointRef.current;
-          adjustClickPosition(
-            event,
-            snapPoint,
-            "mouseup",
-            leafletMap,
-            currentDrawHandlerRef.current
-          );
-        }
+        // Snapping is always enabled now
+        const snapPoint = closestPointRef.current;
+        adjustClickPosition(
+          event,
+          snapPoint,
+          "mouseup",
+          leafletMap,
+          currentDrawHandlerRef.current
+        );
       };
       mapContainer.addEventListener("mouseup", mouseupHandler, true);
-      // mapContainer.addEventListener(
-      //   "click",
-      //   (event: MouseEvent) =>
-      //     adjustClickPosition(event, closestPoint, "click", leafletMap),
-      //   true
-      // );
 
       // Cleanup function to remove listeners and markers
       return () => {
@@ -828,11 +810,316 @@ export function MeasurementsSnapping({
         }
       };
     }
+  }, [realRoutedMapRef, config.snappingMinZoom, setSnappingLatlng]);
+
+  const [measureControl, setMeasureControl] = useState<any>(null);
+  const [visiblePolylines, setVisiblePolylines] = useState<(string | number)[]>(
+    []
+  );
+  const [drawingShape, setDrawingLine] = useState(null);
+
+  // Track last valid state for recovery
+  const lastValidStateRef = React.useRef<{
+    activeShape: any;
+    mode: string;
+    wasDrawing: boolean;
+  } | null>(null);
+
+  const device = useDeviceDetection();
+
+  const toggleMeasurementModeHandler = () => {
+    toggleUIMode();
+  };
+
+  useEffect(() => {
+    const leafletMap = realRoutedMapRef.current?.leafletMap?.leafletElement;
+    if (leafletMap && !measureControl) {
+      const mapExample = leafletMap;
+
+      console.debug(
+        "[Measurements] Initializing measurement control with valid map"
+      );
+
+      const customOptions = {
+        position: "topright",
+        // icon_lineActive: makeMeasureActiveIcon,
+        // icon_lineInactive: makeMeasureIcon,
+        // icon_polygonActive: polygonActiveIcon,
+        // icon_polygonInactive: polygonIcon,
+        activeShape,
+        mode_btn: `<div id='draw-shape-active' class='measure_button_wrapper'><div class='add_shape'>+</div></div>`,
+        msj_disable_tool: "Do you want to disable the tool?",
+        device,
+        shapes,
+        snappingLatlng: snappingLatlngRef?.current,
+        snappingEnabled: true,
+        cbSaveShape: saveShapeHandler,
+        cbUpdateShape: updateShapeHandler,
+        cdDeleteShape: deleteShapeHandler,
+        cbDeleteVisibleShapeById: deleteVisibleShapeByIdHandler,
+        cbVisiblePolylinesChange: visiblePolylinesChange,
+        cbSetDrawingStatus: drawingStatusHandler,
+        cbSetDrawingShape: drawingShapeHandler,
+        measurementOrder: findLargestNumber(shapes),
+        measurementMode: isMeasurementEnabled ? "measurement" : "default",
+        cbSetActiveShape: setActiveShapeHandler,
+        cbSetUpdateStatusHandler: setUpdateStatusHandler,
+        cbMapMovingEndHandler: mapMovingEndHandler,
+        cbSaveLastActiveShapeIdBeforeDrawingHandler:
+          saveLastActiveShapeIdBeforeDrawingHandler,
+        cbChangeActiveCanceldShapeId: changeActiveCancelledShapeId,
+        cbToggleMeasurementMode: toggleMeasurementModeHandler,
+        cbUpdateAreaOfDrawingMeasurement: updateAreaOfDrawingMeasurementHandler,
+        cbSetCurrentDrawHandler: setCurrentDrawHandler,
+        cbSetMapStatus: setStatus,
+      };
+
+      const measurePolygonControl = (L.control as any).measurePolygon(
+        customOptions
+      );
+      measurePolygonControl.addTo(mapExample);
+
+      setMeasureControl(measurePolygonControl);
+
+      // Restore previous state if available
+      if (lastValidStateRef.current) {
+        console.debug(
+          "[Measurements] Restoring previous state:",
+          lastValidStateRef.current
+        );
+        const savedState = lastValidStateRef.current;
+
+        // Restore mode if it was in measurement mode
+        if (savedState.mode === "measurement" && !isMeasurementEnabled) {
+          // Mode will be restored by parent component
+        }
+
+        // Restore active shape if there was one
+        if (savedState.activeShape && !savedState.wasDrawing) {
+          setTimeout(() => {
+            setActiveShape(savedState.activeShape);
+          }, 100);
+        }
+
+        lastValidStateRef.current = null;
+      }
+    }
+  }, [realRoutedMapRef]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (measureControl) {
+        console.debug("[Measurements] Cleaning up control on unmount");
+        try {
+          const mapExample =
+            realRoutedMapRef.current?.leafletMap?.leafletElement;
+          if (mapExample) {
+            mapExample.removeControl(measureControl);
+          }
+        } catch (e) {
+          console.warn("[Measurements] Error during cleanup:", e);
+        }
+      }
+    };
+  }, [measureControl, realRoutedMapRef]);
+
+  useEffect(() => {
+    if (measureControl && activeShape) {
+      const shapeCoordinates = shapes.filter((s) => s.shapeId === activeShape);
+      const map = realRoutedMapRef.current?.leafletMap?.leafletElement;
+      if (!map) return;
+
+      if (ifDrawing) {
+        setMoveToShape(null);
+      }
+
+      if (shapeCoordinates[0]?.shapeId && !ifDrawing && !deleteAll) {
+        measureControl.changeColorByActivePolyline(
+          map,
+          shapeCoordinates[0].shapeId
+        );
+      }
+      if (showAll) {
+        const allPolylines = measureControl.getAllPolylines(map);
+        measureControl.fitMapToPolylines(map, allPolylines);
+        setShowAll(false);
+      }
+
+      if (deleteAll) {
+        setMoveToShape(null);
+        measureControl.removePolylineById(map, activeShape);
+        const cleanArr = visibleShapes.filter((m) => m.shapeId !== activeShape);
+        deleteShapeHandler(activeShape);
+        setVisibleShapes(cleanArr);
+
+        const cleanAllArr = shapes.filter((m) => m.shapeId !== activeShape);
+        setShapes(cleanAllArr);
+        setDeleteAll(false);
+        if (measureControl.options.shapes.length === 1) {
+          measureControl.options.shapes = [];
+        }
+        const cleanLocalLefletShapes = measureControl.options.shapes.filter(
+          (m) => m.shapeId !== activeShape
+        );
+
+        measureControl.options.shapes = cleanLocalLefletShapes;
+      }
+      if (moveToShape && !deleteAll) {
+        if (shapeCoordinates.length > 0) {
+          measureControl.showActiveShape(map, shapeCoordinates[0]?.coordinates);
+        }
+      }
+    }
+
+    if (measureControl) {
+      const map = realRoutedMapRef.current?.leafletMap?.leafletElement;
+      if (!map) return;
+      measureControl.changeMeasurementMode(
+        isMeasurementEnabled ? "measurement" : "default",
+        map
+      );
+      const shapeCoordinates = shapes.filter((s) => s.shapeId === activeShape);
+      if (shapeCoordinates[0]?.shapeId) {
+        measureControl.changeColorByActivePolyline(
+          map,
+          shapeCoordinates[0].shapeId
+        );
+      }
+
+      if (isMeasurementEnabled && visibleShapes.length === 0) {
+        const visibleShapesIds = measureControl.getVisibleShapeIdsArr(
+          measureControl._map
+        );
+      }
+    }
   }, [
-    routedMapRef,
-    snappingEnabled,
-    config.snappingMinZoom,
-    setSnappingLatlng,
+    activeShape,
+    measureControl,
+    showAll,
+    deleteAll,
+    ifDrawing,
+    moveToShape,
+    isMeasurementEnabled,
+    realRoutedMapRef,
   ]);
-  return null;
-}
+
+  // keep snappingLatlng in sync with control options
+  useEffect(() => {
+    if (measureControl) {
+      try {
+        console.debug("[Measurements] Syncing snapping options:", {
+          hasControl: !!measureControl,
+          snappingLatlng: snappingLatlngRef?.current,
+        });
+
+        // Update snappingEnabled immediately
+        measureControl.options.snappingEnabled = true;
+
+        // Initial sync of snappingLatlng
+        measureControl.options.snappingLatlng = snappingLatlngRef?.current;
+
+        // Subscribe to updates to keep control in sync without re-renders
+        if (subscribeToSnappingLatlng) {
+          const unsubscribe = subscribeToSnappingLatlng((latlng) => {
+            if (measureControl) {
+              measureControl.options.snappingLatlng = latlng;
+            }
+          });
+          return unsubscribe;
+        }
+      } catch (e) {
+        console.error("[Measurements] Error syncing snapping options:", e);
+      }
+    }
+  }, [measureControl, snappingLatlngRef, subscribeToSnappingLatlng]);
+
+  useEffect(() => {
+    if (measureControl) {
+      const cleanedVisibleArr = filterArrByIds(visiblePolylines, shapes);
+
+      // Preserve drawing shape (5555) if we're in drawing mode
+      const drawingShapeInVisible = visibleShapes.find(
+        (s) => s.shapeId === 5555
+      );
+      if (
+        ifDrawing &&
+        drawingShapeInVisible &&
+        !cleanedVisibleArr.find((s) => s.shapeId === 5555)
+      ) {
+        cleanedVisibleArr.push(drawingShapeInVisible);
+      }
+
+      setVisibleShapes(cleanedVisibleArr);
+      measureControl.changeMeasurementsArr(shapes);
+    }
+  }, [visiblePolylines, shapes, ifDrawing]);
+
+  useEffect(() => {
+    if (drawingShape) {
+      const cleanArr = visibleShapes.filter((m) => m.shapeId !== 5555);
+      setVisibleShapes([...cleanArr, drawingShape]);
+    } else {
+      setLastVisibleShapeActive();
+    }
+  }, [drawingShape]);
+
+  const saveShapeHandler = (layer) => {
+    addShape(layer);
+  };
+  const deleteShapeHandler = (id) => {
+    deleteShapeById(id);
+  };
+  const deleteVisibleShapeByIdHandler = (id) => {
+    deleteVisibleShapeById(id);
+  };
+  const updateShapeHandler = (id, newCoordinates, newDistance, newSquare) => {
+    updateShapeById(id, newCoordinates, newDistance, newSquare);
+  };
+
+  const saveLastActiveShapeIdBeforeDrawingHandler = () => {
+    setDrawingWithLastActiveShape();
+  };
+  const changeActiveCancelledShapeId = () => {
+    setActiveShapeIfDrawCancelled();
+  };
+
+  const visiblePolylinesChange = (arr) => {
+    setVisiblePolylines(arr);
+  };
+
+  const drawingStatusHandler = (status) => {
+    setDrawingShape(status);
+    setStartDrawing(status);
+  };
+
+  const drawingShapeHandler = (draw) => {
+    setDrawingLine(draw);
+  };
+  const setActiveShapeHandler = (id) => {
+    setActiveShape(id);
+    setMoveToShape(null);
+  };
+  const setUpdateStatusHandler = (status) => {
+    setUpdateShape(status);
+  };
+  const mapMovingEndHandler = (status) => {
+    setMapMovingEnd(status);
+  };
+
+  const updateAreaOfDrawingMeasurementHandler = (newArea) => {
+    updateAreaOfDrawing(newArea);
+  };
+
+  // Debug: Log what's causing rerenders
+  useEffect(() => {
+    console.debug("[Measurements] Rerender triggered. State:", {
+      activeShape,
+      shapesCount: shapes.length,
+      visibleShapesCount: visibleShapes.length,
+      isMeasurementEnabled,
+      ifDrawing,
+      snappingLatlng: !!snappingLatlngRef?.current,
+    });
+  });
+};

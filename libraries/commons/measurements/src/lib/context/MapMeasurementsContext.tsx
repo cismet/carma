@@ -4,11 +4,11 @@ import type {
   MeasurementConfig,
   MeasurementMapStatus,
 } from "./MapMeasurementsContext.d";
-import { MEASUREMENT_MODE } from "./MapMeasurementsContext.d";
+// import { MEASUREMENT_MODE } from "./MapMeasurementsContext.d";
 
 export interface MapMeasurementsContextType {
-  mode: MEASUREMENT_MODE;
-  setMode: (mode: MEASUREMENT_MODE) => void;
+  isMeasurementEnabled: boolean;
+  setMeasurementEnabled: (enabled: boolean) => void;
   shapes: any[];
   setShapes: (shapes: any[]) => void;
   activeShape: ActiveShape;
@@ -59,6 +59,10 @@ export interface MapMeasurementsContextType {
   config: MeasurementConfig;
   status: MeasurementMapStatus;
   setStatus: (status: MeasurementMapStatus) => void;
+  snappingLayers: any[];
+  setSnappingLayers: (layers: any[]) => void;
+  isSnapping: boolean;
+  setIsSnapping: (isSnapping: boolean) => void;
 }
 
 // Detect mobile devices
@@ -89,8 +93,8 @@ const defaultConfig: MeasurementConfig = {
 
 export const MapMeasurementsContext = createContext<MapMeasurementsContextType>(
   {
-    mode: MEASUREMENT_MODE.DEFAULT,
-    setMode: (mode: MEASUREMENT_MODE) => {},
+    isMeasurementEnabled: false,
+    setMeasurementEnabled: (enabled: boolean) => {},
     shapes: [],
     setShapes: (shapes: any[]) => {},
     activeShape: null,
@@ -137,7 +141,11 @@ export const MapMeasurementsContext = createContext<MapMeasurementsContextType>(
     setCurrentDrawHandler: (handler: any) => {},
     completeCurrentShape: () => {},
     config: defaultConfig,
-    status: "INACTIVE" as MeasurementMapStatus,
+    status: "WAITING",
     setStatus: (status: MeasurementMapStatus) => {},
+    snappingLayers: [],
+    setSnappingLayers: (layers: any[]) => {},
+    isSnapping: true,
+    setIsSnapping: (isSnapping: boolean) => {},
   }
 );
