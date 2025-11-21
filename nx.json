@@ -151,12 +151,8 @@
     }
   },
   "nxCloudAccessToken": "OTZiNTQ5MjMtM2NjZi00ZTg0LTlhMjYtYWYwNzU3NDlkOTNjfHJlYWQ=",
-  "tasksRunnerOptions": {
-    "default": {
-      "options": {}
-    }
-  },
+
   "useInferencePlugins": false,
-  "defaultBase": "dev",
-  "useLegacyCache": true
+  "defaultBase": "dev"
+
 }
