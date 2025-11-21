@@ -142,12 +142,14 @@ export function LibHelperOverlay({
                 <Popover
                   content={
                     secondary && typeof secondary !== "string" ? (
-                      cloneElement(secondary, {
-                        setSecondaryWithKey: showSecondaryWithKey,
-                        showOverlay: showOverlay,
-                      })
+                      <div data-test-id="secondary-content">
+                        {cloneElement(secondary, {
+                          setSecondaryWithKey: showSecondaryWithKey,
+                          showOverlay: showOverlay,
+                        })}
+                      </div>
                     ) : (
-                      <div>{secondary}</div>
+                      <div data-test-id="secondary-content">{secondary}</div>
                     )
                   }
                   open={showSecondaryByIdHelper(key)}
