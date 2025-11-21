@@ -149,8 +149,8 @@ export const FilterButtons = ({ maplibreMap }) => {
           cursor: "pointer",
           height: "32px",
           border: selectedFilters.alle
-            ? "1.5px solid #4378ccCC"
-            : "1.5px solid transparent",
+            ? "2px solid #4378ccCC"
+            : "2px solid transparent",
         }}
       >
         <span>Alle</span>
@@ -168,8 +168,8 @@ export const FilterButtons = ({ maplibreMap }) => {
           cursor: "pointer",
           height: "32px",
           border: selectedFilters.kostenfrei
-            ? "1.5px solid #4378ccCC"
-            : "1.5px solid transparent",
+            ? "2px solid #4378ccCC"
+            : "2px solid transparent",
         }}
       >
         <img
@@ -196,8 +196,8 @@ export const FilterButtons = ({ maplibreMap }) => {
           cursor: "pointer",
           height: "32px",
           border: selectedFilters.rollstuhlgerecht
-            ? "1.5px solid #4378ccCC"
-            : "1.5px solid transparent",
+            ? "2px solid #4378ccCC"
+            : "2px solid transparent",
         }}
       >
         <img
@@ -226,8 +226,8 @@ export const FilterButtons = ({ maplibreMap }) => {
           cursor: "pointer",
           height: "32px",
           border: selectedFilters.wickeltisch
-            ? "1.5px solid #4378ccCC"
-            : "1.5px solid transparent",
+            ? "2px solid #4378ccCC"
+            : "2px solid transparent",
         }}
       >
         <img
@@ -254,8 +254,8 @@ export const FilterButtons = ({ maplibreMap }) => {
           cursor: "pointer",
           height: "32px",
           border: selectedFilters.dauergeoffnet
-            ? "1.5px solid #4378ccCC"
-            : "1.5px solid transparent",
+            ? "2px solid #4378ccCC"
+            : "2px solid transparent",
         }}
       >
         <img
