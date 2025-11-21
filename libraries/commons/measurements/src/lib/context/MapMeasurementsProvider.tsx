@@ -77,38 +77,6 @@ export const MapMeasurementsProvider = ({
   const [activeShape, setActiveShape] = useState<ActiveShape>(null);
   const [shapes, setShapes] = useState<any[]>([]);
   const [visibleShapes, setVisibleShapes] = useState<any[]>([]);
-  const [snappingLayers, setSnappingLayers] = useState<any[]>([]);
-
-  // snappingLatlng should NOT trigger re-renders - use ref + callback pattern
-  const snappingLatlngRef = useRef<any>(null);
-  const snappingLatlngCallbacksRef = useRef<Set<(latlng: any) => void>>(
-    new Set()
-  );
-
-  const setSnappingLatlng = useCallback((latlng: any) => {
-    snappingLatlngRef.current = latlng;
-    // Notify subscribers without triggering React re-render
-    snappingLatlngCallbacksRef.current.forEach((callback) => {
-      try {
-        callback(latlng);
-      } catch (e) {
-        console.warn(
-          "[MeasurementsProvider] Error in snappingLatlng callback:",
-          e
-        );
-      }
-    });
-  }, []);
-
-  const subscribeToSnappingLatlng = useCallback(
-    (callback: (latlng: any) => void) => {
-      snappingLatlngCallbacksRef.current.add(callback);
-      return () => {
-        snappingLatlngCallbacksRef.current.delete(callback);
-      };
-    },
-    []
-  );
 
   const [showAll, setShowAll] = useState(false);
   const [deleteAll, setDeleteAll] = useState(false);
@@ -129,9 +97,6 @@ export const MapMeasurementsProvider = ({
   const [updateShape, setUpdateShape] = useState(false);
   const [mapMovingEnd, setMapMovingEnd] = useState(false);
   const [updateTitleStatus, setUpdateTitleStatus] = useState(false);
-  const [startDrawing, setStartDrawing] = useState(false);
-  const [currentDrawHandler, setCurrentDrawHandler] = useState<any>(null);
-  const [status, setStatus] = useState<MeasurementMapStatus>("INACTIVE");
 
   // DEBUG: Log Provider mount/unmount
   useEffect(() => {
@@ -142,30 +107,6 @@ export const MapMeasurementsProvider = ({
       );
     };
   }, []);
-
-  // Update status when mode changes
-  useEffect(() => {
-    if (isMeasurementEnabled) {
-      setStatus("WAITING");
-    } else {
-      setStatus("INACTIVE");
-    }
-  }, [isMeasurementEnabled]);
-
-  // Update status when drawing starts/ends
-  useEffect(() => {
-    if (drawingShape) {
-      setStatus("DRAWING");
-    } else if (isMeasurementEnabled) {
-      // Only set to WAITING if not already in EDITING or MOVING state
-      setStatus((currentStatus) => {
-        if (currentStatus === "EDITING" || currentStatus === "MOVING") {
-          return currentStatus;
-        }
-        return "WAITING";
-      });
-    }
-  }, [drawingShape, isMeasurementEnabled]);
 
   useEffect(() => {
     setFromLocalforage(mergedConfig.localStorageKey, setShapes, []);
@@ -329,15 +270,6 @@ export const MapMeasurementsProvider = ({
     []
   );
 
-  const completeCurrentShape = useCallback(() => {
-    if (
-      currentDrawHandler &&
-      typeof currentDrawHandler.completeShape === "function"
-    ) {
-      currentDrawHandler.completeShape();
-    }
-  }, [currentDrawHandler]);
-
   const contextValue = useMemo(
     () => ({
       isMeasurementEnabled,
@@ -349,9 +281,6 @@ export const MapMeasurementsProvider = ({
       setActiveShape,
       visibleShapes,
       setVisibleShapes,
-      snappingLatlngRef,
-      setSnappingLatlng,
-      subscribeToSnappingLatlng,
       showAll,
       setShowAll,
       deleteAll,
@@ -368,12 +297,6 @@ export const MapMeasurementsProvider = ({
       setMapMovingEnd,
       updateTitleStatus,
       setUpdateTitleStatus,
-      startDrawing,
-      setStartDrawing,
-      currentDrawHandler,
-      setCurrentDrawHandler,
-      status,
-      setStatus,
       deleteShapeById,
       deleteVisibleShapeById,
       updateShapeById,
@@ -383,12 +306,9 @@ export const MapMeasurementsProvider = ({
       toggleMeasurementMode,
       updateAreaOfDrawing,
       updateTitle,
-      completeCurrentShape,
       isSnapping,
       setIsSnapping,
       config: mergedConfig,
-      snappingLayers,
-      setSnappingLayers,
     }),
     [
       isMeasurementEnabled,
@@ -396,8 +316,6 @@ export const MapMeasurementsProvider = ({
       addShape,
       activeShape,
       visibleShapes,
-      setSnappingLatlng,
-      subscribeToSnappingLatlng,
       showAll,
       deleteAll,
       drawingShape,
@@ -407,9 +325,6 @@ export const MapMeasurementsProvider = ({
       updateShape,
       mapMovingEnd,
       updateTitleStatus,
-      startDrawing,
-      currentDrawHandler,
-      status,
       deleteShapeById,
       deleteVisibleShapeById,
       updateShapeById,
@@ -419,10 +334,8 @@ export const MapMeasurementsProvider = ({
       toggleMeasurementMode,
       updateAreaOfDrawing,
       updateTitle,
-      completeCurrentShape,
       isSnapping,
       mergedConfig,
-      snappingLayers,
     ]
   );
 

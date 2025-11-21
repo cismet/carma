@@ -15,9 +15,6 @@ export interface MapMeasurementsContextType {
   setActiveShape: (shape: ActiveShape) => void;
   visibleShapes: any[];
   setVisibleShapes: (shapes: any[]) => void;
-  snappingLatlngRef?: React.MutableRefObject<any>;
-  setSnappingLatlng?: (coords: any) => void;
-  subscribeToSnappingLatlng?: (callback: (latlng: any) => void) => () => void;
 
   showAll: boolean;
   deleteAll: boolean;
@@ -51,16 +48,7 @@ export interface MapMeasurementsContextType {
   // NOTE: newArea is pre-formatted string like "123.45 m²" or "1.23 km²" from calculateArea()
   updateAreaOfDrawing: (newArea: string) => void;
   updateTitle: (shapeId: string | number, customTitle: string) => void;
-  setStartDrawing: (status: boolean) => void;
-  startDrawing: boolean;
-  currentDrawHandler: any;
-  setCurrentDrawHandler: (handler: any) => void;
-  completeCurrentShape: () => void;
   config: MeasurementConfig;
-  status: MeasurementMapStatus;
-  setStatus: (status: MeasurementMapStatus) => void;
-  snappingLayers: any[];
-  setSnappingLayers: (layers: any[]) => void;
   isSnapping: boolean;
   setIsSnapping: (isSnapping: boolean) => void;
 }
@@ -101,9 +89,6 @@ export const MapMeasurementsContext = createContext<MapMeasurementsContextType>(
     setActiveShape: (shape: ActiveShape) => {},
     visibleShapes: [],
     setVisibleShapes: (shapes: any[]) => {},
-    snappingLatlngRef: { current: null } as React.MutableRefObject<any>,
-    setSnappingLatlng: (_latlng: any) => {},
-    subscribeToSnappingLatlng: () => () => {},
     showAll: false,
     deleteAll: false,
     drawingShape: false,
@@ -135,16 +120,7 @@ export const MapMeasurementsContext = createContext<MapMeasurementsContextType>(
     toggleMeasurementMode: () => {},
     updateAreaOfDrawing: (newArea: string) => {},
     updateTitle: (shapeId: string | number, customTitle: string) => {},
-    setStartDrawing: (status: boolean) => {},
-    startDrawing: false,
-    currentDrawHandler: null,
-    setCurrentDrawHandler: (handler: any) => {},
-    completeCurrentShape: () => {},
     config: defaultConfig,
-    status: "WAITING",
-    setStatus: (status: MeasurementMapStatus) => {},
-    snappingLayers: [],
-    setSnappingLayers: (layers: any[]) => {},
     isSnapping: true,
     setIsSnapping: (isSnapping: boolean) => {},
   }

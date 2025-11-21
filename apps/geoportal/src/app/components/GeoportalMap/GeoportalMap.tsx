@@ -43,7 +43,7 @@ import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import type { FeatureInfo } from "@carma/types";
 import {
   useMeasurements,
-  useMapMeasurementsContext,
+  InfoBoxMeasurement,
 } from "@carma-commons/measurements";
 
 import {
@@ -70,7 +70,6 @@ import { useFeatureFlags } from "@carma-providers/feature-flag";
 import { useHashState } from "@carma-providers/hash-state";
 
 import FeatureInfoBox from "../feature-info/FeatureInfoBox.tsx";
-import { InfoBoxMeasurement } from "@carma-commons/measurements";
 import PrintPreview from "../map-print/PrintPreview.tsx";
 
 import versionData from "../../../version.json";
@@ -143,6 +142,19 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const container3dMapRef = useRef<HTMLDivElement>(null);
   // Store MapLibre maps outside Redux to avoid serialization issues
   const maplibreMapsRef = useRef<Map<string, any>>(new Map());
+  const [tick, setTick] = useState(0);
+
+  useEffect(() => {
+    // Monkey-patch the set method to trigger re-renders
+    const originalSet = maplibreMapsRef.current.set.bind(
+      maplibreMapsRef.current
+    );
+    maplibreMapsRef.current.set = (key, value) => {
+      const res = originalSet(key, value);
+      setTick((t) => t + 1);
+      return res;
+    };
+  }, []);
 
   // State and Selectors
   const backgroundLayer = useSelector(getBackgroundLayer);
@@ -165,7 +177,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       layers
         .filter((l) => l.layerType === "vector" && l.visible)
         .map((l) => maplibreMapsRef.current.get(l.id)),
-    [layers]
+    [layers, tick]
   );
   const uiMode = useSelector(getUIMode);
   const isModeMeasurement = uiMode === UIMode.MEASUREMENT;
@@ -463,7 +475,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [backgroundLayer]);
 
-  useMeasurements();
+  useMeasurements(maplibreMaps);
 
   useEffect(() => {
     const leaflet = getLeafletMap();
@@ -608,8 +620,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
     ]
   );
 
-  // TODO Move out Controls to own component
-
   console.debug(
     "RENDER: [GEOPORTAL] MAP",
     rerenderCountRef.current,
@@ -618,12 +628,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   rerenderCountRef.current++;
   lastRenderIntervalRef.current = Date.now() - lastRenderTimeStampRef.current;
   lastRenderTimeStampRef.current = Date.now();
-
-  const { setSnappingLayers } = useMapMeasurementsContext();
-
-  useEffect(() => {
-    setSnappingLayers(maplibreMaps);
-  }, [maplibreMaps, setSnappingLayers]);
 
   return (
     <>

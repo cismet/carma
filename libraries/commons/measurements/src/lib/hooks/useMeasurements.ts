@@ -30,7 +30,7 @@ export interface MeasurementShapeDrawing {
   [key: string]: unknown;
 }
 
-export const useMeasurements = () => {
+export const useMeasurements = (snappingLayers: any[] = []) => {
   const { realRoutedMapRef } =
     useContext<typeof TopicMapContext>(TopicMapContext);
   const {
@@ -60,20 +60,19 @@ export const useMeasurements = () => {
     setActiveShapeIfDrawCancelled,
     updateAreaOfDrawing,
     deleteVisibleShapeById,
-    setCurrentDrawHandler,
-    // snappingLatlng - DON'T consume here, causes re-render on every mousemove
-    snappingLatlngRef,
-    subscribeToSnappingLatlng,
     config,
-    setStatus,
-    status,
-    snappingLayers,
-    setSnappingLatlng,
-    currentDrawHandler,
-
-    // looks unuseful
-    setStartDrawing,
   } = useMapMeasurementsContext();
+
+  // Local state for drawing logic
+  const [status, setStatus] = useState<string>("INACTIVE");
+  const currentDrawHandlerRef = useRef<any>(null);
+  const snappingLatlngRef = useRef<any>(null);
+  const [measureControl, setMeasureControl] = useState<any>(null);
+
+  // Helper to update status
+  const setCurrentDrawHandler = (handler: any) => {
+    currentDrawHandlerRef.current = handler;
+  };
 
   // Snapping Logic Integration
   const { snappingQueryRadius, snappingMinZoom } = config;
@@ -86,9 +85,12 @@ export const useMeasurements = () => {
   const snappingLayersRef = useRef(snappingLayers);
   const lastHoveredMarkerRef = useRef<any>(null);
   const isDraggingVertexRef = useRef(false);
-  const currentDrawHandlerRef = useRef(currentDrawHandler);
   const lastSnappedCoordRef = useRef<[number, number] | null>(null);
   const statusRef = useRef(status);
+
+  useEffect(() => {
+    snappingLayersRef.current = snappingLayers;
+  }, [snappingLayers]);
 
   useEffect(() => {
     shapesRef.current = shapes;
@@ -101,15 +103,6 @@ export const useMeasurements = () => {
   useEffect(() => {
     statusRef.current = status;
   }, [status]);
-
-  useEffect(() => {
-    snappingLayersRef.current = snappingLayers;
-  }, [snappingLayers]);
-
-  useEffect(() => {
-    currentDrawHandlerRef.current = currentDrawHandler;
-  }, [currentDrawHandler]);
-
   useEffect(() => {
     const leafletMap = realRoutedMapRef.current?.leafletMap?.leafletElement;
 
@@ -160,9 +153,11 @@ export const useMeasurements = () => {
             leafletMap.removeLayer(circleMarkerRef.current);
             circleMarkerRef.current = null;
           }
-          if (setSnappingLatlng) {
-            setSnappingLatlng(null);
+          // Direct update to control instead of context
+          if (measureControl) {
+            measureControl.options.snappingLatlng = null;
           }
+          snappingLatlngRef.current = null;
           return; // Exit early - no snapping while ALT is pressed
         }
 
@@ -346,10 +341,14 @@ export const useMeasurements = () => {
         closestPointRef.current = blackPoint[0];
 
         const finalLatLng = toLatLngFromClosestPoint(closestPoint);
-        if (finalLatLng && setSnappingLatlng) {
+        // Logic for updating snappingLatlng
+        let newSnappingLatlng = null;
+
+        if (finalLatLng) {
           // Check if we're snapping to the first vertex of an in-progress drawing
           // If so, only allow snapping if we're within the query radius (prevents premature polygon closure)
           let shouldSnap = true;
+
           if (
             currentDrawHandlerValue &&
             currentDrawHandlerValue._markers &&
@@ -383,10 +382,14 @@ export const useMeasurements = () => {
           }
 
           if (shouldSnap) {
-            setSnappingLatlng(finalLatLng);
-          } else {
-            setSnappingLatlng(null);
+            newSnappingLatlng = finalLatLng;
           }
+        }
+
+        // Update ref and control directly
+        snappingLatlngRef.current = newSnappingLatlng;
+        if (measureControl) {
+          measureControl.options.snappingLatlng = newSnappingLatlng;
         }
 
         // Trigger vertex marker hover for tooltip/area preview (Phase 3)
@@ -819,12 +822,12 @@ export const useMeasurements = () => {
   }, [
     realRoutedMapRef,
     config.snappingMinZoom,
-    setSnappingLatlng,
+    // Removed setSnappingLatlng dependency
     snappingLayers,
     isMeasurementEnabled,
+    measureControl, // Added measureControl dependency for direct updates
   ]);
 
-  const [measureControl, setMeasureControl] = useState<any>(null);
   const [visiblePolylines, setVisiblePolylines] = useState<(string | number)[]>(
     []
   );
@@ -1021,36 +1024,6 @@ export const useMeasurements = () => {
     realRoutedMapRef,
   ]);
 
-  // keep snappingLatlng in sync with control options
-  useEffect(() => {
-    if (measureControl) {
-      try {
-        console.debug("[Measurements] Syncing snapping options:", {
-          hasControl: !!measureControl,
-          snappingLatlng: snappingLatlngRef?.current,
-        });
-
-        // Update snappingEnabled immediately
-        measureControl.options.snappingEnabled = true;
-
-        // Initial sync of snappingLatlng
-        measureControl.options.snappingLatlng = snappingLatlngRef?.current;
-
-        // Subscribe to updates to keep control in sync without re-renders
-        if (subscribeToSnappingLatlng) {
-          const unsubscribe = subscribeToSnappingLatlng((latlng) => {
-            if (measureControl) {
-              measureControl.options.snappingLatlng = latlng;
-            }
-          });
-          return unsubscribe;
-        }
-      } catch (e) {
-        console.error("[Measurements] Error syncing snapping options:", e);
-      }
-    }
-  }, [measureControl, snappingLatlngRef, subscribeToSnappingLatlng]);
-
   useEffect(() => {
     if (measureControl) {
       const cleanedVisibleArr = filterArrByIds(visiblePolylines, shapes);
@@ -1107,7 +1080,6 @@ export const useMeasurements = () => {
 
   const drawingStatusHandler = (status) => {
     setDrawingShape(status);
-    setStartDrawing(status);
   };
 
   const drawingShapeHandler = (draw) => {

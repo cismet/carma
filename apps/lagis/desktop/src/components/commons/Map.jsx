@@ -358,17 +358,10 @@ const Map = ({
 
   const { gazData } = useGazData();
   const { setSelection } = useSelection();
-  const {
-    isMeasurementEnabled,
-    setMode: setMeasurementMode,
-    setSnappingLayers,
-  } = useMapMeasurementsContext();
+  const { isMeasurementEnabled, setMode: setMeasurementMode } =
+    useMapMeasurementsContext();
 
-  useMeasurements();
-
-  useEffect(() => {
-    setSnappingLayers(alkisMap ? [alkisMap] : []);
-  }, [alkisMap, setSnappingLayers]);
+  useMeasurements(alkisMap ? [alkisMap] : []);
 
   const onGazetteerSelection = (selection) => {
     if (!selection) {
