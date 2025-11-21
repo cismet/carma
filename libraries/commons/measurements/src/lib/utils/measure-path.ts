@@ -147,21 +147,56 @@ export const MeasurePolygon = Control.extend({
 
     const self = this;
 
-    // Override _updateGuide to snap the preview line
+    // Override _updateGuide to snap the preview line AND use a Polyline instead of divs
+    // This allows the "dashes" (squares) to rotate with the line bearing
     const originalUpdateGuide = (this._measureHandler as any)._updateGuide;
     if (originalUpdateGuide) {
       (this._measureHandler as any)._updateGuide = function (point: any) {
-        if (self.options.snappingLatlng) {
-          // If we have a snapping point, use it for the guide line
-          // We need to convert the latlng to a layer point, as that's what _updateGuide expects
-          const snappedPoint = map.latLngToLayerPoint(
-            self.options.snappingLatlng
-          );
-          return originalUpdateGuide.call(this, snappedPoint);
+        const markerCount = this._markers ? this._markers.length : 0;
+
+        if (markerCount > 0) {
+          // 1. Determine the target LatLng (snapped or raw)
+          let targetLatLng;
+          if (self.options.snappingLatlng) {
+            targetLatLng = self.options.snappingLatlng;
+          } else {
+            // Convert the passed LayerPoint back to LatLng
+            targetLatLng = map.layerPointToLatLng(point);
+          }
+
+          // 2. Create or update the custom guide Polyline
+          if (!this._guidePolyline) {
+            this._guidePolyline = new L.Polyline([], {
+              color: this.options.shapeOptions.color,
+              dashArray: "1, 15", // Dotted effect
+              weight: 5,
+              lineCap: "square", // Squares that rotate with the line
+              opacity: 0.7,
+              interactive: false,
+            });
+            map.addLayer(this._guidePolyline);
+          }
+
+          const lastMarkerLatLng = this._markers[markerCount - 1].getLatLng();
+          this._guidePolyline.setLatLngs([lastMarkerLatLng, targetLatLng]);
+
+          // 3. Clear the default internal guides (divs) if they exist
+          if (this._clearGuides) {
+            this._clearGuides();
+          }
         }
-        return originalUpdateGuide.call(this, point);
       };
     }
+
+    // Ensure custom guide is removed when drawing stops/cancels
+    const originalDisable = (this._measureHandler as any).disable;
+    (this._measureHandler as any).disable = function () {
+      if (this._guidePolyline) {
+        map.removeLayer(this._guidePolyline);
+        delete this._guidePolyline;
+      }
+      return originalDisable.apply(this, arguments);
+    };
 
     // DIAGNOSTIC: Hook into Leaflet.Draw's internal completion to see what triggers it
     const originalFinishShape = (this._measureHandler as any)._finishShape;
