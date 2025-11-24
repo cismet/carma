@@ -19,7 +19,18 @@ export function App() {
               vectorStyles={[
                 {
                   name: "POIs",
-                  style: "https://tiles.cismet.de/poi/style.json",
+                  style: "https://tiles.cismet.de/poi/bahnhofe.style.json",
+                  infoboxMapping: [
+                    "foto: p.foto",
+                    "headerColor:p.schrift",
+                    "header:p.kombi",
+                    "title:p.geographicidentifier",
+                    "additionalInfo:p.adresse",
+                    "subtitle: p.info",
+                    "url:p.url",
+                    "tel:p.telefon",
+                    "email:p.email",
+                  ],
                 },
               ]}
             />
