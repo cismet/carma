@@ -62,13 +62,15 @@ import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { isAreaType } from "@carma-commons/resources";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import { ZoomControl } from "@carma-mapping/components";
-import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextProvider";
+import {
+  TopicMapDispatchContext,
+  TopicMapContext,
+} from "react-cismap/contexts/TopicMapContextProvider";
 import {
   MeasurementControl,
   InfoBoxMeasurement,
   useMapMeasurementsContext,
-  MEASUREMENT_MODE,
-  Measurements,
+  useMeasurements,
 } from "@carma-commons/measurements";
 
 const { ScaleControl } = TransitiveReactLeaflet;
@@ -136,6 +138,8 @@ const Map = ({
   } = useContext(TopicMapStylingContext);
 
   const { setRoutedMapRef } = useContext(TopicMapDispatchContext);
+  const { realRoutedMapRef } = useContext(TopicMapContext);
+  const refRoutedMap = realRoutedMapRef;
 
   const isMapLoadingValue = useSelector(isMapLoading);
   let backgroundsFromMode;
@@ -181,7 +185,7 @@ const Map = ({
     lastPointSearchTimeRef.current = Date.now();
     dispatch(storeShapeMode(mode));
     if (mode === "point") {
-      setMeasurementMode("default");
+      setMeasurementEnabled(false);
     }
   };
 
@@ -211,7 +215,6 @@ const Map = ({
     // }
   }, [data?.featureCollection, urlParams]);
 
-  let refRoutedMap = useRef(null);
   const statusBarHeight = 20;
   const mapStyle = {
     width: mapWidth - 2 * padding,
@@ -349,7 +352,7 @@ const Map = ({
     }
   }, [
     data?.featureCollection,
-    refRoutedMap.current,
+    refRoutedMap,
     isMapLoadingValue,
     activeBackgroundLayer,
     activeAdditionalLayers,
@@ -359,8 +362,10 @@ const Map = ({
 
   const { gazData } = useGazData();
   const { setSelection } = useSelection();
-  const { mode: measurementMode, setMode: setMeasurementMode } =
+  const { isMeasurementEnabled, setMeasurementEnabled } =
     useMapMeasurementsContext();
+
+  useMeasurements(alkisMap ? [alkisMap] : []);
 
   const onGazetteerSelection = (selection) => {
     if (!selection) {
@@ -491,7 +496,7 @@ const Map = ({
       headStyle={{ backgroundColor: "white" }}
       type="inner"
       className={`overflow-hidden shadow-md ${
-        measurementMode === MEASUREMENT_MODE.MEASUREMENT ? "lagis-map-card" : ""
+        isMeasurementEnabled ? "lagis-map-card" : ""
       }`}
       ref={cardRef}
     >
@@ -515,12 +520,12 @@ const Map = ({
             <MeasurementControl
               showInfoBox={false}
               tooltip={
-                measurementMode === MEASUREMENT_MODE.MEASUREMENT
+                isMeasurementEnabled
                   ? "Messungsmodus ausschalten"
                   : "Messungsmodus einschalten"
               }
             />
-            {measurementMode === MEASUREMENT_MODE.MEASUREMENT && (
+            {isMeasurementEnabled && (
               <InfoBoxMeasurement pixelWidth={pixelWidth} />
             )}
             <Control position="bottomleft" order={10}>
@@ -566,7 +571,7 @@ const Map = ({
           }}
           ondblclick={(event) => {
             // Don't switch landparcel when in measurement mode
-            if (measurementMode === MEASUREMENT_MODE.MEASUREMENT) {
+            if (isMeasurementEnabled) {
               return;
             }
             //if data contains a ondblclick handler, call it
@@ -686,7 +691,6 @@ const Map = ({
             jwt={jwt}
             mode={mode}
           />
-          <Measurements snappingLayers={alkisMap ? [alkisMap] : []} />
         </RoutedMap>
 
         {/* <div className="custom-left-control">

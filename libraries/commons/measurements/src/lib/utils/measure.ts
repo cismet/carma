@@ -1,12 +1,21 @@
-!(function () {
+import L from "leaflet";
+
+(function () {
   "use strict";
 
-  L.Marker.Measurement = L[L.Layer ? "Layer" : "Class"].extend({
+  L.Marker.Measurement = L.Layer.extend({
     options: {
       pane: "markerPane",
     },
 
-    initialize: function (latlng, measurement, title, rotation, options) {
+    initialize: function (
+      this: L.Marker.Measurement,
+      latlng: L.LatLng,
+      measurement: string,
+      title: string,
+      rotation: number,
+      options?: L.Marker.MeasurementOptions
+    ) {
       L.setOptions(this, options);
 
       this._latlng = latlng;
@@ -15,36 +24,42 @@
       this._rotation = rotation;
     },
 
-    addTo: function (map) {
+    addTo: function (this: L.Marker.Measurement, map: L.Map) {
       map.addLayer(this);
       return this;
     },
 
-    onAdd: function (map) {
+    onAdd: function (this: L.Marker.Measurement, map: L.Map) {
       this._map = map;
-      var pane = this.getPane ? this.getPane() : map.getPanes().markerPane;
-      var el = (this._element = L.DomUtil.create(
+      const pane = this.getPane
+        ? this.getPane()
+        : (map as any).getPanes().markerPane;
+      const el = (this._element = L.DomUtil.create(
         "div",
         "leaflet-zoom-animated leaflet-measure-path-measurement",
         pane
       ));
-      var inner = L.DomUtil.create("div", "", el);
+      const inner = L.DomUtil.create("div", "", el);
       inner.title = this._title;
       inner.innerHTML = this._measurement;
 
       map.on("zoomanim", this._animateZoom, this);
 
       this._setPosition();
+      return this;
     },
 
-    onRemove: function (map) {
+    onRemove: function (this: L.Marker.Measurement, map: L.Map) {
       map.off("zoomanim", this._animateZoom, this);
-      var pane = this.getPane ? this.getPane() : map.getPanes().markerPane;
+      const pane = this.getPane
+        ? this.getPane()
+        : (map as any).getPanes().markerPane;
       pane.removeChild(this._element);
       this._map = null;
+      return this;
     },
 
-    _setPosition: function () {
+    _setPosition: function (this: L.Marker.Measurement) {
       L.DomUtil.setPosition(
         this._element,
         this._map.latLngToLayerPoint(this._latlng)
@@ -52,8 +67,11 @@
       this._element.style.transform += " rotate(" + this._rotation + "rad)";
     },
 
-    _animateZoom: function (opt) {
-      var pos = this._map
+    _animateZoom: function (
+      this: L.Marker.Measurement,
+      opt: { zoom: number; center: L.LatLng }
+    ) {
+      const pos = (this._map as any)
         ._latLngToNewLayerPoint(this._latlng, opt.zoom, opt.center)
         .round();
       L.DomUtil.setPosition(this._element, pos);
@@ -62,12 +80,12 @@
   });
 
   L.marker.measurement = function (
-    latLng,
-    measurement,
-    title,
-    rotation,
-    options
-  ) {
+    latLng: L.LatLng,
+    measurement: string,
+    title: string,
+    rotation: number,
+    options?: L.Marker.MeasurementOptions
+  ): L.Marker.Measurement {
     return new L.Marker.Measurement(
       latLng,
       measurement,
@@ -77,8 +95,9 @@
     );
   };
 
-  var formatDistance = function (d) {
-    var unit, feet;
+  const formatDistance = function (this: L.Polyline, d: number): string {
+    let unit: string;
+    let feet: number;
 
     if (this._measurementOptions.imperial) {
       feet = d / 0.3048;
@@ -105,8 +124,8 @@
     }
   };
 
-  var formatArea = function (a) {
-    var unit, sqfeet;
+  const formatArea = function (this: L.Polyline, a: number): string {
+    let unit: string;
 
     if (this._measurementOptions.imperial) {
       if (a > 404.685642) {
@@ -142,26 +161,26 @@
     }
   };
 
-  var RADIUS = 6378137;
+  const RADIUS = 6378137;
   // ringArea function copied from geojson-area
   // (https://github.com/mapbox/geojson-area)
   // This function is distributed under a separate license,
   // see LICENSE.md.
-  var ringArea = function ringArea(coords) {
-    var rad = function rad(_) {
-      return (_ * Math.PI) / 180;
+  const ringArea = function (coords: L.LatLng[]): number {
+    const rad = function (deg: number): number {
+      return (deg * Math.PI) / 180;
     };
-    var p1,
-      p2,
-      p3,
-      lowerIndex,
-      middleIndex,
-      upperIndex,
-      area = 0,
-      coordsLength = coords.length;
+    let p1: L.LatLng,
+      p2: L.LatLng,
+      p3: L.LatLng,
+      lowerIndex: number,
+      middleIndex: number,
+      upperIndex: number;
+    let area = 0;
+    const coordsLength = coords.length;
 
     if (coordsLength > 2) {
-      for (var i = 0; i < coordsLength; i++) {
+      for (let i = 0; i < coordsLength; i++) {
         if (i === coordsLength - 2) {
           // i = N-2
           lowerIndex = coordsLength - 2;
@@ -189,45 +208,54 @@
 
     return Math.abs(area);
   };
+
   /**
    * Handles the init hook for polylines and circles.
    * Implements the showOnHover functionality if called for.
    */
-  var addInitHook = function () {
-    var showOnHover =
+  const addInitHook = function (this: L.Polyline) {
+    const showOnHover =
       this.options.measurementOptions &&
       this.options.measurementOptions.showOnHover;
     if (this.options.showMeasurements && !showOnHover) {
       this.showMeasurements();
     }
     if (this.options.showMeasurements && showOnHover) {
-      this.on("mouseover", function () {
+      this.on("mouseover", function (this: L.Polyline) {
         this.showMeasurements();
       });
-      this.on("mouseout", function () {
+      this.on("mouseout", function (this: L.Polyline) {
         this.hideMeasurements();
       });
     }
   };
 
-  var override = function (method, fn, hookAfter) {
+  type MethodFunction = (...args: any[]) => any;
+
+  const override = function (
+    method: MethodFunction,
+    fn: (...args: any[]) => any,
+    hookAfter?: boolean
+  ): MethodFunction {
     if (!hookAfter) {
-      return function () {
-        var originalReturnValue = method.apply(this, arguments);
-        var args = Array.prototype.slice.call(arguments);
-        args.push(originalReturnValue);
-        return fn.apply(this, args);
+      return function (this: any, ...args: any[]) {
+        const originalReturnValue = method.apply(this, args);
+        const newArgs = [...args, originalReturnValue];
+        return fn.apply(this, newArgs);
       };
     } else {
-      return function () {
-        fn.apply(this, arguments);
-        return method.apply(this, arguments);
+      return function (this: any, ...args: any[]) {
+        fn.apply(this, args);
+        return method.apply(this, args);
       };
     }
   };
 
   L.Polyline.include({
-    showMeasurements: function (options) {
+    showMeasurements: function (
+      this: L.Polyline,
+      options?: L.Marker.MeasurementOptions
+    ) {
       if (!this._map || this._measurementLayer) return this;
 
       this._measurementOptions = L.extend(
@@ -254,7 +282,7 @@
       return this;
     },
 
-    hideMeasurements: function () {
+    hideMeasurements: function (this: L.Polyline) {
       if (!this._map) return this;
 
       this._map.off("zoomend", this.updateMeasurements, this);
@@ -266,20 +294,23 @@
       return this;
     },
 
-    onAdd: override(L.Polyline.prototype.onAdd, function (originalReturnValue) {
-      var showOnHover =
-        this.options.measurementOptions &&
-        this.options.measurementOptions.showOnHover;
-      if (this.options.showMeasurements && !showOnHover) {
-        this.showMeasurements(this.options.measurementOptions);
-      }
+    onAdd: override(
+      L.Polyline.prototype.onAdd,
+      function (this: L.Polyline, originalReturnValue: any) {
+        const showOnHover =
+          this.options.measurementOptions &&
+          this.options.measurementOptions.showOnHover;
+        if (this.options.showMeasurements && !showOnHover) {
+          this.showMeasurements(this.options.measurementOptions);
+        }
 
-      return originalReturnValue;
-    }),
+        return originalReturnValue;
+      }
+    ),
 
     onRemove: override(
       L.Polyline.prototype.onRemove,
-      function (originalReturnValue) {
+      function (this: L.Polyline, originalReturnValue: any) {
         this.hideMeasurements();
 
         return originalReturnValue;
@@ -289,16 +320,7 @@
 
     setLatLngs: override(
       L.Polyline.prototype.setLatLngs,
-      function (originalReturnValue) {
-        this.updateMeasurements();
-
-        return originalReturnValue;
-      }
-    ),
-
-    spliceLatLngs: override(
-      L.Polyline.prototype.spliceLatLngs,
-      function (originalReturnValue) {
+      function (this: L.Polyline, originalReturnValue: any) {
         this.updateMeasurements();
 
         return originalReturnValue;
@@ -308,7 +330,7 @@
     formatDistance: formatDistance,
     formatArea: formatArea,
 
-    getCentroid(points) {
+    getCentroid(this: L.Polyline, points: L.LatLng[]): L.LatLng {
       let sumLat = 0;
       let sumLng = 0;
       const numPoints = points.length;
@@ -321,44 +343,53 @@
       const centroidLat = sumLat / numPoints;
       const centroidLng = sumLng / numPoints;
 
-      return [centroidLat, centroidLng];
+      return L.latLng(centroidLat, centroidLng);
     },
 
-    updateMeasurements: function () {
+    updateMeasurements: function (this: L.Polyline) {
       if (!this._measurementLayer) return this;
 
-      var latLngs = this.getLatLngs(),
-        isPolygon = this instanceof L.Polygon,
-        options = this._measurementOptions,
-        totalDist = 0,
-        formatter,
-        ll1,
-        ll2,
-        p1,
-        p2,
-        pixelDist,
-        dist;
+      let latLngs = this.getLatLngs() as L.LatLng[] | L.LatLng[][];
+      const isPolygon = this instanceof L.Polygon;
+      const options = this._measurementOptions;
+      let totalDist = 0;
+      let formatter: (value: number) => string;
+      let ll1: L.LatLng,
+        ll2: L.LatLng,
+        p1: L.Point,
+        p2: L.Point,
+        pixelDist: number,
+        dist: number;
 
-      if (latLngs && latLngs.length && L.Util.isArray(latLngs[0])) {
+      if (
+        latLngs &&
+        latLngs.length &&
+        Array.isArray(latLngs[0]) &&
+        (latLngs[0] as any).lat === undefined
+      ) {
         // Outer ring is stored as an array in the first element,
         // use that instead.
-        latLngs = latLngs[0];
+        latLngs = (latLngs as L.LatLng[][])[0];
       }
 
       this._measurementLayer.clearLayers();
 
-      if (this._measurementOptions.showDistances && latLngs.length > 1) {
+      if (
+        this._measurementOptions.showDistances &&
+        (latLngs as L.LatLng[]).length > 1
+      ) {
         formatter =
           this._measurementOptions.formatDistance ||
-          L.bind(this.formatDistance, this);
+          (L.bind(this.formatDistance, this) as unknown as (
+            value: number
+          ) => string);
 
-        for (
-          var i = 1, len = latLngs.length;
-          (isPolygon && i <= len) || i < len;
-          i++
-        ) {
-          ll1 = latLngs[i - 1];
-          ll2 = latLngs[i % len];
+        const latLngsArray = latLngs as L.LatLng[];
+        const len = latLngsArray.length;
+
+        for (let i = 1; (isPolygon && i <= len) || i < len; i++) {
+          ll1 = latLngsArray[i - 1];
+          ll2 = latLngsArray[i % len];
           dist = ll1.distanceTo(ll2);
           totalDist += dist;
 
@@ -379,7 +410,7 @@
                 this._getRotation(ll1, ll2),
                 options
               )
-              .addTo(this._measurementLayer);
+              .addTo(this._measurementLayer as any);
           }
         }
 
@@ -393,36 +424,40 @@
               0,
               options
             )
-            .addTo(this._measurementLayer);
+            .addTo(this._measurementLayer as any);
         }
       }
 
-      if (isPolygon && options.showArea && latLngs.length > 2) {
-        formatter = options.formatArea || L.bind(this.formatArea, this);
-        var area = ringArea(latLngs);
+      if (isPolygon && options.showArea && (latLngs as L.LatLng[]).length > 2) {
+        formatter =
+          options.formatArea ||
+          (L.bind(this.formatArea, this) as unknown as (
+            value: number
+          ) => string);
+        const area = ringArea(latLngs as L.LatLng[]);
         L.marker
           .measurement(
-            this.getCentroid(latLngs),
+            this.getCentroid(latLngs as L.LatLng[]),
             formatter(area),
             options.lang.totalArea,
             0,
             options
           )
-          .addTo(this._measurementLayer);
+          .addTo(this._measurementLayer as any);
       }
 
       return this;
     },
 
-    _getRotation: function (ll1, ll2) {
-      var p1 = this._map.project(ll1),
-        p2 = this._map.project(ll2);
+    _getRotation: function (this: L.Polyline, ll1: L.LatLng, ll2: L.LatLng) {
+      const p1 = this._map.project(ll1);
+      const p2 = this._map.project(ll2);
 
       return Math.atan((p2.y - p1.y) / (p2.x - p1.x));
     },
   });
 
-  L.Polyline.addInitHook(function () {
+  L.Polyline.addInitHook(function (this: L.Polyline) {
     addInitHook.call(this);
   });
 })();
