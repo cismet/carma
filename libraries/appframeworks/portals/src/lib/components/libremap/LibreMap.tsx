@@ -12,6 +12,12 @@ import {
 } from "./libremap.utils";
 import { VectorStyle } from "../CarmaMap";
 import LibreFeatureInfoBox from "./LibreFeatureInfoBox";
+import { LibreMapSelectionContent } from "../LibreMapSelectionContent";
+import { SelectionItem } from "../SelectionProvider";
+import { ENDPOINT, isAreaType } from "@carma-commons/resources";
+import proj4 from "proj4";
+import { proj4crs3857def, proj4crs4326def } from "@carma-mapping/utils";
+import { useSelectionLibreMap } from "../../hooks/useSelectionLibreMap";
 
 interface LibreMapProps {
   vectorStyles?: VectorStyle[];
@@ -175,14 +181,48 @@ export const LibreMap = ({ vectorStyles, setLibreMap }: LibreMapProps) => {
     updateMapStyle();
   }, [vectorStyles]);
 
+  const onComplete = (selection: SelectionItem) => {
+    if (!isAreaType(selection.type as ENDPOINT)) {
+      const selectedPos = proj4(proj4crs3857def, proj4crs4326def, [
+        selection.x,
+        selection.y,
+      ]);
+
+      if (map.current) {
+        map.current.fire("click", {
+          lngLat: {
+            lat: selectedPos[1],
+            lng: selectedPos[0],
+          },
+          target: map.current,
+          type: "click",
+          point: map.current.project([selectedPos[1], selectedPos[0]]),
+          originalEvent: {
+            preventDefault: () => {},
+            stopPropagation: () => {},
+          },
+        });
+      }
+    }
+  };
+
+  useSelectionLibreMap({
+    map: map.current,
+    onComplete,
+  });
+
   return (
-    <div className="map-wrap">
-      <div ref={mapContainer} className="map" />
+    <>
       <LibreFeatureInfoBox
         selectedFeature={selectedFeature}
         libreMap={map.current}
       />
-    </div>
+      <LibreMapSelectionContent map={map.current} />
+
+      <div className="map-wrap">
+        <div ref={mapContainer} className="map" />
+      </div>
+    </>
   );
 };
 
