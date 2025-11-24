@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useContext, useRef } from "react";
-import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+
 import { Map as MapLibreMap } from "maplibre-gl";
-import "leaflet/dist/leaflet.css";
-import "leaflet-draw/dist/leaflet.draw.css";
+
 import L from "leaflet";
 import "leaflet-draw";
 import "leaflet-editable";
+
+import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+
 import "../utils/measure";
 import "../utils/measure-path";
-import "leaflet-measure-path/leaflet-measure-path.css";
-import "../styles/m-style.css";
 import useDeviceDetection from "../hooks/useDeviceDetection";
 import { useMapMeasurementsContext } from "../context";
 import {
@@ -19,10 +19,13 @@ import {
   findLargestNumber,
 } from "../utils/helper";
 import { SnappingPoint } from "./../types";
-import {
-  extractPointsFromGeometry,
-  extractPointsFromMeasurementShape,
-} from "../snapping/utils/coordinateExtraction";
+import { extractPointsFromMeasurementShape } from "../snapping/utils/coordinateExtraction";
+import { getSnappingPointsFromMapLibre } from "../snapping/utils/mapLibreExtraction";
+
+import "../styles/m-style.css";
+import "leaflet/dist/leaflet.css";
+import "leaflet-draw/dist/leaflet.draw.css";
+import "leaflet-measure-path/leaflet-measure-path.css";
 
 export interface MeasurementShapeDrawing {
   shapeId: number | string;
@@ -253,56 +256,13 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
         const coordinatePoints: SnappingPoint[] = [];
 
         // 1. Extract from vector features (loop through all MapLibre maps)
-        currentSnappingLayers.forEach((currentMaplibreMap) => {
-          if (
-            currentMaplibreMap &&
-            currentMaplibreMap.getStyle &&
-            currentMaplibreMap.getCanvas
-          ) {
-            try {
-              const style = currentMaplibreMap.getStyle();
-              if (style && style.layers) {
-                const canvas = currentMaplibreMap.getCanvas();
-                const rect = canvas.getBoundingClientRect();
-                const point = {
-                  x: e.clientX - rect.left,
-                  y: e.clientY - rect.top,
-                };
-
-                const bbox = [
-                  [point.x - currentRadius, point.y - currentRadius],
-                  [point.x + currentRadius, point.y + currentRadius],
-                ];
-
-                const features = currentMaplibreMap.queryRenderedFeatures(
-                  bbox,
-                  {
-                    layers: style.layers
-                      .filter((layer: any) => {
-                        // Skip layers with skipSnapping metadata
-                        const skipSnapping =
-                          layer.metadata?.carmaConf?.skipSnapping;
-                        return (
-                          !skipSnapping && !layer.id.startsWith("highlight-")
-                        ); // if we have a layer with highlight- dont snap (thats only important if we are doing the snap vis dot in maplibre directly not atm. but we will keep it in here)
-                      })
-                      .map((layer: any) => layer.id),
-                  }
-                );
-
-                features.forEach((feature: any) => {
-                  const points = extractPointsFromGeometry(
-                    feature.geometry,
-                    "vector-features"
-                  );
-                  coordinatePoints.push(...points);
-                });
-              }
-            } catch (error) {
-              console.warn("Error extracting vector features:", error);
-            }
-          }
-        });
+        coordinatePoints.push(
+          ...getSnappingPointsFromMapLibre(
+            currentSnappingLayers,
+            { x: e.clientX, y: e.clientY },
+            currentRadius
+          )
+        );
 
         // 2. Extract from measurement shapes (independent of MapLibre)
         // Use shapesRef which is kept in sync via useEffect
@@ -599,58 +559,18 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
 
         // Extract snap points from vector features
         const currentMaplibreMaps = snappingLayersRef.current;
-        currentMaplibreMaps.forEach((currentMaplibreMap) => {
-          if (
-            currentMaplibreMap &&
-            currentMaplibreMap.getStyle &&
-            currentMaplibreMap.getCanvas
-          ) {
-            try {
-              const style = currentMaplibreMap.getStyle();
-              if (style && style.layers) {
-                const canvas = currentMaplibreMap.getCanvas();
-                const rect = canvas.getBoundingClientRect();
+        const mapContainer = leafletMap.getContainer();
+        const mapRect = mapContainer.getBoundingClientRect();
+        const screenX = vertexPoint.x + mapRect.left;
+        const screenY = vertexPoint.y + mapRect.top;
 
-                // Convert Leaflet container point to MapLibre canvas point
-                const mapContainer = leafletMap.getContainer();
-                const mapRect = mapContainer.getBoundingClientRect();
-                const canvasX = vertexPoint.x + mapRect.left - rect.left;
-                const canvasY = vertexPoint.y + mapRect.top - rect.top;
-
-                const bbox = [
-                  [canvasX - currentRadius, canvasY - currentRadius],
-                  [canvasX + currentRadius, canvasY + currentRadius],
-                ];
-
-                const features = currentMaplibreMap.queryRenderedFeatures(
-                  bbox,
-                  {
-                    layers: style.layers
-                      .filter((layer: any) => {
-                        // Skip layers with skipSnapping metadata
-                        const skipSnapping =
-                          layer.metadata?.carmaConf?.skipSnapping;
-                        return (
-                          !skipSnapping && !layer.id.startsWith("highlight-")
-                        );
-                      })
-                      .map((layer: any) => layer.id),
-                  }
-                );
-
-                features.forEach((feature: any) => {
-                  const points = extractPointsFromGeometry(
-                    feature.geometry,
-                    "vector-features"
-                  );
-                  coordinatePoints.push(...points);
-                });
-              }
-            } catch (error) {
-              console.warn("Error extracting vector features:", error);
-            }
-          }
-        });
+        coordinatePoints.push(
+          ...getSnappingPointsFromMapLibre(
+            currentMaplibreMaps,
+            { x: screenX, y: screenY },
+            currentRadius
+          )
+        );
 
         // Extract from other measurement shapes
         const currentShapes = shapesRef.current;
@@ -747,58 +667,18 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
 
         // Extract snap points from vector features
         const currentMaplibreMaps = snappingLayersRef.current;
-        currentMaplibreMaps.forEach((currentMaplibreMap) => {
-          if (
-            currentMaplibreMap &&
-            currentMaplibreMap.getStyle &&
-            currentMaplibreMap.getCanvas
-          ) {
-            try {
-              const style = currentMaplibreMap.getStyle();
-              if (style && style.layers) {
-                const canvas = currentMaplibreMap.getCanvas();
-                const rect = canvas.getBoundingClientRect();
+        const mapContainer = leafletMap.getContainer();
+        const mapRect = mapContainer.getBoundingClientRect();
+        const screenX = vertexPoint.x + mapRect.left;
+        const screenY = vertexPoint.y + mapRect.top;
 
-                // Convert Leaflet container point to MapLibre canvas point
-                const mapContainer = leafletMap.getContainer();
-                const mapRect = mapContainer.getBoundingClientRect();
-                const canvasX = vertexPoint.x + mapRect.left - rect.left;
-                const canvasY = vertexPoint.y + mapRect.top - rect.top;
-
-                const bbox = [
-                  [canvasX - currentRadius, canvasY - currentRadius],
-                  [canvasX + currentRadius, canvasY + currentRadius],
-                ];
-
-                const features = currentMaplibreMap.queryRenderedFeatures(
-                  bbox,
-                  {
-                    layers: style.layers
-                      .filter((layer: any) => {
-                        // Skip layers with skipSnapping metadata
-                        const skipSnapping =
-                          layer.metadata?.carmaConf?.skipSnapping;
-                        return (
-                          !skipSnapping && !layer.id.startsWith("highlight-")
-                        );
-                      })
-                      .map((layer: any) => layer.id),
-                  }
-                );
-
-                features.forEach((feature: any) => {
-                  const points = extractPointsFromGeometry(
-                    feature.geometry,
-                    "vector-features"
-                  );
-                  coordinatePoints.push(...points);
-                });
-              }
-            } catch (error) {
-              console.warn("Error extracting vector features:", error);
-            }
-          }
-        });
+        coordinatePoints.push(
+          ...getSnappingPointsFromMapLibre(
+            currentMaplibreMaps,
+            { x: screenX, y: screenY },
+            currentRadius
+          )
+        );
 
         // Extract from other measurement shapes
         const currentShapes = shapesRef.current;
