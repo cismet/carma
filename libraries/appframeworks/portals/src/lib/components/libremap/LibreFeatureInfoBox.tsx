@@ -12,7 +12,7 @@ import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextPr
 import { additionalInfoFactory } from "@carma-collab/wuppertal/geoportal";
 
 // import "../infoBox.css";
-import { InfoBox } from "@carma-apps/portals";
+import { InfoBox } from "@carma-appframeworks/portals";
 import { getCoordinates, truncateString } from "./libremap.utils";
 
 interface InfoBoxProps {

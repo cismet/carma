@@ -5,10 +5,12 @@ import Icon from "react-cismap/commons/Icon";
 import {
   FeatureCollectionContext,
   FeatureCollectionDispatchContext,
-  InfoBox,
-  UIDispatchContext,
-} from "@carma-apps/portals";
-import Icon from "react-cismap/commons/Icon";
+} from "react-cismap/contexts/FeatureCollectionContextProvider";
+import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextProvider";
+import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
+import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
+// @ts-expect-error
+import { ResponsiveTopicMapDispatchContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
 import InfoBoxFotoPreview from "react-cismap/topicmaps/InfoBoxFotoPreview";
 import { updateUrl } from "@carma-commons/utils";

@@ -1,7 +1,6 @@
 import { useCallback, useContext } from "react";
 import type { Map as LeafletMap } from "leaflet";
-// import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
-import { TopicMapContext } from "@carma-apps/portals";
+import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import { logOnce } from "@carma-commons/utils";
 
