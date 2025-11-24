@@ -91,7 +91,6 @@ export const CarmaMap = (props: CarmaMapProps) => {
         <Control position="topleft" order={20}>
           <ControlButtonStyler
             useDisabledStyle={false}
-            className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
             dataTestId="compass-control"
           >
             <LibrePitchingCompass map={libreMap} />
