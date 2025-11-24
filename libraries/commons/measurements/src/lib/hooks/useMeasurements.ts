@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useContext, useRef } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+import { Map as MapLibreMap } from "maplibre-gl";
 import "leaflet/dist/leaflet.css";
 import "leaflet-draw/dist/leaflet.draw.css";
 import L from "leaflet";
@@ -30,7 +31,7 @@ export interface MeasurementShapeDrawing {
   [key: string]: unknown;
 }
 
-export const useMeasurements = (snappingLayers: any[] = []) => {
+export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
   const { realRoutedMapRef } =
     useContext<typeof TopicMapContext>(TopicMapContext);
   const {
@@ -74,8 +75,13 @@ export const useMeasurements = (snappingLayers: any[] = []) => {
     currentDrawHandlerRef.current = handler;
   };
 
-  // Snapping Logic Integration
-  const { snappingQueryRadius, snappingMinZoom } = config;
+  // destructure config for snapping
+  const {
+    snappingQueryRadius,
+    snappingMinZoom,
+    snappingOnUpdate,
+    snappingRadiusVisible,
+  } = config;
 
   const queryRadiusRef = useRef(snappingQueryRadius);
   const circleMarkerRef = useRef<any>(null);
@@ -182,7 +188,7 @@ export const useMeasurements = (snappingLayers: any[] = []) => {
         // Removed to prevent clearing distance
 
         // Skip snapping indicator during vertex drag if snappingOnUpdate is disabled
-        if (isDraggingVertexRef.current && !config.snappingOnUpdate) {
+        if (isDraggingVertexRef.current && !snappingOnUpdate) {
           clearBlackPoint();
           return;
         }
@@ -204,6 +210,12 @@ export const useMeasurements = (snappingLayers: any[] = []) => {
 
         // Check zoom level - only work if zoom >= configured minimum
         const currentZoom = leafletMap.getZoom();
+
+        if (currentZoom < snappingMinZoom) {
+          clearBlackPoint();
+          return;
+        }
+
         // Remove old circle if exists
         if (circleMarkerRef.current) {
           leafletMap.removeLayer(circleMarkerRef.current);
@@ -219,7 +231,7 @@ export const useMeasurements = (snappingLayers: any[] = []) => {
 
         // Show radius circle if enabled and in WAITING or DRAWING status
         if (
-          config.snappingRadiusVisible &&
+          snappingRadiusVisible &&
           (statusRef.current === "WAITING" || statusRef.current === "DRAWING")
         ) {
           // Convert pixel radius to meters for the circle
@@ -573,7 +585,7 @@ export const useMeasurements = (snappingLayers: any[] = []) => {
       const vertexDragHandler = (e: any) => {
         isDraggingVertexRef.current = true;
 
-        if (!config.snappingOnUpdate) return;
+        if (!snappingOnUpdate) return;
 
         const vertex = e.vertex;
         if (!vertex) return;
@@ -721,7 +733,7 @@ export const useMeasurements = (snappingLayers: any[] = []) => {
       const vertexDragEndHandler = (e: any) => {
         isDraggingVertexRef.current = false;
 
-        if (!config.snappingOnUpdate) return;
+        if (!snappingOnUpdate) return;
 
         const vertex = e.vertex;
         if (!vertex) return;
@@ -939,7 +951,9 @@ export const useMeasurements = (snappingLayers: any[] = []) => {
     }
   }, [
     realRoutedMapRef,
-    config.snappingMinZoom,
+    snappingMinZoom,
+    snappingOnUpdate,
+    snappingRadiusVisible,
     // Removed setSnappingLatlng dependency
     snappingLayers,
     isMeasurementEnabled,
