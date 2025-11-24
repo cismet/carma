@@ -3,17 +3,17 @@ import CompassNeedleSVG from "./CompassNeedleSVG";
 import { useEffect, useState } from "react";
 
 interface LibrePitchingCompassProps {
-  mapRef: React.RefObject<Map | null>;
+  map: Map | null;
 }
 
-export const LibrePitchingCompass = ({ mapRef }: LibrePitchingCompassProps) => {
+export const LibrePitchingCompass = ({ map }: LibrePitchingCompassProps) => {
   const [isControlMouseDown, setIsControlMouseDown] = useState(false);
   const [initialMouseX, setInitialMouseX] = useState(0);
   const [initialMouseY, setInitialMouseY] = useState(0);
   const [initialHeading, setInitialHeading] = useState(0);
   const [initialPitch, setInitialPitch] = useState(0);
-  const currentPitch = mapRef?.current?.getPitch() ?? 0;
-  const currentHeading = mapRef?.current?.getBearing() ?? 0;
+  const currentPitch = map?.getPitch() ?? 0;
+  const currentHeading = map?.getBearing() ?? 0;
 
   const handleControlMouseUp = () => {
     setIsControlMouseDown(false);
@@ -24,7 +24,7 @@ export const LibrePitchingCompass = ({ mapRef }: LibrePitchingCompassProps) => {
 
     const handleMouseMove = (event: MouseEvent) => {
       if (!isControlMouseDown) return;
-      if (mapRef.current) {
+      if (map) {
         const deltaX = event.clientX - initialMouseX;
         const deltaY = event.clientY - initialMouseY;
 
@@ -32,8 +32,8 @@ export const LibrePitchingCompass = ({ mapRef }: LibrePitchingCompassProps) => {
 
         const newPitch = Math.max(0, Math.min(85, initialPitch - deltaY * 0.3));
 
-        mapRef.current.setBearing(newHeading);
-        mapRef.current.setPitch(newPitch);
+        map.setBearing(newHeading);
+        map.setPitch(newPitch);
       }
     };
 
@@ -50,18 +50,18 @@ export const LibrePitchingCompass = ({ mapRef }: LibrePitchingCompassProps) => {
     <div
       className="cesium-orbit-control-button"
       onMouseDown={(e) => {
-        if (mapRef.current) {
+        if (map) {
           setIsControlMouseDown(true);
           setInitialMouseX(e.clientX);
           setInitialMouseY(e.clientY);
-          setInitialHeading(mapRef.current.getBearing());
-          setInitialPitch(mapRef.current.getPitch());
+          setInitialHeading(map.getBearing());
+          setInitialPitch(map.getPitch());
         }
       }}
       onMouseUp={handleControlMouseUp}
       onClick={() => {
-        mapRef?.current?.setPitch(0);
-        mapRef?.current?.setBearing(0);
+        map?.setPitch(0);
+        map?.setBearing(0);
       }}
       style={{
         border: "none",

@@ -353,7 +353,7 @@ const MapWrapper = () => {
                     }
                   >
                     {showLibreMap ? (
-                      <LibrePitchingCompass mapRef={libreMapRef} />
+                      <LibrePitchingCompass map={libreMapRef.current} />
                     ) : (
                       <PitchingCompass />
                     )}

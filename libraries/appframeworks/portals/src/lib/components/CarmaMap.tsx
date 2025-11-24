@@ -1,8 +1,12 @@
-import { Control } from "@carma-mapping/map-controls-layout";
+import {
+  Control,
+  ControlButtonStyler,
+} from "@carma-mapping/map-controls-layout";
 import { useContext, useEffect, useState } from "react";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import {
   FullscreenControl,
+  LibrePitchingCompass,
   RoutedMapLocateControl,
   ZoomControl,
 } from "@carma-mapping/components";
@@ -80,6 +84,18 @@ export const CarmaMap = (props: CarmaMapProps) => {
       {zoomControls && (
         <Control position="topleft" order={10}>
           <ZoomControl mapEngine={mapEngine} libreMap={libreMap} />
+        </Control>
+      )}
+
+      {mapEngine === "maplibre" && (
+        <Control position="topleft" order={20}>
+          <ControlButtonStyler
+            useDisabledStyle={false}
+            className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
+            dataTestId="compass-control"
+          >
+            <LibrePitchingCompass map={libreMap} />
+          </ControlButtonStyler>
         </Control>
       )}
 
