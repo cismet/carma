@@ -62,7 +62,10 @@ import { LibFuzzySearch } from "@carma-mapping/fuzzy-search";
 import { isAreaType } from "@carma-commons/resources";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import { ZoomControl } from "@carma-mapping/components";
-import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextProvider";
+import {
+  TopicMapDispatchContext,
+  TopicMapContext,
+} from "react-cismap/contexts/TopicMapContextProvider";
 import {
   MeasurementControl,
   InfoBoxMeasurement,
@@ -135,6 +138,8 @@ const Map = ({
   } = useContext(TopicMapStylingContext);
 
   const { setRoutedMapRef } = useContext(TopicMapDispatchContext);
+  const { realRoutedMapRef } = useContext(TopicMapContext);
+  const refRoutedMap = realRoutedMapRef;
 
   const isMapLoadingValue = useSelector(isMapLoading);
   let backgroundsFromMode;
@@ -180,7 +185,7 @@ const Map = ({
     lastPointSearchTimeRef.current = Date.now();
     dispatch(storeShapeMode(mode));
     if (mode === "point") {
-      setMeasurementMode("default");
+      setMeasurementEnabled(false);
     }
   };
 
@@ -210,7 +215,6 @@ const Map = ({
     // }
   }, [data?.featureCollection, urlParams]);
 
-  let refRoutedMap = useRef(null);
   const statusBarHeight = 20;
   const mapStyle = {
     width: mapWidth - 2 * padding,
@@ -348,7 +352,7 @@ const Map = ({
     }
   }, [
     data?.featureCollection,
-    refRoutedMap.current,
+    refRoutedMap,
     isMapLoadingValue,
     activeBackgroundLayer,
     activeAdditionalLayers,
@@ -358,7 +362,7 @@ const Map = ({
 
   const { gazData } = useGazData();
   const { setSelection } = useSelection();
-  const { isMeasurementEnabled, setMode: setMeasurementMode } =
+  const { isMeasurementEnabled, setMeasurementEnabled } =
     useMapMeasurementsContext();
 
   useMeasurements(alkisMap ? [alkisMap] : []);

@@ -203,8 +203,10 @@ export const MapMeasurementsProvider = ({
 
   const toggleMeasurementMode = useCallback(() => {
     if (!isMeasurementEnabled) {
+      console.debug("[MapMeasurementsProvider] Enabling measurement mode");
       setMeasurementEnabled(true);
     } else {
+      console.debug("[MapMeasurementsProvider] Disabling measurement mode");
       setMeasurementEnabled(false);
       setDrawingShape(false);
       setLastVisibleShapeActive();
