@@ -164,6 +164,9 @@ const Map = ({
     const getFeature = async (infoboxMapping, hit) => {
       console.log("xxx infoboxMapping", infoboxMapping);
       const feature = await createVectorFeature(infoboxMapping, hit);
+
+      // console.log("xxx a2c setFeature", feature);
+
       setFeature(feature);
     };
 
@@ -279,7 +282,11 @@ const Map = ({
 
         {config?.tm?.filteringEnabled && config?.tm?.vectorLayers && (
           <Control position="topcenter" order={10}>
-            <FilterButtons maplibreMap={maplibreMap} />
+            <FilterButtons
+              maplibreMap={maplibreMap}
+              selectedFeature={feature}
+              setSelectedFeature={setFeature}
+            />
           </Control>
         )}
 
