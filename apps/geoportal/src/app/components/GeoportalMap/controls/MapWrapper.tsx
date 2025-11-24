@@ -50,7 +50,10 @@ import {
   ControlLayoutCanvas,
 } from "@carma-mapping/map-controls-layout";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
-import { MeasurementControl } from "@carma-commons/measurements";
+import {
+  MeasurementControl,
+  useMapMeasurementsContext,
+} from "@carma-commons/measurements";
 
 import { GeoportalMap } from "../GeoportalMap.tsx";
 import LibreGeoportalMap from "../LibreGeoportalMap.tsx";
@@ -87,6 +90,7 @@ import {
   getZenMode,
   setZenMode,
   toggleUIMode,
+  setUIMode,
   UIMode,
 } from "../../../store/slices/ui.ts";
 
@@ -101,14 +105,6 @@ window.addEventListener("load", testGPU, false);
 const MapWrapper = () => {
   const dispatch = useDispatch();
   const flags = useFeatureFlags();
-
-  // Detect mobile device or browser's device toolbar (responsive design mode)
-  const isMobileDevice =
-    isMobile ||
-    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-      navigator.userAgent
-    ) ||
-    "ontouchstart" in window;
 
   const showLibreMap = flags.featureFlagLibreMap;
 
@@ -137,6 +133,17 @@ const MapWrapper = () => {
   const configSelection = useSelector(getConfigSelection);
 
   const { isObliqueMode } = useOblique();
+
+  const { isMeasurementEnabled } = useMapMeasurementsContext();
+
+  useEffect(() => {
+    // sync legacy redux measurement mode with ui mode, remove once measurement provider handles this fully
+    if (isMeasurementEnabled && uiMode !== UIMode.MEASUREMENT) {
+      dispatch(setUIMode(UIMode.MEASUREMENT));
+    } else if (!isMeasurementEnabled && uiMode === UIMode.MEASUREMENT) {
+      dispatch(setUIMode(UIMode.DEFAULT));
+    }
+  }, [isMeasurementEnabled, uiMode, dispatch]);
 
   const {
     handleZoomIn: handleZoomInCesium,
@@ -407,24 +414,22 @@ const MapWrapper = () => {
               </ControlButtonStyler>
             </Tooltip>
           </Control>
-          {!isMobileDevice && (
-            <MeasurementControl
-              position="topleft"
-              order={60}
-              disabled={!isLeaflet || (isLeaflet && showLibreMap)}
-              useDisabledStyle={isLeaflet && showLibreMap}
-              tooltip={
-                isCesium
-                  ? "zum Messen zu 2D-Modus wechseln"
-                  : isModeMeasurement
-                  ? "Messungsmodus ausschalten"
-                  : "Messungsmodus einschalten"
-              }
-              tooltipPlacement="right"
-              showInfoBox={false}
-              ref={tourRefLabels.measurement}
-            />
-          )}
+          <MeasurementControl
+            position="topleft"
+            order={60}
+            disabled={!isLeaflet || (isLeaflet && showLibreMap)}
+            useDisabledStyle={isLeaflet && showLibreMap}
+            tooltip={
+              isCesium
+                ? "zum Messen zu 2D-Modus wechseln"
+                : isModeMeasurement
+                ? "Messungsmodus ausschalten"
+                : "Messungsmodus einschalten"
+            }
+            tooltipPlacement="right"
+            showInfoBox={false}
+            ref={tourRefLabels.measurement}
+          />
           <Control position="topleft" order={50}>
             <Tooltip
               title={

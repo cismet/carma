@@ -2,9 +2,8 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "../../../../dist/out-tsc",
-    "declaration": true,
-    "types": ["node"]
+    "declaration": true
   },
-  "include": ["src/**/*.ts", "src/lib/lib-measurements.tsx"],
-  "exclude": ["src/**/*.spec.ts", "src/**/*.test.ts"]
+  "include": ["src/**/*.ts", "src/**/*.tsx", "src/**/*.js"],
+  "exclude": ["src/**/*.spec.ts"]
 }
