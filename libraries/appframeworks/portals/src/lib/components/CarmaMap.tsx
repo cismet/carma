@@ -19,6 +19,7 @@ import LibreMap from "./libremap/LibreMap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBars } from "@fortawesome/free-solid-svg-icons";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
+import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 
 export type VectorStyle = {
   name: string;
@@ -40,6 +41,7 @@ interface CarmaMapProps {
   contactButtonEnabled?: boolean;
   infoBox?: React.ReactNode;
   vectorStyles?: VectorStyle[];
+  backgroundLayers?: string;
   children?: React.ReactNode;
 }
 
@@ -52,6 +54,7 @@ export const CarmaMap = (props: CarmaMapProps) => {
     gazetteerSearchControl = true,
     gazetteerSearchComponent,
     modalMenu,
+    backgroundLayers,
     children,
   } = props;
 
@@ -60,6 +63,9 @@ export const CarmaMap = (props: CarmaMapProps) => {
   >(ResponsiveTopicMapContext);
   const { setAppMenuVisible } =
     useContext<typeof UIDispatchContext>(UIDispatchContext);
+  const { selectedBackground, backgroundConfigurations } = useContext<
+    typeof TopicMapStylingContext
+  >(TopicMapStylingContext);
   const [map, setMap] = useState(<></>);
   const [libreMap, setLibreMap] = useState<maplibregl.Map | null>(null);
 
@@ -80,10 +86,17 @@ export const CarmaMap = (props: CarmaMapProps) => {
 
     if (mapEngine === "maplibre") {
       setMap(
-        <LibreMap vectorStyles={props.vectorStyles} setLibreMap={setLibreMap} />
+        <LibreMap
+          vectorStyles={props.vectorStyles}
+          backgroundLayers={
+            backgroundLayers ??
+            backgroundConfigurations[selectedBackground].layerkey
+          }
+          setLibreMap={setLibreMap}
+        />
       );
     }
-  }, [mapEngine]);
+  }, [mapEngine, selectedBackground]);
 
   return (
     <div>

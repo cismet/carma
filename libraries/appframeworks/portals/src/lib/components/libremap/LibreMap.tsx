@@ -1,7 +1,7 @@
 import type { StyleSpecification } from "maplibre-gl";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { getHashParams } from "@carma-commons/utils";
 
 import "./map.css";
@@ -18,13 +18,19 @@ import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import proj4 from "proj4";
 import { proj4crs3857def, proj4crs4326def } from "@carma-mapping/utils";
 import { useSelectionLibreMap } from "../../hooks/useSelectionLibreMap";
+import { defaultLayerConf } from "../react-cismap/tools/layerFactory";
 
 interface LibreMapProps {
   vectorStyles?: VectorStyle[];
+  backgroundLayers?: string;
   setLibreMap: (map: maplibregl.Map) => void;
 }
 
-export const LibreMap = ({ vectorStyles, setLibreMap }: LibreMapProps) => {
+export const LibreMap = ({
+  vectorStyles,
+  backgroundLayers,
+  setLibreMap,
+}: LibreMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
   const selectedFeatures: Set<{
@@ -40,27 +46,166 @@ export const LibreMap = ({ vectorStyles, setLibreMap }: LibreMapProps) => {
   const defaultLat = 51.256;
   const defaultZoom = 15;
 
-  const backgroundStyle: StyleSpecification = {
-    version: 8,
-    sources: {
-      "source-amtlich": {
-        type: "raster",
-        tiles: [
-          "https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_light&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
-        ],
-        tileSize: 256,
-      },
-    },
-    layers: [
-      {
-        id: "layer-amtlich",
-        type: "raster",
-        source: "source-amtlich",
-        paint: { "raster-opacity": 0.9 },
-      },
-    ],
+  // Helper function to build WMS tile URL from layer config
+  const buildWMSTileUrl = (layerConfig: any): string => {
+    const {
+      url,
+      layers,
+      version = "1.1.1",
+      format = "image/png",
+    } = layerConfig;
+    const baseUrl = url.endsWith("?") ? url : url + "?";
+    return `${baseUrl}SERVICE=WMS&REQUEST=GetMap&VERSION=${version}&LAYERS=${layers}&FORMAT=${format}&styles=default&TRANSPARENT=true&WIDTH=256&HEIGHT=256&crs=EPSG:3857&&srs=EPSG:3857&BBOX={bbox-epsg-3857}`;
   };
 
+  // Helper function to build WMTS tile URL from layer config
+  const buildWMTSTileUrl = (layerConfig: any): string => {
+    const { url, layers } = layerConfig;
+    const baseUrl = url.endsWith("?") ? url : url + "?";
+    return `${baseUrl}SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=${layers}&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}`;
+  };
+
+  // Parse backgroundLayers string and build style
+  const buildBackgroundStyle = (): StyleSpecification => {
+    if (!backgroundLayers) {
+      // Default fallback style
+      return {
+        version: 8,
+        sources: {
+          terrainSource: {
+            type: "raster-dem",
+            tiles: [
+              "https://wuppertal-terrain.cismet.de/services/wupp_dgm_01/tiles/{z}/{x}/{y}.png",
+            ],
+            tileSize: 512,
+            maxzoom: 15,
+          },
+          "source-amtlich": {
+            type: "raster",
+            tiles: [
+              "https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_light&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
+            ],
+            tileSize: 256,
+          },
+        },
+        layers: [
+          {
+            id: "layer-amtlich",
+            type: "raster",
+            source: "source-amtlich",
+            paint: { "raster-opacity": 0.9 },
+          },
+        ],
+      };
+    }
+
+    const layerSpecs = backgroundLayers.split("|");
+    const sources: Record<string, any> = {
+      terrainSource: {
+        type: "raster-dem",
+        tiles: [
+          "https://wuppertal-terrain.cismet.de/services/wupp_dgm_01/tiles/{z}/{x}/{y}.png",
+        ],
+        tileSize: 512,
+        maxzoom: 15,
+      },
+    };
+    const layers: any[] = [];
+
+    layerSpecs.forEach((spec, index) => {
+      const [layerName, opacityStr] = spec.split("@");
+      const opacity = opacityStr ? parseInt(opacityStr, 10) / 100 : 1.0;
+      const layerConfig = defaultLayerConf.namedLayers[layerName];
+
+      if (!layerConfig) {
+        console.warn(`Layer "${layerName}" not found in defaultLayerConf`);
+        return;
+      }
+
+      const sourceId = `source-${layerName}-${index}`;
+      const layerId = `layer-${layerName}-${index}`;
+
+      // Build source based on layer type
+      if (layerConfig.type === "tiles") {
+        sources[sourceId] = {
+          type: "raster",
+          tiles: [layerConfig.url],
+          tileSize: 256,
+        };
+      } else if (
+        layerConfig.type === "wmts" ||
+        layerConfig.type === "wmts-nt"
+      ) {
+        sources[sourceId] = {
+          type: "raster",
+          tiles: [buildWMTSTileUrl(layerConfig)],
+          tileSize: 256,
+        };
+      } else if (layerConfig.type === "wms" || layerConfig.type === "wms-nt") {
+        sources[sourceId] = {
+          type: "raster",
+          tiles: [buildWMSTileUrl(layerConfig)],
+          tileSize: 256,
+        };
+      } else {
+        console.warn(
+          `Layer type "${layerConfig.type}" not supported for MapLibre`
+        );
+        return;
+      }
+
+      // Add layer
+      layers.push({
+        id: layerId,
+        type: "raster",
+        source: sourceId,
+        paint: { "raster-opacity": opacity },
+      });
+    });
+
+    // If no valid layers were parsed, return default style
+    if (layers.length === 0) {
+      return {
+        version: 8,
+        sources: {
+          terrainSource: {
+            type: "raster-dem",
+            tiles: [
+              "https://wuppertal-terrain.cismet.de/services/wupp_dgm_01/tiles/{z}/{x}/{y}.png",
+            ],
+            tileSize: 512,
+            maxzoom: 15,
+          },
+          "source-amtlich": {
+            type: "raster",
+            tiles: [
+              "https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_light&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
+            ],
+            tileSize: 256,
+          },
+        },
+        layers: [
+          {
+            id: "layer-amtlich",
+            type: "raster",
+            source: "source-amtlich",
+            paint: { "raster-opacity": 0.9 },
+          },
+        ],
+      };
+    }
+
+    return {
+      version: 8,
+      sources,
+      layers,
+    };
+  };
+
+  const backgroundStyle = useMemo(
+    () => buildBackgroundStyle(),
+    [backgroundLayers]
+  );
   useEffect(() => {
     // Only initialize if we have a container and no map yet
     if (mapContainer.current && !map.current) {
@@ -165,21 +310,30 @@ export const LibreMap = ({ vectorStyles, setLibreMap }: LibreMapProps) => {
   }, []);
 
   useEffect(() => {
-    if (!map.current || !vectorStyles) return;
+    if (!map.current) return;
 
     const updateMapStyle = async () => {
       try {
-        const style = await vectorStylesToMapLibreStyle(vectorStyles);
-        map.current?.setStyle(style);
-        const mapping = await getVectorMapping(vectorStyles);
-        mappingRef.current = mapping;
+        if (vectorStyles) {
+          // Update with vector styles and background layers
+          const style = await vectorStylesToMapLibreStyle(
+            vectorStyles,
+            backgroundStyle
+          );
+          map.current?.setStyle(style);
+          const mapping = await getVectorMapping(vectorStyles);
+          mappingRef.current = mapping;
+        } else {
+          // Only update background layers
+          map.current?.setStyle(backgroundStyle);
+        }
       } catch (error) {
         console.error("Error updating map style:", error);
       }
     };
 
     updateMapStyle();
-  }, [vectorStyles]);
+  }, [vectorStyles, backgroundStyle]);
 
   const onComplete = (selection: SelectionItem) => {
     if (!isAreaType(selection.type as ENDPOINT)) {

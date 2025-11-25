@@ -208,12 +208,14 @@ export const getVectorMapping = async (vectorStyles: VectorStyle[]) => {
 };
 
 export const vectorStylesToMapLibreStyle = async (
-  vectorStyles: VectorStyle[]
+  vectorStyles: VectorStyle[],
+  backgroundStyle?: StyleSpecification
 ) => {
   const defaultSprite = "https://tiles.cismet.de/poi/sprites";
   const customSprites: maplibregl.SpriteSpecification = [];
 
-  const style: StyleSpecification = {
+  // Use provided backgroundStyle or create default
+  const baseStyle: StyleSpecification = backgroundStyle || {
     version: 8,
     sources: {
       terrainSource: {
@@ -240,6 +242,10 @@ export const vectorStylesToMapLibreStyle = async (
         paint: { "raster-opacity": 0.9 },
       },
     ],
+  };
+
+  const style: StyleSpecification = {
+    ...baseStyle,
     glyphs: "https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf",
     sprite: defaultSprite,
   };

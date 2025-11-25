@@ -282,7 +282,7 @@ export const defaultLayerConf = {
       tiled: "false",
     },
     rvrSchriftNT: {
-      type: "wmts-nt",
+      type: "wms-nt",
       url: "https://geodaten.metropoleruhr.de/dop/dop_overlay?language=ger",
       layers: "dop_overlay",
       version: "1.3.0",
@@ -307,7 +307,7 @@ export const defaultLayerConf = {
       transparent: true,
     },
     rvrGrundriss: {
-      type: "wmts",
+      type: "wms",
       url: "https://geodaten.metropoleruhr.de/spw2/service",
       layers: "spw2_light_grundriss",
       version: "1.3.0",
