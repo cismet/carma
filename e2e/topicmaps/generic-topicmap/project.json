@@ -1,0 +1,24 @@
+{
+  "name": "e2e-generic-topicmap",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "e2e/topicmaps/generic-topicmap/src",
+  "projectType": "application",
+  "tags": [],
+  "implicitDependencies": ["generic-topicmap"],
+"targets": {
+    "e2e": {
+      "executor": "@nx/playwright:playwright",
+      "options": {
+        "config": "e2e/topicmaps/generic-topicmap/playwright.config.ts"
+      },
+      "configurations": {
+        "production": {
+          "devServerTarget": "generic-topicmap:serve:production"
+        }
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  }
+}
