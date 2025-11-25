@@ -19,7 +19,7 @@ export function App() {
               vectorStyles={[
                 {
                   name: "POIs",
-                  style: "https://tiles.cismet.de/poi/bahnhofe.style.json",
+                  style: "https://tiles.cismet.de/poi/style.json",
                   infoboxMapping: [
                     "foto: p.foto",
                     "headerColor:p.schrift",
