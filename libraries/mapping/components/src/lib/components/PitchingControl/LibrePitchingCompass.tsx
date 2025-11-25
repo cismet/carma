@@ -12,12 +12,36 @@ export const LibrePitchingCompass = ({ map }: LibrePitchingCompassProps) => {
   const [initialMouseY, setInitialMouseY] = useState(0);
   const [initialHeading, setInitialHeading] = useState(0);
   const [initialPitch, setInitialPitch] = useState(0);
-  const currentPitch = map?.getPitch() ?? 0;
-  const currentHeading = map?.getBearing() ?? 0;
+  const [currentPitch, setCurrentPitch] = useState(0);
+  const [currentHeading, setCurrentHeading] = useState(0);
 
   const handleControlMouseUp = () => {
     setIsControlMouseDown(false);
   };
+
+  // Listen to map pitch and bearing changes
+  useEffect(() => {
+    if (!map) return;
+
+    const updateCompass = () => {
+      setCurrentPitch(map.getPitch());
+      setCurrentHeading(map.getBearing());
+    };
+
+    // Initialize values
+    updateCompass();
+
+    // Listen to map events
+    map.on("pitch", updateCompass);
+    map.on("rotate", updateCompass);
+    map.on("move", updateCompass);
+
+    return () => {
+      map.off("pitch", updateCompass);
+      map.off("rotate", updateCompass);
+      map.off("move", updateCompass);
+    };
+  }, [map]);
 
   useEffect(() => {
     if (!isControlMouseDown) return;
@@ -43,12 +67,17 @@ export const LibrePitchingCompass = ({ map }: LibrePitchingCompassProps) => {
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleControlMouseUp);
     };
-  }, [isControlMouseDown]);
+  }, [
+    isControlMouseDown,
+    map,
+    initialMouseX,
+    initialMouseY,
+    initialHeading,
+    initialPitch,
+  ]);
 
   return (
-    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
     <div
-      className="cesium-orbit-control-button"
       onMouseDown={(e) => {
         if (map) {
           setIsControlMouseDown(true);
