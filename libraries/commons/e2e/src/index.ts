@@ -26,6 +26,7 @@ export {
   mockTopicMapData,
   mockAdditionalData,
   mockOMTMapHosting,
+  mockGeoportalServices,
 } from "./lib/image-mocks";
 
 // Test helper utilities
