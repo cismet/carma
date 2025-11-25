@@ -112,6 +112,8 @@ export async function mockAddresses(
 
 /**
  * Mock other datasets as empty arrays to avoid extra suggestions
+ * datasets: Add routes that return empty arrays
+ * mockedAdressen: Add routes that return mocked addresses
  */
 export async function mockEmptyDatasets(
   context: BrowserContext,

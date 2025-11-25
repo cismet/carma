@@ -19,7 +19,7 @@ test.describe("vorhabenkarte smoke test", () => {
       "vorhabenkarte.data",
     ]);
 
-    // Mock vorhabenkarte data using the universal function
+    // Mock vorhabenkarte data with one item that will transform into feature
     await mockTopicMapData(context, "vorhabenkarte", [
       {
         id: 1,
