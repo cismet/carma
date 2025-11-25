@@ -14,7 +14,9 @@ import center from "@turf/center";
 import { setFromLocalforage } from "../utils/utils";
 import { createFlatbushIndex, findInFlatbush } from "../utils/gisHelper";
 import { projectionData } from "../utils/constants";
-import { fetchJSON, md5FetchJSON } from "@carma-commons/utils/fetching.ts";
+import { md5FetchJSON } from "@carma-commons/utils";
+import { fetchJSON } from "react-cismap/tools/fetching";
+// import { fetchJSON, md5FetchJSON } from "@carma-commons/utils/fetching.ts";
 const defaultState = {
   items: undefined,
   itemsDictionary: undefined,
