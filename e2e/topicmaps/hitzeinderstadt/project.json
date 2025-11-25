@@ -1,0 +1,24 @@
+{
+  "name": "e2e-hitzeinderstadt",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "e2e/topicmaps/hitzeinderstadt/src",
+  "projectType": "application",
+  "tags": [],
+  "implicitDependencies": ["hitzeinderstadt"],
+"targets": {
+    "e2e": {
+      "executor": "@nx/playwright:playwright",
+      "options": {
+        "config": "e2e/topicmaps/hitzeinderstadt/playwright.config.ts"
+      },
+      "configurations": {
+        "production": {
+          "devServerTarget": "hitzeinderstadt:serve:production"
+        }
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  }
+}
