@@ -65,13 +65,48 @@ jobs:
 
       - name: Run E2E tests (all tests)
         if: github.event.inputs['target'] == 'all'
-        run: PW_CHANNEL=chrome npx nx e2e e2e-${{ github.event.inputs['project-name'] }} --skip-nx-cache --skipInstall --parallel=1
+        run: |
+          set -o pipefail
+           PW_CHANNEL=chrome npx nx e2e e2e-${{ github.event.inputs['project-name'] }} --skip-nx-cache --skipInstall --parallel=1 2>&1 | tee test_output.log
       - name: Run E2E tests (live tests)
         if: github.event.inputs['target'] == 'live'
-        run: PW_CHANNEL=chrome npx nx e2e e2e-${{ github.event.inputs['project-name'] }} --grep="live/" --skip-nx-cache --skipInstall --parallel=1
+        run: |
+          set -o pipefail
+          PW_CHANNEL=chrome npx nx e2e e2e-${{ github.event.inputs['project-name'] }} --grep="live/" --skip-nx-cache --skipInstall --parallel=1 2>&1 | tee test_output.log
       - name: Run E2E tests (smoke tests)
         if: github.event.inputs['target'] == 'smoke'
-        run: PW_CHANNEL=chrome npx nx e2e e2e-${{ github.event.inputs['project-name'] }} --grep="smoke/" --skip-nx-cache --skipInstall --parallel=1
+        run: |
+          set -o pipefail
+          PW_CHANNEL=chrome npx nx e2e e2e-${{ github.event.inputs['project-name'] }} --grep="smoke/" --skip-nx-cache --skipInstall --parallel=1 2>&1 | tee test_output.log
       - name: Run E2E tests (flaky tests)
         if: github.event.inputs['target'] == 'flaky'
-        run: PW_CHANNEL=chrome npx nx e2e e2e-${{ github.event.inputs['project-name'] }} --grep="flaky/" --skip-nx-cache --skipInstall --parallel=1
+        run: |
+          set -o pipefail
+          PW_CHANNEL=chrome npx nx e2e e2e-${{ github.event.inputs['project-name'] }} --grep="flaky/" --skip-nx-cache --skipInstall --parallel=1 2>&1 | tee test_output.log
+      - name: Report the live test failure
+        if: failure() && !cancelled()
+        run: |
+          echo "Full test_output.log:"
+          # grep -A20 "failed" test_output.log | grep -o "[a-zA-Z0-9_-]*\.spec\.ts" | sort -u
+          grep -A20 "failed" test_output.log | grep -B20 "flaky" | sed '$d' | grep -o "[a-zA-Z0-9_-]*\.spec\.ts" | sort -u
+          # Simple failed test extraction
+          FAILED_TESTS=$(grep -o "[a-zA-Z0-9_-]*\.spec\.ts" test_output.log 2>/dev/null | sort -u | tr '\n' ',' | sed 's/,$//' | sed 's/,/, /g')
+          # FAILED_TESTS=$(grep -A20 "failed" test_output.log | grep -B20 "flaky" | sed '$d' | grep -o "[a-zA-Z0-9_-]*\.spec\.ts" | sort -u | tr '\n' ',' | sed 's/,$//' | sed 's/,/, /g')
+
+          # Create grep pattern from failed tests (fallback to live/ if no tests found)
+          if [ -n "$FAILED_TESTS" ]; then
+            GREP_PATTERN=$(echo "$FAILED_TESTS" | sed 's/, /|/g')
+          else
+            GREP_PATTERN="/"
+          fi
+
+          # Write summary
+          {
+            echo "## ❌ Failed Tests \`${{ github.event.inputs['project-name'] }}\`"
+            echo "**Failed tests:** ${FAILED_TESTS:-Unknown}"
+            echo ""
+            echo "### 🔁 Run locally:"
+            echo '```bash'
+            echo "npx nx e2e e2e-${{ github.event.inputs['project-name'] }} --grep=\"$GREP_PATTERN\" --skip-nx-cache --skipInstall --parallel=1"
+            echo '```'
+          } >> $GITHUB_STEP_SUMMARY
