@@ -243,6 +243,18 @@ test.describe("generic-topicmap smoke test for hydrogen stations", () => {
       })
     );
 
+    // Mock image requests with a blank PNG
+    const BLANK_PNG =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+8V/8AAAAASUVORK5CYII=";
+
+    await context.route("**/geoportal/emobil/autos/fotos/**", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "image/jpeg",
+        body: Buffer.from(BLANK_PNG, "base64"),
+      })
+    );
+
     await setupSmokeTest(page, "/#/Wasserstoff-Tankstellenkarte_Wuppertal", {
       navigationTimeout: 30000,
       waitForNetworkIdle: true,
