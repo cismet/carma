@@ -4,6 +4,19 @@ import { test, expect } from "@playwright/test";
 test.describe("Geoportal overlay", () => {
   test.beforeEach(async ({ context, page }) => {
     await setupAllMocks(context);
+
+    // Mock geodaten.metropoleruhr.de/spw2 service with blank PNG
+    const BLANK_PNG =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+8V/8AAAAASUVORK5CYII=";
+
+    await context.route("https://geodaten.metropoleruhr.de/spw2/**", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "image/png",
+        body: Buffer.from(BLANK_PNG, "base64"),
+      })
+    );
+
     await page.goto("/");
   });
 
