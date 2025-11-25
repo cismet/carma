@@ -16,6 +16,8 @@ import {
 } from "@carma-mapping/fuzzy-search";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import LibreMap from "./libremap/LibreMap";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faBars } from "@fortawesome/free-solid-svg-icons";
 
 export type VectorStyle = {
   name: string;
@@ -113,6 +115,15 @@ export const CarmaMap = (props: CarmaMapProps) => {
           />
         </Control>
       )}
+
+      <Control position="topright" order={10}>
+        <ControlButtonStyler
+          useDisabledStyle={false}
+          dataTestId="compass-control"
+        >
+          <FontAwesomeIcon icon={faBars} className="text-base" />
+        </ControlButtonStyler>
+      </Control>
 
       {gazetteerSearchControl && (
         <Control position="bottomleft" order={10}>
