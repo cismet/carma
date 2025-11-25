@@ -35,6 +35,35 @@ test.describe("Geoportal overlay", () => {
       })
     );
 
+    // Wupp 3D data service to return empty array
+    await context.route("https://wupp-3d-data.cismet.de/**", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([]),
+      })
+    );
+
+    // Mock Icons8 service to return blank PNG
+    await context.route("https://img.icons8.com/**", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "image/png",
+        body: Buffer.from(BLANK_PNG, "base64"),
+      })
+    );
+
+    // Mock Wupp Digital Twin assets data service to return empty array
+    await context.route(
+      "https://wupp-digitaltwin-assets.cismet.de/**",
+      (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify([]),
+        })
+    );
+
     await page.goto("/");
   });
 
