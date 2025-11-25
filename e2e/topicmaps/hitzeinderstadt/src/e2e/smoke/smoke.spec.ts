@@ -12,6 +12,22 @@ test.describe("hitzeinderstadt smoke test", () => {
   test.beforeEach(async ({ context, page }) => {
     await setupAllMocks(context);
 
+    // Mock map style JSON files
+    const mockStyleJson = {
+      version: 8,
+      name: "Mock Style",
+      sources: {},
+      layers: [],
+    };
+
+    await context.route("https://tiles.cismet.de/**", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(mockStyleJson),
+      })
+    );
+
     await setupSmokeTest(page, "/", {
       navigationTimeout: 30000,
       waitForNetworkIdle: true,
