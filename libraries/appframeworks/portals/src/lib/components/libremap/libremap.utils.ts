@@ -172,13 +172,10 @@ export const getVectorMapping = async (vectorStyles: VectorStyle[]) => {
             return;
           }
 
-          console.log("xxx", fetchedCapabilities);
           const allLayers = getAllLeafLayers(fetchedCapabilities);
           const targetLayer = allLayers.find(
             (l) => l.Name === capabilitiesLayer
           );
-
-          console.log("xxx", targetLayer);
 
           if (targetLayer) {
             const extractedCarmaConf = extractCarmaConfig(
