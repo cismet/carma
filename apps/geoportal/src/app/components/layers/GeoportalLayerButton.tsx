@@ -179,8 +179,6 @@ const GeoportalLayerButton = ({
         <LayerIcon
           layer={layer}
           fallbackIcon={layer.icon}
-          iconPrefix="https://www.wuppertal.de/geoportal/geoportal_icon_legends/"
-          id={`test`}
           className={loading && isCurrentlyVisible() ? "icon" : ""}
         />
 
