@@ -1,4 +1,4 @@
-import { test } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 import {
   runMapSmokeTest,
@@ -268,7 +268,9 @@ test.describe("generic-topicmap smoke test for hydrogen stations", () => {
       checkZoomControl: true,
       checkFuzzySearch: true,
       checkApplicationMenu: true,
-      checkInfoBox: true,
+      checkInfoBox: false,
     });
+
+    await expect(page.getByText("Shell Tankstelle")).toBeVisible();
   });
 });
