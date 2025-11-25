@@ -1,7 +1,8 @@
 {
   // Using legacy for now - contains old code
   "extends": "../../../tsconfig.legacy.base.json",
-  "includes": [],
+  "compilerOptions": {},
+  "files": [],
   "references": [
     {
       "path": "./tsconfig.lib.json"

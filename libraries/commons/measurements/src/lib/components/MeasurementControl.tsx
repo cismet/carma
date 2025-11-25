@@ -5,32 +5,10 @@ import {
   ControlButtonStyler,
 } from "@carma-mapping/map-controls-layout";
 import { InfoBoxMeasurement } from "./InfoBoxMeasurement";
-// import { MEASUREMENT_MODE } from "../context";
-import { useMapMeasurementsContext } from "../context";
+import { MeasurementControlProps, MEASUREMENT_MODE } from "../../index.d";
+import { useMapMeasurementsContext } from "./MapMeasurementsProvider";
 import measureActive from "../assets/measure-active.png";
 import measureInactive from "../assets/measure.png";
-
-interface MeasurementControlProps {
-  isActive?: boolean;
-  onToggle?: () => void;
-  position?: "topleft" | "topright" | "bottomleft" | "bottomright";
-  order?: number;
-  iconBaseUrl?: string;
-  icons?: {
-    active: string;
-    inactive: string;
-  };
-  altText?: string;
-  iconClassName?: string;
-
-  // Universal features
-  disabled?: boolean;
-  useDisabledStyle?: boolean;
-  tooltip?: string | React.ReactNode;
-  tooltipPlacement?: "top" | "bottom" | "left" | "right";
-  className?: string;
-  showInfoBox?: boolean;
-}
 
 export const MeasurementControl = forwardRef<
   HTMLButtonElement,
@@ -60,12 +38,13 @@ export const MeasurementControl = forwardRef<
     },
     ref
   ) => {
-    const { isMeasurementEnabled, toggleMeasurementMode } =
-      useMapMeasurementsContext();
+    const { mode, toggleMeasurementMode } = useMapMeasurementsContext();
 
     // Use context values if props are not provided
     const isActive =
-      propIsActive !== undefined ? propIsActive : isMeasurementEnabled;
+      propIsActive !== undefined
+        ? propIsActive
+        : mode === MEASUREMENT_MODE.MEASUREMENT;
     const onToggle = propOnToggle || toggleMeasurementMode;
 
     const getUrlPrefix = () => {

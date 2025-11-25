@@ -8,12 +8,8 @@ import "../styles/infoBox.css";
 import { Tooltip } from "antd";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { ResponsiveInfoBox } from "@carma-appframeworks/portals";
-import { useMapMeasurementsContext } from "../context";
-import { MeasurementShape } from "../types/MeasurementShape";
-
-type InfoBoxMeasurementProps = {
-  pixelWidth?: number;
-};
+import { useMapMeasurementsContext } from "./MapMeasurementsProvider";
+import { InfoBoxMeasurementProps, MeasurementShape } from "../..";
 
 export function InfoBoxMeasurement({
   pixelWidth = 350,
@@ -187,6 +183,7 @@ export function InfoBoxMeasurement({
   const deleteShapeHandler = (e: React.MouseEvent) => {
     e.stopPropagation();
 
+    // the method activate delete process in  MapMeasurementsObjects
     setDeleteAll(true);
     // cleanUpdateMeasurementStatus();
     // setLastMeasureActive();

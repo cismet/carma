@@ -1,4 +1,4 @@
-import { SnappingPoint } from "../../types";
+import { SnappingPoint } from "../types";
 
 /**
  * Extract snapping points from a GeoJSON geometry

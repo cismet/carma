@@ -20,13 +20,9 @@
     "dist/**": true,
     "node_modules/**": true
   },
-  "cSpell.language": "en,de",
-  "cSpell.customDictionaries": {
-    "carma-project": {
-      "name": "CARMA Project Dictionary",
-      "path": "./.vscode/carma-project-dictionary.txt",
-      "addWords": true
-    }
-  },
-  "debug.javascript.autoAttachFilter": "onlyWithFlag"
+  "cSpell.words": [
+    "alkis",
+    "flur",
+    "landparcel"
+  ]
 }

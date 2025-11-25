@@ -27,7 +27,10 @@ import {
 } from "@carma-providers/feature-flag";
 import { HashStateProvider } from "@carma-providers/hash-state";
 import { useCesiumDevConsoleTrigger } from "@carma-mapping/engines/cesium";
-import { MapMeasurementsProvider } from "@carma-commons/measurements";
+import {
+  MapMeasurementsProvider,
+  MEASUREMENT_MODE,
+} from "@carma-commons/measurements";
 
 // Local Modules
 import AppErrorFallback from "./components/AppErrorFallback";
@@ -61,7 +64,13 @@ const MEASUREMENTS_BASE_CONFIG = {
 };
 
 import { getCustomFeatureFlags } from "./store/slices/layers";
-import { getShowLoginModal, setShowLoginModal } from "./store/slices/ui";
+import {
+  getShowLoginModal,
+  getUIMode,
+  setShowLoginModal,
+  setUIMode,
+  UIMode,
+} from "./store/slices/ui";
 
 // Side-Effect Imports
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -77,6 +86,39 @@ function CesiumDevConsoleIntegration() {
   return null;
 }
 
+function MeasurementsWrapper({
+  children,
+  baseConfig,
+  externalMode,
+  setModeExternal,
+}: {
+  children: React.ReactNode;
+  baseConfig: typeof MEASUREMENTS_BASE_CONFIG;
+  externalMode: MEASUREMENT_MODE;
+  setModeExternal: (mode: MEASUREMENT_MODE) => void;
+}) {
+  const flags = useFeatureFlags();
+
+  // Memoize config to prevent recreation on every render
+  const config = useMemo(
+    () => ({
+      ...baseConfig,
+      snappingEnabled: flags.isSnappingEnabled ?? baseConfig.snappingEnabled,
+    }),
+    [flags.isSnappingEnabled]
+  );
+
+  return (
+    <MapMeasurementsProvider
+      externalMode={externalMode}
+      setModeExternal={setModeExternal}
+      config={config}
+    >
+      {children}
+    </MapMeasurementsProvider>
+  );
+}
+
 function App({ published }: { published?: boolean }) {
   const dispatch = useDispatch();
   const showLoginModal = useSelector(getShowLoginModal);
@@ -85,6 +127,18 @@ function App({ published }: { published?: boolean }) {
   const syncToken = useSyncToken();
   useKeyboardShortcuts();
   const customFeatureFlags = useSelector(getCustomFeatureFlags);
+  const uiMode = useSelector(getUIMode);
+  const mode =
+    uiMode === UIMode.MEASUREMENT
+      ? MEASUREMENT_MODE.MEASUREMENT
+      : MEASUREMENT_MODE.DEFAULT;
+  const handleSetMode = (newMode: MEASUREMENT_MODE) => {
+    const newUIMode =
+      newMode === MEASUREMENT_MODE.MEASUREMENT
+        ? UIMode.MEASUREMENT
+        : UIMode.DEFAULT;
+    dispatch(setUIMode(newUIMode));
+  };
 
   // Memoize config objects to prevent recreation on every render
   const featureFlagsMergedConfig = useMemo(
@@ -118,7 +172,11 @@ function App({ published }: { published?: boolean }) {
                 config={OBLIQUE_CONFIG}
                 fallbackDirectionConfig={CAMERA_ID_TO_DIRECTION}
               >
-                <MapMeasurementsProvider config={MEASUREMENTS_BASE_CONFIG}>
+                <MeasurementsWrapper
+                  externalMode={mode}
+                  setModeExternal={handleSetMode}
+                  baseConfig={MEASUREMENTS_BASE_CONFIG}
+                >
                   <ErrorBoundary FallbackComponent={AppErrorFallback}>
                     <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
                       {isLoadingConfig && (
@@ -160,7 +218,7 @@ function App({ published }: { published?: boolean }) {
                       </Modal>
                     </div>
                   </ErrorBoundary>
-                </MapMeasurementsProvider>
+                </MeasurementsWrapper>
               </ObliqueProvider>
             </CarmaMapProviderWrapper>
           </MapFrameworkSwitcherProvider>

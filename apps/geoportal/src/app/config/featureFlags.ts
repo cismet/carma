@@ -26,6 +26,10 @@ export const featureFlagConfig: FeatureFlagConfig = {
     default: false,
     alias: "extendedSharing",
   },
+  isSnappingEnabled: {
+    default: true,
+    alias: "snapping",
+  },
   debugTileBoundaries: {
     default: false,
     alias: "debugTileBoundaries",
