@@ -5,24 +5,32 @@ import {
   setupSmokeTest,
   setupAllMocks,
   mockTopicMapData,
+  mockOMTMapHosting,
 } from "@carma-commons/e2e";
 
 test.describe("vorhabenkarte smoke test", () => {
   test.beforeEach(async ({ context, page }) => {
-    await setupAllMocks(context);
+    await setupAllMocks(context, [
+      "bezirke",
+      "quartiere",
+      "pois",
+      "kitas",
+      "vorhabenkarte",
+      "vorhabenkarte.data",
+    ]);
 
-    // Mock baeder data using the universal function
-    await mockTopicMapData(context, "baeder", [
+    // Mock vorhabenkarte data using the universal function
+    await mockTopicMapData(context, "vorhabenkarte", [
       {
-        id: 216,
-        name: "Freibad Vohwinkel",
-        adresse: "Gräfrather Straße 43c",
-        stadt: "Wuppertal",
-        tel: "+49-202-2791737",
-        info: "öffentliches Freibad in Vereinsregie (Förderverein Freibad Vohwinkel e.V.)",
-        email: "vorstand@freibad-wuppertal-vohwinkel.de",
-        url: "http://www.freibad-wuppertal-vohwinkel.de",
-        signatur: "Icon_Freibad_farbig.svg",
+        id: 1,
+        titel: "Neubau Grundschule Elberfeld",
+        beschreibung:
+          "Neubau einer dreizügigen Grundschule mit Turnhalle und Außenanlagen",
+        thema: {
+          id: 1,
+          name: "Bildung",
+          farbe: "#2E8B57",
+        },
         geojson: {
           type: "Point",
           crs: {
@@ -33,16 +41,17 @@ test.describe("vorhabenkarte smoke test", () => {
           },
           coordinates: [365254.600742188, 5676822.244472656],
         },
-        mainlocationtype: {
-          id: 5,
-          name: "Schwimmbäder",
-          lebenslagen: ["Freizeit", "Sport"],
+        kontakt: {
+          telefon: "+49-202-563-0",
+          mail: "info@wuppertal.de",
         },
-        more: {
-          typ: "Freibad",
-          betreiber: "Verein",
-          zugang: "öffentlich",
-        },
+        buergerbeteiligung: true,
+        abgeschlossen: false,
+        stadtweit: false,
+        letzte_aktualisierung: "2024-01-15T10:30:00Z",
+        signatur: "schule.svg",
+        fotos: [],
+        links: [],
       },
     ]);
     await setupSmokeTest(page, "/", {
