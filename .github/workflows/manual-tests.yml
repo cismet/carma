@@ -8,10 +8,18 @@ on:
         description: "Nx project name (e.g., x-and-ride)"
         required: true
         type: string
+      target:
+        type: choice
+        description: "What test types should be run?"
+        options:
+          - live
+          - smoke
+          - flaky
+          - all
 
 jobs:
   e2e:
-    name: "E2E Tests: ${{ github.event.inputs['project-name'] }}"
+    name: "E2E Tests: ${{ github.event.inputs['project-name'] }} - ${{ github.event.inputs['target'] }}"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -56,4 +64,14 @@ jobs:
         run: npm install
 
       - name: Run E2E tests (all tests)
+        if: github.event.inputs['target'] == 'all'
         run: PW_CHANNEL=chrome npx nx e2e e2e-${{ github.event.inputs['project-name'] }} --skip-nx-cache --skipInstall --parallel=1
+      - name: Run E2E tests (live tests)
+        if: github.event.inputs['target'] == 'live'
+        run: PW_CHANNEL=chrome npx nx e2e e2e-${{ github.event.inputs['project-name'] }} --grep="live/" --skip-nx-cache --skipInstall --parallel=1
+      - name: Run E2E tests (smoke tests)
+        if: github.event.inputs['target'] == 'smoke'
+        run: PW_CHANNEL=chrome npx nx e2e e2e-${{ github.event.inputs['project-name'] }} --grep="smoke/" --skip-nx-cache --skipInstall --parallel=1
+      - name: Run E2E tests (flaky tests)
+        if: github.event.inputs['target'] == 'flaky'
+        run: PW_CHANNEL=chrome npx nx e2e e2e-${{ github.event.inputs['project-name'] }} --grep="flaky/" --skip-nx-cache --skipInstall --parallel=1
