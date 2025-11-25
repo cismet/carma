@@ -18,6 +18,7 @@ import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopic
 import LibreMap from "./libremap/LibreMap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBars } from "@fortawesome/free-solid-svg-icons";
+import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
 export type VectorStyle = {
   name: string;
@@ -50,12 +51,15 @@ export const CarmaMap = (props: CarmaMapProps) => {
     zoomControls = true,
     gazetteerSearchControl = true,
     gazetteerSearchComponent,
+    modalMenu,
     children,
   } = props;
 
   const { responsiveState, gap, windowSize } = useContext<
     typeof ResponsiveTopicMapContext
   >(ResponsiveTopicMapContext);
+  const { setAppMenuVisible } =
+    useContext<typeof UIDispatchContext>(UIDispatchContext);
   const [map, setMap] = useState(<></>);
   const [libreMap, setLibreMap] = useState<maplibregl.Map | null>(null);
 
@@ -119,7 +123,9 @@ export const CarmaMap = (props: CarmaMapProps) => {
       <Control position="topright" order={10}>
         <ControlButtonStyler
           useDisabledStyle={false}
-          dataTestId="compass-control"
+          onClick={() => {
+            setAppMenuVisible(true);
+          }}
         >
           <FontAwesomeIcon icon={faBars} className="text-base" />
         </ControlButtonStyler>
@@ -156,6 +162,7 @@ export const CarmaMap = (props: CarmaMapProps) => {
       )}
 
       {map}
+      {modalMenu}
     </div>
   );
 };

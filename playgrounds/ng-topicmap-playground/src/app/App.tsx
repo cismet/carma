@@ -6,6 +6,10 @@ import {
 import { ControlLayout } from "@carma-mapping/map-controls-layout";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
 import { defaultGazDataConfig } from "@carma-commons/resources";
+import Menu from "./Menu";
+import "bootstrap/dist/css/bootstrap.min.css";
+import "react-bootstrap-typeahead/css/Typeahead.css";
+import "react-cismap/topicMaps.css";
 
 export function App() {
   return (
@@ -33,6 +37,7 @@ export function App() {
                   ],
                 },
               ]}
+              modalMenu={<Menu />}
             />
           </ControlLayout>
         </SelectionProvider>
