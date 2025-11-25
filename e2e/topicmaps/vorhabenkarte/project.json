@@ -1,0 +1,24 @@
+{
+  "name": "e2e-vorhabenkarte",
+  "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "e2e/topicmaps/vorhabenkarte/src",
+  "projectType": "application",
+  "tags": [],
+  "implicitDependencies": ["vorhabenkarte"],
+"targets": {
+    "e2e": {
+      "executor": "@nx/playwright:playwright",
+      "options": {
+        "config": "e2e/topicmaps/vorhabenkarte/playwright.config.ts"
+      },
+      "configurations": {
+        "production": {
+          "devServerTarget": "vorhabenkarte:serve:production"
+        }
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  }
+}
