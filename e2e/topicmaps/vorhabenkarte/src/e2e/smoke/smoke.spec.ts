@@ -30,6 +30,7 @@ test.describe("vorhabenkarte smoke test", () => {
           id: 1,
           name: "Bildung",
           farbe: "#2E8B57",
+          signatur: "Icon_Stadtentwicklung_Sicherheit.svg",
         },
         geojson: {
           type: "Point",
@@ -49,7 +50,6 @@ test.describe("vorhabenkarte smoke test", () => {
         abgeschlossen: false,
         stadtweit: false,
         letzte_aktualisierung: "2024-01-15T10:30:00Z",
-        signatur: "schule.svg",
         fotos: [],
         links: [],
       },
