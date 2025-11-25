@@ -17,6 +17,24 @@ test.describe("Geoportal overlay", () => {
       })
     );
 
+    // Mock Cesium terrain service to return empty array
+    await context.route("https://cesium-wupp-terrain.cismet.de/**", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([]),
+      })
+    );
+
+    // Mock Matomo analytics service to return empty array
+    await context.route("https://wupptomo.cismet.de/**", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([]),
+      })
+    );
+
     await page.goto("/");
   });
 
