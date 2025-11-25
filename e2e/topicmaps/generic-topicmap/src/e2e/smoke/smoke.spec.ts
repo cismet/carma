@@ -8,7 +8,7 @@ import {
   mockOMTMapHosting,
 } from "@carma-commons/e2e";
 
-test.describe("hitzeinderstadt smoke test", () => {
+test.describe("generic-topicmap smoke test for hydrogen stations", () => {
   test.beforeEach(async ({ context, page }) => {
     await setupAllMocks(context);
 
@@ -28,7 +28,7 @@ test.describe("hitzeinderstadt smoke test", () => {
       })
     );
 
-    await setupSmokeTest(page, "/", {
+    await setupSmokeTest(page, "/#/Wasserstoff-Tankstellenkarte_Wuppertal", {
       navigationTimeout: 30000,
       waitForNetworkIdle: true,
     });
