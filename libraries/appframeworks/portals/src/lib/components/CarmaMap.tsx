@@ -1,6 +1,7 @@
 import {
   Control,
   ControlButtonStyler,
+  ControlLayout,
 } from "@carma-mapping/map-controls-layout";
 import { useContext, useEffect, useState } from "react";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
@@ -20,6 +21,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faBars } from "@fortawesome/free-solid-svg-icons";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
+import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
 
 export type VectorStyle = {
   name: string;
@@ -99,83 +101,85 @@ export const CarmaMap = (props: CarmaMapProps) => {
   }, [mapEngine, selectedBackground]);
 
   return (
-    <div>
-      {zoomControls && (
-        <Control position="topleft" order={10}>
-          <ZoomControl mapEngine={mapEngine} libreMap={libreMap} />
-        </Control>
-      )}
+    <div className={TAILWIND_CLASSNAMES_FULLSCREEN_FIXED}>
+      <ControlLayout ifStorybook={false}>
+        {zoomControls && (
+          <Control position="topleft" order={10}>
+            <ZoomControl mapEngine={mapEngine} libreMap={libreMap} />
+          </Control>
+        )}
 
-      {mapEngine === "maplibre" && (
-        <Control position="topleft" order={20}>
+        {mapEngine === "maplibre" && (
+          <Control position="topleft" order={20}>
+            <ControlButtonStyler
+              useDisabledStyle={false}
+              dataTestId="compass-control"
+            >
+              <LibrePitchingCompass map={libreMap} />
+            </ControlButtonStyler>
+          </Control>
+        )}
+
+        {fullScreenControl && (
+          <Control position="topleft" order={50}>
+            <FullscreenControl />
+          </Control>
+        )}
+
+        {locatorControl && (
+          <Control position="topleft" order={60}>
+            <RoutedMapLocateControl
+              tourRefLabels={null}
+              disabled={false}
+              nativeTooltip={true}
+            />
+          </Control>
+        )}
+
+        <Control position="topright" order={10}>
           <ControlButtonStyler
             useDisabledStyle={false}
-            dataTestId="compass-control"
+            onClick={() => {
+              setAppMenuVisible(true);
+            }}
           >
-            <LibrePitchingCompass map={libreMap} />
+            <FontAwesomeIcon icon={faBars} className="text-base" />
           </ControlButtonStyler>
         </Control>
-      )}
 
-      {fullScreenControl && (
-        <Control position="topleft" order={50}>
-          <FullscreenControl />
-        </Control>
-      )}
+        {gazetteerSearchControl && (
+          <Control position="bottomleft" order={10}>
+            {gazetteerSearchComponent ? (
+              gazetteerSearchComponent
+            ) : (
+              <div data-test-id="fuzzy-search" style={{ marginTop: "4px" }}>
+                <LibFuzzySearch
+                  pixelwidth={
+                    responsiveState === "normal"
+                      ? "300px"
+                      : windowSize.width - gap
+                  }
+                  placeholder="Stadtteil | Adresse | POI"
+                  priorityTypes={[
+                    "pois",
+                    "poisAlternativeNames",
+                    "bezirke",
+                    "quartiere",
+                    "adressen",
+                    "streets",
+                    "schulen",
+                    "kitas",
+                  ]}
+                  typeInference={defaultTypeInference}
+                />
+              </div>
+            )}
+          </Control>
+        )}
 
-      {locatorControl && (
-        <Control position="topleft" order={60}>
-          <RoutedMapLocateControl
-            tourRefLabels={null}
-            disabled={false}
-            nativeTooltip={true}
-          />
-        </Control>
-      )}
-
-      <Control position="topright" order={10}>
-        <ControlButtonStyler
-          useDisabledStyle={false}
-          onClick={() => {
-            setAppMenuVisible(true);
-          }}
-        >
-          <FontAwesomeIcon icon={faBars} className="text-base" />
-        </ControlButtonStyler>
-      </Control>
-
-      {gazetteerSearchControl && (
-        <Control position="bottomleft" order={10}>
-          {gazetteerSearchComponent ? (
-            gazetteerSearchComponent
-          ) : (
-            <div data-test-id="fuzzy-search" style={{ marginTop: "4px" }}>
-              <LibFuzzySearch
-                pixelwidth={
-                  responsiveState === "normal"
-                    ? "300px"
-                    : windowSize.width - gap
-                }
-                placeholder="Stadtteil | Adresse | POI"
-                priorityTypes={[
-                  "pois",
-                  "poisAlternativeNames",
-                  "bezirke",
-                  "quartiere",
-                  "adressen",
-                  "streets",
-                  "schulen",
-                  "kitas",
-                ]}
-                typeInference={defaultTypeInference}
-              />
-            </div>
-          )}
-        </Control>
-      )}
-
-      {map}
-      {modalMenu}
+        {map}
+        {modalMenu}
+      </ControlLayout>
     </div>
   );
 };
