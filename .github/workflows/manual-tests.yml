@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       project-name:
-        description: "Please enter a project name (if no types are selected, it runs all tests)"
+        description: "Please enter a project name. If no checkboxes are selected, all tests will run."
         required: true
         type: string
       live:
