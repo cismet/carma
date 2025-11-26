@@ -1,0 +1,3 @@
+# Ignore collaboration submodules - they have their own NX setup
+libraries/collaboration/carma-wuppertal-collab/wuppertal-collab-submodule
+libraries/collaboration/carma-pecher-collab/pecher-collab-submodule
