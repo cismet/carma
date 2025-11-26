@@ -226,6 +226,7 @@ export const LibreMap = ({
         style: backgroundStyle,
         center: [lng, lat],
         zoom: defaultZoom,
+        attributionControl: false,
       });
       map.current = mapInstance;
       setLibreMap(mapInstance);
