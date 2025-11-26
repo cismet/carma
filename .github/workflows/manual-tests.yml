@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       project-name:
-        description: "Nx project name (if no types are selected, it runs all tests)"
+        description: "Please enter a project name (if no types are selected, it runs all tests)"
         required: true
         type: string
       live:
