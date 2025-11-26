@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       project-name:
-        description: "Please enter a project name. If no checkboxes are selected, all tests will run."
+        description: "Please enter a project name."
         required: true
         type: string
       live:
@@ -71,6 +71,7 @@ jobs:
         run: npm install
 
       - name: Run E2E tests
+        if: github.event.inputs.live == 'true' || github.event.inputs.smoke == 'true' || github.event.inputs.flaky == 'true'
         run: |
           set -o pipefail
 
