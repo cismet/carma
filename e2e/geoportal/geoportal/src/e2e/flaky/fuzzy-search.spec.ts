@@ -1,10 +1,10 @@
-import { setupAllMocks } from "@carma-commons/e2e";
+import { setupAllMocks, mockGeoportalServices } from "@carma-commons/e2e";
 import { test, expect } from "@playwright/test";
 
 test.describe("geoportal fuzzy search test", () => {
   test.beforeEach(async ({ context, page }) => {
     await setupAllMocks(context);
-
+    // await mockGeoportalServices(context);
     // ---- Log browser console to CI output ----
     // page.on("console", (msg) => {
     //   console.log(`[browser:${msg.type()}] ${msg.text()}`);

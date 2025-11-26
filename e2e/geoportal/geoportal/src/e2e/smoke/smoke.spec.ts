@@ -1,9 +1,10 @@
-import { setupAllMocks } from "@carma-commons/e2e";
+import { setupAllMocks, mockGeoportalServices } from "@carma-commons/e2e";
 import { test, expect } from "@playwright/test";
 
 test.describe("geoportal smoke test", () => {
   test.beforeEach(async ({ context, page }) => {
     await setupAllMocks(context);
+    await mockGeoportalServices(context);
     await page.goto("/");
     // await page.waitForLoadState("networkidle");
   });

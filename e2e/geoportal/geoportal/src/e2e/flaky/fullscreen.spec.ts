@@ -1,8 +1,9 @@
-import { setupAllMocks } from "@carma-commons/e2e";
+import { setupAllMocks, mockGeoportalServices } from "@carma-commons/e2e";
 import { test, expect } from "@playwright/test";
 
 test("fullscreen button toggles fullscreen", async ({ context, page }) => {
   await setupAllMocks(context);
+  await mockGeoportalServices(context);
   await page.goto("/");
 
   // Locate the fullscreen control by attribute

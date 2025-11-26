@@ -1,4 +1,5 @@
 import { test, expect, Page } from "@playwright/test";
+import { setupAllMocks, mockGeoportalServices } from "@carma-commons/e2e";
 
 const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <WMT_MS_Capabilities version="1.1.1" updateSequence="0">
@@ -68,6 +69,8 @@ const LAYER_UI_MAP_TEXT = "Stadtgrundkarte (grau) - ABK";
 
 test.describe("Geoportal add map layers", () => {
   test.beforeEach(async ({ context, page }) => {
+    await setupAllMocks(context);
+    await mockGeoportalServices(context);
     // Return empty responds
     await Promise.all(
       PATHS_EMPTY.map((p) =>

@@ -1,4 +1,4 @@
-import { setupAllMocks } from "@carma-commons/e2e";
+import { setupAllMocks, mockGeoportalServices } from "@carma-commons/e2e";
 import { test, expect } from "@playwright/test";
 
 async function getLatLngFromHash(page: import("@playwright/test").Page) {
@@ -21,6 +21,8 @@ async function getLatLngFromHash(page: import("@playwright/test").Page) {
 test.describe("geoportal home", () => {
   test.beforeEach(async ({ context, page }) => {
     await setupAllMocks(context);
+    await mockGeoportalServices(context);
+
     await page.goto("/");
     await page.waitForLoadState("networkidle");
   });
