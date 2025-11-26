@@ -174,12 +174,12 @@ export const getVectorMapping = async (vectorStyles: VectorStyle[]) => {
 
           const allLayers = getAllLeafLayers(fetchedCapabilities);
           const targetLayer = allLayers.find(
-            (l) => l.Name === capabilitiesLayer
+            (l) => (l as any).Name === capabilitiesLayer
           );
 
           if (targetLayer) {
             const extractedCarmaConf = extractCarmaConfig(
-              targetLayer.KeywordList
+              (targetLayer as any).KeywordList
             );
             infoboxMapping = extractedCarmaConf?.infoboxMapping || [];
           }

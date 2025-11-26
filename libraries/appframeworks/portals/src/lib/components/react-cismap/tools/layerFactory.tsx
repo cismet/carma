@@ -205,6 +205,7 @@ export const defaultLayerConf = {
       version: "1.1.1",
       pane: "backgroundLayers",
     },
+    vector: {},
   },
   namedLayers: {
     osm: {
