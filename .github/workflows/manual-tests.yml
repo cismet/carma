@@ -5,21 +5,28 @@ on:
   workflow_dispatch:
     inputs:
       project-name:
-        description: "Nx project name (e.g., x-and-ride)"
+        description: "Nx project name (if no types are selected, it runs all tests)"
         required: true
         type: string
-      target:
-        type: choice
-        description: "What test types should be run?"
-        options:
-          - live
-          - smoke
-          - flaky
-          - all
+      live:
+        description: "Run live tests"
+        required: false
+        type: boolean
+        default: false
+      smoke:
+        description: "Run smoke tests"
+        required: false
+        type: boolean
+        default: false
+      flaky:
+        description: "Run flaky tests"
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   e2e:
-    name: "E2E Tests: ${{ github.event.inputs['project-name'] }} - ${{ github.event.inputs['target'] }}"
+    name: "E2E Tests: ${{ github.event.inputs['project-name'] }}"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -63,26 +70,40 @@ jobs:
         if: steps.e2e-manual-node-cache.outputs.cache-hit != 'true'
         run: npm install
 
-      - name: Run E2E tests (all tests)
-        if: github.event.inputs['target'] == 'all'
+      - name: Run E2E tests
         run: |
           set -o pipefail
-           PW_CHANNEL=chrome npx nx e2e e2e-${{ github.event.inputs['project-name'] }} --skip-nx-cache --skipInstall --parallel=1 2>&1 | tee test_output.log
-      - name: Run E2E tests (live tests)
-        if: github.event.inputs['target'] == 'live'
-        run: |
-          set -o pipefail
-          PW_CHANNEL=chrome npx nx e2e e2e-${{ github.event.inputs['project-name'] }} --grep="live/" --skip-nx-cache --skipInstall --parallel=1 2>&1 | tee test_output.log
-      - name: Run E2E tests (smoke tests)
-        if: github.event.inputs['target'] == 'smoke'
-        run: |
-          set -o pipefail
-          PW_CHANNEL=chrome npx nx e2e e2e-${{ github.event.inputs['project-name'] }} --grep="smoke/" --skip-nx-cache --skipInstall --parallel=1 2>&1 | tee test_output.log
-      - name: Run E2E tests (flaky tests)
-        if: github.event.inputs['target'] == 'flaky'
-        run: |
-          set -o pipefail
-          PW_CHANNEL=chrome npx nx e2e e2e-${{ github.event.inputs['project-name'] }} --grep="flaky/" --skip-nx-cache --skipInstall --parallel=1 2>&1 | tee test_output.log
+
+          # Build grep pattern dynamically based on selected inputs
+          GREP_PATTERN=""
+
+          if [ "${{ github.event.inputs.live }}" == "true" ]; then
+            GREP_PATTERN="${GREP_PATTERN}live/"
+          fi
+
+          if [ "${{ github.event.inputs.smoke }}" == "true" ]; then
+            if [ -n "$GREP_PATTERN" ]; then
+              GREP_PATTERN="${GREP_PATTERN}|smoke/"
+            else
+              GREP_PATTERN="smoke/"
+            fi
+          fi
+
+          if [ "${{ github.event.inputs.flaky }}" == "true" ]; then
+            if [ -n "$GREP_PATTERN" ]; then
+              GREP_PATTERN="${GREP_PATTERN}|flaky/"
+            else
+              GREP_PATTERN="flaky/"
+            fi
+          fi
+
+          # Fallback to all test types if none selected
+          if [ -z "$GREP_PATTERN" ]; then
+            GREP_PATTERN="/"
+          fi
+
+          echo "Running tests with pattern: $GREP_PATTERN"
+          PW_CHANNEL=chrome npx nx e2e e2e-${{ github.event.inputs['project-name'] }} --grep="$GREP_PATTERN" --skip-nx-cache --skipInstall --parallel=1 2>&1 | tee test_output.log
       - name: Report the live test failure
         if: failure() && !cancelled()
         run: |
@@ -102,7 +123,7 @@ jobs:
 
           # Write summary
           {
-            echo "## ❌ Failed, flaky, or slow tests of \`${{ github.event.inputs['project-name'] }}\`"
+            echo "## ❌ Failed Tests \`${{ github.event.inputs['project-name'] }}\`"
             echo "**Failed tests:** ${FAILED_TESTS:-Unknown}"
             echo ""
             echo "### 🔁 Run locally:"
