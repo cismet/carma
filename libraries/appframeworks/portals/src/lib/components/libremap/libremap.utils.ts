@@ -317,3 +317,11 @@ export const vectorStylesToMapLibreStyle = async (
 
   return style;
 };
+
+export const zoom512as256 = (zoom512: number) => {
+  return zoom512 + 1;
+};
+
+export const zoom256as512 = (zoom256: number) => {
+  return zoom256 - 1;
+};

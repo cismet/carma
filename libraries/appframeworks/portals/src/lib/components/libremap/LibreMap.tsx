@@ -9,6 +9,8 @@ import {
   createFeature,
   getVectorMapping,
   vectorStylesToMapLibreStyle,
+  zoom256as512,
+  zoom512as256,
 } from "./libremap.utils";
 import { VectorStyle } from "../CarmaMap";
 import LibreFeatureInfoBox from "./LibreFeatureInfoBox";
@@ -19,6 +21,7 @@ import proj4 from "proj4";
 import { proj4crs3857def, proj4crs4326def } from "@carma-mapping/utils";
 import { useSelectionLibreMap } from "../../hooks/useSelectionLibreMap";
 import { defaultLayerConf } from "../react-cismap/tools/layerFactory";
+import { useMapHashRouting } from "../../hooks/useMapHashRouting";
 
 interface LibreMapProps {
   vectorStyles?: VectorStyle[];
@@ -40,6 +43,7 @@ export const LibreMap = ({
     selectionLayerId?: string;
   }> = new Set();
   const mappingRef = useRef({});
+  const isIdleRef = useRef(false);
   const [selectedFeature, setSelectedFeature] = useState({});
 
   const defaultLng = 7.150764;
@@ -300,6 +304,14 @@ export const LibreMap = ({
           }
         }
       });
+
+      mapInstance.on("idle", () => {
+        isIdleRef.current = true;
+      });
+
+      mapInstance.on("move", () => {
+        isIdleRef.current = false;
+      });
     }
 
     return () => {
@@ -336,6 +348,48 @@ export const LibreMap = ({
     updateMapStyle();
   }, [vectorStyles, backgroundStyle]);
 
+  const { handleTopicMapLocationChange } = useMapHashRouting({
+    getLeafletMap: () => {
+      const m = map.current;
+      if (!m) return null;
+      return {
+        setView: (center: { lat: number; lng: number }, zoom?: number) => {
+          if (typeof zoom === "number") m.setZoom(zoom256as512(zoom));
+          m.setCenter([center.lng, center.lat]);
+        },
+        panTo: (center: { lat: number; lng: number }) =>
+          m.panTo([center.lng, center.lat]),
+        setZoom: (zoom: number) => m.setZoom(zoom256as512(zoom)),
+        getCenter: () => m.getCenter(),
+        once: (type: string, fn: (...args: unknown[]) => void) =>
+          m.once(type, fn),
+      };
+    },
+    getLeafletZoom: () => {
+      const m = map.current;
+      return m ? zoom512as256(m.getZoom()) : 12;
+    },
+    labels: {
+      clearCesium: "LGM:2D:clearCesium",
+      writeLeafletLike: "LGM:2D:writeLocation",
+      topicMapLocation: "LGM:2D:location",
+    },
+  });
+
+  useEffect(() => {
+    const mapInstance = map.current;
+    if (!mapInstance) return;
+    const handleMoveEnd = () => {
+      const center = mapInstance.getCenter();
+      const zoom = zoom512as256(mapInstance.getZoom());
+      handleTopicMapLocationChange({ lat: center.lat, lng: center.lng, zoom });
+    };
+    mapInstance.on("moveend", handleMoveEnd);
+    return () => {
+      mapInstance && mapInstance.off("moveend", handleMoveEnd);
+    };
+  }, [handleTopicMapLocationChange]);
+
   const onComplete = (selection: SelectionItem) => {
     if (!isAreaType(selection.type as ENDPOINT)) {
       const selectedPos = proj4(proj4crs3857def, proj4crs4326def, [
@@ -343,20 +397,26 @@ export const LibreMap = ({
         selection.y,
       ]);
 
-      if (map.current) {
-        map.current.fire("click", {
-          lngLat: {
-            lat: selectedPos[1],
-            lng: selectedPos[0],
-          },
-          target: map.current,
-          type: "click",
-          point: map.current.project([selectedPos[1], selectedPos[0]]),
-          originalEvent: {
-            preventDefault: () => {},
-            stopPropagation: () => {},
-          },
-        });
+      if (isIdleRef.current) {
+        if (map.current) {
+          map.current.fire("click", {
+            lngLat: {
+              lat: selectedPos[1],
+              lng: selectedPos[0],
+            },
+            target: map.current,
+            type: "click",
+            point: map.current.project([selectedPos[1], selectedPos[0]]),
+            originalEvent: {
+              preventDefault: () => {},
+              stopPropagation: () => {},
+            },
+          });
+        }
+      } else {
+        setTimeout(() => {
+          onComplete(selection);
+        }, 20);
       }
     }
   };
