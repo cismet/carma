@@ -102,7 +102,7 @@ jobs:
 
           # Write summary
           {
-            echo "## ❌ Failed Tests \`${{ github.event.inputs['project-name'] }}\`"
+            echo "## ❌ Failed, flaky, or slow tests of \`${{ github.event.inputs['project-name'] }}\`"
             echo "**Failed tests:** ${FAILED_TESTS:-Unknown}"
             echo ""
             echo "### 🔁 Run locally:"
