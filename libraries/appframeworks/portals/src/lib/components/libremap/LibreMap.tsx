@@ -225,11 +225,16 @@ export const LibreMap = ({
           ? parseFloat(hashParams["lat"])
           : defaultLat;
 
+      const zoom =
+        hashParams["zoom"] !== undefined
+          ? parseFloat(hashParams["zoom"]) - 1
+          : defaultZoom;
+
       const mapInstance = new maplibregl.Map({
         container: mapContainer.current,
         style: backgroundStyle,
         center: [lng, lat],
-        zoom: defaultZoom,
+        zoom: zoom,
         attributionControl: false,
       });
       map.current = mapInstance;
