@@ -305,6 +305,150 @@ export async function mockGeoportalServices(context: BrowserContext) {
 }
 
 /**
+ * Mock oblique image services (exterior orientations and footprints)
+ * Creates valid mock data for the oblique mode controls to work properly
+ */
+export async function mockObliqueServices(context: BrowserContext) {
+  // Sample UTM32 coordinates near Wuppertal (EPSG:25832)
+  // Using coordinates that are valid for the Wuppertal area
+  const baseX = 374000; // UTM32 X coordinate
+  const baseY = 5677000; // UTM32 Y coordinate
+  const baseZ = 300; // Height in meters
+
+  // Create mock exterior orientations data
+  // Format: { "lineIdx_waypointIdx_cameraIdPhotoIdx": [x, y, z, [row0], [row1], [row2]] }
+  const mockExteriorOrientations: Record<
+    string,
+    [
+      number,
+      number,
+      number,
+      [number, number, number],
+      [number, number, number],
+      [number, number, number]
+    ]
+  > = {};
+
+  // Create a grid of mock images with different camera directions
+  // Camera IDs: 170 (front), 171 (right), 174 (back), 176 (left)
+  const cameraIds = ["170", "171", "174", "176"];
+
+  // Identity-like rotation matrix (approximately level camera)
+  const identityMatrix: [
+    [number, number, number],
+    [number, number, number],
+    [number, number, number]
+  ] = [
+    [1.0, 0.0, 0.0],
+    [0.0, 1.0, 0.0],
+    [0.0, 0.0, 1.0],
+  ];
+
+  // Create mock images in a small grid
+  for (let line = 1; line <= 3; line++) {
+    for (let waypoint = 1; waypoint <= 3; waypoint++) {
+      for (const cameraId of cameraIds) {
+        const paddedLine = String(line).padStart(3, "0");
+        const paddedWaypoint = String(waypoint).padStart(3, "0");
+        const photoIdx = "001";
+        const key = `${paddedLine}_${paddedWaypoint}_${cameraId}${photoIdx}`;
+
+        // Offset coordinates slightly for each position
+        const x = baseX + (line - 1) * 100;
+        const y = baseY + (waypoint - 1) * 100;
+        const z = baseZ;
+
+        mockExteriorOrientations[key] = [
+          x,
+          y,
+          z,
+          identityMatrix[0],
+          identityMatrix[1],
+          identityMatrix[2],
+        ];
+      }
+    }
+  }
+
+  // Create mock footprints GeoJSON
+  // Each footprint polygon corresponds to an image
+  const mockFootprints: {
+    type: "FeatureCollection";
+    features: Array<{
+      type: "Feature";
+      properties: { FILENAME: string };
+      geometry: { type: "Polygon"; coordinates: number[][][] };
+    }>;
+  } = {
+    type: "FeatureCollection",
+    features: [],
+  };
+
+  // Create footprints for each exterior orientation
+  for (const key of Object.keys(mockExteriorOrientations)) {
+    const [x, y] = mockExteriorOrientations[key];
+    // Create a small polygon around each camera position (in UTM32 coordinates)
+    const halfSize = 50;
+    mockFootprints.features.push({
+      type: "Feature",
+      properties: { FILENAME: key },
+      geometry: {
+        type: "Polygon",
+        coordinates: [
+          [
+            [x - halfSize, y - halfSize],
+            [x + halfSize, y - halfSize],
+            [x + halfSize, y + halfSize],
+            [x - halfSize, y + halfSize],
+            [x - halfSize, y - halfSize],
+          ],
+        ],
+      },
+    });
+  }
+
+  await Promise.all([
+    // Mock exterior orientations endpoint
+    context.route(
+      "**/wupp-oblique.cismet.de/**/exterior_orientations*.json*",
+      (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify(mockExteriorOrientations),
+        })
+    ),
+
+    // Mock footprints GeoJSON endpoint
+    context.route("**/wupp-oblique.cismet.de/**/fprfc.geojson*", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(mockFootprints),
+      })
+    ),
+
+    // Mock oblique image previews with blank PNG
+    context.route("**/wupp-oblique.cismet.de/**/*.jpg*", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "image/jpeg",
+        body: Buffer.from(BLANK_PNG, "base64"),
+      })
+    ),
+
+    // Mock oblique image previews PNG format
+    context.route("**/wupp-oblique.cismet.de/**/*.png*", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "image/png",
+        body: Buffer.from(BLANK_PNG, "base64"),
+      })
+    ),
+  ]);
+}
+
+/**
  * Setup all common image mocks at once
  */
 export async function setupAllMocks(

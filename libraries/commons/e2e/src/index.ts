@@ -27,6 +27,7 @@ export {
   mockAdditionalData,
   mockOMTMapHosting,
   mockGeoportalServices,
+  mockObliqueServices,
 } from "./lib/image-mocks";
 
 // Test helper utilities
