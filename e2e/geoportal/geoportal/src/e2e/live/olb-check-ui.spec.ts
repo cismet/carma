@@ -57,14 +57,14 @@ test.describe("Geoportal oblique", () => {
     const arrowRight = page.getByRole("button", { name: "→" });
     await expect(arrowRight).toBeVisible();
 
-    const firstUrl = page.url();
+    const url1 = page.url();
     await rotateRight.click();
 
     // Wait for URL to change (indicates rotation completed)
-    await page.waitForURL((url) => url.toString() !== firstUrl, {
+    await page.waitForURL((url) => url.toString() !== url1, {
       timeout: 10000,
     });
-    const secondUrl = page.url();
-    expect(secondUrl).not.toBe(firstUrl);
+    const url2 = page.url();
+    expect(url2).not.toBe(url1);
   });
 });

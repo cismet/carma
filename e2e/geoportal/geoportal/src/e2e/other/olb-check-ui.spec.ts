@@ -5,18 +5,18 @@ import {
 } from "@carma-commons/e2e";
 import { test, expect } from "@playwright/test";
 
-test.describe("geoportal layer group icon", () => {
+test.describe("Geoportal oblique", () => {
   test.beforeEach(async ({ context, page }) => {
     // test.slow();
     await setupAllMocks(context);
     await mockGeoportalServices(context);
-    // await mockObliqueServices(context);
+    await mockObliqueServices(context);
     await page.goto(
       "/#/?lat=51.2527066&lng=7.2051585&h=925.81&heading=324.58&pitch=311.88&fov=40.76&m=1&ff=oblq&is3d=1"
     );
   });
 
-  test("All olb controls are showing", async ({ page }) => {
+  test("All UI controls are displayed", async ({ page }) => {
     const luftBuild = page.getByText("Luftbild");
     await expect(luftBuild).toBeVisible();
     const oblModeButton = page.locator(".ant-btn").first();
@@ -57,14 +57,14 @@ test.describe("geoportal layer group icon", () => {
     const arrowRight = page.getByRole("button", { name: "→" });
     await expect(arrowRight).toBeVisible();
 
-    const firstUrl = page.url();
+    const url1 = page.url();
     await rotateRight.click();
 
     // Wait for URL to change (indicates rotation completed)
-    await page.waitForURL((url) => url.toString() !== firstUrl, {
+    await page.waitForURL((url) => url.toString() !== url1, {
       timeout: 10000,
     });
-    const secondUrl = page.url();
-    expect(secondUrl).not.toBe(firstUrl);
+    const url2 = page.url();
+    expect(url2).not.toBe(url1);
   });
 });
