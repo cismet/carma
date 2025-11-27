@@ -7,10 +7,12 @@ import {
   FeatureCollectionDispatchContext,
 } from "react-cismap/contexts/FeatureCollectionContextProvider";
 import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextProvider";
-import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
-import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
-// @ts-expect-error
+// @ts-ignore
 import { ResponsiveTopicMapDispatchContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+
+import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
+
+import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 
 import InfoBoxFotoPreview from "react-cismap/topicmaps/InfoBoxFotoPreview";
 import { updateUrl } from "@carma-commons/utils";

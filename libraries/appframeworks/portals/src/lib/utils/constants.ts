@@ -37,6 +37,7 @@ const resolutions = [
 ];
 const resolutions_ = getResolutions(5, 25);
 
+// @ts-expect-error
 export const crs25832 = new L.Proj.CRS("EPSG:25832", proj4crs25832def, {
   origin: [origin25832[0], origin25832[1]],
   // resolutions: resolutions.map(function (value) {
@@ -45,6 +46,7 @@ export const crs25832 = new L.Proj.CRS("EPSG:25832", proj4crs25832def, {
   resolutions: resolutions_,
 });
 
+// @ts-expect-error
 export const crs31462 = new L.Proj.CRS("EPSG:31462", proj4crs31462def, {
   origin: [origin31462[0], origin31462[1]],
   // resolutions: resolutions.map(function (value) {

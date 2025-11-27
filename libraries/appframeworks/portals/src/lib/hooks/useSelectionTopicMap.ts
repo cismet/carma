@@ -4,7 +4,8 @@ import { builtInGazetteerHitTrigger } from "react-cismap/tools/gazetteerHelper";
 
 import { SelectionItem, useSelection } from "../components/SelectionProvider";
 import type { Map } from "leaflet";
-import { TopicMapContext } from "../contexts/TopicMapContextProvider";
+import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
+// import { TopicMapContext } from "../contexts/TopicMapContextProvider";
 
 const NEW_SELECTION_TIMEOUT = 200;
 

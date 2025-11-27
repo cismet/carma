@@ -109,7 +109,9 @@ export const deleteOfflineMapData = async (
 ) => {
   try {
     db[OBJECTSTORE].clear();
+    // @ts-expect-error
     if (offlineConfig?.dataStores && Array.isArray(offlineConfig.dataStores)) {
+      // @ts-expect-error
       for (const dataStore of offlineConfig.dataStores) {
         setCacheInfoForKey(dataStore.key, undefined);
       }
@@ -133,15 +135,19 @@ export const loadAndCacheOfflineMapData = async (
     // });
     setCacheInfoForKey(key, info);
   };
+  // @ts-expect-error
   const CONSOLEDEBUG = offlineConfig?.consoleDebug;
   if (CONSOLEDEBUG)
     console.log("caching cismap offline vector map data:: startup");
 
   //prefetch styles
   if (
+    // @ts-expect-error
     offlineConfig?.offlineStyles &&
+    // @ts-expect-error
     Array.isArray(offlineConfig.offlineStyles)
   ) {
+    // @ts-expect-error
     for (const styleurl of offlineConfig.offlineStyles) {
       if (CONSOLEDEBUG)
         console.log(
@@ -153,7 +159,9 @@ export const loadAndCacheOfflineMapData = async (
   }
 
   //dataStores
+  // @ts-expect-error
   if (offlineConfig?.dataStores && Array.isArray(offlineConfig.dataStores)) {
+    // @ts-expect-error
     for (const dataStore of offlineConfig.dataStores) {
       addCacheInfo(dataStore.key, "loading");
       const hit = await db[OBJECTSTORE].get("md5." + dataStore.key);

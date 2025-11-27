@@ -20,20 +20,6 @@ export { ContactMailButton } from "./lib/components/ContactMailButton.tsx";
 export { FeatureInfobox } from "./lib/components/FeatureInfobox.tsx";
 export { InfoBoxHeader } from "./lib/components/InfoBoxHeader.tsx";
 export { CarmaMap } from "./lib/components/CarmaMap.tsx";
-export { TopicMapContextProvider } from "./lib/contexts/TopicMapContextProvider.tsx";
-export { FeatureCollectionContext } from "./lib/contexts/FeatureCollectionContextProvider.tsx";
-export { FeatureCollectionDispatchContext } from "./lib/contexts/FeatureCollectionContextProvider.tsx";
-export { UIContext } from "./lib/contexts/UIContextProvider.tsx";
-export { UIDispatchContext } from "./lib/contexts/UIContextProvider.tsx";
-export { TopicMapStylingContext } from "./lib/contexts/TopicMapStylingContextProvider.tsx";
-export { ResponsiveTopicMapContext } from "./lib/contexts/ResponsiveTopicMapContextProvider.tsx";
-export { TopicMapContext } from "./lib/contexts/TopicMapContextProvider.tsx";
-export { FeatureCollection } from "./lib/components/react-cismap/FeatureCollection.tsx";
-export { ModalApplicationMenu } from "./lib/components/react-cismap/ModalApplicationMenu.tsx";
-export { Section } from "./lib/components/react-cismap/Section.tsx";
-export { DefaultSettingsPanel } from "./lib/components/react-cismap/DefaultSettingsPanel.tsx";
-
-export { TopicMapComponent } from "./lib/components/react-cismap/TopicMapComponent.tsx";
 
 export { GazDataProvider, useGazData } from "./lib/components/GazDataProvider";
 

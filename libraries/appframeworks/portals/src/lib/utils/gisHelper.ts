@@ -50,10 +50,12 @@ function getLabelPositionForPolygon(coordinates) {
 }
 
 export function convertBBox2Bounds(bbox, refDef = proj4crs25832def) {
+  // @ts-expect-error
   const projectedNE = proj4(refDef, proj4.defs("EPSG:4326"), [
     bbox[0],
     bbox[1],
   ]);
+  // @ts-expect-error
   const projectedSW = proj4(refDef, proj4.defs("EPSG:4326"), [
     bbox[2],
     bbox[3],
@@ -73,6 +75,7 @@ export function convertPoint(x, y, refDef = proj4crs25832def) {
   if (typeof y === "string") {
     yval = parseFloat(y);
   }
+  // @ts-expect-error
   const projectedPoint = proj4(proj4.defs("EPSG:4326"), refDef, [yval, xval]);
   return projectedPoint;
 }
@@ -94,11 +97,13 @@ export function getBoundingBoxForLeafletMap(
 ) {
   const bounds = leafletMap.leafletElement.getBounds();
   const projectedNE = proj4(
+    // @ts-expect-error
     proj4.defs("EPSG:4326"),
     referenceSystemDefinition,
     [bounds._northEast.lng, bounds._northEast.lat]
   );
   const projectedSW = proj4(
+    // @ts-expect-error
     proj4.defs("EPSG:4326"),
     referenceSystemDefinition,
     [bounds._southWest.lng, bounds._southWest.lat]
