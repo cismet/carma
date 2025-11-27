@@ -7,7 +7,7 @@ import { test, expect } from "@playwright/test";
 
 test.describe("geoportal layer group icon", () => {
   test.beforeEach(async ({ context, page }) => {
-    test.slow();
+    // test.slow();
     await setupAllMocks(context);
     await mockGeoportalServices(context);
     // await mockObliqueServices(context);
