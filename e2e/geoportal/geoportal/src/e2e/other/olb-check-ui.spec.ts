@@ -7,6 +7,7 @@ import { test, expect } from "@playwright/test";
 
 test.describe("geoportal layer group icon", () => {
   test.beforeEach(async ({ context, page }) => {
+    test.slow();
     await setupAllMocks(context);
     await mockGeoportalServices(context);
     await mockObliqueServices(context);
@@ -56,7 +57,15 @@ test.describe("geoportal layer group icon", () => {
     const arrowRight = page.getByRole("button", { name: "→" });
     await expect(arrowRight).toBeVisible();
 
-    // await rotateRight.click();
-    // await expect(slider).toHaveCount(0);
+    const firstUrl = await page.url();
+    console.log("xxx 1 firstUrl", firstUrl);
+    await page.pause();
+    await rotateRight.click();
+    await page.waitForTimeout(3000);
+    const secondUrl = await page.url();
+    console.log("xxx 2 secondUrl", secondUrl);
+    await page.pause();
+
+    expect(secondUrl).not.toBe(firstUrl);
   });
 });
