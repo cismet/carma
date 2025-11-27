@@ -44,6 +44,7 @@ export const LibreMap = ({
   }> = new Set();
   const mappingRef = useRef({});
   const isIdleRef = useRef(false);
+  const vectorSourcesReadyRef = useRef(false);
   const [selectedFeature, setSelectedFeature] = useState({});
 
   const defaultLng = 7.150764;
@@ -310,11 +311,41 @@ export const LibreMap = ({
         }
       });
 
+      const checkVectorSourcesReady = () => {
+        const style = mapInstance.getStyle();
+        if (!style || !style.sources) {
+          vectorSourcesReadyRef.current = false;
+          return;
+        }
+
+        const vectorSources = Object.entries(style.sources).filter(
+          ([_, source]: [string, any]) => source.type === "vector"
+        );
+
+        if (vectorSources.length === 0) {
+          vectorSourcesReadyRef.current = false;
+          return;
+        }
+
+        const allLoaded = vectorSources.every(([sourceId]) =>
+          mapInstance.isSourceLoaded(sourceId)
+        );
+
+        vectorSourcesReadyRef.current = allLoaded;
+      };
+
+      mapInstance.on("sourcedata", (e) => {
+        if (e.isSourceLoaded && e.source.type === "vector") {
+          checkVectorSourcesReady();
+        }
+      });
+
       mapInstance.on("idle", () => {
         isIdleRef.current = true;
       });
 
       mapInstance.on("move", () => {
+        vectorSourcesReadyRef.current = false;
         isIdleRef.current = false;
       });
     }
@@ -402,22 +433,24 @@ export const LibreMap = ({
         selection.y,
       ]);
 
-      if (isIdleRef.current) {
-        if (map.current) {
-          map.current.fire("click", {
-            lngLat: {
-              lat: selectedPos[1],
-              lng: selectedPos[0],
-            },
-            target: map.current,
-            type: "click",
-            point: map.current.project([selectedPos[1], selectedPos[0]]),
-            originalEvent: {
-              preventDefault: () => {},
-              stopPropagation: () => {},
-            },
-          });
-        }
+      if (vectorSourcesReadyRef.current) {
+        setTimeout(() => {
+          if (map.current) {
+            map.current.fire("click", {
+              lngLat: {
+                lat: selectedPos[1],
+                lng: selectedPos[0],
+              },
+              target: map.current,
+              type: "click",
+              point: map.current.project([selectedPos[1], selectedPos[0]]),
+              originalEvent: {
+                preventDefault: () => {},
+                stopPropagation: () => {},
+              },
+            });
+          }
+        }, 500);
       } else {
         setTimeout(() => {
           onComplete(selection);
