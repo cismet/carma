@@ -1,18 +1,19 @@
 import { useContext, useEffect } from "react";
-
-import Menu from "./Menu";
-import { getPoiClusterIconCreatorFunction } from "./helper/styler";
-import { defaultLayerConf } from "react-cismap/tools/layerFactory";
 import {
-  FeatureCollection,
   FeatureCollectionContext,
   FeatureCollectionDispatchContext,
-  ResponsiveTopicMapContext,
-  TopicMapComponent,
-  TopicMapSelectionContent,
-  TopicMapStylingContext,
+} from "react-cismap/contexts/FeatureCollectionContextProvider";
+import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
+import FeatureCollection from "react-cismap/FeatureCollection";
+import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
+import Menu from "./Menu";
+import { getPoiClusterIconCreatorFunction } from "./helper/styler";
+import {
   UIContext,
   UIDispatchContext,
+} from "react-cismap/contexts/UIContextProvider";
+import {
+  TopicMapSelectionContent,
   useSelectionTopicMap,
   useUrlFeatureSelection,
 } from "@carma-appframeworks/portals";
@@ -27,7 +28,7 @@ import {
   RoutedMapLocateControl,
   ZoomControl,
 } from "@carma-mapping/components";
-
+import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import { getApplicationVersion } from "@carma-commons/utils";
 import versionData from "../version.json";
 import SIMComponentDictionary from "@carma-collab/wuppertal/secondary-info-modals";
@@ -80,13 +81,13 @@ const EMobiKarte = () => {
         <Control position="topleft" order={50}>
           <FullscreenControl />
         </Control>
-        {/* <Control position="topleft" order={60} title="Mein Standort">
+        <Control position="topleft" order={60} title="Mein Standort">
           <RoutedMapLocateControl
             tourRefLabels={null}
             disabled={false}
             nativeTooltip={true}
           />
-        </Control> */}
+        </Control>
         <Control position="bottomleft" order={10}>
           <div style={{ marginTop: "4px" }}>
             <LibFuzzySearch
@@ -114,7 +115,8 @@ const EMobiKarte = () => {
           fullScreenControl={false}
           zoomControls={false}
           modalMenu={<Menu />}
-          gazetteerSearchControl={false}
+          gazetteerSearchControl={true}
+          gazetteerSearchComponent={EmptySearchComponent}
           infoBox={
             <GenericInfoBoxFromFeature
               pixelwidth={350}
@@ -138,7 +140,7 @@ const EMobiKarte = () => {
             />
           }
         >
-          {/* <TopicMapSelectionContent /> */}
+          <TopicMapSelectionContent />
 
           <FeatureCollection></FeatureCollection>
           {secondaryInfoVisible && (

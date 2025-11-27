@@ -1,10 +1,15 @@
 import React, { useContext, useMemo } from "react";
 import CustomizationContextProvider from "react-cismap/contexts/CustomizationContextProvider";
-
-// import ModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
-// import Section from "react-cismap/topicmaps/menu/Section";
-// import DefaultSettingsPanel from "react-cismap/topicmaps/menu/DefaultSettingsPanel";
+import {
+  FeatureCollectionContext,
+  FeatureCollectionDispatchContext,
+} from "react-cismap/contexts/FeatureCollectionContextProvider";
+import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
+import ModalApplicationMenu from "react-cismap/topicmaps/menu/ModalApplicationMenu";
+import Section from "react-cismap/topicmaps/menu/Section";
+import DefaultSettingsPanel from "react-cismap/topicmaps/menu/DefaultSettingsPanel";
 import FilterUI from "./FilterUI";
+import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { getSymbolSVG } from "./helper/helper";
 import {
   KompaktanleitungSection,
@@ -16,20 +21,13 @@ import {
 import { GenericDigitalTwinReferenceSection } from "@carma-collab/wuppertal/commons";
 import versionData from "../version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
-import {
-  DefaultSettingsPanel,
-  FeatureCollectionContext,
-  FeatureCollectionDispatchContext,
-  ModalApplicationMenu,
-  Section,
-  UIDispatchContext,
-} from "@carma-apps/portals";
 
 const Menu = () => {
   const { setAppMenuActiveMenuSection } = useContext(UIDispatchContext);
   const { filteredItems, shownFeatures, filterState, itemsDictionary } =
     useContext(FeatureCollectionContext);
   const { setFilterState } = useContext(FeatureCollectionDispatchContext);
+  const { zoomToFeature } = useContext(TopicMapDispatchContext);
 
   const onlineSVG = getSymbolSVG(24, "#003B80", "pr", "onlineSVGinHELP");
   const offlineSVG = getSymbolSVG(24, "#888A87", "pr", "offlineSVGinHELP");

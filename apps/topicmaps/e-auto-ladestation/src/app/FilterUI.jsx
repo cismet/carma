@@ -5,11 +5,10 @@ import OnlineFC from "./filtercontrols/Online";
 import SchnellladerFC from "./filtercontrols/Schnelllader";
 import SteckerFC from "./filtercontrols/Stecker";
 import PieChart from "./PieChart";
-// import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
+import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
 import "url-search-params-polyfill";
 import { useContext } from "react";
-import { ResponsiveTopicMapContext } from "@carma-apps/portals";
 
 const FilterUI = ({
   filter,
