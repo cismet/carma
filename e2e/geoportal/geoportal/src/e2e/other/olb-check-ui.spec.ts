@@ -57,15 +57,14 @@ test.describe("geoportal layer group icon", () => {
     const arrowRight = page.getByRole("button", { name: "→" });
     await expect(arrowRight).toBeVisible();
 
-    const firstUrl = await page.url();
-    console.log("xxx 1 firstUrl", firstUrl);
-    await page.pause();
+    const firstUrl = page.url();
     await rotateRight.click();
-    await page.waitForTimeout(3000);
-    const secondUrl = await page.url();
-    console.log("xxx 2 secondUrl", secondUrl);
-    await page.pause();
 
-    expect(secondUrl).not.toBe(firstUrl);
+    // Wait for URL to change (indicates rotation completed)
+    await page.waitForURL((url) => url.toString() !== firstUrl, {
+      timeout: 10000,
+    });
+
+    expect(page.url()).not.toBe(firstUrl);
   });
 });
