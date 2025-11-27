@@ -8,7 +8,7 @@ import {
 } from "@carma-mapping/utils";
 
 interface ZoomControlProps {
-  mapEngine: "leaflet" | "maplibre" | "cesium";
+  mapEngine?: "leaflet" | "maplibre" | "cesium";
   libreMap?: maplibregl.Map | null;
 }
 
