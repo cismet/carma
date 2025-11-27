@@ -5,7 +5,7 @@ import {
 } from "@carma-commons/e2e";
 import { test, expect } from "@playwright/test";
 
-test.describe("geoportal layer group icon", () => {
+test.describe("Geoportal oblique", () => {
   test.beforeEach(async ({ context, page }) => {
     // test.slow();
     await setupAllMocks(context);
@@ -16,7 +16,7 @@ test.describe("geoportal layer group icon", () => {
     );
   });
 
-  test("All olb controls are showing", async ({ page }) => {
+  test("All UI controls are displayed", async ({ page }) => {
     const luftBuild = page.getByText("Luftbild");
     await expect(luftBuild).toBeVisible();
     const oblModeButton = page.locator(".ant-btn").first();
