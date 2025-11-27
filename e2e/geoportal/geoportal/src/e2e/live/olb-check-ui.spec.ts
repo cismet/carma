@@ -10,7 +10,7 @@ test.describe("geoportal layer group icon", () => {
     // test.slow();
     await setupAllMocks(context);
     await mockGeoportalServices(context);
-    // await mockObliqueServices(context);
+    await mockObliqueServices(context);
     await page.goto(
       "/#/?lat=51.2527066&lng=7.2051585&h=925.81&heading=324.58&pitch=311.88&fov=40.76&m=1&ff=oblq&is3d=1"
     );
