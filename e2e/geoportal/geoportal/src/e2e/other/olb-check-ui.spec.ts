@@ -11,6 +11,7 @@ test.describe("Geoportal oblique", () => {
   test.beforeEach(async ({ context, page }) => {
     test.slow();
     await setupAllMocks(context);
+    // await mockGeoportalServices(context);
     const filePath = path.resolve(__dirname, "../../test-data/fprfc.geojson");
     const body = fs.readFileSync(filePath, "utf8");
     const samplePath = path.resolve(
@@ -35,6 +36,19 @@ test.describe("Geoportal oblique", () => {
           headers: { "content-type": "application/json; charset=utf-8" },
           body: sample,
         })
+    );
+
+    // Mock only specific terrain requests to avoid overriding oblique images
+    await context.route(
+      "https://cesium-wupp-terrain.cismet.de/terrain2020/**",
+      (route) => {
+        console.log("🏔️ Terrain Request:", route.request().url());
+        route.fulfill({
+          status: 200,
+          contentType: "application/octet-stream",
+          body: Buffer.alloc(0), // Empty terrain data
+        });
+      }
     );
 
     // await mockGeoportalServices(context);
