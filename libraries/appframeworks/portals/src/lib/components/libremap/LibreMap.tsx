@@ -54,6 +54,7 @@ export const LibreMap = ({
   const geoJsonMetadataRef = useRef<
     Array<{ sourceId: string; uniqueColors: string[] }>
   >([]);
+  const isInitialGeoJsonLoad = useRef(true);
 
   const defaultLng = 7.150764;
   const defaultLat = 51.256;
@@ -446,11 +447,24 @@ export const LibreMap = ({
     const updateMapStyle = async () => {
       try {
         if (layers) {
-          // Show initial progress
+          // Show initial progress only on first load or when layers change
           const geoJsonLayers = layers.filter(
             (layer) => layer.type === "geojson"
           );
-          if (geoJsonLayers.length > 0 && onProgressUpdate) {
+
+          // Check if geojson layers have changed by comparing with previous metadata
+          const hasGeoJsonLayersChanged =
+            geoJsonLayers.length !== geoJsonMetadataRef.current.length;
+
+          if (hasGeoJsonLayersChanged) {
+            isInitialGeoJsonLoad.current = true;
+          }
+
+          if (
+            geoJsonLayers.length > 0 &&
+            onProgressUpdate &&
+            isInitialGeoJsonLoad.current
+          ) {
             onProgressUpdate({ current: 0, total: geoJsonLayers.length });
           }
 
@@ -463,7 +477,25 @@ export const LibreMap = ({
           // Store geojson metadata for pie chart rendering
           geoJsonMetadataRef.current = geoJsonMetadata;
 
+          // Save terrain state before setting style
+          const currentTerrain = map.current?.getTerrain();
+
           map.current?.setStyle(style);
+
+          // Restore terrain after style is loaded if it was previously set
+          if (currentTerrain && map.current) {
+            const restoreTerrain = () => {
+              if (map.current?.getSource("terrainSource")) {
+                map.current.setTerrain(currentTerrain);
+              }
+            };
+
+            if (map.current.isStyleLoaded()) {
+              restoreTerrain();
+            } else {
+              map.current.once("styledata", restoreTerrain);
+            }
+          }
 
           // Get mapping for vector layers
           const vectorLayers = layers.filter(
@@ -501,11 +533,16 @@ export const LibreMap = ({
                 // Track loaded sources for progress
                 if (!loadedSources.has(e.sourceId)) {
                   loadedSources.add(e.sourceId);
-                  if (onProgressUpdate) {
+                  if (onProgressUpdate && isInitialGeoJsonLoad.current) {
                     onProgressUpdate({
                       current: loadedSources.size,
                       total: geoJsonMetadata.length,
                     });
+
+                    // Mark as loaded after all sources are complete
+                    if (loadedSources.size === geoJsonMetadata.length) {
+                      isInitialGeoJsonLoad.current = false;
+                    }
                   }
                 }
 

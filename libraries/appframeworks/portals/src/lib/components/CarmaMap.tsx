@@ -19,12 +19,13 @@ import {
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 import LibreMap from "./libremap/LibreMap";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faBars } from "@fortawesome/free-solid-svg-icons";
+import { faBars, faMountainCity } from "@fortawesome/free-solid-svg-icons";
 import { UIDispatchContext } from "react-cismap/contexts/UIContextProvider";
 import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 import { TAILWIND_CLASSNAMES_FULLSCREEN_FIXED } from "@carma-commons/utils";
 import { createHashRouter, RouterProvider } from "react-router-dom";
 import { HashStateProvider } from "@carma-providers/hash-state";
+import { Tooltip } from "antd";
 
 export type VectorStyle = {
   name: string;
@@ -47,6 +48,7 @@ interface CarmaMapProps {
   locatorControl?: boolean;
   fullScreenControl?: boolean;
   zoomControls?: boolean;
+  terrainControl?: boolean;
   contactButtonEnabled?: boolean;
   infoBox?: React.ReactNode;
   vectorStyles?: VectorStyle[];
@@ -62,6 +64,7 @@ export const CarmaMap = (props: CarmaMapProps) => {
     locatorControl = true,
     fullScreenControl = true,
     zoomControls = true,
+    terrainControl = true,
     gazetteerSearchControl = true,
     gazetteerSearchComponent,
     modalMenu,
@@ -80,6 +83,7 @@ export const CarmaMap = (props: CarmaMapProps) => {
   >(TopicMapStylingContext);
   const [map, setMap] = useState(<></>);
   const [libreMap, setLibreMap] = useState<maplibregl.Map | null>(null);
+  const [showTerrain, setShowTerrain] = useState(false);
 
   useEffect(() => {
     if (mapEngine === "leaflet") {
@@ -137,6 +141,33 @@ export const CarmaMap = (props: CarmaMapProps) => {
                         >
                           <LibrePitchingCompass map={libreMap} />
                         </ControlButtonStyler>
+                      </Control>
+                    )}
+
+                    {mapEngine === "maplibre" && terrainControl && (
+                      <Control position="topleft" order={30}>
+                        <Tooltip title={"Terrain"} placement="right">
+                          <ControlButtonStyler
+                            onClick={() => {
+                              if (libreMap.terrain) {
+                                libreMap.setTerrain(null);
+                                setShowTerrain(false);
+                              } else {
+                                libreMap.setTerrain({
+                                  source: "terrainSource",
+                                  exaggeration: 1,
+                                });
+                                setShowTerrain(true);
+                              }
+                            }}
+                            className="font-semibold"
+                          >
+                            <FontAwesomeIcon
+                              icon={faMountainCity}
+                              className={showTerrain ? "text-[#1677ff]" : ""}
+                            />
+                          </ControlButtonStyler>
+                        </Tooltip>
                       </Control>
                     )}
 
