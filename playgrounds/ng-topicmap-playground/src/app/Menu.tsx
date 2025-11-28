@@ -34,11 +34,7 @@ const Menu = () => {
           />
         }
         menuSections={[
-          <DefaultSettingsPanel
-            key="settings"
-            skipSymbolsizeSetting={true}
-            skipClusteringSettings={true}
-          />,
+          <DefaultSettingsPanel key="settings" skipSymbolsizeSetting={true} />,
           <KompaktanleitungSection />,
           <GenericDigitalTwinReferenceSection />,
         ]}

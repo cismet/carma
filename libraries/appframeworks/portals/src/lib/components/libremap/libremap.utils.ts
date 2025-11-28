@@ -320,9 +320,11 @@ const transformedPois = (pois) => {
 export const vectorStylesToMapLibreStyle = async ({
   layers,
   backgroundStyle,
+  clusteringEnabled = true,
 }: {
   layers?: LibreLayer[];
   backgroundStyle?: StyleSpecification;
+  clusteringEnabled?: boolean;
 }): Promise<{
   style: StyleSpecification;
   geoJsonMetadata: Array<{ sourceId: string; uniqueColors: string[] }>;
@@ -451,28 +453,35 @@ export const vectorStylesToMapLibreStyle = async ({
         // Store metadata for pie chart rendering
         geoJsonMetadata.push({ sourceId, uniqueColors });
 
-        // Add the GeoJSON source with cluster properties for pie charts
+        // Add the GeoJSON source with optional cluster properties for pie charts
+        const sourceConfig: any = {
+          type: "geojson",
+          data: transformedData,
+        };
+
+        if (clusteringEnabled) {
+          sourceConfig.cluster = true;
+          sourceConfig.clusterMaxZoom = 14;
+          sourceConfig.clusterRadius = 40;
+          sourceConfig.clusterProperties = Object.fromEntries(
+            uniqueColors.map((color) => [
+              color,
+              ["+", ["case", ["==", ["get", "schrift"], color], 1, 0]],
+            ])
+          );
+        }
+
         style.sources = {
           ...style.sources,
-          [sourceId]: {
-            type: "geojson",
-            data: transformedData,
-            cluster: true,
-            clusterMaxZoom: 14,
-            // Changes how many clusters can exist in a specific radius before they merge together. Lower number means more clusters
-            clusterRadius: 40,
-            clusterProperties: Object.fromEntries(
-              uniqueColors.map((color) => [
-                color,
-                ["+", ["case", ["==", ["get", "schrift"], color], 1, 0]],
-              ])
-            ),
-          },
+          [sourceId]: sourceConfig,
         };
 
         // Add layers for the GeoJSON source
-        const geoJsonLayers: LayerSpecification[] = [
-          {
+        const geoJsonLayers: LayerSpecification[] = [];
+
+        // Only add cluster layer if clustering is enabled
+        if (clusteringEnabled) {
+          geoJsonLayers.push({
             id: `${sourceId}-clusters`,
             type: "circle",
             source: sourceId,
@@ -481,103 +490,98 @@ export const vectorStylesToMapLibreStyle = async ({
               "circle-color": "rgba(0,0,0,0)", // Transparent - pie chart markers will be used instead
               "circle-radius": 20,
             },
+          });
+        }
+
+        geoJsonLayers.push({
+          id: `${sourceId}-images-selection`,
+          type: "symbol",
+          source: sourceId,
+          minzoom: 9,
+          maxzoom: 24,
+          layout: {
+            visibility: "visible",
+            "symbol-z-order": "source",
+            "symbol-sort-key": ["get", "geographicidentifier"],
+            "icon-allow-overlap": true,
+            "icon-ignore-placement": true,
+            "icon-size": ["interpolate", ["linear"], ["zoom"], 9, 0.32, 24, 1],
+            "icon-padding": 0,
+            "icon-image": "Icon_Full#4892F0",
           },
-          {
-            id: `${sourceId}-images-selection`,
-            type: "symbol",
-            source: sourceId,
-            minzoom: 9,
-            maxzoom: 24,
-            layout: {
-              visibility: "visible",
-              "symbol-z-order": "source",
-              "symbol-sort-key": ["get", "geographicidentifier"],
-              "icon-allow-overlap": true,
-              "icon-ignore-placement": true,
-              "icon-size": [
-                "interpolate",
-                ["linear"],
-                ["zoom"],
-                9,
-                0.32,
-                24,
-                1,
-              ],
-              "icon-padding": 0,
-              "icon-image": "Icon_Full#4892F0",
-            },
-            paint: {
-              "icon-opacity": [
-                "case",
-                ["boolean", ["feature-state", "selected"], false],
-                1,
-                0,
-              ],
-            },
+          paint: {
+            "icon-opacity": [
+              "case",
+              ["boolean", ["feature-state", "selected"], false],
+              1,
+              0,
+            ],
           },
-          {
-            id: `${sourceId}-poi-images`,
-            type: "symbol",
-            source: sourceId,
-            minzoom: 0,
-            maxzoom: 24,
-            filter: ["!", ["has", "point_count"]],
-            layout: {
-              visibility: "visible",
-              "symbol-z-order": "source",
-              "symbol-sort-key": ["get", "geographicidentifier"],
-              "icon-allow-overlap": true,
-              "icon-ignore-placement": true,
-              "icon-size": [
-                "interpolate",
-                ["linear"],
-                ["zoom"],
-                9,
-                0.32,
-                24,
-                0.8,
-              ],
-              "icon-padding": 0,
-              "icon-image": ["concat", ["get", "signatur"], ["get", "schrift"]],
-            },
-            paint: {
-              "icon-color": ["get", "schrift"],
-            },
+        });
+
+        geoJsonLayers.push({
+          id: `${sourceId}-poi-images`,
+          type: "symbol",
+          source: sourceId,
+          minzoom: 0,
+          maxzoom: 24,
+          filter: ["!", ["has", "point_count"]],
+          layout: {
+            visibility: "visible",
+            "symbol-z-order": "source",
+            "symbol-sort-key": ["get", "geographicidentifier"],
+            "icon-allow-overlap": true,
+            "icon-ignore-placement": true,
+            "icon-size": [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              9,
+              0.32,
+              24,
+              0.8,
+            ],
+            "icon-padding": 0,
+            "icon-image": ["concat", ["get", "signatur"], ["get", "schrift"]],
           },
-          {
-            id: `${sourceId}-poi-labels`,
-            type: "symbol",
-            source: sourceId,
-            filter: ["!", ["has", "point_count"]],
-            minzoom: 16,
-            maxzoom: 24,
-            layout: {
-              "text-field": ["get", "geographicidentifier"],
-              "text-font": ["Open Sans Semibold"],
-              "icon-allow-overlap": true,
-              "icon-ignore-placement": true,
-              "text-size": 12,
-              "text-offset": [
-                "interpolate",
-                ["linear"],
-                ["zoom"],
-                17,
-                ["literal", [0, 1.3]],
-                24,
-                ["literal", [0, 2]],
-              ],
-              "text-anchor": "top",
-              "text-allow-overlap": true,
-              "text-rotation-alignment": "viewport",
-            },
-            paint: {
-              "text-halo-color": "#FFFFFF",
-              "text-halo-width": 5,
-              "text-color": ["get", "schrift"],
-              "text-opacity": 1,
-            },
+          paint: {
+            "icon-color": ["get", "schrift"],
           },
-        ];
+        });
+
+        geoJsonLayers.push({
+          id: `${sourceId}-poi-labels`,
+          type: "symbol",
+          source: sourceId,
+          filter: ["!", ["has", "point_count"]],
+          minzoom: 16,
+          maxzoom: 24,
+          layout: {
+            "text-field": ["get", "geographicidentifier"],
+            "text-font": ["Open Sans Semibold"],
+            "icon-allow-overlap": true,
+            "icon-ignore-placement": true,
+            "text-size": 12,
+            "text-offset": [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              17,
+              ["literal", [0, 1.3]],
+              24,
+              ["literal", [0, 2]],
+            ],
+            "text-anchor": "top",
+            "text-allow-overlap": true,
+            "text-rotation-alignment": "viewport",
+          },
+          paint: {
+            "text-halo-color": "#FFFFFF",
+            "text-halo-width": 5,
+            "text-color": ["get", "schrift"],
+            "text-opacity": 1,
+          },
+        });
 
         style.layers = [...style.layers, ...geoJsonLayers];
       }

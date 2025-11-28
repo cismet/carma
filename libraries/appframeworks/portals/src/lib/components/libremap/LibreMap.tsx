@@ -1,8 +1,9 @@
 import type { StyleSpecification } from "maplibre-gl";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { getHashParams } from "@carma-commons/utils";
+import { FeatureCollectionContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
 
 import "./map.css";
 import {
@@ -55,6 +56,14 @@ export const LibreMap = ({
     Array<{ sourceId: string; uniqueColors: string[] }>
   >([]);
   const isInitialGeoJsonLoad = useRef(true);
+
+  const { clusteringEnabled } = useContext<typeof FeatureCollectionContext>(
+    FeatureCollectionContext
+  );
+
+  useEffect(() => {
+    console.log("Clustering enabled changed:", clusteringEnabled);
+  }, [clusteringEnabled]);
 
   const defaultLng = 7.150764;
   const defaultLat = 51.256;
@@ -472,6 +481,7 @@ export const LibreMap = ({
           const { style, geoJsonMetadata } = await vectorStylesToMapLibreStyle({
             layers,
             backgroundStyle,
+            clusteringEnabled,
           });
 
           // Store geojson metadata for pie chart rendering
@@ -518,8 +528,8 @@ export const LibreMap = ({
 
           mappingRef.current = mapping;
 
-          // Set up marker updates after style is set
-          if (geoJsonMetadata.length > 0) {
+          // Set up marker updates after style is set (only if clustering is enabled)
+          if (geoJsonMetadata.length > 0 && clusteringEnabled) {
             const loadedSources = new Set<string>();
 
             // Wait for style to load, then set up listeners
@@ -576,7 +586,7 @@ export const LibreMap = ({
     };
 
     updateMapStyle();
-  }, [backgroundStyle, layers]);
+  }, [backgroundStyle, layers, clusteringEnabled]);
 
   const { handleTopicMapLocationChange } = useMapHashRouting({
     getLeafletMap: () => {
