@@ -60,6 +60,42 @@ test.describe("Geoportal oblique", () => {
       }
     );
 
+    // Mock 3D mesh tileset JSON files
+    // await context.route(
+    //   "https://wupp-3d-data.cismet.de/mesh2024/**/tileset.json",
+    //   (route) => {
+    //     console.log("🏗️ Mesh Tileset JSON:", route.request().url());
+    //     route.fulfill({
+    //       status: 200,
+    //       contentType: "application/json",
+    //       body: JSON.stringify({
+    //         asset: { version: "1.0" },
+    //         geometricError: 500,
+    //         root: {
+    //           boundingVolume: {
+    //             box: [0, 0, 0, 100, 0, 0, 0, 100, 0, 0, 0, 100],
+    //           },
+    //           geometricError: 0,
+    //           children: [],
+    //         },
+    //       }),
+    //     });
+    //   }
+    // );
+
+    // Mock 3D mesh B3DM files (binary 3D model data)
+    // await context.route(
+    //   "https://wupp-3d-data.cismet.de/mesh2024/**/*.b3dm",
+    //   (route) => {
+    //     console.log("🏭 Mesh B3DM File:", route.request().url());
+    //     route.fulfill({
+    //       status: 200,
+    //       contentType: "application/octet-stream",
+    //       body: Buffer.alloc(0), // Empty binary mesh data
+    //     });
+    //   }
+    // );
+
     // await mockGeoportalServices(context);
     // await mockObliqueServices(context);
     // Mock Cesium IAU2006_XYS orientation data files
