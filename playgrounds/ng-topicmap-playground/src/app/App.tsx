@@ -20,10 +20,11 @@ export function App() {
           <CarmaMap
             onClick={() => {}}
             mapEngine="maplibre"
-            vectorStyles={[
+            libreLayers={[
               {
+                type: "geojson",
                 name: "POIs",
-                style: "https://tiles.cismet.de/poi/style.json",
+                data: "https://tiles.cismet.de/poi/poi.json",
                 infoboxMapping: [
                   "foto: p.foto",
                   "headerColor:p.schrift",
@@ -37,6 +38,23 @@ export function App() {
                 ],
               },
             ]}
+            // vectorStyles={[
+            //   {
+            //     name: "POIs",
+            //     style: "https://tiles.cismet.de/poi/style.json",
+            //     infoboxMapping: [
+            //       "foto: p.foto",
+            //       "headerColor:p.schrift",
+            //       "header:p.kombi",
+            //       "title:p.geographicidentifier",
+            //       "additionalInfo:p.adresse",
+            //       "subtitle: p.info",
+            //       "url:p.url",
+            //       "tel:p.telefon",
+            //       "email:p.email",
+            //     ],
+            //   },
+            // ]}
             modalMenu={<Menu />}
           />
         </SelectionProvider>

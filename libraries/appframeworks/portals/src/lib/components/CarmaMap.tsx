@@ -33,6 +33,10 @@ export type VectorStyle = {
   infoboxMapping?: string[];
 };
 
+export type LibreLayer =
+  | ({ type: "vector" } & VectorStyle)
+  | { type: "geojson"; name: string; data: string; infoboxMapping?: string[] };
+
 interface CarmaMapProps {
   mapEngine?: "leaflet" | "maplibre" | "cesium";
   onClick: () => void;
@@ -47,6 +51,7 @@ interface CarmaMapProps {
   infoBox?: React.ReactNode;
   vectorStyles?: VectorStyle[];
   backgroundLayers?: string;
+  libreLayers?: LibreLayer[];
   children?: React.ReactNode;
 }
 
@@ -60,6 +65,7 @@ export const CarmaMap = (props: CarmaMapProps) => {
     gazetteerSearchComponent,
     modalMenu,
     backgroundLayers,
+    libreLayers,
     children,
   } = props;
 
@@ -92,12 +98,12 @@ export const CarmaMap = (props: CarmaMapProps) => {
     if (mapEngine === "maplibre") {
       setMap(
         <LibreMap
-          vectorStyles={props.vectorStyles}
           backgroundLayers={
             backgroundLayers ??
             backgroundConfigurations[selectedBackground].layerkey
           }
           setLibreMap={setLibreMap}
+          layers={libreLayers}
         />
       );
     }

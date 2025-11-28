@@ -7,12 +7,13 @@ import { getHashParams } from "@carma-commons/utils";
 import "./map.css";
 import {
   createFeature,
+  createPieChart,
   getVectorMapping,
   vectorStylesToMapLibreStyle,
   zoom256as512,
   zoom512as256,
 } from "./libremap.utils";
-import { VectorStyle } from "../CarmaMap";
+import { LibreLayer, VectorStyle } from "../CarmaMap";
 import LibreFeatureInfoBox from "./LibreFeatureInfoBox";
 import { LibreMapSelectionContent } from "../LibreMapSelectionContent";
 import { SelectionItem } from "../SelectionProvider";
@@ -24,14 +25,14 @@ import { defaultLayerConf } from "../react-cismap/tools/layerFactory";
 import { useMapHashRouting } from "../../hooks/useMapHashRouting";
 
 interface LibreMapProps {
-  vectorStyles?: VectorStyle[];
   backgroundLayers?: string;
+  layers?: LibreLayer[];
   setLibreMap: (map: maplibregl.Map) => void;
 }
 
 export const LibreMap = ({
-  vectorStyles,
   backgroundLayers,
+  layers,
   setLibreMap,
 }: LibreMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
@@ -46,6 +47,11 @@ export const LibreMap = ({
   const isIdleRef = useRef(false);
   const vectorSourcesReadyRef = useRef(false);
   const [selectedFeature, setSelectedFeature] = useState({});
+  const markers = useRef<Record<string, maplibregl.Marker>>({});
+  const markersOnScreen = useRef<Record<string, maplibregl.Marker>>({});
+  const geoJsonMetadataRef = useRef<
+    Array<{ sourceId: string; uniqueColors: string[] }>
+  >([]);
 
   const defaultLng = 7.150764;
   const defaultLat = 51.256;
@@ -245,8 +251,14 @@ export const LibreMap = ({
         const point = mapInstance.project([e.lngLat.lng, e.lngLat.lat]);
         const hits = mapInstance.queryRenderedFeatures(point);
         let filteredHits = hits.filter((hit) => {
-          return !hit.layer.id.includes("selection");
+          return (
+            !hit.layer.id.includes("selection") &&
+            !hit.layer.id.includes("cluster")
+          );
         });
+
+        console.log("xxx hits", hits);
+        console.log("xxx filteredHits", filteredHits);
 
         selectedFeatures.forEach((feature) => {
           try {
@@ -281,9 +293,13 @@ export const LibreMap = ({
         if (filteredHits.length > 0) {
           const selectedVectorFeature = filteredHits[0];
 
+          // Try to get layer ID from metadata (for vector layers)
           const layerId = selectedVectorFeature.layer?.metadata?.["layer-id"];
 
-          const layerMapping = mappingRef.current[layerId];
+          // Try to get mapping by layer ID first, then by source (for geojson layers)
+          let layerMapping =
+            mappingRef.current[layerId] ||
+            mappingRef.current[selectedVectorFeature.source];
 
           let feature;
           if (layerMapping) {
@@ -358,23 +374,137 @@ export const LibreMap = ({
     };
   }, []);
 
+  // Update markers for pie chart clusters
+  const updateMarkers = () => {
+    if (!map.current || geoJsonMetadataRef.current.length === 0) return;
+
+    geoJsonMetadataRef.current.forEach(({ sourceId, uniqueColors }) => {
+      const newMarkers: Record<string, maplibregl.Marker> = {};
+      const features = map.current!.querySourceFeatures(sourceId);
+
+      for (const feature of features) {
+        if (!feature.geometry || feature.geometry.type === "GeometryCollection")
+          continue;
+        const coords = feature.geometry.coordinates as [number, number];
+        const props = feature.properties;
+        if (!props || !props.cluster) continue;
+        const id = `${sourceId}-${props.cluster_id}`;
+
+        let marker = markers.current[id];
+        if (!marker) {
+          const el = createPieChart(props, uniqueColors);
+          marker = markers.current[id] = new maplibregl.Marker({
+            element: el,
+          }).setLngLat(coords);
+
+          // Add click handler to zoom into cluster
+          el.addEventListener("click", () => {
+            const currentZoom = map.current!.getZoom();
+            const pointCount = props.point_count;
+            const zoomIncrement =
+              pointCount > 100 ? 3 : pointCount > 50 ? 2 : 1;
+            const newZoom = Math.min(
+              currentZoom + zoomIncrement,
+              map.current!.getMaxZoom()
+            );
+            map.current!.flyTo({
+              center: coords,
+              zoom: newZoom,
+              essential: true,
+            });
+          });
+        }
+        newMarkers[id] = marker;
+
+        if (!markersOnScreen.current[id]) marker.addTo(map.current!);
+      }
+
+      // Remove markers that are no longer visible
+      for (const id in markersOnScreen.current) {
+        if (id.startsWith(sourceId) && !newMarkers[id]) {
+          markersOnScreen.current[id].remove();
+          delete markersOnScreen.current[id];
+        }
+      }
+
+      // Update markers on screen for this source
+      Object.keys(newMarkers).forEach((id) => {
+        markersOnScreen.current[id] = newMarkers[id];
+      });
+    });
+  };
+
   useEffect(() => {
     if (!map.current) return;
 
     const updateMapStyle = async () => {
       try {
-        if (vectorStyles) {
+        if (layers) {
           // Update with vector styles and background layers
-          const style = await vectorStylesToMapLibreStyle(
-            vectorStyles,
-            backgroundStyle
-          );
+          const { style, geoJsonMetadata } = await vectorStylesToMapLibreStyle({
+            layers,
+            backgroundStyle,
+          });
+
+          // Store geojson metadata for pie chart rendering
+          geoJsonMetadataRef.current = geoJsonMetadata;
+
           map.current?.setStyle(style);
-          const mapping = await getVectorMapping(vectorStyles);
+
+          // Get mapping for vector layers
+          const vectorLayers = layers.filter(
+            (layer) => layer.type === "vector"
+          );
+          let mapping = {};
+          if (vectorLayers.length > 0) {
+            mapping = await getVectorMapping(vectorLayers);
+          }
+
+          // Add mapping for geojson layers
+          const geoJsonLayers = layers.filter(
+            (layer) => layer.type === "geojson"
+          );
+          geoJsonLayers.forEach((layer, index) => {
+            if (layer.infoboxMapping && layer.infoboxMapping.length > 0) {
+              const sourceId = `geojson-source-${index}`;
+              mapping[layer.name] = layer.infoboxMapping;
+              // Also map by source ID for easier lookup
+              mapping[sourceId] = layer.infoboxMapping;
+            }
+          });
+
           mappingRef.current = mapping;
+
+          // Set up marker updates after style is set
+          if (geoJsonMetadata.length > 0) {
+            // Wait for style to load, then set up listeners
+            const handleStyleLoad = () => {
+              const handleData = (e: any) => {
+                const isRelevantSource = geoJsonMetadata.some(
+                  ({ sourceId }) => e.sourceId === sourceId
+                );
+                if (!isRelevantSource || !e.isSourceLoaded) return;
+
+                updateMarkers();
+              };
+
+              map.current!.on("data", handleData);
+              map.current!.on("move", updateMarkers);
+              map.current!.on("moveend", () => {
+                setTimeout(updateMarkers, 100);
+              });
+            };
+
+            if (map.current!.isStyleLoaded()) {
+              handleStyleLoad();
+            } else {
+              map.current!.once("styledata", handleStyleLoad);
+            }
+          }
         } else {
           // Only update background layers
           map.current?.setStyle(backgroundStyle);
+          geoJsonMetadataRef.current = [];
         }
       } catch (error) {
         console.error("Error updating map style:", error);
@@ -382,7 +512,7 @@ export const LibreMap = ({
     };
 
     updateMapStyle();
-  }, [vectorStyles, backgroundStyle]);
+  }, [backgroundStyle, layers]);
 
   const { handleTopicMapLocationChange } = useMapHashRouting({
     getLeafletMap: () => {
