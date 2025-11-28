@@ -284,6 +284,23 @@ export async function mockGeoportalServices(context: BrowserContext) {
       })
     ),
 
+    // Mock Cesium approximateTerrainHeights.json - used for terrain height estimation
+    // Returns minimal valid data structure with a few sample tiles
+    context.route(
+      "**/__cesium__/Assets/approximateTerrainHeights.json",
+      (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            "6-0-0": [-60.9, 1359.39],
+            "6-0-1": [-734.16, 2871.77],
+            "6-1-0": [-100, 500],
+            "6-1-1": [-200, 600],
+          }),
+        })
+    ),
+
     // Mock Icons8 service to return blank PNG
     context.route("https://img.icons8.com/**", (route) =>
       route.fulfill({
