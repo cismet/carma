@@ -1,7 +1,9 @@
-import { CarmaMap } from "@carma-appframeworks/portals";
 import {
-  GazDataProvider,
+  CarmaMap,
   SelectionProvider,
+  ProgressIndicator,
+  useProgress,
+  GazDataProvider,
 } from "@carma-appframeworks/portals";
 import { ControlLayout } from "@carma-mapping/map-controls-layout";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
@@ -13,13 +15,17 @@ import "react-cismap/topicMaps.css";
 import "leaflet/dist/leaflet.css";
 
 export function App() {
+  const { progress, showProgress, handleProgressUpdate } = useProgress();
+
   return (
     <TopicMapContextProvider infoBoxPixelWidth={350}>
       <GazDataProvider config={defaultGazDataConfig}>
         <SelectionProvider>
+          <ProgressIndicator progress={progress} show={showProgress} />
           <CarmaMap
             onClick={() => {}}
             mapEngine="maplibre"
+            onProgressUpdate={handleProgressUpdate}
             libreLayers={[
               {
                 type: "geojson",

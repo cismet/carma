@@ -28,12 +28,14 @@ interface LibreMapProps {
   backgroundLayers?: string;
   layers?: LibreLayer[];
   setLibreMap: (map: maplibregl.Map) => void;
+  onProgressUpdate?: (progress: { current: number; total: number }) => void;
 }
 
 export const LibreMap = ({
   backgroundLayers,
   layers,
   setLibreMap,
+  onProgressUpdate,
 }: LibreMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
@@ -444,6 +446,14 @@ export const LibreMap = ({
     const updateMapStyle = async () => {
       try {
         if (layers) {
+          // Show initial progress
+          const geoJsonLayers = layers.filter(
+            (layer) => layer.type === "geojson"
+          );
+          if (geoJsonLayers.length > 0 && onProgressUpdate) {
+            onProgressUpdate({ current: 0, total: geoJsonLayers.length });
+          }
+
           // Update with vector styles and background layers
           const { style, geoJsonMetadata } = await vectorStylesToMapLibreStyle({
             layers,
@@ -465,9 +475,6 @@ export const LibreMap = ({
           }
 
           // Add mapping for geojson layers
-          const geoJsonLayers = layers.filter(
-            (layer) => layer.type === "geojson"
-          );
           geoJsonLayers.forEach((layer, index) => {
             if (layer.infoboxMapping && layer.infoboxMapping.length > 0) {
               const sourceId = `geojson-source-${index}`;
@@ -481,6 +488,8 @@ export const LibreMap = ({
 
           // Set up marker updates after style is set
           if (geoJsonMetadata.length > 0) {
+            const loadedSources = new Set<string>();
+
             // Wait for style to load, then set up listeners
             const handleStyleLoad = () => {
               const handleData = (e: any) => {
@@ -488,6 +497,17 @@ export const LibreMap = ({
                   ({ sourceId }) => e.sourceId === sourceId
                 );
                 if (!isRelevantSource || !e.isSourceLoaded) return;
+
+                // Track loaded sources for progress
+                if (!loadedSources.has(e.sourceId)) {
+                  loadedSources.add(e.sourceId);
+                  if (onProgressUpdate) {
+                    onProgressUpdate({
+                      current: loadedSources.size,
+                      total: geoJsonMetadata.length,
+                    });
+                  }
+                }
 
                 updateMarkers();
               };
@@ -504,6 +524,9 @@ export const LibreMap = ({
             } else {
               map.current!.once("styledata", handleStyleLoad);
             }
+          } else if (onProgressUpdate) {
+            // No geojson layers, complete immediately
+            onProgressUpdate({ current: 1, total: 1 });
           }
         } else {
           // Only update background layers

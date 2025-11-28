@@ -53,6 +53,7 @@ interface CarmaMapProps {
   backgroundLayers?: string;
   libreLayers?: LibreLayer[];
   children?: React.ReactNode;
+  onProgressUpdate?: (progress: { current: number; total: number }) => void;
 }
 
 export const CarmaMap = (props: CarmaMapProps) => {
@@ -104,6 +105,7 @@ export const CarmaMap = (props: CarmaMapProps) => {
           }
           setLibreMap={setLibreMap}
           layers={libreLayers}
+          onProgressUpdate={props.onProgressUpdate}
         />
       );
     }
