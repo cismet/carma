@@ -11,7 +11,7 @@ test.describe("Geoportal oblique", () => {
   test.beforeEach(async ({ context, page }) => {
     test.slow();
     await setupAllMocks(context);
-    const filePath = path.resolve(__dirname, "./test-data/fprfc.geojson");
+    const filePath = path.resolve(__dirname, "../../test-data/fprfc.geojson");
     const body = fs.readFileSync(filePath, "utf8");
 
     await context.route("**/2024/metadata/fprfc.geojson", (route) =>
