@@ -13,6 +13,11 @@ test.describe("Geoportal oblique", () => {
     await setupAllMocks(context);
     const filePath = path.resolve(__dirname, "../../test-data/fprfc.geojson");
     const body = fs.readFileSync(filePath, "utf8");
+    const samplePath = path.resolve(
+      __dirname,
+      "../../test-data/exterior_orientations_sample.json"
+    );
+    const sample = fs.readFileSync(samplePath, "utf8");
 
     await context.route("**/2024/metadata/fprfc.geojson", (route) =>
       route.fulfill({
@@ -20,6 +25,16 @@ test.describe("Geoportal oblique", () => {
         headers: { "content-type": "application/geo+json; charset=utf-8" },
         body,
       })
+    );
+
+    await context.route(
+      "**/2024/metadata/exterior_orientations_utm32.noNadir.json",
+      (route) =>
+        route.fulfill({
+          status: 200,
+          headers: { "content-type": "application/json; charset=utf-8" },
+          body: sample,
+        })
     );
     // await mockGeoportalServices(context);
     // await mockObliqueServices(context);
