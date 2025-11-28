@@ -61,10 +61,6 @@ export const LibreMap = ({
     FeatureCollectionContext
   );
 
-  useEffect(() => {
-    console.log("Clustering enabled changed:", clusteringEnabled);
-  }, [clusteringEnabled]);
-
   const defaultLng = 7.150764;
   const defaultLat = 51.256;
   const defaultZoom = 15;
@@ -268,9 +264,6 @@ export const LibreMap = ({
             !hit.layer.id.includes("cluster")
           );
         });
-
-        console.log("xxx hits", hits);
-        console.log("xxx filteredHits", filteredHits);
 
         selectedFeatures.forEach((feature) => {
           try {
