@@ -11,27 +11,25 @@ test.describe("Geoportal oblique", () => {
     await setupAllMocks(context);
     await mockGeoportalServices(context);
     await mockObliqueServices(context);
-     test.beforeEach(async ({ context, page }) => {
     // Mock Cesium IAU2006_XYS orientation data files
-    context.route("**/__cesium__/Assets/IAU2006_XYS/*.json", (route) =>
-      route.fulfill({
-        status: 200,
-        headers: { "content-type": "application/json; charset=utf-8" },
-        body: JSON.stringify({
-          version: "1.0",
-          updated: "2008 Dec 02 20:00:00 UTC",
-          interpolationOrder: 9,
-          xysAlgorithm: "SOFA_DEL_PSI_EPS",
-          sampleZeroJulianEphemerisDate: 2442396.5,
-          stepSizeDays: 1,
-          startIndex: 0,
-          numberOfSamples: 1,
-          // Use an array-of-arrays to reflect "one sample with three values"
-          samples: [[0.0, 0.0, 0.0]],
-        }),
-      })
-    );
-
+    // context.route("**/__cesium__/Assets/IAU2006_XYS/*.json", (route) =>
+    //   route.fulfill({
+    //     status: 200,
+    //     headers: { "content-type": "application/json; charset=utf-8" },
+    //     body: JSON.stringify({
+    //       version: "1.0",
+    //       updated: "2008 Dec 02 20:00:00 UTC",
+    //       interpolationOrder: 9,
+    //       xysAlgorithm: "SOFA_DEL_PSI_EPS",
+    //       sampleZeroJulianEphemerisDate: 2442396.5,
+    //       stepSizeDays: 1,
+    //       startIndex: 0,
+    //       numberOfSamples: 1,
+    //       // Use an array-of-arrays to reflect "one sample with three values"
+    //       samples: [[0.0, 0.0, 0.0]],
+    //     }),
+    //   })
+    // );
     await page.goto(
       "/#/?lat=51.2527066&lng=7.2051585&h=925.81&heading=324.58&pitch=311.88&fov=40.76&m=1&ff=oblq&is3d=1"
     );
