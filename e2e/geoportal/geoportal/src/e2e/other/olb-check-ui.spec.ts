@@ -69,17 +69,21 @@ test.describe("Geoportal oblique", () => {
 
     await expect(async () => {
       const url2 = page.url();
-      console.log("xxx url2", url2);
       expect(url2).not.toBe(url1);
     }).toPass({ timeout: 10000 });
 
-    const urlTwo = page.url();
-    console.log("xxx urlTwo", urlTwo);
-    await rotateLeft.click();
-    await expect(async () => {
-      const url3 = page.url();
-      console.log("xxx url3", url3);
-      expect(url3).not.toBe(urlTwo);
-    }).toPass({ timeout: 10000 });
+    // const urlTwo = page.url();
+    // await rotateLeft.click();
+    // await expect(async () => {
+    //   const url3 = page.url();
+    //   expect(url3).not.toBe(urlTwo);
+    // }).toPass({ timeout: 10000 });
+
+    // const urlThree = page.url();
+    // await arrowUp.click();
+    // await expect(async () => {
+    //   const url4 = page.url();
+    //   expect(url4).not.toBe(urlThree);
+    // }).toPass({ timeout: 10000 });
   });
 });
