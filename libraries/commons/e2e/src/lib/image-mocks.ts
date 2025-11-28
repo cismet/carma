@@ -326,11 +326,28 @@ export async function mockGeoportalServices(context: BrowserContext) {
  * Creates valid mock data for the oblique mode controls to work properly
  */
 export async function mockObliqueServices(context: BrowserContext) {
-  // Sample UTM32 coordinates near Wuppertal (EPSG:25832)
-  // Using coordinates that are valid for the Wuppertal area
-  const baseX = 374000; // UTM32 X coordinate
-  const baseY = 5677000; // UTM32 Y coordinate
-  const baseZ = 300; // Height in meters
+  const BLANK_PNG =
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+8V/8AAAAASUVORK5CYII=";
+
+  // WGS84 coordinates near Wuppertal (longitude, latitude)
+  // Test URL uses: lat=51.2527066, lng=7.2051585
+  const baseLng = 7.2051585;
+  const baseLat = 51.2527066;
+
+  // UTM32 coordinates for exterior orientations (EPSG:25832)
+  const baseX = 374000;
+  const baseY = 5677000;
+  const baseZ = 300;
+
+  // Camera IDs mapped to cardinal directions (ORI values)
+  // 170 = North (NORD), 171 = East (OST), 174 = South (SUED), 176 = West (WEST)
+  const cameraConfig: Record<string, string> = {
+    "170": "NORD",
+    "171": "OST",
+    "174": "SUED",
+    "176": "WEST",
+  };
+  const cameraIds = Object.keys(cameraConfig);
 
   // Create mock exterior orientations data
   // Format: { "lineIdx_waypointIdx_cameraIdPhotoIdx": [x, y, z, [row0], [row1], [row2]] }
@@ -345,10 +362,6 @@ export async function mockObliqueServices(context: BrowserContext) {
       [number, number, number]
     ]
   > = {};
-
-  // Create a grid of mock images with different camera directions
-  // Camera IDs: 170 (front), 171 (right), 174 (back), 176 (left)
-  const cameraIds = ["170", "171", "174", "176"];
 
   // Identity-like rotation matrix (approximately level camera)
   const identityMatrix: [
@@ -370,7 +383,7 @@ export async function mockObliqueServices(context: BrowserContext) {
         const photoIdx = "001";
         const key = `${paddedLine}_${paddedWaypoint}_${cameraId}${photoIdx}`;
 
-        // Offset coordinates slightly for each position
+        // Offset UTM32 coordinates slightly for each position
         const x = baseX + (line - 1) * 100;
         const y = baseY + (waypoint - 1) * 100;
         const z = baseZ;
@@ -387,13 +400,13 @@ export async function mockObliqueServices(context: BrowserContext) {
     }
   }
 
-  // Create mock footprints GeoJSON
+  // Create mock footprints GeoJSON in WGS84 (longitude, latitude)
   // Each footprint polygon corresponds to an image
   const mockFootprints: {
     type: "FeatureCollection";
     features: Array<{
       type: "Feature";
-      properties: { FILENAME: string };
+      properties: { FILENAME: string; ORI: string };
       geometry: { type: "Polygon"; coordinates: number[][][] };
     }>;
   } = {
@@ -402,26 +415,43 @@ export async function mockObliqueServices(context: BrowserContext) {
   };
 
   // Create footprints for each exterior orientation
-  for (const key of Object.keys(mockExteriorOrientations)) {
-    const [x, y] = mockExteriorOrientations[key];
-    // Create a small polygon around each camera position (in UTM32 coordinates)
-    const halfSize = 50;
-    mockFootprints.features.push({
-      type: "Feature",
-      properties: { FILENAME: key },
-      geometry: {
-        type: "Polygon",
-        coordinates: [
-          [
-            [x - halfSize, y - halfSize],
-            [x + halfSize, y - halfSize],
-            [x + halfSize, y + halfSize],
-            [x - halfSize, y + halfSize],
-            [x - halfSize, y - halfSize],
-          ],
-        ],
-      },
-    });
+  // Use WGS84 coordinates (lng, lat) for GeoJSON
+  const halfSize = 0.001; // ~100m in degrees
+  let gridIndex = 0;
+  for (let line = 1; line <= 3; line++) {
+    for (let waypoint = 1; waypoint <= 3; waypoint++) {
+      for (const cameraId of cameraIds) {
+        const paddedLine = String(line).padStart(3, "0");
+        const paddedWaypoint = String(waypoint).padStart(3, "0");
+        const photoIdx = "001";
+        const key = `${paddedLine}_${paddedWaypoint}_${cameraId}${photoIdx}`;
+
+        // Offset WGS84 coordinates for each grid position
+        const lng = baseLng + (line - 1) * 0.001;
+        const lat = baseLat + (waypoint - 1) * 0.001;
+
+        mockFootprints.features.push({
+          type: "Feature",
+          properties: {
+            FILENAME: key,
+            ORI: cameraConfig[cameraId], // Cardinal direction: NORD, OST, SUED, WEST
+          },
+          geometry: {
+            type: "Polygon",
+            coordinates: [
+              [
+                [lng - halfSize, lat - halfSize],
+                [lng + halfSize, lat - halfSize],
+                [lng + halfSize, lat + halfSize],
+                [lng - halfSize, lat + halfSize],
+                [lng - halfSize, lat - halfSize],
+              ],
+            ],
+          },
+        });
+        gridIndex++;
+      }
+    }
   }
 
   await Promise.all([

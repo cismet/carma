@@ -36,15 +36,24 @@ test.describe("Geoportal oblique", () => {
   });
 
   test("All UI controls are displayed", async ({ page }) => {
+    // Wait for the Cesium viewer to be ready (canvas should be visible)
+    await expect(page.locator("canvas")).toBeVisible({ timeout: 30000 });
+
+    // Wait for oblique mode UI - "Luftbild" text indicates oblique controls are rendered
     const luftBuild = page.getByText("Luftbild");
-    await expect(luftBuild).toBeVisible();
+    await expect(luftBuild).toBeVisible({ timeout: 30000 });
+
+    // The oblique mode button - clicking it toggles oblique mode
+    // URL has ff=oblq so we may already be in oblique mode
     const oblModeButton = page.locator(".ant-btn").first();
     await expect(oblModeButton).toBeVisible();
     await oblModeButton.click();
 
-    // Action buttons
+    // Action buttons - wait for oblique data to load and image to be selected
+    // The "Flug zum Bild" button only appears after selectedImage is set
+    // This requires: data loaded + Cesium camera settled + nearest image found
     const flightToImg = page.getByText("Flug zum Bild");
-    await expect(flightToImg).toBeVisible();
+    await expect(flightToImg).toBeVisible({ timeout: 30000 });
     const openImage = page.getByRole("button", { name: "Bild öffnen" });
     await expect(openImage).toBeVisible();
     const downloadImage = page.getByRole("button", { name: "Herunterladen" });
