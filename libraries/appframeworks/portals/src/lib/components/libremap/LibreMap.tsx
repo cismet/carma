@@ -361,7 +361,11 @@ export const LibreMap = ({
       });
 
       mapInstance.on("move", () => {
-        vectorSourcesReadyRef.current = false;
+        if (layers.find((layer) => layer.type === "vector")) {
+          vectorSourcesReadyRef.current = false;
+        } else {
+          vectorSourcesReadyRef.current = true;
+        }
         isIdleRef.current = false;
       });
     }
