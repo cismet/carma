@@ -294,7 +294,7 @@ export const LibreMap = ({
         });
 
         selectedFeatures.clear();
-        setSelectedFeature({});
+        setSelectedFeature(null);
         if (filteredHits.length > 0) {
           const selectedVectorFeature = filteredHits[0];
 
