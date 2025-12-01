@@ -4,7 +4,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { getHashParams } from "@carma-commons/utils";
 import { FeatureCollectionContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
-import PhotoLightBox from "react-cismap/topicmaps/PhotoLightBox";
+import PhotoLightBox from "react-cismap/topicmaps/PhotoLightbox";
 import "./map.css";
 import {
   createFeature,
