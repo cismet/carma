@@ -34,7 +34,21 @@ const Menu = () => {
           />
         }
         menuSections={[
-          <DefaultSettingsPanel key="settings" skipSymbolsizeSetting={true} />,
+          <DefaultSettingsPanel
+            key="settings"
+            getSymbolSVG={(size, color) => {
+              return (
+                <img
+                  width={size}
+                  src={
+                    "https://wupp-digitaltwin-assets.cismet.de/v2/poi-signaturen/Icon_Parkanlage_farbig.svg"
+                  }
+                  style={color ? { filter: `drop-shadow(0 0 0 ${color})` } : {}}
+                  alt="symbol"
+                />
+              );
+            }}
+          />,
           <KompaktanleitungSection />,
           <GenericDigitalTwinReferenceSection />,
         ]}

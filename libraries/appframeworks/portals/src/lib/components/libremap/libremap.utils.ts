@@ -114,6 +114,93 @@ const getPaintProperty = (layerStyle: LayerSpecification) => {
   }
 };
 
+export const styleManipulation = (
+  markerSymbolSize: number,
+  style: StyleSpecification
+): StyleSpecification => {
+  const scale = (markerSymbolSize / 35) * 1.35;
+  const newStyle = JSON.parse(JSON.stringify(style)) as StyleSpecification;
+
+  if (newStyle.layers) {
+    newStyle.layers = newStyle.layers.map((layer) => {
+      if (layer.type !== "symbol") return layer;
+
+      const updatedLayer = { ...layer };
+      const layout = updatedLayer.layout || {};
+
+      const hasIconSize = layout["icon-size"] !== undefined;
+      const hasTextSize = layout["text-size"] !== undefined;
+
+      if (hasIconSize) {
+        const iconSize = layout["icon-size"];
+        if (typeof iconSize === "number") {
+          updatedLayer.layout = {
+            ...layout,
+            "icon-size": iconSize * scale,
+          };
+        } else if (Array.isArray(iconSize) && iconSize[0] === "interpolate") {
+          // Handle interpolate expressions with stops
+          const newIconSize = [...iconSize] as any[];
+          // Find stops array (usually at index 3 and onwards, in pairs)
+          for (let i = 3; i < newIconSize.length; i += 2) {
+            if (typeof newIconSize[i + 1] === "number") {
+              (newIconSize[i + 1] as number) =
+                (newIconSize[i + 1] as number) * scale;
+            }
+          }
+          updatedLayer.layout = {
+            ...layout,
+            "icon-size": newIconSize as any,
+          };
+        }
+      }
+
+      if (hasTextSize) {
+        const textSize = layout["text-size"];
+        if (typeof textSize === "number") {
+          updatedLayer.layout = {
+            ...(updatedLayer.layout || layout),
+            "text-size": textSize * scale,
+          };
+        }
+
+        const textOffset = layout["text-offset"];
+        if (Array.isArray(textOffset) && textOffset[0] === "interpolate") {
+          // Handle interpolate expressions with stops
+          const newTextOffset = [...textOffset] as any[];
+          // Find stops array (usually at index 3 and onwards, in pairs)
+          for (let i = 3; i < newTextOffset.length; i += 2) {
+            if (
+              Array.isArray(newTextOffset[i + 1]) &&
+              newTextOffset[i + 1][0] === "literal"
+            ) {
+              // Scale the y-offset (second element of the literal array)
+              const literalArray = [...newTextOffset[i + 1][1]] as number[];
+              literalArray[1] = literalArray[1] * scale;
+              newTextOffset[i + 1] = ["literal", literalArray];
+            }
+          }
+          updatedLayer.layout = {
+            ...(updatedLayer.layout || layout),
+            "text-offset": newTextOffset as any,
+          };
+        } else if (Array.isArray(textOffset) && textOffset.length === 2) {
+          const x = typeof textOffset[0] === "number" ? textOffset[0] : 0;
+          const y = typeof textOffset[1] === "number" ? textOffset[1] : 0;
+          updatedLayer.layout = {
+            ...(updatedLayer.layout || layout),
+            "text-offset": [x, y * scale] as any,
+          };
+        }
+      }
+
+      return updatedLayer;
+    });
+  }
+
+  return newStyle;
+};
+
 export const getCoordinates = (geometry) => {
   switch (geometry.type) {
     case "Polygon":

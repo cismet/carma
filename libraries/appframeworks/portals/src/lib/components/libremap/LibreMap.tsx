@@ -5,11 +5,13 @@ import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { getHashParams } from "@carma-commons/utils";
 import { FeatureCollectionContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
 import PhotoLightBox from "react-cismap/topicmaps/PhotoLightbox";
+import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingContextProvider";
 import "./map.css";
 import {
   createFeature,
   createPieChart,
   getVectorMapping,
+  styleManipulation,
   vectorStylesToMapLibreStyle,
   zoom256as512,
   zoom512as256,
@@ -59,6 +61,9 @@ export const LibreMap = ({
 
   const { clusteringEnabled } = useContext<typeof FeatureCollectionContext>(
     FeatureCollectionContext
+  );
+  const { markerSymbolSize } = useContext<typeof TopicMapStylingContext>(
+    TopicMapStylingContext
   );
 
   const defaultLng = 7.150764;
@@ -471,11 +476,15 @@ export const LibreMap = ({
           }
 
           // Update with vector styles and background layers
-          const { style, geoJsonMetadata } = await vectorStylesToMapLibreStyle({
-            layers,
-            backgroundStyle,
-            clusteringEnabled,
-          });
+          const { style: baseStyle, geoJsonMetadata } =
+            await vectorStylesToMapLibreStyle({
+              layers,
+              backgroundStyle,
+              clusteringEnabled,
+            });
+
+          // Apply marker symbol size scaling
+          const style = styleManipulation(markerSymbolSize, baseStyle);
 
           // Store geojson metadata for pie chart rendering
           geoJsonMetadataRef.current = geoJsonMetadata;
@@ -579,7 +588,7 @@ export const LibreMap = ({
     };
 
     updateMapStyle();
-  }, [backgroundStyle, layers, clusteringEnabled]);
+  }, [backgroundStyle, layers, clusteringEnabled, markerSymbolSize]);
 
   const { handleTopicMapLocationChange } = useMapHashRouting({
     getLeafletMap: () => {
