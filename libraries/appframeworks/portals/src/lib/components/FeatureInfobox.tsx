@@ -54,11 +54,11 @@ export const FeatureInfobox = ({
       },
       displayZoomToFeature: true,
       zoomToFeature: () => {
-        utils.zoomToFeature(
+        utils.zoomToFeature({
           selectedFeature,
-          routedMapRef.leafletMap.leafletElement,
-          libreMap
-        );
+          leafletMap: routedMapRef.leafletMap.leafletElement,
+          libreMap,
+        });
       },
     });
   }

@@ -296,12 +296,17 @@ export const getCoordinates = (geometry) => {
   }
 };
 
-export const zoomToFeature = (
-  selectedFeature: any,
-  leafletMap?: L.Map,
-  libreMap?: maplibregl.Map,
-  padding: [number, number] = [0, 0]
-) => {
+export const zoomToFeature = ({
+  selectedFeature,
+  leafletMap,
+  libreMap,
+  padding = [0, 0],
+}: {
+  selectedFeature: any;
+  leafletMap?: L.Map;
+  libreMap?: maplibregl.Map;
+  padding?: [number, number];
+}) => {
   if (!leafletMap && !libreMap) return;
   if (selectedFeature.properties?.wmsProps?.bounds) {
     const bbox = JSON.parse(selectedFeature.properties.wmsProps.bounds);
