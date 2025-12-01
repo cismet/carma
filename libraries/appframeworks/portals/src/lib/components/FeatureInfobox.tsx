@@ -23,6 +23,7 @@ interface InfoboxProps {
   bigMobileIconsInsteadOfCollapsing?: boolean;
   collapsible?: boolean;
   Modal?: React.ComponentType<any> | null;
+  libreMap?: maplibregl.Map;
 }
 
 export const FeatureInfobox = ({
@@ -33,6 +34,7 @@ export const FeatureInfobox = ({
   Modal = additionalInfoFactory(
     (selectedFeature?.properties?.info || selectedFeature?.properties)?.modal
   ) as React.ComponentType<any> | null,
+  libreMap,
 }: InfoboxProps) => {
   const infoBoxControlObject =
     selectedFeature?.properties?.info || selectedFeature?.properties;
@@ -54,7 +56,8 @@ export const FeatureInfobox = ({
       zoomToFeature: () => {
         utils.zoomToFeature(
           selectedFeature,
-          routedMapRef.leafletMap.leafletElement
+          routedMapRef.leafletMap.leafletElement,
+          libreMap
         );
       },
     });

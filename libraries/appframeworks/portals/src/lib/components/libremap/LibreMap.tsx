@@ -4,7 +4,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { getHashParams } from "@carma-commons/utils";
 import { FeatureCollectionContext } from "react-cismap/contexts/FeatureCollectionContextProvider";
-
+import PhotoLightBox from "react-cismap/topicmaps/PhotoLightBox";
 import "./map.css";
 import {
   createFeature,
@@ -15,7 +15,6 @@ import {
   zoom512as256,
 } from "./libremap.utils";
 import { LibreLayer, VectorStyle } from "../CarmaMap";
-import LibreFeatureInfoBox from "./LibreFeatureInfoBox";
 import { LibreMapSelectionContent } from "../LibreMapSelectionContent";
 import { SelectionItem } from "../SelectionProvider";
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
@@ -24,6 +23,7 @@ import { proj4crs3857def, proj4crs4326def } from "@carma-mapping/utils";
 import { useSelectionLibreMap } from "../../hooks/useSelectionLibreMap";
 import { defaultLayerConf } from "../react-cismap/tools/layerFactory";
 import { useMapHashRouting } from "../../hooks/useMapHashRouting";
+import { FeatureInfobox } from "../FeatureInfobox";
 
 interface LibreMapProps {
   backgroundLayers?: string;
@@ -49,7 +49,7 @@ export const LibreMap = ({
   const mappingRef = useRef({});
   const isIdleRef = useRef(false);
   const vectorSourcesReadyRef = useRef(false);
-  const [selectedFeature, setSelectedFeature] = useState({});
+  const [selectedFeature, setSelectedFeature] = useState(null);
   const markers = useRef<Record<string, maplibregl.Marker>>({});
   const markersOnScreen = useRef<Record<string, maplibregl.Marker>>({});
   const geoJsonMetadataRef = useRef<
@@ -663,10 +663,25 @@ export const LibreMap = ({
 
   return (
     <>
-      <LibreFeatureInfoBox
-        selectedFeature={selectedFeature}
+      <FeatureInfobox
+        selectedFeature={
+          selectedFeature
+            ? {
+                ...selectedFeature,
+                properties: {
+                  info: {
+                    ...selectedFeature.properties,
+                  },
+                },
+              }
+            : null
+        }
         libreMap={map.current}
+        versionData={{
+          version: "0.1.0",
+        }}
       />
+      <PhotoLightBox />
       <LibreMapSelectionContent map={map.current} />
 
       <div className="map-wrap">

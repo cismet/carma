@@ -298,17 +298,13 @@ export const getCoordinates = (geometry) => {
 
 export const zoomToFeature = (
   selectedFeature: any,
-  leafletMap: LeafletMap,
+  leafletMap?: L.Map,
+  libreMap?: maplibregl.Map,
   padding: [number, number] = [0, 0]
 ) => {
-  if (
-    selectedFeature.properties?.wmsProps?.bounds ||
-    selectedFeature.properties?.bounds
-  ) {
-    const bbox = JSON.parse(
-      selectedFeature.properties?.wmsProps?.bounds ??
-        selectedFeature.properties?.bounds
-    );
+  if (!leafletMap && !libreMap) return;
+  if (selectedFeature.properties?.wmsProps?.bounds) {
+    const bbox = JSON.parse(selectedFeature.properties.wmsProps.bounds);
     if (leafletMap) {
       leafletMap.fitBounds(
         [
@@ -317,6 +313,16 @@ export const zoomToFeature = (
         ],
         {
           padding: padding,
+        }
+      );
+    } else if (libreMap) {
+      libreMap.fitBounds(
+        [
+          [bbox[0], bbox[1]],
+          [bbox[2], bbox[3]],
+        ],
+        {
+          padding: 60,
         }
       );
     }
@@ -330,6 +336,14 @@ export const zoomToFeature = (
           [coordinates[1], coordinates[0]],
           selectedFeature.properties.zoom ? selectedFeature.properties.zoom : 20
         );
+      } else if (libreMap) {
+        libreMap.flyTo({
+          center: [coordinates[0], coordinates[1]],
+          zoom: selectedFeature.properties.zoom
+            ? selectedFeature.properties.zoom - 1
+            : 19,
+          animate: false,
+        });
       }
     } else {
       console.log("xxx", selectedFeature.geometry);
@@ -343,6 +357,16 @@ export const zoomToFeature = (
           ],
           {
             padding: padding,
+          }
+        );
+      } else if (libreMap) {
+        libreMap.fitBounds(
+          [
+            [bbox[0], bbox[1]],
+            [bbox[2], bbox[3]],
+          ],
+          {
+            padding: 60,
           }
         );
       }
