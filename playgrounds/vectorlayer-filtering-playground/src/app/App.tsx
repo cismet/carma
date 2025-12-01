@@ -43,11 +43,7 @@ export function App({
     try {
       // Check if the layers exist
       const layers = maplibreMap.getStyle()?.layers || [];
-      const poiLayers = [
-        "poi-images",
-        "poi-labels",
-        "poi-images-selection"
-      ];
+      const poiLayers = ["poi-images", "poi-labels", "poi-images-selection"];
 
       poiLayers.forEach((layerId) => {
         const hasLayer = layers.some((l: any) => l.id === layerId);
@@ -135,7 +131,9 @@ export function App({
                 }}
               />
 
-              <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+              <div
+                style={{ display: "flex", alignItems: "center", gap: "6px" }}
+              >
                 <label
                   htmlFor="filter-input"
                   style={{ fontSize: "13px", color: "#666" }}
@@ -294,7 +292,10 @@ export function App({
                   (window as any).mlmap = map;
 
                   // Debug: Log available layers
-                  console.log("Available layers:", map.getStyle().layers.map((l: any) => l.id));
+                  console.log(
+                    "Available layers:",
+                    map.getStyle().layers.map((l: any) => l.id)
+                  );
 
                   setMaplibreMap(map);
                 },
