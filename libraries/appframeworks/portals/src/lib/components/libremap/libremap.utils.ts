@@ -461,7 +461,7 @@ export const vectorStylesToMapLibreStyle = async ({
 
         if (clusteringEnabled) {
           sourceConfig.cluster = true;
-          sourceConfig.clusterMaxZoom = 14;
+          sourceConfig.clusterMaxZoom = 16;
           sourceConfig.clusterRadius = 40;
           sourceConfig.clusterProperties = Object.fromEntries(
             uniqueColors.map((color) => [
