@@ -485,6 +485,7 @@ export const MeasurePolygon = Control.extend({
         clickAfterShapeSelection: this.options.clickAfterShapeSelection,
         isFinishingShape: (this as any)._isFinishingShape,
         eventType: event.originalEvent?.type,
+        isSyntheticSnap: !!(event as any)._isSyntheticSnap,
         targetClassName: (event.originalEvent?.target as HTMLElement)
           ?.className,
         latlng: event.latlng,

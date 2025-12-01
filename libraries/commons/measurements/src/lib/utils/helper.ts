@@ -86,10 +86,17 @@ export const adjustClickPosition = (
   }
 
   // Fire a new click event with shifted coordinates on the map
+  console.log("[snapping] Firing synthetic Leaflet event", {
+    eventType,
+    latlng: finalLatLng,
+    originalCoords: [domEvent.clientX, domEvent.clientY],
+  });
+
   leafletMap.fire(eventType, {
     latlng: finalLatLng,
     containerPoint: shiftedContainerPoint,
     originalEvent: domEvent,
+    _isSyntheticSnap: true, // Mark as synthetic snap event
   });
 
   return false;

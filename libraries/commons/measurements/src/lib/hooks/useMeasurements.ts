@@ -755,6 +755,15 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
         // Only adjust if snapping is enabled
         // Snapping is always enabled now
         const snapPoint = closestPointRef.current;
+
+        console.log("[snapping] mouseupHandler called", {
+          hasSnapPoint: !!snapPoint,
+          snapCoords: snapPoint?.geometry?.coordinates,
+          mouseX: event.clientX,
+          mouseY: event.clientY,
+          timestamp: Date.now(),
+        });
+
         adjustClickPosition(
           event,
           snapPoint,
