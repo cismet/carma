@@ -763,6 +763,39 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
         const snappedLatlng = toLatLngFromClosestPoint(snapPoint);
         if (!snappedLatlng) return;
 
+        // Check if snapping to first vertex (polygon closure)
+        if (drawHandler._poly && drawHandler._poly._latlngs) {
+          const latlngs = drawHandler._poly._latlngs;
+          if (latlngs.length >= 3) {
+            const firstVertex = latlngs[0];
+            // Compare snapped position with first vertex
+            const exactMatchThreshold = 1e-10;
+            if (
+              Math.abs(snappedLatlng.lat - firstVertex.lat) <
+                exactMatchThreshold &&
+              Math.abs(snappedLatlng.lng - firstVertex.lng) <
+                exactMatchThreshold
+            ) {
+              // Click on first vertex marker to close polygon
+              if (drawHandler._markers && drawHandler._markers.length > 0) {
+                const firstMarker = drawHandler._markers[0];
+                if (firstMarker) {
+                  console.debug(
+                    "[snapping] Closing polygon via first vertex click"
+                  );
+                  firstMarker.fire("click", {
+                    latlng: firstVertex,
+                    target: firstMarker,
+                  });
+                  event.stopPropagation();
+                  event.stopImmediatePropagation();
+                  return;
+                }
+              }
+            }
+          }
+        }
+
         console.debug("[snapping] Direct addVertex from click", {
           snappedLatlng,
           timestamp: Date.now(),
