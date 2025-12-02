@@ -7,7 +7,7 @@ import type {
 } from "./MapMeasurementsContext.d";
 // import { MEASUREMENT_MODE } from "./MapMeasurementsContext.d";
 import { MapMeasurementsContext } from "./MapMeasurementsContext";
-import { setFromLocalforage, saveToLocalforage } from "../utils/helper";
+import { setFromLocalforage, saveToLocalforage } from "../utils/storage";
 import { normalizeOptions } from "@carma-commons/utils";
 
 // Detect mobile devices

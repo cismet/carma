@@ -14,13 +14,18 @@ import useDeviceDetection from "../hooks/useDeviceDetection";
 import { useMapMeasurementsContext } from "../context";
 import {
   toLatLngFromClosestPoint,
-  filterArrByIds,
-  findLargestNumber,
   isCoordMatchLatLng,
   isFirstVertexMatch,
   tryClosePolygon,
   distanceBetweenLatLng,
-} from "../utils/helper";
+  screenPixelDistance,
+  pixelRadiusToMeters,
+  createSnappingIndicator,
+  findClosestSnappingPoint,
+  SNAPPING_MODIFIER_KEY,
+  isSnappingModifierPressed,
+} from "../utils/snapping";
+import { filterArrByIds, findLargestNumber } from "../utils/shapes";
 import { SnappingPoint } from "./../types";
 import { extractPointsFromMeasurementShape } from "../snapping/utils/coordinateExtraction";
 import { getSnappingPointsFromMapLibre } from "../snapping/utils/mapLibreExtraction";
@@ -241,11 +246,11 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
           snappingRadiusVisible &&
           (statusRef.current === "WAITING" || statusRef.current === "DRAWING")
         ) {
-          // Convert pixel radius to meters for the circle
-          const metersPerPixel =
-            (156543.03392 * Math.cos((mouseLatLng.lat * Math.PI) / 180)) /
-            Math.pow(2, currentZoom);
-          const radiusInMeters = currentRadius * metersPerPixel;
+          const radiusInMeters = pixelRadiusToMeters(
+            currentRadius,
+            mouseLatLng.lat,
+            currentZoom
+          );
 
           circleMarkerRef.current = L.circle(mouseLatLng, {
             radius: radiusInMeters,
@@ -254,7 +259,7 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
             fillOpacity: 0.15,
             weight: 1,
             opacity: 0.4,
-            interactive: false, // Don't capture mouse events
+            interactive: false,
           }).addTo(leafletMap);
         }
         const coordinatePoints: SnappingPoint[] = [];
@@ -296,66 +301,51 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
         }
 
         // Filter points to only those within the query radius and calculate distances
-        // Use Leaflet for coordinate projection (works without MapLibre)
-        const filteredPointsWithDistance = coordinatePoints
-          .map((snappingPoint: SnappingPoint) => {
-            const coord = snappingPoint.coordinates;
-            const pointLatLng = L.latLng(coord[1], coord[0]); // [lng, lat] -> L.latLng(lat, lng)
-            const projectedPoint =
-              leafletMap.latLngToContainerPoint(pointLatLng);
+        // Find closest snapping point using helper
+        const projectToScreen = (coord: [number, number]) => {
+          const pointLatLng = L.latLng(coord[1], coord[0]);
+          return leafletMap.latLngToContainerPoint(pointLatLng);
+        };
 
-            const dx = projectedPoint.x - mousePoint.x;
-            const dy = projectedPoint.y - mousePoint.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-
-            return { snappingPoint, distance };
-          })
-          .filter((item) => item.distance <= currentRadius);
-
-        // Find the shortest distance
-        let shortestDistance = Infinity;
-        let shortestIndex = -1;
-
-        filteredPointsWithDistance.forEach((item: any, index: number) => {
-          if (item.distance < shortestDistance) {
-            shortestDistance = item.distance;
-            shortestIndex = index;
-          }
-        });
+        const closestResult = findClosestSnappingPoint(
+          coordinatePoints,
+          mousePoint,
+          currentRadius,
+          projectToScreen
+        );
 
         // Determine snapping point
-        const blackPoint: any[] = [];
         let isSnapped = false;
+        let snappedFeature: any;
 
-        if (shortestIndex === -1) {
+        if (!closestResult) {
           // No points found - use mouse pointer but don't show indicator
-          blackPoint.push({
+          snappedFeature = {
             type: "Feature",
             geometry: {
               type: "Point",
               coordinates: [mouseLatLng.lng, mouseLatLng.lat],
             },
             properties: { black: true },
-          });
+          };
           isSnapped = false;
         } else {
           // Snap to the closest point found within query radius
-          const closestItem = filteredPointsWithDistance[shortestIndex];
-          blackPoint.push({
+          snappedFeature = {
             type: "Feature",
             geometry: {
               type: "Point",
-              coordinates: closestItem.snappingPoint.coordinates,
+              coordinates: closestResult.point.coordinates,
             },
             properties: {
               black: true,
-              source: closestItem.snappingPoint.sourceId, // Pass source for polygon closure check
+              source: closestResult.point.sourceId,
             },
-          });
+          };
           isSnapped = true;
         }
-        closestPoint = blackPoint[0];
-        closestPointRef.current = blackPoint[0];
+        closestPoint = snappedFeature;
+        closestPointRef.current = snappedFeature;
 
         const finalLatLng = toLatLngFromClosestPoint(closestPoint);
         // Logic for updating snappingLatlng
@@ -377,15 +367,12 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
             const map = realRoutedMapRef.current?.leafletMap?.leafletElement;
             const firstVertex = currentDrawHandlerValue._poly._latlngs[0];
             if (map && mouseLatLng) {
-              const mousePoint = map.latLngToContainerPoint(mouseLatLng);
-              const vertexPoint = map.latLngToContainerPoint(firstVertex);
-              const pixelDistance = Math.sqrt(
-                Math.pow(mousePoint.x - vertexPoint.x, 2) +
-                  Math.pow(mousePoint.y - vertexPoint.y, 2)
-              );
+              const mousePt = map.latLngToContainerPoint(mouseLatLng);
+              const vertexPt = map.latLngToContainerPoint(firstVertex);
+              const pixelDist = screenPixelDistance(mousePt, vertexPt);
 
               // Only snap if mouse is within query radius
-              if (pixelDistance > queryRadiusRef.current) {
+              if (pixelDist > queryRadiusRef.current) {
                 shouldSnap = false;
               }
             }
@@ -408,10 +395,9 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
           isSnapped &&
           currentDrawHandlerValue &&
           currentDrawHandlerValue._markers &&
-          shortestIndex !== -1
+          closestResult
         ) {
-          const snappedItem = filteredPointsWithDistance[shortestIndex];
-          const snappedCoord = snappedItem.snappingPoint.coordinates;
+          const snappedCoord = closestResult.point.coordinates;
 
           // Check if snapped point matches first vertex coordinates (regardless of source)
           // This handles both drawing-in-progress points AND vector features at same location
@@ -468,7 +454,6 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
           }
 
           // Create Leaflet marker for snapping indicator ONLY when snapped
-          // Match the size of measurement handles (8px total = 4px radius)
           if (
             finalLatLng &&
             isSnapped &&
@@ -476,18 +461,10 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
               statusRef.current === "DRAWING" ||
               statusRef.current === "INACTIVE")
           ) {
-            snappingIndicatorRef.current = L.circleMarker(
-              [finalLatLng.lat, finalLatLng.lng],
-              {
-                radius: 3.5,
-                color: "#000000",
-                fillColor: "#000000",
-                fillOpacity: 0.8,
-                weight: 1,
-                opacity: 0.8,
-                interactive: false,
-              }
-            ).addTo(leafletMap);
+            snappingIndicatorRef.current = createSnappingIndicator(
+              finalLatLng,
+              leafletMap
+            );
           }
 
           lastSnappedCoordRef.current = currentCoord;
@@ -539,24 +516,16 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
       });
       leafletMap.on("mouseout", mouseoutHandler);
 
-      // Phase 4: Show snap indicator during vertex drag
-      const vertexDragHandler = (e: any) => {
-        isDraggingVertexRef.current = true;
-
-        if (!snappingOnUpdate) return;
-
-        const vertex = e.vertex;
-        if (!vertex) return;
-
-        // Get current vertex position during drag
-        const vertexLatLng = vertex.latlng;
+      // Shared helper for vertex drag snapping
+      const findVertexSnapTarget = (vertexLatLng: {
+        lat: number;
+        lng: number;
+      }): SnappingPoint | null => {
         const vertexPoint = leafletMap.latLngToContainerPoint(vertexLatLng);
-
         const currentRadius = queryRadiusRef.current;
         const coordinatePoints: SnappingPoint[] = [];
 
         // Extract snap points from vector features
-        const currentMaplibreMaps = snappingLayersRef.current;
         const mapContainer = leafletMap.getContainer();
         const mapRect = mapContainer.getBoundingClientRect();
         const screenX = vertexPoint.x + mapRect.left;
@@ -564,24 +533,21 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
 
         coordinatePoints.push(
           ...getSnappingPointsFromMapLibre(
-            currentMaplibreMaps,
+            snappingLayersRef.current,
             { x: screenX, y: screenY },
             currentRadius
           )
         );
 
-        // Extract from other measurement shapes
-        const currentShapes = shapesRef.current;
-        currentShapes.forEach((shape: any) => {
-          const points = extractPointsFromMeasurementShape(
-            shape,
-            "measurements"
+        // Extract from measurement shapes
+        shapesRef.current.forEach((shape: any) => {
+          coordinatePoints.push(
+            ...extractPointsFromMeasurementShape(shape, "measurements")
           );
-          coordinatePoints.push(...points);
         });
 
-        // Filter out the vertex being dragged (exclude self-snapping)
-        const filteredCoordinatePoints = coordinatePoints.filter((point) => {
+        // Filter out self (exclude self-snapping)
+        const filtered = coordinatePoints.filter((point) => {
           const pointLatLng = {
             lat: point.coordinates[1],
             lng: point.coordinates[0],
@@ -592,21 +558,29 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
           );
         });
 
-        // Find closest point within radius
-        const filteredPointsWithDistance = filteredCoordinatePoints
-          .map((snappingPoint: SnappingPoint) => {
-            const coord = snappingPoint.coordinates;
-            const pointLatLng = L.latLng(coord[1], coord[0]);
-            const projectedPoint =
-              leafletMap.latLngToContainerPoint(pointLatLng);
+        // Find closest
+        const projectToScreen = (coord: [number, number]) => {
+          const pointLatLng = L.latLng(coord[1], coord[0]);
+          return leafletMap.latLngToContainerPoint(pointLatLng);
+        };
 
-            const dx = projectedPoint.x - vertexPoint.x;
-            const dy = projectedPoint.y - vertexPoint.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
+        const result = findClosestSnappingPoint(
+          filtered,
+          vertexPoint,
+          currentRadius,
+          projectToScreen
+        );
 
-            return { snappingPoint, distance };
-          })
-          .filter((item) => item.distance <= currentRadius);
+        return result?.point ?? null;
+      };
+
+      // Phase 4: Show snap indicator during vertex drag
+      const vertexDragHandler = (e: any) => {
+        isDraggingVertexRef.current = true;
+        if (!snappingOnUpdate) return;
+
+        const vertex = e.vertex;
+        if (!vertex) return;
 
         // Remove old indicator
         if (snappingIndicatorRef.current) {
@@ -614,34 +588,12 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
           snappingIndicatorRef.current = null;
         }
 
-        if (filteredPointsWithDistance.length > 0) {
-          // Find shortest distance
-          let shortestDistance = Infinity;
-          let shortestIndex = -1;
-          filteredPointsWithDistance.forEach((item, index) => {
-            if (item.distance < shortestDistance) {
-              shortestDistance = item.distance;
-              shortestIndex = index;
-            }
-          });
-
-          if (shortestIndex !== -1) {
-            const closestItem = filteredPointsWithDistance[shortestIndex];
-            const snappedCoord = closestItem.snappingPoint.coordinates;
-            // Show snap indicator at target location
-            snappingIndicatorRef.current = L.circleMarker(
-              [snappedCoord[1], snappedCoord[0]],
-              {
-                radius: 3.5,
-                color: "#000000",
-                fillColor: "#000000",
-                fillOpacity: 0.8,
-                weight: 1,
-                opacity: 0.8,
-                interactive: false, // Don't capture mouse events
-              }
-            ).addTo(leafletMap);
-          }
+        const snapTarget = findVertexSnapTarget(vertex.latlng);
+        if (snapTarget) {
+          snappingIndicatorRef.current = createSnappingIndicator(
+            { lat: snapTarget.coordinates[1], lng: snapTarget.coordinates[0] },
+            leafletMap
+          );
         }
       };
 
@@ -650,97 +602,22 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
       // Phase 4: Snap vertex AFTER drag ends
       const vertexDragEndHandler = (e: any) => {
         isDraggingVertexRef.current = false;
-
         if (!snappingOnUpdate) return;
 
         const vertex = e.vertex;
         if (!vertex) return;
 
-        // Get final vertex position after drag
-        const vertexLatLng = vertex.latlng;
-        const vertexPoint = leafletMap.latLngToContainerPoint(vertexLatLng);
-
-        const currentRadius = queryRadiusRef.current;
-        const coordinatePoints: SnappingPoint[] = [];
-
-        // Extract snap points from vector features
-        const currentMaplibreMaps = snappingLayersRef.current;
-        const mapContainer = leafletMap.getContainer();
-        const mapRect = mapContainer.getBoundingClientRect();
-        const screenX = vertexPoint.x + mapRect.left;
-        const screenY = vertexPoint.y + mapRect.top;
-
-        coordinatePoints.push(
-          ...getSnappingPointsFromMapLibre(
-            currentMaplibreMaps,
-            { x: screenX, y: screenY },
-            currentRadius
-          )
-        );
-
-        // Extract from other measurement shapes
-        const currentShapes = shapesRef.current;
-        currentShapes.forEach((shape: any) => {
-          const points = extractPointsFromMeasurementShape(
-            shape,
-            "measurements"
-          );
-          coordinatePoints.push(...points);
-        });
-
-        // Filter out the vertex being dragged (exclude self-snapping)
-        const filteredCoordinatePoints = coordinatePoints.filter((point) => {
-          const pointLatLng = {
-            lat: point.coordinates[1],
-            lng: point.coordinates[0],
-          };
-          return (
-            distanceBetweenLatLng(pointLatLng, vertexLatLng) >=
-            snappingIdentityDistanceMeters
-          );
-        });
-
-        // Find closest point within radius
-        const filteredPointsWithDistance = filteredCoordinatePoints
-          .map((snappingPoint: SnappingPoint) => {
-            const coord = snappingPoint.coordinates;
-            const pointLatLng = L.latLng(coord[1], coord[0]);
-            const projectedPoint =
-              leafletMap.latLngToContainerPoint(pointLatLng);
-
-            const dx = projectedPoint.x - vertexPoint.x;
-            const dy = projectedPoint.y - vertexPoint.y;
-            const distance = Math.sqrt(dx * dx + dy * dy);
-
-            return { snappingPoint, distance };
-          })
-          .filter((item) => item.distance <= currentRadius);
-
-        if (filteredPointsWithDistance.length > 0) {
-          // Find shortest distance
-          let shortestDistance = Infinity;
-          let shortestIndex = -1;
-          filteredPointsWithDistance.forEach((item, index) => {
-            if (item.distance < shortestDistance) {
-              shortestDistance = item.distance;
-              shortestIndex = index;
-            }
-          });
-
-          if (shortestIndex !== -1) {
-            const closestItem = filteredPointsWithDistance[shortestIndex];
-            const snappedCoord = closestItem.snappingPoint.coordinates;
-            // Snap vertex to final position
-            vertex.latlng.lat = snappedCoord[1];
-            vertex.latlng.lng = snappedCoord[0];
-            vertex.update();
-            // Force complete refresh of the editor to recalculate middle markers
-            if (e.layer.editor) {
-              // Reset the editor to force recalculation
-              e.layer.editor.reset();
-            }
-            e.layer.redraw();
+        const snapTarget = findVertexSnapTarget(vertex.latlng);
+        if (snapTarget) {
+          // Snap vertex to final position
+          vertex.latlng.lat = snapTarget.coordinates[1];
+          vertex.latlng.lng = snapTarget.coordinates[0];
+          vertex.update();
+          // Force complete refresh of the editor
+          if (e.layer.editor) {
+            e.layer.editor.reset();
           }
+          e.layer.redraw();
         }
       };
 
@@ -1139,17 +1016,4 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
       snappingLatlng: !!snappingLatlngRef?.current,
     });
   });
-
-  const SNAPPING_MODIFIER_KEY = "Alt";
-
-  const isSnappingModifierPressed = (event: any) => {
-    if (event.getModifierState) {
-      return event.getModifierState(SNAPPING_MODIFIER_KEY);
-    }
-    // Fallback for synthetic events or simple objects
-    if (SNAPPING_MODIFIER_KEY === "Alt") return event.altKey;
-    if (SNAPPING_MODIFIER_KEY === "Control") return event.ctrlKey;
-    if (SNAPPING_MODIFIER_KEY === "Shift") return event.shiftKey;
-    return false;
-  };
 };
