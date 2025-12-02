@@ -135,8 +135,8 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
       let closestPoint: SnappingPoint | null = null;
       const closestPointRef = { current: null as SnappingPoint | null }; // Stable ref to preserve closestPoint
 
-      // Centralized cleanup for markers and closestPoint
-      const clearBlackPoint = () => {
+      // Centralized cleanup for all snapping state
+      const clearSnapping = () => {
         try {
           if (circleMarkerRef.current) {
             leafletMap.removeLayer(circleMarkerRef.current);
@@ -152,8 +152,13 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
               map.getCanvas().style.cursor = "";
             }
           });
+          // Clear all snapping refs
           closestPoint = null;
           closestPointRef.current = null;
+          snappingLatlngRef.current = null;
+          if (measureControl) {
+            measureControl.options.snappingLatlng = null;
+          }
         } catch (_) {
           // no-op safeguard
         }
@@ -187,7 +192,7 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
         // If mouse button is pressed (e.g. panning), do not snap
         if (e.buttons !== 0) {
           if (!isDraggingVertexRef.current) {
-            clearBlackPoint();
+            clearSnapping();
           }
           return;
         }
@@ -203,30 +208,21 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
 
         // Skip snapping indicator during vertex drag if snappingOnUpdate is disabled
         if (isDraggingVertexRef.current && !snappingOnUpdate) {
-          clearBlackPoint();
+          clearSnapping();
           return;
         }
 
         // Check if Snapping Modifier Key is pressed - if so, disable snapping temporarily
         if (isPressed) {
-          clearBlackPoint();
-          if (circleMarkerRef.current) {
-            leafletMap.removeLayer(circleMarkerRef.current);
-            circleMarkerRef.current = null;
-          }
-          // Direct update to control instead of context
-          if (measureControl) {
-            measureControl.options.snappingLatlng = null;
-          }
-          snappingLatlngRef.current = null;
-          return; // Exit early - no snapping while modifier is pressed
+          clearSnapping();
+          return;
         }
 
         // Check zoom level - only work if zoom >= configured minimum
         const currentZoom = leafletMap.getZoom();
 
         if (currentZoom < snappingMinZoom) {
-          clearBlackPoint();
+          clearSnapping();
           return;
         }
 
