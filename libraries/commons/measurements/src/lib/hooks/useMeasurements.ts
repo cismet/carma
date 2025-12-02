@@ -758,9 +758,9 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
         // Snapping is always enabled now
         const snapPoint = closestPointRef.current;
 
-        console.log("[snapping] mouseupHandler called", {
+        console.debug("[snapping] mouseupHandler called", {
           hasSnapPoint: !!snapPoint,
-          snapCoords: snapPoint?.geometry?.coordinates,
+          snapCoords: snapPoint?.coordinates,
           mouseX: event.clientX,
           mouseY: event.clientY,
           timestamp: Date.now(),
