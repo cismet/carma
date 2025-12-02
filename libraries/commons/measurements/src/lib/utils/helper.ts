@@ -1,5 +1,73 @@
 import localforage from "localforage";
 import { point, latLng } from "@carma/leaflet";
+import { distance } from "@turf/turf";
+
+import type { LatLng } from "leaflet";
+
+/** Default threshold for coordinate match (0.1 meters = 10cm) */
+export const EXACT_MATCH_METERS = 0.1;
+
+/**
+ * Distance in meters between two lat/lng positions (Turf geodesic)
+ */
+export const distanceBetweenLatLng = (
+  a: { lat: number; lng: number },
+  b: { lat: number; lng: number }
+): number => distance([a.lng, a.lat], [b.lng, b.lat], { units: "meters" });
+
+/**
+ * Check if a coordinate [lng, lat] matches a LatLng within threshold (default 0.1m)
+ */
+export const isCoordMatchLatLng = (
+  coord: [number, number],
+  latlng: { lat: number; lng: number },
+  thresholdMeters = EXACT_MATCH_METERS
+): boolean =>
+  distanceBetweenLatLng({ lat: coord[1], lng: coord[0] }, latlng) <
+  thresholdMeters;
+
+/**
+ * Get the first vertex of a draw handler's polygon if it has 3+ vertices
+ */
+export const getFirstVertexIfClosable = (drawHandler: any): LatLng | null => {
+  if (drawHandler?._poly?._latlngs?.length >= 3) {
+    return drawHandler._poly._latlngs[0];
+  }
+  return null;
+};
+
+/**
+ * Check if a position matches the first vertex of a closable polygon
+ */
+export const isFirstVertexMatch = (
+  drawHandler: any,
+  position: { lat: number; lng: number },
+  thresholdMeters = EXACT_MATCH_METERS
+): boolean => {
+  const firstVertex = getFirstVertexIfClosable(drawHandler);
+  return firstVertex
+    ? distanceBetweenLatLng(position, firstVertex) < thresholdMeters
+    : false;
+};
+
+/**
+ * Try to close a polygon by clicking its first vertex marker
+ * Returns true if closure was triggered
+ */
+export const tryClosePolygon = (drawHandler: any): boolean => {
+  const firstVertex = getFirstVertexIfClosable(drawHandler);
+  if (!firstVertex) return false;
+
+  const firstMarker = drawHandler._markers?.[0];
+  if (!firstMarker) return false;
+
+  console.debug("[snapping] Closing polygon via first vertex click");
+  firstMarker.fire("click", {
+    latlng: firstVertex,
+    target: firstMarker,
+  });
+  return true;
+};
 
 export const setFromLocalforage = async (
   lfKey: string,
@@ -48,40 +116,9 @@ export const adjustClickPosition = (
   const finalLatLng = latLng(lat, lng);
 
   // Check if we're drawing and snapped to first vertex (polygon closure)
-  // ONLY trigger if the snap source is the drawing-in-progress (not external features)
-  if (
-    currentDrawHandler &&
-    currentDrawHandler._poly &&
-    currentDrawHandler._poly._latlngs
-  ) {
-    const latlngs = currentDrawHandler._poly._latlngs;
-    if (latlngs.length >= 3) {
-      const firstVertex = latlngs[0];
-      const snappedCoord = closestPoint.geometry.coordinates;
-      // Trigger polygon closure if snapped coordinates EXACTLY match the first vertex
-      // Use very tight threshold (1e-10) to ensure it's the exact same point, not just nearby
-      const exactMatchThreshold = 1e-10;
-      if (
-        Math.abs(snappedCoord[1] - firstVertex.lat) < exactMatchThreshold &&
-        Math.abs(snappedCoord[0] - firstVertex.lng) < exactMatchThreshold
-      ) {
-        // Try to find and click the first vertex marker directly
-        // The vertex markers are in _markers array with customHandle property
-        if (
-          currentDrawHandler._markers &&
-          currentDrawHandler._markers.length > 0
-        ) {
-          const firstMarker = currentDrawHandler._markers[0];
-          if (firstMarker) {
-            // Fire click event on the first vertex marker, not the map
-            firstMarker.fire("click", {
-              latlng: firstVertex,
-              target: firstMarker,
-            });
-            return true; // Don't fire synthetic map event
-          }
-        }
-      }
+  if (isFirstVertexMatch(currentDrawHandler, finalLatLng)) {
+    if (tryClosePolygon(currentDrawHandler)) {
+      return true; // Don't fire synthetic map event
     }
   }
 

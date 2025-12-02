@@ -21,6 +21,8 @@ export interface MeasurementConfig {
   snappingQueryRadius: number;
   snappingMinZoom: number;
   snappingRadiusVisible: boolean;
+  /** Minimum distance in meters to consider two points identical (default 0.1m = 10cm) */
+  snappingIdentityDistanceMeters: number;
   debugOutputMapStatus: boolean;
   debugOutputMapStatusPosition: { x: number; y: number };
 }

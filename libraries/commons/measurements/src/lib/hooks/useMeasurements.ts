@@ -16,6 +16,10 @@ import {
   toLatLngFromClosestPoint,
   filterArrByIds,
   findLargestNumber,
+  isCoordMatchLatLng,
+  isFirstVertexMatch,
+  tryClosePolygon,
+  distanceBetweenLatLng,
 } from "../utils/helper";
 import { SnappingPoint } from "./../types";
 import { extractPointsFromMeasurementShape } from "../snapping/utils/coordinateExtraction";
@@ -83,6 +87,7 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
     snappingMinZoom,
     snappingOnUpdate,
     snappingRadiusVisible,
+    snappingIdentityDistanceMeters,
   } = config;
 
   const queryRadiusRef = useRef(snappingQueryRadius);
@@ -362,33 +367,26 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
           let shouldSnap = true;
 
           if (
-            currentDrawHandlerValue &&
-            currentDrawHandlerValue._markers &&
-            currentDrawHandlerValue._poly?._latlngs &&
-            currentDrawHandlerValue._poly._latlngs.length >= 3
+            isFirstVertexMatch(
+              currentDrawHandlerValue,
+              finalLatLng,
+              snappingIdentityDistanceMeters
+            )
           ) {
+            // We're trying to snap to first vertex - check pixel distance from mouse
+            const map = realRoutedMapRef.current?.leafletMap?.leafletElement;
             const firstVertex = currentDrawHandlerValue._poly._latlngs[0];
-            const threshold = 0.0001; // ~11 meters
+            if (map && mouseLatLng) {
+              const mousePoint = map.latLngToContainerPoint(mouseLatLng);
+              const vertexPoint = map.latLngToContainerPoint(firstVertex);
+              const pixelDistance = Math.sqrt(
+                Math.pow(mousePoint.x - vertexPoint.x, 2) +
+                  Math.pow(mousePoint.y - vertexPoint.y, 2)
+              );
 
-            // Check if finalLatLng matches first vertex
-            if (
-              Math.abs(finalLatLng.lat - firstVertex.lat) < threshold &&
-              Math.abs(finalLatLng.lng - firstVertex.lng) < threshold
-            ) {
-              // We're trying to snap to first vertex - check pixel distance from mouse
-              const map = realRoutedMapRef.current?.leafletMap?.leafletElement;
-              if (map && mouseLatLng) {
-                const mousePoint = map.latLngToContainerPoint(mouseLatLng);
-                const vertexPoint = map.latLngToContainerPoint(firstVertex);
-                const pixelDistance = Math.sqrt(
-                  Math.pow(mousePoint.x - vertexPoint.x, 2) +
-                    Math.pow(mousePoint.y - vertexPoint.y, 2)
-                );
-
-                // Only snap if mouse is within query radius
-                if (pixelDistance > queryRadiusRef.current) {
-                  shouldSnap = false;
-                }
+              // Only snap if mouse is within query radius
+              if (pixelDistance > queryRadiusRef.current) {
+                shouldSnap = false;
               }
             }
           }
@@ -412,33 +410,33 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
           currentDrawHandlerValue._markers &&
           shortestIndex !== -1
         ) {
-          const latlngs = currentDrawHandlerValue._poly?._latlngs;
-          if (latlngs && latlngs.length >= 3) {
-            const firstVertex = latlngs[0];
-            const snappedItem = filteredPointsWithDistance[shortestIndex];
-            const snappedCoord = snappedItem.snappingPoint.coordinates;
-            const threshold = 0.0001; // ~11 meters
+          const snappedItem = filteredPointsWithDistance[shortestIndex];
+          const snappedCoord = snappedItem.snappingPoint.coordinates;
 
-            // Check if snapped point matches first vertex coordinates (regardless of source)
-            // This handles both drawing-in-progress points AND vector features at same location
-            if (
-              Math.abs(snappedCoord[1] - firstVertex.lat) < threshold &&
-              Math.abs(snappedCoord[0] - firstVertex.lng) < threshold
-            ) {
-              // Fire mouseover on first vertex marker to show area preview
-              const firstMarker = currentDrawHandlerValue._markers[0];
-              if (firstMarker && lastHoveredMarkerRef.current !== firstMarker) {
-                lastHoveredMarkerRef.current = firstMarker;
-                firstMarker.fire("mouseover", { target: firstMarker });
-              }
-            } else {
-              // Snapped to different point - fire mouseout
-              if (lastHoveredMarkerRef.current) {
-                lastHoveredMarkerRef.current.fire("mouseout", {
-                  target: lastHoveredMarkerRef.current,
-                });
-                lastHoveredMarkerRef.current = null;
-              }
+          // Check if snapped point matches first vertex coordinates (regardless of source)
+          // This handles both drawing-in-progress points AND vector features at same location
+          const firstVertex = currentDrawHandlerValue._poly?._latlngs?.[0];
+          if (
+            firstVertex &&
+            isCoordMatchLatLng(
+              snappedCoord,
+              firstVertex,
+              snappingIdentityDistanceMeters
+            )
+          ) {
+            // Fire mouseover on first vertex marker to show area preview
+            const firstMarker = currentDrawHandlerValue._markers[0];
+            if (firstMarker && lastHoveredMarkerRef.current !== firstMarker) {
+              lastHoveredMarkerRef.current = firstMarker;
+              firstMarker.fire("mouseover", { target: firstMarker });
+            }
+          } else {
+            // Snapped to different point - fire mouseout
+            if (lastHoveredMarkerRef.current) {
+              lastHoveredMarkerRef.current.fire("mouseout", {
+                target: lastHoveredMarkerRef.current,
+              });
+              lastHoveredMarkerRef.current = null;
             }
           }
         } else {
@@ -583,15 +581,14 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
         });
 
         // Filter out the vertex being dragged (exclude self-snapping)
-        const threshold = 0.00001; // Very small threshold to identify same point
         const filteredCoordinatePoints = coordinatePoints.filter((point) => {
-          const pointLatLng = L.latLng(
-            point.coordinates[1],
-            point.coordinates[0]
-          );
-          return !(
-            Math.abs(pointLatLng.lat - vertexLatLng.lat) < threshold &&
-            Math.abs(pointLatLng.lng - vertexLatLng.lng) < threshold
+          const pointLatLng = {
+            lat: point.coordinates[1],
+            lng: point.coordinates[0],
+          };
+          return (
+            distanceBetweenLatLng(pointLatLng, vertexLatLng) >=
+            snappingIdentityDistanceMeters
           );
         });
 
@@ -692,15 +689,14 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
         });
 
         // Filter out the vertex being dragged (exclude self-snapping)
-        const threshold = 0.00001; // Very small threshold to identify same point
         const filteredCoordinatePoints = coordinatePoints.filter((point) => {
-          const pointLatLng = L.latLng(
-            point.coordinates[1],
-            point.coordinates[0]
-          );
-          return !(
-            Math.abs(pointLatLng.lat - vertexLatLng.lat) < threshold &&
-            Math.abs(pointLatLng.lng - vertexLatLng.lng) < threshold
+          const pointLatLng = {
+            lat: point.coordinates[1],
+            lng: point.coordinates[0],
+          };
+          return (
+            distanceBetweenLatLng(pointLatLng, vertexLatLng) >=
+            snappingIdentityDistanceMeters
           );
         });
 
@@ -764,47 +760,22 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
         if (!snappedLatlng) return;
 
         // Check if snapping to first vertex (polygon closure)
-        if (drawHandler._poly && drawHandler._poly._latlngs) {
-          const latlngs = drawHandler._poly._latlngs;
-          if (latlngs.length >= 3) {
-            const firstVertex = latlngs[0];
-            // Compare snapped position with first vertex
-            const exactMatchThreshold = 1e-10;
-            if (
-              Math.abs(snappedLatlng.lat - firstVertex.lat) <
-                exactMatchThreshold &&
-              Math.abs(snappedLatlng.lng - firstVertex.lng) <
-                exactMatchThreshold
-            ) {
-              // Click on first vertex marker to close polygon
-              if (drawHandler._markers && drawHandler._markers.length > 0) {
-                const firstMarker = drawHandler._markers[0];
-                if (firstMarker) {
-                  console.debug(
-                    "[snapping] Closing polygon via first vertex click"
-                  );
-                  firstMarker.fire("click", {
-                    latlng: firstVertex,
-                    target: firstMarker,
-                  });
-                  event.stopPropagation();
-                  event.stopImmediatePropagation();
-                  return;
-                }
-              }
-            }
+        if (
+          isFirstVertexMatch(
+            drawHandler,
+            snappedLatlng,
+            snappingIdentityDistanceMeters
+          )
+        ) {
+          if (tryClosePolygon(drawHandler)) {
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+            return;
           }
         }
 
-        console.debug("[snapping] Direct addVertex from click", {
-          snappedLatlng,
-          timestamp: Date.now(),
-        });
-
         // Directly add vertex at snapped position
         drawHandler.addVertex(snappedLatlng);
-
-        // Stop the original click from also adding a vertex
         event.stopPropagation();
         event.stopImmediatePropagation();
       };
@@ -879,10 +850,10 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
     snappingMinZoom,
     snappingOnUpdate,
     snappingRadiusVisible,
-    // Removed setSnappingLatlng dependency
+    snappingIdentityDistanceMeters,
     snappingLayers,
     isMeasurementEnabled,
-    measureControl, // Added measureControl dependency for direct updates
+    measureControl,
   ]);
 
   const [visiblePolylines, setVisiblePolylines] = useState<(string | number)[]>(

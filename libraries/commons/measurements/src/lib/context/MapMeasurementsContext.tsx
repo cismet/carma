@@ -75,6 +75,7 @@ const defaultConfig: MeasurementConfig = {
   snappingQueryRadius: 40,
   snappingMinZoom: 17,
   snappingRadiusVisible: false,
+  snappingIdentityDistanceMeters: 0.1, // 10cm - points closer than this are considered identical
   debugOutputMapStatus: false,
   debugOutputMapStatusPosition: { x: 65, y: 15 },
 };
