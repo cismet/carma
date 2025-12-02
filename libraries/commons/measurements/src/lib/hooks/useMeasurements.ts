@@ -488,6 +488,7 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
                 fillOpacity: 0.8,
                 weight: 1,
                 opacity: 0.8,
+                interactive: false,
               }
             ).addTo(leafletMap);
           }
@@ -641,6 +642,7 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
                 fillOpacity: 0.8,
                 weight: 1,
                 opacity: 0.8,
+                interactive: false, // Don't capture mouse events
               }
             ).addTo(leafletMap);
           }

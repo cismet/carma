@@ -211,13 +211,21 @@ export const MeasurePolygon = Control.extend({
     const originalAddVertex = (this._measureHandler as any).addVertex;
     if (originalAddVertex) {
       (this._measureHandler as any).addVertex = function (latlng) {
-        console.log("[measure-path] addVertex() called", {
-          latlng,
+        // Use snapped position if available
+        const finalLatlng =
+          self.options.snappingEnabled && self.options.snappingLatlng
+            ? self.options.snappingLatlng
+            : latlng;
+
+        console.debug("[measure-path] addVertex() called", {
+          original: latlng,
+          snapped: self.options.snappingLatlng,
+          final: finalLatlng,
           currentVertexCount: this._markers?.length || 0,
           timestamp: Date.now(),
         });
         (self as any)._lastVertexAdded = Date.now();
-        return originalAddVertex.apply(this, arguments);
+        return originalAddVertex.call(this, finalLatlng);
       };
     }
 
@@ -479,7 +487,7 @@ export const MeasurePolygon = Control.extend({
     this._mapClickHandler = (event) => {
       const mode = this.options.measurementMode;
 
-      console.log("[measure-path] Map clicked", {
+      console.log("[measure-path] Map clicked", this.options, {
         isDrawing: this.options.isDrawing,
         mode,
         clickAfterShapeSelection: this.options.clickAfterShapeSelection,
