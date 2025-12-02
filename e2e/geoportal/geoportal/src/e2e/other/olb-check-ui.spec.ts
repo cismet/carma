@@ -20,45 +20,47 @@ test.describe("Geoportal oblique", () => {
     );
     const sample = fs.readFileSync(samplePath, "utf8");
 
-    await context.route("**/2024/metadata/fprfc.geojson", (route) =>
-      route.fulfill({
-        status: 200,
-        headers: { "content-type": "application/geo+json; charset=utf-8" },
-        body,
-      })
-    );
-
     await context.route(
-      "**/2024/metadata/exterior_orientations_utm32.noNadir.json",
+      "https://wupp-oblique.cismet.de/2024/metadata/fprfc.geojson",
       (route) =>
         route.fulfill({
           status: 200,
-          headers: { "content-type": "application/json; charset=utf-8" },
-          body: sample,
+          headers: { "content-type": "application/octet-stream" },
+          body,
         })
     );
 
+    // await context.route(
+    //   "https://wupp-oblique.cismet.de/2024/metadata/exterior_orientations_utm32.noNadir.json",
+    //   (route) =>
+    //     route.fulfill({
+    //       status: 200,
+    //       headers: { "content-type": "application/json; charset=utf-8" },
+    //       body: sample,
+    //     })
+    // );
+
     // Mock only specific terrain requests to avoid overriding oblique images
-    await context.route(
-      "https://cesium-wupp-terrain.cismet.de/terrain2020/**",
-      (route) => {
-        route.fulfill({
-          status: 200,
-          contentType: "application/octet-stream",
-          body: Buffer.alloc(0), // Empty terrain data
-        });
-      }
-    );
-    await context.route(
-      "https://cesium-wupp-terrain.cismet.de/dom_2024_1m/layer.json",
-      (route) => {
-        route.fulfill({
-          status: 200,
-          contentType: "application/octet-stream",
-          body: Buffer.alloc(0), // Empty terrain data
-        });
-      }
-    );
+    // await context.route(
+    //   "https://cesium-wupp-terrain.cismet.de/terrain2020/**",
+    //   (route) => {
+    //     route.fulfill({
+    //       status: 200,
+    //       contentType: "application/octet-stream",
+    //       body: Buffer.alloc(0), // Empty terrain data
+    //     });
+    //   }
+    // );
+    // await context.route(
+    //   "https://cesium-wupp-terrain.cismet.de/dom_2024_1m/layer.json",
+    //   (route) => {
+    //     route.fulfill({
+    //       status: 200,
+    //       contentType: "application/octet-stream",
+    //       body: Buffer.alloc(0), // Empty terrain data
+    //     });
+    //   }
+    // );
 
     // Mock 3D mesh tileset JSON files
     // await context.route(
@@ -118,25 +120,9 @@ test.describe("Geoportal oblique", () => {
     //   })
     // );
 
-    // Mock Cesium approximateTerrainHeights.json - used for terrain height estimation
-    // Returns minimal valid data structure with a few sample tiles
-    context.route(
-      "**/__cesium__/Assets/approximateTerrainHeights.json",
-      (route) =>
-        route.fulfill({
-          status: 200,
-          contentType: "application/json",
-          body: JSON.stringify({
-            "6-0-0": [-60.9, 1359.39],
-            "6-0-1": [-734.16, 2871.77],
-            "6-1-0": [-100, 500],
-            "6-1-1": [-200, 600],
-          }),
-        })
-    ),
-      await page.goto(
-        "/#/?lat=51.2527066&lng=7.2051585&h=925.81&heading=324.58&pitch=311.88&fov=40.76&m=1&ff=oblq&is3d=1"
-      );
+    await page.goto(
+      "/#/?lat=51.2527066&lng=7.2051585&h=925.81&heading=324.58&pitch=311.88&fov=40.76&m=1&ff=oblq&is3d=1"
+    );
   });
 
   test("All UI controls are displayed", async ({ page }) => {
