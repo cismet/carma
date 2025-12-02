@@ -99,7 +99,7 @@ export const useCreateCismapLayers = (
     const lastFeatureId = lastSelectedFeatureRef.current;
 
     if (currentFeatureId === lastFeatureId) {
-      utils.zoomToFeature(feature, leafletMap);
+      utils.zoomToFeature(feature, leafletMap, [60, 60]);
     }
 
     lastSelectedFeatureRef.current = currentFeatureId;
