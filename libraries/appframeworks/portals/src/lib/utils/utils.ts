@@ -5,6 +5,7 @@ import { extractCarmaConfig } from "@carma-commons/utils";
 import envelope from "@turf/envelope";
 import L from "leaflet";
 import { sandboxedEvalExternal } from "../components/SandboxedEvalProvider";
+import { LeafletMap } from "@carma-mapping/engines/leaflet";
 
 export const parseDescription = (description: string) => {
   const result = { inhalt: "", sichtbarkeit: "", nutzung: "" };
@@ -261,17 +262,13 @@ export const getCoordinates = (geometry) => {
 
 export const zoomToFeature = (
   selectedFeature: any,
-  routedMapRef: {
-    leafletMap: {
-      leafletElement: L.Map;
-    };
-  },
+  leafletMap: LeafletMap,
   padding: [number, number] = [0, 0]
 ) => {
   if (selectedFeature.properties?.wmsProps?.bounds) {
     const bbox = JSON.parse(selectedFeature.properties.wmsProps.bounds);
-    if (routedMapRef) {
-      routedMapRef.leafletMap.leafletElement.fitBounds(
+    if (leafletMap) {
+      leafletMap.fitBounds(
         [
           [bbox[3], bbox[2]],
           [bbox[1], bbox[0]],
@@ -286,8 +283,8 @@ export const zoomToFeature = (
     if (type === "Point") {
       const coordinates = getCoordinates(selectedFeature.geometry);
 
-      if (routedMapRef) {
-        routedMapRef.leafletMap.leafletElement.setView(
+      if (leafletMap) {
+        leafletMap.setView(
           [coordinates[1], coordinates[0]],
           selectedFeature.properties.zoom ? selectedFeature.properties.zoom : 20
         );
@@ -295,8 +292,8 @@ export const zoomToFeature = (
     } else {
       const bbox = envelope(selectedFeature.geometry).bbox;
 
-      if (routedMapRef) {
-        routedMapRef.leafletMap.leafletElement.fitBounds(
+      if (leafletMap) {
+        leafletMap.fitBounds(
           [
             [bbox[3], bbox[2]],
             [bbox[1], bbox[0]],

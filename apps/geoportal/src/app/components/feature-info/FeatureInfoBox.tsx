@@ -137,7 +137,11 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
       },
       displayZoomToFeature: true,
       zoomToFeature: () => {
-        utils.zoomToFeature(selectedFeature, routedMapRef, [60, 60]);
+        utils.zoomToFeature(
+          selectedFeature,
+          routedMapRef.leafletMap.leafletElement,
+          [60, 60]
+        );
       },
     });
   }

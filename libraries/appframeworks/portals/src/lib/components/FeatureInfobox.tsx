@@ -52,7 +52,10 @@ export const FeatureInfobox = ({
       },
       displayZoomToFeature: true,
       zoomToFeature: () => {
-        utils.zoomToFeature(selectedFeature, routedMapRef);
+        utils.zoomToFeature(
+          selectedFeature,
+          routedMapRef.leafletMap.leafletElement
+        );
       },
     });
   }

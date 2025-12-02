@@ -22,6 +22,7 @@ import {
   implicitVectorSelection,
   onSelectionChangedVector,
 } from "../topicmap.utils";
+import { utils } from "@carma-appframeworks/portals";
 
 const MAX_ZOOM = 26;
 
@@ -83,6 +84,7 @@ export const useCreateCismapLayers = (
   const [globalHits, setGlobalHits] = useState({});
   const [idleLayers, setIdleLayers] = useState({});
   const [foundFeatures, setFoundFeatures] = useState({});
+  const lastSelectedFeatureRef = useRef<string | null>(null);
   const flags = useFeatureFlags();
 
   const showTileBoundaries = flags?.debugTileBoundaries;
@@ -93,6 +95,14 @@ export const useCreateCismapLayers = (
   };
 
   const featureHandler = (feature, layer) => {
+    const currentFeatureId = feature.vectorId;
+    const lastFeatureId = lastSelectedFeatureRef.current;
+
+    if (currentFeatureId === lastFeatureId) {
+      utils.zoomToFeature(feature, leafletMap);
+    }
+
+    lastSelectedFeatureRef.current = currentFeatureId;
     setFoundFeatures((old) => {
       return { ...old, [layer.id]: feature };
     });
