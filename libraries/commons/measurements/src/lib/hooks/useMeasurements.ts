@@ -16,7 +16,9 @@ import {
   toLatLngFromClosestPoint,
   isCoordMatchLatLng,
   isFirstVertexMatch,
+  isLastVertexMatch,
   tryClosePolygon,
+  tryFinishLine,
   distanceBetweenLatLng,
   screenPixelDistance,
   pixelRadiusToMeters,
@@ -345,7 +347,8 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
           isSnapped = true;
         }
         closestPoint = snappedFeature;
-        closestPointRef.current = snappedFeature;
+        // Only store snap point if actually snapped - prevents click handler from using stale/unsnapped positions
+        closestPointRef.current = isSnapped ? snappedFeature : null;
 
         const finalLatLng = toLatLngFromClosestPoint(closestPoint);
         // Logic for updating snappingLatlng
@@ -645,6 +648,21 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
           )
         ) {
           if (tryClosePolygon(drawHandler)) {
+            event.stopPropagation();
+            event.stopImmediatePropagation();
+            return;
+          }
+        }
+
+        // Check if snapping to last vertex (finish line measurement)
+        if (
+          isLastVertexMatch(
+            drawHandler,
+            snappedLatlng,
+            snappingIdentityDistanceMeters
+          )
+        ) {
+          if (tryFinishLine(drawHandler)) {
             event.stopPropagation();
             event.stopImmediatePropagation();
             return;

@@ -131,6 +131,17 @@ export const getFirstVertexIfClosable = (drawHandler: any): LatLng | null => {
 };
 
 /**
+ * Get the last vertex of a draw handler's line if it has 2+ vertices
+ */
+export const getLastVertexIfFinishable = (drawHandler: any): LatLng | null => {
+  const latlngs = drawHandler?._poly?._latlngs;
+  if (latlngs?.length >= 2) {
+    return latlngs[latlngs.length - 1];
+  }
+  return null;
+};
+
+/**
  * Check if a position matches the first vertex of a closable polygon
  */
 export const isFirstVertexMatch = (
@@ -141,6 +152,20 @@ export const isFirstVertexMatch = (
   const firstVertex = getFirstVertexIfClosable(drawHandler);
   return firstVertex
     ? distanceBetweenLatLng(position, firstVertex) < thresholdMeters
+    : false;
+};
+
+/**
+ * Check if a position matches the last vertex of a finishable line
+ */
+export const isLastVertexMatch = (
+  drawHandler: any,
+  position: { lat: number; lng: number },
+  thresholdMeters = EXACT_MATCH_METERS
+): boolean => {
+  const lastVertex = getLastVertexIfFinishable(drawHandler);
+  return lastVertex
+    ? distanceBetweenLatLng(position, lastVertex) < thresholdMeters
     : false;
 };
 
@@ -158,6 +183,25 @@ export const tryClosePolygon = (drawHandler: any): boolean => {
   firstMarker.fire("click", {
     latlng: firstVertex,
     target: firstMarker,
+  });
+  return true;
+};
+
+/**
+ * Try to finish a line measurement by clicking its last vertex marker
+ */
+export const tryFinishLine = (drawHandler: any): boolean => {
+  const markers = drawHandler?._markers;
+  if (!markers || markers.length < 2) return false;
+
+  const lastMarker = markers[markers.length - 1];
+  const lastVertex = getLastVertexIfFinishable(drawHandler);
+  if (!lastMarker || !lastVertex) return false;
+
+  console.debug("[snapping] Finishing line via last vertex click");
+  lastMarker.fire("click", {
+    latlng: lastVertex,
+    target: lastMarker,
   });
   return true;
 };
