@@ -13,7 +13,6 @@ import "../utils/measure-path";
 import useDeviceDetection from "../hooks/useDeviceDetection";
 import { useMapMeasurementsContext } from "../context";
 import {
-  adjustClickPosition,
   toLatLngFromClosestPoint,
   filterArrByIds,
   findLargestNumber,
@@ -751,30 +750,32 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
 
       leafletMap.on("editable:vertex:dragend", vertexDragEndHandler);
 
-      // Add DOM listener in CAPTURE phase to intercept before Leaflet
+      // click handler for snapped vertices
       const mapContainer = leafletMap.getContainer();
-      const mouseupHandler = (event: MouseEvent) => {
-        // Only adjust if snapping is enabled
-        // Snapping is always enabled now
+      const clickHandler = (event: MouseEvent) => {
         const snapPoint = closestPointRef.current;
+        if (!snapPoint) return; // No snap point, let normal click handling proceed
 
-        console.debug("[snapping] mouseupHandler called", {
-          hasSnapPoint: !!snapPoint,
-          snapCoords: snapPoint?.coordinates,
-          mouseX: event.clientX,
-          mouseY: event.clientY,
+        const drawHandler = currentDrawHandlerRef.current;
+        if (!drawHandler || !drawHandler.addVertex) return; // Not drawing
+
+        // Get snapped latlng
+        const snappedLatlng = toLatLngFromClosestPoint(snapPoint);
+        if (!snappedLatlng) return;
+
+        console.debug("[snapping] Direct addVertex from click", {
+          snappedLatlng,
           timestamp: Date.now(),
         });
 
-        adjustClickPosition(
-          event,
-          snapPoint,
-          "mouseup",
-          leafletMap,
-          currentDrawHandlerRef.current
-        );
+        // Directly add vertex at snapped position
+        drawHandler.addVertex(snappedLatlng);
+
+        // Stop the original click from also adding a vertex
+        event.stopPropagation();
+        event.stopImmediatePropagation();
       };
-      mapContainer.addEventListener("mouseup", mouseupHandler, true);
+      mapContainer.addEventListener("click", clickHandler, true);
 
       // Keydown/keyup handlers for ALT key
       const handleKeyToggle = (isPressed: boolean) => {
@@ -827,7 +828,7 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
         leafletMap.off("mouseout", mouseoutHandler);
         leafletMap.off("editable:vertex:drag", vertexDragHandler);
         leafletMap.off("editable:vertex:dragend", vertexDragEndHandler);
-        mapContainer.removeEventListener("mouseup", mouseupHandler, true);
+        mapContainer.removeEventListener("click", clickHandler, true);
         document.removeEventListener("keydown", keydownHandler);
         document.removeEventListener("keyup", keyupHandler);
         if (circleMarkerRef.current) {

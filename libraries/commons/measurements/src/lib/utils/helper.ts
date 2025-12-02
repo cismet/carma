@@ -99,7 +99,7 @@ export const adjustClickPosition = (
     _isSyntheticSnap: true, // Mark as synthetic snap event
   });
 
-  return false;
+  return true; // Return true to indicate we handled the snap (caller should stop propagation)
 };
 
 // Prepare a Leaflet LatLng from a GeoJSON Point-like feature with coordinates [lng, lat]
