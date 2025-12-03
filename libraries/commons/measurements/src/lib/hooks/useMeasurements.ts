@@ -29,6 +29,7 @@ import {
 } from "../utils/snapping";
 import { filterArrByIds, findLargestNumber } from "../utils/shapes";
 import { SnappingPoint } from "./../types";
+import { TOOLTIP_LABELS } from "../utils/labels";
 import { extractPointsFromMeasurementShape } from "../snapping/utils/coordinateExtraction";
 import { getSnappingPointsFromMapLibre } from "../snapping/utils/mapLibreExtraction";
 
@@ -171,8 +172,8 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
 
       const updateTooltipTemplate = (isPressed: boolean) => {
         const snappingText = isPressed
-          ? "Snapping deaktiviert"
-          : `Snapping aktiv (${SNAPPING_MODIFIER_KEY} zum Deaktivieren)`;
+          ? TOOLTIP_LABELS.snapping.inactive
+          : TOOLTIP_LABELS.snapping.active;
 
         if (
           L.drawLocal &&
@@ -180,8 +181,8 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
           L.drawLocal.draw.handlers &&
           L.drawLocal.draw.handlers.polyline
         ) {
-          L.drawLocal.draw.handlers.polyline.tooltip.start = `Klicken, um den Startpunkt der Messung zu setzen.<br><span class="leaflet-draw-tooltip-subtext">${snappingText}</span>`;
-          L.drawLocal.draw.handlers.polyline.tooltip.cont = `Klicken (ggf. mehrmals), um die nächsten Punkte des Linienzuges zu setzen.<br><span class="leaflet-draw-tooltip-subtext">${snappingText}</span>`;
+          L.drawLocal.draw.handlers.polyline.tooltip.start = `${TOOLTIP_LABELS.measurement.start}<br><span class="leaflet-draw-tooltip-subtext">${snappingText}</span>`;
+          L.drawLocal.draw.handlers.polyline.tooltip.cont = `${TOOLTIP_LABELS.measurement.continue}<br><span class="leaflet-draw-tooltip-subtext">${snappingText}</span>`;
         }
       };
 

@@ -192,7 +192,7 @@ export const tryClosePolygon = (drawHandler: any): boolean => {
  */
 export const tryFinishLine = (drawHandler: any): boolean => {
   if (!drawHandler?._finishShape) return false;
-  
+
   const latlngs = drawHandler?._poly?._latlngs;
   if (!latlngs || latlngs.length < 2) return false;
 

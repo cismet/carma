@@ -33,6 +33,7 @@ import {
   MeasurementLeafletEvent,
   MeasurePolygonControl,
 } from "../types/leaflet-extensions";
+import { TOOLTIP_LABELS } from "./labels";
 
 export const MeasurePolygon = Control.extend({
   options: {
@@ -716,19 +717,15 @@ export const MeasurePolygon = Control.extend({
           const area = calculateArea(latLngArray);
           if (e.target.customHandle === 0 && firsHovering) {
             this.options.cbUpdateAreaOfDrawingMeasurement(area);
-            L.drawLocal.draw.handlers.polyline.tooltip.end = `Den Startpunkt anklicken, um die Fläche zu schließen.`;
+            L.drawLocal.draw.handlers.polyline.tooltip.end =
+              TOOLTIP_LABELS.measurement.finishPolygon;
           }
           firsHovering = true;
         });
 
         layer.on("mouseout", (e) => {
           if (e.target.customHandle === 0) {
-            const tooltipContent = `
-            <div>
-              <div>Zum Beenden auf den letzten angelegten Punkt klicken.</div>
-              <div>Zum Messen einer Fläche auf den ersten angelegten Punkt klicken und die Fläche so schließen.</div>
-            </div>
-          `;
+            const tooltipContent = `${TOOLTIP_LABELS.measurement.finishLine}<br>${TOOLTIP_LABELS.measurement.finishPolygon}`;
             L.drawLocal.draw.handlers.polyline.tooltip.end = tooltipContent;
             this.options.cbUpdateAreaOfDrawingMeasurement(null);
           }
@@ -743,9 +740,11 @@ export const MeasurePolygon = Control.extend({
           const isLastVertex = e.target.customHandle === index;
           if (isLastVertex && index >= 1) {
             if (index >= 2) {
-              L.drawLocal.draw.handlers.polyline.tooltip.end = `Den Endpunkt erneut anklicken, um die Streckenmessung zu beenden.<br>Zum Messen einer Fläche erneut auf den Startpunkt klicken.`;
+              L.drawLocal.draw.handlers.polyline.tooltip.end =
+                TOOLTIP_LABELS.measurement.finishPolygonHover;
             } else {
-              L.drawLocal.draw.handlers.polyline.tooltip.end = `Den Endpunkt erneut anklicken,<br>um die Streckenmessung zu beenden.`;
+              L.drawLocal.draw.handlers.polyline.tooltip.end =
+                TOOLTIP_LABELS.measurement.finishLineHover;
             }
           }
         });
@@ -754,7 +753,7 @@ export const MeasurePolygon = Control.extend({
           const isLastVertex = e.target.customHandle === index;
           if (isLastVertex && index >= 1) {
             // Reset to default tooltip
-            L.drawLocal.draw.handlers.polyline.tooltip.end = `Zum Beenden auf den letzten angelegten Punkt klicken.<br>Zum Messen einer Fläche auf den ersten angelegten Punkt klicken und die Fläche so schließen.`;
+            L.drawLocal.draw.handlers.polyline.tooltip.end = `${TOOLTIP_LABELS.measurement.finishLine}<br>${TOOLTIP_LABELS.measurement.finishPolygon}`;
           }
         });
       });
