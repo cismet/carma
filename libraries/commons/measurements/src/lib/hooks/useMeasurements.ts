@@ -352,8 +352,8 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
           isSnapped = true;
         }
         closestPoint = snappedFeature;
-        // Only store snap point if actually snapped - prevents click handler from using stale/unsnapped positions
-        closestPointRef.current = isSnapped ? snappedFeature : null;
+        // Store snap point (snapped or unsnapped) - unifies click handling
+        closestPointRef.current = snappedFeature;
 
         const finalLatLng = toLatLngFromClosestPoint(closestPoint);
         // Logic for updating snappingLatlng
