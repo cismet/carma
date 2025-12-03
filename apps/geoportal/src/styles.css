@@ -114,8 +114,3 @@ html {
 .modal-content img {
   display: inline;
 }
-
-/* Fix Tailwind's .collapse overriding Bootstrap's accordion collapse */
-.collapse.show {
-  visibility: visible;
-}
