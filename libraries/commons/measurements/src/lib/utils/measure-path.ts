@@ -35,16 +35,22 @@ import {
 } from "../types/leaflet-extensions";
 import { TOOLTIP_LABELS } from "../labels";
 
+// Placeholder for icons to not show broken images
+// Transparent 1x1 GIF (43 bytes)
+// See http://probablyprogramming.com/2009/03/15/the-tiniest-gif-ever
+const TRANSPARENT_PIXEL =
+  "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";
+
 export const MeasurePolygon = Control.extend({
   options: {
     position: "topright",
-    icon_lineActive: "https://img.icons8.com/?size=48&id=98497&format=png",
-    icon_lineInactive: "https://img.icons8.com/?size=48&id=98463&format=png",
-    icon_polygonActive: "https://img.icons8.com/?size=48&id=98497&format=png",
-    icon_polygonInactive: "https://img.icons8.com/?size=48&id=98463&format=png",
-    html_template: `<p><strong><span style="text-decoration: underline;">Results</span></strong></p>
-<p><strong>Area: </strong><br>_p_area</p>
-<p><strong>Perimeter : </strong><br>_p_perimeter</p>`,
+    icon_lineActive: TRANSPARENT_PIXEL,
+    icon_lineInactive: TRANSPARENT_PIXEL,
+    icon_polygonActive: TRANSPARENT_PIXEL,
+    icon_polygonInactive: TRANSPARENT_PIXEL,
+    html_template: `<p><strong><span style="text-decoration: underline;">${TOOLTIP_LABELS.general.results}</span></strong></p>
+<p><strong>${TOOLTIP_LABELS.general.area}: </strong><br>_p_area</p>
+<p><strong>${TOOLTIP_LABELS.general.perimeter} : </strong><br>_p_perimeter</p>`,
     height: 130,
     width: 150,
     mode_btn: "",
@@ -53,7 +59,7 @@ export const MeasurePolygon = Control.extend({
     weight_polygon: "2",
     isDrawing: false,
     changeModeButtonActive: false,
-    msj_disable_tool: "Möchten Sie das Tool deaktivieren?",
+    msj_disable_tool: TOOLTIP_LABELS.general.disableTool,
     shapes: [],
     activeShape: null,
     shapeMode: "line",
@@ -233,17 +239,10 @@ export const MeasurePolygon = Control.extend({
     this.options.currenLine = this._measureHandler;
     this.options.cbSetCurrentDrawHandler(this._measureHandler);
 
-    const tooltipContent = `
-  <div>
-    <div>Zum Beenden auf den letzten angelegten Punkt klicken.</div>
-    <div>Zum Messen einer Fläche auf den ersten angelegten Punkt klicken und die Fläche so schließen.</div>
-  </div>
-`;
+    const tooltipContent = `${TOOLTIP_LABELS.measurement.finishLine}<br>${TOOLTIP_LABELS.measurement.finishPolygon}`;
 
-    L.drawLocal.draw.handlers.polyline.tooltip.start =
-      "Klicken, um den Startpunkt der Messung zu setzen.<br><span class='leaflet-draw-tooltip-subtext'>Snapping aktiv (Alt zum Deaktivieren)</span>";
-    L.drawLocal.draw.handlers.polyline.tooltip.cont =
-      "Klicken (ggf. mehrmals), um die nächsten Punkte des Linienzuges zu setzen.<br><span class='leaflet-draw-tooltip-subtext'>Snapping aktiv (Alt zum Deaktivieren)</span>";
+    L.drawLocal.draw.handlers.polyline.tooltip.start = `${TOOLTIP_LABELS.measurement.start}<br><span class='leaflet-draw-tooltip-subtext'>${TOOLTIP_LABELS.snapping.active}</span>`;
+    L.drawLocal.draw.handlers.polyline.tooltip.cont = `${TOOLTIP_LABELS.measurement.continue}<br><span class='leaflet-draw-tooltip-subtext'>${TOOLTIP_LABELS.snapping.active}</span>`;
     L.drawLocal.draw.handlers.polyline.tooltip.end = tooltipContent;
 
     this._measureHandler.enable();
@@ -458,7 +457,7 @@ export const MeasurePolygon = Control.extend({
     </div>
   `;
     lineIcon.href = "#";
-    lineIcon.title = "Messmodus";
+    lineIcon.title = TOOLTIP_LABELS.general.measurementMode;
 
     const iconsWrapper = DomUtil.create("div", "m-icons-wrapper");
     iconsWrapper.appendChild(linesContainer);
@@ -844,7 +843,7 @@ export const MeasurePolygon = Control.extend({
             popupPane
           );
 
-          this.options.customTooltip.innerHTML = `<div>Klicken, um den Startpunkt der Messung zu setzen.</div>`;
+          this.options.customTooltip.innerHTML = `<div>${TOOLTIP_LABELS.measurement.start}</div>`;
           this.options.customTooltip.style.visibility = "inherit";
 
           const pos = this._map.latLngToLayerPoint(event.latlng);
@@ -1282,7 +1281,7 @@ export const MeasurePolygon = Control.extend({
     const mode = this.options.measurementMode;
     if (mode === "measurement") {
       L.drawLocal.draw.handlers.polyline.tooltip.start =
-        "Klicken, um den Startpunkt der Messung zu setzen.";
+        TOOLTIP_LABELS.measurement.start;
       this._clearMeasurements();
       this.loadMeasurements();
       // const drawBtn = document.getElementById("draw_shape");

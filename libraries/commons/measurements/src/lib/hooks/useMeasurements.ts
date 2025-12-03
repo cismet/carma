@@ -807,7 +807,7 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
         // icon_polygonInactive: polygonIcon,
         activeShape,
         mode_btn: `<div id='draw-shape-active' class='measure_button_wrapper'><div class='add_shape'>+</div></div>`,
-        msj_disable_tool: "Do you want to disable the tool?",
+        msj_disable_tool: TOOLTIP_LABELS.general.disableTool,
         device,
         shapes,
         snappingLatlng: snappingLatlngRef?.current,

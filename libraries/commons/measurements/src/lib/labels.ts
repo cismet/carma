@@ -17,4 +17,11 @@ export const TOOLTIP_LABELS = {
     finishLineSimple:
       "Den Endpunkt erneut anklicken,<br>um die Streckenmessung zu beenden.",
   },
+  general: {
+    disableTool: "Möchten Sie das Tool deaktivieren?",
+    results: "Ergebnisse",
+    area: "Fläche",
+    perimeter: "Umfang",
+    measurementMode: "Messmodus",
+  },
 };
