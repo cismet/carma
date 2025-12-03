@@ -1,10 +1,6 @@
 import { useContext, useEffect, useState, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
-import { isEqual } from "lodash";
-import envelope from "@turf/envelope";
-
-// import InfoBox from "react-cismap/topicmaps/InfoBox";
 import InfoBoxFotoPreview from "react-cismap/topicmaps/InfoBoxFotoPreview";
 import { getActionLinksForFeature } from "react-cismap/tools/uiHelper";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
@@ -28,8 +24,7 @@ import {
   setPreferredVectorLayerId,
 } from "../../store/slices/features";
 import { getLayers } from "../../store/slices/mapping";
-import { getCoordinates } from "../GeoportalMap/topicmap.utils";
-import { truncateString, updateUrlWithCoordinates } from "./featureInfoHelper";
+import { truncateString } from "./featureInfoHelper";
 
 import "../infoBox.css";
 import LoadingInfoBox from "./LoadingInfoBox";
@@ -42,6 +37,8 @@ import {
 } from "@carma-commons/utils";
 import { InfoBox, InfoBoxHeader, utils } from "@carma-appframeworks/portals";
 import { parseColor } from "../../helper/color";
+import { useFeatureFlags } from "@carma-providers/feature-flag";
+import { addCustomFeatureFlags } from "../../store/slices/layers";
 
 interface InfoBoxProps {
   pos?: [number, number];
@@ -54,6 +51,7 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
   const [headerColor, setHeaderColor] = useState<string>("");
   const [parsedHeader, setParsedHeader] = useState<string>("");
   const dispatch = useDispatch();
+  const flags = useFeatureFlags();
 
   const loadingFeatureInfo = useSelector(getLoading);
   const selectedFeature = useSelector(getSelectedFeature);
@@ -129,9 +127,34 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
     return false;
   };
 
+  useEffect(() => {
+    if (selectedFeature?.properties?.ffmodal) {
+      dispatch(
+        addCustomFeatureFlags({
+          [selectedFeature.properties.ffmodal]: {
+            alias: selectedFeature.properties.ffmodal,
+            default: false,
+          },
+        })
+      );
+    }
+  }, [selectedFeature, dispatch]);
+
+  const shouldDisplaySecondaryInfo = (() => {
+    if (!selectedFeature?.properties) return false;
+
+    if (selectedFeature.properties.modal) return true;
+
+    // if ffmodal is used check for the it as a feature flag
+    if (selectedFeature.properties.ffmodal) {
+      return !!flags[selectedFeature.properties.ffmodal];
+    }
+    return false;
+  })();
+
   if (selectedFeature && canZoomToFeature(selectedFeature)) {
     links = getActionLinksForFeature(selectedFeature, {
-      displaySecondaryInfoAction: !!selectedFeature?.properties?.modal,
+      displaySecondaryInfoAction: shouldDisplaySecondaryInfo,
       setVisibleStateOfSecondaryInfo: () => {
         setOpen(true);
       },
@@ -231,7 +254,9 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
     );
   });
 
-  const Modal = additionalInfoFactory(selectedFeature?.properties?.modal);
+  const Modal = additionalInfoFactory(
+    selectedFeature?.properties?.ffmodal ?? selectedFeature?.properties?.modal
+  );
 
   if (!headerColor) {
     return <></>;
