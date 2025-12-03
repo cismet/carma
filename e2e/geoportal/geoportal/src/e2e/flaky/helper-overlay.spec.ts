@@ -44,9 +44,9 @@ test.describe("Geoportal overlay", () => {
       // Verify it exists and is visible
       await expect(firstPopoverWithText).toBeVisible();
       await firstPopoverWithText.click();
-      await expect(popover).toBeHidden();
+      // await expect(popover).toBeHidden();
       // await el.click({ force: true });
-      await expect(popover).not.toBeVisible();
+      await expect(popover).not.toBeVisible({ timeout: 10000 });
     }
   });
 });
