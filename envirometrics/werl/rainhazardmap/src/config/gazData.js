@@ -1,6 +1,6 @@
 import { createConfig, ENDPOINT } from "@carma-commons/resources";
 
-const prefix = "GazDataStarkregenXanten";
+const prefix = "GazDataStarkregenWerl";
 
 const endpoints = [];
 

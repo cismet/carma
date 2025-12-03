@@ -1,0 +1,138 @@
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <!-- Laden der benötigen Javascript uns CSS-Datei von Maplibre -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css"
+    />
+    <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+    <script src="https://sg.geodatenzentrum.de/gdz_basemapde_3d_gebaeude/Maplibre3DTiles.js"></script>
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+      }
+      #map {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 100%;
+      }
+      .container {
+        position: absolute;
+        left: 5px;
+        padding: 5px;
+        border: 1px solid gray;
+        border-radius: 2px;
+        background-color: black;
+        color: white;
+        min-width: 200px;
+      }
+
+      #controls {
+        position: absolute;
+        top: 0;
+        left: 0;
+      }
+      #info {
+        top: 120px;
+        min-height: 75px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="map"></div>
+    <div id="info" class="container"></div>
+    <script>
+      let infoElement = document.querySelector("#info");
+      infoElement.innerHTML =
+        "Klicken Sie auf ein Gebaeude, <br>um sich dessen Attribute anzuzeigen.";
+
+      <!-- Initialisiern des Viewer mit der definierten Hintergrundkarte -->
+      var map = new maplibregl.Map({
+        container: "map",
+        style:
+          "https://sgx.geodatenzentrum.de/gdz_basemapde_vektor/styles/bm_web_col.json",
+        center: [6.959092, 50.941485],
+        zoom: 16.3,
+        bearing: -20,
+        pitch: 40,
+        hash: true,
+      });
+
+      map.addControl(new maplibregl.NavigationControl(), "top-left");
+
+      <!-- Holen der Gebaeude und hinzufuegen als eigenen Layer-->
+      map.on("style.load", function () {
+        let lod2_layer = new Mapbox3DTiles.Mapbox3DTilesLayer({
+          id: "lod2_building",
+          url: "https://sg.geodatenzentrum.de/gdz_basemapde_3d_gebaeude/lod2_3857_null.json",
+          colorWall: "#c2c2c2",
+          colorRoof: "#ff5c4d",
+          colorBridge: "#999999",
+        });
+        map.addLayer(lod2_layer, "Gebaeude3D_nicht_oeffentlich");
+        map.setLayoutProperty("Gebaeude3D_oeffentlich", "visibility", "none");
+        map.setLayoutProperty(
+          "Gebaeude3D_nicht_oeffentlich",
+          "visibility",
+          "none"
+        );
+        map.setLayoutProperty("Hauskoordinate", "visibility", "none");
+      });
+
+      <!-- Gebaeude erst ab Zoomstufe 16 darstellen, fuer eine schnellere Darstellung-->
+      map.on("zoom", () => {
+        var zoom = map.getZoom();
+        // if (zoom < 14) {
+        //   map.setLayoutProperty("lod2_building", "visibility", "none");
+        // } else {
+        map.setLayoutProperty("lod2_building", "visibility", "visible");
+        // }
+      });
+
+      <!-- Anzeigen der Gebaeude-Features in der Info-Box -->
+      map.on("click", (event) => {
+        let infoElement = document.querySelector("#info");
+        let features = map.queryRenderedFeatures(event.point, {
+          outline: true,
+          outlineColor: 0xff0000,
+        });
+
+        let tileset = "false";
+        for (let i = 0; i < features.length; i++) {
+          source = features[i].source;
+          if (source.includes("root.json")) {
+            tileset = "true";
+          }
+        }
+        if (tileset === "true") {
+          console.log(features);
+          infoElement.innerHTML = features
+            .filter((feature) => feature.layer.id == "lod2_building")
+            .map(
+              (feature) => `Layer: ${feature.layer.id}<br>
+                                                          ${Object.entries(
+                                                            feature.properties
+                                                          )
+                                                            .map(
+                                                              (entry) =>
+                                                                `<b>${entry[0]}:</b>${entry[1]}`
+                                                            )
+                                                            .join("<br>\n")}
+                        `
+            )
+            .join("<hr>\n");
+        } else {
+          infoElement.innerHTML =
+            "Klicken Sie auf ein Gebaeude, <br>um sich dessen Attribute anzuzeigen.";
+        }
+      });
+    </script>
+  </body>
+</html>
+
+Weiterführende Informationen Derzeit ist eine kurze zusammenfassende
+Dokumentation verfügbar: • Dokumentation basemap.de 3D Lizenz- und
+Nutzungsbedingungen Es gelten folgende Lizenz- und Nutzungsbedingungen:

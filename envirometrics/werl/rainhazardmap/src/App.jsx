@@ -36,7 +36,7 @@ import { isAreaTypeWithGEP } from "@carma-commons/resources";
 
 function App() {
   const version = getApplicationVersion(versionData);
-  const email = "starkregen@xanten.de";
+  const email = "starkregen@werl.de";
   const [gazData, setGazData] = useState([]);
   const { responsiveState, gap, windowSize } = useContext(
     ResponsiveTopicMapContext
