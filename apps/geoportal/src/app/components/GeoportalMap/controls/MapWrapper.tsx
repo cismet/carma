@@ -84,7 +84,6 @@ import {
   getUIMode,
   getZenMode,
   setZenMode,
-  toggleUIMode,
   UIMode,
 } from "../../../store/slices/ui.ts";
 

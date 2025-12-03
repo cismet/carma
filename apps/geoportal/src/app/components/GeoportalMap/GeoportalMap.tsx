@@ -80,7 +80,7 @@ import { addCssToOverlayHelperItem } from "../../helper/overlayHelper.ts";
 
 import useLeafletZoomControls from "../../hooks/leaflet/useLeafletZoomControls.ts";
 import { useDispatchSachdatenInfoText } from "../../hooks/useDispatchSachdatenInfoText.ts";
-import { useFeatureInfoModeCursorStyle } from "../../hooks/useFeatureInfoModeCursorStyle.ts";
+import { useMapCursorStyle } from "../../hooks/useMapCursorStyle.ts";
 import { useObliqueInitializer } from "../../oblique/hooks/useObliqueInitializer.ts";
 import { useGeoportalFrameworkSwitcher } from "./controls/use-geoportal-framework-switcher.ts";
 
@@ -352,8 +352,6 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
 
   const { gazData } = useGazData();
 
-  useFeatureInfoModeCursorStyle();
-
   const onComplete = useCallback(
     (selection: SelectionItem) => {
       if (layers.filter((l) => l.layerType === "vector").length === 0) return;
@@ -476,6 +474,8 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   }, [backgroundLayer]);
 
   useMeasurements(maplibreMaps);
+
+  useMapCursorStyle();
 
   useEffect(() => {
     const leaflet = getLeafletMap();
