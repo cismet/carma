@@ -188,21 +188,16 @@ export const tryClosePolygon = (drawHandler: any): boolean => {
 };
 
 /**
- * Try to finish a line measurement by clicking its last vertex marker
+ * Try to finish a line measurement by calling _finishShape directly
  */
 export const tryFinishLine = (drawHandler: any): boolean => {
-  const markers = drawHandler?._markers;
-  if (!markers || markers.length < 2) return false;
+  if (!drawHandler?._finishShape) return false;
+  
+  const latlngs = drawHandler?._poly?._latlngs;
+  if (!latlngs || latlngs.length < 2) return false;
 
-  const lastMarker = markers[markers.length - 1];
-  const lastVertex = getLastVertexIfFinishable(drawHandler);
-  if (!lastMarker || !lastVertex) return false;
-
-  console.debug("[snapping] Finishing line via last vertex click");
-  lastMarker.fire("click", {
-    latlng: lastVertex,
-    target: lastMarker,
-  });
+  console.debug("[snapping] Finishing line via _finishShape");
+  drawHandler._finishShape();
   return true;
 };
 

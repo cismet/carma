@@ -107,6 +107,7 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
   const isDraggingVertexRef = useRef(false);
   const lastSnappedCoordRef = useRef<[number, number] | null>(null);
   const statusRef = useRef(status);
+  const lastVertexCountRef = useRef<number>(0);
 
   useEffect(() => {
     snappingLayersRef.current = snappingLayers;
@@ -123,6 +124,7 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
   useEffect(() => {
     statusRef.current = status;
   }, [status]);
+
   useEffect(() => {
     const leafletMap = realRoutedMapRef.current?.leafletMap?.leafletElement;
 
@@ -184,6 +186,13 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
       };
 
       const mousemoveHandler = (e: MouseEvent) => {
+        // Track vertex count to detect if Leaflet Draw adds a vertex before our click handler
+        // This helps prevents premature line finishing when snapping adds a new vertex
+        if (currentDrawHandlerRef.current?._markers) {
+          lastVertexCountRef.current =
+            currentDrawHandlerRef.current._markers.length;
+        }
+
         // Prevent infinite loop from synthetic events we generate for snapping
         if ((e as any)._isSyntheticSnapped) {
           return;
@@ -635,7 +644,19 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
         const snappedLatlng = toLatLngFromClosestPoint(snapPoint);
         if (!snappedLatlng) return;
 
+        // Check if vertex count increased (meaning Leaflet Draw already added the vertex)
+        // If so, abort to prevent premature finishing or double-adding
+        const currentVertexCount =
+          drawHandler._markers && drawHandler._markers.length
+            ? drawHandler._markers.length
+            : 0;
+
+        if (currentVertexCount > lastVertexCountRef.current) {
+          return;
+        }
+
         // Check if snapping to first vertex (polygon closure)
+        // Use snapped position - snapping to first vertex should close the polygon
         if (
           isFirstVertexMatch(
             drawHandler,
@@ -651,6 +672,7 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
         }
 
         // Check if snapping to last vertex (finish line measurement)
+        // Use snapped position - snapping to last vertex should finish the line
         if (
           isLastVertexMatch(
             drawHandler,
@@ -667,6 +689,8 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
 
         // Directly add vertex at snapped position
         drawHandler.addVertex(snappedLatlng);
+        // Clear snap ref after adding vertex to prevent stale snap on next click
+        closestPointRef.current = null;
         event.stopPropagation();
         event.stopImmediatePropagation();
       };

@@ -736,16 +736,27 @@ export const MeasurePolygon = Control.extend({
 
         const latLng = layer.getLatLng();
         latlngs.push(latLng);
-        if (index === 1) {
-          L.drawLocal.draw.handlers.polyline.tooltip.end = `
-            <div>Den Endpunkt erneut anklicken,
-            </div> <div>um die Streckenmessung zu beenden.</div>`;
-        }
-        if (index > 2) {
-          L.drawLocal.draw.handlers.polyline.tooltip.end = `
-            <div>Den Endpunkt erneut anklicken, um die Streckenmessung zu beenden.</div> 
-            <div>Zum Messen einer Fläche erneut auf den Startpunkt klicken.</div>`;
-        }
+
+        // Add mouseover/mouseout for last vertex to show finish tooltip
+        // Only when hovering over the last marker, not unconditionally
+        layer.on("mouseover", (e) => {
+          const isLastVertex = e.target.customHandle === index;
+          if (isLastVertex && index >= 1) {
+            if (index >= 2) {
+              L.drawLocal.draw.handlers.polyline.tooltip.end = `Den Endpunkt erneut anklicken, um die Streckenmessung zu beenden.<br>Zum Messen einer Fläche erneut auf den Startpunkt klicken.`;
+            } else {
+              L.drawLocal.draw.handlers.polyline.tooltip.end = `Den Endpunkt erneut anklicken,<br>um die Streckenmessung zu beenden.`;
+            }
+          }
+        });
+
+        layer.on("mouseout", (e) => {
+          const isLastVertex = e.target.customHandle === index;
+          if (isLastVertex && index >= 1) {
+            // Reset to default tooltip
+            L.drawLocal.draw.handlers.polyline.tooltip.end = `Zum Beenden auf den letzten angelegten Punkt klicken.<br>Zum Messen einer Fläche auf den ersten angelegten Punkt klicken und die Fläche so schließen.`;
+          }
+        });
       });
 
       const formatPerimeter = calculateDistance(latlngs);
