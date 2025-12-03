@@ -5,29 +5,10 @@ import L from "leaflet";
 import { latLng } from "@carma/leaflet";
 import { distanceMeters, metersPerPixel } from "@carma/geo/utils";
 
-import type { LatLng, Map as LeafletMap, CircleMarker } from "leaflet";
-import type { SnappingPoint } from "../types";
+import { SnappingPoint } from "../types";
 
 /** Snapping modifier key to temporarily disable snapping */
 export const SNAPPING_MODIFIER_KEY = "Alt";
-
-/**
- * Check if snapping modifier key is pressed
- */
-export const isSnappingModifierPressed = (event: {
-  getModifierState?: (key: string) => boolean;
-  altKey?: boolean;
-  ctrlKey?: boolean;
-  shiftKey?: boolean;
-}): boolean => {
-  if (event.getModifierState) {
-    return event.getModifierState(SNAPPING_MODIFIER_KEY);
-  }
-  if (SNAPPING_MODIFIER_KEY === "Alt") return !!event.altKey;
-  if (SNAPPING_MODIFIER_KEY === "Control") return !!event.ctrlKey;
-  if (SNAPPING_MODIFIER_KEY === "Shift") return !!event.shiftKey;
-  return false;
-};
 
 /** Default threshold for coordinate match (0.1 meters = 10cm) */
 export const EXACT_MATCH_METERS = 0.1;
@@ -84,8 +65,8 @@ export const isCoordMatchLatLng = (
  */
 export const createSnappingIndicator = (
   latlng: { lat: number; lng: number },
-  map: LeafletMap
-): CircleMarker => {
+  map: L.Map
+): L.CircleMarker => {
   return L.circleMarker([latlng.lat, latlng.lng], {
     radius: 3.5,
     color: "#000000",
@@ -123,7 +104,7 @@ export const findClosestSnappingPoint = (
 /**
  * Get the first vertex of a draw handler's polygon if it has 3+ vertices
  */
-export const getFirstVertexIfClosable = (drawHandler: any): LatLng | null => {
+export const getFirstVertexIfClosable = (drawHandler: any): L.LatLng | null => {
   if (drawHandler?._poly?._latlngs?.length >= 3) {
     return drawHandler._poly._latlngs[0];
   }
@@ -133,7 +114,9 @@ export const getFirstVertexIfClosable = (drawHandler: any): LatLng | null => {
 /**
  * Get the last vertex of a draw handler's line if it has 2+ vertices
  */
-export const getLastVertexIfFinishable = (drawHandler: any): LatLng | null => {
+export const getLastVertexIfFinishable = (
+  drawHandler: any
+): L.LatLng | null => {
   const latlngs = drawHandler?._poly?._latlngs;
   if (latlngs?.length >= 2) {
     return latlngs[latlngs.length - 1];
@@ -170,21 +153,27 @@ export const isLastVertexMatch = (
 };
 
 /**
- * Try to close a polygon by clicking its first vertex marker
+ * Try to close a polygon by calling _finishShape directly
  */
 export const tryClosePolygon = (drawHandler: any): boolean => {
   const firstVertex = getFirstVertexIfClosable(drawHandler);
   if (!firstVertex) return false;
 
-  const firstMarker = drawHandler._markers?.[0];
-  if (!firstMarker) return false;
+  if (drawHandler._finishShape) {
+    // If the handler is a Polyline handler (but not a Polygon handler),
+    // it doesn't automatically close the shape. We must manually add the closing vertex.
+    if (drawHandler.type === "polyline") {
+      console.debug(
+        "[snapping] Closing polyline to form polygon: adding first vertex"
+      );
+      drawHandler.addVertex(firstVertex);
+    }
 
-  console.debug("[snapping] Closing polygon via first vertex click");
-  firstMarker.fire("click", {
-    latlng: firstVertex,
-    target: firstMarker,
-  });
-  return true;
+    console.debug("[snapping] Closing polygon via _finishShape");
+    drawHandler._finishShape();
+    return true;
+  }
+  return false;
 };
 
 /**
@@ -287,4 +276,33 @@ export const handleDuplicateVertex = (
     }
   }
   return false; // Not a duplicate
+};
+
+/**
+ * Create a GeoJSON Feature for the snapping candidate (snapped or unsnapped)
+ */
+export const createSnappingFeature = (
+  closestResult: { point: SnappingPoint; distance: number } | null,
+  mouseLatLng: { lat: number; lng: number }
+): any => {
+  const isSnapped = !!closestResult;
+  const coordinates = closestResult
+    ? closestResult.point.coordinates
+    : [mouseLatLng.lng, mouseLatLng.lat];
+
+  const sourceId = closestResult
+    ? closestResult.point.sourceId
+    : "pointerposition";
+
+  return {
+    type: "Feature",
+    geometry: {
+      type: "Point",
+      coordinates: coordinates,
+    },
+    properties: {
+      isSnapped: isSnapped,
+      source: sourceId,
+    },
+  };
 };

@@ -2,9 +2,12 @@ import { useState, useEffect } from "react";
 
 type MeasurementTitleProps = {
   title: string;
-  shapeId: number | string;
+  shapeId: number | string | symbol;
   order: number;
-  updateTitleMeasurementById: (shapeId: number | string, title: string) => void;
+  updateTitleMeasurementById: (
+    shapeId: number | string | symbol,
+    title: string
+  ) => void;
   setUpdateMeasurementStatus: (status: boolean) => void;
   isCollapsed?: boolean;
   collapsedContent?: string;

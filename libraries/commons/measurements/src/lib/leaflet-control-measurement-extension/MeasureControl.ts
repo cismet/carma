@@ -14,6 +14,11 @@ import {
   LeafletEvent,
   polygon,
   polyline,
+  ControlOptions,
+  LayerGroup,
+  LatLng,
+  Point,
+  Layer,
 } from "@carma/leaflet";
 import * as L from "leaflet";
 import "leaflet-draw";
@@ -24,17 +29,163 @@ import {
   formatDistance,
   updateDistance,
   updateDistanceByLatLngs,
-} from "./measurement-geometry";
-import { createVertexClickHandler } from "./vertex-click-handler";
+} from "../utils/measurement-geometry";
+import { createVertexClickHandler } from "../utils/vertex-click-handler";
+import { TOOLTIP_LABELS } from "../labels";
+import {
+  distanceBetweenLatLng,
+  EXACT_MATCH_METERS,
+  isFirstVertexMatch,
+} from "../utils/snapping";
+import { DRAWING_SHAPE_ID } from "../utils/constants";
 import {
   MeasurementPolyline,
   MeasurementPolygon,
   MeasurementLayer,
   MeasurementLeafletEvent,
-  MeasurePolygonControl,
-} from "../types/leaflet-extensions";
-import { TOOLTIP_LABELS } from "../labels";
-import { distanceBetweenLatLng } from "./snapping";
+  MeasurementShapeData,
+} from "../types";
+
+// --- Type Definitions ---
+
+export interface MeasurementMarker extends L.Marker {
+  customHandle?: number;
+}
+
+export interface DrawHandler {
+  _poly?: { _latlngs: LatLng[] };
+  _enabled?: boolean;
+  enable(): void;
+  disable(): void;
+  completeShape?: () => void;
+  addVertex?(latlng: LatLng): void;
+  _markers?: MeasurementMarker[];
+}
+
+export interface MeasureControlOptions extends ControlOptions {
+  icon_lineActive: string;
+  icon_lineInactive: string;
+  icon_polygonActive: string;
+  icon_polygonInactive: string;
+  html_template: string;
+  height: number;
+  width: number;
+  mode_btn: string;
+  isDrawing: boolean;
+  changeModeButtonActive: boolean;
+  msj_disable_tool: string;
+  shapes: MeasurementShapeData[];
+  activeShape: number | string | symbol | null;
+  shapeMode: "line" | "polygon";
+  measurementOrder: number;
+  moveToShape: boolean | MeasurementShapeData | null;
+  cb: () => void;
+  cbSaveShape: (shape: MeasurementShapeData) => void;
+  cbDeleteShape: (
+    id: number | string | symbol,
+    localShapeStore: MeasurementShapeData[]
+  ) => void;
+  cbUpdateShape: (
+    id: number | string | symbol,
+    newCoordinates: number[][],
+    newDistance: string,
+    newSquare: string | null
+  ) => void;
+  cbVisiblePolylinesChange: (ids: (number | string | symbol)[]) => void;
+  cbSetDrawingStatus: (status: boolean) => void;
+  cbSetDrawingShape: (shape: MeasurementShapeData | null) => void;
+  cbSetActiveShape: (id: number | string | symbol) => void;
+  cbSetUpdateStatusHandler: (status: boolean) => void;
+  cbMapMovingEndHandler: (status: boolean) => void;
+  cbSaveLastActiveShapeIdBeforeDrawingHandler: () => void;
+  cbChangeActiveCancelledShapeId: () => void;
+  cbToggleMeasurementMode: () => void;
+  cbGetMeasurementModeHandler: () => void;
+  cbDeleteVisibleShapeById: (id: number | string | symbol) => void;
+  cbUpdateAreaOfDrawingMeasurement: (area: string | null) => void;
+  cbSetCurrentDrawHandler: (handler: DrawHandler | null) => void;
+  cbSetMapStatus?: (status: string) => void;
+  visiblePolylines: (string | number | symbol)[];
+  localShapeStore: MeasurementShapeData[];
+  isDrawingEmpty: boolean;
+  nativeMove: boolean;
+  currentLine: DrawHandler | null;
+  polygonMode: boolean;
+  enabled: boolean;
+  startDrawing: boolean;
+  customTooltip: HTMLElement | null;
+  device: "desktop" | "mobile" | "tablet" | "Desktop" | null;
+  clickAfterShapeSelection: boolean;
+  snappingLatlng: LatLng | null;
+  snappingEnabled: boolean;
+  snappingQueryRadius?: number;
+  measurementMode?: "measurement" | "other_mode"; // TODO: check what other modes exist or if this is correct type
+}
+
+export interface MeasureControl extends Control {
+  options: MeasureControlOptions;
+  _map: LeafletMap;
+  _measureLayers: LayerGroup;
+  _measureHandler: any;
+  _lastOriginalClick: { latlng: LatLng; containerPoint: Point };
+
+  _mapClickHandler?: (event: LeafletMouseEvent) => void;
+  _drawCreatedHandler?: (event: any) => void;
+  _drawDrawstartHandler?: (event: any) => void;
+  _drawDrawvertexHandler?: (event: any) => void;
+  _drawCanceledHandler?: () => void;
+  _moveendHandler?: (event: any) => void;
+  _mousemoveHandler?: (event: LeafletMouseEvent) => void;
+  _mouseoutHandler?: (event: LeafletMouseEvent) => void;
+  _vertexClickHandler?: (event: LeafletMouseEvent) => void;
+  _isFinishingShape?: boolean;
+  drawingLines(map: LeafletMap, event: LeafletMouseEvent): void;
+
+  onAdd(map: LeafletMap): HTMLElement;
+  _clearMeasurements(): void;
+  changeColorByActivePolyline(
+    map: LeafletMap,
+    customID: number | string | symbol
+  ): void;
+  changeColorByLastShape(map: LeafletMap): void;
+  showLastPolylineOnFirstLoding(map: LeafletMap): void;
+  getVisiblePolylines(map: LeafletMap): MeasurementPolyline[];
+  getVisiblePolylinesIds(polylines: MeasurementPolyline[]): void;
+  getAllPolylines(map: LeafletMap): MeasurementPolyline[];
+  removePolylineById(map: LeafletMap, customID: number | string | symbol): void;
+  fitMapToAllPolylines(map: LeafletMap): void;
+  fitMapToPolylines(map: LeafletMap, polylines: MeasurementPolyline[]): void;
+  convertPolylineToPolygon(map: LeafletMap, layer: MeasurementPolyline): void;
+  loadMeasurements(map?: LeafletMap): void;
+  _toggleMeasurementBtn(): void;
+  toggleMeasurementMode(ifChangeMode?: boolean, map?: LeafletMap): void;
+  _UpdateDistance(layer: MeasurementPolyline): string;
+  _toggleMeasure(id: string, iconActive: string, inactiveIcon: string): void;
+  calculateArea(coordinates: number[][]): string;
+  calculateDistance(latlngs: LatLng[]): number;
+  formatDistance(distance: number): string;
+  saveShapeHandler(
+    layer: MeasurementPolyline,
+    distance: string | null,
+    area: string | null,
+    map: LeafletMap
+  ): void;
+  _onPolylineDrag(event: LeafletEvent): void;
+  replaceLineToPolygon(
+    map: LeafletMap,
+    layer: MeasurementPolyline
+  ): MeasurementShapeData;
+  getVisibleShapeIdsArr(map: LeafletMap): (number | string | symbol)[];
+  _UpdateDistanceByLatLngs(coordinates: number[][]): string;
+  showActiveShape(map: LeafletMap, coordinates: number[][]): void;
+  setMeasurementEnabled(enabled: boolean, map: LeafletMap): void;
+  changeMeasurementsArr(arr: MeasurementShapeData[]): void;
+  findLastCreatedLayer(layerGroup: LayerGroup): Layer | null;
+  cancelDrawing(): void;
+  startDrawing(): void;
+  _onPolygonClick(map: LeafletMap, event: LeafletMouseEvent): void;
+  _UpdateAreaperimeter(layer: MeasurementPolygon): void;
+}
 
 // Placeholder for icons to not show broken images
 // Transparent 1x1 GIF (43 bytes)
@@ -42,7 +193,7 @@ import { distanceBetweenLatLng } from "./snapping";
 const TRANSPARENT_PIXEL =
   "data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw==";
 
-export const MeasurePolygon = Control.extend({
+export const MeasureControl = Control.extend({
   options: {
     position: "topright",
     icon_lineActive: TRANSPARENT_PIXEL,
@@ -55,9 +206,6 @@ export const MeasurePolygon = Control.extend({
     height: 130,
     width: 150,
     mode_btn: "",
-    color_polygon: "black",
-    fillColor_polygon: "yellow",
-    weight_polygon: "2",
     isDrawing: false,
     changeModeButtonActive: false,
     msj_disable_tool: TOOLTIP_LABELS.general.disableTool,
@@ -66,67 +214,31 @@ export const MeasurePolygon = Control.extend({
     shapeMode: "line",
     measurementOrder: 0,
     moveToShape: false,
-    cb: function (...args: any[]) {
-      console.debug("Callback function executed!", args);
-    },
-    cbSaveShape: function (...args: any[]) {
-      console.debug("Callback function executed!", args);
-    },
-    cdDeleteShape: function (...args: any[]) {
-      console.debug("Callback function executed!", args);
-    },
-    cbUpdateShape: function (...args: any[]) {
-      console.debug("Callback function executed!", args);
-    },
-    cbVisiblePolylinesChange: function (...args: any[]) {
-      console.debug("Callback function executed!", args);
-    },
-    cbSetDrawingStatus: function (...args: any[]) {
-      console.debug("Callback function executed!", args);
-    },
-    cbSetDrawingShape: function (...args: any[]) {
-      console.debug("Callback function executed!", args);
-    },
-    cbSetActiveShape: function (...args: any[]) {
-      console.debug("Callback function executed!", args);
-    },
-    cbSetUpdateStatusHandler: function (...args: any[]) {
-      console.debug("Callback function executed!", args);
-    },
-    cbMapMovingEndHandler: function (...args: any[]) {
-      console.debug("Callback function executed!", args);
-    },
-    cbSaveLastActiveShapeIdBeforeDrawingHandler: function (...args: any[]) {
-      console.debug("Callback function executed!", args);
-    },
-    cbChangeActiveCanceldShapeId: function (...args: any[]) {
-      console.debug("Callback function executed!", args);
-    },
-    cbToggleMeasurementMode: function (...args: any[]) {
-      console.debug("Callback function executed!", args);
-    },
-    cbGetMeasurementModeHandler: function (...args: any[]) {
-      console.debug("Callback function executed!", args);
-    },
-    cbDeleteVisibleShapeById: function (...args: any[]) {
-      console.debug("Callback function executed!", args);
-    },
-    cbUpdateAreaOfDrawingMeasurement: function (...args: any[]) {
-      console.debug("Callback function executed!", args);
-    },
-    cbSetCurrentDrawHandler: function (...args: any[]) {
-      console.debug("Callback function executed!", args);
-    },
-    cbSetMapStatus: function (...args: any[]) {
-      console.debug("Callback function executed!", args);
-    },
+    cb: function (...args: any[]) {},
+    cbSaveShape: function (...args: any[]) {},
+    cbDeleteShape: function (...args: any[]) {},
+    cbUpdateShape: function (...args: any[]) {},
+    cbVisiblePolylinesChange: function (...args: any[]) {},
+    cbSetDrawingStatus: function (...args: any[]) {},
+    cbSetDrawingShape: function (...args: any[]) {},
+    cbSetActiveShape: function (...args: any[]) {},
+    cbSetUpdateStatusHandler: function (...args: any[]) {},
+    cbMapMovingEndHandler: function (...args: any[]) {},
+    cbSaveLastActiveShapeIdBeforeDrawingHandler: function (...args: any[]) {},
+    cbChangeActiveCancelledShapeId: function (...args: any[]) {},
+    cbToggleMeasurementMode: function (...args: any[]) {},
+    cbGetMeasurementModeHandler: function (...args: any[]) {},
+    cbDeleteVisibleShapeById: function (...args: any[]) {},
+    cbUpdateAreaOfDrawingMeasurement: function (...args: any[]) {},
+    cbSetCurrentDrawHandler: function (...args: any[]) {},
+    cbSetMapStatus: function (...args: any[]) {},
     visiblePolylines: [],
     localShapeStore: [],
     isDrawingEmpty: true,
     nativeMove: false,
-    currenLine: null,
+    currentLine: null,
     polygonMode: false,
-    measurementMode: false as string | boolean,
+    enabled: false,
     startDrawing: false,
     customTooltip: null,
     device: null,
@@ -136,7 +248,7 @@ export const MeasurePolygon = Control.extend({
   },
 
   drawingLines: function (
-    this: MeasurePolygonControl,
+    this: MeasureControl,
     map: LeafletMap,
     event: LeafletMouseEvent
   ) {
@@ -235,9 +347,26 @@ export const MeasurePolygon = Control.extend({
 
         // Check for duplicate vertex to prevent 0-length segments
         if (this._markers && this._markers.length > 0) {
+          // Check for closing polygon (snapping to first vertex)
+          // We use isFirstVertexMatch (requires 3+ vertices) to detect closure
+          if (isFirstVertexMatch(this, finalLatlng, EXACT_MATCH_METERS)) {
+            console.debug(
+              "[measure-path] Closing polygon via addVertex override (snapped to start)"
+            );
+            // Explicitly set polygon mode
+            self.options.shapeMode = "polygon";
+
+            // Set finishing flag to prevent map click from starting new shape
+            (self as any)._isFinishingShape = true;
+
+            this._finishShape();
+            return;
+          }
+
           const lastMarker = this._markers[this._markers.length - 1];
           if (
-            distanceBetweenLatLng(finalLatlng, lastMarker.getLatLng()) < 0.001
+            distanceBetweenLatLng(finalLatlng, lastMarker.getLatLng()) <
+            EXACT_MATCH_METERS
           ) {
             console.warn(
               "[measure-path] Preventing 0-length segment in addVertex - duplicate vertex ignored"
@@ -251,7 +380,7 @@ export const MeasurePolygon = Control.extend({
       };
     }
 
-    this.options.currenLine = this._measureHandler;
+    this.options.currentLine = this._measureHandler;
     this.options.cbSetCurrentDrawHandler(this._measureHandler);
 
     const tooltipContent = `${TOOLTIP_LABELS.measurement.finishLine}<br>${TOOLTIP_LABELS.measurement.finishPolygon}`;
@@ -310,7 +439,7 @@ export const MeasurePolygon = Control.extend({
       return; // Don't add invalid vertex
     }
 
-    this.options.currenLine.addVertex(latlng);
+    this.options.currentLine.addVertex(latlng);
 
     const tooltip = document.querySelector(
       ".leaflet-draw-tooltip"
@@ -326,12 +455,12 @@ export const MeasurePolygon = Control.extend({
     );
   },
 
-  startDrawing: function (this: MeasurePolygonControl) {
+  startDrawing: function (this: MeasureControl) {
     this.options.startDrawing = true;
   },
 
   saveShapeHandler: function (
-    this: MeasurePolygonControl,
+    this: MeasureControl,
     layer: MeasurementPolyline,
     distance: string | null = null,
     area: string | null = null,
@@ -393,7 +522,7 @@ export const MeasurePolygon = Control.extend({
     }
   },
 
-  _onPolylineDrag: function (this: MeasurePolygonControl, event: LeafletEvent) {
+  _onPolylineDrag: function (this: MeasureControl, event: LeafletEvent) {
     if (this.options.customTooltip) {
       this.options.customTooltip.style.visibility = "hidden";
     }
@@ -442,7 +571,7 @@ export const MeasurePolygon = Control.extend({
   },
 
   _onPolygonClick: function (
-    this: MeasurePolygonControl,
+    this: MeasureControl,
     map: LeafletMap,
     event: LeafletMouseEvent
   ) {
@@ -454,13 +583,13 @@ export const MeasurePolygon = Control.extend({
       ? clickedPolygon?.customID
       : clickedPolygon._leaflet_id;
 
-    this.options.cdDeleteShape(shapeId, this.options.localShapeStore);
+    this.options.cbDeleteShape(shapeId, this.options.localShapeStore);
 
     const allPolyLines = this.getVisiblePolylines(map);
     this.getVisiblePolylinesIds(allPolyLines);
   },
 
-  onAdd: function (this: MeasurePolygonControl, map: LeafletMap) {
+  onAdd: function (this: MeasureControl, map: LeafletMap) {
     const linesContainer = DomUtil.create(
       "div",
       "leaflet-bar leaflet-control dont-show m-container"
@@ -500,11 +629,11 @@ export const MeasurePolygon = Control.extend({
 
     // Store handler references for proper cleanup
     this._mapClickHandler = (event) => {
-      const mode = this.options.measurementMode;
+      const enabled = this.options.enabled;
 
       console.log("[measure-path] Map clicked", this.options, {
         isDrawing: this.options.isDrawing,
-        mode,
+        enabled,
         clickAfterShapeSelection: this.options.clickAfterShapeSelection,
         isFinishingShape: (this as any)._isFinishingShape,
         eventType: event.originalEvent?.type,
@@ -525,7 +654,7 @@ export const MeasurePolygon = Control.extend({
         return;
       }
 
-      if (!this.options.isDrawing && mode === "measurement") {
+      if (!this.options.isDrawing && enabled) {
         this.drawingLines(map, event);
         this.options.isDrawing = true;
       } else {
@@ -539,15 +668,18 @@ export const MeasurePolygon = Control.extend({
     };
 
     this._drawCreatedHandler = (event) => {
-      console.warn("[measure-path] ========== draw:created FIRED ==========", {
-        stack: new Error().stack,
+      console.log("[measure-path] ========== draw:created FIRED ==========", {
         layerType: event.layerType,
         vertexCount: event.layer.getLatLngs?.()?.length || 0,
         timestamp: Date.now(),
       });
 
       // Reset finishing flag since the shape is successfully created
-      (this as any)._isFinishingShape = false;
+      // CRITICAL: Use setTimeout to ensure _mapClickHandler sees this as TRUE for the current event loop
+      // If we reset it synchronously, _mapClickHandler (which runs after this) will think we are done and start a new shape
+      setTimeout(() => {
+        (this as any)._isFinishingShape = false;
+      }, 0);
 
       this.options.isDrawing = false;
       this.options.isDrawingEmpty = true;
@@ -779,7 +911,7 @@ export const MeasurePolygon = Control.extend({
         const shapesObj = {
           coordinates: [latlngs],
           distance,
-          shapeId: 5555,
+          shapeId: DRAWING_SHAPE_ID,
           number: this.options.measurementOrder,
           shapeType: "line" as const,
           options: {
@@ -798,7 +930,7 @@ export const MeasurePolygon = Control.extend({
         const shapesObj = {
           coordinates: [latlngs],
           distance,
-          shapeId: 5555,
+          shapeId: DRAWING_SHAPE_ID,
           shapeType: "line" as const,
           number: this.options.measurementOrder,
           options: {
@@ -831,8 +963,8 @@ export const MeasurePolygon = Control.extend({
         "icon_lineInactive"
       );
 
-      this.options.cbDeleteVisibleShapeById(5555);
-      this.options.cbChangeActiveCanceldShapeId();
+      this.options.cbDeleteVisibleShapeById(DRAWING_SHAPE_ID);
+      this.options.cbChangeActiveCancelledShapeId();
     };
 
     this._moveendHandler = (event) => {
@@ -845,11 +977,11 @@ export const MeasurePolygon = Control.extend({
     this._mousemoveHandler = (event) => {
       const target = event.originalEvent.target;
       const isDesktop = this.options.device === "Desktop" ? true : false;
-      const mode = this.options.measurementMode;
+      const enabled = this.options.enabled;
       // this._propagateEventToUnderlyingLayers(map, event, "mouseover");
 
       if (isDesktop) {
-        if (!this.options.customTooltip && mode === "measurement") {
+        if (!this.options.customTooltip && enabled) {
           const popupPane = map._panes.popupPane;
 
           this.options.customTooltip = DomUtil.create(
@@ -865,7 +997,7 @@ export const MeasurePolygon = Control.extend({
           DomUtil.setPosition(this.options.customTooltip, pos);
         }
 
-        if (this.options.customTooltip && mode === "measurement") {
+        if (this.options.customTooltip && enabled) {
           const latlng =
             this.options.snappingEnabled && this.options.snappingLatlng
               ? this.options.snappingLatlng
@@ -911,7 +1043,7 @@ export const MeasurePolygon = Control.extend({
     return iconsWrapper;
   },
 
-  onRemove: function (this: MeasurePolygonControl, map: LeafletMap) {
+  onRemove: function (this: MeasureControl, map: LeafletMap) {
     // Clean up all event handlers to prevent memory leaks and duplicate handlers on HMR
     console.log("[measure-path] onRemove: Cleaning up event handlers");
 
@@ -946,7 +1078,7 @@ export const MeasurePolygon = Control.extend({
     }
   },
 
-  _UpdateAreaperimeter: function (this: MeasurePolygonControl, layer: any) {
+  _UpdateAreaperimeter: function (this: MeasureControl, layer: any) {
     const latlngs = layer.getLatLngs()[0];
 
     const options = {
@@ -956,7 +1088,7 @@ export const MeasurePolygon = Control.extend({
   },
 
   _toggleMeasure: function (
-    this: MeasurePolygonControl,
+    this: MeasureControl,
     btnId = "",
     activeIcon = "",
     inactiveIcon = ""
@@ -968,19 +1100,19 @@ export const MeasurePolygon = Control.extend({
     }
   },
 
-  _clearMeasurements: function (this: MeasurePolygonControl) {
+  _clearMeasurements: function (this: MeasureControl) {
     this._measureLayers.clearLayers();
   },
 
   changeColorByActivePolyline: function (
-    this: MeasurePolygonControl,
+    this: MeasureControl,
     map: LeafletMap,
     customID: string
   ) {
     this._measureLayers.eachLayer(function (layer) {
-      const polyline = layer as MeasurementPolyline;
+      const polyline = layer as unknown as MeasurementPolyline;
       if (layer instanceof Polyline) {
-        if ((layer as MeasurementPolyline).customID === customID) {
+        if ((layer as unknown as MeasurementPolyline).customID === customID) {
           (polyline as MeasurementPolyline)._path.classList.remove(
             "custom-polyline"
           );
@@ -995,10 +1127,7 @@ export const MeasurePolygon = Control.extend({
     });
   },
 
-  changeColorByLastShape: function (
-    this: MeasurePolygonControl,
-    map: LeafletMap
-  ) {
+  changeColorByLastShape: function (this: MeasureControl, map: LeafletMap) {
     let lastPolyline = null;
 
     this._measureLayers.eachLayer(function (layer) {
@@ -1013,7 +1142,7 @@ export const MeasurePolygon = Control.extend({
     }
   },
 
-  getVisiblePolylines: function (this: MeasurePolygonControl, map: LeafletMap) {
+  getVisiblePolylines: function (this: MeasureControl, map: LeafletMap) {
     const visiblePolylines = [];
     const mapBounds = map.getBounds();
 
@@ -1028,10 +1157,7 @@ export const MeasurePolygon = Control.extend({
     return visiblePolylines;
   },
 
-  getVisiblePolylinesIds: function (
-    this: MeasurePolygonControl,
-    polylinesArr: any[]
-  ) {
+  getVisiblePolylinesIds: function (this: MeasureControl, polylinesArr: any[]) {
     const idsPolylinesArr = [];
     this.options.visiblePolylines = [];
     polylinesArr.forEach((m) => {
@@ -1042,7 +1168,7 @@ export const MeasurePolygon = Control.extend({
     this.options.cbVisiblePolylinesChange(idsPolylinesArr);
   },
 
-  getAllPolylines: function (this: MeasurePolygonControl, map: LeafletMap) {
+  getAllPolylines: function (this: MeasureControl, map: LeafletMap) {
     const polylines = [];
 
     this._measureLayers.eachLayer(function (layer) {
@@ -1055,7 +1181,7 @@ export const MeasurePolygon = Control.extend({
   },
 
   removePolylineById: function (
-    this: MeasurePolygonControl,
+    this: MeasureControl,
     map: LeafletMap,
     customID: string
   ) {
@@ -1068,7 +1194,7 @@ export const MeasurePolygon = Control.extend({
   },
 
   showActiveShape: function (
-    this: MeasurePolygonControl,
+    this: MeasureControl,
     map: LeafletMap,
     coordinates: any
   ) {
@@ -1078,7 +1204,7 @@ export const MeasurePolygon = Control.extend({
   },
 
   fitMapToPolylines: function (
-    this: MeasurePolygonControl,
+    this: MeasureControl,
     map: LeafletMap,
     polylines: any[]
   ) {
@@ -1100,7 +1226,7 @@ export const MeasurePolygon = Control.extend({
   },
 
   replaceLineToPolygon: function (
-    this: MeasurePolygonControl,
+    this: MeasureControl,
     map: LeafletMap,
     layer: any
   ) {
@@ -1179,19 +1305,13 @@ export const MeasurePolygon = Control.extend({
 
     return preparePolygon;
   },
-  getVisibleShapeIdsArr: function (
-    this: MeasurePolygonControl,
-    map: LeafletMap
-  ) {
+  getVisibleShapeIdsArr: function (this: MeasureControl, map: LeafletMap) {
     const allPolyLines = this.getVisiblePolylines(map);
     this.getVisiblePolylinesIds(allPolyLines);
     return this.options.visiblePolylines;
   },
 
-  findLastCreatedLayer: function (
-    this: MeasurePolygonControl,
-    layerGroup: any
-  ) {
+  findLastCreatedLayer: function (this: MeasureControl, layerGroup: any) {
     let lastLayer = null;
     let highestId = -1;
 
@@ -1205,7 +1325,7 @@ export const MeasurePolygon = Control.extend({
     return lastLayer;
   },
 
-  loadMeasurements: function (this: MeasurePolygonControl, map?: LeafletMap) {
+  loadMeasurements: function (this: MeasureControl, map?: LeafletMap) {
     if (this.options.shapes.length !== 0) {
       this.options.shapes.forEach((shape) => {
         const { coordinates, options, shapeId, shapeType } = shape;
@@ -1237,7 +1357,7 @@ export const MeasurePolygon = Control.extend({
                 } as any
               );
 
-        savedShape.customID = shapeId;
+        (savedShape as any).customID = shapeId;
         savedShape.addTo(this._measureLayers).showMeasurements().enableEdit();
         savedShape.on("click", () => {
           this.options.isDrawing = true;
@@ -1276,7 +1396,7 @@ export const MeasurePolygon = Control.extend({
     }
   },
 
-  _toggleMeasurementBtn: function (this: MeasurePolygonControl) {
+  _toggleMeasurementBtn: function (this: MeasureControl) {
     if (this.options.changeModeButtonActive) {
       (document.getElementById("img_plg_lines") as HTMLImageElement).src =
         this.options.icon_lineInactive;
@@ -1289,12 +1409,12 @@ export const MeasurePolygon = Control.extend({
   },
 
   toggleMeasurementMode: function (
-    this: MeasurePolygonControl,
+    this: MeasureControl,
     ifChangeMode = true,
     map?: LeafletMap
   ) {
-    const mode = this.options.measurementMode;
-    if (mode === "measurement") {
+    const enabled = this.options.enabled;
+    if (enabled) {
       L.drawLocal.draw.handlers.polyline.tooltip.start =
         TOOLTIP_LABELS.measurement.start;
       this._clearMeasurements();
@@ -1316,8 +1436,8 @@ export const MeasurePolygon = Control.extend({
 
       const customTooltip = document.querySelector("#routedMap") as HTMLElement;
       customTooltip.style.cursor = "pointer";
-      if (this.options.currenLine) {
-        this.options.currenLine.disable();
+      if (this.options.currentLine) {
+        this.options.currentLine.disable();
       }
       customTooltip.style.cursor = "pointer";
       // const drawBtn = document.getElementById("draw_shape");
@@ -1332,18 +1452,18 @@ export const MeasurePolygon = Control.extend({
     }
   },
 
-  changeMeasurementMode: function (
-    this: MeasurePolygonControl,
-    mode: string,
+  setMeasurementEnabled: function (
+    this: MeasureControl,
+    enabled: boolean,
     map: LeafletMap
   ) {
-    this.options.measurementMode = mode;
+    this.options.enabled = enabled;
     this.toggleMeasurementMode(false, map);
   },
-  changeMeasurementsArr: function (this: MeasurePolygonControl, arr: any[]) {
+  changeMeasurementsArr: function (this: MeasureControl, arr: any[]) {
     this.options.shapes = arr;
   },
-  cancelDrawing: function (this: MeasurePolygonControl) {
+  cancelDrawing: function (this: MeasureControl) {
     if (!this.options.isDrawingEmpty) {
       this._measureHandler.disable();
       this.options.isDrawingEmpty = true;
@@ -1351,14 +1471,14 @@ export const MeasurePolygon = Control.extend({
       this._measureLayers.clearLayers();
 
       this.options.cbSetDrawingStatus(false);
-      this.options.cbDeleteVisibleShapeById(5555);
+      this.options.cbDeleteVisibleShapeById(DRAWING_SHAPE_ID);
       // this.options.isDrawing = true;
     }
   },
 });
 
 // Adds the method to create a new instance of the control
-(L.Control as any).MeasurePolygon = MeasurePolygon;
-(L.control as any).measurePolygon = function (options: any) {
-  return new MeasurePolygon(options);
+(L.Control as any).MeasureControl = MeasureControl;
+(L.control as any).measureControl = function (options: any) {
+  return new MeasureControl(options);
 };

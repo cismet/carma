@@ -9,7 +9,8 @@ import "leaflet-editable";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import "../utils/measure";
-import "../utils/measure-path";
+import { DRAWING_SHAPE_ID } from "../utils/constants";
+import { MeasureControl } from "../leaflet-control-measurement-extension";
 import useDeviceDetection from "../hooks/useDeviceDetection";
 import { useMapMeasurementsContext } from "../context";
 import {
@@ -23,8 +24,8 @@ import {
   createSnappingIndicator,
   findClosestSnappingPoint,
   SNAPPING_MODIFIER_KEY,
-  isSnappingModifierPressed,
   handleDuplicateVertex,
+  createSnappingFeature,
 } from "../utils/snapping";
 import { filterArrByIds, findLargestNumber } from "../utils/shapes";
 import { SnappingPoint } from "./../types";
@@ -120,10 +121,16 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
     // Update cache for snapping points from shapes
     const points: SnappingPoint[] = [];
     shapes.forEach((shape: any) => {
-      points.push(...extractPointsFromMeasurementShape(shape, "measurements"));
+      // Filter out the currently active shape to avoid ghost snapping to its old state
+      // The active shape's current points are handled by the drawing-in-progress logic
+      if (shape.shapeId !== activeShape) {
+        points.push(
+          ...extractPointsFromMeasurementShape(shape, "measurements")
+        );
+      }
     });
     cachedShapePointsRef.current = points;
-  }, [shapes]);
+  }, [shapes, activeShape]);
 
   useEffect(() => {
     queryRadiusRef.current = snappingQueryRadius;
@@ -217,7 +224,7 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
         lastMouseEventRef.current = e;
 
         // Update tooltip text based on Snapping Modifier Key
-        const isPressed = isSnappingModifierPressed(e);
+        const isPressed = e.getModifierState(SNAPPING_MODIFIER_KEY);
         updateTooltipTemplate(isPressed);
 
         // Force update of current tooltip if it exists
@@ -322,25 +329,10 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
 
         // Determine snapping point
         const isSnapped = !!closestResult;
-        const coordinates = closestResult
-          ? closestResult.point.coordinates
-          : [mouseLatLng.lng, mouseLatLng.lat];
-
-        const sourceId = closestResult
-          ? closestResult.point.sourceId
-          : "pointerposition";
-
-        const snappedFeature: any = {
-          type: "Feature",
-          geometry: {
-            type: "Point",
-            coordinates: coordinates,
-          },
-          properties: {
-            isSnapped: isSnapped,
-            source: sourceId,
-          },
-        };
+        const snappedFeature: any = createSnappingFeature(
+          closestResult,
+          mouseLatLng
+        );
 
         nextVertexCandidate = snappedFeature;
         // Store candidate (snapped or unsnapped)
@@ -655,10 +647,34 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
             snappingIdentityDistanceMeters
           )
         ) {
-          if (tryClosePolygon(drawHandler)) {
-            event.stopPropagation();
-            event.stopImmediatePropagation();
+          // Check if handler is still valid/enabled before trying to close
+          // Leaflet.Draw might have already closed it via addVertex override
+          if (!drawHandler._enabled) {
+            console.debug(
+              "[useMeasurements] Handler disabled - aborting tryClosePolygon"
+            );
             return;
+          }
+
+          // Explicitly set polygon mode when closing via snap
+          if (measureControl && measureControl.options) {
+            console.debug(
+              "[useMeasurements] Closing polygon via snap - setting shapeMode to 'polygon'"
+            );
+            measureControl.options.shapeMode = "polygon";
+          }
+
+          try {
+            if (tryClosePolygon(drawHandler)) {
+              event.stopPropagation();
+              event.stopImmediatePropagation();
+              return;
+            }
+          } catch (e) {
+            console.warn(
+              "[useMeasurements] Error closing polygon (likely already closed):",
+              e
+            );
           }
         }
 
@@ -802,28 +818,26 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
         snappingEnabled: true,
         cbSaveShape: saveShapeHandler,
         cbUpdateShape: updateShapeHandler,
-        cdDeleteShape: deleteShapeHandler,
+        cbDeleteShape: deleteShapeHandler,
         cbDeleteVisibleShapeById: deleteVisibleShapeByIdHandler,
         cbVisiblePolylinesChange: visiblePolylinesChange,
         cbSetDrawingStatus: drawingStatusHandler,
         cbSetDrawingShape: drawingShapeHandler,
         measurementOrder: findLargestNumber(shapes),
-        measurementMode: isMeasurementEnabled ? "measurement" : "default",
+        enabled: isMeasurementEnabled,
         cbSetActiveShape: setActiveShapeHandler,
         cbSetUpdateStatusHandler: setUpdateStatusHandler,
         cbMapMovingEndHandler: mapMovingEndHandler,
         cbSaveLastActiveShapeIdBeforeDrawingHandler:
           saveLastActiveShapeIdBeforeDrawingHandler,
-        cbChangeActiveCanceldShapeId: changeActiveCancelledShapeId,
+        cbChangeActiveCancelledShapeId: changeActiveCancelledShapeId,
         cbToggleMeasurementMode: toggleMeasurementModeHandler,
         cbUpdateAreaOfDrawingMeasurement: updateAreaOfDrawingMeasurementHandler,
         cbSetCurrentDrawHandler: setCurrentDrawHandler,
         cbSetMapStatus: setStatus,
       };
 
-      const measurePolygonControl = (L.control as any).measurePolygon(
-        customOptions
-      );
+      const measurePolygonControl = new (MeasureControl as any)(customOptions);
       measurePolygonControl.addTo(mapExample);
 
       setMeasureControl(measurePolygonControl);
@@ -929,10 +943,7 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
     if (measureControl) {
       const map = realRoutedMapRef.current?.leafletMap?.leafletElement;
       if (!map) return;
-      measureControl.changeMeasurementMode(
-        isMeasurementEnabled ? "measurement" : "default",
-        map
-      );
+      measureControl.setMeasurementEnabled(isMeasurementEnabled, map);
       const shapeCoordinates = shapes.filter((s) => s.shapeId === activeShape);
       if (shapeCoordinates[0]?.shapeId) {
         measureControl.changeColorByActivePolyline(
@@ -960,14 +971,14 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
     if (measureControl) {
       const cleanedVisibleArr = filterArrByIds(visiblePolylines, shapes);
 
-      // Preserve drawing shape (5555) if we're in drawing mode
+      // Preserve drawing shape (DRAWING_SHAPE_ID) if we're in drawing mode
       const drawingShapeInVisible = visibleShapes.find(
-        (s) => s.shapeId === 5555
+        (s) => s.shapeId === DRAWING_SHAPE_ID
       );
       if (
         ifDrawing &&
         drawingShapeInVisible &&
-        !cleanedVisibleArr.find((s) => s.shapeId === 5555)
+        !cleanedVisibleArr.find((s) => s.shapeId === DRAWING_SHAPE_ID)
       ) {
         cleanedVisibleArr.push(drawingShapeInVisible);
       }
@@ -979,7 +990,9 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
 
   useEffect(() => {
     if (drawingShape) {
-      const cleanArr = visibleShapes.filter((m) => m.shapeId !== 5555);
+      const cleanArr = visibleShapes.filter(
+        (m) => m.shapeId !== DRAWING_SHAPE_ID
+      );
       setVisibleShapes([...cleanArr, drawingShape]);
     } else {
       setLastVisibleShapeActive();

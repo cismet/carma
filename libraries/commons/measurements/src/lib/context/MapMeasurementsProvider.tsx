@@ -9,6 +9,7 @@ import type {
 import { MapMeasurementsContext } from "./MapMeasurementsContext";
 import { setFromLocalforage, saveToLocalforage } from "../utils/storage";
 import { normalizeOptions } from "@carma-commons/utils";
+import { DRAWING_SHAPE_ID } from "../utils/constants";
 
 // Detect mobile devices
 const isMobileDevice = () => {
@@ -82,15 +83,6 @@ export const MapMeasurementsProvider = ({
   const [showAll, setShowAll] = useState(false);
   const [deleteAll, setDeleteAll] = useState(false);
   const [drawingShape, setDrawingShape] = useState(false);
-
-  // Wrap setDrawingShape to log calls
-  const setDrawingShapeWithLog = useCallback((value: boolean) => {
-    console.warn(
-      `[MapMeasurementsProvider] setDrawingShape(${value})`,
-      new Error().stack
-    );
-    setDrawingShape(value);
-  }, []);
 
   const [lastActiveShapeBeforeDrawing, setLastActiveShapeBeforeDrawing] =
     useState<any>(null);
@@ -190,7 +182,7 @@ export const MapMeasurementsProvider = ({
   const setActiveShapeIfDrawCancelled = useCallback(() => {
     setLastActiveShapeBeforeDrawing((lastActiveShape) => {
       setVisibleShapes((visible) => {
-        if (lastActiveShape && visible[0]?.shapeId !== 55555) {
+        if (lastActiveShape && visible[0]?.shapeId !== DRAWING_SHAPE_ID) {
           setActiveShape(lastActiveShape);
           setDrawingShape(false);
         } else {
@@ -218,7 +210,7 @@ export const MapMeasurementsProvider = ({
   const updateAreaOfDrawing = useCallback((newArea: string) => {
     setVisibleShapes((visibleShapes) => {
       const shape = visibleShapes.map((s) => {
-        if (s.shapeId === 5555) {
+        if (s.shapeId === DRAWING_SHAPE_ID) {
           return {
             ...s,
             area: newArea,
@@ -289,7 +281,7 @@ export const MapMeasurementsProvider = ({
       deleteAll,
       setDeleteAll,
       drawingShape,
-      setDrawingShape: setDrawingShapeWithLog,
+      setDrawingShape,
       lastActiveShapeBeforeDrawing,
       setLastActiveShapeBeforeDrawing,
       moveToShape,
@@ -322,7 +314,6 @@ export const MapMeasurementsProvider = ({
       showAll,
       deleteAll,
       drawingShape,
-      setDrawingShapeWithLog,
       lastActiveShapeBeforeDrawing,
       moveToShape,
       updateShape,
