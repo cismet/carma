@@ -84,7 +84,6 @@ export const useCreateCismapLayers = (
   const [globalHits, setGlobalHits] = useState({});
   const [idleLayers, setIdleLayers] = useState({});
   const [foundFeatures, setFoundFeatures] = useState({});
-  const lastSelectedFeatureRef = useRef<string | null>(null);
   const flags = useFeatureFlags();
 
   const showTileBoundaries = flags?.debugTileBoundaries;
@@ -95,14 +94,6 @@ export const useCreateCismapLayers = (
   };
 
   const featureHandler = (feature, layer) => {
-    const currentFeatureId = feature.vectorId;
-    const lastFeatureId = lastSelectedFeatureRef.current;
-
-    if (currentFeatureId === lastFeatureId) {
-      utils.zoomToFeature(feature, leafletMap, [60, 60]);
-    }
-
-    lastSelectedFeatureRef.current = currentFeatureId;
     setFoundFeatures((old) => {
       return { ...old, [layer.id]: feature };
     });
@@ -183,6 +174,13 @@ export const useCreateCismapLayers = (
         const selectedVectorFeature = lastObject.value[0];
         if (selectedVectorFeature.setSelection) {
           selectedVectorFeature.setSelection(true);
+          if (selectedVectorFeature?.state?.selected) {
+            utils.zoomToFeature(
+              foundFeatures[lastObject.key],
+              leafletMap,
+              [60, 60]
+            );
+          }
           dispatch(setSelectedFeature(foundFeatures[lastObject.key]));
         }
       } else {

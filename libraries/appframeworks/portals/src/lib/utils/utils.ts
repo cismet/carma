@@ -265,8 +265,14 @@ export const zoomToFeature = (
   leafletMap: LeafletMap,
   padding: [number, number] = [0, 0]
 ) => {
-  if (selectedFeature.properties?.wmsProps?.bounds) {
-    const bbox = JSON.parse(selectedFeature.properties.wmsProps.bounds);
+  if (
+    selectedFeature.properties?.wmsProps?.bounds ||
+    selectedFeature.properties?.bounds
+  ) {
+    const bbox = JSON.parse(
+      selectedFeature.properties?.wmsProps?.bounds ??
+        selectedFeature.properties?.bounds
+    );
     if (leafletMap) {
       leafletMap.fitBounds(
         [
@@ -290,6 +296,7 @@ export const zoomToFeature = (
         );
       }
     } else {
+      console.log("xxx", selectedFeature.geometry);
       const bbox = envelope(selectedFeature.geometry).bbox;
 
       if (leafletMap) {
