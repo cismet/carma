@@ -21,6 +21,11 @@ export { FeatureInfobox } from "./lib/components/FeatureInfobox.tsx";
 export { InfoBoxHeader } from "./lib/components/InfoBoxHeader.tsx";
 export { CarmaMap } from "./lib/components/CarmaMap.tsx";
 export { PreviewLibreMap } from "./lib/components/libremap/PreviewLibreMap.tsx";
+export {
+  LibreContext,
+  LibreContextProvider,
+  useLibreContext,
+} from "./lib/components/libremap/LibreContext.tsx";
 
 export { GazDataProvider, useGazData } from "./lib/components/GazDataProvider";
 

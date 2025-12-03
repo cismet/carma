@@ -1,6 +1,8 @@
+import type { StyleSpecification } from "maplibre-gl";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef } from "react";
+import { useLibreContext } from "./LibreContext";
 
 interface PreviewLibreMapProps {
   lat?: number;
@@ -14,6 +16,27 @@ const defaultContainerStyle: React.CSSProperties = {
   height: 300,
 };
 
+const defaultMapStyle: StyleSpecification = {
+  version: 8,
+  sources: {
+    "source-amtlich": {
+      type: "raster",
+      tiles: [
+        "https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_light&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
+      ],
+      tileSize: 256,
+    },
+  },
+  layers: [
+    {
+      id: "layer-amtlich",
+      type: "raster",
+      source: "source-amtlich",
+      paint: { "raster-opacity": 1 },
+    },
+  ],
+};
+
 export const PreviewLibreMap = ({
   lat = 51.2725699,
   lng = 7.199918,
@@ -22,31 +45,13 @@ export const PreviewLibreMap = ({
 }: PreviewLibreMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
+  const { mapStyle } = useLibreContext();
 
   useEffect(() => {
     if (mapContainer.current && !map.current) {
       const mapInstance = new maplibregl.Map({
         container: mapContainer.current,
-        style: {
-          version: 8,
-          sources: {
-            "source-amtlich": {
-              type: "raster",
-              tiles: [
-                "https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_light&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
-              ],
-              tileSize: 256,
-            },
-          },
-          layers: [
-            {
-              id: "layer-amtlich",
-              type: "raster",
-              source: "source-amtlich",
-              paint: { "raster-opacity": 1 },
-            },
-          ],
-        },
+        style: mapStyle ?? defaultMapStyle,
         center: [lng, lat],
         zoom: zoom,
         attributionControl: false,
@@ -62,7 +67,13 @@ export const PreviewLibreMap = ({
         map.current = null;
       }
     };
-  }, [lat, lng, zoom]);
+  }, []);
+
+  useEffect(() => {
+    if (map.current && mapStyle) {
+      map.current.setStyle(mapStyle);
+    }
+  }, [mapStyle]);
 
   return <div ref={mapContainer} style={style} />;
 };

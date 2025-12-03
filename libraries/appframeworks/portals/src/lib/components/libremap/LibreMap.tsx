@@ -26,6 +26,7 @@ import { useSelectionLibreMap } from "../../hooks/useSelectionLibreMap";
 import { defaultLayerConf } from "../react-cismap/tools/layerFactory";
 import { useMapHashRouting } from "../../hooks/useMapHashRouting";
 import { FeatureInfobox } from "../FeatureInfobox";
+import { useLibreContext } from "./LibreContext";
 
 interface LibreMapProps {
   backgroundLayers?: string;
@@ -65,6 +66,7 @@ export const LibreMap = ({
   const { markerSymbolSize } = useContext<typeof TopicMapStylingContext>(
     TopicMapStylingContext
   );
+  const { setMapStyle } = useLibreContext();
 
   const defaultLng = 7.150764;
   const defaultLat = 51.256;
@@ -230,6 +232,7 @@ export const LibreMap = ({
     () => buildBackgroundStyle(),
     [backgroundLayers]
   );
+
   useEffect(() => {
     // Only initialize if we have a container and no map yet
     if (mapContainer.current && !map.current) {
@@ -494,6 +497,9 @@ export const LibreMap = ({
 
           map.current?.setStyle(style);
 
+          // Update context with the full map style
+          setMapStyle(style);
+
           // Restore terrain after style is loaded if it was previously set
           if (currentTerrain && map.current) {
             const restoreTerrain = () => {
@@ -580,6 +586,7 @@ export const LibreMap = ({
         } else {
           // Only update background layers
           map.current?.setStyle(backgroundStyle);
+          setMapStyle(backgroundStyle);
           geoJsonMetadataRef.current = [];
         }
       } catch (error) {
