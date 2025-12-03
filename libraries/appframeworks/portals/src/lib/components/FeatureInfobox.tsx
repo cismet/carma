@@ -56,7 +56,7 @@ export const FeatureInfobox = ({
       zoomToFeature: () => {
         utils.zoomToFeature({
           selectedFeature,
-          leafletMap: routedMapRef.leafletMap.leafletElement,
+          leafletMap: routedMapRef?.leafletMap?.leafletElement,
           libreMap,
         });
       },

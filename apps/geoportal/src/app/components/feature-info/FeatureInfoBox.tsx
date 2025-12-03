@@ -162,7 +162,7 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
       zoomToFeature: () => {
         utils.zoomToFeature({
           selectedFeature,
-          leafletMap: routedMapRef.leafletMap.leafletElement,
+          leafletMap: routedMapRef?.leafletMap?.leafletElement,
           padding: [60, 60],
         });
       },
