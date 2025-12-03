@@ -109,12 +109,20 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
   const statusRef = useRef(status);
   const lastVertexCountRef = useRef<number>(0);
 
+  const cachedShapePointsRef = useRef<SnappingPoint[]>([]);
+
   useEffect(() => {
     snappingLayersRef.current = snappingLayers;
   }, [snappingLayers]);
 
   useEffect(() => {
     shapesRef.current = shapes;
+    // Update cache for snapping points from shapes
+    const points: SnappingPoint[] = [];
+    shapes.forEach((shape: any) => {
+      points.push(...extractPointsFromMeasurementShape(shape, "measurements"));
+    });
+    cachedShapePointsRef.current = points;
   }, [shapes]);
 
   useEffect(() => {
@@ -134,8 +142,8 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
       typeof leafletMap.on === "function"
     ) {
       // Import L from leaflet
-      let closestPoint: SnappingPoint | null = null;
-      const closestPointRef = { current: null as SnappingPoint | null }; // Stable ref to preserve closestPoint
+      let nextVertexCandidate: SnappingPoint | null = null;
+      const nextVertexCandidateRef = { current: null as SnappingPoint | null }; // Stable ref
 
       // Centralized cleanup for all snapping state
       const clearSnapping = () => {
@@ -155,8 +163,8 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
             }
           });
           // Clear all snapping refs
-          closestPoint = null;
-          closestPointRef.current = null;
+          nextVertexCandidate = null;
+          nextVertexCandidateRef.current = null;
           snappingLatlngRef.current = null;
           if (measureControl) {
             measureControl.options.snappingLatlng = null;
@@ -230,11 +238,6 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
         // Check zoom level - only work if zoom >= configured minimum
         const currentZoom = leafletMap.getZoom();
 
-        if (currentZoom < snappingMinZoom) {
-          clearSnapping();
-          return;
-        }
-
         // Remove old circle if exists
         if (circleMarkerRef.current) {
           leafletMap.removeLayer(circleMarkerRef.current);
@@ -272,24 +275,20 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
         const coordinatePoints: SnappingPoint[] = [];
 
         // 1. Extract from vector features (loop through all MapLibre maps)
-        coordinatePoints.push(
-          ...getSnappingPointsFromMapLibre(
-            currentSnappingLayers,
-            { x: e.clientX, y: e.clientY },
-            currentRadius
-          )
-        );
+        // Only extract if zoom is high enough
+        if (currentZoom >= snappingMinZoom) {
+          coordinatePoints.push(
+            ...getSnappingPointsFromMapLibre(
+              currentSnappingLayers,
+              { x: e.clientX, y: e.clientY },
+              currentRadius
+            )
+          );
+        }
 
         // 2. Extract from measurement shapes (independent of MapLibre)
-        // Use shapesRef which is kept in sync via useEffect
-        const currentShapes = shapesRef.current;
-        currentShapes.forEach((shape: any) => {
-          const points = extractPointsFromMeasurementShape(
-            shape,
-            "measurements"
-          );
-          coordinatePoints.push(...points);
-        });
+        // Use cached points
+        coordinatePoints.push(...cachedShapePointsRef.current);
 
         // 3. Extract from in-progress drawing (if currently drawing)
         const currentDrawHandlerValue = currentDrawHandlerRef.current;
@@ -322,40 +321,32 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
         );
 
         // Determine snapping point
-        let isSnapped = false;
-        let snappedFeature: any;
+        const isSnapped = !!closestResult;
+        const coordinates = closestResult
+          ? closestResult.point.coordinates
+          : [mouseLatLng.lng, mouseLatLng.lat];
 
-        if (!closestResult) {
-          // No points found - use mouse pointer but don't show indicator
-          snappedFeature = {
-            type: "Feature",
-            geometry: {
-              type: "Point",
-              coordinates: [mouseLatLng.lng, mouseLatLng.lat],
-            },
-            properties: { black: true },
-          };
-          isSnapped = false;
-        } else {
-          // Snap to the closest point found within query radius
-          snappedFeature = {
-            type: "Feature",
-            geometry: {
-              type: "Point",
-              coordinates: closestResult.point.coordinates,
-            },
-            properties: {
-              black: true,
-              source: closestResult.point.sourceId,
-            },
-          };
-          isSnapped = true;
-        }
-        closestPoint = snappedFeature;
-        // Store snap point (snapped or unsnapped) - unifies click handling
-        closestPointRef.current = snappedFeature;
+        const sourceId = closestResult
+          ? closestResult.point.sourceId
+          : "pointerposition";
 
-        const finalLatLng = toLatLngFromClosestPoint(closestPoint);
+        const snappedFeature: any = {
+          type: "Feature",
+          geometry: {
+            type: "Point",
+            coordinates: coordinates,
+          },
+          properties: {
+            isSnapped: isSnapped,
+            source: sourceId,
+          },
+        };
+
+        nextVertexCandidate = snappedFeature;
+        // Store candidate (snapped or unsnapped)
+        nextVertexCandidateRef.current = snappedFeature;
+
+        const finalLatLng = toLatLngFromClosestPoint(nextVertexCandidate);
         // Logic for updating snappingLatlng
         let newSnappingLatlng = null;
 
@@ -532,27 +523,26 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
         const vertexPoint = leafletMap.latLngToContainerPoint(vertexLatLng);
         const currentRadius = queryRadiusRef.current;
         const coordinatePoints: SnappingPoint[] = [];
+        const currentZoom = leafletMap.getZoom();
 
         // Extract snap points from vector features
-        const mapContainer = leafletMap.getContainer();
-        const mapRect = mapContainer.getBoundingClientRect();
-        const screenX = vertexPoint.x + mapRect.left;
-        const screenY = vertexPoint.y + mapRect.top;
+        if (currentZoom >= snappingMinZoom) {
+          const mapContainer = leafletMap.getContainer();
+          const mapRect = mapContainer.getBoundingClientRect();
+          const screenX = vertexPoint.x + mapRect.left;
+          const screenY = vertexPoint.y + mapRect.top;
 
-        coordinatePoints.push(
-          ...getSnappingPointsFromMapLibre(
-            snappingLayersRef.current,
-            { x: screenX, y: screenY },
-            currentRadius
-          )
-        );
+          coordinatePoints.push(
+            ...getSnappingPointsFromMapLibre(
+              snappingLayersRef.current,
+              { x: screenX, y: screenY },
+              currentRadius
+            )
+          );
+        }
 
         // Extract from measurement shapes
-        shapesRef.current.forEach((shape: any) => {
-          coordinatePoints.push(
-            ...extractPointsFromMeasurementShape(shape, "measurements")
-          );
-        });
+        coordinatePoints.push(...cachedShapePointsRef.current);
 
         // Filter out self (exclude self-snapping)
         const filtered = coordinatePoints.filter((point) => {
@@ -634,14 +624,15 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
       // click handler for snapped vertices
       const mapContainer = leafletMap.getContainer();
       const clickHandler = (event: MouseEvent) => {
-        const snapPoint = closestPointRef.current;
-        if (!snapPoint) return; // No snap point, let normal click handling proceed
-
         const drawHandler = currentDrawHandlerRef.current;
         if (!drawHandler || !drawHandler.addVertex) return; // Not drawing
 
-        // Get snapped latlng
-        const snappedLatlng = toLatLngFromClosestPoint(snapPoint);
+        const candidate = nextVertexCandidateRef.current;
+        if (!candidate) return; // Should not happen if mouse on map
+
+        // Get latlng from candidate (snapped or unsnapped)
+        const snappedLatlng = toLatLngFromClosestPoint(candidate);
+
         if (!snappedLatlng) return;
 
         // Check if vertex count increased (meaning Leaflet Draw already added the vertex)
@@ -688,7 +679,7 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
         // Directly add vertex at snapped position
         drawHandler.addVertex(snappedLatlng);
         // Clear snap ref after adding vertex to prevent stale snap on next click
-        closestPointRef.current = null;
+        nextVertexCandidateRef.current = null;
         event.stopPropagation();
         event.stopImmediatePropagation();
       };
