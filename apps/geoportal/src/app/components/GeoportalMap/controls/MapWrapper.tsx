@@ -50,10 +50,7 @@ import {
   ControlLayoutCanvas,
 } from "@carma-mapping/map-controls-layout";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
-import {
-  MeasurementControl,
-  useMapMeasurementsContext,
-} from "@carma-commons/measurements";
+import { MeasurementControl } from "@carma-commons/measurements";
 
 import { GeoportalMap } from "../GeoportalMap.tsx";
 import LibreGeoportalMap from "../LibreGeoportalMap.tsx";
@@ -63,14 +60,12 @@ import LayerWrapper from "../../layers/LayerWrapper.tsx";
 import useLeafletZoomControls from "../../../hooks/leaflet/useLeafletZoomControls.ts";
 import { useAppSearchParams } from "../../../hooks/useAppSearchParams";
 import { useDispatchSachdatenInfoText } from "../../../hooks/useDispatchSachdatenInfoText.ts";
-import { useFeatureInfoModeCursorStyle } from "../../../hooks/useFeatureInfoModeCursorStyle.ts";
+import { useMapModes } from "../../../hooks/useMapModes.ts";
 import { useMapStyleReduxSync } from "../../../hooks/useMapStyleReduxSync";
 import { useTourRefCollabLabels } from "../../../hooks/useTourRefCollabLabels.ts";
 import { useWindowSize } from "../../../hooks/useWindowSize.ts";
 
 import { useOblique } from "../../../oblique/hooks/useOblique.ts";
-
-import { cancelOngoingRequests } from "../topicmap.utils";
 
 import {
   setFeatures,
@@ -90,7 +85,6 @@ import {
   getZenMode,
   setZenMode,
   toggleUIMode,
-  setUIMode,
   UIMode,
 } from "../../../store/slices/ui.ts";
 
@@ -135,16 +129,7 @@ const MapWrapper = () => {
   const { isObliqueMode, isPreviewVisible: isObliquePreviewVisible } =
     useOblique();
 
-  const { isMeasurementEnabled } = useMapMeasurementsContext();
-
-  useEffect(() => {
-    // sync legacy redux measurement mode with ui mode, remove once measurement provider handles this fully
-    if (isMeasurementEnabled && uiMode !== UIMode.MEASUREMENT) {
-      dispatch(setUIMode(UIMode.MEASUREMENT));
-    } else if (!isMeasurementEnabled && uiMode === UIMode.MEASUREMENT) {
-      dispatch(setUIMode(UIMode.DEFAULT));
-    }
-  }, [isMeasurementEnabled, uiMode, dispatch]);
+  const { handleToggleFeatureInfo } = useMapModes();
 
   const {
     handleZoomIn: handleZoomInCesium,
@@ -224,13 +209,6 @@ const MapWrapper = () => {
   const tourRefLabels = useTourRefCollabLabels();
   const { gazData } = useGazData();
   const { width, height } = useWindowSize(wrapperRef);
-
-  const handleToggleFeatureInfo = () => {
-    cancelOngoingRequests();
-    dispatch(toggleUIMode(UIMode.FEATURE_INFO));
-  };
-
-  useFeatureInfoModeCursorStyle();
 
   const { setSelection } = useSelection();
 
