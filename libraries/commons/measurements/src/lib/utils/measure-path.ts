@@ -33,7 +33,7 @@ import {
   MeasurementLeafletEvent,
   MeasurePolygonControl,
 } from "../types/leaflet-extensions";
-import { TOOLTIP_LABELS } from "./labels";
+import { TOOLTIP_LABELS } from "../labels";
 
 export const MeasurePolygon = Control.extend({
   options: {

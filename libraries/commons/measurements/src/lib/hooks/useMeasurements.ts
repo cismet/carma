@@ -29,7 +29,7 @@ import {
 } from "../utils/snapping";
 import { filterArrByIds, findLargestNumber } from "../utils/shapes";
 import { SnappingPoint } from "./../types";
-import { TOOLTIP_LABELS } from "../utils/labels";
+import { TOOLTIP_LABELS } from "../labels";
 import { extractPointsFromMeasurementShape } from "../snapping/utils/coordinateExtraction";
 import { getSnappingPointsFromMapLibre } from "../snapping/utils/mapLibreExtraction";
 
