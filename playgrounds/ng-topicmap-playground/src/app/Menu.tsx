@@ -12,6 +12,7 @@ import {
 } from "@carma-collab/wuppertal/stadtplan";
 import versionData from "../version.json";
 import { getApplicationVersion } from "@carma-commons/utils";
+import { PreviewLibreMap } from "@carma-appframeworks/portals";
 
 const Menu = () => {
   const { setAppMenuActiveMenuSection } =
@@ -48,6 +49,7 @@ const Menu = () => {
                 />
               );
             }}
+            overridingMapPreview={<PreviewLibreMap />}
           />,
           <KompaktanleitungSection />,
           <GenericDigitalTwinReferenceSection />,

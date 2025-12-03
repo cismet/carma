@@ -20,6 +20,7 @@ export { ContactMailButton } from "./lib/components/ContactMailButton.tsx";
 export { FeatureInfobox } from "./lib/components/FeatureInfobox.tsx";
 export { InfoBoxHeader } from "./lib/components/InfoBoxHeader.tsx";
 export { CarmaMap } from "./lib/components/CarmaMap.tsx";
+export { PreviewLibreMap } from "./lib/components/libremap/PreviewLibreMap.tsx";
 
 export { GazDataProvider, useGazData } from "./lib/components/GazDataProvider";
 
