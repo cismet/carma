@@ -27,6 +27,7 @@ import { defaultLayerConf } from "../react-cismap/tools/layerFactory";
 import { useMapHashRouting } from "../../hooks/useMapHashRouting";
 import { FeatureInfobox } from "../FeatureInfobox";
 import { useLibreContext } from "./LibreContext";
+import { useClusterMarkers } from "./useClusterMarkers";
 
 interface LibreMapProps {
   backgroundLayers?: string;
@@ -53,8 +54,6 @@ export const LibreMap = ({
   const isIdleRef = useRef(false);
   const vectorSourcesReadyRef = useRef(false);
   const [selectedFeature, setSelectedFeature] = useState(null);
-  const markers = useRef<Record<string, maplibregl.Marker>>({});
-  const markersOnScreen = useRef<Record<string, maplibregl.Marker>>({});
   const geoJsonMetadataRef = useRef<
     Array<{ sourceId: string; uniqueColors: string[] }>
   >([]);
@@ -66,7 +65,14 @@ export const LibreMap = ({
   const { markerSymbolSize } = useContext<typeof TopicMapStylingContext>(
     TopicMapStylingContext
   );
-  const { setMapStyle } = useLibreContext();
+  const { setMapStyle, geoJsonMetadata, setGeoJsonMetadata } =
+    useLibreContext();
+
+  // Use cluster markers hook when clustering is enabled
+  useClusterMarkers({
+    map: map.current,
+    geoJsonMetadata: clusteringEnabled ? geoJsonMetadata : [],
+  });
 
   const defaultLng = 7.150764;
   const defaultLat = 51.256;
@@ -391,66 +397,6 @@ export const LibreMap = ({
     };
   }, []);
 
-  // Update markers for pie chart clusters
-  const updateMarkers = () => {
-    if (!map.current || geoJsonMetadataRef.current.length === 0) return;
-
-    geoJsonMetadataRef.current.forEach(({ sourceId, uniqueColors }) => {
-      const newMarkers: Record<string, maplibregl.Marker> = {};
-      const features = map.current!.querySourceFeatures(sourceId);
-
-      for (const feature of features) {
-        if (!feature.geometry || feature.geometry.type === "GeometryCollection")
-          continue;
-        const coords = feature.geometry.coordinates as [number, number];
-        const props = feature.properties;
-        if (!props || !props.cluster) continue;
-        const id = `${sourceId}-${props.cluster_id}`;
-
-        let marker = markers.current[id];
-        if (!marker) {
-          const el = createPieChart(props, uniqueColors);
-          marker = markers.current[id] = new maplibregl.Marker({
-            element: el,
-          }).setLngLat(coords);
-
-          // Add click handler to zoom into cluster
-          el.addEventListener("click", () => {
-            const currentZoom = map.current!.getZoom();
-            const pointCount = props.point_count;
-            const zoomIncrement =
-              pointCount > 100 ? 3 : pointCount > 50 ? 2 : 1;
-            const newZoom = Math.min(
-              currentZoom + zoomIncrement,
-              map.current!.getMaxZoom()
-            );
-            map.current!.flyTo({
-              center: coords,
-              zoom: newZoom,
-              essential: true,
-            });
-          });
-        }
-        newMarkers[id] = marker;
-
-        if (!markersOnScreen.current[id]) marker.addTo(map.current!);
-      }
-
-      // Remove markers that are no longer visible
-      for (const id in markersOnScreen.current) {
-        if (id.startsWith(sourceId) && !newMarkers[id]) {
-          markersOnScreen.current[id].remove();
-          delete markersOnScreen.current[id];
-        }
-      }
-
-      // Update markers on screen for this source
-      Object.keys(newMarkers).forEach((id) => {
-        markersOnScreen.current[id] = newMarkers[id];
-      });
-    });
-  };
-
   useEffect(() => {
     if (!map.current) return;
 
@@ -489,8 +435,9 @@ export const LibreMap = ({
           // Apply marker symbol size scaling
           const style = styleManipulation(markerSymbolSize, baseStyle);
 
-          // Store geojson metadata for pie chart rendering
+          // Store geojson metadata for pie chart rendering (local ref and context)
           geoJsonMetadataRef.current = geoJsonMetadata;
+          setGeoJsonMetadata(geoJsonMetadata);
 
           // Save terrain state before setting style
           const currentTerrain = map.current?.getTerrain();
@@ -536,11 +483,10 @@ export const LibreMap = ({
 
           mappingRef.current = mapping;
 
-          // Set up marker updates after style is set (only if clustering is enabled)
-          if (geoJsonMetadata.length > 0 && clusteringEnabled) {
+          // Track progress for geojson layers
+          if (geoJsonMetadata.length > 0 && onProgressUpdate) {
             const loadedSources = new Set<string>();
 
-            // Wait for style to load, then set up listeners
             const handleStyleLoad = () => {
               const handleData = (e: any) => {
                 const isRelevantSource = geoJsonMetadata.some(
@@ -548,30 +494,22 @@ export const LibreMap = ({
                 );
                 if (!isRelevantSource || !e.isSourceLoaded) return;
 
-                // Track loaded sources for progress
                 if (!loadedSources.has(e.sourceId)) {
                   loadedSources.add(e.sourceId);
-                  if (onProgressUpdate && isInitialGeoJsonLoad.current) {
+                  if (isInitialGeoJsonLoad.current) {
                     onProgressUpdate({
                       current: loadedSources.size,
                       total: geoJsonMetadata.length,
                     });
 
-                    // Mark as loaded after all sources are complete
                     if (loadedSources.size === geoJsonMetadata.length) {
                       isInitialGeoJsonLoad.current = false;
                     }
                   }
                 }
-
-                updateMarkers();
               };
 
               map.current!.on("data", handleData);
-              map.current!.on("move", updateMarkers);
-              map.current!.on("moveend", () => {
-                setTimeout(updateMarkers, 100);
-              });
             };
 
             if (map.current!.isStyleLoaded()) {
@@ -580,7 +518,6 @@ export const LibreMap = ({
               map.current!.once("styledata", handleStyleLoad);
             }
           } else if (onProgressUpdate) {
-            // No geojson layers, complete immediately
             onProgressUpdate({ current: 1, total: 1 });
           }
         } else {

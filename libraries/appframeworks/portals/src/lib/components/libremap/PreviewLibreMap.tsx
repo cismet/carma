@@ -1,8 +1,9 @@
 import type { StyleSpecification } from "maplibre-gl";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLibreContext } from "./LibreContext";
+import { useClusterMarkers } from "./useClusterMarkers";
 
 interface PreviewLibreMapProps {
   lat?: number;
@@ -45,11 +46,18 @@ export const PreviewLibreMap = ({
 }: PreviewLibreMapProps) => {
   const mapContainer = useRef<HTMLDivElement>(null);
   const map = useRef<maplibregl.Map | null>(null);
-  const { mapStyle } = useLibreContext();
+  const [mapInstance, setMapInstance] = useState<maplibregl.Map | null>(null);
+  const { mapStyle, geoJsonMetadata } = useLibreContext();
+
+  useClusterMarkers({
+    map: mapInstance,
+    geoJsonMetadata,
+    interactive: false,
+  });
 
   useEffect(() => {
     if (mapContainer.current && !map.current) {
-      const mapInstance = new maplibregl.Map({
+      const instance = new maplibregl.Map({
         container: mapContainer.current,
         style: mapStyle ?? defaultMapStyle,
         center: [lng, lat],
@@ -58,13 +66,15 @@ export const PreviewLibreMap = ({
         interactive: false,
       });
 
-      map.current = mapInstance;
+      map.current = instance;
+      setMapInstance(instance);
     }
 
     return () => {
       if (map.current) {
         map.current.remove();
         map.current = null;
+        setMapInstance(null);
       }
     };
   }, []);
