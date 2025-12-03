@@ -258,3 +258,33 @@ export const adjustClickPosition = (
 
   return true;
 };
+
+/**
+ * Handle potential duplicate vertex (snapped or unsnapped).
+ * Returns true if the vertex was handled (either finished the line or ignored as duplicate).
+ * Returns false if the vertex should be added as new.
+ */
+export const handleDuplicateVertex = (
+  drawHandler: any,
+  position: { lat: number; lng: number },
+  thresholdMeters: number
+): boolean => {
+  if (drawHandler._markers && drawHandler._markers.length > 0) {
+    const lastMarker = drawHandler._markers[drawHandler._markers.length - 1];
+    const lastLatLng = lastMarker.getLatLng();
+
+    if (distanceBetweenLatLng(position, lastLatLng) < thresholdMeters) {
+      // It is the same point as the last one.
+      // Try to finish if possible (Leaflet Draw logic: click last point to finish)
+      if (tryFinishLine(drawHandler)) {
+        return true; // Handled (finished)
+      }
+      // If we couldn't finish (e.g. only 1 point), it's just a duplicate. Ignore it.
+      console.debug(
+        "[snapping] Ignoring duplicate vertex click (0-length segment prevention)"
+      );
+      return true; // Handled (ignored)
+    }
+  }
+  return false; // Not a duplicate
+};

@@ -16,9 +16,7 @@ import {
   toLatLngFromClosestPoint,
   isCoordMatchLatLng,
   isFirstVertexMatch,
-  isLastVertexMatch,
   tryClosePolygon,
-  tryFinishLine,
   distanceBetweenLatLng,
   screenPixelDistance,
   pixelRadiusToMeters,
@@ -26,6 +24,7 @@ import {
   findClosestSnappingPoint,
   SNAPPING_MODIFIER_KEY,
   isSnappingModifierPressed,
+  handleDuplicateVertex,
 } from "../utils/snapping";
 import { filterArrByIds, findLargestNumber } from "../utils/shapes";
 import { SnappingPoint } from "./../types";
@@ -672,20 +671,18 @@ export const useMeasurements = (snappingLayers: MapLibreMap[] = []) => {
           }
         }
 
-        // Check if snapping to last vertex (finish line measurement)
-        // Use snapped position - snapping to last vertex should finish the line
+        // Check for duplicate of LAST vertex
+        // This covers both "finish line" (on 2+ points) and "prevent duplicate start" (on 1 point)
         if (
-          isLastVertexMatch(
+          handleDuplicateVertex(
             drawHandler,
             snappedLatlng,
             snappingIdentityDistanceMeters
           )
         ) {
-          if (tryFinishLine(drawHandler)) {
-            event.stopPropagation();
-            event.stopImmediatePropagation();
-            return;
-          }
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          return;
         }
 
         // Directly add vertex at snapped position

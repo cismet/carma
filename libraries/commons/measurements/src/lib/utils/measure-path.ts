@@ -34,6 +34,7 @@ import {
   MeasurePolygonControl,
 } from "../types/leaflet-extensions";
 import { TOOLTIP_LABELS } from "../labels";
+import { distanceBetweenLatLng } from "./snapping";
 
 // Placeholder for icons to not show broken images
 // Transparent 1x1 GIF (43 bytes)
@@ -231,6 +232,20 @@ export const MeasurePolygon = Control.extend({
           currentVertexCount: this._markers?.length || 0,
           timestamp: Date.now(),
         });
+
+        // Check for duplicate vertex to prevent 0-length segments
+        if (this._markers && this._markers.length > 0) {
+          const lastMarker = this._markers[this._markers.length - 1];
+          if (
+            distanceBetweenLatLng(finalLatlng, lastMarker.getLatLng()) < 0.001
+          ) {
+            console.warn(
+              "[measure-path] Preventing 0-length segment in addVertex - duplicate vertex ignored"
+            );
+            return;
+          }
+        }
+
         (self as any)._lastVertexAdded = Date.now();
         return originalAddVertex.call(this, finalLatlng);
       };
