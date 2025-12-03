@@ -318,6 +318,26 @@ export async function mockGeoportalServices(context: BrowserContext) {
         body: JSON.stringify([]),
       })
     ),
+
+    // Mock Cesium approximateTerrainHeights.json - returns empty array
+    context.route(
+      "**/__cesium__/Assets/approximateTerrainHeights.json",
+      (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify([]),
+        })
+    ),
+
+    // Mock Cesium IAU2006_XYS data files - returns empty object
+    context.route("**/__cesium__/Assets/IAU2006_XYS/*.json", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({}),
+      })
+    ),
   ]);
 }
 
