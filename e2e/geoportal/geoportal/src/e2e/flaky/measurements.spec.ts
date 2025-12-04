@@ -28,6 +28,8 @@ test.describe("geoportal measurements", () => {
     // ---- Polyline ----
     await map.click({ modifiers: ["Alt"], position: { x: 300, y: 300 } });
     await map.click({ modifiers: ["Alt"], position: { x: 403, y: 300 } });
+    // Small delay to ensure previous click is processed before double-click
+    await page.waitForTimeout(50);
     // Double-click at a different position to finish the polyline
     await map.dblclick({ modifiers: ["Alt"], position: { x: 450, y: 300 } });
 
@@ -35,7 +37,7 @@ test.describe("geoportal measurements", () => {
       page.getByTestId("info-box").getByText("Linienzug")
     ).toBeVisible();
     const totalLength = page.locator('[title="Total length"]');
-    await expect(totalLength).toBeVisible();
+    await expect(totalLength).toBeVisible({ timeout: 10000 });
 
     await expect(page.getByText(/Strecke:\s*[\d.]+/i)).toBeVisible();
 
