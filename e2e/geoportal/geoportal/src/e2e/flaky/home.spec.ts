@@ -24,7 +24,6 @@ test.describe("geoportal home", () => {
     await mockGeoportalServices(context);
 
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
   });
 
   test("Clicking home changes lat/lng in URL", async ({ page }) => {
