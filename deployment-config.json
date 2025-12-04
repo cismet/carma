@@ -1518,9 +1518,8 @@
             }
           },
           "live": {
-            "pages": {
-              "org": "carma-dev-deployments",
-              "prj": "rainhazardmap-werl"
+            "container": {
+              "image": "cismet/carma-rhm-werl:"
             }
           }
         },
