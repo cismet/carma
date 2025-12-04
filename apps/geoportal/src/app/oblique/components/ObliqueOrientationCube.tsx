@@ -6,7 +6,7 @@ import {
   useCesiumContext,
   cesiumCameraToCssTransform,
   getOrbitPoint,
-  cancelViewerAnimation,
+  cancelSceneAnimation,
   guardCamera,
 } from "@carma-mapping/engines/cesium";
 
@@ -119,7 +119,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
   const half = size / 2;
 
   const ctx = useCesiumContext();
-  const { viewerRef, isViewerReady, viewerAnimationMapRef } = ctx;
+  const { viewerRef, isViewerReady, sceneAnimationMapRef } = ctx;
   const [, setTransformTick] = useState(0);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const lastFrustumRef = useRef<{ angle?: number; w?: number; h?: number }>({});
@@ -325,11 +325,11 @@ const ObliqueOrientationCube: React.FC<Props> = ({
     // Fallback: instant snap (legacy behavior)
     if (!ctx.isValidViewer()) return;
     ctx.withViewer((viewer) => {
-      if (viewerAnimationMapRef?.current) {
-        cancelViewerAnimation(viewer, viewerAnimationMapRef.current);
+      if (sceneAnimationMapRef?.current) {
+        cancelSceneAnimation(viewer.scene, sceneAnimationMapRef.current);
       }
       const camera = viewer.camera;
-      const target = getOrbitPoint(ctx);
+      const target = getOrbitPoint(viewer.scene);
       if (target) {
         const range = Cartesian3.distance(target, camera.positionWC);
         viewer.camera.lookAt(
@@ -341,7 +341,6 @@ const ObliqueOrientationCube: React.FC<Props> = ({
       }
     });
   };
-
   // Resolve color tokens to CSS colors for hover effects (limited map for defaults)
   const resolveColorToken = (token?: string): string | undefined => {
     if (!token) return undefined;

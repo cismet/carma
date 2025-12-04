@@ -7,7 +7,7 @@ import {
   type Camera,
 } from "cesium";
 import {
-  cancelViewerAnimation,
+  cancelSceneAnimation,
   getOrbitPoint,
   useCesiumContext,
 } from "@carma-mapping/engines/cesium";
@@ -32,7 +32,7 @@ export function useOrientationCubeDrag({
   dragThresholdPx = 2,
 }: UseOrientationCubeDragParams = {}): UseOrientationCubeDragReturn {
   const ctx = useCesiumContext();
-  const { viewerAnimationMapRef, shouldSuspendPitchLimiterRef } = ctx;
+  const { sceneAnimationMapRef, shouldSuspendPitchLimiterRef } = ctx;
   const [isDragging, setIsDragging] = useState(false);
   const isDraggingRef = useRef(false);
   const isPointerDownRef = useRef(false);
@@ -91,7 +91,7 @@ export function useOrientationCubeDrag({
       const camera = viewer.camera;
       targetHeadingRef.current = camera.heading;
       targetPitchRef.current = camera.pitch;
-      const target = getOrbitPoint(ctx);
+      const target = getOrbitPoint(viewer.scene);
       if (target) {
         const range = Cartesian3.distance(target, camera.positionWC);
         orbitPointRef.current = target;
@@ -145,8 +145,8 @@ export function useOrientationCubeDrag({
         if (!ctx.isValidViewer()) return;
         shouldSuspendPitchLimiterRef.current = true;
         ctx.withViewer((viewer) => {
-          if (viewerAnimationMapRef?.current) {
-            cancelViewerAnimation(viewer, viewerAnimationMapRef.current);
+          if (sceneAnimationMapRef?.current) {
+            cancelSceneAnimation(viewer.scene, sceneAnimationMapRef.current);
           }
           const camera = viewer.camera;
           previousPercentageChangedRef.current =
@@ -182,7 +182,7 @@ export function useOrientationCubeDrag({
   }, [
     handleMouseUp,
     ctx,
-    viewerAnimationMapRef,
+    sceneAnimationMapRef,
     shouldSuspendPitchLimiterRef,
     dragThresholdPx,
     stepAnimation,

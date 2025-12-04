@@ -1,10 +1,7 @@
 import { useState, useEffect } from "react";
-import { Cartesian3 } from "cesium";
-import {
-  useCesiumContext,
-  getOrbitPoint,
-  CesiumContextType,
-} from "@carma-mapping/engines/cesium";
+import { Cartesian3 } from "@carma/cesium";
+import type { Scene } from "@carma/cesium";
+import { useCesiumContext, getOrbitPoint } from "@carma-mapping/engines/cesium";
 
 // Shared state across hook instances
 let sharedOrbitPoint: Cartesian3 | null = null;
@@ -14,7 +11,7 @@ const orbitPointSubscribers: Array<{
 }> = [];
 let listenerInitialized = false;
 
-function initOrbitPointListener(ctx: CesiumContextType) {
+function initOrbitPointListener(scene: Scene) {
   if (listenerInitialized) return;
   listenerInitialized = true;
 
@@ -22,7 +19,7 @@ function initOrbitPointListener(ctx: CesiumContextType) {
     // Check if any subscribers are enabled
     if (!orbitPointSubscribers.some((subscriber) => subscriber.enabled)) return;
 
-    const point = getOrbitPoint(ctx);
+    const point = getOrbitPoint(scene);
     if (sharedOrbitPoint && point && point.equals(sharedOrbitPoint)) return;
     sharedOrbitPoint = point;
     orbitPointSubscribers.forEach((subscriber) => {
@@ -33,38 +30,43 @@ function initOrbitPointListener(ctx: CesiumContextType) {
   };
 
   updateOrbitPoint();
-  ctx.viewerRef.current!.camera.changed.addEventListener(updateOrbitPoint);
+  scene.camera.changed.addEventListener(updateOrbitPoint);
 }
 
 export function useOrbitPoint(enabled = true): Cartesian3 | null {
-  const ctx = useCesiumContext();
+  const { isViewerReady, withScene } = useCesiumContext();
   const [orbitPoint, setOrbitPoint] = useState<Cartesian3 | null>(
     sharedOrbitPoint
   );
 
   useEffect(() => {
-    if (!ctx.isViewerReady) return;
+    if (!isViewerReady) return;
 
-    const viewer = ctx.viewerRef.current;
-    if (!viewer) return;
-    initOrbitPointListener(ctx);
+    let cleanup;
+    withScene((scene) => {
+      initOrbitPointListener(scene);
 
-    const subscriber = {
-      callback: (point: Cartesian3 | null) => setOrbitPoint(point),
-      enabled,
-    };
-    orbitPointSubscribers.push(subscriber);
+      const subscriber = {
+        callback: (point: Cartesian3 | null) => setOrbitPoint(point),
+        enabled,
+      };
+      orbitPointSubscribers.push(subscriber);
 
-    // Trigger an initial update
-    if (enabled) {
-      subscriber.callback(sharedOrbitPoint);
-    }
+      // Trigger an initial update
+      if (enabled) {
+        subscriber.callback(sharedOrbitPoint);
+      }
+
+      cleanup = () => {
+        const index = orbitPointSubscribers.indexOf(subscriber);
+        if (index > -1) orbitPointSubscribers.splice(index, 1);
+      };
+    });
 
     return () => {
-      const index = orbitPointSubscribers.indexOf(subscriber);
-      if (index > -1) orbitPointSubscribers.splice(index, 1);
+      cleanup?.();
     };
-  }, [ctx, enabled]);
+  }, [isViewerReady, withScene, enabled]);
 
   return orbitPoint;
 }

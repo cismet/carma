@@ -6,7 +6,7 @@ import { Easing } from "@carma-commons/math";
 
 import type { Ratio, Radians } from "@carma/units/types";
 
-import { cancelViewerAnimation } from "../utils/viewerAnimationMap";
+import { cancelSceneAnimation } from "../utils/sceneAnimationMap";
 import { cesiumAnimateFov } from "../utils/cesiumAnimateFov";
 import type { CesiumContextType } from "../CesiumContext";
 import { sceneHasTweens } from "../utils/sceneHasTweens";
@@ -36,19 +36,18 @@ const zoom = (
   duration: number,
   moveRateFactor: number
 ): void => {
-  ctx.withViewer((viewer) => {
+  ctx.withScene((scene, viewer) => {
     let wasCancelled = false;
-    if (!ctx.viewerAnimationMapRef.current) return;
+    if (!ctx.sceneAnimationMapRef.current) return;
 
-    if (ctx.viewerAnimationMapRef.current.get(viewer)) {
-      cancelViewerAnimation(viewer, ctx.viewerAnimationMapRef.current);
+    if (ctx.sceneAnimationMapRef.current.get(scene)) {
+      cancelSceneAnimation(scene, ctx.sceneAnimationMapRef.current);
       wasCancelled = true;
     } // TODO: replace with a public API when one is available to check for ongoing flyTo animations
 
-    const camera = viewer.camera;
-    const scene = viewer.scene;
-    const canvas = viewer.canvas;
-    const globe = viewer.scene.globe;
+    const camera = scene.camera;
+    const canvas = scene.canvas;
+    const globe = scene.globe;
 
     if (!globe) {
       console.debug("[CESIUM] globe not initialized yet, skipping zoom");
@@ -149,10 +148,10 @@ const fovZoom = (
   maxFov = DEFAULT_MAX_FOV,
   minFov = DEFAULT_MIN_FOV
 ) => {
-  const hasViewer = ctx.withViewer((viewer) => {
-    cancelViewerAnimation(viewer, ctx.viewerAnimationMapRef.current);
+  const hasScene = ctx.withScene((scene) => {
+    cancelSceneAnimation(scene, ctx.sceneAnimationMapRef.current);
   });
-  if (!hasViewer) return;
+  if (!hasScene) return;
   ctx.withCamera((camera) => {
     if (!(camera.frustum instanceof PerspectiveFrustum)) {
       console.debug("Camera frustum is not PerspectiveFrustum");

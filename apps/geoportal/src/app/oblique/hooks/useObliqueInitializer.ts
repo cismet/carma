@@ -17,7 +17,13 @@ const viewerPreUpdateHandlers = new WeakMap<Viewer, (scene: Scene) => void>();
 
 export function useObliqueInitializer(debug = false) {
   const ctx = useCesiumContext();
-  const { viewerRef, shouldSuspendPitchLimiterRef, requestRender } = ctx;
+  const {
+    viewerRef,
+    shouldSuspendPitchLimiterRef,
+    requestRender,
+    withScene,
+    withViewer,
+  } = ctx;
   const {
     isObliqueMode,
     fixedHeight,
@@ -27,6 +33,7 @@ export function useObliqueInitializer(debug = false) {
     headingOffset,
   } = useOblique();
   const originalFovRef = useRef<number | null>(null);
+  const isFirstRunRef = useRef(true);
 
   const wheelZoomOptions = useMemo(
     () => ({
@@ -37,7 +44,6 @@ export function useObliqueInitializer(debug = false) {
   );
 
   const { setEnabled: setWheelZoomEnabled } = useFovWheelZoom(
-    ctx,
     isObliqueMode,
     wheelZoomOptions
   );
@@ -54,8 +60,9 @@ export function useObliqueInitializer(debug = false) {
     // Always set the zoom handler state based on oblique mode; the hook will defer attaching until a viewer exists
     setWheelZoomEnabled(isObliqueMode);
 
-    ctx.withCamera((camera, viewer) => {
-      const cameraController = viewer.scene.screenSpaceCameraController;
+    withScene((scene) => {
+      const cameraController = scene.screenSpaceCameraController;
+      const camera = scene.camera;
 
       cameraController.enableRotate = true;
       cameraController.enableTilt = true;
@@ -65,33 +72,42 @@ export function useObliqueInitializer(debug = false) {
         debug && console.debug("entering Oblique Mode");
         // If camera already has an oblique-like pitch (e.g., restored from hash), don't override it
         let isAlreadyOblique = false;
-        ctx.withCamera((camera) => {
-          const p = camera.pitch;
-          const minOblique = -CesiumMath.toRadians(80);
-          const maxOblique = -CesiumMath.toRadians(5);
-          isAlreadyOblique = p > minOblique && p < maxOblique;
-        });
+
+        const p = camera.pitch;
+        const minOblique = -CesiumMath.toRadians(80);
+        const maxOblique = -CesiumMath.toRadians(5);
+        isAlreadyOblique = p > minOblique && p < maxOblique;
 
         if (isAlreadyOblique) {
           enableCameraForceOblique();
           requestRender({ delay: 50, repeat: 2 });
         } else {
-          enterObliqueMode(ctx, originalFovRef, fixedPitch, fixedHeight, () => {
-            enableCameraForceOblique();
-            requestRender({ delay: 50, repeat: 2 });
-          });
+          const duration = isFirstRunRef.current ? 0 : undefined;
+          enterObliqueMode(
+            scene,
+            originalFovRef,
+            fixedPitch,
+            fixedHeight,
+            () => {
+              enableCameraForceOblique();
+              requestRender({ delay: 50, repeat: 2 });
+            },
+            duration
+          );
         }
       } else {
         debug && console.debug("leaving Oblique Mode", originalFovRef.current);
-        leaveObliqueMode(ctx, originalFovRef, () => {
+        leaveObliqueMode(scene, originalFovRef, () => {
           disableCameraForceOblique();
           requestRender();
         });
       }
     });
 
+    isFirstRunRef.current = false;
+
     return () => {
-      ctx.withViewer((viewer) => {
+      withViewer((viewer) => {
         if (viewerPreUpdateHandlers.has(viewer)) {
           const handlerToRemove = viewerPreUpdateHandlers.get(viewer);
           viewer.scene.preUpdate.removeEventListener(handlerToRemove!);
@@ -99,10 +115,13 @@ export function useObliqueInitializer(debug = false) {
         }
       });
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     debug,
     isObliqueMode,
-    ctx,
+    // ctx, // intentionally omitted to prevent re-triggering on context changes
+    withScene,
+    withViewer,
     viewerRef,
     fixedPitch,
     fixedHeight,

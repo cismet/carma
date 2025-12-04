@@ -1,9 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { MutableRefObject, WheelEvent as ReactWheelEvent } from "react";
-import {
-  useCesiumContext,
-  useFovWheelZoom,
-} from "@carma-mapping/engines/cesium";
+import { useFovWheelZoom } from "@carma-mapping/engines/cesium";
 
 export interface ForwardZoomEventsBindings {
   rootRef: MutableRefObject<HTMLDivElement | null>;
@@ -16,12 +13,11 @@ export interface ForwardZoomEventsBindings {
  * to the Cesium canvas so FOV zoom works while the overlay is visible.
  */
 export function useForwardZoomEventsToCesium(): ForwardZoomEventsBindings {
-  const ctx = useCesiumContext();
   const rootRef = useRef<HTMLDivElement | null>(null);
   const [fovOverride, setFovOverride] = useState<number | undefined>(undefined);
 
   // Use Cesium FOV wheel zoom directly; re-render after each FOV change
-  const { handleWheel } = useFovWheelZoom(ctx, true, {
+  const { handleWheel } = useFovWheelZoom(true, {
     onFovChange: (newFov) => setFovOverride(newFov),
   });
 

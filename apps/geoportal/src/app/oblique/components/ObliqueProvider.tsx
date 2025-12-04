@@ -257,7 +257,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
           const cameraCardinal =
             getCardinalDirectionFromHeading(effectiveHeading);
 
-          const orbit = orbitPoint ?? getOrbitPoint(ctx);
+          const orbit = orbitPoint ?? getOrbitPoint(viewer.scene);
           const orbitPointCoords = orbit
             ? calculateImageCoordsFromCartesian(orbit, converter)
             : null;

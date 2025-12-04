@@ -18,14 +18,15 @@ export {
 } from "./cesiumAnimateFov";
 export {
   getOrbitPoint,
+  getOrbitPointFromScene,
   getHeadingPitchForMouseEvent,
 } from "./cesiumAnimateOrbits";
 export { animateInterpolateHeadingPitchRange } from "./cesiumAnimations";
 export {
-  type ViewerAnimationMap,
-  cancelViewerAnimation,
-  initViewerAnimationMap,
-} from "./viewerAnimationMap";
+  type SceneAnimationMap,
+  cancelSceneAnimation,
+  initSceneAnimationMap,
+} from "./sceneAnimationMap";
 
 export {
   distanceFromZoomLevel,
