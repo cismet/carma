@@ -1519,7 +1519,7 @@
           },
           "live": {
             "container": {
-              "image": "cismet/carma-rhm-werl:"
+              "image": "cismet/carma-ais-werl:"
             }
           }
         },

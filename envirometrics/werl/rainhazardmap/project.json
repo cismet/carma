@@ -70,7 +70,9 @@
       "options": {
         "engine": "docker",
         "platforms": ["linux/amd64", "linux/arm64"],
-        "push": true
+        "push": true,
+        "tags": ["cismet/carma-ais-werl:latest"]
+
       }
     }
   }
