@@ -10,7 +10,7 @@ import { parseToMapLayer } from "../utils/utils";
 
 export type PortalRootState = Record<string, unknown>;
 
-interface PortalMapContextValue<
+interface CarmaMapAPIContextValue<
   TState extends PortalRootState = PortalRootState,
   TDispatch extends Dispatch<UnknownAction> = Dispatch<UnknownAction>
 > {
@@ -19,51 +19,54 @@ interface PortalMapContextValue<
   getState: () => TState;
 }
 
-const PortalMapContext = createContext<PortalMapContextValue | undefined>(
+const CarmaMapAPIContext = createContext<CarmaMapAPIContextValue | undefined>(
   undefined
 );
 
-interface PortalMapProviderProps<
+interface CarmaMapAPIProviderProps<
   TState extends PortalRootState = PortalRootState
 > {
   children: ReactNode;
   store: Store<TState>;
 }
 
-export const PortalMapProvider = <
+export const CarmaMapAPIProvider = <
   TState extends PortalRootState = PortalRootState
 >({
   children,
   store,
-}: PortalMapProviderProps<TState>) => {
-  const value: PortalMapContextValue<TState> = {
+}: CarmaMapAPIProviderProps<TState>) => {
+  const value: CarmaMapAPIContextValue<TState> = {
     store,
     dispatch: store.dispatch,
     getState: store.getState,
   };
 
   return (
-    <PortalMapContext.Provider value={value as PortalMapContextValue}>
+    <CarmaMapAPIContext.Provider value={value as CarmaMapAPIContextValue}>
       {children}
-    </PortalMapContext.Provider>
+    </CarmaMapAPIContext.Provider>
   );
 };
 
-const usePortalMap = <
+const useCarmaMapAPI = <
   TState extends PortalRootState = PortalRootState,
   TDispatch extends Dispatch<UnknownAction> = Dispatch<UnknownAction>
->(): PortalMapContextValue<TState, TDispatch> => {
-  const context = useContext(PortalMapContext);
+>(): CarmaMapAPIContextValue<TState, TDispatch> => {
+  const context = useContext(CarmaMapAPIContext);
   if (context === undefined) {
     throw new Error("usePortalMap must be used within a PortalMapProvider");
   }
-  return context as PortalMapContextValue<TState, TDispatch>;
+  return context as CarmaMapAPIContextValue<TState, TDispatch>;
 };
 
-export const usePortalSelector = <TState extends PortalRootState, TSelected>(
+export const useCarmaMapAPISelector = <
+  TState extends PortalRootState,
+  TSelected
+>(
   selector: (state: TState) => TSelected
 ): TSelected => {
-  const { store } = usePortalMap<TState>();
+  const { store } = useCarmaMapAPI<TState>();
 
   const subscribe = useCallback(
     (onStoreChange: () => void) => store.subscribe(onStoreChange),
@@ -78,10 +81,10 @@ export const usePortalSelector = <TState extends PortalRootState, TSelected>(
   return useSyncExternalStore(subscribe, getSnapshot, getSnapshot);
 };
 
-export const usePortalDispatch = <
+export const useCarmaMapAPIDispatch = <
   TDispatch extends Dispatch<UnknownAction> = Dispatch<UnknownAction>
 >(): TDispatch => {
-  const { dispatch } = usePortalMap<PortalRootState, TDispatch>();
+  const { dispatch } = useCarmaMapAPI<PortalRootState, TDispatch>();
   return dispatch;
 };
 
@@ -104,8 +107,8 @@ export const createLayerSelectors = {
 };
 
 // Hook that provides actions to manipulate the portal map state
-export const usePortalActions = () => {
-  const { dispatch, getState } = usePortalMap();
+export const useCarmaMapAPIActions = () => {
+  const { dispatch, getState } = useCarmaMapAPI();
 
   const addLayerById = useCallback(
     async (id: string, options?: { forceWMS?: boolean; visible?: boolean }) => {

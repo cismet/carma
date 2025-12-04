@@ -15,9 +15,9 @@ import { AuthProvider } from "@carma-providers/auth";
 import { type HashCodecs } from "@carma-providers/hash-state";
 import { SandboxedEvalProvider } from "./SandboxedEvalProvider";
 import {
-  PortalMapProvider,
+  CarmaMapAPIProvider,
   type PortalRootState,
-} from "../contexts/PortalMapProvider";
+} from "../contexts/CarmaMapAPIProvider";
 import type { Store } from "redux";
 
 type CarmaMapProviderWrapperProps<
@@ -72,9 +72,9 @@ export const CarmaMapProviderWrapper = <
                     tilesetConfigs={cesiumOptions.tilesetConfigs}
                   >
                     {store ? (
-                      <PortalMapProvider store={store}>
+                      <CarmaMapAPIProvider store={store}>
                         {children}
-                      </PortalMapProvider>
+                      </CarmaMapAPIProvider>
                     ) : (
                       children
                     )}

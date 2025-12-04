@@ -35,13 +35,13 @@ export {
 } from "./lib/contexts/MapStyleProvider";
 
 export {
-  PortalMapProvider,
-  usePortalSelector,
-  usePortalDispatch,
-  usePortalActions,
+  CarmaMapAPIProvider,
+  useCarmaMapAPISelector,
+  useCarmaMapAPIDispatch,
+  useCarmaMapAPIActions,
   createLayerSelectors,
   type PortalRootState,
-} from "./lib/contexts/PortalMapProvider";
+} from "./lib/contexts/CarmaMapAPIProvider.tsx";
 
 export { MessageOverlay } from "./lib/components/MessageOverlay";
 
