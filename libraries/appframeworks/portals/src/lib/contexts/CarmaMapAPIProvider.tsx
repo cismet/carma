@@ -25,7 +25,7 @@ const CarmaMapAPIContext = createContext<CarmaMapAPIContextValue | undefined>(
 
 interface CarmaMapAPIProviderProps<TState extends APIRootState = APIRootState> {
   children: ReactNode;
-  store: Store<TState>;
+  store?: Store<TState>;
 }
 
 export const CarmaMapAPIProvider = <
