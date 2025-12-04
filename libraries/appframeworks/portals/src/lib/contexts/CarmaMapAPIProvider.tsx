@@ -64,12 +64,12 @@ export const useCarmaMapAPISelector = <TState extends APIRootState, TSelected>(
   const { store } = useCarmaMapAPI<TState>();
 
   const subscribe = useCallback(
-    (onStoreChange: () => void) => store.subscribe(onStoreChange),
+    (onStoreChange: () => void) => store?.subscribe(onStoreChange),
     [store]
   );
 
   const getSnapshot = useCallback(
-    () => selector(store.getState()),
+    () => selector(store?.getState()),
     [store, selector]
   );
 
