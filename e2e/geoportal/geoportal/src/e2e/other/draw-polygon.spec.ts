@@ -28,13 +28,16 @@ test.describe("geoportal measurements", () => {
     // ---- Polygon ----
     await map.click({ modifiers: ["Alt"], position: { x: 300, y: 200 } });
     await map.click({ modifiers: ["Alt"], position: { x: 400, y: 200 } });
-    await map.click({ modifiers: ["Alt"], position: { x: 400, y: -100 } });
+    await map.click({ modifiers: ["Alt"], position: { x: 400, y: 100 } });
     await map.click({ modifiers: ["Alt"], position: { x: 300, y: 100 } });
+    // Hover first to trigger snapping, then click to close polygon
+    await map.hover({ position: { x: 300, y: 200 } });
+    await page.waitForTimeout(100); // Wait for snapping to detect first vertex
     await map.click({ position: { x: 300, y: 200 } });
 
     await expect(page.getByText("Fläche", { exact: true })).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "delete-measurement-btn" })
+      page.locator('[data-test-id="delete-measurement-btn"]')
     ).toBeVisible();
   });
 });
