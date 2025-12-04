@@ -38,6 +38,7 @@ export {
   PortalMapProvider,
   usePortalSelector,
   usePortalDispatch,
+  usePortalActions,
   createLayerSelectors,
   type PortalRootState,
 } from "./lib/contexts/PortalMapProvider";
