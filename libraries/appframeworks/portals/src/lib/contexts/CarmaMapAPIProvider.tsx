@@ -36,8 +36,8 @@ export const CarmaMapAPIProvider = <
 }: CarmaMapAPIProviderProps<TState>) => {
   const value: CarmaMapAPIContextValue<TState> = {
     store,
-    dispatch: store.dispatch,
-    getState: store.getState,
+    dispatch: store?.dispatch,
+    getState: store?.getState,
   };
 
   return (
