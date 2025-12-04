@@ -34,6 +34,14 @@ export {
   type MapStyleConfig,
 } from "./lib/contexts/MapStyleProvider";
 
+export {
+  PortalMapProvider,
+  usePortalSelector,
+  usePortalDispatch,
+  createLayerSelectors,
+  type PortalRootState,
+} from "./lib/contexts/PortalMapProvider";
+
 export { MessageOverlay } from "./lib/components/MessageOverlay";
 
 export {

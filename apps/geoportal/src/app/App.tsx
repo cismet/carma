@@ -51,6 +51,7 @@ import { APP_KEY, layerMap } from "./config";
 import { geoportalMapStyleConfig } from "./config/mapStyleConfig";
 
 import { CESIUM_CONFIG, CONFIG_BASE_URL } from "./config/app.config";
+import store from "./store";
 import { featureFlagConfig } from "./config/featureFlags";
 
 import { OBLIQUE_CONFIG, CAMERA_ID_TO_DIRECTION } from "./oblique/config";
@@ -167,6 +168,7 @@ function App({ published }: { published?: boolean }) {
               cesiumOptions={CESIUM_CONFIG}
               overlayOptions={overlayOptions}
               mapStyleConfig={geoportalMapStyleConfig}
+              store={store}
             >
               <ObliqueProvider
                 config={OBLIQUE_CONFIG}

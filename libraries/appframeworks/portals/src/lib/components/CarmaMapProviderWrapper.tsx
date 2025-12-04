@@ -14,13 +14,22 @@ import { AuthProvider } from "@carma-providers/auth";
 
 import { type HashCodecs } from "@carma-providers/hash-state";
 import { SandboxedEvalProvider } from "./SandboxedEvalProvider";
+import {
+  PortalMapProvider,
+  type PortalRootState,
+} from "../contexts/PortalMapProvider";
+import type { Store } from "redux";
 
-type CarmaMapProviderWrapperProps = {
+type CarmaMapProviderWrapperProps<
+  TState extends PortalRootState = PortalRootState
+> = {
   children: React.ReactNode;
   overlayOptions: { background: { transparency: number; color: string } };
   cesiumOptions: { providerConfig: any; tilesetConfigs: any };
   gazDataConfig?: GazDataConfig;
   mapStyleConfig: MapStyleConfig;
+  /** Redux store instance from the app for cross-library state access */
+  store?: Store<TState>;
   /** @deprecated HashStateProvider should be placed higher in the tree. These props are ignored. */
   hashKeyAliases?: Record<string, string>;
   /** @deprecated HashStateProvider should be placed higher in the tree. These props are ignored. */
@@ -29,13 +38,16 @@ type CarmaMapProviderWrapperProps = {
   keyOrder?: string[];
 };
 
-export const CarmaMapProviderWrapper = ({
+export const CarmaMapProviderWrapper = <
+  TState extends PortalRootState = PortalRootState
+>({
   children,
   overlayOptions,
   cesiumOptions,
   gazDataConfig = defaultGazDataConfig,
   mapStyleConfig,
-}: CarmaMapProviderWrapperProps) => {
+  store,
+}: CarmaMapProviderWrapperProps<TState>) => {
   const { background } = overlayOptions;
   const { transparency, color } = background;
 
@@ -59,7 +71,13 @@ export const CarmaMapProviderWrapper = ({
                     providerConfig={cesiumOptions.providerConfig}
                     tilesetConfigs={cesiumOptions.tilesetConfigs}
                   >
-                    {children}
+                    {store ? (
+                      <PortalMapProvider store={store}>
+                        {children}
+                      </PortalMapProvider>
+                    ) : (
+                      children
+                    )}
                   </CesiumContextProvider>
                 </OverlayTourProvider>
               </TopicMapContextProvider>
