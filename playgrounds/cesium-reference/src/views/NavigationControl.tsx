@@ -25,8 +25,8 @@ import {
   getIsViewerReadyAsync,
   useZoomControls,
   PitchingCompass,
-  initViewerAnimationMap,
-  type ViewerAnimationMap,
+  initSceneAnimationMap,
+  type SceneAnimationMap,
   CesiumContextType,
 } from "@carma-mapping/engines/cesium";
 
@@ -36,9 +36,9 @@ import { cesiumConstructorOptions } from "../config";
 const NavigationControlView: FC = () => {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const viewerRef = useRef<Viewer | null>(null);
-  const viewerAnimationMapRef = useRef<ViewerAnimationMap | null>(null);
+  const sceneAnimationMapRef = useRef<SceneAnimationMap | null>(null);
   const [isViewerReady, setIsViewerReady] = useState(false);
-  const ctx = { viewerRef, viewerAnimationMapRef } as CesiumContextType;
+  const ctx = { viewerRef, sceneAnimationMapRef } as unknown as CesiumContextType;
 
   const { tilesetRef, tilesetReady } = useTileset(
     WUPP_LOD2_TILESET.url,
@@ -53,7 +53,7 @@ const NavigationControlView: FC = () => {
           cesiumConstructorOptions
         );
         viewerRef.current = viewer;
-        viewerAnimationMapRef.current = initViewerAnimationMap();
+        sceneAnimationMapRef.current = initSceneAnimationMap();
 
         viewer.terrainProvider = await CesiumTerrainProvider.fromUrl(
           WUPP_TERRAIN_PROVIDER.url
@@ -74,7 +74,7 @@ const NavigationControlView: FC = () => {
     return () => {
       if (viewerRef.current) {
         viewerRef.current.destroy();
-        viewerAnimationMapRef.current = null;
+        sceneAnimationMapRef.current = null;
       }
     };
   }, []);
