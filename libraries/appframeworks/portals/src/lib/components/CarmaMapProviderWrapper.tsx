@@ -14,28 +14,39 @@ import { AuthProvider } from "@carma-providers/auth";
 
 import { type HashCodecs } from "@carma-providers/hash-state";
 import { SandboxedEvalProvider } from "./SandboxedEvalProvider";
+import {
+  CarmaMapAPIProvider,
+  type APIRootState,
+} from "../contexts/CarmaMapAPIProvider";
+import type { Store } from "redux";
 
-type CarmaMapProviderWrapperProps = {
-  children: React.ReactNode;
-  overlayOptions: { background: { transparency: number; color: string } };
-  cesiumOptions: { providerConfig: any; tilesetConfigs: any };
-  gazDataConfig?: GazDataConfig;
-  mapStyleConfig: MapStyleConfig;
-  /** @deprecated HashStateProvider should be placed higher in the tree. These props are ignored. */
-  hashKeyAliases?: Record<string, string>;
-  /** @deprecated HashStateProvider should be placed higher in the tree. These props are ignored. */
-  hashCodecs?: HashCodecs;
-  /** @deprecated HashStateProvider should be placed higher in the tree. These props are ignored. */
-  keyOrder?: string[];
-};
+type CarmaMapProviderWrapperProps<TState extends APIRootState = APIRootState> =
+  {
+    children: React.ReactNode;
+    overlayOptions: { background: { transparency: number; color: string } };
+    cesiumOptions: { providerConfig: any; tilesetConfigs: any };
+    gazDataConfig?: GazDataConfig;
+    mapStyleConfig: MapStyleConfig;
+    /** Redux store instance from the app for cross-library state access */
+    store?: Store<TState>;
+    /** @deprecated HashStateProvider should be placed higher in the tree. These props are ignored. */
+    hashKeyAliases?: Record<string, string>;
+    /** @deprecated HashStateProvider should be placed higher in the tree. These props are ignored. */
+    hashCodecs?: HashCodecs;
+    /** @deprecated HashStateProvider should be placed higher in the tree. These props are ignored. */
+    keyOrder?: string[];
+  };
 
-export const CarmaMapProviderWrapper = ({
+export const CarmaMapProviderWrapper = <
+  TState extends APIRootState = APIRootState
+>({
   children,
   overlayOptions,
   cesiumOptions,
   gazDataConfig = defaultGazDataConfig,
   mapStyleConfig,
-}: CarmaMapProviderWrapperProps) => {
+  store,
+}: CarmaMapProviderWrapperProps<TState>) => {
   const { background } = overlayOptions;
   const { transparency, color } = background;
 
@@ -59,7 +70,13 @@ export const CarmaMapProviderWrapper = ({
                     providerConfig={cesiumOptions.providerConfig}
                     tilesetConfigs={cesiumOptions.tilesetConfigs}
                   >
-                    {children}
+                    {store ? (
+                      <CarmaMapAPIProvider store={store}>
+                        {children}
+                      </CarmaMapAPIProvider>
+                    ) : (
+                      children
+                    )}
                   </CesiumContextProvider>
                 </OverlayTourProvider>
               </TopicMapContextProvider>

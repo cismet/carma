@@ -34,6 +34,15 @@ export {
   type MapStyleConfig,
 } from "./lib/contexts/MapStyleProvider";
 
+export {
+  CarmaMapAPIProvider,
+  useCarmaMapAPISelector,
+  useCarmaMapAPIDispatch,
+  useCarmaMapAPIActions,
+  createLayerSelectors,
+  type APIRootState,
+} from "./lib/contexts/CarmaMapAPIProvider.tsx";
+
 export { MessageOverlay } from "./lib/components/MessageOverlay";
 
 export {
