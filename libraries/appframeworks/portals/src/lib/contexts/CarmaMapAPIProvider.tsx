@@ -86,7 +86,7 @@ export const useCarmaMapAPIDispatch = <
 // Selector factories for common patterns (no geoportal imports needed)
 export const createLayerSelectors = {
   getLayerById: (id: string) => (state: any) => {
-    const allLayers = state.mapLayers?.allLayers ?? [];
+    const allLayers = state?.mapLayers?.allLayers ?? [];
     for (const category of allLayers) {
       const found = category.layers?.find((layer: any) => layer.id === id);
       if (found) return found;
@@ -95,10 +95,11 @@ export const createLayerSelectors = {
   },
 
   hasLayerById: (id: string) => (state: any) =>
-    state.mapping?.layers?.some((layer: any) => layer.id === id) ?? false,
+    state?.mapping?.layers?.some((layer: any) => layer.id === id) ?? false,
 
   getLayersByIds: (ids: string[]) => (state: any) =>
-    state.mapping?.layers?.filter((layer: any) => ids.includes(layer.id)) ?? [],
+    state?.mapping?.layers?.filter((layer: any) => ids.includes(layer.id)) ??
+    [],
 };
 
 // Hook that provides actions to manipulate the portal map state
