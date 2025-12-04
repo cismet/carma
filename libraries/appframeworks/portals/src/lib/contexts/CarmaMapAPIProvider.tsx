@@ -8,10 +8,10 @@ import type { ReactNode } from "react";
 import type { Store, Dispatch, UnknownAction } from "redux";
 import { parseToMapLayer } from "../utils/utils";
 
-export type PortalRootState = Record<string, unknown>;
+export type APIRootState = Record<string, unknown>;
 
 interface CarmaMapAPIContextValue<
-  TState extends PortalRootState = PortalRootState,
+  TState extends APIRootState = APIRootState,
   TDispatch extends Dispatch<UnknownAction> = Dispatch<UnknownAction>
 > {
   store: Store<TState>;
@@ -23,15 +23,13 @@ const CarmaMapAPIContext = createContext<CarmaMapAPIContextValue | undefined>(
   undefined
 );
 
-interface CarmaMapAPIProviderProps<
-  TState extends PortalRootState = PortalRootState
-> {
+interface CarmaMapAPIProviderProps<TState extends APIRootState = APIRootState> {
   children: ReactNode;
   store: Store<TState>;
 }
 
 export const CarmaMapAPIProvider = <
-  TState extends PortalRootState = PortalRootState
+  TState extends APIRootState = APIRootState
 >({
   children,
   store,
@@ -50,20 +48,17 @@ export const CarmaMapAPIProvider = <
 };
 
 const useCarmaMapAPI = <
-  TState extends PortalRootState = PortalRootState,
+  TState extends APIRootState = APIRootState,
   TDispatch extends Dispatch<UnknownAction> = Dispatch<UnknownAction>
 >(): CarmaMapAPIContextValue<TState, TDispatch> => {
   const context = useContext(CarmaMapAPIContext);
   if (context === undefined) {
-    throw new Error("usePortalMap must be used within a PortalMapProvider");
+    throw new Error("useCarmaMapAPI must be used within a CarmaMapAPIProvider");
   }
   return context as CarmaMapAPIContextValue<TState, TDispatch>;
 };
 
-export const useCarmaMapAPISelector = <
-  TState extends PortalRootState,
-  TSelected
->(
+export const useCarmaMapAPISelector = <TState extends APIRootState, TSelected>(
   selector: (state: TState) => TSelected
 ): TSelected => {
   const { store } = useCarmaMapAPI<TState>();
@@ -84,7 +79,7 @@ export const useCarmaMapAPISelector = <
 export const useCarmaMapAPIDispatch = <
   TDispatch extends Dispatch<UnknownAction> = Dispatch<UnknownAction>
 >(): TDispatch => {
-  const { dispatch } = useCarmaMapAPI<PortalRootState, TDispatch>();
+  const { dispatch } = useCarmaMapAPI<APIRootState, TDispatch>();
   return dispatch;
 };
 

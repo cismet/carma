@@ -40,7 +40,7 @@ export {
   useCarmaMapAPIDispatch,
   useCarmaMapAPIActions,
   createLayerSelectors,
-  type PortalRootState,
+  type APIRootState,
 } from "./lib/contexts/CarmaMapAPIProvider.tsx";
 
 export { MessageOverlay } from "./lib/components/MessageOverlay";

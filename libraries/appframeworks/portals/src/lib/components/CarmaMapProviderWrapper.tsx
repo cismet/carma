@@ -16,30 +16,29 @@ import { type HashCodecs } from "@carma-providers/hash-state";
 import { SandboxedEvalProvider } from "./SandboxedEvalProvider";
 import {
   CarmaMapAPIProvider,
-  type PortalRootState,
+  type APIRootState,
 } from "../contexts/CarmaMapAPIProvider";
 import type { Store } from "redux";
 
-type CarmaMapProviderWrapperProps<
-  TState extends PortalRootState = PortalRootState
-> = {
-  children: React.ReactNode;
-  overlayOptions: { background: { transparency: number; color: string } };
-  cesiumOptions: { providerConfig: any; tilesetConfigs: any };
-  gazDataConfig?: GazDataConfig;
-  mapStyleConfig: MapStyleConfig;
-  /** Redux store instance from the app for cross-library state access */
-  store?: Store<TState>;
-  /** @deprecated HashStateProvider should be placed higher in the tree. These props are ignored. */
-  hashKeyAliases?: Record<string, string>;
-  /** @deprecated HashStateProvider should be placed higher in the tree. These props are ignored. */
-  hashCodecs?: HashCodecs;
-  /** @deprecated HashStateProvider should be placed higher in the tree. These props are ignored. */
-  keyOrder?: string[];
-};
+type CarmaMapProviderWrapperProps<TState extends APIRootState = APIRootState> =
+  {
+    children: React.ReactNode;
+    overlayOptions: { background: { transparency: number; color: string } };
+    cesiumOptions: { providerConfig: any; tilesetConfigs: any };
+    gazDataConfig?: GazDataConfig;
+    mapStyleConfig: MapStyleConfig;
+    /** Redux store instance from the app for cross-library state access */
+    store?: Store<TState>;
+    /** @deprecated HashStateProvider should be placed higher in the tree. These props are ignored. */
+    hashKeyAliases?: Record<string, string>;
+    /** @deprecated HashStateProvider should be placed higher in the tree. These props are ignored. */
+    hashCodecs?: HashCodecs;
+    /** @deprecated HashStateProvider should be placed higher in the tree. These props are ignored. */
+    keyOrder?: string[];
+  };
 
 export const CarmaMapProviderWrapper = <
-  TState extends PortalRootState = PortalRootState
+  TState extends APIRootState = APIRootState
 >({
   children,
   overlayOptions,
