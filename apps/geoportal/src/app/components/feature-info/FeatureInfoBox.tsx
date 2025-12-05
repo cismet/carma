@@ -316,9 +316,12 @@ const FeatureInfoBox = ({ pos }: InfoBoxProps) => {
       {open && Modal && (
         <Modal
           setOpen={() => setOpen(false)}
-          feature={{
-            properties: selectedFeature.properties.wmsProps,
-          }}
+          feature={
+            selectedFeature.properties.wmsProps?.properties ||
+            selectedFeature.properties.wmsProps?.targetProperties
+              ? selectedFeature.properties.wmsProps
+              : { properties: selectedFeature.properties.wmsProps }
+          }
           versionString={getApplicationVersion(versionData)}
           Footer={genericSecondaryInfoFooterFactory({
             skipTeilzwilling: true,
