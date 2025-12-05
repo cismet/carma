@@ -1,5 +1,5 @@
 import { extractCarmaConfig } from "@carma-commons/utils";
-import type { FeatureInfoProperties, Item, Layer } from "@carma/types";
+import type { Item, Layer } from "@carma/types";
 
 function isJson(str) {
   try {
