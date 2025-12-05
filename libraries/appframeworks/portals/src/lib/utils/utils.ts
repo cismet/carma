@@ -68,12 +68,13 @@ const parseZoom = (
       }
       return acc;
     }, 0);
-    const minzoomVector = vectorStyles.reduce((acc, cur) => {
-      if (cur.minzoom < acc) {
-        return cur.minzoom;
-      }
-      return acc;
-    }, 24);
+    const definedMinzooms = vectorStyles
+      .map((s) => s.minzoom)
+      .filter((z) => z !== undefined);
+    const minzoomVector =
+      definedMinzooms.length > 0
+        ? Math.min(...definedMinzooms)
+        : sourceZoom.minzoom;
 
     maxzoom = Math.max(maxzoom, maxzoomVector);
     minzoom = Math.max(minzoom, minzoomVector);
