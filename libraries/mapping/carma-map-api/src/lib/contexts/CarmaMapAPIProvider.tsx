@@ -6,7 +6,7 @@ import {
 } from "react";
 import type { ReactNode } from "react";
 import type { Store, Dispatch, UnknownAction } from "redux";
-import { parseToMapLayer } from "../utils/utils";
+import { parseToMapLayer } from "../helper/utils";
 
 export type APIRootState = Record<string, unknown>;
 
