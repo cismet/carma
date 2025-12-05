@@ -27,7 +27,7 @@ import {
 } from "@carma-appframeworks/portals";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import FuzzySearchWrapper from "./components/FuzzySearchWrapper";
-import { FilterButtons } from "./components/FilterButtons";
+import { createFilterButtons } from "./components/GenericFilterButtonsFactory";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import {
   FullscreenControl,
@@ -280,13 +280,18 @@ const Map = ({
           </Control>
         )}
 
-        {config?.tm?.filteringEnabled && config?.tm?.vectorLayers && (
+        {config?.tm?.filterConfig && (
           <Control position="topcenter" order={10}>
-            <FilterButtons
-              maplibreMap={maplibreMap}
-              selectedFeature={feature}
-              setSelectedFeature={setFeature}
-            />
+            {(() => {
+              const GenericFilterButtons = createFilterButtons(config.tm.filterConfig);
+              return (
+                <GenericFilterButtons
+                  maplibreMap={maplibreMap}
+                  selectedFeature={feature}
+                  setSelectedFeature={setFeature}
+                />
+              );
+            })()}
           </Control>
         )}
 

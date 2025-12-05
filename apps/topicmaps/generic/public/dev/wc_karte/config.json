@@ -5,7 +5,48 @@
     "applicationMenuIntroductionMarkdown": "Die WC-Karte Wuppertal ist eine Anwendung der **GenericTopicMap Wuppertal**. Dies ist eine Komponente aus dem Gesamtsystem des Digitalen Zwillings der Stadt Wuppertal (**DigiTal Zwilling**), mit der eine einfache, für den mobilen Einsatz prädestinierte Web-Karte erzeugt werden kann, indem zwei Konfigurationsdateien angepasst werden. Über **Einstellungen** können Sie die Darstellung der Hintergrundkarte an Ihre Vorlieben anpassen. Wählen Sie **Kompaktanleitung** für detailliertere Bedienungsinformationen und **Urbaner Digitaler Zwilling** für eine Einordnung der WC-Karte in den Kontext des DigiTal Zwillings.",
     "previewMapPosition": "lat=51.26041096180761&lng=7.175016403198243&zoom=13",
     "applicationMenuSkipSymbolsizeSetting": false,
-    "filteringEnabled": true,
+    "filterConfig": {
+      "allLabel": "Alle",
+      "layerPattern": "toiletten",
+      "filters": [
+        {
+          "key": "kostenfrei",
+          "label": "Kostenfrei",
+          "icon": "https://tiles.cismet.de/toiletten/assets/icons/Infobox_Kostenfrei.svg",
+          "propertyName": "ENTGELT",
+          "propertyValue": "nein"
+        },
+        {
+          "key": "rollstuhlgerecht",
+          "label": "Rollstuhlgerecht",
+          "icon": "https://tiles.cismet.de/toiletten/assets/icons/Infobox_Rollstuhlgerecht.svg",
+          "propertyName": "ROLLGER",
+          "propertyValue": "ja"
+        },
+        {
+          "key": "wickeltisch",
+          "label": "Wickeltisch",
+          "icon": "https://tiles.cismet.de/toiletten/assets/icons/Infobox_Wickeltisch.svg",
+          "propertyName": "WICKELTIS",
+          "propertyValue": "ja"
+        },
+        {
+          "key": "dauergeoffnet",
+          "label": "Geöffnet",
+          "icon": "https://tiles.cismet.de/toiletten/assets/icons/Infobox_24_7_Geoeffnet.svg",
+          "propertyName": "Q_24/7_OFF",
+          "propertyValue": "ja"
+        }
+      ],
+      "styles": {
+        "buttonBorderRadius": "10px",
+        "selectedBorderColor": "#4378ccCC",
+        "iconSize": "18px",
+        "fontSize": "13px",
+        "gap": "8px",
+        "maxWidth": "calc(100vw - 120px)"
+      }
+    },
     "vectorLayers": [
       {
         "name": "öffentliche Toiletten",
