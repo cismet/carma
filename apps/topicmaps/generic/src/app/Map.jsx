@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useState, useMemo } from "react";
 
 import "./App.css";
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -157,6 +157,14 @@ const Map = ({
   const { routedMapRef } = useSelectionTopicMap() ?? {};
   const [selectedVectorObject, setSelectedVectorObject] = useState(undefined);
   const [maplibreMap, setMaplibreMap] = useState(null);
+
+  // Memoize the filter buttons component to prevent re-creation on every render
+  const FilterButtonsComponent = useMemo(() => {
+    if (config?.tm?.filterConfig) {
+      return createFilterButtons(config.tm.filterConfig);
+    }
+    return null;
+  }, [config?.tm?.filterConfig]);
   // console.log("xxx markerSymbolSize", markerSymbolSize);
 
   // lets assume we will only have vector layers
@@ -280,18 +288,13 @@ const Map = ({
           </Control>
         )}
 
-        {config?.tm?.filterConfig && (
+        {FilterButtonsComponent && (
           <Control position="topcenter" order={10}>
-            {(() => {
-              const GenericFilterButtons = createFilterButtons(config.tm.filterConfig);
-              return (
-                <GenericFilterButtons
-                  maplibreMap={maplibreMap}
-                  selectedFeature={feature}
-                  setSelectedFeature={setFeature}
-                />
-              );
-            })()}
+            <FilterButtonsComponent
+              maplibreMap={maplibreMap}
+              selectedFeature={feature}
+              setSelectedFeature={setFeature}
+            />
           </Control>
         )}
 
