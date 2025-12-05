@@ -13,11 +13,12 @@ import { defaultGazDataConfig } from "@carma-commons/resources";
 import { AuthProvider } from "@carma-providers/auth";
 
 import { type HashCodecs } from "@carma-providers/hash-state";
-import { SandboxedEvalProvider } from "./SandboxedEvalProvider";
 import {
-  CarmaMapAPIProvider,
   type APIRootState,
-} from "../contexts/CarmaMapAPIProvider";
+  CarmaMapAPIProvider,
+} from "@carma-mapping/carma-map-api";
+import { SandboxedEvalProvider } from "./SandboxedEvalProvider";
+
 import type { Store } from "redux";
 
 type CarmaMapProviderWrapperProps<TState extends APIRootState = APIRootState> =

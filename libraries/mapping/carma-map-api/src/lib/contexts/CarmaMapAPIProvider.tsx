@@ -6,7 +6,7 @@ import {
 } from "react";
 import type { ReactNode } from "react";
 import type { Store, Dispatch, UnknownAction } from "redux";
-import { parseToMapLayer } from "../utils/utils";
+import { utils } from "@carma-appframeworks/portals";
 
 export type APIRootState = Record<string, unknown>;
 
@@ -123,7 +123,7 @@ export const useCarmaMapAPIActions = () => {
         return undefined;
       }
 
-      const mapLayer = await parseToMapLayer(layer, forceWMS, visible);
+      const mapLayer = await utils.parseToMapLayer(layer, forceWMS, visible);
 
       dispatch({ type: "mapping/appendLayer", payload: mapLayer });
 
