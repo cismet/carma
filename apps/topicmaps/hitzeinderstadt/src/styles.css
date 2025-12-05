@@ -38,3 +38,8 @@ div.leaflet-top.leaflet-right > .leaflet-control {
   right: max(10px, env(safe-area-inset-right));
   margin-right: 0 !important;
 }
+
+/* Fix Tailwind's .collapse overriding Bootstrap's accordion collapse */
+.collapse.show {
+  visibility: visible;
+}

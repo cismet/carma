@@ -52,3 +52,8 @@ div.leaflet-top.leaflet-right > .leaflet-control {
   background: none !important;
   z-index: 400 !important;
 }
+
+/* Fix Tailwind's .collapse overriding Bootstrap's accordion collapse */
+.collapse.show {
+  visibility: visible;
+}

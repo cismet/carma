@@ -63,3 +63,8 @@ div.leaflet-top.leaflet-right > .leaflet-control {
 .leaflet-container .leaflet-zoom-animated {
   pointer-events: none !important;
 }
+
+/* Fix Tailwind's .collapse overriding Bootstrap's accordion collapse */
+.collapse.show {
+  visibility: visible;
+}

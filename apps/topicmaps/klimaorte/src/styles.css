@@ -49,3 +49,8 @@ div.mode-container-switcher > table {
   left: 50% !important;
   transform: translateX(-50%) !important;
 }
+
+/* Fix Tailwind's .collapse overriding Bootstrap's accordion collapse */
+.collapse.show {
+  visibility: visible;
+}

@@ -82,3 +82,8 @@ div.leaflet-bottom.leaflet-right {
   bottom: max(16px, env(safe-area-inset-bottom));
   margin-bottom: 0px !important;
 }
+
+/* Fix Tailwind's .collapse overriding Bootstrap's accordion collapse */
+.collapse.show {
+  visibility: visible;
+}
