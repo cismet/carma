@@ -3,12 +3,12 @@ import {
   Cartesian3,
   HeadingPitchRange,
   Matrix4,
-  Math as CesiumMath,
+  CesiumMath,
   type Camera,
-} from "cesium";
+} from "@carma/cesium";
 import {
   cancelSceneAnimation,
-  getOrbitPoint,
+  pickSceneCenter,
   useCesiumContext,
 } from "@carma-mapping/engines/cesium";
 
@@ -91,7 +91,7 @@ export function useOrientationCubeDrag({
       const camera = viewer.camera;
       targetHeadingRef.current = camera.heading;
       targetPitchRef.current = camera.pitch;
-      const target = getOrbitPoint(viewer.scene);
+      const target = pickSceneCenter(viewer.scene);
       if (target) {
         const range = Cartesian3.distance(target, camera.positionWC);
         orbitPointRef.current = target;

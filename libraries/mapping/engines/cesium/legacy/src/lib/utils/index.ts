@@ -16,11 +16,7 @@ export {
   cesiumAnimateFov,
   type CesiumAnimateFovOptions,
 } from "./cesiumAnimateFov";
-export {
-  getOrbitPoint,
-  getOrbitPointFromScene,
-  getHeadingPitchForMouseEvent,
-} from "./cesiumAnimateOrbits";
+export { getHeadingPitchForMouseEvent } from "./cesiumAnimateOrbits";
 export { animateInterpolateHeadingPitchRange } from "./cesiumAnimations";
 export {
   type SceneAnimationMap,
@@ -35,7 +31,7 @@ export {
 } from "./positions";
 
 // Pickers and pixels
-export { pickScenePositions } from "./pick-position/pick-scene-positions";
+export * from "./pick-position";
 
 // Elevation
 export {

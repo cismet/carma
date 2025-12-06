@@ -16,12 +16,12 @@ import { useCesiumContext } from "../../../hooks/useCesiumContext";
 import {
   animateCamera,
   getHeadingPitchForMouseEvent,
-  getOrbitPoint,
   PITCH,
 } from "../../../utils/cesiumAnimateOrbits";
 import { guardCamera } from "../../../utils/guardCamera";
 import { isValidScreenSpaceEventHandler } from "../../../utils/instanceGates";
 import { cancelSceneAnimation } from "../../../utils/sceneAnimationMap";
+import { pickSceneCenter } from "../../../utils/pick-position/pick-scene-positions";
 import { Needle } from "./Needle";
 
 interface RotateButtonProps {
@@ -81,7 +81,7 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
           camera.heading as Radians
         );
 
-        const target = getOrbitPoint(scene);
+        const target = pickSceneCenter(scene);
         if (target) {
           const range = Cartesian3.distance(target, camera.positionWC);
           setInitialRange(range as Meters);
@@ -116,7 +116,7 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
           maxPitch
         );
 
-        const target = getOrbitPoint(scene);
+        const target = pickSceneCenter(scene);
         if (target && initialRange !== null) {
           guardCamera(camera).lookAt(
             target,
@@ -144,7 +144,7 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
   const handleButtonClick = useCallback(() => {
     // sets heading to 0 and pitch to pitchOblique
     cesiumCtx.withScene((scene) => {
-      const orbitPoint = getOrbitPoint(scene);
+      const orbitPoint = pickSceneCenter(scene);
       if (!orbitPoint || !sceneAnimationMapRef.current) return;
       animateCamera(
         scene,
@@ -167,7 +167,7 @@ export const PitchingCompass: React.FC<RotateButtonProps> = ({
   const handleDoubleClick = useCallback(() => {
     // sets heading to 0 and pitch to PITCH.ORTHO
     cesiumCtx.withScene((scene) => {
-      const orbitPoint = getOrbitPoint(scene);
+      const orbitPoint = pickSceneCenter(scene);
       if (!orbitPoint || !sceneAnimationMapRef.current) return;
       animateCamera(
         scene,

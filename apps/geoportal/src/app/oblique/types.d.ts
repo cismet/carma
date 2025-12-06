@@ -51,7 +51,7 @@ export type ObliqueImageRecordMap = Map<string, ObliqueImageRecord>;
 export type AnimationConfig = {
   delay?: number; // in ms, useful for synchronizing independedent animations
   duration?: number; // in ms, also max value for dynamic duration
-  easingFunction?: EasingFunction.Callback;
+  easingFunction?: Easing;
 };
 
 export type ObliqueAnimationsConfig = {

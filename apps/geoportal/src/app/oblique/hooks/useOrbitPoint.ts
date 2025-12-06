@@ -1,7 +1,10 @@
 import { useState, useEffect } from "react";
 import { Cartesian3 } from "@carma/cesium";
 import type { Scene } from "@carma/cesium";
-import { useCesiumContext, getOrbitPoint } from "@carma-mapping/engines/cesium";
+import {
+  useCesiumContext,
+  pickSceneCenter,
+} from "@carma-mapping/engines/cesium";
 
 // Shared state across hook instances
 let sharedOrbitPoint: Cartesian3 | null = null;
@@ -19,7 +22,7 @@ function initOrbitPointListener(scene: Scene) {
     // Check if any subscribers are enabled
     if (!orbitPointSubscribers.some((subscriber) => subscriber.enabled)) return;
 
-    const point = getOrbitPoint(scene);
+    const point = pickSceneCenter(scene);
     if (sharedOrbitPoint && point && point.equals(sharedOrbitPoint)) return;
     sharedOrbitPoint = point;
     orbitPointSubscribers.forEach((subscriber) => {

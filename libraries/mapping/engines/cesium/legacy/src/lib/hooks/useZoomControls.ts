@@ -36,7 +36,7 @@ const zoom = (
   duration: number,
   moveRateFactor: number
 ): void => {
-  ctx.withScene((scene, viewer) => {
+  ctx.withScene((scene) => {
     let wasCancelled = false;
     if (!ctx.sceneAnimationMapRef.current) return;
 
@@ -54,7 +54,7 @@ const zoom = (
       return;
     }
 
-    if (sceneHasTweens(viewer)) {
+    if (sceneHasTweens(scene)) {
       camera.completeFlight();
       console.debug("completing previous zoom or other flyTo animation");
       wasCancelled = true;

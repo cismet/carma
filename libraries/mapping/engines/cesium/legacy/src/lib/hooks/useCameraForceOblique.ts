@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 
-import { type Scene, type Viewer } from "cesium";
+import { type Scene, type Viewer } from "@carma/cesium";
 
 import { cesiumCameraForceOblique } from "../utils/cesiumCameraForceOblique";
 import { sceneHasTweens } from "../utils/sceneHasTweens";
@@ -19,7 +19,7 @@ export function useCesiumCameraForceOblique(
     const viewer = viewerRef.current;
 
     const onPreupdate = () => {
-      !sceneHasTweens(viewer) &&
+      !sceneHasTweens(viewer.scene) &&
         cesiumCameraForceOblique(
           viewer,
           fixedPitch,

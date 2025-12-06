@@ -4,7 +4,7 @@ import {
   CesiumMath,
   type Scene,
 } from "@carma/cesium";
-import { getOrbitPoint } from "@carma-mapping/engines/cesium";
+import { pickSceneCenter } from "@carma-mapping/engines/cesium";
 
 import { getHeadingFromCardinalDirection } from "./orientationUtils";
 import type { CardinalDirectionEnum } from "./orientationUtils";
@@ -95,8 +95,8 @@ export function calculateOrbitPointCoords(
   scene: Scene,
   converterObj: Proj4Converter
 ): [number, number, number] | null {
-  // Use the existing getOrbitPoint method from Cesium engine
-  const orbitPoint = getOrbitPoint(scene);
+  // Use the existing pickSceneCenter method from Cesium engine
+  const orbitPoint = pickSceneCenter(scene);
   if (!orbitPoint) {
     return null;
   }

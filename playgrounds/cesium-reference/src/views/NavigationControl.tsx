@@ -38,7 +38,10 @@ const NavigationControlView: FC = () => {
   const viewerRef = useRef<Viewer | null>(null);
   const sceneAnimationMapRef = useRef<SceneAnimationMap | null>(null);
   const [isViewerReady, setIsViewerReady] = useState(false);
-  const ctx = { viewerRef, sceneAnimationMapRef } as unknown as CesiumContextType;
+  const ctx = {
+    viewerRef,
+    sceneAnimationMapRef,
+  } as unknown as CesiumContextType;
 
   const { tilesetRef, tilesetReady } = useTileset(
     WUPP_LOD2_TILESET.url,

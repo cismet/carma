@@ -1,6 +1,5 @@
 import { type MutableRefObject } from "react";
-// eslint-disable-next-line
-import { EasingFunction } from "cesium";
+import { Easing } from "@carma-commons/math";
 import {
   BoundingSphere,
   Cartesian3,
@@ -12,10 +11,7 @@ import {
   CesiumMath,
   type Scene,
 } from "@carma/cesium";
-import {
-  getOrbitPointFromScene,
-  type CesiumContextType,
-} from "@carma-mapping/engines/cesium";
+import { pickSceneCenter } from "@carma-mapping/engines/cesium";
 import { DerivedExteriorOrientation } from "./transformExteriorOrientation";
 import type { AnimationConfig } from "../types";
 
@@ -25,18 +21,18 @@ const ENTER_DURATION = 1000;
 const LEAVE_BASE_DURATION = 800;
 const MAX_FLY_DURATION_MS = 2000; // ms
 const MIN_FLY_DURATION_MS = 50; // should be about a frame to avoid zero duration artifacts in calculations and code paths taken
-const DEFAULT_EASING_FUNCTION = EasingFunction.LINEAR_NONE;
+const DEFAULT_EASING_FUNCTION = Easing.LINEAR_NONE;
 const DYNAMIC_DISTANCE_TO_MS_FACTOR = 100;
 
 /**
  * Computes and flies to an improved camera orientation based on image metadata
- * @param viewer Cesium viewer instance
+ * @param scene Cesium scene instance
  * @param imageRecord Oblique image record containing metadata
  * @param onComplete Callback to execute after flight completion
  * @param flyToOptions Optional configuration for the flight animation
  */
 export const flyToExteriorOrientation = (
-  ctx: CesiumContextType,
+  scene: Scene,
   exteriorOrientation: DerivedExteriorOrientation,
   onComplete?: () => void,
   flyToOptions: AnimationConfig = {}
@@ -74,45 +70,38 @@ export const flyToExteriorOrientation = (
     return;
   }
 
-  ctx.withCamera((camera) => {
-    // Calculate appropriate flight duration based on distance
-    const currentDistanceToCamera = Cartesian3.distance(
-      camera.positionWC,
-      position
-    );
+  const camera = scene.camera;
 
-    // TODO: also factor in orientation change
-    const duration = getDynamicDurationSecondsFromDistance(
-      currentDistanceToCamera,
-      flyToOptions.duration
-    );
+  // Calculate appropriate flight duration based on distance
+  const currentDistanceToCamera = Cartesian3.distance(
+    camera.positionWC,
+    position
+  );
 
-    const easingFunction =
-      flyToOptions.easingFunction || DEFAULT_EASING_FUNCTION;
+  // TODO: also factor in orientation change
+  const duration = getDynamicDurationSecondsFromDistance(
+    currentDistanceToCamera,
+    flyToOptions.duration
+  );
 
-    // TODO workaround until using actual exterior orientation up vector,
-    // but that one is rotating differently by each camera ID
-    // const localEnuUpAxis: Vector3Arr = [0, 0, 1];
-    // const upZ = enuToEcef(localEnuUpAxis, position);
+  const easingFunction = flyToOptions.easingFunction || DEFAULT_EASING_FUNCTION;
 
-    // Execute the camera flight
-    camera.flyTo({
-      destination: position,
-      orientation: {
-        direction,
-        up,
-      },
-      endTransform: Matrix4.IDENTITY,
-      duration,
-      easingFunction,
-      complete: onComplete,
-    });
-  });
-};
+  // TODO workaround until using actual exterior orientation up vector,
+  // but that one is rotating differently by each camera ID
+  // const localEnuUpAxis: Vector3Arr = [0, 0, 1];
+  // const upZ = enuToEcef(localEnuUpAxis, position);
 
-export const resetCamera = (ctx: CesiumContextType) => {
-  ctx.withCamera((camera) => {
-    camera.lookAtTransform(Matrix4.IDENTITY);
+  // Execute the camera flight
+  camera.flyTo({
+    destination: position,
+    orientation: {
+      direction,
+      up,
+    },
+    endTransform: Matrix4.IDENTITY,
+    duration,
+    easingFunction,
+    complete: onComplete,
   });
 };
 
@@ -154,7 +143,7 @@ export const enterObliqueMode = (
     originalFovRef.current = camera.frustum.fov;
   }
 
-  const center = getOrbitPointFromScene(scene);
+  const center = pickSceneCenter(scene);
   if (!center) {
     console.debug("Failed to get orbit point");
     return;
@@ -229,7 +218,7 @@ export const leaveObliqueMode = (
     const animate = (time: number) => {
       const elapsed = time - startTime;
       const t = Math.min(elapsed / adaptiveLeaveDuration, 1);
-      const easedT = EasingFunction.SINUSOIDAL_IN_OUT(t);
+      const easedT = Easing.SINUSOIDAL_IN_OUT(t);
       const newFov = currentFov + easedT * (targetFov - currentFov);
 
       if (camera.frustum instanceof PerspectiveFrustum) {
@@ -251,4 +240,8 @@ export const leaveObliqueMode = (
     }
     onComplete();
   }
+};
+
+export const resetCamera = (scene: Scene) => {
+  scene.camera.lookAtTransform(Matrix4.IDENTITY);
 };

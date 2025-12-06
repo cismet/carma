@@ -3,7 +3,6 @@ import {
   HeadingPitchRange,
   Matrix4,
   CesiumMath,
-  Cartesian2,
   Scene,
 } from "@carma/cesium";
 
@@ -19,35 +18,6 @@ export enum PITCH {
   OBLIQUE = CesiumMath.toRadians(-45),
   ORTHO = CesiumMath.toRadians(-90),
 }
-
-/**
- * Get the point on the globe that the camera is currently orbiting around.
- * @param scene The Cesium scene.
- * @returns The point on the globe that the camera is currently orbiting around.
- */
-export const getOrbitPointFromScene = (
-  scene: Scene
-): Cartesian3 | undefined => {
-  if (!scene.globe) {
-    return;
-  }
-  const screenCenter = new Cartesian2(
-    scene.canvas.clientWidth / 2,
-    scene.canvas.clientHeight / 2
-  );
-  const ray = scene.camera.getPickRay(screenCenter);
-  if (!ray) {
-    return;
-  }
-  return scene.globe.pick(ray, scene);
-};
-
-/**
- * Get the point on the globe that the camera is currently orbiting around.
- * @param scene The Cesium scene.
- * @returns The point on the globe that the camera is currently orbiting around.
- */
-export const getOrbitPoint = getOrbitPointFromScene;
 
 function runAnimation(
   scene: Scene,

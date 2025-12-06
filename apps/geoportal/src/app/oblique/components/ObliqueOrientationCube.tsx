@@ -1,11 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Button, Tooltip, Spin } from "antd";
-import { Cartesian3, HeadingPitchRange, Matrix4 } from "cesium";
+import { Cartesian3, HeadingPitchRange, Matrix4 } from "@carma/cesium";
 
 import {
   useCesiumContext,
   cesiumCameraToCssTransform,
-  getOrbitPoint,
+  pickSceneCenter,
   cancelSceneAnimation,
   guardCamera,
 } from "@carma-mapping/engines/cesium";
@@ -329,7 +329,7 @@ const ObliqueOrientationCube: React.FC<Props> = ({
         cancelSceneAnimation(viewer.scene, sceneAnimationMapRef.current);
       }
       const camera = viewer.camera;
-      const target = getOrbitPoint(viewer.scene);
+      const target = pickSceneCenter(viewer.scene);
       if (target) {
         const range = Cartesian3.distance(target, camera.positionWC);
         viewer.camera.lookAt(
