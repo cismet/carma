@@ -65,8 +65,12 @@ export const LibreMap = ({
   const { markerSymbolSize } = useContext<typeof TopicMapStylingContext>(
     TopicMapStylingContext
   );
-  const { setMapStyle, geoJsonMetadata, setGeoJsonMetadata } =
-    useLibreContext();
+  const {
+    setMapStyle,
+    geoJsonMetadata,
+    setGeoJsonMetadata,
+    setMap: setContextMap,
+  } = useLibreContext();
 
   // Use cluster markers hook when clustering is enabled
   useClusterMarkers({
@@ -268,6 +272,7 @@ export const LibreMap = ({
       });
       map.current = mapInstance;
       setLibreMap(mapInstance);
+      setContextMap(mapInstance);
 
       mapInstance.on("click", (e) => {
         const point = mapInstance.project([e.lngLat.lng, e.lngLat.lat]);
@@ -393,6 +398,7 @@ export const LibreMap = ({
       if (map.current) {
         map.current.remove();
         map.current = null;
+        setContextMap(null);
       }
     };
   }, []);

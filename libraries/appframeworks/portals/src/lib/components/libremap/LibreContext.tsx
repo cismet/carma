@@ -1,4 +1,5 @@
 import type { StyleSpecification } from "maplibre-gl";
+import type maplibregl from "maplibre-gl";
 import { createContext, useContext, useState, ReactNode } from "react";
 
 export interface GeoJsonMetadata {
@@ -11,6 +12,8 @@ interface LibreContextType {
   setMapStyle: (style: StyleSpecification) => void;
   geoJsonMetadata: GeoJsonMetadata[];
   setGeoJsonMetadata: (metadata: GeoJsonMetadata[]) => void;
+  map: maplibregl.Map | null;
+  setMap: (map: maplibregl.Map | null) => void;
 }
 
 const defaultContext: LibreContextType = {
@@ -18,6 +21,8 @@ const defaultContext: LibreContextType = {
   setMapStyle: () => {},
   geoJsonMetadata: [],
   setGeoJsonMetadata: () => {},
+  map: null,
+  setMap: () => {},
 };
 
 export const LibreContext = createContext<LibreContextType>(defaultContext);
@@ -31,10 +36,18 @@ export const LibreContextProvider = ({
 }: LibreContextProviderProps) => {
   const [mapStyle, setMapStyle] = useState<StyleSpecification | null>(null);
   const [geoJsonMetadata, setGeoJsonMetadata] = useState<GeoJsonMetadata[]>([]);
+  const [map, setMap] = useState<maplibregl.Map | null>(null);
 
   return (
     <LibreContext.Provider
-      value={{ mapStyle, setMapStyle, geoJsonMetadata, setGeoJsonMetadata }}
+      value={{
+        mapStyle,
+        setMapStyle,
+        geoJsonMetadata,
+        setGeoJsonMetadata,
+        map,
+        setMap,
+      }}
     >
       {children}
     </LibreContext.Provider>
