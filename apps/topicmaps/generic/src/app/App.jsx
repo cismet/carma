@@ -173,6 +173,7 @@ function App({ name }) {
               style: layer?.other?.vectorStyle,
               infoboxMapping: layer?.conf?.infoboxMapping,
             };
+
             const styleVal = layer.conf?.vectorStyle;
             if (styleVal && styleVal !== "") {
               layerObj.style = styleVal;
@@ -521,6 +522,66 @@ function App({ name }) {
           loadStyleManipulation(layer, configServer, configPath, slugName)
         );
         await Promise.all(manipulationPromises);
+
+        // --- InfoBox Mapping: Load mapping function from JS file if needed ---
+        function getInfoBoxMappingFunctionUrl(
+          infoBoxMappingFunction,
+          configServer,
+          configPath,
+          slugName
+        ) {
+          if (
+            typeof infoBoxMappingFunction === "string" &&
+            infoBoxMappingFunction.startsWith("@")
+          ) {
+            const filename = infoBoxMappingFunction.slice(1);
+            const path = configPath.endsWith("/")
+              ? configPath
+              : configPath + "/";
+            const server = configServer.endsWith("/")
+              ? configServer.slice(0, -1)
+              : configServer;
+            return `${server}${path}${slugName}/${filename}`;
+          }
+          return null;
+        }
+        async function loadInfoBoxMappingFunction(
+          layer,
+          configServer,
+          configPath,
+          slugName
+        ) {
+          if (
+            layer.infoBoxMappingFunction &&
+            typeof layer.infoBoxMappingFunction === "string" &&
+            layer.infoBoxMappingFunction.startsWith("@") &&
+            !layer.infoboxMapping
+          ) {
+            const url = getInfoBoxMappingFunctionUrl(
+              layer.infoBoxMappingFunction,
+              configServer,
+              configPath,
+              slugName
+            );
+            try {
+              const code = await fetch(url).then((r) => r.text());
+              // The infoboxMapping expects an array with the function as a string
+              // Remove newlines to avoid syntax errors in sandboxed eval
+              const singleLineCode = code.replace(/\n/g, " ");
+              layer.infoboxMapping = [singleLineCode];
+            } catch (e) {
+              log(
+                `Failed to fetch/parse infoBoxMappingFunction for layer ${
+                  layer.name || layer.id
+                }: ${e}`
+              );
+            }
+          }
+        }
+        const infoBoxMappingPromises = config.tm.vectorLayers.map((layer) =>
+          loadInfoBoxMappingFunction(layer, configServer, configPath, slugName)
+        );
+        await Promise.all(infoBoxMappingPromises);
       }
 
       // Normalize layers: if only 'layer' is present, extract 'capabilitiesLayer' and 'capabilities'

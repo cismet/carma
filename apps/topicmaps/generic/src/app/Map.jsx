@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from "react";
+import { useContext, useEffect, useState, useMemo } from "react";
 
 import "./App.css";
 import "bootstrap/dist/css/bootstrap.min.css";
@@ -27,6 +27,7 @@ import {
 } from "@carma-appframeworks/portals";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import FuzzySearchWrapper from "./components/FuzzySearchWrapper";
+import { createFilterButtons } from "./components/GenericFilterButtonsFactory";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
 import {
   FullscreenControl,
@@ -89,7 +90,8 @@ function renderCismapLayers(
   markerSymbolSize,
   setGlobalHits,
   initialVisualSelection,
-  layerInformation
+  layerInformation,
+  setMaplibreMap
 ) {
   return (
     <>
@@ -128,6 +130,11 @@ function renderCismapLayers(
                   return ret;
                 });
               }}
+              onMapLibreCoreMapReady={(map) => {
+                if (setMaplibreMap) {
+                  setMaplibreMap(map);
+                }
+              }}
             />
           );
         })}
@@ -149,13 +156,25 @@ const Map = ({
   const [cl_key, setClKey] = useState("");
   const { routedMapRef } = useSelectionTopicMap() ?? {};
   const [selectedVectorObject, setSelectedVectorObject] = useState(undefined);
+  const [maplibreMap, setMaplibreMap] = useState(null);
+
+  // Memoize the filter buttons component to prevent re-creation on every render
+  const FilterButtonsComponent = useMemo(() => {
+    if (config?.tm?.filterConfig) {
+      return createFilterButtons(config.tm.filterConfig);
+    }
+    return null;
+  }, [config?.tm?.filterConfig]);
   // console.log("xxx markerSymbolSize", markerSymbolSize);
 
   // lets assume we will only have vector layers
   useEffect(() => {
     const getFeature = async (infoboxMapping, hit) => {
-      // console.log("xxx infoboxMapping", infoboxMapping);
+      console.log("xxx infoboxMapping", infoboxMapping);
       const feature = await createVectorFeature(infoboxMapping, hit);
+
+      // console.log("xxx a2c setFeature", feature);
+
       setFeature(feature);
     };
 
@@ -269,6 +288,16 @@ const Map = ({
           </Control>
         )}
 
+        {FilterButtonsComponent && (
+          <Control position="topcenter" order={10}>
+            <FilterButtonsComponent
+              maplibreMap={maplibreMap}
+              selectedFeature={feature}
+              setSelectedFeature={setFeature}
+            />
+          </Control>
+        )}
+
         <SecondaryInfoModal
           feature={selectedFeature}
           footer={
@@ -316,7 +345,8 @@ const Map = ({
                 markerSymbolSize,
                 setGlobalHits,
                 selectedVectorObject,
-                layerInformation
+                layerInformation,
+                null
               )}
               previewFeatureCollectionCount={
                 config?.tm?.previewFeatureCollectionCount
@@ -348,7 +378,8 @@ const Map = ({
             markerSymbolSize,
             setGlobalHits,
             selectedVectorObject,
-            layerInformation
+            layerInformation,
+            setMaplibreMap
           )}
           {config.tm.noFeatureCollection !== true && (
             <>

@@ -36,3 +36,10 @@
     transform: rotate(360deg);
   }
 }
+
+/* Filter button responsive text hiding */
+@media (max-width: 590px) {
+  .filter-button-text {
+    display: none;
+  }
+}
