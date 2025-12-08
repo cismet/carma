@@ -80,3 +80,14 @@ export {
 } from "./lib/utils/featureInfo";
 
 export { getActionLinksForFeature } from "./lib/components/helper";
+
+export {
+  motisClient,
+  planRoute,
+  geocodeAddress,
+  reverseGeocode,
+  getStopsInArea,
+  formatPlace,
+  type MotisPlace,
+  type MotisRouteParams,
+} from "./lib/services/motisService";
