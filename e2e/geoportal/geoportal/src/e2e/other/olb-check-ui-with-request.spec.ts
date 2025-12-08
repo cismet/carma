@@ -42,18 +42,18 @@ test.describe("Geoportal oblique", () => {
         });
       }
     );
-    // await context.route(
-    //   "https://cesium-wupp-terrain.cismet.de/dom_2024_1m/layer.json",
-    //   (route) => {
-    //     route.fulfill({
-    //       status: 200,
-    //       contentType: "application/octet-stream",
-    //       body: Buffer.alloc(0), // Empty terrain data
-    //     });
-    //   }
-    // );
+    await context.route(
+      "https://cesium-wupp-terrain.cismet.de/dom_2024_1m/layer.json",
+      (route) => {
+        route.fulfill({
+          status: 200,
+          contentType: "application/octet-stream",
+          body: Buffer.alloc(0), // Empty terrain data
+        });
+      }
+    );
 
-    // Mock 3D mesh tileset JSON files
+    //Mock 3D mesh tileset JSON files
     // await context.route(
     //   "https://wupp-3d-data.cismet.de/mesh2024/**/tileset.json",
     //   (route) => {
