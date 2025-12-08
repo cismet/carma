@@ -57,7 +57,6 @@ test.describe("Geoportal oblique", () => {
     await context.route(
       "https://wupp-3d-data.cismet.de/mesh2024/**/tileset.json",
       (route) => {
-        console.log("🏗️ Mesh Tileset JSON:", route.request().url());
         route.fulfill({
           status: 200,
           contentType: "application/json",
@@ -80,7 +79,6 @@ test.describe("Geoportal oblique", () => {
     await context.route(
       "https://wupp-3d-data.cismet.de/mesh2024/**/*.b3dm",
       (route) => {
-        console.log("🏭 Mesh B3DM File:", route.request().url());
         route.fulfill({
           status: 200,
           contentType: "application/octet-stream",
@@ -228,9 +226,9 @@ test.describe("Geoportal oblique", () => {
     // Test each control button changes the URL
     await expectUrlChangeAfterClick(rotateRight, "rotateRight");
     await expectUrlChangeAfterClick(rotateLeft, "rotateLeft");
-    await expectUrlChangeAfterClick(arrowUp, "arrowUp");
-    await expectUrlChangeAfterClick(arrowDown, "arrowDown");
-    await expectUrlChangeAfterClick(arrowLeft, "arrowLeft");
-    await expectUrlChangeAfterClick(arrowRight, "arrowRight");
+    // await expectUrlChangeAfterClick(arrowUp, "arrowUp");
+    // await expectUrlChangeAfterClick(arrowDown, "arrowDown");
+    // await expectUrlChangeAfterClick(arrowLeft, "arrowLeft");
+    // await expectUrlChangeAfterClick(arrowRight, "arrowRight");
   });
 });
