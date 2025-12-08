@@ -3,6 +3,44 @@
     "applicationMenuIntroductionMarkdown": "Über **Einstellungen** können Sie die Darstellung der Hintergrundkarte an Ihre Vorlieben anpassen. Wählen Sie **Kompaktanleitung** für detailliertere Bedienungsinformationen und **Urbaner Digitaler Zwilling** für eine Einordnung der Wohnlagenkarte in das Gesamtsystem des Digitalen Zwillings der Stadt Wuppertal.",
 
     "noFeatureCollection": true,
+    "filterConfig": {
+      "layerPattern": "wohnlagen",
+      "filterMode": "or",
+      "styles": {
+        "iconSize": "12px",
+        "selectedBorderColor": "none"
+      },
+      "filters": [
+        {
+          "key": "einfach",
+          "label": "Einfach",
+          "icon": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12'%3E%3Crect width='12' height='12' rx='2' fill='%23FF0000'/%3E%3C/svg%3E",
+          "propertyName": "wohnlage",
+          "propertyValue": "einfache Wohnlage"
+        },
+        {
+          "key": "mittel",
+          "label": "Mittel",
+          "icon": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12'%3E%3Crect width='12' height='12' rx='2' fill='%23FFC000'/%3E%3C/svg%3E",
+          "propertyName": "wohnlage",
+          "propertyValue": "mittlere Wohnlage"
+        },
+        {
+          "key": "gut",
+          "label": "Gut",
+          "icon": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12'%3E%3Crect width='12' height='12' rx='2' fill='%2392D050'/%3E%3C/svg%3E",
+          "propertyName": "wohnlage",
+          "propertyValue": "gute Wohnlage"
+        },
+        {
+          "key": "exklusiv",
+          "label": "Exklusiv",
+          "icon": "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12'%3E%3Crect width='12' height='12' rx='2' fill='%2300C5FF'/%3E%3C/svg%3E",
+          "propertyName": "wohnlage",
+          "propertyValue": "exklusive Wohnlage"
+        }
+      ]
+    },
     "vectorLayers": [
       {
         "name": "Wohnlagen",
