@@ -327,7 +327,11 @@ export const LibreMap = ({
 
           let feature;
           if (layerMapping) {
-            feature = createFeature(selectedVectorFeature, layerMapping);
+            feature = createFeature(
+              selectedVectorFeature,
+              layerMapping,
+              mapInstance
+            );
           }
 
           if (feature) {

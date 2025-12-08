@@ -1,10 +1,14 @@
-import { type StyleSpecification, type LayerSpecification } from "maplibre-gl";
+import maplibregl, {
+  type StyleSpecification,
+  type LayerSpecification,
+} from "maplibre-gl";
 import slugify from "slugify";
 import WMSCapabilities from "wms-capabilities";
 import { LibreLayer, VectorStyle } from "../CarmaMap";
 import { getAllLeafLayers } from "@carma-mapping/layers";
 import { extractCarmaConfig } from "@carma-commons/utils";
 import { md5FetchJSON } from "libraries/commons/utils/src/lib/fetching/fetching.ts";
+import { planRoute } from "../../services/motisService";
 // import type { Layer, Layer2, Layer3 } from "wms-capabilities";
 
 // TODO: fix interface
@@ -277,7 +281,11 @@ export const objectToFeature = (jsonOutput: any, code: string) => {
   return { properties };
 };
 
-export const createFeature = (selectedVectorFeature, layerMapping) => {
+export const createFeature = (
+  selectedVectorFeature,
+  layerMapping,
+  mapInstance?: maplibregl.Map
+) => {
   let feature = undefined;
 
   let properties = selectedVectorFeature.properties;
@@ -312,7 +320,144 @@ export const createFeature = (selectedVectorFeature, layerMapping) => {
     feature = {
       properties: {
         ...featureProperties.properties,
-        genericLinks: genericLinks,
+        genericLinks: [
+          {
+            iconname: "car",
+            action: async () => {
+              if (!mapInstance) {
+                console.error("Map instance not available for routing");
+                return;
+              }
+
+              // Get endpoint coordinates from feature geometry
+              const geometry = selectedVectorFeature.geometry;
+              let endLat: number, endLng: number;
+
+              if (geometry.type === "Point") {
+                [endLng, endLat] = geometry.coordinates as [number, number];
+              } else if (
+                geometry.type === "Polygon" ||
+                geometry.type === "MultiPolygon"
+              ) {
+                // Use centroid for polygons (simplified: use first coordinate)
+                const coords =
+                  geometry.type === "Polygon"
+                    ? geometry.coordinates[0][0]
+                    : geometry.coordinates[0][0][0];
+                [endLng, endLat] = coords as [number, number];
+              } else {
+                console.error("Unsupported geometry type for routing");
+                return;
+              }
+
+              const startLat = 51.2725699;
+              const startLng = 7.199918;
+
+              try {
+                const result = await planRoute({
+                  from: { lat: startLat, lng: startLng },
+                  to: { lat: endLat, lng: endLng },
+                  time: new Date(),
+                });
+
+                // Get the first route (prefer CAR, fallback to WALK)
+                const routes = result.data?.direct || [];
+                const route = routes[0];
+
+                if (!route?.legs?.[0]?.legGeometry?.points) {
+                  console.error("No route geometry found");
+                  return;
+                }
+
+                // Decode polyline (precision 6)
+                const encoded = route.legs[0].legGeometry.points;
+                const precision = route.legs[0].legGeometry.precision || 6;
+                const factor = Math.pow(10, precision);
+                const coordinates: [number, number][] = [];
+                let index = 0;
+                let lat = 0;
+                let lng = 0;
+
+                while (index < encoded.length) {
+                  let shift = 0;
+                  let res = 0;
+                  let byte: number;
+
+                  do {
+                    byte = encoded.charCodeAt(index++) - 63;
+                    res |= (byte & 0x1f) << shift;
+                    shift += 5;
+                  } while (byte >= 0x20);
+                  lat += res & 1 ? ~(res >> 1) : res >> 1;
+
+                  shift = 0;
+                  res = 0;
+                  do {
+                    byte = encoded.charCodeAt(index++) - 63;
+                    res |= (byte & 0x1f) << shift;
+                    shift += 5;
+                  } while (byte >= 0x20);
+                  lng += res & 1 ? ~(res >> 1) : res >> 1;
+
+                  coordinates.push([lng / factor, lat / factor]);
+                }
+
+                const sourceId = "routing-action-source";
+                const lineLayerId = "routing-action-line";
+
+                // Clean up existing layers/sources
+                if (mapInstance.getLayer(lineLayerId))
+                  mapInstance.removeLayer(lineLayerId);
+                if (mapInstance.getSource(sourceId))
+                  mapInstance.removeSource(sourceId);
+
+                // Add source with route and markers
+                mapInstance.addSource(sourceId, {
+                  type: "geojson",
+                  data: {
+                    type: "FeatureCollection",
+                    features: [
+                      {
+                        type: "Feature",
+                        properties: {},
+                        geometry: { type: "LineString", coordinates },
+                      },
+                    ],
+                  },
+                });
+
+                // Add route line
+                mapInstance.addLayer({
+                  id: lineLayerId,
+                  type: "line",
+                  source: sourceId,
+                  filter: ["==", "$type", "LineString"],
+                  paint: {
+                    "line-color": "#3b82f6",
+                    "line-width": 5,
+                    "line-opacity": 0.8,
+                  },
+                  layout: {
+                    "line-cap": "round",
+                    "line-join": "round",
+                  },
+                });
+
+                // Fit map to route bounds
+                const bounds = coordinates.reduce(
+                  (b, coord) => b.extend(coord as [number, number]),
+                  new maplibregl.LngLatBounds(coordinates[0], coordinates[0])
+                );
+                mapInstance.fitBounds(bounds, { padding: 50 });
+
+                console.log("Route displayed on map");
+              } catch (error) {
+                console.error("Routing error:", error);
+              }
+            },
+          },
+          ...genericLinks,
+        ],
         zoom: featureInfoZoom,
       },
       geometry: selectedVectorFeature.geometry,
