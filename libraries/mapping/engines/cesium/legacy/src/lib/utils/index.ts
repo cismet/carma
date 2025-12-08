@@ -16,16 +16,13 @@ export {
   cesiumAnimateFov,
   type CesiumAnimateFovOptions,
 } from "./cesiumAnimateFov";
-export {
-  getOrbitPoint,
-  getHeadingPitchForMouseEvent,
-} from "./cesiumAnimateOrbits";
+export { getHeadingPitchForMouseEvent } from "./cesiumAnimateOrbits";
 export { animateInterpolateHeadingPitchRange } from "./cesiumAnimations";
 export {
-  type ViewerAnimationMap,
-  cancelViewerAnimation,
-  initViewerAnimationMap,
-} from "./viewerAnimationMap";
+  type SceneAnimationMap,
+  cancelSceneAnimation,
+  initSceneAnimationMap,
+} from "./sceneAnimationMap";
 
 export {
   distanceFromZoomLevel,
@@ -34,7 +31,7 @@ export {
 } from "./positions";
 
 // Pickers and pixels
-export { pickScenePositions } from "./pick-position/pick-scene-positions";
+export * from "./pick-position";
 
 // Elevation
 export {

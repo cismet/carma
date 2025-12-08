@@ -4,7 +4,8 @@ import knn from "rbush-knn";
 import {
   sceneHasTweens,
   useCesiumContext,
-  getOrbitPoint,
+  pickSceneCenter,
+  isValidScene,
 } from "@carma-mapping/engines/cesium";
 
 import { useOrbitPoint } from "./useOrbitPoint";
@@ -47,8 +48,7 @@ export function useObliqueNearestImage(
   debug = false,
   options: UseObliqueNearestImageOptions = defaultOptions
 ) {
-  const ctx = useCesiumContext();
-  const { viewerRef, isValidViewer } = ctx;
+  const { getScene } = useCesiumContext();
   const lastSearchTimeRef = useRef<number>(0);
   const {
     converter,
@@ -80,15 +80,12 @@ export function useObliqueNearestImage(
         return;
       }
 
-      const viewer = viewerRef.current;
-      if (
-        !isValidViewer() ||
-        !imageRecords ||
-        !imageRecords.size ||
-        !converter
-      ) {
+      if (!imageRecords || !imageRecords.size || !converter) {
         return;
       }
+
+      const scene = getScene();
+      if (!isValidScene(scene)) return;
 
       const now = Date.now();
       // Determine override source: explicit args first, then context ref
@@ -122,7 +119,7 @@ export function useObliqueNearestImage(
       debug && console.debug(" refreshSearch");
 
       try {
-        const camera = viewer.camera;
+        const camera = scene.camera;
         const cartographic = camera.positionCartographic;
         if (!cartographic) return;
 
@@ -136,7 +133,7 @@ export function useObliqueNearestImage(
           getCardinalDirectionFromHeading(effectiveHeading);
 
         // Fallback to computing orbit point directly if shared orbit point isn't initialized yet
-        const orbit = orbitPoint ?? getOrbitPoint(ctx);
+        const orbit = orbitPoint ?? pickSceneCenter(scene);
         const orbitPointCoords = orbit
           ? calculateImageCoordsFromCartesian(orbit, converter)
           : null;
@@ -155,11 +152,8 @@ export function useObliqueNearestImage(
         };
         const k = options.k || defaultOptions.k;
         const frameId =
-          (
-            viewer as unknown as {
-              scene?: { frameState?: { frameNumber?: number } };
-            }
-          )?.scene?.frameState?.frameNumber ?? null;
+          (scene as unknown as { frameState?: { frameNumber?: number } })
+            .frameState?.frameNumber ?? null;
         const key = `${Math.round(orbitPointTargetCrs.x)}:${Math.round(
           orbitPointTargetCrs.y
         )}:${cameraCardinal}:${k}:${
@@ -266,7 +260,7 @@ export function useObliqueNearestImage(
       }
     },
     [
-      viewerRef,
+      getScene,
       imageRecords,
       converter,
       headingOffset,
@@ -291,16 +285,18 @@ export function useObliqueNearestImage(
   const timerIdRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     if (!options.continuous) return;
-    const viewer = viewerRef.current;
+
     if (
       !isObliqueMode ||
       suspendSelectionSearch ||
-      !isValidViewer() ||
       !imageRecords ||
       !imageRecords.size
     ) {
       return;
     }
+
+    const scene = getScene();
+    if (!isValidScene(scene)) return;
 
     // Initial update
     refreshSearch({ immediate: true });
@@ -309,16 +305,16 @@ export function useObliqueNearestImage(
       if (suspendSelectionSearch) return;
       if (timerIdRef.current) clearTimeout(timerIdRef.current);
       timerIdRef.current = setTimeout(() => {
-        if (!sceneHasTweens(viewer) && !suspendSelectionSearch) {
+        if (!sceneHasTweens(scene) && !suspendSelectionSearch) {
           refreshSearch();
         }
       }, options.debounceTime || defaultOptions.debounceTime);
     };
 
-    viewer.camera.changed.addEventListener(handleCameraMove);
+    scene.camera.changed.addEventListener(handleCameraMove);
     return () => {
-      if (viewer && !viewer.isDestroyed()) {
-        viewer.camera.changed.removeEventListener(handleCameraMove);
+      if (!scene.isDestroyed()) {
+        scene.camera.changed.removeEventListener(handleCameraMove);
       }
       if (timerIdRef.current) {
         clearTimeout(timerIdRef.current);
@@ -327,7 +323,7 @@ export function useObliqueNearestImage(
     };
   }, [
     options.continuous,
-    viewerRef,
+    getScene,
     imageRecords,
     refreshSearch,
     options.debounceTime,

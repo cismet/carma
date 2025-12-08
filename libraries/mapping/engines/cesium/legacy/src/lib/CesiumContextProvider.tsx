@@ -24,9 +24,9 @@ import { usePreloadProviders } from "./hooks/usePreloadProviders";
 import { guardScene } from "./utils/guardScene";
 
 import {
-  initViewerAnimationMap,
-  ViewerAnimationMap,
-} from "./utils/viewerAnimationMap";
+  initSceneAnimationMap,
+  SceneAnimationMap,
+} from "./utils/sceneAnimationMap";
 
 export const CesiumContextProvider = ({
   children,
@@ -39,8 +39,8 @@ export const CesiumContextProvider = ({
 }) => {
   // Use refs for Cesium instances to prevent re-renders
   const viewerRef = useRef<Viewer | null>(null);
-  const viewerAnimationMapRef = useRef<ViewerAnimationMap | null>(
-    initViewerAnimationMap()
+  const sceneAnimationMapRef = useRef<SceneAnimationMap | null>(
+    initSceneAnimationMap()
   );
   const ellipsoidTerrainProviderRef = useRef(new EllipsoidTerrainProvider());
   const terrainProviderRef = useRef<CesiumTerrainProvider | null>(null);
@@ -213,7 +213,7 @@ export const CesiumContextProvider = ({
       getTerrainProvider,
       getSurfaceProvider,
       getImageryLayer,
-      viewerAnimationMapRef,
+      sceneAnimationMapRef,
       shouldSuspendPitchLimiterRef,
       shouldSuspendCameraLimitersRef,
       setIsViewerReady,

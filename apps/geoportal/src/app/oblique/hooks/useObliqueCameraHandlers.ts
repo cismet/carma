@@ -140,7 +140,7 @@ export const useObliqueCameraHandlers = (
           );
 
           setCurrentHeading(normalizedTarget);
-          resetCamera(ctx);
+          resetCamera(scene);
           animationInProgressRef.current = false;
           userMovedCameraRef.current = true;
 
@@ -153,7 +153,7 @@ export const useObliqueCameraHandlers = (
       };
       scene.preUpdate.addEventListener(onPreUpdate);
       return () => {
-        resetCamera(ctx);
+        resetCamera(scene);
         animationInProgressRef.current = false;
         userMovedCameraRef.current = true;
         scene.preUpdate.removeEventListener(onPreUpdate);
@@ -250,7 +250,7 @@ export const useObliqueCameraHandlers = (
               );
 
               setCurrentHeading(targetHeading);
-              resetCamera(ctx);
+              resetCamera(scene);
               animationInProgressRef.current = false;
               userMovedCameraRef.current = true;
 
@@ -262,12 +262,10 @@ export const useObliqueCameraHandlers = (
 
         scene.preUpdate.addEventListener(onPreUpdate);
         return () => {
-          resetCamera(ctx);
+          resetCamera(scene);
           animationInProgressRef.current = false;
           userMovedCameraRef.current = true;
-          ctx.withScene((scene) => {
-            scene.preUpdate.removeEventListener(onPreUpdate);
-          });
+          scene.preUpdate.removeEventListener(onPreUpdate);
         };
       });
     },

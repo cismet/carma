@@ -28,7 +28,10 @@ import type {
 } from "../types";
 
 import { useObliqueData } from "../hooks/useObliqueData";
-import { useCesiumContext, getOrbitPoint } from "@carma-mapping/engines/cesium";
+import {
+  useCesiumContext,
+  pickSceneCenter,
+} from "@carma-mapping/engines/cesium";
 import { useOrbitPoint } from "../hooks/useOrbitPoint";
 
 import { FootprintProperties } from "../utils/footprintUtils";
@@ -257,7 +260,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
           const cameraCardinal =
             getCardinalDirectionFromHeading(effectiveHeading);
 
-          const orbit = orbitPoint ?? getOrbitPoint(ctx);
+          const orbit = orbitPoint ?? pickSceneCenter(viewer.scene);
           const orbitPointCoords = orbit
             ? calculateImageCoordsFromCartesian(orbit, converter)
             : null;

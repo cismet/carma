@@ -259,24 +259,26 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       ? animations.flyToRotatedImage ?? animations.flyToExteriorOrientation
       : animations.flyToNextImage ?? animations.flyToExteriorOrientation;
     rotatedFlyPendingRef.current = false;
-    flyToExteriorOrientation(
-      ctx,
-      derivedExteriorOrientationRef.current,
-      () => {
-        animationInProgressRef.current = false;
-        if (!isPreviewVisible) {
-          setLockFootprint(false);
-        }
-        setShouldRemoveCurrentPreviewImage(false);
-        setFlyCompletionTick((t) => t + 1);
-        // Re-enable selection search after arriving only if preview is not visible
-        if (!isPreviewVisible) {
-          setSuspendSelectionSearch(false);
-        }
-        requestRender();
-      },
-      flyOptions
-    );
+    ctx.withScene((scene) => {
+      flyToExteriorOrientation(
+        scene,
+        derivedExteriorOrientationRef.current,
+        () => {
+          animationInProgressRef.current = false;
+          if (!isPreviewVisible) {
+            setLockFootprint(false);
+          }
+          setShouldRemoveCurrentPreviewImage(false);
+          setFlyCompletionTick((t) => t + 1);
+          // Re-enable selection search after arriving only if preview is not visible
+          if (!isPreviewVisible) {
+            setSuspendSelectionSearch(false);
+          }
+          requestRender();
+        },
+        flyOptions
+      );
+    });
   }, [
     animations,
     setLockFootprint,
@@ -548,16 +550,18 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     setLockFootprint(true);
     animationInProgressRef.current = true;
 
-    flyToExteriorOrientation(
-      ctx,
-      derivedExteriorOrientationRef.current,
-      () => {
-        animationInProgressRef.current = false;
-        setIsPreviewVisible(true);
-        notifyPreviewVisibilityChange(true);
-      },
-      animations.flyToExteriorOrientation
-    );
+    ctx.withScene((scene) => {
+      flyToExteriorOrientation(
+        scene,
+        derivedExteriorOrientationRef.current,
+        () => {
+          animationInProgressRef.current = false;
+          setIsPreviewVisible(true);
+          notifyPreviewVisibilityChange(true);
+        },
+        animations.flyToExteriorOrientation
+      );
+    });
   }, [
     animations,
     selectedImage,

@@ -81,3 +81,26 @@ export const pickScenePositions = (
 
   return results;
 };
+
+const CENTER_PICK_POSITION: [number, number] = [0.5, 0.5];
+
+/**
+ * Get the precise center position of the scene (where the camera is looking at).
+ * Tries to pick from the depth buffer first (supporting 3D tiles, terrain).
+ *
+ * @param scene The Cesium scene.
+ * @returns The center position or undefined if not picking anything (e.g. sky).
+ */
+export const pickSceneCenter = (scene: Scene): Cartesian3 | undefined => {
+  if (!scene.globe) {
+    return undefined;
+  }
+
+  // Try to pick precise surface position first (works with 3D tiles, etc.)
+  const pickResults = pickScenePositions(
+    scene,
+    [CENTER_PICK_POSITION],
+    "pickSceneCenter"
+  );
+  return pickResults?.[0]?.scenePosition ?? undefined;
+};

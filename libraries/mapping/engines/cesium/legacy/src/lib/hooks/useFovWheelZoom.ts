@@ -5,7 +5,7 @@ import { PerspectiveFrustum, type Viewer } from "cesium";
 import type { Radians, Ratio } from "@carma/units/types";
 import { normalizeOptions, isClose } from "@carma-commons/utils";
 
-import type { CesiumContextType } from "../CesiumContext";
+import { useCesiumContext } from "../hooks/useCesiumContext";
 import { blockWheelEvent } from "../utils/blockWheelEvent";
 
 import {
@@ -37,10 +37,10 @@ const defaultFovWheelZoomOptions: Required<FovWheelZoomOptions> = {
 };
 
 export function useFovWheelZoom(
-  ctx: CesiumContextType,
   enabled = true,
   options: FovWheelZoomOptions = {}
 ) {
+  const ctx = useCesiumContext();
   const {
     minFov,
     maxFov,
