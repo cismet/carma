@@ -53,7 +53,9 @@
         "layerType": "vector",
         "style": "https://tiles.cismet.de/toiletten/style.json",
         "opacity": 1,
-        "infoBoxMappingFunction":"@createInfoBoxInfo.js"
+        "infoBoxMappingFunction": "@createInfoBoxInfo.js",
+        "styleManipulation": "@toilettenStyleModification.js",
+        "settingsSymbol": "@Icon_Toilette_Unisex_Damen_und_Herren.svg"
       }
     ]
   }
