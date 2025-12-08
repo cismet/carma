@@ -42,50 +42,50 @@ test.describe("Geoportal oblique", () => {
         });
       }
     );
-    await context.route(
-      "https://cesium-wupp-terrain.cismet.de/dom_2024_1m/layer.json",
-      (route) => {
-        route.fulfill({
-          status: 200,
-          contentType: "application/octet-stream",
-          body: Buffer.alloc(0), // Empty terrain data
-        });
-      }
-    );
+    // await context.route(
+    //   "https://cesium-wupp-terrain.cismet.de/dom_2024_1m/layer.json",
+    //   (route) => {
+    //     route.fulfill({
+    //       status: 200,
+    //       contentType: "application/octet-stream",
+    //       body: Buffer.alloc(0), // Empty terrain data
+    //     });
+    //   }
+    // );
 
     // Mock 3D mesh tileset JSON files
-    await context.route(
-      "https://wupp-3d-data.cismet.de/mesh2024/**/tileset.json",
-      (route) => {
-        route.fulfill({
-          status: 200,
-          contentType: "application/json",
-          body: JSON.stringify({
-            asset: { version: "1.0" },
-            geometricError: 500,
-            root: {
-              boundingVolume: {
-                box: [0, 0, 0, 100, 0, 0, 0, 100, 0, 0, 0, 100],
-              },
-              geometricError: 0,
-              children: [],
-            },
-          }),
-        });
-      }
-    );
+    // await context.route(
+    //   "https://wupp-3d-data.cismet.de/mesh2024/**/tileset.json",
+    //   (route) => {
+    //     route.fulfill({
+    //       status: 200,
+    //       contentType: "application/json",
+    //       body: JSON.stringify({
+    //         asset: { version: "1.0" },
+    //         geometricError: 500,
+    //         root: {
+    //           boundingVolume: {
+    //             box: [0, 0, 0, 100, 0, 0, 0, 100, 0, 0, 0, 100],
+    //           },
+    //           geometricError: 0,
+    //           children: [],
+    //         },
+    //       }),
+    //     });
+    //   }
+    // );
 
     // Mock 3D mesh B3DM files (binary 3D model data)
-    await context.route(
-      "https://wupp-3d-data.cismet.de/mesh2024/**/*.b3dm",
-      (route) => {
-        route.fulfill({
-          status: 200,
-          contentType: "application/octet-stream",
-          body: Buffer.alloc(0), // Empty binary mesh data
-        });
-      }
-    );
+    // await context.route(
+    //   "https://wupp-3d-data.cismet.de/mesh2024/**/*.b3dm",
+    //   (route) => {
+    //     route.fulfill({
+    //       status: 200,
+    //       contentType: "application/octet-stream",
+    //       body: Buffer.alloc(0), // Empty binary mesh data
+    //     });
+    //   }
+    // );
 
     // Mock additional config endpoints with empty arrays
     await context.route(
@@ -150,8 +150,15 @@ test.describe("Geoportal oblique", () => {
         })
     );
 
-    // await mockGeoportalServices(context);
-    // await mockObliqueServices(context);
+    // Mock Matomo analytics
+    await context.route("**/matomo.php*", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "image/gif",
+        body: Buffer.alloc(0),
+      })
+    );
+
     // Mock Cesium IAU2006_XYS orientation data files
     context.route("**/__cesium__/Assets/IAU2006_XYS/*.json", (route) =>
       route.fulfill({
@@ -208,27 +215,33 @@ test.describe("Geoportal oblique", () => {
     const arrowRight = page.getByRole("button", { name: "→" });
     await expect(arrowRight).toBeVisible();
 
-    // Helper to verify URL changes after button click
-    const expectUrlChangeAfterClick = async (
+    // Helper to verify rotation triggers mesh requests
+    const expectMeshRequestAfterClick = async (
       button: ReturnType<typeof page.locator>,
       buttonName: string
     ) => {
-      const urlBefore = page.url();
+      const meshRequestPromise = page.waitForRequest(
+        (req) => req.url().includes("wupp-3d-data.cismet.de/mesh2024"),
+        { timeout: 10000 }
+      );
       await button.click();
-      await expect
-        .poll(() => page.url(), {
-          message: `URL should change after clicking ${buttonName}`,
-          timeout: 10000,
-        })
-        .not.toBe(urlBefore);
+      const request = await meshRequestPromise;
+      expect(request.url()).toContain("wupp-3d-data.cismet.de/mesh2024");
     };
 
-    // Test each control button changes the URL
-    await expectUrlChangeAfterClick(rotateRight, "rotateRight");
-    await expectUrlChangeAfterClick(rotateLeft, "rotateLeft");
-    // await expectUrlChangeAfterClick(arrowUp, "arrowUp");
-    // await expectUrlChangeAfterClick(arrowDown, "arrowDown");
-    // await expectUrlChangeAfterClick(arrowLeft, "arrowLeft");
-    // await expectUrlChangeAfterClick(arrowRight, "arrowRight");
+    // Test rotation buttons trigger mesh requests
+    await expectMeshRequestAfterClick(rotateRight, "rotateRight");
+    await expectMeshRequestAfterClick(rotateLeft, "rotateLeft");
+
+    // Arrow buttons are verified as clickable (they don't always trigger new mesh requests)
+    // await arrowUp.click();
+    // await arrowDown.click();
+    // await arrowLeft.click();
+    // await arrowRight.click();
+
+    await expectMeshRequestAfterClick(arrowUp, "arrowUp");
+    await expectMeshRequestAfterClick(arrowDown, "arrowDown");
+    await expectMeshRequestAfterClick(arrowLeft, "arrowLeft");
+    await expectMeshRequestAfterClick(arrowRight, "arrowRight");
   });
 });
