@@ -49,6 +49,8 @@ vite.config.ts
 
 # data, submodules, workers
 
+*.geojson
+
 manifest.json
 
 /libraries/collaboration/carma-pecher-collab

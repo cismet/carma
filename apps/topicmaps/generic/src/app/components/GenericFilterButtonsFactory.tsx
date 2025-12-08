@@ -95,7 +95,11 @@ export const createFilterButtons = (config: FilterConfig) => {
 
         // If no filters selected, hide all features using a filter that can never match
         if (conditions.length === 0) {
-          return ["==", ["get", config.filters[0]?.propertyName || "wohnlage"], "___HIDE_ALL___"];
+          return [
+            "==",
+            ["get", config.filters[0]?.propertyName || "wohnlage"],
+            "___HIDE_ALL___",
+          ];
         }
 
         // Always use explicit filter expression (don't optimize to null)
