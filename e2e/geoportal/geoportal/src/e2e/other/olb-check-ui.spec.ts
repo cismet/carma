@@ -210,42 +210,27 @@ test.describe("Geoportal oblique", () => {
     const arrowRight = page.getByRole("button", { name: "→" });
     await expect(arrowRight).toBeVisible();
 
-    // const url1 = page.url();
-    await rotateRight.click();
-    // await expect(async () => {
-    //   const url2 = page.url();
-    //   expect(url2).not.toBe(url1);
-    // }).toPass({ timeout: 10000 });
+    // Helper to verify URL changes after button click
+    const expectUrlChangeAfterClick = async (
+      button: ReturnType<typeof page.locator>,
+      buttonName: string
+    ) => {
+      const urlBefore = page.url();
+      await button.click();
+      await expect
+        .poll(() => page.url(), {
+          message: `URL should change after clicking ${buttonName}`,
+          timeout: 10000,
+        })
+        .not.toBe(urlBefore);
+    };
 
-    // Action buttons
-    // const flightToImg = page.getByText("Flug zum Bild");
-    // await expect(flightToImg).toBeVisible();
-    // const openImage = page.getByRole("button", { name: "Bild öffnen" });
-    // await expect(openImage).toBeVisible();
-    // const downloadImage = page.getByRole("button", { name: "Herunterladen" });
-    // await expect(downloadImage).toBeVisible();
-    // const feedback = page.getByRole("button", { name: "Rückmeldung" });
-    // await expect(feedback).toBeVisible();
-
-    // Wait for URL to change (indicates rotation completed)
-    // await page.waitForURL((url) => url.toString() !== url1, {
-    //   timeout: 10000,
-    // });
-    // const url2 = page.url();
-    // expect(url2).not.toBe(url1);
-
-    // const urlTwo = page.url();
-    // await rotateLeft.click();
-    // await expect(async () => {
-    //   const url3 = page.url();
-    //   expect(url3).not.toBe(urlTwo);
-    // }).toPass({ timeout: 10000 });
-
-    // const urlThree = page.url();
-    // await arrowUp.click();
-    // await expect(async () => {
-    //   const url4 = page.url();
-    //   expect(url4).not.toBe(urlThree);
-    // }).toPass({ timeout: 10000 });
+    // Test each control button changes the URL
+    await expectUrlChangeAfterClick(rotateRight, "rotateRight");
+    await expectUrlChangeAfterClick(rotateLeft, "rotateLeft");
+    await expectUrlChangeAfterClick(arrowUp, "arrowUp");
+    await expectUrlChangeAfterClick(arrowDown, "arrowDown");
+    await expectUrlChangeAfterClick(arrowLeft, "arrowLeft");
+    await expectUrlChangeAfterClick(arrowRight, "arrowRight");
   });
 });
