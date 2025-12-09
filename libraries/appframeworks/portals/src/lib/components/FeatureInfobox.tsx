@@ -15,7 +15,11 @@ import {
   InfoBox,
   utils,
   getActionLinksForFeature,
+  fetchRouteOptions,
+  displaySelectedRouteOnMap,
+  type RouteOption,
 } from "@carma-appframeworks/portals";
+import { RouteOptionsDrawer } from "./libremap/RouteOptionsDrawer";
 
 interface InfoboxProps {
   selectedFeature: any;
@@ -39,8 +43,41 @@ export const FeatureInfobox = ({
   const infoBoxControlObject =
     selectedFeature?.properties?.info || selectedFeature?.properties;
   const [openModal, setOpenModal] = useState(false);
+  const [routeModalOpen, setRouteModalOpen] = useState(false);
+  const [routeOptions, setRouteOptions] = useState<RouteOption[]>([]);
+  const [routeLoading, setRouteLoading] = useState(false);
+
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const lightBoxDispatchContext = useContext(LightBoxDispatchContext);
+
+  const handleRouteAction = async (routeParams: {
+    from: { lat: number; lng: number };
+    to: { lat: number; lng: number };
+  }) => {
+    setRouteModalOpen(true);
+    setRouteLoading(true);
+    setRouteOptions([]);
+
+    try {
+      const options = await fetchRouteOptions(routeParams);
+      setRouteOptions(options);
+    } catch (error) {
+      console.error("Error fetching route options:", error);
+    } finally {
+      setRouteLoading(false);
+    }
+  };
+
+  const handleSelectRoute = (route: RouteOption) => {
+    if (libreMap) {
+      displaySelectedRouteOnMap({
+        mapInstance: libreMap,
+        route,
+      });
+    }
+    setRouteModalOpen(false);
+  };
+
   if (!selectedFeature) {
     return null;
   }
@@ -60,6 +97,7 @@ export const FeatureInfobox = ({
           libreMap,
         });
       },
+      onRouteAction: handleRouteAction,
     });
   }
 
@@ -140,6 +178,16 @@ export const FeatureInfobox = ({
           Footer={genericSecondaryInfoFooterFactory()}
         />
       )}
+      <RouteOptionsDrawer
+        open={routeModalOpen}
+        onClose={() => setRouteModalOpen(false)}
+        onSelectRoute={handleSelectRoute}
+        routes={routeOptions}
+        loading={routeLoading}
+        destinationName={
+          infoBoxControlObject?.header || infoBoxControlObject?.title
+        }
+      />
     </>
   );
 };

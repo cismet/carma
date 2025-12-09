@@ -25,6 +25,142 @@ export interface DisplayRouteOptions {
   padding?: number;
 }
 
+export interface RouteOption {
+  index: number;
+  duration: number;
+  distance: number;
+  mode: string;
+  legs: any[];
+  polyline: string;
+  precision: number;
+}
+
+export interface FetchRouteOptionsParams {
+  from: { lat: number; lng: number };
+  to: { lat: number; lng: number };
+  time?: Date;
+}
+
+/**
+ * Fetches available route options between two points without displaying them.
+ * Returns an array of route options that can be presented to the user.
+ */
+export async function fetchRouteOptions(
+  params: FetchRouteOptionsParams
+): Promise<RouteOption[]> {
+  const { from, to, time = new Date() } = params;
+
+  try {
+    const result = await planRoute({ from, to, time });
+    const routes = result.data?.direct || [];
+
+    return routes
+      .map((route: any, index: number) => {
+        if (!route?.legs?.[0]?.legGeometry?.points) {
+          return null;
+        }
+
+        const leg = route.legs[0];
+        return {
+          index,
+          duration: route.duration || leg.duration || 0,
+          distance: route.distance || leg.distance || 0,
+          mode: route.mode || leg.mode || "CAR",
+          legs: route.legs,
+          polyline: leg.legGeometry.points,
+          precision: leg.legGeometry.precision || 6,
+        };
+      })
+      .filter((r: RouteOption | null): r is RouteOption => r !== null);
+  } catch (error) {
+    console.error("Error fetching route options:", error);
+    return [];
+  }
+}
+
+export interface DisplaySelectedRouteOptions {
+  mapInstance: maplibregl.Map;
+  route: RouteOption;
+  sourceId?: string;
+  lineLayerId?: string;
+  lineColor?: string;
+  lineWidth?: number;
+  lineOpacity?: number;
+  fitBounds?: boolean;
+  padding?: number;
+}
+
+/**
+ * Displays a selected route on the map.
+ */
+export function displaySelectedRouteOnMap(
+  options: DisplaySelectedRouteOptions
+): [number, number][] | null {
+  const {
+    mapInstance,
+    route,
+    sourceId = "routing-action-source",
+    lineLayerId = "routing-action-line",
+    lineColor = "#3b82f6",
+    lineWidth = 5,
+    lineOpacity = 0.8,
+    fitBounds = true,
+    padding = 50,
+  } = options;
+
+  try {
+    const coordinates = decodePolyline(route.polyline, route.precision);
+
+    // Clean up existing layers/sources
+    if (mapInstance.getLayer(lineLayerId)) mapInstance.removeLayer(lineLayerId);
+    if (mapInstance.getSource(sourceId)) mapInstance.removeSource(sourceId);
+
+    mapInstance.addSource(sourceId, {
+      type: "geojson",
+      data: {
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            properties: {},
+            geometry: { type: "LineString", coordinates },
+          },
+        ],
+      },
+    });
+
+    mapInstance.addLayer({
+      id: lineLayerId,
+      type: "line",
+      source: sourceId,
+      filter: ["==", "$type", "LineString"],
+      paint: {
+        "line-color": lineColor,
+        "line-width": lineWidth,
+        "line-opacity": lineOpacity,
+      },
+      layout: {
+        "line-cap": "round",
+        "line-join": "round",
+      },
+    });
+
+    if (fitBounds) {
+      const bounds = coordinates.reduce(
+        (b, coord) => b.extend(coord as [number, number]),
+        new maplibregl.LngLatBounds(coordinates[0], coordinates[0])
+      );
+      mapInstance.fitBounds(bounds, { padding });
+    }
+
+    console.log("Selected route displayed on map");
+    return coordinates;
+  } catch (error) {
+    console.error("Error displaying route:", error);
+    return null;
+  }
+}
+
 /**
  * Decodes an encoded polyline string into an array of coordinates.
  */
@@ -463,12 +599,9 @@ export const createFeature = (
         genericLinks: [
           {
             iconname: "car",
-            action: async () => {
-              if (!mapInstance) {
-                console.error("Map instance not available for routing");
-                return;
-              }
-
+            tooltip: "Route berechnen",
+            routeAction: true,
+            getRouteParams: () => {
               // Get endpoint coordinates from feature geometry
               const geometry = selectedVectorFeature.geometry;
               let endLat: number, endLng: number;
@@ -486,18 +619,16 @@ export const createFeature = (
                     : geometry.coordinates[0][0][0];
                 [endLng, endLat] = coords as [number, number];
               } else {
-                console.error("Unsupported geometry type for routing");
-                return;
+                return null;
               }
 
               const startLat = 51.2725699;
               const startLng = 7.199918;
 
-              await displayRouteOnMap({
-                mapInstance,
+              return {
                 from: { lat: startLat, lng: startLng },
                 to: { lat: endLat, lng: endLng },
-              });
+              };
             },
           },
           ...genericLinks,

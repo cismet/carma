@@ -6,6 +6,10 @@ interface ActionLinksConfig {
   zoomToFeature?: (feature: any) => void;
   displaySecondaryInfoAction?: boolean;
   setVisibleStateOfSecondaryInfo?: (visible: boolean) => void;
+  onRouteAction?: (routeParams: {
+    from: { lat: number; lng: number };
+    to: { lat: number; lng: number };
+  }) => void;
 }
 
 export const getActionLinksForFeature = (
@@ -24,6 +28,7 @@ export const getActionLinksForFeature = (
         "no action cause setVisibleStateOfSecondaryInfo was not set in config object"
       );
     },
+    onRouteAction,
   }: ActionLinksConfig = {}
 ): JSX.Element[] => {
   const infoxboxControlObject = feature.properties.info;
@@ -113,6 +118,25 @@ export const getActionLinksForFeature = (
             tooltip={genericLink.tooltip}
             onClick={genericLink.action}
             iconname={genericLink.iconname || "globe"}
+            icon={genericLink.icon || undefined}
+          />
+        );
+      } else if (
+        genericLink.routeAction &&
+        genericLink.getRouteParams &&
+        onRouteAction
+      ) {
+        links.push(
+          <IconLink
+            key={`IconLink.route-${genericLink.iconname}`}
+            tooltip={genericLink.tooltip || "Route berechnen"}
+            onClick={() => {
+              const routeParams = genericLink.getRouteParams();
+              if (routeParams) {
+                onRouteAction(routeParams);
+              }
+            }}
+            iconname={genericLink.iconname || "car"}
             icon={genericLink.icon || undefined}
           />
         );
