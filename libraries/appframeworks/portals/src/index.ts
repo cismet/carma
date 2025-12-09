@@ -91,3 +91,13 @@ export {
   type MotisPlace,
   type MotisRouteParams,
 } from "./lib/services/motisService";
+
+export {
+  fetchRouteOptions,
+  displaySelectedRouteOnMap,
+  type RouteOption,
+  type FetchRouteOptionsParams,
+  type DisplaySelectedRouteOptions,
+} from "./lib/components/libremap/libremap.utils";
+
+export { RouteOptionsDrawer } from "./lib/components/libremap/RouteOptionsDrawer";

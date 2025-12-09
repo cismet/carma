@@ -112,6 +112,7 @@
     "tslib": "^2.8.1",
     "ua-parser-js": "^1.0.40",
     "uuid": "^10.0.0",
+    "vaul": "^1.1.2",
     "wellknown": "^0.5.0",
     "whatwg-fetch": "^3.6.20",
     "wms-capabilities": "^0.6.0"
