@@ -9,7 +9,7 @@ import { TopicMapStylingContext } from "react-cismap/contexts/TopicMapStylingCon
 import "./map.css";
 import {
   createFeature,
-  createPieChart,
+  displayRouteOnMap,
   getVectorMapping,
   styleManipulation,
   vectorStylesToMapLibreStyle,
@@ -18,7 +18,7 @@ import {
 } from "./libremap.utils";
 import { LibreLayer, VectorStyle } from "../CarmaMap";
 import { LibreMapSelectionContent } from "../LibreMapSelectionContent";
-import { SelectionItem } from "../SelectionProvider";
+import { SelectionItem, useSelection } from "../SelectionProvider";
 import { ENDPOINT, isAreaType } from "@carma-commons/resources";
 import proj4 from "proj4";
 import { proj4crs3857def, proj4crs4326def } from "@carma-mapping/utils";
@@ -72,7 +72,14 @@ export const LibreMap = ({
     setMap: setContextMap,
   } = useLibreContext();
 
-  // Use cluster markers hook when clustering is enabled
+  const { selection } = useSelection();
+  const selectionRef = useRef(selection);
+
+  // Keep selectionRef in sync with selection
+  useEffect(() => {
+    selectionRef.current = selection;
+  }, [selection]);
+
   useClusterMarkers({
     map: map.current,
     geoJsonMetadata: clusteringEnabled ? geoJsonMetadata : [],
@@ -325,7 +332,7 @@ export const LibreMap = ({
             mappingRef.current[layerId] ||
             mappingRef.current[selectedVectorFeature.source];
 
-          let feature;
+          let feature = null;
           if (layerMapping) {
             feature = createFeature(
               selectedVectorFeature,
@@ -351,6 +358,35 @@ export const LibreMap = ({
               });
             }
             setSelectedFeature(feature);
+          } else {
+          }
+        } else {
+          if (selectionRef.current) {
+            const pos = proj4(proj4crs3857def, proj4crs4326def, [
+              selectionRef.current.x,
+              selectionRef.current.y,
+            ]);
+            setSelectedFeature({
+              properties: {
+                header: "Informationen",
+                title: selectionRef.current.string,
+                genericLinks: [
+                  {
+                    iconname: "car",
+                    action: async () => {
+                      if (!mapInstance) return;
+                      const startLat = 51.2725699;
+                      const startLng = 7.199918;
+                      await displayRouteOnMap({
+                        mapInstance,
+                        from: { lat: startLat, lng: startLng },
+                        to: { lat: pos[1], lng: pos[0] },
+                      });
+                    },
+                  },
+                ],
+              },
+            });
           }
         }
       });
