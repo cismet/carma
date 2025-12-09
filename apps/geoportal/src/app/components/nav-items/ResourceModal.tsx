@@ -62,6 +62,8 @@ const ResourceModal = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [messageApi, contextHolder] = message.useMessage();
 
+  const MAX_NUM_OF_LAYERS = 12;
+
   const { routedMapRef: routedMap } =
     useContext<typeof TopicMapContext>(TopicMapContext);
 
@@ -157,6 +159,13 @@ const ResourceModal = () => {
         });
       }
     } else {
+      if (activeLayers.length >= MAX_NUM_OF_LAYERS) {
+        messageApi.open({
+          type: "error",
+          content: `Zu viele Layer hinzugefügt. Layer entfernen um fortzufahren.`,
+        });
+        return;
+      }
       try {
         dispatch(appendLayer(newLayer));
         if (!previewLayer) {
