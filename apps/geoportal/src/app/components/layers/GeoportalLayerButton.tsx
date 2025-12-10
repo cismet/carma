@@ -1,6 +1,6 @@
 /* eslint-disable jsx-a11y/no-static-element-interactions */
 /* eslint-disable jsx-a11y/click-events-have-key-events */
-import { useContext, useEffect, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useRef, useState } from "react";
 import { useInView } from "react-intersection-observer";
 import { useDispatch, useSelector } from "react-redux";
 
@@ -94,6 +94,14 @@ const GeoportalLayerButton = ({
       id,
     });
   const buttonRef = useRef<HTMLDivElement>(null);
+
+  const mergedRef = useCallback(
+    (el: HTMLDivElement | null) => {
+      buttonRef.current = el;
+      ref(el);
+    },
+    [ref]
+  );
   const hashParams = getHashParams();
   const zoom =
     routedMapRef?.leafletMap?.leafletElement.getZoom() || hashParams.zoom;
@@ -125,10 +133,7 @@ const GeoportalLayerButton = ({
 
   return (
     <div
-      ref={(el) => {
-        buttonRef.current = el;
-        ref(el);
-      }}
+      ref={mergedRef}
       className={cn(
         "",
         // index === -1 && 'ml-auto',
