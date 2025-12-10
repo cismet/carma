@@ -75,7 +75,7 @@ export const FeatureInfobox = ({
         route,
       });
     }
-    setRouteModalOpen(false);
+    // setRouteModalOpen(false);
   };
 
   if (!selectedFeature) {

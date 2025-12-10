@@ -87,17 +87,10 @@ export const RouteOptionsDrawer = ({
       <DrawerContent>
         <div style={{ width: "100%", maxWidth: "100%", padding: "0 16px" }}>
           <DrawerHeader className="relative">
-            <DrawerClose className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-white transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-offset-2">
-              <FontAwesomeIcon icon={faXmark} className="h-4 w-4" />
-              <span className="sr-only">Schließen</span>
-            </DrawerClose>
             <DrawerTitle className="flex items-center gap-2">
               <FontAwesomeIcon icon={faRoute} className="text-blue-500" />
               Routenoptionen
             </DrawerTitle>
-            {destinationName && (
-              <DrawerDescription>nach {destinationName}</DrawerDescription>
-            )}
           </DrawerHeader>
 
           <div className="p-4 pb-8">
@@ -130,11 +123,6 @@ export const RouteOptionsDrawer = ({
                           {getModeLabel(route.mode)}
                         </span>
                       </div>
-                      {route.index === 0 && (
-                        <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">
-                          Empfohlen
-                        </span>
-                      )}
                     </div>
                     <div className="mt-2 flex gap-6 text-sm text-gray-600">
                       <div className="flex items-center gap-2">
