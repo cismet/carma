@@ -462,32 +462,32 @@ export const topicMapsConfig: Config = {
       ],
       serviceName: "wuppTopicMaps",
     },
-    {
-      id: "wuppTopicMaps_emobi",
-      path: "TopicMaps Wuppertal",
-      name: "wuppTopicMaps_emobi",
-      title: "E-Auto-Ladestationskarte",
-      description: `Beschreibung: Die E-Auto-Ladestationskarte Wuppertal ist eine im Auftrag der Stadt Wuppertal von der Firma cismet GmbH, Saarbrücken, betriebene interaktive Internet-Kartenanwendung, die dem Nutzer einen Überblick über die öffentlich zugänglichen Ladestationen für Elektro-Automobile im Wuppertaler Stadtgebiet verschafft.`,
-      tags: [
-        "TopicMaps",
-        "Verkehr",
-        "Umwelt",
-        "E-Auto-Ladestationen",
-        "Elektro-Auto",
-        "Elektromobilität",
-        "E-Mobilität",
-        "EmoTal",
-      ],
-      type: "link",
-      thumbnail:
-        "https://www.wuppertal.de/geoportal/emobil/autos/fotos/fertighauswelt.jpg",
+    // {
+    //   id: "wuppTopicMaps_emobi",
+    //   path: "TopicMaps Wuppertal",
+    //   name: "wuppTopicMaps_emobi",
+    //   title: "E-Auto-Ladestationskarte",
+    //   description: `Beschreibung: Die E-Auto-Ladestationskarte Wuppertal ist eine im Auftrag der Stadt Wuppertal von der Firma cismet GmbH, Saarbrücken, betriebene interaktive Internet-Kartenanwendung, die dem Nutzer einen Überblick über die öffentlich zugänglichen Ladestationen für Elektro-Automobile im Wuppertaler Stadtgebiet verschafft.`,
+    //   tags: [
+    //     "TopicMaps",
+    //     "Verkehr",
+    //     "Umwelt",
+    //     "E-Auto-Ladestationen",
+    //     "Elektro-Auto",
+    //     "Elektromobilität",
+    //     "E-Mobilität",
+    //     "EmoTal",
+    //   ],
+    //   type: "link",
+    //   thumbnail:
+    //     "https://www.wuppertal.de/geoportal/emobil/autos/fotos/fertighauswelt.jpg",
 
-      url: "https://digital-twin-wuppertal-live.github.io/elektromobilitaet/",
-      keywords: [
-        "carmaConf://opendata:https://offenedaten-wuppertal.de/dataset/ladestationen-e-autos-wuppertal/resource/46973470-98c9-4ba1-9b69-94358b9b22cb",
-      ],
-      serviceName: "wuppTopicMaps",
-    },
+    //   url: "https://digital-twin-wuppertal-live.github.io/elektromobilitaet/",
+    //   keywords: [
+    //     "carmaConf://opendata:https://offenedaten-wuppertal.de/dataset/ladestationen-e-autos-wuppertal/resource/46973470-98c9-4ba1-9b69-94358b9b22cb",
+    //   ],
+    //   serviceName: "wuppTopicMaps",
+    // },
     {
       id: "wuppTopicMaps_ebike",
       path: "TopicMaps Wuppertal",
