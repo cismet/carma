@@ -10,7 +10,7 @@ export { isNumberArrayEqual } from "./lib/arrays";
 
 export { extractCarmaConfig } from "./lib/carmaConfig";
 
-export { logOnce } from "./lib/console";
+export { logOnce, warnOnce } from "./lib/console";
 
 export { updateUrl } from "./lib/changeImageEndpoints";
 

@@ -1,4 +1,5 @@
-import { EasingFunction, Math as CesiumMath } from "cesium";
+import { CesiumMath } from "@carma/cesium";
+import { Easing } from "@carma-commons/math";
 
 const DEFAULT_ANIMATION_DURATION = 500; // milliseconds
 
@@ -21,7 +22,7 @@ export function createAnimationState<T>(
     startTime: null,
     duration: DEFAULT_ANIMATION_DURATION,
     delay: 0,
-    easingFunction: EasingFunction.LINEAR_NONE,
+    easingFunction: Easing.LINEAR_NONE,
     ...params,
   };
 }

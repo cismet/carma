@@ -1,17 +1,19 @@
-import { MutableRefObject, useEffect, useRef } from "react";
+import { MutableRefObject, useEffect, useRef, useMemo } from "react";
 
 import {
   Color,
   ColorMaterialProperty,
   ConstantProperty,
-  Entity,
-  CallbackProperty,
-  EasingFunction,
-  PolylineGraphics,
   type Cartesian3,
-} from "cesium";
+} from "@carma/cesium";
+import { Entity, CallbackProperty, PolylineGraphics } from "cesium";
+import { Easing } from "@carma-commons/math";
 
-import { useMemoMergedDefaultOptions } from "@carma-commons/utils";
+import {
+  COLORS,
+  UnitRgba,
+  useMemoMergedDefaultOptions,
+} from "@carma-commons/utils";
 import {
   useCesiumContext,
   polygonHierarchyFromPolygonCoords,
@@ -36,7 +38,7 @@ const OBLIQUE_DATASOURCE_PREFIX = "oblq-footprint";
 const FOOTPRINT_OUTLINE_ID = "oblq-footprint-outline";
 
 const defaultFootprintsStyle: ObliqueFootprintsStyle = {
-  outlineColor: Color.WHITE,
+  outlineColor: COLORS.WHITE,
   outlineWidth: 5,
   outlineOpacity: 1,
 };
@@ -77,13 +79,25 @@ export const useFootprints = (debug = false): void => {
     footprintsStyle,
   } = useOblique();
 
-  const { outlineColor, outlineOpacity, outlineWidth } =
-    useMemoMergedDefaultOptions(footprintsStyle, defaultFootprintsStyle);
+  const {
+    outlineColor: outlineColorRaw,
+    outlineOpacity,
+    outlineWidth,
+  } = useMemoMergedDefaultOptions(footprintsStyle, defaultFootprintsStyle);
+
+  // Convert UnitRgba to Cesium Color
+  const outlineColor = useMemo(
+    () =>
+      outlineColorRaw instanceof Color
+        ? outlineColorRaw
+        : new Color(...(outlineColorRaw as UnitRgba)),
+    [outlineColorRaw]
+  );
 
   const animationDuration = animations?.outlineFadeOut?.duration ?? 1000;
   const animationDelay = animations?.outlineFadeOut?.delay ?? 0;
   const animationEasing =
-    animations?.outlineFadeOut?.easingFunction || EasingFunction.LINEAR_NONE;
+    animations?.outlineFadeOut?.easingFunction || Easing.LINEAR_NONE;
 
   const lastImageIdRef = useRef<string | null>(null);
   const outlineEntityRef = useRef<Entity | null>(null);

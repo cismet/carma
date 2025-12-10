@@ -8,7 +8,6 @@ import {
   isValidScene,
 } from "@carma-mapping/engines/cesium";
 
-import { useOrbitPoint } from "./useOrbitPoint";
 import { useOblique } from "./useOblique";
 
 import {
@@ -67,8 +66,6 @@ export function useObliqueNearestImage(
   const lastFrameIdRef = useRef<number | null>(null);
   const lastKeyRef = useRef<string | null>(null);
   const lastResultsRef = useRef<NearestObliqueImageRecord[] | null>(null);
-
-  const orbitPoint = useOrbitPoint(isObliqueMode);
 
   // On-demand nearest-image search. Optionally override search heading
   const refreshSearch = useCallback(
@@ -133,7 +130,7 @@ export function useObliqueNearestImage(
           getCardinalDirectionFromHeading(effectiveHeading);
 
         // Fallback to computing orbit point directly if shared orbit point isn't initialized yet
-        const orbit = orbitPoint ?? pickSceneCenter(scene);
+        const orbit = pickSceneCenter(scene);
         const orbitPointCoords = orbit
           ? calculateImageCoordsFromCartesian(orbit, converter)
           : null;
@@ -266,7 +263,6 @@ export function useObliqueNearestImage(
       headingOffset,
       options.k,
       options.debounceTime,
-      orbitPoint,
       footprintCenterpointsRBushByCardinals,
       setSelectedImageDistance,
       setSelectedImage,

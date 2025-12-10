@@ -1,4 +1,5 @@
-import { Color, EasingFunction } from "cesium";
+import { Easing } from "@carma-commons/math";
+import { COLORS } from "@carma-commons/utils";
 import {
   OBLIQUE_2024_ORIENTATIONS_CRS,
   OBLIQUE_2024_PREVIEW_PATH,
@@ -25,25 +26,25 @@ export const OBLIQUE_CONFIG: ObliqueDataProviderConfig = {
   animations: {
     flyToExteriorOrientation: {
       duration: 800,
-      easingFunction: EasingFunction.QUADRATIC_IN,
+      easingFunction: Easing.QUADRATIC_IN,
     },
     flyToNextImage: {
       delay: 0,
       duration: 100,
-      easingFunction: EasingFunction.LINEAR_NONE,
+      easingFunction: Easing.LINEAR_NONE,
     },
     flyToRotatedImage: {
       duration: 1800,
-      easingFunction: EasingFunction.CUBIC_IN_OUT,
+      easingFunction: Easing.CUBIC_IN_OUT,
     },
     outlineFadeOut: {
       delay: 500,
       duration: 300,
-      easingFunction: EasingFunction.QUADRATIC_IN_OUT,
+      easingFunction: Easing.QUADRATIC_IN_OUT,
     },
   },
   footprintsStyle: {
-    outlineColor: Color.WHITE,
+    outlineColor: COLORS.WHITE,
     outlineWidth: 8,
     outlineOpacity: 0.85,
   },
