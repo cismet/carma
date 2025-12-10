@@ -72,8 +72,7 @@ interface ObliqueContextType {
 
   selectedImage: NearestObliqueImageRecord | null;
   setSelectedImage: (image: NearestObliqueImageRecord | null) => void;
-  selectedImageDistance: number | null;
-  setSelectedImageDistance: (distance: number | null) => void;
+  selectedImageDistanceRef: React.MutableRefObject<number | null>;
 
   selectedImageRefresh:
     | ((
@@ -153,9 +152,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
   const [suspendSelectionSearch, setSuspendSelectionSearch] = useState(false);
   const [selectedImage, setSelectedImage] =
     useState<NearestObliqueImageRecord | null>(null);
-  const [selectedImageDistance, setSelectedImageDistance] = useState<
-    number | null
-  >(null);
+  const selectedImageDistanceRef = useRef<number | null>(null);
   const [selectedImageRefresh, setSelectedImageRefresh] = useState<
     | ((
         args?: SelectedImageRefreshArgs
@@ -366,10 +363,10 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
                 if (selectedImage?.record?.id !== next.record.id) {
                   setSelectedImage(next);
                 }
-                setSelectedImageDistance(next.distanceOnGround);
+                selectedImageDistanceRef.current = next.distanceOnGround;
               } else {
                 if (selectedImage !== null) setSelectedImage(null);
-                setSelectedImageDistance(null);
+                selectedImageDistanceRef.current = null;
               }
             }
           }
@@ -386,7 +383,6 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
       converter,
       headingOffset,
       footprintCenterpointsRBushByCardinals,
-      setSelectedImageDistance,
       setSelectedImage,
       isObliqueMode,
       suspendSelectionSearch,
@@ -605,17 +601,12 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
   useEffect(() => {
     if (initialCameraSettled === false) {
       if (selectedImage !== null) setSelectedImage(null);
-      setSelectedImageDistance(null);
+      selectedImageDistanceRef.current = null;
       lastFrameIdRef.current = null;
       lastKeyRef.current = null;
       lastResultsRef.current = null;
     }
-  }, [
-    initialCameraSettled,
-    selectedImage,
-    setSelectedImage,
-    setSelectedImageDistance,
-  ]);
+  }, [initialCameraSettled, selectedImage, setSelectedImage]);
 
   const value = useMemo(
     () => ({
@@ -624,8 +615,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
       isLoading,
       isAllDataReady,
       error,
-      selectedImageDistance,
-      setSelectedImageDistance,
+      selectedImageDistanceRef,
       selectedImageRefresh,
       setSelectedImageRefresh,
       toggleObliqueMode,
@@ -659,8 +649,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
       isLoading,
       isAllDataReady,
       error,
-      selectedImageDistance,
-      setSelectedImageDistance,
+      selectedImageDistanceRef,
       selectedImageRefresh,
       setSelectedImageRefresh,
       toggleObliqueMode,

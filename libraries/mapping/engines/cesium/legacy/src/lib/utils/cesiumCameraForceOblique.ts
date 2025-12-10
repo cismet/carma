@@ -81,11 +81,16 @@ export const cesiumCameraForceOblique = (
     // Move along the camera's view direction (zoom ray) using trigonometry
     const cameraDir = scene.camera.direction;
     const cameraPos = scene.camera.position;
-    const pitchCos = Math.cos(scene.camera.pitch);
-    if (Math.abs(pitchCos) > 1e-3) {
+    const pitchSin = Math.sin(scene.camera.pitch);
+    if (Math.abs(pitchSin) > 1e-3) {
       try {
-        let zoomTravelDistance = (currentHeight - nextHeight) / pitchCos;
-        if (isNaN(zoomTravelDistance) || !Number.isFinite(zoomTravelDistance)) {
+        let zoomTravelDistance = (currentHeight - nextHeight) / pitchSin;
+
+        if (
+          isNaN(zoomTravelDistance) ||
+          !Number.isFinite(zoomTravelDistance) ||
+          isNaN(nextHeight)
+        ) {
           console.warn(
             "Invalid travel distance calculated, resetting to 0",
             zoomTravelDistance,
@@ -93,8 +98,19 @@ export const cesiumCameraForceOblique = (
             nextHeight,
             pitchCos
           );
+          if (isNaN(nextHeight)) {
+            // If nextHeight is NaN, something upstream is wrong (likely targetHeight/fixedHeight)
+            // We can't do anything meaningful.
+            cameraObliqueCorrectionStateMap.delete(scene);
+            return;
+          }
+          // Fallback for other calculation errors
           zoomTravelDistance = 0;
+        } else {
+          // Negate because sin(-pitch) is negative, but we want positive movement along the forward vector to go down
+          zoomTravelDistance = -zoomTravelDistance;
         }
+
         // Clamp travel distance to avoid huge jumps
         zoomTravelDistance = CesiumMath.clamp(zoomTravelDistance, -100, 100);
         const newPos = Cartesian3.add(
