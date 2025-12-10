@@ -53,8 +53,8 @@ export function useObliqueNearestImage(
     converter,
     headingOffset,
     imageRecords,
-    setSelectedImageDistance,
     setSelectedImage,
+    selectedImageDistanceRef,
     selectedImage,
     footprintCenterpointsRBushByCardinals,
     isObliqueMode,
@@ -244,10 +244,11 @@ export function useObliqueNearestImage(
             if (selectedImage?.record?.id !== next.record.id) {
               setSelectedImage(next);
             }
-            setSelectedImageDistance(next.distanceOnGround);
+            selectedImageDistanceRef.current = next.distanceOnGround;
           } else {
             if (selectedImage !== null) setSelectedImage(null);
-            setSelectedImageDistance(null);
+            selectedImageDistanceRef.current = null;
+            null;
           }
         }
 
@@ -264,7 +265,6 @@ export function useObliqueNearestImage(
       options.k,
       options.debounceTime,
       footprintCenterpointsRBushByCardinals,
-      setSelectedImageDistance,
       setSelectedImage,
       isObliqueMode,
       suspendSelectionSearch,

@@ -96,7 +96,7 @@ export const cesiumCameraForceOblique = (
             zoomTravelDistance,
             currentHeight,
             nextHeight,
-            pitchCos
+            pitchSin
           );
           if (isNaN(nextHeight)) {
             // If nextHeight is NaN, something upstream is wrong (likely targetHeight/fixedHeight)
