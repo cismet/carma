@@ -9,15 +9,17 @@ import {
 import {
   Cartesian3,
   Cartesian2,
-  EasingFunction,
   ScreenSpaceEventType,
   ScreenSpaceEventHandler,
-  Math as CesiumMath,
   HeadingPitchRange,
-  Camera,
-} from "cesium";
+  CesiumMath,
+} from "@carma/cesium";
+import { Easing } from "@carma-commons/math";
 
-import { isValidViewer, useCesiumContext } from "@carma-mapping/engines/cesium";
+import {
+  useCesiumContext,
+  pickSceneCenter,
+} from "@carma-mapping/engines/cesium";
 
 import {
   CardinalDirectionEnum,
@@ -25,7 +27,6 @@ import {
   getCardinalHeadings,
 } from "../utils/orientationUtils";
 import { useOblique } from "./useOblique";
-import { useOrbitPoint } from "./useOrbitPoint";
 import { useDebugOrbitPoint } from "./useDebugOrbitPoint";
 import { resetCamera } from "../utils/cameraUtils";
 
@@ -33,25 +34,32 @@ export const useObliqueCameraHandlers = (
   animationInProgressRef: MutableRefObject<boolean>,
   isDebugMode: boolean
 ) => {
-  const ctx = useCesiumContext();
-  const { viewerRef, requestRender, isValidViewer } = ctx;
+  const { requestRender, getScene } = useCesiumContext();
   const { headingOffset, isObliqueMode } = useOblique();
-  const orbitPoint = useOrbitPoint(isObliqueMode);
+  const userMovedCameraRef = useRef<boolean>(false);
+
   const updateOrbitPointEntity = useDebugOrbitPoint(
     isObliqueMode,
-    orbitPoint,
+    null, // orbitPoint passed as null, debug hook might need adjustment or we ignore debug point for now if not critical
     isDebugMode
   );
 
   // Returns a stable orbit center. If no orbitPoint is available yet (e.g., before selecting an image),
   // use the pick on the globe at the screen center; as a last resort, use the current camera position.
   const getOrbitCenter = useCallback((): Cartesian3 => {
+    // Pick fresh scene center
+    let orbitPoint: Cartesian3 | undefined;
+    const scene = getScene();
+    if (scene) {
+      orbitPoint = pickSceneCenter(scene);
+    }
+
     if (orbitPoint) return orbitPoint;
+
     let result: Cartesian3 | null = null;
-    ctx.withViewer((viewer) => {
-      const scene = viewer.scene;
-      const camera = viewer.camera;
-      const canvas = viewer.canvas;
+    if (scene) {
+      const camera = scene.camera;
+      const canvas = scene.canvas;
       if (scene.globe && camera.getPickRay) {
         try {
           const ray = camera.getPickRay(
@@ -60,24 +68,25 @@ export const useObliqueCameraHandlers = (
           const picked = scene.globe.pick(ray, scene);
           if (picked) {
             result = picked;
-            return;
           }
         } catch (_) {
           // ignore and fallback to camera position below
         }
       }
-      result = camera.position;
-    });
+      if (!result) {
+        result = camera.position;
+      }
+    }
     return result ?? Cartesian3.ZERO;
-  }, [orbitPoint, ctx]);
+  }, [getScene]);
 
   const rotateToHeading = useCallback(
     (targetHeading: number) => {
-      const viewer = viewerRef.current;
-      if (!isValidViewer() || animationInProgressRef.current) return;
+      const scene = getScene();
+      if (!scene || scene.isDestroyed() || animationInProgressRef.current)
+        return;
 
-      const camera = viewer.camera;
-      const scene = viewer.scene;
+      const camera = scene.camera;
       const currentHeading = camera.heading;
 
       // Normalize headings to [0, 2PI)
@@ -88,7 +97,7 @@ export const useObliqueCameraHandlers = (
         return;
       }
 
-      if (!orbitPoint && isDebugMode) {
+      if (isDebugMode) {
         updateOrbitPointEntity();
       }
 
@@ -121,7 +130,7 @@ export const useObliqueCameraHandlers = (
       const onPreUpdate = () => {
         const currentTime = Date.now();
         let t = Math.min((currentTime - startTime) / duration, 1);
-        t = EasingFunction.SINUSOIDAL_IN_OUT(t);
+        t = Easing.SINUSOIDAL_IN_OUT(t);
 
         if (t < 1) {
           const intermediateHeading = normalizedCurrent + headingChange * t;
@@ -131,7 +140,6 @@ export const useObliqueCameraHandlers = (
             new HeadingPitchRange(intermediateHeading, camera.pitch, range)
           );
 
-          setCurrentHeading(intermediateHeading);
           requestRender();
         } else {
           camera.lookAt(
@@ -139,7 +147,6 @@ export const useObliqueCameraHandlers = (
             new HeadingPitchRange(normalizedTarget, camera.pitch, range)
           );
 
-          setCurrentHeading(normalizedTarget);
           resetCamera(scene);
           animationInProgressRef.current = false;
           userMovedCameraRef.current = true;
@@ -160,157 +167,147 @@ export const useObliqueCameraHandlers = (
       };
     },
     [
-      ctx,
-      viewerRef,
+      getScene,
       headingOffset,
       updateOrbitPointEntity,
-      orbitPoint,
       isDebugMode,
       animationInProgressRef,
       getOrbitCenter,
       requestRender,
-      isValidViewer,
     ]
   );
-  const userMovedCameraRef = useRef<boolean>(false);
-
-  const [currentHeading, setCurrentHeading] = useState<number>(0);
-  const [activeDirection, setActiveDirection] =
-    useState<CardinalDirectionEnum | null>(null);
 
   const rotateToDirection = useCallback(
     (targetDirection: CardinalDirectionEnum) => {
       if (animationInProgressRef.current) return;
 
-      ctx.withViewer((viewer) => {
-        const camera = viewer.camera;
-        const scene = viewer.scene;
-        const currentHeading = camera.heading;
+      const scene = getScene();
+      if (!scene || scene.isDestroyed()) return;
 
-        const cardinalHeadings = getCardinalHeadings(headingOffset);
+      const camera = scene.camera;
+      const currentHeading = camera.heading;
 
-        if (
-          Math.abs(currentHeading - cardinalHeadings[targetDirection]) < 0.0001
-        ) {
-          return;
-        }
+      const cardinalHeadings = getCardinalHeadings(headingOffset);
 
-        const targetHeading = cardinalHeadings[targetDirection];
+      if (
+        Math.abs(currentHeading - cardinalHeadings[targetDirection]) < 0.0001
+      ) {
+        return;
+      }
 
-        if (!orbitPoint && isDebugMode) {
-          updateOrbitPointEntity();
-        }
+      const targetHeading = cardinalHeadings[targetDirection];
 
-        // Calculate the range (distance from center)
-        const centerPoint = getOrbitCenter();
-        const range = Cartesian3.distance(centerPoint, camera.position);
+      if (isDebugMode) {
+        updateOrbitPointEntity();
+      }
 
-        // Start the animation
-        animationInProgressRef.current = true;
-        userMovedCameraRef.current = false; // Reset this flag since we're starting a programmatic move
+      // Calculate the range (distance from center)
+      const centerPoint = getOrbitCenter();
+      const range = Cartesian3.distance(centerPoint, camera.position);
 
-        let startTime = Date.now();
-        const duration = 500; // ms
+      // Start the animation
+      animationInProgressRef.current = true;
+      userMovedCameraRef.current = false; // Reset this flag since we're starting a programmatic move
 
-        let headingChange = targetHeading - currentHeading;
+      let startTime = Date.now();
+      const duration = 500; // ms
 
-        // Ensure we take the shortest path
-        if (headingChange > Math.PI) {
-          headingChange -= CesiumMath.TWO_PI;
-        } else if (headingChange < -Math.PI) {
-          headingChange += CesiumMath.TWO_PI;
-        }
+      let headingChange = targetHeading - currentHeading;
 
-        // Skip animation if the change is very small
-        if (Math.abs(headingChange) < 0.0001) {
-          animationInProgressRef.current = false;
-          return;
-        }
+      // Ensure we take the shortest path
+      if (headingChange > Math.PI) {
+        headingChange -= CesiumMath.TWO_PI;
+      } else if (headingChange < -Math.PI) {
+        headingChange += CesiumMath.TWO_PI;
+      }
 
-        const onPreUpdate = () => {
-          ctx.withCamera((c: Camera) => {
-            const currentTime = Date.now();
-            let t = Math.min((currentTime - startTime) / duration, 1);
-            t = EasingFunction.SINUSOIDAL_IN_OUT(t);
+      // Skip animation if the change is very small
+      if (Math.abs(headingChange) < 0.0001) {
+        animationInProgressRef.current = false;
+        return;
+      }
 
-            if (t < 1) {
-              const intermediateHeading = currentHeading + headingChange * t;
+      const onPreUpdate = () => {
+        const currentTime = Date.now();
+        let t = Math.min((currentTime - startTime) / duration, 1);
+        t = Easing.SINUSOIDAL_IN_OUT(t);
 
-              camera.lookAt(
-                centerPoint,
-                new HeadingPitchRange(intermediateHeading, camera.pitch, range)
-              );
+        if (t < 1) {
+          const intermediateHeading = currentHeading + headingChange * t;
 
-              setCurrentHeading(intermediateHeading);
-              requestRender();
-            } else {
-              c.lookAt(
-                centerPoint,
-                new HeadingPitchRange(targetHeading, c.pitch, range)
-              );
+          camera.lookAt(
+            centerPoint,
+            new HeadingPitchRange(intermediateHeading, camera.pitch, range)
+          );
 
-              setCurrentHeading(targetHeading);
-              resetCamera(scene);
-              animationInProgressRef.current = false;
-              userMovedCameraRef.current = true;
+          requestRender();
+        } else {
+          camera.lookAt(
+            centerPoint,
+            new HeadingPitchRange(targetHeading, camera.pitch, range)
+          );
 
-              scene.preUpdate.removeEventListener(onPreUpdate);
-              setActiveDirection(targetDirection);
-            }
-          });
-        };
-
-        scene.preUpdate.addEventListener(onPreUpdate);
-        return () => {
           resetCamera(scene);
           animationInProgressRef.current = false;
           userMovedCameraRef.current = true;
+
           scene.preUpdate.removeEventListener(onPreUpdate);
-        };
-      });
+          setActiveDirection(targetDirection);
+        }
+      };
+
+      scene.preUpdate.addEventListener(onPreUpdate);
+      return () => {
+        resetCamera(scene);
+        animationInProgressRef.current = false;
+        userMovedCameraRef.current = true;
+        scene.preUpdate.removeEventListener(onPreUpdate);
+      };
     },
     [
       headingOffset,
       updateOrbitPointEntity,
-      orbitPoint,
       isDebugMode,
       animationInProgressRef,
       getOrbitCenter,
       requestRender,
-      ctx,
+      getScene,
     ]
   );
 
   const rotateCamera = useCallback(
     (clockwise: boolean) => {
-      ctx.withCamera((camera) => {
-        const cardinalHeadings = getCardinalHeadings(headingOffset);
+      const scene = getScene();
+      if (!scene || scene.isDestroyed()) return;
 
-        const closestCardinalIndex = findClosestCardinalIndex(
-          camera.heading,
-          cardinalHeadings
-        );
+      const camera = scene.camera;
+      const cardinalHeadings = getCardinalHeadings(headingOffset);
 
-        const nextCardinalIndex = clockwise
-          ? (closestCardinalIndex + 3) % 4 // Next clockwise cardinal
-          : (closestCardinalIndex + 1) % 4; // Next counterclockwise cardinal (4-1)
+      const closestCardinalIndex = findClosestCardinalIndex(
+        camera.heading,
+        cardinalHeadings
+      );
 
-        rotateToDirection(nextCardinalIndex);
-      });
+      const nextCardinalIndex = clockwise
+        ? (closestCardinalIndex + 3) % 4 // Next clockwise cardinal
+        : (closestCardinalIndex + 1) % 4; // Next counterclockwise cardinal (4-1)
+
+      rotateToDirection(nextCardinalIndex);
     },
-    [ctx, headingOffset, rotateToDirection]
+    [getScene, headingOffset, rotateToDirection]
   );
 
+  const [activeDirection, setActiveDirection] =
+    useState<CardinalDirectionEnum | null>(null);
+
   useEffect(() => {
-    const viewer = viewerRef.current;
-    if (!isValidViewer() || !isObliqueMode) return;
+    const scene = getScene();
+    if (!scene || scene.isDestroyed() || !isObliqueMode) return;
 
-    const camera = viewer.camera;
-
-    setCurrentHeading(camera.heading);
+    const camera = scene.camera;
 
     // Set up event handlers to detect when the user moves the camera manually
-    const inputHandler = new ScreenSpaceEventHandler(viewer.canvas);
+    const inputHandler = new ScreenSpaceEventHandler(scene.canvas);
 
     // Track when the user starts manipulating the camera
     inputHandler.setInputAction(() => {
@@ -332,8 +329,6 @@ export const useObliqueCameraHandlers = (
     }, ScreenSpaceEventType.RIGHT_DOWN);
 
     const updateCameraInfo = () => {
-      setCurrentHeading(camera.heading);
-
       if (animationInProgressRef.current) {
         return; // Don't process further if we're in the middle of an animation
       }
@@ -351,7 +346,7 @@ export const useObliqueCameraHandlers = (
       setActiveDirection(closestCardinalIndex);
     };
 
-    if (!orbitPoint && isDebugMode) {
+    if (isDebugMode) {
       updateOrbitPointEntity();
     }
 
@@ -362,28 +357,26 @@ export const useObliqueCameraHandlers = (
     );
     setActiveDirection(closestCardinalIndex);
 
-    viewer.camera.changed.addEventListener(updateCameraInfo);
-    viewer.camera.moveEnd.addEventListener(updateCameraInfo);
+    scene.camera.changed.addEventListener(updateCameraInfo);
+    scene.camera.moveEnd.addEventListener(updateCameraInfo);
 
     return () => {
-      if (viewer && !viewer.isDestroyed()) {
-        viewer.camera.changed.removeEventListener(updateCameraInfo);
-        viewer.camera.moveEnd.removeEventListener(updateCameraInfo);
+      if (scene && !scene.isDestroyed()) {
+        scene.camera.changed.removeEventListener(updateCameraInfo);
+        scene.camera.moveEnd.removeEventListener(updateCameraInfo);
         inputHandler.destroy();
       }
     };
   }, [
-    viewerRef,
+    getScene,
     isObliqueMode,
     headingOffset,
     updateOrbitPointEntity,
     isDebugMode,
-    orbitPoint,
     animationInProgressRef,
-    isValidViewer,
   ]);
+
   return {
-    currentHeading,
     activeDirection,
     rotateCamera,
     rotateToDirection,

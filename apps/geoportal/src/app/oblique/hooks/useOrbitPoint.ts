@@ -23,7 +23,8 @@ function initOrbitPointListener(scene: Scene) {
     if (!orbitPointSubscribers.some((subscriber) => subscriber.enabled)) return;
 
     const point = pickSceneCenter(scene);
-    if (sharedOrbitPoint && point && point.equals(sharedOrbitPoint)) return;
+    if (sharedOrbitPoint && point && point.equalsEpsilon(sharedOrbitPoint, 0.1))
+      return;
     sharedOrbitPoint = point;
     orbitPointSubscribers.forEach((subscriber) => {
       if (subscriber.enabled) {

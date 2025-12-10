@@ -1,4 +1,4 @@
-import { useCallback, type MutableRefObject } from "react";
+import { useCallback, useMemo, type MutableRefObject } from "react";
 
 import { Viewer } from "cesium";
 
@@ -190,24 +190,46 @@ export const useValidInstances = (
     [surfaceProviderRef]
   );
 
-  return {
-    withViewer,
-    isValidViewer,
-    withScene,
-    withCamera,
-    withCanvas,
-    withEntities,
-    withImageryLayerRef,
-    withTerrainProviderRef,
-    withEllipsoidTerrainProviderRef,
-    withTilesetRef,
-    withImageryLayer,
-    withPrimaryTileset,
-    withSecondaryTileset,
-    withEllipsoidTerrainProvider,
-    withTerrainProvider,
-    withSurfaceProvider,
-    getTerrainProvider,
-    getSurfaceProvider,
-  };
+  return useMemo(
+    () => ({
+      withViewer,
+      isValidViewer,
+      withScene,
+      withCamera,
+      withCanvas,
+      withEntities,
+      withImageryLayerRef,
+      withTerrainProviderRef,
+      withEllipsoidTerrainProviderRef,
+      withTilesetRef,
+      withImageryLayer,
+      withPrimaryTileset,
+      withSecondaryTileset,
+      withEllipsoidTerrainProvider,
+      withTerrainProvider,
+      withSurfaceProvider,
+      getTerrainProvider,
+      getSurfaceProvider,
+    }),
+    [
+      withViewer,
+      isValidViewer,
+      withScene,
+      withCamera,
+      withCanvas,
+      withEntities,
+      withImageryLayerRef,
+      withTerrainProviderRef,
+      withEllipsoidTerrainProviderRef,
+      withTilesetRef,
+      withImageryLayer,
+      withPrimaryTileset,
+      withSecondaryTileset,
+      withEllipsoidTerrainProvider,
+      withTerrainProvider,
+      withSurfaceProvider,
+      getTerrainProvider,
+      getSurfaceProvider,
+    ]
+  );
 };

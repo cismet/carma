@@ -24,6 +24,7 @@ export function useObliqueInitializer(debug = false) {
     minFov,
     maxFov,
     headingOffset,
+    setSuspendSelectionSearch,
   } = useOblique();
   const originalFovRef = useRef<number | null>(null);
   const isFirstRunRef = useRef(true);
@@ -94,12 +95,14 @@ export function useObliqueInitializer(debug = false) {
           requestRender({ delay: 50, repeat: 2 });
         } else {
           const duration = isFirstRunRef.current ? 0 : undefined;
+          setSuspendSelectionSearch(true);
           enterObliqueMode(
             scene,
             originalFovRef,
             fixedPitch,
             fixedHeight,
             () => {
+              setSuspendSelectionSearch(false);
               enableCameraForceOblique();
               requestRender({ delay: 50, repeat: 2 });
             },
@@ -134,6 +137,7 @@ export function useObliqueInitializer(debug = false) {
     setWheelZoomEnabled,
     enableCameraForceOblique,
     disableCameraForceOblique,
+    setSuspendSelectionSearch,
   ]);
 
   return {

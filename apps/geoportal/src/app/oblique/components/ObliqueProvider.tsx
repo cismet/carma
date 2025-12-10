@@ -32,7 +32,6 @@ import {
   useCesiumContext,
   pickSceneCenter,
 } from "@carma-mapping/engines/cesium";
-import { useOrbitPoint } from "../hooks/useOrbitPoint";
 
 import { FootprintProperties } from "../utils/footprintUtils";
 import { RBushBySectorBlocks } from "../utils/spatialIndexing";
@@ -57,7 +56,6 @@ type SelectedImageRefreshArgs = {
   direction?: CardinalDirectionEnum;
   headingRad?: number;
   immediate?: boolean;
-  force?: boolean;
   computeOnly?: boolean;
 };
 
@@ -73,8 +71,7 @@ interface ObliqueContextType {
 
   selectedImage: NearestObliqueImageRecord | null;
   setSelectedImage: (image: NearestObliqueImageRecord | null) => void;
-  selectedImageDistance: number | null;
-  setSelectedImageDistance: (distance: number | null) => void;
+  selectedImageDistanceRef: React.MutableRefObject<number | null>;
 
   selectedImageRefresh:
     | ((
@@ -137,7 +134,13 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
   config,
   fallbackDirectionConfig,
 }) => {
-  const ctx = useCesiumContext();
+  const {
+    isViewerReady,
+    initialCameraSettled,
+    requestRender,
+    withCamera,
+    withViewer,
+  } = useCesiumContext();
   const { updateHash, getHashValues } = useHashState();
   // Read initial oblique mode from hash only once on mount
   const [isObliqueMode, setIsObliqueMode] = useState<boolean>(() => {
@@ -148,9 +151,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
   const [suspendSelectionSearch, setSuspendSelectionSearch] = useState(false);
   const [selectedImage, setSelectedImage] =
     useState<NearestObliqueImageRecord | null>(null);
-  const [selectedImageDistance, setSelectedImageDistance] = useState<
-    number | null
-  >(null);
+  const selectedImageDistanceRef = useRef<number | null>(null);
   const [selectedImageRefresh, setSelectedImageRefresh] = useState<
     | ((
         args?: SelectedImageRefreshArgs
@@ -205,20 +206,17 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
   const lastFrameIdRef = useRef<number | null>(null);
   const lastKeyRef = useRef<string | null>(null);
   const lastResultsRef = useRef<NearestObliqueImageRecord[] | null>(null);
-  const isInitialCameraSettled = ctx.initialCameraSettled === true;
-
-  const orbitPoint = useOrbitPoint(isObliqueMode && isInitialCameraSettled);
+  const isInitialCameraSettled = initialCameraSettled === true;
 
   const refreshSearch = useCallback(
     (
       args?: SelectedImageRefreshArgs
     ): NearestObliqueImageRecord[] | undefined => {
-      const force = !!args?.force;
-      if (!isObliqueMode || (suspendSelectionSearch && !force)) {
+      if (!isObliqueMode || (suspendSelectionSearch && !args?.computeOnly)) {
         return;
       }
       // Do not perform searches on load until initial camera was settled
-      if (!isInitialCameraSettled && !force) {
+      if (!isInitialCameraSettled) {
         return;
       }
       if (!imageRecords || !imageRecords.size || !converter) {
@@ -250,7 +248,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
 
       try {
         let computedResults: NearestObliqueImageRecord[] | undefined;
-        ctx.withCamera((camera, viewer) => {
+        withCamera((camera, viewer) => {
           const cartographic = camera.positionCartographic;
           if (!cartographic) return;
 
@@ -260,10 +258,26 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
           const cameraCardinal =
             getCardinalDirectionFromHeading(effectiveHeading);
 
-          const orbit = orbitPoint ?? pickSceneCenter(viewer.scene);
-          const orbitPointCoords = orbit
+          const orbit = pickSceneCenter(viewer.scene);
+          let orbitPointCoords = orbit
             ? calculateImageCoordsFromCartesian(orbit, converter)
             : null;
+
+          // Fallback: use camera position if pickSceneCenter fails (e.g., during initial load)
+          if (!orbitPointCoords && cartographic) {
+            const cameraLon = cartographic.longitude * (180 / Math.PI);
+            const cameraLat = cartographic.latitude * (180 / Math.PI);
+            const projected = converter.converter.forward([
+              cameraLon,
+              cameraLat,
+            ]);
+            orbitPointCoords = [
+              projected[0],
+              projected[1],
+              cartographic.height,
+            ];
+          }
+
           if (!orbitPointCoords) return;
 
           const orbitPointTargetCrs = {
@@ -363,10 +377,10 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
                 if (selectedImage?.record?.id !== next.record.id) {
                   setSelectedImage(next);
                 }
-                setSelectedImageDistance(next.distanceOnGround);
+                selectedImageDistanceRef.current = next.distanceOnGround;
               } else {
                 if (selectedImage !== null) setSelectedImage(null);
-                setSelectedImageDistance(null);
+                selectedImageDistanceRef.current = null;
               }
             }
           }
@@ -379,19 +393,17 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
       }
     },
     [
-      ctx,
       imageRecords,
       converter,
       headingOffset,
-      orbitPoint,
       footprintCenterpointsRBushByCardinals,
-      setSelectedImageDistance,
       setSelectedImage,
       isObliqueMode,
       suspendSelectionSearch,
       requestedHeadingRef,
       selectedImage,
       isInitialCameraSettled,
+      withCamera,
     ]
   );
 
@@ -474,7 +486,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
   useEffect(() => {
     if (
       isObliqueMode &&
-      ctx.isViewerReady &&
+      isViewerReady &&
       isInitialCameraSettled &&
       isAllDataReady &&
       typeof selectedImageRefresh === "function" &&
@@ -484,20 +496,25 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
       // Run immediately to bypass debounce and use current camera heading,
       // then retry a few times with small render nudges until results are available
       let cancelled = false;
-      const trySearch = (attemptsLeft: number) => {
+      const trySearch = (attemptsLeft: number, delay: number) => {
         if (cancelled || attemptsLeft <= 0) return;
-        const results = selectedImageRefresh({ immediate: true, force: true });
+        const results = selectedImageRefresh({ immediate: true });
         if (!results || results.length === 0) {
-          ctx.requestRender({ delay: 50, repeat: 1 });
-          setTimeout(() => trySearch(attemptsLeft - 1), 60);
+          requestRender({ delay: 50, repeat: 1 });
+          // Increase delay progressively to allow scene to be ready for depth picking
+          setTimeout(
+            () => trySearch(attemptsLeft - 1, Math.min(delay * 1.5, 500)),
+            delay
+          );
         }
       };
-      trySearch(8);
+      // Start with shorter delay, increase progressively
+      trySearch(12, 80);
 
       // As a fallback, hook into a few postRender frames to attempt again when depth/orbit point is available
-      let remainingFrames = 20;
+      let remainingFrames = 30;
       let detach: (() => void) | null = null;
-      ctx.withViewer((viewer) => {
+      withViewer((viewer) => {
         const handler = () => {
           if (cancelled || remainingFrames-- <= 0) {
             viewer.scene.postRender.removeEventListener(handler);
@@ -506,7 +523,6 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
           }
           const results = selectedImageRefresh({
             immediate: true,
-            force: true,
           });
           if (results && results.length > 0) {
             viewer.scene.postRender.removeEventListener(handler);
@@ -517,115 +533,176 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
         detach = () => viewer.scene.postRender.removeEventListener(handler);
       });
 
-      // Minimal extra safety: schedule two additional forced refreshes shortly after settle
+      // Minimal extra safety: schedule additional refreshes with longer delays
       const t1 = setTimeout(
-        () => selectedImageRefresh({ immediate: true, force: true }),
-        150
+        () => selectedImageRefresh({ immediate: true }),
+        200
       );
       const t2 = setTimeout(
-        () => selectedImageRefresh({ immediate: true, force: true }),
-        350
+        () => selectedImageRefresh({ immediate: true }),
+        500
+      );
+      const t3 = setTimeout(
+        () => selectedImageRefresh({ immediate: true }),
+        1000
       );
       return () => {
         cancelled = true;
         if (detach) detach();
         clearTimeout(t1);
         clearTimeout(t2);
+        clearTimeout(t3);
       };
     }
     // We intentionally do not include imageRecords here to avoid multiple triggers
   }, [
     isObliqueMode,
-    ctx.isViewerReady,
+    isViewerReady,
     isInitialCameraSettled,
     isAllDataReady,
     selectedImageRefresh,
     lockFootprint,
     suspendSelectionSearch,
-    ctx,
+    requestRender,
+    withViewer,
   ]);
 
-  // Single source of truth: trigger nearest-image refresh based on orbitPoint changes after settle
+  // Single source of truth: trigger nearest-image refresh based on camera changes after settle
   useEffect(() => {
     if (
       !isObliqueMode ||
-      !ctx.isViewerReady ||
+      !isViewerReady ||
       !isInitialCameraSettled ||
-      typeof selectedImageRefresh !== "function" ||
-      !orbitPoint
+      typeof selectedImageRefresh !== "function"
     ) {
       return;
     }
-    // Use debounced behavior inside refreshSearch; no force here during normal operation
-    selectedImageRefresh();
+
+    let removeListener: (() => void) | undefined;
+    withViewer((viewer) => {
+      const onCameraChange = () => {
+        if (typeof selectedImageRefresh === "function") {
+          selectedImageRefresh();
+        }
+      };
+      // Listen to camera changes directly to avoid React re-renders on every frame
+      viewer.scene.camera.changed.addEventListener(onCameraChange);
+      // We also need moveEnd for some interactions
+      viewer.scene.camera.moveEnd.addEventListener(onCameraChange);
+      removeListener = () => {
+        if (viewer && !viewer.isDestroyed()) {
+          viewer.scene.camera.changed.removeEventListener(onCameraChange);
+          viewer.scene.camera.moveEnd.removeEventListener(onCameraChange);
+        }
+      };
+    });
+
+    return () => {
+      if (removeListener) removeListener();
+    };
   }, [
     isObliqueMode,
-    ctx,
-    ctx.isViewerReady,
+    isViewerReady,
     isInitialCameraSettled,
-    orbitPoint,
     selectedImageRefresh,
+    withViewer,
   ]);
 
   // Once a nearest image exists and the viewer is ready, retrigger render twice (100ms apart)
   // to ensure derived visuals (e.g., footprint outline) become visible without interaction
   useEffect(() => {
-    if (isObliqueMode && ctx.isViewerReady && selectedImage && !lockFootprint) {
-      ctx.requestRender({ delay: 500, repeat: 10, repeatInterval: 200 });
+    if (isObliqueMode && isViewerReady && selectedImage && !lockFootprint) {
+      requestRender({ delay: 500, repeat: 10, repeatInterval: 200 });
     }
-  }, [isObliqueMode, ctx, ctx.isViewerReady, selectedImage, lockFootprint]);
+  }, [
+    isObliqueMode,
+    isViewerReady,
+    requestRender,
+    selectedImage,
+    lockFootprint,
+  ]);
 
   // When initial camera apply starts (settled=false), clear selection and caches to avoid stale state.
   useEffect(() => {
-    if (ctx.initialCameraSettled === false) {
+    if (initialCameraSettled === false) {
       if (selectedImage !== null) setSelectedImage(null);
-      setSelectedImageDistance(null);
+      selectedImageDistanceRef.current = null;
       lastFrameIdRef.current = null;
       lastKeyRef.current = null;
       lastResultsRef.current = null;
     }
-  }, [
-    ctx.initialCameraSettled,
-    selectedImage,
-    setSelectedImage,
-    setSelectedImageDistance,
-  ]);
+  }, [initialCameraSettled, selectedImage, setSelectedImage]);
 
-  const value = {
-    isObliqueMode,
-    imageRecords,
-    isLoading,
-    isAllDataReady,
-    error,
-    selectedImageDistance,
-    setSelectedImageDistance,
-    selectedImageRefresh,
-    setSelectedImageRefresh,
-    toggleObliqueMode,
-    selectedImage,
-    setSelectedImage,
-    converter,
-    previewPath,
-    previewQualityLevel,
-    fixedPitch,
-    fixedHeight,
-    minFov,
-    maxFov,
-    headingOffset,
-    exteriorOrientations,
-    footprintData,
-    footprintCenterpointsRBushByCardinals,
-    lockFootprint,
-    setLockFootprint,
-    suspendSelectionSearch,
-    setSuspendSelectionSearch,
-    animations,
-    footprintsStyle,
-    imagePreviewStyle,
-    knownSiblingIds,
-    prefetchSiblingPreview,
-    requestedHeadingRef,
-  };
+  const value = useMemo(
+    () => ({
+      isObliqueMode,
+      imageRecords,
+      isLoading,
+      isAllDataReady,
+      error,
+      selectedImageDistanceRef,
+      selectedImageRefresh,
+      setSelectedImageRefresh,
+      toggleObliqueMode,
+      selectedImage,
+      setSelectedImage,
+      converter,
+      previewPath,
+      previewQualityLevel,
+      fixedPitch,
+      fixedHeight,
+      minFov,
+      maxFov,
+      headingOffset,
+      exteriorOrientations,
+      footprintData,
+      footprintCenterpointsRBushByCardinals,
+      lockFootprint,
+      setLockFootprint,
+      suspendSelectionSearch,
+      setSuspendSelectionSearch,
+      animations,
+      footprintsStyle,
+      imagePreviewStyle,
+      knownSiblingIds,
+      prefetchSiblingPreview,
+      requestedHeadingRef,
+    }),
+    [
+      isObliqueMode,
+      imageRecords,
+      isLoading,
+      isAllDataReady,
+      error,
+      selectedImageDistanceRef,
+      selectedImageRefresh,
+      setSelectedImageRefresh,
+      toggleObliqueMode,
+      selectedImage,
+      setSelectedImage,
+      converter,
+      previewPath,
+      previewQualityLevel,
+      fixedPitch,
+      fixedHeight,
+      minFov,
+      maxFov,
+      headingOffset,
+      exteriorOrientations,
+      footprintData,
+      footprintCenterpointsRBushByCardinals,
+      lockFootprint,
+      setLockFootprint,
+      suspendSelectionSearch,
+      setSuspendSelectionSearch,
+      animations,
+      footprintsStyle,
+      imagePreviewStyle,
+      knownSiblingIds,
+      prefetchSiblingPreview,
+      requestedHeadingRef,
+    ]
+  );
 
   return (
     <ObliqueContext.Provider value={value}>{children}</ObliqueContext.Provider>

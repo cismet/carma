@@ -1,17 +1,24 @@
-import { MutableRefObject, useEffect, useRef } from "react";
+import { MutableRefObject, useEffect, useRef, useMemo } from "react";
 
 import {
   Color,
   ColorMaterialProperty,
   ConstantProperty,
+  type Cartesian3,
+} from "@carma/cesium";
+import {
   Entity,
   CallbackProperty,
-  EasingFunction,
   PolylineGraphics,
-  type Cartesian3,
+  EntityCollection,
 } from "cesium";
+import { Easing } from "@carma-commons/math";
 
-import { useMemoMergedDefaultOptions } from "@carma-commons/utils";
+import {
+  COLORS,
+  UnitRgba,
+  useMemoMergedDefaultOptions,
+} from "@carma-commons/utils";
 import {
   useCesiumContext,
   polygonHierarchyFromPolygonCoords,
@@ -36,19 +43,18 @@ const OBLIQUE_DATASOURCE_PREFIX = "oblq-footprint";
 const FOOTPRINT_OUTLINE_ID = "oblq-footprint-outline";
 
 const defaultFootprintsStyle: ObliqueFootprintsStyle = {
-  outlineColor: Color.WHITE,
+  outlineColor: COLORS.WHITE,
   outlineWidth: 5,
   outlineOpacity: 1,
 };
 
 const cleanupOutlineEntity = (
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  withEntities: any,
+  withEntities: (callback: (entities: EntityCollection) => void) => void,
   ref: MutableRefObject<Entity | null>,
   debug = false,
   requestRender?: () => void
 ) => {
-  debug && console.log(`Oblique Footprints: Removing outline entity`);
+  debug && console.debug(`Oblique Footprints: Removing outline entity`);
   try {
     withEntities((entities) => {
       // removeById is the safe entity removal API on Cesium EntityCollection
@@ -58,16 +64,15 @@ const cleanupOutlineEntity = (
       }
     });
   } catch (e) {
-    // swallow removal errors to avoid breaking unmount
-    debug && console.error("Error removing outline entity", e);
+    console.error("Error removing outline entity", e);
   }
   ref.current = null;
   requestRender?.();
 };
 
 export const useFootprints = (debug = false): void => {
-  const ctx = useCesiumContext();
-  const { viewerRef, requestRender, isValidViewer, withEntities } = ctx;
+  const { viewerRef, requestRender, isValidViewer, withEntities } =
+    useCesiumContext();
   const {
     isObliqueMode,
     selectedImage,
@@ -77,13 +82,25 @@ export const useFootprints = (debug = false): void => {
     footprintsStyle,
   } = useOblique();
 
-  const { outlineColor, outlineOpacity, outlineWidth } =
-    useMemoMergedDefaultOptions(footprintsStyle, defaultFootprintsStyle);
+  const {
+    outlineColor: outlineColorRaw,
+    outlineOpacity,
+    outlineWidth,
+  } = useMemoMergedDefaultOptions(footprintsStyle, defaultFootprintsStyle);
+
+  // Convert UnitRgba to Cesium Color
+  const outlineColor = useMemo(
+    () =>
+      outlineColorRaw instanceof Color
+        ? outlineColorRaw
+        : new Color(...(outlineColorRaw as UnitRgba)),
+    [outlineColorRaw]
+  );
 
   const animationDuration = animations?.outlineFadeOut?.duration ?? 1000;
   const animationDelay = animations?.outlineFadeOut?.delay ?? 0;
   const animationEasing =
-    animations?.outlineFadeOut?.easingFunction || EasingFunction.LINEAR_NONE;
+    animations?.outlineFadeOut?.easingFunction || Easing.LINEAR_NONE;
 
   const lastImageIdRef = useRef<string | null>(null);
   const outlineEntityRef = useRef<Entity | null>(null);
@@ -206,7 +223,7 @@ export const useFootprints = (debug = false): void => {
         // If opacity is near zero, remove the entity completely instead of just hiding it
         if (Math.abs(newOpacity) < 0.01 && outlineEntityRef.current) {
           debug &&
-            console.log(
+            console.debug(
               `Oblique Footprints: Animation complete, removing outline entity`
             );
           requestAnimationFrame(() => {
@@ -229,7 +246,7 @@ export const useFootprints = (debug = false): void => {
       // Close the loop by adding the first position to the end
       const outlinePositions = [...positions, positions[0]];
 
-      debug && console.log(`Oblique Footprints: Creating outline entity`);
+      debug && console.debug(`Oblique Footprints: Creating outline entity`);
 
       return new Entity({
         id: FOOTPRINT_OUTLINE_ID,
@@ -271,7 +288,7 @@ export const useFootprints = (debug = false): void => {
         easingFunction: animationEasing,
       });
 
-      ctx.withEntities((entities) => {
+      withEntities((entities) => {
         const outlineEntity = createOutlineEntity(polygonHierarchy.positions);
         entities.add(outlineEntity);
         outlineEntityRef.current = outlineEntity;
@@ -292,7 +309,6 @@ export const useFootprints = (debug = false): void => {
     debug,
     isValidViewer,
     requestRender,
-    ctx,
     withEntities,
   ]);
 };

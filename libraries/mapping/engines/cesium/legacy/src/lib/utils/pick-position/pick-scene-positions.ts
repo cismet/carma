@@ -10,6 +10,7 @@ import {
   getCanvasDimensions,
   normalizedToPixelPosition,
 } from "@carma-commons/dom/canvas";
+import { warnOnce } from "@carma-commons/utils";
 
 import { CssPixelPosition } from "@carma/units/types";
 
@@ -41,14 +42,14 @@ export const pickScenePositions = (
 
   // Warn if pickTranslucentDepth is enabled (should be disabled at scene initialization)
   if (scene.pickTranslucentDepth) {
-    console.warn(
+    warnOnce(
       `[CESIUM|PICKER|${label}] pickTranslucentDepth is enabled - this can cause framebuffer issues. Should be disabled at scene init.`
     );
   }
 
   // Warn if depthTestAgainstTerrain is not enabled (should be enabled at scene initialization)
   if (scene.globe.depthTestAgainstTerrain !== true) {
-    console.warn(
+    warnOnce(
       `[CESIUM|PICKER|${label}] depthTestAgainstTerrain is not enabled - this can cause framebuffer issues. Should be enabled at scene init.`
     );
   }

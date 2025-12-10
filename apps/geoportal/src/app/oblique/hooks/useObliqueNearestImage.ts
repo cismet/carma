@@ -8,7 +8,6 @@ import {
   isValidScene,
 } from "@carma-mapping/engines/cesium";
 
-import { useOrbitPoint } from "./useOrbitPoint";
 import { useOblique } from "./useOblique";
 
 import {
@@ -40,7 +39,6 @@ interface RequestNearestArgs {
   direction?: CardinalDirectionEnum;
   headingRad?: number;
   immediate?: boolean; // bypass debounce
-  force?: boolean; // allow when suspended
   computeOnly?: boolean; // don't mutate selection, just return results
 }
 
@@ -54,8 +52,8 @@ export function useObliqueNearestImage(
     converter,
     headingOffset,
     imageRecords,
-    setSelectedImageDistance,
     setSelectedImage,
+    selectedImageDistanceRef,
     selectedImage,
     footprintCenterpointsRBushByCardinals,
     isObliqueMode,
@@ -68,14 +66,11 @@ export function useObliqueNearestImage(
   const lastKeyRef = useRef<string | null>(null);
   const lastResultsRef = useRef<NearestObliqueImageRecord[] | null>(null);
 
-  const orbitPoint = useOrbitPoint(isObliqueMode);
-
   // On-demand nearest-image search. Optionally override search heading
   const refreshSearch = useCallback(
     (args?: RequestNearestArgs): NearestObliqueImageRecord[] | undefined => {
-      // Check if the search is enabled; allow override via args.force
-      const force = !!args?.force;
-      if (!isObliqueMode || (suspendSelectionSearch && !force)) {
+      // Check if the search is enabled
+      if (!isObliqueMode || (suspendSelectionSearch && !args?.computeOnly)) {
         debug && console.debug("refreshSearch skipped - disabled");
         return;
       }
@@ -133,7 +128,7 @@ export function useObliqueNearestImage(
           getCardinalDirectionFromHeading(effectiveHeading);
 
         // Fallback to computing orbit point directly if shared orbit point isn't initialized yet
-        const orbit = orbitPoint ?? pickSceneCenter(scene);
+        const orbit = pickSceneCenter(scene);
         const orbitPointCoords = orbit
           ? calculateImageCoordsFromCartesian(orbit, converter)
           : null;
@@ -247,10 +242,11 @@ export function useObliqueNearestImage(
             if (selectedImage?.record?.id !== next.record.id) {
               setSelectedImage(next);
             }
-            setSelectedImageDistance(next.distanceOnGround);
+            selectedImageDistanceRef.current = next.distanceOnGround;
           } else {
             if (selectedImage !== null) setSelectedImage(null);
-            setSelectedImageDistance(null);
+            selectedImageDistanceRef.current = null;
+            null;
           }
         }
 
@@ -266,9 +262,7 @@ export function useObliqueNearestImage(
       headingOffset,
       options.k,
       options.debounceTime,
-      orbitPoint,
       footprintCenterpointsRBushByCardinals,
-      setSelectedImageDistance,
       setSelectedImage,
       isObliqueMode,
       suspendSelectionSearch,

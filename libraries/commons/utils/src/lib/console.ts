@@ -7,3 +7,13 @@ export const logOnce = (() => {
     }
   };
 })();
+
+export const warnOnce = (() => {
+  const warned = new Set<string>();
+  return (message: string) => {
+    if (!warned.has(message)) {
+      console.warn(message);
+      warned.add(message);
+    }
+  };
+})();

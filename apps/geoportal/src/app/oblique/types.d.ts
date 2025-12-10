@@ -1,4 +1,6 @@
 import { OBLIQUE_PREVIEW_QUALITY } from "./constants";
+import { Easing } from "@carma-commons/math";
+import { UnitRgba } from "@carma-commons/utils";
 import type { Converter } from "proj4/dist/lib/core";
 
 import type { Radians } from "@carma/types";
@@ -65,7 +67,7 @@ export type ObliqueAnimationsConfig = {
 };
 
 export type ObliqueFootprintsStyle = {
-  outlineColor?: Color;
+  outlineColor?: UnitRgba;
   outlineWidth?: number;
   outlineOpacity?: number;
 };

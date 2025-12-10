@@ -70,13 +70,13 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     selectedImageRefresh,
   } = useOblique();
   const siblingsByCardinal = useSiblingsByCardinal();
-  const ctx = useCesiumContext(),
-    {
-      shouldSuspendPitchLimiterRef,
-      shouldSuspendCameraLimitersRef,
-      requestRender,
-      isValidViewer,
-    } = ctx;
+  const {
+    shouldSuspendPitchLimiterRef,
+    shouldSuspendCameraLimitersRef,
+    requestRender,
+    isValidViewer,
+    withScene,
+  } = useCesiumContext();
   const imageId = selectedImage?.record?.id;
   const cameraId = selectedImage?.record?.cameraId;
   const { isDebugMode, isObliqueUiEval } = useFeatureFlags();
@@ -108,16 +108,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     setSuspendSelectionSearch(isPreviewVisible);
   }, [isPreviewVisible, setSuspendSelectionSearch]);
 
-  /*
-  replace with registering flyHomeCallback from hostFramework/app
-  // Close preview when a Home fly is triggered
-  useEffect(() => {
-    const unsubscribe = ctx.subscribe(CtxEvent.Home, () => {
-      setIsPreviewVisible(false);
-    });
-    return unsubscribe;
-  }, [ctx]);
-  */
   // Disable camera limiters while preview is visible
   useEffect(() => {
     if (shouldSuspendPitchLimiterRef)
@@ -241,12 +231,11 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       const results = selectedImageRefresh({
         direction: dir,
         immediate: true,
-        force: isPreviewVisible,
         computeOnly: !!opts?.computeOnly,
       });
       return results && results.length ? results[0] : null;
     },
-    [selectedImageRefresh, isPreviewVisible]
+    [selectedImageRefresh]
   );
 
   // Fly-to handling for next capture (without opening preview)
@@ -259,7 +248,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       ? animations.flyToRotatedImage ?? animations.flyToExteriorOrientation
       : animations.flyToNextImage ?? animations.flyToExteriorOrientation;
     rotatedFlyPendingRef.current = false;
-    ctx.withScene((scene) => {
+    withScene((scene) => {
       flyToExteriorOrientation(
         scene,
         derivedExteriorOrientationRef.current,
@@ -287,7 +276,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     isPreviewVisible,
     requestRender,
     isValidViewer,
-    ctx,
+    withScene,
   ]);
 
   useEffect(() => {
@@ -418,7 +407,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
         selectedImageRefresh?.({
           direction: targetDir,
           immediate: true,
-          force: isPreviewVisible,
         });
         return true; // step accepted; fly will be triggered by selection change
       }
@@ -471,7 +459,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
         selectedImageRefresh?.({
           direction: dir,
           immediate: true,
-          force: isPreviewVisible,
         });
         return; // skip camera rotation animation in preview
       }
@@ -550,7 +537,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     setLockFootprint(true);
     animationInProgressRef.current = true;
 
-    ctx.withScene((scene) => {
+    withScene((scene) => {
       flyToExteriorOrientation(
         scene,
         derivedExteriorOrientationRef.current,
@@ -569,7 +556,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     setLockFootprint,
     derivedExteriorOrientationRef,
     isValidViewer,
-    ctx,
+    withScene,
   ]);
 
   const openImageLink = useCallback(() => {
