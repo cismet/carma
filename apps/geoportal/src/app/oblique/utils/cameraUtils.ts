@@ -145,7 +145,9 @@ export const enterObliqueMode = (
 
   const center = pickSceneCenter(scene);
   if (!center) {
-    console.debug("Failed to get orbit point");
+    console.debug("Failed to get orbit point, completing without animation");
+    // Still call onComplete to prevent suspension flags from being stuck
+    onComplete();
     return;
   }
   const range = camera.positionCartographic.height / Math.tan(-targetPitch);
@@ -185,9 +187,19 @@ export const enterObliqueMode = (
     }
   };
 
+  const effectiveDuration =
+    duration !== undefined ? duration : ENTER_DURATION / 1000;
+
+  console.log(
+    "Effective duration:",
+    effectiveDuration,
+    duration,
+    ENTER_DURATION / 1000
+  );
+
   camera.flyToBoundingSphere(sphere, {
     offset: new HeadingPitchRange(camera.heading, targetPitch, range),
-    duration: duration !== undefined ? duration : ENTER_DURATION / 1000,
+    duration: effectiveDuration,
     complete: flightCompleteCallback,
   });
 };

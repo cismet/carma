@@ -39,7 +39,6 @@ interface RequestNearestArgs {
   direction?: CardinalDirectionEnum;
   headingRad?: number;
   immediate?: boolean; // bypass debounce
-  force?: boolean; // allow when suspended
   computeOnly?: boolean; // don't mutate selection, just return results
 }
 
@@ -70,9 +69,8 @@ export function useObliqueNearestImage(
   // On-demand nearest-image search. Optionally override search heading
   const refreshSearch = useCallback(
     (args?: RequestNearestArgs): NearestObliqueImageRecord[] | undefined => {
-      // Check if the search is enabled; allow override via args.force
-      const force = !!args?.force;
-      if (!isObliqueMode || (suspendSelectionSearch && !force)) {
+      // Check if the search is enabled
+      if (!isObliqueMode || (suspendSelectionSearch && !args?.computeOnly)) {
         debug && console.debug("refreshSearch skipped - disabled");
         return;
       }

@@ -56,7 +56,6 @@ type SelectedImageRefreshArgs = {
   direction?: CardinalDirectionEnum;
   headingRad?: number;
   immediate?: boolean;
-  force?: boolean;
   computeOnly?: boolean;
 };
 
@@ -213,12 +212,11 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     (
       args?: SelectedImageRefreshArgs
     ): NearestObliqueImageRecord[] | undefined => {
-      const force = !!args?.force;
-      if (!isObliqueMode || (suspendSelectionSearch && !force)) {
+      if (!isObliqueMode || (suspendSelectionSearch && !args?.computeOnly)) {
         return;
       }
       // Do not perform searches on load until initial camera was settled
-      if (!isInitialCameraSettled && !force) {
+      if (!isInitialCameraSettled) {
         return;
       }
       if (!imageRecords || !imageRecords.size || !converter) {
@@ -261,9 +259,25 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
             getCardinalDirectionFromHeading(effectiveHeading);
 
           const orbit = pickSceneCenter(viewer.scene);
-          const orbitPointCoords = orbit
+          let orbitPointCoords = orbit
             ? calculateImageCoordsFromCartesian(orbit, converter)
             : null;
+
+          // Fallback: use camera position if pickSceneCenter fails (e.g., during initial load)
+          if (!orbitPointCoords && cartographic) {
+            const cameraLon = cartographic.longitude * (180 / Math.PI);
+            const cameraLat = cartographic.latitude * (180 / Math.PI);
+            const projected = converter.converter.forward([
+              cameraLon,
+              cameraLat,
+            ]);
+            orbitPointCoords = [
+              projected[0],
+              projected[1],
+              cartographic.height,
+            ];
+          }
+
           if (!orbitPointCoords) return;
 
           const orbitPointTargetCrs = {
@@ -482,18 +496,23 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
       // Run immediately to bypass debounce and use current camera heading,
       // then retry a few times with small render nudges until results are available
       let cancelled = false;
-      const trySearch = (attemptsLeft: number) => {
+      const trySearch = (attemptsLeft: number, delay: number) => {
         if (cancelled || attemptsLeft <= 0) return;
-        const results = selectedImageRefresh({ immediate: true, force: true });
+        const results = selectedImageRefresh({ immediate: true });
         if (!results || results.length === 0) {
           requestRender({ delay: 50, repeat: 1 });
-          setTimeout(() => trySearch(attemptsLeft - 1), 60);
+          // Increase delay progressively to allow scene to be ready for depth picking
+          setTimeout(
+            () => trySearch(attemptsLeft - 1, Math.min(delay * 1.5, 500)),
+            delay
+          );
         }
       };
-      trySearch(8);
+      // Start with shorter delay, increase progressively
+      trySearch(12, 80);
 
       // As a fallback, hook into a few postRender frames to attempt again when depth/orbit point is available
-      let remainingFrames = 20;
+      let remainingFrames = 30;
       let detach: (() => void) | null = null;
       withViewer((viewer) => {
         const handler = () => {
@@ -504,7 +523,6 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
           }
           const results = selectedImageRefresh({
             immediate: true,
-            force: true,
           });
           if (results && results.length > 0) {
             viewer.scene.postRender.removeEventListener(handler);
@@ -515,20 +533,25 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
         detach = () => viewer.scene.postRender.removeEventListener(handler);
       });
 
-      // Minimal extra safety: schedule two additional forced refreshes shortly after settle
+      // Minimal extra safety: schedule additional refreshes with longer delays
       const t1 = setTimeout(
-        () => selectedImageRefresh({ immediate: true, force: true }),
-        150
+        () => selectedImageRefresh({ immediate: true }),
+        200
       );
       const t2 = setTimeout(
-        () => selectedImageRefresh({ immediate: true, force: true }),
-        350
+        () => selectedImageRefresh({ immediate: true }),
+        500
+      );
+      const t3 = setTimeout(
+        () => selectedImageRefresh({ immediate: true }),
+        1000
       );
       return () => {
         cancelled = true;
         if (detach) detach();
         clearTimeout(t1);
         clearTimeout(t2);
+        clearTimeout(t3);
       };
     }
     // We intentionally do not include imageRecords here to avoid multiple triggers
@@ -540,6 +563,8 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     selectedImageRefresh,
     lockFootprint,
     suspendSelectionSearch,
+    requestRender,
+    withViewer,
   ]);
 
   // Single source of truth: trigger nearest-image refresh based on camera changes after settle
