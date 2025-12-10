@@ -112,7 +112,6 @@ export const cesiumCameraForceOblique = (
         }
 
         // Clamp travel distance to avoid huge jumps
-        zoomTravelDistance = CesiumMath.clamp(zoomTravelDistance, -100, 100);
         const newPos = Cartesian3.add(
           cameraPos,
           Cartesian3.multiplyByScalar(
