@@ -190,7 +190,7 @@ export const enterObliqueMode = (
   const effectiveDuration =
     duration !== undefined ? duration : ENTER_DURATION / 1000;
 
-  console.log(
+  console.debug(
     "Effective duration:",
     effectiveDuration,
     duration,
