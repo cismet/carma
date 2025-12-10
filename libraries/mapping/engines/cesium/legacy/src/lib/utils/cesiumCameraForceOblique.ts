@@ -111,7 +111,11 @@ export const cesiumCameraForceOblique = (
           zoomTravelDistance = -zoomTravelDistance;
         }
 
-        // Clamp travel distance to avoid huge jumps
+        // warn to track possible positioning errors;
+        if (Math.abs(zoomTravelDistance) > 50000) {
+          console.warn("Travel distance too large", zoomTravelDistance);
+        }
+
         const newPos = Cartesian3.add(
           cameraPos,
           Cartesian3.multiplyByScalar(
