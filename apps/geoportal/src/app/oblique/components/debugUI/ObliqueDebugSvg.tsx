@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Math as CesiumMath } from "cesium";
+import { isValidScene } from "@carma/cesium";
+import { radToDegNumeric } from "@carma/units/helpers";
 import { useCesiumContext } from "@carma-mapping/engines/cesium";
 import { Collapse } from "antd";
 
@@ -32,11 +33,11 @@ export const ObliqueDebugSvg = () => {
   const [cropHeightFactor, setCropHeightFactor] = useState(400);
   const [imageRotation, setImageRotation] = useState(0); // 0, 90, 180, 270 degrees
   // Core contexts and refs
-  const ctx = useCesiumContext();
-  const { viewerRef, isValidViewer } = ctx;
+  const { getScene, isViewerReady } = useCesiumContext();
   const { converter, headingOffset, previewPath, selectedImageRefresh } =
     useOblique();
-  const camera = viewerRef?.current?.camera;
+  const scene = getScene();
+  const camera = isValidScene(scene) ? scene.camera : null;
 
   // Compute camera and sector values locally
   const cameraHeading = useMemo(() => {
@@ -102,20 +103,21 @@ export const ObliqueDebugSvg = () => {
 
   // Subscribe to camera changes to refresh nearest images using centralized search
   useEffect(() => {
-    const viewer = viewerRef.current;
-    if (!isValidViewer() || typeof selectedImageRefresh !== "function") return;
+    const scene = getScene();
+    if (!isValidScene(scene) || typeof selectedImageRefresh !== "function")
+      return;
     const refresh = () => {
       const res = selectedImageRefresh({ computeOnly: true });
       if (res) setNearestImages(res);
     };
-    viewer.camera.changed.addEventListener(refresh);
+    scene.camera.changed.addEventListener(refresh);
     refresh();
     return () => {
-      if (viewer && !viewer.isDestroyed()) {
-        viewer.camera.changed.removeEventListener(refresh);
+      if (isValidScene(scene)) {
+        scene.camera.changed.removeEventListener(refresh);
       }
     };
-  }, [viewerRef, selectedImageRefresh, isValidViewer]);
+  }, [getScene, selectedImageRefresh, isViewerReady]);
 
   // SVG dimensions
   const svgWidth = 800;
@@ -375,7 +377,7 @@ export const ObliqueDebugSvg = () => {
       strokeWidth={8}
       transform={`translate(${pointOnGround.x}, ${
         pointOnGround.y
-      }) rotate(${CesiumMath.toDegrees(sectorHeading)})`}
+      }) rotate(${radToDegNumeric(sectorHeading)})`}
     />
   );
 

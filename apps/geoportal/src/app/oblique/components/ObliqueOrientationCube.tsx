@@ -1,6 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Button, Tooltip, Spin } from "antd";
-import { Cartesian3, HeadingPitchRange, Matrix4 } from "@carma/cesium";
+import {
+  Cartesian3,
+  HeadingPitchRange,
+  Matrix4,
+  isValidScene,
+} from "@carma/cesium";
 
 import {
   useCesiumContext,
@@ -118,8 +123,8 @@ const ObliqueOrientationCube: React.FC<Props> = ({
 }) => {
   const half = size / 2;
 
-  const ctx = useCesiumContext();
-  const { viewerRef, isViewerReady, sceneAnimationMapRef } = ctx;
+  const { isViewerReady, sceneAnimationMapRef, getScene, requestRender } =
+    useCesiumContext();
   const [, setTransformTick] = useState(0);
   const containerRef = useRef<HTMLDivElement | null>(null);
   const lastFrustumRef = useRef<{ angle?: number; w?: number; h?: number }>({});
@@ -181,93 +186,85 @@ const ObliqueOrientationCube: React.FC<Props> = ({
   ];
 
   useEffect(() => {
-    let cleanup: (() => void) | undefined;
-    ctx.withCamera((camera) => {
-      const lastRef = { h: camera.heading, p: camera.pitch };
-      const onChanged = () => {
-        const h = camera.heading;
-        const p = camera.pitch;
-        if (Math.abs(h - lastRef.h) > eps || Math.abs(p - lastRef.p) > eps) {
-          lastRef.h = h;
-          lastRef.p = p;
-          setTransformTick((t) => t + 1);
-        }
-      };
-      camera.percentageChanged = Math.max(
-        camera.percentageChanged ?? 0.01,
-        0.01
-      );
-      camera.changed.addEventListener(onChanged);
-      onChanged();
-      cleanup = () => {
-        guardCamera(camera).changed.removeEventListener(onChanged);
-      };
-    });
-    return () => {
-      cleanup?.();
+    const scene = getScene();
+    if (!isValidScene(scene)) return;
+
+    const camera = scene.camera;
+    const lastRef = { h: camera.heading, p: camera.pitch };
+    const onChanged = () => {
+      const h = camera.heading;
+      const p = camera.pitch;
+      if (Math.abs(h - lastRef.h) > eps || Math.abs(p - lastRef.p) > eps) {
+        lastRef.h = h;
+        lastRef.p = p;
+        setTransformTick((t) => t + 1);
+      }
     };
-  }, [ctx, size]);
+    camera.percentageChanged = Math.max(camera.percentageChanged ?? 0.01, 0.01);
+    camera.changed.addEventListener(onChanged);
+    onChanged();
+
+    return () => {
+      guardCamera(camera).changed.removeEventListener(onChanged);
+    };
+  }, [getScene, size]);
 
   // Ensure perspective updates even when only FOV/aspect/size changes (pose unchanged)
   useEffect(() => {
-    if (!ctx.isValidViewer()) return;
-    let cleanup: (() => void) | undefined;
-    ctx.withViewer((viewer) => {
-      const camera = viewer.camera;
-      const scene = viewer.scene;
+    const scene = getScene();
+    if (!isValidScene(scene)) return;
 
-      const updateFrustum = () => {
-        try {
-          const el = viewer.container as Element;
-          const rect = el.getBoundingClientRect();
-          const w = rect.width;
-          const h = rect.height;
-          const frustum = camera.frustum as unknown as {
-            fovy?: number;
-            _fovy?: number;
-            aspectRatio?: number;
-          };
-          const fovy: number | undefined = frustum?.fovy ?? frustum?._fovy;
-          if (!(w > 0) || !(h > 0) || !(typeof fovy === "number" && fovy > 0))
-            return;
-          const aspect: number =
-            frustum?.aspectRatio ?? (w > 0 && h > 0 ? w / h : 1);
-          const useW = w >= h;
-          const angle = useW
-            ? 2 * Math.atan(Math.tan(fovy / 2) * aspect)
-            : fovy;
-          const last = lastFrustumRef.current;
-          const sameAngle =
-            typeof last.angle === "number" &&
-            Math.abs((last.angle as number) - angle) < 1e-6;
-          const sameSize = last.w === w && last.h === h;
-          if (!sameAngle || !sameSize) {
-            lastFrustumRef.current = { angle, w, h };
-            setTransformTick((t) => t + 1);
-          }
-        } catch {
-          // ignore
+    const camera = scene.camera;
+    const canvas = scene.canvas as HTMLCanvasElement;
+
+    const updateFrustum = () => {
+      try {
+        const w = canvas.clientWidth;
+        const h = canvas.clientHeight;
+        const frustum = camera.frustum as unknown as {
+          fovy?: number;
+          _fovy?: number;
+          aspectRatio?: number;
+        };
+        const fovy: number | undefined = frustum?.fovy ?? frustum?._fovy;
+        if (!(w > 0) || !(h > 0) || !(typeof fovy === "number" && fovy > 0))
+          return;
+        const aspect: number =
+          frustum?.aspectRatio ?? (w > 0 && h > 0 ? w / h : 1);
+        const useW = w >= h;
+        const angle = useW ? 2 * Math.atan(Math.tan(fovy / 2) * aspect) : fovy;
+        const last = lastFrustumRef.current;
+        const sameAngle =
+          typeof last.angle === "number" &&
+          Math.abs((last.angle as number) - angle) < 1e-6;
+        const sameSize = last.w === w && last.h === h;
+        if (!sameAngle || !sameSize) {
+          lastFrustumRef.current = { angle, w, h };
+          setTransformTick((t) => t + 1);
         }
-      };
+      } catch {
+        // ignore
+      }
+    };
 
-      scene.preRender.addEventListener(updateFrustum);
-      updateFrustum();
-      cleanup = () => {
-        scene.preRender.removeEventListener(updateFrustum);
-      };
-    });
+    scene.preRender.addEventListener(updateFrustum);
+    updateFrustum();
 
     return () => {
-      cleanup?.();
+      scene.preRender.removeEventListener(updateFrustum);
     };
-  }, [viewerRef, isViewerReady, ctx]);
+  }, [isViewerReady, getScene]);
 
   // Build forward scene transform and inverse (for billboarding labels)
-  const cam = viewerRef.current?.camera;
+  const scene = getScene();
+  const cam = isValidScene(scene) ? scene.camera : null;
+  const canvas = isValidScene(scene)
+    ? (scene.canvas as HTMLCanvasElement)
+    : null;
   const [sceneTransform, inverseSceneTransform, perspectivePx] = cam
     ? cesiumCameraToCssTransform(cam, {
         offsetRad: offsetCube ? offsetRad : 0,
-        targetEl: viewerRef.current?.container,
+        targetEl: canvas?.parentElement ?? undefined,
         fallback: 1600,
       })
     : ["", "", 1600];
@@ -323,23 +320,20 @@ const ObliqueOrientationCube: React.FC<Props> = ({
       return;
     }
     // Fallback: instant snap (legacy behavior)
-    if (!ctx.isValidViewer()) return;
-    ctx.withViewer((viewer) => {
-      if (sceneAnimationMapRef?.current) {
-        cancelSceneAnimation(viewer.scene, sceneAnimationMapRef.current);
-      }
-      const camera = viewer.camera;
-      const target = pickSceneCenter(viewer.scene);
-      if (target) {
-        const range = Cartesian3.distance(target, camera.positionWC);
-        viewer.camera.lookAt(
-          target,
-          new HeadingPitchRange(0, camera.pitch, range)
-        );
-        viewer.camera.lookAtTransform(Matrix4.IDENTITY);
-        ctx.requestRender();
-      }
-    });
+    const scene = getScene();
+    if (!isValidScene(scene)) return;
+
+    if (sceneAnimationMapRef?.current) {
+      cancelSceneAnimation(scene, sceneAnimationMapRef.current);
+    }
+    const camera = scene.camera;
+    const target = pickSceneCenter(scene);
+    if (target) {
+      const range = Cartesian3.distance(target, camera.positionWC);
+      camera.lookAt(target, new HeadingPitchRange(0, camera.pitch, range));
+      camera.lookAtTransform(Matrix4.IDENTITY);
+      requestRender();
+    }
   };
   // Resolve color tokens to CSS colors for hover effects (limited map for defaults)
   const resolveColorToken = (token?: string): string | undefined => {

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
-import { type Scene, CesiumMath } from "@carma/cesium";
+import { type Scene } from "@carma/cesium";
+import { degToRadNumeric } from "@carma/units/helpers";
 
 import {
   useCesiumContext,
@@ -86,8 +87,8 @@ export function useObliqueInitializer(debug = false) {
         let isAlreadyOblique = false;
 
         const p = camera.pitch;
-        const minOblique = -CesiumMath.toRadians(80);
-        const maxOblique = -CesiumMath.toRadians(5);
+        const minOblique = -degToRadNumeric(80);
+        const maxOblique = -degToRadNumeric(5);
         isAlreadyOblique = p > minOblique && p < maxOblique;
 
         if (isAlreadyOblique) {
@@ -127,7 +128,6 @@ export function useObliqueInitializer(debug = false) {
   }, [
     debug,
     isObliqueMode,
-    // ctx, // intentionally omitted to prevent re-triggering on context changes
     getScene,
     fixedPitch,
     fixedHeight,

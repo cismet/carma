@@ -28,6 +28,7 @@ import type {
 } from "../types";
 
 import { useObliqueData } from "../hooks/useObliqueData";
+import { isValidScene } from "@carma/cesium";
 import {
   useCesiumContext,
   pickSceneCenter,
@@ -134,13 +135,8 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
   config,
   fallbackDirectionConfig,
 }) => {
-  const {
-    isViewerReady,
-    initialCameraSettled,
-    requestRender,
-    withCamera,
-    withViewer,
-  } = useCesiumContext();
+  const { isViewerReady, initialCameraSettled, requestRender, getScene } =
+    useCesiumContext();
   const { updateHash, getHashValues } = useHashState();
   // Read initial oblique mode from hash only once on mount
   const [isObliqueMode, setIsObliqueMode] = useState<boolean>(() => {
@@ -247,147 +243,140 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
       lastSearchTimeRef.current = now;
 
       try {
-        let computedResults: NearestObliqueImageRecord[] | undefined;
-        withCamera((camera, viewer) => {
-          const cartographic = camera.positionCartographic;
-          if (!cartographic) return;
+        const scene = getScene();
+        if (!isValidScene(scene)) return;
 
-          let heading = camera.heading;
-          if (usedOverride) heading = overrideHeading as number;
-          const effectiveHeading = heading - headingOffset;
-          const cameraCardinal =
-            getCardinalDirectionFromHeading(effectiveHeading);
+        const camera = scene.camera;
+        const cartographic = camera.positionCartographic;
+        if (!cartographic) return;
 
-          const orbit = pickSceneCenter(viewer.scene);
-          let orbitPointCoords = orbit
-            ? calculateImageCoordsFromCartesian(orbit, converter)
-            : null;
+        let heading = camera.heading;
+        if (usedOverride) heading = overrideHeading as number;
+        const effectiveHeading = heading - headingOffset;
+        const cameraCardinal =
+          getCardinalDirectionFromHeading(effectiveHeading);
 
-          // Fallback: use camera position if pickSceneCenter fails (e.g., during initial load)
-          if (!orbitPointCoords && cartographic) {
-            const cameraLon = cartographic.longitude * (180 / Math.PI);
-            const cameraLat = cartographic.latitude * (180 / Math.PI);
-            const projected = converter.converter.forward([
-              cameraLon,
-              cameraLat,
-            ]);
-            orbitPointCoords = [
-              projected[0],
-              projected[1],
-              cartographic.height,
-            ];
-          }
+        const orbit = pickSceneCenter(scene);
+        let orbitPointCoords = orbit
+          ? calculateImageCoordsFromCartesian(orbit, converter)
+          : null;
 
-          if (!orbitPointCoords) return;
+        // Fallback: use camera position if pickSceneCenter fails (e.g., during initial load)
+        if (!orbitPointCoords && cartographic) {
+          const cameraLon = cartographic.longitude * (180 / Math.PI);
+          const cameraLat = cartographic.latitude * (180 / Math.PI);
+          const projected = converter.converter.forward([cameraLon, cameraLat]);
+          orbitPointCoords = [projected[0], projected[1], cartographic.height];
+        }
 
-          const orbitPointTargetCrs = {
-            x: orbitPointCoords[0],
-            y: orbitPointCoords[1],
-          };
-          const k = NUM_NEAREST_IMAGES;
-          const frameId =
-            (
-              viewer as unknown as {
-                scene?: { frameState?: { frameNumber?: number } };
-              }
-            )?.scene?.frameState?.frameNumber ?? null;
-          const key = `${Math.round(orbitPointTargetCrs.x)}:${Math.round(
-            orbitPointTargetCrs.y
-          )}:${cameraCardinal}:${k}:${
-            usedOverride ? (overrideHeading as number).toFixed(6) : "cam"
-          }:${args?.computeOnly ? "co" : "mut"}`;
+        if (!orbitPointCoords) return;
 
-          if (
-            frameId != null &&
-            lastFrameIdRef.current === frameId &&
-            lastKeyRef.current === key &&
-            lastResultsRef.current
-          ) {
-            return lastResultsRef.current;
-          }
+        const orbitPointTargetCrs = {
+          x: orbitPointCoords[0],
+          y: orbitPointCoords[1],
+        };
+        const k = NUM_NEAREST_IMAGES;
+        const frameId =
+          (
+            scene as unknown as {
+              frameState?: { frameNumber?: number };
+            }
+          )?.frameState?.frameNumber ?? null;
+        const key = `${Math.round(orbitPointTargetCrs.x)}:${Math.round(
+          orbitPointTargetCrs.y
+        )}:${cameraCardinal}:${k}:${
+          usedOverride ? (overrideHeading as number).toFixed(6) : "cam"
+        }:${args?.computeOnly ? "co" : "mut"}`;
 
-          let filteredImages: NearestObliqueImageRecord[] = [];
-          const centerpoints = footprintCenterpointsRBushByCardinals;
-          if (centerpoints && centerpoints.has(cameraCardinal)) {
-            const sectorTree = centerpoints.get(cameraCardinal);
-            if (sectorTree) {
-              try {
-                const nearestItems = knn(
-                  sectorTree,
-                  orbitPointTargetCrs.x,
-                  orbitPointTargetCrs.y,
-                  k
-                );
-                filteredImages = nearestItems
-                  .map((item: RBushItem) => {
-                    const record = imageRecords.get(item.id);
-                    if (!record) return null;
-                    const dxCam = orbitPointTargetCrs.x - record.x;
-                    const dyCam = orbitPointTargetCrs.y - record.y;
-                    const distanceToCamera = Math.sqrt(
-                      dxCam * dxCam + dyCam * dyCam
-                    );
+        if (
+          frameId != null &&
+          lastFrameIdRef.current === frameId &&
+          lastKeyRef.current === key &&
+          lastResultsRef.current
+        ) {
+          return lastResultsRef.current;
+        }
 
-                    const dxGround = orbitPointTargetCrs.x - item.x;
-                    const dyGround = orbitPointTargetCrs.y - item.y;
-                    const distanceOnGround = Math.sqrt(
-                      dxGround * dxGround + dyGround * dyGround
-                    );
+        let filteredImages: NearestObliqueImageRecord[] = [];
+        const centerpoints = footprintCenterpointsRBushByCardinals;
+        if (centerpoints && centerpoints.has(cameraCardinal)) {
+          const sectorTree = centerpoints.get(cameraCardinal);
+          if (sectorTree) {
+            try {
+              const nearestItems = knn(
+                sectorTree,
+                orbitPointTargetCrs.x,
+                orbitPointTargetCrs.y,
+                k
+              );
+              filteredImages = nearestItems
+                .map((item: RBushItem) => {
+                  const record = imageRecords.get(item.id);
+                  if (!record) return null;
+                  const dxCam = orbitPointTargetCrs.x - record.x;
+                  const dyCam = orbitPointTargetCrs.y - record.y;
+                  const distanceToCamera = Math.sqrt(
+                    dxCam * dxCam + dyCam * dyCam
+                  );
 
-                    const imageCenter = {
-                      x: item.x,
-                      y: item.y,
-                      longitude: item.longitude,
-                      latitude: item.latitude,
-                      cardinal: item.cardinal,
-                    };
+                  const dxGround = orbitPointTargetCrs.x - item.x;
+                  const dyGround = orbitPointTargetCrs.y - item.y;
+                  const distanceOnGround = Math.sqrt(
+                    dxGround * dxGround + dyGround * dyGround
+                  );
 
-                    return {
-                      record,
-                      distanceOnGround,
-                      distanceToCamera,
-                      imageCenter,
-                    } as NearestObliqueImageRecord;
-                  })
-                  .filter(Boolean) as NearestObliqueImageRecord[];
-              } catch (error) {
-                console.error("Error during nearest images search:", error);
-              }
+                  const imageCenter = {
+                    x: item.x,
+                    y: item.y,
+                    longitude: item.longitude,
+                    latitude: item.latitude,
+                    cardinal: item.cardinal,
+                  };
+
+                  return {
+                    record,
+                    distanceOnGround,
+                    distanceToCamera,
+                    imageCenter,
+                  } as NearestObliqueImageRecord;
+                })
+                .filter(Boolean) as NearestObliqueImageRecord[];
+            } catch (error) {
+              console.error("Error during nearest images search:", error);
             }
           }
+        }
 
-          lastFrameIdRef.current = frameId;
-          lastKeyRef.current = key;
-          lastResultsRef.current = filteredImages;
+        lastFrameIdRef.current = frameId;
+        lastKeyRef.current = key;
+        lastResultsRef.current = filteredImages;
 
-          if (
-            usedOverride &&
-            refHeadingOverride != null &&
-            explicitHeadingOverride == null
-          ) {
-            requestedHeadingRef.current = null;
-          }
+        if (
+          usedOverride &&
+          refHeadingOverride != null &&
+          explicitHeadingOverride == null
+        ) {
+          requestedHeadingRef.current = null;
+        }
 
-          if (!args?.computeOnly) {
-            // Do not mutate selection until the initial camera has settled,
-            // unless we explicitly override (direction/heading) to avoid stale selection
-            if (isInitialCameraSettled || usedOverride) {
-              if (filteredImages?.length) {
-                const next = filteredImages[0];
-                if (selectedImage?.record?.id !== next.record.id) {
-                  setSelectedImage(next);
-                }
-                selectedImageDistanceRef.current = next.distanceOnGround;
-              } else {
-                if (selectedImage !== null) setSelectedImage(null);
-                selectedImageDistanceRef.current = null;
+        if (!args?.computeOnly) {
+          // Do not mutate selection until the initial camera has settled,
+          // unless we explicitly override (direction/heading) to avoid stale selection
+          if (isInitialCameraSettled || usedOverride) {
+            if (filteredImages?.length) {
+              const next = filteredImages[0];
+              if (selectedImage?.record?.id !== next.record.id) {
+                setSelectedImage(next);
               }
+              selectedImageDistanceRef.current = next.distanceOnGround;
+            } else {
+              if (selectedImage !== null) setSelectedImage(null);
+              selectedImageDistanceRef.current = null;
             }
           }
+        }
 
-          computedResults = filteredImages;
-        });
-        return computedResults;
+        return filteredImages;
       } catch (error) {
         console.error("Error in refreshSearch:", error);
       }
@@ -403,7 +392,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
       requestedHeadingRef,
       selectedImage,
       isInitialCameraSettled,
-      withCamera,
+      getScene,
     ]
   );
 
@@ -514,10 +503,11 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
       // As a fallback, hook into a few postRender frames to attempt again when depth/orbit point is available
       let remainingFrames = 30;
       let detach: (() => void) | null = null;
-      withViewer((viewer) => {
+      const scene = getScene();
+      if (isValidScene(scene)) {
         const handler = () => {
           if (cancelled || remainingFrames-- <= 0) {
-            viewer.scene.postRender.removeEventListener(handler);
+            scene.postRender.removeEventListener(handler);
             detach = null;
             return;
           }
@@ -525,13 +515,13 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
             immediate: true,
           });
           if (results && results.length > 0) {
-            viewer.scene.postRender.removeEventListener(handler);
+            scene.postRender.removeEventListener(handler);
             detach = null;
           }
         };
-        viewer.scene.postRender.addEventListener(handler);
-        detach = () => viewer.scene.postRender.removeEventListener(handler);
-      });
+        scene.postRender.addEventListener(handler);
+        detach = () => scene.postRender.removeEventListener(handler);
+      }
 
       // Minimal extra safety: schedule additional refreshes with longer delays
       const t1 = setTimeout(
@@ -564,7 +554,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     lockFootprint,
     suspendSelectionSearch,
     requestRender,
-    withViewer,
+    getScene,
   ]);
 
   // Single source of truth: trigger nearest-image refresh based on camera changes after settle
@@ -578,34 +568,31 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
       return;
     }
 
-    let removeListener: (() => void) | undefined;
-    withViewer((viewer) => {
-      const onCameraChange = () => {
-        if (typeof selectedImageRefresh === "function") {
-          selectedImageRefresh();
-        }
-      };
-      // Listen to camera changes directly to avoid React re-renders on every frame
-      viewer.scene.camera.changed.addEventListener(onCameraChange);
-      // We also need moveEnd for some interactions
-      viewer.scene.camera.moveEnd.addEventListener(onCameraChange);
-      removeListener = () => {
-        if (viewer && !viewer.isDestroyed()) {
-          viewer.scene.camera.changed.removeEventListener(onCameraChange);
-          viewer.scene.camera.moveEnd.removeEventListener(onCameraChange);
-        }
-      };
-    });
+    const scene = getScene();
+    if (!isValidScene(scene)) return;
+
+    const onCameraChange = () => {
+      if (typeof selectedImageRefresh === "function") {
+        selectedImageRefresh();
+      }
+    };
+    // Listen to camera changes directly to avoid React re-renders on every frame
+    scene.camera.changed.addEventListener(onCameraChange);
+    // We also need moveEnd for some interactions
+    scene.camera.moveEnd.addEventListener(onCameraChange);
 
     return () => {
-      if (removeListener) removeListener();
+      if (isValidScene(scene)) {
+        scene.camera.changed.removeEventListener(onCameraChange);
+        scene.camera.moveEnd.removeEventListener(onCameraChange);
+      }
     };
   }, [
     isObliqueMode,
     isViewerReady,
     isInitialCameraSettled,
     selectedImageRefresh,
-    withViewer,
+    getScene,
   ]);
 
   // Once a nearest image exists and the viewer is ready, retrigger render twice (100ms apart)

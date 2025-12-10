@@ -1,5 +1,5 @@
 import { type MutableRefObject } from "react";
-import { Easing } from "@carma-commons/math";
+import { Easing, clamp } from "@carma-commons/math";
 import {
   BoundingSphere,
   Cartesian3,
@@ -8,7 +8,6 @@ import {
   PerspectiveFrustum,
   Ray,
   defined,
-  CesiumMath,
   type Scene,
 } from "@carma/cesium";
 import { pickSceneCenter } from "@carma-mapping/engines/cesium";
@@ -112,7 +111,7 @@ const distanceSqrtInMetersToMilliseconds = (
   factor = DYNAMIC_DISTANCE_TO_MS_FACTOR
 ) => {
   const distanceToMSeconds = Math.sqrt(Math.abs(distance)) * factor;
-  return CesiumMath.clamp(distanceToMSeconds, min, max);
+  return clamp(distanceToMSeconds, min, max);
 };
 
 export const getDynamicDurationSecondsFromDistance = (

@@ -1,9 +1,5 @@
-import {
-  Cartesian3,
-  Cartographic,
-  CesiumMath,
-  type Scene,
-} from "@carma/cesium";
+import { Cartesian3, Cartographic, type Scene } from "@carma/cesium";
+import { radToDegNumeric } from "@carma/units/helpers";
 import { pickSceneCenter } from "@carma-mapping/engines/cesium";
 
 import { getHeadingFromCardinalDirection } from "./orientationUtils";
@@ -68,8 +64,8 @@ export function calculateImageCoordsFromCamera(
   { converter }: Proj4Converter
 ): [number, number, number] {
   return converter.inverse([
-    CesiumMath.toDegrees(longitude),
-    CesiumMath.toDegrees(latitude),
+    radToDegNumeric(longitude),
+    radToDegNumeric(latitude),
     height,
   ]);
 }

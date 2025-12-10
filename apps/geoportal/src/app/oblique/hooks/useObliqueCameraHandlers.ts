@@ -12,9 +12,10 @@ import {
   ScreenSpaceEventType,
   ScreenSpaceEventHandler,
   HeadingPitchRange,
-  CesiumMath,
 } from "@carma/cesium";
-import { Easing } from "@carma-commons/math";
+import { Easing, TWO_PI } from "@carma-commons/math";
+import { zeroToTwoPi } from "@carma/units/helpers";
+import type { Radians } from "@carma/units/types";
 
 import {
   useCesiumContext,
@@ -27,22 +28,14 @@ import {
   getCardinalHeadings,
 } from "../utils/orientationUtils";
 import { useOblique } from "./useOblique";
-import { useDebugOrbitPoint } from "./useDebugOrbitPoint";
 import { resetCamera } from "../utils/cameraUtils";
 
 export const useObliqueCameraHandlers = (
-  animationInProgressRef: MutableRefObject<boolean>,
-  isDebugMode: boolean
+  animationInProgressRef: MutableRefObject<boolean>
 ) => {
   const { requestRender, getScene } = useCesiumContext();
   const { headingOffset, isObliqueMode } = useOblique();
   const userMovedCameraRef = useRef<boolean>(false);
-
-  const updateOrbitPointEntity = useDebugOrbitPoint(
-    isObliqueMode,
-    null, // orbitPoint passed as null, debug hook might need adjustment or we ignore debug point for now if not critical
-    isDebugMode
-  );
 
   // Returns a stable orbit center. If no orbitPoint is available yet (e.g., before selecting an image),
   // use the pick on the globe at the screen center; as a last resort, use the current camera position.
@@ -90,15 +83,11 @@ export const useObliqueCameraHandlers = (
       const currentHeading = camera.heading;
 
       // Normalize headings to [0, 2PI)
-      const normalizedTarget = CesiumMath.zeroToTwoPi(targetHeading);
-      const normalizedCurrent = CesiumMath.zeroToTwoPi(currentHeading);
+      const normalizedTarget = zeroToTwoPi(targetHeading as Radians);
+      const normalizedCurrent = zeroToTwoPi(currentHeading as Radians);
 
       if (Math.abs(normalizedCurrent - normalizedTarget) < 0.0001) {
         return;
-      }
-
-      if (isDebugMode) {
-        updateOrbitPointEntity();
       }
 
       // Calculate the range (distance from center)
@@ -116,9 +105,9 @@ export const useObliqueCameraHandlers = (
 
       // Ensure we take the shortest path
       if (headingChange > Math.PI) {
-        headingChange -= CesiumMath.TWO_PI;
+        headingChange -= TWO_PI;
       } else if (headingChange < -Math.PI) {
-        headingChange += CesiumMath.TWO_PI;
+        headingChange += TWO_PI;
       }
 
       // Skip animation if the change is very small
@@ -169,8 +158,6 @@ export const useObliqueCameraHandlers = (
     [
       getScene,
       headingOffset,
-      updateOrbitPointEntity,
-      isDebugMode,
       animationInProgressRef,
       getOrbitCenter,
       requestRender,
@@ -197,10 +184,6 @@ export const useObliqueCameraHandlers = (
 
       const targetHeading = cardinalHeadings[targetDirection];
 
-      if (isDebugMode) {
-        updateOrbitPointEntity();
-      }
-
       // Calculate the range (distance from center)
       const centerPoint = getOrbitCenter();
       const range = Cartesian3.distance(centerPoint, camera.position);
@@ -216,9 +199,9 @@ export const useObliqueCameraHandlers = (
 
       // Ensure we take the shortest path
       if (headingChange > Math.PI) {
-        headingChange -= CesiumMath.TWO_PI;
+        headingChange -= TWO_PI;
       } else if (headingChange < -Math.PI) {
-        headingChange += CesiumMath.TWO_PI;
+        headingChange += TWO_PI;
       }
 
       // Skip animation if the change is very small
@@ -266,8 +249,6 @@ export const useObliqueCameraHandlers = (
     },
     [
       headingOffset,
-      updateOrbitPointEntity,
-      isDebugMode,
       animationInProgressRef,
       getOrbitCenter,
       requestRender,
@@ -334,7 +315,6 @@ export const useObliqueCameraHandlers = (
       }
 
       if (userMovedCameraRef.current) {
-        updateOrbitPointEntity();
         userMovedCameraRef.current = false;
       }
 
@@ -345,10 +325,6 @@ export const useObliqueCameraHandlers = (
       );
       setActiveDirection(closestCardinalIndex);
     };
-
-    if (isDebugMode) {
-      updateOrbitPointEntity();
-    }
 
     const cardinalHeadings = getCardinalHeadings(headingOffset);
     const closestCardinalIndex = findClosestCardinalIndex(
@@ -367,14 +343,7 @@ export const useObliqueCameraHandlers = (
         inputHandler.destroy();
       }
     };
-  }, [
-    getScene,
-    isObliqueMode,
-    headingOffset,
-    updateOrbitPointEntity,
-    isDebugMode,
-    animationInProgressRef,
-  ]);
+  }, [getScene, isObliqueMode, headingOffset, animationInProgressRef]);
 
   return {
     activeDirection,

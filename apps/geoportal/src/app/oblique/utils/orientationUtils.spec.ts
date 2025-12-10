@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { Math as CesiumMath } from "cesium";
+import { PI_OVER_TWO } from "@carma-commons/math";
+import { degToRadNumeric, radToDegNumeric } from "@carma/units/helpers";
 import {
   CardinalDirectionEnum,
   getCardinalDirectionFromHeading,
@@ -9,9 +10,9 @@ import {
 describe("getCardinalDirectionFromHeading", () => {
   // Cardinal direction boundaries in radians
   const NORTH_CENTER = 0;
-  const EAST_CENTER = CesiumMath.PI_OVER_TWO;
+  const EAST_CENTER = PI_OVER_TWO;
   const SOUTH_CENTER = Math.PI;
-  const WEST_CENTER = CesiumMath.PI_OVER_TWO * 3;
+  const WEST_CENTER = PI_OVER_TWO * 3;
 
   it("should return NORTH for headings centered at 0", () => {
     // North quadrant center
@@ -20,10 +21,10 @@ describe("getCardinalDirectionFromHeading", () => {
     );
 
     // North quadrant boundaries
-    expect(getCardinalDirectionFromHeading(CesiumMath.toRadians(-44))).toBe(
+    expect(getCardinalDirectionFromHeading(degToRadNumeric(-44))).toBe(
       CardinalDirectionEnum.North
     );
-    expect(getCardinalDirectionFromHeading(CesiumMath.toRadians(44))).toBe(
+    expect(getCardinalDirectionFromHeading(degToRadNumeric(44))).toBe(
       CardinalDirectionEnum.North
     );
   });
@@ -35,10 +36,10 @@ describe("getCardinalDirectionFromHeading", () => {
     );
 
     // East quadrant boundaries
-    expect(getCardinalDirectionFromHeading(CesiumMath.toRadians(46))).toBe(
+    expect(getCardinalDirectionFromHeading(degToRadNumeric(46))).toBe(
       CardinalDirectionEnum.East
     );
-    expect(getCardinalDirectionFromHeading(CesiumMath.toRadians(134))).toBe(
+    expect(getCardinalDirectionFromHeading(degToRadNumeric(134))).toBe(
       CardinalDirectionEnum.East
     );
   });
@@ -50,10 +51,10 @@ describe("getCardinalDirectionFromHeading", () => {
     );
 
     // South quadrant boundaries
-    expect(getCardinalDirectionFromHeading(CesiumMath.toRadians(136))).toBe(
+    expect(getCardinalDirectionFromHeading(degToRadNumeric(136))).toBe(
       CardinalDirectionEnum.South
     );
-    expect(getCardinalDirectionFromHeading(CesiumMath.toRadians(224))).toBe(
+    expect(getCardinalDirectionFromHeading(degToRadNumeric(224))).toBe(
       CardinalDirectionEnum.South
     );
   });
@@ -65,36 +66,36 @@ describe("getCardinalDirectionFromHeading", () => {
     );
 
     // West quadrant boundaries
-    expect(getCardinalDirectionFromHeading(CesiumMath.toRadians(226))).toBe(
+    expect(getCardinalDirectionFromHeading(degToRadNumeric(226))).toBe(
       CardinalDirectionEnum.West
     );
-    expect(getCardinalDirectionFromHeading(CesiumMath.toRadians(314))).toBe(
+    expect(getCardinalDirectionFromHeading(degToRadNumeric(314))).toBe(
       CardinalDirectionEnum.West
     );
   });
 
   it("should handle full circle wrapping", () => {
     // 360° should be equivalent to 0° (North)
-    expect(getCardinalDirectionFromHeading(CesiumMath.toRadians(360))).toBe(
+    expect(getCardinalDirectionFromHeading(degToRadNumeric(360))).toBe(
       CardinalDirectionEnum.North
     );
     // Negative angles should wrap properly
-    expect(getCardinalDirectionFromHeading(CesiumMath.toRadians(-90))).toBe(
+    expect(getCardinalDirectionFromHeading(degToRadNumeric(-90))).toBe(
       CardinalDirectionEnum.West
     );
   });
 
   it("should handle boundaries between directions", () => {
-    expect(getCardinalDirectionFromHeading(CesiumMath.toRadians(45))).toBe(
+    expect(getCardinalDirectionFromHeading(degToRadNumeric(45))).toBe(
       CardinalDirectionEnum.East
     );
-    expect(getCardinalDirectionFromHeading(CesiumMath.toRadians(135))).toBe(
+    expect(getCardinalDirectionFromHeading(degToRadNumeric(135))).toBe(
       CardinalDirectionEnum.South
     );
-    expect(getCardinalDirectionFromHeading(CesiumMath.toRadians(225))).toBe(
+    expect(getCardinalDirectionFromHeading(degToRadNumeric(225))).toBe(
       CardinalDirectionEnum.West
     );
-    expect(getCardinalDirectionFromHeading(CesiumMath.toRadians(315))).toBe(
+    expect(getCardinalDirectionFromHeading(degToRadNumeric(315))).toBe(
       CardinalDirectionEnum.North
     );
   });
@@ -106,13 +107,13 @@ describe("getHeadingFromCardinalDirection", () => {
       CardinalDirectionEnum.North
     );
     expect(heading).toBeCloseTo(0);
-    expect(CesiumMath.toDegrees(heading)).toBeCloseTo(0);
+    expect(radToDegNumeric(heading)).toBeCloseTo(0);
   });
 
   it("should convert EAST to π/2 radians (90 degrees)", () => {
     const heading = getHeadingFromCardinalDirection(CardinalDirectionEnum.East);
-    expect(heading).toBeCloseTo(CesiumMath.PI_OVER_TWO);
-    expect(CesiumMath.toDegrees(heading)).toBeCloseTo(90);
+    expect(heading).toBeCloseTo(PI_OVER_TWO);
+    expect(radToDegNumeric(heading)).toBeCloseTo(90);
   });
 
   it("should convert SOUTH to π radians (180 degrees)", () => {
@@ -120,13 +121,13 @@ describe("getHeadingFromCardinalDirection", () => {
       CardinalDirectionEnum.South
     );
     expect(heading).toBeCloseTo(Math.PI);
-    expect(CesiumMath.toDegrees(heading)).toBeCloseTo(180);
+    expect(radToDegNumeric(heading)).toBeCloseTo(180);
   });
 
   it("should convert WEST to 3π/2 radians (270 degrees)", () => {
     const heading = getHeadingFromCardinalDirection(CardinalDirectionEnum.West);
-    expect(heading).toBeCloseTo(3 * CesiumMath.PI_OVER_TWO);
-    expect(CesiumMath.toDegrees(heading)).toBeCloseTo(270);
+    expect(heading).toBeCloseTo(3 * PI_OVER_TWO);
+    expect(radToDegNumeric(heading)).toBeCloseTo(270);
   });
 
   it("should produce headings that, when converted back, return the original cardinal direction", () => {

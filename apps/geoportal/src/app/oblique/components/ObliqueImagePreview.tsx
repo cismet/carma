@@ -24,7 +24,7 @@ import { Backdrop } from "./ObliqueImagePreview.Backdrop";
 import { ContactMailButton } from "@carma-appframeworks/portals";
 import { ObliqueDirectionControlsCompact } from "./ObliqueDirectionControls.Compact";
 import type { CardinalDirectionEnum } from "../utils/orientationUtils";
-import { getViewerSyncedDimensions } from "../utils/getViewerSyncedDimensions";
+import { getSceneSyncedDimensions } from "../utils/getSceneSyncedDimensions";
 import { useProgressivePreviewSource } from "../hooks/useProgressivePreviewSource";
 import { useForwardZoomEventsToCesium } from "../hooks/useForwardZoomEventsToCesium";
 
@@ -141,7 +141,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   const [contrast, setContrast] = useState(100);
   const [saturation, setSaturation] = useState(100);
 
-  const ctx = useCesiumContext();
+  const { getScene } = useCesiumContext();
   const { rootRef, onWheel, fovOverride } = useForwardZoomEventsToCesium();
 
   const { xOffset, yOffset } = interiorOrientationOffsets;
@@ -342,8 +342,8 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
 
   if (!isVisible) return null;
 
-  const { syncedWidth, syncedHeight } = getViewerSyncedDimensions(
-    ctx,
+  const { syncedWidth, syncedHeight } = getSceneSyncedDimensions(
+    getScene(),
     isVertical,
     imageAspectRatio,
     PREVIEW_IMAGE_BASE_SCALE_FACTOR,

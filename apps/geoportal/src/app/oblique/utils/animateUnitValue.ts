@@ -1,5 +1,4 @@
-import { CesiumMath } from "@carma/cesium";
-import { Easing } from "@carma-commons/math";
+import { Easing, clamp } from "@carma-commons/math";
 
 const DEFAULT_ANIMATION_DURATION = 500; // milliseconds
 
@@ -41,7 +40,7 @@ export function processAnimation<T extends number>(
   const elapsed =
     performance.now() - animState.startTime - (animState.delay || 0);
   const duration = animState.duration;
-  const progress = CesiumMath.clamp(elapsed / duration, 0, 1);
+  const progress = clamp(elapsed / duration, 0, 1);
   const easedProgress = animState.easingFunction(progress);
   // Calculate interpolated value
   const newValue =

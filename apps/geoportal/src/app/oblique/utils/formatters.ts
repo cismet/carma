@@ -1,6 +1,8 @@
-import { Math as CesiumMath } from "cesium";
+import { zeroToTwoPi, radToDegNumeric } from "@carma/units/helpers";
+import type { Radians } from "@carma/units/types";
 
 export const formatHeadingDegrees = (headingRadians: number): number => {
-  const degrees = CesiumMath.toDegrees(CesiumMath.zeroToTwoPi(headingRadians));
+  const normalized = zeroToTwoPi(headingRadians as Radians);
+  const degrees = radToDegNumeric(normalized);
   return Math.round(degrees);
 };

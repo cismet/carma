@@ -1,5 +1,5 @@
 import { useRef } from "react";
-import { Math as CesiumMath } from "cesium";
+import { radToDegNumeric } from "@carma/units/helpers";
 import type { Vector3Arr } from "@carma/types";
 
 const CESIUM_DEBUG_AXIS_COLORS = {
@@ -62,7 +62,7 @@ export const UnitVectorDisplay: React.FC<UnitVectorDisplayProps> = ({
 
   // Calculate angle for display
   const angle = Math.atan2(x, y);
-  const angleDeg = CesiumMath.toDegrees(angle);
+  const angleDeg = radToDegNumeric(angle);
 
   // Position on circle to draw marker
   // For display in SVG, we need to flip the Y coordinate back since SVG's Y axis points down

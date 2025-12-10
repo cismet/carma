@@ -1,4 +1,5 @@
-import { Math as CesiumMath } from "cesium";
+import { zeroToTwoPi } from "@carma/units/helpers";
+import type { Radians } from "@carma/units/types";
 import type { ObliqueImageRecord, ObliqueImageRecordMap } from "../types";
 import {
   CardinalDirectionEnum,
@@ -8,7 +9,7 @@ import {
 const MAX_CARTESIAN_DISTANCE_M = 350;
 
 function chooseCardinal(dx: number, dy: number): CardinalDirectionEnum {
-  const heading = CesiumMath.zeroToTwoPi(Math.atan2(-dx, dy));
+  const heading = zeroToTwoPi(Math.atan2(-dx, dy) as Radians);
   return getCardinalDirectionFromHeading(heading);
 }
 

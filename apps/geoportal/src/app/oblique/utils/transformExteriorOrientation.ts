@@ -1,4 +1,4 @@
-import { Cartesian3, Ellipsoid, Matrix4, Transforms } from "cesium";
+import { Cartesian3, Ellipsoid, Matrix4, Transforms } from "@carma/cesium";
 import type { Matrix3RowMajor, Vector3Arr } from "@carma/types";
 import type { ObliqueImageRecord, Proj4Converter } from "../types";
 import { calculateUTMConvergence } from "./utmConvergence";
