@@ -1,0 +1,192 @@
+import { Spin } from "antd";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import {
+  faCar,
+  faWalking,
+  faBicycle,
+  faClock,
+  faRoute,
+} from "@fortawesome/free-solid-svg-icons";
+import type { RouteOption } from "./libremap.utils";
+
+interface InlineRouteOptionsProps {
+  onSelectRoute: (route: RouteOption) => void;
+  routes: RouteOption[];
+  loading?: boolean;
+}
+
+function formatDuration(seconds: number): string {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  if (hours > 0) {
+    return `${hours} Std ${minutes} Min`;
+  }
+  return `${minutes} Min`;
+}
+
+function formatDistance(meters: number): string {
+  if (meters >= 1000) {
+    return `${(meters / 1000).toFixed(1)} km`;
+  }
+  return `${Math.round(meters)} m`;
+}
+
+function getModeIcon(mode: string) {
+  switch (mode?.toLowerCase()) {
+    case "car":
+      return faCar;
+    case "walk":
+    case "walking":
+      return faWalking;
+    case "bike":
+    case "bicycle":
+      return faBicycle;
+    default:
+      return faCar;
+  }
+}
+
+function getModeLabel(mode: string): string {
+  switch (mode?.toLowerCase()) {
+    case "car":
+      return "Auto";
+    case "walk":
+    case "walking":
+      return "Zu Fuß";
+    case "bike":
+    case "bicycle":
+      return "Fahrrad";
+    default:
+      return mode || "Route";
+  }
+}
+
+export const InlineRouteOptions = ({
+  onSelectRoute,
+  routes,
+  loading = false,
+}: InlineRouteOptionsProps) => {
+  if (loading) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "16px 0",
+        }}
+      >
+        <Spin size="default" />
+        <p style={{ marginTop: "12px", fontSize: "14px", color: "#6b7280" }}>
+          Routen werden berechnet...
+        </p>
+      </div>
+    );
+  }
+
+  if (routes.length === 0) {
+    return (
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "16px 0",
+        }}
+      >
+        <p style={{ fontSize: "14px", color: "#6b7280" }}>
+          Keine Routen gefunden
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+      {routes.map((route) => (
+        <button
+          key={route.index}
+          onClick={() => onSelectRoute(route)}
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            width: "100%",
+            borderRadius: "8px",
+            border: "1px solid #e5e7eb",
+            padding: "12px",
+            textAlign: "left",
+            background: "white",
+            cursor: "pointer",
+            transition: "all 0.2s",
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = "#3b82f6";
+            e.currentTarget.style.backgroundColor = "#f9fafb";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = "#e5e7eb";
+            e.currentTarget.style.backgroundColor = "white";
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "12px",
+              }}
+            >
+              <FontAwesomeIcon
+                icon={getModeIcon(route.mode)}
+                style={{ fontSize: "18px", color: "#3b82f6" }}
+              />
+              <span style={{ fontWeight: 500 }}>
+                {getModeLabel(route.mode)}
+              </span>
+            </div>
+          </div>
+          <div
+            style={{
+              marginTop: "8px",
+              display: "flex",
+              gap: "24px",
+              fontSize: "14px",
+              color: "#4b5563",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+              }}
+            >
+              <FontAwesomeIcon icon={faClock} style={{ fontSize: "12px" }} />
+              <span>{formatDuration(route.duration)}</span>
+            </div>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+              }}
+            >
+              <FontAwesomeIcon icon={faRoute} style={{ fontSize: "12px" }} />
+              <span>{formatDistance(route.distance)}</span>
+            </div>
+          </div>
+        </button>
+      ))}
+    </div>
+  );
+};
+
+export default InlineRouteOptions;

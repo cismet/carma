@@ -1,7 +1,7 @@
 import InfoBoxFotoPreview from "react-cismap/topicmaps/InfoBoxFotoPreview";
 import { LightBoxDispatchContext } from "react-cismap/contexts/LightBoxContextProvider";
 
-import { useContext, useState } from "react";
+import { useContext, useState, useCallback, useEffect, useRef } from "react";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import { additionalInfoFactory } from "@carma-collab/wuppertal/geoportal";
@@ -19,7 +19,9 @@ import {
   displaySelectedRouteOnMap,
   type RouteOption,
 } from "@carma-appframeworks/portals";
-import { RouteOptionsDrawer } from "./libremap/RouteOptionsDrawer";
+import { useLibreMapLocateControl } from "@carma-mapping/components";
+import { positionToMotisPlace } from "../services/motisService";
+import { InlineRouteOptions } from "./libremap/InlineRouteOptions";
 
 interface InfoboxProps {
   selectedFeature: any;
@@ -46,27 +48,69 @@ export const FeatureInfobox = ({
   const [routeModalOpen, setRouteModalOpen] = useState(false);
   const [routeOptions, setRouteOptions] = useState<RouteOption[]>([]);
   const [routeLoading, setRouteLoading] = useState(false);
+  const pendingDestinationRef = useRef<{ lat: number; lng: number } | null>(
+    null
+  );
 
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const lightBoxDispatchContext = useContext(LightBoxDispatchContext);
+  const { currentPosition, setIsLocationActive } = useLibreMapLocateControl({
+    map: libreMap ?? null,
+  });
 
-  const handleRouteAction = async (routeParams: {
-    from: { lat: number; lng: number };
-    to: { lat: number; lng: number };
-  }) => {
-    setRouteModalOpen(true);
-    setRouteLoading(true);
-    setRouteOptions([]);
+  const fetchRoutesWithLocation = useCallback(
+    async (
+      from: { lat: number; lng: number },
+      to: { lat: number; lng: number }
+    ) => {
+      try {
+        const options = await fetchRouteOptions({ from, to });
+        setRouteOptions(options);
+      } catch (error) {
+        console.error("Error fetching route options:", error);
+      } finally {
+        setRouteLoading(false);
+      }
+    },
+    []
+  );
 
-    try {
-      const options = await fetchRouteOptions(routeParams);
-      setRouteOptions(options);
-    } catch (error) {
-      console.error("Error fetching route options:", error);
-    } finally {
-      setRouteLoading(false);
+  useEffect(() => {
+    if (currentPosition && pendingDestinationRef.current && routeLoading) {
+      const fromLocation = positionToMotisPlace(currentPosition);
+      if (fromLocation) {
+        fetchRoutesWithLocation(fromLocation, pendingDestinationRef.current);
+        pendingDestinationRef.current = null;
+      }
     }
-  };
+  }, [currentPosition, routeLoading, fetchRoutesWithLocation]);
+
+  const handleRouteAction = useCallback(
+    async (routeParams: { to: { lat: number; lng: number } }) => {
+      if (routeModalOpen) {
+        setRouteModalOpen(false);
+        return;
+      }
+
+      setRouteModalOpen(true);
+      setRouteLoading(true);
+      setRouteOptions([]);
+
+      const fromLocation = positionToMotisPlace(currentPosition);
+      if (fromLocation) {
+        fetchRoutesWithLocation(fromLocation, routeParams.to);
+      } else {
+        setIsLocationActive(true);
+        pendingDestinationRef.current = routeParams.to;
+      }
+    },
+    [
+      currentPosition,
+      setIsLocationActive,
+      fetchRoutesWithLocation,
+      routeModalOpen,
+    ]
+  );
 
   const handleSelectRoute = (route: RouteOption) => {
     if (libreMap) {
@@ -108,6 +152,14 @@ export const FeatureInfobox = ({
     return text;
   };
 
+  const routeContent = routeModalOpen ? (
+    <InlineRouteOptions
+      onSelectRoute={handleSelectRoute}
+      routes={routeOptions}
+      loading={routeLoading}
+    />
+  ) : null;
+
   return (
     <>
       {" "}
@@ -122,9 +174,17 @@ export const FeatureInfobox = ({
             : "#0078a8"
         }
         title={
-          infoBoxControlObject?.title?.includes("undefined")
+          routeModalOpen
+            ? "Routenoptionen"
+            : infoBoxControlObject?.title?.includes("undefined")
             ? undefined
             : infoBoxControlObject?.title
+        }
+        subtitle={
+          routeModalOpen ? routeContent : infoBoxControlObject?.subtitle
+        }
+        additionalInfo={
+          routeModalOpen ? undefined : infoBoxControlObject?.additionalInfo
         }
         noCurrentFeatureTitle={
           "Auf die Karte klicken um Informationen abzurufen"
@@ -144,8 +204,8 @@ export const FeatureInfobox = ({
           </div>
         }
         noCurrentFeatureContent=""
-        secondaryInfoBoxElements={
-          infoBoxControlObject.foto || infoBoxControlObject.fotos
+        secondaryInfoBoxElements={[
+          ...(infoBoxControlObject.foto || infoBoxControlObject.fotos
             ? [
                 <InfoBoxFotoPreview
                   key="infobox-foto-preview"
@@ -161,8 +221,8 @@ export const FeatureInfobox = ({
                   urlManipulation={updateUrl}
                 />,
               ]
-            : []
-        }
+            : []),
+        ]}
         links={links}
         bigMobileIconsInsteadOfCollapsing={bigMobileIconsInsteadOfCollapsing}
         collapsible={collapsible}
@@ -178,16 +238,6 @@ export const FeatureInfobox = ({
           Footer={genericSecondaryInfoFooterFactory()}
         />
       )}
-      <RouteOptionsDrawer
-        open={routeModalOpen}
-        onClose={() => setRouteModalOpen(false)}
-        onSelectRoute={handleSelectRoute}
-        routes={routeOptions}
-        loading={routeLoading}
-        destinationName={
-          infoBoxControlObject?.header || infoBoxControlObject?.title
-        }
-      />
     </>
   );
 };

@@ -28,6 +28,18 @@ export function formatPlace(place: MotisPlace | string): string {
   return `${place.lat},${place.lng}`;
 }
 
+export function positionToMotisPlace(
+  position: GeolocationPosition | null,
+  name = "Mein Standort"
+): MotisPlace | null {
+  if (!position) return null;
+  return {
+    lat: position.coords.latitude,
+    lng: position.coords.longitude,
+    name,
+  };
+}
+
 export async function planRoute(params: MotisRouteParams) {
   return motis.plan({
     query: {
