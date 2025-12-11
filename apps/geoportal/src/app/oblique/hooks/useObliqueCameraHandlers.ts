@@ -34,7 +34,7 @@ export const useObliqueCameraHandlers = (
   animationInProgressRef: MutableRefObject<boolean>,
   isDebugMode: boolean
 ) => {
-  const { requestRender, getScene } = useCesiumContext();
+  const { requestRender, getScene, isViewerReady } = useCesiumContext();
   const { headingOffset, isObliqueMode } = useOblique();
   const userMovedCameraRef = useRef<boolean>(false);
 
@@ -369,6 +369,7 @@ export const useObliqueCameraHandlers = (
     };
   }, [
     getScene,
+    isViewerReady,
     isObliqueMode,
     headingOffset,
     updateOrbitPointEntity,
@@ -378,6 +379,7 @@ export const useObliqueCameraHandlers = (
 
   return {
     activeDirection,
+    setActiveDirection,
     rotateCamera,
     rotateToDirection,
     rotateToHeading,
