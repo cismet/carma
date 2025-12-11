@@ -25,4 +25,9 @@ export {
 
 export { RoutedMapLocateControl } from "./lib/components/RoutedMapLocateControl/RoutedMapLocateControl";
 
+export {
+  LibreMapLocateControl,
+  useLibreMapLocateControl,
+} from "./lib/components/LibreMapLocateControl";
+
 export { ZoomControl } from "./lib/components/ZoomControl";

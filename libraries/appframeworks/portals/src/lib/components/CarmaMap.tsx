@@ -7,6 +7,7 @@ import { useContext, useEffect, useState } from "react";
 import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import {
   FullscreenControl,
+  LibreMapLocateControl,
   LibrePitchingCompass,
   MapFrameworkSwitcherProvider,
   RoutedMapLocateControl,
@@ -177,11 +178,20 @@ export const CarmaMap = (props: CarmaMapProps) => {
                       </Control>
                     )}
 
-                    {locatorControl && (
+                    {locatorControl && mapEngine === "leaflet" && (
                       <Control position="topleft" order={60}>
                         <RoutedMapLocateControl
                           tourRefLabels={null}
                           disabled={false}
+                          nativeTooltip={true}
+                        />
+                      </Control>
+                    )}
+
+                    {locatorControl && mapEngine === "maplibre" && (
+                      <Control position="topleft" order={60}>
+                        <LibreMapLocateControl
+                          map={libreMap}
                           nativeTooltip={true}
                         />
                       </Control>
