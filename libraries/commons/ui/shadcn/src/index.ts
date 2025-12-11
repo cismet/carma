@@ -1,7 +1,5 @@
-// Utils
 export { cn } from "./utils";
 
-// Components
 export {
   Drawer,
   DrawerPortal,
@@ -13,4 +11,4 @@ export {
   DrawerFooter,
   DrawerTitle,
   DrawerDescription,
-} from "./components/Drawer";
+} from "./components/drawer";
