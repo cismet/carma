@@ -1,8 +1,6 @@
-import { useCallback, useEffect } from "react";
-import { useDispatch } from "react-redux";
+import { useEffect } from "react";
 import { Math as CesiumMath } from "cesium";
 
-import { clearIsAnimating, setIsAnimating } from "../slices/cesium";
 import { useCesiumViewer } from "./useCesiumViewer";
 import { useCesiumContext } from "./useCesiumContext";
 
@@ -20,13 +18,8 @@ const useCameraRollSoftLimiter = ({
   rollThreshold?: number;
 } = {}) => {
   const viewer = useCesiumViewer();
-  const dispatch = useDispatch();
-  const { shouldSuspendCameraLimitersRef } = useCesiumContext();
-
-  const onComplete = useCallback(
-    () => dispatch(clearIsAnimating()),
-    [dispatch]
-  );
+  const { shouldSuspendCameraLimitersRef, getScene, sceneAnimationMapRef } =
+    useCesiumContext();
 
   useEffect(() => {
     if (viewer && pitchLimiter) {
@@ -36,6 +29,11 @@ const useCameraRollSoftLimiter = ({
         );
       const moveEndListener = async () => {
         if (shouldSuspendCameraLimitersRef?.current) return;
+
+        const scene = getScene();
+        // Skip if animation is already running
+        if (scene && sceneAnimationMapRef.current?.has(scene)) return;
+
         if (viewer.camera.position) {
           const rollDeviation = CesiumMath.equalsEpsilon(
             viewer.camera.roll,
@@ -67,12 +65,12 @@ const useCameraRollSoftLimiter = ({
               );
             const rollDelta = Math.abs(viewer.camera.roll);
             const duration = Math.min(rollDelta, 1);
-            console.debug(
-              "Roll delta animation duration mapping",
-              rollDelta,
-              duration
-            );
-            dispatch(setIsAnimating());
+            debug &&
+              console.debug(
+                "Roll delta animation duration mapping",
+                rollDelta,
+                duration
+              );
             viewer.camera.flyTo({
               destination: viewer.camera.position,
               orientation: {
@@ -81,7 +79,6 @@ const useCameraRollSoftLimiter = ({
                 roll: 0,
               },
               duration,
-              complete: onComplete,
             });
           }
         }
@@ -95,12 +92,12 @@ const useCameraRollSoftLimiter = ({
   }, [
     viewer,
     pitchLimiter,
-    onComplete,
-    dispatch,
     debug,
     nadirThreshold,
     rollThreshold,
     shouldSuspendCameraLimitersRef,
+    getScene,
+    sceneAnimationMapRef,
   ]);
 };
 

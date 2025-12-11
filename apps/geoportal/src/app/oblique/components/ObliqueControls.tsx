@@ -1,5 +1,4 @@
 import { useCallback, useRef, useState, useEffect, useMemo } from "react";
-import { useSelector } from "react-redux";
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
@@ -10,10 +9,8 @@ import { Tooltip } from "antd";
 import { useControls } from "leva";
 
 import { isValidScene } from "@carma/cesium";
-import {
-  selectViewerIsTransitioning,
-  useCesiumContext,
-} from "@carma-mapping/engines/cesium";
+import { useCesiumContext } from "@carma-mapping/engines/cesium";
+import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import { ContactMailButton } from "@carma-appframeworks/portals";
 import { useFeatureFlags } from "@carma-providers/feature-flag";
@@ -139,7 +136,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const [saturationBase, setSaturationBase] = useState(85);
   const [useLegacyDirControls, setUseLegacyDirControls] = useState(false);
 
-  const isTransitioning = useSelector(selectViewerIsTransitioning);
+  const { isTransitioning } = useMapFrameworkSwitcherContext();
   // Track last directional move to prefetch ahead in the same direction on arrival
   const lastMoveDirRef = useRef<CardinalDirectionEnum | null>(null);
   // Debounced intent for sibling navigation

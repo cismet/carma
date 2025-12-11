@@ -14,7 +14,6 @@ import useDisableSSCC from "./hooks/useDisableSSCC";
 import { useCesiumGlobe } from "./hooks/useCesiumGlobe";
 import { useInitializeViewer } from "./hooks/useInitializeViewer";
 import { useOnSceneChange } from "./hooks/useOnSceneChange";
-import useTransitionTimeout from "./hooks/useTransitionTimeout";
 import { useTilesets } from "./hooks/useTilesets";
 import { useSceneStyles } from "./hooks/useSceneStyles";
 import { StringifiedCameraState } from "./utils/cesiumHashParamsCodec";
@@ -83,8 +82,6 @@ const CustomViewerComponent = (props: CustomViewerProps) => {
 
   useInitializeViewer(containerRef, options, initialCameraView);
   useCesiumGlobe(globeOptions);
-
-  useTransitionTimeout();
 
   // camera enhancements
   useDisableSSCC();

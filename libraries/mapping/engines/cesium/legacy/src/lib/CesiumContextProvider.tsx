@@ -216,6 +216,11 @@ export const CesiumContextProvider = ({
       sceneAnimationMapRef,
       shouldSuspendPitchLimiterRef,
       shouldSuspendCameraLimitersRef,
+      isAnimating: () => {
+        const scene = getScene();
+        if (!scene || !sceneAnimationMapRef.current) return false;
+        return sceneAnimationMapRef.current.has(scene);
+      },
       setIsViewerReady,
       providersReady,
       initialCameraSettled,

@@ -1,10 +1,4 @@
 import { useEffect } from "react";
-import { useSelector } from "react-redux";
-
-import {
-  selectShowPrimaryTileset,
-  selectShowSecondaryTileset,
-} from "../slices/cesium";
 
 import { guardScene } from "../utils/guardScene";
 import { guardTileset } from "../utils/guardTileset";
@@ -12,10 +6,16 @@ import { guardTileset } from "../utils/guardTileset";
 import { useCesiumContext } from "./useCesiumContext";
 import { useSecondaryStyleTilesetClickHandler } from "./useSecondaryStyleTilesetClickHandler";
 
-export const useTilesets = () => {
-  const showPrimary = useSelector(selectShowPrimaryTileset);
+/**
+ * Hook to manage tileset visibility in the scene.
+ * @param showPrimary - Whether to show the primary tileset (default: true)
+ * @param showSecondary - Whether to show the secondary tileset (default: false)
+ */
+export const useTilesets = (
+  showPrimary: boolean = true,
+  showSecondary: boolean = false
+) => {
   const ctx = useCesiumContext();
-  const showSecondary = useSelector(selectShowSecondaryTileset);
 
   useEffect(() => {
     let added = false;

@@ -11,12 +11,13 @@ import type {
   Viewer,
 } from "cesium";
 import { SceneAnimationMap } from "./utils/sceneAnimationMap";
-
 export interface CesiumContextType {
   viewerRef: MutableRefObject<Viewer | null>;
   sceneAnimationMapRef: MutableRefObject<SceneAnimationMap | null>;
   shouldSuspendPitchLimiterRef: MutableRefObject<boolean>;
   shouldSuspendCameraLimitersRef: MutableRefObject<boolean>;
+  /** Check if any animation is currently running */
+  isAnimating: () => boolean;
   isViewerReady: boolean;
   setIsViewerReady: (flag: boolean) => void;
   providersReady: boolean;

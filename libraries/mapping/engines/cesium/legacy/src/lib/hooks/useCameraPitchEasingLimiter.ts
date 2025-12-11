@@ -1,15 +1,9 @@
 import { useEffect, useRef } from "react";
-import { useSelector } from "react-redux";
 
 import { Math as CesiumMath, Cartographic, EasingFunction } from "cesium";
 
 import { useCesiumViewer } from "./useCesiumViewer";
 import { useCesiumContext } from "./useCesiumContext";
-import {
-  selectScreenSpaceCameraControllerEnableCollisionDetection,
-  selectViewerIsAnimating,
-  selectViewerIsTransitioning,
-} from "../slices/cesium";
 
 const DEFAULT_MIN_PITCH = 12;
 
@@ -20,6 +14,8 @@ const useCameraPitchEasingLimiter = (
     easing?: (x: number) => number;
     pitchLimiter?: boolean;
     enabled?: boolean;
+    /** Enable collision detection - defaults to true */
+    collisions?: boolean;
   } = {}
 ) => {
   const minPitchDeg = options.minPitchDeg ?? DEFAULT_MIN_PITCH;
@@ -28,18 +24,10 @@ const useCameraPitchEasingLimiter = (
   const pitchLimiter =
     options.pitchLimiter === undefined ? true : options.pitchLimiter;
   const enabled = options.enabled ?? true;
+  const collisions = options.collisions ?? true;
   const viewer = useCesiumViewer();
-  const { shouldSuspendCameraLimitersRef } = useCesiumContext();
+  const { shouldSuspendCameraLimitersRef, isAnimating } = useCesiumContext();
 
-  const isAnimating = useSelector(selectViewerIsAnimating);
-
-  const isTransitioning = useSelector(selectViewerIsTransitioning);
-  const collisions = useSelector(
-    selectScreenSpaceCameraControllerEnableCollisionDetection
-  );
-
-  const isAnimatingRef = useRef(isAnimating);
-  const isTransitioningRef = useRef(isTransitioning);
   const lastPitch = useRef<number | null>(null);
   const lastPosition = useRef<Cartographic | null>(null);
 
@@ -52,9 +40,9 @@ const useCameraPitchEasingLimiter = (
 
       const onUpdate = async () => {
         if (shouldSuspendCameraLimitersRef?.current) return;
-        if (isTransitioningRef.current || isAnimatingRef.current) {
+        if (isAnimating()) {
           console.debug(
-            "HOOK [CESIUM|CAMERA] EASING Pitch Limiter skipped while transitioning or animating"
+            "HOOK [CESIUM|CAMERA] EASING Pitch Limiter skipped while animating"
           );
           return;
         }
@@ -129,6 +117,7 @@ const useCameraPitchEasingLimiter = (
     easingRangeDeg,
     minPitchDeg,
     shouldSuspendCameraLimitersRef,
+    isAnimating,
   ]);
 };
 

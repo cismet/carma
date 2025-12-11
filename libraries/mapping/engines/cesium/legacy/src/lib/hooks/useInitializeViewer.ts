@@ -1,5 +1,4 @@
 import { useEffect, useRef } from "react";
-import { useSelector } from "react-redux";
 
 // legacy viewer dependency should be widget only
 // eslint-disable-next-line carma/no-direct-cesium
@@ -20,21 +19,10 @@ import {
   Color,
   Globe,
   Ellipsoid,
+  cartesian3FromJson,
 } from "@carma/cesium";
 
 import { useCesiumContext } from "./useCesiumContext";
-
-import {
-  selectScreenSpaceCameraControllerMaximumZoomDistance,
-  selectScreenSpaceCameraControllerMinimumZoomDistance,
-  selectScreenSpaceCameraControllerEnableCollisionDetection,
-  selectShowSecondaryTileset,
-  selectViewerHome,
-  selectViewerHomeOffset,
-  selectCurrentSceneStyle,
-  selectSceneStylePrimary,
-  selectSceneStyleSecondary,
-} from "../slices/cesium";
 
 import { configureCesiumErrorHandling } from "../utils/cesiumErrorHandling";
 import { validateWorldCoordinate } from "../utils/positions";
@@ -79,22 +67,6 @@ export const useInitializeViewer = (
     getSurfaceProvider,
     getImageryLayer,
   } = useCesiumContext();
-
-  const home = useSelector(selectViewerHome);
-  const homeOffset = useSelector(selectViewerHomeOffset);
-  const isSecondaryStyle = useSelector(selectShowSecondaryTileset);
-  const currentSceneStyle = useSelector(selectCurrentSceneStyle);
-  const primaryStyle = useSelector(selectSceneStylePrimary);
-  const secondaryStyle = useSelector(selectSceneStyleSecondary);
-  const minZoom = useSelector(
-    selectScreenSpaceCameraControllerMinimumZoomDistance
-  );
-  const maxZoom = useSelector(
-    selectScreenSpaceCameraControllerMaximumZoomDistance
-  );
-  const enableCollisionDetection = useSelector(
-    selectScreenSpaceCameraControllerEnableCollisionDetection
-  );
 
   // Store camera position and orientation vectors
   const lastGoodCameraState = useRef<CameraState | null>(null);

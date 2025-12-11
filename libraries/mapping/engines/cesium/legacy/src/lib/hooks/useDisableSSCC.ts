@@ -1,30 +1,42 @@
 import { useEffect } from "react";
-import { useSelector } from "react-redux";
 
-import {
-  selectViewerIsAnimating,
-  selectViewerIsTransitioning,
-} from "../slices/cesium";
 import { guardScreenSpaceCameraController } from "../utils/guardScreenSpaceCameraController";
 import { useCesiumContext } from "./useCesiumContext";
 
+/**
+ * Disables SSCC (ScreenSpaceCameraController) interactions while animations are running.
+ * Uses sceneAnimationMap to detect active animations.
+ */
 const useDisableSSCC = () => {
-  const isAnimating = useSelector(selectViewerIsAnimating);
-  const isTransitioning = useSelector(selectViewerIsTransitioning);
-  const ctx = useCesiumContext();
+  const { withViewer, withScene, isAnimating, sceneAnimationMapRef } =
+    useCesiumContext();
+
   useEffect(() => {
-    ctx.withViewer((viewer) => {
-      const isEnabled = !isAnimating && !isTransitioning;
-      console.debug("[CESIUM|SCENE|SSCC] map interaction set to", isEnabled);
-      guardScreenSpaceCameraController(
-        viewer.scene.screenSpaceCameraController,
-        "useDisableSSCC"
-      )
-        .enableRotate(isEnabled)
-        .enableZoom(isEnabled)
-        .enableTilt(isEnabled);
+    // Set up a preUpdate listener to check animation state each frame
+    let removeListener: (() => void) | null = null;
+
+    withScene((scene) => {
+      const onPreUpdate = () => {
+        const animating = isAnimating();
+        withViewer((viewer) => {
+          guardScreenSpaceCameraController(
+            viewer.scene.screenSpaceCameraController,
+            "useDisableSSCC"
+          )
+            .enableRotate(!animating)
+            .enableZoom(!animating)
+            .enableTilt(!animating);
+        });
+      };
+
+      scene.preUpdate.addEventListener(onPreUpdate);
+      removeListener = () => scene.preUpdate.removeEventListener(onPreUpdate);
     });
-  }, [ctx, isAnimating, isTransitioning]);
+
+    return () => {
+      removeListener?.();
+    };
+  }, [withViewer, withScene, isAnimating, sceneAnimationMapRef]);
 };
 
 export default useDisableSSCC;

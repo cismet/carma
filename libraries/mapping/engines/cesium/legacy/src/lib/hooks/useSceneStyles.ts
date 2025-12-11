@@ -1,25 +1,26 @@
-import { startTransition, useEffect } from "react";
-import { useDispatch, useSelector } from "react-redux";
+import { useEffect } from "react";
 
-import {
-  selectCurrentSceneStyle,
-  selectSceneStylePrimary,
-  selectSceneStyleSecondary,
-  setShowPrimaryTileset,
-  setShowSecondaryTileset,
-} from "../slices/cesium";
 import { setupPrimaryStyle, setupSecondaryStyle } from "../utils/sceneStyles";
 import { setCesiumBackgroundCssVar } from "../utils/cssVars";
 
 import { useCesiumContext } from "./useCesiumContext";
+import type { SceneStyles } from "../index.d";
 
-export const useSceneStyles = (enabled = true) => {
-  const dispatch = useDispatch();
-  const currentSceneStyle = useSelector(selectCurrentSceneStyle);
-
+/**
+ * Hook to apply scene styles (background color, globe color) based on current style.
+ * @param currentSceneStyle - "primary" or "secondary"
+ * @param sceneStyles - Style configurations for primary and secondary
+ * @param enabled - Whether to apply styles (default: true)
+ */
+export const useSceneStyles = (
+  currentSceneStyle: keyof SceneStyles | undefined,
+  sceneStyles?: SceneStyles,
+  enabled: boolean = true
+) => {
   const ctx = useCesiumContext();
-  const primaryStyle = useSelector(selectSceneStylePrimary);
-  const secondaryStyle = useSelector(selectSceneStyleSecondary);
+
+  const primaryStyle = sceneStyles?.primary;
+  const secondaryStyle = sceneStyles?.secondary;
 
   useEffect(() => {
     // Wait for viewer to be fully ready (including imageryLayers collection)
@@ -33,25 +34,14 @@ export const useSceneStyles = (enabled = true) => {
     console.debug("currentSceneStyle change", currentSceneStyle);
     if (currentSceneStyle === "primary" && primaryStyle) {
       setupPrimaryStyle(ctx, primaryStyle);
-      // Non-urgent Redux state updates - separate from WebGL work
-      startTransition(() => {
-        dispatch(setShowPrimaryTileset(true));
-        dispatch(setShowSecondaryTileset(false));
-      });
       setCesiumBackgroundCssVar(primaryStyle.backgroundColor);
     } else if (currentSceneStyle === "secondary" && secondaryStyle) {
       setupSecondaryStyle(ctx, secondaryStyle);
-      // Non-urgent Redux state updates - separate from WebGL work
-      startTransition(() => {
-        dispatch(setShowPrimaryTileset(false));
-        dispatch(setShowSecondaryTileset(true));
-      });
       setCesiumBackgroundCssVar(secondaryStyle.backgroundColor);
     } else {
-      throw new Error(`Unknown style: ${currentSceneStyle}`);
+      console.warn(`Unknown or unconfigured style: ${currentSceneStyle}`);
     }
   }, [
-    dispatch,
     enabled,
     currentSceneStyle,
     primaryStyle,

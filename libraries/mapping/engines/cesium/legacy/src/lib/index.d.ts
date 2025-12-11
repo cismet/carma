@@ -76,7 +76,6 @@ export type CesiumConfig = {
 };
 export interface CesiumState {
   isAnimating?: boolean;
-  currentTransition?: VIEWER_TRANSITION_STATE;
   currentSceneStyle?: keyof SceneStyles;
   homePosition: null | Cartesian3Json;
   homeOffset: null | Cartesian3Json;
