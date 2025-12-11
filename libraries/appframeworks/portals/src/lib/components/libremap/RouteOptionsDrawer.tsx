@@ -83,7 +83,11 @@ export const RouteOptionsDrawer = ({
   destinationName,
 }: RouteOptionsDrawerProps) => {
   return (
-    <Drawer open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
+    <Drawer
+      open={open}
+      onOpenChange={(isOpen) => !isOpen && onClose()}
+      modal={false}
+    >
       <DrawerContent>
         <div style={{ width: "100%", maxWidth: "100%", padding: "0 16px" }}>
           <DrawerHeader className="relative">

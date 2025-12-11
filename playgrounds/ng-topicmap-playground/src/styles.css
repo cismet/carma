@@ -79,3 +79,7 @@ a:hover {
 .collapse.show {
   visibility: visible;
 }
+
+body {
+  pointer-events: all !important;
+}
