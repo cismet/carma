@@ -36,9 +36,8 @@ export async function planRoute(params: MotisRouteParams) {
       time: params.time?.toISOString(),
       transitModes: params.transitModes || ("" as unknown as motis.Mode[]),
       directModes:
-        params.directModes || ("WALK,CAR" as unknown as motis.Mode[]),
+        params.directModes || ("WALK,CAR,BIKE" as unknown as motis.Mode[]),
       withFares: true,
-      fastestDirectFactor: 1.5,
       joinInterlinedLegs: false,
       maxMatchingDistance: 250,
       detailedTransfers: true,
