@@ -1,12 +1,9 @@
-import { setupAllMocks, mockGeoportalServices } from "@carma-commons/e2e";
-import { test, expect } from "@playwright/test";
-import { toggleAccordion, runModalMenuTest } from "@carma-commons/e2e";
-
-// const checkAccordion = async (page: Page) => {
-//   await toggleAccordion(page, "positionieren");
-//   await toggleAccordion(page, "standort");
-//   await toggleAccordion(page, "zwilling");
-// };
+import {
+  setupAllMocks,
+  mockGeoportalServices,
+  runModalMenuTest,
+} from "@carma-commons/e2e";
+import { test } from "@playwright/test";
 
 test.describe("Modal menu opens and contains header, introduction, sections, footer.", () => {
   test.beforeEach(async ({ context, page }) => {
@@ -18,8 +15,6 @@ test.describe("Modal menu opens and contains header, introduction, sections, foo
   test("Modal menu opens and contains header, introduction, sections, footer.", async ({
     page,
   }) => {
-    // await page.locator('[data-test-id="modal-menu-btn"]').click();
-
     await runModalMenuTest(page, {
       openButtonSelector: '[data-test-id="modal-menu-btn"]',
       // menuOpenCallback: checkAccordion,
