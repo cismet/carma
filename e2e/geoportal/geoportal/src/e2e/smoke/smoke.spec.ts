@@ -1,4 +1,8 @@
-import { setupAllMocks, mockGeoportalServices } from "@carma-commons/e2e";
+import {
+  setupAllMocks,
+  mockGeoportalServices,
+  runModalMenuTest,
+} from "@carma-commons/e2e";
 import { test, expect } from "@playwright/test";
 
 test.describe("geoportal smoke test", () => {
@@ -6,7 +10,6 @@ test.describe("geoportal smoke test", () => {
     await setupAllMocks(context);
     await mockGeoportalServices(context);
     await page.goto("/");
-    // await page.waitForLoadState("networkidle");
   });
 
   test("Map loads with key controls and buttons", async ({ page }) => {
@@ -43,12 +46,8 @@ test.describe("geoportal smoke test", () => {
 
     await expect(page.locator("#cmdCloseModalApplicationMenu")).toHaveCount(0);
 
-    // Open modal
-    await page.locator('[data-test-id="modal-menu-btn"]').click();
-    await expect(page.locator("#cmdCloseModalApplicationMenu")).toBeVisible();
-
-    // Close modal
-    await page.locator("#cmdCloseModalApplicationMenu").click();
-    await expect(page.locator("#cmdCloseModalApplicationMenu")).toHaveCount(0);
+    await runModalMenuTest(page, {
+      openButtonSelector: '[data-test-id="modal-menu-btn"]',
+    });
   });
 });
