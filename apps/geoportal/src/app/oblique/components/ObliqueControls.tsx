@@ -432,18 +432,12 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const rotateCameraKeypress = useCallback(
     (clockwise: boolean) => {
       if (isPreviewVisible) {
-        if (!selectedImageRefresh) return;
         rotateCameraWithPreview(clockwise);
       } else {
         rotateCamera(clockwise);
       }
     },
-    [
-      isPreviewVisible,
-      rotateCameraWithPreview,
-      rotateCamera,
-      selectedImageRefresh,
-    ]
+    [isPreviewVisible, rotateCameraWithPreview, rotateCamera]
   );
 
   const rotateToDirectionWithPreview = useCallback(
