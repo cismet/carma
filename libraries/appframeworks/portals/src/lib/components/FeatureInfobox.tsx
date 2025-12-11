@@ -174,9 +174,7 @@ export const FeatureInfobox = ({
             : "#0078a8"
         }
         title={
-          routeModalOpen
-            ? "Routenoptionen"
-            : infoBoxControlObject?.title?.includes("undefined")
+          infoBoxControlObject?.title?.includes("undefined")
             ? undefined
             : infoBoxControlObject?.title
         }
@@ -190,18 +188,22 @@ export const FeatureInfobox = ({
           "Auf die Karte klicken um Informationen abzurufen"
         }
         header={
-          <div
-            className="w-full"
-            style={{
-              backgroundColor: infoBoxControlObject.headerColor
-                ? selectedFeature.properties.headerColor
-                : "#0078a8",
-            }}
-          >
-            {infoBoxControlObject.header
-              ? truncateString(infoBoxControlObject.header, 66)
-              : "Informationen"}
-          </div>
+          routeModalOpen ? (
+            "Routenoptionen"
+          ) : (
+            <div
+              className="w-full"
+              style={{
+                backgroundColor: infoBoxControlObject.headerColor
+                  ? selectedFeature.properties.headerColor
+                  : "#0078a8",
+              }}
+            >
+              {infoBoxControlObject.header
+                ? truncateString(infoBoxControlObject.header, 66)
+                : "Informationen"}
+            </div>
+          )
         }
         noCurrentFeatureContent=""
         secondaryInfoBoxElements={[
