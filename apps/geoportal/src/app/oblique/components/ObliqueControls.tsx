@@ -374,8 +374,13 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       : {}
   );
 
-  const { activeDirection, rotateCamera, rotateToDirection, rotateToHeading } =
-    useObliqueCameraHandlers(animationInProgressRef, isDebugMode);
+  const {
+    activeDirection,
+    setActiveDirection,
+    rotateCamera,
+    rotateToDirection,
+    rotateToHeading,
+  } = useObliqueCameraHandlers(animationInProgressRef, isDebugMode);
 
   // When rotating in preview: fade current image, trigger nearest search after rotation, and fly to the result
   const rotateCameraWithPreview = useCallback(
@@ -403,11 +408,10 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
         setShouldRemoveCurrentPreviewImage(true);
         nextCaptureShouldFlyRef.current = true;
         rotatedFlyPendingRef.current = true;
-        // Now trigger selection update
-        selectedImageRefresh?.({
-          direction: targetDir,
-          immediate: true,
-        });
+        // Update activeDirection immediately so buttons reflect new state
+        setActiveDirection(targetDir);
+        // Now trigger selection update directly (bypasses suspendSelectionSearch)
+        setSelectedImage(nearest);
         return true; // step accepted; fly will be triggered by selection change
       }
       rotateCamera(clockwise);
@@ -418,7 +422,8 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       rotateCamera,
       activeDirection,
       findNearestForCardinal,
-      selectedImageRefresh,
+      setSelectedImage,
+      setActiveDirection,
       selectedImage?.record?.id,
     ]
   );
@@ -455,11 +460,10 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
         setShouldRemoveCurrentPreviewImage(true);
         nextCaptureShouldFlyRef.current = true;
         rotatedFlyPendingRef.current = true;
-        // Phase 2: trigger selection update to new direction to kick off fly effect
-        selectedImageRefresh?.({
-          direction: dir,
-          immediate: true,
-        });
+        // Update activeDirection immediately so buttons reflect new state
+        setActiveDirection(dir);
+        // Phase 2: trigger selection update directly (bypasses suspendSelectionSearch)
+        setSelectedImage(nearest);
         return; // skip camera rotation animation in preview
       }
       rotateToDirection(dir);
@@ -468,7 +472,8 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
       isPreviewVisible,
       rotateToDirection,
       findNearestForCardinal,
-      selectedImageRefresh,
+      setSelectedImage,
+      setActiveDirection,
       selectedImage?.record?.id,
     ]
   );
