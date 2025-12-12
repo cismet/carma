@@ -106,6 +106,9 @@ const slice = createSlice({
         state.selectedLayerIndex = newLayers.length - 1;
       }
       state.layers = newLayers;
+      state.maplibreMaps = state.maplibreMaps.filter(
+        (entry) => entry.id !== action.payload
+      );
     },
     removeLastLayer(state) {
       const newLayers = state.layers.slice(0, -1);
