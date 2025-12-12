@@ -1,7 +1,7 @@
 {
   "name": "e2e-potenzialflaechen-online",
   "$schema": "../../../node_modules/nx/schemas/project-schema.json",
-  "sourceRoot": "e2e/wunda/potenzialflaechen/src",
+  "sourceRoot": "e2e/wunda/potenzialflaechen-online/src",
   "projectType": "application",
   "tags": [],
   "implicitDependencies": ["potenzialflaechen-online"],
@@ -9,7 +9,7 @@
     "e2e": {
       "executor": "@nx/playwright:playwright",
       "options": {
-        "config": "e2e/wunda/potenzialflaechen/playwright.config.ts"
+        "config": "e2e/wunda/potenzialflaechen-online/playwright.config.ts"
       },
       "configurations": {
         "production": {
