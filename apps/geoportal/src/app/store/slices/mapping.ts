@@ -101,6 +101,9 @@ const slice = createSlice({
       state.layers = newLayers;
     },
     removeLayer(state, action: PayloadAction<string>) {
+      const removedIndex = state.layers.findIndex(
+        (obj) => obj.id === action.payload
+      );
       const newLayers = state.layers.filter((obj) => obj.id !== action.payload);
       if (state.selectedLayerIndex > newLayers.length - 1) {
         state.selectedLayerIndex = newLayers.length - 1;
@@ -109,6 +112,13 @@ const slice = createSlice({
       state.maplibreMaps = state.maplibreMaps.filter(
         (entry) => entry.id !== action.payload
       );
+      if (state.activeFilterLayerIndex !== null) {
+        if (removedIndex === state.activeFilterLayerIndex) {
+          state.activeFilterLayerIndex = null;
+        } else if (removedIndex < state.activeFilterLayerIndex) {
+          state.activeFilterLayerIndex = state.activeFilterLayerIndex - 1;
+        }
+      }
     },
     removeLastLayer(state) {
       const newLayers = state.layers.slice(0, -1);

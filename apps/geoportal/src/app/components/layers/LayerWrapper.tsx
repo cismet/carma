@@ -114,7 +114,7 @@ const LayerWrapper = () => {
 
   const FilterButtonsComponent = useMemo(() => {
     if (activeFilterLayerIndex === null) return null;
-    return createFilterButtons(layers[activeFilterLayerIndex].filterConfig);
+    return createFilterButtons(layers[activeFilterLayerIndex]?.filterConfig);
   }, [activeFilterLayerIndex, layers]);
 
   const activeFilterLayerId =
