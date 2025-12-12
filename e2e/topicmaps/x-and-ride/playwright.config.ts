@@ -9,12 +9,12 @@ export default defineConfig({
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 1 : undefined,
-  reporter: "github",
+  reporter: process.env.CI ? "github" : "html",
   use: {
     baseURL: "http://localhost:4222",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
-    // channel: process.env.CI ? "chrome" : undefined,
+    testIdAttribute: "data-test-id",
   },
   projects: [
     {

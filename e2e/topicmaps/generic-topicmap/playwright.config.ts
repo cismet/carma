@@ -14,7 +14,7 @@ export default defineConfig({
     baseURL: "http://localhost:4222",
     trace: "on-first-retry",
     screenshot: "only-on-failure",
-    channel: process.env.PW_CHANNEL || undefined,
+    testIdAttribute: "data-test-id",
   },
   projects: [
     {
