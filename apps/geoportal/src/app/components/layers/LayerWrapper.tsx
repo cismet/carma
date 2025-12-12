@@ -43,7 +43,12 @@ import {
   setSelectedLayerIndexNoSelection,
   setShowLeftScrollButton,
   setShowRightScrollButton,
+  getMaplibreMaps,
 } from "../../store/slices/mapping";
+import {
+  getSelectedFeature,
+  setSelectedFeature as setSelectedFeatureAction,
+} from "../../store/slices/features";
 import GeoportalLayerButton from "./GeoportalLayerButton";
 import SecondaryView from "./SecondaryView";
 
@@ -57,6 +62,8 @@ const LayerWrapper = () => {
 
   const layers = useSelector(getLayers);
   const backgroundLayer = useSelector(getBackgroundLayer);
+  const maplibreMaps = useSelector(getMaplibreMaps);
+  const selectedFeature = useSelector(getSelectedFeature);
 
   const selectedLayerIndex = useSelector(getSelectedLayerIndex);
   const isNoSelectionIndex = useSelector(getSelectedLayerIndexIsNoSelection);
@@ -109,6 +116,14 @@ const LayerWrapper = () => {
     if (activeFilterLayerIndex === null) return null;
     return createFilterButtons(layers[activeFilterLayerIndex].filterConfig);
   }, [activeFilterLayerIndex, layers]);
+
+  const activeFilterLayerId =
+    activeFilterLayerIndex === null ? null : layers[activeFilterLayerIndex]?.id;
+  const activeFilterLayerMaplibreMap =
+    activeFilterLayerId && maplibreMaps
+      ? maplibreMaps.find((entry) => entry.id === activeFilterLayerId)?.map ??
+        null
+      : null;
 
   console.debug("RENDER: LayerWrapper selectedLayerIndex", selectedLayerIndex);
 
@@ -218,11 +233,12 @@ const LayerWrapper = () => {
 
       {FilterButtonsComponent && (
         <div className="pt-2 w-full flex items-center justify-center -mb-2">
-          {/* @ts-ignore */}
           <FilterButtonsComponent
-          // maplibreMap={maplibreMap}
-          // selectedFeature={feature}
-          // setSelectedFeature={setFeature}
+            maplibreMap={activeFilterLayerMaplibreMap}
+            selectedFeature={selectedFeature}
+            setSelectedFeature={(feature) =>
+              dispatch(setSelectedFeatureAction(feature))
+            }
           />
         </div>
       )}

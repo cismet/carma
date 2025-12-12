@@ -109,6 +109,7 @@ import {
   getLayersIdle,
   getShowHamburgerMenu,
   setLayersIdle,
+  setMaplibreMaps as setMaplibreMapsStore,
 } from "../../store/slices/mapping.ts";
 import { getUIMode, UIMode } from "../../store/slices/ui.ts";
 
@@ -750,6 +751,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       maplibreMapsRef,
       store,
       selectionSemanticIdentifierRef,
+      setMaplibreMaps: (entry) => dispatch(setMaplibreMapsStore(entry)),
     }),
     [
       uiMode,
@@ -758,6 +760,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
       selectedFeature,
       getLeafletMap,
       maplibreMapsRef,
+      setMaplibreMapsStore,
     ]
   );
 

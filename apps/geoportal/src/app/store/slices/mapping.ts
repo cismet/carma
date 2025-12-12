@@ -11,6 +11,11 @@ import {
 import { RootState } from "..";
 import { layerMap } from "../../config";
 
+type MapLibreMapEntry = {
+  id: string;
+  map: any;
+};
+
 const defaultOpacity = 0.2;
 
 const initialState: MappingState = {
@@ -20,6 +25,7 @@ const initialState: MappingState = {
   activeFilterLayerIndex: null,
   paleOpacityValue: defaultOpacity,
   libreMapRef: null,
+  maplibreMaps: [],
   layersIdle: false,
 
   selectedMapLayer: {
@@ -261,6 +267,18 @@ const slice = createSlice({
     setLibreMapRef(state, action: PayloadAction<any>) {
       state.libreMapRef = action.payload;
     },
+    setMaplibreMaps(state, action: PayloadAction<MapLibreMapEntry>) {
+      const entry = action.payload;
+      const current = state.maplibreMaps;
+      const idx = current.findIndex((e) => e.id === entry.id);
+      if (idx === -1) {
+        state.maplibreMaps = [...current, entry];
+      } else {
+        const next = [...current];
+        next[idx] = entry;
+        state.maplibreMaps = next;
+      }
+    },
     setConfigSelection(state, action: PayloadAction<SelectionItem>) {
       state.configSelection = action.payload;
     },
@@ -307,6 +325,7 @@ export const {
 
   toggleUseInFeatureInfo,
   setLibreMapRef,
+  setMaplibreMaps,
   setConfigSelection,
   setLayersIdle,
 } = slice.actions;
@@ -353,6 +372,7 @@ export const getActiveFilterLayerIndex = (state: RootState) =>
   state.mapping.activeFilterLayerIndex;
 export const getStartDrawing = (state: RootState) => state.mapping.startDrawing;
 export const getLibreMapRef = (state: RootState) => state.mapping.libreMapRef;
+export const getMaplibreMaps = (state: RootState) => state.mapping.maplibreMaps;
 export const getConfigSelection = (state: RootState) =>
   state.mapping.configSelection;
 export const getLayersIdle = (state: RootState) => state.mapping.layersIdle;

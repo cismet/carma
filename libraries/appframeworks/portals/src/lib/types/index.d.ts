@@ -125,6 +125,7 @@ export interface MappingState extends LayerState {
   startDrawing: boolean;
   clickFromInfoView: boolean;
   libreMapRef: any;
+  maplibreMaps?: any;
   configSelection?: SelectionItem;
   layersIdle: boolean;
 }
