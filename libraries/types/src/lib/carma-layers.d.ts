@@ -65,11 +65,14 @@ type BaseLayer = {
 };
 
 export type Layer =
-  | (BaseLayer & {
+  | ((BaseLayer & {
       type?: "layer";
-      layerType: "wmts" | "wmts-nt";
-      props?: LayerProps;
-    })
+      filterConfig?: any;
+    }) &
+      {
+        layerType: "wmts" | "wmts-nt";
+        props?: LayerProps;
+      })
   | (BaseLayer & vectorProps & { type?: "layer" })
   | (BaseLayer & objectProps);
 
