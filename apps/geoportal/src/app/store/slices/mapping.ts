@@ -17,6 +17,7 @@ const initialState: MappingState = {
   layers: [],
   savedLayerConfigs: [],
   selectedLayerIndex: SELECTED_LAYER_INDEX.NO_SELECTION,
+  activeFilterLayerIndex: null,
   paleOpacityValue: defaultOpacity,
   libreMapRef: null,
   layersIdle: false,
@@ -215,6 +216,9 @@ const slice = createSlice({
       }
     },
 
+    setActiveFilterLayerIndex(state, action) {
+      state.activeFilterLayerIndex = action.payload;
+    },
     setSelectedMapLayer(state, action: PayloadAction<BackgroundLayer>) {
       state.selectedMapLayer = action.payload;
     },
@@ -286,6 +290,7 @@ export const {
   setSelectedLayerIndexNoSelection,
   setNextSelectedLayerIndex,
   setPreviousSelectedLayerIndex,
+  setActiveFilterLayerIndex,
   setSelectedMapLayer,
   setBackgroundLayer,
   setSelectedLuftbildLayer,
@@ -344,6 +349,8 @@ export const getShowMeasurementButton = (state: RootState) =>
   state.mapping.showMeasurementButton;
 export const getShowRightScrollButton = (state: RootState) =>
   state.mapping.showRightScrollButton;
+export const getActiveFilterLayerIndex = (state: RootState) =>
+  state.mapping.activeFilterLayerIndex;
 export const getStartDrawing = (state: RootState) => state.mapping.startDrawing;
 export const getLibreMapRef = (state: RootState) => state.mapping.libreMapRef;
 export const getConfigSelection = (state: RootState) =>
