@@ -13,6 +13,18 @@ test.describe("lagis smoke test", () => {
     await setupAllMocks(context);
     await mockOMTMapHosting(context);
 
+    // Mock icons8 images
+    await context.route("https://img.icons8.com/**", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "image/png",
+        body: Buffer.from(
+          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+          "base64"
+        ),
+      })
+    );
+
     await context.route("https://lagis-api.cismet.de/users", (route) =>
       route.fulfill({
         status: 200,
