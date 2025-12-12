@@ -7,7 +7,12 @@ import { useDispatch, useSelector } from "react-redux";
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-import { faEye, faEyeSlash, faX } from "@fortawesome/free-solid-svg-icons";
+import {
+  faEye,
+  faEyeSlash,
+  faFilter,
+  faX,
+} from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import L from "leaflet";
 
@@ -22,11 +27,13 @@ import {
   getClickFromInfoView,
   getLayers,
   getSelectedLayerIndex,
+  getActiveFilterLayerIndex,
   getShowLeftScrollButton,
   removeLayer,
   setClickFromInfoView,
   setSelectedLayerIndex,
   setSelectedLayerIndexNoSelection,
+  setActiveFilterLayerIndex,
   setShowLeftScrollButton,
   setShowRightScrollButton,
   toggleUseInFeatureInfo,
@@ -91,6 +98,7 @@ const GeoportalLayerButton = ({
   const showLayerHideButtons = useSelector(getUIShowLayerHideButtons);
   const showLeftScrollButton = useSelector(getShowLeftScrollButton);
   const clickFromInfoView = useSelector(getClickFromInfoView);
+  const activeFilterLayerIndex = useSelector(getActiveFilterLayerIndex);
   const mode = useSelector(getUIMode);
   const showSettings = index === selectedLayerIndex;
   const layers = useSelector(getLayers);
@@ -211,6 +219,23 @@ const GeoportalLayerButton = ({
         {!background && (
           <>
             <span className="text-base ml-1">{title}</span>
+            {layer.filterConfig && (
+              <button
+                className="hover:text-gray-500 text-gray-600 px-1.5 flex items-center justify-center"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  dispatch(
+                    setActiveFilterLayerIndex(
+                      activeFilterLayerIndex === index ? null : index
+                    )
+                  );
+                }}
+              >
+                <FontAwesomeIcon icon={faFilter} className="text-sm" />
+              </button>
+            )}
+
             <button
               id={`removeLayerButton-${id}`}
               className="hover:text-gray-500 text-gray-600 px-1.5 flex items-center justify-center"

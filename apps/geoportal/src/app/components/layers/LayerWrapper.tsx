@@ -1,7 +1,7 @@
 /* eslint-disable jsx-a11y/no-static-element-interactions */
 /* eslint-disable jsx-a11y/click-events-have-key-events */
 
-import { useContext, useEffect } from "react";
+import { useContext, useEffect, useMemo } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
@@ -27,6 +27,7 @@ import { useWindowSize } from "@uidotdev/usehooks";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import { cn } from "@carma-commons/utils";
+import { createFilterButtons } from "@carma-mapping/components";
 
 import { AppDispatch } from "../../store";
 import {
@@ -34,6 +35,7 @@ import {
   getLayers,
   getSelectedLayerIndex,
   getSelectedLayerIndexIsNoSelection,
+  getActiveFilterLayerIndex,
   getShowLeftScrollButton,
   getShowRightScrollButton,
   setLayers,
@@ -60,6 +62,7 @@ const LayerWrapper = () => {
   const isNoSelectionIndex = useSelector(getSelectedLayerIndexIsNoSelection);
   const showLeftScrollButton = useSelector(getShowLeftScrollButton);
   const showRightScrollButton = useSelector(getShowRightScrollButton);
+  const activeFilterLayerIndex = useSelector(getActiveFilterLayerIndex);
 
   const { isLeaflet } = useMapFrameworkSwitcherContext();
   const { isOver, setNodeRef } = useDroppable({
@@ -101,6 +104,11 @@ const LayerWrapper = () => {
       dispatch(setShowRightScrollButton(false));
     }
   }, [size]);
+
+  const FilterButtonsComponent = useMemo(() => {
+    if (activeFilterLayerIndex === null) return null;
+    return createFilterButtons(layers[activeFilterLayerIndex].filterConfig);
+  }, [activeFilterLayerIndex, layers]);
 
   console.debug("RENDER: LayerWrapper selectedLayerIndex", selectedLayerIndex);
 
@@ -208,6 +216,16 @@ const LayerWrapper = () => {
         </div>
       </DndContext>
 
+      {FilterButtonsComponent && (
+        <div className="pt-2 w-full flex items-center justify-center -mb-2">
+          {/* @ts-ignore */}
+          <FilterButtonsComponent
+          // maplibreMap={maplibreMap}
+          // selectedFeature={feature}
+          // setSelectedFeature={setFeature}
+          />
+        </div>
+      )}
       {!isNoSelectionIndex && <SecondaryView />}
     </>
   );
