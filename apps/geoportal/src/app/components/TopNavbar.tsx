@@ -76,9 +76,14 @@ const TopNavbar = () => {
     () => getCollabedHelpElementsConfig("MENU", geoElements),
     []
   );
+  const oblqConfig = useMemo(
+    () => getCollabedHelpElementsConfig("OBLIQUE", geoElements),
+    []
+  );
 
   const hintergrundTourRef = useOverlayHelper(hintergrundConfig);
   const modalMenuTourRef = useOverlayHelper(modalMenuConfig);
+  const oblqTourRef = useOverlayHelper(oblqConfig);
 
   const overlayConfig = useMemo(() => {
     return {
@@ -204,6 +209,7 @@ const TopNavbar = () => {
               <Button
                 type={isObliqueMode ? "primary" : "default"}
                 onClick={toggleObliqueMode}
+                ref={oblqTourRef}
                 className="mr-2 select-none"
               >
                 <FontAwesomeIcon icon={faPlane} rotation={270} />
