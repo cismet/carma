@@ -150,9 +150,6 @@ jobs:
           # Get the project list from the matrix setup
           projects='${{ steps.set_up_matrix.outputs.project_list }}'
 
-          # Load e2e-test-config.json
-          e2e_config=$(cat e2e-test-config.json)
-
           # Initialize empty array for E2E projects
           e2e_projects="[]"
 
@@ -172,11 +169,11 @@ jobs:
               if npx nx show project "$e2e_proj" >/dev/null 2>&1; then
                 echo "✅ E2E project '$e2e_proj' found in nx workspace"
                 
-                # Check if project exists in e2e-test-config.json and has smoke: true
-                smoke_test=$(echo "$e2e_config" | jq -r --arg project "$project" '.projects[$project].smoke // false')
+                # Check if smoke test folder exists and contains .spec.ts files
+                smoke_files=$(find e2e -mindepth 2 -maxdepth 2 -name "$project" -type d -exec find {} -path "*/src/e2e/smoke/*.spec.ts" -type f \; 2>/dev/null | wc -l)
                 
-                if [ "$smoke_test" = "true" ]; then
-                  echo "✅ Project '$project' has smoke test enabled in e2e-test-config.json"
+                if [ "$smoke_files" -gt 0 ]; then
+                  echo "✅ Found $smoke_files smoke test file(s) for $project"
                   if [ "$first" = true ]; then
                     e2e_list="$e2e_list\"$e2e_proj\""
                     first=false
@@ -184,7 +181,7 @@ jobs:
                     e2e_list="$e2e_list, \"$e2e_proj\""
                   fi
                 else
-                  echo "❌ Project '$project' not found in e2e-test-config.json or smoke test disabled"
+                  echo "❌ No smoke test files found in smoke/ folder for project '$project'"
                 fi
               else
                 echo "❌ E2E project '$e2e_proj' not found in nx workspace"
