@@ -112,18 +112,20 @@ const LayerWrapper = () => {
     }
   }, [size]);
 
-  const FilterButtonsComponent = useMemo(() => {
-    if (activeFilterLayerIndex === null) return null;
-    return createFilterButtons(layers[activeFilterLayerIndex]?.filterConfig);
-  }, [activeFilterLayerIndex, layers]);
-
-  const activeFilterLayerId =
-    activeFilterLayerIndex === null ? null : layers[activeFilterLayerIndex]?.id;
-  const activeFilterLayerMaplibreMap =
-    activeFilterLayerId && maplibreMaps
-      ? maplibreMaps.find((entry) => entry.id === activeFilterLayerId)?.map ??
-        null
-      : null;
+  // Create filter components for all layers that have filterConfig
+  // We render all but hide inactive ones to preserve state
+  const filterComponents = useMemo(() => {
+    return layers
+      .map((layer, index) => {
+        if (!layer.filterConfig) return null;
+        return {
+          index,
+          id: layer.id,
+          Component: createFilterButtons(layer.filterConfig),
+        };
+      })
+      .filter(Boolean);
+  }, [layers]);
 
   console.debug("RENDER: LayerWrapper selectedLayerIndex", selectedLayerIndex);
 
@@ -231,17 +233,30 @@ const LayerWrapper = () => {
         </div>
       </DndContext>
 
-      {FilterButtonsComponent && (
-        <div className="pt-2 w-full flex items-center justify-center -mb-2">
-          <FilterButtonsComponent
-            maplibreMap={activeFilterLayerMaplibreMap}
-            selectedFeature={selectedFeature}
-            setSelectedFeature={(feature) =>
-              dispatch(setSelectedFeatureAction(feature))
-            }
-          />
-        </div>
-      )}
+      {filterComponents.map((filterEntry) => {
+        const isActive = filterEntry.index === activeFilterLayerIndex;
+        const maplibreMap = maplibreMaps
+          ? maplibreMaps.find((entry) => entry.id === filterEntry.id)?.map ??
+            null
+          : null;
+        return (
+          <div
+            key={filterEntry.id}
+            className={cn(
+              "pt-2 w-full flex items-center justify-center -mb-2",
+              !isActive && "hidden"
+            )}
+          >
+            <filterEntry.Component
+              maplibreMap={maplibreMap}
+              selectedFeature={selectedFeature}
+              setSelectedFeature={(feature) =>
+                dispatch(setSelectedFeatureAction(feature))
+              }
+            />
+          </div>
+        );
+      })}
       {!isNoSelectionIndex && <SecondaryView />}
     </>
   );
