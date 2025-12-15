@@ -1,4 +1,9 @@
-import { type CSSProperties, type MouseEvent, useState } from "react";
+import {
+  type CSSProperties,
+  type MouseEvent,
+  useState,
+  forwardRef,
+} from "react";
 import { Tooltip } from "antd";
 import UAParser from "ua-parser-js";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
@@ -33,55 +38,69 @@ const LOCALE_DE_WARNING_ENABLE_CESIUM_MODE = `Achtung ⚠️\n\nDie 3D-Darstellu
 const LOCALE_DE_SWITCH_TO_3D_MODE = `Zur 3D-Ansicht wechseln`;
 const LOCALE_DE_SWITCH_TO_2D_MODE = `Zur 2D-Ansicht wechseln`;
 
-export const MapFrameworkSwitcher = ({
-  forceEnabled,
-  className,
-  nativeTooltip = false,
-  enableMobileWarning = false,
-  switchTo3DText = LOCALE_DE_SWITCH_TO_3D_MODE,
-  switchTo2DText = LOCALE_DE_SWITCH_TO_2D_MODE,
-  style,
-}: MapFrameworkSwitcherProps) => {
-  const { isTransitioning, toggle, isReady, isLeaflet } =
-    useMapFrameworkSwitcherContext();
-  const [hasConfirmed, setHasConfirmed] = useState(false);
+export const MapFrameworkSwitcher = forwardRef<
+  HTMLButtonElement,
+  MapFrameworkSwitcherProps
+>(
+  (
+    {
+      forceEnabled,
+      className,
+      nativeTooltip = false,
+      enableMobileWarning = false,
+      switchTo3DText = LOCALE_DE_SWITCH_TO_3D_MODE,
+      switchTo2DText = LOCALE_DE_SWITCH_TO_2D_MODE,
+      style,
+    },
+    ref
+  ) => {
+    const { isTransitioning, toggle, isReady, isLeaflet } =
+      useMapFrameworkSwitcherContext();
+    const [hasConfirmed, setHasConfirmed] = useState(false);
 
-  const handleSwitchMapMode = async (e: MouseEvent) => {
-    e.preventDefault();
+    const handleSwitchMapMode = async (e: MouseEvent) => {
+      e.preventDefault();
 
-    if (isLeaflet && !hasConfirmed && enableMobileWarning && isMobileOrTablet) {
-      const confirmed = window.confirm(LOCALE_DE_WARNING_ENABLE_CESIUM_MODE);
-      if (confirmed) setHasConfirmed(true);
-      else return;
-    }
+      if (
+        isLeaflet &&
+        !hasConfirmed &&
+        enableMobileWarning &&
+        isMobileOrTablet
+      ) {
+        const confirmed = window.confirm(LOCALE_DE_WARNING_ENABLE_CESIUM_MODE);
+        if (confirmed) setHasConfirmed(true);
+        else return;
+      }
 
-    await toggle();
-  };
+      await toggle();
+    };
 
-  const switchInfoText = isLeaflet ? switchTo3DText : switchTo2DText;
+    const switchInfoText = isLeaflet ? switchTo3DText : switchTo2DText;
 
-  // Disable button if not ready or transitioning (unless forceEnabled)
-  const isDisabled = (!isReady || isTransitioning) && !forceEnabled;
+    // Disable button if not ready or transitioning (unless forceEnabled)
+    const isDisabled = (!isReady || isTransitioning) && !forceEnabled;
 
-  const button = (
-    <ControlButtonStyler
-      className={("font-semibold " + (className || "")).trim()}
-      onClick={handleSwitchMapMode}
-      disabled={isDisabled}
-      title={nativeTooltip ? switchInfoText : undefined}
-      dataTestId={isLeaflet ? "3d-control" : "2d-control"}
-    >
-      {isLeaflet ? "3D" : "2D"}
-    </ControlButtonStyler>
-  );
+    const button = (
+      <ControlButtonStyler
+        className={("font-semibold " + (className || "")).trim()}
+        onClick={handleSwitchMapMode}
+        disabled={isDisabled}
+        title={nativeTooltip ? switchInfoText : undefined}
+        dataTestId={isLeaflet ? "3d-control" : "2d-control"}
+        ref={ref}
+      >
+        {isLeaflet ? "3D" : "2D"}
+      </ControlButtonStyler>
+    );
 
-  const content = nativeTooltip ? (
-    button
-  ) : (
-    <Tooltip title={switchInfoText} placement="right">
-      {button}
-    </Tooltip>
-  );
+    const content = nativeTooltip ? (
+      button
+    ) : (
+      <Tooltip title={switchInfoText} placement="right">
+        {button}
+      </Tooltip>
+    );
 
-  return style ? <div style={style}>{content}</div> : content;
-};
+    return style ? <div style={style}>{content}</div> : content;
+  }
+);

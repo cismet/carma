@@ -357,6 +357,7 @@ const MapWrapper = () => {
 
                 <MapFrameworkSwitcher
                   enableMobileWarning={true}
+                  ref={tourRefLabels.toggle2d3d}
                   // nativeTooltip={true}
                 />
 
