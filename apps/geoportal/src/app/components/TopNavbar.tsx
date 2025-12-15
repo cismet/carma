@@ -197,8 +197,8 @@ const TopNavbar = () => {
             <Tooltip
               title={
                 isObliqueMode
-                  ? "Schrägansicht deaktivieren"
-                  : "Schrägansicht aktivieren"
+                  ? "Modus Schrägluftbilder ausschalten"
+                  : "Modus Schrägluftbilder einschalten"
               }
             >
               <Button
