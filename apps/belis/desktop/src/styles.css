@@ -271,3 +271,13 @@ iframe {
 .leaflet-map-pane svg {
   z-index: 200;
 }
+
+/* Ensure SVG paths (lines/polylines) are clickable and show selection */
+.leaflet-overlay-pane svg path {
+  pointer-events: auto;
+}
+
+/* Ensure stroke color is visible on selection */
+.leaflet-interactive {
+  pointer-events: auto;
+}
