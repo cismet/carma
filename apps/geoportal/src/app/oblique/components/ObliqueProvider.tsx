@@ -137,6 +137,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
   const {
     isViewerReady,
     initialCameraSettled,
+    primaryTilesetReady,
     requestRender,
     withCamera,
     withViewer,
@@ -264,7 +265,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
             : null;
 
           // Fallback: use camera position if pickSceneCenter fails (e.g., during initial load)
-          if (!orbitPointCoords && cartographic) {
+          if (!orbitPointCoords && cartographic && primaryTilesetReady) {
             const cameraLon = cartographic.longitude * (180 / Math.PI);
             const cameraLat = cartographic.latitude * (180 / Math.PI);
             const projected = converter.converter.forward([
@@ -403,6 +404,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
       requestedHeadingRef,
       selectedImage,
       isInitialCameraSettled,
+      primaryTilesetReady,
       withCamera,
     ]
   );
@@ -450,6 +452,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
       imageRecords &&
       isObliqueMode &&
       isInitialCameraSettled &&
+      primaryTilesetReady &&
       !lockFootprint &&
       !suspendSelectionSearch &&
       typeof selectedImageRefresh === "function"
@@ -462,6 +465,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     imageRecords,
     isObliqueMode,
     isInitialCameraSettled,
+    primaryTilesetReady,
     selectedImageRefresh,
     lockFootprint,
     suspendSelectionSearch,
@@ -488,6 +492,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
       isObliqueMode &&
       isViewerReady &&
       isInitialCameraSettled &&
+      primaryTilesetReady &&
       isAllDataReady &&
       typeof selectedImageRefresh === "function" &&
       !lockFootprint &&
@@ -559,6 +564,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     isObliqueMode,
     isViewerReady,
     isInitialCameraSettled,
+    primaryTilesetReady,
     isAllDataReady,
     selectedImageRefresh,
     lockFootprint,

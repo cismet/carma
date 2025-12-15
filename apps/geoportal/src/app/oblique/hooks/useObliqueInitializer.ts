@@ -14,8 +14,12 @@ import { enterObliqueMode, leaveObliqueMode } from "../utils/cameraUtils";
 import { handleDelayedRender } from "@carma-commons/utils";
 
 export function useObliqueInitializer(debug = false) {
-  const { shouldSuspendPitchLimiterRef, getScene, sceneAnimationMapRef } =
-    useCesiumContext();
+  const {
+    shouldSuspendPitchLimiterRef,
+    getScene,
+    sceneAnimationMapRef,
+    primaryTilesetReady,
+  } = useCesiumContext();
   const { isTransitioning } = useMapFrameworkSwitcherContext();
   const {
     isObliqueMode,
@@ -67,6 +71,11 @@ export function useObliqueInitializer(debug = false) {
   useEffect(() => {
     // Always set the zoom handler state based on oblique mode; the hook will defer attaching until a viewer exists
     setWheelZoomEnabled(isObliqueMode);
+
+    // Wait for tileset to be ready before entering oblique mode (ensures pickSceneCenter works)
+    if (!primaryTilesetReady) {
+      return;
+    }
 
     const scene = getScene();
     if (scene) {
@@ -127,6 +136,7 @@ export function useObliqueInitializer(debug = false) {
   }, [
     debug,
     isObliqueMode,
+    primaryTilesetReady,
     // ctx, // intentionally omitted to prevent re-triggering on context changes
     getScene,
     fixedPitch,

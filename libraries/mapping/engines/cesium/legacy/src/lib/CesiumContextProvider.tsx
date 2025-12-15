@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
-import { Viewer } from "cesium";
+type Viewer = import("cesium").Viewer;
 
 import {
   CesiumTerrainProvider,
@@ -58,6 +58,10 @@ export const CesiumContextProvider = ({
   const [initialCameraSettled, setInitialCameraSettled] = useState<
     boolean | null
   >(null);
+  // Track when primary tileset is loaded and ready for picking
+  const [primaryTilesetReady, setPrimaryTilesetReady] = useState<boolean>(false);
+  // Track when secondary tileset is loaded and ready for picking
+  const [secondaryTilesetReady, setSecondaryTilesetReady] = useState<boolean>(false);
   // Monotonic counter for initial camera applications
   const [initialCameraEpoch, setInitialCameraEpoch] = useState<number>(0);
 
@@ -122,8 +126,14 @@ export const CesiumContextProvider = ({
 
   // Load Primary Tileset
   useEffect(() => {
+    let alive = true;
+    let detachTilesetLoadListener: (() => void) | null = null;
+    let readyTimeoutId: number | null = null;
+    let done = false;
+
     if (tilesetConfigs.primary && isViewerReady) {
       const fetchPrimary = async () => {
+        setPrimaryTilesetReady(false);
         console.debug(
           "[CESIUM|DEBUG] Loading primary tileset",
           tilesetConfigs.primary
@@ -133,27 +143,117 @@ export const CesiumContextProvider = ({
           "[CESIUM|DEBUG] Loaded primary tileset",
           primaryTilesetRef.current
         );
+
+        const viewer = viewerRef.current;
+        const tileset = primaryTilesetRef.current;
+
+        if (!alive) {
+          return;
+        }
+
+        if (!viewer || !tileset) {
+          setPrimaryTilesetReady(true);
+          return;
+        }
+
+        type TilesetWithTileLoadProgressEvent = {
+          tileLoadProgressEvent: {
+            addEventListener: (cb: (pendingCount: number) => void) => void;
+            removeEventListener: (cb: (pendingCount: number) => void) => void;
+          };
+        };
+
+        const tilesetWithEvents = tileset as unknown as TilesetWithTileLoadProgressEvent;
+        let hadZeroProgress = false;
+
+        const onTileLoadProgress = (pendingCount: number) => {
+          if (pendingCount === 0) {
+            hadZeroProgress = true;
+          }
+        };
+
+        tilesetWithEvents.tileLoadProgressEvent.addEventListener(onTileLoadProgress);
+
+        detachTilesetLoadListener = () =>
+          tilesetWithEvents.tileLoadProgressEvent.removeEventListener(
+            onTileLoadProgress
+          );
+
+        readyTimeoutId = window.setTimeout(() => {
+          if (!alive) return;
+          if (done) return;
+          done = true;
+          console.warn(
+            "[CESIUM|DEBUG] primaryTilesetReady timeout: proceeding without confirmed tile idle"
+          );
+          if (detachTilesetLoadListener) {
+            detachTilesetLoadListener();
+            detachTilesetLoadListener = null;
+          }
+          setPrimaryTilesetReady(true);
+        }, 10000);
+
+        const checkReady = () => {
+          if (!alive) return;
+          if (done) return;
+          const isAdded = viewer.scene.primitives.contains(tileset);
+          if (isAdded && hadZeroProgress) {
+            done = true;
+            if (readyTimeoutId != null) {
+              window.clearTimeout(readyTimeoutId);
+              readyTimeoutId = null;
+            }
+            if (detachTilesetLoadListener) {
+              detachTilesetLoadListener();
+              detachTilesetLoadListener = null;
+            }
+            setPrimaryTilesetReady(true);
+            return;
+          }
+          requestAnimationFrame(checkReady);
+        };
+
+        requestAnimationFrame(checkReady);
       };
       fetchPrimary().catch(console.error);
     } else {
       console.debug("[CESIUM|DEBUG] No primary tileset configured");
+      // If no tileset configured, mark as ready (terrain-only mode)
+      setPrimaryTilesetReady(true);
     }
 
     return () => {
+      alive = false;
+      done = true;
+      if (readyTimeoutId != null) {
+        window.clearTimeout(readyTimeoutId);
+        readyTimeoutId = null;
+      }
+      if (detachTilesetLoadListener) {
+        detachTilesetLoadListener();
+        detachTilesetLoadListener = null;
+      }
       // Don't destroy providers when transitioning to 2D mode - only when viewer is destroyed
       const t = primaryTilesetRef.current;
       if (t && !t.isDestroyed() && isValidViewer()) {
         console.debug("[CESIUM|DEBUG] Destroying primary tileset");
         t.destroy();
         primaryTilesetRef.current = null;
+        setPrimaryTilesetReady(false);
       }
     };
   }, [tilesetConfigs.primary, isViewerReady, isValidViewer]);
 
   // Load Secondary Tileset
   useEffect(() => {
+    let alive = true;
+    let detachTilesetLoadListener: (() => void) | null = null;
+    let readyTimeoutId: number | null = null;
+    let done = false;
+
     if (tilesetConfigs.secondary && isViewerReady && isValidViewer()) {
       const fetchSecondary = async () => {
+        setSecondaryTilesetReady(false);
         console.debug(
           "[CESIUM|DEBUG] Loading secondary tileset",
           tilesetConfigs.secondary
@@ -165,19 +265,103 @@ export const CesiumContextProvider = ({
           "[CESIUM|DEBUG] Loaded secondary tileset",
           secondaryTilesetRef.current
         );
+
+        const viewer = viewerRef.current;
+        const tileset = secondaryTilesetRef.current;
+
+        if (!alive) {
+          return;
+        }
+
+        if (!viewer || !tileset) {
+          setSecondaryTilesetReady(true);
+          return;
+        }
+
+        type TilesetWithTileLoadProgressEvent = {
+          tileLoadProgressEvent: {
+            addEventListener: (cb: (pendingCount: number) => void) => void;
+            removeEventListener: (cb: (pendingCount: number) => void) => void;
+          };
+        };
+
+        const tilesetWithEvents =
+          tileset as unknown as TilesetWithTileLoadProgressEvent;
+        let hadZeroProgress = false;
+
+        const onTileLoadProgress = (pendingCount: number) => {
+          if (pendingCount === 0) {
+            hadZeroProgress = true;
+          }
+        };
+
+        tilesetWithEvents.tileLoadProgressEvent.addEventListener(onTileLoadProgress);
+
+        detachTilesetLoadListener = () =>
+          tilesetWithEvents.tileLoadProgressEvent.removeEventListener(
+            onTileLoadProgress
+          );
+
+        readyTimeoutId = window.setTimeout(() => {
+          if (!alive) return;
+          if (done) return;
+          done = true;
+          console.warn(
+            "[CESIUM|DEBUG] secondaryTilesetReady timeout: proceeding without confirmed tile idle"
+          );
+          if (detachTilesetLoadListener) {
+            detachTilesetLoadListener();
+            detachTilesetLoadListener = null;
+          }
+          setSecondaryTilesetReady(true);
+        }, 10000);
+
+        const checkReady = () => {
+          if (!alive) return;
+          if (done) return;
+          const isAdded = viewer.scene.primitives.contains(tileset);
+          if (isAdded && hadZeroProgress) {
+            done = true;
+            if (readyTimeoutId != null) {
+              window.clearTimeout(readyTimeoutId);
+              readyTimeoutId = null;
+            }
+            if (detachTilesetLoadListener) {
+              detachTilesetLoadListener();
+              detachTilesetLoadListener = null;
+            }
+            setSecondaryTilesetReady(true);
+            return;
+          }
+          requestAnimationFrame(checkReady);
+        };
+
+        requestAnimationFrame(checkReady);
       };
       fetchSecondary().catch(console.error);
     } else {
       console.debug("[CESIUM|DEBUG] No secondary tileset configured");
+      setSecondaryTilesetReady(true);
     }
 
     return () => {
+      alive = false;
+      done = true;
+      if (readyTimeoutId != null) {
+        window.clearTimeout(readyTimeoutId);
+        readyTimeoutId = null;
+      }
+      if (detachTilesetLoadListener) {
+        detachTilesetLoadListener();
+        detachTilesetLoadListener = null;
+      }
       // Don't destroy providers when transitioning to 2D mode - only when viewer is destroyed
       const t = secondaryTilesetRef.current;
       if (t && !t.isDestroyed() && isValidViewer()) {
         console.debug("[CESIUM|DEBUG] Destroying secondary tileset");
         t.destroy();
         secondaryTilesetRef.current = null;
+        setSecondaryTilesetReady(false);
       }
     };
   }, [tilesetConfigs.secondary, isViewerReady, isValidViewer]);
@@ -218,6 +402,8 @@ export const CesiumContextProvider = ({
       shouldSuspendCameraLimitersRef,
       setIsViewerReady,
       providersReady,
+      primaryTilesetReady,
+      secondaryTilesetReady,
       initialCameraSettled,
       setInitialCameraSettled,
       initialCameraEpoch,
@@ -236,6 +422,8 @@ export const CesiumContextProvider = ({
       getImageryLayer,
       isViewerReady,
       providersReady,
+      primaryTilesetReady,
+      secondaryTilesetReady,
       initialCameraSettled,
       initialCameraEpoch,
       bumpInitialCameraEpoch,

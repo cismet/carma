@@ -145,63 +145,92 @@ export const enterObliqueMode = (
 
   const center = pickSceneCenter(scene);
   if (!center) {
-    console.debug("Failed to get orbit point, completing without animation");
-    // Still call onComplete to prevent suspension flags from being stuck
-    onComplete();
+    // Terrain/tilesets may not be loaded yet - retry after a delay
+    const retryDelay = 500;
+    const maxRetries = 10;
+    let retryCount = 0;
+
+    const retryPickCenter = () => {
+      retryCount++;
+      const retryCenter = pickSceneCenter(scene);
+      if (retryCenter) {
+        console.debug(
+          `[enterObliqueMode] pickSceneCenter succeeded after ${retryCount} retries`
+        );
+        performFlight(retryCenter);
+      } else if (retryCount < maxRetries) {
+        setTimeout(retryPickCenter, retryDelay);
+      } else {
+        console.debug(
+          "[enterObliqueMode] Failed to get orbit point after max retries, completing without animation"
+        );
+        onComplete();
+      }
+    };
+
+    console.debug(
+      "[enterObliqueMode] pickSceneCenter failed, will retry after terrain/tilesets load"
+    );
+    setTimeout(retryPickCenter, retryDelay);
     return;
   }
-  const range = camera.positionCartographic.height / Math.tan(-targetPitch);
 
-  const sphere = new BoundingSphere(center, range);
+  performFlight(center);
 
-  const flightCompleteCallback = () => {
-    const ray = new Ray(camera.position, camera.direction);
-    const currentCartographic = ellipsoid.cartesianToCartographic(
-      camera.position
+  function performFlight(flightCenter: Cartesian3) {
+    const range = camera.positionCartographic.height / Math.tan(-targetPitch);
+
+    const sphere = new BoundingSphere(flightCenter, range);
+
+    const flightCompleteCallback = () => {
+      const ray = new Ray(camera.position, camera.direction);
+      const currentCartographic = ellipsoid.cartesianToCartographic(
+        camera.position
+      );
+
+      if (!currentCartographic) {
+        console.debug("Failed to get cartographic position");
+        return;
+      }
+
+      const currentHeight = currentCartographic.height;
+      const heightDifference = targetHeight - currentHeight;
+
+      if (Math.abs(heightDifference) > 100) {
+        const distanceToMove = heightDifference / Math.sin(-targetPitch);
+        const newPosition = Ray.getPoint(ray, -distanceToMove);
+
+        camera.flyTo({
+          destination: newPosition,
+          orientation: {
+            heading: camera.heading,
+            pitch: targetPitch,
+            roll: 0,
+          },
+          duration: 0.5,
+          complete: onComplete,
+        });
+      } else {
+        onComplete();
+      }
+    };
+
+    const effectiveDuration =
+      duration !== undefined ? duration : ENTER_DURATION / 1000;
+
+    console.debug(
+      "Effective duration:",
+      effectiveDuration,
+      duration,
+      ENTER_DURATION / 1000
     );
 
-    if (!currentCartographic) {
-      console.debug("Failed to get cartographic position");
-      return;
-    }
-
-    const currentHeight = currentCartographic.height;
-    const heightDifference = targetHeight - currentHeight;
-
-    if (Math.abs(heightDifference) > 100) {
-      const distanceToMove = heightDifference / Math.sin(-targetPitch);
-      const newPosition = Ray.getPoint(ray, -distanceToMove);
-
-      camera.flyTo({
-        destination: newPosition,
-        orientation: {
-          heading: camera.heading,
-          pitch: targetPitch,
-          roll: 0,
-        },
-        duration: 0.5,
-        complete: onComplete,
-      });
-    } else {
-      onComplete();
-    }
-  };
-
-  const effectiveDuration =
-    duration !== undefined ? duration : ENTER_DURATION / 1000;
-
-  console.debug(
-    "Effective duration:",
-    effectiveDuration,
-    duration,
-    ENTER_DURATION / 1000
-  );
-
-  camera.flyToBoundingSphere(sphere, {
-    offset: new HeadingPitchRange(camera.heading, targetPitch, range),
-    duration: effectiveDuration,
-    complete: flightCompleteCallback,
-  });
+    camera.flyToBoundingSphere(sphere, {
+      offset: new HeadingPitchRange(camera.heading, targetPitch, range),
+      duration: effectiveDuration,
+      complete: flightCompleteCallback,
+    });
+  }
 };
 
 export const leaveObliqueMode = (

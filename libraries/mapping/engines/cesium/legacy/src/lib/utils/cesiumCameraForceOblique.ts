@@ -35,12 +35,17 @@ export const cesiumCameraForceOblique = (
   const currentPosition = scene.camera.position;
   const currentCartographic = Cartographic.fromCartesian(currentPosition);
   if (!currentCartographic || !defined(currentCartographic)) {
-    console.warn("Invalid current cartographic position");
     return;
   }
 
   const currentPitch = scene.camera.pitch;
   const currentHeight = currentCartographic.height;
+
+  // Bail out early if height is invalid (can happen before scene is fully initialized)
+  if (!Number.isFinite(currentHeight)) {
+    console.warn("Invalid height, skipping camera correction", currentHeight);
+    return;
+  }
 
   const [targetPitch, pitchNeedsCorrection] = clampToToleranceRange(
     currentPitch,
