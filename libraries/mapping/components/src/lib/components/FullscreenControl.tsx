@@ -5,6 +5,7 @@ import {
   faExternalLinkSquareAlt,
 } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { Tooltip } from "antd";
 import { RefCallback, RefObject } from "react";
 import UAParser from "ua-parser-js";
 
@@ -57,38 +58,43 @@ export const SimpleFullscreenControl = ({
   tourRef,
 }: FullscreenControlProps) => {
   return (
-    <ControlButtonStyler
+    <Tooltip
       title={
         document.fullscreenElement ? "Vollbildmodus beenden" : "Vollbildmodus"
       }
-      onClick={() => {
-        if (document.fullscreenElement) {
-          document.exitFullscreen();
-        } else {
-          document.documentElement.requestFullscreen();
-        }
-      }}
-      ref={tourRef}
-      dataTestId="full-screen-control"
+      placement="right"
     >
-      <FontAwesomeIcon
-        icon={document.fullscreenElement ? faCompress : faExpand}
-      />
-    </ControlButtonStyler>
+      <ControlButtonStyler
+        onClick={() => {
+          if (document.fullscreenElement) {
+            document.exitFullscreen();
+          } else {
+            document.documentElement.requestFullscreen();
+          }
+        }}
+        ref={tourRef}
+        dataTestId="full-screen-control"
+      >
+        <FontAwesomeIcon
+          icon={document.fullscreenElement ? faCompress : faExpand}
+        />
+      </ControlButtonStyler>
+    </Tooltip>
   );
 };
 
 export const NewWindowControl = ({ tourRef }: FullscreenControlProps) => {
   return (
-    <ControlButtonStyler
-      title="In neuem Fenster öffnen"
-      onClick={() => {
-        window.open(window.location.href);
-      }}
-      dataTestId="new-window-control"
-      ref={tourRef}
-    >
-      <FontAwesomeIcon icon={faExternalLinkSquareAlt} />
-    </ControlButtonStyler>
+    <Tooltip title="In neuem Fenster öffnen" placement="right">
+      <ControlButtonStyler
+        onClick={() => {
+          window.open(window.location.href);
+        }}
+        dataTestId="new-window-control"
+        ref={tourRef}
+      >
+        <FontAwesomeIcon icon={faExternalLinkSquareAlt} />
+      </ControlButtonStyler>
+    </Tooltip>
   );
 };

@@ -357,7 +357,7 @@ const MapWrapper = () => {
 
                 <MapFrameworkSwitcher
                   enableMobileWarning={true}
-                  nativeTooltip={true}
+                  // nativeTooltip={true}
                 />
 
                 {
