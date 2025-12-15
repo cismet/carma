@@ -16,7 +16,9 @@ test.describe("geoportal smoke test", () => {
     await expect(
       page.locator('[data-test-id="zoom-in-control"]')
     ).toBeVisible();
-    await expect(page.locator('[data-test-id="home-control"]')).toBeVisible();
+    await expect(
+      page.locator('[data-test-id="home-control"]')
+    ).not.toBeVisible();
     await expect(
       page.locator('[data-test-id="measurement-control"]')
     ).toBeVisible();
