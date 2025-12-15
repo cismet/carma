@@ -485,7 +485,7 @@ const MapWrapper = () => {
           <Control position="topcenter" order={10}>
             {isLeaflet && <LayerWrapper />}
           </Control>
-          <Control position="bottomleft" order={10}>
+          {/* <Control position="bottomleft" order={10}>
             <div ref={tourRefLabels.gazetteer} className={`h-full w-full`}>
               <LibFuzzySearch
                 gazData={gazData}
@@ -499,7 +499,7 @@ const MapWrapper = () => {
                 selection={configSelection}
               />
             </div>
-          </Control>
+          </Control> */}
         </div>
       )}
       <ControlLayoutCanvas>
