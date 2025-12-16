@@ -136,7 +136,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
 }) => {
   const {
     isViewerReady,
-    primaryTilesetReady,
+    initialViewApplied,
     requestRender,
     withCamera,
     withViewer,
@@ -259,7 +259,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
             : null;
 
           // Fallback: use camera position if pickSceneCenter fails (e.g., during initial load)
-          if (!orbitPointCoords && cartographic && primaryTilesetReady) {
+          if (!orbitPointCoords && cartographic && initialViewApplied) {
             const cameraLon = cartographic.longitude * (180 / Math.PI);
             const cameraLat = cartographic.latitude * (180 / Math.PI);
             const projected = converter.converter.forward([
@@ -393,7 +393,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
       suspendSelectionSearch,
       requestedHeadingRef,
       selectedImage,
-      primaryTilesetReady,
+      initialViewApplied,
       withCamera,
     ]
   );
@@ -431,7 +431,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     if (
       imageRecords &&
       isObliqueMode &&
-      primaryTilesetReady &&
+      initialViewApplied &&
       !lockFootprint &&
       !suspendSelectionSearch &&
       typeof selectedImageRefresh === "function"
@@ -443,7 +443,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
   }, [
     imageRecords,
     isObliqueMode,
-    primaryTilesetReady,
+    initialViewApplied,
     selectedImageRefresh,
     lockFootprint,
     suspendSelectionSearch,
@@ -469,7 +469,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     if (
       isObliqueMode &&
       isViewerReady &&
-      primaryTilesetReady &&
+      initialViewApplied &&
       isAllDataReady &&
       typeof selectedImageRefresh === "function" &&
       !lockFootprint &&
@@ -540,7 +540,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
   }, [
     isObliqueMode,
     isViewerReady,
-    primaryTilesetReady,
+    initialViewApplied,
     isAllDataReady,
     selectedImageRefresh,
     lockFootprint,

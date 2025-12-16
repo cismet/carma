@@ -19,7 +19,8 @@ export function useObliqueInitializer(debug = false) {
     shouldSuspendPitchLimiterRef,
     getScene,
     sceneAnimationMapRef,
-    primaryTilesetReady,
+    isViewerReady,
+    initialViewApplied,
   } = useCesiumContext();
   const { isTransitioning } = useMapFrameworkSwitcherContext();
   const {
@@ -77,8 +78,8 @@ export function useObliqueInitializer(debug = false) {
     // Always set the zoom handler state based on oblique mode; the hook will defer attaching until a viewer exists
     setWheelZoomEnabled(isObliqueMode);
 
-    // Wait for tileset to be ready before entering oblique mode (ensures pickSceneCenter works)
-    if (!primaryTilesetReady) {
+    // Wait for viewer ready and initial camera from URL applied
+    if (!isViewerReady || !initialViewApplied) {
       return;
     }
 
@@ -96,17 +97,18 @@ export function useObliqueInitializer(debug = false) {
 
       if (isObliqueMode) {
         debug && console.debug("entering Oblique Mode");
-        // Skip enter animation if camera is already within oblique tolerances
-        const isAlreadyOblique = isCameraObliqueCompliant(
-          camera,
-          obliqueOptions
-        );
+        // If oblique mode was enabled from URL on first run, assume camera is already correct
+        const obliqueFromUrl = isFirstRunRef.current;
+        // Also check camera position for user-initiated oblique mode
+        const isAlreadyOblique =
+          obliqueFromUrl || isCameraObliqueCompliant(camera, obliqueOptions);
 
         if (isAlreadyOblique) {
+          debug &&
+            console.debug("skipping enter animation", { obliqueFromUrl });
           enableCameraForceOblique();
           requestRender({ delay: 50, repeat: 2 });
         } else {
-          const duration = isFirstRunRef.current ? 0 : undefined;
           setSuspendSelectionSearch(true);
           enterObliqueMode(
             scene,
@@ -117,8 +119,7 @@ export function useObliqueInitializer(debug = false) {
               setSuspendSelectionSearch(false);
               enableCameraForceOblique();
               requestRender({ delay: 50, repeat: 2 });
-            },
-            duration
+            }
           );
         }
       } else {
@@ -139,7 +140,8 @@ export function useObliqueInitializer(debug = false) {
   }, [
     debug,
     isObliqueMode,
-    primaryTilesetReady,
+    isViewerReady,
+    initialViewApplied,
     // ctx, // intentionally omitted to prevent re-triggering on context changes
     getScene,
     fixedPitch,

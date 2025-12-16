@@ -20,10 +20,9 @@ export interface CesiumContextType {
   isViewerReady: boolean;
   setIsViewerReady: (flag: boolean) => void;
   providersReady: boolean;
-  // Track when primary tileset is loaded and ready for picking
-  primaryTilesetReady: boolean;
-  // Track when secondary tileset is loaded and ready for picking
-  secondaryTilesetReady: boolean;
+  // Track when initial camera view from URL has been applied
+  initialViewApplied: boolean;
+  setInitialViewApplied: (flag: boolean) => void;
   // null: not started determining; false: determining/applying; true: settled
   requestRender: (opts?: {
     delay?: number; // ms

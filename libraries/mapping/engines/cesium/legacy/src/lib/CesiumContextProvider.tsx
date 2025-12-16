@@ -54,12 +54,8 @@ export const CesiumContextProvider = ({
 
   // explicitly trigger re-renders
   const [isViewerReady, setIsViewerReady] = useState<boolean>(false);
-  // Track when primary tileset is loaded and ready for picking
-  const [primaryTilesetReady, setPrimaryTilesetReady] =
-    useState<boolean>(false);
-  // Track when secondary tileset is loaded and ready for picking
-  const [secondaryTilesetReady, setSecondaryTilesetReady] =
-    useState<boolean>(false);
+  // Track when initial camera view from URL has been applied
+  const [initialViewApplied, setInitialViewApplied] = useState<boolean>(false);
 
   const getScene = useCallback((): Scene | null => {
     if (viewerRef.current) {
@@ -129,7 +125,6 @@ export const CesiumContextProvider = ({
 
     if (tilesetConfigs.primary && isViewerReady) {
       const fetchPrimary = async () => {
-        setPrimaryTilesetReady(false);
         console.debug(
           "[CESIUM|DEBUG] Loading primary tileset",
           tilesetConfigs.primary
@@ -148,7 +143,6 @@ export const CesiumContextProvider = ({
         }
 
         if (!viewer || !tileset) {
-          setPrimaryTilesetReady(true);
           return;
         }
 
@@ -183,13 +177,12 @@ export const CesiumContextProvider = ({
           if (done) return;
           done = true;
           console.warn(
-            "[CESIUM|DEBUG] primaryTilesetReady timeout: proceeding without confirmed tile idle"
+            "[CESIUM|DEBUG] primary tileset timeout: proceeding without confirmed tile idle"
           );
           if (detachTilesetLoadListener) {
             detachTilesetLoadListener();
             detachTilesetLoadListener = null;
           }
-          setPrimaryTilesetReady(true);
         }, 10000);
 
         const checkReady = () => {
@@ -206,7 +199,6 @@ export const CesiumContextProvider = ({
               detachTilesetLoadListener();
               detachTilesetLoadListener = null;
             }
-            setPrimaryTilesetReady(true);
             return;
           }
           requestAnimationFrame(checkReady);
@@ -217,8 +209,6 @@ export const CesiumContextProvider = ({
       fetchPrimary().catch(console.error);
     } else {
       console.debug("[CESIUM|DEBUG] No primary tileset configured");
-      // If no tileset configured, mark as ready (terrain-only mode)
-      setPrimaryTilesetReady(true);
     }
 
     return () => {
@@ -238,7 +228,6 @@ export const CesiumContextProvider = ({
         console.debug("[CESIUM|DEBUG] Destroying primary tileset");
         t.destroy();
         primaryTilesetRef.current = null;
-        setPrimaryTilesetReady(false);
       }
     };
   }, [tilesetConfigs.primary, isViewerReady, isValidViewer]);
@@ -252,7 +241,6 @@ export const CesiumContextProvider = ({
 
     if (tilesetConfigs.secondary && isViewerReady && isValidViewer()) {
       const fetchSecondary = async () => {
-        setSecondaryTilesetReady(false);
         console.debug(
           "[CESIUM|DEBUG] Loading secondary tileset",
           tilesetConfigs.secondary
@@ -273,7 +261,6 @@ export const CesiumContextProvider = ({
         }
 
         if (!viewer || !tileset) {
-          setSecondaryTilesetReady(true);
           return;
         }
 
@@ -308,13 +295,12 @@ export const CesiumContextProvider = ({
           if (done) return;
           done = true;
           console.warn(
-            "[CESIUM|DEBUG] secondaryTilesetReady timeout: proceeding without confirmed tile idle"
+            "[CESIUM|DEBUG] secondary tileset timeout: proceeding without confirmed tile idle"
           );
           if (detachTilesetLoadListener) {
             detachTilesetLoadListener();
             detachTilesetLoadListener = null;
           }
-          setSecondaryTilesetReady(true);
         }, 10000);
 
         const checkReady = () => {
@@ -331,7 +317,6 @@ export const CesiumContextProvider = ({
               detachTilesetLoadListener();
               detachTilesetLoadListener = null;
             }
-            setSecondaryTilesetReady(true);
             return;
           }
           requestAnimationFrame(checkReady);
@@ -342,7 +327,6 @@ export const CesiumContextProvider = ({
       fetchSecondary().catch(console.error);
     } else {
       console.debug("[CESIUM|DEBUG] No secondary tileset configured");
-      setSecondaryTilesetReady(true);
     }
 
     return () => {
@@ -362,7 +346,6 @@ export const CesiumContextProvider = ({
         console.debug("[CESIUM|DEBUG] Destroying secondary tileset");
         t.destroy();
         secondaryTilesetRef.current = null;
-        setSecondaryTilesetReady(false);
       }
     };
   }, [tilesetConfigs.secondary, isViewerReady, isValidViewer]);
@@ -397,9 +380,9 @@ export const CesiumContextProvider = ({
       shouldSuspendPitchLimiterRef,
       shouldSuspendCameraLimitersRef,
       setIsViewerReady,
+      setInitialViewApplied,
       providersReady,
-      primaryTilesetReady,
-      secondaryTilesetReady,
+      initialViewApplied,
       isViewerReady,
       // NOTE: Workaround for CesiumGS/cesium#12543 — delay/repeat options exist
       // to schedule additional renders in requestRenderMode when needed. These
@@ -413,9 +396,8 @@ export const CesiumContextProvider = ({
       getSurfaceProvider,
       getImageryLayer,
       isViewerReady,
+      initialViewApplied,
       providersReady,
-      primaryTilesetReady,
-      secondaryTilesetReady,
       requestRender,
       instanceCallbacks,
     ]

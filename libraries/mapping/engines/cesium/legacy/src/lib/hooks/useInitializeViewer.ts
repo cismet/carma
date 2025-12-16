@@ -69,6 +69,7 @@ export const useInitializeViewer = (
     isValidViewer,
     isViewerReady,
     setIsViewerReady,
+    setInitialViewApplied,
     providersReady,
     shouldSuspendCameraLimitersRef,
     withScene,
@@ -459,12 +460,14 @@ export const useInitializeViewer = (
       });
     }
     withViewer((viewer) => initialViewSetMap.set(viewer, true));
+    setInitialViewApplied(true);
   }, [
     isViewerReady,
     initialCameraView,
     home,
     homeOffset,
     maxZoom,
+    setInitialViewApplied,
     withViewer,
     withCamera,
     withScene,
