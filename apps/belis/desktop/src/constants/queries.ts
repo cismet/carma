@@ -13,3 +13,11 @@ query MyQuery {
     id
   }
 }`;
+
+queries.team = `
+query MyQuery {
+  team {
+    id
+    name
+  }
+}`;

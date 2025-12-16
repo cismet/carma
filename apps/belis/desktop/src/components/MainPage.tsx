@@ -33,7 +33,11 @@ import {
   setWishedSearchMode,
 } from "../store/slices/mapSettings";
 import Filter from "./ui/Filter";
-import { fetchAllBauart, savebauart } from "../helper/apiMethods";
+import {
+  fetchAllBauart,
+  fetchAllTeams,
+  savebauart,
+} from "../helper/apiMethods";
 
 const MainPage = () => {
   const dispatch: AppDispatch = useDispatch();
@@ -65,8 +69,8 @@ const MainPage = () => {
   useEffect(() => {
     //   savebauart(storedJWT);
     const run = async () => {
-      const bauarten = await fetchAllBauart(storedJWT);
-      console.log("xxx bauarten", bauarten);
+      const teams = await fetchAllTeams(storedJWT);
+      console.log("xxx teams", teams);
     };
     run();
   }, [storedJWT]);

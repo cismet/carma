@@ -1,5 +1,9 @@
-import { SAVE_ENDPOINT } from "../constants/belis";
-import { ENDPOINT, bauartQuery } from "../constants/belis";
+import {
+  ENDPOINT,
+  bauartQuery,
+  SAVE_ENDPOINT,
+  teamQuery,
+} from "../constants/belis";
 
 export const savebauart = async (jwt: string) => {
   try {
@@ -66,4 +70,36 @@ export const fetchAllBauart = async (jwt: string) => {
   }
 
   return json.data?.bauart ?? [];
+};
+
+export const fetchAllTeams = async (jwt: string) => {
+  const response = await fetch(ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${jwt}`,
+    },
+    body: JSON.stringify({
+      query: teamQuery,
+    }),
+  });
+
+  const text = await response.text();
+
+  if (!response.ok) {
+    throw new Error(`fetchAllTeams failed: ${response.status} ${text}`);
+  }
+
+  const json = JSON.parse(text) as {
+    data?: { team?: Array<{ id: number; name: string }> };
+    errors?: unknown;
+  };
+
+  if (json.errors) {
+    throw new Error(
+      `fetchAllTeams GraphQL errors: ${JSON.stringify(json.errors)}`
+    );
+  }
+
+  return json.data?.team ?? [];
 };

@@ -17,3 +17,7 @@ export const jwtTestQuery = gql`
 export const bauartQuery = gql`
   ${queries.bauart}
 `;
+
+export const teamQuery = gql`
+  ${queries.team}
+`;
