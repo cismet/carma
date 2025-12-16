@@ -8,3 +8,7 @@ export const ENDPOINT = REST_SERVICE + `/graphql/` + DOMAIN + "/execute";
 export const jwtTestQuery = gql`
   ${queries.jwtTestQuery}
 `;
+
+export const bauartQuery = gql`
+  ${queries.bauart}
+`;
