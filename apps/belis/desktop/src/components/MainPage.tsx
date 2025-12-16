@@ -1,4 +1,4 @@
-import { useContext, useRef } from "react";
+import { useContext, useEffect, useRef } from "react";
 import BelisMapLibWrapper from "./commons/BelisMapWrapper";
 import { useSelector, useDispatch } from "react-redux";
 import { getJWT } from "../store/slices/auth";
@@ -33,6 +33,7 @@ import {
   setWishedSearchMode,
 } from "../store/slices/mapSettings";
 import Filter from "./ui/Filter";
+import { savebauart } from "../helper/apiMethods";
 
 const MainPage = () => {
   const dispatch: AppDispatch = useDispatch();
@@ -60,6 +61,10 @@ const MainPage = () => {
     cursor: "pointer",
     clear: "both",
   };
+
+  useEffect(() => {
+    savebauart(storedJWT);
+  }, []);
 
   return (
     <>
