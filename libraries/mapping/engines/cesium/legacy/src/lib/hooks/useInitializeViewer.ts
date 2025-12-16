@@ -74,7 +74,6 @@ export const useInitializeViewer = (
     withScene,
     withCamera,
     withViewer,
-    setInitialCameraSettled,
     getTerrainProvider,
     getSurfaceProvider,
     getImageryLayer,
@@ -221,8 +220,6 @@ export const useInitializeViewer = (
           logLevel: "warn",
         });
         // Initial state: not started determining yet
-        setInitialCameraSettled(null);
-        console.info("[CESIUM|INIT|SETTLE] state:null (viewer created)");
 
         const handlePostRender = () => {
           withScene((scene, viewer) => {
@@ -325,7 +322,6 @@ export const useInitializeViewer = (
     setIsViewerReady,
     withCamera,
     withViewer,
-    setInitialCameraSettled,
     currentSceneStyle,
     primaryStyle,
     secondaryStyle,
@@ -357,18 +353,6 @@ export const useInitializeViewer = (
   useEffect(() => {
     if (!isViewerReady) return;
 
-    // Begin determining/applying initial camera (or home fallback if absent)
-    setInitialCameraSettled(false);
-    if (!initialCameraView) {
-      console.info(
-        "[CESIUM|INIT|SETTLE] initialCameraView:absent -> applying home fallback"
-      );
-    } else {
-      console.info(
-        "[CESIUM|INIT|SETTLE] applying:false (begin applying initial view)"
-      );
-    }
-
     let alreadySet = false;
     withViewer((viewer) => {
       alreadySet = initialViewSetMap.has(viewer);
@@ -376,11 +360,6 @@ export const useInitializeViewer = (
     if (alreadySet) {
       console.debug(
         "[CESIUM] HOOK: [CESIUM|CAMERA] Initial view already set, skipping."
-      );
-      // Viewer already has an initial view applied — consider camera settled
-      setInitialCameraSettled(true);
-      console.info(
-        "[CESIUM] [CESIUM|INIT|SETTLE] reuse:true -> state:true (already applied)"
       );
       return;
     }
@@ -400,10 +379,6 @@ export const useInitializeViewer = (
         willFlyHome = true;
         camera.flyToBoundingSphere(new BoundingSphere(home, 500), {
           duration: 2,
-          complete: () => {
-            setInitialCameraSettled(true);
-            console.info("[CESIUM|INIT|SETTLE] flyHome:complete -> state:true");
-          },
         });
       });
     };
@@ -478,10 +453,6 @@ export const useInitializeViewer = (
     if (!willFlyHome) {
       withScene((scene) => {
         const markSettled = () => {
-          setInitialCameraSettled(true);
-          console.info(
-            "[CESIUM|INIT|SETTLE] postRender -> state:true (applied)"
-          );
           scene.postRender.removeEventListener(markSettled);
         };
         scene.postRender.addEventListener(markSettled);
@@ -497,7 +468,6 @@ export const useInitializeViewer = (
     withViewer,
     withCamera,
     withScene,
-    setInitialCameraSettled,
     shouldSuspendCameraLimitersRef,
   ]);
 

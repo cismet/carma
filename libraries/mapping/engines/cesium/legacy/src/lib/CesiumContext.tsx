@@ -25,11 +25,6 @@ export interface CesiumContextType {
   // Track when secondary tileset is loaded and ready for picking
   secondaryTilesetReady: boolean;
   // null: not started determining; false: determining/applying; true: settled
-  initialCameraSettled: boolean | null;
-  setInitialCameraSettled: (flag: boolean | null) => void;
-  // Monotonic counter that increments each time an initial camera apply sequence starts
-  initialCameraEpoch: number;
-  bumpInitialCameraEpoch: () => void;
   requestRender: (opts?: {
     delay?: number; // ms
     repeat?: number; // times

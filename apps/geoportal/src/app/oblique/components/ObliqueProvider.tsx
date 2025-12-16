@@ -136,7 +136,6 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
 }) => {
   const {
     isViewerReady,
-    initialCameraSettled,
     primaryTilesetReady,
     requestRender,
     withCamera,
@@ -207,17 +206,12 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
   const lastFrameIdRef = useRef<number | null>(null);
   const lastKeyRef = useRef<string | null>(null);
   const lastResultsRef = useRef<NearestObliqueImageRecord[] | null>(null);
-  const isInitialCameraSettled = initialCameraSettled === true;
 
   const refreshSearch = useCallback(
     (
       args?: SelectedImageRefreshArgs
     ): NearestObliqueImageRecord[] | undefined => {
       if (!isObliqueMode || (suspendSelectionSearch && !args?.computeOnly)) {
-        return;
-      }
-      // Do not perform searches on load until initial camera was settled
-      if (!isInitialCameraSettled) {
         return;
       }
       if (!imageRecords || !imageRecords.size || !converter) {
@@ -370,19 +364,15 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
           }
 
           if (!args?.computeOnly) {
-            // Do not mutate selection until the initial camera has settled,
-            // unless we explicitly override (direction/heading) to avoid stale selection
-            if (isInitialCameraSettled || usedOverride) {
-              if (filteredImages?.length) {
-                const next = filteredImages[0];
-                if (selectedImage?.record?.id !== next.record.id) {
-                  setSelectedImage(next);
-                }
-                selectedImageDistanceRef.current = next.distanceOnGround;
-              } else {
-                if (selectedImage !== null) setSelectedImage(null);
-                selectedImageDistanceRef.current = null;
+            if (filteredImages?.length) {
+              const next = filteredImages[0];
+              if (selectedImage?.record?.id !== next.record.id) {
+                setSelectedImage(next);
               }
+              selectedImageDistanceRef.current = next.distanceOnGround;
+            } else {
+              if (selectedImage !== null) setSelectedImage(null);
+              selectedImageDistanceRef.current = null;
             }
           }
 
@@ -403,7 +393,6 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
       suspendSelectionSearch,
       requestedHeadingRef,
       selectedImage,
-      isInitialCameraSettled,
       primaryTilesetReady,
       withCamera,
     ]
@@ -424,15 +413,6 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     [performToggleAction]
   );
 
-  // When initial camera just settled, clear caches to avoid reusing stale results
-  useEffect(() => {
-    if (isInitialCameraSettled) {
-      lastFrameIdRef.current = null;
-      lastKeyRef.current = null;
-      lastResultsRef.current = null;
-    }
-  }, [isInitialCameraSettled]);
-
   const prefetchSiblingPreview = useCallback(
     (imageId: string, dir: CardinalDirectionEnum) => {
       prefetchSiblingPreviewFor(
@@ -451,7 +431,6 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     if (
       imageRecords &&
       isObliqueMode &&
-      isInitialCameraSettled &&
       primaryTilesetReady &&
       !lockFootprint &&
       !suspendSelectionSearch &&
@@ -464,7 +443,6 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
   }, [
     imageRecords,
     isObliqueMode,
-    isInitialCameraSettled,
     primaryTilesetReady,
     selectedImageRefresh,
     lockFootprint,
@@ -491,7 +469,6 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     if (
       isObliqueMode &&
       isViewerReady &&
-      isInitialCameraSettled &&
       primaryTilesetReady &&
       isAllDataReady &&
       typeof selectedImageRefresh === "function" &&
@@ -563,7 +540,6 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
   }, [
     isObliqueMode,
     isViewerReady,
-    isInitialCameraSettled,
     primaryTilesetReady,
     isAllDataReady,
     selectedImageRefresh,
@@ -578,7 +554,6 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     if (
       !isObliqueMode ||
       !isViewerReady ||
-      !isInitialCameraSettled ||
       typeof selectedImageRefresh !== "function"
     ) {
       return;
@@ -606,13 +581,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     return () => {
       if (removeListener) removeListener();
     };
-  }, [
-    isObliqueMode,
-    isViewerReady,
-    isInitialCameraSettled,
-    selectedImageRefresh,
-    withViewer,
-  ]);
+  }, [isObliqueMode, isViewerReady, selectedImageRefresh, withViewer]);
 
   // Once a nearest image exists and the viewer is ready, retrigger render twice (100ms apart)
   // to ensure derived visuals (e.g., footprint outline) become visible without interaction
@@ -627,17 +596,6 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     selectedImage,
     lockFootprint,
   ]);
-
-  // When initial camera apply starts (settled=false), clear selection and caches to avoid stale state.
-  useEffect(() => {
-    if (initialCameraSettled === false) {
-      if (selectedImage !== null) setSelectedImage(null);
-      selectedImageDistanceRef.current = null;
-      lastFrameIdRef.current = null;
-      lastKeyRef.current = null;
-      lastResultsRef.current = null;
-    }
-  }, [initialCameraSettled, selectedImage, setSelectedImage]);
 
   const value = useMemo(
     () => ({

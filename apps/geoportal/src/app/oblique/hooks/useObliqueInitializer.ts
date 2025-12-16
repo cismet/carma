@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
-import { type Scene, CesiumMath } from "@carma/cesium";
+import { type Scene } from "@carma/cesium";
 
 import {
   useCesiumContext,
   useFovWheelZoom,
   useCesiumCameraForceOblique,
+  isCameraObliqueCompliant,
 } from "@carma-mapping/engines/cesium";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
@@ -59,11 +60,15 @@ export function useObliqueInitializer(debug = false) {
     wheelZoomOptions
   );
 
+  const obliqueOptions = useMemo(
+    () => ({ fixedPitch, fixedHeight }),
+    [fixedPitch, fixedHeight]
+  );
+
   const { enableCameraForceOblique, disableCameraForceOblique } =
     useCesiumCameraForceOblique(
       sceneRef,
-      fixedPitch,
-      fixedHeight,
+      obliqueOptions,
       shouldSuspendPitchLimiterRef,
       checkExternalAnimations
     );
@@ -91,13 +96,11 @@ export function useObliqueInitializer(debug = false) {
 
       if (isObliqueMode) {
         debug && console.debug("entering Oblique Mode");
-        // If camera already has an oblique-like pitch (e.g., restored from hash), don't override it
-        let isAlreadyOblique = false;
-
-        const p = camera.pitch;
-        const minOblique = -CesiumMath.toRadians(80);
-        const maxOblique = -CesiumMath.toRadians(5);
-        isAlreadyOblique = p > minOblique && p < maxOblique;
+        // Skip enter animation if camera is already within oblique tolerances
+        const isAlreadyOblique = isCameraObliqueCompliant(
+          camera,
+          obliqueOptions
+        );
 
         if (isAlreadyOblique) {
           enableCameraForceOblique();

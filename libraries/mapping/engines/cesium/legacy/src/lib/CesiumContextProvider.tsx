@@ -54,16 +54,12 @@ export const CesiumContextProvider = ({
 
   // explicitly trigger re-renders
   const [isViewerReady, setIsViewerReady] = useState<boolean>(false);
-  // Tri-state: null (not started), false (applying), true (settled)
-  const [initialCameraSettled, setInitialCameraSettled] = useState<
-    boolean | null
-  >(null);
   // Track when primary tileset is loaded and ready for picking
-  const [primaryTilesetReady, setPrimaryTilesetReady] = useState<boolean>(false);
+  const [primaryTilesetReady, setPrimaryTilesetReady] =
+    useState<boolean>(false);
   // Track when secondary tileset is loaded and ready for picking
-  const [secondaryTilesetReady, setSecondaryTilesetReady] = useState<boolean>(false);
-  // Monotonic counter for initial camera applications
-  const [initialCameraEpoch, setInitialCameraEpoch] = useState<number>(0);
+  const [secondaryTilesetReady, setSecondaryTilesetReady] =
+    useState<boolean>(false);
 
   const getScene = useCallback((): Scene | null => {
     if (viewerRef.current) {
@@ -163,7 +159,8 @@ export const CesiumContextProvider = ({
           };
         };
 
-        const tilesetWithEvents = tileset as unknown as TilesetWithTileLoadProgressEvent;
+        const tilesetWithEvents =
+          tileset as unknown as TilesetWithTileLoadProgressEvent;
         let hadZeroProgress = false;
 
         const onTileLoadProgress = (pendingCount: number) => {
@@ -172,7 +169,9 @@ export const CesiumContextProvider = ({
           }
         };
 
-        tilesetWithEvents.tileLoadProgressEvent.addEventListener(onTileLoadProgress);
+        tilesetWithEvents.tileLoadProgressEvent.addEventListener(
+          onTileLoadProgress
+        );
 
         detachTilesetLoadListener = () =>
           tilesetWithEvents.tileLoadProgressEvent.removeEventListener(
@@ -295,7 +294,9 @@ export const CesiumContextProvider = ({
           }
         };
 
-        tilesetWithEvents.tileLoadProgressEvent.addEventListener(onTileLoadProgress);
+        tilesetWithEvents.tileLoadProgressEvent.addEventListener(
+          onTileLoadProgress
+        );
 
         detachTilesetLoadListener = () =>
           tilesetWithEvents.tileLoadProgressEvent.removeEventListener(
@@ -366,10 +367,6 @@ export const CesiumContextProvider = ({
     };
   }, [tilesetConfigs.secondary, isViewerReady, isValidViewer]);
 
-  const bumpInitialCameraEpoch = useCallback(
-    () => setInitialCameraEpoch((v) => v + 1),
-    [setInitialCameraEpoch]
-  );
   const requestRender = useCallback(
     (opts) => {
       const renderOnce = () => {
@@ -385,7 +382,6 @@ export const CesiumContextProvider = ({
   console.debug(
     "CesiumContextProvider Rendered",
     isViewerReady,
-    initialCameraEpoch,
     providersReady,
     isViewerReady
   );
@@ -404,10 +400,6 @@ export const CesiumContextProvider = ({
       providersReady,
       primaryTilesetReady,
       secondaryTilesetReady,
-      initialCameraSettled,
-      setInitialCameraSettled,
-      initialCameraEpoch,
-      bumpInitialCameraEpoch,
       isViewerReady,
       // NOTE: Workaround for CesiumGS/cesium#12543 — delay/repeat options exist
       // to schedule additional renders in requestRenderMode when needed. These
@@ -424,9 +416,6 @@ export const CesiumContextProvider = ({
       providersReady,
       primaryTilesetReady,
       secondaryTilesetReady,
-      initialCameraSettled,
-      initialCameraEpoch,
-      bumpInitialCameraEpoch,
       requestRender,
       instanceCallbacks,
     ]
