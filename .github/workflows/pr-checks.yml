@@ -291,7 +291,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: node_modules
-          key: ${{ needs.determine_projects.outputs.node-modules-cache-key }}-v2
+          key: ${{ needs.determine_projects.outputs.node-modules-cache-key }}
 
       - name: Install dependencies
         if: steps.smoke-test-node-cache.outputs.cache-hit != 'true'
