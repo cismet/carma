@@ -21,16 +21,13 @@ export const savebauart = async (jwt: string) => {
       "taskparams"
     );
 
-    const response = await fetch(
-      SAVE_ENDPOINT + "?resultingInstanceType=result",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${jwt}`,
-        },
-        body: formData,
-      }
-    );
+    const response = await fetch(SAVE_ENDPOINT, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${jwt}`,
+      },
+      body: formData,
+    });
 
     console.log(response);
   } catch (error) {
