@@ -305,6 +305,12 @@ jobs:
       - name: Clear Nx cache
         run: npx nx reset
 
+      - name: Clear Vite cache
+        run: |
+          rm -rf node_modules/.vite
+          rm -rf node_modules/.cache
+          rm -rf .nx/cache
+
       - name: Run E2E tests
         run: PW_CHANNEL=chrome npx nx e2e ${{ matrix.project }} --grep="smoke/" --skip-nx-cache --skipInstall
 
