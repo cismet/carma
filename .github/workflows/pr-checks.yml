@@ -259,6 +259,8 @@ jobs:
   smokeTestPr:
     needs: [determine_projects]
     runs-on: ubuntu-latest
+    env:
+      NX_CLOUD_ACCESS_TOKEN: ""
     if: ${{ needs.determine_projects.outputs.is_affected == 'true' && needs.determine_projects.outputs.e2e_list != '[]' }}
     permissions:
       actions: write
@@ -286,15 +288,15 @@ jobs:
           touch .npmrc
           echo "${{ secrets.CISMET_DEV_REGISTRY_SECRET_4_DOT_NPMRC }}" >> .npmrc
 
-      # - name: Restore node_modules from cache
-      #   id: smoke-test-node-cache
-      #   uses: actions/cache@v4
-      #   with:
-      #     path: node_modules
-      #     key: ${{ needs.determine_projects.outputs.node-modules-cache-key }}
+      - name: Restore node_modules from cache
+        id: smoke-test-node-cache
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ needs.determine_projects.outputs.node-modules-cache-key }}
 
       - name: Install dependencies
-        # if: steps.smoke-test-node-cache.outputs.cache-hit != 'true'
+        if: steps.smoke-test-node-cache.outputs.cache-hit != 'true'
         run: npm install
 
       - name: Run E2E tests for project
@@ -318,8 +320,6 @@ jobs:
           rm -rf .nx/cache
 
       - name: Run E2E tests
-        env:
-          NX_CLOUD_ACCESS_TOKEN: ""
         run: PW_CHANNEL=chrome npx nx e2e ${{ matrix.project }} --grep="smoke/" --skip-nx-cache --skipInstall --no-cloud
 
       - name: Debug - Check generated CSS for collapse
