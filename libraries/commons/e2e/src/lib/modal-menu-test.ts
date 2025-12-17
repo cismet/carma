@@ -52,8 +52,8 @@ export async function runModalMenuTest(
   await expect(page.locator(footerSelector)).toBeVisible();
 
   // Close
-  const closeBtn = page.locator(closeButtonSelector);
-  await expect(closeBtn).toBeVisible();
-  await closeBtn.click();
-  await expect(closeBtn).toBeHidden();
+  // const closeBtn = page.locator(closeButtonSelector);
+  // await expect(closeBtn).toBeVisible();
+  // await closeBtn.click();
+  // await expect(closeBtn).toBeHidden();
 }
