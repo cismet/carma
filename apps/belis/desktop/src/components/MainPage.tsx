@@ -35,6 +35,7 @@ import {
 import Filter from "./ui/Filter";
 import {
   fetchAllBauart,
+  fetchAllQuerschnitt,
   fetchAllTeams,
   savebauart,
   saveTeam,
@@ -69,15 +70,15 @@ const MainPage = () => {
   };
 
   useEffect(() => {
-    updateDataByClassName(storedJWT, "bauart", {
-      id: 1,
-      bezeichnung: "Test Schaltschrank",
-    });
-    // const run = async () => {
-    //   const teams = await fetchAllBauart(storedJWT);
-    //   console.log("xxx bauart", teams);
-    // };
-    // run();
+    // updateDataByClassName(storedJWT, "bauart", {
+    //   id: 1,
+    //   bezeichnung: "Test Schaltschrank",
+    // });
+    const run = async () => {
+      const data = await fetchAllQuerschnitt(storedJWT);
+      console.log("xxx data", data);
+    };
+    run();
   }, [storedJWT]);
 
   return (

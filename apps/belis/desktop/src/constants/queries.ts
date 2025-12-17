@@ -21,3 +21,11 @@ query MyQuery {
     name
   }
 }`;
+
+queries.querschnitt = `
+query MyQuery {
+  querschnitt {
+    groesse
+    id
+  }
+}`;

@@ -21,3 +21,7 @@ export const bauartQuery = gql`
 export const teamQuery = gql`
   ${queries.team}
 `;
+
+export const querschnittQuery = gql`
+  ${queries.querschnitt}
+`;
