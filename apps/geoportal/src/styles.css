@@ -119,3 +119,5 @@ html {
 .collapse.show {
   visibility: visible;
 }
+
+/* Force test in geoportal menu */
