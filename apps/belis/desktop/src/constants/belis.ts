@@ -29,3 +29,11 @@ export const querschnittQuery = gql`
 export const leuchtmittelQuery = gql`
   ${queries.leuchtmittel}
 `;
+
+export const tkeyUnterhaltMastQuery = gql`
+  ${queries.tkey_unterh_mast}
+`;
+
+export const materialMauerlascheQuery = gql`
+  ${queries.material_mauerlasche}
+`;

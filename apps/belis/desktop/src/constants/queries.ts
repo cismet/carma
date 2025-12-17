@@ -38,3 +38,20 @@ query MyQuery {
     hersteller
   }
 }`;
+
+queries.tkey_unterh_mast = `
+query MyQuery {
+  tkey_unterh_mast {
+    id
+    pk
+    unterhalt_mast
+  }
+}`;
+
+queries.material_mauerlasche = `
+query MyQuery {
+  material_mauerlasche {
+    id
+    bezeichnung
+  }
+}`;

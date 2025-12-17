@@ -2,9 +2,11 @@ import {
   ENDPOINT,
   bauartQuery,
   leuchtmittelQuery,
+  materialMauerlascheQuery,
   querschnittQuery,
   SAVE_ENDPOINT,
   teamQuery,
+  tkeyUnterhaltMastQuery,
 } from "../constants/belis";
 
 export const savebauart = async (jwt: string) => {
@@ -223,4 +225,80 @@ export const fetchAllLeuchtmittel = async (jwt: string) => {
   }
 
   return json.data?.leuchtmittel ?? [];
+};
+
+export const fetchAllUnterhaltMast = async (jwt: string) => {
+  const response = await fetch(ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${jwt}`,
+    },
+    body: JSON.stringify({
+      query: tkeyUnterhaltMastQuery,
+    }),
+  });
+
+  const text = await response.text();
+
+  if (!response.ok) {
+    throw new Error(`fetchAllUnterhaltMast failed: ${response.status} ${text}`);
+  }
+
+  const json = JSON.parse(text) as {
+    data?: {
+      tkey_unterh_mast?: Array<{
+        id: number;
+        pk: string;
+        unterhalt_mast: string;
+      }>;
+    };
+    errors?: unknown;
+  };
+
+  if (json.errors) {
+    throw new Error(
+      `fetchAllUnterhaltMast GraphQL errors: ${JSON.stringify(json.errors)}`
+    );
+  }
+
+  return json.data?.tkey_unterh_mast ?? [];
+};
+
+export const fetchAllMaterialMauerlasche = async (jwt: string) => {
+  const response = await fetch(ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${jwt}`,
+    },
+    body: JSON.stringify({
+      query: materialMauerlascheQuery,
+    }),
+  });
+
+  const text = await response.text();
+
+  if (!response.ok) {
+    throw new Error(
+      `fetchAllMaterialMauerlasche failed: ${response.status} ${text}`
+    );
+  }
+
+  const json = JSON.parse(text) as {
+    data?: {
+      material_mauerlasche?: Array<{ id: number; bezeichnung: string }>;
+    };
+    errors?: unknown;
+  };
+
+  if (json.errors) {
+    throw new Error(
+      `fetchAllMaterialMauerlasche GraphQL errors: ${JSON.stringify(
+        json.errors
+      )}`
+    );
+  }
+
+  return json.data?.material_mauerlasche ?? [];
 };
