@@ -44,10 +44,18 @@ export const saveTeam = async (
   jwt: string,
   dataToSave: { id: number; name: string }
 ) => {
+  return updateDataByClassName(jwt, "team", dataToSave);
+};
+
+export const updateDataByClassName = async <T extends Record<string, unknown>>(
+  jwt: string,
+  className: string,
+  dataToSave: T
+) => {
   const formData = new FormData();
   const taskparams = JSON.stringify({
     parameters: {
-      className: "team",
+      className,
       data: JSON.stringify(dataToSave),
     },
   });
@@ -69,7 +77,9 @@ export const saveTeam = async (
   const text = await response.text();
 
   if (!response.ok) {
-    throw new Error(`saveTeam failed: ${response.status} ${text}`);
+    throw new Error(
+      `saveObject(${className}) failed: ${response.status} ${text}`
+    );
   }
 
   try {

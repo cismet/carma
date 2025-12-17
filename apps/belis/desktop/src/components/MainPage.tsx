@@ -38,6 +38,7 @@ import {
   fetchAllTeams,
   savebauart,
   saveTeam,
+  updateDataByClassName,
 } from "../helper/apiMethods";
 
 const MainPage = () => {
@@ -68,14 +69,14 @@ const MainPage = () => {
   };
 
   useEffect(() => {
-    // saveTeam(storedJWT, {
-    //   id: 79,
-    //   name: "Cismet Team 2",
-    // });
-    const run = async () => {
-      const teams = await fetchAllTeams(storedJWT);
-      console.log("xxx teams", teams);
-    };
+    updateDataByClassName(storedJWT, "bauart", {
+      id: 1,
+      bezeichnung: "Test Schaltschrank",
+    });
+    // const run = async () => {
+    //   const teams = await fetchAllBauart(storedJWT);
+    //   console.log("xxx bauart", teams);
+    // };
     // run();
   }, [storedJWT]);
 
