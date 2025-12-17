@@ -281,6 +281,8 @@ jobs:
         with:
           node-version: 20
           cache: "npm"
+      - name: Update Submodules
+        run: git submodule update --remote --recursive
 
       - name: add cismet-dev registry secret to .npmrc
         shell: bash
