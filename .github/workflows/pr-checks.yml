@@ -320,6 +320,16 @@ jobs:
       - name: Run E2E tests
         run: PW_CHANNEL=chrome npx nx e2e ${{ matrix.project }} --grep="smoke/" --skip-nx-cache --skipInstall
 
+      - name: Debug - Find test results
+        if: always()
+        run: |
+          echo "=== Looking for test-results directories ==="
+          find . -type d -name "test-results" 2>/dev/null | head -10
+          echo "=== Looking for PNG files ==="
+          find . -name "*.png" -path "*test*" 2>/dev/null | head -20
+          echo "=== Looking for playwright output ==="
+          find . -type d -name "playwright*" 2>/dev/null | head -10
+
       - name: Upload test screenshots
         if: always()
         uses: actions/upload-artifact@v4
