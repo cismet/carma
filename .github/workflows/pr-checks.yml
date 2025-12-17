@@ -319,6 +319,16 @@ jobs:
           rm -rf node_modules/.cache
           rm -rf .nx/cache
 
+      - name: Clear ALL caches
+        run: |
+          rm -rf node_modules/.vite
+          rm -rf node_modules/.cache
+          rm -rf .nx/cache
+          rm -rf ~/.cache/tailwindcss
+          rm -rf /tmp/tailwindcss-*
+          find . -name ".tailwindcss-cache" -type d -exec rm -rf {} + 2>/dev/null || true
+          find . -name "*.tailwind.cache" -delete 2>/dev/null || true
+
       - name: Run E2E tests
         run: PW_CHANNEL=chrome npx nx e2e ${{ matrix.project }} --grep="smoke/" --skip-nx-cache --skipInstall --no-cloud
 
