@@ -55,3 +55,118 @@ query MyQuery {
     bezeichnung
   }
 }`;
+
+queries.anlagengruppe = `
+query MyQuery {
+  anlagengruppe {
+    bezeichnung
+    id
+    nummer
+  }
+}`;
+
+queries.tkey_unterh_leuchte = `
+query MyQuery {
+  tkey_unterh_leuchte {
+    id
+    pk
+    unterhaltspflichtiger_leuchte
+  }
+}`;
+
+queries.tkey_strassenschluessel = `
+query MyQuery {
+  tkey_strassenschluessel {
+    id
+    pk
+    strasse
+  }
+}`;
+
+queries.tkey_energielieferant = `
+query MyQuery {
+  tkey_energielieferant {
+    energielieferant
+    id
+    pk
+  }
+}`;
+
+queries.tkey_bezirk = `
+query MyQuery {
+  tkey_bezirk {
+    bezirk
+    id
+    pk
+  }
+}`;
+
+queries.leitungstyp = `
+query MyQuery {
+  leitungstyp {
+    id
+    bezeichnung
+  }
+}`;
+
+queries.arbeitsprotokollstatus = `
+query MyQuery {
+  arbeitsprotokollstatus {
+    bezeichnung
+    id
+    schluessel
+  }
+}`;
+
+queries.material_leitung = `
+query MyQuery {
+  material_leitung {
+    bezeichnung
+    id
+  }
+}`;
+
+queries.tkey_kennziffer = `
+query MyQuery {
+  tkey_kennziffer {
+    beschreibung
+    id
+    kennziffer
+  }
+}`;
+
+queries.tkey_mastart = `
+query MyQuery {
+  tkey_mastart {
+    pk
+    mastart
+    id
+  }
+}`;
+
+queries.veranlassungsart = `
+query MyQuery {
+  veranlassungsart {
+    bezeichnung
+    id
+    schluessel
+  }
+}`;
+
+queries.tkey_klassifizierung = `
+query MyQuery {
+  tkey_klassifizierung {
+    id
+    klassifizierung
+    pk
+  }
+}`;
+
+queries.tkey_doppelkommando = `
+query MyQuery {
+  tkey_doppelkommando {
+    beschreibung
+    id
+    pk
+  }
+}`;

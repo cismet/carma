@@ -37,3 +37,55 @@ export const tkeyUnterhaltMastQuery = gql`
 export const materialMauerlascheQuery = gql`
   ${queries.material_mauerlasche}
 `;
+
+export const anlagengruppeQuery = gql`
+  ${queries.anlagengruppe}
+`;
+
+export const tkeyUnterhaltLeuchteQuery = gql`
+  ${queries.tkey_unterh_leuchte}
+`;
+
+export const tkeyStrassenschluesselQuery = gql`
+  ${queries.tkey_strassenschluessel}
+`;
+
+export const tkeyEnergielieferantQuery = gql`
+  ${queries.tkey_energielieferant}
+`;
+
+export const tkeyBezirkQuery = gql`
+  ${queries.tkey_bezirk}
+`;
+
+export const leitungstypQuery = gql`
+  ${queries.leitungstyp}
+`;
+
+export const arbeitsprotokollstatusQuery = gql`
+  ${queries.arbeitsprotokollstatus}
+`;
+
+export const materialLeitungQuery = gql`
+  ${queries.material_leitung}
+`;
+
+export const tkeyKennzifferQuery = gql`
+  ${queries.tkey_kennziffer}
+`;
+
+export const tkeyMastartQuery = gql`
+  ${queries.tkey_mastart}
+`;
+
+export const veranlassungsartQuery = gql`
+  ${queries.veranlassungsart}
+`;
+
+export const tkeyKlassifizierungQuery = gql`
+  ${queries.tkey_klassifizierung}
+`;
+
+export const tkeyDoppelkommandoQuery = gql`
+  ${queries.tkey_doppelkommando}
+`;

@@ -34,12 +34,25 @@ import {
 } from "../store/slices/mapSettings";
 import Filter from "./ui/Filter";
 import {
+  fetchAllAnlagengruppe,
+  fetchAllArbeitsprotokollstatus,
   fetchAllBauart,
+  fetchAllBezirk,
+  fetchAllDoppelkommando,
+  fetchAllEnergielieferant,
+  fetchAllKennziffer,
+  fetchAllKlassifizierung,
+  fetchAllLeitungstyp,
   fetchAllLeuchtmittel,
+  fetchAllMastart,
+  fetchAllMaterialLeitung,
   fetchAllMaterialMauerlasche,
   fetchAllQuerschnitt,
+  fetchAllStrassenschluessel,
   fetchAllTeams,
+  fetchAllUnterhaltLeuchte,
   fetchAllUnterhaltMast,
+  fetchAllVeranlassungsart,
   savebauart,
   saveTeam,
   updateDataByClassName,
@@ -78,7 +91,7 @@ const MainPage = () => {
     //   bezeichnung: "Test Schaltschrank",
     // });
     const run = async () => {
-      const data = await fetchAllMaterialMauerlasche(storedJWT);
+      const data = await fetchAllDoppelkommando(storedJWT);
       console.log("xxx data", data);
     };
     run();
