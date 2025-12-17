@@ -302,6 +302,12 @@ jobs:
           echo "Running E2E tests for project: ${{ matrix.project }}"
           echo "This corresponds to the E2E test job for ${{ matrix.project }}"
 
+      - name: Debug CSS content
+        run: |
+          echo "=== styles.css content ==="
+          grep -A2 "collapse.show" apps/geoportal/src/styles.css || echo "Pattern not found"
+          cat apps/geoportal/src/styles.css | tail -20
+
       - name: Clear Nx cache
         run: npx nx reset
 
