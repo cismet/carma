@@ -119,3 +119,7 @@ html {
 .collapse.show {
   visibility: visible;
 }
+
+.temp-class-to-debug {
+  background-color: red;
+}
