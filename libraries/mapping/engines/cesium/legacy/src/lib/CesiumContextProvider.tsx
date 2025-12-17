@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
-type Viewer = import("cesium").Viewer;
+// legacy type, prefer using scene, graphic primitives and CesiumWidget where possible
+// eslint-disable-next-line carma/no-direct-cesium
+import type { Viewer } from "cesium";
 
 import {
   CesiumTerrainProvider,
@@ -13,6 +15,7 @@ import {
   isValidCesiumTerrainProvider,
   isValidImageryLayer,
 } from "@carma/cesium";
+
 import { handleDelayedRender } from "@carma-commons/utils/window";
 
 import { CesiumContext, type CesiumContextType } from "./CesiumContext";

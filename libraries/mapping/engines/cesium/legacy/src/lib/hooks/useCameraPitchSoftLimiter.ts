@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { BoundingSphere, Cartesian3, Math as CesiumMath } from "cesium";
+import { BoundingSphere, Cartesian3, CesiumMath } from "@carma/cesium";
 
 import { useCesiumViewer } from "./useCesiumViewer";
 import { useCesiumContext } from "./useCesiumContext";
@@ -100,6 +100,7 @@ const useCameraPitchSoftLimiter = (
                 },
                 duration: 1.5,
                 complete: onComplete,
+                cancel: onComplete,
               }
             );
           }
@@ -117,6 +118,7 @@ const useCameraPitchSoftLimiter = (
     pitchLimiter,
     onComplete,
     dispatch,
+    getScene,
     minPitchDeg,
     resetPitchOffsetDeg,
     debug,

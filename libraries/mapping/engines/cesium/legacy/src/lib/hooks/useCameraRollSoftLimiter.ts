@@ -1,6 +1,6 @@
 import { useCallback, useEffect } from "react";
 import { useDispatch } from "react-redux";
-import { Math as CesiumMath } from "cesium";
+import { CesiumMath } from "@carma/cesium";
 
 import { clearIsAnimating, setIsAnimating } from "../slices/cesium";
 import { useCesiumViewer } from "./useCesiumViewer";
@@ -82,6 +82,7 @@ const useCameraRollSoftLimiter = ({
               },
               duration,
               complete: onComplete,
+              cancel: onComplete,
             });
           }
         }
