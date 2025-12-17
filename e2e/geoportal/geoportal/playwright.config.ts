@@ -28,7 +28,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "npx nx serve geoportal --port=4222 --skip-nx-cache -- --force",
+    command: "npx nx serve geoportal --port=4222 --skip-nx-cache",
     url: "http://localhost:4222",
     reuseExistingServer: false,
     timeout: 60_000,
