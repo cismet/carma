@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import knn from "rbush-knn";
 
-import { waitForCondition, waitForRenderFrames } from "@carma/cesium";
-import type { Scene } from "@carma/cesium";
+import { waitForCondition } from "@carma/cesium";
 
 import {
   sceneHasTweens,
@@ -48,7 +47,7 @@ export function useObliqueNearestImage(
   debug = false,
   options: UseObliqueNearestImageOptions = defaultOptions
 ) {
-  const { getScene } = useCesiumContext();
+  const { getScene, initialViewApplied } = useCesiumContext();
   const lastSearchTimeRef = useRef<number>(0);
   const {
     converter,
@@ -301,17 +300,12 @@ export function useObliqueNearestImage(
   ); // Include all dependencies for proper updates
 
   // Attach camera listeners for automatic updates when in oblique mode
-  // Initial search is performed once when camera is stable and picking returns a result
+  // Initial search waits until the initial camera view has been applied and rendered.
   const timerIdRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const refreshSearchRef = useRef(refreshSearch);
   refreshSearchRef.current = refreshSearch;
   const initialSearchDoneRef = useRef(false);
   const initialSearchInFlightRef = useRef(false);
-  const lastCameraSignatureRef = useRef<string | null>(null);
-  const stableCameraFramesRef = useRef(0);
-  const activeSceneRef = useRef<Scene | null>(null);
-  const cleanupSceneRef = useRef<(() => void) | null>(null);
-  const rafIdRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (
@@ -319,152 +313,83 @@ export function useObliqueNearestImage(
       lockFootprint ||
       suspendSelectionSearch ||
       !imageRecords ||
-      !imageRecords.size
+      !imageRecords.size ||
+      !initialViewApplied
     ) {
       return;
     }
 
     let cancelled = false;
 
-    const setupForScene = (scene: Scene) => {
-      if (cancelled || !isValidScene(scene)) return;
-      if (activeSceneRef.current === scene) return;
-
-      cleanupSceneRef.current?.();
-
-      let sceneCancelled = false;
-
-      activeSceneRef.current = scene;
-      lastCameraSignatureRef.current = null;
-      stableCameraFramesRef.current = 0;
-      const previousDepthTestAgainstTerrain =
-        scene.globe?.depthTestAgainstTerrain;
-      if (scene.globe && previousDepthTestAgainstTerrain !== true) {
-        scene.globe.depthTestAgainstTerrain = true;
-      }
-
-      const handleCameraMove = () => {
-        if (timerIdRef.current) clearTimeout(timerIdRef.current);
-        timerIdRef.current = setTimeout(() => {
-          if (!sceneHasTweens(scene)) {
-            refreshSearchRef.current();
-          }
-        }, options.debounceTime || defaultOptions.debounceTime);
-      };
-
-      scene.camera.changed.addEventListener(handleCameraMove);
-      scene.camera.moveEnd.addEventListener(handleCameraMove);
-
-      if (!initialSearchDoneRef.current && !initialSearchInFlightRef.current) {
-        initialSearchInFlightRef.current = true;
-
-        (async () => {
-          try {
-            await waitForRenderFrames(scene, 2);
-            await waitForCondition(
-              scene,
-              () => {
-                if (
-                  cancelled ||
-                  sceneCancelled ||
-                  initialSearchDoneRef.current
-                ) {
-                  return true;
-                }
-
-                const cam = scene.camera;
-                const pos = cam.positionWC;
-                const signature = `${Math.round(pos.x)}:${Math.round(
-                  pos.y
-                )}:${Math.round(pos.z)}:${cam.heading.toFixed(
-                  4
-                )}:${cam.pitch.toFixed(4)}:${cam.roll.toFixed(4)}`;
-
-                if (lastCameraSignatureRef.current === signature) {
-                  stableCameraFramesRef.current += 1;
-                } else {
-                  lastCameraSignatureRef.current = signature;
-                  stableCameraFramesRef.current = 0;
-                }
-
-                const isCameraStable = stableCameraFramesRef.current >= 2;
-                if (!isCameraStable) return false;
-
-                const center = pickSceneCenter(scene);
-                if (!center) return false;
-
-                const computed = refreshSearchRef.current({
-                  immediate: true,
-                  computeOnly: true,
-                });
-
-                if (!computed || computed.length === 0) return false;
-
-                const committed = refreshSearchRef.current({ immediate: true });
-                if (committed && committed.length > 0) {
-                  initialSearchDoneRef.current = true;
-                  return true;
-                }
-
-                return false;
-              },
-              600,
-              "postRender"
-            );
-          } finally {
-            initialSearchInFlightRef.current = false;
-          }
-        })();
-      }
-
-      cleanupSceneRef.current = () => {
-        sceneCancelled = true;
-        if (!scene.isDestroyed()) {
-          scene.camera.changed.removeEventListener(handleCameraMove);
-          scene.camera.moveEnd.removeEventListener(handleCameraMove);
-          if (scene.globe && previousDepthTestAgainstTerrain !== true) {
-            scene.globe.depthTestAgainstTerrain =
-              previousDepthTestAgainstTerrain;
-          }
+    const handleCameraMove = () => {
+      if (timerIdRef.current) clearTimeout(timerIdRef.current);
+      timerIdRef.current = setTimeout(() => {
+        if (!sceneHasTweens(scene)) {
+          refreshSearchRef.current();
         }
-        activeSceneRef.current = null;
-      };
+      }, options.debounceTime || defaultOptions.debounceTime);
     };
 
-    const tick = () => {
-      if (cancelled) return;
-      const scene = getScene();
+    const scene = getScene();
+    if (!isValidScene(scene)) return;
 
-      if (isValidScene(scene)) {
-        setupForScene(scene);
-      }
+    scene.camera.changed.addEventListener(handleCameraMove);
+    scene.camera.moveEnd.addEventListener(handleCameraMove);
 
-      if (!initialSearchDoneRef.current) {
-        rafIdRef.current = requestAnimationFrame(tick);
-      } else {
-        rafIdRef.current = null;
-      }
-    };
+    if (!initialSearchDoneRef.current && !initialSearchInFlightRef.current) {
+      initialSearchInFlightRef.current = true;
+      (async () => {
+        try {
+          await waitForCondition(
+            scene,
+            (scene) => {
+              if (cancelled || !isValidScene(scene) || initialSearchDoneRef.current) {
+                return true;
+              }
 
-    tick();
+              // Ensure picking works before we commit selection
+              const center = pickSceneCenter(scene);
+              if (!center) return false;
+
+              const computed = refreshSearchRef.current({
+                immediate: true,
+                computeOnly: true,
+              });
+              if (!computed || computed.length === 0) return false;
+
+              const committed = refreshSearchRef.current({ immediate: true });
+              if (committed && committed.length > 0) {
+                initialSearchDoneRef.current = true;
+                return true;
+              }
+
+              return false;
+            },
+            600,
+            "postRender"
+          );
+        } finally {
+          initialSearchInFlightRef.current = false;
+        }
+      })();
+    }
 
     return () => {
       cancelled = true;
-      if (rafIdRef.current != null) {
-        cancelAnimationFrame(rafIdRef.current);
-        rafIdRef.current = null;
+      if (!scene.isDestroyed()) {
+        scene.camera.changed.removeEventListener(handleCameraMove);
+        scene.camera.moveEnd.removeEventListener(handleCameraMove);
       }
       if (timerIdRef.current) {
         clearTimeout(timerIdRef.current);
         timerIdRef.current = null;
       }
-      cleanupSceneRef.current?.();
-      cleanupSceneRef.current = null;
     };
   }, [
     getScene,
     imageRecords,
     isObliqueMode,
+    initialViewApplied,
     lockFootprint,
     options.debounceTime,
     suspendSelectionSearch,
