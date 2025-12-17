@@ -37,6 +37,7 @@ import {
   fetchAllBauart,
   fetchAllTeams,
   savebauart,
+  saveTeam,
 } from "../helper/apiMethods";
 
 const MainPage = () => {
@@ -67,12 +68,15 @@ const MainPage = () => {
   };
 
   useEffect(() => {
-    //   savebauart(storedJWT);
+    // saveTeam(storedJWT, {
+    //   id: 79,
+    //   name: "Cismet Team 2",
+    // });
     const run = async () => {
       const teams = await fetchAllTeams(storedJWT);
       console.log("xxx teams", teams);
     };
-    run();
+    // run();
   }, [storedJWT]);
 
   return (

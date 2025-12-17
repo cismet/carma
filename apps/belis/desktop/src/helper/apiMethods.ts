@@ -40,6 +40,45 @@ export const savebauart = async (jwt: string) => {
   }
 };
 
+export const saveTeam = async (
+  jwt: string,
+  dataToSave: { id: number; name: string }
+) => {
+  const formData = new FormData();
+  const taskparams = JSON.stringify({
+    parameters: {
+      className: "team",
+      data: JSON.stringify(dataToSave),
+    },
+  });
+
+  formData.append(
+    "taskparams",
+    new Blob([taskparams], { type: "application/json" }),
+    "taskparams"
+  );
+
+  const response = await fetch(SAVE_ENDPOINT, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${jwt}`,
+    },
+    body: formData,
+  });
+
+  const text = await response.text();
+
+  if (!response.ok) {
+    throw new Error(`saveTeam failed: ${response.status} ${text}`);
+  }
+
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return text;
+  }
+};
+
 export const fetchAllBauart = async (jwt: string) => {
   const response = await fetch(ENDPOINT, {
     method: "POST",
