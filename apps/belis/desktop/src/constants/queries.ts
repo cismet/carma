@@ -14,6 +14,44 @@ query MyQuery {
   }
 }`;
 
+queries.tkey_leuchtentyp = `
+query MyQuery {
+  tkey_leuchtentyp {
+    vorschaltgeraet
+    typenbezeichnung
+    leuchtentyp
+    leistung_reduziert
+    leistung_brutto_reduziert
+    leistung_brutto
+    leistung2stufe
+    leistung
+    lampe
+    id
+    foto
+    fabrikat
+    einbau_vorschaltgeraet
+    bestueckung
+    dokumenteArray {
+      dms_url {
+        description
+        id
+        name
+        typ
+        url {
+          id
+          object_name
+          url_base {
+            id
+            path
+            server
+            prot_prefix
+          }
+        }
+      }
+    }
+  }
+}`;
+
 queries.team = `
 query MyQuery {
   team {

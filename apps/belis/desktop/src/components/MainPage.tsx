@@ -43,6 +43,7 @@ import {
   fetchAllKennziffer,
   fetchAllKlassifizierung,
   fetchAllLeitungstyp,
+  fetchAllLeuchtentyp,
   fetchAllLeuchtmittel,
   fetchAllMastart,
   fetchAllMasttyp,
@@ -92,7 +93,7 @@ const MainPage = () => {
     //   bezeichnung: "Test Schaltschrank",
     // });
     const run = async () => {
-      const data = await fetchAllMasttyp(storedJWT);
+      const data = await fetchAllLeuchtentyp(storedJWT);
       console.log("xxx data", data);
     };
     run();

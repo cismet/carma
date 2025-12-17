@@ -5,6 +5,7 @@ import {
   bauartQuery,
   leuchtmittelQuery,
   leitungstypQuery,
+  leuchtentypQuery,
   masttypQuery,
   materialLeitungQuery,
   materialMauerlascheQuery,
@@ -829,4 +830,35 @@ export const fetchAllMasttyp = async (jwt: string) => {
   }
 
   return json.data?.tkey_masttyp ?? [];
+};
+
+export const fetchAllLeuchtentyp = async (jwt: string) => {
+  const response = await fetch(ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${jwt}`,
+    },
+    body: JSON.stringify({
+      query: leuchtentypQuery,
+    }),
+  });
+
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(`fetchAllLeuchtentyp failed: ${response.status} ${text}`);
+  }
+
+  const json = JSON.parse(text) as {
+    data?: { tkey_leuchtentyp?: unknown[] };
+    errors?: unknown;
+  };
+
+  if (json.errors) {
+    throw new Error(
+      `fetchAllLeuchtentyp GraphQL errors: ${JSON.stringify(json.errors)}`
+    );
+  }
+
+  return json.data?.tkey_leuchtentyp ?? [];
 };

@@ -93,3 +93,7 @@ export const tkeyDoppelkommandoQuery = gql`
 export const masttypQuery = gql`
   ${queries.tkey_masttyp}
 `;
+
+export const leuchtentypQuery = gql`
+  ${queries.tkey_leuchtentyp}
+`;
