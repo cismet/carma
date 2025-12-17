@@ -221,6 +221,7 @@ const GeoportalLayerButton = ({
             <span className="text-base ml-1">{title}</span>
             {layer.filterConfig && (
               <button
+                id={`filterLayerButton-${id}`}
                 className="hover:text-gray-500 text-gray-600 px-1.5 flex items-center justify-center"
                 onClick={(e) => {
                   e.preventDefault();

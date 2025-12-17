@@ -131,9 +131,19 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
       const openBaseLayerViewButtons = document.querySelectorAll(
         '[id^="openBaseLayerView"]'
       );
+      const filterLayerButtons = document.querySelectorAll(
+        '[id^="filterLayerButton-"]'
+      );
 
       openBaseLayerViewButtons.forEach((layerButton) => {
         if (layerButton.contains(event.target as Node)) {
+          returnFunction = true;
+          return;
+        }
+      });
+
+      filterLayerButtons.forEach((filterButton) => {
+        if (filterButton.contains(event.target as Node)) {
           returnFunction = true;
           return;
         }
