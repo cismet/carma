@@ -25,3 +25,7 @@ export const teamQuery = gql`
 export const querschnittQuery = gql`
   ${queries.querschnitt}
 `;
+
+export const leuchtmittelQuery = gql`
+  ${queries.leuchtmittel}
+`;

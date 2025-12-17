@@ -29,3 +29,12 @@ query MyQuery {
     id
   }
 }`;
+
+queries.leuchtmittel = `
+query MyQuery {
+  leuchtmittel {
+    lichtfarbe
+    id
+    hersteller
+  }
+}`;

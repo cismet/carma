@@ -35,6 +35,7 @@ import {
 import Filter from "./ui/Filter";
 import {
   fetchAllBauart,
+  fetchAllLeuchtmittel,
   fetchAllQuerschnitt,
   fetchAllTeams,
   savebauart,
@@ -75,7 +76,7 @@ const MainPage = () => {
     //   bezeichnung: "Test Schaltschrank",
     // });
     const run = async () => {
-      const data = await fetchAllQuerschnitt(storedJWT);
+      const data = await fetchAllLeuchtmittel(storedJWT);
       console.log("xxx data", data);
     };
     run();

@@ -1,6 +1,7 @@
 import {
   ENDPOINT,
   bauartQuery,
+  leuchtmittelQuery,
   querschnittQuery,
   SAVE_ENDPOINT,
   teamQuery,
@@ -184,4 +185,42 @@ export const fetchAllQuerschnitt = async (jwt: string) => {
   }
 
   return json.data?.querschnitt ?? [];
+};
+
+export const fetchAllLeuchtmittel = async (jwt: string) => {
+  const response = await fetch(ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${jwt}`,
+    },
+    body: JSON.stringify({
+      query: leuchtmittelQuery,
+    }),
+  });
+
+  const text = await response.text();
+
+  if (!response.ok) {
+    throw new Error(`fetchAllLeuchtmittel failed: ${response.status} ${text}`);
+  }
+
+  const json = JSON.parse(text) as {
+    data?: {
+      leuchtmittel?: Array<{
+        id: number;
+        lichtfarbe: string;
+        hersteller: string;
+      }>;
+    };
+    errors?: unknown;
+  };
+
+  if (json.errors) {
+    throw new Error(
+      `fetchAllLeuchtmittel GraphQL errors: ${JSON.stringify(json.errors)}`
+    );
+  }
+
+  return json.data?.leuchtmittel ?? [];
 };
