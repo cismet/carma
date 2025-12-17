@@ -320,6 +320,20 @@ jobs:
       - name: Run E2E tests
         run: PW_CHANNEL=chrome npx nx e2e ${{ matrix.project }} --grep="smoke/" --skip-nx-cache --skipInstall
 
+      - name: Debug - Check generated CSS for collapse
+        if: always()
+        run: |
+          echo "=== Starting server to check CSS ==="
+          timeout 30 npx nx serve geoportal --port=4223 --skip-nx-cache &
+          sleep 25
+          echo "=== Fetching index.html ==="
+          curl -s http://localhost:4223 > /tmp/index.html || echo "Failed to fetch index"
+          cat /tmp/index.html | grep -o 'href="[^"]*\.css"' | head -5 || echo "No CSS links found"
+          echo "=== Searching for collapse in served CSS ==="
+          curl -s "http://localhost:4223/src/styles.css" 2>/dev/null | grep -i "\.collapse" | head -10 || echo "Could not find collapse in styles.css"
+          echo "=== Killing server ==="
+          pkill -f "nx serve" 2>/dev/null || true
+
       - name: Debug - Find test results
         if: always()
         run: |
