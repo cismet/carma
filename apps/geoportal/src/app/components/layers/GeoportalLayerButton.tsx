@@ -222,7 +222,12 @@ const GeoportalLayerButton = ({
             {layer.filterConfig && (
               <button
                 id={`filterLayerButton-${id}`}
-                className="hover:text-gray-500 text-gray-600 px-1.5 flex items-center justify-center"
+                className={cn(
+                  "px-1.5 flex items-center justify-center",
+                  activeFilterLayerIndex === index
+                    ? "text-[#1677ff]"
+                    : "text-gray-600 hover:text-gray-500"
+                )}
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
