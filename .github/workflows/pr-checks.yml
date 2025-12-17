@@ -318,7 +318,9 @@ jobs:
           rm -rf .nx/cache
 
       - name: Run E2E tests
-        run: PW_CHANNEL=chrome npx nx e2e ${{ matrix.project }} --grep="smoke/" --skip-nx-cache --skipInstall
+        env:
+          NX_CLOUD_ACCESS_TOKEN: ""
+        run: PW_CHANNEL=chrome npx nx e2e ${{ matrix.project }} --grep="smoke/" --skip-nx-cache --skipInstall --no-cloud
 
       - name: Debug - Check generated CSS for collapse
         if: always()
