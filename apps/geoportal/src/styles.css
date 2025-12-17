@@ -116,8 +116,8 @@ html {
 }
 
 /* Fix Tailwind's .collapse overriding Bootstrap's accordion collapse */
-.collapse.show {
+/* .collapse.show {
   visibility: visible;
-}
+} */
 
 /* Force test in geoportal menu */
