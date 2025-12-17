@@ -18,8 +18,12 @@ import {
 import LayerRow from "./LayerRow";
 import "./text.css";
 import LayerInfoWrapper from "./LayerInfoWrapper";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import { faX } from "@fortawesome/free-solid-svg-icons";
+import { useState } from "react";
 
 const BaseLayerInfo = () => {
+  const [activeTab, setActiveTab] = useState("1");
   const dispatch = useDispatch();
 
   const selectedMapLayer = useSelector(getSelectedMapLayer);
@@ -64,6 +68,20 @@ const BaseLayerInfo = () => {
           <div className="flex flex-col h-full overflow-auto gap-2">
             <Tabs
               animated={false}
+              activeKey={activeTab}
+              onChange={setActiveTab}
+              tabBarExtraContent={{
+                right:
+                  activeTab === "1" ? (
+                    <button
+                      onClick={() => dispatch(setLayers([]))}
+                      className="text-gray-600 hover:text-gray-500 p-2"
+                    >
+                      Alle Karteninhalte entfernen
+                      <FontAwesomeIcon icon={faX} className="ml-2" />
+                    </button>
+                  ) : null,
+              }}
               items={[
                 {
                   key: "1",
@@ -73,7 +91,7 @@ const BaseLayerInfo = () => {
                       onDragEnd={handleDragEnd}
                       modifiers={[restrictToVerticalAxis]}
                     >
-                      <div className="h-full overflow-auto max-h-full flex flex-col gap-2">
+                      <div className="h-full overflow-auto max-h-full flex flex-col gap-2 pr-1">
                         <SortableContext
                           items={layers}
                           strategy={verticalListSortingStrategy}
