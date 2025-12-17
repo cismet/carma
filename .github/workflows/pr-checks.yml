@@ -286,15 +286,15 @@ jobs:
           touch .npmrc
           echo "${{ secrets.CISMET_DEV_REGISTRY_SECRET_4_DOT_NPMRC }}" >> .npmrc
 
-      - name: Restore node_modules from cache
-        id: smoke-test-node-cache
-        uses: actions/cache@v4
-        with:
-          path: node_modules
-          key: ${{ needs.determine_projects.outputs.node-modules-cache-key }}
+      # - name: Restore node_modules from cache
+      #   id: smoke-test-node-cache
+      #   uses: actions/cache@v4
+      #   with:
+      #     path: node_modules
+      #     key: ${{ needs.determine_projects.outputs.node-modules-cache-key }}
 
       - name: Install dependencies
-        if: steps.smoke-test-node-cache.outputs.cache-hit != 'true'
+        # if: steps.smoke-test-node-cache.outputs.cache-hit != 'true'
         run: npm install
 
       - name: Run E2E tests for project
