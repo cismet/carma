@@ -123,3 +123,7 @@ html {
 .temp-class-for-debug {
   background-color: red;
 }
+
+.second .temp-class-for-debug {
+  background-color: rgb(106, 94, 94);
+}
