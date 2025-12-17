@@ -116,8 +116,6 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     useState<NearestObliqueImageRecord | null>(null);
   const selectedImageDistanceRef = useRef<number | null>(null);
 
-  // After visiting images, store known siblings by cardinal for quick lookup
-
   const {
     exteriorOrientationsURI,
     footprintsURI,
@@ -133,8 +131,6 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     footprintsStyle,
     imagePreviewStyle,
   } = config;
-
-  // Store when data has been previously loaded to prevent duplicate loads
 
   const converter = useMemo(() => createConverter(crs, "EPSG:4326"), [crs]);
 

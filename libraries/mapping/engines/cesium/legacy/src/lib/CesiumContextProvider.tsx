@@ -362,13 +362,6 @@ export const CesiumContextProvider = ({
     [withViewer]
   );
 
-  console.debug(
-    "CesiumContextProvider Rendered",
-    isViewerReady,
-    providersReady,
-    isViewerReady
-  );
-
   const contextValue = useMemo<CesiumContextType>(
     () => ({
       viewerRef,
@@ -401,12 +394,6 @@ export const CesiumContextProvider = ({
       requestRender,
       instanceCallbacks,
     ]
-  );
-
-  console.debug(
-    "CesiumContextProvider Changed/Rendered",
-    isViewerReady,
-    contextValue
   );
 
   return (

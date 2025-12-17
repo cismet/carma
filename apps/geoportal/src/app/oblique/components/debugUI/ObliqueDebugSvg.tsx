@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Math as CesiumMath } from "cesium";
+import { CesiumMath } from "@carma/cesium";
 import { useCesiumContext } from "@carma-mapping/engines/cesium";
 import { Collapse } from "antd";
 

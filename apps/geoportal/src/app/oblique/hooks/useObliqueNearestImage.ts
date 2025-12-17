@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import knn from "rbush-knn";
 
 import { waitForCondition } from "@carma/cesium";
+import { normalizeOptions } from "@carma-commons/utils";
 
 import {
   sceneHasTweens,
@@ -30,11 +31,11 @@ export interface UseObliqueNearestImageOptions {
   maxDistanceMeters?: number;
 }
 
-const defaultOptions: UseObliqueNearestImageOptions = {
+const defaultOptions = {
   debounceTime: 150,
   k: NUM_NEAREST_IMAGES,
   maxDistanceMeters: 5000,
-};
+} satisfies Required<UseObliqueNearestImageOptions>;
 
 export interface RefreshSearchArgs {
   direction?: CardinalDirectionEnum;
@@ -49,6 +50,10 @@ export function useObliqueNearestImage(
 ) {
   const { getScene, initialViewApplied } = useCesiumContext();
   const lastSearchTimeRef = useRef<number>(0);
+  const { debounceTime, k, maxDistanceMeters } = useMemo(
+    () => normalizeOptions(options, defaultOptions),
+    [options]
+  );
   const {
     converter,
     headingOffset,
@@ -110,17 +115,11 @@ export function useObliqueNearestImage(
       const usedOverride = typeof overrideHeading === "number";
       const timeDelta = now - lastSearchTimeRef.current;
       const bypassDebounce = !!args?.immediate;
-      if (
-        !usedOverride &&
-        !bypassDebounce &&
-        timeDelta < (options.debounceTime || defaultOptions.debounceTime)
-      ) {
+      if (!usedOverride && !bypassDebounce && timeDelta < debounceTime) {
         debug && console.debug("Skipping refreshSearch");
         return;
       }
       lastSearchTimeRef.current = now;
-
-      debug && console.debug(" refreshSearch");
 
       try {
         const camera = scene.camera;
@@ -136,16 +135,11 @@ export function useObliqueNearestImage(
         const cameraCardinal =
           getCardinalDirectionFromHeading(effectiveHeading);
 
-        // Fallback to computing orbit point directly if shared orbit point isn't initialized yet
         const orbit = pickSceneCenter(scene);
         const orbitPointCoords = orbit
           ? calculateImageCoordsFromCartesian(orbit, converter)
           : null;
 
-        // Calculate the point on ground based on camera pitch and heading
-        // For nearest search we use orbit center as query point; ground/radius calcs omitted here
-
-        // The orbit point coordinates are fetched by the useOrbitPoint hook
         if (!orbitPointCoords) return;
 
         // Create the search point in local CRS coordinates, relative to orbit point
@@ -154,7 +148,7 @@ export function useObliqueNearestImage(
           x: orbitPointCoords[0],
           y: orbitPointCoords[1],
         };
-        const k = options.k || defaultOptions.k;
+
         const frameId =
           (scene as unknown as { frameState?: { frameNumber?: number } })
             .frameState?.frameNumber ?? null;
@@ -173,14 +167,12 @@ export function useObliqueNearestImage(
           return lastResultsRef.current;
         }
 
-        // Find and set nearest images
         let filteredImages: NearestObliqueImageRecord[] = [];
 
         const centerpoints = footprintCenterpointsRBushByCardinals;
 
         if (centerpoints && centerpoints.has(cameraCardinal)) {
           const sectorTree = centerpoints.get(cameraCardinal);
-          debug && console.debug("sectorTree", sectorTree);
           if (sectorTree) {
             try {
               // Use the pre-built spatial index for this sector
@@ -192,8 +184,6 @@ export function useObliqueNearestImage(
                 k
               );
               // Map to records with distances
-              const maxDist =
-                options.maxDistanceMeters ?? defaultOptions.maxDistanceMeters!;
               filteredImages = nearestItems
                 .map((item: RBushItem) => {
                   const record = imageRecords.get(item.id);
@@ -205,14 +195,14 @@ export function useObliqueNearestImage(
                   );
 
                   // Discard images too far from camera (race condition protection)
-                  if (distanceToCamera > maxDist) {
+                  if (distanceToCamera > maxDistanceMeters) {
                     debug &&
                       console.debug(
                         `Discarding image ${
                           item.id
                         }: distance ${distanceToCamera.toFixed(
                           0
-                        )}m > ${maxDist}m`
+                        )}m > ${maxDistanceMeters}m`
                       );
                     return null;
                   }
@@ -270,7 +260,6 @@ export function useObliqueNearestImage(
           } else {
             if (selectedImage !== null) setSelectedImage(null);
             selectedImageDistanceRef.current = null;
-            null;
           }
         }
 
@@ -284,9 +273,9 @@ export function useObliqueNearestImage(
       imageRecords,
       converter,
       headingOffset,
-      options.k,
-      options.debounceTime,
-      options.maxDistanceMeters,
+      debounceTime,
+      k,
+      maxDistanceMeters,
       footprintCenterpointsRBushByCardinals,
       setSelectedImage,
       selectedImageDistanceRef,
@@ -297,7 +286,7 @@ export function useObliqueNearestImage(
       selectedImage,
       debug,
     ]
-  ); // Include all dependencies for proper updates
+  );
 
   // Attach camera listeners for automatic updates when in oblique mode
   // Initial search waits until the initial camera view has been applied and rendered.
@@ -321,17 +310,17 @@ export function useObliqueNearestImage(
 
     let cancelled = false;
 
+    const scene = getScene();
+    if (!isValidScene(scene)) return;
+
     const handleCameraMove = () => {
       if (timerIdRef.current) clearTimeout(timerIdRef.current);
       timerIdRef.current = setTimeout(() => {
         if (!sceneHasTweens(scene)) {
           refreshSearchRef.current();
         }
-      }, options.debounceTime || defaultOptions.debounceTime);
+      }, debounceTime);
     };
-
-    const scene = getScene();
-    if (!isValidScene(scene)) return;
 
     scene.camera.changed.addEventListener(handleCameraMove);
     scene.camera.moveEnd.addEventListener(handleCameraMove);
@@ -343,7 +332,11 @@ export function useObliqueNearestImage(
           await waitForCondition(
             scene,
             (scene) => {
-              if (cancelled || !isValidScene(scene) || initialSearchDoneRef.current) {
+              if (
+                cancelled ||
+                !isValidScene(scene) ||
+                initialSearchDoneRef.current
+              ) {
                 return true;
               }
 
@@ -391,7 +384,7 @@ export function useObliqueNearestImage(
     isObliqueMode,
     initialViewApplied,
     lockFootprint,
-    options.debounceTime,
+    debounceTime,
     suspendSelectionSearch,
   ]);
 

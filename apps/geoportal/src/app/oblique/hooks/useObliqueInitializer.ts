@@ -19,7 +19,6 @@ export function useObliqueInitializer(debug = false) {
     shouldSuspendPitchLimiterRef,
     getScene,
     sceneAnimationMapRef,
-    isViewerReady,
     initialViewApplied,
   } = useCesiumContext();
   const { isTransitioning } = useMapFrameworkSwitcherContext();
@@ -29,7 +28,6 @@ export function useObliqueInitializer(debug = false) {
     fixedPitch,
     minFov,
     maxFov,
-    headingOffset,
     setSuspendSelectionSearch,
   } = useOblique();
   const originalFovRef = useRef<number | null>(null);
@@ -78,8 +76,7 @@ export function useObliqueInitializer(debug = false) {
     // Always set the zoom handler state based on oblique mode; the hook will defer attaching until a viewer exists
     setWheelZoomEnabled(isObliqueMode);
 
-    // Wait for viewer ready and initial camera from URL applied
-    if (!isViewerReady || !initialViewApplied) {
+    if (!initialViewApplied) {
       return;
     }
 
@@ -140,7 +137,6 @@ export function useObliqueInitializer(debug = false) {
   }, [
     debug,
     isObliqueMode,
-    isViewerReady,
     initialViewApplied,
     // ctx, // intentionally omitted to prevent re-triggering on context changes
     getScene,
@@ -148,7 +144,6 @@ export function useObliqueInitializer(debug = false) {
     fixedHeight,
     minFov,
     maxFov,
-    headingOffset,
     setWheelZoomEnabled,
     enableCameraForceOblique,
     disableCameraForceOblique,

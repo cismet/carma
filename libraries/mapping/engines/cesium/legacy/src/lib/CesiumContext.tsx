@@ -5,11 +5,13 @@ import type {
   Cesium3DTileset,
   CesiumTerrainProvider,
   EllipsoidTerrainProvider,
-  EntityCollection,
   ImageryLayer,
   Scene,
-  Viewer,
-} from "cesium";
+} from "@carma/cesium";
+
+type Viewer = import("cesium").Viewer;
+type EntityCollection = import("cesium").EntityCollection;
+
 import { SceneAnimationMap } from "./utils/sceneAnimationMap";
 
 export interface CesiumContextType {
@@ -23,7 +25,6 @@ export interface CesiumContextType {
   // Track when initial camera view from URL has been applied
   initialViewApplied: boolean;
   setInitialViewApplied: (flag: boolean) => void;
-  // null: not started determining; false: determining/applying; true: settled
   requestRender: (opts?: {
     delay?: number; // ms
     repeat?: number; // times

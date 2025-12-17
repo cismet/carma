@@ -82,7 +82,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const cameraId = selectedImage?.record?.cameraId;
   const { isDebugMode, isObliqueUiEval } = useFeatureFlags();
   const animationInProgressRef = useRef<boolean>(false);
-  // Avoid repeated logs when refresh is not yet wired
 
   // Used to trigger fly-to after next capture navigation
   const nextCaptureShouldFlyRef = useRef(false);
@@ -378,7 +377,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     rotateCamera,
     rotateToDirection,
     rotateToHeading,
-  } = useObliqueCameraHandlers(animationInProgressRef, isDebugMode);
+  } = useObliqueCameraHandlers(animationInProgressRef);
 
   // When rotating in preview: fade current image, trigger nearest search after rotation, and fly to the result
   const rotateCameraWithPreview = useCallback(

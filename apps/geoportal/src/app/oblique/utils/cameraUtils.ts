@@ -218,13 +218,6 @@ export const enterObliqueMode = (
     const effectiveDuration =
       duration !== undefined ? duration : ENTER_DURATION / 1000;
 
-    console.debug(
-      "Effective duration:",
-      effectiveDuration,
-      duration,
-      ENTER_DURATION / 1000
-    );
-
     camera.flyToBoundingSphere(sphere, {
       offset: new HeadingPitchRange(camera.heading, targetPitch, range),
       duration: effectiveDuration,

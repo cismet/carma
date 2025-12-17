@@ -1,16 +1,8 @@
-import {
-  type MutableRefObject,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from "react";
+import { type MutableRefObject, useCallback, useEffect, useState } from "react";
 
 import {
   Cartesian3,
   Cartesian2,
-  ScreenSpaceEventType,
-  ScreenSpaceEventHandler,
   HeadingPitchRange,
   CesiumMath,
 } from "@carma/cesium";
@@ -27,22 +19,13 @@ import {
   getCardinalHeadings,
 } from "../utils/orientationUtils";
 import { useOblique } from "./useOblique";
-import { useDebugOrbitPoint } from "./useDebugOrbitPoint";
 import { resetCamera } from "../utils/cameraUtils";
 
 export const useObliqueCameraHandlers = (
-  animationInProgressRef: MutableRefObject<boolean>,
-  isDebugMode: boolean
+  animationInProgressRef: MutableRefObject<boolean>
 ) => {
-  const { requestRender, getScene, isViewerReady } = useCesiumContext();
+  const { requestRender, getScene } = useCesiumContext();
   const { headingOffset, isObliqueMode } = useOblique();
-  const userMovedCameraRef = useRef<boolean>(false);
-
-  const updateOrbitPointEntity = useDebugOrbitPoint(
-    isObliqueMode,
-    null, // orbitPoint passed as null, debug hook might need adjustment or we ignore debug point for now if not critical
-    isDebugMode
-  );
 
   // Returns a stable orbit center. If no orbitPoint is available yet (e.g., before selecting an image),
   // use the pick on the globe at the screen center; as a last resort, use the current camera position.
@@ -97,17 +80,12 @@ export const useObliqueCameraHandlers = (
         return;
       }
 
-      if (isDebugMode) {
-        updateOrbitPointEntity();
-      }
-
       // Calculate the range (distance from center)
       const centerPoint = getOrbitCenter();
       const range = Cartesian3.distance(centerPoint, camera.position);
 
       // Start the animation
       animationInProgressRef.current = true;
-      userMovedCameraRef.current = false; // Reset this flag since we're starting a programmatic move
 
       let startTime = Date.now();
       const duration = 500; // ms
@@ -149,7 +127,6 @@ export const useObliqueCameraHandlers = (
 
           resetCamera(scene);
           animationInProgressRef.current = false;
-          userMovedCameraRef.current = true;
 
           // update activeDirection to closest cardinal to target heading
           const cardinals = getCardinalHeadings(headingOffset);
@@ -162,15 +139,12 @@ export const useObliqueCameraHandlers = (
       return () => {
         resetCamera(scene);
         animationInProgressRef.current = false;
-        userMovedCameraRef.current = true;
         scene.preUpdate.removeEventListener(onPreUpdate);
       };
     },
     [
       getScene,
       headingOffset,
-      updateOrbitPointEntity,
-      isDebugMode,
       animationInProgressRef,
       getOrbitCenter,
       requestRender,
@@ -197,17 +171,12 @@ export const useObliqueCameraHandlers = (
 
       const targetHeading = cardinalHeadings[targetDirection];
 
-      if (isDebugMode) {
-        updateOrbitPointEntity();
-      }
-
       // Calculate the range (distance from center)
       const centerPoint = getOrbitCenter();
       const range = Cartesian3.distance(centerPoint, camera.position);
 
       // Start the animation
       animationInProgressRef.current = true;
-      userMovedCameraRef.current = false; // Reset this flag since we're starting a programmatic move
 
       let startTime = Date.now();
       const duration = 500; // ms
@@ -249,7 +218,6 @@ export const useObliqueCameraHandlers = (
 
           resetCamera(scene);
           animationInProgressRef.current = false;
-          userMovedCameraRef.current = true;
 
           scene.preUpdate.removeEventListener(onPreUpdate);
           setActiveDirection(targetDirection);
@@ -260,14 +228,11 @@ export const useObliqueCameraHandlers = (
       return () => {
         resetCamera(scene);
         animationInProgressRef.current = false;
-        userMovedCameraRef.current = true;
         scene.preUpdate.removeEventListener(onPreUpdate);
       };
     },
     [
       headingOffset,
-      updateOrbitPointEntity,
-      isDebugMode,
       animationInProgressRef,
       getOrbitCenter,
       requestRender,
@@ -306,36 +271,9 @@ export const useObliqueCameraHandlers = (
 
     const camera = scene.camera;
 
-    // Set up event handlers to detect when the user moves the camera manually
-    const inputHandler = new ScreenSpaceEventHandler(scene.canvas);
-
-    // Track when the user starts manipulating the camera
-    inputHandler.setInputAction(() => {
-      if (!animationInProgressRef.current) {
-        userMovedCameraRef.current = true;
-      }
-    }, ScreenSpaceEventType.LEFT_DOWN);
-
-    inputHandler.setInputAction(() => {
-      if (!animationInProgressRef.current) {
-        userMovedCameraRef.current = true;
-      }
-    }, ScreenSpaceEventType.MIDDLE_DOWN);
-
-    inputHandler.setInputAction(() => {
-      if (!animationInProgressRef.current) {
-        userMovedCameraRef.current = true;
-      }
-    }, ScreenSpaceEventType.RIGHT_DOWN);
-
     const updateCameraInfo = () => {
       if (animationInProgressRef.current) {
         return; // Don't process further if we're in the middle of an animation
-      }
-
-      if (userMovedCameraRef.current) {
-        updateOrbitPointEntity();
-        userMovedCameraRef.current = false;
       }
 
       const cardinalHeadings = getCardinalHeadings(headingOffset);
@@ -345,10 +283,6 @@ export const useObliqueCameraHandlers = (
       );
       setActiveDirection(closestCardinalIndex);
     };
-
-    if (isDebugMode) {
-      updateOrbitPointEntity();
-    }
 
     const cardinalHeadings = getCardinalHeadings(headingOffset);
     const closestCardinalIndex = findClosestCardinalIndex(
@@ -364,18 +298,9 @@ export const useObliqueCameraHandlers = (
       if (scene && !scene.isDestroyed()) {
         scene.camera.changed.removeEventListener(updateCameraInfo);
         scene.camera.moveEnd.removeEventListener(updateCameraInfo);
-        inputHandler.destroy();
       }
     };
-  }, [
-    getScene,
-    isViewerReady,
-    isObliqueMode,
-    headingOffset,
-    updateOrbitPointEntity,
-    isDebugMode,
-    animationInProgressRef,
-  ]);
+  }, [getScene, isObliqueMode, headingOffset, animationInProgressRef]);
 
   return {
     activeDirection,
