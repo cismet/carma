@@ -89,3 +89,7 @@ export const tkeyKlassifizierungQuery = gql`
 export const tkeyDoppelkommandoQuery = gql`
   ${queries.tkey_doppelkommando}
 `;
+
+export const masttypQuery = gql`
+  ${queries.tkey_masttyp}
+`;

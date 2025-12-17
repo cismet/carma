@@ -170,3 +170,34 @@ query MyQuery {
     pk
   }
 }`;
+
+queries.tkey_masttyp = `
+query MyQuery {
+  tkey_masttyp {
+    bezeichnung
+    wandstaerke
+    masttyp
+    lph
+    id
+    hersteller
+    foto
+    dokumenteArray {
+      dms_url {
+        description
+        id
+        name
+        typ
+        url {
+          id
+          object_name
+          url_base {
+            id
+            path
+            prot_prefix
+            server
+          }
+        }
+      }
+    }
+  }
+}`;

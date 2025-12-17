@@ -45,6 +45,7 @@ import {
   fetchAllLeitungstyp,
   fetchAllLeuchtmittel,
   fetchAllMastart,
+  fetchAllMasttyp,
   fetchAllMaterialLeitung,
   fetchAllMaterialMauerlasche,
   fetchAllQuerschnitt,
@@ -91,7 +92,7 @@ const MainPage = () => {
     //   bezeichnung: "Test Schaltschrank",
     // });
     const run = async () => {
-      const data = await fetchAllDoppelkommando(storedJWT);
+      const data = await fetchAllMasttyp(storedJWT);
       console.log("xxx data", data);
     };
     run();
