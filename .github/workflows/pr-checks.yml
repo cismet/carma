@@ -320,6 +320,14 @@ jobs:
       - name: Run E2E tests
         run: PW_CHANNEL=chrome npx nx e2e ${{ matrix.project }} --grep="smoke/" --skip-nx-cache --skipInstall
 
+      - name: Upload test screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-screenshots
+          path: e2e/geoportal/geoportal/test-results/
+          retention-days: 7
+
       - name: Report the smoke test failure
         if: failure()
         run: |
