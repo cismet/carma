@@ -97,3 +97,11 @@ export const masttypQuery = gql`
 export const leuchtentypQuery = gql`
   ${queries.tkey_leuchtentyp}
 `;
+
+export const rundsteuerempfaengerQuery = gql`
+  ${queries.rundsteuerempfaenger}
+`;
+
+export const infobausteinTemplateQuery = gql`
+  ${queries.infobaustein_template}
+`;

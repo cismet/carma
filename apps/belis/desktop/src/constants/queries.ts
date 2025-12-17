@@ -14,6 +14,51 @@ query MyQuery {
   }
 }`;
 
+queries.rundsteuerempfaenger = `
+query MyQuery {
+  rundsteuerempfaenger {
+    rs_typ
+    programm
+    id
+    herrsteller_rs
+    anschlusswert
+    dms_url {
+      description
+      id
+      name
+      typ
+      url {
+        id
+        object_name
+        url_base {
+          id
+          path
+          prot_prefix
+          server
+        }
+      }
+    }
+  }
+}`;
+
+queries.infobaustein_template = `
+query MyQuery {
+  infobaustein_template {
+    schluessel
+    id
+    bezeichnung
+    ar_bausteineArray {
+      infobaustein {
+        bezeichnung
+        id
+        pflichtfeld
+        schluessel
+        wert
+      }
+    }
+  }
+}`;
+
 queries.tkey_leuchtentyp = `
 query MyQuery {
   tkey_leuchtentyp {

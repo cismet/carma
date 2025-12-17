@@ -40,6 +40,7 @@ import {
   fetchAllBezirk,
   fetchAllDoppelkommando,
   fetchAllEnergielieferant,
+  fetchAllInfobausteinTemplate,
   fetchAllKennziffer,
   fetchAllKlassifizierung,
   fetchAllLeitungstyp,
@@ -50,6 +51,7 @@ import {
   fetchAllMaterialLeitung,
   fetchAllMaterialMauerlasche,
   fetchAllQuerschnitt,
+  fetchAllRundsteuerempfaenger,
   fetchAllStrassenschluessel,
   fetchAllTeams,
   fetchAllUnterhaltLeuchte,
@@ -93,7 +95,7 @@ const MainPage = () => {
     //   bezeichnung: "Test Schaltschrank",
     // });
     const run = async () => {
-      const data = await fetchAllLeuchtentyp(storedJWT);
+      const data = await fetchAllInfobausteinTemplate(storedJWT);
       console.log("xxx data", data);
     };
     run();

@@ -10,6 +10,7 @@ import {
   materialLeitungQuery,
   materialMauerlascheQuery,
   querschnittQuery,
+  rundsteuerempfaengerQuery,
   SAVE_ENDPOINT,
   teamQuery,
   tkeyBezirkQuery,
@@ -21,6 +22,7 @@ import {
   tkeyStrassenschluesselQuery,
   tkeyUnterhaltLeuchteQuery,
   tkeyUnterhaltMastQuery,
+  infobausteinTemplateQuery,
   veranlassungsartQuery,
 } from "../constants/belis";
 
@@ -861,4 +863,74 @@ export const fetchAllLeuchtentyp = async (jwt: string) => {
   }
 
   return json.data?.tkey_leuchtentyp ?? [];
+};
+
+export const fetchAllRundsteuerempfaenger = async (jwt: string) => {
+  const response = await fetch(ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${jwt}`,
+    },
+    body: JSON.stringify({
+      query: rundsteuerempfaengerQuery,
+    }),
+  });
+
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(
+      `fetchAllRundsteuerempfaenger failed: ${response.status} ${text}`
+    );
+  }
+
+  const json = JSON.parse(text) as {
+    data?: { rundsteuerempfaenger?: unknown[] };
+    errors?: unknown;
+  };
+
+  if (json.errors) {
+    throw new Error(
+      `fetchAllRundsteuerempfaenger GraphQL errors: ${JSON.stringify(
+        json.errors
+      )}`
+    );
+  }
+
+  return json.data?.rundsteuerempfaenger ?? [];
+};
+
+export const fetchAllInfobausteinTemplate = async (jwt: string) => {
+  const response = await fetch(ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${jwt}`,
+    },
+    body: JSON.stringify({
+      query: infobausteinTemplateQuery,
+    }),
+  });
+
+  const text = await response.text();
+  if (!response.ok) {
+    throw new Error(
+      `fetchAllInfobausteinTemplate failed: ${response.status} ${text}`
+    );
+  }
+
+  const json = JSON.parse(text) as {
+    data?: { infobaustein_template?: unknown[] };
+    errors?: unknown;
+  };
+
+  if (json.errors) {
+    throw new Error(
+      `fetchAllInfobausteinTemplate GraphQL errors: ${JSON.stringify(
+        json.errors
+      )}`
+    );
+  }
+
+  return json.data?.infobaustein_template ?? [];
 };
