@@ -35,6 +35,7 @@ import { useOblique } from "../hooks/useOblique";
 import { useObliqueCameraHandlers } from "../hooks/useObliqueCameraHandlers";
 import { useSiblingsByCardinal } from "../hooks/useSiblingsByCardinal";
 import { useObliqueDirectionKeybindings } from "../hooks/useObliqueDirectionKeybindings";
+import { useObliqueNearestImage } from "../hooks/useObliqueNearestImage";
 
 import { flyToExteriorOrientation } from "../utils/cameraUtils";
 import { downloadAsBlobAsync } from "../utils/downloads";
@@ -67,8 +68,8 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     setSelectedImage,
     prefetchSiblingPreview,
     setSuspendSelectionSearch,
-    selectedImageRefresh,
   } = useOblique();
+  const refreshSearch = useObliqueNearestImage();
   const siblingsByCardinal = useSiblingsByCardinal();
   const {
     shouldSuspendPitchLimiterRef,
@@ -225,17 +226,14 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   // Request nearest image for a given cardinal via on-demand search
   const findNearestForCardinal = useCallback(
     (dir: CardinalDirectionEnum, opts?: { computeOnly?: boolean }) => {
-      if (typeof selectedImageRefresh !== "function") {
-        return null;
-      }
-      const results = selectedImageRefresh({
+      const results = refreshSearch({
         direction: dir,
         immediate: true,
         computeOnly: !!opts?.computeOnly,
       });
       return results && results.length ? results[0] : null;
     },
-    [selectedImageRefresh]
+    [refreshSearch]
   );
 
   // Fly-to handling for next capture (without opening preview)
