@@ -421,7 +421,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
             <div>
               <ControlButtonStyler onClick={handleBackdropClick} width="auto">
                 <span className="flex-1 text-base px-4">
-                  Vorschau Schließen
+                  Vorschau schließen
                 </span>
               </ControlButtonStyler>
             </div>
