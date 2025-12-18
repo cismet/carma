@@ -1,21 +1,26 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
-import { type Scene, CesiumMath } from "@carma/cesium";
+import { type Scene } from "@carma/cesium";
+import { handleDelayedRender } from "@carma-commons/utils";
 
 import {
   useCesiumContext,
   useFovWheelZoom,
   useCesiumCameraForceOblique,
+  testCameraObliqueCompliant,
 } from "@carma-mapping/engines/cesium";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
 import { useOblique } from "./useOblique";
 import { enterObliqueMode, leaveObliqueMode } from "../utils/cameraUtils";
-import { handleDelayedRender } from "@carma-commons/utils";
 
 export function useObliqueInitializer(debug = false) {
-  const { shouldSuspendPitchLimiterRef, getScene, sceneAnimationMapRef } =
-    useCesiumContext();
+  const {
+    shouldSuspendPitchLimiterRef,
+    getScene,
+    sceneAnimationMapRef,
+    initialViewApplied,
+  } = useCesiumContext();
   const { isTransitioning } = useMapFrameworkSwitcherContext();
   const {
     isObliqueMode,
@@ -23,11 +28,9 @@ export function useObliqueInitializer(debug = false) {
     fixedPitch,
     minFov,
     maxFov,
-    headingOffset,
     setSuspendSelectionSearch,
   } = useOblique();
   const originalFovRef = useRef<number | null>(null);
-  const isFirstRunRef = useRef(true);
 
   // Derived scene ref for useCesiumCameraForceOblique
   const sceneRef = useRef<Scene | null>(null);
@@ -55,11 +58,15 @@ export function useObliqueInitializer(debug = false) {
     wheelZoomOptions
   );
 
+  const obliqueOptions = useMemo(
+    () => ({ fixedPitch, fixedHeight }),
+    [fixedPitch, fixedHeight]
+  );
+
   const { enableCameraForceOblique, disableCameraForceOblique } =
     useCesiumCameraForceOblique(
       sceneRef,
-      fixedPitch,
-      fixedHeight,
+      obliqueOptions,
       shouldSuspendPitchLimiterRef,
       checkExternalAnimations
     );
@@ -67,6 +74,10 @@ export function useObliqueInitializer(debug = false) {
   useEffect(() => {
     // Always set the zoom handler state based on oblique mode; the hook will defer attaching until a viewer exists
     setWheelZoomEnabled(isObliqueMode);
+
+    if (!initialViewApplied) {
+      return;
+    }
 
     const scene = getScene();
     if (scene) {
@@ -82,19 +93,16 @@ export function useObliqueInitializer(debug = false) {
 
       if (isObliqueMode) {
         debug && console.debug("entering Oblique Mode");
-        // If camera already has an oblique-like pitch (e.g., restored from hash), don't override it
-        let isAlreadyOblique = false;
+        const isCameraObliqueCompliant = testCameraObliqueCompliant(
+          camera,
+          obliqueOptions
+        );
 
-        const p = camera.pitch;
-        const minOblique = -CesiumMath.toRadians(80);
-        const maxOblique = -CesiumMath.toRadians(5);
-        isAlreadyOblique = p > minOblique && p < maxOblique;
-
-        if (isAlreadyOblique) {
+        if (isCameraObliqueCompliant) {
+          debug && console.debug("skipping enter animation");
           enableCameraForceOblique();
           requestRender({ delay: 50, repeat: 2 });
         } else {
-          const duration = isFirstRunRef.current ? 0 : undefined;
           setSuspendSelectionSearch(true);
           enterObliqueMode(
             scene,
@@ -105,8 +113,7 @@ export function useObliqueInitializer(debug = false) {
               setSuspendSelectionSearch(false);
               enableCameraForceOblique();
               requestRender({ delay: 50, repeat: 2 });
-            },
-            duration
+            }
           );
         }
       } else {
@@ -118,8 +125,6 @@ export function useObliqueInitializer(debug = false) {
       }
     }
 
-    isFirstRunRef.current = false;
-
     return () => {
       disableCameraForceOblique();
     };
@@ -127,13 +132,13 @@ export function useObliqueInitializer(debug = false) {
   }, [
     debug,
     isObliqueMode,
+    initialViewApplied,
     // ctx, // intentionally omitted to prevent re-triggering on context changes
     getScene,
     fixedPitch,
     fixedHeight,
     minFov,
     maxFov,
-    headingOffset,
     setWheelZoomEnabled,
     enableCameraForceOblique,
     disableCameraForceOblique,

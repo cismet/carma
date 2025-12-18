@@ -3,7 +3,7 @@ import { useEffect, useState, useMemo, useRef } from "react";
 import { getPixelResolutionFromZoomAtLatitudeRad } from "@carma/geo/utils";
 import { radToDegNumeric, degToRadNumeric } from "@carma/units/helpers";
 import { Cartographic } from "@carma/cesium";
-import { guardSampleTerrainMostDetailedAsync } from "@carma-mapping/engines/cesium/legacy";
+import { guardSampleTerrainMostDetailedAsync } from "@carma-mapping/engines/cesium";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
 export const ElevationDisplay = () => {

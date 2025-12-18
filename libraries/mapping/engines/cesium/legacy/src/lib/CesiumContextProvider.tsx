@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
-import { Viewer } from "cesium";
+// legacy type, prefer using scene, graphic primitives and CesiumWidget where possible
+// eslint-disable-next-line carma/no-direct-cesium
+import type { Viewer } from "cesium";
 
 import {
   CesiumTerrainProvider,
@@ -13,6 +15,7 @@ import {
   isValidCesiumTerrainProvider,
   isValidImageryLayer,
 } from "@carma/cesium";
+
 import { handleDelayedRender } from "@carma-commons/utils/window";
 
 import { CesiumContext, type CesiumContextType } from "./CesiumContext";
@@ -54,12 +57,8 @@ export const CesiumContextProvider = ({
 
   // explicitly trigger re-renders
   const [isViewerReady, setIsViewerReady] = useState<boolean>(false);
-  // Tri-state: null (not started), false (applying), true (settled)
-  const [initialCameraSettled, setInitialCameraSettled] = useState<
-    boolean | null
-  >(null);
-  // Monotonic counter for initial camera applications
-  const [initialCameraEpoch, setInitialCameraEpoch] = useState<number>(0);
+  // Track when initial camera view from URL has been applied
+  const [initialViewApplied, setInitialViewApplied] = useState<boolean>(false);
 
   const getScene = useCallback((): Scene | null => {
     if (viewerRef.current) {
@@ -122,13 +121,21 @@ export const CesiumContextProvider = ({
 
   // Load Primary Tileset
   useEffect(() => {
+    let cancelled = false;
     if (tilesetConfigs.primary && isViewerReady) {
       const fetchPrimary = async () => {
         console.debug(
           "[CESIUM|DEBUG] Loading primary tileset",
           tilesetConfigs.primary
         );
-        primaryTilesetRef.current = await loadTileset(tilesetConfigs.primary);
+        const tileset = await loadTileset(tilesetConfigs.primary);
+        if (cancelled) {
+          if (!tileset.isDestroyed()) {
+            tileset.destroy();
+          }
+          return;
+        }
+        primaryTilesetRef.current = tileset;
         console.debug(
           "[CESIUM|DEBUG] Loaded primary tileset",
           primaryTilesetRef.current
@@ -140,6 +147,7 @@ export const CesiumContextProvider = ({
     }
 
     return () => {
+      cancelled = true;
       // Don't destroy providers when transitioning to 2D mode - only when viewer is destroyed
       const t = primaryTilesetRef.current;
       if (t && !t.isDestroyed() && isValidViewer()) {
@@ -152,15 +160,21 @@ export const CesiumContextProvider = ({
 
   // Load Secondary Tileset
   useEffect(() => {
+    let cancelled = false;
     if (tilesetConfigs.secondary && isViewerReady && isValidViewer()) {
       const fetchSecondary = async () => {
         console.debug(
           "[CESIUM|DEBUG] Loading secondary tileset",
           tilesetConfigs.secondary
         );
-        secondaryTilesetRef.current = await loadTileset(
-          tilesetConfigs.secondary!
-        );
+        const tileset = await loadTileset(tilesetConfigs.secondary!);
+        if (cancelled) {
+          if (!tileset.isDestroyed()) {
+            tileset.destroy();
+          }
+          return;
+        }
+        secondaryTilesetRef.current = tileset;
         console.debug(
           "[CESIUM|DEBUG] Loaded secondary tileset",
           secondaryTilesetRef.current
@@ -172,6 +186,7 @@ export const CesiumContextProvider = ({
     }
 
     return () => {
+      cancelled = true;
       // Don't destroy providers when transitioning to 2D mode - only when viewer is destroyed
       const t = secondaryTilesetRef.current;
       if (t && !t.isDestroyed() && isValidViewer()) {
@@ -182,10 +197,6 @@ export const CesiumContextProvider = ({
     };
   }, [tilesetConfigs.secondary, isViewerReady, isValidViewer]);
 
-  const bumpInitialCameraEpoch = useCallback(
-    () => setInitialCameraEpoch((v) => v + 1),
-    [setInitialCameraEpoch]
-  );
   const requestRender = useCallback(
     (opts) => {
       const renderOnce = () => {
@@ -196,14 +207,6 @@ export const CesiumContextProvider = ({
       handleDelayedRender(renderOnce, opts);
     },
     [withViewer]
-  );
-
-  console.debug(
-    "CesiumContextProvider Rendered",
-    isViewerReady,
-    initialCameraEpoch,
-    providersReady,
-    isViewerReady
   );
 
   const contextValue = useMemo<CesiumContextType>(
@@ -217,11 +220,9 @@ export const CesiumContextProvider = ({
       shouldSuspendPitchLimiterRef,
       shouldSuspendCameraLimitersRef,
       setIsViewerReady,
+      setInitialViewApplied,
       providersReady,
-      initialCameraSettled,
-      setInitialCameraSettled,
-      initialCameraEpoch,
-      bumpInitialCameraEpoch,
+      initialViewApplied,
       isViewerReady,
       // NOTE: Workaround for CesiumGS/cesium#12543 — delay/repeat options exist
       // to schedule additional renders in requestRenderMode when needed. These
@@ -235,19 +236,11 @@ export const CesiumContextProvider = ({
       getSurfaceProvider,
       getImageryLayer,
       isViewerReady,
+      initialViewApplied,
       providersReady,
-      initialCameraSettled,
-      initialCameraEpoch,
-      bumpInitialCameraEpoch,
       requestRender,
       instanceCallbacks,
     ]
-  );
-
-  console.debug(
-    "CesiumContextProvider Changed/Rendered",
-    isViewerReady,
-    contextValue
   );
 
   return (

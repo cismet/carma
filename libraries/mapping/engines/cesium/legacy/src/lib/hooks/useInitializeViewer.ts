@@ -20,7 +20,10 @@ import {
   Color,
   Globe,
   Ellipsoid,
+  waitForRenderFrames,
 } from "@carma/cesium";
+
+import type { Scene } from "@carma/cesium";
 
 import { useCesiumContext } from "./useCesiumContext";
 
@@ -69,12 +72,13 @@ export const useInitializeViewer = (
     isValidViewer,
     isViewerReady,
     setIsViewerReady,
+    initialViewApplied,
+    setInitialViewApplied,
     providersReady,
     shouldSuspendCameraLimitersRef,
     withScene,
     withCamera,
     withViewer,
-    setInitialCameraSettled,
     getTerrainProvider,
     getSurfaceProvider,
     getImageryLayer,
@@ -221,8 +225,6 @@ export const useInitializeViewer = (
           logLevel: "warn",
         });
         // Initial state: not started determining yet
-        setInitialCameraSettled(null);
-        console.info("[CESIUM|INIT|SETTLE] state:null (viewer created)");
 
         const handlePostRender = () => {
           withScene((scene, viewer) => {
@@ -325,7 +327,6 @@ export const useInitializeViewer = (
     setIsViewerReady,
     withCamera,
     withViewer,
-    setInitialCameraSettled,
     currentSceneStyle,
     primaryStyle,
     secondaryStyle,
@@ -357,18 +358,6 @@ export const useInitializeViewer = (
   useEffect(() => {
     if (!isViewerReady) return;
 
-    // Begin determining/applying initial camera (or home fallback if absent)
-    setInitialCameraSettled(false);
-    if (!initialCameraView) {
-      console.info(
-        "[CESIUM|INIT|SETTLE] initialCameraView:absent -> applying home fallback"
-      );
-    } else {
-      console.info(
-        "[CESIUM|INIT|SETTLE] applying:false (begin applying initial view)"
-      );
-    }
-
     let alreadySet = false;
     withViewer((viewer) => {
       alreadySet = initialViewSetMap.has(viewer);
@@ -377,11 +366,27 @@ export const useInitializeViewer = (
       console.debug(
         "[CESIUM] HOOK: [CESIUM|CAMERA] Initial view already set, skipping."
       );
-      // Viewer already has an initial view applied — consider camera settled
-      setInitialCameraSettled(true);
-      console.info(
-        "[CESIUM] [CESIUM|INIT|SETTLE] reuse:true -> state:true (already applied)"
-      );
+
+      // Edge case: effect can re-run during startup; ensure the flag is eventually set.
+      if (!initialViewApplied) {
+        let cancelled = false;
+        (async () => {
+          let sceneRef: Scene | null = null;
+          withScene((scene) => {
+            sceneRef = scene;
+          });
+          if (!sceneRef) return;
+          await waitForRenderFrames(sceneRef, 2);
+          if (!cancelled) {
+            setInitialViewApplied(true);
+          }
+        })();
+
+        return () => {
+          cancelled = true;
+        };
+      }
+
       return;
     }
 
@@ -393,6 +398,8 @@ export const useInitializeViewer = (
     }
 
     let willFlyHome = false;
+    let cancelled = false;
+    let detachMoveEndListener: (() => void) | null = null;
     const resetToHome = () => {
       if (!hasHome) return;
       withCamera((camera) => {
@@ -400,10 +407,6 @@ export const useInitializeViewer = (
         willFlyHome = true;
         camera.flyToBoundingSphere(new BoundingSphere(home, 500), {
           duration: 2,
-          complete: () => {
-            setInitialCameraSettled(true);
-            console.info("[CESIUM|INIT|SETTLE] flyHome:complete -> state:true");
-          },
         });
       });
     };
@@ -473,31 +476,54 @@ export const useInitializeViewer = (
       );
       resetToHome();
     }
-    // If we started a home flyTo, rely on its complete() to mark settled.
-    // Otherwise, mark settled after the next postRender.
-    if (!willFlyHome) {
-      withScene((scene) => {
-        const markSettled = () => {
-          setInitialCameraSettled(true);
-          console.info(
-            "[CESIUM|INIT|SETTLE] postRender -> state:true (applied)"
-          );
-          scene.postRender.removeEventListener(markSettled);
-        };
-        scene.postRender.addEventListener(markSettled);
-      });
-    }
     withViewer((viewer) => initialViewSetMap.set(viewer, true));
+
+    (async () => {
+      let sceneRef: Scene | null = null;
+      let cameraRef: Camera | null = null;
+      withScene((scene, viewer) => {
+        sceneRef = scene;
+        cameraRef = viewer.camera;
+      });
+
+      if (!sceneRef || !cameraRef) return;
+
+      if (willFlyHome) {
+        await new Promise<void>((resolve) => {
+          const handler = () => {
+            cameraRef?.moveEnd.removeEventListener(handler);
+            detachMoveEndListener = null;
+            resolve();
+          };
+          cameraRef.moveEnd.addEventListener(handler);
+          detachMoveEndListener = () =>
+            cameraRef?.moveEnd.removeEventListener(handler);
+        });
+      }
+
+      await waitForRenderFrames(sceneRef, 2);
+
+      if (!cancelled) {
+        setInitialViewApplied(true);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      detachMoveEndListener?.();
+      detachMoveEndListener = null;
+    };
   }, [
     isViewerReady,
     initialCameraView,
     home,
     homeOffset,
     maxZoom,
+    setInitialViewApplied,
+    initialViewApplied,
     withViewer,
     withCamera,
     withScene,
-    setInitialCameraSettled,
     shouldSuspendCameraLimitersRef,
   ]);
 
