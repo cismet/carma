@@ -6,7 +6,7 @@ import {
   useCesiumContext,
   useFovWheelZoom,
   useCesiumCameraForceOblique,
-  isCameraObliqueCompliant,
+  testCameraObliqueCompliant,
 } from "@carma-mapping/engines/cesium";
 import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
@@ -31,7 +31,6 @@ export function useObliqueInitializer(debug = false) {
     setSuspendSelectionSearch,
   } = useOblique();
   const originalFovRef = useRef<number | null>(null);
-  const isFirstRunRef = useRef(true);
 
   // Derived scene ref for useCesiumCameraForceOblique
   const sceneRef = useRef<Scene | null>(null);
@@ -94,15 +93,13 @@ export function useObliqueInitializer(debug = false) {
 
       if (isObliqueMode) {
         debug && console.debug("entering Oblique Mode");
-        // If oblique mode was enabled from URL on first run, assume camera is already correct
-        const obliqueFromUrl = isFirstRunRef.current;
-        // Also check camera position for user-initiated oblique mode
-        const isAlreadyOblique =
-          obliqueFromUrl || isCameraObliqueCompliant(camera, obliqueOptions);
+        const isCameraObliqueCompliant = testCameraObliqueCompliant(
+          camera,
+          obliqueOptions
+        );
 
-        if (isAlreadyOblique) {
-          debug &&
-            console.debug("skipping enter animation", { obliqueFromUrl });
+        if (isCameraObliqueCompliant) {
+          debug && console.debug("skipping enter animation");
           enableCameraForceOblique();
           requestRender({ delay: 50, repeat: 2 });
         } else {
@@ -127,8 +124,6 @@ export function useObliqueInitializer(debug = false) {
         });
       }
     }
-
-    isFirstRunRef.current = false;
 
     return () => {
       disableCameraForceOblique();

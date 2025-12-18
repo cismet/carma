@@ -35,7 +35,7 @@ export {
 } from "./hooks/useCesiumContext";
 export {
   useCesiumCameraForceOblique,
-  isCameraObliqueCompliant,
+  testCameraObliqueCompliant,
   type CameraForceObliqueOptions,
 } from "./hooks/useCameraForceOblique";
 export { useHomeControl } from "./hooks/useHomeControl";

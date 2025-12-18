@@ -4,10 +4,10 @@ import { type Scene } from "@carma/cesium";
 
 import {
   cesiumCameraForceOblique,
-  isCameraObliqueCompliant,
+  testCameraObliqueCompliant,
   type CameraForceObliqueOptions,
 } from "../utils/cesiumCameraForceOblique";
-export { isCameraObliqueCompliant };
+export { testCameraObliqueCompliant };
 import { sceneHasTweens } from "../utils/sceneHasTweens";
 
 export type { CameraForceObliqueOptions };

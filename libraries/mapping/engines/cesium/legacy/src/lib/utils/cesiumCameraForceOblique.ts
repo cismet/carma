@@ -24,7 +24,7 @@ export const isInRange = (
   tolerance: number
 ): boolean => Math.abs(value - target) <= tolerance;
 
-export const isCameraObliqueCompliant = (
+export const testCameraObliqueCompliant = (
   camera: { pitch: number; positionCartographic?: { height: number } | null },
   options: CameraForceObliqueOptions
 ): boolean => {
@@ -40,6 +40,8 @@ export const isCameraObliqueCompliant = (
     isInRange(height, fixedHeight, heightTolerance)
   );
 };
+
+export const isCameraObliqueCompliant = testCameraObliqueCompliant;
 
 let animState: {
   startHeight: number;
