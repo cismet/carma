@@ -362,9 +362,10 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: playwright-screenshots
-          path: e2e/geoportal/geoportal/test-results/
-          retention-days: 7
+          name: playwright-test-results
+          path: |
+            e2e/**/test-results/**
+          retention-days: 4
 
       - name: Report the smoke test failure
         if: failure()
