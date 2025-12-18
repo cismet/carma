@@ -3,8 +3,10 @@ import {
   useCallback,
   useContext,
   useMemo,
+  useRef,
   useState,
 } from "react";
+import type { MutableRefObject } from "react";
 import type { Feature } from "geojson";
 
 import { type SearchResultItem } from "@carma/types";
@@ -29,6 +31,7 @@ interface SelectionContextType {
   // todo Include overlay in selectionItme
   overlayFeature: Feature | null;
   setOverlayFeature: (feature: Feature | null) => void;
+  selectionFlyToCameraHeightRef: MutableRefObject<number | null>;
 }
 
 const SelectionContext = createContext<SelectionContextType | undefined>(
@@ -51,6 +54,7 @@ interface SelectionProviderProps {
 export function SelectionProvider({ children }: SelectionProviderProps) {
   const [selection, setSelection] = useState<SelectionItem | null>(null);
   const [overlayFeature, setOverlayFeature] = useState<Feature | null>(null);
+  const selectionFlyToCameraHeightRef = useRef<number | null>(null);
 
   const checkedSetSelection = useCallback(
     (newSelection: SelectionItem | null) => {
@@ -71,6 +75,7 @@ export function SelectionProvider({ children }: SelectionProviderProps) {
       setSelection: checkedSetSelection,
       overlayFeature,
       setOverlayFeature,
+      selectionFlyToCameraHeightRef,
     }),
     [selection, checkedSetSelection, overlayFeature, setOverlayFeature]
   );
