@@ -14,7 +14,7 @@ import {
   type TransitionToLeafletOptions,
   type TransitionToLeafletCallbacks,
 } from "./types";
-import { animateInterpolateHeadingPitchRange } from "@carma-mapping/engines/cesium/legacy";
+import { animateInterpolateHeadingPitchRange } from "@carma-mapping/engines/cesium";
 import { getGroundPosition } from "./utils/cesium/get-ground-position";
 import { calculateAnimationDuration } from "./utils/cesium/calculate-animation-duration";
 import { fadeOutContainer } from "./utils/dom-utils";

@@ -1,23 +1,18 @@
 import { useCallback, useRef } from "react";
+import type { MutableRefObject } from "react";
 
-import { type Scene } from "@carma/cesium";
+import type { Scene } from "@carma/cesium";
 
-import {
-  cesiumCameraForceOblique,
-  testCameraObliqueCompliant,
-  type CameraForceObliqueOptions,
-} from "../utils/cesiumCameraForceOblique";
-export { testCameraObliqueCompliant };
+import { cesiumCameraForceOblique } from "../utils/cesiumCameraForceOblique";
+import type { CameraForceObliqueOptions } from "../utils/cesiumCameraForceOblique";
 import { sceneHasTweens } from "../utils/sceneHasTweens";
-
-export type { CameraForceObliqueOptions };
 
 const scenePreUpdateHandlers = new WeakMap<Scene, (scene: Scene) => void>();
 
 export function useCesiumCameraForceOblique(
-  sceneRef: React.MutableRefObject<Scene | null>,
+  sceneRef: MutableRefObject<Scene | null>,
   options: CameraForceObliqueOptions,
-  shouldSuspendRef: React.MutableRefObject<boolean>,
+  shouldSuspendRef: MutableRefObject<boolean>,
   checkExternalAnimations?: (scene: Scene) => boolean
 ) {
   // Use ref to avoid stale closure - callback can change when isTransitioning changes

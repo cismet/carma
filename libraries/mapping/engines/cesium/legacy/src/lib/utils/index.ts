@@ -5,6 +5,11 @@ export {
   fovToCssPerspectiveByFov,
 } from "./cesiumCameraToCssTransform";
 export { guardCamera } from "./guardCamera";
+export {
+  cesiumCameraForceOblique,
+  testCameraObliqueCompliant,
+  type CameraForceObliqueOptions,
+} from "./cesiumCameraForceOblique";
 
 // Scene utilities
 export { guardScene } from "./guardScene";

@@ -5,7 +5,7 @@ import {
   type HeadingPitchJson,
   isValidScene,
 } from "@carma/cesium";
-import { animateInterpolateHeadingPitchRange } from "@carma-mapping/engines/cesium/legacy";
+import { animateInterpolateHeadingPitchRange } from "@carma-mapping/engines/cesium";
 import { degToRad } from "@carma/units/helpers";
 import type { Degrees } from "@carma/units/types";
 

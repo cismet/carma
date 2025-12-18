@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef } from "react";
 
 import { type Scene } from "@carma/cesium";
+import { handleDelayedRender } from "@carma-commons/utils";
 
 import {
   useCesiumContext,
@@ -12,7 +13,6 @@ import { useMapFrameworkSwitcherContext } from "@carma-mapping/components";
 
 import { useOblique } from "./useOblique";
 import { enterObliqueMode, leaveObliqueMode } from "../utils/cameraUtils";
-import { handleDelayedRender } from "@carma-commons/utils";
 
 export function useObliqueInitializer(debug = false) {
   const {

@@ -121,93 +121,25 @@ export const CesiumContextProvider = ({
 
   // Load Primary Tileset
   useEffect(() => {
-    let alive = true;
-    let detachTilesetLoadListener: (() => void) | null = null;
-    let readyTimeoutId: number | null = null;
-    let done = false;
-
+    let cancelled = false;
     if (tilesetConfigs.primary && isViewerReady) {
       const fetchPrimary = async () => {
         console.debug(
           "[CESIUM|DEBUG] Loading primary tileset",
           tilesetConfigs.primary
         );
-        primaryTilesetRef.current = await loadTileset(tilesetConfigs.primary);
+        const tileset = await loadTileset(tilesetConfigs.primary);
+        if (cancelled) {
+          if (!tileset.isDestroyed()) {
+            tileset.destroy();
+          }
+          return;
+        }
+        primaryTilesetRef.current = tileset;
         console.debug(
           "[CESIUM|DEBUG] Loaded primary tileset",
           primaryTilesetRef.current
         );
-
-        const viewer = viewerRef.current;
-        const tileset = primaryTilesetRef.current;
-
-        if (!alive) {
-          return;
-        }
-
-        if (!viewer || !tileset) {
-          return;
-        }
-
-        type TilesetWithTileLoadProgressEvent = {
-          tileLoadProgressEvent: {
-            addEventListener: (cb: (pendingCount: number) => void) => void;
-            removeEventListener: (cb: (pendingCount: number) => void) => void;
-          };
-        };
-
-        const tilesetWithEvents =
-          tileset as unknown as TilesetWithTileLoadProgressEvent;
-        let hadZeroProgress = false;
-
-        const onTileLoadProgress = (pendingCount: number) => {
-          if (pendingCount === 0) {
-            hadZeroProgress = true;
-          }
-        };
-
-        tilesetWithEvents.tileLoadProgressEvent.addEventListener(
-          onTileLoadProgress
-        );
-
-        detachTilesetLoadListener = () =>
-          tilesetWithEvents.tileLoadProgressEvent.removeEventListener(
-            onTileLoadProgress
-          );
-
-        readyTimeoutId = window.setTimeout(() => {
-          if (!alive) return;
-          if (done) return;
-          done = true;
-          console.warn(
-            "[CESIUM|DEBUG] primary tileset timeout: proceeding without confirmed tile idle"
-          );
-          if (detachTilesetLoadListener) {
-            detachTilesetLoadListener();
-            detachTilesetLoadListener = null;
-          }
-        }, 10000);
-
-        const checkReady = () => {
-          if (!alive) return;
-          if (done) return;
-          const isAdded = viewer.scene.primitives.contains(tileset);
-          if (isAdded && hadZeroProgress) {
-            done = true;
-            if (readyTimeoutId != null) {
-              window.clearTimeout(readyTimeoutId);
-              readyTimeoutId = null;
-            }
-            if (detachTilesetLoadListener) {
-              detachTilesetLoadListener();
-              detachTilesetLoadListener = null;
-            }
-            return;
-          }
-          requestAnimationFrame(checkReady);
-        };
-
-        requestAnimationFrame(checkReady);
       };
       fetchPrimary().catch(console.error);
     } else {
@@ -215,16 +147,7 @@ export const CesiumContextProvider = ({
     }
 
     return () => {
-      alive = false;
-      done = true;
-      if (readyTimeoutId != null) {
-        window.clearTimeout(readyTimeoutId);
-        readyTimeoutId = null;
-      }
-      if (detachTilesetLoadListener) {
-        detachTilesetLoadListener();
-        detachTilesetLoadListener = null;
-      }
+      cancelled = true;
       // Don't destroy providers when transitioning to 2D mode - only when viewer is destroyed
       const t = primaryTilesetRef.current;
       if (t && !t.isDestroyed() && isValidViewer()) {
@@ -237,95 +160,25 @@ export const CesiumContextProvider = ({
 
   // Load Secondary Tileset
   useEffect(() => {
-    let alive = true;
-    let detachTilesetLoadListener: (() => void) | null = null;
-    let readyTimeoutId: number | null = null;
-    let done = false;
-
+    let cancelled = false;
     if (tilesetConfigs.secondary && isViewerReady && isValidViewer()) {
       const fetchSecondary = async () => {
         console.debug(
           "[CESIUM|DEBUG] Loading secondary tileset",
           tilesetConfigs.secondary
         );
-        secondaryTilesetRef.current = await loadTileset(
-          tilesetConfigs.secondary!
-        );
+        const tileset = await loadTileset(tilesetConfigs.secondary!);
+        if (cancelled) {
+          if (!tileset.isDestroyed()) {
+            tileset.destroy();
+          }
+          return;
+        }
+        secondaryTilesetRef.current = tileset;
         console.debug(
           "[CESIUM|DEBUG] Loaded secondary tileset",
           secondaryTilesetRef.current
         );
-
-        const viewer = viewerRef.current;
-        const tileset = secondaryTilesetRef.current;
-
-        if (!alive) {
-          return;
-        }
-
-        if (!viewer || !tileset) {
-          return;
-        }
-
-        type TilesetWithTileLoadProgressEvent = {
-          tileLoadProgressEvent: {
-            addEventListener: (cb: (pendingCount: number) => void) => void;
-            removeEventListener: (cb: (pendingCount: number) => void) => void;
-          };
-        };
-
-        const tilesetWithEvents =
-          tileset as unknown as TilesetWithTileLoadProgressEvent;
-        let hadZeroProgress = false;
-
-        const onTileLoadProgress = (pendingCount: number) => {
-          if (pendingCount === 0) {
-            hadZeroProgress = true;
-          }
-        };
-
-        tilesetWithEvents.tileLoadProgressEvent.addEventListener(
-          onTileLoadProgress
-        );
-
-        detachTilesetLoadListener = () =>
-          tilesetWithEvents.tileLoadProgressEvent.removeEventListener(
-            onTileLoadProgress
-          );
-
-        readyTimeoutId = window.setTimeout(() => {
-          if (!alive) return;
-          if (done) return;
-          done = true;
-          console.warn(
-            "[CESIUM|DEBUG] secondary tileset timeout: proceeding without confirmed tile idle"
-          );
-          if (detachTilesetLoadListener) {
-            detachTilesetLoadListener();
-            detachTilesetLoadListener = null;
-          }
-        }, 10000);
-
-        const checkReady = () => {
-          if (!alive) return;
-          if (done) return;
-          const isAdded = viewer.scene.primitives.contains(tileset);
-          if (isAdded && hadZeroProgress) {
-            done = true;
-            if (readyTimeoutId != null) {
-              window.clearTimeout(readyTimeoutId);
-              readyTimeoutId = null;
-            }
-            if (detachTilesetLoadListener) {
-              detachTilesetLoadListener();
-              detachTilesetLoadListener = null;
-            }
-            return;
-          }
-          requestAnimationFrame(checkReady);
-        };
-
-        requestAnimationFrame(checkReady);
       };
       fetchSecondary().catch(console.error);
     } else {
@@ -333,16 +186,7 @@ export const CesiumContextProvider = ({
     }
 
     return () => {
-      alive = false;
-      done = true;
-      if (readyTimeoutId != null) {
-        window.clearTimeout(readyTimeoutId);
-        readyTimeoutId = null;
-      }
-      if (detachTilesetLoadListener) {
-        detachTilesetLoadListener();
-        detachTilesetLoadListener = null;
-      }
+      cancelled = true;
       // Don't destroy providers when transitioning to 2D mode - only when viewer is destroyed
       const t = secondaryTilesetRef.current;
       if (t && !t.isDestroyed() && isValidViewer()) {
