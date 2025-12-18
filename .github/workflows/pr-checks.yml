@@ -275,6 +275,9 @@ jobs:
           fetch-depth: 0
           submodules: "recursive"
 
+      - name: Update Submodules
+        run: git submodule update --remote --recursive
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -304,6 +307,15 @@ jobs:
 
       - name: Run E2E tests
         run: PW_CHANNEL=chrome npx nx e2e ${{ matrix.project }} --grep="smoke/" --skip-nx-cache --skipInstall
+
+      - name: Upload Playwright artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts-${{ matrix.project }}
+          path: |
+            **/test-results/**
+          retention-days: 4
 
       - name: Report the smoke test failure
         if: failure()
