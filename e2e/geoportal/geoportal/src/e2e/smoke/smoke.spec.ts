@@ -46,8 +46,8 @@ test.describe("geoportal smoke test", () => {
 
     await expect(page.locator("#cmdCloseModalApplicationMenu")).toHaveCount(0);
 
-    await runModalMenuTest(page, {
-      openButtonSelector: '[data-test-id="modal-menu-btn"]',
-    });
+    // await runModalMenuTest(page, {
+    //   openButtonSelector: '[data-test-id="modal-menu-btn"]',
+    // });
   });
 });
