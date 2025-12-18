@@ -785,7 +785,7 @@ jobs:
 
       - name: Build project
         run: |
-          ${{ env.ADDITIONAL_ENVS }} npx nx run ${{ github.event.inputs['project-name'] || github.event.client_payload['project-name'] }}:build --configuration=production --base="${{ env.BASE_URL }}"
+          ${{ env.ADDITIONAL_ENVS }} npx nx run ${{ github.event.inputs['project-name'] || github.event.client_payload['project-name'] }}:build --configuration=production --base="${{ env.BASE_URL }}" --skip-nx-cache
         shell: bash
       - name: Deploy
         if: env.EXTERNAL_REPO != 'null' && env.EXTERNAL_REPO != '' && env.EXTERNAL_REPO != 'null/null'
