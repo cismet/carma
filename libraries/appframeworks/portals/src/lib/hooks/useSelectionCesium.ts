@@ -124,7 +124,7 @@ export const useSelectionCesium = (
   const { isValidViewer, getScene, getSurfaceProvider, getTerrainProvider } =
     useCesiumContext();
 
-  const { selection } = useSelection();
+  const { selection, selectionFlyToCameraHeightRef } = useSelection();
   const lastSelectionKeyRef = useRef<number | null>(null);
   const lastSelectionTimestampRef = useRef<number | null>(null);
   const shouldAddSelectionInCesiumRef = useRef<boolean>(false);
@@ -278,6 +278,7 @@ export const useSelectionCesium = (
         durationFactor,
         skipFlyTo,
         skipMarkerUpdate,
+        flyToCameraHeight: selectionFlyToCameraHeightRef.current,
       };
 
       if (polygon) {
@@ -342,5 +343,6 @@ export const useSelectionCesium = (
     duration,
     durationFactor,
     selectedMarkerData,
+    selectionFlyToCameraHeightRef,
   ]);
 };

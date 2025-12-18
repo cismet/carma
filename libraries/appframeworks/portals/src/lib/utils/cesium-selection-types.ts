@@ -8,4 +8,5 @@ export type HitTriggerOptions = {
   invertedSelectedPolygonId?: string;
   skipFlyTo?: boolean;
   skipMarkerUpdate?: boolean;
+  flyToCameraHeight?: number | null;
 };

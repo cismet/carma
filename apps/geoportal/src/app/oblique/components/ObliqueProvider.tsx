@@ -11,6 +11,8 @@ import debounce from "lodash/debounce";
 
 import type { FeatureCollection, Polygon } from "geojson";
 
+import { useSelection } from "@carma-appframeworks/portals";
+
 import { useHashState } from "@carma-providers/hash-state";
 
 import type { Radians } from "@carma/geo/types";
@@ -104,6 +106,7 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
   fallbackDirectionConfig,
 }) => {
   const { isViewerReady, requestRender } = useCesiumContext();
+  const { selectionFlyToCameraHeightRef } = useSelection();
   const { updateHash, getHashValues } = useHashState();
   // Read initial oblique mode from hash only once on mount
   const [isObliqueMode, setIsObliqueMode] = useState<boolean>(() => {
@@ -131,6 +134,13 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     footprintsStyle,
     imagePreviewStyle,
   } = config;
+
+  useEffect(() => {
+    selectionFlyToCameraHeightRef.current = isObliqueMode ? fixedHeight : null;
+    return () => {
+      selectionFlyToCameraHeightRef.current = null;
+    };
+  }, [fixedHeight, isObliqueMode, selectionFlyToCameraHeightRef]);
 
   const converter = useMemo(() => createConverter(crs, "EPSG:4326"), [crs]);
 

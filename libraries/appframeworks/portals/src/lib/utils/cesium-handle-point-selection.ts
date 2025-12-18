@@ -2,18 +2,17 @@ import {
   BoundingSphere,
   Cartesian3,
   Cartographic,
-  CesiumTerrainProvider,
-  EasingFunction,
-  Scene,
+  HeadingPitchRange,
   defined,
-  type Model,
-} from "cesium";
+} from "@carma/cesium";
+import type { CesiumTerrainProvider, Model, Scene } from "@carma/cesium";
+
+import { Easing } from "@carma-commons/math";
 
 import {
   addCesiumMarker,
   distanceFromZoomLevel,
   getElevationAsync,
-  getHeadingPitchRangeFromHeight,
   getHeadingPitchRangeFromZoom,
   removeCesiumMarker,
   type MarkerPrimitiveData,
@@ -86,6 +85,7 @@ const cesiumLookAtPoint = async (
     maxDuration?: number;
     durationFactor?: number;
     useCameraHeight?: boolean;
+    flyToCameraHeight?: number | null;
   } = {}
 ) => {
   // Use camera position directly instead of picking from scene
@@ -104,15 +104,36 @@ const cesiumLookAtPoint = async (
   const cameraCartographic = scene.camera.positionCartographic;
   const currentRange = cameraCartographic.height;
 
-  const hpr = getHeadingPitchRangeFromZoom(zoom - 1, scene.camera);
-  const range = distanceFromZoomLevel(zoom - 2);
+  const heading = scene.camera.heading;
+  const pitch = scene.camera.pitch;
+
+  const flyToCameraHeight = options.flyToCameraHeight;
+
+  let hpr: HeadingPitchRange;
+  let range: number;
+  let sphere: BoundingSphere;
+
+  if (flyToCameraHeight != null) {
+    // Override resulting camera elevation only.
+    // Keep target/ground elevation unchanged.
+    const targetHeight = targetPosition.height;
+    const vertical = Math.max(1, flyToCameraHeight - targetHeight);
+    const sinPitchDown = Math.max(1e-3, -Math.sin(pitch));
+    range = vertical / sinPitchDown;
+    hpr = new HeadingPitchRange(heading, pitch, range);
+    sphere = new BoundingSphere(center, 0);
+  } else {
+    // Default behavior: derive range from zoom and keep heading/pitch from current camera.
+    hpr = getHeadingPitchRangeFromZoom(zoom - 1, scene.camera);
+    range = distanceFromZoomLevel(zoom - 2);
+    sphere = new BoundingSphere(center, range);
+  }
 
   // TODO ADD TEST FOR DURATION FACTOR
+  const denom = Math.max(1, Math.abs(currentRange));
   duration =
-    Math.pow(
-      distanceTargets + Math.abs(currentRange - range) / currentRange,
-      1 / 3
-    ) * (options.durationFactor ?? 1);
+    Math.pow(distanceTargets + Math.abs(currentRange - range) / denom, 1 / 3) *
+    (options.durationFactor ?? 1);
 
   console.info(
     "[CESIUM|SEARCH|CAMERA] move duration",
@@ -131,12 +152,12 @@ const cesiumLookAtPoint = async (
 
   //TODO optional add responsive duration based on distance of target
 
-  scene.camera.flyToBoundingSphere(new BoundingSphere(center, range), {
+  scene.camera.flyToBoundingSphere(sphere, {
     offset: hpr,
     duration,
     pitchAdjustHeight:
       cesiumConfig.pitchAdjustHeight ?? DEFAULT_CESIUM_PITCH_ADJUST_HEIGHT,
-    easingFunction: EasingFunction.QUADRATIC_IN_OUT,
+    easingFunction: Easing.QUADRATIC_IN_OUT,
     complete: () => {
       console.info("[CESIUM|ANIMATION] FlytoBoundingSphere Complete", center);
       options.onComplete && options.onComplete();
@@ -222,6 +243,7 @@ export const cesiumHandlePointSelection = async (
       },
       durationFactor,
       maxDuration: duration,
+      flyToCameraHeight: options.flyToCameraHeight ?? null,
     });
     console.debug(
       "GAZETTEER: [2D3D|CESIUM|CAMERA] look at Marker (Terrain Elevation)"
