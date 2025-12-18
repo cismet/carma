@@ -2,6 +2,7 @@ export { FontAwesomeLikeIcon } from "./lib/components/FontAwesomeLikeIcon.tsx";
 export {
   createFilterButtons,
   type FilterConfig,
+  type FilterInfo,
   type FilterOption,
   type GenericFilterButtonsProps,
 } from "./lib/components/GenericFilterButtonsFactory.tsx";

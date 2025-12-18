@@ -1,7 +1,7 @@
 /* eslint-disable jsx-a11y/no-static-element-interactions */
 /* eslint-disable jsx-a11y/click-events-have-key-events */
 
-import { useContext, useEffect, useMemo } from "react";
+import { useContext, useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
@@ -27,7 +27,10 @@ import { useWindowSize } from "@uidotdev/usehooks";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import { cn } from "@carma-commons/utils";
-import { createFilterButtons } from "@carma-mapping/components";
+import {
+  createFilterButtons,
+  type FilterInfo,
+} from "@carma-mapping/components";
 
 import { AppDispatch } from "../../store";
 import {
@@ -59,6 +62,10 @@ const LayerWrapper = () => {
   const dispatch: AppDispatch = useDispatch();
   const { routedMapRef } = useContext<typeof TopicMapContext>(TopicMapContext);
   const size = useWindowSize();
+
+  const [layerFilterInfo, setLayerFilterInfo] = useState<
+    Record<string, FilterInfo>
+  >({});
 
   const layers = useSelector(getLayers);
   const backgroundLayer = useSelector(getBackgroundLayer);
@@ -223,6 +230,7 @@ const LayerWrapper = () => {
                         }
                         layer={layer}
                         hide={layer.type !== "object" && !isLeaflet}
+                        filterInfo={layerFilterInfo[layer.id]}
                       />
                     ))}
                   </SortableContext>
@@ -253,6 +261,12 @@ const LayerWrapper = () => {
               setSelectedFeature={(feature) =>
                 dispatch(setSelectedFeatureAction(feature))
               }
+              onFilterChange={(info: FilterInfo) => {
+                setLayerFilterInfo((prev) => ({
+                  ...prev,
+                  [filterEntry.id]: info,
+                }));
+              }}
             />
           </div>
         );

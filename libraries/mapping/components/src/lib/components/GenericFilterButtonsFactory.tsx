@@ -36,11 +36,18 @@ export interface FilterConfig {
   };
 }
 
+export interface FilterInfo {
+  activeCount: number;
+  totalCount: number;
+  isShowingAll: boolean;
+}
+
 export interface GenericFilterButtonsProps {
   maplibreMap: any;
   selectedFeature: any;
   setSelectedFeature: (feature: any) => void;
   config: FilterConfig;
+  onFilterChange?: (filterInfo: FilterInfo) => void;
 }
 
 type FilterState = Record<string, boolean>;
@@ -52,6 +59,7 @@ export const createFilterButtons = (config: FilterConfig) => {
     maplibreMap,
     selectedFeature,
     setSelectedFeature,
+    onFilterChange,
   }: Omit<GenericFilterButtonsProps, "config">) => {
     // Initialize filter state
     // In AND mode: "alle" starts as true, all filters false
@@ -266,6 +274,30 @@ export const createFilterButtons = (config: FilterConfig) => {
         console.error("Error applying filters:", error);
       }
     }, [selectedFilters, maplibreMap, selectedFeature]);
+
+    const computeFilterInfo = (filters: FilterState): FilterInfo => {
+      if (isOrMode) {
+        const activeCount = config.filters.filter((f) => filters[f.key]).length;
+        return {
+          activeCount: config.filters.length - activeCount, // In OR mode, count deselected as "filtered out"
+          totalCount: config.filters.length,
+          isShowingAll: activeCount === config.filters.length,
+        };
+      } else {
+        const activeCount = config.filters.filter((f) => filters[f.key]).length;
+        return {
+          activeCount,
+          totalCount: config.filters.length,
+          isShowingAll: filters.alle === true,
+        };
+      }
+    };
+
+    useEffect(() => {
+      if (onFilterChange) {
+        onFilterChange(computeFilterInfo(selectedFilters));
+      }
+    }, [selectedFilters]);
 
     const handleFilterClick = (filterName: string) => {
       if (isOrMode) {

@@ -20,6 +20,7 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 
 import type { Layer } from "@carma/types";
 import { cn, getHashParams } from "@carma-commons/utils";
+import type { FilterInfo } from "@carma-mapping/components";
 
 import { updateInfoElementsAfterRemovingFeature } from "../../store/slices/features";
 import {
@@ -47,7 +48,7 @@ import "./pulsing.css";
 import "./tabs.css";
 
 import { LayerButton, LayerIcon } from "@carma-mapping/components";
-import { Spin } from "antd";
+import { Badge, Spin } from "antd";
 import { LoadingOutlined } from "@ant-design/icons";
 import { useLayerLoading } from "@carma-mapping/utils";
 import { useAdhocFeatureDisplay } from "@carma-appframeworks/portals";
@@ -61,6 +62,7 @@ interface LayerButtonProps {
   layer: Layer;
   background?: boolean;
   hide?: boolean;
+  filterInfo?: FilterInfo;
 }
 
 const GeoportalLayerButton = ({
@@ -71,6 +73,7 @@ const GeoportalLayerButton = ({
   layer,
   background,
   hide = false,
+  filterInfo,
 }: LayerButtonProps) => {
   const { ref, inView } = useInView({
     threshold: 0.99,
@@ -222,12 +225,7 @@ const GeoportalLayerButton = ({
             {layer.filterConfig && (
               <button
                 id={`filterLayerButton-${id}`}
-                className={cn(
-                  "px-1.5 flex items-center justify-center",
-                  activeFilterLayerIndex === index
-                    ? "text-[#1677ff]"
-                    : "text-gray-600 hover:text-gray-500"
-                )}
+                className={cn("px-1.5 flex items-center justify-center")}
                 onClick={(e) => {
                   e.preventDefault();
                   e.stopPropagation();
@@ -238,7 +236,25 @@ const GeoportalLayerButton = ({
                   );
                 }}
               >
-                <FontAwesomeIcon icon={faFilter} className="text-sm" />
+                <Badge
+                  count={
+                    filterInfo && !filterInfo.isShowingAll
+                      ? filterInfo.activeCount
+                      : 0
+                  }
+                  size="small"
+                  color={"#4b5563"}
+                >
+                  <FontAwesomeIcon
+                    icon={faFilter}
+                    className={cn(
+                      "text-sm",
+                      activeFilterLayerIndex === index
+                        ? "text-[#1677ff]"
+                        : "text-gray-600 hover:text-gray-500"
+                    )}
+                  />
+                </Badge>
               </button>
             )}
 
