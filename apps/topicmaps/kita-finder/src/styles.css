@@ -60,3 +60,5 @@ div.leaflet-top.leaflet-right > .leaflet-control {
 .collapse.show {
   visibility: visible;
 }
+
+/* Force test to run */
