@@ -136,11 +136,8 @@ const MapWrapper = () => {
   const homeControl = useHomeControl();
   const configSelection = useSelector(getConfigSelection);
 
-  const {
-    isObliqueMode,
-    isPreviewVisible: isObliquePreviewVisible,
-    bumpZoomSyncTick,
-  } = useOblique();
+  const { isObliqueMode, isPreviewVisible: isObliquePreviewVisible } =
+    useOblique();
 
   const {
     handleZoomIn: handleZoomInCesium,
@@ -306,9 +303,6 @@ const MapWrapper = () => {
                       }
                     } else {
                       handleZoomInCesium(event);
-                      if (isObliquePreviewVisible) {
-                        bumpZoomSyncTick();
-                      }
                     }
                   }}
                   className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
@@ -330,9 +324,6 @@ const MapWrapper = () => {
                       }
                     } else {
                       handleZoomOutCesium(event);
-                      if (isObliquePreviewVisible) {
-                        bumpZoomSyncTick();
-                      }
                     }
                   }}
                   className="!rounded-t-none !border-t-[1px]"

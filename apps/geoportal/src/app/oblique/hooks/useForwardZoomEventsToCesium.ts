@@ -1,11 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import type { MutableRefObject, WheelEvent as ReactWheelEvent } from "react";
+import { useEffect, useRef } from "react";
+import type { MutableRefObject } from "react";
 import { useFovWheelZoom } from "@carma-mapping/engines/cesium";
 
 export interface ForwardZoomEventsBindings {
   rootRef: MutableRefObject<HTMLDivElement | null>;
-  onWheel: (e: ReactWheelEvent | WheelEvent) => void;
-  fovOverride?: number;
 }
 
 /**
@@ -14,24 +12,27 @@ export interface ForwardZoomEventsBindings {
  */
 export function useForwardZoomEventsToCesium(): ForwardZoomEventsBindings {
   const rootRef = useRef<HTMLDivElement | null>(null);
-  const [fovOverride, setFovOverride] = useState<number | undefined>(undefined);
 
   // Use Cesium FOV wheel zoom directly; re-render after each FOV change
-  const { handleWheel } = useFovWheelZoom(true, {
-    onFovChange: (newFov) => setFovOverride(newFov),
-  });
+  const { handleWheel } = useFovWheelZoom(true);
 
-  const onWheel = useCallback(
-    (e: ReactWheelEvent | WheelEvent) => {
-      e.preventDefault();
-      handleWheel(
-        (e as ReactWheelEvent).nativeEvent
-          ? ((e as ReactWheelEvent).nativeEvent as WheelEvent)
-          : (e as WheelEvent)
-      );
-    },
-    [handleWheel]
-  );
+  useEffect(() => {
+    const el = rootRef.current;
+    if (!el) return;
+
+    const onWheel: EventListener = (ev) => {
+      const e = ev as WheelEvent;
+      if (e.cancelable) {
+        e.preventDefault();
+      }
+      handleWheel(e);
+    };
+
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => {
+      el.removeEventListener("wheel", onWheel);
+    };
+  }, [handleWheel]);
 
   // Safari emits non-standard gesture events for pinch (gesture*).
   useEffect(() => {
@@ -80,7 +81,7 @@ export function useForwardZoomEventsToCesium(): ForwardZoomEventsBindings {
   }, [ctx]);
   */
 
-  return { rootRef, onWheel, fovOverride };
+  return { rootRef };
 }
 
 export default useForwardZoomEventsToCesium;

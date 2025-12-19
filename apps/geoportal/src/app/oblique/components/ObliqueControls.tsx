@@ -70,7 +70,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = ({
     setSuspendSelectionSearch,
     isPreviewVisible,
     setPreviewVisible,
-    zoomSyncTick,
   } = useOblique();
   const refreshSearch = useObliqueNearestImage();
   const siblingsByCardinal = useSiblingsByCardinal();
@@ -599,7 +598,6 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = ({
           previewPath={previewPath!}
           imageId={imageId}
           isVisible={isPreviewVisible}
-          zoomSyncTick={zoomSyncTick}
           hideOverlayUi={hideControls}
           dimImage={shouldRemoveCurrentPreviewImage}
           flyCompletionTick={flyCompletionTick}

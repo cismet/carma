@@ -1,6 +1,5 @@
 import {
   useEffect,
-  useMemo,
   useState,
   useRef,
   type FC,
@@ -70,7 +69,6 @@ interface ObliqueImagePreviewProps {
   preloadNextEnabled?: boolean;
 
   hideOverlayUi?: boolean;
-  zoomSyncTick?: number;
 }
 
 type ImageQuality = "REGULAR" | "HQ" | "BEST";
@@ -125,7 +123,6 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   isDirectionLoading = false,
   preloadNextEnabled = false,
   hideOverlayUi = false,
-  zoomSyncTick,
 }) => {
   const [shouldFadeIn, setShouldFadeIn] = useState(false);
   const [isVertical, setIsVertical] = useState(false);
@@ -149,53 +146,49 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   const [saturation, setSaturation] = useState(100);
 
   const ctx = useCesiumContext();
-  const { rootRef, onWheel, fovOverride } = useForwardZoomEventsToCesium();
+  const { rootRef } = useForwardZoomEventsToCesium();
   const [externalFovOverride, setExternalFovOverride] = useState<
     number | undefined
   >(undefined);
 
   useEffect(() => {
-    if (typeof fovOverride === "number") {
-      setExternalFovOverride(undefined);
-    }
-  }, [fovOverride]);
+    if (!isVisible) return;
 
-  useEffect(() => {
-    if (zoomSyncTick == null) return;
-    let alive = true;
-    let rafId: number | null = null;
-    const start = performance.now();
-    const DURATION_MS = 700;
+    let didAttach = false;
+    let detach: (() => void) | null = null;
 
-    const tick = () => {
-      if (!alive) return;
-
-      ctx.withCamera((camera) => {
-        if (camera.frustum instanceof PerspectiveFrustum) {
-          setExternalFovOverride(camera.frustum.fov);
+    ctx.withScene((scene) => {
+      const handlePostRender = () => {
+        const frustum = scene.camera.frustum;
+        if (frustum instanceof PerspectiveFrustum) {
+          const nextFov = frustum.fov;
+          setExternalFovOverride((prev) => (prev === nextFov ? prev : nextFov));
         } else {
-          setExternalFovOverride(undefined);
+          setExternalFovOverride((prev) =>
+            prev === undefined ? prev : undefined
+          );
         }
-      });
+      };
 
-      if (performance.now() - start < DURATION_MS) {
-        rafId = window.requestAnimationFrame(tick);
-      }
-    };
+      scene.postRender.addEventListener(handlePostRender);
+      didAttach = true;
+      handlePostRender();
 
-    rafId = window.requestAnimationFrame(tick);
+      detach = () => {
+        if (!scene.isDestroyed()) {
+          scene.postRender.removeEventListener(handlePostRender);
+        }
+      };
+    });
+
     return () => {
-      alive = false;
-      if (rafId != null) {
-        window.cancelAnimationFrame(rafId);
+      if (didAttach) {
+        detach?.();
       }
     };
-  }, [ctx, zoomSyncTick]);
+  }, [ctx, isVisible]);
 
-  const effectiveFovOverride = useMemo(
-    () => externalFovOverride ?? fovOverride,
-    [externalFovOverride, fovOverride]
-  );
+  const effectiveFovOverride = externalFovOverride;
 
   const { xOffset, yOffset } = interiorOrientationOffsets;
 
@@ -406,7 +399,6 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   return (
     <div
       ref={rootRef}
-      onWheel={onWheel}
       style={{
         position: "absolute",
         width: "100%",

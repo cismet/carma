@@ -21,7 +21,7 @@ export const Backdrop = ({
   onClick,
   interactive = true,
 }: BackdropProps) => {
-  const { rootRef, onWheel } = useForwardZoomEventsToCesium();
+  const { rootRef } = useForwardZoomEventsToCesium();
   const filterValue = `contrast(${contrast}%) brightness(${brightness}%) saturate(${saturation}%)`;
   const styleObj: CSSProperties = {
     WebkitBackdropFilter: filterValue,
@@ -62,7 +62,6 @@ export const Backdrop = ({
       aria-label="Close preview"
       onClick={onClick}
       onKeyDown={onKeyDown}
-      onWheel={onWheel}
     />
   );
 };
