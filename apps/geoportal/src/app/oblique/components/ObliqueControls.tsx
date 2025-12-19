@@ -66,6 +66,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     setSuspendSelectionSearch,
     isPreviewVisible,
     setPreviewVisible,
+    zoomSyncTick,
   } = useOblique();
   const refreshSearch = useObliqueNearestImage();
   const siblingsByCardinal = useSiblingsByCardinal();
@@ -95,7 +96,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const [offsetCube, setOffsetCube] = useState(false);
   const [invertLabels, setInvertLabels] = useState(true);
   const [shouldRender, setShouldRender] = useState(isObliqueMode);
-  
+
   const [isFlyButtonHovered, setIsFlyButtonHovered] = useState(false);
   // Hide footprints while preview is visible
   useEffect(() => {
@@ -594,6 +595,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
           previewPath={previewPath!}
           imageId={imageId}
           isVisible={isPreviewVisible}
+          zoomSyncTick={zoomSyncTick}
           dimImage={shouldRemoveCurrentPreviewImage}
           flyCompletionTick={flyCompletionTick}
           onOpenImageLink={openImageLink}

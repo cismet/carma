@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useMemo,
   useState,
   useRef,
   type FC,
@@ -12,6 +13,7 @@ import {
 } from "@fortawesome/free-solid-svg-icons";
 import { Tooltip, Radio, type RadioChangeEvent } from "antd";
 
+import { PerspectiveFrustum } from "@carma/cesium";
 import { useCesiumContext } from "@carma-mapping/engines/cesium";
 import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import { PREVIEW_IMAGE_BASE_SCALE_FACTOR } from "../config";
@@ -66,6 +68,8 @@ interface ObliqueImagePreviewProps {
   isDirectionLoading?: boolean;
   // When true, allow preloading the next buffer image
   preloadNextEnabled?: boolean;
+
+  zoomSyncTick?: number;
 }
 
 type ImageQuality = "REGULAR" | "HQ" | "BEST";
@@ -119,6 +123,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
   siblingCallbacks,
   isDirectionLoading = false,
   preloadNextEnabled = false,
+  zoomSyncTick,
 }) => {
   const [shouldFadeIn, setShouldFadeIn] = useState(false);
   const [isVertical, setIsVertical] = useState(false);
@@ -143,6 +148,52 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
 
   const ctx = useCesiumContext();
   const { rootRef, onWheel, fovOverride } = useForwardZoomEventsToCesium();
+  const [externalFovOverride, setExternalFovOverride] = useState<
+    number | undefined
+  >(undefined);
+
+  useEffect(() => {
+    if (typeof fovOverride === "number") {
+      setExternalFovOverride(undefined);
+    }
+  }, [fovOverride]);
+
+  useEffect(() => {
+    if (zoomSyncTick == null) return;
+    let alive = true;
+    let rafId: number | null = null;
+    const start = performance.now();
+    const DURATION_MS = 700;
+
+    const tick = () => {
+      if (!alive) return;
+
+      ctx.withCamera((camera) => {
+        if (camera.frustum instanceof PerspectiveFrustum) {
+          setExternalFovOverride(camera.frustum.fov);
+        } else {
+          setExternalFovOverride(undefined);
+        }
+      });
+
+      if (performance.now() - start < DURATION_MS) {
+        rafId = window.requestAnimationFrame(tick);
+      }
+    };
+
+    rafId = window.requestAnimationFrame(tick);
+    return () => {
+      alive = false;
+      if (rafId != null) {
+        window.cancelAnimationFrame(rafId);
+      }
+    };
+  }, [ctx, zoomSyncTick]);
+
+  const effectiveFovOverride = useMemo(
+    () => externalFovOverride ?? fovOverride,
+    [externalFovOverride, fovOverride]
+  );
 
   const { xOffset, yOffset } = interiorOrientationOffsets;
 
@@ -347,7 +398,7 @@ export const ObliqueImagePreview: FC<ObliqueImagePreviewProps> = ({
     isVertical,
     imageAspectRatio,
     PREVIEW_IMAGE_BASE_SCALE_FACTOR,
-    fovOverride
+    effectiveFovOverride
   );
 
   return (
