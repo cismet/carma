@@ -552,7 +552,7 @@ const MapWrapper = () => {
           ) : (
             <>
               <GeoportalMap height={height} width={width} allow3d={allow3d} />
-              {isCesium && <ObliqueControls />}
+              {isCesium && <ObliqueControls hideControls={zenMode} />}
             </>
           )}
         </div>
