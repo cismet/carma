@@ -352,14 +352,14 @@ const MapWrapper = () => {
                 >
                   <ControlButtonStyler
                     useDisabledStyle={false}
-                    className={`!border-b-0 !rounded-b-none font-bold !z-[9999999] ${
-                      isObliquePreviewVisible
-                        ? "pointer-events-none opacity-50"
-                        : ""
-                    }`}
+                    className={
+                      "!border-b-0 !rounded-b-none font-bold !z-[9999999]"
+                    }
                     ref={tourRefLabels.alignNorth}
                     dataTestId="compass-control"
-                    disabled={isLeaflet && !showLibreMap}
+                    disabled={
+                      (isLeaflet && !showLibreMap) || isObliquePreviewVisible
+                    }
                   >
                     {showLibreMap ? (
                       <LibrePitchingCompass mapRef={libreMapRef} />
@@ -369,19 +369,15 @@ const MapWrapper = () => {
                   </ControlButtonStyler>
                 </Tooltip>
 
-                <div
-                  className={`transition-opacity ${
-                    isObliquePreviewVisible
-                      ? "pointer-events-none opacity-50"
-                      : "opacity-100"
-                  }`}
-                >
-                  <MapFrameworkSwitcher
-                    enableMobileWarning={true}
-                    ref={tourRefLabels.toggle2d3d}
-                    // nativeTooltip={true}
-                  />
-                </div>
+                <MapFrameworkSwitcher
+                  enableMobileWarning={true}
+                  className="!rounded-t-none !border-t-[1px]"
+                  ref={tourRefLabels.toggle2d3d}
+                  disabled={isObliquePreviewVisible}
+                  useDisabledStyle={false}
+
+                  // nativeTooltip={true}
+                />
 
                 {
                   // TODO implement cesium home action with generic home control for all mapping engines
