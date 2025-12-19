@@ -65,12 +65,12 @@ test.describe("Geoportal - save map to favorite", () => {
     const favoriteBtn = page.getByText("Favoriten");
     await expect(favoriteBtn).toBeVisible();
     favoriteBtn.click();
-    const favoriteTitle = page.getByRole("heading", { name: "Kita title" });
-    await expect(favoriteTitle).toBeVisible();
-    const loadBtn = page.getByTestId("card-layer-prev").getByRole("button");
 
-    await expect(loadBtn).toBeVisible();
     // Load favorite map
+    const kitaCardTitle = page.getByRole("heading", { name: "Kita title" });
+    await expect(kitaCardTitle).toBeVisible();
+    const loadBtn = page.getByTestId("card-layer-prev").getByRole("button");
+    await expect(loadBtn).toBeVisible();
     await loadBtn.click();
     await expect(messageAlert).toBeVisible();
     await expect(messageAlert).not.toBeVisible();
@@ -78,9 +78,39 @@ test.describe("Geoportal - save map to favorite", () => {
     const closeDialogBtn = page.getByRole("dialog").getByRole("button").nth(1);
     await expect(closeDialogBtn).toBeVisible();
     await closeDialogBtn.click();
-    await expect(favoriteTitle).not.toBeVisible();
-
+    await expect(kitaCardTitle).not.toBeVisible();
     await expect(layerTagPlayground).toBeVisible();
     await expect(layerTagKindergarten).toBeVisible();
+
+    // Go to favorites
+    await expect(addLayersBtn).toBeVisible();
+    addLayersBtn.click();
+    await expect(favoriteBtn).toBeVisible();
+    favoriteBtn.click();
+    await expect(kitaCardTitle).toBeVisible();
+    const detailsBtn = page
+      .getByTestId("card-layer-prev")
+      .locator("svg")
+      .nth(2);
+    await expect(detailsBtn).toBeVisible();
+    detailsBtn.click();
+    const infoCard = page.getByTestId("card-layer-detailed-info");
+    await expect(infoCard).toBeVisible();
+    const removeBtn = page
+      .getByTestId("card-layer-detailed-info")
+      .getByRole("button", { name: "Löschen" });
+    await expect(removeBtn).toBeVisible();
+    removeBtn.click();
+    const popUpAlert = page.getByRole("heading", {
+      name: "Zusammenstellung Kita title",
+    });
+    await expect(popUpAlert).toBeVisible();
+    const confirmRemoving = page
+      .getByRole("button", { name: "Löschen" })
+      .nth(2);
+    expect(confirmRemoving).toBeVisible();
+    await confirmRemoving.click();
+    await expect(popUpAlert).not.toBeVisible();
+    await expect(infoCard).not.toBeVisible();
   });
 });
