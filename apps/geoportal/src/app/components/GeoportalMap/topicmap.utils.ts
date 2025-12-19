@@ -509,6 +509,7 @@ const createVectorFeature = async (
       geometry: selectedVectorFeature.geometry,
       id: layer.id,
       vectorId: selectedVectorFeature.id,
+      sourceFeature: selectedVectorFeature,
       showMarker:
         selectedVectorFeature.geometry.type === "Polygon" ||
         selectedVectorFeature.geometry.type === "MultiPolygon",
