@@ -618,9 +618,7 @@ test.describe("Geoportal - save map to favorite", () => {
     await expect(layerTagPlayground).not.toBeVisible();
     await page.locator('[id="removeLayerButton-wuppPOI\\:poi_kita"]').click();
     await expect(layerTagKindergarten).not.toBeVisible();
-    const messageAlert = page
-      .getByRole("img", { name: "check-circle" })
-      .locator("path");
+    const messageAlert = page.getByTestId("toast-success").last();
     await expect(messageAlert).toBeVisible();
     await expect(messageAlert).not.toBeVisible();
 
@@ -666,13 +664,14 @@ test.describe("Geoportal - save map to favorite", () => {
       .getByRole("button", { name: "Löschen" });
     await expect(removeBtn).toBeVisible();
     await removeBtn.click();
-    const popUpAlert = page.getByRole("heading", {
-      name: "Zusammenstellung Kita title",
-    });
+    // const popUpAlert = page.getByRole("heading", {
+    //   name: "Zusammenstellung Kita title",
+    // });
+    const popUpAlert = page.getByTestId("confirm-delete-collection-dialog");
     await expect(popUpAlert).toBeVisible();
-    const confirmRemoving = page
-      .getByRole("button", { name: "Löschen" })
-      .nth(2);
+    const confirmRemoving = page.getByTestId(
+      "confirm-delete-collection-submit"
+    );
     expect(confirmRemoving).toBeVisible();
     await confirmRemoving.click();
     await expect(popUpAlert).not.toBeVisible();
