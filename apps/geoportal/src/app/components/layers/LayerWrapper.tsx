@@ -49,9 +49,12 @@ import {
   getMaplibreMaps,
 } from "../../store/slices/mapping";
 import {
+  getFeatures,
   getSelectedFeature,
+  getSecondaryInfoBoxElements,
   setSelectedFeature as setSelectedFeatureAction,
 } from "../../store/slices/features";
+import { triggerFeatureInfoUpdateAction } from "../../store/slices/ui";
 import GeoportalLayerButton from "./GeoportalLayerButton";
 import SecondaryView from "./SecondaryView";
 
@@ -258,6 +261,7 @@ const LayerWrapper = () => {
             <filterEntry.Component
               maplibreMap={maplibreMap}
               selectedFeature={selectedFeature}
+              skipFeatureMatchCheck
               setSelectedFeature={(feature) => {
                 dispatch(setSelectedFeatureAction(feature));
               }}
@@ -266,6 +270,7 @@ const LayerWrapper = () => {
                   ...prev,
                   [filterEntry.id]: info,
                 }));
+                dispatch(triggerFeatureInfoUpdateAction());
               }}
             />
           </div>

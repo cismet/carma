@@ -48,6 +48,7 @@ export interface GenericFilterButtonsProps {
   setSelectedFeature: (feature: any) => void;
   config: FilterConfig;
   onFilterChange?: (filterInfo: FilterInfo) => void;
+  skipFeatureMatchCheck?: boolean;
 }
 
 type FilterState = Record<string, boolean>;
@@ -60,6 +61,7 @@ export const createFilterButtons = (config: FilterConfig) => {
     selectedFeature,
     setSelectedFeature,
     onFilterChange,
+    skipFeatureMatchCheck = false,
   }: Omit<GenericFilterButtonsProps, "config">) => {
     // Initialize filter state
     // In AND mode: "alle" starts as true, all filters false
@@ -251,7 +253,7 @@ export const createFilterButtons = (config: FilterConfig) => {
         });
 
         // Check if selected feature still matches the new filter criteria
-        if (selectedFeature?.sourceFeature) {
+        if (!skipFeatureMatchCheck && selectedFeature?.sourceFeature) {
           const matchesFilter = checkFeatureMatchesFilter(
             selectedFeature.sourceFeature,
             selectedFilters

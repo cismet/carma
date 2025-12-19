@@ -111,7 +111,11 @@ import {
   setLayersIdle,
   setMaplibreMaps as setMaplibreMapsStore,
 } from "../../store/slices/mapping.ts";
-import { getUIMode, UIMode } from "../../store/slices/ui.ts";
+import {
+  getUIMode,
+  UIMode,
+  getTriggerFeatureInfoUpdate,
+} from "../../store/slices/ui.ts";
 
 import LoginForm from "../LoginForm.tsx";
 import { useModelSelectionDispatcher } from "../../hooks/useModelSelectionDispatcher.ts";
@@ -243,6 +247,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const [shouldUpdateFeatureInfo, setShouldUpdateFeatureInfo] =
     useState<boolean>(false);
   const layersIdle = useSelector(getLayersIdle);
+  const triggerFeatureInfoUpdate = useSelector(getTriggerFeatureInfoUpdate);
 
   useEffect(() => {
     const maps = layers
@@ -689,10 +694,11 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   );
 
   useEffect(() => {
-    if (shouldUpdateFeatureInfo) updateFeatureInfoLeaflet();
+    if (shouldUpdateFeatureInfo || triggerFeatureInfoUpdate > 0)
+      updateFeatureInfoLeaflet();
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [shouldUpdateFeatureInfo]);
+  }, [shouldUpdateFeatureInfo, triggerFeatureInfoUpdate]);
 
   const topicMapLocationChangedHandler = useCallback(
     (p: { lat: number; lng: number; zoom: number }) => {
