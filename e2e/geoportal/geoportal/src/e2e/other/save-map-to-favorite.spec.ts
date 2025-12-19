@@ -191,6 +191,270 @@ const mapLayersResponse = {
   selection: null,
 };
 
+const playgroundStyleJson = {
+  version: 8,
+  sources: {
+    "kinderspielplatz-source": {
+      type: "vector",
+      tiles: ["https://tiles.cismet.de/kinderspielplatz/{z}/{x}/{y}.pbf"],
+      minzoom: 9,
+      maxzoom: 14,
+    },
+  },
+  glyphs: "https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf",
+  sprite: "https://tiles.cismet.de/kinderspielplatz/sprites",
+  layers: [
+    {
+      id: "kinderspielplatz-line-id",
+      type: "line",
+      source: "kinderspielplatz-source",
+      "source-layer": "kinderspielplatz",
+      minzoom: 15,
+      maxzoom: 22,
+      layout: {
+        "line-join": "round",
+        "line-cap": "round",
+      },
+      paint: {
+        "line-color": "#FFFFFF",
+        "line-opacity": 1,
+        "line-width": 2,
+      },
+    },
+    {
+      id: "kinderspielplatz-fill-id",
+      type: "fill",
+      source: "kinderspielplatz-source",
+      "source-layer": "kinderspielplatz",
+      minzoom: 15,
+      maxzoom: 22,
+      paint: {
+        "fill-color": "#17651F",
+        "fill-opacity": 0.7,
+      },
+    },
+    {
+      id: "selection",
+      type: "symbol",
+      source: "kinderspielplatz-source",
+      "source-layer": "kinderspielplatz",
+      minzoom: 9,
+      maxzoom: 24,
+      layout: {
+        "icon-allow-overlap": true,
+        "icon-ignore-placement": true,
+        "icon-size": {
+          stops: [
+            [9, 0.32],
+            [24, 1],
+          ],
+        },
+        "icon-padding": 0,
+        "icon-image": "Icon_Full",
+      },
+      paint: {
+        "icon-opacity": [
+          "case",
+          ["boolean", ["feature-state", "selected"], false],
+          1,
+          0,
+        ],
+      },
+    },
+    {
+      id: "line-id-selection",
+      type: "line",
+      source: "kinderspielplatz-source",
+      "source-layer": "kinderspielplatz",
+      minzoom: 0,
+      maxzoom: 22,
+      layout: {
+        "line-join": "round",
+        "line-cap": "round",
+      },
+      paint: {
+        "line-color": "#3A7CEB",
+        "line-opacity": [
+          "case",
+          ["boolean", ["feature-state", "selected"], false],
+          1,
+          0,
+        ],
+        "line-width": 3,
+      },
+    },
+    {
+      id: "kinderspielplatz-dots",
+      type: "circle",
+      source: "kinderspielplatz-source",
+      "source-layer": "kinderspielplatz",
+      minzoom: 0,
+      maxzoom: 24,
+      filter: ["==", ["get", "geometrie_typ"], "Spielpunkt"],
+      layout: {
+        visibility: "visible",
+      },
+      paint: {
+        "circle-radius": {
+          base: 2.75,
+          stops: [
+            [0, 5],
+            [16, 10],
+            [24, 30],
+          ],
+        },
+        "circle-color": "#C52C6B",
+        "circle-stroke-color": "#EEEEEE",
+        "circle-stroke-width": 4,
+      },
+    },
+    {
+      id: "kinderspielplatz-icon-id",
+      type: "symbol",
+      source: "kinderspielplatz-source",
+      "source-layer": "kinderspielplatz",
+      minzoom: 9,
+      maxzoom: 24,
+      filter: ["!=", ["get", "geometrie_typ"], "Spielpunkt"],
+      layout: {
+        "icon-allow-overlap": true,
+        "icon-ignore-placement": true,
+        "icon-size": {
+          stops: [
+            [9, 0.32],
+            [24, 0.8],
+          ],
+        },
+        "icon-padding": 0,
+        "icon-image": ["get", "signatur"],
+      },
+      paint: {
+        "icon-opacity": 1,
+      },
+    },
+    {
+      id: "text",
+      type: "symbol",
+      source: "kinderspielplatz-source",
+      "source-layer": "kinderspielplatz",
+      minzoom: 16,
+      maxzoom: 24,
+      filter: ["!=", ["get", "geometrie_typ"], "Spielpunkt"],
+      layout: {
+        "text-field": ["get", "name"],
+        "text-size": 12,
+        "text-font": ["Open Sans Semibold"],
+        "text-offset": {
+          stops: [
+            [17, [0, 1.3]],
+            [24, [0, 2]],
+          ],
+        },
+        "text-anchor": "top",
+        "text-allow-overlap": true,
+        "text-rotation-alignment": "viewport",
+      },
+      paint: {
+        "text-color": "#C52C6B",
+        "text-halo-color": "#FFFFFF",
+        "text-halo-width": 5,
+        "text-opacity": 1,
+      },
+    },
+  ],
+};
+
+const kitaStyleJson = {
+  version: 8,
+  sources: {
+    "kita-source": {
+      type: "vector",
+      tiles: ["https://tiles.cismet.de/kita/{z}/{x}/{y}.pbf"],
+      minzoom: 9,
+      maxzoom: 14,
+    },
+  },
+  sprite: "https://tiles.cismet.de/kita/sprites",
+  glyphs: "https://tiles.cismet.de/fonts/{fontstack}/{range}.pbf",
+  layers: [
+    {
+      id: "selection",
+      type: "symbol",
+      source: "kita-source",
+      "source-layer": "kita",
+      minzoom: 9,
+      maxzoom: 24,
+      layout: {
+        "icon-allow-overlap": true,
+        "icon-ignore-placement": true,
+        "icon-size": {
+          stops: [
+            [9, 0.32],
+            [24, 1],
+          ],
+        },
+        "icon-padding": 0,
+        "icon-image": "Icon_Full",
+      },
+      paint: {
+        "icon-opacity": [
+          "case",
+          ["boolean", ["feature-state", "selected"], false],
+          1,
+          0,
+        ],
+      },
+    },
+    {
+      id: "icon",
+      type: "symbol",
+      source: "kita-source",
+      "source-layer": "kita",
+      minzoom: 9,
+      maxzoom: 24,
+      layout: {
+        "icon-allow-overlap": true,
+        "icon-ignore-placement": true,
+        "icon-size": {
+          stops: [
+            [9, 0.32],
+            [24, 0.8],
+          ],
+        },
+        "icon-padding": 0,
+        "icon-image": "kita",
+      },
+    },
+    {
+      id: "text",
+      type: "symbol",
+      source: "kita-source",
+      "source-layer": "kita",
+      minzoom: 16,
+      maxzoom: 24,
+      layout: {
+        "text-field": ["get", "name"],
+        "text-size": 12,
+        "text-font": ["Open Sans Semibold"],
+        "text-offset": {
+          stops: [
+            [17, [0, 1.3]],
+            [24, [0, 2]],
+          ],
+        },
+        "text-anchor": "top",
+        "text-allow-overlap": true,
+        "text-rotation-alignment": "viewport",
+      },
+      paint: {
+        "text-color": "#00A0B0",
+        "text-halo-color": "#FFFFFF",
+        "text-halo-width": 5,
+        "text-opacity": 1,
+      },
+    },
+  ],
+};
 test.describe("Geoportal - save map to favorite", () => {
   test.beforeEach(async ({ context, page }) => {
     await setupAllMocks(context);
@@ -199,6 +463,18 @@ test.describe("Geoportal - save map to favorite", () => {
       "https://ceepr.cismet.de/config/wuppertal/_dev_geoportal/847e07f9bee9a4f8",
       async (route) => {
         await route.fulfill({ json: mapLayersResponse });
+      }
+    );
+    await page.route(
+      "https://tiles.cismet.de/kinderspielplatz/style.json",
+      async (route) => {
+        await route.fulfill({ json: playgroundStyleJson });
+      }
+    );
+    await page.route(
+      "https://tiles.cismet.de/kita/style.json",
+      async (route) => {
+        await route.fulfill({ json: kitaStyleJson });
       }
     );
 
