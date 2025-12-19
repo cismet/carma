@@ -1,10 +1,206 @@
 import { test, expect } from "@playwright/test";
 import { setupAllMocks, mockGeoportalServices } from "@carma-commons/e2e";
+const mapLayersResponse = {
+  backgroundLayer: {
+    title: "Stadtplan",
+    id: "karte",
+    opacity: 1,
+    description: "",
+    inhalt:
+      '<span>Kartendienst (WMS) des Regionalverbandes Ruhr (RVR). Datengrundlage: Stadtkarte 2.0. Wöchentlich in einem automatischen Prozess aktualisierte Zusammenführung des Straßennetzes der OpenStreetMap mit Amtlichen Geobasisdaten des Landes NRW aus den Fachverfahren ALKIS (Gebäude, Flächennutzungen) und ATKIS (Gewässer). © RVR und Kooperationspartner (</span><a class="remove-margins" href="https://www.govdata.de/dl-de/by-2-0">\n                Datenlizenz Deutschland - Namensnennung - Version 2.0\n              </a><span>). Lizenzen der Ausgangsprodukte: </span><a href="https://www.govdata.de/dl-de/zero-2-0">\n                Datenlizenz Deutschland - Zero - Version 2.0\n              </a><span> (Amtliche Geobasisdaten) und </span><a href="https://opendatacommons.org/licenses/odbl/1-0/">    ODbL    </a><span> (OpenStreetMap contributors).</span>',
+    eignung:
+      "Der Stadtplan ist der am einfachsten und sichersten interpretierbare Kartenhintergrund, weil er an den von Stadtplänen geprägten Sehgewohnheiten von Kartennutzerinnen und -nutzern anschließt. Durch die schrittweise Reduzierung des Karteninhalts bei kleiner werdenden Maßstäben eignet sich der Stadtplan als Hintergrund für beliebige Maßstäbe. Aktualität: der Gebäudebestand ist durch die wöchentliche Ableitung aus dem Liegenschaftskataster sehr aktuell. Gebäude können sicher identifiziert werden, da bei Detailbetrachtungen alle Hausnummern dargestellt werden.",
+    visible: true,
+    layerType: "wmts",
+    props: {
+      name: "",
+      url: "https://geodaten.metropoleruhr.de/spw2?SERVICE=WMTS&REQUEST=GetTile&VERSION=1.0.0&LAYER=spw2_light&STYLE=default&FORMAT=image/png&TILEMATRIXSET=webmercator_hq&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}",
+    },
+    layers: "amtlich@90",
+    selectedLayerId: "stadtplan",
+  },
+  layers: [
+    {
+      title: "Kinderspielplätze 2022",
+      id: "wuppPOI:poi_ksp",
+      layerType: "vector",
+      opacity: 1,
+      description:
+        "Inhalt: Darstellung der öffentlich zugänglichen Spielflächen und Bolzplätze im Stadtgebiet Wuppertal; Bestandsaufnahme im Jahr 2022.Sichtbarkeit: öffentlich. Nutzung: frei innerhalb der Grenzen des Urheberrechtsgesetzes.",
+      conf: {
+        blockLegacyGetFeatureInfo: "",
+        thumbnail:
+          "https://www.wuppertal.de/geoportal/geoportal_vorschau/poi_poi_ksp.png",
+        vectorStyle: "https://tiles.cismet.de/kinderspielplatz/style.json",
+        infoboxMapping: [
+          "header:'Kinderspielplätze'",
+          "headerColor:'#C52C6B'",
+          "title:p.name",
+          "subtitle: 'Fläche: ' + p.flaeche + ' m²'",
+          "additionalInfo:p.typ",
+        ],
+      },
+      queryable: true,
+      useInFeatureInfo: true,
+      visible: true,
+      props: {
+        style: "https://tiles.cismet.de/kinderspielplatz/style.json",
+        minZoom: 9,
+        maxZoom: 24,
+        legend: [
+          {
+            Format: "image/png",
+            OnlineResource:
+              "https://geo.wuppertal.de/geoportal/legenden/default_kinderspielplaetze2022.png",
+            size: [231, 418],
+          },
+        ],
+      },
+      other: {
+        title: "Kinderspielplätze 2022",
+        description:
+          "Inhalt: Darstellung der öffentlich zugänglichen Spielflächen und Bolzplätze im Stadtgebiet Wuppertal; Bestandsaufnahme im Jahr 2022.Sichtbarkeit: öffentlich. Nutzung: frei innerhalb der Grenzen des Urheberrechtsgesetzes.",
+        tags: ["POI"],
+        keywords: [
+          "carmaconf://infoBoxMapping:header:'Kinderspielplätze'",
+          "carmaconf://infoBoxMapping:headerColor:'#C52C6B'",
+          "carmaconf://infoBoxMapping:title:p.name",
+          "carmaconf://infoBoxMapping:subtitle: 'Fläche: ' + p.flaeche + ' m²'",
+          "carmaconf://infoBoxMapping:additionalInfo:p.typ",
+          "carmaconf://blockLegacyGetFeatureInfo",
+          "carmaConf://thumbnail:https://www.wuppertal.de/geoportal/geoportal_vorschau/poi_poi_ksp.png",
+          "carmaConf://vectorStyle:https://tiles.cismet.de/kinderspielplatz/style.json",
+          ":vec:",
+        ],
+        id: "wuppPOI:poi_ksp",
+        name: "poi_ksp",
+        type: "layer",
+        layerType: "wmts",
+        queryable: true,
+        maxZoom: 24,
+        minZoom: 12,
+        serviceName: "wuppPOI",
+        path: "POI",
+        icon: "poi/Kinderspielplätze_2022",
+        service: {
+          url: "https://maps.wuppertal.de/poi",
+          name: "wuppPOI",
+        },
+        thumbnail:
+          "https://www.wuppertal.de/geoportal/geoportal_vorschau/poi_poi_ksp.png",
+        layerName: "poi_ksp",
+        capabilitiesUrl:
+          "https://maps.wuppertal.de/poi?service=WMS&request=GetCapabilities&version=1.1.1",
+      },
+    },
+    {
+      title: "Kindertagesstätten",
+      id: "wuppPOI:poi_kita",
+      layerType: "vector",
+      opacity: 1,
+      description:
+        "Inhalt: Vom Ressort Tageseinrichtungen für Kinder - Jugendamt laufend aktuell gehaltene Standorte vorhandener Tageseinrichtungen für Kinder im Stadtgebiet Wuppertal, anhand der Einrichtungs-Adressen punktförmig digitalisiert auf Basis der Liegenschaftskarte / Amtlichen Basiskarte; individuelle Informationen zur Einrichtung inklusive Link zur Homepage sind über die Sachdatenabfrage verfügbar. Sichtbarkeit: öffentlich. Nutzung: frei innerhalb der Grenzen des Urheberrechtsgesetzes; der zugrunde liegende Datensatz ist unter einer Open-Data-Lizenz (CC BY 4.0) verfügbar.",
+      conf: {
+        blockLegacyGetFeatureInfo: "",
+        thumbnail:
+          "https://www.wuppertal.de/geoportal/geoportal_vorschau/poi_poi_kita.png",
+        opendata:
+          "https://www.offenedaten-wuppertal.de/dataset/kindertageseinrichtungen-wuppertal",
+        vectorStyle: "https://tiles.cismet.de/kita/style.json",
+        infoboxMapping: [
+          "foto: p.foto",
+          "header:'Kinderbetreuung'",
+          "headerColor:p.schrift",
+          "title:p.name",
+          "additionalInfo:p.adresse + ', ' + p.traegertyp + ' (' + p.traeger + ')'",
+          "subtitle:'Plätze: ' + p.plaetze + ', ' + p.alter + ' Jahre'",
+          "url:p.url",
+          "tel:p.telefon",
+        ],
+      },
+      queryable: true,
+      useInFeatureInfo: true,
+      visible: true,
+      props: {
+        style: "https://tiles.cismet.de/kita/style.json",
+        minZoom: 9,
+        maxZoom: 24,
+        legend: [
+          {
+            Format: "image/png",
+            OnlineResource:
+              "https://geo.wuppertal.de/geoportal/legenden/default_poi_kita.png",
+            size: [200, 193],
+          },
+        ],
+        metaData: [
+          {
+            Format: "application/xml",
+            OnlineResource:
+              "https://apps.geoportal.nrw.de/soapServices/CSWStartup?Service=CSW&Request=GetRecordById&Version=2.0.2&outputSchema=https://www.isotc211.org/2005/gmd&elementSetName=full&id=7840226c-4431-48d2-a4fb-9d5a1d51bda4",
+            type: "TC211",
+          },
+        ],
+      },
+      other: {
+        title: "Kindertagesstätten",
+        description:
+          "Inhalt: Vom Ressort Tageseinrichtungen für Kinder - Jugendamt laufend aktuell gehaltene Standorte vorhandener Tageseinrichtungen für Kinder im Stadtgebiet Wuppertal, anhand der Einrichtungs-Adressen punktförmig digitalisiert auf Basis der Liegenschaftskarte / Amtlichen Basiskarte; individuelle Informationen zur Einrichtung inklusive Link zur Homepage sind über die Sachdatenabfrage verfügbar. Sichtbarkeit: öffentlich. Nutzung: frei innerhalb der Grenzen des Urheberrechtsgesetzes; der zugrunde liegende Datensatz ist unter einer Open-Data-Lizenz (CC BY 4.0) verfügbar.",
+        tags: ["POI"],
+        keywords: [
+          "carmaconf://infoBoxMapping:foto: p.foto",
+          "carmaconf://infoBoxMapping:header:'Kinderbetreuung'",
+          "carmaconf://infoBoxMapping:headerColor:p.schrift",
+          "carmaconf://infoBoxMapping:title:p.name",
+          "carmaconf://infoBoxMapping:additionalInfo:p.adresse + ', ' + p.traegertyp + ' (' + p.traeger + ')'",
+          "carmaconf://infoBoxMapping:subtitle:'Plätze: ' + p.plaetze + ', ' + p.alter + ' Jahre'",
+          "carmaconf://infoBoxMapping:url:p.url",
+          "carmaconf://infoBoxMapping:tel:p.telefon",
+          "carmaconf://blockLegacyGetFeatureInfo",
+          "carmaConf://thumbnail:https://www.wuppertal.de/geoportal/geoportal_vorschau/poi_poi_kita.png",
+          "carmaConf://opendata:https://www.offenedaten-wuppertal.de/dataset/kindertageseinrichtungen-wuppertal",
+          "carmaConf://vectorStyle:https://tiles.cismet.de/kita/style.json",
+          ":vec:",
+        ],
+        id: "wuppPOI:poi_kita",
+        name: "poi_kita",
+        type: "layer",
+        layerType: "wmts",
+        queryable: true,
+        maxZoom: 24,
+        minZoom: 11,
+        serviceName: "wuppPOI",
+        path: "POI",
+        icon: "poi/Kindertagesstätten",
+        service: {
+          url: "https://maps.wuppertal.de/poi",
+          name: "wuppPOI",
+        },
+        thumbnail:
+          "https://www.wuppertal.de/geoportal/geoportal_vorschau/poi_poi_kita.png",
+        layerName: "poi_kita",
+        capabilitiesUrl:
+          "https://maps.wuppertal.de/poi?service=WMS&request=GetCapabilities&version=1.1.1",
+      },
+    },
+  ],
+  view: {
+    center: ["51.2586922", "7.1510696"],
+    zoom: "12",
+  },
+  selection: null,
+};
 
 test.describe("Geoportal - save map to favorite", () => {
   test.beforeEach(async ({ context, page }) => {
     await setupAllMocks(context);
     await mockGeoportalServices(context);
+    await page.route(
+      "https://ceepr.cismet.de/config/wuppertal/_dev_geoportal/847e07f9bee9a4f8",
+      async (route) => {
+        await route.fulfill({ json: mapLayersResponse });
+      }
+    );
 
     await page.goto(
       "/#/?lat=51.2586922&lng=7.1510696&zoom=12&config=847e07f9bee9a4f8&appKey=sharedurl"
