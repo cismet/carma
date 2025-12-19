@@ -614,9 +614,9 @@ test.describe("Geoportal - save map to favorite", () => {
     await expect(dialogTitle).not.toBeVisible();
 
     // close layers tags
-    page.locator('[id="removeLayerButton-wuppPOI\\:poi_ksp"]').click();
+    await page.locator('[id="removeLayerButton-wuppPOI\\:poi_ksp"]').click();
     await expect(layerTagPlayground).not.toBeVisible();
-    page.locator('[id="removeLayerButton-wuppPOI\\:poi_kita"]').click();
+    await page.locator('[id="removeLayerButton-wuppPOI\\:poi_kita"]').click();
     await expect(layerTagKindergarten).not.toBeVisible();
     const messageAlert = page
       .getByRole("img", { name: "check-circle" })
@@ -626,10 +626,10 @@ test.describe("Geoportal - save map to favorite", () => {
 
     // Go to favorites
     await expect(addLayersBtn).toBeVisible();
-    addLayersBtn.click();
+    await addLayersBtn.click();
     const favoriteBtn = page.getByText("Favoriten");
     await expect(favoriteBtn).toBeVisible();
-    favoriteBtn.click();
+    await favoriteBtn.click();
 
     // Load favorite map
     const kitaCardTitle = page.getByRole("heading", { name: "Kita title" });
@@ -639,7 +639,7 @@ test.describe("Geoportal - save map to favorite", () => {
     await loadBtn.click();
     await expect(messageAlert).toBeVisible();
     await expect(messageAlert).not.toBeVisible();
-    page.getByTestId("card-layer-prev").getByRole("button");
+    // page.getByTestId("card-layer-prev").getByRole("button");
     const closeDialogBtn = page.getByRole("dialog").getByRole("button").nth(1);
     await expect(closeDialogBtn).toBeVisible();
     await closeDialogBtn.click();
@@ -649,23 +649,23 @@ test.describe("Geoportal - save map to favorite", () => {
 
     // Go to favorites
     await expect(addLayersBtn).toBeVisible();
-    addLayersBtn.click();
+    await addLayersBtn.click();
     await expect(favoriteBtn).toBeVisible();
-    favoriteBtn.click();
+    await favoriteBtn.click();
     await expect(kitaCardTitle).toBeVisible();
     const detailsBtn = page
       .getByTestId("card-layer-prev")
       .locator("svg")
       .nth(2);
     await expect(detailsBtn).toBeVisible();
-    detailsBtn.click();
+    await detailsBtn.click();
     const infoCard = page.getByTestId("card-layer-detailed-info");
     await expect(infoCard).toBeVisible();
     const removeBtn = page
       .getByTestId("card-layer-detailed-info")
       .getByRole("button", { name: "Löschen" });
     await expect(removeBtn).toBeVisible();
-    removeBtn.click();
+    await removeBtn.click();
     const popUpAlert = page.getByRole("heading", {
       name: "Zusammenstellung Kita title",
     });
