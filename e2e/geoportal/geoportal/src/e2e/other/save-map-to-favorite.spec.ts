@@ -455,6 +455,81 @@ const kitaStyleJson = {
     },
   ],
 };
+
+const playgroundSpritesJson = {
+  Icon_Full: {
+    height: 66,
+    pixelRatio: 1,
+    width: 66,
+    x: 0,
+    y: 0,
+  },
+  bolzplatz: {
+    height: 50,
+    pixelRatio: 1,
+    width: 50,
+    x: 66,
+    y: 0,
+  },
+  dirtbike: {
+    height: 50,
+    pixelRatio: 1,
+    width: 50,
+    x: 0,
+    y: 66,
+  },
+  parkour: {
+    height: 50,
+    pixelRatio: 1,
+    width: 50,
+    x: 50,
+    y: 66,
+  },
+  skateboardanlage: {
+    height: 50,
+    pixelRatio: 1,
+    width: 50,
+    x: 100,
+    y: 66,
+  },
+  spielplatz: {
+    height: 50,
+    pixelRatio: 1,
+    width: 50,
+    x: 150,
+    y: 66,
+  },
+  spielpunkt: {
+    height: 50,
+    pixelRatio: 1,
+    width: 50,
+    x: 200,
+    y: 66,
+  },
+  sportanlage: {
+    height: 50,
+    pixelRatio: 1,
+    width: 50,
+    x: 116,
+    y: 0,
+  },
+};
+const kitaSpritesJson = {
+  Icon_Full: {
+    height: 66,
+    pixelRatio: 1,
+    width: 66,
+    x: 0,
+    y: 0,
+  },
+  kita: {
+    height: 50,
+    pixelRatio: 1,
+    width: 50,
+    x: 66,
+    y: 0,
+  },
+};
 test.describe("Geoportal - save map to favorite", () => {
   test.beforeEach(async ({ context, page }) => {
     await setupAllMocks(context);
@@ -475,6 +550,18 @@ test.describe("Geoportal - save map to favorite", () => {
       "https://tiles.cismet.de/kita/style.json",
       async (route) => {
         await route.fulfill({ json: kitaStyleJson });
+      }
+    );
+    await page.route(
+      "https://tiles.cismet.de/kinderspielplatz/sprites.json",
+      async (route) => {
+        await route.fulfill({ json: playgroundSpritesJson });
+      }
+    );
+    await page.route(
+      "https://tiles.cismet.de/kita/sprites.json",
+      async (route) => {
+        await route.fulfill({ json: kitaSpritesJson });
       }
     );
 
@@ -514,11 +601,6 @@ test.describe("Geoportal - save map to favorite", () => {
     await saveFavoriteBtn.click();
 
     await expect(dialogTitle).not.toBeVisible();
-
-    // const successMessage = page.getByText(
-    //   "Karte a wurde erfolgreich gespeichert."
-    // );
-    // await expect(successMessage).toBeVisible();
 
     // close layers tags
     page.locator('[id="removeLayerButton-wuppPOI\\:poi_ksp"]').click();
