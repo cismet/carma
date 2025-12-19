@@ -54,7 +54,11 @@ import {
   getSecondaryInfoBoxElements,
   setSelectedFeature as setSelectedFeatureAction,
 } from "../../store/slices/features";
-import { triggerFeatureInfoUpdateAction } from "../../store/slices/ui";
+import {
+  getUIMode,
+  triggerFeatureInfoUpdateAction,
+  UIMode,
+} from "../../store/slices/ui";
 import GeoportalLayerButton from "./GeoportalLayerButton";
 import SecondaryView from "./SecondaryView";
 
@@ -74,6 +78,7 @@ const LayerWrapper = () => {
   const backgroundLayer = useSelector(getBackgroundLayer);
   const maplibreMaps = useSelector(getMaplibreMaps);
   const selectedFeature = useSelector(getSelectedFeature);
+  const uiMode = useSelector(getUIMode);
 
   const selectedLayerIndex = useSelector(getSelectedLayerIndex);
   const isNoSelectionIndex = useSelector(getSelectedLayerIndexIsNoSelection);
@@ -82,6 +87,8 @@ const LayerWrapper = () => {
   const activeFilterLayerIndex = useSelector(getActiveFilterLayerIndex);
 
   const { isLeaflet } = useMapFrameworkSwitcherContext();
+  const isModeFeatureInfo = uiMode === UIMode.FEATURE_INFO;
+
   const { isOver, setNodeRef } = useDroppable({
     id: "droppable",
   });
@@ -261,7 +268,7 @@ const LayerWrapper = () => {
             <filterEntry.Component
               maplibreMap={maplibreMap}
               selectedFeature={selectedFeature}
-              skipFeatureMatchCheck
+              skipFeatureMatchCheck={isModeFeatureInfo}
               setSelectedFeature={(feature) => {
                 dispatch(setSelectedFeatureAction(feature));
               }}
