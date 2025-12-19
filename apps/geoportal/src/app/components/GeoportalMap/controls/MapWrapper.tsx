@@ -136,7 +136,8 @@ const MapWrapper = () => {
   const homeControl = useHomeControl();
   const configSelection = useSelector(getConfigSelection);
 
-  const { isObliqueMode } = useOblique();
+  const { isObliqueMode, isPreviewVisible: isObliquePreviewVisible } =
+    useOblique();
 
   const {
     handleZoomIn: handleZoomInCesium,
@@ -487,7 +488,14 @@ const MapWrapper = () => {
             {isLeaflet && <LayerWrapper />}
           </Control>
           <Control position="bottomleft" order={10}>
-            <div ref={tourRefLabels.gazetteer} className={`h-full w-full`}>
+            <div
+              ref={tourRefLabels.gazetteer}
+              className={`h-full w-full transition-opacity duration-200 ${
+                isObliquePreviewVisible
+                  ? "opacity-0 pointer-events-none"
+                  : "opacity-100"
+              }`}
+            >
               <LibFuzzySearch
                 gazData={gazData}
                 onSelection={onGazetteerSelection}

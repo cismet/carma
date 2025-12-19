@@ -40,10 +40,6 @@ import { useObliqueNearestImage } from "../hooks/useObliqueNearestImage";
 import { flyToExteriorOrientation } from "../utils/cameraUtils";
 import { downloadAsBlobAsync } from "../utils/downloads";
 import { getImageUrls } from "../utils/imageHandling";
-import {
-  notifyPreviewVisibilityChange,
-  subscribeToPreviewVisibility,
-} from "../utils/previewVisibility";
 
 import { CAMERA_ID_INTERIOR_ORIENTATION_PERCENTAGE_OFFSETS } from "../config";
 import { CardinalDirectionEnum } from "../utils/orientationUtils";
@@ -68,6 +64,8 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     setSelectedImage,
     prefetchSiblingPreview,
     setSuspendSelectionSearch,
+    isPreviewVisible,
+    setPreviewVisible,
   } = useOblique();
   const refreshSearch = useObliqueNearestImage();
   const siblingsByCardinal = useSiblingsByCardinal();
@@ -97,7 +95,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   const [offsetCube, setOffsetCube] = useState(false);
   const [invertLabels, setInvertLabels] = useState(true);
   const [shouldRender, setShouldRender] = useState(isObliqueMode);
-  const [isPreviewVisible, setIsPreviewVisible] = useState(false);
+  
   const [isFlyButtonHovered, setIsFlyButtonHovered] = useState(false);
   // Hide footprints while preview is visible
   useEffect(() => {
@@ -509,17 +507,14 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
   }, [isTransitioning, isValidViewer]);
 
   useEffect(() => {
-    const unsubscribe = subscribeToPreviewVisibility((visible) => {
-      setIsPreviewVisible(visible);
-    });
-
-    return unsubscribe;
-  }, []);
+    return () => {
+      setPreviewVisible(false);
+    };
+  }, [setPreviewVisible]);
 
   const flyToNearestExteriorOrientation = useCallback(async () => {
     if (isPreviewVisible) {
-      setIsPreviewVisible(false);
-      notifyPreviewVisibilityChange(false);
+      setPreviewVisible(false);
       return;
     }
 
@@ -539,8 +534,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
         derivedExteriorOrientationRef.current,
         () => {
           animationInProgressRef.current = false;
-          setIsPreviewVisible(true);
-          notifyPreviewVisibilityChange(true);
+          setPreviewVisible(true);
         },
         animations.flyToExteriorOrientation
       );
@@ -549,6 +543,7 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
     animations,
     selectedImage,
     isPreviewVisible,
+    setPreviewVisible,
     setLockFootprint,
     derivedExteriorOrientationRef,
     isValidViewer,
@@ -603,6 +598,11 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
           flyCompletionTick={flyCompletionTick}
           onOpenImageLink={openImageLink}
           onDirectDownload={handleDirectDownload}
+          onClose={() => {
+            setPreviewVisible(false);
+            setLockFootprint(false);
+            setSuspendSelectionSearch(false);
+          }}
           isDebugMode={isDebugMode}
           showCompactDirectionControls
           rotateCamera={rotateCameraKeypress}
@@ -611,16 +611,10 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = () => {
           siblingCallbacks={siblingCallbacks}
           isDirectionLoading={false}
           preloadNextEnabled={isFlyButtonHovered}
-          onClose={() => {
-            setIsPreviewVisible(false);
-            notifyPreviewVisibilityChange(false);
-            setLockFootprint(false);
-            setSuspendSelectionSearch(false);
-            setShouldRemoveCurrentPreviewImage(false);
-            requestRender({ delay: 50 });
-          }}
           interiorOrientationOffsets={
-            CAMERA_ID_INTERIOR_ORIENTATION_PERCENTAGE_OFFSETS[cameraId]
+            cameraId
+              ? CAMERA_ID_INTERIOR_ORIENTATION_PERCENTAGE_OFFSETS[cameraId]
+              : undefined
           }
           brightnessBase={brightnessBase}
           contrastBase={contrastBase}
