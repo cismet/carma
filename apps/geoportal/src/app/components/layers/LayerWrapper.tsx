@@ -251,16 +251,16 @@ const LayerWrapper = () => {
           <div
             key={filterEntry.id}
             className={cn(
-              "pt-2 w-full flex items-center justify-center -mb-2",
+              "pt-3 w-full flex items-center justify-center",
               !isActive && "hidden"
             )}
           >
             <filterEntry.Component
               maplibreMap={maplibreMap}
               selectedFeature={selectedFeature}
-              setSelectedFeature={(feature) =>
-                dispatch(setSelectedFeatureAction(feature))
-              }
+              setSelectedFeature={(feature) => {
+                dispatch(setSelectedFeatureAction(feature));
+              }}
               onFilterChange={(info: FilterInfo) => {
                 setLayerFilterInfo((prev) => ({
                   ...prev,

@@ -209,7 +209,7 @@ const SecondaryView = forwardRef<Ref, SecondaryViewProps>(({}, _ref) => {
       onClick={() => {
         dispatch(setSelectedLayerIndexNoSelection());
       }}
-      className="pt-4 w-full"
+      className="pt-3 w-full"
     >
       <div className="flex items-center justify-center w-full">
         <div
