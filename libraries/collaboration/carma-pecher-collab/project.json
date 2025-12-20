@@ -8,6 +8,11 @@
     "build": {
       "executor": "@nx/vite:build",
       "outputs": ["{options.outputPath}"],
+      "inputs": [
+        "production",
+        "^production",
+        "{projectRoot}/pecher-collab-submodule/src/**/*"
+      ],
       "defaultConfiguration": "production",
       "options": {
         "outputPath": "dist/libraries/collaboration/carma-pecher-collab"
@@ -24,12 +29,21 @@
     "test": {
       "executor": "@nx/vite:test",
       "outputs": ["{options.reportsDirectory}"],
+      "inputs": [
+        "default",
+        "^production",
+        "{projectRoot}/pecher-collab-submodule/src/**/*"
+      ],
       "options": {
         "reportsDirectory": "../../../coverage/libraries/collaboration/carma-pecher-collab"
       }
     },
     "lint": {
-      "executor": "@nx/eslint:lint"
+      "executor": "@nx/eslint:lint",
+      "inputs": [
+        "default",
+        "{projectRoot}/pecher-collab-submodule/src/**/*"
+      ]
     }
   }
 }
