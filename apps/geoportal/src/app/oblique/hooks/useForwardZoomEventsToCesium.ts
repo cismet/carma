@@ -2,6 +2,8 @@ import { useEffect, useRef } from "react";
 import type { MutableRefObject } from "react";
 import { useFovWheelZoom } from "@carma-mapping/engines/cesium";
 
+let activeForwardZoomEventsInstances = 0;
+
 export interface ForwardZoomEventsBindings {
   rootRef: MutableRefObject<HTMLDivElement | null>;
 }
@@ -10,11 +12,29 @@ export interface ForwardZoomEventsBindings {
  * For overlays above the Cesium canvas, forward zoom-related input (wheel, pinch)
  * to the Cesium canvas so FOV zoom works while the overlay is visible.
  */
-export function useForwardZoomEventsToCesium(): ForwardZoomEventsBindings {
+export function useForwardZoomEventsToCesium(
+): ForwardZoomEventsBindings {
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   // Use Cesium FOV wheel zoom directly; re-render after each FOV change
   const { handleWheel } = useFovWheelZoom(true);
+
+  useEffect(() => {
+    activeForwardZoomEventsInstances += 1;
+    if (
+      process.env.NODE_ENV !== "production" &&
+      activeForwardZoomEventsInstances > 1
+    ) {
+      // eslint-disable-next-line no-console
+      console.warn(
+        "useForwardZoomEventsToCesium is mounted more than once at the same time. This can cause zoom input to be forwarded multiple times. Ensure there is a single mount point for this hook.",
+      );
+    }
+
+    return () => {
+      activeForwardZoomEventsInstances -= 1;
+    };
+  }, []);
 
   useEffect(() => {
     const el = rootRef.current;

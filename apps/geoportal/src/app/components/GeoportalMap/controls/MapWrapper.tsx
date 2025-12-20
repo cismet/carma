@@ -18,8 +18,8 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
 import {
-  SelectionMetaData,
   SelectionMapMode,
+  type SelectionMetaData,
   useGazData,
   useSelection,
 } from "@carma-appframeworks/portals";

@@ -1,5 +1,4 @@
-import { useCallback, useRef, useState, useEffect, useMemo } from "react";
-import PropTypes from "prop-types";
+import { useCallback, useRef, useState, useEffect, useMemo, type FC } from "react";
 import { useSelector } from "react-redux";
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -51,7 +50,7 @@ interface ObliqueControlsProps {
   hideControls?: boolean;
 }
 
-export const ObliqueControls: React.FC<ObliqueControlsProps> = ({
+export const ObliqueControls: FC<ObliqueControlsProps> = ({
   hideControls = false,
 }) => {
   const {
@@ -780,11 +779,4 @@ export const ObliqueControls: React.FC<ObliqueControlsProps> = ({
     </>
   );
 };
-
-ObliqueControls.propTypes = {
-  headingOffset: PropTypes.number,
-  isObliqueMode: PropTypes.bool,
-  hideControls: PropTypes.bool,
-};
-
 export default ObliqueControls;
