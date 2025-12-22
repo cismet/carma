@@ -1,5 +1,6 @@
 import { CSSProperties } from "react";
 import type React from "react";
+import { useForwardZoomEventsToCesium } from "../hooks/useForwardZoomEventsToCesium";
 
 interface BackdropProps {
   contrast: number; // %
@@ -20,6 +21,7 @@ export const Backdrop = ({
   onClick,
   interactive = true,
 }: BackdropProps) => {
+  const { rootRef } = useForwardZoomEventsToCesium();
   const filterValue = `contrast(${contrast}%) brightness(${brightness}%) saturate(${saturation}%)`;
   const styleObj: CSSProperties = {
     WebkitBackdropFilter: filterValue,
@@ -40,7 +42,7 @@ export const Backdrop = ({
   if (!isDebug && color) {
     styleObj.backgroundColor = color;
   }
-  // Wheel and pinch gestures are forwarded by the parent preview container.
+  // Wheel and pinch gestures are forwarded by the hook via rootRef + onWheel
 
   // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
   const onKeyDown: React.KeyboardEventHandler<HTMLDivElement> = (e) => {
@@ -53,6 +55,7 @@ export const Backdrop = ({
 
   return (
     <div
+      ref={rootRef}
       style={styleObj}
       role="button"
       tabIndex={0}
