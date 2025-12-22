@@ -1,7 +1,7 @@
 /* eslint-disable jsx-a11y/no-static-element-interactions */
 /* eslint-disable jsx-a11y/click-events-have-key-events */
 
-import { useContext, useEffect, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useState, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 
 import {
@@ -74,6 +74,8 @@ const LayerWrapper = () => {
     Record<string, FilterInfo>
   >({});
 
+  const filterComponentsCache = useRef<Map<string, any>>(new Map());
+
   const layers = useSelector(getLayers);
   const backgroundLayer = useSelector(getBackgroundLayer);
   const maplibreMaps = useSelector(getMaplibreMaps);
@@ -131,17 +133,30 @@ const LayerWrapper = () => {
 
   // Create filter components for all layers that have filterConfig
   // We render all but hide inactive ones to preserve state
+  // Cache components by layer ID to preserve state when layers are reordered
   const filterComponents = useMemo(() => {
-    return layers
-      .map((layer, index) => {
-        if (!layer.filterConfig) return null;
-        return {
-          index,
+    const cache = filterComponentsCache.current;
+
+    const currentLayerIds = new Set(layers.map((l) => l.id));
+    for (const [id] of cache) {
+      if (!currentLayerIds.has(id)) {
+        cache.delete(id);
+      }
+    }
+
+    layers.forEach((layer) => {
+      if (layer.filterConfig && !cache.has(layer.id)) {
+        cache.set(layer.id, {
           id: layer.id,
           Component: createFilterButtons(layer.filterConfig),
-        };
-      })
-      .filter(Boolean);
+        });
+      }
+    });
+
+    // Return only components for layers that currently exist and have filterConfig
+    return layers
+      .filter((layer) => layer.filterConfig && cache.has(layer.id))
+      .map((layer) => cache.get(layer.id));
   }, [layers]);
 
   console.debug("RENDER: LayerWrapper selectedLayerIndex", selectedLayerIndex);
@@ -257,6 +272,7 @@ const LayerWrapper = () => {
           ? maplibreMaps.find((entry) => entry.id === filterEntry.id)?.map ??
             null
           : null;
+        const FilterComponent = filterEntry.Component;
         return (
           <div
             key={filterEntry.id}
@@ -265,7 +281,7 @@ const LayerWrapper = () => {
               !isActive && "hidden"
             )}
           >
-            <filterEntry.Component
+            <FilterComponent
               maplibreMap={maplibreMap}
               selectedFeature={selectedFeature}
               skipFeatureMatchCheck={isModeFeatureInfo}
