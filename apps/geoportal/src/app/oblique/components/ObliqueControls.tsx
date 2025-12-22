@@ -1,4 +1,11 @@
-import { useCallback, useRef, useState, useEffect, useMemo, type FC } from "react";
+import {
+  useCallback,
+  useRef,
+  useState,
+  useEffect,
+  useMemo,
+  type FC,
+} from "react";
 import { useSelector } from "react-redux";
 
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
