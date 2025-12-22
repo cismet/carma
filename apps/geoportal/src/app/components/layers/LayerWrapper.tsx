@@ -38,7 +38,7 @@ import {
   getLayers,
   getSelectedLayerIndex,
   getSelectedLayerIndexIsNoSelection,
-  getActiveFilterLayerIndex,
+  getActiveFilterLayerID,
   getShowLeftScrollButton,
   getShowRightScrollButton,
   setLayers,
@@ -84,7 +84,7 @@ const LayerWrapper = () => {
   const isNoSelectionIndex = useSelector(getSelectedLayerIndexIsNoSelection);
   const showLeftScrollButton = useSelector(getShowLeftScrollButton);
   const showRightScrollButton = useSelector(getShowRightScrollButton);
-  const activeFilterLayerIndex = useSelector(getActiveFilterLayerIndex);
+  const activeFilterLayerID = useSelector(getActiveFilterLayerID);
 
   const { isLeaflet } = useMapFrameworkSwitcherContext();
   const isModeFeatureInfo = uiMode === UIMode.FEATURE_INFO;
@@ -252,7 +252,7 @@ const LayerWrapper = () => {
       </DndContext>
 
       {filterComponents.map((filterEntry) => {
-        const isActive = filterEntry.index === activeFilterLayerIndex;
+        const isActive = filterEntry.id === activeFilterLayerID;
         const maplibreMap = maplibreMaps
           ? maplibreMaps.find((entry) => entry.id === filterEntry.id)?.map ??
             null

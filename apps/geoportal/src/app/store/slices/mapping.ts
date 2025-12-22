@@ -22,7 +22,7 @@ const initialState: MappingState = {
   layers: [],
   savedLayerConfigs: [],
   selectedLayerIndex: SELECTED_LAYER_INDEX.NO_SELECTION,
-  activeFilterLayerIndex: null,
+  activeFilterLayerID: null,
   paleOpacityValue: defaultOpacity,
   libreMapRef: null,
   maplibreMaps: [],
@@ -112,12 +112,8 @@ const slice = createSlice({
       state.maplibreMaps = state.maplibreMaps.filter(
         (entry) => entry.id !== action.payload
       );
-      if (state.activeFilterLayerIndex !== null) {
-        if (removedIndex === state.activeFilterLayerIndex) {
-          state.activeFilterLayerIndex = null;
-        } else if (removedIndex < state.activeFilterLayerIndex) {
-          state.activeFilterLayerIndex = state.activeFilterLayerIndex - 1;
-        }
+      if (state.activeFilterLayerID === action.payload) {
+        state.activeFilterLayerID = null;
       }
     },
     removeLastLayer(state) {
@@ -235,8 +231,8 @@ const slice = createSlice({
       }
     },
 
-    setActiveFilterLayerIndex(state, action) {
-      state.activeFilterLayerIndex = action.payload;
+    setActiveFilterLayerID(state, action) {
+      state.activeFilterLayerID = action.payload;
     },
     setSelectedMapLayer(state, action: PayloadAction<BackgroundLayer>) {
       state.selectedMapLayer = action.payload;
@@ -321,7 +317,7 @@ export const {
   setSelectedLayerIndexNoSelection,
   setNextSelectedLayerIndex,
   setPreviousSelectedLayerIndex,
-  setActiveFilterLayerIndex,
+  setActiveFilterLayerID,
   setSelectedMapLayer,
   setBackgroundLayer,
   setSelectedLuftbildLayer,
@@ -381,8 +377,8 @@ export const getShowMeasurementButton = (state: RootState) =>
   state.mapping.showMeasurementButton;
 export const getShowRightScrollButton = (state: RootState) =>
   state.mapping.showRightScrollButton;
-export const getActiveFilterLayerIndex = (state: RootState) =>
-  state.mapping.activeFilterLayerIndex;
+export const getActiveFilterLayerID = (state: RootState) =>
+  state.mapping.activeFilterLayerID;
 export const getStartDrawing = (state: RootState) => state.mapping.startDrawing;
 export const getLibreMapRef = (state: RootState) => state.mapping.libreMapRef;
 export const getMaplibreMaps = (state: RootState) => state.mapping.maplibreMaps;
