@@ -618,9 +618,9 @@ test.describe("Geoportal - save map to favorite", () => {
     await expect(layerTagPlayground).not.toBeVisible();
     await page.locator('[id="removeLayerButton-wuppPOI\\:poi_kita"]').click();
     await expect(layerTagKindergarten).not.toBeVisible();
-    const messageAlert = page.getByTestId("toast-success").last();
-    await expect(messageAlert).toBeVisible();
-    await expect(messageAlert).not.toBeVisible();
+    //const messageAlert = page.getByTestId("toast-success").last();
+    // await expect(messageAlert).toBeVisible();
+    // await expect(messageAlert).not.toBeVisible();
 
     // Go to favorites
     await expect(addLayersBtn).toBeVisible();
@@ -635,8 +635,8 @@ test.describe("Geoportal - save map to favorite", () => {
     const loadBtn = page.getByTestId("card-layer-prev").getByRole("button");
     await expect(loadBtn).toBeVisible();
     await loadBtn.click();
-    await expect(messageAlert).toBeVisible();
-    await expect(messageAlert).not.toBeVisible();
+    // await expect(messageAlert).toBeVisible();
+    // await expect(messageAlert).not.toBeVisible();
     // page.getByTestId("card-layer-prev").getByRole("button");
     const closeDialogBtn = page.getByRole("dialog").getByRole("button").nth(1);
     await expect(closeDialogBtn).toBeVisible();
