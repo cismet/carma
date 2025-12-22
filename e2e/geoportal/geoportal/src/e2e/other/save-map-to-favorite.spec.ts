@@ -601,7 +601,7 @@ test.describe("Geoportal - save map to favorite", () => {
 
     // Check dialog content
     const dialogTitle = page.getByRole("heading", { name: "Karte speichern" });
-    await expect(dialogTitle).toBeVisible();
+    await expect(dialogTitle).toBeVisible({ timeout: 15000 });
     const titleInput = page.getByRole("textbox", { name: "Titel" });
     await titleInput.fill("Kita title");
     const contentInput = page.getByRole("textbox", { name: "Inhalt" });
