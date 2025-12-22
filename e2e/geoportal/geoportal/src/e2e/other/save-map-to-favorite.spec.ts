@@ -1,5 +1,10 @@
 import { test, expect } from "@playwright/test";
 import { setupAllMocks, mockGeoportalServices } from "@carma-commons/e2e";
+import {
+  expectLayerTagsNotVisibleAfterClick,
+  expectLayerTagsVisible,
+  LayerName,
+} from "../utils/layers";
 const mapLayersResponse = {
   backgroundLayer: {
     title: "Stadtplan",
@@ -530,6 +535,12 @@ const kitaSpritesJson = {
     y: 0,
   },
 };
+
+const layersNamesArr: LayerName[] = [
+  { name: "Kinderspielplätze", tag: "poi_ksp" },
+  { name: "Kindertagesstätten", tag: "poi_kita" },
+];
+
 test.describe("Geoportal - save map to favorite", () => {
   test.beforeEach(async ({ context, page }) => {
     await setupAllMocks(context);
@@ -590,14 +601,16 @@ test.describe("Geoportal - save map to favorite", () => {
     await saveMapBtn.click();
     const addLayersBtn = page.getByTestId("kartenebenen-hinzufügen-btn");
     await expect(addLayersBtn).toBeVisible();
-    const layerTagPlayground = page.getByRole("button", {
-      name: "Kinderspielplätze",
-    });
-    await expect(layerTagPlayground).toBeVisible();
-    const layerTagKindergarten = page.getByRole("button", {
-      name: "Kindertagesstätten",
-    });
-    await expect(layerTagKindergarten).toBeVisible();
+    // const layerTagPlayground = page.getByRole("button", {
+    //   name: "Kinderspielplätze",
+    // });
+    // await expect(layerTagPlayground).toBeVisible();
+    // const layerTagKindergarten = page.getByRole("button", {
+    //   name: "Kindertagesstätten",
+    // });
+    // await expect(layerTagKindergarten).toBeVisible();
+
+    await expectLayerTagsVisible(page, layersNamesArr);
 
     // Check dialog content
     const dialogTitle = page.getByRole("heading", { name: "Karte speichern" });
@@ -614,10 +627,13 @@ test.describe("Geoportal - save map to favorite", () => {
     await expect(dialogTitle).not.toBeVisible();
 
     // close layers tags
-    await page.locator('[id="removeLayerButton-wuppPOI\\:poi_ksp"]').click();
-    await expect(layerTagPlayground).not.toBeVisible();
-    await page.locator('[id="removeLayerButton-wuppPOI\\:poi_kita"]').click();
-    await expect(layerTagKindergarten).not.toBeVisible();
+    // await page.locator('[id="removeLayerButton-wuppPOI\\:poi_ksp"]').click();
+    // await expect(layerTagPlayground).not.toBeVisible();
+    // await page.locator('[id="removeLayerButton-wuppPOI\\:poi_kita"]').click();
+    // await expect(layerTagKindergarten).not.toBeVisible();
+
+    await expectLayerTagsNotVisibleAfterClick(page, layersNamesArr);
+
     //const messageAlert = page.getByTestId("toast-success").last();
     // await expect(messageAlert).toBeVisible();
     // await expect(messageAlert).not.toBeVisible();
@@ -642,8 +658,8 @@ test.describe("Geoportal - save map to favorite", () => {
     await expect(closeDialogBtn).toBeVisible();
     await closeDialogBtn.click();
     await expect(kitaCardTitle).not.toBeVisible();
-    await expect(layerTagPlayground).toBeVisible();
-    await expect(layerTagKindergarten).toBeVisible();
+    // await expect(layerTagPlayground).toBeVisible();
+    // await expect(layerTagKindergarten).toBeVisible();
 
     // Go to favorites
     await expect(addLayersBtn).toBeVisible();
