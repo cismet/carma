@@ -10,19 +10,14 @@ import { ControlButtonStyler } from "@carma-mapping/map-controls-layout";
 import { useMapFrameworkSwitcherContext } from "./MapFrameworkSwitcherContext";
 
 type MapFrameworkSwitcherProps = {
-  /** Force button to be enabled even during transitions */
   forceEnabled?: boolean;
-  /** Additional CSS class */
+  disabled?: boolean;
+  useDisabledStyle?: boolean;
   className?: string;
-  /** Use native browser tooltip instead of antd Tooltip */
   nativeTooltip?: boolean;
-  /** Show warning on mobile devices before enabling 3D mode */
   enableMobileWarning?: boolean;
-  /** Custom tooltip text for switching to 3D */
   switchTo3DText?: string;
-  /** Custom tooltip text for switching to 2D */
   switchTo2DText?: string;
-  /** Optional style object for positioning */
   style?: CSSProperties;
 };
 
@@ -45,6 +40,8 @@ export const MapFrameworkSwitcher = forwardRef<
   (
     {
       forceEnabled,
+      disabled,
+      useDisabledStyle,
       className,
       nativeTooltip = false,
       enableMobileWarning = false,
@@ -78,13 +75,15 @@ export const MapFrameworkSwitcher = forwardRef<
     const switchInfoText = isLeaflet ? switchTo3DText : switchTo2DText;
 
     // Disable button if not ready or transitioning (unless forceEnabled)
-    const isDisabled = (!isReady || isTransitioning) && !forceEnabled;
+    const isDisabled =
+      disabled === true || ((!isReady || isTransitioning) && !forceEnabled);
 
     const button = (
       <ControlButtonStyler
         className={("font-semibold " + (className || "")).trim()}
         onClick={handleSwitchMapMode}
         disabled={isDisabled}
+        useDisabledStyle={useDisabledStyle}
         title={nativeTooltip ? switchInfoText : undefined}
         dataTestId={isLeaflet ? "3d-control" : "2d-control"}
         ref={ref}
@@ -97,7 +96,7 @@ export const MapFrameworkSwitcher = forwardRef<
       button
     ) : (
       <Tooltip title={switchInfoText} placement="right">
-        {button}
+        <span className="inline-block">{button}</span>
       </Tooltip>
     );
 

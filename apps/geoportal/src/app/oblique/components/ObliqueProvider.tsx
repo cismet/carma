@@ -48,6 +48,9 @@ interface ObliqueContextType {
   toggleObliqueMode: () => void;
   converter: Proj4Converter;
 
+  isPreviewVisible: boolean;
+  setPreviewVisible: (visible: boolean) => void;
+
   imageRecords: ObliqueImageRecordMap | null;
   exteriorOrientations: ExteriorOrientations | null;
   footprintData: FeatureCollection<Polygon, FootprintProperties> | null;
@@ -115,9 +118,14 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
   });
   const [lockFootprint, setLockFootprint] = useState(false);
   const [suspendSelectionSearch, setSuspendSelectionSearch] = useState(false);
+  const [isPreviewVisible, setIsPreviewVisible] = useState(false);
   const [selectedImage, setSelectedImage] =
     useState<NearestObliqueImageRecord | null>(null);
   const selectedImageDistanceRef = useRef<number | null>(null);
+
+  const setPreviewVisible = useCallback((visible: boolean) => {
+    setIsPreviewVisible(visible);
+  }, []);
 
   const {
     exteriorOrientationsURI,
@@ -141,6 +149,18 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
       selectionFlyToCameraHeightRef.current = null;
     };
   }, [fixedHeight, isObliqueMode, selectionFlyToCameraHeightRef]);
+
+  useEffect(() => {
+    if (!isObliqueMode && isPreviewVisible) {
+      setIsPreviewVisible(false);
+    }
+  }, [isObliqueMode, isPreviewVisible]);
+
+  useEffect(() => {
+    return () => {
+      setIsPreviewVisible(false);
+    };
+  }, []);
 
   const converter = useMemo(() => createConverter(crs, "EPSG:4326"), [crs]);
 
@@ -220,6 +240,8 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
   const value = useMemo(
     () => ({
       isObliqueMode,
+      isPreviewVisible,
+      setPreviewVisible,
       imageRecords,
       isLoading,
       isAllDataReady,
@@ -252,6 +274,8 @@ export const ObliqueProvider: React.FC<ObliqueProviderProps> = ({
     }),
     [
       isObliqueMode,
+      isPreviewVisible,
+      setPreviewVisible,
       imageRecords,
       isLoading,
       isAllDataReady,

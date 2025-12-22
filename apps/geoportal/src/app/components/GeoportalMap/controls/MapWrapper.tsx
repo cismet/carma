@@ -18,8 +18,8 @@ import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { ResponsiveTopicMapContext } from "react-cismap/contexts/ResponsiveTopicMapContextProvider";
 
 import {
-  SelectionMetaData,
   SelectionMapMode,
+  type SelectionMetaData,
   useGazData,
   useSelection,
 } from "@carma-appframeworks/portals";
@@ -136,7 +136,8 @@ const MapWrapper = () => {
   const homeControl = useHomeControl();
   const configSelection = useSelector(getConfigSelection);
 
-  const { isObliqueMode } = useOblique();
+  const { isObliqueMode, isPreviewVisible: isObliquePreviewVisible } =
+    useOblique();
 
   const {
     handleZoomIn: handleZoomInCesium,
@@ -342,10 +343,14 @@ const MapWrapper = () => {
                 >
                   <ControlButtonStyler
                     useDisabledStyle={false}
-                    className="!border-b-0 !rounded-b-none font-bold !z-[9999999]"
+                    className={
+                      "!border-b-0 !rounded-b-none font-bold !z-[9999999]"
+                    }
                     ref={tourRefLabels.alignNorth}
                     dataTestId="compass-control"
-                    disabled={isLeaflet && !showLibreMap}
+                    disabled={
+                      (isLeaflet && !showLibreMap) || isObliquePreviewVisible
+                    }
                   >
                     {showLibreMap ? (
                       <LibrePitchingCompass mapRef={libreMapRef} />
@@ -357,7 +362,11 @@ const MapWrapper = () => {
 
                 <MapFrameworkSwitcher
                   enableMobileWarning={true}
+                  className="!rounded-t-none !border-t-[1px]"
                   ref={tourRefLabels.toggle2d3d}
+                  disabled={isObliquePreviewVisible}
+                  useDisabledStyle={false}
+
                   // nativeTooltip={true}
                 />
 
@@ -367,12 +376,12 @@ const MapWrapper = () => {
               </div>
             </Control>
           )}
-          <Control position="topleft" order={20}>
-            {showFullscreenButton && (
+          {showFullscreenButton && (
+            <Control position="topleft" order={20}>
               <FullscreenControl tourRef={tourRefLabels?.fullScreen} />
-            )}
-          </Control>
-          {showLocatorButton && isMobile && (
+            </Control>
+          )}
+          {!isObliquePreviewVisible && showLocatorButton && isMobile && (
             <Control position="topleft" order={30}>
               <RoutedMapLocateControl
                 tourRefLabels={tourRefLabels}
@@ -381,34 +390,39 @@ const MapWrapper = () => {
               />
             </Control>
           )}
-          <Control position="topleft" order={40}>
-            <Tooltip title="Auf Rathaus Barmen positionieren" placement="right">
-              <ControlButtonStyler
-                ref={tourRefLabels.home}
-                onClick={() => {
-                  if (showLibreMap) {
-                    if (libreMapRef.current) {
-                      libreMapRef.current.flyTo({
-                        center: [7.199918031692506, 51.272570027476256],
-                        zoom: 17,
-                        essential: true,
-                      });
-                    }
-                  } else {
-                    routedMap.leafletMap.leafletElement.flyTo(
-                      [51.272570027476256, 7.199918031692506],
-                      18
-                    );
-                    homeControl();
-                  }
-                }}
-                dataTestId="home-control"
+          {!isObliquePreviewVisible && (
+            <Control position="topleft" order={40}>
+              <Tooltip
+                title="Auf Rathaus Barmen positionieren"
+                placement="right"
               >
-                <FontAwesomeIcon icon={faHouseChimney} className="text-lg" />
-              </ControlButtonStyler>
-            </Tooltip>
-          </Control>
-          {!isMobileDevice && (
+                <ControlButtonStyler
+                  ref={tourRefLabels.home}
+                  onClick={() => {
+                    if (showLibreMap) {
+                      if (libreMapRef.current) {
+                        libreMapRef.current.flyTo({
+                          center: [7.199918031692506, 51.272570027476256],
+                          zoom: 17,
+                          essential: true,
+                        });
+                      }
+                    } else {
+                      routedMap.leafletMap.leafletElement.flyTo(
+                        [51.272570027476256, 7.199918031692506],
+                        18
+                      );
+                      homeControl();
+                    }
+                  }}
+                  dataTestId="home-control"
+                >
+                  <FontAwesomeIcon icon={faHouseChimney} className="text-lg" />
+                </ControlButtonStyler>
+              </Tooltip>
+            </Control>
+          )}
+          {!isObliquePreviewVisible && !isMobileDevice && (
             <MeasurementControl
               position="topleft"
               order={60}
@@ -426,38 +440,41 @@ const MapWrapper = () => {
               ref={tourRefLabels.measurement}
             />
           )}
-          <Control position="topleft" order={50}>
-            <Tooltip
-              title={
-                isModeFeatureInfo
-                  ? "Modus Multi-Sachdatenabfrage ausschalten"
-                  : "Modus Multi-Sachdatenabfrage einschalten"
-              }
-              placement="right"
-            >
-              <ControlButtonStyler
-                disabled={!isLeaflet}
-                useDisabledStyle={!isLeaflet}
-                onClick={() => {
-                  handleToggleFeatureInfo();
-                  dispatch(setSelectedFeature(null));
-                  dispatch(setSecondaryInfoBoxElements([]));
-                  dispatch(setFeatures([]));
-                  setPos(null);
-                  dispatch(setPreferredLayerId(""));
-                }}
-                className="font-semibold"
-                ref={tourRefLabels.featureInfo}
-                dataTestId="feature-info-control"
+          {!isObliquePreviewVisible && (
+            <Control position="topleft" order={50}>
+              <Tooltip
+                title={
+                  isModeFeatureInfo
+                    ? "Modus Multi-Sachdatenabfrage ausschalten"
+                    : "Modus Multi-Sachdatenabfrage einschalten"
+                }
+                placement="right"
               >
-                <FontAwesomeIcon
-                  icon={faInfo}
-                  className={isModeFeatureInfo ? "text-[#1677ff]" : ""}
-                />
-              </ControlButtonStyler>
-            </Tooltip>
-          </Control>
-          {showLibreMap && (
+                <ControlButtonStyler
+                  disabled={!isLeaflet}
+                  useDisabledStyle={!isLeaflet}
+                  onClick={() => {
+                    handleToggleFeatureInfo();
+                    dispatch(setSelectedFeature(null));
+                    dispatch(setSecondaryInfoBoxElements([]));
+                    dispatch(setFeatures([]));
+                    setPos(null);
+                    dispatch(setPreferredLayerId(""));
+                  }}
+                  className="font-semibold"
+                  ref={tourRefLabels.featureInfo}
+                  dataTestId="feature-info-control"
+                >
+                  <FontAwesomeIcon
+                    icon={faInfo}
+                    className={isModeFeatureInfo ? "text-[#1677ff]" : ""}
+                  />
+                </ControlButtonStyler>
+              </Tooltip>
+            </Control>
+          )}
+
+          {!isObliquePreviewVisible && showLibreMap && (
             <Control position="topleft" order={80}>
               <Tooltip title={"Terrain"} placement="right">
                 <ControlButtonStyler
@@ -483,11 +500,20 @@ const MapWrapper = () => {
               </Tooltip>
             </Control>
           )}
-          <Control position="topcenter" order={10}>
-            {isLeaflet && <LayerWrapper />}
-          </Control>
+          {!isObliquePreviewVisible && (
+            <Control position="topcenter" order={10}>
+              {isLeaflet && <LayerWrapper />}
+            </Control>
+          )}
           <Control position="bottomleft" order={10}>
-            <div ref={tourRefLabels.gazetteer} className={`h-full w-full`}>
+            <div
+              ref={tourRefLabels.gazetteer}
+              className={`h-full w-full transition-opacity duration-200 ${
+                isObliquePreviewVisible
+                  ? "opacity-0 pointer-events-none"
+                  : "opacity-100"
+              }`}
+            >
               <LibFuzzySearch
                 gazData={gazData}
                 onSelection={onGazetteerSelection}
@@ -517,7 +543,7 @@ const MapWrapper = () => {
           ) : (
             <>
               <GeoportalMap height={height} width={width} allow3d={allow3d} />
-              {isCesium && <ObliqueControls />}
+              {isCesium && <ObliqueControls hideControls={zenMode} />}
             </>
           )}
         </div>
