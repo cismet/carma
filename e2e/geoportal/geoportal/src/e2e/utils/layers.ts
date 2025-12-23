@@ -1,8 +1,17 @@
 import { expect, type Page, type Locator } from "@playwright/test";
+
+export const layersNamesArr: LayerName[] = [
+  { name: "Kinderspielplätze", tag: "poi_ksp" },
+  { name: "Kindertagesstätten", tag: "poi_kita" },
+];
+
 export type LayerName = {
   name: string;
   tag: string;
 };
+
+export const urlWithMapLayers =
+  "/#/?lat=51.2586922&lng=7.1510696&zoom=12&config=847e07f9bee9a4f8&appKey=sharedurl";
 
 export function layerTag(page: Page, name: string): Locator {
   return page.getByRole("button", { name });

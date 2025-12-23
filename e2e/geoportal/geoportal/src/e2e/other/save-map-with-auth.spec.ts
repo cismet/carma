@@ -1,5 +1,13 @@
 import { test, expect } from "@playwright/test";
 import { setupAllMocks, mockGeoportalServices } from "@carma-commons/e2e";
+import {
+  expectLayerTagsNotVisibleAfterClick,
+  expectLayerTagsVisible,
+  layersNamesArr,
+  navigateToMapLayersDialog,
+  setupSaveMapToFavoriteMocks,
+  urlWithMapLayers,
+} from "../utils/layers";
 
 const userResMock = {
   user: "cismet",
@@ -182,10 +190,15 @@ test.describe("Geoportal - Save map with authorization", () => {
         })
     );
 
-    await page.goto("/");
+    await setupSaveMapToFavoriteMocks(page);
+
+    await page.goto(urlWithMapLayers);
   });
 
   test("Save map with authorization", async ({ page }) => {
+    await expectLayerTagsVisible(page, layersNamesArr);
+    const addLayersBtn = page.getByTestId("kartenebenen-hinzufügen-btn");
+    await expect(addLayersBtn).toBeVisible();
     const menu = page.getByTestId("modal-menu-btn");
     await expect(menu).toBeVisible();
     await menu.click();
@@ -213,7 +226,7 @@ test.describe("Geoportal - Save map with authorization", () => {
     await expect(page.getByText("Karte teilen")).toBeVisible();
     const titelInput = page.getByRole("textbox", { name: "Titel *" });
     await expect(titelInput).toBeVisible();
-    await titelInput.fill("Test title");
+    await titelInput.fill("Kita title");
     const content = page.getByRole("textbox", { name: "Inhalt *" });
     await expect(content).toBeVisible();
     await content.scrollIntoViewIfNeeded();
@@ -231,5 +244,16 @@ test.describe("Geoportal - Save map with authorization", () => {
 
     const saveMapBtn = page.getByTestId("speichern-btn");
     await expect(saveMapBtn).toBeVisible({ timeout: 15000 });
+
+    // close layers tags
+    await expectLayerTagsNotVisibleAfterClick(page, layersNamesArr);
+
+    // Go to Entdecken
+    const entdeckenBtn = page.getByText("Entdecken");
+    await navigateToMapLayersDialog(page, addLayersBtn, entdeckenBtn);
+
+    // Load favorite map
+    const kitaCardTitle = page.getByRole("heading", { name: "Kita title" });
+    await expect(kitaCardTitle).toBeVisible({ timeout: 15000 });
   });
 });
