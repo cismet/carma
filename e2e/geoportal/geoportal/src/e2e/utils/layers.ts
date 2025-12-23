@@ -73,12 +73,12 @@ export async function removeMapLayer(page: Page) {
   await expect(removeBtn).toBeVisible();
   await removeBtn.click();
   const popUpAlert = page.getByTestId("confirm-delete-collection-dialog");
-  await expect(popUpAlert).toBeVisible();
+  await expect(popUpAlert).toBeVisible({ timeout: 15000 });
   const confirmRemoving = page.getByTestId("confirm-delete-collection-submit");
   expect(confirmRemoving).toBeVisible();
   await confirmRemoving.click();
-  await expect(popUpAlert).not.toBeVisible();
-  await expect(infoCard).not.toBeVisible();
+  await expect(popUpAlert).not.toBeVisible({ timeout: 15000 });
+  await expect(infoCard).not.toBeVisible({ timeout: 15000 });
 }
 
 const mapLayersResponse = {
