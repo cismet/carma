@@ -4,6 +4,7 @@ import {
   expectLayerTagsNotVisibleAfterClick,
   expectLayerTagsVisible,
   LayerName,
+  navigateToMapLayersDialog,
 } from "../utils/layers";
 const mapLayersResponse = {
   backgroundLayer: {
@@ -639,11 +640,12 @@ test.describe("Geoportal - save map to favorite", () => {
     // await expect(messageAlert).not.toBeVisible();
 
     // Go to favorites
-    await expect(addLayersBtn).toBeVisible();
-    await addLayersBtn.click();
     const favoriteBtn = page.getByText("Favoriten");
-    await expect(favoriteBtn).toBeVisible();
-    await favoriteBtn.click();
+    await navigateToMapLayersDialog(page, addLayersBtn, favoriteBtn);
+    // await expect(addLayersBtn).toBeVisible();
+    // await addLayersBtn.click();
+    // await expect(favoriteBtn).toBeVisible();
+    // await favoriteBtn.click();
 
     // Load favorite map
     const kitaCardTitle = page.getByRole("heading", { name: "Kita title" });

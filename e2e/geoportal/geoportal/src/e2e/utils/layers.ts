@@ -33,3 +33,16 @@ export async function expectLayerTagsNotVisibleAfterClick(
     await expect(layerTag(page, item.name)).not.toBeVisible();
   }
 }
+
+export async function navigateToMapLayersDialog(
+  page: Page,
+  navElement: Locator,
+  secElement: Locator
+) {
+  //Check that navElement is visible
+  await expect(navElement).toBeVisible();
+  //Click on navElement
+  await navElement.click();
+  await expect(secElement).toBeVisible();
+  await secElement.click();
+}
