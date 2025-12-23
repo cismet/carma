@@ -46,3 +46,17 @@ export async function navigateToMapLayersDialog(
   await expect(secElement).toBeVisible();
   await secElement.click();
 }
+
+export async function loadMapLayerAndCloseDialog(
+  page: Page,
+  cardTitle: Locator
+) {
+  await expect(cardTitle).toBeVisible({ timeout: 15000 });
+  const loadBtn = page.getByTestId("card-layer-prev").getByRole("button");
+  await expect(loadBtn).toBeVisible();
+  await loadBtn.click();
+  const closeDialogBtn = page.getByRole("dialog").getByRole("button").nth(1);
+  await expect(closeDialogBtn).toBeVisible();
+  await closeDialogBtn.click();
+  await expect(cardTitle).not.toBeVisible();
+}
