@@ -3,17 +3,13 @@ import { setupAllMocks, mockGeoportalServices } from "@carma-commons/e2e";
 import {
   expectLayerTagsNotVisibleAfterClick,
   expectLayerTagsVisible,
-  LayerName,
+  layersNamesArr,
   loadMapLayerAndCloseDialog,
   navigateToMapLayersDialog,
   removeMapLayer,
   setupSaveMapToFavoriteMocks,
+  urlWithMapLayers,
 } from "../utils/layers";
-
-const layersNamesArr: LayerName[] = [
-  { name: "Kinderspielplätze", tag: "poi_ksp" },
-  { name: "Kindertagesstätten", tag: "poi_kita" },
-];
 
 test.describe("Geoportal - save map to favorite", () => {
   test.beforeEach(async ({ context, page }) => {
@@ -21,10 +17,7 @@ test.describe("Geoportal - save map to favorite", () => {
     await mockGeoportalServices(context);
     await setupSaveMapToFavoriteMocks(page);
 
-    await page.goto(
-      "/#/?lat=51.2586922&lng=7.1510696&zoom=12&config=847e07f9bee9a4f8&appKey=sharedurl",
-      { waitUntil: "domcontentloaded" }
-    );
+    await page.goto(urlWithMapLayers, { waitUntil: "domcontentloaded" });
   });
 
   test("Save Map dialog — save map with layers to Favorites", async ({
