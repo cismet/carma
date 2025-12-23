@@ -6,6 +6,7 @@ import {
   LayerName,
   loadMapLayerAndCloseDialog,
   navigateToMapLayersDialog,
+  removeMapLayer,
 } from "../utils/layers";
 const mapLayersResponse = {
   backgroundLayer: {
@@ -604,15 +605,6 @@ test.describe("Geoportal - save map to favorite", () => {
     await saveMapBtn.click();
     const addLayersBtn = page.getByTestId("kartenebenen-hinzufügen-btn");
     await expect(addLayersBtn).toBeVisible();
-    // const layerTagPlayground = page.getByRole("button", {
-    //   name: "Kinderspielplätze",
-    // });
-    // await expect(layerTagPlayground).toBeVisible();
-    // const layerTagKindergarten = page.getByRole("button", {
-    //   name: "Kindertagesstätten",
-    // });
-    // await expect(layerTagKindergarten).toBeVisible();
-
     await expectLayerTagsVisible(page, layersNamesArr);
 
     // Check dialog content
@@ -630,72 +622,18 @@ test.describe("Geoportal - save map to favorite", () => {
     await expect(dialogTitle).not.toBeVisible();
 
     // close layers tags
-    // await page.locator('[id="removeLayerButton-wuppPOI\\:poi_ksp"]').click();
-    // await expect(layerTagPlayground).not.toBeVisible();
-    // await page.locator('[id="removeLayerButton-wuppPOI\\:poi_kita"]').click();
-    // await expect(layerTagKindergarten).not.toBeVisible();
-
     await expectLayerTagsNotVisibleAfterClick(page, layersNamesArr);
-
-    //const messageAlert = page.getByTestId("toast-success").last();
-    // await expect(messageAlert).toBeVisible();
-    // await expect(messageAlert).not.toBeVisible();
 
     // Go to favorites
     const favoriteBtn = page.getByText("Favoriten");
     await navigateToMapLayersDialog(page, addLayersBtn, favoriteBtn);
-    // await expect(addLayersBtn).toBeVisible();
-    // await addLayersBtn.click();
-    // await expect(favoriteBtn).toBeVisible();
-    // await favoriteBtn.click();
 
     // Load favorite map
     const kitaCardTitle = page.getByRole("heading", { name: "Kita title" });
-    // await expect(kitaCardTitle).toBeVisible({ timeout: 15000 });
-    // const loadBtn = page.getByTestId("card-layer-prev").getByRole("button");
-    // await expect(loadBtn).toBeVisible();
-    // await loadBtn.click();
-    // await expect(messageAlert).toBeVisible();
-    // await expect(messageAlert).not.toBeVisible();
-    // page.getByTestId("card-layer-prev").getByRole("button");
-    // const closeDialogBtn = page.getByRole("dialog").getByRole("button").nth(1);
-    // await expect(closeDialogBtn).toBeVisible();
-    // await closeDialogBtn.click();
-    // await expect(kitaCardTitle).not.toBeVisible();
-    // await expect(layerTagPlayground).toBeVisible();
-    // await expect(layerTagKindergarten).toBeVisible();
     await loadMapLayerAndCloseDialog(page, kitaCardTitle);
 
     // Go to favorites
-    await expect(addLayersBtn).toBeVisible();
-    await addLayersBtn.click();
-    await expect(favoriteBtn).toBeVisible();
-    await favoriteBtn.click();
-    await expect(kitaCardTitle).toBeVisible();
-    const detailsBtn = page
-      .getByTestId("card-layer-prev")
-      .locator("svg")
-      .nth(2);
-    await expect(detailsBtn).toBeVisible();
-    await detailsBtn.click();
-    const infoCard = page.getByTestId("card-layer-detailed-info");
-    await expect(infoCard).toBeVisible();
-    const removeBtn = page
-      .getByTestId("card-layer-detailed-info")
-      .getByRole("button", { name: "Löschen" });
-    await expect(removeBtn).toBeVisible();
-    await removeBtn.click();
-    // const popUpAlert = page.getByRole("heading", {
-    //   name: "Zusammenstellung Kita title",
-    // });
-    const popUpAlert = page.getByTestId("confirm-delete-collection-dialog");
-    await expect(popUpAlert).toBeVisible();
-    const confirmRemoving = page.getByTestId(
-      "confirm-delete-collection-submit"
-    );
-    expect(confirmRemoving).toBeVisible();
-    await confirmRemoving.click();
-    await expect(popUpAlert).not.toBeVisible();
-    await expect(infoCard).not.toBeVisible();
+    await navigateToMapLayersDialog(page, addLayersBtn, favoriteBtn);
+    await removeMapLayer(page);
   });
 });

@@ -60,3 +60,23 @@ export async function loadMapLayerAndCloseDialog(
   await closeDialogBtn.click();
   await expect(cardTitle).not.toBeVisible();
 }
+
+export async function removeMapLayer(page: Page) {
+  const detailsBtn = page.getByTestId("card-layer-prev").locator("svg").nth(2);
+  await expect(detailsBtn).toBeVisible();
+  await detailsBtn.click();
+  const infoCard = page.getByTestId("card-layer-detailed-info");
+  await expect(infoCard).toBeVisible();
+  const removeBtn = page
+    .getByTestId("card-layer-detailed-info")
+    .getByRole("button", { name: "Löschen" });
+  await expect(removeBtn).toBeVisible();
+  await removeBtn.click();
+  const popUpAlert = page.getByTestId("confirm-delete-collection-dialog");
+  await expect(popUpAlert).toBeVisible();
+  const confirmRemoving = page.getByTestId("confirm-delete-collection-submit");
+  expect(confirmRemoving).toBeVisible();
+  await confirmRemoving.click();
+  await expect(popUpAlert).not.toBeVisible();
+  await expect(infoCard).not.toBeVisible();
+}
