@@ -4,6 +4,7 @@ import {
   expectLayerTagsNotVisibleAfterClick,
   expectLayerTagsVisible,
   LayerName,
+  loadMapLayerAndCloseDialog,
   navigateToMapLayersDialog,
 } from "../utils/layers";
 const mapLayersResponse = {
@@ -650,19 +651,20 @@ test.describe("Geoportal - save map to favorite", () => {
 
     // Load favorite map
     const kitaCardTitle = page.getByRole("heading", { name: "Kita title" });
-    await expect(kitaCardTitle).toBeVisible({ timeout: 15000 });
-    const loadBtn = page.getByTestId("card-layer-prev").getByRole("button");
-    await expect(loadBtn).toBeVisible();
-    await loadBtn.click();
+    // await expect(kitaCardTitle).toBeVisible({ timeout: 15000 });
+    // const loadBtn = page.getByTestId("card-layer-prev").getByRole("button");
+    // await expect(loadBtn).toBeVisible();
+    // await loadBtn.click();
     // await expect(messageAlert).toBeVisible();
     // await expect(messageAlert).not.toBeVisible();
     // page.getByTestId("card-layer-prev").getByRole("button");
-    const closeDialogBtn = page.getByRole("dialog").getByRole("button").nth(1);
-    await expect(closeDialogBtn).toBeVisible();
-    await closeDialogBtn.click();
-    await expect(kitaCardTitle).not.toBeVisible();
+    // const closeDialogBtn = page.getByRole("dialog").getByRole("button").nth(1);
+    // await expect(closeDialogBtn).toBeVisible();
+    // await closeDialogBtn.click();
+    // await expect(kitaCardTitle).not.toBeVisible();
     // await expect(layerTagPlayground).toBeVisible();
     // await expect(layerTagKindergarten).toBeVisible();
+    await loadMapLayerAndCloseDialog(page, kitaCardTitle);
 
     // Go to favorites
     await expect(addLayersBtn).toBeVisible();
