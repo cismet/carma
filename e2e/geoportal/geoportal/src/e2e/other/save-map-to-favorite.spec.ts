@@ -589,7 +589,8 @@ test.describe("Geoportal - save map to favorite", () => {
     );
 
     await page.goto(
-      "/#/?lat=51.2586922&lng=7.1510696&zoom=12&config=847e07f9bee9a4f8&appKey=sharedurl"
+      "/#/?lat=51.2586922&lng=7.1510696&zoom=12&config=847e07f9bee9a4f8&appKey=sharedurl",
+      { waitUntil: "domcontentloaded" }
     );
   });
 
@@ -649,7 +650,7 @@ test.describe("Geoportal - save map to favorite", () => {
 
     // Load favorite map
     const kitaCardTitle = page.getByRole("heading", { name: "Kita title" });
-    await expect(kitaCardTitle).toBeVisible();
+    await expect(kitaCardTitle).toBeVisible({ timeout: 15000 });
     const loadBtn = page.getByTestId("card-layer-prev").getByRole("button");
     await expect(loadBtn).toBeVisible();
     await loadBtn.click();

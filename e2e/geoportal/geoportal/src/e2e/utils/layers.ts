@@ -28,7 +28,7 @@ export async function expectLayerTagsNotVisibleAfterClick(
   names: LayerName[]
 ) {
   for (const item of names) {
-    const tagId = "removeLayerButton-wuppPOI\\:" + item.tag;
+    const tagId = "removeLayerButton-wuppPOI:" + item.tag;
     await await page.locator(`[id="${tagId}"]`).click();
     await expect(layerTag(page, item.name)).not.toBeVisible();
   }
