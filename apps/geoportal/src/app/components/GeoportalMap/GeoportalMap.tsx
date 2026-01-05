@@ -157,9 +157,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const markerAsset = models[CESIUM_CONFIG.markerKey]; //
   const markerAnchorHeight = CESIUM_CONFIG.markerAnchorHeight ?? 10;
   const layers = useSelector(getLayers);
-  const maplibreMaps = layers
-    .filter((l) => l.layerType === "vector" && l.visible)
-    .map((l) => maplibreMapsRef.current.get(l.id));
+  const [maplibreMaps, setMaplibreMaps] = useState<any[]>([]);
   const uiMode = useSelector(getUIMode);
   const isModeMeasurement = uiMode === UIMode.MEASUREMENT;
   const isModeFeatureInfo = uiMode === UIMode.FEATURE_INFO;
@@ -215,6 +213,13 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
   const [shouldUpdateFeatureInfo, setShouldUpdateFeatureInfo] =
     useState<boolean>(false);
   const layersIdle = useSelector(getLayersIdle);
+
+  useEffect(() => {
+    const maps = layers
+      .filter((l) => l.layerType === "vector" && l.visible)
+      .map((l) => maplibreMapsRef.current.get(l.id));
+    setMaplibreMaps(maps);
+  }, [layers, layersIdle]);
 
   const version = getApplicationVersion(versionData);
 
@@ -471,8 +476,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
 
   useEffect(() => {
     if (isModeFeatureInfo && pos) updateFeatureInfoLeaflet();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layers]);
+  }, [layers, maplibreMaps]);
 
   useEffect(() => {
     const leaflet = getLeafletMap();
