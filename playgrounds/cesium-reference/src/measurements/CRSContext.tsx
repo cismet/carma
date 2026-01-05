@@ -10,6 +10,7 @@ import React, {
 import {
   getProj4Converter,
   type TypedConverter,
+  type ManagedProjection,
 } from "@carma-commons/geo/proj";
 
 export enum VerticalDatum {
@@ -34,9 +35,9 @@ export enum CoordinateDisplayMode {
 }
 
 interface CRSContextType {
-  geographicCRS: string;
+  geographicCRS: ManagedProjection;
   geographicCRSLabel: string;
-  cartographicCRS: string;
+  cartographicCRS: ManagedProjection;
   cartographicCRSLabel: string;
   verticalDatum: VerticalDatum;
   setVerticalDatum: Dispatch<VerticalDatum>;
@@ -50,9 +51,9 @@ const CRSContext = createContext<CRSContextType | undefined>(undefined);
 interface CRSContextProviderProps {
   children: React.ReactNode;
   coordinateDisplayMode?: CoordinateDisplayMode;
-  cartographicCRS?: string;
+  cartographicCRS?: ManagedProjection;
   cartographicCRSLabel?: string;
-  geographicCRS?: string;
+  geographicCRS?: ManagedProjection;
   geographicCRSLabel?: string;
   verticalDatum?: VerticalDatum.NHN2016;
 }
