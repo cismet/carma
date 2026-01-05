@@ -1,5 +1,18 @@
 import { useState, useEffect } from "react";
-import { MeasurementTitleProps } from "../..";
+
+type MeasurementTitleProps = {
+  title: string;
+  shapeId: number | string | symbol;
+  order: number;
+  updateTitleMeasurementById: (
+    shapeId: number | string | symbol,
+    title: string
+  ) => void;
+  setUpdateMeasurementStatus: (status: boolean) => void;
+  isCollapsed?: boolean;
+  collapsedContent?: string;
+  editable?: boolean;
+};
 
 const MeasurementTitle = ({
   title,
@@ -51,6 +64,7 @@ const MeasurementTitle = ({
   );
 };
 
+export { MeasurementTitle };
 export default MeasurementTitle;
 
 function capitalizeFirstLetter(text: string): string {

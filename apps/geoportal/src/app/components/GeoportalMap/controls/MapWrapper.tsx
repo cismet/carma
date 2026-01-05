@@ -60,14 +60,12 @@ import LayerWrapper from "../../layers/LayerWrapper.tsx";
 import useLeafletZoomControls from "../../../hooks/leaflet/useLeafletZoomControls.ts";
 import { useAppSearchParams } from "../../../hooks/useAppSearchParams";
 import { useDispatchSachdatenInfoText } from "../../../hooks/useDispatchSachdatenInfoText.ts";
-import { useFeatureInfoModeCursorStyle } from "../../../hooks/useFeatureInfoModeCursorStyle.ts";
+import { useMapModes } from "../../../hooks/useMapModes.ts";
 import { useMapStyleReduxSync } from "../../../hooks/useMapStyleReduxSync";
 import { useTourRefCollabLabels } from "../../../hooks/useTourRefCollabLabels.ts";
 import { useWindowSize } from "../../../hooks/useWindowSize.ts";
 
 import { useOblique } from "../../../oblique/hooks/useOblique.ts";
-
-import { cancelOngoingRequests } from "../topicmap.utils";
 
 import {
   setFeatures,
@@ -86,7 +84,6 @@ import {
   getUIMode,
   getZenMode,
   setZenMode,
-  toggleUIMode,
   UIMode,
 } from "../../../store/slices/ui.ts";
 
@@ -101,14 +98,6 @@ window.addEventListener("load", testGPU, false);
 const MapWrapper = () => {
   const dispatch = useDispatch();
   const flags = useFeatureFlags();
-
-  // Detect mobile device or browser's device toolbar (responsive design mode)
-  const isMobileDevice =
-    isMobile ||
-    /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
-      navigator.userAgent
-    ) ||
-    "ontouchstart" in window;
 
   const showLibreMap = flags.featureFlagLibreMap;
 
@@ -138,6 +127,8 @@ const MapWrapper = () => {
 
   const { isObliqueMode, isPreviewVisible: isObliquePreviewVisible } =
     useOblique();
+
+  const { handleToggleFeatureInfo } = useMapModes();
 
   const {
     handleZoomIn: handleZoomInCesium,
@@ -217,13 +208,6 @@ const MapWrapper = () => {
   const tourRefLabels = useTourRefCollabLabels();
   const { gazData } = useGazData();
   const { width, height } = useWindowSize(wrapperRef);
-
-  const handleToggleFeatureInfo = () => {
-    cancelOngoingRequests();
-    dispatch(toggleUIMode(UIMode.FEATURE_INFO));
-  };
-
-  useFeatureInfoModeCursorStyle();
 
   const { setSelection } = useSelection();
 
@@ -422,7 +406,7 @@ const MapWrapper = () => {
               </Tooltip>
             </Control>
           )}
-          {!isObliquePreviewVisible && !isMobileDevice && (
+          {!isObliquePreviewVisible && (
             <MeasurementControl
               position="topleft"
               order={60}

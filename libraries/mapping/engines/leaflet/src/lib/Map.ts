@@ -1,15 +1,16 @@
 // prevent namespace collisions with other mapping libraries and JavaScript built-in Map type
-import { Map as LeafletMap, LatLng } from "leaflet";
+import L from "leaflet";
 
-export { LeafletMap };
+export const LeafletMap = L.Map;
+export type LeafletMap = L.Map;
 
 export type LeafletView = {
-  center: LatLng;
+  center: L.LatLng;
   zoom: number;
 };
 
 export const isLeafletMap = (map: unknown): map is LeafletMap => {
-  return map instanceof LeafletMap;
+  return map instanceof L.Map;
 };
 
 export const getLeafletView = (leaflet: LeafletMap): LeafletView => {
