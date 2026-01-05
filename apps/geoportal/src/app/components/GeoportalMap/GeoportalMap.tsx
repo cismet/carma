@@ -789,6 +789,7 @@ export const GeoportalMap = ({ height, width, allow3d }: MapProps) => {
               store,
               zoom: getLeafletZoom(),
               map: map,
+              maplibreMapsRef,
             });
           }}
           gazetteerSearchControl={true}

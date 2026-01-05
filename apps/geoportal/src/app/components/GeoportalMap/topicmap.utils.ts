@@ -1,6 +1,7 @@
 import { createElement } from "react";
 import type { Dispatch, Store } from "@reduxjs/toolkit";
-import type { LatLng, Map, Point } from "leaflet";
+import type { LatLng, Map as LeafletMap, Point } from "leaflet";
+import type maplibregl from "maplibre-gl";
 import proj4 from "proj4";
 
 import {
@@ -46,7 +47,8 @@ type Options = {
   mode: UIMode;
   store: Store;
   zoom: number;
-  map: Map | maplibregl.Map;
+  map: LeafletMap | maplibregl.Map;
+  maplibreMapsRef?: React.MutableRefObject<Map<string, maplibregl.Map>>;
 };
 
 // TODO: move to portal lib?
@@ -70,7 +72,7 @@ export const onClickTopicMap = async (
     target?: HTMLElement;
     type?: string;
   },
-  { dispatch, mode, store, zoom, map }: Options
+  { dispatch, mode, store, zoom, map, maplibreMapsRef }: Options
 ) => {
   const layers = getLayers(store.getState());
   const queryableLayers = getQueryableLayers(layers, zoom);
@@ -79,9 +81,23 @@ export const onClickTopicMap = async (
     getAtLeastOneLayerIsQueryable(layers, zoom)
   ) {
     const completedVectorLayers = getCompletedVectorLayers(store.getState());
-    const queryableVectorLayers = queryableLayers.filter(
+    const allQueryableVectorLayers = queryableLayers.filter(
       (layer) => layer.layerType === "vector"
     );
+
+    const queryableVectorLayers = allQueryableVectorLayers.filter((layer) => {
+      if (!maplibreMapsRef?.current) {
+        return true;
+      }
+      return maplibreMapsRef.current.has(layer.id);
+    });
+
+    const vectorLayersNotReady = allQueryableVectorLayers.filter(
+      (layer) => !queryableVectorLayers.includes(layer)
+    );
+    vectorLayersNotReady.forEach((layer) => {
+      dispatch(addNothingFoundID(layer.id));
+    });
 
     // Check if all vector layers have completed loading their vector infos
     const allVectorLayersCompleted = queryableVectorLayers.every((layer) =>
