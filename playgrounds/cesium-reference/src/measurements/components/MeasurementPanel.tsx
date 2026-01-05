@@ -7,7 +7,7 @@ import React, {
   Dispatch,
   SetStateAction,
 } from "react";
-import { Cartesian3 } from "cesium";
+import { Cartesian3, Ellipsoid } from "cesium";
 import { Button, Collapse, Flex, List, theme, Typography } from "antd";
 import { PointQueryInfo } from "./PointQueryInfo";
 import TraverseTable from "./TraverseTable";
@@ -20,7 +20,7 @@ import {
 import { useCesiumMeasurements } from "../CesiumMeasurementsContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import {
-  faArrowsToDot,
+  faArrowsDownToLine,
   faCircleXmark,
   faEye,
   faEyeSlash,
@@ -31,47 +31,84 @@ import {
 import { InteractiveModeTabs } from "./InteractiveModeTabs";
 import "./MeasurementPanel.css";
 
-const renderPointItem = (
-  data: PointMeasurementEntry,
-  idx: number,
+const createPointItemRenderer = (
   clearMeasurementsByIds: (ids: string[]) => void,
-  setReferencePoint: Dispatch<SetStateAction<Cartesian3 | null>>
-) => (
-  <List.Item
-    key={data.id}
-    style={{ paddingRight: "0.5rem" }}
-    title={`${data.name || ""} (${data.id.slice(-6, -2)})`}
-  >
-    <List.Item.Meta
-      title={
-        <span style={{ padding: "0 0.3rem" }}>
-          <Button
-            icon={<FontAwesomeIcon icon={faCircleXmark} />}
-            type="text"
-            size="small"
-            onClick={() => clearMeasurementsByIds([data.id])}
-            aria-label={`Messung ${data.id} löschen`}
-          />
-          <Button
-            icon={<FontAwesomeIcon icon={faArrowsToDot} />}
-            type="text"
-            size="small"
-            onClick={() => {
-              console.debug(
-                `[MeasurementPanel] Setting reference point for ${data.id}`
-              );
-              setReferencePoint(data.geometryECEF);
-            }}
-            aria-label={`Punktreferenz`}
-          />
+  setReferencePoint: Dispatch<SetStateAction<Cartesian3 | null>>,
+  referencePoint: Cartesian3 | null
+) => {
+  return (data: PointMeasurementEntry, idx: number) => {
+    // Check if this point is currently the reference point
+    const isCurrentReference =
+      referencePoint && Cartesian3.equals(data.geometryECEF, referencePoint);
 
-          {`${data?.name ?? ""}`}
-        </span>
+    const handleDelete = () => clearMeasurementsByIds([data.id]);
+
+    const handleReference = () => {
+      if (isCurrentReference) {
+        // If already reference, set to NN height (0)
+        console.debug(
+          `[MeasurementPanel] Resetting reference point to NN height for ${data.id}`
+        );
+        const cartographic = Ellipsoid.WGS84.cartesianToCartographic(
+          data.geometryECEF
+        );
+        const nnPoint = Cartesian3.fromRadians(
+          cartographic.longitude,
+          cartographic.latitude,
+          0, // NN height = 0
+          Ellipsoid.WGS84
+        );
+        setReferencePoint(nnPoint);
+      } else {
+        // Set this point as reference
+        console.debug(
+          `[MeasurementPanel] Setting reference point for ${data.id}`
+        );
+        setReferencePoint(data.geometryECEF);
       }
-      description={<PointQueryInfo data={data} />}
-    />
-  </List.Item>
-);
+    };
+
+    return (
+      <List.Item
+        key={data.id}
+        style={{ paddingRight: "0.5rem" }}
+        title={`${data.name || ""} (${data.id.slice(-6, -2)})`}
+      >
+        <List.Item.Meta
+          title={
+            <span
+              style={{
+                padding: "0 0.3rem",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+              }}
+            >
+              <span>
+                <Button
+                  icon={<FontAwesomeIcon icon={faArrowsDownToLine} />}
+                  type="text"
+                  size="small"
+                  onClick={handleReference}
+                  aria-label={`Punktreferenz`}
+                />
+                {`${data?.name ?? ""}`}
+              </span>
+              <Button
+                icon={<FontAwesomeIcon icon={faCircleXmark} />}
+                type="text"
+                size="small"
+                onClick={handleDelete}
+                aria-label={`Messung ${data.id} löschen`}
+              />
+            </span>
+          }
+          description={<PointQueryInfo data={data} />}
+        />
+      </List.Item>
+    );
+  };
+};
 
 const renderTraverseItem = (
   data: TraverseMeasurementEntry,
@@ -102,12 +139,7 @@ interface MeasurementSectionProps {
   active: boolean;
   title: string;
   placeholder: React.ReactNode;
-  itemRenderer: (
-    item: MeasurementEntry,
-    idx: number,
-    clear: (ids: string[]) => void,
-    setReferencePoint?: Dispatch<SetStateAction<Cartesian3 | null>>
-  ) => React.ReactNode;
+  itemRenderer: (item: MeasurementEntry, idx: number) => React.ReactNode;
 }
 
 const toggleTypeInSet = (
@@ -139,6 +171,7 @@ function MeasurementSection({
     hideLabelsOfType,
     setHideLabelsOfType,
     setReferencePoint,
+    referencePoint,
   } = useCesiumMeasurements();
   const { token } = theme.useToken();
   const [expanded, setExpanded] = useState(true);
@@ -243,18 +276,7 @@ function MeasurementSection({
             </Flex>
           ),
           children: (
-            <List
-              dataSource={items}
-              renderItem={(item, idx) =>
-                itemRenderer(
-                  item,
-                  idx,
-                  clearMeasurementsByIds,
-                  setReferencePoint
-                )
-              }
-              size="small"
-            />
+            <List dataSource={items} renderItem={itemRenderer} size="small" />
           ),
         },
       ]}
@@ -264,7 +286,34 @@ function MeasurementSection({
 }
 
 export const MeasurementPanel: FC = () => {
-  const { measurementMode } = useCesiumMeasurements();
+  const {
+    measurementMode,
+    clearMeasurementsByIds,
+    setReferencePoint,
+    referencePoint,
+  } = useCesiumMeasurements();
+
+  // Create point item renderer with stable callbacks
+  const pointItemRenderer = useMemo(
+    () =>
+      createPointItemRenderer(
+        clearMeasurementsByIds,
+        setReferencePoint,
+        referencePoint
+      ),
+    [clearMeasurementsByIds, setReferencePoint, referencePoint]
+  );
+
+  // Create traverse item renderer
+  const traverseItemRenderer = useCallback(
+    (data: MeasurementEntry, idx: number) =>
+      renderTraverseItem(
+        data as TraverseMeasurementEntry,
+        idx,
+        clearMeasurementsByIds
+      ),
+    [clearMeasurementsByIds]
+  );
 
   return (
     <Flex vertical gap={2} align="end">
@@ -280,7 +329,7 @@ export const MeasurementPanel: FC = () => {
             Zum Messen auf das Stadtmodell klicken
           </>
         }
-        itemRenderer={renderPointItem}
+        itemRenderer={pointItemRenderer}
       />
       <MeasurementSection
         type={MeasurementMode.Traverse}
@@ -295,7 +344,7 @@ export const MeasurementPanel: FC = () => {
             zum Abschließen der Messung rechts klicken
           </>
         }
-        itemRenderer={renderTraverseItem}
+        itemRenderer={traverseItemRenderer}
       />
     </Flex>
   );
