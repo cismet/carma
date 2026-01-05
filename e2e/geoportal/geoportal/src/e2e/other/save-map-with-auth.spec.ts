@@ -5,6 +5,7 @@ import {
   expectLayerTagsVisible,
   layersNamesArr,
   navigateToMapLayersDialog,
+  setupCommonLayerMocks,
   urlWithMapLayers,
 } from "../utils/layers";
 
@@ -170,6 +171,7 @@ test.describe("Geoportal - Save map with authorization", () => {
   test.beforeEach(async ({ context, page }) => {
     await setupAllMocks(context);
     await mockGeoportalServices(context);
+    await setupCommonLayerMocks(page);
 
     await context.route("https://wunda-cloud-api.cismet.de/users", (route) =>
       route.fulfill({

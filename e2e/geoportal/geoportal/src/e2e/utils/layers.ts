@@ -621,7 +621,7 @@ const kitaSpritesJson = {
   },
 };
 
-export async function setupSaveMapToFavoriteMocks(page: Page) {
+export async function setupCommonLayerMocks(page: Page) {
   await page.route(
     "https://ceepr.cismet.de/config/wuppertal/_dev_geoportal/847e07f9bee9a4f8",
     async (route) => {
@@ -649,6 +649,11 @@ export async function setupSaveMapToFavoriteMocks(page: Page) {
       await route.fulfill({ json: kitaSpritesJson });
     }
   );
+}
+
+export async function setupSaveMapToFavoriteMocks(page: Page) {
+  await setupCommonLayerMocks(page);
+
   await page.route(
     "https://wunda-cloud-api.cismet.de/actions/WUNDA_BLAU.dataAquisition/tasks?resultingInstanceType=result",
     async (route) => {
