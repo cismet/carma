@@ -5,7 +5,6 @@ import {
   expectLayerTagsVisible,
   layersNamesArr,
   navigateToMapLayersDialog,
-  setupSaveMapToFavoriteMocks,
   urlWithMapLayers,
 } from "../utils/layers";
 
@@ -190,7 +189,18 @@ test.describe("Geoportal - Save map with authorization", () => {
         })
     );
 
-    await setupSaveMapToFavoriteMocks(page);
+    // Mock for fetching published maps in "Entdecken" section
+    await context.route(
+      "https://wunda-cloud-api.cismet.de/actions/WUNDA_BLAU.dataAquisition/tasks?resultingInstanceType=result",
+      async (route) => {
+        await route.fulfill({
+          json: {
+            contentType: "application/octet-stream",
+            res: '{"status":200,"md5":"test","content":"[{\\"id\\":18,\\"name\\":\\"Kita title\\",\\"config\\":\\"{\\\\\\"title\\\\\\":\\\\\\"Kita title\\\\\\",\\\\\\"description\\\\\\":\\\\\\"Test content\\\\\\",\\\\\\"type\\\\\\":\\\\\\"collection\\\\\\",\\\\\\"serviceName\\\\\\":\\\\\\"discoverPoi\\\\\\",\\\\\\"thumbnail\\\\\\":\\\\\\"https://example.com/thumb.png\\\\\\",\\\\\\"path\\\\\\":\\\\\\"\\\\\\",\\\\\\"layers\\\\\\":[]}\\",\\"draft\\":null}]"}',
+          },
+        });
+      }
+    );
 
     await page.goto(urlWithMapLayers);
   });
@@ -251,9 +261,7 @@ test.describe("Geoportal - Save map with authorization", () => {
     // Go to Entdecken
     const entdeckenBtn = page.getByText("Entdecken");
     await navigateToMapLayersDialog(page, addLayersBtn, entdeckenBtn);
-
-    // Load favorite map
-    const kitaCardTitle = page.getByRole("heading", { name: "Kita title" });
+    const kitaCardTitle = page.getByText("Kita title");
     await expect(kitaCardTitle).toBeVisible({ timeout: 15000 });
   });
 });
