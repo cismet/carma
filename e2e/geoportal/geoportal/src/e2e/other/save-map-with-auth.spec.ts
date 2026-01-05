@@ -4,7 +4,9 @@ import {
   expectLayerTagsNotVisibleAfterClick,
   expectLayerTagsVisible,
   layersNamesArr,
+  loadMapLayerAndCloseDialog,
   navigateToMapLayersDialog,
+  removeMapLayer,
   setupCommonLayerMocks,
   urlWithMapLayers,
 } from "../utils/layers";
@@ -263,7 +265,11 @@ test.describe("Geoportal - Save map with authorization", () => {
     // Go to Entdecken
     const entdeckenBtn = page.getByText("Entdecken");
     await navigateToMapLayersDialog(page, addLayersBtn, entdeckenBtn);
-    const kitaCardTitle = page.getByText("Kita title");
+    // const kitaCardTitle = page.getByText("Kita title");
+    const kitaCardTitle = page.getByRole("heading", { name: "Kita title" });
     await expect(kitaCardTitle).toBeVisible({ timeout: 15000 });
+    await loadMapLayerAndCloseDialog(page, kitaCardTitle);
+    await navigateToMapLayersDialog(page, addLayersBtn, entdeckenBtn);
+    await removeMapLayer(page);
   });
 });
