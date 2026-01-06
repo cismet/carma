@@ -66,7 +66,12 @@ const KeyTableItemForm = ({
         )
       )}
       <Space>
-        <Button type="primary" htmlType="submit" loading={saving}>
+        <Button
+          type="primary"
+          htmlType="submit"
+          loading={saving}
+          style={{ backgroundColor: "#1777ff", borderColor: "#1777ff" }}
+        >
           Speichern
         </Button>
         <Button onClick={onCancel}>Abbrechen</Button>
