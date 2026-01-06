@@ -56,6 +56,10 @@ const KeyTablesPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    console.log("xxx selectedItem", selectedItem);
+  }, [selectedItem]);
+
   // Format table name for display
   const formatTableName = (key: string) => {
     return key
@@ -188,6 +192,7 @@ const KeyTablesPage = () => {
               >
                 <Card title={formatTableName(selectedItem.tableName)}>
                   <KeyTableItemForm
+                    key={`${selectedItem.tableName}-${selectedItem.item.id}`}
                     item={selectedItem.item}
                     tableName={selectedItem.tableName}
                     onSave={handleItemSaved}

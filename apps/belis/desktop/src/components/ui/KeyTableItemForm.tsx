@@ -37,18 +37,18 @@ const KeyTableItemForm = ({
 
     console.log("xxx form value", values);
 
-    setSaving(true);
-    try {
-      const dataToSave = { ...values, id: item.id };
-      // await updateDataByClassName(jwt, tableName, dataToSave);
-      // message.success("Gespeichert");
-      onSave(dataToSave);
-    } catch (error) {
-      console.error("Save error:", error);
-      message.error("Fehler beim Speichern");
-    } finally {
-      // setSaving(false);
-    }
+    //   setSaving(true);
+    //   try {
+    //     const dataToSave = { ...values, id: item.id };
+    //     await updateDataByClassName(jwt, tableName, dataToSave);
+    //     message.success("Gespeichert");
+    //     onSave(dataToSave);
+    //   } catch (error) {
+    //     console.error("Save error:", error);
+    //     message.error("Fehler beim Speichern");
+    //   } finally {
+    //     setSaving(false);
+    //   }
   };
 
   return (
