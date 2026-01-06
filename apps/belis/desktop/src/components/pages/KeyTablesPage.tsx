@@ -54,7 +54,6 @@ const KeyTablesPage = () => {
       }
     };
     fetchData();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -114,8 +113,10 @@ const KeyTablesPage = () => {
           .key-tables-collapse .ant-collapse-item:last-child {
             border-bottom: none !important;
           }
+          .key-tables-collapse {
+            background: #ffffff !important;
+          }
         `}</style>
-        <h1 className="text-2xl font-bold mb-4">Schlüsseltabellen</h1>
 
         {loading && (
           <div className="flex justify-center items-center py-8">
@@ -140,61 +141,59 @@ const KeyTablesPage = () => {
             <div
               style={{
                 flex: selectedItem ? "0 0 40%" : "1",
-                border: "1px solid #d9d9d9",
-                borderRadius: "4px",
-                overflow: "auto",
-                maxHeight: "calc(100vh - 200px)",
+                height: "calc(100vh - 200px)",
               }}
             >
-              <Collapse
-                bordered={false}
-                expandIconPosition="start"
-                style={{ background: "#fff" }}
-                className="key-tables-collapse"
-              >
-                {Object.entries(data).map(([key, items]) => (
-                  <Panel
-                    header={
-                      <span>
-                        <strong>{formatTableName(key)}</strong>
-                        <span style={{ marginLeft: 8, color: "#8c8c8c" }}>
-                          ({Array.isArray(items) ? items.length : 0})
+              <CustomCard title="Schlüsseltabellen" style={{ height: "100%" }}>
+                <Collapse
+                  bordered={false}
+                  expandIconPosition="start"
+                  className="key-tables-collapse"
+                >
+                  {Object.entries(data).map(([key, items]) => (
+                    <Panel
+                      header={
+                        <span>
+                          <strong>{formatTableName(key)}</strong>
+                          <span style={{ marginLeft: 8, color: "#8c8c8c" }}>
+                            ({Array.isArray(items) ? items.length : 0})
+                          </span>
                         </span>
-                      </span>
-                    }
-                    key={key}
-                  >
-                    <List
-                      size="small"
-                      dataSource={Array.isArray(items) ? items : []}
-                      renderItem={(item: any) => (
-                        <List.Item
-                          style={{ paddingLeft: 24, cursor: "pointer" }}
-                          className="hover:bg-gray-100"
-                          onClick={() => handleItemClick(item, key)}
-                        >
-                          {item.bezeichnung ||
-                            item.name ||
-                            item.pk ||
-                            item.groesse ||
-                            item.lichtfarbe ||
-                            item.unterhalt_mast ||
-                            item.unterhaltspflichtiger_leuchte ||
-                            item.strasse ||
-                            item.energielieferant ||
-                            item.bezirk ||
-                            item.beschreibung ||
-                            item.kennziffer ||
-                            item.mastart ||
-                            item.klassifizierung ||
-                            JSON.stringify(item)}
-                        </List.Item>
-                      )}
-                      locale={{ emptyText: "Keine Daten" }}
-                    />
-                  </Panel>
-                ))}
-              </Collapse>
+                      }
+                      key={key}
+                    >
+                      <List
+                        size="small"
+                        dataSource={Array.isArray(items) ? items : []}
+                        renderItem={(item: any) => (
+                          <List.Item
+                            style={{ paddingLeft: 24, cursor: "pointer" }}
+                            className="hover:bg-gray-100"
+                            onClick={() => handleItemClick(item, key)}
+                          >
+                            {item.bezeichnung ||
+                              item.name ||
+                              item.pk ||
+                              item.groesse ||
+                              item.lichtfarbe ||
+                              item.unterhalt_mast ||
+                              item.unterhaltspflichtiger_leuchte ||
+                              item.strasse ||
+                              item.energielieferant ||
+                              item.bezirk ||
+                              item.beschreibung ||
+                              item.kennziffer ||
+                              item.mastart ||
+                              item.klassifizierung ||
+                              JSON.stringify(item)}
+                          </List.Item>
+                        )}
+                        locale={{ emptyText: "Keine Daten" }}
+                      />
+                    </Panel>
+                  ))}
+                </Collapse>
+              </CustomCard>
             </div>
 
             {selectedItem && (
