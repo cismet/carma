@@ -8,8 +8,14 @@ import "../styles/infoBox.css";
 import { Tooltip } from "antd";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
 import { ResponsiveInfoBox } from "@carma-appframeworks/portals";
-import { useMapMeasurementsContext } from "./MapMeasurementsProvider";
-import { InfoBoxMeasurementProps, MeasurementShape } from "../..";
+import { useMapMeasurementsContext } from "../context";
+import { MeasurementShape } from "../types/MeasurementShape";
+import { MeasurementShapeData } from "../types/MeasurementShapeData";
+import { DRAWING_SHAPE_ID } from "../utils/constants";
+
+type InfoBoxMeasurementProps = {
+  pixelWidth?: number;
+};
 
 export function InfoBoxMeasurement({
   pixelWidth = 350,
@@ -38,7 +44,7 @@ export function InfoBoxMeasurement({
   const [currentMeasure, setCurrentMeasure] = useState(0);
   const [oldDataLength, setOldDataLength] = useState(measurementsData.length);
   const [stepAfterMoveToShape, setStepAfterMoveToShape] = useState<
-    number | string | null
+    number | string | symbol | null
   >(null);
   const [stepAfterUpdating, setStepAfterUpdating] = useState(false);
   const [stepAfterCreating, setStepAfterCreating] = useState(false);
@@ -64,7 +70,7 @@ export function InfoBoxMeasurement({
   useEffect(() => {
     if (drawingMode) {
       // setLastMeasureActive();
-      setActiveShape(5555);
+      setActiveShape(DRAWING_SHAPE_ID);
       return;
     }
   }, [drawingMode]);
@@ -147,7 +153,7 @@ export function InfoBoxMeasurement({
   };
 
   const activeShapeHandler = (
-    shapeId: number | string | null
+    shapeId: number | string | symbol | null
   ): number | null => {
     let activeShapePosition: number | null = null;
     visibleShapesData.forEach((s, idx) => {
@@ -158,7 +164,9 @@ export function InfoBoxMeasurement({
     return activeShapePosition;
   };
 
-  const getPositionInAllArray = (shapeId: number | string): number | null => {
+  const getPositionInAllArray = (
+    shapeId: number | string | symbol
+  ): number | null => {
     let activeShapePosition: number | null = null;
     measurementsData.forEach((s, idx) => {
       if (s.shapeId === shapeId) {
@@ -168,9 +176,9 @@ export function InfoBoxMeasurement({
     return activeShapePosition;
   };
 
-  const getOrderOfShape = (shapeId: number | string): number => {
+  const getOrderOfShape = (shapeId: number | string | symbol): number => {
     let position: number;
-    if (shapeId === 5555) {
+    if (shapeId === DRAWING_SHAPE_ID) {
       position =
         measurementsData.length === 0 ? 1 : measurementsData.length + 1;
     } else {
@@ -183,7 +191,6 @@ export function InfoBoxMeasurement({
   const deleteShapeHandler = (e: React.MouseEvent) => {
     e.stopPropagation();
 
-    // the method activate delete process in  MapMeasurementsObjects
     setDeleteAll(true);
     // cleanUpdateMeasurementStatus();
     // setLastMeasureActive();
@@ -199,7 +206,7 @@ export function InfoBoxMeasurement({
 
   const setLastMeasureActive = () => {
     // Set activeShape (source of truth) to the last visible shape
-    if (activeShape === 5555) {
+    if (activeShape === DRAWING_SHAPE_ID) {
       return;
     }
 
@@ -218,9 +225,13 @@ export function InfoBoxMeasurement({
   };
 
   const updateTitleMeasurementById = (
-    shapeId: number | string,
+    shapeId: number | string | symbol,
     customTitle: string
   ) => {
+    if (typeof shapeId === "symbol") {
+      console.warn("Cannot update title for symbol shapeId", shapeId);
+      return;
+    }
     updateTitle(shapeId, customTitle);
   };
 
@@ -243,7 +254,7 @@ export function InfoBoxMeasurement({
               <span style={{ cursor: "pointer", width: "100%" }}>
                 <MeasurementTitle
                   key={
-                    visibleShapesData[currentMeasure].shapeId +
+                    String(visibleShapesData[currentMeasure].shapeId) +
                     visibleShapesData[currentMeasure]?.area
                   }
                   order={getOrderOfShape(
@@ -401,7 +412,9 @@ export function InfoBoxMeasurement({
   );
 }
 
-function addDefaultShapeNameToTitle(shape: MeasurementShape): string {
+function addDefaultShapeNameToTitle(
+  shape: MeasurementShape | MeasurementShapeData
+): string {
   let newShape = "Linienzug";
   if (shape.area) {
     newShape = "Fläche";

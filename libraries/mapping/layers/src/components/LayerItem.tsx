@@ -432,10 +432,7 @@ const LayerItem = ({
           open={openDeleteModal}
           onCancel={() => setOpenDeleteModal(false)}
         >
-          <div
-            data-test-id="confirm-delete-collection-dialog"
-            className="flex flex-col gap-2 p-4"
-          >
+          <div className="flex flex-col gap-2 p-4">
             <h3 className="text-lg">
               Zusammenstellung {title} wirklich löschen?
             </h3>
@@ -449,7 +446,6 @@ const LayerItem = ({
               <Button
                 danger
                 loading={loading}
-                data-test-id="confirm-delete-collection-submit"
                 onClick={() => {
                   setOpenDeleteModal(false);
                   if (layer.serviceName.includes("discover")) {

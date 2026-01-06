@@ -606,34 +606,10 @@ export const NewLibModal = ({
               );
 
               if (!layerExists) {
+                // Add layer that doesn't exist in allLayers
                 mergedCategory.layers.push(currentLayer);
               }
             });
-
-            const layersWithInsertAfterId = mergedCategory.layers.filter(
-              (layer) => layer.insertAfterId
-            );
-
-            if (layersWithInsertAfterId.length > 0) {
-              // Remove layers with insertAfterId from their current positions
-              mergedCategory.layers = mergedCategory.layers.filter(
-                (layer) => !layer.insertAfterId
-              );
-
-              layersWithInsertAfterId.forEach((layer) => {
-                const insertAfterId = layer.insertAfterId;
-                const targetIndex = mergedCategory.layers.findIndex(
-                  (l) => l.id === insertAfterId
-                );
-
-                if (targetIndex !== -1) {
-                  mergedCategory.layers.splice(targetIndex + 1, 0, layer);
-                } else {
-                  // If id doesn't exist append to the end
-                  mergedCategory.layers.push(layer);
-                }
-              });
-            }
           } else {
             // Category doesn't exist in allLayers, add the entire category
             mergedCategories.push(currentCategory);

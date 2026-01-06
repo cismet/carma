@@ -7,11 +7,8 @@ import React, {
   FC,
   Dispatch,
 } from "react";
-import {
-  getProj4Converter,
-  type TypedConverter,
-  type ManagedProjection,
-} from "@carma-commons/geo/proj";
+import proj4 from "proj4";
+import type { Converter } from "proj4/dist/lib/core";
 
 export enum VerticalDatum {
   NHN2016 = "nhn2016",
@@ -35,13 +32,13 @@ export enum CoordinateDisplayMode {
 }
 
 interface CRSContextType {
-  geographicCRS: ManagedProjection;
+  geographicCRS: string;
   geographicCRSLabel: string;
-  cartographicCRS: ManagedProjection;
+  cartographicCRS: string;
   cartographicCRSLabel: string;
   verticalDatum: VerticalDatum;
   setVerticalDatum: Dispatch<VerticalDatum>;
-  toCartographic: TypedConverter;
+  toCartographic: Converter;
   coordinateDisplayMode: CoordinateDisplayMode;
   setCoordinateDisplayMode: Dispatch<CoordinateDisplayMode>;
 }
@@ -51,9 +48,9 @@ const CRSContext = createContext<CRSContextType | undefined>(undefined);
 interface CRSContextProviderProps {
   children: React.ReactNode;
   coordinateDisplayMode?: CoordinateDisplayMode;
-  cartographicCRS?: ManagedProjection;
+  cartographicCRS?: string;
   cartographicCRSLabel?: string;
-  geographicCRS?: ManagedProjection;
+  geographicCRS?: string;
   geographicCRSLabel?: string;
   verticalDatum?: VerticalDatum.NHN2016;
 }
@@ -75,7 +72,7 @@ export const CRSContextProvider: FC<CRSContextProviderProps> = ({
     useState<CoordinateDisplayMode>(coordinateDisplayModeProp);
 
   const toCartographic = useMemo(
-    () => getProj4Converter(geographicCRS, cartographicCRS),
+    () => proj4(geographicCRS, cartographicCRS),
     [geographicCRS, cartographicCRS]
   );
 

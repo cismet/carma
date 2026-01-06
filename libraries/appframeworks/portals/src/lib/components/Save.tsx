@@ -48,11 +48,7 @@ export const Save = ({
       resetStates();
       messageApi.open({
         type: "success",
-        content: (
-          <span data-test-id="toast-success">
-            {`Karte "${title}" wurde erfolgreich gespeichert.`}
-          </span>
-        ),
+        content: `Karte "${title}" wurde erfolgreich gespeichert.`,
       });
     } catch (e) {
       messageApi.open({

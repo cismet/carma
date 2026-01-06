@@ -246,7 +246,6 @@ const InfoCard = ({
     <div
       className="w-full h-full sm:h-[400px] px-6 pt-6 pb-2 shadow-sm hover:!shadow-lg rounded-lg bg-blue-50 col-span-full max-w-full overflow-x-auto"
       style={{ maxWidth: "100vw" }}
-      data-test-id="card-layer-detailed-info"
     >
       {contextHolder}
       <div className="flex h-full flex-col justify-between">

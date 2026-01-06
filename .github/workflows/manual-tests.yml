@@ -23,14 +23,10 @@ on:
         required: false
         type: boolean
         default: false
-      single-test:
-        description: "Run single test (enter test file name)"
-        required: false
-        type: string
 
 jobs:
   e2e:
-    name: "E2E Tests: ${{ github.event.inputs['project-name'] }}${{ github.event.inputs['single-test'] != '' && format(' ({0})', github.event.inputs['single-test']) || '' }}"
+    name: "E2E Tests: ${{ github.event.inputs['project-name'] }}"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repository
@@ -75,42 +71,36 @@ jobs:
         run: npm install
 
       - name: Run E2E tests
-        if: github.event.inputs.single-test != '' || github.event.inputs.live == 'true' || github.event.inputs.smoke == 'true' || github.event.inputs.flaky == 'true'
+        if: github.event.inputs.live == 'true' || github.event.inputs.smoke == 'true' || github.event.inputs.flaky == 'true'
         run: |
           set -o pipefail
 
           # Build grep pattern dynamically based on selected inputs
           GREP_PATTERN=""
 
-          # Priority: single-test overrides all checkboxes
-          if [ -n "${{ github.event.inputs.single-test }}" ]; then
-            GREP_PATTERN="${{ github.event.inputs.single-test }}"
-          else
-            # Existing checkbox logic
-            if [ "${{ github.event.inputs.live }}" == "true" ]; then
-              GREP_PATTERN="${GREP_PATTERN}live/"
-            fi
+          if [ "${{ github.event.inputs.live }}" == "true" ]; then
+            GREP_PATTERN="${GREP_PATTERN}live/"
+          fi
 
-            if [ "${{ github.event.inputs.smoke }}" == "true" ]; then
-              if [ -n "$GREP_PATTERN" ]; then
-                GREP_PATTERN="${GREP_PATTERN}|smoke/"
-              else
-                GREP_PATTERN="smoke/"
-              fi
+          if [ "${{ github.event.inputs.smoke }}" == "true" ]; then
+            if [ -n "$GREP_PATTERN" ]; then
+              GREP_PATTERN="${GREP_PATTERN}|smoke/"
+            else
+              GREP_PATTERN="smoke/"
             fi
+          fi
 
-            if [ "${{ github.event.inputs.flaky }}" == "true" ]; then
-              if [ -n "$GREP_PATTERN" ]; then
-                GREP_PATTERN="${GREP_PATTERN}|flaky/"
-              else
-                GREP_PATTERN="flaky/"
-              fi
+          if [ "${{ github.event.inputs.flaky }}" == "true" ]; then
+            if [ -n "$GREP_PATTERN" ]; then
+              GREP_PATTERN="${GREP_PATTERN}|flaky/"
+            else
+              GREP_PATTERN="flaky/"
             fi
+          fi
 
-            # Fallback to all test types if none selected
-            if [ -z "$GREP_PATTERN" ]; then
-              GREP_PATTERN="/"
-            fi
+          # Fallback to all test types if none selected
+          if [ -z "$GREP_PATTERN" ]; then
+            GREP_PATTERN="/"
           fi
 
           echo "Running tests with pattern: $GREP_PATTERN"
@@ -119,8 +109,12 @@ jobs:
         if: failure() && !cancelled()
         run: |
           echo "Full test_output.log:"
+          # grep -A20 "failed" test_output.log | grep -o "[a-zA-Z0-9_-]*\.spec\.ts" | sort -u
+          grep -A20 "failed" test_output.log | grep -B20 "flaky" | sed '$d' | grep -o "[a-zA-Z0-9_-]*\.spec\.ts" | sort -u
           # Simple failed test extraction
-          FAILED_TESTS=$(grep "Error" test_output.log 2>/dev/null | grep -oE '[^/ ]+\.spec\.ts' | sort -u | tr '\n' ',' | sed 's/,$//' | sed 's/,/, /g')
+          FAILED_TESTS=$(grep -o "[a-zA-Z0-9_-]*\.spec\.ts" test_output.log 2>/dev/null | sort -u | tr '\n' ',' | sed 's/,$//' | sed 's/,/, /g')
+          # FAILED_TESTS=$(grep -A20 "failed" test_output.log | grep -B20 "flaky" | sed '$d' | grep -o "[a-zA-Z0-9_-]*\.spec\.ts" | sort -u | tr '\n' ',' | sed 's/,$//' | sed 's/,/, /g')
+
           # Create grep pattern from failed tests (fallback to live/ if no tests found)
           if [ -n "$FAILED_TESTS" ]; then
             GREP_PATTERN=$(echo "$FAILED_TESTS" | sed 's/, /|/g')

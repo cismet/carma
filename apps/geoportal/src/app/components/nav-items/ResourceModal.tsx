@@ -130,11 +130,7 @@ const ResourceModal = () => {
           }
           messageApi.open({
             type: "success",
-            content: (
-              <span data-test-id="toast-success">
-                {`${layer.title} wurde erfolgreich geladen.`}
-              </span>
-            ),
+            content: `${layer.title} wurde erfolgreich geladen.`,
           });
         } catch {
           messageApi.open({
@@ -154,11 +150,7 @@ const ResourceModal = () => {
         dispatch(updateInfoElementsAfterRemovingFeature(id));
         messageApi.open({
           type: "success",
-          content: (
-            <span data-test-id="toast-success">
-              {`${layer.title} wurde erfolgreich entfernt.`}
-            </span>
-          ),
+          content: `${layer.title} wurde erfolgreich entfernt.`,
         });
       } catch {
         messageApi.open({
@@ -179,11 +171,7 @@ const ResourceModal = () => {
         if (!previewLayer) {
           messageApi.open({
             type: "success",
-            content: (
-              <span data-test-id="toast-success">
-                {`${layer.title} wurde erfolgreich hinzugefügt.`}
-              </span>
-            ),
+            content: `${layer.title} wurde erfolgreich hinzugefügt.`,
           });
         }
       } catch {

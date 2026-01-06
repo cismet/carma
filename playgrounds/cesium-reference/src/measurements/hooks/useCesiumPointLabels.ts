@@ -101,22 +101,24 @@ export const useCesiumPointLabels = (
       }
     };
 
-    // Check visibility and occlusion when camera stops moving (not every frame)
-    // This matches the polyline behavior and prevents competition with tileset rendering
-    const removeMoveEndListener = viewer.camera.moveEnd.addEventListener(
+    // Check visibility and occlusion on camera movement
+    const removeListener = viewer.scene.preRender.addEventListener(
       checkVisibilityAndOcclusion
     );
 
-    // Initial check
-    checkVisibilityAndOcclusion();
-
     return () => {
-      if (removeMoveEndListener) {
-        removeMoveEndListener();
+      if (removeListener) {
+        removeListener();
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [viewer, points, showLabels, cameraPitch]);
+  }, [
+    viewer,
+    points,
+    showLabels,
+    occlusionResults,
+    hiddenResults,
+    cameraPitch,
+  ]);
 
   // Transform measurement points to point label data
   const pointLabelData: PointLabelData[] = useMemo(
