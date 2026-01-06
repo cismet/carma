@@ -140,8 +140,8 @@ const KeyTablesPage = () => {
           <div className="flex gap-4">
             <div
               style={{
-                flex: selectedItem ? "0 0 40%" : "1",
-                height: "calc(100vh - 200px)",
+                flex: selectedItem ? "0 0 20%" : "1",
+                height: "calc(100vh - 100px)",
               }}
             >
               <CustomCard title="Schlüsseltabellen" style={{ height: "100%" }}>
@@ -199,16 +199,16 @@ const KeyTablesPage = () => {
             {selectedItem && (
               <div
                 style={{
-                  flex: "0 0 58%",
-                  height: "calc(100vh - 200px)",
+                  flex: "0 0 79%",
+                  height: "calc(100vh - 100px)",
                 }}
               >
                 <CustomCard
                   title={formatTableName(selectedItem.tableName)}
                   style={{ height: "100%" }}
                 >
-                  <div className="flex items-center h-full w-full">
-                    <div className="w-full">
+                  <div className="flex items-center h-full">
+                    <div className="w-full p-3">
                       <KeyTableItemForm
                         key={`${selectedItem.tableName}-${selectedItem.item.id}`}
                         item={selectedItem.item}
