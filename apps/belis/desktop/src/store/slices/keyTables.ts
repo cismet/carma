@@ -5,6 +5,7 @@ const initialState = {
   data: {} as Record<string, unknown[]>,
   errors: {} as Record<string, string>,
   loading: false,
+  fetched: false,
 };
 
 const slice = createSlice({
@@ -13,6 +14,7 @@ const slice = createSlice({
   reducers: {
     setKeyTablesData(state, action) {
       state.data = action.payload;
+      state.fetched = true;
     },
     setKeyTablesErrors(state, action) {
       state.errors = action.payload;
@@ -31,3 +33,4 @@ export const { setKeyTablesData, setKeyTablesErrors, setKeyTablesLoading } =
 export const getKeyTablesData = (state: RootState) => state.keyTables.data;
 export const getKeyTablesErrors = (state: RootState) => state.keyTables.errors;
 export const getKeyTablesLoading = (state: RootState) => state.keyTables.loading;
+export const getKeyTablesFetched = (state: RootState) => state.keyTables.fetched;

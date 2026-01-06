@@ -11,6 +11,7 @@ import {
   getKeyTablesData,
   getKeyTablesErrors,
   getKeyTablesLoading,
+  getKeyTablesFetched,
 } from "../../store/slices/keyTables";
 
 const KeyTablesPage = () => {
@@ -20,19 +21,29 @@ const KeyTablesPage = () => {
   const data = useSelector(getKeyTablesData);
   const errors = useSelector(getKeyTablesErrors);
   const loading = useSelector(getKeyTablesLoading);
+  const fetched = useSelector(getKeyTablesFetched);
 
   useEffect(() => {
+    if (fetched) return;
+
     const fetchData = async () => {
+      if (!storedJWT) return;
+
       dispatch(setKeyTablesLoading(true));
-      const { data, errors } = await fetchAllKeyTables(storedJWT);
-      dispatch(setKeyTablesData(data));
-      dispatch(setKeyTablesErrors(errors));
-      dispatch(setKeyTablesLoading(false));
-      console.log("data", data);
-      console.log("errors", errors);
+      try {
+        const { data, errors } = await fetchAllKeyTables(storedJWT);
+        dispatch(setKeyTablesData(data));
+        dispatch(setKeyTablesErrors(errors));
+        console.log("data", data);
+        console.log("errors", errors);
+      } catch (error) {
+        console.error("Failed to fetch key tables:", error);
+      } finally {
+        dispatch(setKeyTablesLoading(false));
+      }
     };
     fetchData();
-  }, [storedJWT, dispatch]);
+  }, []);
 
   return (
     <>
