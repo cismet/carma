@@ -2,7 +2,7 @@ import { Tooltip } from "antd";
 import { LogoutOutlined } from "@ant-design/icons";
 import { getLogin, storeJWT, storeLogin } from "../../store/slices/auth";
 import { useSelector, useDispatch } from "react-redux";
-import { Link, useNavigate } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import SettingsUi from "../ui/SettingsUi";
 import Filter from "../ui/Filter";
 
@@ -14,12 +14,29 @@ const TopNavbar = ({ innerRef }) => {
   return (
     <div className="flex items-center  mx-3 mb-4 mt-2" ref={innerRef}>
       <div className="flex items-center gap-4">
-        <Link to="/" className="text-sm hover:text-blue-600">
+        <NavLink
+          to="/"
+          end
+          className={({ isActive }) =>
+            `text-sm hover:text-blue-600 ${isActive ? "font-semibold" : ""}`
+          }
+          style={({ isActive }) => ({
+            color: isActive ? "#1777ff" : undefined,
+          })}
+        >
           Karte
-        </Link>
-        <Link to="/key-tables" className="text-sm hover:text-blue-600">
+        </NavLink>
+        <NavLink
+          to="/key-tables"
+          className={({ isActive }) =>
+            `text-sm hover:text-blue-600 ${isActive ? "font-semibold" : ""}`
+          }
+          style={({ isActive }) => ({
+            color: isActive ? "#1777ff" : undefined,
+          })}
+        >
           Schlüsseltabellen
-        </Link>
+        </NavLink>
       </div>
       <div className="ml-auto flex items-center gap-2">
         <Tooltip title="Ausloggen" placement="right">
