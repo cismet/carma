@@ -60,6 +60,20 @@ const KeyTablesPage = () => {
     console.log("xxx selectedItem", selectedItem);
   }, [selectedItem]);
 
+  // Select first item by default when data loads
+  useEffect(() => {
+    if (Object.keys(data).length > 0 && !selectedItem) {
+      const firstTableKey = Object.keys(data)[0];
+      const firstTableItems = data[firstTableKey];
+      if (Array.isArray(firstTableItems) && firstTableItems.length > 0) {
+        setSelectedItem({
+          item: firstTableItems[0] as Record<string, unknown>,
+          tableName: firstTableKey,
+        });
+      }
+    }
+  }, [data]);
+
   // Format table name for display
   const formatTableName = (key: string) => {
     return key
