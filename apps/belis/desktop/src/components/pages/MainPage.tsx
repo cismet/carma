@@ -1,26 +1,26 @@
 import { useContext, useEffect, useRef } from "react";
-import BelisMapLibWrapper from "./commons/BelisMapWrapper";
+import BelisMapLibWrapper from "../commons/BelisMapWrapper";
 import { useSelector, useDispatch } from "react-redux";
-import { getJWT } from "../store/slices/auth";
-import { CustomCard } from "./commons/CustomCard";
-import TopNavbar from "./commons/TopNavbar";
+import { getJWT } from "../../store/slices/auth";
+import { CustomCard } from "../commons/CustomCard";
+import TopNavbar from "../commons/TopNavbar";
 import useComponentSize from "@rehooks/component-size";
 import { useWindowSize } from "@react-hook/window-size";
-import { getIsMenuCollapsed } from "../store/slices/ui";
+import { getIsMenuCollapsed } from "../../store/slices/ui";
 import {
   BelisSwitch,
   loadObjectsIntoFeatureCollection,
 } from "@carma-appframeworks/belis";
-import { AppDispatch } from "../store";
+import { AppDispatch } from "../../store";
 import {
   getFilter,
   isInFocusMode,
   setDone,
   setFeatureCollection,
   setFocusModeActive,
-} from "../store/slices/featureCollection";
+} from "../../store/slices/featureCollection";
 import { TopicMapContext } from "react-cismap/contexts/TopicMapContextProvider";
-import { DOMAIN, REST_SERVICE } from "../constants/belis";
+import { DOMAIN, REST_SERVICE } from "../../constants/belis";
 import type { UnknownAction } from "redux";
 import {
   getZoom,
@@ -31,8 +31,8 @@ import {
   setPaleModeActive,
   setSearchMode,
   setWishedSearchMode,
-} from "../store/slices/mapSettings";
-import Filter from "./ui/Filter";
+} from "../../store/slices/mapSettings";
+import Filter from "../ui/Filter";
 
 const MainPage = () => {
   const dispatch: AppDispatch = useDispatch();

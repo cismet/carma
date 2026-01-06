@@ -12,7 +12,7 @@ import store from "./store";
 import persistStore from "redux-persist/es/persistStore";
 import { PersistGate } from "redux-persist/integration/react";
 import TopicMapContextProvider from "react-cismap/contexts/TopicMapContextProvider";
-import MainPage from "./components/MainPage";
+import MainPage from "./components/pages/MainPage";
 import KeyTablesPage from "./components/pages/KeyTablesPage";
 import { checkJWTValidation, getJWT } from "./store/slices/auth";
 import type { UnknownAction } from "redux";
