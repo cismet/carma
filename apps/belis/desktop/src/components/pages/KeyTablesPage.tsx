@@ -13,6 +13,10 @@ import {
   getKeyTablesLoading,
   getKeyTablesFetched,
 } from "../../store/slices/keyTables";
+import { Collapse, List, Spin, Alert } from "antd";
+import { FolderOutlined, FileOutlined } from "@ant-design/icons";
+
+const { Panel } = Collapse;
 
 const KeyTablesPage = () => {
   const refUpperToolbar = useRef(null);
@@ -43,13 +47,105 @@ const KeyTablesPage = () => {
       }
     };
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Format table name for display
+  const formatTableName = (key: string) => {
+    return key
+      .replace(/([A-Z])/g, " $1")
+      .replace(/^./, (str) => str.toUpperCase())
+      .trim();
+  };
 
   return (
     <>
       <TopNavbar innerRef={refUpperToolbar} />
       <div className="mx-3 mt-1">
-        <h1 className="text-2xl font-bold">Key table</h1>
+        <h1 className="text-2xl font-bold mb-4">Schlüsseltabellen</h1>
+
+        {loading && (
+          <div className="flex justify-center items-center py-8">
+            <Spin size="large" tip="Laden..." />
+          </div>
+        )}
+
+        {!loading && Object.keys(errors).length > 0 && (
+          <Alert
+            message="Fehler beim Laden"
+            description={`Einige Tabellen konnten nicht geladen werden: ${Object.keys(
+              errors
+            ).join(", ")}`}
+            type="warning"
+            showIcon
+            className="mb-4"
+          />
+        )}
+
+        {!loading && Object.keys(data).length > 0 && (
+          <div
+            style={{
+              border: "1px solid #d9d9d9",
+              borderRadius: "4px",
+              overflow: "auto",
+              maxHeight: "calc(100vh - 200px)",
+            }}
+          >
+            <Collapse
+              bordered={false}
+              expandIconPosition="start"
+              style={{ background: "#fff" }}
+            >
+              {Object.entries(data).map(([key, items]) => (
+                <Panel
+                  header={
+                    <span>
+                      <FolderOutlined style={{ marginRight: 8, color: "#1890ff" }} />
+                      <strong>{formatTableName(key)}</strong>
+                      <span style={{ marginLeft: 8, color: "#8c8c8c" }}>
+                        ({Array.isArray(items) ? items.length : 0})
+                      </span>
+                    </span>
+                  }
+                  key={key}
+                >
+                  <List
+                    size="small"
+                    dataSource={Array.isArray(items) ? items : []}
+                    renderItem={(item: any) => (
+                      <List.Item style={{ paddingLeft: 24 }}>
+                        <FileOutlined
+                          style={{ marginRight: 8, color: "#52c41a" }}
+                        />
+                        {item.id !== undefined && (
+                          <span style={{ marginRight: 8, fontWeight: 500 }}>
+                            {item.id} -
+                          </span>
+                        )}
+                        {item.bezeichnung ||
+                          item.name ||
+                          item.pk ||
+                          item.groesse ||
+                          item.lichtfarbe ||
+                          item.unterhalt_mast ||
+                          item.unterhaltspflichtiger_leuchte ||
+                          item.strasse ||
+                          item.energielieferant ||
+                          item.bezirk ||
+                          item.beschreibung ||
+                          item.kennziffer ||
+                          item.mastart ||
+                          item.klassifizierung ||
+                          JSON.stringify(item)}
+                      </List.Item>
+                    )}
+                    locale={{ emptyText: "Keine Daten" }}
+                  />
+                </Panel>
+              ))}
+            </Collapse>
+          </div>
+        )}
       </div>
     </>
   );
