@@ -4,20 +4,35 @@ import { fetchAllKeyTables } from "../../helper/apiMethods";
 import { AppDispatch } from "../../store";
 import { useDispatch, useSelector } from "react-redux";
 import { getJWT } from "../../store/slices/auth";
+import {
+  setKeyTablesData,
+  setKeyTablesErrors,
+  setKeyTablesLoading,
+  getKeyTablesData,
+  getKeyTablesErrors,
+  getKeyTablesLoading,
+} from "../../store/slices/keyTables";
 
 const KeyTablesPage = () => {
-  let refUpperToolbar = useRef(null);
+  const refUpperToolbar = useRef(null);
   const dispatch: AppDispatch = useDispatch();
   const storedJWT = useSelector(getJWT);
+  const data = useSelector(getKeyTablesData);
+  const errors = useSelector(getKeyTablesErrors);
+  const loading = useSelector(getKeyTablesLoading);
 
   useEffect(() => {
     const fetchData = async () => {
+      dispatch(setKeyTablesLoading(true));
       const { data, errors } = await fetchAllKeyTables(storedJWT);
+      dispatch(setKeyTablesData(data));
+      dispatch(setKeyTablesErrors(errors));
+      dispatch(setKeyTablesLoading(false));
       console.log("data", data);
       console.log("errors", errors);
     };
     fetchData();
-  }, [storedJWT]);
+  }, [storedJWT, dispatch]);
 
   return (
     <>
