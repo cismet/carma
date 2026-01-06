@@ -140,7 +140,9 @@ const KeyTablesPage = () => {
           <div className="flex gap-4">
             <div
               style={{
-                flex: selectedItem ? "0 0 20%" : "1",
+                width: selectedItem ? "250px" : "100%",
+                minWidth: selectedItem ? "250px" : undefined,
+                flexShrink: 0,
                 height: "calc(100vh - 100px)",
               }}
             >
@@ -199,8 +201,9 @@ const KeyTablesPage = () => {
             {selectedItem && (
               <div
                 style={{
-                  flex: "0 0 79%",
+                  flex: 1,
                   height: "calc(100vh - 100px)",
+                  minWidth: 0,
                 }}
               >
                 <CustomCard
