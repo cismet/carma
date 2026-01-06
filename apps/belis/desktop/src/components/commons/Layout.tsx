@@ -5,7 +5,7 @@ const Layout = () => {
   return (
     <div className="bg-[#F1F1F1] flex justify-between w-full h-full min-h-screen overflow-clip">
       {/* <SidebarMenu /> */}
-      <div>
+      <div className="w-full">
         <Outlet />
       </div>
     </div>
