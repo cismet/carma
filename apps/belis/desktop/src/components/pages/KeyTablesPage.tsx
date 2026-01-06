@@ -208,13 +208,17 @@ const KeyTablesPage = () => {
                   title={formatTableName(selectedItem.tableName)}
                   style={{ height: "100%" }}
                 >
-                  <KeyTableItemForm
-                    key={`${selectedItem.tableName}-${selectedItem.item.id}`}
-                    item={selectedItem.item}
-                    tableName={selectedItem.tableName}
-                    onSave={handleItemSaved}
-                    onCancel={() => setSelectedItem(null)}
-                  />
+                  <div className="flex items-center h-full w-full">
+                    <div className="w-full">
+                      <KeyTableItemForm
+                        key={`${selectedItem.tableName}-${selectedItem.item.id}`}
+                        item={selectedItem.item}
+                        tableName={selectedItem.tableName}
+                        onSave={handleItemSaved}
+                        onCancel={() => setSelectedItem(null)}
+                      />
+                    </div>
+                  </div>
                 </CustomCard>
               </div>
             )}
