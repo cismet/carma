@@ -2,7 +2,7 @@ import { Tooltip } from "antd";
 import { LogoutOutlined } from "@ant-design/icons";
 import { getLogin, storeJWT, storeLogin } from "../../store/slices/auth";
 import { useSelector, useDispatch } from "react-redux";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import SettingsUi from "../ui/SettingsUi";
 import Filter from "../ui/Filter";
 
@@ -13,6 +13,14 @@ const TopNavbar = ({ innerRef }) => {
 
   return (
     <div className="flex items-center  mx-3 mb-4 mt-2" ref={innerRef}>
+      <div className="flex items-center gap-4">
+        <Link to="/" className="text-sm hover:text-blue-600">
+          Karte
+        </Link>
+        <Link to="/key-tables" className="text-sm hover:text-blue-600">
+          Schlüsseltabellen
+        </Link>
+      </div>
       <div className="ml-auto flex items-center gap-2">
         <Tooltip title="Ausloggen" placement="right">
           <LogoutOutlined
