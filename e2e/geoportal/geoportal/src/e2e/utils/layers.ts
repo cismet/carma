@@ -38,7 +38,7 @@ export async function expectLayerTagsNotVisibleAfterClick(
 ) {
   for (const item of names) {
     const tagId = "removeLayerButton-wuppPOI:" + item.tag;
-    await await page.locator(`[id="${tagId}"]`).click();
+    await page.locator(`[id="${tagId}"]`).click();
     await expect(layerTag(page, item.name)).not.toBeVisible();
   }
 }
@@ -84,7 +84,7 @@ export async function removeMapLayer(page: Page) {
   const popUpAlert = page.getByTestId("confirm-delete-collection-dialog");
   await expect(popUpAlert).toBeVisible({ timeout: 15000 });
   const confirmRemoving = page.getByTestId("confirm-delete-collection-submit");
-  expect(confirmRemoving).toBeVisible();
+  await expect(confirmRemoving).toBeVisible();
   await confirmRemoving.click();
   await expect(popUpAlert).not.toBeVisible({ timeout: 15000 });
   await expect(infoCard).not.toBeVisible({ timeout: 15000 });

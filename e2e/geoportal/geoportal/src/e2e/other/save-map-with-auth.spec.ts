@@ -206,7 +206,7 @@ test.describe("Geoportal - Save map with authorization", () => {
       }
     );
 
-    await page.goto(urlWithMapLayers);
+    await page.goto(urlWithMapLayers, { waitUntil: "domcontentloaded" });
   });
 
   test("Save map with authorization", async ({ page }) => {
