@@ -22,8 +22,8 @@ export const CustomCard = ({
       style={style}
       bodyStyle={{
         overflowY: "auto",
+        overflowX: "hidden",
         maxHeight: fullHeight ? "100%" : "calc(100% - 40px)",
-        overflowX: "clip",
         height: "100%",
       }}
       title={<span className="text-lg">{title}</span>}
