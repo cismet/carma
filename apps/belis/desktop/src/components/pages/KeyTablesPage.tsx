@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import TopNavbar from "../commons/TopNavbar";
 import { fetchAllKeyTables } from "../../helper/apiMethods";
 import { AppDispatch } from "../../store";
@@ -13,9 +13,15 @@ import {
   getKeyTablesLoading,
   getKeyTablesFetched,
 } from "../../store/slices/keyTables";
-import { Collapse, List, Spin, Alert } from "antd";
+import { Collapse, List, Spin, Alert, Card } from "antd";
+import KeyTableItemForm from "../ui/KeyTableItemForm";
 
 const { Panel } = Collapse;
+
+interface SelectedItem {
+  item: Record<string, unknown>;
+  tableName: string;
+}
 
 const KeyTablesPage = () => {
   const refUpperToolbar = useRef(null);
@@ -25,6 +31,7 @@ const KeyTablesPage = () => {
   const errors = useSelector(getKeyTablesErrors);
   const loading = useSelector(getKeyTablesLoading);
   const fetched = useSelector(getKeyTablesFetched);
+  const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(null);
 
   useEffect(() => {
     if (fetched) return;
@@ -55,6 +62,26 @@ const KeyTablesPage = () => {
       .replace(/([A-Z])/g, " $1")
       .replace(/^./, (str) => str.toUpperCase())
       .trim();
+  };
+
+  const handleItemClick = (item: unknown, tableName: string) => {
+    setSelectedItem({ item: item as Record<string, unknown>, tableName });
+  };
+
+  const handleItemSaved = (updatedItem: Record<string, unknown>) => {
+    if (!selectedItem) return;
+
+    const newData = { ...data };
+    const tableData = [...(newData[selectedItem.tableName] as unknown[])];
+    const index = tableData.findIndex(
+      (i: unknown) => (i as Record<string, unknown>).id === updatedItem.id
+    );
+    if (index !== -1) {
+      tableData[index] = updatedItem;
+      newData[selectedItem.tableName] = tableData;
+      dispatch(setKeyTablesData(newData));
+    }
+    setSelectedItem(null);
   };
 
   return (
@@ -90,64 +117,85 @@ const KeyTablesPage = () => {
         )}
 
         {!loading && Object.keys(data).length > 0 && (
-          <div
-            style={{
-              border: "1px solid #d9d9d9",
-              borderRadius: "4px",
-              overflow: "auto",
-              maxHeight: "calc(100vh - 200px)",
-            }}
-          >
-            <Collapse
-              bordered={false}
-              expandIconPosition="start"
-              style={{ background: "#fff" }}
-              className="key-tables-collapse"
+          <div className="flex gap-4">
+            <div
+              style={{
+                flex: selectedItem ? "0 0 40%" : "1",
+                border: "1px solid #d9d9d9",
+                borderRadius: "4px",
+                overflow: "auto",
+                maxHeight: "calc(100vh - 200px)",
+              }}
             >
-              {Object.entries(data).map(([key, items]) => (
-                <Panel
-                  header={
-                    <span>
-                      <strong>{formatTableName(key)}</strong>
-                      <span style={{ marginLeft: 8, color: "#8c8c8c" }}>
-                        ({Array.isArray(items) ? items.length : 0})
+              <Collapse
+                bordered={false}
+                expandIconPosition="start"
+                style={{ background: "#fff" }}
+                className="key-tables-collapse"
+              >
+                {Object.entries(data).map(([key, items]) => (
+                  <Panel
+                    header={
+                      <span>
+                        <strong>{formatTableName(key)}</strong>
+                        <span style={{ marginLeft: 8, color: "#8c8c8c" }}>
+                          ({Array.isArray(items) ? items.length : 0})
+                        </span>
                       </span>
-                    </span>
-                  }
-                  key={key}
-                >
-                  <List
-                    size="small"
-                    dataSource={Array.isArray(items) ? items : []}
-                    renderItem={(item: any) => (
-                      <List.Item style={{ paddingLeft: 24 }}>
-                        {/* {item.id !== undefined && (
-                          <span style={{ marginRight: 8, fontWeight: 500 }}>
-                            {item.id} -
-                          </span>
-                        )} */}
-                        {item.bezeichnung ||
-                          item.name ||
-                          item.pk ||
-                          item.groesse ||
-                          item.lichtfarbe ||
-                          item.unterhalt_mast ||
-                          item.unterhaltspflichtiger_leuchte ||
-                          item.strasse ||
-                          item.energielieferant ||
-                          item.bezirk ||
-                          item.beschreibung ||
-                          item.kennziffer ||
-                          item.mastart ||
-                          item.klassifizierung ||
-                          JSON.stringify(item)}
-                      </List.Item>
-                    )}
-                    locale={{ emptyText: "Keine Daten" }}
+                    }
+                    key={key}
+                  >
+                    <List
+                      size="small"
+                      dataSource={Array.isArray(items) ? items : []}
+                      renderItem={(item: any) => (
+                        <List.Item
+                          style={{ paddingLeft: 24, cursor: "pointer" }}
+                          className="hover:bg-gray-100"
+                          onClick={() => handleItemClick(item, key)}
+                        >
+                          {item.bezeichnung ||
+                            item.name ||
+                            item.pk ||
+                            item.groesse ||
+                            item.lichtfarbe ||
+                            item.unterhalt_mast ||
+                            item.unterhaltspflichtiger_leuchte ||
+                            item.strasse ||
+                            item.energielieferant ||
+                            item.bezirk ||
+                            item.beschreibung ||
+                            item.kennziffer ||
+                            item.mastart ||
+                            item.klassifizierung ||
+                            JSON.stringify(item)}
+                        </List.Item>
+                      )}
+                      locale={{ emptyText: "Keine Daten" }}
+                    />
+                  </Panel>
+                ))}
+              </Collapse>
+            </div>
+
+            {selectedItem && (
+              <div
+                style={{
+                  flex: "0 0 58%",
+                  maxHeight: "calc(100vh - 200px)",
+                  overflow: "auto",
+                }}
+              >
+                <Card title={formatTableName(selectedItem.tableName)}>
+                  <KeyTableItemForm
+                    item={selectedItem.item}
+                    tableName={selectedItem.tableName}
+                    onSave={handleItemSaved}
+                    onCancel={() => setSelectedItem(null)}
                   />
-                </Panel>
-              ))}
-            </Collapse>
+                </Card>
+              </div>
+            )}
           </div>
         )}
       </div>
