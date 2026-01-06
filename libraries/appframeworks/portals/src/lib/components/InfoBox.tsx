@@ -193,24 +193,22 @@ export const InfoBox = ({
     <table style={{ width: "100%" }}>
       <tbody>
         <tr>
-          {typeof header === "string" && isHtmlString(header) ? (
-            parseHtml(header)
-          ) : (
-            <td
-              style={{
-                textAlign: "left",
-                verticalAlign: "top",
-                background: headerBackgroundColor,
-                color: textColor,
-                opacity: "0.9",
-                paddingLeft: "3px",
-                paddingTop: "0px",
-                paddingBottom: "0px",
-              }}
-            >
-              {header}
-            </td>
-          )}
+          <td
+            style={{
+              textAlign: "left",
+              verticalAlign: "top",
+              background: headerBackgroundColor,
+              color: textColor,
+              opacity: "0.9",
+              paddingLeft: "3px",
+              paddingTop: "0px",
+              paddingBottom: "0px",
+            }}
+          >
+            {typeof header === "string" && isHtmlString(header)
+              ? parseHtml(header)
+              : header}
+          </td>
         </tr>
       </tbody>
     </table>
