@@ -934,3 +934,50 @@ export const fetchAllInfobausteinTemplate = async (jwt: string) => {
 
   return json.data?.infobaustein_template ?? [];
 };
+
+export const fetchAllKeyTables = async (jwt: string) => {
+  const fetchConfigs = [
+    { key: "bauart", fetch: fetchAllBauart },
+    { key: "teams", fetch: fetchAllTeams },
+    { key: "querschnitt", fetch: fetchAllQuerschnitt },
+    { key: "leuchtmittel", fetch: fetchAllLeuchtmittel },
+    { key: "unterhaltMast", fetch: fetchAllUnterhaltMast },
+    { key: "materialMauerlasche", fetch: fetchAllMaterialMauerlasche },
+    { key: "anlagengruppe", fetch: fetchAllAnlagengruppe },
+    { key: "unterhaltLeuchte", fetch: fetchAllUnterhaltLeuchte },
+    { key: "strassenschluessel", fetch: fetchAllStrassenschluessel },
+    { key: "energielieferant", fetch: fetchAllEnergielieferant },
+    { key: "bezirk", fetch: fetchAllBezirk },
+    { key: "leitungstyp", fetch: fetchAllLeitungstyp },
+    { key: "arbeitsprotokollstatus", fetch: fetchAllArbeitsprotokollstatus },
+    { key: "materialLeitung", fetch: fetchAllMaterialLeitung },
+    { key: "kennziffer", fetch: fetchAllKennziffer },
+    { key: "mastart", fetch: fetchAllMastart },
+    { key: "veranlassungsart", fetch: fetchAllVeranlassungsart },
+    { key: "klassifizierung", fetch: fetchAllKlassifizierung },
+    { key: "doppelkommando", fetch: fetchAllDoppelkommando },
+    { key: "masttyp", fetch: fetchAllMasttyp },
+    { key: "leuchtentyp", fetch: fetchAllLeuchtentyp },
+    { key: "rundsteuerempfaenger", fetch: fetchAllRundsteuerempfaenger },
+    { key: "infobausteinTemplate", fetch: fetchAllInfobausteinTemplate },
+  ] as const;
+
+  const results = await Promise.allSettled(
+    fetchConfigs.map(({ fetch }) => fetch(jwt))
+  );
+
+  const data: Record<string, unknown[]> = {};
+  const errors: Record<string, string> = {};
+
+  results.forEach((result, index) => {
+    const key = fetchConfigs[index].key;
+    if (result.status === "fulfilled") {
+      data[key] = result.value;
+    } else {
+      data[key] = [];
+      errors[key] = result.reason?.message ?? "Unknown error";
+    }
+  });
+
+  return { data, errors };
+};

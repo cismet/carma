@@ -33,34 +33,6 @@ import {
   setWishedSearchMode,
 } from "../store/slices/mapSettings";
 import Filter from "./ui/Filter";
-import {
-  fetchAllAnlagengruppe,
-  fetchAllArbeitsprotokollstatus,
-  fetchAllBauart,
-  fetchAllBezirk,
-  fetchAllDoppelkommando,
-  fetchAllEnergielieferant,
-  fetchAllInfobausteinTemplate,
-  fetchAllKennziffer,
-  fetchAllKlassifizierung,
-  fetchAllLeitungstyp,
-  fetchAllLeuchtentyp,
-  fetchAllLeuchtmittel,
-  fetchAllMastart,
-  fetchAllMasttyp,
-  fetchAllMaterialLeitung,
-  fetchAllMaterialMauerlasche,
-  fetchAllQuerschnitt,
-  fetchAllRundsteuerempfaenger,
-  fetchAllStrassenschluessel,
-  fetchAllTeams,
-  fetchAllUnterhaltLeuchte,
-  fetchAllUnterhaltMast,
-  fetchAllVeranlassungsart,
-  savebauart,
-  saveTeam,
-  updateDataByClassName,
-} from "../helper/apiMethods";
 
 const MainPage = () => {
   const dispatch: AppDispatch = useDispatch();
@@ -95,44 +67,6 @@ const MainPage = () => {
     cursor: "pointer",
     clear: "both",
   };
-
-  useEffect(() => {
-    // updateDataByClassName(storedJWT, "tkey_masttyp", {
-    //   bezeichnung: "5m Aufsatzmast test",
-    //   wandstaerke: null,
-    //   masttyp: "M3",
-    //   lph: 5,
-    //   id: 42,
-    //   hersteller: null,
-    //   foto: null,
-    //   dokumenteArray: [
-    //     {
-    //       dms_url: {
-    //         description: "M3.pdf",
-    //         id: 17,
-    //         name: null,
-    //         typ: null,
-    //         url: {
-    //           id: 17,
-    //           object_name: "DOC-1396267880608-5555555555.pdf",
-    //           url_base: {
-    //             id: 17,
-    //             path: "/test/",
-    //             prot_prefix: "http://",
-    //             server: "board.test.de",
-    //           },
-    //         },
-    //       },
-    //     },
-    //   ],
-    // });
-    // savebauart(storedJWT);
-    // const run = async () => {
-    //   const data = await fetchAllMasttyp(storedJWT);
-    //   console.log("xxx data", data);
-    // };
-    // run();
-  }, []);
 
   return (
     <>

@@ -1,8 +1,23 @@
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import TopNavbar from "../commons/TopNavbar";
+import { fetchAllKeyTables } from "../../helper/apiMethods";
+import { AppDispatch } from "../../store";
+import { useDispatch, useSelector } from "react-redux";
+import { getJWT } from "../../store/slices/auth";
 
 const KeyTablesPage = () => {
   let refUpperToolbar = useRef(null);
+  const dispatch: AppDispatch = useDispatch();
+  const storedJWT = useSelector(getJWT);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      const { data, errors } = await fetchAllKeyTables(storedJWT);
+      console.log("data", data);
+      console.log("errors", errors);
+    };
+    fetchData();
+  }, [storedJWT]);
 
   return (
     <>
