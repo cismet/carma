@@ -17,9 +17,7 @@ const TopNavbar = ({ innerRef }) => {
         <NavLink
           to="/"
           end
-          className={({ isActive }) =>
-            `text-sm hover:text-blue-600 ${isActive ? "font-semibold" : ""}`
-          }
+          className={({ isActive }) => `text-sm hover:text-gray-600`}
           style={({ isActive }) => ({
             color: isActive ? "#1777ff" : undefined,
           })}
@@ -28,9 +26,7 @@ const TopNavbar = ({ innerRef }) => {
         </NavLink>
         <NavLink
           to="/key-tables"
-          className={({ isActive }) =>
-            `text-sm hover:text-blue-600 ${isActive ? "font-semibold" : ""}`
-          }
+          className={({ isActive }) => `text-sm hover:text-gray-600}`}
           style={({ isActive }) => ({
             color: isActive ? "#1777ff" : undefined,
           })}

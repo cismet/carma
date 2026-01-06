@@ -34,6 +34,8 @@ const KeyTablesPage = () => {
   const fetched = useSelector(getKeyTablesFetched);
   const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(null);
 
+  const adjustedHeight = "calc(100vh - 60px)";
+
   useEffect(() => {
     if (fetched) return;
 
@@ -137,13 +139,12 @@ const KeyTablesPage = () => {
         )}
 
         {!loading && Object.keys(data).length > 0 && (
-          <div className="flex gap-4">
+          <div className="flex gap-2">
             <div
               style={{
-                width: selectedItem ? "250px" : "100%",
-                minWidth: selectedItem ? "250px" : undefined,
+                width: "20%",
                 flexShrink: 0,
-                height: "calc(100vh - 100px)",
+                height: adjustedHeight,
               }}
             >
               <CustomCard title="Schlüsseltabellen" style={{ height: "100%" }}>
@@ -202,7 +203,7 @@ const KeyTablesPage = () => {
               <div
                 style={{
                   flex: 1,
-                  height: "calc(100vh - 100px)",
+                  height: adjustedHeight,
                   minWidth: 0,
                 }}
               >
