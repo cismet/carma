@@ -14,7 +14,6 @@ import {
   getKeyTablesFetched,
 } from "../../store/slices/keyTables";
 import { Collapse, List, Spin, Alert } from "antd";
-import { FolderOutlined, FileOutlined } from "@ant-design/icons";
 
 const { Panel } = Collapse;
 
@@ -62,6 +61,14 @@ const KeyTablesPage = () => {
     <>
       <TopNavbar innerRef={refUpperToolbar} />
       <div className="mx-3 mt-1">
+        <style>{`
+          .key-tables-collapse .ant-collapse-item {
+            border-bottom: none !important;
+          }
+          .key-tables-collapse .ant-collapse-item:last-child {
+            border-bottom: none !important;
+          }
+        `}</style>
         <h1 className="text-2xl font-bold mb-4">Schlüsseltabellen</h1>
 
         {loading && (
@@ -95,12 +102,12 @@ const KeyTablesPage = () => {
               bordered={false}
               expandIconPosition="start"
               style={{ background: "#fff" }}
+              className="key-tables-collapse"
             >
               {Object.entries(data).map(([key, items]) => (
                 <Panel
                   header={
                     <span>
-                      <FolderOutlined style={{ marginRight: 8, color: "#1890ff" }} />
                       <strong>{formatTableName(key)}</strong>
                       <span style={{ marginLeft: 8, color: "#8c8c8c" }}>
                         ({Array.isArray(items) ? items.length : 0})
@@ -114,14 +121,11 @@ const KeyTablesPage = () => {
                     dataSource={Array.isArray(items) ? items : []}
                     renderItem={(item: any) => (
                       <List.Item style={{ paddingLeft: 24 }}>
-                        <FileOutlined
-                          style={{ marginRight: 8, color: "#52c41a" }}
-                        />
-                        {item.id !== undefined && (
+                        {/* {item.id !== undefined && (
                           <span style={{ marginRight: 8, fontWeight: 500 }}>
                             {item.id} -
                           </span>
-                        )}
+                        )} */}
                         {item.bezeichnung ||
                           item.name ||
                           item.pk ||
