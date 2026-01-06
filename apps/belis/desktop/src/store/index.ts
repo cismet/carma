@@ -5,6 +5,7 @@ import localForage from "localforage";
 import authSlice from "./slices/auth";
 import mapSettings from "./slices/mapSettings";
 import ui from "./slices/ui";
+import keyTables from "./slices/keyTables";
 
 import featureCollectionSlice from "./slices/featureCollection";
 
@@ -80,6 +81,7 @@ const store = configureStore({
       featureCollectionSlice.reducer
     ),
     ui: ui.reducer,
+    keyTables: keyTables.reducer,
   },
   devTools: devToolsEnabled === true && inProduction === false,
   middleware,
