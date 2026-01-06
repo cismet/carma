@@ -13,7 +13,8 @@ import {
   getKeyTablesLoading,
   getKeyTablesFetched,
 } from "../../store/slices/keyTables";
-import { Collapse, List, Spin, Alert, Card } from "antd";
+import { Collapse, List, Spin, Alert } from "antd";
+import { CustomCard } from "../commons/CustomCard";
 import KeyTableItemForm from "../ui/KeyTableItemForm";
 
 const { Panel } = Collapse;
@@ -200,11 +201,13 @@ const KeyTablesPage = () => {
               <div
                 style={{
                   flex: "0 0 58%",
-                  maxHeight: "calc(100vh - 200px)",
-                  overflow: "auto",
+                  height: "calc(100vh - 200px)",
                 }}
               >
-                <Card title={formatTableName(selectedItem.tableName)}>
+                <CustomCard
+                  title={formatTableName(selectedItem.tableName)}
+                  style={{ height: "100%" }}
+                >
                   <KeyTableItemForm
                     key={`${selectedItem.tableName}-${selectedItem.item.id}`}
                     item={selectedItem.item}
@@ -212,7 +215,7 @@ const KeyTablesPage = () => {
                     onSave={handleItemSaved}
                     onCancel={() => setSelectedItem(null)}
                   />
-                </Card>
+                </CustomCard>
               </div>
             )}
           </div>
