@@ -82,9 +82,16 @@ const MainPage = () => {
   const menuWidth = !isCollapsed ? 204 : 72;
   const cardGaps = 24 + 24 + 1;
 
+  // const mapStyle = {
+  //   height: windowHeight - sizeU.height - 76 - 20,
+  //   width: windowWidth - menuWidth - cardGaps,
+  //   cursor: "pointer",
+  //   clear: "both",
+  // };
+
   const mapStyle = {
     height: windowHeight - sizeU.height - 76 - 20,
-    width: windowWidth - menuWidth - cardGaps,
+    width: windowWidth - cardGaps,
     cursor: "pointer",
     clear: "both",
   };
