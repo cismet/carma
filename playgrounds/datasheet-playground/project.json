@@ -1,0 +1,68 @@
+{
+  "name": "datasheet-playground",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "playgrounds/datasheet-playground/src",
+  "projectType": "application",
+  "tags": [],
+  "targets": {
+    "build": {
+      "executor": "@nx/vite:build",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "outputPath": "dist/playgrounds/datasheet-playground"
+      },
+      "configurations": {
+        "development": {
+          "mode": "development"
+        },
+        "production": {
+          "mode": "production"
+        }
+      }
+    },
+    "serve": {
+      "executor": "@nx/vite:dev-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "datasheet-playground:build"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "datasheet-playground:build:development",
+          "hmr": true
+        },
+        "production": {
+          "buildTarget": "datasheet-playground:build:production",
+          "hmr": false
+        }
+      }
+    },
+    "preview": {
+      "executor": "@nx/vite:preview-server",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "datasheet-playground:build"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "datasheet-playground:build:development"
+        },
+        "production": {
+          "buildTarget": "datasheet-playground:build:production"
+        }
+      },
+      "dependsOn": ["build"]
+    },
+    "test": {
+      "executor": "@nx/vite:test",
+      "outputs": ["{options.reportsDirectory}"],
+      "options": {
+        "reportsDirectory": "../../coverage/playgrounds/datasheet-playground"
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    }
+  }
+}
