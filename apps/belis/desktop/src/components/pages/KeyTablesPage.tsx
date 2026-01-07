@@ -13,6 +13,7 @@ import {
   getKeyTablesFetched,
 } from "../../store/slices/keyTables";
 import { List, Spin, Alert } from "antd";
+import { PlusOutlined, DeleteOutlined } from "@ant-design/icons";
 import { CustomCard } from "../commons/CustomCard";
 import KeyTableItemForm from "../ui/KeyTableItemForm";
 import { keyTableDisplayConfig } from "../../config/keyTableDisplayConfig";
@@ -116,6 +117,22 @@ const KeyTablesPage = () => {
     setSelectedItem(null);
   };
 
+  const handleAddItem = () => {
+    if (!selectedTable) return;
+    const tableItems = data[selectedTable] as Record<string, unknown>[];
+    const templateItem = tableItems[0] || {};
+    const newItem: Record<string, unknown> = {};
+    Object.keys(templateItem).forEach((key) => {
+      newItem[key] = key === "id" ? undefined : "";
+    });
+    console.log("Add new item:", newItem, "to table:", selectedTable);
+  };
+
+  const handleRemoveItem = () => {
+    if (!selectedItem) return;
+    console.log("Remove item:", selectedItem.item, "from table:", selectedItem.tableName);
+  };
+
   const selectedTableItems = selectedTable
     ? (data[selectedTable] as unknown[]) || []
     : [];
@@ -197,6 +214,18 @@ const KeyTablesPage = () => {
                 <CustomCard
                   title={formatTableName(selectedTable)}
                   style={{ height: "100%" }}
+                  extra={
+                    <div className="flex items-center gap-2">
+                      <PlusOutlined
+                        className="cursor-pointer hover:text-blue-500"
+                        onClick={handleAddItem}
+                      />
+                      <DeleteOutlined
+                        className="cursor-pointer hover:text-red-500"
+                        onClick={handleRemoveItem}
+                      />
+                    </div>
+                  }
                 >
                   <List
                     size="small"
