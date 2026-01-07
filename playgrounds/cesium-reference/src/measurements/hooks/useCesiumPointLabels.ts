@@ -2,7 +2,10 @@ import { useMemo, useState, useEffect } from "react";
 
 import { defined } from "cesium";
 
-import { usePointLabels, type PointLabelData } from "../../overlay";
+import {
+  usePointLabels,
+  type PointLabelData,
+} from "@carma-providers/label-overlay";
 import { useCesiumViewer } from "../../contexts/CesiumViewerContext";
 import { PointMeasurementEntry } from "../types/MeasurementTypes";
 import { formatNumberToEnclosed } from "../utils/cesiumLabels";

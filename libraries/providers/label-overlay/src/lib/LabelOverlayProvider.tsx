@@ -1,45 +1,40 @@
 import React, {
-  createContext,
-  useContext,
   useRef,
   useEffect,
   useState,
-  ReactNode,
   useCallback,
   useMemo,
-  RefObject,
+  type ReactNode,
+  type RefObject,
 } from "react";
-import { createRoot, Root } from "react-dom/client";
+import { createRoot, type Root } from "react-dom/client";
 
-import type { OverlayElement, OverlayContextType } from "../types/OverlayTypes";
+import { LabelOverlayContext } from "./LabelOverlayContext";
+import type { LabelOverlayElement, LabelOverlayContextType } from "./types";
 
-const OverlayContext = createContext<OverlayContextType | undefined>(undefined);
-
-interface OverlayProviderProps {
+interface LabelOverlayProviderProps {
   children: ReactNode;
-  containerRef?: RefObject<HTMLElement>;
+  containerRef?: RefObject<HTMLElement | null>;
   requestUpdateCallback?: (updateFn: () => void) => void;
 }
 
-export const OverlayProvider: React.FC<OverlayProviderProps> = ({
+export const LabelOverlayProvider: React.FC<LabelOverlayProviderProps> = ({
   children,
   containerRef,
   requestUpdateCallback,
 }) => {
   const overlayRef = useRef<HTMLDivElement | null>(null);
   const [overlayElements, setOverlayElements] = useState<
-    Map<string, OverlayElement>
+    Map<string, LabelOverlayElement>
   >(new Map());
 
   // Create overlay container
   useEffect(() => {
-    // If no containerRef is provided, create overlay in document body
     const container = containerRef?.current || document.body;
     if (!container) return;
 
-    // Create overlay div
     const overlayDiv = document.createElement("div");
-    overlayDiv.id = "overlay-container";
+    overlayDiv.id = "label-overlay-container";
     overlayDiv.style.position = "absolute";
     overlayDiv.style.top = "0";
     overlayDiv.style.left = "0";
@@ -62,7 +57,7 @@ export const OverlayProvider: React.FC<OverlayProviderProps> = ({
 
   // Create stable reference to overlay elements for position updates
   const overlayElementsRef =
-    useRef<Map<string, OverlayElement>>(overlayElements);
+    useRef<Map<string, LabelOverlayElement>>(overlayElements);
   overlayElementsRef.current = overlayElements;
 
   // Update overlay elements positions using external update requests
@@ -77,7 +72,7 @@ export const OverlayProvider: React.FC<OverlayProviderProps> = ({
 
       overlayElementsRef.current.forEach((element, id) => {
         const elementDiv = overlayContainer.querySelector(
-          `[data-overlay-id="${id}"]`
+          `[data-label-overlay-id="${id}"]`
         ) as HTMLElement;
         if (!elementDiv) return;
 
@@ -135,10 +130,11 @@ export const OverlayProvider: React.FC<OverlayProviderProps> = ({
     const overlayContainer = overlayRef.current;
 
     // Remove elements that no longer exist
-    const existingElements =
-      overlayContainer.querySelectorAll("[data-overlay-id]");
+    const existingElements = overlayContainer.querySelectorAll(
+      "[data-label-overlay-id]"
+    );
     existingElements.forEach((elementDiv) => {
-      const id = elementDiv.getAttribute("data-overlay-id");
+      const id = elementDiv.getAttribute("data-label-overlay-id");
       if (id && !overlayElements.has(id)) {
         // Clean up React root if it exists
         const root = reactRootsRef.current.get(id);
@@ -153,13 +149,13 @@ export const OverlayProvider: React.FC<OverlayProviderProps> = ({
     // Add or update current elements
     overlayElements.forEach((element, id) => {
       let elementDiv = overlayContainer.querySelector(
-        `[data-overlay-id="${id}"]`
+        `[data-label-overlay-id="${id}"]`
       ) as HTMLElement;
 
       // Create new element if it doesn't exist
       if (!elementDiv) {
         elementDiv = document.createElement("div");
-        elementDiv.setAttribute("data-overlay-id", id);
+        elementDiv.setAttribute("data-label-overlay-id", id);
         elementDiv.style.position = "absolute";
         elementDiv.style.pointerEvents = "none";
         overlayContainer.appendChild(elementDiv);
@@ -196,11 +192,11 @@ export const OverlayProvider: React.FC<OverlayProviderProps> = ({
     });
   }, [overlayElements]);
 
-  const addOverlayElement = useCallback((element: OverlayElement) => {
+  const addLabelOverlayElement = useCallback((element: LabelOverlayElement) => {
     setOverlayElements((prev) => new Map(prev.set(element.id, element)));
   }, []);
 
-  const removeOverlayElement = useCallback((id: string) => {
+  const removeLabelOverlayElement = useCallback((id: string) => {
     setOverlayElements((prev) => {
       const newMap = new Map(prev);
       newMap.delete(id);
@@ -208,8 +204,8 @@ export const OverlayProvider: React.FC<OverlayProviderProps> = ({
     });
   }, []);
 
-  const updateOverlayElement = useCallback(
-    (id: string, updates: Partial<OverlayElement>) => {
+  const updateLabelOverlayElement = useCallback(
+    (id: string, updates: Partial<LabelOverlayElement>) => {
       setOverlayElements((prev) => {
         const newMap = new Map(prev);
         const existing = newMap.get(id);
@@ -222,36 +218,28 @@ export const OverlayProvider: React.FC<OverlayProviderProps> = ({
     []
   );
 
-  const clearOverlayElements = useCallback(() => {
+  const clearLabelOverlayElements = useCallback(() => {
     setOverlayElements(new Map());
   }, []);
 
-  const contextValue: OverlayContextType = useMemo(
+  const contextValue: LabelOverlayContextType = useMemo(
     () => ({
-      addOverlayElement,
-      removeOverlayElement,
-      updateOverlayElement,
-      clearOverlayElements,
+      addLabelOverlayElement,
+      removeLabelOverlayElement,
+      updateLabelOverlayElement,
+      clearLabelOverlayElements,
     }),
     [
-      addOverlayElement,
-      removeOverlayElement,
-      updateOverlayElement,
-      clearOverlayElements,
+      addLabelOverlayElement,
+      removeLabelOverlayElement,
+      updateLabelOverlayElement,
+      clearLabelOverlayElements,
     ]
   );
 
   return (
-    <OverlayContext.Provider value={contextValue}>
+    <LabelOverlayContext.Provider value={contextValue}>
       {children}
-    </OverlayContext.Provider>
+    </LabelOverlayContext.Provider>
   );
-};
-
-export const useOverlay = (): OverlayContextType => {
-  const context = useContext(OverlayContext);
-  if (context === undefined) {
-    throw new Error("useOverlay must be used within an OverlayProvider");
-  }
-  return context;
 };

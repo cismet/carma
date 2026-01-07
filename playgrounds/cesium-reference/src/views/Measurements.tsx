@@ -9,7 +9,7 @@ import {
   useCesiumViewer,
 } from "../contexts/CesiumViewerContext";
 import { CesiumMeasurementsProvider } from "../measurements/CesiumMeasurementsContext";
-import { OverlayProvider } from "../overlay";
+import { LabelOverlayProvider } from "@carma-providers/label-overlay";
 import ScreenLayout from "../components/ScreenLayout";
 import { MeasurementPanel } from "../measurements/components/MeasurementPanel";
 
@@ -139,7 +139,7 @@ const TestMeshElevations: React.FC = () => {
             },
           }}
         >
-          <OverlayProvider
+          <LabelOverlayProvider
             containerRef={containerRef}
             requestUpdateCallback={requestOverlayUpdate}
           >
@@ -148,7 +148,7 @@ const TestMeshElevations: React.FC = () => {
                 <ContextAwareApp overlayUpdateRef={overlayUpdateRef} />
               </CesiumNivPointProvider>
             </CesiumMeasurementsProvider>
-          </OverlayProvider>
+          </LabelOverlayProvider>
         </CesiumViewerProvider>
       </CRSContextProvider>
     </>

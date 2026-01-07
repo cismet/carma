@@ -1,26 +1,30 @@
 import React, { useEffect, useMemo } from "react";
 
-import { useOverlay } from "../contexts/OverlayContext";
-import { PointLabel } from "../components/PointLabel";
+import { useLabelOverlay } from "./useLabelOverlay";
+import { PointLabel, type PointLabelStyleProps } from "./components/PointLabel";
 
 export interface PointLabelData {
   id: string;
-  getCanvasPosition?: () => { x: number; y: number } | null; // Callback to get fresh screen coordinates
-  pitch?: number; // Camera pitch in radians
+  getCanvasPosition?: () => { x: number; y: number } | null;
+  pitch?: number;
   text: string;
   selected?: boolean;
   visible?: boolean;
   isOccluded?: boolean;
-  isHidden?: boolean; // Hidden (outside viewport) vs occluded (behind geometry)
+  isHidden?: boolean;
 }
 
 export const usePointLabels = (
   points: PointLabelData[],
   showLabels: boolean = true,
-  getPitch?: () => number
+  getPitch?: () => number,
+  styleProps?: PointLabelStyleProps
 ) => {
-  const { addOverlayElement, removeOverlayElement, clearOverlayElements } =
-    useOverlay();
+  const {
+    addLabelOverlayElement,
+    removeLabelOverlayElement,
+    clearLabelOverlayElements,
+  } = useLabelOverlay();
 
   // Create a stable reference for selection, visibility, occlusion, and hidden state
   const stateSignature = useMemo(
@@ -36,7 +40,7 @@ export const usePointLabels = (
 
   useEffect(() => {
     if (!showLabels) {
-      clearOverlayElements();
+      clearLabelOverlayElements();
       return;
     }
 
@@ -47,7 +51,7 @@ export const usePointLabels = (
       // Use pitch from point data or fallback to getPitch callback
       const pitch = point.pitch ?? (getPitch ? getPitch() : -Math.PI / 4);
 
-      addOverlayElement({
+      addLabelOverlayElement({
         id: labelId,
         getCanvasPosition: point.getCanvasPosition,
         content: React.createElement(PointLabel, {
@@ -55,24 +59,26 @@ export const usePointLabels = (
           text: point.text,
           selected: point.selected,
           isOccluded: point.isOccluded,
+          ...styleProps,
         }),
         visible: point.visible !== false,
-        isHidden: point.isHidden, // Pass hidden state to overlay
+        isHidden: point.isHidden,
       });
     });
 
     return () => {
       points.forEach((point) => {
-        removeOverlayElement(`point-label-${point.id}`);
+        removeLabelOverlayElement(`point-label-${point.id}`);
       });
     };
   }, [
     points,
     showLabels,
     stateSignature,
-    addOverlayElement,
-    removeOverlayElement,
-    clearOverlayElements,
+    addLabelOverlayElement,
+    removeLabelOverlayElement,
+    clearLabelOverlayElements,
     getPitch,
+    styleProps,
   ]);
 };

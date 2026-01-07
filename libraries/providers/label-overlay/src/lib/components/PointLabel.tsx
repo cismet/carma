@@ -1,28 +1,23 @@
 import React from "react";
 
-enum MarkerStyle {
-  CROSS,
-  CIRCLE,
-}
-
-interface PointLabelProps {
-  text: string;
-  selected?: boolean;
+export interface PointLabelStyleProps {
   fontSize?: string;
-  isOccluded?: boolean;
-  pitch?: number; //camera pitch in radians
   textColor?: string;
   textBackgroundColor?: string;
   lineWidth?: number;
   lineColor?: string;
-  markerStyle?: MarkerStyle;
   markerSize?: number;
   markerStrokeWidth?: number;
-  markerColor?: string;
   labelDistance?: number;
 }
 
-// Stable style objects created outside render to prevent recalculation
+interface PointLabelProps extends PointLabelStyleProps {
+  text: string;
+  selected?: boolean;
+  isOccluded?: boolean;
+  pitch?: number;
+}
+
 const baseStyles: React.CSSProperties = {
   padding: "2px 4px",
   boxSizing: "border-box",
@@ -35,12 +30,7 @@ const baseStyles: React.CSSProperties = {
 };
 
 const defaultPitch = -Math.PI / 4;
-// pitch is 0 near horizon -pi/2 in nadir
 
-// Simple offset calculation - labels go to the right and slightly up
-// Adjust vertical offset based on camera pitch for better visibility
-
-// Memoized PointLabel component to prevent unnecessary rerenders
 export const PointLabel = React.memo(
   ({
     text,
@@ -52,7 +42,6 @@ export const PointLabel = React.memo(
     pitch = defaultPitch,
     lineColor = "white",
     lineWidth = 1,
-    markerStyle = MarkerStyle.CIRCLE,
     markerSize = 10,
     markerStrokeWidth = 1,
     labelDistance = 20,
@@ -94,8 +83,8 @@ export const PointLabel = React.memo(
         <div
           style={{
             position: "absolute",
-            left: "0px", // Start from center
-            top: "0px", // Start from center
+            left: "0px",
+            top: "0px",
             transformOrigin: "0 0",
             transform: `rotate(${labelAngleRad}rad)`,
             pointerEvents: "none",
@@ -105,9 +94,9 @@ export const PointLabel = React.memo(
           <div
             style={{
               position: "absolute",
-              left: `${radius}px`, // Start from circle edge
-              top: `${-halfLineWidth}px`, // Center the line vertically
-              width: `${labelDistance - radius}px`, // Distance from circle edge to label
+              left: `${radius}px`,
+              top: `${-halfLineWidth}px`,
+              width: `${labelDistance - radius}px`,
               height: `${lineWidth}px`,
               borderBottom: `${lineWidth}px ${
                 isOccluded ? "dashed" : "solid"
@@ -128,8 +117,8 @@ export const PointLabel = React.memo(
             color: textColor,
             position: "absolute",
             left: `${labelOffsetX}px`,
-            top: `${labelOffsetY + halfLineWidth}px`, // Simplified positioning
-            transform: "translate(0%, -100%)", // Position so bottom-left corner is at the hairline end
+            top: `${labelOffsetY + halfLineWidth}px`,
+            transform: "translate(0%, -100%)",
           }}
         >
           {text}
@@ -138,5 +127,3 @@ export const PointLabel = React.memo(
     );
   }
 );
-
-export default PointLabel;
