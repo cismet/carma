@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useDatasheet } from "./useDatasheet";
 
 interface DatasheetProps {
   mainComponent: React.ReactNode;
@@ -6,11 +6,7 @@ interface DatasheetProps {
 }
 
 const Datasheet = ({ mainComponent, datasheetComponent }: DatasheetProps) => {
-  const [isDatasheetView, setIsDatasheetView] = useState(false);
-
-  const toggleDatasheetView = () => {
-    setIsDatasheetView(!isDatasheetView);
-  };
+  const { isDatasheetView, toggleDatasheetView } = useDatasheet();
 
   return (
     <div style={{ position: "relative", width: "100%", height: "100%" }}>
@@ -30,7 +26,7 @@ const Datasheet = ({ mainComponent, datasheetComponent }: DatasheetProps) => {
           boxShadow: isDatasheetView ? "0 4px 12px rgba(0,0,0,0.3)" : undefined,
           borderRadius: isDatasheetView ? 8 : undefined,
           overflow: "hidden",
-          transition: "all 0.3s ease-in-out",
+          transition: "all 0.5s ease-in-out",
           zIndex: isDatasheetView ? 10 : undefined,
         }}
       >
@@ -40,7 +36,7 @@ const Datasheet = ({ mainComponent, datasheetComponent }: DatasheetProps) => {
           style={{
             position: "absolute",
             top: 8,
-            left: 8,
+            right: 8,
             padding: "6px 12px",
             background: "white",
             border: "1px solid #ccc",
@@ -49,7 +45,7 @@ const Datasheet = ({ mainComponent, datasheetComponent }: DatasheetProps) => {
             zIndex: 1000,
           }}
         >
-          {isDatasheetView ? "Schließen" : "Datenblatt"}
+          {isDatasheetView ? "X" : "Datenblatt"}
         </button>
       </div>
     </div>

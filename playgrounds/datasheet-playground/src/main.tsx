@@ -1,6 +1,5 @@
-import { StrictMode, useEffect, useState } from "react";
+import { StrictMode } from "react";
 import * as ReactDOM from "react-dom/client";
-import { Provider } from "react-redux";
 import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextProvider";
 
 import { App } from "./app/App";
@@ -9,12 +8,11 @@ import "./styles.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
 import "leaflet/dist/leaflet.css";
-import { PersistGate } from "redux-persist/integration/react";
-import { persistStore } from "redux-persist";
 import {
   GazDataProvider,
   SelectionProvider,
 } from "@carma-appframeworks/portals";
+import { DatasheetProvider } from "./app/useDatasheet";
 import { defaultLayerConf } from "react-cismap/tools/layerFactory";
 
 const backgroundModes = [
@@ -72,16 +70,18 @@ const root = ReactDOM.createRoot(
 );
 root.render(
   <StrictMode>
-    <GazDataProvider>
-      <SelectionProvider>
-        <TopicMapContextProvider
-          baseLayerConf={baseLayerConf}
-          backgroundConfigurations={backgroundConfigurations}
-          backgroundModes={backgroundModes}
-        >
-          <App />
-        </TopicMapContextProvider>
-      </SelectionProvider>
-    </GazDataProvider>
+    <DatasheetProvider>
+      <GazDataProvider>
+        <SelectionProvider>
+          <TopicMapContextProvider
+            baseLayerConf={baseLayerConf}
+            backgroundConfigurations={backgroundConfigurations}
+            backgroundModes={backgroundModes}
+          >
+            <App />
+          </TopicMapContextProvider>
+        </SelectionProvider>
+      </GazDataProvider>
+    </DatasheetProvider>
   </StrictMode>
 );

@@ -11,9 +11,9 @@ export function App() {
       <Datasheet
         mainComponent={
           <TopicMapComponent
-            title="Vector Layer Filtering Playground"
             gazetteerSearchControl={true}
             gazetteerSearchComponent={EmptySearchComponent}
+            hamburgerMenu={false}
             locatorControl={false}
             fullScreenControl={false}
             zoomControls={false}
