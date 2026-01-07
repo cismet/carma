@@ -135,13 +135,7 @@ const KeyTablesPage = () => {
       newItem[key] = key === "id" ? -Date.now() : "";
     });
 
-    // Add to Redux store (at the beginning of the list)
-    const newData = { ...data };
-    const newTableData = [newItem, ...tableItems];
-    newData[selectedTable] = newTableData;
-    dispatch(setKeyTablesData(newData));
-
-    // Select the new item to show its form
+    // Just show the form for the new item (don't add to list yet)
     setSelectedItem({ item: newItem, tableName: selectedTable });
   };
 

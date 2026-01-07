@@ -15,7 +15,7 @@
 }
 
 /* Make lists look good again */
-ul {
+ul:not(.ant-list-items) {
   list-style: disc !important;
   display: block;
   list-style-type: disc;
