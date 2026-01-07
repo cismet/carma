@@ -1,34 +1,33 @@
 import { Tooltip } from "antd";
 import { LogoutOutlined } from "@ant-design/icons";
-import { getLogin, storeJWT, storeLogin } from "../../store/slices/auth";
-import { useSelector, useDispatch } from "react-redux";
+import { storeJWT, storeLogin } from "../../store/slices/auth";
+import { useDispatch } from "react-redux";
 import { NavLink, useNavigate } from "react-router-dom";
 import SettingsUi from "../ui/SettingsUi";
-import Filter from "../ui/Filter";
 
-const TopNavbar = ({ innerRef }) => {
+const TopNavbar = () => {
   const dispatch = useDispatch();
-  const userLogin = useSelector(getLogin);
   const navigate = useNavigate();
 
   return (
-    <div className="flex items-center  mx-3 mb-4 mt-2" ref={innerRef}>
+    <div className="flex items-center mx-3 mb-4 mt-2">
+      <span className="font-semibold mr-8">BelISDesktop</span>
       <div className="flex items-center gap-4">
         <NavLink
           to="/"
           end
-          className={({ isActive }) => `text-sm hover:text-gray-600`}
+          className={({ isActive }) => `text-base hover:text-gray-600`}
           style={({ isActive }) => ({
-            color: isActive ? "#1777ff" : undefined,
+            color: isActive ? "#1677ff" : undefined,
           })}
         >
-          BelIS
+          Karte
         </NavLink>
         <NavLink
           to="/key-tables"
-          className={({ isActive }) => `text-sm hover:text-gray-600}`}
+          className={({ isActive }) => `text-base hover:text-gray-600`}
           style={({ isActive }) => ({
-            color: isActive ? "#1777ff" : undefined,
+            color: isActive ? "#1677ff" : undefined,
           })}
         >
           Schlüsseltabellen
@@ -37,7 +36,7 @@ const TopNavbar = ({ innerRef }) => {
       <div className="ml-auto flex items-center gap-2">
         <Tooltip title="Ausloggen" placement="right">
           <LogoutOutlined
-            className="text-sm cursor-pointer"
+            className="text-base cursor-pointer"
             onClick={() => {
               dispatch(storeJWT(null));
               dispatch(storeLogin(null));
