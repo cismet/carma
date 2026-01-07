@@ -16,6 +16,8 @@ import {
 import { Collapse, List, Spin, Alert } from "antd";
 import { CustomCard } from "../commons/CustomCard";
 import KeyTableItemForm from "../ui/KeyTableItemForm";
+import { keyTableDisplayConfig } from "../../config/keyTableDisplayConfig";
+import { getItemDisplayText } from "../../utils/templateParser";
 
 const { Panel } = Collapse;
 
@@ -174,21 +176,11 @@ const KeyTablesPage = () => {
                             className="hover:bg-gray-100"
                             onClick={() => handleItemClick(item, key)}
                           >
-                            {item.bezeichnung ||
-                              item.name ||
-                              item.pk ||
-                              item.groesse ||
-                              item.lichtfarbe ||
-                              item.unterhalt_mast ||
-                              item.unterhaltspflichtiger_leuchte ||
-                              item.strasse ||
-                              item.energielieferant ||
-                              item.bezirk ||
-                              item.beschreibung ||
-                              item.kennziffer ||
-                              item.mastart ||
-                              item.klassifizierung ||
-                              JSON.stringify(item)}
+                            {getItemDisplayText(
+                              item as Record<string, unknown>,
+                              key,
+                              keyTableDisplayConfig
+                            )}
                           </List.Item>
                         )}
                         locale={{ emptyText: "Keine Daten" }}
