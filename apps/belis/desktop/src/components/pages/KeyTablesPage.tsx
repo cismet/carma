@@ -39,6 +39,7 @@ const KeyTablesPage = () => {
   const fetched = useSelector(getKeyTablesFetched);
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(null);
+  const [formHasChanges, setFormHasChanges] = useState(false);
   const formRef = useRef<FormInstance | null>(null);
 
   const adjustedHeight = "calc(100vh - 60px)";
@@ -106,6 +107,7 @@ const KeyTablesPage = () => {
 
   const handleItemClick = (item: unknown, tableName: string) => {
     setSelectedItem({ item: item as Record<string, unknown>, tableName });
+    setFormHasChanges(false);
   };
 
   const handleItemSaved = (updatedItem: Record<string, unknown>) => {
@@ -137,6 +139,7 @@ const KeyTablesPage = () => {
 
     // Just show the form for the new item (don't add to list yet)
     setSelectedItem({ item: newItem, tableName: selectedTable });
+    setFormHasChanges(false);
   };
 
   const handleRemoveItem = () => {
@@ -301,8 +304,17 @@ const KeyTablesPage = () => {
                       onClick={() => formRef.current?.submit()}
                     />
                     <CloseOutlined
-                      className="cursor-pointer hover:text-red-500"
-                      onClick={() => setSelectedItem(null)}
+                      className={
+                        formHasChanges
+                          ? "cursor-pointer hover:text-red-500"
+                          : "cursor-not-allowed text-gray-300"
+                      }
+                      onClick={() => {
+                        if (formHasChanges) {
+                          formRef.current?.resetFields();
+                          setFormHasChanges(false);
+                        }
+                      }}
                     />
                   </div>
                 }
@@ -315,6 +327,7 @@ const KeyTablesPage = () => {
                       tableName={selectedItem.tableName}
                       onSave={handleItemSaved}
                       onFormReady={(form) => (formRef.current = form)}
+                      onValuesChange={setFormHasChanges}
                     />
                   </div>
                 </div>
