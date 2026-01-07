@@ -66,7 +66,7 @@ function getDefaultDisplayText(item: Record<string, unknown>): string {
     (item.mastart as string) ||
     (item.klassifizierung as string) ||
     (item.masttyp as string) ||
-    JSON.stringify(item)
+    "Neuer Eintrag"
   );
 }
 
