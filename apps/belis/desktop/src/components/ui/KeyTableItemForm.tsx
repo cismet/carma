@@ -8,6 +8,7 @@ interface KeyTableItemFormProps {
   tableName: string;
   onSave: (updatedItem: Record<string, unknown>) => void;
   onFormReady?: (form: FormInstance) => void;
+  onValuesChange?: (hasChanges: boolean) => void;
 }
 
 const KeyTableItemForm = ({
@@ -15,6 +16,7 @@ const KeyTableItemForm = ({
   tableName,
   onSave,
   onFormReady,
+  onValuesChange,
 }: KeyTableItemFormProps) => {
   const [form] = Form.useForm();
   const jwt = useSelector(getJWT);
@@ -58,11 +60,22 @@ const KeyTableItemForm = ({
   const fields = Object.entries(item).filter(([key]) => key !== "id");
   const ifTwoColumns = fields.length > 2;
 
+  const handleValuesChange = () => {
+    if (onValuesChange) {
+      const currentValues = form.getFieldsValue();
+      const hasChanges = Object.keys(currentValues).some(
+        (key) => currentValues[key] !== item[key]
+      );
+      onValuesChange(hasChanges);
+    }
+  };
+
   return (
     <Form
       form={form}
       initialValues={item}
       onFinish={handleSave}
+      onValuesChange={handleValuesChange}
       layout="vertical"
     >
       {ifTwoColumns ? (
