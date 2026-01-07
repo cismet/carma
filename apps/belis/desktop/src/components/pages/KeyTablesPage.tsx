@@ -177,7 +177,7 @@ const KeyTablesPage = () => {
       )}
 
       {!loading && Object.keys(data).length > 0 && (
-        <div className="flex gap-2">
+        <div className="flex gap-4">
           {/* Column 1: Key Table Names */}
           <div
             style={{
@@ -202,17 +202,38 @@ const KeyTablesPage = () => {
                         borderLeft: isSelected
                           ? "3px solid #1677ff"
                           : "3px solid transparent",
-                        paddingLeft: 12,
+                        padding: "8px 12px",
                       }}
-                      className="hover:bg-gray-100"
+                      className="hover:bg-gray-50"
                       onClick={() => handleTableClick(tableName)}
                     >
-                      <span>
-                        <strong>{formatTableName(tableName)}</strong>
-                        <span style={{ marginLeft: 8, color: "#8c8c8c" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          width: "100%",
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: 14,
+                            fontWeight: 400,
+                            color: "#262626",
+                          }}
+                        >
+                          {formatTableName(tableName)}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: 14,
+                            fontWeight: 400,
+                            color: "#bfbfbf",
+                          }}
+                        >
                           ({count})
                         </span>
-                      </span>
+                      </div>
                     </List.Item>
                   );
                 }}
@@ -262,16 +283,24 @@ const KeyTablesPage = () => {
                           borderLeft: isSelected
                             ? "3px solid #1677ff"
                             : "3px solid transparent",
-                          paddingLeft: 12,
+                          padding: "8px 12px",
                         }}
-                        className="hover:bg-gray-100"
+                        className="hover:bg-gray-50"
                         onClick={() => handleItemClick(item, selectedTable)}
                       >
-                        {getItemDisplayText(
-                          itemRecord,
-                          selectedTable,
-                          keyTableDisplayConfig
-                        )}
+                        <span
+                          style={{
+                            fontSize: 14,
+                            fontWeight: 400,
+                            color: "#262626",
+                          }}
+                        >
+                          {getItemDisplayText(
+                            itemRecord,
+                            selectedTable,
+                            keyTableDisplayConfig
+                          )}
+                        </span>
                       </List.Item>
                     );
                   }}
@@ -327,8 +356,8 @@ const KeyTablesPage = () => {
                   </div>
                 }
               >
-                <div className="flex items-center h-full">
-                  <div className="w-full p-3">
+                <div className="h-full">
+                  <div className="w-full">
                     <KeyTableItemForm
                       key={`${selectedItem.tableName}-${selectedItem.item.id}`}
                       item={selectedItem.item}

@@ -77,12 +77,23 @@ const KeyTableItemForm = ({
       onFinish={handleSave}
       onValuesChange={handleValuesChange}
       layout="vertical"
+      style={{ padding: "8px 0" }}
     >
       {ifTwoColumns ? (
-        <Row gutter={16}>
+        <Row gutter={24}>
           {fields.map(([key]) => (
             <Col span={12} key={key}>
-              <Form.Item name={key} label={formatLabel(key)}>
+              <Form.Item
+                name={key}
+                label={
+                  <span
+                    style={{ fontSize: 14, fontWeight: 400, color: "#8c8c8c" }}
+                  >
+                    {formatLabel(key)}
+                  </span>
+                }
+                style={{ marginBottom: 16 }}
+              >
                 <Input />
               </Form.Item>
             </Col>
@@ -90,7 +101,18 @@ const KeyTableItemForm = ({
         </Row>
       ) : (
         fields.map(([key]) => (
-          <Form.Item key={key} name={key} label={formatLabel(key)}>
+          <Form.Item
+            key={key}
+            name={key}
+            label={
+              <span
+                style={{ fontSize: 14, fontWeight: 400, color: "#8c8c8c" }}
+              >
+                {formatLabel(key)}
+              </span>
+            }
+            style={{ marginBottom: 16 }}
+          >
             <Input />
           </Form.Item>
         ))
