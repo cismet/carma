@@ -247,7 +247,11 @@ const KeyTablesPage = () => {
                 }}
               >
                 <CustomCard
-                  title={formatTableName(selectedItem.tableName)}
+                  title={`${getItemDisplayText(
+                    selectedItem.item,
+                    selectedItem.tableName,
+                    keyTableDisplayConfig
+                  )}`}
                   style={{ height: "100%" }}
                 >
                   <div className="flex items-center h-full">
