@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { Form, Input, message, FormInstance } from "antd";
+import { Form, Input, message, FormInstance, Row, Col } from "antd";
 import { useSelector } from "react-redux";
 import { getJWT } from "../../store/slices/auth";
 
@@ -55,6 +55,9 @@ const KeyTableItemForm = ({
     //   }
   };
 
+  const fields = Object.entries(item).filter(([key]) => key !== "id");
+  const ifTwoColumns = fields.length > 2;
+
   return (
     <Form
       form={form}
@@ -62,12 +65,22 @@ const KeyTableItemForm = ({
       onFinish={handleSave}
       layout="vertical"
     >
-      {Object.entries(item).map(([key, value]) =>
-        key === "id" ? null : (
+      {ifTwoColumns ? (
+        <Row gutter={16}>
+          {fields.map(([key]) => (
+            <Col span={12} key={key}>
+              <Form.Item name={key} label={formatLabel(key)}>
+                <Input />
+              </Form.Item>
+            </Col>
+          ))}
+        </Row>
+      ) : (
+        fields.map(([key]) => (
           <Form.Item key={key} name={key} label={formatLabel(key)}>
             <Input />
           </Form.Item>
-        )
+        ))
       )}
     </Form>
   );
