@@ -300,8 +300,16 @@ const KeyTablesPage = () => {
                 extra={
                   <div className="flex items-center gap-2">
                     <CheckCircleOutlined
-                      className="cursor-pointer hover:text-green-500"
-                      onClick={() => formRef.current?.submit()}
+                      className={
+                        formHasChanges
+                          ? "cursor-pointer hover:text-green-500"
+                          : "cursor-not-allowed text-gray-300"
+                      }
+                      onClick={() => {
+                        if (formHasChanges) {
+                          formRef.current?.submit();
+                        }
+                      }}
                     />
                     <CloseOutlined
                       className={

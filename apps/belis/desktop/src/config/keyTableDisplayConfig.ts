@@ -22,4 +22,7 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
     template: "{rs_typ} {fabrikat}",
     separator: " - ",
   },
+  doppelkommando: {
+    template: "{pk} - {beschreibung}",
+  },
 };
