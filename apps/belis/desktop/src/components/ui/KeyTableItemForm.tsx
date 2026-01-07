@@ -1,25 +1,29 @@
-import { useState } from "react";
-import { Form, Input, Button, Space, message } from "antd";
+import { useEffect } from "react";
+import { Form, Input, message, FormInstance } from "antd";
 import { useSelector } from "react-redux";
 import { getJWT } from "../../store/slices/auth";
-import { updateDataByClassName } from "../../helper/apiMethods";
 
 interface KeyTableItemFormProps {
   item: Record<string, unknown>;
   tableName: string;
   onSave: (updatedItem: Record<string, unknown>) => void;
-  onCancel: () => void;
+  onFormReady?: (form: FormInstance) => void;
 }
 
 const KeyTableItemForm = ({
   item,
   tableName,
   onSave,
-  onCancel,
+  onFormReady,
 }: KeyTableItemFormProps) => {
   const [form] = Form.useForm();
-  const [saving, setSaving] = useState(false);
   const jwt = useSelector(getJWT);
+
+  useEffect(() => {
+    if (onFormReady) {
+      onFormReady(form);
+    }
+  }, [form, onFormReady]);
 
   const formatLabel = (key: string) => {
     return key
@@ -65,17 +69,6 @@ const KeyTableItemForm = ({
           </Form.Item>
         )
       )}
-      <Space>
-        <Button
-          type="primary"
-          htmlType="submit"
-          loading={saving}
-          style={{ backgroundColor: "#1777ff", borderColor: "#1777ff" }}
-        >
-          Speichern
-        </Button>
-        <Button onClick={onCancel}>Abbrechen</Button>
-      </Space>
     </Form>
   );
 };

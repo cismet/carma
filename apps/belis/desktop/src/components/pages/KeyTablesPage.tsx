@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { fetchAllKeyTables } from "../../helper/apiMethods";
 import { AppDispatch } from "../../store";
 import { useDispatch, useSelector } from "react-redux";
@@ -13,7 +13,13 @@ import {
   getKeyTablesFetched,
 } from "../../store/slices/keyTables";
 import { List, Spin, Alert } from "antd";
-import { PlusOutlined, DeleteOutlined } from "@ant-design/icons";
+import {
+  PlusOutlined,
+  DeleteOutlined,
+  CloseOutlined,
+  CheckCircleOutlined,
+} from "@ant-design/icons";
+import type { FormInstance } from "antd";
 import { CustomCard } from "../commons/CustomCard";
 import KeyTableItemForm from "../ui/KeyTableItemForm";
 import { keyTableDisplayConfig } from "../../config/keyTableDisplayConfig";
@@ -33,6 +39,7 @@ const KeyTablesPage = () => {
   const fetched = useSelector(getKeyTablesFetched);
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(null);
+  const formRef = useRef<FormInstance | null>(null);
 
   const adjustedHeight = "calc(100vh - 60px)";
 
@@ -140,7 +147,12 @@ const KeyTablesPage = () => {
 
   const handleRemoveItem = () => {
     if (!selectedItem) return;
-    console.log("Remove item:", selectedItem.item, "from table:", selectedItem.tableName);
+    console.log(
+      "Remove item:",
+      selectedItem.item,
+      "from table:",
+      selectedItem.tableName
+    );
   };
 
   const selectedTableItems = selectedTable
@@ -149,42 +161,102 @@ const KeyTablesPage = () => {
 
   return (
     <div className="mx-3 mt-1">
-        {loading && (
-          <div className="flex justify-center items-center py-8">
-            <Spin size="large" tip="Laden..." />
+      {loading && (
+        <div className="flex justify-center items-center py-8">
+          <Spin size="large" tip="Laden..." />
+        </div>
+      )}
+
+      {!loading && Object.keys(errors).length > 0 && (
+        <Alert
+          message="Fehler beim Laden"
+          description={`Einige Tabellen konnten nicht geladen werden: ${Object.keys(
+            errors
+          ).join(", ")}`}
+          type="warning"
+          showIcon
+          className="mb-4"
+        />
+      )}
+
+      {!loading && Object.keys(data).length > 0 && (
+        <div className="flex gap-2">
+          {/* Column 1: Key Table Names */}
+          <div
+            style={{
+              width: "20%",
+              flexShrink: 0,
+              height: adjustedHeight,
+            }}
+          >
+            <CustomCard title="Schlüsseltabellen" style={{ height: "100%" }}>
+              <List
+                size="small"
+                dataSource={Object.keys(data)}
+                renderItem={(tableName: string) => {
+                  const items = data[tableName];
+                  const count = Array.isArray(items) ? items.length : 0;
+                  const isSelected = selectedTable === tableName;
+                  return (
+                    <List.Item
+                      style={{
+                        cursor: "pointer",
+                        backgroundColor: isSelected ? "#e6f4ff" : undefined,
+                        borderLeft: isSelected
+                          ? "3px solid #1677ff"
+                          : "3px solid transparent",
+                        paddingLeft: 12,
+                      }}
+                      className="hover:bg-gray-100"
+                      onClick={() => handleTableClick(tableName)}
+                    >
+                      <span>
+                        <strong>{formatTableName(tableName)}</strong>
+                        <span style={{ marginLeft: 8, color: "#8c8c8c" }}>
+                          ({count})
+                        </span>
+                      </span>
+                    </List.Item>
+                  );
+                }}
+                locale={{ emptyText: "Keine Tabellen" }}
+              />
+            </CustomCard>
           </div>
-        )}
 
-        {!loading && Object.keys(errors).length > 0 && (
-          <Alert
-            message="Fehler beim Laden"
-            description={`Einige Tabellen konnten nicht geladen werden: ${Object.keys(
-              errors
-            ).join(", ")}`}
-            type="warning"
-            showIcon
-            className="mb-4"
-          />
-        )}
-
-        {!loading && Object.keys(data).length > 0 && (
-          <div className="flex gap-2">
-            {/* Column 1: Key Table Names */}
+          {/* Column 2: Items List */}
+          {selectedTable && (
             <div
               style={{
-                width: "20%",
+                width: "25%",
                 flexShrink: 0,
                 height: adjustedHeight,
               }}
             >
-              <CustomCard title="Schlüsseltabellen" style={{ height: "100%" }}>
+              <CustomCard
+                title={formatTableName(selectedTable)}
+                style={{ height: "100%" }}
+                extra={
+                  <div className="flex items-center gap-2">
+                    <PlusOutlined
+                      className="cursor-pointer hover:text-blue-500"
+                      onClick={handleAddItem}
+                    />
+                    <DeleteOutlined
+                      className="cursor-pointer hover:text-red-500"
+                      onClick={handleRemoveItem}
+                    />
+                  </div>
+                }
+              >
                 <List
                   size="small"
-                  dataSource={Object.keys(data)}
-                  renderItem={(tableName: string) => {
-                    const items = data[tableName];
-                    const count = Array.isArray(items) ? items.length : 0;
-                    const isSelected = selectedTable === tableName;
+                  dataSource={selectedTableItems}
+                  renderItem={(item: unknown) => {
+                    const itemRecord = item as Record<string, unknown>;
+                    const isSelected =
+                      selectedItem?.item.id === itemRecord.id &&
+                      selectedItem?.tableName === selectedTable;
                     return (
                       <List.Item
                         style={{
@@ -196,115 +268,67 @@ const KeyTablesPage = () => {
                           paddingLeft: 12,
                         }}
                         className="hover:bg-gray-100"
-                        onClick={() => handleTableClick(tableName)}
+                        onClick={() => handleItemClick(item, selectedTable)}
                       >
-                        <span>
-                          <strong>{formatTableName(tableName)}</strong>
-                          <span style={{ marginLeft: 8, color: "#8c8c8c" }}>
-                            ({count})
-                          </span>
-                        </span>
+                        {getItemDisplayText(
+                          itemRecord,
+                          selectedTable,
+                          keyTableDisplayConfig
+                        )}
                       </List.Item>
                     );
                   }}
-                  locale={{ emptyText: "Keine Tabellen" }}
+                  locale={{ emptyText: "Keine Daten" }}
                 />
               </CustomCard>
             </div>
+          )}
 
-            {/* Column 2: Items List */}
-            {selectedTable && (
-              <div
-                style={{
-                  width: "25%",
-                  flexShrink: 0,
-                  height: adjustedHeight,
-                }}
-              >
-                <CustomCard
-                  title={formatTableName(selectedTable)}
-                  style={{ height: "100%" }}
-                  extra={
-                    <div className="flex items-center gap-2">
-                      <PlusOutlined
-                        className="cursor-pointer hover:text-blue-500"
-                        onClick={handleAddItem}
-                      />
-                      <DeleteOutlined
-                        className="cursor-pointer hover:text-red-500"
-                        onClick={handleRemoveItem}
-                      />
-                    </div>
-                  }
-                >
-                  <List
-                    size="small"
-                    dataSource={selectedTableItems}
-                    renderItem={(item: unknown) => {
-                      const itemRecord = item as Record<string, unknown>;
-                      const isSelected =
-                        selectedItem?.item.id === itemRecord.id &&
-                        selectedItem?.tableName === selectedTable;
-                      return (
-                        <List.Item
-                          style={{
-                            cursor: "pointer",
-                            backgroundColor: isSelected ? "#e6f4ff" : undefined,
-                            borderLeft: isSelected
-                              ? "3px solid #1677ff"
-                              : "3px solid transparent",
-                            paddingLeft: 12,
-                          }}
-                          className="hover:bg-gray-100"
-                          onClick={() => handleItemClick(item, selectedTable)}
-                        >
-                          {getItemDisplayText(
-                            itemRecord,
-                            selectedTable,
-                            keyTableDisplayConfig
-                          )}
-                        </List.Item>
-                      );
-                    }}
-                    locale={{ emptyText: "Keine Daten" }}
-                  />
-                </CustomCard>
-              </div>
-            )}
-
-            {/* Column 3: Form */}
-            {selectedItem && (
-              <div
-                style={{
-                  flex: 1,
-                  height: adjustedHeight,
-                  minWidth: 0,
-                }}
-              >
-                <CustomCard
-                  title={`${getItemDisplayText(
-                    selectedItem.item,
-                    selectedItem.tableName,
-                    keyTableDisplayConfig
-                  )}`}
-                  style={{ height: "100%" }}
-                >
-                  <div className="flex items-center h-full">
-                    <div className="w-full p-3">
-                      <KeyTableItemForm
-                        key={`${selectedItem.tableName}-${selectedItem.item.id}`}
-                        item={selectedItem.item}
-                        tableName={selectedItem.tableName}
-                        onSave={handleItemSaved}
-                        onCancel={() => setSelectedItem(null)}
-                      />
-                    </div>
+          {/* Column 3: Form */}
+          {selectedItem && (
+            <div
+              style={{
+                flex: 1,
+                height: adjustedHeight,
+                minWidth: 0,
+              }}
+            >
+              <CustomCard
+                title={`${getItemDisplayText(
+                  selectedItem.item,
+                  selectedItem.tableName,
+                  keyTableDisplayConfig
+                )}`}
+                style={{ height: "100%" }}
+                extra={
+                  <div className="flex items-center gap-2">
+                    <CheckCircleOutlined
+                      className="cursor-pointer hover:text-green-500"
+                      onClick={() => formRef.current?.submit()}
+                    />
+                    <CloseOutlined
+                      className="cursor-pointer hover:text-red-500"
+                      onClick={() => setSelectedItem(null)}
+                    />
                   </div>
-                </CustomCard>
-              </div>
-            )}
-          </div>
-        )}
+                }
+              >
+                <div className="flex items-center h-full">
+                  <div className="w-full p-3">
+                    <KeyTableItemForm
+                      key={`${selectedItem.tableName}-${selectedItem.item.id}`}
+                      item={selectedItem.item}
+                      tableName={selectedItem.tableName}
+                      onSave={handleItemSaved}
+                      onFormReady={(form) => (formRef.current = form)}
+                    />
+                  </div>
+                </div>
+              </CustomCard>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 };
