@@ -14,4 +14,8 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
     template: "{masttyp} {bezeichnung}",
     separator: " - ",
   },
+  leuchtentyp: {
+    template: "{leuchtentyp} {fabrikat}",
+    separator: " - ",
+  },
 };
