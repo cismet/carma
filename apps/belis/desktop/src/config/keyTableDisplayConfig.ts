@@ -18,4 +18,8 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
     template: "{leuchtentyp} {fabrikat}",
     separator: " - ",
   },
+  rundsteuerempfänger: {
+    template: "{rs_typ} {fabrikat}",
+    separator: " - ",
+  },
 };
