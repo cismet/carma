@@ -121,11 +121,21 @@ const KeyTablesPage = () => {
     if (!selectedTable) return;
     const tableItems = data[selectedTable] as Record<string, unknown>[];
     const templateItem = tableItems[0] || {};
+
+    // Create new item with same shape, empty values, and temporary negative id
     const newItem: Record<string, unknown> = {};
     Object.keys(templateItem).forEach((key) => {
-      newItem[key] = key === "id" ? undefined : "";
+      newItem[key] = key === "id" ? -Date.now() : "";
     });
-    console.log("Add new item:", newItem, "to table:", selectedTable);
+
+    // Add to Redux store (at the beginning of the list)
+    const newData = { ...data };
+    const newTableData = [newItem, ...tableItems];
+    newData[selectedTable] = newTableData;
+    dispatch(setKeyTablesData(newData));
+
+    // Select the new item to show its form
+    setSelectedItem({ item: newItem, tableName: selectedTable });
   };
 
   const handleRemoveItem = () => {
