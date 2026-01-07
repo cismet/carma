@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState } from "react";
-import TopNavbar from "../commons/TopNavbar";
+import { useEffect, useState } from "react";
 import { fetchAllKeyTables } from "../../helper/apiMethods";
 import { AppDispatch } from "../../store";
 import { useDispatch, useSelector } from "react-redux";
@@ -25,7 +24,6 @@ interface SelectedItem {
 }
 
 const KeyTablesPage = () => {
-  const refUpperToolbar = useRef(null);
   const dispatch: AppDispatch = useDispatch();
   const storedJWT = useSelector(getJWT);
   const data = useSelector(getKeyTablesData);
@@ -123,9 +121,7 @@ const KeyTablesPage = () => {
     : [];
 
   return (
-    <>
-      <TopNavbar innerRef={refUpperToolbar} />
-      <div className="mx-3 mt-1">
+    <div className="mx-3 mt-1">
         {loading && (
           <div className="flex justify-center items-center py-8">
             <Spin size="large" tip="Laden..." />
@@ -270,8 +266,7 @@ const KeyTablesPage = () => {
             )}
           </div>
         )}
-      </div>
-    </>
+    </div>
   );
 };
 
