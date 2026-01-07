@@ -22,7 +22,7 @@ const TopNavbar = ({ innerRef }) => {
             color: isActive ? "#1777ff" : undefined,
           })}
         >
-          Karte
+          BelIS
         </NavLink>
         <NavLink
           to="/key-tables"

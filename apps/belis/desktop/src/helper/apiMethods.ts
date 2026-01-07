@@ -945,7 +945,7 @@ export const fetchAllKeyTables = async (jwt: string) => {
     { key: "materialMauerlasche", fetch: fetchAllMaterialMauerlasche },
     { key: "anlagengruppe", fetch: fetchAllAnlagengruppe },
     { key: "unterhaltLeuchte", fetch: fetchAllUnterhaltLeuchte },
-    { key: "strassenschluessel", fetch: fetchAllStrassenschluessel },
+    { key: "straßenschlüssel", fetch: fetchAllStrassenschluessel },
     { key: "energielieferant", fetch: fetchAllEnergielieferant },
     { key: "bezirk", fetch: fetchAllBezirk },
     { key: "leitungstyp", fetch: fetchAllLeitungstyp },
@@ -958,7 +958,7 @@ export const fetchAllKeyTables = async (jwt: string) => {
     { key: "doppelkommando", fetch: fetchAllDoppelkommando },
     { key: "masttyp", fetch: fetchAllMasttyp },
     { key: "leuchtentyp", fetch: fetchAllLeuchtentyp },
-    { key: "rundsteuerempfaenger", fetch: fetchAllRundsteuerempfaenger },
+    { key: "rundsteuerempfänger", fetch: fetchAllRundsteuerempfaenger },
     { key: "infobausteinTemplate", fetch: fetchAllInfobausteinTemplate },
   ] as const;
 
