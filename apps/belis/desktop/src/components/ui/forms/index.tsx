@@ -1,5 +1,6 @@
 import { ComponentType } from "react";
 import { FormInstance } from "antd";
+import MasttypForm from "./MasttypForm";
 
 export interface CustomFormProps {
   item: Record<string, unknown>;
@@ -10,9 +11,7 @@ export interface CustomFormProps {
   disabled?: boolean;
 }
 
-const PlaceholderForm = () => <div>Custom Form Placeholder</div>;
-
 // Registry keyed by form name (referenced in keyTableDisplayConfig.customForm)
 export const customForms: Record<string, ComponentType<CustomFormProps>> = {
-  placeholder: PlaceholderForm,
+  masttyp: MasttypForm,
 };

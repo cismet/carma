@@ -26,6 +26,7 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
   masttyp: {
     template: "{masttyp} {bezeichnung}",
     sortMode: "numeric",
+    customForm: "masttyp",
   },
   leuchtentyp: {
     template: "{leuchtentyp} {fabrikat}",
@@ -61,7 +62,6 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
     template: "{bezirk} - {unterhaltspflichtiger_leuchte}",
     sortMode: "alphabetical",
     readOnly: true,
-    customForm: "placeholder",
   },
   arbeitsprotokollstatus: {
     template: "{schluessel} - {bezeichnung}",
