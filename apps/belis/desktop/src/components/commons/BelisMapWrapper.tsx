@@ -119,7 +119,7 @@ const BelisMapLibWrapper = ({ refRoutedMap, jwt, mapSizes }) => {
         filter={filter}
         isShowSearch={true}
       >
-        <InfoBoxWrapper mapWidth={mapSizes.width} />
+        {/* <InfoBoxWrapper mapWidth={mapSizes.width} /> */}
       </BelisMap>
     </div>
   );
