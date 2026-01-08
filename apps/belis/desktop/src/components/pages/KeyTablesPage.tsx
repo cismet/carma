@@ -16,6 +16,7 @@ import { Spin, Alert } from "antd";
 import KeyTableDataGroups from "../ui/KeyTableDataGroups";
 import KeyTableDataGroupsList from "../ui/KeyTableDataGroupsList";
 import FormWrapper from "../ui/FormWrapper";
+import { keyTableDisplayConfig } from "../../config/keyTableDisplayConfig";
 
 interface SelectedItem {
   item: Record<string, unknown>;
@@ -183,6 +184,7 @@ const KeyTablesPage = () => {
                 onItemSelect={handleItemClick}
                 onAddItem={handleAddItem}
                 onRemoveItem={handleRemoveItem}
+                sortMode={keyTableDisplayConfig[selectedTable]?.sortMode}
               />
             </div>
           )}

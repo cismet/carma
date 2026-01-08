@@ -1,7 +1,10 @@
 import { List } from "antd";
 import { PlusOutlined, DeleteOutlined } from "@ant-design/icons";
 import { CustomCard } from "../commons/CustomCard";
-import { keyTableDisplayConfig } from "../../config/keyTableDisplayConfig";
+import {
+  keyTableDisplayConfig,
+  SortMode,
+} from "../../config/keyTableDisplayConfig";
 import { getItemDisplayText } from "../../utils/templateParser";
 
 interface SelectedItem {
@@ -16,6 +19,7 @@ interface KeyTableDataGroupsListProps {
   onItemSelect: (item: unknown, tableName: string) => void;
   onAddItem: () => void;
   onRemoveItem: () => void;
+  sortMode?: SortMode;
 }
 
 const formatTableName = (key: string) => {
@@ -32,7 +36,41 @@ const KeyTableDataGroupsList = ({
   onItemSelect,
   onAddItem,
   onRemoveItem,
+  sortMode = "none",
 }: KeyTableDataGroupsListProps) => {
+  const getSortedItems = () => {
+    if (sortMode === "none") {
+      return items;
+    }
+
+    return [...items].sort((a, b) => {
+      const aRecord = a as Record<string, unknown>;
+      const bRecord = b as Record<string, unknown>;
+      const aText = getItemDisplayText(
+        aRecord,
+        tableName,
+        keyTableDisplayConfig
+      );
+      const bText = getItemDisplayText(
+        bRecord,
+        tableName,
+        keyTableDisplayConfig
+      );
+
+      if (sortMode === "alphabetical") {
+        return aText.localeCompare(bText, "de", { sensitivity: "base" });
+      }
+
+      if (sortMode === "numeric") {
+        return aText.localeCompare(bText, "de", { numeric: true });
+      }
+
+      return 0;
+    });
+  };
+
+  const sortedItems = getSortedItems();
+
   return (
     <CustomCard
       title={formatTableName(tableName)}
@@ -52,7 +90,7 @@ const KeyTableDataGroupsList = ({
     >
       <List
         size="small"
-        dataSource={items}
+        dataSource={sortedItems}
         renderItem={(item: unknown) => {
           const itemRecord = item as Record<string, unknown>;
           const isSelected =
