@@ -83,15 +83,16 @@ const BelisMapLibWrapper = ({ refRoutedMap, jwt, mapSizes }) => {
 
   return (
     <div className="relative">
-      <MapBlocker
+      {/* <MapBlocker
         blocking={fcIsDone === false}
         visible={true}
         width={mapSizes.width}
         height={mapSizes.height}
         setDone={setDoneHandler}
-      />
+      /> */}
       <BelisMap
         refRoutedMap={refRoutedMap}
+        vectorStyleUrl="https://tiles.cismet.de/belis/style.json"
         width={mapSizes.width}
         height={mapSizes.height}
         jwt={jwt}

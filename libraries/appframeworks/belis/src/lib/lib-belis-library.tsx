@@ -4,6 +4,7 @@ import { TopicMapDispatchContext } from "react-cismap/contexts/TopicMapContextPr
 import { useNavigate, useLocation } from "react-router-dom";
 import { convertBounds2BBox } from "./utils/gisHelper";
 import { MappingConstants, RoutedMap } from "react-cismap";
+import CismapLayer from "react-cismap/CismapLayer";
 import { modifyQueryPart } from "./utils/routingHelper";
 import { BelisFeatureCollection } from "./components/BelisFeatureCollection";
 import { BackgroundLayers } from "./components/BackgroundLayers";
@@ -81,6 +82,7 @@ interface BelisMapProps {
   backgroundLayerOpacities?: any;
   filter?: FilterState;
   isShowSearch?: boolean;
+  vectorStyleUrl?: string;
 }
 
 export const CONNECTIONMODE = { FROMCACHE: "FROMCACHE", ONLINE: "ONLINE" };
@@ -113,6 +115,7 @@ export function BelisMap({
   backgroundLayerOpacities = {},
   filter = featuresFilter,
   isShowSearch = false,
+  vectorStyleUrl,
 }: BelisMapProps) {
   const mapRef = refRoutedMap?.current?.leafletMap?.leafletElement;
   const blockingTime = 1000;
@@ -384,13 +387,32 @@ export function BelisMap({
           // console.log("xxx boundingBox Changed", boundingBox);
         }}
       >
-        <BelisFeatureCollection
-          // style={{ zIndex: 600 }}
-          featureCollection={featureCollection}
-          fgColor={symbolColor}
-          selectedFeature={selectedFeature}
-          handleSelectedFeature={handleSelectedFeature}
-        ></BelisFeatureCollection>
+        {vectorStyleUrl ? (
+          <CismapLayer
+            type="vector"
+            style={vectorStyleUrl}
+            selectionEnabled={true}
+            pane="additionalLayers0"
+            onSelectionChanged={(e) => {
+              // e.hit = clicked feature
+              // e.hits = all features at click point
+              // e.latlng = click coordinates
+              // console.log(
+              //   "xxx e.hit, e.hits, e.latlng",
+              //   e.hit,
+              //   e.hits,
+              //   e.latlng
+              // );
+            }}
+          />
+        ) : (
+          <BelisFeatureCollection
+            featureCollection={featureCollection}
+            fgColor={symbolColor}
+            selectedFeature={selectedFeature}
+            handleSelectedFeature={handleSelectedFeature}
+          />
+        )}
         {/* <DebugFeature feature={focusBoundingBox} /> */}
         <FocusRectangle
           inFocusMode={inFocusMode && fcMode === MODES.OBJECTS}

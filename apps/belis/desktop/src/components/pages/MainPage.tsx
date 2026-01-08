@@ -48,7 +48,7 @@ const MainPage = () => {
   const navbarHeight = 60;
 
   const mapStyle = {
-    height: windowHeight - navbarHeight - 76 - 20,
+    height: windowHeight - navbarHeight - 76,
     width: windowWidth - cardGaps,
     cursor: "pointer",
     clear: "both",
@@ -63,7 +63,7 @@ const MainPage = () => {
           extra={
             <div className="flex items-center gap-4">
               <Filter />
-              <BelisSwitch
+              {/* <BelisSwitch
                 key={"automatische-suche-toggle-key" + inSearchMode + zoom}
                 id="automatische-suche-toggle"
                 disabled={zoom < searchMinimumZoomThreshhold}
@@ -92,7 +92,7 @@ const MainPage = () => {
                     dispatch(setWishedSearchMode(false));
                   }
                 }}
-              />
+              /> */}
               <BelisSwitch
                 preLabel="Fokus"
                 switched={inFocusMode}

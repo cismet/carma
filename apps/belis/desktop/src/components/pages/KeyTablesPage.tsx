@@ -33,7 +33,7 @@ const KeyTablesPage = () => {
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(null);
 
-  const adjustedHeight = "calc(100vh - 60px)";
+  const adjustedHeight = "calc(100vh - 65px)";
 
   useEffect(() => {
     if (fetched) return;
@@ -201,7 +201,9 @@ const KeyTablesPage = () => {
               <FormWrapper
                 selectedItem={selectedItem}
                 onSave={handleItemSaved}
-                readOnly={keyTableDisplayConfig[selectedItem.tableName]?.readOnly}
+                readOnly={
+                  keyTableDisplayConfig[selectedItem.tableName]?.readOnly
+                }
               />
             </div>
           )}
