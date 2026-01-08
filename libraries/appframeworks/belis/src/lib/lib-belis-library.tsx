@@ -397,12 +397,13 @@ export function BelisMap({
               // e.hit = clicked feature
               // e.hits = all features at click point
               // e.latlng = click coordinates
-              // console.log(
-              //   "xxx e.hit, e.hits, e.latlng",
-              //   e.hit,
-              //   e.hits,
-              //   e.latlng
-              // );
+              const feature = e?.hit;
+              if (feature) {
+                handleSelectedFeature(feature);
+              } else {
+                handleSelectedFeature(null);
+              }
+              console.log("xxx e.hit, e.hits, e.latlng", e.hit);
             }}
           />
         ) : (
