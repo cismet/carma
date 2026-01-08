@@ -25,13 +25,14 @@ const FormWrapper = ({ selectedItem, onSave, readOnly = false }: FormWrapperProp
   const customFormKey = keyTableDisplayConfig[selectedItem.tableName]?.customForm;
   const FormComponent = (customFormKey && customForms[customFormKey]) || KeyTableItemForm;
 
+  const isNewItem = (selectedItem.item.id as number) < 0;
+  const title = isNewItem
+    ? "Neuer Eintrag"
+    : getItemDisplayText(selectedItem.item, selectedItem.tableName, keyTableDisplayConfig);
+
   return (
     <CustomCard
-      title={`${getItemDisplayText(
-        selectedItem.item,
-        selectedItem.tableName,
-        keyTableDisplayConfig
-      )}`}
+      title={title}
       style={{ height: "100%" }}
       extra={
         !readOnly && (
