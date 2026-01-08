@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState } from "react";
 import { fetchAllKeyTables } from "../../helper/apiMethods";
 import { AppDispatch } from "../../store";
 import { useDispatch, useSelector } from "react-redux";
@@ -12,18 +12,10 @@ import {
   getKeyTablesLoading,
   getKeyTablesFetched,
 } from "../../store/slices/keyTables";
-import { List, Spin, Alert } from "antd";
-import {
-  PlusOutlined,
-  DeleteOutlined,
-  CloseOutlined,
-  CheckCircleOutlined,
-} from "@ant-design/icons";
-import type { FormInstance } from "antd";
-import { CustomCard } from "../commons/CustomCard";
-import KeyTableItemForm from "../ui/KeyTableItemForm";
-import { keyTableDisplayConfig } from "../../config/keyTableDisplayConfig";
-import { getItemDisplayText } from "../../utils/templateParser";
+import { Spin, Alert } from "antd";
+import KeyTableDataGroups from "../ui/KeyTableDataGroups";
+import KeyTableDataGroupsList from "../ui/KeyTableDataGroupsList";
+import FormWrapper from "../ui/FormWrapper";
 
 interface SelectedItem {
   item: Record<string, unknown>;
@@ -39,8 +31,6 @@ const KeyTablesPage = () => {
   const fetched = useSelector(getKeyTablesFetched);
   const [selectedTable, setSelectedTable] = useState<string | null>(null);
   const [selectedItem, setSelectedItem] = useState<SelectedItem | null>(null);
-  const [formHasChanges, setFormHasChanges] = useState(false);
-  const formRef = useRef<FormInstance | null>(null);
 
   const adjustedHeight = "calc(100vh - 60px)";
 
@@ -55,8 +45,6 @@ const KeyTablesPage = () => {
         const { data, errors } = await fetchAllKeyTables(storedJWT);
         dispatch(setKeyTablesData(data));
         dispatch(setKeyTablesErrors(errors));
-        console.log("data", data);
-        console.log("errors", errors);
       } catch (error) {
         console.error("Failed to fetch key tables:", error);
       } finally {
@@ -65,10 +53,6 @@ const KeyTablesPage = () => {
     };
     fetchData();
   }, []);
-
-  useEffect(() => {
-    console.log("xxx selectedItem", selectedItem);
-  }, [selectedItem]);
 
   // Select first table by default when data loads
   useEffect(() => {
@@ -93,21 +77,12 @@ const KeyTablesPage = () => {
     }
   }, [selectedTable]);
 
-  // Format table name for display
-  const formatTableName = (key: string) => {
-    return key
-      .replace(/([A-Z])/g, " $1")
-      .replace(/^./, (str) => str.toUpperCase())
-      .trim();
-  };
-
   const handleTableClick = (tableName: string) => {
     setSelectedTable(tableName);
   };
 
   const handleItemClick = (item: unknown, tableName: string) => {
     setSelectedItem({ item: item as Record<string, unknown>, tableName });
-    setFormHasChanges(false);
   };
 
   const handleItemSaved = (updatedItem: Record<string, unknown>) => {
@@ -139,7 +114,6 @@ const KeyTablesPage = () => {
 
     // Just show the form for the new item (don't add to list yet)
     setSelectedItem({ item: newItem, tableName: selectedTable });
-    setFormHasChanges(false);
   };
 
   const handleRemoveItem = () => {
@@ -186,60 +160,11 @@ const KeyTablesPage = () => {
               height: adjustedHeight,
             }}
           >
-            <CustomCard title="Schlüsseltabellen" style={{ height: "100%" }}>
-              <List
-                size="small"
-                dataSource={Object.keys(data)}
-                renderItem={(tableName: string) => {
-                  const items = data[tableName];
-                  const count = Array.isArray(items) ? items.length : 0;
-                  const isSelected = selectedTable === tableName;
-                  return (
-                    <List.Item
-                      style={{
-                        cursor: "pointer",
-                        backgroundColor: isSelected ? "#e6f4ff" : undefined,
-                        borderLeft: isSelected
-                          ? "3px solid #1677ff"
-                          : "3px solid transparent",
-                        padding: "8px 12px",
-                      }}
-                      className="hover:bg-gray-50"
-                      onClick={() => handleTableClick(tableName)}
-                    >
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          width: "100%",
-                        }}
-                      >
-                        <span
-                          style={{
-                            fontSize: 14,
-                            fontWeight: 400,
-                            color: "#262626",
-                          }}
-                        >
-                          {formatTableName(tableName)}
-                        </span>
-                        <span
-                          style={{
-                            fontSize: 14,
-                            fontWeight: 400,
-                            color: "#bfbfbf",
-                          }}
-                        >
-                          ({count})
-                        </span>
-                      </div>
-                    </List.Item>
-                  );
-                }}
-                locale={{ emptyText: "Keine Tabellen" }}
-              />
-            </CustomCard>
+            <KeyTableDataGroups
+              data={data}
+              selectedTable={selectedTable}
+              onTableSelect={handleTableClick}
+            />
           </div>
 
           {/* Column 2: Items List */}
@@ -251,62 +176,14 @@ const KeyTablesPage = () => {
                 height: adjustedHeight,
               }}
             >
-              <CustomCard
-                title={formatTableName(selectedTable)}
-                style={{ height: "100%" }}
-                extra={
-                  <div className="flex items-center gap-2">
-                    <PlusOutlined
-                      className="cursor-pointer hover:text-blue-500"
-                      onClick={handleAddItem}
-                    />
-                    <DeleteOutlined
-                      className="cursor-pointer hover:text-red-500"
-                      onClick={handleRemoveItem}
-                    />
-                  </div>
-                }
-              >
-                <List
-                  size="small"
-                  dataSource={selectedTableItems}
-                  renderItem={(item: unknown) => {
-                    const itemRecord = item as Record<string, unknown>;
-                    const isSelected =
-                      selectedItem?.item.id === itemRecord.id &&
-                      selectedItem?.tableName === selectedTable;
-                    return (
-                      <List.Item
-                        style={{
-                          cursor: "pointer",
-                          backgroundColor: isSelected ? "#e6f4ff" : undefined,
-                          borderLeft: isSelected
-                            ? "3px solid #1677ff"
-                            : "3px solid transparent",
-                          padding: "8px 12px",
-                        }}
-                        className="hover:bg-gray-50"
-                        onClick={() => handleItemClick(item, selectedTable)}
-                      >
-                        <span
-                          style={{
-                            fontSize: 14,
-                            fontWeight: 400,
-                            color: "#262626",
-                          }}
-                        >
-                          {getItemDisplayText(
-                            itemRecord,
-                            selectedTable,
-                            keyTableDisplayConfig
-                          )}
-                        </span>
-                      </List.Item>
-                    );
-                  }}
-                  locale={{ emptyText: "Keine Daten" }}
-                />
-              </CustomCard>
+              <KeyTableDataGroupsList
+                tableName={selectedTable}
+                items={selectedTableItems}
+                selectedItem={selectedItem}
+                onItemSelect={handleItemClick}
+                onAddItem={handleAddItem}
+                onRemoveItem={handleRemoveItem}
+              />
             </div>
           )}
 
@@ -319,56 +196,10 @@ const KeyTablesPage = () => {
                 minWidth: 0,
               }}
             >
-              <CustomCard
-                title={`${getItemDisplayText(
-                  selectedItem.item,
-                  selectedItem.tableName,
-                  keyTableDisplayConfig
-                )}`}
-                style={{ height: "100%" }}
-                extra={
-                  <div className="flex items-center gap-2">
-                    <CheckCircleOutlined
-                      className={
-                        formHasChanges
-                          ? "cursor-pointer hover:text-green-500"
-                          : "cursor-not-allowed text-gray-300"
-                      }
-                      onClick={() => {
-                        if (formHasChanges) {
-                          formRef.current?.submit();
-                        }
-                      }}
-                    />
-                    <CloseOutlined
-                      className={
-                        formHasChanges
-                          ? "cursor-pointer hover:text-red-500"
-                          : "cursor-not-allowed text-gray-300"
-                      }
-                      onClick={() => {
-                        if (formHasChanges) {
-                          formRef.current?.resetFields();
-                          setFormHasChanges(false);
-                        }
-                      }}
-                    />
-                  </div>
-                }
-              >
-                <div className="h-full">
-                  <div className="w-full">
-                    <KeyTableItemForm
-                      key={`${selectedItem.tableName}-${selectedItem.item.id}`}
-                      item={selectedItem.item}
-                      tableName={selectedItem.tableName}
-                      onSave={handleItemSaved}
-                      onFormReady={(form) => (formRef.current = form)}
-                      onValuesChange={setFormHasChanges}
-                    />
-                  </div>
-                </div>
-              </CustomCard>
+              <FormWrapper
+                selectedItem={selectedItem}
+                onSave={handleItemSaved}
+              />
             </div>
           )}
         </div>
