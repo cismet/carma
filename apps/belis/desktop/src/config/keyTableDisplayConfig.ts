@@ -25,4 +25,40 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
   doppelkommando: {
     template: "{pk} - {beschreibung}",
   },
+  leuchtmittel: {
+    template: "{hersteller} {lichtfarbe}",
+  },
+  unterhaltMast: {
+    template: "{pk} - {unterhalt_mast}",
+  },
+  unterhaltLeuchte: {
+    template: "{pk} - {unterhaltspflichtiger_leuchte}",
+  },
+  energielieferant: {
+    template: "{energielieferant}",
+  },
+  anlagengruppe: {
+    template: "{nummer} - {bezeichnung}",
+  },
+  bezirk: {
+    template: "{bezirk} - {unterhaltspflichtiger_leuchte}",
+  },
+  arbeitsprotokollstatus: {
+    template: "{schluessel} - {bezeichnung}",
+  },
+  kennziffer: {
+    template: "{kennziffer} - {beschreibung}",
+  },
+  mastart: {
+    template: "{mastart}",
+  },
+  veranlassungsart: {
+    template: "{schluessel} - {bezeichnung}",
+  },
+  klassifizierung: {
+    template: "{pk} - {klassifizierung}",
+  },
+  infobausteinTemplate: {
+    template: "{schluessel} - {bezeichnung}",
+  },
 };
