@@ -49,6 +49,7 @@ const BelisMapLibWrapper = ({ refRoutedMap, jwt, mapSizes }) => {
     if (feature) {
       const updatedFeature = { ...feature, selected: true };
       dispatch(setSelectedFeature(updatedFeature));
+      console.log("xxx feature", updatedFeature);
     }
   };
 
