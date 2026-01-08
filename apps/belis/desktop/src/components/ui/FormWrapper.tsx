@@ -5,6 +5,7 @@ import { CustomCard } from "../commons/CustomCard";
 import KeyTableItemForm from "./KeyTableItemForm";
 import { keyTableDisplayConfig } from "../../config/keyTableDisplayConfig";
 import { getItemDisplayText } from "../../utils/templateParser";
+import { customForms } from "./forms";
 
 interface SelectedItem {
   item: Record<string, unknown>;
@@ -20,6 +21,9 @@ interface FormWrapperProps {
 const FormWrapper = ({ selectedItem, onSave, readOnly = false }: FormWrapperProps) => {
   const [formHasChanges, setFormHasChanges] = useState(false);
   const formRef = useRef<FormInstance | null>(null);
+
+  const customFormKey = keyTableDisplayConfig[selectedItem.tableName]?.customForm;
+  const FormComponent = (customFormKey && customForms[customFormKey]) || KeyTableItemForm;
 
   return (
     <CustomCard
@@ -63,7 +67,7 @@ const FormWrapper = ({ selectedItem, onSave, readOnly = false }: FormWrapperProp
     >
       <div className="h-full">
         <div className="w-full">
-          <KeyTableItemForm
+          <FormComponent
             key={`${selectedItem.tableName}-${selectedItem.item.id}`}
             item={selectedItem.item}
             tableName={selectedItem.tableName}
