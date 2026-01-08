@@ -8,6 +8,7 @@ export interface KeyTableDisplayRule {
   emptyText?: string;
   separator?: string;
   sortMode?: SortMode;
+  readOnly?: boolean;
 }
 
 export type KeyTableDisplayConfig = Record<string, KeyTableDisplayRule>;
@@ -58,6 +59,7 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
   bezirk: {
     template: "{bezirk} - {unterhaltspflichtiger_leuchte}",
     sortMode: "alphabetical",
+    readOnly: true,
   },
   arbeitsprotokollstatus: {
     template: "{schluessel} - {bezeichnung}",
@@ -89,5 +91,9 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
   materialLeitung: {
     template: "{bezeichnung}",
     sortMode: "alphabetical",
+  },
+  straßenschlüssel: {
+    template: "{pk}",
+    readOnly: true,
   },
 };

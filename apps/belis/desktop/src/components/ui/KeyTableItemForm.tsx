@@ -9,6 +9,7 @@ interface KeyTableItemFormProps {
   onSave: (updatedItem: Record<string, unknown>) => void;
   onFormReady?: (form: FormInstance) => void;
   onValuesChange?: (hasChanges: boolean) => void;
+  disabled?: boolean;
 }
 
 const KeyTableItemForm = ({
@@ -17,6 +18,7 @@ const KeyTableItemForm = ({
   onSave,
   onFormReady,
   onValuesChange,
+  disabled = false,
 }: KeyTableItemFormProps) => {
   const [form] = Form.useForm();
   const jwt = useSelector(getJWT);
@@ -78,6 +80,7 @@ const KeyTableItemForm = ({
       onValuesChange={handleValuesChange}
       layout="vertical"
       style={{ padding: "8px 0" }}
+      disabled={disabled}
     >
       {ifTwoColumns ? (
         <Row gutter={24}>
