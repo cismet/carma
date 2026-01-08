@@ -14,9 +14,10 @@ interface SelectedItem {
 interface FormWrapperProps {
   selectedItem: SelectedItem;
   onSave: (updatedItem: Record<string, unknown>) => void;
+  readOnly?: boolean;
 }
 
-const FormWrapper = ({ selectedItem, onSave }: FormWrapperProps) => {
+const FormWrapper = ({ selectedItem, onSave, readOnly = false }: FormWrapperProps) => {
   const [formHasChanges, setFormHasChanges] = useState(false);
   const formRef = useRef<FormInstance | null>(null);
 
@@ -29,33 +30,35 @@ const FormWrapper = ({ selectedItem, onSave }: FormWrapperProps) => {
       )}`}
       style={{ height: "100%" }}
       extra={
-        <div className="flex items-center gap-2">
-          <CheckCircleOutlined
-            className={
-              formHasChanges
-                ? "cursor-pointer hover:text-green-500"
-                : "cursor-not-allowed text-gray-300"
-            }
-            onClick={() => {
-              if (formHasChanges) {
-                formRef.current?.submit();
+        !readOnly && (
+          <div className="flex items-center gap-2">
+            <CheckCircleOutlined
+              className={
+                formHasChanges
+                  ? "cursor-pointer hover:text-green-500"
+                  : "cursor-not-allowed text-gray-300"
               }
-            }}
-          />
-          <CloseOutlined
-            className={
-              formHasChanges
-                ? "cursor-pointer hover:text-red-500"
-                : "cursor-not-allowed text-gray-300"
-            }
-            onClick={() => {
-              if (formHasChanges) {
-                formRef.current?.resetFields();
-                setFormHasChanges(false);
+              onClick={() => {
+                if (formHasChanges) {
+                  formRef.current?.submit();
+                }
+              }}
+            />
+            <CloseOutlined
+              className={
+                formHasChanges
+                  ? "cursor-pointer hover:text-red-500"
+                  : "cursor-not-allowed text-gray-300"
               }
-            }}
-          />
-        </div>
+              onClick={() => {
+                if (formHasChanges) {
+                  formRef.current?.resetFields();
+                  setFormHasChanges(false);
+                }
+              }}
+            />
+          </div>
+        )
       }
     >
       <div className="h-full">
@@ -67,6 +70,7 @@ const FormWrapper = ({ selectedItem, onSave }: FormWrapperProps) => {
             onSave={onSave}
             onFormReady={(form) => (formRef.current = form)}
             onValuesChange={setFormHasChanges}
+            disabled={readOnly}
           />
         </div>
       </div>

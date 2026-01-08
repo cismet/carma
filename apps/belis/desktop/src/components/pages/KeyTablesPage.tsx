@@ -201,6 +201,7 @@ const KeyTablesPage = () => {
               <FormWrapper
                 selectedItem={selectedItem}
                 onSave={handleItemSaved}
+                readOnly={keyTableDisplayConfig[selectedItem.tableName]?.readOnly}
               />
             </div>
           )}
