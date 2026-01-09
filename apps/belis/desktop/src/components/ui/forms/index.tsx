@@ -3,6 +3,7 @@ import { FormInstance } from "antd";
 import MasttypForm from "./MasttypForm";
 import LeuchentypForm from "./LeuchentypForm";
 import RundsteuerempfaengerForm from "./RundsteuerempfaengerForm";
+import InfobausteinTemplateForm from "./InfobausteinTemplateForm";
 
 export interface CustomFormProps {
   item: Record<string, unknown>;
@@ -19,4 +20,5 @@ export const customForms: Record<string, ComponentType<CustomFormProps>> = {
   masttyp: MasttypForm,
   leuchtentyp: LeuchentypForm,
   rundsteuerempfaenger: RundsteuerempfaengerForm,
+  infobausteinTemplate: InfobausteinTemplateForm,
 };
