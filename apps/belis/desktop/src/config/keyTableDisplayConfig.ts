@@ -89,6 +89,7 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
   infobausteinTemplate: {
     template: "{schluessel} - {bezeichnung}",
     sortMode: "numeric",
+    customForm: "infobausteinTemplate",
   },
   leitungstyp: {
     template: "{bezeichnung}",
