@@ -111,6 +111,7 @@ const KeyTableDataGroupsList = ({
       onSelect={handleTreeSelect}
       treeData={treeData}
       style={{ background: "transparent" }}
+      className="strassen-tree"
     />
   );
 
@@ -164,7 +165,9 @@ const KeyTableDataGroupsList = ({
               value={groupingMode}
               onChange={(value: GroupingMode) => setGroupingMode(value)}
               options={GROUPING_OPTIONS}
-              style={{ width: 140 }}
+              style={{ width: 120 }}
+              className="strassen-grouping-select"
+              popupClassName="strassen-grouping-select-dropdown"
             />
           )}
           <PlusOutlined
