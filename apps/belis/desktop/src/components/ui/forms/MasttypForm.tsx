@@ -1,29 +1,7 @@
 import { useEffect } from "react";
-import { Form, Input, Row, Col, List } from "antd";
+import { Form, Input, Row, Col } from "antd";
 import type { FormInstance } from "antd";
-import { FilePdfOutlined } from "@ant-design/icons";
-import { downloadDocument } from "../../../helper/documentHelper";
-
-interface DmsUrlInner {
-  id: number;
-  description: string;
-  name: string | null;
-  typ: string | null;
-  url: {
-    id: number;
-    object_name: string;
-    url_base?: {
-      id: number;
-      prot_prefix: string;
-      server: string;
-      path: string;
-    };
-  };
-}
-
-interface DokumentItem {
-  dms_url: DmsUrlInner;
-}
+import DocumentPreview, { DokumentItem } from "../DocumentPreview";
 
 interface MasttypFormProps {
   item: Record<string, unknown>;
@@ -160,42 +138,8 @@ const MasttypForm = ({
         }
         style={{ marginBottom: 16 }}
       >
-        <List
-          size="small"
-          bordered
-          dataSource={dokumenteArray || []}
-          locale={{ emptyText: "Keine Dokumente" }}
-            renderItem={(doc) => (
-              <List.Item
-                style={{ cursor: "pointer" }}
-                className="hover:bg-gray-50"
-                onClick={async () => {
-                  const urlData = doc.dms_url?.url;
-                  if (urlData?.object_name && jwt) {
-                    try {
-                      await downloadDocument(
-                        jwt,
-                        urlData.object_name,
-                        doc.dms_url?.description || urlData.object_name
-                      );
-                    } catch (error) {
-                      console.error("Download failed:", error);
-                    }
-                  }
-                }}
-              >
-                <div className="flex items-center gap-2">
-                  <FilePdfOutlined style={{ color: "#ff4d4f" }} />
-                  <span>
-                    {doc.dms_url?.description ||
-                      doc.dms_url?.url?.object_name ||
-                      "Dokument"}
-                  </span>
-                </div>
-              </List.Item>
-            )}
-          />
-        </Form.Item>
+        <DocumentPreview documents={dokumenteArray || []} jwt={jwt} />
+      </Form.Item>
     </Form>
   );
 };

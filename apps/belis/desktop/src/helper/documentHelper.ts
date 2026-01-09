@@ -7,6 +7,19 @@ export const getSecureDocumentUrl = (
   return `${SECRES_BASE_URL}/${jwt}/beliswebdav/${objectName}`;
 };
 
+export const getDocumentBlobUrl = async (
+  jwt: string,
+  objectName: string
+): Promise<string> => {
+  const secureUrl = getSecureDocumentUrl(jwt, objectName);
+  const response = await fetch(secureUrl);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch document: ${response.status}`);
+  }
+  const blob = await response.blob();
+  return window.URL.createObjectURL(blob);
+};
+
 export const downloadDocument = async (
   jwt: string,
   objectName: string,
