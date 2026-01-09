@@ -17,6 +17,7 @@ import KeyTableDataGroups from "../ui/KeyTableDataGroups";
 import KeyTableDataGroupsList from "../ui/KeyTableDataGroupsList";
 import FormWrapper from "../ui/FormWrapper";
 import { keyTableDisplayConfig } from "../../config/keyTableDisplayConfig";
+import { getItemDisplayText } from "../../utils/templateParser";
 
 interface SelectedItem {
   item: Record<string, unknown>;
@@ -63,13 +64,30 @@ const KeyTablesPage = () => {
     }
   }, [data]);
 
-  // Select first item when table changes
+  // Select first item when table changes (apply sorting to match displayed order)
   useEffect(() => {
     if (selectedTable && data[selectedTable]) {
-      const tableItems = data[selectedTable];
+      const tableItems = data[selectedTable] as Record<string, unknown>[];
       if (Array.isArray(tableItems) && tableItems.length > 0) {
+        const sortMode = keyTableDisplayConfig[selectedTable]?.sortMode;
+        let sortedItems = [...tableItems];
+
+        if (sortMode && sortMode !== "none") {
+          sortedItems.sort((a, b) => {
+            const aText = getItemDisplayText(a, selectedTable, keyTableDisplayConfig);
+            const bText = getItemDisplayText(b, selectedTable, keyTableDisplayConfig);
+            if (sortMode === "alphabetical") {
+              return aText.localeCompare(bText, "de", { sensitivity: "base" });
+            }
+            if (sortMode === "numeric") {
+              return aText.localeCompare(bText, "de", { numeric: true });
+            }
+            return 0;
+          });
+        }
+
         setSelectedItem({
-          item: tableItems[0] as Record<string, unknown>,
+          item: sortedItems[0],
           tableName: selectedTable,
         });
       } else {

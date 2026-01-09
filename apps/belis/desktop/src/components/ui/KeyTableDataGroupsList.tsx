@@ -37,8 +37,8 @@ const formatTableName = (key: string) => {
 };
 
 const GROUPING_OPTIONS = [
-  { value: "byKey", label: "Nach Schlüssel" },
-  { value: "byStreet", label: "Nach Straße" },
+  { value: "byKey", label: "Schlüssel" },
+  { value: "byStreet", label: "Straße" },
 ];
 
 const KeyTableDataGroupsList = ({
