@@ -39,6 +39,7 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
   rundsteuerempfänger: {
     template: "{rs_typ} {fabrikat}",
     sortMode: "alphabetical",
+    customForm: "rundsteuerempfaenger",
   },
   doppelkommando: {
     template: "{pk} - {beschreibung}",
