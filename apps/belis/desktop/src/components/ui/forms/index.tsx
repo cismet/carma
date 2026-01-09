@@ -11,6 +11,7 @@ export interface CustomFormProps {
   onFormReady?: (form: FormInstance) => void;
   onValuesChange?: (hasChanges: boolean) => void;
   disabled?: boolean;
+  jwt?: string;
 }
 
 // Registry keyed by form name (referenced in keyTableDisplayConfig.customForm)
