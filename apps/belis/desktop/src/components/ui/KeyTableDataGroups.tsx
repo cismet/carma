@@ -23,7 +23,9 @@ const KeyTableDataGroups = ({
     <CustomCard title="Schlüsseltabellen" style={{ height: "100%" }}>
       <List
         size="small"
-        dataSource={Object.keys(data)}
+        dataSource={Object.keys(data).sort((a, b) =>
+          formatTableName(a).localeCompare(formatTableName(b), "de", { sensitivity: "base" })
+        )}
         renderItem={(tableName: string) => {
           const items = data[tableName];
           const count = Array.isArray(items) ? items.length : 0;
