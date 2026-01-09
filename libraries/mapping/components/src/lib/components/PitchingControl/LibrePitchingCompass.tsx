@@ -3,28 +3,52 @@ import CompassNeedleSVG from "./CompassNeedleSVG";
 import { useEffect, useState } from "react";
 
 interface LibrePitchingCompassProps {
-  mapRef: React.RefObject<Map | null>;
+  map: Map | null;
 }
 
-export const LibrePitchingCompass = ({ mapRef }: LibrePitchingCompassProps) => {
+export const LibrePitchingCompass = ({ map }: LibrePitchingCompassProps) => {
   const [isControlMouseDown, setIsControlMouseDown] = useState(false);
   const [initialMouseX, setInitialMouseX] = useState(0);
   const [initialMouseY, setInitialMouseY] = useState(0);
   const [initialHeading, setInitialHeading] = useState(0);
   const [initialPitch, setInitialPitch] = useState(0);
-  const currentPitch = mapRef?.current?.getPitch() ?? 0;
-  const currentHeading = mapRef?.current?.getBearing() ?? 0;
+  const [currentPitch, setCurrentPitch] = useState(0);
+  const [currentHeading, setCurrentHeading] = useState(0);
 
   const handleControlMouseUp = () => {
     setIsControlMouseDown(false);
   };
+
+  // Listen to map pitch and bearing changes
+  useEffect(() => {
+    if (!map) return;
+
+    const updateCompass = () => {
+      setCurrentPitch(map.getPitch());
+      setCurrentHeading(map.getBearing());
+    };
+
+    // Initialize values
+    updateCompass();
+
+    // Listen to map events
+    map.on("pitch", updateCompass);
+    map.on("rotate", updateCompass);
+    map.on("move", updateCompass);
+
+    return () => {
+      map.off("pitch", updateCompass);
+      map.off("rotate", updateCompass);
+      map.off("move", updateCompass);
+    };
+  }, [map]);
 
   useEffect(() => {
     if (!isControlMouseDown) return;
 
     const handleMouseMove = (event: MouseEvent) => {
       if (!isControlMouseDown) return;
-      if (mapRef.current) {
+      if (map) {
         const deltaX = event.clientX - initialMouseX;
         const deltaY = event.clientY - initialMouseY;
 
@@ -32,8 +56,8 @@ export const LibrePitchingCompass = ({ mapRef }: LibrePitchingCompassProps) => {
 
         const newPitch = Math.max(0, Math.min(85, initialPitch - deltaY * 0.3));
 
-        mapRef.current.setBearing(newHeading);
-        mapRef.current.setPitch(newPitch);
+        map.setBearing(newHeading);
+        map.setPitch(newPitch);
       }
     };
 
@@ -43,25 +67,30 @@ export const LibrePitchingCompass = ({ mapRef }: LibrePitchingCompassProps) => {
       window.removeEventListener("mousemove", handleMouseMove);
       window.removeEventListener("mouseup", handleControlMouseUp);
     };
-  }, [isControlMouseDown]);
+  }, [
+    isControlMouseDown,
+    map,
+    initialMouseX,
+    initialMouseY,
+    initialHeading,
+    initialPitch,
+  ]);
 
   return (
-    // eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions
     <div
-      className="cesium-orbit-control-button"
       onMouseDown={(e) => {
-        if (mapRef.current) {
+        if (map) {
           setIsControlMouseDown(true);
           setInitialMouseX(e.clientX);
           setInitialMouseY(e.clientY);
-          setInitialHeading(mapRef.current.getBearing());
-          setInitialPitch(mapRef.current.getPitch());
+          setInitialHeading(map.getBearing());
+          setInitialPitch(map.getPitch());
         }
       }}
       onMouseUp={handleControlMouseUp}
       onClick={() => {
-        mapRef?.current?.setPitch(0);
-        mapRef?.current?.setBearing(0);
+        map?.setPitch(0);
+        map?.setBearing(0);
       }}
       style={{
         border: "none",

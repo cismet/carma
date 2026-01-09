@@ -35,22 +35,26 @@ export const LibreMapSelectionContent = ({ map }: SelectionContentProps) => {
   useEffect(() => {
     // Clean up any existing mask layers when component unmounts or when selection changes
     return () => {
-      if (map) {
-        if (map.getLayer(maskLayerId.current)) {
-          map.removeLayer(maskLayerId.current);
+      try {
+        if (map && map.getStyle()) {
+          if (map.getLayer(maskLayerId.current)) {
+            map.removeLayer(maskLayerId.current);
+          }
+          if (map.getSource(maskSourceId.current)) {
+            map.removeSource(maskSourceId.current);
+          }
+          if (map.getLayer("feature-outline")) {
+            map.removeLayer("feature-outline");
+          }
+          if (map.getLayer("feature-fill")) {
+            map.removeLayer("feature-fill");
+          }
+          if (map.getSource(featureSourceId.current)) {
+            map.removeSource(featureSourceId.current);
+          }
         }
-        if (map.getSource(maskSourceId.current)) {
-          map.removeSource(maskSourceId.current);
-        }
-        if (map.getLayer("feature-outline")) {
-          map.removeLayer("feature-outline");
-        }
-        if (map.getLayer("feature-fill")) {
-          map.removeLayer("feature-fill");
-        }
-        if (map.getSource(featureSourceId.current)) {
-          map.removeSource(featureSourceId.current);
-        }
+      } catch (error) {
+        // Map was already destroyed during fast reload, ignore cleanup errors
       }
     };
   }, [map, selection]);

@@ -19,6 +19,13 @@ export { PieChart } from "./lib/components/PieChart.tsx";
 export { ContactMailButton } from "./lib/components/ContactMailButton.tsx";
 export { FeatureInfobox } from "./lib/components/FeatureInfobox.tsx";
 export { InfoBoxHeader } from "./lib/components/InfoBoxHeader.tsx";
+export { CarmaMap } from "./lib/components/CarmaMap.tsx";
+export { PreviewLibreMap } from "./lib/components/libremap/PreviewLibreMap.tsx";
+export {
+  LibreContext,
+  LibreContextProvider,
+  useLibreContext,
+} from "./lib/components/libremap/LibreContext.tsx";
 
 export { GazDataProvider, useGazData } from "./lib/components/GazDataProvider";
 
@@ -73,3 +80,24 @@ export {
 } from "./lib/utils/featureInfo";
 
 export { getActionLinksForFeature } from "./lib/components/helper";
+
+export {
+  motisClient,
+  planRoute,
+  geocodeAddress,
+  reverseGeocode,
+  getStopsInArea,
+  formatPlace,
+  type MotisPlace,
+  type MotisRouteParams,
+} from "./lib/services/motisService";
+
+export {
+  fetchRouteOptions,
+  displaySelectedRouteOnMap,
+  type RouteOption,
+  type FetchRouteOptionsParams,
+  type DisplaySelectedRouteOptions,
+} from "./lib/components/libremap/libremap.utils";
+
+export { RouteOptionsDrawer } from "./lib/components/libremap/RouteOptionsDrawer";

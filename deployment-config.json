@@ -283,6 +283,33 @@
       },
       "projectPath": "./dist/playgrounds/fuzzy-search-playground"
     },
+    "ng-topicmap-playground": {
+      "deployment": {
+        "manual": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "ng-topicmap-playground"
+            }
+          },
+          "live": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "ng-topicmap-playground"
+            }
+          }
+        },
+        "auto": {
+          "dev": {
+            "pages": {
+              "org": "carma-dev-playground-deployments",
+              "prj": "ng-topicmap-playground"
+            }
+          }
+        }
+      },
+      "projectPath": "./dist/playgrounds/ng-topicmap-playground"
+    },
     "alkis-renderer-playground": {
       "deployment": {
         "manual": {

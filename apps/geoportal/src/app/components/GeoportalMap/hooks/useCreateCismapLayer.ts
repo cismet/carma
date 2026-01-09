@@ -175,11 +175,11 @@ export const useCreateCismapLayers = (
         if (selectedVectorFeature.setSelection) {
           selectedVectorFeature.setSelection(true);
           if (selectedVectorFeature?.state?.selected) {
-            utils.zoomToFeature(
-              foundFeatures[lastObject.key],
+            utils.zoomToFeature({
+              selectedFeature: foundFeatures[lastObject.key],
               leafletMap,
-              [60, 60]
-            );
+              padding: [60, 60],
+            });
           }
           dispatch(setSelectedFeature(foundFeatures[lastObject.key]));
         }

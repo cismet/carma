@@ -6,6 +6,41 @@ import envelope from "@turf/envelope";
 import L from "leaflet";
 import { sandboxedEvalExternal } from "../components/SandboxedEvalProvider";
 import { LeafletMap } from "@carma-mapping/engines/leaflet";
+import localforage from "localforage";
+
+export const getInternetExplorerVersion = () => {
+  var rV = -1; // Return value assumes failure.
+
+  if (
+    navigator.appName === "Microsoft Internet Explorer" ||
+    navigator.appName === "Netscape"
+  ) {
+    var uA = navigator.userAgent;
+    var rE = new RegExp("MSIE ([0-9]{1,}[.0-9]{0,})");
+
+    if (rE.exec(uA) !== null) {
+      rV = parseFloat(RegExp.$1);
+    } else if (!!navigator.userAgent.match(/Trident.*rv:11\./)) {
+      /*check for IE 11*/
+      rV = 11;
+    }
+  }
+  return rV;
+};
+
+export const setFromLocalforage = async (
+  lfKey,
+  setter,
+  fallbackValue,
+  forceFallback
+) => {
+  const value = await localforage.getItem(lfKey);
+  if (value !== undefined && value !== null) {
+    setter(value);
+  } else if (fallbackValue !== undefined || forceFallback === true) {
+    setter(fallbackValue);
+  }
+};
 
 export const parseDescription = (description: string) => {
   const result = { inhalt: "", sichtbarkeit: "", nutzung: "" };
@@ -261,19 +296,20 @@ export const getCoordinates = (geometry) => {
   }
 };
 
-export const zoomToFeature = (
-  selectedFeature: any,
-  leafletMap: LeafletMap,
-  padding: [number, number] = [0, 0]
-) => {
-  if (
-    selectedFeature.properties?.wmsProps?.bounds ||
-    selectedFeature.properties?.bounds
-  ) {
-    const bbox = JSON.parse(
-      selectedFeature.properties?.wmsProps?.bounds ??
-        selectedFeature.properties?.bounds
-    );
+export const zoomToFeature = ({
+  selectedFeature,
+  leafletMap,
+  libreMap,
+  padding = [0, 0],
+}: {
+  selectedFeature: any;
+  leafletMap?: L.Map;
+  libreMap?: maplibregl.Map;
+  padding?: [number, number];
+}) => {
+  if (!leafletMap && !libreMap) return;
+  if (selectedFeature.properties?.wmsProps?.bounds) {
+    const bbox = JSON.parse(selectedFeature.properties.wmsProps.bounds);
     if (leafletMap) {
       leafletMap.fitBounds(
         [
@@ -282,6 +318,16 @@ export const zoomToFeature = (
         ],
         {
           padding: padding,
+        }
+      );
+    } else if (libreMap) {
+      libreMap.fitBounds(
+        [
+          [bbox[0], bbox[1]],
+          [bbox[2], bbox[3]],
+        ],
+        {
+          padding: 60,
         }
       );
     }
@@ -295,6 +341,14 @@ export const zoomToFeature = (
           [coordinates[1], coordinates[0]],
           selectedFeature.properties.zoom ? selectedFeature.properties.zoom : 20
         );
+      } else if (libreMap) {
+        libreMap.flyTo({
+          center: [coordinates[0], coordinates[1]],
+          zoom: selectedFeature.properties.zoom
+            ? selectedFeature.properties.zoom - 1
+            : 19,
+          animate: false,
+        });
       }
     } else {
       console.log("xxx", selectedFeature.geometry);
@@ -308,6 +362,16 @@ export const zoomToFeature = (
           ],
           {
             padding: padding,
+          }
+        );
+      } else if (libreMap) {
+        libreMap.fitBounds(
+          [
+            [bbox[0], bbox[1]],
+            [bbox[2], bbox[3]],
+          ],
+          {
+            padding: 60,
           }
         );
       }
