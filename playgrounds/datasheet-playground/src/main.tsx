@@ -4,9 +4,9 @@ import { TopicMapContextProvider } from "react-cismap/contexts/TopicMapContextPr
 
 import { App } from "./app/App";
 
-import "./styles.css";
 import "bootstrap/dist/css/bootstrap.min.css";
 import "react-bootstrap-typeahead/css/Typeahead.css";
+import "react-cismap/topicMaps.css";
 import "leaflet/dist/leaflet.css";
 import {
   GazDataProvider,
