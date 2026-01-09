@@ -1,6 +1,7 @@
 import { ComponentType } from "react";
 import { FormInstance } from "antd";
 import MasttypForm from "./MasttypForm";
+import LeuchentypForm from "./LeuchentypForm";
 
 export interface CustomFormProps {
   item: Record<string, unknown>;
@@ -14,4 +15,5 @@ export interface CustomFormProps {
 // Registry keyed by form name (referenced in keyTableDisplayConfig.customForm)
 export const customForms: Record<string, ComponentType<CustomFormProps>> = {
   masttyp: MasttypForm,
+  leuchtentyp: LeuchentypForm,
 };

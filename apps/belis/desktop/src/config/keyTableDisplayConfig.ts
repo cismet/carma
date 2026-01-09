@@ -34,6 +34,7 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
   leuchtentyp: {
     template: "{leuchtentyp} {fabrikat}",
     sortMode: "alphabetical",
+    customForm: "leuchtentyp",
   },
   rundsteuerempfänger: {
     template: "{rs_typ} {fabrikat}",
