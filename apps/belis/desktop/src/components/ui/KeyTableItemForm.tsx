@@ -49,7 +49,8 @@ const KeyTableItemForm = ({
 
     setSaving(true);
     try {
-      const dataToSave = { ...values, id: item.id };
+      const isNewItem = !item.id || (item.id as number) < 0;
+      const dataToSave = { ...values, id: isNewItem ? -1 : item.id };
       await updateDataByClassName(jwt, tableName, dataToSave);
       message.success("Gespeichert");
       onSave(dataToSave);

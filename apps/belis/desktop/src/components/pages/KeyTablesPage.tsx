@@ -117,7 +117,8 @@ const KeyTablesPage = () => {
       newData[selectedItem.tableName] = tableData;
       dispatch(setKeyTablesData(newData));
     }
-    setSelectedItem(null);
+    // Keep the selection with the updated item
+    setSelectedItem({ item: updatedItem, tableName: selectedItem.tableName });
   };
 
   const handleAddItem = () => {
