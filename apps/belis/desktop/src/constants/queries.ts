@@ -157,14 +157,14 @@ query MyQuery {
   }
 }`;
 
-queries.tkey_strassenschluessel = `
-query MyQuery {
-  tkey_strassenschluessel {
-    id
-    pk
-    strasse
-  }
-}`;
+// queries.tkey_strassenschluessel = `
+// query MyQuery {
+//   tkey_strassenschluessel {
+//     id
+//     pk
+//     strasse
+//   }
+// }`;
 
 queries.tkey_energielieferant = `
 query MyQuery {
@@ -175,14 +175,14 @@ query MyQuery {
   }
 }`;
 
-queries.tkey_bezirk = `
-query MyQuery {
-  tkey_bezirk {
-    bezirk
-    id
-    pk
-  }
-}`;
+// queries.tkey_bezirk = `
+// query MyQuery {
+//   tkey_bezirk {
+//     bezirk
+//     id
+//     pk
+//   }
+// }`;
 
 queries.leitungstyp = `
 query MyQuery {

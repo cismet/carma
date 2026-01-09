@@ -63,11 +63,11 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
   anlagengruppe: {
     template: "{nummer} - {bezeichnung}",
   },
-  bezirk: {
-    template: "{bezirk} - {unterhaltspflichtiger_leuchte}",
-    sortMode: "alphabetical",
-    readOnly: true,
-  },
+  // bezirk: {
+  //   template: "{bezirk} - {unterhaltspflichtiger_leuchte}",
+  //   sortMode: "alphabetical",
+  //   readOnly: true,
+  // },
   arbeitsprotokollstatus: {
     template: "{schluessel} - {bezeichnung}",
     sortMode: "numeric",
@@ -99,10 +99,10 @@ export const keyTableDisplayConfig: KeyTableDisplayConfig = {
     template: "{bezeichnung}",
     sortMode: "alphabetical",
   },
-  straßenschlüssel: {
-    template: "{pk} - {strasse}",
-    readOnly: true,
-    groupedDisplay: true,
-    defaultGroupingMode: "byKey",
-  },
+  // straßenschlüssel: {
+  //   template: "{pk} - {strasse}",
+  //   readOnly: true,
+  //   groupedDisplay: true,
+  //   defaultGroupingMode: "byKey",
+  // },
 };
