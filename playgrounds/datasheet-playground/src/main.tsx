@@ -12,58 +12,7 @@ import {
   GazDataProvider,
   SelectionProvider,
 } from "@carma-appframeworks/portals";
-import { DatasheetProvider } from "./app/useDatasheet";
-import { defaultLayerConf } from "react-cismap/tools/layerFactory";
-
-const backgroundModes = [
-  {
-    title: "Stadtplan",
-    mode: "default",
-    layerKey: "stadtplan",
-  },
-  {
-    title: "Stadtplan (Vektordaten )",
-    mode: "default",
-    layerKey: "vector2",
-  },
-  {
-    title: "Stadtplan (Vektordaten light)",
-    mode: "default",
-    layerKey: "vector",
-  },
-
-  { title: "Luftbildkarte", mode: "default", layerKey: "lbk" },
-];
-const backgroundConfigurations = {
-  lbk: {
-    layerkey: "cismetText|trueOrtho2020@40",
-    layerkey_: "wupp-plan-live@100|trueOrtho2020@75|rvrSchrift@100",
-    src: "/images/rain-hazard-map-bg/ortho.png",
-    title: "Luftbildkarte",
-  },
-  stadtplan: {
-    layerkey: "wupp-plan-live@60",
-    src: "/images/rain-hazard-map-bg/citymap.png",
-    title: "Stadtplan",
-  },
-  vector: {
-    layerkey: "cismetLight",
-    src: "/images/rain-hazard-map-bg/citymap.png",
-    title: "Stadtplan",
-  },
-  vector2: {
-    layerkey: "OMT_OSM_bright",
-    src: "/images/rain-hazard-map-bg/citymap.png",
-    title: "Stadtplan",
-  },
-};
-const baseLayerConf = { ...defaultLayerConf };
-
-baseLayerConf.namedLayers.cismetLight = {
-  type: "vector",
-  style: "https://omt.map-hosting.de/styles/cismet-light/style.json",
-  pane: "backgroundvectorLayers",
-};
+import { DatasheetProvider } from "@carma-mapping/components";
 
 const root = ReactDOM.createRoot(
   document.getElementById("root") as HTMLElement
@@ -73,11 +22,7 @@ root.render(
     <DatasheetProvider>
       <GazDataProvider>
         <SelectionProvider>
-          <TopicMapContextProvider
-            baseLayerConf={baseLayerConf}
-            backgroundConfigurations={backgroundConfigurations}
-            backgroundModes={backgroundModes}
-          >
+          <TopicMapContextProvider>
             <App />
           </TopicMapContextProvider>
         </SelectionProvider>
