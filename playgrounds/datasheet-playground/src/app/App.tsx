@@ -2,15 +2,17 @@ import TopicMapComponent from "react-cismap/topicmaps/TopicMapComponent";
 import { suppressReactCismapErrors } from "@carma-commons/utils";
 import { EmptySearchComponent } from "@carma-mapping/fuzzy-search";
 import { Datasheet, useDatasheet } from "@carma-mapping/components";
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { Control, ControlLayout } from "@carma-mapping/map-controls-layout";
-import { InfoBox } from "@carma-appframeworks/portals";
+import { FeatureInfobox, InfoBox } from "@carma-appframeworks/portals";
+import CismapLayer from "react-cismap/CismapLayer";
 
 suppressReactCismapErrors(true);
 
 export function App() {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const { isDatasheetView, setIsDatasheetView, setMapSizes } = useDatasheet();
+  const [feature, setFeature] = useState(null);
 
   // Set map sizes for position calculation when transitioning
   useEffect(() => {
@@ -32,22 +34,18 @@ export function App() {
 
   return (
     <div style={{ width: "100%", height: "100vh" }} ref={wrapperRef}>
-      {/* <ControlLayout>
+      <ControlLayout>
         {!isDatasheetView && (
           <Control position="bottomright" order={10}>
-            <InfoBox
-              pixelwidth={200}
-              header="InfoBox"
-              headerColor="grey"
-              noCurrentFeatureContent={
-                <button onClick={() => setIsDatasheetView(true)}>
-                  Datenblatt anzeigen
-                </button>
-              }
+            <FeatureInfobox
+              selectedFeature={feature}
+              versionData={{
+                version: "0.1",
+              }}
             />
           </Control>
         )}
-      </ControlLayout> */}
+      </ControlLayout>
       <Datasheet
         mainComponent={
           <TopicMapComponent
@@ -62,7 +60,40 @@ export function App() {
               width: isDatasheetView ? 300 : wrapperRef.current?.clientWidth,
               height: isDatasheetView ? 200 : wrapperRef.current?.clientHeight,
             }}
-          />
+          >
+            <CismapLayer
+              type="vector"
+              style="https://tiles.cismet.de/belis/style.json"
+              selectionEnabled={true}
+              manualSelectionManagement={true}
+              maxSelectionCount={10}
+              additionalLayerUniquePane={"vector." + 0}
+              additionalLayersFreeZOrder={0}
+              onSelectionChanged={(e) => {
+                if (e.hit && e.hit.setSelection) {
+                  // console.log("xxx", e.hit);
+
+                  if (
+                    e.hit.properties.fabrikat ||
+                    e.hit.properties.bezeichnung ||
+                    e.hit.properties.strasse
+                  ) {
+                    e.hit.setSelection(true);
+                    setFeature({
+                      properties: {
+                        header: "Lampen",
+                        title:
+                          e.hit.properties.fabrikat ||
+                          e.hit.properties.bezeichnung ||
+                          e.hit.properties.strasse,
+                      },
+                    });
+                  } else {
+                  }
+                }
+              }}
+            />
+          </TopicMapComponent>
         }
         datasheetComponent={
           <div
