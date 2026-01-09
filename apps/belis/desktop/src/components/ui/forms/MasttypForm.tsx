@@ -129,17 +129,7 @@ const MasttypForm = ({
           </Form.Item>
         </Col>
       </Row>
-
-      <Form.Item
-        label={
-          <span style={{ fontSize: 14, fontWeight: 400, color: "#8c8c8c" }}>
-            Dokumente
-          </span>
-        }
-        style={{ marginBottom: 16 }}
-      >
-        <DocumentPreview documents={dokumenteArray || []} jwt={jwt} />
-      </Form.Item>
+      <DocumentPreview documents={dokumenteArray || []} jwt={jwt} />
     </Form>
   );
 };

@@ -249,15 +249,15 @@ const DocumentPreview = ({ documents, jwt }: DocumentPreviewProps) => {
   const hasDocuments = documents && documents.length > 0;
 
   return (
-    <Row gutter={16} style={{ minHeight: 200 }}>
+    <Row gutter={16} style={{ minHeight: 300 }}>
       <Col span={10}>
-        <div style={{ fontWeight: 500, marginBottom: 8 }}>Dokumente</div>
+        <div style={{ fontSize: 14, fontWeight: 400, color: "#8c8c8c", marginBottom: 8 }}>Dokumente</div>
         <List
           size="small"
           bordered
           dataSource={hasDocuments ? documents : []}
           locale={{ emptyText: "Keine Dokumente" }}
-          style={{ maxHeight: 200, overflowY: "auto" }}
+          style={{ maxHeight: 300, overflowY: "auto" }}
           renderItem={(doc) => {
             const objectName = doc.dms_url?.url?.object_name || "";
             const isSelected = selectedDoc === doc;
@@ -298,8 +298,8 @@ const DocumentPreview = ({ documents, jwt }: DocumentPreviewProps) => {
         />
       </Col>
       <Col span={14}>
-        <div style={{ fontWeight: 500, marginBottom: 8 }}>Vorschau</div>
-        <div style={{ height: 200 }}>{renderPreview()}</div>
+        <div style={{ fontSize: 14, fontWeight: 400, color: "#8c8c8c", marginBottom: 8 }}>Vorschau</div>
+        <div style={{ height: 300 }}>{renderPreview()}</div>
       </Col>
     </Row>
   );
